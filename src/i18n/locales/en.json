@@ -991,7 +991,6 @@
     "createInvoice": "Create Invoice",
     "notifications": "Notifications",
     "greeting": "Good morning, {{name}}",
-    "date": "Saturday, 18 July 2026",
     "thisMonth": "This month",
     "nav": {
       "main": "MAIN",
@@ -1051,27 +1050,19 @@
       "lockedOn": "Available on {{plan}}",
       "billRemindersUnread": "Bill reminders, {{count}} unread"
     },
-    "account": {
-      "premiumPlan": "Premium plan",
-      "owner": "Owner"
-    },
     "kpi": {
-      "sales": "Today’s sales",
       "receivables": "Receivables",
       "payables": "Payables",
-      "vsYesterday": "vs yesterday",
       "open": "{{count}} open",
       "overdue": "{{count}} overdue",
-      "dueSoon": "{{count}} due soon",
-      "suppliers": "{{count}} suppliers"
+      "cashThisMonth": "Cash received this month",
+      "cashLastMonth": "Same days last month: {{amount}}",
+      "dueThisWeek": "{{count}} due this week"
     },
     "revenue": {
-      "title": "Revenue",
-      "periodLabel": "Revenue period",
-      "day": "Day",
-      "week": "Week",
-      "month": "Month",
-      "thisMonth": "this month"
+      "title": "Invoiced, last 12 months",
+      "thisMonth": "this month",
+      "none": "No invoices in the last 12 months."
     },
     "invoices": {
       "title": "Recent invoices",
@@ -1080,35 +1071,52 @@
       "colStatus": "Status",
       "colAmount": "Amount",
       "status": {
-        "reported": "Reported",
-        "rejected": "Rejected",
+        "rejected": "Rejected by buyer",
         "sent": "Sent",
-        "draft": "Draft"
-      }
+        "draft": "Draft",
+        "issued": "Issued",
+        "accepted": "Accepted",
+        "notSent": "Not sent"
+      },
+      "none": "No invoices yet.",
+      "noNumber": "Draft"
     },
     "compliance": {
-      "title": "Compliance health",
+      "title": "Delivery to buyers",
       "accepted": "accepted",
-      "reported": "Reported to OTA",
-      "mls": "MLS within SLA",
-      "rejected": "Rejected",
-      "alert": "{{count}} TDDs need your attention"
+      "rejected": "Rejected by buyers",
+      "noAnswersYet": "no answers yet",
+      "documents": "Documents this month",
+      "acceptedCount": "Accepted by buyers",
+      "awaiting": "No answer yet"
     },
     "quota": {
       "title": "Invoice quota",
-      "billingPeriod": "Billing period",
       "used": "used",
-      "reset": "18 days left · resets 1 Aug"
+      "periodEnds": "Period ends {{date}}"
     },
     "vat": {
       "title": "VAT Position",
       "report": "Report →",
-      "netPayable": "net payable",
       "output": "Output VAT",
-      "input": "Input VAT"
+      "input": "Input VAT",
+      "net": "net position",
+      "branchScoped": "Input VAT is not kept per branch, so there is no net position for one branch."
     },
     "openNav": "Open navigation",
-    "greetingNoName": "Good morning"
+    "greetingNoName": "Good morning",
+    "loading": "Loading…",
+    "notAvailableYet": "Not available yet",
+    "alert": {
+      "OVERDUE_INVOICES_one": "{{count}} invoice is overdue",
+      "OVERDUE_INVOICES_other": "{{count}} invoices are overdue",
+      "DISPATCH_DEAD_LETTERED_one": "{{count}} invoice could not be sent",
+      "DISPATCH_DEAD_LETTERED_other": "{{count}} invoices could not be sent",
+      "NEEDS_ATTENTION_one": "{{count}} document needs your attention",
+      "NEEDS_ATTENTION_other": "{{count}} documents need your attention",
+      "TDD_SLA_MISSED_one": "{{count}} tax report was late this month",
+      "TDD_SLA_MISSED_other": "{{count}} tax reports were late this month"
+    }
   },
   "rowActions": {
     "delete": "Delete",
@@ -14609,10 +14617,11 @@
       "kind": {
         "invoice": "Invoices",
         "customer": "Customers",
-        "supplier": "Suppliers",
-        "document": "Documents",
-        "item": "Catalogue"
-      }
+        "supplier": "Suppliers"
+      },
+      "keepTyping": "Type at least two characters to search.",
+      "searching": "Searching…",
+      "unavailable": "Search is not available right now."
     },
     "notice": {
       "title": "Notifications",
@@ -14653,7 +14662,6 @@
       "named": "{{plan}} plan"
     },
     "user": {
-      "profile": "Your profile",
       "settings": "Settings",
       "signingIn": "How you sign in",
       "signOut": "Sign out",
@@ -20134,5 +20142,21 @@
       "lapsed": "The self-billing agreement {{reference}} has ended.",
       "unverified": "The self-billing agreement {{reference}} is waiting for Fawtir to verify the supplier."
     }
+  },
+  "readiness": {
+    "title": "Before your first invoice",
+    "subtitle": "These still need doing before Fawtir can issue invoices for you.",
+    "item": {
+      "COMPANY_VERIFIED": "Company verified",
+      "PARTICIPANT_VERIFIED": "Participant ID verified",
+      "REGISTERED_ADDRESS": "Registered address complete",
+      "CONTACT_PHONE": "Contact phone number",
+      "BUSINESS_ACTIVITY": "Business activity chosen",
+      "ACTIVE_BRANCH": "At least one open branch",
+      "other": "Another step"
+    },
+    "fix": "Fix this",
+    "awaitingFawtir": "Waiting for Fawtir to review",
+    "actionRequired": "Action required"
   }
 }

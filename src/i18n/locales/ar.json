@@ -994,7 +994,6 @@
     "createInvoice": "إنشاء فاتورة",
     "notifications": "الإشعارات",
     "greeting": "صباح الخير، {{name}}",
-    "date": "السبت، 18 يوليو 2026",
     "thisMonth": "هذا الشهر",
     "nav": {
       "main": "الرئيسي",
@@ -1054,27 +1053,19 @@
       "lockedOn": "متاح في باقة {{plan}}",
       "billRemindersUnread": "تذكيرات الفواتير، {{count}} غير مقروءة"
     },
-    "account": {
-      "premiumPlan": "الخطة المميزة",
-      "owner": "المالك"
-    },
     "kpi": {
-      "sales": "مبيعات اليوم",
       "receivables": "المستحقات",
       "payables": "المدفوعات",
-      "vsYesterday": "مقارنة بالأمس",
       "open": "{{count}} مفتوحة",
       "overdue": "{{count}} متأخرة",
-      "dueSoon": "{{count}} مستحقة قريبًا",
-      "suppliers": "{{count}} مورّدون"
+      "cashThisMonth": "النقد المستلم هذا الشهر",
+      "cashLastMonth": "الأيام نفسها من الشهر الماضي: {{amount}}",
+      "dueThisWeek": "{{count}} مستحقة هذا الأسبوع"
     },
     "revenue": {
-      "title": "الإيرادات",
-      "periodLabel": "فترة الإيرادات",
-      "day": "يوم",
-      "week": "أسبوع",
-      "month": "شهر",
-      "thisMonth": "هذا الشهر"
+      "title": "المفوتر، آخر 12 شهرًا",
+      "thisMonth": "هذا الشهر",
+      "none": "لا توجد فواتير في آخر 12 شهرًا."
     },
     "invoices": {
       "title": "أحدث الفواتير",
@@ -1083,35 +1074,52 @@
       "colStatus": "الحالة",
       "colAmount": "المبلغ",
       "status": {
-        "reported": "مُبلَّغ",
-        "rejected": "مرفوض",
+        "rejected": "رفضها المشتري",
         "sent": "مُرسل",
-        "draft": "مسودة"
-      }
+        "draft": "مسودة",
+        "issued": "صادرة",
+        "accepted": "مقبولة",
+        "notSent": "لم تُرسل"
+      },
+      "none": "لا توجد فواتير بعد.",
+      "noNumber": "مسودة"
     },
     "compliance": {
-      "title": "صحة الامتثال",
+      "title": "التسليم إلى المشترين",
       "accepted": "مقبول",
-      "reported": "مُبلَّغ لجهاز الضرائب",
-      "mls": "MLS ضمن SLA",
-      "rejected": "مرفوض",
-      "alert": "{{count}} تقارير TDD تحتاج انتباهك"
+      "rejected": "رفضها المشترون",
+      "noAnswersYet": "لا ردود بعد",
+      "documents": "مستندات هذا الشهر",
+      "acceptedCount": "قبلها المشترون",
+      "awaiting": "لا رد بعد"
     },
     "quota": {
       "title": "حصة الفواتير",
-      "billingPeriod": "فترة الفوترة",
       "used": "مستخدم",
-      "reset": "18 يومًا متبقية · يُعاد في 1 أغسطس"
+      "periodEnds": "تنتهي الفترة في {{date}}"
     },
     "vat": {
       "title": "وضع ضريبة القيمة المضافة",
       "report": "تقرير ←",
-      "netPayable": "صافي مستحق",
       "output": "ضريبة المخرجات",
-      "input": "ضريبة المدخلات"
+      "input": "ضريبة المدخلات",
+      "net": "صافي الوضع",
+      "branchScoped": "لا تُحفظ ضريبة المدخلات لكل فرع، لذا لا يوجد صافٍ لفرع واحد."
     },
     "openNav": "فتح التنقل",
-    "greetingNoName": "صباح الخير"
+    "greetingNoName": "صباح الخير",
+    "loading": "جارٍ التحميل…",
+    "notAvailableYet": "غير متاح بعد",
+    "alert": {
+      "OVERDUE_INVOICES_one": "فاتورة واحدة متأخرة",
+      "OVERDUE_INVOICES_other": "{{count}} فواتير متأخرة",
+      "DISPATCH_DEAD_LETTERED_one": "تعذّر إرسال فاتورة واحدة",
+      "DISPATCH_DEAD_LETTERED_other": "تعذّر إرسال {{count}} فواتير",
+      "NEEDS_ATTENTION_one": "مستند واحد يحتاج انتباهك",
+      "NEEDS_ATTENTION_other": "{{count}} مستندات تحتاج انتباهك",
+      "TDD_SLA_MISSED_one": "تأخر تقرير ضريبي واحد هذا الشهر",
+      "TDD_SLA_MISSED_other": "تأخرت {{count}} تقارير ضريبية هذا الشهر"
+    }
   },
   "rowActions": {
     "delete": "حذف",
@@ -15385,10 +15393,11 @@
       "kind": {
         "invoice": "الفواتير",
         "customer": "العملاء",
-        "supplier": "المورّدون",
-        "document": "المستندات",
-        "item": "الكتالوج"
-      }
+        "supplier": "المورّدون"
+      },
+      "keepTyping": "اكتب حرفين على الأقل للبحث.",
+      "searching": "جارٍ البحث…",
+      "unavailable": "البحث غير متاح حاليًا."
     },
     "notice": {
       "title": "الإشعارات",
@@ -15429,7 +15438,6 @@
       "named": "خطة {{plan}}"
     },
     "user": {
-      "profile": "ملفك",
       "settings": "الإعدادات",
       "signingIn": "طريقة تسجيل دخولك",
       "signOut": "تسجيل الخروج",
@@ -21243,5 +21251,21 @@
       "lapsed": "انتهت اتفاقية الفوترة الذاتية {{reference}}.",
       "unverified": "اتفاقية الفوترة الذاتية {{reference}} بانتظار تحقق فوترة من المورّد."
     }
+  },
+  "readiness": {
+    "title": "قبل فاتورتك الأولى",
+    "subtitle": "ما زالت هذه الخطوات مطلوبة قبل أن تُصدر فوترة الفواتير لك.",
+    "item": {
+      "COMPANY_VERIFIED": "التحقق من الشركة",
+      "PARTICIPANT_VERIFIED": "التحقق من معرّف المشارك",
+      "REGISTERED_ADDRESS": "اكتمال العنوان المسجل",
+      "CONTACT_PHONE": "رقم هاتف للتواصل",
+      "BUSINESS_ACTIVITY": "اختيار النشاط التجاري",
+      "ACTIVE_BRANCH": "فرع مفتوح واحد على الأقل",
+      "other": "خطوة أخرى"
+    },
+    "fix": "أصلح هذا",
+    "awaitingFawtir": "بانتظار مراجعة فوترة",
+    "actionRequired": "إجراء مطلوب"
   }
 }

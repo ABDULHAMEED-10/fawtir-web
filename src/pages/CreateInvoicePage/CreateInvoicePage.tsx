@@ -87,7 +87,7 @@ import { lineFromProduct, taxCategoryOf } from '../../lib/productLine'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { missingCustomerFields } from '../../lib/customerEligibility'
 import { formatAmount as formatMoney } from '../../lib/format'
-import { usageForecast } from '../../lib/settings'
+import { usePlanUsage } from '../../hooks/usePlanUsage'
 import { can, useSession } from '../../lib/session/session'
 import {
   calculateInvoice,
@@ -534,6 +534,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   const session = useSession()
   const { t, i18n } = useTranslation()
   const reference = useReferenceData() ?? DESIGN_REFERENCE
+  const usage = usePlanUsage()
   const language = i18n.language
   // `selfbilling.create`, not `invoice.draft`: writing an invoice on someone else's behalf is a
   // different authority from writing your own, and the server keeps them apart.
@@ -1358,7 +1359,6 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     label: methodLabel(code),
     hint: `UNCL4461 · ${code}`,
   }))
-  const usage = usageForecast()
   const savedText = dirty
     ? t('createInvoice.header.unsaved')
     : savedAt === null
@@ -1416,23 +1416,24 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
             />
             {savedText}
           </span>
-          {/* TODO(backend): the plan's invoice count for the period; `lib/settings` stands in. */}
-          <div className="flex min-w-[190px] flex-col gap-1">
-            <p className="text-sm font-medium leading-none text-text-primary">
-              <span className="text-base font-semibold">{usage.used.toLocaleString(language)}</span>{' '}
-              <span className="text-xs text-text-quaternary">
-                {t('createInvoice.header.usage', {
-                  allowance: usage.allowance.toLocaleString(language),
-                })}
-              </span>
-            </p>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-surface-background">
-              <div
-                className="h-full rounded-full bg-primary-700"
-                style={{ width: `${Math.min(100, usage.percent)}%` }}
-              />
+          {usage ? (
+            <div className="flex min-w-[190px] flex-col gap-1">
+              <p className="text-sm font-medium leading-none text-text-primary">
+                <span className="text-base font-semibold">{usage.used.toLocaleString(language)}</span>{' '}
+                <span className="text-xs text-text-quaternary">
+                  {t('createInvoice.header.usage', {
+                    allowance: usage.allowance.toLocaleString(language),
+                  })}
+                </span>
+              </p>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-surface-background">
+                <div
+                  className="h-full rounded-full bg-primary-700"
+                  style={{ width: `${Math.min(100, usage.percent)}%` }}
+                />
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
       </div>
 

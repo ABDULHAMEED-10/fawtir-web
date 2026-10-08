@@ -224,9 +224,6 @@ export const ACTIVITY_SUMMARY = {
   previousAverageSeconds: BOOK.previousAverageSeconds,
 }
 
-/** The badge on the sidebar counts only what a person still has to act on. */
-export const ATTENTION_COUNT = BOOK.needsAttention
-
 /** `134` → `2m 14s`. */
 export const formatDuration = (seconds: number) =>
   `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s`
