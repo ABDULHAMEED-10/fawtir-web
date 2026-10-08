@@ -5,6 +5,7 @@ import { AppShell } from '../../layouts/AppShell'
 import { Popover } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { BillStatusChip } from '../../components/bills/BillStatusChip'
+import { OverpaidBy } from '../../components/bills/OverpaidBy'
 import { useApiRead } from '../../hooks'
 import type { Page } from '../../api'
 import { loadSupplier, supplierPath, type SupplierDetailDto } from '../../api/expenditure/suppliers'
@@ -823,6 +824,13 @@ function SupplierRecord({ id }: { id: string }) {
               {head ? (
                 <p className="mt-2.5 text-sm font-medium leading-[1.5] text-text-tertiary">
                   {text(oweExplanation(head, latest, runList))}
+                </p>
+              ) : null}
+              {/* "Overpaid by" (owner's answer 13, 8 Oct 2026): what they still hold of what was
+                  overpaid on their bills, beside what is owed and never netted against it. */}
+              {head && (head.payables.overpaidTotal ?? 0) > 0 ? (
+                <p className="mt-2.5 text-sm font-semibold leading-[1.5] text-text-primary">
+                  <OverpaidBy amount={money(head.payables.overpaidTotal ?? 0)} />
                 </p>
               ) : null}
               {canPay && head && head.payables.total > 0 ? (

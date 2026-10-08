@@ -12,6 +12,7 @@ import {
   customRangeProblem,
   emailBlocker,
   entryLink,
+  memoAmountOf,
   periodRange,
   periodTotals,
 } from '../../lib/supplierStatement'
@@ -570,5 +571,212 @@ describe('statement helpers', () => {
       'supplierStatement.email.switchedOff',
     )
     expect(emailBlocker({ ...DETAIL.profile, emailRecipients: [] }, false)).toBeNull()
+  })
+})
+
+/**
+ * The statement's later kinds (owner's answers of 8 Oct 2026): an early-payment discount lowers
+ * what they billed, the supplier's refund of an overpayment gives back what was paid, and credit
+ * used on another bill is shown but moves nothing. The running balance is always the server's.
+ */
+describe('a statement with discounts, refunds and credit used', () => {
+  const LATER: SupplierStatementDto = {
+    ...STATEMENT,
+    opening: 200,
+    bills: 1200,
+    credits: 0,
+    payments: 1300,
+    discounts: 24,
+    overpaymentRefunds: 40,
+    overpaid: 50,
+    closing: 116,
+    entries: [
+      {
+        date: '2026-07-27',
+        kind: 'BILL',
+        documentId: 'bill-1',
+        reference: 'SOHAR-1002',
+        amount: 1200,
+        runningBalance: 1400,
+      },
+      {
+        date: '2026-08-01',
+        kind: 'PAYMENT',
+        documentId: 'pay-1',
+        reference: 'TRF-9',
+        amount: 1300,
+        runningBalance: 100,
+      },
+      {
+        date: '2026-08-02',
+        kind: 'DISCOUNT',
+        documentId: 'bill-2',
+        reference: 'SOHAR-1005',
+        amount: 24,
+        runningBalance: 76,
+      },
+      {
+        date: '2026-08-10',
+        kind: 'OVERPAYMENT_REFUND',
+        documentId: 'bill-1',
+        reference: 'RF-1',
+        amount: 30,
+        runningBalance: 106,
+      },
+      {
+        date: '2026-08-20',
+        kind: 'OVERPAYMENT_CREDIT_APPLIED',
+        documentId: 'bill-1',
+        reference: 'SOHAR-1002',
+        amount: 20,
+        runningBalance: 106,
+      },
+      // A second refund of the same bill: its own line.
+      {
+        date: '2026-08-24',
+        kind: 'OVERPAYMENT_REFUND',
+        documentId: 'bill-1',
+        reference: 'RF-2',
+        amount: 10,
+        runningBalance: 116,
+      },
+    ],
+  }
+  let statement: SupplierStatementDto
+
+  beforeEach(() => {
+    statement = LATER
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.startsWith(`${ONE}/statement?`)) return json(200, statement)
+      return base(url, init)
+    })
+  })
+
+  /** The table row whose kind chip reads `kind`, as its six cells' text. */
+  function rowOf(kind: string, nth = 0): HTMLElement[] {
+    const chip = screen.getAllByText(kind, { selector: 'span' })[nth]
+    return Array.from(chip.closest('tr')!.querySelectorAll('td'))
+  }
+
+  it('puts each in its column, keeps the server running balance, and links the bill', async () => {
+    renderStatement()
+    await screen.findByRole('heading', { level: 1, name: 'Statement' })
+
+    const discount = rowOf('Early-payment discount')
+    expect(discount[3].textContent).toBe('−24.000')
+    expect(discount[4].textContent).toBe('')
+    expect(discount[5].textContent).toBe('76.000')
+    expect(within(discount[1]).getByRole('link', { name: 'SOHAR-1005' }).getAttribute('href')).toBe(
+      '/expenditure/bills/bill-2',
+    )
+
+    const refund = rowOf('Refund from the supplier')
+    expect(refund[3].textContent).toBe('')
+    expect(refund[4].textContent).toBe('−30.000')
+    expect(refund[5].textContent).toBe('106.000')
+    expect(within(refund[1]).getByRole('link', { name: 'RF-1' }).getAttribute('href')).toBe(
+      '/expenditure/bills/bill-1',
+    )
+    expect(rowOf('Refund from the supplier', 1)[4].textContent).toBe('−10.000')
+
+    // Credit used moves nothing: no column, its amount under the reference, the balance unchanged.
+    const used = rowOf('Credit used')
+    expect(used[3].textContent).toBe('')
+    expect(used[4].textContent).toBe('')
+    expect(used[1].textContent).toContain('20.000')
+    expect(used[1].querySelector('svg')).toBeTruthy()
+    expect(used[5].textContent).toBe('106.000')
+
+    // The footer adds up its columns: billed less the discount, paid less the refunds.
+    const footer = screen.getByText('Over the period').closest('tr')!
+    const cells = footer.querySelectorAll('td')
+    expect(cells[1].textContent).toBe('1,176.000')
+    expect(cells[2].textContent).toBe('1,260.000')
+    // And the sum above the table names both, so it still reads to the closing balance.
+    expect(screen.getAllByText('Early-payment discount', { selector: 'p' })).toHaveLength(1)
+    expect(screen.getAllByText('Refund from the supplier', { selector: 'p' })).toHaveLength(1)
+    expect(screen.getAllByText('40.000').length).toBeGreaterThan(0)
+  })
+
+  it('says "Overpaid by" beside the closing balance, with the rial sign', async () => {
+    renderStatement()
+    await screen.findByRole('heading', { level: 1, name: 'Statement' })
+    const line = screen.getByText(
+      (_, node) => node?.tagName === 'P' && /^Overpaid by/.test(node.textContent ?? ''),
+    )
+    expect(line.textContent).toBe('Overpaid by OMR50.000')
+    expect(line.querySelector('svg')).toBeTruthy()
+  })
+
+  it('names the bill the credit was used on when the server sends it', async () => {
+    statement = {
+      ...LATER,
+      entries: LATER.entries.map((entry) =>
+        entry.kind === 'OVERPAYMENT_CREDIT_APPLIED'
+          ? { ...entry, targetReference: 'SOHAR-1010' }
+          : entry,
+      ),
+    }
+    renderStatement()
+    await screen.findByRole('heading', { level: 1, name: 'Statement' })
+    expect(rowOf('Credit used on SOHAR-1010')[5].textContent).toBe('106.000')
+  })
+
+  it('reads in Arabic, with the rial sign and three decimals', async () => {
+    await i18n.changeLanguage('ar')
+    statement = {
+      ...LATER,
+      entries: LATER.entries.map((entry) =>
+        entry.kind === 'OVERPAYMENT_CREDIT_APPLIED'
+          ? { ...entry, targetReference: 'SOHAR-1010' }
+          : entry,
+      ),
+    }
+    renderStatement()
+    expect(await screen.findAllByText('خصم سداد مبكر', { selector: 'span' })).toHaveLength(1)
+    expect(screen.getAllByText('استرداد من المورّد', { selector: 'span' })).toHaveLength(2)
+    expect(screen.getByText('رصيد مستخدم في SOHAR-1010')).toBeTruthy()
+    const line = screen.getByText(
+      (_, node) => node?.tagName === 'P' && /^دُفع بزيادة/.test(node.textContent ?? ''),
+    )
+    expect(line.textContent).toBe('دُفع بزيادة OMR50.000')
+    expect(line.querySelector('svg')).toBeTruthy()
+  })
+
+  it('draws none of it for a statement without them, and a kind it does not know by its name', async () => {
+    statement = {
+      ...STATEMENT,
+      entries: [
+        ...STATEMENT.entries,
+        {
+          date: '2026-08-30',
+          kind: 'SOMETHING_NEW' as SupplierStatementDto['entries'][number]['kind'],
+          documentId: 'x-1',
+          reference: 'X-1',
+          amount: 5,
+          runningBalance: 1000,
+        },
+      ],
+    }
+    renderStatement()
+    await screen.findByRole('heading', { level: 1, name: 'Statement' })
+    expect(screen.queryByText(/Overpaid by/)).toBeNull()
+    expect(screen.queryByText('Early-payment discount')).toBeNull()
+    expect(screen.queryByText('Refund from the supplier')).toBeNull()
+    expect(rowOf('SOMETHING_NEW')[3].textContent).toBe('')
+  })
+
+  it('sorts the three kinds into columns, links each to its bill, and totals the columns', () => {
+    expect(columnsOf('DISCOUNT', 24)).toEqual({ billed: -24, paid: null })
+    expect(columnsOf('OVERPAYMENT_REFUND', 30)).toEqual({ billed: null, paid: -30 })
+    expect(columnsOf('OVERPAYMENT_CREDIT_APPLIED', 20)).toEqual({ billed: null, paid: null })
+    expect(memoAmountOf('OVERPAYMENT_CREDIT_APPLIED', 20)).toBe(20)
+    expect(memoAmountOf('PAYMENT', 20)).toBeNull()
+    for (const kind of ['DISCOUNT', 'OVERPAYMENT_REFUND', 'OVERPAYMENT_CREDIT_APPLIED'] as const)
+      expect(entryLink(kind, 'b-1')).toBe('/expenditure/bills/b-1')
+    expect(periodTotals(LATER)).toEqual({ billedNet: 1176, paid: 1260 })
+    // A server without the two totals: as before.
+    expect(periodTotals(STATEMENT)).toEqual({ billedNet: 1100, paid: 300 })
   })
 })

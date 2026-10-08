@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { DateField, Modal, OmAmount, Popover, RowsView } from '../../components/ui'
+import { OverpaidBy } from '../../components/bills'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import { ApiError } from '../../api'
@@ -34,6 +35,7 @@ import {
   emailBlocker,
   entryLink,
   entryOpen,
+  memoAmountOf,
   issuerAddress,
   periodRange,
   periodTotals,
@@ -44,11 +46,19 @@ import chevronDownIcon from '../../assets/create-invoice/chevron.svg'
 import printIcon from '../../assets/invoice-details/print.svg'
 import mailIcon from '../../assets/suppliers/chip-email.svg'
 
+/**
+ * The three later kinds take the tone of the kind they move like: a discount lowers what was
+ * billed as a credit does, a supplier's refund gives back what was paid as a reversal does, and
+ * credit used on another bill moves nothing, so it is as plain as a bill.
+ */
 const KIND_CHIP: Record<StatementEntryKind, string> = {
   BILL: 'bg-surface-background text-text-tertiary',
   CREDIT_NOTE: 'bg-pending-100 text-pending-700',
   PAYMENT: 'bg-success-100 text-[#3d5648]',
   REVERSAL: 'bg-warning-100 text-[#6d5a39]',
+  DISCOUNT: 'bg-pending-100 text-pending-700',
+  OVERPAYMENT_REFUND: 'bg-warning-100 text-[#6d5a39]',
+  OVERPAYMENT_CREDIT_APPLIED: 'bg-surface-background text-text-tertiary',
 }
 
 const BUCKET_TONE = [
@@ -469,6 +479,26 @@ function SupplierStatement({ id }: { id: string }) {
           <Figure label={t('supplierStatement.youPaid')} value={money(data.payments)} />
           <Operator>−</Operator>
           <Figure label={t('supplierStatement.credits')} value={money(data.credits)} />
+          {/* The two later totals, each only when the period has one, so the sum still reads
+              to the closing balance. */}
+          {(data.discounts ?? 0) > 0 ? (
+            <>
+              <Operator>−</Operator>
+              <Figure
+                label={t('supplierStatement.kind.DISCOUNT')}
+                value={money(data.discounts ?? 0)}
+              />
+            </>
+          ) : null}
+          {(data.overpaymentRefunds ?? 0) > 0 ? (
+            <>
+              <Operator>+</Operator>
+              <Figure
+                label={t('supplierStatement.kind.OVERPAYMENT_REFUND')}
+                value={money(data.overpaymentRefunds ?? 0)}
+              />
+            </>
+          ) : null}
           <div className="ms-auto text-end">
             <p className="text-[11px] font-semibold uppercase tracking-[0.7px] text-text-quaternary">
               {t('supplierStatement.owedOn', { date: dayOf(data.to) })}
@@ -479,6 +509,13 @@ function SupplierStatement({ id }: { id: string }) {
               className="mt-1.5 justify-end"
               amountClassName="text-[28px] font-semibold leading-[1.2] text-text-primary tabular-nums"
             />
+            {/* "Overpaid by" today (owner's answer 13, 8 Oct 2026), beside the closing balance
+                and never read from it: the closing nets it against their other bills. */}
+            {(data.overpaid ?? 0) > 0 ? (
+              <p className="mt-1.5 text-sm font-semibold text-text-primary">
+                <OverpaidBy amount={money(data.overpaid ?? 0)} />
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -521,13 +558,16 @@ function SupplierStatement({ id }: { id: string }) {
                   {money(data.opening)}
                 </td>
               </tr>
-              {data.entries.map((entry) => {
+              {data.entries.map((entry, index) => {
                 const { billed, paid } = columnsOf(entry.kind, entry.amount)
                 const link = entryLink(entry.kind, entry.documentId)
                 const reference = entry.reference ?? t('supplierStatement.noReference')
+                const memo = memoAmountOf(entry.kind, entry.amount)
                 return (
                   <tr
-                    key={`${entry.kind}-${entry.documentId}`}
+                    // A bill can have more than one refund or use of its credit, so its id alone
+                    // does not name a line.
+                    key={`${entry.kind}-${entry.documentId}-${index}`}
                     className={[
                       'border-b border-surface-background',
                       entryOpen(entry) ? 'bg-surface-background/40' : '',
@@ -552,15 +592,28 @@ function SupplierStatement({ id }: { id: string }) {
                           {entry.detail}
                         </p>
                       ) : null}
+                      {/* Credit used on another bill moves no balance, so its amount is shown
+                          here rather than in a column. */}
+                      {memo !== null ? (
+                        <OmAmount
+                          size="xs"
+                          amount={money(memo)}
+                          className="mt-1"
+                          amountClassName="text-xs font-medium text-text-quaternary tabular-nums"
+                        />
+                      ) : null}
                     </td>
                     <td className="px-5 py-4 align-top">
                       <span
                         className={[
                           'inline-flex h-[24px] items-center rounded-sm px-2 text-[11px] font-semibold uppercase tracking-[0.4px]',
-                          KIND_CHIP[entry.kind],
+                          KIND_CHIP[entry.kind] ?? KIND_CHIP.BILL,
                         ].join(' ')}
                       >
-                        {t(`supplierStatement.kind.${entry.kind}`)}
+                        {entry.kind === 'OVERPAYMENT_CREDIT_APPLIED' && entry.targetReference
+                          ? t('supplierStatement.creditUsedOn', { bill: entry.targetReference })
+                          : // A kind added after this build reads by its name, as the API asks.
+                            t(`supplierStatement.kind.${entry.kind}`, { defaultValue: entry.kind })}
                       </span>
                     </td>
                     <td className="px-5 py-4 align-top text-end text-sm font-semibold text-text-primary tabular-nums">

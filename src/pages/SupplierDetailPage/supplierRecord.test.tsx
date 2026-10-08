@@ -1307,3 +1307,52 @@ describe('Record a bill (Figma 163:27781)', () => {
     })
   })
 })
+
+/**
+ * Owner's answer 13 of 8 Oct 2026: "Overpaid by {amount}" on the supplier too, with the rial sign,
+ * beside what is owed and never netted against it.
+ */
+describe("a supplier's overpaid bills", () => {
+  function overpaid(total: number | undefined) {
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === `${ONE}/overview`
+        ? json(200, { ...OVERVIEW, payables: { ...OVERVIEW.payables, overpaidTotal: total } })
+        : base(url, init),
+    )
+  }
+  const line = (pattern: RegExp) =>
+    screen.getByText((_, node) => node?.tagName === 'P' && pattern.test(node.textContent ?? ''))
+
+  it('says it on the "You owe them" card, beside what is owed', async () => {
+    overpaid(30)
+    renderSupplier()
+    await screen.findByText('160.500')
+    const said = line(/^Overpaid by/)
+    expect(said.textContent).toBe('Overpaid by OMR30.000')
+    expect(said.querySelector('svg')).toBeTruthy()
+    expect(said.closest('section')!.textContent).toContain('You owe them')
+    // What is owed stays the server's, not netted.
+    expect(screen.getByText('160.500')).toBeTruthy()
+  })
+
+  it('reads in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    overpaid(30)
+    renderSupplier()
+    await screen.findByText('160.500')
+    const said = line(/^دُفع بزيادة/)
+    expect(said.textContent).toBe('دُفع بزيادة OMR30.000')
+    expect(said.querySelector('svg')).toBeTruthy()
+  })
+
+  it.each([
+    ['nothing overpaid', 0],
+    ['a server without the figure', undefined],
+  ])('says nothing for %s', async (_case, total) => {
+    overpaid(total)
+    renderSupplier()
+    await screen.findByText('160.500')
+    expect(screen.queryByText(/Overpaid by/)).toBeNull()
+  })
+})
