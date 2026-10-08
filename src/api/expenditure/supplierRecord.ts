@@ -295,6 +295,7 @@ export type StatementEntryKind =
   | 'DISCOUNT'
   | 'OVERPAYMENT_REFUND'
   | 'OVERPAYMENT_CREDIT_APPLIED'
+  | 'CREDIT_NOTE_REFUND'
 
 /** `SupplierStatement.Issuer`: the tenant's registered company; any part may be missing. */
 export type StatementIssuerDto = {

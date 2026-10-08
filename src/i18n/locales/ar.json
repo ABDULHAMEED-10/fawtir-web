@@ -9059,7 +9059,8 @@
       "REVERSAL": "عكس دفعة",
       "DISCOUNT": "خصم سداد مبكر",
       "OVERPAYMENT_REFUND": "استرداد من المورّد",
-      "OVERPAYMENT_CREDIT_APPLIED": "رصيد مستخدم"
+      "OVERPAYMENT_CREDIT_APPLIED": "رصيد مستخدم",
+      "CREDIT_NOTE_REFUND": "استُرد الإشعار الدائن"
     },
     "broughtForward": "رصيد مُرحّل",
     "broughtForwardNote": "المستحق قبل بداية هذه الفترة",

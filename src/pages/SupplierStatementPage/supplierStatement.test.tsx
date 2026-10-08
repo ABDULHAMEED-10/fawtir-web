@@ -780,3 +780,101 @@ describe('a statement with discounts, refunds and credit used', () => {
     expect(periodTotals(STATEMENT)).toEqual({ billedNet: 1100, paid: 300 })
   })
 })
+
+describe('a credit note the supplier refunded', () => {
+  // The note's line took 25.000 off; the supplier paid 10.000 of it back in two refunds, so the
+  // statement closes 10.000 higher than the note alone left it. The balances are the server's.
+  const REFUNDED: SupplierStatementDto = {
+    ...STATEMENT,
+    opening: 0,
+    bills: 300,
+    credits: 15,
+    payments: 0,
+    closing: 285,
+    entries: [
+      {
+        date: '2026-07-27',
+        kind: 'BILL',
+        documentId: 'bill-1',
+        reference: 'SOHAR-1002',
+        amount: 300,
+        runningBalance: 300,
+      },
+      {
+        date: '2026-08-01',
+        kind: 'CREDIT_NOTE',
+        documentId: 'cn-1',
+        reference: 'SOHAR-CN-7',
+        amount: 25,
+        runningBalance: 275,
+      },
+      {
+        date: '2026-08-05',
+        kind: 'CREDIT_NOTE_REFUND',
+        documentId: 'cn-1',
+        reference: 'RF-CN-1',
+        amount: 6,
+        runningBalance: 281,
+      },
+      // A refund given no reference of its own carries the note's number.
+      {
+        date: '2026-08-06',
+        kind: 'CREDIT_NOTE_REFUND',
+        documentId: 'cn-1',
+        reference: 'SOHAR-CN-7',
+        amount: 4,
+        runningBalance: 285,
+      },
+    ],
+  }
+
+  beforeEach(() => {
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.startsWith(`${ONE}/statement?`)) return json(200, REFUNDED)
+      return base(url, init)
+    })
+  })
+
+  function rowOf(kind: string, nth = 0): HTMLElement[] {
+    const chip = screen.getAllByText(kind, { selector: 'span' })[nth]
+    return Array.from(chip.closest('tr')!.querySelectorAll('td'))
+  }
+
+  it('gives back in the credit note column what the note took off, and links the note', async () => {
+    renderStatement()
+    await screen.findByRole('heading', { level: 1, name: 'Statement' })
+
+    const note = rowOf('Credit')
+    expect(note[3].textContent).toBe('−25.000')
+
+    const refund = rowOf('Credit note refunded')
+    expect(refund[3].textContent).toBe('6.000')
+    expect(refund[4].textContent).toBe('')
+    expect(refund[5].textContent).toBe('281.000')
+    expect(within(refund[1]).getByRole('link', { name: 'RF-CN-1' }).getAttribute('href')).toBe(
+      '/expenditure/credit-notes/cn-1',
+    )
+    const second = rowOf('Credit note refunded', 1)
+    expect(second[3].textContent).toBe('4.000')
+    expect(second[5].textContent).toBe('285.000')
+
+    // The footer's billed column adds up its lines: 300 less the 15 net credits.
+    const footer = screen.getByText('Over the period').closest('tr')!
+    expect(footer.querySelectorAll('td')[1].textContent).toBe('285.000')
+    expect(screen.queryByText('Refund from the supplier')).toBeNull()
+  })
+
+  it('reads in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    renderStatement()
+    expect(await screen.findAllByText('استُرد الإشعار الدائن', { selector: 'span' })).toHaveLength(2)
+  })
+
+  it('puts the refund in the billed column and links it to the credit note', () => {
+    expect(columnsOf('CREDIT_NOTE_REFUND', 6)).toEqual({ billed: 6, paid: null })
+    expect(memoAmountOf('CREDIT_NOTE_REFUND', 6)).toBeNull()
+    expect(entryLink('CREDIT_NOTE_REFUND', 'cn-1')).toBe('/expenditure/credit-notes/cn-1')
+    expect(periodTotals(REFUNDED)).toEqual({ billedNet: 285, paid: 0 })
+  })
+})

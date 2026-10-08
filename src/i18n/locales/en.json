@@ -8701,7 +8701,8 @@
       "REVERSAL": "Reversal",
       "DISCOUNT": "Early-payment discount",
       "OVERPAYMENT_REFUND": "Refund from the supplier",
-      "OVERPAYMENT_CREDIT_APPLIED": "Credit used"
+      "OVERPAYMENT_CREDIT_APPLIED": "Credit used",
+      "CREDIT_NOTE_REFUND": "Credit note refunded"
     },
     "broughtForward": "Brought forward",
     "broughtForwardNote": "Owed before this period began",

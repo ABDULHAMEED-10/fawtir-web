@@ -543,6 +543,14 @@ const STATEMENT = (from, to) => {
       amount: 242.5,
       detail: 'Short delivery on PO-0021 · 25 KG never arrived',
     },
+    // The supplier paid 42.500 of that credit note back: it gives back what the note took off.
+    {
+      date: '2026-07-02',
+      kind: 'CREDIT_NOTE_REFUND',
+      documentId: 'cn-0118',
+      reference: 'MR-RF-0031',
+      amount: 42.5,
+    },
     {
       date: '2026-07-16',
       kind: 'PAYMENT',
@@ -628,9 +636,13 @@ const STATEMENT = (from, to) => {
     // In date order, as the server lists them (a stable sort keeps same-day lines as written).
     .sort((a, b) => a.date.localeCompare(b.date))
   let balance = opening
-  // Bills, reversals and a supplier's refund add; credit used on another bill moves nothing.
+  // Bills, reversals and a supplier's refund (of an overpayment or a credit note) add; credit
+  // used on another bill moves nothing.
   const sign = (kind) =>
-    kind === 'BILL' || kind === 'REVERSAL' || kind === 'OVERPAYMENT_REFUND'
+    kind === 'BILL' ||
+    kind === 'REVERSAL' ||
+    kind === 'OVERPAYMENT_REFUND' ||
+    kind === 'CREDIT_NOTE_REFUND'
       ? 1
       : kind === 'OVERPAYMENT_CREDIT_APPLIED'
         ? 0
@@ -647,7 +659,8 @@ const STATEMENT = (from, to) => {
     to,
     opening,
     bills: of('BILL'),
-    credits: of('CREDIT_NOTE'),
+    // Net of what the supplier refunded of its credit notes, as the server sends it.
+    credits: scale(of('CREDIT_NOTE') - of('CREDIT_NOTE_REFUND')),
     payments: scale(of('PAYMENT') - of('REVERSAL')),
     closing: balance,
     discounts: of('DISCOUNT'),

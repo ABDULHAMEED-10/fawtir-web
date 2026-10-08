@@ -51,7 +51,8 @@ export function customRangeProblem(from: string, to: string, today: string): str
 
 /**
  * Which column an entry's amount is in, signed as it moves what is owed: a credit note and an
- * early-payment discount lower what they billed, a reversal and a supplier's refund of an
+ * early-payment discount lower what they billed, and the supplier's refund of a credit note gives
+ * back in that column what the note took off; a reversal and a supplier's refund of an
  * overpayment give back what was paid. Credit kept from an overpaid bill and used on another moves
  * no money between the two, so it is in neither column (its amount is shown on its line, see
  * {@link memoAmountOf}). The running balance is always the server's, never summed here. A kind
@@ -67,6 +68,8 @@ export function columnsOf(
     case 'CREDIT_NOTE':
     case 'DISCOUNT':
       return { billed: -amount, paid: null }
+    case 'CREDIT_NOTE_REFUND':
+      return { billed: amount, paid: null }
     case 'PAYMENT':
       return { billed: null, paid: amount }
     case 'REVERSAL':
@@ -85,7 +88,8 @@ export function memoAmountOf(kind: StatementEntryKind, amount: number): number |
 /**
  * Bills and credit notes are rows of the bills list and open there, and so does the bill a
  * discount, a refund of an overpayment or the use of its credit is about (`documentId` is that
- * bill). A payment has no page of its own.
+ * bill). A credit note's refund opens the credit note it refunded, where refunds are recorded.
+ * A payment has no page of its own.
  */
 export function entryLink(kind: StatementEntryKind, documentId: string): string | null {
   switch (kind) {
@@ -95,6 +99,8 @@ export function entryLink(kind: StatementEntryKind, documentId: string): string 
     case 'OVERPAYMENT_REFUND':
     case 'OVERPAYMENT_CREDIT_APPLIED':
       return `/expenditure/bills/${documentId}`
+    case 'CREDIT_NOTE_REFUND':
+      return `/expenditure/credit-notes/${documentId}`
     default:
       return null
   }
@@ -192,8 +198,8 @@ export const STATEMENT_EMAIL_REFUSALS: Record<string, string> = {
 }
 
 /**
- * The footer's two column totals, so each adds up its column: billed less credits and
- * early-payment discounts, and paid less what the supplier refunded of overpayments. A server
+ * The footer's two column totals, so each adds up its column: billed less credits (the server's,
+ * already net of what the supplier refunded of its credit notes) and early-payment discounts, and paid less what the supplier refunded of overpayments. A server
  * without the two newer totals sends neither kind of line, so they count as zero.
  */
 export function periodTotals(statement: SupplierStatementDto): { billedNet: number; paid: number } {

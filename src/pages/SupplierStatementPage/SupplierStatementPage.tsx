@@ -47,9 +47,9 @@ import printIcon from '../../assets/invoice-details/print.svg'
 import mailIcon from '../../assets/suppliers/chip-email.svg'
 
 /**
- * The three later kinds take the tone of the kind they move like: a discount lowers what was
- * billed as a credit does, a supplier's refund gives back what was paid as a reversal does, and
- * credit used on another bill moves nothing, so it is as plain as a bill.
+ * The later kinds take the tone of the kind they move like: a discount lowers what was billed as
+ * a credit does, a supplier's refund (of an overpayment or of a credit note) gives something back
+ * as a reversal does, and credit used on another bill moves nothing, so it is as plain as a bill.
  */
 const KIND_CHIP: Record<StatementEntryKind, string> = {
   BILL: 'bg-surface-background text-text-tertiary',
@@ -59,6 +59,7 @@ const KIND_CHIP: Record<StatementEntryKind, string> = {
   DISCOUNT: 'bg-pending-100 text-pending-700',
   OVERPAYMENT_REFUND: 'bg-warning-100 text-[#6d5a39]',
   OVERPAYMENT_CREDIT_APPLIED: 'bg-surface-background text-text-tertiary',
+  CREDIT_NOTE_REFUND: 'bg-warning-100 text-[#6d5a39]',
 }
 
 const BUCKET_TONE = [
