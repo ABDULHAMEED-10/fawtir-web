@@ -15,8 +15,9 @@ export type UnavailableModule =
 /**
  * A screen whose module has no server behind it yet. It used to draw a sample company's records
  * (Al Bahja Coffee's till, stock, quotations, bills…) as if they were the reader's, which is worse
- * than showing nothing: someone could act on numbers that are not theirs. The page code for these
- * modules stays in the tree for when the backend arrives; the routes land here until then.
+ * than showing nothing: someone could act on numbers that are not theirs. The prototypes stay in
+ * the tree; their routes go through DemoModule, which shows this page unless a build opts in to
+ * labelled sample data (docs/MOCK_DATA_POLICY.md).
  */
 export function ModuleUnavailablePage({ module }: { module: UnavailableModule }) {
   return (

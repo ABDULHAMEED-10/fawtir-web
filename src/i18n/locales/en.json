@@ -20172,6 +20172,9 @@
       "subtitle": "Fawtir will refuse to issue it until these are done. You can still save it as a draft."
     }
   },
+  "demoModule": {
+    "ribbon": "Demo: sample data for a module that is not built yet. None of it is your company's, and nothing here is saved."
+  },
   "moduleUnavailable": {
     "badge": "Not available yet",
     "noSampleData": "Nothing on this screen is sample data: it stays empty until Fawtir can show your own records.",

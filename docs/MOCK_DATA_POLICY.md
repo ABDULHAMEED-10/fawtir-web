@@ -1,0 +1,81 @@
+# Mock data policy
+
+Owner decision, 2026-10-08. Applies to every screen in this app and to every person or coding agent
+changing one.
+
+Sample data may stay in the code while a module has no server behind it: it is useful for design,
+development and tests. It must never be shown as a company's real records, and it must never reach a
+real business workflow.
+
+## 1. Classify the module from the code, not from its name
+
+| Kind | What it means | What the screen does |
+|---|---|---|
+| **Integrated** | Every record on the screen comes from a server endpoint (`src/api/**`, `useApiRead`, `useApiResource`) | Real data only. Empty state when there is none. Error state with retry when the read fails. No sample fallback, ever. |
+| **Partially integrated** | Some facts have an endpoint, some do not | Real data for what has one. Anything without one is labelled *Not available yet* (`ModuleUnavailable`, `dashboard.notAvailableYet`, `ChartPending`). Never mix a sample record into a list of real ones. |
+| **Not yet implemented** | No endpoint at all (POS, stock, catalogue rules and bundles, trade documents, tenant billing, closing, export, the OTA call log, console operations, subscriptions, incidents, audit, ERP templates) | The prototype stays in the tree, routed through `DemoModule`. Off by default, so users see *Not available yet*. |
+
+## 2. Showing a prototype: `DemoModule`
+
+```tsx
+<Route path="/pos" element={<DemoModule module="pos"><PosPage /></DemoModule>} />
+```
+
+- A prototype route is shown only when the build sets `VITE_FAWTIR_DEMO_MODULES=true`. That is the
+  literal string `true`; anything else, including unset, is off. Never set it for a production
+  deployment, and never in the committed `.env.development`. Set it in an untracked `.env.local` or in
+  the shell for one dev or demo session.
+- With the switch on, every prototype carries a ribbon that cannot be dismissed (`demoModule.ribbon`):
+  sample data, not the company's, nothing is saved.
+- A failed request never turns the switch on. There is no "fall back to sample data" path anywhere.
+
+## 3. Sample data never reaches a real workflow
+
+- **No writes.** Prototypes call no write endpoint. A prototype that needs one is no longer a prototype:
+  integrate it (section 5).
+- **No conversions.** A sample record is never converted into a real draft. The invoice composer
+  ignores `?from=` references and offers nothing to link while `TRADE_DOCUMENTS_CONNECTED` is false
+  (`pages/CreateInvoicePage/CreateInvoicePage.tsx`), whether the demo switch is on or off.
+- **No preselection.** Real forms start empty and never preselect an invented person, branch,
+  customer, number or prefix.
+- **No sample input to real calculations.** Sample records never feed a real total, quota, VAT figure,
+  compliance report or Peppol state.
+- **Tenant from the session only.** Tenant identity always comes from the signed-in session
+  (`/v1/me/entitlements`) and the server. It never comes from a sample company.
+
+## 4. Critical screens: always real or "pending"
+
+Some screens show nothing invented, not even inside a prototype ribbon. If the fact is unknown, they
+say "pending", "not checked" or "not available":
+
+- company identity and VAT
+- Peppol participant registration, SMP publication and SML discovery
+- roles and permissions
+- payment status and settlement, and bank details
+- compliance and certification status
+- audit history
+- invoice issuance and transmission
+
+## 5. When a module is integrated
+
+A module is production-ready only when all of these hold:
+
+1. It reads and writes through authenticated API calls (`src/api/**`).
+2. The server enforces tenant isolation (PostgreSQL RLS) and the right permission. The screen hides
+   what the session may not do.
+3. Its `DemoModule` wrapper and its sample module in `src/lib/**` are deleted in the same change.
+4. It has loading, empty, error and unavailable states.
+5. Every new string is in English and in Arabic (`src/i18n/locales/{en,ar}.json`).
+6. It shows no invented records.
+7. It has backend integration tests and frontend tests, with fetch mocked at the boundary.
+8. It has passed real-browser verification of the actual workflow: genuine login, no SQL or API
+   shortcuts.
+9. It causes no regression in modules already integrated.
+
+## 6. Tests
+
+- Sample data used only by tests lives beside the test or in `src/testing/**`, which production code
+  never imports.
+- `src/pages/remediation.test.tsx` checks that integrated screens show the reader's own data.
+- `src/components/feedback/DemoModule.test.tsx` (switch in `src/lib/demoModules.ts`) checks that the switch is off by default and that the
+  ribbon is shown when it is on.
