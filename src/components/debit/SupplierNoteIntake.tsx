@@ -106,8 +106,8 @@ export function SupplierNoteIntake({
   cancelTo: string
   /** After the intake is discarded, so the picker can be shown again. */
   onReplace: () => void
-  /** The confirmed note, and the key of the sentence that says what was done with it. */
-  onSaved: (note: ConfirmedBillDto, doneKey: string) => void
+  /** The confirmed note, and the key (and values) of the sentence that says what was done. */
+  onSaved: (note: ConfirmedBillDto, doneKey: string, doneValues?: Record<string, string>) => void
 }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
@@ -159,6 +159,11 @@ export function SupplierNoteIntake({
     printedTotal !== null && linesTotal !== null && Math.abs(printedTotal - linesTotal) <= 0.001
 
   const effect = creditEffect(linesTotal ?? 0, chosenBill)
+  // A credit note may correct one of the supplier's debit notes; its sentences then name the debit
+  // note rather than "the bill". A refused one is closed by the credit whichever choice is made, so
+  // the choice is not offered for it.
+  const debitNoteChosen = kind === 'credit' && chosenBill?.documentTypeCode === DEBIT_NOTE_CODE
+  const refusedDebitNote = debitNoteChosen && chosenBill?.debitNoteDecision === 'REFUSED'
   const vat = vatEffect(chosenBill?.vatAmount ?? null, totals ? Number(totals.vat) : null)
   const checks =
     kind === 'debit'
@@ -250,10 +255,17 @@ export function SupplierNoteIntake({
           : followUp === 'apply' && chosenBill!.outstandingAmount > 0
       let doneKey =
         kind === 'credit'
-          ? applied
-            ? 'supplierCreditNotes.upload.savedApplied'
-            : 'supplierCreditNotes.upload.savedHeld'
+          ? refusedDebitNote
+            ? 'supplierCreditNotes.upload.savedClosesRefusedDebitNote'
+            : applied
+              ? debitNoteChosen
+                ? 'supplierCreditNotes.upload.savedAppliedDebitNote'
+                : 'supplierCreditNotes.upload.savedApplied'
+              : 'supplierCreditNotes.upload.savedHeld'
           : 'supplierDebitNotes.upload.savedHeld'
+      const doneValues = refusedDebitNote
+        ? { note: chosenBill?.supplierBillNumber ?? '' }
+        : undefined
       try {
         if (followUp === 'accept') {
           await acceptDebitNote(note.id)
@@ -269,7 +281,7 @@ export function SupplierNoteIntake({
         setNotice(`${t('supplierNotes.savedButNot')} ${t(described.key, described.values)}`)
         return
       }
-      onSaved(note, doneKey)
+      onSaved(note, doneKey, doneValues)
     } catch (failure) {
       refuse(failure)
     } finally {
@@ -743,6 +755,9 @@ export function SupplierNoteIntake({
               <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">
                 {t('supplierCreditNotes.upload.howToUse')}
               </h2>
+              {refusedDebitNote ? (
+                <InfoNote plain>{t('supplierCreditNotes.upload.refusedDebitNoteCloses')}</InfoNote>
+              ) : null}
               <div
                 className="mt-4 flex flex-col gap-3"
                 role="radiogroup"
@@ -758,9 +773,12 @@ export function SupplierNoteIntake({
                           })
                         : t('supplierCreditNotes.upload.setNowNoBill'),
                       note: chosenBill
-                        ? t('supplierCreditNotes.upload.setNowNote', {
-                            amount: money(linesTotal ?? 0),
-                          })
+                        ? t(
+                            debitNoteChosen
+                              ? 'supplierCreditNotes.upload.setNowNoteDebitNote'
+                              : 'supplierCreditNotes.upload.setNowNote',
+                            { amount: money(linesTotal ?? 0) },
+                          )
                         : t('supplierCreditNotes.upload.setNowPick'),
                       disabled: !chosenBill || chosenBill.outstandingAmount <= 0,
                     },
@@ -781,26 +799,30 @@ export function SupplierNoteIntake({
                       disabled: true,
                     },
                   ] as const
-                ).map((option) => {
-                  const active =
-                    use === option.id ||
-                    (option.id === 'hold' && use === 'setAgainst' && !chosenBill)
-                  return (
-                    <ChoiceRow
-                      key={option.id}
-                      active={active}
-                      disabled={option.disabled}
-                      onPick={() => setUse(option.id)}
-                      title={option.title}
-                      note={withRial(option.note)}
-                      trailing={
-                        option.disabled && option.id === 'refund'
-                          ? t('supplierCreditNotes.upload.notYet')
-                          : undefined
-                      }
-                    />
-                  )
-                })}
+                )
+                  // A refused debit note leaves nothing to choose: the two ways to use the credit
+                  // give way to the line above.
+                  .filter((option) => !refusedDebitNote || option.id === 'refund')
+                  .map((option) => {
+                    const active =
+                      use === option.id ||
+                      (option.id === 'hold' && use === 'setAgainst' && !chosenBill)
+                    return (
+                      <ChoiceRow
+                        key={option.id}
+                        active={active}
+                        disabled={option.disabled}
+                        onPick={() => setUse(option.id)}
+                        title={option.title}
+                        note={withRial(option.note)}
+                        trailing={
+                          option.disabled && option.id === 'refund'
+                            ? t('supplierCreditNotes.upload.notYet')
+                            : undefined
+                        }
+                      />
+                    )
+                  })}
               </div>
             </section>
           ) : (

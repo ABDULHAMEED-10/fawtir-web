@@ -571,6 +571,8 @@ describe('a credit note correcting a supplier debit note on upload', () => {
     workflowState: 'NEW',
     debitNoteDecision: 'REFUSED',
   }
+  /** The same debit note, not yet accepted or refused. */
+  const OPEN_DEBIT_NOTE: BillRowDto = { ...DEBIT_NOTE, debitNoteDecision: null }
 
   beforeEach(() => {
     billRows = [BILL, DEBIT_NOTE]
@@ -631,6 +633,7 @@ describe('a credit note correcting a supplier debit note on upload', () => {
   })
 
   it('sends "Hold it as credit" for a debit note exactly as for a bill', async () => {
+    billRows = [BILL, OPEN_DEBIT_NOTE]
     await uploadNote()
     fireEvent.click(await debitNoteRow())
     fireEvent.click(await screen.findByRole('radio', { name: /Hold it as credit/ }))
@@ -643,9 +646,28 @@ describe('a credit note correcting a supplier debit note on upload', () => {
     expect(confirmed.holdAsCredit).toBe(true)
   })
 
-  it("reads what the server applied to a refused debit note from the confirm's answer", async () => {
+  it('closes a refused debit note: no choice, one line instead, in both languages', async () => {
+    await uploadNote()
+    fireEvent.click(await debitNoteRow())
+    const line =
+      'This debit note was refused, so the credit closes it. Anything left over stays as credit.'
+    expect(await screen.findByText(line)).toBeTruthy()
+    expect(screen.queryByRole('radio', { name: /Set it against/ })).toBeNull()
+    expect(screen.queryByRole('radio', { name: /Hold it as credit/ })).toBeNull()
+    // The refund row, unreachable here anyway, stays as it was.
+    expect(screen.getByRole('radio', { name: /Ask for a refund/ })).toBeTruthy()
+
+    await act(async () => {
+      await i18n.changeLanguage('ar')
+    })
+    expect(
+      await screen.findByText('هذا الإشعار المدين مرفوض، لذا يُغلقه هذا الرصيد. وما يزيد يبقى رصيدًا.'),
+    ).toBeTruthy()
+  })
+
+  it('says once saved that the credit closes the refused debit note, naming it', async () => {
     // The server closes a refused debit note with the credit whichever choice is made, and says
-    // so in `creditApplied`; the outcome follows that answer, as for any bill.
+    // so in `creditApplied`.
     confirmAnswer = async () =>
       json(201, {
         id: NOTE_ID,
@@ -657,13 +679,89 @@ describe('a credit note correcting a supplier debit note on upload', () => {
     const onSaved = renderComposer('credit')
     expect(await screen.findByDisplayValue('MR-CN-0042')).toBeTruthy()
     fireEvent.click(await debitNoteRow())
-    fireEvent.click(await screen.findByRole('radio', { name: /Hold it as credit/ }))
     fireEvent.change(reasonField(), { target: { value: REASON } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save the credit note' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save and set against the bill' }))
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))
-    expect(bodyOf(calls('POST', CONFIRM)[0]).holdAsCredit).toBe(true)
+    expect(bodyOf(calls('POST', CONFIRM)[0]).relatedBillId).toBe(DEBIT_NOTE_ID)
+    const [, key, values] = onSaved.mock.calls[0]
+    expect(key).toBe('supplierCreditNotes.upload.savedClosesRefusedDebitNote')
+    expect(values).toEqual({ note: 'MR-DN-0007' })
+    expect(i18n.t(key, values)).toBe(
+      'Saved. The credit closes refused debit note MR-DN-0007; anything left over stays as credit.',
+    )
+    expect(i18n.t(key, { ...values, lng: 'ar' })).toBe(
+      'حُفظ. يُغلق هذا الرصيد الإشعار المدين المرفوض MR-DN-0007، وما يزيد يبقى رصيدًا.',
+    )
+  })
+
+  for (const decision of [null, 'ACCEPTED'] as const)
+    it(`names the debit note the credit is set against (${decision ?? 'undecided'})`, async () => {
+      billRows = [BILL, { ...DEBIT_NOTE, debitNoteDecision: decision }]
+      confirmAnswer = async () =>
+        json(201, {
+          id: NOTE_ID,
+          supplierBillNumber: 'MR-CN-0042',
+          totalIncludingVat: 105,
+          currencyCode: 'OMR',
+          creditApplied: { billId: DEBIT_NOTE_ID, amount: 52.5 },
+        })
+      const onSaved = renderComposer('credit')
+      expect(await screen.findByDisplayValue('MR-CN-0042')).toBeTruthy()
+      fireEvent.click(await debitNoteRow())
+      const setNow = await screen.findByRole('radio', { name: /Set it against MR-DN-0007 now/ })
+      expect(setNow.textContent).not.toContain('The bill is unpaid')
+      // The amount carries the Rial sign, as the bill's sentence does.
+      const english = screen.getByText(/^The debit note is unpaid, so you simply pay/)
+      expect(english.querySelector('svg')).not.toBeNull()
+      const shown = english.cloneNode(true) as Element
+      shown.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+      expect(shown.textContent).toMatch(
+        /^The debit note is unpaid, so you simply pay\s+105\.000 less\.$/,
+      )
+      expect(screen.getByRole('radio', { name: /Hold it as credit/ })).toBeTruthy()
+      expect(screen.queryByText(/This debit note was refused/)).toBeNull()
+
+      fireEvent.change(reasonField(), { target: { value: REASON } })
+      fireEvent.click(screen.getByRole('button', { name: 'Save and set against the bill' }))
+      await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))
+      const [, key, values] = onSaved.mock.calls[0]
+      expect(key).toBe('supplierCreditNotes.upload.savedAppliedDebitNote')
+      expect(values).toBeUndefined()
+      expect(i18n.t(key)).toBe('Saved and set against the debit note.')
+      expect(i18n.t(key, { lng: 'ar' })).toBe('حُفظ وخُصم من الإشعار المدين.')
+
+      await act(async () => {
+        await i18n.changeLanguage('ar')
+      })
+      const setNowAr = await screen.findByRole('radio', { name: /MR-DN-0007/ })
+      expect(setNowAr.textContent).toContain('الإشعار المدين غير مدفوع، فتدفع ببساطة أقل بمقدار')
+    })
+
+  it("keeps a bill's sentences as they were", async () => {
+    const onSaved = renderComposer('credit')
+    expect(await screen.findByDisplayValue('MR-CN-0042')).toBeTruthy()
+    await chooseBill()
+    const setNow = screen.getByRole('radio', { name: /Set it against MR-INV-8821 now/ })
+    expect(setNow.textContent).toContain('The bill is unpaid, so you simply pay')
+    expect(screen.getByRole('radio', { name: /Hold it as credit/ })).toBeTruthy()
+    expect(screen.queryByText(/This debit note was refused/)).toBeNull()
+
+    fireEvent.change(reasonField(), { target: { value: REASON } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save and set against the bill' }))
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))
     expect(onSaved.mock.calls[0][1]).toBe('supplierCreditNotes.upload.savedApplied')
+    expect(onSaved.mock.calls[0][2]).toBeUndefined()
+    expect(i18n.t('supplierCreditNotes.upload.savedApplied')).toBe(
+      'Saved and set against the bill.',
+    )
+
+    await act(async () => {
+      await i18n.changeLanguage('ar')
+    })
+    expect((await screen.findByRole('radio', { name: /MR-INV-8821/ })).textContent).toContain(
+      'الفاتورة غير مدفوعة، فتدفع ببساطة أقل بمقدار',
+    )
   })
 
   it("offers no debit note on a debit note's list, only the bills", async () => {
