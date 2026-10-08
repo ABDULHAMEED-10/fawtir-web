@@ -1123,6 +1123,16 @@
       "NEEDS_ATTENTION_other": "{{count}} مستندات تحتاج انتباهك",
       "TDD_SLA_MISSED_one": "تأخر تقرير ضريبي واحد هذا الشهر",
       "TDD_SLA_MISSED_other": "تأخرت {{count}} تقارير ضريبية هذا الشهر"
+    },
+    "greetingAt": {
+      "morning": "صباح الخير، {{name}}",
+      "afternoon": "مساء الخير، {{name}}",
+      "evening": "مساء الخير، {{name}}"
+    },
+    "greetingAtNoName": {
+      "morning": "صباح الخير",
+      "afternoon": "مساء الخير",
+      "evening": "مساء الخير"
     }
   },
   "rowActions": {
@@ -13723,8 +13733,8 @@
       "planPrice": "{{amount}} ريال شهريًا، سعر الباقة",
       "planAllowance": "{{total}} فاتورة شهريًا ضمن الباقة",
       "readiness": {
-        "ready": "جاهز للإرسال",
-        "notReady": "غير جاهز للإرسال"
+        "ready": "نشط",
+        "notReady": "غير نشط"
       },
       "identityStatus": {
         "PENDING": "قيد الانتظار",
@@ -13742,7 +13752,8 @@
         "verification": "توثيق المنشأة",
         "revision": "مراجعة الملف",
         "plan": "الباقة",
-        "readiness": "إرسال الفواتير"
+        "readiness": "الوصول إلى الحساب",
+        "invoicing": "إصدار الفواتير"
       },
       "planAllowance_zero": "لا فواتير شهريًا ضمن الباقة",
       "planAllowance_one": "فاتورة واحدة شهريًا ضمن الباقة",
@@ -13757,7 +13768,17 @@
         "TENANT_SUSPENDED": "الحساب موقوف",
         "TENANT_NOT_ACTIVE": "الحساب غير نشط بعد",
         "TENANT_CLOSED": "الحساب مغلق",
-        "IDENTITY_NOT_READY": "لم يكتمل إعداد تسجيل الدخول"
+        "IDENTITY_NOT_READY": "لم يكتمل إعداد تسجيل الدخول",
+        "READY": "موثّق ومفعّل ونشط. لإصدار الفواتير متطلبات خاصة به.",
+        "TENANT_DISABLED": "الحساب معطّل",
+        "TENANT_NOT_FOUND": "لم يُعثر على الحساب",
+        "PLATFORM_TENANT": "حساب منصة فوتر",
+        "PEPPOL_TEST_TENANT": "حساب اختبار Peppol"
+      },
+      "invoicing": {
+        "ready": "يمكنه إصدار الفواتير",
+        "notReady": "لا يمكنه إصدار الفواتير بعد",
+        "unavailable": "لا يقدّمه هذا الخادم"
       }
     },
     "subscriptionActions": {
@@ -21283,7 +21304,8 @@
     "composer": {
       "title": "لا يمكن إصدار هذه الفاتورة بعد",
       "subtitle": "سترفض فوتر إصدارها حتى تكتمل هذه الخطوات. ما زال بإمكانك حفظها كمسودة."
-    }
+    },
+    "done": "تم"
   },
   "demoModule": {
     "ribbon": "عرض تجريبي: بيانات نموذجية لوحدة لم تُبنَ بعد. لا شيء منها يخص شركتك، ولا يُحفظ أي شيء هنا."

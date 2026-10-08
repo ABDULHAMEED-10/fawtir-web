@@ -66,7 +66,8 @@ export function AccountSwitcher() {
         <span className="flex min-w-0 items-center gap-[7px]">
           <CompanyAvatar name={accountName} size={31} />
           <span className="min-w-0">
-            <span className="block truncate text-sm font-medium leading-[1.2] text-[#3e443e]">
+            {/* dir=auto: a Latin company name in the Arabic layout is cut at its own end, not its start. */}
+            <span dir="auto" className="block truncate text-sm font-medium leading-[1.2] text-[#3e443e] rtl:text-right">
               {accountName}
             </span>
             {planLabel ? (
@@ -103,7 +104,7 @@ export function AccountSwitcher() {
                 >
                   <CompanyAvatar name={row.name} size={28} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-text-primary">
+                    <span dir="auto" className="block truncate text-sm font-medium text-text-primary rtl:text-right">
                       {row.name}
                     </span>
                   </span>

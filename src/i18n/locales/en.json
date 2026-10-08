@@ -1120,6 +1120,16 @@
       "NEEDS_ATTENTION_other": "{{count}} documents need your attention",
       "TDD_SLA_MISSED_one": "{{count}} tax report was late this month",
       "TDD_SLA_MISSED_other": "{{count}} tax reports were late this month"
+    },
+    "greetingAt": {
+      "morning": "Good morning, {{name}}",
+      "afternoon": "Good afternoon, {{name}}",
+      "evening": "Good evening, {{name}}"
+    },
+    "greetingAtNoName": {
+      "morning": "Good morning",
+      "afternoon": "Good afternoon",
+      "evening": "Good evening"
     }
   },
   "rowActions": {
@@ -13020,8 +13030,8 @@
       "planPrice": "OMR {{amount}} a month, plan price",
       "planAllowance": "{{total}} invoices a month included",
       "readiness": {
-        "ready": "Ready to submit",
-        "notReady": "Not ready to submit"
+        "ready": "Active",
+        "notReady": "Not active"
       },
       "identityStatus": {
         "PENDING": "Pending",
@@ -13039,7 +13049,8 @@
         "verification": "Company verification",
         "revision": "Profile revision",
         "plan": "Plan",
-        "readiness": "Invoice submission"
+        "readiness": "Account access",
+        "invoicing": "Invoice issuing"
       },
       "planAllowance_one": "{{total}} invoice a month included",
       "planAllowance_other": "{{total}} invoices a month included",
@@ -13050,7 +13061,17 @@
         "TENANT_SUSPENDED": "The account is suspended",
         "TENANT_NOT_ACTIVE": "The account is not active yet",
         "TENANT_CLOSED": "The account is closed",
-        "IDENTITY_NOT_READY": "Sign-in setup is not finished"
+        "IDENTITY_NOT_READY": "Sign-in setup is not finished",
+        "READY": "Verified, enabled and active. Issuing invoices has its own prerequisites.",
+        "TENANT_DISABLED": "The account is disabled",
+        "TENANT_NOT_FOUND": "The account was not found",
+        "PLATFORM_TENANT": "A Fawtir platform account",
+        "PEPPOL_TEST_TENANT": "A Peppol TEST account"
+      },
+      "invoicing": {
+        "ready": "Can issue invoices",
+        "notReady": "Cannot issue invoices yet",
+        "unavailable": "Not reported by this server"
       }
     },
     "subscriptionActions": {
@@ -20170,7 +20191,8 @@
     "composer": {
       "title": "This invoice cannot be issued yet",
       "subtitle": "Fawtir will refuse to issue it until these are done. You can still save it as a draft."
-    }
+    },
+    "done": "Done"
   },
   "demoModule": {
     "ribbon": "Demo: sample data for a module that is not built yet. None of it is your company's, and nothing here is saved."

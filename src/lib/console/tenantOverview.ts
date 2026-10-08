@@ -87,13 +87,23 @@ export type OverviewSubscription = {
 }
 
 /**
- * `PlatformTenantOverview.Operational`. `ready` means the tenant may enter invoice submission
- * and SMP entry points — not filing health, activity or certificate state, none of which the
- * domain defines.
+ * `PlatformTenantOverview.Operational`: the account gate (verified, enabled, active). It does not
+ * mean the company can issue invoices, which also needs its Participant ID and seller details;
+ * showing it as "ready to submit" told operators a company could issue when every invoice would
+ * be refused. That answer is `invoicing`.
  */
 export type OverviewOperational = {
   ready: boolean
   reasonCode: string | null
+}
+
+/**
+ * `PlatformTenantOverview.Invoicing`: the company's own issuance prerequisites, the same answer its
+ * dashboard shows. Absent from older backends, which only had `operational`.
+ */
+export type OverviewInvoicing = {
+  ready: boolean
+  items: { code: string; status: string; owner: string }[]
 }
 
 export type TenantOverview = {
@@ -102,6 +112,7 @@ export type TenantOverview = {
   verification: OverviewVerification
   subscription: OverviewSubscription
   operational: OverviewOperational
+  invoicing?: OverviewInvoicing | null
 }
 
 /** The monogram the header draws. Derived from the real name, never from a fixture. */

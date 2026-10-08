@@ -196,13 +196,49 @@ describe('Tenant detail — real backend data', () => {
     renderAt(`/console/tenants/${TENANT_ID}`)
     await screen.findByRole('heading', { name: 'Al Noor Bakery' })
 
-    expect(screen.getByText('Not ready to submit')).toBeTruthy()
+    expect(screen.getByText('Not active')).toBeTruthy()
     expect(screen.getByText('Company verification is waiting for review')).toBeTruthy()
     expect(screen.queryByText('COMPANY_VERIFICATION_PENDING')).toBeNull()
     const body = document.body.textContent ?? ''
-    for (const forbidden of ['Gone quiet', 'At risk', 'Filing health', 'Certificate']) {
+    for (const forbidden of ['Gone quiet', 'At risk', 'Filing health', 'Certificate', 'Ready to submit']) {
       expect(body).not.toContain(forbidden)
     }
+  })
+
+  it('an active account is not "ready to submit": invoicing shows the company\'s own prerequisites', async () => {
+    answer({
+      ...ready,
+      [OVERVIEW_URL]: () =>
+        json(200, {
+          ...OVERVIEW,
+          operational: { ready: true, reasonCode: 'READY' },
+          invoicing: {
+            ready: false,
+            items: [
+              { code: 'COMPANY_VERIFIED', status: 'DONE', owner: 'PLATFORM' },
+              { code: 'PARTICIPANT_VERIFIED', status: 'AWAITING_PLATFORM', owner: 'PLATFORM' },
+              { code: 'ACTIVE_BRANCH', status: 'ACTION_REQUIRED', owner: 'COMPANY' },
+            ],
+          },
+        }),
+    })
+    renderAt(`/console/tenants/${TENANT_ID}`)
+    await screen.findByRole('heading', { name: 'Al Noor Bakery' })
+
+    expect(screen.getByText('Active')).toBeTruthy()
+    expect(screen.getByText('Cannot issue invoices yet')).toBeTruthy()
+    const participant = screen.getByText(i18n.t('readiness.item.PARTICIPANT_VERIFIED')).closest('li')!
+    expect(participant.textContent).toContain(i18n.t('readiness.awaitingFawtir'))
+    const branch = screen.getByText(i18n.t('readiness.item.ACTIVE_BRANCH')).closest('li')!
+    expect(branch.textContent).toContain(i18n.t('readiness.actionRequired'))
+  })
+
+  it('an older backend without invoicing says it is not reported rather than guessing', async () => {
+    answer(ready)
+    renderAt(`/console/tenants/${TENANT_ID}`)
+    await screen.findByRole('heading', { name: 'Al Noor Bakery' })
+    expect(screen.getByText('Not reported by this server')).toBeTruthy()
+    expect(screen.queryByText('Can issue invoices')).toBeNull()
   })
 
   it('E14 no approval action is offered here', async () => {
