@@ -385,6 +385,23 @@ describe('One debit note', () => {
     expect(screen.getAllByRole('button', { name: 'Refuse it' })).toHaveLength(2)
   })
 
+  it('hides "Put on hold" once a decision is taken, rather than greying it', async () => {
+    // Owner, 8 Oct 2026: hidden, not greyed. Holding is offered only before a decision.
+    for (const status of ['ACCEPTED', 'REFUSED'] as const) {
+      notes = [note({ status, decisionReason: status === 'REFUSED' ? 'Already charged' : null })]
+      const view = renderDetail()
+      await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+      expect(screen.queryByRole('button', { name: 'Put on hold' }), status).toBeNull()
+      expect(screen.queryByText('Put on hold'), status).toBeNull()
+      view.unmount()
+    }
+
+    notes = [note({ status: 'UNCHECKED' })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(screen.getByRole('button', { name: 'Put on hold' })).toHaveProperty('disabled', false)
+  })
+
   it("says a note already paid cannot be refused, in the owner's words", async () => {
     notes = [
       note({ status: 'ACCEPTED', paidAmount: 75.5, outstandingAmount: 0, paymentState: 'PAID' }),
