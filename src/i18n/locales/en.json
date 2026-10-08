@@ -17713,7 +17713,10 @@
       "debitNoteRefusedMarkPaid": "{{note}} was refused after the bank file was made. Mark the others paid and take {{note}} out of the run.",
       "amountChangedExport": "The amount owed on {{bill}} changed after it joined this run. Take it out and add it again.",
       "settledBill": "{{bill}} is already paid in full. Take it out of the run.",
-      "settledDebitNote": "{{bill}} is already paid in full. Take it out of the run."
+      "settledDebitNote": "{{bill}} is already paid in full. Take it out of the run.",
+      "bankDetailsUnconfirmed": "{{supplier}}'s new bank details are not confirmed yet. Confirm them, or take their bills out of the run.",
+      "payerAccountInactive": "The account you pay from, {{account}}, is switched off. Choose an active account.",
+      "payerNameNotLatin": "The bank file needs the company's legal name in English letters. Update it in Company settings, then try again."
     },
     "addModal": {
       "open": "Add to a payment run",
@@ -17753,7 +17756,8 @@
     "markOthersPaid": "Mark the others paid",
     "takeOutOfRun": "Take out of the run",
     "bankPaidNothing": "The bank paid nothing from this file",
-    "sentFileWarning": "This file was already sent to the bank. Do not upload it again."
+    "sentFileWarning": "This file was already sent to the bank. Do not upload it again.",
+    "bankDetailsChangedSinceFile": "{{supplier}}'s bank details changed after this file was made. This file keeps the old IBAN; new runs use the new one."
   },
   "billIntake": {
     "supplier": "Supplier",

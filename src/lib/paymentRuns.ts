@@ -149,6 +149,11 @@ export const RUN_REFUSALS: Record<string, string> = {
   PAYER_ACCOUNT_IBAN_INVALID: 'paymentRuns.account.ibanInvalid',
   PAYER_ACCOUNT_BIC_INVALID: 'paymentRuns.account.bicInvalid',
   PAYER_ACCOUNT_NAME_INVALID: 'paymentRuns.account.nameInvalid',
+  // Making a PAIN_001 file for a company whose legal name is not in Latin letters (8 Oct 2026).
+  PAYMENT_RUN_PAYER_NAME_NOT_LATIN: 'paymentRuns.refused.payerNameNotLatin',
+  // The pay-from account was switched off after the run chose it, from a server that sends no
+  // `accountName`: the sentence the other switched-off account refusal reads.
+  PAYMENT_RUN_PAYER_ACCOUNT_INACTIVE: 'paymentRuns.refused.payerInactive',
 }
 
 /** What was being done to a run when it refused, where one code needs a sentence per action. */
@@ -192,10 +197,31 @@ export function refusalOf(error: unknown, t: TFunction, action?: RunAction): str
     if (byAction) return t(byAction, { note: number, bill: number })
     if (error.code === 'PAYMENT_RUN_BILL_SETTLED')
       return t(settledKey(error.problem.documentTypeCode), { bill: number })
+    // Making the bank file (owner, 8 Oct 2026): one sentence per supplier whose new bank details
+    // nobody confirmed, and the switched-off pay-from account by its name.
+    if (error.code === 'PAYMENT_RUN_BANK_DETAILS_UNCONFIRMED') {
+      const names = suppliersNamed(error.problem.suppliers)
+      if (names.length > 0)
+        return names
+          .map((supplier) => t('paymentRuns.refused.bankDetailsUnconfirmed', { supplier }))
+          .join(' ')
+    }
+    if (error.code === 'PAYMENT_RUN_PAYER_ACCOUNT_INACTIVE' && error.problem.accountName)
+      return t('paymentRuns.refused.payerAccountInactive', {
+        account: String(error.problem.accountName),
+      })
     if (RUN_REFUSALS[error.code]) return t(RUN_REFUSALS[error.code])
   }
   const described = describeApiFailure(error)
   return t(described.key, described.values)
+}
+
+/** The names in a refusal's `suppliers` (`[{supplierId, supplierName}]`), in its order. */
+function suppliersNamed(suppliers: unknown): string[] {
+  if (!Array.isArray(suppliers)) return []
+  return suppliers
+    .map((entry) => (entry as { supplierName?: unknown } | null)?.supplierName)
+    .filter((name): name is string => typeof name === 'string' && name.trim() !== '')
 }
 
 /** ISO 13616 shape and ISO 7064 MOD 97-10, as the server checks it: a typo is refused before it is sent. */
