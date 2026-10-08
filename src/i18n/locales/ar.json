@@ -18533,7 +18533,8 @@
     "markOthersPaid": "سجّل الباقي كمدفوع",
     "takeOutOfRun": "إخراج من الدفعة",
     "bankPaidNothing": "لم يدفع البنك شيئًا من هذا الملف",
-    "sentFileWarning": "أُرسل هذا الملف إلى البنك بالفعل. لا ترفعه مرة أخرى."
+    "sentFileWarning": "أُرسل هذا الملف إلى البنك بالفعل. لا ترفعه مرة أخرى.",
+    "takenOutRow": "أُخرج من الدفعة · {{reason}}"
   },
   "billIntake": {
     "supplier": "المورّد",
