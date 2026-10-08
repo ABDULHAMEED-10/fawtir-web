@@ -9896,7 +9896,6 @@
     "amendFieldsRefused": "Complete these before saving: {{fields}}.",
     "title": "Company profile",
     "subtitle": "What appears on every invoice you send, and what the Tax Authority holds about you",
-    "sampleInvoice": "See a full sample invoice",
     "whoYouAre": "Who you are",
     "whoYouAreNote": "this is the legal identity on the invoice, not a trading name",
     "registeredName": "Registered name",
@@ -9907,7 +9906,6 @@
     "vatNumber": "VAT number",
     "locked": "locked",
     "lockedNote": "Part of your verified tax identity. Changing it needs re-verification, so contact support.",
-    "vatRegisteredSince": "VAT registered since",
     "whereYouAre": "Where you are",
     "whereYouAreNote": "the registered address; branches have their own",
     "streetAddress": "Street address",
@@ -9916,7 +9914,6 @@
     "country": "Country",
     "phone": "Phone",
     "emailOnInvoices": "Email on invoices",
-    "website": "Website",
     "yourLogo": "Your logo",
     "yourLogoNote": "appears on invoices, quotations and receipts",
     "removeIt": "Remove it",
@@ -9924,11 +9921,6 @@
     "logoFormats": "PNG or SVG",
     "logoSize": "at least 400px square",
     "onAReceipt": "On a receipt",
-    "onAReceiptNote": "thermal printers are black and white",
-    "receiptOption": {
-      "plainBlack": "Use a plain black version",
-      "none": "Leave it off receipts"
-    },
     "brandColour": "Brand colour",
     "brandColourNote": "used on invoice headings",
     "logoWarning": "The logo is drawn onto the PDF only. <b>The XML sent to the Tax Authority carries no image</b>, so a logo change never affects a submission.",
@@ -9963,12 +9955,6 @@
     "immediately": "Immediately",
     "unchanged": "Unchanged",
     "lastChanged": "Last changed",
-    "changed": {
-      "bankNote": "Bank note",
-      "logo": "Logo",
-      "address": "Address"
-    },
-    "seeFullHistory": "See the full history",
     "nothingChanged": "Nothing changed yet",
     "oneThingChanged": "<b>One thing changed</b> · {{fields}}",
     "thingsChanged": "<b>{{count}} things changed</b> · {{fields}}",
@@ -9984,7 +9970,13 @@
     "industrialClassificationUnset": "Not set yet. Business and government invoices cannot be created until a business activity is set. Consumer invoices are not affected.",
     "industrialClassificationFailed": "The business activity was not saved. Check the code and try again.",
     "saveFailed": "That did not save. Check your connection and try again.",
-    "identityLockedNote": "Your legal and tax identity is verified and locked. Changing it needs a controlled re-verification, so contact support."
+    "identityLockedNote": "Your legal and tax identity is verified and locked. Changing it needs a controlled re-verification, so contact support.",
+    "sampleNumber": "Sample",
+    "sampleLineOne": "Sample item",
+    "sampleLineTwo": "Sample service",
+    "previewVat": "VAT {{number}}",
+    "noChangesYet": "No changes recorded yet",
+    "changedOther": "Company details"
   },
   "branches": {
     "title": "Branches",

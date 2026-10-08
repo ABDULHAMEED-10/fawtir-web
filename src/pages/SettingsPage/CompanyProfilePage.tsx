@@ -3,10 +3,10 @@ import { useTranslation, Trans } from 'react-i18next'
 import { paymentTermOptions, useReferenceData } from '../../lib/reference/referenceData'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { Combobox, Input, Select, withRial, type SelectOption } from '../../components/ui'
-import { COMPANY } from '../../lib/settings'
 import { useApiRead } from '../../hooks/useApiRead'
 import { useSession } from '../../lib/session/session'
-import { initialsOf } from '../../lib/format'
+import { formatInstantDay, initialsOf } from '../../lib/format'
+import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import {
   INDUSTRIAL_CLASSIFICATION_PATH,
   readIndustrialClassification,
@@ -27,8 +27,11 @@ import {
   type InvoiceDefaultsDto,
 } from '../../api/company/invoiceDefaults'
 import {
+  COMPANY_PROFILE_CHANGES_PATH,
   COMPANY_PROFILE_PATH,
   amendCompanyProfile,
+  loadCompanyProfileChanges,
+  type CompanyProfileChangeDto,
   loadCompanyProfile,
   saveCompanyProfile,
   type CompanyProfileDto,
@@ -67,6 +70,28 @@ const FIELD_LABEL: Record<string, string> = {
   contactEmail: 'emailOnInvoices',
 }
 
+/**
+ * The change log's field names (`CompanyProfileChange.field`: the amendment's names above, plus
+ * those InvoiceDefaultsService and IndustrialClassificationService record) to this screen's labels.
+ * A name not listed reads as "Company details" rather than as a raw identifier.
+ */
+const CHANGE_LABEL: Record<string, string> = {
+  ...FIELD_LABEL,
+  legalName: 'registeredName',
+  legalNameAr: 'arabicName',
+  tradingName: 'tradingAs',
+  commercialRegistrationNumber: 'commercialRegistration',
+  country: 'country',
+  industrialClassification: 'industrialClassification',
+  invoiceLanguage: 'language',
+  defaultCurrency: 'currency',
+  defaultPaymentTerms: 'paymentTerms',
+  invoiceFooterNote: 'bottomNote',
+  logo: 'yourLogo',
+  brandColour: 'brandColour',
+  receiptLogoMonochrome: 'onAReceipt',
+}
+
 /** The shape the form edits. Kept flat so a dirty-field diff is a plain key comparison. */
 type Profile = {
   registeredName: string
@@ -75,7 +100,6 @@ type Profile = {
   commercialRegistration: string
   /** ISIC Rev. 4, Oman's 6-digit code (IBR-081-OM); the backend copies it onto every invoice line. */
   industrialClassification: string
-  vatRegisteredSince: string
   street: string
   addressLine2: string
   addressLine3: string
@@ -88,8 +112,6 @@ type Profile = {
   contactPerson: string
   phone: string
   email: string
-  website: string
-  receiptLogo: string
   brandColour: string
   language: string
   currency: string
@@ -130,38 +152,40 @@ function operationalFrom(stored: CompanyProfileDto): OperationalFields {
   }
 }
 
+/**
+ * Empty until the server answers, and the form is not shown before then: these used to be a sample
+ * company's name, address and contact, which a save built on a half-loaded screen would have sent.
+ * The colour is a neutral swatch for a company that has not chosen one; it is only sent if changed.
+ */
 const INITIAL: Profile = {
-  registeredName: COMPANY.legalName,
-  arabicName: COMPANY.arabicName,
-  tradingAs: COMPANY.tradingAs,
-  commercialRegistration: COMPANY.commercialRegistration,
+  registeredName: '',
+  arabicName: '',
+  tradingAs: '',
+  commercialRegistration: '',
   industrialClassification: '',
-  vatRegisteredSince: COMPANY.vatRegisteredSince,
-  street: COMPANY.street,
+  street: '',
   addressLine2: '',
   addressLine3: '',
-  town: COMPANY.town,
-  postalCode: COMPANY.postalCode,
+  town: '',
+  postalCode: '',
   poBox: '',
   governorate: '',
   subdivisionCode: '',
-  country: COMPANY.country,
+  country: 'Oman',
   contactPerson: '',
-  phone: COMPANY.phone,
-  email: COMPANY.email,
-  website: COMPANY.website,
-  receiptLogo: COMPANY.receiptLogo,
-  brandColour: COMPANY.brandColour,
-  language: COMPANY.defaultLanguage,
-  currency: COMPANY.defaultCurrency,
-  paymentTerms: COMPANY.defaultPaymentTerms,
-  footerNote: COMPANY.invoiceFooterNote,
+  phone: '',
+  email: '',
+  brandColour: '#2C4EB7',
+  language: 'both',
+  currency: 'OMR',
+  paymentTerms: '',
+  footerNote: '',
 }
 
 /** What the sample invoice on the right is built from, so the preview totals are real. */
 const SAMPLE_LINES = [
-  { name: 'House Blend, 1 kg', quantity: 4, unit: 9.5 },
-  { name: 'Roasting, per batch', quantity: 2, unit: 4.2 },
+  { key: 'sampleLineOne', quantity: 2, unit: 10 },
+  { key: 'sampleLineTwo', quantity: 1, unit: 5 },
 ]
 
 const VAT_RATE = 0.05
@@ -187,7 +211,10 @@ export function CompanyProfilePage() {
   const activityRead = useApiRead(INDUSTRIAL_CLASSIFICATION_PATH, readIndustrialClassification).read
   const brandingRead = useApiRead(BRANDING_PATH, loadBranding).read
   const defaultsRead = useApiRead(INVOICE_DEFAULTS_PATH, loadInvoiceDefaults).read
-  const profileRead = useApiRead(COMPANY_PROFILE_PATH, loadCompanyProfile).read
+  const { read: profileRead, retry: retryProfile } = useApiRead(
+    COMPANY_PROFILE_PATH,
+    loadCompanyProfile,
+  )
   const [storedActivity, setStoredActivity] = useState<string | null | undefined>(undefined)
   const [storedProfile, setStoredProfile] = useState<CompanyProfileDto | undefined>(undefined)
   const [profileSaveFailed, setProfileSaveFailed] = useState(false)
@@ -200,9 +227,9 @@ export function CompanyProfilePage() {
   // POST /company-profile/amendments (approved 2026-10-06), which leaves the verification as it is.
   const verified = storedProfile?.verificationStatus === 'VERIFIED'
   const [storedBrandColour, setStoredBrandColour] = useState<string | undefined>(undefined)
-  // receiptMonochrome round-trips unchanged on save: the screen's own control for it
-  // (`receiptLogo`) isn't persisted yet (see the TODO(backend) beside it), so a colour-only save
-  // must not reset a value a reviewer or a prior save already set.
+  // receiptMonochrome round-trips unchanged on save: this screen has no control for it (the
+  // receipt-logo select it had was never saved, SETTINGS.md row 1), so a colour-only save must not
+  // reset a value a reviewer or a prior save already set.
   const [storedReceiptMonochrome, setStoredReceiptMonochrome] = useState(false)
   const [storedDefaults, setStoredDefaults] = useState<InvoiceDefaultsDto | undefined>(undefined)
   const [saveFailed, setSaveFailed] = useState(false)
@@ -334,24 +361,31 @@ export function CompanyProfilePage() {
     return { net, vat, total: Math.round((net + vat) * 1000) / 1000 }
   }, [])
 
+  // The form edits what the server holds; before that is known there is nothing honest to show.
+  if (profileRead.status === 'loading') {
+    return (
+      <SettingsShell group="company">
+        <SettingsHeader title={t('companyProfile.title')} subtitle={t('companyProfile.subtitle')} />
+        <LoadingNotice />
+      </SettingsShell>
+    )
+  }
+  if (profileRead.status === 'failed') {
+    return (
+      <SettingsShell group="company">
+        <SettingsHeader title={t('companyProfile.title')} subtitle={t('companyProfile.subtitle')} />
+        <ApiReadFailure error={profileRead.error} retry={retryProfile} />
+      </SettingsShell>
+    )
+  }
+
   const fieldNames = dirty
     .map((key) => t(`companyProfile.${key}`).toLowerCase())
     .join(t('companyProfile.andJoin'))
 
   return (
     <SettingsShell group="company">
-      <SettingsHeader
-        title={t('companyProfile.title')}
-        subtitle={t('companyProfile.subtitle')}
-        actions={
-          <button
-            type="button"
-            className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-          >
-            {t('companyProfile.sampleInvoice')}
-          </button>
-        }
-      />
+      <SettingsHeader title={t('companyProfile.title')} subtitle={t('companyProfile.subtitle')} />
 
       <div className="flex flex-col gap-4 xl:flex-row">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
@@ -438,22 +472,10 @@ export function CompanyProfilePage() {
                     </span>
                   }
                   hint={t('companyProfile.lockedNote')}
-                  value={storedProfile?.taxNumber ?? COMPANY.vatNumber}
+                  value={storedProfile?.taxNumber ?? ''}
                   readOnly
                   readOnlyAppearance
                 />
-                <Field label={t('companyProfile.vatRegisteredSince')}>
-                  <Select
-                    ariaLabel={t('companyProfile.vatRegisteredSince')}
-                    value={form.vatRegisteredSince}
-                    onChange={(value) => set('vatRegisteredSince', value)}
-                    options={[
-                      { value: '1 April 2021', label: '1 April 2021' },
-                      { value: '1 April 2022', label: '1 April 2022' },
-                      { value: '1 January 2021', label: '1 January 2021' },
-                    ]}
-                  />
-                </Field>
               </div>
             </div>
           </Panel>
@@ -584,14 +606,6 @@ export function CompanyProfilePage() {
                   value={form.email}
                   onChange={(event) => set('email', event.target.value)}
                 />
-                {/* TODO(backend): docs/backend-guides/SETTINGS.md row 2 — /company-profile has no
-                    website field at all; this stays local-only until one exists. */}
-                <Input
-                  bordered
-                  label={t('companyProfile.website')}
-                  value={form.website}
-                  onChange={(event) => set('website', event.target.value)}
-                />
               </div>
               {profileConflict ? (
                 <p role="alert" className="text-xs font-medium text-warning-700">
@@ -705,27 +719,6 @@ export function CompanyProfilePage() {
 
               <div className="min-w-[280px] flex-1">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field
-                    label={t('companyProfile.onAReceipt')}
-                    hint={t('companyProfile.onAReceiptNote')}
-                  >
-                    {/* TODO(backend): docs/backend-guides/SETTINGS.md row 1 — the API's
-                        receiptMonochrome is a colour toggle on a logo it always draws; it has no
-                        way to represent "leave it off receipts" (this control's `none`), so this
-                        choice is not persisted yet. */}
-                    <Select
-                      ariaLabel={t('companyProfile.onAReceipt')}
-                      value={form.receiptLogo}
-                      onChange={(value) => set('receiptLogo', value)}
-                      options={[
-                        {
-                          value: 'plainBlack',
-                          label: t('companyProfile.receiptOption.plainBlack'),
-                        },
-                        { value: 'none', label: t('companyProfile.receiptOption.none') },
-                      ]}
-                    />
-                  </Field>
                   <Field
                     label={t('companyProfile.brandColour')}
                     hint={t('companyProfile.brandColourNote')}
@@ -871,8 +864,8 @@ export function CompanyProfilePage() {
                         {t('companyProfile.taxInvoiceAr')}
                       </span>
                     ) : null}
-                    <span className="mt-0.5 block font-mono text-[10px] text-text-quaternary">
-                      INV-2047
+                    <span className="mt-0.5 block text-[10px] text-text-quaternary">
+                      {t('companyProfile.sampleNumber')}
                     </span>
                   </span>
                 </div>
@@ -881,18 +874,22 @@ export function CompanyProfilePage() {
                   {form.street}
                   <br />
                   {form.town} {form.postalCode}, {form.country}
-                  <br />
-                  VAT {COMPANY.vatNumber}
+                  {storedProfile?.taxNumber ? (
+                    <>
+                      <br />
+                      {t('companyProfile.previewVat', { number: storedProfile.taxNumber })}
+                    </>
+                  ) : null}
                 </p>
 
                 <ul className="mt-3 border-t border-border-subtle pt-2">
                   {SAMPLE_LINES.map((line) => (
                     <li
-                      key={line.name}
+                      key={line.key}
                       className="flex items-baseline justify-between gap-2 py-1 text-[10px]"
                     >
                       <span className="font-medium text-text-tertiary">
-                        {line.name} × {line.quantity}
+                        {t(`companyProfile.${line.key}`)} × {line.quantity}
                       </span>
                       <span className="shrink-0 font-medium text-text-primary tabular-nums">
                         {omr(line.quantity * line.unit)}
@@ -952,39 +949,7 @@ export function CompanyProfilePage() {
             </dl>
           </section>
 
-          <section className="rounded-md bg-surface-card p-5">
-            <h3 className="text-base font-semibold leading-[1.2] text-text-primary">
-              {t('companyProfile.lastChanged')}
-            </h3>
-            <dl className="mt-2">
-              {(
-                [
-                  ['bankNote', '12 Jun · Hafidh'],
-                  ['logo', '3 Feb · Hafidh'],
-                  ['address', '14 Mar 2025'],
-                ] as const
-              ).map(([row, when], index) => (
-                <div
-                  key={row}
-                  className={[
-                    'flex items-center justify-between gap-3 py-2.5',
-                    index < 2 ? 'border-b border-surface-background' : '',
-                  ].join(' ')}
-                >
-                  <dt className="text-sm font-medium text-text-tertiary">
-                    {t(`companyProfile.changed.${row}`)}
-                  </dt>
-                  <dd className="shrink-0 text-sm font-semibold text-text-primary">{when}</dd>
-                </div>
-              ))}
-            </dl>
-            <button
-              type="button"
-              className="mt-3 inline-flex h-[40px] w-full items-center justify-center rounded-sm border border-border-subtle bg-white text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-            >
-              {t('companyProfile.seeFullHistory')}
-            </button>
-          </section>
+          <LastChangedCard />
         </aside>
       </div>
 
@@ -1028,6 +993,9 @@ export function CompanyProfilePage() {
               setProfileSaveFailed(false)
               setProfileConflict(false)
               setProfileFieldErrors([])
+              // "Saved" means a request this click sent was answered; a click that sent nothing
+              // says nothing.
+              let sent = false
               const operationalDirty = OPERATIONAL_FIELDS.some((key) => form[key] !== baseline[key])
               if (verified && operationalDirty && storedProfile) {
                 try {
@@ -1046,6 +1014,7 @@ export function CompanyProfilePage() {
                     contactEmail: form.email || null,
                   })
                   setStoredProfile(stored)
+                  sent = true
                 } catch (error) {
                   if (error instanceof ApiError && error.status === 409) {
                     // Someone saved first. Their values replace these fields rather than being
@@ -1103,6 +1072,7 @@ export function CompanyProfilePage() {
                     contactEmail: form.email || null,
                   })
                   setStoredProfile(stored)
+                  sent = true
                 } catch {
                   setProfileSaveFailed(true)
                   return
@@ -1112,6 +1082,7 @@ export function CompanyProfilePage() {
                 try {
                   const stored = await saveIndustrialClassification(form.industrialClassification)
                   setStoredActivity(stored.code)
+                  sent = true
                 } catch {
                   setSaveFailed(true)
                   return
@@ -1121,6 +1092,7 @@ export function CompanyProfilePage() {
                 try {
                   const stored = await saveBranding(form.brandColour, storedReceiptMonochrome)
                   setStoredBrandColour(stored.brandColour ?? INITIAL.brandColour)
+                  sent = true
                 } catch {
                   setBrandingSaveFailed(true)
                   return
@@ -1140,12 +1112,13 @@ export function CompanyProfilePage() {
                     footerNote: form.footerNote || null,
                   })
                   setStoredDefaults(stored)
+                  sent = true
                 } catch {
                   setDefaultsSaveFailed(true)
                   return
                 }
               }
-              setSaved(true)
+              setSaved(sent)
             }}
             className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-40"
           >
@@ -1155,6 +1128,59 @@ export function CompanyProfilePage() {
         </div>
       </div>
     </SettingsShell>
+  )
+}
+
+/**
+ * The latest change per field, from `GET /v1/company-profile/changes`. The log names the person
+ * only by id, and the screen has no readable directory of people, so it shows the field and the
+ * day and no name. It used to print a sample owner's name against sample dates. Hidden when the
+ * log cannot be read. There is no "full history" link: the activity log cannot be filtered to
+ * these changes from a link.
+ */
+function LastChangedCard() {
+  const { t, i18n } = useTranslation()
+  const changes = useApiRead<CompanyProfileChangeDto[]>(
+    COMPANY_PROFILE_CHANGES_PATH,
+    loadCompanyProfileChanges,
+  ).read
+  if (changes.status !== 'ready') return null
+  const latest = [...changes.data]
+    .sort((a, b) => b.changedAt.localeCompare(a.changedAt))
+    .slice(0, 3)
+
+  return (
+    <section className="rounded-md bg-surface-card p-5">
+      <h3 className="text-base font-semibold leading-[1.2] text-text-primary">
+        {t('companyProfile.lastChanged')}
+      </h3>
+      {latest.length === 0 ? (
+        <p className="mt-2 text-sm font-medium text-text-quaternary">
+          {t('companyProfile.noChangesYet')}
+        </p>
+      ) : (
+        <dl className="mt-2">
+          {latest.map((change, index) => (
+            <div
+              key={`${change.field}-${change.changedAt}`}
+              className={[
+                'flex items-center justify-between gap-3 py-2.5',
+                index < latest.length - 1 ? 'border-b border-surface-background' : '',
+              ].join(' ')}
+            >
+              <dt className="text-sm font-medium text-text-tertiary">
+                {CHANGE_LABEL[change.field]
+                  ? t(`companyProfile.${CHANGE_LABEL[change.field]}`)
+                  : t('companyProfile.changedOther')}
+              </dt>
+              <dd className="shrink-0 text-sm font-semibold text-text-primary">
+                {formatInstantDay(change.changedAt, i18n.language)}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </section>
   )
 }
 
