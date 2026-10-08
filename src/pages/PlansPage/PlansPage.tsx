@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { OnboardingGate } from '../../components/auth/OnboardingGate'
 import { BackButton, OmAmount, PricingCard, SegmentedControl } from '../../components/ui'
 import { ChevronDownIcon } from '../../components/ui/icons'
 import {
@@ -10,6 +11,8 @@ import {
   type AnyPlanId,
   type CataloguePlan,
 } from '../../lib/plans'
+import { PAYMENT_ROUTE, REVIEW_ROUTE } from '../../lib/identity/onboarding'
+import { onboardingStateFrom, type OnboardingState } from '../../lib/onboarding'
 import type { PlanId } from '../../lib/pricing'
 import { PlanComparison, PlanFaq } from './PlanComparison'
 import patternLeft from '../../assets/plans/pattern-left.png'
@@ -62,11 +65,27 @@ const COMPARE_ID = 'compare'
 
 const count = (value: number) => value.toLocaleString('en-US')
 
+/**
+ * Step six of sign-up, after the address and before "How you'll pay" (owner decision,
+ * 8 Oct 2026). Prices, limits, the trial and which plans are offered are the super admin's
+ * (`/v1/platform/plans`); sign-up shows the launch catalogue until it can read the published
+ * plans. TODO(backend): ONBOARDING.md rows 1.1 and 1.2.
+ */
 export function PlansPage() {
+  const location = useLocation()
+  return (
+    <OnboardingGate ready={Boolean(onboardingStateFrom(location.state).address)}>
+      <PlansContent />
+    </OnboardingGate>
+  )
+}
+
+function PlansContent() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
-  const [billing, setBilling] = useState<BillingCycle>('monthly')
+  const state = onboardingStateFrom(location.state)
+  const [billing, setBilling] = useState<BillingCycle>(state.billing ?? 'monthly')
   // `/plans#compare` opens the table straight away — a link a sales chat or an email can carry.
   const [compare, setCompare] = useState(() => location.hash === '#compare')
 
@@ -76,13 +95,18 @@ export function PlansPage() {
   const billingNote = billing === 'monthly' ? t('plans.billedMonthly') : t('plans.billedAnnually')
 
   const selectPlan = (plan: PlanId) => {
-    navigate('/payment', {
-      state: {
-        ...(location.state as object),
-        plan,
-        billing,
-      },
-    })
+    // Enterprise is agreed on a call: no trial and no payment step, straight to review.
+    if (plan === 'enterprise') {
+      const { paymentMethod: _method, linkVia: _via, addon: _addon, ...rest } = state
+      void _method
+      void _via
+      void _addon
+      const next: OnboardingState = { ...rest, plan, billing }
+      navigate(REVIEW_ROUTE, { state: next })
+      return
+    }
+    const next: OnboardingState = { ...state, plan, billing }
+    navigate(PAYMENT_ROUTE, { state: next })
   }
 
   const price = (plan: CataloguePlan, dark: boolean): ReactNode => (

@@ -41,6 +41,10 @@ const COMPLETE: OnboardingState = {
     phone: '9123 4567',
     email: 'salim@example.test',
   },
+  accountEmail: 'owner@alnoor.test',
+  plan: 'premium',
+  billing: 'annual',
+  paymentMethod: 'bankTransfer',
 }
 
 const json = (status: number, body: unknown) =>
@@ -145,6 +149,7 @@ describe('Review and submit', () => {
       '/about-business',
       '/business-identity',
       '/address-contact',
+      '/payment',
     ])
 
     await userEvent.setup({ delay: null }).click(edits[2])
@@ -156,11 +161,65 @@ describe('Review and submit', () => {
     renderAt('/signup-review', COMPLETE)
     await userEvent.setup({ delay: null }).click(submit())
 
-    expect(await screen.findByText(i18n.t('signupPending.received.title'))).toBeTruthy()
+    expect(await screen.findByText(i18n.t('fawtaraStatus.review.title'))).toBeTruthy()
     expect(requests()).toEqual([
       { url: '/api/v1/auth/signup/final-submission', body: { onboardingToken: TOKEN } },
     ])
     expect(readOnboardingSession()?.submitted).toBe(true)
+  })
+
+  it('shows the plan and payment, and the waiting screen names the account email', async () => {
+    renderAt('/signup-review', COMPLETE)
+    expect(valueOf('signupReview.fields.plan')).toBe(
+      i18n.t('signupReview.planValue', {
+        plan: i18n.t('plans.premium.name'),
+        cycle: i18n.t('signupReview.billedAnnually'),
+      }),
+    )
+    expect(valueOf('signupReview.fields.payment')).toBe(i18n.t('signupReview.payment.bankTransfer'))
+    expect(valueOf('signupReview.fields.firstBill')).toBe(
+      i18n.t('signupReview.firstBillAfterTrial', { count: 14 }),
+    )
+    await userEvent.setup({ delay: null }).click(submit())
+
+    expect(await screen.findByText(i18n.t('fawtaraStatus.review.title'))).toBeTruthy()
+    expect(screen.getByText('owner@alnoor.test').tagName).toBe('B')
+    // In time order, the review under way (its marker carries the step's number).
+    const steps = screen.getAllByRole('listitem').map((item) => item.textContent)
+    expect(steps).toEqual([
+      i18n.t('fawtaraStatus.steps.sent'),
+      '2' + i18n.t('fawtaraStatus.steps.review') + i18n.t('fawtaraStatus.steps.reviewing'),
+      i18n.t('fawtaraStatus.steps.request'),
+      i18n.t('fawtaraStatus.steps.accept'),
+      i18n.t('fawtaraStatus.steps.register'),
+      i18n.t('fawtaraStatus.steps.connected'),
+    ])
+    // The portal request comes after Fawtir's review, so it is not offered yet.
+    expect(screen.queryByText(i18n.t('fawtaraStatus.openPortal'))).toBeNull()
+  })
+
+  it('refuses to submit without a plan and a way to pay, with no request', async () => {
+    const { paymentMethod: _method, ...noPayment } = COMPLETE
+    void _method
+    renderAt('/signup-review', noPayment)
+    expect(valueOf('signupReview.fields.payment')).toBe(i18n.t('signupReview.notChosen'))
+    await userEvent.setup({ delay: null }).click(submit())
+
+    expect(screen.getByText(i18n.t('signupReview.planMissing'))).toBeTruthy()
+    expect(
+      screen.getByRole('link', { name: i18n.t('signupReview.choosePayment') }).getAttribute('href'),
+    ).toBe('/payment')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('takes Enterprise without a payment step, its terms agreed on a call', async () => {
+    const { paymentMethod: _method, ...rest } = COMPLETE
+    void _method
+    renderAt('/signup-review', { ...rest, plan: 'enterprise' })
+    expect(valueOf('signupReview.fields.terms')).toBe(i18n.t('signupReview.enterpriseTerms'))
+    await userEvent.setup({ delay: null }).click(submit())
+    expect(await screen.findByText(i18n.t('fawtaraStatus.review.title'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('fawtaraStatus.plan.enterprise'))).toBeTruthy()
   })
 
   it('sends one submission however often it is pressed', async () => {
@@ -183,7 +242,7 @@ describe('Review and submit', () => {
     renderAt('/signup-review', COMPLETE)
     await userEvent.setup({ delay: null }).click(submit())
 
-    expect(await screen.findByText(i18n.t('signupPending.received.title'))).toBeTruthy()
+    expect(await screen.findByText(i18n.t('fawtaraStatus.review.title'))).toBeTruthy()
     expect(readOnboardingSession()?.submitted).toBe(true)
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
@@ -234,7 +293,7 @@ describe('Review and submit', () => {
   it('is closed once this tab has submitted', async () => {
     markOnboardingSubmitted(true)
     renderAt('/signup-review', COMPLETE)
-    expect(await screen.findByText(i18n.t('signupPending.received.title'))).toBeTruthy()
+    expect(await screen.findByText(i18n.t('fawtaraStatus.review.title'))).toBeTruthy()
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -255,8 +314,8 @@ describe('Review and submit', () => {
 describe('Waiting screen', () => {
   it('straight from submitting: received, with no request', () => {
     renderAt('/signup-pending', { submitted: true })
-    expect(screen.getByText(i18n.t('signupPending.received.title'))).toBeTruthy()
-    expect(screen.getByText(i18n.t('signupPending.received.badge'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('fawtaraStatus.review.title'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('fawtaraStatus.review.badge'))).toBeTruthy()
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -265,7 +324,7 @@ describe('Waiting screen', () => {
     try {
       fetchMock.mockResolvedValue(status('UNDER_REVIEW'))
       renderAt('/signup-pending')
-      expect(await screen.findByText(i18n.t('signupPending.received.title'))).toBeTruthy()
+      expect(await screen.findByText(i18n.t('fawtaraStatus.review.title'))).toBeTruthy()
       await act(async () => vi.advanceTimersByTimeAsync(10 * 60_000))
       expect(fetchMock).toHaveBeenCalledTimes(1)
     } finally {
@@ -276,7 +335,12 @@ describe('Waiting screen', () => {
   it('shows an approval with the way to sign in', async () => {
     fetchMock.mockResolvedValue(status('ACTIVATED'))
     renderAt('/signup-pending')
-    expect(await screen.findByText(i18n.t('signupPending.approved.title'))).toBeTruthy()
+    // Approved: the taxpayer's turn to send Fawtir the connection request on the portal.
+    expect(await screen.findByText(i18n.t('fawtaraStatus.request.title'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('fawtaraStatus.howTo.h4'))).toBeTruthy()
+    expect(
+      screen.getByRole('link', { name: i18n.t('fawtaraStatus.openPortal') }).getAttribute('href'),
+    ).toBe('https://tms.taxoman.gov.om/portal')
 
     await userEvent
       .setup({ delay: null })

@@ -4,6 +4,9 @@ import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../api'
 import { AuthLayout } from '../../components/auth/AuthLayout'
 import { Button, ChevronRightIcon } from '../../components/ui'
+import { onboardingStateFrom } from '../../lib/onboarding'
+import { FawtaraStatusHero } from '../FawtaraStatusPage/FawtaraStatusHero'
+import { FawtaraStatusPanel } from '../FawtaraStatusPage/FawtaraStatusPanel'
 import { ROUTE_FOR_STAGE, isSubmittedStage, readSignupStatus } from '../../lib/identity/onboarding'
 import {
   endOnboardingSession,
@@ -14,7 +17,8 @@ import {
 type Outcome = 'received' | 'approved' | 'ended'
 
 /**
- * The waiting screen after final submission.
+ * The waiting screen after final submission, drawn as the "getting you live" road in the Fawtara
+ * status frame's layout (owner decision, 8 Oct 2026): sent, Fawtir review, Fawtara, connected.
  *
  * It never presents the outcome as decided when it is not: the decision arrives by email, and the
  * two-hour token usually dies long before a reviewer acts, so an expired token means "we can no
@@ -28,7 +32,12 @@ export function SignupPendingPage() {
   const location = useLocation()
   const session = readOnboardingSession()
   const token = session?.onboardingToken
-  const arrivedFromSubmit = (location.state as { submitted?: boolean } | null)?.submitted === true
+  const carried = location.state as { submitted?: boolean; email?: string } | null
+  const arrivedFromSubmit = carried?.submitted === true
+  // Known only in the tab that submitted. TODO(backend): the status read could name both the
+  // email and the plan choice, ONBOARDING.md rows 1.4 and 1.8.
+  const email = carried?.email
+  const choice = onboardingStateFrom(location.state)
   const known: Outcome | null = arrivedFromSubmit || session?.submitted ? 'received' : token ? null : 'ended'
   const [outcome, setOutcome] = useState<Outcome | null>(known)
   const [redirect, setRedirect] = useState<string | null>(null)
@@ -59,29 +68,32 @@ export function SignupPendingPage() {
   if (redirect) return <Navigate to={redirect} replace />
 
   return (
-    <AuthLayout>
-      {outcome ? (
-        <div className="flex w-full max-w-[400px] flex-col gap-11">
-          <div className="flex flex-col gap-3">
-            {outcome === 'ended' ? null : (
-              <span className="inline-flex h-[29px] w-fit items-center justify-center rounded-sm border border-primary-150 px-2.5 text-base font-medium text-primary-700">
-                {t(`signupPending.${outcome}.badge`)}
-              </span>
-            )}
-            <h2 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-              {t(`signupPending.${outcome}.title`)}
-            </h2>
-            <p className="text-base font-medium leading-[1.2] text-text-quaternary">
-              {t(`signupPending.${outcome}.description`)}
-            </p>
-          </div>
-          {outcome === 'approved' ? (
-            <Button type="button" fullWidth className="gap-1.5" onClick={() => navigate('/login')}>
-              {t('signupPending.approved.signIn')}
-              <ChevronRightIcon size={18} className="rtl:rotate-180" />
-            </Button>
-          ) : null}
+    <AuthLayout showLanguageSwitcher align="start" hero={<FawtaraStatusHero />}>
+      {outcome === 'ended' ? (
+        <div className="flex w-full max-w-[660px] flex-col gap-3">
+          <h2 className="text-[32px] font-medium leading-[1.2] text-text-primary">
+            {t('signupPending.ended.title')}
+          </h2>
+          <p className="text-base font-medium leading-[1.4] text-text-quaternary">
+            {t('signupPending.ended.description')}
+          </p>
         </div>
+      ) : outcome ? (
+        <FawtaraStatusPanel
+          // TODO(backend): approval is all the status read reports, so an approved account is
+          // shown as still to send its portal request. ONBOARDING.md row 1.9.
+          phase={outcome === 'approved' ? 'request' : 'review'}
+          email={email}
+          choice={choice.plan ? choice : undefined}
+          action={
+            outcome === 'approved' ? (
+              <Button type="button" className="gap-1.5" onClick={() => navigate('/login')}>
+                {t('signupPending.approved.signIn')}
+                <ChevronRightIcon size={18} className="rtl:rotate-180" />
+              </Button>
+            ) : undefined
+          }
+        />
       ) : null}
     </AuthLayout>
   )
