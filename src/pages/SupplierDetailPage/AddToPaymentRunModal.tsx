@@ -123,7 +123,7 @@ export function AddToPaymentRunModal({
       )
       navigate(`/expenditure/payments/${runId}`)
     } catch (error) {
-      setNotice(refusalOf(error, t))
+      setNotice(refusalOf(error, t, 'add'))
     } finally {
       inFlight.current = false
       setBusy(false)

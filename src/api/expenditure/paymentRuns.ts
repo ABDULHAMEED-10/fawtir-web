@@ -59,7 +59,13 @@ export type PaymentRunCandidateDto = {
   amount: number
 }
 
-export type BlockedReasonCode = 'ON_HOLD' | 'MISMATCH' | 'REJECTED' | 'AWAITING_APPROVALS'
+/** DEBIT_NOTE_REFUSED: a supplier debit note (383) whose current decision is REFUSED. */
+export type BlockedReasonCode =
+  | 'ON_HOLD'
+  | 'MISMATCH'
+  | 'REJECTED'
+  | 'AWAITING_APPROVALS'
+  | 'DEBIT_NOTE_REFUSED'
 
 export type PaymentRunBlockedDto = {
   billId: string

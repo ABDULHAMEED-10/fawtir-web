@@ -42,6 +42,7 @@ import {
   windowEnd,
   type DueTone,
   type DueWindow,
+  type RunAction,
   type RunBill,
 } from '../../lib/paymentRuns'
 import { saveDownload } from '../../lib/supplierRecord'
@@ -185,7 +186,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
   const blockedRows = blocked.read.status === 'ready' ? blocked.read.data : []
 
   /** One write at a time: a tick while another is in flight would be sent against a stale run. */
-  const act = async (write: () => Promise<void>) => {
+  const act = async (write: () => Promise<void>, action?: RunAction) => {
     if (inFlight.current) return
     inFlight.current = true
     setBusy(true)
@@ -193,7 +194,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
     try {
       await write()
     } catch (error) {
-      setNotice(refusalOf(error, t))
+      setNotice(refusalOf(error, t, action))
     } finally {
       inFlight.current = false
       setBusy(false)
@@ -227,7 +228,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
       setDetail(await addToRun(runId, billIds))
       offered.retry()
       blocked.retry()
-    })
+    }, 'add')
 
   const remove = (billIds: string[]) =>
     act(async () => {
@@ -251,7 +252,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
       if (!runId || !run) return
       saveDownload(await exportRun(runId), run.reference)
       loaded.retry()
-    })
+    }, 'export')
 
   const pickWindow = (next: DueWindow) => {
     setWindow(next)

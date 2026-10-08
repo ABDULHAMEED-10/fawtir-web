@@ -208,4 +208,57 @@ describe('an Expenditure refusal is a decision, not a fault', () => {
     // A refusal with no value to name carries none.
     expect(describeApiFailure(refusal('CREDIT_NOTE_TARGET_ON_HOLD')).values).toBeUndefined()
   })
+
+  // The owner's sentences of 8 Oct for supplier debit notes.
+  it('gives the two debit note refusals the sentences the owner approved, in both languages', () => {
+    const sentences: Record<string, [string, string]> = {
+      BILL_PAYMENT_DEBIT_NOTE_REFUSED: [
+        'This debit note was refused, so it cannot be paid. Accept it first if it is owed after all.',
+        'هذا الإشعار المدين مرفوض، لذا لا يمكن سداده. اقبله أولًا إن كان مستحقًا فعلًا.',
+      ],
+      DEBIT_NOTE_ALREADY_PAID: [
+        'This debit note is already paid. Record a refund from the supplier instead.',
+        'هذا الإشعار المدين مدفوع بالفعل. سجّل استردادًا من المورّد بدلًا من ذلك.',
+      ],
+    }
+    for (const [code, [english, arabic]] of Object.entries(sentences)) {
+      const message = describeApiFailure(refusal(code))
+      expect(MAPPED_REFUSAL_CODES, code).toContain(code)
+      expect(i18n.t(message.key, { lng: 'en' }), code).toBe(english)
+      expect(i18n.t(message.key, { lng: 'ar' }), code).toBe(arabic)
+      expect(message.reference).toBe('trace-1')
+    }
+  })
+
+  it('says a refused debit note one way when adding it to a run and another when making the bank file', async () => {
+    const refused = refusal('PAYMENT_RUN_DEBIT_NOTE_REFUSED', {
+      billId: 'b-dn-7',
+      supplierBillNumber: 'DN-7',
+    })
+    await i18n.changeLanguage('en')
+    expect(refusalOf(refused, i18n.t, 'add')).toBe(
+      'DN-7 was refused, so it cannot go into a payment run.',
+    )
+    expect(refusalOf(refused, i18n.t, 'export')).toBe(
+      'DN-7 was refused after it joined this run. Take it out of the run first.',
+    )
+    await i18n.changeLanguage('ar')
+    expect(refusalOf(refused, i18n.t, 'add')).toBe('DN-7 مرفوض، لذا لا يمكن إضافته إلى دفعة سداد.')
+    expect(refusalOf(refused, i18n.t, 'export')).toBe(
+      'رُفض DN-7 بعد إضافته إلى هذه الدفعة. أخرجه من الدفعة أولًا.',
+    )
+    await i18n.changeLanguage('en')
+    // A note with no number leaves the place empty, never a placeholder or a raw key.
+    const bare = refusalOf(refusal('PAYMENT_RUN_DEBIT_NOTE_REFUSED'), i18n.t, 'add')
+    expect(bare).not.toContain('{{note}}')
+    expect(bare).toContain('was refused, so it cannot go into a payment run.')
+  })
+
+  it('keeps the generic refusal for a refused debit note when a run is marked paid', async () => {
+    // Its sentence belongs with an action the payment run screens do not have yet.
+    await i18n.changeLanguage('en')
+    const refused = refusal('PAYMENT_RUN_DEBIT_NOTE_REFUSED', { supplierBillNumber: 'DN-7' })
+    expect(refusalOf(refused, i18n.t)).toBe(i18n.t(REFUSAL_FALLBACK_KEY))
+    expect(MAPPED_REFUSAL_CODES).not.toContain('PAYMENT_RUN_DEBIT_NOTE_REFUSED')
+  })
 })

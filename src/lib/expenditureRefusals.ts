@@ -48,6 +48,8 @@ const REFUSALS: Record<string, string> = {
   DEBIT_NOTE_ALREADY_DECIDED: 'apiErrors.refused.debitNoteAlreadyDecided',
   DEBIT_NOTE_REFUSAL_REASON_REQUIRED: 'apiErrors.refused.debitNoteReasonRequired',
   DEBIT_NOTE_REASON_TOO_LONG: 'apiErrors.refused.debitNoteReasonTooLong',
+  // Refusing a note already paid in full (owner's sentence, 8 Oct 2026).
+  DEBIT_NOTE_ALREADY_PAID: 'apiErrors.refused.debitNoteAlreadyPaid',
 
   // Walking a purchase order through its states.
   PURCHASE_ORDER_TRANSITION_INVALID: 'apiErrors.refused.orderTransitionInvalid',
@@ -87,6 +89,8 @@ const REFUSALS: Record<string, string> = {
   // A single payment on a bill whose mismatch is unresolved (owner's answer 2, 2 Oct 2026): the
   // payment run's own sentence for the same refusal (`PAYMENT_RUN_BILL_MISMATCHED`).
   BILL_PAYMENT_MISMATCHED: 'paymentRuns.refused.mismatched',
+  // A single payment on a supplier debit note that was refused (owner's sentence, 8 Oct 2026).
+  BILL_PAYMENT_DEBIT_NOTE_REFUSED: 'apiErrors.refused.billPaymentDebitNoteRefused',
   BILL_PAYMENT_CURRENCY_MISMATCH: 'apiErrors.refused.paymentCurrencyMismatch',
   BILL_PAYMENT_ALREADY_REVERSED: 'apiErrors.refused.paymentAlreadyReversed',
   APPROVAL_ALREADY_GIVEN: 'apiErrors.refused.approvalAlreadyGiven',
