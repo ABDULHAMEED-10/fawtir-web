@@ -42,9 +42,47 @@ export type PaymentRunItemDto = {
   amount: number
   discountTaken: number
   outstanding: number
+  /**
+   * Set when the bill was taken out as the rest of a sent run was marked paid: the run paid
+   * nothing for it. Absent from a server from before the sent-run exits.
+   */
+  takenOut?: { at: string; actor: string | null; reason: string } | null
+  /**
+   * On a sent (EXPORTED) run, why marking this bill paid would be refused now; the mark-paid
+   * dialog ticks it to be taken out. Null when it can be paid, absent from an older server.
+   */
+  markPaidBlock?: { code: MarkPaidBlockCode; owedNow: number | null } | null
 }
 
-export type PaymentRunDetailDto = { run: PaymentRunDto; items: PaymentRunItemDto[] }
+export type MarkPaidBlockCode =
+  | 'PAYMENT_RUN_AMOUNT_CHANGED'
+  | 'PAYMENT_RUN_DEBIT_NOTE_REFUSED'
+  | 'PAYMENT_RUN_BILL_SETTLED'
+
+export type PaymentRunActivityKind =
+  | 'CREATED'
+  | 'EXPORTED'
+  | 'PAID'
+  | 'CANCELLED'
+  | 'TAKEN_OUT'
+  | 'CANCELLED_BANK_PAID_NOTHING'
+
+/** One line of the run's timeline, newest first. */
+export type PaymentRunActivityDto = {
+  at: string
+  kind: PaymentRunActivityKind
+  reason: string | null
+  actor: string | null
+  billId: string | null
+  supplierBillNumber: string | null
+}
+
+export type PaymentRunDetailDto = {
+  run: PaymentRunDto
+  items: PaymentRunItemDto[]
+  /** Absent from a server from before the sent-run exits. */
+  activity?: PaymentRunActivityDto[]
+}
 
 /** A bill a run could take now, priced for the run's payment date. */
 export type PaymentRunCandidateDto = {
@@ -139,12 +177,29 @@ export function exportRun(id: string): Promise<ApiDownload> {
   return apiDownload(`${runPath(id)}/export`, { method: 'POST' })
 }
 
-export function markRunPaid(id: string): Promise<PaymentRunDto> {
-  return apiRequest<PaymentRunDto>(`${runPath(id)}/mark-paid`, { method: 'POST' })
+/** A bill of a sent run the bank did not pay, left unpaid when the rest is marked paid. */
+export type TakeOut = { billId: string; reason: string }
+
+/**
+ * `invoice.payment.manage`. EXPORTED -> PAID. With `takeOut`, the named bills are left unpaid and
+ * the rest is marked paid; with none, no body is sent, as before.
+ */
+export function markRunPaid(id: string, takeOut: TakeOut[] = []): Promise<PaymentRunDto> {
+  return apiRequest<PaymentRunDto>(`${runPath(id)}/mark-paid`, {
+    method: 'POST',
+    ...(takeOut.length > 0 ? { body: { takeOut } } : {}),
+  })
 }
 
-export function cancelRun(id: string): Promise<PaymentRunDto> {
-  return apiRequest<PaymentRunDto>(`${runPath(id)}/cancel`, { method: 'POST' })
+/**
+ * `invoice.payment.manage`. A draft or scheduled run is cancelled with no body. A sent (EXPORTED)
+ * run is cancelled only on the person's word that the bank paid nothing, with a reason.
+ */
+export function cancelRun(id: string, bankPaidNothing?: { reason: string }): Promise<PaymentRunDto> {
+  return apiRequest<PaymentRunDto>(`${runPath(id)}/cancel`, {
+    method: 'POST',
+    ...(bankPaidNothing ? { body: { bankPaidNothing: true, reason: bankPaidNothing.reason } } : {}),
+  })
 }
 
 export function loadPayerAccounts(): Promise<PayerAccountDto[]> {

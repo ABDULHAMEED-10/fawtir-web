@@ -440,7 +440,9 @@ export type ActivityEntry = {
  * and the steps of the self-billed document a self-billed bill was raised from (`DRAFT_CREATED`,
  * `ISSUED`, `CANCELLED`; owner's answer 3, 2 Oct 2026: "take it from the self-billed document's
  * history"). Those three are the invoice history's own event names and carry the same words the
- * self-bill page uses for them (`invoiceDetails.event.*`).
+ * self-bill page uses for them (`invoiceDetails.event.*`). `TAKEN_OUT_OF_PAYMENT_RUN` and
+ * `PAYMENT_RUN_CANCELLED` are a sent payment run's two ways out; their detail names the run and
+ * the reason given.
  *
  * TODO(backend): EXPENDITURE.md row 1.23. The full history of the self-billed document in
  * `activity[]` (owner's Round 5 answer 4: created, issued and cancelled are enough for now).
@@ -455,6 +457,8 @@ const KNOWN_KINDS = new Set([
   'RELEASED',
   'PAID',
   'REVERSED',
+  'TAKEN_OUT_OF_PAYMENT_RUN',
+  'PAYMENT_RUN_CANCELLED',
   'DRAFT_CREATED',
   'ISSUED',
   'CANCELLED',

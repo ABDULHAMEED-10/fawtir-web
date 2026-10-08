@@ -188,10 +188,10 @@ describe('an Expenditure refusal is a decision, not a fault', () => {
     )
     expect(message.values).toEqual({ run: 'PR-0007' })
     expect(i18n.t(message.key, { ...message.values, lng: 'en' })).toBe(
-      'This bill is already in payment run PR-0007. Take it out of the run first.',
+      'This bill is in payment run PR-0007, whose bank file is already made. Keep the credit for another bill.',
     )
     expect(i18n.t(message.key, { ...message.values, lng: 'ar' })).toBe(
-      'هذه الفاتورة ضمن دفعة السداد PR-0007 بالفعل. أخرجها من الدفعة أولًا.',
+      'هذه الفاتورة ضمن دفعة السداد PR-0007 وقد أُنشئ ملفها البنكي. احتفظ بالرصيد لفاتورة أخرى.',
     )
     // As the bill pages read it: a server that sends no run leaves the place empty, never a
     // placeholder or a raw key.
@@ -254,11 +254,126 @@ describe('an Expenditure refusal is a decision, not a fault', () => {
     expect(bare).toContain('was refused, so it cannot go into a payment run.')
   })
 
-  it('keeps the generic refusal for a refused debit note when a run is marked paid', async () => {
-    // Its sentence belongs with an action the payment run screens do not have yet.
+  it('keeps the generic refusal for a refused debit note when no action is named', async () => {
+    // Each sentence belongs with an action; outside the payment run screens none is named.
     await i18n.changeLanguage('en')
     const refused = refusal('PAYMENT_RUN_DEBIT_NOTE_REFUSED', { supplierBillNumber: 'DN-7' })
     expect(refusalOf(refused, i18n.t)).toBe(i18n.t(REFUSAL_FALLBACK_KEY))
     expect(MAPPED_REFUSAL_CODES).not.toContain('PAYMENT_RUN_DEBIT_NOTE_REFUSED')
+  })
+  // The owner's sentences of 8 Oct for the two ways out of a sent payment run.
+  const named = (code: string, problem: Record<string, unknown>) => refusal(code, problem)
+
+  it('names the bill or note when marking a sent run paid is refused, in both languages', async () => {
+    const changed = named('PAYMENT_RUN_AMOUNT_CHANGED', {
+      billId: 'b-1',
+      supplierBillNumber: 'MR-1',
+    })
+    const note = named('PAYMENT_RUN_DEBIT_NOTE_REFUSED', {
+      billId: 'b-dn-7',
+      supplierBillNumber: 'DN-7',
+    })
+    await i18n.changeLanguage('en')
+    expect(refusalOf(changed, i18n.t, 'markPaid')).toBe(
+      'The amount owed on MR-1 changed after the bank file was made. Mark the others paid and take MR-1 out of the run.',
+    )
+    expect(refusalOf(note, i18n.t, 'markPaid')).toBe(
+      'DN-7 was refused after the bank file was made. Mark the others paid and take DN-7 out of the run.',
+    )
+    await i18n.changeLanguage('ar')
+    expect(refusalOf(changed, i18n.t, 'markPaid')).toBe(
+      'تغيّر المبلغ المستحق على MR-1 بعد إنشاء الملف البنكي. سجّل الباقي كمدفوع وأخرج MR-1 من الدفعة.',
+    )
+    expect(refusalOf(note, i18n.t, 'markPaid')).toBe(
+      'رُفض DN-7 بعد إنشاء الملف البنكي. سجّل الباقي كمدفوع وأخرج DN-7 من الدفعة.',
+    )
+    await i18n.changeLanguage('en')
+  })
+
+  it('says a changed amount one way when making the bank file, and keeps the generic refusal elsewhere', async () => {
+    const changed = named('PAYMENT_RUN_AMOUNT_CHANGED', {
+      billId: 'b-1',
+      supplierBillNumber: 'MR-1',
+    })
+    await i18n.changeLanguage('en')
+    expect(refusalOf(changed, i18n.t, 'export')).toBe(
+      'The amount owed on MR-1 changed after it joined this run. Take it out and add it again.',
+    )
+    expect(refusalOf(changed, i18n.t, 'add')).toBe(i18n.t(REFUSAL_FALLBACK_KEY))
+    expect(refusalOf(changed, i18n.t)).toBe(i18n.t(REFUSAL_FALLBACK_KEY))
+    await i18n.changeLanguage('ar')
+    expect(refusalOf(changed, i18n.t, 'export')).toBe(
+      'تغيّر المبلغ المستحق على MR-1 بعد إضافة المستند إلى هذه الدفعة. أخرجه ثم أضفه مرة أخرى.',
+    )
+    await i18n.changeLanguage('en')
+  })
+
+  it('says a settled bill is paid in full, agreeing in Arabic with a bill or a debit note', async () => {
+    const bill = named('PAYMENT_RUN_BILL_SETTLED', {
+      billId: 'b-1',
+      supplierBillNumber: 'MR-1',
+      documentTypeCode: '380',
+    })
+    const debitNote = named('PAYMENT_RUN_BILL_SETTLED', {
+      billId: 'b-dn-7',
+      supplierBillNumber: 'DN-7',
+      documentTypeCode: '383',
+    })
+    const untyped = named('PAYMENT_RUN_BILL_SETTLED', { billId: 'b-1', supplierBillNumber: 'MR-1' })
+    await i18n.changeLanguage('en')
+    for (const action of ['add', 'export', 'markPaid', undefined] as const) {
+      expect(refusalOf(bill, i18n.t, action)).toBe(
+        'MR-1 is already paid in full. Take it out of the run.',
+      )
+      expect(refusalOf(debitNote, i18n.t, action)).toBe(
+        'DN-7 is already paid in full. Take it out of the run.',
+      )
+    }
+    await i18n.changeLanguage('ar')
+    expect(refusalOf(bill, i18n.t, 'markPaid')).toBe(
+      'MR-1 مدفوعة بالكامل بالفعل. أخرجها من الدفعة.',
+    )
+    expect(refusalOf(debitNote, i18n.t, 'markPaid')).toBe(
+      'DN-7 مدفوع بالكامل بالفعل. أخرجه من الدفعة.',
+    )
+    // A server that does not say the type yet reads as a bill.
+    expect(refusalOf(untyped, i18n.t, 'add')).toBe('MR-1 مدفوعة بالكامل بالفعل. أخرجها من الدفعة.')
+    await i18n.changeLanguage('en')
+  })
+
+  it('leaves the ways-out refusals the dialogs prevent on the generic refusal', async () => {
+    await i18n.changeLanguage('en')
+    for (const code of [
+      'PAYMENT_RUN_TAKE_OUT_BILL_REQUIRED',
+      'PAYMENT_RUN_TAKE_OUT_DUPLICATE',
+      'PAYMENT_RUN_REASON_REQUIRED',
+      'PAYMENT_RUN_REASON_TOO_LONG',
+      'PAYMENT_RUN_TAKE_OUT_NOT_IN_RUN',
+      'PAYMENT_RUN_TAKE_OUT_EVERYTHING',
+    ]) {
+      expect(refusalOf(refusal(code), i18n.t, 'markPaid'), code).toBe(i18n.t(REFUSAL_FALLBACK_KEY))
+    }
+  })
+
+  it('gives a reversal in a sent run and a partly paid debit note their sentences, in both languages', () => {
+    const reversal = describeApiFailure(
+      refusal('BILL_PAYMENT_REVERSAL_IN_SENT_RUN', { paymentRunReference: 'PR-0012' }),
+    )
+    expect(MAPPED_REFUSAL_CODES).toContain('BILL_PAYMENT_REVERSAL_IN_SENT_RUN')
+    expect(reversal.values).toEqual({ run: 'PR-0012' })
+    expect(i18n.t(reversal.key, { ...reversal.values, lng: 'en' })).toBe(
+      "This bill is in payment run PR-0012, whose bank file is already made. Use the run's Mark paid or Cancel instead.",
+    )
+    expect(i18n.t(reversal.key, { ...reversal.values, lng: 'ar' })).toBe(
+      'هذه الفاتورة ضمن دفعة السداد PR-0012 وقد أُنشئ ملفها البنكي. استخدم تسجيل الدفعة كمدفوعة أو إلغاءها بدلًا من ذلك.',
+    )
+    const partly = describeApiFailure(refusal('DEBIT_NOTE_PARTLY_PAID'))
+    expect(MAPPED_REFUSAL_CODES).toContain('DEBIT_NOTE_PARTLY_PAID')
+    expect(i18n.t(partly.key, { lng: 'en' })).toBe(
+      'This debit note is partly paid. Record a refund from the supplier for the paid part first.',
+    )
+    expect(i18n.t(partly.key, { lng: 'ar' })).toBe(
+      'هذا الإشعار المدين مدفوع جزئيًا. سجّل أولًا استردادًا من المورّد للجزء المدفوع.',
+    )
   })
 })
