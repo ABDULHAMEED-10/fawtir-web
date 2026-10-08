@@ -31,8 +31,9 @@ export function AccountSwitcher() {
   // "Business plan" for every tenant; without an answer (loading, no tenant.plan.read, a failure)
   // it names no plan rather than a placeholder one.
   const planRead = useApiRead<PlanOverviewDto>(PLAN_OVERVIEW_PATH, loadPlanOverview).read
-  const planLabel =
-    planRead.status === 'ready' ? t('shell.plan.named', { plan: planRead.data.plan.name }) : null
+  // Chrome every screen draws: an answer without a plan name names nothing, never crashes the shell.
+  const planName = planRead.status === 'ready' ? planRead.data?.plan?.name : undefined
+  const planLabel = planName ? t('shell.plan.named', { plan: planName }) : null
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [branch, setBranch] = useState<BranchOverviewRow | null>(null)

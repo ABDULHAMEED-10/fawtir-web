@@ -186,7 +186,8 @@ export function SettingsPage() {
   // and "1 without two-step". Each now reads the endpoint its screen reads, only when the reader
   // may, and shows no figure rather than a guessed one while it cannot.
   const planRead = useApiRead<PlanOverviewDto>(PLAN_OVERVIEW_PATH, loadPlanOverview).read
-  const planOverview = planRead.status === 'ready' ? planRead.data : null
+  const planOverview =
+    planRead.status === 'ready' && planRead.data?.plan && planRead.data?.usage ? planRead.data : null
   const planFailed = planRead.status === 'failed'
   const mayListRoles = entitlements !== null && hasPermission(entitlements, ROLES_PERMISSION)
   const rolesRead = useApiRead<RoleDto[]>(mayListRoles ? ROLES_PATH : null, loadRoles).read
