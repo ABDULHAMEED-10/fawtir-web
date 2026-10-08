@@ -1,16 +1,21 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button, ChevronRightIcon, OmAmount, SelectionCard, Checkbox } from '../../components/ui'
 import { OnboardingFormError } from '../../components/auth/OnboardingFormError'
 import { useOnboardingStep } from '../../hooks/useOnboardingStep'
+import {
+  billAmounts,
+  useSignupPlanTerms,
+  vatPercent,
+  type PlanTermsRead,
+} from '../../hooks/useSignupPlanTerms'
 import { REVIEW_ROUTE, recordPaymentPreference } from '../../lib/identity/onboarding'
-import { onboardingStateFrom, type OnboardingState } from '../../lib/onboarding'
+import { onboardingStateFrom, planDisplayName, type OnboardingState } from '../../lib/onboarding'
 import {
   formatBaisa,
   formatOmr,
-  getOrderSummary,
-  trialDaysFor,
+  toBaisa,
   type BillingCycle,
   type PaymentLinkVia,
   type PlanId,
@@ -47,7 +52,7 @@ const unavailable = (method: SignupPaymentMethod) =>
   method === 'bankTransfer' && !PLATFORM_SETTINGS.payments.bankBeneficiaryVerified
 
 export function PaymentForm() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const state = onboardingStateFrom(location.state)
@@ -55,14 +60,14 @@ export function PaymentForm() {
 
   const plan: PlanId = state.plan ?? 'premium'
   const billing: BillingCycle = state.billing ?? 'annual'
-  const trialDays = trialDaysFor(plan)
+  const termsRead = useSignupPlanTerms(plan, billing, state.planTerms)
+  const terms = termsRead.status === 'ready' ? termsRead.terms : null
+  // `undefined`: not known (still reading, or a server that sends no trial); `null`: no trial.
+  const trialDays = terms ? terms.trialDays : undefined
   // Automatic ERP extraction: offered as a priced add-on only where the console says so.
   const offer = extractionOffer(plan)
   const [addon, setAddon] = useState(Boolean(state.addon))
-  const summary = useMemo(
-    () => getOrderSummary(plan, billing, { addon: addon && offer === 'priced' }),
-    [plan, billing, addon, offer],
-  )
+  const months = billing === 'annual' ? 12 : 1
 
   const offered = METHODS.filter((id) => PLATFORM_SETTINGS.payments.methods[id])
   const choosable = offered.filter((id) => !unavailable(id))
@@ -73,13 +78,14 @@ export function PaymentForm() {
   )
   const [linkVia, setLinkVia] = useState<PaymentLinkVia>(state.linkVia ?? 'email')
 
-  const planName = t(`plans.${plan}.name`)
-  const totalLabel = summary ? formatBaisa(summary.baisa.total) : t('plans.enterprise.price')
+  const planName = planDisplayName(t, state, i18n.language)
   const linkDays = PLATFORM_SETTINGS.payments.linkExpiryDays
   const when =
-    trialDays === null
-      ? t('payment.when.onApproval')
-      : t('payment.when.afterTrial', { count: trialDays })
+    trialDays === undefined || trialDays === 0
+      ? t('payment.when.later')
+      : trialDays === null
+        ? t('payment.when.onApproval')
+        : t('payment.when.afterTrial', { count: trialDays })
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -96,6 +102,8 @@ export function PaymentForm() {
       addon: withAddon,
       paymentMethod: method,
       linkVia: method === 'cardLink' ? linkVia : undefined,
+      // Review shows the same server figures without asking for them again.
+      planTerms: terms ?? undefined,
     }
     navigate(REVIEW_ROUTE, { state: next })
   }
@@ -115,9 +123,11 @@ export function PaymentForm() {
             {t('payment.title')}
           </h2>
           <p className="text-base font-medium leading-[1.2] text-text-quaternary">
-            {trialDays === null
-              ? t('payment.descriptionNoTrial')
-              : t('payment.descriptionTrial', { count: trialDays })}
+            {trialDays === undefined || trialDays === 0
+              ? t('payment.descriptionPending')
+              : trialDays === null
+                ? t('payment.descriptionNoTrial')
+                : t('payment.descriptionTrial', { count: trialDays })}
           </p>
         </div>
 
@@ -202,13 +212,16 @@ export function PaymentForm() {
 
           <div className="flex w-full max-w-[332px] flex-col gap-4 lg:shrink-0">
             {offer === 'priced' ? (
-              <AddonOffer checked={addon} onChange={setAddon} months={summary?.months ?? 1} />
+              <AddonOffer checked={addon} onChange={setAddon} months={months} />
             ) : null}
             <OrderSummaryCard
               planName={planName}
               billing={billing}
-              summary={summary}
-              totalLabel={totalLabel}
+              months={months}
+              termsRead={termsRead}
+              addonBaisa={
+                addon && offer === 'priced' ? toBaisa(extractionMonthly()) * months : null
+              }
               when={when}
             />
           </div>
@@ -327,20 +340,40 @@ function Row({ label, value, mono = false }: { label: string; value: string; mon
   )
 }
 
+/**
+ * The order as the backend priced it: every figure on the plan's lines comes from the status
+ * read (catalogue contract §14), never from the app's own arithmetic. The add-on is priced from
+ * the platform settings, which the status does not cover yet, so it is shown on its own line
+ * outside the total rather than added into a figure the server computed.
+ */
 function OrderSummaryCard({
   planName,
   billing,
-  summary,
-  totalLabel,
+  months,
+  termsRead,
+  addonBaisa,
   when,
 }: {
   planName: string
   billing: BillingCycle
-  summary: ReturnType<typeof getOrderSummary>
-  totalLabel: string
+  months: number
+  termsRead: PlanTermsRead
+  addonBaisa: number | null
   when: string
 }) {
   const { t } = useTranslation()
+  const terms = termsRead.status === 'ready' ? termsRead.terms : null
+  const amounts = billAmounts(terms)
+  const rate = vatPercent(terms?.vatRate)
+  const missing =
+    termsRead.status === 'loading' ? t('payment.summary.loading') : t('payment.summary.unavailable')
+
+  const figure = (amount: string | null | undefined, className: string, size: 'xs' | 'sm') =>
+    amount ? (
+      <OmAmount size={size} amount={amount} amountClassName={className} />
+    ) : (
+      <span className="font-semibold text-text-primary/60">{missing}</span>
+    )
 
   return (
     <div className="flex h-auto min-h-[370px] w-full max-w-[332px] flex-col overflow-hidden rounded-sm border border-[#f3f3f3] bg-surface-card lg:shrink-0">
@@ -360,62 +393,33 @@ function OrderSummaryCard({
       <div className="border-t border-dashed border-[#e8e8e8]" />
 
       <div className="flex flex-1 flex-col gap-3 px-3 py-4">
-        {summary ? (
-          <>
-            <div className="flex items-center justify-between gap-2 text-sm">
-              <span className="font-medium text-text-primary/70">
-                {t('payment.summary.planLine', {
-                  plan: planName,
-                  cycle: t(`payment.summary.${billing}`),
-                })}
-              </span>
-              <OmAmount
-                size="xs"
-                amount={formatBaisa(summary.baisa.planSubtotal)}
-                amountClassName="font-semibold text-text-primary/80"
-              />
-            </div>
-            {billing === 'annual' ? (
-              <div className="flex items-center justify-between gap-2 text-sm">
-                <span className="font-medium text-text-primary/50">
-                  {t('payment.summary.monthlyRate', { rate: formatOmr(summary.monthlyRate) })}
-                </span>
-                <span className="font-semibold text-text-primary/60">
-                  {t('payment.summary.months', { count: summary.months })}
-                </span>
-              </div>
-            ) : null}
-            {summary.addonSubtotal > 0 ? (
-              <div className="flex items-center justify-between gap-2 text-sm">
-                <span className="font-medium text-text-primary/70">
-                  {t('payment.summary.addonLine', {
-                    cycle: t(`payment.summary.${billing}`),
-                  })}
-                </span>
-                <OmAmount
-                  size="xs"
-                  amount={formatBaisa(summary.baisa.addonSubtotal)}
-                  amountClassName="font-semibold text-text-primary/80"
-                />
-              </div>
-            ) : null}
-            <div className="flex items-center justify-between gap-2 text-sm">
-              <span className="font-medium text-text-primary/70">{t('payment.summary.vat')}</span>
-              <OmAmount
-                size="xs"
-                amount={formatBaisa(summary.baisa.vat)}
-                amountClassName="font-semibold text-text-primary/80"
-              />
-            </div>
-          </>
-        ) : (
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <span className="font-medium text-text-primary/70">
+            {t('payment.summary.planLine', {
+              plan: planName,
+              cycle: t(`payment.summary.${billing}`),
+            })}
+          </span>
+          {figure(amounts?.exclVat, 'font-semibold text-text-primary/80', 'xs')}
+        </div>
+        {billing === 'annual' && terms?.monthlyPrice ? (
           <div className="flex items-center justify-between gap-2 text-sm">
-            <span className="font-medium text-text-primary/70">{planName}</span>
-            <span className="font-semibold text-text-primary/80">
-              {t('plans.enterprise.price')}
+            <span className="font-medium text-text-primary/50">
+              {t('payment.summary.monthlyPrice', { rate: terms.monthlyPrice })}
+            </span>
+            <span className="font-semibold text-text-primary/60">
+              {t('payment.summary.months', { count: months })}
             </span>
           </div>
-        )}
+        ) : null}
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <span className="font-medium text-text-primary/70">
+            {rate === null
+              ? t('payment.summary.vatUnknownRate')
+              : t('payment.summary.vatRate', { rate })}
+          </span>
+          {figure(amounts?.vat, 'font-semibold text-text-primary/80', 'xs')}
+        </div>
       </div>
       <div className="border-t border-dashed border-[#e8e8e8]" />
 
@@ -424,17 +428,21 @@ function OrderSummaryCard({
           {t('payment.summary.firstBill')}
         </span>
         <span className="text-[22px] font-semibold text-text-primary/90">
-          {summary ? (
-            <OmAmount
-              size="sm"
-              amount={formatBaisa(summary.baisa.total)}
-              amountClassName="text-[22px] font-semibold text-text-primary/90"
-            />
-          ) : (
-            totalLabel
-          )}
+          {figure(amounts?.inclVat, 'text-[22px] font-semibold text-text-primary/90', 'sm')}
         </span>
       </div>
+      {addonBaisa !== null ? (
+        <div className="flex items-center justify-between gap-2 px-3 pb-4 text-sm">
+          <span className="font-medium text-text-primary/70">
+            {t('payment.summary.addonOnTop', { cycle: t(`payment.summary.${billing}`) })}
+          </span>
+          <OmAmount
+            size="xs"
+            amount={formatBaisa(addonBaisa)}
+            amountClassName="font-semibold text-text-primary/80"
+          />
+        </div>
+      ) : null}
       <div className="border-t border-dashed border-[#e8e8e8]" />
 
       <p className="px-[18px] py-4 text-center text-[10px] font-medium leading-normal text-text-primary/60">

@@ -6,7 +6,7 @@ import {
   recordBusinessProfile,
 } from './onboarding'
 import { onboardingStateFromStatus } from './signupDraft'
-import { readSignupPlans } from './signupPlans'
+import { baisaOf, readPublicPlans, readSignupPlans } from './signupPlans'
 import { requestSignupResume, verifySignupResume } from './signupResume'
 import type { SignupStatusResponse } from './onboarding'
 
@@ -45,6 +45,20 @@ describe('plan and payment preference (contract §1-§2)', () => {
       planCode: 'ENTERPRISE',
       billingCycle: null,
     })
+  })
+
+  it('sends the price version the screen showed, never for Enterprise (catalogue contract §10)', () => {
+    expect(buildPlanRequest('premium', 'monthly', 'pv-7')).toEqual({
+      planCode: 'BUSINESS',
+      billingCycle: 'MONTHLY',
+      priceVersionId: 'pv-7',
+    })
+    expect(buildPlanRequest('enterprise', 'monthly', 'pv-7')).toEqual({
+      planCode: 'ENTERPRISE',
+      billingCycle: null,
+    })
+    // A plan published in the console since the launch is sent under its own code.
+    expect(buildPlanRequest('GROWTH', 'annual', 'pv-g').planCode).toBe('GROWTH')
   })
 
   it('sends a link channel for a card only', () => {
@@ -111,23 +125,61 @@ describe('resume (contract §6-§7)', () => {
   })
 })
 
-describe('the published catalogue (contract §9, not drawn yet)', () => {
-  it('reads the active plans with a GET and keeps prices as strings', async () => {
-    const row = {
-      code: 'BUSINESS',
-      monthlyPrice: '49.000',
-      invoicesPerMonth: 1000,
-      peopleIncluded: 5,
-      extraPersonPrice: '2.500',
-      branchesIncluded: 2,
-      apiAccess: false,
-      prioritySupport: true,
-      overagePricePerInvoice: '0.060',
-      sortOrder: 2,
-    }
-    fetchMock.mockResolvedValue(json(200, [row]))
-    await expect(readSignupPlans()).resolves.toEqual([row])
+describe('the published catalogue (catalogue contract §9)', () => {
+  const row = (code: string, sortOrder: number) => ({
+    code,
+    nameEn: code,
+    nameAr: null,
+    descriptionEn: null,
+    descriptionAr: null,
+    currency: 'OMR',
+    priceVersionId: `pv-${code}`,
+    monthlyPrice: '80.000',
+    annualPrice: '800.000',
+    annualFreeMonths: 2,
+    invoicesPerMonth: 1000,
+    peopleIncluded: 5,
+    extraPersonPrice: '2.500',
+    branchesIncluded: 2,
+    extraBranchPrice: '8.000',
+    overagePricePerInvoice: '0.060',
+    apiAccess: false,
+    prioritySupport: true,
+    recommended: true,
+    trialDays: 14,
+    trialDocuments: 25,
+    features: [{ key: 'pos', enabled: true }],
+    sortOrder,
+  })
+
+  it('reads the plans anonymously with a GET, in sort order, keeping prices as strings', async () => {
+    fetchMock.mockResolvedValue(json(200, [row('B', 20), row('A', 10)]))
+    const plans = await readSignupPlans()
+    expect(plans.map((plan) => plan.code)).toEqual(['A', 'B'])
+    expect(plans[0].monthlyPrice).toBe('80.000')
     expect(sent()).toEqual([{ url: '/api/v1/auth/signup/plans', method: 'GET', body: undefined }])
+    expect((fetchMock.mock.calls[0][1] as RequestInit).credentials).toBe('omit')
+  })
+
+  it('serves the public site from its own alias', async () => {
+    fetchMock.mockResolvedValue(json(200, [row('A', 1)]))
+    await readPublicPlans()
+    expect(sent()).toEqual([{ url: '/api/v1/public/plans', method: 'GET', body: undefined }])
+  })
+
+  it('refuses a body that is not a list rather than reading it as no plans', async () => {
+    fetchMock.mockResolvedValue(json(200, { plans: [] }))
+    await expect(readSignupPlans()).rejects.toThrow()
+  })
+
+  it('turns a three-decimal amount into baisa with no float, and nothing else', () => {
+    expect(baisaOf('80.000')).toBe(80_000)
+    expect(baisaOf('0.150')).toBe(150)
+    expect(baisaOf('1500.5')).toBe(1_500_500)
+    expect(baisaOf('12')).toBe(12_000)
+    expect(baisaOf('1.2345')).toBeNull()
+    expect(baisaOf('-1.000')).toBeNull()
+    expect(baisaOf(null)).toBeNull()
   })
 })
 
@@ -176,5 +228,25 @@ describe('restoring the draft from the status read (contract §4)', () => {
       draft: { addressContact: { addressLine: 'Building 4', city: 'Sohar', governorate: 'Atlantis' } },
     })
     expect(restored.address).toBeUndefined()
+  })
+
+  it('keeps the server-computed amounts, and a code the app has no id for as the plan', () => {
+    const plan = {
+      planCode: 'GROWTH',
+      billingCycle: 'MONTHLY' as const,
+      amountExclVat: '61.250',
+      vatRate: '0.05',
+      vatAmount: '3.063',
+      amountInclVat: '64.313',
+      trialDays: null,
+    }
+    const restored = onboardingStateFromStatus(
+      { ...base, plan },
+      { plan: 'starter', planNames: { en: 'Starter', ar: null } },
+    )
+    expect(restored.plan).toBe('GROWTH')
+    expect(restored.planTerms).toEqual(plan)
+    // The cached names belonged to another plan.
+    expect(restored.planNames).toBeUndefined()
   })
 })

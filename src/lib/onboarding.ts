@@ -1,5 +1,12 @@
-import type { AddressContactValues } from './identity/onboarding'
-import type { BillingCycle, PaymentLinkVia, PlanId, SignupPaymentMethod } from './pricing'
+import type { AddressContactValues, SignupStatusPlan } from './identity/onboarding'
+import type { TFunction } from 'i18next'
+import {
+  isKnownPlanId,
+  type BillingCycle,
+  type PaymentLinkVia,
+  type PlanId,
+  type SignupPaymentMethod,
+} from './pricing'
 import type { BusinessTypeId } from './subBusinessTypes'
 
 export type BusinessSize = 'just-me' | '2-10' | '11-50' | '50-plus'
@@ -126,6 +133,17 @@ export type OnboardingState = {
   /** Chosen on /plans. `premium` is the catalogue's Business plan. */
   plan?: PlanId
   billing?: BillingCycle
+  /**
+   * The plan's names as the catalogue published them, for a plan the app has no name of its own
+   * for (one added in the console since the launch).
+   */
+  planNames?: { en: string; ar: string | null }
+  /**
+   * What the saved plan costs, exactly as `/signup/status` computed it from the pinned price
+   * version. Cleared whenever the plan or cycle is chosen again, so a figure for an earlier choice
+   * is never shown against a new one.
+   */
+  planTerms?: SignupStatusPlan
   /** The automatic ERP extraction add-on, ticked on /payment. */
   addon?: boolean
   /** Chosen on /payment; never set for Enterprise, whose terms are agreed on a call. */
@@ -140,4 +158,16 @@ export type OnboardingState = {
 
 export function onboardingStateFrom(value: unknown): OnboardingState {
   return typeof value === 'object' && value !== null ? (value as OnboardingState) : {}
+}
+
+/**
+ * The chosen plan's name: the app's own for a launch plan, else the catalogue's as carried from
+ * /plans, else its code. The code is the last resort, for a plan restored in a fresh tab that
+ * the app has no name for; showing it is better than a wrong name.
+ */
+export function planDisplayName(t: TFunction, state: OnboardingState, language: string): string {
+  const { plan, planNames } = state
+  if (!plan) return ''
+  if (isKnownPlanId(plan)) return t(`plans.${plan}.name`)
+  return (language.startsWith('ar') ? planNames?.ar : null) || planNames?.en || plan
 }

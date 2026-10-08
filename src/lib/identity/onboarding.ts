@@ -2,7 +2,14 @@ import { apiRequest } from '../../api'
 import type { ServerFieldMap } from './errors'
 import { GOVERNORATE_NAMES, type GovernorateId } from '../governorates'
 import type { BusinessSize, InvoiceAccent, InvoicingMethod } from '../onboarding'
-import type { BillingCycle, PaymentLinkVia, PlanId, SignupPaymentMethod } from '../pricing'
+import {
+  isKnownPlanId,
+  type BillingCycle,
+  type KnownPlanId,
+  type PaymentLinkVia,
+  type PlanId,
+  type SignupPaymentMethod,
+} from '../pricing'
 import type { BusinessTypeId } from '../subBusinessTypes'
 import {
   email,
@@ -108,8 +115,11 @@ export type SignupStage =
   | 'ACTIVATED'
   | 'REJECTED'
 
-/** Phase A contract §1: the catalogue codes plus ENTERPRISE, which is not a catalogue row. */
-export type SignupPlanCode = 'STARTER' | 'BUSINESS' | 'BUSINESS_PLUS' | 'ENTERPRISE'
+/**
+ * Phase A contract §1: a catalogue code, or ENTERPRISE, which is not a catalogue row. The
+ * catalogue is edited in the console (catalogue contract §11), so any published code can arrive.
+ */
+export type SignupPlanCode = 'STARTER' | 'BUSINESS' | 'BUSINESS_PLUS' | 'ENTERPRISE' | (string & {})
 export type SignupBillingCycle = 'MONTHLY' | 'ANNUAL'
 export type SignupPaymentMethodCode = 'CARD_LINK' | 'BANK_TRANSFER' | 'CASH'
 export type SignupLinkChannel = 'EMAIL' | 'WHATSAPP'
@@ -131,6 +141,27 @@ export type SignupDraft = {
   addressContact?: Record<string, unknown> | null
 }
 
+/**
+ * The saved plan, and what it costs, as the backend computed it from the price version the draft
+ * is pinned to (catalogue contract §10). Amounts are OMR strings with three decimals and are
+ * shown as they arrive: the screens do no price arithmetic of their own. Every amount is absent
+ * from an older server and `null` for Enterprise, which is quoted.
+ */
+export type SignupStatusPlan = {
+  planCode: SignupPlanCode
+  billingCycle: SignupBillingCycle | null
+  priceVersionId?: string | null
+  currency?: string | null
+  monthlyPrice?: string | null
+  annualPrice?: string | null
+  amountExclVat?: string | null
+  /** The backend sends a fraction (`"0.05"`); a percentage (`"5"`) is read the same way. */
+  vatRate?: string | null
+  vatAmount?: string | null
+  amountInclVat?: string | null
+  trialDays?: number | null
+}
+
 export type SignupStatusResponse = {
   stage: SignupStage
   businessProfileComplete: boolean
@@ -143,7 +174,7 @@ export type SignupStatusResponse = {
   loginEnabled: boolean
   planComplete?: boolean
   paymentPreferenceComplete?: boolean
-  plan?: { planCode: SignupPlanCode; billingCycle: SignupBillingCycle | null } | null
+  plan?: SignupStatusPlan | null
   paymentPreference?: {
     method: SignupPaymentMethodCode
     linkChannel: SignupLinkChannel | null
@@ -250,13 +281,28 @@ export function submitForReview(onboardingToken: string, signal?: AbortSignal): 
 export const SIGNUP_PLAN_REQUIRED = 'signup-plan-required'
 export const SIGNUP_PAYMENT_PREFERENCE_REQUIRED = 'signup-payment-preference-required'
 export const SIGNUP_PAYMENT_NOT_APPLICABLE = 'signup-payment-not-applicable'
+/**
+ * The `priceVersionId` sent with the plan is no longer the plan's current version (catalogue
+ * contract §10): the price changed while the screen was open, so nothing was saved.
+ */
+export const PLAN_PRICE_CHANGED = 'plan-price-changed'
 
-/** The sign-up flow's plan ids against the contract's codes; `premium` is Business. */
-export const PLAN_CODE: Record<PlanId, SignupPlanCode> = {
+/** The sign-up flow's launch plan ids against the contract's codes; `premium` is Business. */
+export const PLAN_CODE: Record<KnownPlanId, SignupPlanCode> = {
   starter: 'STARTER',
   premium: 'BUSINESS',
   businessPlus: 'BUSINESS_PLUS',
   enterprise: 'ENTERPRISE',
+}
+
+/** The code to send for a sign-up plan: a plan published since the launch is its own code. */
+export const planCodeFor = (plan: PlanId): SignupPlanCode =>
+  isKnownPlanId(plan) ? PLAN_CODE[plan] : plan
+
+/** The sign-up plan id for a backend code; the inverse of {@link planCodeFor}. */
+export function planIdFor(code: SignupPlanCode): PlanId {
+  const known = (Object.keys(PLAN_CODE) as KnownPlanId[]).find((id) => PLAN_CODE[id] === code)
+  return known ?? code
 }
 export const BILLING_CYCLE: Record<BillingCycle, SignupBillingCycle> = {
   monthly: 'MONTHLY',
@@ -272,11 +318,17 @@ export const LINK_CHANNEL: Record<PaymentLinkVia, SignupLinkChannel> = {
   whatsapp: 'WHATSAPP',
 }
 
-export function buildPlanRequest(plan: PlanId, billing: BillingCycle) {
+/**
+ * @param priceVersionId the catalogue version the screen showed, so the server refuses the choice
+ *        (`plan-price-changed`) instead of recording a price the registrant never saw. Never sent
+ *        for Enterprise, which has no catalogue price.
+ */
+export function buildPlanRequest(plan: PlanId, billing: BillingCycle, priceVersionId?: string) {
   // The contract refuses a billing cycle on Enterprise: its terms are agreed on a call.
   return {
-    planCode: PLAN_CODE[plan],
+    planCode: planCodeFor(plan),
     billingCycle: plan === 'enterprise' ? null : BILLING_CYCLE[billing],
+    ...(plan !== 'enterprise' && priceVersionId ? { priceVersionId } : {}),
   }
 }
 
@@ -286,8 +338,13 @@ export function recordPlan(
   plan: PlanId,
   billing: BillingCycle,
   signal?: AbortSignal,
+  priceVersionId?: string,
 ): Promise<void> {
-  return post('/v1/auth/signup/plan', { onboardingToken, ...buildPlanRequest(plan, billing) }, signal)
+  return post(
+    '/v1/auth/signup/plan',
+    { onboardingToken, ...buildPlanRequest(plan, billing, priceVersionId) },
+    signal,
+  )
 }
 
 export function buildPaymentPreferenceRequest(

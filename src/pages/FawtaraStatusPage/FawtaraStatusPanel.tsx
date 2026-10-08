@@ -9,8 +9,7 @@ import {
   type GoingLivePhase,
   type GoingLiveStep,
 } from '../../lib/fawtaraStatus'
-import type { OnboardingState } from '../../lib/onboarding'
-import { trialDaysFor } from '../../lib/pricing'
+import { planDisplayName, type OnboardingState } from '../../lib/onboarding'
 
 function StepMarker({ step, number }: { step: GoingLiveStep; number: number }) {
   if (step.state === 'done') {
@@ -84,17 +83,20 @@ const BADGE_TONE: Record<GoingLivePhase, { box: string; dot: string; text: strin
 
 /** The plan and payment carried from sign-up; absent after sign-in or on a fresh tab. */
 function PlanNote({ choice }: { choice: OnboardingState }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { plan, paymentMethod } = choice
   if (!plan) return null
-  const trialDays = trialDaysFor(plan)
+  // The trial as the status read reported it; with no report the note makes no trial claim.
+  const trialDays = choice.planTerms?.trialDays
   const lines =
     plan === 'enterprise'
       ? [t('fawtaraStatus.plan.enterprise')]
       : [
-          trialDays === null
-            ? t('fawtaraStatus.plan.noTrial')
-            : t('fawtaraStatus.plan.trial', { count: trialDays }),
+          trialDays === undefined || trialDays === 0
+            ? null
+            : trialDays === null
+              ? t('fawtaraStatus.plan.noTrial')
+              : t('fawtaraStatus.plan.trial', { count: trialDays }),
           paymentMethod
             ? t('fawtaraStatus.plan.paidBy', {
                 method:
@@ -109,7 +111,9 @@ function PlanNote({ choice }: { choice: OnboardingState }) {
       <p className="text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
         {t('fawtaraStatus.plan.title')}
       </p>
-      <p className="mt-1 text-sm font-semibold text-text-primary">{t(`plans.${plan}.name`)}</p>
+      <p className="mt-1 text-sm font-semibold text-text-primary">
+        {planDisplayName(t, choice, i18n.language)}
+      </p>
       {lines.map((line) => (
         <p key={line} className="mt-1 text-sm font-medium leading-[1.5] text-text-tertiary">
           {line}

@@ -2,8 +2,9 @@ import { useState, type FormEvent } from 'react'
 import { OnboardingFormError } from '../../components/auth/OnboardingFormError'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Button, ChevronRightIcon, Input } from '../../components/ui'
+import { Button, ChevronRightIcon, Input, Rial } from '../../components/ui'
 import { useOnboardingStep } from '../../hooks/useOnboardingStep'
+import { billAmounts } from '../../hooks/useSignupPlanTerms'
 import {
   PAYMENT_ROUTE,
   PENDING_ROUTE,
@@ -16,14 +17,15 @@ import {
   CATEGORY_LABEL_KEYS,
   INVOICING_METHOD_LABEL_KEYS,
   onboardingStateFrom,
+  planDisplayName,
 } from '../../lib/onboarding'
-import { trialDaysFor } from '../../lib/pricing'
 import { SUB_TYPES_BY_BUSINESS } from '../../lib/subBusinessTypes'
 import { toOmanE164 } from '../../lib/validation'
 import { findCode, nameOf } from '../../lib/codeLists/codeList'
 import { ISIC_ACTIVITIES } from '../../lib/codeLists/isic'
 
-type Row = { label: string; value: string }
+/** `money`: the value is a rial figure and carries the rial sign. */
+type Row = { label: string; value: string; money?: boolean }
 
 function ReviewSection({ title, editTo, rows }: { title: string; editTo: string; rows: Row[] }) {
   const { t } = useTranslation()
@@ -42,7 +44,14 @@ function ReviewSection({ title, editTo, rows }: { title: string; editTo: string;
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {rows.map((row) => (
-          <Input key={row.label} label={row.label} value={row.value} readOnly readOnlyAppearance />
+          <Input
+            key={row.label}
+            label={row.label}
+            value={row.value}
+            readOnly
+            readOnlyAppearance
+            leadingIcon={row.money ? <Rial className="text-text-secondary" /> : undefined}
+          />
         ))}
       </div>
     </section>
@@ -86,7 +95,10 @@ export function SignupReviewForm() {
   // A plan, and for every plan but Enterprise a way to pay, before anything reaches a reviewer.
   const { plan, paymentMethod } = state
   const planChosen = Boolean(plan && (plan === 'enterprise' || paymentMethod))
-  const trialDays = plan ? trialDaysFor(plan) : null
+  // From the status read only; an older server sends no trial and no amounts, and the page then
+  // says they are not known rather than working them out from the launch catalogue.
+  const trialDays = state.planTerms ? state.planTerms.trialDays : undefined
+  const amounts = billAmounts(state.planTerms ?? null)
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -182,7 +194,7 @@ export function SignupReviewForm() {
               {
                 label: t('signupReview.fields.plan'),
                 value: t('signupReview.planValue', {
-                  plan: t(`plans.${plan}.name`),
+                  plan: planDisplayName(t, state, i18n.language),
                   cycle: t(
                     state.billing === 'annual'
                       ? 'signupReview.billedAnnually'
@@ -201,10 +213,22 @@ export function SignupReviewForm() {
               {
                 label: t('signupReview.fields.firstBill'),
                 value:
-                  trialDays === null
-                    ? t('signupReview.firstBillOnApproval')
-                    : t('signupReview.firstBillAfterTrial', { count: trialDays }),
+                  trialDays === undefined || trialDays === 0
+                    ? t('signupReview.firstBillUnknown')
+                    : trialDays === null
+                      ? t('signupReview.firstBillOnApproval')
+                      : t('signupReview.firstBillAfterTrial', { count: trialDays }),
               },
+              amounts
+                ? {
+                    label: t('signupReview.fields.firstBillAmount'),
+                    value: amounts.inclVat,
+                    money: true,
+                  }
+                : {
+                    label: t('signupReview.fields.firstBillAmount'),
+                    value: t('signupReview.amountUnavailable'),
+                  },
               ...(state.addon
                 ? [{ label: t('payment.addon.title'), value: t('signupReview.addonValue') }]
                 : []),

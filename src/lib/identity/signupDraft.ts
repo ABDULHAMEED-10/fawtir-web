@@ -6,15 +6,15 @@ import {
   type InvoicingMethod,
   type OnboardingState,
 } from '../onboarding'
-import type { BillingCycle, PaymentLinkVia, PlanId, SignupPaymentMethod } from '../pricing'
+import type { BillingCycle, PaymentLinkVia, SignupPaymentMethod } from '../pricing'
 import {
   BILLING_CYCLE,
   BUSINESS_SIZE,
   INVOICING_METHOD,
   LINK_CHANNEL,
   PAYMENT_METHOD_CODE,
-  PLAN_CODE,
   categoryIdFor,
+  planIdFor,
   subTypeIdFor,
   type SignupStatusResponse,
 } from './onboarding'
@@ -95,7 +95,7 @@ export function onboardingStateFromStatus(
   cached: OnboardingState = {},
 ): OnboardingState {
   const profile = status.draft?.businessProfile
-  const plan = reverse<PlanId, string>(PLAN_CODE, status.plan?.planCode)
+  const plan = status.plan?.planCode ? planIdFor(status.plan.planCode) : undefined
   const preference = status.paymentPreference
   const fromServer: OnboardingState = defined({
     accountEmail: status.accountEmail ?? undefined,
@@ -108,6 +108,7 @@ export function onboardingStateFromStatus(
     address: addressFrom(status),
     plan,
     billing: reverse<BillingCycle, string>(BILLING_CYCLE, status.plan?.billingCycle),
+    planTerms: status.plan ?? undefined,
     paymentMethod:
       plan === 'enterprise'
         ? undefined
@@ -116,6 +117,8 @@ export function onboardingStateFromStatus(
     addon: typeof preference?.erpExtractionAddon === 'boolean' ? preference.erpExtractionAddon : undefined,
   })
   const merged: OnboardingState = { ...cached, ...fromServer, restored: true }
+  // Names the tab carried for another plan than the one saved would label it wrongly.
+  if (merged.planNames && cached.plan !== merged.plan) delete merged.planNames
   // Without POS the server holds no trade; a cached one would be shown as if it were saved.
   if (merged.usesPos === false) {
     delete merged.businessType

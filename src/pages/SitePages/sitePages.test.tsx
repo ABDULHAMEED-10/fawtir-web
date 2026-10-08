@@ -6,8 +6,9 @@ import i18n from '../../i18n'
 import { ContactPage } from './ContactPage'
 import { FeaturesPage } from './FeaturesPage'
 import { PricingPage } from './PricingPage'
-import { CATALOGUE, annualMonthly } from '../../lib/plans'
-import { GROUPS, faqParams } from '../PlansPage/PlanComparison'
+import { resetSharedRequests } from '../../api'
+import type { SignupCataloguePlan } from '../../lib/identity/signupPlans'
+import { comparisonGroups, faqParams } from '../PlansPage/comparison'
 
 let fetchMock: ReturnType<typeof vi.fn>
 
@@ -15,9 +16,62 @@ function renderPage(page: ReactNode) {
   return render(<MemoryRouter>{page}</MemoryRouter>)
 }
 
+const PUBLIC_PLANS_URL = '/api/v1/public/plans'
+const json = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+
+// Unlike the launch figures in lib/plans.ts, so every figure on the page is the server's.
+const STARTER: SignupCataloguePlan = {
+  code: 'STARTER',
+  nameEn: 'Starter',
+  nameAr: 'المبتدئة',
+  descriptionEn: 'Published description',
+  descriptionAr: 'وصف منشور',
+  currency: 'OMR',
+  priceVersionId: 'pv-s',
+  monthlyPrice: '41.250',
+  annualPrice: '412.500',
+  annualFreeMonths: 2,
+  invoicesPerMonth: 250,
+  peopleIncluded: 2,
+  extraPersonPrice: '3.000',
+  branchesIncluded: 1,
+  extraBranchPrice: null,
+  overagePricePerInvoice: '0.150',
+  apiAccess: false,
+  prioritySupport: true,
+  recommended: false,
+  trialDays: 10,
+  trialDocuments: 40,
+  features: [
+    { key: 'invoices', enabled: true },
+    { key: 'pos', enabled: true },
+  ],
+  sortOrder: 1,
+}
+const GROWTH: SignupCataloguePlan = {
+  ...STARTER,
+  code: 'GROWTH',
+  nameEn: 'Growth',
+  nameAr: 'النمو',
+  priceVersionId: 'pv-g',
+  monthlyPrice: '1250.000',
+  annualPrice: '12500.000',
+  invoicesPerMonth: 4000,
+  branchesIncluded: null,
+  recommended: true,
+  features: [
+    { key: 'invoices', enabled: true },
+    { key: 'webhooks', enabled: true },
+  ],
+  sortOrder: 2,
+}
+const CATALOGUE = [STARTER, GROWTH]
+
 beforeEach(async () => {
+  resetSharedRequests()
   await i18n.changeLanguage('en')
-  fetchMock = vi.fn()
+  fetchMock = vi.fn().mockImplementation(async () => json(200, CATALOGUE))
   vi.stubGlobal('fetch', fetchMock)
 })
 
@@ -26,7 +80,7 @@ afterEach(() => {
 })
 
 describe('Pricing page', () => {
-  it('prices every plan from the app catalogue, monthly and yearly', () => {
+  it('prices every plan from the published catalogue, monthly and yearly', async () => {
     renderPage(<PricingPage />)
     const nav = screen.getByRole('navigation', { name: i18n.t('landing.nav.label') })
     expect(
@@ -35,36 +89,86 @@ describe('Pricing page', () => {
         .getAttribute('aria-current'),
     ).toBe('page')
 
-    for (const plan of CATALOGUE) {
-      expect(screen.getAllByText(plan.monthly.toFixed(3)).length).toBeGreaterThan(0)
-      expect(
-        screen.getByText(
-          i18n.t('site.pricing.limits.documents', {
-            documents: plan.documents.toLocaleString('en-US'),
-          }),
-        ),
-      ).toBeTruthy()
-    }
+    expect(await screen.findByRole('heading', { level: 2, name: 'Growth' })).toBeTruthy()
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([PUBLIC_PLANS_URL])
+    expect(screen.getAllByText('41.250').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('1,250.000').length).toBeGreaterThan(0)
+    expect(
+      screen.getByText(i18n.t('site.pricing.limits.documents', { documents: '4,000' })),
+    ).toBeTruthy()
+    expect(screen.getByText(i18n.t('plan.feature.unlimitedBranches'))).toBeTruthy()
+    expect(screen.getAllByText('Published description').length).toBe(2)
+    expect(screen.getByText(i18n.t('plans.trialNote', { days: 10, documents: 40 }))).toBeTruthy()
     expect(screen.getAllByText(i18n.t('plans.enterprise.price')).length).toBeGreaterThan(0)
+    for (const launch of ['35.000', '80.000', '150.000']) {
+      expect(screen.queryByText(launch)).toBeNull()
+    }
 
     fireEvent.click(screen.getByRole('radio', { name: /Yearly/ }))
-    for (const plan of CATALOGUE) {
-      expect(screen.getAllByText(annualMonthly(plan).toFixed(3)).length).toBeGreaterThan(0)
-    }
-    expect(fetchMock).not.toHaveBeenCalled()
+    // 412.500 / 12 = 34.375; 12500.000 / 12 = 1041.6666…, half up to the baisa.
+    expect(screen.getAllByText('34.375').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('1,041.667').length).toBeGreaterThan(0)
+    expect(screen.getAllByText(i18n.t('site.pricing.yearlyNoteMonths', { count: 2 })).length).toBe(
+      2,
+    )
   })
 
-  it('compares the same rows as the sign-up plans screen and answers its questions', () => {
+  it('draws the recommended plan as the featured card', async () => {
     renderPage(<PricingPage />)
-    for (const group of GROUPS) {
+    const growth = (await screen.findByRole('heading', { level: 2, name: 'Growth' })).closest(
+      'article',
+    )
+    const starter = screen.getByRole('heading', { level: 2, name: 'Starter' }).closest('article')
+    expect(growth?.className).toContain('landing-shadow-brand')
+    expect(starter?.className).not.toContain('landing-shadow-brand')
+  })
+
+  it('compares the same rows as the sign-up plans screen and answers its questions', async () => {
+    renderPage(<PricingPage />)
+    await screen.findByRole('heading', { level: 2, name: 'Growth' })
+    for (const group of comparisonGroups(CATALOGUE)) {
       for (const row of group.rows) {
         expect(screen.getAllByRole('rowheader', { name: i18n.t(row.labelKey) }).length).toBe(1)
       }
     }
+    expect(
+      screen.getByRole('rowheader', { name: i18n.t('plan.featureName.webhooks') }),
+    ).toBeTruthy()
+    expect(screen.queryByRole('rowheader', { name: i18n.t('plan.featureName.api') })).toBeNull()
     const question = screen.getByRole('button', { name: i18n.t('plans.faq.q1') })
     fireEvent.click(question)
     expect(question.getAttribute('aria-expanded')).toBe('true')
-    expect(screen.getByText(i18n.t('plans.faq.a1', faqParams()))).toBeTruthy()
+    expect(screen.getByText(i18n.t('plans.faq.a1', faqParams(CATALOGUE)))).toBeTruthy()
+  })
+
+  it('reads in Arabic with the published Arabic names', async () => {
+    await i18n.changeLanguage('ar')
+    renderPage(<PricingPage />)
+    expect(await screen.findByRole('heading', { level: 2, name: 'النمو' })).toBeTruthy()
+    expect(screen.getAllByText('وصف منشور').length).toBe(2)
+  })
+
+  it('offers a retry when the catalogue cannot be read, and never the launch prices', async () => {
+    fetchMock
+      .mockImplementationOnce(async () => json(503, {}))
+      .mockImplementation(async () => json(200, CATALOGUE))
+    renderPage(<PricingPage />)
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toContain(i18n.t('plans.unavailable'))
+    for (const launch of ['35.000', '80.000', '150.000']) {
+      expect(screen.queryByText(launch)).toBeNull()
+    }
+    expect(screen.queryByRole('table')).toBeNull()
+
+    fireEvent.click(within(alert).getByRole('button', { name: i18n.t('plans.retry') }))
+    expect(await screen.findByRole('heading', { level: 2, name: 'Growth' })).toBeTruthy()
+  })
+
+  it('says so when no plan is published', async () => {
+    fetchMock.mockImplementation(async () => json(200, []))
+    renderPage(<PricingPage />)
+    expect(await screen.findByText(i18n.t('plans.empty'))).toBeTruthy()
+    expect(screen.queryByRole('table')).toBeNull()
   })
 })
 

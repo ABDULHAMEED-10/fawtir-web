@@ -45,6 +45,20 @@ const COMPLETE: OnboardingState = {
   plan: 'premium',
   billing: 'annual',
   paymentMethod: 'bankTransfer',
+  // As `/signup/status` computed them from the pinned price version (catalogue contract §10).
+  planTerms: {
+    planCode: 'BUSINESS',
+    billingCycle: 'ANNUAL',
+    priceVersionId: 'pv-business-2',
+    currency: 'OMR',
+    monthlyPrice: '80.000',
+    annualPrice: '800.000',
+    amountExclVat: '800.000',
+    vatRate: '0.05',
+    vatAmount: '40.000',
+    amountInclVat: '840.000',
+    trialDays: 14,
+  },
 }
 
 const json = (status: number, body: unknown) =>
@@ -180,6 +194,7 @@ describe('Review and submit', () => {
     expect(valueOf('signupReview.fields.firstBill')).toBe(
       i18n.t('signupReview.firstBillAfterTrial', { count: 14 }),
     )
+    expect(valueOf('signupReview.fields.firstBillAmount')).toBe('840.000')
     await userEvent.setup({ delay: null }).click(submit())
 
     expect(await screen.findByText(i18n.t('fawtaraStatus.review.title'))).toBeTruthy()
@@ -196,6 +211,18 @@ describe('Review and submit', () => {
     ])
     // The portal request comes after Fawtir's review, so it is not offered yet.
     expect(screen.queryByText(i18n.t('fawtaraStatus.openPortal'))).toBeNull()
+  })
+
+  it('says the amount and trial are not known when the server sent none, and works out neither', () => {
+    const { planTerms: _terms, ...older } = COMPLETE
+    void _terms
+    renderAt('/signup-review', older)
+    expect(valueOf('signupReview.fields.firstBillAmount')).toBe(
+      i18n.t('signupReview.amountUnavailable'),
+    )
+    expect(valueOf('signupReview.fields.firstBill')).toBe(i18n.t('signupReview.firstBillUnknown'))
+    expect(document.body.textContent).not.toMatch(/840\.000|84\.000/)
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('refuses to submit without a plan and a way to pay, with no request', async () => {

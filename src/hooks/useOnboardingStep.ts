@@ -9,6 +9,7 @@ import {
 } from '../lib/identity/errors'
 import {
   PENDING_ROUTE,
+  PLAN_PRICE_CHANGED,
   SIGNUP_PAYMENT_NOT_APPLICABLE,
   SIGNUP_PAYMENT_PREFERENCE_REQUIRED,
   SIGNUP_PLAN_REQUIRED,
@@ -25,11 +26,13 @@ const CHOICE_CONFLICTS: Partial<Record<string, string>> = {
   [SIGNUP_PLAN_REQUIRED]: 'onboarding.planRequired',
   [SIGNUP_PAYMENT_PREFERENCE_REQUIRED]: 'onboarding.paymentPreferenceRequired',
   [SIGNUP_PAYMENT_NOT_APPLICABLE]: 'onboarding.paymentNotApplicable',
+  [PLAN_PRICE_CHANGED]: 'plans.priceChanged',
 }
 
 export type StepSaveResult<F extends string> =
   | { saved: true }
-  | { saved: false; fieldErrors: Partial<Record<F, string>> }
+  /** `conflict`: the named `409` problem type, for a screen that must act on it (reload prices). */
+  | { saved: false; fieldErrors: Partial<Record<F, string>>; conflict?: string }
 
 type StepOptions<F extends string> = {
   serverFields?: ServerFieldMap<F>
@@ -81,7 +84,7 @@ export function useOnboardingStep<F extends string = never>(options: StepOptions
       const named = error.status === 409 && error.problemType && CHOICE_CONFLICTS[error.problemType]
       if (named) {
         setFormError({ key: named })
-        return unsaved
+        return { ...unsaved, conflict: error.problemType ?? undefined }
       }
       if (error.status === 409) {
         const route = await earlierStepThan(onboardingToken)

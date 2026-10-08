@@ -849,7 +849,10 @@
         "accountManager": "Account manager",
         "twoMonthsFree": "2 months free",
         "vatExcl": "Excluded, {{rate}}% on the invoice",
-        "agreed": "Agreed on a call"
+        "agreed": "Agreed on a call",
+        "notOffered": "Not offered",
+        "monthsFree_one": "{{count}} month free",
+        "monthsFree_other": "{{count}} months free"
       }
     },
     "faq": {
@@ -871,8 +874,25 @@
       "q8": "What is different about Enterprise?",
       "a8": "Enterprise is Business Plus with limits agreed on a call: documents, people, branches and price are set for your contract, automatic ERP extraction is included, and an account manager looks after you. Talk to our team and we will put a proposal together.",
       "q9": "Which plan can connect my ERP?",
-      "a9": "Business Plus. It carries the REST API, webhooks and ERP field mapping, so your own system can send and receive documents through Fawtir. Automatic ERP extraction, where Fawtir reads the documents out of your ERP for you, is a priced add-on on Business Plus and included on Enterprise."
-    }
+      "a9": "Business Plus. It carries the REST API, webhooks and ERP field mapping, so your own system can send and receive documents through Fawtir. Automatic ERP extraction, where Fawtir reads the documents out of your ERP for you, is a priced add-on on Business Plus and included on Enterprise.",
+      "a1Varies": "No. Nothing is charged before your account is approved. A plan with a free trial starts it on approval, and the trial never turns into a paid plan by itself."
+    },
+    "priceChanged": "The prices changed while this page was open. The new prices are shown now: please review them and choose your plan again.",
+    "noLongerOffered": "The plan you chose earlier, {{plan}}, is no longer offered. Please choose another plan.",
+    "loading": "Loading the plans…",
+    "unavailable": "We couldn't load the plans right now.",
+    "retry": "Try again",
+    "empty": "No plans are offered right now. Talk to our team and we will help you choose.",
+    "saveAnnualMonths_one": "Save {{count}} month on annual",
+    "saveAnnualMonths_other": "Save {{count}} months on annual",
+    "saveAnnualUpTo_one": "Save up to {{count}} month on annual",
+    "saveAnnualUpTo_other": "Save up to {{count}} months on annual",
+    "trialNoteDays_one": "Every plan except Enterprise starts with a {{count}}-day free trial of the plan you pick, from the day your account is approved, and nothing to pay until it ends.",
+    "trialNoteDays_other": "Every plan except Enterprise starts with a {{count}}-day free trial of the plan you pick, from the day your account is approved, and nothing to pay until it ends.",
+    "trialNotePlan_one": "{{plan}}, {{count}}-day trial",
+    "trialNotePlan_other": "{{plan}}, {{count}}-day trial",
+    "trialNoteMixed": "Plans with a free trial start it from the day your account is approved, and nothing is paid until it ends: {{plans}}.",
+    "listSeparator": "; "
   },
   "payment": {
     "title": "How you'll pay",
@@ -919,7 +939,13 @@
       "renewSuffix": ", access continues to the end of the period.",
       "addonLine": "Automatic ERP extraction ({{cycle}})",
       "firstBill": "First bill",
-      "firstBillNote": "Your first bill comes {{when}}, and we remind you before. "
+      "firstBillNote": "Your first bill comes {{when}}, and we remind you before. ",
+      "loading": "Loading…",
+      "unavailable": "Not available yet",
+      "monthlyPrice": "Monthly price {{rate}}",
+      "vatRate": "VAT ({{rate}}%)",
+      "vatUnknownRate": "VAT",
+      "addonOnTop": "Automatic ERP extraction ({{cycle}}), billed on top"
     },
     "method": {
       "cardLink": {
@@ -963,9 +989,11 @@
     "when": {
       "afterTrial_one": "after your {{count}}-day free trial",
       "afterTrial_other": "after your {{count}}-day free trial",
-      "onApproval": "when your account is approved"
+      "onApproval": "when your account is approved",
+      "later": "after your account is approved"
     },
-    "continueCta": "Continue to review"
+    "continueCta": "Continue to review",
+    "descriptionPending": "Nothing is charged today. Your first bill comes after your account is approved, by the method you choose here."
   },
   "fawtaraStatus": {
     "heroTitle": "E-invoicing compliance, handled for you.",
@@ -14975,7 +15003,8 @@
       "plan": "Plan",
       "payment": "How you'll pay",
       "firstBill": "First bill",
-      "terms": "Terms"
+      "terms": "Terms",
+      "firstBillAmount": "First bill, VAT included"
     },
     "edit": "Edit",
     "savedEarlier": "Saved earlier",
@@ -15003,7 +15032,9 @@
     "notChosen": "Not chosen yet",
     "planMissing": "Choose your plan and how you'll pay before you submit.",
     "choosePlan": "Choose a plan",
-    "choosePayment": "Choose how you'll pay"
+    "choosePayment": "Choose how you'll pay",
+    "amountUnavailable": "Not available yet",
+    "firstBillUnknown": "Confirmed when your account is approved"
   },
   "signupPending": {
     "approved": {
@@ -20167,7 +20198,11 @@
         "label": "Billing period",
         "monthly": "Monthly",
         "yearly": "Yearly",
-        "free": "2 months free"
+        "free": "2 months free",
+        "freeMonths_one": "{{count}} month free",
+        "freeMonths_other": "{{count}} months free",
+        "freeUpTo_one": "Up to {{count}} month free",
+        "freeUpTo_other": "Up to {{count}} months free"
       },
       "perMonth": "/ a month",
       "whatYouGet": "What you get",
@@ -20206,7 +20241,10 @@
         "people_other": "{{count}} people",
         "branches_one": "{{count}} branch",
         "branches_other": "{{count}} branches"
-      }
+      },
+      "yearlyNoteMonths_one": "Billed yearly · {{count}} month free",
+      "yearlyNoteMonths_other": "Billed yearly · {{count}} months free",
+      "yearlyNoteNoSaving": "Billed yearly"
     },
     "features": {
       "hero": {

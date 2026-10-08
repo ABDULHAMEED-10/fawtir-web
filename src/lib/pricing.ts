@@ -1,15 +1,20 @@
 import {
   ANNUAL_FREE_MONTHS,
   PLAN,
-  TRIAL,
   type AnyPlanId,
   type ExtractionAvailability,
   type PlanId as CataloguePlanId,
 } from './plans'
 import { PLATFORM_SETTINGS } from './platformSettings'
 
-/** The sign-up flow's own ids: `premium` is the catalogue's Business plan. */
-export type PlanId = 'starter' | 'premium' | 'businessPlus' | 'enterprise'
+/** The sign-up flow's ids for the launch plans and Enterprise: `premium` is the Business plan. */
+export type KnownPlanId = 'starter' | 'premium' | 'businessPlus' | 'enterprise'
+/**
+ * A plan chosen in sign-up: a launch id, or the backend code of a plan the console published
+ * since. The catalogue lives in the database (catalogue contract §13), so the flow cannot list
+ * every plan ahead of time.
+ */
+export type PlanId = KnownPlanId | (string & {})
 export type BillingCycle = 'monthly' | 'annual'
 /** How the first bill will be paid: a Paymob link, a bank transfer, or cash at the office. */
 export type SignupPaymentMethod = 'cardLink' | 'bankTransfer' | 'cash'
@@ -17,7 +22,7 @@ export type SignupPaymentMethod = 'cardLink' | 'bankTransfer' | 'cash'
 export type PaymentLinkVia = 'whatsapp' | 'email'
 
 export type OrderSummary = {
-  plan: Exclude<PlanId, 'enterprise'>
+  plan: Exclude<KnownPlanId, 'enterprise'>
   billing: BillingCycle
   /** The rate per month as shown; for annual billing the year's price over twelve, display only. */
   monthlyRate: number
@@ -34,28 +39,24 @@ export type OrderSummary = {
   baisa: { planSubtotal: number; addonSubtotal: number; subtotal: number; vat: number; total: number }
 }
 
-/** The catalogue's id for a sign-up plan id. */
-export const cataloguePlanId = (plan: PlanId): AnyPlanId => (plan === 'premium' ? 'business' : plan)
+const KNOWN_PLAN_IDS: readonly string[] = ['starter', 'premium', 'businessPlus', 'enterprise']
+export const isKnownPlanId = (plan: PlanId): plan is KnownPlanId => KNOWN_PLAN_IDS.includes(plan)
 
-/**
- * Whether the chosen plan may take the automatic ERP extraction add-on — the console's per-plan
- * availability: not supported, offered at the add-on price, or included in the plan.
- */
-export function extractionOffer(plan: PlanId): ExtractionAvailability {
-  return PLATFORM_SETTINGS.addons.erpExtraction.availability[cataloguePlanId(plan)]
+/** The launch catalogue's id for a sign-up plan id; `undefined` for a plan published since. */
+export function cataloguePlanId(plan: PlanId): AnyPlanId | undefined {
+  if (!isKnownPlanId(plan)) return undefined
+  return plan === 'premium' ? 'business' : plan
 }
 
 /**
- * Days of free trial the chosen plan starts with once the registration is approved, or `null`
- * when the plan has none, in which case the first bill goes out on approval (owner decision,
- * 8 Oct 2026). The super admin sets both the length and which plans carry one; until sign-up can
- * read the published plans, this is the launch default. TODO(backend): ONBOARDING.md row 1.1.
+ * Whether the chosen plan may take the automatic ERP extraction add-on — the console's per-plan
+ * availability: not supported, offered at the add-on price, or included in the plan. A plan the
+ * add-on setting does not name is not offered it: a priced extra nobody configured for that plan
+ * would put a charge on the registration that nobody decided.
  */
-export function trialDaysFor(plan: PlanId): number | null {
-  if (plan === 'enterprise') return null
-  return (TRIAL.offeredOn as readonly AnyPlanId[]).includes(cataloguePlanId(plan))
-    ? TRIAL.days
-    : null
+export function extractionOffer(plan: PlanId): ExtractionAvailability {
+  const id = cataloguePlanId(plan)
+  return id ? PLATFORM_SETTINGS.addons.erpExtraction.availability[id] : 'notOffered'
 }
 
 export const extractionMonthly = () => PLATFORM_SETTINGS.addons.erpExtraction.monthly
@@ -87,17 +88,24 @@ export function vatOnBaisa(baisa: number, ratePercent = SUBSCRIPTION_VAT_PERCENT
   return Math.floor((baisa * ratePercent + 50) / 100)
 }
 
+/*
+ * `planPeriodBaisa` and `getOrderSummary` price the LAUNCH catalogue in `lib/plans.ts`, and no
+ * screen calls them: payment and review show the amounts the status read computes from the
+ * pinned price version (catalogue contract §10, §14). They stay as the worked baisa arithmetic
+ * the tests hold the backend's figures to (Business annual 800.000 + 40.000 = 840.000).
+ */
+
 /**
  * The plan's price for one billing period. Annual is the monthly price times ten — the "two
  * months free" rule the console bills by (`annualTotal`) — never a rounded monthly times twelve.
  */
-export function planPeriodBaisa(plan: Exclude<PlanId, 'enterprise'>, billing: BillingCycle) {
+export function planPeriodBaisa(plan: Exclude<KnownPlanId, 'enterprise'>, billing: BillingCycle) {
   const monthly = toBaisa(PLAN[cataloguePlanId(plan) as CataloguePlanId].monthly)
   return billing === 'annual' ? monthly * (12 - ANNUAL_FREE_MONTHS) : monthly
 }
 
 export function getOrderSummary(
-  plan: PlanId,
+  plan: KnownPlanId,
   billing: BillingCycle,
   options: { addon?: boolean } = {},
 ): OrderSummary | null {
