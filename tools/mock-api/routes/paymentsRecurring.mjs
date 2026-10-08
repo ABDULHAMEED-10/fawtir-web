@@ -168,7 +168,11 @@ function supplierDetail(id) {
       notes: null,
       supplierCategory: null,
       selfBillingAgreement: false,
-      health: s.iban ? [] : ['NO_BANK_DETAILS'],
+      health: s.iban
+        ? BANK_UNCONFIRMED.has(id)
+          ? ['BANK_CHANGED_UNCONFIRMED']
+          : []
+        : ['NO_BANK_DETAILS'],
       supplierSince: '2025-02-01',
       switchedOffAt: null,
       status: 'ACTIVE',
@@ -185,6 +189,20 @@ function supplierDetail(id) {
     },
     sameAsInvoicingAddress: true,
     deliveryAddress: null,
+    // A change saved by someone else, before the platform kept the IBAN it replaced.
+    bankDetailsChange: BANK_UNCONFIRMED.has(id)
+      ? {
+          previousIban: null,
+          newIban: s.iban,
+          changedById: 'u-hafidh',
+          changedBy: 'Hafidh Saif',
+          changedAt: '2026-09-28T08:00:00Z',
+          firstEntry: false,
+          confirmable: true,
+          checkRequired: false,
+        }
+      : null,
+    bankDetailsActivity: [],
   }
 }
 
@@ -856,7 +874,25 @@ function runDto(run) {
   return { ...rest, billsTotal, discountTotal, netTotal: money(billsTotal - discountTotal) }
 }
 
-const runDetail = (run) => ({ run: runDto(run), items: runItems(run), activity: runActivity(run) })
+/**
+ * The kept bank file (owner, 8 Oct 2026): PR-0012's file is kept, and Sohar Packaging's IBAN
+ * changed after it was made; the paid runs were exported before files were kept.
+ */
+const KEPT_FILES = { 'run-0012': true, 'run-0011': false, 'run-0009': false }
+const CHANGED_SINCE_FILE = { 'run-0012': ['s-sp'] }
+/** Suppliers whose new bank details nobody has confirmed: no first bank file pays them. */
+const BANK_UNCONFIRMED = new Set(['s-mz'])
+
+const runDetail = (run) => ({
+  run: runDto(run),
+  items: runItems(run),
+  activity: runActivity(run),
+  fileStored: run.exportedAt ? (KEPT_FILES[run.id] ?? true) : null,
+  bankDetailsChangedSinceFile: (CHANGED_SINCE_FILE[run.id] ?? []).map((supplierId) => ({
+    supplierId,
+    supplierName: SUPPLIERS[supplierId]?.name ?? null,
+  })),
+})
 
 /** Approved, unpaid, in no open run: what a run may take. */
 function candidates(excludeRun, paymentDate) {
@@ -1813,6 +1849,22 @@ export default [
       if (run.state !== 'SCHEDULED' && run.state !== 'EXPORTED')
         return refuse('PAYMENT_RUN_TRANSITION_INVALID')
       if (!run.format) return refuse('PAYMENT_RUN_FORMAT_REQUIRED')
+      if (run.state === 'SCHEDULED') {
+        const unconfirmed = [
+          ...new Set(
+            runItems(run)
+              .map((i) => i.supplierId)
+              .filter((id) => BANK_UNCONFIRMED.has(id)),
+          ),
+        ]
+        if (unconfirmed.length > 0)
+          return refuse('PAYMENT_RUN_BANK_DETAILS_UNCONFIRMED', 400, {
+            suppliers: unconfirmed.map((supplierId) => ({
+              supplierId,
+              supplierName: SUPPLIERS[supplierId].name,
+            })),
+          })
+      }
       run.state = 'EXPORTED'
       run.exportedAt = `${TODAY}T10:00:00Z`
       const rows = runItems(run).map(
