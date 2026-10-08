@@ -83,7 +83,8 @@ export type NoteKind = 'credit' | 'debit'
  * it corrects or adds to and what that changes, the lines, and then the choice the note calls
  * for: how to use a credit, or whether to accept a charge. It is confirmed exactly as a bill is
  * (`POST /v1/bills/intake/{id}/confirm`, `documentTypeCode` 381 or 383). A credit set against
- * the chosen bill is applied by that same request (`relatedBillId`); a charge's decision is then
+ * the chosen bill is applied by that same request (`relatedBillId`); held as credit, the bill is
+ * sent with `holdAsCredit` and kept only as the note's reference. A charge's decision is then
  * carried out with the note's own endpoints, `POST /debit-notes/{id}/accept` / `/refuse`. The
  * total and the VAT sent are the lines' own figures, through the same engine every invoice uses.
  *
@@ -221,17 +222,20 @@ export function SupplierNoteIntake({
     setNotice(null)
     try {
       // A credit note sends the reason as typed (`reasonDetail`; the form has no CL-02-OM code
-      // to pick, so no `reasonCode`) and, when it is to be set against the chosen bill, that
-      // bill: the server then takes the credit off it in the same request (the largest amount
-      // that fits) or refuses the whole save. Held as credit, no bill is sent, so nothing is
-      // applied. A debit note's form has no reason box, so it sends neither.
+      // to pick, so no `reasonCode`) and the chosen bill, if any. Set against it, the server
+      // takes the credit off that bill in the same request (the largest amount that fits) or
+      // refuses the whole save. Held as credit (`holdAsCredit`), the bill is kept as the note's
+      // reference and nothing is applied. A debit note's form has no reason box, so it sends no
+      // reason, and never `holdAsCredit`; its chosen bill is sent too, and the server only
+      // records it as the bill the charge adds to, so the note can link to it.
       const note = await confirmIntake(
         intake.id,
         toConfirmation(submitted, {
           notDuplicateOf,
           documentTypeCode: kind === 'credit' ? '381' : '383',
           ...(kind === 'credit' ? { reasonDetail: reason } : {}),
-          ...(followUp === 'apply' ? { relatedBillId: chosenBill!.id } : {}),
+          ...(chosenBill ? { relatedBillId: chosenBill.id } : {}),
+          ...(kind === 'credit' && chosenBill && use === 'hold' ? { holdAsCredit: true } : {}),
         }),
       )
       setSaved(note)
