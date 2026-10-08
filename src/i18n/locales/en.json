@@ -73,7 +73,7 @@
   "signup": {
     "title": "Create your Fawtir account",
     "fullNameLabel": "Full name",
-    "fullNamePlaceholder": "Hafidh Saif",
+    "fullNamePlaceholder": "Your full name, as on your ID",
     "usernamePlaceholder": "Choose a username",
     "emailLabel": "Email",
     "emailPlaceholder": "you@company.com",
@@ -901,7 +901,8 @@
       "bank": "Bank",
       "reference": "Reference",
       "yourInvoice": "your invoice number",
-      "note": "We email you the invoice with these details. The Fawtir team activates your account once the transfer is confirmed, usually within one business day."
+      "note": "We email you the invoice. The Fawtir team activates your account once the transfer is confirmed, usually within one business day.",
+      "detailsOnRequest": "Fawtir sends you its bank details with the subscription invoice. Only pay into the account named on that invoice."
     },
     "summary": {
       "title": "Order summary",
@@ -984,7 +985,10 @@
       "bankTransfer": "Waiting for your bank transfer. Your account is activated once it arrives, usually within one business day.",
       "cash": "Waiting for your cash payment. Your account is activated once it is recorded, usually the same day.",
       "addon": "Automatic ERP extraction is on the same request; the Fawtir team switches it on with your subscription."
-    }
+    },
+    "titleReal": "Authorize Fawtir on the Fawtara Portal",
+    "descriptionReal": "To report invoices through Fawtir, authorize Fawtir as your provider on the Oman Tax Authority's Fawtara Portal. Fawtir cannot see the portal's decision from here, so this page does not show whether it has been approved.",
+    "footerReal": "Questions about the authorization?"
   },
   "dashboard": {
     "searchPlaceholder": "Search invoices, customers. documents...",
@@ -9451,7 +9455,8 @@
       "report_other": "{{count}} invoices · {{count}} from your quota · nothing goes to the customer",
       "unknown_one": "1 invoice · 1 from your quota · nothing goes to the customer",
       "unknown_other": "{{count}} invoices · {{count}} from your quota · nothing goes to the customer"
-    }
+    },
+    "quotaUnavailable": "Your document allowance is not available right now, so what this costs cannot be shown."
   },
   "complianceReport": {
     "title": "Compliance report",
@@ -9724,10 +9729,10 @@
       "teamTitle": "Team members",
       "teamBody": "Everyone with a login, and what each of them can reach.",
       "rolesTitle": "What each role can do",
-      "rolesBody": "Owner, manager, accountant, till staff, and one you made yourself.",
+      "rolesBody": "The roles your company has, and the permissions each one holds.",
       "rolesPill": "{{count}} roles",
       "signingTitle": "Signing in",
-      "signingBody": "Two-step sign-in, session length, and the one-device rule on mobile.",
+      "signingBody": "Who has an authenticator app set up for signing in.",
       "signingPill": "{{count}} without two-step",
       "planTitle": "Plan and usage",
       "planBody": "What you are paying for, and how much of it you have used.",
@@ -9807,7 +9812,11 @@
       "peppolPillNotVerified": "Not verified yet",
       "pillChecking": "Checking",
       "pillNotAvailable": "Not available",
-      "teamPillOpen": "Manage"
+      "teamPillOpen": "Manage",
+      "signingPillNoApp_one": "{{count}} without an authenticator app",
+      "signingPillNoApp_other": "{{count}} without an authenticator app",
+      "planPillName": "{{name}}",
+      "planFootReal": "This period ends {{date}}"
     }
   },
   "peppolTax": {
@@ -20161,6 +20170,133 @@
     "composer": {
       "title": "This invoice cannot be issued yet",
       "subtitle": "Fawtir will refuse to issue it until these are done. You can still save it as a draft."
+    }
+  },
+  "moduleUnavailable": {
+    "badge": "Not available yet",
+    "noSampleData": "Nothing on this screen is sample data: it stays empty until Fawtir can show your own records.",
+    "pos": {
+      "title": "Point of sale",
+      "body": "The point of sale is not connected to Fawtir's servers yet, so it cannot take sales, print receipts or close a shift for your business."
+    },
+    "catalog": {
+      "title": "Catalog tools",
+      "body": "This part of the catalog (menu upload, suggested items, price rules, bundles and per-item sales history) is not connected to Fawtir's servers yet."
+    },
+    "stock": {
+      "title": "Stock",
+      "body": "Stock levels and movements are not tracked by Fawtir yet, so there is nothing of yours to show here."
+    },
+    "tradeDocuments": {
+      "title": "Trade documents",
+      "body": "Quotations, order forms and delivery notes are not connected to Fawtir's servers yet. Invoices, credit notes and debit notes are available from Income."
+    },
+    "billing": {
+      "title": "Bills from Fawtir",
+      "body": "Your bills from Fawtir and how you pay them are not available in the app yet. Your plan and this period's usage are under Settings › Plan."
+    },
+    "closing": {
+      "title": "Close the account",
+      "body": "Closing a business account is not available in the app yet. Contact Fawtir support to close an account; your records are kept for the period the law requires."
+    },
+    "export": {
+      "title": "Export your records",
+      "body": "A full export of your records is not available yet. Each report under Reports can still be downloaded on its own."
+    },
+    "otaCallLog": {
+      "title": "Calls to the tax authority",
+      "body": "A log of each call Fawtir makes to the tax authority is not available yet. Each document's own status is on its activity page."
+    },
+    "makeRole": {
+      "title": "Make a role",
+      "body": "Making your own role is not available in the app yet. The roles your company has, and what each allows, are listed under Roles."
+    }
+  },
+  "people": {
+    "team": {
+      "subtitle": "Everyone with a login to this company, and the invitations still waiting. What each person can reach depends on their role.",
+      "peopleTitle": "People",
+      "invitedTitle": "Waiting to accept",
+      "empty": "Nobody has a login yet.",
+      "more": "Showing the first {{shown}} of {{total}} people.",
+      "noInvitations": "No invitations are waiting."
+    },
+    "col": {
+      "status": "Status",
+      "authenticator": "Authenticator app",
+      "email": "Email",
+      "expires": "Invitation expires"
+    },
+    "status": {
+      "active": "Active",
+      "locked": "Locked",
+      "disabled": "Deactivated"
+    },
+    "authenticator": {
+      "on": "Set up",
+      "off": "Not set up"
+    },
+    "noRole": "No role",
+    "defaultRole": "Default role",
+    "signingIn": {
+      "subtitle": "Who has an authenticator app set up for signing in",
+      "policy": "How long a session lasts and when a one-time code is asked for are set by Fawtir for now; they cannot be changed from this screen. A one-time code by email needs nothing set up, so only authenticator apps are listed.",
+      "count_one": "{{count}} of {{total}} people has an authenticator app set up.",
+      "count_other": "{{count}} of {{total}} people have an authenticator app set up."
+    },
+    "roles": {
+      "title": "Roles",
+      "subtitle": "The roles this company has and the permissions each one holds, as Fawtir records them.",
+      "empty": "This company has no roles.",
+      "disabled": "Switched off",
+      "permissions_one": "{{count}} permission",
+      "permissions_other": "{{count}} permissions"
+    },
+    "invite": {
+      "subtitle": "They get an email from Fawtir with a code to join this company.",
+      "sent": "Invitation sent to {{email}}.",
+      "defaultRoleOnly": "You cannot list this company's roles, so the invitation gives the default role.",
+      "noRoleMeansDefault": "Choose none and the invitation gives the default role.",
+      "send": "Send the invitation",
+      "sending": "Sending..."
+    },
+    "plan": {
+      "subtitle": "Your plan and how much of this period's allowance you have used",
+      "ofAllowance": "of {{allowance}} documents",
+      "period": "This period runs from {{start}} to {{end}}.",
+      "people": "People with a login",
+      "ofIncluded_one": "{{count}} of {{included}} included",
+      "ofIncluded_other": "{{count}} of {{included}} included",
+      "openInvitations_one": "{{count}} invitation waiting",
+      "openInvitations_other": "{{count}} invitations waiting",
+      "branches": "Open branches",
+      "unlimited_one": "{{count}} (no limit on your plan)",
+      "unlimited_other": "{{count}} (no limit on your plan)"
+    }
+  },
+  "reportReal": {
+    "subtitle": "Last complete quarter: {{from}} to {{to}}",
+    "documentUnavailable": "A signed compliance report document is not available yet. The company details and numbering check below are read from Fawtir, and the Excel ledger for the quarter can be downloaded.",
+    "legalName": "Legal name",
+    "vatNumber": "VAT number",
+    "crNumber": "Commercial registration",
+    "participantNotVerified": "Not verified by Fawtir yet",
+    "numberingTitle": "Invoice numbering this quarter"
+  },
+  "catalogReal": {
+    "title": "Catalog",
+    "subtitle": "The products your invoice lines are raised from",
+    "toolsUnavailable": "Menu upload, suggested items, price rules, bundles, stock and per-item sales history are not connected to Fawtir's servers yet.",
+    "products": "Products",
+    "empty": "No products yet. A product is added when you pick it on an invoice line.",
+    "more": "Showing the first {{shown}} of {{total}} products.",
+    "omr": "OMR {{amount}}",
+    "col": {
+      "code": "Code",
+      "name": "Name",
+      "unit": "Unit",
+      "price": "Unit price",
+      "tax": "VAT"
     }
   }
 }
