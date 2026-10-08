@@ -3,16 +3,24 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
-import type { BillDetailDto, BillMatchDto } from '../../api/expenditure/bills'
+import type {
+  BillDetailDto,
+  BillMatchDto,
+  BillOverpaymentDto,
+  BillRowDto,
+} from '../../api/expenditure/bills'
 import {
   activityOf,
   awaitingDiscountCreditNote,
   canRecordPayment,
+  creditTargetsOf,
   decisionNoteOf,
   complianceOf,
   decisionsOf,
   discountLineOf,
   lineVatOf,
+  overpaidOf,
+  overpaymentStepOf,
   singleVatRate,
   stepsOf,
 } from '../../lib/billDetail'
@@ -2020,5 +2028,350 @@ describe('the early-payment discount a payment run took', () => {
       { day: (iso) => iso, instantDay: (iso) => iso },
     )
     expect(steps.find((step) => step.id === 'paid')?.detail?.values?.date).toBe('2026-09-07')
+  })
+})
+
+/**
+ * Owner's answer 13 of 8 Oct 2026: "Overpaid by {amount}" on the bill with the rial sign, and two
+ * ways to settle it, the supplier's refund or keeping it as credit for their next bill, then
+ * using that credit on another bill. All recorded in Activity.
+ */
+describe('an overpaid bill', () => {
+  const OVERPAYMENT_URL = `${BILL_URL}/overpayment`
+  let standing: BillOverpaymentDto
+  let targets: BillRowDto[]
+
+  function overpaid(): BillDetailDto {
+    const base = detail({ readiness: APPROVED })
+    return {
+      ...base,
+      bill: { ...base.bill, workflowState: 'PAID', paidAmount: 2394.31, outstandingAmount: 0 },
+      settlement: {
+        ...base.settlement,
+        paidAmount: 2394.31,
+        outstandingAmount: 0,
+        paymentState: 'PAID',
+        overpaidAmount: 40,
+      },
+    }
+  }
+
+  const target = (overrides: Partial<BillRowDto>): BillRowDto => ({
+    ...overpaid().bill,
+    id: 'b-2',
+    supplierBillNumber: 'QMS-7790',
+    workflowState: 'APPROVED',
+    paidAmount: 0,
+    outstandingAmount: 150,
+    readiness: APPROVED,
+    ...overrides,
+  })
+
+  beforeEach(() => {
+    standing = {
+      billId: ID,
+      currency: 'OMR',
+      overpaidAmount: 40,
+      keptAsCredit: 0,
+      undecided: 40,
+      refunded: 0,
+      applied: 0,
+      settlements: [],
+    }
+    targets = [
+      target({}),
+      // Not offered: this bill, another supplier's, another currency, held, a credit note.
+      target({ id: ID, supplierBillNumber: 'QMS-7781' }),
+      target({ id: 'b-3', supplierBillNumber: 'OTHER-1', supplierId: 's-9' }),
+      target({ id: 'b-4', supplierBillNumber: 'QMS-USD', currencyCode: 'USD' }),
+      target({
+        id: 'b-5',
+        supplierBillNumber: 'QMS-HELD',
+        hold: { reason: 'Query', openedAt: '2026-09-20T08:00:00Z' },
+      }),
+      target({ id: 'b-6', supplierBillNumber: 'QMS-CN', documentTypeCode: '381' }),
+    ]
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      const method = init?.method ?? 'GET'
+      if (url === OVERPAYMENT_URL && method === 'GET') return json(200, standing)
+      if (url.startsWith('/api/v1/bills?'))
+        return json(200, {
+          items: targets,
+          page: 0,
+          pageSize: 20,
+          count: targets.length,
+          total: targets.length,
+        })
+      return base(url, init)
+    })
+    billResponse = () => json(200, overpaid())
+  })
+
+  /** The sentence under Payment terms that carries an amount, and whether the sign is drawn. */
+  function line(pattern: RegExp): { text: string; rial: boolean } {
+    const element = screen.getByText(
+      (_, node) => node?.tagName === 'P' && pattern.test(node.textContent ?? ''),
+    )
+    return { text: element.textContent ?? '', rial: element.querySelector('svg') !== null }
+  }
+
+  const sent = (path: string) => {
+    const call = fetchMock.mock.calls.find(
+      ([url, init]) => String(url) === path && (init as RequestInit)?.method === 'POST',
+    )
+    return call ? JSON.parse(String((call[1] as RequestInit).body)) : undefined
+  }
+
+  it('says "Overpaid by" with the rial sign and three decimals, and offers the two ways to settle it', async () => {
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(line(/^Overpaid by/)).toEqual({ text: 'Overpaid by OMR40.000', rial: true })
+    expect(line(/^Overpaid by/).text).not.toMatch(/OMR /)
+    // In the Payment terms card, after what was paid and is outstanding.
+    const card = screen.getByText(/^Overpaid by/).closest('section')!
+    expect(within(card).getByText('Payment terms')).toBeTruthy()
+    await waitFor(() => expect(calls()).toContain(`GET ${OVERPAYMENT_URL}`))
+    expect(await screen.findByRole('button', { name: 'Keep as credit' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: "Record the supplier's refund" })).toBeTruthy()
+    // Nothing is kept yet, so there is nothing to set against a bill.
+    expect(screen.queryByRole('button', { name: 'Set against a bill' })).toBeNull()
+    expect(screen.queryByText(/kept as credit/)).toBeNull()
+  })
+
+  it('shows the figure to a reader without the payment permission, and hides every action', async () => {
+    who = READ_ONLY
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(line(/^Overpaid by/)).toEqual({ text: 'Overpaid by OMR40.000', rial: true })
+    await waitFor(() => expect(calls()).toContain(`GET ${OVERPAYMENT_URL}`))
+    expect(screen.queryByRole('button', { name: "Record the supplier's refund" })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Keep as credit' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Set against a bill' })).toBeNull()
+  })
+
+  it('draws nothing and reads nothing more for a bill that is not overpaid', async () => {
+    billResponse = () => json(200, detail({ readiness: APPROVED }))
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(screen.queryByText(/Overpaid by/)).toBeNull()
+    expect(screen.queryByRole('button', { name: "Record the supplier's refund" })).toBeNull()
+    expect(calls()).not.toContain(`GET ${OVERPAYMENT_URL}`)
+  })
+
+  it("records the supplier's refund: amount, the day it arrived and a reference", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-05T09:00:00Z'))
+    standing = { ...standing, keptAsCredit: 15, undecided: 25 }
+    renderBill()
+    fireEvent.click(await screen.findByRole('button', { name: "Record the supplier's refund" }))
+    const dialog = await screen.findByRole('dialog', { name: "Record the supplier's refund" })
+    expect(
+      within(dialog).getByText('The supplier gave the money back rather than crediting a bill.'),
+    ).toBeTruthy()
+    // Filled with what nobody has decided about yet.
+    const amount = within(dialog).getByRole('spinbutton', { name: 'Amount' }) as HTMLInputElement
+    expect(amount.value).toBe('25.000')
+    expect(within(dialog).getByText('Paid on')).toBeTruthy()
+
+    // More than it was overpaid by is stopped before asking, with the sign on the figure.
+    fireEvent.change(amount, { target: { value: '40.5' } })
+    const alert = within(dialog).getByRole('alert')
+    expect(alert.textContent).toBe('That is more than the OMR 40.000 this bill was overpaid by.')
+    expect(alert.querySelector('svg')).toBeTruthy()
+    const save = within(dialog).getByRole('button', { name: 'Record the refund' })
+    expect((save as HTMLButtonElement).disabled).toBe(true)
+
+    fireEvent.change(amount, { target: { value: '40' } })
+    fireEvent.change(
+      within(dialog).getByRole('textbox', { name: 'Payment reference (optional)' }),
+      {
+        target: { value: 'RF-0042' },
+      },
+    )
+    fireEvent.click(save)
+    await waitFor(() =>
+      expect(sent(`${OVERPAYMENT_URL}/refunds`)).toEqual({
+        amount: 40,
+        refundedOn: '2026-10-05',
+        reference: 'RF-0042',
+      }),
+    )
+    expect(await screen.findByText('The refund was recorded.')).toBeTruthy()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    vi.useRealTimers()
+  })
+
+  it('keeps it as credit with one press, and says so', async () => {
+    renderBill()
+    fireEvent.click(await screen.findByRole('button', { name: 'Keep as credit' }))
+    await waitFor(() => expect(sent(`${OVERPAYMENT_URL}/keep-as-credit`)).toEqual({}))
+    expect(
+      await screen.findByText(
+        'Kept as credit against Qalhat Marine Supplies. Nothing changes until you set it against a bill.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('shows what is kept, and sets it against another bill of the supplier in its currency', async () => {
+    standing = { ...standing, keptAsCredit: 40, undecided: 0 }
+    renderBill()
+    fireEvent.click(await screen.findByRole('button', { name: 'Set against a bill' }))
+    expect(line(/kept as credit$/)).toEqual({ text: 'OMR40.000 kept as credit', rial: true })
+    // All of it is kept, so there is nothing left to keep.
+    expect(screen.queryByRole('button', { name: 'Keep as credit' })).toBeNull()
+
+    const dialog = await screen.findByRole('dialog', { name: 'Set against a bill' })
+    // Searched among this supplier's bills, on the server.
+    await waitFor(() =>
+      expect(
+        calls().some(
+          (call) => call.startsWith('GET /api/v1/bills?') && call.includes('supplier_id=s-1'),
+        ),
+      ).toBe(true),
+    )
+    const offered = await within(dialog).findAllByRole('button', { name: /QMS-7790/ })
+    expect(offered).toHaveLength(1)
+    for (const number of ['QMS-7781', 'OTHER-1', 'QMS-USD', 'QMS-HELD', 'QMS-CN'])
+      expect(within(dialog).queryByRole('button', { name: new RegExp(number) })).toBeNull()
+    expect(offered[0].querySelector('svg')).toBeTruthy()
+    fireEvent.click(offered[0])
+    expect(within(dialog).getByText(/Applying to QMS-7790/)).toBeTruthy()
+
+    const amount = within(dialog).getByRole('spinbutton', { name: 'Amount (optional)' })
+    fireEvent.change(amount, { target: { value: '41' } })
+    expect(within(dialog).getByRole('alert').textContent).toBe(
+      'That is more than the OMR 40.000 kept as credit.',
+    )
+    fireEvent.change(amount, { target: { value: '' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Use it' }))
+    // Left blank, the server uses the largest amount that fits both.
+    await waitFor(() => expect(sent(`${OVERPAYMENT_URL}/apply`)).toEqual({ targetBillId: 'b-2' }))
+    expect(await screen.findByText('The credit was used against that bill.')).toBeTruthy()
+  })
+
+  it('says why the server refused, in the dialog', async () => {
+    actionResponse = () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/expenditure-refused',
+        error: 'BILL_OVERPAYMENT_IN_PAYMENT_RUN',
+        paymentRunReference: 'PR-0014',
+      })
+    renderBill()
+    fireEvent.click(await screen.findByRole('button', { name: "Record the supplier's refund" }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Record the refund' }))
+    expect(
+      await within(dialog).findByText(
+        'This bill is in payment run PR-0014. Take it out of the run first.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('reads the target refusals in the credit note sentences', async () => {
+    standing = { ...standing, keptAsCredit: 40, undecided: 0 }
+    actionResponse = () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/expenditure-refused',
+        error: 'BILL_OVERPAYMENT_TARGET_ON_HOLD',
+      })
+    renderBill()
+    fireEvent.click(await screen.findByRole('button', { name: 'Set against a bill' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(await within(dialog).findByRole('button', { name: /QMS-7790/ }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Use it' }))
+    expect(
+      await within(dialog).findByText(
+        'This bill is on hold. Release it before setting a credit against it.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('reads in Arabic, with the rial sign and three decimals', async () => {
+    await i18n.changeLanguage('ar')
+    standing = { ...standing, keptAsCredit: 15, undecided: 25 }
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(line(/^دُفع بزيادة/)).toEqual({ text: 'دُفع بزيادة OMR40.000', rial: true })
+    expect(await screen.findByRole('button', { name: 'تسجيل استرداد من المورّد' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'الاحتفاظ به رصيدًا' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'خصمه من فاتورة' })).toBeTruthy()
+    expect(line(/محتفظ به رصيدًا$/)).toEqual({ text: 'OMR15.000 محتفظ به رصيدًا', rial: true })
+  })
+
+  it('lists the four steps in Activity with their amounts in rials', async () => {
+    billResponse = () =>
+      json(200, {
+        ...overpaid(),
+        activity: [
+          {
+            at: '2026-10-04T09:00:00Z',
+            kind: 'OVERPAYMENT_CREDIT_RECEIVED',
+            detail: '5.000 OMR · QMS-7700',
+            actor: null,
+          },
+          {
+            at: '2026-10-03T09:00:00Z',
+            kind: 'OVERPAYMENT_CREDIT_APPLIED',
+            detail: '10.5 OMR · QMS-7790',
+            actor: null,
+          },
+          {
+            at: '2026-10-02T09:00:00Z',
+            kind: 'OVERPAYMENT_KEPT_AS_CREDIT',
+            detail: '25.000 OMR',
+            actor: null,
+          },
+          {
+            at: '2026-10-01T09:00:00Z',
+            kind: 'OVERPAYMENT_REFUNDED',
+            detail: '15.000 OMR · RF-0042',
+            actor: 'u-1',
+          },
+        ],
+      })
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    const step = (title: string) => {
+      const heading = screen.getByText(title)
+      return heading.closest('li')!.querySelectorAll('p')[1] as HTMLElement
+    }
+    expect(screen.getByText("Supplier's refund recorded")).toBeTruthy()
+    expect(step("Supplier's refund recorded").textContent).toMatch(/^OMR15\.000 · RF-0042 · /)
+    expect(step("Supplier's refund recorded").querySelector('svg')).toBeTruthy()
+    expect(step('Kept as credit').textContent).toMatch(/^OMR25\.000 · /)
+    // Three decimals always, whatever the server's scale.
+    expect(step('Credit set against another bill').textContent).toMatch(/^OMR10\.500 · QMS-7790 · /)
+    expect(step('Credit from another bill set against this one').textContent).toMatch(
+      /^OMR5\.000 · QMS-7700 · /,
+    )
+    expect(screen.queryByText(/ OMR/)).toBeNull()
+  })
+
+  it('reads the amount out of an overpayment step, and picks the bills the credit can go on', () => {
+    expect(overpaymentStepOf('OVERPAYMENT_REFUNDED', '12.5 OMR · RF-1')).toEqual({
+      amount: 12.5,
+      currency: 'OMR',
+      rest: 'RF-1',
+    })
+    expect(overpaymentStepOf('OVERPAYMENT_KEPT_AS_CREDIT', '40.000 OMR')).toEqual({
+      amount: 40,
+      currency: 'OMR',
+      rest: null,
+    })
+    // Any other step, or a detail in another shape, is shown as sent.
+    expect(overpaymentStepOf('PAID', '12.5 OMR')).toBeNull()
+    expect(overpaymentStepOf('OVERPAYMENT_REFUNDED', 'refunded')).toBeNull()
+    expect(overpaidOf(detail())).toBe(0)
+    expect(overpaidOf(overpaid())).toBe(40)
+    expect(creditTargetsOf(overpaid(), targets).map((row) => row.id)).toEqual(['b-2'])
+    expect(
+      creditTargetsOf(overpaid(), [
+        target({ id: 'b-7', outstandingAmount: 0 }),
+        target({ id: 'b-8', readiness: { ...APPROVED, state: 'REJECTED' } }),
+        target({ id: 'b-9', documentTypeCode: '383', debitNoteDecision: 'REFUSED' }),
+        target({ id: 'b-10', documentTypeCode: '383', debitNoteDecision: 'ACCEPTED' }),
+      ]).map((row) => row.id),
+    ).toEqual(['b-10'])
   })
 })

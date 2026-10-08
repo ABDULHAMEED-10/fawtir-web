@@ -1,4 +1,9 @@
-import type { BillDetailDto, BillMatchDto, ReceiptReportDto } from '../api/expenditure/bills'
+import type {
+  BillDetailDto,
+  BillMatchDto,
+  BillRowDto,
+  ReceiptReportDto,
+} from '../api/expenditure/bills'
 
 /**
  * One supplier bill, opened (Figma 86:16520), written only from what `GET /bills/{id}` carries.
@@ -455,6 +460,8 @@ export type ActivityEntry = {
   at: string | null
   detail: string | null
   byYou: boolean
+  /** On an overpayment step, its amount for the rial sign and the rest of its detail. */
+  overpayment?: { amount: number; currency: string; rest: string | null } | null
 }
 
 /**
@@ -464,7 +471,9 @@ export type ActivityEntry = {
  * history"). Those three are the invoice history's own event names and carry the same words the
  * self-bill page uses for them (`invoiceDetails.event.*`). `TAKEN_OUT_OF_PAYMENT_RUN` and
  * `PAYMENT_RUN_CANCELLED` are a sent payment run's two ways out; their detail names the run and
- * the reason given.
+ * the reason given. The four `OVERPAYMENT_*` kinds are what became of what the bill was overpaid
+ * by (owner's answer 13, 8 Oct 2026: both ways of settling it are recorded in Activity); their
+ * amount is drawn with the rial sign ({@link overpaymentStepOf}).
  *
  * TODO(backend): EXPENDITURE.md row 1.23. The full history of the self-billed document in
  * `activity[]` (owner's Round 5 answer 4: created, issued and cancelled are enough for now).
@@ -481,6 +490,10 @@ const KNOWN_KINDS = new Set([
   'REVERSED',
   'TAKEN_OUT_OF_PAYMENT_RUN',
   'PAYMENT_RUN_CANCELLED',
+  'OVERPAYMENT_REFUNDED',
+  'OVERPAYMENT_KEPT_AS_CREDIT',
+  'OVERPAYMENT_CREDIT_APPLIED',
+  'OVERPAYMENT_CREDIT_RECEIVED',
   'DRAFT_CREATED',
   'ISSUED',
   'CANCELLED',
@@ -516,6 +529,7 @@ export function activityOf(detail: BillDetailDto, userId: string | null): Activi
           ? (detail.bill.match?.summary ?? null)
           : entry.detail,
     byYou: userId !== null && entry.actor === userId,
+    overpayment: overpaymentStepOf(entry.kind, entry.detail),
   }))
 }
 
@@ -562,4 +576,58 @@ export function singleVatRate(detail: BillDetailDto): number | null {
   )
   const categories = new Set(detail.lines.map(categoryOf))
   return rates.size === 1 && categories.size <= 1 ? [...rates][0] : null
+}
+
+/**
+ * "Overpaid by" (owner's answer 13, 8 Oct 2026): what the supplier still holds of what payments
+ * and credits paid beyond the bill, as the server works it out. Zero for a server before it.
+ */
+export function overpaidOf(detail: BillDetailDto): number {
+  return detail.settlement.overpaidAmount ?? 0
+}
+
+const OVERPAYMENT_STEPS = new Set([
+  'OVERPAYMENT_REFUNDED',
+  'OVERPAYMENT_KEPT_AS_CREDIT',
+  'OVERPAYMENT_CREDIT_APPLIED',
+  'OVERPAYMENT_CREDIT_RECEIVED',
+])
+
+/**
+ * The amount on an overpayment step, read out of the server's "{amount} {currency} · {other}" so
+ * the page can draw it with the rial sign and three decimals instead of the currency code. Null
+ * for any other step, or a detail not in that shape (then it is shown as sent).
+ */
+export function overpaymentStepOf(
+  kind: string,
+  detail: string | null,
+): { amount: number; currency: string; rest: string | null } | null {
+  if (!OVERPAYMENT_STEPS.has(kind) || !detail) return null
+  const match = /^(-?\d+(?:\.\d+)?) ([A-Z]{3})(?: · (.+))?$/.exec(detail.trim())
+  if (!match) return null
+  return { amount: Number(match[1]), currency: match[2], rest: match[3] ?? null }
+}
+
+/**
+ * The bills the kept credit can be set against, of those a search returned: the same supplier and
+ * currency (the server refuses any other), not this bill and not a credit note, still owing
+ * something, and not one the server would refuse outright (held, rejected or a refused debit
+ * note). A bill in a run whose bank file is made is not told apart here; the server's sentence
+ * says so.
+ */
+export function creditTargetsOf(detail: BillDetailDto, rows: readonly BillRowDto[]): BillRowDto[] {
+  const { bill } = detail
+  const CREDIT_NOTE_CODES = ['381', '261']
+  return rows.filter(
+    (row) =>
+      row.id !== bill.id &&
+      bill.supplierId !== null &&
+      row.supplierId === bill.supplierId &&
+      row.currencyCode === bill.currencyCode &&
+      !CREDIT_NOTE_CODES.includes(row.documentTypeCode ?? '') &&
+      row.outstandingAmount > 0 &&
+      row.hold === null &&
+      row.readiness.state !== 'REJECTED' &&
+      row.debitNoteDecision !== 'REFUSED',
+  )
 }

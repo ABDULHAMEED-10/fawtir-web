@@ -5489,7 +5489,11 @@
         "ISSUED": "Issued",
         "CANCELLED": "Cancelled",
         "TAKEN_OUT_OF_PAYMENT_RUN": "Taken out of a payment run",
-        "PAYMENT_RUN_CANCELLED": "Payment run cancelled"
+        "PAYMENT_RUN_CANCELLED": "Payment run cancelled",
+        "OVERPAYMENT_REFUNDED": "Supplier's refund recorded",
+        "OVERPAYMENT_KEPT_AS_CREDIT": "Kept as credit",
+        "OVERPAYMENT_CREDIT_APPLIED": "Credit set against another bill",
+        "OVERPAYMENT_CREDIT_RECEIVED": "Credit from another bill set against this one"
       }
     },
     "decision": {
@@ -5628,6 +5632,18 @@
       "onHold": "This bill is on hold. Release it, then record the payment.",
       "tooMuch": "That is more than this bill still owes.",
       "tooMuchMost": "That is more than this bill still owes. The most you can record is {{amount}}."
+    },
+    "overpaid": {
+      "overpaidBy": "Overpaid by {{amount}}",
+      "kept": "{{amount}} kept as credit",
+      "recordRefund": "Record the supplier's refund",
+      "setAgainst": "Set against a bill",
+      "tooMuch": "That is more than the {{amount}} this bill was overpaid by.",
+      "overKept": "That is more than the {{amount}} kept as credit.",
+      "refused": {
+        "dateBeforeOverpayment": "A refund cannot be dated before the payment that overpaid this bill.",
+        "inRun": "This bill is in payment run {{run}}. Take it out of the run first."
+      }
     }
   },
   "uploadBill": {
@@ -8682,7 +8698,10 @@
       "BILL": "Bill",
       "CREDIT_NOTE": "Credit",
       "PAYMENT": "Payment",
-      "REVERSAL": "Reversal"
+      "REVERSAL": "Reversal",
+      "DISCOUNT": "Early-payment discount",
+      "OVERPAYMENT_REFUND": "Refund from the supplier",
+      "OVERPAYMENT_CREDIT_APPLIED": "Credit used"
     },
     "broughtForward": "Brought forward",
     "broughtForwardNote": "Owed before this period began",
@@ -8723,7 +8742,8 @@
       "sendFailed": "The statement could not be sent just now. Try again, or download it and send it yourself."
     },
     "unusedCredits_one": "{{count}} credit note still unused",
-    "unusedCredits_other": "{{count}} credit notes still unused"
+    "unusedCredits_other": "{{count}} credit notes still unused",
+    "creditUsedOn": "Credit used on {{bill}}"
   },
   "activity": {
     "title": "TDD & OTA",

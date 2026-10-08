@@ -5698,7 +5698,11 @@
         "ISSUED": "صدرت",
         "CANCELLED": "أُلغيت",
         "TAKEN_OUT_OF_PAYMENT_RUN": "أُخرجت من دفعة سداد",
-        "PAYMENT_RUN_CANCELLED": "أُلغيت دفعة السداد"
+        "PAYMENT_RUN_CANCELLED": "أُلغيت دفعة السداد",
+        "OVERPAYMENT_REFUNDED": "سُجّل استرداد من المورّد",
+        "OVERPAYMENT_KEPT_AS_CREDIT": "احتُفظ به رصيدًا",
+        "OVERPAYMENT_CREDIT_APPLIED": "خُصم الرصيد من فاتورة أخرى",
+        "OVERPAYMENT_CREDIT_RECEIVED": "خُصم منها رصيد من فاتورة أخرى"
       }
     },
     "decision": {
@@ -5837,6 +5841,18 @@
       "onHold": "هذه الفاتورة قيد الانتظار. أفرج عنها ثم سجّل الدفعة.",
       "tooMuch": "هذا أكثر مما تبقّى مستحقًا على هذه الفاتورة.",
       "tooMuchMost": "هذا أكثر مما تبقّى مستحقًا على هذه الفاتورة. أقصى ما يمكن تسجيله {{amount}}."
+    },
+    "overpaid": {
+      "overpaidBy": "دُفع بزيادة {{amount}}",
+      "kept": "{{amount}} محتفظ به رصيدًا",
+      "recordRefund": "تسجيل استرداد من المورّد",
+      "setAgainst": "خصمه من فاتورة",
+      "tooMuch": "هذا أكثر من {{amount}} المدفوعة بزيادة على هذه الفاتورة.",
+      "overKept": "هذا أكثر من {{amount}} المحتفظ به رصيدًا.",
+      "refused": {
+        "dateBeforeOverpayment": "لا يمكن أن يسبق تاريخ الاسترداد تاريخ الدفعة التي زادت على مبلغ هذه الفاتورة.",
+        "inRun": "هذه الفاتورة ضمن دفعة السداد {{run}}. أخرجها من الدفعة أولًا."
+      }
     }
   },
   "uploadBill": {
@@ -9040,7 +9056,10 @@
       "BILL": "فاتورة",
       "CREDIT_NOTE": "إشعار دائن",
       "PAYMENT": "دفعة",
-      "REVERSAL": "عكس دفعة"
+      "REVERSAL": "عكس دفعة",
+      "DISCOUNT": "خصم سداد مبكر",
+      "OVERPAYMENT_REFUND": "استرداد من المورّد",
+      "OVERPAYMENT_CREDIT_APPLIED": "رصيد مستخدم"
     },
     "broughtForward": "رصيد مُرحّل",
     "broughtForwardNote": "المستحق قبل بداية هذه الفترة",
@@ -9089,7 +9108,8 @@
     "unusedCredits_zero": "لا إشعارات دائنة غير مستخدمة",
     "unusedCredits_two": "إشعاران دائنان لم يُستخدما بعد",
     "unusedCredits_few": "{{count}} إشعارات دائنة لم تُستخدم بعد",
-    "unusedCredits_many": "{{count}} إشعارًا دائنًا لم يُستخدم بعد"
+    "unusedCredits_many": "{{count}} إشعارًا دائنًا لم يُستخدم بعد",
+    "creditUsedOn": "رصيد مستخدم في {{bill}}"
   },
   "activity": {
     "title": "TDD وجهاز الضرائب",
