@@ -17743,7 +17743,8 @@
     "markOthersPaid": "Mark the others paid",
     "takeOutOfRun": "Take out of the run",
     "bankPaidNothing": "The bank paid nothing from this file",
-    "sentFileWarning": "This file was already sent to the bank. Do not upload it again."
+    "sentFileWarning": "This file was already sent to the bank. Do not upload it again.",
+    "takenOutRow": "Taken out · {{reason}}"
   },
   "billIntake": {
     "supplier": "Supplier",
