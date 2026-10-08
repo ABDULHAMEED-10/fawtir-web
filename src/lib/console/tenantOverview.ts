@@ -78,8 +78,15 @@ export type OverviewVerification = {
 export type OverviewSubscription = {
   planCode: string | null
   planName: string | null
+  /** A three-decimal string since V265; a number from an older server. */
   monthlyPrice: string | number | null
   invoicesPerMonth: number
+  /** The price version the tenant is pinned to (V265); absent from an older server. */
+  planVersionId?: string | null
+  planVersionNumber?: number | null
+  /** True when the tenant keeps an older version than the plan now offers (grandfathered). */
+  pinned?: boolean
+  billingCycle?: 'MONTHLY' | 'ANNUAL' | null
   overageEnabled: boolean
   implicitDefault: boolean
   startedOn: string | null

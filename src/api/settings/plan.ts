@@ -15,6 +15,17 @@ export type SubscriptionPlanDto = {
   peopleIncluded: number
   /** `null` is unlimited. */
   branchesIncluded: number | null
+  /*
+   * The terms below are three-decimal OMR strings since V265 (they were numbers before). No screen
+   * prints them yet; they are typed so a reader that does gets a string, never a float.
+   */
+  monthlyPrice?: string | null
+  annualPrice?: string | null
+  extraPersonPrice?: string | null
+  extraBranchPrice?: string | null
+  overagePricePerInvoice?: string | null
+  versionId?: string | null
+  versionNumber?: number | null
 }
 
 export type PlanUsageDto = {
