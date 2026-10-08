@@ -62,6 +62,11 @@ export type BillRowDto = {
   note?: string | null
   /** The self-billed invoice or credit note this payable was raised from; null for any other source. */
   issuedInvoiceId?: string | null
+  /**
+   * On a supplier debit note (383), its current decision; null on any other document and on a
+   * note nobody has decided yet. A REFUSED note is disputed and cannot be paid.
+   */
+  debitNoteDecision?: 'ACCEPTED' | 'REFUSED' | null
 }
 
 /** `BillController.BillSummaryResponse`. */

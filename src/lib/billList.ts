@@ -55,6 +55,11 @@ export type BillListItem = {
   /** Whether anything is actually owed, so a credit note is not presented as a debt. */
   owes: boolean
   /**
+   * A supplier debit note (383), with its decision once one is taken; absent on any other
+   * document. The row says it is a debit note, and whether it was accepted or refused.
+   */
+  debitNote?: { decision: 'ACCEPTED' | 'REFUSED' | null }
+  /**
    * The server's judgment, not the browser's. It is computed at read time from the same clock
    * as the tab counts and the KPI strip, so taking it from here keeps a row and the totals
    * above it telling the same story.
@@ -156,6 +161,9 @@ export function toBillListItem(row: BillRowDto): BillListItem {
     owes: !isCreditNote(row) && row.outstandingAmount > 0,
     overdue: row.overdue,
     draft: null,
+    ...(row.documentTypeCode === '383'
+      ? { debitNote: { decision: row.debitNoteDecision ?? null } }
+      : {}),
   }
 }
 

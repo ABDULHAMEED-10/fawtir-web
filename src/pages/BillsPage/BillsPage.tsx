@@ -107,6 +107,24 @@ const SOURCE_STYLES: Record<BillSourceBadge, { bg: string; fg: string; labelKey:
 }
 
 /**
+ * A supplier debit note's badges, after the source badge and in its style (owner, 8 Oct 2026):
+ * what the document is, then the decision on it once one is taken.
+ */
+const DEBIT_NOTE_BADGES = {
+  type: {
+    bg: 'bg-surface-background',
+    fg: 'text-text-tertiary',
+    labelKey: 'billsPage.debitNote.type',
+  },
+  ACCEPTED: {
+    bg: 'bg-success-100',
+    fg: 'text-success-700',
+    labelKey: 'billsPage.debitNote.accepted',
+  },
+  REFUSED: { bg: 'bg-danger-100', fg: 'text-danger-700', labelKey: 'billsPage.debitNote.refused' },
+} as const
+
+/**
  * The button under a row's status chip (Figma 163:21928). Only Approve is filled: it is the one
  * action that moves the bill on by itself. The rest open something, so they read as secondary.
  */
@@ -1092,6 +1110,23 @@ function BillTableRow({
         >
           {t(source.labelKey)}
         </span>
+        {row.debitNote
+          ? [
+              DEBIT_NOTE_BADGES.type,
+              ...(row.debitNote.decision ? [DEBIT_NOTE_BADGES[row.debitNote.decision]] : []),
+            ].map((badge) => (
+              <span
+                key={badge.labelKey}
+                className={[
+                  'ms-1 mt-1 inline-flex items-center rounded-[2px] px-2 py-1 text-[10px] font-semibold uppercase leading-[1.2]',
+                  badge.bg,
+                  badge.fg,
+                ].join(' ')}
+              >
+                {t(badge.labelKey)}
+              </span>
+            ))
+          : null}
       </td>
 
       <td className="px-2 py-2.5 align-middle">
