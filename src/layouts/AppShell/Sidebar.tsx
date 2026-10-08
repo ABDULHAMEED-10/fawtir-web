@@ -20,8 +20,8 @@ import { BrandLogo } from '../../components/BrandLogo'
 import { AccountSwitcher, UserMenu } from '../../components/shell'
 import chevron from '../../assets/dashboard/chevron.svg'
 
-/** The sidebar's count: the 18px round badge the design draws beside Income and TDD & OTA. */
-const NAV_BADGE =
+/** The sidebar's count: the design's 18px round badge, drawn only where a real count backs it. */
+export const NAV_BADGE =
   'inline-flex size-[18px] shrink-0 items-center justify-center rounded-full bg-primary-700 text-[10px] font-extrabold leading-none text-white'
 
 type SidebarNavItemProps = {

@@ -59,7 +59,7 @@ import {
   withOneTiming,
   type RuleSpec,
 } from '../../lib/expenditureReminders'
-import { formatAmount, formatCount, formatInstant, initialsOf } from '../../lib/format'
+import { formatAmount, formatCount, formatInstant } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import clockIcon from '../../assets/expenditure-reminders/clock.svg'
 import alertIcon from '../../assets/expenditure-reminders/alert.svg'
@@ -749,12 +749,7 @@ function RecipientPicker({
             aria-expanded={openFor === id}
             className="inline-flex h-[42px] items-center gap-2 rounded-sm border border-border-subtle bg-white ps-1.5 pe-2.5 text-sm font-medium text-text-secondary transition-colors hover:border-primary-300"
           >
-            <span
-              aria-hidden="true"
-              className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-[10px] font-semibold text-primary-800"
-            >
-              {initialsOf(nameOf(id) ?? '')}
-            </span>
+            <img src={personAnyIcon} alt="" className="size-7 shrink-0 rounded-full" />
             {nameOf(id)}
             <img
               src={chevronIcon}
@@ -789,12 +784,7 @@ function RecipientPicker({
                       person.id === id ? 'text-primary-700' : 'text-text-secondary',
                     ].join(' ')}
                   >
-                    <span
-                      aria-hidden="true"
-                      className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary-100 text-[10px] font-semibold text-primary-800"
-                    >
-                      {initialsOf(person.name ?? '')}
-                    </span>
+                    <img src={personAnyIcon} alt="" className="size-6 shrink-0 rounded-full" />
                     {person.name ?? t('expenditureReminders.someone')}
                   </button>
                 </li>
