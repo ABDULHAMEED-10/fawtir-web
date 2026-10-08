@@ -351,6 +351,27 @@ describe('upload a supplier credit note', () => {
     expect(calls('POST', CONFIRM)).toHaveLength(2)
   })
 
+  // Owner, 6 Oct: the frame's "pay OMR ... less" is a designer's slip; money shows the sign.
+  it('shows the amount the credit takes off the bill with the Rial sign, not "OMR"', async () => {
+    await uploadNote()
+    await chooseBill()
+    const visible = (element: Element) => {
+      const copy = element.cloneNode(true) as Element
+      copy.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+      return copy.textContent ?? ''
+    }
+
+    const english = screen.getByText(/^The bill is unpaid, so you simply pay/)
+    expect(english.querySelector('svg')).not.toBeNull()
+    expect(visible(english)).toMatch(/^The bill is unpaid, so you simply pay\s+105\.000 less\.$/)
+    expect(visible(english)).not.toContain('OMR')
+
+    await i18n.changeLanguage('ar')
+    const arabic = await screen.findByText(/^الفاتورة غير مدفوعة، فتدفع ببساطة أقل بمقدار/)
+    expect(arabic.querySelector('svg')).not.toBeNull()
+    expect(visible(arabic)).not.toContain('OMR')
+  })
+
   it('sends one confirm however quickly the button is pressed twice', async () => {
     let answer: (response: Response) => void = () => {}
     confirmAnswer = () =>

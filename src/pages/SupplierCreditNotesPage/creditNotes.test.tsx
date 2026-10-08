@@ -605,6 +605,28 @@ describe('One credit note', () => {
     ).toBeTruthy()
   })
 
+  // Owner, 6 Oct: the frame's "still shows the full OMR 933.900" is a designer's slip. The line
+  // names no figure, so no "OMR" can reach the screen from it.
+  it('says the bill still shows its full amount without printing "OMR"', async () => {
+    notes = [
+      note({
+        credits: {
+          billNumber: 'QMS-7781',
+          issueDate: null,
+          documentUuid: null,
+          billId: null,
+          applied: false,
+        },
+      }),
+    ]
+    renderDetail()
+    const activity = await screen.findByRole('list', { name: 'Activity' })
+    expect(
+      within(activity).getByText('Until it is, QMS-7781 still shows its full amount'),
+    ).toBeTruthy()
+    expect(activity.textContent).not.toMatch(/OMR\s*\d/)
+  })
+
   it('offers no target the guard would refuse: not itself, not a credit note, not a settled bill', async () => {
     renderDetail()
     fireEvent.change(await openApply(), { target: { value: 'test' } })
