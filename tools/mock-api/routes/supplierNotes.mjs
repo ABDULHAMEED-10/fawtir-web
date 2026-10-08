@@ -1334,6 +1334,10 @@ export default [
         return refusal(400, 'BILL_INTAKE_RELATED_BILL_UNKNOWN', 'No such bill.')
       if (related && supplierRow && related.supplierId !== supplierRow.id)
         return refusal(400, 'BILL_INTAKE_RELATED_BILL_SUPPLIER_MISMATCH', 'Another supplier.')
+      // "Hold it as credit" belongs to a credit note: refused on a debit note, as the server does.
+      const holdAsCredit = body?.holdAsCredit === true
+      if (holdAsCredit && body?.documentTypeCode !== '381')
+        return refusal(400, 'BILL_INTAKE_HOLD_AS_CREDIT_NOT_ALLOWED', 'Only a credit note.')
       if (body?.documentTypeCode === '383') {
         DEBIT_NOTES.unshift(
           debitNote({
@@ -1363,11 +1367,16 @@ export default [
         CREDIT_NOTES[0].supplierName = supplierRow?.displayName ?? body?.supplierName ?? 'Unknown'
         // A credit note naming its bill is set against it in the same request: the largest
         // amount that fits; any excess stays as credit, and a bill owing nothing takes none.
+        // Held as credit (`holdAsCredit`), the bill stays the note's reference and nothing is
+        // applied: the whole note waits as unused credit.
         const note = CREDIT_NOTES[0]
-        const amount = related
-          ? round(Math.min(note.balance.remaining, Math.max(0, related.outstandingAmount)))
-          : 0
-        if (amount > 0) {
+        const amount =
+          related && !holdAsCredit
+            ? round(Math.min(note.balance.remaining, Math.max(0, related.outstandingAmount)))
+            : 0
+        if (holdAsCredit) {
+          note.credits.applied = false
+        } else if (amount > 0) {
           note.balance = {
             applied: amount,
             refunded: 0,
