@@ -2,18 +2,23 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { Popover } from '../ui'
-import { HIT_KINDS, SEARCH_SUGGESTIONS, search, type Hit } from '../../lib/shell'
+import { HIT_KINDS, SEARCH_SUGGESTIONS, type Hit } from '../../lib/shell'
+import { searchEverywhere } from '../../lib/globalSearch'
 import searchIcon from '../../assets/dashboard/search.svg'
 
 /**
  * The search box in the topbar.
  *
- * Opens on focus, searches as you type across invoices, customers, suppliers, documents and the
- * catalogue, and is driven from the keyboard: up and down move, Enter opens, Escape closes. With
- * nothing typed it offers the three things people most often come here for.
+ * Opens on focus, asks the server as you type (after a pause, from two characters) across
+ * invoices, customers and suppliers, and is driven from the keyboard: up and down move, Enter
+ * opens, Escape closes. With nothing typed it offers the three things people most often come here
+ * for. Documents and the catalogue are not searched: their lists have no search the box can ask.
  */
+const MIN_QUERY = 2
+const DEBOUNCE_MS = 300
+
 export function GlobalSearch({ className = '' }: { className?: string }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const anchor = useRef<HTMLLabelElement>(null)
   const input = useRef<HTMLInputElement>(null)
@@ -21,7 +26,29 @@ export function GlobalSearch({ className = '' }: { className?: string }) {
   const [open, setOpen] = useState(false)
   const [cursor, setCursor] = useState(0)
 
-  const hits = search(query)
+  const [result, setResult] = useState<{ query: string; hits: Hit[]; failed: boolean } | null>(
+    null,
+  )
+  const trimmed = query.trim()
+  const askable = trimmed.length >= MIN_QUERY
+
+  useEffect(() => {
+    if (!askable) return
+    let active = true
+    const timer = setTimeout(() => {
+      searchEverywhere(trimmed, i18n.language).then((answer) => {
+        if (active) setResult({ query: trimmed, ...answer })
+      })
+    }, DEBOUNCE_MS)
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [askable, trimmed, i18n.language])
+
+  // An answer counts only for the query it was asked for, so typing on never shows stale rows.
+  const current = askable && result?.query === trimmed ? result : null
+  const hits = current?.hits ?? []
   const grouped = HIT_KINDS.map((kind) => ({
     kind,
     hits: hits.filter((hit) => hit.kind === kind),
@@ -104,9 +131,15 @@ export function GlobalSearch({ className = '' }: { className?: string }) {
                 </button>
               ))}
             </div>
-          ) : !hits.length ? (
+          ) : !askable || !current || current.failed || !hits.length ? (
             <p className="px-4 py-6 text-center text-sm font-medium text-text-tertiary">
-              {t('shell.search.nothing', { query: query.trim() })}
+              {!askable
+                ? t('shell.search.keepTyping')
+                : !current
+                  ? t('shell.search.searching')
+                  : current.failed
+                    ? t('shell.search.unavailable')
+                    : t('shell.search.nothing', { query: trimmed })}
             </p>
           ) : (
             grouped.map((group) => (

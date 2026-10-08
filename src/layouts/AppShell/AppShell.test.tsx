@@ -206,3 +206,18 @@ describe('requireSession', () => {
     expect(requireSession(true, 'false')).toBe(false)
   })
 })
+
+describe('AppShell chrome carries no sample data', () => {
+  it('draws the user’s initials instead of a shared photo, and no invented counts', async () => {
+    fetchMock.mockImplementation(async () => json(200, ACCOUNTANT))
+    const { container } = renderAt('/suppliers')
+    await screen.findByText(/screen for/)
+
+    expect(container.querySelector('img[src*="avatar"]')).toBeNull()
+    expect(screen.getByRole('button', { name: /layla\.accounts/ }).textContent).toContain('L')
+    // Income carried a fixed "3" and TDD & OTA a fixed "4" from the sample book.
+    expect(screen.getByRole('button', { name: /Income/ }).textContent).not.toMatch(/\d/)
+    for (const link of screen.queryAllByRole('link', { name: /TDD/ }))
+      expect(link.textContent).not.toMatch(/\d/)
+  })
+})

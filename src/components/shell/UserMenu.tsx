@@ -19,13 +19,17 @@ export type UserMenuEntry = { id: string; labelKey: string; to: string }
 export function UserMenu({
   name,
   roleKey,
-  avatar,
+  initials,
   extraItems = [],
 }: {
   name: string
   /** Null while there is nobody to describe yet; the line is left out rather than guessed. */
   roleKey: string | null
-  avatar: string
+  /**
+   * Drawn in place of a photo. The API carries no picture of anyone, and the shared stock photo
+   * this replaced showed every user the same stranger's face. Null draws an empty tile.
+   */
+  initials: string | null
   /** Entries only one shell offers, listed after the shared ones. */
   extraItems?: readonly UserMenuEntry[]
 }) {
@@ -90,7 +94,12 @@ export function UserMenu({
         className="mt-1 flex w-full items-center justify-between rounded-sm border border-black/[0.06] bg-[#292d32] p-[9px] text-start transition-colors hover:brightness-125"
       >
         <span className="flex min-w-0 items-center gap-[7px]">
-          <img src={avatar} alt="" className="size-9 shrink-0 rounded-full object-cover" />
+          <span
+            aria-hidden="true"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-800"
+          >
+            {initials}
+          </span>
           <span className="min-w-0">
             <span className="block truncate text-sm font-medium leading-[1.2] text-white">
               {name}

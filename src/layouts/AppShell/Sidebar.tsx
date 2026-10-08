@@ -12,12 +12,12 @@ import {
 } from '../../lib/dashboard'
 import { useUnreadReminders } from '../../lib/notifications'
 import { REQUIRE_SESSION, can, useSession } from '../../lib/session/session'
+import { initialsOf } from '../../lib/format'
 import type { Entitlements } from '../../lib/identity/entitlements'
 import type { AnyPlanId, Feature } from '../../lib/plans'
 import { featureAccess, useTenantPlan } from '../../lib/planAccess'
 import { BrandLogo } from '../../components/BrandLogo'
 import { AccountSwitcher, UserMenu } from '../../components/shell'
-import avatar from '../../assets/dashboard/avatar.png'
 import chevron from '../../assets/dashboard/chevron.svg'
 
 /** The sidebar's count: the 18px round badge the design draws beside Income and TDD & OTA. */
@@ -370,7 +370,7 @@ export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
             t(REQUIRE_SESSION ? 'shell.user.loading' : 'shell.user.previewNoSession')
           }
           roleKey={session ? roleKeyOf(session) : null}
-          avatar={avatar}
+          initials={session?.username ? initialsOf(session.username) : null}
         />
       </div>
     </aside>
