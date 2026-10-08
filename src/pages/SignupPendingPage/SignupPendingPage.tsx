@@ -80,7 +80,9 @@ export function SignupPendingPage() {
         </div>
       ) : outcome ? (
         <FawtaraStatusPanel
-          phase={outcome === 'approved' ? 'fawtara' : 'review'}
+          // TODO(backend): approval is all the status read reports, so an approved account is
+          // shown as still to send its portal request. ONBOARDING.md row 1.9.
+          phase={outcome === 'approved' ? 'request' : 'review'}
           email={email}
           choice={choice.plan ? choice : undefined}
           action={

@@ -973,8 +973,17 @@
       "review": "Fawtir review",
       "reviewing": "Checking your business details",
       "approved": "Approved",
-      "authorise": "Authorise Fawtir on the Fawtara Portal",
-      "awaitingOta": "Awaiting OTA approval"
+      "request": "Send Fawtir a connection request on the Fawtara Portal",
+      "requestNow": "Waiting for your request",
+      "requestSent": "Sent",
+      "accept": "Fawtir accepts your request",
+      "accepting": "Waiting for Fawtir",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "expired": "Expired before it was accepted",
+      "register": "Fawtir registers you on the Oman SMP",
+      "registering": "Within 3 business days of acceptance",
+      "registered": "Registered"
     },
     "openPortal": "Open Fawtara portal",
     "contactSupport": "Contact support",
@@ -986,17 +995,9 @@
       "emailNote": "We'll email <b>{{email}}</b> the decision, you can safely close this page.",
       "emailNoteNoAddress": "We'll email the decision to the address you registered with, you can safely close this page."
     },
-    "fawtara": {
-      "title": "Waiting for Fawtara approval",
-      "description": "Your registration is approved. Authorise Fawtir as your provider on the Fawtara Portal, and as soon as the OTA approves it you're connected.",
-      "badge": "Pending approval",
-      "timing": "This usually takes a few minutes.",
-      "emailNote": "We'll email <b>{{email}}</b> the moment it's approved, you can safely close this page.",
-      "emailNoteNoAddress": "We'll email you the moment it's approved, you can safely close this page."
-    },
     "connected": {
       "title": "You're connected",
-      "description": "The OTA has approved Fawtir as your provider. Your invoices are now reported through Fawtara.",
+      "description": "Fawtir is your service provider and you're registered on the Oman SMP. Your invoices are now reported through Fawtara.",
       "badge": "Connected"
     },
     "slow": "Approval taking too long?",
@@ -1007,6 +1008,53 @@
       "noTrial": "Your first bill comes when your account is approved.",
       "enterprise": "Our team will call you to agree your terms.",
       "paidBy": "Paying by: {{method}}"
+    },
+    "request": {
+      "title": "Send Fawtir your connection request",
+      "description": "Your registration is approved. To report invoices through Fawtir, send Fawtir a connection request on the Fawtara Portal. Fawtir then accepts it and registers you on the Oman SMP.",
+      "badge": "Your turn",
+      "timing": "Fawtir can only connect you once your request reaches us on the portal.",
+      "emailNote": "We'll email <b>{{email}}</b> when we accept it, you can safely close this page.",
+      "emailNoteNoAddress": "We'll email you when we accept it, you can safely close this page."
+    },
+    "accepting": {
+      "title": "Fawtir is reviewing your request",
+      "description": "Your connection request reached Fawtir on the Fawtara Portal. We check it against your account, then accept it and register you on the Oman SMP.",
+      "badge": "Waiting for Fawtir",
+      "timing": "A request that is not answered in time expires on the portal, so we act on it quickly.",
+      "emailNote": "We'll email <b>{{email}}</b> when it's accepted, you can safely close this page.",
+      "emailNoteNoAddress": "We'll email you when it's accepted, you can safely close this page."
+    },
+    "registering": {
+      "title": "Registering you on the Oman SMP",
+      "description": "Fawtir accepted your connection request. We now register your Peppol ID on the Oman SMP, which checks the connection on the Fawtara Portal before adding you.",
+      "badge": "Registering",
+      "timing": "Fawtir registers you within 3 business days of accepting.",
+      "emailNote": "We'll email <b>{{email}}</b> when you're connected, you can safely close this page.",
+      "emailNoteNoAddress": "We'll email you when you're connected, you can safely close this page."
+    },
+    "declined": {
+      "title": "Fawtir declined your connection request",
+      "description": "We've emailed you the reason. Put it right and send the request again on the Fawtara Portal, or contact support and we'll help.",
+      "badge": "Request declined",
+      "timing": "You can send a new request as soon as it's fixed.",
+      "emailNote": "The reason went to <b>{{email}}</b>.",
+      "emailNoteNoAddress": "The reason went to the address you registered with."
+    },
+    "expired": {
+      "title": "Your connection request expired",
+      "description": "It wasn't accepted before the portal's time limit. Send it again on the Fawtara Portal and we'll pick it up straight away.",
+      "badge": "Request expired",
+      "timing": "A new request goes through the same steps.",
+      "emailNote": "We'll email <b>{{email}}</b> when we accept it.",
+      "emailNoteNoAddress": "We'll email you when we accept it."
+    },
+    "howTo": {
+      "h1": "Sign in to the Fawtara Portal and open Accredited Service Providers.",
+      "h2": "Choose Fawtir and record each engagement stage, up to Agreement/Contract Signed.",
+      "h3": "Upload the documents it asks for and, if you like, a start date (otherwise it starts when we accept).",
+      "h4": "Press Connect.",
+      "switching": "Already with another provider? Sending this request disconnects you from them."
     }
   },
   "dashboard": {

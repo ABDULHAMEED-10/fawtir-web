@@ -5,6 +5,7 @@ import {
   FAWTARA_PORTAL_URL,
   SUPPORT_EMAIL,
   goingLiveSteps,
+  needsPortalRequest,
   type GoingLivePhase,
   type GoingLiveStep,
 } from '../../lib/fawtaraStatus'
@@ -28,6 +29,16 @@ function StepMarker({ step, number }: { step: GoingLiveStep; number: number }) {
     )
   }
 
+  if (step.state === 'failed') {
+    return (
+      <span className="flex size-[27px] items-center justify-center rounded-full bg-danger-700">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="m3 3 6 6M9 3 3 9" stroke="white" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      </span>
+    )
+  }
+
   if (step.state === 'current') {
     return (
       <span className="flex size-8 items-center justify-center rounded-full border border-pending-200">
@@ -45,22 +56,29 @@ function StepMarker({ step, number }: { step: GoingLiveStep; number: number }) {
   )
 }
 
+const WAITING = {
+  box: 'border-pending-200 bg-pending-100',
+  dot: 'bg-pending-500',
+  text: 'text-pending-700',
+}
+const FAILED = {
+  box: 'border-danger-700/20 bg-danger-100',
+  dot: 'bg-danger-700',
+  text: 'text-danger-700',
+}
+
 const BADGE_TONE: Record<GoingLivePhase, { box: string; dot: string; text: string }> = {
-  review: {
-    box: 'border-pending-200 bg-pending-100',
-    dot: 'bg-pending-500',
-    text: 'text-pending-700',
-  },
-  fawtara: {
-    box: 'border-pending-200 bg-pending-100',
-    dot: 'bg-pending-500',
-    text: 'text-pending-700',
-  },
+  review: WAITING,
+  request: WAITING,
+  accepting: WAITING,
+  registering: WAITING,
   connected: {
     box: 'border-success-700/20 bg-success-100',
     dot: 'bg-success-700',
     text: 'text-success-700',
   },
+  declined: FAILED,
+  expired: FAILED,
 }
 
 /** The plan and payment carried from sign-up; absent after sign-in or on a fresh tab. */
@@ -119,7 +137,7 @@ export function FawtaraStatusPanel({ phase, email, choice, action }: GoingLivePa
   const { t } = useTranslation()
   const steps = goingLiveSteps(phase)
   const tone = BADGE_TONE[phase]
-  const showPortal = phase === 'fawtara'
+  const showPortal = needsPortalRequest(phase)
 
   return (
     <div className="flex w-full max-w-[660px] flex-col gap-7">
@@ -172,11 +190,42 @@ export function FawtaraStatusPanel({ phase, email, choice, action }: GoingLivePa
                   <p
                     className={[
                       'mt-1 text-sm font-medium leading-[1.3]',
-                      step.state === 'current' ? 'text-pending-700' : 'text-text-quaternary',
+                      step.state === 'current'
+                        ? 'text-pending-700'
+                        : step.state === 'failed'
+                          ? 'text-text-danger'
+                          : 'text-text-quaternary',
                     ].join(' ')}
                   >
                     {t(step.statusKey)}
                   </p>
+                ) : null}
+                {/* How to send the request, under its step while it is the one to do. */}
+                {step.id === 'request' && showPortal ? (
+                  <ol className="mt-2 flex list-decimal flex-col gap-1 ps-4 text-sm font-medium leading-[1.4] text-text-tertiary">
+                    {(['h1', 'h2', 'h3', 'h4'] as const).map((key) => (
+                      <li key={key}>{t(`fawtaraStatus.howTo.${key}`)}</li>
+                    ))}
+                  </ol>
+                ) : null}
+                {step.id === 'request' && showPortal ? (
+                  <p className="mt-2 text-xs font-medium leading-[1.4] text-text-quaternary">
+                    {t('fawtaraStatus.howTo.switching')}
+                  </p>
+                ) : null}
+                {step.id === 'request' && showPortal ? (
+                  <a
+                    href={FAWTARA_PORTAL_URL}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="mt-3 inline-flex w-fit items-center gap-3 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 py-3.5 text-sm font-semibold leading-[1.2] text-[#3a3a3a] transition-colors hover:bg-neutral-25"
+                  >
+                    {t('fawtaraStatus.openPortal')}
+                    <ExternalLinkIcon
+                      size={20}
+                      className="shrink-0 text-text-quaternary rtl:-scale-x-100"
+                    />
+                  </a>
                 ) : null}
               </div>
             </li>
@@ -184,25 +233,7 @@ export function FawtaraStatusPanel({ phase, email, choice, action }: GoingLivePa
         })}
       </ol>
 
-      {showPortal || action ? (
-        <div className="flex flex-wrap items-center gap-3">
-          {showPortal ? (
-            <a
-              href={FAWTARA_PORTAL_URL}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="inline-flex w-fit items-center gap-3 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 py-3.5 text-sm font-semibold leading-[1.2] text-[#3a3a3a] transition-colors hover:bg-neutral-25"
-            >
-              {t('fawtaraStatus.openPortal')}
-              <ExternalLinkIcon
-                size={20}
-                className="shrink-0 text-text-quaternary rtl:-scale-x-100"
-              />
-            </a>
-          ) : null}
-          {action}
-        </div>
-      ) : null}
+      {action ? <div className="flex flex-wrap items-center gap-3">{action}</div> : null}
 
       {choice ? <PlanNote choice={choice} /> : null}
 

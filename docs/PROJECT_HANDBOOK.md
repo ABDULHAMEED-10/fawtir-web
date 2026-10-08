@@ -527,9 +527,14 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   and payment settings are the super admin's; sign-up shows the launch defaults until it can read
   them, and no screen says where its figures come from. One **"Getting you live"** screen in the
   Fawtara status frame's layout replaces "We've received your registration": Registration sent,
-  Fawtir review, Authorise Fawtir on the Fawtara Portal, Connected, in time order (the frame drew
-  them upward). It is shown again after sign-in until the account is connected. Backend asks:
-  `docs/backend-guides/ONBOARDING.md`, rows 1.1 to 1.8.
+  Fawtir review, Send Fawtir a connection request on the Fawtara Portal, Fawtir accepts your
+  request, Fawtir registers you on the Oman SMP, Connected, in time order (the frame drew them
+  upward). The connection follows the OTA's "Service Provider and Taxpayer Association Management
+  User Manual": the taxpayer requests, Fawtir accepts or rejects with a reason, a request can
+  expire or be withdrawn, and after acceptance Fawtir must add the participant on the Oman SMP
+  within 3 business days; the OTA approves nothing at this stage. It is shown again after
+  sign-in until the account is connected. Backend asks: `docs/backend-guides/ONBOARDING.md`,
+  rows 1.1 to 1.10.
 - **Zain's DW/CW note PRs** (29 Sep 2026): approved except removing the credit note detail's
   "Refund due" figure, which stays (design wins; mark it `TODO(backend)`). Conditions: a retry
   after a timeout reuses its idempotency key; `0248:` is not added twice; a partial credit uses

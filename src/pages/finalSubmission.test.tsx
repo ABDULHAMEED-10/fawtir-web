@@ -189,10 +189,12 @@ describe('Review and submit', () => {
     expect(steps).toEqual([
       i18n.t('fawtaraStatus.steps.sent'),
       '2' + i18n.t('fawtaraStatus.steps.review') + i18n.t('fawtaraStatus.steps.reviewing'),
-      i18n.t('fawtaraStatus.steps.authorise'),
+      i18n.t('fawtaraStatus.steps.request'),
+      i18n.t('fawtaraStatus.steps.accept'),
+      i18n.t('fawtaraStatus.steps.register'),
       i18n.t('fawtaraStatus.steps.connected'),
     ])
-    // Fawtara comes after Fawtir's review, so its portal is not offered yet.
+    // The portal request comes after Fawtir's review, so it is not offered yet.
     expect(screen.queryByText(i18n.t('fawtaraStatus.openPortal'))).toBeNull()
   })
 
@@ -333,7 +335,9 @@ describe('Waiting screen', () => {
   it('shows an approval with the way to sign in', async () => {
     fetchMock.mockResolvedValue(status('ACTIVATED'))
     renderAt('/signup-pending')
-    expect(await screen.findByText(i18n.t('fawtaraStatus.fawtara.title'))).toBeTruthy()
+    // Approved: the taxpayer's turn to send Fawtir the connection request on the portal.
+    expect(await screen.findByText(i18n.t('fawtaraStatus.request.title'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('fawtaraStatus.howTo.h4'))).toBeTruthy()
     expect(
       screen.getByRole('link', { name: i18n.t('fawtaraStatus.openPortal') }).getAttribute('href'),
     ).toBe('https://tms.taxoman.gov.om/portal')
