@@ -10,7 +10,7 @@ import {
   type BranchOverviewDto,
   type BranchOverviewRow,
 } from '../../api/settings/branches'
-import { BRANCH_PLAN } from '../../lib/settingsCompany'
+import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
 import plusIcon from '../../assets/settings/plus-white.svg'
 import plusBrandIcon from '../../assets/settings/plus-brand.svg'
 import lockIcon from '../../assets/settings/menu-key.svg'
@@ -67,6 +67,31 @@ export function BranchesPage() {
   )
 }
 
+/**
+ * The plan's branch allowance from `GET /v1/settings/plan`. It used to be a sample plan's figure
+ * with "no extra charge until the sixth", a price no plan carries.
+ */
+function IncludedKpi() {
+  const { t } = useTranslation()
+  const plan = useApiRead<PlanOverviewDto>(PLAN_OVERVIEW_PATH, loadPlanOverview).read
+  const ready = plan.status === 'ready' && plan.data.plan ? plan.data : null
+  const included = ready ? ready.plan.branchesIncluded : undefined
+  return (
+    <Kpi
+      label={t('branches.kpi.included')}
+      value={included === undefined || included === null ? '—' : String(included)}
+      unit={t('branches.kpi.includedUnit')}
+      note={
+        ready === null
+          ? t('branches.kpi.includedUnavailable')
+          : included === null
+            ? t('branches.kpi.includedUnlimited')
+            : t('branches.kpi.includedFromPlan', { plan: ready.plan.name })
+      }
+    />
+  )
+}
+
 function Content({ overview }: { overview: BranchOverviewDto }) {
   const { t } = useTranslation()
 
@@ -100,12 +125,7 @@ function Content({ overview }: { overview: BranchOverviewDto }) {
           value={overview.invoicesThisMonth.toLocaleString('en-US')}
           note={t('branches.kpi.invoicesNoteGeneric')}
         />
-        <Kpi
-          label={t('branches.kpi.included')}
-          value={BRANCH_PLAN.included === Infinity ? '—' : String(BRANCH_PLAN.included)}
-          unit={t('branches.kpi.includedUnit')}
-          note={t('branches.kpi.includedNote')}
-        />
+        <IncludedKpi />
       </div>
 
       {overview.branches.map((branch) => (

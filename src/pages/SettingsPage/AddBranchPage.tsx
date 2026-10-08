@@ -2,18 +2,20 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
-import { Input, Select, Switch, TableCheckbox, withRial } from '../../components/ui'
+import { Input, Select, Switch } from '../../components/ui'
 import { useApiRead } from '../../hooks'
-import {
-  NEW_BRANCH,
-  GOVERNORATES,
-  BRANCH_INHERITS,
-  BRANCH_BEHAVIOUR,
-  BRANCH_PLAN,
-  firstInvoiceFor,
-} from '../../lib/settingsCompany'
+import { GOVERNORATES, BRANCH_BEHAVIOUR, firstInvoiceFor } from '../../lib/settingsCompany'
 import { governorateIdFor, GOVERNORATE_NAMES, type GovernorateId } from '../../lib/governorates'
-import { MEMBERS } from '../../lib/settingsPeople'
+import {
+  COMPANY_PROFILE_PATH,
+  loadCompanyProfile,
+  type CompanyProfileDto,
+} from '../../api/company/companyProfile'
+import {
+  PARTICIPANT_STANDING_PATH,
+  type ParticipantIdStanding,
+} from '../../api/peppol/participantStanding'
+import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
 import {
   assignInvoicePrefix,
   codeFromName,
@@ -34,15 +36,15 @@ import tickWhiteIcon from '../../assets/settings/check-white.svg'
 /**
  * Settings › Add a branch (Figma 135:37971), and one branch reopened in the same form.
  *
- * The prefix drives the first invoice number, the roster drives the readiness checklist, and the
- * footer restates the whole thing — all from one piece of state, so the screen cannot promise
- * SR-INV-0001 while the field says something else.
+ * The prefix drives the first invoice number and the footer restates it, from one piece of state,
+ * so the screen cannot promise one number while the field says another.
  *
- * `BranchAttributes` (`BranchManagementController`) has no field for the Arabic name, the opening
- * date, the roster or the "behaviour" switches below — a person's branch is set on their own
- * profile, not here, and the other three are not modeled anywhere yet. Those panels stay exactly
- * as designed (nothing here is deleted) but are not sent; see docs/backend-guides/INCOME.md,
- * "Update 2026-09-27 (branches)".
+ * `BranchAttributes` (`BranchManagementController`) has no field for the Arabic name or the
+ * "behaviour" switches below; they are not sent. See docs/backend-guides/INCOME.md, "Update
+ * 2026-09-27 (branches)". A new branch starts empty: the form used to open pre-filled with the
+ * design's worked example (Sur, 411, Ash Sharqiyah South, prefix SR), which a hurried save would
+ * have created for real. The opening-date picker and the "who works there" roster went for the
+ * same reason: neither was sent, and the roster listed sample people.
  */
 export function AddBranchPage() {
   const { t } = useTranslation()
@@ -58,27 +60,26 @@ export function AddBranchPage() {
     loadBranchOverview(),
   ).read
   const everCount = overview.status === 'ready' ? overview.data.everCount : 0
+  const takenCodes = overview.status === 'ready' ? overview.data.branches.map((row) => row.code) : []
   // The prefix is the overview's own figure (BranchDetail carries no invoicePrefix field).
   const existingPrefix =
     overview.status === 'ready'
       ? (overview.data.branches.find((row) => row.id === id)?.invoicePrefix ?? null)
       : null
 
-  const [name, setName] = useState(existing?.name ?? NEW_BRANCH.name)
-  const [arabicName, setArabicName] = useState(NEW_BRANCH.arabicName)
+  const [name, setName] = useState(existing?.name ?? '')
+  const [arabicName, setArabicName] = useState('')
   const [street, setStreet] = useState(existing?.address ?? '')
-  const [town, setTown] = useState(existing?.city ?? NEW_BRANCH.town)
-  const [postalCode, setPostalCode] = useState(existing?.postalCode ?? NEW_BRANCH.postalCode)
+  const [town, setTown] = useState(existing?.city ?? '')
+  const [postalCode, setPostalCode] = useState(existing?.postalCode ?? '')
   const [governorate, setGovernorate] = useState<GovernorateId | string>(
-    governorateIdFor(existing?.state) ?? NEW_BRANCH.governorate,
+    governorateIdFor(existing?.state) ?? '',
   )
   const [phone, setPhone] = useState(existing?.phone ?? '')
-  const [opens, setOpens] = useState(NEW_BRANCH.opens)
   const [numbering, setNumbering] = useState<'own' | 'shared'>(
-    existing ? (existingPrefix ? 'own' : 'shared') : (NEW_BRANCH.numbering as 'own' | 'shared'),
+    existing ? (existingPrefix ? 'own' : 'shared') : 'own',
   )
-  const [prefix, setPrefix] = useState(existing ? (existingPrefix ?? '') : NEW_BRANCH.prefix)
-  const [staff, setStaff] = useState<string[]>(['salim'])
+  const [prefix, setPrefix] = useState(existing ? (existingPrefix ?? '') : '')
   const [behaviour, setBehaviour] = useState(
     () => new Set(BRANCH_BEHAVIOUR.filter((row) => row.on).map((row) => row.id)),
   )
@@ -87,8 +88,8 @@ export function AddBranchPage() {
 
   // A reopened branch fills once its real data arrives, not on every keystroke after. The loading
   // gate below hides the form while the fetch is in flight; for one render after it resolves, a
-  // field can still show the "Sur" placeholder from before this effect runs. Keying the form by
-  // `existing?.id` would remove that frame at the cost of a bigger split; not done here.
+  // field can still show the empty new-branch value from before this effect runs. Keying the form
+  // by `existing?.id` would remove that frame at the cost of a bigger split; not done here.
   const [filledFrom, setFilledFrom] = useState(() => existing?.id)
   useEffect(() => {
     if (!existing || existing.id === filledFrom) return
@@ -96,7 +97,7 @@ export function AddBranchPage() {
     setStreet(existing.address ?? '')
     setTown(existing.city ?? '')
     setPostalCode(existing.postalCode ?? '')
-    setGovernorate(governorateIdFor(existing.state) ?? NEW_BRANCH.governorate)
+    setGovernorate(governorateIdFor(existing.state) ?? '')
     setPhone(existing.phone ?? '')
     setNumbering(existingPrefix ? 'own' : 'shared')
     setPrefix(existingPrefix ?? '')
@@ -104,15 +105,12 @@ export function AddBranchPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existing, existingPrefix])
 
+  // A shared series continues the company's own numbering, whose next number this screen cannot
+  // read, so it promises none.
   const firstInvoice = useMemo(
-    () => (numbering === 'own' ? firstInvoiceFor(prefix) : 'INV-2048'),
+    () => (numbering === 'own' ? firstInvoiceFor(prefix) : null),
     [numbering, prefix],
   )
-
-  const toggleStaff = (id: string) =>
-    setStaff((current) =>
-      current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id],
-    )
 
   const toggleBehaviour = (id: string) =>
     setBehaviour((current) => {
@@ -124,18 +122,15 @@ export function AddBranchPage() {
 
   const named = name.trim().length > 0 && town.trim().length > 0
   const prefixOk = numbering === 'shared' || prefix.trim().length > 0
-  const hasManager = staff.length > 0
   const hasPhone = phone.trim().length > 0
   const canAdd = named && prefixOk && !saving
-
-  const branchesUsed = everCount + (existing ? 0 : 1)
 
   const submit = async () => {
     setSaveFailed(false)
     setSaving(true)
     try {
       const attributes = {
-        code: existing?.code ?? codeFromName(name),
+        code: existing?.code ?? codeFromName(name, takenCodes),
         name,
         type: existing?.type ?? ('STORE' as const),
         address: street || null,
@@ -152,7 +147,9 @@ export function AddBranchPage() {
       if (numbering === 'own' && prefix.trim()) {
         await assignInvoicePrefix(saved.id, prefix.trim())
       }
-      if (!existing && everCount === 0) {
+      // Only on a read that says there were none: a failed overview reads as zero, and would have
+      // moved the head office to whatever branch was added next.
+      if (!existing && overview.status === 'ready' && everCount === 0) {
         await designateHeadOffice(saved.id)
       }
       navigate('/settings/branches')
@@ -188,8 +185,8 @@ export function AddBranchPage() {
 
       {/* Steps */}
       <ol className="flex flex-wrap items-center gap-y-3 rounded-md bg-surface-card px-5 py-4">
-        {(['whereItIs', 'numbering', 'who'] as const).map((step, index) => {
-          const done = index === 0 ? named : index === 1 ? prefixOk : hasManager
+        {(['whereItIs', 'numbering'] as const).map((step, index) => {
+          const done = index === 0 ? named : prefixOk
           return (
             <li key={step} className="flex min-w-[200px] flex-1 items-center gap-2.5">
               <span
@@ -210,7 +207,7 @@ export function AddBranchPage() {
               >
                 {t(`addBranch.step.${step}`)}
               </span>
-              {index < 2 ? (
+              {index < 1 ? (
                 <span className="ms-2 hidden h-px flex-1 bg-border-subtle sm:block" />
               ) : null}
             </li>
@@ -270,6 +267,7 @@ export function AddBranchPage() {
                   </span>
                   <Select
                     ariaLabel={t('addBranch.governorate')}
+                    placeholder={t('addBranch.chooseGovernorate')}
                     value={governorate}
                     onChange={setGovernorate}
                     options={GOVERNORATES.map((id) => ({
@@ -287,21 +285,6 @@ export function AddBranchPage() {
                   value={phone}
                   onChange={(event) => setPhone(event.target.value)}
                 />
-                <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-text-primary">
-                    {t('addBranch.opens')}
-                  </span>
-                  <Select
-                    ariaLabel={t('addBranch.opens')}
-                    value={opens}
-                    onChange={setOpens}
-                    options={[
-                      { value: '1 October 2026', label: '1 October 2026' },
-                      { value: '1 November 2026', label: '1 November 2026' },
-                      { value: '1 December 2026', label: '1 December 2026' },
-                    ]}
-                  />
-                </label>
               </div>
             </div>
           </Panel>
@@ -338,76 +321,20 @@ export function AddBranchPage() {
                 <span className="text-[10px] font-semibold uppercase tracking-[0.5px] text-text-quaternary">
                   {t('addBranch.firstInvoiceWillBe')}
                 </span>
-                <span dir="ltr" className="font-mono text-base font-semibold text-text-primary">
-                  {firstInvoice}
-                </span>
+                {firstInvoice ? (
+                  <span dir="ltr" className="font-mono text-base font-semibold text-text-primary">
+                    {firstInvoice}
+                  </span>
+                ) : (
+                  <span className="text-sm font-semibold text-text-primary">
+                    {t('addBranch.continuesCompanySeries')}
+                  </span>
+                )}
               </span>
               <span className="text-xs font-medium text-text-quaternary">
                 {t('addBranch.thenOnwards')}
               </span>
             </p>
-          </Panel>
-
-          <Panel
-            title={t('addBranch.whoWorksThere')}
-            note={t('addBranch.whoWorksThereNote')}
-            action={
-              <Link
-                to="/settings/team/invite"
-                className="text-sm font-semibold text-primary-700 transition-colors hover:text-primary-800"
-              >
-                {t('addBranch.inviteSomeoneNew')}
-              </Link>
-            }
-          >
-            <ul className="flex flex-col gap-2">
-              {MEMBERS.filter((member) => !member.invited).map((member) => {
-                const picked = staff.includes(member.id)
-                return (
-                  <li key={member.id}>
-                    <label
-                      className={[
-                        'flex cursor-pointer items-center gap-3 rounded-sm border px-3 py-2.5 transition-colors',
-                        picked
-                          ? 'border-primary-700 bg-primary-25'
-                          : 'border-border-subtle bg-white hover:bg-primary-25',
-                      ].join(' ')}
-                    >
-                      <span
-                        className={[
-                          'flex size-8 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold',
-                          picked ? 'bg-primary-700 text-white' : 'bg-primary-50 text-primary-800',
-                        ].join(' ')}
-                      >
-                        {member.initials}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="text-sm font-semibold text-text-primary">
-                          {member.name}
-                        </span>{' '}
-                        <span className="text-xs font-medium text-text-quaternary">
-                          {member.role === 'owner'
-                            ? t('addBranch.canReachAnyway')
-                            : member.role === 'till'
-                              ? t('addBranch.worksAt', { branches: member.branches.join(', ') })
-                              : member.branches.length > 0
-                                ? t('addBranch.alreadyManages', { branch: member.branches[0] })
-                                : ''}
-                        </span>
-                      </span>
-                      <span className="inline-flex h-[24px] shrink-0 items-center rounded-[3px] bg-surface-background px-2 text-[11px] font-medium text-text-tertiary">
-                        {t(`team.role.${member.role}`)}
-                      </span>
-                      <TableCheckbox
-                        checked={picked}
-                        onChange={() => toggleStaff(member.id)}
-                        ariaLabel={member.name}
-                      />
-                    </label>
-                  </li>
-                )
-              })}
-            </ul>
           </Panel>
 
           <Panel title={t('addBranch.behaviour')} note={t('addBranch.behaviourNote')} flush>
@@ -422,7 +349,7 @@ export function AddBranchPage() {
                       {t(`addBranch.behave.${row.id}`)}
                     </p>
                     <p className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">
-                      {t(`addBranch.behave.${row.id}Note`, { name: name || NEW_BRANCH.name })}
+                      {t(`addBranch.behave.${row.id}Note`, { name: name || t('addBranch.thisBranch') })}
                     </p>
                   </div>
                   <Switch
@@ -438,35 +365,7 @@ export function AddBranchPage() {
 
         {/* Side */}
         <aside className="flex w-full flex-col gap-4 xl:w-[300px] xl:shrink-0">
-          <section className="rounded-md bg-surface-card p-5">
-            <h3 className="text-base font-semibold leading-[1.2] text-text-primary">
-              {t('addBranch.inherits')}
-            </h3>
-            <dl className="mt-2">
-              {BRANCH_INHERITS.map((row, index) => (
-                <div
-                  key={row.id}
-                  className={[
-                    'flex items-center justify-between gap-3 py-2.5',
-                    index < BRANCH_INHERITS.length - 1 ? 'border-b border-surface-background' : '',
-                  ].join(' ')}
-                >
-                  <dt className="text-sm font-medium text-text-tertiary">
-                    {t(`addBranch.inherit.${row.id}`)}
-                  </dt>
-                  <dd
-                    dir={row.mono ? 'ltr' : undefined}
-                    className={[
-                      'shrink-0 text-sm font-semibold text-text-primary',
-                      row.mono ? 'font-mono text-[11px]' : '',
-                    ].join(' ')}
-                  >
-                    {row.valueKey ? t(row.valueKey) : row.value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </section>
+          <InheritsCard />
 
           <section className="rounded-md bg-surface-card p-5">
             <h3 className="text-base font-semibold leading-[1.2] text-text-primary">
@@ -475,24 +374,16 @@ export function AddBranchPage() {
             <ul className="mt-3 flex flex-col gap-2.5">
               <Check
                 done={named}
-                label={named ? t('addBranch.check.named') : t('addBranch.check.named')}
+                label={t('addBranch.check.named')}
               />
               <Check
                 done={prefixOk}
                 label={
-                  prefixOk
-                    ? t('addBranch.check.prefixFree', {
-                        prefix: numbering === 'own' ? prefix : 'INV',
-                      })
-                    : t('addBranch.check.prefixMissing')
-                }
-              />
-              <Check
-                done={hasManager}
-                label={
-                  hasManager
-                    ? t('addBranch.check.someoneToManage')
-                    : t('addBranch.check.nobodyAssigned')
+                  !prefixOk
+                    ? t('addBranch.check.prefixMissing')
+                    : numbering === 'own'
+                      ? t('addBranch.check.prefixChosen', { prefix })
+                      : t('addBranch.check.sharedSeries')
                 }
               />
               <Check
@@ -502,33 +393,7 @@ export function AddBranchPage() {
             </ul>
           </section>
 
-          <section className="rounded-md bg-surface-card p-5">
-            <h3 className="text-base font-semibold leading-[1.2] text-text-primary">
-              {t('addBranch.cost')}
-            </h3>
-            <dl className="mt-2">
-              <Row
-                label={t('addBranch.branchesUsed')}
-                value={t('addBranch.usedOf', {
-                  used: branchesUsed,
-                  total: BRANCH_PLAN.included,
-                })}
-              />
-              <Row
-                label={t('addBranch.thisOne')}
-                value={
-                  branchesUsed <= BRANCH_PLAN.included
-                    ? t('addBranch.noExtraCharge')
-                    : `OMR ${BRANCH_PLAN.extraMonthly}`
-                }
-              />
-              <Row
-                label={t('addBranch.sixthWouldBe')}
-                value={`OMR ${BRANCH_PLAN.extraMonthly}${t('addBranch.perMonth')}`}
-                last
-              />
-            </dl>
-          </section>
+          <PlanCard adding={!existing} />
         </aside>
       </div>
 
@@ -540,7 +405,11 @@ export function AddBranchPage() {
               {t('addBranch.saveFailed')}
             </span>
           ) : canAdd ? (
-            t('addBranch.footer', { name, date: opens, invoice: firstInvoice })
+            firstInvoice ? (
+              t('addBranch.footerOwn', { name, invoice: firstInvoice })
+            ) : (
+              t('addBranch.footerShared', { name })
+            )
           ) : (
             t('addBranch.footerUnnamed')
           )}
@@ -605,6 +474,102 @@ function Panel({
   )
 }
 
+/**
+ * What a branch takes from the company. Each row comes from the server or is left out: the card
+ * used to print a sample company's name, VAT number and Participant ID.
+ */
+function InheritsCard() {
+  const { t } = useTranslation()
+  const profile = useApiRead<CompanyProfileDto>(COMPANY_PROFILE_PATH, loadCompanyProfile).read
+  const standing = useApiRead<ParticipantIdStanding>(PARTICIPANT_STANDING_PATH).read
+  const company = profile.status === 'ready' ? profile.data : null
+  const verification =
+    standing.status === 'ready' && standing.data.state === 'VERIFIED'
+      ? standing.data.verification
+      : null
+  const rows = [
+    company?.legalName ? { id: 'company', value: company.legalName, mono: false } : null,
+    company?.taxNumber ? { id: 'vat', value: company.taxNumber, mono: true } : null,
+    verification
+      ? {
+          id: 'peppol',
+          value: `${verification.participantScheme}:${verification.participantValue}`,
+          mono: true,
+        }
+      : null,
+    { id: 'logo', value: t('addBranch.shared'), mono: false },
+  ].filter((row) => row !== null)
+
+  return (
+    <section className="rounded-md bg-surface-card p-5">
+      <h3 className="text-base font-semibold leading-[1.2] text-text-primary">
+        {t('addBranch.inherits')}
+      </h3>
+      <dl className="mt-2">
+        {rows.map((row, index) => (
+          <div
+            key={row.id}
+            className={[
+              'flex items-center justify-between gap-3 py-2.5',
+              index < rows.length - 1 ? 'border-b border-surface-background' : '',
+            ].join(' ')}
+          >
+            <dt className="text-sm font-medium text-text-tertiary">
+              {t(`addBranch.inherit.${row.id}`)}
+            </dt>
+            <dd
+              dir={row.mono ? 'ltr' : undefined}
+              className={[
+                'shrink-0 text-sm font-semibold text-text-primary',
+                row.mono ? 'font-mono text-[11px]' : '',
+              ].join(' ')}
+            >
+              {row.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  )
+}
+
+/**
+ * The plan's branch allowance, from `GET /v1/settings/plan`. Hidden when it cannot be read: the
+ * card used to quote a sample plan's allowance and a per-branch price no plan carries.
+ */
+function PlanCard({ adding }: { adding: boolean }) {
+  const { t } = useTranslation()
+  const plan = useApiRead<PlanOverviewDto>(PLAN_OVERVIEW_PATH, loadPlanOverview).read
+  // `plan` is always present on a real answer; an answer without it says nothing about branches.
+  if (plan.status !== 'ready' || !plan.data.plan) return null
+  const included = plan.data.plan.branchesIncluded
+  const used = plan.data.activeBranches + (adding ? 1 : 0)
+  const within = included === null || used <= included
+
+  return (
+    <section className="rounded-md bg-surface-card p-5">
+      <h3 className="text-base font-semibold leading-[1.2] text-text-primary">
+        {t('addBranch.cost')}
+      </h3>
+      <dl className="mt-2">
+        <Row
+          label={t('addBranch.branchesUsed')}
+          value={
+            included === null
+              ? t('addBranch.usedOfUnlimited', { used })
+              : t('addBranch.usedOf', { used, total: included })
+          }
+        />
+        <Row
+          label={t('addBranch.thisOne')}
+          value={within ? t('addBranch.withinPlan') : t('addBranch.beyondPlan')}
+          last
+        />
+      </dl>
+    </section>
+  )
+}
+
 function Check({ done, label }: { done: boolean; label: string }) {
   return (
     <li className="flex items-start gap-2">
@@ -630,7 +595,7 @@ function Row({ label, value, last }: { label: string; value: string; last?: bool
       ].join(' ')}
     >
       <dt className="text-sm font-medium text-text-tertiary">{label}</dt>
-      <dd className="shrink-0 text-sm font-semibold text-text-primary">{withRial(value)}</dd>
+      <dd className="shrink-0 text-sm font-semibold text-text-primary">{value}</dd>
     </div>
   )
 }

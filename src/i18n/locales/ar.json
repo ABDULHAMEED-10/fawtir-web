@@ -10520,14 +10520,16 @@
       "invoicesNote": "{{name}} يصدر {{share}} من كل ١٠",
       "included": "المشمولة في خطتك",
       "includedUnit": "فروع",
-      "includedNote": "لا رسوم إضافية حتى السادس",
       "openNoteGeneric": "بما في ذلك ما أغلقته",
       "invoicesNoteGeneric": "عبر كل فرع مفتوح",
       "peopleNoteGeneric": "عبر كل فرع",
       "peopleNote_zero": "{{count}} يعملون في أكثر من فرع",
       "peopleNote_two": "{{count}} يعملون في أكثر من فرع",
       "peopleNote_few": "{{count}} يعملون في أكثر من فرع",
-      "peopleNote_many": "{{count}} يعملون في أكثر من فرع"
+      "peopleNote_many": "{{count}} يعملون في أكثر من فرع",
+      "includedUnavailable": "غير متاح",
+      "includedUnlimited": "لا حد للفروع في خطتك",
+      "includedFromPlan": "ضمن خطة {{plan}}"
     },
     "headOffice": "المكتب الرئيسي",
     "open": "مفتوح",
@@ -10595,8 +10597,7 @@
     "cancel": "إلغاء",
     "step": {
       "whereItIs": "أين هو",
-      "numbering": "كيف يرقّم الفواتير",
-      "who": "من يعمل فيه"
+      "numbering": "كيف يرقّم الفواتير"
     },
     "whereItIs": "أين هو",
     "whereItIsNote": "يظهر هذا العنوان على الفواتير الصادرة هنا",
@@ -10607,7 +10608,6 @@
     "postalCode": "الرمز البريدي",
     "governorate": "المحافظة",
     "phone": "الهاتف",
-    "opens": "يفتح في",
     "numbering": "كيف يرقّم الفواتير",
     "numberingNote": "لا يمكن تغيير هذا بعد إصدار أول فاتورة",
     "numberingLabel": "الترقيم",
@@ -10618,13 +10618,6 @@
     "prefix": "البادئة",
     "firstInvoiceWillBe": "أول فاتورة ستكون",
     "thenOnwards": "ثم ٠٠٠٢ و٠٠٠٣ وهكذا",
-    "whoWorksThere": "من يعمل فيه",
-    "whoWorksThereNote": "يمكن تغيير هذا لاحقًا، لا يلزم تعيين أحد الآن",
-    "inviteSomeoneNew": "ادعُ شخصًا جديدًا",
-    "alreadyManages": "يدير {{branch}} أصلًا · سيعمل في الاثنين",
-    "canReachAnyway": "المالك · يصل إلى كل فرع على أي حال",
-    "manages": "يدير {{branch}}",
-    "worksAt": "كاشير · {{branches}}",
     "behaviour": "كيف يتصرف",
     "behaviourNote": "كل هذه يمكن تغييرها لاحقًا",
     "behave": {
@@ -10642,29 +10635,22 @@
       "vat": "الرقم الضريبي",
       "peppol": "معرّف Peppol",
       "company": "اسم الشركة",
-      "logo": "الشعار واللون",
-      "tax": "الإعدادات الضريبية"
+      "logo": "الشعار واللون"
     },
     "shared": "مشترك",
-    "fivePercentStandard": "٥٪ قياسية",
     "ready": "جاهز للإضافة؟",
     "check": {
       "named": "له اسم وعنوان",
-      "prefixFree": "البادئة {{prefix}} متاحة",
       "prefixMissing": "أعطه بادئة",
-      "someoneToManage": "شخص يديره",
-      "nobodyAssigned": "لم يُعيَّن أحد بعد (اختياري)",
       "phone": "أُضيف رقم هاتف",
-      "noPhone": "لا رقم هاتف (اختياري)"
+      "noPhone": "لا رقم هاتف (اختياري)",
+      "prefixChosen": "اخترت البادئة {{prefix}}؛ تتحقق فوترة من توفرها عند الحفظ",
+      "sharedSeries": "يكمل تسلسل الشركة"
     },
-    "cost": "كم يكلّف",
+    "cost": "خطتك",
     "branchesUsed": "الفروع المستخدمة",
     "usedOf": "{{used}} من {{total}}",
     "thisOne": "هذا الفرع",
-    "noExtraCharge": "بلا رسوم إضافية",
-    "sixthWouldBe": "السادس سيكلّف",
-    "perMonth": "/شهر",
-    "footer": "{{name}} · يفتح {{date}} · أول فاتورة {{invoice}}",
     "footerUnnamed": "سمِّ الفرع للمتابعة",
     "saveDraft": "احفظ كمسودة",
     "addTheBranch": "أضف الفرع",
@@ -10673,7 +10659,15 @@
     "saveChanges": "احفظ التغييرات",
     "closeThisBranch": "أغلق هذا الفرع",
     "saving": "جارٍ الحفظ…",
-    "saveFailed": "تعذّر حفظ الفرع. حاول مرة أخرى."
+    "saveFailed": "تعذّر حفظ الفرع. حاول مرة أخرى.",
+    "chooseGovernorate": "اختر المحافظة",
+    "continuesCompanySeries": "الرقم التالي للشركة",
+    "thisBranch": "هذا الفرع",
+    "usedOfUnlimited": "{{used}} (بلا حد)",
+    "withinPlan": "ضمن خطتك",
+    "beyondPlan": "يتجاوز ما تتيحه خطتك",
+    "footerOwn": "{{name}} · أول فاتورة {{invoice}}",
+    "footerShared": "{{name}} · يكمل تسلسل الشركة"
   },
   "team": {
     "title": "أعضاء الفريق",

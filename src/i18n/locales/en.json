@@ -10001,10 +10001,12 @@
       "invoicesNote": "{{name}} raises {{share}} in every 10",
       "included": "Included in your plan",
       "includedUnit": "branches",
-      "includedNote": "No extra charge until the sixth",
       "openNoteGeneric": "Including any you've closed",
       "invoicesNoteGeneric": "Across every open branch",
-      "peopleNoteGeneric": "Across every branch"
+      "peopleNoteGeneric": "Across every branch",
+      "includedUnavailable": "Not available",
+      "includedUnlimited": "Your plan has no branch limit",
+      "includedFromPlan": "On your {{plan}} plan"
     },
     "headOffice": "Head office",
     "open": "Open",
@@ -10060,8 +10062,7 @@
     "cancel": "Cancel",
     "step": {
       "whereItIs": "Where it is",
-      "numbering": "How it numbers invoices",
-      "who": "Who works there"
+      "numbering": "How it numbers invoices"
     },
     "whereItIs": "Where it is",
     "whereItIsNote": "this address appears on invoices raised here",
@@ -10072,7 +10073,6 @@
     "postalCode": "Postal code",
     "governorate": "Governorate",
     "phone": "Phone",
-    "opens": "Opens",
     "numbering": "How it numbers invoices",
     "numberingNote": "this can't be changed once the first invoice is raised",
     "numberingLabel": "Numbering",
@@ -10083,13 +10083,6 @@
     "prefix": "Prefix",
     "firstInvoiceWillBe": "First invoice will be",
     "thenOnwards": "then 0002, 0003 and so on",
-    "whoWorksThere": "Who works there",
-    "whoWorksThereNote": "you can change this later, nobody has to be assigned now",
-    "inviteSomeoneNew": "Invite someone new",
-    "alreadyManages": "Already manages {{branch}} · would work at both",
-    "canReachAnyway": "Owner · can reach every branch anyway",
-    "manages": "Manages {{branch}}",
-    "worksAt": "Till staff · {{branches}}",
     "behaviour": "How it behaves",
     "behaviourNote": "all of these can be changed afterwards",
     "behave": {
@@ -10107,29 +10100,22 @@
       "vat": "VAT number",
       "peppol": "Peppol ID",
       "company": "Company name",
-      "logo": "Logo and colour",
-      "tax": "Tax defaults"
+      "logo": "Logo and colour"
     },
     "shared": "Shared",
-    "fivePercentStandard": "5% standard",
     "ready": "Ready to add?",
     "check": {
       "named": "Named, with an address",
-      "prefixFree": "{{prefix}} prefix is free to use",
       "prefixMissing": "Give it a prefix",
-      "someoneToManage": "Someone to manage it",
-      "nobodyAssigned": "Nobody assigned yet (optional)",
       "phone": "Phone number added",
-      "noPhone": "No phone number (optional)"
+      "noPhone": "No phone number (optional)",
+      "prefixChosen": "Prefix {{prefix}} chosen; Fawtir checks it is free when you save",
+      "sharedSeries": "Carries on the company series"
     },
-    "cost": "What it costs",
+    "cost": "Your plan",
     "branchesUsed": "Branches used",
     "usedOf": "{{used}} of {{total}}",
     "thisOne": "This one",
-    "noExtraCharge": "No extra charge",
-    "sixthWouldBe": "A sixth would be",
-    "perMonth": "/mo",
-    "footer": "{{name}} · opens {{date}} · first invoice {{invoice}}",
     "footerUnnamed": "Name the branch to carry on",
     "saveDraft": "Save as a draft",
     "addTheBranch": "Add the branch",
@@ -10138,7 +10124,15 @@
     "saveChanges": "Save the changes",
     "closeThisBranch": "Close this branch",
     "saving": "Saving…",
-    "saveFailed": "Could not save the branch. Try again."
+    "saveFailed": "Could not save the branch. Try again.",
+    "chooseGovernorate": "Choose a governorate",
+    "continuesCompanySeries": "The company's next number",
+    "thisBranch": "this branch",
+    "usedOfUnlimited": "{{used}} (no limit)",
+    "withinPlan": "Within your plan",
+    "beyondPlan": "Beyond your plan's allowance",
+    "footerOwn": "{{name}} · first invoice {{invoice}}",
+    "footerShared": "{{name}} · carries on the company series"
   },
   "team": {
     "title": "Team members",
