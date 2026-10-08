@@ -736,6 +736,63 @@ describe('the ways out of a sent run (owner, 8 Oct 2026)', () => {
       ),
     ).toBeTruthy()
   })
+
+  /** The run as the server answers once MR-1 was paid and SS-3 taken out with its reason. */
+  const PAID_WITH_ONE_OUT: PaymentRunDetailDto = {
+    ...SENT,
+    run: run({ state: 'PAID', exportedAt: '2026-09-19T10:00:00Z', paidAt: '2026-09-20T10:00:00Z' }),
+    items: [
+      { ...SENT.items[0], takenOut: null },
+      {
+        ...SENT.items[1],
+        markPaidBlock: null,
+        takenOut: {
+          at: '2026-09-20T10:00:00Z',
+          actor: 'u-1',
+          reason: 'A credit note came after the file was made',
+        },
+      },
+    ],
+  }
+  const billRow = async (number: string) =>
+    (await screen.findByRole('link', { name: number }, { timeout: 8000 })).closest(
+      'div.border-t',
+    ) as HTMLElement
+
+  it("labels a taken-out bill's row on a paid run with its reason, and only that row", async () => {
+    detail = PAID_WITH_ONE_OUT
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const out = within(await billRow('SS-3'))
+    expect(out.getByText('Taken out · A credit note came after the file was made')).toBeTruthy()
+    expect(within(await billRow('MR-1')).queryByText(/Taken out/)).toBeNull()
+    expect(screen.getAllByText(/^Taken out · /)).toHaveLength(1)
+  })
+
+  it('says it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    detail = PAID_WITH_ONE_OUT
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(
+      within(await billRow('SS-3')).getByText(
+        'أُخرج من الدفعة · A credit note came after the file was made',
+      ),
+    ).toBeTruthy()
+    expect(screen.getAllByText(/^أُخرج من الدفعة · /)).toHaveLength(1)
+  })
+
+  it('shows no label when no bill was taken out, or the server does not say', async () => {
+    detail = {
+      ...PAID_WITH_ONE_OUT,
+      items: [
+        { ...SENT.items[0], takenOut: null },
+        { ...SENT.items[1], markPaidBlock: null },
+      ],
+    }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(await billRow('SS-3')).toBeTruthy()
+    expect(await billRow('MR-1')).toBeTruthy()
+    expect(screen.queryByText(/Taken out/)).toBeNull()
+  })
 })
 
 const exportRefusal = (code: string, fields: Record<string, unknown>) =>
