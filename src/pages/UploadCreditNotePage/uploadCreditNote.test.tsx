@@ -6,7 +6,8 @@ import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitl
 import type { IntakeDto } from '../../api/expenditure/billIntake'
 import type { BillRowDto } from '../../api/expenditure/bills'
 import { SessionContext } from '../../lib/session/session'
-import { SupplierNoteIntake } from '../../components/debit/SupplierNoteIntake'
+import { SupplierNoteIntake, type NoteKind } from '../../components/debit/SupplierNoteIntake'
+import { fromIntake, toConfirmation } from '../../lib/billIntake'
 import { UploadCreditNotePage } from './UploadCreditNotePage'
 
 const MANAGER: Entitlements = {
@@ -228,8 +229,9 @@ describe('upload a supplier credit note', () => {
       // The reason as typed; the form has no CL-02-OM code to pick, so no `reasonCode`.
       reasonDetail: REASON,
     })
-    // No bill was chosen, so none is named and nothing follows the save.
+    // No bill was chosen, so none is named, nothing is held against one, and nothing follows.
     expect(body).not.toHaveProperty('relatedBillId')
+    expect(body).not.toHaveProperty('holdAsCredit')
     expect(calls('POST', '/api/v1/credit-notes/')).toHaveLength(0)
   })
 
@@ -243,13 +245,15 @@ describe('upload a supplier credit note', () => {
     const confirmed = bodyOf(calls('POST', CONFIRM)[0])
     expect(confirmed.documentTypeCode).toBe('381')
     expect(confirmed.relatedBillId).toBe(BILL_ID)
+    // Set against is the server's default, so no `holdAsCredit` is sent.
+    expect(confirmed).not.toHaveProperty('holdAsCredit')
     expect(confirmed.reasonDetail).toBe(REASON)
     expect(confirmed).not.toHaveProperty('reasonCode')
     // The server applies the credit in the confirm itself; a second apply would be refused.
     expect(calls('POST', '/api/v1/credit-notes/')).toHaveLength(0)
   })
 
-  it('names no bill when the credit is held, so the server applies nothing', async () => {
+  it('keeps the chosen bill as the reference when the credit is held, and asks the server to apply nothing', async () => {
     await uploadNote()
     await chooseBill()
     fireEvent.click(screen.getByRole('radio', { name: /Hold it as credit/ }))
@@ -258,7 +262,9 @@ describe('upload a supplier credit note', () => {
 
     expect(await screen.findByText('credit note page')).toBeTruthy()
     const confirmed = bodyOf(calls('POST', CONFIRM)[0])
-    expect(confirmed).not.toHaveProperty('relatedBillId')
+    expect(confirmed.documentTypeCode).toBe('381')
+    expect(confirmed.relatedBillId).toBe(BILL_ID)
+    expect(confirmed.holdAsCredit).toBe(true)
     expect(confirmed.reasonDetail).toBe(REASON)
     expect(calls('POST', '/api/v1/credit-notes/')).toHaveLength(0)
   })
@@ -471,5 +477,75 @@ describe('the outcome of a credit note set against its bill on upload', () => {
   it('falls back to the bill as listed when the server does not say', async () => {
     // The chosen bill still owed 315.000, so the credit came off it.
     expect(await saveAgainstBill(undefined)).toBe('supplierCreditNotes.upload.savedApplied')
+  })
+})
+
+/** "Hold it as credit" (`holdAsCredit`) belongs to a credit note: the server refuses it on a 383. */
+describe('holding a credit against its bill on upload', () => {
+  function renderComposer(kind: NoteKind, onSaved = vi.fn()) {
+    render(
+      <MemoryRouter>
+        <SessionContext.Provider value={MANAGER}>
+          <SupplierNoteIntake
+            kind={kind}
+            intake={XML_NOTE}
+            file={new File(['<Note/>'], 'note.xml', { type: 'application/xml' })}
+            cancelTo="/expenditure"
+            onReplace={() => {}}
+            onSaved={onSaved}
+          />
+        </SessionContext.Provider>
+      </MemoryRouter>,
+    )
+    return onSaved
+  }
+
+  it('says the credit is held once saved, as before', async () => {
+    confirmAnswer = async () =>
+      json(201, {
+        id: NOTE_ID,
+        supplierBillNumber: 'MR-CN-0042',
+        totalIncludingVat: 105,
+        currencyCode: 'OMR',
+        creditApplied: null,
+      })
+    const onSaved = renderComposer('credit')
+    expect(await screen.findByDisplayValue('MR-CN-0042')).toBeTruthy()
+    await chooseBill()
+    fireEvent.click(screen.getByRole('radio', { name: /Hold it as credit/ }))
+    fireEvent.change(reasonField(), { target: { value: REASON } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save the credit note' }))
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))
+    const confirmed = bodyOf(calls('POST', CONFIRM)[0])
+    expect(confirmed.relatedBillId).toBe(BILL_ID)
+    expect(confirmed.holdAsCredit).toBe(true)
+    expect(onSaved.mock.calls[0][1]).toBe('supplierCreditNotes.upload.savedHeld')
+  })
+
+  it('never sends it on a debit note, even with a bill chosen, but sends the bill', async () => {
+    const onSaved = renderComposer('debit')
+    expect(await screen.findByDisplayValue('MR-CN-0042')).toBeTruthy()
+    fireEvent.click(await screen.findByRole('button', { name: /MR-INV-8821/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save the debit note' }))
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))
+    const confirmed = bodyOf(calls('POST', CONFIRM)[0])
+    expect(confirmed.documentTypeCode).toBe('383')
+    expect(confirmed).not.toHaveProperty('holdAsCredit')
+    // The bill the charge adds to: the server records it as the note's link (it applies nothing).
+    expect(confirmed.relatedBillId).toBeTruthy()
+  })
+
+  it('is dropped from any confirmation that is not a credit note', () => {
+    const form = fromIntake(XML_NOTE)
+    for (const documentTypeCode of ['380', '383'] as const)
+      expect(
+        toConfirmation(form, { documentTypeCode, relatedBillId: BILL_ID, holdAsCredit: true }),
+      ).not.toHaveProperty('holdAsCredit')
+    expect(
+      toConfirmation(form, { documentTypeCode: '381', relatedBillId: BILL_ID, holdAsCredit: true })
+        .holdAsCredit,
+    ).toBe(true)
   })
 })

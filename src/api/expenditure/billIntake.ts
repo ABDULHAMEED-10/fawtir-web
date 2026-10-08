@@ -140,6 +140,13 @@ export type ConfirmIntakeDto = {
    * largest amount that fits, any excess stays as credit, and a refusal refuses the confirm.
    */
   relatedBillId?: string
+  /**
+   * A credit note's "Hold it as credit": true keeps `relatedBillId` as the note's reference but
+   * applies nothing (`creditApplied` null), so the whole note waits as unused credit. Absent
+   * means false, which applies as above. Refused on a 380 or a 383
+   * (`BILL_INTAKE_HOLD_AS_CREDIT_NOT_ALLOWED`), so it is sent only on a 381.
+   */
+  holdAsCredit?: boolean
 }
 
 /** `ConfirmedBillResponse`. */
