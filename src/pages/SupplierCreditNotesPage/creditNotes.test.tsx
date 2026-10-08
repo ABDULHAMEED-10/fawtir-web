@@ -109,6 +109,7 @@ let settlements: unknown[]
 let applyBody: unknown
 let applyRefusal: Record<string, unknown> | null
 let refundBody: unknown
+let refundRefusal: Record<string, unknown> | null
 let downloads: string[]
 
 const calls = (prefix: string) =>
@@ -123,6 +124,7 @@ beforeEach(async () => {
   applyBody = null
   applyRefusal = null
   refundBody = null
+  refundRefusal = null
   downloads = []
 
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -162,6 +164,16 @@ beforeEach(async () => {
     }
     if (url.includes(`/credit-notes/${NOTE_ID}/refund`)) {
       refundBody = JSON.parse(String(init?.body))
+      if (refundRefusal !== null) {
+        return new Response(
+          JSON.stringify({
+            ...refundRefusal,
+            status: 400,
+            type: 'https://api.fawtir.om/problems/expenditure-refused',
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+        )
+      }
       return json(200, {
         settlement: {},
         status: 'REFUNDED',
@@ -484,6 +496,31 @@ describe('Credit notes list, wired to the API', () => {
     await waitFor(() => expect(applyBody).toEqual({ billId: BILL_ID, amount: null }))
   })
 
+  it('says why the bill cannot take the credit when the row action is refused', async () => {
+    applyRefusal = { error: 'CREDIT_NOTE_TARGET_ON_HOLD', trace_id: 'trace-3' }
+    notes = [
+      note({
+        credits: {
+          billNumber: 'QMS-7781',
+          issueDate: '2026-09-01',
+          documentUuid: null,
+          billId: BILL_ID,
+          applied: false,
+        },
+      }),
+    ]
+    renderList()
+    await screen.findByText('QMS-CN-1')
+    fireEvent.click(
+      within(screen.getByRole('table')).getByRole('button', { name: 'Set against the bill' }),
+    )
+    expect(
+      await screen.findByText(
+        /^This bill is on hold\. Release it before setting a credit against it\. Reference: trace-3$/,
+      ),
+    ).toBeTruthy()
+  })
+
   // Owner's answer 7 (6 Oct): an action the reader may not take is hidden, not greyed out.
   it('shows Upload and Set against to someone who may settle a credit', async () => {
     notes = [
@@ -601,6 +638,55 @@ describe('One credit note', () => {
     expect(screen.queryByText(/Please try again/i)).toBeNull()
   })
 
+  it('names the payment run a bill is in when the apply is refused for it, in both languages', async () => {
+    applyRefusal = {
+      error: 'CREDIT_NOTE_TARGET_IN_PAYMENT_RUN',
+      paymentRunReference: 'PR-0007',
+      trace_id: 'trace-9',
+    }
+    renderDetail()
+    fireEvent.change(await openApply(), { target: { value: 'test' } })
+    fireEvent.click(await screen.findByRole('button', { name: /QMS-7781/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Use it' }))
+    expect(
+      await screen.findByText(
+        /^This bill is already in payment run PR-0007\. Take it out of the run first\./,
+      ),
+    ).toBeTruthy()
+
+    // The bill stays chosen; the same press in Arabic says the same in Arabic.
+    await i18n.changeLanguage('ar')
+    fireEvent.click(await screen.findByRole('button', { name: 'استخدمه' }))
+    expect(
+      await screen.findByText(
+        /^هذه الفاتورة ضمن دفعة السداد PR-0007 بالفعل\. أخرجها من الدفعة أولًا\./,
+      ),
+    ).toBeTruthy()
+  })
+
+  it.each([
+    [
+      'CREDIT_NOTE_TARGET_REJECTED',
+      'This bill was rejected, so a credit cannot be set against it.',
+    ],
+    [
+      'CREDIT_NOTE_TARGET_DEBIT_NOTE_REFUSED',
+      'This debit note was refused, so a credit cannot be set against it.',
+    ],
+    [
+      'CREDIT_NOTE_TARGET_CANCELLED',
+      'This bill was cancelled, so a credit cannot be set against it.',
+    ],
+    ['CREDIT_NOTE_TARGET_FULLY_CREDITED', 'This bill is already fully credited.'],
+  ])("shows the owner's sentence when the apply is refused with %s", async (code, sentence) => {
+    applyRefusal = { error: code }
+    renderDetail()
+    fireEvent.change(await openApply(), { target: { value: 'test' } })
+    fireEvent.click(await screen.findByRole('button', { name: /QMS-7781/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Use it' }))
+    expect(await screen.findByText(sentence)).toBeTruthy()
+  })
+
   it("offers only this supplier's bills, because the server refuses any other outright", async () => {
     renderDetail()
     // Both bills come back from the list endpoint; only one can legally take this credit.
@@ -685,6 +771,36 @@ describe('One credit note', () => {
       expect(refundBody).toEqual({ amount: 200, paidOn, paymentReference: 'TRF-9' }),
     )
   })
+
+  it.each([
+    [
+      'CREDIT_NOTE_REFUND_DATE_IN_FUTURE',
+      'The refund date cannot be in the future.',
+      'لا يمكن أن يكون تاريخ الاسترداد في المستقبل.',
+    ],
+    [
+      'CREDIT_NOTE_REFUND_DATE_BEFORE_NOTE',
+      "The refund date cannot be before the credit note's date.",
+      'لا يمكن أن يكون تاريخ الاسترداد قبل تاريخ الإشعار الدائن.',
+    ],
+  ])(
+    'says why a refund date was refused (%s), in both languages',
+    async (code, english, arabic) => {
+      refundRefusal = { error: code, trace_id: 'trace-5' }
+      renderDetail()
+      await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+      fireEvent.click(screen.getByRole('button', { name: 'Ask for a refund' }))
+      fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '50' } })
+      fireEvent.click(screen.getByLabelText('Paid on'))
+      fireEvent.click(screen.getByRole('button', { name: 'Today' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Record the refund' }))
+      expect(await screen.findByText(`${english} Reference: trace-5`)).toBeTruthy()
+
+      await i18n.changeLanguage('ar')
+      fireEvent.click(await screen.findByRole('button', { name: 'سجّل الاسترداد' }))
+      expect(await screen.findByText(new RegExp(`^${arabic}`))).toBeTruthy()
+    },
+  )
 
   it('keeps the credit without a request, since an unapplied note already is held credit', async () => {
     renderDetail()
