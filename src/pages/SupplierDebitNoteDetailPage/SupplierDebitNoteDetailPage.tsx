@@ -227,6 +227,9 @@ function DebitNoteDetail() {
   const worries = checks.filter((check) => check.verdict === 'check').length
   const canAccept = row.status !== 'ACCEPTED'
   const canRefuse = row.status !== 'REFUSED'
+  // Holding only means something before a decision; once one is taken it is hidden, not greyed
+  // (owner, 8 Oct 2026).
+  const canHold = row.status === 'UNCHECKED'
 
   const bannerTitle =
     row.status === 'ACCEPTED'
@@ -692,21 +695,24 @@ function DebitNoteDetail() {
                     </button>
                   ) : null}
                   {/* Keeps the card's spacing when Refuse above it is not offered. */}
-                  <div className={['flex gap-2.5', canRefuse ? 'mt-2.5' : 'mt-4'].join(' ')}>
-                    {canAccept
-                      ? acceptButton(
-                          'inline-flex h-[42px] flex-1 items-center justify-center gap-2 rounded-sm border border-border-subtle bg-white px-2 text-sm font-medium text-text-secondary transition-colors hover:border-pending-200 disabled:opacity-40',
-                        )
-                      : null}
-                    <button
-                      type="button"
-                      disabled={row.status !== 'UNCHECKED'}
-                      onClick={() => setHeld(true)}
-                      className="inline-flex h-[42px] flex-1 items-center justify-center rounded-sm border border-border-subtle bg-white px-2 text-sm font-medium text-text-secondary transition-colors hover:border-pending-200 disabled:opacity-40"
-                    >
-                      {t('supplierDebitNotes.detail.hold')}
-                    </button>
-                  </div>
+                  {canAccept || canHold ? (
+                    <div className={['flex gap-2.5', canRefuse ? 'mt-2.5' : 'mt-4'].join(' ')}>
+                      {canAccept
+                        ? acceptButton(
+                            'inline-flex h-[42px] flex-1 items-center justify-center gap-2 rounded-sm border border-border-subtle bg-white px-2 text-sm font-medium text-text-secondary transition-colors hover:border-pending-200 disabled:opacity-40',
+                          )
+                        : null}
+                      {canHold ? (
+                        <button
+                          type="button"
+                          onClick={() => setHeld(true)}
+                          className="inline-flex h-[42px] flex-1 items-center justify-center rounded-sm border border-border-subtle bg-white px-2 text-sm font-medium text-text-secondary transition-colors hover:border-pending-200 disabled:opacity-40"
+                        >
+                          {t('supplierDebitNotes.detail.hold')}
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </>
               )
             ) : null}

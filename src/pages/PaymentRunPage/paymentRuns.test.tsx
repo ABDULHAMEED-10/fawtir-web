@@ -470,6 +470,40 @@ describe('a refused supplier debit note in a payment run (owner, 8 Oct 2026)', (
     expect(screen.getByText('Refused')).toBeTruthy()
     expect(screen.queryByText(/DEBIT_NOTE_REFUSED/)).toBeNull()
   })
+
+  it('calls a refused debit note "Refused" on the supplier page, as the run page does', async () => {
+    const blockedRow = (billId: string, number: string, reasonCodes: string[]) => ({
+      billId,
+      supplierBillNumber: number,
+      supplierId: SUPPLIER,
+      supplierName: 'Muscat Roastery Co',
+      dueDate: null,
+      outstanding: 50,
+      reasonCodes,
+      approvalsGiven: null,
+      approvalsRequired: null,
+    })
+    override = (url) =>
+      url.startsWith('/api/v1/payment-runs/blocked')
+        ? json(200, [
+            blockedRow('b-dn-7', 'DN-7', ['DEBIT_NOTE_REFUSED']),
+            blockedRow('b-rej', 'RJ-1', ['REJECTED']),
+          ])
+        : null
+    const view = renderAt('/suppliers/sup-1')
+    const row = async (number: string) =>
+      (await screen.findByText(number)).closest('li') as HTMLElement
+    expect(within(await row('DN-7')).getByText('Refused')).toBeTruthy()
+    expect(within(await row('DN-7')).queryByText(/Rejected/)).toBeNull()
+    // A rejected bill keeps its words.
+    expect(within(await row('RJ-1')).getByText("Rejected · can't be paid")).toBeTruthy()
+    expect(screen.queryByText(/DEBIT_NOTE_REFUSED/)).toBeNull()
+    view.unmount()
+
+    await i18n.changeLanguage('ar')
+    renderAt('/suppliers/sup-1')
+    expect(within(await row('DN-7')).getByText('مرفوض')).toBeTruthy()
+  })
 })
 
 /** A sent run of two bills: MR-1 can be paid, MR-3 now owes less than the file pays. */
