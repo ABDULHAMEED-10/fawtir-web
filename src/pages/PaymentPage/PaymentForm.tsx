@@ -62,7 +62,6 @@ export function PaymentForm() {
   const planName = t(`plans.${plan}.name`)
   const totalLabel = summary ? formatOmr(summary.total) : t('plans.enterprise.price')
   const renewalDate = formatRenewalDate(getRenewalDate(billing), i18n.language)
-  const bank = PLATFORM_SETTINGS.payments.bank
   const linkDays = PLATFORM_SETTINGS.payments.linkExpiryDays
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -158,24 +157,10 @@ export function PaymentForm() {
               </div>
             ) : method === 'bankTransfer' ? (
               <div className="flex flex-col gap-3">
-                <div className="rounded-sm border border-black/10 bg-surface-card p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
-                    {t('payment.bank.detailsTitle')}
-                  </p>
-                  <dl className="mt-2 flex flex-col gap-1.5 text-sm">
-                    <Row label={t('payment.bank.accountName')} value={bank.accountName} />
-                    <Row label={t('payment.bank.bank')} value={bank.bank} />
-                    <Row label="IBAN" value={bank.iban} mono />
-                    <Row
-                      label={t('payment.bank.reference')}
-                      value={bank.referenceFormat.replace(
-                        '{invoice}',
-                        t('payment.bank.yourInvoice'),
-                      )}
-                      mono
-                    />
-                  </dl>
-                </div>
+                {/* The account name and IBAN came from the console's local launch defaults, not a
+                    confirmed Fawtir account; a payer must never be shown an account to pay into
+                    that nobody has confirmed. Fawtir sends the details with the subscription invoice. */}
+                <Note icon={bankIcon} text={t('payment.bank.detailsOnRequest')} />
                 <Note icon={emailIcon} text={t('payment.bank.note')} />
               </div>
             ) : (
@@ -261,23 +246,6 @@ function Note({ icon, text }: { icon: string; text: string }) {
       <p className="text-sm font-medium leading-6 tracking-[0.14px] text-[rgba(58,58,58,0.8)]">
         {text}
       </p>
-    </div>
-  )
-}
-
-function Row({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="font-medium text-text-quaternary">{label}</dt>
-      <dd
-        dir={mono ? 'ltr' : undefined}
-        className={[
-          'text-end font-semibold text-text-primary',
-          mono ? 'font-mono text-xs' : '',
-        ].join(' ')}
-      >
-        {value}
-      </dd>
     </div>
   )
 }
