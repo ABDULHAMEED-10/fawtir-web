@@ -1,19 +1,13 @@
-import type { TFunction } from 'i18next'
-import type { SubscriptionPlan } from '../../../lib/subscriptionPlans'
-
-/** The catalogue codes the app already names in both languages (`plan.planName.*`). */
-const KNOWN_PLAN_NAMES: Record<string, string> = {
-  STARTER: 'plan.planName.starter',
-  BUSINESS: 'plan.planName.business',
-  BUSINESS_PLUS: 'plan.planName.businessPlus',
-}
+import type { CatalogueAdminPlan } from '../../../lib/console/planCatalogue'
 
 /**
- * The name the backend holds, except in Arabic for a standard plan still carrying its standard
- * English name: that one has an Arabic name already. A renamed plan keeps the operator's name.
+ * The plan's name in the reader's language, as the operator published it (V265 gave plans an
+ * Arabic name). A plan with no Arabic name yet keeps its English one rather than an app-side
+ * translation that the operator never saw or approved.
  */
-export function displayPlanName(plan: SubscriptionPlan, t: TFunction, language: string) {
-  const key = KNOWN_PLAN_NAMES[plan.code]
-  if (!key || !language.startsWith('ar')) return plan.name
-  return t(key, { lng: 'en' }) === plan.name ? t(key) : plan.name
+export function displayPlanName(
+  plan: Pick<CatalogueAdminPlan, 'nameEn' | 'nameAr'>,
+  language: string,
+) {
+  return (language.startsWith('ar') ? plan.nameAr : null) || plan.nameEn
 }

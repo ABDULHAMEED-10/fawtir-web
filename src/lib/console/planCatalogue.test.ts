@@ -1,144 +1,251 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError, NetworkError } from '../../api'
-import type { SubscriptionPlan } from '../subscriptionPlans'
-import { planFeatures, sortPlans } from '../subscriptionPlans'
 import {
-  EMPTY_PLAN_FORM,
+  changesTerms,
   describePlanSaveFailure,
+  emptyPlanForm,
+  planCardLines,
   planFormFrom,
-  toUpsertRequest,
+  sortCatalogue,
+  toPlanRequest,
   validatePlanForm,
   withSavedPlans,
+  type CatalogueAdminPlan,
 } from './planCatalogue'
 
-const PLAN: SubscriptionPlan = {
+const PLAN: CatalogueAdminPlan = {
   code: 'BUSINESS',
-  name: 'Business',
-  monthlyPrice: 49,
-  invoicesPerMonth: 500,
-  peopleIncluded: 5,
-  extraPersonPrice: 3.5,
-  branchesIncluded: 5,
-  apiAccess: true,
-  prioritySupport: false,
-  overagePricePerInvoice: null,
-  sortOrder: 20,
+  nameEn: 'Business',
+  nameAr: 'الأعمال',
+  descriptionEn: null,
+  descriptionAr: null,
+  currency: 'OMR',
   active: true,
+  publicVisible: true,
+  recommended: true,
+  sortOrder: 20,
+  annualFreeMonths: 2,
+  trialDays: 14,
+  trialDocuments: 25,
+  version: 3,
+  currentVersion: {
+    id: 'v-2',
+    planCode: 'BUSINESS',
+    versionNumber: 2,
+    effectiveFrom: '2026-10-09T00:00:00Z',
+    monthlyPrice: '80.000',
+    annualPrice: '800.000',
+    invoicesPerMonth: 1000,
+    peopleIncluded: 5,
+    extraPersonPrice: '2.500',
+    branchesIncluded: 2,
+    extraBranchPrice: '8.000',
+    overagePricePerInvoice: null,
+    apiAccess: false,
+    prioritySupport: true,
+    reason: 'Owner decision',
+    createdBy: null,
+    createdAt: '2026-10-09T00:00:00Z',
+  },
+  features: [
+    { key: 'peppol', enabled: true, compliance: true },
+    { key: 'approvals', enabled: true, compliance: false },
+    { key: 'newCompliance', enabled: true, compliance: true },
+  ],
 }
 
-describe('planFormFrom / toUpsertRequest', () => {
-  it('round-trips a plan without losing a field or a null', () => {
-    const { code, ...request } = PLAN
-    expect(toUpsertRequest(planFormFrom(PLAN))).toEqual(request)
-    expect(code).toBe('BUSINESS')
+describe('planFormFrom / toPlanRequest', () => {
+  it('round-trips the plan with amounts as three-decimal strings and nulls kept', () => {
+    const request = toPlanRequest(planFormFrom(PLAN), 'edit', PLAN)
+    expect(request).toMatchObject({
+      nameEn: 'Business',
+      nameAr: 'الأعمال',
+      descriptionEn: null,
+      monthlyPrice: '80.000',
+      extraPersonPrice: '2.500',
+      extraBranchPrice: '8.000',
+      overagePricePerInvoice: null,
+      branchesIncluded: 2,
+      annualFreeMonths: 2,
+      trialDays: 14,
+      trialDocuments: 25,
+      recommended: true,
+    })
+    expect(request).not.toHaveProperty('code')
+    expect(request).not.toHaveProperty('reason')
   })
 
-  it("shows money with the app's three decimals, in a form the input re-parses", () => {
-    const form = planFormFrom({ ...PLAN, monthlyPrice: 1234.5 })
-    expect(form.monthlyPrice).toBe('1234.500')
-    expect(form.extraPersonPrice).toBe('3.500')
-    expect(form.overagePricePerInvoice).toBe('')
-  })
-
-  it('turns an emptied optional field into null, never into zero', () => {
-    const request = toUpsertRequest({ ...planFormFrom(PLAN), extraPersonPrice: ' ', branchesIncluded: '' })
+  it('pads an amount typed short, and turns an emptied optional field into null', () => {
+    const form = {
+      ...planFormFrom(PLAN),
+      monthlyPrice: '99.5',
+      extraPersonPrice: ' ',
+      trialDays: '',
+    }
+    const request = toPlanRequest({ ...form, trialDocuments: '' }, 'edit', PLAN)
+    expect(request.monthlyPrice).toBe('99.500')
     expect(request.extraPersonPrice).toBeNull()
-    expect(request.branchesIncluded).toBeNull()
+    expect(request.trialDays).toBeNull()
+  })
+
+  it('keeps compliance on, including keys the backend flags, and sends unknown keys back', () => {
+    const form = planFormFrom(PLAN)
+    const request = toPlanRequest(
+      { ...form, features: { ...form.features, peppol: false, newCompliance: false } },
+      'edit',
+      PLAN,
+    )
+    expect(request.features).toContainEqual({ key: 'peppol', enabled: true })
+    expect(request.features).toContainEqual({ key: 'newCompliance', enabled: true })
+    expect(request.features).toContainEqual({ key: 'approvals', enabled: true })
+  })
+
+  it('sends the code only when adding', () => {
+    expect(toPlanRequest({ ...emptyPlanForm(), code: 'NEW' }, 'add').code).toBe('NEW')
+  })
+})
+
+describe('changesTerms', () => {
+  it('counts prices, limits, API, support and annual free months, not names or visibility', () => {
+    const form = planFormFrom(PLAN)
+    expect(changesTerms(PLAN, form)).toBe(false)
+    expect(changesTerms(PLAN, { ...form, monthlyPrice: '80' })).toBe(false)
+    expect(
+      changesTerms(PLAN, { ...form, nameAr: 'x', publicVisible: false, trialDays: '30' }),
+    ).toBe(false)
+    expect(changesTerms(PLAN, { ...form, monthlyPrice: '81' })).toBe(true)
+    expect(changesTerms(PLAN, { ...form, branchesIncluded: '' })).toBe(true)
+    expect(changesTerms(PLAN, { ...form, annualFreeMonths: '3' })).toBe(true)
+    expect(changesTerms(PLAN, { ...form, apiAccess: true })).toBe(true)
   })
 })
 
 describe('validatePlanForm', () => {
-  const valid = { ...EMPTY_PLAN_FORM, code: 'NEW_PLAN', name: 'New', monthlyPrice: '0', invoicesPerMonth: '1', peopleIncluded: '1' }
-  const errorsOf = (values: typeof valid, mode: 'add' | 'edit' = 'add', taken: string[] = []) =>
-    Object.fromEntries(Object.entries(validatePlanForm(values, mode, taken)).filter(([, error]) => error))
+  const valid = {
+    ...emptyPlanForm(),
+    code: 'NEW_PLAN',
+    nameEn: 'New',
+    monthlyPrice: '0',
+    invoicesPerMonth: '1',
+    peopleIncluded: '1',
+    reason: 'Launch',
+  }
+  const errorsOf = (
+    values: typeof valid,
+    mode: 'add' | 'edit' = 'add',
+    taken: string[] = [],
+    original: CatalogueAdminPlan | null = null,
+  ) =>
+    Object.fromEntries(
+      Object.entries(validatePlanForm(values, mode, taken, original)).filter(([, error]) => error),
+    )
 
   it('accepts the smallest plan the backend accepts', () => {
     expect(errorsOf(valid)).toEqual({})
   })
 
-  it('accepts a free plan, and money with up to three decimals', () => {
-    expect(errorsOf({ ...valid, monthlyPrice: '0.000', extraPersonPrice: '999999999.999' })).toEqual({})
-  })
-
-  it('bounds money to NUMERIC(12, 3)', () => {
-    expect(errorsOf({ ...valid, monthlyPrice: '1000000000' })).toEqual({ monthlyPrice: 'console.plans.validation.money' })
-  })
-
-  it('does not check the code of a plan being edited', () => {
-    expect(errorsOf({ ...valid, code: 'BUSINESS' }, 'edit', ['BUSINESS'])).toEqual({})
-  })
-
-  it('refuses a code already in the catalogue when adding', () => {
-    expect(errorsOf({ ...valid, code: 'BUSINESS' }, 'add', ['BUSINESS'])).toEqual({
-      code: 'console.plans.validation.codeTaken',
+  it('needs a reason to create, and to change terms, but not to rename', () => {
+    expect(errorsOf({ ...valid, reason: '' })).toEqual({
+      reason: 'console.plans.validation.reasonRequired',
+    })
+    const edit = planFormFrom(PLAN)
+    expect(errorsOf({ ...edit, nameEn: 'Biz' }, 'edit', [], PLAN)).toEqual({})
+    expect(errorsOf({ ...edit, peopleIncluded: '6' }, 'edit', [], PLAN)).toEqual({
+      reason: 'console.plans.validation.reasonRequired',
     })
   })
 
-  it('accepts a negative position but not one outside a Java int', () => {
-    expect(errorsOf({ ...valid, sortOrder: '-5' })).toEqual({})
-    expect(errorsOf({ ...valid, sortOrder: '2147483648' })).toEqual({ sortOrder: 'console.plans.validation.whole' })
+  it('bounds the annual free months, trial and descriptions as the backend does', () => {
+    expect(errorsOf({ ...valid, annualFreeMonths: '12' })).toEqual({
+      annualFreeMonths: 'console.plans.validation.freeMonths',
+    })
+    expect(errorsOf({ ...valid, trialDays: '91' })).toEqual({
+      trialDays: 'console.plans.validation.trialDays',
+    })
+    expect(errorsOf({ ...valid, trialDocuments: '10' })).toEqual({
+      trialDocuments: 'console.plans.validation.trialDocumentsNeedDays',
+    })
+    expect(errorsOf({ ...valid, descriptionAr: 'x'.repeat(501) })).toEqual({
+      descriptionAr: 'console.plans.validation.descriptionLength',
+    })
   })
 
-  it('limits the name to 80 characters', () => {
-    expect(errorsOf({ ...valid, name: 'x'.repeat(81) })).toEqual({ name: 'console.plans.validation.nameLength' })
+  it('bounds money to NUMERIC(12, 3)', () => {
+    expect(errorsOf({ ...valid, extraBranchPrice: '1.2345' })).toEqual({
+      extraBranchPrice: 'console.plans.validation.money',
+    })
+  })
+
+  it('refuses a taken code, and ENTERPRISE, when adding', () => {
+    expect(errorsOf({ ...valid, code: 'BUSINESS' }, 'add', ['BUSINESS'])).toEqual({
+      code: 'console.plans.validation.codeTaken',
+    })
+    expect(errorsOf({ ...valid, code: 'ENTERPRISE' })).toEqual({
+      code: 'console.plans.validation.code',
+    })
   })
 })
 
 describe('describePlanSaveFailure', () => {
-  it('reads a timeout as a timeout', () => {
-    expect(describePlanSaveFailure(new NetworkError('timeout'))).toEqual({
-      fieldErrors: {},
-      formError: { key: 'identityErrors.timeout' },
+  it('reads a version conflict on an edit as a reload, whether 409 or 412', () => {
+    for (const status of [409, 412]) {
+      const error = new ApiError({ status, problemType: 'plan-catalogue-version-conflict' })
+      expect(describePlanSaveFailure(error, 'edit')).toEqual({
+        fieldErrors: {},
+        formError: { key: 'console.plans.conflict' },
+        conflict: true,
+      })
+    }
+  })
+
+  it('reads a 409 on a create as the code being taken', () => {
+    const error = new ApiError({ status: 409, problemType: 'resource-conflict' })
+    expect(describePlanSaveFailure(error, 'add').fieldErrors).toEqual({
+      code: 'console.plans.validation.codeTaken',
     })
   })
 
-  it('ignores a backend field it does not know rather than guessing', () => {
+  it('reads a timeout as a timeout, and ignores fields it does not know', () => {
+    expect(describePlanSaveFailure(new NetworkError('timeout'), 'edit').formError).toEqual({
+      key: 'identityErrors.timeout',
+    })
     const error = new ApiError({
       status: 400,
       problemType: 'validation-failed',
       fieldErrors: [{ field: 'somethingNew', message: 'bad' }],
     })
-    expect(describePlanSaveFailure(error)).toEqual({ fieldErrors: {}, formError: { key: 'identityErrors.validation' } })
+    expect(describePlanSaveFailure(error, 'edit').formError).toEqual({
+      key: 'identityErrors.validation',
+    })
   })
 })
 
-describe('withSavedPlans', () => {
-  it('replaces a saved plan and places a new one in the backend order', () => {
-    const catalogue = [PLAN, { ...PLAN, code: 'STARTER', sortOrder: 10 }]
-    const saved = new Map([
-      ['BUSINESS', { ...PLAN, monthlyPrice: 55 }],
-      ['AAA', { ...PLAN, code: 'AAA', sortOrder: 20 }],
-    ])
-    const merged = withSavedPlans(catalogue, saved)
-    expect(merged.map((plan) => plan.code)).toEqual(['STARTER', 'AAA', 'BUSINESS'])
-    expect(merged.find((plan) => plan.code === 'BUSINESS')?.monthlyPrice).toBe(55)
-  })
-})
-
-describe('planFeatures', () => {
-  it('derives every line from the fields and their null meanings', () => {
-    expect(planFeatures(PLAN).map((line) => line.key)).toEqual([
-      'plan.feature.invoices',
-      'plan.feature.peopleThen',
-      'plan.feature.branches',
-      'plan.feature.api',
-      'plan.feature.noOverage',
-    ])
-    expect(planFeatures({ ...PLAN, extraPersonPrice: null, branchesIncluded: null, overagePricePerInvoice: 0.2 })).toEqual(
-      expect.arrayContaining([
-        { key: 'plan.feature.people', values: { count: 5 } },
-        { key: 'plan.feature.unlimitedBranches' },
-        { key: 'plan.feature.overage', values: { amount: '0.200' } },
-      ]),
-    )
+describe('withSavedPlans / sortCatalogue / planCardLines', () => {
+  it('replaces a saved plan, places a new one in order, and keeps one recommended', () => {
+    const starter = { ...PLAN, code: 'STARTER', sortOrder: 10, recommended: false }
+    const saved = new Map([['STARTER', { ...starter, recommended: true }]])
+    const merged = withSavedPlans([PLAN, starter], saved, 'STARTER')
+    expect(merged.map((plan) => plan.code)).toEqual(['STARTER', 'BUSINESS'])
+    expect(merged.filter((plan) => plan.recommended).map((plan) => plan.code)).toEqual(['STARTER'])
   })
 
   it('sorts by position, then code', () => {
     const plans = [
-      { ...PLAN, code: 'B', sortOrder: 1 },
-      { ...PLAN, code: 'A', sortOrder: 1 },
-      { ...PLAN, code: 'C', sortOrder: 0 },
+      { code: 'B', sortOrder: 1 },
+      { code: 'A', sortOrder: 1 },
+      { code: 'C', sortOrder: 0 },
     ]
-    expect(sortPlans(plans).map((plan) => plan.code)).toEqual(['C', 'A', 'B'])
+    expect(sortCatalogue(plans).map((plan) => plan.code)).toEqual(['C', 'A', 'B'])
+  })
+
+  it('derives the card lines from the current version and its null meanings', () => {
+    expect(planCardLines(PLAN)).toEqual([
+      { key: 'plan.feature.invoices', values: { count: '1,000' } },
+      { key: 'plan.feature.peopleThen', values: { count: 5, amount: '2.500' } },
+      { key: 'plan.feature.branches', values: { count: 2 } },
+      { key: 'plan.feature.noApi' },
+      { key: 'plan.feature.prioritySupport' },
+      { key: 'plan.feature.noOverage' },
+    ])
   })
 })
