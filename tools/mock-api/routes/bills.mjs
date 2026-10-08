@@ -108,6 +108,8 @@ function bill(id, supplierId, number, issued, dueDays, lines, extra = {}) {
     hold: extra.hold ?? null,
     paymentRunReference: extra.paymentRunReference ?? null,
     paidOnTheSpot: extra.paidOnTheSpot ?? false,
+    // A debit note's (383) current decision; null on every other document (EXPENDITURE.md 1.24).
+    debitNoteDecision: extra.debitNoteDecision ?? null,
     // Kept beside the row for the detail; the list ignores them.
     _lines: lines,
     _extra: extra,
