@@ -297,10 +297,20 @@ export type BillDetailDto = {
     paymentState: string
     overdue: boolean
     dueDate: string | null
+    /**
+     * The early-payment discount a payment run took that still settles part of the bill: neither
+     * paid nor credited, so it is never added to `paidAmount`. Zero once the supplier's credit
+     * note for it arrives (it moves into `creditedAmount`). Absent from a server before it.
+     */
+    discountAmount?: number
   }
+  /**
+   * `DISCOUNT` is the early-payment discount a payment run took, read only and listed right after
+   * the payment it came with. It settles that much of the bill but is not money paid.
+   */
   payments: {
     id: string
-    entryType: 'PAYMENT' | 'REVERSAL'
+    entryType: 'PAYMENT' | 'REVERSAL' | 'DISCOUNT'
     amount: number
     currency: string
     methodCode: string | null
@@ -309,6 +319,18 @@ export type BillDetailDto = {
     occurredAt: string
   }[]
   paymentRunReference: string | null
+  /**
+   * The early-payment discount a payment run took on this bill; null when none was taken (or its
+   * payment was reversed), absent from a server before it. `creditNoteOutstanding` is the part no
+   * supplier credit note covers yet, zero once one does.
+   */
+  discountTaken?: {
+    amount: number
+    takenOn: string
+    paymentRunId: string
+    creditNoteId: string | null
+    creditNoteOutstanding: number
+  } | null
   intake: { id: string; source: BillSourceDto; filename: string | null; contentType: string | null; uploadedAt: string } | null
   /**
    * Present exactly when the bill is self-billed: the document this company issued through

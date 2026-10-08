@@ -33,11 +33,13 @@ import {
 } from '../../api/expenditure/supplierRecord'
 import {
   activityOf,
+  awaitingDiscountCreditNote,
   canRecordPayment,
   complianceOf,
   lineVatOf,
   decisionNoteOf,
   decisionsOf,
+  discountLineOf,
   isSelfBilled,
   singleVatRate,
   stepsOf,
@@ -1332,6 +1334,7 @@ function PaymentTermsCard({
       ? Math.round(bill.totalIncludingVat * discount.percent * 10) / 1000
       : null
   const bank = profile?.bankDetails
+  const discountTaken = discountLineOf(detail)
   const rows: [string, string, string?][] = [
     [
       'billDetail.terms.due',
@@ -1361,9 +1364,14 @@ function PaymentTermsCard({
         ? `${bank.bankName ?? t('billDetail.terms.bank')} ···${bank.iban.replace(/\s/g, '').slice(-4)}`
         : t('billDetail.terms.noBank'),
     ],
-    ...(settlement.paidAmount > 0
+    // The discount a payment run took is its own line, after what was paid: it settles the
+    // bill but is not money paid, so the Paid figure stays the server's.
+    ...(settlement.paidAmount > 0 || discountTaken > 0
       ? ([
           ['billDetail.payment.paid', `¤${money(settlement.paidAmount)}`],
+          ...(discountTaken > 0
+            ? [['billDetail.payment.discount', `¤${money(discountTaken)}`]]
+            : []),
           ['billDetail.payment.outstanding', `¤${money(settlement.outstandingAmount)}`],
         ] as [string, string][])
       : []),
@@ -1396,6 +1404,14 @@ function PaymentTermsCard({
             <Rial />
             {money(saving)}
           </span>
+        </p>
+      ) : null}
+      {/* In the saving note's place: once a run took the discount the bill is paid, and only the
+          supplier's credit note for it is awaited. */}
+      {awaitingDiscountCreditNote(detail) ? (
+        <p className="mt-4 flex items-center gap-1.5 rounded-sm bg-surface-background px-3 py-2.5 text-xs font-medium leading-[1.3] text-text-tertiary">
+          <img src={clockIcon} alt="" className="size-4" />
+          {t('billDetail.payment.discountAwaitingCreditNote')}
         </p>
       ) : null}
     </Card>

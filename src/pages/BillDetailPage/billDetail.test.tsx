@@ -6,10 +6,12 @@ import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitl
 import type { BillDetailDto, BillMatchDto } from '../../api/expenditure/bills'
 import {
   activityOf,
+  awaitingDiscountCreditNote,
   canRecordPayment,
   decisionNoteOf,
   complianceOf,
   decisionsOf,
+  discountLineOf,
   lineVatOf,
   singleVatRate,
   stepsOf,
@@ -1867,5 +1869,156 @@ describe('the original file, for someone who only reads bills', () => {
     renderBill()
     await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
     expect(screen.queryByRole('button', { name: 'Download' })).toBeNull()
+  })
+})
+
+/**
+ * Owner's answers of 8 Oct 2026: the early-payment discount a payment run took is its own line in
+ * the bill's payments, the bill counts as paid, its VAT never changes because of it, and until the
+ * supplier's credit note arrives the bill says so.
+ */
+describe('the early-payment discount a payment run took', () => {
+  const PAYMENT: BillDetailDto['payments'][number] = {
+    id: 'p-1',
+    entryType: 'PAYMENT',
+    amount: 2307.224,
+    currency: 'OMR',
+    methodCode: '30',
+    paymentReference: 'PR-0014',
+    paymentDate: '2026-09-07',
+    occurredAt: '2026-09-07T09:30:00Z',
+  }
+  const DISCOUNT: BillDetailDto['payments'][number] = {
+    ...PAYMENT,
+    id: 'd-1',
+    entryType: 'DISCOUNT',
+    amount: 47.086,
+    methodCode: null,
+  }
+
+  function discounted(creditNoteOutstanding = 47.086): BillDetailDto {
+    const base = detail({ readiness: APPROVED })
+    return {
+      ...base,
+      bill: { ...base.bill, workflowState: 'PAID', paidAmount: 2307.224, outstandingAmount: 0 },
+      settlement: {
+        ...base.settlement,
+        paidAmount: 2307.224,
+        outstandingAmount: 0,
+        paymentState: 'PAID',
+        discountAmount: creditNoteOutstanding,
+        creditedAmount: 47.086 - creditNoteOutstanding,
+      },
+      payments: [PAYMENT, DISCOUNT],
+      discountTaken: {
+        amount: 47.086,
+        takenOn: '2026-09-07',
+        paymentRunId: 'run-1',
+        creditNoteId: creditNoteOutstanding > 0 ? null : 'cn-1',
+        creditNoteOutstanding,
+      },
+    }
+  }
+
+  /** The figure beside a Payment terms label, and whether the rial sign is drawn with it. */
+  function termsRow(label: string): { text: string; rial: boolean } {
+    const value = screen.getByText(label, { selector: 'dt' }).nextElementSibling as HTMLElement
+    return { text: value.textContent ?? '', rial: value.querySelector('svg') !== null }
+  }
+
+  it('lists the discount as its own line after what was paid, and never adds it to Paid', async () => {
+    billResponse = () => json(200, discounted())
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+
+    expect(termsRow('Paid')).toEqual({ text: 'OMR2,307.224', rial: true })
+    expect(termsRow('Early-payment discount')).toEqual({ text: 'OMR47.086', rial: true })
+    expect(termsRow('Outstanding')).toEqual({ text: 'OMR0.000', rial: true })
+    const labels = [...document.querySelectorAll('dt')].map((dt) => dt.textContent)
+    expect(labels.indexOf('Early-payment discount')).toBe(labels.indexOf('Paid') + 1)
+
+    // The bill's own figures are the server's and do not move: total, net and VAT.
+    expect(screen.getAllByText('2,354.310').length).toBeGreaterThan(0)
+    expect(screen.getByText('2,242.200')).toBeTruthy()
+    expect(screen.getByText('VAT · 5%')).toBeTruthy()
+    // Paid, as the server says, with the date of the payment, not of the discount line.
+    expect(screen.getByText('Paid 7 Sept 2026')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+  })
+
+  it("says the discount is taken and the supplier's credit note awaited, in the Payment terms card", async () => {
+    billResponse = () => json(200, discounted())
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    const note = screen.getByText("Discount taken · waiting for the supplier's credit note")
+    expect(note.closest('section, div')?.textContent).toContain('Payment terms')
+    // The bill is paid, so the "Paying by ... saves" note is not drawn beside it.
+    expect(screen.queryByText(/saves/)).toBeNull()
+  })
+
+  it('says nothing more once the credit note has arrived, and keeps the discount line', async () => {
+    billResponse = () => json(200, discounted(0))
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(termsRow('Early-payment discount')).toEqual({ text: 'OMR47.086', rial: true })
+    expect(screen.queryByText(/waiting for the supplier's credit note/)).toBeNull()
+  })
+
+  it('draws neither on a bill with no discount, or from a server that sends none', async () => {
+    const base = detail({ readiness: APPROVED })
+    billResponse = () =>
+      json(200, {
+        ...base,
+        settlement: {
+          ...base.settlement,
+          paidAmount: 1000,
+          outstandingAmount: 1354.31,
+          paymentState: 'PARTIALLY_PAID',
+        },
+        payments: [{ ...PAYMENT, amount: 1000 }],
+      })
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(termsRow('Paid')).toEqual({ text: 'OMR1,000.000', rial: true })
+    expect(screen.queryByText('Early-payment discount')).toBeNull()
+    expect(screen.queryByText(/waiting for the supplier's credit note/)).toBeNull()
+  })
+
+  it('reads in Arabic, with the rial sign and three decimals', async () => {
+    await i18n.changeLanguage('ar')
+    billResponse = () => json(200, discounted())
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(termsRow('خصم سداد مبكر')).toEqual({ text: 'OMR47.086', rial: true })
+    expect(termsRow(i18n.t('billDetail.payment.paid'))).toEqual({
+      text: 'OMR2,307.224',
+      rial: true,
+    })
+    expect(screen.getByText('أُخذ الخصم · بانتظار الإشعار الدائن من المورّد')).toBeTruthy()
+  })
+
+  it('sums the DISCOUNT entries in the bill currency only, and waits while some is uncovered', () => {
+    expect(discountLineOf(detail())).toBe(0)
+    expect(discountLineOf(discounted())).toBe(47.086)
+    expect(
+      discountLineOf({
+        ...discounted(),
+        payments: [
+          PAYMENT,
+          DISCOUNT,
+          { ...DISCOUNT, id: 'd-2', amount: 0.004 },
+          { ...DISCOUNT, id: 'd-3', currency: 'USD', amount: 5 },
+        ],
+      }),
+    ).toBe(47.09)
+    expect(awaitingDiscountCreditNote(discounted())).toBe(true)
+    expect(awaitingDiscountCreditNote(discounted(0))).toBe(false)
+    expect(awaitingDiscountCreditNote(detail())).toBe(false)
+    // The Paid step's date is the payment's, never the discount line's.
+    const steps = stepsOf(
+      { ...discounted(), payments: [PAYMENT, { ...DISCOUNT, paymentDate: '2026-09-30' }] },
+      { day: (iso) => iso, instantDay: (iso) => iso },
+    )
+    expect(steps.find((step) => step.id === 'paid')?.detail?.values?.date).toBe('2026-09-07')
   })
 })
