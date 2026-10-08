@@ -19,7 +19,6 @@ import {
 } from '../../lib/console/tenantOverview'
 import { ActionMenu, Rial, withRial, type ActionMenuItem } from '../../components/ui'
 import {
-  TENANT_IDENTITIES,
   documentsAllowance,
   openInvoiceOf,
   periodAmount,
@@ -148,25 +147,17 @@ function isAction(value: string | null): value is SubscriptionAction {
  * `?action=recordPayment|sendLink|activate|changePlan|suspend|resume|cancel|grantQuota|waiveOverage`
  * (with an optional `&invoice=`) opens that modal on arrival, so the queue can deep-link to it.
  *
- * A real tenant id is a UUID and is always read from the platform overview. A slug is one of the
- * console's own sample ids, still used by the subscriptions, invoices and ERP screens that link
- * here, and keeps the prototype rendering until those screens carry real ids.
+ * A real tenant id is a UUID and is always read from the platform overview. Anything else is not
+ * found. A slug used to render the console's sample tenants (a coffee company among them) with
+ * their invented subscriptions and filings, which an operator could take for a real customer; the
+ * screens that linked here by slug are not built yet and no longer reachable.
  */
 export function TenantDetailPage() {
   const { id } = useParams()
-  // Compatibility only, and never a fallback: a UUID never reaches this lookup, so a tenant the
-  // backend refuses can never be answered from sample data.
-  const prototype = id && !isCompanyId(id) ? prototypeOverview(id) : undefined
 
   return (
     <ConsoleShell requires={TENANT_OVERVIEW_PERMISSION}>
-      {isCompanyId(id) ? (
-        <TenantDetailLoader tenantId={id} />
-      ) : prototype ? (
-        <TenantDetail tenantId={id!} overview={prototype} prototype />
-      ) : (
-        <DetailNotFound />
-      )}
+      {isCompanyId(id) ? <TenantDetailLoader tenantId={id} /> : <DetailNotFound />}
     </ConsoleShell>
   )
 }
@@ -760,76 +751,5 @@ function withLedger(
           ? 'TENANT_SUSPENDED'
           : 'TENANT_NOT_ACTIVE',
     },
-  }
-}
-
-/**
- * Compatibility only, for the console screens that still address tenants by slug.
- *
- * These ids never reach the platform overview — they are not tenants the backend knows — so their
- * pages are projected from the same sample data they have always used, purely to keep their deep
- * links working while they await integration.
- *
- * It must NEVER serve a UUID: a real tenant is always read from the backend, and one the backend
- * refuses is not found. Do not add tenants here. Delete it when the subscriptions, invoices and
- * ERP screens move onto real tenant identifiers.
- *
- * Read from the registry per call, not captured once: onboarding registers a tenant at runtime
- * and then navigates straight to it, so a snapshot taken when this module loaded would answer
- * "no such tenant" for the tenant the operator had just created.
- */
-function prototypeOverview(id: string): TenantOverview | undefined {
-  const identity = TENANT_IDENTITIES[id]
-  if (!identity) return undefined
-  return {
-    identity: {
-      tenantId: id,
-      tenantCode: id.toUpperCase(),
-      tenantName: identity.name,
-      tenantStatus: null,
-      identityStatus: null,
-    },
-    company: {
-      legalName: identity.name,
-      legalNameAr: null,
-      tradingName: null,
-      commercialRegistrationNumber: null,
-      taxNumber: identity.vat,
-      country: null,
-      registeredAddressLine1: identity.town,
-      registeredAddressLine2: null,
-      registeredAddressLine3: null,
-      registeredCity: null,
-      registeredPostalCode: null,
-      registeredCountrySubdivision: null,
-      registeredPoBox: null,
-      timezone: null,
-      contactPersonName: identity.contact.name,
-      contactPhone: identity.contact.phone,
-      contactEmail: null,
-    },
-    verification: {
-      status: 'VERIFIED',
-      method: null,
-      rejectionReason: null,
-      attestationReference: null,
-      evidenceRecorded: false,
-      profileRevision: 0,
-      submittedAt: null,
-      submittedBy: null,
-      decidedAt: null,
-      decidedBy: null,
-    },
-    subscription: {
-      planCode: null,
-      planName: null,
-      monthlyPrice: null,
-      invoicesPerMonth: 0,
-      overageEnabled: false,
-      implicitDefault: false,
-      startedOn: null,
-      changedAt: null,
-    },
-    operational: { ready: false, reasonCode: null },
   }
 }

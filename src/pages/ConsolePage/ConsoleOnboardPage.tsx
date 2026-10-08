@@ -25,7 +25,6 @@ import {
 import {
   METHODS,
   MONTHS_OF,
-  TENANT_IDENTITIES,
   periodAmount,
   planLabelKey,
   withVat,
@@ -78,10 +77,11 @@ const BUSINESS_TYPES = [
 /** The countries the company picker offers, as ISO codes; the request carries the code. */
 const COUNTRIES = ['OM'] as const
 
-/** Every town a known tenant sits in, once each — the picker's list. */
-const TOWNS = [...new Set(Object.values(TENANT_IDENTITIES).map((tenant) => tenant.town))].sort(
-  (a, b) => a.localeCompare(b),
-)
+/**
+ * The towns the picker offers: a fixed reference list. It used to be gathered from the console's
+ * sample tenants, so the list itself leaked which invented customers the prototype held.
+ */
+const TOWNS = ['Muscat', 'Nizwa', 'Salalah', 'Sohar', 'Sur'] as const
 
 type Draft = {
   tenantCode: string

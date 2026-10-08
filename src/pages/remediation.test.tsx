@@ -1,0 +1,160 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import i18n from '../i18n'
+import { forgetEntitlements, type Entitlements } from '../lib/identity/entitlements'
+import { resetSharedRequests } from '../api'
+import { ComplianceReportPage } from './ActivityPage/ComplianceReportPage'
+import { CatalogPage } from './CatalogPage'
+import { ModuleUnavailablePage } from '../components/feedback/ModuleUnavailable'
+import { FawtaraStatusPanel } from './FawtaraStatusPage/FawtaraStatusPanel'
+import { PaymentForm } from './PaymentPage/PaymentForm'
+
+/**
+ * The screens that used to draw a sample company (Al Bahja Coffee, Hafidh Saif, VAT OM1100392000,
+ * a Bank Muscat IBAN) as if it were the reader's. Each one now shows the reader's own records, or
+ * says plainly that the module is not available.
+ */
+const SAMPLE = /Al Bahja|albahja|Hafidh|OM1100392000|0248:OM1100392000|muscatgrand|OM55 0018|Insight Technology/
+
+const READER: Entitlements = {
+  userId: 'u-1',
+  username: 'owner',
+  tenantId: 't-1',
+  roles: [{ id: 'r-1', code: 'ADMIN', name: 'Administrator', systemRole: true }],
+  permissions: ['invoice.read', 'reports.read', 'product.read'],
+  scopes: [],
+  featureFlags: {},
+}
+
+const PROFILE = {
+  tenantId: 't-1', tenantCode: 'RT', tenantName: 'Real Trading', legalName: 'Real Trading LLC', legalNameAr: null,
+  tradingName: null, taxNumber: 'OM1100777001', commercialRegistrationNumber: '7770001', country: 'OM',
+  registeredAddress: 'Way 1', registeredAddressLine2: null, registeredAddressLine3: null, registeredCity: 'Muscat',
+  registeredPostalCode: '112', registeredCountrySubdivision: null, registeredPoBox: null, contactPersonName: null,
+  contactPhone: null, contactEmail: null, profileRevision: 1, verificationStatus: 'VERIFIED',
+}
+
+const standing = (state: string) => ({
+  state,
+  currentPolicySatisfied: state === 'VERIFIED',
+  reverificationRequired: false,
+  reverificationAvailable: false,
+  policyInForce: null,
+  verification:
+    state === 'VERIFIED'
+      ? { submissionId: 's', submissionVersion: 1, participantScheme: '0248', participantValue: 'OM1100777001',
+          policyVersionId: 'p', policyVersionNumber: 1, verifiedAt: '2026-10-01T00:00:00Z' }
+      : null,
+})
+
+function json(status: number, body?: unknown) {
+  return new Response(body === undefined ? null : JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': status >= 400 ? 'application/problem+json' : 'application/json' },
+  })
+}
+
+let answers: Record<string, () => Response>
+
+beforeEach(async () => {
+  await i18n.changeLanguage('en')
+  resetSharedRequests()
+  forgetEntitlements()
+  answers = {
+    '/api/v1/company-profile': () => json(200, PROFILE),
+    '/api/v1/peppol/smp/data-submissions/standing': () => json(200, standing('VERIFIED')),
+  }
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) => {
+      if (url === '/api/v1/me/entitlements') return json(200, READER)
+      if (url.startsWith('/api/v1/compliance/activity?'))
+        return json(200, { items: [{ invoice_number: 'INV-001' }, { invoice_number: 'INV-002' }], page: 0, page_size: 100, has_more: false })
+      if (url.startsWith('/api/v1/products'))
+        return json(200, {
+          content: [{ id: 'p-1', code: 'SKU-1', name: 'Real Widget', description: null, defaultUnitCode: 'EA',
+            defaultUnitPrice: 2.5, defaultTaxCategory: 'S', defaultTaxRate: 5, active: true, version: 0 }],
+          page: 0, size: 100, totalElements: 1,
+        })
+      const answer = answers[url]
+      return answer ? answer() : json(404, { type: 'about:blank' })
+    }),
+  )
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+const at = (path: string, element: React.ReactNode) =>
+  render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path={path} element={element} />
+      </Routes>
+    </MemoryRouter>,
+  )
+
+describe('the compliance report', () => {
+  it("names the company from its own profile, the Participant ID once verified, and labels the document unavailable", async () => {
+    at('/compliance/activity/report', <ComplianceReportPage />)
+    expect(await screen.findByText('Real Trading LLC')).toBeTruthy()
+    expect(screen.getByText('OM1100777001')).toBeTruthy()
+    expect(await screen.findByText('0248:OM1100777001')).toBeTruthy()
+    expect(screen.getByText(i18n.t('reportReal.documentUnavailable'))).toBeTruthy()
+    expect(await screen.findByText(/Numbering runs unbroken from INV-001 to INV-002/)).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(SAMPLE)
+  })
+
+  it('shows no Participant ID until Fawtir has verified one', async () => {
+    answers['/api/v1/peppol/smp/data-submissions/standing'] = () => json(200, standing('AWAITING_REVIEW'))
+    at('/compliance/activity/report', <ComplianceReportPage />)
+    expect(await screen.findByText(i18n.t('reportReal.participantNotVerified'))).toBeTruthy()
+    expect(screen.queryByText(/^0248:/)).toBeNull()
+  })
+})
+
+describe('the catalog', () => {
+  it("lists the company's own products and says the other tools are not available", async () => {
+    at('/catalog', <CatalogPage />)
+    const row = (await screen.findByText('Real Widget')).closest('tr')!
+    expect(within(row).getByText('SKU-1')).toBeTruthy()
+    expect(within(row).getByText('OMR 2.500')).toBeTruthy()
+    expect(screen.getByText(i18n.t('catalogReal.toolsUnavailable'))).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/Flat White|Muscat Roastery/)
+  })
+})
+
+describe('modules with no server yet', () => {
+  it.each(['pos', 'stock', 'tradeDocuments', 'billing', 'closing', 'export', 'otaCallLog', 'makeRole'] as const)(
+    '%s says it is not available, in English and Arabic, with no sample records',
+    async (module) => {
+      const view = at('/x', <ModuleUnavailablePage module={module} />)
+      expect(await screen.findByRole('heading', { name: i18n.t(`moduleUnavailable.${module}.title`) })).toBeTruthy()
+      expect(screen.getByText(i18n.t('moduleUnavailable.badge'))).toBeTruthy()
+      expect(document.body.textContent).not.toMatch(SAMPLE)
+      view.unmount()
+      await i18n.changeLanguage('ar')
+      at('/x', <ModuleUnavailablePage module={module} />)
+      expect(await screen.findByText(i18n.t(`moduleUnavailable.${module}.body`))).toBeTruthy()
+      expect(i18n.t(`moduleUnavailable.${module}.body`)).not.toBe(i18n.t(`moduleUnavailable.${module}.body`, { lng: 'en' }))
+    },
+  )
+})
+
+describe('signup screens', () => {
+  it('Fawtara status claims no approval state and names no sample address', () => {
+    at('/fawtara-status', <FawtaraStatusPanel />)
+    expect(screen.getByText(i18n.t('fawtaraStatus.titleReal'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('fawtaraStatus.badge'))).toBeNull()
+    expect(document.body.textContent).not.toMatch(SAMPLE)
+  })
+
+  it('bank transfer shows no account to pay into, only that the invoice will carry it', () => {
+    at('/payment', <PaymentForm />)
+    fireEvent.click(screen.getByText(i18n.t('payment.method.bankTransfer.title')))
+    expect(screen.getByText(i18n.t('payment.bank.detailsOnRequest'))).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(SAMPLE)
+  })
+})

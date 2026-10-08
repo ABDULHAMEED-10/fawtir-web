@@ -124,6 +124,14 @@ import qrBadgeIcon from '../../assets/create-invoice/qr-badge.svg'
 import receiptQrIcon from '../../assets/create-invoice/receipt-qr.svg'
 import deleteLineIcon from '../../assets/create-invoice/delete.svg'
 
+
+/**
+ * Quotations, order forms and delivery notes have no server yet (their routes say so), and the rows
+ * behind them are a sample company's. Until they are connected, a `?from=` reference is not found
+ * and nothing is offered for linking, rather than filling a real invoice from invented documents.
+ * Typed as boolean so the gated code still type-checks for the day it flips.
+ */
+const TRADE_DOCUMENTS_CONNECTED: boolean = false
 const CUSTOMER_TYPE: Record<CustomerKind, CustomerTypeDto> = {
   business: 'BUSINESS',
   consumer: 'CONSUMER',
@@ -695,7 +703,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   const fromTrade = id || duplicateOf ? null : searchParams.get('from')
   useEffect(() => {
     if (!fromTrade) return
-    const prefill = invoicePrefill(fromTrade)
+    const prefill = TRADE_DOCUMENTS_CONNECTED ? invoicePrefill(fromTrade) : null
     if (!prefill) {
       setNotice({ tone: 'error', body: t('createInvoice.fromTrade.notFound', { id: fromTrade }) })
       return
@@ -746,7 +754,10 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   }, [fromTrade])
 
   // Only the chosen customer's order forms and delivery notes can be linked.
-  const linkable = useMemo(() => linkableDocsFor(customer?.id ?? null), [customer])
+  const linkable = useMemo(
+    () => (TRADE_DOCUMENTS_CONNECTED ? linkableDocsFor(customer?.id ?? null) : []),
+    [customer],
+  )
 
   // Duplicate (list row menu, invoice detail): a new, unsaved draft filled from another invoice.
   // Nothing is created until the reader saves; dates, number and payments are never copied.

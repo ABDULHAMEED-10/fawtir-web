@@ -16,6 +16,8 @@ import { ACCOUNT_EMAIL_CONFIRM_ROUTE } from './lib/identity/accountEmail'
 import { PlansPage } from './pages/PlansPage'
 import { PaymentPage } from './pages/PaymentPage'
 import { FawtaraStatusPage } from './pages/FawtaraStatusPage'
+import { ConsoleSoonPage } from './pages/ConsolePage/ConsoleSoonPage'
+import { ModuleUnavailablePage } from './components/feedback/ModuleUnavailable'
 import { DashboardPage } from './pages/DashboardPage'
 import { InvoicesPage } from './pages/InvoicesPage'
 import { BillsPage } from './pages/BillsPage'
@@ -50,26 +52,10 @@ import { DocumentsPage } from './pages/DocumentsPage'
 import {
   ActivityPage,
   ActivityEventPage,
-  OtaCallLogPage,
-  OtaCallDetailPage,
   TddResubmitPage,
   ComplianceReportPage,
 } from './pages/ActivityPage'
-import {
-  CatalogPage,
-  ItemFormPage,
-  ItemSellsPage,
-  ItemUsedPage,
-  ItemChangesPage,
-  BundlesPage,
-  BundlePage,
-  StockPage,
-  StockDetailPage,
-  PriceRulesPage,
-  NewRulePage,
-  UploadMenuPage,
-  BuildCatalogPage,
-} from './pages/CatalogPage'
+import { CatalogPage } from './pages/CatalogPage'
 import {
   SettingsPage,
   PeppolTaxPage,
@@ -78,15 +64,11 @@ import {
   TeamPage,
   RolesPage,
   PlanPage,
-  BillingPage,
   ActivityLogPage,
-  ExportPage,
-  ClosingPage,
   SigningInPage,
   ApprovalPolicyPage,
   AddBranchPage,
   InvitePage,
-  MakeRolePage,
 } from './pages/SettingsPage'
 import { DocumentDetailPage } from './pages/DocumentDetailPage'
 import { UploadDocumentPage } from './pages/UploadDocumentPage'
@@ -96,21 +78,6 @@ import { InvoiceDetailsPage } from './pages/InvoiceDetailsPage'
 import { SelfBillingPage } from './pages/SelfBillingPage'
 import { NewSelfBillPage } from './pages/NewSelfBillPage'
 import { DebitNotesPage } from './pages/DebitNotesPage'
-import {
-  PosPage,
-  PosPaymentPage,
-  PosDonePage,
-  PosCompanyPage,
-  PosTodayPage,
-  PosClosePage,
-  PosRefundPage,
-} from './pages/PosPage'
-import { QuotationsPage } from './pages/QuotationsPage'
-import { NewQuotationPage } from './pages/NewQuotationPage'
-import { QuotationDetailPage } from './pages/QuotationDetailPage'
-import { OrderFormsPage } from './pages/OrderFormsPage'
-import { NewOrderFormPage } from './pages/NewOrderFormPage'
-import { NewDeliveryNotePage } from './pages/NewDeliveryNotePage'
 import {
   ErpOverviewPage,
   ErpFieldsPage,
@@ -141,9 +108,6 @@ import {
 } from './pages/ErpPage'
 import { PaymentRemindersPage } from './pages/PaymentRemindersPage'
 import { RemindersPage } from './pages/RemindersPage'
-import { OrderFormDetailPage } from './pages/OrderFormDetailPage'
-import { DeliveryNotesPage } from './pages/DeliveryNotesPage'
-import { DeliveryNoteDetailPage } from './pages/DeliveryNoteDetailPage'
 import { NewDebitNotePage } from './pages/NewDebitNotePage'
 import { DebitNoteDetailPage } from './pages/DebitNoteDetailPage'
 import { AgreementsPage } from './pages/AgreementsPage'
@@ -163,24 +127,14 @@ import { SignupReviewPage } from './pages/SignupReviewPage'
 import { SubBusinessTypePage } from './pages/SubBusinessTypePage'
 import {
   ConsolePlansPage,
-  ConsoleQueuePage,
-  ConsoleIncidentsPage,
-  ConsoleAuditPage,
   ConsoleErpPage,
   ConsoleErpConnectionPage,
-  ConsoleTemplatesPage,
-  ConsoleTemplatePage,
-  ConsoleAddonRequestsPage,
   ConsoleOnboardPage,
-  OperationsPage,
   OperatorsPage,
   TenantsPage,
   VerificationCompanyPage,
   VerificationPage,
   TenantDetailPage,
-  SubscriptionsPage,
-  SubscriptionInvoicesPage,
-  ConsoleSettingsPage,
   ValidationPoliciesPage,
   ValidationPolicyPage,
 } from './pages/ConsolePage'
@@ -316,21 +270,21 @@ function App() {
             }
           />
           <Route path="/expenditure/reminders" element={<ExpenditureRemindersPage />} />
-          <Route path="/stock" element={<StockPage />} />
-          <Route path="/stock/:id" element={<StockDetailPage />} />
+          <Route path="/stock" element={<ModuleUnavailablePage module="stock" />} />
+          <Route path="/stock/:id" element={<ModuleUnavailablePage module="stock" />} />
           <Route path="/catalog" element={<CatalogPage />} />
-          <Route path="/catalog/upload" element={<UploadMenuPage />} />
-          <Route path="/catalog/build" element={<BuildCatalogPage />} />
-          <Route path="/catalog/new" element={<ItemFormPage mode="new" />} />
-          <Route path="/catalog/rules" element={<PriceRulesPage />} />
-          <Route path="/catalog/rules/new" element={<NewRulePage />} />
-          <Route path="/catalog/bundles" element={<BundlesPage />} />
-          <Route path="/catalog/bundles/new" element={<BundlePage />} />
-          <Route path="/catalog/bundles/:id" element={<BundlePage />} />
-          <Route path="/catalog/:id" element={<ItemFormPage mode="edit" />} />
-          <Route path="/catalog/:id/sells" element={<ItemSellsPage />} />
-          <Route path="/catalog/:id/used" element={<ItemUsedPage />} />
-          <Route path="/catalog/:id/changes" element={<ItemChangesPage />} />
+          <Route path="/catalog/upload" element={<ModuleUnavailablePage module="catalog" />} />
+          <Route path="/catalog/build" element={<ModuleUnavailablePage module="catalog" />} />
+          <Route path="/catalog/new" element={<ModuleUnavailablePage module="catalog" />} />
+          <Route path="/catalog/rules" element={<ModuleUnavailablePage module="catalog" />} />
+          <Route path="/catalog/rules/new" element={<ModuleUnavailablePage module="catalog" />} />
+          <Route path="/catalog/bundles" element={<ModuleUnavailablePage module="catalog" />} />
+          <Route path="/catalog/bundles/new" element={<ModuleUnavailablePage module="catalog" />} />
+          <Route path="/catalog/bundles/:id" element={<ModuleUnavailablePage module="catalog" />} />
+          <Route path="/catalog/:id" element={<ModuleUnavailablePage module="catalog" />} />
+          <Route path="/catalog/:id/sells" element={<ModuleUnavailablePage module="catalog" />} />
+          <Route path="/catalog/:id/used" element={<ModuleUnavailablePage module="catalog" />} />
+          <Route path="/catalog/:id/changes" element={<ModuleUnavailablePage module="catalog" />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/peppol" element={<PeppolTaxPage />} />
           <Route path="/settings/branches" element={<BranchesPage />} />
@@ -340,17 +294,17 @@ function App() {
           <Route path="/settings/team" element={<TeamPage />} />
           <Route path="/settings/team/invite" element={<InvitePage />} />
           <Route path="/settings/roles" element={<RolesPage />} />
-          <Route path="/settings/roles/new" element={<MakeRolePage />} />
+          <Route path="/settings/roles/new" element={<ModuleUnavailablePage module="makeRole" />} />
           <Route path="/settings/plan" element={<PlanPage />} />
-          <Route path="/settings/bills" element={<BillingPage />} />
+          <Route path="/settings/bills" element={<ModuleUnavailablePage module="billing" />} />
           <Route path="/settings/activity-log" element={<ActivityLogPage />} />
-          <Route path="/settings/export" element={<ExportPage />} />
-          <Route path="/settings/closing" element={<ClosingPage />} />
+          <Route path="/settings/export" element={<ModuleUnavailablePage module="export" />} />
+          <Route path="/settings/closing" element={<ModuleUnavailablePage module="closing" />} />
           <Route path="/settings/signing-in" element={<SigningInPage />} />
           <Route path="/settings/approvals" element={<ApprovalPolicyPage />} />
           <Route path="/compliance/activity" element={<ActivityPage />} />
-          <Route path="/compliance/activity/call-log" element={<OtaCallLogPage />} />
-          <Route path="/compliance/activity/call-log/:id" element={<OtaCallDetailPage />} />
+          <Route path="/compliance/activity/call-log" element={<ModuleUnavailablePage module="otaCallLog" />} />
+          <Route path="/compliance/activity/call-log/:id" element={<ModuleUnavailablePage module="otaCallLog" />} />
           <Route path="/compliance/activity/report" element={<ComplianceReportPage />} />
           <Route path="/compliance/activity/:id" element={<ActivityEventPage />} />
           <Route path="/compliance/activity/:id/resubmit" element={<TddResubmitPage />} />
@@ -365,19 +319,19 @@ function App() {
           <Route path="/invoices/new" element={<CreateInvoicePage />} />
           <Route path="/invoices/:id/edit" element={<CreateInvoicePage />} />
           <Route path="/invoices/:id" element={<InvoiceDetailsPage />} />
-          <Route path="/pos" element={<PosPage />} />
-          <Route path="/pos/payment" element={<PosPaymentPage />} />
-          <Route path="/pos/done" element={<PosDonePage />} />
-          <Route path="/pos/company" element={<PosCompanyPage />} />
-          <Route path="/pos/today" element={<PosTodayPage />} />
-          <Route path="/pos/close" element={<PosClosePage />} />
-          <Route path="/pos/refund" element={<PosRefundPage />} />
+          <Route path="/pos" element={<ModuleUnavailablePage module="pos" />} />
+          <Route path="/pos/payment" element={<ModuleUnavailablePage module="pos" />} />
+          <Route path="/pos/done" element={<ModuleUnavailablePage module="pos" />} />
+          <Route path="/pos/company" element={<ModuleUnavailablePage module="pos" />} />
+          <Route path="/pos/today" element={<ModuleUnavailablePage module="pos" />} />
+          <Route path="/pos/close" element={<ModuleUnavailablePage module="pos" />} />
+          <Route path="/pos/refund" element={<ModuleUnavailablePage module="pos" />} />
           <Route path="/income/debit-notes" element={<DebitNotesPage />} />
           <Route
             path="/trade-documents/quotations"
             element={
               <PlanGated feature="tradeDocuments">
-                <QuotationsPage />
+                <ModuleUnavailablePage module="tradeDocuments" />
               </PlanGated>
             }
           />
@@ -385,7 +339,7 @@ function App() {
             path="/trade-documents/quotations/new"
             element={
               <PlanGated feature="tradeDocuments">
-                <NewQuotationPage />
+                <ModuleUnavailablePage module="tradeDocuments" />
               </PlanGated>
             }
           />
@@ -393,7 +347,7 @@ function App() {
             path="/trade-documents/quotations/:id"
             element={
               <PlanGated feature="tradeDocuments">
-                <QuotationDetailPage />
+                <ModuleUnavailablePage module="tradeDocuments" />
               </PlanGated>
             }
           />
@@ -401,7 +355,7 @@ function App() {
             path="/trade-documents/order-forms"
             element={
               <PlanGated feature="tradeDocuments">
-                <OrderFormsPage />
+                <ModuleUnavailablePage module="tradeDocuments" />
               </PlanGated>
             }
           />
@@ -409,7 +363,7 @@ function App() {
             path="/trade-documents/order-forms/new"
             element={
               <PlanGated feature="tradeDocuments">
-                <NewOrderFormPage />
+                <ModuleUnavailablePage module="tradeDocuments" />
               </PlanGated>
             }
           />
@@ -417,7 +371,7 @@ function App() {
             path="/trade-documents/order-forms/:id"
             element={
               <PlanGated feature="tradeDocuments">
-                <OrderFormDetailPage />
+                <ModuleUnavailablePage module="tradeDocuments" />
               </PlanGated>
             }
           />
@@ -425,7 +379,7 @@ function App() {
             path="/trade-documents/delivery-notes"
             element={
               <PlanGated feature="tradeDocuments">
-                <DeliveryNotesPage />
+                <ModuleUnavailablePage module="tradeDocuments" />
               </PlanGated>
             }
           />
@@ -433,7 +387,7 @@ function App() {
             path="/trade-documents/delivery-notes/new"
             element={
               <PlanGated feature="tradeDocuments">
-                <NewDeliveryNotePage />
+                <ModuleUnavailablePage module="tradeDocuments" />
               </PlanGated>
             }
           />
@@ -441,7 +395,7 @@ function App() {
             path="/trade-documents/delivery-notes/:id"
             element={
               <PlanGated feature="tradeDocuments">
-                <DeliveryNoteDetailPage />
+                <ModuleUnavailablePage module="tradeDocuments" />
               </PlanGated>
             }
           />
@@ -796,28 +750,28 @@ function App() {
           <Route path="/suppliers/:slug/record-bill" element={<RecordSupplierBillPage />} />
           <Route path="/suppliers/:slug/statement" element={<SupplierStatementPage />} />
           <Route path="/suppliers/:slug" element={<SupplierDetailPage />} />
-          <Route path="/console" element={<OperationsPage />} />
+          <Route path="/console" element={<ConsoleSoonPage />} />
           <Route path="/console/tenants" element={<TenantsPage />} />
           <Route path="/console/tenants/:id" element={<TenantDetailPage />} />
-          <Route path="/console/subscriptions" element={<SubscriptionsPage />} />
-          <Route path="/console/subscriptions/invoices" element={<SubscriptionInvoicesPage />} />
-          <Route path="/console/queue" element={<ConsoleQueuePage />} />
-          <Route path="/console/incidents" element={<ConsoleIncidentsPage />} />
-          <Route path="/console/incidents/:id" element={<ConsoleIncidentsPage />} />
+          <Route path="/console/subscriptions" element={<ConsoleSoonPage />} />
+          <Route path="/console/subscriptions/invoices" element={<ConsoleSoonPage />} />
+          <Route path="/console/queue" element={<ConsoleSoonPage />} />
+          <Route path="/console/incidents" element={<ConsoleSoonPage />} />
+          <Route path="/console/incidents/:id" element={<ConsoleSoonPage />} />
           <Route path="/console/onboarding" element={<VerificationPage />} />
           <Route path="/console/onboarding/:companyId" element={<VerificationCompanyPage />} />
           <Route path="/console/plans" element={<ConsolePlansPage />} />
           <Route path="/console/operators" element={<OperatorsPage />} />
           <Route path="/console/policies" element={<ValidationPoliciesPage />} />
           <Route path="/console/policies/:type" element={<ValidationPolicyPage />} />
-          <Route path="/console/audit" element={<ConsoleAuditPage />} />
+          <Route path="/console/audit" element={<ConsoleSoonPage />} />
           <Route path="/console/erp" element={<ConsoleErpPage />} />
           <Route path="/console/erp/connections/:id" element={<ConsoleErpConnectionPage />} />
-          <Route path="/console/erp/templates" element={<ConsoleTemplatesPage />} />
-          <Route path="/console/erp/templates/:id" element={<ConsoleTemplatePage />} />
-          <Route path="/console/erp/add-on-requests" element={<ConsoleAddonRequestsPage />} />
+          <Route path="/console/erp/templates" element={<ConsoleSoonPage />} />
+          <Route path="/console/erp/templates/:id" element={<ConsoleSoonPage />} />
+          <Route path="/console/erp/add-on-requests" element={<ConsoleSoonPage />} />
           <Route path="/console/tenants/new" element={<ConsoleOnboardPage />} />
-          <Route path="/console/settings" element={<ConsoleSettingsPage />} />
+          <Route path="/console/settings" element={<ConsoleSoonPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
