@@ -9,6 +9,7 @@ import {
   PAYER_ACCOUNTS_PATH,
   addToRun,
   blockedPath,
+  cancelRun,
   candidatesPath,
   createRun,
   exportRun,
@@ -26,7 +27,7 @@ import {
   type PaymentRunDetailDto,
   type PaymentRunFormat,
 } from '../../api/expenditure/paymentRuns'
-import { formatAmount, formatDate } from '../../lib/format'
+import { formatDate } from '../../lib/format'
 import { muscatToday } from '../../lib/invoiceIssue'
 import {
   DUE_WINDOWS,
@@ -50,8 +51,9 @@ import { can, useSession } from '../../lib/session/session'
 import {
   AddPayerAccountModal,
   Amount,
-  ConfirmModal,
+  CancelSentRunModal,
   HEADER_BUTTON,
+  MarkPaidModal,
   PRIMARY_BUTTON,
   RunMenu,
   RunStatePill,
@@ -132,6 +134,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
   const [busy, setBusy] = useState(false)
   const [addingAccount, setAddingAccount] = useState(false)
   const [confirmingPaid, setConfirmingPaid] = useState(false)
+  const [cancellingSent, setCancellingSent] = useState(false)
   const inFlight = useRef(false)
 
   useEffect(() => {
@@ -351,6 +354,9 @@ function RunBuilder({ runId }: { runId: string | null }) {
                 items={detail.items}
                 onNotice={setNotice}
                 onChanged={() => loaded.retry()}
+                onCancelSent={
+                  canManage && run.state === 'EXPORTED' ? () => setCancellingSent(true) : undefined
+                }
               />
             ) : null}
           </div>
@@ -362,6 +368,11 @@ function RunBuilder({ runId }: { runId: string | null }) {
               })
             : t('paymentsPage.subtitle')}
         </p>
+        {canExport && run?.state === 'EXPORTED' ? (
+          <p className="text-sm font-medium leading-[1.3] text-pending-700">
+            {t('paymentRuns.sentFileWarning')}
+          </p>
+        ) : null}
       </div>
 
       {notice ? (
@@ -918,21 +929,38 @@ function RunBuilder({ runId }: { runId: string | null }) {
           }}
         />
       ) : null}
-      {confirmingPaid && runId && run ? (
-        <ConfirmModal
-          title={t('paymentRuns.confirmPaid.title', { reference: run.reference })}
-          body={t('paymentRuns.confirmPaid.body', {
-            amount: `${formatAmount(run.netTotal, currency, i18n.language)} ${currency}`,
-          })}
-          confirm={t('paymentRuns.markPaid')}
+      {confirmingPaid && runId && run && detail ? (
+        <MarkPaidModal
+          run={run}
+          items={detail.items}
           onClose={() => setConfirmingPaid(false)}
-          onConfirm={async () => {
+          onCancelInstead={() => {
+            setConfirmingPaid(false)
+            setCancellingSent(true)
+          }}
+          onConfirm={async (takeOut) => {
             try {
-              await markRunPaid(runId)
+              await markRunPaid(runId, takeOut)
               setConfirmingPaid(false)
               loaded.retry()
             } catch (error) {
               setConfirmingPaid(false)
+              setNotice(refusalOf(error, t, 'markPaid'))
+            }
+          }}
+        />
+      ) : null}
+      {cancellingSent && runId && run ? (
+        <CancelSentRunModal
+          run={run}
+          onClose={() => setCancellingSent(false)}
+          onConfirm={async (reason) => {
+            try {
+              await cancelRun(runId, { reason })
+              setCancellingSent(false)
+              loaded.retry()
+            } catch (error) {
+              setCancellingSent(false)
               setNotice(refusalOf(error, t))
             }
           }}
