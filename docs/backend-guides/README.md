@@ -14,6 +14,7 @@ API does not provide yet, and what to add.
 | Settings (Company profile) | [SETTINGS.md](SETTINGS.md) |
 | Public site (Home, Pricing, Features, Contact Us) | [SITE.md](SITE.md) |
 | Super Admin console (Tenants list) | [CONSOLE.md](CONSOLE.md) |
+| Onboarding: plan, payment, review and the "Getting you live" status screen | [ONBOARDING.md](ONBOARDING.md) |
 
 Every gap is also a `// TODO(backend)` comment in the code, citing its row number here.
 

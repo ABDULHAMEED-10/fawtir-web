@@ -517,6 +517,19 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   two extra lines follow it. Lines 2 and 3 are not sent until the endpoint takes them
   (`SETTINGS.md` row 1.5; Abrar has the backend part). Existing companies are told at issue
   (`SELLER_ADDRESS_INCOMPLETE`, pointing to Settings › Company).
+- **Owner decision, 8 Oct 2026, sign-up order and going live:** after Address & contact come
+  **Choose a plan** (`/plans`) and **How you'll pay** (`/payment`), then Review. Nothing is
+  charged before approval: the trial starts when the Fawtir team approves the registration, and
+  the first bill goes out by the chosen method (Paymob link, bank transfer or cash) when it ends,
+  or on approval for a plan the super admin gives no trial. Enterprise ("Talk to our team") skips
+  payment and is reviewed as "agreed on a call". Review shows a "Plan and payment" section and
+  will not submit without a plan (and a method, except for Enterprise). Plans, prices, the trial
+  and payment settings are the super admin's; sign-up shows the launch defaults until it can read
+  them, and no screen says where its figures come from. One **"Getting you live"** screen in the
+  Fawtara status frame's layout replaces "We've received your registration": Registration sent,
+  Fawtir review, Authorise Fawtir on the Fawtara Portal, Connected, in time order (the frame drew
+  them upward). It is shown again after sign-in until the account is connected. Backend asks:
+  `docs/backend-guides/ONBOARDING.md`, rows 1.1 to 1.8.
 - **Zain's DW/CW note PRs** (29 Sep 2026): approved except removing the credit note detail's
   "Refund due" figure, which stays (design wins; mark it `TODO(backend)`). Conditions: a retry
   after a timeout reuses its idempotency key; `0248:` is not added twice; a partial credit uses

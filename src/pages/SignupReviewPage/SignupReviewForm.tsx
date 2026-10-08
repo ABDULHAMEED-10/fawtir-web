@@ -1,9 +1,14 @@
-import type { FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button, ChevronRightIcon, Input } from '../../components/ui'
 import { useOnboardingStep } from '../../hooks/useOnboardingStep'
-import { PENDING_ROUTE, submitForReview } from '../../lib/identity/onboarding'
+import {
+  PAYMENT_ROUTE,
+  PENDING_ROUTE,
+  PLANS_ROUTE,
+  submitForReview,
+} from '../../lib/identity/onboarding'
 import { markOnboardingSubmitted } from '../../lib/identity/onboardingSession'
 import {
   BUSINESS_SIZE_LABEL_KEYS,
@@ -11,6 +16,7 @@ import {
   INVOICING_METHOD_LABEL_KEYS,
   onboardingStateFrom,
 } from '../../lib/onboarding'
+import { trialDaysFor } from '../../lib/pricing'
 import { SUB_TYPES_BY_BUSINESS } from '../../lib/subBusinessTypes'
 import { toOmanE164 } from '../../lib/validation'
 import { findCode, nameOf } from '../../lib/codeLists/codeList'
@@ -50,10 +56,12 @@ function ReviewSection({ title, editTo, rows }: { title: string; editTo: string;
 export function SignupReviewForm() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
-  const state = onboardingStateFrom(useLocation().state)
+  const location = useLocation()
+  const state = onboardingStateFrom(location.state)
   const { save, submitting, formError } = useOnboardingStep({
     conflictKey: 'signupReview.conflict',
   })
+  const [planMissing, setPlanMissing] = useState(false)
   const activity = findCode(ISIC_ACTIVITIES, state.identity?.industrialClassification)
   // Opened without this tab's answers (a typed URL): the steps are saved on the server, but there
   // is nothing honest to show for them, so each field says so instead of looking empty.
@@ -73,13 +81,27 @@ export function SignupReviewForm() {
   const accentKey = identity && `businessIdentity.accents.${identity.accent}`
   const governorateKey = address && `governorate.${address.governorate}`
 
+  // A plan, and for every plan but Enterprise a way to pay, before anything reaches a reviewer.
+  const { plan, paymentMethod } = state
+  const planChosen = Boolean(plan && (plan === 'enterprise' || paymentMethod))
+  const trialDays = plan ? trialDaysFor(plan) : null
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (!planChosen) {
+      setPlanMissing(true)
+      return
+    }
+    // TODO(backend): the plan and payment choice are not saved yet, and `submitForReview` does not
+    // yet refuse a draft without them. ONBOARDING.md rows 1.2 to 1.4.
     const result = await save((token, signal) => submitForReview(token, signal))
     if (!result.saved) return
     markOnboardingSubmitted(true)
     // Replace: the draft is now closed, so Back must not reopen a page that can only mislead.
-    navigate(PENDING_ROUTE, { replace: true, state: { submitted: true } })
+    navigate(PENDING_ROUTE, {
+      replace: true,
+      state: { ...state, submitted: true, email: state.accountEmail },
+    })
   }
 
   const sections: Array<{ key: string; title: string; editTo: string; rows: Row[] }> = [
@@ -143,6 +165,49 @@ export function SignupReviewForm() {
         { label: t('addressContact.email'), value: address?.email ?? saved },
       ],
     },
+    {
+      key: 'plan',
+      title: t('signupReview.sections.plan'),
+      editTo: plan && plan !== 'enterprise' ? PAYMENT_ROUTE : PLANS_ROUTE,
+      rows: !plan
+        ? [{ label: t('signupReview.fields.plan'), value: t('signupReview.notChosen') }]
+        : plan === 'enterprise'
+          ? [
+              { label: t('signupReview.fields.plan'), value: t('plans.enterprise.name') },
+              { label: t('signupReview.fields.terms'), value: t('signupReview.enterpriseTerms') },
+            ]
+          : [
+              {
+                label: t('signupReview.fields.plan'),
+                value: t('signupReview.planValue', {
+                  plan: t(`plans.${plan}.name`),
+                  cycle: t(
+                    state.billing === 'annual'
+                      ? 'signupReview.billedAnnually'
+                      : 'signupReview.billedMonthly',
+                  ),
+                }),
+              },
+              {
+                label: t('signupReview.fields.payment'),
+                value: paymentMethod
+                  ? paymentMethod === 'cardLink'
+                    ? t(`signupReview.payment.cardLink.${state.linkVia ?? 'email'}`)
+                    : t(`signupReview.payment.${paymentMethod}`)
+                  : t('signupReview.notChosen'),
+              },
+              {
+                label: t('signupReview.fields.firstBill'),
+                value:
+                  trialDays === null
+                    ? t('signupReview.firstBillOnApproval')
+                    : t('signupReview.firstBillAfterTrial', { count: trialDays }),
+              },
+              ...(state.addon
+                ? [{ label: t('payment.addon.title'), value: t('signupReview.addonValue') }]
+                : []),
+            ],
+    },
   ]
 
   return (
@@ -171,6 +236,19 @@ export function SignupReviewForm() {
           />
         ))}
       </div>
+
+      {planMissing && !planChosen ? (
+        <p className="text-xs font-medium text-text-danger" role="alert">
+          {t('signupReview.planMissing')}{' '}
+          <Link
+            to={plan && plan !== 'enterprise' ? PAYMENT_ROUTE : PLANS_ROUTE}
+            state={location.state}
+            className="font-semibold text-primary-700 underline"
+          >
+            {t(plan ? 'signupReview.choosePayment' : 'signupReview.choosePlan')}
+          </Link>
+        </p>
+      ) : null}
 
       {formError ? (
         <p className="text-xs font-medium text-text-danger" role="alert">

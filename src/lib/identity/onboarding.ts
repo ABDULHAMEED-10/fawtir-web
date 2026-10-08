@@ -121,12 +121,25 @@ export const ONBOARDING_ROUTES = [
   '/address-contact',
 ] as const
 
+/**
+ * The plan and how the first bill will be paid, chosen after the address and before review
+ * (owner decision, 8 Oct 2026). Nothing is charged here: the trial starts on approval and the
+ * first bill goes out when it ends. TODO(backend): neither choice is saved yet; see
+ * docs/backend-guides/ONBOARDING.md rows 1.2 and 1.3.
+ */
+export const PLANS_ROUTE = '/plans'
+export const PAYMENT_ROUTE = '/payment'
 /** Where the registrant checks every answer and submits. */
 export const REVIEW_ROUTE = '/signup-review'
 /** Where a submitted registration waits for the human decision. */
 export const PENDING_ROUTE = '/signup-pending'
 
-const FLOW_ROUTES: readonly string[] = [...ONBOARDING_ROUTES, REVIEW_ROUTE]
+const FLOW_ROUTES: readonly string[] = [
+  ...ONBOARDING_ROUTES,
+  PLANS_ROUTE,
+  PAYMENT_ROUTE,
+  REVIEW_ROUTE,
+]
 
 export const ROUTE_FOR_STAGE: Record<SignupStage, string> = {
   BUSINESS_PROFILE: ONBOARDING_ROUTES[0],

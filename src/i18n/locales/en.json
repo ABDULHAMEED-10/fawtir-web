@@ -779,8 +779,8 @@
       "f2": "Upgrades apply instantly, downgrades next cycle",
       "f3": "No setup fees"
     },
-    "payNote": "You choose how to pay on the next step.",
-    "trialNote": "Every plan except Enterprise starts with a {{days}}-day free trial of the plan you pick: {{documents}} documents, no card needed, and it never turns into a bill on its own.",
+    "payNote": "Next you choose how you'll pay. Nothing is charged today.",
+    "trialNote": "Every plan except Enterprise starts with a {{days}}-day free trial of the plan you pick, from the day your account is approved: {{documents}} documents, and nothing to pay until it ends.",
     "businessPlus": {
       "name": "Business Plus",
       "description": "For established businesses and multi-branch operations.",
@@ -875,8 +875,7 @@
     }
   },
   "payment": {
-    "title": "Complete your subscription",
-    "description": "One last step. Choose how you would like to pay. Your account is activated by the Fawtir team the moment your payment is confirmed.",
+    "title": "How you'll pay",
     "card": {
       "title": "Card",
       "subtitle": "Debit or credit",
@@ -901,7 +900,7 @@
       "bank": "Bank",
       "reference": "Reference",
       "yourInvoice": "your invoice number",
-      "note": "We email you the invoice with these details. The Fawtir team activates your account once the transfer is confirmed, usually within one business day."
+      "noteLater": "Your first bill comes {{when}}, emailed with these details. Put the invoice number in the reference, and the Fawtir team confirms the transfer, usually within one business day."
     },
     "summary": {
       "title": "Order summary",
@@ -913,14 +912,12 @@
       "monthlyRate": "{{rate}} / mo billed yearly",
       "months": "{{count}} months",
       "vat": "VAT (5%)",
-      "totalDue": "Total due today",
-      "renewPrefix": "Renews on {{date}} at {{amount}}. We’ll remind you before. ",
       "cancelAnytime": "Cancel anytime",
-      "renewSuffix": "access continues to period end.",
-      "addonLine": "Automatic ERP extraction ({{cycle}})"
+      "renewSuffix": ", access continues to the end of the period.",
+      "addonLine": "Automatic ERP extraction ({{cycle}})",
+      "firstBill": "First bill",
+      "firstBillNote": "Your first bill comes {{when}}, and we remind you before. "
     },
-    "payCta": "Pay {{amount}} & activate",
-    "bankCta": "Email me the invoice with bank details",
     "method": {
       "cardLink": {
         "title": "Card",
@@ -936,54 +933,80 @@
       }
     },
     "cardLink": {
-      "note": "Your card is entered on Paymob's secure checkout, never on Fawtir. Nothing about it is stored with us.",
-      "how": "How would you like the checkout?",
-      "via": {
-        "now": "Open it now",
-        "whatsapp": "Send me the link by WhatsApp",
-        "email": "Send me the link by email"
-      },
-      "viaNowNote": "You go to Paymob's checkout and come straight back.",
       "viaWhatsAppNote": "To {{phone}} · valid {{days}} days",
       "viaEmailNote": "To {{email}} · valid {{days}} days",
       "yourPhone": "your phone",
-      "yourEmail": "your email"
+      "yourEmail": "your email",
+      "noteLater": "Your first bill comes {{when}} with a secure Paymob link. Your card is entered on Paymob's checkout, never on Fawtir.",
+      "sendTo": "Send the payment link",
+      "byVia": {
+        "email": "By email",
+        "whatsapp": "By WhatsApp"
+      }
     },
     "cash": {
-      "note": "Pay at Fawtir's office in Muscat or to your Fawtir representative. You get a receipt, and the Fawtir team activates your account once it is recorded, usually the same day."
+      "noteLater": "Your first bill comes {{when}}. Pay it at Fawtir's office in Muscat or to your Fawtir representative, and you get a receipt."
     },
-    "sendLinkCta": "Send me the payment link",
-    "cashCta": "I'll pay in cash",
     "addon": {
       "title": "Add-on",
       "label": "Add automatic ERP extraction",
       "body": "Fawtir collects invoices from your ERP on a schedule, runs them through your field mapping, and writes the result back. Activated with your subscription.",
       "perMonth": "a month",
       "perMonthTimes": "a month, for {{count}} months"
-    }
+    },
+    "descriptionTrial_one": "Nothing is charged today. Your free trial starts when your account is approved, and your first bill comes after {{count}} day, by the method you choose here.",
+    "descriptionTrial_other": "Nothing is charged today. Your {{count}}-day free trial starts when your account is approved, and your first bill comes when it ends, by the method you choose here.",
+    "descriptionNoTrial": "Nothing is charged today. Your first bill comes when the Fawtir team approves your account, by the method you choose here.",
+    "when": {
+      "afterTrial_one": "after your {{count}}-day free trial",
+      "afterTrial_other": "after your {{count}}-day free trial",
+      "onApproval": "when your account is approved"
+    },
+    "continueCta": "Continue to review"
   },
   "fawtaraStatus": {
     "heroTitle": "E-invoicing compliance, handled for you.",
     "heroSubtitle": "Create, validate, sign and report every invoice to the Oman Tax Authority, without touching a single line of Peppol.",
-    "title": "Waiting for Fawtara approval",
-    "description": "You’ve requested to authorize Fawtir as your provider on the Fawtara Portal. As soon as the OTA approves it, this page updates on its own.",
-    "badge": "Pending approval",
     "steps": {
       "connected": "Connected",
-      "awaitingApproval": "Awaiting OTA approval",
-      "requestSent": "Request sent"
+      "sent": "Registration sent",
+      "review": "Fawtir review",
+      "reviewing": "Checking your business details",
+      "approved": "Approved",
+      "authorise": "Authorise Fawtir on the Fawtara Portal",
+      "awaitingOta": "Awaiting OTA approval"
     },
     "openPortal": "Open Fawtara portal",
-    "footer": "This usually takes a few minutes. We’ll email {{email}} the moment it’s approved, you can safely close this page. Approval taking too long?",
     "contactSupport": "Contact support",
-    "subscription": {
-      "title": "Your subscription",
-      "awaiting": "{{plan}} · awaiting activation by the Fawtir team",
-      "cardLink": "Paid by card through Paymob: you'll be activated as soon as the payment is confirmed.",
-      "cardLinkSent": "Your payment link is on its way by {{via}}. Your account is activated once you've paid it.",
-      "bankTransfer": "Waiting for your bank transfer. Your account is activated once it arrives, usually within one business day.",
-      "cash": "Waiting for your cash payment. Your account is activated once it is recorded, usually the same day.",
-      "addon": "Automatic ERP extraction is on the same request; the Fawtir team switches it on with your subscription."
+    "review": {
+      "title": "We're getting you live",
+      "description": "Your registration is with the Fawtir team. Once it's approved, you authorise Fawtir as your provider on the Fawtara Portal, and your invoices can reach the OTA.",
+      "badge": "Under review",
+      "timing": "Review usually takes one business day.",
+      "emailNote": "We'll email <b>{{email}}</b> the decision, you can safely close this page.",
+      "emailNoteNoAddress": "We'll email the decision to the address you registered with, you can safely close this page."
+    },
+    "fawtara": {
+      "title": "Waiting for Fawtara approval",
+      "description": "Your registration is approved. Authorise Fawtir as your provider on the Fawtara Portal, and as soon as the OTA approves it you're connected.",
+      "badge": "Pending approval",
+      "timing": "This usually takes a few minutes.",
+      "emailNote": "We'll email <b>{{email}}</b> the moment it's approved, you can safely close this page.",
+      "emailNoteNoAddress": "We'll email you the moment it's approved, you can safely close this page."
+    },
+    "connected": {
+      "title": "You're connected",
+      "description": "The OTA has approved Fawtir as your provider. Your invoices are now reported through Fawtara.",
+      "badge": "Connected"
+    },
+    "slow": "Approval taking too long?",
+    "plan": {
+      "title": "Your plan",
+      "trial_one": "Free for {{count}} day from approval, then your first bill.",
+      "trial_other": "Free for {{count}} days from approval, then your first bill.",
+      "noTrial": "Your first bill comes when your account is approved.",
+      "enterprise": "Our team will call you to agree your terms.",
+      "paidBy": "Paying by: {{method}}"
     }
   },
   "dashboard": {
@@ -14878,7 +14901,8 @@
     "sections": {
       "business": "Your business",
       "identity": "Business identity",
-      "address": "Address & contact"
+      "address": "Address & contact",
+      "plan": "Plan and payment"
     },
     "fields": {
       "size": "Team size",
@@ -14886,7 +14910,11 @@
       "category": "Business type",
       "trade": "Specialty",
       "activity": "Business activity (ISIC)",
-      "pos": "Fawtir POS"
+      "pos": "Fawtir POS",
+      "plan": "Plan",
+      "payment": "How you'll pay",
+      "firstBill": "First bill",
+      "terms": "Terms"
     },
     "edit": "Edit",
     "savedEarlier": "Saved earlier",
@@ -14894,18 +14922,30 @@
     "submitting": "Submitting…",
     "conflict": "This VATIN or CR number was registered by another business first. Edit your business identity and submit again.",
     "posYes": "Yes, will use it",
-    "posNo": "Not for now"
+    "posNo": "Not for now",
+    "planValue": "{{plan}}, {{cycle}}",
+    "billedMonthly": "billed monthly",
+    "billedAnnually": "billed annually",
+    "payment": {
+      "cardLink": {
+        "email": "Card, Paymob link by email",
+        "whatsapp": "Card, Paymob link by WhatsApp"
+      },
+      "bankTransfer": "Bank transfer",
+      "cash": "Cash at our office"
+    },
+    "firstBillAfterTrial_one": "After your {{count}}-day free trial",
+    "firstBillAfterTrial_other": "After your {{count}}-day free trial",
+    "firstBillOnApproval": "When your account is approved",
+    "enterpriseTerms": "Agreed on a call with our team",
+    "addonValue": "Automatic ERP extraction added",
+    "notChosen": "Not chosen yet",
+    "planMissing": "Choose your plan and how you'll pay before you submit.",
+    "choosePlan": "Choose a plan",
+    "choosePayment": "Choose how you'll pay"
   },
   "signupPending": {
-    "received": {
-      "badge": "Under review",
-      "title": "We’ve received your registration",
-      "description": "A member of the Fawtir team is reviewing your business details. We’ll email the decision to the address you registered with — you can close this page."
-    },
     "approved": {
-      "badge": "Approved",
-      "title": "Your registration is approved",
-      "description": "You can now sign in with your username and password.",
       "signIn": "Sign in"
     },
     "ended": {

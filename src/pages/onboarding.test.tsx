@@ -435,7 +435,7 @@ describe('Address and contact', () => {
     await user.type(field('email'), 'salim@example.test')
     await user.click(submit())
 
-    expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
+    expect((await screen.findByTestId('location')).textContent).toBe('/plans')
     expect(requests()).toEqual([
       {
         url: '/api/v1/auth/signup/address-contact',

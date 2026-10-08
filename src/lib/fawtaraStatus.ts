@@ -1,37 +1,57 @@
 /**
- * Fawtara (Oman e-invoicing) onboarding status.
+ * Getting a new account live, from the registration to its first invoice reaching the OTA.
  *
  * Under the OTA's 5-corner Peppol model a taxpayer cannot report invoices directly: they must
- * authorize an Accredited Service Provider (ASP) on the Fawtara Portal, and the ASP approves the
+ * authorise an Accredited Service Provider (ASP) on the Fawtara Portal, and the OTA approves the
  * connection before invoices can flow. A taxpayer may be linked to exactly one ASP at a time.
- * This screen is what the taxpayer sees while that approval is outstanding.
+ *
+ * One screen follows the whole road (owner decision, 8 Oct 2026): it closes sign-up, and is shown
+ * again after sign-in until the account is connected. Steps run in time order, top to bottom; the
+ * Figma frame drew them upward, the designer's slip.
  */
 
-export type FawtaraStatus = 'requested' | 'pending' | 'connected' | 'rejected'
+/** Where the account stands: with Fawtir's reviewers, waiting on Fawtara, or connected. */
+export type GoingLivePhase = 'review' | 'fawtara' | 'connected'
 
-export type FawtaraStepState = 'done' | 'current' | 'upcoming'
+export type GoingLiveStepState = 'done' | 'current' | 'upcoming'
 
-export type FawtaraStep = {
-  id: string
+export type GoingLiveStep = {
+  id: 'sent' | 'review' | 'authorise' | 'connected'
   labelKey: string
-  state: FawtaraStepState
-  /** Shown inside the marker while the step is `current`. */
-  index?: number
+  /** A second, quieter line: what the step is waiting on, or how it ended. */
+  statusKey?: string
+  state: GoingLiveStepState
 }
 
-/**
- * Ordered top-to-bottom as drawn in Figma — the timeline runs *upward*, so the furthest-along
- * state sits at the top and the completed one at the bottom.
- */
-export const FAWTARA_STEPS: FawtaraStep[] = [
-  { id: 'connected', labelKey: 'fawtaraStatus.steps.connected', state: 'upcoming' },
-  { id: 'awaitingApproval', labelKey: 'fawtaraStatus.steps.awaitingApproval', state: 'current', index: 2 },
-  { id: 'requestSent', labelKey: 'fawtaraStatus.steps.requestSent', state: 'done' },
-]
+const PHASE_ORDER: GoingLivePhase[] = ['review', 'fawtara', 'connected']
+
+export function goingLiveSteps(phase: GoingLivePhase): GoingLiveStep[] {
+  const at = PHASE_ORDER.indexOf(phase)
+  const state = (step: number): GoingLiveStepState =>
+    step < at ? 'done' : step === at ? 'current' : 'upcoming'
+  return [
+    { id: 'sent', labelKey: 'fawtaraStatus.steps.sent', state: 'done' },
+    {
+      id: 'review',
+      labelKey: 'fawtaraStatus.steps.review',
+      statusKey: at === 0 ? 'fawtaraStatus.steps.reviewing' : 'fawtaraStatus.steps.approved',
+      state: state(0),
+    },
+    {
+      id: 'authorise',
+      labelKey: 'fawtaraStatus.steps.authorise',
+      statusKey: at === 1 ? 'fawtaraStatus.steps.awaitingOta' : undefined,
+      state: state(1),
+    },
+    // Connected is the end of the road: reaching it completes it.
+    {
+      id: 'connected',
+      labelKey: 'fawtaraStatus.steps.connected',
+      state: at === 2 ? 'done' : 'upcoming',
+    },
+  ]
+}
 
 export const FAWTARA_PORTAL_URL = 'https://tms.taxoman.gov.om/portal'
 
-/** Address the approval notification is sent to — replace with the signed-in user's email. */
-export const FAWTARA_NOTIFY_EMAIL = 'dana@muscatgrand.om'
-
-export const FAWTARA_CURRENT_STATUS: FawtaraStatus = 'pending'
+export const SUPPORT_EMAIL = 'support@fawtir.om'
