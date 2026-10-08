@@ -94,7 +94,7 @@ const FEATURED = [
     participantId: '0248:OM1100447102',
     selfBilling: false,
     terms: terms('NET30', 30, 2, 7),
-    youOwe: { amount: 2759.1, currency: 'OMR', openBills: 2, onHold: 0 },
+    youOwe: { amount: 2759.1, currency: 'OMR', openBills: 2, onHold: 0, overpaidTotal: 30 },
     record: record([], 11, 11),
     status: 'ACTIVE',
     switchedOffAt: null,

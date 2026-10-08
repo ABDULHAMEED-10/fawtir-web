@@ -398,7 +398,10 @@ const BILLS = [
     {
       source: 'RECURRING',
       workflowState: 'PAID',
-      paidAmount: 39.9,
+      // Paid twice, once by hand and once by the bank's standing order: "Overpaid by" 39.900,
+      // which the page can refund, keep as credit and set against NTL-2026-0912.
+      paidAmount: 79.8,
+      paidTwice: true,
     },
   ),
   bill(
@@ -594,7 +597,69 @@ const SORTS = {
   SUPPLIER: (a, b) => (a.supplierName ?? '').localeCompare(b.supplierName ?? ''),
 }
 
-const publicRow = ({ _lines, _extra, ...row }) => row
+const publicRow = ({ _lines, _extra, ...row }) => ({
+  ...row,
+  overpaidAmount: overpaidOf({ ...row, _extra }),
+})
+
+/**
+ * What was done with what bills were overpaid by (`BillOverpaymentSettlement`), oldest first.
+ * Starts empty; the three POSTs below append to it.
+ */
+const OVERPAYMENTS = []
+
+/** "Overpaid by": paid and credited beyond the bill, less what was refunded or used elsewhere. */
+function overpaidOf(row) {
+  if (isCredit(row)) return 0
+  const credited = row._extra?.creditedAmount ?? 0
+  const excess = round3(Math.max(0, row.paidAmount + credited - (row.totalIncludingVat ?? 0)))
+  const settled = OVERPAYMENTS.filter(
+    (entry) => entry.billId === row.id && entry.kind !== 'KEPT_AS_CREDIT',
+  ).reduce((total, entry) => total + entry.amount, 0)
+  return round3(Math.max(0, excess - settled))
+}
+
+function overpaymentReply(row) {
+  const own = OVERPAYMENTS.filter((entry) => entry.billId === row.id)
+  const of = (kind) =>
+    round3(own.filter((entry) => entry.kind === kind).reduce((t, entry) => t + entry.amount, 0))
+  const overpaid = overpaidOf(row)
+  const kept = round3(Math.min(overpaid, Math.max(0, of('KEPT_AS_CREDIT') - of('APPLIED'))))
+  return {
+    billId: row.id,
+    currency: row.currencyCode,
+    overpaidAmount: overpaid,
+    keptAsCredit: kept,
+    undecided: round3(overpaid - kept),
+    refunded: of('REFUNDED'),
+    applied: of('APPLIED'),
+    settlements: own,
+  }
+}
+
+const refused = (error, extra = {}) => ({
+  status: 400,
+  body: { type: 'https://api.fawtir.om/problems/expenditure-refused', error, ...extra },
+})
+
+function settle(row, kind, amount, extra = {}) {
+  const today = new Date().toISOString()
+  const entry = {
+    id: `op-${OVERPAYMENTS.length + 1}`,
+    billId: row.id,
+    kind,
+    amount: round3(amount),
+    currency: row.currencyCode,
+    targetBillId: null,
+    settledOn: today.slice(0, 10),
+    reference: null,
+    actorId: 'u-demo',
+    occurredAt: today,
+    ...extra,
+  }
+  OVERPAYMENTS.push(entry)
+  return { settlement: entry, overpayment: overpaymentReply(row) }
+}
 
 function listReply(query) {
   const filter = FILTERS[query.get('filter') ?? 'ALL'] ?? FILTERS.ALL
@@ -727,20 +792,31 @@ function detailReply(row) {
   const net = round3(row.totalIncludingVat - row.vatAmount)
   const paid = row.workflowState === 'PAID'
   const payments =
-    row.paidAmount > 0
-      ? [
-          {
-            id: `pay-${row.id}`,
-            entryType: 'PAYMENT',
-            amount: row.paidAmount,
-            currency: row.currencyCode,
-            methodCode: row.paidOnTheSpot ? '10' : '30',
-            paymentReference: row.paidOnTheSpot ? null : `TRF-${row.supplierBillNumber}`,
-            paymentDate: row.paidOnTheSpot ? row.issueDate : shift(row.issueDate, 12),
-            occurredAt: `${row.paidOnTheSpot ? row.issueDate : shift(row.issueDate, 12)}T09:30:00Z`,
-          },
-        ]
-      : []
+    row.paidAmount > 0 && extra.paidTwice
+      ? [1, 2].map((n) => ({
+          id: `pay-${row.id}-${n}`,
+          entryType: 'PAYMENT',
+          amount: round3(row.paidAmount / 2),
+          currency: row.currencyCode,
+          methodCode: '30',
+          paymentReference: `TRF-${row.supplierBillNumber}-${n}`,
+          paymentDate: shift(row.issueDate, 10 + n),
+          occurredAt: `${shift(row.issueDate, 10 + n)}T09:30:00Z`,
+        }))
+      : row.paidAmount > 0
+        ? [
+            {
+              id: `pay-${row.id}`,
+              entryType: 'PAYMENT',
+              amount: row.paidAmount,
+              currency: row.currencyCode,
+              methodCode: row.paidOnTheSpot ? '10' : '30',
+              paymentReference: row.paidOnTheSpot ? null : `TRF-${row.supplierBillNumber}`,
+              paymentDate: row.paidOnTheSpot ? row.issueDate : shift(row.issueDate, 12),
+              occurredAt: `${row.paidOnTheSpot ? row.issueDate : shift(row.issueDate, 12)}T09:30:00Z`,
+            },
+          ]
+        : []
   // The discount a payment run took reads right after the payment it came with: not cash, so no
   // method, and listed only while its payment stands.
   const discount = extra.discountTaken ?? null
@@ -762,6 +838,28 @@ function detailReply(row) {
   const creditNoteOutstanding = discount && !discount.creditNoteId ? discount.amount : 0
   const arrivedAt = `${row.issueDate}T08:11:00Z`
   const activity = []
+  // What became of an overpayment, newest first, in the server's "{amount} {currency} · {other}".
+  for (const entry of [...OVERPAYMENTS].reverse()) {
+    const received = entry.targetBillId === row.id
+    if (entry.billId !== row.id && !received) continue
+    const other = received
+      ? findBill(entry.billId)?.supplierBillNumber
+      : entry.kind === 'APPLIED'
+        ? findBill(entry.targetBillId)?.supplierBillNumber
+        : entry.reference
+    activity.push({
+      at: entry.occurredAt,
+      kind: received
+        ? 'OVERPAYMENT_CREDIT_RECEIVED'
+        : {
+            REFUNDED: 'OVERPAYMENT_REFUNDED',
+            KEPT_AS_CREDIT: 'OVERPAYMENT_KEPT_AS_CREDIT',
+            APPLIED: 'OVERPAYMENT_CREDIT_APPLIED',
+          }[entry.kind],
+      detail: `${entry.amount.toFixed(3)} ${entry.currency}${other ? ` · ${other}` : ''}`,
+      actor: 'u-demo',
+    })
+  }
   if (paid)
     activity.push({
       at: payments[0].occurredAt,
@@ -904,6 +1002,7 @@ function detailReply(row) {
       dueDate: row.dueDate,
       // Moves into creditedAmount once the supplier's credit note for it arrives.
       discountAmount: creditNoteOutstanding,
+      overpaidAmount: overpaidOf(row),
     },
     payments,
     paymentRunReference: row.paymentRunReference,
@@ -1218,6 +1317,7 @@ function supplierOverview(id) {
       onHold: bucket((row) => row.workflowState === 'ON_HOLD'),
       everLate: false,
       total: round3(open.reduce((sum, row) => sum + row.outstandingAmount, 0)),
+      overpaidTotal: round3(rows.reduce((sum, row) => sum + overpaidOf(row), 0)),
     },
   }
 }
@@ -1520,6 +1620,73 @@ export default [
     reply: ({ params }) => {
       const row = findBill(params[0])
       return row ? detailReply(row) : notFound('BILL_NOT_FOUND')
+    },
+  },
+
+  // Settling an overpaid bill: the supplier's refund, keeping it as credit, using that credit.
+  {
+    match: /^\/api\/v1\/bills\/([^/]+)\/overpayment$/,
+    reply: ({ params }) => {
+      const row = findBill(params[0])
+      return row ? overpaymentReply(row) : notFound('BILL_NOT_FOUND')
+    },
+  },
+  {
+    method: 'POST',
+    match: /^\/api\/v1\/bills\/([^/]+)\/overpayment\/refunds$/,
+    reply: ({ params, body }) => {
+      const row = findBill(params[0])
+      if (!row) return notFound('BILL_NOT_FOUND')
+      const standing = overpaymentReply(row)
+      if (standing.overpaidAmount <= 0) return refused('BILL_NOT_OVERPAID')
+      if (!(body?.amount > 0)) return refused('BILL_OVERPAYMENT_AMOUNT_INVALID')
+      if (body.amount > standing.overpaidAmount) return refused('BILL_OVERPAYMENT_EXCEEDS_OVERPAID')
+      if (!body.refundedOn) return refused('BILL_OVERPAYMENT_DATE_REQUIRED')
+      if (body.refundedOn > new Date().toISOString().slice(0, 10))
+        return refused('BILL_OVERPAYMENT_DATE_IN_FUTURE')
+      return settle(row, 'REFUNDED', body.amount, {
+        settledOn: body.refundedOn,
+        reference: body.reference ?? null,
+      })
+    },
+  },
+  {
+    method: 'POST',
+    match: /^\/api\/v1\/bills\/([^/]+)\/overpayment\/keep-as-credit$/,
+    reply: ({ params, body }) => {
+      const row = findBill(params[0])
+      if (!row) return notFound('BILL_NOT_FOUND')
+      const standing = overpaymentReply(row)
+      if (standing.overpaidAmount <= 0) return refused('BILL_NOT_OVERPAID')
+      const amount = body?.amount ?? standing.undecided
+      if (!(amount > 0) || amount > standing.undecided)
+        return refused('BILL_OVERPAYMENT_KEEP_EXCEEDS_OVERPAID')
+      return settle(row, 'KEPT_AS_CREDIT', amount)
+    },
+  },
+  {
+    method: 'POST',
+    match: /^\/api\/v1\/bills\/([^/]+)\/overpayment\/apply$/,
+    reply: ({ params, body }) => {
+      const row = findBill(params[0])
+      if (!row) return notFound('BILL_NOT_FOUND')
+      const target = findBill(body?.targetBillId)
+      if (!target) return notFound('BILL_NOT_FOUND')
+      const standing = overpaymentReply(row)
+      if (standing.overpaidAmount <= 0) return refused('BILL_NOT_OVERPAID')
+      if (standing.keptAsCredit <= 0) return refused('BILL_OVERPAYMENT_NOT_KEPT_AS_CREDIT')
+      if (target.id === row.id || isCredit(target))
+        return refused('BILL_OVERPAYMENT_TARGET_NOT_PAYABLE')
+      if (target.supplierId !== row.supplierId) return refused('BILL_OVERPAYMENT_SUPPLIER_MISMATCH')
+      if (target.hold) return refused('BILL_OVERPAYMENT_TARGET_ON_HOLD')
+      const amount = body.amount ?? Math.min(standing.keptAsCredit, target.outstandingAmount)
+      if (amount > standing.keptAsCredit) return refused('BILL_OVERPAYMENT_APPLY_EXCEEDS_CREDIT')
+      if (!(amount > 0) || amount > target.outstandingAmount)
+        return refused('BILL_OVERPAYMENT_APPLY_EXCEEDS_BILL')
+      // The target owes that much less, through the credit it now carries.
+      target._extra.creditedAmount = round3((target._extra.creditedAmount ?? 0) + amount)
+      target.outstandingAmount = round3(target.outstandingAmount - amount)
+      return settle(row, 'APPLIED', amount, { targetBillId: target.id })
     },
   },
 

@@ -312,6 +312,8 @@ const OVERVIEW = () => ({
     onHold: { amount: 0, bills: 0, nextDue: null },
     everLate: false,
     total: sum(inRun.map((b) => b.outstandingAmount)),
+    // What they still hold of MR-INV-8712's second payment, as on the statement.
+    overpaidTotal: 30,
   },
 })
 
@@ -557,6 +559,52 @@ const STATEMENT = (from, to) => {
       amount: 961.5,
       detail: 'Bank transfer · cleared the brought-forward balance',
     },
+    // MR-INV-8712 paid a second time by mistake: 120.000 overpaid. The supplier refunded 50.000,
+    // 40.000 was kept as credit and used on MR-INV-8790, so they still hold 30.000 ("overpaid").
+    {
+      date: '2026-07-24',
+      kind: 'PAYMENT',
+      documentId: 'pay-8712-again',
+      reference: 'BM-4502-0724',
+      amount: 120,
+    },
+    {
+      date: '2026-08-12',
+      kind: 'OVERPAYMENT_REFUND',
+      documentId: 'bill-8712',
+      reference: 'MR-RF-0042',
+      amount: 50,
+    },
+    // MR-INV-8702, paid by run RUN-2026-11 less the supplier's 2% early-payment discount.
+    {
+      date: '2026-08-01',
+      kind: 'BILL',
+      documentId: 'bill-8702',
+      reference: 'MR-INV-8702',
+      amount: 1449,
+      outstanding: 0,
+    },
+    {
+      date: '2026-08-10',
+      kind: 'PAYMENT',
+      documentId: 'pay-8702',
+      reference: 'RUN-2026-11',
+      amount: 1420.02,
+    },
+    {
+      date: '2026-08-10',
+      kind: 'DISCOUNT',
+      documentId: 'bill-8702',
+      reference: 'MR-INV-8702',
+      amount: 28.98,
+    },
+    {
+      date: '2026-09-12',
+      kind: 'OVERPAYMENT_CREDIT_APPLIED',
+      documentId: 'bill-8712',
+      reference: 'MR-INV-8712',
+      amount: 40,
+    },
     {
       date: '2026-08-30',
       kind: 'BILL',
@@ -575,10 +623,20 @@ const STATEMENT = (from, to) => {
       detail: 'Against PO-0031 · due 19 Oct · in draft run PR-0014',
       outstanding: 2354.31,
     },
-  ].filter((e) => e.date >= from && e.date <= to)
+  ]
+    .filter((e) => e.date >= from && e.date <= to)
+    // In date order, as the server lists them (a stable sort keeps same-day lines as written).
+    .sort((a, b) => a.date.localeCompare(b.date))
   let balance = opening
+  // Bills, reversals and a supplier's refund add; credit used on another bill moves nothing.
+  const sign = (kind) =>
+    kind === 'BILL' || kind === 'REVERSAL' || kind === 'OVERPAYMENT_REFUND'
+      ? 1
+      : kind === 'OVERPAYMENT_CREDIT_APPLIED'
+        ? 0
+        : -1
   const entries = raw.map((e) => {
-    balance = scale(balance + (e.kind === 'BILL' || e.kind === 'REVERSAL' ? e.amount : -e.amount))
+    balance = scale(balance + sign(e.kind) * e.amount)
     return { ...e, runningBalance: balance }
   })
   const of = (kind) => sum(entries.filter((e) => e.kind === kind).map((e) => e.amount))
@@ -592,6 +650,10 @@ const STATEMENT = (from, to) => {
     credits: of('CREDIT_NOTE'),
     payments: scale(of('PAYMENT') - of('REVERSAL')),
     closing: balance,
+    discounts: of('DISCOUNT'),
+    overpaymentRefunds: of('OVERPAYMENT_REFUND'),
+    // Today, whatever the period: 120.000 overpaid, less 50.000 refunded and 40.000 used.
+    overpaid: 30,
     entries,
     ageing: {
       NOT_DUE: bucket(notDue).amount,
