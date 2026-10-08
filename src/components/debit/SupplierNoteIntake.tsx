@@ -61,6 +61,8 @@ import deleteIcon from '../../assets/invoice-details/delete.svg'
 const SHELL = 'border-primary-300 bg-surface-tab-bar'
 const ZOOM_STEPS = [0.75, 1, 1.25, 1.5]
 const SEARCH_DELAY_MS = 250
+/** A supplier's debit note (UNCL1001 383), listed among the bills by `GET /bills`. */
+const DEBIT_NOTE_CODE = '383'
 
 const REQUEST_FIELDS: Record<string, BillField> = {
   supplierName: 'supplier',
@@ -1110,7 +1112,8 @@ function ChoiceRow({
 
 /**
  * The bill this note corrects or adds to: searched among the supplier's bills (narrowed by the
- * server via `supplier_id`), shown as the frame's bill card once chosen.
+ * server via `supplier_id`), shown as the frame's bill card once chosen. A credit note's list also
+ * offers the supplier's debit notes, each named "Debit note".
  *
  * TODO(backend): an e-invoice file carries the bill reference (IBT-025), but `ExtractedFields`
  * does not, so nothing is pre-chosen from the file (row 5.12).
@@ -1156,12 +1159,15 @@ function BillChooser({
   const bills = useApiRead<Page<BillRowDto>>(path, () => loadBillPage(path!))
 
   const CREDIT_NOTE_CODES = ['381', '261']
+  // A credit note may correct one of the supplier's debit notes as well as a bill (owner, 8 Oct
+  // 2026); a debit note adds to a bill only, and the server refuses another debit note for it.
   const offerable = (bill: BillRowDto) =>
     bill.id !== excludeId &&
     (supplierId
       ? bill.supplierId === supplierId
       : (bill.supplierName ?? '').trim().toLowerCase() === supplierName.trim().toLowerCase()) &&
     !CREDIT_NOTE_CODES.includes(bill.documentTypeCode ?? '') &&
+    (kind === 'credit' || bill.documentTypeCode !== DEBIT_NOTE_CODE) &&
     (kind === 'debit' || bill.outstandingAmount > 0)
   const found = bills.read.status === 'ready' ? bills.read.data.items.filter(offerable) : null
   const money = (value: number, currency: string) => formatAmount(value, currency, language)
@@ -1251,6 +1257,9 @@ function BillChooser({
                 >
                   {bill.supplierBillNumber ?? t('supplierCreditNotes.rows.unnumbered')}
                   <span className="block text-xs text-text-quaternary">
+                    {bill.documentTypeCode === DEBIT_NOTE_CODE
+                      ? `${t('billsPage.debitNote.type')} · `
+                      : null}
                     {t(billStateKey(bill))} · {money(bill.outstandingAmount, bill.currencyCode)}{' '}
                     {t('supplierCreditNoteDetail.stillOwed')}
                   </span>
