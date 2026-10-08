@@ -209,13 +209,16 @@ function CreditNotesScreen() {
             {t('supplierCreditNotes.subtitle')}
           </p>
         </div>
-        <Link
-          to="/expenditure/credit-notes/upload"
-          className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white"
-        >
-          <img src={uploadIcon} alt="" className="size-6" />
-          {t('supplierCreditNotes.upload.cta')}
-        </Link>
+        {/* Hidden, not greyed, from someone who may not record a credit note (owner, 6 Oct). */}
+        {canSettle ? (
+          <Link
+            to="/expenditure/credit-notes/upload"
+            className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white"
+          >
+            <img src={uploadIcon} alt="" className="size-6" />
+            {t('supplierCreditNotes.upload.cta')}
+          </Link>
+        ) : null}
       </div>
 
       {summary.read.status === 'failed' ? (
@@ -625,26 +628,29 @@ function CreditRow({
           <span className={['size-1.5 rounded-full', chip.dot].join(' ')} />
           {t(CREDIT_STATUS_LABEL[note.status])}
         </span>
-        <div className="mt-2">
-          {action.primary ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void setAgainst()}
-              className="inline-flex h-[34px] items-center rounded-sm bg-primary-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60"
-            >
-              {busy ? t('common.saving') : t(action.labelKey)}
-            </button>
-          ) : (
-            <Link
-              to={action.goesTo === 'bill' && billTo ? billTo : detailTo}
-              className="inline-flex items-center gap-1 text-xs font-medium text-text-quaternary transition-colors hover:text-text-secondary"
-            >
-              {t(action.labelKey)}
-              <img src={actChevronIcon} alt="" className="size-3 rtl:rotate-180" />
-            </Link>
-          )}
-        </div>
+        {/* "Set against the bill" is hidden from someone who may not settle a credit. */}
+        {action.primary && !canSettle ? null : (
+          <div className="mt-2">
+            {action.primary ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void setAgainst()}
+                className="inline-flex h-[34px] items-center rounded-sm bg-primary-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60"
+              >
+                {busy ? t('common.saving') : t(action.labelKey)}
+              </button>
+            ) : (
+              <Link
+                to={action.goesTo === 'bill' && billTo ? billTo : detailTo}
+                className="inline-flex items-center gap-1 text-xs font-medium text-text-quaternary transition-colors hover:text-text-secondary"
+              >
+                {t(action.labelKey)}
+                <img src={actChevronIcon} alt="" className="size-3 rtl:rotate-180" />
+              </Link>
+            )}
+          </div>
+        )}
       </td>
 
       <td className="px-4 py-4 align-middle">
@@ -672,12 +678,17 @@ function CreditRow({
           floating
           items={[
             { id: 'open', labelKey: 'supplierCreditNotes.menu.open', icon: viewIcon, to: detailTo },
-            {
-              id: 'download',
-              labelKey: 'supplierCreditNotes.menu.download',
-              icon: statementIcon,
-              onSelect: () => void download(),
-            },
+            // A note with no file on record offers no Download, for anyone.
+            ...(note.inboundDeliveryId || note.intakeId
+              ? [
+                  {
+                    id: 'download',
+                    labelKey: 'supplierCreditNotes.menu.download',
+                    icon: statementIcon,
+                    onSelect: () => void download(),
+                  },
+                ]
+              : []),
           ]}
         />
       </td>

@@ -483,6 +483,70 @@ describe('Credit notes list, wired to the API', () => {
     )
     await waitFor(() => expect(applyBody).toEqual({ billId: BILL_ID, amount: null }))
   })
+
+  // Owner's answer 7 (6 Oct): an action the reader may not take is hidden, not greyed out.
+  it('shows Upload and Set against to someone who may settle a credit', async () => {
+    notes = [
+      note({
+        credits: {
+          billNumber: 'QMS-7781',
+          issueDate: '2026-09-01',
+          documentUuid: null,
+          billId: BILL_ID,
+          applied: false,
+        },
+      }),
+    ]
+    renderList()
+    await screen.findByText('QMS-CN-1')
+    // The constraint and the capability: someone who may settle sees both.
+    expect(screen.getByRole('link', { name: 'Upload a credit note' })).toBeTruthy()
+    expect(
+      within(screen.getByRole('table')).getByRole('button', { name: 'Set against the bill' }),
+    ).toBeTruthy()
+  })
+
+  it('draws no Upload and no Set against for a reader, not even disabled ones', async () => {
+    who = READER
+    notes = [
+      note({
+        credits: {
+          billNumber: 'QMS-7781',
+          issueDate: '2026-09-01',
+          documentUuid: null,
+          billId: BILL_ID,
+          applied: false,
+        },
+      }),
+    ]
+    renderList()
+    await screen.findByText('QMS-CN-1')
+    expect(screen.queryByRole('link', { name: 'Upload a credit note' })).toBeNull()
+    expect(screen.queryByText('Upload a credit note')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    expect(screen.queryByText('Set against the bill')).toBeNull()
+    // The note itself still opens from its number.
+    expect(screen.getByRole('link', { name: 'QMS-CN-1' })).toBeTruthy()
+    expect(applyBody).toBeNull()
+  })
+
+  it('offers no Download in the row menu for a note with no file, for anyone', async () => {
+    renderList()
+    await screen.findByText('QMS-CN-1')
+    fireEvent.click(screen.getByRole('button', { name: 'Credit note actions' }))
+    expect(screen.getByRole('menuitem', { name: /Open the note/ })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: /Download/ })).toBeNull()
+    expect(screen.queryByText('Download the file')).toBeNull()
+  })
+
+  it('still offers a reader the Download of a note that has a file', async () => {
+    who = READER
+    notes = [note({ inboundDeliveryId: 'delivery-1' })]
+    renderList()
+    await screen.findByText('QMS-CN-1')
+    fireEvent.click(screen.getByRole('button', { name: 'Credit note actions' }))
+    expect(screen.getByRole('menuitem', { name: /Download/ })).toBeTruthy()
+  })
 })
 
 describe('One credit note', () => {
@@ -639,6 +703,36 @@ describe('One credit note', () => {
     expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Ask for a refund' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Record the refund' })).toBeNull()
+  })
+
+  it('draws no Keep as credit for a reader either, and no disabled copies of any of them', async () => {
+    who = READER
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.queryByRole('button', { name: 'Keep as credit' })).toBeNull()
+    expect(screen.queryByText('Set against the bill')).toBeNull()
+    expect(screen.queryByText('Ask for a refund')).toBeNull()
+    expect(screen.queryByText('Keep as credit')).toBeNull()
+  })
+
+  it('draws no Download for a note with no file, rather than a greyed one', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.queryByRole('button', { name: 'Download' })).toBeNull()
+    expect(downloads).toEqual([])
+  })
+
+  it('offers a reader the Download of a note that has a file', async () => {
+    who = READER
+    notes = [note({ inboundDeliveryId: 'delivery-1' })]
+    vi.stubGlobal(
+      'URL',
+      Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} }),
+    )
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    fireEvent.click(screen.getByRole('button', { name: 'Download' }))
+    await waitFor(() => expect(downloads).toEqual(['/api/v1/inbound-invoices/delivery-1/document']))
   })
 
   it('offers nothing to dispose of once the credit is spent', async () => {

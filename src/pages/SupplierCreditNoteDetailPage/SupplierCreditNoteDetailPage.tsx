@@ -330,15 +330,17 @@ function CreditNoteDetail() {
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:shrink">
-          <button
-            type="button"
-            disabled={!original}
-            onClick={() => void download()}
-            className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
-          >
-            <img src={downloadIcon} alt="" className="size-5" />
-            {t('supplierCreditNotes.detail.download')}
-          </button>
+          {/* Hidden, not greyed, when the note has no file on record (owner, 6 Oct). */}
+          {original ? (
+            <button
+              type="button"
+              onClick={() => void download()}
+              className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
+            >
+              <img src={downloadIcon} alt="" className="size-5" />
+              {t('supplierCreditNotes.detail.download')}
+            </button>
+          ) : null}
           {canSettle && remaining > 0 ? (
             <button
               type="button"
