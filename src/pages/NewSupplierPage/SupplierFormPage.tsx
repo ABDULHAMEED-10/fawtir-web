@@ -31,6 +31,7 @@ import {
   supplierPath,
   switchSupplier,
   updateSupplier,
+  type ConfirmBankDetailsRequestDto,
   type SupplierDetailDto,
   type SupplierTypeDto,
   type SwitchOffRequestDto,
@@ -74,6 +75,7 @@ import {
   type SwitchOffTarget,
 } from '../SuppliersPage/SwitchSupplierOffModal'
 import { switchOffRequest } from '../../lib/supplierList'
+import { ConfirmBankDetailsModal } from './ConfirmBankDetailsModal'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import checkIcon from '../../assets/bill-detail/tick.svg'
 import tickIcon from '../../assets/supplier-credit-notes/act-set.svg'
@@ -210,6 +212,7 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
   const [busy, setBusy] = useState(false)
   const [key, setKey] = useState(newSupplierKey)
   const [offTarget, setOffTarget] = useState<SwitchOffTarget | null>(null)
+  const [confirmingBank, setConfirmingBank] = useState(false)
 
   // Said once: a reload of the edit page is not another save.
   useEffect(() => {
@@ -374,12 +377,12 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
     void save()
   }
 
-  const confirmBank = async () => {
+  const confirmBank = async (body?: ConfirmBankDetailsRequestDto) => {
     if (!record) return
     setBusy(true)
     setNotice(null)
     try {
-      const saved = await confirmSupplierBankDetails(record.profile.id)
+      const saved = await confirmSupplierBankDetails(record.profile.id, body)
       setRecord(saved)
       setNotice({ key: 'supplierForm.done.bankConfirmed' })
     } catch (error) {
@@ -413,6 +416,10 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
   const name = record?.profile.displayName ?? ''
   const health = new Set(record?.profile.health ?? [])
   const bankUnconfirmed = health.has('BANK_CHANGED_UNCONFIRMED')
+  // A change waiting for a second person (owner, 8 Oct 2026). Without it (an older server, or
+  // details that wait for nobody) Confirm sends at once, as it always has.
+  const bankChange = record?.bankDetailsChange ?? null
+  const bankChanger = bankChange?.changedById != null && session?.userId === bankChange.changedById
   const switchedOff = record?.profile.status === 'SWITCHED_OFF'
   const saveLabel = busy
     ? t('supplierForm.saving')
@@ -819,15 +826,19 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
                   <p className="text-sm font-medium leading-[1.5] text-text-secondary">
                     {t('supplierForm.bankUnconfirmed')}
                   </p>
-                  {canManage ? (
+                  {canManage && (!bankChange || bankChange.confirmable) ? (
                     <button
                       type="button"
-                      onClick={() => void confirmBank()}
+                      onClick={() => (bankChange ? setConfirmingBank(true) : void confirmBank())}
                       disabled={busy}
                       className="inline-flex h-10 items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-60"
                     >
                       {t('supplierForm.confirmBank')}
                     </button>
+                  ) : canManage && bankChange && bankChanger ? (
+                    <p className="text-sm font-medium leading-[1.5] text-text-secondary">
+                      {t('supplierForm.bankConfirm.samePerson')}
+                    </p>
                   ) : null}
                 </div>
               ) : null}
@@ -1062,6 +1073,16 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
         ) : null}
       </div>
 
+      {confirmingBank && bankChange ? (
+        <ConfirmBankDetailsModal
+          change={bankChange}
+          onClose={() => setConfirmingBank(false)}
+          onConfirm={async (body) => {
+            await confirmBank(body)
+            setConfirmingBank(false)
+          }}
+        />
+      ) : null}
       <SwitchSupplierOffModal
         target={offTarget}
         busy={busy}
@@ -1301,19 +1322,40 @@ function AffectRow({
  * The frame's audit trail, from the dates the record carries: when the bank details changed and
  * were confirmed, when the supplier was switched off, when they were added. TODO(backend): an audit
  * feed with who made each change.
+ *
+ * The bank details' own history (`bankDetailsActivity`, owner 8 Oct 2026) gives each change and
+ * confirmation with who made it, and whether the confirmer ticked that they checked the new details
+ * with the supplier. Where it has a kind, its lines stand in for that kind's single date.
  */
 function RecentChanges({ record, language }: { record: SupplierDetailDto; language: string }) {
   const { t } = useTranslation()
   const p = record.profile
-  const entries: { id: string; key: string; at: string; day: boolean }[] = []
-  if (p.bankDetails?.confirmedAt)
+  const activity = record.bankDetailsActivity ?? []
+  const has = (kind: 'CHANGED' | 'CONFIRMED') => activity.some((line) => line.kind === kind)
+  const entries: {
+    id: string
+    key: string
+    at: string
+    day: boolean
+    who?: string | null
+    checked?: boolean
+  }[] = activity.map((line, index) => ({
+    id: `bank-${index}`,
+    key:
+      line.kind === 'CONFIRMED' ? 'supplierEdit.change.bankConfirmed' : 'supplierEdit.change.iban',
+    at: line.at,
+    day: false,
+    who: line.actorName,
+    checked: line.kind === 'CONFIRMED' && line.checkedWithSupplier === true,
+  }))
+  if (p.bankDetails?.confirmedAt && !has('CONFIRMED'))
     entries.push({
       id: 'bankConfirmed',
       key: 'supplierEdit.change.bankConfirmed',
       at: p.bankDetails.confirmedAt,
       day: false,
     })
-  if (p.bankDetails?.changedAt)
+  if (p.bankDetails?.changedAt && !has('CHANGED'))
     entries.push({
       id: 'bankChanged',
       key: 'supplierEdit.change.iban',
@@ -1363,10 +1405,16 @@ function RecentChanges({ record, language }: { record: SupplierDetailDto; langua
                   {t(entry.key)}
                 </p>
                 <p className="mt-0.5 text-xs font-medium leading-[1.4] text-text-quaternary">
+                  {entry.who ? `${entry.who} · ` : ''}
                   {entry.day
                     ? formatDate(entry.at, language)
                     : formatInstantDay(entry.at, language)}
                 </p>
+                {entry.checked ? (
+                  <p className="mt-0.5 text-xs font-medium leading-[1.4] text-text-quaternary">
+                    {t('supplierForm.bankConfirm.checked')}
+                  </p>
+                ) : null}
               </div>
             </li>
           ))}

@@ -105,6 +105,11 @@ const REFUSALS: Record<string, string> = {
   // The supplier import, a file whose header row is neither template's (owner's Round 5
   // answer 5, 2 Oct 2026: his sentence in both languages). The detail names the column, in English.
   SUPPLIER_IMPORT_HEADER_NOT_RECOGNISED: 'stagedImport.refused.headerNotRecognised',
+  // Confirming a supplier's changed bank details (owner, 8 Oct 2026): by the person who changed
+  // them, and without the tick when it is required. The supplier form says the first in place of
+  // Confirm and its dialog asks for the tick, so these are what a stale page reads.
+  SUPPLIER_BANK_CONFIRM_SAME_PERSON: 'supplierForm.bankConfirm.samePerson',
+  SUPPLIER_BANK_CONFIRM_CHECK_REQUIRED: 'supplierForm.bankConfirm.checkRequired',
   // Reachable from Settings > Bill approvals since E-17.
   APPROVAL_POLICY_INVALID: 'apiErrors.refused.approvalPolicyInvalid',
 }
