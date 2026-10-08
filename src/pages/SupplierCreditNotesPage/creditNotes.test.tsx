@@ -695,6 +695,35 @@ describe('One credit note', () => {
     expect(refundBody).toBeNull()
   })
 
+  // Owner's answer 6 (6 Oct): Keep as credit saves nothing, says so, and can be undone.
+  it('keeps as credit with no request to the server, says so, and Undo brings the choices back', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    const before = fetchMock.mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: 'Keep as credit' }))
+
+    expect(
+      screen.getByText(
+        'Kept as credit against Qalhat Marine Supplies. Nothing changes until you set it against a bill.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Keep as credit' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Ask for a refund' })).toBeNull()
+    // Nothing was written: no request of any kind went out for it.
+    expect(fetchMock.mock.calls.slice(before)).toEqual([])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(screen.getByRole('button', { name: 'Keep as credit' })).toBeTruthy()
+    expect(screen.queryByText(/Kept as credit against/)).toBeNull()
+    expect(fetchMock.mock.calls.slice(before)).toEqual([])
+  })
+
+  it('draws no hold button on a credit note', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.queryByRole('button', { name: /hold/i })).toBeNull()
+  })
+
   it('offers no disposition to someone who may only read', async () => {
     who = READER
     renderDetail()
