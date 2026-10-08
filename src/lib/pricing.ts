@@ -1,10 +1,10 @@
 import {
+  ANNUAL_FREE_MONTHS,
   PLAN,
-  SUBSCRIPTION_VAT,
   TRIAL,
-  annualMonthly,
   type AnyPlanId,
   type ExtractionAvailability,
+  type PlanId as CataloguePlanId,
 } from './plans'
 import { PLATFORM_SETTINGS } from './platformSettings'
 
@@ -16,15 +16,10 @@ export type SignupPaymentMethod = 'cardLink' | 'bankTransfer' | 'cash'
 /** Where a card customer wants the Paymob link sent when the first bill is due. */
 export type PaymentLinkVia = 'whatsapp' | 'email'
 
-const MONTHLY_RATES: Record<Exclude<PlanId, 'enterprise'>, Record<BillingCycle, number>> = {
-  starter: { monthly: PLAN.starter.monthly, annual: annualMonthly(PLAN.starter) },
-  premium: { monthly: PLAN.business.monthly, annual: annualMonthly(PLAN.business) },
-  businessPlus: { monthly: PLAN.businessPlus.monthly, annual: annualMonthly(PLAN.businessPlus) },
-}
-
 export type OrderSummary = {
   plan: Exclude<PlanId, 'enterprise'>
   billing: BillingCycle
+  /** The rate per month as shown; for annual billing the year's price over twelve, display only. */
   monthlyRate: number
   months: number
   /** The plan alone, before the add-on. */
@@ -35,6 +30,8 @@ export type OrderSummary = {
   subtotal: number
   vat: number
   total: number
+  /** The same figures in baisa: the integers every rial figure above is derived from. */
+  baisa: { planSubtotal: number; addonSubtotal: number; subtotal: number; vat: number; total: number }
 }
 
 /** The catalogue's id for a sign-up plan id. */
@@ -67,33 +64,66 @@ export function formatOmr(amount: number) {
   return amount.toFixed(3)
 }
 
+/*
+ * Amounts are worked in baisa (1/1000 OMR) as integers. Multiplying a rounded rial float printed
+ * 800.004 for a Business year (66.667 a month times twelve); only a figure shown to the reader is
+ * ever turned back into rial.
+ */
+export const toBaisa = (omr: number) => Math.round(omr * 1000)
+export const fromBaisa = (baisa: number) => baisa / 1000
+
+/** Rial to three places from baisa, with no float on the way. */
+export function formatBaisa(baisa: number): string {
+  const sign = baisa < 0 ? '-' : ''
+  const whole = Math.abs(Math.trunc(baisa))
+  return `${sign}${Math.floor(whole / 1000)}.${String(whole % 1000).padStart(3, '0')}`
+}
+
+/** Fawtir's subscription VAT as a whole percentage, so the VAT sum stays in integers. */
+export const SUBSCRIPTION_VAT_PERCENT = 5
+
+/** VAT on a non-negative baisa amount, rounded half up to the baisa. */
+export function vatOnBaisa(baisa: number, ratePercent = SUBSCRIPTION_VAT_PERCENT): number {
+  return Math.floor((baisa * ratePercent + 50) / 100)
+}
+
+/**
+ * The plan's price for one billing period. Annual is the monthly price times ten — the "two
+ * months free" rule the console bills by (`annualTotal`) — never a rounded monthly times twelve.
+ */
+export function planPeriodBaisa(plan: Exclude<PlanId, 'enterprise'>, billing: BillingCycle) {
+  const monthly = toBaisa(PLAN[cataloguePlanId(plan) as CataloguePlanId].monthly)
+  return billing === 'annual' ? monthly * (12 - ANNUAL_FREE_MONTHS) : monthly
+}
+
 export function getOrderSummary(
   plan: PlanId,
   billing: BillingCycle,
   options: { addon?: boolean } = {},
 ): OrderSummary | null {
   if (plan === 'enterprise') return null
-  const monthlyRate = MONTHLY_RATES[plan][billing]
   const months = billing === 'annual' ? 12 : 1
-  const planSubtotal = +(monthlyRate * months).toFixed(3)
+  const planSubtotal = planPeriodBaisa(plan, billing)
   // The add-on is priced per month with no annual discount; it is only offered where the console
   // says so, so an unsupported plan never carries it whatever the caller asked.
-  const addonMonthly = options.addon && extractionOffer(plan) === 'priced' ? extractionMonthly() : 0
-  const addonSubtotal = +(addonMonthly * months).toFixed(3)
-  const subtotal = +(planSubtotal + addonSubtotal).toFixed(3)
-  const vat = +(subtotal * SUBSCRIPTION_VAT).toFixed(3)
-  const total = +(subtotal + vat).toFixed(3)
+  const addonMonthly =
+    options.addon && extractionOffer(plan) === 'priced' ? toBaisa(extractionMonthly()) : 0
+  const addonSubtotal = addonMonthly * months
+  const subtotal = planSubtotal + addonSubtotal
+  const vat = vatOnBaisa(subtotal)
+  const total = subtotal + vat
   return {
     plan,
     billing,
-    monthlyRate,
+    monthlyRate: fromBaisa(Math.round(planSubtotal / months)),
     months,
-    planSubtotal,
-    addonMonthly,
-    addonSubtotal,
-    subtotal,
-    vat,
-    total,
+    planSubtotal: fromBaisa(planSubtotal),
+    addonMonthly: fromBaisa(addonMonthly),
+    addonSubtotal: fromBaisa(addonSubtotal),
+    subtotal: fromBaisa(subtotal),
+    vat: fromBaisa(vat),
+    total: fromBaisa(total),
+    baisa: { planSubtotal, addonSubtotal, subtotal, vat, total },
   }
 }
 
