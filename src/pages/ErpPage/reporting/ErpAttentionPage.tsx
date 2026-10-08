@@ -135,6 +135,7 @@ export function ErpAttentionPage() {
           </div>
         ) : (
           <>
+            <ExhaustedNote />
             {list.read.data.unevaluatedLabels.length > 0 ? (
               <p
                 role="note"
@@ -176,6 +177,34 @@ export function ErpAttentionPage() {
         )}
       </SectionCard>
     </ReportingShell>
+  )
+}
+
+/** The Documents report narrowed to Managed Pull documents that ran out of automatic attempts. */
+const EXHAUSTED_DOCUMENTS_LINK =
+  '/settings/erp/documents?channel=MANAGED_PULL&state=REJECTED&reason=ATTEMPTS_EXHAUSTED'
+
+/**
+ * The way from here to a document that can be recovered. The server gives a rejected document no
+ * label (rejection is its settled state, not a gap), so an exhausted Managed Pull document is
+ * never in this list, and its recovery is on its own page. This points there rather than adding
+ * a second recovery flow, or a label the server did not derive.
+ */
+function ExhaustedNote() {
+  const { t } = useTranslation()
+  return (
+    <p
+      role="note"
+      className="mx-5 mb-3 rounded-sm bg-surface-background px-3 py-2 text-xs font-medium text-text-secondary"
+    >
+      {t('erp.reporting.attention.exhaustedNote')}{' '}
+      <Link
+        to={EXHAUSTED_DOCUMENTS_LINK}
+        className="font-semibold text-primary-700 underline-offset-2 hover:underline"
+      >
+        {t('erp.reporting.attention.exhaustedLink')}
+      </Link>
+    </p>
   )
 }
 

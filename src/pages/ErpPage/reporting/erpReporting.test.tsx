@@ -572,7 +572,8 @@ describe('a source document', () => {
     expect(await screen.findByText('No findings were kept for this document.')).toBeTruthy()
   })
 
-  it('offers no replay, recovery or any other action, because the backend has none', async () => {
+  // Recovery exists only for an exhausted managed pull document (documentRecovery.test.tsx).
+  it('offers no replay, recovery or any other action on an accepted upload', async () => {
     renderAt(`/settings/erp/documents/${RECORD_ID}`)
     await screen.findByRole('heading', { name: 'SO-1001' })
     expect(screen.queryByRole('button', { name: /replay|retry|recover|resend/i })).toBeNull()

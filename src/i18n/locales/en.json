@@ -17227,7 +17227,7 @@
       },
       "timeline": {
         "title": "Timeline",
-        "note": "What the ledgers and the audit trail recorded, with the time each was recorded. Audit events are evidence and can be incomplete; managed pull records none.",
+        "note": "What the ledgers and the audit trail recorded, with the time each was recorded. Audit events are evidence and can be incomplete; managed pull records none, except a person's recovery.",
         "newestFirst": "Show newest first",
         "oldestFirst": "Show oldest first",
         "truncated": "Older audit events exist and are not shown. Only the newest {{count}} are read.",
@@ -17236,6 +17236,7 @@
         "SOURCE_CLAIMED": "Picked up for processing",
         "SOURCE_DEFERRED": "Put back to try later",
         "RECOVERY": "Recovered",
+        "OPERATOR_RECOVERY": "Manual recovery",
         "SOURCE_REJECTED": "Rejected",
         "SOURCE_DUPLICATE": "Duplicate",
         "SOURCE_ACCEPTED": "Accepted",
@@ -17249,6 +17250,21 @@
       "recovery": {
         "RELEASED": "released for another attempt",
         "EXHAUSTED": "no attempts left"
+      },
+      "operatorRecovery": {
+        "REQUESTED": "requested",
+        "SUCCEEDED": "completed",
+        "DUPLICATE_NOOP": "already recovered",
+        "REFUSED_INELIGIBLE": "not eligible",
+        "UNAVAILABLE_CONTEXT": "no recovery information",
+        "CONNECTION_UNUSABLE": "connection not ready",
+        "IN_PROGRESS": "already running",
+        "SOURCE_TARGET_MISSING": "document not in the ERP's answer",
+        "SOURCE_CHANGED": "the ERP returned different content",
+        "SOURCE_REPLAY_UNAVAILABLE": "the ERP could not repeat the request",
+        "SOURCE_UNAVAILABLE": "the ERP could not be reached",
+        "SOURCE_AUTHENTICATION_REJECTED": "the ERP refused the sign-in details",
+        "PROCESSING_FAILED": "no invoice produced"
       },
       "timelineTax": {
         "SUBMITTED": "sent",
@@ -17318,6 +17334,108 @@
         "taxSlaMissed": "No",
         "taxObligations": "Reports recorded"
       },
+      "recover": {
+        "title": "Recovery",
+        "note": "Offered because this document ran out of automatic attempts.",
+        "explain": "Fawtir stopped collecting this document after its automatic attempts ran out, and collection has since moved on. A recovery asks the ERP for it once more with the original request.",
+        "action": "Recover document",
+        "working": "Recovering…",
+        "noPermission": "Only someone allowed to recover documents can do this. Ask an administrator.",
+        "confirmTitle": "Recover this document?",
+        "confirmIntro": "Fawtir will:",
+        "confirmRefetch": "ask the ERP again for the page that originally contained this document;",
+        "confirmOnlyThis": "consider only this document, so no other document on that page is processed again;",
+        "confirmCheckpoint": "leave the connection's collection position where it is, so collection carries on unchanged;",
+        "confirmSameContent": "process the document only if the ERP returns exactly the same content as before.",
+        "confirm": "Recover",
+        "mayRetry": "You can try the recovery again.",
+        "result": {
+          "succeeded": {
+            "title": "Recovery completed successfully.",
+            "body": "The document was accepted and an invoice was created for it. Delivery and tax reporting follow as for any other invoice."
+          },
+          "succeededNoInvoice": {
+            "title": "Recovery completed successfully.",
+            "body": "The document was accepted. The page below shows its current state."
+          },
+          "alreadyRecovered": {
+            "title": "This document has already been recovered.",
+            "body": "Nothing was fetched or submitted again. The page below shows its current state."
+          },
+          "processingRetryable": {
+            "title": "The document was fetched again, but no invoice was produced this time.",
+            "body": "The ERP returned the same document, but Fawtir could not finish processing it, for a reason that may pass."
+          },
+          "processingRefused": {
+            "title": "The document was fetched again and refused.",
+            "body": "The ERP returned the same document, but it was refused: {{reason}}. It cannot be recovered. Correct it in the ERP and send it as a new version."
+          },
+          "contextUnavailable": {
+            "title": "Automatic recovery is not available for this record.",
+            "body": "This document was processed before recovery information was captured. Correct or reissue it in the ERP and send it as a new version, or upload it instead."
+          },
+          "replayUnavailable": {
+            "title": "The ERP can no longer repeat the original request.",
+            "body": "The page the ERP originally returned may have expired, or the connection now reads it differently. Automatic recovery is not available for this record. Send the document again from the ERP as a new version, or upload it instead."
+          },
+          "targetMissing": {
+            "title": "The document was not in the ERP's answer.",
+            "body": "The ERP answered the original request, but this document was no longer in it. Nothing was processed. Check the document in the ERP and send it again as a new version, or upload it instead."
+          },
+          "sourceChanged": {
+            "title": "The ERP now returns different content for this document.",
+            "body": "Fawtir did not process the changed document automatically. If the change is intended, send it from the ERP as a new version so it goes through the normal integration flow. Otherwise, check the document in the ERP or contact support."
+          },
+          "notEligible": {
+            "title": "This document can no longer be recovered.",
+            "body": "Its state has changed since the page was opened. The page below shows its current state."
+          },
+          "inProgress": {
+            "title": "A recovery of this document is already running.",
+            "body": "Wait a moment; the page below shows its current state."
+          },
+          "channelUnsupported": {
+            "title": "Only managed pull documents can be recovered.",
+            "body": "Send this document again from its source instead."
+          },
+          "connectionUnusable": {
+            "title": "The connection is not ready to collect.",
+            "body": "The connection this document came from may be paused, archived or missing its sign-in details. Fix the connection first."
+          },
+          "sourceAuthRejected": {
+            "title": "The ERP refused the connection's sign-in details.",
+            "body": "Replace the sign-in details on the connection first."
+          },
+          "sourceUnavailable": {
+            "title": "The ERP could not be reached.",
+            "body": "Nothing was processed."
+          },
+          "erpNotEnabled": {
+            "title": "ERP integration is not enabled for your organisation.",
+            "body": "Documents cannot be recovered until it is enabled again."
+          },
+          "forbidden": {
+            "title": "You don't have permission to recover documents.",
+            "body": "Ask an administrator."
+          },
+          "notFound": {
+            "title": "This document was not found.",
+            "body": "It may belong to another organisation, or the link is wrong."
+          },
+          "rateLimited": {
+            "title": "Too many recovery requests in a short time.",
+            "body": "Wait a minute before trying again."
+          },
+          "unreachable": {
+            "title": "Fawtir could not be reached.",
+            "body": "Check your connection. The recovery may or may not have run; reload the page to see the document's current state."
+          },
+          "other": {
+            "title": "The recovery could not be completed.",
+            "body": "Contact support if this keeps happening."
+          }
+        }
+      },
       "findings": {
         "title": "Validation findings",
         "truncated": "Only the first {{count}} findings were kept.",
@@ -17339,7 +17457,9 @@
         "guideOpen": "Show the labels",
         "since": "since",
         "tax": "Tax report: {{status}}",
-        "response": "Recipient answer: {{answer}}"
+        "response": "Recipient answer: {{answer}}",
+        "exhaustedNote": "Documents that ran out of automatic attempts are not listed here, because they are settled as refused. A managed pull document like that can be recovered from its own page.",
+        "exhaustedLink": "Show those documents"
       },
       "runs": {
         "title": "Extraction runs",
@@ -17588,6 +17708,7 @@
         "certifyMapping": "Certify the mapping",
         "submitDocuments": "Upload documents",
         "readActivity": "See documents and runs",
+        "recoverDocuments": "Recover a document",
         "manageApiKeys": "Manage API push keys",
         "readHistory": "See the change history"
       },
