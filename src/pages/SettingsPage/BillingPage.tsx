@@ -16,6 +16,7 @@ import {
   type TenantPaymentMethod,
 } from '../../lib/settingsBilling'
 import { PLAN, SUBSCRIPTION_VAT } from '../../lib/plans'
+import { PLATFORM_SETTINGS } from '../../lib/platformSettings'
 import { MEMBERS, SEATS } from '../../lib/settingsPeople'
 import downloadIcon from '../../assets/settings/download-ink.svg'
 import copyIcon from '../../assets/settings/copy.svg'
@@ -256,27 +257,37 @@ export function BillingPage() {
                   <span className="block text-sm font-semibold text-text-primary">
                     {t('bills.pay.transferTitle')}
                   </span>
-                  <span className="mt-1 block text-xs font-medium leading-[1.6] text-text-quaternary">
-                    {HOW_YOU_PAY.bank.accountName} · {HOW_YOU_PAY.bank.bank}
-                  </span>
-                  <span className="mt-1 flex items-center gap-1.5">
-                    <span dir="ltr" className="font-mono text-xs font-semibold text-text-secondary">
-                      {HOW_YOU_PAY.bank.iban}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => copy('iban', HOW_YOU_PAY.bank.iban)}
-                      aria-label={t('bills.pay.copyIban')}
-                      className="inline-flex size-6 items-center justify-center rounded-sm transition-colors hover:bg-primary-25"
-                    >
-                      <img src={copyIcon} alt="" className="size-3.5" />
-                    </button>
-                    {copied === 'iban' ? (
-                      <span className="text-[11px] font-semibold text-success-700">
-                        {t('bills.pay.copied')}
+                  {/* Unconfirmed bank details are never shown, even under the sample ribbon: a
+                      reader could copy the IBAN and pay into it (bankBeneficiaryVerified). */}
+                  {PLATFORM_SETTINGS.payments.bankBeneficiaryVerified ? (
+                    <>
+                      <span className="mt-1 block text-xs font-medium leading-[1.6] text-text-quaternary">
+                        {HOW_YOU_PAY.bank.accountName} · {HOW_YOU_PAY.bank.bank}
                       </span>
-                    ) : null}
-                  </span>
+                      <span className="mt-1 flex items-center gap-1.5">
+                        <span dir="ltr" className="font-mono text-xs font-semibold text-text-secondary">
+                          {HOW_YOU_PAY.bank.iban}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => copy('iban', HOW_YOU_PAY.bank.iban)}
+                          aria-label={t('bills.pay.copyIban')}
+                          className="inline-flex size-6 items-center justify-center rounded-sm transition-colors hover:bg-primary-25"
+                        >
+                          <img src={copyIcon} alt="" className="size-3.5" />
+                        </button>
+                        {copied === 'iban' ? (
+                          <span className="text-[11px] font-semibold text-success-700">
+                            {t('bills.pay.copied')}
+                          </span>
+                        ) : null}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="mt-1 block text-xs font-medium leading-[1.6] text-text-quaternary">
+                      {t('payment.bank.detailsOnRequest')}
+                    </span>
+                  )}
                   <span className="mt-1 block text-xs font-medium leading-[1.5] text-text-quaternary">
                     {t('bills.pay.transferNote', {
                       reference: HOW_YOU_PAY.bank.referenceFormat.replace(

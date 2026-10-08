@@ -125,6 +125,13 @@ export type PlatformSettings = {
     publishableKeyTail: string
     methods: Record<'cardLink' | 'bankTransfer' | 'cash' | 'cheque', boolean>
     bank: { accountName: string; bank: string; iban: string; referenceFormat: string }
+    /**
+     * Whether `bank` holds Fawtir's confirmed beneficiary. While false, no screen shows the
+     * account, IBAN or a copy button, and sign-up does not offer bank transfer: a customer must
+     * never be told to pay into an account nobody has confirmed. Turn on only together with
+     * verified details from Fawtir's finance team.
+     */
+    bankBeneficiaryVerified: boolean
     linkExpiryDays: number
     autoActivateOnlinePayment: boolean
     proofRequiredForCash: boolean
@@ -212,10 +219,14 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
     bank: {
       accountName: 'Insight Technology LLC',
       bank: 'Bank Muscat',
-      iban: 'OM55 0018 0000 4471 2290',
+      // Empty on purpose. The launch default was unconfirmed and not even a valid Omani IBAN
+      // (20 characters; Oman's are 23), so it is gone rather than merely hidden; the console's
+      // Payments section asks for the verified one before bank transfer can be saved.
+      iban: '',
       /** The subscription invoice number is the reference; it already carries the FWT- series. */
       referenceFormat: '{invoice}',
     },
+    bankBeneficiaryVerified: false,
     linkExpiryDays: 7,
     autoActivateOnlinePayment: false,
     proofRequiredForCash: false,

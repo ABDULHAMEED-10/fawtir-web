@@ -13075,7 +13075,8 @@
           "accountName": "Account name",
           "bank": "Bank",
           "iban": "IBAN",
-          "reference": "Reference to quote"
+          "reference": "Reference to quote",
+          "unverified": "Fawtir's bank details are not confirmed yet, so none are shown or sent."
         }
       },
       "activity": {
