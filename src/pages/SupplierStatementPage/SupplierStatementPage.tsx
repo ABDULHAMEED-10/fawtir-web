@@ -610,8 +610,10 @@ function SupplierStatement({ id }: { id: string }) {
                           KIND_CHIP[entry.kind] ?? KIND_CHIP.BILL,
                         ].join(' ')}
                       >
-                        {entry.kind === 'OVERPAYMENT_CREDIT_APPLIED' && entry.targetReference
-                          ? t('supplierStatement.creditUsedOn', { bill: entry.targetReference })
+                        {/* On a credit-used line the server's reference is the bill the credit
+                            was set against. */}
+                        {entry.kind === 'OVERPAYMENT_CREDIT_APPLIED' && entry.reference
+                          ? t('supplierStatement.creditUsedOn', { bill: entry.reference })
                           : // A kind added after this build reads by its name, as the API asks.
                             t(`supplierStatement.kind.${entry.kind}`, { defaultValue: entry.kind })}
                       </span>

@@ -627,7 +627,7 @@ describe('a statement with discounts, refunds and credit used', () => {
         date: '2026-08-20',
         kind: 'OVERPAYMENT_CREDIT_APPLIED',
         documentId: 'bill-1',
-        reference: 'SOHAR-1002',
+        reference: null,
         amount: 20,
         runningBalance: 106,
       },
@@ -709,12 +709,12 @@ describe('a statement with discounts, refunds and credit used', () => {
     expect(line.querySelector('svg')).toBeTruthy()
   })
 
-  it('names the bill the credit was used on when the server sends it', async () => {
+  it('names the bill the credit was used on, from the line reference', async () => {
     statement = {
       ...LATER,
       entries: LATER.entries.map((entry) =>
         entry.kind === 'OVERPAYMENT_CREDIT_APPLIED'
-          ? { ...entry, targetReference: 'SOHAR-1010' }
+          ? { ...entry, reference: 'SOHAR-1010' }
           : entry,
       ),
     }
@@ -729,7 +729,7 @@ describe('a statement with discounts, refunds and credit used', () => {
       ...LATER,
       entries: LATER.entries.map((entry) =>
         entry.kind === 'OVERPAYMENT_CREDIT_APPLIED'
-          ? { ...entry, targetReference: 'SOHAR-1010' }
+          ? { ...entry, reference: 'SOHAR-1010' }
           : entry,
       ),
     }

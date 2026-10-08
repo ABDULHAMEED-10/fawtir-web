@@ -348,12 +348,6 @@ export type SupplierStatementDto = {
     detail?: string | null
     /** What is still owed on a bill entry, so an open bill can be shaded. Backend ask 7.13. */
     outstanding?: number | null
-    /**
-     * On an `OVERPAYMENT_CREDIT_APPLIED` line, the number of the bill the credit was set against
-     * ("Credit used on {bill}"). TODO(backend): EXPENDITURE.md row 7.23; the line's `reference`
-     * names the overpaid bill instead.
-     */
-    targetReference?: string | null
   }[]
   ageing: { NOT_DUE: number; DUE_WITHIN_30: number; LATE_30: number; LATE_60_PLUS: number }
   /** Bills and next due date behind each ageing figure (the design's "1 bill · due 28 Aug"). Backend ask 7.14. */
