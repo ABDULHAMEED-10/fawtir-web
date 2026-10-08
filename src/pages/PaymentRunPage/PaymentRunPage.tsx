@@ -180,6 +180,10 @@ function RunBuilder({ runId }: { runId: string | null }) {
       })),
     [detail],
   )
+  // A bill taken out as the rest of a sent run was marked paid: the run paid nothing for it.
+  const takenOut = new Map(
+    (detail?.items ?? []).flatMap((item) => (item.takenOut ? [[item.billId, item.takenOut]] : [])),
+  )
   const candidates: RunBill[] = offered.read.status === 'ready' ? offered.read.data : []
   const ticked = new Set(inRun.map((bill) => bill.billId))
   const every = [...inRun, ...candidates.filter((bill) => !ticked.has(bill.billId))]
@@ -620,6 +624,18 @@ function RunBuilder({ runId }: { runId: string | null }) {
                                     })
                                   : t('paymentRuns.noDate')}
                               </p>
+                              {takenOut.has(bill.billId) ? (
+                                <span
+                                  className={[
+                                    'mt-1 inline-flex items-center rounded-sm px-3 py-1 text-[10px] font-medium leading-[1.2]',
+                                    DUE_CHIP.none,
+                                  ].join(' ')}
+                                >
+                                  {t('paymentRuns.takenOutRow', {
+                                    reason: takenOut.get(bill.billId)!.reason,
+                                  })}
+                                </span>
+                              ) : null}
                             </div>
                             <span
                               className={[
