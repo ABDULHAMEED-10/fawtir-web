@@ -779,8 +779,8 @@
       "f2": "Upgrades apply instantly, downgrades next cycle",
       "f3": "No setup fees"
     },
-    "payNote": "You choose how to pay on the next step.",
-    "trialNote": "Every plan except Enterprise starts with a {{days}}-day free trial of the plan you pick: {{documents}} documents, no card needed, and it never turns into a bill on its own.",
+    "payNote": "Next you choose how you'll pay. Nothing is charged today.",
+    "trialNote": "Every plan except Enterprise starts with a {{days}}-day free trial of the plan you pick, from the day your account is approved: {{documents}} documents, and nothing to pay until it ends.",
     "businessPlus": {
       "name": "Business Plus",
       "description": "For established businesses and multi-branch operations.",
@@ -875,8 +875,7 @@
     }
   },
   "payment": {
-    "title": "Complete your subscription",
-    "description": "One last step. Choose how you would like to pay. Your account is activated by the Fawtir team the moment your payment is confirmed.",
+    "title": "How you'll pay",
     "card": {
       "title": "Card",
       "subtitle": "Debit or credit",
@@ -902,7 +901,8 @@
       "reference": "Reference",
       "yourInvoice": "your invoice number",
       "note": "We email you the invoice. The Fawtir team activates your account once the transfer is confirmed, usually within one business day.",
-      "detailsOnRequest": "Fawtir sends you its bank details with the subscription invoice. Only pay into the account named on that invoice."
+      "detailsOnRequest": "Fawtir sends you its bank details with the subscription invoice. Only pay into the account named on that invoice.",
+      "noteLater": "Your first bill comes {{when}}, emailed with these details. Put the invoice number in the reference, and the Fawtir team confirms the transfer, usually within one business day."
     },
     "summary": {
       "title": "Order summary",
@@ -914,14 +914,12 @@
       "monthlyRate": "{{rate}} / mo billed yearly",
       "months": "{{count}} months",
       "vat": "VAT (5%)",
-      "totalDue": "Total due today",
-      "renewPrefix": "Renews on {{date}} at {{amount}}. We’ll remind you before. ",
       "cancelAnytime": "Cancel anytime",
-      "renewSuffix": "access continues to period end.",
-      "addonLine": "Automatic ERP extraction ({{cycle}})"
+      "renewSuffix": ", access continues to the end of the period.",
+      "addonLine": "Automatic ERP extraction ({{cycle}})",
+      "firstBill": "First bill",
+      "firstBillNote": "Your first bill comes {{when}}, and we remind you before. "
     },
-    "payCta": "Pay {{amount}} & activate",
-    "bankCta": "Email me the invoice with bank details",
     "method": {
       "cardLink": {
         "title": "Card",
@@ -937,58 +935,132 @@
       }
     },
     "cardLink": {
-      "note": "Your card is entered on Paymob's secure checkout, never on Fawtir. Nothing about it is stored with us.",
-      "how": "How would you like the checkout?",
-      "via": {
-        "now": "Open it now",
-        "whatsapp": "Send me the link by WhatsApp",
-        "email": "Send me the link by email"
-      },
-      "viaNowNote": "You go to Paymob's checkout and come straight back.",
       "viaWhatsAppNote": "To {{phone}} · valid {{days}} days",
       "viaEmailNote": "To {{email}} · valid {{days}} days",
       "yourPhone": "your phone",
-      "yourEmail": "your email"
+      "yourEmail": "your email",
+      "noteLater": "Your first bill comes {{when}} with a secure Paymob link. Your card is entered on Paymob's checkout, never on Fawtir.",
+      "sendTo": "Send the payment link",
+      "byVia": {
+        "email": "By email",
+        "whatsapp": "By WhatsApp"
+      }
     },
     "cash": {
-      "note": "Pay at Fawtir's office in Muscat or to your Fawtir representative. You get a receipt, and the Fawtir team activates your account once it is recorded, usually the same day."
+      "noteLater": "Your first bill comes {{when}}. Pay it at Fawtir's office in Muscat or to your Fawtir representative, and you get a receipt."
     },
-    "sendLinkCta": "Send me the payment link",
-    "cashCta": "I'll pay in cash",
     "addon": {
       "title": "Add-on",
       "label": "Add automatic ERP extraction",
       "body": "Fawtir collects invoices from your ERP on a schedule, runs them through your field mapping, and writes the result back. Activated with your subscription.",
       "perMonth": "a month",
       "perMonthTimes": "a month, for {{count}} months"
-    }
+    },
+    "descriptionTrial_one": "Nothing is charged today. Your free trial starts when your account is approved, and your first bill comes after {{count}} day, by the method you choose here.",
+    "descriptionTrial_other": "Nothing is charged today. Your {{count}}-day free trial starts when your account is approved, and your first bill comes when it ends, by the method you choose here.",
+    "descriptionNoTrial": "Nothing is charged today. Your first bill comes when the Fawtir team approves your account, by the method you choose here.",
+    "when": {
+      "afterTrial_one": "after your {{count}}-day free trial",
+      "afterTrial_other": "after your {{count}}-day free trial",
+      "onApproval": "when your account is approved"
+    },
+    "continueCta": "Continue to review"
   },
   "fawtaraStatus": {
     "heroTitle": "E-invoicing compliance, handled for you.",
     "heroSubtitle": "Create, validate, sign and report every invoice to the Oman Tax Authority, without touching a single line of Peppol.",
-    "title": "Waiting for Fawtara approval",
-    "description": "You’ve requested to authorize Fawtir as your provider on the Fawtara Portal. As soon as the OTA approves it, this page updates on its own.",
-    "badge": "Pending approval",
     "steps": {
       "connected": "Connected",
-      "awaitingApproval": "Awaiting OTA approval",
-      "requestSent": "Request sent"
+      "requestSent": "Sent",
+      "sent": "Registration sent",
+      "review": "Fawtir review",
+      "reviewing": "Checking your business details",
+      "approved": "Approved",
+      "request": "Send Fawtir a connection request on the Fawtara Portal",
+      "requestNow": "Waiting for your request",
+      "accept": "Fawtir accepts your request",
+      "accepting": "Waiting for Fawtir",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "expired": "Expired before it was accepted",
+      "register": "Fawtir registers you on the Oman SMP",
+      "registering": "Within 3 business days of acceptance",
+      "registered": "Registered"
     },
     "openPortal": "Open Fawtara portal",
-    "footer": "This usually takes a few minutes. We’ll email {{email}} the moment it’s approved, you can safely close this page. Approval taking too long?",
     "contactSupport": "Contact support",
-    "subscription": {
-      "title": "Your subscription",
-      "awaiting": "{{plan}} · awaiting activation by the Fawtir team",
-      "cardLink": "Paid by card through Paymob: you'll be activated as soon as the payment is confirmed.",
-      "cardLinkSent": "Your payment link is on its way by {{via}}. Your account is activated once you've paid it.",
-      "bankTransfer": "Waiting for your bank transfer. Your account is activated once it arrives, usually within one business day.",
-      "cash": "Waiting for your cash payment. Your account is activated once it is recorded, usually the same day.",
-      "addon": "Automatic ERP extraction is on the same request; the Fawtir team switches it on with your subscription."
-    },
     "titleReal": "Authorize Fawtir on the Fawtara Portal",
     "descriptionReal": "To report invoices through Fawtir, authorize Fawtir as your provider on the Oman Tax Authority's Fawtara Portal. Fawtir cannot see the portal's decision from here, so this page does not show whether it has been approved.",
-    "footerReal": "Questions about the authorization?"
+    "footerReal": "Questions about the authorization?",
+    "review": {
+      "title": "We're getting you live",
+      "description": "Your registration is with the Fawtir team. Once it's approved, you authorise Fawtir as your provider on the Fawtara Portal, and your invoices can reach the OTA.",
+      "badge": "Under review",
+      "timing": "Review usually takes one business day.",
+      "emailNote": "We'll email <b>{{email}}</b> the decision, you can safely close this page.",
+      "emailNoteNoAddress": "We'll email the decision to the address you registered with, you can safely close this page."
+    },
+    "connected": {
+      "title": "You're connected",
+      "description": "Fawtir is your service provider and you're registered on the Oman SMP. Your invoices are now reported through Fawtara.",
+      "badge": "Connected"
+    },
+    "slow": "Approval taking too long?",
+    "plan": {
+      "title": "Your plan",
+      "trial_one": "Free for {{count}} day from approval, then your first bill.",
+      "trial_other": "Free for {{count}} days from approval, then your first bill.",
+      "noTrial": "Your first bill comes when your account is approved.",
+      "enterprise": "Our team will call you to agree your terms.",
+      "paidBy": "Paying by: {{method}}"
+    },
+    "request": {
+      "title": "Send Fawtir your connection request",
+      "description": "Your registration is approved. To report invoices through Fawtir, send Fawtir a connection request on the Fawtara Portal. Fawtir then accepts it and registers you on the Oman SMP.",
+      "badge": "Your turn",
+      "timing": "Fawtir can only connect you once your request reaches us on the portal.",
+      "emailNote": "We'll email <b>{{email}}</b> when we accept it, you can safely close this page.",
+      "emailNoteNoAddress": "We'll email you when we accept it, you can safely close this page."
+    },
+    "accepting": {
+      "title": "Fawtir is reviewing your request",
+      "description": "Your connection request reached Fawtir on the Fawtara Portal. We check it against your account, then accept it and register you on the Oman SMP.",
+      "badge": "Waiting for Fawtir",
+      "timing": "A request that is not answered in time expires on the portal, so we act on it quickly.",
+      "emailNote": "We'll email <b>{{email}}</b> when it's accepted, you can safely close this page.",
+      "emailNoteNoAddress": "We'll email you when it's accepted, you can safely close this page."
+    },
+    "registering": {
+      "title": "Registering you on the Oman SMP",
+      "description": "Fawtir accepted your connection request. We now register your Peppol ID on the Oman SMP, which checks the connection on the Fawtara Portal before adding you.",
+      "badge": "Registering",
+      "timing": "Fawtir registers you within 3 business days of accepting.",
+      "emailNote": "We'll email <b>{{email}}</b> when you're connected, you can safely close this page.",
+      "emailNoteNoAddress": "We'll email you when you're connected, you can safely close this page."
+    },
+    "declined": {
+      "title": "Fawtir declined your connection request",
+      "description": "We've emailed you the reason. Put it right and send the request again on the Fawtara Portal, or contact support and we'll help.",
+      "badge": "Request declined",
+      "timing": "You can send a new request as soon as it's fixed.",
+      "emailNote": "The reason went to <b>{{email}}</b>.",
+      "emailNoteNoAddress": "The reason went to the address you registered with."
+    },
+    "expired": {
+      "title": "Your connection request expired",
+      "description": "It wasn't accepted before the portal's time limit. Send it again on the Fawtara Portal and we'll pick it up straight away.",
+      "badge": "Request expired",
+      "timing": "A new request goes through the same steps.",
+      "emailNote": "We'll email <b>{{email}}</b> when we accept it.",
+      "emailNoteNoAddress": "We'll email you when we accept it."
+    },
+    "howTo": {
+      "h1": "Sign in to the Fawtara Portal and open Accredited Service Providers.",
+      "h2": "Choose Fawtir and record each engagement stage, up to Agreement/Contract Signed.",
+      "h3": "Upload the documents it asks for and, if you like, a start date (otherwise it starts when we accept).",
+      "h4": "Press Connect.",
+      "switching": "Already with another provider? Sending this request disconnects you from them."
+    }
   },
   "dashboard": {
     "searchPlaceholder": "Search invoices, customers. documents...",
@@ -14872,7 +14944,8 @@
     "sections": {
       "business": "Your business",
       "identity": "Business identity",
-      "address": "Address & contact"
+      "address": "Address & contact",
+      "plan": "Plan and payment"
     },
     "fields": {
       "size": "Team size",
@@ -14880,7 +14953,11 @@
       "category": "Business type",
       "trade": "Specialty",
       "activity": "Business activity (ISIC)",
-      "pos": "Fawtir POS"
+      "pos": "Fawtir POS",
+      "plan": "Plan",
+      "payment": "How you'll pay",
+      "firstBill": "First bill",
+      "terms": "Terms"
     },
     "edit": "Edit",
     "savedEarlier": "Saved earlier",
@@ -14888,18 +14965,30 @@
     "submitting": "Submitting…",
     "conflict": "This VATIN or CR number was registered by another business first. Edit your business identity and submit again.",
     "posYes": "Yes, will use it",
-    "posNo": "Not for now"
+    "posNo": "Not for now",
+    "planValue": "{{plan}}, {{cycle}}",
+    "billedMonthly": "billed monthly",
+    "billedAnnually": "billed annually",
+    "payment": {
+      "cardLink": {
+        "email": "Card, Paymob link by email",
+        "whatsapp": "Card, Paymob link by WhatsApp"
+      },
+      "bankTransfer": "Bank transfer",
+      "cash": "Cash at our office"
+    },
+    "firstBillAfterTrial_one": "After your {{count}}-day free trial",
+    "firstBillAfterTrial_other": "After your {{count}}-day free trial",
+    "firstBillOnApproval": "When your account is approved",
+    "enterpriseTerms": "Agreed on a call with our team",
+    "addonValue": "Automatic ERP extraction added",
+    "notChosen": "Not chosen yet",
+    "planMissing": "Choose your plan and how you'll pay before you submit.",
+    "choosePlan": "Choose a plan",
+    "choosePayment": "Choose how you'll pay"
   },
   "signupPending": {
-    "received": {
-      "badge": "Under review",
-      "title": "We’ve received your registration",
-      "description": "A member of the Fawtir team is reviewing your business details. We’ll email the decision to the address you registered with — you can close this page."
-    },
     "approved": {
-      "badge": "Approved",
-      "title": "Your registration is approved",
-      "description": "You can now sign in with your username and password.",
       "signIn": "Sign in"
     },
     "ended": {
@@ -17221,7 +17310,7 @@
       },
       "timeline": {
         "title": "Timeline",
-        "note": "What the ledgers and the audit trail recorded, with the time each was recorded. Audit events are evidence and can be incomplete; managed pull records none.",
+        "note": "What the ledgers and the audit trail recorded, with the time each was recorded. Audit events are evidence and can be incomplete; managed pull records none, except a person's recovery.",
         "newestFirst": "Show newest first",
         "oldestFirst": "Show oldest first",
         "truncated": "Older audit events exist and are not shown. Only the newest {{count}} are read.",
@@ -17238,7 +17327,8 @@
         "INVOICE_SUBMITTED": "Invoice created",
         "DELIVERY_STATE": "Delivery",
         "RECIPIENT_RESPONSE": "Recipient's answer",
-        "TAX_REPORT": "Tax report"
+        "TAX_REPORT": "Tax report",
+        "OPERATOR_RECOVERY": "Manual recovery"
       },
       "recovery": {
         "RELEASED": "released for another attempt",
@@ -17333,7 +17423,9 @@
         "guideOpen": "Show the labels",
         "since": "since",
         "tax": "Tax report: {{status}}",
-        "response": "Recipient answer: {{answer}}"
+        "response": "Recipient answer: {{answer}}",
+        "exhaustedNote": "Documents that ran out of automatic attempts are not listed here, because they are settled as refused. A managed pull document like that can be recovered from its own page.",
+        "exhaustedLink": "Show those documents"
       },
       "runs": {
         "title": "Extraction runs",
@@ -17362,6 +17454,123 @@
         },
         "countersTitle": "Recorded by the run",
         "downstreamTitle": "Its accepted invoices now"
+      },
+      "operatorRecovery": {
+        "REQUESTED": "requested",
+        "SUCCEEDED": "completed",
+        "DUPLICATE_NOOP": "already recovered",
+        "REFUSED_INELIGIBLE": "not eligible",
+        "UNAVAILABLE_CONTEXT": "no recovery information",
+        "CONNECTION_UNUSABLE": "connection not ready",
+        "IN_PROGRESS": "already running",
+        "SOURCE_TARGET_MISSING": "document not in the ERP's answer",
+        "SOURCE_CHANGED": "the ERP returned different content",
+        "SOURCE_REPLAY_UNAVAILABLE": "the ERP could not repeat the request",
+        "SOURCE_UNAVAILABLE": "the ERP could not be reached",
+        "SOURCE_AUTHENTICATION_REJECTED": "the ERP refused the sign-in details",
+        "PROCESSING_FAILED": "no invoice produced"
+      },
+      "recover": {
+        "title": "Recovery",
+        "note": "Offered because this document ran out of automatic attempts.",
+        "explain": "Fawtir stopped collecting this document after its automatic attempts ran out, and collection has since moved on. A recovery asks the ERP for it once more with the original request.",
+        "action": "Recover document",
+        "working": "Recovering…",
+        "noPermission": "Only someone allowed to recover documents can do this. Ask an administrator.",
+        "confirmTitle": "Recover this document?",
+        "confirmIntro": "Fawtir will:",
+        "confirmRefetch": "ask the ERP again for the page that originally contained this document;",
+        "confirmOnlyThis": "consider only this document, so no other document on that page is processed again;",
+        "confirmCheckpoint": "leave the connection's collection position where it is, so collection carries on unchanged;",
+        "confirmSameContent": "process the document only if the ERP returns exactly the same content as before.",
+        "confirm": "Recover",
+        "mayRetry": "You can try the recovery again.",
+        "result": {
+          "succeeded": {
+            "title": "Recovery completed successfully.",
+            "body": "The document was accepted and an invoice was created for it. Delivery and tax reporting follow as for any other invoice."
+          },
+          "succeededNoInvoice": {
+            "title": "Recovery completed successfully.",
+            "body": "The document was accepted. The page below shows its current state."
+          },
+          "alreadyRecovered": {
+            "title": "This document has already been recovered.",
+            "body": "Nothing was fetched or submitted again. The page below shows its current state."
+          },
+          "processingRetryable": {
+            "title": "The document was fetched again, but no invoice was produced this time.",
+            "body": "The ERP returned the same document, but Fawtir could not finish processing it, for a reason that may pass."
+          },
+          "processingRefused": {
+            "title": "The document was fetched again and refused.",
+            "body": "The ERP returned the same document, but it was refused: {{reason}}. It cannot be recovered. Correct it in the ERP and send it as a new version."
+          },
+          "contextUnavailable": {
+            "title": "Automatic recovery is not available for this record.",
+            "body": "This document was processed before recovery information was captured. Correct or reissue it in the ERP and send it as a new version, or upload it instead."
+          },
+          "replayUnavailable": {
+            "title": "The ERP can no longer repeat the original request.",
+            "body": "The page the ERP originally returned may have expired, or the connection now reads it differently. Automatic recovery is not available for this record. Send the document again from the ERP as a new version, or upload it instead."
+          },
+          "targetMissing": {
+            "title": "The document was not in the ERP's answer.",
+            "body": "The ERP answered the original request, but this document was no longer in it. Nothing was processed. Check the document in the ERP and send it again as a new version, or upload it instead."
+          },
+          "sourceChanged": {
+            "title": "The ERP now returns different content for this document.",
+            "body": "Fawtir did not process the changed document automatically. If the change is intended, send it from the ERP as a new version so it goes through the normal integration flow. Otherwise, check the document in the ERP or contact support."
+          },
+          "notEligible": {
+            "title": "This document can no longer be recovered.",
+            "body": "Its state has changed since the page was opened. The page below shows its current state."
+          },
+          "inProgress": {
+            "title": "A recovery of this document is already running.",
+            "body": "Wait a moment; the page below shows its current state."
+          },
+          "channelUnsupported": {
+            "title": "Only managed pull documents can be recovered.",
+            "body": "Send this document again from its source instead."
+          },
+          "connectionUnusable": {
+            "title": "The connection is not ready to collect.",
+            "body": "The connection this document came from may be paused, archived or missing its sign-in details. Fix the connection first."
+          },
+          "sourceAuthRejected": {
+            "title": "The ERP refused the connection's sign-in details.",
+            "body": "Replace the sign-in details on the connection first."
+          },
+          "sourceUnavailable": {
+            "title": "The ERP could not be reached.",
+            "body": "Nothing was processed."
+          },
+          "erpNotEnabled": {
+            "title": "ERP integration is not enabled for your organisation.",
+            "body": "Documents cannot be recovered until it is enabled again."
+          },
+          "forbidden": {
+            "title": "You don't have permission to recover documents.",
+            "body": "Ask an administrator."
+          },
+          "notFound": {
+            "title": "This document was not found.",
+            "body": "It may belong to another organisation, or the link is wrong."
+          },
+          "rateLimited": {
+            "title": "Too many recovery requests in a short time.",
+            "body": "Wait a minute before trying again."
+          },
+          "unreachable": {
+            "title": "Fawtir could not be reached.",
+            "body": "Check your connection. The recovery may or may not have run; reload the page to see the document's current state."
+          },
+          "other": {
+            "title": "The recovery could not be completed.",
+            "body": "Contact support if this keeps happening."
+          }
+        }
       }
     },
     "apiPush": {
@@ -17583,7 +17792,8 @@
         "submitDocuments": "Upload documents",
         "readActivity": "See documents and runs",
         "manageApiKeys": "Manage API push keys",
-        "readHistory": "See the change history"
+        "readHistory": "See the change history",
+        "recoverDocuments": "Recover a document"
       },
       "personas": {
         "title": "Typical roles",

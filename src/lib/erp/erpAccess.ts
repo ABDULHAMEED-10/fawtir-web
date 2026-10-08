@@ -13,6 +13,7 @@ export const ERP_CAPABILITIES = [
   { id: 'certifyMapping', anyOf: ['mapping.certify', 'admin.settings.manage'] },
   { id: 'submitDocuments', anyOf: ['invoice.submit'] },
   { id: 'readActivity', anyOf: ['invoice.read'] },
+  { id: 'recoverDocuments', anyOf: ['erp.document.recover'] },
   // API keys and the activity log have no narrower permission on the server.
   { id: 'manageApiKeys', anyOf: ['admin.settings.manage'] },
   { id: 'readHistory', anyOf: ['admin.settings.manage'] },

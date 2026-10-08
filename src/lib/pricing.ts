@@ -1,6 +1,7 @@
 import {
   PLAN,
   SUBSCRIPTION_VAT,
+  TRIAL,
   annualMonthly,
   type AnyPlanId,
   type ExtractionAvailability,
@@ -10,6 +11,10 @@ import { PLATFORM_SETTINGS } from './platformSettings'
 /** The sign-up flow's own ids: `premium` is the catalogue's Business plan. */
 export type PlanId = 'starter' | 'premium' | 'businessPlus' | 'enterprise'
 export type BillingCycle = 'monthly' | 'annual'
+/** How the first bill will be paid: a Paymob link, a bank transfer, or cash at the office. */
+export type SignupPaymentMethod = 'cardLink' | 'bankTransfer' | 'cash'
+/** Where a card customer wants the Paymob link sent when the first bill is due. */
+export type PaymentLinkVia = 'whatsapp' | 'email'
 
 const MONTHLY_RATES: Record<Exclude<PlanId, 'enterprise'>, Record<BillingCycle, number>> = {
   starter: { monthly: PLAN.starter.monthly, annual: annualMonthly(PLAN.starter) },
@@ -41,6 +46,19 @@ export const cataloguePlanId = (plan: PlanId): AnyPlanId => (plan === 'premium' 
  */
 export function extractionOffer(plan: PlanId): ExtractionAvailability {
   return PLATFORM_SETTINGS.addons.erpExtraction.availability[cataloguePlanId(plan)]
+}
+
+/**
+ * Days of free trial the chosen plan starts with once the registration is approved, or `null`
+ * when the plan has none, in which case the first bill goes out on approval (owner decision,
+ * 8 Oct 2026). The super admin sets both the length and which plans carry one; until sign-up can
+ * read the published plans, this is the launch default. TODO(backend): ONBOARDING.md row 1.1.
+ */
+export function trialDaysFor(plan: PlanId): number | null {
+  if (plan === 'enterprise') return null
+  return (TRIAL.offeredOn as readonly AnyPlanId[]).includes(cataloguePlanId(plan))
+    ? TRIAL.days
+    : null
 }
 
 export const extractionMonthly = () => PLATFORM_SETTINGS.addons.erpExtraction.monthly

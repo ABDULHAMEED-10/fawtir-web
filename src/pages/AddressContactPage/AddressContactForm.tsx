@@ -21,7 +21,7 @@ import { GOVERNORATES, isGovernorateId, type GovernorateId } from '../../lib/gov
 import {
   ADDRESS_CONTACT_FIELD_ORDER,
   ADDRESS_CONTACT_SERVER_FIELDS,
-  REVIEW_ROUTE,
+  PLANS_ROUTE,
   buildAddressContactRequest,
   recordAddressContact,
   validateAddressContact,
@@ -140,7 +140,7 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
       return
     }
     const nextState: OnboardingState = { ...state, address: values }
-    navigate(REVIEW_ROUTE, { state: nextState })
+    navigate(PLANS_ROUTE, { state: nextState })
   }
 
   return (

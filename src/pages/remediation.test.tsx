@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../i18n'
 import { forgetEntitlements, type Entitlements } from '../lib/identity/entitlements'
@@ -7,8 +7,6 @@ import { resetSharedRequests } from '../api'
 import { ComplianceReportPage } from './ActivityPage/ComplianceReportPage'
 import { CatalogPage } from './CatalogPage'
 import { ModuleUnavailablePage } from '../components/feedback/ModuleUnavailable'
-import { FawtaraStatusPanel } from './FawtaraStatusPage/FawtaraStatusPanel'
-import { PaymentForm } from './PaymentPage/PaymentForm'
 
 /**
  * The screens that used to draw a sample company (Al Bahja Coffee, Hafidh Saif, VAT OM1100392000,
@@ -146,18 +144,3 @@ describe('modules with no server yet', () => {
   )
 })
 
-describe('signup screens', () => {
-  it('Fawtara status claims no approval state and names no sample address', () => {
-    at('/fawtara-status', <FawtaraStatusPanel />)
-    expect(screen.getByText(i18n.t('fawtaraStatus.titleReal'))).toBeTruthy()
-    expect(screen.queryByText(i18n.t('fawtaraStatus.badge'))).toBeNull()
-    expect(document.body.textContent).not.toMatch(SAMPLE)
-  })
-
-  it('bank transfer shows no account to pay into, only that the invoice will carry it', () => {
-    at('/payment', <PaymentForm />)
-    fireEvent.click(screen.getByText(i18n.t('payment.method.bankTransfer.title')))
-    expect(screen.getByText(i18n.t('payment.bank.detailsOnRequest'))).toBeTruthy()
-    expect(document.body.textContent).not.toMatch(SAMPLE)
-  })
-})

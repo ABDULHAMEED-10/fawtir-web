@@ -11,6 +11,7 @@ import {
 } from '../../lib/onboarding'
 import { BusinessIdentityHero } from '../BusinessIdentityPage/BusinessIdentityHero'
 import { SignupReviewForm } from './SignupReviewForm'
+import { PAYMENT_ROUTE, PLANS_ROUTE } from '../../lib/identity/onboarding'
 import { candidateParticipantId } from '../../lib/peppolParticipant'
 
 export function SignupReviewPage() {
@@ -40,7 +41,7 @@ export function SignupReviewPage() {
   return (
     <OnboardingGate ready={Boolean(address)}>
       <AuthLayout
-        backTo="/address-contact"
+        backTo={!state.plan || state.plan === 'enterprise' ? PLANS_ROUTE : PAYMENT_ROUTE}
         backState={location.state}
         showLanguageSwitcher={false}
         hero={<BusinessIdentityHero preview={preview} />}

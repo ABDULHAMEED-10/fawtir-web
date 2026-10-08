@@ -1,4 +1,5 @@
 import type { AddressContactValues } from './identity/onboarding'
+import type { BillingCycle, PaymentLinkVia, PlanId, SignupPaymentMethod } from './pricing'
 import type { BusinessTypeId } from './subBusinessTypes'
 
 export type BusinessSize = 'just-me' | '2-10' | '11-50' | '50-plus'
@@ -119,6 +120,16 @@ export type OnboardingState = {
   subBusinessType?: string
   identity?: IdentityPreview
   address?: AddressContactValues
+  /** The address the account was created with, carried from email verification. */
+  accountEmail?: string
+  /** Chosen on /plans. `premium` is the catalogue's Business plan. */
+  plan?: PlanId
+  billing?: BillingCycle
+  /** The automatic ERP extraction add-on, ticked on /payment. */
+  addon?: boolean
+  /** Chosen on /payment; never set for Enterprise, whose terms are agreed on a call. */
+  paymentMethod?: SignupPaymentMethod
+  linkVia?: PaymentLinkVia
 }
 
 export function onboardingStateFrom(value: unknown): OnboardingState {
