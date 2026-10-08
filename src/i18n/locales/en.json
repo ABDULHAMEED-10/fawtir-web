@@ -20157,6 +20157,10 @@
     },
     "fix": "Fix this",
     "awaitingFawtir": "Waiting for Fawtir to review",
-    "actionRequired": "Action required"
+    "actionRequired": "Action required",
+    "composer": {
+      "title": "This invoice cannot be issued yet",
+      "subtitle": "Fawtir will refuse to issue it until these are done. You can still save it as a draft."
+    }
   }
 }

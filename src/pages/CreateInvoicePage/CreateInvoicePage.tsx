@@ -21,6 +21,7 @@ import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback
 import { AddCustomerModal } from '../../components/AddCustomerModal'
 import { IssueInvoiceModal } from '../../components/invoice/IssueInvoiceModal'
 import { ClassificationField } from '../../components/invoice/ClassificationField'
+import { InvoicingReadinessCard } from '../../components/readiness/InvoicingReadinessCard'
 import { useApiRead } from '../../hooks'
 import { apiRequest, type Page } from '../../api'
 import { ApiError } from '../../api/errors'
@@ -1436,6 +1437,9 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
           ) : null}
         </div>
       </div>
+
+      {/* The seller prerequisites are this company's own; a self-billed invoice's seller is the supplier. */}
+      {canIssue && !selfBilled ? <InvoicingReadinessCard context="composer" /> : null}
 
       {selfBilled ? (
         <p className="rounded-md bg-primary-25 p-3 text-sm font-medium leading-[1.5] text-primary-800">
