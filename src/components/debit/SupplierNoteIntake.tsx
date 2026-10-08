@@ -225,15 +225,16 @@ export function SupplierNoteIntake({
       // to pick, so no `reasonCode`) and the chosen bill, if any. Set against it, the server
       // takes the credit off that bill in the same request (the largest amount that fits) or
       // refuses the whole save. Held as credit (`holdAsCredit`), the bill is kept as the note's
-      // reference and nothing is applied. A debit note's form has no reason box, so it sends
-      // neither, and never `holdAsCredit`.
+      // reference and nothing is applied. A debit note's form has no reason box, so it sends no
+      // reason, and never `holdAsCredit`; its chosen bill is sent too, and the server only
+      // records it as the bill the charge adds to, so the note can link to it.
       const note = await confirmIntake(
         intake.id,
         toConfirmation(submitted, {
           notDuplicateOf,
           documentTypeCode: kind === 'credit' ? '381' : '383',
           ...(kind === 'credit' ? { reasonDetail: reason } : {}),
-          ...(kind === 'credit' && chosenBill ? { relatedBillId: chosenBill.id } : {}),
+          ...(chosenBill ? { relatedBillId: chosenBill.id } : {}),
           ...(kind === 'credit' && chosenBill && use === 'hold' ? { holdAsCredit: true } : {}),
         }),
       )

@@ -453,7 +453,7 @@ describe('holding a credit against its bill on upload', () => {
     expect(onSaved.mock.calls[0][1]).toBe('supplierCreditNotes.upload.savedHeld')
   })
 
-  it('never sends it on a debit note, even with a bill chosen', async () => {
+  it('never sends it on a debit note, even with a bill chosen, but sends the bill', async () => {
     const onSaved = renderComposer('debit')
     expect(await screen.findByDisplayValue('MR-CN-0042')).toBeTruthy()
     fireEvent.click(await screen.findByRole('button', { name: /MR-INV-8821/ }))
@@ -463,6 +463,8 @@ describe('holding a credit against its bill on upload', () => {
     const confirmed = bodyOf(calls('POST', CONFIRM)[0])
     expect(confirmed.documentTypeCode).toBe('383')
     expect(confirmed).not.toHaveProperty('holdAsCredit')
+    // The bill the charge adds to: the server records it as the note's link (it applies nothing).
+    expect(confirmed.relatedBillId).toBeTruthy()
   })
 
   it('is dropped from any confirmation that is not a credit note', () => {
