@@ -365,6 +365,30 @@ const BILLS = [
       intakeFile: { id: 'in-1152', filename: 'SP-INV-1152.svg', contentType: 'image/svg+xml' },
     },
   ),
+  // The second bill of the sent run PR-0012: a credit note arrived for it after the bank file
+  // was made, so it now owes less than the file pays (its markPaidBlock).
+  bill(
+    'b-sp-1158',
+    's-sp',
+    'SP-INV-1158',
+    '2026-09-23',
+    '2026-10-12',
+    'UPLOADED',
+    [
+      {
+        description: 'Kraft coffee bags 250g, plain',
+        quantity: 4000,
+        unit: 'EA',
+        unitPrice: 0.081,
+        vatRate: 5,
+      },
+    ],
+    {
+      purchaseOrder: 'PO-0034',
+      matchVerdict: 'MATCHED',
+      approvedAt: '2026-09-23T09:00:00Z',
+    },
+  ),
   bill(
     'b-mr-8850',
     's-mr',
@@ -611,6 +635,7 @@ function billDetail(b) {
       obligation: b.source === 'PEPPOL' ? 'REPORTED_BY_SENDER' : 'PENDING_COMPLIANCE_INPUT',
     },
     activity: [
+      ...(b.extraActivity ?? []),
       { at: `${b.issueDate}T12:00:00Z`, kind: 'ARRIVED', detail: null, actor: null },
       ...(b.approvedAt
         ? [{ at: b.approvedAt, kind: 'APPROVED', detail: null, actor: b.approvedBy }]
@@ -704,7 +729,7 @@ const RUNS = [
     runReference: 'ALBAHJA-PR-0012',
     format: 'PAIN_001',
     currency: 'OMR',
-    billIds: ['b-sp-1152'],
+    billIds: ['b-sp-1152', 'b-sp-1158'],
     exportedAt: '2026-09-17T13:00:00Z',
     paidAt: null,
     cancelledAt: null,
@@ -763,6 +788,14 @@ const RUNS = [
 
 const runById = (id) => RUNS.find((r) => r.id === id)
 
+/**
+ * Why a bill of a sent run cannot be marked paid now (the sent-run exits, owner 8 Oct 2026): a
+ * credit note for SP-INV-1158 arrived after PR-0012's bank file was made.
+ */
+const MARK_PAID_BLOCKS = {
+  'b-sp-1158': { code: 'PAYMENT_RUN_AMOUNT_CHANGED', owedNow: 250.0 },
+}
+
 function runItems(run) {
   return run.billIds.map((billId) => {
     const b = billById(billId)
@@ -778,19 +811,52 @@ function runItems(run) {
       amount: p.amount,
       discountTaken: p.discount,
       outstanding: p.outstanding,
+      takenOut: run.takenOut?.[billId] ?? null,
+      markPaidBlock: (run.state === 'EXPORTED' && MARK_PAID_BLOCKS[billId]) || null,
     }
   })
+}
+
+/** The run's timeline, newest first: what the run keeps, and what was done to it here. */
+function runActivity(run) {
+  const kept = [
+    { at: run.createdAt, kind: 'CREATED', actor: 'u-hafidh' },
+    run.exportedAt ? { at: run.exportedAt, kind: 'EXPORTED' } : null,
+    run.paidAt ? { at: run.paidAt, kind: 'PAID' } : null,
+    run.cancelledAt && !run.bankPaidNothing ? { at: run.cancelledAt, kind: 'CANCELLED' } : null,
+  ].filter(Boolean)
+  return [...(run.events ?? []), ...kept.reverse()].map((entry) => ({
+    reason: null,
+    actor: null,
+    billId: null,
+    supplierBillNumber: null,
+    ...entry,
+  }))
+}
+
+/** A line on a bill's own Activity, as the server writes it for a sent run's way out. */
+function noteOnBill(billId, kind, run, reason) {
+  const b = billById(billId)
+  b.extraActivity = [
+    {
+      at: `${TODAY}T11:00:00Z`,
+      kind,
+      detail: `${run.runReference ?? run.reference} · ${reason}`,
+      actor: 'u-hafidh',
+    },
+    ...(b.extraActivity ?? []),
+  ]
 }
 
 function runDto(run) {
   const items = runItems(run)
   const billsTotal = money(items.reduce((s, i) => s + i.outstanding, 0))
   const discountTotal = money(items.reduce((s, i) => s + i.discountTaken, 0))
-  const { billIds, ...rest } = run
+  const { billIds, takenOut, events, bankPaidNothing, ...rest } = run
   return { ...rest, billsTotal, discountTotal, netTotal: money(billsTotal - discountTotal) }
 }
 
-const runDetail = (run) => ({ run: runDto(run), items: runItems(run) })
+const runDetail = (run) => ({ run: runDto(run), items: runItems(run), activity: runActivity(run) })
 
 /** Approved, unpaid, in no open run: what a run may take. */
 function candidates(excludeRun, paymentDate) {
@@ -1766,27 +1832,98 @@ export default [
   {
     method: 'POST',
     match: /^\/api\/v1\/payment-runs\/([^/]+)\/mark-paid$/,
-    reply: ({ params }) => {
+    reply: ({ params, body }) => {
       const run = runById(params[0])
       if (!run) return { status: 404 }
       if (run.state !== 'EXPORTED') return refuse('PAYMENT_RUN_TRANSITION_INVALID')
+      // The way out when the bank paid the rest: any bill of the run, each with a reason.
+      const takeOut = body?.takeOut ?? []
+      const named = new Set()
+      for (const entry of takeOut) {
+        if (!entry?.billId) return refuse('PAYMENT_RUN_TAKE_OUT_BILL_REQUIRED')
+        if (named.has(entry.billId))
+          return refuse('PAYMENT_RUN_TAKE_OUT_DUPLICATE', 400, { billId: entry.billId })
+        named.add(entry.billId)
+        if (!entry.reason?.trim()) return refuse('PAYMENT_RUN_REASON_REQUIRED')
+        if (entry.reason.length > 1000) return refuse('PAYMENT_RUN_REASON_TOO_LONG')
+        if (!run.billIds.includes(entry.billId))
+          return refuse('PAYMENT_RUN_TAKE_OUT_NOT_IN_RUN', 400, { billId: entry.billId })
+      }
+      if (run.billIds.length > 0 && run.billIds.every((id) => named.has(id)))
+        return refuse('PAYMENT_RUN_TAKE_OUT_EVERYTHING')
+      // Every bill left in that cannot be marked paid now is refused by name.
+      const blocked = run.billIds.find((id) => !named.has(id) && MARK_PAID_BLOCKS[id])
+      if (blocked) {
+        const b = billById(blocked)
+        return refuse(MARK_PAID_BLOCKS[blocked].code, 400, {
+          billId: blocked,
+          supplierBillNumber: b.number,
+          documentTypeCode: '380',
+        })
+      }
       run.state = 'PAID'
       run.paidAt = `${TODAY}T11:00:00Z`
-      for (const id of run.billIds) billById(id).workflowState = 'PAID'
+      run.takenOut = {}
+      run.events = []
+      for (const entry of takeOut) {
+        const at = `${TODAY}T11:00:00Z`
+        run.takenOut[entry.billId] = { at, actor: 'u-hafidh', reason: entry.reason }
+        run.events.unshift({
+          at,
+          kind: 'TAKEN_OUT',
+          reason: entry.reason,
+          actor: 'u-hafidh',
+          billId: entry.billId,
+          supplierBillNumber: billById(entry.billId).number,
+        })
+        noteOnBill(entry.billId, 'TAKEN_OUT_OF_PAYMENT_RUN', run, entry.reason)
+      }
+      for (const id of run.billIds) if (!named.has(id)) billById(id).workflowState = 'PAID'
       return runDto(run)
     },
   },
   {
     method: 'POST',
     match: /^\/api\/v1\/payment-runs\/([^/]+)\/cancel$/,
-    reply: ({ params }) => {
+    reply: ({ params, body }) => {
       const run = runById(params[0])
       if (!run) return { status: 404 }
+      // The way out when the bank paid nothing: a sent run, on the person's word, with a reason.
+      if (run.state === 'EXPORTED' && body?.bankPaidNothing === true) {
+        if (!body.reason?.trim()) return refuse('PAYMENT_RUN_REASON_REQUIRED')
+        if (body.reason.length > 1000) return refuse('PAYMENT_RUN_REASON_TOO_LONG')
+        run.state = 'CANCELLED'
+        run.cancelledAt = `${TODAY}T11:00:00Z`
+        run.bankPaidNothing = true
+        run.events = [
+          {
+            at: run.cancelledAt,
+            kind: 'CANCELLED_BANK_PAID_NOTHING',
+            reason: body.reason,
+            actor: 'u-hafidh',
+          },
+        ]
+        for (const id of run.billIds) noteOnBill(id, 'PAYMENT_RUN_CANCELLED', run, body.reason)
+        return runDto(run)
+      }
       if (run.state !== 'DRAFT' && run.state !== 'SCHEDULED')
         return refuse('PAYMENT_RUN_TRANSITION_INVALID')
       run.state = 'CANCELLED'
       run.cancelledAt = `${TODAY}T11:00:00Z`
       return runDto(run)
+    },
+  },
+  {
+    // Reversing a payment of a bill in a run whose bank file is made is refused, naming the run.
+    method: 'POST',
+    match: /^\/api\/v1\/bills\/([^/]+)\/payments\/([^/]+)\/reverse$/,
+    reply: ({ params }) => {
+      const run = RUNS.find((r) => r.state === 'EXPORTED' && r.billIds.includes(params[0]))
+      if (run)
+        return refuse('BILL_PAYMENT_REVERSAL_IN_SENT_RUN', 400, {
+          paymentRunReference: run.runReference ?? run.reference,
+        })
+      return { status: 404 }
     },
   },
   { match: '/api/v1/payer-bank-accounts', reply: () => PAYER_ACCOUNTS },
