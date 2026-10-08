@@ -19,7 +19,7 @@ API does not provide yet, and what to add.
 - **Finding it in the code.** Every gap is a `// TODO(backend)` comment naming its row. Search for
   `TODO(backend)` in `src/pages/SettingsPage/CompanyProfilePage.tsx`.
 
-**Screens in this guide:** Settings › Company profile.
+**Screens in this guide:** Settings › Company profile, Activity log, Branches, Peppol and tax.
 
 ---
 
@@ -66,3 +66,16 @@ the page the server answered, and says so.
 | # | Element on the screen | What the backend needs to add |
 |---|---|---|
 | 3.1 | A closed branch's note: "Closed, not deleted. Its **612 invoices** stay reachable…" | The branch's all-time invoice count on each overview row (`invoicesTotal`). Until then the note leaves the number out: the row's `invoicesThisMonth` is 0 for a closed branch, and it used to print "Its 0 invoices" |
+
+## 4. Peppol and tax (`GET /v1/peppol/smp/data-submissions/standing`, `GET /v1/peppol/smp/participants`)
+
+The page states three separate facts and never calls the company "live": Fawtir's own verification
+of the Participant ID (from the standing), publication in the Oman SMP (only a registration whose
+`remoteState` is `CONFIRMED_ACTIVE`), and SML discoverability. The certificates, renewal steps and
+visibility switches the frame drew were sample data and are gone; Fawtir manages the access-point
+certificates.
+
+| # | Element on the screen | What the backend needs to add |
+|---|---|---|
+| 4.1 | "SML discoverability": always "Not checked by Fawtir" | A read that says whether the company's Participant ID resolves through the SML to the Oman SMP, with when it was last checked. Until then the row never claims it can be found |
+| 4.2 | "Oman SMP publication" | `participantReference` is masked, so the screen cannot tell which registration belongs to the verified ID; it says "Published" if any registration is `CONFIRMED_ACTIVE`. An unmasked reference for the tenant's own registrations, or a per-standing publication flag, would let it match exactly |
