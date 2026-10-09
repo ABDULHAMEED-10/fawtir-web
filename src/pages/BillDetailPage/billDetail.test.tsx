@@ -2282,6 +2282,10 @@ describe('an overpaid bill', () => {
     for (const number of ['QMS-7781', 'OTHER-1', 'QMS-USD', 'QMS-HELD', 'QMS-CN'])
       expect(within(dialog).queryByRole('button', { name: new RegExp(number) })).toBeNull()
     expect(offered[0].querySelector('svg')).toBeTruthy()
+    // What it still owes: the rial sign before the figure, no "OMR" (owner, 9 Oct 2026).
+    const owes = within(offered[0]).getByText(/still owed$/)
+    expect(owes.firstElementChild!.tagName.toLowerCase()).toBe('svg')
+    expect(owes.textContent).toMatch(/^\d[\d,]*\.\d{3} still owed$/)
     fireEvent.click(offered[0])
     expect(within(dialog).getByText(/Applying to QMS-7790/)).toBeTruthy()
 
@@ -2355,7 +2359,9 @@ describe('an overpaid bill', () => {
     let dialog = await screen.findByRole('dialog')
     fireEvent.change(within(dialog).getAllByRole('spinbutton')[0], { target: { value: '40.5' } })
     let alert = within(dialog).getByRole('alert')
-    expect(alert.textContent).toBe('هذا أكثر من مبلغ OMR\u00A040.000 المدفوع زيادةً على هذه الفاتورة.')
+    expect(alert.textContent).toBe(
+      'هذا أكثر من مبلغ OMR\u00A040.000 المدفوع زيادةً على هذه الفاتورة.',
+    )
     expect(alert.querySelector('svg')).toBeTruthy()
     fireEvent.click(within(dialog).getByRole('button', { name: 'إلغاء' }))
 
