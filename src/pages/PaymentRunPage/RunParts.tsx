@@ -259,7 +259,9 @@ export function MarkPaidModal({
     <ConfirmModal
       title={t('paymentRuns.confirmPaid.title', { reference: run.reference })}
       body={t('paymentRuns.confirmPaid.body', {
-        amount: `${formatAmount(amount, run.currency, i18n.language)} ${run.currency}`,
+        // The code before the figure, so the sign drawn in its place stands before it, as
+        // everywhere else in the app (owner, 9 Oct 2026).
+        amount: `${run.currency} ${formatAmount(amount, run.currency, i18n.language)}`,
       })}
       confirm={
         everything

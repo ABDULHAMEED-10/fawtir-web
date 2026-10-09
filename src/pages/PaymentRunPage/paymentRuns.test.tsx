@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -579,6 +579,25 @@ describe('the ways out of a sent run (owner, 8 Oct 2026)', () => {
     expect(bodyOf(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)[0])).toEqual({
       takeOut: [{ billId: 'b-3', reason: 'A credit note came after the file was made' }],
     })
+  })
+
+  // Owner, 9 Oct 2026: the sign stands before the figure, as everywhere else in the app.
+  it('draws the rial sign before the amount being marked paid, in both languages', async () => {
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const dialog = within(await openMarkPaid())
+    const check = (sentence: HTMLElement) => {
+      const amount = sentence.querySelector('.whitespace-nowrap')!
+      expect(amount.firstElementChild!.querySelector('svg')).not.toBeNull()
+      expect(amount.textContent!.replace(/\s+/g, ' ')).toBe('OMR 980.000')
+      const shown = sentence.cloneNode(true) as Element
+      shown.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+      expect(shown.textContent).not.toContain('OMR')
+    }
+    check(dialog.getByText(/^This records/))
+    await act(async () => {
+      await i18n.changeLanguage('ar')
+    })
+    check(await dialog.findByText(/^يُسجَّل مبلغ/))
   })
 
   it('lets any other bill be taken out too, each with its reason', async () => {
