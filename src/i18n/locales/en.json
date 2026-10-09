@@ -10085,7 +10085,13 @@
     "industrialClassificationUnset": "Not set yet. Business and government invoices cannot be created until a business activity is set. Consumer invoices are not affected.",
     "industrialClassificationFailed": "The business activity was not saved. Check the code and try again.",
     "saveFailed": "That did not save. Check your connection and try again.",
-    "identityLockedNote": "Your legal and tax identity is verified and locked. Changing it needs a controlled re-verification, so contact support."
+    "identityLockedNote": "Your legal and tax identity is verified and locked. Changing it needs a controlled re-verification, so contact support.",
+    "legalNameEn": "Legal name in English",
+    "legalNameEnHint": "Used only for bank files. Use English letters, digits and . , - / ( ) ' + : ?",
+    "legalNameEnRefused": {
+      "INVALID_CHARACTERS": "Use English letters, digits and . , - / ( ) ' + : ? only. \"&\" is not allowed; write \"and\".",
+      "TOO_LONG": "Use at most 70 characters."
+    }
   },
   "branches": {
     "title": "Branches",
@@ -10962,7 +10968,8 @@
       "MappingCertificationStarted": "Mapping certification started",
       "MappingDraftSaved": "Mapping draft saved",
       "MappingProfileDeactivated": "Mapping deactivated",
-      "MappingProfileStored": "Mapping saved"
+      "MappingProfileStored": "Mapping saved",
+      "CompanyLegalNameEnChanged": "Legal name in English changed"
     },
     "notAvailable": "Not available yet",
     "exportUnavailable": "Exporting the log as a PDF is not available yet.",

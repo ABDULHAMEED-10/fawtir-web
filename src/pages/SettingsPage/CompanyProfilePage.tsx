@@ -5,7 +5,7 @@ import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { Combobox, Input, Select, withRial, type SelectOption } from '../../components/ui'
 import { COMPANY } from '../../lib/settings'
 import { useApiRead } from '../../hooks/useApiRead'
-import { useSession } from '../../lib/session/session'
+import { can, useSession } from '../../lib/session/session'
 import { initialsOf } from '../../lib/format'
 import {
   INDUSTRIAL_CLASSIFICATION_PATH,
@@ -33,6 +33,11 @@ import {
   saveCompanyProfile,
   type CompanyProfileDto,
 } from '../../api/company/companyProfile'
+import {
+  checkLegalNameEn,
+  saveLegalNameEn,
+  type LegalNameEnRefusal,
+} from '../../api/company/legalNameEn'
 import { ApiError } from '../../api/errors'
 import { isicOptions as isicOptionsFor } from '../../lib/codeLists/isic'
 import { CODE_LISTS } from '../../lib/erpCodeLists'
@@ -67,10 +72,18 @@ const FIELD_LABEL: Record<string, string> = {
   contactEmail: 'emailOnInvoices',
 }
 
+/** The English legal name's top-level refusal codes, for a refusal that names no field. */
+const LEGAL_NAME_EN_CODE: Record<string, LegalNameEnRefusal> = {
+  COMPANY_LEGAL_NAME_EN_TOO_LONG: 'TOO_LONG',
+  COMPANY_LEGAL_NAME_EN_NOT_LATIN: 'INVALID_CHARACTERS',
+}
+
 /** The shape the form edits. Kept flat so a dirty-field diff is a plain key comparison. */
 type Profile = {
   registeredName: string
   arabicName: string
+  /** For bank files only, never on an invoice; editable whatever the verification status. */
+  legalNameEn: string
   tradingAs: string
   commercialRegistration: string
   /** ISIC Rev. 4, Oman's 6-digit code (IBR-081-OM); the backend copies it onto every invoice line. */
@@ -133,6 +146,7 @@ function operationalFrom(stored: CompanyProfileDto): OperationalFields {
 const INITIAL: Profile = {
   registeredName: COMPANY.legalName,
   arabicName: COMPANY.arabicName,
+  legalNameEn: '',
   tradingAs: COMPANY.tradingAs,
   commercialRegistration: COMPANY.commercialRegistration,
   industrialClassification: '',
@@ -195,6 +209,11 @@ export function CompanyProfilePage() {
   const [profileConflict, setProfileConflict] = useState(false)
   /** Fields the server refused by name (a 400 from the amendment), shown as one sentence. */
   const [profileFieldErrors, setProfileFieldErrors] = useState<string[]>([])
+  /** The server's refusal of the English legal name; cleared as soon as the name is edited. */
+  const [legalNameEnRefused, setLegalNameEnRefused] = useState<LegalNameEnRefusal | null>(null)
+  const [legalNameEnSaveFailed, setLegalNameEnSaveFailed] = useState(false)
+  // Every company-profile route needs admin.settings.manage; without it the field is not offered.
+  const canManageSettings = can(session, 'admin.settings.manage')
   // Once VERIFIED, the legal and tax identity is locked: PUT /company-profile refuses it and there
   // is no re-verification procedure yet. The registered address and contact stay editable through
   // POST /company-profile/amendments (approved 2026-10-06), which leaves the verification as it is.
@@ -249,6 +268,7 @@ export function CompanyProfilePage() {
       ...current,
       registeredName: data.legalName,
       arabicName: data.legalNameAr ?? '',
+      legalNameEn: data.legalNameEn ?? '',
       tradingAs: data.tradingName ?? '',
       commercialRegistration: data.commercialRegistrationNumber,
       street: data.registeredAddress,
@@ -281,6 +301,7 @@ export function CompanyProfilePage() {
         ? {
             registeredName: storedProfile.legalName,
             arabicName: storedProfile.legalNameAr ?? '',
+            legalNameEn: storedProfile.legalNameEn ?? '',
             tradingAs: storedProfile.tradingName ?? '',
             commercialRegistration: storedProfile.commercialRegistrationNumber,
             street: storedProfile.registeredAddress,
@@ -334,6 +355,11 @@ export function CompanyProfilePage() {
     return { net, vat, total: Math.round((net + vat) * 1000) / 1000 }
   }, [])
 
+  // The same check the server makes, for feedback while typing; the server's answer still decides.
+  const legalNameEnProblem =
+    form.legalNameEn !== baseline.legalNameEn ? checkLegalNameEn(form.legalNameEn) : null
+  const legalNameEnError = legalNameEnProblem ?? legalNameEnRefused
+
   const fieldNames = dirty
     .map((key) => t(`companyProfile.${key}`).toLowerCase())
     .join(t('companyProfile.andJoin'))
@@ -382,6 +408,28 @@ export function CompanyProfilePage() {
                 readOnly={verified}
                 readOnlyAppearance={verified}
               />
+              {canManageSettings ? (
+                <Input
+                  bordered
+                  label={t('companyProfile.legalNameEn')}
+                  labelNote={t('companyProfile.optional')}
+                  dir="ltr"
+                  value={form.legalNameEn}
+                  onChange={(event) => {
+                    set('legalNameEn', event.target.value)
+                    setLegalNameEnRefused(null)
+                    setLegalNameEnSaveFailed(false)
+                  }}
+                  hint={t('companyProfile.legalNameEnHint')}
+                  error={
+                    legalNameEnError
+                      ? t(`companyProfile.legalNameEnRefused.${legalNameEnError}`)
+                      : legalNameEnSaveFailed
+                        ? t('companyProfile.saveFailed')
+                        : undefined
+                  }
+                />
+              ) : null}
               <div className="grid gap-4 sm:grid-cols-2">
                 <Input
                   bordered
@@ -1028,6 +1076,10 @@ export function CompanyProfilePage() {
               setProfileSaveFailed(false)
               setProfileConflict(false)
               setProfileFieldErrors([])
+              setLegalNameEnRefused(null)
+              setLegalNameEnSaveFailed(false)
+              // A name the server would refuse is said under the field already; nothing is sent.
+              if (legalNameEnProblem) return
               const operationalDirty = OPERATIONAL_FIELDS.some((key) => form[key] !== baseline[key])
               if (verified && operationalDirty && storedProfile) {
                 try {
@@ -1105,6 +1157,27 @@ export function CompanyProfilePage() {
                   setStoredProfile(stored)
                 } catch {
                   setProfileSaveFailed(true)
+                  return
+                }
+              }
+              if (form.legalNameEn !== baseline.legalNameEn) {
+                try {
+                  const stored = await saveLegalNameEn(form.legalNameEn.trim() || null)
+                  setStoredProfile((current) =>
+                    current ? { ...current, legalNameEn: stored.legalNameEn } : current,
+                  )
+                  setForm((current) => ({ ...current, legalNameEn: stored.legalNameEn ?? '' }))
+                } catch (error) {
+                  const refusal =
+                    error instanceof ApiError && error.status === 400
+                      ? (error.fieldErrors.find((refused) => refused.field === 'legalNameEn')
+                          ?.code ?? LEGAL_NAME_EN_CODE[error.code ?? ''])
+                      : undefined
+                  if (refusal === 'TOO_LONG' || refusal === 'INVALID_CHARACTERS') {
+                    setLegalNameEnRefused(refusal)
+                  } else {
+                    setLegalNameEnSaveFailed(true)
+                  }
                   return
                 }
               }

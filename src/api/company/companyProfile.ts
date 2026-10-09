@@ -36,6 +36,8 @@ export type CompanyProfileDto = {
   contactEmail: string | null
   profileRevision: number
   verificationStatus: CompanyVerificationStatus
+  /** Read-only here; changed through `/company-profile/legal-name-en`. Absent from older servers. */
+  legalNameEn?: string | null
 }
 
 /** Every field `PUT` needs, since it replaces the profile as a unit — a client that read the
