@@ -5,7 +5,7 @@
 
 /* ------------------------------------------------------------------ search */
 
-export type HitKind = 'invoice' | 'customer' | 'supplier'
+export type HitKind = 'invoice' | 'customer' | 'supplier' | 'document' | 'item'
 
 export type Hit = {
   id: string
@@ -18,7 +18,7 @@ export type Hit = {
 }
 
 /** The order results are grouped in — what people look for most, first. */
-export const HIT_KINDS: HitKind[] = ['invoice', 'customer', 'supplier']
+export const HIT_KINDS: HitKind[] = ['invoice', 'customer', 'supplier', 'document', 'item']
 
 /** What somebody might be looking for before they have typed anything. */
 export const SEARCH_SUGGESTIONS = [

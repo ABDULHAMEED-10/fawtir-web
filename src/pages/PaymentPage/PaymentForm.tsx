@@ -69,7 +69,8 @@ export function PaymentForm() {
   const terms = termsRead.status === 'ready' ? termsRead.terms : null
   // `undefined`: not known (still reading, or a server that sends no trial); `null`: no trial.
   const trialDays = terms ? terms.trialDays : undefined
-  // Automatic ERP extraction: offered as a priced add-on only where the console says so.
+  // Automatic ERP extraction: offered as a priced add-on only where the console says so (handbook
+  // section 6).
   const offer = extractionOffer(plan)
   const [addon, setAddon] = useState(Boolean(state.addon))
   const months = billing === 'annual' ? 12 : 1

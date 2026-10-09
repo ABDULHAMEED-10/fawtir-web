@@ -12,7 +12,6 @@ import {
   ConsolePlansIcon,
   ConsoleQueueIcon,
   ConsoleSubscriptionIcon,
-  ConsoleTickIcon,
 } from '../layouts/ConsoleShell/consoleIcons'
 
 type IconProps = { className?: string; active?: boolean }
@@ -106,27 +105,9 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
       },
     ],
   },
-  {
-    id: 'erp',
-    labelKey: 'console.nav.group.erp',
-    items: [
-      // No Connections entry: there is no platform-scoped ERP API, so the screen behind
-      // /console/erp can only say so (ConsoleErpUnavailable). The route is kept for an
-      // operator's bookmark; offering it here would invite reading invented state.
-      {
-        id: 'erpTemplates',
-        labelKey: 'console.nav.erpTemplates',
-        to: '/console/erp/templates',
-        Icon: NavDocumentsIcon,
-      },
-      {
-        id: 'erpRequests',
-        labelKey: 'console.nav.erpRequests',
-        to: '/console/erp/add-on-requests',
-        Icon: ConsoleTickIcon,
-      },
-    ],
-  },
+  // No ERP group. Its two screens, add-on requests and templates, drew a story fixture, and the
+  // approval there changed nothing real. A tenant's ERP access is granted and revoked from the
+  // tenant's own page, against the platform entitlement API.
   {
     id: 'platform',
     labelKey: 'console.nav.group.platform',

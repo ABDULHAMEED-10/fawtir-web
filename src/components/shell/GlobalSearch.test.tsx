@@ -25,19 +25,37 @@ const CUSTOMER = { id: 'c-1', displayName: 'Real Buyer LLC', profile: { details:
 const SUPPLIER = { id: 's-1', displayName: 'Real Supplier', vatNumber: null }
 
 let fetchMock: ReturnType<typeof vi.fn>
-type Lists = { invoices: () => Response; customers: () => Response; suppliers: () => Response }
+type Lists = {
+  invoices: () => Response
+  customers: () => Response
+  suppliers: () => Response
+  documents: () => Response
+  items: () => Response
+}
+const DOCUMENT = {
+  invoice_uuid: 'doc-1',
+  invoice_number: 'RT-0042',
+  counterparty_name: 'Archive Buyer',
+  total_amount: 55.5,
+  currency: 'OMR',
+}
+const ITEM = { id: 'p-1', code: 'FLAT-W', name: 'Real Flat White' }
 
 function answer(lists: Partial<Lists> = {}) {
   const all: Lists = {
     invoices: () => json(200, spring([INVOICE])),
     customers: () => json(200, spring([CUSTOMER])),
     suppliers: () => json(200, { items: [SUPPLIER], page: 0, pageSize: 4, count: 1, total: 1 }),
+    documents: () => json(200, { items: [], page: 0, page_size: 4, has_more: false }),
+    items: () => json(200, spring([])),
     ...lists,
   }
   fetchMock.mockImplementation(async (url: string) => {
     if (url.startsWith('/api/v1/authored-invoices?')) return all.invoices()
     if (url.startsWith('/api/v1/customers?')) return all.customers()
     if (url.startsWith('/api/v1/suppliers?')) return all.suppliers()
+    if (url.startsWith('/api/v1/compliance/documents?')) return all.documents()
+    if (url.startsWith('/api/v1/products?')) return all.items()
     throw new Error(`unexpected ${url}`)
   })
 }
@@ -66,6 +84,25 @@ afterEach(async () => {
 })
 
 describe('GlobalSearch, asked of the server', () => {
+  it('also finds documents by number and catalogue items, with amounts in rials', async () => {
+    answer({
+      documents: () => json(200, { items: [DOCUMENT], page: 0, page_size: 4, has_more: false }),
+      items: () => json(200, spring([ITEM])),
+    })
+    const box = renderBox()
+    fireEvent.change(box, { target: { value: 'real' } })
+
+    expect(await screen.findByText('RT-0042')).toBeTruthy()
+    expect(screen.getByText('Real Flat White')).toBeTruthy()
+    expect(screen.getByText(t('shell.search.kind.document'))).toBeTruthy()
+    expect(screen.getByText(t('shell.search.kind.item'))).toBeTruthy()
+    // The figure carries the rial sign (an svg; "OMR" is only its hidden spoken name).
+    expect(screen.getByText('55.500').closest('span')?.querySelector('svg')).toBeTruthy()
+    const asked = fetchMock.mock.calls.map(([url]) => url as string)
+    expect(asked.some((url) => url.includes('/compliance/documents?') && url.includes('invoice_number=real'))).toBe(true)
+    expect(asked.some((url) => url.startsWith('/api/v1/products?') && url.includes('q=real'))).toBe(true)
+  })
+
   it('asks the three lists once the typing pauses and shows what they answer', async () => {
     answer()
     const box = renderBox()
@@ -103,7 +140,7 @@ describe('GlobalSearch, asked of the server', () => {
 
   it('says search is not available when no list answers, not that nothing matched', async () => {
     const down = () => json(503, { type: 'about:blank' })
-    answer({ invoices: down, customers: down, suppliers: down })
+    answer({ invoices: down, customers: down, suppliers: down, documents: down, items: down })
     const box = renderBox()
     fireEvent.change(box, { target: { value: 'real' } })
 

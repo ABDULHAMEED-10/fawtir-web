@@ -46,7 +46,7 @@ import {
   WaiveOverageModal,
   type SubscriptionAction,
 } from './subscriptions'
-import { TenantErpTab } from './erp/TenantErpTab'
+import { TenantErpEntitlementCard } from './erp/TenantErpEntitlementCard'
 import invoiceIcon from '../../assets/actions/invoice.svg'
 import creditNoteIcon from '../../assets/actions/credit-note.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
@@ -55,8 +55,10 @@ import { consoleTab } from '../../layouts/ConsoleShell/consoleTones'
 import { demoModulesEnabled } from '../../lib/demoModules'
 import { DemoRibbon } from '../../components/feedback/DemoModule'
 
-type Tab = 'subscription' | 'filing' | 'erp'
-const TABS: Tab[] = ['subscription', 'filing', 'erp']
+// No ERP tab: it drew a fixture's add-on state. A real tenant's ERP access is the entitlement
+// card below the facts, read from and changed through the platform API.
+type Tab = 'subscription' | 'filing'
+const TABS: Tab[] = ['subscription', 'filing']
 
 type Request = { action: SubscriptionAction; invoiceId?: string }
 
@@ -440,6 +442,10 @@ function TenantDetail({
         overview={prototype ? withLedger(overview, subscription, t) : overview}
       />
 
+      {prototype ? null : (
+        <TenantErpEntitlementCard tenantId={tenantId} tenantCode={overview.identity.tenantCode} />
+      )}
+
       {/*
         Tabs, their content and every action modal are sample-data features: the subscription
         ledger, the filing week and the ERP panel have no backend, and tenantIdentity() throws on
@@ -541,9 +547,7 @@ function TenantDetail({
                 {t('console.tenantDetail.filing.noData')}
               </p>
             )
-          ) : (
-            <TenantErpTab tenantId={tenantId} />
-          )}
+          ) : null}
 
           {request?.action === 'recordPayment' ? <RecordPaymentModal {...modalProps} /> : null}
           {request?.action === 'sendLink' ? <SendLinkModal {...modalProps} /> : null}

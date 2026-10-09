@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
-import { Input, Select, Switch } from '../../components/ui'
+import { DateField, Input, Select, Switch } from '../../components/ui'
+import { useCan } from '../../lib/session/session'
 import { useApiRead } from '../../hooks'
 import { GOVERNORATES, BRANCH_BEHAVIOUR, firstInvoiceFor } from '../../lib/settingsCompany'
 import { governorateIdFor, GOVERNORATE_NAMES, type GovernorateId } from '../../lib/governorates'
@@ -49,6 +50,8 @@ import tickWhiteIcon from '../../assets/settings/check-white.svg'
 export function AddBranchPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  // Inviting is a user-management action; the link is offered only to those who may.
+  const canInvite = useCan('admin.users.manage')
   const { id } = useParams()
 
   /** Opening an existing branch fills the same form from what it already holds. */
@@ -276,6 +279,20 @@ export function AddBranchPage() {
                     }))}
                   />
                 </label>
+                {/* TODO(backend): docs/backend-guides/SETTINGS.md row 3.2. BranchAttributes has no
+                    opening date, so the designed picker is drawn but cannot be set yet. */}
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-text-primary">
+                    {t('addBranch.opens')}
+                  </span>
+                  <DateField
+                    ariaLabel={t('addBranch.opens')}
+                    value=""
+                    onChange={() => {}}
+                    disabled
+                    placeholder={t('addBranch.notAvailableYet')}
+                  />
+                </label>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Input
@@ -334,6 +351,28 @@ export function AddBranchPage() {
               <span className="text-xs font-medium text-text-quaternary">
                 {t('addBranch.thenOnwards')}
               </span>
+            </p>
+          </Panel>
+
+          {/* TODO(backend): docs/backend-guides/SETTINGS.md row 3.3. A person's branch is set on
+              their own profile and nothing lists who works at a branch, so the designed roster says
+              so; inviting someone new still works for those who may. */}
+          <Panel
+            title={t('addBranch.whoWorksThere')}
+            note={t('addBranch.whoWorksThereNote')}
+            action={
+              canInvite ? (
+                <Link
+                  to="/settings/team/invite"
+                  className="text-sm font-semibold text-primary-700 transition-colors hover:text-primary-800"
+                >
+                  {t('addBranch.inviteSomeoneNew')}
+                </Link>
+              ) : undefined
+            }
+          >
+            <p className="text-sm font-medium text-text-quaternary">
+              {t('addBranch.notAvailableYet')}
             </p>
           </Panel>
 

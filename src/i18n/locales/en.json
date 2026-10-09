@@ -1177,12 +1177,18 @@
       "overdue": "{{count}} overdue",
       "cashThisMonth": "Cash received this month",
       "cashLastMonth": "Same days last month: {{amount}}",
-      "dueThisWeek": "{{count}} due this week"
+      "dueThisWeek": "{{count}} due this week",
+      "sales": "Today’s sales"
     },
     "revenue": {
-      "title": "Invoiced, last 12 months",
+      "title": "Revenue",
       "thisMonth": "this month",
-      "none": "No invoices in the last 12 months."
+      "none": "No invoices in the last 12 months.",
+      "periodLabel": "Revenue period",
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "lastTwelve": "bars show the last 12 months"
     },
     "invoices": {
       "title": "Recent invoices",
@@ -10024,7 +10030,28 @@
       "notConfirmed": "Not confirmed",
       "notChecked": "Not checked by Fawtir"
     },
-    "noOpenBranches": "No open branches."
+    "noOpenBranches": "No open branches.",
+    "cert": {
+      "signing": "Signing certificate",
+      "signingNote": "Signs every invoice so the Tax Authority knows it came from you",
+      "transport": "AS4 transport certificate",
+      "transportNote": "Encrypts documents in transit between access points",
+      "reporting": "OTA reporting credentials",
+      "reportingNote": "Your Fawtara account, used to file every TDD"
+    },
+    "appearance": "How you appear to others",
+    "appearanceNote": "what another business sees when they look you up",
+    "visibility": {
+      "directory": "Listed in the Peppol directory",
+      "directoryNote": "Lets a customer find you by name rather than needing your ID. Most businesses leave this on.",
+      "acceptBills": "Accept bills sent to you over Peppol",
+      "acceptBillsNote": "Off would mean suppliers have to email or post them instead",
+      "acceptSelfBilling": "Accept self-billing",
+      "acceptSelfBillingNote": "Lets a customer raise the invoice on your behalf.",
+      "emailCopy": "Send a copy by email as well",
+      "emailCopyNote": "Belt and braces for customers who aren't watching their Peppol inbox"
+    },
+    "notAvailableYet": "Not available yet"
   },
   "companyProfile": {
     "addressLine2": "Additional street or area",
@@ -10119,7 +10146,15 @@
     "sampleLineTwo": "Sample service",
     "previewVat": "VAT {{number}}",
     "noChangesYet": "No changes recorded yet",
-    "changedOther": "Company details"
+    "changedOther": "Company details",
+    "website": "Website",
+    "onAReceiptNote": "thermal printers are black and white",
+    "receiptOption": {
+      "plainBlack": "Use a plain black version",
+      "none": "Leave it off receipts"
+    },
+    "vatRegisteredSince": "VAT registered since",
+    "notAvailableYet": "Not available yet"
   },
   "branches": {
     "title": "Branches",
@@ -10267,7 +10302,12 @@
     "withinPlan": "Within your plan",
     "beyondPlan": "Beyond your plan's allowance",
     "footerOwn": "{{name}} · first invoice {{invoice}}",
-    "footerShared": "{{name}} · carries on the company series"
+    "footerShared": "{{name}} · carries on the company series",
+    "opens": "Opens",
+    "whoWorksThere": "Who works there",
+    "whoWorksThereNote": "you can change this later, nobody has to be assigned now",
+    "inviteSomeoneNew": "Invite someone new",
+    "notAvailableYet": "Not available yet"
   },
   "team": {
     "title": "Team members",
@@ -14185,12 +14225,12 @@
         }
       },
       "unavailable": {
-        "crumb": "Connections",
-        "title": "Tenant ERP connections",
-        "subtitle": "The platform view of what tenants have connected.",
-        "badge": "Not built yet",
-        "body": "Fawtir cannot show tenant ERP connections from here yet. A tenant's own connections are managed inside that tenant, and no platform-wide view has been built. This screen showed sample data before, which was indistinguishable from the real thing.",
-        "action": "Back to the console"
+        "crumb": "ERP integration",
+        "title": "ERP integration across tenants",
+        "subtitle": "Where the platform manages tenants' ERP integration.",
+        "badge": "Not here",
+        "body": "ERP integration is enabled or disabled for each tenant from that tenant's page in Tenants. Each tenant's connections are managed inside that tenant.",
+        "action": "Open tenants"
       }
     },
     "ops": {
@@ -14824,6 +14864,37 @@
         "POLICY_REJECTED": "Version rejected",
         "POLICY_SCHEDULE_WITHDRAWN": "Schedule withdrawn"
       }
+    },
+    "erpEntitlement": {
+      "title": "ERP integration",
+      "loading": "Reading ERP access…",
+      "state": {
+        "enabled": "Enabled",
+        "disabled": "Not enabled"
+      },
+      "grantedOn": "Enabled on {{date}}.",
+      "revokedOn": "Disabled on {{date}}.",
+      "never": "Never enabled.",
+      "enabledBody": "This tenant can set up and run ERP connections, Bridge Upload and API Push. Disabling stops new ERP work; their connections, mappings, documents and reports are kept, and reading them stays available.",
+      "disabledBody": "This tenant cannot create ERP connections, upload or push documents, or recover them. Enabling takes effect at once, and any collection schedules they had resume.",
+      "grant": "Enable ERP integration",
+      "revoke": "Disable ERP integration",
+      "grantTitle": "Enable ERP integration for this tenant?",
+      "grantBody": "The tenant can start setting up ERP connections, Bridge Upload and API Push immediately. The change and your reason are recorded in the audit log.",
+      "grantConfirm": "Enable",
+      "revokeTitle": "Disable ERP integration for this tenant?",
+      "revokeBody": "Scheduled collection stops after the page in hand, and uploads, pushes, recoveries and ERP key creation are refused. Nothing is deleted: connections, mappings, documents and reports stay, and enabling again resumes collection. The change and your reason are recorded in the audit log.",
+      "confirmCodeLabel": "Type the tenant code {{code}} to confirm",
+      "confirmCodeMismatch": "Type the tenant code exactly as shown.",
+      "revokeConfirm": "Disable",
+      "sending": "Saving…",
+      "error": {
+        "realm": "This change must be made from the production platform account.",
+        "impersonation": "This cannot be changed while acting as another user.",
+        "refused": "You cannot change ERP access, or your sign-in needs to be verified again. Sign in again with two-step verification and retry.",
+        "gone": "This tenant was not found, or is not a customer tenant.",
+        "invalid": "Fawtir could not accept this change. Check the reason and try again."
+      }
     }
   },
   "shell": {
@@ -14836,7 +14907,9 @@
       "kind": {
         "invoice": "Invoices",
         "customer": "Customers",
-        "supplier": "Suppliers"
+        "supplier": "Suppliers",
+        "document": "Documents",
+        "item": "Catalogue"
       },
       "keepTyping": "Type at least two characters to search.",
       "searching": "Searching…",
@@ -15731,7 +15804,7 @@
       "subtitle": "Let Fawtir collect invoices from your ERP by itself, instead of your ERP pushing them.",
       "card": {
         "title": "Automatic extraction",
-        "body": "Fawtir connects to your ERP, collects new invoices on a schedule, runs them through your field mapping, submits them, and writes the result back into the ERP record: the Fawtir number, the status and the QR code."
+        "body": "Fawtir connects to your ERP, collects new invoices on a schedule, runs them through your field mapping and submits them. Nothing is written back to your ERP."
       },
       "steps": {
         "collect": {
@@ -15896,7 +15969,8 @@
         "submitting": "Saving…",
         "saved": "Sign-in details saved.",
         "cancel": "Cancel",
-        "notProbeable": "This kind cannot be checked automatically yet. You can save it, but Check connection will report it as unsupported."
+        "notProbeable": "This kind cannot be checked automatically yet. You can save it, but Check connection will report it as unsupported.",
+        "unsupportedStored": "This connection's saved sign-in ({{kind}}) can't be used by Fawtir. Save a username and password or an API token to replace it."
       },
       "test": {
         "heading": "Connection check",
@@ -17111,12 +17185,13 @@
         "notReadyBody": "Your {{format}} mapping is not certified for invoices yet. An upload now is recorded and refused, and can be sent again unchanged once the mapping is certified.",
         "openCertification": "Open mapping certification",
         "note": "Certified means the mapping produces a valid test invoice. Each real invoice is still checked on its own, so one can be refused even when the mapping is ready.",
-        "administratorOnly": "Your administrator manages the ERP mapping. If an upload is refused because the mapping is not ready, ask them to certify it."
+        "administratorOnly": "Your administrator manages the ERP mapping. If an upload is refused because the mapping is not ready, ask them to certify it.",
+        "notReadyXmlBody": "Fawtir has no certified XML mapping for invoices yet. An XML mapping is an XSLT stylesheet that is saved and certified through the Fawtir API, not on the mapping screens here. Until one is certified, an XML upload is recorded and refused."
       },
       "document": {
         "title": "Document",
         "format": "Format",
-        "formatHint": "The format your ERP produced the document in. Each format has its own mapping.",
+        "formatHint": "The format your ERP produced the document in. Each format has its own mapping. An XML mapping is set up and certified through the Fawtir API.",
         "file": "File",
         "drop": "Drop a {{format}} file here, or click to choose one",
         "reading": "Reading the file...",
@@ -17348,7 +17423,10 @@
         "MAPPING_PROFILE_ABSENT": "No ERP mapping is set up",
         "MAPPING_FAILED": "The mapping could not produce an invoice",
         "MAPPING_NOT_CERTIFIED": "The mapping is not certified",
-        "INVOICE_VALIDATION_FAILED": "The invoice failed validation"
+        "INVOICE_VALIDATION_FAILED": "The invoice failed validation",
+        "MAPPING_CAPACITY_UNAVAILABLE": "Fawtir's mapping service was busy",
+        "SOURCE_IDENTITY_INVALID": "The document's identifier or version is too long or blank",
+        "SOURCE_CONTENT_CHANGED": "Your ERP sent different content under the same version"
       },
       "stage": {
         "SOURCE": "your ERP",
@@ -17417,7 +17495,8 @@
         "TRANSPORT_PENDING": "Transport has not acknowledged",
         "RESPONSE_PENDING": "No answer from the recipient",
         "DELIVERY_FAILED": "Delivery failed",
-        "TAX_REPORT_ATTENTION": "Tax report needs attention"
+        "TAX_REPORT_ATTENTION": "Tax report needs attention",
+        "ATTEMPTS_EXHAUSTED": "Every attempt was used"
       },
       "labelExplain": {
         "RECOVERY_PENDING": "The document is held by an attempt nobody is working on. Fawtir's recovery will release it.",
@@ -17427,7 +17506,8 @@
         "TRANSPORT_PENDING": "The invoice has waited longer than expected for the transport to acknowledge it.",
         "RESPONSE_PENDING": "The transport acknowledged the invoice and the recipient's side has not answered for too long.",
         "DELIVERY_FAILED": "The network leg ended without the invoice reaching the recipient, or they refused it.",
-        "TAX_REPORT_ATTENTION": "The tax report could not be produced, was refused as a message, was given up on, or is waiting past its deadline. This is separate from delivery."
+        "TAX_REPORT_ATTENTION": "The tax report could not be produced, was refused as a message, was given up on, or is waiting past its deadline. This is separate from delivery.",
+        "ATTEMPTS_EXHAUSTED": "Automatic attempts ran out without an answer about the document itself. Recover it from its page (managed pull), or send it again as a new version."
       },
       "labelGroup": {
         "attention": "Before an invoice",
@@ -17549,9 +17629,7 @@
         "guideOpen": "Show the labels",
         "since": "since",
         "tax": "Tax report: {{status}}",
-        "response": "Recipient answer: {{answer}}",
-        "exhaustedNote": "Documents that ran out of automatic attempts are not listed here, because they are settled as refused. A managed pull document like that can be recovered from its own page.",
-        "exhaustedLink": "Show those documents"
+        "response": "Recipient answer: {{answer}}"
       },
       "runs": {
         "title": "Extraction runs",
@@ -17594,7 +17672,8 @@
         "SOURCE_REPLAY_UNAVAILABLE": "the ERP could not repeat the request",
         "SOURCE_UNAVAILABLE": "the ERP could not be reached",
         "SOURCE_AUTHENTICATION_REJECTED": "the ERP refused the sign-in details",
-        "PROCESSING_FAILED": "no invoice produced"
+        "PROCESSING_FAILED": "no invoice produced",
+        "PLATFORM_UNAVAILABLE": "stored sign-in details could not be opened"
       },
       "recover": {
         "title": "Recovery",
@@ -17695,6 +17774,10 @@
           "other": {
             "title": "The recovery could not be completed.",
             "body": "Contact support if this keeps happening."
+          },
+          "platformUnavailable": {
+            "title": "Fawtir could not open the connection's stored sign-in details.",
+            "body": "Nothing was fetched or processed. This is on Fawtir's side; try again later, and contact support if it continues."
           }
         }
       }
@@ -17949,8 +18032,8 @@
       },
       "history": {
         "title": "Change history",
-        "note": "From the organisation's activity log, narrowed to ERP integration. The narrowing is a view, not a limit on who can read the log.",
-        "adminOnly": "The change history is shown to administrators only, because the server has no history limited to ERP integration for other roles yet."
+        "note": "The ERP history from the server, limited by the server to ERP connections, documents, enablement and mappings.",
+        "needsPermission": "Your role can't see the ERP history. Ask your administrator to give it access to ERP audit records."
       }
     }
   },

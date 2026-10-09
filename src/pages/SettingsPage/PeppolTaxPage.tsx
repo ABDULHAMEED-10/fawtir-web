@@ -21,6 +21,7 @@ import {
 } from '../../api/company/companyProfile'
 import { BRANCHES_OVERVIEW_PATH, type BranchOverviewDto } from '../../api/settings/branches'
 import { formatInstantDay } from '../../lib/format'
+import { Switch } from '../../components/ui'
 import shieldIcon from '../../assets/settings/tile-peppol.svg'
 import copyIcon from '../../assets/settings/copy.svg'
 
@@ -42,6 +43,16 @@ export function PeppolTaxPage() {
     </SettingsShell>
   )
 }
+
+const CERTIFICATE_IDS = ['signing', 'transport', 'reporting'] as const
+
+/** How the business appears to others on the network, at the frame's usual settings. */
+const VISIBILITY = [
+  { id: 'directory', on: true },
+  { id: 'acceptBills', on: true },
+  { id: 'acceptSelfBilling', on: false },
+  { id: 'emailCopy', on: false },
+] as const
 
 /**
  * Its own component so the standing read starts in the same commit as ParticipantStandingSection's:
@@ -66,6 +77,70 @@ function PeppolTaxBody() {
           <p className="mt-1 text-sm font-medium leading-[1.6] text-text-tertiary">
             {t('peppolTax.certificatesManaged')}
           </p>
+          {/* TODO(backend): docs/backend-guides/SETTINGS.md row 4.3. Nothing reports each
+              certificate's issuer and expiry, so the designed rows name them and say so. */}
+          <ul className="mt-3 flex flex-col">
+            {CERTIFICATE_IDS.map((id) => (
+              <li
+                key={id}
+                className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-surface-background py-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-text-primary">
+                    {t(`peppolTax.cert.${id}`)}
+                  </p>
+                  <p className="mt-0.5 text-xs font-medium text-text-quaternary">
+                    {t(`peppolTax.cert.${id}Note`)}
+                  </p>
+                </div>
+                <span className="text-xs font-medium text-text-quaternary">
+                  {t('peppolTax.notAvailableYet')}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {/* TODO(backend): docs/backend-guides/SETTINGS.md row 4.4. None of these choices is held
+            on the server, so the designed switches are drawn at their usual setting but cannot be
+            changed until they can be saved. */}
+        <section className="overflow-hidden rounded-md bg-surface-card">
+          <div className="flex flex-wrap items-start justify-between gap-3 p-5">
+            <div>
+              <h3 className="text-lg font-semibold leading-[1.2] text-text-primary">
+                {t('peppolTax.appearance')}
+              </h3>
+              <p className="mt-0.5 text-xs font-medium text-text-quaternary">
+                {t('peppolTax.appearanceNote')}
+              </p>
+            </div>
+            <span className="inline-flex h-[24px] items-center rounded-[3px] bg-surface-background px-2 text-[11px] font-semibold text-text-quaternary">
+              {t('peppolTax.notAvailableYet')}
+            </span>
+          </div>
+          <ul className="flex flex-col">
+            {VISIBILITY.map((row) => (
+              <li
+                key={row.id}
+                className="flex items-center justify-between gap-4 border-t border-surface-background px-5 py-4"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold leading-[1.3] text-text-primary">
+                    {t(`peppolTax.visibility.${row.id}`)}
+                  </p>
+                  <p className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">
+                    {t(`peppolTax.visibility.${row.id}Note`)}
+                  </p>
+                </div>
+                <Switch
+                  checked={row.on}
+                  onChange={() => {}}
+                  disabled
+                  label={t(`peppolTax.visibility.${row.id}`)}
+                />
+              </li>
+            ))}
+          </ul>
         </section>
       </div>
 

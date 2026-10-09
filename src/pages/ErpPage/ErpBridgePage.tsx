@@ -190,11 +190,16 @@ export function ReadinessCard({
             <Pill tone="pending" label={t('erp.bridge.readiness.notReady')} />
             {/* The server's reason is English prose for developers; the reader gets ours. */}
             <p className="text-sm font-medium leading-[1.6] text-text-tertiary">
-              {t('erp.bridge.readiness.notReadyBody', { format })}
+              {t(format === 'XML' ? 'erp.bridge.readiness.notReadyXmlBody' : 'erp.bridge.readiness.notReadyBody', { format })}
             </p>
-            <SecondaryLink to="/settings/erp-mapping/certification">
-              {t('erp.bridge.readiness.openCertification')}
-            </SecondaryLink>
+            {/* The mapping screens author and certify the JSON mapping only (guided mapping emits
+                JSONata, and the backend refuses guided XML). Linking an XML reader there sent them to
+                a screen that cannot help, so XML says where its mapping is really made instead. */}
+            {format === 'XML' ? null : (
+              <SecondaryLink to="/settings/erp-mapping/certification">
+                {t('erp.bridge.readiness.openCertification')}
+              </SecondaryLink>
+            )}
           </>
         )}
         <p className="text-xs font-medium leading-[1.5] text-text-quaternary">

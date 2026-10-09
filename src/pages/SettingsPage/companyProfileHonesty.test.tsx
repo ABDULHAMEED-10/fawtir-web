@@ -141,13 +141,18 @@ describe('Settings › Company profile: only what the server holds', () => {
     expect(screen.queryByLabelText(t('companyProfile.registeredName'))).toBeNull()
   })
 
-  it('drops the fields that saved nothing and previews the real company with neutral lines', async () => {
+  it('draws the fields the API cannot hold yet as unfillable, and previews the real company with neutral lines', async () => {
     renderPage()
     await ready()
 
-    expect(screen.queryByText('Website')).toBeNull()
-    expect(screen.queryByText('VAT registered since')).toBeNull()
-    expect(screen.queryByText('On a receipt')).toBeNull()
+    // Designed fields kept, but none can be filled in or offers sample values until the API has them.
+    expect((screen.getByLabelText('Website') as HTMLInputElement).disabled).toBe(true)
+    expect((screen.getByLabelText('VAT registered since') as HTMLInputElement).value).toBe(
+      t('companyProfile.notAvailableYet'),
+    )
+    expect(screen.getByText('On a receipt')).toBeTruthy()
+    for (const sample of ['1 April 2021', '1 April 2022', '1 January 2021'])
+      expect(document.body.textContent).not.toContain(sample)
     expect(screen.queryByText(/See a full sample invoice/)).toBeNull()
 
     const preview = within(

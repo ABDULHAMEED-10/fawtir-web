@@ -676,6 +676,16 @@ describe("How you'll pay", () => {
     expect(writes()).toHaveLength(1)
   })
 
+  it('offers the ERP extraction add-on where the console prices it, and carries the tick to review', async () => {
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'businessPlus', billing: 'monthly' })
+    const user = userEvent.setup({ delay: null })
+    await user.click(screen.getByRole('checkbox', { name: i18n.t('payment.addon.label') }))
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+    expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
+    expect(stateNow().addon).toBe(true)
+    expect(writes()[0].body).toMatchObject({ erpExtractionAddon: true })
+  })
+
   it('opened without a plan, goes to choose one first', async () => {
     answer({
       [STATUS_URL]: () => json(200, { stage: 'READY_FOR_SUBMISSION' }),

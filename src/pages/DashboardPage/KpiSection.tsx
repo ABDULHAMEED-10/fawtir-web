@@ -56,12 +56,30 @@ export function KpiCards({
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
-      <KpiCard icon={salesIcon} title={t('dashboard.kpi.cashThisMonth')} view={cash}>
-        <Figure amount={omr(toNumber(cashRow?.received))} />
-        <Meta>
-          {t('dashboard.kpi.cashLastMonth', { amount: omr(toNumber(cashRow?.previousReceived)) })}
-        </Meta>
-      </KpiCard>
+      {/* The frame's "Today's sales": no tile carries a day's sales or the change on yesterday
+          (TODO(backend): REPORTS.md row 2.1), so the card says so and shows the cash received this
+          month, which the server does answer, beneath it. */}
+      <article className="rounded-md bg-surface-card p-5">
+        <div className="mb-3.5 flex items-center gap-3.5">
+          <img src={salesIcon} alt="" className="size-11" />
+          <h3 className="text-xl font-medium leading-[1.2] text-[#201f23]">
+            {t('dashboard.kpi.sales')}
+          </h3>
+        </div>
+        <p className="text-sm font-medium text-text-quaternary">
+          {cash.kind === 'loading' ? t('dashboard.loading') : t('dashboard.notAvailableYet')}
+        </p>
+        {cash.kind === 'ok' ? (
+          <p className="mt-2 text-sm font-medium text-[#596269]">
+            {t('dashboard.kpi.cashThisMonth')}:{' '}
+            <OmAmount
+              size="xs"
+              amount={omr(toNumber(cashRow?.received))}
+              amountClassName="font-semibold text-text-primary"
+            />
+          </p>
+        ) : null}
+      </article>
 
       <KpiCard icon={receivablesIcon} title={t('dashboard.kpi.receivables')} view={receivables}>
         <Figure amount={omr(toNumber(owed?.outstanding))} />

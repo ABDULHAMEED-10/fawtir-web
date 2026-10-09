@@ -151,7 +151,9 @@ describe('Dashboard, from the server', () => {
     renderPage()
 
     await screen.findByText('RT-0007')
-    expect(card(t('dashboard.kpi.cashThisMonth')).getByText('77.250')).toBeTruthy()
+    // "Today's sales" has no tile yet; the card says so and shows the month's cash beneath it.
+    expect(card(t('dashboard.kpi.sales')).getByText(t('dashboard.notAvailableYet'))).toBeTruthy()
+    expect(card(t('dashboard.kpi.sales')).getByText('77.250')).toBeTruthy()
     expect(card(t('dashboard.kpi.receivables')).getByText('812.500')).toBeTruthy()
     expect(card(t('dashboard.kpi.receivables')).getByText(t('dashboard.kpi.open', { count: 4 }))).toBeTruthy()
     expect(card(t('dashboard.kpi.payables')).getByText('64.500')).toBeTruthy()
@@ -172,7 +174,7 @@ describe('Dashboard, from the server', () => {
     const text = document.body.textContent ?? ''
     for (const leak of ['Al Bahja', 'OM1100234567', 'Hafidh', '14,320', '1,240', '6,780', '28,450', 'Muscat Grand Hotel', '98.7%', '342', 'Saturday, 18 July 2026'])
       expect(text).not.toContain(leak)
-    expect(screen.queryByText(t('dashboard.kpi.cashThisMonth'))).toBeTruthy()
+    expect(screen.getByText(t('dashboard.kpi.sales'))).toBeTruthy()
   })
 
   it('says "Not available yet" per tile the server marks UNAVAILABLE, and still draws the rest', async () => {
@@ -183,7 +185,8 @@ describe('Dashboard, from the server', () => {
     renderPage()
     await screen.findByText('RT-0007')
 
-    expect(card(t('dashboard.kpi.cashThisMonth')).getByText(t('dashboard.notAvailableYet'))).toBeTruthy()
+    expect(card(t('dashboard.kpi.sales')).getByText(t('dashboard.notAvailableYet'))).toBeTruthy()
+    expect(card(t('dashboard.kpi.sales')).queryByText(/77\.250/)).toBeNull()
     expect(card(t('dashboard.vat.title')).getByText(t('dashboard.notAvailableYet'))).toBeTruthy()
     expect(card(t('dashboard.kpi.receivables')).getByText('812.500')).toBeTruthy()
   })
@@ -216,6 +219,7 @@ describe('Dashboard, from the server', () => {
   })
 
   it('lists what is not ready, links what the company fixes, and waits on Fawtir for the rest', async () => {
+    ADMIN.permissions = [...ADMIN.permissions, 'admin.settings.manage']
     answer({
       readiness: () =>
         json(200, {
@@ -238,6 +242,34 @@ describe('Dashboard, from the server', () => {
     expect(fixes).toEqual(['/settings/company', '/settings/branches/new', '/settings/peppol'])
     expect(section.getByText(t('readiness.awaitingFawtir'))).toBeTruthy()
     expect(section.queryByText(t('readiness.item.CONTACT_PHONE'))).toBeNull()
+    ADMIN.permissions = ADMIN.permissions.filter((code) => code !== 'admin.settings.manage')
+  })
+
+  it('offers no "Fix this" to a reader who cannot change settings', async () => {
+    answer({
+      readiness: () =>
+        json(200, {
+          ready: false,
+          items: [{ code: 'REGISTERED_ADDRESS', status: 'ACTION_REQUIRED', owner: 'COMPANY' }],
+        }),
+    })
+    renderPage()
+
+    const section = within(
+      (await screen.findByText(t('readiness.title'))).closest('section')!,
+    )
+    await waitFor(() => expect(section.getByText(t('readiness.actionRequired'))).toBeTruthy())
+    expect(section.queryByRole('link', { name: t('readiness.fix') })).toBeNull()
+  })
+
+  it('keeps the revenue switch: Month draws the months, Day and Week say "Not available yet"', async () => {
+    answer()
+    renderPage()
+    await screen.findByText('RT-0007')
+    const revenue = card(t('dashboard.revenue.title'))
+    expect(revenue.queryByText(t('dashboard.notAvailableYet'))).toBeNull()
+    revenue.getByRole('tab', { name: t('dashboard.revenue.week') }).click()
+    await waitFor(() => expect(revenue.getByText(t('dashboard.notAvailableYet'))).toBeTruthy())
   })
 
   it('renders in Arabic', async () => {
@@ -245,8 +277,8 @@ describe('Dashboard, from the server', () => {
     answer()
     renderPage()
 
-    expect(await screen.findByText(t('dashboard.kpi.cashThisMonth'))).toBeTruthy()
-    expect(t('dashboard.kpi.cashThisMonth')).not.toBe(i18n.getFixedT('en')('dashboard.kpi.cashThisMonth'))
+    expect(await screen.findByText(t('dashboard.kpi.sales'))).toBeTruthy()
+    expect(t('dashboard.kpi.sales')).not.toBe(i18n.getFixedT('en')('dashboard.kpi.sales'))
     expect(document.body.textContent).not.toContain('Al Bahja')
   })
 })

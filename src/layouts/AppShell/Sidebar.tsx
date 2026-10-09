@@ -13,6 +13,13 @@ import {
 import { useUnreadReminders } from '../../lib/notifications'
 import { REQUIRE_SESSION, can, useSession } from '../../lib/session/session'
 import { initialsOf } from '../../lib/format'
+import { useApiRead } from '../../hooks/useApiRead'
+import {
+  activitySummaryPath,
+  loadActivitySummary,
+  type ActivitySummaryDto,
+} from '../../api/compliance/activity'
+import { defaultReportRange } from '../../api/reports/reports'
 import type { Entitlements } from '../../lib/identity/entitlements'
 import type { AnyPlanId, Feature } from '../../lib/plans'
 import { featureAccess, useTenantPlan } from '../../lib/planAccess'
@@ -282,6 +289,22 @@ type SidebarProps = {
   onClose?: () => void
 }
 
+/**
+ * The badge beside TDD & OTA: documents that still need someone to act, from the activity
+ * ledger's own summary (`attention`) over the same window the page asks for, so it matches the
+ * page it opens (the summary refuses a call with no window). Asked only for a signed-in reader;
+ * nothing to act on, a refusal or a failure all draw no badge.
+ * TODO(backend): a lighter count than the whole summary, REPORTS.md row 2.5.
+ */
+function useAttentionCount(signedIn: boolean): number | undefined {
+  const range = defaultReportRange()
+  const path = activitySummaryPath(range.from, range.to)
+  const read = useApiRead<ActivitySummaryDto>(signedIn ? path : null, () =>
+    loadActivitySummary(path),
+  ).read
+  return read.status === 'ready' && read.data.attention > 0 ? read.data.attention : undefined
+}
+
 export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
   const { t } = useTranslation()
   const location = useLocation()
@@ -289,6 +312,7 @@ export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
   const panelRef = useRef<HTMLElement>(null)
   const session = useSession()
   const plan = useTenantPlan()
+  const attention = useAttentionCount(session !== null)
   useDrawer(open, onClose, panelRef)
 
   return (
@@ -340,7 +364,7 @@ export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
                     to={item.to}
                     Icon={item.Icon}
                     label={t(item.labelKey)}
-                    badge={item.badge}
+                    badge={item.id === 'activity' ? attention : item.badge}
                     locked={lockFor(plan, item.feature)}
                     active={
                       item.to === '/dashboard'

@@ -227,9 +227,9 @@ export function CompanyProfilePage() {
   // POST /company-profile/amendments (approved 2026-10-06), which leaves the verification as it is.
   const verified = storedProfile?.verificationStatus === 'VERIFIED'
   const [storedBrandColour, setStoredBrandColour] = useState<string | undefined>(undefined)
-  // receiptMonochrome round-trips unchanged on save: this screen has no control for it (the
-  // receipt-logo select it had was never saved, SETTINGS.md row 1), so a colour-only save must not
-  // reset a value a reviewer or a prior save already set.
+  // receiptMonochrome round-trips unchanged on save: the "On a receipt" choice is drawn but not
+  // saved yet (SETTINGS.md row 1.1), so a colour-only save must not reset a value a reviewer or a
+  // prior save already set.
   const [storedReceiptMonochrome, setStoredReceiptMonochrome] = useState(false)
   const [storedDefaults, setStoredDefaults] = useState<InvoiceDefaultsDto | undefined>(undefined)
   const [saveFailed, setSaveFailed] = useState(false)
@@ -476,6 +476,15 @@ export function CompanyProfilePage() {
                   readOnly
                   readOnlyAppearance
                 />
+                {/* TODO(backend): docs/backend-guides/SETTINGS.md row 1.3. No field holds the date
+                    of VAT registration, so the designed field says so rather than offering dates. */}
+                <Input
+                  bordered
+                  label={t('companyProfile.vatRegisteredSince')}
+                  value={t('companyProfile.notAvailableYet')}
+                  readOnly
+                  readOnlyAppearance
+                />
               </div>
             </div>
           </Panel>
@@ -606,6 +615,16 @@ export function CompanyProfilePage() {
                   value={form.email}
                   onChange={(event) => set('email', event.target.value)}
                 />
+                {/* TODO(backend): docs/backend-guides/SETTINGS.md row 1.2. /company-profile has no
+                    website field, so the input is drawn but cannot be filled in until one exists. */}
+                <Input
+                  bordered
+                  label={t('companyProfile.website')}
+                  value=""
+                  placeholder={t('companyProfile.notAvailableYet')}
+                  disabled
+                  onChange={() => {}}
+                />
               </div>
               {profileConflict ? (
                 <p role="alert" className="text-xs font-medium text-warning-700">
@@ -719,6 +738,27 @@ export function CompanyProfilePage() {
 
               <div className="min-w-[280px] flex-1">
                 <div className="grid gap-4 sm:grid-cols-2">
+                  <Field
+                    label={t('companyProfile.onAReceipt')}
+                    hint={t('companyProfile.onAReceiptNote')}
+                  >
+                    {/* TODO(backend): docs/backend-guides/SETTINGS.md row 1.1. The API's
+                        receiptMonochrome cannot say "leave it off receipts", so the choice is drawn
+                        but cannot be changed until it can be saved. */}
+                    <Select
+                      ariaLabel={t('companyProfile.onAReceipt')}
+                      value="plainBlack"
+                      onChange={() => {}}
+                      disabled
+                      options={[
+                        {
+                          value: 'plainBlack',
+                          label: t('companyProfile.receiptOption.plainBlack'),
+                        },
+                        { value: 'none', label: t('companyProfile.receiptOption.none') },
+                      ]}
+                    />
+                  </Field>
                   <Field
                     label={t('companyProfile.brandColour')}
                     hint={t('companyProfile.brandColourNote')}

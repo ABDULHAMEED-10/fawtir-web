@@ -1,3 +1,6 @@
+/** Opens the ERP-scoped audit history (R22); the server confines what it returns. */
+export const ERP_AUDIT_PERMISSION = 'erp.audit.read'
+
 /**
  * What each ERP capability needs, as the server checks it (`@RequiresPermission` on the ERP,
  * mapping, invoice and API-key routes; backend Phase 3, DEC-B). `anyOf`: holding any one is enough.
@@ -16,7 +19,7 @@ export const ERP_CAPABILITIES = [
   { id: 'recoverDocuments', anyOf: ['erp.document.recover'] },
   // API keys and the activity log have no narrower permission on the server.
   { id: 'manageApiKeys', anyOf: ['admin.settings.manage'] },
-  { id: 'readHistory', anyOf: ['admin.settings.manage'] },
+  { id: 'readHistory', anyOf: [ERP_AUDIT_PERMISSION] },
 ] as const
 
 /**
@@ -38,6 +41,7 @@ export const ERP_PERSONAS = [
       'mapping.manage',
       'mapping.certify',
       'invoice.read',
+      ERP_AUDIT_PERMISSION,
     ],
   },
   {

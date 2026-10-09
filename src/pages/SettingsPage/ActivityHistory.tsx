@@ -39,17 +39,20 @@ const OUTCOME_TONE: Record<string, string> = {
 export function ActivityHistory({
   resourceTypes,
   allowAll,
+  base,
 }: {
   /** The resource kinds offered as a filter, as the server names them. */
   resourceTypes: readonly string[]
   /** Whether "any kind" is offered. Off where the screen is about one area only. */
   allowAll: boolean
+  /** Which log to read: the organisation's (default) or the server's ERP-scoped one. */
+  base?: string
 }) {
   const { t, i18n } = useTranslation()
   const [resourceType, setResourceType] = useState(allowAll ? '' : (resourceTypes[0] ?? ''))
   const [outcome, setOutcome] = useState('')
   const [page, setPage] = useState(0)
-  const path = activityLogPath({ resourceType, outcome }, page)
+  const path = activityLogPath({ resourceType, outcome }, page, base)
   const { read, retry } = useApiRead<ActivityLogPageDto>(path, () => loadActivityLog(path))
 
   const typeOptions = [

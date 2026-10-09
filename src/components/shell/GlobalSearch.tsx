@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
-import { Popover } from '../ui'
+import { Popover, withRial } from '../ui'
 import { HIT_KINDS, SEARCH_SUGGESTIONS, type Hit } from '../../lib/shell'
 import { searchEverywhere } from '../../lib/globalSearch'
 import searchIcon from '../../assets/dashboard/search.svg'
@@ -173,7 +173,7 @@ export function GlobalSearch({ className = '' }: { className?: string }) {
                       </span>
                       {hit.trailing ? (
                         <span className="shrink-0 text-sm font-semibold tabular-nums text-text-tertiary">
-                          {hit.trailing}
+                          {withRial(hit.trailing)}
                         </span>
                       ) : null}
                     </button>
