@@ -199,14 +199,18 @@ export function SupplierNoteIntake({
           ? 'refuse'
           : 'none'
 
+  // A debit note chosen, the button names it (owner, 9 Oct 2026); a refused one is closed by the
+  // credit whatever was picked before it was chosen.
   const primaryLabel =
-    followUp === 'apply'
-      ? t('supplierCreditNotes.upload.saveAndSet')
-      : followUp === 'accept'
-        ? t('supplierDebitNotes.upload.saveAndAccept')
-        : followUp === 'refuse'
-          ? t('supplierDebitNotes.upload.saveAndRefuse')
-          : t(`${ns}.save`)
+    debitNoteChosen && (followUp === 'apply' || refusedDebitNote)
+      ? t('supplierCreditNotes.upload.saveAndSetDebitNote')
+      : followUp === 'apply'
+        ? t('supplierCreditNotes.upload.saveAndSet')
+        : followUp === 'accept'
+          ? t('supplierDebitNotes.upload.saveAndAccept')
+          : followUp === 'refuse'
+            ? t('supplierDebitNotes.upload.saveAndRefuse')
+            : t(`${ns}.save`)
 
   const save = async (notDuplicateOf: string | null) => {
     if (inFlight.current || saved) return

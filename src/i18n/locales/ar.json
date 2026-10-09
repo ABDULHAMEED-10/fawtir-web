@@ -6690,7 +6690,8 @@
       "savedAppliedDebitNote": "حُفظ وخُصم من الإشعار المدين.",
       "savedClosesRefusedDebitNote": "حُفظ. يُغلق هذا الرصيد الإشعار المدين المرفوض {{note}}، وما يزيد يبقى رصيدًا.",
       "refusedDebitNoteCloses": "هذا الإشعار المدين مرفوض، لذا يُغلقه هذا الرصيد. وما يزيد يبقى رصيدًا.",
-      "setNowNoteDebitNote": "الإشعار المدين غير مدفوع، فتدفع ببساطة أقل بمقدار OMR {{amount}}."
+      "setNowNoteDebitNote": "الإشعار المدين غير مدفوع، لذا تدفع أقل بمقدار OMR {{amount}} فحسب.",
+      "saveAndSetDebitNote": "احفظ واخصم من الإشعار المدين"
     },
     "detail": {
       "creditNotePeppol": "إشعار دائن · Peppol",

@@ -6426,7 +6426,8 @@
       "savedAppliedDebitNote": "Saved and set against the debit note.",
       "savedClosesRefusedDebitNote": "Saved. The credit closes refused debit note {{note}}; anything left over stays as credit.",
       "refusedDebitNoteCloses": "This debit note was refused, so the credit closes it. Anything left over stays as credit.",
-      "setNowNoteDebitNote": "The debit note is unpaid, so you simply pay OMR {{amount}} less."
+      "setNowNoteDebitNote": "The debit note is unpaid, so you simply pay OMR {{amount}} less.",
+      "saveAndSetDebitNote": "Save and set against the debit note"
     },
     "detail": {
       "creditNotePeppol": "Credit note · Peppol",

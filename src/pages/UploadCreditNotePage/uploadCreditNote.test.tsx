@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { IntakeDto } from '../../api/expenditure/billIntake'
@@ -150,12 +150,23 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+/** The credit note's page, as far as these tests need it: that it opened, and what it was handed. */
+function NotePageProbe() {
+  const location = useLocation()
+  return (
+    <>
+      <p>credit note page</p>
+      <output data-testid="arrived">{JSON.stringify(location.state)}</output>
+    </>
+  )
+}
+
 function renderPage() {
   return render(
     <MemoryRouter initialEntries={['/expenditure/credit-notes/upload']}>
       <Routes>
         <Route path="/expenditure/credit-notes/upload" element={<UploadCreditNotePage />} />
-        <Route path="/expenditure/credit-notes/:id" element={<p>credit note page</p>} />
+        <Route path="/expenditure/credit-notes/:id" element={<NotePageProbe />} />
         <Route path="/expenditure/credit-notes" element={<p>credit notes list</p>} />
       </Routes>
     </MemoryRouter>,
@@ -621,7 +632,7 @@ describe('a credit note correcting a supplier debit note on upload', () => {
     fireEvent.click(await debitNoteRow())
     fireEvent.change(reasonField(), { target: { value: REASON } })
     fireEvent.click(
-      await screen.findByRole('button', { name: 'Save and set against the bill' }),
+      await screen.findByRole('button', { name: 'Save and set against the debit note' }),
     )
 
     expect(await screen.findByText('credit note page')).toBeTruthy()
@@ -661,7 +672,9 @@ describe('a credit note correcting a supplier debit note on upload', () => {
       await i18n.changeLanguage('ar')
     })
     expect(
-      await screen.findByText('هذا الإشعار المدين مرفوض، لذا يُغلقه هذا الرصيد. وما يزيد يبقى رصيدًا.'),
+      await screen.findByText(
+        'هذا الإشعار المدين مرفوض، لذا يُغلقه هذا الرصيد. وما يزيد يبقى رصيدًا.',
+      ),
     ).toBeTruthy()
   })
 
@@ -680,7 +693,7 @@ describe('a credit note correcting a supplier debit note on upload', () => {
     expect(await screen.findByDisplayValue('MR-CN-0042')).toBeTruthy()
     fireEvent.click(await debitNoteRow())
     fireEvent.change(reasonField(), { target: { value: REASON } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save and set against the bill' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save and set against the debit note' }))
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))
     expect(bodyOf(calls('POST', CONFIRM)[0]).relatedBillId).toBe(DEBIT_NOTE_ID)
@@ -723,7 +736,9 @@ describe('a credit note correcting a supplier debit note on upload', () => {
       expect(screen.queryByText(/This debit note was refused/)).toBeNull()
 
       fireEvent.change(reasonField(), { target: { value: REASON } })
-      fireEvent.click(screen.getByRole('button', { name: 'Save and set against the bill' }))
+      // The button names the debit note too (owner, 9 Oct 2026).
+      expect(screen.queryByRole('button', { name: 'Save and set against the bill' })).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: 'Save and set against the debit note' }))
       await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))
       const [, key, values] = onSaved.mock.calls[0]
       expect(key).toBe('supplierCreditNotes.upload.savedAppliedDebitNote')
@@ -734,8 +749,14 @@ describe('a credit note correcting a supplier debit note on upload', () => {
       await act(async () => {
         await i18n.changeLanguage('ar')
       })
-      const setNowAr = await screen.findByRole('radio', { name: /MR-DN-0007/ })
-      expect(setNowAr.textContent).toContain('الإشعار المدين غير مدفوع، فتدفع ببساطة أقل بمقدار')
+      // Owner's Arabic, 9 Oct 2026, with the Rial sign and no visible "OMR".
+      const arabic = await screen.findByText(/^الإشعار المدين غير مدفوع، لذا تدفع أقل بمقدار/)
+      expect(arabic.querySelector('svg')).not.toBeNull()
+      const shownAr = arabic.cloneNode(true) as Element
+      shownAr.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+      expect(shownAr.textContent).toMatch(
+        /^الإشعار المدين غير مدفوع، لذا تدفع أقل بمقدار\s+105\.000 فحسب\.$/,
+      )
     })
 
   it("keeps a bill's sentences as they were", async () => {
@@ -748,6 +769,7 @@ describe('a credit note correcting a supplier debit note on upload', () => {
     expect(screen.queryByText(/This debit note was refused/)).toBeNull()
 
     fireEvent.change(reasonField(), { target: { value: REASON } })
+    expect(screen.queryByRole('button', { name: 'Save and set against the debit note' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Save and set against the bill' }))
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))
     expect(onSaved.mock.calls[0][1]).toBe('supplierCreditNotes.upload.savedApplied')
@@ -762,6 +784,65 @@ describe('a credit note correcting a supplier debit note on upload', () => {
     expect((await screen.findByRole('radio', { name: /MR-INV-8821/ })).textContent).toContain(
       'الفاتورة غير مدفوعة، فتدفع ببساطة أقل بمقدار',
     )
+  })
+
+  it('names the debit note on the save button in Arabic too', async () => {
+    billRows = [BILL, OPEN_DEBIT_NOTE]
+    renderComposer('credit')
+    expect(await screen.findByDisplayValue('MR-CN-0042')).toBeTruthy()
+    fireEvent.click(await debitNoteRow())
+    expect(
+      await screen.findByRole('button', { name: 'Save and set against the debit note' }),
+    ).toBeTruthy()
+    await act(async () => {
+      await i18n.changeLanguage('ar')
+    })
+    expect(await screen.findByRole('button', { name: 'احفظ واخصم من الإشعار المدين' })).toBeTruthy()
+  })
+
+  // E1: the sentence travels to the note's page once, in the navigation state.
+  for (const [label, rows, said] of [
+    [
+      'an undecided',
+      () => [BILL, OPEN_DEBIT_NOTE],
+      { key: 'supplierCreditNotes.upload.savedAppliedDebitNote' },
+    ],
+    [
+      'a refused',
+      () => [BILL, DEBIT_NOTE],
+      {
+        key: 'supplierCreditNotes.upload.savedClosesRefusedDebitNote',
+        values: { note: 'MR-DN-0007' },
+      },
+    ],
+  ] as const)
+    it(`hands the note's page what was done with ${label} debit note`, async () => {
+      billRows = rows()
+      confirmAnswer = async () =>
+        json(201, {
+          id: NOTE_ID,
+          supplierBillNumber: 'MR-CN-0042',
+          totalIncludingVat: 105,
+          currencyCode: 'OMR',
+          creditApplied: { billId: DEBIT_NOTE_ID, amount: 52.5 },
+        })
+      await uploadNote()
+      fireEvent.click(await debitNoteRow())
+      fireEvent.change(reasonField(), { target: { value: REASON } })
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Save and set against the debit note' }),
+      )
+      expect(await screen.findByText('credit note page')).toBeTruthy()
+      expect(JSON.parse(screen.getByTestId('arrived').textContent!)).toEqual({ saved: said })
+    })
+
+  it("hands the note's page nothing for a bill, as before", async () => {
+    await uploadNote()
+    await chooseBill()
+    fireEvent.change(reasonField(), { target: { value: REASON } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save and set against the bill' }))
+    expect(await screen.findByText('credit note page')).toBeTruthy()
+    expect(screen.getByTestId('arrived').textContent).toBe('null')
   })
 
   it("offers no debit note on a debit note's list, only the bills", async () => {
