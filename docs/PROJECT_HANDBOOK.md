@@ -335,8 +335,10 @@ the console plan are in `docs/erp-and-console-plan.md`.
 
 Every web change that touches what the mobile app shows or sends is added to the mobile changes doc
 the same day: https://claude.ai/code/artifact/fc142745-a943-450b-8568-f6b6cc1879d4 ("Fawtir mobile:
-what changed…"). It covers only the mobile scope (section 6): onboarding, company settings,
-customers and suppliers, Income (invoices, credit notes, debit notes) and Expenditure (bills).
+what changed…"). It covers only the mobile scope (section 6, the 9 Oct list: onboarding with
+subscription, company settings, notifications, customers and suppliers, Income, Expenditure bills,
+reports and the dashboard). It lists only what changed, never the whole app: Atiq's integration
+already exists.
 The six guides already sent to him (29 Sep to 3 Oct) are kept in `docs/mobile/` for reference only
 (index in its `README.md`). **Always guide mobile from the current code and setup** (the web app on
 `main`, its API calls, i18n files and the backend guides), never from those PDFs; read the matching
@@ -458,8 +460,14 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   the comparison rows and the questions come from `src/lib/plans.ts` and the sign-up plans screen
   (`PlanComparison.tsx` exports `GROUPS`, `COLUMNS`, `faqParams`). The Figma frame's own figures
   (49 / 89 / 149) are not used. "What counts" is documents sent and received, as the app meters.
-- **Mobile app scope** (owner, 29 Sep 2026): onboarding, company settings, Income (invoices,
-  credit notes, debit notes) and Expenditure (bills) only. **No self-billing on mobile.** The
+- **Mobile app scope** (owner, 29 Sep 2026; widened 9 Oct 2026): onboarding (sign-in and
+  subscription included), company settings with branches and Peppol settings, notifications,
+  customers and suppliers, Income (invoices, bulk invoice upload, credit notes, debit notes,
+  reminders), Expenditure (bills and bill reminders), reports and the dashboard. POS and the
+  catalogue come to mobile later (future work). **No self-billing on mobile.** Handoff is in
+  phases, each doc sent only after Abrar's end-to-end test of that phase passes: (1) onboarding
+  to invoice sending; (2) credit notes, debit notes and reminders, closing Income; (3) bills and
+  bill reminders, closing Expenditure. The
   mobile developer's guide for onboarding to invoice creation is a shared doc:
   https://claude.ai/code/artifact/0880cec3-51a4-4cc7-93b6-d55890f97365 (data, rules and APIs only;
   the mobile UI and layout are his call).
