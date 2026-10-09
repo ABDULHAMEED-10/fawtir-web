@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button, ChevronRightIcon, OmAmount, SelectionCard, Checkbox } from '../../components/ui'
@@ -10,7 +10,12 @@ import {
   vatPercent,
   type PlanTermsRead,
 } from '../../hooks/useSignupPlanTerms'
-import { REVIEW_ROUTE, recordPaymentPreference } from '../../lib/identity/onboarding'
+import {
+  LINK_CHANNEL,
+  PAYMENT_METHOD_CODE,
+  REVIEW_ROUTE,
+  recordPaymentPreference,
+} from '../../lib/identity/onboarding'
 import { onboardingStateFrom, planDisplayName, type OnboardingState } from '../../lib/onboarding'
 import {
   formatBaisa,
@@ -78,6 +83,26 @@ export function PaymentForm() {
   )
   const [linkVia, setLinkVia] = useState<PaymentLinkVia>(state.linkVia ?? 'email')
 
+  // The saved preference is the server's, and wins over the tab's history until the registrant
+  // picks something on this visit: browser Back lands on a history entry from before the choice,
+  // which preselected Card over a saved Cash, and Continue would have overwritten it (local run).
+  const touched = useRef(false)
+  const saved = termsRead.status === 'ready' ? termsRead.preference : null
+  useEffect(() => {
+    if (!saved || touched.current) return
+    const savedMethod = (Object.keys(PAYMENT_METHOD_CODE) as SignupPaymentMethod[]).find(
+      (id) => PAYMENT_METHOD_CODE[id] === saved.method,
+    )
+    if (savedMethod && choosable.includes(savedMethod)) setMethod(savedMethod)
+    const savedVia = (Object.keys(LINK_CHANNEL) as PaymentLinkVia[]).find(
+      (via) => LINK_CHANNEL[via] === saved.linkChannel,
+    )
+    if (savedVia) setLinkVia(savedVia)
+    setAddon(saved.erpExtractionAddon)
+    // choosable is derived from static settings; the saved preference is the only input.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saved])
+
   const planName = planDisplayName(t, state, i18n.language)
   const linkDays = PLATFORM_SETTINGS.payments.linkExpiryDays
   const when =
@@ -139,7 +164,10 @@ export function PaymentForm() {
               description={t(`payment.method.${id}.subtitle`)}
               selected={method === id}
               disabled={unavailable(id)}
-              onSelect={() => setMethod(id)}
+              onSelect={() => {
+                touched.current = true
+                setMethod(id)
+              }}
               icon={<img src={icon[id]} alt="" className="size-6 object-contain" />}
             />
           ))}
@@ -174,7 +202,10 @@ export function PaymentForm() {
                         name="linkVia"
                         value={option}
                         checked={linkVia === option}
-                        onChange={() => setLinkVia(option)}
+                        onChange={() => {
+                          touched.current = true
+                          setLinkVia(option)
+                        }}
                         className="size-4 accent-primary-700"
                       />
                       <span className="min-w-0">
@@ -212,7 +243,14 @@ export function PaymentForm() {
 
           <div className="flex w-full max-w-[332px] flex-col gap-4 lg:shrink-0">
             {offer === 'priced' ? (
-              <AddonOffer checked={addon} onChange={setAddon} months={months} />
+              <AddonOffer
+                checked={addon}
+                onChange={(checked) => {
+                  touched.current = true
+                  setAddon(checked)
+                }}
+                months={months}
+              />
             ) : null}
             <OrderSummaryCard
               planName={planName}

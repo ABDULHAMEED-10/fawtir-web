@@ -3,6 +3,7 @@ import {
   BILLING_CYCLE,
   planCodeFor,
   readSignupStatus,
+  type SignupStatusResponse,
   type SignupStatusPlan,
 } from '../lib/identity/onboarding'
 import { readOnboardingSession } from '../lib/identity/onboardingSession'
@@ -11,7 +12,7 @@ import type { BillingCycle, PlanId } from '../lib/pricing'
 export type PlanTermsRead =
   | { status: 'loading' }
   /** `terms: null`: the server gave no figures for this choice (an older server, or none saved). */
-  | { status: 'ready'; terms: SignupStatusPlan | null }
+  | { status: 'ready'; terms: SignupStatusPlan | null; preference: SignupStatusResponse['paymentPreference'] | null }
 
 const describes = (
   terms: SignupStatusPlan | null | undefined,
@@ -40,17 +41,22 @@ export function useSignupPlanTerms(plan: PlanId, billing: BillingCycle): PlanTer
     requested.current = choice
     const token = readOnboardingSession()?.onboardingToken
     if (!token) {
-      setRead({ status: 'ready', terms: null })
+      setRead({ status: 'ready', terms: null, preference: null })
       return
     }
     setRead({ status: 'loading' })
     readSignupStatus(token).then(
       (status) => {
         const terms = status?.plan
-        setRead({ status: 'ready', terms: terms && describes(terms, plan, billing) ? terms : null })
+        setRead({
+          status: 'ready',
+          terms: terms && describes(terms, plan, billing) ? terms : null,
+          // The saved method too: browser Back carries a history entry from before it was chosen.
+          preference: status?.paymentPreference ?? null,
+        })
       },
       // The save itself reports an ended session; here the amounts are simply not known.
-      () => setRead({ status: 'ready', terms: null }),
+      () => setRead({ status: 'ready', terms: null, preference: null }),
     )
   }, [plan, billing])
 

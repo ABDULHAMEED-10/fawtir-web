@@ -261,6 +261,19 @@ describe('Console access', () => {
     expect(await screen.findByRole('link', { name: i18n.t('console.nav.plans') })).toBeTruthy()
   })
 
+  it("lists for a Support operator only the screens that operator's permissions open", async () => {
+    answer({
+      [ENTITLEMENTS_URL]: () =>
+        json(200, { ...OPERATOR, permissions: ['platform.support', 'platform.plans.read'] }),
+    })
+    renderAt('/console/onboarding')
+    expect(await screen.findByRole('link', { name: i18n.t('console.nav.plans') })).toBeTruthy()
+    expect(screen.getByRole('link', { name: i18n.t('console.nav.policies') })).toBeTruthy()
+    for (const hidden of ['console.nav.tenants', 'console.nav.verification', 'console.nav.operators']) {
+      expect(screen.queryByRole('link', { name: i18n.t(hidden) })).toBeNull()
+    }
+  })
+
   it('sends a visitor without a session to Login', async () => {
     answer({ [ENTITLEMENTS_URL]: () => problem(401, 'unauthenticated') })
     renderAt('/console/onboarding')

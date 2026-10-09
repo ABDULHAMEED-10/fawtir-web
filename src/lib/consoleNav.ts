@@ -24,8 +24,12 @@ export type ConsoleNavItem = {
   Icon: ComponentType<IconProps>
   /** Screens the design has not reached yet still appear, so the shape of the console is honest. */
   soon?: boolean
-  /** Shown only to an operator holding this code; the server enforces it on every read regardless. */
-  requires?: string
+  /**
+   * Shown only to an operator holding every listed code: the same requirement the screen's own
+   * ConsoleShell enforces, so the menu never offers a page that answers "no access". The server
+   * enforces it on every call regardless.
+   */
+  requires?: string | readonly string[]
 }
 
 export type ConsoleNavGroup = {
@@ -74,6 +78,7 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         id: 'tenants',
         labelKey: 'console.nav.tenants',
         to: '/console/tenants',
+        requires: 'platform.tenants.manage',
         Icon: NavCustomersIcon,
       },
       {
@@ -81,6 +86,7 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         labelKey: 'console.nav.verification',
         // The design's route, kept when the screen became company verification.
         to: '/console/onboarding',
+        requires: 'platform.tenants.manage',
         Icon: NavTddIcon,
       },
       {
@@ -129,12 +135,14 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         id: 'operators',
         labelKey: 'console.nav.operators',
         to: '/console/operators',
+        requires: ['admin.users.manage', 'platform.operators.manage'],
         Icon: NavCustomersIcon,
       },
       {
         id: 'policies',
         labelKey: 'console.nav.policies',
         to: '/console/policies',
+        requires: 'platform.support',
         Icon: NavInvoicesIcon,
       },
       {

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { OnboardingGate } from '../../components/auth/OnboardingGate'
@@ -12,8 +12,10 @@ import {
   PLAN_PRICE_CHANGED,
   REVIEW_ROUTE,
   planIdFor,
+  readSignupStatus,
   recordPlan,
 } from '../../lib/identity/onboarding'
+import { readOnboardingSession } from '../../lib/identity/onboardingSession'
 import { readSignupPlans, type SignupCataloguePlan } from '../../lib/identity/signupPlans'
 import { onboardingStateFrom, planDisplayName, type OnboardingState } from '../../lib/onboarding'
 import type { PlanId } from '../../lib/pricing'
@@ -81,6 +83,27 @@ function PlansContent() {
   const location = useLocation()
   const state = onboardingStateFrom(location.state)
   const [billing, setBilling] = useState<BillingCycle>(state.billing ?? 'monthly')
+  // Browser Back lands on the history entry from before the plan was chosen, which carries no
+  // cycle: the saved one is read from the server so the toggle does not quietly reopen on Monthly
+  // over a saved Annual. Never once the registrant has touched the toggle on this visit.
+  const billingTouched = useRef(false)
+  useEffect(() => {
+    if (state.billing) return
+    const token = readOnboardingSession()?.onboardingToken
+    if (!token) return
+    let active = true
+    readSignupStatus(token).then(
+      (status) => {
+        const saved = status?.plan?.billingCycle
+        if (!active || billingTouched.current || !saved) return
+        setBilling(saved === 'ANNUAL' ? 'annual' : 'monthly')
+      },
+      () => {},
+    )
+    return () => {
+      active = false
+    }
+  }, [state.billing])
   // `/plans#compare` opens the table straight away — a link a sales chat or an email can carry.
   const [compare, setCompare] = useState(() => location.hash === '#compare')
   const { read, reload } = usePlanCatalogue('signup-plans', readSignupPlans)
@@ -270,7 +293,10 @@ function PlansContent() {
             <SegmentedControl
               ariaLabel={t('plans.billingLabel')}
               value={billing}
-              onChange={setBilling}
+              onChange={(cycle) => {
+                billingTouched.current = true
+                setBilling(cycle)
+              }}
               className="w-[200px] border-primary-50"
               options={[
                 { value: 'monthly', label: t('plans.monthly') },

@@ -26,7 +26,11 @@ function visibleConsoleNav(entitlements: Entitlements | null) {
   if (entitlements === null || !isPlatformOperator(entitlements)) return []
   return CONSOLE_NAV.map((group) => ({
     ...group,
-    items: group.items.filter((item) => !item.requires || hasPermission(entitlements, item.requires)),
+    items: group.items.filter((item) =>
+      (typeof item.requires === 'string' ? [item.requires] : (item.requires ?? [])).every((code) =>
+        hasPermission(entitlements, code),
+      ),
+    ),
   })).filter((group) => group.items.length > 0)
 }
 

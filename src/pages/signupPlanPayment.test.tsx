@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../i18n'
@@ -306,6 +306,19 @@ describe('Choose a plan: the published catalogue', () => {
 })
 
 describe('Choose a plan: saving the choice', () => {
+  it('reopens on the saved cycle when the history entry carries none (browser Back)', async () => {
+    answer({
+      [PLANS_URL]: () => json(200, CATALOGUE),
+      [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: BUSINESS_ANNUAL }),
+    })
+    await openPlans()
+    await waitFor(() =>
+      expect(
+        screen.getByRole('tab', { name: i18n.t('plans.annual') }).getAttribute('aria-selected'),
+      ).toBe('true'),
+    )
+  })
+
   it('sends the price version the card showed and carries the plan to "How you\'ll pay"', async () => {
     await openPlans()
     const [starter] = screen.getAllByRole('button', { name: i18n.t('plans.getStarted') })
@@ -356,14 +369,15 @@ describe('Choose a plan: saving the choice', () => {
         }),
     })
     await openPlans()
+    const statusReadsBefore = callsTo(STATUS_URL).length
     const [starter] = screen.getAllByRole('button', { name: i18n.t('plans.getStarted') })
     await userEvent.setup({ delay: null }).click(starter)
 
     expect(await screen.findByText(i18n.t('plans.priceChanged'))).toBeTruthy()
     expect((await screen.findAllByText('44')).length).toBeGreaterThan(0)
     expect(callsTo(PLANS_URL)).toHaveLength(2)
-    // The 409 is not read as a missing earlier step, so the status is not asked.
-    expect(callsTo(STATUS_URL)).toHaveLength(0)
+    // The 409 is not read as a missing earlier step, so it adds no status read of its own.
+    expect(callsTo(STATUS_URL)).toHaveLength(statusReadsBefore)
     expect(screen.getByText(i18n.t('plans.title'))).toBeTruthy()
     expect(text()).not.toContain('English prose')
   })
@@ -449,6 +463,23 @@ const BUSINESS_MONTHLY: SignupStatusPlan = {
 }
 
 describe("How you'll pay", () => {
+  it('preselects the saved method from the server over a stale history entry (browser Back)', async () => {
+    answer({
+      [STATUS_URL]: () =>
+        json(200, {
+          stage: 'READY_FOR_SUBMISSION',
+          plan: BUSINESS_ANNUAL,
+          paymentPreference: { method: 'CASH', linkChannel: null, erpExtractionAddon: false },
+        }),
+    })
+    // The history entry from before the method was chosen carries none.
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'annual' })
+
+    const cash = () =>
+      screen.getByRole('button', { name: new RegExp(i18n.t('payment.method.cash.title')) })
+    await waitFor(() => expect(cash().getAttribute('aria-pressed')).toBe('true'))
+  })
+
   it('charges nothing, saves the method, and continues to review with the server figures', async () => {
     answer({ [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: BUSINESS_MONTHLY }) })
     renderAt('/payment', {
