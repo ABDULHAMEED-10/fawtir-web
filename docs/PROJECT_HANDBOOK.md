@@ -350,6 +350,9 @@ PDF only to see what he was told, so the doc can say what differs.
 - A change that waits on the backend says so ("not sent until …"), as sign-up lines 2 and 3 do.
 - The owner shares the doc with the mobile developer only once the backend APIs behind the web
   changes are live. Until then it is kept current, not sent.
+- Phase 1 doc sent to the mobile developer on 9 Oct 2026 (owner), before subscription was on the
+  backend; the doc says sections 6 and 7 will change. Keep updating the same doc; tell the owner
+  what changed so he can notify the mobile developer.
 
 ---
 
