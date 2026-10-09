@@ -165,6 +165,8 @@ import { SignupReviewPage } from './pages/SignupReviewPage'
 import { SubBusinessTypePage } from './pages/SubBusinessTypePage'
 import {
   ConsolePlansPage,
+  ConsoleBillingPaymentsPage,
+  ConsoleBankAccountsPage,
   ConsoleQueuePage,
   ConsoleIncidentsPage,
   ConsoleAuditPage,
@@ -809,6 +811,8 @@ function App() {
           <Route path="/console/onboarding" element={<VerificationPage />} />
           <Route path="/console/onboarding/:companyId" element={<VerificationCompanyPage />} />
           <Route path="/console/plans" element={<ConsolePlansPage />} />
+          <Route path="/console/billing/payments" element={<ConsoleBillingPaymentsPage />} />
+          <Route path="/console/billing/accounts" element={<ConsoleBankAccountsPage />} />
           <Route path="/console/operators" element={<OperatorsPage />} />
           <Route path="/console/policies" element={<ValidationPoliciesPage />} />
           <Route path="/console/policies/:type" element={<ValidationPolicyPage />} />

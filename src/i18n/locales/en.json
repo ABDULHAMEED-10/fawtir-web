@@ -10903,8 +10903,7 @@
       "copied": "Copied",
       "cashTitle": "Cash or cheque",
       "cashNote": "At Fawtir's office in Muscat or to your representative. Recorded by the Fawtir team, then activated."
-    },
-    "prototypeUnavailable": "Bills and payment methods are not available yet."
+    }
   },
   "activityLog": {
     "title": "Activity log",
@@ -12188,7 +12187,9 @@
       "erpConnections": "Connections",
       "erpTemplates": "Mapping templates",
       "erpRequests": "Add-on requests",
-      "policies": "Validation policies"
+      "policies": "Validation policies",
+      "payments": "Subscription payments",
+      "bankAccounts": "Bank account"
     },
     "user": {
       "team": "Fawtir team",
@@ -14895,6 +14896,99 @@
         "refused": "You cannot change ERP access, or your sign-in needs to be verified again. Sign in again with two-step verification and retry.",
         "gone": "This tenant was not found, or is not a customer tenant.",
         "invalid": "Fawtir could not accept this change. Check the reason and try again."
+      }
+    },
+    "billing": {
+      "title": "Subscription payments",
+      "subtitle": "Bank transfers and cash waiting for a decision. Nobody approves a payment they submitted or recorded, and above the threshold a second person approves.",
+      "loading": "Loading payments",
+      "empty": "No payments are waiting.",
+      "open": "Open",
+      "col": {
+        "company": "Company",
+        "bill": "Bill",
+        "method": "Method",
+        "amount": "Amount",
+        "status": "Status"
+      },
+      "status": {
+        "SUBMITTED": "Submitted",
+        "RECEIPT_RECORDED": "Receipt recorded",
+        "AWAITING_SECOND_APPROVAL": "Needs 2nd approval",
+        "CONFIRMED": "Confirmed",
+        "REJECTED": "Rejected",
+        "WITHDRAWN": "Withdrawn"
+      },
+      "receipt": "Cash receipt",
+      "threshold": "Approval threshold",
+      "secondNeeded": "Above the threshold: a second approver is required",
+      "secondNotNeeded": "At or below the threshold: one verifier",
+      "rejection": "Rejected because",
+      "proof": "Download receipt",
+      "verify": "Verify payment",
+      "approveSecond": "Give second approval",
+      "reject": "Reject payment",
+      "rejectReason": "Reason for rejecting (the customer sees it)",
+      "history": "History",
+      "cash": {
+        "title": "Record the cash received",
+        "number": "Receipt number",
+        "amount": "Amount received (OMR)",
+        "at": "Received at",
+        "collector": "Collected by",
+        "note": "The amount must match the bill total. Someone else must verify what you record.",
+        "record": "Record receipt"
+      },
+      "done": {
+        "proof": "The receipt was downloaded. The download is recorded.",
+        "verified": "Payment verified.",
+        "approved": "Second approval given. The bill is paid.",
+        "recorded": "Cash receipt recorded. Another person must now verify it.",
+        "rejected": "Payment rejected. The bill is open again."
+      },
+      "event": {
+        "BILL_ISSUED": "Bill issued",
+        "BILL_VOIDED": "Bill cancelled",
+        "BILL_PAID": "Bill paid",
+        "PAYMENT_SUBMITTED": "Payment submitted",
+        "PAYMENT_WITHDRAWN": "Payment withdrawn",
+        "CASH_RECEIPT_RECORDED": "Cash receipt recorded",
+        "PAYMENT_VERIFIED": "Payment verified",
+        "PAYMENT_SECOND_APPROVED": "Second approval given",
+        "PAYMENT_CONFIRMED": "Payment confirmed",
+        "PAYMENT_REJECTED": "Payment rejected",
+        "PROOF_READ": "Receipt downloaded"
+      },
+      "refusal": {
+        "payment-approver-not-independent": "You handled this payment, so someone else must approve it.",
+        "payment-version-conflict": "Someone else acted on this first. Reload and look again.",
+        "payment-state-conflict": "This payment is no longer waiting for that step. Reload it.",
+        "cash-amount-mismatch": "The amount does not match the bill total. Reject the request with the difference as the reason.",
+        "production-platform-realm-required": "Payments are decided from the production console only.",
+        "impersonation-not-allowed": "End the impersonation before deciding payments.",
+        "forbidden": "You can't do this. Confirm your sign-in code again, or ask an operator with this permission.",
+        "other": "That did not go through. Reload and try again."
+      }
+    },
+    "bankAccounts": {
+      "title": "Bank account",
+      "subtitle": "The account customers pay Fawtir into. Customers see it only after a second operator confirms it.",
+      "loading": "Loading accounts",
+      "empty": "No account has been entered. Customers can't pay by bank transfer until one is confirmed.",
+      "status": {
+        "PENDING_CONFIRMATION": "Needs confirmation",
+        "ACTIVE": "Shown to customers",
+        "RETIRED": "Retired"
+      },
+      "confirm": "Confirm",
+      "retire": "Retire",
+      "propose": "Enter an account",
+      "proposeNote": "Use an Omani IBAN. Another operator must confirm it before customers see it.",
+      "reason": "Why this account",
+      "submit": "Submit for confirmation",
+      "refusal": {
+        "sameOperator": "You entered this account, so another operator must confirm it.",
+        "invalid": "Check the details: the IBAN must be a valid Omani IBAN."
       }
     }
   },
@@ -20823,6 +20917,85 @@
       "body": "Everything keeps working until {{date}}. After that the subscription will not renew, and your issued invoices and reports stay available to read and export.",
       "back": "Go back",
       "confirm": "Confirm cancellation"
+    }
+  },
+  "billing": {
+    "title": "Charges and payment",
+    "nothingDue": "Nothing is due right now. You can prepare the bill for your next period when you are ready to pay it.",
+    "prepare": "Prepare my next bill",
+    "bill": {
+      "number": "Bill",
+      "period": "Period",
+      "periodRange": "{{start}} to {{end}}",
+      "dueOn": "Due",
+      "status": "Status",
+      "subtotal": "Subscription",
+      "vat": "VAT {{rate}}",
+      "total": "Total",
+      "notTaxInvoice": "This is a statement of your subscription charge, not a tax invoice."
+    },
+    "billStatus": {
+      "OPEN": "Waiting for payment",
+      "PENDING_VERIFICATION": "Payment being checked",
+      "PAID": "Paid",
+      "VOID": "Cancelled"
+    },
+    "howToPay": "How would you like to pay?",
+    "method": {
+      "BANK_TRANSFER": {
+        "title": "Bank transfer",
+        "body": "Transfer the total to Fawtir's account, then send us the receipt."
+      },
+      "CASH": {
+        "title": "Cash",
+        "body": "Ask us to collect the payment in cash."
+      }
+    },
+    "noMethod": "Payment can't be made here yet. Contact Fawtir to pay this bill.",
+    "bank": {
+      "holder": "Account holder",
+      "bank": "Bank",
+      "iban": "IBAN",
+      "swift": "SWIFT/BIC",
+      "proof": "Transfer receipt",
+      "proofPick": "Drop the receipt here or choose a file",
+      "proofLimits": "PDF, PNG or JPEG, up to {{size}} KB",
+      "proofRejected": {
+        "size": "That file is too large. Choose a smaller one.",
+        "type": "Choose a PDF, PNG or JPEG file."
+      },
+      "reference": "Bank reference",
+      "submit": "Send for checking"
+    },
+    "cash": {
+      "instructions": "We will contact you to arrange collection. Your bill stays open until we have received the cash and checked it.",
+      "submit": "Ask for cash collection"
+    },
+    "note": "Note for Fawtir (optional)",
+    "waiting": {
+      "BANK_TRANSFER": {
+        "SUBMITTED": "We have your transfer receipt. The bill is paid once Fawtir has checked it against our bank account.",
+        "RECEIPT_RECORDED": "We have your transfer receipt and are checking it.",
+        "AWAITING_SECOND_APPROVAL": "Your transfer has been checked and is waiting for a second approval at Fawtir."
+      },
+      "CASH": {
+        "SUBMITTED": "Your cash collection request is with Fawtir. We will contact you to collect it.",
+        "RECEIPT_RECORDED": "Fawtir has recorded your cash payment and is checking it.",
+        "AWAITING_SECOND_APPROVAL": "Your cash payment has been checked and is waiting for a second approval at Fawtir."
+      }
+    },
+    "withdraw": "Withdraw this payment",
+    "rejected": "Your last payment was not accepted: {{reason}}. You can pay again below.",
+    "history": "Earlier bills",
+    "paidOn": "Paid {{date}} by {{method}}",
+    "refusal": {
+      "bill-not-payable": "This bill can't be paid now. Reload the page to see its latest status.",
+      "payment-method-unavailable": "That way of paying isn't available right now. Choose another or contact Fawtir.",
+      "payment-state-conflict": "This payment is already being checked, so it can't be changed. Reload the page.",
+      "billing-not-configured": "Bills can't be prepared yet. Contact Fawtir.",
+      "subscription-not-tracked": "Fawtir manages billing for your subscription directly. Contact Fawtir to pay.",
+      "idempotency-key-reused": "Reload the page and try again.",
+      "other": "That did not go through. Reload the page and try again."
     }
   }
 }

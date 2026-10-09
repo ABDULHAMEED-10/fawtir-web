@@ -103,6 +103,21 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         // operator the catalogue's read permission covers.
         requires: 'platform.plans.read',
       },
+      {
+        id: 'payments',
+        labelKey: 'console.nav.payments',
+        to: '/console/billing/payments',
+        Icon: ConsoleQueueIcon,
+        // Subscription payments waiting for Platform Finance (V271).
+        requires: 'platform.billing.read',
+      },
+      {
+        id: 'bankAccounts',
+        labelKey: 'console.nav.bankAccounts',
+        to: '/console/billing/accounts',
+        Icon: ConsolePlansIcon,
+        requires: 'platform.billing.read',
+      },
     ],
   },
   // No ERP group. Its two screens, add-on requests and templates, drew a story fixture, and the

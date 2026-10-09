@@ -194,21 +194,15 @@ describe('Settings › Plan: the subscription', () => {
 })
 
 describe('Settings › Bills and payment', () => {
-  it('shows the real subscription above the sample bills, with no Pay now or Download all', async () => {
+  it('shows the real subscription and charges, with no sample bills, ribbon, Pay now or Download all', async () => {
+    answers['/api/v1/settings/billing'] = () =>
+      json(200, { bills: [], beneficiary: null, methods: { bankTransfer: false, cash: false }, proofMaximumBytes: 1000000 })
     renderAt('/settings/bills')
 
     expect(await screen.findByText(i18n.t('subscription.access.TRIAL'))).toBeTruthy()
-    expect(screen.getByText(i18n.t('demoModule.ribbon'))).toBeTruthy()
+    expect(await screen.findByText(i18n.t('billing.nothingDue'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('demoModule.ribbon'))).toBeNull()
     expect(screen.queryByRole('button', { name: i18n.t('bills.pay.payNow') })).toBeNull()
     expect(screen.queryByRole('button', { name: i18n.t('bills.downloadAll') })).toBeNull()
-  })
-
-  it('says bills are not available when a build hides prototypes, and keeps the real subscription', async () => {
-    vi.stubEnv('VITE_FAWTIR_DEMO_MODULES', 'false')
-    renderAt('/settings/bills')
-
-    expect(await screen.findByText(i18n.t('subscription.access.TRIAL'))).toBeTruthy()
-    expect(screen.getByText(i18n.t('bills.prototypeUnavailable'))).toBeTruthy()
-    expect(screen.queryByText(i18n.t('demoModule.ribbon'))).toBeNull()
   })
 })
