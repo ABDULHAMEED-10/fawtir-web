@@ -23,31 +23,27 @@ const describes = (
   terms?.billingCycle === BILLING_CYCLE[billing]
 
 /**
- * What the saved plan costs, as `/signup/status` computed it (catalogue contract §10, §14). The
- * figures the tab carried are used when they describe this very choice; otherwise the status is
- * read once. Figures for another plan or cycle are never shown against this one: the draft then
- * holds a choice this page did not make, and the amounts read as unavailable.
+ * What the saved plan costs, as `/signup/status` computed it (catalogue contract §10, §14), read
+ * from the server on every visit. Figures carried in the tab's history are never trusted: after
+ * browser Back the local run re-chose the same plan and cycle at a newer price version, and the
+ * carried figures for the older version were shown as the bill. Figures for another plan or cycle
+ * are never shown against this one; the amounts then read as unavailable.
  */
-export function useSignupPlanTerms(
-  plan: PlanId,
-  billing: BillingCycle,
-  carried: SignupStatusPlan | undefined,
-): PlanTermsRead {
-  const known = describes(carried, plan, billing)
-  const [read, setRead] = useState<PlanTermsRead>(() =>
-    known ? { status: 'ready', terms: carried ?? null } : { status: 'loading' },
-  )
-  // StrictMode replays effects in development; the ref keeps that to one status request.
-  const requested = useRef(false)
+export function useSignupPlanTerms(plan: PlanId, billing: BillingCycle): PlanTermsRead {
+  const [read, setRead] = useState<PlanTermsRead>({ status: 'loading' })
+  // StrictMode replays effects in development; the ref keeps that to one status request per choice.
+  const requested = useRef<string | null>(null)
 
   useEffect(() => {
-    if (known || requested.current) return
-    requested.current = true
+    const choice = `${plan}:${billing}`
+    if (requested.current === choice) return
+    requested.current = choice
     const token = readOnboardingSession()?.onboardingToken
     if (!token) {
       setRead({ status: 'ready', terms: null })
       return
     }
+    setRead({ status: 'loading' })
     readSignupStatus(token).then(
       (status) => {
         const terms = status?.plan
@@ -56,9 +52,9 @@ export function useSignupPlanTerms(
       // The save itself reports an ended session; here the amounts are simply not known.
       () => setRead({ status: 'ready', terms: null }),
     )
-  }, [known, plan, billing])
+  }, [plan, billing])
 
-  return known ? { status: 'ready', terms: carried ?? null } : read
+  return read
 }
 
 /** The three figures a bill needs, when the server sent all three. */

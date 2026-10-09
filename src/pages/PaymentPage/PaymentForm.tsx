@@ -60,7 +60,7 @@ export function PaymentForm() {
 
   const plan: PlanId = state.plan ?? 'premium'
   const billing: BillingCycle = state.billing ?? 'annual'
-  const termsRead = useSignupPlanTerms(plan, billing, state.planTerms)
+  const termsRead = useSignupPlanTerms(plan, billing)
   const terms = termsRead.status === 'ready' ? termsRead.terms : null
   // `undefined`: not known (still reading, or a server that sends no trial); `null`: no trial.
   const trialDays = terms ? terms.trialDays : undefined

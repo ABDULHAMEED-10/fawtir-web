@@ -450,6 +450,7 @@ const BUSINESS_MONTHLY: SignupStatusPlan = {
 
 describe("How you'll pay", () => {
   it('charges nothing, saves the method, and continues to review with the server figures', async () => {
+    answer({ [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: BUSINESS_MONTHLY }) })
     renderAt('/payment', {
       ...AFTER_ADDRESS,
       plan: 'premium',
@@ -457,7 +458,7 @@ describe("How you'll pay", () => {
       planTerms: BUSINESS_MONTHLY,
     })
 
-    expect(screen.getByText(i18n.t('payment.descriptionTrial', { count: 14 }))).toBeTruthy()
+    expect(await screen.findByText(i18n.t('payment.descriptionTrial', { count: 14 }))).toBeTruthy()
     expect(text()).not.toMatch(/Pay .* & activate/)
     expect(screen.getByText(/owner@alnoor\.test/)).toBeTruthy()
 
@@ -466,8 +467,9 @@ describe("How you'll pay", () => {
     await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
 
     expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
-    // The carried figures describe this very choice, so the status is not asked again.
-    expect(calls()).toEqual([
+    // The figures always come from the server (never the tab's history): one status read, one write.
+    expect(callsTo(STATUS_URL)).toHaveLength(1)
+    expect(writes()).toEqual([
       {
         url: PREFERENCE_URL,
         method: 'POST',
@@ -485,6 +487,28 @@ describe("How you'll pay", () => {
       paymentMethod: 'cash',
       planTerms: { amountInclVat: '84.000' },
     })
+  })
+
+  it('shows the server quote, never stale figures carried in the tab history (browser Back)', async () => {
+    // The tab carries the older version's bill; the server has since pinned a newer price.
+    const newer: SignupStatusPlan = {
+      ...BUSINESS_ANNUAL,
+      priceVersionId: 'v-newer',
+      annualPrice: '810.000',
+      amountExclVat: '810.000',
+      vatAmount: '40.500',
+      amountInclVat: '850.500',
+    }
+    answer({ [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: newer }) })
+    renderAt('/payment', {
+      ...AFTER_ADDRESS,
+      plan: 'premium',
+      billing: 'annual',
+      planTerms: BUSINESS_ANNUAL,
+    })
+
+    expect(await screen.findByText('850.500')).toBeTruthy()
+    expect(text()).not.toContain('840.000')
   })
 
   it('reads the server figures once when it arrives without them, and prints them as sent', async () => {
@@ -530,6 +554,7 @@ describe("How you'll pay", () => {
       vatAmount: '75.000',
       amountInclVat: '1575.000',
     }
+    answer({ [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: plusAnnual }) })
     renderAt('/payment', {
       ...AFTER_ADDRESS,
       plan: 'businessPlus',
@@ -658,8 +683,8 @@ describe("How you'll pay", () => {
         .getByRole('button', { name: new RegExp(i18n.t('payment.method.cash.title')) })
         .getAttribute('aria-pressed'),
     ).toBe('true')
-    expect(text()).toContain('840.000')
-    // The gate's one status read restored the figures too.
-    expect(callsTo(STATUS_URL)).toHaveLength(1)
+    expect(await screen.findByText('840.000')).toBeTruthy()
+    // The gate restores the choice; the amounts are read again so they are never carried figures.
+    expect(callsTo(STATUS_URL)).toHaveLength(2)
   })
 })
