@@ -953,7 +953,7 @@
     "addon": {
       "title": "إضافة",
       "label": "أضف الاستخراج التلقائي من ERP",
-      "body": "يجمع فوتر الفواتير من نظامك وفق جدول، ويمررها عبر ربط الحقول، ويكتب النتيجة عكسيًا. يُفعّل مع اشتراكك.",
+      "body": "يجمع فوتر الفواتير من نظامك وفق جدول ويمررها عبر ربط الحقول. يؤكد فريق فوتر الإضافة مع اشتراكك.",
       "perMonth": "شهريًا",
       "perMonthTimes": "شهريًا، لمدة {{count}} شهرًا"
     },
@@ -12822,21 +12822,6 @@
       "slowedAt": "تباطأ الجهاز عند {{time}}",
       "now": "الآن",
       "connection": "الاتصال بالجهاز",
-      "integrations": {
-        "title": "تكاملات بحاجة إلى انتباه",
-        "subtitle": "اتصالات ERP لدى كل المستأجرين",
-        "open": "افتح اتصالات ERP",
-        "inError": "اتصالات في حالة خطأ",
-        "stale": "اتصالات راكدة",
-        "requests": "طلبات إضافة بانتظار القرار",
-        "allClear": "كل اتصالات ERP سليمة.",
-        "more_zero": "لا مزيد",
-        "more_one": "واحد آخر في شاشة اتصالات ERP",
-        "more_two": "اثنان آخران في شاشة اتصالات ERP",
-        "more_few": "{{count}} أخرى في شاشة اتصالات ERP",
-        "more_many": "{{count}} أخرى في شاشة اتصالات ERP",
-        "more_other": "{{count}} أخرى في شاشة اتصالات ERP"
-      },
       "town": {
         "Sur": "صور",
         "Nizwa": "نزوى",
@@ -14356,292 +14341,6 @@
         "templatePublished": "نُشر القالب · {{template}} الإصدار {{version}}",
         "templateDraftDiscarded": "أُلغيت مسودة القالب · {{template}} الإصدار {{version}}"
       },
-      "templates": {
-        "title": "قوالب الربط",
-        "subtitle": "الربط الأولي الذي يطبّقه معالج الاتصال لكل منتج وإصدار من نظام ERP. النشر لا يغيّر ربط أي منشأة؛ يسري على الاتصالات الجديدة وعلى من يعيد الضبط إلى القالب.",
-        "version": "الإصدار {{version}}",
-        "published": "منشور",
-        "publishedLine": "v{{version}} · المخطط {{schema}} · نُشر {{date}} بواسطة {{by}}",
-        "fields_zero": "لا حقول",
-        "fields_one": "حقل واحد",
-        "fields_two": "حقلان",
-        "fields_few": "{{count}} حقول",
-        "fields_many": "{{count}} حقلًا",
-        "fields_other": "{{count}} حقل",
-        "draft": "مسودة",
-        "draftLine": "v{{version}} · حُفظت {{date}} بواسطة {{by}}",
-        "noDraft": "لا مسودة قيد العمل",
-        "versions_zero": "لا إصدارات",
-        "versions_one": "إصدار واحد",
-        "versions_two": "إصداران",
-        "versions_few": "{{count}} إصدارات",
-        "versions_many": "{{count}} إصدارًا",
-        "versions_other": "{{count}} إصدار",
-        "connections_zero": "لا اتصالات على هذا القالب",
-        "connections_one": "اتصال واحد على هذا القالب",
-        "connections_two": "اتصالان على هذا القالب",
-        "connections_few": "{{count}} اتصالات على هذا القالب",
-        "connections_many": "{{count}} اتصالًا على هذا القالب",
-        "connections_other": "{{count}} اتصال على هذا القالب",
-        "older_zero": "لا شيء على إصدار أقدم",
-        "older_one": "واحد على إصدار أقدم",
-        "older_two": "اثنان على إصدار أقدم",
-        "older_few": "{{count}} على إصدار أقدم",
-        "older_many": "{{count}} على إصدار أقدم",
-        "older_other": "{{count}} على إصدار أقدم",
-        "noConnections": "لا اتصالات على هذا القالب بعد",
-        "open": "فتح",
-        "coming": "قريبًا",
-        "comingNote": "منتجات يعرضها معالج الاتصال ولا قالب لها بعد. المنشآت عليها تربط يدويًا.",
-        "noTemplate": "لا قالب بعد"
-      },
-      "template": {
-        "notHere": "غير موجود",
-        "notHereBody": "لا يوجد قالب ربط بهذا المعرّف. ربما أُعيدت تسميته أو أن الرابط قديم.",
-        "backToList": "العودة إلى قوالب الربط",
-        "productLine": "{{product}} {{erpVersion}} · المخطط {{schema}}",
-        "versions": "الإصدارات",
-        "state": {
-          "draft": "مسودة",
-          "published": "منشور",
-          "retired": "متوقف نهائيًا"
-        },
-        "readOnly": "v{{version}} {{state}} وللقراءة فقط. كل تعديل يذهب إلى المسودة.",
-        "readOnlyNoDraft": "v{{version}} {{state}} وللقراءة فقط. ابدأ إصدارًا جديدًا لتغييره.",
-        "savedLine": "حُفظ {{date}} بواسطة {{by}}",
-        "publishedLine": "نُشر {{date}} بواسطة {{by}}",
-        "startNew": "بدء إصدار جديد",
-        "saveDraft": "حفظ المسودة",
-        "publish": "نشر",
-        "discard": "تجاهل المسودة",
-        "unsaved": "تغييرات غير محفوظة",
-        "note": "ملاحظة التغيير",
-        "notePlaceholder": "ما الذي يغيّره هذا الإصدار",
-        "entries": "الحقول",
-        "entriesCount_zero": "لا مدخلات",
-        "entriesCount_one": "مدخل واحد",
-        "entriesCount_two": "مدخلان",
-        "entriesCount_few": "{{count}} مدخلات",
-        "entriesCount_many": "{{count}} مدخلًا",
-        "entriesCount_other": "{{count}} مدخل",
-        "col": {
-          "target": "الهدف",
-          "source": "مسار المصدر",
-          "transform": "التحويل",
-          "valueMap": "خريطة القيم",
-          "onUnmapped": "عند عدم الربط",
-          "default": "الافتراضي",
-          "sourceDefault": "مسار المصدر · الافتراضي",
-          "transformMap": "التحويل · خريطة القيم"
-        },
-        "required": "إلزامي",
-        "none": "بلا",
-        "custom": "تحويل مخصص",
-        "pairs_zero": "لا أزواج",
-        "pairs_one": "زوج واحد",
-        "pairs_two": "زوجان",
-        "pairs_few": "{{count}} أزواج",
-        "pairs_many": "{{count}} زوجًا",
-        "pairs_other": "{{count}} زوج",
-        "edit": "تعديل",
-        "remove": "إزالة {{term}}",
-        "sourcePlaceholder": "erp.field.path",
-        "defaultPlaceholder": "—",
-        "addField": "إضافة حقل",
-        "addFieldPick": "اختر مصطلحًا…",
-        "add": "إضافة",
-        "allMapped": "كل المصطلحات القابلة للربط موجودة في القالب.",
-        "readiness": {
-          "title": "الجاهزية",
-          "ready": "جاهز",
-          "notReady": "غير جاهز",
-          "required": "الإلزامي المغطّى",
-          "missing": "ناقص",
-          "invalid": "مدخلات غير صالحة",
-          "allGood": "كل مصطلح إلزامي مربوط وكل مدخل صالح."
-        },
-        "dryRun": {
-          "title": "تشغيل تجريبي",
-          "run": "تشغيل على عيّنة {{product}}",
-          "rerun": "تشغيل مرة أخرى",
-          "hint": "يشغّل الربط على فاتورة {{product}} مرفقة كما يفعل المحوّل، ويعرض ما ينتج عنه.",
-          "output": "الفاتورة القياسية",
-          "refusals": "الرفض",
-          "col": {
-            "field": "الحقل",
-            "problem": "ما الخطأ"
-          },
-          "notes": "ملاحظات"
-        },
-        "tenants": {
-          "title": "المنشآت على هذا الإصدار",
-          "none": "لا اتصال يستخدم هذا الإصدار.",
-          "count_zero": "لا اتصالات",
-          "count_one": "اتصال واحد",
-          "count_two": "اتصالان",
-          "count_few": "{{count}} اتصالات",
-          "count_many": "{{count}} اتصالًا",
-          "count_other": "{{count}} اتصال"
-        },
-        "publishModal": {
-          "title": "نشر v{{version}}؟",
-          "body": "يصبح v{{version}} قالب {{name}} المنشور. الاتصالات ({{count}}) على v{{current}} تحتفظ بربطها حتى تعيد الضبط.",
-          "bodyFirst": "يصبح v{{version}} قالب {{name}} المنشور. الاتصالات الجديدة تبدأ منه.",
-          "notValid": "المسودة ليست صالحة بعد. أصلح المدخلات الحمراء أولًا.",
-          "confirm": "نشر"
-        },
-        "discardModal": {
-          "title": "تجاهل المسودة v{{version}}؟",
-          "body": "تُفقد مدخلات المسودة وملاحظتها. يبقى v{{current}} منشورًا ولا يتغيّر شيء للمنشآت.",
-          "confirm": "تجاهل"
-        },
-        "valueMap": {
-          "title": "خريطة القيم: {{term}}",
-          "subtitle": "ما يرسله نظام ERP على اليسار، ورمز PINT-OM الذي يصبحه على اليمين.",
-          "from": "قيمة ERP",
-          "to": "تصبح",
-          "empty": "لا أزواج بعد.",
-          "addPair": "إضافة زوج",
-          "removePair": "إزالة هذا الزوج",
-          "default": "الرمز الافتراضي",
-          "defaultHint": "يُستخدم عندما يكون «عند عدم الربط» مضبوطًا على استخدام الافتراضي.",
-          "save": "حفظ"
-        },
-        "done": {
-          "created": "بدأت المسودة v{{version}} من v{{from}}.",
-          "saved": "حُفظت المسودة v{{version}}.",
-          "published": "v{{version}} هو الآن قالب {{name}} المنشور.",
-          "discarded": "تم تجاهل المسودة v{{version}}."
-        },
-        "presetShort": {
-          "dateDmy": "DD/MM/YYYY ← تاريخ",
-          "dateEpoch": "Epoch ← تاريخ",
-          "trimUpper": "قصّ + كبيرة",
-          "digitsOnly": "أرقام فقط",
-          "round3": "تقريب 3",
-          "round2": "تقريب 2",
-          "abs": "مطلق",
-          "percentFromFraction": "% من كسر"
-        },
-        "onUnmappedShort": {
-          "FAIL": "إفشال",
-          "USE_DEFAULT": "استخدام الافتراضي",
-          "PASS_THROUGH": "تمرير"
-        },
-        "defaultLabel": "الافتراضي"
-      },
-      "requests": {
-        "title": "طلبات الإضافة",
-        "subtitle": "منشآت تطلب تفعيل استخراج ERP. الموافقة تفعّل الإضافة الآن وتضع بندها على فاتورة المنشأة التالية.",
-        "tab": {
-          "pending": "قيد الانتظار",
-          "history": "السجل"
-        },
-        "kpi": {
-          "pending": "قيد الانتظار",
-          "pendingNote": "بانتظار قرار",
-          "pendingOldest": "أقدم طلب {{date}}",
-          "approved": "موافَق عليه في {{month}}",
-          "approvedNote": "بما فيها التجارب",
-          "declined": "مرفوض في {{month}}",
-          "declinedNote": "لكل منها سبب مسجّل",
-          "onAddon": "منشآت على الإضافة",
-          "onAddonNote": "{{paying}} تدفع · {{monthly}} شهريًا لكل منها"
-        },
-        "col": {
-          "tenant": "المنشأة",
-          "plan": "الخطة",
-          "requested": "تاريخ الطلب",
-          "source": "المصدر",
-          "subscription": "الاشتراك",
-          "decided": "تاريخ القرار",
-          "outcome": "النتيجة",
-          "note": "ملاحظة"
-        },
-        "by": "بواسطة {{by}}",
-        "source": {
-          "PURCHASED": "مشتراة",
-          "PLAN_INCLUDED": "ضمن الخطة",
-          "TRIAL": "تجربة"
-        },
-        "price": {
-          "monthly": "{{amount}} شهريًا",
-          "included": "بلا رسوم إضافية",
-          "trial": "مجانًا خلال التجربة"
-        },
-        "subscription": {
-          "grace": "الاشتراك في فترة السماح: سدّد أولًا",
-          "suspended": "الاشتراك موقوف: استأنفه أولًا",
-          "awaitingPayment": "بانتظار الدفعة الأولى",
-          "trial": "الخطة تجريبية",
-          "ok": "نشط"
-        },
-        "approve": "موافقة",
-        "approveTrial": "موافقة على تجربة",
-        "decline": "رفض",
-        "rowMenu": "إجراءات الطلب",
-        "approveModal": {
-          "title": "الموافقة لـ {{tenant}}",
-          "subtitle": "تُفعَّل الإضافة الآن.",
-          "tenant": "المنشأة",
-          "plan": "الخطة",
-          "price": "السعر الشهري",
-          "allowance": "الحصة",
-          "allowanceValue": "{{connections}} اتصالات · {{documents}} مستند شهريًا",
-          "billing": "الفوترة",
-          "billingValue": "ينضم بند الإضافة إلى الفاتورة التالية",
-          "billingIncluded": "مشمول في خطة {{plan}}، لا شيء للفوترة",
-          "note": "ملاحظة (اختياري)",
-          "notePlaceholder": "أي شيء يجب أن يذكره السجل",
-          "confirm": "موافقة",
-          "priceIncluded": "مشمول في الخطة، دون رسوم"
-        },
-        "trialModal": {
-          "title": "الموافقة على تجربة لـ {{tenant}}",
-          "subtitle": "اتصال واحد، مجانًا، حتى تنتهي التجربة. لا يُفوتر شيء.",
-          "days": "مدة التجربة",
-          "daysChip_zero": "لا أيام",
-          "daysChip_one": "يوم واحد",
-          "daysChip_two": "يومان",
-          "daysChip_few": "{{count}} أيام",
-          "daysChip_many": "{{count}} يومًا",
-          "daysChip_other": "{{count}} يوم",
-          "documents": "المستندات في التجربة",
-          "documentsChip": "{{count}} مستند",
-          "endsOn": "تنتهي {{date}}",
-          "confirm": "بدء التجربة"
-        },
-        "declineModal": {
-          "title": "رفض طلب {{tenant}}",
-          "subtitle": "تقرأ المنشأة السبب في صفحة ERP لديها.",
-          "reason": "السبب",
-          "reasonPlaceholder": "لماذا لم تُفعَّل الإضافة",
-          "quick": {
-            "grace": "الاشتراك في فترة السماح. سدّد الفاتورة المفتوحة أولًا.",
-            "plan": "غير متاحة على الخطة الحالية",
-            "verify": "التحقق ما زال مفتوحًا"
-          },
-          "confirm": "رفض"
-        },
-        "done": {
-          "badge": "تم",
-          "approved": "تمت الموافقة لـ {{tenant}}. نشطة الآن.",
-          "trial": "تمت الموافقة على تجربة {{days}} يومًا لـ {{tenant}}. نشطة الآن.",
-          "declined": "رُفض طلب {{tenant}}. السبب مسجّل.",
-          "link": "فتح تبويب ERP للمنشأة"
-        },
-        "outcome": {
-          "approved": "موافَق عليه",
-          "declined": "مرفوض"
-        },
-        "empty": {
-          "pending": "لا طلبات بانتظار.",
-          "history": "لا قرارات بعد."
-        },
-        "noNote": "—",
-        "notOffered": "غير مدعوم على {{plan}}: الترقية أولًا",
-        "notOfferedHint": "الإضافة غير مدعومة على خطة {{plan}}. ينتقل المشترك إلى خطة أعلى أولًا، أو تتغير إتاحة الخطة في إعدادات وحدة التحكم › الإضافات."
-      },
       "connections": {
         "title": "اتصالات ERP",
         "subtitle": "{{connections}} اتصالًا لدى {{tenants}} مستأجرًا · {{attention}} بحاجة إلى انتباه",
@@ -14821,21 +14520,6 @@
           "body": "سبب الإيقاف: {{reason}}",
           "submit": "استئناف",
           "done": "عادت إضافة {{tenant}} إلى العمل"
-        }
-      },
-      "tenantTab": {
-        "connections": {
-          "title": "اتصالات ERP",
-          "all": "كل المستأجرين",
-          "empty": "لم يُربط أي ERP بعد."
-        },
-        "col": {
-          "connection": "الاتصال",
-          "state": "الحالة",
-          "mapping": "الربط",
-          "lastRun": "آخر تشغيل",
-          "collected": "المُجمَّعة",
-          "rejections": "الرفض"
         }
       },
       "unavailable": {
@@ -15875,7 +15559,7 @@
     "planMissing": "اختر خطتك وطريقة الدفع قبل الإرسال.",
     "choosePlan": "اختر خطة",
     "choosePayment": "اختر طريقة الدفع",
-    "addonValue": "أُضيف الاستخراج التلقائي من ERP"
+    "addonValue": "طُلب استخراج ERP؛ يؤكده فريق فوتر"
   },
   "signupPending": {
     "approved": {
@@ -18280,8 +17964,9 @@
         "MAPPING_NOT_CERTIFIED": "الربط غير معتمد",
         "INVOICE_VALIDATION_FAILED": "لم تجتز الفاتورة التحقق",
         "MAPPING_CAPACITY_UNAVAILABLE": "كانت خدمة الربط في فوتر مشغولة",
-        "SOURCE_IDENTITY_INVALID": "معرّف المستند أو إصداره طويل جدًا أو فارغ",
-        "SOURCE_CONTENT_CHANGED": "أرسل نظامك محتوى مختلفًا بالإصدار نفسه"
+        "SOURCE_IDENTITY_INVALID": "معرّف المستند أو إصداره مفقود أو فارغ أو طويل جدًا",
+        "SOURCE_CONTENT_CHANGED": "أرسل نظامك محتوى مختلفًا بالإصدار نفسه",
+        "SOURCE_PAYLOAD_TOO_LARGE": "أرسل نظامك مستندًا يتجاوز حد 4 ميغابايت"
       },
       "stage": {
         "SOURCE": "نظامك",

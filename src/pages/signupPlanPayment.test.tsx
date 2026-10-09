@@ -120,6 +120,9 @@ describe("How you'll pay", () => {
 
   it('offers the ERP extraction add-on where the console prices it, and carries the tick to review', async () => {
     renderAt('/payment', { ...AFTER_ADDRESS, plan: 'businessPlus', billing: 'monthly' })
+    // The owner keeps the add-on (handbook section 6); what it says must still be true: no promise
+    // to write anything back to the ERP, which the product does not do.
+    expect(document.body.textContent).not.toMatch(/write.{0,10}back/i)
     const user = userEvent.setup({ delay: null })
     await user.click(screen.getByRole('checkbox', { name: i18n.t('payment.addon.label') }))
     await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))

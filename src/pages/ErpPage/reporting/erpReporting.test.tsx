@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../../lib/identity/entitlements'
 import { resetSharedRequests } from '../../../api'
-import { RECONCILIATION_LABELS } from '../../../api/erp/reporting'
+import { FAILURE_REASONS, RECONCILIATION_LABELS } from '../../../api/erp/reporting'
 import { ErpDocumentsPage } from './ErpDocumentsPage'
 import { ErpDocumentDetailPage } from './ErpDocumentDetailPage'
 import { ErpAttentionPage } from './ErpAttentionPage'
@@ -775,5 +775,15 @@ describe('Arabic', () => {
     renderAt('/settings/erp/documents')
     expect(await screen.findByRole('heading', { name: 'المستندات المصدرية' })).toBeTruthy()
     expect(screen.getByText('SO-1001').closest('[dir="ltr"]')).not.toBeNull()
+  })
+})
+
+describe('reason words', () => {
+  // useCode falls back to the bare code, so a reason the backend adds (SOURCE_PAYLOAD_TOO_LARGE
+  // arrived this way in backend #470) would reach customers as a constant without failing anything.
+  // getResource, not exists: exists answers through fallbackLng, so Arabic would borrow English.
+  it.each(['en', 'ar'])('words every failure reason in %s', (lng) => {
+    const missing = FAILURE_REASONS.filter((reason) => !i18n.getResource(lng, 'translation', `erp.reporting.reason.${reason}`))
+    expect(missing).toEqual([])
   })
 })
