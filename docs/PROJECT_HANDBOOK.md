@@ -465,7 +465,7 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   for file specifications. The company pays its suppliers itself (bank app, internet banking or a
   branch visit) and then marks the bills, or the run, as paid in Fawtir (`markRunPaid`, or Record
   payment on the bill). The export call stays in `src/api/expenditure/paymentRuns.ts` but the
-  screen no longer offers file formats.
+  screen is to stop offering file formats (not done yet).
 - **Mobile app scope** (owner, 29 Sep 2026; widened 9 Oct 2026): onboarding (sign-in and
   subscription included), company settings with branches and Peppol settings, notifications,
   customers and suppliers, Income (invoices, bulk invoice upload, credit notes, debit notes,
