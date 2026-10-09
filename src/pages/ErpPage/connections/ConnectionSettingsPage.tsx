@@ -26,6 +26,7 @@ import {
   updateErpConnection,
   type ErpConnectionDto,
   type ErpCredentialType,
+  PROBEABLE_CREDENTIAL_TYPES,
   SELECTABLE_TRANSPORTS,
   type ErpTransportType,
 } from '../../../api/erp/connections'
@@ -46,12 +47,11 @@ function transportOptions(stored: ErpTransportType | null): readonly ErpTranspor
   if (stored === null || TRANSPORTS.includes(stored)) return TRANSPORTS
   return [...TRANSPORTS, stored]
 }
-const CREDENTIAL_TYPES: ErpCredentialType[] = [
-  'BASIC_AUTH',
-  'API_TOKEN',
-  'OAUTH2_CLIENT_CREDENTIALS',
-  'SSH_PRIVATE_KEY',
-]
+// Only the kinds the REST runtime can sign in with. OAuth2 client credentials and SSH keys could
+// be stored, but no adapter uses them, so a connection saved with one could never collect: they
+// are not offered. A connection that already holds one still shows it, and saving a new
+// credential here replaces it with a kind that works.
+const CREDENTIAL_TYPES: readonly ErpCredentialType[] = PROBEABLE_CREDENTIAL_TYPES
 
 /**
  * A connection's editable configuration and its sign-in details.
@@ -290,7 +290,11 @@ function CredentialCard({
   const mutation = useMutation()
 
   const [open, setOpen] = useState(false)
-  const [type, setType] = useState<ErpCredentialType>(connection.credentialType ?? 'BASIC_AUTH')
+  const [type, setType] = useState<ErpCredentialType>(
+    connection.credentialType && CREDENTIAL_TYPES.includes(connection.credentialType)
+      ? connection.credentialType
+      : 'BASIC_AUTH',
+  )
   const [secret, setSecret] = useState('')
   const [hint, setHint] = useState('')
 
@@ -428,9 +432,11 @@ function CredentialCard({
               value={type}
               onChange={(next) => setType(next as ErpCredentialType)}
             />
-            {!isProbeableCredentialType(type) ? (
+            {connection.credentialType && !isProbeableCredentialType(connection.credentialType) ? (
               <p className="text-xs font-medium leading-[1.5] text-text-quaternary">
-                {t('erp.connections.credential.notProbeable')}
+                {t('erp.connections.credential.unsupportedStored', {
+                  kind: t(`erp.connections.credentialType.${connection.credentialType}`),
+                })}
               </p>
             ) : null}
 

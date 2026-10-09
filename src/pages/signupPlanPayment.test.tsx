@@ -118,6 +118,18 @@ describe("How you'll pay", () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it('sells no ERP add-on: no price, no write-back promise, no tick carried to review', async () => {
+    for (const plan of ['starter', 'premium', 'businessPlus'] as const) {
+      const { unmount } = renderAt('/payment', { ...AFTER_ADDRESS, plan, billing: 'monthly', addon: true })
+      expect(document.body.textContent).not.toMatch(/write.{0,10}back/i)
+      expect(screen.queryByRole('checkbox', { name: /ERP/i })).toBeNull()
+      const user = userEvent.setup({ delay: null })
+      await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+      expect(stateNow().addon).toBeUndefined()
+      unmount()
+    }
+  })
+
   it('opened without a plan, goes to choose one first', async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ stage: 'READY_FOR_SUBMISSION' }), {
