@@ -17964,9 +17964,9 @@
         "MAPPING_NOT_CERTIFIED": "الربط غير معتمد",
         "INVOICE_VALIDATION_FAILED": "لم تجتز الفاتورة التحقق",
         "MAPPING_CAPACITY_UNAVAILABLE": "كانت خدمة الربط في فوتر مشغولة",
-        "SOURCE_IDENTITY_INVALID": "معرّف المستند أو إصداره طويل جدًا أو فارغ",
+        "SOURCE_IDENTITY_INVALID": "معرّف المستند أو إصداره مفقود أو فارغ أو طويل جدًا",
         "SOURCE_CONTENT_CHANGED": "أرسل نظامك محتوى مختلفًا بالإصدار نفسه",
-        "SOURCE_PAYLOAD_TOO_LARGE": "حجم المستند أكبر من 4 ميغابايت"
+        "SOURCE_PAYLOAD_TOO_LARGE": "أرسل نظامك مستندًا يتجاوز حد 4 ميغابايت"
       },
       "stage": {
         "SOURCE": "نظامك",

@@ -16987,9 +16987,9 @@
         "MAPPING_NOT_CERTIFIED": "The mapping is not certified",
         "INVOICE_VALIDATION_FAILED": "The invoice failed validation",
         "MAPPING_CAPACITY_UNAVAILABLE": "Fawtir's mapping service was busy",
-        "SOURCE_IDENTITY_INVALID": "The document's identifier or version is too long or blank",
+        "SOURCE_IDENTITY_INVALID": "The document's identifier or version is missing, blank or too long",
         "SOURCE_CONTENT_CHANGED": "Your ERP sent different content under the same version",
-        "SOURCE_PAYLOAD_TOO_LARGE": "The document is larger than 4 MiB"
+        "SOURCE_PAYLOAD_TOO_LARGE": "Your ERP sent a document larger than the 4 MiB limit"
       },
       "stage": {
         "SOURCE": "your ERP",
