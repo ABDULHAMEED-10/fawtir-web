@@ -460,6 +460,12 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   the comparison rows and the questions come from `src/lib/plans.ts` and the sign-up plans screen
   (`PlanComparison.tsx` exports `GROUPS`, `COLUMNS`, `faqParams`). The Figma frame's own figures
   (49 / 89 / 149) are not used. "What counts" is documents sent and received, as the app meters.
+- **Payment runs are for tracking only, no bank file** (owner, 9 Oct 2026): Fawtir does not
+  produce bank payment files (no Bank Muscat CSV, no ISO 20022 PAIN.001), so nobody asks the banks
+  for file specifications. The company pays its suppliers itself (bank app, internet banking or a
+  branch visit) and then marks the bills, or the run, as paid in Fawtir (`markRunPaid`, or Record
+  payment on the bill). The export call stays in `src/api/expenditure/paymentRuns.ts` but the
+  screen no longer offers file formats.
 - **Mobile app scope** (owner, 29 Sep 2026; widened 9 Oct 2026): onboarding (sign-in and
   subscription included), company settings with branches and Peppol settings, notifications,
   customers and suppliers, Income (invoices, bulk invoice upload, credit notes, debit notes,
