@@ -266,7 +266,6 @@ describe('Tenant detail — deep-link regression', () => {
     ['', 'Subscription'],
     ['?tab=subscription', 'Subscription'],
     ['?tab=filing', 'Filing'],
-    ['?tab=erp', 'ERP'],
   ]
 
   it.each(TABS)('prototype link "%s" selects the %s tab', async (query, tabLabel) => {
@@ -277,6 +276,15 @@ describe('Tenant detail — deep-link regression', () => {
     expect(tab.getAttribute('aria-pressed')).toBe('true')
     // A slug never reaches the platform overview.
     expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('/overview'))).toHaveLength(0)
+  })
+
+  it('an old "?tab=erp" link falls back to Subscription: the fixture ERP tab is gone', async () => {
+    answer({ [ENTITLEMENTS_URL]: () => json(200, OPERATOR) })
+    renderAt(`/console/tenants/${PROTOTYPE_ID}?tab=erp`)
+
+    const tab = await screen.findByRole('button', { name: 'Subscription' })
+    expect(tab.getAttribute('aria-pressed')).toBe('true')
+    expect(screen.queryByRole('button', { name: 'ERP' })).toBeNull()
   })
 
   const ACTIONS = [

@@ -168,9 +168,6 @@ import {
   ConsoleAuditPage,
   ConsoleErpPage,
   ConsoleErpConnectionPage,
-  ConsoleTemplatesPage,
-  ConsoleTemplatePage,
-  ConsoleAddonRequestsPage,
   ConsoleOnboardPage,
   OperationsPage,
   OperatorsPage,
@@ -813,9 +810,10 @@ function App() {
           <Route path="/console/audit" element={<ConsoleAuditPage />} />
           <Route path="/console/erp" element={<ConsoleErpPage />} />
           <Route path="/console/erp/connections/:id" element={<ConsoleErpConnectionPage />} />
-          <Route path="/console/erp/templates" element={<ConsoleTemplatesPage />} />
-          <Route path="/console/erp/templates/:id" element={<ConsoleTemplatePage />} />
-          <Route path="/console/erp/add-on-requests" element={<ConsoleAddonRequestsPage />} />
+          {/* Kept so a bookmark does not 404; each says where ERP access is really changed. */}
+          <Route path="/console/erp/templates" element={<ConsoleErpPage />} />
+          <Route path="/console/erp/templates/:id" element={<ConsoleErpPage />} />
+          <Route path="/console/erp/add-on-requests" element={<ConsoleErpPage />} />
           <Route path="/console/tenants/new" element={<ConsoleOnboardPage />} />
           <Route path="/console/settings" element={<ConsoleSettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
