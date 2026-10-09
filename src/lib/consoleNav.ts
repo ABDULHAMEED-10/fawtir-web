@@ -24,6 +24,8 @@ export type ConsoleNavItem = {
   Icon: ComponentType<IconProps>
   /** Screens the design has not reached yet still appear, so the shape of the console is honest. */
   soon?: boolean
+  /** Shown only to an operator holding this code; the server enforces it on every read regardless. */
+  requires?: string
 }
 
 export type ConsoleNavGroup = {
@@ -92,6 +94,9 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         labelKey: 'console.nav.plans',
         to: '/console/plans',
         Icon: ConsolePlansIcon,
+        // Plans and rates are the platform's own prices: never shown to a tenant, and only to an
+        // operator the catalogue's read permission covers.
+        requires: 'platform.plans.read',
       },
     ],
   },

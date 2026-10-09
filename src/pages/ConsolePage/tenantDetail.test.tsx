@@ -348,7 +348,9 @@ describe('Tenant detail — deep-link regression', () => {
     answer({ [ENTITLEMENTS_URL]: () => json(200, OPERATOR) })
     renderAt(`/console/tenants/${PROTOTYPE_ID}?from=${from}`)
 
-    expect(await screen.findByRole('link', { name: crumb })).toBeTruthy()
+    // The operator's sidebar carries a link of the same name; the breadcrumb is the one outside it.
+    const links = await screen.findAllByRole('link', { name: crumb })
+    expect(links.filter((link) => link.closest('aside') === null)).toHaveLength(1)
   })
 
   it('an id that is neither a tenant nor a known prototype is not found', async () => {
