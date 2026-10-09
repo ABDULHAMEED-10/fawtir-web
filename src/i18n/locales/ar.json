@@ -18534,7 +18534,8 @@
     "takeOutOfRun": "إخراج من الدفعة",
     "bankPaidNothing": "لم يدفع البنك شيئًا من هذا الملف",
     "sentFileWarning": "أُرسل هذا الملف إلى البنك بالفعل. لا ترفعه مرة أخرى.",
-    "takenOutRow": "أُخرج من الدفعة · {{reason}}"
+    "takenOutRow": "أُخرج من الدفعة · {{reason}}",
+    "paidAndTakenOut": "مدفوع {{paid}} · أُخرج من الدفعة {{takenOut}}"
   },
   "billIntake": {
     "supplier": "المورّد",

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { DateField, Popover, Select, TableCheckbox } from '../../components/ui'
+import { DateField, Popover, Select, TableCheckbox, withRial } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
@@ -27,7 +27,7 @@ import {
   type PaymentRunDetailDto,
   type PaymentRunFormat,
 } from '../../api/expenditure/paymentRuns'
-import { formatDate } from '../../lib/format'
+import { formatAmount, formatDate } from '../../lib/format'
 import { muscatToday } from '../../lib/invoiceIssue'
 import {
   DUE_WINDOWS,
@@ -184,6 +184,19 @@ function RunBuilder({ runId }: { runId: string | null }) {
   const takenOut = new Map(
     (detail?.items ?? []).flatMap((item) => (item.takenOut ? [[item.billId, item.takenOut]] : [])),
   )
+  // On a paid run with bills taken out, the bank file's totals stay what the bank received; a
+  // line under them splits it into what was paid and what was taken out (owner, 9 Oct 2026).
+  const paidRun = run?.state === 'PAID'
+  const runItems = detail?.items ?? []
+  const split =
+    paidRun && runItems.some((item) => item.takenOut != null)
+      ? {
+          paid: sum(runItems.filter((item) => item.takenOut == null).map((item) => item.amount)),
+          takenOut: sum(
+            runItems.filter((item) => item.takenOut != null).map((item) => item.amount),
+          ),
+        }
+      : null
   const candidates: RunBill[] = offered.read.status === 'ready' ? offered.read.data : []
   const ticked = new Set(inRun.map((bill) => bill.billId))
   const every = [...inRun, ...candidates.filter((bill) => !ticked.has(bill.billId))]
@@ -531,6 +544,11 @@ function RunBuilder({ runId }: { runId: string | null }) {
                   const chosen = group.bills.filter((bill) => ticked.has(bill.billId))
                   const allOn = chosen.length === group.bills.length
                   const someOn = chosen.length > 0 && !allOn
+                  // On a paid run the supplier's header counts only the bills actually paid; a
+                  // taken-out row still shows, with its label (owner, 9 Oct 2026).
+                  const counted = paidRun
+                    ? chosen.filter((bill) => !takenOut.has(bill.billId))
+                    : chosen
                   return (
                     <div
                       key={group.key}
@@ -562,12 +580,12 @@ function RunBuilder({ runId }: { runId: string | null }) {
                             {group.name ?? t('paymentRuns.noSupplier')}
                           </p>
                           <p className="mt-0.5 text-xs font-medium leading-[1.2] text-text-muted">
-                            {t('paymentsPage.billsAsOneTransfer', { count: chosen.length })}
+                            {t('paymentsPage.billsAsOneTransfer', { count: counted.length })}
                           </p>
                         </div>
                         <div className="ms-auto text-end">
                           <Amount
-                            value={sum(chosen.map((bill) => bill.amount))}
+                            value={sum(counted.map((bill) => bill.amount))}
                             currency={currency}
                           />
                           <p className="mt-0.5 text-[10px] font-medium leading-[1.2] text-text-muted">
@@ -854,6 +872,16 @@ function RunBuilder({ runId }: { runId: string | null }) {
                 className="whitespace-nowrap text-2xl font-semibold leading-[1.2] text-text-primary"
               />
             </div>
+            {split ? (
+              <p className="mt-0.5 text-end text-[10px] font-medium leading-[1.2] text-text-muted">
+                {withRial(
+                  t('paymentRuns.paidAndTakenOut', {
+                    paid: `${currency} ${formatAmount(split.paid, currency, i18n.language)}`,
+                    takenOut: `${currency} ${formatAmount(split.takenOut, currency, i18n.language)}`,
+                  }),
+                )}
+              </p>
+            ) : null}
           </section>
 
           <section className="rounded-md bg-surface-card p-5">
