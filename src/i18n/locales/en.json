@@ -17779,7 +17779,8 @@
     "bankPaidNothing": "The bank paid nothing from this file",
     "sentFileWarning": "This file was already sent to the bank. Do not upload it again.",
     "bankDetailsChangedSinceFile": "{{supplier}}'s bank details changed after this file was made. This file keeps the old IBAN; new runs use the new one.",
-    "takenOutRow": "Taken out · {{reason}}"
+    "takenOutRow": "Taken out · {{reason}}",
+    "paidAndTakenOut": "Paid {{paid}} · taken out {{takenOut}}"
   },
   "billIntake": {
     "supplier": "Supplier",
