@@ -33,7 +33,9 @@ import {
   verifyPayment,
   type PaymentDetailDto,
   type PlatformPaymentDto,
+  loadQueuePage,
   type QueueItemDto,
+  type QueuePageDto,
 } from '../../../lib/console/billingPayments'
 
 const STATUS_TONE: Record<PlatformPaymentDto['status'], ConsolePillTone> = {
@@ -63,15 +65,41 @@ export function ConsoleBillingPaymentsPage() {
 
 function PaymentQueue() {
   const { t, i18n } = useTranslation()
-  const { read, retry } = useConsoleRead<QueueItemDto[]>(PAYMENTS_PATH)
+  const { read, retry } = useConsoleRead<QueuePageDto>(PAYMENTS_PATH)
   const [selected, setSelected] = useState<string | null>(null)
+  // Pages after the first, and the cursor past them; undefined means "follow the first page".
+  const [later, setLater] = useState<QueueItemDto[]>([])
+  const [laterCursor, setLaterCursor] = useState<string | null | undefined>(undefined)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [moreFailed, setMoreFailed] = useState(false)
+  const reload = () => {
+    setLater([])
+    setLaterCursor(undefined)
+    setMoreFailed(false)
+    retry()
+  }
+  const cursor = laterCursor === undefined && read.status === 'ready' ? read.data.nextCursor : (laterCursor ?? null)
+  const loadMore = async () => {
+    if (!cursor) return
+    setLoadingMore(true)
+    setMoreFailed(false)
+    try {
+      const page = await loadQueuePage(cursor)
+      setLater((shown) => [...shown, ...page.items])
+      setLaterCursor(page.nextCursor)
+    } catch {
+      setMoreFailed(true)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   let body: ReactNode
   if (read.status === 'loading') {
     body = <ConsoleNotice busy body={t('console.billing.loading')} />
   } else if (read.status === 'failed') {
-    body = <ConsoleReadFailure error={read.error} retry={retry} />
-  } else if (read.data.length === 0) {
+    body = <ConsoleReadFailure error={read.error} retry={reload} />
+  } else if (read.data.items.length === 0) {
     body = (
       <p className="rounded-sm bg-surface-card px-6 py-12 text-center text-sm font-medium text-text-tertiary">
         {t('console.billing.empty')}
@@ -92,7 +120,7 @@ function PaymentQueue() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border-subtle">
-            {read.data.map(({ payment, bill, tenantName }) => (
+            {[...read.data.items, ...later].map(({ payment, bill, tenantName }) => (
               <tr key={payment.id}>
                 <td className="px-4 py-3 font-medium text-text-primary">{tenantName ?? payment.tenantId}</td>
                 <td className="px-4 py-3 text-text-secondary">
@@ -117,6 +145,18 @@ function PaymentQueue() {
             ))}
           </tbody>
         </table>
+        {cursor ? (
+          <div className="px-4 py-3">
+            <button type="button" className={CONSOLE_SMALL} disabled={loadingMore} onClick={loadMore}>
+              {t('console.billing.loadMore')}
+            </button>
+          </div>
+        ) : null}
+        {moreFailed ? (
+          <p role="alert" className="px-4 pb-3 text-sm font-medium text-danger-700">
+            {t('console.billing.refusal.other')}
+          </p>
+        ) : null}
       </div>
     )
   }
@@ -130,7 +170,7 @@ function PaymentQueue() {
         <PaymentPanel
           key={selected}
           paymentId={selected}
-          onDecided={retry}
+          onDecided={reload}
           onClose={() => setSelected(null)}
         />
       ) : null}
@@ -414,6 +454,8 @@ const DECISION_REFUSALS = [
   'payment-version-conflict',
   'payment-state-conflict',
   'cash-amount-mismatch',
+  'bill-stale',
+  'payment-confirmation-mismatch',
   'production-platform-realm-required',
   'impersonation-not-allowed',
 ]

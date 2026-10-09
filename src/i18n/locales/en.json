@@ -14967,8 +14967,11 @@
         "production-platform-realm-required": "Payments are decided from the production console only.",
         "impersonation-not-allowed": "End the impersonation before deciding payments.",
         "forbidden": "You can't do this. Confirm your sign-in code again, or ask an operator with this permission.",
-        "other": "That did not go through. Reload and try again."
-      }
+        "other": "That did not go through. Reload and try again.",
+        "bill-stale": "This bill no longer matches the company's plan for its period. Reject the payment so a new bill can be issued.",
+        "payment-confirmation-mismatch": "The confirmation does not match the bill. Nothing was paid; reconcile it with finance."
+      },
+      "loadMore": "Load more"
     },
     "bankAccounts": {
       "title": "Bank account",
@@ -20917,7 +20920,8 @@
       "body": "Everything keeps working until {{date}}. After that the subscription will not renew, and your issued invoices and reports stay available to read and export.",
       "back": "Go back",
       "confirm": "Confirm cancellation"
-    }
+    },
+    "blockedByPayment": "A payment for your next period is being checked by Fawtir. You can change your plan or cancel once it is confirmed or rejected."
   },
   "billing": {
     "title": "Charges and payment",
@@ -20995,7 +20999,11 @@
       "billing-not-configured": "Bills can't be prepared yet. Contact Fawtir.",
       "subscription-not-tracked": "Fawtir manages billing for your subscription directly. Contact Fawtir to pay.",
       "idempotency-key-reused": "Reload the page and try again.",
-      "other": "That did not go through. Reload the page and try again."
-    }
+      "other": "That did not go through. Reload the page and try again.",
+      "bill-stale": "Your plan changed, so that bill was replaced. Pay the current bill below."
+    },
+    "bankUnavailable": "Bank transfer is temporarily unavailable because proof can't be stored safely right now. Try again in a few minutes.",
+    "superseded": "Replaced after a plan change",
+    "olderBills": "Show older bills"
   }
 }

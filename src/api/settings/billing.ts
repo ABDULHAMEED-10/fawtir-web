@@ -69,15 +69,31 @@ export type BeneficiaryDto = {
   swiftCode: string | null
 }
 
+export type BillWithPaymentsDto = { bill: SubscriptionBillDto; payments: SubscriptionPaymentDto[] }
+
+/** Why bank transfer is or is not open; STORAGE_UNAVAILABLE recovers by itself. */
+export type BankTransferStatus = 'AVAILABLE' | 'NOT_OFFERED' | 'NO_ACCOUNT' | 'STORAGE_UNAVAILABLE'
+
 export type BillingOverviewDto = {
-  bills: { bill: SubscriptionBillDto; payments: SubscriptionPaymentDto[] }[]
+  /** The newest twelve; older ones come from {@link loadBillHistory} with {@link nextBillsCursor}. */
+  bills: BillWithPaymentsDto[]
+  nextBillsCursor: string | null
   beneficiary: BeneficiaryDto | null
-  methods: { bankTransfer: boolean; cash: boolean }
+  methods: { bankTransfer: boolean; bankTransferStatus: BankTransferStatus; cash: boolean }
   proofMaximumBytes: number
 }
 
+export type BillPageDto = { bills: BillWithPaymentsDto[]; nextCursor: string | null }
+
+/** The reason prefix the server gives a bill it voided because the terms changed under it. */
+export const SUPERSEDED_PREFIX = 'Superseded: '
+
 export function loadBillingOverview(): Promise<BillingOverviewDto> {
   return apiRequest<BillingOverviewDto>(BILLING_PATH)
+}
+
+export function loadBillHistory(before: string): Promise<BillPageDto> {
+  return apiRequest<BillPageDto>(`${BILLING_PATH}/bills?before=${encodeURIComponent(before)}`)
 }
 
 /** Issues the next period's charge, or returns the one already outstanding. */

@@ -9,12 +9,15 @@ import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNoti
 import { ApiError } from '../../api'
 import {
   BILLING_PATH,
+  SUPERSEDED_PREFIX,
+  loadBillHistory,
   loadBillingOverview,
   newPaymentKey,
   prepareNextBill,
   requestCash,
   submitBankTransfer,
   withdrawPayment,
+  type BillWithPaymentsDto,
   type BillingOverviewDto,
   type SubscriptionBillDto,
   type SubscriptionPaymentDto,
@@ -33,12 +36,20 @@ type Method = 'BANK_TRANSFER' | 'CASH'
  * (the gateway is a later phase), and a method the server reports unavailable is not drawn as a
  * working choice. A retry of the same submission reuses its Idempotency-Key, so a slow network or a
  * double click never creates a second payment.
+ *
+ * A bill the server superseded after a plan change is refused as `bill-stale`; the screen then
+ * reloads and says why, rather than leaving the customer on a bill that can no longer be paid.
  */
 export function SubscriptionBillingSection() {
   const { t } = useTranslation()
   const read = useApiRead<BillingOverviewDto>(BILLING_PATH, loadBillingOverview)
   const { entitlements } = useEntitlements()
   const canPay = entitlements !== null && hasPermission(entitlements, 'tenant.plan.manage')
+  const [notice, setNotice] = useState<string | null>(null)
+  const changed = (why?: string) => {
+    setNotice(why ?? null)
+    read.retry()
+  }
 
   if (read.read.status === 'loading') return <LoadingNotice />
   if (read.read.status === 'failed') return <ApiReadFailure error={read.read.error} retry={read.retry} />
@@ -52,6 +63,11 @@ export function SubscriptionBillingSection() {
       <h3 id="subscription-charges" className="text-lg font-semibold text-text-primary">
         {t('billing.title')}
       </h3>
+      {notice ? (
+        <p role="status" className="rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium text-pending-700">
+          {notice}
+        </p>
+      ) : null}
       {outstanding ? (
         <OutstandingBill
           key={outstanding.bill.id + outstanding.bill.status}
@@ -59,12 +75,12 @@ export function SubscriptionBillingSection() {
           payments={outstanding.payments}
           overview={overview}
           canPay={canPay}
-          onChanged={read.retry}
+          onChanged={changed}
         />
       ) : (
-        <NoOutstandingBill canPay={canPay} onPrepared={read.retry} />
+        <NoOutstandingBill canPay={canPay} onPrepared={() => changed()} />
       )}
-      <History bills={overview.bills} />
+      <History key={overview.nextBillsCursor ?? 'all'} bills={overview.bills} nextCursor={overview.nextBillsCursor} />
     </section>
   )
 }
@@ -111,7 +127,7 @@ function OutstandingBill({
   payments: SubscriptionPaymentDto[]
   overview: BillingOverviewDto
   canPay: boolean
-  onChanged: () => void
+  onChanged: (why?: string) => void
 }) {
   const { t, i18n } = useTranslation()
   const live = payments.find((payment) => LIVE.includes(payment.status))
@@ -164,7 +180,7 @@ function LivePayment({
 }: {
   payment: SubscriptionPaymentDto
   canPay: boolean
-  onChanged: () => void
+  onChanged: (why?: string) => void
 }) {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
@@ -204,7 +220,7 @@ function PayForm({
 }: {
   bill: SubscriptionBillDto
   overview: BillingOverviewDto
-  onSubmitted: () => void
+  onSubmitted: (why?: string) => void
 }) {
   const { t } = useTranslation()
   const available: Method[] = [
@@ -221,8 +237,13 @@ function PayForm({
   // One key per attempt: a retry after a timeout must land on the same payment, not a second one.
   const key = useRef<string>(newPaymentKey())
 
+  const storageDown = overview.methods.bankTransferStatus === 'STORAGE_UNAVAILABLE'
   if (available.length === 0) {
-    return <p className="text-sm font-medium text-text-secondary">{t('billing.noMethod')}</p>
+    return (
+      <p className="text-sm font-medium text-text-secondary">
+        {t(storageDown ? 'billing.bankUnavailable' : 'billing.noMethod')}
+      </p>
+    )
   }
 
   const submit = async () => {
@@ -236,6 +257,10 @@ function PayForm({
       }
       onSubmitted()
     } catch (error) {
+      if (isStale(error)) {
+        onSubmitted(t('billing.refusal.bill-stale'))
+        return
+      }
       setFailure(refusalMessage(t, error))
       setBusy(false)
     }
@@ -245,6 +270,11 @@ function PayForm({
 
   return (
     <div className="flex flex-col gap-4">
+      {storageDown ? (
+        <p role="status" className="text-sm font-medium text-text-secondary">
+          {t('billing.bankUnavailable')}
+        </p>
+      ) : null}
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 text-sm font-semibold text-text-primary">{t('billing.howToPay')}</legend>
         {available.map((option) => (
@@ -338,10 +368,30 @@ function PayForm({
   )
 }
 
-function History({ bills }: { bills: BillingOverviewDto['bills'] }) {
+function History({ bills, nextCursor }: { bills: BillWithPaymentsDto[]; nextCursor: string | null }) {
   const { t, i18n } = useTranslation()
-  const settled = bills.filter((entry) => entry.bill.status === 'PAID' || entry.bill.status === 'VOID')
-  if (settled.length === 0) return null
+  const [older, setOlder] = useState<BillWithPaymentsDto[]>([])
+  const [cursor, setCursor] = useState(nextCursor)
+  const [loading, setLoading] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const loadOlder = async () => {
+    if (!cursor) return
+    setLoading(true)
+    setFailed(false)
+    try {
+      const page = await loadBillHistory(cursor)
+      setOlder((shown) => [...shown, ...page.bills])
+      setCursor(page.nextCursor)
+    } catch {
+      setFailed(true)
+    } finally {
+      setLoading(false)
+    }
+  }
+  const settled = [...bills, ...older].filter(
+    (entry) => entry.bill.status === 'PAID' || entry.bill.status === 'VOID',
+  )
+  if (settled.length === 0 && !cursor) return null
   return (
     <div className="flex flex-col gap-2">
       <h4 className="text-base font-semibold text-text-primary">{t('billing.history')}</h4>
@@ -365,13 +415,23 @@ function History({ bills }: { bills: BillingOverviewDto['bills'] }) {
                         date: formatInstantDay(bill.paidAt, i18n.language),
                         method: confirmed ? t(`billing.method.${confirmed.method}.title`) : '',
                       })
-                    : t(`billing.billStatus.${bill.status}`)}
+                    : bill.status === 'VOID' && bill.voidReason?.startsWith(SUPERSEDED_PREFIX)
+                      ? t('billing.superseded')
+                      : t(`billing.billStatus.${bill.status}`)}
                 </span>
               </span>
             </li>
           )
         })}
       </ul>
+      {cursor ? (
+        <div>
+          <Button variant="ghost" size="md" disabled={loading} onClick={loadOlder}>
+            {t('billing.olderBills')}
+          </Button>
+        </div>
+      ) : null}
+      {failed ? <Alert>{t('billing.refusal.other')}</Alert> : null}
     </div>
   )
 }
@@ -411,7 +471,12 @@ function formatRate(rate: string, language: string): string {
   }).format(percent)}%`
 }
 
+function isStale(error: unknown): boolean {
+  return error instanceof ApiError && error.problemType === 'bill-stale'
+}
+
 const KNOWN_REFUSALS = [
+  'bill-stale',
   'bill-not-payable',
   'payment-method-unavailable',
   'payment-state-conflict',

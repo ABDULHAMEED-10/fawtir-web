@@ -6,6 +6,7 @@ import { hasPermission } from '../../lib/identity/entitlements'
 import { formatAmount, formatDate } from '../../lib/format'
 import { Button, Modal, OmAmount } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
+import { ApiError } from '../../api'
 import {
   SUBSCRIPTION_PATH,
   loadSubscription,
@@ -48,7 +49,8 @@ export function SubscriptionStatusSection() {
   const [latest, setLatest] = useState<SubscriptionStatusDto | null>(null)
   const [pending, setPending] = useState<Pending>(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
-  const [failed, setFailed] = useState(false)
+  // The key of the message to show; a payment being checked blocks a change for a known reason.
+  const [failure, setFailure] = useState<string | null>(null)
 
   if (read.read.status === 'loading') return <LoadingNotice />
   if (read.read.status === 'failed') return <ApiReadFailure error={read.read.error} retry={read.retry} />
@@ -56,12 +58,16 @@ export function SubscriptionStatusSection() {
 
   const act = async (which: Exclude<Pending, null>, call: () => Promise<SubscriptionStatusDto>) => {
     setPending(which)
-    setFailed(false)
+    setFailure(null)
     try {
       setLatest(await call())
       setConfirmCancel(false)
-    } catch {
-      setFailed(true)
+    } catch (error) {
+      setFailure(
+        error instanceof ApiError && error.problemType === 'subscription-change-blocked-by-payment'
+          ? 'subscription.blockedByPayment'
+          : 'subscription.actionFailed',
+      )
     } finally {
       setPending(null)
     }
@@ -123,9 +129,9 @@ export function SubscriptionStatusSection() {
         </div>
       ) : null}
 
-      {failed ? (
+      {failure ? (
         <p role="alert" className="text-sm font-medium text-danger-700">
-          {t('subscription.actionFailed')}
+          {t(failure)}
         </p>
       ) : null}
 

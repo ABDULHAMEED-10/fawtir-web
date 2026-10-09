@@ -42,8 +42,9 @@ const BENEFICIARY = { legalName: 'Fawtir LLC', bankName: 'Bank Muscat', iban: 'O
 function overview(over: Partial<Record<string, unknown>> = {}) {
   return {
     bills: [{ bill: BILL, payments: [] }],
+    nextBillsCursor: null,
     beneficiary: BENEFICIARY,
-    methods: { bankTransfer: true, cash: true },
+    methods: { bankTransfer: true, bankTransferStatus: 'AVAILABLE', cash: true },
     proofMaximumBytes: 1000000,
     ...over,
   }
@@ -159,7 +160,7 @@ describe('Settings › Billing: the charge', () => {
   })
 
   it('offers no way to pay when the server reports no method available', async () => {
-    answers[BILLING] = () => json(200, overview({ beneficiary: null, methods: { bankTransfer: false, cash: false } }))
+    answers[BILLING] = () => json(200, overview({ beneficiary: null, methods: { bankTransfer: false, bankTransferStatus: 'NO_ACCOUNT', cash: false } }))
     renderBilling()
 
     expect(await screen.findByText(i18n.t('billing.noMethod'))).toBeTruthy()
@@ -175,6 +176,58 @@ describe('Settings › Billing: the charge', () => {
 
     expect(await screen.findByText(i18n.t('billing.rejected', { reason: 'Amount on the receipt is 30.000' }))).toBeTruthy()
     expect(within(charges()).getAllByRole('radio')).toHaveLength(2)
+  })
+
+  it('says why bank transfer is missing when proof storage is unavailable, and still offers cash', async () => {
+    answers[BILLING] = () =>
+      json(200, overview({ methods: { bankTransfer: false, bankTransferStatus: 'STORAGE_UNAVAILABLE', cash: true } }))
+    renderBilling()
+
+    expect(await screen.findByText(i18n.t('billing.bankUnavailable'))).toBeTruthy()
+    expect(within(charges()).getAllByRole('radio')).toHaveLength(1)
+    expect(within(charges()).getByRole('radio', { name: new RegExp(i18n.t('billing.method.CASH.title')) })).toBeTruthy()
+  })
+
+  it('reloads and explains when the bill was replaced by a plan change before it was paid', async () => {
+    let replaced = false
+    answers[BILLING] = () =>
+      json(200, replaced
+        ? overview({ bills: [{ bill: { ...BILL, status: 'VOID', voidReason: 'Superseded: PLAN_CHANGE' }, payments: [] }] })
+        : overview())
+    answers[`POST ${BILLING}/bills/b-1/cash-request`] = () => {
+      replaced = true
+      return json(409, { type: 'https://api.fawtir.om/problems/bill-stale' })
+    }
+    const user = userEvent.setup({ delay: null })
+    renderBilling()
+
+    await user.click(await screen.findByRole('radio', { name: new RegExp(i18n.t('billing.method.CASH.title')) }))
+    await user.click(screen.getByRole('button', { name: i18n.t('billing.cash.submit') }))
+
+    expect(await screen.findByText(i18n.t('billing.refusal.bill-stale'))).toBeTruthy()
+    expect(await screen.findByText(i18n.t('billing.superseded'))).toBeTruthy()
+    expect(screen.getByRole('button', { name: i18n.t('billing.prepare') })).toBeTruthy()
+  })
+
+  it('shows older bills a page at a time from the cursor', async () => {
+    const paid = (id: string, number: string) => ({
+      bill: { ...BILL, id, number, status: 'PAID', paidAt: '2026-09-20T08:00:00Z', appliedPaidThrough: '2026-10-22' },
+      payments: [],
+    })
+    answers[BILLING] = () =>
+      json(200, overview({ bills: [{ bill: BILL, payments: [] }, paid('b-0', 'FWT-SUB-2026-000006')], nextBillsCursor: 'c-2' }))
+    answers[`${BILLING}/bills?before=c-2`] = () =>
+      json(200, { bills: [paid('b-old', 'FWT-SUB-2026-000001')], nextCursor: null })
+    const user = userEvent.setup({ delay: null })
+    renderBilling()
+
+    expect(await screen.findByText(/FWT-SUB-2026-000006/)).toBeTruthy()
+    expect(screen.queryByText(/FWT-SUB-2026-000001/)).toBeNull()
+    await user.click(screen.getByRole('button', { name: i18n.t('billing.olderBills') }))
+
+    expect(await screen.findByText(/FWT-SUB-2026-000001/)).toBeTruthy()
+    expect(screen.getByText(/FWT-SUB-2026-000006/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('billing.olderBills') })).toBeNull()
   })
 
   it('reads in Arabic with Latin digits and the rial sign', async () => {

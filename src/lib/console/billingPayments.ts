@@ -39,6 +39,7 @@ export type PlatformPaymentDto = {
   thresholdApplied: string | null
   secondApprovedBy: string | null
   rejectionReason: string | null
+  confirmedVia: 'STAFF' | 'PROVIDER' | null
   version: number
 }
 
@@ -52,6 +53,13 @@ export type PaymentEventDto = {
 }
 
 export type QueueItemDto = { payment: PlatformPaymentDto; bill: SubscriptionBillDto; tenantName: string | null }
+
+/** Oldest first, fifty at a time; pass {@link nextCursor} as `after` for the next page. */
+export type QueuePageDto = { items: QueueItemDto[]; nextCursor: string | null }
+
+export function loadQueuePage(after: string): Promise<QueuePageDto> {
+  return apiRequest<QueuePageDto>(`${PAYMENTS_PATH}?after=${encodeURIComponent(after)}`)
+}
 
 export type PaymentDetailDto = QueueItemDto & { history: PaymentEventDto[] }
 

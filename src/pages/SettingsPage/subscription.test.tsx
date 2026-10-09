@@ -165,6 +165,19 @@ describe('Settings › Plan: the subscription', () => {
     expect(writes()).toHaveLength(1)
   })
 
+  it('says a payment being checked is why the downgrade cannot be withdrawn yet', async () => {
+    answers[SUBSCRIPTION] = () => json(200, ACTIVE_WITH_DOWNGRADE)
+    answers[`DELETE ${SUBSCRIPTION}/scheduled-change`] = () =>
+      json(409, { type: 'https://api.fawtir.om/problems/subscription-change-blocked-by-payment' })
+    const user = userEvent.setup({ delay: null })
+    renderAt('/settings/plan')
+
+    await user.click(await screen.findByRole('button', { name: i18n.t('subscription.withdrawChange') }))
+
+    expect(await within(section()).findByText(i18n.t('subscription.blockedByPayment'))).toBeTruthy()
+    expect(within(section()).queryByText(i18n.t('subscription.actionFailed'))).toBeNull()
+  })
+
   it('shows the facts but no actions to someone who may only read the plan', async () => {
     who = READER
     answers[SUBSCRIPTION] = () => json(200, ACTIVE_WITH_DOWNGRADE)

@@ -50,6 +50,11 @@ function payment(over: Record<string, unknown> = {}) {
   }
 }
 
+/** The queue answers one page at a time (Phase 2.1). */
+function page(items: unknown[], nextCursor: string | null = null) {
+  return { items, nextCursor }
+}
+
 function json(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
     status,
@@ -104,7 +109,7 @@ async function openFirst(user: ReturnType<typeof userEvent.setup>) {
 
 describe('Console › Subscription payments', () => {
   it('verifies with If-Match carrying the version read, and says what happened', async () => {
-    answers[QUEUE] = () => json(200, [{ payment: payment(), bill: BILL, tenantName: 'Payments LLC' }])
+    answers[QUEUE] = () => json(200, page([{ payment: payment(), bill: BILL, tenantName: 'Payments LLC' }]))
     answers[`${QUEUE}/p-1`] = () => json(200, { payment: payment(), bill: BILL, tenantName: 'Payments LLC', history: [] })
     answers[`POST ${QUEUE}/p-1/verification`] = () =>
       json(200, { payment: payment({ status: 'AWAITING_SECOND_APPROVAL', version: 4 }), bill: BILL, tenantName: 'Payments LLC', history: [] })
@@ -124,7 +129,7 @@ describe('Console › Subscription payments', () => {
 
   it('names the four-eyes refusal when the same person tries to approve twice', async () => {
     const awaiting = payment({ status: 'AWAITING_SECOND_APPROVAL', verifiedBy: 'u-admin', requiresSecondApproval: true, thresholdApplied: '50.000' })
-    answers[QUEUE] = () => json(200, [{ payment: awaiting, bill: BILL, tenantName: 'Payments LLC' }])
+    answers[QUEUE] = () => json(200, page([{ payment: awaiting, bill: BILL, tenantName: 'Payments LLC' }]))
     answers[`${QUEUE}/p-1`] = () => json(200, { payment: awaiting, bill: BILL, tenantName: 'Payments LLC', history: [] })
     answers[`POST ${QUEUE}/p-1/second-approval`] = () =>
       json(403, { type: 'https://api.fawtir.om/problems/payment-approver-not-independent' })
@@ -137,11 +142,41 @@ describe('Console › Subscription payments', () => {
     expect(await screen.findByText(i18n.t('console.billing.refusal.payment-approver-not-independent'))).toBeTruthy()
   })
 
+  it('loads the next page of the queue from the cursor and keeps the first page', async () => {
+    answers[QUEUE] = () => json(200, page([{ payment: payment(), bill: BILL, tenantName: 'Payments LLC' }], 'cursor-2'))
+    answers[`${QUEUE}?after=cursor-2`] = () => json(200, page([{
+      payment: payment({ id: 'p-2', tenantId: 't-2' }), bill: { ...BILL, id: 'b-2', number: 'FWT-SUB-2026-000010' },
+      tenantName: 'Second LLC',
+    }]))
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/payments')
+
+    expect(await screen.findByText('Payments LLC')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: i18n.t('console.billing.loadMore') }))
+
+    expect(await screen.findByText('Second LLC')).toBeTruthy()
+    expect(screen.getByText('Payments LLC')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('console.billing.loadMore') })).toBeNull()
+  })
+
+  it('says to reject a payment whose bill no longer matches the plan', async () => {
+    answers[QUEUE] = () => json(200, page([{ payment: payment(), bill: BILL, tenantName: 'Payments LLC' }]))
+    answers[`${QUEUE}/p-1`] = () => json(200, { payment: payment(), bill: BILL, tenantName: 'Payments LLC', history: [] })
+    answers[`POST ${QUEUE}/p-1/verification`] = () =>
+      json(409, { type: 'https://api.fawtir.om/problems/bill-stale' })
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/payments')
+
+    const panel = await openFirst(user)
+    await user.click(panel.getByRole('button', { name: i18n.t('console.billing.verify') }))
+    expect(await screen.findByText(i18n.t('console.billing.refusal.bill-stale'))).toBeTruthy()
+  })
+
   it('lets support record a cash receipt but offers no verification', async () => {
     who = SUPPORT
     const cash = payment({ method: 'CASH', reference: null, proofSha256: null, proofContentType: null, amount: '36.750' })
     const bill = { ...BILL, total: '36.750' }
-    answers[QUEUE] = () => json(200, [{ payment: cash, bill, tenantName: 'Payments LLC' }])
+    answers[QUEUE] = () => json(200, page([{ payment: cash, bill, tenantName: 'Payments LLC' }]))
     answers[`${QUEUE}/p-1`] = () => json(200, { payment: cash, bill, tenantName: 'Payments LLC', history: [] })
     answers[`POST ${QUEUE}/p-1/cash-receipt`] = () =>
       json(200, { payment: { ...cash, status: 'RECEIPT_RECORDED', version: 4 }, bill, tenantName: 'Payments LLC', history: [] })
