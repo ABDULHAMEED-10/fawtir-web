@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
+import { SubscriptionStatusSection } from './SubscriptionStatusSection'
+import { DemoRibbon } from '../../components/feedback/DemoModule'
+import { demoModulesEnabled } from '../../lib/demoModules'
 import { ActionMenu, Rial, RialText, Select, withRial } from '../../components/ui'
 import { longDate, COMPANY } from '../../lib/settings'
 import {
@@ -29,24 +32,56 @@ import bankIcon from '../../assets/payment/bank.svg'
 const METHODS: TenantPaymentMethod[] = ['cardLink', 'bankTransfer', 'cash', 'cheque']
 
 /**
- * Settings › Bills and payment (Figma 135:40971, redrawn 15 Sep 2026 for how Fawtir is actually
- * paid).
+ * Settings › Bills and payment. The subscription's dates (trial, paid-through, renewal, grace,
+ * auto-renew, cancellation) are real, from `GET /v1/settings/subscription`, and sit above
+ * everything else. Bills, payment history and how-you-pay have no backend yet (the payment domain
+ * is the next phase), so they stay the prototype below, under the sample-data ribbon, or an
+ * honest "not available yet" when a build hides prototypes.
  *
- * The design kept a card on file. Fawtir never holds one: a card payment opens Paymob's own
- * checkout from a link sent a week before the bill falls due, and bank transfer and cash are
- * always open — someone at Fawtir confirms those and activates the period. So the card panel is
- * gone and "How you pay" stands where it was.
- *
- * The next bill is assembled from the plan and the account rather than stated, so the "if you
- * add the sixth person" figure and the plan screen's pressure are the same arithmetic.
+ * The prototype's "Download all" and "Pay now" are gone: neither did anything real, and a pay
+ * button that appears to work is exactly what must not be shown before payments exist.
  */
 export function BillingPage() {
+  const { t } = useTranslation()
+  return (
+    <SettingsShell group="billing">
+      <SettingsHeader
+        title={t('bills.title')}
+        subtitle={t('bills.subtitle')}
+        actions={
+          <Link
+            to="/settings/plan"
+            className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+          >
+            {t('bills.planAndUsage')}
+          </Link>
+        }
+      />
+      <SubscriptionStatusSection />
+      {demoModulesEnabled() ? (
+        <>
+          <DemoRibbon />
+          <BillingPrototype />
+        </>
+      ) : (
+        <p role="status" className="rounded-md bg-surface-card p-5 text-sm font-medium text-text-secondary">
+          {t('bills.prototypeUnavailable')}
+        </p>
+      )}
+    </SettingsShell>
+  )
+}
+
+/**
+ * The prototype (Figma 135:40971, redrawn 15 Sep 2026): sample bills on the sample company's
+ * plan. The next bill is assembled from that plan and account rather than stated, so the "if you
+ * add the sixth person" figure and the plan screen's pressure are the same arithmetic.
+ */
+function BillingPrototype() {
   const { t } = useTranslation()
   const bill = nextBill()
   const extraPeople = Math.max(0, MEMBERS.length - SEATS.included)
   const [method, setMethod] = useState<TenantPaymentMethod>(HOW_YOU_PAY.method)
-  /** "Pay now" asks for the link early; nothing is charged until the customer pays it. */
-  const [linkRequested, setLinkRequested] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
 
   const linkOn = linkArrivesOn(bill.dueOn)
@@ -62,28 +97,7 @@ export function BillingPage() {
   }
 
   return (
-    <SettingsShell group="billing">
-      <SettingsHeader
-        title={t('bills.title')}
-        subtitle={t('bills.subtitle')}
-        actions={
-          <>
-            <Link
-              to="/settings/plan"
-              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-            >
-              {t('bills.planAndUsage')}
-            </Link>
-            <button
-              type="button"
-              className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-            >
-              <img src={downloadIcon} alt="" className="size-[18px]" />
-              {t('bills.downloadAll')}
-            </button>
-          </>
-        }
-      />
+    <>
 
       <div className="flex flex-col gap-4 xl:flex-row">
         {/* Next bill */}
@@ -129,23 +143,9 @@ export function BillingPage() {
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-sm bg-surface-background px-4 py-3">
               <p className="text-sm font-medium leading-[1.5] text-text-secondary">
                 {method === 'cardLink'
-                  ? linkRequested
-                    ? t('bills.pay.linkSentNow', {
-                        to: destination,
-                        days: HOW_YOU_PAY.linkValidDays,
-                      })
-                    : t('bills.pay.linkArrives', { date: longDate(linkOn), to: destination })
+                  ? t('bills.pay.linkArrives', { date: longDate(linkOn), to: destination })
                   : t(`bills.pay.next.${method}`)}
               </p>
-              {method === 'cardLink' && !linkRequested ? (
-                <button
-                  type="button"
-                  onClick={() => setLinkRequested(true)}
-                  className="inline-flex h-9 shrink-0 items-center rounded-sm bg-primary-700 px-3.5 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-                >
-                  {t('bills.pay.payNow')}
-                </button>
-              ) : null}
             </div>
           </div>
 
@@ -450,7 +450,7 @@ export function BillingPage() {
           </table>
         </div>
       </section>
-    </SettingsShell>
+    </>
   )
 }
 

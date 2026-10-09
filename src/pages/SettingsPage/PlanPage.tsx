@@ -3,12 +3,15 @@ import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { useApiRead } from '../../hooks'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
+import { SubscriptionStatusSection } from './SubscriptionStatusSection'
+import { formatCount, formatDate } from '../../lib/format'
 
 /**
  * Settings › Plan and usage, from `GET /v1/settings/plan` alone. The screen used to forecast a
  * run-out date from a sample company's count on a calendar fixed at 26 September, split "raised
  * today" across its three branches and quote its busiest day and last month; none of that is
- * recorded for this tenant, so only the server's figures are drawn.
+ * recorded for this tenant, so only the server's figures are drawn. The subscription section
+ * above them is `GET /v1/settings/subscription` (V270).
  */
 export function PlanPage() {
   const { t } = useTranslation()
@@ -17,6 +20,7 @@ export function PlanPage() {
   return (
     <SettingsShell group="billing">
       <SettingsHeader title={t('plan.title')} subtitle={t('people.plan.subtitle')} />
+      <SubscriptionStatusSection />
       {plan.read.status === 'loading' ? (
         <LoadingNotice />
       ) : plan.read.status === 'failed' ? (
@@ -30,9 +34,9 @@ export function PlanPage() {
 
 function PlanFigures({ data }: { data: PlanOverviewDto }) {
   const { t, i18n } = useTranslation()
-  const number = (value: number) => value.toLocaleString(i18n.language)
-  const date = (iso: string) =>
-    new Date(`${iso}T00:00:00`).toLocaleDateString(i18n.language, { day: 'numeric', month: 'long', year: 'numeric' })
+  // lib/format keeps digits Latin in Arabic too (decision D15); toLocaleString would not.
+  const number = (value: number) => formatCount(value, i18n.language)
+  const date = (iso: string) => formatDate(iso, i18n.language)
   const { usage, plan } = data
   const percent = usage.quota > 0 ? Math.min(100, Math.round((usage.used / usage.quota) * 100)) : 0
 

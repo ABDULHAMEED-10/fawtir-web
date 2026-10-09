@@ -343,7 +343,8 @@ function App() {
           <Route path="/settings/roles" element={<RolesPage />} />
           <Route path="/settings/roles/new" element={<DemoModule module="makeRole"><MakeRolePage /></DemoModule>} />
           <Route path="/settings/plan" element={<PlanPage />} />
-          <Route path="/settings/bills" element={<DemoModule module="billing"><BillingPage /></DemoModule>} />
+          {/* Real subscription dates above; the bills prototype inside keeps its own ribbon. */}
+          <Route path="/settings/bills" element={<BillingPage />} />
           <Route path="/settings/activity-log" element={<ActivityLogPage />} />
           <Route path="/settings/export" element={<DemoModule module="export"><ExportPage /></DemoModule>} />
           <Route path="/settings/closing" element={<DemoModule module="closing"><ClosingPage /></DemoModule>} />

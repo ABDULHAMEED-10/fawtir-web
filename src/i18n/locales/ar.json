@@ -11534,7 +11534,8 @@
     "inDays_zero": "اليوم",
     "inDays_two": "خلال يومين",
     "inDays_few": "خلال {{count}} أيام",
-    "inDays_many": "خلال {{count}} يومًا"
+    "inDays_many": "خلال {{count}} يومًا",
+    "prototypeUnavailable": "الفواتير وطرق الدفع غير متاحة بعد."
   },
   "activityLog": {
     "title": "سجل النشاط",
@@ -21944,5 +21945,77 @@
     "sending": "جارٍ الإرسال…",
     "codeSent": "إذا كان هناك تسجيل بالبريد {{contact}} بانتظار الإكمال، فقد أرسلنا إليه رمزًا من ٦ أرقام. تنتهي صلاحيته خلال {{minutes}} دقائق.",
     "invalid": "الرمز غير صحيح أو لم يعد صالحًا. تحقق من أحدث بريد إلكتروني، أو اطلب رمزًا جديدًا."
+  },
+  "subscription": {
+    "title": "الاشتراك",
+    "access": {
+      "NOT_TRACKED": "تديره فوتير",
+      "TRIAL": "تجربة مجانية",
+      "ACTIVE": "نشط",
+      "GRACE": "فترة سماح",
+      "PAYMENT_REQUIRED": "الدفع مطلوب",
+      "CANCELLED": "منتهٍ"
+    },
+    "notice": {
+      "notTracked": "تدير فوتير هذا الاشتراك نيابةً عنك. تواصل مع فوتير بشأن التجديد أو التغيير.",
+      "trialEnding_zero": "تنتهي تجربتك المجانية في {{date}}. لم يتبقَّ أي يوم.",
+      "trialEnding_one": "تنتهي تجربتك المجانية في {{date}}. يتبقى يوم واحد.",
+      "trialEnding_two": "تنتهي تجربتك المجانية في {{date}}. يتبقى يومان.",
+      "trialEnding_few": "تنتهي تجربتك المجانية في {{date}}. تتبقى {{count}} أيام.",
+      "trialEnding_many": "تنتهي تجربتك المجانية في {{date}}. يتبقى {{count}} يومًا.",
+      "trialEnding_other": "تنتهي تجربتك المجانية في {{date}}. يتبقى {{count}} يوم.",
+      "grace": "انتهت فترتك المدفوعة في {{ended}}. يستمر إصدار الفواتير والتقارير الضريبية حتى {{until}}.",
+      "paymentRequired": "الدفع مستحق. تبقى فواتيرك الصادرة وتقاريرك وملفات التصدير متاحة. الدفع عبر الإنترنت غير متاح في فوتير بعد، لذا تواصل مع فوتير للدفع.",
+      "cancelled": "انتهى اشتراكك في {{date}}. تبقى فواتيرك الصادرة وتقاريرك متاحة للاطلاع والتصدير.",
+      "cancelScheduled": "ينتهي اشتراكك في {{date}} ولن يتجدد."
+    },
+    "cycle": {
+      "MONTHLY": "شهري",
+      "ANNUAL": "سنوي"
+    },
+    "none": "غير محدد",
+    "fact": {
+      "plan": "الباقة",
+      "pricePerMonth": "السعر الشهري",
+      "pricePerYear": "السعر السنوي",
+      "priceNote": "قبل أي ضريبة",
+      "trial": "فترة التجربة",
+      "trialRange": "من {{start}} إلى {{end}}",
+      "trialDaysLeft_zero": "لم يتبقَّ أي يوم",
+      "trialDaysLeft_one": "يتبقى يوم واحد",
+      "trialDaysLeft_two": "يتبقى يومان",
+      "trialDaysLeft_few": "تتبقى {{count}} أيام",
+      "trialDaysLeft_many": "يتبقى {{count}} يومًا",
+      "trialDaysLeft_other": "يتبقى {{count}} يوم",
+      "paidThrough": "مدفوع حتى",
+      "renewsOn": "التجديد القادم",
+      "notRenewing": "لن يتجدد",
+      "grace": "السماح بعد الفترة المدفوعة",
+      "graceDays_zero": "لا أيام",
+      "graceDays_one": "يوم واحد",
+      "graceDays_two": "يومان",
+      "graceDays_few": "{{count}} أيام",
+      "graceDays_many": "{{count}} يومًا",
+      "graceDays_other": "{{count}} يوم",
+      "graceUntil": "في فترة السماح حتى {{date}}",
+      "autoRenew": "التجديد التلقائي",
+      "on": "مفعّل",
+      "off": "متوقف",
+      "autoRenewUnavailable": "يتطلب بطاقة محفوظة، ولا يمكن إضافتها بعد",
+      "cancellation": "الإلغاء",
+      "endsOn": "ينتهي في {{date}}",
+      "notScheduled": "لا يوجد"
+    },
+    "scheduledChange": "تنتقل إلى {{plan}} في {{date}}، عند انتهاء فترتك المدفوعة الحالية.",
+    "withdrawChange": "البقاء على باقتي",
+    "cancel": "الإلغاء في نهاية هذه الفترة",
+    "keep": "الإبقاء على اشتراكي",
+    "actionFailed": "لم يكتمل الطلب. أعد تحميل الصفحة وحاول مرة أخرى.",
+    "cancelConfirm": {
+      "title": "هل تريد إلغاء اشتراكك؟",
+      "body": "يستمر كل شيء في العمل حتى {{date}}. بعد ذلك لن يتجدد الاشتراك، وتبقى فواتيرك الصادرة وتقاريرك متاحة للاطلاع والتصدير.",
+      "back": "رجوع",
+      "confirm": "تأكيد الإلغاء"
+    }
   }
 }

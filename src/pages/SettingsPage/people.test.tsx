@@ -27,6 +27,14 @@ const PEOPLE = '/api/v1/users?page=0&size=100&sort=createdAt,asc'
 const INVITED = '/api/v1/users/invitations?status=PENDING&page=0&size=50'
 const ROLES = '/api/v1/roles'
 const PLAN = '/api/v1/settings/plan'
+const SUBSCRIPTION = '/api/v1/settings/subscription'
+const NOT_TRACKED = {
+  tracked: false, access: 'NOT_TRACKED', restrictionsEnforced: false, today: '2026-10-08', planCode: 'STARTER',
+  planName: 'Starter', billingCycle: null, periodPrice: '35.000', trialStartsOn: null, trialEndsOn: null,
+  trialDay: null, trialDaysLeft: null, paidThrough: null, renewsOn: null, graceDays: 7, graceUntil: null,
+  autoRenew: false, autoRenewAvailable: false, autoRenewChangedAt: null, cancelAtPeriodEnd: false,
+  accessEndsOn: null, scheduledChange: null,
+}
 
 const USERS = {
   content: [
@@ -82,6 +90,7 @@ beforeEach(async () => {
         expiresAt: '2026-10-15T00:00:00Z', sentCount: 1, lastSentAt: null, createdAt: '2026-10-08T00:00:00Z' }]),
     [ROLES]: () => json(200, ROLE_LIST),
     [PLAN]: () => json(200, PLAN_OVERVIEW),
+    [SUBSCRIPTION]: () => json(200, NOT_TRACKED),
   }
   fetchMock = vi.fn(async (url: string) => {
     if (url === '/api/v1/me/entitlements') return json(200, who)

@@ -10903,7 +10903,8 @@
       "copied": "Copied",
       "cashTitle": "Cash or cheque",
       "cashNote": "At Fawtir's office in Muscat or to your representative. Recorded by the Fawtir team, then activated."
-    }
+    },
+    "prototypeUnavailable": "Bills and payment methods are not available yet."
   },
   "activityLog": {
     "title": "Activity log",
@@ -20763,5 +20764,65 @@
     "sending": "Sending…",
     "codeSent": "If a registration with {{contact}} is waiting to be finished, we've sent it a 6-digit code. It expires in {{minutes}} minutes.",
     "invalid": "That code is incorrect or no longer valid. Check your latest email, or request a new code."
+  },
+  "subscription": {
+    "title": "Subscription",
+    "access": {
+      "NOT_TRACKED": "Managed by Fawtir",
+      "TRIAL": "Free trial",
+      "ACTIVE": "Active",
+      "GRACE": "Grace period",
+      "PAYMENT_REQUIRED": "Payment required",
+      "CANCELLED": "Ended"
+    },
+    "notice": {
+      "notTracked": "Fawtir manages this subscription for you. Contact Fawtir about renewal or changes.",
+      "trialEnding_one": "Your free trial ends on {{date}}. {{count}} day left.",
+      "trialEnding_other": "Your free trial ends on {{date}}. {{count}} days left.",
+      "grace": "Your paid period ended on {{ended}}. Invoicing and tax reporting keep working until {{until}}.",
+      "paymentRequired": "Payment is due. Your issued invoices, reports and exports stay available. Paying online is not available in Fawtir yet, so contact Fawtir to pay.",
+      "cancelled": "Your subscription ended on {{date}}. Your issued invoices and reports stay available to read and export.",
+      "cancelScheduled": "Your subscription ends on {{date}} and will not renew."
+    },
+    "cycle": {
+      "MONTHLY": "Monthly",
+      "ANNUAL": "Yearly"
+    },
+    "none": "Not set",
+    "fact": {
+      "plan": "Plan",
+      "pricePerMonth": "Price per month",
+      "pricePerYear": "Price per year",
+      "priceNote": "Before any tax",
+      "trial": "Trial period",
+      "trialRange": "{{start}} to {{end}}",
+      "trialDaysLeft_one": "{{count}} day left",
+      "trialDaysLeft_other": "{{count}} days left",
+      "paidThrough": "Paid until",
+      "renewsOn": "Next renewal",
+      "notRenewing": "Not renewing",
+      "grace": "Grace after a paid period",
+      "graceDays_one": "{{count}} day",
+      "graceDays_other": "{{count}} days",
+      "graceUntil": "In grace until {{date}}",
+      "autoRenew": "Automatic renewal",
+      "on": "On",
+      "off": "Off",
+      "autoRenewUnavailable": "Needs a saved card, which cannot be added yet",
+      "cancellation": "Cancellation",
+      "endsOn": "Ends on {{date}}",
+      "notScheduled": "None"
+    },
+    "scheduledChange": "You move to {{plan}} on {{date}}, when your current paid period ends.",
+    "withdrawChange": "Stay on my plan",
+    "cancel": "Cancel at the end of this period",
+    "keep": "Keep my subscription",
+    "actionFailed": "That did not go through. Reload the page and try again.",
+    "cancelConfirm": {
+      "title": "Cancel your subscription?",
+      "body": "Everything keeps working until {{date}}. After that the subscription will not renew, and your issued invoices and reports stay available to read and export.",
+      "back": "Go back",
+      "confirm": "Confirm cancellation"
+    }
   }
 }

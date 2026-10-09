@@ -13,7 +13,7 @@ real business workflow.
 |---|---|---|
 | **Integrated** | Every record on the screen comes from a server endpoint (`src/api/**`, `useApiRead`, `useApiResource`) | Real data only. Empty state when there is none. Error state with retry when the read fails. No sample fallback, ever. |
 | **Partially integrated** | Some facts have an endpoint, some do not | Real data for what has one. Anything without one is labelled *Not available yet* (`ModuleUnavailable`, `dashboard.notAvailableYet`, `ChartPending`). Never mix a sample record into a list of real ones. |
-| **Not yet implemented** | No endpoint at all (POS, stock, catalogue rules and bundles, trade documents, tenant billing, closing, export, the OTA call log, console operations, subscriptions, incidents, audit, ERP templates) | The prototype and its sample data stay, routed through `DemoModule`, and are shown under a sample-data ribbon until the module is integrated. Console sample tenants are reachable only by their slug ids, never by a real tenant UUID. |
+| **Not yet implemented** | No endpoint at all (POS, stock, catalogue rules and bundles, trade documents, tenant bills and payment methods (Settings › Bills and payment: the subscription section above the prototype is real, `GET /v1/settings/subscription`, V270), closing, export, the OTA call log, console operations, subscriptions, incidents, audit, ERP templates) | The prototype and its sample data stay, routed through `DemoModule`, and are shown under a sample-data ribbon until the module is integrated. Console sample tenants are reachable only by their slug ids, never by a real tenant UUID. |
 
 ## 2. Showing a prototype: `DemoModule`
 
