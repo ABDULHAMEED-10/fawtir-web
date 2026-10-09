@@ -627,6 +627,23 @@ describe('a credit note correcting a supplier debit note on upload', () => {
     expect((await debitNoteRow()).textContent).toContain('إشعار مدين · ')
   })
 
+  // Owner, 9 Oct 2026: what each document still owes carries the rial sign, before the figure.
+  it('shows what each document still owes with the rial sign before the figure', async () => {
+    await uploadNote()
+    for (const [row, figure] of [
+      [await debitNoteRow(), '52.500'],
+      [screen.getByRole('button', { name: /MR-INV-8821/ }), '315.000'],
+    ] as const) {
+      const shown = row.cloneNode(true) as Element
+      shown.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+      expect(shown.textContent!.replace(/\s+/g, ' ')).toMatch(new RegExp(`· ${figure} still owed$`))
+      expect(shown.textContent).not.toContain('OMR')
+      const amount = row.querySelector('.whitespace-nowrap')!
+      expect(amount.firstElementChild!.querySelector('svg')).not.toBeNull()
+      expect(amount.textContent!.replace(/\s+/g, ' ')).toBe(`OMR ${figure}`)
+    }
+  })
+
   it("sends the chosen debit note's id as the bill the credit corrects", async () => {
     await uploadNote()
     fireEvent.click(await debitNoteRow())

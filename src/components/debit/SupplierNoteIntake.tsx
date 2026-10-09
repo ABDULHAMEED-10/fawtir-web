@@ -1286,7 +1286,11 @@ function BillChooser({
                     {bill.documentTypeCode === DEBIT_NOTE_CODE
                       ? `${t('billsPage.debitNote.type')} · `
                       : null}
-                    {t(billStateKey(bill))} · {money(bill.outstandingAmount, bill.currencyCode)}{' '}
+                    {/* What it still owes, with the rial sign before the figure (owner, 9 Oct 2026). */}
+                    {t(billStateKey(bill))} ·{' '}
+                    {withRial(
+                      `${bill.currencyCode} ${money(bill.outstandingAmount, bill.currencyCode)}`,
+                    )}{' '}
                     {t('supplierCreditNoteDetail.stillOwed')}
                   </span>
                 </button>
