@@ -118,16 +118,13 @@ describe("How you'll pay", () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('sells no ERP add-on: no price, no write-back promise, no tick carried to review', async () => {
-    for (const plan of ['starter', 'premium', 'businessPlus'] as const) {
-      const { unmount } = renderAt('/payment', { ...AFTER_ADDRESS, plan, billing: 'monthly', addon: true })
-      expect(document.body.textContent).not.toMatch(/write.{0,10}back/i)
-      expect(screen.queryByRole('checkbox', { name: /ERP/i })).toBeNull()
-      const user = userEvent.setup({ delay: null })
-      await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
-      expect(stateNow().addon).toBeUndefined()
-      unmount()
-    }
+  it('offers the ERP extraction add-on where the console prices it, and carries the tick to review', async () => {
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'businessPlus', billing: 'monthly' })
+    const user = userEvent.setup({ delay: null })
+    await user.click(screen.getByRole('checkbox', { name: i18n.t('payment.addon.label') }))
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+    expect(stateNow().addon).toBe(true)
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('opened without a plan, goes to choose one first', async () => {

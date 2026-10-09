@@ -485,7 +485,7 @@ describe('credential', () => {
     rows = [connection({ credentialConfigured: true, credentialType: 'SSH_PRIVATE_KEY', state: 'READY' })]
     renderAt(`/settings/erp/connections/${ID}/settings`)
     fireEvent.click(await screen.findByText('Replace sign-in details'))
-    expect(screen.getByText(/holds a SSH private key, which Fawtir cannot sign in with/)).toBeTruthy()
+    expect(screen.getByText(/saved sign-in \(SSH private key\) can't be used by Fawtir/)).toBeTruthy()
     const select = screen.getByRole('combobox', { name: /Kind/ }) as HTMLSelectElement
     const kinds = Array.from(select.options).map((option) => option.textContent)
     expect(kinds).toEqual(['Username and password', 'API token'])

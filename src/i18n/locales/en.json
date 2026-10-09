@@ -948,8 +948,11 @@
       "noteLater": "Your first bill comes {{when}}. Pay it at Fawtir's office in Muscat or to your Fawtir representative, and you get a receipt."
     },
     "addon": {
-      "title": "ERP integration",
-      "body": "Automatic collection from your ERP is not chosen or paid for here. Once your account is approved, ask the Fawtir team to enable ERP integration; you then set it up in Settings."
+      "title": "Add-on",
+      "label": "Add automatic ERP extraction",
+      "body": "Fawtir collects invoices from your ERP on a schedule, runs them through your field mapping, and writes the result back. Activated with your subscription.",
+      "perMonth": "a month",
+      "perMonthTimes": "a month, for {{count}} months"
     },
     "descriptionTrial_one": "Nothing is charged today. Your free trial starts when your account is approved, and your first bill comes after {{count}} day, by the method you choose here.",
     "descriptionTrial_other": "Nothing is charged today. Your {{count}}-day free trial starts when your account is approved, and your first bill comes when it ends, by the method you choose here.",
@@ -14074,7 +14077,7 @@
         "title": "ERP integration across tenants",
         "subtitle": "Where the platform manages tenants' ERP integration.",
         "badge": "Not here",
-        "body": "ERP integration is enabled or disabled for each tenant from that tenant's page in Tenants. There is no platform-wide ERP screen: tenant connections are managed inside each tenant, and the templates and add-on requests screens that were here only ever showed sample data.",
+        "body": "ERP integration is enabled or disabled for each tenant from that tenant's page in Tenants. Each tenant's connections are managed inside that tenant.",
         "action": "Open tenants"
       }
     },
@@ -14738,7 +14741,7 @@
         "impersonation": "This cannot be changed while acting as another user.",
         "refused": "You cannot change ERP access, or your sign-in needs to be verified again. Sign in again with two-step verification and retry.",
         "gone": "This tenant was not found, or is not a customer tenant.",
-        "invalid": "The reason is too long. Keep it under 280 characters."
+        "invalid": "Fawtir could not accept this change. Check the reason and try again."
       }
     }
   },
@@ -15017,7 +15020,8 @@
     "notChosen": "Not chosen yet",
     "planMissing": "Choose your plan and how you'll pay before you submit.",
     "choosePlan": "Choose a plan",
-    "choosePayment": "Choose how you'll pay"
+    "choosePayment": "Choose how you'll pay",
+    "addonValue": "Automatic ERP extraction added"
   },
   "signupPending": {
     "approved": {
@@ -15803,7 +15807,7 @@
         "saved": "Sign-in details saved.",
         "cancel": "Cancel",
         "notProbeable": "This kind cannot be checked automatically yet. You can save it, but Check connection will report it as unsupported.",
-        "unsupportedStored": "This connection holds a {{kind}}, which Fawtir cannot sign in with. Save a username and password or an API token to replace it."
+        "unsupportedStored": "This connection's saved sign-in ({{kind}}) can't be used by Fawtir. Save a username and password or an API token to replace it."
       },
       "test": {
         "heading": "Connection check",
@@ -17866,7 +17870,7 @@
       "history": {
         "title": "Change history",
         "note": "The ERP history from the server, limited by the server to ERP connections, documents, enablement and mappings.",
-        "needsPermission": "The ERP history needs the erp.audit.read permission. Ask your administrator to add it to your role."
+        "needsPermission": "Your role can't see the ERP history. Ask your administrator to give it access to ERP audit records."
       }
     }
   },

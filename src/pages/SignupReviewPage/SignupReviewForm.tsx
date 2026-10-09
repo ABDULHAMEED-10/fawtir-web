@@ -203,8 +203,9 @@ export function SignupReviewForm() {
                     ? t('signupReview.firstBillOnApproval')
                     : t('signupReview.firstBillAfterTrial', { count: trialDays }),
               },
-              // No ERP add-on row: the payment page no longer offers one, because the choice was
-              // never saved and ERP is enabled by the Fawtir team, not bought here.
+              ...(state.addon
+                ? [{ label: t('payment.addon.title'), value: t('signupReview.addonValue') }]
+                : []),
             ],
     },
   ]

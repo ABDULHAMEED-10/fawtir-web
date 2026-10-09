@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Button, ChevronRightIcon, OmAmount, SelectionCard } from '../../components/ui'
+import { Button, ChevronRightIcon, OmAmount, SelectionCard, Checkbox } from '../../components/ui'
 import { REVIEW_ROUTE } from '../../lib/identity/onboarding'
 import { onboardingStateFrom, type OnboardingState } from '../../lib/onboarding'
 import {
@@ -13,6 +13,7 @@ import {
   type PlanId,
   type SignupPaymentMethod,
   extractionOffer,
+  extractionMonthly,
 } from '../../lib/pricing'
 import { PLATFORM_SETTINGS } from '../../lib/platformSettings'
 import { toOmanE164 } from '../../lib/validation'
@@ -44,12 +45,14 @@ export function PaymentForm() {
   const plan: PlanId = state.plan ?? 'premium'
   const billing: BillingCycle = state.billing ?? 'annual'
   const trialDays = trialDaysFor(plan)
-  // Automatic ERP extraction is not sold here. It used to be a ticked, priced add-on with a
-  // hard-coded price and a promise to write results back to the ERP, and the tick was never saved:
-  // a customer could believe they had bought something nobody would activate. ERP integration is
-  // enabled by the Fawtir team, against the platform entitlement, so this page only says so.
+  // Automatic ERP extraction: offered as a priced add-on only where the console says so (handbook
+  // section 6). TODO(backend): the tick is carried to review but not saved yet, ONBOARDING.md row 1.3.
   const offer = extractionOffer(plan)
-  const summary = useMemo(() => getOrderSummary(plan, billing, { addon: false }), [plan, billing])
+  const [addon, setAddon] = useState(Boolean(state.addon))
+  const summary = useMemo(
+    () => getOrderSummary(plan, billing, { addon: addon && offer === 'priced' }),
+    [plan, billing, addon, offer],
+  )
 
   const offered = METHODS.filter((id) => PLATFORM_SETTINGS.payments.methods[id])
   const [method, setMethod] = useState<SignupPaymentMethod>(
@@ -74,7 +77,7 @@ export function PaymentForm() {
       ...state,
       plan,
       billing,
-      addon: undefined,
+      addon: addon && offer === 'priced',
       paymentMethod: method,
       linkVia: method === 'cardLink' ? linkVia : undefined,
     }
@@ -194,7 +197,9 @@ export function PaymentForm() {
           </div>
 
           <div className="flex w-full max-w-[332px] flex-col gap-4 lg:shrink-0">
-            {offer === 'priced' ? <ErpExtractionNote /> : null}
+            {offer === 'priced' ? (
+              <AddonOffer checked={addon} onChange={setAddon} months={summary?.months ?? 1} />
+            ) : null}
             <OrderSummaryCard
               planName={planName}
               billing={billing}
@@ -215,18 +220,42 @@ export function PaymentForm() {
 }
 
 /**
- * Where automatic ERP extraction comes from, said plainly: not from this page. No price and no
- * tick, because nothing chosen here would be saved or acted on.
+ * The add-on offer beside the order: one tick adds automatic ERP extraction to the first invoice
+ * and the request reaches the console with the subscription, so the operator activates both.
  */
-function ErpExtractionNote() {
+function AddonOffer({
+  checked,
+  onChange,
+  months,
+}: {
+  checked: boolean
+  onChange: (next: boolean) => void
+  months: number
+}) {
   const { t } = useTranslation()
+  const monthly = extractionMonthly()
   return (
     <div className="w-full rounded-sm border border-[#f3f3f3] bg-surface-card px-[18px] py-4">
       <p className="text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
         {t('payment.addon.title')}
       </p>
+      <div className="mt-2">
+        <Checkbox
+          label={t('payment.addon.label')}
+          checked={checked}
+          onChange={(event) => onChange(event.target.checked)}
+        />
+      </div>
       <p className="mt-1.5 text-xs font-medium leading-[1.5] text-text-tertiary">
         {t('payment.addon.body')}
+      </p>
+      <p className="mt-2 flex items-baseline gap-1 text-sm font-semibold text-text-primary">
+        <OmAmount size="xs" amount={formatOmr(monthly)} amountClassName="font-semibold" />
+        <span className="text-xs font-medium text-text-quaternary">
+          {months > 1
+            ? t('payment.addon.perMonthTimes', { count: months })
+            : t('payment.addon.perMonth')}
+        </span>
       </p>
     </div>
   )

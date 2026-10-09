@@ -331,7 +331,7 @@ describe('access and history', () => {
   it('asks for neither log without erp.audit.read, and says which permission it needs', async () => {
     who = OPERATOR
     renderAt('/settings/erp/access')
-    expect(await screen.findByText(/needs the erp.audit.read permission/)).toBeTruthy()
+    expect(await screen.findByText(/Your role can't see the ERP history/)).toBeTruthy()
     expect(requested('/erp/activity-log')).toEqual([])
     expect(requested('/settings/activity-log')).toEqual([])
   })
