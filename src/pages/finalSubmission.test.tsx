@@ -148,6 +148,11 @@ describe('Review and submit', () => {
     // it, so review must not read as though the add-on were already part of the account.
     expect(valueOf('payment.addon.title')).toBe(i18n.t('signupReview.addonValue'))
     expect(i18n.t('signupReview.addonValue')).toMatch(/requested/)
+    // Review values sit in a one-line read-only field about 308px wide; the first wording ran to
+    // 533px and was cut off at "the Fawtir te" in the browser check, on desktop and mobile alike.
+    for (const lng of ['en', 'ar']) {
+      expect(i18n.t('signupReview.addonValue', { lng }).length).toBeLessThanOrEqual(45)
+    }
   })
 
   it('offers each section for editing with the answers carried along', async () => {

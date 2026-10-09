@@ -14746,7 +14746,7 @@
     "planMissing": "Choose your plan and how you'll pay before you submit.",
     "choosePlan": "Choose a plan",
     "choosePayment": "Choose how you'll pay",
-    "addonValue": "Automatic ERP extraction requested; the Fawtir team confirms it with your subscription"
+    "addonValue": "ERP extraction requested; Fawtir confirms it"
   },
   "signupPending": {
     "approved": {

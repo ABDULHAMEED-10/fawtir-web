@@ -15559,7 +15559,7 @@
     "planMissing": "اختر خطتك وطريقة الدفع قبل الإرسال.",
     "choosePlan": "اختر خطة",
     "choosePayment": "اختر طريقة الدفع",
-    "addonValue": "طُلب الاستخراج التلقائي من ERP؛ يؤكده فريق فوتر مع اشتراكك"
+    "addonValue": "طُلب استخراج ERP؛ يؤكده فريق فوتر"
   },
   "signupPending": {
     "approved": {
