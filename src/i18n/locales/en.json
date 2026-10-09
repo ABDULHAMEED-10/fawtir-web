@@ -950,7 +950,7 @@
     "addon": {
       "title": "Add-on",
       "label": "Add automatic ERP extraction",
-      "body": "Fawtir collects invoices from your ERP on a schedule, runs them through your field mapping, and writes the result back. Activated with your subscription.",
+      "body": "Fawtir collects invoices from your ERP on a schedule and runs them through your field mapping. The Fawtir team confirms the add-on with your subscription.",
       "perMonth": "a month",
       "perMonthTimes": "a month, for {{count}} months"
     },
@@ -12175,17 +12175,6 @@
       "slowedAt": "OTA slowed at {{time}}",
       "now": "now",
       "connection": "The OTA connection",
-      "integrations": {
-        "title": "Integrations needing attention",
-        "subtitle": "ERP connections across all tenants",
-        "open": "Open ERP connections",
-        "inError": "Connections in error",
-        "stale": "Stale connections",
-        "requests": "Add-on requests waiting",
-        "allClear": "Every ERP connection is healthy.",
-        "more_one": "{{count}} more on the ERP connections screen",
-        "more_other": "{{count}} more on the ERP connections screen"
-      },
       "town": {
         "Sur": "Sur",
         "Nizwa": "Nizwa",
@@ -13637,261 +13626,6 @@
         "templatePublished": "Template published · {{template}} v{{version}}",
         "templateDraftDiscarded": "Template draft discarded · {{template}} v{{version}}"
       },
-      "templates": {
-        "title": "Mapping templates",
-        "subtitle": "The starter mappings the connect wizard applies per ERP product and version. Publishing never changes a tenant's mapping; it applies to new connections and to anyone who resets to the template.",
-        "version": "version {{version}}",
-        "published": "Published",
-        "publishedLine": "v{{version}} · schema {{schema}} · published {{date}} by {{by}}",
-        "fields_one": "{{count}} field",
-        "fields_other": "{{count}} fields",
-        "draft": "Draft",
-        "draftLine": "v{{version}} · saved {{date}} by {{by}}",
-        "noDraft": "No draft in progress",
-        "versions_one": "{{count}} version",
-        "versions_other": "{{count}} versions",
-        "connections_one": "{{count}} connection on this template",
-        "connections_other": "{{count}} connections on this template",
-        "older_one": "{{count}} on an older version",
-        "older_other": "{{count}} on an older version",
-        "noConnections": "No connections on this template yet",
-        "open": "Open",
-        "coming": "Coming",
-        "comingNote": "Products the connect wizard lists but no template exists for yet. Tenants on these map by hand.",
-        "noTemplate": "No template yet"
-      },
-      "template": {
-        "notHere": "Not here",
-        "notHereBody": "There is no mapping template with this id. It may have been renamed, or the link is stale.",
-        "backToList": "Back to mapping templates",
-        "productLine": "{{product}} {{erpVersion}} · schema {{schema}}",
-        "versions": "Versions",
-        "state": {
-          "draft": "draft",
-          "published": "published",
-          "retired": "retired"
-        },
-        "readOnly": "v{{version}} is {{state}} and read-only. Every edit goes into the draft.",
-        "readOnlyNoDraft": "v{{version}} is {{state}} and read-only. Start a new version to change it.",
-        "savedLine": "Saved {{date}} by {{by}}",
-        "publishedLine": "Published {{date}} by {{by}}",
-        "startNew": "Start a new version",
-        "saveDraft": "Save draft",
-        "publish": "Publish",
-        "discard": "Discard draft",
-        "unsaved": "Unsaved changes",
-        "note": "Change note",
-        "notePlaceholder": "What this version changes",
-        "entries": "Fields",
-        "entriesCount_one": "{{count}} entry",
-        "entriesCount_other": "{{count}} entries",
-        "col": {
-          "target": "Target",
-          "source": "Source path",
-          "transform": "Transform",
-          "valueMap": "Value map",
-          "onUnmapped": "On unmapped",
-          "default": "Default",
-          "sourceDefault": "Source path · default",
-          "transformMap": "Transform · value map"
-        },
-        "required": "Required",
-        "none": "None",
-        "custom": "Custom transform",
-        "pairs_zero": "No pairs",
-        "pairs_one": "{{count}} pair",
-        "pairs_other": "{{count}} pairs",
-        "edit": "Edit",
-        "remove": "Remove {{term}}",
-        "sourcePlaceholder": "erp.field.path",
-        "defaultPlaceholder": "—",
-        "addField": "Add field",
-        "addFieldPick": "Choose a term…",
-        "add": "Add",
-        "allMapped": "Every mappable term is in the template.",
-        "readiness": {
-          "title": "Readiness",
-          "ready": "Ready",
-          "notReady": "Not ready",
-          "required": "Required covered",
-          "missing": "Missing",
-          "invalid": "Invalid entries",
-          "allGood": "Every required term is mapped and every entry is valid."
-        },
-        "dryRun": {
-          "title": "Dry-run",
-          "run": "Run on the {{product}} sample",
-          "rerun": "Run again",
-          "hint": "Runs the mapping over a bundled {{product}} invoice the way the transformer would, and shows what it produces.",
-          "output": "Canonical invoice",
-          "refusals": "Refusals",
-          "col": {
-            "field": "Field",
-            "problem": "What went wrong"
-          },
-          "notes": "Notes"
-        },
-        "tenants": {
-          "title": "Tenants on this version",
-          "none": "No connection uses this version.",
-          "count_one": "{{count}} connection",
-          "count_other": "{{count}} connections"
-        },
-        "publishModal": {
-          "title": "Publish v{{version}}?",
-          "body": "v{{version}} becomes the published {{name}} template. The {{count}} connections on v{{current}} keep their mapping until they reset.",
-          "bodyFirst": "v{{version}} becomes the published {{name}} template. New connections start from it.",
-          "notValid": "The draft is not valid yet. Fix the entries in red first.",
-          "confirm": "Publish"
-        },
-        "discardModal": {
-          "title": "Discard draft v{{version}}?",
-          "body": "The draft's entries and note are lost. v{{current}} stays published and nothing changes for tenants.",
-          "confirm": "Discard"
-        },
-        "valueMap": {
-          "title": "Value map: {{term}}",
-          "subtitle": "What the ERP sends on the left, the PINT-OM code it becomes on the right.",
-          "from": "ERP value",
-          "to": "Becomes",
-          "empty": "No pairs yet.",
-          "addPair": "Add a pair",
-          "removePair": "Remove this pair",
-          "default": "Default code",
-          "defaultHint": "Used when \"on unmapped\" is set to use a default.",
-          "save": "Save"
-        },
-        "done": {
-          "created": "Draft v{{version}} started from v{{from}}.",
-          "saved": "Draft v{{version}} saved.",
-          "published": "v{{version}} is now the published {{name}} template.",
-          "discarded": "Draft v{{version}} discarded."
-        },
-        "presetShort": {
-          "dateDmy": "DD/MM/YYYY → date",
-          "dateEpoch": "Epoch → date",
-          "trimUpper": "Trim + upper",
-          "digitsOnly": "Digits only",
-          "round3": "Round 3",
-          "round2": "Round 2",
-          "abs": "Absolute",
-          "percentFromFraction": "% from fraction"
-        },
-        "onUnmappedShort": {
-          "FAIL": "Fail",
-          "USE_DEFAULT": "Use default",
-          "PASS_THROUGH": "Pass through"
-        },
-        "defaultLabel": "Default"
-      },
-      "requests": {
-        "title": "Add-on requests",
-        "subtitle": "Tenants asking to switch on ERP extraction. Approving activates the add-on now and puts its line on the tenant's next invoice.",
-        "tab": {
-          "pending": "Pending",
-          "history": "History"
-        },
-        "kpi": {
-          "pending": "Pending",
-          "pendingNote": "Waiting for a decision",
-          "pendingOldest": "Oldest asked {{date}}",
-          "approved": "Approved in {{month}}",
-          "approvedNote": "Including trials",
-          "declined": "Declined in {{month}}",
-          "declinedNote": "Each with a reason on record",
-          "onAddon": "Tenants on the add-on",
-          "onAddonNote": "{{paying}} paying · {{monthly}} a month each"
-        },
-        "col": {
-          "tenant": "Tenant",
-          "plan": "Plan",
-          "requested": "Requested",
-          "source": "Source",
-          "subscription": "Subscription",
-          "decided": "Decided",
-          "outcome": "Outcome",
-          "note": "Note"
-        },
-        "by": "by {{by}}",
-        "source": {
-          "PURCHASED": "Purchased",
-          "PLAN_INCLUDED": "Included in plan",
-          "TRIAL": "Trial"
-        },
-        "price": {
-          "monthly": "{{amount}} a month",
-          "included": "No extra charge",
-          "trial": "Free while on trial"
-        },
-        "subscription": {
-          "grace": "Subscription in grace: settle first",
-          "suspended": "Subscription suspended: resume first",
-          "awaitingPayment": "Awaiting first payment",
-          "trial": "Plan on trial",
-          "ok": "Active"
-        },
-        "approve": "Approve",
-        "approveTrial": "Approve on trial",
-        "decline": "Decline",
-        "rowMenu": "Request actions",
-        "approveModal": {
-          "title": "Approve for {{tenant}}",
-          "subtitle": "The add-on switches on now.",
-          "tenant": "Tenant",
-          "plan": "Plan",
-          "price": "Monthly price",
-          "allowance": "Allowance",
-          "allowanceValue": "{{connections}} connections · {{documents}} documents a month",
-          "billing": "Billing",
-          "billingValue": "The add-on line joins the next invoice",
-          "billingIncluded": "Included in the {{plan}} plan, nothing to bill",
-          "note": "Note (optional)",
-          "notePlaceholder": "Anything the record should say",
-          "confirm": "Approve",
-          "priceIncluded": "Included in the plan, no charge"
-        },
-        "trialModal": {
-          "title": "Approve on trial for {{tenant}}",
-          "subtitle": "One connection, free, until the trial ends. Nothing is billed.",
-          "days": "Trial length",
-          "daysChip_one": "{{count}} day",
-          "daysChip_other": "{{count}} days",
-          "documents": "Documents in the trial",
-          "documentsChip": "{{count}} documents",
-          "endsOn": "Ends {{date}}",
-          "confirm": "Start the trial"
-        },
-        "declineModal": {
-          "title": "Decline {{tenant}}'s request",
-          "subtitle": "The tenant reads the reason on their ERP page.",
-          "reason": "Reason",
-          "reasonPlaceholder": "Why the add-on is not switched on",
-          "quick": {
-            "grace": "Subscription is in grace. Settle the open bill first.",
-            "plan": "Not available on the current plan",
-            "verify": "Verification is still open"
-          },
-          "confirm": "Decline"
-        },
-        "done": {
-          "badge": "Done",
-          "approved": "Approved for {{tenant}}. Active now.",
-          "trial": "Approved on a {{days}}-day trial for {{tenant}}. Active now.",
-          "declined": "Declined for {{tenant}}. The reason is on record.",
-          "link": "Open the tenant's ERP tab"
-        },
-        "outcome": {
-          "approved": "Approved",
-          "declined": "Declined"
-        },
-        "empty": {
-          "pending": "No requests waiting.",
-          "history": "No decisions yet."
-        },
-        "noNote": "—",
-        "notOffered": "Not supported on {{plan}}: upgrade first",
-        "notOfferedHint": "The add-on is not supported on the {{plan}} plan. The tenant moves up a plan first, or the plan's availability changes in Console settings › Add-ons."
-      },
       "connections": {
         "title": "ERP connections",
         "subtitle": "{{connections}} connections across {{tenants}} tenants · {{attention}} need attention",
@@ -14059,21 +13793,6 @@
           "body": "It was suspended for: {{reason}}",
           "submit": "Resume",
           "done": "{{tenant}}'s add-on is active again"
-        }
-      },
-      "tenantTab": {
-        "connections": {
-          "title": "ERP connections",
-          "all": "All tenants",
-          "empty": "No ERP connected yet."
-        },
-        "col": {
-          "connection": "Connection",
-          "state": "State",
-          "mapping": "Mapping",
-          "lastRun": "Last run",
-          "collected": "Collected",
-          "rejections": "Rejections"
         }
       },
       "unavailable": {
@@ -15027,7 +14746,7 @@
     "planMissing": "Choose your plan and how you'll pay before you submit.",
     "choosePlan": "Choose a plan",
     "choosePayment": "Choose how you'll pay",
-    "addonValue": "Automatic ERP extraction added"
+    "addonValue": "Automatic ERP extraction requested; the Fawtir team confirms it with your subscription"
   },
   "signupPending": {
     "approved": {
@@ -17269,7 +16988,8 @@
         "INVOICE_VALIDATION_FAILED": "The invoice failed validation",
         "MAPPING_CAPACITY_UNAVAILABLE": "Fawtir's mapping service was busy",
         "SOURCE_IDENTITY_INVALID": "The document's identifier or version is too long or blank",
-        "SOURCE_CONTENT_CHANGED": "Your ERP sent different content under the same version"
+        "SOURCE_CONTENT_CHANGED": "Your ERP sent different content under the same version",
+        "SOURCE_PAYLOAD_TOO_LARGE": "The document is larger than 4 MiB"
       },
       "stage": {
         "SOURCE": "your ERP",
