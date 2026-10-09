@@ -892,7 +892,8 @@
     "trialNotePlan_one": "{{plan}}, {{count}}-day trial",
     "trialNotePlan_other": "{{plan}}, {{count}}-day trial",
     "trialNoteMixed": "Plans with a free trial start it from the day your account is approved, and nothing is paid until it ends: {{plans}}.",
-    "listSeparator": "; "
+    "listSeparator": "; ",
+    "perYear": "/year"
   },
   "payment": {
     "title": "How you'll pay",
@@ -20316,7 +20317,8 @@
       },
       "yearlyNoteMonths_one": "Billed yearly · {{count}} month free",
       "yearlyNoteMonths_other": "Billed yearly · {{count}} months free",
-      "yearlyNoteNoSaving": "Billed yearly"
+      "yearlyNoteNoSaving": "Billed yearly",
+      "perYear": "/ a year"
     },
     "features": {
       "hero": {

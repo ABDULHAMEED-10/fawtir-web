@@ -72,6 +72,14 @@ export function perMonthBaisa(plan: SignupCataloguePlan, billing: BillingCycle):
   return year === null ? null : Math.floor((year + 6) / 12)
 }
 
+/**
+ * The price of one full period of the chosen cycle, in baisa: the month, or the published year.
+ * Owner, 9 Oct 2026: an annual plan shows what the year actually costs, not a monthly equivalent.
+ */
+export function periodPriceBaisa(plan: SignupCataloguePlan, billing: BillingCycle): number | null {
+  return baisaOf(billing === 'monthly' ? plan.monthlyPrice : plan.annualPrice)
+}
+
 /** A rial figure as the sign-up cards print it: `35`, `29.167` (no padding zeros). */
 export function shortRial(baisa: number | null): string {
   if (baisa === null) return '—'

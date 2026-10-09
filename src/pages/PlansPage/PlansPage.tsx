@@ -21,7 +21,7 @@ import { PlanComparison, PlanFaq } from './PlanComparison'
 import {
   annualSavingNote,
   launchCopy,
-  perMonthBaisa,
+  periodPriceBaisa,
   planDescription,
   planName,
   shortRial,
@@ -137,11 +137,11 @@ function PlansContent() {
       <OmAmount
         size="sm"
         onDark={dark}
-        amount={shortRial(perMonthBaisa(plan, billing))}
+        amount={shortRial(periodPriceBaisa(plan, billing))}
         amountClassName={['text-[40px] leading-[1.2]', dark ? 'text-white' : ''].join(' ')}
       />
       <span className={['text-base', dark ? 'text-primary-25' : 'text-neutral-300'].join(' ')}>
-        {t('plans.perMonth')}
+        {t(billing === 'monthly' ? 'plans.perMonth' : 'plans.perYear')}
       </span>
     </p>
   )

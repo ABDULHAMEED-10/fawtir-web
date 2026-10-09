@@ -222,9 +222,12 @@ describe('Choose a plan: the published catalogue', () => {
     await userEvent
       .setup({ delay: null })
       .click(screen.getByRole('tab', { name: i18n.t('plans.annual') }))
-    // 371.250 / 12 = 30.9375, half up to the baisa; 828.000 / 12 = 69.
-    expect(screen.getAllByText('30.938').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('69').length).toBeGreaterThan(0)
+    // Owner, 9 Oct 2026: the annual cycle shows what the year costs (the published annual price),
+    // never a monthly equivalent such as 30.938.
+    expect(screen.getAllByText('371.25').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('828').length).toBeGreaterThan(0)
+    expect(screen.queryByText('30.938')).toBeNull()
+    expect(screen.getAllByText(i18n.t('plans.perYear')).length).toBeGreaterThan(0)
   })
 
   it('makes no trial promise when the catalogue offers no trial', async () => {

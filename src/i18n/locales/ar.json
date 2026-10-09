@@ -915,7 +915,8 @@
     "trialNotePlan_many": "{{plan}}: فترة تجريبية مدتها {{count}} يومًا",
     "trialNotePlan_other": "{{plan}}: فترة تجريبية مدتها {{count}} يوم",
     "trialNoteMixed": "تبدأ الخطط التي تشمل فترة تجريبية مجانية فترتها من يوم الموافقة على حسابك، ولا شيء تدفعه حتى تنتهي: {{plans}}.",
-    "listSeparator": "؛ "
+    "listSeparator": "؛ ",
+    "perYear": "/سنة"
   },
   "payment": {
     "title": "طريقة الدفع",
@@ -21477,7 +21478,8 @@
       "yearlyNoteMonths_few": "فوترة سنوية · {{count}} أشهر مجانًا",
       "yearlyNoteMonths_many": "فوترة سنوية · {{count}} شهرًا مجانًا",
       "yearlyNoteMonths_other": "فوترة سنوية · {{count}} شهر مجانًا",
-      "yearlyNoteNoSaving": "فوترة سنوية"
+      "yearlyNoteNoSaving": "فوترة سنوية",
+      "perYear": "/ سنويًا"
     },
     "features": {
       "hero": {

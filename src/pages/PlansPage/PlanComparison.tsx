@@ -4,7 +4,7 @@ import { OmAmount } from '../../components/ui'
 import { ChevronDownIcon } from '../../components/ui/icons'
 import type { SignupCataloguePlan } from '../../lib/identity/signupPlans'
 import type { BillingCycle } from '../../lib/pricing'
-import { fullRial, perMonthBaisa, planName, shortRial } from './catalogueView'
+import { fullRial, periodPriceBaisa, planName, shortRial } from './catalogueView'
 import {
   FAQ_COUNT,
   comparisonColumns,
@@ -77,10 +77,10 @@ export function PlanComparison({
                   <p className="mt-1 flex items-baseline justify-center gap-1 text-text-secondary">
                     <OmAmount
                       size="xs"
-                      amount={shortRial(perMonthBaisa(plan, billing))}
+                      amount={shortRial(periodPriceBaisa(plan, billing))}
                       amountClassName="text-sm font-medium text-text-secondary"
                     />
-                    <span className="text-xs">{t('plans.perMonth')}</span>
+                    <span className="text-xs">{t(billing === 'monthly' ? 'plans.perMonth' : 'plans.perYear')}</span>
                   </p>
                 ) : (
                   <p className="mt-1 text-sm font-medium text-text-secondary">

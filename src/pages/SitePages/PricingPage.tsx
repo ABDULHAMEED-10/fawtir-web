@@ -9,6 +9,7 @@ import {
   fullRial,
   launchCopy,
   perMonthBaisa,
+  periodPriceBaisa,
   planDescription,
   planName,
   trialNote,
@@ -192,7 +193,7 @@ function PlanCard({ plan, yearly }: { plan?: SignupCataloguePlan; yearly: boolea
   const featured = Boolean(plan?.recommended)
   const copy = plan ? launchCopy(plan.code) : undefined
   const soft = featured ? 'text-white/80' : SOFT
-  const monthly = plan ? perMonthBaisa(plan, yearly ? 'annual' : 'monthly') : null
+  const periodPrice = plan ? periodPriceBaisa(plan, yearly ? 'annual' : 'monthly') : null
 
   const limits = plan
     ? [
@@ -216,6 +217,7 @@ function PlanCard({ plan, yearly }: { plan?: SignupCataloguePlan; yearly: boolea
   // The note carries a price per document; the rial sign goes in where the figure is.
   const [before, after] = t('site.pricing.each', { amount: '\u0000' }).split('\u0000')
   // Display only, to the baisa: what one document of the allowance works out at.
+  const monthly = plan ? perMonthBaisa(plan, yearly ? 'annual' : 'monthly') : null
   const each = plan && monthly !== null ? Math.round(monthly / plan.invoicesPerMonth) : null
 
   return (
@@ -245,9 +247,9 @@ function PlanCard({ plan, yearly }: { plan?: SignupCataloguePlan; yearly: boolea
           <p className="flex flex-wrap items-baseline gap-x-2">
             <span className="flex items-baseline gap-2 text-[clamp(2rem,1.5rem+1.4vw,2.625rem)] font-semibold leading-none tabular-nums">
               <RialMark className="w-8 self-center" />
-              {fullRial(monthly)}
+              {fullRial(periodPrice)}
             </span>
-            <span className={`text-xl leading-[normal] ${soft}`}>{t('site.pricing.perMonth')}</span>
+            <span className={`text-xl leading-[normal] ${soft}`}>{t(yearly ? 'site.pricing.perYear' : 'site.pricing.perMonth')}</span>
           </p>
         ) : (
           <p className="text-[clamp(2rem,1.5rem+1.4vw,2.625rem)] font-semibold leading-none">
@@ -437,8 +439,8 @@ function Compare({ yearly, plans }: { yearly: boolean; plans: readonly SignupCat
                     {plan ? (
                       <>
                         <RialMark className="w-2.5" />
-                        {fullRial(perMonthBaisa(plan, yearly ? 'annual' : 'monthly'))}
-                        <span>{t('plans.perMonth')}</span>
+                        {fullRial(periodPriceBaisa(plan, yearly ? 'annual' : 'monthly'))}
+                        <span>{t(yearly ? 'plans.perYear' : 'plans.perMonth')}</span>
                       </>
                     ) : (
                       t('plans.enterprise.price')
