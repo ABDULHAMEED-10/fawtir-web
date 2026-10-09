@@ -2,11 +2,11 @@ import type { TFunction } from 'i18next'
 import { ApiError } from '../api/errors'
 import type {
   BlockedReasonCode,
-  PaymentRunFormat,
+  PaymentRunDto,
   PaymentRunState,
 } from '../api/expenditure/paymentRuns'
 import { describeApiFailure } from './apiFailure'
-import { plusDays } from './invoiceIssue'
+import { muscatToday, plusDays } from './invoiceIssue'
 
 /**
  * The payment run builder's rules (E-11). The server prices every bill and decides what a run may
@@ -32,7 +32,7 @@ export type SupplierGroup = {
   bills: RunBill[]
 }
 
-/** One transfer per supplier, as the bank file makes them; a bill with no supplier record pays on its own. */
+/** One transfer per supplier; a bill with no supplier record pays on its own. */
 export function groupBySupplier(bills: RunBill[]): SupplierGroup[] {
   const groups = new Map<string, SupplierGroup>()
   for (const bill of bills) {
@@ -91,33 +91,31 @@ export function sum(values: number[]): number {
 
 export type RunActions = {
   editable: boolean
-  canExport: boolean
   canMarkPaid: boolean
   canCancel: boolean
 }
 
+/**
+ * Fawtir makes no bank files (owner, 9 Oct 2026): the company pays its suppliers itself and marks
+ * the run paid, from DRAFT or SCHEDULED. An EXPORTED run, made before that, is still marked paid.
+ */
 export function actionsFor(state: PaymentRunState | null): RunActions {
   return {
     editable: state === null || state === 'DRAFT' || state === 'SCHEDULED',
-    canExport: state === 'SCHEDULED' || state === 'EXPORTED',
-    canMarkPaid: state === 'EXPORTED',
+    canMarkPaid: state === 'DRAFT' || state === 'SCHEDULED' || state === 'EXPORTED',
     canCancel: state === 'DRAFT' || state === 'SCHEDULED',
   }
 }
 
-export const FORMATS: { id: PaymentRunFormat; titleKey: string; noteKey: string }[] = [
-  {
-    id: 'BANK_MUSCAT_CSV',
-    titleKey: 'paymentsPage.format.csv',
-    noteKey: 'paymentsPage.format.csvNote',
-  },
-  { id: 'PAIN_001', titleKey: 'paymentsPage.format.iso', noteKey: 'paymentsPage.format.isoNote' },
-  {
-    id: 'PRINTED_LIST',
-    titleKey: 'paymentsPage.format.printed',
-    noteKey: 'paymentsPage.format.printedNote',
-  },
-]
+/**
+ * The day a paid run's bills were paid, as the server records it: the run's payment date when it
+ * has one that was not after the day it was marked paid, else that day (Muscat). Null before then.
+ */
+export function paidOn(run: Pick<PaymentRunDto, 'paymentDate' | 'paidAt'>): string | null {
+  const marked = run.paidAt ? muscatToday(new Date(run.paidAt)) : null
+  if (run.paymentDate && (marked === null || run.paymentDate <= marked)) return run.paymentDate
+  return marked
+}
 
 export const RUN_STATES: PaymentRunState[] = ['DRAFT', 'SCHEDULED', 'EXPORTED', 'PAID', 'CANCELLED']
 
@@ -137,27 +135,22 @@ export const RUN_REFUSALS: Record<string, string> = {
   PAYMENT_RUN_CURRENCY_MISMATCH: 'paymentRuns.refused.currency',
   PAYMENT_RUN_BILL_NOT_PAYABLE: 'paymentRuns.refused.notPayable',
   PAYMENT_RUN_BILL_ALREADY_SCHEDULED: 'paymentRuns.refused.alreadyScheduled',
-  PAYMENT_RUN_BANK_DETAILS_MISSING: 'paymentRuns.refused.bankDetailsMissing',
   PAYMENT_RUN_NOT_EDITABLE: 'paymentRuns.refused.notEditable',
   PAYMENT_RUN_TRANSITION_INVALID: 'paymentRuns.refused.transition',
   PAYMENT_RUN_CONCURRENTLY_MODIFIED: 'paymentRuns.refused.concurrent',
   PAYMENT_RUN_DATE_REQUIRED: 'paymentRuns.refused.dateRequired',
-  PAYMENT_RUN_FORMAT_REQUIRED: 'paymentRuns.refused.formatRequired',
   PAYMENT_RUN_EMPTY: 'paymentRuns.refused.empty',
-  PAYMENT_RUN_PAYER_ACCOUNT_REQUIRED: 'paymentRuns.refused.payerRequired',
   PAYER_ACCOUNT_INACTIVE: 'paymentRuns.refused.payerInactive',
   PAYER_ACCOUNT_IBAN_INVALID: 'paymentRuns.account.ibanInvalid',
   PAYER_ACCOUNT_BIC_INVALID: 'paymentRuns.account.bicInvalid',
   PAYER_ACCOUNT_NAME_INVALID: 'paymentRuns.account.nameInvalid',
-  // Making a PAIN_001 file for a company whose legal name is not in Latin letters (8 Oct 2026).
-  PAYMENT_RUN_PAYER_NAME_NOT_LATIN: 'paymentRuns.refused.payerNameNotLatin',
   // The pay-from account was switched off after the run chose it, from a server that sends no
   // `accountName`: the sentence the other switched-off account refusal reads.
   PAYMENT_RUN_PAYER_ACCOUNT_INACTIVE: 'paymentRuns.refused.payerInactive',
 }
 
 /** What was being done to a run when it refused, where one code needs a sentence per action. */
-export type RunAction = 'add' | 'export' | 'markPaid'
+export type RunAction = 'add' | 'markPaid'
 
 /**
  * The refusals that are one code with a sentence per action (owner, 8 Oct 2026), each naming the
@@ -167,14 +160,18 @@ export type RunAction = 'add' | 'export' | 'markPaid'
 const BY_ACTION: Record<string, Partial<Record<RunAction, string>>> = {
   PAYMENT_RUN_DEBIT_NOTE_REFUSED: {
     add: 'paymentRuns.refused.debitNoteRefusedAdd',
-    export: 'paymentRuns.refused.debitNoteRefusedExport',
     markPaid: 'paymentRuns.refused.debitNoteRefusedMarkPaid',
   },
   PAYMENT_RUN_AMOUNT_CHANGED: {
-    export: 'paymentRuns.refused.amountChangedExport',
     markPaid: 'paymentRuns.refused.amountChangedMarkPaid',
   },
+  // Backend #476: a hold or a rejection placed after the bill joined the run.
+  PAYMENT_RUN_BILL_ON_HOLD: { markPaid: 'paymentRuns.refused.onHoldMarkPaid' },
+  PAYMENT_RUN_BILL_NOT_READY: { markPaid: 'paymentRuns.refused.rejectedMarkPaid' },
 }
+
+/** Sentences that name the bill: without its number the code's own sentence is said instead. */
+const NAMES_THE_BILL = new Set(['PAYMENT_RUN_BILL_NOT_READY'])
 
 /**
  * `PAYMENT_RUN_BILL_SETTLED` names the bill, in every action. The Arabic agrees with the document:
@@ -194,11 +191,12 @@ export function refusalOf(error: unknown, t: TFunction, action?: RunAction): str
   if (error instanceof ApiError && error.code) {
     const number = String(error.problem.supplierBillNumber ?? '')
     const byAction = action ? BY_ACTION[error.code]?.[action] : undefined
-    if (byAction) return t(byAction, { note: number, bill: number })
+    if (byAction && (number || !NAMES_THE_BILL.has(error.code)))
+      return t(byAction, { note: number, bill: number })
     if (error.code === 'PAYMENT_RUN_BILL_SETTLED')
       return t(settledKey(error.problem.documentTypeCode), { bill: number })
-    // Making the bank file (owner, 8 Oct 2026): one sentence per supplier whose new bank details
-    // nobody confirmed, and the switched-off pay-from account by its name.
+    // One sentence per supplier whose new bank details nobody confirmed (owner, 8 Oct 2026), and
+    // the switched-off pay-from account by its name.
     if (error.code === 'PAYMENT_RUN_BANK_DETAILS_UNCONFIRMED') {
       const names = suppliersNamed(error.problem.suppliers)
       if (names.length > 0)
@@ -259,8 +257,4 @@ export function supplierTile(name: string | null): { initials: string; tint: str
   let hash = 0
   for (const char of name) hash = (hash * 31 + char.charCodeAt(0)) % 997
   return { initials, tint: TINTS[hash % TINTS.length] }
-}
-
-export function formatLabelKey(format: PaymentRunFormat | null): string {
-  return format ? FORMATS.find((entry) => entry.id === format)!.titleKey : 'paymentRuns.noFormat'
 }

@@ -12,7 +12,6 @@ import {
   cancelRun,
   candidatesPath,
   createRun,
-  exportRun,
   loadBlocked,
   loadCandidates,
   loadPayerAccounts,
@@ -31,13 +30,13 @@ import { formatAmount, formatDate } from '../../lib/format'
 import { muscatToday } from '../../lib/invoiceIssue'
 import {
   DUE_WINDOWS,
-  FORMATS,
   REASON_KEYS,
   actionsFor,
   discountPercent,
   dueBy,
   dueNote,
   groupBySupplier,
+  paidOn,
   refusalOf,
   sum,
   windowEnd,
@@ -46,12 +45,12 @@ import {
   type RunAction,
   type RunBill,
 } from '../../lib/paymentRuns'
-import { saveDownload } from '../../lib/supplierRecord'
 import { can, useSession } from '../../lib/session/session'
 import {
   AddPayerAccountModal,
   Amount,
   CancelSentRunModal,
+  ConfirmModal,
   HEADER_BUTTON,
   MarkPaidModal,
   PRIMARY_BUTTON,
@@ -61,12 +60,9 @@ import {
   SupplierTile,
 } from './RunParts'
 import printIcon from '../../assets/invoice-details/print.svg'
-import downloadIcon from '../../assets/invoice-details/download.svg'
 import viewInvoiceIcon from '../../assets/bill-capture/file.svg'
 import infoIcon from '../../assets/bill-capture/info.svg'
 import tickIcon from '../../assets/bill-detail/tick.svg'
-import csvIcon from '../../assets/bill-capture/file.svg'
-import isoIcon from '../../assets/create-invoice/doc-order.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 
 const DUE_CHIP: Record<DueTone, string> = {
@@ -76,16 +72,14 @@ const DUE_CHIP: Record<DueTone, string> = {
   none: 'bg-surface-background text-text-tertiary',
 }
 
-const FORMAT_ICON: Record<PaymentRunFormat, string> = {
-  BANK_MUSCAT_CSV: csvIcon,
-  PAIN_001: isoIcon,
-  PRINTED_LIST: printIcon,
-}
-
 type Details = {
   paymentDate: string | null
   payerAccountId: string | null
   runReference: string
+  /**
+   * Not chosen on this page any more (owner, 9 Oct 2026: Fawtir makes no bank files); the run's
+   * stored format is sent back unchanged, as the update replaces all four details.
+   */
   format: PaymentRunFormat | null
 }
 
@@ -100,6 +94,9 @@ const NO_DETAILS: Details = {
  * Expenditure › Payments › a run (Figma 163:16960). `/expenditure/payments/new` builds a run that
  * does not exist yet: it is created when the first bill is ticked (decision 1). Every figure comes
  * from the server: what a bill would cost on the run's date, what the run totals, what cannot be paid.
+ *
+ * Fawtir makes no bank files (owner, 9 Oct 2026): the company pays its suppliers itself, then marks
+ * the run paid here. The frame's "How to send it to the bank" step and its Download are not drawn.
  */
 export function PaymentRunPage() {
   const { runId = null } = useParams()
@@ -116,7 +113,6 @@ function RunBuilder({ runId }: { runId: string | null }) {
   const navigate = useNavigate()
   const today = muscatToday()
   const canManage = can(session, 'invoice.payment.manage')
-  const canExport = can(session, 'invoice.export')
   const canAddAccount = can(session, 'admin.settings.manage')
 
   const loaded = useApiRead<PaymentRunDetailDto>(runId ? runPath(runId) : null, () =>
@@ -135,6 +131,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
   const [addingAccount, setAddingAccount] = useState(false)
   const [confirmingPaid, setConfirmingPaid] = useState(false)
   const [cancellingSent, setCancellingSent] = useState(false)
+  const [cancellingUnsent, setCancellingUnsent] = useState(false)
   const inFlight = useRef(false)
 
   useEffect(() => {
@@ -184,8 +181,8 @@ function RunBuilder({ runId }: { runId: string | null }) {
   const takenOut = new Map(
     (detail?.items ?? []).flatMap((item) => (item.takenOut ? [[item.billId, item.takenOut]] : [])),
   )
-  // On a paid run with bills taken out, the bank file's totals stay what the bank received; a
-  // line under them splits it into what was paid and what was taken out (owner, 9 Oct 2026).
+  // On a paid run with bills taken out, the run's totals stay as they were; a line under them
+  // splits them into what was paid and what was taken out (owner, 9 Oct 2026).
   const paidRun = run?.state === 'PAID'
   const runItems = detail?.items ?? []
   const split =
@@ -204,10 +201,6 @@ function RunBuilder({ runId }: { runId: string | null }) {
   const shown = supplierFilter ? groups.filter((group) => group.key === supplierFilter) : groups
   const paying = groupBySupplier(inRun)
   const blockedRows = blocked.read.status === 'ready' ? blocked.read.data : []
-  const changedSinceFile = (detail?.bankDetailsChangedSinceFile ?? []).filter(
-    (supplier): supplier is { supplierId: string; supplierName: string } =>
-      Boolean(supplier.supplierName?.trim()),
-  )
 
   /** One write at a time: a tick while another is in flight would be sent against a stale run. */
   const act = async (write: () => Promise<void>, action?: RunAction) => {
@@ -271,19 +264,16 @@ function RunBuilder({ runId }: { runId: string | null }) {
     })
   }
 
-  const download = () =>
-    act(async () => {
-      if (!runId || !run) return
-      saveDownload(await exportRun(runId), run.reference)
-      loaded.retry()
-    }, 'export')
-
   const pickWindow = (next: DueWindow) => {
     setWindow(next)
     const end = windowEnd(next, today)
     setDueByDate(end ?? '')
     add(dueBy(candidates, end).map((bill) => bill.billId))
   }
+
+  // A paid run says the day its bills were paid on, as the server records it.
+  const noteDay = run?.state === 'PAID' ? paidOn(run) : (run?.paymentDate ?? null)
+  const stateDate = noteDay ? formatDate(noteDay, i18n.language) : ''
 
   if (runId && loaded.read.status === 'loading') return <LoadingNotice />
   if (runId && loaded.read.status === 'failed')
@@ -333,27 +323,8 @@ function RunBuilder({ runId }: { runId: string | null }) {
               <img src={printIcon} alt="" className="size-5 shrink-0" />
               <span className="max-lg:sr-only">{t('paymentsPage.print')}</span>
             </button>
-            {canExport && run ? (
-              <button
-                type="button"
-                disabled={!actions.canExport || busy}
-                onClick={() => void download()}
-                className={[HEADER_BUTTON, 'max-lg:w-[46px] max-lg:px-0'].join(' ')}
-                title={
-                  run && actions.canExport
-                    ? t('paymentsPage.download')
-                    : t('paymentRuns.downloadWhenScheduled')
-                }
-              >
-                <img src={downloadIcon} alt="" className="size-5 shrink-0" />
-                <span className="max-lg:sr-only">
-                  {run?.state === 'EXPORTED'
-                    ? t('paymentRuns.downloadAgain')
-                    : t('paymentsPage.download')}
-                </span>
-              </button>
-            ) : null}
-            {canManage && run && actions.canMarkPaid ? (
+            {/* An empty run has nothing to mark paid. */}
+            {canManage && run && actions.canMarkPaid && runItems.length > 0 ? (
               <button
                 type="button"
                 disabled={busy}
@@ -384,25 +355,9 @@ function RunBuilder({ runId }: { runId: string | null }) {
         </div>
         <p className="text-base font-medium leading-[1.3] text-text-quaternary">
           {run && run.state !== 'DRAFT'
-            ? t(`paymentRuns.stateNote.${run.state}`, {
-                date: run.paymentDate ? formatDate(run.paymentDate, i18n.language) : '',
-              })
+            ? t(`paymentRuns.stateNote.${run.state}`, { date: stateDate })
             : t('paymentsPage.subtitle')}
         </p>
-        {canExport && run?.state === 'EXPORTED' ? (
-          <p className="text-sm font-medium leading-[1.3] text-pending-700">
-            {t('paymentRuns.sentFileWarning')}
-          </p>
-        ) : null}
-        {/* Owner, 8 Oct 2026: a supplier whose IBAN changed after the kept file was made. */}
-        {changedSinceFile.map((supplier) => (
-          <p
-            key={supplier.supplierId}
-            className="text-sm font-medium leading-[1.3] text-pending-700"
-          >
-            {t('paymentRuns.bankDetailsChangedSinceFile', { supplier: supplier.supplierName })}
-          </p>
-        ))}
       </div>
 
       {notice ? (
@@ -779,9 +734,9 @@ function RunBuilder({ runId }: { runId: string | null }) {
                 ) : null}
               </div>
               <div className="flex flex-col gap-1.5">
+                {/* Optional: kept with the run for tracking; nothing asks for it (9 Oct 2026). */}
                 <span className="flex items-center gap-0.5 text-sm font-medium leading-[1.2] text-text-primary">
                   {t('paymentsPage.payFrom')}
-                  {required}
                 </span>
                 <Select
                   value={details.payerAccountId ?? ''}
@@ -931,51 +886,6 @@ function RunBuilder({ runId }: { runId: string | null }) {
         </aside>
       </div>
 
-      {/* 3: how to send it */}
-      <section id="format" className="rounded-md bg-surface-card p-5">
-        <SectionTitle step={3} title={t('paymentsPage.howToSend')} />
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
-          {FORMATS.map((option) => {
-            const active = option.id === details.format
-            return (
-              <button
-                key={option.id}
-                type="button"
-                disabled={!editable || busy}
-                onClick={() => change({ format: option.id })}
-                aria-pressed={active}
-                className={[
-                  'flex items-start gap-3 rounded-sm border p-4 text-start transition-colors disabled:cursor-default',
-                  active
-                    ? 'border-primary-700 bg-primary-25'
-                    : 'border-border-subtle bg-white hover:border-primary-300',
-                ].join(' ')}
-              >
-                <img src={FORMAT_ICON[option.id]} alt="" className="mt-0.5 size-5 shrink-0" />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-base font-medium leading-[1.2] text-text-primary">
-                    {t(option.titleKey)}
-                  </span>
-                  <span className="mt-1 block text-xs font-medium leading-[1.3] text-text-quaternary">
-                    {t(option.noteKey)}
-                  </span>
-                </span>
-                {active ? (
-                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary-700">
-                    <img src={tickIcon} alt="" className="size-3 brightness-0 invert" />
-                  </span>
-                ) : null}
-              </button>
-            )
-          })}
-        </div>
-        {details.format === 'PAIN_001' && !details.payerAccountId ? (
-          <p className="mt-3 text-xs font-medium text-pending-700">
-            {t('paymentRuns.painNeedsAccount')}
-          </p>
-        ) : null}
-      </section>
-
       {addingAccount ? (
         <AddPayerAccountModal
           onClose={() => setAddingAccount(false)}
@@ -993,7 +903,10 @@ function RunBuilder({ runId }: { runId: string | null }) {
           onClose={() => setConfirmingPaid(false)}
           onCancelInstead={() => {
             setConfirmingPaid(false)
-            setCancellingSent(true)
+            // A run made before bank files were dropped asks whether the bank paid nothing; any
+            // other is cancelled as from the menu.
+            if (run.state === 'EXPORTED') setCancellingSent(true)
+            else setCancellingUnsent(true)
           }}
           onConfirm={async (takeOut) => {
             try {
@@ -1003,6 +916,25 @@ function RunBuilder({ runId }: { runId: string | null }) {
             } catch (error) {
               setConfirmingPaid(false)
               setNotice(refusalOf(error, t, 'markPaid'))
+            }
+          }}
+        />
+      ) : null}
+      {cancellingUnsent && runId && run ? (
+        <ConfirmModal
+          title={t('paymentRuns.confirmCancel.title', { reference: run.reference })}
+          body={t('paymentRuns.confirmCancel.body')}
+          confirm={t('paymentRuns.cancel')}
+          danger
+          onClose={() => setCancellingUnsent(false)}
+          onConfirm={async () => {
+            try {
+              await cancelRun(runId)
+              setCancellingUnsent(false)
+              loaded.retry()
+            } catch (error) {
+              setCancellingUnsent(false)
+              setNotice(refusalOf(error, t))
             }
           }}
         />

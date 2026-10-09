@@ -230,7 +230,7 @@ describe('an Expenditure refusal is a decision, not a fault', () => {
     }
   })
 
-  it('says a refused debit note one way when adding it to a run and another when making the bank file', async () => {
+  it('says a refused debit note one way when adding it to a run and another when marking it paid', async () => {
     const refused = refusal('PAYMENT_RUN_DEBIT_NOTE_REFUSED', {
       billId: 'b-dn-7',
       supplierBillNumber: 'DN-7',
@@ -239,13 +239,13 @@ describe('an Expenditure refusal is a decision, not a fault', () => {
     expect(refusalOf(refused, i18n.t, 'add')).toBe(
       'DN-7 was refused, so it cannot go into a payment run.',
     )
-    expect(refusalOf(refused, i18n.t, 'export')).toBe(
-      'DN-7 was refused after it joined this run. Take it out of the run first.',
+    expect(refusalOf(refused, i18n.t, 'markPaid')).toBe(
+      'DN-7 was refused after it joined this run. Mark the others paid and take DN-7 out of the run.',
     )
     await i18n.changeLanguage('ar')
     expect(refusalOf(refused, i18n.t, 'add')).toBe('DN-7 مرفوض، لذا لا يمكن إضافته إلى دفعة سداد.')
-    expect(refusalOf(refused, i18n.t, 'export')).toBe(
-      'رُفض DN-7 بعد إضافته إلى هذه الدفعة. أخرجه من الدفعة أولًا.',
+    expect(refusalOf(refused, i18n.t, 'markPaid')).toBe(
+      'رُفض DN-7 بعد إضافته إلى هذه الدفعة. سجّل الباقي كمدفوع وأخرج DN-7 من الدفعة.',
     )
     await i18n.changeLanguage('en')
     // A note with no number leaves the place empty, never a placeholder or a raw key.
@@ -264,7 +264,8 @@ describe('an Expenditure refusal is a decision, not a fault', () => {
   // The owner's sentences of 8 Oct for the two ways out of a sent payment run.
   const named = (code: string, problem: Record<string, unknown>) => refusal(code, problem)
 
-  it('names the bill or note when marking a sent run paid is refused, in both languages', async () => {
+  // No bank file is made any more (owner, 9 Oct 2026): the sentences say "after it joined this run".
+  it('names the bill or note when marking a run paid is refused, in both languages', async () => {
     const changed = named('PAYMENT_RUN_AMOUNT_CHANGED', {
       billId: 'b-1',
       supplierBillNumber: 'MR-1',
@@ -275,37 +276,29 @@ describe('an Expenditure refusal is a decision, not a fault', () => {
     })
     await i18n.changeLanguage('en')
     expect(refusalOf(changed, i18n.t, 'markPaid')).toBe(
-      'The amount owed on MR-1 changed after the bank file was made. Mark the others paid and take MR-1 out of the run.',
+      'The amount owed on MR-1 changed after it joined this run. Mark the others paid and take MR-1 out of the run.',
     )
     expect(refusalOf(note, i18n.t, 'markPaid')).toBe(
-      'DN-7 was refused after the bank file was made. Mark the others paid and take DN-7 out of the run.',
+      'DN-7 was refused after it joined this run. Mark the others paid and take DN-7 out of the run.',
     )
     await i18n.changeLanguage('ar')
     expect(refusalOf(changed, i18n.t, 'markPaid')).toBe(
-      'تغيّر المبلغ المستحق على MR-1 بعد إنشاء الملف البنكي. سجّل الباقي كمدفوع وأخرج MR-1 من الدفعة.',
+      'تغيّر المبلغ المستحق على MR-1 بعد إضافة المستند إلى هذه الدفعة. سجّل الباقي كمدفوع وأخرج MR-1 من الدفعة.',
     )
     expect(refusalOf(note, i18n.t, 'markPaid')).toBe(
-      'رُفض DN-7 بعد إنشاء الملف البنكي. سجّل الباقي كمدفوع وأخرج DN-7 من الدفعة.',
+      'رُفض DN-7 بعد إضافته إلى هذه الدفعة. سجّل الباقي كمدفوع وأخرج DN-7 من الدفعة.',
     )
     await i18n.changeLanguage('en')
   })
 
-  it('says a changed amount one way when making the bank file, and keeps the generic refusal elsewhere', async () => {
+  it('keeps the generic refusal for a changed amount outside marking a run paid', async () => {
     const changed = named('PAYMENT_RUN_AMOUNT_CHANGED', {
       billId: 'b-1',
       supplierBillNumber: 'MR-1',
     })
     await i18n.changeLanguage('en')
-    expect(refusalOf(changed, i18n.t, 'export')).toBe(
-      'The amount owed on MR-1 changed after it joined this run. Take it out and add it again.',
-    )
     expect(refusalOf(changed, i18n.t, 'add')).toBe(i18n.t(REFUSAL_FALLBACK_KEY))
     expect(refusalOf(changed, i18n.t)).toBe(i18n.t(REFUSAL_FALLBACK_KEY))
-    await i18n.changeLanguage('ar')
-    expect(refusalOf(changed, i18n.t, 'export')).toBe(
-      'تغيّر المبلغ المستحق على MR-1 بعد إضافة المستند إلى هذه الدفعة. أخرجه ثم أضفه مرة أخرى.',
-    )
-    await i18n.changeLanguage('en')
   })
 
   it('says a settled bill is paid in full, agreeing in Arabic with a bill or a debit note', async () => {
@@ -321,7 +314,7 @@ describe('an Expenditure refusal is a decision, not a fault', () => {
     })
     const untyped = named('PAYMENT_RUN_BILL_SETTLED', { billId: 'b-1', supplierBillNumber: 'MR-1' })
     await i18n.changeLanguage('en')
-    for (const action of ['add', 'export', 'markPaid', undefined] as const) {
+    for (const action of ['add', 'markPaid', undefined] as const) {
       expect(refusalOf(bill, i18n.t, action)).toBe(
         'MR-1 is already paid in full. Take it out of the run.',
       )

@@ -5754,7 +5754,7 @@
     "breadcrumb": "Payments",
     "title": "New payment run",
     "draft": "Draft",
-    "subtitle": "Pick the bills to pay together. Fawtir groups them by supplier and builds one file for your bank.",
+    "subtitle": "Pick the bills to pay together. Fawtir groups them by supplier so you can track what is paid and what is still owed.",
     "print": "Print",
     "download": "Download",
     "viewInvoices": "View their invoice",
@@ -5802,7 +5802,7 @@
     "paymentDate": "Payment date",
     "payFrom": "Pay from",
     "runReference": "Run reference",
-    "shownOnStatements": "shown on statements",
+    "shownOnStatements": "for your records",
     "howToSend": "How to send it to the bank",
     "format": {
       "csv": "Bank Muscat CSV",
@@ -17625,7 +17625,7 @@
   },
   "paymentRuns": {
     "title": "Payments",
-    "subtitle": "Pick the bills to pay together. Fawtir groups them by supplier and builds one file for your bank.",
+    "subtitle": "Pick the bills to pay together. Fawtir groups them by supplier so you can track what is paid and what is still owed.",
     "newRun": "New payment run",
     "all": "All",
     "none": "No payment runs yet.",
@@ -17650,7 +17650,7 @@
     "newNote": "Tick the bills to pay. The run is saved as a draft as soon as the first bill is ticked.",
     "stateNote": {
       "DRAFT": "A draft. Give it a payment date to schedule it.",
-      "SCHEDULED": "Scheduled for {{date}}. Make the bank file when the run is ready.",
+      "SCHEDULED": "Scheduled for {{date}}. Mark the run paid once you have paid the suppliers.",
       "EXPORTED": "The bank file was made. Mark the run paid once the bank has paid it.",
       "PAID": "Paid on {{date}}. Each bill's payment is recorded.",
       "CANCELLED": "Cancelled. Its bills are free for another run."
@@ -17693,7 +17693,7 @@
       "add": "+ Add a bank account",
       "askAdmin": "An administrator adds the accounts you pay from.",
       "title": "Add a bank account",
-      "subtitle": "The account payments leave from. It is named in the bank file.",
+      "subtitle": "The account payments leave from. It is kept with the run for your records.",
       "name": "Account name",
       "iban": "IBAN",
       "bic": "BIC / SWIFT",
@@ -17704,7 +17704,7 @@
     },
     "confirmPaid": {
       "title": "Mark {{reference}} as paid?",
-      "body": "This records {{amount}} as paid against each bill in the run. Do it once the bank has made the transfers."
+      "body": "This records {{amount}} as paid against each bill in the run. Take out the bills you did not pay."
     },
     "confirmCancel": {
       "title": "Cancel {{reference}}?",
@@ -17731,14 +17731,16 @@
       "payerInactive": "That account is switched off. Choose another.",
       "debitNoteRefusedAdd": "{{note}} was refused, so it cannot go into a payment run.",
       "debitNoteRefusedExport": "{{note}} was refused after it joined this run. Take it out of the run first.",
-      "amountChangedMarkPaid": "The amount owed on {{bill}} changed after the bank file was made. Mark the others paid and take {{bill}} out of the run.",
-      "debitNoteRefusedMarkPaid": "{{note}} was refused after the bank file was made. Mark the others paid and take {{note}} out of the run.",
+      "amountChangedMarkPaid": "The amount owed on {{bill}} changed after it joined this run. Mark the others paid and take {{bill}} out of the run.",
+      "debitNoteRefusedMarkPaid": "{{note}} was refused after it joined this run. Mark the others paid and take {{note}} out of the run.",
       "amountChangedExport": "The amount owed on {{bill}} changed after it joined this run. Take it out and add it again.",
       "settledBill": "{{bill}} is already paid in full. Take it out of the run.",
       "settledDebitNote": "{{bill}} is already paid in full. Take it out of the run.",
       "bankDetailsUnconfirmed": "{{supplier}}'s new bank details are not confirmed yet. Confirm them, or take their bills out of the run.",
       "payerAccountInactive": "The account you pay from, {{account}}, is switched off. Choose an active account.",
-      "payerNameNotLatin": "The bank file needs the company's legal name in English letters. Update it in Company settings, then try again."
+      "payerNameNotLatin": "The bank file needs the company's legal name in English letters. Update it in Company settings, then try again.",
+      "onHoldMarkPaid": "A bill in this run is on hold. Release it, or take it out of the run and mark the others paid.",
+      "rejectedMarkPaid": "{{bill}} was rejected after it joined this run. Mark the others paid and take {{bill}} out of the run."
     },
     "addModal": {
       "open": "Add to a payment run",
@@ -17755,7 +17757,7 @@
     "noDate": "No date yet",
     "noFormat": "Not chosen yet",
     "noReference": "No reference",
-    "nothingSent": "Nothing sent",
+    "nothingSent": "Nothing paid",
     "downloadWhenScheduled": "Give the run a payment date first, then the file can be made.",
     "menu": {
       "thisRun": "This run",

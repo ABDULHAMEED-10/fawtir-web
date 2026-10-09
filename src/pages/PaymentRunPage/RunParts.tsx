@@ -21,7 +21,6 @@ import { formatAmount } from '../../lib/format'
 import {
   BIC_SHAPE,
   actionsFor,
-  formatLabelKey,
   ibanValid,
   refusalOf,
   sum,
@@ -29,7 +28,6 @@ import {
 } from '../../lib/paymentRuns'
 import spreadsheetIcon from '../../assets/payment-run-menu/sheet.svg'
 import emailIcon from '../../assets/payment-run-menu/email.svg'
-import bankIcon from '../../assets/payment-run-menu/format.svg'
 import copyIcon from '../../assets/payment-run-menu/copy.svg'
 import resetIcon from '../../assets/payment-run-menu/reset.svg'
 import deleteIcon from '../../assets/payment-run-menu/delete.svg'
@@ -199,11 +197,11 @@ export function ConfirmModal({
 }
 
 /**
- * Mark a sent run paid (owner, 8 Oct 2026): every bill of the run is listed, and any can be taken
- * out of the run with a reason, as the bank did not pay it. A bill the server says cannot be marked
- * paid now (`markPaidBlock`) starts ticked. With a bill ticked the button reads "Mark the others
- * paid"; with every bill ticked there is nothing left to mark paid, so the button becomes the
- * run's own "Cancel the run" and leads to that dialog instead.
+ * Mark a run paid (owner, 8 Oct 2026; from a draft or scheduled run too since 9 Oct 2026): every
+ * bill of the run is listed, and any can be taken out of the run with a reason, as it was not paid.
+ * A bill the server says cannot be marked paid now (`markPaidBlock`) starts ticked. With a bill
+ * ticked the button reads "Mark the others paid"; with every bill ticked there is nothing left to
+ * mark paid, so the button becomes the run's own "Cancel the run" and leads to that dialog instead.
  */
 export function MarkPaidModal({
   run,
@@ -508,7 +506,8 @@ export function AddPayerAccountModal({
  * The run's "3 Dot" menu (Figma 163:24153): this run, start again, delete.
  *
  * Copying, resetting and deleting are the API's own calls. A spreadsheet export and a remittance
- * e-mail have nothing behind them yet: each says so when chosen.
+ * e-mail have nothing behind them yet: each says so when chosen. "Change the bank format" is not
+ * drawn: Fawtir makes no bank files (owner, 9 Oct 2026).
  */
 export function RunMenu({
   run,
@@ -596,14 +595,6 @@ export function RunMenu({
             descriptionKey: 'paymentRuns.menu.remittanceNote',
             icon: emailIcon,
             onSelect: notYet,
-          },
-          {
-            id: 'format',
-            labelKey: 'paymentRuns.menu.changeFormat',
-            descriptionKey: 'paymentRuns.menu.changeFormatNote',
-            values: { format: t(formatLabelKey(run.format)) },
-            icon: bankIcon,
-            to: `/expenditure/payments/${run.id}#format`,
           },
           {
             id: 'copy',

@@ -814,6 +814,19 @@ const MARK_PAID_BLOCKS = {
   'b-sp-1158': { code: 'PAYMENT_RUN_AMOUNT_CHANGED', owedNow: 250.0 },
 }
 
+/**
+ * What marking the run paid would refuse this bill for (backend #476): only on a live run (DRAFT,
+ * SCHEDULED, EXPORTED); a hold first, then, before a bank file, a rejection, then the seeded cases.
+ */
+function markPaidBlockOf(run, b) {
+  if (!['DRAFT', 'SCHEDULED', 'EXPORTED'].includes(run.state)) return null
+  const owedNow = priced(b, run.paymentDate).outstanding
+  if (b.workflowState === 'ON_HOLD') return { code: 'PAYMENT_RUN_BILL_ON_HOLD', owedNow }
+  if (run.state !== 'EXPORTED' && b.workflowState === 'REJECTED')
+    return { code: 'PAYMENT_RUN_BILL_NOT_READY', owedNow }
+  return MARK_PAID_BLOCKS[b.id] ?? null
+}
+
 function runItems(run) {
   return run.billIds.map((billId) => {
     const b = billById(billId)
@@ -830,7 +843,7 @@ function runItems(run) {
       discountTaken: p.discount,
       outstanding: p.outstanding,
       takenOut: run.takenOut?.[billId] ?? null,
-      markPaidBlock: (run.state === 'EXPORTED' && MARK_PAID_BLOCKS[billId]) || null,
+      markPaidBlock: markPaidBlockOf(run, b),
     }
   })
 }
@@ -1887,8 +1900,12 @@ export default [
     reply: ({ params, body }) => {
       const run = runById(params[0])
       if (!run) return { status: 404 }
-      if (run.state !== 'EXPORTED') return refuse('PAYMENT_RUN_TRANSITION_INVALID')
-      // The way out when the bank paid the rest: any bill of the run, each with a reason.
+      // Backend `feat/payment-run-mark-paid-without-file`: a draft or scheduled run is marked paid
+      // as a sent one is, with the same take-out list; a run with no bills is refused.
+      if (!['DRAFT', 'SCHEDULED', 'EXPORTED'].includes(run.state))
+        return refuse('PAYMENT_RUN_TRANSITION_INVALID')
+      if (run.billIds.length === 0) return refuse('PAYMENT_RUN_EMPTY')
+      // The way out when only some were paid: any bill of the run, each with a reason.
       const takeOut = body?.takeOut ?? []
       const named = new Set()
       for (const entry of takeOut) {
@@ -1903,11 +1920,13 @@ export default [
       }
       if (run.billIds.length > 0 && run.billIds.every((id) => named.has(id)))
         return refuse('PAYMENT_RUN_TAKE_OUT_EVERYTHING')
-      // Every bill left in that cannot be marked paid now is refused by name.
-      const blocked = run.billIds.find((id) => !named.has(id) && MARK_PAID_BLOCKS[id])
+      // Every bill left in that cannot be marked paid now is refused, by name except a hold.
+      const blocked = run.billIds.find((id) => !named.has(id) && markPaidBlockOf(run, billById(id)))
       if (blocked) {
         const b = billById(blocked)
-        return refuse(MARK_PAID_BLOCKS[blocked].code, 400, {
+        const { code } = markPaidBlockOf(run, b)
+        if (code === 'PAYMENT_RUN_BILL_ON_HOLD') return refuse(code)
+        return refuse(code, 400, {
           billId: blocked,
           supplierBillNumber: b.number,
           documentTypeCode: '380',
@@ -1915,6 +1934,9 @@ export default [
       }
       run.state = 'PAID'
       run.paidAt = `${TODAY}T11:00:00Z`
+      // The run's date when it is set and not in the future, else today in Muscat; a draft run
+      // is paid today and gets that date.
+      if (!run.paymentDate || run.paymentDate > TODAY) run.paymentDate = TODAY
       run.takenOut = {}
       run.events = []
       for (const entry of takeOut) {

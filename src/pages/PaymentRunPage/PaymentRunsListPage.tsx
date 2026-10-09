@@ -12,7 +12,7 @@ import {
   type PaymentRunState,
 } from '../../api/expenditure/paymentRuns'
 import { formatDate } from '../../lib/format'
-import { FORMATS, RUN_STATES } from '../../lib/paymentRuns'
+import { RUN_STATES } from '../../lib/paymentRuns'
 import { can, useSession } from '../../lib/session/session'
 import { Amount, PRIMARY_BUTTON, RunStatePill } from './RunParts'
 import plusIcon from '../../assets/bill-capture/plus.svg'
@@ -21,7 +21,8 @@ import plusIcon from '../../assets/bill-capture/plus.svg'
  * Expenditure › Payments: every run, by state, and the way into a new one.
  *
  * The Payments frame (163:16960) draws the run itself; this list has no frame of its own and is
- * kept to the frames' shell: the page header, a card, the same pills and figures.
+ * kept to the frames' shell: the page header, a card, the same pills and figures. It has no bank
+ * format column: Fawtir makes no bank files (owner, 9 Oct 2026).
  */
 export function PaymentRunsListPage() {
   return (
@@ -108,9 +109,6 @@ function PaymentRunsList() {
                     {t('paymentsPage.paymentDate')}
                   </th>
                   <th className="px-3 py-3 text-start font-semibold">
-                    {t('paymentsPage.howToSend')}
-                  </th>
-                  <th className="px-3 py-3 text-start font-semibold">
                     {t('paymentsPage.runReference')}
                   </th>
                   <th className="px-6 py-3 text-end font-semibold">
@@ -142,16 +140,11 @@ function PaymentRunsList() {
                         ? formatDate(run.paymentDate, i18n.language)
                         : t('paymentRuns.noDate')}
                     </td>
-                    <td className="px-3 py-4 text-sm font-medium text-text-tertiary">
-                      {run.format
-                        ? t(FORMATS.find((entry) => entry.id === run.format)!.titleKey)
-                        : t('paymentRuns.noFormat')}
-                    </td>
                     <td className="px-3 py-4 text-sm font-medium text-text-secondary">
                       {run.runReference ?? t('paymentRuns.noReference')}
                     </td>
                     <td className="px-6 py-4 text-end">
-                      {/* A cancelled run sends nothing, whatever its bills added up to. */}
+                      {/* A cancelled run pays nothing, whatever its bills added up to. */}
                       {run.state === 'CANCELLED' ? (
                         <span className="text-sm font-medium text-text-quaternary">
                           {t('paymentRuns.nothingSent')}

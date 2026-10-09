@@ -48,8 +48,9 @@ export type PaymentRunItemDto = {
    */
   takenOut?: { at: string; actor: string | null; reason: string } | null
   /**
-   * On a sent (EXPORTED) run, why marking this bill paid would be refused now; the mark-paid
-   * dialog ticks it to be taken out. Null when it can be paid, absent from an older server.
+   * On a live run (DRAFT, SCHEDULED or EXPORTED; EXPORTED only on a server before #476), why
+   * marking this bill paid would be refused now; the mark-paid dialog ticks it to be taken out.
+   * Null when it can be paid, absent from an older server.
    */
   markPaidBlock?: { code: MarkPaidBlockCode; owedNow: number | null } | null
 }
@@ -58,6 +59,9 @@ export type MarkPaidBlockCode =
   | 'PAYMENT_RUN_AMOUNT_CHANGED'
   | 'PAYMENT_RUN_DEBIT_NOTE_REFUSED'
   | 'PAYMENT_RUN_BILL_SETTLED'
+  /** Backend #476: held after it joined (any live run), or rejected after it joined (before a file). */
+  | 'PAYMENT_RUN_BILL_ON_HOLD'
+  | 'PAYMENT_RUN_BILL_NOT_READY'
 
 export type PaymentRunActivityKind =
   | 'CREATED'
@@ -191,8 +195,9 @@ export function exportRun(id: string): Promise<ApiDownload> {
 export type TakeOut = { billId: string; reason: string }
 
 /**
- * `invoice.payment.manage`. EXPORTED -> PAID. With `takeOut`, the named bills are left unpaid and
- * the rest is marked paid; with none, no body is sent, as before.
+ * `invoice.payment.manage`. DRAFT, SCHEDULED or EXPORTED -> PAID (DRAFT and SCHEDULED since
+ * backend #476; no bank file is needed). With `takeOut`, the named bills are left unpaid and the
+ * rest is marked paid; with none, no body is sent, as before.
  */
 export function markRunPaid(id: string, takeOut: TakeOut[] = []): Promise<PaymentRunDto> {
   return apiRequest<PaymentRunDto>(`${runPath(id)}/mark-paid`, {
