@@ -946,7 +946,8 @@
       "monthlyPrice": "Monthly price {{rate}}",
       "vatRate": "VAT ({{rate}}%)",
       "vatUnknownRate": "VAT",
-      "addonOnTop": "Automatic ERP extraction ({{cycle}}), billed on top"
+      "addonOnTop": "Automatic ERP extraction ({{cycle}}), billed on top",
+      "monthsWithFree": "{{count}} months · {{free}} free"
     },
     "method": {
       "cardLink": {

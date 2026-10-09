@@ -969,7 +969,8 @@
       "monthlyPrice": "السعر الشهري {{rate}}",
       "vatRate": "ضريبة القيمة المضافة ({{rate}}%)",
       "vatUnknownRate": "ضريبة القيمة المضافة",
-      "addonOnTop": "الاستخراج التلقائي من ERP ({{cycle}})، يُضاف فوق المبلغ"
+      "addonOnTop": "الاستخراج التلقائي من ERP ({{cycle}})، يُضاف فوق المبلغ",
+      "monthsWithFree": "{{count}} شهرًا · {{free}} مجانًا"
     },
     "method": {
       "cardLink": {

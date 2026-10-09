@@ -552,6 +552,8 @@ describe("How you'll pay", () => {
     expect(text()).toContain('40.000')
     expect(text()).toContain(i18n.t('payment.summary.vatRate', { rate: '5' }))
     expect(text()).not.toContain('800.004')
+    // 80.000 a month beside an 800.000 year: the summary names the 2 free months, not a bare 12.
+    expect(text()).toContain(i18n.t('payment.summary.monthsWithFree', { count: 12, free: 2 }))
     expect(callsTo(STATUS_URL)).toEqual([
       { url: STATUS_URL, method: 'POST', body: { onboardingToken: 'so.token' } },
     ])

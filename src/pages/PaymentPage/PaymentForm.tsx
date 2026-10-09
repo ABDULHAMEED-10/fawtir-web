@@ -446,7 +446,12 @@ function OrderSummaryCard({
               {t('payment.summary.monthlyPrice', { rate: terms.monthlyPrice })}
             </span>
             <span className="font-semibold text-text-primary/60">
-              {t('payment.summary.months', { count: months })}
+              {freeMonths(terms.monthlyPrice, terms.annualPrice, months) > 0
+                ? t('payment.summary.monthsWithFree', {
+                    count: months,
+                    free: freeMonths(terms.monthlyPrice, terms.annualPrice, months),
+                  })
+                : t('payment.summary.months', { count: months })}
             </span>
           </div>
         ) : null}
@@ -490,4 +495,18 @@ function OrderSummaryCard({
       </p>
     </div>
   )
+}
+
+/**
+ * Months the year gives free, from the server's own prices: "Monthly price 80.000 · 12 months"
+ * beside an 800.000 year read as an arithmetic error (80 × 12 is 960). 0 when the prices do not
+ * divide into whole months, so nothing is claimed that the figures do not show.
+ */
+function freeMonths(monthlyPrice: string, annualPrice: string | null | undefined, months: number): number {
+  if (!annualPrice) return 0
+  const month = toBaisa(Number(monthlyPrice))
+  const year = toBaisa(Number(annualPrice))
+  if (month <= 0 || year % month !== 0) return 0
+  const free = months - year / month
+  return free > 0 && free < months ? free : 0
 }
