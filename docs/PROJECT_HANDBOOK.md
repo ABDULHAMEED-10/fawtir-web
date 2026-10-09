@@ -463,6 +463,9 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   the comparison rows and the questions come from `src/lib/plans.ts` and the sign-up plans screen
   (`PlanComparison.tsx` exports `GROUPS`, `COLUMNS`, `faqParams`). The Figma frame's own figures
   (49 / 89 / 149) are not used. "What counts" is documents sent and received, as the app meters.
+- **Catalogue and POS are future work** (owner, 9 Oct 2026), on web and mobile. Reviews do not
+  flag their screens (sample data, removed or simplified designed parts, codes or "OMR" text);
+  they are taken up as a whole when that work starts.
 - **Payment runs are for tracking only, no bank file** (owner, 9 Oct 2026): Fawtir does not
   produce bank payment files (no Bank Muscat CSV, no ISO 20022 PAIN.001), so nobody asks the banks
   for file specifications. The company pays its suppliers itself (bank app, internet banking or a
