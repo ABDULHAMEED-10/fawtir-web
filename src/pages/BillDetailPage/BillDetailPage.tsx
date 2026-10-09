@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { Modal, Rial, RialMark } from '../../components/ui'
+import { Modal, Rial, RialMark, withRial } from '../../components/ui'
 import { BillStatusChip } from '../../components/bills'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
@@ -611,9 +611,12 @@ function BillScreen() {
                       ) : null}
                     </p>
                     <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
-                      {[event.detail, event.at ? formatInstant(event.at, language) : null]
-                        .filter(Boolean)
-                        .join(' · ')}
+                      {/* The server writes amounts as "79.800 OMR"; shown with the rial sign. */}
+                      {withRial(
+                        [event.detail, event.at ? formatInstant(event.at, language) : null]
+                          .filter(Boolean)
+                          .join(' · '),
+                      )}
                     </p>
                   </div>
                 </li>
