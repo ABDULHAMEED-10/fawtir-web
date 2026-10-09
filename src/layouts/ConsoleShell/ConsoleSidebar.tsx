@@ -8,7 +8,7 @@ import { CloseIcon } from '../../components/ui/icons'
 import { useDrawer } from '../../hooks/useDrawer'
 import { CONSOLE_NAV } from '../../lib/consoleNav'
 import { ACCOUNT_EMAIL_CONFIRM_ROUTE } from '../../lib/identity/accountEmail'
-import avatar from '../../assets/dashboard/avatar.png'
+import { initialsOf } from '../../lib/format'
 
 // Console only: confirming an email change is for Fawtir operators, and the console's user menu
 // is the one every signed-in operator sees, role or no role (P8).
@@ -119,7 +119,7 @@ export function ConsoleSidebar({ open = false, onClose = () => {}, userName }: C
 
         {/* No role title: the backend's role names are English-only, and ranking an operator's
             several roles into one title would be a claim of our own. */}
-        <UserMenu name={userName} roleKey="console.user.team" avatar={avatar} extraItems={CONSOLE_USER_ITEMS} />
+        <UserMenu name={userName} roleKey="console.user.team" initials={initialsOf(userName) || null} extraItems={CONSOLE_USER_ITEMS} />
       </div>
     </aside>
   )

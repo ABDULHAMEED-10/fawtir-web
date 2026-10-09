@@ -501,14 +501,13 @@ describe('the timeline (N)', () => {
 })
 
 describe('needs attention', () => {
-  it('points to the exhausted managed pull documents, without a second recovery flow', async () => {
+  it('lists exhausted documents under their own label, and keeps recovery on the document', async () => {
     renderAt('/settings/erp/attention')
-    const link = await screen.findByRole('link', {
-      name: 'Show those documents',
-    })
-    expect(link.getAttribute('href')).toBe(
-      '/settings/erp/documents?channel=MANAGED_PULL&state=REJECTED&reason=ATTEMPTS_EXHAUSTED',
-    )
+    // The server labels an exhausted document ATTEMPTS_EXHAUSTED (pre-Phase-13 remediation), so the
+    // page offers the label itself rather than a link to a narrowed Documents list.
+    fireEvent.click(await screen.findByRole('button', { name: 'Label' }))
+    expect(await screen.findByRole('option', { name: /^Every attempt was used/ })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Show those documents' })).toBeNull()
     expect(screen.queryByRole('button', { name: /recover/i })).toBeNull()
   })
 })
@@ -534,6 +533,7 @@ describe('Arabic', () => {
       ...keys(locale.erp.access.capability, 'capability'),
     ]
     expect(pick(ar as unknown as typeof en).sort()).toEqual(pick(en).sort())
-    expect(Object.keys(en.erp.reporting.operatorRecovery)).toHaveLength(13)
+    // One word per ManagedPullRecoveryOutcome on the server, PLATFORM_UNAVAILABLE included.
+    expect(Object.keys(en.erp.reporting.operatorRecovery)).toHaveLength(14)
   })
 })

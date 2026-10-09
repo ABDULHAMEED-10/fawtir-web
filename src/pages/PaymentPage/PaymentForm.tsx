@@ -45,7 +45,8 @@ export function PaymentForm() {
   const plan: PlanId = state.plan ?? 'premium'
   const billing: BillingCycle = state.billing ?? 'annual'
   const trialDays = trialDaysFor(plan)
-  // Automatic ERP extraction: offered as a priced add-on only where the console says so.
+  // Automatic ERP extraction: offered as a priced add-on only where the console says so (handbook
+  // section 6). TODO(backend): the tick is carried to review but not saved yet, ONBOARDING.md row 1.3.
   const offer = extractionOffer(plan)
   const [addon, setAddon] = useState(Boolean(state.addon))
   const summary = useMemo(

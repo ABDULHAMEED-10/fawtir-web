@@ -19,7 +19,7 @@ API does not provide yet, and what to add.
 - **Finding it in the code.** Every gap is a `// TODO(backend)` comment naming its row. Search for
   `TODO(backend)` in `src/pages/SettingsPage/CompanyProfilePage.tsx`.
 
-**Screens in this guide:** Settings › Company profile.
+**Screens in this guide:** Settings › Company profile, Activity log, Branches, Peppol and tax.
 
 ---
 
@@ -66,3 +66,20 @@ the page the server answered, and says so.
 | # | Element on the screen | What the backend needs to add |
 |---|---|---|
 | 3.1 | A closed branch's note: "Closed, not deleted. Its **612 invoices** stay reachable…" | The branch's all-time invoice count on each overview row (`invoicesTotal`). Until then the note leaves the number out: the row's `invoicesThisMonth` is 0 for a closed branch, and it used to print "Its 0 invoices" |
+| 3.2 | Add branch: "Opens" (the opening date) under "Where it is". Drawn, cannot be set; reads "Not available yet" | An `openedOn` date (`yyyy-mm-dd`, today or later) on `BranchAttributes` for `POST`/`PUT /v1/branches`, returned on the overview. The design also shows it in the footer sentence ("…opens on {date}") once it exists |
+| 3.3 | Add branch: "Who works there", the people working at the branch with their role and a tick each. Drawn with "Not available yet"; "Invite someone new" still works for those who may invite | A way to list and assign the people who work at a branch from the branch itself: the tenant's users with their role and current branch (or branches), and an assignment saved with the branch. Today a person's branch is set only on their own profile |
+
+## 4. Peppol and tax (`GET /v1/peppol/smp/data-submissions/standing`, `GET /v1/peppol/smp/participants`)
+
+The page states three separate facts and never calls the company "live": Fawtir's own verification
+of the Participant ID (from the standing), publication in the Oman SMP (only a registration whose
+`remoteState` is `CONFIRMED_ACTIVE`), and SML discoverability. The certificates and the
+visibility switches the frame drew are kept, without the sample values: each reads "Not available
+yet" until the server answers it (rows 4.3 and 4.4). Fawtir manages the access-point certificates.
+
+| # | Element on the screen | What the backend needs to add |
+|---|---|---|
+| 4.1 | "SML discoverability": always "Not checked by Fawtir" | A read that says whether the company's Participant ID resolves through the SML to the Oman SMP, with when it was last checked. Until then the row never claims it can be found |
+| 4.2 | "Oman SMP publication" | `participantReference` is masked, so the screen cannot tell which registration belongs to the verified ID; it says "Published" if any registration is `CONFIRMED_ACTIVE`. An unmasked reference for the tenant's own registrations, or a per-standing publication flag, would let it match exactly |
+| 4.3 | "Certificates": signing certificate, AS4 transport certificate and OTA reporting credentials, each named with its note and "Not available yet" where the frame shows the issuer and the days left | A read of each certificate that applies to the company: what it is, who issued it, when it expires, and whether it renews itself. The design's renewal steps ("Ask Oman CA for a new one", "Upload it here") come back once that read exists, for any certificate the company itself holds |
+| 4.4 | "How you appear to others": Listed in the Peppol directory, Accept bills sent to you over Peppol, Accept self-billing, Send a copy by email as well. Drawn at their usual settings, cannot be switched; the card reads "Not available yet" | Each as a company setting that can be read and saved (for example `GET`/`PUT /v1/peppol/visibility`), with the directory listing published to the Peppol Directory and "accept bills" reflected in the SMP registration |

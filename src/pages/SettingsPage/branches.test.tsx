@@ -34,6 +34,8 @@ let overview: {
   branches: unknown[]
 }
 let fetchMock: ReturnType<typeof vi.fn>
+/** Per-test answers for the side cards' reads (company profile, standing, plan), by URL. */
+let reads: Record<string, () => Response>
 
 const EMPTY_OVERVIEW = {
   openCount: 0,
@@ -70,11 +72,13 @@ beforeEach(async () => {
   await i18n.changeLanguage('en')
   resetSharedRequests()
   overview = EMPTY_OVERVIEW
+  reads = {}
   forgetEntitlements()
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, ADMIN)
     if (url === OVERVIEW_PATH && method === 'GET') return json(200, overview)
+    if (method === 'GET' && reads[url]) return reads[url]()
     if (url === '/api/v1/branches/b-1' && method === 'GET') {
       return json(200, {
         id: 'b-1',
@@ -128,8 +132,9 @@ beforeEach(async () => {
   vi.stubGlobal('fetch', fetchMock)
 })
 
-afterEach(() => {
+afterEach(async () => {
   vi.unstubAllGlobals()
+  await i18n.changeLanguage('en')
 })
 
 const calls = (method: string, path: string) =>
@@ -164,6 +169,33 @@ describe('Settings › Branches, from the real overview', () => {
   })
 })
 
+describe('Settings › Branches, plan allowance', () => {
+  it('shows the plan’s real allowance, and says so when it cannot be read', async () => {
+    overview = ONE_BRANCH_OVERVIEW
+    reads = {
+      '/api/v1/settings/plan': () =>
+        json(200, { plan: { name: 'Growth', branchesIncluded: 3 }, activeBranches: 1, usage: {} }),
+    }
+    const first = render(
+      <MemoryRouter>
+        <BranchesPage />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText(i18n.t('branches.kpi.includedFromPlan', { plan: 'Growth' }))).toBeTruthy()
+    expect(screen.queryByText(/sixth/)).toBeNull()
+    first.unmount()
+
+    resetSharedRequests()
+    reads = { '/api/v1/settings/plan': () => json(403, { type: 'https://api.fawtir.om/problems/insufficient-permission' }) }
+    render(
+      <MemoryRouter>
+        <BranchesPage />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText(i18n.t('branches.kpi.includedUnavailable'))).toBeTruthy()
+  })
+})
+
 describe('Add a branch, for real', () => {
   it('creates the branch and makes it head office, since it is the tenant’s first', async () => {
     render(
@@ -176,14 +208,156 @@ describe('Add a branch, for real', () => {
     const nameInput = await screen.findByLabelText(/Branch name/)
     fireEvent.change(nameInput, { target: { value: 'Sur' } })
     fireEvent.change(screen.getByLabelText(/Town or city/), { target: { value: 'Sur' } })
+    fireEvent.change(screen.getByLabelText(/Prefix/), { target: { value: 'sr' } })
     fireEvent.click(screen.getByRole('button', { name: /Add the branch/ }))
 
     await waitFor(() => expect(calls('POST', '/api/v1/branches')).toHaveLength(1))
     const body = JSON.parse(calls('POST', '/api/v1/branches')[0][1].body as string)
-    expect(body).toMatchObject({ code: 'SU', name: 'Sur', type: 'STORE', city: 'Sur' })
+    expect(body).toMatchObject({ code: 'SU', name: 'Sur', type: 'STORE', city: 'Sur', state: null })
     await waitFor(() =>
       expect(calls('POST', '/api/v1/branches/b-2/head-office')).toHaveLength(1),
     )
+    expect(JSON.parse(calls('PUT', '/api/v1/branches/b-2/invoice-prefix')[0][1].body as string)).toMatchObject({
+      prefix: 'SR',
+    })
+  })
+
+  it('opens a new branch empty: no sample town, postcode, governorate, prefix, date or roster', async () => {
+    render(
+      <MemoryRouter initialEntries={['/settings/branches/new']}>
+        <Routes>
+          <Route path="/settings/branches/new" element={<AddBranchPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    const nameInput = (await screen.findByLabelText(/Branch name/)) as HTMLInputElement
+    expect(nameInput.value).toBe('')
+    expect((screen.getByLabelText(/Town or city/) as HTMLInputElement).value).toBe('')
+    expect((screen.getByLabelText(/Postal code/) as HTMLInputElement).value).toBe('')
+    expect((screen.getByLabelText(/Prefix/) as HTMLInputElement).value).toBe('')
+    expect(screen.getByText(i18n.t('addBranch.chooseGovernorate'))).toBeTruthy()
+    const text = document.body.textContent ?? ''
+    for (const sample of ['Sur', 'صور', '411', 'Ash Sharqiyah South', 'SR-INV', '1 October 2026', 'INV-2048'])
+      expect(text).not.toContain(sample)
+    for (const leak of ['Al Bahja', 'OM1100234567', 'Hafidh', 'Salim']) expect(text).not.toContain(leak)
+    // The designed opening date and roster are drawn but hold nothing until the backend has them.
+    expect(screen.getByText('Who works there')).toBeTruthy()
+    expect((screen.getByLabelText(i18n.t('addBranch.opens')) as HTMLInputElement).disabled).toBe(true)
+    expect(screen.queryByText(/prefix is free/)).toBeNull()
+    expect((screen.getByRole('button', { name: /Add the branch/ }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('picks a code no existing branch holds', async () => {
+    overview = ONE_BRANCH_OVERVIEW
+    render(
+      <MemoryRouter initialEntries={['/settings/branches/new']}>
+        <Routes>
+          <Route path="/settings/branches/new" element={<AddBranchPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByLabelText(/Branch name/)
+    await waitFor(() => expect(calls('GET', OVERVIEW_PATH).length).toBeGreaterThan(0))
+    fireEvent.change(screen.getByLabelText(/Branch name/), { target: { value: 'Nizwa Souq' } })
+    fireEvent.change(screen.getByLabelText(/Town or city/), { target: { value: 'Nizwa' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Numbering' }))
+    fireEvent.click(await screen.findByRole('option', { name: /Carry on the company series/ }))
+    await screen.findByText(i18n.t('addBranch.continuesCompanySeries'))
+    fireEvent.click(screen.getByRole('button', { name: /Add the branch/ }))
+
+    await waitFor(() => expect(calls('POST', '/api/v1/branches')).toHaveLength(1))
+    expect(JSON.parse(calls('POST', '/api/v1/branches')[0][1].body as string).code).toBe('NI')
+    // Not the tenant's first branch, so the head office stays where it is.
+    expect(calls('POST', '/api/v1/branches/b-2/head-office')).toHaveLength(0)
+  })
+
+  it('does not move the head office when the overview could not be read', async () => {
+    const original = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === OVERVIEW_PATH ? json(503, { type: 'about:blank' }) : original(url, init),
+    )
+    render(
+      <MemoryRouter initialEntries={['/settings/branches/new']}>
+        <Routes>
+          <Route path="/settings/branches/new" element={<AddBranchPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    fireEvent.change(await screen.findByLabelText(/Branch name/), { target: { value: 'Sur' } })
+    fireEvent.change(screen.getByLabelText(/Town or city/), { target: { value: 'Sur' } })
+    fireEvent.change(screen.getByLabelText(/Prefix/), { target: { value: 'SR' } })
+    fireEvent.click(screen.getByRole('button', { name: /Add the branch/ }))
+
+    await waitFor(() => expect(calls('PUT', '/api/v1/branches/b-2/invoice-prefix')).toHaveLength(1))
+    expect(calls('POST', '/api/v1/branches/b-2/head-office')).toHaveLength(0)
+  })
+
+  it('shows what it inherits from the real company and the verified ID, and the real plan allowance', async () => {
+    reads = {
+      '/api/v1/company-profile': () =>
+        json(200, { legalName: 'Real Tenant LLC', taxNumber: 'OM1199999999' }),
+      '/api/v1/peppol/smp/data-submissions/standing': () =>
+        json(200, {
+          state: 'VERIFIED',
+          verification: { participantScheme: '0248', participantValue: 'OM1199999999' },
+        }),
+      '/api/v1/settings/plan': () =>
+        json(200, { plan: { branchesIncluded: 2 }, activeBranches: 2, usage: {} }),
+    }
+    render(
+      <MemoryRouter initialEntries={['/settings/branches/new']}>
+        <Routes>
+          <Route path="/settings/branches/new" element={<AddBranchPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('Real Tenant LLC')).toBeTruthy()
+    expect(screen.getByText('OM1199999999')).toBeTruthy()
+    expect(screen.getByText('0248:OM1199999999')).toBeTruthy()
+    expect(await screen.findByText('3 of 2')).toBeTruthy()
+    expect(screen.getByText(i18n.t('addBranch.beyondPlan'))).toBeTruthy()
+  })
+
+  it('leaves out what it cannot read: no VAT, no ID, no plan card', async () => {
+    const forbidden = () => json(403, { type: 'https://api.fawtir.om/problems/insufficient-permission' })
+    reads = {
+      '/api/v1/company-profile': forbidden,
+      '/api/v1/peppol/smp/data-submissions/standing': () =>
+        json(200, {
+          state: 'AWAITING_REVIEW',
+          verification: { participantScheme: '0248', participantValue: 'OM1199999999' },
+        }),
+      '/api/v1/settings/plan': forbidden,
+    }
+    render(
+      <MemoryRouter initialEntries={['/settings/branches/new']}>
+        <Routes>
+          <Route path="/settings/branches/new" element={<AddBranchPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByText(i18n.t('addBranch.inherits'))
+    await waitFor(() => expect(calls('GET', '/api/v1/settings/plan').length).toBeGreaterThan(0))
+    expect(screen.queryByText(i18n.t('addBranch.inherit.vat'))).toBeNull()
+    expect(screen.queryByText(i18n.t('addBranch.inherit.peppol'))).toBeNull()
+    expect(screen.queryByText('0248:OM1199999999')).toBeNull()
+    expect(screen.queryByText(i18n.t('addBranch.cost'))).toBeNull()
+  })
+
+  it('reads in Arabic with the same empty form', async () => {
+    await i18n.changeLanguage('ar')
+    render(
+      <div dir="rtl">
+        <MemoryRouter initialEntries={['/settings/branches/new']}>
+          <Routes>
+            <Route path="/settings/branches/new" element={<AddBranchPage />} />
+          </Routes>
+        </MemoryRouter>
+      </div>,
+    )
+    expect(await screen.findByText(i18n.t('addBranch.chooseGovernorate'))).toBeTruthy()
+    expect(i18n.t('addBranch.chooseGovernorate')).not.toBe('Choose a governorate')
+    expect(document.body.textContent).not.toContain('صور')
   })
 
   it('reopens an existing branch filled with its real data, not a mock one', async () => {

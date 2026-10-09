@@ -1,9 +1,5 @@
 import type { ComponentType } from 'react'
 import type { Feature } from './plans'
-import { ATTENTION_COUNT } from './activity'
-import salesIcon from '../assets/dashboard/kpi-sales.svg'
-import receivablesIcon from '../assets/dashboard/kpi-receivables.svg'
-import payablesIcon from '../assets/dashboard/kpi-payables.svg'
 import {
   NavCatalogIcon,
   NavStockIcon,
@@ -98,7 +94,6 @@ export const DASHBOARD_NAV: NavGroup[] = [
         labelKey: 'dashboard.nav.income',
         Icon: NavInvoicesIcon,
         to: '/invoices',
-        badge: 3,
         requires: 'invoice.read',
         children: [
           { id: 'invoice', labelKey: 'dashboard.nav.incomeChildren.invoice', to: '/invoices' },
@@ -293,7 +288,6 @@ export const DASHBOARD_NAV: NavGroup[] = [
         labelKey: 'dashboard.nav.tddOta',
         Icon: NavTddIcon,
         to: '/compliance/activity',
-        badge: ATTENTION_COUNT,
       },
       {
         id: 'documents',
@@ -311,135 +305,3 @@ export const SETTINGS_NAV: NavItem = {
   Icon: NavSettingsIcon,
   to: '/settings',
 }
-
-export const ACCOUNT = {
-  name: 'Al Bahja Coffee',
-  planKey: 'dashboard.account.premiumPlan',
-}
-
-export type InvoiceStatus = 'reported' | 'rejected' | 'sent' | 'draft'
-
-export type RecentInvoice = {
-  id: string
-  customer: string
-  meta: string
-  status: InvoiceStatus
-  amount: string
-}
-
-export const RECENT_INVOICES: RecentInvoice[] = [
-  {
-    id: 'INV-2043',
-    customer: 'Muscat Grand Hotel',
-    meta: 'B2B · 18 Jul',
-    status: 'reported',
-    amount: '1,860',
-  },
-  {
-    id: 'INV-2042',
-    customer: 'Walk in Customer',
-    meta: 'B2C · 18 Jul',
-    status: 'reported',
-    amount: '24',
-  },
-  {
-    id: 'INV-2041',
-    customer: 'Al Noor Trading LLC',
-    meta: 'B2B · 17 Jul',
-    status: 'rejected',
-    amount: '540',
-  },
-  {
-    id: 'INV-2040',
-    customer: 'Bahwan Group',
-    meta: 'B2B · 17 Jul',
-    status: 'sent',
-    amount: '3,120',
-  },
-  {
-    id: 'INV-2039',
-    customer: 'Salalah Resort',
-    meta: 'B2B · 16 Jul',
-    status: 'draft',
-    amount: '890',
-  },
-]
-
-export type RevenueBar = {
-  day: string
-  value: number
-  active?: boolean
-  tooltip?: { amount: string; date: string }
-}
-
-export const REVENUE_BARS: RevenueBar[] = [
-  { day: 'Mon', value: 62 },
-  { day: 'Tue', value: 72 },
-  { day: 'Wed', value: 72 },
-  {
-    day: 'Thu',
-    value: 100,
-    active: true,
-    tooltip: { amount: '2,845', date: 'Thu, 12 Jul' },
-  },
-  { day: 'Fri', value: 72 },
-  { day: 'Sat', value: 72 },
-  { day: 'Sun', value: 72 },
-]
-
-export const KPI = {
-  sales: {
-    titleKey: 'dashboard.kpi.sales',
-    icon: salesIcon,
-    amount: '1,240',
-    trend: '20%',
-    trendLabelKey: 'dashboard.kpi.vsYesterday',
-  },
-  receivables: {
-    titleKey: 'dashboard.kpi.receivables',
-    icon: receivablesIcon,
-    amount: '14,320',
-    badgeKey: 'dashboard.kpi.open',
-    badgeValue: '12',
-    metaKey: 'dashboard.kpi.overdue',
-    metaValue: '3',
-  },
-  payables: {
-    titleKey: 'dashboard.kpi.payables',
-    icon: payablesIcon,
-    amount: '6,780',
-    badgeKey: 'dashboard.kpi.dueSoon',
-    badgeValue: '2',
-    metaKey: 'dashboard.kpi.suppliers',
-    metaValue: '5',
-    warning: true,
-  },
-}
-
-export const COMPLIANCE = {
-  accepted: '98.7%',
-  reported: 340,
-  mls: '99.1%',
-  rejected: 2,
-  alertCount: 2,
-}
-
-export const QUOTA = {
-  used: 342,
-  total: 1000,
-  percent: 34,
-  resetLabelKey: 'dashboard.quota.reset',
-}
-
-export const VAT = {
-  net: '1,180',
-  output: '2,360',
-  input: '1,180',
-}
-
-export const REVENUE = {
-  total: '28,450',
-  yTicks: ['OMR 3,000', 'OMR 2,000', 'OMR 1,000', 'OMR 0'],
-}
-
-export type PeriodOption = 'day' | 'week' | 'month'

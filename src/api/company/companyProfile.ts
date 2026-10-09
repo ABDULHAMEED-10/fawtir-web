@@ -100,3 +100,15 @@ export function amendCompanyProfile(command: AmendCompanyProfileCommand): Promis
     body: command,
   })
 }
+
+/**
+ * `GET /v1/company-profile/changes` (permission `admin.settings.manage`): the latest change per
+ * field. `changedBy` is a user id with no name beside it.
+ */
+export const COMPANY_PROFILE_CHANGES_PATH = '/v1/company-profile/changes'
+
+export type CompanyProfileChangeDto = { field: string; changedBy: string; changedAt: string }
+
+export function loadCompanyProfileChanges(): Promise<CompanyProfileChangeDto[]> {
+  return apiRequest<CompanyProfileChangeDto[]>(COMPANY_PROFILE_CHANGES_PATH)
+}

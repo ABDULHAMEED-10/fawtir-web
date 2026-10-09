@@ -645,6 +645,16 @@ describe('needs attention', () => {
     expect(reportCalls().length).toBe(before)
   })
 
+  it('asks the server for exhausted documents by their own label', async () => {
+    renderAt('/settings/erp/attention')
+    await screen.findByText('Nothing needs attention in this period.')
+    fireEvent.click(await screen.findByRole('button', { name: 'Label' }))
+    fireEvent.click(await screen.findByRole('option', { name: /^Every attempt was used/ }))
+    await waitFor(() => {
+      expect(query(reportCalls().at(-1)!.url).get('label')).toBe('ATTEMPTS_EXHAUSTED')
+    })
+  })
+
   it('sends the label as the server names it, within a required window', async () => {
     renderAt('/settings/erp/attention')
     await screen.findByText('Nothing needs attention in this period.')

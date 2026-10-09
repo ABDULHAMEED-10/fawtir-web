@@ -13,4 +13,12 @@ export const ERP_RESOURCE_TYPES = [
   'ERP_ENTITLEMENT',
 ] as const
 
+/**
+ * The kinds the ERP-scoped log answers (`ErpAuditScope` on the server). `API_KEY` is not one:
+ * key events cover general keys too, so they stay in the organisation's full log.
+ */
+export const ERP_HISTORY_RESOURCE_TYPES = ERP_RESOURCE_TYPES.filter(
+  (kind) => kind !== 'API_KEY',
+)
+
 export const ACTIVITY_RESOURCE_TYPES = ['USER', 'SESSION', 'DEVICE', ...ERP_RESOURCE_TYPES] as const

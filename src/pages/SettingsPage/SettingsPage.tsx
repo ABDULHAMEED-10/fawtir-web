@@ -4,22 +4,13 @@ import { useTranslation } from 'react-i18next'
 import { SettingsShell } from './SettingsShell'
 import { withRial } from '../../components/ui'
 import {
-  shortMonth,
   SETTINGS_TABS,
   BOOK,
   usageForecast,
   longDate,
-  COMPANY,
   type SettingsTab,
 } from '../../lib/settings'
-import {
-  OPEN_BRANCHES,
-  CERT_EXPIRES,
-  CERT_DAYS_LEFT,
-  certificateState,
-  SIGNING_CERTIFICATE,
-} from '../../lib/settingsCompany'
-import { MEMBERS, withoutTwoStep, ROLES, SEATS } from '../../lib/settingsPeople'
+import { withoutTwoStep, ROLES } from '../../lib/settingsPeople'
 import { nextBill, HOW_YOU_PAY } from '../../lib/settingsBilling'
 import { LAST_EXPORT_ON } from '../../lib/settingsRecords'
 import chevronIcon from '../../assets/invoices/chevron.svg'
@@ -54,6 +45,11 @@ import { isPermissionDenied } from '../../lib/apiFailure'
 import { useFeature } from '../../lib/planAccess'
 import type { Feature } from '../../lib/plans'
 import { LockIcon } from '../../components/ui/icons'
+import {
+  PARTICIPANT_STANDING_PATH,
+  type ParticipantIdStanding,
+} from '../../api/peppol/participantStanding'
+import { BRANCHES_OVERVIEW_PATH, type BranchOverviewDto } from '../../api/settings/branches'
 
 type Tone = 'danger' | 'success' | 'neutral' | 'pending'
 
@@ -63,9 +59,8 @@ type Card = {
   icon: string
   iconTint: string
   to: string
-  /** A card can lead with a bar (how much of something is spent) or a row of faces. */
+  /** A card can lead with a bar: how much of something is spent. */
   bar?: { spent: number; tone: Tone }
-  faces?: string[]
   /** The wide card carries its figure at full size. */
   figure?: { value: string; unitKey: string; values?: Record<string, string | number | undefined> }
   pillKey: string
@@ -170,6 +165,21 @@ export function SettingsPage() {
     listErpConnections(false).then((page) => page.total),
   )
   const connections = connectionCount.read.status === 'ready' ? connectionCount.read.data : null
+  // The Peppol and Branches cards used to print another company's Participant ID, a certificate
+  // expiry and branch names from fixtures. They now read the same keys their pages read, and say
+  // nothing beyond what those reads answer.
+  const standingRead = useApiRead<ParticipantIdStanding>(PARTICIPANT_STANDING_PATH).read
+  const standing = standingRead.status === 'ready' ? standingRead.data : null
+  const standingFailed = standingRead.status === 'failed'
+  const overviewRead = useApiRead<BranchOverviewDto>(BRANCHES_OVERVIEW_PATH).read
+  const overviewFailed = overviewRead.status === 'failed'
+  const openBranches = useMemo(
+    () =>
+      overviewRead.status === 'ready'
+        ? overviewRead.data.branches.filter((branch) => branch.active && !branch.closedOn)
+        : null,
+    [overviewRead],
+  )
 
   const cards = useMemo<Card[]>(
     () => [
@@ -177,17 +187,27 @@ export function SettingsPage() {
         id: 'peppol',
         group: 'company',
         icon: peppolIcon,
-        iconTint: CERT_DAYS_LEFT <= 14 ? 'bg-danger-100' : 'bg-primary-50',
+        iconTint: standing?.state === 'VERIFIED' ? 'bg-success-100' : 'bg-primary-50',
         to: '/settings/peppol',
-        bar: {
-          spent: certificateState(SIGNING_CERTIFICATE).spent,
-          tone: CERT_DAYS_LEFT <= 14 ? 'danger' : 'pending',
+        pillKey:
+          standing !== null
+            ? standing.state === 'VERIFIED'
+              ? 'settings.card.peppolPillVerified'
+              : 'settings.card.peppolPillNotVerified'
+            : standingFailed
+              ? 'settings.card.pillNotAvailable'
+              : 'settings.card.pillChecking',
+        pillTone:
+          standing === null ? 'neutral' : standing.state === 'VERIFIED' ? 'success' : 'pending',
+        footKey:
+          standing?.state === 'VERIFIED' && standing.verification
+            ? 'settings.card.peppolFoot'
+            : undefined,
+        footValues: {
+          id: standing?.verification
+            ? `${standing.verification.participantScheme}:${standing.verification.participantValue}`
+            : '',
         },
-        pillKey: 'settings.card.peppolPill',
-        pillValues: { date: shortMonth(CERT_EXPIRES) },
-        pillTone: 'danger',
-        footKey: 'settings.card.peppolFoot',
-        footValues: { id: COMPANY.peppolId },
       },
       {
         id: 'company',
@@ -205,11 +225,16 @@ export function SettingsPage() {
         icon: branchesIcon,
         iconTint: 'bg-primary-50',
         to: '/settings/branches',
-        pillKey: 'settings.card.branchesPill',
-        pillValues: { count: OPEN_BRANCHES.length },
+        pillKey:
+          openBranches !== null
+            ? 'settings.card.branchesPill'
+            : overviewFailed
+              ? 'settings.card.pillNotAvailable'
+              : 'settings.card.pillChecking',
+        pillValues: { count: openBranches?.length ?? 0 },
         pillTone: 'neutral',
-        footKey: 'settings.card.branchesFoot',
-        footValues: { names: OPEN_BRANCHES.map((branch) => branch.name).join(' · ') },
+        footKey: openBranches && openBranches.length > 0 ? 'settings.card.branchesFoot' : undefined,
+        footValues: { names: openBranches?.map((branch) => branch.name).join(' · ') ?? '' },
       },
       {
         id: 'team',
@@ -217,12 +242,9 @@ export function SettingsPage() {
         icon: teamIcon,
         iconTint: 'bg-primary-50',
         to: '/settings/team',
-        faces: MEMBERS.slice(0, 4).map((member) => member.initials),
-        pillKey: 'settings.card.teamPill',
-        pillValues: { used: MEMBERS.length, seats: SEATS.included },
+        // The faces, seat count and seat price were sample people and a sample price list.
+        pillKey: 'settings.card.teamPillOpen',
         pillTone: 'neutral',
-        footKey: 'settings.card.teamFoot',
-        footValues: { amount: SEATS.extraMonthly.toFixed(3) },
       },
       {
         id: 'roles',
@@ -432,7 +454,19 @@ export function SettingsPage() {
         footKey: 'settings.card.closingFoot',
       },
     ],
-    [forecast, bill, t, mapping, mappingStatus, mappingWait, connections],
+    [
+      forecast,
+      bill,
+      t,
+      mapping,
+      mappingStatus,
+      mappingWait,
+      connections,
+      standing,
+      standingFailed,
+      openBranches,
+      overviewFailed,
+    ],
   )
 
   const groups = SETTINGS_TABS.filter((tab) => tab.id !== 'all').filter(
@@ -540,25 +574,7 @@ function HubCard({ card }: { card: Card }) {
         </span>
       ) : null}
 
-      {card.faces ? (
-        <span className="mt-4 flex items-center gap-1">
-          {card.faces.map((initials) => (
-            <span
-              key={initials}
-              className="flex size-7 items-center justify-center rounded-full bg-primary-50 text-[10px] font-semibold text-primary-800"
-            >
-              {initials}
-            </span>
-          ))}
-          {MEMBERS.length > card.faces.length ? (
-            <span className="flex size-7 items-center justify-center rounded-full bg-surface-background text-[10px] font-semibold text-text-tertiary">
-              +{MEMBERS.length - card.faces.length}
-            </span>
-          ) : null}
-        </span>
-      ) : null}
-
-      {!card.faces && !card.figure ? (
+      {!card.figure ? (
         <p
           className={[
             'mt-3 text-sm font-medium leading-[1.5]',

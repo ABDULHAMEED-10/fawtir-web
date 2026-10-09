@@ -19,8 +19,10 @@ import { CONSOLE_PAGE, ConsolePageHeader } from '../../../layouts/ConsoleShell/c
  * Step 10 (`ConnectionFeatureUnavailable`), and this is that decision applied to the console.
  *
  * The routes stay reachable so an operator's bookmark does not 404, but they are off the console
- * nav. The fixture itself is kept: the ERP templates, add-on requests, audit and queue screens
- * still read it, and they are a separate question from this one.
+ * nav. The retired templates and add-on requests screens answer here too: their approvals only
+ * changed the fixture. A tenant's ERP access is changed on that tenant's page, against the real
+ * entitlement API, so this notice sends the operator there. The fixture is still read by the
+ * console audit and queue screens, which are a separate question.
  */
 export function ConsoleErpUnavailable() {
   const { t } = useTranslation()
@@ -42,7 +44,7 @@ export function ConsoleErpUnavailable() {
         <ConsoleNotice
           badge={t('console.erp.unavailable.badge')}
           body={t('console.erp.unavailable.body')}
-          action={{ to: '/console', label: t('console.erp.unavailable.action') }}
+          action={{ to: '/console/tenants', label: t('console.erp.unavailable.action') }}
         />
       </div>
     </ConsoleShell>
