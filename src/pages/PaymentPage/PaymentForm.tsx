@@ -220,8 +220,9 @@ export function PaymentForm() {
 }
 
 /**
- * The add-on offer beside the order: one tick adds automatic ERP extraction to the first invoice
- * and the request reaches the console with the subscription, so the operator activates both.
+ * The add-on offer beside the order (handbook section 6). The tick is a request: it is not saved
+ * yet (TODO(backend), ONBOARDING.md row 1.3) and the Fawtir team confirms it, so the words say
+ * "requested" and promise nothing the product does not do, such as writing back to the ERP.
  */
 function AddonOffer({
   checked,
