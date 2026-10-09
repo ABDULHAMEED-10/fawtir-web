@@ -83,7 +83,8 @@ backend that predates the route.
 
 | # | Element on the screen | What the backend needs to add |
 |---|---|---|
-| 2.1 | "Today's sales" with "20% vs yesterday" (Figma) | No tile carries a day's sales or a day-on-day change. The card shows "Cash received this month" from the `cash` tile instead, against the same days last month |
+| 2.1 | "Today's sales" with "20% vs yesterday" (Figma). Drawn with "Not available yet"; the cash received this month is shown beneath it from the `cash` tile | A `todaySales` tile: the day's invoiced total in OMR (business time zone) and the same figure for yesterday, so the card can show the change |
 | 2.2 | Payables card | Not a dashboard tile; read from `GET /v1/bills/summary` (`invoice.read`). A `payables` tile would let the dashboard be one call and branch-filtered with the rest |
-| 2.3 | The revenue chart's day / week / month switch | `volumeTrend` answers months only. The switch is gone; the chart shows the last twelve months |
-| 2.4 | The topbar search | Each list is asked separately (`/authored-invoices?q=`, `/customers?search=`, `/suppliers?q=`). Documents and the catalogue are not searched. A single `GET /v1/search?q=` would let one request answer all of them |
+| 2.3 | The revenue chart's day / week / month switch. Month shows the last twelve months from `volumeTrend`; Day and Week read "Not available yet" | Daily (last 7 or 30 days) and weekly (last 12 weeks) buckets on `volumeTrend`, for example a `granularity=DAY|WEEK|MONTH` parameter |
+| 2.4 | The topbar search: invoices, customers, suppliers, documents and catalogue, a few of each | Each list is asked separately (`/authored-invoices?q=`, `/customers?search=`, `/suppliers?q=`, `/compliance/documents?invoice_number=`, `/products?q=`). The document archive matches the number only, not the other party's name. A single `GET /v1/search?q=` would let one request answer all of them |
+| 2.5 | The TDD & OTA badge in the sidebar: how many documents still need someone to act | Read from `GET /v1/compliance/activity/summary` (`attention`) on every page. A lighter count endpoint, or the count on `/me/entitlements`, would save the summary call |

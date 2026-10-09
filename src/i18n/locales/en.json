@@ -1057,12 +1057,18 @@
       "overdue": "{{count}} overdue",
       "cashThisMonth": "Cash received this month",
       "cashLastMonth": "Same days last month: {{amount}}",
-      "dueThisWeek": "{{count}} due this week"
+      "dueThisWeek": "{{count}} due this week",
+      "sales": "Today’s sales"
     },
     "revenue": {
-      "title": "Invoiced, last 12 months",
+      "title": "Revenue",
       "thisMonth": "this month",
-      "none": "No invoices in the last 12 months."
+      "none": "No invoices in the last 12 months.",
+      "periodLabel": "Revenue period",
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "lastTwelve": "bars show the last 12 months"
     },
     "invoices": {
       "title": "Recent invoices",
@@ -9889,7 +9895,28 @@
       "notConfirmed": "Not confirmed",
       "notChecked": "Not checked by Fawtir"
     },
-    "noOpenBranches": "No open branches."
+    "noOpenBranches": "No open branches.",
+    "cert": {
+      "signing": "Signing certificate",
+      "signingNote": "Signs every invoice so the Tax Authority knows it came from you",
+      "transport": "AS4 transport certificate",
+      "transportNote": "Encrypts documents in transit between access points",
+      "reporting": "OTA reporting credentials",
+      "reportingNote": "Your Fawtara account, used to file every TDD"
+    },
+    "appearance": "How you appear to others",
+    "appearanceNote": "what another business sees when they look you up",
+    "visibility": {
+      "directory": "Listed in the Peppol directory",
+      "directoryNote": "Lets a customer find you by name rather than needing your ID. Most businesses leave this on.",
+      "acceptBills": "Accept bills sent to you over Peppol",
+      "acceptBillsNote": "Off would mean suppliers have to email or post them instead",
+      "acceptSelfBilling": "Accept self-billing",
+      "acceptSelfBillingNote": "Lets a customer raise the invoice on your behalf.",
+      "emailCopy": "Send a copy by email as well",
+      "emailCopyNote": "Belt and braces for customers who aren't watching their Peppol inbox"
+    },
+    "notAvailableYet": "Not available yet"
   },
   "companyProfile": {
     "addressLine2": "Additional street or area",
@@ -9984,7 +10011,15 @@
     "sampleLineTwo": "Sample service",
     "previewVat": "VAT {{number}}",
     "noChangesYet": "No changes recorded yet",
-    "changedOther": "Company details"
+    "changedOther": "Company details",
+    "website": "Website",
+    "onAReceiptNote": "thermal printers are black and white",
+    "receiptOption": {
+      "plainBlack": "Use a plain black version",
+      "none": "Leave it off receipts"
+    },
+    "vatRegisteredSince": "VAT registered since",
+    "notAvailableYet": "Not available yet"
   },
   "branches": {
     "title": "Branches",
@@ -10132,7 +10167,12 @@
     "withinPlan": "Within your plan",
     "beyondPlan": "Beyond your plan's allowance",
     "footerOwn": "{{name}} · first invoice {{invoice}}",
-    "footerShared": "{{name}} · carries on the company series"
+    "footerShared": "{{name}} · carries on the company series",
+    "opens": "Opens",
+    "whoWorksThere": "Who works there",
+    "whoWorksThereNote": "you can change this later, nobody has to be assigned now",
+    "inviteSomeoneNew": "Invite someone new",
+    "notAvailableYet": "Not available yet"
   },
   "team": {
     "title": "Team members",
@@ -14617,7 +14657,9 @@
       "kind": {
         "invoice": "Invoices",
         "customer": "Customers",
-        "supplier": "Suppliers"
+        "supplier": "Suppliers",
+        "document": "Documents",
+        "item": "Catalogue"
       },
       "keepTyping": "Type at least two characters to search.",
       "searching": "Searching…",

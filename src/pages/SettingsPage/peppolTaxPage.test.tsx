@@ -230,7 +230,12 @@ describe('Settings › Peppol and tax: hero and registration', () => {
     const text = document.body.textContent ?? ''
     for (const leak of ['Al Bahja', 'OM1100234567', 'Hafidh']) expect(text).not.toContain(leak)
     expect(text.toLowerCase()).not.toMatch(/\blive\b|reachable/)
-    expect(screen.queryByRole('switch')).toBeNull()
+    // The visibility switches are drawn but cannot be changed, and no certificate has dates to renew.
+    const switches = screen.getAllByRole('switch') as HTMLButtonElement[]
+    expect(switches).toHaveLength(4)
+    expect(switches.every((control) => control.disabled)).toBe(true)
+    expect(text).not.toContain(t('peppolTax.renewIt'))
+    expect(text).not.toMatch(/days? left|months? left/)
     expect(screen.getByText(t('peppolTax.certificatesManaged'))).toBeTruthy()
     expect(screen.getByRole('link', { name: t('peppolTax.seeTddLog') })).toBeTruthy()
   })

@@ -1060,12 +1060,18 @@
       "overdue": "{{count}} متأخرة",
       "cashThisMonth": "النقد المستلم هذا الشهر",
       "cashLastMonth": "الأيام نفسها من الشهر الماضي: {{amount}}",
-      "dueThisWeek": "{{count}} مستحقة هذا الأسبوع"
+      "dueThisWeek": "{{count}} مستحقة هذا الأسبوع",
+      "sales": "مبيعات اليوم"
     },
     "revenue": {
-      "title": "المفوتر، آخر 12 شهرًا",
+      "title": "الإيرادات",
       "thisMonth": "هذا الشهر",
-      "none": "لا توجد فواتير في آخر 12 شهرًا."
+      "none": "لا توجد فواتير في آخر 12 شهرًا.",
+      "periodLabel": "فترة الإيرادات",
+      "day": "يوم",
+      "week": "أسبوع",
+      "month": "شهر",
+      "lastTwelve": "الأعمدة تعرض آخر 12 شهرًا"
     },
     "invoices": {
       "title": "أحدث الفواتير",
@@ -10408,7 +10414,28 @@
       "notConfirmed": "غير مؤكد",
       "notChecked": "لا تتحقق منه فوترة"
     },
-    "noOpenBranches": "لا توجد فروع مفتوحة."
+    "noOpenBranches": "لا توجد فروع مفتوحة.",
+    "cert": {
+      "signing": "شهادة التوقيع",
+      "signingNote": "توقّع كل فاتورة ليعرف جهاز الضرائب أنها منك",
+      "transport": "شهادة النقل AS4",
+      "transportNote": "تشفّر المستندات أثناء انتقالها بين نقاط الوصول",
+      "reporting": "بيانات التبليغ لدى جهاز الضرائب",
+      "reportingNote": "حسابك في فوترة، يُستخدم لتقديم كل مستند ضريبي"
+    },
+    "appearance": "كيف تظهر للآخرين",
+    "appearanceNote": "ما يراه عمل آخر حين يبحث عنك",
+    "visibility": {
+      "directory": "مُدرج في دليل Peppol",
+      "directoryNote": "يتيح للعميل أن يجدك بالاسم بدل الحاجة لمعرّفك. أغلب الأعمال تبقيه مفعّلًا.",
+      "acceptBills": "استقبال الفواتير عبر Peppol",
+      "acceptBillsNote": "إيقافه يعني أن على المورّدين إرسالها بالبريد الإلكتروني أو ورقيًا",
+      "acceptSelfBilling": "قبول الفوترة الذاتية",
+      "acceptSelfBillingNote": "يتيح للعميل إصدار الفاتورة نيابةً عنك.",
+      "emailCopy": "أرسل نسخة بالبريد الإلكتروني أيضًا",
+      "emailCopyNote": "احتياط للعملاء الذين لا يتابعون صندوق Peppol لديهم"
+    },
+    "notAvailableYet": "غير متاح بعد"
   },
   "companyProfile": {
     "addressLine2": "الشارع الإضافي أو المنطقة",
@@ -10503,7 +10530,15 @@
     "sampleLineTwo": "خدمة نموذجية",
     "previewVat": "الرقم الضريبي {{number}}",
     "noChangesYet": "لم تُسجَّل أي تغييرات بعد",
-    "changedOther": "بيانات الشركة"
+    "changedOther": "بيانات الشركة",
+    "website": "الموقع",
+    "onAReceiptNote": "طابعات الإيصالات بالأبيض والأسود",
+    "receiptOption": {
+      "plainBlack": "استخدم نسخة سوداء بسيطة",
+      "none": "لا تضعه على الإيصالات"
+    },
+    "vatRegisteredSince": "مسجّل ضريبيًا منذ",
+    "notAvailableYet": "غير متاح بعد"
   },
   "branches": {
     "title": "الفروع",
@@ -10667,7 +10702,12 @@
     "withinPlan": "ضمن خطتك",
     "beyondPlan": "يتجاوز ما تتيحه خطتك",
     "footerOwn": "{{name}} · أول فاتورة {{invoice}}",
-    "footerShared": "{{name}} · يكمل تسلسل الشركة"
+    "footerShared": "{{name}} · يكمل تسلسل الشركة",
+    "opens": "يفتح في",
+    "whoWorksThere": "من يعمل فيه",
+    "whoWorksThereNote": "يمكن تغيير هذا لاحقًا، لا يلزم تعيين أحد الآن",
+    "inviteSomeoneNew": "ادعُ شخصًا جديدًا",
+    "notAvailableYet": "غير متاح بعد"
   },
   "team": {
     "title": "أعضاء الفريق",
@@ -15393,7 +15433,9 @@
       "kind": {
         "invoice": "الفواتير",
         "customer": "العملاء",
-        "supplier": "المورّدون"
+        "supplier": "المورّدون",
+        "document": "المستندات",
+        "item": "الكتالوج"
       },
       "keepTyping": "اكتب حرفين على الأقل للبحث.",
       "searching": "جارٍ البحث…",

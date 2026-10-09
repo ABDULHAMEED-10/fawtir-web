@@ -240,7 +240,9 @@ describe('Add a branch, for real', () => {
     for (const sample of ['Sur', 'صور', '411', 'Ash Sharqiyah South', 'SR-INV', '1 October 2026', 'INV-2048'])
       expect(text).not.toContain(sample)
     for (const leak of ['Al Bahja', 'OM1100234567', 'Hafidh', 'Salim']) expect(text).not.toContain(leak)
-    expect(screen.queryByText('Who works there')).toBeNull()
+    // The designed opening date and roster are drawn but hold nothing until the backend has them.
+    expect(screen.getByText('Who works there')).toBeTruthy()
+    expect((screen.getByLabelText(i18n.t('addBranch.opens')) as HTMLInputElement).disabled).toBe(true)
     expect(screen.queryByText(/prefix is free/)).toBeNull()
     expect((screen.getByRole('button', { name: /Add the branch/ }) as HTMLButtonElement).disabled).toBe(true)
   })

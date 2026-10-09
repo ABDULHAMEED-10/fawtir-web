@@ -1,18 +1,22 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { OmAmount } from '../../components/ui'
+import { OmAmount, SegmentedControl } from '../../components/ui'
 import { formatAmount } from '../../lib/format'
 import type { VolumeTrendDto } from '../../api/reports/dashboard'
 import { DashboardCard } from './DashboardCard'
 import { toNumber, type TileView } from './dashboardData'
 
+type Period = 'day' | 'week' | 'month'
+
 /**
  * Invoiced value per month, the last twelve through this one, from the dashboard's volume tile
- * (the same figures as `/reports/volume`). The frame's day / week / month switch and its sample
- * bars are gone: the server answers months only.
+ * (the same figures as `/reports/volume`). The frame's day / week / month switch stays; Month is
+ * the one the server answers, so it opens there.
+ * TODO(backend): daily and weekly buckets on `volumeTrend`, REPORTS.md row 2.3.
  */
 export function RevenueChart({ trend }: { trend: TileView<VolumeTrendDto> }) {
   const { t, i18n } = useTranslation()
+  const [period, setPeriod] = useState<Period>('month')
 
   const months = useMemo(() => {
     if (trend.kind !== 'ok') return []
@@ -36,8 +40,26 @@ export function RevenueChart({ trend }: { trend: TileView<VolumeTrendDto> }) {
   const current = months.at(-1)
 
   return (
-    <DashboardCard title={t('dashboard.revenue.title')} bodyClassName="pt-3">
-      {trend.kind !== 'ok' ? (
+    <DashboardCard
+      title={t('dashboard.revenue.title')}
+      action={
+        <SegmentedControl
+          ariaLabel={t('dashboard.revenue.periodLabel')}
+          value={period}
+          onChange={setPeriod}
+          className="w-[220px] border-primary-50"
+          options={[
+            { value: 'day', label: t('dashboard.revenue.day') },
+            { value: 'week', label: t('dashboard.revenue.week') },
+            { value: 'month', label: t('dashboard.revenue.month') },
+          ]}
+        />
+      }
+      bodyClassName="pt-3"
+    >
+      {period !== 'month' ? (
+        <p className="text-sm font-medium text-text-quaternary">{t('dashboard.notAvailableYet')}</p>
+      ) : trend.kind !== 'ok' ? (
         <p className="text-sm font-medium text-text-quaternary">
           {trend.kind === 'loading' ? t('dashboard.loading') : t('dashboard.notAvailableYet')}
         </p>
@@ -53,6 +75,9 @@ export function RevenueChart({ trend }: { trend: TileView<VolumeTrendDto> }) {
             />
             <span className="text-sm font-medium text-text-quaternary">
               {t('dashboard.revenue.thisMonth')}
+            </span>
+            <span className="text-sm font-medium text-text-quaternary">
+              · {t('dashboard.revenue.lastTwelve')}
             </span>
           </p>
           <div className="flex h-[180px] items-end justify-between gap-2 px-1">
