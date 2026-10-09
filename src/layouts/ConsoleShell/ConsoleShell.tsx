@@ -51,6 +51,7 @@ export function ConsoleShell({ children, requires }: ConsoleShellProps) {
         open={navOpen}
         onClose={() => setNavOpen(false)}
         userName={access.state === 'ready' ? access.entitlements.username : ''}
+        entitlements={access.state === 'ready' ? access.entitlements : null}
       />
 
       {navOpen ? (

@@ -1,6 +1,6 @@
 import type { ApiRead } from '../../hooks/useApiRead'
 import type { Tile } from '../../api/reports/dashboard'
-import type { Amount } from '../../lib/format'
+import { BUSINESS_TIME_ZONE, type Amount } from '../../lib/format'
 
 /**
  * One tile as a card draws it. `unavailable` covers a tile the server marked UNAVAILABLE and a read
@@ -35,4 +35,12 @@ export function omrRow<R extends { currency: string }>(rows: readonly R[]): R | 
 export const toNumber = (amount: Amount | null | undefined): number => {
   const value = typeof amount === 'string' ? Number(amount) : (amount ?? 0)
   return Number.isFinite(value) ? value : 0
+}
+
+/** Before noon is morning, before 17:00 afternoon, and later is evening, in the business's zone. */
+export function partOfDay(now: Date): 'morning' | 'afternoon' | 'evening' {
+  const hour = Number(
+    new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hourCycle: 'h23', timeZone: BUSINESS_TIME_ZONE }).format(now),
+  )
+  return hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'
 }

@@ -42,4 +42,17 @@ describe('going live, by the OTA association manual', () => {
     expect(needsPortalRequest('accepting')).toBe(false)
     expect(goingLiveSteps('registering')[4].statusKey).toBe('fawtaraStatus.steps.registering')
   })
+
+  it('marks a rejected registration on the review step, with nothing after it begun', () => {
+    expect(states('rejected')).toEqual([
+      'done',
+      'failed',
+      'upcoming',
+      'upcoming',
+      'upcoming',
+      'upcoming',
+    ])
+    expect(goingLiveSteps('rejected')[1].statusKey).toBe('fawtaraStatus.steps.rejected')
+    expect(needsPortalRequest('rejected')).toBe(false)
+  })
 })

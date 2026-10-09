@@ -3,16 +3,21 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell } from './SettingsShell'
 import { withRial } from '../../components/ui'
-import {
-  SETTINGS_TABS,
-  BOOK,
-  usageForecast,
-  longDate,
-  type SettingsTab,
-} from '../../lib/settings'
-import { withoutTwoStep, ROLES } from '../../lib/settingsPeople'
-import { nextBill, HOW_YOU_PAY } from '../../lib/settingsBilling'
+import { SETTINGS_TABS, BOOK, longDate, type SettingsTab } from '../../lib/settings'
+import { HOW_YOU_PAY } from '../../lib/settingsBilling'
 import { LAST_EXPORT_ON } from '../../lib/settingsRecords'
+import { demoModulesEnabled } from '../../lib/demoModules'
+import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
+import {
+  PEOPLE_PATH,
+  ROLES_PATH,
+  ROLES_PERMISSION,
+  USERS_PERMISSION,
+  loadPeople,
+  loadRoles,
+  type RoleDto,
+  type UserPage,
+} from '../../api/settings/people'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import peppolIcon from '../../assets/settings/tile-peppol.svg'
 import companyIcon from '../../assets/settings/tile-company.svg'
@@ -107,8 +112,7 @@ export function SettingsPage() {
   const [params, setParams] = useSearchParams()
   const group = (params.get('group') ?? 'all') as SettingsTab
 
-  const forecast = usageForecast()
-  const bill = nextBill()
+  const { i18n } = useTranslation()
   // Two reads, not the mapping screens' eight — see loadErpMappingCard. Asked only of a reader the
   // mapping routes admit (Phase 9): the card used to read for everyone and fold a 403, a failure
   // and the wait itself into "Not set up", telling a reader without access that the company had
@@ -181,6 +185,30 @@ export function SettingsPage() {
     [overviewRead],
   )
 
+  // The plan, role and sign-in cards used to print a sample company's 880 of 1,000, its five roles
+  // and "1 without two-step". Each now reads the endpoint its screen reads, only when the reader
+  // may, and shows no figure rather than a guessed one while it cannot.
+  const planRead = useApiRead<PlanOverviewDto>(PLAN_OVERVIEW_PATH, loadPlanOverview).read
+  const planOverview =
+    planRead.status === 'ready' && planRead.data?.plan && planRead.data?.usage ? planRead.data : null
+  const planFailed = planRead.status === 'failed'
+  const mayListRoles = entitlements !== null && hasPermission(entitlements, ROLES_PERMISSION)
+  const rolesRead = useApiRead<RoleDto[]>(mayListRoles ? ROLES_PATH : null, loadRoles).read
+  const roleCount = rolesRead.status === 'ready' ? rolesRead.data.length : null
+  const mayListPeople = entitlements !== null && hasPermission(entitlements, USERS_PERMISSION)
+  const peopleRead = useApiRead<UserPage>(mayListPeople ? PEOPLE_PATH : null, loadPeople).read
+  const withoutApp =
+    peopleRead.status === 'ready' && peopleRead.data.totalElements === peopleRead.data.content.length
+      ? peopleRead.data.content.filter((person) => person.enabled && !person.mfaEnabled).length
+      : null
+  const demo = demoModulesEnabled()
+  const periodEnd = planOverview
+    ? new Date(`${planOverview.usage.period.end}T00:00:00`).toLocaleDateString(i18n.language, {
+        day: 'numeric',
+        month: 'long',
+      })
+    : ''
+
   const cards = useMemo<Card[]>(
     () => [
       {
@@ -215,9 +243,8 @@ export function SettingsPage() {
         icon: companyIcon,
         iconTint: 'bg-primary-50',
         to: '/settings/company',
-        pillKey: 'settings.card.companyPill',
-        pillTone: 'success',
-        footKey: 'settings.card.companyFoot',
+        pillKey: 'settings.card.teamPillOpen',
+        pillTone: 'neutral',
       },
       {
         id: 'branches',
@@ -252,19 +279,19 @@ export function SettingsPage() {
         icon: rolesIcon,
         iconTint: 'bg-primary-50',
         to: '/settings/roles',
-        pillKey: 'settings.card.rolesPill',
-        pillValues: { count: ROLES.length },
+        pillKey: roleCount !== null ? 'settings.card.rolesPill' : 'settings.card.teamPillOpen',
+        pillValues: { count: roleCount ?? 0 },
         pillTone: 'neutral',
       },
       {
         id: 'signing',
         group: 'people',
         icon: signingIcon,
-        iconTint: 'bg-pending-100',
+        iconTint: withoutApp ? 'bg-pending-100' : 'bg-primary-50',
         to: '/settings/signing-in',
-        pillKey: 'settings.card.signingPill',
-        pillValues: { count: withoutTwoStep.length },
-        pillTone: 'pending',
+        pillKey: withoutApp !== null ? 'settings.card.signingPillNoApp' : 'settings.card.teamPillOpen',
+        pillValues: { count: withoutApp ?? 0 },
+        pillTone: withoutApp ? 'pending' : 'neutral',
       },
       {
         id: 'erpOverview',
@@ -382,30 +409,47 @@ export function SettingsPage() {
         id: 'plan',
         group: 'billing',
         icon: planIcon,
-        iconTint: 'bg-pending-100',
+        iconTint: 'bg-primary-50',
         to: '/settings/plan',
         wide: true,
-        figure: {
-          value: forecast.used.toLocaleString('en-US'),
-          unitKey: 'settings.card.planOf',
-          values: { allowance: forecast.allowance.toLocaleString('en-US') },
-        },
-        bar: { spent: forecast.used / forecast.allowance, tone: 'pending' },
-        pillKey: 'settings.card.planPill',
-        pillTone: 'pending',
-        footKey: 'settings.card.planFoot',
-        footValues: { date: longDate(bill.dueOn) },
+        figure: planOverview
+          ? {
+              value: planOverview.usage.used.toLocaleString(i18n.language),
+              unitKey: 'settings.card.planOf',
+              values: { allowance: planOverview.usage.quota.toLocaleString(i18n.language) },
+            }
+          : undefined,
+        bar:
+          planOverview && planOverview.usage.quota > 0
+            ? { spent: planOverview.usage.used / planOverview.usage.quota, tone: 'neutral' }
+            : undefined,
+        pillKey: planOverview
+          ? 'settings.card.planPillName'
+          : planFailed
+            ? 'settings.card.pillNotAvailable'
+            : 'settings.card.pillChecking',
+        pillValues: { name: planOverview?.plan.name ?? '' },
+        pillTone: 'neutral',
+        footKey: planOverview ? 'settings.card.planFootReal' : undefined,
+        footValues: { date: periodEnd },
       },
       {
         id: 'bills',
         group: 'billing',
         icon: billsIcon,
-        iconTint: 'bg-success-100',
+        // Billing, export and closing have no server yet: their cards carry the prototype's sample
+        // facts exactly when their prototype pages are shown (lib/demoModules), and say "not
+        // available yet" when a build hides those pages.
+        iconTint: demo ? 'bg-success-100' : 'bg-surface-background',
         to: '/settings/bills',
-        pillKey: 'settings.card.billsPill',
-        pillTone: 'success',
-        footKey: 'settings.card.billsFoot',
-        footValues: { method: t(`bills.method.${HOW_YOU_PAY.method}`) },
+        ...(demo
+          ? {
+              pillKey: 'settings.card.billsPill',
+              pillTone: 'success' as const,
+              footKey: 'settings.card.billsFoot',
+              footValues: { method: t(`bills.method.${HOW_YOU_PAY.method}`) },
+            }
+          : { pillKey: 'moduleUnavailable.badge', pillTone: 'neutral' as const }),
       },
       {
         id: 'log',
@@ -425,10 +469,9 @@ export function SettingsPage() {
         icon: exportIcon,
         iconTint: 'bg-primary-50',
         to: '/settings/export',
-        pillKey: 'settings.card.exportPill',
+        pillKey: demo ? 'settings.card.exportPill' : 'moduleUnavailable.badge',
         pillTone: 'neutral',
-        footKey: 'settings.card.exportFoot',
-        footValues: { date: longDate(LAST_EXPORT_ON) },
+        ...(demo ? { footKey: 'settings.card.exportFoot', footValues: { date: longDate(LAST_EXPORT_ON) } } : {}),
       },
       {
         // The tile grid is otherwise mock-fed; this card carries no figure on purpose, so the most
@@ -449,15 +492,20 @@ export function SettingsPage() {
         icon: closingIcon,
         iconTint: 'bg-surface-background',
         to: '/settings/closing',
-        pillKey: 'settings.card.closingPill',
+        pillKey: demo ? 'settings.card.closingPill' : 'moduleUnavailable.badge',
         pillTone: 'neutral',
-        footKey: 'settings.card.closingFoot',
+        ...(demo ? { footKey: 'settings.card.closingFoot' } : {}),
       },
     ],
     [
-      forecast,
-      bill,
       t,
+      roleCount,
+      withoutApp,
+      planOverview,
+      planFailed,
+      periodEnd,
+      demo,
+      i18n.language,
       mapping,
       mappingStatus,
       mappingWait,

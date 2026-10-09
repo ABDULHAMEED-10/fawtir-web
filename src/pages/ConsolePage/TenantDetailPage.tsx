@@ -15,6 +15,7 @@ import {
   initialsOf,
   tenantOverviewPath,
   verificationRouteFor,
+  type OverviewInvoicing,
   type TenantOverview,
 } from '../../lib/console/tenantOverview'
 import { ActionMenu, Rial, withRial, type ActionMenuItem } from '../../components/ui'
@@ -51,6 +52,8 @@ import creditNoteIcon from '../../assets/actions/credit-note.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
 import { CONSOLE_H1, CONSOLE_PAGE, CONSOLE_PRIMARY, CONSOLE_SECONDARY, CONSOLE_SUBTITLE, CONSOLE_TAB_LINE } from '../../layouts/ConsoleShell/consoleStyle'
 import { consoleTab } from '../../layouts/ConsoleShell/consoleTones'
+import { demoModulesEnabled } from '../../lib/demoModules'
+import { DemoRibbon } from '../../components/feedback/DemoModule'
 
 // No ERP tab: it drew a fixture's add-on state. A real tenant's ERP access is the entitlement
 // card below the facts, read from and changed through the platform API.
@@ -158,14 +161,17 @@ export function TenantDetailPage() {
   const { id } = useParams()
   // Compatibility only, and never a fallback: a UUID never reaches this lookup, so a tenant the
   // backend refuses can never be answered from sample data.
-  const prototype = id && !isCompanyId(id) ? prototypeOverview(id) : undefined
+  const prototype = id && !isCompanyId(id) && demoModulesEnabled() ? prototypeOverview(id) : undefined
 
   return (
     <ConsoleShell requires={TENANT_OVERVIEW_PERMISSION}>
       {isCompanyId(id) ? (
         <TenantDetailLoader tenantId={id} />
       ) : prototype ? (
-        <TenantDetail tenantId={id!} overview={prototype} prototype />
+        <>
+          <DemoRibbon />
+          <TenantDetail tenantId={id!} overview={prototype} prototype />
+        </>
       ) : (
         <DetailNotFound />
       )}
@@ -713,7 +719,55 @@ function TenantFacts({ overview }: { overview: TenantOverview }) {
           )}
         </div>
       </div>
+
+      <InvoicingFacts invoicing={overview.invoicing ?? null} />
     </section>
+  )
+}
+
+/**
+ * Whether the company can issue invoices, item by item: the company's own readiness answer, so the
+ * operator and the company never read two different verdicts. An older backend that does not send
+ * it gets "not reported", never a guess derived from the account gate.
+ */
+function InvoicingFacts({ invoicing }: { invoicing: OverviewInvoicing | null }) {
+  const { t, i18n } = useTranslation()
+  return (
+    <div className="flex flex-col gap-3 border-t border-border-subtle pt-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-xs font-semibold uppercase leading-[1.5] text-text-quaternary">
+          {t('console.tenantDetail.field.invoicing')}
+        </p>
+        {invoicing ? (
+          <ConsoleStatusPill
+            tone={invoicing.ready ? 'success' : 'neutral'}
+            label={t(invoicing.ready ? 'console.tenantDetail.invoicing.ready' : 'console.tenantDetail.invoicing.notReady')}
+          />
+        ) : (
+          <span className="text-xs font-medium text-text-quaternary">
+            {t('console.tenantDetail.invoicing.unavailable')}
+          </span>
+        )}
+      </div>
+      {invoicing && invoicing.items.length > 0 ? (
+        <ul className="grid grid-cols-2 gap-x-8 gap-y-2 max-md:grid-cols-1">
+          {invoicing.items.map((item) => (
+            <li key={item.code} className="flex min-w-0 flex-wrap items-baseline justify-between gap-2 text-sm">
+              <span className="font-medium text-text-primary">
+                {i18n.exists(`readiness.item.${item.code}`) ? t(`readiness.item.${item.code}`) : item.code}
+              </span>
+              <span className="text-xs font-medium text-text-quaternary">
+                {item.status === 'DONE'
+                  ? t('readiness.done')
+                  : item.status === 'AWAITING_PLATFORM'
+                    ? t('readiness.awaitingFawtir')
+                    : t('readiness.actionRequired')}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   )
 }
 
