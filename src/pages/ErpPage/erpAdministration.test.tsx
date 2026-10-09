@@ -25,12 +25,15 @@ const ADMIN: Entitlements = {
   ...base,
   permissions: [
     'admin.settings.manage',
+    'erp.audit.read',
     'erp.connection.read',
     'erp.connection.manage',
     'invoice.read',
     'invoice.submit',
   ],
 }
+/** An ERP auditor: the ERP history and nothing of the organisation's administration (R22). */
+const AUDITOR: Entitlements = { ...base, permissions: ['erp.audit.read', 'invoice.read'] }
 const OPERATOR: Entitlements = {
   ...base,
   permissions: ['erp.connection.read', 'erp.connection.test', 'invoice.read'],
@@ -166,6 +169,8 @@ beforeEach(async () => {
     '/api/v1/erp/source-documents/summary': () => json(200, SUMMARY),
     '/api/v1/apikeys': () => json(200, []),
     '/api/v1/settings/activity-log': () =>
+      json(200, { items: [LOG_ENTRY], page: 0, page_size: 50, has_more: false }),
+    '/api/v1/erp/activity-log': () =>
       json(200, { items: [LOG_ENTRY], page: 0, page_size: 50, has_more: false }),
   }
   vi.stubGlobal(
@@ -304,19 +309,30 @@ describe('the connection list', () => {
 })
 
 describe('access and history', () => {
-  it('shows an administrator the ERP history from the real log, narrowed by resource kind', async () => {
+  it('shows an ERP auditor the server-scoped ERP history, never the organisation log', async () => {
+    who = AUDITOR
     renderAt('/settings/erp/access')
     expect(await screen.findByText('Connection added')).toBeTruthy()
-    const call = requested('/settings/activity-log')[0]
-    expect(query(call).get('resource_type')).toBe('ERP_CONNECTION')
+    expect(requested('/erp/activity-log')).toHaveLength(1)
+    // The server confines the scope, so no kind is forced by the screen.
+    expect(query(requested('/erp/activity-log')[0]).get('resource_type')).toBeNull()
+    expect(requested('/settings/activity-log')).toEqual([])
     expect(screen.queryByText(/METADATA-MARKER/)).toBeNull()
     expect(screen.queryByText('10.0.0.1')).toBeNull()
   })
 
-  it('does not ask for the log for anyone else, and says why', async () => {
+  it('reads the ERP log for an administrator too, now that ADMIN holds erp.audit.read', async () => {
+    renderAt('/settings/erp/access')
+    await screen.findByText('Connection added')
+    expect(requested('/erp/activity-log')).toHaveLength(1)
+    expect(requested('/settings/activity-log')).toEqual([])
+  })
+
+  it('asks for neither log without erp.audit.read, and says which permission it needs', async () => {
     who = OPERATOR
     renderAt('/settings/erp/access')
-    expect(await screen.findByText(/shown to administrators only/)).toBeTruthy()
+    expect(await screen.findByText(/Your role can't see the ERP history/)).toBeTruthy()
+    expect(requested('/erp/activity-log')).toEqual([])
     expect(requested('/settings/activity-log')).toEqual([])
   })
 

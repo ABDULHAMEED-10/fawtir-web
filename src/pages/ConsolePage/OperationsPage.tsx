@@ -23,16 +23,9 @@ import {
   percent,
   tenantById,
 } from '../../lib/superAdmin'
-import {
-  connectionsNeedingAttention,
-  platformErpKpis,
-  tenantName,
-  useConsoleErp,
-} from '../../lib/consoleErp'
-import { attentionReason } from './erp/erpShared'
 import { formatAmount } from '../../lib/format'
 import { ConsoleStatusPill } from '../../layouts/ConsoleShell/ConsoleStatusPill'
-import { CONSOLE_CARD, CONSOLE_CARD_FOOT, CONSOLE_CARD_HEAD, CONSOLE_CARD_NOTE, CONSOLE_CARD_TITLE, CONSOLE_LINK, CONSOLE_PAGE, CONSOLE_PRIMARY, CONSOLE_ROW, CONSOLE_SECONDARY, CONSOLE_SMALL, ConsoleCardHead, ConsoleKpi, ConsolePageHeader } from '../../layouts/ConsoleShell/consoleStyle'
+import { CONSOLE_CARD, CONSOLE_CARD_FOOT, CONSOLE_LINK, CONSOLE_PAGE, CONSOLE_PRIMARY, CONSOLE_ROW, CONSOLE_SECONDARY, CONSOLE_SMALL, ConsoleCardHead, ConsoleKpi, ConsolePageHeader } from '../../layouts/ConsoleShell/consoleStyle'
 import { CONSOLE_TONE_TEXT } from '../../layouts/ConsoleShell/consoleTones'
 
 const TONE = {
@@ -170,93 +163,6 @@ function ConnectionLine({
   )
 }
 
-/**
- * The ERP connections that need a person today — in error or stale — and the add-on requests
- * waiting, with the three most urgent named; the ERP screens hold the rest.
- */
-function IntegrationsCard() {
-  const { t } = useTranslation()
-  const erp = useConsoleErp()
-  const kpis = platformErpKpis(erp)
-  const attention = connectionsNeedingAttention(erp)
-  const listed = [...attention]
-    .sort((a, b) => (a.state === 'ERROR' ? 0 : 1) - (b.state === 'ERROR' ? 0 : 1))
-    .slice(0, 3)
-  const key = (name: string) => `console.operations.integrations.${name}`
-
-  return (
-    <section className={`flex flex-col ${CONSOLE_CARD}`}>
-      <div className={CONSOLE_CARD_HEAD}>
-        <div>
-          <h2 className={CONSOLE_CARD_TITLE}>
-            {t(key('title'))}
-          </h2>
-          <p className={CONSOLE_CARD_NOTE}>{t(key('subtitle'))}</p>
-        </div>
-        <Link to="/console/erp" className={CONSOLE_LINK}>
-          {t(key('open'))}
-        </Link>
-      </div>
-      <div className="grid grid-cols-[340px_minmax(0,1fr)] max-lg:grid-cols-1">
-        <div className="border-e border-border-subtle px-5 py-2 max-lg:border-b max-lg:border-e-0">
-          <ConnectionLine
-            label={t(key('inError'))}
-            value={count(kpis.inError)}
-            tone={kpis.inError > 0 ? 'bad' : undefined}
-          />
-          <ConnectionLine
-            label={t(key('stale'))}
-            value={count(kpis.stale)}
-            tone={kpis.stale > 0 ? 'watch' : undefined}
-          />
-          <ConnectionLine label={t(key('requests'))} value={count(kpis.pendingRequests)} />
-        </div>
-        {listed.length === 0 ? (
-          <p className="px-5 py-4 text-sm font-medium leading-[1.5] text-text-tertiary">
-            {t(key('allClear'))}
-          </p>
-        ) : (
-          <ul>
-            {listed.map((c) => {
-              const bad = c.state === 'ERROR'
-              return (
-                <li key={c.id} className="border-b border-border-subtle last:border-b-0">
-                  <Link
-                    to={`/console/erp/connections/${c.id}`}
-                    className="flex flex-wrap items-center gap-3 px-5 py-3.5 transition-colors hover:bg-primary-25"
-                  >
-                    <span
-                      className={`size-2 shrink-0 rounded-full ${bad ? 'bg-danger-700' : 'bg-pending-500'}`}
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold leading-[1.2] text-text-primary">
-                        {tenantName(c.tenantId)}
-                      </span>
-                      <span className="mt-1 block text-xs font-medium text-text-muted">
-                        {/* The sample names join place and system with a dash; the copy uses a dot. */}
-                        {c.label.replace(/\s+—\s+/g, ' · ')}
-                      </span>
-                    </span>
-                    <span
-                      className={`text-end text-[13.5px] font-semibold ${TONE[bad ? 'bad' : 'watch']}`}
-                    >
-                      {attentionReason(t, c)}
-                    </span>
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </div>
-      {attention.length > listed.length ? (
-        <p className={CONSOLE_CARD_FOOT}>
-          {t(key('more'), { count: attention.length - listed.length })}
-        </p>
-      ) : null}
-    </section>
-  )
-}
 
 export function OperationsPage() {
   const { t, i18n } = useTranslation()
@@ -393,7 +299,6 @@ export function OperationsPage() {
           </section>
         </div>
 
-        <IntegrationsCard />
 
         <div className={CONSOLE_ROW}>
           <section className={`flex min-w-[320px] flex-1 flex-col max-md:min-w-0 ${CONSOLE_CARD}`}>

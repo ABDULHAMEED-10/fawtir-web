@@ -7,8 +7,9 @@ import { SectionCard, TBODY_ROW, THEAD_ROW, Td, Th } from './overview/idiom'
 import { Pill } from './ErpShell'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { hasPermission, type Entitlements } from '../../lib/identity/entitlements'
-import { ERP_RESOURCE_TYPES } from '../../lib/activityLog'
-import { ERP_CAPABILITIES, ERP_PERSONAS } from '../../lib/erp/erpAccess'
+import { ERP_HISTORY_RESOURCE_TYPES } from '../../lib/activityLog'
+import { ERP_ACTIVITY_LOG_PATH } from '../../api/settings/activityLog'
+import { ERP_AUDIT_PERMISSION, ERP_CAPABILITIES, ERP_PERSONAS } from '../../lib/erp/erpAccess'
 
 /**
  * Settings › Integration › Access & history (`/settings/erp/access`).
@@ -19,11 +20,10 @@ import { ERP_CAPABILITIES, ERP_PERSONAS } from '../../lib/erp/erpAccess'
  * by an administrator. Nothing here creates or changes a role, and nothing claims a template the
  * server does not have.
  *
- * **History** is the organisation's real activity log narrowed to the ERP's resource kinds. The
- * server answers that log to holders of `admin.settings.manage` only, and to them it answers the
- * whole organisation's log; the kinds below are a convenience, not a scope. There is no
- * ERP-scoped audit read on the server for anyone else (plan risk R22), so other readers are told
- * so rather than shown a filtered view the screen would have to enforce on its own.
+ * **History** is the server's ERP-scoped audit log (`GET /v1/erp/activity-log`, R22), shown to
+ * holders of `erp.audit.read`. The server confines it to ERP and mapping resources; the kind filter
+ * below narrows within that and cannot widen it. Everyone else is told which permission it needs,
+ * and is never shown a view the screen would have to enforce on its own.
  */
 export function ErpAccessPage() {
   const { t } = useTranslation()
@@ -40,10 +40,14 @@ export function ErpAccessPage() {
           <Personas />
           <SectionCard title={t('erp.access.history.title')} note={t('erp.access.history.note')}>
             <div className="px-5 pb-5">
-              {entitlements !== null && hasPermission(entitlements, 'admin.settings.manage') ? (
-                <ActivityHistory resourceTypes={ERP_RESOURCE_TYPES} allowAll={false} />
+              {entitlements !== null && hasPermission(entitlements, ERP_AUDIT_PERMISSION) ? (
+                <ActivityHistory
+                  resourceTypes={ERP_HISTORY_RESOURCE_TYPES}
+                  allowAll
+                  base={ERP_ACTIVITY_LOG_PATH}
+                />
               ) : (
-                <Notice badge={t('appAccess.noAccess')} body={t('erp.access.history.adminOnly')} />
+                <Notice badge={t('appAccess.noAccess')} body={t('erp.access.history.needsPermission')} />
               )}
             </div>
           </SectionCard>
