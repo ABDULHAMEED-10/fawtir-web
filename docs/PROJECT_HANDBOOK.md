@@ -465,7 +465,9 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   customers and suppliers, Income (invoices, bulk invoice upload, credit notes, debit notes,
   reminders), Expenditure (bills and bill reminders; bill upload and scan from a photo to be
   confirmed with Atiq), reports and the dashboard. POS and the catalogue come to mobile later
-  (future work). **No self-billing and no customer import from a file on mobile.** Handoff is in phases, each change doc sent only
+  (future work). **No self-billing and no customer import from a file on mobile.** Every
+  approved company gets a default head office branch (owner, 9 Oct 2026; ONBOARDING.md row
+  1.11). Handoff is in phases, each change doc sent only
   after Abrar's end-to-end test of that phase passes: (1) onboarding to an invoice sent over
   Peppol: sign-up, sign-in, subscription, company settings, branches, Peppol settings, customers,
   invoice creation, bulk invoice upload, sending; (2) credit notes, debit notes and reminders,
