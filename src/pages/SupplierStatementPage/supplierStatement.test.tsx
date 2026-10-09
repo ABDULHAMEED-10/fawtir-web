@@ -680,13 +680,18 @@ describe('a statement with discounts, refunds and credit used', () => {
     )
     expect(rowOf('Refund from the supplier', 1)[4].textContent).toBe('−10.000')
 
-    // Credit used moves nothing: no column, its amount under the reference, the balance unchanged.
+    // Credit used moves nothing: no column, its amount under the reference, and no balance of
+    // its own (owner, 9 Oct 2026): the cell is blank and a note says why.
     const used = rowOf('Credit used')
     expect(used[3].textContent).toBe('')
     expect(used[4].textContent).toBe('')
     expect(used[1].textContent).toContain('20.000')
     expect(used[1].querySelector('svg')).toBeTruthy()
-    expect(used[5].textContent).toBe('106.000')
+    expect(within(used[1]).getByText('Already counted when the bill was overpaid')).toBeTruthy()
+    expect(used[5].textContent).toBe('')
+    // Only that line: the others keep their balance and carry no note.
+    expect(screen.getAllByText('Already counted when the bill was overpaid')).toHaveLength(1)
+    expect(rowOf('Refund from the supplier', 1)[5].textContent).toBe('116.000')
 
     // The footer adds up its columns: billed less the discount, paid less the refunds.
     const footer = screen.getByText('Over the period').closest('tr')!
@@ -713,14 +718,12 @@ describe('a statement with discounts, refunds and credit used', () => {
     statement = {
       ...LATER,
       entries: LATER.entries.map((entry) =>
-        entry.kind === 'OVERPAYMENT_CREDIT_APPLIED'
-          ? { ...entry, reference: 'SOHAR-1010' }
-          : entry,
+        entry.kind === 'OVERPAYMENT_CREDIT_APPLIED' ? { ...entry, reference: 'SOHAR-1010' } : entry,
       ),
     }
     renderStatement()
     await screen.findByRole('heading', { level: 1, name: 'Statement' })
-    expect(rowOf('Credit used on SOHAR-1010')[5].textContent).toBe('106.000')
+    expect(rowOf('Credit used on SOHAR-1010')[5].textContent).toBe('')
   })
 
   it('reads in Arabic, with the rial sign and three decimals', async () => {
@@ -728,15 +731,18 @@ describe('a statement with discounts, refunds and credit used', () => {
     statement = {
       ...LATER,
       entries: LATER.entries.map((entry) =>
-        entry.kind === 'OVERPAYMENT_CREDIT_APPLIED'
-          ? { ...entry, reference: 'SOHAR-1010' }
-          : entry,
+        entry.kind === 'OVERPAYMENT_CREDIT_APPLIED' ? { ...entry, reference: 'SOHAR-1010' } : entry,
       ),
     }
     renderStatement()
     expect(await screen.findAllByText('خصم سداد مبكر', { selector: 'span' })).toHaveLength(1)
     expect(screen.getAllByText('استرداد من المورّد', { selector: 'span' })).toHaveLength(2)
     expect(screen.getByText('رصيد مستخدم في SOHAR-1010')).toBeTruthy()
+    expect(
+      within(rowOf('رصيد مستخدم في SOHAR-1010')[1]).getByText(
+        'احتُسب عند دفع مبلغ زائد على الفاتورة',
+      ),
+    ).toBeTruthy()
     const line = screen.getByText(
       (_, node) => node?.tagName === 'P' && /^دُفع بزيادة/.test(node.textContent ?? ''),
     )
@@ -868,7 +874,9 @@ describe('a credit note the supplier refunded', () => {
   it('reads in Arabic', async () => {
     await i18n.changeLanguage('ar')
     renderStatement()
-    expect(await screen.findAllByText('استُرد الإشعار الدائن', { selector: 'span' })).toHaveLength(2)
+    expect(await screen.findAllByText('استُرد الإشعار الدائن', { selector: 'span' })).toHaveLength(
+      2,
+    )
   })
 
   it('puts the refund in the billed column and links it to the credit note', () => {

@@ -8744,7 +8744,8 @@
     },
     "unusedCredits_one": "{{count}} credit note still unused",
     "unusedCredits_other": "{{count}} credit notes still unused",
-    "creditUsedOn": "Credit used on {{bill}}"
+    "creditUsedOn": "Credit used on {{bill}}",
+    "alreadyCounted": "Already counted when the bill was overpaid"
   },
   "activity": {
     "title": "TDD & OTA",

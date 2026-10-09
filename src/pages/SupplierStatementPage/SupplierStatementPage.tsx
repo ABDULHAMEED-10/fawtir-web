@@ -603,6 +603,13 @@ function SupplierStatement({ id }: { id: string }) {
                           amountClassName="text-xs font-medium text-text-quaternary tabular-nums"
                         />
                       ) : null}
+                      {/* Its balance would only repeat the line before, so the cell is left blank
+                          and this says why (owner, 9 Oct 2026). */}
+                      {memo !== null ? (
+                        <p className="mt-1 max-w-[280px] text-xs font-medium leading-[1.5] text-text-quaternary">
+                          {t('supplierStatement.alreadyCounted')}
+                        </p>
+                      ) : null}
                     </td>
                     <td className="px-5 py-4 align-top">
                       <span
@@ -626,7 +633,7 @@ function SupplierStatement({ id }: { id: string }) {
                       {paid === null ? '' : signed(paid)}
                     </td>
                     <td className="px-5 py-4 align-top text-end text-sm font-semibold text-text-primary tabular-nums">
-                      {money(entry.runningBalance)}
+                      {memo !== null ? '' : money(entry.runningBalance)}
                     </td>
                   </tr>
                 )

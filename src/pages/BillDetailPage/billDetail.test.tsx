@@ -437,7 +437,7 @@ describe('A bill, wired to the API', () => {
     expect(screen.queryByText('The supplier sent no lines with this bill.')).toBeNull()
   })
 
-  it('shows a self-billed bill\'s Activity from the document\'s history, in the self-bill page\'s words', async () => {
+  it("shows a self-billed bill's Activity from the document's history, in the self-bill page's words", async () => {
     billResponse = () =>
       json(200, {
         ...selfBilled(AGREED),
@@ -467,12 +467,14 @@ describe('A bill, wired to the API', () => {
     expect(card.queryByText(/billDetail\.activity/)).toBeNull()
   })
 
-  it('reads a self-billed bill\'s heading and history in Arabic', async () => {
+  it("reads a self-billed bill's heading and history in Arabic", async () => {
     await i18n.changeLanguage('ar')
     billResponse = () =>
       json(200, { ...selfBilled(AGREED), lines: SELF_BILLED_LINES, activity: SELF_BILLED_ACTIVITY })
     renderBill()
-    expect(await screen.findByRole('heading', { level: 2, name: 'البنود المورَّدة إليك' })).toBeTruthy()
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'البنود المورَّدة إليك' }),
+    ).toBeTruthy()
     expect(screen.getByText('صدرت')).toBeTruthy()
     expect(screen.getByText('أُنشئت المسودة')).toBeTruthy()
     expect(screen.queryByText('كما أرسله المورد')).toBeNull()
@@ -482,16 +484,20 @@ describe('A bill, wired to the API', () => {
     // A server from before the change, or a document that can no longer be read: 200, no lines.
     billResponse = () => json(200, { ...selfBilled(AGREED), lines: [], activity: [] })
     renderBill()
-    expect(await screen.findByRole('heading', { level: 2, name: 'Items supplied to you' })).toBeTruthy()
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Items supplied to you' }),
+    ).toBeTruthy()
     expect(screen.queryByText('The supplier sent no lines with this bill.')).toBeNull()
     expect(screen.queryByText('as sent by the supplier')).toBeNull()
     expect(screen.getByText('Nothing has been recorded against this bill yet.')).toBeTruthy()
   })
 
-  it('keeps the supplier\'s heading and empty line for a bill the supplier sent', async () => {
+  it("keeps the supplier's heading and empty line for a bill the supplier sent", async () => {
     billResponse = () => json(200, { ...detail(), lines: [] })
     renderBill()
-    expect(await screen.findByRole('heading', { level: 2, name: "What they're charging for" })).toBeTruthy()
+    expect(
+      await screen.findByRole('heading', { level: 2, name: "What they're charging for" }),
+    ).toBeTruthy()
     expect(screen.getByText('as sent by the supplier')).toBeTruthy()
     expect(screen.getByText('The supplier sent no lines with this bill.')).toBeTruthy()
     expect(screen.queryByRole('heading', { name: 'Items supplied to you' })).toBeNull()
@@ -501,7 +507,9 @@ describe('A bill, wired to the API', () => {
     billResponse = () =>
       json(200, {
         ...detail(),
-        activity: [{ at: '2026-10-01T08:00:00Z', kind: 'SOMETHING_NEW', detail: null, actor: null }],
+        activity: [
+          { at: '2026-10-01T08:00:00Z', kind: 'SOMETHING_NEW', detail: null, actor: null },
+        ],
       })
     renderBill()
     const heading = await screen.findByRole('heading', { level: 2, name: 'Activity' })
@@ -552,7 +560,11 @@ describe('A bill, wired to the API', () => {
       contentType: 'image/jpeg',
       uploadedAt: '2026-09-12T08:00:00Z',
     },
-    compliance: { source: 'SCANNED', networkVerified: false, obligation: 'PENDING_COMPLIANCE_INPUT' },
+    compliance: {
+      source: 'SCANNED',
+      networkVerified: false,
+      obligation: 'PENDING_COMPLIANCE_INPUT',
+    },
   })
   const fileRow = async () =>
     (await screen.findByRole('button', { name: 'receipt-4471.jpg' })).closest('li') as HTMLElement
@@ -603,9 +615,9 @@ describe('A bill, wired to the API', () => {
       json(200, selfBilled({ ...AGREED, agreementId: null, agreementReference: null }))
     renderBill()
     await screen.findByText("Issued by you through Fawtir on the supplier's behalf")
-    expect(
-      screen.getByRole('link', { name: 'Self-billing agreement' }).getAttribute('href'),
-    ).toBe('/income/self-billing/sb-1')
+    expect(screen.getByRole('link', { name: 'Self-billing agreement' }).getAttribute('href')).toBe(
+      '/income/self-billing/sb-1',
+    )
   })
 
   it('reads the self-billed lines in Arabic', async () => {
@@ -614,9 +626,7 @@ describe('A bill, wired to the API', () => {
     renderBill()
     const line = await screen.findByText('أصدرتها أنت عبر فوتر نيابةً عن المورّد')
     const card = within(line.closest('ul') as HTMLElement)
-    expect(
-      card.getByText('فاتورة ضريبية صحيحة: ضريبة القيمة المضافة قابلة للاسترداد'),
-    ).toBeTruthy()
+    expect(card.getByText('فاتورة ضريبية صحيحة: ضريبة القيمة المضافة قابلة للاسترداد')).toBeTruthy()
     expect(card.getByText(/^اتفاقية فوترة ذاتية/)).toBeTruthy()
     expect(card.getByRole('link', { name: 'SBA-2026-003' }).getAttribute('href')).toBe(
       '/income/self-billing/sb-1',
@@ -675,9 +685,14 @@ describe('A bill, wired to the API', () => {
     expect(screen.queryByText('VAT · 5%')).toBeNull()
   })
 
-  it('names each line\'s VAT category from the letter the server sends: S, Z, E, O and none', async () => {
+  it("names each line's VAT category from the letter the server sends: S, Z, E, O and none", async () => {
     const base = detail()
-    const line = (lineNo: number, description: string, vatRate: number | null, code?: string | null) => ({
+    const line = (
+      lineNo: number,
+      description: string,
+      vatRate: number | null,
+      code?: string | null,
+    ) => ({
       ...base.lines[0],
       lineNo,
       description,
@@ -862,7 +877,12 @@ describe('A bill, wired to the API', () => {
     expect(
       await offered({
         ...base,
-        settlement: { ...base.settlement, paidAmount: 2354.31, outstandingAmount: 0, paymentState: 'PAID' },
+        settlement: {
+          ...base.settlement,
+          paidAmount: 2354.31,
+          outstandingAmount: 0,
+          paymentState: 'PAID',
+        },
       }),
       'nothing owed',
     ).toBe(false)
@@ -964,7 +984,8 @@ describe('A bill, wired to the API', () => {
     actionResponse = () =>
       json(400, {
         error: 'BILL_PAYMENT_IN_PAYMENT_RUN',
-        detail: 'This bill is in payment run RUN-0012. Pay it there, or take it out of the run first.',
+        detail:
+          'This bill is in payment run RUN-0012. Pay it there, or take it out of the run first.',
         paymentRunReference: 'RUN-0012',
         status: 400,
       })
@@ -1040,7 +1061,12 @@ describe('A bill, wired to the API', () => {
   // approved, the verdict still a mismatch. Approve is offered from the approvals, never from the
   // word "Mismatch", or the click would answer APPROVAL_TRANSITION_INVALID.
   it('offers the match actions, and no Approve, on a bill one person approved that still reads Mismatch', async () => {
-    const oneOfOne = { state: 'READY', distinctApprovals: 1, required: 1, autoApproved: false } as const
+    const oneOfOne = {
+      state: 'READY',
+      distinctApprovals: 1,
+      required: 1,
+      autoApproved: false,
+    } as const
     billResponse = () =>
       json(
         200,
@@ -1134,7 +1160,12 @@ describe('A bill, wired to the API', () => {
 
   // Confirmed item 21 (2 Oct): a bill approved by its amount reads APPROVED from the server.
   it('shows a bill approved by its amount as Approved, with nothing left to approve and a payment on offer', async () => {
-    const byAmount = { state: 'READY', distinctApprovals: 0, required: 2, autoApproved: true } as const
+    const byAmount = {
+      state: 'READY',
+      distinctApprovals: 0,
+      required: 2,
+      autoApproved: true,
+    } as const
     billResponse = () =>
       json(
         200,
@@ -1323,9 +1354,9 @@ describe('bill detail mapping', () => {
     const approved = detail({ readiness: APPROVED })
     expect(canRecordPayment(approved, all)).toBe(true)
     expect(canRecordPayment(detail(), all)).toBe(false)
-    expect(canRecordPayment(approved, (permission) => permission !== 'invoice.payment.manage')).toBe(
-      false,
-    )
+    expect(
+      canRecordPayment(approved, (permission) => permission !== 'invoice.payment.manage'),
+    ).toBe(false)
     expect(
       canRecordPayment({ ...approved, bill: { ...approved.bill, documentTypeCode: '381' } }, all),
     ).toBe(false)
@@ -1356,7 +1387,10 @@ describe('bill detail mapping', () => {
     const all = () => true
     const withVerdict = (verdict: 'MATCHED' | 'MATCHED_BY_HAND' | 'MISMATCH' | 'NO_ORDER') => {
       const approved = detail({ readiness: APPROVED })
-      return { ...approved, bill: { ...approved.bill, match: { ...approved.bill.match!, verdict } } }
+      return {
+        ...approved,
+        bill: { ...approved.bill, match: { ...approved.bill.match!, verdict } },
+      }
     }
     expect(canRecordPayment(withVerdict('MISMATCH'), all)).toBe(false)
     // Approved by its amount, not by a person: the same rule.
@@ -1381,10 +1415,8 @@ describe('bill detail mapping', () => {
     const approved = detail({ readiness: APPROVED })
     expect(decisionsOf(approved, all).reject).toBe(true)
     expect(
-      decisionsOf(
-        { ...approved, settlement: { ...approved.settlement, paidAmount: 0.001 } },
-        all,
-      ).reject,
+      decisionsOf({ ...approved, settlement: { ...approved.settlement, paidAmount: 0.001 } }, all)
+        .reject,
     ).toBe(false)
     expect(decisionsOf({ ...approved, paymentRunReference: 'RUN-0012' }, all).reject).toBe(false)
   })
@@ -1469,11 +1501,15 @@ describe('bill detail mapping', () => {
     ])
   })
 
-  it('writes a self-billed bill as this company\'s own document, not as one that never arrived', () => {
+  it("writes a self-billed bill as this company's own document, not as one that never arrived", () => {
     const selfBilledBill: BillDetailDto = {
       ...detail(),
       bill: { ...detail().bill, source: 'SELF_BILLED', inboundDeliveryId: null },
-      compliance: { source: 'SELF_BILLED', networkVerified: true, obligation: 'REPORTED_BY_SENDER' },
+      compliance: {
+        source: 'SELF_BILLED',
+        networkVerified: true,
+        obligation: 'REPORTED_BY_SENDER',
+      },
     }
     const withAgreement = complianceOf({
       ...selfBilledBill,
@@ -1527,13 +1563,20 @@ describe('bill detail mapping', () => {
     ])
   })
 
-  it('words the self-billed document\'s steps, keeps the bill\'s own kinds, and has a word for an unknown one', () => {
+  it("words the self-billed document's steps, keeps the bill's own kinds, and has a word for an unknown one", () => {
     const entry = (kind: string) =>
-      ({ at: '2026-10-01T08:00:00Z', kind, detail: null, actor: 'u-1' }) as BillDetailDto['activity'][number]
+      ({
+        at: '2026-10-01T08:00:00Z',
+        kind,
+        detail: null,
+        actor: 'u-1',
+      }) as BillDetailDto['activity'][number]
     const keys = activityOf(
       {
         ...detail(),
-        activity: ['DRAFT_CREATED', 'ISSUED', 'CANCELLED', 'APPROVED', 'PAID', 'BRAND_NEW'].map(entry),
+        activity: ['DRAFT_CREATED', 'ISSUED', 'CANCELLED', 'APPROVED', 'PAID', 'BRAND_NEW'].map(
+          entry,
+        ),
       },
       'u-1',
     ).map((item) => item.key)
@@ -1592,8 +1635,10 @@ async function moneySentence(dialog: HTMLElement, text: string): Promise<HTMLEle
 }
 
 describe('why a bill was refused, in its own sentence', () => {
-  const refusal = (error: string, extra: Record<string, unknown> = {}) => () =>
-    json(400, { type: 'https://api.fawtir.om/problems/expenditure-refused', error, ...extra })
+  const refusal =
+    (error: string, extra: Record<string, unknown> = {}) =>
+    () =>
+      json(400, { type: 'https://api.fawtir.om/problems/expenditure-refused', error, ...extra })
   const GENERIC = /The server refused this\. Nothing was changed/
 
   async function pay() {
@@ -1775,7 +1820,9 @@ describe('why a bill was refused, in its own sentence', () => {
     actionResponse = refusal(error)
     renderBill()
     await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
-    fireEvent.click(screen.getAllByRole('button', { name: i18n.t('billDetail.decision.putOnHold') })[0])
+    fireEvent.click(
+      screen.getAllByRole('button', { name: i18n.t('billDetail.decision.putOnHold') })[0],
+    )
     const dialog = await screen.findByRole('dialog')
     fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Disputed' } })
     fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('billDetail.hold.confirm') }))
@@ -2297,6 +2344,27 @@ describe('an overpaid bill', () => {
     expect(await screen.findByRole('button', { name: 'الاحتفاظ به رصيدًا' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'خصمه من فاتورة' })).toBeTruthy()
     expect(line(/محتفظ به رصيدًا$/)).toEqual({ text: 'OMR15.000 محتفظ به رصيدًا', rial: true })
+  })
+
+  // Owner's Arabic, 9 Oct 2026, for the two amount checks; the figure keeps the rial sign.
+  it('says the two amount checks in Arabic, with the rial sign', async () => {
+    await i18n.changeLanguage('ar')
+    standing = { ...standing, keptAsCredit: 15, undecided: 25 }
+    renderBill()
+    fireEvent.click(await screen.findByRole('button', { name: 'تسجيل استرداد من المورّد' }))
+    let dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getAllByRole('spinbutton')[0], { target: { value: '40.5' } })
+    let alert = within(dialog).getByRole('alert')
+    expect(alert.textContent).toBe('هذا أكثر من مبلغ OMR\u00A040.000 المدفوع زيادةً على هذه الفاتورة.')
+    expect(alert.querySelector('svg')).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'إلغاء' }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'خصمه من فاتورة' }))
+    dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getAllByRole('spinbutton')[0], { target: { value: '16' } })
+    alert = within(dialog).getByRole('alert')
+    expect(alert.textContent).toBe('هذا أكثر من مبلغ OMR\u00A015.000 المحتفظ به رصيدًا.')
+    expect(alert.querySelector('svg')).toBeTruthy()
   })
 
   it('lists the four steps in Activity with their amounts in rials', async () => {
