@@ -463,11 +463,14 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
 - **Mobile app scope** (owner, 29 Sep 2026; widened 9 Oct 2026): onboarding (sign-in and
   subscription included), company settings with branches and Peppol settings, notifications,
   customers and suppliers, Income (invoices, bulk invoice upload, credit notes, debit notes,
-  reminders), Expenditure (bills, bill upload and scan from a photo, and bill reminders), reports and the dashboard. POS and the
-  catalogue come to mobile later (future work). **No self-billing on mobile.** Handoff is in
-  phases, each doc sent only after Abrar's end-to-end test of that phase passes: (1) onboarding
-  to invoice sending; (2) credit notes, debit notes and reminders, closing Income; (3) bills and
-  bill reminders, closing Expenditure. The
+  reminders), Expenditure (bills and bill reminders; bill upload and scan from a photo to be
+  confirmed with Atiq), reports and the dashboard. POS and the catalogue come to mobile later
+  (future work). **No self-billing on mobile.** Handoff is in phases, each change doc sent only
+  after Abrar's end-to-end test of that phase passes: (1) onboarding to an invoice sent over
+  Peppol: sign-up, sign-in, subscription, company settings, branches, Peppol settings, customers,
+  invoice creation, bulk invoice upload, sending; (2) credit notes, debit notes and reminders,
+  closing Income; (3) bills, bill upload and bill reminders, closing Expenditure (the core work
+  ends here); (4) dashboard, reports and notifications. The
   mobile developer's guide for onboarding to invoice creation is a shared doc:
   https://claude.ai/code/artifact/0880cec3-51a4-4cc7-93b6-d55890f97365 (data, rules and APIs only;
   the mobile UI and layout are his call).
