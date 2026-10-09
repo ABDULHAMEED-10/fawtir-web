@@ -24,10 +24,12 @@
 /**
  * Where the account stands: with Fawtir's reviewers; waiting for the taxpayer's request on the
  * portal; waiting for Fawtir to accept it; accepted and being registered on the SMP; connected;
- * or a request Fawtir declined or that expired, which the taxpayer sends again.
+ * or a request Fawtir declined or that expired, which the taxpayer sends again. `rejected` is
+ * Fawtir's review turning the registration down: nothing after it has started.
  */
 export type GoingLivePhase =
   | 'review'
+  | 'rejected'
   | 'request'
   | 'accepting'
   | 'registering'
@@ -57,6 +59,7 @@ const STEP_IDS: GoingLiveStep['id'][] = [
 /** The step each phase is waiting on. */
 const CURRENT: Record<GoingLivePhase, number> = {
   review: 1,
+  rejected: 1,
   request: 2,
   accepting: 3,
   registering: 4,
@@ -67,6 +70,7 @@ const CURRENT: Record<GoingLivePhase, number> = {
 
 const STATUS: Partial<Record<GoingLivePhase, Partial<Record<GoingLiveStep['id'], string>>>> = {
   review: { review: 'reviewing' },
+  rejected: { review: 'rejected' },
   request: { review: 'approved', request: 'requestNow' },
   accepting: { review: 'approved', request: 'requestSent', accept: 'accepting' },
   registering: {
@@ -87,7 +91,7 @@ const STATUS: Partial<Record<GoingLivePhase, Partial<Record<GoingLiveStep['id'],
 
 export function goingLiveSteps(phase: GoingLivePhase): GoingLiveStep[] {
   const at = CURRENT[phase]
-  const failed = phase === 'declined' || phase === 'expired'
+  const failed = phase === 'declined' || phase === 'expired' || phase === 'rejected'
   return STEP_IDS.map((id, index) => {
     const statusKey = STATUS[phase]?.[id]
     return {

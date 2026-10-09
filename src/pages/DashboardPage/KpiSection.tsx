@@ -5,7 +5,7 @@ import { useSession } from '../../lib/session/session'
 import { BUSINESS_TIME_ZONE, formatAmount } from '../../lib/format'
 import type { CashDto, ReceivableRowDto } from '../../api/reports/dashboard'
 import type { BillSummaryDto } from '../../api/expenditure/bills'
-import { omrRow, toNumber, type TileView } from './dashboardData'
+import { omrRow, partOfDay, toNumber, type TileView } from './dashboardData'
 import salesIcon from '../../assets/dashboard/kpi-sales.svg'
 import receivablesIcon from '../../assets/dashboard/kpi-receivables.svg'
 import payablesIcon from '../../assets/dashboard/kpi-payables.svg'
@@ -14,6 +14,9 @@ export function DashboardHeader({ now = new Date() }: { now?: Date }) {
   const { t, i18n } = useTranslation()
   // The username is the only name the session carries (`/me/entitlements` has no display name).
   const name = useSession()?.username
+  // The part of the day where the business is, not where the browser is: the greeting said "Good
+  // morning" at every hour, which the local browser run caught in the evening.
+  const part = partOfDay(now)
   // Today in the business's time zone and the reader's language. It used to be a fixed sample
   // date in the translation file.
   const today = new Intl.DateTimeFormat(i18n.language.startsWith('ar') ? 'ar-u-nu-latn' : 'en-GB', {
@@ -28,7 +31,7 @@ export function DashboardHeader({ now = new Date() }: { now?: Date }) {
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h1 className="text-[32px] font-semibold leading-[1.2] text-text-primary">
-          {name ? t('dashboard.greeting', { name }) : t('dashboard.greetingNoName')}
+          {name ? t(`dashboard.greetingAt.${part}`, { name }) : t(`dashboard.greetingAtNoName.${part}`)}
         </h1>
         <p className="text-sm font-medium leading-[1.2] text-text-quaternary">{today}</p>
       </div>

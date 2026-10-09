@@ -16,10 +16,15 @@ const SESSION: Entitlements = {
   featureFlags: {},
 }
 
-function renderHeader(session: Entitlements | null) {
+// 09:00, 14:00 and 20:00 in Muscat (UTC+4), whatever zone the test machine runs in.
+const MORNING = new Date('2026-10-08T05:00:00Z')
+const AFTERNOON = new Date('2026-10-08T10:00:00Z')
+const EVENING = new Date('2026-10-08T16:00:00Z')
+
+function renderHeader(session: Entitlements | null, now: Date = MORNING) {
   return render(
     <SessionContext.Provider value={session}>
-      <DashboardHeader />
+      <DashboardHeader now={now} />
     </SessionContext.Provider>,
   )
 }
@@ -38,6 +43,16 @@ describe('DashboardHeader greeting', () => {
   it('greets nobody by name before the session has answered', () => {
     renderHeader(null)
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Good morning')
+  })
+
+  it('follows the time of day in the business zone, not a fixed morning', () => {
+    renderHeader(SESSION, AFTERNOON)
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Good afternoon, saji.khan')
+  })
+
+  it('says good evening in the evening', () => {
+    renderHeader(null, EVENING)
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Good evening')
   })
 
   it('greets in Arabic', async () => {

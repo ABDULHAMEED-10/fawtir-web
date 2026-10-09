@@ -86,8 +86,9 @@ async function onboardThroughTheForm(user: ReturnType<typeof userEvent.setup>) {
   await user.type(await screen.findByLabelText(/legal name/i), 'Wadi Shab Provisions LLC')
   await user.type(screen.getByLabelText(/trading name/i), 'Wadi Shab Provisions')
   await user.type(screen.getByLabelText(/tenant code/i), 'wadishab')
-  await user.type(screen.getByLabelText(/commercial registration/i), '1234567')
-  await user.type(screen.getByLabelText(/vatin/i), 'OM1100000000')
+  // Typed with spaces, as people copy them from a certificate: the request must carry them stripped.
+  await user.type(screen.getByLabelText(/commercial registration/i), '1234 567')
+  await user.type(screen.getByLabelText(/vatin/i), 'OM11 0000 0000')
   await user.type(screen.getByLabelText(/registered address/i), 'Way 4412, Muscat')
   await pick(user, /^town$/i)
   await pick(user, /business type/i)

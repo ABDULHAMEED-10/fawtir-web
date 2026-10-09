@@ -552,6 +552,13 @@ export function SubscriptionTab({ tenantId, ledger, onAction }: Props) {
               <p className="text-sm font-medium text-text-tertiary">
                 {t('console.tenantDetail.pay.bank.title')}
               </p>
+              {/* The same withholding as every tenant screen: an operator must not read out an
+                  account nobody has confirmed (bankBeneficiaryVerified). */}
+              {!PLATFORM_SETTINGS.payments.bankBeneficiaryVerified ? (
+                <p className="mt-1.5 text-xs font-medium text-text-quaternary">
+                  {t('console.tenantDetail.pay.bank.unverified')}
+                </p>
+              ) : (
               <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs font-medium">
                 <dt className="text-text-quaternary">
                   {t('console.tenantDetail.pay.bank.accountName')}
@@ -573,6 +580,7 @@ export function SubscriptionTab({ tenantId, ledger, onAction }: Props) {
                   )}
                 </dd>
               </dl>
+              )}
             </div>
           ) : null}
         </Card>

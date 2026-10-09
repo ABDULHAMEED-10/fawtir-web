@@ -149,6 +149,7 @@ let activityCode: string | null
 let paymentResponse: () => Response
 let storedFiles: unknown[]
 let attachmentResponse: () => Response
+let readinessResponse: () => Response
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -177,6 +178,7 @@ beforeEach(async () => {
       attachedAt: '2026-09-29T08:00:00Z',
       attachedByName: 'Hafidh Saif',
     })
+  readinessResponse = () => json(404, { type: 'about:blank' })
   issueResponse = () =>
     json(200, {
       ...draft({ version: 5, authoringState: 'ISSUED' }),
@@ -197,6 +199,7 @@ beforeEach(async () => {
     }
     if (url === '/api/v1/company-profile/industrial-classification')
       return json(200, { code: activityCode })
+    if (url === '/api/v1/invoicing/readiness') return readinessResponse()
     if (url === '/api/v1/branches')
       return json(200, [
         { id: 'b-1', code: 'MAIN', name: 'Head office', type: 'HEAD_OFFICE', city: 'Muscat' },
@@ -576,6 +579,52 @@ describe('issuing from the composer', () => {
     renderAt('/invoices/d-1/edit')
     expect(await screen.findByDisplayValue('September supply')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Create invoice' })).toBeNull()
+  })
+
+  it('names, before Issue, the prerequisites the server would refuse on, and leaves Issue to the server', async () => {
+    // "Fix this" goes to a settings write, so the card offers it only with admin.settings.manage
+    // (#157 review, 78f7700); this issuer may also change settings.
+    who = { ...ISSUER, permissions: [...ISSUER.permissions, 'admin.settings.manage'] }
+    readinessResponse = () =>
+      json(200, {
+        ready: false,
+        items: [
+          { code: 'COMPANY_VERIFIED', status: 'AWAITING_PLATFORM', owner: 'PLATFORM' },
+          { code: 'ACTIVE_BRANCH', status: 'ACTION_REQUIRED', owner: 'COMPANY' },
+          { code: 'CONTACT_PHONE', status: 'DONE', owner: 'COMPANY' },
+        ],
+      })
+    renderAt('/invoices/d-1/edit')
+
+    const card = within(
+      (await screen.findByText(i18n.t('readiness.composer.title'))).closest('section')!,
+    )
+    expect(card.getByText(i18n.t('readiness.item.COMPANY_VERIFIED'))).toBeTruthy()
+    expect(card.getByText(i18n.t('readiness.awaitingFawtir'))).toBeTruthy()
+    expect(card.getByRole('link', { name: i18n.t('readiness.fix') }).getAttribute('href')).toBe(
+      '/settings/branches/new',
+    )
+    expect(card.queryByText(i18n.t('readiness.item.CONTACT_PHONE'))).toBeNull()
+    expect(
+      (screen.getByRole('button', { name: 'Create invoice' }) as HTMLButtonElement).disabled,
+    ).toBe(false)
+  })
+
+  it('shows no readiness note when the company is ready, or when the answer is unavailable', async () => {
+    who = ISSUER
+    for (const answer of [
+      () => json(200, { ready: true, items: [] }),
+      () => json(403, { type: 'about:blank' }),
+    ]) {
+      readinessResponse = answer
+      const view = renderAt('/invoices/d-1/edit')
+      expect(await screen.findByDisplayValue('September supply')).toBeTruthy()
+      await waitFor(() =>
+        expect(fetchMock.mock.calls.some(([url]) => url === '/api/v1/invoicing/readiness')).toBe(true),
+      )
+      expect(screen.queryByText(i18n.t('readiness.composer.title'))).toBeNull()
+      view.unmount()
+    }
   })
 
   it('confirms a saved draft with its dates and server total, issues it once and lands on the invoice', async () => {

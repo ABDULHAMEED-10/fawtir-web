@@ -36,7 +36,7 @@ const conflict = () =>
     detail: 'A tenant with this tax number already exists.',
   })
 
-function status(stage: string, complete: Partial<Record<string, boolean>> = {}) {
+function status(stage: string, complete: Record<string, unknown> = {}) {
   return json(200, {
     stage,
     businessProfileComplete: false,
@@ -85,6 +85,8 @@ const requests = () =>
   }))
 const field = (name: string) => document.querySelector<HTMLInputElement>(`form [name="${name}"]`)!
 
+/** What `/verify-code` hands the first step: the account email, no answers yet. */
+const FROM_VERIFY: OnboardingState = { accountEmail: 'owner@alnoor.test' }
 const AFTER_PROFILE: OnboardingState = { businessSize: 'just-me', invoicingMethod: 'paper' }
 const AFTER_CATEGORY: OnboardingState = { ...AFTER_PROFILE, businessType: 'food-beverage' }
 const AFTER_TYPE: OnboardingState = { ...AFTER_CATEGORY, subBusinessType: 'bakery' }
@@ -132,7 +134,7 @@ describe('About your business', () => {
   ] as const
 
   it('makes no request on render', () => {
-    renderAt('/about-business')
+    renderAt('/about-business', FROM_VERIFY)
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -146,7 +148,7 @@ describe('About your business', () => {
     '%s (%s) with %s (%s) and POS saves once and continues to the business type',
     async (sizeKey, size, methodKey, method) => {
       const user = userEvent.setup({ delay: null })
-      renderAt('/about-business')
+      renderAt('/about-business', FROM_VERIFY)
       await user.click(screen.getByText(i18n.t(sizeKey)))
       await user.click(screen.getByText(i18n.t(methodKey)))
       await user.click(screen.getByText(i18n.t('aboutBusiness.posCardTitle')))
@@ -156,15 +158,20 @@ describe('About your business', () => {
       expect(requests()).toEqual([
         {
           url: '/api/v1/auth/signup/business-profile',
-          body: { onboardingToken: TOKEN, businessSize: size, invoicingMethod: method },
+          body: {
+            onboardingToken: TOKEN,
+            businessSize: size,
+            invoicingMethod: method,
+            usesPos: true,
+          },
         },
       ])
     },
   )
 
-  it('without POS, skips the trade screens and still leaves a registration the backend accepts', async () => {
+  it('without POS, says so, posts no placeholder trade and skips the trade screens', async () => {
     const user = userEvent.setup({ delay: null })
-    renderAt('/about-business')
+    renderAt('/about-business', FROM_VERIFY)
     expect(
       screen
         .getByRole('button', { name: new RegExp(i18n.t('aboutBusiness.posCardTitle')) })
@@ -180,22 +187,48 @@ describe('About your business', () => {
           onboardingToken: TOKEN,
           businessSize: 'JUST_ME',
           invoicingMethod: 'PAPER_OR_MANUAL',
+          usesPos: false,
         },
       },
-      {
-        url: '/api/v1/auth/signup/business-category',
-        body: { onboardingToken: TOKEN, businessCategory: 'FOOD_AND_BEVERAGE' },
-      },
-      {
-        url: '/api/v1/auth/signup/business-type',
-        body: { onboardingToken: TOKEN, businessType: 'RESTAURANT' },
-      },
     ])
-    // The placeholder trade is not shown anywhere: no category chip, no activity suggested from it.
+    // No trade is shown anywhere: no category chip, no activity suggested from one.
     expect(screen.queryByText(i18n.t('businessType.options.foodBeverage'))).toBeNull()
     expect(
       screen.getByRole('button', { name: i18n.t('businessIdentity.isicLabel') }).textContent,
     ).toContain(i18n.t('businessIdentity.isicPlaceholder'))
+  })
+
+  it("opened without this tab's answers, shows the ones the server saved", async () => {
+    fetchMock.mockResolvedValue(
+      status('BUSINESS_IDENTITY', {
+        businessProfileComplete: true,
+        businessCategoryComplete: true,
+        businessTypeComplete: true,
+        draft: {
+          businessProfile: {
+            businessSize: 'PEOPLE_11_TO_50',
+            invoicingMethod: 'FULL_ERP_SYSTEM',
+            usesPos: true,
+          },
+          businessCategory: 'FOOD_AND_BEVERAGE',
+          businessType: 'BAKERY',
+        },
+      }),
+    )
+    renderAt('/about-business')
+
+    expect(await screen.findByText(i18n.t('aboutBusiness.title'))).toBeTruthy()
+    const pressed = screen
+      .getAllByRole('button', { pressed: true })
+      .map((button) => button.textContent)
+    expect(pressed.some((text) => text?.includes(i18n.t('aboutBusiness.size.elevenToFifty')))).toBe(
+      true,
+    )
+    expect(pressed.some((text) => text?.includes(i18n.t('aboutBusiness.invoicing.erp')))).toBe(true)
+    expect(pressed.some((text) => text?.includes(i18n.t('aboutBusiness.posCardTitle')))).toBe(true)
+    expect(requests()).toEqual([
+      { url: '/api/v1/auth/signup/status', body: { onboardingToken: TOKEN } },
+    ])
   })
 
   it('restores the previous answers on Back', () => {
@@ -212,7 +245,7 @@ describe('About your business', () => {
   it('sends one request however often Continue is pressed', async () => {
     let answer: (response: Response) => void = () => {}
     fetchMock.mockReturnValue(new Promise<Response>((resolve) => (answer = resolve)))
-    renderAt('/about-business')
+    renderAt('/about-business', FROM_VERIFY)
     const form = submit().closest('form') as HTMLFormElement
     fireEvent.submit(form)
     fireEvent.submit(form)
@@ -562,10 +595,14 @@ describe('session and entry', () => {
     fetchMock.mockResolvedValue(
       json(401, { type: 'https://api.fawtir.om/problems/authentication-failed' }),
     )
-    renderAt('/about-business')
+    renderAt('/about-business', FROM_VERIFY)
     await userEvent.setup({ delay: null }).click(submit())
 
     expect(await screen.findByText(i18n.t('onboarding.sessionExpired'))).toBeTruthy()
+    // The way back in, not a dead end: a fresh code by email.
+    expect(
+      screen.getByRole('link', { name: i18n.t('signupResume.cta') }).getAttribute('href'),
+    ).toBe('/signup/resume')
     expect(readOnboardingSession()).toBeNull()
     expect(hasEndedOnboardingSession()).toBe(true)
   })
@@ -603,6 +640,32 @@ describe('session and entry', () => {
     renderAt('/address-contact', AFTER_IDENTITY)
     expect((await screen.findByTestId('location')).textContent).toBe('/signup-pending')
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('fills a typed-in step from the saved draft', async () => {
+    fetchMock.mockResolvedValue(
+      status('PLAN', {
+        businessProfileComplete: true,
+        businessCategoryComplete: true,
+        businessTypeComplete: true,
+        businessIdentityComplete: true,
+        addressContactComplete: true,
+        draft: {
+          businessProfile: { businessSize: 'JUST_ME', invoicingMethod: 'PAPER_OR_MANUAL', usesPos: false },
+          businessIdentity: {
+            legalCompanyName: 'Al Noor Bakery LLC',
+            commercialRegistrationNumber: '1234567',
+            taxNumber: 'OM1100112233',
+            invoiceAccent: 'GREEN',
+          },
+        },
+      }),
+    )
+    renderAt('/business-identity')
+
+    expect(await screen.findByText(i18n.t('businessIdentity.title'))).toBeTruthy()
+    expect(field('companyName').value).toBe('Al Noor Bakery LLC')
+    expect(field('vatin').value).toBe('OM1100112233')
   })
 
   it('opens a typed-in step that is already allowed', async () => {

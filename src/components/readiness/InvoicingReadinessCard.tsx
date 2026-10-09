@@ -30,9 +30,13 @@ const FIX_PERMISSION = 'admin.settings.manage'
  * What still stands between the company and issuing invoices, while anything does. Shown only on
  * an answer that says "not ready": loading, a 403, a 404 from a backend without the route, or any
  * other failure shows nothing, so the card never claims readiness or its absence on no evidence.
+ *
+ * In the composer it explains, before Issue, why issuing would be refused. It never disables Issue:
+ * the server's issuance checks stay the authority, and this answer can be a moment stale.
  */
-export function InvoicingReadinessCard() {
+export function InvoicingReadinessCard({ context = 'dashboard' }: { context?: 'dashboard' | 'composer' }) {
   const { t } = useTranslation()
+  const copy = context === 'composer' ? 'readiness.composer' : 'readiness'
   const read = useApiRead<InvoicingReadinessDto>(INVOICING_READINESS_PATH).read
   if (read.status !== 'ready' || read.data.ready) return null
   const open = read.data.items.filter((item) => item.status !== 'DONE')
@@ -44,9 +48,9 @@ export function InvoicingReadinessCard() {
       className="rounded-md border border-warning-100 bg-surface-card p-5"
     >
       <h2 id="invoicing-readiness-title" className="text-lg font-semibold text-text-primary">
-        {t('readiness.title')}
+        {t(`${copy}.title`)}
       </h2>
-      <p className="mt-0.5 text-sm font-medium text-text-quaternary">{t('readiness.subtitle')}</p>
+      <p className="mt-0.5 text-sm font-medium text-text-quaternary">{t(`${copy}.subtitle`)}</p>
       <ul className="mt-3 flex flex-col gap-2">
         {open.map((item) => (
           <Item key={item.code} item={item} />
