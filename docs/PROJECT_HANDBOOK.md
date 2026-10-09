@@ -463,7 +463,7 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
 - **Mobile app scope** (owner, 29 Sep 2026; widened 9 Oct 2026): onboarding (sign-in and
   subscription included), company settings with branches and Peppol settings, notifications,
   customers and suppliers, Income (invoices, bulk invoice upload, credit notes, debit notes,
-  reminders), Expenditure (bills and bill reminders), reports and the dashboard. POS and the
+  reminders), Expenditure (bills, bill upload and scan from a photo, and bill reminders), reports and the dashboard. POS and the
   catalogue come to mobile later (future work). **No self-billing on mobile.** Handoff is in
   phases, each doc sent only after Abrar's end-to-end test of that phase passes: (1) onboarding
   to invoice sending; (2) credit notes, debit notes and reminders, closing Income; (3) bills and
