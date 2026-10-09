@@ -1062,7 +1062,6 @@
     "createInvoice": "Create Invoice",
     "notifications": "Notifications",
     "greeting": "Good morning, {{name}}",
-    "date": "Saturday, 18 July 2026",
     "thisMonth": "This month",
     "nav": {
       "main": "MAIN",
@@ -1122,27 +1121,25 @@
       "lockedOn": "Available on {{plan}}",
       "billRemindersUnread": "Bill reminders, {{count}} unread"
     },
-    "account": {
-      "premiumPlan": "Premium plan",
-      "owner": "Owner"
-    },
     "kpi": {
-      "sales": "Today’s sales",
       "receivables": "Receivables",
       "payables": "Payables",
-      "vsYesterday": "vs yesterday",
       "open": "{{count}} open",
       "overdue": "{{count}} overdue",
-      "dueSoon": "{{count}} due soon",
-      "suppliers": "{{count}} suppliers"
+      "cashThisMonth": "Cash received this month",
+      "cashLastMonth": "Same days last month: {{amount}}",
+      "dueThisWeek": "{{count}} due this week",
+      "sales": "Today’s sales"
     },
     "revenue": {
       "title": "Revenue",
+      "thisMonth": "this month",
+      "none": "No invoices in the last 12 months.",
       "periodLabel": "Revenue period",
       "day": "Day",
       "week": "Week",
       "month": "Month",
-      "thisMonth": "this month"
+      "lastTwelve": "bars show the last 12 months"
     },
     "invoices": {
       "title": "Recent invoices",
@@ -1151,35 +1148,52 @@
       "colStatus": "Status",
       "colAmount": "Amount",
       "status": {
-        "reported": "Reported",
-        "rejected": "Rejected",
+        "rejected": "Rejected by buyer",
         "sent": "Sent",
-        "draft": "Draft"
-      }
+        "draft": "Draft",
+        "issued": "Issued",
+        "accepted": "Accepted",
+        "notSent": "Not sent"
+      },
+      "none": "No invoices yet.",
+      "noNumber": "Draft"
     },
     "compliance": {
-      "title": "Compliance health",
+      "title": "Delivery to buyers",
       "accepted": "accepted",
-      "reported": "Reported to OTA",
-      "mls": "MLS within SLA",
-      "rejected": "Rejected",
-      "alert": "{{count}} TDDs need your attention"
+      "rejected": "Rejected by buyers",
+      "noAnswersYet": "no answers yet",
+      "documents": "Documents this month",
+      "acceptedCount": "Accepted by buyers",
+      "awaiting": "No answer yet"
     },
     "quota": {
       "title": "Invoice quota",
-      "billingPeriod": "Billing period",
       "used": "used",
-      "reset": "18 days left · resets 1 Aug"
+      "periodEnds": "Period ends {{date}}"
     },
     "vat": {
       "title": "VAT Position",
       "report": "Report →",
-      "netPayable": "net payable",
       "output": "Output VAT",
-      "input": "Input VAT"
+      "input": "Input VAT",
+      "net": "net position",
+      "branchScoped": "Input VAT is not kept per branch, so there is no net position for one branch."
     },
     "openNav": "Open navigation",
-    "greetingNoName": "Good morning"
+    "greetingNoName": "Good morning",
+    "loading": "Loading…",
+    "notAvailableYet": "Not available yet",
+    "alert": {
+      "OVERDUE_INVOICES_one": "{{count}} invoice is overdue",
+      "OVERDUE_INVOICES_other": "{{count}} invoices are overdue",
+      "DISPATCH_DEAD_LETTERED_one": "{{count}} invoice could not be sent",
+      "DISPATCH_DEAD_LETTERED_other": "{{count}} invoices could not be sent",
+      "NEEDS_ATTENTION_one": "{{count}} document needs your attention",
+      "NEEDS_ATTENTION_other": "{{count}} documents need your attention",
+      "TDD_SLA_MISSED_one": "{{count}} tax report was late this month",
+      "TDD_SLA_MISSED_other": "{{count}} tax reports were late this month"
+    }
   },
   "rowActions": {
     "delete": "Delete",
@@ -9774,21 +9788,18 @@
     },
     "card": {
       "peppolTitle": "Peppol and tax",
-      "peppolBody": "Registered and live on the network.",
-      "peppolPill": "Expires {{date}}",
+      "peppolBody": "Your Participant ID and where it stands.",
       "peppolFoot": "{{id}}",
       "companyTitle": "Company profile",
       "companyBody": "Name, address, VAT number, logo, and what invoices default to.",
       "companyPill": "Complete",
       "companyFoot": "AR + EN · OMR",
       "branchesTitle": "Branches",
-      "branchesBody": "Each has its own invoice numbering and its own staff.",
+      "branchesBody": "Each has its own invoice numbering.",
       "branchesPill": "{{count}} open",
       "branchesFoot": "{{names}}",
       "teamTitle": "Team members",
       "teamBody": "Everyone with a login, and what each of them can reach.",
-      "teamPill": "{{used}} of {{seats}} used",
-      "teamFoot": "Next is OMR {{amount}}/mo",
       "rolesTitle": "What each role can do",
       "rolesBody": "Owner, manager, accountant, till staff, and one you made yourself.",
       "rolesPill": "{{count}} roles",
@@ -9868,82 +9879,33 @@
       "erpAccessFoot": "Permissions and activity log",
       "logFootReal": "Recorded by the server",
       "erpMappingFootNoAccess": "Your role cannot see the mapping",
-      "erpMappingFootUnknown": "Status not available right now"
+      "erpMappingFootUnknown": "Status not available right now",
+      "peppolPillVerified": "ID verified",
+      "peppolPillNotVerified": "Not verified yet",
+      "pillChecking": "Checking",
+      "pillNotAvailable": "Not available",
+      "teamPillOpen": "Manage"
     }
   },
   "peppolTax": {
     "title": "Peppol and tax",
-    "subtitle": "Your identity on the network, and the certificates that keep it working",
-    "downloadSummary": "Download the setup summary",
-    "liveHeadline": "You're live on the Peppol network",
-    "liveBody": "Registered with the Oman Tax Authority since {{date}}. Anyone on Peppol anywhere can find you at the ID below and send you a bill, and yours reach them the same way.",
+    "subtitle": "Your Participant ID and where it stands.",
     "yourPeppolId": "Your Peppol ID",
     "copyId": "Copy the ID",
     "copied": "Copied",
     "certificates": "Certificates",
-    "certificatesNote": "without these, nothing gets sent or signed",
-    "cert": {
-      "signing": "Signing certificate",
-      "signingNote": "Signs every invoice so the Tax Authority knows it came from you",
-      "transport": "AS4 transport certificate",
-      "transportNote": "Encrypts documents in transit between access points",
-      "reporting": "OTA reporting credentials",
-      "reportingNote": "Your Fawtara account, used to file every TDD"
-    },
-    "issuedBy": "issued by {{who}}",
-    "renewsItself": "renews itself",
-    "daysLeft_one": "{{count}} day left",
-    "daysLeft_other": "{{count}} days left",
-    "monthsLeft_one": "{{count}} month left",
-    "monthsLeft_other": "{{count}} months left",
-    "renewIt": "Renew it",
-    "details": "Details",
-    "renewingTitle": "What renewing involves",
-    "renewingNote": "start now and you'll be comfortable; leave it two weeks and you won't",
-    "step": {
-      "warned": "We warned you",
-      "warnedNote": "30 days out · {{date}}",
-      "ask": "Ask Oman CA for a new one",
-      "askNote": "You do this · about 20 minutes",
-      "issue": "They check and issue",
-      "issueNote": "Usually one working day",
-      "upload": "Upload it here",
-      "uploadNote": "Takes effect on the next invoice"
-    },
-    "startRenewal": "Start the renewal",
-    "uploadExisting": "Upload one I already have",
-    "remindWeekly": "Remind me weekly",
-    "appearance": "How you appear to others",
-    "appearanceNote": "what another business sees when they look you up",
-    "published": "Published",
-    "visibility": {
-      "directory": "Listed in the Peppol directory",
-      "directoryNote": "Lets a customer find you by name rather than needing your ID. Most businesses leave this on.",
-      "acceptBills": "Accept bills sent to you over Peppol",
-      "acceptBillsNote": "Off would mean suppliers have to email or post them instead",
-      "acceptSelfBilling": "Accept self-billing",
-      "acceptSelfBillingNote": "Lets a customer raise the invoice on your behalf. Used by two of your hotel accounts.",
-      "emailCopy": "Send a copy by email as well",
-      "emailCopyNote": "Belt and braces for customers who aren't watching their Peppol inbox"
-    },
     "registration": "Registration",
-    "checkNow": "Check now",
-    "checked": "Checked just now",
     "row": {
-      "peppolId": "Peppol ID",
-      "scheme": "Scheme",
-      "accessPoint": "Access point",
-      "liveSince": "Live since",
       "vatNumber": "VAT number",
-      "fawtaraAccount": "Fawtara account"
+      "verification": "Verified by Fawtir",
+      "smpPublication": "Oman SMP publication",
+      "smlDiscovery": "SML discoverability"
     },
-    "linked": "Linked",
     "branchesOnPeppol": "Branches on Peppol",
     "sharesTheMainId": "Shares the main ID",
     "headOffice": "head office",
     "ifSomethingBreaks": "If something breaks",
     "seeTddLog": "See the TDD reporting log",
-    "testSandbox": "Test with a sandbox invoice",
     "participant": {
       "title": "Participant ID verification",
       "note": "Fawtir checks your Peppol Participant ID against the validation policy in force.",
@@ -9982,7 +9944,50 @@
         "policyNotActive": "No validation policy is in force right now, so a request cannot be made. Try again later.",
         "forbidden": "Your account does not have permission to ask for verification. Ask an administrator in your company if you need it."
       }
-    }
+    },
+    "hero": {
+      "VERIFIED": "Your Participant ID is verified",
+      "REVERIFICATION_REQUIRED": "Your Participant ID needs verifying again",
+      "AWAITING_REVIEW": "Your Participant ID is waiting for review",
+      "NOT_SUBMITTED": "Your Participant ID is not verified yet",
+      "DRAFT": "Your Participant ID is not verified yet",
+      "REJECTED": "Your Participant ID was not verified",
+      "NO_POLICY_IN_FORCE": "Participant ID verification is not open yet",
+      "verifiedOn": "Fawtir verified it on {{date}}.",
+      "seeBelow": "The verification card below says what happens next."
+    },
+    "certificatesManaged": "Fawtir manages the access-point certificates that carry your invoices on the Peppol network. There is nothing for you to renew or upload here.",
+    "fact": {
+      "checking": "Checking…",
+      "notAvailable": "Not available",
+      "verified": "Verified",
+      "notVerified": "Not verified",
+      "published": "Published in the Oman SMP",
+      "notConfirmed": "Not confirmed",
+      "notChecked": "Not checked by Fawtir"
+    },
+    "noOpenBranches": "No open branches.",
+    "cert": {
+      "signing": "Signing certificate",
+      "signingNote": "Signs every invoice so the Tax Authority knows it came from you",
+      "transport": "AS4 transport certificate",
+      "transportNote": "Encrypts documents in transit between access points",
+      "reporting": "OTA reporting credentials",
+      "reportingNote": "Your Fawtara account, used to file every TDD"
+    },
+    "appearance": "How you appear to others",
+    "appearanceNote": "what another business sees when they look you up",
+    "visibility": {
+      "directory": "Listed in the Peppol directory",
+      "directoryNote": "Lets a customer find you by name rather than needing your ID. Most businesses leave this on.",
+      "acceptBills": "Accept bills sent to you over Peppol",
+      "acceptBillsNote": "Off would mean suppliers have to email or post them instead",
+      "acceptSelfBilling": "Accept self-billing",
+      "acceptSelfBillingNote": "Lets a customer raise the invoice on your behalf.",
+      "emailCopy": "Send a copy by email as well",
+      "emailCopyNote": "Belt and braces for customers who aren't watching their Peppol inbox"
+    },
+    "notAvailableYet": "Not available yet"
   },
   "companyProfile": {
     "addressLine2": "Additional street or area",
@@ -9997,7 +10002,6 @@
     "amendFieldsRefused": "Complete these before saving: {{fields}}.",
     "title": "Company profile",
     "subtitle": "What appears on every invoice you send, and what the Tax Authority holds about you",
-    "sampleInvoice": "See a full sample invoice",
     "whoYouAre": "Who you are",
     "whoYouAreNote": "this is the legal identity on the invoice, not a trading name",
     "registeredName": "Registered name",
@@ -10008,7 +10012,6 @@
     "vatNumber": "VAT number",
     "locked": "locked",
     "lockedNote": "Part of your verified tax identity. Changing it needs re-verification, so contact support.",
-    "vatRegisteredSince": "VAT registered since",
     "whereYouAre": "Where you are",
     "whereYouAreNote": "the registered address; branches have their own",
     "streetAddress": "Street address",
@@ -10017,7 +10020,6 @@
     "country": "Country",
     "phone": "Phone",
     "emailOnInvoices": "Email on invoices",
-    "website": "Website",
     "yourLogo": "Your logo",
     "yourLogoNote": "appears on invoices, quotations and receipts",
     "removeIt": "Remove it",
@@ -10025,11 +10027,6 @@
     "logoFormats": "PNG or SVG",
     "logoSize": "at least 400px square",
     "onAReceipt": "On a receipt",
-    "onAReceiptNote": "thermal printers are black and white",
-    "receiptOption": {
-      "plainBlack": "Use a plain black version",
-      "none": "Leave it off receipts"
-    },
     "brandColour": "Brand colour",
     "brandColourNote": "used on invoice headings",
     "logoWarning": "The logo is drawn onto the PDF only. <b>The XML sent to the Tax Authority carries no image</b>, so a logo change never affects a submission.",
@@ -10064,12 +10061,6 @@
     "immediately": "Immediately",
     "unchanged": "Unchanged",
     "lastChanged": "Last changed",
-    "changed": {
-      "bankNote": "Bank note",
-      "logo": "Logo",
-      "address": "Address"
-    },
-    "seeFullHistory": "See the full history",
     "nothingChanged": "Nothing changed yet",
     "oneThingChanged": "<b>One thing changed</b> · {{fields}}",
     "thingsChanged": "<b>{{count}} things changed</b> · {{fields}}",
@@ -10085,7 +10076,21 @@
     "industrialClassificationUnset": "Not set yet. Business and government invoices cannot be created until a business activity is set. Consumer invoices are not affected.",
     "industrialClassificationFailed": "The business activity was not saved. Check the code and try again.",
     "saveFailed": "That did not save. Check your connection and try again.",
-    "identityLockedNote": "Your legal and tax identity is verified and locked. Changing it needs a controlled re-verification, so contact support."
+    "identityLockedNote": "Your legal and tax identity is verified and locked. Changing it needs a controlled re-verification, so contact support.",
+    "sampleNumber": "Sample",
+    "sampleLineOne": "Sample item",
+    "sampleLineTwo": "Sample service",
+    "previewVat": "VAT {{number}}",
+    "noChangesYet": "No changes recorded yet",
+    "changedOther": "Company details",
+    "website": "Website",
+    "onAReceiptNote": "thermal printers are black and white",
+    "receiptOption": {
+      "plainBlack": "Use a plain black version",
+      "none": "Leave it off receipts"
+    },
+    "vatRegisteredSince": "VAT registered since",
+    "notAvailableYet": "Not available yet"
   },
   "branches": {
     "title": "Branches",
@@ -10102,10 +10107,12 @@
       "invoicesNote": "{{name}} raises {{share}} in every 10",
       "included": "Included in your plan",
       "includedUnit": "branches",
-      "includedNote": "No extra charge until the sixth",
       "openNoteGeneric": "Including any you've closed",
       "invoicesNoteGeneric": "Across every open branch",
-      "peopleNoteGeneric": "Across every branch"
+      "peopleNoteGeneric": "Across every branch",
+      "includedUnavailable": "Not available",
+      "includedUnlimited": "Your plan has no branch limit",
+      "includedFromPlan": "On your {{plan}} plan"
     },
     "headOffice": "Head office",
     "open": "Open",
@@ -10161,8 +10168,7 @@
     "cancel": "Cancel",
     "step": {
       "whereItIs": "Where it is",
-      "numbering": "How it numbers invoices",
-      "who": "Who works there"
+      "numbering": "How it numbers invoices"
     },
     "whereItIs": "Where it is",
     "whereItIsNote": "this address appears on invoices raised here",
@@ -10173,7 +10179,6 @@
     "postalCode": "Postal code",
     "governorate": "Governorate",
     "phone": "Phone",
-    "opens": "Opens",
     "numbering": "How it numbers invoices",
     "numberingNote": "this can't be changed once the first invoice is raised",
     "numberingLabel": "Numbering",
@@ -10184,13 +10189,6 @@
     "prefix": "Prefix",
     "firstInvoiceWillBe": "First invoice will be",
     "thenOnwards": "then 0002, 0003 and so on",
-    "whoWorksThere": "Who works there",
-    "whoWorksThereNote": "you can change this later, nobody has to be assigned now",
-    "inviteSomeoneNew": "Invite someone new",
-    "alreadyManages": "Already manages {{branch}} · would work at both",
-    "canReachAnyway": "Owner · can reach every branch anyway",
-    "manages": "Manages {{branch}}",
-    "worksAt": "Till staff · {{branches}}",
     "behaviour": "How it behaves",
     "behaviourNote": "all of these can be changed afterwards",
     "behave": {
@@ -10208,29 +10206,22 @@
       "vat": "VAT number",
       "peppol": "Peppol ID",
       "company": "Company name",
-      "logo": "Logo and colour",
-      "tax": "Tax defaults"
+      "logo": "Logo and colour"
     },
     "shared": "Shared",
-    "fivePercentStandard": "5% standard",
     "ready": "Ready to add?",
     "check": {
       "named": "Named, with an address",
-      "prefixFree": "{{prefix}} prefix is free to use",
       "prefixMissing": "Give it a prefix",
-      "someoneToManage": "Someone to manage it",
-      "nobodyAssigned": "Nobody assigned yet (optional)",
       "phone": "Phone number added",
-      "noPhone": "No phone number (optional)"
+      "noPhone": "No phone number (optional)",
+      "prefixChosen": "Prefix {{prefix}} chosen; Fawtir checks it is free when you save",
+      "sharedSeries": "Carries on the company series"
     },
-    "cost": "What it costs",
+    "cost": "Your plan",
     "branchesUsed": "Branches used",
     "usedOf": "{{used}} of {{total}}",
     "thisOne": "This one",
-    "noExtraCharge": "No extra charge",
-    "sixthWouldBe": "A sixth would be",
-    "perMonth": "/mo",
-    "footer": "{{name}} · opens {{date}} · first invoice {{invoice}}",
     "footerUnnamed": "Name the branch to carry on",
     "saveDraft": "Save as a draft",
     "addTheBranch": "Add the branch",
@@ -10239,7 +10230,20 @@
     "saveChanges": "Save the changes",
     "closeThisBranch": "Close this branch",
     "saving": "Saving…",
-    "saveFailed": "Could not save the branch. Try again."
+    "saveFailed": "Could not save the branch. Try again.",
+    "chooseGovernorate": "Choose a governorate",
+    "continuesCompanySeries": "The company's next number",
+    "thisBranch": "this branch",
+    "usedOfUnlimited": "{{used}} (no limit)",
+    "withinPlan": "Within your plan",
+    "beyondPlan": "Beyond your plan's allowance",
+    "footerOwn": "{{name}} · first invoice {{invoice}}",
+    "footerShared": "{{name}} · carries on the company series",
+    "opens": "Opens",
+    "whoWorksThere": "Who works there",
+    "whoWorksThereNote": "you can change this later, nobody has to be assigned now",
+    "inviteSomeoneNew": "Invite someone new",
+    "notAvailableYet": "Not available yet"
   },
   "team": {
     "title": "Team members",
@@ -14727,7 +14731,10 @@
         "supplier": "Suppliers",
         "document": "Documents",
         "item": "Catalogue"
-      }
+      },
+      "keepTyping": "Type at least two characters to search.",
+      "searching": "Searching…",
+      "unavailable": "Search is not available right now."
     },
     "notice": {
       "title": "Notifications",
@@ -14768,7 +14775,6 @@
       "named": "{{plan}} plan"
     },
     "user": {
-      "profile": "Your profile",
       "settings": "Settings",
       "signingIn": "How you sign in",
       "signOut": "Sign out",
@@ -20387,5 +20393,21 @@
       "lapsed": "The self-billing agreement {{reference}} has ended.",
       "unverified": "The self-billing agreement {{reference}} is waiting for Fawtir to verify the supplier."
     }
+  },
+  "readiness": {
+    "title": "Before your first invoice",
+    "subtitle": "These still need doing before Fawtir can issue invoices for you.",
+    "item": {
+      "COMPANY_VERIFIED": "Company verified",
+      "PARTICIPANT_VERIFIED": "Participant ID verified",
+      "REGISTERED_ADDRESS": "Registered address complete",
+      "CONTACT_PHONE": "Contact phone number",
+      "BUSINESS_ACTIVITY": "Business activity chosen",
+      "ACTIVE_BRANCH": "At least one open branch",
+      "other": "Another step"
+    },
+    "fix": "Fix this",
+    "awaitingFawtir": "Waiting for Fawtir to review",
+    "actionRequired": "Action required"
   }
 }

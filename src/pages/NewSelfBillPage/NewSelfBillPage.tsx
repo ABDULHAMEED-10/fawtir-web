@@ -75,7 +75,7 @@ import backIcon from '../../assets/invoice-details/back.svg'
 import savedIcon from '../../assets/create-invoice/tick.svg'
 import peppolIcon from '../../assets/periodic/peppol.svg'
 import customerLogo from '../../assets/periodic/customer-logo.svg'
-import { usageForecast } from '../../lib/settings'
+import { usePlanUsage } from '../../hooks/usePlanUsage'
 import eyeIcon from '../../assets/actions/view.svg'
 import saveDraftIcon from '../../assets/customers/save.svg'
 import arrowIcon from '../../assets/create-invoice/arrow.svg'
@@ -333,7 +333,7 @@ export function NewSelfBillPage() {
 function SelfBillComposer() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
-  const usage = usageForecast()
+  const usage = usePlanUsage()
   const navigate = useNavigate()
   const { id: routeId } = useParams<{ id: string }>()
   const session = useSession()
@@ -687,26 +687,27 @@ function SelfBillComposer() {
               </span>
             </span>
             {/*
-              Quota: 189x11 track with a blue fill, per Figma.
-              TODO(backend): no endpoint reports the plan's document allowance or its use;
-              `lib/settings` stands in, as it does on the invoice composer.
+              Quota: 189x11 track with a blue fill, per Figma; drawn only when the plan read
+              answers.
             */}
-            <span className="flex flex-col gap-1.5">
-              <span className="flex items-baseline gap-1">
-                <span className="text-[22px] font-semibold leading-[1.2] text-text-primary">
-                  {usage.used.toLocaleString(language)}
+            {usage ? (
+              <span className="flex flex-col gap-1.5">
+                <span className="flex items-baseline gap-1">
+                  <span className="text-[22px] font-semibold leading-[1.2] text-text-primary">
+                    {usage.used.toLocaleString(language)}
+                  </span>
+                  <span className="text-[11px] font-medium leading-[1.2] text-text-primary">
+                    {t('newSelfBill.quotaOf', { total: usage.allowance.toLocaleString(language) })}
+                  </span>
                 </span>
-                <span className="text-[11px] font-medium leading-[1.2] text-text-primary">
-                  {t('newSelfBill.quotaOf', { total: usage.allowance.toLocaleString(language) })}
+                <span className="block h-[11px] w-[189px] overflow-hidden rounded-[2px] bg-white">
+                  <span
+                    className="block h-full rounded-[2px] bg-primary-700"
+                    style={{ width: `${Math.min(100, usage.percent)}%` }}
+                  />
                 </span>
               </span>
-              <span className="block h-[11px] w-[189px] overflow-hidden rounded-[2px] bg-white">
-                <span
-                  className="block h-full rounded-[2px] bg-primary-700"
-                  style={{ width: `${Math.min(100, usage.percent)}%` }}
-                />
-              </span>
-            </span>
+            ) : null}
           </div>
         </div>
 

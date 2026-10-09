@@ -1077,7 +1077,6 @@
     "createInvoice": "إنشاء فاتورة",
     "notifications": "الإشعارات",
     "greeting": "صباح الخير، {{name}}",
-    "date": "السبت، 18 يوليو 2026",
     "thisMonth": "هذا الشهر",
     "nav": {
       "main": "الرئيسي",
@@ -1137,27 +1136,25 @@
       "lockedOn": "متاح في باقة {{plan}}",
       "billRemindersUnread": "تذكيرات الفواتير، {{count}} غير مقروءة"
     },
-    "account": {
-      "premiumPlan": "الخطة المميزة",
-      "owner": "المالك"
-    },
     "kpi": {
-      "sales": "مبيعات اليوم",
       "receivables": "المستحقات",
       "payables": "المدفوعات",
-      "vsYesterday": "مقارنة بالأمس",
       "open": "{{count}} مفتوحة",
       "overdue": "{{count}} متأخرة",
-      "dueSoon": "{{count}} مستحقة قريبًا",
-      "suppliers": "{{count}} مورّدون"
+      "cashThisMonth": "النقد المستلم هذا الشهر",
+      "cashLastMonth": "الأيام نفسها من الشهر الماضي: {{amount}}",
+      "dueThisWeek": "{{count}} مستحقة هذا الأسبوع",
+      "sales": "مبيعات اليوم"
     },
     "revenue": {
       "title": "الإيرادات",
+      "thisMonth": "هذا الشهر",
+      "none": "لا توجد فواتير في آخر 12 شهرًا.",
       "periodLabel": "فترة الإيرادات",
       "day": "يوم",
       "week": "أسبوع",
       "month": "شهر",
-      "thisMonth": "هذا الشهر"
+      "lastTwelve": "الأعمدة تعرض آخر 12 شهرًا"
     },
     "invoices": {
       "title": "أحدث الفواتير",
@@ -1166,35 +1163,52 @@
       "colStatus": "الحالة",
       "colAmount": "المبلغ",
       "status": {
-        "reported": "مُبلَّغ",
-        "rejected": "مرفوض",
+        "rejected": "رفضها المشتري",
         "sent": "مُرسل",
-        "draft": "مسودة"
-      }
+        "draft": "مسودة",
+        "issued": "صادرة",
+        "accepted": "مقبولة",
+        "notSent": "لم تُرسل"
+      },
+      "none": "لا توجد فواتير بعد.",
+      "noNumber": "مسودة"
     },
     "compliance": {
-      "title": "صحة الامتثال",
+      "title": "التسليم إلى المشترين",
       "accepted": "مقبول",
-      "reported": "مُبلَّغ لجهاز الضرائب",
-      "mls": "MLS ضمن SLA",
-      "rejected": "مرفوض",
-      "alert": "{{count}} تقارير TDD تحتاج انتباهك"
+      "rejected": "رفضها المشترون",
+      "noAnswersYet": "لا ردود بعد",
+      "documents": "مستندات هذا الشهر",
+      "acceptedCount": "قبلها المشترون",
+      "awaiting": "لا رد بعد"
     },
     "quota": {
       "title": "حصة الفواتير",
-      "billingPeriod": "فترة الفوترة",
       "used": "مستخدم",
-      "reset": "18 يومًا متبقية · يُعاد في 1 أغسطس"
+      "periodEnds": "تنتهي الفترة في {{date}}"
     },
     "vat": {
       "title": "وضع ضريبة القيمة المضافة",
       "report": "تقرير ←",
-      "netPayable": "صافي مستحق",
       "output": "ضريبة المخرجات",
-      "input": "ضريبة المدخلات"
+      "input": "ضريبة المدخلات",
+      "net": "صافي الوضع",
+      "branchScoped": "لا تُحفظ ضريبة المدخلات لكل فرع، لذا لا يوجد صافٍ لفرع واحد."
     },
     "openNav": "فتح التنقل",
-    "greetingNoName": "صباح الخير"
+    "greetingNoName": "صباح الخير",
+    "loading": "جارٍ التحميل…",
+    "notAvailableYet": "غير متاح بعد",
+    "alert": {
+      "OVERDUE_INVOICES_one": "فاتورة واحدة متأخرة",
+      "OVERDUE_INVOICES_other": "{{count}} فواتير متأخرة",
+      "DISPATCH_DEAD_LETTERED_one": "تعذّر إرسال فاتورة واحدة",
+      "DISPATCH_DEAD_LETTERED_other": "تعذّر إرسال {{count}} فواتير",
+      "NEEDS_ATTENTION_one": "مستند واحد يحتاج انتباهك",
+      "NEEDS_ATTENTION_other": "{{count}} مستندات تحتاج انتباهك",
+      "TDD_SLA_MISSED_one": "تأخر تقرير ضريبي واحد هذا الشهر",
+      "TDD_SLA_MISSED_other": "تأخرت {{count}} تقارير ضريبية هذا الشهر"
+    }
   },
   "rowActions": {
     "delete": "حذف",
@@ -10289,21 +10303,18 @@
     },
     "card": {
       "peppolTitle": "Peppol والضريبة",
-      "peppolBody": "مسجّل وفعّال على الشبكة.",
-      "peppolPill": "تنتهي {{date}}",
+      "peppolBody": "معرّف المشارك الخاص بك ووضعه الحالي.",
       "peppolFoot": "{{id}}",
       "companyTitle": "ملف الشركة",
       "companyBody": "الاسم والعنوان والرقم الضريبي والشعار وما تبدأ به الفواتير.",
       "companyPill": "مكتمل",
       "companyFoot": "عربي + إنجليزي · ر.ع.",
       "branchesTitle": "الفروع",
-      "branchesBody": "لكل فرع ترقيم فواتيره وطاقمه.",
+      "branchesBody": "لكل فرع ترقيم فواتيره الخاص.",
       "branchesPill": "{{count}} مفتوحة",
       "branchesFoot": "{{names}}",
       "teamTitle": "أعضاء الفريق",
       "teamBody": "كل من له حساب دخول، وما يصل إليه كل منهم.",
-      "teamPill": "{{used}} من {{seats}} مستخدمة",
-      "teamFoot": "التالي {{amount}} ر.ع./شهر",
       "rolesTitle": "ما يستطيعه كل دور",
       "rolesBody": "المالك والمدير والمحاسب وموظف الكاشير، ودور صنعته بنفسك.",
       "rolesPill": "{{count}} أدوار",
@@ -10391,82 +10402,33 @@
       "erpAccessFoot": "الصلاحيات وسجل النشاط",
       "logFootReal": "يسجّله الخادم",
       "erpMappingFootNoAccess": "لا يتيح دورك عرض الربط",
-      "erpMappingFootUnknown": "الحالة غير متاحة الآن"
+      "erpMappingFootUnknown": "الحالة غير متاحة الآن",
+      "peppolPillVerified": "المعرّف موثّق",
+      "peppolPillNotVerified": "لم يتم التحقق بعد",
+      "pillChecking": "جارٍ التحقق",
+      "pillNotAvailable": "غير متاح",
+      "teamPillOpen": "إدارة"
     }
   },
   "peppolTax": {
     "title": "Peppol والضريبة",
-    "subtitle": "هويتك على الشبكة، والشهادات التي تُبقيها تعمل",
-    "downloadSummary": "نزّل ملخص الإعداد",
-    "liveHeadline": "أنت فعّال على شبكة Peppol",
-    "liveBody": "مسجّل لدى هيئة الضرائب العمانية منذ {{date}}. يستطيع أي مشترك في Peppol في أي مكان أن يجدك بالمعرّف أدناه ويرسل لك فاتورة، وفواتيرك تصله بالطريقة نفسها.",
+    "subtitle": "معرّف المشارك الخاص بك ووضعه الحالي.",
     "yourPeppolId": "معرّفك في Peppol",
     "copyId": "انسخ المعرّف",
     "copied": "نُسخ",
     "certificates": "الشهادات",
-    "certificatesNote": "بدونها لا يُرسل شيء ولا يُوقّع",
-    "cert": {
-      "signing": "شهادة التوقيع",
-      "signingNote": "توقّع كل فاتورة لتعرف هيئة الضرائب أنها منك",
-      "transport": "شهادة النقل AS4",
-      "transportNote": "تشفّر المستندات أثناء انتقالها بين نقاط الوصول",
-      "reporting": "بيانات التبليغ لدى الهيئة",
-      "reportingNote": "حسابك في فوترة، يُستخدم لتقديم كل مستند ضريبي"
-    },
-    "issuedBy": "صادرة عن {{who}}",
-    "renewsItself": "تتجدد تلقائيًا",
-    "daysLeft_one": "يوم واحد متبقٍ",
-    "daysLeft_other": "{{count}} أيام متبقية",
-    "monthsLeft_one": "شهر واحد متبقٍ",
-    "monthsLeft_other": "{{count}} أشهر متبقية",
-    "renewIt": "جدّدها",
-    "details": "التفاصيل",
-    "renewingTitle": "ما يتطلبه التجديد",
-    "renewingNote": "ابدأ الآن وسترتاح؛ أجّله أسبوعين ولن ترتاح",
-    "step": {
-      "warned": "نبّهناك",
-      "warnedNote": "قبل ٣٠ يومًا · {{date}}",
-      "ask": "اطلب واحدة جديدة من Oman CA",
-      "askNote": "أنت تفعل هذا · نحو ٢٠ دقيقة",
-      "issue": "يتحققون ويصدرون",
-      "issueNote": "عادة يوم عمل واحد",
-      "upload": "ارفعها هنا",
-      "uploadNote": "تسري على الفاتورة التالية"
-    },
-    "startRenewal": "ابدأ التجديد",
-    "uploadExisting": "ارفع واحدة لديّ",
-    "remindWeekly": "ذكّرني أسبوعيًا",
-    "appearance": "كيف تظهر للآخرين",
-    "appearanceNote": "ما يراه عمل آخر حين يبحث عنك",
-    "published": "منشور",
-    "visibility": {
-      "directory": "مُدرج في دليل Peppol",
-      "directoryNote": "يتيح للعميل أن يجدك بالاسم بدل الحاجة لمعرّفك. أغلب الأعمال تبقيه مفعّلًا.",
-      "acceptBills": "استقبال الفواتير عبر Peppol",
-      "acceptBillsNote": "إيقافه يعني أن على المورّدين إرسالها بالبريد الإلكتروني أو ورقيًا",
-      "acceptSelfBilling": "قبول الفوترة الذاتية",
-      "acceptSelfBillingNote": "يتيح للعميل إصدار الفاتورة نيابة عنك. يستخدمه حسابا فندقين لديك.",
-      "emailCopy": "أرسل نسخة بالبريد الإلكتروني أيضًا",
-      "emailCopyNote": "احتياط للعملاء الذين لا يتابعون صندوق Peppol لديهم"
-    },
     "registration": "التسجيل",
-    "checkNow": "تحقق الآن",
-    "checked": "تم التحقق للتو",
     "row": {
-      "peppolId": "معرّف Peppol",
-      "scheme": "النظام",
-      "accessPoint": "نقطة الوصول",
-      "liveSince": "فعّال منذ",
       "vatNumber": "الرقم الضريبي",
-      "fawtaraAccount": "حساب فوترة"
+      "verification": "تحقق فوترة",
+      "smpPublication": "النشر في SMP عُمان",
+      "smlDiscovery": "الظهور في SML"
     },
-    "linked": "مرتبط",
     "branchesOnPeppol": "الفروع على Peppol",
     "sharesTheMainId": "يشارك المعرّف الرئيسي",
     "headOffice": "المكتب الرئيسي",
     "ifSomethingBreaks": "إذا تعطّل شيء",
     "seeTddLog": "اعرض سجل التبليغ الضريبي",
-    "testSandbox": "جرّب بفاتورة اختبارية",
     "participant": {
       "title": "التحقق من معرّف المشارك",
       "note": "يتحقق فوتر من معرّف المشارك في Peppol الخاص بك وفقًا لسياسة التحقق من الصحة السارية.",
@@ -10513,7 +10475,50 @@
     "monthsLeft_zero": "{{count}} أشهر متبقية",
     "monthsLeft_two": "{{count}} أشهر متبقية",
     "monthsLeft_few": "{{count}} أشهر متبقية",
-    "monthsLeft_many": "{{count}} أشهر متبقية"
+    "monthsLeft_many": "{{count}} أشهر متبقية",
+    "hero": {
+      "VERIFIED": "تم التحقق من معرّف المشارك الخاص بك",
+      "REVERIFICATION_REQUIRED": "يلزم التحقق من معرّف المشارك مجددًا",
+      "AWAITING_REVIEW": "معرّف المشارك بانتظار المراجعة",
+      "NOT_SUBMITTED": "لم يتم التحقق من معرّف المشارك بعد",
+      "DRAFT": "لم يتم التحقق من معرّف المشارك بعد",
+      "REJECTED": "لم يتم التحقق من معرّف المشارك",
+      "NO_POLICY_IN_FORCE": "التحقق من معرّف المشارك غير متاح بعد",
+      "verifiedOn": "تحققت فوترة منه في {{date}}.",
+      "seeBelow": "توضح بطاقة التحقق أدناه الخطوة التالية."
+    },
+    "certificatesManaged": "تدير فوترة شهادات نقطة الوصول التي تنقل فواتيرك عبر شبكة Peppol. لا يوجد ما تجدده أو ترفعه هنا.",
+    "fact": {
+      "checking": "جارٍ التحقق…",
+      "notAvailable": "غير متاح",
+      "verified": "تم التحقق",
+      "notVerified": "لم يتم التحقق",
+      "published": "منشور في SMP عُمان",
+      "notConfirmed": "غير مؤكد",
+      "notChecked": "لا تتحقق منه فوترة"
+    },
+    "noOpenBranches": "لا توجد فروع مفتوحة.",
+    "cert": {
+      "signing": "شهادة التوقيع",
+      "signingNote": "توقّع كل فاتورة ليعرف جهاز الضرائب أنها منك",
+      "transport": "شهادة النقل AS4",
+      "transportNote": "تشفّر المستندات أثناء انتقالها بين نقاط الوصول",
+      "reporting": "بيانات التبليغ لدى جهاز الضرائب",
+      "reportingNote": "حسابك في فوترة، يُستخدم لتقديم كل مستند ضريبي"
+    },
+    "appearance": "كيف تظهر للآخرين",
+    "appearanceNote": "ما يراه عمل آخر حين يبحث عنك",
+    "visibility": {
+      "directory": "مُدرج في دليل Peppol",
+      "directoryNote": "يتيح للعميل أن يجدك بالاسم بدل الحاجة لمعرّفك. أغلب الأعمال تبقيه مفعّلًا.",
+      "acceptBills": "استقبال الفواتير عبر Peppol",
+      "acceptBillsNote": "إيقافه يعني أن على المورّدين إرسالها بالبريد الإلكتروني أو ورقيًا",
+      "acceptSelfBilling": "قبول الفوترة الذاتية",
+      "acceptSelfBillingNote": "يتيح للعميل إصدار الفاتورة نيابةً عنك.",
+      "emailCopy": "أرسل نسخة بالبريد الإلكتروني أيضًا",
+      "emailCopyNote": "احتياط للعملاء الذين لا يتابعون صندوق Peppol لديهم"
+    },
+    "notAvailableYet": "غير متاح بعد"
   },
   "companyProfile": {
     "addressLine2": "الشارع الإضافي أو المنطقة",
@@ -10528,7 +10533,6 @@
     "amendFieldsRefused": "أكمل ما يلي قبل الحفظ: {{fields}}.",
     "title": "ملف الشركة",
     "subtitle": "ما يظهر في كل فاتورة ترسلها، وما تحتفظ به هيئة الضرائب عنك",
-    "sampleInvoice": "اعرض فاتورة نموذجية كاملة",
     "whoYouAre": "من أنت",
     "whoYouAreNote": "هذه الهوية القانونية على الفاتورة، لا الاسم التجاري",
     "registeredName": "الاسم المسجّل",
@@ -10539,7 +10543,6 @@
     "vatNumber": "الرقم الضريبي",
     "locked": "مقفل",
     "lockedNote": "جزء من هويتك الضريبية الموثّقة. تغييره يتطلب إعادة التحقق، لذا تواصل مع الدعم.",
-    "vatRegisteredSince": "مسجّل ضريبيًا منذ",
     "whereYouAre": "أين أنت",
     "whereYouAreNote": "العنوان المسجّل، وللفروع عناوينها",
     "streetAddress": "عنوان الشارع",
@@ -10548,7 +10551,6 @@
     "country": "الدولة",
     "phone": "الهاتف",
     "emailOnInvoices": "البريد على الفواتير",
-    "website": "الموقع",
     "yourLogo": "شعارك",
     "yourLogoNote": "يظهر على الفواتير وعروض الأسعار والإيصالات",
     "removeIt": "أزله",
@@ -10556,11 +10558,6 @@
     "logoFormats": "PNG أو SVG",
     "logoSize": "٤٠٠ بكسل مربعة على الأقل",
     "onAReceipt": "على الإيصال",
-    "onAReceiptNote": "طابعات الإيصالات بالأبيض والأسود",
-    "receiptOption": {
-      "plainBlack": "استخدم نسخة سوداء بسيطة",
-      "none": "لا تضعه على الإيصالات"
-    },
     "brandColour": "لون العلامة",
     "brandColourNote": "يُستخدم في عناوين الفاتورة",
     "logoWarning": "يُرسم الشعار على ملف PDF فقط. <b>لا يحمل ملف XML المرسل إلى هيئة الضرائب أي صورة</b>، لذا لا يؤثر تغيير الشعار على أي إرسال.",
@@ -10595,12 +10592,6 @@
     "immediately": "فورًا",
     "unchanged": "دون تغيير",
     "lastChanged": "آخر تغيير",
-    "changed": {
-      "bankNote": "ملاحظة البنك",
-      "logo": "الشعار",
-      "address": "العنوان"
-    },
-    "seeFullHistory": "اعرض السجل الكامل",
     "nothingChanged": "لم يتغير شيء بعد",
     "oneThingChanged": "<b>تغيّر شيء واحد</b> · {{fields}}",
     "thingsChanged": "<b>تغيّرت {{count}} أشياء</b> · {{fields}}",
@@ -10616,7 +10607,21 @@
     "industrialClassificationUnset": "لم يُحدَّد بعد. لا يمكن إنشاء فواتير الشركات والجهات الحكومية حتى يُحدَّد النشاط التجاري. فواتير المستهلكين غير متأثرة.",
     "industrialClassificationFailed": "لم يُحفظ النشاط التجاري. تحقق من الرمز وحاول مرة أخرى.",
     "saveFailed": "لم يُحفظ ذلك. تحقق من اتصالك وحاول مرة أخرى.",
-    "identityLockedNote": "هويتك القانونية والضريبية موثّقة ومقفلة. تغييرها يتطلب إعادة تحقق مضبوطة، لذا تواصل مع الدعم."
+    "identityLockedNote": "هويتك القانونية والضريبية موثّقة ومقفلة. تغييرها يتطلب إعادة تحقق مضبوطة، لذا تواصل مع الدعم.",
+    "sampleNumber": "نموذج",
+    "sampleLineOne": "صنف نموذجي",
+    "sampleLineTwo": "خدمة نموذجية",
+    "previewVat": "الرقم الضريبي {{number}}",
+    "noChangesYet": "لم تُسجَّل أي تغييرات بعد",
+    "changedOther": "بيانات الشركة",
+    "website": "الموقع",
+    "onAReceiptNote": "طابعات الإيصالات بالأبيض والأسود",
+    "receiptOption": {
+      "plainBlack": "استخدم نسخة سوداء بسيطة",
+      "none": "لا تضعه على الإيصالات"
+    },
+    "vatRegisteredSince": "مسجّل ضريبيًا منذ",
+    "notAvailableYet": "غير متاح بعد"
   },
   "branches": {
     "title": "الفروع",
@@ -10633,14 +10638,16 @@
       "invoicesNote": "{{name}} يصدر {{share}} من كل ١٠",
       "included": "المشمولة في خطتك",
       "includedUnit": "فروع",
-      "includedNote": "لا رسوم إضافية حتى السادس",
       "openNoteGeneric": "بما في ذلك ما أغلقته",
       "invoicesNoteGeneric": "عبر كل فرع مفتوح",
       "peopleNoteGeneric": "عبر كل فرع",
       "peopleNote_zero": "{{count}} يعملون في أكثر من فرع",
       "peopleNote_two": "{{count}} يعملون في أكثر من فرع",
       "peopleNote_few": "{{count}} يعملون في أكثر من فرع",
-      "peopleNote_many": "{{count}} يعملون في أكثر من فرع"
+      "peopleNote_many": "{{count}} يعملون في أكثر من فرع",
+      "includedUnavailable": "غير متاح",
+      "includedUnlimited": "لا حد للفروع في خطتك",
+      "includedFromPlan": "ضمن خطة {{plan}}"
     },
     "headOffice": "المكتب الرئيسي",
     "open": "مفتوح",
@@ -10708,8 +10715,7 @@
     "cancel": "إلغاء",
     "step": {
       "whereItIs": "أين هو",
-      "numbering": "كيف يرقّم الفواتير",
-      "who": "من يعمل فيه"
+      "numbering": "كيف يرقّم الفواتير"
     },
     "whereItIs": "أين هو",
     "whereItIsNote": "يظهر هذا العنوان على الفواتير الصادرة هنا",
@@ -10720,7 +10726,6 @@
     "postalCode": "الرمز البريدي",
     "governorate": "المحافظة",
     "phone": "الهاتف",
-    "opens": "يفتح في",
     "numbering": "كيف يرقّم الفواتير",
     "numberingNote": "لا يمكن تغيير هذا بعد إصدار أول فاتورة",
     "numberingLabel": "الترقيم",
@@ -10731,13 +10736,6 @@
     "prefix": "البادئة",
     "firstInvoiceWillBe": "أول فاتورة ستكون",
     "thenOnwards": "ثم ٠٠٠٢ و٠٠٠٣ وهكذا",
-    "whoWorksThere": "من يعمل فيه",
-    "whoWorksThereNote": "يمكن تغيير هذا لاحقًا، لا يلزم تعيين أحد الآن",
-    "inviteSomeoneNew": "ادعُ شخصًا جديدًا",
-    "alreadyManages": "يدير {{branch}} أصلًا · سيعمل في الاثنين",
-    "canReachAnyway": "المالك · يصل إلى كل فرع على أي حال",
-    "manages": "يدير {{branch}}",
-    "worksAt": "كاشير · {{branches}}",
     "behaviour": "كيف يتصرف",
     "behaviourNote": "كل هذه يمكن تغييرها لاحقًا",
     "behave": {
@@ -10755,29 +10753,22 @@
       "vat": "الرقم الضريبي",
       "peppol": "معرّف Peppol",
       "company": "اسم الشركة",
-      "logo": "الشعار واللون",
-      "tax": "الإعدادات الضريبية"
+      "logo": "الشعار واللون"
     },
     "shared": "مشترك",
-    "fivePercentStandard": "٥٪ قياسية",
     "ready": "جاهز للإضافة؟",
     "check": {
       "named": "له اسم وعنوان",
-      "prefixFree": "البادئة {{prefix}} متاحة",
       "prefixMissing": "أعطه بادئة",
-      "someoneToManage": "شخص يديره",
-      "nobodyAssigned": "لم يُعيَّن أحد بعد (اختياري)",
       "phone": "أُضيف رقم هاتف",
-      "noPhone": "لا رقم هاتف (اختياري)"
+      "noPhone": "لا رقم هاتف (اختياري)",
+      "prefixChosen": "اخترت البادئة {{prefix}}؛ تتحقق فوترة من توفرها عند الحفظ",
+      "sharedSeries": "يكمل تسلسل الشركة"
     },
-    "cost": "كم يكلّف",
+    "cost": "خطتك",
     "branchesUsed": "الفروع المستخدمة",
     "usedOf": "{{used}} من {{total}}",
     "thisOne": "هذا الفرع",
-    "noExtraCharge": "بلا رسوم إضافية",
-    "sixthWouldBe": "السادس سيكلّف",
-    "perMonth": "/شهر",
-    "footer": "{{name}} · يفتح {{date}} · أول فاتورة {{invoice}}",
     "footerUnnamed": "سمِّ الفرع للمتابعة",
     "saveDraft": "احفظ كمسودة",
     "addTheBranch": "أضف الفرع",
@@ -10786,7 +10777,20 @@
     "saveChanges": "احفظ التغييرات",
     "closeThisBranch": "أغلق هذا الفرع",
     "saving": "جارٍ الحفظ…",
-    "saveFailed": "تعذّر حفظ الفرع. حاول مرة أخرى."
+    "saveFailed": "تعذّر حفظ الفرع. حاول مرة أخرى.",
+    "chooseGovernorate": "اختر المحافظة",
+    "continuesCompanySeries": "الرقم التالي للشركة",
+    "thisBranch": "هذا الفرع",
+    "usedOfUnlimited": "{{used}} (بلا حد)",
+    "withinPlan": "ضمن خطتك",
+    "beyondPlan": "يتجاوز ما تتيحه خطتك",
+    "footerOwn": "{{name}} · أول فاتورة {{invoice}}",
+    "footerShared": "{{name}} · يكمل تسلسل الشركة",
+    "opens": "يفتح في",
+    "whoWorksThere": "من يعمل فيه",
+    "whoWorksThereNote": "يمكن تغيير هذا لاحقًا، لا يلزم تعيين أحد الآن",
+    "inviteSomeoneNew": "ادعُ شخصًا جديدًا",
+    "notAvailableYet": "غير متاح بعد"
   },
   "team": {
     "title": "أعضاء الفريق",
@@ -15515,7 +15519,10 @@
         "supplier": "المورّدون",
         "document": "المستندات",
         "item": "الكتالوج"
-      }
+      },
+      "keepTyping": "اكتب حرفين على الأقل للبحث.",
+      "searching": "جارٍ البحث…",
+      "unavailable": "البحث غير متاح حاليًا."
     },
     "notice": {
       "title": "الإشعارات",
@@ -15556,7 +15563,6 @@
       "named": "خطة {{plan}}"
     },
     "user": {
-      "profile": "ملفك",
       "settings": "الإعدادات",
       "signingIn": "طريقة تسجيل دخولك",
       "signOut": "تسجيل الخروج",
@@ -21512,5 +21518,21 @@
       "lapsed": "انتهت اتفاقية الفوترة الذاتية {{reference}}.",
       "unverified": "اتفاقية الفوترة الذاتية {{reference}} بانتظار تحقق فوترة من المورّد."
     }
+  },
+  "readiness": {
+    "title": "قبل فاتورتك الأولى",
+    "subtitle": "ما زالت هذه الخطوات مطلوبة قبل أن تُصدر فوترة الفواتير لك.",
+    "item": {
+      "COMPANY_VERIFIED": "التحقق من الشركة",
+      "PARTICIPANT_VERIFIED": "التحقق من معرّف المشارك",
+      "REGISTERED_ADDRESS": "اكتمال العنوان المسجل",
+      "CONTACT_PHONE": "رقم هاتف للتواصل",
+      "BUSINESS_ACTIVITY": "اختيار النشاط التجاري",
+      "ACTIVE_BRANCH": "فرع مفتوح واحد على الأقل",
+      "other": "خطوة أخرى"
+    },
+    "fix": "أصلح هذا",
+    "awaitingFawtir": "بانتظار مراجعة فوترة",
+    "actionRequired": "إجراء مطلوب"
   }
 }
