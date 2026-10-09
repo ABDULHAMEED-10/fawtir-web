@@ -105,9 +105,11 @@ describe('Pricing page', () => {
     }
 
     fireEvent.click(screen.getByRole('radio', { name: /Yearly/ }))
-    // 412.500 / 12 = 34.375; 12500.000 / 12 = 1041.6666…, half up to the baisa.
-    expect(screen.getAllByText('34.375').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('1,041.667').length).toBeGreaterThan(0)
+    // Owner, 9 Oct 2026: Yearly shows the published annual price "/year", not a twelfth of it.
+    expect(screen.getAllByText('412.500').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('12,500.000').length).toBeGreaterThan(0)
+    expect(screen.queryByText('34.375')).toBeNull()
+    expect(screen.getAllByText(i18n.t('site.pricing.perYear')).length).toBeGreaterThan(0)
     expect(screen.getAllByText(i18n.t('site.pricing.yearlyNoteMonths', { count: 2 })).length).toBe(
       2,
     )

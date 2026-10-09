@@ -582,7 +582,9 @@ describe('issuing from the composer', () => {
   })
 
   it('names, before Issue, the prerequisites the server would refuse on, and leaves Issue to the server', async () => {
-    who = ISSUER
+    // "Fix this" goes to a settings write, so the card offers it only with admin.settings.manage
+    // (#157 review, 78f7700); this issuer may also change settings.
+    who = { ...ISSUER, permissions: [...ISSUER.permissions, 'admin.settings.manage'] }
     readinessResponse = () =>
       json(200, {
         ready: false,
