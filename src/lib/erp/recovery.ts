@@ -49,6 +49,7 @@ export type RecoveryNoticeKind =
   | 'connectionUnusable'
   | 'sourceAuthRejected'
   | 'sourceUnavailable'
+  | 'platformUnavailable'
   | 'erpNotEnabled'
   | 'forbidden'
   | 'notFound'
@@ -139,6 +140,13 @@ const BY_CODE: Record<string, Omit<RecoveryNotice, 'reason' | 'invoiceCreated'>>
   },
   ERP_RECOVERY_SOURCE_UNAVAILABLE: {
     kind: 'sourceUnavailable',
+    tone: 'warning',
+    retry: true,
+  },
+  // 503: Fawtir could not open stored credentials. Nothing about the document or connection is
+  // wrong, so the same request may succeed later.
+  ERP_RECOVERY_CREDENTIAL_ENCRYPTION_UNAVAILABLE: {
+    kind: 'platformUnavailable',
     tone: 'warning',
     retry: true,
   },

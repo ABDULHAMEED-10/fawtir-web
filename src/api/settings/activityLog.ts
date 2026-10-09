@@ -13,6 +13,13 @@ import { apiRequest } from '../client'
  */
 export const ACTIVITY_LOG_PATH = '/v1/settings/activity-log'
 
+/**
+ * `GET /v1/erp/activity-log` (`ErpActivityLogController`, R22): the same log, confined by the
+ * server to ERP and mapping resources, for holders of `erp.audit.read`. The confinement is the
+ * server's: a filter here cannot widen it, and a resource kind outside it is refused with 400.
+ */
+export const ERP_ACTIVITY_LOG_PATH = '/v1/erp/activity-log'
+
 /** The server's default page size; `has_more` says whether another page exists. */
 export const ACTIVITY_LOG_PAGE_SIZE = 50
 
@@ -28,7 +35,8 @@ export type ActivityLogItemDto = {
   resource_id: string | null
   /** `SUCCESS`, `FAILURE`, `DENIED`, `THROTTLED`. */
   outcome: string
-  ip_address: string | null
+  /** Absent from the ERP-scoped log, which does not return it. */
+  ip_address?: string | null
   correlation_id: string | null
   metadata: Record<string, unknown> | null
 }
@@ -48,8 +56,12 @@ export type ActivityLogFilters = {
   to?: string
 }
 
-export function activityLogPath(filters: ActivityLogFilters, page: number): string {
-  return withQuery(ACTIVITY_LOG_PATH, {
+export function activityLogPath(
+  filters: ActivityLogFilters,
+  page: number,
+  base: string = ACTIVITY_LOG_PATH,
+): string {
+  return withQuery(base, {
     resource_type: filters.resourceType,
     outcome: filters.outcome,
     from: filters.from,
