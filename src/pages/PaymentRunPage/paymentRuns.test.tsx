@@ -780,6 +780,101 @@ describe('the ways out of a sent run (owner, 8 Oct 2026)', () => {
     expect(screen.getAllByText(/^أُخرج من الدفعة · /)).toHaveLength(1)
   })
 
+  /** A paid run where Sohar Steel had one bill paid (SS-4) and one taken out (SS-3). */
+  const PAID_SPLIT: PaymentRunDetailDto = {
+    ...PAID_WITH_ONE_OUT,
+    items: [
+      ...PAID_WITH_ONE_OUT.items,
+      {
+        ...SENT.items[1],
+        id: 'i-4',
+        billId: 'b-4',
+        supplierBillNumber: 'SS-4',
+        amount: 80.25,
+        markPaidBlock: null,
+        takenOut: null,
+      },
+    ],
+  }
+  const EN_SPLIT = /^Paid .+ · taken out /
+  const AR_SPLIT = /^مدفوع .+ · أُخرج من الدفعة /
+  /** The line under the totals, as seen (the hidden "OMR" left out), and its drawn signs. */
+  const splitLine = (pattern: RegExp) => {
+    const [line] = screen.queryAllByText(
+      (_, element) => element?.tagName === 'P' && pattern.test(element.textContent ?? ''),
+    )
+    if (!line) return null
+    const copy = line.cloneNode(true) as Element
+    copy.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+    return {
+      text: (copy.textContent ?? '').replace(/\s+/g, ' '),
+      signs: line.querySelectorAll('svg').length,
+    }
+  }
+  /** A supplier's header in the bill list: its count line and amount. */
+  const supplierHeader = async (name: string) =>
+    (await screen.findAllByText(name, { selector: 'p.text-base' }, { timeout: 8000 }))[0].closest(
+      'div.bg-surface-background',
+    ) as HTMLElement
+
+  // Owner, 9 Oct 2026 (D2): the bank file's totals stay; a line under them says what was paid
+  // and what was taken out.
+  it('splits a paid run into paid and taken out under the totals, with the rial sign', async () => {
+    detail = PAID_SPLIT
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    await billRow('SS-3')
+    expect(splitLine(EN_SPLIT)).toEqual({ text: 'Paid 1,060.250 · taken out 200.000', signs: 2 })
+    expect(splitLine(EN_SPLIT)!.text).not.toContain('OMR')
+    // The totals themselves are the run's, as the bank received them.
+    expect(screen.getByText('Leaving your account').parentElement!.textContent).toContain('980.000')
+  })
+
+  it('says the split in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    detail = PAID_SPLIT
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    await billRow('SS-3')
+    expect(splitLine(AR_SPLIT)).toEqual({
+      text: 'مدفوع 1,060.250 · أُخرج من الدفعة 200.000',
+      signs: 2,
+    })
+  })
+
+  it('draws no split when nothing was taken out, or the run is only sent', async () => {
+    detail = {
+      ...PAID_WITH_ONE_OUT,
+      items: PAID_WITH_ONE_OUT.items.map((item) => ({ ...item, takenOut: null })),
+    }
+    const paid = renderAt(`/expenditure/payments/${RUN_ID}`)
+    await billRow('SS-3')
+    expect(splitLine(EN_SPLIT)).toBeNull()
+    paid.unmount()
+
+    detail = { ...PAID_SPLIT, run: { ...PAID_SPLIT.run, state: 'EXPORTED', paidAt: null } }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    await billRow('SS-3')
+    expect(splitLine(EN_SPLIT)).toBeNull()
+  })
+
+  // E3: on a paid run, the supplier's header counts the bills actually paid.
+  it("leaves a taken-out bill out of its supplier's header on a paid run, but keeps its row", async () => {
+    detail = PAID_SPLIT
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const header = within(await supplierHeader('Sohar Steel'))
+    expect(header.getByText('1 bill · paid on its own')).toBeTruthy()
+    expect(header.getByText('80.250')).toBeTruthy()
+    expect(within(await billRow('SS-3')).getByText(/^Taken out · /)).toBeTruthy()
+    expect(await billRow('SS-4')).toBeTruthy()
+  })
+
+  it('counts every bill in the header of a run that is only sent', async () => {
+    detail = { ...PAID_SPLIT, run: { ...PAID_SPLIT.run, state: 'EXPORTED', paidAt: null } }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const header = within(await supplierHeader('Sohar Steel'))
+    expect(header.getByText('2 bills · paid as one transfer')).toBeTruthy()
+    expect(header.getByText('280.250')).toBeTruthy()
+  })
+
   it('shows no label when no bill was taken out, or the server does not say', async () => {
     detail = {
       ...PAID_WITH_ONE_OUT,
