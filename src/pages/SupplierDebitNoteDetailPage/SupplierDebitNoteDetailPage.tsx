@@ -429,7 +429,19 @@ function DebitNoteDetail() {
               {
                 key: 'youdPay',
                 label: t('supplierDebitNotes.detail.youdPay'),
-                value: bill ? <SignedAmount value={money(bill.outstandingAmount + total)} /> : '—',
+                // A refused charge is not added to what is owed, so you'd pay the bill as it is
+                // (owner, 9 Oct 2026).
+                value: bill ? (
+                  <SignedAmount
+                    value={money(
+                      row.status === 'REFUSED'
+                        ? bill.outstandingAmount
+                        : bill.outstandingAmount + total,
+                    )}
+                  />
+                ) : (
+                  '—'
+                ),
                 note: bill?.dueDate
                   ? t('supplierCreditNotes.detail.dueOn', { date: fmt.date(bill.dueDate) })
                   : row.dueDate

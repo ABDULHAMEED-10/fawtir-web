@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
+import type { BillRowDto } from '../../api/expenditure/bills'
 import type {
   DebitNoteDecisionDto,
   DebitNoteRowDto,
@@ -91,6 +92,8 @@ let refuseBody: unknown
 let acceptCalls: number
 /** What the refusal answers when a test needs the server to refuse it. */
 let refuseFailure: (() => Response) | null
+/** The supplier's bills, when a test needs the note's bill on file; unanswered otherwise. */
+let billRows: BillRowDto[] | null
 
 const calls = (prefix: string) =>
   fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith(prefix))
@@ -104,6 +107,7 @@ beforeEach(async () => {
   refuseBody = null
   acceptCalls = 0
   refuseFailure = null
+  billRows = null
 
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(
@@ -142,6 +146,15 @@ beforeEach(async () => {
         pageSize: 20,
         count: notes.length,
         total: notes.length,
+      })
+    }
+    if (billRows && url.startsWith('/api/v1/bills?')) {
+      return json(200, {
+        items: billRows,
+        page: 0,
+        pageSize: 10,
+        count: billRows.length,
+        total: billRows.length,
       })
     }
     return json(404)
@@ -625,6 +638,70 @@ describe('a debit note names its bill and who decided', () => {
     expect(
       within(screen.getByRole('list', { name: 'النشاط' })).getByText('رفضه Hafidh Saif'),
     ).toBeTruthy()
+  })
+})
+
+// Owner, 9 Oct 2026: a refused charge is not added, so "You'd pay" is the bill without it.
+describe("a debit note's You'd pay", () => {
+  const BILL_ROW: BillRowDto = {
+    id: 'b-7781',
+    source: 'PEPPOL',
+    supplierId: 's-1',
+    supplierName: 'Qalhat Marine Supplies',
+    documentTypeCode: '380',
+    supplierBillNumber: 'QMS-7781',
+    issueDate: '2026-08-20',
+    dueDate: '2026-09-19',
+    overdue: false,
+    currencyCode: 'OMR',
+    totalIncludingVat: 300,
+    vatAmount: 14.286,
+    paidAmount: 0,
+    outstandingAmount: 300,
+    purchaseOrderReference: null,
+    workflowState: 'APPROVED',
+    readiness: { state: 'READY', distinctApprovals: 1, required: 1, autoApproved: false },
+    match: null,
+    hold: null,
+    paymentRunReference: null,
+    paidOnTheSpot: false,
+  }
+
+  /** The "You'd pay" tile's figure as seen, and whether it carries the drawn rial sign. */
+  const youdPay = async (label: string) => {
+    const tile = (await screen.findByText(label)).parentElement!
+    await waitFor(() => expect(tile.textContent).toMatch(/\d/))
+    const value = tile.children[1]
+    const copy = value.cloneNode(true) as Element
+    copy.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+    return { text: (copy.textContent ?? '').trim(), rial: value.querySelector('svg') !== null }
+  }
+
+  beforeEach(() => {
+    billRows = [BILL_ROW]
+  })
+
+  it('is the bill without the charge on a refused note', async () => {
+    notes = [note({ status: 'REFUSED', decisionReason: 'Already charged' })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(screen.getByText(/refused$/)).toBeTruthy()
+    expect(screen.getByText(/^Nothing was added to what you owe/)).toBeTruthy()
+    expect(await youdPay("You'd pay")).toEqual({ text: '300.000', rial: true })
+  })
+
+  it('still adds the charge while the note is undecided', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(await youdPay("You'd pay")).toEqual({ text: '375.500', rial: true })
+  })
+
+  it('reads in Arabic on a refused note', async () => {
+    await i18n.changeLanguage('ar')
+    notes = [note({ status: 'REFUSED', decisionReason: 'Already charged' })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(await youdPay('ستدفع')).toEqual({ text: '300.000', rial: true })
   })
 })
 
