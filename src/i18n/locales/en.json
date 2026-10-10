@@ -9040,7 +9040,9 @@
       "waiting": "Still waiting",
       "superseded": "Superseded",
       "notOwed": "No TDD owed",
-      "deliveredUnconfirmed": "Delivered, unconfirmed"
+      "deliveredUnconfirmed": "Delivered, unconfirmed",
+      "notSent": "Not sent",
+      "stopped": "Stopped at Fawtir"
     },
     "verdict": {
       "noPeppolId": "The customer has no Peppol ID on their record.",

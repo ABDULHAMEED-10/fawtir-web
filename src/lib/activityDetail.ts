@@ -11,6 +11,7 @@ import {
   outcomeOf,
   refusalCauseOf,
   refusalKindOf,
+  TDD_STOPPED_AT_FAWTIR,
   type RefusalCause,
   type RefusalKind,
   type RowFlow,
@@ -178,13 +179,9 @@ function dayOf(iso: string, language: string): string {
   return (whenOf(iso, language) ?? iso).split(',')[0]
 }
 
-/**
- * Fawtir stopped the report itself: GENERATION_FAILED parks it before sending (FR-201) and
- * DEAD_LETTERED is our own SLA watchdog or exhausted transport retries (FR-203/204). Both carry a
- * `failure_reason`, but it is ours, never the Tax Authority's (Phase 13 finding N1).
- */
-const STOPPED_AT_FAWTIR = new Set(['GENERATION_FAILED', 'DEAD_LETTERED'])
-const stoppedAtFawtir = (obligation: TddObligationDto) => STOPPED_AT_FAWTIR.has(obligation.status)
+/** Both statuses carry a `failure_reason`, but it is ours, never the Tax Authority's (N1). */
+const stoppedAtFawtir = (obligation: TddObligationDto) =>
+  TDD_STOPPED_AT_FAWTIR.has(obligation.status)
 
 const refused = (obligation: TddObligationDto) =>
   !stoppedAtFawtir(obligation) &&
@@ -309,7 +306,9 @@ function tddJourney(dto: ActivityDetailDto, outcome: RowOutcome, language: strin
           : outcome === 'superseded'
             ? // We replaced or cancelled this report ourselves (TDD type R or D).
               { verdictKey: 'activityDetail.verdict.replaced', tone: 'waiting' }
-            : { verdictKey: 'activityDetail.verdict.waiting', tone: 'waiting' }
+            : outcome === 'notSent'
+              ? { verdictKey: 'activityDetail.verdict.notSentYet', tone: 'waiting' }
+              : { verdictKey: 'activityDetail.verdict.waiting', tone: 'waiting' }
 
   return {
     id: 'ota',
@@ -319,7 +318,7 @@ function tddJourney(dto: ActivityDetailDto, outcome: RowOutcome, language: strin
       dto.summary.direction === 'RECEIVED'
         ? 'activityDetail.receiptReportedNote'
         : 'activityDetail.toTaxAuthorityNote',
-    ...(outcome === 'waiting' && liveStopped
+    ...(outcome === 'stopped' || ((outcome === 'waiting' || outcome === 'notSent') && liveStopped)
       ? { verdictKey: 'activityDetail.verdict.stoppedAtFawtir', tone: 'bad' as const }
       : verdict),
     steps,
@@ -673,7 +672,7 @@ export function recordFromDetail(
           item.direction === 'RECEIVED'
           ? 'received'
           : 'accepted'
-        : // "Still waiting on the OTA" would be false for a report stopped here.
+        : // "Still waiting on the OTA" would be false for a report stopped here or never submitted.
           outcome === 'waiting' && !(live && stoppedAtFawtir(live))
           ? 'waiting'
           : 'none',

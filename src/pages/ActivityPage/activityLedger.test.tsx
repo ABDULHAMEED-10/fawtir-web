@@ -242,6 +242,69 @@ describe('one row, as the frame reads it', () => {
     expect(outcomeOf(item({ tdd_leg: null }))).toBe('notOwed')
   })
 
+  // N5: silence means waiting on the OTA only once the report was submitted to it.
+  const silent = (over: Partial<NonNullable<ActivityItemDto['tdd_leg']>>) =>
+    item({ tdd_leg: { ...item().tdd_leg!, ack: 'NONE', ack_at: null, sla_met: null, ...over } })
+
+  it('neverSubmittedDoesNotShowWaitingForOta', () => {
+    expect(outcomeOf(silent({ status: 'PENDING', submitted_at: null }))).toBe('notSent')
+  })
+
+  it('does not wait on the OTA when only the invoice went over Peppol (case B)', () => {
+    const peppolSent = {
+      ...silent({ status: 'PENDING', submitted_at: null }),
+      transport_state: 'SENT',
+    }
+    expect(outcomeOf(peppolSent)).toBe('notSent')
+  })
+
+  it('submittedWithoutResponseShowsWaitingForOta', () => {
+    expect(outcomeOf(silent({ status: 'SUBMITTED', submitted_at: '2026-09-20T08:02:00Z' }))).toBe(
+      'waiting',
+    )
+  })
+
+  it('authorityResponseStopsWaitingState', () => {
+    const answered = (ack: 'AP' | 'AB' | 'RE') =>
+      outcomeOf(silent({ status: 'SUBMITTED', submitted_at: '2026-09-20T08:02:00Z', ack }))
+    expect(answered('AP')).toBe('accepted')
+    expect(answered('AB')).toBe('deliveredUnconfirmed')
+    expect(answered('RE')).toBe('rejected')
+  })
+
+  it('internalDeadLetterIsNotWaitingForOta', () => {
+    expect(outcomeOf(silent({ status: 'DEAD_LETTERED', submitted_at: null }))).toBe('stopped')
+    // Dead-lettered after submission is still our watchdog giving up, not the OTA pending.
+    expect(
+      outcomeOf(silent({ status: 'DEAD_LETTERED', submitted_at: '2026-09-20T08:02:00Z' })),
+    ).toBe('stopped')
+  })
+
+  it('generationFailureIsNotWaitingForOta', () => {
+    expect(outcomeOf(silent({ status: 'GENERATION_FAILED', submitted_at: null }))).toBe('stopped')
+  })
+
+  it('reads the Phase 13 ledger row (SENDING, ack NONE, DEAD_LETTERED, never submitted) as stopped', () => {
+    const row = item({
+      invoice_number: 'INV/2026/4001',
+      transport_state: 'SENDING',
+      invoice_leg: { ack: 'NONE', ack_at: null, reason: null },
+      tdd_leg: {
+        variant: 'SUBMIT',
+        status: 'DEAD_LETTERED',
+        validated_at: '2026-10-10T08:15:11.881075Z',
+        sla_deadline: '2026-10-10T08:30:11.881075Z',
+        submitted_at: null,
+        sla_met: null,
+        ack: 'NONE',
+        ack_at: null,
+        reason: null,
+      },
+      attention: true,
+    })
+    expect(outcomeOf(row)).toBe('stopped')
+  })
+
   it('gives "delivered, unconfirmed" (AB) its own state, never accepted', () => {
     expect(outcomeOf(item({ tdd_leg: { ...item().tdd_leg!, ack: 'AB' } }))).toBe(
       'deliveredUnconfirmed',
@@ -497,6 +560,68 @@ describe('the ledger screen', () => {
     expect(summary).toMatch(/[?&]to=\d{4}-\d{2}-\d{2}/)
   })
 
+  // The Phase 13 row shape: the invoice still in the outbox, its report dead-lettered by our own
+  // SLA watchdog, never submitted.
+  const stoppedRow = () =>
+    item({
+      invoice_number: 'INV/2026/4001',
+      transport_state: 'SENDING',
+      invoice_leg: { ack: 'NONE', ack_at: null, reason: null },
+      tdd_leg: {
+        ...item().tdd_leg!,
+        status: 'DEAD_LETTERED',
+        submitted_at: null,
+        sla_met: null,
+        ack: 'NONE',
+        ack_at: null,
+      },
+      attention: true,
+    })
+
+  it('lists a stopped, never-submitted report without "Still waiting" or a sending time (N5)', async () => {
+    items = [stoppedRow()]
+    renderLedger()
+    const row = (await screen.findByText('INV/2026/4001')).closest('tr')!
+    expect(within(row).getByText('Stopped at Fawtir')).toBeTruthy()
+    expect(within(row).getByText('Not sent')).toBeTruthy()
+    expect(within(row).queryByText('Still waiting')).toBeNull()
+    expect(within(row).queryByText(/and no answer/)).toBeNull()
+    expect(within(row).queryByText('Waiting for the reference')).toBeNull()
+    expect(within(row).getByText('no Fawtara reference issued')).toBeTruthy()
+    expect(within(row).getAllByText('No TDD UUID yet')).toHaveLength(1)
+  })
+
+  it('lists a submitted, unanswered report as still waiting, with its time (N5 control)', async () => {
+    items = [
+      item({
+        invoice_number: 'INV-WAIT',
+        tdd_leg: {
+          ...item().tdd_leg!,
+          status: 'SUBMITTED',
+          ack: 'NONE',
+          ack_at: null,
+          sla_met: null,
+        },
+      }),
+    ]
+    renderLedger()
+    const row = (await screen.findByText('INV-WAIT')).closest('tr')!
+    expect(within(row).getByText('Still waiting')).toBeTruthy()
+    expect(within(row).getByText(/and no answer/)).toBeTruthy()
+    expect(within(row).queryByText('Not sent')).toBeNull()
+  })
+
+  it('says the same in Arabic on the list, with no raw keys (N5)', async () => {
+    await i18n.changeLanguage('ar')
+    items = [stoppedRow()]
+    renderLedger()
+    const row = (await screen.findByText('INV/2026/4001')).closest('tr')!
+    expect(within(row).getByText('توقف لدى فوتير')).toBeTruthy()
+    expect(within(row).getByText('لم يُرسل')).toBeTruthy()
+    expect(within(row).queryByText('بالانتظار')).toBeNull()
+    expect(row.textContent).not.toMatch(/activity(Detail)?\./)
+  })
+
   it('shows the empty frame when the ledger holds nothing at all', async () => {
     items = []
     summaryReply = { ...SUMMARY, documents: 0 }
@@ -664,6 +789,32 @@ describe("one document's record", () => {
     }
     expect(screen.queryByText('What the Tax Authority objected to')).toBeNull()
     expect(screen.queryByText(/SLA breached/)).toBeNull()
+  })
+
+  it('heads the record "Stopped at Fawtir", never "Waiting for the OTA" (N5)', async () => {
+    detailReply = OUTBOX_ONLY
+    renderDetail(`/compliance/activity/${UUID_A}`)
+    await screen.findByText('Not sent over Peppol yet')
+    expect(screen.queryByText('Waiting for the OTA')).toBeNull()
+    expect(screen.queryByText('Still waiting')).toBeNull()
+    // The header badge and the journey verdict both say it, so "Stopped at Fawtir" appears twice.
+    expect(screen.getAllByText('Stopped at Fawtir').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('heads a never-submitted record "Not sent to Fawtara yet" (N5)', async () => {
+    detailReply = {
+      ...OUTBOX_ONLY,
+      summary: {
+        ...OUTBOX_ONLY.summary,
+        tdd_leg: { ...OUTBOX_ONLY.summary.tdd_leg!, status: 'PENDING' },
+      },
+      tdd_lineage: [{ ...OUTBOX_ONLY.tdd_lineage[0], status: 'PENDING', failure_reason: null }],
+    }
+    renderDetail(`/compliance/activity/${UUID_A}`)
+    await screen.findByText('Not sent over Peppol yet')
+    expect(screen.queryByText('Waiting for the OTA')).toBeNull()
+    // Badge and journey step share the wording.
+    expect(screen.getAllByText('Not sent to Fawtara yet').length).toBeGreaterThanOrEqual(2)
   })
 
   it('says the same in Arabic, with no raw keys', async () => {
