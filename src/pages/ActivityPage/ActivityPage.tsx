@@ -102,6 +102,17 @@ const OUTCOME_STYLE: Record<RowOutcome, { chip: string; dot: string; body: strin
     dot: 'bg-pending-700',
     body: 'text-pending-500',
   },
+  // Not sent yet is not a failure either, so it keeps the amber; stopped needs attention here.
+  notSent: {
+    chip: 'bg-pending-100 text-pending-700',
+    dot: 'bg-pending-700',
+    body: 'text-pending-500',
+  },
+  stopped: {
+    chip: 'bg-danger-100 text-danger-700',
+    dot: 'bg-danger-700',
+    body: 'text-danger-700',
+  },
   superseded: {
     chip: 'bg-surface-background text-text-quaternary',
     dot: 'bg-text-quaternary',
@@ -698,6 +709,9 @@ function SubmissionRow({
     language,
     t,
   )
+  // An owed report with no submission time was never sent; the issue time must not stand in for
+  // a sending time under the "Sent" column (N5).
+  const neverSent = !received && !!leg && !leg.submitted_at
   const refusal = rowRefusalKind(item)
   const number = item.invoice_number ?? t('activity.unnumbered')
   const offerResubmit = canResubmit(item) && mayResubmit
@@ -711,7 +725,10 @@ function SubmissionRow({
         ? t('activity.ref.neverAccepted')
         : outcome === 'notOwed'
           ? t('activity.noTdd')
-          : t('activity.ref.waiting')
+          : // Nothing reached Fawtara, so no reference is on its way either.
+            outcome === 'notSent' || outcome === 'stopped'
+            ? t('activityDetail.versions.noReference')
+            : t('activity.ref.waiting')
 
   const cleared = secondsBetween(leg?.submitted_at ?? null, leg?.ack_at ?? null)
   const verdict = (() => {
@@ -728,6 +745,10 @@ function SubmissionRow({
           usual: formatDuration(typicalSeconds ?? 120),
         })
       }
+      case 'notSent':
+        return t('activityDetail.versions.notSentBody')
+      case 'stopped':
+        return t('activityDetail.versions.heldBody')
       case 'superseded':
         return t('activity.verdict.replacedByUs')
       case 'deliveredUnconfirmed':
@@ -883,8 +904,16 @@ function SubmissionRow({
       </td>
 
       <td className="px-4 py-5 align-top">
-        <p className="whitespace-nowrap text-sm font-medium text-text-secondary">{sent.day}</p>
-        <p className="mt-1 text-xs font-medium text-text-tertiary tabular-nums">{sent.time}</p>
+        {neverSent ? (
+          <p className="whitespace-nowrap text-sm font-medium text-text-secondary">
+            {t('activityDetail.versionState.notSent')}
+          </p>
+        ) : (
+          <>
+            <p className="whitespace-nowrap text-sm font-medium text-text-secondary">{sent.day}</p>
+            <p className="mt-1 text-xs font-medium text-text-tertiary tabular-nums">{sent.time}</p>
+          </>
+        )}
       </td>
 
       <td className="px-4 py-5 align-top">

@@ -9504,7 +9504,9 @@
       "waiting": "بالانتظار",
       "superseded": "مُستبدلة",
       "notOwed": "لا مستند مستحق",
-      "deliveredUnconfirmed": "سُلّم دون تأكيد"
+      "deliveredUnconfirmed": "سُلّم دون تأكيد",
+      "notSent": "لم يُرسل",
+      "stopped": "توقف لدى فوتير"
     },
     "verdict": {
       "noPeppolId": "لا يوجد معرّف Peppol للعميل في سجله.",

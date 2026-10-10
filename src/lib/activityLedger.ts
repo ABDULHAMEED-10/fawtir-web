@@ -186,8 +186,20 @@ export type RowOutcome =
   | 'deliveredUnconfirmed'
   | 'rejected'
   | 'waiting'
+  | 'notSent'
+  | 'stopped'
   | 'superseded'
   | 'notOwed'
+
+/**
+ * Fawtir stopped the report itself: GENERATION_FAILED parks it before sending (FR-201) and
+ * DEAD_LETTERED is our own SLA watchdog or exhausted transport retries (FR-203/204). Neither is
+ * the OTA's doing, and neither is waiting on the OTA (Phase 13 findings N1, N5).
+ */
+export const TDD_STOPPED_AT_FAWTIR: ReadonlySet<string> = new Set([
+  'GENERATION_FAILED',
+  'DEAD_LETTERED',
+])
 
 /**
  * The frame's four outcomes, read off the TDD leg, plus "Delivered, unconfirmed".
@@ -197,6 +209,9 @@ export type RowOutcome =
  * acceptance an AP. AB (delivered without confirmation) is neither: it gets its own label and is
  * never counted as accepted. Silence stays "Still waiting": it is not a failure and never offers a
  * resend on its own (SPOG v1.0.0 §6.2); the resend is the server's link, as before.
+ *
+ * Silence counts as waiting only once the report was submitted: a report Fawtir stopped, or one
+ * with no `submitted_at`, never reached the OTA, so nobody there is being waited on (N5).
  */
 export function outcomeOf(item: ActivityItemDto): RowOutcome {
   const leg = item.tdd_leg
@@ -205,6 +220,8 @@ export function outcomeOf(item: ActivityItemDto): RowOutcome {
   if (leg.ack === 'RE') return 'rejected'
   if (leg.ack === 'AP') return 'accepted'
   if (leg.ack === 'AB') return 'deliveredUnconfirmed'
+  if (TDD_STOPPED_AT_FAWTIR.has(leg.status)) return 'stopped'
+  if (!leg.submitted_at) return 'notSent'
   return 'waiting'
 }
 

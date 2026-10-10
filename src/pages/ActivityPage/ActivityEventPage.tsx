@@ -55,6 +55,9 @@ const STATUS_BADGE: Record<ActivityRecord['outcome'], { key: string; tone: Journ
   // Replaced or cancelled by a report we sent (TDD type R or D), not turned down.
   superseded: { key: 'activityDetail.status.replaced', tone: 'waiting' },
   waiting: { key: 'activityDetail.status.waiting', tone: 'waiting' },
+  // Never reached the OTA, so nothing there is awaited (N5); the journey below says the same.
+  notSent: { key: 'activityDetail.step.notSentToFawtara', tone: 'waiting' },
+  stopped: { key: 'activityDetail.verdict.stoppedAtFawtir', tone: 'bad' },
   notOwed: { key: 'activityDetail.status.notOwed', tone: 'waiting' },
 }
 

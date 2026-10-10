@@ -126,6 +126,8 @@ describe('the Phase 13 payloads (N1)', () => {
       )
       expect(ota.steps.some((s) => s.labelKey === 'activityDetail.step.turnedDown')).toBe(false)
       expect(ota.verdictKey).toBe('activityDetail.verdict.stoppedAtFawtir')
+      // N5: the header badge reads this outcome; it must not be "waiting".
+      expect(record.outcome).toBe('stopped')
 
       expect(record.rejection).toBeNull()
       expect(record.versions[0]).toMatchObject({
@@ -219,7 +221,9 @@ describe('each step follows the field that proves it', () => {
       labelKey: 'activityDetail.step.notSentToFawtara',
       state: 'waiting',
     })
-    expect(journey(dto, 'ota').verdictKey).toBe('activityDetail.verdict.waiting')
+    // N5: "Still waiting" implied the OTA had it; a report never submitted is "Not sent yet".
+    expect(journey(dto, 'ota').verdictKey).toBe('activityDetail.verdict.notSentYet')
+    expect(recordFromDetail(dto).outcome).toBe('notSent')
     expect(recordFromDetail(dto).versions[0]).toMatchObject({
       state: 'notSent',
       headlineKey: 'activityDetail.versions.notSent',
