@@ -5,6 +5,8 @@ import { withQuery } from '../query'
  * Payment runs (`PaymentRunController`) and the accounts money leaves from
  * (`PayerBankAccountController`). A run is DRAFT until it has a payment date, SCHEDULED until its
  * bank file is made, then EXPORTED and finally PAID; DRAFT and SCHEDULED runs can be cancelled.
+ * The payment date is optional, a planned date only (owner, 10 Oct 2026): `paymentDate` is sent
+ * null when it is left out or cleared.
  */
 export const PAYMENT_RUNS_PATH = '/v1/payment-runs'
 export const PAYER_ACCOUNTS_PATH = '/v1/payer-bank-accounts'
@@ -46,7 +48,16 @@ export type PaymentRunItemDto = {
    * Set when the bill was taken out as the rest of a sent run was marked paid: the run paid
    * nothing for it. Absent from a server from before the sent-run exits.
    */
-  takenOut?: { at: string; actor: string | null; reason: string } | null
+  takenOut?: {
+    at: string
+    actor: string | null
+    reason: string
+    /**
+     * What the bill still owes now, without the early-payment discount the run had priced it
+     * with: it was not paid, so none was taken (owner, 10 Oct 2026). Absent from an older server.
+     */
+    owedNow?: number | null
+  } | null
   /**
    * On a live run (DRAFT, SCHEDULED or EXPORTED; EXPORTED only on a server before #476), why
    * marking this bill paid would be refused now; the mark-paid dialog ticks it to be taken out.

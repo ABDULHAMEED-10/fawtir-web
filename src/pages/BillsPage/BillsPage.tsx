@@ -11,6 +11,7 @@ import {
   RowsView,
   SortMenu,
   TableCheckbox,
+  withRial,
   type ActionMenuItem,
 } from '../../components/ui'
 import { BillStatusChip } from '../../components/bills'
@@ -731,6 +732,15 @@ function BillKpiCards({
               count: totals.disputedCount,
             })
           : null,
+        // Undecided debit notes are not owed until accepted, so they are outside the figure
+        // above and named here (owner, 10 Oct 2026). The code goes before the amount for the
+        // rial sign to stand in its place.
+        (totals.debitNotesAwaitingDecisionCount ?? 0) > 0
+          ? t('billsPage.kpi.payableAwaitingDecision', {
+              amount: `${totals.currencyCode} ${money(totals.debitNotesAwaitingDecisionTotal ?? 0)}`,
+              count: totals.debitNotesAwaitingDecisionCount,
+            })
+          : null,
       ]
         .filter(Boolean)
         .join(' · '),
@@ -776,7 +786,9 @@ function BillKpiCards({
               {kpi.money ? <RialMark className="w-8 shrink-0" /> : null}
               <p className="text-[32px] font-semibold leading-[1.2] tabular-nums">{kpi.figure}</p>
             </div>
-            <p className="text-sm font-medium leading-[1.4] text-text-tertiary">{kpi.meta}</p>
+            <p className="text-sm font-medium leading-[1.4] text-text-tertiary">
+              {withRial(kpi.meta)}
+            </p>
             {kpi.link ? (
               kpi.link.to ? (
                 <Link to={kpi.link.to} className={linkClass}>

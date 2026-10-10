@@ -190,8 +190,12 @@ function RunBuilder({ runId }: { runId: string | null }) {
     paidRun && runItems.some((item) => item.takenOut != null)
       ? {
           paid: sum(runItems.filter((item) => item.takenOut == null).map((item) => item.amount)),
+          // What the taken-out bills still owe, with no early-payment discount: none was taken,
+          // as they were not paid (owner, 10 Oct 2026). An older server sends no `owedNow`.
           takenOut: sum(
-            runItems.filter((item) => item.takenOut != null).map((item) => item.amount),
+            runItems.flatMap((item) =>
+              item.takenOut ? [item.takenOut.owedNow ?? item.outstanding] : [],
+            ),
           ),
         }
       : null
@@ -201,6 +205,11 @@ function RunBuilder({ runId }: { runId: string | null }) {
   const groups = groupBySupplier(every)
   const shown = supplierFilter ? groups.filter((group) => group.key === supplierFilter) : groups
   const paying = groupBySupplier(inRun)
+  // "Who gets paid" on a paid run counts only the bills actually paid, as the supplier headers do
+  // (owner, 10 Oct 2026); a supplier whose bills were all taken out is not paid.
+  const payees = paidRun
+    ? groupBySupplier(inRun.filter((bill) => !takenOut.has(bill.billId)))
+    : paying
   const blockedRows = blocked.read.status === 'ready' ? blocked.read.data : []
   const changedSinceAdded = bankDetailsChangedIn(run?.state ?? null, detail?.items ?? [])
 
@@ -276,6 +285,12 @@ function RunBuilder({ runId }: { runId: string | null }) {
   // A paid run says the day its bills were paid on, as the server records it.
   const noteDay = run?.state === 'PAID' ? paidOn(run) : (run?.paymentDate ?? null)
   const stateDate = noteDay ? formatDate(noteDay, i18n.language) : ''
+  // The payment date is only planned and may be left out (owner, 10 Oct 2026): "Scheduled for"
+  // is said only when there is a date.
+  const stateNote =
+    run?.state === 'SCHEDULED' && !noteDay
+      ? t('paymentRuns.stateNoteUndated')
+      : t(`paymentRuns.stateNote.${run?.state ?? 'DRAFT'}`, { date: stateDate })
 
   if (runId && loaded.read.status === 'loading') return <LoadingNotice />
   if (runId && loaded.read.status === 'failed')
@@ -289,8 +304,6 @@ function RunBuilder({ runId }: { runId: string | null }) {
     label: account.name,
     hint: account.iban,
   }))
-
-  const required = <span className="text-xl leading-4 text-primary-700">*</span>
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
@@ -356,9 +369,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
           </div>
         </div>
         <p className="text-base font-medium leading-[1.3] text-text-quaternary">
-          {run && run.state !== 'DRAFT'
-            ? t(`paymentRuns.stateNote.${run.state}`, { date: stateDate })
-            : t('paymentsPage.subtitle')}
+          {run && run.state !== 'DRAFT' ? stateNote : t('paymentsPage.subtitle')}
         </p>
         {/* Owner, 10 Oct 2026: a supplier whose bank details changed after their bill joined. */}
         {changedSinceAdded.map((supplier) => (
@@ -525,6 +536,8 @@ function RunBuilder({ runId }: { runId: string | null }) {
                   const counted = paidRun
                     ? chosen.filter((bill) => !takenOut.has(bill.billId))
                     : chosen
+                  // Every bill of this supplier was taken out: nothing went to them (10 Oct 2026).
+                  const allTakenOut = paidRun && chosen.length > 0 && counted.length === 0
                   return (
                     <div
                       key={group.key}
@@ -556,7 +569,9 @@ function RunBuilder({ runId }: { runId: string | null }) {
                             {group.name ?? t('paymentRuns.noSupplier')}
                           </p>
                           <p className="mt-0.5 text-xs font-medium leading-[1.2] text-text-muted">
-                            {t('paymentsPage.billsAsOneTransfer', { count: counted.length })}
+                            {allTakenOut
+                              ? t('paymentRuns.supplierTakenOut')
+                              : t('paymentsPage.billsAsOneTransfer', { count: counted.length })}
                           </p>
                         </div>
                         <div className="ms-auto text-end">
@@ -564,9 +579,11 @@ function RunBuilder({ runId }: { runId: string | null }) {
                             value={sum(counted.map((bill) => bill.amount))}
                             currency={currency}
                           />
-                          <p className="mt-0.5 text-[10px] font-medium leading-[1.2] text-text-muted">
-                            {t('paymentsPage.oneTransfer')}
-                          </p>
+                          {allTakenOut ? null : (
+                            <p className="mt-0.5 text-[10px] font-medium leading-[1.2] text-text-muted">
+                              {t('paymentsPage.oneTransfer')}
+                            </p>
+                          )}
                         </div>
                       </div>
                       {group.bills.map((bill) => {
@@ -726,15 +743,25 @@ function RunBuilder({ runId }: { runId: string | null }) {
               <div className="flex flex-col gap-1.5">
                 <span className="flex items-center gap-0.5 text-sm font-medium leading-[1.2] text-text-primary">
                   {t('paymentsPage.paymentDate')}
-                  {required}
                 </span>
+                {/* Optional: a planned date only; the day paid is asked in Mark as paid (10 Oct 2026). */}
                 <DateField
                   value={details.paymentDate ?? ''}
-                  onChange={(paymentDate) => change({ paymentDate })}
+                  onChange={(paymentDate) => change({ paymentDate: paymentDate || null })}
                   ariaLabel={t('paymentsPage.paymentDate')}
                   min={today}
                   disabled={!editable || busy}
                 />
+                {editable && details.paymentDate ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => change({ paymentDate: null })}
+                    className="self-start text-sm font-semibold text-primary-700 hover:underline"
+                  >
+                    {t('common.clear')}
+                  </button>
+                ) : null}
                 {editable ? (
                   <span className="text-xs font-medium text-text-quaternary">
                     {t('paymentRuns.dateNote')}
@@ -864,13 +891,13 @@ function RunBuilder({ runId }: { runId: string | null }) {
             <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">
               {t('paymentsPage.whoGetsPaid')}
             </h2>
-            {paying.length === 0 ? (
+            {payees.length === 0 ? (
               <p className="mt-4 border-t border-surface-background pt-4 text-sm font-medium text-text-tertiary">
                 {t('paymentsPage.nobodyYet')}
               </p>
             ) : (
               <ul className="mt-4 flex flex-col gap-4 border-t border-surface-background pt-4">
-                {paying.map((group) => (
+                {payees.map((group) => (
                   <li key={group.key} className="flex items-center gap-3">
                     <SupplierTile name={group.name} />
                     <div className="min-w-0 flex-1">

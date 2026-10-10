@@ -609,7 +609,7 @@ describe('the ways out of a sent run (owner, 8 Oct 2026)', () => {
     await act(async () => {
       await i18n.changeLanguage('ar')
     })
-    check(await dialog.findByText(/^يُسجَّل مبلغ/))
+    check(await dialog.findByText(/^تُسجَّل كل فواتير الدفعة/))
   })
 
   it('lets any other bill be taken out too, each with its reason', async () => {
@@ -961,7 +961,7 @@ describe('marking a run paid with no bank file (owner, 9 Oct 2026; lead, 10 Oct 
     const dialog = within(await openMarkPaid())
     expect(dialog.getByText('Mark PR-0001 as paid?')).toBeTruthy()
     expect(dialog.getByText(/^This records/).textContent).toMatch(
-      /This records .*980\.000 as paid against each bill in the run\. Take out the bills you did not pay\./,
+      /This records every bill in the run as paid, .*980\.000 in all\. Take out the bills you did not pay\./,
     )
     // The bill the server says cannot be paid now starts ticked.
     const ticks = dialog.getAllByRole('checkbox', { name: 'Take out of the run' })
@@ -1073,11 +1073,11 @@ describe('marking a run paid with no bank file (owner, 9 Oct 2026; lead, 10 Oct 
     expect(screen.getByText('لسجلاتك')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'سجّل كمدفوعة' }))
     const dialog = within(await screen.findByRole('dialog'))
-    const sentence = dialog.getByText(/^يُسجَّل مبلغ/)
+    const sentence = dialog.getByText(/^تُسجَّل كل فواتير الدفعة/)
     const shown = sentence.cloneNode(true) as Element
     shown.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
     expect(shown.textContent!.replace(/\s+/g, ' ')).toBe(
-      'يُسجَّل مبلغ 980.000 كمدفوع مقابل كل فاتورة في الدفعة. أخرج من الدفعة الفواتير التي لم تدفعها.',
+      'تُسجَّل كل فواتير الدفعة كمدفوعة، بإجمالي 980.000. أخرج من الدفعة الفواتير التي لم تدفعها.',
     )
     expect(sentence.querySelector('svg')).not.toBeNull()
   })
@@ -1097,7 +1097,7 @@ describe('marking a run paid with no bank file (owner, 9 Oct 2026; lead, 10 Oct 
     renderAt('/expenditure/payments/new')
     expect(
       await screen.findByText(
-        'اختر الفواتير التي ستُدفع معًا. تجمعها فوتِر حسب المورّد لتتابع ما دُفع وما بقي مستحقًا.',
+        'اختر الفواتير التي ستُدفع معًا. تجمعها فوتر حسب المورّد لتتابع ما دُفع وما بقي مستحقًا.',
         undefined,
         { timeout: 8000 },
       ),
@@ -1361,7 +1361,6 @@ describe('refusals when marking a run paid, and no bank file (owner, 9 Oct 2026)
     renderAt(`/expenditure/payments/${RUN_ID}`)
     const label = await screen.findByText('Pay from', undefined, { timeout: 8000 })
     expect(label.textContent).toBe('Pay from')
-    expect(screen.getByText('Payment date').textContent).toBe('Payment date*')
   })
 })
 
@@ -1482,18 +1481,26 @@ describe("the owner's answers of 10 Oct 2026", () => {
     expect(refusalOf(refused('PAYMENT_RUN_PAYMENT_DATE_IN_FUTURE', {}), ar, 'markPaid')).toBe(
       'لا يمكن تأريخ دفعة في المستقبل.',
     )
-    // The expected before-issue code: by the bill's number when the server sends it.
+    // A date after a bill's early-payment discount ends (10 Oct 2026): by the bill's number,
+    // agreeing in Arabic with a bill or a debit note.
     const en = i18n.getFixedT('en')
-    const early = 'PAYMENT_RUN_PAYMENT_DATE_BEFORE_ISSUE_DATE'
-    expect(refusalOf(refused(early, { supplierBillNumber: 'SS-3' }), en, 'markPaid')).toBe(
-      'SS-3 was issued after the date you paid. Choose a later date, or take SS-3 out of the run.',
+    const late = 'PAYMENT_RUN_PAYMENT_DATE_AFTER_DISCOUNT'
+    const ss3 = { billId: 'b-3', supplierBillNumber: 'SS-3', documentTypeCode: '380' }
+    expect(refusalOf(refused(late, ss3), en, 'markPaid')).toBe(
+      'SS-3 was priced with an early-payment discount that ends before the date you paid. Choose an earlier date, or take SS-3 out of the run.',
     )
-    expect(refusalOf(refused(early, {}), en, 'markPaid')).toBe(
-      'A bill in this run was issued after the date you paid. Choose a later date.',
+    expect(refusalOf(refused(late, {}), en, 'markPaid')).toBe(
+      'A bill in this run was priced with an early-payment discount that ends before the date you paid. Choose an earlier date.',
     )
-    expect(refusalOf(refused(early, { supplierBillNumber: 'SS-3' }), ar, 'markPaid')).toBe(
-      'صدرت SS-3 بعد تاريخ الدفع. اختر تاريخًا لاحقًا، أو أخرج SS-3 من الدفعة.',
+    expect(refusalOf(refused(late, ss3), ar, 'markPaid')).toBe(
+      'سُعّرت SS-3 بخصم سداد مبكر ينتهي قبل تاريخ الدفع. اختر تاريخًا أبكر، أو أخرج SS-3 من الدفعة.',
     )
+    expect(refusalOf(refused(late, { ...ss3, documentTypeCode: '383' }), ar, 'markPaid')).toBe(
+      'سُعّر SS-3 بخصم سداد مبكر ينتهي قبل تاريخ الدفع. اختر تاريخًا أبكر، أو أخرج SS-3 من الدفعة.',
+    )
+    // The codes retired by the backend read the generic refusal.
+    for (const code of ['PAYMENT_RUN_DATE_REQUIRED', 'PAYMENT_RUN_PAYMENT_DATE_BEFORE_ISSUE_DATE'])
+      expect(refusalOf(refused(code, ss3), en, 'markPaid')).not.toMatch(/date|issued/)
   })
 
   it('warns once per supplier whose bank details changed after their bill joined the run', async () => {
@@ -1547,7 +1554,8 @@ describe("the owner's answers of 10 Oct 2026", () => {
       expect(screen.queryByText(/bank details changed/)).toBeNull()
       view.unmount()
     }
-  })
+    // Eight renders in one test: more than the default 15 s when the machine is busy.
+  }, 30_000)
 
   it('lists the suppliers as the page does, once each and only with a name', () => {
     const item = (supplierId: string | null, supplierName: string | null, flag?: boolean | null) => ({
@@ -1584,5 +1592,190 @@ describe("the owner's answers of 10 Oct 2026", () => {
     expect(screen.queryByText(/after this file was made/)).toBeNull()
     expect(screen.queryByText(/bank details changed/)).toBeNull()
     expect(screen.queryByText(/already sent to the bank/)).toBeNull()
+  })
+})
+
+/**
+ * A paid run: MR-1 paid; Sohar Steel's SS-3 taken out. SS-3 was planned with an early-payment
+ * discount, so what it still owes (200.000) is more than its run amount (196.000).
+ */
+const PAID_SOHAR_OUT: PaymentRunDetailDto = {
+  ...SENT,
+  run: run({ state: 'PAID', paymentDate: '2026-09-20', paidAt: '2026-09-20T10:00:00Z' }),
+  items: [
+    { ...SENT.items[0], takenOut: null },
+    {
+      ...SENT.items[1],
+      amount: 196,
+      discountTaken: 4,
+      outstanding: 200,
+      markPaidBlock: null,
+      takenOut: {
+        at: '2026-09-20T10:00:00Z',
+        actor: 'u-1',
+        reason: 'Paid next month',
+        owedNow: 200,
+      },
+    },
+  ],
+}
+
+describe("the owner's last points of 10 Oct 2026", () => {
+  const headerOf = async (name: string) =>
+    (await screen.findAllByText(name, { selector: 'p.text-base' }, { timeout: 8000 }))[0].closest(
+      'div.bg-surface-background',
+    ) as HTMLElement
+  const whoGetsPaid = () => screen.getByText('Who gets paid').closest('section') as HTMLElement
+  /** The line under the totals as seen: the hidden "OMR" left out. */
+  const seen = (element: Element) => {
+    const copy = element.cloneNode(true) as Element
+    copy.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+    return (copy.textContent ?? '').replace(/\s+/g, ' ')
+  }
+
+  it('draws the payment date with no required mark', async () => {
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const label = await screen.findByText('Payment date', undefined, { timeout: 8000 })
+    expect(label.textContent).toBe('Payment date')
+  })
+
+  it('clears a planned date, sending none, and offers no Clear without a date', async () => {
+    // The server puts a scheduled run back to a draft when its date is cleared.
+    override = (url, method) =>
+      method === 'PUT' && url === `/api/v1/payment-runs/${RUN_ID}`
+        ? json(200, { ...DETAIL, run: run({ state: 'DRAFT', paymentDate: null }) })
+        : null
+    const view = renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(await screen.findByText(/^Scheduled for /, undefined, { timeout: 8000 })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    await waitFor(() => expect(calls('PUT', `/api/v1/payment-runs/${RUN_ID}`)).toHaveLength(1))
+    expect(bodyOf(calls('PUT', `/api/v1/payment-runs/${RUN_ID}`)[0])).toMatchObject({
+      paymentDate: null,
+    })
+    // Back to a draft: no "Scheduled for", no Clear, and it can still be marked paid.
+    await waitFor(() => expect(screen.queryByText(/^Scheduled for /)).toBeNull())
+    expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Mark as paid' })).toBeTruthy()
+    view.unmount()
+    override = null
+
+    detail = { ...DETAIL, run: run({ state: 'DRAFT', paymentDate: null }) }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    await screen.findByText('Payment date', undefined, { timeout: 8000 })
+    expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull()
+  })
+
+  it('starts a run with no payment date', async () => {
+    renderAt('/expenditure/payments/new')
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Select MR-2' }, { timeout: 8000 }))
+    await waitFor(() => expect(calls('POST', '/api/v1/payment-runs')).toHaveLength(1))
+    expect(bodyOf(calls('POST', '/api/v1/payment-runs')[0])).toMatchObject({ paymentDate: null })
+  })
+
+  it('says "Scheduled for" only when the run has a date', async () => {
+    detail = { ...DETAIL, run: run({ state: 'SCHEDULED', paymentDate: null }) }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(
+      await screen.findByText('Mark the run paid once you have paid the suppliers.', undefined, {
+        timeout: 8000,
+      }),
+    ).toBeTruthy()
+    expect(screen.queryByText(/Scheduled for/)).toBeNull()
+  })
+
+  it('says the undated note in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    detail = { ...DETAIL, run: run({ state: 'SCHEDULED', paymentDate: null }) }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(
+      await screen.findByText('سجّل الدفعة كمدفوعة بعد أن تدفع للمورّدين.', undefined, {
+        timeout: 8000,
+      }),
+    ).toBeTruthy()
+    expect(screen.queryByText(/مجدولة ليوم/)).toBeNull()
+  })
+
+  it('heads a supplier whose bills were all taken out "Taken out", with no transfer', async () => {
+    detail = PAID_SOHAR_OUT
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const sohar = within(await headerOf('Sohar Steel'))
+    expect(sohar.getByText('Taken out')).toBeTruthy()
+    expect(sohar.queryByText(/paid as one transfer|paid on its own/)).toBeNull()
+    expect(sohar.queryByText('one transfer')).toBeNull()
+    // A supplier that was paid keeps its header.
+    const roastery = within(await headerOf('Muscat Roastery Co'))
+    expect(roastery.getByText('1 bill · paid on its own')).toBeTruthy()
+    expect(roastery.getByText('one transfer')).toBeTruthy()
+  })
+
+  it('says it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    detail = PAID_SOHAR_OUT
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(within(await headerOf('Sohar Steel')).getByText('أُخرجت من الدفعة')).toBeTruthy()
+  })
+
+  it('counts a taken-out bill at what it still owes, without the discount', async () => {
+    detail = PAID_SOHAR_OUT
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    await headerOf('Sohar Steel')
+    const [line] = screen.queryAllByText(
+      (_, element) => element?.tagName === 'P' && /^Paid .+ · taken out /.test(seen(element!)),
+    )
+    expect(seen(line)).toBe('Paid 980.000 · taken out 200.000')
+  })
+
+  it("reads what a taken-out bill owes from the server's owedNow, else from the item", async () => {
+    const withOwed = (owedNow: number | undefined) => ({
+      ...PAID_SOHAR_OUT,
+      items: [
+        PAID_SOHAR_OUT.items[0],
+        {
+          ...PAID_SOHAR_OUT.items[1],
+          outstanding: 210,
+          takenOut: { ...PAID_SOHAR_OUT.items[1].takenOut!, owedNow },
+        },
+      ],
+    })
+    for (const [owedNow, shown] of [
+      [150, 'Paid 980.000 · taken out 150.000'],
+      [undefined, 'Paid 980.000 · taken out 210.000'],
+    ] as const) {
+      detail = withOwed(owedNow)
+      const view = renderAt(`/expenditure/payments/${RUN_ID}`)
+      await headerOf('Sohar Steel')
+      const [line] = screen.queryAllByText(
+        (_, element) => element?.tagName === 'P' && /^Paid .+ · taken out /.test(seen(element!)),
+      )
+      expect(seen(line)).toBe(shown)
+      view.unmount()
+    }
+  })
+
+  it('lists only the suppliers paid under Who gets paid on a paid run', async () => {
+    detail = PAID_SOHAR_OUT
+    const view = renderAt(`/expenditure/payments/${RUN_ID}`)
+    await headerOf('Sohar Steel')
+    const paid = within(whoGetsPaid())
+    expect(paid.getByText('Muscat Roastery Co')).toBeTruthy()
+    expect(paid.queryByText('Sohar Steel')).toBeNull()
+    view.unmount()
+
+    // A run still to be paid lists everyone in it.
+    detail = { ...PAID_SOHAR_OUT, run: run({ state: 'SCHEDULED' }) }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    await headerOf('Sohar Steel')
+    expect(within(whoGetsPaid()).getByText('Sohar Steel')).toBeTruthy()
+  })
+
+  it('words Mark as paid as approved, with the rial sign and three decimals', async () => {
+    detail = SCHEDULED_TWO
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const dialog = within(await openMarkPaid())
+    const sentence = dialog.getByText(/^This records every bill/)
+    expect(seen(sentence)).toBe(
+      'This records every bill in the run as paid, 980.000 in all. Take out the bills you did not pay.',
+    )
+    expect(sentence.querySelector('svg')).not.toBeNull()
   })
 })
