@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { BrandLogo } from '../../components/BrandLogo'
@@ -157,9 +158,24 @@ export function CheckList({
 
 /* -------------------------------------------------------------------- nav */
 
+/** The Fawtir mark as the nav draws it: the frame's logo in English, the Arabic logo in Arabic. */
+function NavLogo({ arabic }: { arabic: boolean }) {
+  return arabic ? (
+    <BrandLogo size="sm" to="/" />
+  ) : (
+    <Link to="/" className="flex items-end" aria-label="Fawtir">
+      <img src={navLogo} alt="" className="me-[-9.263px] h-[35px] w-[33.556px]" />
+      <span className="text-[17.683px] font-semibold leading-[normal] tracking-[0.3537px] text-[#0f2a6b]">
+        AWTIR
+      </span>
+    </Link>
+  )
+}
+
 export function Nav({ active }: { active: SitePage }) {
   const { t, i18n } = useTranslation()
   const arabic = i18n.language.startsWith('ar')
+  const [menuOpen, setMenuOpen] = useState(false)
   const switchLanguage = () => {
     const next = arabic ? 'en' : 'ar'
     void i18n.changeLanguage(next)
@@ -177,60 +193,154 @@ export function Nav({ active }: { active: SitePage }) {
     { page: 'features', to: '/features', key: 'features' },
   ]
 
+  useEffect(() => {
+    if (!menuOpen) return
+    const close = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    window.addEventListener('keydown', close)
+    return () => window.removeEventListener('keydown', close)
+  }, [menuOpen])
+
   return (
-    <nav
-      aria-label={t('landing.nav.label')}
-      className="flex items-center justify-center gap-6 max-md:w-full max-md:justify-between max-md:gap-2"
-    >
-      <div className="landing-shadow flex items-center gap-[140px] rounded-lg border border-[#e8e8ea] bg-white px-6 py-3 max-xl:gap-12 max-md:px-3">
-        {arabic ? (
-          <BrandLogo size="sm" to="/" />
-        ) : (
-          <Link to="/" className="flex items-end" aria-label="Fawtir">
-            <img src={navLogo} alt="" className="me-[-9.263px] h-[35px] w-[33.556px]" />
-            <span className="text-[17.683px] font-semibold leading-[normal] tracking-[0.3537px] text-[#0f2a6b]">
-              AWTIR
-            </span>
-          </Link>
-        )}
-        <div className={`flex items-center gap-8 text-base leading-[normal] max-md:hidden ${INK}`}>
-          {links.map((link) =>
-            link.page === active ? (
-              <Link
-                key={link.page}
-                to={link.to}
-                aria-current="page"
-                className="font-semibold text-[#2c4eb7]"
-              >
-                {t(`landing.nav.${link.key}`)}
-              </Link>
-            ) : (
-              <Link key={link.page} to={link.to}>
-                {t(`landing.nav.${link.key}`)}
-              </Link>
-            ),
-          )}
-          <a href={PARTNERS_MAILTO}>{t('landing.nav.partners')}</a>
+    <>
+      <nav
+        aria-label={t('landing.nav.label')}
+        className="flex items-center justify-center gap-6 max-lg:hidden"
+      >
+        <div className="landing-shadow flex items-center gap-[140px] rounded-lg border border-[#e8e8ea] bg-white px-6 py-3 max-xl:gap-12">
+          <NavLogo arabic={arabic} />
+          <div className={`flex items-center gap-8 text-base leading-[normal] ${INK}`}>
+            {links.map((link) =>
+              link.page === active ? (
+                <Link
+                  key={link.page}
+                  to={link.to}
+                  aria-current="page"
+                  className="font-semibold text-[#2c4eb7]"
+                >
+                  {t(`landing.nav.${link.key}`)}
+                </Link>
+              ) : (
+                <Link key={link.page} to={link.to}>
+                  {t(`landing.nav.${link.key}`)}
+                </Link>
+              ),
+            )}
+            <a href={PARTNERS_MAILTO}>{t('landing.nav.partners')}</a>
+          </div>
         </div>
-      </div>
-      <div className="landing-shadow flex h-[59px] items-center gap-2 rounded-lg border border-[#e8e8ea] bg-white px-2 py-4">
-        <Cta to="/signup" tone="light" arrow={false} className="max-sm:hidden">
-          {t('landing.nav.signUp')}
-        </Cta>
-        <Cta to="/contact" tone="brand" className="max-sm:px-3">
-          {t('landing.nav.contact')}
-        </Cta>
-      </div>
+        <div className="landing-shadow flex h-[59px] items-center gap-2 rounded-lg border border-[#e8e8ea] bg-white px-2 py-4">
+          <Cta to="/signup" tone="light" arrow={false}>
+            {t('landing.nav.signUp')}
+          </Cta>
+          <Cta to="/contact" tone="brand">
+            {t('landing.nav.contact')}
+          </Cta>
+        </div>
+      </nav>
+
+      {/*
+        Not in the frame, which is desktop only: on a phone the links fold into a menu, and the bar
+        stays at the top while the page scrolls so Contact Us is always one tap away.
+      */}
+      <div aria-hidden="true" className="h-[59px] w-full lg:hidden" />
+      {/* Drawn on the body: the hero's layers would otherwise paint later sections over it. */}
+      {createPortal(
+        <nav
+          aria-label={t('landing.nav.mobileLabel')}
+          className="fixed inset-x-0 top-0 z-40 bg-white/80 px-4 pt-[max(12px,env(safe-area-inset-top))] pb-3 backdrop-blur-sm lg:hidden"
+        >
+          <div className="landing-shadow flex items-center justify-between gap-2 rounded-lg border border-[#e8e8ea] bg-white px-3 py-2">
+            <NavLogo arabic={arabic} />
+            <div className="flex items-center gap-2">
+              <Cta to="/contact" tone="brand" className="max-sm:px-3">
+                {t('landing.nav.contact')}
+              </Cta>
+              <button
+                type="button"
+                aria-expanded={menuOpen}
+                aria-controls="site-menu"
+                aria-label={t(menuOpen ? 'landing.nav.closeMenu' : 'landing.nav.menu')}
+                onClick={() => setMenuOpen((open) => !open)}
+                className={`flex size-[43px] items-center justify-center rounded-lg bg-[#f3f3f3] ${INK}`}
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  {menuOpen ? (
+                    <path
+                      d="m5 5 10 10M15 5 5 15"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                    />
+                  ) : (
+                    <path
+                      d="M3 5.5h14M3 10h14M3 14.5h14"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                    />
+                  )}
+                </svg>
+              </button>
+            </div>
+          </div>
+          {menuOpen ? (
+            <div
+              id="site-menu"
+              className="landing-shadow mt-2 flex flex-col rounded-lg border border-[#e8e8ea] bg-white p-2"
+            >
+              {links.map((link) => (
+                <Link
+                  key={link.page}
+                  to={link.to}
+                  aria-current={link.page === active ? 'page' : undefined}
+                  onClick={() => setMenuOpen(false)}
+                  className={`rounded-lg px-3 py-3 text-base leading-[normal] ${
+                    link.page === active ? 'bg-[#f4f6fb] font-semibold text-[#2c4eb7]' : INK
+                  }`}
+                >
+                  {t(`landing.nav.${link.key}`)}
+                </Link>
+              ))}
+              <a
+                href={PARTNERS_MAILTO}
+                className={`rounded-lg px-3 py-3 text-base leading-[normal] ${INK}`}
+              >
+                {t('landing.nav.partners')}
+              </a>
+              <div className="mt-2 flex items-center gap-2 border-t border-[#e8e8ea] pt-3">
+                <Cta to="/signup" tone="light" arrow={false} className="flex-1">
+                  {t('landing.nav.signUp')}
+                </Cta>
+                <button
+                  type="button"
+                  onClick={() => {
+                    switchLanguage()
+                    setMenuOpen(false)
+                  }}
+                  lang={arabic ? 'en' : 'ar'}
+                  className={`rounded-lg border border-[#e8e8ea] bg-white px-4 py-3 text-base leading-[normal] ${INK}`}
+                >
+                  {arabic ? 'English' : 'العربية'}
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </nav>,
+        document.body,
+      )}
+
       {/* Not in the frame: the page must also read in Arabic, so the switch sits beside the nav. */}
       <button
         type="button"
         onClick={switchLanguage}
         lang={arabic ? 'en' : 'ar'}
-        className={`fixed bottom-4 end-4 z-30 rounded-lg border border-[#e8e8ea] bg-white px-3 py-2 text-sm landing-shadow ${INK}`}
+        className={`fixed bottom-4 end-4 z-30 rounded-lg border border-[#e8e8ea] bg-white px-3 py-2 text-sm landing-shadow max-lg:hidden ${INK}`}
       >
         {arabic ? 'English' : 'العربية'}
       </button>
-    </nav>
+    </>
   )
 }
 

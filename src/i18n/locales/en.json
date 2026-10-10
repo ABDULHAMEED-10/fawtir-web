@@ -19926,7 +19926,10 @@
       "features": "Features",
       "partners": "For Partners",
       "signUp": "Sign Up",
-      "contact": "Contact Us"
+      "contact": "Contact Us",
+      "menu": "Menu",
+      "closeMenu": "Close menu",
+      "mobileLabel": "Main menu"
     },
     "cta": {
       "demo": "Request For Demo"
