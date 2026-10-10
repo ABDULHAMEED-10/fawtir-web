@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AddressContactPage } from './pages/AddressContactPage'
 import { AboutBusinessPage } from './pages/AboutBusinessPage'
@@ -122,6 +122,9 @@ import {
   ErpConnectionsPage,
   ErpConnectPage,
   ErpBridgePage,
+  ErpApiPushPage,
+  ErpHomePage,
+  ErpAccessPage,
   ErpDocumentsPage,
   ErpDocumentDetailPage,
   ErpAttentionPage,
@@ -155,19 +158,20 @@ import { EditCustomerPage, NewCustomerPage } from './pages/NewCustomerPage'
 import { SuppliersPage } from './pages/SuppliersPage'
 import { NewSupplierPage } from './pages/NewSupplierPage'
 import { SignupPage } from './pages/SignupPage'
+import { ResumeSignupPage } from './pages/ResumeSignupPage'
+import { RESUME_ROUTE } from './lib/identity/signupResume'
 import { SignupPendingPage } from './pages/SignupPendingPage'
 import { SignupReviewPage } from './pages/SignupReviewPage'
 import { SubBusinessTypePage } from './pages/SubBusinessTypePage'
 import {
   ConsolePlansPage,
+  ConsoleBillingPaymentsPage,
+  ConsoleBankAccountsPage,
   ConsoleQueuePage,
   ConsoleIncidentsPage,
   ConsoleAuditPage,
   ConsoleErpPage,
   ConsoleErpConnectionPage,
-  ConsoleTemplatesPage,
-  ConsoleTemplatePage,
-  ConsoleAddonRequestsPage,
   ConsoleOnboardPage,
   OperationsPage,
   OperatorsPage,
@@ -183,6 +187,7 @@ import {
 } from './pages/ConsolePage'
 import { VerifyCodePage } from './pages/VerifyCodePage'
 import { PlanFromQuery, PlanGated } from './components/plan'
+import { DemoModule } from './components/feedback/DemoModule'
 
 function App() {
   const { i18n } = useTranslation()
@@ -201,6 +206,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/login/mfa" element={<LoginCodePage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path={RESUME_ROUTE} element={<ResumeSignupPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/verify-code" element={<VerifyCodePage />} />
           <Route path="/new-password" element={<NewPasswordPage />} />
@@ -313,21 +319,21 @@ function App() {
             }
           />
           <Route path="/expenditure/reminders" element={<ExpenditureRemindersPage />} />
-          <Route path="/stock" element={<StockPage />} />
-          <Route path="/stock/:id" element={<StockDetailPage />} />
+          <Route path="/stock" element={<DemoModule module="stock"><StockPage /></DemoModule>} />
+          <Route path="/stock/:id" element={<DemoModule module="stock"><StockDetailPage /></DemoModule>} />
           <Route path="/catalog" element={<CatalogPage />} />
-          <Route path="/catalog/upload" element={<UploadMenuPage />} />
-          <Route path="/catalog/build" element={<BuildCatalogPage />} />
-          <Route path="/catalog/new" element={<ItemFormPage mode="new" />} />
-          <Route path="/catalog/rules" element={<PriceRulesPage />} />
-          <Route path="/catalog/rules/new" element={<NewRulePage />} />
-          <Route path="/catalog/bundles" element={<BundlesPage />} />
-          <Route path="/catalog/bundles/new" element={<BundlePage />} />
-          <Route path="/catalog/bundles/:id" element={<BundlePage />} />
-          <Route path="/catalog/:id" element={<ItemFormPage mode="edit" />} />
-          <Route path="/catalog/:id/sells" element={<ItemSellsPage />} />
-          <Route path="/catalog/:id/used" element={<ItemUsedPage />} />
-          <Route path="/catalog/:id/changes" element={<ItemChangesPage />} />
+          <Route path="/catalog/upload" element={<DemoModule module="catalog"><UploadMenuPage /></DemoModule>} />
+          <Route path="/catalog/build" element={<DemoModule module="catalog"><BuildCatalogPage /></DemoModule>} />
+          <Route path="/catalog/new" element={<DemoModule module="catalog"><ItemFormPage mode="new" /></DemoModule>} />
+          <Route path="/catalog/rules" element={<DemoModule module="catalog"><PriceRulesPage /></DemoModule>} />
+          <Route path="/catalog/rules/new" element={<DemoModule module="catalog"><NewRulePage /></DemoModule>} />
+          <Route path="/catalog/bundles" element={<DemoModule module="catalog"><BundlesPage /></DemoModule>} />
+          <Route path="/catalog/bundles/new" element={<DemoModule module="catalog"><BundlePage /></DemoModule>} />
+          <Route path="/catalog/bundles/:id" element={<DemoModule module="catalog"><BundlePage /></DemoModule>} />
+          <Route path="/catalog/:id" element={<DemoModule module="catalog"><ItemFormPage mode="edit" /></DemoModule>} />
+          <Route path="/catalog/:id/sells" element={<DemoModule module="catalog"><ItemSellsPage /></DemoModule>} />
+          <Route path="/catalog/:id/used" element={<DemoModule module="catalog"><ItemUsedPage /></DemoModule>} />
+          <Route path="/catalog/:id/changes" element={<DemoModule module="catalog"><ItemChangesPage /></DemoModule>} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/peppol" element={<PeppolTaxPage />} />
           <Route path="/settings/branches" element={<BranchesPage />} />
@@ -337,17 +343,18 @@ function App() {
           <Route path="/settings/team" element={<TeamPage />} />
           <Route path="/settings/team/invite" element={<InvitePage />} />
           <Route path="/settings/roles" element={<RolesPage />} />
-          <Route path="/settings/roles/new" element={<MakeRolePage />} />
+          <Route path="/settings/roles/new" element={<DemoModule module="makeRole"><MakeRolePage /></DemoModule>} />
           <Route path="/settings/plan" element={<PlanPage />} />
+          {/* Real subscription dates above; the bills prototype inside keeps its own ribbon. */}
           <Route path="/settings/bills" element={<BillingPage />} />
           <Route path="/settings/activity-log" element={<ActivityLogPage />} />
-          <Route path="/settings/export" element={<ExportPage />} />
-          <Route path="/settings/closing" element={<ClosingPage />} />
+          <Route path="/settings/export" element={<DemoModule module="export"><ExportPage /></DemoModule>} />
+          <Route path="/settings/closing" element={<DemoModule module="closing"><ClosingPage /></DemoModule>} />
           <Route path="/settings/signing-in" element={<SigningInPage />} />
           <Route path="/settings/approvals" element={<ApprovalPolicyPage />} />
           <Route path="/compliance/activity" element={<ActivityPage />} />
-          <Route path="/compliance/activity/call-log" element={<OtaCallLogPage />} />
-          <Route path="/compliance/activity/call-log/:id" element={<OtaCallDetailPage />} />
+          <Route path="/compliance/activity/call-log" element={<DemoModule module="otaCallLog"><OtaCallLogPage /></DemoModule>} />
+          <Route path="/compliance/activity/call-log/:id" element={<DemoModule module="otaCallLog"><OtaCallDetailPage /></DemoModule>} />
           <Route path="/compliance/activity/report" element={<ComplianceReportPage />} />
           <Route path="/compliance/activity/:id" element={<ActivityEventPage />} />
           <Route path="/compliance/activity/:id/resubmit" element={<TddResubmitPage />} />
@@ -362,19 +369,19 @@ function App() {
           <Route path="/invoices/new" element={<CreateInvoicePage />} />
           <Route path="/invoices/:id/edit" element={<CreateInvoicePage />} />
           <Route path="/invoices/:id" element={<InvoiceDetailsPage />} />
-          <Route path="/pos" element={<PosPage />} />
-          <Route path="/pos/payment" element={<PosPaymentPage />} />
-          <Route path="/pos/done" element={<PosDonePage />} />
-          <Route path="/pos/company" element={<PosCompanyPage />} />
-          <Route path="/pos/today" element={<PosTodayPage />} />
-          <Route path="/pos/close" element={<PosClosePage />} />
-          <Route path="/pos/refund" element={<PosRefundPage />} />
+          <Route path="/pos" element={<DemoModule module="pos"><PosPage /></DemoModule>} />
+          <Route path="/pos/payment" element={<DemoModule module="pos"><PosPaymentPage /></DemoModule>} />
+          <Route path="/pos/done" element={<DemoModule module="pos"><PosDonePage /></DemoModule>} />
+          <Route path="/pos/company" element={<DemoModule module="pos"><PosCompanyPage /></DemoModule>} />
+          <Route path="/pos/today" element={<DemoModule module="pos"><PosTodayPage /></DemoModule>} />
+          <Route path="/pos/close" element={<DemoModule module="pos"><PosClosePage /></DemoModule>} />
+          <Route path="/pos/refund" element={<DemoModule module="pos"><PosRefundPage /></DemoModule>} />
           <Route path="/income/debit-notes" element={<DebitNotesPage />} />
           <Route
             path="/trade-documents/quotations"
             element={
               <PlanGated feature="tradeDocuments">
-                <QuotationsPage />
+                <DemoModule module="tradeDocuments"><QuotationsPage /></DemoModule>
               </PlanGated>
             }
           />
@@ -382,7 +389,7 @@ function App() {
             path="/trade-documents/quotations/new"
             element={
               <PlanGated feature="tradeDocuments">
-                <NewQuotationPage />
+                <DemoModule module="tradeDocuments"><NewQuotationPage /></DemoModule>
               </PlanGated>
             }
           />
@@ -390,7 +397,7 @@ function App() {
             path="/trade-documents/quotations/:id"
             element={
               <PlanGated feature="tradeDocuments">
-                <QuotationDetailPage />
+                <DemoModule module="tradeDocuments"><QuotationDetailPage /></DemoModule>
               </PlanGated>
             }
           />
@@ -398,7 +405,7 @@ function App() {
             path="/trade-documents/order-forms"
             element={
               <PlanGated feature="tradeDocuments">
-                <OrderFormsPage />
+                <DemoModule module="tradeDocuments"><OrderFormsPage /></DemoModule>
               </PlanGated>
             }
           />
@@ -406,7 +413,7 @@ function App() {
             path="/trade-documents/order-forms/new"
             element={
               <PlanGated feature="tradeDocuments">
-                <NewOrderFormPage />
+                <DemoModule module="tradeDocuments"><NewOrderFormPage /></DemoModule>
               </PlanGated>
             }
           />
@@ -414,7 +421,7 @@ function App() {
             path="/trade-documents/order-forms/:id"
             element={
               <PlanGated feature="tradeDocuments">
-                <OrderFormDetailPage />
+                <DemoModule module="tradeDocuments"><OrderFormDetailPage /></DemoModule>
               </PlanGated>
             }
           />
@@ -422,7 +429,7 @@ function App() {
             path="/trade-documents/delivery-notes"
             element={
               <PlanGated feature="tradeDocuments">
-                <DeliveryNotesPage />
+                <DemoModule module="tradeDocuments"><DeliveryNotesPage /></DemoModule>
               </PlanGated>
             }
           />
@@ -430,7 +437,7 @@ function App() {
             path="/trade-documents/delivery-notes/new"
             element={
               <PlanGated feature="tradeDocuments">
-                <NewDeliveryNotePage />
+                <DemoModule module="tradeDocuments"><NewDeliveryNotePage /></DemoModule>
               </PlanGated>
             }
           />
@@ -438,7 +445,7 @@ function App() {
             path="/trade-documents/delivery-notes/:id"
             element={
               <PlanGated feature="tradeDocuments">
-                <DeliveryNoteDetailPage />
+                <DemoModule module="tradeDocuments"><DeliveryNoteDetailPage /></DemoModule>
               </PlanGated>
             }
           />
@@ -446,7 +453,7 @@ function App() {
           <Route path="/income/debit-notes/:id/edit" element={<NewDebitNotePage />} />
           <Route path="/income/debit-notes/:id" element={<DebitNoteDetailPage />} />
           <Route
-            path="/income/self-billing"
+            path="/expenditure/self-billing"
             element={
               <PlanGated feature="selfBilling">
                 <SelfBillingPage />
@@ -454,7 +461,7 @@ function App() {
             }
           />
           <Route
-            path="/income/self-billing/agreements"
+            path="/expenditure/self-billing/agreements"
             element={
               <PlanGated feature="selfBilling">
                 <AgreementsPage />
@@ -463,7 +470,7 @@ function App() {
           />
           {/* The design's dedicated composer (Figma 154:161180), writing a self-billed draft. */}
           <Route
-            path="/income/self-billing/new"
+            path="/expenditure/self-billing/new"
             element={
               <PlanGated feature="selfBilling">
                 <NewSelfBillPage />
@@ -472,7 +479,7 @@ function App() {
           />
           {/* A self-billed credit note, in the credit-note composer (D6), from an issued self-billed invoice. */}
           <Route
-            path="/income/self-billing/credit-notes/new"
+            path="/expenditure/self-billing/credit-notes/new"
             element={
               <PlanGated feature="selfBilling">
                 <NewSelfBilledCreditNotePage />
@@ -480,7 +487,7 @@ function App() {
             }
           />
           <Route
-            path="/income/self-billing/credit-notes/:id/edit"
+            path="/expenditure/self-billing/credit-notes/:id/edit"
             element={
               <PlanGated feature="selfBilling">
                 <NewSelfBilledCreditNotePage />
@@ -488,7 +495,7 @@ function App() {
             }
           />
           <Route
-            path="/income/self-billing/:id/edit"
+            path="/expenditure/self-billing/:id/edit"
             element={
               <PlanGated feature="selfBilling">
                 <NewSelfBillPage />
@@ -496,13 +503,16 @@ function App() {
             }
           />
           <Route
-            path="/income/self-billing/:id"
+            path="/expenditure/self-billing/:id"
             element={
               <PlanGated feature="selfBilling">
                 <SelfBillDetailPage />
               </PlanGated>
             }
           />
+          {/* Self-billing moved from Income to Expenditure (owner decision, 6 Oct 2026). The old
+              addresses keep working, with the rest of the path and the query carried over. */}
+          <Route path="/income/self-billing/*" element={<SelfBillingMovedRedirect />} />
           {/* One settings page, one address. It lived at both paths, so the Settings one now
               points at the Income one rather than rendering a second copy of it. */}
           <Route
@@ -592,6 +602,30 @@ function App() {
             element={
               <PlanGated feature="erpMapping" shell="settings">
                 <ErpBridgePage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ErpHomePage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp/access"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ErpAccessPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp/api-push"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ErpApiPushPage />
               </PlanGated>
             }
           />
@@ -766,28 +800,31 @@ function App() {
           <Route path="/suppliers/:slug/record-bill" element={<RecordSupplierBillPage />} />
           <Route path="/suppliers/:slug/statement" element={<SupplierStatementPage />} />
           <Route path="/suppliers/:slug" element={<SupplierDetailPage />} />
-          <Route path="/console" element={<OperationsPage />} />
+          <Route path="/console" element={<DemoModule module="console"><OperationsPage /></DemoModule>} />
           <Route path="/console/tenants" element={<TenantsPage />} />
           <Route path="/console/tenants/:id" element={<TenantDetailPage />} />
-          <Route path="/console/subscriptions" element={<SubscriptionsPage />} />
-          <Route path="/console/subscriptions/invoices" element={<SubscriptionInvoicesPage />} />
-          <Route path="/console/queue" element={<ConsoleQueuePage />} />
-          <Route path="/console/incidents" element={<ConsoleIncidentsPage />} />
-          <Route path="/console/incidents/:id" element={<ConsoleIncidentsPage />} />
+          <Route path="/console/subscriptions" element={<DemoModule module="console"><SubscriptionsPage /></DemoModule>} />
+          <Route path="/console/subscriptions/invoices" element={<DemoModule module="console"><SubscriptionInvoicesPage /></DemoModule>} />
+          <Route path="/console/queue" element={<DemoModule module="console"><ConsoleQueuePage /></DemoModule>} />
+          <Route path="/console/incidents" element={<DemoModule module="console"><ConsoleIncidentsPage /></DemoModule>} />
+          <Route path="/console/incidents/:id" element={<DemoModule module="console"><ConsoleIncidentsPage /></DemoModule>} />
           <Route path="/console/onboarding" element={<VerificationPage />} />
           <Route path="/console/onboarding/:companyId" element={<VerificationCompanyPage />} />
           <Route path="/console/plans" element={<ConsolePlansPage />} />
+          <Route path="/console/billing/payments" element={<ConsoleBillingPaymentsPage />} />
+          <Route path="/console/billing/accounts" element={<ConsoleBankAccountsPage />} />
           <Route path="/console/operators" element={<OperatorsPage />} />
           <Route path="/console/policies" element={<ValidationPoliciesPage />} />
           <Route path="/console/policies/:type" element={<ValidationPolicyPage />} />
-          <Route path="/console/audit" element={<ConsoleAuditPage />} />
+          <Route path="/console/audit" element={<DemoModule module="console"><ConsoleAuditPage /></DemoModule>} />
           <Route path="/console/erp" element={<ConsoleErpPage />} />
           <Route path="/console/erp/connections/:id" element={<ConsoleErpConnectionPage />} />
-          <Route path="/console/erp/templates" element={<ConsoleTemplatesPage />} />
-          <Route path="/console/erp/templates/:id" element={<ConsoleTemplatePage />} />
-          <Route path="/console/erp/add-on-requests" element={<ConsoleAddonRequestsPage />} />
+          {/* Kept so a bookmark does not 404; each says where ERP access is really changed. */}
+          <Route path="/console/erp/templates" element={<ConsoleErpPage />} />
+          <Route path="/console/erp/templates/:id" element={<ConsoleErpPage />} />
+          <Route path="/console/erp/add-on-requests" element={<ConsoleErpPage />} />
           <Route path="/console/tenants/new" element={<ConsoleOnboardPage />} />
-          <Route path="/console/settings" element={<ConsoleSettingsPage />} />
+          <Route path="/console/settings" element={<DemoModule module="console"><ConsoleSettingsPage /></DemoModule>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
@@ -796,3 +833,11 @@ function App() {
 }
 
 export default App
+
+/** `/income/self-billing/...` to `/expenditure/self-billing/...`, keeping the rest of the address. */
+function SelfBillingMovedRedirect() {
+  const { pathname, search, hash } = useLocation()
+  const to =
+    pathname.replace(/^\/income\/self-billing/, '/expenditure/self-billing') + search + hash
+  return <Navigate to={to} replace />
+}

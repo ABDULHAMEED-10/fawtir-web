@@ -394,3 +394,71 @@ describe('customer form rules', () => {
     expect(placed.other).toEqual(['Logo content type is unsupported'])
   })
 })
+
+describe('address lines 2 and 3 of the invoice address (PINT-OM IBR-019-OM)', () => {
+  it('sends both on a new customer', async () => {
+    renderAt('/customers/new')
+    await screen.findByRole('heading', { name: 'New customer' })
+    typeInto(/Legal \/ registered name/, 'Qurum Business Center')
+    typeInto(/VAT registration number/, 'OM1100337812')
+    typeInto(/Peppol participant ID/, '0248:om1100337812')
+    typeInto(/Contact person/, 'Salim Al Farsi')
+    typeInto(/City \/ Governorate/, 'Muscat')
+    typeInto(/Street & building/, 'Way 3021')
+    typeInto(/Additional street or area/, 'Al Khuwair')
+    typeInto(/Building or address line 3/, 'Building 12, Office 4')
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save customer' })[0])
+
+    await waitFor(() => expect(calls('POST', '/api/v1/customers')).toHaveLength(1))
+    expect(bodyOf(calls('POST', '/api/v1/customers')[0]).invoiceAddress).toMatchObject({
+      streetName: 'Way 3021',
+      additionalStreetName: 'Al Khuwair',
+      addressLine3: 'Building 12, Office 4',
+    })
+  })
+
+  it('opens an existing customer with its stored lines and saves a change to them', async () => {
+    const stored = record()
+    stored.profile.invoiceAddress = {
+      ...stored.profile.invoiceAddress!,
+      additionalStreetName: 'Al Saada',
+      addressLine3: 'Villa 3',
+    }
+    const original = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === ONE && (init?.method ?? 'GET') === 'GET' ? json(200, stored) : original(url, init),
+    )
+    renderAt(`/customers/${ID}/edit`)
+    await screen.findByRole('heading', { name: 'Edit Salalah Beach Resort' })
+    expect((screen.getByLabelText(/Additional street or area/) as HTMLInputElement).value).toBe('Al Saada')
+    expect((screen.getByLabelText(/Building or address line 3/) as HTMLInputElement).value).toBe('Villa 3')
+
+    typeInto(/Building or address line 3/, 'Villa 5')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save changes' })[0])
+
+    expect(await screen.findByText('Changes saved.')).toBeTruthy()
+    expect(bodyOf(calls('PUT', ONE)[0]).invoiceAddress).toMatchObject({
+      additionalStreetName: 'Al Saada',
+      addressLine3: 'Villa 5',
+      buildingNumber: '9',
+    })
+  })
+
+  it('puts a refusal of either line on its input', () => {
+    const placed = placeCustomerErrors([
+      { field: 'invoiceAddress.addressLine3', code: 'TOO_LONG', message: 'too long' },
+      { field: 'invoiceAddress.additionalStreetName', code: 'INVALID_FORMAT', message: 'bad line 2' },
+    ])
+    expect(placed.fields['invoice.addressLine3']).toEqual({ key: 'validation.tooLong' })
+    expect(placed.fields['invoice.additionalStreetName']).toEqual({ text: 'bad line 2' })
+    expect(placed.other).toEqual([])
+  })
+
+  it('labels both lines in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    renderAt('/customers/new')
+    expect(await screen.findByLabelText(/الشارع الإضافي أو المنطقة/)).toBeTruthy()
+    expect(screen.getByLabelText(/المبنى أو سطر العنوان 3/)).toBeTruthy()
+  })
+})

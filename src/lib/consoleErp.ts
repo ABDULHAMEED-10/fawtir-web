@@ -218,7 +218,7 @@ export const TEMPLATE_SAMPLES: Record<'ODOO' | 'ERPNEXT', unknown> = {
     invoice_line_ids: [
       {
         id: 44121,
-        name: 'Arabica beans 1 kg — Dhofar roast',
+        name: 'Arabica beans 1 kg, Dhofar roast',
         quantity: 24,
         price_unit: 51.998,
         tax_rate: 5,
@@ -243,7 +243,7 @@ export const TEMPLATE_SAMPLES: Record<'ODOO' | 'ERPNEXT', unknown> = {
     items: [
       {
         item_code: 'BEAN-AR-1KG',
-        item_name: 'Arabica beans 1 kg — Dhofar roast',
+        item_name: 'Arabica beans 1 kg, Dhofar roast',
         qty: 12,
         rate: 51.033,
         amount: 612.4,
@@ -492,7 +492,7 @@ function initialState(): ConsoleErpState {
       limits,
       collectedThisMonth: 0,
       grants: [],
-      suspendedReason: 'Subscription suspended — bill unpaid',
+      suspendedReason: 'Subscription suspended, bill unpaid',
     },
   ]
 
@@ -500,7 +500,7 @@ function initialState(): ConsoleErpState {
     {
       id: 'cx-odoo-ho',
       tenantId: 'al-bahja',
-      label: 'Head office — Odoo 17',
+      label: 'Head office, Odoo 17',
       product: 'ODOO',
       erpVersion: '17.0+e',
       state: 'CONNECTED',
@@ -526,7 +526,7 @@ function initialState(): ConsoleErpState {
     {
       id: 'cx-erpnext-salalah',
       tenantId: 'al-bahja',
-      label: 'Salalah branch — ERPNext',
+      label: 'Salalah branch, ERPNext',
       product: 'ERPNEXT',
       erpVersion: '15.28',
       state: 'ERROR',
@@ -552,7 +552,7 @@ function initialState(): ConsoleErpState {
     {
       id: 'cx-odoo-sohar',
       tenantId: 'al-bahja',
-      label: 'Sohar warehouse — Odoo 16',
+      label: 'Sohar warehouse, Odoo 16',
       product: 'ODOO',
       erpVersion: '16.0',
       state: 'PAUSED',
@@ -571,7 +571,7 @@ function initialState(): ConsoleErpState {
     {
       id: 'cx-bahwan-sap-bridge',
       tenantId: 'bahwan-group',
-      label: 'Group finance — ERPNext bridge',
+      label: 'Group finance, ERPNext bridge',
       product: 'ERPNEXT',
       erpVersion: '15.31',
       state: 'CONNECTED',
@@ -590,7 +590,7 @@ function initialState(): ConsoleErpState {
     {
       id: 'cx-bahwan-retail',
       tenantId: 'bahwan-group',
-      label: 'Retail arm — Odoo 17',
+      label: 'Retail arm, Odoo 17',
       product: 'ODOO',
       erpVersion: '17.0',
       state: 'CONNECTED',
@@ -610,7 +610,7 @@ function initialState(): ConsoleErpState {
     {
       id: 'cx-muscat-grand',
       tenantId: 'muscat-grand',
-      label: 'Front office — Odoo 17',
+      label: 'Front office, Odoo 17',
       product: 'ODOO',
       erpVersion: '17.0',
       state: 'CONNECTED',
@@ -636,7 +636,7 @@ function initialState(): ConsoleErpState {
     {
       id: 'cx-sohar-steel',
       tenantId: 'sohar-steel',
-      label: 'Plant ERP — ERPNext',
+      label: 'Plant ERP, ERPNext',
       product: 'ERPNEXT',
       erpVersion: '15.29',
       state: 'CONNECTED',
@@ -656,7 +656,7 @@ function initialState(): ConsoleErpState {
     {
       id: 'cx-duqm',
       tenantId: 'duqm-logistics',
-      label: 'Duqm yard — ERPNext',
+      label: 'Duqm yard, ERPNext',
       product: 'ERPNEXT',
       erpVersion: '15.30',
       state: 'ERROR',
@@ -682,7 +682,7 @@ function initialState(): ConsoleErpState {
     {
       id: 'cx-nizwa',
       tenantId: 'nizwa-wholesale',
-      label: 'Warehouse — Odoo 17',
+      label: 'Warehouse, Odoo 17',
       product: 'ODOO',
       erpVersion: '17.0',
       state: 'PAUSED',
@@ -701,7 +701,7 @@ function initialState(): ConsoleErpState {
     {
       id: 'cx-seeb',
       tenantId: 'seeb-pharmacy',
-      label: 'Pharmacy ERP — Odoo 16',
+      label: 'Pharmacy ERP, Odoo 16',
       product: 'ODOO',
       erpVersion: '16.0',
       state: 'CONNECTED',
@@ -727,7 +727,7 @@ function initialState(): ConsoleErpState {
     {
       id: 'cx-qurum',
       tenantId: 'qurum-dental',
-      label: 'Clinic — Odoo 17',
+      label: 'Clinic, Odoo 17',
       product: 'ODOO',
       erpVersion: '17.0',
       state: 'CONNECTED',
@@ -750,7 +750,7 @@ function initialState(): ConsoleErpState {
     {
       id: 'cx-khasab',
       tenantId: 'khasab-ferry',
-      label: 'Ticketing — ERPNext',
+      label: 'Ticketing, ERPNext',
       product: 'ERPNEXT',
       erpVersion: '15.22',
       state: 'PAUSED',
@@ -841,7 +841,7 @@ function initialState(): ConsoleErpState {
       status: 'declined',
       decidedAt: at(8, 10, 25),
       decidedBy: 'Hamed Al Kindi',
-      note: 'Subscription is in grace — settle the open bill first.',
+      note: 'Subscription is in grace, settle the open bill first.',
     },
     {
       id: 'req-8',

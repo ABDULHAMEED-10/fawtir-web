@@ -15,6 +15,9 @@ export function FileDropzone({
   onReject,
   children,
   className = '',
+  id,
+  labelledBy,
+  describedBy,
 }: {
   /** Extension list for the picker, e.g. `.pdf,.jpg`. */
   accept?: string
@@ -24,6 +27,11 @@ export function FileDropzone({
   onReject?: (reason: 'size' | 'type', file: File) => void
   children: (state: { dragging: boolean }) => ReactNode
   className?: string
+  id?: string
+  /** The visible caption, so the button is announced by it and not by its drop-zone text alone. */
+  labelledBy?: string
+  /** The limits line or a rejection message, read after the name. */
+  describedBy?: string
 }) {
   const [dragging, setDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -55,6 +63,9 @@ export function FileDropzone({
     <>
       <button
         type="button"
+        id={id}
+        aria-labelledby={labelledBy}
+        aria-describedby={describedBy}
         onClick={() => inputRef.current?.click()}
         onDragOver={(event) => {
           event.preventDefault()
@@ -76,6 +87,8 @@ export function FileDropzone({
         accept={accept}
         multiple={multiple}
         className="hidden"
+        tabIndex={-1}
+        aria-hidden="true"
         onChange={(event) => {
           take(event.target.files)
           event.target.value = ''

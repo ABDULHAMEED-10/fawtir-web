@@ -89,7 +89,15 @@ async function reachable() {
 async function withServer(run) {
   if (SHOULD_BUILD) {
     process.stdout.write('building… ')
-    execFileSync('npx', ['vite', 'build'], { cwd: ROOT, stdio: 'ignore', shell: true })
+    // The sweep measures layouts against no backend, so it needs the screens drawn without a
+    // session. A production build always enforces one (src/lib/session/session.ts), and Vite takes
+    // DEV from NODE_ENV rather than --mode, so this is a development build with the guard off.
+    execFileSync('npx', ['vite', 'build'], {
+      cwd: ROOT,
+      stdio: 'ignore',
+      shell: true,
+      env: { ...process.env, NODE_ENV: 'development', VITE_REQUIRE_SESSION: 'false' },
+    })
     process.stdout.write('done\n')
   }
 

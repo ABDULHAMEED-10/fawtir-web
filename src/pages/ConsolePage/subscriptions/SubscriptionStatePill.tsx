@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import {
   ConsoleStatusPill,
+  type ConsolePillSize,
   type ConsolePillTone,
 } from '../../../layouts/ConsoleShell/ConsoleStatusPill'
 import type {
@@ -32,10 +33,20 @@ export const LINK_TONE: Record<LinkStatus, ConsolePillTone> = {
   expired: 'neutral',
 }
 
-export function SubscriptionStatePill({ state }: { state: SubscriptionState }) {
+export function SubscriptionStatePill({
+  state,
+  size,
+}: {
+  state: SubscriptionState
+  size?: ConsolePillSize
+}) {
   const { t } = useTranslation()
   return (
-    <ConsoleStatusPill tone={STATE_TONE[state]} label={t(`console.subscriptions.state.${state}`)} />
+    <ConsoleStatusPill
+      tone={STATE_TONE[state]}
+      label={t(`console.subscriptions.state.${state}`)}
+      size={size}
+    />
   )
 }
 

@@ -3,9 +3,10 @@ import { useTranslation, Trans } from 'react-i18next'
 import { paymentTermOptions, useReferenceData } from '../../lib/reference/referenceData'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { Combobox, Input, Select, withRial, type SelectOption } from '../../components/ui'
-import { COMPANY } from '../../lib/settings'
 import { useApiRead } from '../../hooks/useApiRead'
 import { useSession } from '../../lib/session/session'
+import { formatInstantDay, initialsOf } from '../../lib/format'
+import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import {
   INDUSTRIAL_CLASSIFICATION_PATH,
   readIndustrialClassification,
@@ -26,12 +27,18 @@ import {
   type InvoiceDefaultsDto,
 } from '../../api/company/invoiceDefaults'
 import {
+  COMPANY_PROFILE_CHANGES_PATH,
   COMPANY_PROFILE_PATH,
+  amendCompanyProfile,
+  loadCompanyProfileChanges,
+  type CompanyProfileChangeDto,
   loadCompanyProfile,
   saveCompanyProfile,
   type CompanyProfileDto,
 } from '../../api/company/companyProfile'
+import { ApiError } from '../../api/errors'
 import { isicOptions as isicOptionsFor } from '../../lib/codeLists/isic'
+import { CODE_LISTS } from '../../lib/erpCodeLists'
 import infoIcon from '../../assets/settings/info.svg'
 import tickIcon from '../../assets/settings/check-white.svg'
 import lockIcon from '../../assets/settings/menu-key.svg'
@@ -48,6 +55,43 @@ const LANGUAGE_FROM_API: Record<string, string> = { AR_EN: 'both', AR: 'ar', EN:
 const COUNTRY_TO_API: Record<string, string> = { Oman: 'OM', 'United Arab Emirates': 'AE' }
 const COUNTRY_FROM_API: Record<string, string> = { OM: 'Oman', AE: 'United Arab Emirates' }
 
+/** The amendment's field names, as the server refuses them, to the label this screen shows. */
+const FIELD_LABEL: Record<string, string> = {
+  registeredAddress: 'streetAddress',
+  registeredAddressLine2: 'addressLine2',
+  registeredAddressLine3: 'addressLine3',
+  registeredCity: 'townOrCity',
+  registeredPostalCode: 'postalCode',
+  registeredPoBox: 'poBox',
+  registeredCountrySubdivision: 'governorate',
+  registeredCountrySubdivisionCode: 'subdivisionCode',
+  contactPersonName: 'contactPerson',
+  contactPhone: 'phone',
+  contactEmail: 'emailOnInvoices',
+}
+
+/**
+ * The change log's field names (`CompanyProfileChange.field`: the amendment's names above, plus
+ * those InvoiceDefaultsService and IndustrialClassificationService record) to this screen's labels.
+ * A name not listed reads as "Company details" rather than as a raw identifier.
+ */
+const CHANGE_LABEL: Record<string, string> = {
+  ...FIELD_LABEL,
+  legalName: 'registeredName',
+  legalNameAr: 'arabicName',
+  tradingName: 'tradingAs',
+  commercialRegistrationNumber: 'commercialRegistration',
+  country: 'country',
+  industrialClassification: 'industrialClassification',
+  invoiceLanguage: 'language',
+  defaultCurrency: 'currency',
+  defaultPaymentTerms: 'paymentTerms',
+  invoiceFooterNote: 'bottomNote',
+  logo: 'yourLogo',
+  brandColour: 'brandColour',
+  receiptLogoMonochrome: 'onAReceipt',
+}
+
 /** The shape the form edits. Kept flat so a dirty-field diff is a plain key comparison. */
 type Profile = {
   registeredName: string
@@ -56,15 +100,18 @@ type Profile = {
   commercialRegistration: string
   /** ISIC Rev. 4, Oman's 6-digit code (IBR-081-OM); the backend copies it onto every invoice line. */
   industrialClassification: string
-  vatRegisteredSince: string
   street: string
+  addressLine2: string
+  addressLine3: string
   town: string
   postalCode: string
+  poBox: string
+  governorate: string
+  subdivisionCode: string
   country: string
+  contactPerson: string
   phone: string
   email: string
-  website: string
-  receiptLogo: string
   brandColour: string
   language: string
   currency: string
@@ -72,32 +119,73 @@ type Profile = {
   footerNote: string
 }
 
+/** What a VERIFIED company may still change: the registered address and the invoice contact. */
+const OPERATIONAL_FIELDS = [
+  'street',
+  'addressLine2',
+  'addressLine3',
+  'town',
+  'postalCode',
+  'poBox',
+  'governorate',
+  'subdivisionCode',
+  'contactPerson',
+  'phone',
+  'email',
+] as const satisfies readonly (keyof Profile)[]
+
+type OperationalFields = Pick<Profile, (typeof OPERATIONAL_FIELDS)[number]>
+
+function operationalFrom(stored: CompanyProfileDto): OperationalFields {
+  return {
+    street: stored.registeredAddress,
+    addressLine2: stored.registeredAddressLine2 ?? '',
+    addressLine3: stored.registeredAddressLine3 ?? '',
+    town: stored.registeredCity ?? '',
+    postalCode: stored.registeredPostalCode ?? '',
+    poBox: stored.registeredPoBox ?? '',
+    governorate: stored.registeredCountrySubdivision ?? '',
+    subdivisionCode: stored.registeredCountrySubdivisionCode ?? '',
+    contactPerson: stored.contactPersonName ?? '',
+    phone: stored.contactPhone ?? '',
+    email: stored.contactEmail ?? '',
+  }
+}
+
+/**
+ * Empty until the server answers, and the form is not shown before then: these used to be a sample
+ * company's name, address and contact, which a save built on a half-loaded screen would have sent.
+ * The colour is a neutral swatch for a company that has not chosen one; it is only sent if changed.
+ */
 const INITIAL: Profile = {
-  registeredName: COMPANY.legalName,
-  arabicName: COMPANY.arabicName,
-  tradingAs: COMPANY.tradingAs,
-  commercialRegistration: COMPANY.commercialRegistration,
+  registeredName: '',
+  arabicName: '',
+  tradingAs: '',
+  commercialRegistration: '',
   industrialClassification: '',
-  vatRegisteredSince: COMPANY.vatRegisteredSince,
-  street: COMPANY.street,
-  town: COMPANY.town,
-  postalCode: COMPANY.postalCode,
-  country: COMPANY.country,
-  phone: COMPANY.phone,
-  email: COMPANY.email,
-  website: COMPANY.website,
-  receiptLogo: COMPANY.receiptLogo,
-  brandColour: COMPANY.brandColour,
-  language: COMPANY.defaultLanguage,
-  currency: COMPANY.defaultCurrency,
-  paymentTerms: COMPANY.defaultPaymentTerms,
-  footerNote: COMPANY.invoiceFooterNote,
+  street: '',
+  addressLine2: '',
+  addressLine3: '',
+  town: '',
+  postalCode: '',
+  poBox: '',
+  governorate: '',
+  subdivisionCode: '',
+  country: 'Oman',
+  contactPerson: '',
+  phone: '',
+  email: '',
+  brandColour: '#2C4EB7',
+  language: 'both',
+  currency: 'OMR',
+  paymentTerms: '',
+  footerNote: '',
 }
 
 /** What the sample invoice on the right is built from, so the preview totals are real. */
 const SAMPLE_LINES = [
-  { name: 'House Blend — 1 kg', quantity: 4, unit: 9.5 },
-  { name: 'Roasting — per batch', quantity: 2, unit: 4.2 },
+  { key: 'sampleLineOne', quantity: 2, unit: 10 },
+  { key: 'sampleLineTwo', quantity: 1, unit: 5 },
 ]
 
 const VAT_RATE = 0.05
@@ -123,18 +211,25 @@ export function CompanyProfilePage() {
   const activityRead = useApiRead(INDUSTRIAL_CLASSIFICATION_PATH, readIndustrialClassification).read
   const brandingRead = useApiRead(BRANDING_PATH, loadBranding).read
   const defaultsRead = useApiRead(INVOICE_DEFAULTS_PATH, loadInvoiceDefaults).read
-  const profileRead = useApiRead(COMPANY_PROFILE_PATH, loadCompanyProfile).read
+  const { read: profileRead, retry: retryProfile } = useApiRead(
+    COMPANY_PROFILE_PATH,
+    loadCompanyProfile,
+  )
   const [storedActivity, setStoredActivity] = useState<string | null | undefined>(undefined)
   const [storedProfile, setStoredProfile] = useState<CompanyProfileDto | undefined>(undefined)
   const [profileSaveFailed, setProfileSaveFailed] = useState(false)
-  // Once VERIFIED, PUT /company-profile refuses outright ("requires an approved amendment
-  // workflow", which does not exist) — the identity fields below go read-only rather than offer a
-  // save that always fails (Zain, 2026-09-28: wire what's safe, read-only once verified).
+  /** Someone else saved the profile first; the operational fields were reloaded from the server. */
+  const [profileConflict, setProfileConflict] = useState(false)
+  /** Fields the server refused by name (a 400 from the amendment), shown as one sentence. */
+  const [profileFieldErrors, setProfileFieldErrors] = useState<string[]>([])
+  // Once VERIFIED, the legal and tax identity is locked: PUT /company-profile refuses it and there
+  // is no re-verification procedure yet. The registered address and contact stay editable through
+  // POST /company-profile/amendments (approved 2026-10-06), which leaves the verification as it is.
   const verified = storedProfile?.verificationStatus === 'VERIFIED'
   const [storedBrandColour, setStoredBrandColour] = useState<string | undefined>(undefined)
-  // receiptMonochrome round-trips unchanged on save: the screen's own control for it
-  // (`receiptLogo`) isn't persisted yet (see the TODO(backend) beside it), so a colour-only save
-  // must not reset a value a reviewer or a prior save already set.
+  // receiptMonochrome round-trips unchanged on save: the "On a receipt" choice is drawn but not
+  // saved yet (SETTINGS.md row 1.1), so a colour-only save must not reset a value a reviewer or a
+  // prior save already set.
   const [storedReceiptMonochrome, setStoredReceiptMonochrome] = useState(false)
   const [storedDefaults, setStoredDefaults] = useState<InvoiceDefaultsDto | undefined>(undefined)
   const [saveFailed, setSaveFailed] = useState(false)
@@ -164,7 +259,9 @@ export function CompanyProfilePage() {
     setStoredDefaults(defaultsRead.data)
     setForm((current) => ({
       ...current,
-      language: defaultsRead.data.language ? LANGUAGE_FROM_API[defaultsRead.data.language] : current.language,
+      language: defaultsRead.data.language
+        ? LANGUAGE_FROM_API[defaultsRead.data.language]
+        : current.language,
       currency: defaultsRead.data.currency ?? current.currency,
       paymentTerms: defaultsRead.data.paymentTerms ?? current.paymentTerms,
       footerNote: defaultsRead.data.footerNote ?? '',
@@ -182,9 +279,15 @@ export function CompanyProfilePage() {
       tradingAs: data.tradingName ?? '',
       commercialRegistration: data.commercialRegistrationNumber,
       street: data.registeredAddress,
+      addressLine2: data.registeredAddressLine2 ?? '',
+      addressLine3: data.registeredAddressLine3 ?? '',
       town: data.registeredCity ?? '',
       postalCode: data.registeredPostalCode ?? '',
+      poBox: data.registeredPoBox ?? '',
+      governorate: data.registeredCountrySubdivision ?? '',
+      subdivisionCode: data.registeredCountrySubdivisionCode ?? '',
       country: COUNTRY_FROM_API[data.country] ?? current.country,
+      contactPerson: data.contactPersonName ?? '',
       phone: data.contactPhone ?? '',
       email: data.contactEmail ?? '',
     }))
@@ -195,7 +298,9 @@ export function CompanyProfilePage() {
       ...INITIAL,
       industrialClassification: storedActivity ?? '',
       brandColour: storedBrandColour ?? INITIAL.brandColour,
-      language: storedDefaults?.language ? LANGUAGE_FROM_API[storedDefaults.language] : INITIAL.language,
+      language: storedDefaults?.language
+        ? LANGUAGE_FROM_API[storedDefaults.language]
+        : INITIAL.language,
       currency: storedDefaults?.currency ?? INITIAL.currency,
       paymentTerms: storedDefaults?.paymentTerms ?? INITIAL.paymentTerms,
       footerNote: storedDefaults?.footerNote ?? '',
@@ -206,9 +311,15 @@ export function CompanyProfilePage() {
             tradingAs: storedProfile.tradingName ?? '',
             commercialRegistration: storedProfile.commercialRegistrationNumber,
             street: storedProfile.registeredAddress,
+            addressLine2: storedProfile.registeredAddressLine2 ?? '',
+            addressLine3: storedProfile.registeredAddressLine3 ?? '',
             town: storedProfile.registeredCity ?? '',
             postalCode: storedProfile.registeredPostalCode ?? '',
+            poBox: storedProfile.registeredPoBox ?? '',
+            governorate: storedProfile.registeredCountrySubdivision ?? '',
+            subdivisionCode: storedProfile.registeredCountrySubdivisionCode ?? '',
             country: COUNTRY_FROM_API[storedProfile.country] ?? INITIAL.country,
+            contactPerson: storedProfile.contactPersonName ?? '',
             phone: storedProfile.contactPhone ?? '',
             email: storedProfile.contactEmail ?? '',
           }
@@ -221,6 +332,17 @@ export function CompanyProfilePage() {
   // TODO(backend): `GET /v1/code-lists/isic?q=` for the search, and the choice stored as
   // `industrialClassification { code, name }` on `GET/PUT /v1/settings/company`.
   const isicOptions = useMemo<SelectOption[]>(() => isicOptionsFor(i18n.language), [i18n.language])
+  // CL-13-OM, the closed list the server accepts (BTOM-024); none is a valid choice.
+  const subdivisionOptions = useMemo<SelectOption[]>(
+    () => [
+      { value: '', label: t('companyProfile.subdivisionCodeNone') },
+      ...CODE_LISTS.COUNTRY_SUBDIVISION.values.map((entry) => ({
+        value: entry.code,
+        label: `${entry.code} · ${(i18n.language.startsWith('ar') ? entry.nameAr : entry.name) ?? entry.code}`,
+      })),
+    ],
+    [i18n.language, t],
+  )
 
   const set = <K extends keyof Profile>(key: K, value: Profile[K]) => {
     setForm((current) => ({ ...current, [key]: value }))
@@ -239,24 +361,31 @@ export function CompanyProfilePage() {
     return { net, vat, total: Math.round((net + vat) * 1000) / 1000 }
   }, [])
 
+  // The form edits what the server holds; before that is known there is nothing honest to show.
+  if (profileRead.status === 'loading') {
+    return (
+      <SettingsShell group="company">
+        <SettingsHeader title={t('companyProfile.title')} subtitle={t('companyProfile.subtitle')} />
+        <LoadingNotice />
+      </SettingsShell>
+    )
+  }
+  if (profileRead.status === 'failed') {
+    return (
+      <SettingsShell group="company">
+        <SettingsHeader title={t('companyProfile.title')} subtitle={t('companyProfile.subtitle')} />
+        <ApiReadFailure error={profileRead.error} retry={retryProfile} />
+      </SettingsShell>
+    )
+  }
+
   const fieldNames = dirty
     .map((key) => t(`companyProfile.${key}`).toLowerCase())
     .join(t('companyProfile.andJoin'))
 
   return (
     <SettingsShell group="company">
-      <SettingsHeader
-        title={t('companyProfile.title')}
-        subtitle={t('companyProfile.subtitle')}
-        actions={
-          <button
-            type="button"
-            className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-          >
-            {t('companyProfile.sampleInvoice')}
-          </button>
-        }
-      />
+      <SettingsHeader title={t('companyProfile.title')} subtitle={t('companyProfile.subtitle')} />
 
       <div className="flex flex-col gap-4 xl:flex-row">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
@@ -291,7 +420,7 @@ export function CompanyProfilePage() {
                 <Input
                   bordered
                   label={t('companyProfile.tradingAs')}
-                  hint={t('companyProfile.optional')}
+                  labelNote={t('companyProfile.optional')}
                   value={form.tradingAs}
                   onChange={(event) => set('tradingAs', event.target.value)}
                   readOnly={verified}
@@ -343,22 +472,19 @@ export function CompanyProfilePage() {
                     </span>
                   }
                   hint={t('companyProfile.lockedNote')}
-                  value={storedProfile?.taxNumber ?? COMPANY.vatNumber}
+                  value={storedProfile?.taxNumber ?? ''}
                   readOnly
                   readOnlyAppearance
                 />
-                <Field label={t('companyProfile.vatRegisteredSince')}>
-                  <Select
-                    ariaLabel={t('companyProfile.vatRegisteredSince')}
-                    value={form.vatRegisteredSince}
-                    onChange={(value) => set('vatRegisteredSince', value)}
-                    options={[
-                      { value: '1 April 2021', label: '1 April 2021' },
-                      { value: '1 April 2022', label: '1 April 2022' },
-                      { value: '1 January 2021', label: '1 January 2021' },
-                    ]}
-                  />
-                </Field>
+                {/* TODO(backend): docs/backend-guides/SETTINGS.md row 1.3. No field holds the date
+                    of VAT registration, so the designed field says so rather than offering dates. */}
+                <Input
+                  bordered
+                  label={t('companyProfile.vatRegisteredSince')}
+                  value={t('companyProfile.notAvailableYet')}
+                  readOnly
+                  readOnlyAppearance
+                />
               </div>
             </div>
           </Panel>
@@ -367,39 +493,58 @@ export function CompanyProfilePage() {
           <Panel
             title={t('companyProfile.whereYouAre')}
             note={
-              verified ? t('companyProfile.identityLockedNote') : t('companyProfile.whereYouAreNote')
+              verified ? t('companyProfile.addressAmendNote') : t('companyProfile.whereYouAreNote')
             }
           >
+            {/* The registered address and contact stay editable once VERIFIED: they go through the
+                amendment, which leaves the verification as it is. Country is identity and stays
+                locked. The five address parts and the phone are what every invoice must state
+                (IBR-010-OM, IBR-011-OM), hence the required marks. */}
             <div className="grid gap-4">
               <Field label={t('companyProfile.streetAddress')} required>
                 <textarea
+                  aria-label={t('companyProfile.streetAddress')}
                   value={form.street}
                   onChange={(event) => set('street', event.target.value)}
                   rows={2}
-                  readOnly={verified}
-                  className={[
-                    'w-full resize-none rounded-sm border border-border-default px-3 py-2.5 text-sm font-medium text-text-primary outline-none transition-colors',
-                    verified ? 'bg-surface-background text-text-tertiary' : 'bg-white focus:border-border-brand',
-                  ].join(' ')}
+                  maxLength={500}
+                  className="w-full resize-none rounded-sm border border-border-default bg-white px-3 py-2.5 text-sm font-medium text-text-primary outline-none transition-colors focus:border-border-brand"
                 />
               </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input
+                  bordered
+                  label={t('companyProfile.addressLine2')}
+                  requiredMark
+                  maxLength={500}
+                  value={form.addressLine2}
+                  onChange={(event) => set('addressLine2', event.target.value)}
+                />
+                <Input
+                  bordered
+                  label={t('companyProfile.addressLine3')}
+                  requiredMark
+                  maxLength={500}
+                  value={form.addressLine3}
+                  onChange={(event) => set('addressLine3', event.target.value)}
+                />
+              </div>
               <div className="grid gap-4 sm:grid-cols-3">
                 <Input
                   bordered
                   label={t('companyProfile.townOrCity')}
                   requiredMark
+                  maxLength={100}
                   value={form.town}
                   onChange={(event) => set('town', event.target.value)}
-                  readOnly={verified}
-                  readOnlyAppearance={verified}
                 />
                 <Input
                   bordered
                   label={t('companyProfile.postalCode')}
+                  requiredMark
+                  maxLength={20}
                   value={form.postalCode}
                   onChange={(event) => set('postalCode', event.target.value)}
-                  readOnly={verified}
-                  readOnlyAppearance={verified}
                 />
                 <Field label={t('companyProfile.country')} required>
                   <Select
@@ -417,29 +562,84 @@ export function CompanyProfilePage() {
               <div className="grid gap-4 sm:grid-cols-3">
                 <Input
                   bordered
+                  label={t('companyProfile.poBox')}
+                  labelNote={t('companyProfile.optional')}
+                  maxLength={30}
+                  value={form.poBox}
+                  onChange={(event) => set('poBox', event.target.value)}
+                />
+                <Input
+                  bordered
+                  label={t('companyProfile.governorate')}
+                  labelNote={t('companyProfile.optional')}
+                  maxLength={100}
+                  value={form.governorate}
+                  onChange={(event) => set('governorate', event.target.value)}
+                />
+                <Field
+                  label={t('companyProfile.subdivisionCode')}
+                  hint={t('companyProfile.optional')}
+                >
+                  <Select
+                    ariaLabel={t('companyProfile.subdivisionCode')}
+                    value={form.subdivisionCode}
+                    onChange={(value) => set('subdivisionCode', value)}
+                    disabled={!verified}
+                    options={subdivisionOptions}
+                  />
+                </Field>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input
+                  bordered
+                  label={t('companyProfile.contactPerson')}
+                  labelNote={t('companyProfile.optional')}
+                  maxLength={200}
+                  value={form.contactPerson}
+                  onChange={(event) => set('contactPerson', event.target.value)}
+                />
+                <Input
+                  bordered
                   label={t('companyProfile.phone')}
+                  requiredMark
+                  maxLength={30}
                   value={form.phone}
                   onChange={(event) => set('phone', event.target.value)}
-                  readOnly={verified}
-                  readOnlyAppearance={verified}
                 />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
                 <Input
                   bordered
                   label={t('companyProfile.emailOnInvoices')}
+                  maxLength={255}
                   value={form.email}
                   onChange={(event) => set('email', event.target.value)}
-                  readOnly={verified}
-                  readOnlyAppearance={verified}
                 />
-                {/* TODO(backend): docs/backend-guides/SETTINGS.md row 2 — /company-profile has no
-                    website field at all; this stays local-only until one exists. */}
+                {/* TODO(backend): docs/backend-guides/SETTINGS.md row 1.2. /company-profile has no
+                    website field, so the input is drawn but cannot be filled in until one exists. */}
                 <Input
                   bordered
                   label={t('companyProfile.website')}
-                  value={form.website}
-                  onChange={(event) => set('website', event.target.value)}
+                  value=""
+                  placeholder={t('companyProfile.notAvailableYet')}
+                  disabled
+                  onChange={() => {}}
                 />
               </div>
+              {profileConflict ? (
+                <p role="alert" className="text-xs font-medium text-warning-700">
+                  {t('companyProfile.amendConflict')}
+                </p>
+              ) : null}
+              {profileFieldErrors.length > 0 ? (
+                <p role="alert" className="text-xs font-medium text-danger-700">
+                  {t('companyProfile.amendFieldsRefused', {
+                    fields: profileFieldErrors
+                      .map((field) => t(`companyProfile.${FIELD_LABEL[field] ?? 'streetAddress'}`))
+                      .join(t('companyProfile.andJoin')),
+                  })}
+                </p>
+              ) : null}
               {profileSaveFailed ? (
                 <p role="alert" className="text-xs font-medium text-danger-700">
                   {t('companyProfile.saveFailed')}
@@ -486,7 +686,7 @@ export function CompanyProfilePage() {
               >
                 {logoBroken ? (
                   <span className="flex size-14 items-center justify-center rounded-sm bg-primary-100 text-lg font-semibold text-primary-800">
-                    {(session?.tenantName ?? '').trim().charAt(0).toUpperCase() || '?'}
+                    {initialsOf(form.registeredName || session?.tenantName || '')}
                   </span>
                 ) : (
                   <img
@@ -542,14 +742,14 @@ export function CompanyProfilePage() {
                     label={t('companyProfile.onAReceipt')}
                     hint={t('companyProfile.onAReceiptNote')}
                   >
-                    {/* TODO(backend): docs/backend-guides/SETTINGS.md row 1 — the API's
-                        receiptMonochrome is a colour toggle on a logo it always draws; it has no
-                        way to represent "leave it off receipts" (this control's `none`), so this
-                        choice is not persisted yet. */}
+                    {/* TODO(backend): docs/backend-guides/SETTINGS.md row 1.1. The API's
+                        receiptMonochrome cannot say "leave it off receipts", so the choice is drawn
+                        but cannot be changed until it can be saved. */}
                     <Select
                       ariaLabel={t('companyProfile.onAReceipt')}
-                      value={form.receiptLogo}
-                      onChange={(value) => set('receiptLogo', value)}
+                      value="plainBlack"
+                      onChange={() => {}}
+                      disabled
                       options={[
                         {
                           value: 'plainBlack',
@@ -678,7 +878,7 @@ export function CompanyProfilePage() {
                   <span className="flex items-start gap-2">
                     {logoBroken ? (
                       <span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-primary-100 text-xs font-semibold text-primary-800">
-                        {(session?.tenantName ?? '').trim().charAt(0).toUpperCase() || '?'}
+                        {initialsOf(form.registeredName || session?.tenantName || '')}
                       </span>
                     ) : (
                       <img
@@ -704,8 +904,8 @@ export function CompanyProfilePage() {
                         {t('companyProfile.taxInvoiceAr')}
                       </span>
                     ) : null}
-                    <span className="mt-0.5 block font-mono text-[10px] text-text-quaternary">
-                      INV-2047
+                    <span className="mt-0.5 block text-[10px] text-text-quaternary">
+                      {t('companyProfile.sampleNumber')}
                     </span>
                   </span>
                 </div>
@@ -714,18 +914,22 @@ export function CompanyProfilePage() {
                   {form.street}
                   <br />
                   {form.town} {form.postalCode}, {form.country}
-                  <br />
-                  VAT {COMPANY.vatNumber}
+                  {storedProfile?.taxNumber ? (
+                    <>
+                      <br />
+                      {t('companyProfile.previewVat', { number: storedProfile.taxNumber })}
+                    </>
+                  ) : null}
                 </p>
 
                 <ul className="mt-3 border-t border-border-subtle pt-2">
                   {SAMPLE_LINES.map((line) => (
                     <li
-                      key={line.name}
+                      key={line.key}
                       className="flex items-baseline justify-between gap-2 py-1 text-[10px]"
                     >
                       <span className="font-medium text-text-tertiary">
-                        {line.name} × {line.quantity}
+                        {t(`companyProfile.${line.key}`)} × {line.quantity}
                       </span>
                       <span className="shrink-0 font-medium text-text-primary tabular-nums">
                         {omr(line.quantity * line.unit)}
@@ -785,39 +989,7 @@ export function CompanyProfilePage() {
             </dl>
           </section>
 
-          <section className="rounded-md bg-surface-card p-5">
-            <h3 className="text-base font-semibold leading-[1.2] text-text-primary">
-              {t('companyProfile.lastChanged')}
-            </h3>
-            <dl className="mt-2">
-              {(
-                [
-                  ['bankNote', '12 Jun · Hafidh'],
-                  ['logo', '3 Feb · Hafidh'],
-                  ['address', '14 Mar 2025'],
-                ] as const
-              ).map(([row, when], index) => (
-                <div
-                  key={row}
-                  className={[
-                    'flex items-center justify-between gap-3 py-2.5',
-                    index < 2 ? 'border-b border-surface-background' : '',
-                  ].join(' ')}
-                >
-                  <dt className="text-sm font-medium text-text-tertiary">
-                    {t(`companyProfile.changed.${row}`)}
-                  </dt>
-                  <dd className="shrink-0 text-sm font-semibold text-text-primary">{when}</dd>
-                </div>
-              ))}
-            </dl>
-            <button
-              type="button"
-              className="mt-3 inline-flex h-[40px] w-full items-center justify-center rounded-sm border border-border-subtle bg-white text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-            >
-              {t('companyProfile.seeFullHistory')}
-            </button>
-          </section>
+          <LastChangedCard />
         </aside>
       </div>
 
@@ -859,6 +1031,55 @@ export function CompanyProfilePage() {
               setBrandingSaveFailed(false)
               setDefaultsSaveFailed(false)
               setProfileSaveFailed(false)
+              setProfileConflict(false)
+              setProfileFieldErrors([])
+              // "Saved" means a request this click sent was answered; a click that sent nothing
+              // says nothing.
+              let sent = false
+              const operationalDirty = OPERATIONAL_FIELDS.some((key) => form[key] !== baseline[key])
+              if (verified && operationalDirty && storedProfile) {
+                try {
+                  const stored = await amendCompanyProfile({
+                    expectedRevision: storedProfile.profileRevision,
+                    registeredAddress: form.street || null,
+                    registeredAddressLine2: form.addressLine2 || null,
+                    registeredAddressLine3: form.addressLine3 || null,
+                    registeredCity: form.town || null,
+                    registeredPostalCode: form.postalCode || null,
+                    registeredPoBox: form.poBox || null,
+                    registeredCountrySubdivision: form.governorate || null,
+                    registeredCountrySubdivisionCode: form.subdivisionCode || null,
+                    contactPersonName: form.contactPerson || null,
+                    contactPhone: form.phone || null,
+                    contactEmail: form.email || null,
+                  })
+                  setStoredProfile(stored)
+                  sent = true
+                } catch (error) {
+                  if (error instanceof ApiError && error.status === 409) {
+                    // Someone saved first. Their values replace these fields rather than being
+                    // overwritten by a save built on what this screen read earlier.
+                    try {
+                      const latest = await loadCompanyProfile()
+                      setStoredProfile(latest)
+                      setForm((current) => ({ ...current, ...operationalFrom(latest) }))
+                    } catch {
+                      setProfileSaveFailed(true)
+                      return
+                    }
+                    setProfileConflict(true)
+                  } else if (
+                    error instanceof ApiError &&
+                    error.status === 400 &&
+                    error.fieldErrors.length > 0
+                  ) {
+                    setProfileFieldErrors(error.fieldErrors.map((refused) => refused.field))
+                  } else {
+                    setProfileSaveFailed(true)
+                  }
+                  return
+                }
+              }
               const identityDirty =
                 !verified &&
                 storedProfile &&
@@ -866,12 +1087,8 @@ export function CompanyProfilePage() {
                   form.arabicName !== baseline.arabicName ||
                   form.tradingAs !== baseline.tradingAs ||
                   form.commercialRegistration !== baseline.commercialRegistration ||
-                  form.street !== baseline.street ||
-                  form.town !== baseline.town ||
-                  form.postalCode !== baseline.postalCode ||
                   form.country !== baseline.country ||
-                  form.phone !== baseline.phone ||
-                  form.email !== baseline.email)
+                  operationalDirty)
               if (identityDirty && storedProfile) {
                 try {
                   const stored = await saveCompanyProfile({
@@ -884,17 +1101,18 @@ export function CompanyProfilePage() {
                     commercialRegistrationNumber: form.commercialRegistration,
                     country: COUNTRY_TO_API[form.country] ?? storedProfile.country,
                     registeredAddress: form.street,
-                    registeredAddressLine2: storedProfile.registeredAddressLine2,
-                    registeredAddressLine3: storedProfile.registeredAddressLine3,
+                    registeredAddressLine2: form.addressLine2 || null,
+                    registeredAddressLine3: form.addressLine3 || null,
                     registeredCity: form.town || null,
                     registeredPostalCode: form.postalCode || null,
-                    registeredCountrySubdivision: storedProfile.registeredCountrySubdivision,
-                    registeredPoBox: storedProfile.registeredPoBox,
-                    contactPersonName: storedProfile.contactPersonName,
+                    registeredCountrySubdivision: form.governorate || null,
+                    registeredPoBox: form.poBox || null,
+                    contactPersonName: form.contactPerson || null,
                     contactPhone: form.phone || null,
                     contactEmail: form.email || null,
                   })
                   setStoredProfile(stored)
+                  sent = true
                 } catch {
                   setProfileSaveFailed(true)
                   return
@@ -904,6 +1122,7 @@ export function CompanyProfilePage() {
                 try {
                   const stored = await saveIndustrialClassification(form.industrialClassification)
                   setStoredActivity(stored.code)
+                  sent = true
                 } catch {
                   setSaveFailed(true)
                   return
@@ -913,6 +1132,7 @@ export function CompanyProfilePage() {
                 try {
                   const stored = await saveBranding(form.brandColour, storedReceiptMonochrome)
                   setStoredBrandColour(stored.brandColour ?? INITIAL.brandColour)
+                  sent = true
                 } catch {
                   setBrandingSaveFailed(true)
                   return
@@ -932,12 +1152,13 @@ export function CompanyProfilePage() {
                     footerNote: form.footerNote || null,
                   })
                   setStoredDefaults(stored)
+                  sent = true
                 } catch {
                   setDefaultsSaveFailed(true)
                   return
                 }
               }
-              setSaved(true)
+              setSaved(sent)
             }}
             className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-40"
           >
@@ -947,6 +1168,59 @@ export function CompanyProfilePage() {
         </div>
       </div>
     </SettingsShell>
+  )
+}
+
+/**
+ * The latest change per field, from `GET /v1/company-profile/changes`. The log names the person
+ * only by id, and the screen has no readable directory of people, so it shows the field and the
+ * day and no name. It used to print a sample owner's name against sample dates. Hidden when the
+ * log cannot be read. There is no "full history" link: the activity log cannot be filtered to
+ * these changes from a link.
+ */
+function LastChangedCard() {
+  const { t, i18n } = useTranslation()
+  const changes = useApiRead<CompanyProfileChangeDto[]>(
+    COMPANY_PROFILE_CHANGES_PATH,
+    loadCompanyProfileChanges,
+  ).read
+  if (changes.status !== 'ready') return null
+  const latest = [...changes.data]
+    .sort((a, b) => b.changedAt.localeCompare(a.changedAt))
+    .slice(0, 3)
+
+  return (
+    <section className="rounded-md bg-surface-card p-5">
+      <h3 className="text-base font-semibold leading-[1.2] text-text-primary">
+        {t('companyProfile.lastChanged')}
+      </h3>
+      {latest.length === 0 ? (
+        <p className="mt-2 text-sm font-medium text-text-quaternary">
+          {t('companyProfile.noChangesYet')}
+        </p>
+      ) : (
+        <dl className="mt-2">
+          {latest.map((change, index) => (
+            <div
+              key={`${change.field}-${change.changedAt}`}
+              className={[
+                'flex items-center justify-between gap-3 py-2.5',
+                index < latest.length - 1 ? 'border-b border-surface-background' : '',
+              ].join(' ')}
+            >
+              <dt className="text-sm font-medium text-text-tertiary">
+                {CHANGE_LABEL[change.field]
+                  ? t(`companyProfile.${CHANGE_LABEL[change.field]}`)
+                  : t('companyProfile.changedOther')}
+              </dt>
+              <dd className="shrink-0 text-sm font-semibold text-text-primary">
+                {formatInstantDay(change.changedAt, i18n.language)}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </section>
   )
 }
 
@@ -990,11 +1264,13 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 flex flex-wrap items-center gap-2 text-xs font-medium text-text-secondary">
+      <span className="mb-1 flex flex-wrap items-center gap-0.5 text-sm font-medium text-text-primary">
         {label}
-        {required ? <span className="text-danger-700">*</span> : null}
-        {hint ? <span className="font-normal text-text-quaternary">{hint}</span> : null}
-        {badge}
+        {required ? <span className="text-xl leading-4 text-primary-700">*</span> : null}
+        {hint ? (
+          <span className="ms-1.5 text-xs font-normal text-text-quaternary">{hint}</span>
+        ) : null}
+        {badge ? <span className="ms-1.5 inline-flex">{badge}</span> : null}
       </span>
       {children}
     </label>

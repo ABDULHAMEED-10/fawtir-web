@@ -6,23 +6,29 @@ import { useDrawer } from '../../hooks/useDrawer'
 import {
   DASHBOARD_NAV,
   SETTINGS_NAV,
-  USER,
   type NavChild,
   type NavGroup,
   type NavItem,
 } from '../../lib/dashboard'
 import { useUnreadReminders } from '../../lib/notifications'
-import { can, useSession } from '../../lib/session/session'
+import { REQUIRE_SESSION, can, useSession } from '../../lib/session/session'
+import { initialsOf } from '../../lib/format'
+import { useApiRead } from '../../hooks/useApiRead'
+import {
+  activitySummaryPath,
+  loadActivitySummary,
+  type ActivitySummaryDto,
+} from '../../api/compliance/activity'
+import { defaultReportRange } from '../../api/reports/reports'
 import type { Entitlements } from '../../lib/identity/entitlements'
 import type { AnyPlanId, Feature } from '../../lib/plans'
 import { featureAccess, useTenantPlan } from '../../lib/planAccess'
 import { BrandLogo } from '../../components/BrandLogo'
 import { AccountSwitcher, UserMenu } from '../../components/shell'
-import avatar from '../../assets/dashboard/avatar.png'
 import chevron from '../../assets/dashboard/chevron.svg'
 
-/** The sidebar's count: the 18px round badge the design draws beside Income and TDD & OTA. */
-const NAV_BADGE =
+/** The sidebar's count: the design's 18px round badge, drawn only where a real count backs it. */
+export const NAV_BADGE =
   'inline-flex size-[18px] shrink-0 items-center justify-center rounded-full bg-primary-700 text-[10px] font-extrabold leading-none text-white'
 
 type SidebarNavItemProps = {
@@ -283,6 +289,22 @@ type SidebarProps = {
   onClose?: () => void
 }
 
+/**
+ * The badge beside TDD & OTA: documents that still need someone to act, from the activity
+ * ledger's own summary (`attention`) over the same window the page asks for, so it matches the
+ * page it opens (the summary refuses a call with no window). Asked only for a signed-in reader;
+ * nothing to act on, a refusal or a failure all draw no badge.
+ * TODO(backend): a lighter count than the whole summary, REPORTS.md row 2.5.
+ */
+function useAttentionCount(signedIn: boolean): number | undefined {
+  const range = defaultReportRange()
+  const path = activitySummaryPath(range.from, range.to)
+  const read = useApiRead<ActivitySummaryDto>(signedIn ? path : null, () =>
+    loadActivitySummary(path),
+  ).read
+  return read.status === 'ready' && read.data.attention > 0 ? read.data.attention : undefined
+}
+
 export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
   const { t } = useTranslation()
   const location = useLocation()
@@ -290,6 +312,7 @@ export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
   const panelRef = useRef<HTMLElement>(null)
   const session = useSession()
   const plan = useTenantPlan()
+  const attention = useAttentionCount(session !== null)
   useDrawer(open, onClose, panelRef)
 
   return (
@@ -341,7 +364,7 @@ export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
                     to={item.to}
                     Icon={item.Icon}
                     label={t(item.labelKey)}
-                    badge={item.badge}
+                    badge={item.id === 'activity' ? attention : item.badge}
                     locked={lockFor(plan, item.feature)}
                     active={
                       item.to === '/dashboard'
@@ -362,10 +385,16 @@ export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
           Icon={SETTINGS_NAV.Icon}
           label={t(SETTINGS_NAV.labelKey)}
         />
+        {/* No session means the answer is still loading (or, in a development build with the
+            guard off, that nobody signed in). The card says so rather than naming somebody: it
+            used to fall back to a demo user, whom every real user then saw as themselves. */}
         <UserMenu
-          name={session?.username ?? USER.name}
-          roleKey={session ? roleKeyOf(session) : USER.roleKey}
-          avatar={avatar}
+          name={
+            session?.username ??
+            t(REQUIRE_SESSION ? 'shell.user.loading' : 'shell.user.previewNoSession')
+          }
+          roleKey={session ? roleKeyOf(session) : null}
+          initials={session?.username ? initialsOf(session.username) : null}
         />
       </div>
     </aside>

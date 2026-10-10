@@ -269,7 +269,7 @@ export type ComplianceNote = Note & { ok: boolean; link?: string }
 
 /** The page of the self-billing document a self-billed bill was raised from. */
 export function selfBillPath(issuedInvoiceId: string): string {
-  return `/income/self-billing/${encodeURIComponent(issuedInvoiceId)}`
+  return `/expenditure/self-billing/${encodeURIComponent(issuedInvoiceId)}`
 }
 
 /**

@@ -69,6 +69,7 @@ export function Th({
 }) {
   return (
     <th
+      scope="col"
       className={[
         'h-[40px] font-semibold',
         first ? 'px-5' : 'px-4',
