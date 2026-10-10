@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useState, type FormEvent } from 'react'
+import { OnboardingFormError } from '../../components/auth/OnboardingFormError'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -21,7 +22,7 @@ import { GOVERNORATES, isGovernorateId, type GovernorateId } from '../../lib/gov
 import {
   ADDRESS_CONTACT_FIELD_ORDER,
   ADDRESS_CONTACT_SERVER_FIELDS,
-  REVIEW_ROUTE,
+  PLANS_ROUTE,
   buildAddressContactRequest,
   recordAddressContact,
   validateAddressContact,
@@ -54,7 +55,11 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
   // contact's phone and email are personal data, and pre-filled ones would be saved unedited.
   // Muscat stays the default only because a native select always shows a value.
   const [addressLine, setAddressLine] = useState(saved?.addressLine ?? '')
+  const [addressLine2, setAddressLine2] = useState(saved?.addressLine2 ?? '')
+  const [addressLine3, setAddressLine3] = useState(saved?.addressLine3 ?? '')
   const [postalCode, setPostalCode] = useState(saved?.postalCode ?? '')
+  // Router state saved before the PO Box was asked has none, so it starts empty rather than undefined.
+  const [poBox, setPoBox] = useState(saved?.poBox ?? '')
   const [city, setCity] = useState(saved?.city ?? '')
   const [governorate, setGovernorate] = useState<GovernorateId>(saved?.governorate ?? 'muscat')
   const [contactName, setContactName] = useState(saved?.contactName ?? '')
@@ -83,11 +88,22 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
       accentColor: accentColor(identity?.accent ?? INVOICE_ACCENTS[0].id),
       logoUrl: identity?.logoUrl ?? null,
       addressLine,
+      addressLine2,
+      addressLine3,
       city,
       governorate: governorateLabel,
       postalCode,
     }),
-    [addressLine, city, governorateLabel, identity, peppolPending, postalCode],
+    [
+      addressLine,
+      addressLine2,
+      addressLine3,
+      city,
+      governorateLabel,
+      identity,
+      peppolPending,
+      postalCode,
+    ],
   )
 
   useEffect(() => {
@@ -97,7 +113,19 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = event.currentTarget
-    const values = { addressLine, postalCode, city, governorate, contactName, role, phone, email }
+    const values = {
+      addressLine,
+      addressLine2,
+      addressLine3,
+      postalCode,
+      poBox,
+      city,
+      governorate,
+      contactName,
+      role,
+      phone,
+      email,
+    }
     const next = validateAddressContact(values)
     setErrors(next)
     if (!isClean(next)) {
@@ -113,7 +141,7 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
       return
     }
     const nextState: OnboardingState = { ...state, address: values }
-    navigate(REVIEW_ROUTE, { state: nextState })
+    navigate(PLANS_ROUTE, { state: nextState })
   }
 
   return (
@@ -137,33 +165,67 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
             {t('addressContact.registeredAddress')}
           </p>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* Line 1 spans the row so the six fields after it pair up: lines 2 and 3, postal code
+                and PO Box, city and governorate. */}
+            <div className="md:col-span-2">
+              <Input
+                label={t('addressContact.addressLine')}
+                requiredMark
+                name="addressLine"
+                autoComplete="address-line1"
+                value={addressLine}
+                onChange={(e) => {
+                  setAddressLine(e.target.value)
+                  clearError('addressLine')
+                }}
+                error={errors.addressLine ? t(errors.addressLine) : undefined}
+                leadingIcon={<LocationPinIcon size={20} />}
+                trailingIcon={
+                  addressLine ? (
+                    <button
+                      type="button"
+                      onClick={() => setAddressLine('')}
+                      className="inline-flex text-text-quaternary hover:text-text-secondary"
+                      aria-label={t('common.clear')}
+                    >
+                      <CloseIcon />
+                    </button>
+                  ) : null
+                }
+              />
+            </div>
+            {/* Not in the frame, which draws one line: every invoice states the seller's
+                address lines 1, 2 and 3 and postal code (IBR-010-OM), so sign-up asks for them
+                rather than leaving the first invoice to be refused. */}
             <Input
-              label={t('addressContact.addressLine')}
+              label={t('addressContact.addressLine2')}
               requiredMark
-              name="addressLine"
-              autoComplete="address-line1"
-              value={addressLine}
+              name="addressLine2"
+              autoComplete="address-line2"
+              value={addressLine2}
               onChange={(e) => {
-                setAddressLine(e.target.value)
-                clearError('addressLine')
+                setAddressLine2(e.target.value)
+                clearError('addressLine2')
               }}
-              error={errors.addressLine ? t(errors.addressLine) : undefined}
+              error={errors.addressLine2 ? t(errors.addressLine2) : undefined}
               leadingIcon={<LocationPinIcon size={20} />}
-              trailingIcon={
-                addressLine ? (
-                  <button
-                    type="button"
-                    onClick={() => setAddressLine('')}
-                    className="inline-flex text-text-quaternary hover:text-text-secondary"
-                    aria-label={t('common.clear')}
-                  >
-                    <CloseIcon />
-                  </button>
-                ) : null
-              }
+            />
+            <Input
+              label={t('addressContact.addressLine3')}
+              requiredMark
+              name="addressLine3"
+              autoComplete="address-line3"
+              value={addressLine3}
+              onChange={(e) => {
+                setAddressLine3(e.target.value)
+                clearError('addressLine3')
+              }}
+              error={errors.addressLine3 ? t(errors.addressLine3) : undefined}
+              leadingIcon={<BuildingIcon size={20} />}
             />
             <Input
               label={t('addressContact.postalCode')}
+              requiredMark
               name="postalCode"
               autoComplete="postal-code"
               inputMode="numeric"
@@ -173,6 +235,19 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
                 clearError('postalCode')
               }}
               error={errors.postalCode ? t(errors.postalCode) : undefined}
+              leadingIcon={<HashIcon size={14} />}
+            />
+            {/* Optional: Oman puts the PO Box in the element other countries use for the postal
+                code (IBR-040-OM), and a company may have both. */}
+            <Input
+              label={t('addressContact.poBox')}
+              name="poBox"
+              value={poBox}
+              onChange={(e) => {
+                setPoBox(e.target.value)
+                clearError('poBox')
+              }}
+              error={errors.poBox ? t(errors.poBox) : undefined}
               leadingIcon={<HashIcon size={14} />}
             />
             <Input
@@ -284,11 +359,7 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
         </section>
       </div>
 
-      {formError ? (
-        <p className="text-xs font-medium text-text-danger" role="alert">
-          {t(formError.key, formError.values)}
-        </p>
-      ) : null}
+      <OnboardingFormError error={formError} />
 
       <Button type="submit" disabled={submitting} className="w-full max-w-[400px] gap-1.5">
         {t('addressContact.submit')}

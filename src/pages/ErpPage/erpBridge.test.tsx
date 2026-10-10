@@ -175,6 +175,16 @@ describe('mapping readiness', () => {
     ).toBe('/settings/erp-mapping/certification')
   })
 
+  it('for XML, says the mapping is made through the API and sends no one to the JSON-only screens', async () => {
+    certified = false
+    renderPage()
+    await screen.findByText('Not ready')
+    fireEvent.click(screen.getByRole('button', { name: 'Format' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'XML' }))
+    expect(await screen.findByText(/saved and certified through the Fawtir API/)).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Open mapping certification' })).toBeNull()
+  })
+
   it('does not read the mapping for an uploader who may not administer it', async () => {
     who = UPLOADER
     renderPage()

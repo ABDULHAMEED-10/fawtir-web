@@ -206,12 +206,12 @@ Each phase: mock data in `src/lib`, EN + AR, responsive (`max-md:` only), `npm r
 
 | Method | Who confirms it arrived | Then |
 |---|---|---|
-| **Card, by payment link** (Thawani hosted checkout) | Thawani, by webhook — the console shows it as *Paid online* | operator activates (one click); a console setting *Auto-activate on online payment* exists, **off by default** because the client asked for activation to stay in the console |
+| **Card, by payment link** (Paymob hosted checkout) | Paymob, by webhook — the console shows it as *Paid online* | operator activates (one click); a console setting *Auto-activate on online payment* exists, **off by default** because the client asked for activation to stay in the console |
 | **Bank transfer** | someone at Insight sees it on the bank statement | operator records the payment (reference, date) and activates |
 | **Cash** | someone at Insight receives it | operator records it and activates |
 | **Cheque** | Insight banks it | operator records it (cheque number, bank) and activates |
 
-The payment link is a Thawani checkout session created by the backend. The operator sends it through **WhatsApp, email or any channel** — the console gives them the URL, a copy button and a `wa.me` share with a pre-filled message in the tenant's language. The customer can also open the same link from their own Settings › Bills. Thawani: `https://thawani-technologies.stoplight.io/docs/thawani-ecommerce-api/` — backend owns the session, webhook and redirect URLs; the front end only shows link status (*Unpaid · Paid · Expired*) and a resend.
+The payment link is a Paymob checkout session created by the backend. The operator sends it through **WhatsApp, email or any channel** — the console gives them the URL, a copy button and a `wa.me` share with a pre-filled message in the tenant's language. The customer can also open the same link from their own Settings › Bills. Paymob: `https://developers.paymob.com/` — backend owns the session, webhook and redirect URLs; the front end only shows link status (*Unpaid · Paid · Expired*) and a resend.
 
 Every recorded payment and activation is an audit entry with who, when, method, reference and note.
 
@@ -248,16 +248,16 @@ Modals (all record a reason/note and land in the audit trail):
 | Screen | Change |
 |---|---|
 | Sign-up `/plans` | plans and figures from the console catalogue (pricing doc: Starter 12.000 / Business 28.000 / Business Plus 55.000 monthly; 10.000 / 23.333 / 45.833 annual; 200 / 1,000 / 3,000 documents; 2/5/10 users; 1/2/5 branches; Enterprise on request). Trial: 15 days, 25 documents, no card, no auto-convert — said plainly. Note under the plans: "Pay by card through a secure link, bank transfer or cash. Your account is activated by the Fawtir team once payment is confirmed." |
-| Sign-up `/payment` | replace the card form (no card entry in our app — Thawani hosts it) with **How would you like to pay?**: Card by secure link (Pay now → Thawani checkout redirect, or *Send me the link* by WhatsApp/email) · Bank transfer (bank details + reference to quote) · Cash (where and how; "we activate once received"). Then an **Awaiting activation** state on the pending screen (the branch's `SignupPendingPage` already tracks stages; add `AWAITING_PAYMENT` / `AWAITING_ACTIVATION`). |
+| Sign-up `/payment` | replace the card form (no card entry in our app — Paymob hosts it) with **How would you like to pay?**: Card by secure link (Pay now → Paymob checkout redirect, or *Send me the link* by WhatsApp/email) · Bank transfer (bank details + reference to quote) · Cash (where and how; "we activate once received"). Then an **Awaiting activation** state on the pending screen (the branch's `SignupPendingPage` already tracks stages; add `AWAITING_PAYMENT` / `AWAITING_ACTIVATION`). |
 | Settings › Plan and usage `/settings/plan` | cards from the catalogue; "documents" not "invoices"; overage on/off per console default; upgrade → payment step (link / transfer / cash) → "awaiting activation" banner; downgrade at period end. |
-| Settings › Bills and payment `/settings/bills` | **remove the Visa card-on-file panel** ("Add another card", default card) — nothing is stored with Thawani hosted checkout. Replace with **How you pay**: preferred method, bank details for transfer, and per bill: state (Paid via link · Paid cash — confirmed by Fawtir on <date> · Unpaid → **Pay now** opens the link) plus the open payment link if one was sent. Past bills table unchanged. This changes a built screen — flagged. |
+| Settings › Bills and payment `/settings/bills` | **remove the Visa card-on-file panel** ("Add another card", default card) — nothing is stored with Paymob hosted checkout. Replace with **How you pay**: preferred method, bank details for transfer, and per bill: state (Paid via link · Paid cash — confirmed by Fawtir on <date> · Unpaid → **Pay now** opens the link) plus the open payment link if one was sent. Past bills table unchanged. This changes a built screen — flagged. |
 | Notifications | awaiting payment (with link), payment received, subscription activated, grace day 1/7/13, trial ends in 3 days, suspended (read-only). Amounts with the rial sign. |
 
 ### 7.5 Console settings › Payments (new section, all configurable)
 
 | Setting | Default |
 |---|---|
-| Provider | Thawani (key status shown masked; test/live mode badge) |
+| Provider | Paymob (key status shown masked; test/live mode badge) |
 | Methods accepted | Card by link ✓ · Bank transfer ✓ · Cash ✓ · Cheque ✓ |
 | Bank details shown to customers | account name, bank, IBAN, reference format |
 | Payment link expiry | 7 days |
@@ -271,7 +271,7 @@ Modals (all record a reason/note and land in the audit trail):
 
 1. **Prices aligned to the pricing doc** everywhere (12 / 28 / 55; 200 / 1,000 / 3,000); they are console-configurable, so the figures are launch defaults, not a commitment. Client: "align price for now as they will be customisable".
 2. **POS: no separate plan** and no terminal charge; POS simplified invoices count against the plan allowance (defaults doc wins). The per-terminal POS plan from the pricing model is not drawn.
-3. Auto-activate on Thawani payment: **off by default** (left to us).
+3. Auto-activate on Paymob payment: **off by default** (left to us).
 4. The card-on-file panel in Settings › Bills **is removed** (left to us).
 
 ## 7.7 Built (15–16 Sep 2026)
@@ -291,7 +291,7 @@ overflow on the responsive sweep (132 routes) and `npm run build` green.
 
 **Backend asks that fall out of it** (none of these endpoints exist yet — the discovery doc lists tenants, subscriptions and billing as BNA):
 - `GET /platform/subscriptions?state&plan&method&term&q&page` and `GET /platform/subscriptions/{tenantId}` with invoices, payments, links, events, grants.
-- `POST …/{tenantId}/payments` (method, amount, receivedOn, reference, note, proof, activate), `POST …/{tenantId}/payment-links` (invoiceId, channel) → Thawani checkout session URL + expiry; Thawani webhook marks the invoice paid and, when `autoActivateOnlinePayment` is on, activates.
+- `POST …/{tenantId}/payments` (method, amount, receivedOn, reference, note, proof, activate), `POST …/{tenantId}/payment-links` (invoiceId, channel) → Paymob checkout session URL + expiry; Paymob webhook marks the invoice paid and, when `autoActivateOnlinePayment` is on, activates.
 - `POST …/{tenantId}/activate | plan-change | suspend | resume | cancel | quota-grants | overage-waivers`, each with a reason, each audited.
 - `GET /platform/subscription-invoices`.
 - `GET/PUT /platform/settings/{section}` for the nine sections of `PlatformSettings`.
@@ -381,6 +381,36 @@ attention (`/settings/erp/attention`, query-time reconciliation labels) and extr
 recovery action, so none is offered. The old per-connection runs and records addresses redirect to
 these reports narrowed to the connection. Built from the Integration templates without a Figma
 frame. Handoff: `docs/frontend/ERP_REPORTING_HANDOFF.md`.
+
+## 7.12 API push keys built (7 Oct 2026)
+
+`/settings/erp/api-push`, a card in the Integration group after Upload from your ERP: create,
+list, rotate, complete rotation and revoke the organisation's ERP ingestion keys
+(`/v1/apikeys`, `admin.settings.manage`, backend Phase 7). The raw key is shown once, in a dialog,
+and is gone when it closes. Status is the server's; last used is worded as the once-a-minute value
+it is; ERP keys always expire (365-day default, 730-day maximum, no "never"). Refusals for ERP not
+enabled and for a plan without API access come from the server on create and rotate, in our words.
+The page also explains how an ERP calls the API (headers, idempotency, source block) and links to
+API push activity. GENERAL keys are not shown here. The Bridge page's API push line now links to
+it. Built from the Integration templates without a Figma frame. Handoff:
+`docs/frontend/ERP_API_PUSH_HANDOFF.md`.
+
+## 7.13 ERP integration administration unified (7 Oct 2026)
+
+Settings › Integration now has one ERP integration area with its own strip: Overview
+(`/settings/erp`), Connections, Bridge upload, API push, Mapping, Activity and Access & history
+(`/settings/erp/access`). The strip shows only the areas the reader's permissions open. The
+overview draws `GET /v1/erp/overview` (backend Phase 6) for a chosen window: document buckets,
+attention counts linked by label, connection health, mapping readiness and the latest runs, with
+nothing totalled in the browser. A setup checklist per channel (managed pull, upload, API push) is
+worked out from server reads only, never stored, and neither upload nor API push asks for a
+connection. The connection list gained a Collection column from its own `health` field. Needs
+attention shows the recipient's recorded answer; RESPONSE_PENDING is still not evaluated (DEC-G).
+The activity log is now the server's (`/v1/settings/activity-log`, admins only); the sample log
+is gone, and so is the Plan page's mock ERP add-on. Access & history shows the reader's own
+permissions against each ERP capability and the plan's personas as permission sets (presentation
+only: the server has no persona roles). An ERP-scoped history for non-administrators is blocked on
+the backend (R22). Handoff: `docs/frontend/ERP_PHASE9_ADMINISTRATION_HANDOFF.md`.
 
 ## 8. Build order (supersedes §6)
 
@@ -808,7 +838,7 @@ Every row is a control on `/console/plans` or `/console/settings`. Default = lau
 
 | Setting | Default |
 |---|---|
-| Provider | undecided: Thawani / Amwal / PayTabs / Checkout.com — Stripe excluded (client decision) |
+| Provider | Paymob (owner, 7 Oct 2026). Stripe excluded (client decision) |
 | Methods | bank transfer first, card once the provider is engaged |
 
 ### C.3 Tenant detail `/console/tenants/:id`

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../api'
-import { Button, RowsView } from '../../components/ui'
+import { RowsView } from '../../components/ui'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
 import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { ConsoleNotice, ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
@@ -31,13 +31,21 @@ import {
 import { peekEntitlements } from '../../lib/identity/entitlements'
 import type { FormMessage } from '../../lib/identity/errors'
 import { PidPolicyEditor, type EditorTarget } from './policies/PidPolicyEditor'
-import { PolicyContents } from './policies/PolicyContents'
+import { NamedCode, PolicyContents } from './policies/PolicyContents'
 import { PolicyFailureNotice } from './policies/PolicyFailureNotice'
 import { PolicyQueueLabel } from './policies/PolicyQueueLabel'
 import { PolicyStatusPill } from './policies/PolicyStatusPill'
 import { PolicyTrail } from './policies/PolicyTrail'
 import { PolicyTransitionDialog } from './policies/PolicyTransitionDialog'
 import { ReviewCard, ReviewLine } from './verification/ReviewCard'
+import {
+  CONSOLE_PAGE,
+  CONSOLE_ROWS,
+  CONSOLE_TABLE,
+  CONSOLE_THEAD,
+  ConsoleButton,
+  ConsolePageHeader,
+} from '../../layouts/ConsoleShell/consoleStyle'
 
 /**
  * One validation policy: its versions, the selected version in full, and the steps the server
@@ -67,7 +75,7 @@ function PolicyDetail() {
   const { type } = useParams()
 
   return (
-    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+    <div className={CONSOLE_PAGE}>
       <ConsoleBreadcrumbs
         items={[
           { labelKey: 'console.nav.policies', to: POLICIES_ROUTE },
@@ -191,7 +199,7 @@ function PolicyVersions({ type }: { type: BlockerType }) {
     body = <ConsoleReadFailure error={list.read.error} retry={list.retry} />
   } else if (list.read.data.length === 0 && requested === null) {
     body = (
-      <p className="rounded-md bg-surface-card px-6 py-12 text-center text-sm font-medium text-text-tertiary">
+      <p className="rounded-sm bg-surface-card px-6 py-12 text-center text-sm font-medium text-text-tertiary">
         {t('console.policies.detail.noVersions')}
       </p>
     )
@@ -242,38 +250,35 @@ function PolicyVersions({ type }: { type: BlockerType }) {
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-            {t(`console.policies.type.${type}`)}
-          </h1>
-          <p className="mt-1.5 text-sm font-medium text-text-quaternary">
-            <span dir="ltr" className="break-all font-mono">
-              {type}
-            </span>
-          </p>
-        </div>
-        {canCreateDraft ? (
-          <Button
-            type="button"
-            size="md"
-            className="shrink-0"
-            onClick={() => {
-              setNotice(null)
-              setEditor({ mode: 'create', source: null })
-            }}
-          >
-            {t('console.policies.action.create')}
-          </Button>
-        ) : null}
-      </div>
+      <ConsolePageHeader
+        title={t(`console.policies.type.${type}`)}
+        subtitle={
+          <span dir="ltr" className="break-words font-mono">
+            {type}
+          </span>
+        }
+        actions={
+          canCreateDraft ? (
+            <ConsoleButton
+              type="button"
+              size="md"
+              onClick={() => {
+                setNotice(null)
+                setEditor({ mode: 'create', source: null })
+              }}
+            >
+              {t('console.policies.action.create')}
+            </ConsoleButton>
+          ) : null
+        }
+      />
 
       {notice ? (
         <div ref={noticeRef} tabIndex={-1} className="outline-none">
           {notice.kind === 'done' ? (
             <p
               role="status"
-              className="rounded-md bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary"
+              className="rounded-sm bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary"
             >
               {t(notice.message.key, notice.message.values)}
             </p>
@@ -336,10 +341,10 @@ function VersionTable({
   const number = new Intl.NumberFormat(localeFor(i18n.language))
 
   return (
-    <RowsView>
-      <table className="w-full min-w-[680px] border-collapse text-start">
+    <RowsView className={CONSOLE_ROWS}>
+      <table className={`${CONSOLE_TABLE} min-w-[680px]`}>
         <thead>
-          <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+          <tr className={CONSOLE_THEAD}>
             <th className="px-4 py-3 text-start font-semibold">
               {t('console.policies.col.version')}
             </th>
@@ -422,9 +427,10 @@ function VersionView({
   const number = new Intl.NumberFormat(localeFor(language))
   const moment = (iso: string | null) => (iso ? formatMoment(iso, language) : none)
   const effective = (iso: string | null) => (iso ? formatUtcMoment(iso, language) : none)
+  // A URL or a hash is one long token: it may break anywhere, but only once it no longer fits.
   const code = (value: string | null) =>
     value ? (
-      <span dir="ltr" className="break-all font-mono">
+      <span dir="ltr" className="font-mono [overflow-wrap:anywhere]">
         {value}
       </span>
     ) : (
@@ -492,7 +498,16 @@ function VersionView({
           />
           <ReviewLine
             label={t('console.policies.detail.field.reasonCode')}
-            value={code(version.reasonCode)}
+            value={
+              version.reasonCode ? (
+                <NamedCode
+                  value={version.reasonCode}
+                  labelKey={`console.policies.reason.${version.reasonCode}`}
+                />
+              ) : (
+                none
+              )
+            }
           />
           <ReviewLine
             label={t('console.policies.detail.field.contentHash')}
@@ -532,7 +547,7 @@ function VersionView({
           {nothingOffered ? null : (
             <div className="mt-3 flex flex-col gap-2.5">
               {transitions.map((transition) => (
-                <Button
+                <ConsoleButton
                   key={transition}
                   type="button"
                   size="md"
@@ -540,12 +555,12 @@ function VersionView({
                   onClick={() => onTransition(transition)}
                 >
                   {t(`console.policies.action.${transition}`)}
-                </Button>
+                </ConsoleButton>
               ))}
               {canReject ? (
                 // Drawn as the console's other refusals are ("Reject ID", "Reject registration"):
                 // the secondary button under the step it is the alternative to.
-                <Button
+                <ConsoleButton
                   type="button"
                   size="md"
                   variant="secondary"
@@ -553,11 +568,11 @@ function VersionView({
                   onClick={() => onTransition('reject')}
                 >
                   {t('console.policies.action.reject')}
-                </Button>
+                </ConsoleButton>
               ) : null}
               {canWithdraw ? (
                 // Secondary like Reject: it ends a version instead of advancing it.
-                <Button
+                <ConsoleButton
                   type="button"
                   size="md"
                   variant="secondary"
@@ -565,10 +580,10 @@ function VersionView({
                   onClick={() => onTransition('withdraw')}
                 >
                   {t('console.policies.action.withdraw')}
-                </Button>
+                </ConsoleButton>
               ) : null}
               {canEdit ? (
-                <Button
+                <ConsoleButton
                   type="button"
                   size="md"
                   variant="secondary"
@@ -576,10 +591,10 @@ function VersionView({
                   onClick={() => onEdit({ mode: 'edit', source: version })}
                 >
                   {t('console.policies.action.edit')}
-                </Button>
+                </ConsoleButton>
               ) : null}
               {canCopy ? (
-                <Button
+                <ConsoleButton
                   type="button"
                   size="md"
                   variant="secondary"
@@ -587,7 +602,7 @@ function VersionView({
                   onClick={() => onEdit({ mode: 'create', source: version })}
                 >
                   {t('console.policies.action.newFrom')}
-                </Button>
+                </ConsoleButton>
               ) : null}
             </div>
           )}

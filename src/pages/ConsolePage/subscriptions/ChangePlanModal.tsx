@@ -7,7 +7,6 @@ import {
   subscriptionOf,
   subscriptionsStore,
   tenantIdentity,
-  withVat,
   type SubscriptionPlanId,
   type Term,
 } from '../../../lib/consoleSubscriptions'
@@ -79,7 +78,8 @@ export function ChangePlanModal({ tenantId, ledger, onClose, onDone }: ActionMod
   const planOptions = usePlanOptions()
   const termOptions = useTermOptions()
   const periodEnd = subscription ? dayLabel(subscription.periodEnd, i18n.language) : ''
-  const newPrice = withVat(periodAmount(plan, term, subscription?.enterprise))
+  // Excl. VAT, the basis the tenant's subscription card and the plan catalogue show prices on.
+  const newPrice = periodAmount(plan, term, subscription?.enterprise)
   const unchanged = subscription?.plan === plan && subscription?.term === term
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -126,6 +126,7 @@ export function ChangePlanModal({ tenantId, ledger, onClose, onDone }: ActionMod
           formId={FORM_ID}
           onCancel={onClose}
           submitLabel={t('console.subscriptionActions.changePlan.submit')}
+          disabled={unchanged}
         />
       }
     >
@@ -178,7 +179,7 @@ export function ChangePlanModal({ tenantId, ledger, onClose, onDone }: ActionMod
                   <Rial />
                   {omr(newPrice)}
                   <span className="text-xs font-medium text-text-quaternary">
-                    {t('console.subscriptionActions.common.includingVat')}
+                    {t('console.subscriptionActions.common.excludingVat')}
                   </span>
                 </span>
               }

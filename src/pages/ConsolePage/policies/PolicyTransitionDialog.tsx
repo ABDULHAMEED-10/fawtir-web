@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
-import { Button, Modal } from '../../../components/ui'
+import { Modal } from '../../../components/ui'
 import { formatUtcMoment, localeFor } from '../../../lib/console/format'
 import {
   PID_POLICY_TYPE,
@@ -17,6 +17,7 @@ import { LOGIN_ROUTE } from '../../../lib/identity/login'
 import { ReviewLine } from '../verification/ReviewCard'
 import { PolicyFailureNotice } from './PolicyFailureNotice'
 import { PolicyStatusPill } from './PolicyStatusPill'
+import { ConsoleButton } from '../../../layouts/ConsoleShell/consoleStyle'
 
 /**
  * Confirms one step of a policy version's lifecycle before it is sent.
@@ -85,7 +86,7 @@ export function PolicyTransitionDialog({
       footer={
         <div className="flex flex-wrap justify-end gap-2.5">
           {/* Focus opens on Cancel, the choice that writes nothing; Modal returns it on close. */}
-          <Button
+          <ConsoleButton
             type="button"
             size="md"
             variant="secondary"
@@ -94,10 +95,10 @@ export function PolicyTransitionDialog({
             autoFocus
           >
             {t('common.cancel')}
-          </Button>
-          <Button type="button" size="md" disabled={sending} onClick={() => void confirm()}>
+          </ConsoleButton>
+          <ConsoleButton type="button" size="md" disabled={sending} onClick={() => void confirm()}>
             {sending ? t(key('sending')) : t(key('confirm'))}
-          </Button>
+          </ConsoleButton>
         </div>
       }
     >

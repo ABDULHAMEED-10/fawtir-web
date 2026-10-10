@@ -319,7 +319,7 @@ function ExactTextFilter({
   )
 }
 
-function SummaryCards({
+export function SummaryCards({
   summary,
   count,
 }: {

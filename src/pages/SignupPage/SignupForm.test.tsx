@@ -97,7 +97,8 @@ describe('SignupForm', () => {
     renderSignup()
 
     await user.type(field('login.usernameLabel'), '.bad name')
-    await user.type(field('signup.passwordLabel'), 'weakpass')
+    // Seven characters: one short of PasswordPolicyService's minimum of 8.
+    await user.type(field('signup.passwordLabel'), 'weakpas')
     await user.type(field('signup.confirmPasswordLabel'), 'different')
     await user.click(submitButton())
 

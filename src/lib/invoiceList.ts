@@ -87,14 +87,12 @@ export function isInvoiceSort(value: string | null): value is InvoiceSortKey {
   return INVOICE_SORTS.some((option) => option.value === value)
 }
 
-/** The document types the Type filter offers, in the order the sidebar lists them. */
-export const INVOICE_TYPES: InvoiceTypeDto[] = [
-  'INVOICE',
-  'CREDIT_NOTE',
-  'DEBIT_NOTE',
-  'SELF_BILLED_INVOICE',
-  'SELF_BILLED_CREDIT_NOTE',
-]
+/**
+ * The document types the Income list's Type filter offers: sales documents only. Self-billed
+ * invoices and credit notes (389, 261) are purchases and live under Expenditure › Self-billing
+ * (owner decision, 6 Oct 2026).
+ */
+export const INVOICE_TYPES: InvoiceTypeDto[] = ['INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE']
 
 export function isInvoiceType(value: string | null): value is InvoiceTypeDto {
   return INVOICE_TYPES.includes(value as InvoiceTypeDto)

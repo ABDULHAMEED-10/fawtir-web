@@ -61,7 +61,9 @@ export function SignupVerifyCodeForm({ verification }: { verification: SignupVer
       const session = await verifySignupEmail(verification, code.join(''), controller.signal)
       saveOnboardingSession(session)
       // Replace: the code is spent, so Back must not return to a screen that can only fail.
-      navigate('/about-business', { replace: true })
+      // The account email rides along so the closing status screen can name the inbox it writes
+      // to; the stored session deliberately holds no answers.
+      navigate('/about-business', { replace: true, state: { accountEmail: verification.email } })
     } catch (failure) {
       if (controller.signal.aborted) return
       setError(describeVerificationFailure(failure, Date.now() >= deadlines.codeExpiresAt))

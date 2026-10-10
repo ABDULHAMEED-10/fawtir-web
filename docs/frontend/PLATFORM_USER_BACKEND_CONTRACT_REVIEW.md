@@ -325,7 +325,7 @@ The `CsrfRejected` audit row is never written. The gateway fixed this same patte
   - No self-service change and no admin reset.
   - Forgot password always answers 202; the reset token lives 30 min, stored as a hash.
   - Reset validates the policy, refuses the current password, writes history, revokes sessions and sends `PASSWORD_CHANGED`.
-  - Policy: 12–128 characters, four character classes, no reuse of the last five (history is written on reset only). The common-password list is dead code: every entry is shorter than 12.
+  - Policy: 8–128 characters since onboarding Phase A (12–128 when this review was written), four character classes, no reuse of the last five (history is written on reset only). At 12 the common-password list was dead code; at 8 it refuses entries again.
   - **No forced change on first sign-in**: `credentialsNonExpired` exists, but `expireCredentials()` is never called.
 - **Lockout:** 5 wrong passwords lock the account for 15 minutes. **Wrong MFA codes never count.** An admin lock is permanent until an admin unlocks it. A password reset does not unlock.
 - **MFA:**

@@ -4,8 +4,7 @@
  * Figma 135:37541 (Branches), 135:37971 (Add a branch), 135:36580 (Peppol and tax).
  */
 
-import { PLAN } from './plans'
-import { BOOK, COMPANY, TODAY, daysFrom, INVOICES_THIS_MONTH } from './settings'
+import { BOOK, TODAY, daysFrom, INVOICES_THIS_MONTH } from './settings'
 import { MEMBERS } from './settingsPeople'
 
 /* ------------------------------------------------------------------- branches */
@@ -136,37 +135,11 @@ export const BUSIEST_BRANCH = (() => {
   }
 })()
 
-export const BRANCH_PLAN = {
-  included: PLAN.business.branches ?? Infinity,
-  extraMonthly: (PLAN.business.extraBranch ?? 0).toFixed(3),
-}
-
 export const BRANCHES_EVER = BRANCHES.length
 
 /* ----------------------------------------------------------------- add a branch */
 
-/** Sur is the worked example the design draws — a fourth branch about to open. */
-export const NEW_BRANCH = {
-  name: 'Sur',
-  arabicName: 'صور',
-  town: 'Sur',
-  postalCode: '411',
-  governorate: 'ashSharqiyahSouth',
-  opens: '1 October 2026',
-  prefix: 'SR',
-  numbering: 'own',
-}
-
 export { GOVERNORATES } from './governorates'
-
-/** What a new branch takes from the company rather than setting for itself. */
-export const BRANCH_INHERITS = [
-  { id: 'vat', value: COMPANY.vatNumber, mono: true },
-  { id: 'peppol', value: COMPANY.peppolId, mono: true },
-  { id: 'company', value: COMPANY.legalName },
-  { id: 'logo', valueKey: 'addBranch.shared' },
-  { id: 'tax', valueKey: 'addBranch.fivePercentStandard' },
-]
 
 export const BRANCH_BEHAVIOUR = [
   { id: 'sharesCatalog', on: true },
@@ -224,36 +197,6 @@ export function certificateState(certificate: Certificate) {
 
 export const SIGNING_CERTIFICATE = CERTIFICATES[0]
 
-/** Fawtir warns a month out; the design's stepper starts from that warning. */
-export const CERT_WARNED_ON = new Date(2026, 7, 29)
-
-export const RENEWAL_STEPS = [
-  { id: 'warned', state: 'done' as const },
-  { id: 'ask', state: 'current' as const },
-  { id: 'issue', state: 'future' as const },
-  { id: 'upload', state: 'future' as const },
-]
-
-/** How the business appears to anyone else on the network. */
-export const PEPPOL_VISIBILITY = [
-  { id: 'directory', on: true },
-  { id: 'acceptBills', on: true },
-  { id: 'acceptSelfBilling', on: true },
-  { id: 'emailCopy', on: false },
-]
-
-export const REGISTRATION_ROWS = [
-  { id: 'peppolId', value: COMPANY.peppolId, mono: true },
-  { id: 'scheme', value: COMPANY.scheme },
-  { id: 'accessPoint', value: COMPANY.accessPoint },
-  { id: 'liveSince', value: 'liveSince' },
-  { id: 'vatNumber', value: COMPANY.vatNumber, mono: true },
-  { id: 'fawtaraAccount', valueKey: 'peppolTax.linked' },
-]
-
-export const CERT_DAYS_LEFT = daysFrom(SIGNING_CERTIFICATE.expires as Date)
-
-/** Used by the hub card, which shows the expiry rather than the countdown. */
 export const CERT_EXPIRES = SIGNING_CERTIFICATE.expires as Date
 
 export { TODAY }

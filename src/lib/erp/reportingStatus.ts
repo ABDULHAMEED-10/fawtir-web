@@ -50,6 +50,7 @@ export const LABEL_GROUPS: {
       'RECOVERY_PENDING',
       'WAITING_FOR_MAPPING',
       'RETRYABLE_FAILURE',
+      'ATTEMPTS_EXHAUSTED',
       'ACCEPTED_WITHOUT_INVOICE',
     ],
   },
@@ -60,6 +61,7 @@ export const LABEL_GROUPS: {
 const LABEL_TONE: Partial<Record<ReconciliationLabel, Tone>> = {
   DELIVERY_FAILED: 'danger',
   ACCEPTED_WITHOUT_INVOICE: 'danger',
+  ATTEMPTS_EXHAUSTED: 'danger',
 }
 
 export function reconciliationTone(label: string): Tone {

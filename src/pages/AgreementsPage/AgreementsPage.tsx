@@ -390,10 +390,10 @@ function Agreements() {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              to="/invoices"
+              to="/expenditure/bills"
               className="inline-flex items-center gap-1 text-2xl font-medium leading-[1.2] text-text-quaternary transition-colors hover:text-text-secondary"
             >
-              {t('agreements.breadcrumbIncome')}
+              {t('selfBillDetail.breadcrumbExpenditure')}
               <img
                 src={backIcon}
                 alt=""
@@ -402,7 +402,7 @@ function Agreements() {
               />
             </Link>
             <Link
-              to="/income/self-billing"
+              to="/expenditure/self-billing"
               className="inline-flex items-center gap-1 text-2xl font-medium leading-[1.2] text-text-quaternary transition-colors hover:text-text-secondary"
             >
               {t('agreements.breadcrumbSelfBilled')}

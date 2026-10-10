@@ -20,59 +20,26 @@ import {
   REVENUE_PER_TENANT,
   WORTH_A_LOOK,
   count,
-  omr,
   percent,
   tenantById,
 } from '../../lib/superAdmin'
-import {
-  connectionsNeedingAttention,
-  platformErpKpis,
-  tenantName,
-  useConsoleErp,
-} from '../../lib/consoleErp'
-import { attentionReason } from './erp/erpShared'
+import { formatAmount } from '../../lib/format'
+import { ConsoleStatusPill } from '../../layouts/ConsoleShell/ConsoleStatusPill'
+import { CONSOLE_CARD, CONSOLE_CARD_FOOT, CONSOLE_LINK, CONSOLE_PAGE, CONSOLE_PRIMARY, CONSOLE_ROW, CONSOLE_SECONDARY, CONSOLE_SMALL, ConsoleCardHead, ConsoleKpi, ConsolePageHeader } from '../../layouts/ConsoleShell/consoleStyle'
+import { CONSOLE_TONE_TEXT } from '../../layouts/ConsoleShell/consoleTones'
 
 const TONE = {
-  bad: 'text-danger-700',
-  watch: 'text-pending-700',
-  calm: 'text-text-tertiary',
+  bad: CONSOLE_TONE_TEXT.bad,
+  watch: CONSOLE_TONE_TEXT.watch,
+  calm: 'text-text-muted',
 } as const
 
-function KpiCard({
-  icon,
-  title,
-  value,
-  suffix,
-  note,
-  tone = 'calm',
-}: {
-  icon: React.ReactNode
-  title: string
-  value: string
-  suffix?: string
-  note: string
-  tone?: 'bad' | 'watch' | 'calm' | 'good'
-}) {
-  const valueTone =
-    tone === 'bad' ? 'text-danger-700' : tone === 'watch' ? 'text-pending-700' : 'text-text-primary'
-  return (
-    <article className="flex min-w-[240px] flex-1 flex-col gap-2.5 rounded-md bg-surface-card p-5">
-      <div className="flex items-center gap-2.5">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-surface-background">
-          {icon}
-        </span>
-        <h3 className="text-base font-medium leading-[1.2] text-text-secondary">{title}</h3>
-      </div>
-      <p className={`text-[32px] font-semibold leading-[1.2] ${valueTone}`}>
-        {value}
-        {suffix ? (
-          <span className="ms-1.5 text-base font-medium text-text-quaternary">{suffix}</span>
-        ) : null}
-      </p>
-      <p className="text-xs font-medium leading-[1.4] text-text-quaternary">{note}</p>
-    </article>
-  )
-}
+/** The "Tenants worth a look" avatar, tinted like the reason beside it. */
+const AVATAR_TONE = {
+  bad: 'bg-danger-100 text-danger-700',
+  watch: 'bg-pending-100 text-pending-500',
+  calm: 'bg-surface-background text-text-muted',
+} as const
 
 /** Two lines over the same hours: today, and the same day last week. */
 function ByHourChart({ label, slowedLabel }: { label: string; slowedLabel: string }) {
@@ -85,12 +52,19 @@ function ByHourChart({ label, slowedLabel }: { label: string; slowedLabel: strin
   const path = (series: readonly number[]) =>
     series.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i)} ${y(v)}`).join(' ')
   const ticks = [0, 600, 1200, 1800, 2400]
+  // Room on the right so the "slowed at" label can sit after its marker line, as the frame draws it.
+  const labelRoom = 48
 
   return (
-    <svg viewBox={`0 -10 ${width} ${height + 40}`} className="w-full" role="img" aria-label={label}>
+    <svg
+      viewBox={`0 -10 ${width + labelRoom} ${height + 40}`}
+      className="w-full"
+      role="img"
+      aria-label={label}
+    >
       {ticks.map((tick) => (
         <g key={tick}>
-          <line x1={labelWidth} x2={width} y1={y(tick)} y2={y(tick)} stroke="#eceef2" />
+          <line x1={labelWidth} x2={width + labelRoom} y1={y(tick)} y2={y(tick)} stroke="#eceef2" />
           <text
             x={labelWidth - 8}
             y={y(tick) + 4}
@@ -137,7 +111,8 @@ function ByHourChart({ label, slowedLabel }: { label: string; slowedLabel: strin
         fontSize={11}
         fontWeight={600}
         fill="#98140b"
-        textAnchor="end"
+        textAnchor="start"
+        direction="ltr"
       >
         {slowedLabel}
       </text>
@@ -169,104 +144,25 @@ function ByHourChart({ label, slowedLabel }: { label: string; slowedLabel: strin
   )
 }
 
-function ConnectionLine({ label, value, tone }: { label: string; value: string; tone?: 'bad' }) {
+function ConnectionLine({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: string
+  tone?: 'bad' | 'watch' | 'good'
+}) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-border-subtle py-2.5 last:border-b-0">
-      <span className="text-sm font-medium text-text-tertiary">{label}</span>
-      <span
-        className={`text-sm font-semibold ${tone === 'bad' ? 'text-danger-700' : 'text-text-primary'}`}
-      >
+    <div className="flex items-center justify-between gap-4 border-b border-border-subtle py-[9px] text-[13.5px] last:border-b-0">
+      <span className="font-medium text-text-muted">{label}</span>
+      <span className={`text-end font-semibold ${tone ? CONSOLE_TONE_TEXT[tone] : 'text-text-primary'}`}>
         {withRial(value)}
       </span>
     </div>
   )
 }
 
-/**
- * The ERP connections that need a person today — in error or stale — and the add-on requests
- * waiting, with the three most urgent named; the ERP screens hold the rest.
- */
-function IntegrationsCard() {
-  const { t } = useTranslation()
-  const erp = useConsoleErp()
-  const kpis = platformErpKpis(erp)
-  const attention = connectionsNeedingAttention(erp)
-  const listed = [...attention]
-    .sort((a, b) => (a.state === 'ERROR' ? 0 : 1) - (b.state === 'ERROR' ? 0 : 1))
-    .slice(0, 3)
-  const key = (name: string) => `console.operations.integrations.${name}`
-
-  return (
-    <section className="flex flex-col rounded-md bg-surface-card">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle px-5 py-4">
-        <div>
-          <h2 className="text-base font-medium leading-[1.2] text-text-primary">
-            {t(key('title'))}
-          </h2>
-          <p className="mt-1 text-xs font-medium text-text-quaternary">{t(key('subtitle'))}</p>
-        </div>
-        <Link
-          to="/console/erp"
-          className="text-sm font-semibold text-primary-700 hover:text-primary-800"
-        >
-          {t(key('open'))}
-        </Link>
-      </div>
-      <div className="grid grid-cols-[340px_minmax(0,1fr)] max-lg:grid-cols-1">
-        <div className="border-e border-border-subtle px-5 py-2 max-lg:border-b max-lg:border-e-0">
-          <ConnectionLine
-            label={t(key('inError'))}
-            value={count(kpis.inError)}
-            tone={kpis.inError > 0 ? 'bad' : undefined}
-          />
-          <ConnectionLine label={t(key('stale'))} value={count(kpis.stale)} />
-          <ConnectionLine label={t(key('requests'))} value={count(kpis.pendingRequests)} />
-        </div>
-        {listed.length === 0 ? (
-          <p className="px-5 py-4 text-sm font-medium leading-[1.5] text-text-tertiary">
-            {t(key('allClear'))}
-          </p>
-        ) : (
-          <ul>
-            {listed.map((c) => {
-              const bad = c.state === 'ERROR'
-              return (
-                <li key={c.id} className="border-b border-border-subtle last:border-b-0">
-                  <Link
-                    to={`/console/erp/connections/${c.id}`}
-                    className="flex flex-wrap items-center gap-3 px-5 py-3.5 transition-colors hover:bg-primary-25"
-                  >
-                    <span
-                      className={`size-2 shrink-0 rounded-full ${bad ? 'bg-danger-700' : 'bg-pending-500'}`}
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-base font-medium leading-[1.2] text-text-primary">
-                        {tenantName(c.tenantId)}
-                      </span>
-                      <span className="mt-1 block text-xs font-medium text-text-quaternary">
-                        {c.label}
-                      </span>
-                    </span>
-                    <span
-                      className={`text-end text-sm font-semibold ${TONE[bad ? 'bad' : 'watch']}`}
-                    >
-                      {attentionReason(t, c)}
-                    </span>
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </div>
-      {attention.length > listed.length ? (
-        <p className="border-t border-border-subtle px-5 py-3 text-xs font-medium text-text-quaternary">
-          {t(key('more'), { count: attention.length - listed.length })}
-        </p>
-      ) : null}
-    </section>
-  )
-}
 
 export function OperationsPage() {
   const { t, i18n } = useTranslation()
@@ -279,61 +175,53 @@ export function OperationsPage() {
 
   return (
     <ConsoleShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <div className={CONSOLE_PAGE}>
         <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.operations' }]} />
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-              {t('console.operations.title')}
-            </h1>
-            <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
-              {t('console.operations.subtitle', { when, tenants: count(PLATFORM.live) })}
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
-            <button
-              type="button"
-              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-            >
-              {t('console.operations.postNotice')}
-            </button>
-            <Link
-              to="/console/queue"
-              className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-            >
-              {t('console.operations.openQueue')}
-            </Link>
-          </div>
-        </div>
+        <ConsolePageHeader
+          title={t('console.operations.title')}
+          subtitle={t('console.operations.subtitle', { when, tenants: count(PLATFORM.live) })}
+          actions={
+            <>
+              <button type="button" className={CONSOLE_SECONDARY}>
+                {t('console.operations.postNotice')}
+              </button>
+              <Link to="/console/queue" className={CONSOLE_PRIMARY}>
+                {t('console.operations.openQueue')}
+              </Link>
+            </>
+          }
+        />
 
         <div className="flex flex-wrap gap-4">
-          <KpiCard
-            icon={<ConsoleTickIcon className="size-[18px] text-success-700" />}
+          <ConsoleKpi
+            icon={<ConsoleTickIcon className="size-4 text-success-700" />}
             title={t('console.operations.filedToday')}
             value={count(PLATFORM.filedToday)}
             note={t('console.operations.filedTodayNote', {
               accepted: percent(PLATFORM.acceptedFirstTimeToday),
               refused: percent(1 - PLATFORM.acceptedFirstTimeToday),
             })}
+            tone="good"
           />
-          <KpiCard
-            icon={<ConsoleClockIcon className="size-[18px] text-pending-700" />}
+          <ConsoleKpi
+            icon={<ConsoleClockIcon className="size-4 text-pending-500" />}
             title={t('console.operations.waiting')}
             value={count(PLATFORM.waiting)}
             note={t('console.operations.waitingNote', {
               oldest: PLATFORM.oldestWaitMinutes,
               normal: PLATFORM.normalWaitSeconds,
             })}
+            tone="watch"
           />
-          <KpiCard
-            icon={<ConsoleIncidentIcon className="size-[18px] text-danger-700" />}
+          <ConsoleKpi
+            icon={<ConsoleIncidentIcon className="size-4 text-danger-700" />}
             title={t('console.operations.ourFault')}
             value={count(PLATFORM.ourFault)}
             note={t('console.operations.ourFaultNote')}
             tone="bad"
           />
-          <KpiCard
-            icon={<ConsoleBuildingIcon className="size-[18px] text-primary-700" />}
+          <ConsoleKpi
+            icon={<ConsoleBuildingIcon className="size-4 text-primary-700" />}
             title={t('console.operations.filingToday')}
             value={count(PLATFORM.filingToday)}
             suffix={t('console.operations.ofTenants', { total: count(PLATFORM.live) })}
@@ -341,41 +229,39 @@ export function OperationsPage() {
           />
         </div>
 
-        <div className="flex flex-wrap items-start gap-4">
-          <section className="flex min-w-[320px] flex-1 flex-col rounded-md bg-surface-card">
-            <div className="border-b border-border-subtle px-5 py-4">
-              <h2 className="text-base font-medium leading-[1.2] text-text-primary">
-                {t('console.operations.byHour')}
-              </h2>
-              <p className="mt-1 text-xs font-medium text-text-quaternary">
-                {t('console.operations.byHourNote')}
-              </p>
-            </div>
-            <div className="px-5 py-4">
+        <div className={CONSOLE_ROW}>
+          <section className={`flex min-w-[320px] flex-1 flex-col max-md:min-w-0 ${CONSOLE_CARD}`}>
+            <ConsoleCardHead
+              title={t('console.operations.byHour')}
+              note={t('console.operations.byHourNote')}
+            />
+            <div className="p-5">
               <ByHourChart
                 label={t('console.operations.now')}
                 slowedLabel={t('console.operations.slowedAt', { time: OTA.slowedAt })}
               />
             </div>
-            <p className="border-t border-border-subtle px-5 py-4 text-sm font-medium leading-[1.5] text-text-tertiary">
+            <p className={CONSOLE_CARD_FOOT}>
               {t('console.operations.byHourStory', { time: OTA.slowedAt })}
             </p>
           </section>
 
-          <section className="flex w-full flex-col rounded-md bg-surface-card p-5 xl:w-[380px] xl:shrink-0">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-base font-medium leading-[1.2] text-text-primary">
-                {t('console.operations.connection')}
-              </h2>
-              <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-pending-100 px-2.5 text-xs font-semibold uppercase tracking-[0.04em] text-pending-700">
-                <span className="size-1.5 rounded-full bg-pending-700" />
-                {t(`console.ota.${OTA.state}`)}
-              </span>
-            </div>
-            <div className="mt-3">
+          <section className={`flex w-full flex-col xl:w-[380px] xl:shrink-0 ${CONSOLE_CARD}`}>
+            <ConsoleCardHead
+              title={t('console.operations.connection')}
+              action={
+                <ConsoleStatusPill
+                  size="header"
+                  tone="pending"
+                  label={t(`console.ota.${OTA.state}`)}
+                />
+              }
+            />
+            <div className="p-5">
               <ConnectionLine
                 label={t('console.ota.answering')}
                 value={t(OTA.answering ? 'common.yes' : 'common.no')}
+                tone={OTA.answering ? 'good' : 'bad'}
               />
               <ConnectionLine
                 label={t('console.ota.roundTrip')}
@@ -389,52 +275,42 @@ export function OperationsPage() {
               <ConnectionLine
                 label={t('console.ota.errors')}
                 value={t('console.ota.inAnHour', { count: OTA.errorsInAnHour })}
-                tone="bad"
+                tone="watch"
               />
               <ConnectionLine
                 label={t('console.ota.as4')}
                 value={t(OTA.as4Healthy ? 'console.ota.healthy' : 'console.ota.unhealthy')}
+                tone={OTA.as4Healthy ? 'good' : 'bad'}
               />
               <ConnectionLine
                 label={t('console.ota.smp')}
                 value={t(OTA.smpHealthy ? 'console.ota.healthy' : 'console.ota.unhealthy')}
+                tone={OTA.smpHealthy ? 'good' : 'bad'}
               />
+              <div className="mt-5 flex flex-col gap-2">
+                <Link to="/compliance/activity/call-log" className={`${CONSOLE_SMALL} w-full`}>
+                  {t('console.ota.openCallLog')}
+                </Link>
+                <button type="button" className={`${CONSOLE_SMALL} w-full`}>
+                  {t('console.ota.statusPage')}
+                </button>
+              </div>
             </div>
-            <Link
-              to="/compliance/activity/call-log"
-              className="mt-4 inline-flex h-11 items-center justify-center rounded-sm border border-border-subtle bg-white text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-            >
-              {t('console.ota.openCallLog')}
-            </Link>
-            <button
-              type="button"
-              className="mt-2 inline-flex h-11 items-center justify-center rounded-sm border border-border-subtle bg-white text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-            >
-              {t('console.ota.statusPage')}
-            </button>
           </section>
         </div>
 
-        <IntegrationsCard />
 
-        <div className="flex flex-wrap items-start gap-4">
-          <section className="flex min-w-[320px] flex-1 flex-col rounded-md bg-surface-card">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle px-5 py-4">
-              <div>
-                <h2 className="text-base font-medium leading-[1.2] text-text-primary">
-                  {t('console.worth.title')}
-                </h2>
-                <p className="mt-1 text-xs font-medium text-text-quaternary">
-                  {t('console.worth.subtitle')}
-                </p>
-              </div>
-              <Link
-                to="/console/tenants"
-                className="text-sm font-semibold text-primary-700 hover:text-primary-800"
-              >
-                {t('console.worth.all', { count: count(PLATFORM.live) })}
-              </Link>
-            </div>
+        <div className={CONSOLE_ROW}>
+          <section className={`flex min-w-[320px] flex-1 flex-col max-md:min-w-0 ${CONSOLE_CARD}`}>
+            <ConsoleCardHead
+              title={t('console.worth.title')}
+              note={t('console.worth.subtitle')}
+              action={
+                <Link to="/console/tenants" className={CONSOLE_LINK}>
+                  {t('console.worth.all', { count: count(PLATFORM.live) })}
+                </Link>
+              }
+            />
             <ul>
               {WORTH_A_LOOK.map((worth) => {
                 const tenant = tenantById(worth.tenantId)
@@ -445,25 +321,29 @@ export function OperationsPage() {
                   >
                     <Link
                       to="/console/tenants"
-                      className="flex flex-wrap items-center gap-3 px-5 py-3.5 transition-colors hover:bg-primary-25"
+                      className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-3 transition-colors hover:bg-primary-25"
                     >
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-surface-background text-xs font-semibold text-text-tertiary">
+                      <span
+                        dir="ltr"
+                        className={`flex size-[34px] shrink-0 items-center justify-center rounded-sm text-[11.5px] font-bold ${AVATAR_TONE[worth.tone]}`}
+                      >
                         {tenant.initials}
                       </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-base font-medium leading-[1.2] text-text-primary">
+                      <span className="min-w-[180px] flex-1">
+                        <span className="block text-sm font-semibold leading-[1.2] text-text-primary">
                           {tenant.name}
                         </span>
-                        <span className="mt-1 block text-xs font-medium text-text-quaternary">
-                          {tenant.town} · {t(`console.plan.${tenant.plan}`)} ·{' '}
+                        <span className="mt-1 block text-xs font-medium text-text-muted">
+                          {t(`console.operations.town.${tenant.town}`, { defaultValue: tenant.town })}{' '}
+                          · {t(`console.plan.${tenant.plan}`)} ·{' '}
                           {t(tenant.ageKey, tenant.ageValues)}
                         </span>
                       </span>
-                      <span className="text-end">
-                        <span className={`block text-sm font-semibold ${TONE[worth.tone]}`}>
+                      <span className="text-end max-md:w-full max-md:ps-[46px] max-md:text-start">
+                        <span className={`block text-[13.5px] font-semibold ${TONE[worth.tone]}`}>
                           {t(worth.noteKey, worth.noteValues)}
                         </span>
-                        <span className="mt-1 block text-xs font-medium text-text-quaternary">
+                        <span className="mt-1 block text-xs font-medium text-text-muted">
                           {t(worth.detailKey, worth.detailValues)}
                         </span>
                       </span>
@@ -472,21 +352,15 @@ export function OperationsPage() {
                 )
               })}
             </ul>
-            <p className="border-t border-border-subtle px-5 py-4 text-sm font-medium leading-[1.5] text-text-tertiary">
-              {t('console.worth.story')}
-            </p>
+            <p className={CONSOLE_CARD_FOOT}>{t('console.worth.story')}</p>
           </section>
 
-          <section className="flex w-full flex-col rounded-md bg-surface-card p-5 xl:w-[380px] xl:shrink-0">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-base font-medium leading-[1.2] text-text-primary">
-                {t('console.across.title')}
-              </h2>
-              <span className="text-sm font-semibold text-primary-700">
-                {t('console.across.thisMonth')}
-              </span>
-            </div>
-            <div className="mt-3">
+          <section className={`flex w-full flex-col xl:w-[380px] xl:shrink-0 ${CONSOLE_CARD}`}>
+            <ConsoleCardHead
+              title={t('console.across.title')}
+              action={<span className={CONSOLE_LINK}>{t('console.across.thisMonth')}</span>}
+            />
+            <div className="p-5">
               <ConnectionLine
                 label={t('console.across.tenants')}
                 value={t('console.across.tenantsValue', {
@@ -501,24 +375,33 @@ export function OperationsPage() {
               <ConnectionLine
                 label={t('console.across.acceptedFirstTime')}
                 value={percent(PLATFORM.acceptedFirstTimeThisMonth)}
+                tone="good"
               />
               <ConnectionLine
                 label={t('console.across.nearQuota')}
                 value={t('console.across.tenantsCount', { count: PLATFORM.nearQuota })}
+                tone="watch"
               />
               <ConnectionLine
                 label={t('console.across.certificates')}
                 value={t('console.across.within30', { count: PLATFORM.certificatesExpiring })}
                 tone="bad"
               />
-              <ConnectionLine label={t('console.across.revenue')} value={`OMR ${omr(REVENUE)}`} />
+              <ConnectionLine
+                label={t('console.across.revenue')}
+                value={`OMR ${formatAmount(REVENUE, 'OMR', i18n.language)}`}
+              />
               <ConnectionLine
                 label={t('console.across.left')}
                 value={String(PLATFORM.leftThisMonth)}
               />
             </div>
-            <p className="mt-3 text-xs font-medium leading-[1.5] text-text-quaternary">
-              {withRial(t('console.across.average', { amount: omr(REVENUE_PER_TENANT) }))}
+            <p className={CONSOLE_CARD_FOOT}>
+              {withRial(
+                t('console.across.average', {
+                  amount: formatAmount(REVENUE_PER_TENANT, 'OMR', i18n.language),
+                }),
+              )}
             </p>
           </section>
         </div>

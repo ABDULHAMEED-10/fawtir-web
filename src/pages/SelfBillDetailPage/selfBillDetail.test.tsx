@@ -284,10 +284,10 @@ function cleanupAndRender(response: () => Response) {
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={[`/income/self-billing/${ID}`]}>
+    <MemoryRouter initialEntries={[`/expenditure/self-billing/${ID}`]}>
       <Routes>
-        <Route path="/income/self-billing/:id" element={<SelfBillDetailPage />} />
-        <Route path="/income/self-billing" element={<p>self-billing list</p>} />
+        <Route path="/expenditure/self-billing/:id" element={<SelfBillDetailPage />} />
+        <Route path="/expenditure/self-billing" element={<p>self-billing list</p>} />
         <Route path="/login" element={<p>sign-in page</p>} />
       </Routes>
     </MemoryRouter>,
@@ -646,7 +646,7 @@ describe('the self-billed credit note entry (SW3, D6)', () => {
     renderPage()
     expect(await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })).toBeTruthy()
     expect(creditLink()?.getAttribute('href')).toBe(
-      `/income/self-billing/credit-notes/new?invoice=${ID}`,
+      `/expenditure/self-billing/credit-notes/new?invoice=${ID}`,
     )
   })
 
@@ -734,7 +734,7 @@ describe('a self-billed credit note', () => {
     renderPage()
     await screen.findByRole('heading', { level: 1, name: 'SBC-2026-0001' })
     const link = await screen.findByRole('link', { name: 'SBI-2026-0001' })
-    expect(link.getAttribute('href')).toBe(`/income/self-billing/${ORIGINAL_ID}`)
+    expect(link.getAttribute('href')).toBe(`/expenditure/self-billing/${ORIGINAL_ID}`)
     expect(screen.getByText('Credits')).toBeTruthy()
   })
 

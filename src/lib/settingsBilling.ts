@@ -125,7 +125,7 @@ export type TenantPaymentMethod = 'cardLink' | 'bankTransfer' | 'cash' | 'cheque
 
 /**
  * How the account pays Fawtir (15 Sep 2026). Nothing about a card is stored here or anywhere in
- * Fawtir: a card payment opens Thawani's own checkout from a link, and the link is sent to the
+ * Fawtir: a card payment opens Paymob's own checkout from a link, and the link is sent to the
  * account a week before each bill falls due. Bank transfer and cash are always open as well; an
  * operator at Fawtir records those and activates the period.
  */
@@ -159,8 +159,8 @@ export type PastBill = {
   method: TenantPaymentMethod
   /** The day the money was recorded. */
   paidOn: string
-  /** Who confirmed it arrived: Thawani for a link, the Fawtir team for anything else. */
-  confirmedBy: 'thawani' | 'fawtir'
+  /** Who confirmed it arrived: Paymob for a link, the Fawtir team for anything else. */
+  confirmedBy: 'paymob' | 'fawtir'
   status: 'paid' | 'paidLate'
   lateNoteKey?: string
 }
@@ -193,7 +193,7 @@ export const PAST_BILLS: PastBill[] = [
     amount: pastBill(),
     method: 'cardLink',
     paidOn: '1 Sep 2026',
-    confirmedBy: 'thawani',
+    confirmedBy: 'paymob',
     status: 'paid',
   },
   {
@@ -205,7 +205,7 @@ export const PAST_BILLS: PastBill[] = [
     amount: pastBill(),
     method: 'cardLink',
     paidOn: '1 Aug 2026',
-    confirmedBy: 'thawani',
+    confirmedBy: 'paymob',
     status: 'paid',
   },
   {
@@ -217,7 +217,7 @@ export const PAST_BILLS: PastBill[] = [
     amount: pastBill(1),
     method: 'cardLink',
     paidOn: '1 Jul 2026',
-    confirmedBy: 'thawani',
+    confirmedBy: 'paymob',
     status: 'paid',
   },
   {

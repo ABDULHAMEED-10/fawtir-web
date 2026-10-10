@@ -1,4 +1,12 @@
-import type { AddressContactValues } from './identity/onboarding'
+import type { AddressContactValues, SignupStatusPlan } from './identity/onboarding'
+import type { TFunction } from 'i18next'
+import {
+  isKnownPlanId,
+  type BillingCycle,
+  type PaymentLinkVia,
+  type PlanId,
+  type SignupPaymentMethod,
+} from './pricing'
 import type { BusinessTypeId } from './subBusinessTypes'
 
 export type BusinessSize = 'just-me' | '2-10' | '11-50' | '50-plus'
@@ -67,6 +75,8 @@ export type InvoicePreviewData = {
   /** Data URL of the picked logo; the preview falls back to initials when absent. */
   logoUrl?: string | null
   addressLine?: string
+  addressLine2?: string
+  addressLine3?: string
   city?: string
   governorate?: string
   postalCode?: string
@@ -96,8 +106,9 @@ export type IdentityPreview = {
 
 /**
  * The answers carried between onboarding screens in router state, so Back restores a choice and
- * the preview can draw the header. The server holds the saved record; this is never read back as
- * truth, and nothing here is a credential.
+ * the preview can draw the header. It is a cache: the server holds the saved record, and a page
+ * opened without it (a new tab, a typed URL) refills it from `/signup/status` rather than trusting
+ * anything kept in the browser. Nothing here is a credential.
  *
  * `businessType` / `subBusinessType` keep the screen names: the "Business Type" screen answers the
  * backend's business *category*, and "Sub Business Type" answers its business *type*.
@@ -110,15 +121,53 @@ export type OnboardingState = {
   invoicingMethod?: InvoicingMethod
   /**
    * Whether the registrant will use Fawtir POS. Only a POS user is asked the business type and
-   * sub-type; `false` skips both screens. UI only: the backend has no field for it yet.
+   * sub-type; `false` skips both screens and the backend stores no category or type.
    */
   usesPos?: boolean
   businessType?: BusinessTypeId
   subBusinessType?: string
   identity?: IdentityPreview
   address?: AddressContactValues
+  /** The address the account was created with, carried from email verification. */
+  accountEmail?: string
+  /** Chosen on /plans. `premium` is the catalogue's Business plan. */
+  plan?: PlanId
+  billing?: BillingCycle
+  /**
+   * The plan's names as the catalogue published them, for a plan the app has no name of its own
+   * for (one added in the console since the launch).
+   */
+  planNames?: { en: string; ar: string | null }
+  /**
+   * What the saved plan costs, exactly as `/signup/status` computed it from the pinned price
+   * version. Cleared whenever the plan or cycle is chosen again, so a figure for an earlier choice
+   * is never shown against a new one.
+   */
+  planTerms?: SignupStatusPlan
+  /** The automatic ERP extraction add-on, ticked on /payment. */
+  addon?: boolean
+  /** Chosen on /payment; never set for Enterprise, whose terms are agreed on a call. */
+  paymentMethod?: SignupPaymentMethod
+  linkVia?: PaymentLinkVia
+  /**
+   * Set when this state was refilled from `/signup/status`, so the gate renders the page instead
+   * of asking again: a draft with nothing saved yet would otherwise never look "ready".
+   */
+  restored?: boolean
 }
 
 export function onboardingStateFrom(value: unknown): OnboardingState {
   return typeof value === 'object' && value !== null ? (value as OnboardingState) : {}
+}
+
+/**
+ * The chosen plan's name: the app's own for a launch plan, else the catalogue's as carried from
+ * /plans, else its code. The code is the last resort, for a plan restored in a fresh tab that
+ * the app has no name for; showing it is better than a wrong name.
+ */
+export function planDisplayName(t: TFunction, state: OnboardingState, language: string): string {
+  const { plan, planNames } = state
+  if (!plan) return ''
+  if (isKnownPlanId(plan)) return t(`plans.${plan}.name`)
+  return (language.startsWith('ar') ? planNames?.ar : null) || planNames?.en || plan
 }

@@ -67,9 +67,11 @@ export type DraftForm = {
   headerDiscountValue: string
   lines: DraftLine[]
   /**
-   * IBT-010 and IBT-012 — the tenant's OWN references as buyer. Self-billed documents only; on
-   * every other document the buyer is the customer and the server refuses these outright
-   * (`BUYER_REFERENCES_NOT_SELF_BILLED`), so they are sent only when `selfBilled` is set.
+   * IBT-010 and IBT-012. On a self-billed document both are the tenant's OWN references as buyer.
+   * On an ordinary business or government invoice IBT-010 is the invoice's own buyer reference,
+   * pre-filled from the customer's default and applied over it at issue (2026-10-05); a consumer's
+   * simplified invoice has no field for it and sends none. IBT-012 stays self-billed only: the
+   * server refuses it elsewhere (`BUYER_REFERENCES_NOT_SELF_BILLED`).
    */
   buyerReference: string
   contractReference: string
@@ -427,7 +429,9 @@ export function toDraftRequest(
             buyerReference: text(form.buyerReference),
             contractReference: text(form.contractReference),
           }
-        : {}),
+        : form.customerType !== 'consumer' && text(form.buyerReference)
+          ? { buyerReference: text(form.buyerReference) }
+          : {}),
     },
   }
 }
