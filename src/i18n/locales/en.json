@@ -8993,7 +8993,15 @@
       "timeToAcceptanceDown": "Typical this year, down from {{previous}}.",
       "timeToAcceptanceUp": "Typical this year, up from {{previous}}.",
       "timeToAcceptancePlain": "Typical this year.",
-      "unconfirmedCount": "{{n}} delivered, unconfirmed"
+      "unconfirmedCount": "{{n}} delivered, unconfirmed",
+      "notSentCount": "{{n}} not sent",
+      "waitingOnYouTail": "Until they're fixed, those sales aren't reported.",
+      "waitingOnYouNone": "Nothing needs your attention.",
+      "part": {
+        "rejected": "{{n}} turned down by the OTA",
+        "stopped": "{{n}} stopped at Fawtir",
+        "refusedOnDelivery": "{{n}} refused on delivery"
+      }
     },
     "tabs": {
       "all": "All",

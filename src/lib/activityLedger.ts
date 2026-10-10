@@ -112,7 +112,12 @@ export const ACTIVITY_TABS = [
   { id: 'attention', filters: { attention: 'true' as const } },
   { id: 'accepted', filters: { tddAck: 'AP' as const } },
   { id: 'rejected', filters: { tddAck: 'RE' as const } },
-  { id: 'waiting', filters: { tddAck: 'NONE' as const } },
+  // Submitted and unanswered only (N5b). tdd_ack=NONE stays beside it so a server without the
+  // tdd_state filter still lists silence rather than every document.
+  {
+    id: 'waiting',
+    filters: { tddAck: 'NONE' as const, tddState: 'AWAITING_RESPONSE' as const },
+  },
   { id: 'superseded', filters: { tddStatus: 'SUPERSEDED' } },
 ] as const
 
@@ -120,6 +125,40 @@ export type ActivityTabId = (typeof ACTIVITY_TABS)[number]['id']
 
 export function isActivityTab(value: string | null): value is ActivityTabId {
   return ACTIVITY_TABS.some((tab) => tab.id === value)
+}
+
+/** Where the window's reports stand with the OTA, for every card, tab and report that says so. */
+export type ReportStates = {
+  /** Submitted and not answered: the only reports anyone at the OTA is being waited on for. */
+  awaiting: number
+  /** Built here and not submitted yet. */
+  notSubmitted: number
+  /** Stopped by Fawtir itself (SLA dead-letter, generation failure); never the OTA's doing. */
+  stopped: number
+  /** Turned down by the OTA (MLS RE). */
+  rejected: number
+}
+
+/**
+ * Reads the server's report states (N5b). A server that does not send them yet gets the counts
+ * the screens used before, so an older backend can make nothing worse than it was.
+ */
+export function reportStatesOf(summary: ActivitySummaryDto): ReportStates {
+  const state = summary.tdd_state
+  if (!state) {
+    return {
+      awaiting: summary.tdd_ack.none,
+      notSubmitted: 0,
+      stopped: 0,
+      rejected: summary.tdd_ack.re,
+    }
+  }
+  return {
+    awaiting: state.awaiting_response,
+    notSubmitted: state.never_submitted,
+    stopped: state.internally_stopped,
+    rejected: state.authority_rejected,
+  }
 }
 
 /** What each tab counts, from the summary, so the tabs and the cards above them agree. */
@@ -136,7 +175,7 @@ export function tabCount(summary: ActivitySummaryDto, tab: ActivityTabId): numbe
     case 'rejected':
       return summary.tdd_ack.re
     case 'waiting':
-      return summary.tdd_ack.none
+      return reportStatesOf(summary).awaiting
     case 'superseded':
       // TODO(backend): not on the summary yet (asks row 2.4); zero until it is.
       return summary.superseded ?? 0

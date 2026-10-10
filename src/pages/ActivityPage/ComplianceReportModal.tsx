@@ -7,7 +7,7 @@ import {
   loadActivitySummary,
   type ActivitySummaryDto,
 } from '../../api/compliance/activity'
-import { shareOf1 } from '../../lib/activityLedger'
+import { reportStatesOf, shareOf1 } from '../../lib/activityLedger'
 import {
   REPORT_PERIODS,
   REPORT_SECTIONS,
@@ -74,13 +74,16 @@ export function ComplianceReportModal({
     // silence, not a failure (handbook 5.3), so it is counted apart from what was not reported.
     const accepted = book.tdd_ack.ap
     const netInvoiced = book.invoiced_total ?? base.netInvoiced
+    // A report never submitted, or stopped at Fawtir, is not reported either, and is not
+    // "sent, still waiting" (N5b).
+    const states = reportStatesOf(book)
     return {
       ...base,
       invoices: book.documents,
       accepted,
       acceptedRate: shareOf1(accepted, book.documents),
-      notReported: book.tdd_ack.re,
-      waiting: book.tdd_ack.none,
+      notReported: states.rejected + states.notSubmitted + states.stopped,
+      waiting: states.awaiting,
       netInvoiced,
       // The sum of IBT-110 over reported invoices when the server gives it. A server total with
       // no VAT beside it cannot say what the unreported invoices held, so it reads "not available";
