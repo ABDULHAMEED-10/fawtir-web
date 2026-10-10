@@ -75,7 +75,7 @@ function Tile({ item, onAdd }: { item: PosItem; onAdd: (item: PosItem) => void }
       ].join(' ')}
     >
       <span className="relative block">
-        <PosArt art={item.art} className="block h-[104px] w-full object-cover" />
+        <PosArt itemId={item.id} art={item.art} className="block h-[104px] w-full object-cover" />
         {item.sizes ? (
           <span className="absolute end-2 top-2 rounded-sm bg-white/85 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-text-tertiary">
             {t('pos.badge.sizes')}
