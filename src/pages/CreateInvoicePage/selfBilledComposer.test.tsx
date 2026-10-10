@@ -168,10 +168,10 @@ function renderAt(path: string) {
     <ReferenceDataContext.Provider value={SEEDED_REFERENCE}>
       <MemoryRouter initialEntries={[path]}>
         <Routes>
-          <Route path="/income/self-billing/new" element={<SelfBilledComposerPage />} />
-          <Route path="/income/self-billing/:id/edit" element={<SelfBilledComposerPage />} />
+          <Route path="/expenditure/self-billing/new" element={<SelfBilledComposerPage />} />
+          <Route path="/expenditure/self-billing/:id/edit" element={<SelfBilledComposerPage />} />
           <Route path="/invoices/new" element={<CreateInvoicePage />} />
-          <Route path="/income/self-billing" element={<p>self-billing list</p>} />
+          <Route path="/expenditure/self-billing" element={<p>self-billing list</p>} />
         </Routes>
       </MemoryRouter>
     </ReferenceDataContext.Provider>,
@@ -190,7 +190,7 @@ async function fillOneLine() {
 
 describe('the self-billed composer', () => {
   it('creates on the self-billed route, unwrapped, and lands on its own edit address', async () => {
-    renderAt('/income/self-billing/new')
+    renderAt('/expenditure/self-billing/new')
     await fillOneLine()
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
@@ -208,7 +208,7 @@ describe('the self-billed composer', () => {
   })
 
   it('sends IBT-010 and IBT-012, which only a self-billed document may carry', async () => {
-    renderAt('/income/self-billing/new')
+    renderAt('/expenditure/self-billing/new')
     await fillOneLine()
     fireEvent.change(screen.getByRole('textbox', { name: 'Your reference' }), {
       target: { value: 'PO-7781' },
@@ -225,7 +225,7 @@ describe('the self-billed composer', () => {
     })
   })
 
-  it('never sends those references on an ordinary invoice, which the server refuses outright', async () => {
+  it('offers neither field on an ordinary invoice and sends neither reference it was not given', async () => {
     who = ORDINARY_WRITER
     renderAt('/invoices/new')
     await fillOneLine()
@@ -242,7 +242,7 @@ describe('the self-billed composer', () => {
   })
 
   it('reads the references back, because the draft PUT replaces the whole draft', async () => {
-    renderAt('/income/self-billing/sb-1/edit')
+    renderAt('/expenditure/self-billing/sb-1/edit')
 
     // Left out of the read, the next save would clear them - the server's own DTO says so.
     expect(await screen.findByRole('textbox', { name: 'Your reference' })).toHaveProperty(
@@ -263,7 +263,7 @@ describe('the self-billed composer', () => {
   })
 
   it('says whose invoice this is, and that issuing can still be refused', async () => {
-    renderAt('/income/self-billing/new')
+    renderAt('/expenditure/self-billing/new')
     expect(await screen.findByText(/writing this invoice on the seller's behalf/)).toBeTruthy()
     expect(
       screen.getByText(/refused unless an agreement with that seller is in force/),
@@ -273,7 +273,7 @@ describe('the self-billed composer', () => {
 
   it('needs selfbilling.create, not invoice.draft', async () => {
     who = ORDINARY_WRITER
-    renderAt('/income/self-billing/new')
+    renderAt('/expenditure/self-billing/new')
 
     // Writing your own invoice is a different authority from writing one on someone else's behalf.
     expect(await screen.findByText('You can see this draft but not save it.')).toBeTruthy()

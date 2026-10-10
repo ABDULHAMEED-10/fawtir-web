@@ -1390,12 +1390,12 @@ describe('a self-billed credit note (SW3, D6)', () => {
     return render(
       <MemoryRouter initialEntries={[path]}>
         <Routes>
-          <Route path="/income/self-billing" element={<p>self-billing list</p>} />
+          <Route path="/expenditure/self-billing" element={<p>self-billing list</p>} />
           <Route
-            path="/income/self-billing/credit-notes/new"
+            path="/expenditure/self-billing/credit-notes/new"
             element={<NewSelfBilledCreditNotePage />}
           />
-          <Route path="/income/self-billing/:id" element={<p>self-bill page</p>} />
+          <Route path="/expenditure/self-billing/:id" element={<p>self-bill page</p>} />
           <Route path="/income/credit-notes/:id" element={<p>credit note page</p>} />
         </Routes>
       </MemoryRouter>,
@@ -1414,14 +1414,14 @@ describe('a self-billed credit note (SW3, D6)', () => {
   })
 
   it('issues from the credit-note composer under selfbilling.create and opens the note in self-billing', async () => {
-    renderSelfBilled(`/income/self-billing/credit-notes/new?invoice=${INVOICE_ID}`)
+    renderSelfBilled(`/expenditure/self-billing/credit-notes/new?invoice=${INVOICE_ID}`)
     expect(await screen.findByText('Green beans')).toBeTruthy()
     // The breadcrumb and the original point back into self-billing, not the sales invoice pages.
     expect(screen.getByRole('link', { name: 'Self-billed' }).getAttribute('href')).toBe(
-      '/income/self-billing',
+      '/expenditure/self-billing',
     )
     expect(screen.getAllByRole('link', { name: 'SBI-2026-0001' })[0].getAttribute('href')).toBe(
-      `/income/self-billing/${INVOICE_ID}`,
+      `/expenditure/self-billing/${INVOICE_ID}`,
     )
 
     chooseReason('Returned goods')
@@ -1444,7 +1444,7 @@ describe('a self-billed credit note (SW3, D6)', () => {
         status: 409,
         code: 'SELF_BILLING_AGREEMENT_NOT_IN_FORCE',
       })
-    renderSelfBilled(`/income/self-billing/credit-notes/new?invoice=${INVOICE_ID}`)
+    renderSelfBilled(`/expenditure/self-billing/credit-notes/new?invoice=${INVOICE_ID}`)
     expect(await screen.findByText('Green beans')).toBeTruthy()
     chooseReason('Returned goods')
     fireEvent.click(screen.getByRole('button', { name: 'Issue credit note' }))
@@ -1458,7 +1458,7 @@ describe('a self-billed credit note (SW3, D6)', () => {
 
   it('refuses an ordinary invoice as the original, before asking the server', async () => {
     original = INVOICE
-    renderSelfBilled(`/income/self-billing/credit-notes/new?invoice=${INVOICE_ID}`)
+    renderSelfBilled(`/expenditure/self-billing/credit-notes/new?invoice=${INVOICE_ID}`)
     expect(await screen.findByText('Green beans')).toBeTruthy()
     expect(
       screen.getByText(
@@ -1484,7 +1484,7 @@ describe('a self-billed credit note (SW3, D6)', () => {
         dueDate: null,
       },
     }
-    renderSelfBilled(`/income/self-billing/credit-notes/new?invoice=${INVOICE_ID}`)
+    renderSelfBilled(`/expenditure/self-billing/credit-notes/new?invoice=${INVOICE_ID}`)
     expect(await screen.findByText('Green beans')).toBeTruthy()
     expect(screen.getByText('Reduces input VAT')).toBeTruthy()
     expect(screen.getByText('Send to supplier over Peppol')).toBeTruthy()
@@ -1499,13 +1499,13 @@ describe('a self-billed credit note (SW3, D6)', () => {
 
   it('asks for selfbilling.create, not creditnote.create', async () => {
     entitlements = { ...ADMIN }
-    renderSelfBilled(`/income/self-billing/credit-notes/new?invoice=${INVOICE_ID}`)
+    renderSelfBilled(`/expenditure/self-billing/credit-notes/new?invoice=${INVOICE_ID}`)
     expect(await screen.findByText(/doesn't have access to this part of Fawtir/)).toBeTruthy()
     expect(screen.queryByText('Green beans')).toBeNull()
   })
 
   it('returns to the self-billing list when no invoice is named', async () => {
-    renderSelfBilled('/income/self-billing/credit-notes/new')
+    renderSelfBilled('/expenditure/self-billing/credit-notes/new')
     expect(await screen.findByText('self-billing list')).toBeTruthy()
   })
 })

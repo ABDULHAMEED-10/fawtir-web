@@ -28,8 +28,10 @@ import {
   type InvoiceTypeDto,
 } from '../../api/invoices/list'
 import { discardDraft, loadBranches, type BranchDto } from '../../api/invoices/drafts'
-import { cancelInvoice } from '../../api/invoices/detail'
+import { cancelInvoice, type InvoiceSendResultDto } from '../../api/invoices/detail'
 import { InvoiceImportModal } from '../../components/invoice/InvoiceImportModal'
+import { SendInvoiceModal } from '../../components/invoice/SendInvoiceModal'
+import { sendResultNote } from '../../lib/invoiceDispatch'
 import {
   INVOICE_SORTS,
   INVOICE_TYPES,
@@ -123,12 +125,11 @@ const isTab = (value: string | null): value is TabId => value === 'toSend' || is
 type ChannelId = 'all' | 'peppol' | 'email'
 
 /**
- * The payment tabs are the customer's side of the ledger. A self-billed invoice's debt is what the
- * tenant owes its supplier (its Expenditure payable, decision D2), so it is left to the
- * Self-billing page: with no Type chosen, these tabs and their counts ask for the sales types only
- * (Zain, 30 Sep 2026). A Type the user picks is sent as it is.
+ * Income lists sales documents only. A self-billed invoice or credit note is a purchase written on
+ * the supplier's behalf (its debt is the tenant's Expenditure payable, decision D2), so it lives
+ * under Expenditure › Self-billing (owner decision, 6 Oct 2026): with no Type chosen, every tab and
+ * its count ask for the sales types, and the Type filter offers nothing else.
  */
-const PAYMENT_TABS: ReadonlySet<TabId> = new Set<TabId>(['awaiting', 'overdue', 'paid'])
 const SALES_TYPES: InvoiceTypeDto[] = ['INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE']
 const SALES_SUMMARY_PATH = withQuery(INVOICE_SUMMARY_PATH, { type: SALES_TYPES.join(',') })
 const CHANNELS: ChannelId[] = ['all', 'peppol', 'email']
@@ -234,13 +235,13 @@ function InvoicesScreen() {
                 state: 'ISSUED',
                 delivery: 'TO_SEND' as const,
                 payment: null,
-                type,
+                type: type ?? SALES_TYPES,
                 ...periodRange(period, summary.read.data.asOf),
                 search: query,
               }
             : {
                 ...listFilter(tab, type, period, summary.read.data.asOf, query),
-                ...(type === null && PAYMENT_TABS.has(tab) ? { type: SALES_TYPES } : {}),
+                ...(type === null ? { type: SALES_TYPES } : {}),
               }),
           channel: channelFilter,
         }
@@ -295,6 +296,7 @@ function InvoicesScreen() {
     try {
       await discardDraft(target.id, target.version)
       summary.retry()
+      salesSummary.retry()
       list.retry()
     } catch (error) {
       setNotice({
@@ -322,6 +324,7 @@ function InvoicesScreen() {
       await cancelInvoice(cancelling.id, cancelling.version, reason.trim())
       closeCancel()
       summary.retry()
+      salesSummary.retry()
       list.retry()
     } catch (error) {
       setNotice({ body: failureText(t, error) })
@@ -330,6 +333,14 @@ function InvoicesScreen() {
     } finally {
       setBusy(false)
     }
+  }
+
+  const [sendingRow, setSendingRow] = useState<InvoiceListItem | null>(null)
+  const onSent = (result: InvoiceSendResultDto) => {
+    setSendingRow(null)
+    const note = sendResultNote(result)
+    setNotice({ body: t(note.key, note.values) })
+    list.retry()
   }
 
   const count = (value: number) => formatCount(value, language)
@@ -378,6 +389,7 @@ function InvoicesScreen() {
         onClose={() => setImporting(false)}
         onCreated={() => {
           summary.retry()
+          salesSummary.retry()
           list.retry()
         }}
       />
@@ -397,7 +409,8 @@ function InvoicesScreen() {
     )
   }
 
-  const totals = summary.read.data
+  // Counts and cards are the sales figures; the unfiltered summary only stands in until they load.
+  const totals = salesSummary.read.status === 'ready' ? salesSummary.read.data : summary.read.data
   const page = list.read.status === 'ready' ? list.read.data : null
 
   return (
@@ -416,14 +429,7 @@ function InvoicesScreen() {
           {TABS.map((entry) => {
             const active = entry.id === tab
             // The owner asked for 0 rather than an empty badge when the summary is unavailable.
-            const tally =
-              entry.id === 'toSend'
-                ? (totals.toSend ?? 0)
-                : PAYMENT_TABS.has(entry.id)
-                  ? salesSummary.read.status === 'ready'
-                    ? tabCount(salesSummary.read.data, entry.id)
-                    : 0
-                  : tabCount(totals, entry.id)
+            const tally = entry.id === 'toSend' ? (totals.toSend ?? 0) : tabCount(totals, entry.id)
             return (
               <button
                 key={entry.id}
@@ -524,9 +530,19 @@ function InvoicesScreen() {
             nothingYet={totals.all === 0 && query === '' && type === null}
             onDiscard={setDiscarding}
             onCancel={setCancelling}
+            onSend={setSendingRow}
             onUnavailable={(key) => setNotice({ body: t(key) })}
           />
         )}
+
+        {sendingRow ? (
+          <SendInvoiceModal
+            invoiceId={sendingRow.id}
+            invoiceNumber={sendingRow.number}
+            onClose={() => setSendingRow(null)}
+            onSent={onSent}
+          />
+        ) : null}
 
         {page && page.items.length > 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
@@ -838,6 +854,7 @@ function InvoiceTable({
   nothingYet,
   onDiscard,
   onCancel,
+  onSend,
   onUnavailable,
 }: {
   page: Page<InvoiceRowDto> | null
@@ -845,6 +862,7 @@ function InvoiceTable({
   nothingYet: boolean
   onDiscard: (item: InvoiceListItem) => void
   onCancel: (item: InvoiceListItem) => void
+  onSend: (item: InvoiceListItem) => void
   /** An action the design offers and the API cannot yet do; the key names the sentence. */
   onUnavailable: (key: string) => void
 }) {
@@ -856,10 +874,12 @@ function InvoiceTable({
   const allOnPageSelected = rows.length > 0 && rows.every((row) => selected.includes(row.id))
   const someOnPageSelected = !allOnPageSelected && rows.some((row) => selected.includes(row.id))
   const canDraft = can(session, 'invoice.draft')
+  const canSend = can(session, 'invoice.issue')
 
   /**
    * The design's row menu (Figma "Actions" 154:173140): view, send, duplicate, credit note,
-   * periodic, delete. Send has no endpoint yet (TODO(backend)) and says so when chosen. Duplicate
+   * periodic, delete. Send is offered on an issued document to a reader who may issue; the row
+   * does not carry where its dispatch stands, so the server answers an already-sent one. Duplicate
    * opens the composer filled from an invoice, saved only when the reader saves; the notes and
    * self-billed documents have their own composers, so for them it still says it is unavailable.
    * Delete is a draft's discard, or an issued document's cancel with a reason.
@@ -873,12 +893,16 @@ function InvoiceTable({
         icon: viewIcon,
         to: `/invoices/${row.id}`,
       },
-      {
-        id: 'send',
-        labelKey: 'rowActions.invoice.send',
-        icon: sendIcon,
-        onSelect: () => onUnavailable('invoicesPage.sendUnavailable'),
-      },
+      ...(canSend && row.authoring === 'issued'
+        ? [
+            {
+              id: 'send',
+              labelKey: 'rowActions.invoice.send',
+              icon: sendIcon,
+              onSelect: () => onSend(row),
+            },
+          ]
+        : []),
       row.type === 'INVOICE' && canDraft
         ? {
             id: 'duplicate',

@@ -75,7 +75,7 @@ import backIcon from '../../assets/invoice-details/back.svg'
 import savedIcon from '../../assets/create-invoice/tick.svg'
 import peppolIcon from '../../assets/periodic/peppol.svg'
 import customerLogo from '../../assets/periodic/customer-logo.svg'
-import { usageForecast } from '../../lib/settings'
+import { usePlanUsage } from '../../hooks/usePlanUsage'
 import eyeIcon from '../../assets/actions/view.svg'
 import saveDraftIcon from '../../assets/customers/save.svg'
 import arrowIcon from '../../assets/create-invoice/arrow.svg'
@@ -333,7 +333,7 @@ export function NewSelfBillPage() {
 function SelfBillComposer() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
-  const usage = usageForecast()
+  const usage = usePlanUsage()
   const navigate = useNavigate()
   const { id: routeId } = useParams<{ id: string }>()
   const session = useSession()
@@ -370,6 +370,8 @@ function SelfBillComposer() {
     canSeeAgreements ? AGREEMENTS_PATH : null,
     loadAgreements,
   )
+  // TODO(backend): EXPENDITURE.md S.2. The seller is kept in a customer record (`customerId` on
+  // the agreements and the draft), so the supplier picker reads the customers list, not suppliers.
   const customersPath = customerListPath({
     type: null,
     search: '',
@@ -592,7 +594,7 @@ function SelfBillComposer() {
       setPriced(null)
       if (!meta) {
         filledFrom.current = result.id
-        navigate(`/income/self-billing/${result.id}/edit`, { replace: true })
+        navigate(`/expenditure/self-billing/${result.id}/edit`, { replace: true })
       }
       const uploadsDone = await uploadHeld(result.id)
       return forIssue && !uploadsDone ? null : saved
@@ -657,7 +659,7 @@ function SelfBillComposer() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              to="/income/self-billing"
+              to="/expenditure/self-billing"
               className="text-2xl font-medium leading-[1.2] text-text-quaternary transition-colors hover:text-text-secondary"
             >
               {t('newSelfBill.breadcrumb')}
@@ -685,26 +687,27 @@ function SelfBillComposer() {
               </span>
             </span>
             {/*
-              Quota: 189x11 track with a blue fill, per Figma.
-              TODO(backend): no endpoint reports the plan's document allowance or its use;
-              `lib/settings` stands in, as it does on the invoice composer.
+              Quota: 189x11 track with a blue fill, per Figma; drawn only when the plan read
+              answers.
             */}
-            <span className="flex flex-col gap-1.5">
-              <span className="flex items-baseline gap-1">
-                <span className="text-[22px] font-semibold leading-[1.2] text-text-primary">
-                  {usage.used.toLocaleString(language)}
+            {usage ? (
+              <span className="flex flex-col gap-1.5">
+                <span className="flex items-baseline gap-1">
+                  <span className="text-[22px] font-semibold leading-[1.2] text-text-primary">
+                    {usage.used.toLocaleString(language)}
+                  </span>
+                  <span className="text-[11px] font-medium leading-[1.2] text-text-primary">
+                    {t('newSelfBill.quotaOf', { total: usage.allowance.toLocaleString(language) })}
+                  </span>
                 </span>
-                <span className="text-[11px] font-medium leading-[1.2] text-text-primary">
-                  {t('newSelfBill.quotaOf', { total: usage.allowance.toLocaleString(language) })}
+                <span className="block h-[11px] w-[189px] overflow-hidden rounded-[2px] bg-white">
+                  <span
+                    className="block h-full rounded-[2px] bg-primary-700"
+                    style={{ width: `${Math.min(100, usage.percent)}%` }}
+                  />
                 </span>
               </span>
-              <span className="block h-[11px] w-[189px] overflow-hidden rounded-[2px] bg-white">
-                <span
-                  className="block h-full rounded-[2px] bg-primary-700"
-                  style={{ width: `${Math.min(100, usage.percent)}%` }}
-                />
-              </span>
-            </span>
+            ) : null}
           </div>
         </div>
 
@@ -897,7 +900,7 @@ function SelfBillComposer() {
                   })}
                 </p>
                 <Link
-                  to="/income/self-billing/agreements"
+                  to="/expenditure/self-billing/agreements"
                   className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary-700 hover:underline"
                 >
                   {t('newSelfBill.viewAgreement')}
@@ -913,7 +916,7 @@ function SelfBillComposer() {
                   })}
                 </p>
                 <Link
-                  to="/income/self-billing/agreements"
+                  to="/expenditure/self-billing/agreements"
                   className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary-700 hover:underline"
                 >
                   {t('newSelfBill.viewAgreement')}
@@ -926,7 +929,7 @@ function SelfBillComposer() {
                   {t('apiErrors.selfBilling.missing')}
                 </p>
                 <Link
-                  to="/income/self-billing/agreements"
+                  to="/expenditure/self-billing/agreements"
                   className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary-700 hover:underline"
                 >
                   {t('newSelfBill.openAgreement')}
@@ -1370,7 +1373,7 @@ function SelfBillComposer() {
           onClose={() => setIssuing(null)}
           onIssued={(invoice) => {
             setIssuing(null)
-            navigate(`/income/self-billing/${invoice.id}`)
+            navigate(`/expenditure/self-billing/${invoice.id}`)
           }}
         />
       ) : null}

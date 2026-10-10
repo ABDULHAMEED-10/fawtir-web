@@ -151,11 +151,11 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-function renderPage(path = '/income/self-billing/agreements') {
+function renderPage(path = '/expenditure/self-billing/agreements') {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/income/self-billing/agreements" element={<AgreementsPage />} />
+        <Route path="/expenditure/self-billing/agreements" element={<AgreementsPage />} />
       </Routes>
     </MemoryRouter>,
   )

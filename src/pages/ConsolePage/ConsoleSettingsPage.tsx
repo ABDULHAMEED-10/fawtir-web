@@ -15,6 +15,7 @@ import {
   usePlatformSettings,
   type Section,
 } from '../../lib/platformSettings'
+import { localeFor } from '../../lib/console/format'
 import { focusFirstInvalid } from '../../lib/forms'
 import { isClean } from '../../lib/validation'
 import type { Forms, SectionProps, Update } from './settings/draft'
@@ -30,6 +31,11 @@ import { OperationsSection } from './settings/OperationsSection'
 import { OverageSection } from './settings/OverageSection'
 import { PaymentsSection } from './settings/PaymentsSection'
 import { PromotionalSection } from './settings/PromotionalSection'
+import {
+  CONSOLE_PAGE,
+  CONSOLE_SECONDARY,
+  ConsolePageHeader,
+} from '../../layouts/ConsoleShell/consoleStyle'
 
 /** The sub-nav: every editable section, then the read-only panel of what is fixed by design. */
 type NavId = Section | 'fixed'
@@ -89,29 +95,23 @@ function ConsoleSettings() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+    <div className={CONSOLE_PAGE}>
       <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.settings' }]} />
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="max-w-[720px]">
-          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-            {t('console.settings.title')}
-          </h1>
-          <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
-            {t('console.settings.subtitle')}
-          </p>
-        </div>
-        <Link
-          to="/console/plans"
-          className="inline-flex h-[46px] shrink-0 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-        >
-          {t('console.settings.plansLink')}
-        </Link>
-      </div>
+      <ConsolePageHeader
+        title={t('console.settings.title')}
+        subtitle={t('console.settings.subtitle')}
+        subtitleClassName="max-w-[720px]"
+        actions={
+          <Link to="/console/plans" className={CONSOLE_SECONDARY}>
+            {t('console.settings.plansLink')}
+          </Link>
+        }
+      />
 
       <div className="flex items-start gap-4 max-lg:flex-col max-lg:items-stretch">
         <nav
           aria-label={t('console.settings.sectionsLabel')}
-          className="flex w-[232px] shrink-0 flex-col gap-0.5 rounded-md bg-surface-card p-2 max-lg:w-auto max-lg:flex-row max-lg:gap-1 max-lg:overflow-x-auto"
+          className="flex w-[232px] shrink-0 flex-col gap-0.5 rounded-sm bg-surface-card p-2 max-lg:w-auto max-lg:flex-row max-lg:gap-1 max-lg:overflow-x-auto"
         >
           {NAV.map((id) => {
             const current = id === active
@@ -219,7 +219,7 @@ function SectionHost<S extends Section>({
   const savedBy = mark
     ? t('console.settings.savedBy', {
         by: mark.by,
-        when: new Intl.DateTimeFormat(i18n.language === 'ar' ? 'ar' : 'en-GB', {
+        when: new Intl.DateTimeFormat(localeFor(i18n.language), {
           day: 'numeric',
           month: 'short',
           hour: '2-digit',

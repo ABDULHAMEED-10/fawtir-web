@@ -4,6 +4,8 @@ type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   label: string
   requiredMark?: boolean
   labelEnd?: ReactNode
+  /** A short word beside the label, such as "optional", as the frames draw it. */
+  labelNote?: string
   leadingIcon?: ReactNode
   trailingIcon?: ReactNode
   /** The message under the field. A node, so a sentence can carry the drawn rial sign. */
@@ -24,6 +26,7 @@ export function Input({
   label,
   requiredMark = false,
   labelEnd,
+  labelNote,
   leadingIcon,
   trailingIcon,
   error,
@@ -51,6 +54,9 @@ export function Input({
         >
           {label}
           {requiredMark ? <span className="text-xl leading-4 text-primary-700">*</span> : null}
+          {labelNote ? (
+            <span className="ms-1.5 text-xs font-normal text-text-quaternary">{labelNote}</span>
+          ) : null}
         </label>
         {labelEnd ? <span className="inline-flex shrink-0 items-center">{labelEnd}</span> : null}
       </div>
@@ -80,7 +86,10 @@ export function Input({
             ].join(' ')}
             aria-invalid={error ? true : undefined}
             {...props}
-            aria-describedby={[describedBy, hasMessage ? messageId : undefined].filter(Boolean).join(' ') || undefined}
+            aria-describedby={
+              [describedBy, hasMessage ? messageId : undefined].filter(Boolean).join(' ') ||
+              undefined
+            }
           />
         </div>
         {trailingIcon ? (

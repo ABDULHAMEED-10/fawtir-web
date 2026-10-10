@@ -82,7 +82,7 @@ export const MAPPED_SELF_BILLING_CODES = Object.freeze(Object.keys(REFUSALS))
 export const SUPPLIER_ISIC_MISSING_KEY = 'apiErrors.selfBilling.supplierIsicMissing'
 
 /** Where a self-billing supplier's business activity (ISIC) is set: its agreement dialog. */
-export const SELF_BILLING_AGREEMENTS_ROUTE = '/income/self-billing/agreements'
+export const SELF_BILLING_AGREEMENTS_ROUTE = '/expenditure/self-billing/agreements'
 
 /**
  * A self-billed issue's refusal, as a sentence: the self-billing refusals above, plus

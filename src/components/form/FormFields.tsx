@@ -114,6 +114,7 @@ export function TextField({
         dir={dir}
         {...(value !== undefined ? { value, onChange: (event) => onChange?.(event.target.value) } : { defaultValue })}
         aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
         className={[
           FIELD_BASE,
           filled ? FIELD_FILLED : FIELD_EMPTY,
@@ -123,11 +124,11 @@ export function TextField({
           .join(' ')}
       />
       {error ? (
-        <p className="text-xs font-medium leading-[1.2] text-text-danger" role="alert">
+        <p id={`${id}-error`} className="text-xs font-medium leading-[1.2] text-text-danger" role="alert">
           {error}
         </p>
       ) : hint ? (
-        <p className="text-xs font-medium leading-[1.2] text-text-quaternary">{hint}</p>
+        <p id={`${id}-hint`} className="text-xs font-medium leading-[1.2] text-text-quaternary">{hint}</p>
       ) : null}
     </div>
   )

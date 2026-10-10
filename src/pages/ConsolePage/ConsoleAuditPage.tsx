@@ -13,7 +13,7 @@ import {
   ConsoleSubscriptionIcon,
   ConsoleTickIcon,
 } from '../../layouts/ConsoleShell/consoleIcons'
-import { FilterMenu, Pager, RowsView, Select } from '../../components/ui'
+import { FilterMenu, Pager, RowsView } from '../../components/ui'
 import {
   AUDIT_AREAS,
   useConsoleAudit,
@@ -27,6 +27,14 @@ import { toDateKey } from '../../lib/dates'
 import { count, omr } from '../../lib/superAdmin'
 import { QueueKpiCard } from './subscriptions/QueueKpiCard'
 import searchIcon from '../../assets/dashboard/search.svg'
+import {
+  CONSOLE_PAGE,
+  CONSOLE_ROWS,
+  CONSOLE_SECONDARY,
+  CONSOLE_TABLE,
+  CONSOLE_THEAD,
+  ConsolePageHeader,
+} from '../../layouts/ConsoleShell/consoleStyle'
 
 type AreaFilter = 'all' | AuditArea
 type Range = 'today' | 'week' | 'month' | 'all'
@@ -52,8 +60,7 @@ const AREA_TONE: Record<AuditArea, ConsolePillTone> = {
   operators: 'neutral',
 }
 
-const SECONDARY_BUTTON =
-  'inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25'
+const SECONDARY_BUTTON = CONSOLE_SECONDARY
 
 const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate())
 
@@ -78,6 +85,8 @@ function readableValues(
     else if (key === 'term') out[key] = t(`console.subscriptions.term.${raw}`).toLowerCase()
     else if (key === 'amount' && typeof raw === 'number') out[key] = omr(raw)
     else if (key === 'documents' && typeof raw === 'number') out[key] = count(raw)
+    else if (key === 'state' && entry.area === 'incidents')
+      out[key] = t(`console.incidents.state.${raw}`, { defaultValue: String(raw) })
     else out[key] = raw
   }
   return out
@@ -218,38 +227,33 @@ export function ConsoleAuditPage() {
 
   return (
     <ConsoleShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <div className={CONSOLE_PAGE}>
         <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.audit' }]} />
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-              {t('console.audit.title')}
-            </h1>
-            <p className="mt-1.5 max-w-[720px] text-sm font-medium leading-[1.4] text-text-quaternary">
-              {t('console.audit.subtitle')}
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
+        <ConsolePageHeader
+          title={t('console.audit.title')}
+          subtitle={t('console.audit.subtitle')}
+          subtitleClassName="max-w-[720px]"
+          actions={
             <button
               type="button"
               onClick={exportCsv}
               disabled={rows.length === 0}
-              className={`${SECONDARY_BUTTON} disabled:cursor-not-allowed disabled:opacity-50`}
+              className={SECONDARY_BUTTON}
             >
               {t('console.audit.export')}
             </button>
-          </div>
-        </div>
+          }
+        />
 
         <div className="flex flex-wrap gap-4">
           <QueueKpiCard
-            icon={<ConsoleClockIcon className="size-[18px] text-primary-700" />}
+            icon={<ConsoleClockIcon className="size-4 text-primary-700" />}
             title={t('console.audit.kpi.today')}
             value={String(todays.length)}
             note={t('console.audit.kpi.todayNote', { count: week.length })}
           />
           <QueueKpiCard
-            icon={<ConsoleTickIcon className="size-[18px] text-success-700" />}
+            icon={<ConsoleTickIcon className="size-4 text-success-700" />}
             title={t('console.audit.kpi.operators')}
             value={String(operatorsToday.length)}
             note={
@@ -259,7 +263,7 @@ export function ConsoleAuditPage() {
             }
           />
           <QueueKpiCard
-            icon={<ConsoleSubscriptionIcon className="size-[18px] text-pending-700" />}
+            icon={<ConsoleSubscriptionIcon className="size-4 text-pending-500" />}
             title={t('console.audit.kpi.areas')}
             value={String(byArea.size)}
             suffix={t('console.audit.kpi.areasOf', { total: AUDIT_AREAS.length })}
@@ -274,8 +278,8 @@ export function ConsoleAuditPage() {
           />
         </div>
 
-        <section className="flex flex-col rounded-md bg-surface-card">
-          <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3.5">
+        <section className="flex flex-col rounded-sm bg-surface-card">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
             <label className="flex h-11 w-full max-w-[346px] items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4 max-md:max-w-none max-md:basis-full">
               <img src={searchIcon} alt="" className="size-5 shrink-0" />
               <input
@@ -311,25 +315,23 @@ export function ConsoleAuditPage() {
                   ...operators.map((name) => ({ value: name, label: name })),
                 ]}
               />
-              <div className="w-[180px] max-md:w-full">
-                <Select
-                  compact
-                  value={range}
-                  onChange={(value) => filter(setRange)(value as Range)}
-                  ariaLabel={t('console.audit.filter.range')}
-                  options={RANGES.map((id) => ({
-                    value: id,
-                    label: t(`console.audit.range.${id}`),
-                  }))}
-                />
-              </div>
+              <FilterMenu<Range>
+                label={t('console.audit.filter.range')}
+                value={range}
+                defaultValue="all"
+                onChange={filter(setRange)}
+                options={RANGES.map((id) => ({
+                  value: id,
+                  label: t(`console.audit.range.${id}`),
+                }))}
+              />
             </div>
           </div>
 
-          <RowsView className="px-6 pb-6">
-            <table className="w-full min-w-[1000px] border-collapse text-start">
+          <RowsView className={CONSOLE_ROWS}>
+            <table className={`${CONSOLE_TABLE} min-w-[1000px]`}>
               <thead>
-                <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+                <tr className={CONSOLE_THEAD}>
                   <Th>{t('console.audit.col.when')}</Th>
                   <Th>{t('console.audit.col.operator')}</Th>
                   <Th>{t('console.audit.col.area')}</Th>
@@ -340,11 +342,12 @@ export function ConsoleAuditPage() {
               </thead>
               {groups.map((group) => (
                 <tbody key={group.key}>
-                  <tr>
+                  {/* On a phone card list the day is a plain label over its cards, not a card. */}
+                  <tr className="[.rows-cards_&]:!mb-1 [.rows-cards_&]:!border-0 [.rows-cards_&]:!bg-transparent [.rows-cards_&]:!p-0">
                     <th
                       scope="colgroup"
                       colSpan={6}
-                      className="bg-surface-background px-4 py-2 text-start text-xs font-semibold uppercase tracking-[0.04em] text-text-quaternary"
+                      className="bg-surface-background px-4 py-2 text-start text-xs font-semibold uppercase tracking-[0.04em] text-text-quaternary [.rows-cards_&]:!block [.rows-cards_&]:!bg-transparent [.rows-cards_&]:!px-0 [.rows-cards_&]:!pt-3"
                     >
                       {group.heading}
                     </th>
@@ -402,7 +405,7 @@ export function ConsoleAuditPage() {
             ) : null}
           </RowsView>
 
-          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border-subtle px-6 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border-subtle px-5 py-4">
             <p className="text-sm font-medium text-text-tertiary">
               {rows.length === 0
                 ? t('console.audit.showingNone')

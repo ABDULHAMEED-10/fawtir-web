@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import {
@@ -27,14 +27,18 @@ import {
   loadAttachments,
   loadHistory,
   loadInternalNote,
+  loadDispatch,
+  releaseBuyerEmail,
   loadInvoice,
   loadPayments,
   loadReceivable,
   type InvoiceAttachmentDto,
   type InvoiceDetailDto,
+  type InvoiceDispatchDto,
   type InvoiceHistoryDto,
   type InvoicePaymentDto,
   type InvoiceReceivableDto,
+  type InvoiceSendResultDto,
 } from '../../api/invoices/detail'
 import { loadBranches, type BranchDto } from '../../api/invoices/drafts'
 import { invoiceListPath, loadInvoicePage, type InvoiceRowDto } from '../../api/invoices/list'
@@ -52,6 +56,16 @@ import { NOTE_ROUTES } from '../../lib/salesNote'
 import { loadCustomer, type CustomerDto } from '../../api/customers/customers'
 import { RecordPaymentModal } from './RecordPaymentModal'
 import { IssueInvoiceModal } from '../../components/invoice/IssueInvoiceModal'
+import { SendInvoiceModal } from '../../components/invoice/SendInvoiceModal'
+import {
+  RELEASE_REFUSALS,
+  buyerDeliveryNote,
+  dispatchIsMoving,
+  dispatchNotes,
+  dispatchSucceeded,
+  transportNotes,
+  sendResultNote,
+} from '../../lib/invoiceDispatch'
 import { dueDateFor, muscatToday } from '../../lib/invoiceIssue'
 import {
   PAYMENT_REFUSALS,
@@ -115,6 +129,10 @@ const STATUS_TONES: Record<Tone, string> = {
 }
 
 const ZOOMS = [0.75, 1, 1.25]
+
+/** Re-reads of a document the server is mid-step on: every 3 s for at most a minute. */
+const DISPATCH_POLL_MS = 3000
+const DISPATCH_POLL_LIMIT = 20
 
 type Translate = (key: string, values?: Record<string, unknown>) => string
 
@@ -217,6 +235,43 @@ function InvoiceScreen() {
     () => loadCustomer(document!.customerId),
   )
   const branches = useApiRead<BranchDto[]>(document ? '/v1/branches' : null, loadBranches)
+  // A draft owes nothing to the network, so only an issued (or since-cancelled) document asks.
+  const dispatchRead = useApiRead<InvoiceDispatchDto>(
+    document && !isDraft(document) ? `${invoicePath(id)}/dispatch` : null,
+    () => loadDispatch(id),
+  )
+  // A Send's answer, or a newer read while the server was mid-step. Kept apart from the read so a
+  // refresh does not blank the line with a loader every few seconds.
+  const [dispatchLatest, setDispatchLatest] = useState<InvoiceDispatchDto | null>(null)
+  const dispatch =
+    dispatchLatest ?? (dispatchRead.read.status === 'ready' ? dispatchRead.read.data : null)
+  const moving = dispatchIsMoving(dispatch)
+  useEffect(() => {
+    if (!moving) return
+    let live = true
+    let polls = 0
+    const timer = window.setInterval(() => {
+      polls += 1
+      // Bounded: a step that has not finished in a minute is shown as it stands, and the reader
+      // can reload; an open tab must not poll for ever.
+      if (polls > DISPATCH_POLL_LIMIT) {
+        window.clearInterval(timer)
+        return
+      }
+      loadDispatch(id).then(
+        (next) => {
+          if (live) setDispatchLatest(next)
+        },
+        // The next tick asks again; a transient failure is not worth a notice.
+        () => undefined,
+      )
+    }, DISPATCH_POLL_MS)
+    return () => {
+      live = false
+      window.clearInterval(timer)
+    }
+  }, [moving, id])
+  const [sending, setSending] = useState(false)
   // The credit and debit notes that correct this invoice (I-10/I-11), listed on the invoice so a
   // reader sees why its balance moved and can open each note.
   const notesPath =
@@ -314,6 +369,11 @@ function InvoiceScreen() {
   }
 
   const data = invoice.read.data
+  // A self-billed document is a purchase: its page is under Expenditure › Self-billing (owner
+  // decision, 6 Oct 2026), so an old /invoices link to one lands there.
+  if (data.type === 'SELF_BILLED_INVOICE' || data.type === 'SELF_BILLED_CREDIT_NOTE') {
+    return <Navigate to={`/expenditure/self-billing/${encodeURIComponent(data.id)}`} replace />
+  }
   const draft = isDraft(data)
   const noteType = data.type === 'CREDIT_NOTE' || data.type === 'DEBIT_NOTE' ? data.type : null
   // Self-billing inverts the parties: the tenant is the buyer and customerId names the seller,
@@ -385,11 +445,34 @@ function InvoiceScreen() {
       })
       invoice.retry()
       history.retry()
+      // Cancelling closes what was owed to the network, so the line under the title changes too.
+      setDispatchLatest(null)
+      dispatchRead.retry()
     } catch (error) {
       setNotice({ body: refusalText(t, error) })
     } finally {
       setBusy(false)
     }
+  }
+
+  const releaseHeldEmail = async () => {
+    setNotice(null)
+    try {
+      setDispatchLatest(await releaseBuyerEmail(id))
+      setNotice({ key: 'invoiceDispatch.release.done' })
+      history.retry()
+    } catch (error) {
+      const refusal =
+        error instanceof ApiError && error.code ? RELEASE_REFUSALS[error.code] : undefined
+      setNotice(refusal ? { key: refusal } : { body: refusalText(t, error) })
+    }
+  }
+
+  const sent = (result: InvoiceSendResultDto) => {
+    setSending(false)
+    setDispatchLatest(result.dispatch)
+    setNotice(sendResultNote(result))
+    history.retry()
   }
 
   // What a payment changes: the ledger, what is owed, and the trail.
@@ -442,6 +525,17 @@ function InvoiceScreen() {
     (owed?.paymentState === 'UNPAID' || owed?.paymentState === 'PARTIALLY_PAID')
   const canReverse = data.authoringState === 'ISSUED' && can(session, 'invoice.payment.manage')
   const issuedInvoice = !draft && data.type === 'INVOICE' && data.authoringState === 'ISSUED'
+  // The server says whether this document may be sent now; the permission is the one issue needs.
+  // The design draws Send on every issued invoice. When the dispatch could not be read, it stays
+  // and the server answers the press (the modal shows its refusal); only a dispatch the server
+  // reports as not sendable takes it away.
+  const canSend =
+    data.authoringState === 'ISSUED' &&
+    can(session, 'invoice.issue') &&
+    (dispatch ? dispatch.sendable : dispatchRead.read.status === 'failed')
+  const dispatchLine = dispatch ? dispatchNotes(dispatch) : null
+  const buyerLine = buyerDeliveryNote(dispatch)
+  const transportLines = transportNotes(dispatch, (instant) => formatInstant(instant, language))
   const canManageAttachments = attachmentsEditable(data, (permission) => can(session, permission))
 
   const download = async (file: InvoiceAttachmentDto) => {
@@ -495,6 +589,16 @@ function InvoiceScreen() {
       labelKey: 'salesNote.debit.action',
       icon: debitNoteIcon,
       to: `/income/debit-notes/new?invoice=${data.id}`,
+    })
+  }
+  // Only offered when the server says a held buyer e-mail may go now; turning delivery on never
+  // sends it by itself (Q4).
+  if (dispatch?.buyerEmailReleasable && can(session, 'invoice.issue')) {
+    moreActions.push({
+      id: 'releaseBuyerEmail',
+      labelKey: 'invoiceDispatch.release.action',
+      icon: sendIcon,
+      onSelect: () => void releaseHeldEmail(),
     })
   }
   if (data.authoringState === 'ISSUED' && can(session, 'invoice.cancel')) {
@@ -607,32 +711,26 @@ function InvoiceScreen() {
                 {t('invoiceDetails.actions.creditNote')}
               </button>
             ) : null}
-            {!draft && data.authoringState === 'ISSUED' ? (
-              canRemind ? (
-                <button
-                  type="button"
-                  onClick={() => void sendReminder()}
-                  disabled={sendingReminder}
-                  className={PRIMARY_BUTTON}
-                >
-                  <img src={sendIcon} alt="" className="size-5 brightness-0 invert" />
-                  {t(
-                    sendingReminder
-                      ? 'paymentReminders.invoice.sending'
-                      : 'invoiceDetails.actions.sendReminder',
-                  )}
-                </button>
-              ) : (
-                // TODO(backend): no delivery route exists (B4); the design's Send says so when pressed.
-                <button
-                  type="button"
-                  onClick={() => setNotice({ key: 'invoiceDetails.sendUnavailable' })}
-                  className={PRIMARY_BUTTON}
-                >
-                  <img src={sendIcon} alt="" className="size-5 brightness-0 invert" />
-                  {t('invoiceDetails.actions.send')}
-                </button>
-              )
+            {/* A document not yet on its way is sent before its buyer is reminded of it. */}
+            {canSend ? (
+              <button type="button" onClick={() => setSending(true)} className={PRIMARY_BUTTON}>
+                <img src={sendIcon} alt="" className="size-5 brightness-0 invert" />
+                {t('invoiceDetails.actions.send')}
+              </button>
+            ) : !draft && data.authoringState === 'ISSUED' && canRemind ? (
+              <button
+                type="button"
+                onClick={() => void sendReminder()}
+                disabled={sendingReminder}
+                className={PRIMARY_BUTTON}
+              >
+                <img src={sendIcon} alt="" className="size-5 brightness-0 invert" />
+                {t(
+                  sendingReminder
+                    ? 'paymentReminders.invoice.sending'
+                    : 'invoiceDetails.actions.sendReminder',
+                )}
+              </button>
             ) : null}
           </div>
         </div>
@@ -652,7 +750,9 @@ function InvoiceScreen() {
                   ? t('invoiceDetails.sentViaPeppol')
                   : data.deliveryState === 'SENT_MANUALLY'
                     ? t('invoiceDetails.sentManually')
-                    : t('invoiceDetails.notSentYet')}
+                    : dispatchLine?.state
+                      ? t(dispatchLine.state.key)
+                      : t('invoiceDetails.notSentYet')}
               </span>
               <span className="mx-1 size-1 rounded-full bg-text-quaternary" />
             </>
@@ -828,10 +928,14 @@ function InvoiceScreen() {
                 </div>
               </div>
 
-              {/* TODO(backend): no Peppol delivery event exists (B4); the bar reads `peppolResponse` and `deliveredAt` when answered, else the one delivery fact recorded. */}
+              {/* The response code and delivery time are still unanswered by the API, so between the manual-delivery fact and "not sent" the bar says where the dispatch stands. */}
               <div className="mt-4 flex items-center gap-2 rounded-sm bg-surface-background px-3 py-2.5">
                 <DeliveryIcon
-                  sent={!!data.peppolResponse || data.deliveryState === 'SENT_MANUALLY'}
+                  sent={
+                    !!data.peppolResponse ||
+                    data.deliveryState === 'SENT_MANUALLY' ||
+                    dispatchSucceeded(dispatch)
+                  }
                 />
                 <p className="text-xs font-medium leading-[1.3] text-text-tertiary">
                   {data.peppolResponse
@@ -846,10 +950,23 @@ function InvoiceScreen() {
                           customer: customerName,
                           when: sentAt ? formatInstant(sentAt, language) : day(data.issueDate),
                         })
-                      : // A reader who may not see the customer gets the fact without a placeholder name.
-                        customer.read.status === 'ready'
-                        ? t('invoiceDetails.delivered.notSent', { customer: customerName })
-                        : t('invoiceDetails.notSentYet')}
+                      : dispatchLine?.state && dispatch?.state !== 'NOT_SENT'
+                        ? [
+                            t(dispatchLine.state.key),
+                            dispatchLine.reason
+                              ? t(dispatchLine.reason.key, dispatchLine.reason.values)
+                              : null,
+                            buyerLine ? t(buyerLine.key) : null,
+                            ...transportLines.map((line) =>
+                              t(line.legKey, { state: t(line.state.key, line.state.values) }),
+                            ),
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')
+                        : // A reader who may not see the customer gets the fact without a placeholder name.
+                          customer.read.status === 'ready'
+                          ? t('invoiceDetails.delivered.notSent', { customer: customerName })
+                          : t('invoiceDetails.notSentYet')}
                 </p>
               </div>
             </section>
@@ -1546,6 +1663,15 @@ function InvoiceScreen() {
             receivable.retry()
             history.retry()
           }}
+        />
+      ) : null}
+
+      {sending ? (
+        <SendInvoiceModal
+          invoiceId={data.id}
+          invoiceNumber={data.invoiceNumber}
+          onClose={() => setSending(false)}
+          onSent={sent}
         />
       ) : null}
 

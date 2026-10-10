@@ -23,19 +23,26 @@ export function PolicyTrail({
   currentUserId: string | null
 }) {
   const { t, i18n } = useTranslation()
+  // The same person may be named on another step of this version; nothing more is read for it.
+  const knownNames = new Map<string, string>()
+  for (const actor of Object.values(version.actors)) {
+    if (actor?.displayName) knownNames.set(actor.id, actor.displayName)
+  }
 
   const person = (actor: Actor | null) => {
     if (actor === null) return t('console.policies.none')
     return (
       <>
-        {actor.displayName ?? (
+        {actor.displayName ?? knownNames.get(actor.id) ?? (
           // A name the server could not resolve is not replaced with a guess; a few characters of
-          // the id are enough to tell two unnamed operators apart.
+          // the id are enough to tell two unnamed operators apart, labelled as an id so they are
+          // not read as a name.
           <>
-            {t('console.policies.actor.unnamed')}{' '}
+            {t('console.policies.actor.unnamed')} ({t('console.policies.actor.idLabel')}{' '}
             <span dir="ltr" className="font-mono">
               {shortActorId(actor.id)}
             </span>
+            )
           </>
         )}
         {currentUserId !== null && actor.id === currentUserId
