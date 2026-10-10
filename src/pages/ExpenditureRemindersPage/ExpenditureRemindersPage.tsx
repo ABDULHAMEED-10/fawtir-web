@@ -74,7 +74,6 @@ import mobileIcon from '../../assets/expenditure-reminders/mobile.svg'
 import personAnyIcon from '../../assets/expenditure-reminders/person-any.svg'
 import infoIcon from '../../assets/expenditure-reminders/info.svg'
 import tickIcon from '../../assets/bill-detail/tick.svg'
-import avatarImg from '../../assets/dashboard/avatar.png'
 import chevronIcon from '../../assets/create-invoice/chevron.svg'
 
 const RULE_ICON = {
@@ -750,7 +749,7 @@ function RecipientPicker({
             aria-expanded={openFor === id}
             className="inline-flex h-[42px] items-center gap-2 rounded-sm border border-border-subtle bg-white ps-1.5 pe-2.5 text-sm font-medium text-text-secondary transition-colors hover:border-primary-300"
           >
-            <img src={avatarImg} alt="" className="size-7 shrink-0 rounded-full object-cover" />
+            <img src={personAnyIcon} alt="" className="size-7 shrink-0 rounded-full" />
             {nameOf(id)}
             <img
               src={chevronIcon}
@@ -785,7 +784,7 @@ function RecipientPicker({
                       person.id === id ? 'text-primary-700' : 'text-text-secondary',
                     ].join(' ')}
                   >
-                    <img src={avatarImg} alt="" className="size-6 rounded-full object-cover" />
+                    <img src={personAnyIcon} alt="" className="size-6 shrink-0 rounded-full" />
                     {person.name ?? t('expenditureReminders.someone')}
                   </button>
                 </li>

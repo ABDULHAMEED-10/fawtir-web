@@ -1,93 +1,113 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { OmAmount } from '../../components/ui'
-import { RECENT_INVOICES, type InvoiceStatus } from '../../lib/dashboard'
+import { formatAmount, formatDate } from '../../lib/format'
+import type { RecentInvoiceDto } from '../../api/reports/dashboard'
 import { DashboardCard } from './DashboardCard'
+import { toNumber, type TileView } from './dashboardData'
 
-const STATUS_STYLES: Record<
-  InvoiceStatus,
-  { bg: string; dot: string; text: string; labelKey: string }
-> = {
-  reported: {
-    bg: 'bg-success-100',
-    dot: 'bg-success-700',
-    text: 'text-success-700',
-    labelKey: 'dashboard.invoices.status.reported',
-  },
-  rejected: {
-    bg: 'bg-danger-100',
-    dot: 'bg-danger-700',
-    text: 'text-danger-700',
-    labelKey: 'dashboard.invoices.status.rejected',
-  },
-  sent: {
-    bg: 'bg-primary-50',
-    dot: 'bg-primary-700',
-    text: 'text-primary-800',
-    labelKey: 'dashboard.invoices.status.sent',
-  },
-  draft: {
-    bg: 'bg-neutral-25',
-    dot: 'bg-text-quaternary',
-    text: 'text-text-quaternary',
-    labelKey: 'dashboard.invoices.status.draft',
-  },
+type RowStatus = 'draft' | 'issued' | 'sent' | 'accepted' | 'rejected' | 'notSent'
+
+const STATUS_STYLES: Record<RowStatus, { bg: string; dot: string; text: string }> = {
+  accepted: { bg: 'bg-success-100', dot: 'bg-success-700', text: 'text-success-700' },
+  rejected: { bg: 'bg-danger-100', dot: 'bg-danger-700', text: 'text-danger-700' },
+  notSent: { bg: 'bg-danger-100', dot: 'bg-danger-700', text: 'text-danger-700' },
+  sent: { bg: 'bg-primary-50', dot: 'bg-primary-700', text: 'text-primary-800' },
+  issued: { bg: 'bg-primary-50', dot: 'bg-primary-700', text: 'text-primary-800' },
+  draft: { bg: 'bg-neutral-25', dot: 'bg-text-quaternary', text: 'text-text-quaternary' },
 }
 
-export function RecentInvoices() {
-  const { t } = useTranslation()
+/**
+ * Only what the row itself states: the buyer's answer when there is one, else whether it went out.
+ * Nothing here says "reported": the row's TDD status is not read, and the frame's "Reported" was
+ * a sample label.
+ */
+function statusOf(row: RecentInvoiceDto): RowStatus {
+  if (row.state === 'DRAFT') return 'draft'
+  if (row.invoiceAck === 'RE') return 'rejected'
+  if (row.invoiceAck === 'AP' || row.invoiceAck === 'AB') return 'accepted'
+  if (row.dispatch === 'DEAD_LETTERED') return 'notSent'
+  if (row.dispatch === 'DISPATCHED') return 'sent'
+  return 'issued'
+}
+
+export function RecentInvoices({ invoices }: { invoices: TileView<RecentInvoiceDto[]> }) {
+  const { t, i18n } = useTranslation()
 
   return (
     <DashboardCard title={t('dashboard.invoices.title')} bodyClassName="p-0">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse text-start">
-          <thead>
-            <tr className="border-b border-border-subtle text-xs font-semibold uppercase tracking-wide text-text-quaternary">
-              <th className="px-5 py-3 font-semibold">{t('dashboard.invoices.colInvoice')}</th>
-              <th className="px-5 py-3 font-semibold">{t('dashboard.invoices.colCustomer')}</th>
-              <th className="px-5 py-3 font-semibold">{t('dashboard.invoices.colStatus')}</th>
-              <th className="px-5 py-3 font-semibold">{t('dashboard.invoices.colAmount')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {RECENT_INVOICES.map((row) => {
-              const status = STATUS_STYLES[row.status]
-              return (
-                <tr key={row.id} className="border-b border-border-subtle last:border-b-0">
-                  <td className="px-5 py-4 text-base font-medium text-text-primary">
-                    <Link to={`/invoices/${row.id}`} className="hover:text-primary-700">
-                      {row.id}
-                    </Link>
-                  </td>
-                  <td className="px-5 py-4">
-                    <p className="text-base font-medium text-text-primary">{row.customer}</p>
-                    <p className="text-sm font-medium text-text-quaternary">{row.meta}</p>
-                  </td>
-                  <td className="px-5 py-4">
-                    <span
-                      className={[
-                        'inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium',
-                        status.bg,
-                        status.text,
-                      ].join(' ')}
-                    >
-                      <span className={['size-2 rounded-full', status.dot].join(' ')} />
-                      {t(status.labelKey)}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
-                    <OmAmount
-                      size="sm"
-                      amount={row.amount}
-                      amountClassName="text-base font-semibold text-text-primary"
-                    />
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+      {invoices.kind !== 'ok' || invoices.data.length === 0 ? (
+        <p className="p-5 text-sm font-medium text-text-quaternary">
+          {invoices.kind === 'loading'
+            ? t('dashboard.loading')
+            : invoices.kind === 'unavailable'
+              ? t('dashboard.notAvailableYet')
+              : t('dashboard.invoices.none')}
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] border-collapse text-start">
+            <thead>
+              <tr className="border-b border-border-subtle text-xs font-semibold uppercase tracking-wide text-text-quaternary">
+                <th className="px-5 py-3 font-semibold">{t('dashboard.invoices.colInvoice')}</th>
+                <th className="px-5 py-3 font-semibold">{t('dashboard.invoices.colCustomer')}</th>
+                <th className="px-5 py-3 font-semibold">{t('dashboard.invoices.colStatus')}</th>
+                <th className="px-5 py-3 font-semibold">{t('dashboard.invoices.colAmount')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {invoices.data.map((row) => {
+                const status = statusOf(row)
+                const style = STATUS_STYLES[status]
+                return (
+                  <tr key={row.id} className="border-b border-border-subtle last:border-b-0">
+                    <td className="px-5 py-4 text-base font-medium text-text-primary">
+                      <Link to={`/invoices/${row.id}`} className="hover:text-primary-700">
+                        {row.invoiceNumber ?? t('dashboard.invoices.noNumber')}
+                      </Link>
+                    </td>
+                    <td className="px-5 py-4">
+                      <p className="text-base font-medium text-text-primary">
+                        {row.customerName ?? '—'}
+                      </p>
+                      {row.issueDate ? (
+                        <p className="text-sm font-medium text-text-quaternary">
+                          {formatDate(row.issueDate, i18n.language)}
+                        </p>
+                      ) : null}
+                    </td>
+                    <td className="px-5 py-4">
+                      <span
+                        className={[
+                          'inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium',
+                          style.bg,
+                          style.text,
+                        ].join(' ')}
+                      >
+                        <span className={['size-2 rounded-full', style.dot].join(' ')} />
+                        {t(`dashboard.invoices.status.${status}`)}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      {row.currency === 'OMR' ? (
+                        <OmAmount
+                          size="sm"
+                          amount={formatAmount(toNumber(row.total), 'OMR', i18n.language)}
+                          amountClassName="text-base font-semibold text-text-primary"
+                        />
+                      ) : (
+                        <span className="text-base font-semibold text-text-primary">
+                          {row.currency} {formatAmount(toNumber(row.total), row.currency, i18n.language)}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </DashboardCard>
   )
 }

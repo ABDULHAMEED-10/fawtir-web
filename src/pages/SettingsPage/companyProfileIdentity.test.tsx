@@ -22,6 +22,7 @@ const ACTIVITY_PATH = '/api/v1/company-profile/industrial-classification'
 const BRANDING_PATH = '/api/v1/company-profile/branding'
 const DEFAULTS_PATH = '/api/v1/company-profile/invoice-defaults'
 const PROFILE_PATH = '/api/v1/company-profile'
+const AMEND_PATH = '/api/v1/company-profile/amendments'
 
 function json(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
@@ -41,7 +42,7 @@ const baseProfile = (verificationStatus: string) => ({
   commercialRegistrationNumber: '1234567',
   country: 'OM',
   registeredAddress: 'Muscat, Oman',
-  registeredAddressLine2: null,
+  registeredAddressLine2: null as string | null,
   registeredAddressLine3: null,
   registeredCity: 'Muscat',
   registeredPostalCode: null,
@@ -55,10 +56,13 @@ const baseProfile = (verificationStatus: string) => ({
 })
 
 let profile: ReturnType<typeof baseProfile>
+/** How the next amendment POST answers; null = accept it. */
+let amendAnswer: (() => Response) | null = null
 let fetchMock: ReturnType<typeof vi.fn>
 
 function setUp(verificationStatus: string) {
   profile = baseProfile(verificationStatus)
+  amendAnswer = null
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, ADMIN)
@@ -77,6 +81,12 @@ function setUp(verificationStatus: string) {
         return json(409, { title: 'stale', status: 409 })
       }
       profile = { ...profile, ...body, verificationStatus: profile.verificationStatus, profileRevision: profile.profileRevision + 1 }
+      return json(200, profile)
+    }
+    if (url === AMEND_PATH && method === 'POST') {
+      if (amendAnswer) return amendAnswer()
+      const body = JSON.parse(init!.body as string)
+      profile = { ...profile, ...body, profileRevision: profile.profileRevision + 1 }
       return json(200, profile)
     }
     throw new Error(`unexpected ${method} ${url}`)
@@ -141,7 +151,7 @@ describe('Settings › Company profile: identity fields', () => {
     renderPage()
     const nameInput = await screen.findByDisplayValue('Test Co LLC')
     expect(nameInput).toHaveProperty('readOnly', true)
-    expect(screen.getAllByText(/Verified companies can't edit these details here yet/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/legal and tax identity is verified and locked/).length).toBeGreaterThan(0)
 
     // The field cannot actually change (read-only), so Save stays disabled for it.
     expect(screen.getByRole('button', { name: 'Save' })).toHaveProperty('disabled', true)
@@ -153,5 +163,91 @@ describe('Settings › Company profile: identity fields', () => {
     renderPage()
     const vat = await screen.findByDisplayValue('OM1100000001')
     expect(vat).toHaveProperty('readOnly', true)
+    expect(screen.queryByText(/Peppol/)).toBeNull()
+  })
+})
+
+const amendments = () =>
+  fetchMock.mock.calls.filter(([url, init]) => url === AMEND_PATH && (init as RequestInit)?.method === 'POST')
+
+/** Fills every address part and the phone, as a verified company's invoices need them. */
+async function completeTheAddress() {
+  const line3 = await screen.findByRole('textbox', { name: /Building or address line 3/ })
+  fireEvent.change(screen.getByRole('textbox', { name: /Additional street or area/ }), {
+    target: { value: 'Al Khuwair' },
+  })
+  fireEvent.change(line3, { target: { value: 'Building 7' } })
+  fireEvent.change(screen.getByRole('textbox', { name: /Postal code/ }), { target: { value: '133' } })
+  fireEvent.change(screen.getByRole('textbox', { name: /^Phone/ }), {
+    target: { value: '+96824000000' },
+  })
+}
+
+describe('Settings › Company profile: verified-company amendment', () => {
+  it('lets a VERIFIED company amend its address and contact, and sends only those fields', async () => {
+    setUp('VERIFIED')
+    renderPage()
+    expect(await screen.findByDisplayValue('Test Co LLC')).toHaveProperty('readOnly', true)
+    expect(screen.getByText(/Changes apply to invoices you issue from now on/)).toBeTruthy()
+
+    await completeTheAddress()
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(amendments()).toHaveLength(1))
+    const body = JSON.parse(amendments()[0][1].body as string)
+    expect(body).toEqual({
+      expectedRevision: 3,
+      registeredAddress: 'Muscat, Oman',
+      registeredAddressLine2: 'Al Khuwair',
+      registeredAddressLine3: 'Building 7',
+      registeredCity: 'Muscat',
+      registeredPostalCode: '133',
+      registeredPoBox: null,
+      registeredCountrySubdivision: null,
+      registeredCountrySubdivisionCode: null,
+      contactPersonName: 'Fahad',
+      contactPhone: '+96824000000',
+      contactEmail: null,
+    })
+    expect(putsToProfile()).toHaveLength(0)
+  })
+
+  it('on a stale revision, reloads the company and says someone else saved first', async () => {
+    setUp('VERIFIED')
+    renderPage()
+    await completeTheAddress()
+    amendAnswer = () => {
+      // Another administrator saved first: the server now holds their address at revision 4.
+      profile = { ...profile, registeredAddressLine2: 'Ruwi', profileRevision: 4 }
+      return json(409, { title: 'Company profile revision is stale', status: 409 })
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByText(/Someone else updated the company details/)).toBeTruthy()
+    expect(screen.getByDisplayValue('Ruwi')).toBeTruthy()
+    expect(screen.queryByDisplayValue('Al Khuwair')).toBeNull()
+  })
+
+  it('names the fields the server refused', async () => {
+    setUp('VERIFIED')
+    renderPage()
+    await completeTheAddress()
+    amendAnswer = () =>
+      json(400, {
+        title: 'Validation failed',
+        status: 400,
+        errors: [{ field: 'registeredAddressLine3', code: 'REQUIRED', message: 'required' }],
+      })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByText(/Complete these before saving: Building or address line 3/)).toBeTruthy()
+  })
+
+  it('shows the amendment in Arabic, right to left', async () => {
+    await i18n.changeLanguage('ar')
+    setUp('VERIFIED')
+    renderPage()
+    expect(await screen.findByText(/تسري التغييرات على الفواتير التي تصدرها من الآن/)).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: /المبنى أو سطر العنوان 3/ })).toHaveProperty('readOnly', false)
   })
 })

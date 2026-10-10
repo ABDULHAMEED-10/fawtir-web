@@ -138,6 +138,38 @@ export type ErpConnectionDto = {
   version: number
   createdAt: string
   updatedAt: string
+  /**
+   * List read only (backend Phase 6): the row's health, read for every row in a fixed number of
+   * server statements, so a screen never asks for one status per connection. Absent on a detail
+   * read and from a server that predates it.
+   */
+  health?: ConnectionHealthDto
+}
+
+/**
+ * `ErpConnectionResponses.ConnectionHealthResponse`. `extractionStatus` is the headline the
+ * channel's own status endpoint gives, decided by the same server code; null for a connection
+ * that is not MANAGED_PULL and when `extractionReadable` is false. `lastCompletedRunAt` and
+ * `lastFailedRunAt` are looked for among the newest 1000 runs: null means "not among them".
+ */
+export type ConnectionHealthDto = {
+  connectionMode: ErpConnectionMode
+  extractionStatus: string | null
+  extractionReadable: boolean
+  extractionConfigured: boolean
+  extractionEnabled: boolean
+  nextRunAt: string | null
+  consecutiveFailures: number
+  backoffUntil: string | null
+  lastRunId: string | null
+  lastRunState: string | null
+  lastRunStartedAt: string | null
+  lastRunCompletedAt: string | null
+  lastFailureReason: string | null
+  lastCompletedRunAt: string | null
+  lastFailedRunAt: string | null
+  lastTestedAt: string | null
+  lastTestOutcome: string | null
 }
 
 /** `ErpConnectionResponses.ConnectionListResponse`. Whole, not paged: a tenant has a handful. */

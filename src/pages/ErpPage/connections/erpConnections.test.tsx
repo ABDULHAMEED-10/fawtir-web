@@ -481,6 +481,16 @@ describe('credential', () => {
     expect(screen.getByText(/replaces the one in use now/i)).toBeTruthy()
   })
 
+  it('offers only the kinds Fawtir can sign in with, and says a stored unusable kind will be replaced', async () => {
+    rows = [connection({ credentialConfigured: true, credentialType: 'SSH_PRIVATE_KEY', state: 'READY' })]
+    renderAt(`/settings/erp/connections/${ID}/settings`)
+    fireEvent.click(await screen.findByText('Replace sign-in details'))
+    expect(screen.getByText(/saved sign-in \(SSH private key\) can't be used by Fawtir/)).toBeTruthy()
+    const select = screen.getByRole('combobox', { name: /Kind/ }) as HTMLSelectElement
+    const kinds = Array.from(select.options).map((option) => option.textContent)
+    expect(kinds).toEqual(['Username and password', 'API token'])
+  })
+
   it('hides the write form from a manage-only user', async () => {
     who = MANAGER
     rows = [configured()]
@@ -640,7 +650,7 @@ describe('extraction screens', () => {
     rows = [connection()]
     renderAt(`/settings/erp/connections/${ID}`)
     await screen.findByText('Head office Odoo')
-    const tabs = screen.getByRole('navigation', { name: /ERP|connection/i })
+    const tabs = screen.getByRole('navigation', { name: 'Connection screens' })
     // Write-back has no backend and stays off the strip. Runs and Records are the shared reports
     // fixed to this connection, so they are tabs now.
     expect(within(tabs).queryByText('Write-back')).toBeNull()
@@ -653,7 +663,7 @@ describe('extraction screens', () => {
     rows = [connection()]
     const { unmount } = renderAt(`/settings/erp/connections/${ID}`)
     await screen.findByText('Head office Odoo')
-    expect(within(screen.getByRole('navigation', { name: /ERP|connection/i })).getByText('Extraction'))
+    expect(within(screen.getByRole('navigation', { name: 'Connection screens' })).getByText('Extraction'))
       .toBeTruthy()
     unmount()
 
@@ -662,7 +672,7 @@ describe('extraction screens', () => {
       rows = [connection({ connectionMode: mode })]
       const view = renderAt(`/settings/erp/connections/${ID}`)
       await screen.findByText('Head office Odoo')
-      const tabs = screen.getByRole('navigation', { name: /ERP|connection/i })
+      const tabs = screen.getByRole('navigation', { name: 'Connection screens' })
       expect(within(tabs).queryByText('Extraction')).toBeNull()
       view.unmount()
     }

@@ -103,7 +103,7 @@ type NotePaths = {
   note: (id: string) => string
 }
 
-const SELF_BILLING_PATH = '/income/self-billing'
+const SELF_BILLING_PATH = '/expenditure/self-billing'
 
 function notePaths(kind: NoteKind, selfBilled: boolean): NotePaths {
   if (selfBilled) {
@@ -307,10 +307,12 @@ function Frame({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 text-2xl font-medium leading-[1.2] text-text-quaternary">
             <Link
-              to="/invoices"
+              to={selfBilled ? '/expenditure/bills' : '/invoices'}
               className="inline-flex items-center gap-1 hover:text-text-secondary"
             >
-              {t('salesNote.compose.breadcrumbIncome')}
+              {selfBilled
+                ? t('selfBillDetail.breadcrumbExpenditure')
+                : t('salesNote.compose.breadcrumbIncome')}
               <img src={backIcon} alt="" className="size-6 rotate-180 rtl:rotate-0" />
             </Link>
             <Link to={paths.list} className="hover:text-text-secondary">

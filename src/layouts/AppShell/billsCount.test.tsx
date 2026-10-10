@@ -6,6 +6,7 @@ import { resetSharedRequests } from '../../api'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { notesStore } from '../../lib/notifications'
 import { AppShell } from './AppShell'
+import { NAV_BADGE } from './Sidebar'
 
 /**
  * "In Fawtir: a count on the bell and on the Bills tab" (Reminders, Figma 163:21448). The Bills
@@ -158,14 +159,12 @@ describe('the count on the Bills entry of the sidebar', () => {
     expect(countReads()).toBe(1)
   })
 
-  it('wears the badge the sidebar already draws on its other entries', async () => {
+  it('wears the sidebar’s own badge', async () => {
     await renderShell()
     await waitFor(() => expect(billsCount()).not.toBeNull())
-    // "TDD & OTA" carries the sidebar's own count: the same classes, nothing new.
-    const existing = within(nav())
-      .getByRole('link', { name: /TDD/ })
-      .querySelector('span.rounded-full')!
-    expect(billsCount()!.className).toBe(existing.className)
+    // The same classes as the sidebar's count, nothing new. Income and TDD & OTA no longer carry
+    // one: theirs were fixed sample numbers.
+    expect(billsCount()!.className).toBe(NAV_BADGE)
   })
 
   it('shows nothing when there is nothing unread', async () => {

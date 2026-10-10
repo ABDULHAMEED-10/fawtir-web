@@ -29,6 +29,8 @@ export type CustomerDto = {
       peppolParticipantId?: { scheme: string; value: string } | null
       /** BTOM-033 of a self-billing supplier; see `CustomerDetailsDto`. */
       industrialClassificationCode?: string | null
+      /** IBT-010 default; government customers only. The invoice composer pre-fills from it. */
+      defaultBuyerReference?: string | null
     } | null
     contact: { contactPerson: string | null; emailRecipients: string[] | null } | null
     deliveryPreferences: {

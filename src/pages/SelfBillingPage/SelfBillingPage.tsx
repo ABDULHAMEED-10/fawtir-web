@@ -84,8 +84,8 @@ const DEFAULT_PAGE_SIZE = 6
  */
 const draftEditPath = (row: { id: string; type: InvoiceTypeDto }) =>
   row.type === 'SELF_BILLED_CREDIT_NOTE'
-    ? `/income/self-billing/credit-notes/${row.id}/edit`
-    : `/income/self-billing/${row.id}/edit`
+    ? `/expenditure/self-billing/credit-notes/${row.id}/edit`
+    : `/expenditure/self-billing/${row.id}/edit`
 /**
  * The cards' figures: self-billed invoices only (a self-billed credit note would otherwise reduce
  * "Raised this month"), in the rial the cards draw.
@@ -415,7 +415,7 @@ function SelfBilled() {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-3 max-md:w-full">
-          <Link to="/income/self-billing/agreements" className={OUTLINE_BUTTON}>
+          <Link to="/expenditure/self-billing/agreements" className={OUTLINE_BUTTON}>
             <img src={agreementsIcon} alt="" className="size-6" />
             {t('selfBilling.agreements')}
             {agreementRows ? (
@@ -437,7 +437,7 @@ function SelfBilled() {
           ) : null}
           {can(session, 'selfbilling.create') ? (
             <Link
-              to="/income/self-billing/new"
+              to="/expenditure/self-billing/new"
               className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-primary-700 py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"
             >
               <img src={plusIcon} alt="" className="size-6" />
@@ -793,7 +793,7 @@ function SelfBilledTable({
         id: 'view',
         labelKey: 'rowActions.selfBill.view',
         icon: viewIcon,
-        to: `/income/self-billing/${row.id}`,
+        to: `/expenditure/self-billing/${row.id}`,
       },
     ]
     if (row.isDraft && canDraft) {
@@ -872,7 +872,7 @@ function SelfBilledTable({
                   key={row.id}
                   className="cursor-pointer border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60"
                   onClick={() =>
-                    navigate(editable ? draftEditPath(row) : `/income/self-billing/${row.id}`)
+                    navigate(editable ? draftEditPath(row) : `/expenditure/self-billing/${row.id}`)
                   }
                 >
                   <td className="px-5 py-2.5" onClick={(event) => event.stopPropagation()}>
@@ -892,7 +892,7 @@ function SelfBilledTable({
                   </td>
                   <SelfBilledRowCells
                     row={row}
-                    to={editable ? draftEditPath(row) : `/income/self-billing/${row.id}`}
+                    to={editable ? draftEditPath(row) : `/expenditure/self-billing/${row.id}`}
                     vat={byRow.get(row.id)?.vat ?? null}
                     note={noteFor(byRow.get(row.id)?.customerId ?? '')}
                   />

@@ -1,12 +1,43 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { OmAmount, SegmentedControl, withRial } from '../../components/ui'
-import { REVENUE, REVENUE_BARS, type PeriodOption } from '../../lib/dashboard'
+import { OmAmount, SegmentedControl } from '../../components/ui'
+import { formatAmount } from '../../lib/format'
+import type { VolumeTrendDto } from '../../api/reports/dashboard'
 import { DashboardCard } from './DashboardCard'
+import { toNumber, type TileView } from './dashboardData'
 
-export function RevenueChart() {
-  const { t } = useTranslation()
-  const [period, setPeriod] = useState<PeriodOption>('week')
+type Period = 'day' | 'week' | 'month'
+
+/**
+ * Invoiced value per month, the last twelve through this one, from the dashboard's volume tile
+ * (the same figures as `/reports/volume`). The frame's day / week / month switch stays; Month is
+ * the one the server answers, so it opens there.
+ * TODO(backend): daily and weekly buckets on `volumeTrend`, REPORTS.md row 2.3.
+ */
+export function RevenueChart({ trend }: { trend: TileView<VolumeTrendDto> }) {
+  const { t, i18n } = useTranslation()
+  const [period, setPeriod] = useState<Period>('month')
+
+  const months = useMemo(() => {
+    if (trend.kind !== 'ok') return []
+    const byMonth = new Map<string, number>()
+    for (const row of trend.data.months) {
+      if (row.currency !== 'OMR') continue
+      byMonth.set(row.periodStart, (byMonth.get(row.periodStart) ?? 0) + toNumber(row.totalAmount))
+    }
+    return [...byMonth.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([start, total]) => ({ start, total }))
+  }, [trend])
+
+  const monthLabel = (start: string) =>
+    new Intl.DateTimeFormat(i18n.language.startsWith('ar') ? 'ar-u-nu-latn' : 'en-GB', {
+      month: 'short',
+      timeZone: 'UTC',
+    }).format(new Date(`${start}T00:00:00Z`))
+
+  const peak = Math.max(0, ...months.map((month) => month.total))
+  const current = months.at(-1)
 
   return (
     <DashboardCard
@@ -16,7 +47,7 @@ export function RevenueChart() {
           ariaLabel={t('dashboard.revenue.periodLabel')}
           value={period}
           onChange={setPeriod}
-          className="w-[190px] border-primary-50"
+          className="w-[220px] border-primary-50"
           options={[
             { value: 'day', label: t('dashboard.revenue.day') },
             { value: 'week', label: t('dashboard.revenue.week') },
@@ -26,64 +57,53 @@ export function RevenueChart() {
       }
       bodyClassName="pt-3"
     >
-      <p className="mb-4 flex flex-wrap items-baseline gap-2 font-semibold leading-[1.2] text-text-primary">
-        <OmAmount
-          size="md"
-          amount={REVENUE.total}
-          amountClassName="text-2xl font-semibold text-text-primary"
-        />
-        <span className="text-sm font-medium text-text-quaternary">
-          {t('dashboard.revenue.thisMonth')}
-        </span>
-      </p>
-
-      <div className="relative flex gap-3">
-        <div className="flex h-[200px] w-[70px] flex-col justify-between pb-6 text-[11px] font-medium text-text-quaternary">
-          {REVENUE.yTicks.map((tick) => (
-            <span key={tick}>{withRial(tick)}</span>
-          ))}
-        </div>
-
-        <div className="relative min-w-0 flex-1">
-          <div className="pointer-events-none absolute inset-x-0 top-0 flex h-[156px] flex-col justify-between">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="border-t border-dashed border-border-subtle" />
-            ))}
-          </div>
-
-          <div className="relative flex h-[180px] items-end justify-between gap-2 px-1">
-            {REVENUE_BARS.map((bar) => (
-              <div key={bar.day} className="relative flex flex-1 flex-col items-center gap-2">
-                {bar.active && bar.tooltip ? (
-                  <div className="absolute -top-2 z-10 -translate-y-full rounded-sm border border-border-subtle bg-surface-card px-3 py-2 shadow-card">
-                    <p className="flex items-center gap-2 text-xs font-semibold text-text-primary">
-                      <span className="size-2.5 rounded-full bg-primary-700" />
-                      <OmAmount
-                        size="xs"
-                        amount={bar.tooltip.amount}
-                        amountClassName="text-xs font-semibold text-text-primary"
-                      />
-                    </p>
-                    <p className="mt-1 text-center text-xs font-medium text-text-quaternary">
-                      {bar.tooltip.date}
-                    </p>
-                  </div>
-                ) : null}
+      {period !== 'month' ? (
+        <p className="text-sm font-medium text-text-quaternary">{t('dashboard.notAvailableYet')}</p>
+      ) : trend.kind !== 'ok' ? (
+        <p className="text-sm font-medium text-text-quaternary">
+          {trend.kind === 'loading' ? t('dashboard.loading') : t('dashboard.notAvailableYet')}
+        </p>
+      ) : months.length === 0 ? (
+        <p className="text-sm font-medium text-text-quaternary">{t('dashboard.revenue.none')}</p>
+      ) : (
+        <>
+          <p className="mb-4 flex flex-wrap items-baseline gap-2 font-semibold leading-[1.2] text-text-primary">
+            <OmAmount
+              size="md"
+              amount={formatAmount(current?.total ?? 0, 'OMR', i18n.language)}
+              amountClassName="text-2xl font-semibold text-text-primary"
+            />
+            <span className="text-sm font-medium text-text-quaternary">
+              {t('dashboard.revenue.thisMonth')}
+            </span>
+            <span className="text-sm font-medium text-text-quaternary">
+              · {t('dashboard.revenue.lastTwelve')}
+            </span>
+          </p>
+          <div className="flex h-[180px] items-end justify-between gap-2 px-1">
+            {months.map((month, index) => (
+              <div
+                key={month.start}
+                className="flex h-full flex-1 flex-col items-center justify-end gap-2"
+              >
                 <div
+                  title={formatAmount(month.total, 'OMR', i18n.language)}
                   className={[
                     'w-full max-w-[49px] rounded-sm',
-                    bar.active
+                    index === months.length - 1
                       ? 'bg-[repeating-linear-gradient(-45deg,#1a2f6e_0_6px,#233e92_6px_12px)]'
                       : 'bg-primary-100',
                   ].join(' ')}
-                  style={{ height: `${bar.value}%` }}
+                  style={{ height: `${peak > 0 ? Math.max(2, (month.total / peak) * 85) : 2}%` }}
                 />
-                <span className="text-xs font-medium text-text-quaternary">{bar.day}</span>
+                <span className="text-xs font-medium text-text-quaternary">
+                  {monthLabel(month.start)}
+                </span>
               </div>
             ))}
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </DashboardCard>
   )
 }

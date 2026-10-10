@@ -72,10 +72,10 @@ export type DraftRequest = {
      */
     correctionReasonDetail?: string | null
     /**
-     * IBT-010 and IBT-012 — the TENANT's own references as buyer, and **self-billed documents
-     * only**. On every other path the buyer is the customer and both come from the customer
-     * record, so a value here is refused with `BUYER_REFERENCES_NOT_SELF_BILLED` rather than
-     * stored and silently dropped. Left out entirely unless the document is self-billed.
+     * IBT-010 and IBT-012. On a self-billed document, the TENANT's own references as buyer. On an
+     * ordinary invoice the server accepts IBT-010 as the invoice's own buyer reference, applied
+     * over the customer's default at issue (certification tenants still refuse it), and refuses
+     * IBT-012 with `BUYER_REFERENCES_NOT_SELF_BILLED` rather than storing and dropping it.
      */
     buyerReference?: string | null
     contractReference?: string | null

@@ -204,7 +204,8 @@ export function useConsoleAudit(): AuditEntry[] {
     actionKey: `console.erp.event.${e.actionKey}`,
     tenantId: e.tenantId,
     values: e.values,
-    to: e.tenantId ? `/console/tenants/${e.tenantId}?tab=erp` : '/console/erp/templates',
+    // ERP access is changed on the tenant's own page; the old ERP tab and templates screens are gone.
+    to: e.tenantId ? `/console/tenants/${e.tenantId}` : '/console/erp',
   }))
   const opsEntries: AuditEntry[] = ops.events.map((e) => ({
     id: `o-${e.id}`,

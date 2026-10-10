@@ -6,6 +6,7 @@ import { SETTINGS_TABS, type SettingsTab } from '../../lib/settings'
 import { CompanyAvatar } from '../../components/shell/CompanyAvatar'
 import { useSession } from '../../lib/session/session'
 import chevronIcon from '../../assets/invoices/chevron.svg'
+import { IntegrationAreaNav } from './IntegrationAreaNav'
 
 /**
  * The frame every Settings screen sits in — title, the five group tabs and the company
@@ -83,6 +84,9 @@ export function SettingsShell({
             {back?.label ?? t('settings.backToSettings')}
           </Link>
         ) : null}
+
+        {/* Every Integration screen shares one strip of its places (Phase 9); the hub has its own cards. */}
+        {group === 'integration' && !onHub ? <IntegrationAreaNav /> : null}
 
         {children}
       </div>

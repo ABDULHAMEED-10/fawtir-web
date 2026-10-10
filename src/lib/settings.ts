@@ -65,8 +65,8 @@ export const COMPANY = {
   commercialRegistration: '1234567',
   vatNumber: 'OM1100234567',
   vatRegisteredSince: '1 April 2021',
-  peppolId: '0208:OM12345678',
-  scheme: 'Oman VAT (0208)',
+  peppolId: '0248:OM1100234567',
+  scheme: 'Oman VAT (0248)',
   accessPoint: 'Fawtir',
   /** The day the first invoice reached the Tax Authority through Fawtir. */
   liveSince: new Date(2025, 2, 14),

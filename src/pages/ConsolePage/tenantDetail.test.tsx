@@ -178,7 +178,8 @@ describe('Tenant detail — real backend data', () => {
     await screen.findByRole('heading', { name: 'Al Noor Bakery' })
 
     expect(screen.getByText('Standard')).toBeTruthy()
-    expect(screen.getByText(/39\.000 a month, plan price/)).toBeTruthy()
+    // The price is drawn with the rial sign, so the words sit beside the figure, not in one node.
+    expect(document.body.textContent).toMatch(/39\.000 a month, plan price/)
     expect(screen.getByText(/500 invoices a month included/)).toBeTruthy()
 
     const body = document.body.textContent ?? ''
@@ -195,12 +196,49 @@ describe('Tenant detail — real backend data', () => {
     renderAt(`/console/tenants/${TENANT_ID}`)
     await screen.findByRole('heading', { name: 'Al Noor Bakery' })
 
-    expect(screen.getByText('Not ready to submit')).toBeTruthy()
-    expect(screen.getByText('COMPANY_VERIFICATION_PENDING')).toBeTruthy()
+    expect(screen.getByText('Not active')).toBeTruthy()
+    expect(screen.getByText('Company verification is waiting for review')).toBeTruthy()
+    expect(screen.queryByText('COMPANY_VERIFICATION_PENDING')).toBeNull()
     const body = document.body.textContent ?? ''
-    for (const forbidden of ['Gone quiet', 'At risk', 'Filing health', 'Certificate']) {
+    for (const forbidden of ['Gone quiet', 'At risk', 'Filing health', 'Certificate', 'Ready to submit']) {
       expect(body).not.toContain(forbidden)
     }
+  })
+
+  it('an active account is not "ready to submit": invoicing shows the company\'s own prerequisites', async () => {
+    answer({
+      ...ready,
+      [OVERVIEW_URL]: () =>
+        json(200, {
+          ...OVERVIEW,
+          operational: { ready: true, reasonCode: 'READY' },
+          invoicing: {
+            ready: false,
+            items: [
+              { code: 'COMPANY_VERIFIED', status: 'DONE', owner: 'PLATFORM' },
+              { code: 'PARTICIPANT_VERIFIED', status: 'AWAITING_PLATFORM', owner: 'PLATFORM' },
+              { code: 'ACTIVE_BRANCH', status: 'ACTION_REQUIRED', owner: 'COMPANY' },
+            ],
+          },
+        }),
+    })
+    renderAt(`/console/tenants/${TENANT_ID}`)
+    await screen.findByRole('heading', { name: 'Al Noor Bakery' })
+
+    expect(screen.getByText('Active')).toBeTruthy()
+    expect(screen.getByText('Cannot issue invoices yet')).toBeTruthy()
+    const participant = screen.getByText(i18n.t('readiness.item.PARTICIPANT_VERIFIED')).closest('li')!
+    expect(participant.textContent).toContain(i18n.t('readiness.awaitingFawtir'))
+    const branch = screen.getByText(i18n.t('readiness.item.ACTIVE_BRANCH')).closest('li')!
+    expect(branch.textContent).toContain(i18n.t('readiness.actionRequired'))
+  })
+
+  it('an older backend without invoicing says it is not reported rather than guessing', async () => {
+    answer(ready)
+    renderAt(`/console/tenants/${TENANT_ID}`)
+    await screen.findByRole('heading', { name: 'Al Noor Bakery' })
+    expect(screen.getByText('Not reported by this server')).toBeTruthy()
+    expect(screen.queryByText('Can issue invoices')).toBeNull()
   })
 
   it('E14 no approval action is offered here', async () => {
@@ -264,7 +302,6 @@ describe('Tenant detail — deep-link regression', () => {
     ['', 'Subscription'],
     ['?tab=subscription', 'Subscription'],
     ['?tab=filing', 'Filing'],
-    ['?tab=erp', 'ERP'],
   ]
 
   it.each(TABS)('prototype link "%s" selects the %s tab', async (query, tabLabel) => {
@@ -275,6 +312,15 @@ describe('Tenant detail — deep-link regression', () => {
     expect(tab.getAttribute('aria-pressed')).toBe('true')
     // A slug never reaches the platform overview.
     expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('/overview'))).toHaveLength(0)
+  })
+
+  it('an old "?tab=erp" link falls back to Subscription: the fixture ERP tab is gone', async () => {
+    answer({ [ENTITLEMENTS_URL]: () => json(200, OPERATOR) })
+    renderAt(`/console/tenants/${PROTOTYPE_ID}?tab=erp`)
+
+    const tab = await screen.findByRole('button', { name: 'Subscription' })
+    expect(tab.getAttribute('aria-pressed')).toBe('true')
+    expect(screen.queryByRole('button', { name: 'ERP' })).toBeNull()
   })
 
   const ACTIONS = [
@@ -310,7 +356,9 @@ describe('Tenant detail — deep-link regression', () => {
     answer({ [ENTITLEMENTS_URL]: () => json(200, OPERATOR) })
     renderAt(`/console/tenants/${PROTOTYPE_ID}?from=${from}`)
 
-    expect(await screen.findByRole('link', { name: crumb })).toBeTruthy()
+    // The operator's sidebar carries a link of the same name; the breadcrumb is the one outside it.
+    const links = await screen.findAllByRole('link', { name: crumb })
+    expect(links.filter((link) => link.closest('aside') === null)).toHaveLength(1)
   })
 
   it('an id that is neither a tenant nor a known prototype is not found', async () => {

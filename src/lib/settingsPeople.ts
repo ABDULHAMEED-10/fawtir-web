@@ -367,7 +367,7 @@ export const INVITE_LINK_DAYS = 14
 export const INVITE_DEFAULTS = {
   name: 'Aisha Al Rawahi',
   email: 'aisha@albahja.om',
-  note: 'Hi Aisha — this is for raising invoices at the Muscat shop. Any trouble signing in, give me a ring.',
+  note: 'Hi Aisha, this is for raising invoices at the Muscat shop. Any trouble signing in, give me a ring.',
   role: 'till' as RoleId,
   branches: ['muscat'],
   askForTwoStep: true,

@@ -42,7 +42,7 @@ export function PaymentsSection({ form, set, errors }: SectionProps<'payments'>)
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
               <p className="text-base font-semibold leading-[1.2] text-text-primary">
-                {t(`${K}provider.thawani`)}
+                {t(`${K}provider.paymob`)}
               </p>
               <ConsoleStatusPill
                 tone={form.mode === 'live' ? 'success' : 'pending'}

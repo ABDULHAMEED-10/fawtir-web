@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { OnboardingFormError } from '../../components/auth/OnboardingFormError'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { BusinessTypeChip, Button, ChevronRightIcon } from '../../components/ui'
@@ -81,11 +82,7 @@ export function BusinessTypeForm() {
         </div>
       </div>
 
-      {formError ? (
-        <p className="text-xs font-medium text-text-danger" role="alert">
-          {t(formError.key, formError.values)}
-        </p>
-      ) : null}
+      <OnboardingFormError error={formError} />
 
       <Button type="submit" fullWidth disabled={submitting} className="gap-1.5">
         {t('businessType.submit')}

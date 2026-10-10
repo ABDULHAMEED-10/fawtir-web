@@ -761,7 +761,8 @@ function summary() {
 function listRows(query) {
   const states = query.get('state')?.split(',') ?? null
   const payment = query.get('payment')
-  const type = query.get('type')
+  // A comma-separated set, as the API takes it (e.g. INVOICE,CREDIT_NOTE,DEBIT_NOTE).
+  const types = query.get('type')?.split(',') ?? null
   const from = query.get('from')
   const to = query.get('to')
   const q = (query.get('q') ?? '').trim().toLowerCase()
@@ -774,7 +775,7 @@ function listRows(query) {
     rows = rows.filter((d) => d.receivable && d.paymentState !== 'PAID' && !d.overdue)
   if (payment === 'OVERDUE') rows = rows.filter((d) => d.overdue)
   if (payment === 'PAID') rows = rows.filter((d) => d.receivable && d.paymentState === 'PAID')
-  if (type) rows = rows.filter((d) => d.type === type)
+  if (types) rows = rows.filter((d) => types.includes(d.type))
   if (from) rows = rows.filter((d) => d.issueDate && d.issueDate >= from)
   if (to) rows = rows.filter((d) => d.issueDate && d.issueDate <= to)
   if (correctionOf) rows = rows.filter((d) => d.correctionOf === correctionOf)
