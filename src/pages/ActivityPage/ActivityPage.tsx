@@ -40,6 +40,7 @@ import {
   isActivityTab,
   isDirectionFilter,
   outcomeOf,
+  reportStatesOf,
   routeOf,
   rowRefusalKind,
   secondsBetween,
@@ -376,6 +377,20 @@ function ActivityLedger() {
   const accepted = book.tdd_ack.ap
   const unconfirmed = book.tdd_ack.ab
   const decided = accepted + unconfirmed + book.tdd_ack.re + book.tdd_ack.none
+  // "Still waiting" and "turned down" come from the report states, never from MLS silence or the
+  // attention count, which also hold reports that never reached the OTA (N5b).
+  const states = reportStatesOf(book)
+  const notSent = states.notSubmitted + states.stopped
+  const refusedOnDelivery = Math.max(0, book.attention - states.rejected - states.stopped)
+  const attentionParts = book.tdd_state
+    ? [
+        states.rejected > 0 ? t('activity.kpi.part.rejected', { n: count(states.rejected) }) : null,
+        states.stopped > 0 ? t('activity.kpi.part.stopped', { n: count(states.stopped) }) : null,
+        refusedOnDelivery > 0
+          ? t('activity.kpi.part.refusedOnDelivery', { n: count(refusedOnDelivery) })
+          : null,
+      ].filter((part): part is string => part !== null)
+    : null
   const bar = [
     { key: 'accepted', value: accepted, tone: 'bg-[#4c6c5a]' },
     { key: 'unconfirmed', value: unconfirmed, tone: 'bg-success-100' },
@@ -433,7 +448,13 @@ function ActivityLedger() {
               {t('activity.kpi.rejectedCount', { n: count(book.tdd_ack.re) })}
             </span>
             {' - '}
-            {t('activity.kpi.waitingCount', { n: count(book.tdd_ack.none) })}
+            {t('activity.kpi.waitingCount', { n: count(states.awaiting) })}
+            {notSent > 0 ? (
+              <>
+                {' - '}
+                {t('activity.kpi.notSentCount', { n: count(notSent) })}
+              </>
+            ) : null}
           </p>
         </Kpi>
 
@@ -442,7 +463,11 @@ function ActivityLedger() {
             {count(book.attention)}
           </p>
           <p className="mt-2.5 text-xs font-medium leading-[1.4] text-text-quaternary">
-            {t('activity.kpi.waitingOnYouNote')}
+            {attentionParts === null
+              ? t('activity.kpi.waitingOnYouNote')
+              : attentionParts.length === 0
+                ? t('activity.kpi.waitingOnYouNone')
+                : `${attentionParts.join(' · ')}. ${t('activity.kpi.waitingOnYouTail')}`}
           </p>
         </Kpi>
 

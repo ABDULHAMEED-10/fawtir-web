@@ -10,6 +10,7 @@ import {
   type ActivitySummaryDto,
 } from '../../api/compliance/activity'
 import { defaultReportRange } from '../../api/reports/reports'
+import { reportStatesOf } from '../../lib/activityLedger'
 import {
   CALL_RESULTS,
   CALL_SORTS,
@@ -76,7 +77,8 @@ function CallLog() {
   const range = defaultReportRange()
   const summaryPath = activitySummaryPath(range.from, range.to)
   const book = useApiRead<ActivitySummaryDto>(summaryPath, () => loadActivitySummary(summaryPath))
-  const waiting = book.read.status === 'ready' ? book.read.data.tdd_ack.none : null
+  // Only reports that reached the OTA can be waiting on it; never-sent and stopped ones are not (N5b).
+  const waiting = book.read.status === 'ready' ? reportStatesOf(book.read.data).awaiting : null
   const [query, setQuery] = useState('')
   const [result, setResult] = useState('all')
   const [sort, setSort] = useState<CallSortKey>('newest')

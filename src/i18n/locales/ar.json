@@ -9457,7 +9457,15 @@
       "timeToAcceptanceDown": "المعتاد هذا العام، بانخفاض عن {{previous}}.",
       "timeToAcceptanceUp": "المعتاد هذا العام، بارتفاع عن {{previous}}.",
       "timeToAcceptancePlain": "المعتاد هذا العام.",
-      "unconfirmedCount": "{{n}} سُلّمت دون تأكيد"
+      "unconfirmedCount": "{{n}} سُلّمت دون تأكيد",
+      "notSentCount": "{{n}} لم تُرسل",
+      "waitingOnYouTail": "وحتى تُصحَّح لا تُبلَّغ تلك المبيعات.",
+      "waitingOnYouNone": "لا شيء يحتاج إلى متابعتك.",
+      "part": {
+        "rejected": "{{n}} رفضتها الهيئة",
+        "stopped": "{{n}} توقفت لدى فوتير",
+        "refusedOnDelivery": "{{n}} رُفضت عند التسليم"
+      }
     },
     "tabs": {
       "all": "الكل",

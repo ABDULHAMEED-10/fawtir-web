@@ -164,6 +164,24 @@ export type ActivitySummaryDto = {
    */
   invoiced_total?: number | null
   vat_reported?: number | null
+  /**
+   * Where each newest TDD stands with the OTA (backend N5b). `tdd_ack.none` only says no MLS came
+   * back, which also covers reports never submitted, ones Fawtir stopped and documents owing no
+   * report, so "still waiting" and "turned down" are read from here. Optional: an older server
+   * does not send it.
+   */
+  tdd_state?: TddStateCountsDto
+}
+
+/** The newest TDD's state, as the summary counts it and the list filters on it. */
+export type TddStateDto =
+  'NEVER_SUBMITTED' | 'AWAITING_RESPONSE' | 'AUTHORITY_REJECTED' | 'INTERNALLY_STOPPED' | 'ANSWERED'
+
+export type TddStateCountsDto = {
+  never_submitted: number
+  awaiting_response: number
+  authority_rejected: number
+  internally_stopped: number
 }
 
 export type TddObligationDto = {
@@ -229,6 +247,7 @@ export type ActivityFilters = {
   tddAck?: MlsAckDto | ''
   invoiceAck?: MlsAckDto | ''
   tddStatus?: string
+  tddState?: TddStateDto | ''
   documentKind?: string
   invoiceNumber?: string
   from?: string
@@ -255,6 +274,7 @@ export function ledgerExportPath(filters: ActivityFilters, format: 'csv' | 'xlsx
     tdd_ack: filters.tddAck || null,
     invoice_ack: filters.invoiceAck || null,
     tdd_status: filters.tddStatus || null,
+    tdd_state: filters.tddState || null,
     document_kind: filters.documentKind || null,
     invoice_number: filters.invoiceNumber || null,
     from: filters.from || null,
@@ -273,6 +293,7 @@ export function activityListPath(
     tdd_ack: filters.tddAck || null,
     invoice_ack: filters.invoiceAck || null,
     tdd_status: filters.tddStatus || null,
+    tdd_state: filters.tddState || null,
     document_kind: filters.documentKind || null,
     invoice_number: filters.invoiceNumber || null,
     from: filters.from || null,

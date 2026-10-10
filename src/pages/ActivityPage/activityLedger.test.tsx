@@ -18,6 +18,7 @@ import {
   outcomeOf,
   refusalCauseOf,
   refusalKindOf,
+  reportStatesOf,
   routeOf,
   rowRefusalKind,
   shareOf,
@@ -218,6 +219,37 @@ describe('the deadline', () => {
     expect(slaStateOf(late, now)).toBe('missed')
 
     expect(slaStateOf(item({ tdd_leg: null }), now)).toBe('none')
+  })
+})
+
+describe('report states (N5b)', () => {
+  const withStates = {
+    ...SUMMARY,
+    tdd_state: {
+      never_submitted: 2,
+      awaiting_response: 3,
+      authority_rejected: 5,
+      internally_stopped: 7,
+    },
+  }
+
+  it('reads waiting, not sent, stopped and rejected from the server, never from silence', () => {
+    expect(reportStatesOf(withStates)).toEqual({
+      awaiting: 3,
+      notSubmitted: 2,
+      stopped: 7,
+      rejected: 5,
+    })
+    expect(tabCount(withStates, 'waiting')).toBe(3)
+  })
+
+  it('falls back to the old counts when the server does not send states', () => {
+    expect(reportStatesOf(SUMMARY)).toEqual({
+      awaiting: SUMMARY.tdd_ack.none,
+      notSubmitted: 0,
+      stopped: 0,
+      rejected: SUMMARY.tdd_ack.re,
+    })
   })
 })
 
@@ -620,6 +652,102 @@ describe('the ledger screen', () => {
     expect(within(row).getByText('لم يُرسل')).toBeTruthy()
     expect(within(row).queryByText('بالانتظار')).toBeNull()
     expect(row.textContent).not.toMatch(/activity(Detail)?\./)
+  })
+
+  // N5b: the Phase 13 window. Twelve reports, all stopped by our own SLA watchdog, none
+  // submitted: tdd_ack.none and attention are both 12, yet nothing waits on the OTA and nothing
+  // was rejected.
+  const PHASE13_SUMMARY: ActivitySummaryDto = {
+    ...SUMMARY,
+    documents: 12,
+    tdd_ack: { ap: 0, ab: 0, re: 0, none: 12 },
+    invoice_ack: { ap: 0, ab: 0, re: 0, none: 12 },
+    dead_lettered: 12,
+    attention: 12,
+    sla: { met: 0, missed: 0, pending: 12 },
+    median_minutes_to_tdd_ack: null,
+    tdd_state: {
+      never_submitted: 0,
+      awaiting_response: 0,
+      authority_rejected: 0,
+      internally_stopped: 12,
+    },
+  }
+
+  it('does not call stopped reports waiting or rejected on the cards and tab (N5b)', async () => {
+    summaryReply = PHASE13_SUMMARY
+    items = [stoppedRow()]
+    renderLedger()
+    await screen.findByText('INV/2026/4001')
+    // The accepted card's line is one paragraph of mixed text, so it is read as text.
+    const page = document.body.textContent ?? ''
+    expect(page).toContain('0 still waiting')
+    expect(page).toContain('12 not sent')
+    expect(page).not.toContain('12 still waiting')
+    expect(
+      screen.getByText("12 stopped at Fawtir. Until they're fixed, those sales aren't reported."),
+    ).toBeTruthy()
+    expect(screen.queryByText(/Rejected and not yet corrected/)).toBeNull()
+    const waitingTab = screen.getByRole('tab', { name: /^Still waiting/ })
+    expect(within(waitingTab).getByText('0')).toBeTruthy()
+  })
+
+  it('lists the waiting tab from the server by report state, not by silence (N5b)', async () => {
+    summaryReply = PHASE13_SUMMARY
+    renderLedger()
+    await screen.findByText('INV-0001')
+    fireEvent.click(screen.getByRole('tab', { name: /^Still waiting/ }))
+    await waitFor(() =>
+      expect(calls('/compliance/activity?').at(-1)).toContain('tdd_state=AWAITING_RESPONSE'),
+    )
+  })
+
+  it('counts submitted, unanswered reports as still waiting (N5b control)', async () => {
+    summaryReply = {
+      ...PHASE13_SUMMARY,
+      attention: 2,
+      tdd_ack: { ap: 0, ab: 0, re: 1, none: 11 },
+      tdd_state: {
+        never_submitted: 1,
+        awaiting_response: 9,
+        authority_rejected: 1,
+        internally_stopped: 1,
+      },
+    }
+    renderLedger()
+    await screen.findByText('INV-0001')
+    expect(document.body.textContent).toContain('9 still waiting')
+    expect(document.body.textContent).toContain('2 not sent')
+    expect(
+      screen.getByText(
+        "1 turned down by the OTA · 1 stopped at Fawtir. Until they're fixed, those sales aren't reported.",
+      ),
+    ).toBeTruthy()
+  })
+
+  it('reports stopped reports as not reported, and none as sent and waiting (N5b)', async () => {
+    summaryReply = PHASE13_SUMMARY
+    renderLedger()
+    await screen.findByText('INV-0001')
+    fireEvent.click(screen.getByRole('button', { name: 'Compliance report' }))
+    const notReported = (await screen.findByText('Still not reported')).parentElement!
+    expect(within(notReported).getByText('12')).toBeTruthy()
+    const waiting = screen.getByText('Sent, still waiting for an answer').parentElement!
+    expect(within(waiting).getByText('0')).toBeTruthy()
+  })
+
+  it('says the same on the Arabic cards, with no raw keys (N5b)', async () => {
+    await i18n.changeLanguage('ar')
+    summaryReply = PHASE13_SUMMARY
+    items = [stoppedRow()]
+    renderLedger()
+    await screen.findByText('INV/2026/4001')
+    expect(document.body.textContent).toContain('0 بالانتظار')
+    expect(document.body.textContent).toContain('12 لم تُرسل')
+    expect(
+      screen.getByText('12 توقفت لدى فوتير. وحتى تُصحَّح لا تُبلَّغ تلك المبيعات.'),
+    ).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/activity\.kpi\./)
   })
 
   it('shows the empty frame when the ledger holds nothing at all', async () => {
