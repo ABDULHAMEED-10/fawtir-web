@@ -970,9 +970,18 @@ describe('a disputed bill', () => {
     renderBills()
 
     expect(await screen.findByText('8,765.432')).toBeTruthy()
-    expect(
-      screen.getByText(/13 open · 2 overdue · 3,140.000 disputed on 1 refused bill/),
-    ).toBeTruthy()
+    const meta = screen.getByText(
+      (_, element) =>
+        element?.tagName === 'P' &&
+        /^13 open · 2 overdue · .*3,140\.000 disputed on 1 refused bill$/.test(
+          element.textContent ?? '',
+        ),
+    )
+    // The disputed amount carries the rial sign before it (E2E 10 Oct, F-14), never "OMR".
+    expect(meta.querySelector('svg')).not.toBeNull()
+    const visible = meta.cloneNode(true) as Element
+    visible.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+    expect(visible.textContent).not.toContain('OMR')
   })
 
   it('says nothing when there is no dispute', async () => {

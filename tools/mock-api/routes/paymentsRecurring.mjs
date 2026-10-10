@@ -884,7 +884,19 @@ function runDto(run) {
   const billsTotal = money(items.reduce((s, i) => s + i.outstanding, 0))
   const discountTotal = money(items.reduce((s, i) => s + i.discountTaken, 0))
   const { billIds, takenOut, events, bankPaidNothing, ...rest } = run
-  return { ...rest, billsTotal, discountTotal, netTotal: money(billsTotal - discountTotal) }
+  // Backend #477: on a paid run, what was paid and what was taken out; null on any other run.
+  const paid = run.state === 'PAID'
+  const out = items.filter((i) => i.takenOut)
+  return {
+    ...rest,
+    billsTotal,
+    discountTotal,
+    netTotal: money(billsTotal - discountTotal),
+    paidTotal: paid
+      ? money(items.filter((i) => !i.takenOut).reduce((s, i) => s + i.amount, 0))
+      : null,
+    takenOutTotal: paid ? money(out.reduce((s, i) => s + i.amount, 0)) : null,
+  }
 }
 
 /**

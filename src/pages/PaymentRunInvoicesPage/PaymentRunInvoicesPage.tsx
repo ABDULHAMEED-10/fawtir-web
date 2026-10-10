@@ -18,7 +18,7 @@ import {
   loadBill,
   type BillDetailDto,
 } from '../../api/expenditure/bills'
-import { formatAmount, formatDate } from '../../lib/format'
+import { formatAmount, formatDate, formatInstantDay } from '../../lib/format'
 import { muscatToday } from '../../lib/invoiceIssue'
 import {
   actionsFor,
@@ -514,7 +514,7 @@ function Recorded({
       checks.push(
         t('paymentsInvoices.checks.approvedBy', {
           who: approval.decidedBy,
-          date: formatDate(approval.decidedAt.slice(0, 10), language),
+          date: formatInstantDay(approval.decidedAt, language),
         }),
       )
     else if (known.readiness.autoApproved)

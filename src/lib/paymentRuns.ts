@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next'
 import { ApiError } from '../api/errors'
 import type {
   BlockedReasonCode,
+  MarkPaidBlockCode,
   PaymentRunDto,
   PaymentRunState,
 } from '../api/expenditure/paymentRuns'
@@ -127,6 +128,24 @@ export const REASON_KEYS: Record<BlockedReasonCode, string> = {
   DEBIT_NOTE_REFUSED: 'paymentRuns.blocked.debitNoteRefused',
 }
 
+/**
+ * Why a bill in a live run cannot be marked paid now (`markPaidBlock.code`), in the words the run
+ * page and the Mark as paid dialog print beside it. Where the "can't be paid yet" list already
+ * has the word (On hold, Rejected, Refused), the same word.
+ */
+export const MARK_PAID_BLOCK_KEYS: Record<MarkPaidBlockCode, string> = {
+  PAYMENT_RUN_BILL_ON_HOLD: 'paymentRuns.blocked.onHold',
+  PAYMENT_RUN_BILL_NOT_READY: 'paymentRuns.blocked.rejected',
+  PAYMENT_RUN_DEBIT_NOTE_REFUSED: 'paymentRuns.blocked.debitNoteRefused',
+  PAYMENT_RUN_AMOUNT_CHANGED: 'paymentRuns.markPaidBlock.amountChanged',
+  PAYMENT_RUN_BILL_SETTLED: 'paymentRuns.markPaidBlock.settled',
+}
+
+/** A block's words, or null for a code this screen does not know (it is still ticked). */
+export function markPaidBlockKey(code: string | null | undefined): string | null {
+  return code ? (MARK_PAID_BLOCK_KEYS[code as MarkPaidBlockCode] ?? null) : null
+}
+
 /** The run refusals a person can act on, by the server's code. */
 export const RUN_REFUSALS: Record<string, string> = {
   PAYMENT_RUN_BILL_NOT_READY: 'paymentRuns.refused.notReady',
@@ -165,13 +184,19 @@ const BY_ACTION: Record<string, Partial<Record<RunAction, string>>> = {
   PAYMENT_RUN_AMOUNT_CHANGED: {
     markPaid: 'paymentRuns.refused.amountChangedMarkPaid',
   },
-  // Backend #476: a hold or a rejection placed after the bill joined the run.
-  PAYMENT_RUN_BILL_ON_HOLD: { markPaid: 'paymentRuns.refused.onHoldMarkPaid' },
+  // Backend #476: a hold or a rejection placed after the bill joined the run. With no bill to
+  // name, the hold keeps the sentence that names none.
+  PAYMENT_RUN_BILL_ON_HOLD: { markPaid: 'paymentRuns.refused.onHoldMarkPaidNamed' },
   PAYMENT_RUN_BILL_NOT_READY: { markPaid: 'paymentRuns.refused.rejectedMarkPaid' },
 }
 
 /** Sentences that name the bill: without its number the code's own sentence is said instead. */
 const NAMES_THE_BILL = new Set(['PAYMENT_RUN_BILL_NOT_READY'])
+
+/** Sentences that name the bill, with one that names none to say when no number is known. */
+const UNNAMED: Record<string, Partial<Record<RunAction, string>>> = {
+  PAYMENT_RUN_BILL_ON_HOLD: { markPaid: 'paymentRuns.refused.onHoldMarkPaid' },
+}
 
 /**
  * `PAYMENT_RUN_BILL_SETTLED` names the bill, in every action. The Arabic agrees with the document:
@@ -186,10 +211,19 @@ function settledKey(documentTypeCode: unknown): string {
 /**
  * A run's refusal in the page's language, or the generic failure when it is not one a person can
  * act on. `action` says what was being done, for the refusals whose sentence depends on it.
+ * `knownBill` names the bill the screen can tell a refusal code is about, used when the server's
+ * answer names none.
  */
-export function refusalOf(error: unknown, t: TFunction, action?: RunAction): string {
+export function refusalOf(
+  error: unknown,
+  t: TFunction,
+  action?: RunAction,
+  knownBill?: (code: string) => string | null,
+): string {
   if (error instanceof ApiError && error.code) {
-    const number = String(error.problem.supplierBillNumber ?? '')
+    const number = String(error.problem.supplierBillNumber ?? knownBill?.(error.code) ?? '')
+    const unnamed = action ? UNNAMED[error.code]?.[action] : undefined
+    if (unnamed && !number) return t(unnamed)
     const byAction = action ? BY_ACTION[error.code]?.[action] : undefined
     if (byAction && (number || !NAMES_THE_BILL.has(error.code)))
       return t(byAction, { note: number, bill: number })

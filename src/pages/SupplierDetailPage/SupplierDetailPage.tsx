@@ -31,7 +31,7 @@ import {
 } from '../../api/expenditure/supplierRecord'
 import { dueNoteOf, toBillListItem } from '../../lib/billList'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { formatAmount, formatDate, initialsOf } from '../../lib/format'
+import { formatAmount, formatDate, formatInstantDay, initialsOf } from '../../lib/format'
 import { muscatToday } from '../../lib/invoiceIssue'
 import { addDays } from '../../lib/dates'
 import { can, useSession } from '../../lib/session/session'
@@ -869,7 +869,7 @@ function SupplierRecord({ id }: { id: string }) {
                 label={t('supplierDetail.detailsLastChanged')}
                 value={
                   profile.bankDetails?.changedAt
-                    ? day(profile.bankDetails.changedAt.slice(0, 10))
+                    ? formatInstantDay(profile.bankDetails.changedAt, language)
                     : '—'
                 }
                 last

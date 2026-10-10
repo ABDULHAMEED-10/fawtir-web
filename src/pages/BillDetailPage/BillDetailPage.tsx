@@ -46,6 +46,7 @@ import {
   discountLineOf,
   isSelfBilled,
   overpaidOf,
+  refusedDebitNote,
   singleVatRate,
   stepsOf,
   termsDaysOf,
@@ -358,7 +359,15 @@ function BillScreen() {
           <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
             {row.supplierBillNumber ?? t('billsPage.rows.noNumber')}
           </h1>
-          <BillStatusChip item={listItem} className="h-[31px]" />
+          {/* A refused debit note says so, as on its own page, not the approval it went through. */}
+          {refusedDebitNote(detail) ? (
+            <span className="inline-flex h-[31px] items-center gap-2 rounded-sm bg-danger-100 px-3 py-1 text-sm font-semibold leading-[1.2] text-danger-700">
+              <span className="size-1.5 rounded-full bg-danger-700" />
+              {t('supplierDebitNotes.state.refused')}
+            </span>
+          ) : (
+            <BillStatusChip item={listItem} className="h-[31px]" />
+          )}
           {row.source === 'PEPPOL' && row.networkVerified ? (
             <span className="inline-flex h-[31px] items-center gap-1.5 rounded-full bg-success-100 px-3 text-xs font-semibold uppercase tracking-[0.5px] text-success-700">
               <img src={peppolBadgeIcon} alt="" className="size-4" />

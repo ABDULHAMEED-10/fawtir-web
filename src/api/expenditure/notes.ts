@@ -64,6 +64,12 @@ export type ApprovalDto = 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED'
 
 export type CreditNoteStatusDto = 'UNAPPLIED' | 'WAITING_FOR_BILL' | 'APPLIED' | 'REFUNDED'
 
+/**
+ * Backend #477: how much of the credit has gone (applied or refunded). `status` says only whether
+ * any is left, so a partly used note is still UNAPPLIED; this tells it from an unused one.
+ */
+export type CreditNoteUsageDto = 'NOT_USED' | 'PARTLY_USED' | 'FULLY_USED'
+
 /** How much of the credit has gone where. Presented positive, like `creditedAmount`. */
 export type CreditNoteBalanceDto = {
   applied: number
@@ -119,6 +125,8 @@ export type CreditNoteRowDto = {
   intakeId?: string | null
   approval: ApprovalDto
   status: CreditNoteStatusDto
+  /** Absent from a server before backend #477: then read from `balance`. */
+  usage?: CreditNoteUsageDto | null
   balance: CreditNoteBalanceDto
   credits: CreditedBillDto
 }
@@ -158,6 +166,7 @@ export type CreditNoteSettlementDto = {
 export type CreditNoteActionDto = {
   settlement: CreditNoteSettlementDto
   status: CreditNoteStatusDto
+  usage?: CreditNoteUsageDto | null
   balance: CreditNoteBalanceDto
 }
 

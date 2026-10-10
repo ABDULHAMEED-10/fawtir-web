@@ -700,8 +700,9 @@ describe('the ways out of a sent run (owner, 8 Oct 2026)', () => {
   it('gives a Viewer neither way out', async () => {
     override = (url) => (url === '/api/v1/me/entitlements' ? json(200, VIEWER) : null)
     renderAt(`/expenditure/payments/${RUN_ID}`)
-    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }, { timeout: 8000 }))
-    expect(await screen.findByRole('menuitem', { name: /Copy into a new run/ })).toBeTruthy()
+    expect(await screen.findByRole('link', { name: 'MR-1' }, { timeout: 8000 })).toBeTruthy()
+    // E2E 10 Oct, F-18: no run menu at all, so no Copy, Reset or Delete either.
+    expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull()
     expect(screen.queryByRole('menuitem', { name: /Cancel the run/ })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Mark as paid' })).toBeNull()
   })
@@ -1342,5 +1343,240 @@ describe('refusals when marking a run paid, and no bank file (owner, 9 Oct 2026)
     const label = await screen.findByText('Pay from', undefined, { timeout: 8000 })
     expect(label.textContent).toBe('Pay from')
     expect(screen.getByText('Payment date').textContent).toBe('Payment date*')
+  })
+})
+
+describe('the end-to-end check of 10 Oct 2026', () => {
+  /** SCHEDULED_TWO with SS-3 put on hold after it joined the run. */
+  const HELD: PaymentRunDetailDto = {
+    ...SCHEDULED_TWO,
+    items: [
+      SCHEDULED_TWO.items[0],
+      {
+        ...SCHEDULED_TWO.items[1],
+        markPaidBlock: { code: 'PAYMENT_RUN_BILL_ON_HOLD', owedNow: 200 },
+      },
+    ],
+  }
+  const rowOf = async (number: string) =>
+    (await screen.findByRole('link', { name: number }, { timeout: 8000 })).closest(
+      'div.border-t',
+    ) as HTMLElement
+
+  // F-3: the run page carried no flag, and the dialog ticked the bill with no word why.
+  it('flags a bill put on hold inside the run on its row and in the dialog, ticked', async () => {
+    detail = HELD
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(within(await rowOf('SS-3')).getByText('On hold')).toBeTruthy()
+    expect(within(await rowOf('MR-1')).queryByText('On hold')).toBeNull()
+
+    const dialog = within(await openMarkPaid())
+    const items = dialog.getAllByRole('listitem')
+    expect(within(items[1]).getByText('On hold')).toBeTruthy()
+    expect(within(items[0]).queryByText('On hold')).toBeNull()
+    const ticks = dialog.getAllByRole('checkbox', { name: 'Take out of the run' })
+    expect(ticks.map((tick) => (tick as HTMLInputElement).checked)).toEqual([false, true])
+  })
+
+  it('says the other reasons a bill cannot be marked paid in words, in both languages', async () => {
+    detail = SENT
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(within(await rowOf('SS-3')).getByText('Amount owed changed')).toBeTruthy()
+    expect(screen.queryByText(/PAYMENT_RUN_/)).toBeNull()
+    await act(async () => {
+      await i18n.changeLanguage('ar')
+    })
+    expect(within(await rowOf('SS-3')).getByText('تغيّر المبلغ المستحق')).toBeTruthy()
+  })
+
+  // F-3: the refusal said "A bill in this run is on hold" without saying which.
+  it('names the held bill when marking paid is refused for it and the screen knows which', async () => {
+    detail = HELD
+    override = (url) =>
+      url.endsWith(`/${RUN_ID}/mark-paid`) ? runRefusal('PAYMENT_RUN_BILL_ON_HOLD', {}) : null
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const dialog = within(await openMarkPaid())
+    fireEvent.click(dialog.getAllByRole('checkbox', { name: 'Take out of the run' })[1])
+    fireEvent.click(dialog.getByRole('button', { name: 'Mark as paid' }))
+    expect(
+      await screen.findByText(
+        'SS-3 is on hold. Release it, or take it out of the run and mark the others paid.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('names the bill the server names, in both languages', async () => {
+    const { refusalOf } = await import('../../lib/paymentRuns')
+    const { ApiError } = await import('../../api')
+    const refused = new ApiError({
+      status: 400,
+      problemType: 'expenditure-refused',
+      code: 'PAYMENT_RUN_BILL_ON_HOLD',
+      problem: { supplierBillNumber: 'UI-P4' },
+    })
+    expect(refusalOf(refused, i18n.getFixedT('en'), 'markPaid')).toBe(
+      'UI-P4 is on hold. Release it, or take it out of the run and mark the others paid.',
+    )
+    expect(refusalOf(refused, i18n.getFixedT('ar'), 'markPaid')).toBe(
+      'UI-P4 قيد الانتظار. أفرج عنها، أو أخرجها من الدفعة وسجّل الباقي كمدفوع.',
+    )
+  })
+
+  // F-5: the failed attempt's banner stayed on the run once it was then marked paid.
+  it('clears the refusal once the run is then marked paid', async () => {
+    detail = HELD
+    let refuse = true
+    override = (url) => {
+      if (!url.endsWith(`/${RUN_ID}/mark-paid`)) return null
+      if (!refuse) return null
+      refuse = false
+      return runRefusal('PAYMENT_RUN_BILL_ON_HOLD', {})
+    }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    let dialog = within(await openMarkPaid())
+    fireEvent.click(dialog.getAllByRole('checkbox', { name: 'Take out of the run' })[1])
+    fireEvent.click(dialog.getByRole('button', { name: 'Mark as paid' }))
+    expect(await screen.findByText(/is on hold\. Release it/)).toBeTruthy()
+
+    dialog = within(await openMarkPaid())
+    fireEvent.change(dialog.getByRole('textbox'), { target: { value: 'Goods not received' } })
+    const reads = calls('GET', `/api/v1/payment-runs/${RUN_ID}`).length
+    fireEvent.click(dialog.getByRole('button', { name: 'Mark the others paid' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    // The run is drawn again once reloaded, and the old refusal is not on it.
+    await waitFor(() =>
+      expect(calls('GET', `/api/v1/payment-runs/${RUN_ID}`).length).toBeGreaterThan(reads),
+    )
+    expect(await screen.findByRole('link', { name: 'MR-1' }, { timeout: 8000 })).toBeTruthy()
+    expect(screen.queryByText(/is on hold\. Release it/)).toBeNull()
+  })
+
+  // F-6: a taken-out bill kept its discounted amount and "2% saved by paying early".
+  it('shows a taken-out bill at what it still owes, with no early-payment saving', async () => {
+    detail = {
+      ...SCHEDULED_TWO,
+      run: run({ state: 'PAID', paidAt: '2026-09-20T10:00:00Z' }),
+      items: [
+        { ...SCHEDULED_TWO.items[0], markPaidBlock: null, takenOut: null },
+        {
+          ...SCHEDULED_TWO.items[1],
+          amount: 39.2,
+          discountTaken: 0.8,
+          outstanding: 40,
+          markPaidBlock: null,
+          takenOut: { at: '2026-09-20T10:00:00Z', actor: 'u-1', reason: 'Goods not received' },
+        },
+      ],
+    }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const out = within(await rowOf('SS-3'))
+    expect(out.getByText('40.000')).toBeTruthy()
+    expect(out.queryByText('39.200')).toBeNull()
+    expect(out.queryByText(/saved by paying early/)).toBeNull()
+    // The bill that was paid keeps its saving.
+    expect(within(await rowOf('MR-1')).getByText('2% saved by paying early')).toBeTruthy()
+  })
+
+  // F-12: cancelling a run from the menu asked "Cancel PR-0001?" with a "Delete" button.
+  it('asks to cancel the run from the menu with a button that says so', async () => {
+    detail = SCHEDULED_TWO
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }, { timeout: 8000 }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Delete/ }))
+    const dialog = within(await screen.findByRole('dialog'))
+    expect(dialog.getByRole('button', { name: 'Cancel the run' })).toBeTruthy()
+    expect(dialog.queryByRole('button', { name: 'Delete' })).toBeNull()
+  })
+
+  // F-8: a run made 10 Oct 03:56 Muscat read "Started 9 Oct 2026", the UTC day.
+  it('says the day a run was started on the Muscat day', async () => {
+    override = (url, method) =>
+      (url === '/api/v1/payment-runs' || url.startsWith('/api/v1/payment-runs?')) &&
+      method === 'GET'
+        ? json(200, [run({ createdAt: '2026-10-09T23:56:49Z' })])
+        : null
+    renderAt('/expenditure/payments')
+    expect(
+      await screen.findAllByText('Started 10 Oct 2026', undefined, { timeout: 8000 }),
+    ).not.toHaveLength(0)
+    expect(screen.queryByText('Started 9 Oct 2026')).toBeNull()
+  })
+
+  // F-13: the list offered a "Sent to bank" tab no run can reach without a file.
+  it('offers no Sent to bank tab, and still lists a run sent before under All', async () => {
+    override = (url, method) =>
+      (url === '/api/v1/payment-runs' || url.startsWith('/api/v1/payment-runs?')) &&
+      method === 'GET'
+        ? json(200, [run({ state: 'EXPORTED', exportedAt: '2026-09-19T10:00:00Z' })])
+        : null
+    renderAt('/expenditure/payments')
+    expect(await screen.findByRole('link', { name: 'PR-0001' }, { timeout: 8000 })).toBeTruthy()
+    expect(screen.queryByRole('tab', { name: 'Sent to bank' })).toBeNull()
+    expect(screen.getByRole('tab', { name: 'All' })).toBeTruthy()
+    expect(screen.getByText('Sent to bank')).toBeTruthy()
+  })
+
+  // F-9 (backend #477): the list showed only the planned total of a paid run with take-outs.
+  it('splits a paid run with take-outs into paid and taken out on the list, rial sign on each', async () => {
+    override = (url, method) =>
+      (url === '/api/v1/payment-runs' || url.startsWith('/api/v1/payment-runs?')) &&
+      method === 'GET'
+        ? json(200, [
+            run({ state: 'PAID', netTotal: 119.2, paidTotal: 50, takenOutTotal: 69.2 }),
+            run({
+              id: 'run-2',
+              reference: 'PR-0000',
+              state: 'PAID',
+              paidTotal: 980,
+              takenOutTotal: 0,
+            }),
+            run({
+              id: 'run-3',
+              reference: 'PR-0003',
+              state: 'SCHEDULED',
+              paidTotal: null,
+              takenOutTotal: null,
+            }),
+          ])
+        : null
+    renderAt('/expenditure/payments')
+    const row = (await screen.findByRole('link', { name: 'PR-0001' }, { timeout: 8000 })).closest(
+      'tr',
+    )!
+    const line = within(row).getByText(
+      (_, element) =>
+        element?.tagName === 'P' && /^Paid .+ · taken out /.test(element.textContent ?? ''),
+    )
+    const copy = line.cloneNode(true) as Element
+    copy.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+    expect((copy.textContent ?? '').replace(/\s+/g, ' ')).toBe('Paid 50.000 · taken out 69.200')
+    expect(line.querySelectorAll('svg')).toHaveLength(2)
+    expect(within(row).getByText('119.200')).toBeTruthy()
+    // Nothing taken out, or not paid: no line.
+    for (const reference of ['PR-0000', 'PR-0003']) {
+      const other = screen.getByRole('link', { name: reference }).closest('tr')!
+      expect(within(other).queryByText(/taken out/)).toBeNull()
+    }
+
+    await act(async () => {
+      await i18n.changeLanguage('ar')
+    })
+    expect(
+      await screen.findByText(
+        (_, element) =>
+          element?.tagName === 'P' &&
+          /^مدفوع .+ · أُخرج من الدفعة /.test(element.textContent ?? ''),
+      ),
+    ).toBeTruthy()
+  })
+
+  // F-18: a Viewer saw Copy, Reset and Delete, and the server refused them.
+  it('draws no run menu for a Viewer on a draft run', async () => {
+    detail = { ...SCHEDULED_TWO, run: run({ state: 'DRAFT', paymentDate: null }) }
+    override = (url) => (url === '/api/v1/me/entitlements' ? json(200, VIEWER) : null)
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(await screen.findByRole('link', { name: 'MR-1' }, { timeout: 8000 })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull()
+    expect(screen.queryByText(/Copy into a new run|Reset the selection/)).toBeNull()
   })
 })

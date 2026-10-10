@@ -210,7 +210,7 @@ describe('Debit notes list, wired to the API', () => {
       expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
         'All10',
         'Accepted5',
-        'Rejected3',
+        'Refused3',
       ]),
     )
   })
@@ -240,7 +240,7 @@ describe('Debit notes list, wired to the API', () => {
       expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
         'All1',
         'Accepted0',
-        'Rejected0',
+        'Refused0',
       ]),
     )
 
@@ -726,5 +726,83 @@ describe('a debit note for someone who may only read', () => {
       expect(screen.queryByRole('button', { name: 'Refuse it' }), status).toBeNull()
       view.unmount()
     }
+  })
+})
+
+describe('the end-to-end check of 10 Oct 2026', () => {
+  const PAYER: Entitlements = {
+    ...APPROVER,
+    permissions: ['invoice.read', 'invoice.approve', 'invoice.payment.manage'],
+  }
+
+  // F-20: a Viewer saw "Upload a debit note"; Credit notes hides its Upload.
+  it('draws Upload a debit note only for someone who may record one, hidden for a reader', async () => {
+    who = READER
+    const view = renderList()
+    await screen.findByText('QMS-DN-1')
+    expect(screen.queryByRole('link', { name: 'Upload a debit note' })).toBeNull()
+    expect(screen.queryByText('Upload a debit note')).toBeNull()
+    view.unmount()
+
+    who = PAYER
+    forgetEntitlements()
+    renderList()
+    expect(await screen.findByRole('link', { name: 'Upload a debit note' })).toBeTruthy()
+  })
+
+  // F-24: the list said "Rejected" where every other screen says "Refused".
+  it('calls refused notes Refused on the list, in both languages', async () => {
+    const view = renderList()
+    await screen.findByText('QMS-DN-1')
+    expect(screen.getByRole('tab', { name: /^Refused/ })).toBeTruthy()
+    expect(screen.getByText('Refused this year')).toBeTruthy()
+    expect(screen.queryByText(/Rejected/)).toBeNull()
+    view.unmount()
+
+    await i18n.changeLanguage('ar')
+    renderList()
+    await screen.findByText('QMS-DN-1')
+    expect(screen.getByRole('tab', { name: /^مرفوضة/ })).toBeTruthy()
+  })
+
+  // F-15: "The charge was accepted and is owed, due ." with no date.
+  it('drops the due clause of an accepted note that has no due date', async () => {
+    notes = [note({ status: 'ACCEPTED', dueDate: null })]
+    renderDetail()
+    expect(await screen.findByText('The charge was accepted and is owed.')).toBeTruthy()
+    expect(screen.queryByText(/due \./)).toBeNull()
+  })
+
+  it('keeps the due date when the note has one', async () => {
+    notes = [note({ status: 'ACCEPTED' })]
+    renderDetail()
+    expect(await screen.findByText(/^The charge was accepted and is owed, due \d/)).toBeTruthy()
+  })
+
+  // F-21: the Activity listed one refusal twice, "Refused by Eman Admin" and "Refused".
+  it('lists the decision the note stands on once in its Activity', async () => {
+    notes = [
+      note({
+        status: 'REFUSED',
+        decidedBy: 'u-9',
+        decidedByName: 'Eman Admin',
+        decidedAt: '2026-10-10T00:20:00Z',
+        decisionReason: 'Already charged',
+      }),
+    ]
+    decisions = [
+      {
+        decision: 'REFUSED',
+        reason: 'Already charged',
+        decidedBy: 'u-9',
+        decidedAt: '2026-10-10T00:20:00Z',
+      },
+      { decision: 'ACCEPTED', reason: null, decidedBy: 'u-9', decidedAt: '2026-10-09T10:00:00Z' },
+    ]
+    renderDetail()
+    const activity = await screen.findByRole('list', { name: 'Activity' })
+    await waitFor(() => expect(within(activity).getByText('Refused by Eman Admin')).toBeTruthy())
+    await waitFor(() => expect(activity.textContent).toMatch(/Accepted/))
+    expect(within(activity).queryAllByText(/^Refused$/)).toHaveLength(0)
   })
 })

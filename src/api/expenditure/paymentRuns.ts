@@ -24,6 +24,13 @@ export type PaymentRunDto = {
   billsTotal: number
   discountTotal: number
   netTotal: number
+  /**
+   * Backend #477, on a list row: what was marked paid and what was taken out, null unless the run
+   * is PAID (`takenOutTotal` 0 when nothing was). Absent from an older server. `netTotal` stays
+   * the planned total.
+   */
+  paidTotal?: number | null
+  takenOutTotal?: number | null
   exportedAt: string | null
   paidAt: string | null
   cancelledAt: string | null

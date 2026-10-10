@@ -547,7 +547,9 @@ describe('A bill, wired to the API', () => {
 
     await act(() => i18n.changeLanguage('ar'))
     expect(await card.findByText('أُلغيت دفعة السداد')).toBeTruthy()
-    expect(card.getByText('أُخرجت من دفعة سداد')).toBeTruthy()
+    // The owner's approved wording (PR2), masculine as the bill's activity line reads.
+    expect(card.getByText('أُخرج من دفعة سداد')).toBeTruthy()
+    expect(card.queryByText('أُخرجت من دفعة سداد')).toBeNull()
   })
 
   const scanned = (note: string | null | undefined): BillDetailDto => ({
@@ -818,6 +820,14 @@ describe('A bill, wired to the API', () => {
     const dialog = await screen.findByRole('dialog')
     const amount = within(dialog).getByRole('textbox', { name: /Amount paid/ }) as HTMLInputElement
     expect(amount.value).toBe('2354.310')
+    // The subtitle's amount carries the rial sign before it (E2E 10 Oct, F-14).
+    const subtitle = within(dialog).getByText(
+      (_, element) =>
+        element?.tagName === 'P' &&
+        /^Against QMS-7781 · .*still owed$/.test(element.textContent ?? ''),
+    )
+    expect(subtitle.querySelector('svg')).not.toBeNull()
+    expect(subtitle.textContent).toMatch(/2,354\.310 still owed$/)
     expect(within(dialog).getByText('Paid on')).toBeTruthy()
     expect(within(dialog).queryByText(/Amount received|Received on/)).toBeNull()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Record payment' }))
@@ -949,6 +959,71 @@ describe('A bill, wired to the API', () => {
     renderBill()
     await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
     expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy()
+  })
+
+  // E2E 10 Oct, F-11: a refused debit note opened from Bills read "Approved" and "Approved for
+  // payment. It is not scheduled until someone puts it in a payment run."
+  it('says a refused debit note is refused, not approved for payment, and offers no payment', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          readiness: APPROVED,
+          bill: {
+            ...detail().bill,
+            documentTypeCode: '383',
+            workflowState: 'APPROVED',
+            readiness: APPROVED,
+            debitNoteDecision: 'REFUSED',
+          },
+        }),
+      )
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(screen.getByText('Refused')).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Nothing was added to what you owe. Your reason is recorded against the note.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText(/Approved for payment/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+  })
+
+  // E2E 10 Oct, F-7: a bill in a run said "It is not scheduled until someone puts it in a
+  // payment run" under a header that said it was in one.
+  it('says an approved bill in a payment run is in that run, not waiting for one', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          readiness: APPROVED,
+          paymentRunReference: 'PR-0002',
+          bill: {
+            ...detail().bill,
+            workflowState: 'IN_PAYMENT_RUN',
+            readiness: APPROVED,
+            paymentRunReference: 'PR-0002',
+          },
+        }),
+      )
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(
+      screen.getByText(
+        'Approved for payment and in payment run PR-0002. It is paid when the run is marked paid.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText(/not scheduled until someone puts it in a payment run/)).toBeNull()
+
+    cleanup()
+    await i18n.changeLanguage('ar')
+    renderBill()
+    expect(
+      await screen.findByText(
+        'معتمدة للدفع وضمن دفعة السداد PR-0002. تُسجَّل مدفوعة عند تسجيل الدفعة كمدفوعة.',
+      ),
+    ).toBeTruthy()
   })
 
   it('says why a payment on a debit note refused after the page loaded is refused', async () => {

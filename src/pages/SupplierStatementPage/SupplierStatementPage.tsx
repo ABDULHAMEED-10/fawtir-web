@@ -221,7 +221,9 @@ function SupplierStatement({ id }: { id: string }) {
               {t('supplierStatement.title')}
             </span>
           </div>
-          <h1 className="mt-1 text-[32px] font-medium leading-[1.2] text-text-primary">
+          {/* 16 px under the breadcrumb, as on the note pages: any closer and the Arabic
+              breadcrumb runs into the title. */}
+          <h1 className="mt-4 text-[32px] font-medium leading-[1.2] text-text-primary">
             {t('supplierStatement.title')}
           </h1>
           <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">
@@ -395,7 +397,16 @@ function SupplierStatement({ id }: { id: string }) {
     const prepared = preparedAt
     const dayOf = day
     const money = (value: number) => formatAmount(value, data.currencyCode, language)
-    const signed = (value: number) => `${value < 0 ? '−' : ''}${money(Math.abs(value))}`
+    // A table figure with the rial sign before it (a minus before the sign), as every amount.
+    const cell = (value: number) => (
+      <OmAmount
+        size="xs"
+        prefix={value < 0 ? '−' : undefined}
+        amount={money(Math.abs(value))}
+        className="justify-end"
+        amountClassName="text-sm font-semibold text-text-primary tabular-nums"
+      />
+    )
     const totals = periodTotals(data)
     const issuer = data.issuer
     const issuerName = issuer
@@ -556,7 +567,7 @@ function SupplierStatement({ id }: { id: string }) {
                 <td />
                 <td />
                 <td className="px-5 py-4 align-top text-end text-sm font-semibold text-text-primary tabular-nums">
-                  {money(data.opening)}
+                  {cell(data.opening)}
                 </td>
               </tr>
               {data.entries.map((entry, index) => {
@@ -627,13 +638,13 @@ function SupplierStatement({ id }: { id: string }) {
                       </span>
                     </td>
                     <td className="px-5 py-4 align-top text-end text-sm font-semibold text-text-primary tabular-nums">
-                      {billed === null ? '' : signed(billed)}
+                      {billed === null ? '' : cell(billed)}
                     </td>
                     <td className="px-5 py-4 align-top text-end text-sm font-semibold text-text-primary tabular-nums">
-                      {paid === null ? '' : signed(paid)}
+                      {paid === null ? '' : cell(paid)}
                     </td>
                     <td className="px-5 py-4 align-top text-end text-sm font-semibold text-text-primary tabular-nums">
-                      {memo !== null ? '' : money(entry.runningBalance)}
+                      {memo !== null ? '' : cell(entry.runningBalance)}
                     </td>
                   </tr>
                 )
@@ -653,10 +664,10 @@ function SupplierStatement({ id }: { id: string }) {
                   {t('supplierStatement.overThePeriod')}
                 </td>
                 <td className="px-5 py-4 text-end text-sm font-semibold text-text-primary tabular-nums">
-                  {signed(totals.billedNet)}
+                  {cell(totals.billedNet)}
                 </td>
                 <td className="px-5 py-4 text-end text-sm font-semibold text-text-primary tabular-nums">
-                  {money(totals.paid)}
+                  {cell(totals.paid)}
                 </td>
                 <td className="px-5 py-4 text-end">
                   <OmAmount

@@ -235,6 +235,8 @@ export function decisionNoteOf(detail: BillDetailDto): Note {
   const { readiness, hold, settlement } = detail
   if (isCreditNote(detail)) return { key: 'billDetail.decision.creditNote' }
   if (settlement.paymentState === 'PAID') return { key: 'billDetail.decision.paid' }
+  // A refused debit note says its refusal, as its own page does, whatever approval it went through.
+  if (refusedDebitNote(detail)) return { key: 'supplierDebitNotes.detail.refusedBody' }
   if (hold) return { key: 'billDetail.decision.held', values: { reason: hold.reason ?? '' } }
   if (readiness.state === 'REJECTED') {
     const rejection = detail.approvals.find((entry) => entry.decision === 'REJECTED')
@@ -245,6 +247,9 @@ export function decisionNoteOf(detail: BillDetailDto): Note {
     // until that is resolved, so the panel does not say it can be paid. It says what the match
     // card says (owner's Round 5 answer 1, 2 Oct 2026: keep showing Mismatch).
     if (mismatchUnresolved(detail)) return { key: 'billDetail.match.differs' }
+    // Already in a run: the sentence for an approved bill nobody has scheduled would contradict it.
+    if (!readiness.autoApproved && detail.paymentRunReference)
+      return { key: 'billDetail.decision.inRun', values: { run: detail.paymentRunReference } }
     return {
       key: readiness.autoApproved
         ? 'billDetail.decision.belowLimit'

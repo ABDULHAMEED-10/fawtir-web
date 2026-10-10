@@ -200,7 +200,19 @@ function CreditNoteDetail() {
 
   const bill = against.bill
   const remaining = row.balance.remaining
-  const effect = creditEffect(remaining > 0 ? remaining : (row.creditedAmount ?? 0), bill)
+  // Read from the balance, not the status word: a note partly used or refunded still comes back
+  // UNAPPLIED, and it is neither unused nor offerable against the bill it already reduced.
+  const state = item.status
+  const usedOnBill = row.credits.applied
+  const effect = creditEffect(
+    {
+      credited: row.creditedAmount ?? 0,
+      applied: row.balance.applied,
+      remaining,
+      appliedHere: usedOnBill,
+    },
+    bill,
+  )
   const vat = vatEffect(bill?.vatAmount ?? null, row.vatAmount)
   const reason = reasonLabelKey(row.reasonCode, row.reasonDetail ?? null)
   // "QTY · Quantity correction": the code in the Tax Authority's list (CL-02-OM), under the
@@ -220,25 +232,32 @@ function CreditNoteDetail() {
   const net = (row.creditedAmount ?? 0) - (row.vatAmount ?? 0)
 
   const bannerTitle =
-    row.status === 'REFUNDED'
+    state === 'REFUNDED'
       ? t('supplierCreditNotes.detail.refundedTitle', { amount: money(row.balance.refunded) })
-      : row.status === 'APPLIED'
+      : state === 'APPLIED'
         ? t('supplierCreditNotes.detail.paidLessTitle', { amount: money(row.balance.applied) })
-        : bill
+        : bill && state !== 'PARTLY_USED'
           ? t('supplierCreditNotes.detail.youllPayLess', { amount: money(remaining) })
           : t('supplierCreditNotes.detail.creditToUse', { amount: money(remaining) })
   const bannerBody =
-    row.status === 'REFUNDED'
+    state === 'REFUNDED'
       ? t('supplierCreditNotes.detail.refundedBody')
-      : row.status === 'APPLIED'
+      : state === 'APPLIED'
         ? t('supplierCreditNotes.detail.paidLessBody', { bill: billNumber ?? '' })
-        : row.status === 'WAITING_FOR_BILL'
-          ? t('supplierCreditNotes.detail.waitingBody')
-          : bill
-            ? bill.outstandingAmount > 0
-              ? t('supplierCreditNotes.detail.youllPayLessNote')
-              : t('supplierCreditNotes.detail.billPaidNote')
-            : t('supplierCreditNotes.detail.noBillNote')
+        : state === 'PARTLY_USED'
+          ? t('supplierCreditNotes.detail.partlyUsedBody')
+          : state === 'WAITING_FOR_BILL'
+            ? t('supplierCreditNotes.detail.waitingBody')
+            : bill
+              ? bill.outstandingAmount > 0
+                ? t('supplierCreditNotes.detail.youllPayLessNote')
+                : t('supplierCreditNotes.detail.billPaidNote')
+              : t('supplierCreditNotes.detail.noBillNote')
+
+  // Once the note has reduced its bill, what is left can only go against another one.
+  const setAgainstKey = usedOnBill
+    ? 'supplierCreditNotes.detail.setAgainstAnother'
+    : 'supplierCreditNotes.detail.setAgainst'
 
   const linked: LinkedDocument[] = []
   if (billNumber) {
@@ -348,7 +367,7 @@ function CreditNoteDetail() {
               className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
             >
               <img src={setIcon} alt="" className="size-5" />
-              {t('supplierCreditNotes.detail.setAgainst')}
+              {t(setAgainstKey)}
             </button>
           ) : null}
         </div>
@@ -398,9 +417,11 @@ function CreditNoteDetail() {
                 note: bill?.dueDate
                   ? t('supplierCreditNotes.detail.dueOn', { date: fmt.date(bill.dueDate) })
                   : bill && effect.outstanding !== null && effect.outstanding !== effect.billed
-                    ? t('supplierCreditNotes.detail.stillUnpaidOf', {
-                        amount: money(effect.outstanding),
-                      })
+                    ? withRial(
+                        t('supplierCreditNotes.detail.stillUnpaidOf', {
+                          amount: `${currency} ${money(effect.outstanding)}`,
+                        }),
+                      )
                     : t('supplierCreditNotes.detail.noBillTile'),
               },
             ]}
@@ -597,7 +618,7 @@ function CreditNoteDetail() {
                   ? t('supplierCreditNoteDetail.nothingLeft')
                   : !canSettle
                     ? t('appAccess.missingPermission')
-                    : billNumber
+                    : billNumber && !usedOnBill
                       ? t('supplierCreditNotes.detail.decisionNote', { bill: billNumber })
                       : t('supplierCreditNotes.detail.decisionNoteNoBill')}
             </p>
@@ -619,7 +640,8 @@ function CreditNoteDetail() {
                   supplierId={row.supplierId}
                   supplierName={item.supplier}
                   knownBill={
-                    bill
+                    // The bill this note already reduced would refuse it a second time.
+                    bill && !usedOnBill
                       ? { id: bill.id, label: bill.supplierBillNumber ?? billNumber ?? '' }
                       : null
                   }
@@ -644,7 +666,7 @@ function CreditNoteDetail() {
                     className="mt-4 inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-sm bg-primary-700 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
                   >
                     <img src={setIcon} alt="" className="size-5" />
-                    {t('supplierCreditNotes.detail.setAgainst')}
+                    {t(setAgainstKey)}
                   </button>
                   <div className="mt-2.5 flex gap-2.5">
                     <button
@@ -924,9 +946,11 @@ function ApplyForm({
       </label>
       {over ? (
         <p role="alert" className="mt-1 text-sm font-medium text-warning-700">
-          {t('supplierCreditNoteDetail.overRemaining', {
-            amount: formatAmount(remaining, currency, language),
-          })}
+          {withRial(
+            t('supplierCreditNoteDetail.overRemaining', {
+              amount: `${currency} ${formatAmount(remaining, currency, language)}`,
+            }),
+          )}
         </p>
       ) : (
         <p className="mt-1 text-xs font-medium text-text-quaternary">
@@ -1017,9 +1041,11 @@ function RefundForm({
       </label>
       {over ? (
         <p role="alert" className="mt-1 text-sm font-medium text-warning-700">
-          {t('supplierCreditNoteDetail.overRemaining', {
-            amount: formatAmount(remaining, currency, language),
-          })}
+          {withRial(
+            t('supplierCreditNoteDetail.overRemaining', {
+              amount: `${currency} ${formatAmount(remaining, currency, language)}`,
+            }),
+          )}
         </p>
       ) : null}
       <div className="mt-3 flex flex-col gap-1">

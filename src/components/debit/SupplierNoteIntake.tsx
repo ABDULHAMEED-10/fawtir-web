@@ -156,7 +156,10 @@ export function SupplierNoteIntake({
   const addsUp =
     printedTotal !== null && linesTotal !== null && Math.abs(printedTotal - linesTotal) <= 0.001
 
-  const effect = creditEffect(linesTotal ?? 0, chosenBill)
+  const effect = creditEffect(
+    { credited: linesTotal ?? 0, applied: 0, remaining: linesTotal ?? 0, appliedHere: false },
+    chosenBill,
+  )
   const vat = vatEffect(chosenBill?.vatAmount ?? null, totals ? Number(totals.vat) : null)
   const checks =
     kind === 'debit'
@@ -757,7 +760,11 @@ export function SupplierNoteIntake({
                         : t('supplierCreditNotes.upload.setNowNoBill'),
                       note: chosenBill
                         ? t('supplierCreditNotes.upload.setNowNote', {
-                            amount: money(linesTotal ?? 0),
+                            // What actually comes off: never more than the bill still owes, the
+                            // rest stays as credit (the server applies the largest that fits).
+                            amount: money(
+                              Math.min(linesTotal ?? 0, Math.max(chosenBill.outstandingAmount, 0)),
+                            ),
                           })
                         : t('supplierCreditNotes.upload.setNowPick'),
                       disabled: !chosenBill || chosenBill.outstandingAmount <= 0,
@@ -1180,11 +1187,14 @@ function BillChooser({
                 <SignedAmount value={money(chosen.totalIncludingVat ?? 0, chosen.currencyCode)} />
               </p>
               <p className="mt-1 text-sm font-medium leading-[1.3] text-text-tertiary">
-                {t('supplierNotes.billCard', {
-                  state: t(billStateKey(chosen)),
-                  outstanding: money(chosen.outstandingAmount, chosen.currencyCode),
-                  due: chosen.dueDate ? formatDate(chosen.dueDate, language) : '—',
-                })}
+                {withRial(
+                  t('supplierNotes.billCard', {
+                    state: t(billStateKey(chosen)),
+                    // The code before the figure: the rial sign is drawn in its place.
+                    outstanding: `${chosen.currencyCode} ${money(chosen.outstandingAmount, chosen.currencyCode)}`,
+                    due: chosen.dueDate ? formatDate(chosen.dueDate, language) : '—',
+                  }),
+                )}
                 {chosen.paymentRunReference
                   ? ` · ${t('supplierNotes.inRun', { run: chosen.paymentRunReference })}`
                   : ''}

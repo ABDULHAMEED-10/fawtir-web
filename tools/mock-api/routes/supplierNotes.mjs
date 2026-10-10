@@ -96,6 +96,12 @@ const SUPPLIERS = [
   ),
 ]
 
+/** Backend #477: NOT_USED, PARTLY_USED or FULLY_USED, from what was applied, refunded and is left. */
+function usageOf(balance) {
+  if (balance.remaining <= 0) return 'FULLY_USED'
+  return balance.applied > 0 || balance.refunded > 0 ? 'PARTLY_USED' : 'NOT_USED'
+}
+
 function supplier(id, displayName, vatNumber, legalName, participantId) {
   return {
     id,
@@ -472,6 +478,10 @@ function creditNote({
     approval: 'NONE',
     status,
     balance,
+    // Backend #477: how much of the credit has gone, beside `status` (which says whether any is left).
+    get usage() {
+      return usageOf(this.balance)
+    },
     receivedAt: `${issueDate}T11:05:00Z`,
     intakeId: source === 'UPLOADED' ? `intake-${id}` : null,
     onHold: false,
@@ -1198,7 +1208,7 @@ export default [
         occurredAt: new Date().toISOString(),
       }
       ;(CREDIT_SETTLEMENTS[note.id] ??= []).push(settlement)
-      return { settlement, status: note.status, balance: note.balance }
+      return { settlement, status: note.status, balance: note.balance, usage: note.usage }
     },
   },
   {
@@ -1226,7 +1236,7 @@ export default [
         occurredAt: new Date().toISOString(),
       }
       ;(CREDIT_SETTLEMENTS[note.id] ??= []).push(settlement)
-      return { settlement, status: note.status, balance: note.balance }
+      return { settlement, status: note.status, balance: note.balance, usage: note.usage }
     },
   },
 

@@ -36,6 +36,7 @@ import {
   dueBy,
   dueNote,
   groupBySupplier,
+  markPaidBlockKey,
   paidOn,
   refusalOf,
   sum,
@@ -52,6 +53,7 @@ import {
   CancelSentRunModal,
   ConfirmModal,
   HEADER_BUTTON,
+  MarkPaidBlockChip,
   MarkPaidModal,
   PRIMARY_BUTTON,
   RunMenu,
@@ -180,6 +182,13 @@ function RunBuilder({ runId }: { runId: string | null }) {
   // A bill taken out as the rest of a sent run was marked paid: the run paid nothing for it.
   const takenOut = new Map(
     (detail?.items ?? []).flatMap((item) => (item.takenOut ? [[item.billId, item.takenOut]] : [])),
+  )
+  // Why a bill of a live run cannot be marked paid now, flagged on its row as in the dialog.
+  const blocks = new Map(
+    (detail?.items ?? []).flatMap((item) => {
+      const key = markPaidBlockKey(item.markPaidBlock?.code)
+      return key ? [[item.billId, key] as const] : []
+    }),
   )
   // On a paid run with bills taken out, the run's totals stay as they were; a line under them
   // splits them into what was paid and what was taken out (owner, 9 Oct 2026).
@@ -340,12 +349,16 @@ function RunBuilder({ runId }: { runId: string | null }) {
                 {t('paymentsPage.viewInvoices')}
               </Link>
             ) : null}
-            {run && detail ? (
+            {/* Copy, reset and delete change runs: hidden, not greyed, from who may not. */}
+            {run && detail && canManage ? (
               <RunMenu
                 run={run}
                 items={detail.items}
                 onNotice={setNotice}
-                onChanged={() => loaded.retry()}
+                onChanged={() => {
+                  setNotice(null)
+                  loaded.retry()
+                }}
                 onCancelSent={
                   canManage && run.state === 'EXPORTED' ? () => setCancellingSent(true) : undefined
                 }
@@ -564,7 +577,10 @@ function RunBuilder({ runId }: { runId: string | null }) {
                       {group.bills.map((bill) => {
                         const due = dueNote(bill.dueDate, today)
                         const on = ticked.has(bill.billId)
-                        const saved = discountPercent(bill.discount, bill.outstanding)
+                        // A bill taken out was not paid, so no early-payment discount was taken:
+                        // its row shows what it still owes, with no saving.
+                        const out = takenOut.has(bill.billId)
+                        const saved = out ? 0 : discountPercent(bill.discount, bill.outstanding)
                         return (
                           <div
                             key={bill.billId}
@@ -597,6 +613,9 @@ function RunBuilder({ runId }: { runId: string | null }) {
                                     })
                                   : t('paymentRuns.noDate')}
                               </p>
+                              {blocks.has(bill.billId) && !takenOut.has(bill.billId) ? (
+                                <MarkPaidBlockChip label={t(blocks.get(bill.billId)!)} />
+                              ) : null}
                               {takenOut.has(bill.billId) ? (
                                 <span
                                   className={[
@@ -622,7 +641,10 @@ function RunBuilder({ runId }: { runId: string | null }) {
                               })}
                             </span>
                             <div className="w-[150px] text-end">
-                              <Amount value={bill.amount} currency={currency} />
+                              <Amount
+                                value={out ? bill.outstanding : bill.amount}
+                                currency={currency}
+                              />
                               {saved > 0 ? (
                                 <p className="mt-0.5 text-[10px] font-medium leading-[1.2] text-[#3d5648]">
                                   {t('paymentsPage.savedEarly', { percent: saved })}
@@ -912,10 +934,21 @@ function RunBuilder({ runId }: { runId: string | null }) {
             try {
               await markRunPaid(runId, takeOut)
               setConfirmingPaid(false)
+              // A refusal from an earlier try no longer applies to the run now paid.
+              setNotice(null)
               loaded.retry()
             } catch (error) {
               setConfirmingPaid(false)
-              setNotice(refusalOf(error, t, 'markPaid'))
+              // The bill a refusal is about, when the screen can tell: the one bill left in the
+              // run that the server flagged for that reason.
+              const out = new Set(takeOut.map((entry) => entry.billId))
+              const knownBill = (code: string) => {
+                const flagged = detail.items.filter(
+                  (item) => item.markPaidBlock?.code === code && !out.has(item.billId),
+                )
+                return flagged.length === 1 ? flagged[0].supplierBillNumber : null
+              }
+              setNotice(refusalOf(error, t, 'markPaid', knownBill))
             }
           }}
         />
@@ -931,6 +964,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
             try {
               await cancelRun(runId)
               setCancellingUnsent(false)
+              setNotice(null)
               loaded.retry()
             } catch (error) {
               setCancellingUnsent(false)
@@ -947,6 +981,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
             try {
               await cancelRun(runId, { reason })
               setCancellingSent(false)
+              setNotice(null)
               loaded.retry()
             } catch (error) {
               setCancellingSent(false)

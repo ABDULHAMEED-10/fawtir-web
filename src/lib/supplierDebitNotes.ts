@@ -341,7 +341,12 @@ export function debitActivity(
             tone: 'current',
           }
 
-  const history: NoteActivity[] = decisions.map((decision, index) => ({
+  // The history comes newest first, and its newest row is the decision the note stands on, which
+  // the line above already says (with who and why): listing it again showed one refusal twice.
+  const [newest, ...older] = decisions
+  const shown =
+    newest && row.status !== 'UNCHECKED' && newest.decision === row.status ? older : decisions
+  const history: NoteActivity[] = shown.map((decision, index) => ({
     id: `decision-${index}`,
     titleKey:
       decision.decision === 'ACCEPTED'

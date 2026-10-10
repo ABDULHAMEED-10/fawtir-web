@@ -11,6 +11,7 @@ import {
   RowsView,
   SortMenu,
   TableCheckbox,
+  withRial,
   type ActionMenuItem,
 } from '../../components/ui'
 import { BillStatusChip } from '../../components/bills'
@@ -727,7 +728,8 @@ function BillKpiCards({
         }),
         totals.disputedCount > 0
           ? t('billsPage.kpi.payableDisputed', {
-              amount: money(totals.disputedTotal),
+              // The code before the figure: the rial sign is drawn in its place.
+              amount: `${totals.currencyCode} ${money(totals.disputedTotal)}`,
               count: totals.disputedCount,
             })
           : null,
@@ -776,7 +778,9 @@ function BillKpiCards({
               {kpi.money ? <RialMark className="w-8 shrink-0" /> : null}
               <p className="text-[32px] font-semibold leading-[1.2] tabular-nums">{kpi.figure}</p>
             </div>
-            <p className="text-sm font-medium leading-[1.4] text-text-tertiary">{kpi.meta}</p>
+            <p className="text-sm font-medium leading-[1.4] text-text-tertiary">
+              {withRial(kpi.meta)}
+            </p>
             {kpi.link ? (
               kpi.link.to ? (
                 <Link to={kpi.link.to} className={linkClass}>

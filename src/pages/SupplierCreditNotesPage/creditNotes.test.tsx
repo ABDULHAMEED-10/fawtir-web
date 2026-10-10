@@ -111,6 +111,8 @@ let applyRefusal: Record<string, unknown> | null
 let refundBody: unknown
 let refundRefusal: Record<string, unknown> | null
 let downloads: string[]
+/** `GET /bills/{BILL_ID}` as a detail, when a test needs the bill a note names read directly. */
+let billDetail: unknown
 
 const calls = (prefix: string) =>
   fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith(prefix))
@@ -126,6 +128,7 @@ beforeEach(async () => {
   refundBody = null
   refundRefusal = null
   downloads = []
+  billDetail = null
 
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(
@@ -190,6 +193,7 @@ beforeEach(async () => {
         total: notes.length,
       })
     }
+    if (billDetail !== null && url.includes(`/bills/${BILL_ID}`)) return json(200, billDetail)
     if (url.includes('/bills')) {
       return json(200, {
         items: [
@@ -522,6 +526,29 @@ describe('Credit notes list, wired to the API', () => {
   })
 
   // Owner's answer 7 (6 Oct): an action the reader may not take is hidden, not greyed out.
+  // E2E 10 Oct, F-2: the partly used note's row read "Not yet used" with "Set against the bill".
+  it('shows a partly used note as partly used, and opens it rather than setting it again', async () => {
+    notes = [
+      note({
+        status: 'UNAPPLIED',
+        balance: { applied: 150, refunded: 0, remaining: 50 },
+        credits: {
+          billNumber: 'QMS-7781',
+          issueDate: '2026-09-01',
+          documentUuid: null,
+          billId: BILL_ID,
+          applied: true,
+        },
+      }),
+    ]
+    renderList()
+    const row = (await screen.findByRole('link', { name: 'QMS-CN-1' })).closest('tr')!
+    expect(within(row).getByText('Partly used')).toBeTruthy()
+    expect(within(row).queryByText('Not yet used')).toBeNull()
+    expect(within(row).queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    expect(within(row).getByRole('link', { name: /Open the note/ })).toBeTruthy()
+  })
+
   it('shows Upload and Set against to someone who may settle a credit', async () => {
     notes = [
       note({
@@ -766,6 +793,8 @@ describe('One credit note', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Today' }))
 
     expect(screen.getByRole('alert').textContent).toContain('200.000')
+    // With the rial sign before it (E2E 10 Oct, F-14).
+    expect(screen.getByRole('alert').querySelector('svg')).not.toBeNull()
     expect(screen.getByRole('button', { name: 'Record the refund' })).toHaveProperty(
       'disabled',
       true,
@@ -900,6 +929,144 @@ describe('One credit note', () => {
     await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
     fireEvent.click(screen.getByRole('button', { name: 'Download' }))
     await waitFor(() => expect(downloads).toEqual(['/api/v1/inbound-invoices/delivery-1/document']))
+  })
+
+  // E2E 10 Oct, F-1: a used note showed They billed 50.000 − 10.500 = You'll pay 29.000.
+  it("takes the credit off once: You'll pay is what the bill still owes after it", async () => {
+    notes = [
+      note({
+        creditedAmount: 10.5,
+        status: 'APPLIED',
+        balance: { applied: 10.5, refunded: 0, remaining: 0 },
+        credits: {
+          billNumber: 'QMS-7781',
+          issueDate: '2026-09-01',
+          documentUuid: null,
+          billId: BILL_ID,
+          applied: true,
+        },
+      }),
+    ]
+    billDetail = {
+      bill: {
+        ...OURS,
+        id: BILL_ID,
+        supplierBillNumber: 'QMS-7781',
+        totalIncludingVat: 50,
+        paidAmount: 0,
+        outstandingAmount: 39.5,
+        dueDate: null,
+      },
+      lines: [],
+    }
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    const tile = await waitFor(() => {
+      const label = screen.getByText("You'll pay")
+      expect(label.parentElement?.textContent).toContain('39.500')
+      return label.parentElement!
+    })
+    expect(tile.textContent).not.toContain('29.000')
+    // What the bill still owes under it, with the rial sign (F-14).
+    const owed = within(tile).getByText(
+      (_, element) =>
+        element?.tagName === 'P' && /39\.500 still unpaid$/.test(element.textContent ?? ''),
+    )
+    expect(owed.querySelector('svg')).not.toBeNull()
+    expect(screen.getByText('This credit').parentElement?.textContent).toContain('10.500')
+  })
+
+  // E2E 10 Oct, F-2: a 31.500 note on a 20.000 bill, 20.000 used and 5.000 refunded, still read
+  // "Not yet used" and offered the bill it had already cleared.
+  it('calls a partly used note partly used, and never offers the bill it already cleared', async () => {
+    notes = [
+      note({
+        creditedAmount: 31.5,
+        status: 'UNAPPLIED',
+        usage: 'PARTLY_USED',
+        balance: { applied: 20, refunded: 5, remaining: 6.5 },
+        credits: {
+          billNumber: 'QMS-7781',
+          issueDate: '2026-09-01',
+          documentUuid: null,
+          billId: BILL_ID,
+          applied: true,
+        },
+      }),
+    ]
+    billDetail = {
+      bill: {
+        ...OURS,
+        id: BILL_ID,
+        supplierBillNumber: 'QMS-7781',
+        totalIncludingVat: 20,
+        paidAmount: 0,
+        outstandingAmount: 0,
+      },
+      lines: [],
+    }
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    await waitFor(() =>
+      expect(screen.getByText("You'll pay").parentElement?.textContent).toContain('0.000'),
+    )
+
+    expect(screen.getAllByText('Partly used').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Not yet used')).toBeNull()
+    expect(screen.queryByText(/has already been paid/)).toBeNull()
+    expect(screen.getByText(/Part of this credit is already used or refunded/)).toBeTruthy()
+    const activity = screen.getByRole('list', { name: 'Activity' })
+    expect(within(activity).queryByText('Waiting to be set against the bill')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Set against a bill' })[0])
+    // A search for another bill, not the one it cleared already chosen.
+    expect(screen.getByLabelText('Which bill')).toBeTruthy()
+    expect(screen.queryByText(/Applying to/)).toBeNull()
+  })
+
+  it('reads the state from the balance whatever status word the server sends', () => {
+    expect(
+      toCreditNoteItem(
+        note({ status: 'UNAPPLIED', balance: { applied: 20, refunded: 0, remaining: 5 } }),
+      ).status,
+    ).toBe('PARTLY_USED')
+    expect(
+      toCreditNoteItem(
+        note({ status: 'UNAPPLIED', balance: { applied: 20, refunded: 5, remaining: 0 } }),
+      ).status,
+    ).toBe('APPLIED')
+    expect(
+      toCreditNoteItem(
+        note({
+          status: 'PARTLY_APPLIED' as CreditNoteRowDto['status'],
+          balance: { applied: 20, refunded: 0, remaining: 5 },
+        }),
+      ).status,
+    ).toBe('PARTLY_USED')
+    expect(toCreditNoteItem(note()).status).toBe('UNAPPLIED')
+  })
+
+  // Backend #477: `usage` says how much has gone, beside a status that says whether any is left.
+  it("takes the server's usage first, and the balance only without it", () => {
+    const left = { applied: 20, refunded: 0, remaining: 5 }
+    expect(toCreditNoteItem(note({ usage: 'PARTLY_USED', balance: left })).status).toBe(
+      'PARTLY_USED',
+    )
+    expect(
+      toCreditNoteItem(
+        note({
+          usage: 'FULLY_USED',
+          status: 'REFUNDED',
+          balance: { applied: 0, refunded: 200, remaining: 0 },
+        }),
+      ).status,
+    ).toBe('REFUNDED')
+    expect(toCreditNoteItem(note({ usage: 'NOT_USED' })).status).toBe('UNAPPLIED')
+    expect(toCreditNoteItem(note({ usage: 'NOT_USED', status: 'WAITING_FOR_BILL' })).status).toBe(
+      'WAITING_FOR_BILL',
+    )
+    expect(toCreditNoteItem(note({ usage: null, balance: left })).status).toBe('PARTLY_USED')
   })
 
   it('offers nothing to dispose of once the credit is spent', async () => {

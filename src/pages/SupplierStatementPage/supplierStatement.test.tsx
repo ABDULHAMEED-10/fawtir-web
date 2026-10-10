@@ -223,7 +223,10 @@ describe('The supplier statement, wired to the API', () => {
     expect(screen.getByRole('link', { name: 'SOHAR-1002' }).getAttribute('href')).toBe(
       '/expenditure/bills/bill-1',
     )
-    expect(screen.getByText('−100.000')).toBeTruthy()
+    // Every table figure carries the rial sign, a minus before it (E2E 10 Oct, F-14).
+    const refundCell = screen.getAllByRole('cell').find((cell) => cell.textContent === '−100.000')
+    expect(refundCell).toBeTruthy()
+    expect(refundCell!.querySelector('svg')).not.toBeNull()
     // The ageing strip (Figma 163:28602): four figures, the design's labels, no paragraph around them.
     expect(screen.getByText('Late by 60 or more')).toBeTruthy()
     expect(screen.getByText('Not due yet')).toBeTruthy()

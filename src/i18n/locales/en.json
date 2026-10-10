@@ -5509,7 +5509,8 @@
       "paid": "Paid in full.",
       "creditNote": "A credit note lowers what you owe. There is nothing to approve or pay on it.",
       "release": "Release",
-      "queryIt": "Query it"
+      "queryIt": "Query it",
+      "inRun": "Approved for payment and in payment run {{run}}. It is paid when the run is marked paid."
     },
     "compliance": {
       "title": "Compliance",
@@ -6360,7 +6361,8 @@
       "UNAPPLIED": "Not used yet",
       "WAITING_FOR_BILL": "Waiting for a bill",
       "APPLIED": "Used",
-      "REFUNDED": "Refunded"
+      "REFUNDED": "Refunded",
+      "partlyUsed": "Partly used"
     },
     "actions": {
       "setAgainst": "Set against the bill",
@@ -6554,7 +6556,9 @@
       "stillUnpaidOf": "{{amount}} still unpaid",
       "reasonCode": "Reason code {{code}}",
       "lineBilledOn": "Billed on {{bill}}",
-      "decisionNoteNoBill": "Choose the bill this credit reduces, keep it for a later bill, or record a refund."
+      "decisionNoteNoBill": "Choose the bill this credit reduces, keep it for a later bill, or record a refund.",
+      "setAgainstAnother": "Set against a bill",
+      "partlyUsedBody": "Part of this credit is already used or refunded. Set the rest against another bill, keep it for a later one, or record a refund."
     },
     "source": {
       "peppol": "Received over Peppol",
@@ -6580,7 +6584,8 @@
       "rejected": "Rejected this year",
       "rejectedNote_one": "{{count}} charge refused",
       "rejectedNote_other": "{{count}} charges refused",
-      "acceptedNote": "{{count}} accepted · {{open}} still open"
+      "acceptedNote": "{{count}} accepted · {{open}} still open",
+      "refused": "Refused this year"
     },
     "tabs": {
       "all": "All",
@@ -6846,7 +6851,8 @@
       "lineAgainst": "Stated against {{bill}}",
       "heldNote": "On hold. Nothing is added and nothing is recorded until you decide.",
       "reasonRecorded": "Your reason is recorded against the note. It is not sent to the supplier from here.",
-      "rateCardMissing": "No rate card is on file for this supplier yet. When one is, the charge is read against it here."
+      "rateCardMissing": "No rate card is on file for this supplier yet. When one is, the charge is read against it here.",
+      "acceptedBodyNoDate": "The charge was accepted and is owed."
     },
     "status": {
       "UNCHECKED": "Not checked yet",
@@ -17740,7 +17746,8 @@
       "payerAccountInactive": "The account you pay from, {{account}}, is switched off. Choose an active account.",
       "payerNameNotLatin": "The bank file needs the company's legal name in English letters. Update it in Company settings, then try again.",
       "onHoldMarkPaid": "A bill in this run is on hold. Release it, or take it out of the run and mark the others paid.",
-      "rejectedMarkPaid": "{{bill}} was rejected after it joined this run. Mark the others paid and take {{bill}} out of the run."
+      "rejectedMarkPaid": "{{bill}} was rejected after it joined this run. Mark the others paid and take {{bill}} out of the run.",
+      "onHoldMarkPaidNamed": "{{bill}} is on hold. Release it, or take it out of the run and mark the others paid."
     },
     "addModal": {
       "open": "Add to a payment run",
@@ -17783,7 +17790,11 @@
     "sentFileWarning": "This file was already sent to the bank. Do not upload it again.",
     "bankDetailsChangedSinceFile": "{{supplier}}'s bank details changed after this file was made. This file keeps the old IBAN; new runs use the new one.",
     "takenOutRow": "Taken out · {{reason}}",
-    "paidAndTakenOut": "Paid {{paid}} · taken out {{takenOut}}"
+    "paidAndTakenOut": "Paid {{paid}} · taken out {{takenOut}}",
+    "markPaidBlock": {
+      "amountChanged": "Amount owed changed",
+      "settled": "Already paid in full"
+    }
   },
   "billIntake": {
     "supplier": "Supplier",

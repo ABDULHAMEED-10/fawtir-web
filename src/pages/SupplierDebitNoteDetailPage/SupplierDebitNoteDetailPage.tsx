@@ -240,9 +240,10 @@ function DebitNoteDetail() {
   const bannerBody =
     row.status === 'ACCEPTED'
       ? row.outstandingAmount > 0
-        ? t('supplierDebitNotes.detail.acceptedBody', {
-            date: row.dueDate ? fmt.date(row.dueDate) : '',
-          })
+        ? row.dueDate
+          ? t('supplierDebitNotes.detail.acceptedBody', { date: fmt.date(row.dueDate) })
+          : // No due date on the note: the sentence ends without one, never "due ."
+            t('supplierDebitNotes.detail.acceptedBodyNoDate')
         : t('supplierDebitNotes.detail.acceptedSettledBody')
       : row.status === 'REFUSED'
         ? t('supplierDebitNotes.detail.refusedBody')

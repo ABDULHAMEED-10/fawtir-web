@@ -100,6 +100,8 @@ let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
 /** What the confirm answers, when set; a saved note otherwise. */
 let confirmAnswer: (() => Promise<Response>) | null
+/** The bill the list offers, to vary what it still owes. */
+let listedBill: BillRowDto
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -116,6 +118,7 @@ beforeEach(async () => {
   forgetEntitlements()
   who = MANAGER
   confirmAnswer = null
+  listedBill = BILL
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, who)
@@ -133,7 +136,7 @@ beforeEach(async () => {
     if (url.startsWith('/api/v1/bills/intake/') && method === 'DELETE')
       return new Response(null, { status: 204 })
     if (url.startsWith('/api/v1/bills?') && method === 'GET')
-      return json(200, { items: [BILL], page: 0, pageSize: 10, total: 1 })
+      return json(200, { items: [listedBill], page: 0, pageSize: 10, total: 1 })
     throw new Error(`unexpected ${method} ${url}`)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -376,6 +379,30 @@ describe('upload a supplier credit note', () => {
     const arabic = await screen.findByText(/^الفاتورة غير مدفوعة، فتدفع ببساطة أقل بمقدار/)
     expect(arabic.querySelector('svg')).not.toBeNull()
     expect(visible(arabic)).not.toContain('OMR')
+  })
+
+  // E2E 10 Oct, F-2: a 31.500 credit on a 20.000 bill said "you simply pay 31.500 less".
+  it('says the bill comes down by no more than it still owes when the credit is bigger', async () => {
+    listedBill = { ...BILL, totalIncludingVat: 50, outstandingAmount: 50 }
+    await uploadNote()
+    await chooseBill()
+    const sentence = screen.getByText(/^The bill is unpaid, so you simply pay/)
+    expect(sentence.textContent).toMatch(/\s50\.000 less\.$/)
+    expect(sentence.textContent).not.toContain('105.000')
+  })
+
+  // E2E 10 Oct, F-14: the chosen bill's card read "Approved · 60.000 unpaid".
+  it('writes what the chosen bill still owes with the rial sign before it', async () => {
+    await uploadNote()
+    await chooseBill()
+    const card = screen.getByText(
+      (_, element) =>
+        element?.tagName === 'P' && /315\.000 unpaid · due /.test(element.textContent ?? ''),
+    )
+    expect(card.querySelector('svg')).not.toBeNull()
+    const visible = card.cloneNode(true) as Element
+    visible.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+    expect(visible.textContent).not.toContain('OMR')
   })
 
   it('sends one confirm however quickly the button is pressed twice', async () => {

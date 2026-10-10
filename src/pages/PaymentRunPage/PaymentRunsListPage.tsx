@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { RowsView } from '../../components/ui'
+import { RowsView, withRial } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
@@ -11,7 +11,7 @@ import {
   type PaymentRunDto,
   type PaymentRunState,
 } from '../../api/expenditure/paymentRuns'
-import { formatDate } from '../../lib/format'
+import { formatAmount, formatDate, formatInstantDay } from '../../lib/format'
 import { RUN_STATES } from '../../lib/paymentRuns'
 import { can, useSession } from '../../lib/session/session'
 import { Amount, PRIMARY_BUTTON, RunStatePill } from './RunParts'
@@ -24,6 +24,12 @@ import plusIcon from '../../assets/bill-capture/plus.svg'
  * kept to the frames' shell: the page header, a card, the same pills and figures. It has no bank
  * format column: Fawtir makes no bank files (owner, 9 Oct 2026).
  */
+/**
+ * The tabs. No run reaches "Sent to bank" now that no file is made; a run sent before that still
+ * shows under All, with its pill.
+ */
+const LISTED_STATES = RUN_STATES.filter((entry) => entry !== 'EXPORTED')
+
 export function PaymentRunsListPage() {
   return (
     <AppShell>
@@ -63,7 +69,7 @@ function PaymentRunsList() {
           role="tablist"
           className="flex flex-wrap items-center gap-x-8 gap-y-2 border-b border-border-subtle px-6 pt-4 max-md:gap-x-5"
         >
-          {[null, ...RUN_STATES].map((entry) => {
+          {[null, ...LISTED_STATES].map((entry) => {
             const active = state === entry
             return (
               <button
@@ -128,7 +134,7 @@ function PaymentRunsList() {
                       </Link>
                       <p className="mt-1 text-xs font-medium text-text-quaternary">
                         {t('paymentRuns.createdOn', {
-                          date: formatDate(run.createdAt.slice(0, 10), i18n.language),
+                          date: formatInstantDay(run.createdAt, i18n.language),
                         })}
                       </p>
                     </td>
@@ -150,11 +156,27 @@ function PaymentRunsList() {
                           {t('paymentRuns.nothingSent')}
                         </span>
                       ) : (
-                        <Amount
-                          value={run.netTotal}
-                          currency={run.currency}
-                          className="text-sm font-semibold text-text-primary"
-                        />
+                        <>
+                          <Amount
+                            value={run.netTotal}
+                            currency={run.currency}
+                            className="text-sm font-semibold text-text-primary"
+                          />
+                          {/* A paid run with bills taken out: what was paid and what was not,
+                              under its total, as on the run itself (owner, 9 Oct 2026, D2). */}
+                          {run.state === 'PAID' &&
+                          run.paidTotal != null &&
+                          (run.takenOutTotal ?? 0) > 0 ? (
+                            <p className="mt-0.5 text-end text-[10px] font-medium leading-[1.2] text-text-muted">
+                              {withRial(
+                                t('paymentRuns.paidAndTakenOut', {
+                                  paid: `${run.currency} ${formatAmount(run.paidTotal, run.currency, i18n.language)}`,
+                                  takenOut: `${run.currency} ${formatAmount(run.takenOutTotal!, run.currency, i18n.language)}`,
+                                }),
+                              )}
+                            </p>
+                          ) : null}
+                        </>
                       )}
                     </td>
                   </tr>

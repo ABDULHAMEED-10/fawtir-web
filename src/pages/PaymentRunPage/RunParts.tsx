@@ -22,6 +22,7 @@ import {
   BIC_SHAPE,
   actionsFor,
   ibanValid,
+  markPaidBlockKey,
   refusalOf,
   sum,
   supplierTile,
@@ -199,7 +200,8 @@ export function ConfirmModal({
 /**
  * Mark a run paid (owner, 8 Oct 2026; from a draft or scheduled run too since 9 Oct 2026): every
  * bill of the run is listed, and any can be taken out of the run with a reason, as it was not paid.
- * A bill the server says cannot be marked paid now (`markPaidBlock`) starts ticked. With a bill
+ * A bill the server says cannot be marked paid now (`markPaidBlock`) starts ticked, with why beside
+ * it, as on the run page. With a bill
  * ticked the button reads "Mark the others paid"; with every bill ticked there is nothing left to
  * mark paid, so the button becomes the run's own "Cancel the run" and leads to that dialog instead.
  */
@@ -276,6 +278,7 @@ export function MarkPaidModal({
         <ul className="mt-5 overflow-hidden rounded-sm border border-border-subtle">
           {items.map((item, index) => {
             const on = ticked.has(item.billId)
+            const block = markPaidBlockKey(item.markPaidBlock?.code)
             return (
               <li
                 key={item.billId}
@@ -292,6 +295,7 @@ export function MarkPaidModal({
                     <p className="mt-0.5 text-[10px] font-medium leading-[1.2] text-text-muted">
                       {item.supplierName ?? t('paymentRuns.noSupplier')}
                     </p>
+                    {block ? <MarkPaidBlockChip label={t(block)} /> : null}
                   </div>
                   <div className="ms-auto">
                     <Amount value={item.amount} currency={run.currency} />
@@ -325,6 +329,18 @@ export function MarkPaidModal({
         </ul>
       ) : null}
     </ConfirmModal>
+  )
+}
+
+/**
+ * Why a bill in a live run cannot be marked paid now (`markPaidBlock`): "On hold" and the like,
+ * on its row of the run and in the Mark as paid dialog.
+ */
+export function MarkPaidBlockChip({ label }: { label: string }) {
+  return (
+    <span className="mt-1 inline-flex items-center rounded-sm bg-pending-100 px-3 py-1 text-[10px] font-medium leading-[1.2] text-pending-700">
+      {label}
+    </span>
   )
 }
 
@@ -648,7 +664,8 @@ export function RunMenu({
         <ConfirmModal
           title={t('paymentRuns.confirmCancel.title', { reference: run.reference })}
           body={t('paymentRuns.confirmCancel.body')}
-          confirm={t('paymentRuns.menu.delete')}
+          // The run is cancelled, not deleted: the button says so, as the run's other cancel does.
+          confirm={t('paymentRuns.cancel')}
           danger
           onClose={() => setConfirming(null)}
           onConfirm={remove}

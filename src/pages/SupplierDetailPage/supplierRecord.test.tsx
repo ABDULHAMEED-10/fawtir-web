@@ -6,6 +6,7 @@ import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitl
 import type { SupplierDetailDto } from '../../api/expenditure/suppliers'
 import type { SupplierContactDto, SupplierOverviewDto } from '../../api/expenditure/supplierRecord'
 import { SupplierDetailPage } from './SupplierDetailPage'
+import { muscatDayOf } from '../../lib/supplierRecord'
 import { RecordSupplierBillPage } from '../RecordSupplierBillPage'
 
 // The pages render slowly on a loaded machine; the default second is not enough for a find.
@@ -470,6 +471,21 @@ describe('a supplier, opened', () => {
     expect(screen.queryByText('Pay them')).toBeNull()
     // The design's "Added by" row is drawn; nothing backs it yet (backend ask 7.3), so it reads "—".
     expect(screen.getByText('Added by')).toBeTruthy()
+  })
+
+  // E2E 10 Oct, F-8: a change made 10 Oct 03:54 Muscat read "9 Oct 2026", the UTC day.
+  it('dates the last change of the bank details on the Muscat day, not the UTC one', async () => {
+    detail = {
+      ...DETAIL,
+      profile: {
+        ...DETAIL.profile,
+        bankDetails: { ...DETAIL.profile.bankDetails!, changedAt: '2026-10-09T23:54:00Z' },
+      },
+    }
+    renderSupplier()
+    const label = await screen.findByText('Details last changed')
+    expect(label.parentElement?.textContent).toContain('10 Oct 2026')
+    expect(label.parentElement?.textContent).not.toContain('9 Oct 2026')
   })
 
   it('pages the bills tab, folds a reversal into its payment, and lists orders', async () => {
@@ -1354,5 +1370,12 @@ describe("a supplier's overpaid bills", () => {
     renderSupplier()
     await screen.findByText('160.500')
     expect(screen.queryByText(/Overpaid by/)).toBeNull()
+  })
+})
+
+describe('the day a paper was uploaded (E2E 10 Oct, F-8)', () => {
+  it('is the Muscat day of the instant, not its UTC slice', () => {
+    expect(muscatDayOf('2026-10-09T23:54:00Z')).toBe('2026-10-10')
+    expect(muscatDayOf('2026-10-09T19:59:00Z')).toBe('2026-10-09')
   })
 })
