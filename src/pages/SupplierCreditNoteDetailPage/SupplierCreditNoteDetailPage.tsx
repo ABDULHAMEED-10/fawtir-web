@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { DateField, withRial } from '../../components/ui'
@@ -91,6 +91,9 @@ const FIELD =
  * the credit. "Keep as credit" is the third choice the frame draws: it changes nothing on the
  * server, because an unapplied note already is held credit.
  */
+/** What the upload hands this page: the sentence that says what the save did, said once. */
+export type SavedNoteState = { saved?: { key: string; values?: Record<string, string> } }
+
 export function SupplierCreditNoteDetailPage() {
   return (
     <AppShell>
@@ -103,6 +106,8 @@ function CreditNoteDetail() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const { id = '' } = useParams()
+  const location = useLocation()
+  const navigate = useNavigate()
   const session = useSession()
   const canSettle = can(session, 'invoice.payment.manage')
 
@@ -133,7 +138,17 @@ function CreditNoteDetail() {
     () => loadSupplierOverview(row!.supplierId!),
   )
 
-  const [notice, setNotice] = useState<string | null>(null)
+  // What the upload did with the note, said once on arrival: a reload or a step back is not
+  // another save, so the state is cleared at once.
+  const arrived = (location.state as SavedNoteState | null)?.saved
+  const [notice, setNotice] = useState<string | null>(
+    arrived ? t(arrived.key, arrived.values) : null,
+  )
+  useEffect(() => {
+    if (arrived) navigate(location.pathname, { replace: true, state: null })
+    // Only on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [failure, setFailure] = useState<string | null>(null)
   const [kept, setKept] = useState(false)
   const [mode, setMode] = useState<'idle' | 'apply' | 'refund'>('idle')
