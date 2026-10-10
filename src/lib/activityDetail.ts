@@ -61,7 +61,7 @@ export type Journey = {
 export type ReportVersion = {
   id: string
   version: string
-  state: 'live' | 'superseded' | 'rejected' | 'waiting'
+  state: 'live' | 'superseded' | 'rejected' | 'waiting' | 'notSent' | 'held'
   headlineKey: string
   at: string | null
   uuid: string | null
@@ -178,8 +178,17 @@ function dayOf(iso: string, language: string): string {
   return (whenOf(iso, language) ?? iso).split(',')[0]
 }
 
+/**
+ * Fawtir stopped the report itself: GENERATION_FAILED parks it before sending (FR-201) and
+ * DEAD_LETTERED is our own SLA watchdog or exhausted transport retries (FR-203/204). Both carry a
+ * `failure_reason`, but it is ours, never the Tax Authority's (Phase 13 finding N1).
+ */
+const STOPPED_AT_FAWTIR = new Set(['GENERATION_FAILED', 'DEAD_LETTERED'])
+const stoppedAtFawtir = (obligation: TddObligationDto) => STOPPED_AT_FAWTIR.has(obligation.status)
+
 const refused = (obligation: TddObligationDto) =>
-  Boolean(obligation.failure_reason) || obligation.status === 'REJECTED'
+  !stoppedAtFawtir(obligation) &&
+  (Boolean(obligation.failure_reason) || obligation.status === 'REJECTED')
 
 function tddJourney(dto: ActivityDetailDto, outcome: RowOutcome, language: string): Journey | null {
   const lineage = dto.tdd_lineage
@@ -187,26 +196,56 @@ function tddJourney(dto: ActivityDetailDto, outcome: RowOutcome, language: strin
   if (lineage.length === 0 && !leg) return null
   const steps: JourneyStep[] = []
   const first = lineage[0]
+  const live = lineage[lineage.length - 1]
+  const builtAt = first?.validated_at ?? leg?.validated_at ?? null
   steps.push({
     id: 'built',
     labelKey: 'activityDetail.step.reportBuilt',
-    at: stampOf(first?.validated_at ?? leg?.validated_at ?? null, language),
-    state: 'done',
+    at: stampOf(builtAt, language),
+    state: builtAt ? 'done' : 'waiting',
   })
-  steps.push({
-    id: 'sent',
-    labelKey: 'activityDetail.step.sentToFawtara',
-    at: stampOf(first?.submitted_at ?? leg?.submitted_at ?? null, language),
-    state: 'done',
-  })
+  // Only a submission time proves the report left Fawtir; a queued or generated TDD has none.
+  const sentAt = first?.submitted_at ?? leg?.submitted_at ?? null
+  steps.push(
+    sentAt
+      ? {
+          id: 'sent',
+          labelKey: 'activityDetail.step.sentToFawtara',
+          at: stampOf(sentAt, language),
+          state: 'done',
+        }
+      : {
+          id: 'sent',
+          labelKey: 'activityDetail.step.notSentToFawtara',
+          at: null,
+          state: 'waiting',
+        },
+  )
   lineage.forEach((obligation, index) => {
     const last = index === lineage.length - 1
     if (index > 0) {
+      steps.push(
+        obligation.submitted_at
+          ? {
+              id: `resent-${obligation.id}`,
+              labelKey: 'activityDetail.step.correctedAndResent',
+              at: stampOf(obligation.submitted_at, language),
+              state: 'done',
+            }
+          : {
+              id: `resent-${obligation.id}`,
+              labelKey: 'activityDetail.step.notSentToFawtara',
+              at: null,
+              state: 'waiting',
+            },
+      )
+    }
+    if (stoppedAtFawtir(obligation)) {
       steps.push({
-        id: `resent-${obligation.id}`,
-        labelKey: 'activityDetail.step.correctedAndResent',
-        at: stampOf(obligation.submitted_at, language),
-        state: 'done',
+        id: `stopped-${obligation.id}`,
+        labelKey: 'activityDetail.step.stoppedAtFawtir',
+        at: null,
+        state: 'failed',
       })
     }
     // A refusal on the last attempt is told by the leg below, which knows when it came back.
@@ -221,7 +260,9 @@ function tddJourney(dto: ActivityDetailDto, outcome: RowOutcome, language: strin
       })
     }
   })
-  const live = lineage[lineage.length - 1]
+  const liveStopped = live ? stoppedAtFawtir(live) : false
+  // Nobody at the OTA can be waited on for a report that never reached it.
+  const liveSubmitted = Boolean(live ? live.submitted_at : leg?.submitted_at)
   if (leg?.ack === 'AP' || leg?.ack === 'AB') {
     steps.push({
       id: 'accepted',
@@ -242,7 +283,7 @@ function tddJourney(dto: ActivityDetailDto, outcome: RowOutcome, language: strin
       note: live?.error_code ?? undefined,
       state: 'failed',
     })
-  } else if (leg) {
+  } else if (leg && liveSubmitted && !liveStopped) {
     steps.push({
       id: 'waiting',
       labelKey: 'activityDetail.step.waitingOnOta',
@@ -278,7 +319,9 @@ function tddJourney(dto: ActivityDetailDto, outcome: RowOutcome, language: strin
       dto.summary.direction === 'RECEIVED'
         ? 'activityDetail.receiptReportedNote'
         : 'activityDetail.toTaxAuthorityNote',
-    ...verdict,
+    ...(outcome === 'waiting' && liveStopped
+      ? { verdictKey: 'activityDetail.verdict.stoppedAtFawtir', tone: 'bad' as const }
+      : verdict),
     steps,
   }
 }
@@ -320,6 +363,41 @@ function receivedJourney(dto: ActivityDetailDto, language: string): Journey {
   }
 }
 
+/**
+ * Proof that the invoice left over AS4. QUEUED and SENDING are only a row waiting in our outbox,
+ * and `attempts` also counts failures before anything was sent; an MDN (SENT and the delivered
+ * states, or SENT_AWAITING_MDN on the row) or a reply from their side is proof.
+ */
+const SENT_INVOICE_STATES = new Set([
+  'SENT',
+  'DELIVERED',
+  'DELIVERED_UNCONFIRMED',
+  'C4_UNREACHABLE',
+])
+const SENT_TRANSMISSION_STATES = new Set(['SENT_AWAITING_MDN', 'DELIVERED'])
+
+const invoiceTransmissions = (dto: ActivityDetailDto) =>
+  (dto.transmissions ?? []).filter(
+    (row) => row.channel === 'INVOICE' && row.direction === 'OUTBOUND',
+  )
+
+function onTheWire(dto: ActivityDetailDto, replies: number): boolean {
+  const state = dto.summary.transport_state?.toUpperCase() ?? ''
+  return (
+    SENT_INVOICE_STATES.has(state) ||
+    replies > 0 ||
+    invoiceTransmissions(dto).some((row) => SENT_TRANSMISSION_STATES.has(row.state))
+  )
+}
+
+/** The transport gave up (UNDELIVERABLE, or its row dead-lettered) without sending it. */
+function transportFailed(dto: ActivityDetailDto): boolean {
+  return (
+    dto.summary.transport_state?.toUpperCase() === 'UNDELIVERABLE' ||
+    invoiceTransmissions(dto).some((row) => row.state === 'DEAD_LETTERED')
+  )
+}
+
 function peppolJourney(dto: ActivityDetailDto, language: string): Journey | null {
   const item = dto.summary
   if (item.direction === 'RECEIVED') return receivedJourney(dto, language)
@@ -329,19 +407,39 @@ function peppolJourney(dto: ActivityDetailDto, language: string): Journey | null
   const replies = [...dto.mls]
     .filter((record: MlsRecordDto) => record.ack !== 'NONE')
     .sort((a, b) => (a.received_at ?? '').localeCompare(b.received_at ?? ''))
+  const wire = onTheWire(dto, replies.length)
+  const undeliverable = !wire && transportFailed(dto)
   const steps: JourneyStep[] = [
-    {
-      id: 'signed',
-      labelKey: 'activityDetail.step.signed',
-      at: stampOf(item.validated_at, language),
-      state: 'done',
-    },
-    {
-      id: 'sentPeppol',
-      labelKey: 'activityDetail.step.sentOverPeppol',
-      at: stampOf(item.occurred_at, language),
-      state: 'done',
-    },
+    // The API carries no signing time or state: AS4 signs the message on its way out, so only
+    // a message that went on the wire is known to have been signed.
+    wire
+      ? {
+          id: 'signed',
+          labelKey: 'activityDetail.step.signed',
+          at: stampOf(item.validated_at, language),
+          state: 'done',
+        }
+      : {
+          id: 'signed',
+          labelKey: 'activityDetail.step.notSigned',
+          at: null,
+          state: 'waiting',
+        },
+    wire
+      ? {
+          id: 'sentPeppol',
+          labelKey: 'activityDetail.step.sentOverPeppol',
+          at: stampOf(item.occurred_at, language),
+          state: 'done',
+        }
+      : {
+          id: 'sentPeppol',
+          labelKey: undeliverable
+            ? 'activityDetail.step.couldNotSendOverPeppol'
+            : 'activityDetail.step.notSentOverPeppol',
+          at: null,
+          state: undeliverable ? 'failed' : 'waiting',
+        },
     // The frame's third step: the buyer's access point took the message (the AS4 receipt).
     // TODO(backend): the item says only that transport finished, not when (asks row 2.23).
     ...(item.transport_state && /^(SENT|DELIVERED)$/i.test(item.transport_state)
@@ -362,7 +460,7 @@ function peppolJourney(dto: ActivityDetailDto, language: string): Journey | null
       state: MLS_STEP[record.ack].state,
     })),
   ]
-  if (replies.length === 0) {
+  if (replies.length === 0 && wire) {
     steps.push({
       id: 'noReply',
       labelKey: 'activityDetail.step.waitingOnThem',
@@ -371,8 +469,11 @@ function peppolJourney(dto: ActivityDetailDto, language: string): Journey | null
     })
   }
   const last = replies[replies.length - 1]?.ack
-  const verdict: Pick<Journey, 'verdictKey' | 'tone'> =
-    last === 'AP'
+  const verdict: Pick<Journey, 'verdictKey' | 'tone'> = !wire
+    ? undeliverable
+      ? { verdictKey: 'activityDetail.verdict.couldNotSend', tone: 'bad' }
+      : { verdictKey: 'activityDetail.verdict.notSentYet', tone: 'waiting' }
+    : last === 'AP'
       ? { verdictKey: 'activityDetail.deliveredAccepted', tone: 'good' }
       : last === 'AB'
         ? { verdictKey: 'activityDetail.verdict.delivered', tone: 'good' }
@@ -403,9 +504,13 @@ function versionsOf(
           ? 'live'
           : obligation.status === 'SUPERSEDED'
             ? 'superseded'
-            : refused(obligation) || (last && leg?.ack === 'RE')
-              ? 'rejected'
-              : 'waiting'
+            : stoppedAtFawtir(obligation)
+              ? 'held'
+              : refused(obligation) || (last && leg?.ack === 'RE')
+                ? 'rejected'
+                : obligation.submitted_at
+                  ? 'waiting'
+                  : 'notSent'
       return {
         id: obligation.id,
         version: `V${index + 1}`,
@@ -415,9 +520,11 @@ function versionsOf(
             ? outcome === 'deliveredUnconfirmed'
               ? 'activityDetail.versions.deliveredOn'
               : 'activityDetail.versions.acceptedOn'
-            : state === 'waiting'
-              ? 'activityDetail.versions.sentOn'
-              : 'activityDetail.versions.turnedDownOn',
+            : !obligation.submitted_at
+              ? 'activityDetail.versions.notSent'
+              : state === 'waiting' || state === 'held'
+                ? 'activityDetail.versions.sentOn'
+                : 'activityDetail.versions.turnedDownOn',
         at: whenOf(
           last && state === 'live'
             ? (leg?.ack_at ?? obligation.submitted_at)
@@ -566,7 +673,8 @@ export function recordFromDetail(
           item.direction === 'RECEIVED'
           ? 'received'
           : 'accepted'
-        : outcome === 'waiting'
+        : // "Still waiting on the OTA" would be false for a report stopped here.
+          outcome === 'waiting' && !(live && stoppedAtFawtir(live))
           ? 'waiting'
           : 'none',
     links: item.links,

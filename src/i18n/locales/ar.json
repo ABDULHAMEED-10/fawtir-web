@@ -9730,7 +9730,12 @@
       "theyRefused": "رفضوها",
       "arrivedOverPeppol": "وصلت عبر Peppol",
       "validated": "تم التحقق منها",
-      "deliveredUnconfirmed": "سُلّم دون تأكيد"
+      "deliveredUnconfirmed": "سُلّم دون تأكيد",
+      "notSentToFawtara": "لم يُرسل إلى فوترة بعد",
+      "stoppedAtFawtir": "توقف لدى فوتير، ويحتاج إلى متابعة",
+      "notSigned": "لم تُوقّع بعد",
+      "notSentOverPeppol": "لم تُرسل عبر Peppol بعد",
+      "couldNotSendOverPeppol": "تعذّر إرسالها عبر Peppol"
     },
     "whyTurnedDown": "لماذا رُفضت المحاولة الأولى",
     "rejection": {
@@ -9754,7 +9759,10 @@
       "supersededBody": "استُبدل بالتقرير المصحح الذي أرسلته. محفوظ هنا لأن الأرشيف لا يفقد شيئًا، لكنه لا يُحتسب.",
       "rejectedBody": "رُفضت ولم تُستبدل بعد. وحتى يُقبل تقرير مصحح، هذا البيع غير مُصرَّح به.",
       "waitingBody": "أُرسلت، وبانتظار رد الهيئة.",
-      "deliveredOn": "سُلّم دون تأكيد {{at}}"
+      "deliveredOn": "سُلّم دون تأكيد {{at}}",
+      "notSent": "لم يُرسل إلى فوترة",
+      "notSentBody": "أُنشئ هنا ولم يُرسل إلى فوترة بعد، فلا شيء لدى الهيئة عن هذا البيع حتى الآن.",
+      "heldBody": "توقف لدى فوتير وينتظر المتابعة هنا. هذا ليس رفضًا من الهيئة: لم ترفض الهيئة أي شيء."
     },
     "whichRoute": "أي مسار سلكت",
     "route": {
@@ -9852,7 +9860,9 @@
       "live": "معتمدة لدى الهيئة",
       "superseded": "مُستبدلة",
       "rejected": "مرفوضة",
-      "waiting": "بالانتظار"
+      "waiting": "بالانتظار",
+      "notSent": "لم يُرسل",
+      "held": "توقف لدى فوتير"
     },
     "noReferenceYet": "لم يصدر بعد",
     "notYet": "ليس بعد",
@@ -9867,7 +9877,10 @@
       "noReplyYet": "لا رد بعد",
       "received": "استُلمت",
       "deliveredUnconfirmed": "سُلّم دون تأكيد",
-      "replaced": "استبدلناه"
+      "replaced": "استبدلناه",
+      "stoppedAtFawtir": "توقف لدى فوتير",
+      "notSentYet": "لم تُرسل بعد",
+      "couldNotSend": "تعذّر الإرسال"
     },
     "from": "من",
     "fromSupplier": "من {{customer}}",
@@ -21124,7 +21137,10 @@
       "features": "المزايا",
       "partners": "للشركاء",
       "signUp": "إنشاء حساب",
-      "contact": "تواصل معنا"
+      "contact": "تواصل معنا",
+      "menu": "القائمة",
+      "closeMenu": "إغلاق القائمة",
+      "mobileLabel": "القائمة الرئيسية"
     },
     "cta": {
       "demo": "اطلب عرضًا تجريبيًا"
