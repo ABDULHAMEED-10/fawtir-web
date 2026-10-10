@@ -27,7 +27,7 @@ type AppShellProps = {
  *
  * It also decides whether anyone may be here: without a session the reader goes to sign in, and
  * with one, who they are and what they may do is handed to every screen through `SessionContext`.
- * `REQUIRE_SESSION` turns that off for the prototype build, which cannot reach the API.
+ * Only a development build can turn that off (`REQUIRE_SESSION`), to look at the mock screens.
  */
 export function AppShell({ children }: AppShellProps) {
   return REQUIRE_SESSION ? <GuardedShell>{children}</GuardedShell> : <Frame>{children}</Frame>

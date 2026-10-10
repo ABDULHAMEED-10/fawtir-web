@@ -12,6 +12,7 @@ import {
 } from '../../components/ui'
 import { focusFirstInvalid } from '../../lib/forms'
 import type { FormMessage } from '../../lib/identity/errors'
+import { RESUME_ROUTE } from '../../lib/identity/signupResume'
 import {
   INITIAL_LOGIN_VALUES,
   LOGIN_CODE_ROUTE,
@@ -172,6 +173,13 @@ export function LoginForm() {
           {t('login.notMember')}{' '}
           <Link to="/signup" className="font-semibold text-primary-700 hover:text-primary-800">
             {t('login.signUp')}
+          </Link>
+        </p>
+        {/* A registrant cannot sign in until approved; this is their way back to the draft. */}
+        <p className="-mt-3 text-center text-xs font-medium text-text-primary">
+          {t('signupResume.loginPrompt')}{' '}
+          <Link to={RESUME_ROUTE} className="font-semibold text-primary-700 hover:text-primary-800">
+            {t('signupResume.cta')}
           </Link>
         </p>
       </div>

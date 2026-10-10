@@ -52,7 +52,10 @@ export type InvoiceDetailDto = {
   correctionOfInvoiceId: string | null
   version: number
   authoringState: InvoiceStateDto
-  /** Only `NOT_SUBMITTED` or `SENT_MANUALLY` exist today; there is no Peppol delivery state (B4). */
+  /**
+   * Only `NOT_SUBMITTED` or `SENT_MANUALLY`: the manual-delivery fact. Where the document stands on
+   * the network is `InvoiceDispatchDto`, read from its own route.
+   */
   deliveryState: string
   deliveryBlocker: string | null
   /**
@@ -271,6 +274,129 @@ export function markSentManually(invoiceId: string): Promise<{ recordedAt: strin
   return apiRequest<{ recordedAt: string }>(`${path(invoiceId)}/manual-delivery`, {
     method: 'POST',
   })
+}
+
+/**
+ * Where an issued document stands on its way to the buyer and the Tax Authority
+ * (`GET /authored-invoices/{id}/dispatch`). `sendable` is the server's own answer to "may Send be
+ * pressed now"; the screen does not re-derive it from `state`.
+ */
+export type InvoiceDispatchStateDto =
+  | 'NOT_OWED'
+  | 'NOT_SENT'
+  | 'PROCESSING'
+  | 'RETRY_SCHEDULED'
+  | 'DEAD_LETTERED'
+  | 'CANCELLED'
+  | 'DISPATCHED'
+  | 'QUEUED'
+  | 'SENDING'
+  | 'SENT'
+  | 'DELIVERED'
+  | 'DELIVERED_UNCONFIRMED'
+  | 'UNDELIVERABLE'
+
+export type InvoiceDispatchDto = {
+  state: InvoiceDispatchStateDto
+  /** A stable token (`SELLER_ADDRESS_INCOMPLETE`, `PINT_OM_VALIDATION_FAILED`, …), never prose. */
+  reasonCode: string | null
+  attempts: number
+  nextAttemptAt: string | null
+  dispatchedAt: string | null
+  sendable: boolean
+  /** How the buyer is reached, once the document is dispatched; the server decides it. */
+  buyerDelivery: InvoiceBuyerDeliveryDto | null
+  /** A held buyer e-mail may be released now. */
+  buyerEmailReleasable: boolean
+  /**
+   * What the AS4 transport has actually done with each leg, read from its own records. Absent from
+   * a server older than this field, and null before anything was queued for transport.
+   */
+  transport?: InvoiceTransportDto | null
+}
+
+/**
+ * One transport leg as its message record stands. `QUEUED_NOT_ATTEMPTED` is a document waiting
+ * for the transport, with no attempt made: the ledger already says SENDING at that point, which
+ * is why this is reported separately.
+ */
+export type InvoiceTransportLegStateDto =
+  | 'QUEUED_NOT_ATTEMPTED'
+  | 'TRANSMITTING'
+  | 'RETRY_SCHEDULED'
+  | 'TRANSMITTED'
+  | 'FAILED'
+
+export type InvoiceTransportLegDto = {
+  messageId: string
+  state: InvoiceTransportLegStateDto
+  attempts: number
+  lastAttemptAt: string | null
+  nextAttemptAt: string | null
+}
+
+export type InvoiceTransportDto = {
+  /** The Peppol leg to the buyer's access point; null when the buyer is not reached over Peppol. */
+  buyer: InvoiceTransportLegDto | null
+  /** The tax data document to the Tax Authority. */
+  taxAuthority: InvoiceTransportLegDto | null
+}
+
+export type InvoiceBuyerDeliveryDto =
+  | 'PEPPOL'
+  | 'NOT_PERMITTED'
+  | 'EMAIL_PENDING'
+  | 'EMAIL_HELD'
+  | 'EMAIL_SENT'
+  | 'EMAIL_FAILED'
+  | 'SENT_MANUALLY'
+  | 'PRINTED_RECEIPT'
+  | 'MANUAL_REQUIRED'
+  | 'SELF_BILLING'
+
+export type InvoiceSendOutcomeDto =
+  | 'DISPATCHED'
+  | 'ALREADY_DISPATCHED'
+  | 'REFUSED'
+  | 'RETRY_SCHEDULED'
+  | 'DEAD_LETTERED'
+  | 'SUPERSEDED'
+
+export type InvoiceSendResultDto = {
+  invoiceId: string
+  invoiceNumber: string | null
+  outcome: InvoiceSendOutcomeDto
+  reasonCode: string | null
+  dispatch: InvoiceDispatchDto
+}
+
+export function loadDispatch(invoiceId: string): Promise<InvoiceDispatchDto> {
+  return apiRequest<InvoiceDispatchDto>(`${path(invoiceId)}/dispatch`)
+}
+
+/**
+ * Processes this one document now (`POST /authored-invoices/{id}/send`): generation, validation
+ * and queueing for the network. The key is minted when the confirmation opens, so a double click
+ * or a retry of the same confirmation is one send.
+ */
+export function sendInvoice(invoiceId: string, idempotencyKey: string): Promise<InvoiceSendResultDto> {
+  return apiRequest<InvoiceSendResultDto>(`${path(invoiceId)}/send`, {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+/**
+ * Sends this invoice's held buyer e-mail now (`POST /authored-invoices/{id}/buyer-email/release`).
+ * The server sends it at most once, so a second press answers that nothing is held.
+ */
+export function releaseBuyerEmail(invoiceId: string): Promise<InvoiceDispatchDto> {
+  return apiRequest<InvoiceDispatchDto>(`${path(invoiceId)}/buyer-email/release`, { method: 'POST' })
+}
+
+/** 16–128 characters of `[A-Za-z0-9._:-]`, as the API requires. */
+export function newSendKey(): string {
+  return `send-${crypto.randomUUID()}`
 }
 
 /** 16–128 characters of `[A-Za-z0-9._:-]`, as the API requires. */

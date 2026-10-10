@@ -3,56 +3,121 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
 import { resetSharedRequests } from '../../api'
-import { forgetEntitlements, peekEntitlements, type Entitlements } from '../../lib/identity/entitlements'
-import type { SubscriptionPlan } from '../../lib/subscriptionPlans'
+import type { CatalogueAdminPlan, PlanHistory, PlanVersion } from '../../lib/console/planCatalogue'
+import {
+  forgetEntitlements,
+  peekEntitlements,
+  type Entitlements,
+} from '../../lib/identity/entitlements'
 import { ConsolePlansPage } from './PlansPage'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const PLANS_URL = '/api/v1/platform/plans'
 const planUrl = (code: string) => `${PLANS_URL}/${code}`
+const historyUrl = (code: string) => `${PLANS_URL}/${code}/history`
 const CSRF = 'csrf-token-value'
 
-const OPERATOR: Entitlements = {
-  userId: 'u-operator',
+const ADMIN: Entitlements = {
+  userId: 'u-admin',
   username: 'ops.catalogue',
   tenantId: 't-platform',
-  roles: [{ id: 'r-1', code: 'PLATFORM_TENANT_ADMIN', name: 'Platform tenant administrator', systemRole: true }],
-  permissions: ['platform.tenants.manage', 'platform.support.read'],
-  scopes: ['platform.tenants.manage'],
+  roles: [
+    {
+      id: 'r-1',
+      code: 'PLATFORM_TENANT_ADMIN',
+      name: 'Platform tenant administrator',
+      systemRole: true,
+    },
+  ],
+  permissions: ['platform.plans.read', 'platform.plans.manage', 'platform.tenants.manage'],
+  scopes: [],
   featureFlags: {},
 }
+const SUPPORT: Entitlements = {
+  ...ADMIN,
+  userId: 'u-support',
+  roles: [{ id: 'r-2', code: 'PLATFORM_SUPPORT', name: 'Platform support', systemRole: true }],
+  permissions: ['platform.plans.read', 'platform.support.read'],
+}
 
-// Figures deliberately unlike the screens' mock catalogue (19 / 49 / 89 OMR), so a figure on
-// screen can only have come from the backend.
-const STARTER: SubscriptionPlan = {
-  code: 'STARTER',
-  name: 'Starter',
-  monthlyPrice: 23.5,
+const version = (
+  planCode: string,
+  versionNumber: number,
+  extra: Partial<PlanVersion> = {},
+): PlanVersion => ({
+  id: `v-${planCode}-${versionNumber}`,
+  planCode,
+  versionNumber,
+  effectiveFrom: '2026-10-09T08:00:00Z',
+  monthlyPrice: '23.500',
+  annualPrice: '235.000',
   invoicesPerMonth: 175,
   peopleIncluded: 3,
   extraPersonPrice: null,
   branchesIncluded: 1,
+  extraBranchPrice: '7.250',
+  overagePricePerInvoice: null,
   apiAccess: false,
   prioritySupport: false,
-  overagePricePerInvoice: null,
+  reason: 'Owner decision',
+  createdBy: 'u-admin',
+  createdAt: '2026-10-09T08:00:00Z',
+  ...extra,
+})
+
+// Figures unlike the launch catalogue (35 / 80 / 150), so a figure on screen is the backend's.
+const STARTER: CatalogueAdminPlan = {
+  code: 'STARTER',
+  nameEn: 'Starter',
+  nameAr: 'المبتدئة',
+  descriptionEn: 'For one shop',
+  descriptionAr: null,
+  currency: 'OMR',
+  active: true,
+  publicVisible: true,
+  recommended: false,
   sortOrder: 10,
-  active: true,
+  annualFreeMonths: 2,
+  trialDays: 14,
+  trialDocuments: 25,
+  version: 4,
+  currentVersion: version('STARTER', 2),
+  features: [
+    { key: 'peppol', enabled: true },
+    { key: 'pos', enabled: true },
+    { key: 'webhooks', enabled: false },
+    { key: 'futureThing', enabled: true },
+  ],
 }
-const GROWTH: SubscriptionPlan = {
+const GROWTH: CatalogueAdminPlan = {
+  ...STARTER,
   code: 'GROWTH',
-  name: 'Growth',
-  monthlyPrice: 61.25,
-  invoicesPerMonth: 2400,
-  peopleIncluded: 6,
-  extraPersonPrice: 4.125,
-  branchesIncluded: null,
-  apiAccess: true,
-  prioritySupport: true,
-  overagePricePerInvoice: 0.15,
+  nameEn: 'Growth',
+  nameAr: null,
+  recommended: true,
   sortOrder: 20,
-  active: true,
+  version: 1,
+  currentVersion: version('GROWTH', 1, {
+    monthlyPrice: '61.250',
+    invoicesPerMonth: 2400,
+    peopleIncluded: 6,
+    extraPersonPrice: '4.125',
+    branchesIncluded: null,
+    apiAccess: true,
+    prioritySupport: true,
+    overagePricePerInvoice: '0.150',
+  }),
 }
-const LEGACY: SubscriptionPlan = { ...STARTER, code: 'LEGACY_2025', name: 'Legacy 2025', sortOrder: 30, active: false }
+const LEGACY: CatalogueAdminPlan = {
+  ...STARTER,
+  code: 'LEGACY_2025',
+  nameEn: 'Legacy 2025',
+  nameAr: null,
+  active: false,
+  publicVisible: false,
+  sortOrder: 30,
+  currentVersion: version('LEGACY_2025', 1),
+}
 
 function json(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
@@ -60,30 +125,39 @@ function json(status: number, body?: unknown) {
     headers: { 'Content-Type': 'application/json' },
   })
 }
-const problem = (status: number, type: string, extra: Record<string, unknown> = {}) =>
+const problem = (status: number, type: string) =>
   json(status, {
     type: `https://api.fawtir.om/problems/${type}`,
     detail: 'Server prose that must not be shown.',
-    ...extra,
   })
 
-type Handler = () => Response | Promise<Response>
+type Handler = (init: RequestInit) => Response | Promise<Response>
 let fetchMock: ReturnType<typeof vi.fn>
 
+/** By URL and method (`PUT /x` or `/x` for any method); an array is a queue whose last repeats. */
 function answer(handlers: Record<string, Handler | Handler[]>) {
   const queues = Object.fromEntries(
-    Object.entries(handlers).map(([url, handler]) => [url, Array.isArray(handler) ? [...handler] : handler]),
+    Object.entries(handlers).map(([key, handler]) => [
+      key,
+      Array.isArray(handler) ? [...handler] : handler,
+    ]),
   )
-  fetchMock.mockImplementation(async (url: string) => {
-    const entry = queues[url]
+  fetchMock.mockImplementation(async (url: string, init: RequestInit = {}) => {
+    const entry = queues[`${init.method ?? 'GET'} ${url}`] ?? queues[url]
     const handler = Array.isArray(entry) ? (entry.length > 1 ? entry.shift() : entry[0]) : entry
-    if (!handler) throw new Error(`unexpected request to ${url}`)
-    return handler()
+    if (!handler) throw new Error(`unexpected request to ${init.method ?? 'GET'} ${url}`)
+    return handler(init)
   })
 }
-const callsTo = (url: string) => fetchMock.mock.calls.filter(([called]) => called === url)
-const initOf = (url: string, index = 0) => callsTo(url)[index][1] as RequestInit
-const bodyOf = (url: string, index = 0) => JSON.parse(initOf(url, index).body as string) as Record<string, unknown>
+const callsTo = (url: string, method?: string) =>
+  (fetchMock.mock.calls as Array<[string, RequestInit | undefined]>).filter(
+    ([called, init]) => called === url && (!method || (init?.method ?? 'GET') === method),
+  )
+const initOf = (url: string, method: string, index = 0) =>
+  callsTo(url, method)[index][1] as RequestInit
+const bodyOf = (url: string, method: string, index = 0) =>
+  JSON.parse(initOf(url, method, index).body as string) as Record<string, unknown>
+const headerOf = (init: RequestInit, name: string) => new Headers(init.headers).get(name)
 
 function Probe() {
   return <p data-testid="location">{useLocation().pathname}</p>
@@ -100,23 +174,34 @@ function renderPlans() {
   )
 }
 
-const reads = (catalogue: Handler | Handler[] = () => json(200, [STARTER, GROWTH, LEGACY])) => ({
-  [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
-  [PLANS_URL]: catalogue,
+const reads = (
+  catalogue: Handler | Handler[] = () => json(200, [STARTER, GROWTH, LEGACY]),
+  who: Entitlements = ADMIN,
+) => ({
+  [ENTITLEMENTS_URL]: () => json(200, who),
+  [`GET ${PLANS_URL}`]: catalogue,
 })
 
-async function openCatalogue(extra: Record<string, Handler | Handler[]> = {}, catalogue?: Handler | Handler[]) {
-  answer({ ...reads(catalogue), ...extra })
+async function openCatalogue(
+  extra: Record<string, Handler | Handler[]> = {},
+  catalogue?: Handler | Handler[],
+  who: Entitlements = ADMIN,
+) {
+  answer({ ...reads(catalogue, who), ...extra })
   renderPlans()
   await screen.findByRole('heading', { level: 3, name: 'Starter' })
 }
 
-const card = (name: string) => screen.getByRole('heading', { level: 3, name }).closest('article') as HTMLElement
+const card = (name: string) =>
+  screen.getByRole('heading', { level: 3, name }).closest('article') as HTMLElement
 const dialog = () => screen.getByRole('dialog')
-const input = (name: string) => dialog().querySelector<HTMLInputElement>(`input[name="${name}"]`)!
-const type = (name: string, value: string) => fireEvent.change(input(name), { target: { value } })
+const input = (name: string) => dialog().querySelector<HTMLInputElement>(`input[name="${name}"]`)
+const type = (name: string, value: string) => fireEvent.change(input(name)!, { target: { value } })
+const toggle = (label: string) => within(dialog()).getByRole('switch', { name: label })
 const saveButton = () =>
-  within(dialog()).getByRole('button', { name: i18n.t('console.plans.save') }) as HTMLButtonElement
+  within(dialog()).queryByRole('button', {
+    name: i18n.t('console.plans.save'),
+  }) as HTMLButtonElement | null
 
 async function editPlan(name: string) {
   fireEvent.click(screen.getByRole('button', { name: i18n.t('console.plans.editPlan', { name }) }))
@@ -125,13 +210,11 @@ async function editPlan(name: string) {
 
 async function save() {
   await act(async () => {
-    fireEvent.click(saveButton())
+    fireEvent.click(saveButton()!)
   })
 }
 
 beforeEach(async () => {
-  // The loading test holds its read open until the page shows it. If that times out under load the
-  // read stays in the shared registry and every later test joins it (see `inflight.ts`).
   resetSharedRequests()
   await i18n.changeLanguage('en')
   forgetEntitlements()
@@ -149,39 +232,33 @@ afterEach(() => {
 })
 
 describe('Access', () => {
-  it('reads the catalogue once for an operator who may manage it', async () => {
+  it('reads the catalogue once for an operator who may read it', async () => {
     await openCatalogue()
-
     expect(callsTo(ENTITLEMENTS_URL)).toHaveLength(1)
-    expect(callsTo(PLANS_URL)).toHaveLength(1)
-    expect(initOf(PLANS_URL).method ?? 'GET').toBe('GET')
+    expect(callsTo(PLANS_URL, 'GET')).toHaveLength(1)
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
-  it('shows no access, and reads nothing, without platform.tenants.manage', async () => {
+  it('shows no access, and reads nothing, without platform.plans.read', async () => {
     answer({
       [ENTITLEMENTS_URL]: () =>
-        json(200, { ...OPERATOR, permissions: ['platform.support.read'], scopes: ['platform.support.read'] }),
+        json(200, { ...ADMIN, permissions: ['platform.tenants.manage', 'platform.support.read'] }),
     })
     renderPlans()
-
     expect(await screen.findByText(i18n.t('console.access.missingPermission'))).toBeTruthy()
     expect(callsTo(PLANS_URL)).toHaveLength(0)
-    expect(screen.queryByRole('button', { name: i18n.t('console.plans.add') })).toBeNull()
   })
 
   it('is not granted by a role name alone', async () => {
     answer({
       [ENTITLEMENTS_URL]: () =>
         json(200, {
-          ...OPERATOR,
-          roles: [{ id: 'r-9', code: 'PLATFORM_ADMIN', name: 'Super admin', systemRole: true }],
+          ...ADMIN,
+          roles: [{ id: 'r-9', code: 'PLATFORM_TENANT_ADMIN', name: 'Admin', systemRole: true }],
           permissions: ['platform.support.read'],
-          scopes: [],
         }),
     })
     renderPlans()
-
     expect(await screen.findByText(i18n.t('console.access.missingPermission'))).toBeTruthy()
     expect(callsTo(PLANS_URL)).toHaveLength(0)
   })
@@ -189,16 +266,13 @@ describe('Access', () => {
   it('reads a backend 403 as no access, never as an empty catalogue', async () => {
     answer(reads(() => problem(403, 'insufficient-permission')))
     renderPlans()
-
     expect(await screen.findByText(i18n.t('console.access.missingPermission'))).toBeTruthy()
     expect(screen.queryByText(i18n.t('console.plans.empty'))).toBeNull()
-    expect(screen.queryByRole('button', { name: i18n.t('console.plans.add') })).toBeNull()
   })
 
   it('sends a 401 to sign in and forgets the cached entitlements', async () => {
     answer(reads(() => problem(401, 'unauthenticated')))
     renderPlans()
-
     await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/login'))
     expect(peekEntitlements()).toBeNull()
   })
@@ -209,335 +283,395 @@ describe('Catalogue', () => {
     let release: (response: Response) => void = () => {}
     answer(reads(() => new Promise<Response>((resolve) => (release = resolve))))
     renderPlans()
-
     expect(await screen.findByText(i18n.t('console.plans.loading'))).toBeTruthy()
     await act(async () => release(json(200, [STARTER])))
     expect(await screen.findByRole('heading', { level: 3, name: 'Starter' })).toBeTruthy()
   })
 
-  it('shows the backend figures, in the backend order, and none of the mock ones', async () => {
+  it("shows each plan's current version, in the backend order, with its state", async () => {
     await openCatalogue({}, () => json(200, [LEGACY, GROWTH, STARTER]))
-
     const names = screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)
     expect(names).toEqual(['Starter', 'Growth', 'Legacy 2025'])
-    expect(within(card('Starter')).getByText('23.500')).toBeTruthy()
-    expect(within(card('Growth')).getByText('61.250')).toBeTruthy()
-    for (const mock of ['19.000', '49.000', '89.000']) expect(document.body.textContent).not.toContain(mock)
-  })
-
-  it('marks plans that are no longer offered', async () => {
-    await openCatalogue()
-
-    expect(within(card('Starter')).getByText(i18n.t('console.plans.active'))).toBeTruthy()
+    expect(card('Growth').textContent).toContain('61.250')
+    expect(within(card('Growth')).getByText(i18n.t('console.plans.recommendedPill'))).toBeTruthy()
     expect(within(card('Legacy 2025')).getByText(i18n.t('console.plans.inactive'))).toBeTruthy()
-    expect(within(card('Legacy 2025')).getByText('LEGACY_2025')).toBeTruthy()
-  })
-
-  it('uses the singular for one person and one branch', async () => {
-    await openCatalogue({}, () => json(200, [{ ...STARTER, peopleIncluded: 1 }]))
-
-    expect(card('Starter').textContent).toContain('1 person')
-    expect(card('Starter').textContent).toContain('1 branch')
-    expect(card('Starter').textContent).not.toContain('1 people')
-  })
-
-  it('reads each null as the backend defines it', async () => {
-    await openCatalogue()
-
-    const starter = card('Starter').textContent ?? ''
-    expect(starter).toContain(i18n.t('plan.feature.people', { count: 3 }))
-    expect(starter).toContain(i18n.t('plan.feature.branches', { count: 1 }))
-    expect(starter).toContain(i18n.t('plan.feature.noApi'))
-    expect(starter).toContain(i18n.t('plan.feature.noOverage'))
-    expect(starter).not.toContain(i18n.t('plan.feature.prioritySupport'))
-
-    const growth = card('Growth').textContent ?? ''
-    expect(growth).toContain('2,400')
-    expect(growth).toContain(i18n.t('plan.feature.unlimitedBranches'))
-    expect(growth).toContain(i18n.t('plan.feature.api'))
-    expect(growth).toContain(i18n.t('plan.feature.prioritySupport'))
-    expect(growth).toContain('4.125')
-    expect(growth).toContain('0.150')
+    expect(within(card('Legacy 2025')).getByText(i18n.t('console.plans.hiddenPill'))).toBeTruthy()
+    expect(card('Starter').textContent).toContain(
+      i18n.t('console.plans.versionLine', { version: 2 }),
+    )
+    expect(document.body.textContent).not.toMatch(/\b(35|80|150)\.000\b/)
   })
 
   it('says so when the catalogue is empty', async () => {
     answer(reads(() => json(200, [])))
     renderPlans()
-
     expect(await screen.findByText(i18n.t('console.plans.empty'))).toBeTruthy()
-    expect(screen.getByRole('button', { name: i18n.t('console.plans.add') })).toBeTruthy()
   })
 
-  it.each([
-    ['a server fault', () => problem(500, 'internal-error'), 'identityErrors.service'],
-    ['rate limiting', () => problem(429, 'rate-limited'), 'identityErrors.rateLimited'],
-    [
-      'a network failure',
-      () => {
-        throw new TypeError('Failed to fetch')
-      },
-      'identityErrors.network',
-    ],
-  ])('offers a retry after %s, and retries once', async (_label, failure, key) => {
-    answer(reads([failure, () => json(200, [STARTER])]))
-    renderPlans()
-
-    expect(await screen.findByText(i18n.t(key))).toBeTruthy()
-    expect(document.body.textContent).not.toContain('Server prose')
-    fireEvent.click(screen.getByRole('button', { name: i18n.t('console.access.retry') }))
-    expect(await screen.findByRole('heading', { level: 3, name: 'Starter' })).toBeTruthy()
-    expect(callsTo(PLANS_URL)).toHaveLength(2)
-  })
-
-  it('reads in Arabic, right to left, with the plan data as the backend holds it', async () => {
+  it('names plans in Arabic as published, and keeps the English name where none is', async () => {
     await i18n.changeLanguage('ar')
-    await openCatalogue({}, () =>
-      json(200, [{ ...STARTER, peopleIncluded: 1 }, { ...GROWTH, branchesIncluded: 5 }, { ...LEGACY, peopleIncluded: 12 }]),
-    )
+    answer(reads())
+    renderPlans()
+    expect(await screen.findByRole('heading', { level: 3, name: 'المبتدئة' })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 3, name: 'Growth' })).toBeTruthy()
+  })
+})
 
-    expect(screen.getByRole('heading', { level: 1, name: i18n.t('console.plans.title') })).toBeTruthy()
-    expect(within(card('Growth')).getByText(i18n.t('console.plans.active'))).toBeTruthy()
-    // Arabic has six plural forms; a missing one falls back to English ("5 branches").
-    expect(card('Starter').textContent).toContain('شخص واحد')
-    expect(card('Starter').textContent).toContain('فرع واحد')
-    expect(card('Growth').textContent).toContain('6 أشخاص')
-    expect(card('Growth').textContent).toContain('5 فروع')
-    expect(card('Legacy 2025').textContent).toContain('12 شخصًا')
-    expect(document.querySelector('main')?.textContent ?? '').not.toMatch(/branch|people|person/)
-    expect(i18n.t('console.plans.title')).not.toBe('Plans and rates')
+describe('Read-only operators', () => {
+  it('can view every plan and its history but has no way to change one', async () => {
+    await openCatalogue(
+      {
+        [`GET ${historyUrl('STARTER')}`]: () =>
+          json(200, { code: 'STARTER', versions: [], events: [] }),
+      },
+      undefined,
+      SUPPORT,
+    )
+    expect(screen.getByText(i18n.t('console.plans.readOnly'))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('console.plans.add') })).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: i18n.t('console.plans.editPlan', { name: 'Starter' }) }),
+    ).toBeNull()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: i18n.t('console.plans.viewPlan', { name: 'Starter' }) }),
+    )
+    await screen.findByRole('dialog')
+    expect(saveButton()).toBeNull()
+    expect(input('monthlyPrice')!.readOnly).toBe(true)
+    expect(input('nameAr')!.readOnly).toBe(true)
+    expect((toggle(i18n.t('console.plans.field.recommended')) as HTMLButtonElement).disabled).toBe(
+      true,
+    )
+    expect(input('reason')).toBeNull()
+    expect(callsTo(planUrl('STARTER'), 'PUT')).toHaveLength(0)
   })
 })
 
 describe('Editing a plan', () => {
-  it('fills the editor from the plan and fixes its code', async () => {
+  it('fills every field from the plan, fixes its code, and locks compliance on', async () => {
     await openCatalogue()
-    await editPlan('Growth')
-
-    expect(input('code').value).toBe('GROWTH')
-    expect(input('code').readOnly).toBe(true)
-    expect(input('monthlyPrice').value).toBe('61.250')
-    expect(input('branchesIncluded').value).toBe('')
-    expect(input('extraPersonPrice').value).toBe('4.125')
+    await editPlan('Starter')
+    expect(input('code')!.readOnly).toBe(true)
+    expect(input('nameEn')!.value).toBe('Starter')
+    expect(input('nameAr')!.value).toBe('المبتدئة')
+    expect(input('descriptionEn')!.value).toBe('For one shop')
+    expect(input('monthlyPrice')!.value).toBe('23.500')
+    expect(input('extraBranchPrice')!.value).toBe('7.250')
+    expect(input('annualFreeMonths')!.value).toBe('2')
+    expect(input('trialDays')!.value).toBe('14')
+    expect(input('trialDocuments')!.value).toBe('25')
+    const peppol = toggle(i18n.t('plan.featureName.peppol')) as HTMLButtonElement
+    expect(peppol.getAttribute('aria-checked')).toBe('true')
+    expect(peppol.disabled).toBe(true)
+    expect(toggle(i18n.t('plan.featureName.pos')).getAttribute('aria-checked')).toBe('true')
+    expect(toggle(i18n.t('plan.featureName.webhooks')).getAttribute('aria-checked')).toBe('false')
+    // Nothing that publishes new terms has changed, so no reason is asked.
+    expect(input('reason')).toBeNull()
   })
 
-  it('sends the whole plan once, with CSRF, keeping every field it did not touch', async () => {
-    const stored = { ...GROWTH, monthlyPrice: 64 }
-    await openCatalogue({ [planUrl('GROWTH')]: () => json(200, stored) })
-    await editPlan('Growth')
-    type('monthlyPrice', '64.000')
+  it('saves a descriptive change in place with If-Match and CSRF, and no reason', async () => {
+    const stored = { ...STARTER, nameAr: 'البداية', publicVisible: false, version: 5 }
+    await openCatalogue({ [`PUT ${planUrl('STARTER')}`]: () => json(200, stored) })
+    await editPlan('Starter')
+    type('nameAr', 'البداية')
+    fireEvent.click(toggle(i18n.t('console.plans.field.publicVisible')))
+    fireEvent.click(toggle(i18n.t('plan.featureName.webhooks')))
+    expect(input('reason')).toBeNull()
     await save()
 
-    expect(callsTo(planUrl('GROWTH'))).toHaveLength(1)
-    const init = initOf(planUrl('GROWTH'))
-    expect(init.method).toBe('PUT')
-    expect((init.headers as Record<string, string>)['X-CSRF-Token']).toBe(CSRF)
-    expect(bodyOf(planUrl('GROWTH'))).toEqual({
-      name: 'Growth',
-      monthlyPrice: 64,
-      invoicesPerMonth: 2400,
-      peopleIncluded: 6,
-      extraPersonPrice: 4.125,
-      branchesIncluded: null,
-      apiAccess: true,
-      prioritySupport: true,
-      overagePricePerInvoice: 0.15,
-      sortOrder: 20,
+    expect(callsTo(planUrl('STARTER'), 'PUT')).toHaveLength(1)
+    const init = initOf(planUrl('STARTER'), 'PUT')
+    expect(headerOf(init, 'If-Match')).toBe('"4"')
+    expect(headerOf(init, 'X-CSRF-Token')).toBe(CSRF)
+    const body = bodyOf(planUrl('STARTER'), 'PUT')
+    expect(body).toMatchObject({
+      nameEn: 'Starter',
+      nameAr: 'البداية',
+      descriptionEn: 'For one shop',
+      descriptionAr: null,
+      publicVisible: false,
+      recommended: false,
       active: true,
+      annualFreeMonths: 2,
+      trialDays: 14,
+      trialDocuments: 25,
+      monthlyPrice: '23.500',
+      extraBranchPrice: '7.250',
+      extraPersonPrice: null,
+      branchesIncluded: 1,
     })
+    expect(body).not.toHaveProperty('code')
+    expect(body).not.toHaveProperty('reason')
+    const features = body.features as Array<{ key: string; enabled: boolean }>
+    expect(features).toContainEqual({ key: 'webhooks', enabled: true })
+    expect(features).toContainEqual({ key: 'peppol', enabled: true })
+    // A key this app has no switch for goes back as it was read.
+    expect(features).toContainEqual({ key: 'futureThing', enabled: true })
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(
+      screen.getByText(i18n.t('console.plans.saved', { name: 'Starter' })).getAttribute('role'),
+    ).toBe('status')
+    expect(within(card('Starter')).getByText(i18n.t('console.plans.hiddenPill'))).toBeTruthy()
+    expect(callsTo(PLANS_URL, 'GET')).toHaveLength(1)
   })
 
-  it('shows the stored plan in place, without reading the catalogue again', async () => {
-    await openCatalogue({ [planUrl('STARTER')]: () => json(200, { ...STARTER, name: 'Starter 2026', sortOrder: 40 }) })
+  it('requires a reason when a price or limit changes, and sends it with the new terms', async () => {
+    const stored = {
+      ...STARTER,
+      version: 5,
+      currentVersion: version('STARTER', 3, { monthlyPrice: '25.000', reason: 'Costs rose' }),
+    }
+    await openCatalogue({ [`PUT ${planUrl('STARTER')}`]: () => json(200, stored) })
     await editPlan('Starter')
-    type('name', 'Starter 2026')
-    type('sortOrder', '40')
+    type('monthlyPrice', '25')
+    expect(input('reason')).toBeTruthy()
     await save()
 
-    expect(await screen.findByText(i18n.t('console.plans.saved', { name: 'Starter 2026' }))).toBeTruthy()
-    expect(screen.queryByRole('dialog')).toBeNull()
-    const names = screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)
-    expect(names).toEqual(['Growth', 'Legacy 2025', 'Starter 2026'])
-    expect(callsTo(PLANS_URL)).toHaveLength(1)
+    expect(
+      within(dialog()).getByText(i18n.t('console.plans.validation.reasonRequired')),
+    ).toBeTruthy()
+    expect(callsTo(planUrl('STARTER'), 'PUT')).toHaveLength(0)
+
+    type('reason', 'Costs rose')
+    await save()
+    expect(bodyOf(planUrl('STARTER'), 'PUT')).toMatchObject({
+      monthlyPrice: '25.000',
+      reason: 'Costs rose',
+    })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(card('Starter').textContent).toContain('25.000')
+    expect(card('Starter').textContent).toContain(
+      i18n.t('console.plans.versionLine', { version: 3 }),
+    )
   })
 
-  it('clears a limit by sending null, which the backend reads as unlimited or not offered', async () => {
-    await openCatalogue({ [planUrl('STARTER')]: () => json(200, { ...STARTER, branchesIncluded: null }) })
+  it('counts the annual free months as a term change', async () => {
+    await openCatalogue()
     await editPlan('Starter')
-    type('branchesIncluded', '  ')
+    type('annualFreeMonths', '3')
+    expect(input('reason')).toBeTruthy()
+    type('annualFreeMonths', '12')
+    await save()
+    expect(within(dialog()).getByText(i18n.t('console.plans.validation.freeMonths'))).toBeTruthy()
+  })
+
+  it('offers a reload instead of overwriting a plan someone else saved meanwhile', async () => {
+    await openCatalogue({
+      [`PUT ${planUrl('STARTER')}`]: () => problem(412, 'plan-catalogue-version-conflict'),
+      [`GET ${PLANS_URL}`]: [
+        () => json(200, [STARTER, GROWTH, LEGACY]),
+        () => json(200, [{ ...STARTER, nameEn: 'Starter (new)', version: 9 }, GROWTH, LEGACY]),
+      ],
+    })
+    await editPlan('Starter')
+    type('nameEn', 'Starter mine')
     await save()
 
-    const body = bodyOf(planUrl('STARTER'))
-    expect(body.branchesIncluded).toBeNull()
-    expect(body.extraPersonPrice).toBeNull()
-    expect(body.overagePricePerInvoice).toBeNull()
-    await waitFor(() => expect(card('Starter').textContent).toContain(i18n.t('plan.feature.unlimitedBranches')))
+    const alert = within(dialog()).getByRole('alert')
+    expect(alert.textContent).toContain(i18n.t('console.plans.conflict'))
+    expect(document.body.textContent).not.toContain('Server prose')
+    expect(saveButton()!.disabled).toBe(true)
+
+    fireEvent.click(within(alert).getByRole('button', { name: i18n.t('console.plans.reload') }))
+    expect(await screen.findByRole('heading', { level: 3, name: 'Starter (new)' })).toBeTruthy()
+    expect(screen.getByText(i18n.t('console.plans.reloaded'))).toBeTruthy()
+    expect(callsTo(PLANS_URL, 'GET')).toHaveLength(2)
+    expect(callsTo(planUrl('STARTER'), 'PUT')).toHaveLength(1)
+  })
+
+  it('reads a 409 on an edit as the same conflict', async () => {
+    await openCatalogue({
+      [`PUT ${planUrl('STARTER')}`]: () => problem(409, 'plan-catalogue-version-conflict'),
+    })
+    await editPlan('Starter')
+    type('nameEn', 'Starter mine')
+    await save()
+    expect(within(dialog()).getByText(i18n.t('console.plans.conflict'))).toBeTruthy()
   })
 
   it('sends one request however often save is pressed while it runs', async () => {
     let release: (response: Response) => void = () => {}
-    await openCatalogue({ [planUrl('STARTER')]: () => new Promise<Response>((resolve) => (release = resolve)) })
-    await editPlan('Starter')
-    await save()
-    const saving = within(dialog()).getByRole('button', { name: i18n.t('console.plans.saving') }) as HTMLButtonElement
-    expect(saving.disabled).toBe(true)
-    fireEvent.click(saving)
-    // A disabled button stops a click, not Enter: submit the form directly as a second Enter would.
-    await act(async () => {
-      fireEvent.submit(dialog().querySelector('form')!)
-    })
-
-    expect(callsTo(planUrl('STARTER'))).toHaveLength(1)
-    await act(async () => release(json(200, STARTER)))
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    expect(callsTo(planUrl('STARTER'))).toHaveLength(1)
-  })
-
-  it.each([
-    ['a negative price', 'monthlyPrice', '-1', 'console.plans.validation.money'],
-    ['four decimals', 'monthlyPrice', '1.2345', 'console.plans.validation.money'],
-    ['zero invoices', 'invoicesPerMonth', '0', 'console.plans.validation.atLeastOne'],
-    ['a fractional people count', 'peopleIncluded', '2.5', 'console.plans.validation.whole'],
-    ['zero branches', 'branchesIncluded', '0', 'console.plans.validation.atLeastOne'],
-    ['an empty name', 'name', '   ', 'validation.required'],
-  ])('refuses %s before sending anything', async (_label, field, value, key) => {
-    await openCatalogue()
-    await editPlan('Starter')
-    type(field, value)
-    await save()
-
-    expect(within(dialog()).getByText(i18n.t(key))).toBeTruthy()
-    expect(input(field).getAttribute('aria-invalid')).toBe('true')
-    expect(callsTo(planUrl('STARTER'))).toHaveLength(0)
-  })
-
-  it('marks the field a backend validation error names, without its English text', async () => {
     await openCatalogue({
-      [planUrl('STARTER')]: () =>
-        problem(400, 'validation-failed', { errors: [{ field: 'name', message: 'must not be blank' }] }),
+      [`PUT ${planUrl('STARTER')}`]: () => new Promise<Response>((resolve) => (release = resolve)),
     })
     await editPlan('Starter')
+    type('nameEn', 'Starter two')
     await save()
-
-    expect(await within(dialog()).findByText(i18n.t('console.plans.validation.server'))).toBeTruthy()
-    expect(input('name').getAttribute('aria-invalid')).toBe('true')
-    expect(document.body.textContent).not.toContain('must not be blank')
-    expect(document.body.textContent).not.toContain('Server prose')
-  })
-
-  it.each([
-    ['a plan invariant (400 without a field)', () => problem(400, 'validation-failed'), 'identityErrors.validation'],
-    ['a refused permission (403)', () => problem(403, 'insufficient-permission'), 'console.access.missingPermission'],
-    ['rate limiting (429)', () => problem(429, 'rate-limited'), 'identityErrors.rateLimited'],
-    ['a server fault (500)', () => problem(500, 'internal-error'), 'identityErrors.service'],
-    [
-      'a network failure',
-      () => {
-        throw new TypeError('Failed to fetch')
-      },
-      'identityErrors.network',
-    ],
-  ])('keeps the editor open and explains %s', async (_label, failure, key) => {
-    await openCatalogue({ [planUrl('STARTER')]: failure })
-    await editPlan('Starter')
-    await save()
-
-    expect(await within(dialog()).findByText(i18n.t(key))).toBeTruthy()
-    expect(document.body.textContent).not.toContain('Server prose')
-    expect(saveButton().disabled).toBe(false)
-    expect(card('Starter').textContent).toContain('23.500')
-  })
-
-  it('leaves for sign in when the session ends mid-edit', async () => {
-    await openCatalogue({ [planUrl('STARTER')]: () => problem(401, 'unauthenticated') })
-    await editPlan('Starter')
-    await save()
-
-    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/login'))
-    expect(peekEntitlements()).toBeNull()
-  })
-
-  it('discards the draft on cancel without sending it', async () => {
-    await openCatalogue()
-    await editPlan('Starter')
-    type('monthlyPrice', '99')
-    fireEvent.click(within(dialog()).getByRole('button', { name: i18n.t('common.cancel') }))
-
-    expect(screen.queryByRole('dialog')).toBeNull()
-    expect(card('Starter').textContent).toContain('23.500')
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    fireEvent.submit(dialog().querySelector('form')!)
+    fireEvent.submit(dialog().querySelector('form')!)
+    expect(callsTo(planUrl('STARTER'), 'PUT')).toHaveLength(1)
+    await act(async () => release(json(200, { ...STARTER, nameEn: 'Starter two', version: 5 })))
   })
 })
 
 describe('Adding a plan', () => {
-  const PREMIUM: SubscriptionPlan = {
-    code: 'PREMIUM_2027',
-    name: 'Premium 2027',
-    monthlyPrice: 120,
-    invoicesPerMonth: 5000,
-    peopleIncluded: 20,
-    extraPersonPrice: null,
-    branchesIncluded: null,
-    apiAccess: true,
-    prioritySupport: true,
-    overagePricePerInvoice: null,
-    sortOrder: 0,
-    active: false,
-  }
-
-  async function fillNewPlan() {
+  async function openAdd(extra: Record<string, Handler | Handler[]> = {}) {
+    await openCatalogue(extra)
     fireEvent.click(screen.getByRole('button', { name: i18n.t('console.plans.add') }))
     await screen.findByRole('dialog')
-    type('code', 'PREMIUM_2027')
-    type('name', 'Premium 2027')
-    type('monthlyPrice', '120')
-    type('invoicesPerMonth', '5000')
-    type('peopleIncluded', '20')
-    fireEvent.click(within(dialog()).getByRole('switch', { name: i18n.t('console.plans.field.apiAccess') }))
-    fireEvent.click(within(dialog()).getByRole('switch', { name: i18n.t('console.plans.field.prioritySupport') }))
-    fireEvent.click(within(dialog()).getByRole('switch', { name: i18n.t('console.plans.field.active') }))
   }
 
-  it('puts the new plan under its own code, every optional field explicit', async () => {
-    await openCatalogue({ [planUrl('PREMIUM_2027')]: () => json(200, PREMIUM) })
-    await fillNewPlan()
-    await save()
+  function fillNew() {
+    type('code', 'PRO_2026')
+    type('nameEn', 'Pro')
+    type('monthlyPrice', '99.5')
+    type('invoicesPerMonth', '5000')
+    type('peopleIncluded', '15')
+  }
 
-    expect(callsTo(planUrl('PREMIUM_2027'))).toHaveLength(1)
-    expect(bodyOf(planUrl('PREMIUM_2027'))).toEqual({
-      name: 'Premium 2027',
-      monthlyPrice: 120,
+  it('creates with POST, every field explicit, compliance on, and a required reason', async () => {
+    const stored: CatalogueAdminPlan = {
+      ...STARTER,
+      code: 'PRO_2026',
+      nameEn: 'Pro',
+      nameAr: null,
+      sortOrder: 0,
+      version: 0,
+      currentVersion: version('PRO_2026', 1, { monthlyPrice: '99.500' }),
+    }
+    await openAdd({ [`POST ${PLANS_URL}`]: () => json(201, stored) })
+    fillNew()
+    await save()
+    expect(
+      within(dialog()).getByText(i18n.t('console.plans.validation.reasonRequired')),
+    ).toBeTruthy()
+
+    type('reason', 'New tier for groups')
+    await save()
+    const body = bodyOf(PLANS_URL, 'POST')
+    expect(body).toMatchObject({
+      code: 'PRO_2026',
+      nameEn: 'Pro',
+      nameAr: null,
+      monthlyPrice: '99.500',
       invoicesPerMonth: 5000,
-      peopleIncluded: 20,
+      peopleIncluded: 15,
       extraPersonPrice: null,
       branchesIncluded: null,
-      apiAccess: true,
-      prioritySupport: true,
+      extraBranchPrice: null,
       overagePricePerInvoice: null,
-      sortOrder: 0,
-      active: false,
+      annualFreeMonths: 2,
+      trialDays: null,
+      trialDocuments: null,
+      publicVisible: true,
+      recommended: false,
+      active: true,
+      reason: 'New tier for groups',
     })
-    expect(await screen.findByRole('heading', { level: 3, name: 'Premium 2027' })).toBeTruthy()
-    expect(screen.getAllByRole('heading', { level: 3 })[0].textContent).toBe('Premium 2027')
-    expect(callsTo(PLANS_URL)).toHaveLength(1)
+    expect(body.features).toContainEqual({ key: 'invoices', enabled: true })
+    expect(body.features).toContainEqual({ key: 'api', enabled: false })
+    expect(initOf(PLANS_URL, 'POST').headers).toBeTruthy()
+    expect(headerOf(initOf(PLANS_URL, 'POST'), 'If-Match')).toBeNull()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(screen.getByRole('heading', { level: 3, name: 'Pro' })).toBeTruthy()
   })
 
-  it('will not overwrite an existing plan by adding one with its code', async () => {
-    await openCatalogue()
-    await fillNewPlan()
-    type('code', 'GROWTH')
+  it('marks the code as taken when the server answers 409', async () => {
+    await openAdd({ [`POST ${PLANS_URL}`]: () => problem(409, 'resource-conflict') })
+    fillNew()
+    type('reason', 'New tier')
     await save()
-
     expect(within(dialog()).getByText(i18n.t('console.plans.validation.codeTaken'))).toBeTruthy()
-    expect(callsTo(planUrl('GROWTH'))).toHaveLength(0)
   })
 
-  it.each(['premium', 'P', '1PLAN', 'PLAN-2027', 'A'.repeat(31)])('refuses the code %s', async (code) => {
-    await openCatalogue()
-    await fillNewPlan()
-    type('code', code)
+  it('refuses a code already in the catalogue before sending anything', async () => {
+    await openAdd()
+    fillNew()
+    type('code', 'GROWTH')
+    type('reason', 'x')
     await save()
+    expect(within(dialog()).getByText(i18n.t('console.plans.validation.codeTaken'))).toBeTruthy()
+    expect(callsTo(PLANS_URL, 'POST')).toHaveLength(0)
+  })
+})
 
-    expect(within(dialog()).getByText(i18n.t('console.plans.validation.code'))).toBeTruthy()
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+describe('History', () => {
+  const HISTORY: PlanHistory = {
+    code: 'STARTER',
+    versions: [
+      version('STARTER', 1, {
+        monthlyPrice: '19.000',
+        annualPrice: '190.000',
+        reason: 'V176 seed',
+        createdBy: null,
+      }),
+      version('STARTER', 2, { reason: 'Owner decision 2026-10-09', createdBy: 'u-someone' }),
+    ],
+    events: [
+      {
+        id: 'e-1',
+        planCode: 'STARTER',
+        kind: 'CREATED',
+        versionId: 'v-STARTER-1',
+        changes: {},
+        actorId: null,
+        occurredAt: '2026-01-01T08:00:00Z',
+      },
+      {
+        id: 'e-2',
+        planCode: 'STARTER',
+        kind: 'VISIBILITY_CHANGED',
+        versionId: null,
+        changes: { publicVisible: { before: true, after: false } },
+        actorId: 'u-admin',
+        occurredAt: '2026-10-09T09:00:00Z',
+      },
+    ],
+  }
+
+  it('lists versions and changes newest first, with reason and who, and changes nothing', async () => {
+    await openCatalogue({ [`GET ${historyUrl('STARTER')}`]: () => json(200, HISTORY) })
+    fireEvent.click(
+      screen.getByRole('button', { name: i18n.t('console.plans.historyOf', { name: 'Starter' }) }),
+    )
+    const panel = await screen.findByRole('dialog')
+    await within(panel).findByText(i18n.t('console.plans.history.version', { version: 2 }), {
+      exact: false,
+    })
+
+    const versions = within(panel)
+      .getAllByText(/^Version \d/)
+      .map((node) => node.textContent)
+    expect(versions[0]).toContain('Version 2')
+    expect(versions[1]).toContain('Version 1')
+    expect(panel.textContent).toContain('Owner decision 2026-10-09')
+    expect(panel.textContent).toContain('V176 seed')
+    expect(panel.textContent).toContain('u-someone')
+    expect(panel.textContent).toContain(i18n.t('console.plans.history.system'))
+
+    const kinds = within(panel)
+      .getAllByText(
+        new RegExp(
+          `^(${i18n.t('console.plans.history.kind.CREATED')}|${i18n.t('console.plans.history.kind.VISIBILITY_CHANGED')})$`,
+        ),
+      )
+      .map((node) => node.textContent)
+    expect(kinds).toEqual([
+      i18n.t('console.plans.history.kind.VISIBILITY_CHANGED'),
+      i18n.t('console.plans.history.kind.CREATED'),
+    ])
+    expect(panel.textContent).toContain(i18n.t('console.plans.field.publicVisible'))
+    expect(panel.textContent).toContain(i18n.t('console.plans.history.you'))
+    expect(within(panel).queryByRole('button', { name: i18n.t('console.plans.save') })).toBeNull()
+    expect(
+      (fetchMock.mock.calls as Array<[string, RequestInit | undefined]>).filter(
+        ([, init]) => (init?.method ?? 'GET') !== 'GET',
+      ),
+    ).toHaveLength(0)
+  })
+
+  it('offers a retry when the history cannot be read', async () => {
+    await openCatalogue({
+      [`GET ${historyUrl('STARTER')}`]: [() => json(503, {}), () => json(200, HISTORY)],
+    })
+    fireEvent.click(
+      screen.getByRole('button', { name: i18n.t('console.plans.historyOf', { name: 'Starter' }) }),
+    )
+    const panel = await screen.findByRole('dialog')
+    const retry = await within(panel).findByRole('button', { name: i18n.t('console.access.retry') })
+    fireEvent.click(retry)
+    expect(await within(panel).findByText('V176 seed', { exact: false })).toBeTruthy()
   })
 })

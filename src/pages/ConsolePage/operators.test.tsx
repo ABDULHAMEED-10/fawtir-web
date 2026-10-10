@@ -241,13 +241,29 @@ describe('Team', () => {
     expect(within(row('Noor')).getByText(t('console.operators.status.active'))).toBeTruthy()
   })
 
-  it('falls back to the username, and shows a disabled person and a role outside the catalogue as they are', async () => {
+  it('falls back to the username, and shows a disabled person and names a role outside the catalogue', async () => {
     await openTeam()
 
     const said = row('said.new')
     expect(within(said).getByText(t('console.operators.status.off'))).toBeTruthy()
     expect(within(said).getByText(t('console.operators.noRoles'))).toBeTruthy()
-    expect(within(said).getByText('PLATFORM_OPERATOR')).toBeTruthy()
+    expect(within(said).getByText(t('console.operators.otherRole.PLATFORM_OPERATOR'))).toBeTruthy()
+    expect(within(said).queryByText('PLATFORM_OPERATOR')).toBeNull()
+  })
+
+  it('shows an unknown role outside the catalogue by its code', async () => {
+    await openTeam({}, () => json(200, page([SELF, { ...SAID, roles: ['SOMETHING_NEW'] }])))
+
+    expect(within(row('said.new')).getByText('SOMETHING_NEW')).toBeTruthy()
+  })
+
+  it('shows a person the server sends without a roles list, with no roles', async () => {
+    const bare = { ...NOOR } as Partial<PlatformUser>
+    delete bare.roles
+    await openTeam({}, () => json(200, page([SELF, bare as PlatformUser])))
+
+    expect(within(row('Noor')).getByText(t('console.operators.noRoles'))).toBeTruthy()
+    expect(within(row('Hafidh Al Harthi')).getByText(roleName('PLATFORM_SUPPORT'))).toBeTruthy()
   })
 
   it('shows a loading state until the team arrives', async () => {
@@ -385,7 +401,7 @@ describe('Roles dialog', () => {
     expect(initOf(roleUrl('u-said', 'PLATFORM_SUPPORT')).method).toBe('DELETE')
     await screen.findByText(t('console.operators.saved', { name: 'said.new' }))
     expect(within(row('said.new')).getByText(t('console.operators.noRoles'))).toBeTruthy()
-    expect(within(row('said.new')).getByText('PLATFORM_OPERATOR')).toBeTruthy()
+    expect(within(row('said.new')).getByText(t('console.operators.otherRole.PLATFORM_OPERATOR'))).toBeTruthy()
   })
 
   it('sends one request however often the confirmation is pressed', async () => {

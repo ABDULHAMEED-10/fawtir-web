@@ -374,7 +374,7 @@ describe('A bill, wired to the API', () => {
     // The agreement's reference is the link, and it leads to the self-billing document.
     expect(card.getByText(/^Self-billing agreement/)).toBeTruthy()
     const link = card.getByRole('link', { name: 'SBA-2026-003' })
-    expect(link.getAttribute('href')).toBe('/income/self-billing/sb-1')
+    expect(link.getAttribute('href')).toBe('/expenditure/self-billing/sb-1')
     // None of the three lines that were wrong for a document this company issued itself.
     expect(card.queryByText(/Not validated/)).toBeNull()
     expect(card.queryByText(/No PINT-OM validation/)).toBeNull()
@@ -615,9 +615,9 @@ describe('A bill, wired to the API', () => {
       json(200, selfBilled({ ...AGREED, agreementId: null, agreementReference: null }))
     renderBill()
     await screen.findByText("Issued by you through Fawtir on the supplier's behalf")
-    expect(screen.getByRole('link', { name: 'Self-billing agreement' }).getAttribute('href')).toBe(
-      '/income/self-billing/sb-1',
-    )
+    expect(
+      screen.getByRole('link', { name: 'Self-billing agreement' }).getAttribute('href'),
+    ).toBe('/expenditure/self-billing/sb-1')
   })
 
   it('reads the self-billed lines in Arabic', async () => {
@@ -629,7 +629,7 @@ describe('A bill, wired to the API', () => {
     expect(card.getByText('فاتورة ضريبية صحيحة: ضريبة القيمة المضافة قابلة للاسترداد')).toBeTruthy()
     expect(card.getByText(/^اتفاقية فوترة ذاتية/)).toBeTruthy()
     expect(card.getByRole('link', { name: 'SBA-2026-003' }).getAttribute('href')).toBe(
-      '/income/self-billing/sb-1',
+      '/expenditure/self-billing/sb-1',
     )
   })
 
@@ -1526,7 +1526,7 @@ describe('bill detail mapping', () => {
         key: 'billDetail.compliance.selfBilled.agreement',
         values: { reference: 'SBA-2026-003' },
         ok: true,
-        link: '/income/self-billing/sb-1',
+        link: '/expenditure/self-billing/sb-1',
       },
       { key: 'billDetail.compliance.selfBilled.validTaxInvoice', ok: true },
     ])
@@ -1553,7 +1553,7 @@ describe('bill detail mapping', () => {
         ...selfBilledBill,
         bill: { ...selfBilledBill.bill, issuedInvoiceId: 'sb-9' },
       })[1].link,
-    ).toBe('/income/self-billing/sb-9')
+    ).toBe('/expenditure/self-billing/sb-9')
     // Every other source keeps its four lines.
     expect(complianceOf(detail()).map((note) => note.key)).toEqual([
       'billDetail.compliance.overPeppol',

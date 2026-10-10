@@ -23,9 +23,11 @@ import {
   type SubscriptionInvoice,
   type SubscriptionPlanId,
 } from '../../lib/consoleSubscriptions'
-import { QueueKpiCard } from './subscriptions/QueueKpiCard'
+import { QueueKpiCard, RialFigure } from './subscriptions/QueueKpiCard'
 import { InvoiceStatusPill } from './subscriptions/SubscriptionStatePill'
 import searchIcon from '../../assets/dashboard/search.svg'
+import { CONSOLE_PAGE, CONSOLE_ROWS, CONSOLE_TABLE, CONSOLE_TAB_BAR, CONSOLE_TAB_COUNT, CONSOLE_TAB_LINE, CONSOLE_THEAD, ConsolePageHeader } from '../../layouts/ConsoleShell/consoleStyle'
+import { consoleTab } from '../../layouts/ConsoleShell/consoleTones'
 
 type TabId = 'all' | InvoiceStatus
 type SortId = 'issued' | 'due' | 'total'
@@ -98,8 +100,16 @@ export function SubscriptionInvoicesPage() {
         line: '',
         tone: 'text-pending-700',
       }
+    // Only an invoice whose status is Overdue says so; an Unpaid one past its date, still inside
+    // the days before it turns Overdue, says how long ago it fell due, so the line never
+    // contradicts the Unpaid pill beside it.
     return {
-      text: t('console.subscriptions.invoices.overdue', { count: -left }),
+      text: t(
+        invoice.status === 'overdue'
+          ? 'console.subscriptions.invoices.overdue'
+          : 'console.subscriptions.invoices.pastDue',
+        { count: -left },
+      ),
       line: day(invoice.due),
       tone: invoice.status === 'overdue' ? 'text-danger-700' : 'text-pending-700',
     }
@@ -113,7 +123,7 @@ export function SubscriptionInvoicesPage() {
 
   return (
     <ConsoleShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <div className={CONSOLE_PAGE}>
         <ConsoleBreadcrumbs
           items={[
             { labelKey: 'console.nav.subscriptions', to: '/console/subscriptions' },
@@ -121,23 +131,17 @@ export function SubscriptionInvoicesPage() {
           ]}
         />
 
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-              {t('console.subscriptions.invoices.title')}
-            </h1>
-            <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
-              {t('console.subscriptions.invoices.subtitle', {
-                unpaid: unpaid.length,
-                overdue: overdue.length,
-              })}
-            </p>
-          </div>
-        </div>
+        <ConsolePageHeader
+          title={t('console.subscriptions.invoices.title')}
+          subtitle={t('console.subscriptions.invoices.subtitle', {
+            unpaid: unpaid.length,
+            overdue: overdue.length,
+          })}
+        />
 
         <div className="flex flex-wrap gap-4">
           <QueueKpiCard
-            icon={<ConsoleClockIcon className="size-[18px] text-pending-700" />}
+            icon={<ConsoleClockIcon className="size-4 text-pending-500" />}
             title={t('console.subscriptions.invoices.kpi.unpaid')}
             value={String(unpaid.length)}
             note={t('console.subscriptions.invoices.kpi.unpaidNote', {
@@ -146,7 +150,7 @@ export function SubscriptionInvoicesPage() {
             tone="watch"
           />
           <QueueKpiCard
-            icon={<ConsoleIncidentIcon className="size-[18px] text-danger-700" />}
+            icon={<ConsoleIncidentIcon className="size-4 text-danger-700" />}
             title={t('console.subscriptions.invoices.kpi.overdue')}
             value={String(overdue.length)}
             note={t('console.subscriptions.invoices.kpi.overdueNote', {
@@ -155,24 +159,25 @@ export function SubscriptionInvoicesPage() {
             tone={overdue.length > 0 ? 'bad' : 'calm'}
           />
           <QueueKpiCard
-            icon={<ConsoleTickIcon className="size-[18px] text-success-700" />}
+            icon={<ConsoleTickIcon className="size-4 text-success-700" />}
+            tone="good"
             title={t('console.subscriptions.invoices.kpi.paid')}
-            value={`OMR ${omr(paidThisMonth.reduce((sum, invoice) => sum + invoice.total, 0))}`}
+            value={<RialFigure amount={paidThisMonth.reduce((sum, invoice) => sum + invoice.total, 0)} />}
             note={t('console.subscriptions.invoices.kpi.paidNote', {
               count: paidThisMonth.length,
               month,
             })}
           />
           <QueueKpiCard
-            icon={<ConsolePlansIcon className="size-[18px] text-primary-700" />}
+            icon={<ConsolePlansIcon className="size-4 text-primary-700" />}
             title={t('console.subscriptions.invoices.kpi.waived')}
             value={String(byStatus('waived').length)}
             note={t('console.subscriptions.invoices.kpi.waivedNote')}
           />
         </div>
 
-        <section className="flex flex-col rounded-md bg-surface-card">
-          <div className="flex flex-wrap gap-x-6 gap-y-2 border-b border-border-subtle px-6 pt-4">
+        <section className="flex flex-col rounded-sm bg-surface-card">
+          <div className={`${CONSOLE_TAB_BAR} max-md:flex-nowrap max-md:overflow-x-auto max-md:[scrollbar-width:none]`}>
             {TABS.map((id) => {
               const active = id === tab
               return (
@@ -181,26 +186,21 @@ export function SubscriptionInvoicesPage() {
                   type="button"
                   onClick={() => setTab(id)}
                   aria-pressed={active}
-                  className={[
-                    'relative flex items-center gap-1.5 pb-3 text-base transition-colors',
-                    active
-                      ? 'font-semibold text-primary-800'
-                      : 'font-medium text-text-tertiary hover:text-text-secondary',
-                  ].join(' ')}
+                  className={`${consoleTab(active)} shrink-0 whitespace-nowrap`}
                 >
                   {tabLabel(id)}
-                  <span className="text-xs font-semibold text-text-quaternary">
+                  <span className={CONSOLE_TAB_COUNT}>
                     {count(tabCount(id))}
                   </span>
                   {active ? (
-                    <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary-700" />
+                    <span className={`${CONSOLE_TAB_LINE} max-md:bottom-0`} />
                   ) : null}
                 </button>
               )
             })}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
             <label className="flex h-11 w-full max-w-[346px] items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4 max-md:max-w-none max-md:basis-full">
               <img src={searchIcon} alt="" className="size-5 shrink-0" />
               <input
@@ -216,10 +216,10 @@ export function SubscriptionInvoicesPage() {
             </div>
           </div>
 
-          <RowsView className="px-6 pb-6">
-            <table className="w-full min-w-[1040px] border-collapse text-start">
+          <RowsView className={CONSOLE_ROWS}>
+            <table className={`${CONSOLE_TABLE} min-w-[1040px]`}>
               <thead>
-                <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+                <tr className={CONSOLE_THEAD}>
                   <th className="px-4 py-3 text-start font-semibold">
                     {t('console.subscriptions.invoices.col.invoice')}
                   </th>
@@ -252,7 +252,7 @@ export function SubscriptionInvoicesPage() {
                     <tr key={invoice.id} className="border-b border-[#f3f3f3] last:border-b-0">
                       <td className="px-4 py-4">
                         <span className="block text-sm font-semibold text-text-primary">
-                          {invoice.number}
+                          <bdi dir="ltr" className="whitespace-nowrap">{invoice.number}</bdi>
                         </span>
                         <span className="mt-1 block text-xs font-medium text-text-quaternary">
                           {cover(invoice)}
@@ -336,7 +336,7 @@ export function SubscriptionInvoicesPage() {
             ) : null}
           </RowsView>
 
-          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border-subtle px-6 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border-subtle px-5 py-4">
             <p className="text-sm font-medium text-text-tertiary">
               {tab === 'all'
                 ? t('console.subscriptions.invoices.showingAll', {

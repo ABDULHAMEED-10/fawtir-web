@@ -1,9 +1,10 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Input, Select, Switch, type SelectOption } from '../../../components/ui'
+import { Input, Select, Switch, type SelectOption } from '../../../components/ui'
 import lockIcon from '../../../assets/settings/menu-key.svg'
 import infoIcon from '../../../assets/settings/info.svg'
 import crossIcon from '../../../assets/settings/cross-muted.svg'
+import { CONSOLE_CARD_TITLE, ConsoleButton } from '../../../layouts/ConsoleShell/consoleStyle'
 
 /**
  * The pieces every Console settings section is drawn from — the same card, switch row and
@@ -28,7 +29,7 @@ export function SettingsSectionCard({
   const body = (
     <>
       <div className="p-5">
-        <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">{title}</h2>
+        <h2 className={CONSOLE_CARD_TITLE}>{title}</h2>
         {note ? (
           <p className="mt-1 max-w-[640px] text-xs font-medium leading-[1.5] text-text-quaternary">
             {note}
@@ -40,7 +41,7 @@ export function SettingsSectionCard({
     </>
   )
   return (
-    <section className="overflow-hidden rounded-md bg-surface-card">
+    <section className="overflow-hidden rounded-sm bg-surface-card">
       {onSubmit ? (
         <form noValidate onSubmit={onSubmit}>
           {body}
@@ -78,13 +79,13 @@ export function SectionFooter({
         </p>
       ) : null}
       {!isDefault ? (
-        <Button type="button" variant="secondary" size="md" onClick={onReset}>
+        <ConsoleButton type="button" variant="secondary" size="md" onClick={onReset}>
           {t('console.settings.reset')}
-        </Button>
+        </ConsoleButton>
       ) : null}
-      <Button type="submit" size="md" disabled={!dirty}>
+      <ConsoleButton type="submit" size="md" disabled={!dirty}>
         {t('console.settings.save')}
-      </Button>
+      </ConsoleButton>
     </div>
   )
 }
@@ -364,9 +365,9 @@ export function DayListField({
             message ? 'border-border-danger' : 'border-border-default',
           ].join(' ')}
         />
-        <Button type="button" variant="secondary" size="md" onClick={add}>
+        <ConsoleButton type="button" variant="secondary" size="md" onClick={add}>
           {t('console.settings.dayList.add')}
-        </Button>
+        </ConsoleButton>
       </div>
       {message ? (
         <p className="text-xs font-medium text-text-danger">{message}</p>

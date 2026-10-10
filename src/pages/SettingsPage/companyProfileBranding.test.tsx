@@ -160,7 +160,15 @@ describe('Settings › Company profile: branding and invoice defaults', () => {
     fireEvent.change(colourInput, { target: { value: '#BADHEX' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(await screen.findByText('That did not save. Check your connection and try again.')).toBeTruthy()
+    // The whole profile page renders and saves before the message shows; a loaded CI runner can
+    // take longer than the default second for that (failed once on PR #150, never locally).
+    expect(
+      await screen.findByText(
+        'That did not save. Check your connection and try again.',
+        {},
+        { timeout: 5000 },
+      ),
+    ).toBeTruthy()
   })
 
   it('uploads a new logo and shows the initial-letter fallback after removing it', async () => {

@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
+import { OnboardingFormError } from '../../components/auth/OnboardingFormError'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -14,7 +15,7 @@ import {
 } from '../../components/ui'
 import { useOnboardingStep } from '../../hooks/useOnboardingStep'
 import { NavPosIcon } from '../../layouts/AppShell/navIcons'
-import { recordBusinessProfile, recordNoPosDefaults } from '../../lib/identity/onboarding'
+import { recordBusinessProfile } from '../../lib/identity/onboarding'
 import {
   BUSINESS_SIZE_LABEL_KEYS,
   INVOICING_METHOD_LABEL_KEYS,
@@ -38,19 +39,17 @@ export function AboutBusinessForm() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const result = await save(async (token, signal) => {
-      await recordBusinessProfile(token, businessSize, invoicingMethod, signal)
-      // Skipping the two trade screens still has to leave a registration the backend accepts.
-      if (!usesPos) await recordNoPosDefaults(token, signal)
-    })
+    const result = await save((token, signal) =>
+      recordBusinessProfile(token, businessSize, invoicingMethod, usesPos, signal),
+    )
     if (!result.saved) return
     if (usesPos) {
       const next: OnboardingState = { ...state, businessSize, invoicingMethod, usesPos }
       navigate('/business-type', { state: next })
       return
     }
-    // The placeholder trade is never carried in the state, so nothing downstream shows or
-    // suggests from it (the ISIC field starts empty and asks for the real activity).
+    // Without POS the server keeps no trade, so a trade chosen before unticking is dropped too:
+    // nothing downstream may show or suggest from it (the ISIC field asks for the real activity).
     const { businessType: _type, subBusinessType: _subType, ...rest } = state
     void _type
     void _subType
@@ -207,11 +206,7 @@ export function AboutBusinessForm() {
         </section>
       </div>
 
-      {formError ? (
-        <p className="text-xs font-medium text-text-danger" role="alert">
-          {t(formError.key, formError.values)}
-        </p>
-      ) : null}
+      <OnboardingFormError error={formError} />
 
       <Button type="submit" disabled={submitting} className="w-full max-w-[400px] gap-1.5">
         {t('aboutBusiness.submit')}

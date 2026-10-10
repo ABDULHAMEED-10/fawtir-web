@@ -1,6 +1,22 @@
-/** * The plan catalogue as launched — `Fawtir_Pricing_Model.pdf` §2, §4, §6, * `Fawtir_Subscription_Defaults` (Sep 2026) and the client's plan ruling of 19–20 Sep 2026 * (docs/erp-and-console-plan.md §9.5). * * Every figure here is a launch default, not a commitment: the backend holds the live catalogue * (`GET /platform/plans`, edited in the console's Plans and rates) and the tenant's own plan * screen will read it from there. Until those screens are integrated, every mock that prints a
- * price — Settings › Plan and Bills, the sign-up plans, the console's tenants — reads this one
- * file, so the app cannot show three different price lists again.
+/**
+ * The plan catalogue as launched: `Fawtir_Pricing_Model.pdf` §2, §4, §6,
+ * `Fawtir_Subscription_Defaults` (Sep 2026) and the client's plan ruling of 19–20 Sep 2026
+ * (docs/erp-and-console-plan.md §9.5).
+ *
+ * NOT A PRICE SOURCE FOR SIGN-UP OR THE SITE. Since the catalogue contract (owner decision,
+ * 9 Oct 2026) the database is the catalogue: `/plans` and `/pricing` read
+ * `GET /v1/auth/signup/plans` and `GET /v1/public/plans`, payment and review show the amounts
+ * `/signup/status` computes from the pinned price version, and the console edits it through
+ * `/v1/platform/plans`. Those screens fail closed (retry, never these figures) when the read
+ * fails, because a price shown there is the price a registrant chooses. The owner published
+ * the figures below as the catalogue's current version, so they match it today, but nothing
+ * keeps them in step.
+ *
+ * What stays here: the `Feature` keys and their groups (the catalogue's `features[].key` values,
+ * and the backend copies `COMPLIANCE_FEATURES`), the i18n label keys, fixtures for tests, the
+ * launch record, and the prototype screens that have no server yet (Settings › Plan and Bills,
+ * plan gating, the console's sample tenants), which still read `PLAN` under the sample-data
+ * policy (docs/MOCK_DATA_POLICY.md) until they are integrated.
  *
  * The model (20 Sep 2026): plans differ by **features** and by **limits**; both are set from the
  * console. Starter is for a shop with no system of its own — invoices, notes, POS, bill tracking.

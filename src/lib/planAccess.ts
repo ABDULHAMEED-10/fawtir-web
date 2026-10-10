@@ -99,7 +99,7 @@ export function useFeature(feature: Feature): FeatureAccess {
  */
 export const ROUTE_FEATURES: { prefix: string; feature: Feature }[] = [
   { prefix: '/income/periodic', feature: 'recurringInvoices' },
-  { prefix: '/income/self-billing', feature: 'selfBilling' },
+  { prefix: '/expenditure/self-billing', feature: 'selfBilling' },
   { prefix: '/trade-documents', feature: 'tradeDocuments' },
   { prefix: '/expenditure/credit-notes', feature: 'supplierNotes' },
   { prefix: '/expenditure/debit-notes', feature: 'supplierNotes' },
@@ -107,9 +107,12 @@ export const ROUTE_FEATURES: { prefix: string; feature: Feature }[] = [
   { prefix: '/settings/erp-mapping', feature: 'erpMapping' },
   { prefix: '/settings/erp/connections', feature: 'erpMapping' },
   { prefix: '/settings/erp/bridge', feature: 'erpMapping' },
+  { prefix: '/settings/erp/api-push', feature: 'erpMapping' },
   { prefix: '/settings/erp/documents', feature: 'erpMapping' },
   { prefix: '/settings/erp/attention', feature: 'erpMapping' },
   { prefix: '/settings/erp/runs', feature: 'erpMapping' },
+  { prefix: '/settings/erp/access', feature: 'erpMapping' },
+  { prefix: '/settings/erp', feature: 'erpMapping' },
 ]
 
 export function featureForPath(pathname: string): Feature | undefined {

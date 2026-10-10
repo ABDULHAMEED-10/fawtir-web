@@ -125,11 +125,11 @@ function pinMuscatMidday() {
   vi.setSystemTime(new Date('2026-09-25T09:00:00Z'))
 }
 
-function renderPage(path = '/income/self-billing') {
+function renderPage(path = '/expenditure/self-billing') {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/income/self-billing" element={<SelfBillingPage />} />
+        <Route path="/expenditure/self-billing" element={<SelfBillingPage />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -211,7 +211,7 @@ describe('the self-billed documents list', () => {
   })
 
   it('asks the server for what is still to send, rather than every issued document', async () => {
-    renderPage('/income/self-billing?tab=toSend')
+    renderPage('/expenditure/self-billing?tab=toSend')
     await waitFor(() => expect(listCalls().at(-1)).toContain('delivery=TO_SEND'))
     expect(listCalls().at(-1)).toContain('state=ISSUED')
   })
@@ -280,7 +280,7 @@ describe('the self-billed documents list', () => {
     await screen.findByText('SB-0001')
     expect(
       screen.getByRole('link', { name: /create self-billing invoice/i }).getAttribute('href'),
-    ).toBe('/income/self-billing/new')
+    ).toBe('/expenditure/self-billing/new')
   })
 
   it('draws the first three cards from the summary of self-billed invoices, not from the page', async () => {
@@ -315,7 +315,7 @@ describe('the self-billed documents list', () => {
   it('links a row to its own detail page', async () => {
     renderPage()
     const link = await screen.findByRole('link', { name: 'SB-0001' })
-    expect(link.getAttribute('href')).toBe('/income/self-billing/i-1')
+    expect(link.getAttribute('href')).toBe('/expenditure/self-billing/i-1')
   })
 
   it("sends a draft's number to the composer the row opens, not the detail page", async () => {
@@ -334,11 +334,11 @@ describe('the self-billed documents list', () => {
     await screen.findByRole('link', { name: 'SB-0001' })
     const drafts = screen.getAllByRole('link', { name: 'Not numbered yet' })
     expect(drafts.map((link) => link.getAttribute('href'))).toEqual([
-      '/income/self-billing/credit-notes/sbc-1/edit',
-      '/income/self-billing/sbi-1/edit',
+      '/expenditure/self-billing/credit-notes/sbc-1/edit',
+      '/expenditure/self-billing/sbi-1/edit',
     ])
     expect(screen.getByRole('link', { name: 'SB-0001' }).getAttribute('href')).toBe(
-      '/income/self-billing/i-1',
+      '/expenditure/self-billing/i-1',
     )
   })
 
@@ -361,20 +361,20 @@ describe('the self-billed documents list', () => {
     ]
     const at = (path: string) => (
       <Routes>
-        <Route path="/income/self-billing" element={<SelfBillingPage />} />
+        <Route path="/expenditure/self-billing" element={<SelfBillingPage />} />
         <Route
-          path="/income/self-billing/credit-notes/:id/edit"
+          path="/expenditure/self-billing/credit-notes/:id/edit"
           element={<p>note composer {path}</p>}
         />
-        <Route path="/income/self-billing/:id/edit" element={<p>self-bill composer</p>} />
+        <Route path="/expenditure/self-billing/:id/edit" element={<p>self-bill composer</p>} />
       </Routes>
     )
-    render(<MemoryRouter initialEntries={['/income/self-billing']}>{at('sbc')}</MemoryRouter>)
+    render(<MemoryRouter initialEntries={['/expenditure/self-billing']}>{at('sbc')}</MemoryRouter>)
     fireEvent.click(await screen.findByText('Credit Supplier'))
     expect(await screen.findByText('note composer sbc')).toBeTruthy()
 
     cleanup()
-    render(<MemoryRouter initialEntries={['/income/self-billing']}>{at('sbi')}</MemoryRouter>)
+    render(<MemoryRouter initialEntries={['/expenditure/self-billing']}>{at('sbi')}</MemoryRouter>)
     fireEvent.click(await screen.findByText('Invoice Supplier'))
     expect(await screen.findByText('self-bill composer')).toBeTruthy()
   })

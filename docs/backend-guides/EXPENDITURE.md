@@ -1,6 +1,6 @@
 # Expenditure and Suppliers: backend guide
 
-**For:** the backend team. **Covers:** bills, payments, recurring bills, bill reminders, supplier credit and debit notes, and suppliers. **Last updated:** 30 September 2026.
+**For:** the backend team. **Covers:** bills, payments, recurring bills, bill reminders, supplier credit and debit notes, suppliers, and self-billing (since 6 Oct 2026). **Last updated:** 6 October 2026.
 
 This is the single guide for this area. It lists every place where a screen draws something the
 API does not provide yet, and what to add. It replaces the older per-pass "design realignment,
@@ -245,3 +245,36 @@ Expenditure is the **buyer** side. A bill that arrives over Peppol carries the s
 | M.4 | Supplier form address: street, City, Governorate (Oman only), Postal code (3 digits); the Peppol ID prefilled as `0248:` + the VAT number | `street`, `city`, `countrySubentity` (governorate), `postalCode` stored as separate fields on `POST/PUT /v1/suppliers` and returned on `GET /v1/suppliers/{id}`. Needed before self-billing: on a self-billed invoice the supplier is the seller, and PINT-OM IBR-019-OM requires the address line, city and post code |
 | M.5 | Supplier form, a supplier whose country is not Oman | a reverse-charge marker on the supplier (or derived from the country), so buying from abroad can point to the statutory self-billed invoice (import of services RCM, import of goods; BTOM-001 bits 9 and 13, IBR-017-OM, IBR-160-OM). Drawn later, with the self-billing rounds |
 | M.6 | Record a bill: the unit chosen on each line is now sent (row 7.11) | none if the server stores `unit`; otherwise store it and return it on the bill lines |
+
+---
+
+## Update 2026-10-06: self-billing moves to Expenditure
+
+**Owner decision (6 Oct 2026):** a self-billed invoice (PINT-OM self-billing, type 389; its credit
+note 261) is a **purchase**. The company is the buyer, writes the invoice on the supplier's behalf
+under a signed agreement, and owes the money. The Figma file draws it under Income; that placement
+was a design slip. Its menu entry now sits in Expenditure, after Bills, and its pages moved from
+`/income/self-billing/...` to `/expenditure/self-billing/...` (list, agreements, new, edit,
+detail, credit notes). The old addresses redirect, with the rest of the path and the query kept.
+The screens, API calls and permissions are unchanged. The earlier self-billing rows stay in
+`INCOME.md` section 7; new self-billing asks are added here.
+
+### S. Self-billing
+
+| # | The screen shows | Ask |
+|---|---|---|
+| S.1 | Menu entry Expenditure › Self-billing; every page under `/expenditure/self-billing/...` | none for the move. Any link the server writes into an e-mail, notification or agreement invitation that points at `/income/self-billing/...` should point at `/expenditure/self-billing/...` (the old address still redirects, so this is tidying, not a fault) |
+| S.2 | New self-billed invoice and Agreements: the supplier picker | The seller is stored as a **customer** record today: `customerId` on `/v1/self-billing-agreements` and on the self-billed draft names the seller, so the picker lists Contacts › Customers (consumers excluded) and a supplier must be created as a customer to be self-billed. The same company then exists twice (a customer and a supplier record) whose VAT number, address and Peppol ID can drift apart, and suppliers appear in the Customers list. Ask: link agreements, self-billed drafts and issued self-billed invoices to the **supplier** record (`supplierId`), read the picker from `GET /v1/suppliers`, and map existing sellers to their supplier records (keep accepting `customerId` while that runs). The bill raised from a self-billed invoice (`selfBilling` on `GET /v1/bills/{id}`) should then name the same supplier record |
+| S.3 | Self-billed invoice detail and its XML | Confirm the roles in the issued 389 / 261: the supplier is the **seller** (`cac:AccountingSupplierParty`, with its address per IBR-019-OM, row M.4) and the company is the **buyer** (`cac:AccountingCustomerParty`), even though the seller is read from a customer record today (S.2) |
+| S.4 | Income › Invoices: every tab, count and card shows sales documents only, and the Type filter no longer offers "Self-billed invoice" or "Self-billed credit note"; `/invoices/{id}` and `/invoices/{id}/edit` for a self-billed document open it under `/expenditure/self-billing/...` | none: the list sends `type=INVOICE,CREDIT_NOTE,DEBIT_NOTE` on `GET /v1/authored-invoices` and reads the counts from `GET /v1/authored-invoices/summary?type=INVOICE,CREDIT_NOTE,DEBIT_NOTE`, both of which the API already accepts. The one place self-billing still shows on the Income side is the Customers list, because the seller is kept in a customer record (S.2) |
+| S.5 | New self-billed invoice, Agreements and New self-billed credit note: what is sent on create (detail of S.2) | Accept `supplierId` on `POST /v1/self-billing-agreements`, `POST /v1/self-billed-invoice-drafts` and `POST /v1/authored-invoices/{id}/self-billed-credit-notes`, and return it on every read of those resources. Keep accepting `customerId` until the web sends `supplierId`; refuse a request that names both and they are different companies. Build the 389 / 261 seller block (S.3) from the supplier record. The credit raised from a 261 (`GET /v1/credit-notes`, source `SELF_BILLED`) names the same supplier record as the bill from its 389 |
+| S.6 | (no screen: data) moving today's sellers off customer records (detail of S.2) | A migration that maps each seller now held as a customer record to its supplier record: match on VAT number first, then Peppol ID, then name; create the supplier record when none exists. Run it **dry first** and hand the owner the match list (matched, to be created, needs review) before applying it; apply only after that review. Afterwards a supplier can be self-billed without existing as a customer, every existing agreement and document still opens, and the Customers list holds no self-billing seller |
+| S.7 | Self-billed invoice and credit note detail, and the drafts editor | Confirm only, no change expected: (a) `GET /v1/invoice-drafts/{id}` returns `type` (`SELF_BILLED_INVOICE` / `SELF_BILLED_CREDIT_NOTE`), which the web reads to send an old `/invoices/{id}/edit` link to the Expenditure editor; (b) a 261 carries the 389 it corrects, number, date and UUID (IBR-032-OM); (c) both are sent over Peppol to the supplier and the TDD is filed with the company as reporter. Unchanged and to stay so: the permissions `selfbilling.create` and `selfbilling.agreement.manage`, the `selfBilling` plan gate and every existing route |
+
+**Order of work and checks for the backend PR.** S.3 first (issue one 389 and one 261 on staging
+and put their PINT-OM validation result in the PR), then S.5 with S.6 (dry run, the owner reviews the
+match list, then apply), then S.1. One end-to-end pass on staging before merging: agreement,
+self-billed invoice, its bill in Expenditure › Bills, a self-billed credit note, its credit in
+Expenditure › Credit notes, payment. **After the backend ships S.5 and S.6 the web will:** switch the
+supplier picker on New self-billed invoice and Agreements from Customers to Suppliers, send
+`supplierId`, remove the `TODO(backend)` that cites S.2, and close open question 7 in the handbook.

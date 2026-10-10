@@ -196,6 +196,17 @@ function CustomerFormPage({ customerId }: { customerId: string | null }) {
     const path = `${which}.${field}` as CustomerField
     setErrors((current) => (current[path] ? { ...current, [path]: undefined } : current))
   }
+  const changeInvoiceLine = (field: InvoiceLineField, value: string) => {
+    setValues((current) => ({
+      ...current,
+      invoice: {
+        ...current.invoice,
+        kept: { ...current.invoice.kept, [field]: value.trim() === '' ? null : value },
+      },
+    }))
+    const path = `invoice.${field}` as CustomerField
+    setErrors((current) => (current[path] ? { ...current, [path]: undefined } : current))
+  }
   const errorText = (field: CustomerField) => {
     const placed = errors[field]
     if (!placed) return undefined
@@ -803,6 +814,7 @@ function CustomerFormPage({ customerId }: { customerId: string | null }) {
               which="invoice"
               address={values.invoice}
               onChange={changeAddress}
+              onInvoiceLineChange={changeInvoiceLine}
               errorText={errorText}
             />
           </div>
@@ -984,15 +996,24 @@ function Collapsible({
   )
 }
 
+/**
+ * Address lines 2 and 3 ride in the address's `kept` parts (the shared supplier shape), as the
+ * add-customer modal's zone line does. PINT-OM IBR-019-OM refuses a business buyer's invoice
+ * address without them, and the form had no way to enter them.
+ */
+type InvoiceLineField = 'additionalStreetName' | 'addressLine3'
+
 function AddressBlock({
   which,
   address,
   onChange,
+  onInvoiceLineChange,
   errorText,
 }: {
   which: 'invoice' | 'delivery'
   address: AddressValues
   onChange: (which: 'invoice' | 'delivery', field: AddressField, value: string) => void
+  onInvoiceLineChange?: (field: InvoiceLineField, value: string) => void
   errorText: (field: CustomerField) => string | undefined
 }) {
   const { t } = useTranslation()
@@ -1036,6 +1057,30 @@ function AddressBlock({
         placeholder={t('newCustomer.address.streetPlaceholder')}
         maxLength={150}
       />
+      {which === 'invoice' && onInvoiceLineChange ? (
+        <>
+          <TextField
+            id={inputId('invoice.additionalStreetName')}
+            name="invoice.additionalStreetName"
+            value={address.kept.additionalStreetName ?? ''}
+            onChange={(next) => onInvoiceLineChange('additionalStreetName', next)}
+            error={errorText('invoice.additionalStreetName')}
+            label={t('newCustomer.address.additionalStreet')}
+            placeholder={t('newCustomer.address.additionalStreetPlaceholder')}
+            maxLength={150}
+          />
+          <TextField
+            id={inputId('invoice.addressLine3')}
+            name="invoice.addressLine3"
+            value={address.kept.addressLine3 ?? ''}
+            onChange={(next) => onInvoiceLineChange('addressLine3', next)}
+            error={errorText('invoice.addressLine3')}
+            label={t('newCustomer.address.addressLine3')}
+            placeholder={t('newCustomer.address.addressLine3Placeholder')}
+            maxLength={150}
+          />
+        </>
+      ) : null}
       {which === 'invoice' ? (
         <>
           <TextField

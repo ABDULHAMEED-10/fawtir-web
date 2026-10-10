@@ -159,7 +159,7 @@ export function ExportPage() {
           </ul>
 
           <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-surface-background p-5">
-            <div>
+            <div className="min-w-0 flex-1 basis-[220px]">
               <p className="text-base font-semibold text-text-primary">
                 {t('export.footerSize', { size })}
               </p>
