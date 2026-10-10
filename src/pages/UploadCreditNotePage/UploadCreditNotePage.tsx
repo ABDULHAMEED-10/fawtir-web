@@ -9,6 +9,13 @@ import { SupplierNoteIntake } from '../../components/debit/SupplierNoteIntake'
 import type { IntakeDto } from '../../api/expenditure/billIntake'
 import { BILL_FILE_TYPES } from '../../lib/billIntake'
 import { can, useSession } from '../../lib/session/session'
+import type { SavedNoteState } from '../SupplierCreditNoteDetailPage/SupplierCreditNoteDetailPage'
+
+/** The sentences said on the credit note's page after it was set against a debit note. */
+const DEBIT_NOTE_DONE = new Set([
+  'supplierCreditNotes.upload.savedAppliedDebitNote',
+  'supplierCreditNotes.upload.savedClosesRefusedDebitNote',
+])
 
 /**
  * Expenditure > Credit notes > Upload (E-15), on its frame (Figma 163:19080).
@@ -70,7 +77,14 @@ function UploadCreditNote() {
           onReplace={() => setUploaded(null)}
           // The confirmed row is a credit note, so it opens on the credit-note detail rather
           // than the bill detail: the same id, but the screen that knows it reduces what is owed.
-          onSaved={(note) => navigate(`/expenditure/credit-notes/${note.id}`)}
+          // Set against a debit note, the detail says once what was done (owner, 9 Oct 2026).
+          onSaved={(note, doneKey, doneValues) =>
+            navigate(`/expenditure/credit-notes/${note.id}`, {
+              state: DEBIT_NOTE_DONE.has(doneKey)
+                ? ({ saved: { key: doneKey, values: doneValues } } satisfies SavedNoteState)
+                : null,
+            })
+          }
         />
       )}
     </div>
