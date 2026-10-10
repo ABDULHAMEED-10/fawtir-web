@@ -606,6 +606,76 @@ describe("one document's record", () => {
     expect(screen.getAllByText('Not on the record yet').length).toBe(1)
   })
 
+  // Phase 13 finding N1: an invoice still in our outbox, its report dead-lettered by our own SLA
+  // watchdog, was drawn as signed, sent on both legs and refused by the Tax Authority.
+  const OUTBOX_ONLY: ActivityDetailDto = {
+    ...DETAIL,
+    summary: {
+      ...DETAIL.summary,
+      transport_state: 'SENDING',
+      invoice_leg: { ack: 'NONE', ack_at: null, reason: null },
+      fawtara_reference: null,
+      tdd_uuid: null,
+      tdd_leg: {
+        ...DETAIL.summary.tdd_leg!,
+        status: 'DEAD_LETTERED',
+        submitted_at: null,
+        sla_met: null,
+        ack: 'NONE',
+        ack_at: null,
+      },
+    },
+    tdd_lineage: [
+      {
+        ...DETAIL.tdd_lineage[1],
+        status: 'DEAD_LETTERED',
+        submitted_at: null,
+        sla_met: null,
+        failure_reason: 'SLA breached: deadline passed without C5 acknowledgement (FR-203/204)',
+        tdd_uuid: null,
+      },
+    ],
+    mls: [],
+    transmissions: [
+      {
+        id: 't-1',
+        channel: 'INVOICE',
+        direction: 'OUTBOUND',
+        state: 'PENDING',
+        attempts: 0,
+        last_attempt_at: null,
+        last_failure_reason: null,
+        sbdh_instance_identifier: null,
+        last_mls_code: null,
+        created_at: '2026-09-20T08:00:06Z',
+      },
+    ],
+  }
+
+  it('claims no signing, no sending and no refusal for an invoice still in the outbox', async () => {
+    detailReply = OUTBOX_ONLY
+    renderDetail(`/compliance/activity/${UUID_A}`)
+    expect(await screen.findByText('Not sent over Peppol yet')).toBeTruthy()
+    expect(screen.getByText('Not signed yet')).toBeTruthy()
+    expect(screen.getByText('Not sent to Fawtara yet')).toBeTruthy()
+    expect(screen.getByText('Stopped at Fawtir, needs attention')).toBeTruthy()
+    for (const claim of ['Signed', 'Sent over Peppol', 'Sent to Fawtara', 'Waiting on the OTA']) {
+      expect(screen.queryByText(claim)).toBeNull()
+    }
+    expect(screen.queryByText('What the Tax Authority objected to')).toBeNull()
+    expect(screen.queryByText(/SLA breached/)).toBeNull()
+  })
+
+  it('says the same in Arabic, with no raw keys', async () => {
+    await i18n.changeLanguage('ar')
+    detailReply = OUTBOX_ONLY
+    renderDetail(`/compliance/activity/${UUID_A}`)
+    expect(await screen.findByText('لم تُرسل عبر Peppol بعد')).toBeTruthy()
+    expect(screen.getByText('لم يُرسل إلى فوترة بعد')).toBeTruthy()
+    expect(screen.getByText('توقف لدى فوتير، ويحتاج إلى متابعة')).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/activityDetail\./)
+  })
+
   it('fills our participant ID from the company VAT number', async () => {
     const base = fetchMock.getMockImplementation()!
     fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) =>
