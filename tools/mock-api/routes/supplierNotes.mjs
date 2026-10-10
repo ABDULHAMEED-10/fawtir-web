@@ -1234,6 +1234,21 @@ export default [
   { match: '/api/v1/debit-notes/summary', reply: ({ query }) => debitSummary(query) },
   { match: '/api/v1/debit-notes', reply: ({ query }) => noteList(DEBIT_NOTES, query) },
   {
+    // A payment by hand on a debit note (backend #480, owner 10 Oct 2026): refused until it is
+    // accepted, and while it stands refused.
+    method: 'POST',
+    match: /^\/api\/v1\/bills\/(dn-[^/]+)\/payments$/,
+    reply: ({ params }) => {
+      const note = DEBIT_NOTES.find((n) => n.id === params[0])
+      if (!note) return { status: 404 }
+      if (note.status === 'UNCHECKED')
+        return refusal(400, 'BILL_PAYMENT_DEBIT_NOTE_NOT_ACCEPTED', 'Accept the debit note first.')
+      if (note.status === 'REFUSED')
+        return refusal(400, 'BILL_PAYMENT_DEBIT_NOTE_REFUSED', 'The debit note was refused.')
+      return { status: 201, body: { billId: note.id } }
+    },
+  },
+  {
     match: /^\/api\/v1\/debit-notes\/([^/]+)$/,
     reply: ({ params }) => DEBIT_NOTES.find((n) => n.id === params[0]) ?? { status: 404 },
   },

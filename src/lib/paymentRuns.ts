@@ -162,6 +162,8 @@ export const REASON_KEYS: Record<BlockedReasonCode, string> = {
   REJECTED: 'paymentRuns.blocked.rejected',
   AWAITING_APPROVALS: 'paymentRuns.blocked.awaiting',
   DEBIT_NOTE_REFUSED: 'paymentRuns.blocked.debitNoteRefused',
+  // Backend #480 (10 Oct 2026): not payable until accepted.
+  DEBIT_NOTE_NOT_ACCEPTED: 'apiErrors.refused.debitNoteNotAccepted',
 }
 
 /** The run refusals a person can act on, by the server's code. */
@@ -188,6 +190,8 @@ export const RUN_REFUSALS: Record<string, string> = {
   // this sentence is for an answer that names none.
   PAYMENT_RUN_PAYMENT_DATE_IN_FUTURE: 'invoiceDetails.pay.error.dateFuture',
   PAYMENT_RUN_PAYMENT_DATE_AFTER_DISCOUNT: 'paymentRuns.refused.dateAfterDiscount',
+  // Backend #480: a debit note nobody has accepted, added to a run or marked paid with it.
+  PAYMENT_RUN_DEBIT_NOTE_NOT_ACCEPTED: 'apiErrors.refused.debitNoteNotAccepted',
 }
 
 /** What was being done to a run when it refused, where one code needs a sentence per action. */

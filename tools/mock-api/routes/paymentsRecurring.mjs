@@ -944,8 +944,27 @@ const REFUSED_DEBIT_NOTES = [
   },
 ]
 
+/**
+ * A supplier debit note nobody has accepted or refused yet (the debit-note fixture GCL-DN-0091):
+ * not payable until accepted (backend #480, owner 10 Oct 2026). Blocked with
+ * DEBIT_NOTE_NOT_ACCEPTED, never a candidate, refused by name when added to a run.
+ */
+const UNDECIDED_DEBIT_NOTES = [
+  {
+    billId: 'dn-gcl-0091',
+    supplierBillNumber: 'GCL-DN-0091',
+    supplierId: 's-gcl',
+    supplierName: SUPPLIERS['s-gcl'].name,
+    dueDate: '2026-08-25',
+    outstanding: 96.5,
+    reasonCodes: ['DEBIT_NOTE_NOT_ACCEPTED'],
+    approvalsGiven: null,
+    approvalsRequired: null,
+  },
+]
+
 function blocked() {
-  return [...REFUSED_DEBIT_NOTES, ...blockedBills()]
+  return [...REFUSED_DEBIT_NOTES, ...UNDECIDED_DEBIT_NOTES, ...blockedBills()]
 }
 
 function blockedBills() {
@@ -1824,6 +1843,13 @@ export default [
           return refuse('PAYMENT_RUN_DEBIT_NOTE_REFUSED', 400, {
             billId,
             supplierBillNumber: refused.supplierBillNumber,
+          })
+        const undecided = UNDECIDED_DEBIT_NOTES.find((note) => note.billId === billId)
+        if (undecided)
+          return refuse('PAYMENT_RUN_DEBIT_NOTE_NOT_ACCEPTED', 400, {
+            billId,
+            supplierBillNumber: undecided.supplierBillNumber,
+            documentTypeCode: '383',
           })
         const b = billById(billId)
         if (!b) return { status: 404 }

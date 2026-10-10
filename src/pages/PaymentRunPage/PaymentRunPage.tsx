@@ -574,17 +574,19 @@ function RunBuilder({ runId }: { runId: string | null }) {
                               : t('paymentsPage.billsAsOneTransfer', { count: counted.length })}
                           </p>
                         </div>
-                        <div className="ms-auto text-end">
-                          <Amount
-                            value={sum(counted.map((bill) => bill.amount))}
-                            currency={currency}
-                          />
-                          {allTakenOut ? null : (
+                        {/* Nothing went to a supplier whose bills were all taken out: no amount
+                            and no transfer (lead, 10 Oct 2026). */}
+                        {allTakenOut ? null : (
+                          <div className="ms-auto text-end">
+                            <Amount
+                              value={sum(counted.map((bill) => bill.amount))}
+                              currency={currency}
+                            />
                             <p className="mt-0.5 text-[10px] font-medium leading-[1.2] text-text-muted">
                               {t('paymentsPage.oneTransfer')}
                             </p>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                       {group.bills.map((bill) => {
                         const due = dueNote(bill.dueDate, today)
@@ -834,8 +836,9 @@ function RunBuilder({ runId }: { runId: string | null }) {
                   t('paymentsPage.billsSelected'),
                   t('paymentsPage.ofTotal', { selected: inRun.length, total: every.length }),
                 ],
-                [t('paymentsPage.suppliers'), String(paying.length)],
-                [t('paymentsPage.transfers'), String(paying.length)],
+                // On a paid run, the suppliers and transfers actually paid (lead, 10 Oct 2026).
+                [t('paymentsPage.suppliers'), String(payees.length)],
+                [t('paymentsPage.transfers'), String(payees.length)],
               ].map(([label, value]) => (
                 <div key={label} className="flex items-center justify-between gap-3">
                   <dt className="text-sm font-medium text-text-tertiary">{label}</dt>

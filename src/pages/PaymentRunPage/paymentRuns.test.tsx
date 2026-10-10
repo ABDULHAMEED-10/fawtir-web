@@ -1702,6 +1702,8 @@ describe("the owner's last points of 10 Oct 2026", () => {
     expect(sohar.getByText('Taken out')).toBeTruthy()
     expect(sohar.queryByText(/paid as one transfer|paid on its own/)).toBeNull()
     expect(sohar.queryByText('one transfer')).toBeNull()
+    // No amount either: nothing went to them (lead, 10 Oct 2026).
+    expect(sohar.queryByText(/\d\.\d{3}/)).toBeNull()
     // A supplier that was paid keeps its header.
     const roastery = within(await headerOf('Muscat Roastery Co'))
     expect(roastery.getByText('1 bill · paid on its own')).toBeTruthy()
@@ -1766,6 +1768,63 @@ describe("the owner's last points of 10 Oct 2026", () => {
     renderAt(`/expenditure/payments/${RUN_ID}`)
     await headerOf('Sohar Steel')
     expect(within(whoGetsPaid()).getByText('Sohar Steel')).toBeTruthy()
+  })
+
+  it('counts only the suppliers and transfers paid in This run on a paid run', async () => {
+    const count = (label: string) =>
+      screen.getByText(label, { selector: 'dt' }).parentElement!.querySelector('dd')!.textContent
+    detail = PAID_SOHAR_OUT
+    const view = renderAt(`/expenditure/payments/${RUN_ID}`)
+    await headerOf('Sohar Steel')
+    expect(count('Suppliers')).toBe('1')
+    expect(count('Transfers')).toBe('1')
+    view.unmount()
+
+    detail = { ...PAID_SOHAR_OUT, run: run({ state: 'SCHEDULED' }) }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    await headerOf('Sohar Steel')
+    expect(count('Suppliers')).toBe('2')
+    expect(count('Transfers')).toBe('2')
+  })
+
+  // Backend #480: a supplier debit note nobody has accepted is not payable (owner, 10 Oct 2026).
+  it('says to accept a debit note first, where a refused one says it was refused', async () => {
+    const { ApiError } = await import('../../api')
+    const { refusalOf } = await import('../../lib/paymentRuns')
+    const refused = (code: string, problem: Record<string, unknown>) =>
+      new ApiError({ status: 400, problemType: 'expenditure-refused', code, problem })
+    const note = { billId: 'dn-1', supplierBillNumber: 'GCL-DN-0091', documentTypeCode: '383' }
+    const notAccepted = refused('PAYMENT_RUN_DEBIT_NOTE_NOT_ACCEPTED', note)
+    for (const action of ['add', 'markPaid'] as const)
+      expect(refusalOf(notAccepted, i18n.getFixedT('en'), action)).toBe(
+        'Accept the debit note before you pay it.',
+      )
+    expect(refusalOf(notAccepted, i18n.getFixedT('ar'), 'add')).toBe(
+      'اقبل الإشعار المدين قبل أن تدفعه.',
+    )
+
+    override = (url) =>
+      url === `/api/v1/payment-runs/${RUN_ID}/blocked`
+        ? json(200, [
+            {
+              billId: 'dn-1',
+              supplierBillNumber: 'GCL-DN-0091',
+              supplierId: SUPPLIER,
+              supplierName: 'Muscat Roastery Co',
+              dueDate: null,
+              outstanding: 96.5,
+              reasonCodes: ['DEBIT_NOTE_NOT_ACCEPTED'],
+              approvalsGiven: null,
+              approvalsRequired: null,
+            },
+          ])
+        : null
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(
+      await screen.findByText('Accept the debit note before you pay it.', undefined, {
+        timeout: 8000,
+      }),
+    ).toBeTruthy()
   })
 
   it('words Mark as paid as approved, with the rial sign and three decimals', async () => {

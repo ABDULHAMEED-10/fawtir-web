@@ -78,6 +78,8 @@ export type MarkPaidBlockCode =
   /** Backend #476: held after it joined (any live run), or rejected after it joined (before a file). */
   | 'PAYMENT_RUN_BILL_ON_HOLD'
   | 'PAYMENT_RUN_BILL_NOT_READY'
+  /** Backend #480: a supplier debit note nobody has accepted yet is not payable (10 Oct 2026). */
+  | 'PAYMENT_RUN_DEBIT_NOTE_NOT_ACCEPTED'
 
 export type PaymentRunActivityKind =
   | 'CREATED'
@@ -127,13 +129,17 @@ export type PaymentRunCandidateDto = {
   amount: number
 }
 
-/** DEBIT_NOTE_REFUSED: a supplier debit note (383) whose current decision is REFUSED. */
+/**
+ * DEBIT_NOTE_REFUSED: a supplier debit note (383) whose current decision is REFUSED.
+ * DEBIT_NOTE_NOT_ACCEPTED (backend #480): one nobody has accepted or refused yet.
+ */
 export type BlockedReasonCode =
   | 'ON_HOLD'
   | 'MISMATCH'
   | 'REJECTED'
   | 'AWAITING_APPROVALS'
   | 'DEBIT_NOTE_REFUSED'
+  | 'DEBIT_NOTE_NOT_ACCEPTED'
 
 export type PaymentRunBlockedDto = {
   billId: string

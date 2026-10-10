@@ -17949,7 +17949,8 @@
       "billPaymentDebitNoteRefused": "This debit note was refused, so it cannot be paid. Accept it first if it is owed after all.",
       "debitNoteAlreadyPaid": "This debit note is already paid. Record a refund from the supplier instead.",
       "paymentReversalInSentRun": "This bill is in payment run {{run}}, whose bank file is already made. Use the run's Mark paid or Cancel instead.",
-      "debitNotePartlyPaid": "This debit note is partly paid. Record a refund from the supplier for the paid part first."
+      "debitNotePartlyPaid": "This debit note is partly paid. Record a refund from the supplier for the paid part first.",
+      "debitNoteNotAccepted": "Accept the debit note before you pay it."
     },
     "selfBilling": {
       "generic": "The server refused this because of the self-billing agreement with this supplier. Check the agreement before trying again.",
