@@ -874,11 +874,6 @@ function SupplierRecord({ id }: { id: string }) {
                 }
                 last
               />
-              {profile.health.includes('BANK_CHANGED_UNCONFIRMED') ? (
-                <p className="mt-2 rounded-sm bg-pending-100 p-3 text-xs font-medium leading-[1.4] text-pending-700">
-                  {t('supplierRecord.bankUnconfirmed')}
-                </p>
-              ) : null}
             </SideCard>
 
             <SideCard title={t('supplierDetail.howTheyBillYou')}>

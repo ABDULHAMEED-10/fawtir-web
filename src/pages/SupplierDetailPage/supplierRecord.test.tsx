@@ -458,11 +458,8 @@ describe('a supplier, opened', () => {
     expect(screen.getByText('3 of 4')).toBeTruthy()
     expect(screen.getByText('1.5% if paid within 10 days')).toBeTruthy()
     expect(screen.getByText('1, Main Street, Sur, South Sharqiyah, 112, OM')).toBeTruthy()
-    expect(
-      screen.getByText(
-        'The bank details changed and nobody has confirmed them with the supplier yet.',
-      ),
-    ).toBeTruthy()
+    // The record is flagged as an older server sends it; nobody confirms bank details since 10 Oct 2026.
+    expect(screen.queryByText(/nobody has confirmed them/)).toBeNull()
     // Tab counts come from the overview.
     expect(screen.getByRole('tab', { name: /Bills\s*23/ })).toBeTruthy()
     // Paying needs invoice.payment.manage, which this manager lacks: no "Pay them", no "Add to a payment run".

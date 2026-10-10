@@ -53,6 +53,11 @@ export type PaymentRunItemDto = {
    * Null when it can be paid, absent from an older server.
    */
   markPaidBlock?: { code: MarkPaidBlockCode; owedNow: number | null } | null
+  /**
+   * The supplier's bank details changed after this bill was added to the run (owner, 10 Oct 2026):
+   * the run warns to check them before paying. Absent from an older server.
+   */
+  supplierBankDetailsChangedSinceAdded?: boolean | null
 }
 
 export type MarkPaidBlockCode =
@@ -197,12 +202,21 @@ export type TakeOut = { billId: string; reason: string }
 /**
  * `invoice.payment.manage`. DRAFT, SCHEDULED or EXPORTED -> PAID (DRAFT and SCHEDULED since
  * backend #476; no bank file is needed). With `takeOut`, the named bills are left unpaid and the
- * rest is marked paid; with none, no body is sent, as before.
+ * rest is marked paid. `paymentDate` (owner, 10 Oct 2026) is the day the suppliers were paid, never
+ * in the future; the server refuses a future one. With neither, no body is sent, as before.
  */
-export function markRunPaid(id: string, takeOut: TakeOut[] = []): Promise<PaymentRunDto> {
+export function markRunPaid(
+  id: string,
+  takeOut: TakeOut[] = [],
+  paymentDate?: string,
+): Promise<PaymentRunDto> {
+  const body = {
+    ...(paymentDate ? { paymentDate } : {}),
+    ...(takeOut.length > 0 ? { takeOut } : {}),
+  }
   return apiRequest<PaymentRunDto>(`${runPath(id)}/mark-paid`, {
     method: 'POST',
-    ...(takeOut.length > 0 ? { body: { takeOut } } : {}),
+    ...(Object.keys(body).length > 0 ? { body } : {}),
   })
 }
 

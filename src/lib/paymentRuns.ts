@@ -3,6 +3,7 @@ import { ApiError } from '../api/errors'
 import type {
   BlockedReasonCode,
   PaymentRunDto,
+  PaymentRunItemDto,
   PaymentRunState,
 } from '../api/expenditure/paymentRuns'
 import { describeApiFailure } from './apiFailure'
@@ -117,6 +118,42 @@ export function paidOn(run: Pick<PaymentRunDto, 'paymentDate' | 'paidAt'>): stri
   return marked
 }
 
+/**
+ * The day the Mark as paid dialog starts on (owner, 10 Oct 2026): the run's payment date, or today
+ * in Muscat when the run has none or it is still in the future. People often mark a run paid a
+ * day or two after paying, so any day up to today can be chosen.
+ */
+export function markPaidDateFor(run: Pick<PaymentRunDto, 'paymentDate'>, today: string): string {
+  return run.paymentDate && run.paymentDate <= today ? run.paymentDate : today
+}
+
+/** Why the dialog's date cannot be sent, said before the request goes; the server still decides. */
+export function markPaidDateProblem(date: string, today: string): string | null {
+  if (!date) return 'paymentRuns.paidOnRequired'
+  if (date > today) return 'invoiceDetails.pay.error.dateFuture'
+  return null
+}
+
+/**
+ * The suppliers whose bank details changed after one of their bills was added to the run, once
+ * each in the run's order (owner, 10 Oct 2026). Only a run still to be paid warns: none on a PAID
+ * or CANCELLED run, and none with no supplier name to say.
+ */
+export function bankDetailsChangedIn(
+  state: PaymentRunState | null,
+  items: Pick<PaymentRunItemDto, 'supplierId' | 'supplierName' | 'supplierBankDetailsChangedSinceAdded'>[],
+): { key: string; name: string }[] {
+  if (state === null || state === 'PAID' || state === 'CANCELLED') return []
+  const seen = new Map<string, string>()
+  for (const item of items) {
+    const name = item.supplierName?.trim()
+    if (item.supplierBankDetailsChangedSinceAdded !== true || !name) continue
+    const key = item.supplierId ?? name
+    if (!seen.has(key)) seen.set(key, name)
+  }
+  return [...seen].map(([key, name]) => ({ key, name }))
+}
+
 export const RUN_STATES: PaymentRunState[] = ['DRAFT', 'SCHEDULED', 'EXPORTED', 'PAID', 'CANCELLED']
 
 export const REASON_KEYS: Record<BlockedReasonCode, string> = {
@@ -147,6 +184,10 @@ export const RUN_REFUSALS: Record<string, string> = {
   // The pay-from account was switched off after the run chose it, from a server that sends no
   // `accountName`: the sentence the other switched-off account refusal reads.
   PAYMENT_RUN_PAYER_ACCOUNT_INACTIVE: 'paymentRuns.refused.payerInactive',
+  // The date in the Mark as paid dialog (owner, 10 Oct 2026). The future-date sentence is the one
+  // Record payment reads; the before-issue code is the expected name, used when no bill is named.
+  PAYMENT_RUN_PAYMENT_DATE_IN_FUTURE: 'invoiceDetails.pay.error.dateFuture',
+  PAYMENT_RUN_PAYMENT_DATE_BEFORE_ISSUE_DATE: 'paymentRuns.refused.dateBeforeIssue',
 }
 
 /** What was being done to a run when it refused, where one code needs a sentence per action. */
@@ -168,10 +209,14 @@ const BY_ACTION: Record<string, Partial<Record<RunAction, string>>> = {
   // Backend #476: a hold or a rejection placed after the bill joined the run.
   PAYMENT_RUN_BILL_ON_HOLD: { markPaid: 'paymentRuns.refused.onHoldMarkPaid' },
   PAYMENT_RUN_BILL_NOT_READY: { markPaid: 'paymentRuns.refused.rejectedMarkPaid' },
+  PAYMENT_RUN_PAYMENT_DATE_BEFORE_ISSUE_DATE: { markPaid: 'paymentRuns.refused.dateBeforeIssueBill' },
 }
 
 /** Sentences that name the bill: without its number the code's own sentence is said instead. */
-const NAMES_THE_BILL = new Set(['PAYMENT_RUN_BILL_NOT_READY'])
+const NAMES_THE_BILL = new Set([
+  'PAYMENT_RUN_BILL_NOT_READY',
+  'PAYMENT_RUN_PAYMENT_DATE_BEFORE_ISSUE_DATE',
+])
 
 /**
  * `PAYMENT_RUN_BILL_SETTLED` names the bill, in every action. The Arabic agrees with the document:
@@ -195,15 +240,8 @@ export function refusalOf(error: unknown, t: TFunction, action?: RunAction): str
       return t(byAction, { note: number, bill: number })
     if (error.code === 'PAYMENT_RUN_BILL_SETTLED')
       return t(settledKey(error.problem.documentTypeCode), { bill: number })
-    // One sentence per supplier whose new bank details nobody confirmed (owner, 8 Oct 2026), and
-    // the switched-off pay-from account by its name.
-    if (error.code === 'PAYMENT_RUN_BANK_DETAILS_UNCONFIRMED') {
-      const names = suppliersNamed(error.problem.suppliers)
-      if (names.length > 0)
-        return names
-          .map((supplier) => t('paymentRuns.refused.bankDetailsUnconfirmed', { supplier }))
-          .join(' ')
-    }
+    // The switched-off pay-from account by its name. (No sentence for unconfirmed bank details:
+    // nobody confirms a changed IBAN since 10 Oct 2026.)
     if (error.code === 'PAYMENT_RUN_PAYER_ACCOUNT_INACTIVE' && error.problem.accountName)
       return t('paymentRuns.refused.payerAccountInactive', {
         account: String(error.problem.accountName),
@@ -212,14 +250,6 @@ export function refusalOf(error: unknown, t: TFunction, action?: RunAction): str
   }
   const described = describeApiFailure(error)
   return t(described.key, described.values)
-}
-
-/** The names in a refusal's `suppliers` (`[{supplierId, supplierName}]`), in its order. */
-function suppliersNamed(suppliers: unknown): string[] {
-  if (!Array.isArray(suppliers)) return []
-  return suppliers
-    .map((entry) => (entry as { supplierName?: unknown } | null)?.supplierName)
-    .filter((name): name is string => typeof name === 'string' && name.trim() !== '')
 }
 
 /** ISO 13616 shape and ISO 7064 MOD 97-10, as the server checks it: a typo is refused before it is sent. */

@@ -1,8 +1,9 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ActionMenu, Modal, RialMark, withRial } from '../../components/ui'
+import { ActionMenu, DateField, Modal, RialMark, withRial } from '../../components/ui'
 import { CheckboxRow, TextAreaField, TextField } from '../../components/form'
+import { Field } from '../ConsolePage/subscriptions/modalFields'
 import {
   addToRun,
   cancelRun,
@@ -22,6 +23,8 @@ import {
   BIC_SHAPE,
   actionsFor,
   ibanValid,
+  markPaidDateFor,
+  markPaidDateProblem,
   refusalOf,
   sum,
   supplierTile,
@@ -202,21 +205,30 @@ export function ConfirmModal({
  * A bill the server says cannot be marked paid now (`markPaidBlock`) starts ticked. With a bill
  * ticked the button reads "Mark the others paid"; with every bill ticked there is nothing left to
  * mark paid, so the button becomes the run's own "Cancel the run" and leads to that dialog instead.
+ *
+ * It asks the day the suppliers were paid (owner, 10 Oct 2026), as Record payment does: it starts
+ * on the run's payment date, or today in Muscat when there is none or it is in the future, and
+ * refuses a future day. It is hidden while the button reads "Cancel the run".
  */
 export function MarkPaidModal({
   run,
   items,
+  today,
   onConfirm,
   onCancelInstead,
   onClose,
 }: {
   run: PaymentRunDto
   items: PaymentRunItemDto[]
-  onConfirm: (takeOut: TakeOut[]) => Promise<void>
+  /** The Muscat day, so "not in the future" means what the server means by it. */
+  today: string
+  onConfirm: (takeOut: TakeOut[], paymentDate: string) => Promise<void>
   onCancelInstead: () => void
   onClose: () => void
 }) {
   const { t, i18n } = useTranslation()
+  const [paymentDate, setPaymentDate] = useState(() => markPaidDateFor(run, today))
+  const [dateProblem, setDateProblem] = useState<string | null>(null)
   const [ticked, setTicked] = useState<Set<string>>(
     () => new Set(items.filter((item) => item.markPaidBlock).map((item) => item.billId)),
   )
@@ -249,8 +261,10 @@ export function MarkPaidModal({
       takeOut.filter((entry) => !entry.reason).map((entry) => entry.billId),
     )
     setMissing(unexplained)
-    if (unexplained.size > 0) return
-    await onConfirm(takeOut)
+    const problem = markPaidDateProblem(paymentDate, today)
+    setDateProblem(problem)
+    if (unexplained.size > 0 || problem) return
+    await onConfirm(takeOut, paymentDate)
   }
 
   return (
@@ -272,6 +286,26 @@ export function MarkPaidModal({
       onClose={onClose}
       onConfirm={confirm}
     >
+      {everything ? null : (
+        <div className="mt-5">
+          <Field
+            name="paymentDate"
+            label={t('billDetail.pay.date')}
+            required
+            error={dateProblem ? t(dateProblem) : undefined}
+          >
+            <DateField
+              value={paymentDate}
+              onChange={(next) => {
+                setPaymentDate(next)
+                setDateProblem(null)
+              }}
+              max={today}
+              ariaLabel={t('billDetail.pay.date')}
+            />
+          </Field>
+        </div>
+      )}
       {items.length > 0 ? (
         <ul className="mt-5 overflow-hidden rounded-sm border border-border-subtle">
           {items.map((item, index) => {
