@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { CreditNoteRowDto, CreditNoteSummaryDto } from '../../api/expenditure/notes'
@@ -968,5 +968,76 @@ describe('One credit note', () => {
     await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
     fireEvent.click(screen.getByRole('button', { name: 'Download' }))
     await waitFor(() => expect(downloads).toEqual(['/api/v1/bills/intake/intake-1/file']))
+  })
+})
+
+// Owner, 9 Oct 2026 (E1): set against a debit note on upload, the note's page says what was done,
+// once, in the page's own notice.
+describe('arriving from the upload', () => {
+  /** The history entry's state, as a reload or a step back would find it. */
+  function StateProbe() {
+    const location = useLocation()
+    return <output data-testid="state">{JSON.stringify(location.state)}</output>
+  }
+
+  const arrive = (saved: { key: string; values?: Record<string, string> }) =>
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: `/expenditure/credit-notes/${NOTE_ID}`, state: { saved } }]}
+      >
+        <Routes>
+          <Route
+            path="/expenditure/credit-notes/:id"
+            element={
+              <>
+                <SupplierCreditNoteDetailPage />
+                <StateProbe />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+  it('says it was set against the debit note, then forgets it', async () => {
+    arrive({ key: 'supplierCreditNotes.upload.savedAppliedDebitNote' })
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.getByText('Saved and set against the debit note.')).toBeTruthy()
+    // Cleared at once, so a reload or coming back to the page does not say it again.
+    await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('null'))
+    const said = screen.getByText('Saved and set against the debit note.')
+    // The page's own notice: the same card its other "done" sentences use.
+    const notice = said.closest('[role=alert]') as HTMLElement
+    fireEvent.click(within(notice).getByRole('button', { name: 'Close' }))
+    expect(screen.queryByText('Saved and set against the debit note.')).toBeNull()
+  })
+
+  it('names the refused debit note the credit closes, in both languages', async () => {
+    const saved = {
+      key: 'supplierCreditNotes.upload.savedClosesRefusedDebitNote',
+      values: { note: 'MR-DN-0007' },
+    }
+    const english = arrive(saved)
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(
+      screen.getByText(
+        'Saved. The credit closes refused debit note MR-DN-0007; anything left over stays as credit.',
+      ),
+    ).toBeTruthy()
+    english.unmount()
+
+    await i18n.changeLanguage('ar')
+    arrive(saved)
+    expect(
+      await screen.findByText(
+        'حُفظ. يُغلق هذا الرصيد الإشعار المدين المرفوض MR-DN-0007، وما يزيد يبقى رصيدًا.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('says nothing when opened without one', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.queryByText(/^Saved/)).toBeNull()
   })
 })

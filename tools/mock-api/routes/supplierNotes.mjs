@@ -1377,9 +1377,18 @@ export default [
         reasonDetail: body?.reasonDetail ?? null,
       }
       let creditApplied = null
-      const related = body?.relatedBillId ? BILLS.find((b) => b.id === body.relatedBillId) : null
+      // A credit note (381) may also name one of the supplier's debit notes (383); a debit note
+      // names an ordinary bill only (EXPENDITURE.md 5.16).
+      const related = body?.relatedBillId
+        ? (BILLS.find((b) => b.id === body.relatedBillId) ??
+          DEBIT_NOTES.find((n) => n.id === body.relatedBillId) ??
+          null)
+        : null
       if (body?.relatedBillId && !related)
         return refusal(400, 'BILL_INTAKE_RELATED_BILL_UNKNOWN', 'No such bill.')
+      const relatedDebitNote = related !== null && DEBIT_NOTES.includes(related)
+      if (relatedDebitNote && body?.documentTypeCode !== '381')
+        return refusal(400, 'BILL_INTAKE_RELATED_BILL_NOT_A_BILL', 'Not an ordinary bill.')
       if (related && supplierRow && related.supplierId !== supplierRow.id)
         return refusal(400, 'BILL_INTAKE_RELATED_BILL_SUPPLIER_MISMATCH', 'Another supplier.')
       // "Hold it as credit" belongs to a credit note: refused on a debit note, as the server does.
@@ -1417,14 +1426,18 @@ export default [
         // amount that fits; any excess stays as credit, and a bill owing nothing takes none.
         // Held as credit (`holdAsCredit`), the bill stays the note's reference and nothing is
         // applied: the whole note waits as unused credit.
+        // A refused debit note is closed by the credit whichever choice is made, held or not:
+        // only the excess stays usable. An accepted or undecided one works like any bill.
         const note = CREDIT_NOTES[0]
+        const closesRefused = relatedDebitNote && related.status === 'REFUSED'
         const amount =
-          related && !holdAsCredit
+          related && (!holdAsCredit || closesRefused)
             ? round(Math.min(note.balance.remaining, Math.max(0, related.outstandingAmount)))
             : 0
-        if (holdAsCredit) {
+        if (holdAsCredit && !closesRefused) {
           note.credits.applied = false
         } else if (amount > 0) {
+          if (relatedDebitNote) related.creditedAmount = round(related.creditedAmount + amount)
           note.balance = {
             applied: amount,
             refunded: 0,
