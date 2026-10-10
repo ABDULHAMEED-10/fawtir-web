@@ -32,6 +32,7 @@ import {
   DUE_WINDOWS,
   REASON_KEYS,
   actionsFor,
+  bankDetailsChangedIn,
   discountPercent,
   dueBy,
   dueNote,
@@ -210,6 +211,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
   const shown = supplierFilter ? groups.filter((group) => group.key === supplierFilter) : groups
   const paying = groupBySupplier(inRun)
   const blockedRows = blocked.read.status === 'ready' ? blocked.read.data : []
+  const changedSinceAdded = bankDetailsChangedIn(run?.state ?? null, detail?.items ?? [])
 
   /** One write at a time: a tick while another is in flight would be sent against a stale run. */
   const act = async (write: () => Promise<void>, action?: RunAction) => {
@@ -371,6 +373,12 @@ function RunBuilder({ runId }: { runId: string | null }) {
             ? t(`paymentRuns.stateNote.${run.state}`, { date: stateDate })
             : t('paymentsPage.subtitle')}
         </p>
+        {/* Owner, 10 Oct 2026: a supplier whose bank details changed after their bill joined. */}
+        {changedSinceAdded.map((supplier) => (
+          <p key={supplier.key} className="text-sm font-medium leading-[1.3] text-pending-700">
+            {t('paymentRuns.bankDetailsChanged', { supplier: supplier.name })}
+          </p>
+        ))}
       </div>
 
       {notice ? (
@@ -922,6 +930,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
         <MarkPaidModal
           run={run}
           items={detail.items}
+          today={today}
           onClose={() => setConfirmingPaid(false)}
           onCancelInstead={() => {
             setConfirmingPaid(false)
@@ -930,9 +939,9 @@ function RunBuilder({ runId }: { runId: string | null }) {
             if (run.state === 'EXPORTED') setCancellingSent(true)
             else setCancellingUnsent(true)
           }}
-          onConfirm={async (takeOut) => {
+          onConfirm={async (takeOut, paymentDate) => {
             try {
-              await markRunPaid(runId, takeOut)
+              await markRunPaid(runId, takeOut, paymentDate)
               setConfirmingPaid(false)
               // A refusal from an earlier try no longer applies to the run now paid.
               setNotice(null)

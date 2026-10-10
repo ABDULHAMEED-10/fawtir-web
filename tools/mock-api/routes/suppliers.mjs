@@ -108,7 +108,7 @@ const FEATURED = [
     selfBilling: false,
     terms: terms('NET30', 30),
     youOwe: { amount: 699.9, currency: 'OMR', openBills: 1, onHold: 1 },
-    record: record(['BANK_CHANGED_UNCONFIRMED'], 8, 9, daysAgo(4)),
+    record: record([], 8, 9, daysAgo(4)),
     status: 'ACTIVE',
     switchedOffAt: null,
   },
@@ -583,7 +583,7 @@ function applyRequest(row, body) {
       changedAt: new Date().toISOString(),
       confirmedAt: null,
     }
-    row.record.health = [...new Set([...row.record.health, 'BANK_CHANGED_UNCONFIRMED'])]
+    // Owner, 10 Oct 2026: a changed IBAN is used as soon as it is saved; nobody confirms it.
     row.record.bankChangedAt = extra.bankDetails.changedAt
   }
   row.record.health = row.record.health.filter((flag) => flag !== 'NO_VAT_NUMBER')

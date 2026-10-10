@@ -340,10 +340,10 @@ function SuppliersScreen() {
             {count(totals.needsFixSuppliers)}
           </p>
           <p className="mt-2 text-xs font-medium leading-[1.3] text-text-tertiary">
-            {t('suppliersPage.kpi.needsFixNote', {
+            {/* A changed account is no longer something to fix (10 Oct 2026): it needs no confirming. */}
+            {t('suppliersPage.kpi.needsFixBankVat', {
               bank: count(totals.needsFix.noBankDetails),
               vat: count(totals.needsFix.noVat),
-              account: count(totals.needsFix.bankChanged),
             })}
           </p>
         </article>

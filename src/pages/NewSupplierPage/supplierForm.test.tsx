@@ -655,9 +655,6 @@ describe('an existing supplier', () => {
   it('still asks for the account to keep when the IBAN of a real account is cleared', async () => {
     renderAt(`/suppliers/${ID}/edit`)
     await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
-    expect(
-      screen.getByText('Changing the account asks someone to confirm it before the next payment.'),
-    ).toBeTruthy()
     // The whole account is cleared: a bank name or BIC left behind asks for the IBAN instead.
     for (const name of ['bankName', 'bic', 'iban'])
       fireEvent.change(document.querySelector(`input[name="${name}"]`)!, { target: { value: '' } })
@@ -667,20 +664,6 @@ describe('an existing supplier', () => {
       await screen.findByText("Bank details can't be removed here. Enter the account to keep."),
     ).toBeTruthy()
     expect(calls('PUT', ONE)).toHaveLength(0)
-  })
-
-  it('confirms bank details that changed', async () => {
-    renderAt(`/suppliers/${ID}/edit`)
-    expect(
-      await screen.findByText(/The bank details changed and nobody has confirmed them/),
-    ).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm bank details' }))
-
-    expect(await screen.findByText('Bank details confirmed.')).toBeTruthy()
-    expect(calls('POST', `${ONE}/bank-details/confirm`)).toHaveLength(1)
-    // A server that says nothing of who changed them: no dialog, and no body, as before.
-    expect((calls('POST', `${ONE}/bank-details/confirm`)[0][1] as RequestInit).body).toBeUndefined()
-    expect(screen.queryByRole('button', { name: 'Confirm bank details' })).toBeNull()
   })
 
   it('offers no save to someone who may only read suppliers', async () => {
@@ -767,135 +750,70 @@ function waiting(
 
 const confirmCalls = () => calls('POST', `${ONE}/bank-details/confirm`)
 
-async function openConfirm() {
-  fireEvent.click(await screen.findByRole('button', { name: 'Confirm bank details' }))
-  return within(await screen.findByRole('dialog'))
+/** Every word the IBAN confirmation drew, in English and Arabic; none is drawn since 10 Oct 2026. */
+const CONFIRM_WORDS = [
+  /nobody has confirmed them/,
+  /Confirm bank details/,
+  /someone else must confirm/,
+  /Previous IBAN|New IBAN|Not on record/,
+  /I checked the new details with the supplier/,
+  /asks someone to confirm it/,
+  /لم يؤكدها أحد|تأكيد البيانات البنكية|يجب أن يؤكدها شخص آخر|رقم الآيبان السابق|رقم الآيبان الجديد|تحققت من البيانات الجديدة/,
+]
+
+const noConfirmWords = () => {
+  for (const words of CONFIRM_WORDS) expect(screen.queryAllByText(words)).toHaveLength(0)
+  expect(screen.queryByRole('button', { name: /Confirm bank details|تأكيد البيانات البنكية/ })).toBeNull()
+  expect(screen.queryByRole('dialog')).toBeNull()
 }
 
-describe('a changed IBAN confirmed by a second person (owner, 8 Oct 2026)', () => {
-  it('shows the previous and the new IBAN, and confirms with no body when no tick is asked', async () => {
-    loaded = () => waiting()
-    renderAt(`/suppliers/${ID}/edit`)
-    const dialog = await openConfirm()
-    expect(dialog.getByText('Previous IBAN')).toBeTruthy()
-    expect(dialog.getByText('New IBAN')).toBeTruthy()
-    expect(dialog.getByText('OM020180000099988877766').getAttribute('dir')).toBe('ltr')
-    expect(dialog.getByText('OM810180000012345678901').getAttribute('dir')).toBe('ltr')
-    expect(dialog.queryByText('I checked the new details with the supplier.')).toBeNull()
-    expect(confirmCalls()).toHaveLength(0)
-
-    fireEvent.click(dialog.getByRole('button', { name: 'Confirm bank details' }))
-    expect(await screen.findByText('Bank details confirmed.')).toBeTruthy()
-    expect(confirmCalls()).toHaveLength(1)
-    expect((confirmCalls()[0][1] as RequestInit).body).toBeUndefined()
-    expect(screen.queryByRole('dialog')).toBeNull()
-  })
-
-  it('asks for the tick when it is required, checking it on press, and sends it', async () => {
-    loaded = () => waiting({ checkRequired: true, previousIban: null, changedById: null })
-    renderAt(`/suppliers/${ID}/edit`)
-    const dialog = await openConfirm()
-    expect(dialog.getByText('Not on record')).toBeTruthy()
-    const confirm = dialog.getByRole('button', { name: 'Confirm bank details' })
-    // Never greyed out: pressing it without the tick says what is missing and sends nothing.
-    expect((confirm as HTMLButtonElement).disabled).toBe(false)
-    fireEvent.click(confirm)
-    expect(await dialog.findByText('This field is required')).toBeTruthy()
-    expect(confirmCalls()).toHaveLength(0)
-
-    fireEvent.click(dialog.getByLabelText('I checked the new details with the supplier.'))
-    expect(dialog.queryByText('This field is required')).toBeNull()
-    fireEvent.click(confirm)
-    expect(await screen.findByText('Bank details confirmed.')).toBeTruthy()
-    expect(confirmCalls()).toHaveLength(1)
-    expect(bodyOf(confirmCalls()[0])).toEqual({ checkedWithSupplier: true })
-  })
-
-  it('tells the person who changed them that someone else must confirm, in place of Confirm', async () => {
-    loaded = () => waiting({ changedById: MANAGER.userId, confirmable: false })
-    renderAt(`/suppliers/${ID}/edit`)
-    expect(
-      await screen.findByText('You changed these bank details, so someone else must confirm them.'),
-    ).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Confirm bank details' })).toBeNull()
-  })
-
-  it('lets the changer confirm with the tick when nobody else can', async () => {
-    loaded = () => waiting({ changedById: MANAGER.userId, confirmable: true, checkRequired: true })
-    renderAt(`/suppliers/${ID}/edit`)
-    const dialog = await openConfirm()
-    expect(
-      screen.queryByText('You changed these bank details, so someone else must confirm them.'),
-    ).toBeNull()
-    fireEvent.click(dialog.getByLabelText('I checked the new details with the supplier.'))
-    fireEvent.click(dialog.getByRole('button', { name: 'Confirm bank details' }))
-    await waitFor(() => expect(confirmCalls()).toHaveLength(1))
-    expect(bodyOf(confirmCalls()[0])).toEqual({ checkedWithSupplier: true })
-  })
-
-  it('shows a Viewer neither Confirm nor the note', async () => {
-    who = { ...MANAGER, userId: 'u-2', permissions: ['supplier.read'] }
-    loaded = () => waiting({ confirmable: false })
-    renderAt(`/suppliers/${ID}/edit`)
-    expect(await screen.findByText('You can see this supplier but not change it.')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Confirm bank details' })).toBeNull()
-    expect(screen.queryByText(/someone else must confirm them/)).toBeNull()
-  })
-
-  it('reads the server refusals in words, in English and Arabic', async () => {
-    const refusal = (code: string) =>
-      json(400, {
-        type: 'https://api.fawtir.om/problems/expenditure-refused',
-        status: 400,
-        error: code,
-        detail: 'English detail',
-      })
-    let code = 'SUPPLIER_BANK_CONFIRM_SAME_PERSON'
-    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
-      const method = init?.method ?? 'GET'
-      if (url === '/api/v1/me/entitlements') return json(200, who)
-      if (url === ONE && method === 'GET') return json(200, waiting())
-      if (url === `${ONE}/bank-details/confirm`) return refusal(code)
-      throw new Error(`unexpected ${method} ${url}`)
+describe('no second person confirms a changed IBAN (owner, 10 Oct 2026)', () => {
+  it('draws no confirm box, button, note or hint, even when a server still says it waits', async () => {
+    // What a server from before the answer sends: flagged, waiting, and the tick asked for.
+    loaded = () => ({
+      ...waiting({ checkRequired: true }),
+      profile: detail({ health: ['BANK_CHANGED_UNCONFIRMED'] }).profile,
     })
-    const view = renderAt(`/suppliers/${ID}/edit`)
-    fireEvent.click((await openConfirm()).getByRole('button', { name: 'Confirm bank details' }))
-    expect(
-      await screen.findByText('You changed these bank details, so someone else must confirm them.'),
-    ).toBeTruthy()
-    view.unmount()
-
-    code = 'SUPPLIER_BANK_CONFIRM_CHECK_REQUIRED'
-    await i18n.changeLanguage('ar')
     renderAt(`/suppliers/${ID}/edit`)
-    fireEvent.click(await screen.findByRole('button', { name: 'تأكيد البيانات البنكية' }))
-    const dialog = within(await screen.findByRole('dialog'))
-    expect(dialog.getByText('رقم الآيبان السابق')).toBeTruthy()
-    expect(dialog.getByText('رقم الآيبان الجديد')).toBeTruthy()
-    fireEvent.click(dialog.getByRole('button', { name: 'تأكيد البيانات البنكية' }))
-    expect(
-      await screen.findByText('ضع علامة على «تحققت من البيانات الجديدة مع المورّد» للتأكيد.'),
-    ).toBeTruthy()
+    await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
+    expect(screen.getByLabelText(/^IBAN/)).toBeTruthy()
+    noConfirmWords()
   })
 
-  it('says the note and the tick in Arabic', async () => {
-    await i18n.changeLanguage('ar')
+  it('draws nothing for the person who changed them either', async () => {
     loaded = () => waiting({ changedById: MANAGER.userId, confirmable: false })
-    const view = renderAt(`/suppliers/${ID}/edit`)
-    expect(
-      await screen.findByText('أنت من غيّر هذه البيانات البنكية، لذا يجب أن يؤكدها شخص آخر.'),
-    ).toBeTruthy()
-    view.unmount()
-
-    loaded = () => waiting({ checkRequired: true, previousIban: null })
     renderAt(`/suppliers/${ID}/edit`)
-    fireEvent.click(await screen.findByRole('button', { name: 'تأكيد البيانات البنكية' }))
-    const dialog = within(await screen.findByRole('dialog'))
-    expect(dialog.getByText('غير مسجّل')).toBeTruthy()
-    expect(dialog.getByLabelText('تحققت من البيانات الجديدة مع المورّد.')).toBeTruthy()
+    await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
+    noConfirmWords()
   })
 
-  it('lists the change and the confirmation in Recent changes, with who and the tick', async () => {
+  it('saves a changed IBAN with one PUT and says it is saved, with nothing waiting after', async () => {
+    // The answer comes back flagged, as an older server would send it: still nothing is drawn.
+    updateResponse = () => json(200, { ...waiting(), profile: detail({ version: 8 }).profile })
+    renderAt(`/suppliers/${ID}/edit`)
+    await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
+    typeInto(/^IBAN/, 'OM230270000098765432101')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save changes' })[0])
+
+    expect(await screen.findByText('Changes saved.')).toBeTruthy()
+    expect(calls('PUT', ONE)).toHaveLength(1)
+    expect(bodyOf(calls('PUT', ONE)[0]).bankDetails.iban).toBe('OM230270000098765432101')
+    expect(confirmCalls()).toHaveLength(0)
+    noConfirmWords()
+  })
+
+  it('draws none of it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    loaded = () => ({
+      ...waiting({ checkRequired: true }),
+      profile: detail({ health: ['BANK_CHANGED_UNCONFIRMED'] }).profile,
+    })
+    renderAt(`/suppliers/${ID}/edit`)
+    await waitFor(() => expect(document.querySelector('input[name="iban"]')).toBeTruthy())
+    noConfirmWords()
+  })
+
+  it('still lists past changes and confirmations in Recent changes, without the tick', async () => {
     loaded = () => ({
       ...detail({
         health: [],
@@ -938,6 +856,6 @@ describe('a changed IBAN confirmed by a second person (owner, 8 Oct 2026)', () =
     expect(changes.getAllByText('IBAN updated')).toHaveLength(1)
     expect(changes.getByText(/Hafidh Al Amri/)).toBeTruthy()
     expect(changes.getByText(/Salma Al Busaidi/)).toBeTruthy()
-    expect(changes.getAllByText('I checked the new details with the supplier.')).toHaveLength(1)
+    expect(changes.queryByText('I checked the new details with the supplier.')).toBeNull()
   })
 })

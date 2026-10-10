@@ -168,11 +168,8 @@ function supplierDetail(id) {
       notes: null,
       supplierCategory: null,
       selfBillingAgreement: false,
-      health: s.iban
-        ? BANK_UNCONFIRMED.has(id)
-          ? ['BANK_CHANGED_UNCONFIRMED']
-          : []
-        : ['NO_BANK_DETAILS'],
+      // Nobody confirms a changed IBAN since 10 Oct 2026.
+      health: s.iban ? [] : ['NO_BANK_DETAILS'],
       supplierSince: '2025-02-01',
       switchedOffAt: null,
       status: 'ACTIVE',
@@ -189,19 +186,7 @@ function supplierDetail(id) {
     },
     sameAsInvoicingAddress: true,
     deliveryAddress: null,
-    // A change saved by someone else, before the platform kept the IBAN it replaced.
-    bankDetailsChange: BANK_UNCONFIRMED.has(id)
-      ? {
-          previousIban: null,
-          newIban: s.iban,
-          changedById: 'u-hafidh',
-          changedBy: 'Hafidh Saif',
-          changedAt: '2026-09-28T08:00:00Z',
-          firstEntry: false,
-          confirmable: true,
-          checkRequired: false,
-        }
-      : null,
+    bankDetailsChange: null,
     bankDetailsActivity: [],
   }
 }
@@ -827,6 +812,12 @@ function markPaidBlockOf(run, b) {
   return MARK_PAID_BLOCKS[b.id] ?? null
 }
 
+/**
+ * Bills whose supplier's bank details changed after the bill was added to the run (owner, 10 Oct
+ * 2026), as `runId:billId`: Sohar Packaging's IBAN changed after its bill joined draft PR-0014.
+ */
+const BANK_CHANGED_SINCE_ADDED = new Set(['run-0014:b-sp-1140'])
+
 function runItems(run) {
   return run.billIds.map((billId) => {
     const b = billById(billId)
@@ -844,6 +835,7 @@ function runItems(run) {
       outstanding: p.outstanding,
       takenOut: run.takenOut?.[billId] ?? null,
       markPaidBlock: markPaidBlockOf(run, b),
+      supplierBankDetailsChangedSinceAdded: BANK_CHANGED_SINCE_ADDED.has(`${run.id}:${billId}`),
     }
   })
 }
@@ -1917,6 +1909,10 @@ export default [
       if (!['DRAFT', 'SCHEDULED', 'EXPORTED'].includes(run.state))
         return refuse('PAYMENT_RUN_TRANSITION_INVALID')
       if (run.billIds.length === 0) return refuse('PAYMENT_RUN_EMPTY')
+      // The day the suppliers were paid (owner, 10 Oct 2026): optional, never in the future.
+      const paidOn = body?.paymentDate ?? null
+      if (paidOn !== null && (!/^\d{4}-\d{2}-\d{2}$/.test(paidOn) || paidOn > TODAY))
+        return refuse('PAYMENT_RUN_PAYMENT_DATE_IN_FUTURE')
       // The way out when only some were paid: any bill of the run, each with a reason.
       const takeOut = body?.takeOut ?? []
       const named = new Set()
@@ -1946,9 +1942,10 @@ export default [
       }
       run.state = 'PAID'
       run.paidAt = `${TODAY}T11:00:00Z`
-      // The run's date when it is set and not in the future, else today in Muscat; a draft run
-      // is paid today and gets that date.
-      if (!run.paymentDate || run.paymentDate > TODAY) run.paymentDate = TODAY
+      // The date sent; without one, the run's date when it is set and not in the future, else
+      // today in Muscat (a draft run is paid today and gets that date).
+      if (paidOn !== null) run.paymentDate = paidOn
+      else if (!run.paymentDate || run.paymentDate > TODAY) run.paymentDate = TODAY
       run.takenOut = {}
       run.events = []
       for (const entry of takeOut) {

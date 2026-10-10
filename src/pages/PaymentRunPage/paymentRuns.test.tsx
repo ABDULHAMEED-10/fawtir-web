@@ -13,12 +13,17 @@ import {
   discountPercent,
   dueNote,
   groupBySupplier,
+  bankDetailsChangedIn,
   ibanValid,
+  markPaidDateFor,
+  markPaidDateProblem,
   paidOn,
   supplierTile,
   windowEnd,
 } from '../../lib/paymentRuns'
 import { formatDate } from '../../lib/format'
+import { muscatToday } from '../../lib/invoiceIssue'
+import { formatDisplayDate } from '../../lib/dates'
 import { PaymentRunPage, PaymentRunsListPage } from '.'
 import { AddToPaymentRunModal } from '../SupplierDetailPage/AddToPaymentRunModal'
 
@@ -344,8 +349,10 @@ describe('payment runs', () => {
     await waitFor(() =>
       expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)).toHaveLength(1),
     )
-    const [, init] = calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)[0]
-    expect((init as RequestInit).body).toBeUndefined()
+    // The dialog's date, the run's own (owner, 10 Oct 2026), and nothing else.
+    expect(bodyOf(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)[0])).toEqual({
+      paymentDate: '2026-09-20',
+    })
     expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/export`)).toHaveLength(0)
   })
 
@@ -581,6 +588,7 @@ describe('the ways out of a sent run (owner, 8 Oct 2026)', () => {
       expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)).toHaveLength(1),
     )
     expect(bodyOf(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)[0])).toEqual({
+      paymentDate: '2026-09-20',
       takeOut: [{ billId: 'b-3', reason: 'A credit note came after the file was made' }],
     })
   })
@@ -625,6 +633,7 @@ describe('the ways out of a sent run (owner, 8 Oct 2026)', () => {
       expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)).toHaveLength(1),
     )
     expect(bodyOf(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)[0])).toEqual({
+      paymentDate: '2026-09-20',
       takeOut: [
         { billId: 'b-3', reason: 'Amount changed' },
         { billId: 'b-4', reason: 'The bank returned it' },
@@ -632,7 +641,7 @@ describe('the ways out of a sent run (owner, 8 Oct 2026)', () => {
     })
   })
 
-  it('marks the whole run paid with no body once nothing is ticked', async () => {
+  it('marks the whole run paid with only the date once nothing is ticked', async () => {
     renderAt(`/expenditure/payments/${RUN_ID}`)
     const dialog = within(await openMarkPaid())
     fireEvent.click(dialog.getAllByRole('checkbox', { name: 'Take out of the run' })[1])
@@ -641,8 +650,10 @@ describe('the ways out of a sent run (owner, 8 Oct 2026)', () => {
     await waitFor(() =>
       expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)).toHaveLength(1),
     )
-    const [, init] = calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)[0]
-    expect((init as RequestInit).body).toBeUndefined()
+    // The dialog's date, the run's own (owner, 10 Oct 2026), and nothing else.
+    expect(bodyOf(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)[0])).toEqual({
+      paymentDate: '2026-09-20',
+    })
   })
 
   it('offers Cancel the run instead when every bill is ticked, never Mark the others paid', async () => {
@@ -930,7 +941,7 @@ describe('marking a run paid with no bank file (owner, 9 Oct 2026; lead, 10 Oct 
     expect(screen.queryByRole('button', { name: 'Mark as paid' })).toBeNull()
   })
 
-  it('marks a draft run paid with no payment date and no bank file', async () => {
+  it('marks a draft run with no payment date paid today, with no bank file', async () => {
     detail = { ...DETAIL, run: run({ state: 'DRAFT', paymentDate: null }) }
     renderAt(`/expenditure/payments/${RUN_ID}`)
     const dialog = within(await openMarkPaid())
@@ -940,6 +951,9 @@ describe('marking a run paid with no bank file (owner, 9 Oct 2026; lead, 10 Oct 
       expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)).toHaveLength(1),
     )
     expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/export`)).toHaveLength(0)
+    expect(bodyOf(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)[0])).toEqual({
+      paymentDate: muscatToday(),
+    })
   })
 
   it('pays some of a scheduled run and takes the rest out, each with its reason', async () => {
@@ -963,6 +977,7 @@ describe('marking a run paid with no bank file (owner, 9 Oct 2026; lead, 10 Oct 
       expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)).toHaveLength(1),
     )
     expect(bodyOf(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)[0])).toEqual({
+      paymentDate: '2026-09-20',
       takeOut: [{ billId: 'b-3', reason: 'Paid next month' }],
     })
   })
@@ -1246,15 +1261,23 @@ describe('refusals when marking a run paid, and no bank file (owner, 9 Oct 2026)
     fireEvent.click(dialog.getByRole('button', { name: /Mark as paid|سجّل كمدفوعة/ }))
   }
 
-  it('names each supplier whose new bank details are not confirmed', async () => {
-    await refusedMarkPaid('PAYMENT_RUN_BANK_DETAILS_UNCONFIRMED', TWO_UNCONFIRMED)
-    expect(
-      await screen.findByText(
-        "Muscat Roastery Co's new bank details are not confirmed yet. Confirm them, or take their bills out of the run. " +
-          "Sohar Steel's new bank details are not confirmed yet. Confirm them, or take their bills out of the run.",
-      ),
-    ).toBeTruthy()
-    expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)).toHaveLength(1)
+  it('has no sentence for unconfirmed bank details any more (owner, 10 Oct 2026)', async () => {
+    const { refusalOf } = await import('../../lib/paymentRuns')
+    const { ApiError } = await import('../../api')
+    const error = new ApiError({
+      status: 400,
+      problemType: 'expenditure-refused',
+      code: 'PAYMENT_RUN_BANK_DETAILS_UNCONFIRMED',
+      problem: TWO_UNCONFIRMED,
+    })
+    const en = i18n.getFixedT('en')
+    const generic = refusalOf(
+      new ApiError({ status: 400, problemType: 'expenditure-refused', code: 'SOMETHING_NEW', problem: {} }),
+      en,
+      'markPaid',
+    )
+    expect(refusalOf(error, en, 'markPaid')).toBe(generic)
+    expect(refusalOf(error, en, 'markPaid')).not.toMatch(/not confirmed/)
   })
 
   it('names the switched-off account the run pays from', async () => {
@@ -1266,7 +1289,7 @@ describe('refusals when marking a run paid, and no bank file (owner, 9 Oct 2026)
     ).toBeTruthy()
   })
 
-  it('says the two refusals in Arabic, with their values', async () => {
+  it('says the account refusal in Arabic, with its value, and nothing of unconfirmed details', async () => {
     const { refusalOf } = await import('../../lib/paymentRuns')
     const { ApiError } = await import('../../api')
     const refused = (code: string, problem: Record<string, unknown>) =>
@@ -1274,10 +1297,7 @@ describe('refusals when marking a run paid, and no bank file (owner, 9 Oct 2026)
     const ar = i18n.getFixedT('ar')
     expect(
       refusalOf(refused('PAYMENT_RUN_BANK_DETAILS_UNCONFIRMED', TWO_UNCONFIRMED), ar, 'markPaid'),
-    ).toBe(
-      'البيانات البنكية الجديدة للمورّد Muscat Roastery Co لم تُؤكَّد بعد. أكّدها أو أخرج فواتيره من الدفعة. ' +
-        'البيانات البنكية الجديدة للمورّد Sohar Steel لم تُؤكَّد بعد. أكّدها أو أخرج فواتيره من الدفعة.',
-    )
+    ).not.toMatch(/لم تُؤكَّد/)
     expect(
       refusalOf(
         refused('PAYMENT_RUN_PAYER_ACCOUNT_INACTIVE', { accountName: 'Bank Muscat 4471' }),
@@ -1578,5 +1598,227 @@ describe('the end-to-end check of 10 Oct 2026', () => {
     expect(await screen.findByRole('link', { name: 'MR-1' }, { timeout: 8000 })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull()
     expect(screen.queryByText(/Copy into a new run|Reset the selection/)).toBeNull()
+  })
+})
+
+/** The two-bill scheduled run, with Sohar Steel's bank details changed after its bill joined. */
+const CHANGED_SINCE_ADDED: PaymentRunDetailDto = {
+  ...SENT,
+  run: run({ state: 'SCHEDULED' }),
+  items: [
+    { ...SENT.items[0], supplierBankDetailsChangedSinceAdded: false },
+    { ...SENT.items[1], markPaidBlock: null, supplierBankDetailsChangedSinceAdded: true },
+    {
+      ...SENT.items[1],
+      id: 'i-5',
+      billId: 'b-5',
+      supplierBillNumber: 'SS-5',
+      markPaidBlock: null,
+      supplierBankDetailsChangedSinceAdded: true,
+    },
+  ],
+}
+
+describe("the owner's answers of 10 Oct 2026", () => {
+  const markPaidBody = () => bodyOf(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)[0])
+
+  async function markPaidWithDateOf(paymentDate: string | null) {
+    detail = { ...DETAIL, run: run({ paymentDate, state: paymentDate ? 'SCHEDULED' : 'DRAFT' }) }
+    const view = renderAt(`/expenditure/payments/${RUN_ID}`)
+    const dialog = within(await openMarkPaid())
+    const shown = dialog.getByRole('button', { name: 'Paid on' }).textContent
+    fireEvent.click(dialog.getByRole('button', { name: 'Mark as paid' }))
+    await waitFor(() =>
+      expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)).toHaveLength(1),
+    )
+    const sent = markPaidBody()
+    view.unmount()
+    fetchMock.mockClear()
+    return { shown, sent }
+  }
+
+  it('asks for the date paid, starting on the run date, or today when it has none or it is ahead', async () => {
+    const today = muscatToday()
+    const past = await markPaidWithDateOf('2026-09-20')
+    expect(past.shown).toContain(formatDisplayDate('2026-09-20', 'en'))
+    expect(past.sent).toEqual({ paymentDate: '2026-09-20' })
+
+    const none = await markPaidWithDateOf(null)
+    expect(none.shown).toContain(formatDisplayDate(today, 'en'))
+    expect(none.sent).toEqual({ paymentDate: today })
+
+    const ahead = await markPaidWithDateOf('2999-12-31')
+    expect(ahead.shown).toContain(formatDisplayDate(today, 'en'))
+    expect(ahead.sent).toEqual({ paymentDate: today })
+  })
+
+  it('works the date out as the dialog does, and refuses a future one before sending', () => {
+    expect(markPaidDateFor({ paymentDate: '2026-10-08' }, '2026-10-10')).toBe('2026-10-08')
+    expect(markPaidDateFor({ paymentDate: '2026-10-10' }, '2026-10-10')).toBe('2026-10-10')
+    expect(markPaidDateFor({ paymentDate: '2026-10-11' }, '2026-10-10')).toBe('2026-10-10')
+    expect(markPaidDateFor({ paymentDate: null }, '2026-10-10')).toBe('2026-10-10')
+    expect(markPaidDateProblem('2026-10-11', '2026-10-10')).toBe(
+      'invoiceDetails.pay.error.dateFuture',
+    )
+    expect(markPaidDateProblem('', '2026-10-10')).toBe('paymentRuns.paidOnRequired')
+    expect(markPaidDateProblem('2026-10-10', '2026-10-10')).toBeNull()
+    expect(markPaidDateProblem('2026-01-02', '2026-10-10')).toBeNull()
+  })
+
+  it('offers no day after today in the dialog’s calendar', async () => {
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const dialog = within(await openMarkPaid())
+    fireEvent.click(dialog.getByRole('button', { name: 'Paid on' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Next month' }))
+    const fifteenth = screen.getAllByRole('button', { name: '15' })
+    expect(fifteenth.length).toBeGreaterThan(0)
+    for (const day of fifteenth) expect((day as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('sends the date beside the bills taken out', async () => {
+    detail = SCHEDULED_TWO
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const dialog = within(await openMarkPaid())
+    fireEvent.change(dialog.getByLabelText('Reason'), { target: { value: 'Paid next month' } })
+    fireEvent.click(dialog.getByRole('button', { name: 'Mark the others paid' }))
+    await waitFor(() =>
+      expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)).toHaveLength(1),
+    )
+    expect(markPaidBody()).toEqual({
+      paymentDate: '2026-09-20',
+      takeOut: [{ billId: 'b-3', reason: 'Paid next month' }],
+    })
+  })
+
+  it('hides the date while the button reads Cancel the run', async () => {
+    detail = SCHEDULED_TWO
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const dialog = within(await openMarkPaid())
+    expect(dialog.getByRole('button', { name: 'Paid on' })).toBeTruthy()
+    fireEvent.click(dialog.getAllByRole('checkbox', { name: 'Take out of the run' })[0])
+    expect(dialog.getByRole('button', { name: 'Cancel the run' })).toBeTruthy()
+    expect(dialog.queryByRole('button', { name: 'Paid on' })).toBeNull()
+  })
+
+  it('reads the server’s refusal of a future date, in English and Arabic', async () => {
+    const { refusalOf } = await import('../../lib/paymentRuns')
+    const { ApiError } = await import('../../api')
+    override = (url) =>
+      url.endsWith(`/${RUN_ID}/mark-paid`)
+        ? runRefusal('PAYMENT_RUN_PAYMENT_DATE_IN_FUTURE', {})
+        : null
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const dialog = within(await openMarkPaid())
+    fireEvent.click(dialog.getByRole('button', { name: 'Mark as paid' }))
+    expect(await screen.findByText('A payment cannot be dated in the future.')).toBeTruthy()
+
+    const refused = (code: string, problem: Record<string, unknown>) =>
+      new ApiError({ status: 400, problemType: 'expenditure-refused', code, problem })
+    const ar = i18n.getFixedT('ar')
+    expect(refusalOf(refused('PAYMENT_RUN_PAYMENT_DATE_IN_FUTURE', {}), ar, 'markPaid')).toBe(
+      'لا يمكن تأريخ دفعة في المستقبل.',
+    )
+    // The expected before-issue code: by the bill's number when the server sends it.
+    const en = i18n.getFixedT('en')
+    const early = 'PAYMENT_RUN_PAYMENT_DATE_BEFORE_ISSUE_DATE'
+    expect(refusalOf(refused(early, { supplierBillNumber: 'SS-3' }), en, 'markPaid')).toBe(
+      'SS-3 was issued after the date you paid. Choose a later date, or take SS-3 out of the run.',
+    )
+    expect(refusalOf(refused(early, {}), en, 'markPaid')).toBe(
+      'A bill in this run was issued after the date you paid. Choose a later date.',
+    )
+    expect(refusalOf(refused(early, { supplierBillNumber: 'SS-3' }), ar, 'markPaid')).toBe(
+      'صدرت SS-3 بعد تاريخ الدفع. اختر تاريخًا لاحقًا، أو أخرج SS-3 من الدفعة.',
+    )
+  })
+
+  it('warns once per supplier whose bank details changed after their bill joined the run', async () => {
+    detail = CHANGED_SINCE_ADDED
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(
+      await screen.findByText("Sohar Steel's bank details changed. Check before you pay.", {}, {
+        timeout: 8000,
+      }),
+    ).toBeTruthy()
+    expect(screen.getAllByText(/bank details changed\. Check before you pay\./)).toHaveLength(1)
+    expect(screen.queryByText(/Muscat Roastery Co's bank details changed/)).toBeNull()
+  })
+
+  it('says it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    detail = CHANGED_SINCE_ADDED
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(
+      await screen.findByText('تغيّرت البيانات البنكية لـ Sohar Steel. تحقّق منها قبل الدفع.', {}, {
+        timeout: 8000,
+      }),
+    ).toBeTruthy()
+  })
+
+  it('warns on draft, scheduled and sent runs only, and never when the flag is false or absent', async () => {
+    const cases: [PaymentRunDto['state'], boolean][] = [
+      ['DRAFT', true],
+      ['SCHEDULED', true],
+      ['EXPORTED', true],
+      ['PAID', false],
+      ['CANCELLED', false],
+    ]
+    for (const [state, warned] of cases) {
+      detail = { ...CHANGED_SINCE_ADDED, run: run({ state }) }
+      const view = renderAt(`/expenditure/payments/${RUN_ID}`)
+      expect(await screen.findByRole('link', { name: 'MR-1' }, { timeout: 8000 })).toBeTruthy()
+      expect(!!screen.queryByText(/bank details changed\. Check before you pay/), state).toBe(warned)
+      view.unmount()
+    }
+    for (const flag of [false, undefined, null]) {
+      detail = {
+        ...CHANGED_SINCE_ADDED,
+        items: CHANGED_SINCE_ADDED.items.map((item) => ({
+          ...item,
+          supplierBankDetailsChangedSinceAdded: flag,
+        })),
+      }
+      const view = renderAt(`/expenditure/payments/${RUN_ID}`)
+      expect(await screen.findByRole('link', { name: 'MR-1' }, { timeout: 8000 })).toBeTruthy()
+      expect(screen.queryByText(/bank details changed/)).toBeNull()
+      view.unmount()
+    }
+  })
+
+  it('lists the suppliers as the page does, once each and only with a name', () => {
+    const item = (supplierId: string | null, supplierName: string | null, flag?: boolean | null) => ({
+      supplierId,
+      supplierName,
+      supplierBankDetailsChangedSinceAdded: flag,
+    })
+    expect(
+      bankDetailsChangedIn('SCHEDULED', [
+        item('s-1', 'A', true),
+        item('s-1', 'A', true),
+        item('s-2', 'B', false),
+        item('s-3', '  ', true),
+        item(null, 'C', true),
+        item('s-4', 'D'),
+      ]),
+    ).toEqual([
+      { key: 's-1', name: 'A' },
+      { key: 'C', name: 'C' },
+    ])
+    expect(bankDetailsChangedIn('PAID', [item('s-1', 'A', true)])).toEqual([])
+    expect(bankDetailsChangedIn('CANCELLED', [item('s-1', 'A', true)])).toEqual([])
+  })
+
+  it('still draws an old sent run, with none of the bank-file lines', async () => {
+    detail = {
+      ...SENT,
+      fileStored: true,
+      bankDetailsChangedSinceFile: TWO_CHANGED,
+    }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(await screen.findByRole('link', { name: 'SS-3' }, { timeout: 8000 })).toBeTruthy()
+    expect(screen.getByText('Sent to bank')).toBeTruthy()
+    expect(screen.queryByText(/after this file was made/)).toBeNull()
+    expect(screen.queryByText(/bank details changed/)).toBeNull()
+    expect(screen.queryByText(/already sent to the bank/)).toBeNull()
   })
 })

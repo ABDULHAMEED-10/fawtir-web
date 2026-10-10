@@ -1586,7 +1586,8 @@
       "owe": "You owe them",
       "oweNote": "Across {{count}} open bills",
       "needsFix": "Records needing a fix",
-      "needsFixNote": "{{bank}} with no bank details · {{vat}} missing VAT · {{account}} changed account"
+      "needsFixNote": "{{bank}} with no bank details · {{vat}} missing VAT · {{account}} changed account",
+      "needsFixBankVat": "{{bank}} with no bank details · {{vat}} missing VAT"
     },
     "tabs": {
       "all": "All",
@@ -17747,7 +17748,9 @@
       "payerNameNotLatin": "The bank file needs the company's legal name in English letters. Update it in Company settings, then try again.",
       "onHoldMarkPaid": "A bill in this run is on hold. Release it, or take it out of the run and mark the others paid.",
       "rejectedMarkPaid": "{{bill}} was rejected after it joined this run. Mark the others paid and take {{bill}} out of the run.",
-      "onHoldMarkPaidNamed": "{{bill}} is on hold. Release it, or take it out of the run and mark the others paid."
+      "onHoldMarkPaidNamed": "{{bill}} is on hold. Release it, or take it out of the run and mark the others paid.",
+      "dateBeforeIssue": "A bill in this run was issued after the date you paid. Choose a later date.",
+      "dateBeforeIssueBill": "{{bill}} was issued after the date you paid. Choose a later date, or take {{bill}} out of the run."
     },
     "addModal": {
       "open": "Add to a payment run",
@@ -17794,7 +17797,9 @@
     "markPaidBlock": {
       "amountChanged": "Amount owed changed",
       "settled": "Already paid in full"
-    }
+    },
+    "bankDetailsChanged": "{{supplier}}'s bank details changed. Check before you pay.",
+    "paidOnRequired": "Choose the date you paid."
   },
   "billIntake": {
     "supplier": "Supplier",
