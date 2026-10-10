@@ -17,6 +17,7 @@ import {
 } from '../../../components/feedback/ApiNotice'
 import { ConnectionShell, ConnectionNotFound } from './ConnectionShell'
 import { ConnectionFailure, ConnectionNotice } from './connectionParts'
+import { EXTRACTION_STATUS_TONE } from '../../../lib/erp/extractionTone'
 import { useConnectionDetail, useMutation } from './connectionData'
 import { useExtractionSettings, useExtractionStatus } from './extractionData'
 import { useErpAccess } from '../../../hooks/useErpAccess'
@@ -34,7 +35,6 @@ import {
   type ExtractionCursorKind,
   type ExtractionSampleDto,
   type ExtractionSettingsDto,
-  type ExtractionStatusCode,
   type ExtractionStatusDto,
 } from '../../../api/erp/extraction'
 
@@ -53,17 +53,7 @@ import {
  */
 
 /** Tone per status. Never the only signal — every pill carries its own words as well. */
-const STATUS_TONE: Record<ExtractionStatusCode, 'success' | 'danger' | 'pending' | 'neutral'> = {
-  GLOBALLY_DISABLED: 'neutral',
-  NOT_CONFIGURED: 'neutral',
-  CONNECTION_NOT_READY: 'neutral',
-  DISABLED_BY_OPERATOR: 'pending',
-  MAPPING_NOT_CERTIFIED: 'danger',
-  RUNNING: 'success',
-  BACKOFF: 'danger',
-  FAILED_LAST_RUN: 'danger',
-  WAITING: 'success',
-}
+const STATUS_TONE = EXTRACTION_STATUS_TONE
 
 type FormState = {
   interval: string

@@ -28,7 +28,9 @@ export function Topbar({
   const showCreateInvoice =
     allowCreateInvoice &&
     !location.pathname.startsWith('/invoices') &&
-    !location.pathname.startsWith('/income')
+    !location.pathname.startsWith('/income') &&
+    // Self-billing moved to Expenditure (6 Oct 2026) but keeps the bar its frames draw.
+    !location.pathname.startsWith('/expenditure/self-billing')
 
   // The phone search takes over the whole bar, so it must not survive into a width where the bar
   // has room for the field anyway — otherwise a rotate or resize leaves the bar showing nothing.

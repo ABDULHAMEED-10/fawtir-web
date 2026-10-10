@@ -28,11 +28,11 @@ export function FawtaraStatusHero() {
             </p>
           </div>
 
-          <div className="flex min-h-0 w-full flex-1 items-end justify-center pb-2">
+          <div className="flex min-h-0 w-full flex-1 items-start justify-center pt-4 xl:pt-8">
             <img
               src={invoiceAmico}
               alt=""
-              className="h-full max-h-[453px] w-full max-w-[453px] select-none object-contain object-bottom"
+              className="h-full max-h-[453px] w-full max-w-[453px] select-none object-contain object-top"
             />
           </div>
         </div>

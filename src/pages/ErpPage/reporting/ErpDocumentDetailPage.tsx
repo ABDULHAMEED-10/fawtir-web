@@ -26,6 +26,8 @@ import {
   Th,
 } from '../overview/idiom'
 import { ConnectionLabel, ReportingShell, TonePill, When } from './reportingParts'
+import { RecoveryCard, RecoveryNoticeBanner } from './DocumentRecovery'
+import { useDocumentRecovery } from './useDocumentRecovery'
 import {
   GLOBAL_LINKS,
   useCode,
@@ -42,9 +44,11 @@ import {
  * of them disagree — a delivered invoice whose tax report was refused — both are shown as they
  * are, because the disagreement is the information.
  *
- * Read-only. The backend exposes no replay or recovery action: a stuck claim is released by the
- * platform's own recovery, and a document is sent again from the ERP, where the ledger recognises
- * it and never invoices it twice.
+ * Read-only but for one action. A stuck claim is released by the platform's own recovery, and a
+ * document is sent again from the ERP, where the ledger recognises it and never invoices it twice.
+ * The exception is a Managed Pull document that ran out of attempts after the channel's cursor
+ * moved past it, which nothing would ever fetch again: the Recovery card asks the server to replay
+ * the request that returned it (Phase 10, `RecoveryCard`).
  */
 export function ErpDocumentDetailPage() {
   const { t } = useTranslation()
@@ -79,12 +83,23 @@ export function DocumentDetailBody({
   links?: ReportLinks
 }) {
   const { names } = useConnectionNames()
-  return detail.read.status === 'loading' ? (
-    <LoadingNotice />
-  ) : detail.read.status === 'failed' ? (
-    <ApiReadFailure error={detail.read.error} retry={detail.retry} />
-  ) : (
-    <DocumentDetail detail={detail.read.data} names={names} links={links} />
+  const recovery = useDocumentRecovery(detail.recordId, detail.retry)
+  return (
+    <>
+      {recovery.notice ? <RecoveryNoticeBanner notice={recovery.notice} /> : null}
+      {detail.read.status === 'loading' ? (
+        <LoadingNotice />
+      ) : detail.read.status === 'failed' ? (
+        <ApiReadFailure error={detail.read.error} retry={detail.retry} />
+      ) : (
+        <DocumentDetail
+          detail={detail.read.data}
+          names={names}
+          links={links}
+          recovery={recovery}
+        />
+      )}
+    </>
   )
 }
 
@@ -107,10 +122,12 @@ function DocumentDetail({
   detail,
   names,
   links,
+  recovery,
 }: {
   detail: SourceDocumentDetailDto
   names: Map<string, string> | null
   links: ReportLinks
+  recovery: ReturnType<typeof useDocumentRecovery>
 }) {
   const { t, i18n } = useTranslation()
   const code = useCode()
@@ -138,6 +155,8 @@ function DocumentDetail({
           </span>
         </div>
       </SectionCard>
+
+      <RecoveryCard document={document} busy={recovery.busy} onRecover={recovery.recover} />
 
       <SectionCard title={t('erp.reporting.detail.source')}>
         <Fields>
@@ -449,6 +468,7 @@ const TIMELINE_CODE_GROUP: Partial<Record<string, string>> = {
   SOURCE_REJECTED: 'reason',
   REPLAY: 'reason',
   RECOVERY: 'recovery',
+  OPERATOR_RECOVERY: 'operatorRecovery',
   DELIVERY_STATE: 'deliveryState',
   RECIPIENT_RESPONSE: 'ack',
   TAX_REPORT: 'timelineTax',

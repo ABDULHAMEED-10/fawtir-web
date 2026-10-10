@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
-import { Button, Input, Modal } from '../../../components/ui'
+import { Input, Modal } from '../../../components/ui'
 import { ConsoleNotice, ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
 import { useConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
 import type { CompanyDetail } from '../../../lib/console/companyVerification'
@@ -28,6 +28,7 @@ import type { FormMessage } from '../../../lib/identity/errors'
 import { LOGIN_ROUTE } from '../../../lib/identity/login'
 import { ProblemReference } from '../policies/PolicyFailureNotice'
 import { ReviewCard, ReviewLine } from './ReviewCard'
+import { ConsoleButton } from '../../../layouts/ConsoleShell/consoleStyle'
 
 /** Oman's Peppol scheme: a company is addressed as `0248:` followed by its VAT number. */
 const OMAN_SCHEME = '0248'
@@ -329,11 +330,11 @@ function ParticipantCard({
               {policyLink}
             </div>
           ) : policyPending ? null : (
-            <Button type="button" size="md" fullWidth onClick={() => openDialog('approve')}>
+            <ConsoleButton type="button" size="md" fullWidth onClick={() => openDialog('approve')}>
               {t('console.verification.participant.approve')}
-            </Button>
+            </ConsoleButton>
           )}
-          <Button
+          <ConsoleButton
             type="button"
             size="md"
             variant="secondary"
@@ -341,7 +342,7 @@ function ParticipantCard({
             onClick={() => openDialog('reject')}
           >
             {t('console.verification.participant.reject')}
-          </Button>
+          </ConsoleButton>
         </div>
       ) : null}
 
@@ -358,11 +359,11 @@ function ParticipantCard({
         footer={
           <div className="flex flex-wrap justify-end gap-2.5">
             {conflict ? (
-              <Button type="button" size="md" variant="secondary" onClick={onDecided}>
+              <ConsoleButton type="button" size="md" variant="secondary" onClick={onDecided}>
                 {t('console.verification.decision.reload')}
-              </Button>
+              </ConsoleButton>
             ) : (
-              <Button
+              <ConsoleButton
                 type="button"
                 size="md"
                 variant="secondary"
@@ -370,9 +371,9 @@ function ParticipantCard({
                 onClick={() => setDialog(null)}
               >
                 {t('common.cancel')}
-              </Button>
+              </ConsoleButton>
             )}
-            <Button
+            <ConsoleButton
               type="button"
               size="md"
               disabled={deciding || conflict || policyRefused}
@@ -385,7 +386,7 @@ function ParticipantCard({
                 : deciding
                   ? t('console.verification.participant.rejecting')
                   : t('console.verification.participant.rejectConfirm')}
-            </Button>
+            </ConsoleButton>
           </div>
         }
       >

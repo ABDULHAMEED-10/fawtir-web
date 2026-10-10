@@ -122,9 +122,10 @@ the lockfile diff is the four test packages and their transitive dependencies.
 - **Consent.** Unchecked by default. One checkbox whose label names both documents drives
   `termsAccepted` and `privacyAccepted`; `buildSignupRequest` copies the actual box state, so it
   cannot manufacture consent.
-- **Password.** The shared rule now mirrors `PasswordPolicyService` (12–128, upper, lower, digit,
-  symbol) and is used by Signup and New Password. The backend common-password list is not
-  mirrored because the composition rule already refuses every entry in it. The strength meter
+- **Password.** The shared rule mirrors `PasswordPolicyService` (8–128 since onboarding Phase A,
+  was 12–128; upper, lower, digit, symbol) and is used by Signup, New Password and the operator
+  invitation. The backend common-password list is not mirrored; at 8 characters some of its
+  entries pass the composition rule, and the server refuses them on submit. The strength meter
   scores the same four criteria.
 - **Phone.** The field takes the 8-digit national number; the request sends `+968XXXXXXXX`. The
   shared `omanPhone` rule additionally requires a 7/9/2 prefix, which the backend does not

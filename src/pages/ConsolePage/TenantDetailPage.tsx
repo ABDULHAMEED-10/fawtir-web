@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { ApiError } from '../../api'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
 import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
@@ -14,17 +15,22 @@ import {
   initialsOf,
   tenantOverviewPath,
   verificationRouteFor,
+  type OverviewInvoicing,
   type TenantOverview,
 } from '../../lib/console/tenantOverview'
-import { ActionMenu, Rial, type ActionMenuItem } from '../../components/ui'
+import { ActionMenu, Rial, withRial, type ActionMenuItem } from '../../components/ui'
 import {
   TENANT_IDENTITIES,
+  documentsAllowance,
   openInvoiceOf,
+  periodAmount,
   planLabelKey,
   subscriptionOf,
   useSubscriptions,
+  type Subscription,
   type SubscriptionState,
 } from '../../lib/consoleSubscriptions'
+import { formatAmount, formatCount } from '../../lib/format'
 import { PLATFORM_SETTINGS } from '../../lib/platformSettings'
 import { PLANS, TENANTS, count, omr, type FilingDay } from '../../lib/superAdmin'
 import {
@@ -40,25 +46,31 @@ import {
   WaiveOverageModal,
   type SubscriptionAction,
 } from './subscriptions'
-import { TenantErpTab } from './erp/TenantErpTab'
+import { TenantErpEntitlementCard } from './erp/TenantErpEntitlementCard'
 import invoiceIcon from '../../assets/actions/invoice.svg'
 import creditNoteIcon from '../../assets/actions/credit-note.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
+import { CONSOLE_H1, CONSOLE_PAGE, CONSOLE_PRIMARY, CONSOLE_SECONDARY, CONSOLE_SUBTITLE, CONSOLE_TAB_LINE } from '../../layouts/ConsoleShell/consoleStyle'
+import { consoleTab } from '../../layouts/ConsoleShell/consoleTones'
+import { demoModulesEnabled } from '../../lib/demoModules'
+import { DemoRibbon } from '../../components/feedback/DemoModule'
 
-type Tab = 'subscription' | 'filing' | 'erp'
-const TABS: Tab[] = ['subscription', 'filing', 'erp']
+// No ERP tab: it drew a fixture's add-on state. A real tenant's ERP access is the entitlement
+// card below the facts, read from and changed through the platform API.
+type Tab = 'subscription' | 'filing'
+const TABS: Tab[] = ['subscription', 'filing']
 
 type Request = { action: SubscriptionAction; invoiceId?: string }
 
 const CHIP_TONE = {
   bad: 'bg-danger-100 text-danger-700',
-  watch: 'bg-pending-100 text-pending-700',
+  watch: 'bg-pending-100 text-pending-500',
   calm: 'bg-primary-50 text-primary-800',
 } as const
 
 const HEALTH_TONE = {
   bad: 'text-danger-700',
-  watch: 'text-pending-700',
+  watch: 'text-pending-500',
   calm: 'text-text-quaternary',
 } as const
 
@@ -70,15 +82,13 @@ const DAY_COLOUR: Record<FilingDay, string> = {
   none: 'bg-neutral-100',
 }
 
-const PRIMARY_BUTTON =
-  'inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800'
-const SECONDARY_BUTTON =
-  'inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25'
+const PRIMARY_BUTTON = CONSOLE_PRIMARY
+const SECONDARY_BUTTON = CONSOLE_SECONDARY
 
 function Chip({ label, tone }: { label: string; tone: 'bad' | 'watch' | 'calm' }) {
   return (
     <span
-      className={`inline-flex h-[22px] shrink-0 items-center gap-1.5 rounded-full px-2 text-[11px] font-semibold uppercase tracking-[0.03em] ${CHIP_TONE[tone]}`}
+      className={`inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-sm px-[11px] text-[11.5px] font-semibold uppercase tracking-[0.3px] ${CHIP_TONE[tone]}`}
     >
       <span className="size-1.5 rounded-full bg-current" />
       {label}
@@ -151,14 +161,17 @@ export function TenantDetailPage() {
   const { id } = useParams()
   // Compatibility only, and never a fallback: a UUID never reaches this lookup, so a tenant the
   // backend refuses can never be answered from sample data.
-  const prototype = id && !isCompanyId(id) ? prototypeOverview(id) : undefined
+  const prototype = id && !isCompanyId(id) && demoModulesEnabled() ? prototypeOverview(id) : undefined
 
   return (
     <ConsoleShell requires={TENANT_OVERVIEW_PERMISSION}>
       {isCompanyId(id) ? (
         <TenantDetailLoader tenantId={id} />
       ) : prototype ? (
-        <TenantDetail tenantId={id!} overview={prototype} prototype />
+        <>
+          <DemoRibbon />
+          <TenantDetail tenantId={id!} overview={prototype} prototype />
+        </>
       ) : (
         <DetailNotFound />
       )}
@@ -169,7 +182,7 @@ export function TenantDetailPage() {
 /** The tenants breadcrumb, for the states that have no tenant to name yet. */
 function DetailFrame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+    <div className={CONSOLE_PAGE}>
       <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.tenants', to: '/console/tenants' }]} />
       {children}
     </div>
@@ -237,7 +250,7 @@ function TenantDetail({
   overview: TenantOverview
   prototype?: boolean
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const ledger = useSubscriptions()
@@ -319,17 +332,20 @@ function TenantDetail({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-      <ConsoleBreadcrumbs items={[...parentCrumbs, { label: overview.identity.tenantName }]} />
+    <div className={CONSOLE_PAGE}>
+      {/* A long company name ends in an ellipsis instead of pushing the trail onto three lines. */}
+      <div className="min-w-0 [&_nav>span:last-child]:min-w-0 [&_nav>span:last-child]:max-w-full [&_nav>span:last-child>span]:min-w-0 [&_nav>span:last-child>span]:truncate">
+        <ConsoleBreadcrumbs items={[...parentCrumbs, { label: overview.identity.tenantName }]} />
+      </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-4">
-          <span className="flex size-14 shrink-0 items-center justify-center rounded-md bg-surface-card text-base font-semibold text-text-tertiary">
+          <span className="flex size-14 shrink-0 items-center justify-center rounded-sm bg-primary-50 text-base font-bold text-primary-700">
             {initialsOf(overview.identity.tenantName)}
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary max-md:text-2xl">
+              <h1 className={`${CONSOLE_H1} max-md:text-2xl`}>
                 {overview.identity.tenantName}
               </h1>
               {overview.identity.tenantStatus ? (
@@ -344,9 +360,10 @@ function TenantDetail({
                           : 'neutral'
                   }
                   label={t(`console.tenants.status.${overview.identity.tenantStatus}`)}
+                  size="header"
                 />
               ) : null}
-              {subscription ? <SubscriptionStatePill state={subscription.state} /> : null}
+              {subscription ? <SubscriptionStatePill state={subscription.state} size="header" /> : null}
               {subscription ? (
                 <Chip
                   tone="calm"
@@ -357,16 +374,29 @@ function TenantDetail({
                 />
               ) : null}
             </div>
-            <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
+            <p className={CONSOLE_SUBTITLE}>
               {[
-                overview.company.legalName,
-                overview.company.taxNumber
-                  ? `${t('console.tenants.vat')} ${overview.company.taxNumber}`
-                  : null,
+                legalNameOf(overview, i18n.language),
+                overview.company.taxNumber ? (
+                  <>
+                    {t('console.tenants.vat')} <bdi dir="ltr">{overview.company.taxNumber}</bdi>
+                  </>
+                ) : null,
                 overview.company.contactPersonName,
               ]
                 .filter(Boolean)
-                .join(' · ') || t('console.tenantDetail.noCompanyDetails')}
+                .map((part, index) => (
+                  <span key={index}>
+                    {index > 0 ? ' · ' : null}
+                    {part}
+                  </span>
+                ))}
+              {overview.company.legalName ||
+              overview.company.legalNameAr ||
+              overview.company.taxNumber ||
+              overview.company.contactPersonName
+                ? null
+                : t('console.tenantDetail.noCompanyDetails')}
               {overview.company.contactPhone ? (
                 <>
                   {' · '}
@@ -404,11 +434,17 @@ function TenantDetail({
           role="status"
           className="rounded-md bg-success-100 px-5 py-4 text-sm font-medium leading-[1.6] text-success-700"
         >
-          {done}
+          {withRial(done)}
         </p>
       ) : null}
 
-      <TenantFacts overview={overview} />
+      <TenantFacts
+        overview={prototype ? withLedger(overview, subscription, t) : overview}
+      />
+
+      {prototype ? null : (
+        <TenantErpEntitlementCard tenantId={tenantId} tenantCode={overview.identity.tenantCode} />
+      )}
 
       {/*
         Tabs, their content and every action modal are sample-data features: the subscription
@@ -418,7 +454,7 @@ function TenantDetail({
       */}
       {prototype ? (
         <>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 rounded-md bg-surface-card px-6 pt-4">
+          <div className="flex flex-wrap gap-x-6 rounded-sm bg-surface-card px-5">
             {TABS.map((entry) => {
               const active = entry === tab
               return (
@@ -427,16 +463,11 @@ function TenantDetail({
                   type="button"
                   onClick={() => setTab(entry)}
                   aria-pressed={active}
-                  className={[
-                    'relative flex items-center gap-1.5 pb-3 text-base transition-colors',
-                    active
-                      ? 'font-semibold text-primary-800'
-                      : 'font-medium text-text-tertiary hover:text-text-secondary',
-                  ].join(' ')}
+                  className={consoleTab(active)}
                 >
                   {t(`console.tenantDetail.tabs.${entry}`)}
                   {active ? (
-                    <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary-700" />
+                    <span className={CONSOLE_TAB_LINE} />
                   ) : null}
                 </button>
               )
@@ -447,7 +478,7 @@ function TenantDetail({
             <SubscriptionTab tenantId={tenantId} ledger={ledger} onAction={open} />
           ) : tab === 'filing' ? (
             filing ? (
-              <section className="grid grid-cols-3 gap-4 rounded-md bg-surface-card p-5 max-md:grid-cols-1">
+              <section className="grid grid-cols-3 gap-4 rounded-sm bg-surface-card p-5 max-md:grid-cols-1">
                 <div>
                   <p className="text-xs font-semibold uppercase leading-[1.5] text-text-quaternary">
                     {t('console.tenants.col.health')}
@@ -512,13 +543,11 @@ function TenantDetail({
                 </div>
               </section>
             ) : (
-              <p className="rounded-md bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary">
+              <p className="rounded-sm bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary">
                 {t('console.tenantDetail.filing.noData')}
               </p>
             )
-          ) : (
-            <TenantErpTab tenantId={tenantId} />
-          )}
+          ) : null}
 
           {request?.action === 'recordPayment' ? <RecordPaymentModal {...modalProps} /> : null}
           {request?.action === 'sendLink' ? <SendLinkModal {...modalProps} /> : null}
@@ -546,31 +575,39 @@ function TenantDetail({
  * gets a link there, never an Approve button here.
  */
 function TenantFacts({ overview }: { overview: TenantOverview }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const none = t('console.tenants.none')
   const { company, verification, subscription, operational, identity } = overview
   const address = addressLine(company)
   const pending = verification.status === 'PENDING_VERIFICATION'
 
   return (
-    <section className="flex flex-col gap-5 rounded-md bg-surface-card p-5">
+    <section className="flex flex-col gap-5 rounded-sm bg-surface-card p-5">
       <div className="grid grid-cols-3 gap-x-8 gap-y-4 max-md:grid-cols-1">
-        <Fact label={t('console.tenantDetail.field.code')} value={identity.tenantCode} />
-        <Fact label={t('console.tenantDetail.field.legalName')} value={company.legalName ?? none} />
+        <Fact label={t('console.tenantDetail.field.code')} value={identity.tenantCode} ltr />
+        <Fact
+          label={t('console.tenantDetail.field.legalName')}
+          value={legalNameOf(overview, i18n.language) ?? none}
+        />
         <Fact
           label={t('console.tenantDetail.field.tradingName')}
           value={company.tradingName ?? none}
         />
-        <Fact label={t('console.tenants.vat')} value={company.taxNumber ?? none} />
+        <Fact label={t('console.tenants.vat')} value={company.taxNumber ?? none} ltr />
         <Fact
           label={t('console.tenantDetail.field.cr')}
           value={company.commercialRegistrationNumber ?? none}
+          ltr
         />
         <Fact
           label={t('console.tenantDetail.field.address')}
           value={address.length > 0 ? address.join(', ') : none}
         />
-        <Fact label={t('console.tenantDetail.field.timezone')} value={company.timezone ?? none} />
+        <Fact
+          label={t('console.tenantDetail.field.timezone')}
+          value={company.timezone ?? none}
+          ltr
+        />
         <Fact
           label={t('console.tenantDetail.field.identityStatus')}
           value={
@@ -582,6 +619,7 @@ function TenantFacts({ overview }: { overview: TenantOverview }) {
         <Fact
           label={t('console.tenantDetail.field.contactEmail')}
           value={company.contactEmail ?? none}
+          ltr
         />
       </div>
 
@@ -629,7 +667,11 @@ function TenantFacts({ overview }: { overview: TenantOverview }) {
           */}
           <span className="mt-1 block text-xs font-medium text-text-quaternary">
             {subscription.monthlyPrice !== null
-              ? t('console.tenantDetail.planPrice', { amount: String(subscription.monthlyPrice) })
+              ? withRial(
+                  t('console.tenantDetail.planPrice', {
+                    amount: formatAmount(subscription.monthlyPrice, 'OMR', i18n.language),
+                  }),
+                )
               : none}
           </span>
           {/*
@@ -637,7 +679,10 @@ function TenantFacts({ overview }: { overview: TenantOverview }) {
             this contract does not publish it, and deriving it here would be a guess.
           */}
           <span className="mt-1 block text-xs font-medium text-text-quaternary">
-            {t('console.tenantDetail.planAllowance', { count: subscription.invoicesPerMonth })}
+            {t('console.tenantDetail.planAllowance', {
+              count: subscription.invoicesPerMonth,
+              total: formatCount(subscription.invoicesPerMonth, i18n.language),
+            })}
           </span>
         </div>
 
@@ -656,25 +701,124 @@ function TenantFacts({ overview }: { overview: TenantOverview }) {
             />
           </span>
           {/*
-            The evaluator's own reason code, shown verbatim rather than relabelled. It answers
-            "may this tenant submit invoices", not filing health or activity.
+            The evaluator's reason, in words. It answers "may this tenant submit invoices", not
+            filing health or activity. A code we have no words for yet is shown as the code.
           */}
-          <span className="mt-1.5 block text-xs font-medium text-text-quaternary">
-            {operational.reasonCode ?? none}
-          </span>
+          {operational.reasonCode ? (
+            <span className="mt-1.5 block text-xs font-medium text-text-quaternary">
+              {i18n.exists(`console.tenantDetail.readinessReason.${operational.reasonCode}`) ? (
+                t(`console.tenantDetail.readinessReason.${operational.reasonCode}`)
+              ) : (
+                <bdi dir="ltr" className="font-mono [overflow-wrap:anywhere]">
+                  {operational.reasonCode}
+                </bdi>
+              )}
+            </span>
+          ) : operational.ready ? null : (
+            <span className="mt-1.5 block text-xs font-medium text-text-quaternary">{none}</span>
+          )}
         </div>
       </div>
+
+      <InvoicingFacts invoicing={overview.invoicing ?? null} />
     </section>
   )
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
+/**
+ * Whether the company can issue invoices, item by item: the company's own readiness answer, so the
+ * operator and the company never read two different verdicts. An older backend that does not send
+ * it gets "not reported", never a guess derived from the account gate.
+ */
+function InvoicingFacts({ invoicing }: { invoicing: OverviewInvoicing | null }) {
+  const { t, i18n } = useTranslation()
+  return (
+    <div className="flex flex-col gap-3 border-t border-border-subtle pt-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-xs font-semibold uppercase leading-[1.5] text-text-quaternary">
+          {t('console.tenantDetail.field.invoicing')}
+        </p>
+        {invoicing ? (
+          <ConsoleStatusPill
+            tone={invoicing.ready ? 'success' : 'neutral'}
+            label={t(invoicing.ready ? 'console.tenantDetail.invoicing.ready' : 'console.tenantDetail.invoicing.notReady')}
+          />
+        ) : (
+          <span className="text-xs font-medium text-text-quaternary">
+            {t('console.tenantDetail.invoicing.unavailable')}
+          </span>
+        )}
+      </div>
+      {invoicing && invoicing.items.length > 0 ? (
+        <ul className="grid grid-cols-2 gap-x-8 gap-y-2 max-md:grid-cols-1">
+          {invoicing.items.map((item) => (
+            <li key={item.code} className="flex min-w-0 flex-wrap items-baseline justify-between gap-2 text-sm">
+              <span className="font-medium text-text-primary">
+                {i18n.exists(`readiness.item.${item.code}`) ? t(`readiness.item.${item.code}`) : item.code}
+              </span>
+              <span className="text-xs font-medium text-text-quaternary">
+                {item.status === 'DONE'
+                  ? t('readiness.done')
+                  : item.status === 'AWAITING_PLATFORM'
+                    ? t('readiness.awaitingFawtir')
+                    : t('readiness.actionRequired')}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  )
+}
+
+function Fact({ label, value, ltr = false }: { label: string; value: string; ltr?: boolean }) {
   return (
     <div className="min-w-0">
       <p className="text-xs font-semibold uppercase leading-[1.5] text-text-quaternary">{label}</p>
-      <p className="mt-1 break-words text-sm font-medium leading-[1.4] text-text-primary">{value}</p>
+      <p className="mt-1 text-sm font-medium leading-[1.4] text-text-primary [overflow-wrap:anywhere]">
+        {ltr ? <bdi dir="ltr">{value}</bdi> : value}
+      </p>
     </div>
   )
+}
+
+/** The legal name in the reader's language: the Arabic one in Arabic when the company has it. */
+function legalNameOf(overview: TenantOverview, language: string): string | null {
+  const { legalName, legalNameAr } = overview.company
+  return language.startsWith('ar') && legalNameAr ? legalNameAr : legalName
+}
+
+/**
+ * The sample tenants' plan and readiness, told from the same subscription ledger the tabs below
+ * read, so the summary card cannot say "no plan" over a Subscription tab that says Starter.
+ * Sample-data rendering only; a real tenant's overview is never touched.
+ */
+function withLedger(
+  overview: TenantOverview,
+  subscription: Subscription | undefined,
+  t: TFunction,
+): TenantOverview {
+  if (!subscription) return overview
+  const live = subscription.state !== 'suspended' && subscription.state !== 'cancelled'
+  return {
+    ...overview,
+    subscription: {
+      ...overview.subscription,
+      planCode: subscription.plan,
+      planName: t(planLabelKey(subscription.plan)),
+      monthlyPrice: periodAmount(subscription.plan, 'monthly', subscription.enterprise),
+      invoicesPerMonth: documentsAllowance(subscription),
+      overageEnabled: subscription.overageOn,
+    },
+    operational: {
+      ready: live,
+      reasonCode: live
+        ? null
+        : subscription.state === 'suspended'
+          ? 'TENANT_SUSPENDED'
+          : 'TENANT_NOT_ACTIVE',
+    },
+  }
 }
 
 /**

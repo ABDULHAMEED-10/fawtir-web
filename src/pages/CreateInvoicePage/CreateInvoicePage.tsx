@@ -21,6 +21,7 @@ import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback
 import { AddCustomerModal } from '../../components/AddCustomerModal'
 import { IssueInvoiceModal } from '../../components/invoice/IssueInvoiceModal'
 import { ClassificationField } from '../../components/invoice/ClassificationField'
+import { InvoicingReadinessCard } from '../../components/readiness/InvoicingReadinessCard'
 import { useApiRead } from '../../hooks'
 import { apiRequest, type Page } from '../../api'
 import { ApiError } from '../../api/errors'
@@ -87,7 +88,7 @@ import { lineFromProduct, taxCategoryOf } from '../../lib/productLine'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { missingCustomerFields } from '../../lib/customerEligibility'
 import { formatAmount as formatMoney } from '../../lib/format'
-import { usageForecast } from '../../lib/settings'
+import { usePlanUsage } from '../../hooks/usePlanUsage'
 import { can, useSession } from '../../lib/session/session'
 import {
   calculateInvoice,
@@ -123,6 +124,14 @@ import qrBadgeIcon from '../../assets/create-invoice/qr-badge.svg'
 import receiptQrIcon from '../../assets/create-invoice/receipt-qr.svg'
 import deleteLineIcon from '../../assets/create-invoice/delete.svg'
 
+
+/**
+ * Quotations, order forms and delivery notes have no server yet (their routes say so), and the rows
+ * behind them are a sample company's. Until they are connected, a `?from=` reference is not found
+ * and nothing is offered for linking, rather than filling a real invoice from invented documents.
+ * Typed as boolean so the gated code still type-checks for the day it flips.
+ */
+const TRADE_DOCUMENTS_CONNECTED: boolean = false
 const CUSTOMER_TYPE: Record<CustomerKind, CustomerTypeDto> = {
   business: 'BUSINESS',
   consumer: 'CONSUMER',
@@ -534,6 +543,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   const session = useSession()
   const { t, i18n } = useTranslation()
   const reference = useReferenceData() ?? DESIGN_REFERENCE
+  const usage = usePlanUsage()
   const language = i18n.language
   // `selfbilling.create`, not `invoice.draft`: writing an invoice on someone else's behalf is a
   // different authority from writing your own, and the server keeps them apart.
@@ -623,6 +633,18 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     ;(async () => {
       try {
         const loaded = await loadDraft(id)
+        // A self-billed draft is edited under Expenditure › Self-billing (owner decision,
+        // 6 Oct 2026), never in the sales composer.
+        if (!selfBilled && loaded.type === 'SELF_BILLED_INVOICE') {
+          navigate(`/expenditure/self-billing/${encodeURIComponent(id)}/edit`, { replace: true })
+          return
+        }
+        if (!selfBilled && loaded.type === 'SELF_BILLED_CREDIT_NOTE') {
+          navigate(`/expenditure/self-billing/credit-notes/${encodeURIComponent(id)}/edit`, {
+            replace: true,
+          })
+          return
+        }
         const record = await apiRequest<CustomerDto>(
           `/v1/customers/${encodeURIComponent(loaded.customerId)}`,
         ).catch(() => null)
@@ -681,7 +703,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   const fromTrade = id || duplicateOf ? null : searchParams.get('from')
   useEffect(() => {
     if (!fromTrade) return
-    const prefill = invoicePrefill(fromTrade)
+    const prefill = TRADE_DOCUMENTS_CONNECTED ? invoicePrefill(fromTrade) : null
     if (!prefill) {
       setNotice({ tone: 'error', body: t('createInvoice.fromTrade.notFound', { id: fromTrade }) })
       return
@@ -732,7 +754,10 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   }, [fromTrade])
 
   // Only the chosen customer's order forms and delivery notes can be linked.
-  const linkable = useMemo(() => linkableDocsFor(customer?.id ?? null), [customer])
+  const linkable = useMemo(
+    () => (TRADE_DOCUMENTS_CONNECTED ? linkableDocsFor(customer?.id ?? null) : []),
+    [customer],
+  )
 
   // Duplicate (list row menu, invoice detail): a new, unsaved draft filled from another invoice.
   // Nothing is created until the reader saves; dates, number and payments are never copied.
@@ -1163,7 +1188,9 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       if (!meta) {
         justCreated.current = result.id
         navigate(
-          selfBilled ? `/income/self-billing/${result.id}/edit` : `/invoices/${result.id}/edit`,
+          selfBilled
+            ? `/expenditure/self-billing/${result.id}/edit`
+            : `/invoices/${result.id}/edit`,
           {
             replace: true,
           },
@@ -1231,7 +1258,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     if (!meta) return
     try {
       await discardDraft(meta.id, meta.version)
-      navigate(selfBilled ? '/income/self-billing' : '/invoices')
+      navigate(selfBilled ? '/expenditure/self-billing' : '/invoices')
     } catch (error) {
       setDiscardOpen(false)
       setNotice({
@@ -1344,7 +1371,6 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     label: methodLabel(code),
     hint: `UNCL4461 · ${code}`,
   }))
-  const usage = usageForecast()
   const savedText = dirty
     ? t('createInvoice.header.unsaved')
     : savedAt === null
@@ -1370,7 +1396,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            to={selfBilled ? '/income/self-billing' : '/invoices'}
+            to={selfBilled ? '/expenditure/self-billing' : '/invoices'}
             className="inline-flex items-center gap-1 text-2xl font-medium leading-[1.2] text-text-quaternary"
           >
             {t(selfBilled ? 'selfBilledComposer.breadcrumb' : 'createInvoice.breadcrumb')}
@@ -1402,25 +1428,29 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
             />
             {savedText}
           </span>
-          {/* TODO(backend): the plan's invoice count for the period; `lib/settings` stands in. */}
-          <div className="flex min-w-[190px] flex-col gap-1">
-            <p className="text-sm font-medium leading-none text-text-primary">
-              <span className="text-base font-semibold">{usage.used.toLocaleString(language)}</span>{' '}
-              <span className="text-xs text-text-quaternary">
-                {t('createInvoice.header.usage', {
-                  allowance: usage.allowance.toLocaleString(language),
-                })}
-              </span>
-            </p>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-surface-background">
-              <div
-                className="h-full rounded-full bg-primary-700"
-                style={{ width: `${Math.min(100, usage.percent)}%` }}
-              />
+          {usage ? (
+            <div className="flex min-w-[190px] flex-col gap-1">
+              <p className="text-sm font-medium leading-none text-text-primary">
+                <span className="text-base font-semibold">{usage.used.toLocaleString(language)}</span>{' '}
+                <span className="text-xs text-text-quaternary">
+                  {t('createInvoice.header.usage', {
+                    allowance: usage.allowance.toLocaleString(language),
+                  })}
+                </span>
+              </p>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-surface-background">
+                <div
+                  className="h-full rounded-full bg-primary-700"
+                  style={{ width: `${Math.min(100, usage.percent)}%` }}
+                />
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
       </div>
+
+      {/* The seller prerequisites are this company's own; a self-billed invoice's seller is the supplier. */}
+      {canIssue && !selfBilled ? <InvoicingReadinessCard context="composer" /> : null}
 
       {selfBilled ? (
         <p className="rounded-md bg-primary-25 p-3 text-sm font-medium leading-[1.5] text-primary-800">
@@ -1518,7 +1548,17 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
               customer={customer}
               onPick={(picked) => {
                 setCustomer(picked)
-                change({ customerId: picked.id })
+                // IBT-010 starts from the customer's default. Only a value the reader has not
+                // changed is replaced: empty, or still the previous customer's default.
+                const previousDefault = customer?.profile.details?.defaultBuyerReference ?? ''
+                const untouched =
+                  form.buyerReference === '' || form.buyerReference === previousDefault
+                change({
+                  customerId: picked.id,
+                  ...(untouched
+                    ? { buyerReference: picked.profile.details?.defaultBuyerReference ?? '' }
+                    : {}),
+                })
                 // Another customer's order or delivery note cannot settle this invoice.
                 setLinkedDocs((cur) => cur.filter((doc) => doc.customerId === picked.id))
               }}
@@ -1701,6 +1741,40 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
               </FieldShell>
             </div>
           </div>
+          {/* IBT-010 on an ordinary invoice: the invoice's own value, pre-filled from the
+              customer's default and frozen at issue. Blank is allowed and falls back to that
+              default on the server. The same control as the self-billed reference below. */}
+          {/* Government only (owner, 6 Oct 2026): the one case it is pre-filled and asked for; the
+              design has no such row. A business draft that already carries one still shows it,
+              so nothing saved is sent unseen. */}
+          {!selfBilled &&
+          (form.customerType === 'government' || (!consumer && form.buyerReference !== '')) ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <FieldLabel label={t('createInvoice.fields.buyerReference')} />
+                <FieldShell>
+                  <input
+                    value={form.buyerReference}
+                    onChange={(e) => change({ buyerReference: e.target.value })}
+                    maxLength={200}
+                    aria-label={t('createInvoice.fields.buyerReference')}
+                    className={INPUT}
+                  />
+                </FieldShell>
+                <p className="text-xs font-medium text-text-quaternary">
+                  {t('createInvoice.fields.buyerReferenceHint')}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {/* Informational only. CUS-CB-005 (whether a government invoice must carry IBT-010 and
+              IBT-013) awaits compliance input and no PINT-OM rule checks either, so this neither
+              blocks issuing nor speaks as a validation result. */}
+          {!selfBilled && form.customerType === 'government' ? (
+            <p className="text-xs font-medium text-text-quaternary">
+              {t('createInvoice.fields.governmentReferencesNote')}
+            </p>
+          ) : null}
           <div className="grid gap-4">
             <div className="flex flex-col gap-1">
               <FieldLabel label={t('createInvoice.fields.subject')} />
@@ -1744,10 +1818,10 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
           )}
 
           {/*
-            IBT-010 and IBT-012, and only here. On every other document the buyer is the customer
-            and both come from the customer record, so the server refuses them outright
-            (BUYER_REFERENCES_NOT_SELF_BILLED). On a self-billed document the tenant IS the buyer,
-            which makes this the only place those references can come from.
+            The tenant's own IBT-010 and IBT-012 as buyer. On a self-billed document the tenant IS
+            the buyer, so this is the only place they can come from. An ordinary invoice states
+            its own IBT-010 in the field above; IBT-012 there is refused by the server
+            (BUYER_REFERENCES_NOT_SELF_BILLED).
           */}
           {selfBilled ? (
             <div className="grid gap-4 md:grid-cols-2">
