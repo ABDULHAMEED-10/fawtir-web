@@ -472,7 +472,7 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   branch visit) and then marks the bills, or the run, as paid in Fawtir (`markRunPaid`, or Record
   payment on the bill). The export call stays in `src/api/expenditure/paymentRuns.ts` but the
   screen is to stop offering file formats (not done yet).
-  Answers of 10 Oct 2026: keep the second-person IBAN confirmation and its warning; the "Pay
+  Answers of 10 Oct 2026: no second-person IBAN confirmation (removed, with its warning); the "Pay
   from" account stays, optional; "Mark as paid" asks for the date (prefilled with the run's date,
   or today when empty or in the future; no future dates) and puts it on every bill's payment;
   "sent to the bank" wording goes; the file warnings go, except a reworded "{supplier}'s bank
