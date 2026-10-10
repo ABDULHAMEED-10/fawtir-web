@@ -271,7 +271,7 @@ Feature modules pass relative paths such as `/v1/branches` and know no host.
 |---|---|---|---|
 | `FAWTIR_API_ORIGIN` | `vite.config.ts` (dev and preview server only, never bundled) | `https://api.fawtir.om` (`.env.development`) | Where the dev server proxies `/api`. |
 | `FAWTIR_API_PROXY_ORIGIN` | `vite.config.ts` (dev and preview server only, never bundled) | `https://www.fawtir.om` (`.env.development`) | The `Origin` the proxy presents upstream. Needed for a **deployed** backend, whose allow-list cannot name the dev server — `deploy-contabo.sh` refuses a `localhost` origin. Set it **empty** for a local gateway, which allow-lists the dev server directly. |
-| `VITE_REQUIRE_SESSION` | `src/lib/session/session.ts` (bundled) | on in `npm run dev`, off in `npm run build` | `true` makes the app send anyone without a session to sign in; `false` shows the screens without one. |
+| `VITE_REQUIRE_SESSION` | `src/lib/session/session.ts` (bundled) | on everywhere | A production build (`npm run build`) **always** sends anyone without a session to sign in and ignores this variable. Only a development build (`npm run dev`, vitest, `NODE_ENV=development vite build`; `--mode` alone does not change it) honours `false`, which shows the mock screens without one. |
 | `VITE_API_BASE_URL` | `src/config/api.ts` (bundled) | `/api` | Prefix for every API call. **Leave it unset.** Setting it to an absolute URL makes the browser call that host cross-origin, which works only if that host allow-lists your origin *and* the host-only session/CSRF cookie contract is revisited. |
 
 Port 5173 matters: it is the origin the backend allow-lists above. If you change it, change both
@@ -419,4 +419,4 @@ every checkout and worktree on the machine shares the same volumes, and `-v` del
 | Core fails at boot when reminders are enabled | The reminder sweeps need an SMTP sender | Keep `FAWTIR_NOTIFICATION_DELIVERY_ENABLED=true` with Mailpit up. Setting it to false also stops the login codes. |
 | Bootstrap refuses to start: username "already taken platform-wide" | Either the name exists in another tenant, or this is a second boot with the runner still on (see §3.5) | Turn the runners off after the first boot, or choose a different username |
 | Issuing an invoice answers 503 `REFERENCE_CATALOGUE_NOT_AVAILABLE` | The reference-catalogue flag is off, which is the default everywhere | `FAWTIR_INVOICE_REFERENCE_CATALOGUE_ENABLED=true` |
-| An app page redirects straight to `/login` | The app now requires a session in development (`VITE_REQUIRE_SESSION`, unset = on in dev, off in production builds) | Sign in; or set `VITE_REQUIRE_SESSION=false` in `.env.local` to look at the mock screens |
+| An app page redirects straight to `/login` | The app requires a session (`VITE_REQUIRE_SESSION`; a production build always does) | Sign in; or, in `npm run dev` only, set `VITE_REQUIRE_SESSION=false` in `.env.local` to look at the mock screens |

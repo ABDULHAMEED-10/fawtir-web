@@ -1,6 +1,6 @@
 import { useId, useMemo, type ReactNode, type TextareaHTMLAttributes } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, FieldDescriptionContext } from '../../../components/ui'
+import { FieldDescriptionContext } from '../../../components/ui'
 import { formatDay } from '../../../lib/console/format'
 import { parseDateKey, toDateKey } from '../../../lib/dates'
 import {
@@ -12,6 +12,7 @@ import {
   type SubscriptionInvoice,
 } from '../../../lib/consoleSubscriptions'
 import { omr } from '../../../lib/superAdmin'
+import { ConsoleButton } from '../../../layouts/ConsoleShell/consoleStyle'
 
 /**
  * What the subscription modals share: a labelled slot for the controls that draw their own shell
@@ -220,22 +221,22 @@ export function ModalFooter({
   const { t } = useTranslation()
   return (
     <div className="flex flex-wrap justify-end gap-2.5">
-      <Button type="button" size="md" variant="secondary" onClick={onCancel}>
+      <ConsoleButton type="button" size="md" variant="secondary" onClick={onCancel}>
         {t('common.cancel')}
-      </Button>
+      </ConsoleButton>
       {danger ? (
         <button
           type="submit"
           form={formId}
           disabled={disabled}
-          className="inline-flex h-11 items-center justify-center rounded-sm bg-danger-700 px-4 text-base font-semibold text-white transition-colors hover:bg-danger-700/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-danger disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-[42px] items-center justify-center rounded-sm bg-danger-700 px-5 text-[14.5px] font-semibold text-white transition-colors hover:bg-danger-700/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-danger disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitLabel}
         </button>
       ) : (
-        <Button type="submit" form={formId} size="md" disabled={disabled}>
+        <ConsoleButton type="submit" form={formId} size="md" disabled={disabled}>
           {submitLabel}
-        </Button>
+        </ConsoleButton>
       )}
     </div>
   )

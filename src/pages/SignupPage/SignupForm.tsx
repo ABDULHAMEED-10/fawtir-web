@@ -17,6 +17,7 @@ import {
 import { isClean } from '../../lib/validation'
 import { focusFirstInvalid } from '../../lib/forms'
 import type { FormMessage } from '../../lib/identity/errors'
+import { RESUME_ROUTE } from '../../lib/identity/signupResume'
 import {
   INITIAL_SIGNUP_VALUES,
   SIGNUP_FIELD_ORDER,
@@ -262,6 +263,13 @@ export function SignupForm() {
           {t('signup.alreadyMember')}{' '}
           <Link to="/login" className="font-semibold text-primary-700 hover:text-primary-800">
             {t('signup.loginHere')}
+          </Link>
+        </p>
+        {/* Where a tab with no onboarding session lands; a started registration resumes here. */}
+        <p className="-mt-3 text-center text-xs font-medium text-text-primary">
+          {t('signupResume.signupPrompt')}{' '}
+          <Link to={RESUME_ROUTE} className="font-semibold text-primary-700 hover:text-primary-800">
+            {t('signupResume.cta')}
           </Link>
         </p>
       </div>

@@ -28,11 +28,18 @@ export function BusinessIdentityHero({
   const { t } = useTranslation()
 
   const hasAddress = Boolean(
-    preview.addressLine || preview.city || preview.governorate || preview.postalCode,
+    preview.addressLine ||
+    preview.addressLine2 ||
+    preview.addressLine3 ||
+    preview.city ||
+    preview.governorate ||
+    preview.postalCode,
   )
 
   const addressText = [
     preview.addressLine,
+    preview.addressLine2,
+    preview.addressLine3,
     [preview.city, preview.governorate, preview.postalCode].filter(Boolean).join(', '),
     preview.city || preview.governorate || preview.postalCode
       ? t('addressContact.countryOman')
@@ -145,7 +152,7 @@ export function BusinessIdentityHero({
                 {t('addressContact.notePrefix')}{' '}
                 <span className="text-base font-semibold normal-case text-white">
                   {t('addressContact.noteHighlight')}
-                </span>{' '}
+                </span>
                 {t('addressContact.noteSuffix')}
               </p>
             ) : (

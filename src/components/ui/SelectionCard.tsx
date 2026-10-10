@@ -6,6 +6,8 @@ type SelectionCardProps = {
   description: string
   icon: ReactNode
   selected?: boolean
+  /** Shown but not choosable, for an option the screen explains is not available yet. */
+  disabled?: boolean
   onSelect: () => void
 }
 
@@ -14,18 +16,21 @@ export function SelectionCard({
   description,
   icon,
   selected = false,
+  disabled = false,
   onSelect,
 }: SelectionCardProps) {
   return (
     <button
       type="button"
       onClick={onSelect}
+      disabled={disabled}
       aria-pressed={selected}
       className={[
         'flex w-full items-center justify-between gap-3 rounded-sm p-4 text-start transition-colors',
         selected
           ? 'border-2 border-primary-500 bg-primary-50'
           : 'border-2 border-border-default bg-surface-card hover:border-border-brand-subtle',
+        disabled ? 'cursor-not-allowed opacity-60 hover:border-border-default' : '',
       ].join(' ')}
     >
       <span className="flex min-w-0 items-center gap-2">

@@ -546,7 +546,7 @@ describe('Policy detail reads', () => {
     // A name the server could not resolve: a neutral word and the start of the id, never the whole id.
     expect(trail.getByText('abcdef12').getAttribute('dir')).toBe('ltr')
     expect(trail.getByText('abcdef12').parentElement?.textContent).toContain(
-      `${t('console.policies.actor.unnamed')} abcdef12`,
+      `${t('console.policies.actor.unnamed')} (${t('console.policies.actor.idLabel')} abcdef12)`,
     )
     expect(document.body.textContent).not.toContain('abcdef12-0000')
     expect(
@@ -1627,7 +1627,7 @@ describe('Withdrawing a scheduled version', () => {
     const withdraw = button('console.policies.action.withdraw')
     expect(withdraw.textContent).toBe('Withdraw schedule')
     // Drawn like Reject: the secondary button, never the primary fill of a forward step.
-    expect(withdraw.className).toContain('border-border-brand-subtle')
+    expect(withdraw.className).toContain('border-border-default')
     expect(withdraw.className).not.toContain('bg-primary-700')
     expect(screen.queryByText(t('console.policies.action.none'))).toBeNull()
     for (const key of STEP_KEYS.filter((step) => step !== 'console.policies.action.withdraw')) {

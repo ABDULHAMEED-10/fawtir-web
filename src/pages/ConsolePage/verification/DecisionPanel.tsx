@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
-import { Button, FileDropzone, Input, Modal, Select } from '../../../components/ui'
+import { FileDropzone, Input, Modal, Select } from '../../../components/ui'
 import {
   EVIDENCE_ACCEPT,
   EVIDENCE_MAX_BYTES,
@@ -23,6 +23,7 @@ import type { FormMessage } from '../../../lib/identity/errors'
 import { LOGIN_ROUTE } from '../../../lib/identity/login'
 import uploadIcon from '../../../assets/create-invoice/upload.svg'
 import { ReviewCard, ReviewLine } from './ReviewCard'
+import { ConsoleButton } from '../../../layouts/ConsoleShell/consoleStyle'
 
 type Dialog = 'verify' | 'reject' | null
 
@@ -50,6 +51,7 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
   const [uploadError, setUploadError] = useState<FormMessage | null>(null)
   const [reference, setReference] = useState('')
   const [referenceTouched, setReferenceTouched] = useState(false)
+  const referenceHintId = useId()
   const [dialog, setDialog] = useState<Dialog>(null)
   const [reason, setReason] = useState<RejectionReason | ''>('')
   const [reasonTouched, setReasonTouched] = useState(false)
@@ -139,6 +141,7 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
   }
 
   const conflict = decisionError?.key === 'console.verification.decision.conflict'
+  const referenceShowsError = Boolean(referenceTouched && referenceProblem)
   const size = evidence
     ? new Intl.NumberFormat(localeFor(i18n.language), {
         style: 'unit',
@@ -216,7 +219,9 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
           requiredMark
           name="attestationReference"
           label={t('console.verification.decision.reference')}
-          hint={t('console.verification.decision.referenceHint')}
+          // The field's own hint prints at 10 px; this one is drawn below at the 12 px helper size
+          // and stays tied to the field for screen readers. An error replaces it, as before.
+          aria-describedby={referenceShowsError ? undefined : referenceHintId}
           value={reference}
           maxLength={100}
           autoComplete="off"
@@ -233,13 +238,21 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
               : undefined
           }
         />
+        {referenceShowsError ? null : (
+          <p
+            id={referenceHintId}
+            className="mt-1.5 text-xs font-medium leading-[1.4] text-text-tertiary"
+          >
+            {t('console.verification.decision.referenceHint')}
+          </p>
+        )}
       </div>
 
       <div className="mt-4 flex flex-col gap-2.5">
-        <Button type="button" size="md" fullWidth disabled={!canVerify} onClick={() => openDialog('verify')}>
+        <ConsoleButton type="button" size="md" fullWidth disabled={!canVerify} onClick={() => openDialog('verify')}>
           {t('console.verification.decision.verify')}
-        </Button>
-        <Button
+        </ConsoleButton>
+        <ConsoleButton
           type="button"
           size="md"
           variant="secondary"
@@ -248,7 +261,7 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
           onClick={() => openDialog('reject')}
         >
           {t('console.verification.decision.reject')}
-        </Button>
+        </ConsoleButton>
       </div>
 
       <Modal
@@ -264,11 +277,11 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
         footer={
           <div className="flex flex-wrap justify-end gap-2.5">
             {conflict ? (
-              <Button type="button" size="md" variant="secondary" onClick={() => onDecided(null)}>
+              <ConsoleButton type="button" size="md" variant="secondary" onClick={() => onDecided(null)}>
                 {t('console.verification.decision.reload')}
-              </Button>
+              </ConsoleButton>
             ) : (
-              <Button
+              <ConsoleButton
                 type="button"
                 size="md"
                 variant="secondary"
@@ -276,9 +289,9 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
                 onClick={() => setDialog(null)}
               >
                 {t('common.cancel')}
-              </Button>
+              </ConsoleButton>
             )}
-            <Button type="button" size="md" disabled={deciding || conflict} onClick={() => void decide()}>
+            <ConsoleButton type="button" size="md" disabled={deciding || conflict} onClick={() => void decide()}>
               {dialog === 'verify'
                 ? deciding
                   ? t('console.verification.decision.verifying')
@@ -286,7 +299,7 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
                 : deciding
                   ? t('console.verification.decision.rejecting')
                   : t('console.verification.decision.rejectConfirm')}
-            </Button>
+            </ConsoleButton>
           </div>
         }
       >

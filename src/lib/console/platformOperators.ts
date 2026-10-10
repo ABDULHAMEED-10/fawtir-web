@@ -113,7 +113,7 @@ export function rolesAfter({ role, action }: Pick<RoleChange, 'role' | 'action'>
 export function withPlatformRoles(user: PlatformUser, platformRoles: readonly string[]): PlatformUser {
   return {
     ...user,
-    roles: [...user.roles.filter((code) => !isPlatformRole(code)), ...platformRoles.filter(isPlatformRole)],
+    roles: [...(user.roles ?? []).filter((code) => !isPlatformRole(code)), ...platformRoles.filter(isPlatformRole)],
   }
 }
 
@@ -125,9 +125,9 @@ export function withPlatformRoles(user: PlatformUser, platformRoles: readonly st
  * screen; otherwise the backend decides.
  */
 export function isLastTenantAdmin(user: PlatformUser, team: readonly PlatformUser[], wholeTeam: boolean): boolean {
-  if (!wholeTeam || !user.roles.includes(TENANT_ADMIN)) return false
+  if (!wholeTeam || !(user.roles ?? []).includes(TENANT_ADMIN)) return false
   return !team.some(
-    (other) => other.id !== user.id && other.enabled && !isAdminLocked(other) && other.roles.includes(TENANT_ADMIN),
+    (other) => other.id !== user.id && other.enabled && !isAdminLocked(other) && (other.roles ?? []).includes(TENANT_ADMIN),
   )
 }
 

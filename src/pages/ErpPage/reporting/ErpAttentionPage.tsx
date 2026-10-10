@@ -179,6 +179,7 @@ export function ErpAttentionPage() {
   )
 }
 
+
 /** What each label means, in words that say only what the server's evidence says. */
 function LabelGuide() {
   const { t } = useTranslation()
@@ -300,6 +301,15 @@ function AttentionTable({
                     <span className="block text-xs text-text-quaternary">
                       {t('erp.reporting.attention.tax', {
                         status: code('taxStatus', item.tax_report_status),
+                      })}
+                    </span>
+                  ) : null}
+                  {/* The recipient's answer as the server records it (MLS). Never a pending verdict:
+                      RESPONSE_PENDING is not evaluated while no response window is approved (DEC-G). */}
+                  {item.recipient_response_code ? (
+                    <span className="block text-xs text-text-quaternary">
+                      {t('erp.reporting.attention.response', {
+                        answer: code('ack', item.recipient_response_code),
                       })}
                     </span>
                   ) : null}

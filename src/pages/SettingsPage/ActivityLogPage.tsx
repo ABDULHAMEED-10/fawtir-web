@@ -1,69 +1,82 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { useTranslation, Trans } from 'react-i18next'
+import { useMemo, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
-import { FilterMenu, SortMenu, withRial } from '../../components/ui'
-import { BOOK, longDate, TODAY } from '../../lib/settings'
+import { FilterMenu, SortMenu, UserIcon } from '../../components/ui'
 import {
-  LOG,
-  LOG_TABS,
-  LOG_SORTS,
-  LOG_BOOK,
-  LOG_BY_PERSON,
-  countLogTab,
-  matchesLogTab,
-  CERT_DAYS_AT_CHECK,
-  type LogEntry,
-  type LogTab,
-} from '../../lib/settingsRecords'
+  ApiReadFailure,
+  LoadingNotice,
+  PermissionDeniedNotice,
+} from '../../components/feedback/ApiNotice'
+import { ReportPager } from '../ErpPage/reporting/reportingParts'
+import { useApiRead } from '../../hooks/useApiRead'
+import { useEntitlements } from '../../hooks/useEntitlements'
+import { hasPermission } from '../../lib/identity/entitlements'
+import { BUSINESS_TIME_ZONE } from '../../lib/format'
+import {
+  activityLogPath,
+  loadActivityLog,
+  type ActivityLogItemDto,
+  type ActivityLogPageDto,
+} from '../../api/settings/activityLog'
 import printIcon from '../../assets/settings/print.svg'
 import searchIcon from '../../assets/invoices/search.svg'
-import chevronIcon from '../../assets/invoices/chevron.svg'
-
-const TAG_TONE = {
-  plain: 'bg-surface-background text-text-tertiary',
-  api: 'bg-primary-50 text-primary-800',
-  warn: 'bg-pending-100 text-pending-700',
-  danger: 'bg-danger-100 text-danger-700',
-  money: 'bg-pending-100 text-pending-700',
-}
-
-const matchesQuery = (entry: LogEntry, query: string, body: string) => {
-  const needle = query.trim().toLowerCase()
-  if (!needle) return true
-  return (
-    body.toLowerCase().includes(needle) ||
-    (entry.link?.label ?? '').toLowerCase().includes(needle) ||
-    entry.tags.some((tag) => (tag.label ?? '').toLowerCase().includes(needle))
-  )
-}
 
 /**
- * Settings › Activity log (Figma 135:41482).
+ * Settings › Activity log (Figma "Settings -> Activity log"), from the organisation's real log
+ * (`GET /v1/settings/activity-log`, `admin.settings.manage`).
  *
- * Grouped by day rather than paged, because a reader is nearly always asking "what changed
- * today?". The day headings are worked out from the clock, so the log re-labels itself instead
- * of printing a date that has gone stale.
+ * Every element the frame draws is drawn. What the server cannot answer yet says so instead of
+ * showing a figure that is not the organisation's (SETTINGS.md section 2):
+ * - the three counts (this month, by a person, by the API) need counts the log does not return
+ *   (row 2.2); "Kept for" states the ten-year rule (row 2.3);
+ * - Export as PDF has no endpoint (row 2.1);
+ * - the tabs, the search and the sort have no server parameter, so they work on the page the
+ *   server answered and the toolbar says so (rows 2.4, 2.5, 2.6); Filters is the server's own
+ *   `outcome` filter;
+ * - an entry names a person only once the log carries a display name (row 2.7).
  */
+
+/** The ten years the Oman VAT Law keeps records for (handbook 5.x). TODO(backend): row 2.3. */
+const LOG_RETENTION_YEARS = 10
+
+const OUTCOMES = ['SUCCESS', 'FAILURE', 'DENIED', 'THROTTLED'] as const
+type OutcomeFilter = '' | (typeof OUTCOMES)[number]
+
+const TABS = ['all', 'people', 'fawtir', 'api', 'money'] as const
+type Tab = (typeof TABS)[number]
+
+type Sort = 'newest' | 'oldest'
+
+/** Kinds the "Money and access" tab gathers: who may sign in, with what, and what is paid for. */
+const ACCESS_RESOURCES = new Set(['USER', 'SESSION', 'DEVICE', 'API_KEY', 'ERP_ENTITLEMENT'])
+
+function inTab(entry: ActivityLogItemDto, tab: Tab): boolean {
+  switch (tab) {
+    case 'people':
+      return entry.actor_type === 'USER'
+    case 'fawtir':
+      return entry.actor_type === 'SYSTEM' || entry.actor_type === 'SUPPORT_USER'
+    case 'api':
+      return entry.actor_type === 'API_KEY'
+    case 'money':
+      return entry.resource_type !== null && ACCESS_RESOURCES.has(entry.resource_type)
+    default:
+      return true
+  }
+}
+
+const OUTCOME_TONE: Record<string, string> = {
+  SUCCESS: 'bg-surface-background text-text-tertiary',
+  FAILURE: 'bg-danger-100 text-danger-700',
+  DENIED: 'bg-danger-100 text-danger-700',
+  THROTTLED: 'bg-pending-100 text-pending-700',
+}
+
 export function ActivityLogPage() {
   const { t } = useTranslation()
-  const [tab, setTab] = useState<LogTab>('all')
-  const [query, setQuery] = useState('')
-  const [sort, setSort] = useState('newest')
-
-  const rows = useMemo(() => {
-    const filtered = LOG.filter(
-      (entry) =>
-        matchesLogTab(entry, tab) &&
-        matchesQuery(entry, query, t(entry.bodyKey, { ...entry.values, who: actorName(entry) })),
-    )
-    return sort === 'oldest' ? [...filtered].reverse() : filtered
-  }, [tab, query, sort, t])
-
-  /** Days that still have a row after filtering, in the order the log runs. */
-  const days = [...new Set(rows.map((entry) => entry.daysAgo))].sort((a, b) =>
-    sort === 'oldest' ? b - a : a - b,
-  )
+  const { entitlements, ready } = useEntitlements()
+  const canRead = entitlements !== null && hasPermission(entitlements, 'admin.settings.manage')
+  const [exportAsked, setExportAsked] = useState(false)
 
   return (
     <SettingsShell group="records">
@@ -71,54 +84,80 @@ export function ActivityLogPage() {
         title={t('activityLog.title')}
         subtitle={t('activityLog.subtitle')}
         actions={
-          <button
-            type="button"
-            className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-          >
-            <img src={printIcon} alt="" className="size-[18px]" />
-            {t('activityLog.exportPdf')}
-          </button>
+          canRead ? (
+            // TODO(backend): SETTINGS.md row 2.1, no export of the log yet.
+            <button
+              type="button"
+              onClick={() => setExportAsked(true)}
+              className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+            >
+              <img src={printIcon} alt="" className="size-[18px]" />
+              {t('activityLog.exportPdf')}
+            </button>
+          ) : undefined
         }
       />
+      {exportAsked ? (
+        <p role="status" className="text-sm font-medium text-text-tertiary">
+          {t('activityLog.exportUnavailable')}
+        </p>
+      ) : null}
+      {!ready ? <LoadingNotice /> : !canRead ? <PermissionDeniedNotice /> : <ActivityLog />}
+    </SettingsShell>
+  )
+}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          label={t('activityLog.kpi.thisMonth')}
-          value={LOG_BOOK.thisMonth.toLocaleString('en-US')}
-          unit={t('activityLog.kpi.entries')}
-          note={t('activityLog.kpi.thisMonthNote')}
-        />
-        <Kpi
-          label={t('activityLog.kpi.byPerson')}
-          value={String(LOG_BY_PERSON)}
-          note={t('activityLog.kpi.byPersonNote', {
-            names: Object.entries(LOG_BOOK.byPerson)
-              .map(([name, count]) => `${name} ${count}`)
-              .join(' · '),
-          })}
-        />
-        <Kpi
-          label={t('activityLog.kpi.byApi')}
-          value={String(LOG_BOOK.byApi)}
-          note={t('activityLog.kpi.byApiNote')}
-        />
+function ActivityLog() {
+  const { t, i18n } = useTranslation()
+  const [outcome, setOutcome] = useState<OutcomeFilter>('')
+  const [page, setPage] = useState(0)
+  const [tab, setTab] = useState<Tab>('all')
+  const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<Sort>('newest')
+  const path = activityLogPath({ outcome }, page)
+  const { read, retry } = useApiRead<ActivityLogPageDto>(path, () => loadActivityLog(path))
+
+  const items = useMemo(() => (read.status === 'ready' ? read.data.items : []), [read])
+  const rows = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    const shown = items.filter(
+      (entry) =>
+        inTab(entry, tab) && (!needle || searchText(i18n, entry).toLowerCase().includes(needle)),
+    )
+    return sort === 'oldest' ? [...shown].reverse() : shown
+  }, [items, tab, query, sort, i18n])
+  const pageOnly =
+    read.status === 'ready' &&
+    (read.data.has_more || page > 0) &&
+    (tab !== 'all' || query !== '' || sort !== 'newest')
+
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        {/* TODO(backend): SETTINGS.md row 2.2, the log returns no counts. */}
+        <Kpi label={t('activityLog.kpi.thisMonth')} note={t('activityLog.kpi.notCounted')} />
+        <Kpi label={t('activityLog.kpi.byPerson')} note={t('activityLog.kpi.notCounted')} />
+        <Kpi label={t('activityLog.kpi.byApi')} note={t('activityLog.kpi.notCounted')} />
         <Kpi
           label={t('activityLog.kpi.keptFor')}
-          value={String(BOOK.retentionYears)}
+          value={String(LOG_RETENTION_YEARS)}
           unit={t('activityLog.kpi.years')}
           note={t('activityLog.kpi.keptForNote')}
         />
       </div>
 
       <section className="overflow-hidden rounded-md bg-surface-card">
-        <nav className="flex flex-wrap items-center gap-1 border-b border-surface-background px-5 pt-4">
-          {LOG_TABS.map((entry) => {
-            const active = entry.id === tab
+        <nav
+          aria-label={t('activityLog.title')}
+          className="flex flex-wrap items-center gap-1 border-b border-surface-background px-5 pt-4"
+        >
+          {TABS.map((id) => {
+            const active = id === tab
             return (
               <button
-                key={entry.id}
+                key={id}
                 type="button"
-                onClick={() => setTab(entry.id)}
+                onClick={() => setTab(id)}
                 aria-pressed={active}
                 className={[
                   'inline-flex h-[42px] items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors',
@@ -127,24 +166,26 @@ export function ActivityLogPage() {
                     : 'border-transparent text-text-quaternary hover:text-text-secondary',
                 ].join(' ')}
               >
-                {t(entry.labelKey)}
-                <span
-                  className={[
-                    'inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-semibold',
-                    active
-                      ? 'bg-primary-700 text-white'
-                      : 'bg-surface-background text-text-tertiary',
-                  ].join(' ')}
-                >
-                  {countLogTab(entry.id)}
-                </span>
+                {t(`activityLog.tab.${id}`)}
+                {read.status === 'ready' ? (
+                  <span
+                    className={[
+                      'inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-semibold tabular-nums',
+                      active
+                        ? 'bg-primary-700 text-white'
+                        : 'bg-surface-background text-text-tertiary',
+                    ].join(' ')}
+                  >
+                    {items.filter((entry) => inTab(entry, id)).length}
+                  </span>
+                ) : null}
               </button>
             )
           })}
         </nav>
 
         <div className="flex flex-wrap items-center justify-between gap-3 p-5">
-          <label className="flex h-[46px] min-w-[260px] flex-1 items-center gap-2 rounded-sm border border-border-subtle bg-white px-3">
+          <label className="flex h-[46px] min-w-0 flex-1 basis-[260px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-3">
             <img src={searchIcon} alt="" className="size-[18px] opacity-60" />
             <input
               value={query}
@@ -155,60 +196,83 @@ export function ActivityLogPage() {
             />
           </label>
           <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
-            <FilterMenu
+            <FilterMenu<OutcomeFilter>
               label={t('activityLog.filters')}
-              value={tab}
-              defaultValue="all"
-              options={LOG_TABS.map((entry) => ({
-                value: entry.id,
-                label: t(entry.labelKey),
-                count: countLogTab(entry.id),
-              }))}
-              onChange={(value) => setTab(value)}
+              value={outcome}
+              defaultValue=""
+              options={[
+                { value: '', label: t('activityLog.filter.anyOutcome') },
+                ...OUTCOMES.map((value) => ({
+                  value,
+                  label: t(`activityLog.outcome.${value}`),
+                })),
+              ]}
+              onChange={(value) => {
+                setOutcome(value)
+                setPage(0)
+              }}
             />
-            <SortMenu
+            <SortMenu<Sort>
               value={sort}
               onChange={setSort}
-              options={LOG_SORTS.map((entry) => ({ value: entry.id, labelKey: entry.labelKey }))}
+              options={[
+                { value: 'newest', labelKey: 'activityLog.sort.newest' },
+                { value: 'oldest', labelKey: 'activityLog.sort.oldest' },
+              ]}
             />
           </div>
+          {pageOnly ? (
+            <p className="w-full text-xs font-medium text-text-quaternary">
+              {t('activityLog.pageScope')}
+            </p>
+          ) : null}
         </div>
 
-        {rows.length === 0 ? (
+        {read.status === 'loading' ? (
+          <div className="px-5 pb-5">
+            <LoadingNotice />
+          </div>
+        ) : read.status === 'failed' ? (
+          <div className="px-5 pb-5">
+            <ApiReadFailure error={read.error} retry={retry} />
+          </div>
+        ) : rows.length === 0 ? (
           <p className="px-5 py-12 text-center text-sm font-medium text-text-quaternary">
             {t('activityLog.empty')}
           </p>
         ) : (
-          days.map((daysAgo) => {
-            const inDay = rows.filter((entry) => entry.daysAgo === daysAgo)
-            const date = new Date(TODAY.getTime() - daysAgo * 24 * 60 * 60 * 1000)
-            const total = daysAgo === 0 ? LOG_BOOK.today : LOG_BOOK.yesterday
-            return (
-              <div key={daysAgo}>
-                <p className="flex flex-wrap items-center justify-between gap-3 border-y border-surface-background bg-surface-background/50 px-5 py-2.5">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.6px] text-text-tertiary">
-                    {daysAgo === 0 ? t('activityLog.today') : t('activityLog.yesterday')} ·{' '}
-                    {longDate(date)}
-                  </span>
-                  <span className="text-xs font-medium text-text-quaternary">
-                    {t('activityLog.entriesShowing', { total, shown: inDay.length })}
-                  </span>
-                </p>
-                <ul>
-                  {inDay.map((entry) => (
-                    <Entry key={entry.id} entry={entry} />
-                  ))}
-                </ul>
-              </div>
-            )
-          })
+          groupByDay(rows).map(([day, entries]) => (
+            <div key={day}>
+              <p className="flex flex-wrap items-center justify-between gap-3 border-y border-surface-background bg-surface-background/50 px-5 py-2.5">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.6px] text-text-tertiary">
+                  {dayHeading(t, day, i18n.language)}
+                </span>
+                <span className="text-xs font-medium text-text-quaternary">
+                  {t('activityLog.onThisPage', { count: entries.length })}
+                </span>
+              </p>
+              <ul>
+                {entries.map((entry) => (
+                  <Entry key={entry.id} entry={entry} />
+                ))}
+              </ul>
+            </div>
+          ))
         )}
+
+        {read.status === 'ready' ? (
+          <div className="px-5 pb-5 pt-3">
+            <ReportPager
+              page={page + 1}
+              hasMore={read.data.has_more}
+              onChange={(next) => setPage(next - 1)}
+            />
+          </div>
+        ) : null}
       </section>
-    </SettingsShell>
+    </>
   )
 }
-
-const actorName = (entry: LogEntry) => (entry.actor.kind === 'person' ? entry.actor.name : '')
 
 function Kpi({
   label,
@@ -217,113 +281,162 @@ function Kpi({
   note,
 }: {
   label: string
-  value: string
+  value?: string
   unit?: string
   note: string
 }) {
+  const { t } = useTranslation()
   return (
     <article className="rounded-md bg-surface-card p-5">
       <h3 className="text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-text-quaternary">
         {label}
       </h3>
-      <p className="mt-2 flex items-baseline gap-2">
-        <span className="text-[28px] font-semibold leading-[1.2] text-text-primary tabular-nums">
-          {value}
-        </span>
-        {unit ? <span className="text-sm font-medium text-text-quaternary">{unit}</span> : null}
+      <p className="mt-2 flex min-h-[34px] items-baseline gap-2">
+        {value ? (
+          <>
+            <span className="text-[28px] font-semibold leading-[1.2] text-text-primary tabular-nums">
+              {value}
+            </span>
+            {unit ? <span className="text-sm font-medium text-text-quaternary">{unit}</span> : null}
+          </>
+        ) : (
+          <span className="text-base font-semibold leading-[34px] text-text-quaternary">
+            {t('activityLog.notAvailable')}
+          </span>
+        )}
       </p>
       <p className="mt-2 text-xs font-medium leading-[1.4] text-text-quaternary">{note}</p>
     </article>
   )
 }
 
-function Entry({ entry }: { entry: LogEntry }) {
-  const { t } = useTranslation()
+type Translate = ReturnType<typeof useTranslation>['t']
+type I18n = ReturnType<typeof useTranslation>['i18n']
+
+/** The words an entry is shown with, which is what the search looks through. */
+function searchText(i18n: I18n, entry: ActivityLogItemDto): string {
+  return [
+    eventWords(i18n, entry.event_type),
+    entry.resource_type ? wordOr(i18n, `activityLog.resource.${entry.resource_type}`) : '',
+    entry.resource_id ?? '',
+    wordOr(i18n, `activityLog.outcome.${entry.outcome}`),
+  ].join(' ')
+}
+
+function eventWords(i18n: I18n, eventType: string): string {
+  return wordOr(i18n, `activityLog.event.${eventType}`) || i18n.t('activityLog.event.other')
+}
+
+/** The words for a key, or '' when this build has none: a server code is never shown. */
+function wordOr(i18n: I18n, key: string): string {
+  return i18n.exists(key) ? i18n.t(key) : ''
+}
+
+/** `YYYY-MM-DD` in Muscat, the day the business runs on. */
+function businessDay(iso: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: BUSINESS_TIME_ZONE }).format(new Date(iso))
+}
+
+function groupByDay(items: ActivityLogItemDto[]): [string, ActivityLogItemDto[]][] {
+  const days = new Map<string, ActivityLogItemDto[]>()
+  for (const item of items) {
+    const day = businessDay(item.occurred_at)
+    days.set(day, [...(days.get(day) ?? []), item])
+  }
+  return [...days.entries()]
+}
+
+/** "TODAY · 4 September", as the frame heads each day. */
+function dayHeading(t: Translate, day: string, language: string): string {
+  const now = Date.now()
+  const today = businessDay(new Date(now).toISOString())
+  const yesterday = businessDay(new Date(now - 24 * 60 * 60 * 1000).toISOString())
+  const date = new Intl.DateTimeFormat(language === 'ar' ? 'ar-OM-u-nu-latn' : 'en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: day.slice(0, 4) === today.slice(0, 4) ? undefined : 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${day}T00:00:00Z`))
+  if (day === today) return `${t('activityLog.today')} · ${date}`
+  if (day === yesterday) return `${t('activityLog.yesterday')} · ${date}`
+  return date
+}
+
+function timeOf(iso: string): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: BUSINESS_TIME_ZONE,
+  }).format(new Date(iso))
+}
+
+function Entry({ entry }: { entry: ActivityLogItemDto }) {
+  const { i18n } = useTranslation()
+  const person = entry.actor_type === 'USER'
+  // The frame's avatar holds a person's initials, or "SYS" / "ERP" for Fawtir and an API key.
+  // The log carries no name yet (row 2.7), so a person shows the person glyph.
+  const avatar: ReactNode = person ? (
+    <UserIcon size={16} />
+  ) : entry.actor_type === 'API_KEY' ? (
+    'API'
+  ) : (
+    'SYS'
+  )
+  const actor = wordOr(i18n, `activityLog.actor.${entry.actor_type}`)
+  const resource = entry.resource_type
+    ? wordOr(i18n, `activityLog.resource.${entry.resource_type}`)
+    : ''
+  const outcome = wordOr(i18n, `activityLog.outcome.${entry.outcome}`)
 
   return (
     <li className="flex items-start gap-4 border-b border-surface-background px-5 py-4 last:border-0">
-      <span className="w-[52px] shrink-0 pt-0.5 text-sm font-medium text-text-quaternary tabular-nums">
-        {entry.at}
-      </span>
-
       <span
+        dir="ltr"
+        className="w-[52px] shrink-0 pt-0.5 text-sm font-medium text-text-quaternary tabular-nums"
+      >
+        {timeOf(entry.occurred_at)}
+      </span>
+      <span
+        aria-hidden="true"
         className={[
           'flex size-8 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold',
-          entry.actor.kind === 'person'
-            ? 'bg-primary-700 text-white'
-            : 'bg-surface-background text-text-tertiary',
+          person ? 'bg-primary-700 text-white' : 'bg-surface-background text-text-tertiary',
         ].join(' ')}
       >
-        {entry.actor.kind === 'person'
-          ? entry.actor.initials
-          : entry.actor.kind === 'api'
-            ? 'ERP'
-            : 'SYS'}
+        {avatar}
       </span>
-
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium leading-[1.5] text-text-secondary">
-          <Trans
-            i18nKey={entry.bodyKey}
-            values={{
-              ...entry.values,
-              who: actorName(entry),
-              days: entry.id === 'l9' ? CERT_DAYS_AT_CHECK : undefined,
-              link: entry.link?.label,
-            }}
-            components={{ b: <b className="font-semibold text-text-primary" /> }}
-          />
-          {entry.link ? (
-            <>
-              {' '}
-              <Link
-                to={entry.link.to}
-                className="font-semibold text-primary-700 transition-colors hover:underline"
-              >
-                {entry.link.label}
-              </Link>
-            </>
-          ) : null}
+          {eventWords(i18n, entry.event_type)}
         </p>
-
         <span className="mt-2 flex flex-wrap items-center gap-2">
-          {entry.tags.map((tag) => (
+          {actor ? (
+            <span className="inline-flex h-[22px] items-center rounded-[3px] bg-surface-background px-2 text-[11px] font-medium text-text-tertiary">
+              {actor}
+            </span>
+          ) : null}
+          {resource ? (
+            <span className="inline-flex h-[22px] items-center gap-1 rounded-[3px] bg-primary-50 px-2 text-[11px] font-medium text-primary-800">
+              {resource}
+              {entry.resource_id ? (
+                <bdi dir="ltr" className="font-mono">
+                  {entry.resource_id.slice(0, 8)}
+                </bdi>
+              ) : null}
+            </span>
+          ) : null}
+          {outcome ? (
             <span
-              key={tag.id}
               className={[
                 'inline-flex h-[22px] items-center rounded-[3px] px-2 text-[11px] font-medium',
-                TAG_TONE[tag.tone],
+                OUTCOME_TONE[entry.outcome] ?? OUTCOME_TONE.SUCCESS,
               ].join(' ')}
             >
-              {withRial(tag.label ?? t(tag.labelKey as string))}
+              {outcome}
             </span>
-          ))}
+          ) : null}
         </span>
-
-        {entry.change ? (
-          <span className="mt-2 flex flex-wrap items-center gap-2">
-            <span className="inline-flex h-[26px] items-center rounded-[3px] bg-danger-100 px-2 text-xs font-medium text-danger-700 line-through">
-              {withRial(entry.change.from)}
-            </span>
-            <img src={chevronIcon} alt="→" className="size-4 opacity-50 rtl:rotate-180" />
-            <span className="inline-flex h-[26px] items-center rounded-[3px] bg-success-100 px-2 text-xs font-semibold text-[#3d5648]">
-              {withRial(entry.change.to)}
-            </span>
-          </span>
-        ) : null}
       </div>
-
-      <button
-        type="button"
-        aria-label={t('activityLog.openEntry')}
-        className="shrink-0 self-center"
-      >
-        <img
-          src={chevronIcon}
-          alt=""
-          className="size-5 opacity-40 transition-opacity hover:opacity-100 rtl:rotate-180"
-        />
-      </button>
     </li>
   )
 }

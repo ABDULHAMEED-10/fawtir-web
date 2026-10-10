@@ -39,9 +39,11 @@ import {
   type SubscriptionTabId,
   type Term,
 } from '../../lib/consoleSubscriptions'
-import { QueueKpiCard } from './subscriptions/QueueKpiCard'
+import { QueueKpiCard, RialFigure } from './subscriptions/QueueKpiCard'
 import { LinkStatusPill, SubscriptionStatePill } from './subscriptions/SubscriptionStatePill'
 import searchIcon from '../../assets/dashboard/search.svg'
+import { CONSOLE_PAGE, CONSOLE_ROWS, CONSOLE_SECONDARY, CONSOLE_TABLE, CONSOLE_TAB_BAR, CONSOLE_TAB_COUNT, CONSOLE_TAB_LINE, CONSOLE_THEAD, ConsolePageHeader } from '../../layouts/ConsoleShell/consoleStyle'
+import { consoleTab } from '../../layouts/ConsoleShell/consoleTones'
 
 type Ledger = ReturnType<typeof useSubscriptions>
 type PlanFilter = 'all' | SubscriptionPlanId
@@ -120,7 +122,7 @@ function stateDetail(
 
 const DETAIL_TONE = {
   bad: 'text-danger-700',
-  watch: 'text-pending-700',
+  watch: 'text-pending-500',
   calm: 'text-text-quaternary',
 } as const
 
@@ -189,39 +191,31 @@ export function SubscriptionsPage() {
 
   return (
     <ConsoleShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <div className={CONSOLE_PAGE}>
         <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.subscriptions' }]} />
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-              {t('console.subscriptions.queue.title')}
-            </h1>
-            <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
-              {t('console.subscriptions.queue.subtitle', {
-                awaiting: kpis.awaitingCount,
-                grace: kpis.graceCount,
-              })}
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
-            <Link
-              to="/console/subscriptions/invoices"
-              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-            >
-              {t('console.subscriptions.queue.invoicesLink')}
-            </Link>
-            <Link
-              to="/console/settings"
-              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-            >
-              {t('console.subscriptions.queue.settingsLink')}
-            </Link>
-          </div>
-        </div>
+        {/* On a phone the two links stack at one full width, not two ragged ones. */}
+        <ConsolePageHeader
+          title={t('console.subscriptions.queue.title')}
+          subtitle={t('console.subscriptions.queue.subtitle', {
+            awaiting: kpis.awaitingCount,
+            grace: kpis.graceCount,
+          })}
+          actionsClassName="max-md:w-full max-md:flex-col max-md:items-stretch"
+          actions={
+            <>
+              <Link to="/console/subscriptions/invoices" className={CONSOLE_SECONDARY}>
+                {t('console.subscriptions.queue.invoicesLink')}
+              </Link>
+              <Link to="/console/settings" className={CONSOLE_SECONDARY}>
+                {t('console.subscriptions.queue.settingsLink')}
+              </Link>
+            </>
+          }
+        />
 
         <div className="flex flex-wrap gap-4">
           <QueueKpiCard
-            icon={<ConsoleClockIcon className="size-[18px] text-pending-700" />}
+            icon={<ConsoleClockIcon className="size-4 text-pending-500" />}
             title={t('console.subscriptions.queue.kpi.awaiting')}
             value={String(kpis.awaitingCount)}
             note={t('console.subscriptions.queue.kpi.awaitingNote', {
@@ -230,7 +224,7 @@ export function SubscriptionsPage() {
             tone="watch"
           />
           <QueueKpiCard
-            icon={<ConsoleIncidentIcon className="size-[18px] text-danger-700" />}
+            icon={<ConsoleIncidentIcon className="size-4 text-danger-700" />}
             title={t('console.subscriptions.queue.kpi.grace')}
             value={String(kpis.graceCount)}
             note={t('console.subscriptions.queue.kpi.graceNote', {
@@ -239,16 +233,17 @@ export function SubscriptionsPage() {
             tone={kpis.graceCount > 0 ? 'bad' : 'calm'}
           />
           <QueueKpiCard
-            icon={<ConsoleSubscriptionIcon className="size-[18px] text-primary-700" />}
+            icon={<ConsoleSubscriptionIcon className="size-4 text-primary-700" />}
             title={t('console.subscriptions.queue.kpi.trials')}
             value={String(kpis.trialsEnding)}
             suffix={t('console.subscriptions.queue.kpi.trialsOf', { total: kpis.trialsTotal })}
             note={t('console.subscriptions.queue.kpi.trialsNote')}
           />
           <QueueKpiCard
-            icon={<ConsoleTickIcon className="size-[18px] text-success-700" />}
+            icon={<ConsoleTickIcon className="size-4 text-success-700" />}
+            tone="good"
             title={t('console.subscriptions.queue.kpi.collected')}
-            value={`OMR ${omr(kpis.collectedThisMonth)}`}
+            value={<RialFigure amount={kpis.collectedThisMonth} />}
             note={t('console.subscriptions.queue.kpi.collectedNote', {
               count: paymentsThisMonth,
               month,
@@ -256,8 +251,9 @@ export function SubscriptionsPage() {
           />
         </div>
 
-        <section className="flex flex-col rounded-md bg-surface-card">
-          <div className="flex flex-wrap gap-x-6 gap-y-2 border-b border-border-subtle px-6 pt-4">
+        <section className="flex flex-col rounded-sm bg-surface-card">
+          {/* On a phone the strip scrolls sideways inside itself rather than wrapping to three lines. */}
+          <div className={`${CONSOLE_TAB_BAR} max-md:flex-nowrap max-md:overflow-x-auto max-md:[scrollbar-width:none]`}>
             {SUBSCRIPTION_TABS.map((entry) => {
               const active = entry.id === tab
               return (
@@ -266,26 +262,21 @@ export function SubscriptionsPage() {
                   type="button"
                   onClick={() => setTab(entry.id)}
                   aria-pressed={active}
-                  className={[
-                    'relative flex items-center gap-1.5 pb-3 text-base transition-colors',
-                    active
-                      ? 'font-semibold text-primary-800'
-                      : 'font-medium text-text-tertiary hover:text-text-secondary',
-                  ].join(' ')}
+                  className={`${consoleTab(active)} shrink-0 whitespace-nowrap`}
                 >
                   {tabLabel(entry.id)}
-                  <span className="text-xs font-semibold text-text-quaternary">
+                  <span className={CONSOLE_TAB_COUNT}>
                     {count(entry.count)}
                   </span>
                   {active ? (
-                    <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary-700" />
+                    <span className={`${CONSOLE_TAB_LINE} max-md:bottom-0`} />
                   ) : null}
                 </button>
               )
             })}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
             <label className="flex h-11 w-full max-w-[346px] items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4 max-md:max-w-none max-md:basis-full">
               <img src={searchIcon} alt="" className="size-5 shrink-0" />
               <input
@@ -338,10 +329,10 @@ export function SubscriptionsPage() {
             </div>
           </div>
 
-          <RowsView className="px-6 pb-6">
-            <table className="w-full min-w-[1000px] border-collapse text-start">
+          <RowsView className={CONSOLE_ROWS}>
+            <table className={`${CONSOLE_TABLE} min-w-[1000px]`}>
               <thead>
-                <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+                <tr className={CONSOLE_THEAD}>
                   <th className="px-4 py-3 text-start font-semibold">
                     {t('console.subscriptions.queue.col.tenant')}
                   </th>
@@ -385,7 +376,7 @@ export function SubscriptionsPage() {
                               {tenant.name}
                             </Link>
                             <span className="mt-1 block text-xs font-medium text-text-quaternary">
-                              {tenant.town} · {t('console.subscriptions.queue.vat')} {tenant.vat} ·{' '}
+                              {tenant.town} · {t('console.subscriptions.queue.vat')} <bdi dir="ltr">{tenant.vat}</bdi> ·{' '}
                               {tenant.contact.name}
                             </span>
                           </span>
@@ -465,13 +456,16 @@ export function SubscriptionsPage() {
             ) : null}
           </RowsView>
 
-          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border-subtle px-6 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border-subtle px-5 py-4">
             <p className="text-sm font-medium text-text-tertiary">{footer}</p>
-            <p className="text-xs font-medium text-text-quaternary">
-              {t('console.subscriptions.queue.allCount', {
-                count: count(SUBSCRIPTION_TABS[0].count),
-              })}
-            </p>
+            {/* On "All" the sentence on the left already gives the platform total. */}
+            {tab === 'all' ? null : (
+              <p className="text-xs font-medium text-text-quaternary">
+                {t('console.subscriptions.queue.allCount', {
+                  count: count(SUBSCRIPTION_TABS[0].count),
+                })}
+              </p>
+            )}
           </div>
         </section>
       </div>
