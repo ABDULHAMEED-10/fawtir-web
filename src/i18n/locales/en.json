@@ -20704,6 +20704,7 @@
     },
     "noMethod": "Payment can't be made here yet. Contact Fawtir to pay this bill.",
     "bank": {
+      "amount": "Amount to transfer",
       "holder": "Account holder",
       "bank": "Bank",
       "iban": "IBAN",
@@ -20725,9 +20726,9 @@
     "note": "Note for Fawtir (optional)",
     "waiting": {
       "BANK_TRANSFER": {
-        "SUBMITTED": "We have your transfer receipt. The bill is paid once Fawtir has checked it against our bank account.",
-        "RECEIPT_RECORDED": "We have your transfer receipt and are checking it.",
-        "AWAITING_SECOND_APPROVAL": "Your transfer has been checked and is waiting for a second approval at Fawtir."
+        "SUBMITTED": "Pending verification by Fawtir Finance. We have your transfer receipt; the bill is paid once Finance has checked it against our bank account.",
+        "RECEIPT_RECORDED": "Pending verification by Fawtir Finance. We have your transfer receipt and are checking it.",
+        "AWAITING_SECOND_APPROVAL": "Pending verification by Fawtir Finance. Your transfer has been checked and is waiting for a second approval."
       },
       "CASH": {
         "SUBMITTED": "Your cash collection request is with Fawtir. We will contact you to collect it.",
@@ -20750,6 +20751,7 @@
       "bill-stale": "Your plan changed, so that bill was replaced. Pay the current bill below."
     },
     "bankUnavailable": "Bank transfer is temporarily unavailable because proof can't be stored safely right now. Try again in a few minutes.",
+    "bankNoAccount": "Bank transfer is temporarily unavailable because Fawtir has not configured a verified bank account.",
     "superseded": "Replaced after a plan change",
     "olderBills": "Show older bills"
   }

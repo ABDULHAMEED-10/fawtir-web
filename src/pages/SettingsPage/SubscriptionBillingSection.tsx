@@ -222,7 +222,7 @@ function PayForm({
   overview: BillingOverviewDto
   onSubmitted: (why?: string) => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const available: Method[] = [
     ...(overview.methods.bankTransfer && overview.beneficiary ? (['BANK_TRANSFER'] as Method[]) : []),
     ...(overview.methods.cash ? (['CASH'] as Method[]) : []),
@@ -237,12 +237,19 @@ function PayForm({
   // One key per attempt: a retry after a timeout must land on the same payment, not a second one.
   const key = useRef<string>(newPaymentKey())
 
+  // Why bank transfer is missing, from the server's own reason. NOT_OFFERED (switched off for this
+  // deployment) gets no explanation: there is nothing the customer is waiting for.
   const storageDown = overview.methods.bankTransferStatus === 'STORAGE_UNAVAILABLE'
+  const noAccount = overview.methods.bankTransferStatus === 'NO_ACCOUNT'
+  const bankMissing = storageDown ? 'billing.bankUnavailable' : noAccount ? 'billing.bankNoAccount' : null
   if (available.length === 0) {
     return (
-      <p className="text-sm font-medium text-text-secondary">
-        {t(storageDown ? 'billing.bankUnavailable' : 'billing.noMethod')}
-      </p>
+      <div className="flex flex-col gap-2">
+        {noAccount ? <p className="text-sm font-medium text-text-secondary">{t('billing.bankNoAccount')}</p> : null}
+        <p className="text-sm font-medium text-text-secondary">
+          {t(storageDown ? 'billing.bankUnavailable' : 'billing.noMethod')}
+        </p>
+      </div>
     )
   }
 
@@ -270,9 +277,9 @@ function PayForm({
 
   return (
     <div className="flex flex-col gap-4">
-      {storageDown ? (
+      {bankMissing ? (
         <p role="status" className="text-sm font-medium text-text-secondary">
-          {t('billing.bankUnavailable')}
+          {t(bankMissing)}
         </p>
       ) : null}
       <fieldset className="flex flex-col gap-2">
@@ -303,6 +310,11 @@ function PayForm({
             {overview.beneficiary.swiftCode ? (
               <Fact label={t('billing.bank.swift')} value={<span dir="ltr">{overview.beneficiary.swiftCode}</span>} />
             ) : null}
+            {/* The issued bill's total as the server computed it, never a plan price recomputed here. */}
+            <Fact
+              label={t('billing.bank.amount')}
+              value={<OmAmount amount={formatAmount(bill.total, 'OMR', i18n.language)} size="xs" />}
+            />
           </dl>
           <span id="proof-label" className="text-sm font-semibold text-text-primary">
             {t('billing.bank.proof')}
