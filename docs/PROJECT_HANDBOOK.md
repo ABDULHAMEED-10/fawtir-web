@@ -472,6 +472,11 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   branch visit) and then marks the bills, or the run, as paid in Fawtir (`markRunPaid`, or Record
   payment on the bill). The export call stays in `src/api/expenditure/paymentRuns.ts` but the
   screen is to stop offering file formats (not done yet).
+  Answers of 10 Oct 2026: keep the second-person IBAN confirmation and its warning; the "Pay
+  from" account stays, optional; "Mark as paid" asks for the date (prefilled with the run's date,
+  or today when empty or in the future; no future dates) and puts it on every bill's payment;
+  "sent to the bank" wording goes; the file warnings go, except a reworded "{supplier}'s bank
+  details changed. Check before you pay." when details changed after the bill joined the run.
 - **Mobile app scope** (owner, 29 Sep 2026; widened 9 Oct 2026): onboarding (sign-in and
   subscription included), company settings with branches and Peppol settings, notifications,
   customers and suppliers, Income (invoices, bulk invoice upload, credit notes, debit notes,
