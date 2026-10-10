@@ -87,6 +87,12 @@ export type BillSummaryDto = {
   /** Refused in our books but still owed: a rejection is our opinion, not a settlement. */
   disputedCount: number
   disputedTotal: number
+  /**
+   * Supplier debit notes nobody has accepted or refused yet (owner, 10 Oct 2026): not owed until
+   * accepted, so outside `openTotal`. Absent from an older server.
+   */
+  debitNotesAwaitingDecisionCount?: number
+  debitNotesAwaitingDecisionTotal?: number
   excludedFromTotals: number
   needsAttention: { draft: number; new: number; mismatch: number; awaitingApproval: number; total: number; truncated: boolean }
   tabs: {

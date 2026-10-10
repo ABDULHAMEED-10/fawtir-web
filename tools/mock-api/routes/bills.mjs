@@ -685,7 +685,15 @@ function listReply(query) {
 }
 
 function summaryReply() {
-  const open = BILLS.filter((row) => OPEN.has(row.workflowState) && !isCredit(row))
+  // A supplier debit note (383) nobody has accepted or refused is not owed until accepted (owner,
+  // 10 Oct 2026): it leaves Total payable and is counted on its own.
+  const undecided = (row) => row.documentTypeCode === '383' && row.debitNoteDecision == null
+  const awaitingDecision = BILLS.filter(
+    (row) => OPEN.has(row.workflowState) && !isCredit(row) && undecided(row),
+  )
+  const open = BILLS.filter(
+    (row) => OPEN.has(row.workflowState) && !isCredit(row) && !undecided(row),
+  )
   const weekEnd = shift(TODAY, 7)
   const dueThisWeek = open.filter(
     (row) => row.dueDate && row.dueDate >= TODAY && row.dueDate <= weekEnd,
@@ -705,6 +713,8 @@ function summaryReply() {
     readyToPayTotal: sum(ready),
     disputedCount: disputed.length,
     disputedTotal: sum(disputed),
+    debitNotesAwaitingDecisionCount: awaitingDecision.length,
+    debitNotesAwaitingDecisionTotal: sum(awaitingDecision),
     excludedFromTotals: 0,
     needsAttention: {
       draft: INTAKES.filter((entry) => entry.confirmedBillId === null).length,

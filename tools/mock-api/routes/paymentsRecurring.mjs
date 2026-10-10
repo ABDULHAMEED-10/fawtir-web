@@ -887,7 +887,10 @@ function runDto(run) {
     paidTotal: paid
       ? money(items.filter((i) => !i.takenOut).reduce((s, i) => s + i.amount, 0))
       : null,
-    takenOutTotal: paid ? money(out.reduce((s, i) => s + i.amount, 0)) : null,
+    // What the taken-out bills still owe, without the discount (owner, 10 Oct 2026).
+    takenOutTotal: paid
+      ? money(out.reduce((s, i) => s + (i.takenOut.owedNow ?? i.outstanding), 0))
+      : null,
   }
 }
 
@@ -956,8 +959,27 @@ const REFUSED_DEBIT_NOTES = [
   },
 ]
 
+/**
+ * A supplier debit note nobody has accepted or refused yet (the debit-note fixture GCL-DN-0091):
+ * not payable until accepted (backend #480, owner 10 Oct 2026). Blocked with
+ * DEBIT_NOTE_NOT_ACCEPTED, never a candidate, refused by name when added to a run.
+ */
+const UNDECIDED_DEBIT_NOTES = [
+  {
+    billId: 'dn-gcl-0091',
+    supplierBillNumber: 'GCL-DN-0091',
+    supplierId: 's-gcl',
+    supplierName: SUPPLIERS['s-gcl'].name,
+    dueDate: '2026-08-25',
+    outstanding: 96.5,
+    reasonCodes: ['DEBIT_NOTE_NOT_ACCEPTED'],
+    approvalsGiven: null,
+    approvalsRequired: null,
+  },
+]
+
 function blocked() {
-  return [...REFUSED_DEBIT_NOTES, ...blockedBills()]
+  return [...REFUSED_DEBIT_NOTES, ...UNDECIDED_DEBIT_NOTES, ...blockedBills()]
 }
 
 function blockedBills() {
@@ -1837,6 +1859,13 @@ export default [
             billId,
             supplierBillNumber: refused.supplierBillNumber,
           })
+        const undecided = UNDECIDED_DEBIT_NOTES.find((note) => note.billId === billId)
+        if (undecided)
+          return refuse('PAYMENT_RUN_DEBIT_NOTE_NOT_ACCEPTED', 400, {
+            billId,
+            supplierBillNumber: undecided.supplierBillNumber,
+            documentTypeCode: '383',
+          })
         const b = billById(billId)
         if (!b) return { status: 404 }
         if (b.workflowState !== 'APPROVED') return refuse('PAYMENT_RUN_BILL_NOT_READY')
@@ -1940,6 +1969,21 @@ export default [
           documentTypeCode: '380',
         })
       }
+      // Owner, 10 Oct 2026: a bill priced with an early-payment discount cannot be paid on a day
+      // after that discount ends; the refusal names it.
+      const paidDay =
+        paidOn ?? (run.paymentDate && run.paymentDate <= TODAY ? run.paymentDate : TODAY)
+      const late = run.billIds.find((id) => {
+        if (named.has(id)) return false
+        const b = billById(id)
+        return priced(b, run.paymentDate).discount > 0 && priced(b, paidDay).discount === 0
+      })
+      if (late)
+        return refuse('PAYMENT_RUN_PAYMENT_DATE_AFTER_DISCOUNT', 400, {
+          billId: late,
+          supplierBillNumber: billById(late).number,
+          documentTypeCode: '380',
+        })
       run.state = 'PAID'
       run.paidAt = `${TODAY}T11:00:00Z`
       // The date sent; without one, the run's date when it is set and not in the future, else
@@ -1950,7 +1994,9 @@ export default [
       run.events = []
       for (const entry of takeOut) {
         const at = `${TODAY}T11:00:00Z`
-        run.takenOut[entry.billId] = { at, actor: 'u-hafidh', reason: entry.reason }
+        // What it still owes, without the discount the run priced it with (owner, 10 Oct 2026).
+        const owedNow = priced(billById(entry.billId), null).outstanding
+        run.takenOut[entry.billId] = { at, actor: 'u-hafidh', reason: entry.reason, owedNow }
         run.events.unshift({
           at,
           kind: 'TAKEN_OUT',
@@ -2070,6 +2116,8 @@ export default [
       readyToPayTotal: 8800,
       disputedCount: 0,
       disputedTotal: 0,
+      debitNotesAwaitingDecisionCount: 0,
+      debitNotesAwaitingDecisionTotal: 0,
       excludedFromTotals: 0,
       needsAttention: {
         draft: 0,

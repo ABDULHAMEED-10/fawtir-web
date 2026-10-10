@@ -5,6 +5,8 @@ import { withQuery } from '../query'
  * Payment runs (`PaymentRunController`) and the accounts money leaves from
  * (`PayerBankAccountController`). A run is DRAFT until it has a payment date, SCHEDULED until its
  * bank file is made, then EXPORTED and finally PAID; DRAFT and SCHEDULED runs can be cancelled.
+ * The payment date is optional, a planned date only (owner, 10 Oct 2026): `paymentDate` is sent
+ * null when it is left out or cleared.
  */
 export const PAYMENT_RUNS_PATH = '/v1/payment-runs'
 export const PAYER_ACCOUNTS_PATH = '/v1/payer-bank-accounts'
@@ -27,7 +29,8 @@ export type PaymentRunDto = {
   /**
    * Backend #477, on a list row: what was marked paid and what was taken out, null unless the run
    * is PAID (`takenOutTotal` 0 when nothing was). Absent from an older server. `netTotal` stays
-   * the planned total.
+   * the planned total. `takenOutTotal` is what the taken-out bills still owe, without the
+   * early-payment discount (owner, 10 Oct 2026), as the run page's "taken out" figure.
    */
   paidTotal?: number | null
   takenOutTotal?: number | null
@@ -53,7 +56,16 @@ export type PaymentRunItemDto = {
    * Set when the bill was taken out as the rest of a sent run was marked paid: the run paid
    * nothing for it. Absent from a server from before the sent-run exits.
    */
-  takenOut?: { at: string; actor: string | null; reason: string } | null
+  takenOut?: {
+    at: string
+    actor: string | null
+    reason: string
+    /**
+     * What the bill still owes now, without the early-payment discount the run had priced it
+     * with: it was not paid, so none was taken (owner, 10 Oct 2026). Absent from an older server.
+     */
+    owedNow?: number | null
+  } | null
   /**
    * On a live run (DRAFT, SCHEDULED or EXPORTED; EXPORTED only on a server before #476), why
    * marking this bill paid would be refused now; the mark-paid dialog ticks it to be taken out.
@@ -74,6 +86,8 @@ export type MarkPaidBlockCode =
   /** Backend #476: held after it joined (any live run), or rejected after it joined (before a file). */
   | 'PAYMENT_RUN_BILL_ON_HOLD'
   | 'PAYMENT_RUN_BILL_NOT_READY'
+  /** Backend #480: a supplier debit note nobody has accepted yet is not payable (10 Oct 2026). */
+  | 'PAYMENT_RUN_DEBIT_NOTE_NOT_ACCEPTED'
 
 export type PaymentRunActivityKind =
   | 'CREATED'
@@ -123,13 +137,17 @@ export type PaymentRunCandidateDto = {
   amount: number
 }
 
-/** DEBIT_NOTE_REFUSED: a supplier debit note (383) whose current decision is REFUSED. */
+/**
+ * DEBIT_NOTE_REFUSED: a supplier debit note (383) whose current decision is REFUSED.
+ * DEBIT_NOTE_NOT_ACCEPTED (backend #480): one nobody has accepted or refused yet.
+ */
 export type BlockedReasonCode =
   | 'ON_HOLD'
   | 'MISMATCH'
   | 'REJECTED'
   | 'AWAITING_APPROVALS'
   | 'DEBIT_NOTE_REFUSED'
+  | 'DEBIT_NOTE_NOT_ACCEPTED'
 
 export type PaymentRunBlockedDto = {
   billId: string

@@ -992,6 +992,58 @@ describe('a disputed bill', () => {
   })
 })
 
+describe('debit notes awaiting a decision (owner, 10 Oct 2026)', () => {
+  /** The Total payable card's context line, as seen: the hidden "OMR" left out. */
+  const payableLine = async () => {
+    const line = (await screen.findByText(/^13 open · 2 overdue/)) as HTMLElement
+    const copy = line.cloneNode(true) as Element
+    copy.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+    return { text: (copy.textContent ?? '').replace(/\s+/g, ' '), line }
+  }
+
+  it('names them beside total payable, with the rial sign, only when there are some', async () => {
+    summaryResponse = () =>
+      json(200, {
+        ...SUMMARY,
+        debitNotesAwaitingDecisionCount: 2,
+        debitNotesAwaitingDecisionTotal: 42.5,
+      })
+    const view = renderBills()
+    const { text, line } = await payableLine()
+    expect(text).toBe('13 open · 2 overdue · Awaiting your decision: 42.500 on 2 debit notes')
+    expect(line.querySelector('svg')).not.toBeNull()
+    view.unmount()
+
+    for (const absent of [
+      { debitNotesAwaitingDecisionCount: 0, debitNotesAwaitingDecisionTotal: 0 },
+      {},
+    ]) {
+      summaryResponse = () => json(200, { ...SUMMARY, ...absent })
+      const again = renderBills()
+      expect((await payableLine()).text).toBe('13 open · 2 overdue')
+      expect(screen.queryByText(/Awaiting your decision/)).toBeNull()
+      again.unmount()
+    }
+  })
+
+  it('says it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    summaryResponse = () =>
+      json(200, {
+        ...SUMMARY,
+        debitNotesAwaitingDecisionCount: 1,
+        debitNotesAwaitingDecisionTotal: 42.5,
+      })
+    renderBills()
+    const [line] = await screen.findAllByText(
+      (_, element) =>
+        element?.tagName === 'P' &&
+        /بانتظار قرارك: .*42\.500 على إشعار مدين واحد$/.test(element.textContent ?? ''),
+    )
+    expect(line.querySelector('svg')).not.toBeNull()
+  })
+})
+
 describe('uploads waiting for their details', () => {
   it('draws them as draft rows: an upload goes back to its page, a receipt back into Scan receipts', async () => {
     summaryResponse = () =>

@@ -733,6 +733,15 @@ function BillKpiCards({
               count: totals.disputedCount,
             })
           : null,
+        // Undecided debit notes are not owed until accepted, so they are outside the figure
+        // above and named here (owner, 10 Oct 2026). The code goes before the amount for the
+        // rial sign to stand in its place.
+        (totals.debitNotesAwaitingDecisionCount ?? 0) > 0
+          ? t('billsPage.kpi.payableAwaitingDecision', {
+              amount: `${totals.currencyCode} ${money(totals.debitNotesAwaitingDecisionTotal ?? 0)}`,
+              count: totals.debitNotesAwaitingDecisionCount,
+            })
+          : null,
       ]
         .filter(Boolean)
         .join(' · '),

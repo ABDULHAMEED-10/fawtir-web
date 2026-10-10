@@ -163,6 +163,8 @@ export const REASON_KEYS: Record<BlockedReasonCode, string> = {
   REJECTED: 'paymentRuns.blocked.rejected',
   AWAITING_APPROVALS: 'paymentRuns.blocked.awaiting',
   DEBIT_NOTE_REFUSED: 'paymentRuns.blocked.debitNoteRefused',
+  // Backend #480 (10 Oct 2026): not payable until accepted.
+  DEBIT_NOTE_NOT_ACCEPTED: 'apiErrors.refused.debitNoteNotAccepted',
 }
 
 /**
@@ -174,6 +176,8 @@ export const MARK_PAID_BLOCK_KEYS: Record<MarkPaidBlockCode, string> = {
   PAYMENT_RUN_BILL_ON_HOLD: 'paymentRuns.blocked.onHold',
   PAYMENT_RUN_BILL_NOT_READY: 'paymentRuns.blocked.rejected',
   PAYMENT_RUN_DEBIT_NOTE_REFUSED: 'paymentRuns.blocked.debitNoteRefused',
+  // Backend #480: a debit note nobody has accepted is not payable until it is.
+  PAYMENT_RUN_DEBIT_NOTE_NOT_ACCEPTED: 'apiErrors.refused.debitNoteNotAccepted',
   PAYMENT_RUN_AMOUNT_CHANGED: 'paymentRuns.markPaidBlock.amountChanged',
   PAYMENT_RUN_BILL_SETTLED: 'paymentRuns.markPaidBlock.settled',
 }
@@ -194,7 +198,6 @@ export const RUN_REFUSALS: Record<string, string> = {
   PAYMENT_RUN_NOT_EDITABLE: 'paymentRuns.refused.notEditable',
   PAYMENT_RUN_TRANSITION_INVALID: 'paymentRuns.refused.transition',
   PAYMENT_RUN_CONCURRENTLY_MODIFIED: 'paymentRuns.refused.concurrent',
-  PAYMENT_RUN_DATE_REQUIRED: 'paymentRuns.refused.dateRequired',
   PAYMENT_RUN_EMPTY: 'paymentRuns.refused.empty',
   PAYER_ACCOUNT_INACTIVE: 'paymentRuns.refused.payerInactive',
   PAYER_ACCOUNT_IBAN_INVALID: 'paymentRuns.account.ibanInvalid',
@@ -204,9 +207,12 @@ export const RUN_REFUSALS: Record<string, string> = {
   // `accountName`: the sentence the other switched-off account refusal reads.
   PAYMENT_RUN_PAYER_ACCOUNT_INACTIVE: 'paymentRuns.refused.payerInactive',
   // The date in the Mark as paid dialog (owner, 10 Oct 2026). The future-date sentence is the one
-  // Record payment reads; the before-issue code is the expected name, used when no bill is named.
+  // Record payment reads. A date after a bill's early-payment discount ends is refused by name;
+  // this sentence is for an answer that names none.
   PAYMENT_RUN_PAYMENT_DATE_IN_FUTURE: 'invoiceDetails.pay.error.dateFuture',
-  PAYMENT_RUN_PAYMENT_DATE_BEFORE_ISSUE_DATE: 'paymentRuns.refused.dateBeforeIssue',
+  PAYMENT_RUN_PAYMENT_DATE_AFTER_DISCOUNT: 'paymentRuns.refused.dateAfterDiscount',
+  // Backend #480: a debit note nobody has accepted, added to a run or marked paid with it.
+  PAYMENT_RUN_DEBIT_NOTE_NOT_ACCEPTED: 'apiErrors.refused.debitNoteNotAccepted',
 }
 
 /** What was being done to a run when it refused, where one code needs a sentence per action. */
@@ -229,14 +235,10 @@ const BY_ACTION: Record<string, Partial<Record<RunAction, string>>> = {
   // name, the hold keeps the sentence that names none.
   PAYMENT_RUN_BILL_ON_HOLD: { markPaid: 'paymentRuns.refused.onHoldMarkPaidNamed' },
   PAYMENT_RUN_BILL_NOT_READY: { markPaid: 'paymentRuns.refused.rejectedMarkPaid' },
-  PAYMENT_RUN_PAYMENT_DATE_BEFORE_ISSUE_DATE: { markPaid: 'paymentRuns.refused.dateBeforeIssueBill' },
 }
 
 /** Sentences that name the bill: without its number the code's own sentence is said instead. */
-const NAMES_THE_BILL = new Set([
-  'PAYMENT_RUN_BILL_NOT_READY',
-  'PAYMENT_RUN_PAYMENT_DATE_BEFORE_ISSUE_DATE',
-])
+const NAMES_THE_BILL = new Set(['PAYMENT_RUN_BILL_NOT_READY'])
 
 /** Sentences that name the bill, with one that names none to say when no number is known. */
 const UNNAMED: Record<string, Partial<Record<RunAction, string>>> = {
@@ -251,6 +253,17 @@ function settledKey(documentTypeCode: unknown): string {
   return String(documentTypeCode ?? '') === '383'
     ? 'paymentRuns.refused.settledDebitNote'
     : 'paymentRuns.refused.settledBill'
+}
+
+/**
+ * `PAYMENT_RUN_PAYMENT_DATE_AFTER_DISCOUNT` (owner, 10 Oct 2026): the date paid is after the
+ * early-payment discount a bill of the run was priced with. It names the bill, agreeing in Arabic
+ * with the document as `settledKey` does.
+ */
+function afterDiscountKey(documentTypeCode: unknown): string {
+  return String(documentTypeCode ?? '') === '383'
+    ? 'paymentRuns.refused.dateAfterDiscountDebitNote'
+    : 'paymentRuns.refused.dateAfterDiscountBill'
 }
 
 /**
@@ -274,6 +287,8 @@ export function refusalOf(
       return t(byAction, { note: number, bill: number })
     if (error.code === 'PAYMENT_RUN_BILL_SETTLED')
       return t(settledKey(error.problem.documentTypeCode), { bill: number })
+    if (error.code === 'PAYMENT_RUN_PAYMENT_DATE_AFTER_DISCOUNT' && number)
+      return t(afterDiscountKey(error.problem.documentTypeCode), { bill: number })
     // The switched-off pay-from account by its name. (No sentence for unconfirmed bank details:
     // nobody confirms a changed IBAN since 10 Oct 2026.)
     if (error.code === 'PAYMENT_RUN_PAYER_ACCOUNT_INACTIVE' && error.problem.accountName)

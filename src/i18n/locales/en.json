@@ -5460,7 +5460,9 @@
       "otherCurrencies_one": "{{count}} bill in another currency is not in these {{currency}} totals.",
       "otherCurrencies_other": "{{count}} bills in other currencies are not in these {{currency}} totals.",
       "payableDisputed_one": "{{amount}} disputed on {{count}} refused bill",
-      "payableDisputed_other": "{{amount}} disputed on {{count}} refused bills"
+      "payableDisputed_other": "{{amount}} disputed on {{count}} refused bills",
+      "payableAwaitingDecision_one": "Awaiting your decision: {{amount}} on {{count}} debit note",
+      "payableAwaitingDecision_other": "Awaiting your decision: {{amount}} on {{count}} debit notes"
     },
     "tabs": {
       "needsAttention": "Needs attention",
@@ -17953,7 +17955,8 @@
       "billPaymentDebitNoteRefused": "This debit note was refused, so it cannot be paid. Accept it first if it is owed after all.",
       "debitNoteAlreadyPaid": "This debit note is already paid. Record a refund from the supplier instead.",
       "paymentReversalInSentRun": "This bill is in payment run {{run}}, whose bank file is already made. Use the run's Mark paid or Cancel instead.",
-      "debitNotePartlyPaid": "This debit note is partly paid. Record a refund from the supplier for the paid part first."
+      "debitNotePartlyPaid": "This debit note is partly paid. Record a refund from the supplier for the paid part first.",
+      "debitNoteNotAccepted": "Accept the debit note before you pay it."
     },
     "selfBilling": {
       "generic": "The server refused this because of the self-billing agreement with this supplier. Check the agreement before trying again.",
@@ -18492,7 +18495,7 @@
     },
     "confirmPaid": {
       "title": "Mark {{reference}} as paid?",
-      "body": "This records {{amount}} as paid against each bill in the run. Take out the bills you did not pay."
+      "body": "This records every bill in the run as paid, {{amount}} in all. Take out the bills you did not pay."
     },
     "confirmCancel": {
       "title": "Cancel {{reference}}?",
@@ -18512,7 +18515,6 @@
       "notEditable": "This run can no longer be changed.",
       "transition": "The run can't do that in its current state.",
       "concurrent": "Someone else changed this run. Reload it and try again.",
-      "dateRequired": "Set a payment date first.",
       "formatRequired": "Choose how to send it to the bank first.",
       "empty": "Tick at least one bill first.",
       "payerRequired": "Choose the account you pay from first.",
@@ -18530,8 +18532,9 @@
       "onHoldMarkPaid": "A bill in this run is on hold. Release it, or take it out of the run and mark the others paid.",
       "rejectedMarkPaid": "{{bill}} was rejected after it joined this run. Mark the others paid and take {{bill}} out of the run.",
       "onHoldMarkPaidNamed": "{{bill}} is on hold. Release it, or take it out of the run and mark the others paid.",
-      "dateBeforeIssue": "A bill in this run was issued after the date you paid. Choose a later date.",
-      "dateBeforeIssueBill": "{{bill}} was issued after the date you paid. Choose a later date, or take {{bill}} out of the run."
+      "dateAfterDiscount": "A bill in this run was priced with an early-payment discount that ends before the date you paid. Choose an earlier date.",
+      "dateAfterDiscountBill": "{{bill}} was priced with an early-payment discount that ends before the date you paid. Choose an earlier date, or take {{bill}} out of the run.",
+      "dateAfterDiscountDebitNote": "{{bill}} was priced with an early-payment discount that ends before the date you paid. Choose an earlier date, or take {{bill}} out of the run."
     },
     "addModal": {
       "open": "Add to a payment run",
@@ -18580,7 +18583,9 @@
       "settled": "Already paid in full"
     },
     "bankDetailsChanged": "{{supplier}}'s bank details changed. Check before you pay.",
-    "paidOnRequired": "Choose the date you paid."
+    "paidOnRequired": "Choose the date you paid.",
+    "stateNoteUndated": "Mark the run paid once you have paid the suppliers.",
+    "supplierTakenOut": "Taken out"
   },
   "billIntake": {
     "supplier": "Supplier",

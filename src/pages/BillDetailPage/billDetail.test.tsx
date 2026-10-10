@@ -1026,6 +1026,59 @@ describe('A bill, wired to the API', () => {
     ).toBeTruthy()
   })
 
+  // Owner, 10 Oct 2026 (backend #480): a debit note nobody has accepted is not owed yet.
+  it('offers no Record payment on an undecided debit note, and says to accept it first', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          readiness: APPROVED,
+          bill: {
+            ...detail().bill,
+            documentTypeCode: '383',
+            workflowState: 'APPROVED',
+            readiness: APPROVED,
+            debitNoteDecision: null,
+          },
+        }),
+      )
+    const view = renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+    expect(screen.getByText('Accept the debit note before you pay it.')).toBeTruthy()
+    view.unmount()
+    cleanup()
+
+    await i18n.changeLanguage('ar')
+    renderBill()
+    expect(await screen.findByText('اقبل الإشعار المدين قبل أن تدفعه.')).toBeTruthy()
+  })
+
+  it('says why a payment on a debit note not yet accepted is refused', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          readiness: APPROVED,
+          bill: { ...detail().bill, documentTypeCode: '383', debitNoteDecision: 'ACCEPTED' },
+        }),
+      )
+    actionResponse = () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/expenditure-refused',
+        error: 'BILL_PAYMENT_DEBIT_NOTE_NOT_ACCEPTED',
+        detail: 'Accept the debit note first',
+        status: 400,
+      })
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Record payment' }))
+    const said = await screen.findAllByText('Accept the debit note before you pay it.')
+    expect(said.length).toBeGreaterThan(0)
+  })
+
   it('says why a payment on a debit note refused after the page loaded is refused', async () => {
     billResponse = () =>
       json(
@@ -1442,14 +1495,16 @@ describe('bill detail mapping', () => {
       ),
     ).toBe(false)
     expect(canRecordPayment({ ...approved, paymentRunReference: 'RUN-0012' }, all)).toBe(false)
-    // A refused supplier debit note is accepted first; an accepted or undecided one is not held.
-    const note383 = (debitNoteDecision: 'ACCEPTED' | 'REFUSED' | null) => ({
+    // A refused or undecided supplier debit note is accepted first (owner, 10 Oct 2026); a server
+    // that sends no decision at all decides for itself.
+    const note383 = (debitNoteDecision: 'ACCEPTED' | 'REFUSED' | null | undefined) => ({
       ...approved,
       bill: { ...approved.bill, documentTypeCode: '383', debitNoteDecision },
     })
     expect(canRecordPayment(note383('REFUSED'), all)).toBe(false)
     expect(canRecordPayment(note383('ACCEPTED'), all)).toBe(true)
-    expect(canRecordPayment(note383(null), all)).toBe(true)
+    expect(canRecordPayment(note383(null), all)).toBe(false)
+    expect(canRecordPayment(note383(undefined), all)).toBe(true)
     expect(
       canRecordPayment(
         { ...approved, bill: { ...approved.bill, workflowState: 'IN_PAYMENT_RUN' } },

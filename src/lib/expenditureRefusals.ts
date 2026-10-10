@@ -93,6 +93,8 @@ const REFUSALS: Record<string, string> = {
   BILL_PAYMENT_MISMATCHED: 'paymentRuns.refused.mismatched',
   // A single payment on a supplier debit note that was refused (owner's sentence, 8 Oct 2026).
   BILL_PAYMENT_DEBIT_NOTE_REFUSED: 'apiErrors.refused.billPaymentDebitNoteRefused',
+  // A debit note nobody has accepted is not owed yet (backend #480, 10 Oct 2026).
+  BILL_PAYMENT_DEBIT_NOTE_NOT_ACCEPTED: 'apiErrors.refused.debitNoteNotAccepted',
   BILL_PAYMENT_CURRENCY_MISMATCH: 'apiErrors.refused.paymentCurrencyMismatch',
   BILL_PAYMENT_ALREADY_REVERSED: 'apiErrors.refused.paymentAlreadyReversed',
   // Reversing a payment of a bill in a run whose bank file is made (owner's sentence, 8 Oct 2026).

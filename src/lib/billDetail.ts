@@ -184,8 +184,17 @@ export function refusedDebitNote(detail: BillDetailDto): boolean {
 }
 
 /**
+ * A supplier debit note (383) nobody has accepted or refused yet: not owed until accepted, so the
+ * server refuses a payment on it (`BILL_PAYMENT_DEBIT_NOTE_NOT_ACCEPTED`, backend #480; owner,
+ * 10 Oct 2026). A server that does not send `debitNoteDecision` at all decides for itself.
+ */
+export function undecidedDebitNote(detail: BillDetailDto): boolean {
+  return detail.bill.documentTypeCode === '383' && detail.bill.debitNoteDecision === null
+}
+
+/**
  * Whether a payment can be recorded on this bill now: it is approved, not on hold, does not
- * disagree with its order, is not in a payment run, is not a refused debit note, still owes
+ * disagree with its order, is not in a payment run, is not a refused or undecided debit note, still owes
  * money, and the reader may record payments. Anything else and the action is not offered at all
  * (owner decision 2026-10-01: hidden, not disabled). A held bill is released first; a mismatch is
  * resolved first; a bill in a run is paid there, or taken out of the run; a refused debit note is
@@ -203,6 +212,7 @@ export function canRecordPayment(
     !mismatchUnresolved(detail) &&
     !inPaymentRun(detail) &&
     !refusedDebitNote(detail) &&
+    !undecidedDebitNote(detail) &&
     detail.settlement.paymentState !== 'PAID' &&
     detail.settlement.outstandingAmount > 0
   )
@@ -237,6 +247,8 @@ export function decisionNoteOf(detail: BillDetailDto): Note {
   if (settlement.paymentState === 'PAID') return { key: 'billDetail.decision.paid' }
   // A refused debit note says its refusal, as its own page does, whatever approval it went through.
   if (refusedDebitNote(detail)) return { key: 'supplierDebitNotes.detail.refusedBody' }
+  // Not payable until accepted (owner, 10 Oct 2026): what to do first, in place of the approval.
+  if (undecidedDebitNote(detail)) return { key: 'apiErrors.refused.debitNoteNotAccepted' }
   if (hold) return { key: 'billDetail.decision.held', values: { reason: hold.reason ?? '' } }
   if (readiness.state === 'REJECTED') {
     const rejection = detail.approvals.find((entry) => entry.decision === 'REJECTED')
