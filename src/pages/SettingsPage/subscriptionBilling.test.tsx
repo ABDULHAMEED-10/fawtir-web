@@ -100,6 +100,16 @@ function writes() {
 }
 
 describe('Settings › Billing: the charge', () => {
+  it('points a customer who owes payment to the ways to pay below, not to Fawtir, when one works', async () => {
+    answers[SUBSCRIPTION] = () => json(200, { ...STATUS, access: 'PAYMENT_REQUIRED', trialDay: null, trialDaysLeft: null })
+    renderBilling()
+    const notice = await screen.findByText(i18n.t('subscription.notice.paymentRequiredBilling'))
+    expect(notice.textContent).not.toMatch(/contact Fawtir/i)
+    expect(await screen.findByRole('radio', { name: new RegExp(i18n.t('billing.method.BANK_TRANSFER.title')) })).toBeTruthy()
+    expect(screen.getByRole('radio', { name: new RegExp(i18n.t('billing.method.CASH.title')) })).toBeTruthy()
+    expect(screen.queryByText(i18n.t('billing.noMethod'))).toBeNull()
+  })
+
   it('shows the server-computed subtotal, 5% VAT and total with the rial sign, and says it is not a tax invoice', async () => {
     renderBilling()
     expect(await screen.findByText('FWT-SUB-2026-000007')).toBeTruthy()

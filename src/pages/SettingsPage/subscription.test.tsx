@@ -122,7 +122,11 @@ describe('Settings › Plan: the subscription', () => {
   it('offers no way to pay and no auto-renew switch, because neither exists yet', async () => {
     answers[SUBSCRIPTION] = () => json(200, PAYMENT_REQUIRED)
     renderAt('/settings/plan')
-    expect(await screen.findByText(i18n.t('subscription.notice.paymentRequired'))).toBeTruthy()
+    // On Plan the ways to pay are on the other page: the notice sends the customer there, and
+    // never tells them to contact Fawtir while a working form exists (BILLING-UX-01).
+    const notice = await screen.findByText(i18n.t('subscription.notice.paymentRequiredPlan'))
+    expect(notice.textContent).toContain(i18n.t('bills.title'))
+    expect(notice.textContent).not.toMatch(/contact Fawtir/i)
 
     expect(within(section()).queryByRole('button', { name: /pay/i })).toBeNull()
     expect(within(section()).queryByRole('switch')).toBeNull()

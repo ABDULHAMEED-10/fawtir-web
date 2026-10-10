@@ -20623,7 +20623,8 @@
       "trialEnding_one": "Your free trial ends on {{date}}. {{count}} day left.",
       "trialEnding_other": "Your free trial ends on {{date}}. {{count}} days left.",
       "grace": "Your paid period ended on {{ended}}. Invoicing and tax reporting keep working until {{until}}.",
-      "paymentRequired": "Payment is due. Your issued invoices, reports and exports stay available. Paying online is not available in Fawtir yet, so contact Fawtir to pay.",
+      "paymentRequiredBilling": "Payment is due. Your issued invoices, reports and exports stay available. Pay the bill below using one of the ways shown.",
+      "paymentRequiredPlan": "Payment is due. Your issued invoices, reports and exports stay available. Pay the bill in Settings › Bills and payment.",
       "cancelled": "Your subscription ended on {{date}}. Your issued invoices and reports stay available to read and export.",
       "cancelScheduled": "Your subscription ends on {{date}} and will not renew."
     },
