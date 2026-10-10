@@ -9259,7 +9259,12 @@
       "theyRefused": "They turned it down",
       "arrivedOverPeppol": "Arrived over Peppol",
       "validated": "Validated",
-      "deliveredUnconfirmed": "Delivered, unconfirmed"
+      "deliveredUnconfirmed": "Delivered, unconfirmed",
+      "notSentToFawtara": "Not sent to Fawtara yet",
+      "stoppedAtFawtir": "Stopped at Fawtir, needs attention",
+      "notSigned": "Not signed yet",
+      "notSentOverPeppol": "Not sent over Peppol yet",
+      "couldNotSendOverPeppol": "Could not be sent over Peppol"
     },
     "whyTurnedDown": "Why the first one was turned down",
     "rejection": {
@@ -9283,7 +9288,10 @@
       "supersededBody": "Replaced by the corrected report you sent. Kept here because the archive can't lose anything, but it counts for nothing.",
       "rejectedBody": "Turned down and not replaced yet. Until a corrected report is accepted, this sale isn't declared.",
       "waitingBody": "Sent, and waiting for the OTA to answer.",
-      "deliveredOn": "Delivered, unconfirmed {{at}}"
+      "deliveredOn": "Delivered, unconfirmed {{at}}",
+      "notSent": "Not sent to Fawtara",
+      "notSentBody": "Built here and not sent to Fawtara yet, so the Tax Authority has nothing for this sale so far.",
+      "heldBody": "Stopped at Fawtir and waiting for attention here. This is not a Tax Authority refusal: the Tax Authority has not turned anything down."
     },
     "whichRoute": "Which route it took",
     "route": {
@@ -9373,7 +9381,9 @@
       "live": "Live at the OTA",
       "superseded": "Superseded",
       "rejected": "Turned down",
-      "waiting": "Waiting"
+      "waiting": "Waiting",
+      "notSent": "Not sent",
+      "held": "Stopped at Fawtir"
     },
     "noReferenceYet": "Not issued yet",
     "notYet": "Not yet",
@@ -9388,7 +9398,10 @@
       "noReplyYet": "No reply yet",
       "received": "Received",
       "deliveredUnconfirmed": "Delivered, unconfirmed",
-      "replaced": "Replaced by us"
+      "replaced": "Replaced by us",
+      "stoppedAtFawtir": "Stopped at Fawtir",
+      "notSentYet": "Not sent yet",
+      "couldNotSend": "Could not be sent"
     },
     "from": "From",
     "fromSupplier": "From {{customer}}",
@@ -19996,7 +20009,10 @@
       "features": "Features",
       "partners": "For Partners",
       "signUp": "Sign Up",
-      "contact": "Contact Us"
+      "contact": "Contact Us",
+      "menu": "Menu",
+      "closeMenu": "Close menu",
+      "mobileLabel": "Main menu"
     },
     "cta": {
       "demo": "Request For Demo"

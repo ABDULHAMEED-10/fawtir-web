@@ -196,13 +196,31 @@ export type MlsRecordDto = {
   reason: string | null
 }
 
+/**
+ * One AS4 row from `peppol.message_history`. `state` is the transport machine's (PENDING, SENDING,
+ * SENT_AWAITING_MDN, DELIVERED, MDN_FAILED, RETRY_SCHEDULED, DEAD_LETTERED). `attempts` also counts
+ * attempts that failed before anything went on the wire, so it does not prove anything was sent.
+ */
+export type TransmissionDto = {
+  id: string
+  channel: string
+  direction: string
+  state: string
+  attempts: number
+  last_attempt_at: string | null
+  last_failure_reason: string | null
+  sbdh_instance_identifier: string | null
+  last_mls_code: MlsAckDto | null
+  created_at: string
+}
+
 export type ActivityDetailDto = {
   invoice_uuid: string
   summary: ActivityItemDto
   /** Oldest first, so the TDT-006 story reads top to bottom. */
   tdd_lineage: TddObligationDto[]
   mls: MlsRecordDto[]
-  transmissions: unknown[]
+  transmissions: TransmissionDto[]
 }
 
 export type ActivityFilters = {

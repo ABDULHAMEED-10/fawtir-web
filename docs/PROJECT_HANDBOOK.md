@@ -335,8 +335,10 @@ the console plan are in `docs/erp-and-console-plan.md`.
 
 Every web change that touches what the mobile app shows or sends is added to the mobile changes doc
 the same day: https://claude.ai/code/artifact/fc142745-a943-450b-8568-f6b6cc1879d4 ("Fawtir mobile:
-what changed…"). It covers only the mobile scope (section 6): onboarding, company settings,
-customers and suppliers, Income (invoices, credit notes, debit notes) and Expenditure (bills).
+what changed…"). It covers only the mobile scope (section 6, the 9 Oct list: onboarding with
+subscription, company settings, notifications, customers and suppliers, Income, Expenditure bills,
+reports and the dashboard). It lists only what changed, never the whole app: Atiq's integration
+already exists.
 The six guides already sent to him (29 Sep to 3 Oct) are kept in `docs/mobile/` for reference only
 (index in its `README.md`). **Always guide mobile from the current code and setup** (the web app on
 `main`, its API calls, i18n files and the backend guides), never from those PDFs; read the matching
@@ -348,6 +350,9 @@ PDF only to see what he was told, so the doc can say what differs.
 - A change that waits on the backend says so ("not sent until …"), as sign-up lines 2 and 3 do.
 - The owner shares the doc with the mobile developer only once the backend APIs behind the web
   changes are live. Until then it is kept current, not sent.
+- Phase 1 doc sent to the mobile developer on 9 Oct 2026 (owner), before subscription was on the
+  backend; the doc says sections 6 and 7 will change. Keep updating the same doc; tell the owner
+  what changed so he can notify the mobile developer.
 
 ---
 
@@ -458,8 +463,33 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   the comparison rows and the questions come from `src/lib/plans.ts` and the sign-up plans screen
   (`PlanComparison.tsx` exports `GROUPS`, `COLUMNS`, `faqParams`). The Figma frame's own figures
   (49 / 89 / 149) are not used. "What counts" is documents sent and received, as the app meters.
-- **Mobile app scope** (owner, 29 Sep 2026): onboarding, company settings, Income (invoices,
-  credit notes, debit notes) and Expenditure (bills) only. **No self-billing on mobile.** The
+- **Catalogue and POS are future work** (owner, 9 Oct 2026), on web and mobile. Reviews do not
+  flag their screens (sample data, removed or simplified designed parts, codes or "OMR" text);
+  they are taken up as a whole when that work starts.
+- **Payment runs are for tracking only, no bank file** (owner, 9 Oct 2026): Fawtir does not
+  produce bank payment files (no Bank Muscat CSV, no ISO 20022 PAIN.001), so nobody asks the banks
+  for file specifications. The company pays its suppliers itself (bank app, internet banking or a
+  branch visit) and then marks the bills, or the run, as paid in Fawtir (`markRunPaid`, or Record
+  payment on the bill). The export call stays in `src/api/expenditure/paymentRuns.ts` but the
+  screen is to stop offering file formats (not done yet).
+  Answers of 10 Oct 2026: no second-person IBAN confirmation (removed, with its warning); the "Pay
+  from" account stays, optional; "Mark as paid" asks for the date (prefilled with the run's date,
+  or today when empty or in the future; no future dates) and puts it on every bill's payment;
+  "sent to the bank" wording goes; the file warnings go, except a reworded "{supplier}'s bank
+  details changed. Check before you pay." when details changed after the bill joined the run.
+- **Mobile app scope** (owner, 29 Sep 2026; widened 9 Oct 2026): onboarding (sign-in and
+  subscription included), company settings with branches and Peppol settings, notifications,
+  customers and suppliers, Income (invoices, bulk invoice upload, credit notes, debit notes,
+  reminders), Expenditure (bills and bill reminders; bill upload and scan from a photo to be
+  confirmed with Atiq), reports and the dashboard. POS and the catalogue come to mobile later
+  (future work). **No self-billing and no customer import from a file on mobile.** Every
+  approved company gets a default head office branch (owner, 9 Oct 2026; ONBOARDING.md row
+  1.11). Handoff is in phases, each change doc sent only
+  after Abrar's end-to-end test of that phase passes: (1) onboarding to an invoice sent over
+  Peppol: sign-up, sign-in, subscription, company settings, branches, Peppol settings, customers,
+  invoice creation, bulk invoice upload, sending; (2) credit notes, debit notes and reminders,
+  closing Income; (3) bills, bill upload and bill reminders, closing Expenditure (the core work
+  ends here); (4) dashboard, reports and notifications. The
   mobile developer's guide for onboarding to invoice creation is a shared doc:
   https://claude.ai/code/artifact/0880cec3-51a4-4cc7-93b6-d55890f97365 (data, rules and APIs only;
   the mobile UI and layout are his call).

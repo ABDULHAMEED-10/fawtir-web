@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import i18n from '../../i18n'
 import { HomePage } from './HomePage'
@@ -89,5 +89,27 @@ describe('Landing page', () => {
 
     await i18n.changeLanguage('en')
     document.documentElement.dir = 'ltr'
+  })
+
+  it('folds the links into a menu on a phone, with Contact Us always in the bar', () => {
+    renderHome()
+    const bar = screen.getByRole('navigation', { name: i18n.t('landing.nav.mobileLabel') })
+    const toggle = within(bar).getByRole('button', { name: i18n.t('landing.nav.menu') })
+    expect(
+      within(bar).getByRole('link', { name: new RegExp(i18n.t('landing.nav.contact')) }),
+    ).toBeTruthy()
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(within(bar).queryByRole('link', { name: i18n.t('landing.nav.pricing') })).toBeNull()
+
+    fireEvent.click(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    expect(toggle.getAttribute('aria-label')).toBe(i18n.t('landing.nav.closeMenu'))
+    for (const key of ['home', 'pricing', 'features', 'partners', 'signUp']) {
+      expect(within(bar).getByRole('link', { name: i18n.t(`landing.nav.${key}`) })).toBeTruthy()
+    }
+    expect(within(bar).getByRole('button', { name: 'العربية' })).toBeTruthy()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
   })
 })
