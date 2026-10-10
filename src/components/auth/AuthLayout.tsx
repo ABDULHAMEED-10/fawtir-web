@@ -9,6 +9,11 @@ type AuthLayoutProps = {
   backTo?: string
   backState?: unknown
   hero?: ReactNode
+  /**
+   * `start` sits the content at the top, its start edge in line with Back (the Fawtara status
+   * frame); forms keep the default centring.
+   */
+  align?: 'center' | 'start'
 }
 
 export function AuthLayout({
@@ -17,6 +22,7 @@ export function AuthLayout({
   backTo,
   backState,
   hero,
+  align = 'center',
 }: AuthLayoutProps) {
   return (
     <div className="flex h-dvh max-h-dvh overflow-hidden bg-surface-background">
@@ -35,9 +41,15 @@ export function AuthLayout({
 
         {/* Centred with auto margins, not justify-center: a form taller than the viewport would
             otherwise start above the scroll origin, its heading cut off where no scroll reaches. */}
-        <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center overflow-y-auto py-4">
-          <div className="my-auto flex w-full justify-center">{children}</div>
-        </div>
+        {align === 'start' ? (
+          <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto pb-4 pt-8 lg:pt-12">
+            <div className="flex w-full justify-start">{children}</div>
+          </div>
+        ) : (
+          <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center overflow-y-auto py-4">
+            <div className="my-auto flex w-full justify-center">{children}</div>
+          </div>
+        )}
       </section>
     </div>
   )

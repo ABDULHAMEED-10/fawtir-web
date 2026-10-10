@@ -1,5 +1,9 @@
 import { useTranslation } from 'react-i18next'
-import { ConsoleStatusPill, type ConsolePillTone } from '../../../layouts/ConsoleShell/ConsoleStatusPill'
+import {
+  ConsoleStatusPill,
+  type ConsolePillSize,
+  type ConsolePillTone,
+} from '../../../layouts/ConsoleShell/ConsoleStatusPill'
 import type { VerificationStatus } from '../../../lib/console/companyVerification'
 
 const TONE: Record<VerificationStatus | 'notSubmitted', ConsolePillTone> = {
@@ -16,11 +20,19 @@ const TONE: Record<VerificationStatus | 'notSubmitted', ConsolePillTone> = {
 export function VerificationStatusPill({
   status,
   submitted,
+  size,
 }: {
   status: VerificationStatus
   submitted: boolean
+  size?: ConsolePillSize
 }) {
   const { t } = useTranslation()
   const key = submitted ? status : 'notSubmitted'
-  return <ConsoleStatusPill tone={TONE[key]} label={t(`console.verification.status.${key}`)} />
+  return (
+    <ConsoleStatusPill
+      tone={TONE[key]}
+      label={t(`console.verification.status.${key}`)}
+      size={size}
+    />
+  )
 }

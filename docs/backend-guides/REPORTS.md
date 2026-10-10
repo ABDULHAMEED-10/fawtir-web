@@ -24,7 +24,7 @@ backend asks" documents.
   `node tools/mock-api/server.mjs` and point the app at it; see `docs/LOCAL_SETUP.md`.
 - **Related.** The Compliance report page reads the Activity summary; its rows sit here, the Activity screens in `ACTIVITY.md`.
 
-**Screens in this guide:** Income, Expenditure, Cash flow, VAT & Tax, Compliance, Lists.
+**Screens in this guide:** Income, Expenditure, Cash flow, VAT & Tax, Compliance, Lists, Dashboard.
 
 ---
 Rows in this guide are numbered 1.x. The number is kept from the joint document these rows
@@ -72,3 +72,19 @@ Approved review findings on the report pages. Rows 1.4 and 1.14 above are stale;
 | 1.27 | VAT "VAT collected on sales" and "VAT paid on purchases" under reverse charge. Oman has four VAT categories only (S, Z, E, O; CL-04-OM); reverse charge is a transaction type (BTOM-001), not a category, so the page cannot tell a reverse-charged document from a row's `category` and does no reverse-charge arithmetic. Until the API says so, self-accounted reverse-charge VAT is shown only as the server already counts it | reverse-charge amounts on `/reports/vat`, identified by the BTOM-001 transaction type (reverse charge, import of services), per period: the VAT the tenant self-accounts as buyer, so the page can state it as output VAT and as input VAT both. The same on the VAT export and the VAT ledger dataset |
 | 1.28 | Compliance labels (corrects the labels in 1.15, 1.17 and 1.21, not their asks). The figure is every acknowledgement, retries included, so "Accepted first time" now reads "Accepted" (card) and "Accepted, by month" (chart, series "Accepted, % of sent"); "Average time to clear" is a median and reads "Median time to clear" (chart series "Median seconds to acknowledgement"); in "What happened to what you sent" the parts read "Accepted", "On retry" (still 0, 1.17) and "Rejected" (the red part is the OTA endpoint's rejections; it said "Delivery failed"), and the footer "Rejections falling every quarter". A month nothing was sent in is drawn as no data (a gap in the line, a dashed outline bar, "No data" on a quarter's row), not as zero or as the month before. The "24-hour rule" footer is removed, per the owner's decision. "Accepted" and "Rejected" themselves stay as the frame words them (open decision, 1.21) | as 1.15 and 1.17: with a first-time vs on-retry split from the TDD lineage the card and chart can say "first time" again, and "On retry" fills in |
 | 1.29 | Cash flow "Where it went" (corrects the basis in 1.11). It ranked what was billed before VAT beside "Money out", which is paid including VAT. It now ranks what was billed **including VAT** (`totalAmount`), and its footer says "VAT included" | as 1.11: payments out by what they paid for, on the same VAT-inclusive basis as `paidOut` |
+
+## 2. Dashboard (`GET /v1/dashboard`, `/bills/summary`, `/settings/plan`, `/invoicing/readiness`)
+
+Wired 2026-10-08. Every figure on the dashboard used to be a sample company's. It now reads the
+dashboard endpoint's tiles, payables from the bills summary and the invoice allowance from the
+plan; a tile marked `UNAVAILABLE`, a refused read or a failed read says "Not available yet". The
+readiness card reads `/invoicing/readiness` and shows nothing on a 404, so it is safe against a
+backend that predates the route.
+
+| # | Element on the screen | What the backend needs to add |
+|---|---|---|
+| 2.1 | "Today's sales" with "20% vs yesterday" (Figma). Drawn with "Not available yet"; the cash received this month is shown beneath it from the `cash` tile | A `todaySales` tile: the day's invoiced total in OMR (business time zone) and the same figure for yesterday, so the card can show the change |
+| 2.2 | Payables card | Not a dashboard tile; read from `GET /v1/bills/summary` (`invoice.read`). A `payables` tile would let the dashboard be one call and branch-filtered with the rest |
+| 2.3 | The revenue chart's day / week / month switch. Month shows the last twelve months from `volumeTrend`; Day and Week read "Not available yet" | Daily (last 7 or 30 days) and weekly (last 12 weeks) buckets on `volumeTrend`, for example a `granularity=DAY|WEEK|MONTH` parameter |
+| 2.4 | The topbar search: invoices, customers, suppliers, documents and catalogue, a few of each | Each list is asked separately (`/authored-invoices?q=`, `/customers?search=`, `/suppliers?q=`, `/compliance/documents?invoice_number=`, `/products?q=`). The document archive matches the number only, not the other party's name. A single `GET /v1/search?q=` would let one request answer all of them |
+| 2.5 | The TDD & OTA badge in the sidebar: how many documents still need someone to act | Read from `GET /v1/compliance/activity/summary` (`attention`) on every page. A lighter count endpoint, or the count on `/me/entitlements`, would save the summary call |

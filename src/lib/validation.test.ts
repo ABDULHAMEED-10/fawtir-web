@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { fullName, omanPhone, password, toOmanE164, username } from './validation'
+import i18n from '../i18n'
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  fullName,
+  omanPhone,
+  password,
+  toOmanE164,
+  username,
+} from './validation'
 import { getPasswordStrength } from './passwordStrength'
 
 describe('username', () => {
@@ -33,14 +42,22 @@ describe('password', () => {
     expect(password('Correct-Horse9')).toBeUndefined()
   })
 
-  it('accepts the 12 and 128 character boundaries', () => {
-    expect(password('Aa1!aaaaaaaa')).toBeUndefined()
-    expect(password(`Aa1!${'a'.repeat(124)}`)).toBeUndefined()
+  // `PasswordPolicyService` allows 8 to 128 since Phase A (contract §10).
+  it.each([8, 12, 64, 128])('accepts %i characters', (length) => {
+    expect(password(`Aa1!${'a'.repeat(length - 4)}`)).toBeUndefined()
   })
 
-  it('rejects 11 and 129 characters', () => {
-    expect(password('Aa1!aaaaaaa')).toBe('validation.passwordLength')
-    expect(password(`Aa1!${'a'.repeat(125)}`)).toBe('validation.passwordLength')
+  it.each([7, 129])('rejects %i characters', (length) => {
+    expect(password(`Aa1!${'a'.repeat(length - 4)}`)).toBe('validation.passwordLength')
+  })
+
+  it('states the same range it enforces', () => {
+    expect(PASSWORD_MIN_LENGTH).toBe(8)
+    expect(PASSWORD_MAX_LENGTH).toBe(128)
+    expect(i18n.t('validation.passwordLength', { lng: 'en' })).toBe(
+      'Use between 8 and 128 characters',
+    )
+    expect(i18n.t('validation.passwordLength', { lng: 'ar' })).toContain('٨')
   })
 
   it.each([

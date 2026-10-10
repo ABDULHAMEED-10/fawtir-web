@@ -502,9 +502,9 @@ describe('the ledger screen', () => {
     summaryReply = { ...SUMMARY, documents: 0 }
     renderLedger()
     expect(await screen.findByText('Nothing reported yet')).toBeTruthy()
-    expect(
-      screen.getByText("You're connected to the Tax Authority and ready to report"),
-    ).toBeTruthy()
+    // The "connected and ready" banner printed a sample company's identity; it is gone.
+    expect(screen.queryByText("You're connected to the Tax Authority and ready to report")).toBeNull()
+    expect(document.body.textContent).not.toContain('OM1100392000')
     expect(screen.queryByRole('button', { name: 'Compliance report' })).toBeNull()
   })
 })

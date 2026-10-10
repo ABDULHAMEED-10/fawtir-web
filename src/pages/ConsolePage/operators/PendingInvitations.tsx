@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { EmailText } from './EmailText'
 import { ApiError } from '../../../api'
-import { Button, RowsView } from '../../../components/ui'
+import { RowsView } from '../../../components/ui'
 import { ConsoleNotice, ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
 import { ConsoleStatusPill } from '../../../layouts/ConsoleShell/ConsoleStatusPill'
 import type { ConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
@@ -16,6 +17,14 @@ import {
 import { forgetEntitlements } from '../../../lib/identity/entitlements'
 import type { FormMessage } from '../../../lib/identity/errors'
 import { LOGIN_ROUTE } from '../../../lib/identity/login'
+import {
+  CONSOLE_CARD,
+  CONSOLE_ROWS,
+  CONSOLE_TABLE,
+  CONSOLE_TABLE_BODY,
+  CONSOLE_THEAD,
+  ConsoleButton,
+} from '../../../layouts/ConsoleShell/consoleStyle'
 
 type Action = 'resend' | 'revoke'
 
@@ -73,10 +82,10 @@ export function PendingInvitations({
     body = <p className="py-6 text-center text-sm font-medium text-text-tertiary">{t('console.operators.pending.empty')}</p>
   } else {
     body = (
-      <RowsView>
-        <table className="w-full min-w-[640px] border-collapse text-start">
+      <RowsView className={CONSOLE_ROWS}>
+        <table className={`${CONSOLE_TABLE} min-w-[640px]`}>
           <thead>
-            <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+            <tr className={CONSOLE_THEAD}>
               <th className="px-4 py-3 text-start font-semibold">{t('console.operators.pending.col.email')}</th>
               <th className="px-2 py-3 text-start font-semibold">{t('console.operators.pending.col.sent')}</th>
               <th className="px-2 py-3 text-start font-semibold">{t('console.operators.pending.col.expires')}</th>
@@ -92,7 +101,7 @@ export function PendingInvitations({
               return (
                 <tr key={invitation.id} className="border-b border-[#f3f3f3] last:border-b-0">
                   <td className="px-4 py-4 text-sm font-medium text-text-primary">
-                    <bdi>{invitation.email}</bdi>
+                    <EmailText email={invitation.email} />
                     {failure?.id === invitation.id ? (
                       <span role="alert" className="mt-1 block text-xs font-medium text-danger-700">
                         {t(failure.message.key, failure.message.values)}
@@ -116,10 +125,10 @@ export function PendingInvitations({
                   </td>
                   <td className="px-4 py-4 text-end">
                     <div className="flex flex-wrap justify-end gap-2">
-                      <Button
+                      <ConsoleButton
                         type="button"
                         size="md"
-                        variant="secondary"
+                        variant="small"
                         disabled={busy !== null}
                         aria-label={t('console.operators.pending.resendFor', { email: invitation.email })}
                         onClick={() => void act(invitation, 'resend')}
@@ -127,11 +136,11 @@ export function PendingInvitations({
                         {rowBusy && busy?.action === 'resend'
                           ? t('console.operators.pending.resending')
                           : t('console.operators.pending.resend')}
-                      </Button>
-                      <Button
+                      </ConsoleButton>
+                      <ConsoleButton
                         type="button"
                         size="md"
-                        variant="secondary"
+                        variant="small"
                         disabled={busy !== null}
                         aria-label={t('console.operators.pending.revokeFor', { email: invitation.email })}
                         onClick={() => void act(invitation, 'revoke')}
@@ -139,7 +148,7 @@ export function PendingInvitations({
                         {rowBusy && busy?.action === 'revoke'
                           ? t('console.operators.pending.revoking')
                           : t('console.operators.pending.revoke')}
-                      </Button>
+                      </ConsoleButton>
                     </div>
                   </td>
                 </tr>
@@ -154,7 +163,7 @@ export function PendingInvitations({
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-xl font-medium leading-[1.2] text-text-primary">{t('console.operators.pending.title')}</h2>
-      <div className="rounded-md bg-surface-card px-6 py-4">{body}</div>
+      <div className={`${CONSOLE_CARD} ${CONSOLE_TABLE_BODY}`}>{body}</div>
     </section>
   )
 }

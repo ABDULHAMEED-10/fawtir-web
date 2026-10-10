@@ -6,7 +6,13 @@ import { SettingsShell, SettingsHeader } from '../../SettingsPage/SettingsShell'
 import { Notice } from '../../../components/feedback/ApiNotice'
 import { describeApiFailure } from '../../../lib/apiFailure'
 import { erpRefusalKey, needsReload } from '../../../lib/erp/connectionPolicy'
-import type { ErpConnectionState, ErpConnectionTestOutcome } from '../../../api/erp/connections'
+import { EXTRACTION_STATUS_TONE } from '../../../lib/erp/extractionTone'
+import type {
+  ConnectionHealthDto,
+  ErpConnectionState,
+  ErpConnectionTestOutcome,
+} from '../../../api/erp/connections'
+import type { ExtractionStatusCode } from '../../../api/erp/extraction'
 
 /** The four real states in the app's pill idiom. There is deliberately no ACTIVE and no ERROR. */
 const STATE_TONE: Record<ErpConnectionState, 'danger' | 'success' | 'pending' | 'neutral'> = {
@@ -19,6 +25,39 @@ const STATE_TONE: Record<ErpConnectionState, 'danger' | 'success' | 'pending' | 
 export function ConnectionStatePill({ state }: { state: ErpConnectionState }) {
   const { t } = useTranslation()
   return <Pill tone={STATE_TONE[state]} label={t(`erp.connections.state.${state}`)} />
+}
+
+/** A status the build does not know is shown neutral, in the server's own word. */
+export function ExtractionStatusPill({ status }: { status: string }) {
+  const { t } = useTranslation()
+  const tone = EXTRACTION_STATUS_TONE[status as ExtractionStatusCode] ?? 'neutral'
+  return <Pill tone={tone} label={t(`erp.extraction.state.${status}`, { defaultValue: status })} />
+}
+
+/** The channel's extraction headline, or why there is none. Shared with the connection list. */
+export function CollectionCell({ health }: { health: ConnectionHealthDto | undefined }) {
+  const { t } = useTranslation()
+  if (!health) return <span className="text-text-quaternary">—</span>
+  if (health.connectionMode !== 'MANAGED_PULL') {
+    return (
+      <span className="text-xs font-medium text-text-quaternary">
+        {t('erp.home.connections.notPulled')}
+      </span>
+    )
+  }
+  if (!health.extractionReadable || health.extractionStatus === null) {
+    return <Pill tone="danger" label={t('erp.home.connections.unreadable')} />
+  }
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <ExtractionStatusPill status={health.extractionStatus} />
+      {health.consecutiveFailures > 0 ? (
+        <span className="text-xs font-medium text-text-quaternary">
+          {t('erp.home.connections.failures', { count: health.consecutiveFailures })}
+        </span>
+      ) : null}
+    </div>
+  )
 }
 
 export function TestOutcomePill({ outcome }: { outcome: ErpConnectionTestOutcome }) {

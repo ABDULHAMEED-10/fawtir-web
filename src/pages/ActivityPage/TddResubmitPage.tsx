@@ -28,11 +28,11 @@ import {
   changeRows,
   formatOmr,
   quotaAboutToUse,
-  quotaLeft,
   vatOf,
   type ChangeCell,
   type ChangeRow,
 } from '../../lib/tddResubmit'
+import { usePlanUsage } from '../../hooks/usePlanUsage'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import warnIcon from '../../assets/activity/warn-danger.svg'
 import quotaWarnIcon from '../../assets/activity/warn-amber.svg'
@@ -76,6 +76,8 @@ function ResubmitScreen() {
   const [required, setRequired] = useState(false)
   const [sending, setSending] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
+  // The tenant's own allowance (GET /v1/settings/plan); the bar used to draw a sample 412 of 500.
+  const usage = usePlanUsage()
 
   if (detail.read.status !== 'ready') {
     return (
@@ -149,7 +151,7 @@ function ResubmitScreen() {
   const canSaveFix = false
   const blockedOnFix = peppolCause && !canSaveFix
   const aboutToUse = quotaAboutToUse(invoices, kind)
-  const left = quotaLeft(aboutToUse)
+  const left = usage ? Math.max(0, usage.allowance - usage.used - aboutToUse) : 0
   const changes = changeRows(item, cause, kind, peppolId)
 
   const send = async () => {
@@ -364,17 +366,19 @@ function ResubmitScreen() {
                   {t('tddResubmit.quotaHeadline')}
                 </p>
 
+                {usage ? (
+                  <>
                 <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-border-default">
                   <span
                     className="bg-primary-700"
                     style={{
-                      width: `${(TDD_RESUBMIT.quota.used / TDD_RESUBMIT.quota.allowance) * 100}%`,
+                      width: `${(usage.used / usage.allowance) * 100}%`,
                     }}
                   />
                   <span
                     className="bg-[#4c6c5a]"
                     style={{
-                      width: `${(aboutToUse / TDD_RESUBMIT.quota.allowance) * 100}%`,
+                      width: `${(aboutToUse / usage.allowance) * 100}%`,
                       minWidth: aboutToUse > 0 ? 6 : 0,
                     }}
                   />
@@ -384,7 +388,7 @@ function ResubmitScreen() {
                   {[
                     {
                       tone: 'bg-primary-700',
-                      text: t('tddResubmit.quotaUsed', { count: TDD_RESUBMIT.quota.used }),
+                      text: t('tddResubmit.quotaUsed', { count: usage.used }),
                     },
                     {
                       tone: 'bg-[#4c6c5a]',
@@ -394,7 +398,7 @@ function ResubmitScreen() {
                       tone: 'bg-border-default',
                       text: t('tddResubmit.quotaLeft', {
                         count: left,
-                        allowance: TDD_RESUBMIT.quota.allowance,
+                        allowance: usage.allowance,
                       }),
                     },
                   ].map((entry) => (
@@ -404,6 +408,12 @@ function ResubmitScreen() {
                     </li>
                   ))}
                 </ul>
+                  </>
+                ) : (
+                  <p className="mt-3 text-xs font-medium text-text-tertiary">
+                    {t('tddResubmit.quotaUnavailable')}
+                  </p>
+                )}
               </div>
             </section>
           </div>

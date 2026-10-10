@@ -50,13 +50,19 @@ catalogue, stock, point of sale, reports and the document archive.
 
 ### The order of priority
 
-1. **The Figma design is the source of truth for every screen.** Layout, spacing, icons, colours,
-   copy, field order, sections, states. Look at the frame before guessing or asking.
+1. **Figma is the starting point, not the last word** (owner, 7 Oct 2026). Look at the frame
+   before guessing or asking, and follow it for layout, spacing, icons, colours and look. But
+   Figma can be wrong or out of date. Where requirements have changed, where a feature is new,
+   or where a screen is wired to the API (Branches, Company settings, Plans and many others),
+   build from the requirement and the API in the house style (section 3.3), not from the frame.
+   Do not add placeholders only to match a frame the product has moved past; say what differs.
 2. **Logic beats a designer's slip.** The design is the authority on intent, not arithmetic or
    typos. Figures that do not add up, a label pasted from another screen, a duplicated field, tab
    counts that contradict the cards: fix them, keep the screen, and say what changed.
-3. **Integration is kept wherever it fits the design, and set aside where it does not.** The
-   backend adapts to the screen, not the other way round (section 4).
+3. **Integration is kept.** Never delete an API call, request assertion or permission check to
+   make a screen look like a frame. A designed element the product still wants but the API cannot
+   answer yet is drawn and marked `TODO(backend)` with a guide row (section 4); an element the
+   product no longer wants is not.
 
 ### A normal piece of work
 
@@ -137,7 +143,7 @@ Sections on page `0:1` (children are the frames; list them with `get_metadata` o
 | Section                                                                       | Node                                                              |
 | ----------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | Auth Screens (sign-in, sign-up, onboarding)                                   | `154:79063`                                                       |
-| Income frames (invoices, notes, periodic, reminders, self-billing, customers) | top-level frames, e.g. Invoice `154:86625`, Customers `154:91007` |
+| Income frames (invoices, notes, periodic, reminders, self-billing*, customers) | top-level frames, e.g. Invoice `154:86625`, Customers `154:91007` |
 | Reports                                                                       | `154:105574`                                                      |
 | TDD & OTA (shown in the app as **TDD & OTA**, as in Figma)                     | `154:108266`                                                      |
 | Super Admin                                                                   | `154:111760`                                                      |
@@ -148,6 +154,9 @@ Sections on page `0:1` (children are the frames; list them with `get_metadata` o
 | Documents                                                                     | `154:139157`                                                      |
 | Suppliers                                                                     | `154:141044`                                                      |
 | Notifications                                                                 | `154:144757`                                                      |
+
+\* Self-billing is drawn among the Income frames, but the app places it under **Expenditure**
+(owner decision of 6 Oct 2026, section 6): the frames are followed, the placement is not.
 
 Frames that are named misleadingly in Figma: "Credit note detail" (`154:97418`) is the **debit**
 note detail; "Reminder" is the per-invoice reminder card, while the reminders pages are "Payment
@@ -296,9 +305,11 @@ The owner then ruled (25 Sep 2026) that **the design wins**. The balance:
   the design changes layout or copy, update only those assertions, and say which request
   assertions no longer apply and why.
 - **Reference data:** tax categories, units, payment terms and methods come from
-  `GET /v1/reference-data`, which the app shell only fetches inside the session guard. The
-  deployed build has `VITE_REQUIRE_SESSION=false`, so every consumer must fall back to the
-  design's own lists: `useReferenceData() ?? DESIGN_REFERENCE` (`src/lib/invoiceDraft.ts`).
+  `GET /v1/reference-data`, which the app shell only fetches inside the session guard. A
+  production build always runs inside the guard; `VITE_REQUIRE_SESSION=false` is honoured only by
+  a development build (`src/lib/session/session.ts`). The list still arrives after first paint,
+  so every consumer must fall back to the design's own lists:
+  `useReferenceData() ?? DESIGN_REFERENCE` (`src/lib/invoiceDraft.ts`).
 - **Mock API:** every integrated area has fixtures in `tools/mock-api/routes/<area>.mjs` in the
   DTO shapes. Modules load alphabetically and the first match wins, so `agreements.mjs` and
   `invoices.mjs` shadow some shared paths (`/me/entitlements`, `/authored-invoices*`); for a
@@ -319,6 +330,24 @@ classification spec, and part S, the sign-up answers), `EXPENDITURE.md` (Expendi
 Suppliers), `REPORTS.md`, `ACTIVITY.md`, `DOCUMENTS.md`, and a `README.md` index. Sign-in,
 onboarding and console integration handoffs are older, separate files in `docs/frontend/`; ERP and
 the console plan are in `docs/erp-and-console-plan.md`.
+
+### The mobile changes doc (owner, 7 Oct 2026)
+
+Every web change that touches what the mobile app shows or sends is added to the mobile changes doc
+the same day: https://claude.ai/code/artifact/fc142745-a943-450b-8568-f6b6cc1879d4 ("Fawtir mobile:
+what changed…"). It covers only the mobile scope (section 6): onboarding, company settings,
+customers and suppliers, Income (invoices, credit notes, debit notes) and Expenditure (bills).
+The six guides already sent to him (29 Sep to 3 Oct) are kept in `docs/mobile/` for reference only
+(index in its `README.md`). **Always guide mobile from the current code and setup** (the web app on
+`main`, its API calls, i18n files and the backend guides), never from those PDFs; read the matching
+PDF only to see what he was told, so the doc can say what differs.
+
+- Each change goes in its area's section: what changed, the fields with English and Arabic labels
+  and limits, the API call and fields, refusal codes and their text, and whether the server takes it
+  yet. Update the summary table and the checklist with it.
+- A change that waits on the backend says so ("not sent until …"), as sign-up lines 2 and 3 do.
+- The owner shares the doc with the mobile developer only once the backend APIs behind the web
+  changes are live. Until then it is kept current, not sent.
 
 ---
 
@@ -410,7 +439,7 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   never hidden.
 - **ERP extraction** is a separate add-on with per-plan availability (not offered, priced,
   included), offered at payment and managed in Settings, Plan. White label was removed.
-- **Payments for subscriptions:** Thawani hosted checkout, owned by the backend; the app never
+- **Payments for subscriptions:** Paymob hosted checkout (owner, 7 Oct 2026: Paymob, not Thawani), owned by the backend; the app never
   takes card details (never Stripe). Operators record offline payments and activate tenants in
   the console. Operators land on `/console` after sign-in.
 - **Sign-up:** "Tell us about your business" asks **"Will you use Fawtir POS?"** (unticked by
@@ -452,6 +481,60 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   4. On a sales invoice the ISIC code is always the company's (5.2). An ERP or API import that
      sends a different line code has it replaced by the company's code, and the import report
      says so; the import is not refused.
+- **Owner decision, 6 Oct 2026: self-billing sits under Expenditure.** A self-billed invoice
+  (389; its credit note 261) is a purchase: the company is the buyer, writes it on the supplier's
+  behalf under an agreement, and owes the money. Figma's placement under Income was a design slip
+  (rule 2: fix the designer's slips).
+  - The menu entry moved from Income to Expenditure, after Bills, and the section lights as
+    Expenditure.
+  - The pages moved from `/income/self-billing/...` to `/expenditure/self-billing/...` (list,
+    agreements, new, edit, detail, credit notes). The old addresses redirect with the rest of the
+    path and the query kept, so bookmarks and links in e-mails still work. Breadcrumbs start at
+    Expenditure.
+  - Nothing of self-billing stays in Income: the Income › Invoices list, its tab counts and cards
+    ask for sales types only (`type=INVOICE,CREDIT_NOTE,DEBIT_NOTE`) and its Type filter no
+    longer offers the two self-billed types; an `/invoices/{id}` or `/invoices/{id}/edit` link to
+    a self-billed document opens it under Expenditure › Self-billing; Income › Credit notes never
+    listed 261. A self-billed credit note is created in Self-billing and its credit is managed in
+    Expenditure › Credit notes (source "Self-billed").
+  - Unchanged: the screens and their layout, every API call, the permissions
+    (`selfbilling.create`, `selfbilling.agreement.manage`), the plan gate (`selfBilling`) and the
+    self-billed bill in Expenditure › Bills. No backend change is needed for the move.
+  - Still not on mobile. Backend asks: `EXPENDITURE.md`, section S.
+- **Owner decisions, 6 Oct 2026, on #141 and #143:**
+  - Settings › Company, "Where you are": address lines 2 and 3, PO box, governorate, subdivision
+    code (CL-13-OM, BTOM-024) and contact person are **required parts of the company record**, not
+    extras, though the design does not draw them. Lines 2 and 3 and the phone are what every
+    invoice must state for the seller (IBR-010-OM, IBR-011-OM). A VERIFIED company changes them
+    through `POST /company-profile/amendments`; its legal and tax identity stays locked.
+  - The invoice form's Buyer reference (IBT-010) shows on **government** invoices only: no PINT-OM
+    rule requires it, and it is pre-filled from a government customer's default.
+  - The invoice page keeps the designed Send when the dispatch cannot be read; the server answers
+    the press.
+- **Owner decision, 7 Oct 2026, sign-up address:** the sign-up "Address & contact" step asks for
+  address lines 1, 2 and 3 and the postal code, all required, so a new company can issue its
+  first invoice without visiting Settings › Company (IBR-010-OM). The frame draws one line; the
+  two extra lines follow it. Lines 2 and 3 are not sent until the endpoint takes them
+  (`SETTINGS.md` row 1.5; Abrar has the backend part). Existing companies are told at issue
+  (`SELLER_ADDRESS_INCOMPLETE`, pointing to Settings › Company).
+- **Owner decision, 8 Oct 2026, sign-up order and going live:** after Address & contact come
+  **Choose a plan** (`/plans`) and **How you'll pay** (`/payment`), then Review. Nothing is
+  charged before approval: the trial starts when the Fawtir team approves the registration, and
+  the first bill goes out by the chosen method (Paymob link, bank transfer or cash) when it ends,
+  or on approval for a plan the super admin gives no trial. Enterprise ("Talk to our team") skips
+  payment and is reviewed as "agreed on a call". Review shows a "Plan and payment" section and
+  will not submit without a plan (and a method, except for Enterprise). Plans, prices, the trial
+  and payment settings are the super admin's; sign-up shows the launch defaults until it can read
+  them, and no screen says where its figures come from. One **"Getting you live"** screen in the
+  Fawtara status frame's layout replaces "We've received your registration": Registration sent,
+  Fawtir review, Send Fawtir a connection request on the Fawtara Portal, Fawtir accepts your
+  request, Fawtir registers you on the Oman SMP, Connected, in time order (the frame drew them
+  upward). The connection follows the OTA's "Service Provider and Taxpayer Association Management
+  User Manual": the taxpayer requests, Fawtir accepts or rejects with a reason, a request can
+  expire or be withdrawn, and after acceptance Fawtir must add the participant on the Oman SMP
+  within 3 business days; the OTA approves nothing at this stage. It is shown again after
+  sign-in until the account is connected. Backend asks: `docs/backend-guides/ONBOARDING.md`,
+  rows 1.1 to 1.10.
 - **Zain's DW/CW note PRs** (29 Sep 2026): approved except removing the credit note detail's
   "Refund due" figure, which stays (design wins; mark it `TODO(backend)`). Conditions: a retry
   after a timeout reuses its idempotency key; `0248:` is not added twice; a partial credit uses
@@ -477,6 +560,11 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
 6. Retention: do the ten years (fifteen for property) run from the document date or from the end
    of the tax year? To be checked against the Oman VAT law; if the latter, every "Kept until"
    date on Documents is early.
+7. Self-billing keeps its seller in a **customer** record (the backend built it on the sales
+   invoice engine), so a supplier must also be created as a customer to be self-billed, and the
+   same company is kept twice. Should agreements and self-billed invoices be linked to the
+   supplier record instead? (Asked of the backend in `EXPENDITURE.md` S.2, detailed in S.5 to S.7
+   with the order of work and checks; the screens keep the current behaviour until then.)
 
 ---
 

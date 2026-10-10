@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { resetSharedRequests } from '../../api'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
-import { useCan, useSession } from '../../lib/session/session'
+import { requireSession, useCan, useSession } from '../../lib/session/session'
+import { signOut } from '../../lib/identity/logout'
 import { AppShell } from './AppShell'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
@@ -122,6 +123,62 @@ describe('AppShell session guard', () => {
     expect(screen.getByText(i18n.t('shell.account.unnamed'))).toBeTruthy()
   })
 
+  it('never names a fixture user or company while the session is loading', async () => {
+    // TEST, 7 October 2026: an unguarded shell showed "Hafidh Saif / Owner / Your company" to
+    // whoever was signed in. Loading must read as loading, not as somebody.
+    fetchMock.mockImplementation(() => new Promise<Response>(() => {}))
+    renderAt('/suppliers')
+    expect(screen.getAllByText('Loading…').length).toBeGreaterThanOrEqual(2)
+    expect(document.body.textContent).not.toContain('Hafidh')
+    expect(document.body.textContent).not.toContain(i18n.t('shell.account.unnamed'))
+    expect(screen.queryByText(i18n.t('sessionRoles.member'))).toBeNull()
+  })
+
+  it('shows the next user, not the last one, after sign-out and a new sign-in', async () => {
+    const OTHER: Entitlements = {
+      ...ACCOUNTANT,
+      userId: 'u-2',
+      username: 'saji.khan',
+      tenantId: 't-2',
+      tenantName: 'Sohar Marine Supplies',
+      roles: [{ id: 'r-2', code: 'ADMIN', name: 'Administrator', systemRole: true }],
+    }
+    let current: Entitlements = ACCOUNTANT
+    fetchMock.mockImplementation(async (url: string) =>
+      url === '/api/v1/auth/logout' ? json(204) : json(200, current),
+    )
+    const first = renderAt('/suppliers')
+    expect(await screen.findByText('Nizwa Dates Trading')).toBeTruthy()
+    first.unmount()
+
+    await signOut()
+    current = OTHER
+    resetSharedRequests()
+    renderAt('/suppliers')
+    expect(await screen.findByText('Sohar Marine Supplies')).toBeTruthy()
+    expect(screen.getByText('saji.khan')).toBeTruthy()
+    expect(screen.getByText('Administrator')).toBeTruthy()
+    expect(screen.queryByText('layla.accounts')).toBeNull()
+    expect(screen.queryByText('Nizwa Dates Trading')).toBeNull()
+  })
+
+  it('names the user, role and company in Arabic too', async () => {
+    await i18n.changeLanguage('ar')
+    fetchMock.mockImplementation(async () => json(200, ACCOUNTANT))
+    renderAt('/suppliers')
+    await screen.findByText(/screen for/)
+    expect(screen.getByText('layla.accounts')).toBeTruthy()
+    expect(screen.getByText('محاسب')).toBeTruthy()
+    expect(screen.getByText('Nizwa Dates Trading')).toBeTruthy()
+  })
+
+  it('says loading in Arabic while the session is loading', async () => {
+    await i18n.changeLanguage('ar')
+    fetchMock.mockImplementation(() => new Promise<Response>(() => {}))
+    renderAt('/suppliers')
+    await waitFor(() => expect(screen.getAllByText('جارٍ التحميل…').length).toBeGreaterThanOrEqual(2))
+  })
+
   it('offers a retry when the session check itself fails', async () => {
     fetchMock.mockImplementation(async () =>
       json(503, { type: 'https://api.fawtir.om/problems/internal-error', correlationId: 'c-42' }),
@@ -130,5 +187,37 @@ describe('AppShell session guard', () => {
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toContain('Reference: c-42')
     expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy()
+  })
+})
+
+describe('requireSession', () => {
+  it('always requires a session in a production build, whatever the variable says', () => {
+    // The deployed build ran unguarded because the variable was never set; it must not matter.
+    expect(requireSession(false, undefined)).toBe(true)
+    expect(requireSession(false, 'false')).toBe(true)
+    expect(requireSession(false, 'true')).toBe(true)
+    expect(requireSession(false, '')).toBe(true)
+  })
+
+  it('lets only a development build switch the guard off, and only explicitly', () => {
+    expect(requireSession(true, undefined)).toBe(true)
+    expect(requireSession(true, 'true')).toBe(true)
+    expect(requireSession(true, 'FALSE')).toBe(true)
+    expect(requireSession(true, 'false')).toBe(false)
+  })
+})
+
+describe('AppShell chrome carries no sample data', () => {
+  it('draws the user’s initials instead of a shared photo, and no invented counts', async () => {
+    fetchMock.mockImplementation(async () => json(200, ACCOUNTANT))
+    const { container } = renderAt('/suppliers')
+    await screen.findByText(/screen for/)
+
+    expect(container.querySelector('img[src*="avatar"]')).toBeNull()
+    expect(screen.getByRole('button', { name: /layla\.accounts/ }).textContent).toContain('L')
+    // Income carried a fixed "3" and TDD & OTA a fixed "4" from the sample book.
+    expect(screen.getByRole('button', { name: /Income/ }).textContent).not.toMatch(/\d/)
+    for (const link of screen.queryAllByRole('link', { name: /TDD/ }))
+      expect(link.textContent).not.toMatch(/\d/)
   })
 })

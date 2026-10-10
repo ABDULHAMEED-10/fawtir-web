@@ -237,6 +237,41 @@ describe('Console access', () => {
 
     expect(await screen.findByText(i18n.t('console.access.notOperator'))).toBeTruthy()
     expect(urls()).toEqual([ENTITLEMENTS_URL])
+    // The platform's menu, Plans and rates included, is never drawn for a company account.
+    expect(screen.queryByRole('link', { name: i18n.t('console.nav.plans') })).toBeNull()
+    expect(screen.queryByRole('link', { name: i18n.t('console.nav.tenants') })).toBeNull()
+    expect(screen.queryByRole('link', { name: i18n.t('console.nav.bottomSettings') })).toBeNull()
+  })
+
+  it('shows Plans and rates only to an operator the catalogue read permission covers', async () => {
+    answer(QUEUE_READY)
+    const view = renderAt('/console/onboarding')
+    expect(await screen.findByRole('link', { name: i18n.t('console.nav.tenants') })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: i18n.t('console.nav.plans') })).toBeNull()
+    view.unmount()
+
+    resetSharedRequests()
+    forgetEntitlements()
+    answer({
+      ...QUEUE_READY,
+      [ENTITLEMENTS_URL]: () =>
+        json(200, { ...OPERATOR, permissions: [...OPERATOR.permissions, 'platform.plans.read'] }),
+    })
+    renderAt('/console/onboarding')
+    expect(await screen.findByRole('link', { name: i18n.t('console.nav.plans') })).toBeTruthy()
+  })
+
+  it("lists for a Support operator only the screens that operator's permissions open", async () => {
+    answer({
+      [ENTITLEMENTS_URL]: () =>
+        json(200, { ...OPERATOR, permissions: ['platform.support', 'platform.plans.read'] }),
+    })
+    renderAt('/console/onboarding')
+    expect(await screen.findByRole('link', { name: i18n.t('console.nav.plans') })).toBeTruthy()
+    expect(screen.getByRole('link', { name: i18n.t('console.nav.policies') })).toBeTruthy()
+    for (const hidden of ['console.nav.tenants', 'console.nav.verification', 'console.nav.operators']) {
+      expect(screen.queryByRole('link', { name: i18n.t(hidden) })).toBeNull()
+    }
   })
 
   it('sends a visitor without a session to Login', async () => {
