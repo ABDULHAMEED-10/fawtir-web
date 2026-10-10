@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../api'
 import { commonFailureMessage } from '../../lib/identity/errors'
+import { CONSOLE_PRIMARY } from './consoleStyle'
 
 type NoticeAction = { label: string } & (
   { onClick: () => void; to?: never } | { to: string; onClick?: never }
@@ -18,8 +19,7 @@ type ConsoleNoticeProps = {
 }
 
 /** The primary button the "not built yet" page uses for its way back. */
-const ACTION_CLASS =
-  'mt-1 inline-flex h-11 items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800'
+const ACTION_CLASS = `mt-1 ${CONSOLE_PRIMARY}`
 
 /**
  * A console screen's state when it has nothing to list: checking access, no access, a failed
@@ -34,8 +34,8 @@ export function ConsoleNotice({ badge, body, action, busy = false }: ConsoleNoti
       role={busy ? 'status' : 'alert'}
       className={
         busy
-          ? 'flex min-h-[280px] flex-col items-center justify-center gap-4 rounded-md bg-surface-card p-8 text-center'
-          : 'flex flex-col items-start gap-3 rounded-md bg-surface-card p-8'
+          ? 'flex min-h-[280px] flex-col items-center justify-center gap-4 rounded-sm bg-surface-card p-8 text-center'
+          : 'flex flex-col items-start gap-3 rounded-sm bg-surface-card p-8'
       }
     >
       {busy ? (
@@ -45,7 +45,7 @@ export function ConsoleNotice({ badge, body, action, busy = false }: ConsoleNoti
         </span>
       ) : null}
       {badge ? (
-        <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-primary-50 px-2.5 text-xs font-semibold uppercase tracking-[0.04em] text-primary-800">
+        <span className="inline-flex h-[26px] items-center gap-1.5 rounded-sm bg-primary-50 px-[11px] text-[11.5px] font-semibold uppercase tracking-[0.3px] text-primary-700">
           {badge}
         </span>
       ) : null}

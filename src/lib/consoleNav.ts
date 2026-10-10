@@ -12,7 +12,6 @@ import {
   ConsolePlansIcon,
   ConsoleQueueIcon,
   ConsoleSubscriptionIcon,
-  ConsoleTickIcon,
 } from '../layouts/ConsoleShell/consoleIcons'
 
 type IconProps = { className?: string; active?: boolean }
@@ -24,6 +23,12 @@ export type ConsoleNavItem = {
   Icon: ComponentType<IconProps>
   /** Screens the design has not reached yet still appear, so the shape of the console is honest. */
   soon?: boolean
+  /**
+   * Shown only to an operator holding every listed code: the same requirement the screen's own
+   * ConsoleShell enforces, so the menu never offers a page that answers "no access". The server
+   * enforces it on every call regardless.
+   */
+  requires?: string | readonly string[]
 }
 
 export type ConsoleNavGroup = {
@@ -72,6 +77,7 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         id: 'tenants',
         labelKey: 'console.nav.tenants',
         to: '/console/tenants',
+        requires: 'platform.tenants.manage',
         Icon: NavCustomersIcon,
       },
       {
@@ -79,6 +85,7 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         labelKey: 'console.nav.verification',
         // The design's route, kept when the screen became company verification.
         to: '/console/onboarding',
+        requires: 'platform.tenants.manage',
         Icon: NavTddIcon,
       },
       {
@@ -92,30 +99,30 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         labelKey: 'console.nav.plans',
         to: '/console/plans',
         Icon: ConsolePlansIcon,
+        // Plans and rates are the platform's own prices: never shown to a tenant, and only to an
+        // operator the catalogue's read permission covers.
+        requires: 'platform.plans.read',
+      },
+      {
+        id: 'payments',
+        labelKey: 'console.nav.payments',
+        to: '/console/billing/payments',
+        Icon: ConsoleQueueIcon,
+        // Subscription payments waiting for Platform Finance (V271).
+        requires: 'platform.billing.read',
+      },
+      {
+        id: 'bankAccounts',
+        labelKey: 'console.nav.bankAccounts',
+        to: '/console/billing/accounts',
+        Icon: ConsolePlansIcon,
+        requires: 'platform.billing.read',
       },
     ],
   },
-  {
-    id: 'erp',
-    labelKey: 'console.nav.group.erp',
-    items: [
-      // No Connections entry: there is no platform-scoped ERP API, so the screen behind
-      // /console/erp can only say so (ConsoleErpUnavailable). The route is kept for an
-      // operator's bookmark; offering it here would invite reading invented state.
-      {
-        id: 'erpTemplates',
-        labelKey: 'console.nav.erpTemplates',
-        to: '/console/erp/templates',
-        Icon: NavDocumentsIcon,
-      },
-      {
-        id: 'erpRequests',
-        labelKey: 'console.nav.erpRequests',
-        to: '/console/erp/add-on-requests',
-        Icon: ConsoleTickIcon,
-      },
-    ],
-  },
+  // No ERP group. Its two screens, add-on requests and templates, drew a story fixture, and the
+  // approval there changed nothing real. A tenant's ERP access is granted and revoked from the
+  // tenant's own page, against the platform entitlement API.
   {
     id: 'platform',
     labelKey: 'console.nav.group.platform',
@@ -124,12 +131,14 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         id: 'operators',
         labelKey: 'console.nav.operators',
         to: '/console/operators',
+        requires: ['admin.users.manage', 'platform.operators.manage'],
         Icon: NavCustomersIcon,
       },
       {
         id: 'policies',
         labelKey: 'console.nav.policies',
         to: '/console/policies',
+        requires: 'platform.support',
         Icon: NavInvoicesIcon,
       },
       {

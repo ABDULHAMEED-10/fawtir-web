@@ -1,0 +1,1 @@
+export { ResumeSignupPage } from './ResumeSignupPage'

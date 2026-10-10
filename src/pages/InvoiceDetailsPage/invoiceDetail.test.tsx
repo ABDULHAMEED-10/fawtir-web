@@ -7,9 +7,11 @@ import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type {
   InvoiceDetailDto,
+  InvoiceDispatchDto,
   InvoiceHistoryDto,
   InvoicePaymentDto,
   InvoiceReceivableDto,
+  InvoiceSendResultDto,
 } from '../../api/invoices/detail'
 import { paymentProblems, paymentRows, statusOf, timelineOf } from '../../lib/invoiceDetail'
 import { InvoiceDetailsPage } from './InvoiceDetailsPage'
@@ -179,6 +181,36 @@ const HISTORY: InvoiceHistoryDto = {
   limit: 200,
 }
 
+/** What the dispatch read answers for an issued invoice nobody has sent yet. */
+const NOT_SENT: InvoiceDispatchDto = {
+  state: 'NOT_SENT',
+  reasonCode: null,
+  attempts: 0,
+  nextAttemptAt: null,
+  dispatchedAt: null,
+  sendable: true,
+  buyerDelivery: null,
+  buyerEmailReleasable: false,
+}
+
+const QUEUED: InvoiceDispatchDto = {
+  ...NOT_SENT,
+  state: 'QUEUED',
+  dispatchedAt: '2026-10-04T10:00:00Z',
+  sendable: false,
+}
+
+const DISPATCHED: InvoiceSendResultDto = {
+  invoiceId: ID,
+  invoiceNumber: 'INV-2026-0042',
+  outcome: 'DISPATCHED',
+  reasonCode: null,
+  dispatch: QUEUED,
+}
+
+/** An administrator who may issue, which is what Send asks for. */
+const SENDER: Entitlements = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.issue'] }
+
 function json(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
     status,
@@ -192,6 +224,8 @@ let receivableResponse: () => Response
 let cancelResponse: () => Response
 let payResponse: () => Response
 let issueResponse: () => Response
+let dispatchResponse: () => Response
+let sendResponse: () => Response
 let attachmentFiles: Array<{
   id: string
   filename: string
@@ -217,6 +251,8 @@ beforeEach(async () => {
   cancelResponse = () => json(200, invoice({ authoringState: 'CANCELLED', version: 5 }))
   payResponse = () => json(200, PAYMENTS[0])
   issueResponse = () => json(200, invoice({ version: 5 }))
+  dispatchResponse = () => json(200, NOT_SENT)
+  sendResponse = () => json(200, DISPATCHED)
   attachmentFiles = [
     {
       id: 'f-1',
@@ -253,6 +289,8 @@ beforeEach(async () => {
       return json(204)
     }
     if (url === `${URL_BASE}/history`) return json(200, HISTORY)
+    if (url === `${URL_BASE}/dispatch`) return dispatchResponse()
+    if (url === `${URL_BASE}/send` && method === 'POST') return sendResponse()
     if (url === `${URL_BASE}/internal-note`)
       return json(200, { internalNote: 'Chase Hamed in September.' })
     if (url === `${URL_BASE}/cancel`) return cancelResponse()
@@ -315,6 +353,7 @@ function renderInvoice() {
           <Route path="/invoices/:id/edit" element={<p>draft editor</p>} />
           <Route path="/invoices" element={<p>invoices list</p>} />
           <Route path="/login" element={<p>sign-in page</p>} />
+          <Route path="/expenditure/self-billing/:id" element={<p>self-billing page</p>} />
         </Routes>
       </MemoryRouter>
     </ReferenceDataContext.Provider>,
@@ -1015,4 +1054,276 @@ describe('invoice detail mapping', () => {
       },
     ])
   })
+})
+
+describe('Send', () => {
+  const sends = () => calls().filter((call) => call === `POST ${URL_BASE}/send`)
+  const dispatchReads = () => calls().filter((call) => call === `GET ${URL_BASE}/dispatch`)
+
+  it('sends this invoice once, with its own Idempotency-Key, and shows what the server says', async () => {
+    who = SENDER
+    renderInvoice()
+    fireEvent.click(await screen.findByRole('button', { name: 'Send' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Send invoice INV-2026-0042?')).toBeTruthy()
+
+    const submit = within(dialog).getByRole('button', { name: 'Send invoice' })
+    fireEvent.click(submit)
+    fireEvent.click(submit)
+
+    expect(
+      await screen.findByText('The invoice was validated and queued for sending.'),
+    ).toBeTruthy()
+    expect(sends()).toHaveLength(1)
+    const [, init] = fetchMock.mock.calls.find(([url]) => String(url) === `${URL_BASE}/send`)!
+    expect(new Headers((init as RequestInit).headers).get('Idempotency-Key')).toMatch(
+      /^send-[0-9a-f-]{36}$/,
+    )
+    expect(screen.queryByRole('dialog')).toBeNull()
+    // Under the title and in the delivery bar, both the server's answer; Send is gone with `sendable`.
+    expect(screen.getAllByText('Validated and queued for sending')).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull()
+  })
+
+  it('offers no Send to a reader who may not issue', async () => {
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
+    await waitFor(() => expect(dispatchReads()).toHaveLength(1))
+    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull()
+  })
+
+  // The design draws Send on every issued invoice: an unreadable dispatch keeps it, and the server
+  // answers the press.
+  it('keeps the designed Send when the dispatch cannot be read', async () => {
+    who = SENDER
+    dispatchResponse = () => json(404, { type: 'https://api.fawtir.om/problems/not-found' })
+    renderInvoice()
+    await waitFor(() => expect(dispatchReads()).toHaveLength(1))
+    expect(await screen.findByRole('button', { name: 'Send' })).toBeTruthy()
+    expect(sends()).toHaveLength(0)
+  })
+
+  it('offers no Send once the server says the invoice is not sendable, and says where it stands', async () => {
+    who = SENDER
+    dispatchResponse = () => json(200, QUEUED)
+    renderInvoice()
+    expect(await screen.findAllByText('Validated and queued for sending')).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull()
+    expect(sends()).toHaveLength(0)
+  })
+
+  it('keeps a refusal of the request in the dialog, in words, not the server detail', async () => {
+    who = SENDER
+    sendResponse = () =>
+      json(409, {
+        type: 'https://api.fawtir.om/problems/dispatch-in-progress',
+        code: 'DISPATCH_IN_PROGRESS',
+        detail: 'This invoice is already being sent',
+      })
+    renderInvoice()
+    fireEvent.click(await screen.findByRole('button', { name: 'Send' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Send invoice' }))
+
+    expect(
+      await within(dialog).findByText(
+        'This invoice is already being sent. Check again in a moment.',
+      ),
+    ).toBeTruthy()
+    expect(screen.getByRole('dialog')).toBeTruthy()
+  })
+
+  it('says why a refused invoice cannot be sent and what to do instead', async () => {
+    who = SENDER
+    const refused: InvoiceDispatchDto = {
+      ...NOT_SENT,
+      state: 'DEAD_LETTERED',
+      reasonCode: 'SELLER_ADDRESS_INCOMPLETE',
+      attempts: 1,
+      sendable: false,
+    }
+    sendResponse = () =>
+      json(200, {
+        ...DISPATCHED,
+        outcome: 'REFUSED',
+        reasonCode: 'SELLER_ADDRESS_INCOMPLETE',
+        dispatch: refused,
+      })
+    renderInvoice()
+    fireEvent.click(await screen.findByRole('button', { name: 'Send' }))
+    fireEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Send invoice' }),
+    )
+
+    const sentence =
+      'Your company address on this invoice is incomplete. It was fixed when the invoice was issued, so this invoice cannot be sent: cancel it and issue a new one after completing the address.'
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.getByText(`Not sent: needs attention · ${sentence}`)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull()
+  })
+
+  it('re-reads only while the server is mid-step, and stops when it settles', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      let reads = 0
+      dispatchResponse = () => {
+        reads += 1
+        return json(200, reads < 3 ? { ...NOT_SENT, state: 'PROCESSING', sendable: false } : QUEUED)
+      }
+      renderInvoice()
+      expect(await screen.findAllByText('Being prepared for sending')).toHaveLength(2)
+      await vi.advanceTimersByTimeAsync(3000)
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(await screen.findAllByText('Validated and queued for sending')).toHaveLength(2)
+      const settled = dispatchReads().length
+      await vi.advanceTimersByTimeAsync(15000)
+      expect(dispatchReads()).toHaveLength(settled)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('says how the buyer is reached, from the server, never from the customer preference', async () => {
+    dispatchResponse = () =>
+      json(200, { ...QUEUED, buyerDelivery: 'PEPPOL' } satisfies InvoiceDispatchDto)
+    renderInvoice()
+    expect(
+      await screen.findByText(
+        'Validated and queued for sending · The buyer receives it over Peppol',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('releases a held buyer e-mail from the menu, once, only when the server allows it', async () => {
+    who = SENDER
+    const held: InvoiceDispatchDto = {
+      ...QUEUED,
+      buyerDelivery: 'EMAIL_HELD',
+      buyerEmailReleasable: true,
+    }
+    dispatchResponse = () => json(200, held)
+    let released = 0
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === `${URL_BASE}/buyer-email/release` && init?.method === 'POST') {
+        released += 1
+        return json(200, { ...held, buyerDelivery: 'EMAIL_SENT', buyerEmailReleasable: false })
+      }
+      return base(url, init)
+    })
+    renderInvoice()
+    await screen.findByText(/Buyer e-mail copy held/)
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Send held e-mail to buyer' }))
+
+    expect(await screen.findByText('The held e-mail was released to the buyer.')).toBeTruthy()
+    expect(released).toBe(1)
+    expect(screen.getByText(/E-mailed to the buyer/)).toBeTruthy()
+  })
+
+  it('offers no release while the server says nothing may be released', async () => {
+    who = SENDER
+    dispatchResponse = () =>
+      json(200, { ...QUEUED, buyerDelivery: 'EMAIL_HELD', buyerEmailReleasable: false })
+    renderInvoice()
+    await screen.findByText(/Buyer e-mail copy held/)
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(screen.queryByRole('menuitem', { name: 'Send held e-mail to buyer' })).toBeNull()
+  })
+
+  it('is offered and answered in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    who = SENDER
+    renderInvoice()
+    fireEvent.click(await screen.findByRole('button', { name: 'إرسال' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('إرسال الفاتورة INV-2026-0042؟')).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'إرسال الفاتورة' }))
+    expect(await screen.findByText('تم التحقق من الفاتورة ووُضعت في قائمة الإرسال.')).toBeTruthy()
+    expect(screen.getAllByText('تم التحقق منها وهي في قائمة الإرسال')).toHaveLength(2)
+  })
+})
+
+describe('Transport progress', () => {
+  // TEST, 7 October 2026: the ledger said SENDING the moment a transport record existed, and the
+  // page said "Sending" while nothing had been attempted.
+  const queuedLeg = (messageId: string) => ({
+    messageId,
+    state: 'QUEUED_NOT_ATTEMPTED' as const,
+    attempts: 0,
+    lastAttemptAt: null,
+    nextAttemptAt: null,
+  })
+  const SENDING_UNATTEMPTED: InvoiceDispatchDto = {
+    ...QUEUED,
+    state: 'SENDING',
+    buyerDelivery: 'PEPPOL',
+    transport: { buyer: queuedLeg('m-1'), taxAuthority: queuedLeg('m-2') },
+  }
+
+  it('says queued, not sending, while no transmission has been attempted', async () => {
+    dispatchResponse = () => json(200, SENDING_UNATTEMPTED)
+    renderInvoice()
+    expect(await screen.findByText('Queued for transmission, not yet sent')).toBeTruthy()
+    expect(
+      screen.getByText(
+        [
+          'Queued for transmission, not yet sent',
+          'The buyer receives it over Peppol',
+          'To the buyer: queued for transmission, not yet sent',
+          'To the Tax Authority: queued for transmission, not yet sent',
+        ].join(' · '),
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText('Sending')).toBeNull()
+  })
+
+  it('names a scheduled retry and the leg it belongs to', async () => {
+    dispatchResponse = () =>
+      json(200, {
+        ...SENDING_UNATTEMPTED,
+        transport: {
+          buyer: {
+            ...queuedLeg('m-1'),
+            state: 'RETRY_SCHEDULED',
+            attempts: 2,
+            lastAttemptAt: '2026-10-07T10:00:00Z',
+            nextAttemptAt: '2026-10-07T10:04:00Z',
+          },
+          taxAuthority: null,
+        },
+      } satisfies InvoiceDispatchDto)
+    renderInvoice()
+    expect(await screen.findByText('Transmission failed and will be retried')).toBeTruthy()
+    expect(screen.getByText(/To the buyer: failed, next attempt /)).toBeTruthy()
+    expect(screen.queryByText(/To the Tax Authority/)).toBeNull()
+  })
+
+  it('keeps the ledger sentence when the server sends no transport record', async () => {
+    dispatchResponse = () => json(200, { ...QUEUED, state: 'SENDING' } satisfies InvoiceDispatchDto)
+    renderInvoice()
+    expect(await screen.findAllByText('Sending')).toHaveLength(2)
+  })
+
+  it('says it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    dispatchResponse = () => json(200, SENDING_UNATTEMPTED)
+    renderInvoice()
+    expect(await screen.findByText('في قائمة الإرسال، لم تُرسل بعد')).toBeTruthy()
+    expect(screen.getByText(/إلى جهاز الضرائب: في قائمة الإرسال، لم تُرسل بعد/)).toBeTruthy()
+    expect(screen.queryByText('جارٍ الإرسال')).toBeNull()
+  })
+})
+
+describe('self-billed documents', () => {
+  // Owner decision, 6 Oct 2026: self-billing is a purchase and lives under Expenditure, so an old
+  // /invoices link to a self-billed document opens its Expenditure page instead.
+  it.each(['SELF_BILLED_INVOICE', 'SELF_BILLED_CREDIT_NOTE'] as const)(
+    'sends a %s to Expenditure › Self-billing',
+    async (type) => {
+      invoiceResponse = () => json(200, invoice({ type }))
+      renderInvoice()
+      expect(await screen.findByText('self-billing page')).toBeTruthy()
+    },
+  )
 })

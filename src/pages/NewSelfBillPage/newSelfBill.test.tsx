@@ -191,9 +191,9 @@ function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/income/self-billing/new" element={<NewSelfBillPage />} />
-        <Route path="/income/self-billing/:id/edit" element={<NewSelfBillPage />} />
-        <Route path="/income/self-billing" element={<p>self-billing list</p>} />
+        <Route path="/expenditure/self-billing/new" element={<NewSelfBillPage />} />
+        <Route path="/expenditure/self-billing/:id/edit" element={<NewSelfBillPage />} />
+        <Route path="/expenditure/self-billing" element={<p>self-billing list</p>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -219,7 +219,7 @@ async function chooseSupplierAndOneLine() {
 
 describe('the dedicated self-billed composer', () => {
   it('creates on the self-billed route, unwrapped, and lands on its own edit address', async () => {
-    renderAt('/income/self-billing/new')
+    renderAt('/expenditure/self-billing/new')
     await chooseSupplierAndOneLine()
     fireEvent.change(screen.getByLabelText(/Self-bill number/), { target: { value: 'SB-0115' } })
     fireEvent.change(screen.getByLabelText('Purchase order reference'), {
@@ -272,7 +272,7 @@ describe('the dedicated self-billed composer', () => {
       version: 3,
       details: { ...draft().details, paymentMethod: { code: '10', label: 'Cash' } },
     })
-    renderAt('/income/self-billing/sb-1/edit')
+    renderAt('/expenditure/self-billing/sb-1/edit')
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Payment method' }).textContent).toContain('Cash'),
     )
@@ -294,7 +294,7 @@ describe('the dedicated self-billed composer', () => {
         attachedAt: '2026-09-29T08:00:00Z',
       },
     ]
-    renderAt('/income/self-billing/sb-1/edit')
+    renderAt('/expenditure/self-billing/sb-1/edit')
     expect(await screen.findByText('contract.pdf')).toBeTruthy()
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
@@ -319,7 +319,7 @@ describe('the dedicated self-billed composer', () => {
   })
 
   it('names a counterparty refusal instead of the generic message', async () => {
-    renderAt('/income/self-billing/sb-1/edit')
+    renderAt('/expenditure/self-billing/sb-1/edit')
     await waitFor(() =>
       expect(screen.getByLabelText(/Self-bill number/)).toHaveProperty('value', 'SB-0115'),
     )
@@ -343,7 +343,7 @@ describe('the dedicated self-billed composer', () => {
     // BTOM-033 is the seller's code; on a self-billed invoice the seller is the supplier, so the
     // sales invoice's "set your business activity in Company settings" would send the reader to
     // the wrong record.
-    renderAt('/income/self-billing/sb-1/edit')
+    renderAt('/expenditure/self-billing/sb-1/edit')
     await waitFor(() =>
       expect(screen.getByLabelText(/Self-bill number/)).toHaveProperty('value', 'SB-0115'),
     )
@@ -366,7 +366,7 @@ describe('the dedicated self-billed composer', () => {
     expect(within(dialog).queryByText(/Company settings/)).toBeNull()
     expect(
       within(dialog).getByRole('link', { name: 'Go to agreements' }).getAttribute('href'),
-    ).toBe('/income/self-billing/agreements')
+    ).toBe('/expenditure/self-billing/agreements')
   })
 
   // The owner's approved sentence, word for word.
@@ -374,7 +374,7 @@ describe('the dedicated self-billed composer', () => {
     // Found by key, so the same steps run in Arabic. The dialog prices the draft first; the
     // refusal is for the issue that follows.
     async function issue(problem: Record<string, unknown>) {
-      renderAt('/income/self-billing/sb-1/edit')
+      renderAt('/expenditure/self-billing/sb-1/edit')
       await waitFor(() =>
         expect(document.querySelector('input[value="SB-0115"]')).not.toBeNull(),
       )
@@ -431,7 +431,7 @@ describe('the dedicated self-billed composer', () => {
   })
 
   it('reads a saved draft back and saves it through the shared draft route', async () => {
-    renderAt('/income/self-billing/sb-1/edit')
+    renderAt('/expenditure/self-billing/sb-1/edit')
 
     // The field exists before the draft answers; wait for the value, not the control.
     await waitFor(() =>
@@ -457,7 +457,7 @@ describe('the dedicated self-billed composer', () => {
 
   it('says per supplier whether issuing would be refused, in the words the server would use', async () => {
     agreements = [agreement({ sellerIdentityAssurance: 'UNVERIFIED', verifiedParticipant: null })]
-    renderAt('/income/self-billing/new')
+    renderAt('/expenditure/self-billing/new')
     fireEvent.click(await screen.findByRole('button', { name: 'Choose a supplier' }))
     fireEvent.click(await screen.findByRole('option', { name: /Muscat Grand Hotel/ }))
 
@@ -466,7 +466,7 @@ describe('the dedicated self-billed composer', () => {
   })
 
   it('marks the self-bill number optional, as PINT-OM sets no rule for IBT-010', async () => {
-    renderAt('/income/self-billing/new')
+    renderAt('/expenditure/self-billing/new')
     await screen.findByRole('heading', { name: 'New self-billed invoice' })
     const label = document.querySelector('label[for="sb-number"]')!
     expect(label.textContent).not.toContain('*')
@@ -475,7 +475,7 @@ describe('the dedicated self-billed composer', () => {
   })
 
   it('refuses to save without a supplier, and never asks the server', async () => {
-    renderAt('/income/self-billing/new')
+    renderAt('/expenditure/self-billing/new')
     await screen.findByRole('heading', { name: 'New self-billed invoice' })
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
@@ -485,7 +485,7 @@ describe('the dedicated self-billed composer', () => {
 
   it('needs selfbilling.create, not invoice.draft', async () => {
     who = ORDINARY_WRITER
-    renderAt('/income/self-billing/new')
+    renderAt('/expenditure/self-billing/new')
 
     // Writing your own invoice is a different authority from writing one on someone else's behalf.
     expect(await screen.findByText('You can see this draft but not save it.')).toBeTruthy()

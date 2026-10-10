@@ -10,9 +10,12 @@ anything.** This file is the short version.
 
 ## The three rules that matter most
 
-1. **The Figma design is the source of truth for every screen.** File `9cUaVMybChEiMAIyNNbxHp`,
+1. **Figma is the starting point, not the last word.** File `9cUaVMybChEiMAIyNNbxHp`,
    page `0:1` (read it with the Figma MCP; find frames by name, ids change on re-upload). Look at
-   the frame's image before building or answering. Screens with no frame (POS, the invoice
+   the frame's image before building or answering and follow its layout and look. Figma can be
+   wrong or out of date: where requirements changed, a feature is new, or the screen is wired to
+   the API (Branches, Company settings, Plans), build from the requirement and the API in the
+   house style, and say what differs from the frame (owner, 7 Oct 2026). Screens with no frame (POS, the invoice
    import dialog, and most **console / super admin, ERP integration and subscription** screens)
    follow the **house standard, handbook section 3.3**: copy the nearest designed screen and use
    only the existing shells, cards and components. Card bodies padded like their heading
@@ -20,10 +23,11 @@ anything.** This file is the short version.
    and URLs `dir="ltr"`, warnings inline in their card, tables never widen the page at 390 px.
 2. **Fix the designer's slips, do not copy them** (wrong arithmetic, pasted labels, duplicated
    fields), and say what you corrected.
-3. **Keep the backend integration, but the design wins.** Never delete an API call, request
-   assertion or permission check to make a screen look right, and never drop a designed element
-   because the API lacks data: draw it, mark it `// TODO(backend)`, and add a row to the area's
-   guide in `docs/backend-guides/` (append only; row numbers are cited in code).
+3. **Keep the backend integration.** Never delete an API call, request assertion or permission
+   check to make a screen look right. A designed element the product still wants but the API
+   cannot answer yet: draw it, mark it `// TODO(backend)`, and add a row to the area's guide in
+   `docs/backend-guides/` (append only; row numbers are cited in code). One the product has
+   moved past is not drawn.
 
 ## Every screen
 

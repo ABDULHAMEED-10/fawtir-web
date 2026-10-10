@@ -3,13 +3,14 @@ import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { ActionMenu, Rial } from '../../components/ui'
 import { useApiRead } from '../../hooks'
+import { formatAmount, formatDate } from '../../lib/format'
 import {
   BRANCHES_OVERVIEW_PATH,
   loadBranchOverview,
   type BranchOverviewDto,
   type BranchOverviewRow,
 } from '../../api/settings/branches'
-import { BRANCH_PLAN } from '../../lib/settingsCompany'
+import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
 import plusIcon from '../../assets/settings/plus-white.svg'
 import plusBrandIcon from '../../assets/settings/plus-brand.svg'
 import lockIcon from '../../assets/settings/menu-key.svg'
@@ -66,6 +67,31 @@ export function BranchesPage() {
   )
 }
 
+/**
+ * The plan's branch allowance from `GET /v1/settings/plan`. It used to be a sample plan's figure
+ * with "no extra charge until the sixth", a price no plan carries.
+ */
+function IncludedKpi() {
+  const { t } = useTranslation()
+  const plan = useApiRead<PlanOverviewDto>(PLAN_OVERVIEW_PATH, loadPlanOverview).read
+  const ready = plan.status === 'ready' && plan.data.plan ? plan.data : null
+  const included = ready ? ready.plan.branchesIncluded : undefined
+  return (
+    <Kpi
+      label={t('branches.kpi.included')}
+      value={included === undefined || included === null ? '—' : String(included)}
+      unit={t('branches.kpi.includedUnit')}
+      note={
+        ready === null
+          ? t('branches.kpi.includedUnavailable')
+          : included === null
+            ? t('branches.kpi.includedUnlimited')
+            : t('branches.kpi.includedFromPlan', { plan: ready.plan.name })
+      }
+    />
+  )
+}
+
 function Content({ overview }: { overview: BranchOverviewDto }) {
   const { t } = useTranslation()
 
@@ -99,12 +125,7 @@ function Content({ overview }: { overview: BranchOverviewDto }) {
           value={overview.invoicesThisMonth.toLocaleString('en-US')}
           note={t('branches.kpi.invoicesNoteGeneric')}
         />
-        <Kpi
-          label={t('branches.kpi.included')}
-          value={BRANCH_PLAN.included === Infinity ? '—' : String(BRANCH_PLAN.included)}
-          unit={t('branches.kpi.includedUnit')}
-          note={t('branches.kpi.includedNote')}
-        />
+        <IncludedKpi />
       </div>
 
       {overview.branches.map((branch) => (
@@ -142,7 +163,7 @@ function Kpi({
 }
 
 function BranchCard({ branch }: { branch: BranchOverviewRow }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const closed = !branch.active
 
   return (
@@ -259,16 +280,15 @@ function BranchCard({ branch }: { branch: BranchOverviewRow }) {
 
       {closed ? (
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-surface-background bg-surface-background/50 px-5 py-4">
-          <p className="flex items-start gap-2 text-sm font-medium leading-[1.5] text-text-tertiary">
+          <p className="flex min-w-0 flex-1 basis-[320px] items-start gap-2 text-sm font-medium leading-[1.5] text-text-tertiary">
             <img src={lockIcon} alt="" className="mt-0.5 size-4 shrink-0 opacity-60" />
-            <span
-              dangerouslySetInnerHTML={{
-                __html: t('branches.closedNote', {
-                  count: branch.invoicesThisMonth.toLocaleString('en-US'),
-                  prefix: `${branch.invoicePrefix ?? ''}-INV`,
-                }),
-              }}
-            />
+            {/* TODO(backend): SETTINGS.md row 3.1. The frame counts the branch's invoices ("Its 612
+                invoices"); the overview has this month's count only, which is 0 once closed. */}
+            <span>
+              {t('branches.closedNoteNoCount', {
+                prefix: branch.invoicePrefix ? `${branch.invoicePrefix}-INV` : 'INV',
+              })}
+            </span>
           </p>
           <button
             type="button"
@@ -301,7 +321,7 @@ function BranchCard({ branch }: { branch: BranchOverviewRow }) {
               </span>
             </p>
             <p className="mt-1 text-xs font-medium text-text-quaternary">
-              <Rial /> {branch.invoicedThisMonth.toFixed(3)}
+              <Rial /> {formatAmount(branch.invoicedThisMonth, 'OMR', i18n.language)}
             </p>
           </Cell>
 
@@ -346,12 +366,14 @@ function BranchCard({ branch }: { branch: BranchOverviewRow }) {
 }
 
 function StatePill({ branch }: { branch: BranchOverviewRow }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   if (!branch.active) {
     return (
       <span className="inline-flex h-[22px] items-center gap-1.5 rounded-[3px] bg-surface-background px-2 text-[10px] font-semibold uppercase tracking-[0.4px] text-text-tertiary">
         <span className="size-1.5 rounded-full bg-[#a8abb2]" />
-        {branch.closedOn ? t('branches.closedOn', { date: branch.closedOn }) : t('branches.open')}
+        {branch.closedOn
+          ? t('branches.closedOn', { date: formatDate(branch.closedOn, i18n.language) })
+          : t('branches.open')}
       </span>
     )
   }

@@ -123,13 +123,25 @@ function ChannelsCard() {
         </li>
         <li>
           <span className="font-semibold text-text-primary">{t('erp.bridge.channels.bridge')}</span>{' '}
-          {t('erp.bridge.channels.bridgeBody')}
+          {t('erp.bridge.channels.bridgeBody')}{' '}
+          <Link
+            to="/settings/erp/documents?channel=BRIDGE_UPLOAD"
+            className="font-semibold text-primary-700 hover:text-primary-800"
+          >
+            {t('erp.bridge.channels.bridgeActivityLink')}
+          </Link>
         </li>
         <li>
           <span className="font-semibold text-text-primary">
             {t('erp.bridge.channels.apiPush')}
           </span>{' '}
-          {t('erp.bridge.channels.apiPushBody')}
+          {t('erp.bridge.channels.apiPushBody')}{' '}
+          <Link
+            to="/settings/erp/api-push"
+            className="font-semibold text-primary-700 hover:text-primary-800"
+          >
+            {t('erp.bridge.channels.apiPushLink')}
+          </Link>
         </li>
       </ul>
     </SectionCard>
@@ -140,7 +152,7 @@ function ChannelsCard() {
  * Whether the mapping will accept a standard invoice from this format, as the server says. Read
  * once per format and transaction type, which is what the FR-005 gate is keyed on.
  */
-function ReadinessCard({
+export function ReadinessCard({
   format,
   transactionType,
 }: {
@@ -178,11 +190,16 @@ function ReadinessCard({
             <Pill tone="pending" label={t('erp.bridge.readiness.notReady')} />
             {/* The server's reason is English prose for developers; the reader gets ours. */}
             <p className="text-sm font-medium leading-[1.6] text-text-tertiary">
-              {t('erp.bridge.readiness.notReadyBody', { format })}
+              {t(format === 'XML' ? 'erp.bridge.readiness.notReadyXmlBody' : 'erp.bridge.readiness.notReadyBody', { format })}
             </p>
-            <SecondaryLink to="/settings/erp-mapping/certification">
-              {t('erp.bridge.readiness.openCertification')}
-            </SecondaryLink>
+            {/* The mapping screens author and certify the JSON mapping only (guided mapping emits
+                JSONata, and the backend refuses guided XML). Linking an XML reader there sent them to
+                a screen that cannot help, so XML says where its mapping is really made instead. */}
+            {format === 'XML' ? null : (
+              <SecondaryLink to="/settings/erp-mapping/certification">
+                {t('erp.bridge.readiness.openCertification')}
+              </SecondaryLink>
+            )}
           </>
         )}
         <p className="text-xs font-medium leading-[1.5] text-text-quaternary">
@@ -332,10 +349,13 @@ function UploadForm({ canReadMapping }: { canReadMapping: boolean }) {
               </p>
             </div>
             <div className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium text-text-primary">
+              <span id="erp-bridge-file-label" className="text-sm font-medium text-text-primary">
                 {t('erp.bridge.document.file')}
               </span>
               <FileDropzone
+                id="erp-bridge-file"
+                labelledBy="erp-bridge-file-label erp-bridge-file"
+                describedBy={problem !== null ? 'erp-bridge-file-problem' : undefined}
                 accept={BRIDGE_ACCEPT[format]}
                 maxBytes={BRIDGE_MAX_BODY_BYTES}
                 onFiles={(files) => {
@@ -374,7 +394,11 @@ function UploadForm({ canReadMapping }: { canReadMapping: boolean }) {
                 )}
               </FileDropzone>
               {problem !== null ? (
-                <p role="alert" className="text-xs font-medium leading-[1.5] text-danger-700">
+                <p
+                  id="erp-bridge-file-problem"
+                  role="alert"
+                  className="text-xs font-medium leading-[1.5] text-danger-700"
+                >
                   {t(`erp.bridge.problem.${problem}`, { format })}
                 </p>
               ) : null}

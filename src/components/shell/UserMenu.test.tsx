@@ -27,7 +27,7 @@ function renderMenu() {
     <MemoryRouter initialEntries={['/dashboard']}>
       <Link to="/elsewhere">Elsewhere</Link>
       <Routes>
-        <Route path="/dashboard" element={<UserMenu name="Hafidh Saif" roleKey="shell.user.profile" avatar="" />} />
+        <Route path="/dashboard" element={<UserMenu name="Hafidh Saif" roleKey="shell.user.settings" initials="HS" />} />
         <Route path="*" element={<Probe />} />
       </Routes>
     </MemoryRouter>,
@@ -245,7 +245,7 @@ describe('Entries one shell adds', () => {
         <UserMenu
           name="Hafidh Saif"
           roleKey="console.user.team"
-          avatar=""
+          initials="HS"
           extraItems={[{ id: 'confirmEmail', labelKey: 'console.user.confirmEmail', to: '/account/email/confirm' }]}
         />
       </MemoryRouter>,
@@ -264,5 +264,17 @@ describe('Entries one shell adds', () => {
     openMenu()
 
     expect(screen.queryByRole('menuitem', { name: i18n.t('console.user.confirmEmail') })).toBeNull()
+  })
+})
+
+describe('UserMenu avatar and entries', () => {
+  it('draws the initials it is given instead of a shared photo, and offers no Profile entry', () => {
+    renderMenu()
+    const trigger = screen.getByRole('button', { name: /Hafidh Saif/ })
+    expect(trigger.querySelector('img[src*="avatar"]')).toBeNull()
+    expect(trigger.textContent).toContain('HS')
+    openMenu()
+    expect(screen.queryByRole('menuitem', { name: /profile/i })).toBeNull()
+    expect(screen.getByRole('menuitem', { name: i18n.t('shell.user.settings') })).toBeTruthy()
   })
 })

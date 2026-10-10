@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Modal, Select, SelectionCard } from '../../../components/ui'
+import { Modal, Select, SelectionCard, withRial } from '../../../components/ui'
 import {
   invoicesOf,
   linksOf,
@@ -24,6 +24,7 @@ import {
   type ActionModalProps,
   type Errors,
 } from './modalFields'
+import { ConsoleButton } from '../../../layouts/ConsoleShell/consoleStyle'
 
 const FORM_ID = 'send-link'
 const CHANNELS: LinkChannel[] = ['whatsapp', 'email', 'copied']
@@ -67,7 +68,7 @@ function LinkIcon() {
 }
 
 /**
- * Sends a Thawani checkout link for an unpaid invoice. The backend creates the session; here the
+ * Sends a Paymob checkout link for an unpaid invoice. The backend creates the session; here the
  * operator picks the channel — a `wa.me` chat with the message filled in, an email draft, or the
  * bare link to paste anywhere — and the console keeps the link with its status and expiry.
  * Resending expires the earlier link for the same invoice (the store does that).
@@ -101,6 +102,8 @@ export function SendLinkModal({ tenantId, ledger, invoiceId, onClose, onDone }: 
         '{{period}}',
         `${dayLabel(target.periodStart, i18n.language)} – ${dayLabel(target.periodEnd, i18n.language)}`,
       )
+      // The letters stay in the text that leaves Fawtir (WhatsApp, email have no rial sign);
+      // the preview on screen draws the sign through withRial.
       .replace('{{amount}}', `OMR ${omr(target.total)}`)
       .replace('{{link}}', url)
       .replace('{{days}}', String(days))
@@ -182,9 +185,9 @@ export function SendLinkModal({ tenantId, ledger, invoiceId, onClose, onDone }: 
       footer={
         sent ? (
           <div className="flex flex-wrap justify-end gap-2.5">
-            <Button type="button" size="md" onClick={finish}>
+            <ConsoleButton type="button" size="md" onClick={finish}>
               {t('console.subscriptionActions.sendLink.done')}
-            </Button>
+            </ConsoleButton>
           </div>
         ) : (
           <ModalFooter
@@ -215,11 +218,11 @@ export function SendLinkModal({ tenantId, ledger, invoiceId, onClose, onDone }: 
             >
               {sent.url}
             </span>
-            <Button type="button" size="md" variant="secondary" onClick={() => void copy(sent.url)}>
+            <ConsoleButton type="button" size="md" variant="secondary" onClick={() => void copy(sent.url)}>
               {copied
                 ? t('console.subscriptionActions.sendLink.copiedNow')
                 : t('console.subscriptionActions.sendLink.copy')}
-            </Button>
+            </ConsoleButton>
           </div>
           <div>
             <p className="text-sm font-medium text-text-primary">
@@ -229,7 +232,7 @@ export function SendLinkModal({ tenantId, ledger, invoiceId, onClose, onDone }: 
               dir="auto"
               className="mt-1 whitespace-pre-wrap rounded-sm bg-surface-background px-4 py-3 text-sm font-medium leading-[1.6] text-text-tertiary"
             >
-              {preview}
+              {withRial(preview)}
             </p>
           </div>
         </div>
@@ -287,7 +290,7 @@ export function SendLinkModal({ tenantId, ledger, invoiceId, onClose, onDone }: 
               dir="auto"
               className="mt-1 whitespace-pre-wrap rounded-sm bg-surface-background px-4 py-3 text-sm font-medium leading-[1.6] text-text-tertiary"
             >
-              {preview}
+              {withRial(preview)}
             </p>
           </div>
         </form>

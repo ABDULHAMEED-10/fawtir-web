@@ -760,3 +760,10 @@ C2 (`correctionReasonDetail`) merged first.
   BR-CO-18: one VAT breakdown per category and rate). The notes map both refusal codes to the same
   message. The self-billed and periodic composers have validation of their own and do not run this
   check yet.
+
+## Update 2026-10-06 (self-billing moved to Expenditure)
+
+Owner decision of 6 Oct 2026: self-billing is a purchase and now sits under Expenditure, at
+`/expenditure/self-billing/...` (the old `/income/self-billing/...` addresses redirect). The rows
+of section 7 stay here unchanged; new self-billing asks are in `EXPENDITURE.md`, section S
+(S.1 links, S.2 the seller stored as a customer record, S.3 the seller and buyer roles in the 389).
