@@ -73,7 +73,7 @@
   "signup": {
     "title": "Create your Fawtir account",
     "fullNameLabel": "Full name",
-    "fullNamePlaceholder": "Hafidh Saif",
+    "fullNamePlaceholder": "Your full name, as on your ID",
     "usernamePlaceholder": "Choose a username",
     "emailLabel": "Email",
     "emailPlaceholder": "you@company.com",
@@ -713,8 +713,11 @@
     "countryOman": "Oman",
     "notePrefix": "Your primary contact receives",
     "noteHighlight": "COMPLIANCE ALERTS",
-    "noteSuffix": "— quota warnings, rejected invoices and OTA notices — so nothing slips through.",
-    "submit": "Continue"
+    "noteSuffix": ": quota warnings, rejected invoices and OTA notices, so nothing slips through.",
+    "submit": "Continue",
+    "addressLine2": "Additional street or area",
+    "addressLine3": "Building or address line 3",
+    "poBox": "PO Box"
   },
   "plans": {
     "title": "Pick the plan that fits your volume",
@@ -776,8 +779,8 @@
       "f2": "Upgrades apply instantly, downgrades next cycle",
       "f3": "No setup fees"
     },
-    "payNote": "You choose how to pay on the next step.",
-    "trialNote": "Every plan except Enterprise starts with a {{days}}-day free trial of the plan you pick: {{documents}} documents, no card needed, and it never turns into a bill on its own.",
+    "payNote": "Next you choose how you'll pay. Nothing is charged today.",
+    "trialNote": "Every plan except Enterprise starts with a {{days}}-day free trial of the plan you pick, from the day your account is approved: {{documents}} documents, and nothing to pay until it ends.",
     "businessPlus": {
       "name": "Business Plus",
       "description": "For established businesses and multi-branch operations.",
@@ -846,7 +849,10 @@
         "accountManager": "Account manager",
         "twoMonthsFree": "2 months free",
         "vatExcl": "Excluded, {{rate}}% on the invoice",
-        "agreed": "Agreed on a call"
+        "agreed": "Agreed on a call",
+        "notOffered": "Not offered",
+        "monthsFree_one": "{{count}} month free",
+        "monthsFree_other": "{{count}} months free"
       }
     },
     "faq": {
@@ -868,12 +874,29 @@
       "q8": "What is different about Enterprise?",
       "a8": "Enterprise is Business Plus with limits agreed on a call: documents, people, branches and price are set for your contract, automatic ERP extraction is included, and an account manager looks after you. Talk to our team and we will put a proposal together.",
       "q9": "Which plan can connect my ERP?",
-      "a9": "Business Plus. It carries the REST API, webhooks and ERP field mapping, so your own system can send and receive documents through Fawtir. Automatic ERP extraction, where Fawtir reads the documents out of your ERP for you, is a priced add-on on Business Plus and included on Enterprise."
-    }
+      "a9": "Business Plus. It carries the REST API, webhooks and ERP field mapping, so your own system can send and receive documents through Fawtir. Automatic ERP extraction, where Fawtir reads the documents out of your ERP for you, is a priced add-on on Business Plus and included on Enterprise.",
+      "a1Varies": "No. Nothing is charged before your account is approved. A plan with a free trial starts it on approval, and the trial never turns into a paid plan by itself."
+    },
+    "priceChanged": "The prices changed while this page was open. The new prices are shown now: please review them and choose your plan again.",
+    "noLongerOffered": "The plan you chose earlier, {{plan}}, is no longer offered. Please choose another plan.",
+    "loading": "Loading the plans…",
+    "unavailable": "We couldn't load the plans right now.",
+    "retry": "Try again",
+    "empty": "No plans are offered right now. Talk to our team and we will help you choose.",
+    "saveAnnualMonths_one": "Save {{count}} month on annual",
+    "saveAnnualMonths_other": "Save {{count}} months on annual",
+    "saveAnnualUpTo_one": "Save up to {{count}} month on annual",
+    "saveAnnualUpTo_other": "Save up to {{count}} months on annual",
+    "trialNoteDays_one": "Every plan except Enterprise starts with a {{count}}-day free trial of the plan you pick, from the day your account is approved, and nothing to pay until it ends.",
+    "trialNoteDays_other": "Every plan except Enterprise starts with a {{count}}-day free trial of the plan you pick, from the day your account is approved, and nothing to pay until it ends.",
+    "trialNotePlan_one": "{{plan}}, {{count}}-day trial",
+    "trialNotePlan_other": "{{plan}}, {{count}}-day trial",
+    "trialNoteMixed": "Plans with a free trial start it from the day your account is approved, and nothing is paid until it ends: {{plans}}.",
+    "listSeparator": "; ",
+    "perYear": "/year"
   },
   "payment": {
-    "title": "Complete your subscription",
-    "description": "One last step. Choose how you would like to pay. Your account is activated by the Fawtir team the moment your payment is confirmed.",
+    "title": "How you'll pay",
     "card": {
       "title": "Card",
       "subtitle": "Debit or credit",
@@ -898,7 +921,10 @@
       "bank": "Bank",
       "reference": "Reference",
       "yourInvoice": "your invoice number",
-      "note": "We email you the invoice with these details. The Fawtir team activates your account once the transfer is confirmed, usually within one business day."
+      "note": "We email you the invoice. The Fawtir team activates your account once the transfer is confirmed, usually within one business day.",
+      "detailsOnRequest": "Fawtir sends you its bank details with the subscription invoice. Only pay into the account named on that invoice.",
+      "noteLater": "Your first bill comes {{when}}, emailed with these details. Put the invoice number in the reference, and the Fawtir team confirms the transfer, usually within one business day.",
+      "unavailable": "Bank transfer isn't available yet."
     },
     "summary": {
       "title": "Order summary",
@@ -910,18 +936,23 @@
       "monthlyRate": "{{rate}} / mo billed yearly",
       "months": "{{count}} months",
       "vat": "VAT (5%)",
-      "totalDue": "Total due today",
-      "renewPrefix": "Renews on {{date}} at {{amount}}. We’ll remind you before. ",
       "cancelAnytime": "Cancel anytime",
-      "renewSuffix": "access continues to period end.",
-      "addonLine": "Automatic ERP extraction ({{cycle}})"
+      "renewSuffix": ", access continues to the end of the period.",
+      "addonLine": "Automatic ERP extraction ({{cycle}})",
+      "firstBill": "First bill",
+      "firstBillNote": "Your first bill comes {{when}}, and we remind you before. ",
+      "loading": "Loading…",
+      "unavailable": "Not available yet",
+      "monthlyPrice": "Monthly price {{rate}}",
+      "vatRate": "VAT ({{rate}}%)",
+      "vatUnknownRate": "VAT",
+      "addonOnTop": "Automatic ERP extraction ({{cycle}}), billed on top",
+      "monthsWithFree": "{{count}} months · {{free}} free"
     },
-    "payCta": "Pay {{amount}} & activate",
-    "bankCta": "Email me the invoice with bank details",
     "method": {
       "cardLink": {
         "title": "Card",
-        "subtitle": "Secure link · Thawani"
+        "subtitle": "Secure link · Paymob"
       },
       "bankTransfer": {
         "title": "Bank transfer",
@@ -933,54 +964,146 @@
       }
     },
     "cardLink": {
-      "note": "Your card is entered on Thawani's secure checkout, never on Fawtir. Nothing about it is stored with us.",
-      "how": "How would you like the checkout?",
-      "via": {
-        "now": "Open it now",
-        "whatsapp": "Send me the link by WhatsApp",
-        "email": "Send me the link by email"
-      },
-      "viaNowNote": "You go to Thawani's checkout and come straight back.",
       "viaWhatsAppNote": "To {{phone}} · valid {{days}} days",
       "viaEmailNote": "To {{email}} · valid {{days}} days",
       "yourPhone": "your phone",
-      "yourEmail": "your email"
+      "yourEmail": "your email",
+      "noteLater": "Your first bill comes {{when}} with a secure Paymob link. Your card is entered on Paymob's checkout, never on Fawtir.",
+      "sendTo": "Send the payment link",
+      "byVia": {
+        "email": "By email",
+        "whatsapp": "By WhatsApp"
+      }
     },
     "cash": {
-      "note": "Pay at Fawtir's office in Muscat or to your Fawtir representative. You get a receipt, and the Fawtir team activates your account once it is recorded, usually the same day."
+      "noteLater": "Your first bill comes {{when}}. Pay it at Fawtir's office in Muscat or to your Fawtir representative, and you get a receipt."
     },
-    "sendLinkCta": "Send me the payment link",
-    "cashCta": "I'll pay in cash",
     "addon": {
       "title": "Add-on",
       "label": "Add automatic ERP extraction",
-      "body": "Fawtir collects invoices from your ERP on a schedule, runs them through your field mapping, and writes the result back. Activated with your subscription.",
+      "body": "Fawtir collects invoices from your ERP on a schedule and runs them through your field mapping. The Fawtir team confirms the add-on with your subscription.",
       "perMonth": "a month",
       "perMonthTimes": "a month, for {{count}} months"
-    }
+    },
+    "descriptionTrial_one": "Nothing is charged today. Your free trial starts when your account is approved, and your first bill comes after {{count}} day, by the method you choose here.",
+    "descriptionTrial_other": "Nothing is charged today. Your {{count}}-day free trial starts when your account is approved, and your first bill comes when it ends, by the method you choose here.",
+    "descriptionNoTrial": "Nothing is charged today. Your first bill comes when the Fawtir team approves your account, by the method you choose here.",
+    "when": {
+      "afterTrial_one": "after your {{count}}-day free trial",
+      "afterTrial_other": "after your {{count}}-day free trial",
+      "onApproval": "when your account is approved",
+      "later": "after your account is approved"
+    },
+    "continueCta": "Continue to review",
+    "descriptionPending": "Nothing is charged today. Your first bill comes after your account is approved, by the method you choose here."
   },
   "fawtaraStatus": {
     "heroTitle": "E-invoicing compliance, handled for you.",
     "heroSubtitle": "Create, validate, sign and report every invoice to the Oman Tax Authority, without touching a single line of Peppol.",
-    "title": "Waiting for Fawtara approval",
-    "description": "You’ve requested to authorize Fawtir as your provider on the Fawtara Portal. As soon as the OTA approves it, this page updates on its own.",
-    "badge": "Pending approval",
     "steps": {
       "connected": "Connected",
-      "awaitingApproval": "Awaiting OTA approval",
-      "requestSent": "Request sent"
+      "requestSent": "Sent",
+      "sent": "Registration sent",
+      "review": "Fawtir review",
+      "reviewing": "Checking your business details",
+      "approved": "Approved",
+      "request": "Send Fawtir a connection request on the Fawtara Portal",
+      "requestNow": "Waiting for your request",
+      "accept": "Fawtir accepts your request",
+      "accepting": "Waiting for Fawtir",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "expired": "Expired before it was accepted",
+      "register": "Fawtir registers you on the Oman SMP",
+      "registering": "Within 3 business days of acceptance",
+      "registered": "Registered",
+      "rejected": "Not approved"
     },
     "openPortal": "Open Fawtara portal",
-    "footer": "This usually takes a few minutes. We’ll email {{email}} the moment it’s approved, you can safely close this page. Approval taking too long?",
     "contactSupport": "Contact support",
-    "subscription": {
-      "title": "Your subscription",
-      "awaiting": "{{plan}} · awaiting activation by the Fawtir team",
-      "cardLink": "Paid by card through Thawani — you'll be activated as soon as the payment is confirmed.",
-      "cardLinkSent": "Your payment link is on its way by {{via}}. Your account is activated once you've paid it.",
-      "bankTransfer": "Waiting for your bank transfer. Your account is activated once it arrives, usually within one business day.",
-      "cash": "Waiting for your cash payment. Your account is activated once it is recorded, usually the same day.",
-      "addon": "Automatic ERP extraction is on the same request; the Fawtir team switches it on with your subscription."
+    "titleReal": "Authorize Fawtir on the Fawtara Portal",
+    "descriptionReal": "To report invoices through Fawtir, authorize Fawtir as your provider on the Oman Tax Authority's Fawtara Portal. Fawtir cannot see the portal's decision from here, so this page does not show whether it has been approved.",
+    "footerReal": "Questions about the authorization?",
+    "review": {
+      "title": "We're getting you live",
+      "description": "Your registration is with the Fawtir team. Once it's approved, you authorise Fawtir as your provider on the Fawtara Portal, and your invoices can reach the OTA.",
+      "badge": "Under review",
+      "timing": "Review usually takes one business day.",
+      "emailNote": "We'll email <b>{{email}}</b> the decision, you can safely close this page.",
+      "emailNoteNoAddress": "We'll email the decision to the address you registered with, you can safely close this page."
+    },
+    "connected": {
+      "title": "You're connected",
+      "description": "Fawtir is your service provider and you're registered on the Oman SMP. Your invoices are now reported through Fawtara.",
+      "badge": "Connected"
+    },
+    "slow": "Approval taking too long?",
+    "plan": {
+      "title": "Your plan",
+      "trial_one": "Free for {{count}} day from approval, then your first bill.",
+      "trial_other": "Free for {{count}} days from approval, then your first bill.",
+      "noTrial": "Your first bill comes when your account is approved.",
+      "enterprise": "Our team will call you to agree your terms.",
+      "paidBy": "Paying by: {{method}}"
+    },
+    "request": {
+      "title": "Send Fawtir your connection request",
+      "description": "Your registration is approved. To report invoices through Fawtir, send Fawtir a connection request on the Fawtara Portal. Fawtir then accepts it and registers you on the Oman SMP.",
+      "badge": "Your turn",
+      "timing": "Fawtir can only connect you once your request reaches us on the portal.",
+      "emailNote": "We'll email <b>{{email}}</b> when we accept it, you can safely close this page.",
+      "emailNoteNoAddress": "We'll email you when we accept it, you can safely close this page."
+    },
+    "accepting": {
+      "title": "Fawtir is reviewing your request",
+      "description": "Your connection request reached Fawtir on the Fawtara Portal. We check it against your account, then accept it and register you on the Oman SMP.",
+      "badge": "Waiting for Fawtir",
+      "timing": "A request that is not answered in time expires on the portal, so we act on it quickly.",
+      "emailNote": "We'll email <b>{{email}}</b> when it's accepted, you can safely close this page.",
+      "emailNoteNoAddress": "We'll email you when it's accepted, you can safely close this page."
+    },
+    "registering": {
+      "title": "Registering you on the Oman SMP",
+      "description": "Fawtir accepted your connection request. We now register your Peppol ID on the Oman SMP, which checks the connection on the Fawtara Portal before adding you.",
+      "badge": "Registering",
+      "timing": "Fawtir registers you within 3 business days of accepting.",
+      "emailNote": "We'll email <b>{{email}}</b> when you're connected, you can safely close this page.",
+      "emailNoteNoAddress": "We'll email you when you're connected, you can safely close this page."
+    },
+    "declined": {
+      "title": "Fawtir declined your connection request",
+      "description": "We've emailed you the reason. Put it right and send the request again on the Fawtara Portal, or contact support and we'll help.",
+      "badge": "Request declined",
+      "timing": "You can send a new request as soon as it's fixed.",
+      "emailNote": "The reason went to <b>{{email}}</b>.",
+      "emailNoteNoAddress": "The reason went to the address you registered with."
+    },
+    "expired": {
+      "title": "Your connection request expired",
+      "description": "It wasn't accepted before the portal's time limit. Send it again on the Fawtara Portal and we'll pick it up straight away.",
+      "badge": "Request expired",
+      "timing": "A new request goes through the same steps.",
+      "emailNote": "We'll email <b>{{email}}</b> when we accept it.",
+      "emailNoteNoAddress": "We'll email you when we accept it."
+    },
+    "howTo": {
+      "h1": "Sign in to the Fawtara Portal and open Accredited Service Providers.",
+      "h2": "Choose Fawtir and record each engagement stage, up to Agreement/Contract Signed.",
+      "h3": "Upload the documents it asks for and, if you like, a start date (otherwise it starts when we accept).",
+      "h4": "Press Connect.",
+      "switching": "Already with another provider? Sending this request disconnects you from them."
+    },
+    "rejected": {
+      "title": "Your registration wasn't approved",
+      "description": "The Fawtir team couldn't approve your registration as it stands. The email we sent explains why and what to change.",
+      "badge": "Not approved",
+      "timing": "Once you submit it again, review usually takes one business day.",
+      "emailNote": "We emailed <b>{{email}}</b> the reason.",
+      "emailNoteNoAddress": "We emailed the reason to the address you registered with."
+    },
+    "signedOut": {
+      "title": "Sign in or continue your registration",
+      "description": "This page can't tell where your registration stands without your signup session. If your account is approved, sign in. If you're still registering, continue with a code sent to your email."
     }
   },
   "dashboard": {
@@ -988,7 +1111,6 @@
     "createInvoice": "Create Invoice",
     "notifications": "Notifications",
     "greeting": "Good morning, {{name}}",
-    "date": "Saturday, 18 July 2026",
     "thisMonth": "This month",
     "nav": {
       "main": "MAIN",
@@ -997,7 +1119,6 @@
       "invoices": "Invoices",
       "incomeChildren": {
         "invoice": "Invoice",
-        "selfBilling": "Self-billing",
         "reminders": "Reminders",
         "periodic": "Periodic invoices",
         "creditNotes": "Credit notes",
@@ -1020,7 +1141,8 @@
         "recurringBills": "Recurring bills",
         "creditNotes": "Credit notes",
         "debitNotes": "Debit notes",
-        "reminders": "Reminders"
+        "reminders": "Reminders",
+        "selfBilling": "Self-billing"
       },
       "catalogStock": "Catalog & stock",
       "contacts": "Contacts",
@@ -1048,27 +1170,25 @@
       "lockedOn": "Available on {{plan}}",
       "billRemindersUnread": "Bill reminders, {{count}} unread"
     },
-    "account": {
-      "premiumPlan": "Premium plan",
-      "owner": "Owner"
-    },
     "kpi": {
-      "sales": "Today’s sales",
       "receivables": "Receivables",
       "payables": "Payables",
-      "vsYesterday": "vs yesterday",
       "open": "{{count}} open",
       "overdue": "{{count}} overdue",
-      "dueSoon": "{{count}} due soon",
-      "suppliers": "{{count}} suppliers"
+      "cashThisMonth": "Cash received this month",
+      "cashLastMonth": "Same days last month: {{amount}}",
+      "dueThisWeek": "{{count}} due this week",
+      "sales": "Today’s sales"
     },
     "revenue": {
       "title": "Revenue",
+      "thisMonth": "this month",
+      "none": "No invoices in the last 12 months.",
       "periodLabel": "Revenue period",
       "day": "Day",
       "week": "Week",
       "month": "Month",
-      "thisMonth": "this month"
+      "lastTwelve": "bars show the last 12 months"
     },
     "invoices": {
       "title": "Recent invoices",
@@ -1077,34 +1197,62 @@
       "colStatus": "Status",
       "colAmount": "Amount",
       "status": {
-        "reported": "Reported",
-        "rejected": "Rejected",
+        "rejected": "Rejected by buyer",
         "sent": "Sent",
-        "draft": "Draft"
-      }
+        "draft": "Draft",
+        "issued": "Issued",
+        "accepted": "Accepted",
+        "notSent": "Not sent"
+      },
+      "none": "No invoices yet.",
+      "noNumber": "Draft"
     },
     "compliance": {
-      "title": "Compliance health",
+      "title": "Delivery to buyers",
       "accepted": "accepted",
-      "reported": "Reported to OTA",
-      "mls": "MLS within SLA",
-      "rejected": "Rejected",
-      "alert": "{{count}} TDDs need your attention"
+      "rejected": "Rejected by buyers",
+      "noAnswersYet": "no answers yet",
+      "documents": "Documents this month",
+      "acceptedCount": "Accepted by buyers",
+      "awaiting": "No answer yet"
     },
     "quota": {
       "title": "Invoice quota",
-      "billingPeriod": "Billing period",
       "used": "used",
-      "reset": "18 days left · resets 1 Aug"
+      "periodEnds": "Period ends {{date}}"
     },
     "vat": {
       "title": "VAT Position",
       "report": "Report →",
-      "netPayable": "net payable",
       "output": "Output VAT",
-      "input": "Input VAT"
+      "input": "Input VAT",
+      "net": "net position",
+      "branchScoped": "Input VAT is not kept per branch, so there is no net position for one branch."
     },
-    "openNav": "Open navigation"
+    "openNav": "Open navigation",
+    "greetingNoName": "Good morning",
+    "loading": "Loading…",
+    "notAvailableYet": "Not available yet",
+    "alert": {
+      "OVERDUE_INVOICES_one": "{{count}} invoice is overdue",
+      "OVERDUE_INVOICES_other": "{{count}} invoices are overdue",
+      "DISPATCH_DEAD_LETTERED_one": "{{count}} invoice could not be sent",
+      "DISPATCH_DEAD_LETTERED_other": "{{count}} invoices could not be sent",
+      "NEEDS_ATTENTION_one": "{{count}} document needs your attention",
+      "NEEDS_ATTENTION_other": "{{count}} documents need your attention",
+      "TDD_SLA_MISSED_one": "{{count}} tax report was late this month",
+      "TDD_SLA_MISSED_other": "{{count}} tax reports were late this month"
+    },
+    "greetingAt": {
+      "morning": "Good morning, {{name}}",
+      "afternoon": "Good afternoon, {{name}}",
+      "evening": "Good evening, {{name}}"
+    },
+    "greetingAtNoName": {
+      "morning": "Good morning",
+      "afternoon": "Good afternoon",
+      "evening": "Good evening"
+    }
   },
   "rowActions": {
     "delete": "Delete",
@@ -1379,6 +1527,10 @@
       "autoRemindersHint": "Fawtir chases overdue invoices for this customer on a schedule."
     },
     "address": {
+      "additionalStreet": "Additional street or area",
+      "additionalStreetPlaceholder": "e.g. Al Khuwair",
+      "addressLine3": "Building or address line 3",
+      "addressLine3Placeholder": "e.g. Building 12, Office 4",
       "invoicing": "Invoicing address",
       "delivery": "Delivery address",
       "sameAsInvoicing": "Same as invoicing address",
@@ -1977,8 +2129,98 @@
     },
     "notIssuedYet": "Not issued yet",
     "bulkUnavailable": "Bulk upload is not available yet: the import endpoint has not been built.",
-    "sendUnavailable": "Sending is not available yet: documents are not delivered over Peppol or by e-mail from here until the delivery service exists.",
     "duplicateUnavailable": "Duplicating is not available yet: there is no route to copy a document."
+  },
+  "invoiceDispatch": {
+    "state": {
+      "notSent": "Not sent yet",
+      "processing": "Being prepared for sending",
+      "retryScheduled": "Sending failed and will be retried",
+      "deadLettered": "Not sent: needs attention",
+      "cancelled": "Not sent: the invoice was cancelled",
+      "dispatched": "Accepted for sending",
+      "queued": "Validated and queued for sending",
+      "sending": "Sending",
+      "sent": "Sent, awaiting confirmation",
+      "delivered": "Delivered",
+      "deliveredUnconfirmed": "Delivered (not confirmed)",
+      "undeliverable": "Could not be delivered"
+    },
+    "reason": {
+      "sellerAddress": "Your company address on this invoice is incomplete. It was fixed when the invoice was issued, so this invoice cannot be sent: cancel it and issue a new one after completing the address.",
+      "sellerContact": "Your company telephone number was missing when this invoice was issued, so it cannot be sent: cancel it and issue a new one after adding the number.",
+      "buyerAddress": "The customer's address on this invoice is incomplete. It was fixed at issue, so this invoice cannot be sent: cancel it and issue a new one after completing the customer's address.",
+      "lineClassification": "A line on this invoice is missing its goods/services classification or business activity, so it cannot be sent: cancel it and issue a corrected invoice.",
+      "lineHsCode": "A goods line on this invoice has no HS code, so it cannot be sent: cancel it and issue a corrected invoice.",
+      "lineTaxReason": "A zero-rated or exempt line on this invoice has no reason code, so it cannot be sent: cancel it and issue a corrected invoice.",
+      "unsupportedShape": "This kind of self-billed invoice cannot be sent electronically.",
+      "correctionReason": "This note has no correction reason, so it cannot be sent: cancel it and issue a corrected note.",
+      "precedingUnavailable": "The invoice this note corrects could not be read. Sending will be retried.",
+      "validationFailed": "The e-invoice failed validation, so it was not sent. Cancel it and issue a corrected invoice, or contact support with the invoice number.",
+      "notSupported": "This invoice cannot be expressed as an e-invoice, so it was not sent. Contact support with the invoice number.",
+      "duplicateConflict": "Another document was already submitted under this invoice number, so this one was not sent. Contact support with the invoice number.",
+      "noLongerIssued": "The invoice is no longer issued, so it will not be sent.",
+      "temporary": "A temporary problem stopped sending. It will be retried.",
+      "unknown": "Sending stopped (code {{code}}). Contact support with the invoice number."
+    },
+    "sent": {
+      "dispatched": "The invoice was validated and queued for sending.",
+      "already": "This invoice has already been sent.",
+      "superseded": "This invoice is already being sent.",
+      "notSent": "The invoice was not sent."
+    },
+    "refused": {
+      "notSendable": "This invoice has nothing left to send.",
+      "inProgress": "This invoice is already being sent. Check again in a moment.",
+      "deadLettered": "Sending this invoice stopped and needs support before it can be retried.",
+      "unavailable": "Sending is not available right now."
+    },
+    "buyer": {
+      "peppol": "The buyer receives it over Peppol",
+      "notPermitted": "No buyer copy: a deemed supply must not be shared with the buyer",
+      "emailPending": "Buyer e-mail copy pending",
+      "emailHeld": "Buyer e-mail copy held: e-mail delivery is switched off",
+      "emailSent": "E-mailed to the buyer",
+      "emailFailed": "The buyer e-mail could not be sent; contact support",
+      "sentManually": "Delivered to the buyer by hand",
+      "printedReceipt": "Hand the buyer the printed receipt with its QR code",
+      "manualRequired": "Deliver this invoice to the buyer by hand, then mark it as sent manually",
+      "selfBilling": "Self-billing: delivered as agreed with the supplier"
+    },
+    "release": {
+      "action": "Send held e-mail to buyer",
+      "done": "The held e-mail was released to the buyer.",
+      "notHeld": "There is no held e-mail for this invoice.",
+      "disabled": "Buyer e-mail delivery is switched off, so nothing can be released."
+    },
+    "modal": {
+      "title": "Send invoice {{number}}?",
+      "subtitle": "To your customer and the Tax Authority.",
+      "body": "Fawtir will create the e-invoice, validate it against the Oman rules and queue it for delivery to your customer and reporting to the Tax Authority.",
+      "final": "Once sent, the invoice cannot be cancelled; correct it with a credit note.",
+      "submit": "Send invoice",
+      "sending": "Sending…"
+    },
+    "transport": {
+      "headline": {
+        "queuedNotAttempted": "Queued for transmission, not yet sent",
+        "retryScheduled": "Transmission failed and will be retried",
+        "transmitted": "Transmitted, awaiting confirmation",
+        "failed": "Transmission failed"
+      },
+      "leg": {
+        "buyer": "To the buyer: {{state}}",
+        "taxAuthority": "To the Tax Authority: {{state}}"
+      },
+      "state": {
+        "queuedNotAttempted": "queued for transmission, not yet sent",
+        "transmitting": "transmitting now",
+        "retryScheduled": "failed, next attempt {{when}}",
+        "transmitted": "transmitted, receipt received",
+        "failed": "transmission failed",
+        "retryUntimed": "failed, will be retried"
+      }
+    }
   },
   "invoiceDetails": {
     "breadcrumbIncome": "Income",
@@ -2178,7 +2420,6 @@
       "DEBIT_NOTE": "Debit note {{id}}"
     },
     "notSentYet": "Not sent yet",
-    "sendUnavailable": "Sending is not available yet: documents are not delivered over Peppol or by e-mail from here until the delivery service exists.",
     "duplicateUnavailable": "Duplicating is not available yet: there is no route to copy a document.",
     "delivered": {
       "sentManually": "Sent manually to {{customer}} · {{when}}",
@@ -2286,6 +2527,9 @@
       "project": "Project",
       "subject": "Subject / about",
       "po": "Purchase order reference",
+      "buyerReference": "Buyer reference",
+      "buyerReferenceHint": "Filled in from the customer. Change it for this invoice, or leave it blank to use the customer's default.",
+      "governmentReferencesNote": "Government buyers may ask for a buyer reference and a purchase order reference on the invoice. Fawtir does not check this yet, so confirm with the buyer before issuing.",
       "paymentMethod": "Payment method",
       "paymentReference": "Payment reference",
       "paymentDate": "Payment date",
@@ -3085,7 +3329,6 @@
       "confirm": "Withdraw it",
       "withdrawing": "Withdrawing…"
     },
-    "breadcrumbIncome": "Income",
     "export": "Export",
     "newAgreement": "New agreement",
     "exportUnavailable": "Exporting agreements is not available yet: there is no route to download them.",
@@ -5133,7 +5376,7 @@
     "fullNameLength": "Use between 2 and 200 characters",
     "fullNameDigits": "A name cannot contain numbers",
     "fullNameInvalid": "Enter a valid full name",
-    "passwordLength": "Use between 12 and 128 characters",
+    "passwordLength": "Use between 8 and 128 characters",
     "passwordComposition": "Include an uppercase letter, a lowercase letter, a number and a symbol",
     "passwordMismatch": "Passwords do not match",
     "agreeRequired": "Please accept the Terms of Service and Privacy Policy to continue",
@@ -9354,7 +9597,8 @@
       "report_other": "{{count}} invoices · {{count}} from your quota · nothing goes to the customer",
       "unknown_one": "1 invoice · 1 from your quota · nothing goes to the customer",
       "unknown_other": "{{count}} invoices · {{count}} from your quota · nothing goes to the customer"
-    }
+    },
+    "quotaUnavailable": "Your document allowance is not available right now, so what this costs cannot be shown."
   },
   "complianceReport": {
     "title": "Compliance report",
@@ -9614,26 +9858,23 @@
     },
     "card": {
       "peppolTitle": "Peppol and tax",
-      "peppolBody": "Registered and live on the network.",
-      "peppolPill": "Expires {{date}}",
+      "peppolBody": "Your Participant ID and where it stands.",
       "peppolFoot": "{{id}}",
       "companyTitle": "Company profile",
       "companyBody": "Name, address, VAT number, logo, and what invoices default to.",
       "companyPill": "Complete",
       "companyFoot": "AR + EN · OMR",
       "branchesTitle": "Branches",
-      "branchesBody": "Each has its own invoice numbering and its own staff.",
+      "branchesBody": "Each has its own invoice numbering.",
       "branchesPill": "{{count}} open",
       "branchesFoot": "{{names}}",
       "teamTitle": "Team members",
       "teamBody": "Everyone with a login, and what each of them can reach.",
-      "teamPill": "{{used}} of {{seats}} used",
-      "teamFoot": "Next is OMR {{amount}}/mo",
       "rolesTitle": "What each role can do",
-      "rolesBody": "Owner, manager, accountant, till staff — and one you made yourself.",
+      "rolesBody": "The roles your company has, and the permissions each one holds.",
       "rolesPill": "{{count}} roles",
       "signingTitle": "Signing in",
-      "signingBody": "Two-step sign-in, session length, and the one-device rule on mobile.",
+      "signingBody": "Who has an authenticator app set up for signing in.",
       "signingPill": "{{count}} without two-step",
       "planTitle": "Plan and usage",
       "planBody": "What you are paying for, and how much of it you have used.",
@@ -9664,7 +9905,10 @@
         "READY_UNCERTIFIED": "Ready, not certified",
         "PARTIALLY_CERTIFIED": "Partly certified",
         "CERTIFIED": "Certified",
-        "STALE": "Re-certify"
+        "STALE": "Re-certify",
+        "NO_ACCESS": "No access",
+        "CHECKING": "Checking",
+        "UNAVAILABLE": "Unavailable"
       },
       "erpMappingFoot": "Guided · {{system}} · {{mapped}} of {{required}} required fields",
       "erpMappingFootNone": "Start with your ERP's sample invoice",
@@ -9690,82 +9934,52 @@
       "erpActivityTitle": "ERP activity",
       "erpActivityBody": "Every document your ERP sent, what became of it, and the extraction runs that brought it in.",
       "erpActivityPill": "Reports",
-      "erpActivityFoot": "Source documents, needs attention, runs"
+      "erpActivityFoot": "Source documents, needs attention, runs",
+      "apiPushTitle": "API push",
+      "apiPushBody": "Keys your ERP uses to send documents to Fawtir, and how to call the API.",
+      "apiPushPill": "ERP ingestion keys",
+      "apiPushFoot": "Create, rotate and revoke",
+      "erpOverviewTitle": "ERP integration",
+      "erpOverviewBody": "How documents reach Fawtir from your ERP, what needs attention, and what is left to set up.",
+      "erpOverviewPill": "Overview",
+      "erpOverviewFoot": "Connections, upload, API push, mapping",
+      "erpAccessTitle": "ERP access and history",
+      "erpAccessBody": "Who can do what in ERP integration, and the record of changes made to it.",
+      "erpAccessPill": "Access",
+      "erpAccessFoot": "Permissions and activity log",
+      "logFootReal": "Recorded by the server",
+      "erpMappingFootNoAccess": "Your role cannot see the mapping",
+      "erpMappingFootUnknown": "Status not available right now",
+      "peppolPillVerified": "ID verified",
+      "peppolPillNotVerified": "Not verified yet",
+      "pillChecking": "Checking",
+      "pillNotAvailable": "Not available",
+      "teamPillOpen": "Manage",
+      "signingPillNoApp_one": "{{count}} without an authenticator app",
+      "signingPillNoApp_other": "{{count}} without an authenticator app",
+      "planPillName": "{{name}}",
+      "planFootReal": "This period ends {{date}}"
     }
   },
   "peppolTax": {
     "title": "Peppol and tax",
-    "subtitle": "Your identity on the network, and the certificates that keep it working",
-    "downloadSummary": "Download the setup summary",
-    "liveHeadline": "You're live on the Peppol network",
-    "liveBody": "Registered with the Oman Tax Authority since {{date}}. Anyone on Peppol anywhere can find you at the ID below and send you a bill, and yours reach them the same way.",
+    "subtitle": "Your Participant ID and where it stands.",
     "yourPeppolId": "Your Peppol ID",
     "copyId": "Copy the ID",
     "copied": "Copied",
     "certificates": "Certificates",
-    "certificatesNote": "without these, nothing gets sent or signed",
-    "cert": {
-      "signing": "Signing certificate",
-      "signingNote": "Signs every invoice so the Tax Authority knows it came from you",
-      "transport": "AS4 transport certificate",
-      "transportNote": "Encrypts documents in transit between access points",
-      "reporting": "OTA reporting credentials",
-      "reportingNote": "Your Fawtara account, used to file every TDD"
-    },
-    "issuedBy": "issued by {{who}}",
-    "renewsItself": "renews itself",
-    "daysLeft_one": "{{count}} day left",
-    "daysLeft_other": "{{count}} days left",
-    "monthsLeft_one": "{{count}} month left",
-    "monthsLeft_other": "{{count}} months left",
-    "renewIt": "Renew it",
-    "details": "Details",
-    "renewingTitle": "What renewing involves",
-    "renewingNote": "start now and you'll be comfortable — leave it two weeks and you won't",
-    "step": {
-      "warned": "We warned you",
-      "warnedNote": "30 days out · {{date}}",
-      "ask": "Ask Oman CA for a new one",
-      "askNote": "You do this · about 20 minutes",
-      "issue": "They check and issue",
-      "issueNote": "Usually one working day",
-      "upload": "Upload it here",
-      "uploadNote": "Takes effect on the next invoice"
-    },
-    "startRenewal": "Start the renewal",
-    "uploadExisting": "Upload one I already have",
-    "remindWeekly": "Remind me weekly",
-    "appearance": "How you appear to others",
-    "appearanceNote": "what another business sees when they look you up",
-    "published": "Published",
-    "visibility": {
-      "directory": "Listed in the Peppol directory",
-      "directoryNote": "Lets a customer find you by name rather than needing your ID. Most businesses leave this on.",
-      "acceptBills": "Accept bills sent to you over Peppol",
-      "acceptBillsNote": "Off would mean suppliers have to email or post them instead",
-      "acceptSelfBilling": "Accept self-billing",
-      "acceptSelfBillingNote": "Lets a customer raise the invoice on your behalf. Used by two of your hotel accounts.",
-      "emailCopy": "Send a copy by email as well",
-      "emailCopyNote": "Belt and braces for customers who aren't watching their Peppol inbox"
-    },
     "registration": "Registration",
-    "checkNow": "Check now",
-    "checked": "Checked just now",
     "row": {
-      "peppolId": "Peppol ID",
-      "scheme": "Scheme",
-      "accessPoint": "Access point",
-      "liveSince": "Live since",
       "vatNumber": "VAT number",
-      "fawtaraAccount": "Fawtara account"
+      "verification": "Verified by Fawtir",
+      "smpPublication": "Oman SMP publication",
+      "smlDiscovery": "SML discoverability"
     },
-    "linked": "Linked",
     "branchesOnPeppol": "Branches on Peppol",
     "sharesTheMainId": "Shares the main ID",
     "headOffice": "head office",
     "ifSomethingBreaks": "If something breaks",
     "seeTddLog": "See the TDD reporting log",
-    "testSandbox": "Test with a sandbox invoice",
     "participant": {
       "title": "Participant ID verification",
       "note": "Fawtir checks your Peppol Participant ID against the validation policy in force.",
@@ -9804,12 +10018,64 @@
         "policyNotActive": "No validation policy is in force right now, so a request cannot be made. Try again later.",
         "forbidden": "Your account does not have permission to ask for verification. Ask an administrator in your company if you need it."
       }
-    }
+    },
+    "hero": {
+      "VERIFIED": "Your Participant ID is verified",
+      "REVERIFICATION_REQUIRED": "Your Participant ID needs verifying again",
+      "AWAITING_REVIEW": "Your Participant ID is waiting for review",
+      "NOT_SUBMITTED": "Your Participant ID is not verified yet",
+      "DRAFT": "Your Participant ID is not verified yet",
+      "REJECTED": "Your Participant ID was not verified",
+      "NO_POLICY_IN_FORCE": "Participant ID verification is not open yet",
+      "verifiedOn": "Fawtir verified it on {{date}}.",
+      "seeBelow": "The verification card below says what happens next."
+    },
+    "certificatesManaged": "Fawtir manages the access-point certificates that carry your invoices on the Peppol network. There is nothing for you to renew or upload here.",
+    "fact": {
+      "checking": "Checking…",
+      "notAvailable": "Not available",
+      "verified": "Verified",
+      "notVerified": "Not verified",
+      "published": "Published in the Oman SMP",
+      "notConfirmed": "Not confirmed",
+      "notChecked": "Not checked by Fawtir"
+    },
+    "noOpenBranches": "No open branches.",
+    "cert": {
+      "signing": "Signing certificate",
+      "signingNote": "Signs every invoice so the Tax Authority knows it came from you",
+      "transport": "AS4 transport certificate",
+      "transportNote": "Encrypts documents in transit between access points",
+      "reporting": "OTA reporting credentials",
+      "reportingNote": "Your Fawtara account, used to file every TDD"
+    },
+    "appearance": "How you appear to others",
+    "appearanceNote": "what another business sees when they look you up",
+    "visibility": {
+      "directory": "Listed in the Peppol directory",
+      "directoryNote": "Lets a customer find you by name rather than needing your ID. Most businesses leave this on.",
+      "acceptBills": "Accept bills sent to you over Peppol",
+      "acceptBillsNote": "Off would mean suppliers have to email or post them instead",
+      "acceptSelfBilling": "Accept self-billing",
+      "acceptSelfBillingNote": "Lets a customer raise the invoice on your behalf.",
+      "emailCopy": "Send a copy by email as well",
+      "emailCopyNote": "Belt and braces for customers who aren't watching their Peppol inbox"
+    },
+    "notAvailableYet": "Not available yet"
   },
   "companyProfile": {
+    "addressLine2": "Additional street or area",
+    "addressLine3": "Building or address line 3",
+    "poBox": "PO Box",
+    "governorate": "Governorate",
+    "subdivisionCode": "Subdivision code",
+    "subdivisionCodeNone": "Not set",
+    "contactPerson": "Contact person",
+    "addressAmendNote": "You can update your registered address and contact. Changes apply to invoices you issue from now on; invoices already issued keep the details they were issued with.",
+    "amendConflict": "Someone else updated the company details while you were editing. The latest version is now shown, so make your change again.",
+    "amendFieldsRefused": "Complete these before saving: {{fields}}.",
     "title": "Company profile",
     "subtitle": "What appears on every invoice you send, and what the Tax Authority holds about you",
-    "sampleInvoice": "See a full sample invoice",
     "whoYouAre": "Who you are",
     "whoYouAreNote": "this is the legal identity on the invoice, not a trading name",
     "registeredName": "Registered name",
@@ -9819,8 +10085,7 @@
     "commercialRegistration": "Commercial registration",
     "vatNumber": "VAT number",
     "locked": "locked",
-    "lockedNote": "Changing this means re-registering on Peppol. Talk to support first.",
-    "vatRegisteredSince": "VAT registered since",
+    "lockedNote": "Part of your verified tax identity. Changing it needs re-verification, so contact support.",
     "whereYouAre": "Where you are",
     "whereYouAreNote": "the registered address; branches have their own",
     "streetAddress": "Street address",
@@ -9829,7 +10094,6 @@
     "country": "Country",
     "phone": "Phone",
     "emailOnInvoices": "Email on invoices",
-    "website": "Website",
     "yourLogo": "Your logo",
     "yourLogoNote": "appears on invoices, quotations and receipts",
     "removeIt": "Remove it",
@@ -9837,11 +10101,6 @@
     "logoFormats": "PNG or SVG",
     "logoSize": "at least 400px square",
     "onAReceipt": "On a receipt",
-    "onAReceiptNote": "thermal printers are black and white",
-    "receiptOption": {
-      "plainBlack": "Use a plain black version",
-      "none": "Leave it off receipts"
-    },
     "brandColour": "Brand colour",
     "brandColourNote": "used on invoice headings",
     "logoWarning": "The logo is drawn onto the PDF only. <b>The XML sent to the Tax Authority carries no image</b>, so a logo change never affects a submission.",
@@ -9876,12 +10135,6 @@
     "immediately": "Immediately",
     "unchanged": "Unchanged",
     "lastChanged": "Last changed",
-    "changed": {
-      "bankNote": "Bank note",
-      "logo": "Logo",
-      "address": "Address"
-    },
-    "seeFullHistory": "See the full history",
     "nothingChanged": "Nothing changed yet",
     "oneThingChanged": "<b>One thing changed</b> · {{fields}}",
     "thingsChanged": "<b>{{count}} things changed</b> · {{fields}}",
@@ -9890,14 +10143,28 @@
     "saved": "Saved",
     "andJoin": " and ",
     "industrialClassification": "Business activity (ISIC)",
-    "industrialClassificationHint": "Copied onto every invoice line by the backend; never asked on the invoice",
+    "industrialClassificationHint": "Fawtir puts it on every invoice line for you; it is never asked on the invoice",
     "industrialClassificationPlaceholder": "Choose your business activity",
     "industrialClassificationSearch": "Search by activity name",
     "industrialClassificationNone": "No activity matches",
     "industrialClassificationUnset": "Not set yet. Business and government invoices cannot be created until a business activity is set. Consumer invoices are not affected.",
     "industrialClassificationFailed": "The business activity was not saved. Check the code and try again.",
     "saveFailed": "That did not save. Check your connection and try again.",
-    "identityLockedNote": "Verified companies can't edit these details here yet. Contact support if something needs correcting."
+    "identityLockedNote": "Your legal and tax identity is verified and locked. Changing it needs a controlled re-verification, so contact support.",
+    "sampleNumber": "Sample",
+    "sampleLineOne": "Sample item",
+    "sampleLineTwo": "Sample service",
+    "previewVat": "VAT {{number}}",
+    "noChangesYet": "No changes recorded yet",
+    "changedOther": "Company details",
+    "website": "Website",
+    "onAReceiptNote": "thermal printers are black and white",
+    "receiptOption": {
+      "plainBlack": "Use a plain black version",
+      "none": "Leave it off receipts"
+    },
+    "vatRegisteredSince": "VAT registered since",
+    "notAvailableYet": "Not available yet"
   },
   "branches": {
     "title": "Branches",
@@ -9914,10 +10181,12 @@
       "invoicesNote": "{{name}} raises {{share}} in every 10",
       "included": "Included in your plan",
       "includedUnit": "branches",
-      "includedNote": "No extra charge until the sixth",
       "openNoteGeneric": "Including any you've closed",
       "invoicesNoteGeneric": "Across every open branch",
-      "peopleNoteGeneric": "Across every branch"
+      "peopleNoteGeneric": "Across every branch",
+      "includedUnavailable": "Not available",
+      "includedUnlimited": "Your plan has no branch limit",
+      "includedFromPlan": "On your {{plan}} plan"
     },
     "headOffice": "Head office",
     "open": "Open",
@@ -9964,16 +10233,16 @@
     "empty": {
       "title": "Add your first branch",
       "body": "You'll need at least one branch, where you trade from, before you can create an invoice."
-    }
+    },
+    "closedNoteNoCount": "Closed, not deleted. Its invoices stay reachable and still count toward the ten-year retention. The {{prefix}} series is frozen and won't be reused."
   },
   "addBranch": {
     "title": "Add a branch",
-    "subtitle": "A new place you trade from. It shares your VAT number and Peppol ID — only the address and numbering change.",
+    "subtitle": "A new place you trade from. It shares your VAT number and Peppol ID; only the address and numbering change.",
     "cancel": "Cancel",
     "step": {
       "whereItIs": "Where it is",
-      "numbering": "How it numbers invoices",
-      "who": "Who works there"
+      "numbering": "How it numbers invoices"
     },
     "whereItIs": "Where it is",
     "whereItIsNote": "this address appears on invoices raised here",
@@ -9984,7 +10253,6 @@
     "postalCode": "Postal code",
     "governorate": "Governorate",
     "phone": "Phone",
-    "opens": "Opens",
     "numbering": "How it numbers invoices",
     "numberingNote": "this can't be changed once the first invoice is raised",
     "numberingLabel": "Numbering",
@@ -9995,13 +10263,6 @@
     "prefix": "Prefix",
     "firstInvoiceWillBe": "First invoice will be",
     "thenOnwards": "then 0002, 0003 and so on",
-    "whoWorksThere": "Who works there",
-    "whoWorksThereNote": "you can change this later — nobody has to be assigned now",
-    "inviteSomeoneNew": "Invite someone new",
-    "alreadyManages": "Already manages {{branch}} · would work at both",
-    "canReachAnyway": "Owner · can reach every branch anyway",
-    "manages": "Manages {{branch}}",
-    "worksAt": "Till staff · {{branches}}",
     "behaviour": "How it behaves",
     "behaviourNote": "all of these can be changed afterwards",
     "behave": {
@@ -10019,38 +10280,44 @@
       "vat": "VAT number",
       "peppol": "Peppol ID",
       "company": "Company name",
-      "logo": "Logo and colour",
-      "tax": "Tax defaults"
+      "logo": "Logo and colour"
     },
     "shared": "Shared",
-    "fivePercentStandard": "5% standard",
     "ready": "Ready to add?",
     "check": {
       "named": "Named, with an address",
-      "prefixFree": "{{prefix}} prefix is free to use",
       "prefixMissing": "Give it a prefix",
-      "someoneToManage": "Someone to manage it",
-      "nobodyAssigned": "Nobody assigned yet — optional",
       "phone": "Phone number added",
-      "noPhone": "No phone number — optional"
+      "noPhone": "No phone number (optional)",
+      "prefixChosen": "Prefix {{prefix}} chosen; Fawtir checks it is free when you save",
+      "sharedSeries": "Carries on the company series"
     },
-    "cost": "What it costs",
+    "cost": "Your plan",
     "branchesUsed": "Branches used",
     "usedOf": "{{used}} of {{total}}",
     "thisOne": "This one",
-    "noExtraCharge": "No extra charge",
-    "sixthWouldBe": "A sixth would be",
-    "perMonth": "/mo",
-    "footer": "{{name}} · opens {{date}} · first invoice {{invoice}}",
     "footerUnnamed": "Name the branch to carry on",
     "saveDraft": "Save as a draft",
     "addTheBranch": "Add the branch",
-    "editTitle": "{{name}} — what it is and how it invoices",
+    "editTitle": "{{name}}: what it is and how it invoices",
     "editSubtitle": "Its address and numbering. The VAT number and Peppol ID come from the company and cannot be changed here.",
     "saveChanges": "Save the changes",
     "closeThisBranch": "Close this branch",
     "saving": "Saving…",
-    "saveFailed": "Could not save the branch. Try again."
+    "saveFailed": "Could not save the branch. Try again.",
+    "chooseGovernorate": "Choose a governorate",
+    "continuesCompanySeries": "The company's next number",
+    "thisBranch": "this branch",
+    "usedOfUnlimited": "{{used}} (no limit)",
+    "withinPlan": "Within your plan",
+    "beyondPlan": "Beyond your plan's allowance",
+    "footerOwn": "{{name}} · first invoice {{invoice}}",
+    "footerShared": "{{name}} · carries on the company series",
+    "opens": "Opens",
+    "whoWorksThere": "Who works there",
+    "whoWorksThereNote": "you can change this later, nobody has to be assigned now",
+    "inviteSomeoneNew": "Invite someone new",
+    "notAvailableYet": "Not available yet"
   },
   "team": {
     "title": "Team members",
@@ -10162,7 +10429,7 @@
     "roleBody": {
       "till": "Takes payments and raises invoices at the branches they're assigned to. Can't see what the business earns, change prices, or reach anyone else's work.",
       "manager": "Runs a branch. Everything till staff can do, plus prices, stock, suppliers and reports for their own branches.",
-      "accountant": "Reads everything and changes nothing. Meant for an outside bookkeeper — they can pull reports and download documents but can't raise or alter an invoice.",
+      "accountant": "Reads everything and changes nothing. Meant for an outside bookkeeper: they can pull reports and download documents but can't raise or alter an invoice.",
       "owner": "Everything, including billing, the plan, and adding or removing people. Only give this to someone you'd trust with the bank details."
     },
     "chip": {
@@ -10208,7 +10475,7 @@
       "branchChosen_one": "One branch · {{names}}",
       "branchChosen_other": "{{count}} branches · {{names}}",
       "noBranch": "No branch ticked yet",
-      "allBranches": "Every branch — the role reaches all of them",
+      "allBranches": "Every branch: the role reaches all of them",
       "costs": "Costs OMR {{amount}} a month",
       "free": "Within the five included"
     },
@@ -10216,7 +10483,12 @@
     "footerFree": "{{name}} · {{role}} at {{branches}} · within the plan",
     "footerIncomplete": "Fill in a name and an email to send it",
     "send": "Send the invitation",
-    "sent": "Invitation sent"
+    "sent": "Invitation sent",
+    "peopleCount_one": "{{count}} person",
+    "peopleCount_other": "{{count}} people",
+    "tillCount_one": "{{count}} till",
+    "tillCount_other": "{{count}} tills",
+    "noTill": "no till"
   },
   "roles": {
     "title": "What each role can do",
@@ -10325,7 +10597,7 @@
     "groupCount": "{{on}} of {{total}} on",
     "ownerOnly": "owner only",
     "offBecauseNoBranch": "Off because this role has no till branch assigned",
-    "ownerOnlyNote": "The last four are <b>owner only and can't be given away</b> — somebody has to be able to pay the bill and let people back in.",
+    "ownerOnlyNote": "The last four are <b>owner only and can't be given away</b>: somebody has to be able to pay the bill and let people back in.",
     "howItReads": "How it reads",
     "nothingOnYet": "Nothing turned on yet",
     "worthThinking": "Worth thinking about",
@@ -10333,8 +10605,8 @@
       "named": "Named, with a reason written down",
       "unnamed": "Give it a name and a reason",
       "noBilling": "Can't reach billing or people",
-      "hasBilling": "Can reach billing — unusual for a made role",
-      "billsNoFigures": "Can approve supplier bills but can't see the figures — unusual, though not wrong",
+      "hasBilling": "Can reach billing, unusual for a made role",
+      "billsNoFigures": "Can approve supplier bills but can't see the figures. Unusual, though not wrong",
       "nobodyHasIt": "Nobody has this role yet"
     },
     "giveItToSomeone": "Give it to someone",
@@ -10512,13 +10784,14 @@
     },
     "addons": {
       "title": "Add-ons",
-      "subtitle": "What you pay for on top of the plan.",
+      "subtitle": "What your organisation has on top of the plan.",
       "extraction": {
-        "name": "Automatic ERP extraction",
-        "body": "Fawtir collects invoices from your ERP on a schedule, runs them through your field mapping, submits them, and writes the result back into the ERP record.",
+        "name": "ERP integration",
+        "body": "Fawtir takes documents from your ERP by a managed connection, by upload, or by API push, runs them through your field mapping and submits them.",
         "price": "{{amount}} a month · {{documents}} documents collected · then {{overage}} each",
         "includedPrice": "Included in your plan · {{documents}} documents collected a month",
-        "usage": "{{used}} of {{allowance}} collected this month · resets {{resets}}"
+        "usage": "{{used}} of {{allowance}} collected this month · resets {{resets}}",
+        "realState": "Fawtir switches ERP integration on for each organisation. Whether it is on for yours, and what it has done, is shown in ERP integration. There is no separate usage count or price to show here yet."
       },
       "state": {
         "active": "Active",
@@ -10526,14 +10799,17 @@
         "pending": "Requested",
         "off": "Not active",
         "includedOff": "Included · off",
-        "notSupported": "Not supported on your plan"
+        "notSupported": "Not supported on your plan",
+        "managedByFawtir": "Enabled by Fawtir"
       },
       "ask": "Ask to activate",
       "switchOn": "Switch on",
       "openConnections": "Open Connected systems",
       "pendingNote": "Requested. The Fawtir team confirms and switches it on.",
-      "notSupportedNote": "Available on {{plan}}. Move up a plan to add it."
-    }
+      "notSupportedNote": "Available on {{plan}}. Move up a plan to add it.",
+      "openIntegration": "Open ERP integration"
+    },
+    "larger": "Larger"
   },
   "bills": {
     "title": "Bills and payment",
@@ -10543,8 +10819,8 @@
     "yourNextBill": "Your next bill",
     "inDays_one": "in {{count}} day",
     "inDays_other": "in {{count}} days",
-    "nothingExtra": "Nothing extra this month. You're within the plan on both documents and people. <b>If you add the sixth person</b> before the {{day}}, it would come to OMR {{amount}}.",
-    "extraThisMonth": "{{count}} people beyond the five included, at OMR {{each}} each. Charged with the plan on the {{day}}.",
+    "nothingExtra": "Nothing extra this month. You're within the plan on both documents and people. <b>If you add the sixth person</b> before {{day}}, it would come to OMR {{amount}}.",
+    "extraThisMonth": "{{count}} people beyond the five included, at OMR {{each}} each. Charged with the plan on {{day}}.",
     "line": {
       "plan": "{{plan}} plan",
       "planNote": "{{invoices}} documents · {{people}} people · {{branches}} branches",
@@ -10606,14 +10882,14 @@
       "cheque": "Cheque"
     },
     "methodHint": {
-      "cardLink": "Thawani checkout · nothing stored with us",
+      "cardLink": "Paymob checkout · nothing stored with us",
       "bankTransfer": "Bank Muscat · quote the invoice number",
       "cash": "At Fawtir's office or to your representative",
       "cheque": "Made out to Insight Technology LLC"
     },
     "confirmedBy": {
-      "thawani": "Paid by link · confirmed by Thawani {{date}}",
-      "fawtir": "Confirmed by the Fawtir team {{date}}"
+      "fawtir": "Confirmed by the Fawtir team {{date}}",
+      "paymob": "Paid by link · confirmed by Paymob {{date}}"
     },
     "pay": {
       "title": "How you pay",
@@ -10630,7 +10906,7 @@
         "cheque": "Hand a cheque made out to Insight Technology LLC to your representative. The period is activated once it clears."
       },
       "linkTitle": "Card by secure link",
-      "linkNote": "A Thawani link comes by {{to}} a week before each bill, valid {{days}} days. Fawtir never sees or stores your card.",
+      "linkNote": "A Paymob link comes by {{to}} a week before each bill, valid {{days}} days. Fawtir never sees or stores your card.",
       "transferTitle": "Bank transfer",
       "transferNote": "Reference: {{reference}}. Activated by the Fawtir team once the transfer is confirmed.",
       "copyIban": "Copy the IBAN",
@@ -10653,7 +10929,8 @@
       "byApiNote": "All from the ERP sync key",
       "keptFor": "Kept for",
       "years": "years",
-      "keptForNote": "Can't be edited or cleared"
+      "keptForNote": "Can't be edited or cleared",
+      "notCounted": "Fawtir can't count these yet"
     },
     "tab": {
       "all": "All",
@@ -10679,10 +10956,10 @@
       "reportedAccepted": "Fawtir reported {{link}} to the Tax Authority and it was <b>accepted</b>",
       "invited": "<b>{{who}}</b> invited <b>{{person}}</b> as an {{role}}",
       "newDevice": "<b>{{who}}</b> signed in from a new device in {{branch}}",
-      "refusedNoPeppol": "Fawtir refused to send {{link}} — the buyer had no Peppol ID",
+      "refusedNoPeppol": "Fawtir refused to send {{link}}: the buyer had no Peppol ID",
       "wroteOff": "<b>{{who}}</b> wrote off {{count}} bag of",
       "bulkPriceChange": "<b>{{who}}</b> changed prices on <b>{{count}} items</b> in {{group}} at once",
-      "certChecked": "Your <b>signing certificate</b> was checked — {{days}} days left at the time"
+      "certChecked": "Your <b>signing certificate</b> was checked, {{days}} days left at the time"
     },
     "tag": {
       "catalog": "Catalog",
@@ -10697,13 +10974,84 @@
       "leftAlone": "3 left alone",
       "dailyCheck": "Daily check at 06:00"
     },
-    "openEntry": "Open this entry"
+    "openEntry": "Open this entry",
+    "filter": {
+      "resource": "What it concerns",
+      "anyResource": "Anything",
+      "outcome": "Result",
+      "anyOutcome": "Any result"
+    },
+    "outcome": {
+      "SUCCESS": "Succeeded",
+      "FAILURE": "Failed",
+      "DENIED": "Refused",
+      "THROTTLED": "Slowed down"
+    },
+    "actor": {
+      "USER": "Person",
+      "API_KEY": "API key",
+      "SYSTEM": "Fawtir",
+      "SUPPORT_USER": "Fawtir support"
+    },
+    "resource": {
+      "USER": "User",
+      "SESSION": "Sign-in",
+      "DEVICE": "Device",
+      "ERP_CONNECTION": "ERP connection",
+      "API_KEY": "API key",
+      "MAPPING_PROFILE": "Mapping",
+      "MAPPING_CERTIFICATION": "Mapping certification",
+      "ERP_SOURCE_DOCUMENT": "ERP document",
+      "ERP_EXTRACTION_RUN": "Collection run",
+      "ERP_ENTITLEMENT": "ERP enablement"
+    },
+    "event": {
+      "other": "Recorded event",
+      "ApiKeyCreated": "API key created",
+      "ApiKeyRevoked": "API key revoked",
+      "ApiKeyRotationCompleted": "API key rotation completed",
+      "ApiKeyRotationStarted": "API key rotation started",
+      "ErpConnectionArchived": "Connection retired",
+      "ErpConnectionCreated": "Connection added",
+      "ErpConnectionStateChanged": "Connection state changed",
+      "ErpConnectionTested": "Connection checked",
+      "ErpConnectionUpdated": "Connection changed",
+      "ErpCredentialConfigured": "Sign-in details set",
+      "ErpCredentialReencrypted": "Sign-in details re-encrypted",
+      "ErpCredentialReplaced": "Sign-in details replaced",
+      "ErpEntitlementGranted": "ERP integration enabled",
+      "ErpEntitlementRevoked": "ERP integration disabled",
+      "ErpExtractionClaimReleased": "Collection run released",
+      "ErpExtractionDisabled": "Collection switched off",
+      "ErpExtractionEnabled": "Collection switched on",
+      "ErpExtractionRunRecovered": "Collection run recovered",
+      "ErpExtractionSampleFetched": "Sample fetched",
+      "ErpExtractionSettingsChanged": "Collection settings changed",
+      "ErpSourceDocumentAccepted": "ERP document accepted",
+      "ErpSourceDocumentConflict": "ERP document conflicted",
+      "ErpSourceDocumentDeferred": "ERP document deferred",
+      "ErpSourceDocumentDuplicate": "ERP document was a duplicate",
+      "ErpSourceDocumentRejected": "ERP document rejected",
+      "MappingActivated": "Mapping activated",
+      "MappingArchived": "Mapping archived",
+      "MappingCertificationFailed": "Mapping certification failed",
+      "MappingCertificationGateRejected": "Mapping certification refused",
+      "MappingCertificationPassed": "Mapping certified",
+      "MappingCertificationStarted": "Mapping certification started",
+      "MappingDraftSaved": "Mapping draft saved",
+      "MappingProfileDeactivated": "Mapping deactivated",
+      "MappingProfileStored": "Mapping saved"
+    },
+    "notAvailable": "Not available yet",
+    "exportUnavailable": "Exporting the log as a PDF is not available yet.",
+    "pageScope": "Tabs, search and sort cover the entries on this page only.",
+    "onThisPage": "{{count}} on this page"
   },
   "export": {
     "title": "Take your data with you",
     "subtitle": "Everything you've put in and everything Fawtir has generated, in one download",
     "whatToInclude": "What to include",
-    "whatToIncludeNote": "everything is ticked — untick what you don't need",
+    "whatToIncludeNote": "everything is ticked, untick what you don't need",
     "untickEverything": "Untick everything",
     "tickEverything": "Tick everything",
     "schedule": {
@@ -10727,7 +11075,7 @@
       "activityLog": "The activity log",
       "activityLogNote": "Every change, who made it and when, going back to the day you started.",
       "reports": "Reports as spreadsheets",
-      "reportsNote": "VAT returns, aged debtors, sales by month. <b>Worked out from the invoices above</b>, so leaving them out loses nothing — it just saves you rebuilding them."
+      "reportsNote": "VAT returns, aged debtors, sales by month. <b>Worked out from the invoices above</b>, so leaving them out loses nothing; it just saves you rebuilding them."
     },
     "files": "{{count}} files",
     "bills": "{{count}} bills",
@@ -10755,7 +11103,7 @@
     "footerTime": "Takes 20 to 40 minutes to put together · you'll get an email when it's ready",
     "justTheInvoices": "Just the invoices",
     "startDownload": "Start the download",
-    "started": "Started — we will email you"
+    "started": "Started. We will email you"
   },
   "closing": {
     "title": "Closing the account",
@@ -10765,7 +11113,7 @@
     "sortFirstNote_other": "{{count}} of these stop the account being closed at all",
     "blocker": {
       "neverAccepted": "One invoice was never accepted by the Tax Authority",
-      "neverAcceptedNote": "<b>{{invoice}}</b> was refused and never corrected. Close now and it stays unreported — <b>that's your problem to answer for, not Fawtir's</b>.",
+      "neverAcceptedNote": "<b>{{invoice}}</b> was refused and never corrected. Close now and it stays unreported, and <b>that's your problem to answer for, not Fawtir's</b>.",
       "billNotCharged": "This month's bill hasn't been charged yet",
       "billNotChargedNote": "<b>OMR {{amount}}</b> falls due on {{date}}. You can close from that date, or settle it now and close today.",
       "openQuotations": "{{count}} quotations are still open",
@@ -10777,14 +11125,14 @@
     "settleItNow": "Settle it now",
     "seeThem": "See them",
     "whatHappens": "What happens, and when",
-    "whatHappensNote": "nothing is instant — there's a month to change your mind",
+    "whatHappensNote": "nothing is instant, there's a month to change your mind",
     "stage": {
       "theDay": "The day you close it",
       "theDayTitle": "Invoicing stops",
       "theDayBody": "No new invoices, no till sales, no API calls. Your Peppol ID <b>stops accepting bills from suppliers</b>, so anyone sending you one gets a failure. Everything already reported to the Tax Authority is unaffected.",
       "thirtyDays": "For the next {{days}} days",
       "thirtyDaysTitle": "You can still sign in and change your mind",
-      "thirtyDaysBody": "Read-only. You can look at everything, download anything, and <b>reopen the account with one click</b> — nothing has been lost yet. Billing has already stopped.",
+      "thirtyDaysBody": "Read-only. You can look at everything, download anything, and <b>reopen the account with one click</b>. Nothing has been lost yet. Billing has already stopped.",
       "afterThirty": "After {{days}} days",
       "afterThirtyTitle": "Sign-in ends for everyone",
       "afterThirtyBody": "Your team can no longer reach it. Reopening from here means <b>contacting support</b> rather than clicking a button.",
@@ -10799,7 +11147,7 @@
       "everyInvoice": "Every invoice, in the copy you download",
       "taxRecord": "The tax reporting record and Fawtara references",
       "contactLists": "Your customer and supplier lists",
-      "yourIdentifiers": "Your VAT number and Peppol ID — those are yours, not Fawtir's"
+      "yourIdentifiers": "Your VAT number and Peppol ID: those are yours, not Fawtir's"
     },
     "lose": {
       "raiseOrReport": "The ability to raise or report an invoice",
@@ -10823,10 +11171,10 @@
     },
     "months": "{{count}} months",
     "movingProvider": "Moving to another provider?",
-    "movingNote": "<b>Set the new one up first, then close this.</b> Your Peppol ID moves with you — the new provider registers it against themselves, and there's usually a day where neither is live. Closing first makes that gap longer.",
+    "movingNote": "<b>Set the new one up first, then close this.</b> Your Peppol ID moves with you: the new provider registers it against themselves, and there's usually a day where neither is live. Closing first makes that gap longer.",
     "howHandoverWorks": "How a handover works",
     "closeTheAccount": "Close the account",
-    "closeBody": "Two things above have to be dealt with first — <b>the unreported invoice and this month's bill</b>. Once they're clear, this button asks you to type the company name and confirms by email to <b>{{email}}</b> before anything happens.",
+    "closeBody": "Two things above have to be dealt with first: <b>the unreported invoice and this month's bill</b>. Once they're clear, this button asks you to type the company name and confirms by email to <b>{{email}}</b> before anything happens.",
     "closeBodyClear": "Nothing is blocking it now. This button asks you to type the company name and confirms by email to <b>{{email}}</b> before anything happens.",
     "closeCompany": "Close {{company}}",
     "talkFirst": "Talk to someone first",
@@ -11849,7 +12197,9 @@
       "erpConnections": "Connections",
       "erpTemplates": "Mapping templates",
       "erpRequests": "Add-on requests",
-      "policies": "Validation policies"
+      "policies": "Validation policies",
+      "payments": "Subscription payments",
+      "bankAccounts": "Bank account"
     },
     "user": {
       "team": "Fawtir team",
@@ -11874,7 +12224,7 @@
     },
     "health": {
       "renewalNotStarted": "Renewal not started",
-      "overageOff": "Overage off — would block",
+      "overageOff": "Overage off, would block",
       "sameCause": "Same cause repeating",
       "stoppedAfterKey": "Stopped after key rotation",
       "peppolTesting": "Peppol registered, testing",
@@ -11891,26 +12241,23 @@
       "waiting": "Waiting to be filed",
       "waitingNote": "Oldest waiting {{oldest}} min · normal is under {{normal}} sec",
       "ourFault": "Our fault, not theirs",
-      "ourFaultNote": "Timeouts and 5xx from the OTA · all retrying",
+      "ourFaultNote": "Timeouts and server errors from the OTA · all retrying",
       "filingToday": "Tenants filing today",
       "ofTenants": "of {{total}}",
-      "filingTodayNote": "{{quiet}} quiet — most are weekend-only businesses",
+      "filingTodayNote": "{{quiet}} quiet, most are weekend-only businesses",
       "byHour": "Filed by the hour",
       "byHourNote": "today against the same day last week",
-      "byHourStory": "Tracking last week almost exactly until {{time}}, then falling away as the queue backs up. The work hasn't gone — it's waiting.",
+      "byHourStory": "Tracking last week almost exactly until {{time}}, then falling away as the queue backs up. The work hasn't gone: it's waiting.",
       "slowedAt": "OTA slowed at {{time}}",
       "now": "now",
       "connection": "The OTA connection",
-      "integrations": {
-        "title": "Integrations needing attention",
-        "subtitle": "ERP connections across all tenants",
-        "open": "Open ERP connections",
-        "inError": "Connections in error",
-        "stale": "Stale connections",
-        "requests": "Add-on requests waiting",
-        "allClear": "Every ERP connection is healthy.",
-        "more_one": "{{count}} more on the ERP connections screen",
-        "more_other": "{{count}} more on the ERP connections screen"
+      "town": {
+        "Sur": "Sur",
+        "Nizwa": "Nizwa",
+        "Muscat": "Muscat",
+        "Barka": "Barka",
+        "Salalah": "Salalah",
+        "Sohar": "Sohar"
       }
     },
     "ota": {
@@ -11940,7 +12287,7 @@
       "sameCause": "Same cause · buyer Peppol ID missing",
       "quiet": "Quiet {{days}} days",
       "wasFiling": "Was filing {{count}} a day",
-      "story": "A tenant going quiet usually means a broken integration rather than a lost customer. Nizwa Wholesale stopped the same day their API key was rotated — worth checking before anyone assumes they have left."
+      "story": "A tenant going quiet usually means a broken integration rather than a lost customer. Nizwa Wholesale stopped the same day their API key was rotated. Worth checking before anyone assumes they have left."
     },
     "across": {
       "title": "Across all tenants",
@@ -11983,7 +12330,12 @@
         "quiet": "Gone quiet",
         "quietNote": "No filing in 7 days or more · {{broken}} look like broken integrations",
         "revenue": "Monthly recurring",
-        "revenueNote": "Average OMR {{average}} a tenant"
+        "revenueNote": "Average OMR {{average}} a tenant",
+        "liveOf": "Of {{total}} on the platform",
+        "livePaged": "Not reported yet: needs a count across every page",
+        "atRiskEmpty": "Not reported yet: certificate expiry and quota use",
+        "quietEmpty": "Not reported yet: filing activity per tenant",
+        "revenueEmpty": "Not reported yet: subscription revenue"
       },
       "tab": {
         "all": "All",
@@ -12031,12 +12383,47 @@
         "PENDING": "Pending",
         "SUSPENDED": "Suspended",
         "CLOSED": "Closed"
+      },
+      "seeDecision": "See decision",
+      "subtitleTotal": "Every business invoicing through Fawtir · {{total}} on the platform",
+      "exportSoon": "Not available yet: the platform has no export for this list",
+      "tabsLabel": "Tenant groups",
+      "searchLabel": "Search tenants",
+      "searchLoaded": "Name or tenant code…",
+      "filter": {
+        "all": "Everything",
+        "ACTIVE": "Active",
+        "PENDING": "Onboarding",
+        "SUSPENDED": "Suspended",
+        "CLOSED": "Closed",
+        "REFUSED": "Rejected"
+      },
+      "sort": {
+        "newest": "Newest first",
+        "oldest": "Oldest first"
+      },
+      "notReportedTab": "Not reported yet. This tab fills once the platform reports filing activity and quota use for each tenant.",
+      "showingShown": "Showing {{shown}} of {{total}}",
+      "showingShownPage": "Showing {{shown}} of the {{total}} on this page",
+      "pageOnly": "Tab counts, search, filters and sort cover this page only.",
+      "pill": {
+        "onboarding": "Onboarding"
+      },
+      "notSubmitted": "sign-up not finished",
+      "notReported": "Not reported yet",
+      "tenure": {
+        "days_one": "{{count}} day",
+        "days_other": "{{count}} days",
+        "months_one": "{{count}} month",
+        "months_other": "{{count}} months",
+        "years_one": "{{count}} year",
+        "years_other": "{{count}} years"
       }
     },
     "soon": {
       "title": "Not built yet",
       "badge": "Not built yet",
-      "body": "This part of the console has no design behind it yet. It is listed so the shape of the console is honest — the screen will follow the same template as Operations and Tenants once it is drawn.",
+      "body": "This part of the console has no design behind it yet. It is listed so the shape of the console is honest. The screen will follow the same template as Operations and Tenants once it is drawn.",
       "back": "Back to Operations"
     },
     "access": {
@@ -12137,7 +12524,7 @@
           "PENDING": "Not ready",
           "READY": "Ready"
         },
-        "noRegistrant": "Set up by Fawtir — there is no self-service registrant.",
+        "noRegistrant": "Set up by Fawtir. There is no self-service registrant.",
         "event": {
           "PROFILE_SUBMITTED": "Submitted for review",
           "PROFILE_UPDATED": "Details changed",
@@ -12247,7 +12634,7 @@
     },
     "plans": {
       "title": "Plans and rates",
-      "subtitle": "The plans companies subscribe to. A change applies straight away to every company on that plan.",
+      "subtitle": "The plans companies subscribe to. A price or limit change applies to new subscriptions only: companies already on a plan keep their terms.",
       "add": "Add a plan",
       "loading": "Loading plans…",
       "empty": "There are no plans in the catalogue yet.",
@@ -12256,7 +12643,7 @@
       "edit": "Edit",
       "editPlan": "Edit {{name}}",
       "addTitle": "Add a plan",
-      "editNote": "Saving replaces this plan for every company subscribed to it, straight away.",
+      "editNote": "A change to a price or limit publishes a new version for new subscriptions. Companies already on this plan keep their current terms.",
       "addNote": "Companies can choose the new plan only while it is offered.",
       "saved": "{{name}} saved.",
       "save": "Save plan",
@@ -12265,29 +12652,101 @@
         "code": "Code",
         "codeHint": "Capital letters, digits and underscores, starting with a letter. It cannot be changed later.",
         "name": "Name",
-        "monthlyPrice": "Monthly price (OMR)",
+        "monthlyPrice": "Monthly price",
         "invoicesPerMonth": "Invoices a month",
         "peopleIncluded": "People included",
-        "extraPersonPrice": "Price per extra person (OMR)",
+        "extraPersonPrice": "Price per extra person",
         "extraPersonHint": "Leave empty to make the people count a hard limit.",
         "branchesIncluded": "Branches included",
         "branchesHint": "Leave empty for unlimited branches.",
-        "overagePrice": "Price per invoice over the quota (OMR)",
+        "overagePrice": "Price per invoice over the quota",
         "overageHint": "Leave empty if overage is not offered.",
         "sortOrder": "Position in the list",
         "sortOrderHint": "Lower numbers come first.",
         "apiAccess": "API and webhooks",
         "prioritySupport": "Priority support",
-        "active": "Offered to companies"
+        "active": "Offered to companies",
+        "nameEn": "Name (English)",
+        "nameAr": "Name (Arabic)",
+        "nameArHint": "Shown to Arabic readers. Leave empty to show the English name.",
+        "descriptionEn": "Description (English)",
+        "descriptionAr": "Description (Arabic)",
+        "annualFreeMonths": "Months free on annual billing",
+        "annualFreeMonthsHint": "0 to 11. The year costs the monthly price times the months paid.",
+        "extraBranchPrice": "Price per extra branch",
+        "extraBranchHint": "Leave empty if extra branches are not offered.",
+        "trialDays": "Trial days",
+        "trialDaysHint": "1 to 90. Leave empty for no trial: the first bill then goes out on approval.",
+        "trialDocuments": "Trial documents",
+        "trialDocumentsHint": "How many documents the trial allows. Needs trial days.",
+        "publicVisible": "Shown on the sign-up plans and the website",
+        "recommended": "Marked as the most popular plan",
+        "reason": "Reason for the change",
+        "reasonHint": "Required: this changes a price or limit and publishes a new version. Companies already on the plan keep their current terms.",
+        "reasonHintAdd": "Required for a new plan: it is recorded with the plan's first price version."
       },
       "validation": {
-        "money": "Enter an amount in OMR with up to 3 decimals",
+        "money": "Enter an amount in rials with up to 3 decimals",
         "whole": "Enter a whole number",
         "atLeastOne": "Enter 1 or more",
         "code": "Use 2–30 capital letters, digits or underscores, starting with a letter",
         "codeTaken": "A plan with this code already exists",
         "nameLength": "Use 80 characters or fewer",
-        "server": "Fawtir did not accept this value"
+        "server": "Fawtir did not accept this value",
+        "descriptionLength": "Use 500 characters or fewer",
+        "freeMonths": "Enter a whole number from 0 to 11",
+        "trialDays": "Enter a whole number from 1 to 90",
+        "trialDocumentsNeedDays": "Set the trial days too, or leave this empty",
+        "reasonRequired": "Give a reason for this price or limit change",
+        "reasonLength": "Use 500 characters or fewer"
+      },
+      "readOnly": "You can view the catalogue. Changing plans is for platform tenant administrators.",
+      "readOnlyNote": "View only. Changing plans is for platform tenant administrators.",
+      "reloaded": "Someone else changed the catalogue while you were editing. The latest version is shown, and your changes were not saved.",
+      "conflict": "Someone else saved this plan after you opened it, so your changes were not saved. Reload to see the latest version, then make your change again.",
+      "reload": "Reload the catalogue",
+      "view": "View",
+      "viewPlan": "View {{name}}",
+      "historyOf": "History of {{name}}",
+      "recommendedPill": "Recommended",
+      "hiddenPill": "Not public",
+      "versionLine": "Price version {{version}}",
+      "alwaysOn": "Always on",
+      "section": {
+        "terms": "Price and limits",
+        "offer": "Offer",
+        "features": "Features"
+      },
+      "history": {
+        "open": "History",
+        "title": "History of {{name}}",
+        "subtitle": "Every price version and every change, newest first. Read only.",
+        "loading": "Loading the history…",
+        "versions": "Price versions",
+        "events": "Changes",
+        "noVersions": "No price versions recorded.",
+        "noEvents": "No changes recorded.",
+        "version": "Version {{version}}",
+        "current": "Current",
+        "effective": "Effective {{date}}",
+        "prices": "{{monthly}} a month, {{annual}} a year",
+        "limits": "Invoices a month: {{invoices}}, people: {{people}}, branches: {{branches}}",
+        "unlimited": "unlimited",
+        "reason": "Reason",
+        "none": "none",
+        "by": "By",
+        "you": "you",
+        "system": "the system",
+        "kind": {
+          "CREATED": "Plan created",
+          "UPDATED": "Details changed",
+          "PRICE_VERSION_PUBLISHED": "New price version published",
+          "ACTIVATED": "Offered again",
+          "DEACTIVATED": "No longer offered",
+          "VISIBILITY_CHANGED": "Visibility changed",
+          "FEATURES_CHANGED": "Features changed",
+          "other": "Other change"
+        }
       }
     },
     "operators": {
@@ -12469,6 +12928,9 @@
         "error": {
           "refused": "Fawtir refused this change. You may no longer have access."
         }
+      },
+      "otherRole": {
+        "PLATFORM_OPERATOR": "Platform operator"
       }
     },
     "subscriptions": {
@@ -12522,19 +12984,19 @@
         "planBranches_other": "{{plan}} plan · {{count}} extra branches"
       },
       "event": {
-        "paymentRecorded": "Payment recorded — {{method}}, OMR {{amount}}",
+        "paymentRecorded": "Payment recorded: {{method}}, OMR {{amount}}",
         "activated": "Activated until {{until}}",
-        "activatedWithoutPayment": "Activated until {{until}} — {{reason}}",
+        "activatedWithoutPayment": "Activated until {{until}}. Reason: {{reason}}",
         "linkSent": "Payment link sent by {{via}}",
-        "suspended": "Suspended — {{reason}}",
-        "resumed": "Resumed — {{reason}}",
-        "cancelled": "Cancelled — {{reason}}; runs to {{until}}",
+        "suspended": "Suspended. Reason: {{reason}}",
+        "resumed": "Resumed. Reason: {{reason}}",
+        "cancelled": "Cancelled, runs to {{until}}. Reason: {{reason}}",
         "trialStarted": "Trial started, {{days}} days",
-        "planChanged": "Moved to {{plan}}, {{term}} — {{reason}}",
-        "planChangeScheduled": "Moving to {{plan}}, {{term}} on {{at}} — {{reason}}",
-        "quotaGranted": "{{documents}} extra documents until {{expires}} — {{reason}}",
-        "overageWaived": "Overage of OMR {{amount}} waived — {{reason}}",
-        "tenantOnboarded": "Onboarded at the desk — {{plan}}, {{term}}, pays by {{method}}; owner {{owner}}"
+        "planChanged": "Moved to {{plan}}, {{term}}. Reason: {{reason}}",
+        "planChangeScheduled": "Moving to {{plan}}, {{term}} on {{at}}. Reason: {{reason}}",
+        "quotaGranted": "{{documents}} extra documents until {{expires}}. Reason: {{reason}}",
+        "overageWaived": "Overage of OMR {{amount}} waived. Reason: {{reason}}",
+        "tenantOnboarded": "Onboarded at the desk: {{plan}}, {{term}}, pays by {{method}}; owner {{owner}}"
       },
       "queue": {
         "title": "Subscriptions",
@@ -12647,7 +13109,9 @@
         "showing": "Showing {{shown}} of {{total}} {{tab}}",
         "showingAll": "Showing {{shown}} of {{total}}",
         "allCount": "{{count}} subscription invoices in total",
-        "issued": "Issued {{date}}"
+        "issued": "Issued {{date}}",
+        "pastDue_one": "Due {{count}} day ago",
+        "pastDue_other": "Due {{count}} days ago"
       }
     },
     "tenantDetail": {
@@ -12675,7 +13139,7 @@
         "erp": "ERP"
       },
       "filing": {
-        "noData": "No filing data yet — this tenant has not filed through the platform this week.",
+        "noData": "No filing data yet: this tenant has not filed through the platform this week.",
         "billed": "Billed this month"
       },
       "erp": {
@@ -12692,7 +13156,7 @@
         "branches": "Branches included",
         "unlimited": "Unlimited",
         "overageRate": "Overage per document",
-        "grandfathered": "Grandfathered since {{date}} — keeps this price until the plan changes",
+        "grandfathered": "Grandfathered since {{date}}: keeps this price until the plan changes",
         "scheduled": "Moving to {{plan}}, {{term}} on {{date}}",
         "contract": "Contract",
         "contractValue": "{{from}} → {{to}}",
@@ -12710,7 +13174,7 @@
         "daysLeft_one": "{{count}} day left",
         "daysLeft_other": "{{count}} days left",
         "trialAllowance": "{{documents}} documents in the trial, no card",
-        "suspendedSince": "Suspended since {{date}} — read-only, the compliance record stays open",
+        "suspendedSince": "Suspended since {{date}}: read-only, the compliance record stays open",
         "cancelledOn": "Cancelled on {{date}} · access ran to {{until}}",
         "grace": "Day {{day}} of {{total}} of grace · suspends on {{date}}",
         "amountDue": "Amount due",
@@ -12720,9 +13184,9 @@
         "people": "People",
         "branches": "Branches",
         "ofAllowance": "{{used}} of {{allowance}}",
-        "overageOn": "Overage on — documents past the allowance are billed at the plan's rate",
-        "overageOff": "Overage off — filing stops at the allowance",
-        "grant": "+{{documents}} granted until {{date}} — {{reason}}"
+        "overageOn": "Overage on: documents past the allowance are billed at the plan's rate",
+        "overageOff": "Overage off: filing stops at the allowance",
+        "grant": "+{{documents}} granted until {{date}}: {{reason}}"
       },
       "invoices": {
         "title": "Subscription invoices",
@@ -12737,7 +13201,7 @@
         "paidVia": "{{date}} · {{method}}",
         "notPaid": "—",
         "download": "Download",
-        "empty": "No invoices yet — a trial has no invoice until it is activated."
+        "empty": "No invoices yet. A trial has no invoice until it is activated."
       },
       "payments": {
         "title": "Payments",
@@ -12768,7 +13232,8 @@
           "accountName": "Account name",
           "bank": "Bank",
           "iban": "IBAN",
-          "reference": "Reference to quote"
+          "reference": "Reference to quote",
+          "unverified": "Fawtir's bank details are not confirmed yet, so none are shown or sent."
         }
       },
       "activity": {
@@ -12777,15 +13242,15 @@
         "by": "{{by}} · {{when}}"
       },
       "done": {
-        "recorded": "Payment recorded — {{tenant}} is active until {{date}}",
-        "recordedOnly": "Payment recorded for {{tenant}} — the subscription was left as it was",
+        "recorded": "Payment recorded. {{tenant}} is active until {{date}}",
+        "recordedOnly": "Payment recorded for {{tenant}}. The subscription was left as it was",
         "linkSent": "Payment link sent by {{channel}} to {{contact}}",
         "activated": "{{tenant}} is active until {{date}}",
         "planChanged": "{{tenant}} is now on {{plan}}, {{term}}",
         "planScheduled": "{{tenant}} moves to {{plan}}, {{term}} on {{date}}",
-        "suspended": "{{tenant}} is suspended — read-only until it is resumed",
+        "suspended": "{{tenant}} is suspended: read-only until it is resumed",
         "resumed": "{{tenant}} is active again",
-        "cancelled": "{{tenant}}'s subscription is cancelled — paid features run to {{date}}",
+        "cancelled": "{{tenant}}'s subscription is cancelled. Paid features run to {{date}}",
         "quotaGranted": "{{documents}} extra documents granted to {{tenant}} until {{date}}",
         "overageWaived": "OMR {{amount}} waived on {{invoice}}"
       },
@@ -12793,10 +13258,10 @@
       "noCompanyDetails": "No company details submitted yet",
       "planDefault": "platform default",
       "planPrice": "OMR {{amount}} a month, plan price",
-      "planAllowance": "{{count}} invoices a month included",
+      "planAllowance": "{{total}} invoices a month included",
       "readiness": {
-        "ready": "Ready to submit",
-        "notReady": "Not ready to submit"
+        "ready": "Active",
+        "notReady": "Not active"
       },
       "identityStatus": {
         "PENDING": "Pending",
@@ -12814,14 +13279,36 @@
         "verification": "Company verification",
         "revision": "Profile revision",
         "plan": "Plan",
-        "readiness": "Invoice submission"
+        "readiness": "Account access",
+        "invoicing": "Invoice issuing"
+      },
+      "planAllowance_one": "{{total}} invoice a month included",
+      "planAllowance_other": "{{total}} invoices a month included",
+      "readinessReason": {
+        "COMPANY_NOT_VERIFIED": "The company is not verified yet",
+        "COMPANY_VERIFICATION_PENDING": "Company verification is waiting for review",
+        "COMPANY_VERIFICATION_REJECTED": "Company verification was rejected",
+        "TENANT_SUSPENDED": "The account is suspended",
+        "TENANT_NOT_ACTIVE": "The account is not active yet",
+        "TENANT_CLOSED": "The account is closed",
+        "IDENTITY_NOT_READY": "Sign-in setup is not finished",
+        "READY": "Verified, enabled and active. Issuing invoices has its own prerequisites.",
+        "TENANT_DISABLED": "The account is disabled",
+        "TENANT_NOT_FOUND": "The account was not found",
+        "PLATFORM_TENANT": "A Fawtir platform account",
+        "PEPPOL_TEST_TENANT": "A Peppol TEST account"
+      },
+      "invoicing": {
+        "ready": "Can issue invoices",
+        "notReady": "Cannot issue invoices yet",
+        "unavailable": "Not reported by this server"
       }
     },
     "subscriptionActions": {
       "common": {
         "invoice": "Invoice",
         "invoiceHint": "{{period}} · OMR {{total}}",
-        "noOpenInvoice": "There is no unpaid invoice to act on — nothing is due for this period.",
+        "noOpenInvoice": "There is no unpaid invoice to act on. Nothing is due for this period.",
         "plan": "Plan",
         "term": "Billing term",
         "reason": "Reason",
@@ -12829,7 +13316,8 @@
         "note": "Note",
         "notePlaceholder": "Anything the next person should know",
         "excludingVat": "excl. VAT",
-        "includingVat": "incl. VAT"
+        "includingVat": "incl. VAT",
+        "invoicePlaceholder": "Choose an invoice"
       },
       "error": {
         "amount": "Enter an amount above zero",
@@ -12849,10 +13337,10 @@
           "bankTransfer": "Transfer reference",
           "cheque": "Cheque number and bank",
           "cash": "Receipt number",
-          "cardLink": "Thawani transaction id"
+          "cardLink": "Paymob transaction id"
         },
         "proof": "Proof",
-        "proofHint": "Optional — a bank slip, a receipt, a photo of the cheque. Nothing is uploaded yet.",
+        "proofHint": "Optional: a bank slip, a receipt, a photo of the cheque. Nothing is uploaded yet.",
         "proofDrop": "Drop a file here, or click to choose one",
         "proofRemove": "Remove",
         "activate": "Activate the subscription for this period now",
@@ -12860,7 +13348,7 @@
       },
       "sendLink": {
         "title": "Send a payment link",
-        "subtitle": "A Thawani checkout for {{tenant}} — the console keeps the link and its status",
+        "subtitle": "A Paymob checkout for {{tenant}}. The console keeps the link and its status.",
         "channel": "Send it by",
         "whatsapp": {
           "title": "WhatsApp",
@@ -12884,15 +13372,15 @@
           "copied": "Copy link"
         },
         "sentTitle": "Link sent",
-        "sentBody": "Shown as Not paid yet until Thawani confirms the card payment, or it expires on {{date}}.",
+        "sentBody": "Shown as Not paid yet until Paymob confirms the card payment, or it expires on {{date}}.",
         "copy": "Copy",
         "copiedNow": "Copied",
         "done": "Done",
-        "emailSubject": "Your Fawtir subscription — {{plan}}"
+        "emailSubject": "Your Fawtir subscription: {{plan}}"
       },
       "activate": {
         "title": "Activate without a payment",
-        "subtitle": "For a pilot, a plan that includes Fawtir, or a trial extension — the reason goes on the record.",
+        "subtitle": "For a pilot, a plan that includes Fawtir, or a trial extension. The reason goes on the record.",
         "startDate": "Start date",
         "quick": {
           "pilot": "Pilot",
@@ -12914,9 +13402,9 @@
         },
         "periodEnd": {
           "title": "At the end of the period",
-          "description": "On {{date}} — nothing changes until then"
+          "description": "On {{date}}. Nothing changes until then."
         },
-        "enterpriseNote": "Enterprise terms — price, band, seats — are set on the Enterprise panel, not here.",
+        "enterpriseNote": "Enterprise terms (price, band, seats) are set on the Enterprise panel, not here.",
         "newPrice": "New price for the period",
         "submit": "Change plan"
       },
@@ -12998,7 +13486,7 @@
         },
         "payments": {
           "title": "Payments",
-          "note": "How a subscription invoice is paid and when the account is activated. Every online payment goes through Thawani; the other methods are settled by an operator."
+          "note": "How a subscription invoice is paid and when the account is activated. Every online payment goes through Paymob; the other methods are settled by an operator."
         },
         "promotional": {
           "title": "Promotional",
@@ -13081,7 +13569,7 @@
           "draft": "Not yet issued.",
           "voided": "Cancelled before it was transmitted.",
           "failedValidation": "Never left the platform.",
-          "rejectedByOta": "Transmitted and refused — the attempt still counts.",
+          "rejectedByOta": "Transmitted and refused. The attempt still counts.",
           "resubmission": "Counts again, as a fresh transmission."
         },
         "consumedAt": "Quota consumed at",
@@ -13187,10 +13675,10 @@
         "extractionOverageHint": "Charged past the included documents.",
         "includedAt": "Included at",
         "includedAtHint": "The plan level that gets extraction without the add-on price.",
-        "includedAtNone": "None — always an add-on",
+        "includedAtNone": "None, always an add-on",
         "posGroup": "Point of sale",
         "pos": "Point of sale",
-        "posNote": "No separate plan and no terminal charge — POS simplified invoices count against the plan allowance (settled 15 Sep 2026).",
+        "posNote": "No separate plan and no terminal charge. POS simplified invoices count against the plan allowance (settled 15 Sep 2026).",
         "posValue": "No separate plan",
         "erpMappingValue": "Follows the plan's feature switch",
         "availabilityGroup": "Availability per plan",
@@ -13199,10 +13687,10 @@
       },
       "payments": {
         "provider": {
-          "thawani": "Thawani",
           "publishableKey": "Publishable key",
           "keysNote": "The keys are held by the backend; the console never sees the secret. Switching mode changes which key the backend uses.",
-          "modeLabel": "Provider mode"
+          "modeLabel": "Provider mode",
+          "paymob": "Paymob"
         },
         "mode": {
           "test": "Test",
@@ -13216,7 +13704,7 @@
           "cheque": "Cheque"
         },
         "methodNote": {
-          "cardLink": "A Thawani link on the invoice and in the WhatsApp message.",
+          "cardLink": "A Paymob link on the invoice and in the WhatsApp message.",
           "bankTransfer": "The bank details below are printed on the invoice.",
           "cash": "Settled by an operator, with a reference.",
           "cheque": "Settled by an operator once the cheque clears."
@@ -13235,7 +13723,7 @@
         "reminderDays": "Reminders for an unpaid subscription invoice",
         "reminderDaysHint": "Days after the invoice date. The grace notices follow once a payment has failed.",
         "autoActivate": "Auto-activate on online payment",
-        "autoActivateNote": "Off: a Thawani payment shows as paid and an operator activates the account. On: the account activates itself the moment Thawani confirms.",
+        "autoActivateNote": "Off: a Paymob payment shows as paid and an operator activates the account. On: the account activates itself the moment Paymob confirms.",
         "proofRequired": "Proof required for cash and cheque",
         "proofRequiredNote": "Off, a reference is enough. On, an operator must attach the receipt or cheque image before the invoice is marked paid.",
         "templatesGroup": "WhatsApp message templates",
@@ -13279,7 +13767,7 @@
           "complianceFeatures": "Never gated. Invoices, credit notes, debit notes and Peppol send and receive are on every plan and never a plan switch.",
           "livePlanChange": "Applies to new subscriptions only. Tenants on the old terms keep them."
         },
-        "why": "These are legal obligations, not choices. A setting would let a plan be sold that cannot meet the mandate — so they are listed here, and nowhere else."
+        "why": "These are legal obligations, not choices. A setting would let a plan be sold that cannot meet the mandate, so they are listed here, and nowhere else."
       }
     },
     "crumb": {
@@ -13298,261 +13786,6 @@
         "templatePublished": "Template published · {{template}} v{{version}}",
         "templateDraftDiscarded": "Template draft discarded · {{template}} v{{version}}"
       },
-      "templates": {
-        "title": "Mapping templates",
-        "subtitle": "The starter mappings the connect wizard applies per ERP product and version. Publishing never changes a tenant's mapping; it applies to new connections and to anyone who resets to the template.",
-        "version": "version {{version}}",
-        "published": "Published",
-        "publishedLine": "v{{version}} · schema {{schema}} · published {{date}} by {{by}}",
-        "fields_one": "{{count}} field",
-        "fields_other": "{{count}} fields",
-        "draft": "Draft",
-        "draftLine": "v{{version}} · saved {{date}} by {{by}}",
-        "noDraft": "No draft in progress",
-        "versions_one": "{{count}} version",
-        "versions_other": "{{count}} versions",
-        "connections_one": "{{count}} connection on this template",
-        "connections_other": "{{count}} connections on this template",
-        "older_one": "{{count}} on an older version",
-        "older_other": "{{count}} on an older version",
-        "noConnections": "No connections on this template yet",
-        "open": "Open",
-        "coming": "Coming",
-        "comingNote": "Products the connect wizard lists but no template exists for yet. Tenants on these map by hand.",
-        "noTemplate": "No template yet"
-      },
-      "template": {
-        "notHere": "Not here",
-        "notHereBody": "There is no mapping template with this id. It may have been renamed, or the link is stale.",
-        "backToList": "Back to mapping templates",
-        "productLine": "{{product}} {{erpVersion}} · schema {{schema}}",
-        "versions": "Versions",
-        "state": {
-          "draft": "draft",
-          "published": "published",
-          "retired": "retired"
-        },
-        "readOnly": "v{{version}} is {{state}} and read-only. Every edit goes into the draft.",
-        "readOnlyNoDraft": "v{{version}} is {{state}} and read-only. Start a new version to change it.",
-        "savedLine": "Saved {{date}} by {{by}}",
-        "publishedLine": "Published {{date}} by {{by}}",
-        "startNew": "Start a new version",
-        "saveDraft": "Save draft",
-        "publish": "Publish",
-        "discard": "Discard draft",
-        "unsaved": "Unsaved changes",
-        "note": "Change note",
-        "notePlaceholder": "What this version changes",
-        "entries": "Fields",
-        "entriesCount_one": "{{count}} entry",
-        "entriesCount_other": "{{count}} entries",
-        "col": {
-          "target": "Target",
-          "source": "Source path",
-          "transform": "Transform",
-          "valueMap": "Value map",
-          "onUnmapped": "On unmapped",
-          "default": "Default",
-          "sourceDefault": "Source path · default",
-          "transformMap": "Transform · value map"
-        },
-        "required": "Required",
-        "none": "None",
-        "custom": "Custom transform",
-        "pairs_zero": "No pairs",
-        "pairs_one": "{{count}} pair",
-        "pairs_other": "{{count}} pairs",
-        "edit": "Edit",
-        "remove": "Remove {{term}}",
-        "sourcePlaceholder": "erp.field.path",
-        "defaultPlaceholder": "—",
-        "addField": "Add field",
-        "addFieldPick": "Choose a term…",
-        "add": "Add",
-        "allMapped": "Every mappable term is in the template.",
-        "readiness": {
-          "title": "Readiness",
-          "ready": "Ready",
-          "notReady": "Not ready",
-          "required": "Required covered",
-          "missing": "Missing",
-          "invalid": "Invalid entries",
-          "allGood": "Every required term is mapped and every entry is valid."
-        },
-        "dryRun": {
-          "title": "Dry-run",
-          "run": "Run on the {{product}} sample",
-          "rerun": "Run again",
-          "hint": "Runs the mapping over a bundled {{product}} invoice the way the transformer would, and shows what it produces.",
-          "output": "Canonical invoice",
-          "refusals": "Refusals",
-          "col": {
-            "field": "Field",
-            "problem": "What went wrong"
-          },
-          "notes": "Notes"
-        },
-        "tenants": {
-          "title": "Tenants on this version",
-          "none": "No connection uses this version.",
-          "count_one": "{{count}} connection",
-          "count_other": "{{count}} connections"
-        },
-        "publishModal": {
-          "title": "Publish v{{version}}?",
-          "body": "v{{version}} becomes the published {{name}} template. The {{count}} connections on v{{current}} keep their mapping until they reset.",
-          "bodyFirst": "v{{version}} becomes the published {{name}} template. New connections start from it.",
-          "notValid": "The draft is not valid yet — fix the entries in red first.",
-          "confirm": "Publish"
-        },
-        "discardModal": {
-          "title": "Discard draft v{{version}}?",
-          "body": "The draft's entries and note are lost. v{{current}} stays published and nothing changes for tenants.",
-          "confirm": "Discard"
-        },
-        "valueMap": {
-          "title": "Value map — {{term}}",
-          "subtitle": "What the ERP sends on the left, the PINT-OM code it becomes on the right.",
-          "from": "ERP value",
-          "to": "Becomes",
-          "empty": "No pairs yet.",
-          "addPair": "Add a pair",
-          "removePair": "Remove this pair",
-          "default": "Default code",
-          "defaultHint": "Used when \"on unmapped\" is set to use a default.",
-          "save": "Save"
-        },
-        "done": {
-          "created": "Draft v{{version}} started from v{{from}}.",
-          "saved": "Draft v{{version}} saved.",
-          "published": "v{{version}} is now the published {{name}} template.",
-          "discarded": "Draft v{{version}} discarded."
-        },
-        "presetShort": {
-          "dateDmy": "DD/MM/YYYY → date",
-          "dateEpoch": "Epoch → date",
-          "trimUpper": "Trim + upper",
-          "digitsOnly": "Digits only",
-          "round3": "Round 3",
-          "round2": "Round 2",
-          "abs": "Absolute",
-          "percentFromFraction": "% from fraction"
-        },
-        "onUnmappedShort": {
-          "FAIL": "Fail",
-          "USE_DEFAULT": "Use default",
-          "PASS_THROUGH": "Pass through"
-        },
-        "defaultLabel": "Default"
-      },
-      "requests": {
-        "title": "Add-on requests",
-        "subtitle": "Tenants asking to switch on ERP extraction. Approving activates the add-on now and puts its line on the tenant's next invoice.",
-        "tab": {
-          "pending": "Pending",
-          "history": "History"
-        },
-        "kpi": {
-          "pending": "Pending",
-          "pendingNote": "Waiting for a decision",
-          "pendingOldest": "Oldest asked {{date}}",
-          "approved": "Approved in {{month}}",
-          "approvedNote": "Including trials",
-          "declined": "Declined in {{month}}",
-          "declinedNote": "Each with a reason on record",
-          "onAddon": "Tenants on the add-on",
-          "onAddonNote": "{{paying}} paying · {{monthly}} a month each"
-        },
-        "col": {
-          "tenant": "Tenant",
-          "plan": "Plan",
-          "requested": "Requested",
-          "source": "Source",
-          "subscription": "Subscription",
-          "decided": "Decided",
-          "outcome": "Outcome",
-          "note": "Note"
-        },
-        "by": "by {{by}}",
-        "source": {
-          "PURCHASED": "Purchased",
-          "PLAN_INCLUDED": "Included in plan",
-          "TRIAL": "Trial"
-        },
-        "price": {
-          "monthly": "{{amount}} a month",
-          "included": "No extra charge",
-          "trial": "Free while on trial"
-        },
-        "subscription": {
-          "grace": "Subscription in grace — settle first",
-          "suspended": "Subscription suspended — resume first",
-          "awaitingPayment": "Awaiting first payment",
-          "trial": "Plan on trial",
-          "ok": "Active"
-        },
-        "approve": "Approve",
-        "approveTrial": "Approve on trial",
-        "decline": "Decline",
-        "rowMenu": "Request actions",
-        "approveModal": {
-          "title": "Approve for {{tenant}}",
-          "subtitle": "The add-on switches on now.",
-          "tenant": "Tenant",
-          "plan": "Plan",
-          "price": "Monthly price",
-          "allowance": "Allowance",
-          "allowanceValue": "{{connections}} connections · {{documents}} documents a month",
-          "billing": "Billing",
-          "billingValue": "The add-on line joins the next invoice",
-          "billingIncluded": "Included in the {{plan}} plan — nothing to bill",
-          "note": "Note (optional)",
-          "notePlaceholder": "Anything the record should say",
-          "confirm": "Approve",
-          "priceIncluded": "Included in the plan — no charge"
-        },
-        "trialModal": {
-          "title": "Approve on trial for {{tenant}}",
-          "subtitle": "One connection, free, until the trial ends. Nothing is billed.",
-          "days": "Trial length",
-          "daysChip_one": "{{count}} day",
-          "daysChip_other": "{{count}} days",
-          "documents": "Documents in the trial",
-          "documentsChip": "{{count}} documents",
-          "endsOn": "Ends {{date}}",
-          "confirm": "Start the trial"
-        },
-        "declineModal": {
-          "title": "Decline {{tenant}}'s request",
-          "subtitle": "The tenant reads the reason on their ERP page.",
-          "reason": "Reason",
-          "reasonPlaceholder": "Why the add-on is not switched on",
-          "quick": {
-            "grace": "Subscription is in grace — settle the open bill first",
-            "plan": "Not available on the current plan",
-            "verify": "Verification is still open"
-          },
-          "confirm": "Decline"
-        },
-        "done": {
-          "badge": "Done",
-          "approved": "Approved for {{tenant}} — active now.",
-          "trial": "Approved on a {{days}}-day trial for {{tenant}} — active now.",
-          "declined": "Declined for {{tenant}}. The reason is on record.",
-          "link": "Open the tenant's ERP tab"
-        },
-        "outcome": {
-          "approved": "Approved",
-          "declined": "Declined"
-        },
-        "empty": {
-          "pending": "No requests waiting.",
-          "history": "No decisions yet."
-        },
-        "noNote": "—",
-        "notOffered": "Not supported on {{plan}} — upgrade first",
-        "notOfferedHint": "The add-on is not supported on the {{plan}} plan. The tenant moves up a plan first, or the plan's availability changes in Console settings › Add-ons."
-      },
       "connections": {
         "title": "ERP connections",
         "subtitle": "{{connections}} connections across {{tenants}} tenants · {{attention}} need attention",
@@ -13562,19 +13795,19 @@
           "connections": "Connections",
           "connectionsNote": "{{paused}} paused · {{rejections}} pending rejections",
           "inError": "In error",
-          "inErrorNote": "Credentials refused or ERP unreachable — the tenant must act",
+          "inErrorNote": "Credentials refused or ERP unreachable. The tenant must act.",
           "stale": "Stale",
           "staleNote": "Connected, but nothing new for {{days}} days or more",
           "collected": "Collected this month",
           "collectedNote": "OMR {{amount}} a month from {{paying}} purchased add-ons",
           "requests": "Add-on requests",
-          "requestsNote": "Waiting for a decision — open the queue",
+          "requestsNote": "Waiting for a decision. Open the queue.",
           "requestsOpen": "Open the add-on requests"
         },
         "attention": {
           "title": "Needs attention",
           "subtitle": "Errors first, then connections that have gone quiet",
-          "none": "Every connection is healthy — nothing is in error or stale."
+          "none": "Every connection is healthy. Nothing is in error or stale."
         },
         "reason": {
           "credentials": "ERP refused credentials",
@@ -13620,13 +13853,13 @@
         "showing": "Showing {{shown}} of {{total}} connections"
       },
       "connection": {
-        "notFound": "There is no connection with this id — the tenant may have deleted it.",
+        "notFound": "There is no connection with this id. The tenant may have deleted it.",
         "notFoundBack": "Back to connections",
         "meta": "{{product}} {{version}} · {{schedule}}",
-        "readOnly": "Support view — read-only. Credentials are never shown or entered here.",
+        "readOnly": "Support view, read-only. Credentials are never shown or entered here.",
         "banner": {
-          "credentials": "The ERP refused this connection's credentials — {{failures}} runs failed in a row. Only the tenant can replace credentials: send them to Settings › Integration › Connected systems.",
-          "unreachable": "The ERP is unreachable — {{failures}} runs failed in a row. Only the tenant can change the address or credentials: send them to Settings › Integration › Connected systems.",
+          "credentials": "The ERP refused this connection's credentials: {{failures}} runs failed in a row. Only the tenant can replace credentials: send them to Settings › Integration › Connected systems.",
+          "unreachable": "The ERP is unreachable: {{failures}} runs failed in a row. Only the tenant can change the address or credentials: send them to Settings › Integration › Connected systems.",
           "threeFailures": "Three runs failed in a row, so the connection stopped. Only the tenant can restart it from Settings › Integration › Connected systems.",
           "stale_one": "Connected and running, but the newest invoice collected is {{count}} day old. Ask the tenant whether their ERP is still posting invoices.",
           "stale_other": "Connected and running, but the newest invoice collected is {{count}} days old. Ask the tenant whether their ERP is still posting invoices."
@@ -13642,8 +13875,8 @@
           "never": "Never",
           "lastRunNote": "{{state}} · {{fetched}} fetched, {{created}} created, {{errors}} errors",
           "nextRun": "Next run",
-          "nextRunError": "Not scheduled — the connection is in error",
-          "nextRunPaused": "Not scheduled — the connection is paused",
+          "nextRunError": "Not scheduled: the connection is in error",
+          "nextRunPaused": "Not scheduled: the connection is paused",
           "collected": "Collected this month",
           "collectedOf": "of {{allowance}}",
           "collectedNote": "{{used}} across the tenant's connections · {{percent}} of the allowance",
@@ -13654,7 +13887,7 @@
           "product": "Product",
           "schedule": "Schedule",
           "writeBack": "Write-back",
-          "writeBackOn": "On — status, number and QR written to the ERP",
+          "writeBackOn": "On: status, number and QR written to the ERP",
           "writeBackOff": "Off",
           "template": "Mapping template",
           "templateVersion": "{{name}} v{{version}} · published {{date}}",
@@ -13676,8 +13909,8 @@
         },
         "addon": {
           "title": "Automatic extraction add-on",
-          "none": "No add-on — the tenant has not asked for automatic extraction.",
-          "pendingRequest": "They have a request waiting — open the add-on requests.",
+          "none": "No add-on. The tenant has not asked for automatic extraction.",
+          "pendingRequest": "They have a request waiting. Open the add-on requests.",
           "source": "Source",
           "sourceValue": {
             "PURCHASED": "Purchased",
@@ -13694,7 +13927,7 @@
           "of": "{{used}} of {{allowance}}",
           "collected": "Collected this month",
           "grants": "Quota grants",
-          "noGrants": "None — the allowance is the plan's own.",
+          "noGrants": "None. The allowance is the plan's own.",
           "grantLine": "+{{documents}} documents until {{date}} · {{by}}",
           "grant": "Grant extraction quota",
           "suspend": "Suspend add-on",
@@ -13712,7 +13945,7 @@
           "title": "Suspend the add-on",
           "subtitle": "Scheduled runs stop for {{tenant}} until it is resumed; connections and mappings are kept",
           "submit": "Suspend",
-          "done": "{{tenant}}'s add-on is suspended — runs stop until it is resumed"
+          "done": "{{tenant}}'s add-on is suspended. Runs stop until it is resumed."
         },
         "resume": {
           "title": "Resume the add-on",
@@ -13722,28 +13955,13 @@
           "done": "{{tenant}}'s add-on is active again"
         }
       },
-      "tenantTab": {
-        "connections": {
-          "title": "ERP connections",
-          "all": "All tenants",
-          "empty": "No ERP connected yet."
-        },
-        "col": {
-          "connection": "Connection",
-          "state": "State",
-          "mapping": "Mapping",
-          "lastRun": "Last run",
-          "collected": "Collected",
-          "rejections": "Rejections"
-        }
-      },
       "unavailable": {
-        "crumb": "Connections",
-        "title": "Tenant ERP connections",
-        "subtitle": "The platform view of what tenants have connected.",
-        "badge": "Not built yet",
-        "body": "Fawtir cannot show tenant ERP connections from here yet. A tenant's own connections are managed inside that tenant, and no platform-wide view has been built. This screen showed sample data before, which was indistinguishable from the real thing.",
-        "action": "Back to the console"
+        "crumb": "ERP integration",
+        "title": "ERP integration across tenants",
+        "subtitle": "Where the platform manages tenants' ERP integration.",
+        "badge": "Not here",
+        "body": "ERP integration is enabled or disabled for each tenant from that tenant's page in Tenants. Each tenant's connections are managed inside that tenant.",
+        "action": "Open tenants"
       }
     },
     "ops": {
@@ -13832,7 +14050,7 @@
     },
     "onboard": {
       "title": "Onboard a business",
-      "subtitle": "For a customer who never signed up online: the company, who owns it, what they pay — then the tenant is created in the ledger.",
+      "subtitle": "For a customer who never signed up online: the company, who owns it and what they pay. Then the tenant is created in the ledger.",
       "steps": {
         "company": "Company",
         "owner": "Owner",
@@ -13873,11 +14091,11 @@
         "plan": "Plan",
         "term": "Billing term",
         "method": "How they pay",
-        "enterpriseNote": "Enterprise terms — price, band, seats — are set on the tenant's page after creation; enter the amount agreed.",
+        "enterpriseNote": "Enterprise terms (price, band, seats) are set on the tenant's page after creation; enter the amount agreed.",
         "periodEnd": "First period ends",
         "firstInvoice": "First invoice",
         "paidNow": "Payment received now",
-        "paidNowHint": "Turn on when the money is already in hand — cash at the desk, a transfer that has landed, a cheque received.",
+        "paidNowHint": "Turn on when the money is already in hand: cash at the desk, a transfer that has landed, a cheque received.",
         "amount": "Amount received",
         "receivedOn": "Received on",
         "activateNow": "Activate the subscription now",
@@ -13895,7 +14113,7 @@
         "resultAwaiting": "{{name}} is created Awaiting payment, with an open invoice of OMR {{amount}} due today. Record the payment from its page.",
         "invitation": "{{email}} receives an invitation to set a password; the company then goes through verification.",
         "paidLine": "{{amount}} · {{method}} · {{date}}",
-        "notPaid": "Not yet — the invoice stays open",
+        "notPaid": "Not yet. The invoice stays open",
         "edit": "Edit"
       },
       "creating": "Creating…",
@@ -13975,7 +14193,7 @@
       "done": {
         "badge": "Done",
         "redriven": "{{document}} is back in the queue with one more attempt.",
-        "notified": "{{tenant}} has been told about {{document}} — the notice is in their bell.",
+        "notified": "{{tenant}} has been told about {{document}}. The notice is in their bell.",
         "dismiss": "Dismiss"
       },
       "noResults": "Nothing in this lane matches.",
@@ -14070,12 +14288,12 @@
       "update": {
         "title": "Post an update",
         "hint": "Moves the incident to the state you pick and adds to the timeline.",
-        "resolvedHint": "Resolved — reopen by posting an update.",
+        "resolvedHint": "Resolved. Reopen by posting an update.",
         "nextState": "Next state",
         "text": "Update",
         "textPlaceholder": "What changed, what tenants should expect",
         "submit": "Post update",
-        "posted": "Posted — the incident is now {{state}}."
+        "posted": "Posted. The incident is now {{state}}."
       },
       "notice": {
         "title": "Notice to tenants",
@@ -14192,7 +14410,7 @@
           "effectiveFrom": "Effective from",
           "effectiveTo": "Effective to",
           "evidence": "Evidence reference",
-          "reasonCode": "Last reason code",
+          "reasonCode": "Last step",
           "contentHash": "Content hash",
           "updated": "Last updated"
         }
@@ -14209,7 +14427,8 @@
       },
       "actor": {
         "unnamed": "Operator",
-        "you": "(you)"
+        "you": "(you)",
+        "idLabel": "id"
       },
       "action": {
         "create": "Create draft",
@@ -14352,6 +14571,11 @@
             "TRIM_UPPERCASE": "Trim and convert to upper case",
             "TRIM_LOWERCASE": "Trim and convert to lower case"
           }
+        },
+        "value": {
+          "TENANT_VAT_NUMBER": "The company’s VAT number",
+          "UPPERCASE_NO_SEPARATORS": "Upper case, no separators",
+          "UNIQUE_ACROSS_ALL_TENANTS": "Unique across all companies"
         }
       },
       "validation": {
@@ -14362,6 +14586,141 @@
         "evidence": "Keep the evidence reference to 500 characters or fewer.",
         "effectiveTo": "The end day must be after the start day.",
         "server": "Fawtir did not accept this value."
+      },
+      "reason": {
+        "POLICY_SUBMITTED": "Submitted for review",
+        "POLICY_REVIEW_STARTED": "Review started",
+        "POLICY_APPROVED": "Version approved",
+        "POLICY_ACTIVATED": "Version activated",
+        "POLICY_REJECTED": "Version rejected",
+        "POLICY_SCHEDULE_WITHDRAWN": "Schedule withdrawn"
+      }
+    },
+    "erpEntitlement": {
+      "title": "ERP integration",
+      "loading": "Reading ERP access…",
+      "state": {
+        "enabled": "Enabled",
+        "disabled": "Not enabled"
+      },
+      "grantedOn": "Enabled on {{date}}.",
+      "revokedOn": "Disabled on {{date}}.",
+      "never": "Never enabled.",
+      "enabledBody": "This tenant can set up and run ERP connections, Bridge Upload and API Push. Disabling stops new ERP work; their connections, mappings, documents and reports are kept, and reading them stays available.",
+      "disabledBody": "This tenant cannot create ERP connections, upload or push documents, or recover them. Enabling takes effect at once, and any collection schedules they had resume.",
+      "grant": "Enable ERP integration",
+      "revoke": "Disable ERP integration",
+      "grantTitle": "Enable ERP integration for this tenant?",
+      "grantBody": "The tenant can start setting up ERP connections, Bridge Upload and API Push immediately. The change and your reason are recorded in the audit log.",
+      "grantConfirm": "Enable",
+      "revokeTitle": "Disable ERP integration for this tenant?",
+      "revokeBody": "Scheduled collection stops after the page in hand, and uploads, pushes, recoveries and ERP key creation are refused. Nothing is deleted: connections, mappings, documents and reports stay, and enabling again resumes collection. The change and your reason are recorded in the audit log.",
+      "confirmCodeLabel": "Type the tenant code {{code}} to confirm",
+      "confirmCodeMismatch": "Type the tenant code exactly as shown.",
+      "revokeConfirm": "Disable",
+      "sending": "Saving…",
+      "error": {
+        "realm": "This change must be made from the production platform account.",
+        "impersonation": "This cannot be changed while acting as another user.",
+        "refused": "You cannot change ERP access, or your sign-in needs to be verified again. Sign in again with two-step verification and retry.",
+        "gone": "This tenant was not found, or is not a customer tenant.",
+        "invalid": "Fawtir could not accept this change. Check the reason and try again."
+      }
+    },
+    "billing": {
+      "title": "Subscription payments",
+      "subtitle": "Bank transfers and cash waiting for a decision. Nobody approves a payment they submitted or recorded, and above the threshold a second person approves.",
+      "loading": "Loading payments",
+      "empty": "No payments are waiting.",
+      "open": "Open",
+      "col": {
+        "company": "Company",
+        "bill": "Bill",
+        "method": "Method",
+        "amount": "Amount",
+        "status": "Status"
+      },
+      "status": {
+        "SUBMITTED": "Submitted",
+        "RECEIPT_RECORDED": "Receipt recorded",
+        "AWAITING_SECOND_APPROVAL": "Needs 2nd approval",
+        "CONFIRMED": "Confirmed",
+        "REJECTED": "Rejected",
+        "WITHDRAWN": "Withdrawn"
+      },
+      "receipt": "Cash receipt",
+      "threshold": "Approval threshold",
+      "secondNeeded": "Above the threshold: a second approver is required",
+      "secondNotNeeded": "At or below the threshold: one verifier",
+      "rejection": "Rejected because",
+      "proof": "Download receipt",
+      "verify": "Verify payment",
+      "approveSecond": "Give second approval",
+      "reject": "Reject payment",
+      "rejectReason": "Reason for rejecting (the customer sees it)",
+      "history": "History",
+      "cash": {
+        "title": "Record the cash received",
+        "number": "Receipt number",
+        "amount": "Amount received (OMR)",
+        "at": "Received at",
+        "collector": "Collected by",
+        "note": "The amount must match the bill total. Someone else must verify what you record.",
+        "record": "Record receipt"
+      },
+      "done": {
+        "proof": "The receipt was downloaded. The download is recorded.",
+        "verified": "Payment verified.",
+        "approved": "Second approval given. The bill is paid.",
+        "recorded": "Cash receipt recorded. Another person must now verify it.",
+        "rejected": "Payment rejected. The bill is open again."
+      },
+      "event": {
+        "BILL_ISSUED": "Bill issued",
+        "BILL_VOIDED": "Bill cancelled",
+        "BILL_PAID": "Bill paid",
+        "PAYMENT_SUBMITTED": "Payment submitted",
+        "PAYMENT_WITHDRAWN": "Payment withdrawn",
+        "CASH_RECEIPT_RECORDED": "Cash receipt recorded",
+        "PAYMENT_VERIFIED": "Payment verified",
+        "PAYMENT_SECOND_APPROVED": "Second approval given",
+        "PAYMENT_CONFIRMED": "Payment confirmed",
+        "PAYMENT_REJECTED": "Payment rejected",
+        "PROOF_READ": "Receipt downloaded"
+      },
+      "refusal": {
+        "payment-approver-not-independent": "You handled this payment, so someone else must approve it.",
+        "payment-version-conflict": "Someone else acted on this first. Reload and look again.",
+        "payment-state-conflict": "This payment is no longer waiting for that step. Reload it.",
+        "cash-amount-mismatch": "The amount does not match the bill total. Reject the request with the difference as the reason.",
+        "production-platform-realm-required": "Payments are decided from the production console only.",
+        "impersonation-not-allowed": "End the impersonation before deciding payments.",
+        "forbidden": "You can't do this. Confirm your sign-in code again, or ask an operator with this permission.",
+        "other": "That did not go through. Reload and try again.",
+        "bill-stale": "This bill no longer matches the company's plan for its period. Reject the payment so a new bill can be issued.",
+        "payment-confirmation-mismatch": "The confirmation does not match the bill. Nothing was paid; reconcile it with finance."
+      },
+      "loadMore": "Load more"
+    },
+    "bankAccounts": {
+      "title": "Bank account",
+      "subtitle": "The account customers pay Fawtir into. Customers see it only after a second operator confirms it.",
+      "loading": "Loading accounts",
+      "empty": "No account has been entered. Customers can't pay by bank transfer until one is confirmed.",
+      "status": {
+        "PENDING_CONFIRMATION": "Needs confirmation",
+        "ACTIVE": "Shown to customers",
+        "RETIRED": "Retired"
+      },
+      "confirm": "Confirm",
+      "retire": "Retire",
+      "propose": "Enter an account",
+      "proposeNote": "Use an Omani IBAN. Another operator must confirm it before customers see it.",
+      "reason": "Why this account",
+      "submit": "Submit for confirmation",
+      "refusal": {
+        "sameOperator": "You entered this account, so another operator must confirm it.",
+        "invalid": "Check the details: the IBAN must be a valid Omani IBAN."
       }
     }
   },
@@ -14378,7 +14737,10 @@
         "supplier": "Suppliers",
         "document": "Documents",
         "item": "Catalogue"
-      }
+      },
+      "keepTyping": "Type at least two characters to search.",
+      "searching": "Searching…",
+      "unavailable": "Search is not available right now."
     },
     "notice": {
       "title": "Notifications",
@@ -14411,20 +14773,22 @@
     "account": {
       "branches": "Branches",
       "planNote": "All branches are on the {{plan}}.",
-      "unnamed": "Your company"
+      "unnamed": "Your company",
+      "loading": "Loading…"
     },
     "plan": {
       "premium": "Premium plan",
       "named": "{{plan}} plan"
     },
     "user": {
-      "profile": "Your profile",
       "settings": "Settings",
       "signingIn": "How you sign in",
       "signOut": "Sign out",
       "signingOut": "Signing out…",
       "signOutFailed": "Couldn't sign out. Retry",
-      "signOutFailedStatus": "Couldn't sign out. Your session is still active — try again."
+      "signOutFailedStatus": "Couldn't sign out. Your session is still active — try again.",
+      "loading": "Loading…",
+      "previewNoSession": "Not signed in"
     }
   },
   "notes": {
@@ -14588,8 +14952,11 @@
     "unreadable": "Reminders could not be read. Reload to try again."
   },
   "onboarding": {
-    "sessionExpired": "Your signup session has ended. If you need help finishing your registration, contact Fawtir support.",
-    "conflict": "This step could not be saved. Review your answers and try again."
+    "sessionExpired": "Your signup session has ended. Your answers are saved: continue your registration with a new code sent to your email.",
+    "conflict": "This step could not be saved. Review your answers and try again.",
+    "planRequired": "Choose a plan first: none is saved for this registration yet.",
+    "paymentPreferenceRequired": "Choose how you'll pay before you submit.",
+    "paymentNotApplicable": "Enterprise terms are agreed on a call, so there is no payment method to choose. Go back to the plans to pick a different one."
   },
   "signupReview": {
     "title": "Review and submit",
@@ -14597,7 +14964,8 @@
     "sections": {
       "business": "Your business",
       "identity": "Business identity",
-      "address": "Address & contact"
+      "address": "Address & contact",
+      "plan": "Plan and payment"
     },
     "fields": {
       "size": "Team size",
@@ -14605,7 +14973,12 @@
       "category": "Business type",
       "trade": "Specialty",
       "activity": "Business activity (ISIC)",
-      "pos": "Fawtir POS"
+      "pos": "Fawtir POS",
+      "plan": "Plan",
+      "payment": "How you'll pay",
+      "firstBill": "First bill",
+      "terms": "Terms",
+      "firstBillAmount": "First bill, VAT included"
     },
     "edit": "Edit",
     "savedEarlier": "Saved earlier",
@@ -14613,23 +14986,40 @@
     "submitting": "Submitting…",
     "conflict": "This VATIN or CR number was registered by another business first. Edit your business identity and submit again.",
     "posYes": "Yes, will use it",
-    "posNo": "Not for now"
+    "posNo": "Not for now",
+    "planValue": "{{plan}}, {{cycle}}",
+    "billedMonthly": "billed monthly",
+    "billedAnnually": "billed annually",
+    "payment": {
+      "cardLink": {
+        "email": "Card, Paymob link by email",
+        "whatsapp": "Card, Paymob link by WhatsApp"
+      },
+      "bankTransfer": "Bank transfer",
+      "cash": "Cash at our office"
+    },
+    "firstBillAfterTrial_one": "After your {{count}}-day free trial",
+    "firstBillAfterTrial_other": "After your {{count}}-day free trial",
+    "firstBillOnApproval": "When your account is approved",
+    "enterpriseTerms": "Agreed on a call with our team",
+    "notChosen": "Not chosen yet",
+    "planMissing": "Choose your plan and how you'll pay before you submit.",
+    "choosePlan": "Choose a plan",
+    "choosePayment": "Choose how you'll pay",
+    "amountUnavailable": "Not available yet",
+    "firstBillUnknown": "Confirmed when your account is approved",
+    "addonValue": "ERP extraction requested; Fawtir confirms it"
   },
   "signupPending": {
-    "received": {
-      "badge": "Under review",
-      "title": "We’ve received your registration",
-      "description": "A member of the Fawtir team is reviewing your business details. We’ll email the decision to the address you registered with — you can close this page."
-    },
     "approved": {
-      "badge": "Approved",
-      "title": "Your registration is approved",
-      "description": "You can now sign in with your username and password.",
       "signIn": "Sign in"
     },
     "ended": {
       "title": "Your signup session has ended",
-      "description": "If you submitted your registration, we’ll email the decision to the address you registered with. If you need help finishing it, contact Fawtir support."
+      "description": "If you submitted your registration, we'll email the decision to the address you registered with. To finish it or see where it stands, continue your registration, or sign in once it's approved."
+    },
+    "rejected": {
+      "correct": "Correct your registration"
     }
   },
   "operatorInvitation": {
@@ -15241,7 +15631,7 @@
       "subtitle": "Let Fawtir collect invoices from your ERP by itself, instead of your ERP pushing them.",
       "card": {
         "title": "Automatic extraction",
-        "body": "Fawtir connects to your ERP, collects new invoices on a schedule, runs them through your field mapping, submits them, and writes the result back into the ERP record: the Fawtir number, the status and the QR code."
+        "body": "Fawtir connects to your ERP, collects new invoices on a schedule, runs them through your field mapping and submits them. Nothing is written back to your ERP."
       },
       "steps": {
         "collect": {
@@ -15331,7 +15721,8 @@
         "credentialMissing": "Not configured",
         "neverTested": "Never checked",
         "count_one": "{{count}} connection",
-        "count_other": "{{count}} connections"
+        "count_other": "{{count}} connections",
+        "columnCollection": "Collection"
       },
       "detail": {
         "heading": "Connection",
@@ -15405,7 +15796,8 @@
         "submitting": "Saving…",
         "saved": "Sign-in details saved.",
         "cancel": "Cancel",
-        "notProbeable": "This kind cannot be checked automatically yet. You can save it, but Check connection will report it as unsupported."
+        "notProbeable": "This kind cannot be checked automatically yet. You can save it, but Check connection will report it as unsupported.",
+        "unsupportedStored": "This connection's saved sign-in ({{kind}}) can't be used by Fawtir. Save a username and password or an API token to replace it."
       },
       "test": {
         "heading": "Connection check",
@@ -16607,7 +16999,9 @@
         "bridge": "Upload, on this page.",
         "bridgeBody": "You send one document yourself. No connection is needed.",
         "apiPush": "API push.",
-        "apiPushBody": "Your ERP sends documents to Fawtir with an ERP ingestion API key. It is set up by your developers and has no screen here."
+        "apiPushBody": "Your ERP sends documents to Fawtir itself, with an ERP ingestion API key your developers set up.",
+        "apiPushLink": "API push keys",
+        "bridgeActivityLink": "Uploaded documents"
       },
       "readiness": {
         "title": "Is your mapping ready?",
@@ -16618,12 +17012,13 @@
         "notReadyBody": "Your {{format}} mapping is not certified for invoices yet. An upload now is recorded and refused, and can be sent again unchanged once the mapping is certified.",
         "openCertification": "Open mapping certification",
         "note": "Certified means the mapping produces a valid test invoice. Each real invoice is still checked on its own, so one can be refused even when the mapping is ready.",
-        "administratorOnly": "Your administrator manages the ERP mapping. If an upload is refused because the mapping is not ready, ask them to certify it."
+        "administratorOnly": "Your administrator manages the ERP mapping. If an upload is refused because the mapping is not ready, ask them to certify it.",
+        "notReadyXmlBody": "Fawtir has no certified XML mapping for invoices yet. An XML mapping is an XSLT stylesheet that is saved and certified through the Fawtir API, not on the mapping screens here. Until one is certified, an XML upload is recorded and refused."
       },
       "document": {
         "title": "Document",
         "format": "Format",
-        "formatHint": "The format your ERP produced the document in. Each format has its own mapping.",
+        "formatHint": "The format your ERP produced the document in. Each format has its own mapping. An XML mapping is set up and certified through the Fawtir API.",
         "file": "File",
         "drop": "Drop a {{format}} file here, or click to choose one",
         "reading": "Reading the file...",
@@ -16855,7 +17250,11 @@
         "MAPPING_PROFILE_ABSENT": "No ERP mapping is set up",
         "MAPPING_FAILED": "The mapping could not produce an invoice",
         "MAPPING_NOT_CERTIFIED": "The mapping is not certified",
-        "INVOICE_VALIDATION_FAILED": "The invoice failed validation"
+        "INVOICE_VALIDATION_FAILED": "The invoice failed validation",
+        "MAPPING_CAPACITY_UNAVAILABLE": "Fawtir's mapping service was busy",
+        "SOURCE_IDENTITY_INVALID": "The document's identifier or version is missing, blank or too long",
+        "SOURCE_CONTENT_CHANGED": "Your ERP sent different content under the same version",
+        "SOURCE_PAYLOAD_TOO_LARGE": "Your ERP sent a document larger than the 4 MiB limit"
       },
       "stage": {
         "SOURCE": "your ERP",
@@ -16924,7 +17323,8 @@
         "TRANSPORT_PENDING": "Transport has not acknowledged",
         "RESPONSE_PENDING": "No answer from the recipient",
         "DELIVERY_FAILED": "Delivery failed",
-        "TAX_REPORT_ATTENTION": "Tax report needs attention"
+        "TAX_REPORT_ATTENTION": "Tax report needs attention",
+        "ATTEMPTS_EXHAUSTED": "Every attempt was used"
       },
       "labelExplain": {
         "RECOVERY_PENDING": "The document is held by an attempt nobody is working on. Fawtir's recovery will release it.",
@@ -16934,7 +17334,8 @@
         "TRANSPORT_PENDING": "The invoice has waited longer than expected for the transport to acknowledge it.",
         "RESPONSE_PENDING": "The transport acknowledged the invoice and the recipient's side has not answered for too long.",
         "DELIVERY_FAILED": "The network leg ended without the invoice reaching the recipient, or they refused it.",
-        "TAX_REPORT_ATTENTION": "The tax report could not be produced, was refused as a message, was given up on, or is waiting past its deadline. This is separate from delivery."
+        "TAX_REPORT_ATTENTION": "The tax report could not be produced, was refused as a message, was given up on, or is waiting past its deadline. This is separate from delivery.",
+        "ATTEMPTS_EXHAUSTED": "Automatic attempts ran out without an answer about the document itself. Recover it from its page (managed pull), or send it again as a new version."
       },
       "labelGroup": {
         "attention": "Before an invoice",
@@ -16943,7 +17344,7 @@
       },
       "timeline": {
         "title": "Timeline",
-        "note": "What the ledgers and the audit trail recorded, with the time each was recorded. Audit events are evidence and can be incomplete; managed pull records none.",
+        "note": "What the ledgers and the audit trail recorded, with the time each was recorded. Audit events are evidence and can be incomplete; managed pull records none, except a person's recovery.",
         "newestFirst": "Show newest first",
         "oldestFirst": "Show oldest first",
         "truncated": "Older audit events exist and are not shown. Only the newest {{count}} are read.",
@@ -16960,7 +17361,8 @@
         "INVOICE_SUBMITTED": "Invoice created",
         "DELIVERY_STATE": "Delivery",
         "RECIPIENT_RESPONSE": "Recipient's answer",
-        "TAX_REPORT": "Tax report"
+        "TAX_REPORT": "Tax report",
+        "OPERATOR_RECOVERY": "Manual recovery"
       },
       "recovery": {
         "RELEASED": "released for another attempt",
@@ -17054,7 +17456,8 @@
         "guideTitle": "What the labels mean",
         "guideOpen": "Show the labels",
         "since": "since",
-        "tax": "Tax report: {{status}}"
+        "tax": "Tax report: {{status}}",
+        "response": "Recipient answer: {{answer}}"
       },
       "runs": {
         "title": "Extraction runs",
@@ -17083,6 +17486,382 @@
         },
         "countersTitle": "Recorded by the run",
         "downstreamTitle": "Its accepted invoices now"
+      },
+      "operatorRecovery": {
+        "REQUESTED": "requested",
+        "SUCCEEDED": "completed",
+        "DUPLICATE_NOOP": "already recovered",
+        "REFUSED_INELIGIBLE": "not eligible",
+        "UNAVAILABLE_CONTEXT": "no recovery information",
+        "CONNECTION_UNUSABLE": "connection not ready",
+        "IN_PROGRESS": "already running",
+        "SOURCE_TARGET_MISSING": "document not in the ERP's answer",
+        "SOURCE_CHANGED": "the ERP returned different content",
+        "SOURCE_REPLAY_UNAVAILABLE": "the ERP could not repeat the request",
+        "SOURCE_UNAVAILABLE": "the ERP could not be reached",
+        "SOURCE_AUTHENTICATION_REJECTED": "the ERP refused the sign-in details",
+        "PROCESSING_FAILED": "no invoice produced",
+        "PLATFORM_UNAVAILABLE": "stored sign-in details could not be opened"
+      },
+      "recover": {
+        "title": "Recovery",
+        "note": "Offered because this document ran out of automatic attempts.",
+        "explain": "Fawtir stopped collecting this document after its automatic attempts ran out, and collection has since moved on. A recovery asks the ERP for it once more with the original request.",
+        "action": "Recover document",
+        "working": "Recovering…",
+        "noPermission": "Only someone allowed to recover documents can do this. Ask an administrator.",
+        "confirmTitle": "Recover this document?",
+        "confirmIntro": "Fawtir will:",
+        "confirmRefetch": "ask the ERP again for the page that originally contained this document;",
+        "confirmOnlyThis": "consider only this document, so no other document on that page is processed again;",
+        "confirmCheckpoint": "leave the connection's collection position where it is, so collection carries on unchanged;",
+        "confirmSameContent": "process the document only if the ERP returns exactly the same content as before.",
+        "confirm": "Recover",
+        "mayRetry": "You can try the recovery again.",
+        "result": {
+          "succeeded": {
+            "title": "Recovery completed successfully.",
+            "body": "The document was accepted and an invoice was created for it. Delivery and tax reporting follow as for any other invoice."
+          },
+          "succeededNoInvoice": {
+            "title": "Recovery completed successfully.",
+            "body": "The document was accepted. The page below shows its current state."
+          },
+          "alreadyRecovered": {
+            "title": "This document has already been recovered.",
+            "body": "Nothing was fetched or submitted again. The page below shows its current state."
+          },
+          "processingRetryable": {
+            "title": "The document was fetched again, but no invoice was produced this time.",
+            "body": "The ERP returned the same document, but Fawtir could not finish processing it, for a reason that may pass."
+          },
+          "processingRefused": {
+            "title": "The document was fetched again and refused.",
+            "body": "The ERP returned the same document, but it was refused: {{reason}}. It cannot be recovered. Correct it in the ERP and send it as a new version."
+          },
+          "contextUnavailable": {
+            "title": "Automatic recovery is not available for this record.",
+            "body": "This document was processed before recovery information was captured. Correct or reissue it in the ERP and send it as a new version, or upload it instead."
+          },
+          "replayUnavailable": {
+            "title": "The ERP can no longer repeat the original request.",
+            "body": "The page the ERP originally returned may have expired, or the connection now reads it differently. Automatic recovery is not available for this record. Send the document again from the ERP as a new version, or upload it instead."
+          },
+          "targetMissing": {
+            "title": "The document was not in the ERP's answer.",
+            "body": "The ERP answered the original request, but this document was no longer in it. Nothing was processed. Check the document in the ERP and send it again as a new version, or upload it instead."
+          },
+          "sourceChanged": {
+            "title": "The ERP now returns different content for this document.",
+            "body": "Fawtir did not process the changed document automatically. If the change is intended, send it from the ERP as a new version so it goes through the normal integration flow. Otherwise, check the document in the ERP or contact support."
+          },
+          "notEligible": {
+            "title": "This document can no longer be recovered.",
+            "body": "Its state has changed since the page was opened. The page below shows its current state."
+          },
+          "inProgress": {
+            "title": "A recovery of this document is already running.",
+            "body": "Wait a moment; the page below shows its current state."
+          },
+          "channelUnsupported": {
+            "title": "Only managed pull documents can be recovered.",
+            "body": "Send this document again from its source instead."
+          },
+          "connectionUnusable": {
+            "title": "The connection is not ready to collect.",
+            "body": "The connection this document came from may be paused, archived or missing its sign-in details. Fix the connection first."
+          },
+          "sourceAuthRejected": {
+            "title": "The ERP refused the connection's sign-in details.",
+            "body": "Replace the sign-in details on the connection first."
+          },
+          "sourceUnavailable": {
+            "title": "The ERP could not be reached.",
+            "body": "Nothing was processed."
+          },
+          "erpNotEnabled": {
+            "title": "ERP integration is not enabled for your organisation.",
+            "body": "Documents cannot be recovered until it is enabled again."
+          },
+          "forbidden": {
+            "title": "You don't have permission to recover documents.",
+            "body": "Ask an administrator."
+          },
+          "notFound": {
+            "title": "This document was not found.",
+            "body": "It may belong to another organisation, or the link is wrong."
+          },
+          "rateLimited": {
+            "title": "Too many recovery requests in a short time.",
+            "body": "Wait a minute before trying again."
+          },
+          "unreachable": {
+            "title": "Fawtir could not be reached.",
+            "body": "Check your connection. The recovery may or may not have run; reload the page to see the document's current state."
+          },
+          "other": {
+            "title": "The recovery could not be completed.",
+            "body": "Contact support if this keeps happening."
+          },
+          "platformUnavailable": {
+            "title": "Fawtir could not open the connection's stored sign-in details.",
+            "body": "Nothing was fetched or processed. This is on Fawtir's side; try again later, and contact support if it continues."
+          }
+        }
+      }
+    },
+    "apiPush": {
+      "title": "API push",
+      "subtitle": "Your ERP sends each document to Fawtir's API with one of these keys. Your mapping turns it into an invoice.",
+      "working": "Working…",
+      "create": {
+        "open": "Create key",
+        "title": "Create an ERP ingestion key",
+        "subtitle": "The key can submit documents only. It cannot read data or change settings.",
+        "name": "Name",
+        "nameHint": "Say which system uses it, for example \"Odoo production\".",
+        "documents": "Documents it may send",
+        "documentsRequired": "Choose at least one kind of document.",
+        "expiry": "Expires on",
+        "expiryHint": "Leave empty and the key expires in {{defaultDays}} days. It can last at most {{maxDays}} days. Keys for ERP push always expire.",
+        "submit": "Create key"
+      },
+      "keys": {
+        "title": "ERP ingestion keys",
+        "note": "Last used is updated about once a minute, so recent use can take a minute or two to show.",
+        "columnName": "Name",
+        "columnStatus": "Status",
+        "columnCreated": "Created",
+        "columnExpires": "Expires",
+        "columnLastUsed": "Last used",
+        "columnActions": "Actions",
+        "empty": "No ERP ingestion keys yet. Create one for each system that sends documents.",
+        "graceUntil": "Still works until {{when}}",
+        "replacedBy": "Replaced by {{name}}",
+        "noExpiry": "Does not expire"
+      },
+      "status": {
+        "ACTIVE": "Active",
+        "ROTATION_GRACE": "Being replaced",
+        "ROTATED": "Replaced",
+        "REVOKED": "Revoked",
+        "EXPIRED": "Expired"
+      },
+      "lastUsed": {
+        "never": "Not used yet",
+        "recently": "Recently used",
+        "about": "About {{when}}"
+      },
+      "actions": {
+        "label": "Actions for {{name}}",
+        "rotate": "Rotate key",
+        "complete": "Complete rotation",
+        "revoke": "Revoke key"
+      },
+      "confirm": {
+        "rotateTitle": "Rotate {{name}}?",
+        "rotateBody": "A new key is created and shown once. The current key keeps working for a short grace period so you can update your ERP, then it stops.",
+        "completeTitle": "Complete the rotation of {{name}}?",
+        "completeBody": "This old key stops working now instead of at {{when}}. Do this once every system uses the new key.",
+        "revokeTitle": "Revoke {{name}}?",
+        "revokeBody": "The key stops working immediately and cannot be restored. Turning ERP off and on again does not bring it back. Create a new key if you need one."
+      },
+      "refusal": {
+        "erpNotEnabled": "ERP is not enabled for your organisation, so ERP ingestion keys cannot be created or rotated. Ask Fawtir to enable ERP.",
+        "noApiAccess": "Your plan does not include API access, so API keys cannot be created or rotated. Move to a plan that includes it.",
+        "forbidden": "You do not have permission to manage API keys.",
+        "conflict": "This key was already rotated or revoked. The list now shows its current state.",
+        "notFound": "This key no longer exists. The list has been refreshed.",
+        "invalid": "Fawtir could not accept these details. Check the expiry date and try again.",
+        "unreachable": "Fawtir could not be reached. Check your connection and try again."
+      },
+      "scope": {
+        "invoice_submit": "Invoices",
+        "creditnote_submit": "Credit notes",
+        "debitnote_submit": "Debit notes",
+        "selfbilling_submit": "Self-billed invoices"
+      },
+      "secret": {
+        "title": "Your new key",
+        "rotatedTitle": "Your replacement key",
+        "once": "Copy this key now. It is shown only once and cannot be shown again. If you lose it, rotate the key to get a new one.",
+        "key": "API key",
+        "copy": "Copy key",
+        "copied": "Copied",
+        "copyFailed": "Copy did not work. Select the key and copy it by hand.",
+        "grace": "The previous key keeps working until {{when}}. Update your ERP before then, or complete the rotation once it uses this key.",
+        "noGrace": "The previous key no longer works.",
+        "done": "I have copied the key"
+      },
+      "guide": {
+        "title": "How your ERP calls the API",
+        "note": "Share this with the developers who connect your ERP.",
+        "endpoint": "Address",
+        "keyHeader": "X-API-Key",
+        "keyHeaderBody": "The ERP ingestion key, in this header on every request. Keep it on your server, never in a browser or a shared file.",
+        "idempotency": "Idempotency-Key",
+        "idempotencyBody": "Required. 16 to 128 characters, letters, digits and . _ : -. Use one value per submission attempt and send the same value again when you retry it, so a retry is never taken as a second invoice.",
+        "source": "source",
+        "sourceBody": "The document's own number in your ERP (external_document_id) and its version (external_version). Fawtir uses them to recognise a document it already has, so sending it again does not create a duplicate.",
+        "supplement": "supplement",
+        "supplementBody": "The issue time and the transaction type (BTOM-001), which an ERP document does not carry.",
+        "answers": "Answers",
+        "answersBody": "202 accepted. 200 already received. 409 a conflict with an earlier document. 422 refused, for example because the mapping is not certified. 401 the key is wrong, expired or revoked. 403 ERP is not enabled.",
+        "sample": "Example request",
+        "activity": "See API push activity",
+        "mapping": "Open the mapping"
+      }
+    },
+    "area": {
+      "label": "ERP integration areas",
+      "overview": "Overview",
+      "connections": "Connections",
+      "bridge": "Bridge upload",
+      "apiPush": "API push",
+      "mapping": "Mapping",
+      "activity": "Activity",
+      "access": "Access and history"
+    },
+    "home": {
+      "title": "ERP integration",
+      "subtitle": "How documents reach Fawtir from your ERP, worked out by the server for the period you choose.",
+      "noAccess": "This overview needs permission to read ERP connections and invoices. Ask an administrator if you need it.",
+      "window": "Period",
+      "notEntitled": "ERP integration is not enabled",
+      "notEntitledBody": "Fawtir has not switched ERP integration on for your organisation. Contact Fawtir to enable it.",
+      "automationOff": "Scheduled collection is paused across Fawtir right now, so managed connections will not collect until it resumes.",
+      "attention": {
+        "title": "Needs attention",
+        "note": "Counts for the period, worked out by the server. Open a label to see the documents.",
+        "deliveryFailed": "Delivery failed",
+        "taxReport": "Tax report needs attention",
+        "unevaluated": "Not checked: {{labels}}."
+      },
+      "connections": {
+        "title": "Connections",
+        "note_one": "{{count}} connection",
+        "note_other": "{{count}} connections",
+        "open": "Open connections",
+        "name": "Name",
+        "state": "State",
+        "collection": "Collection",
+        "lastCompleted": "Last completed run",
+        "lastFailed": "Last failed run",
+        "empty": "No connections yet.",
+        "counts": "Ready {{ready}} · Draft {{draft}} · Disabled {{disabled}}",
+        "notPulled": "Not collected",
+        "unreadable": "Cannot be read",
+        "failures_one": "{{count}} failure in a row",
+        "failures_other": "{{count}} failures in a row"
+      },
+      "mapping": {
+        "title": "Mapping",
+        "active": "Active mapping",
+        "none": "No active mapping",
+        "uncertified_one": "{{count}} channel has no certified mapping.",
+        "uncertified_other": "{{count}} channels have no certified mapping.",
+        "open": "Open mapping"
+      },
+      "checklist": {
+        "title": "Setup",
+        "note": "Worked out from what the server holds now. Nothing here is remembered by this browser.",
+        "progress": "{{done}} of {{total}} done.",
+        "noConnection": "No connection is needed.",
+        "windowNote": "A step that counts documents looks at the period chosen above.",
+        "step": {
+          "connection": "Add a connection",
+          "credentials": "Set the sign-in",
+          "test": "Check the connection",
+          "sample": "Fetch a sample (optional)",
+          "extraction": "Set up collection",
+          "documentIdPointer": "Point to the document number",
+          "issueTimePointer": "Point to the issue time",
+          "mapping": "Activate a mapping",
+          "certification": "Certify the mapping",
+          "enable": "Switch collection on",
+          "firstAccepted": "First document accepted",
+          "monitor": "Watch activity and attention",
+          "upload": "Upload a document",
+          "verify": "Check the result",
+          "activity": "See uploaded documents",
+          "entitlement": "ERP integration enabled",
+          "apiKey": "Create an API push key",
+          "instructions": "Give your developers the instructions",
+          "testPush": "Send a first document",
+          "rotate": "Rotate the key when needed"
+        },
+        "state": {
+          "done": "Done",
+          "todo": "To do",
+          "unknown": "Not known",
+          "info": "Guidance"
+        }
+      },
+      "runs": {
+        "latest": "Latest runs",
+        "failed": "Latest failed runs",
+        "open": "Open runs",
+        "none": "No runs in this period.",
+        "noneFailed": "No failed runs in this period."
+      }
+    },
+    "access": {
+      "title": "Access and history",
+      "subtitle": "What your role can do in ERP integration, and the record of changes made to it.",
+      "yours": {
+        "title": "Your access",
+        "note": "From the permissions the server gave your session. Only an administrator can change them.",
+        "capability": "What",
+        "permission": "Needs",
+        "held": "You",
+        "yes": "Yes",
+        "no": "No"
+      },
+      "capability": {
+        "readConnections": "See connections",
+        "manageConnections": "Add and change connections",
+        "replaceCredentials": "Replace sign-in details",
+        "testConnections": "Check a connection",
+        "fetchSample": "Fetch a sample",
+        "readMapping": "See the mapping",
+        "manageMapping": "Change the mapping",
+        "certifyMapping": "Certify the mapping",
+        "submitDocuments": "Upload documents",
+        "readActivity": "See documents and runs",
+        "manageApiKeys": "Manage API push keys",
+        "readHistory": "See the change history",
+        "recoverDocuments": "Recover a document"
+      },
+      "personas": {
+        "title": "Typical roles",
+        "note": "Fawtir has no ready-made role for these. An administrator builds a role from the permissions listed."
+      },
+      "persona": {
+        "tenantAdministrator": {
+          "name": "Tenant administrator",
+          "body": "Everything, including API keys, the change history and who has access."
+        },
+        "integrationAdministrator": {
+          "name": "Integration administrator",
+          "body": "Sets up connections, sign-in details and the mapping, and certifies it."
+        },
+        "integrationOperator": {
+          "name": "Integration operator",
+          "body": "Watches connections and documents and checks a connection when something looks wrong."
+        },
+        "invoiceSubmitter": {
+          "name": "Invoice submitter",
+          "body": "Uploads documents and follows what became of them."
+        },
+        "reportingViewer": {
+          "name": "Auditor or reporting viewer",
+          "body": "Reads connections, documents and runs. Cannot change anything. The change history needs an administrator."
+        }
+      },
+      "history": {
+        "title": "Change history",
+        "note": "The ERP history from the server, limited by the server to ERP connections, documents, enablement and mappings.",
+        "needsPermission": "Your role can't see the ERP history. Ask your administrator to give it access to ERP audit records."
       }
     }
   },
@@ -17322,6 +18101,8 @@
       "dueDateBeforeIssue": "The due date can't be before the issue date."
     },
     "refused": {
+      "sellerAddressIncomplete": "Your company address is incomplete, so this invoice cannot be issued. Complete it in Settings › Company, then issue again.",
+      "sellerContactIncomplete": "Your company's contact phone is missing, so this invoice cannot be issued. Add it in Settings › Company, then issue again.",
       "companyPending": "Your company is still being verified, so it can't issue invoices yet.",
       "companyRejected": "Your company's verification was declined, so it can't issue invoices. Contact support.",
       "tenantInactive": "Your account isn't active, so it can't issue invoices.",
@@ -18930,7 +19711,6 @@
     }
   },
   "selfBillDetail": {
-    "breadcrumbIncome": "Income",
     "breadcrumbSelfBilled": "Self-billed",
     "raisedFor": "Raised for",
     "issuedOn": "issued {{date}}",
@@ -19067,7 +19847,8 @@
       "tooMuch": "That is more than the supplier bill still owes.",
       "tooMuchMost": "That is more than the supplier bill still owes. The most you can record is {{amount}}."
     },
-    "creditNote": "Credit note"
+    "creditNote": "Credit note",
+    "breadcrumbExpenditure": "Expenditure"
   },
   "supplierNotes": {
     "searchPlaceholder": "Search supplier, bill number...",
@@ -19428,7 +20209,11 @@
         "label": "Billing period",
         "monthly": "Monthly",
         "yearly": "Yearly",
-        "free": "2 months free"
+        "free": "2 months free",
+        "freeMonths_one": "{{count}} month free",
+        "freeMonths_other": "{{count}} months free",
+        "freeUpTo_one": "Up to {{count}} month free",
+        "freeUpTo_other": "Up to {{count}} months free"
       },
       "perMonth": "/ a month",
       "whatYouGet": "What you get",
@@ -19467,7 +20252,11 @@
         "people_other": "{{count}} people",
         "branches_one": "{{count}} branch",
         "branches_other": "{{count}} branches"
-      }
+      },
+      "yearlyNoteMonths_one": "Billed yearly · {{count}} month free",
+      "yearlyNoteMonths_other": "Billed yearly · {{count}} months free",
+      "yearlyNoteNoSaving": "Billed yearly",
+      "perYear": "/ a year"
     },
     "features": {
       "hero": {
@@ -19664,5 +20453,313 @@
       "lapsed": "The self-billing agreement {{reference}} has ended.",
       "unverified": "The self-billing agreement {{reference}} is waiting for Fawtir to verify the supplier."
     }
+  },
+  "readiness": {
+    "title": "Before your first invoice",
+    "subtitle": "These still need doing before Fawtir can issue invoices for you.",
+    "item": {
+      "COMPANY_VERIFIED": "Company verified",
+      "PARTICIPANT_VERIFIED": "Participant ID verified",
+      "REGISTERED_ADDRESS": "Registered address complete",
+      "CONTACT_PHONE": "Contact phone number",
+      "BUSINESS_ACTIVITY": "Business activity chosen",
+      "ACTIVE_BRANCH": "At least one open branch",
+      "other": "Another step"
+    },
+    "fix": "Fix this",
+    "awaitingFawtir": "Waiting for Fawtir to review",
+    "actionRequired": "Action required",
+    "composer": {
+      "title": "This invoice cannot be issued yet",
+      "subtitle": "Fawtir will refuse to issue it until these are done. You can still save it as a draft."
+    },
+    "done": "Done"
+  },
+  "demoModule": {
+    "ribbon": "Demo: sample data for a module that is not built yet. None of it is your company's, and nothing here is saved."
+  },
+  "moduleUnavailable": {
+    "badge": "Not available yet",
+    "noSampleData": "Nothing on this screen is sample data: it stays empty until Fawtir can show your own records.",
+    "pos": {
+      "title": "Point of sale",
+      "body": "The point of sale is not connected to Fawtir's servers yet, so it cannot take sales, print receipts or close a shift for your business."
+    },
+    "catalog": {
+      "title": "Catalog tools",
+      "body": "This part of the catalog (menu upload, suggested items, price rules, bundles and per-item sales history) is not connected to Fawtir's servers yet."
+    },
+    "stock": {
+      "title": "Stock",
+      "body": "Stock levels and movements are not tracked by Fawtir yet, so there is nothing of yours to show here."
+    },
+    "tradeDocuments": {
+      "title": "Trade documents",
+      "body": "Quotations, order forms and delivery notes are not connected to Fawtir's servers yet. Invoices, credit notes and debit notes are available from Income."
+    },
+    "billing": {
+      "title": "Bills from Fawtir",
+      "body": "Your bills from Fawtir and how you pay them are not available in the app yet. Your plan and this period's usage are under Settings › Plan."
+    },
+    "closing": {
+      "title": "Close the account",
+      "body": "Closing a business account is not available in the app yet. Contact Fawtir support to close an account; your records are kept for the period the law requires."
+    },
+    "export": {
+      "title": "Export your records",
+      "body": "A full export of your records is not available yet. Each report under Reports can still be downloaded on its own."
+    },
+    "otaCallLog": {
+      "title": "Calls to the tax authority",
+      "body": "A log of each call Fawtir makes to the tax authority is not available yet. Each document's own status is on its activity page."
+    },
+    "makeRole": {
+      "title": "Make a role",
+      "body": "Making your own role is not available in the app yet. The roles your company has, and what each allows, are listed under Roles."
+    }
+  },
+  "people": {
+    "team": {
+      "subtitle": "Everyone with a login to this company, and the invitations still waiting. What each person can reach depends on their role.",
+      "peopleTitle": "People",
+      "invitedTitle": "Waiting to accept",
+      "empty": "Nobody has a login yet.",
+      "more": "Showing the first {{shown}} of {{total}} people.",
+      "noInvitations": "No invitations are waiting."
+    },
+    "col": {
+      "status": "Status",
+      "authenticator": "Authenticator app",
+      "email": "Email",
+      "expires": "Invitation expires"
+    },
+    "status": {
+      "active": "Active",
+      "locked": "Locked",
+      "disabled": "Deactivated"
+    },
+    "authenticator": {
+      "on": "Set up",
+      "off": "Not set up"
+    },
+    "noRole": "No role",
+    "defaultRole": "Default role",
+    "signingIn": {
+      "subtitle": "Who has an authenticator app set up for signing in",
+      "policy": "How long a session lasts and when a one-time code is asked for are set by Fawtir for now; they cannot be changed from this screen. A one-time code by email needs nothing set up, so only authenticator apps are listed.",
+      "count_one": "{{count}} of {{total}} people has an authenticator app set up.",
+      "count_other": "{{count}} of {{total}} people have an authenticator app set up."
+    },
+    "roles": {
+      "title": "Roles",
+      "subtitle": "The roles this company has and the permissions each one holds, as Fawtir records them.",
+      "empty": "This company has no roles.",
+      "disabled": "Switched off",
+      "permissions_one": "{{count}} permission",
+      "permissions_other": "{{count}} permissions"
+    },
+    "invite": {
+      "subtitle": "They get an email from Fawtir with a code to join this company.",
+      "sent": "Invitation sent to {{email}}.",
+      "defaultRoleOnly": "You cannot list this company's roles, so the invitation gives the default role.",
+      "noRoleMeansDefault": "Choose none and the invitation gives the default role.",
+      "send": "Send the invitation",
+      "sending": "Sending..."
+    },
+    "plan": {
+      "subtitle": "Your plan and how much of this period's allowance you have used",
+      "ofAllowance": "of {{allowance}} documents",
+      "period": "This period runs from {{start}} to {{end}}.",
+      "people": "People with a login",
+      "ofIncluded_one": "{{count}} of {{included}} included",
+      "ofIncluded_other": "{{count}} of {{included}} included",
+      "openInvitations_one": "{{count}} invitation waiting",
+      "openInvitations_other": "{{count}} invitations waiting",
+      "branches": "Open branches",
+      "unlimited_one": "{{count}} (no limit on your plan)",
+      "unlimited_other": "{{count}} (no limit on your plan)"
+    }
+  },
+  "reportReal": {
+    "subtitle": "Last complete quarter: {{from}} to {{to}}",
+    "documentUnavailable": "A signed compliance report document is not available yet. The company details and numbering check below are read from Fawtir, and the Excel ledger for the quarter can be downloaded.",
+    "legalName": "Legal name",
+    "vatNumber": "VAT number",
+    "crNumber": "Commercial registration",
+    "participantNotVerified": "Not verified by Fawtir yet",
+    "numberingTitle": "Invoice numbering this quarter"
+  },
+  "catalogReal": {
+    "title": "Catalog",
+    "subtitle": "The products your invoice lines are raised from",
+    "toolsUnavailable": "Menu upload, suggested items, price rules, bundles, stock and per-item sales history are not connected to Fawtir's servers yet.",
+    "products": "Products",
+    "empty": "No products yet. A product is added when you pick it on an invoice line.",
+    "more": "Showing the first {{shown}} of {{total}} products.",
+    "omr": "OMR {{amount}}",
+    "col": {
+      "code": "Code",
+      "name": "Name",
+      "unit": "Unit",
+      "price": "Unit price",
+      "tax": "VAT"
+    }
+  },
+  "signupResume": {
+    "cta": "Continue your registration",
+    "loginPrompt": "Registered but not approved yet?",
+    "signupPrompt": "Already started registering?",
+    "title": "Continue your registration",
+    "description": "Enter the email you registered with. If a registration with it is waiting to be finished, we'll send a 6-digit code there.",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@company.com",
+    "submit": "Send code",
+    "sending": "Sending…",
+    "codeSent": "If a registration with {{contact}} is waiting to be finished, we've sent it a 6-digit code. It expires in {{minutes}} minutes.",
+    "invalid": "That code is incorrect or no longer valid. Check your latest email, or request a new code."
+  },
+  "subscription": {
+    "title": "Subscription",
+    "access": {
+      "NOT_TRACKED": "Managed by Fawtir",
+      "TRIAL": "Free trial",
+      "ACTIVE": "Active",
+      "GRACE": "Grace period",
+      "PAYMENT_REQUIRED": "Payment required",
+      "CANCELLED": "Ended"
+    },
+    "notice": {
+      "notTracked": "Fawtir manages this subscription for you. Contact Fawtir about renewal or changes.",
+      "trialEnding_one": "Your free trial ends on {{date}}. {{count}} day left.",
+      "trialEnding_other": "Your free trial ends on {{date}}. {{count}} days left.",
+      "grace": "Your paid period ended on {{ended}}. Invoicing and tax reporting keep working until {{until}}.",
+      "paymentRequired": "Payment is due. Your issued invoices, reports and exports stay available. Paying online is not available in Fawtir yet, so contact Fawtir to pay.",
+      "cancelled": "Your subscription ended on {{date}}. Your issued invoices and reports stay available to read and export.",
+      "cancelScheduled": "Your subscription ends on {{date}} and will not renew."
+    },
+    "cycle": {
+      "MONTHLY": "Monthly",
+      "ANNUAL": "Yearly"
+    },
+    "none": "Not set",
+    "fact": {
+      "plan": "Plan",
+      "pricePerMonth": "Price per month",
+      "pricePerYear": "Price per year",
+      "priceNote": "Before any tax",
+      "trial": "Trial period",
+      "trialRange": "{{start}} to {{end}}",
+      "trialDaysLeft_one": "{{count}} day left",
+      "trialDaysLeft_other": "{{count}} days left",
+      "paidThrough": "Paid until",
+      "renewsOn": "Next renewal",
+      "notRenewing": "Not renewing",
+      "grace": "Grace after a paid period",
+      "graceDays_one": "{{count}} day",
+      "graceDays_other": "{{count}} days",
+      "graceUntil": "In grace until {{date}}",
+      "autoRenew": "Automatic renewal",
+      "on": "On",
+      "off": "Off",
+      "autoRenewUnavailable": "Needs a saved card, which cannot be added yet",
+      "cancellation": "Cancellation",
+      "endsOn": "Ends on {{date}}",
+      "notScheduled": "None"
+    },
+    "scheduledChange": "You move to {{plan}} on {{date}}, when your current paid period ends.",
+    "withdrawChange": "Stay on my plan",
+    "cancel": "Cancel at the end of this period",
+    "keep": "Keep my subscription",
+    "actionFailed": "That did not go through. Reload the page and try again.",
+    "cancelConfirm": {
+      "title": "Cancel your subscription?",
+      "body": "Everything keeps working until {{date}}. After that the subscription will not renew, and your issued invoices and reports stay available to read and export.",
+      "back": "Go back",
+      "confirm": "Confirm cancellation"
+    },
+    "blockedByPayment": "A payment for your next period is being checked by Fawtir. You can change your plan or cancel once it is confirmed or rejected."
+  },
+  "billing": {
+    "title": "Charges and payment",
+    "nothingDue": "Nothing is due right now. You can prepare the bill for your next period when you are ready to pay it.",
+    "prepare": "Prepare my next bill",
+    "bill": {
+      "number": "Bill",
+      "period": "Period",
+      "periodRange": "{{start}} to {{end}}",
+      "dueOn": "Due",
+      "status": "Status",
+      "subtotal": "Subscription",
+      "vat": "VAT {{rate}}",
+      "total": "Total",
+      "notTaxInvoice": "This is a statement of your subscription charge, not a tax invoice."
+    },
+    "billStatus": {
+      "OPEN": "Waiting for payment",
+      "PENDING_VERIFICATION": "Payment being checked",
+      "PAID": "Paid",
+      "VOID": "Cancelled"
+    },
+    "howToPay": "How would you like to pay?",
+    "method": {
+      "BANK_TRANSFER": {
+        "title": "Bank transfer",
+        "body": "Transfer the total to Fawtir's account, then send us the receipt."
+      },
+      "CASH": {
+        "title": "Cash",
+        "body": "Ask us to collect the payment in cash."
+      }
+    },
+    "noMethod": "Payment can't be made here yet. Contact Fawtir to pay this bill.",
+    "bank": {
+      "holder": "Account holder",
+      "bank": "Bank",
+      "iban": "IBAN",
+      "swift": "SWIFT/BIC",
+      "proof": "Transfer receipt",
+      "proofPick": "Drop the receipt here or choose a file",
+      "proofLimits": "PDF, PNG or JPEG, up to {{size}} KB",
+      "proofRejected": {
+        "size": "That file is too large. Choose a smaller one.",
+        "type": "Choose a PDF, PNG or JPEG file."
+      },
+      "reference": "Bank reference",
+      "submit": "Send for checking"
+    },
+    "cash": {
+      "instructions": "We will contact you to arrange collection. Your bill stays open until we have received the cash and checked it.",
+      "submit": "Ask for cash collection"
+    },
+    "note": "Note for Fawtir (optional)",
+    "waiting": {
+      "BANK_TRANSFER": {
+        "SUBMITTED": "We have your transfer receipt. The bill is paid once Fawtir has checked it against our bank account.",
+        "RECEIPT_RECORDED": "We have your transfer receipt and are checking it.",
+        "AWAITING_SECOND_APPROVAL": "Your transfer has been checked and is waiting for a second approval at Fawtir."
+      },
+      "CASH": {
+        "SUBMITTED": "Your cash collection request is with Fawtir. We will contact you to collect it.",
+        "RECEIPT_RECORDED": "Fawtir has recorded your cash payment and is checking it.",
+        "AWAITING_SECOND_APPROVAL": "Your cash payment has been checked and is waiting for a second approval at Fawtir."
+      }
+    },
+    "withdraw": "Withdraw this payment",
+    "rejected": "Your last payment was not accepted: {{reason}}. You can pay again below.",
+    "history": "Earlier bills",
+    "paidOn": "Paid {{date}} by {{method}}",
+    "refusal": {
+      "bill-not-payable": "This bill can't be paid now. Reload the page to see its latest status.",
+      "payment-method-unavailable": "That way of paying isn't available right now. Choose another or contact Fawtir.",
+      "payment-state-conflict": "This payment is already being checked, so it can't be changed. Reload the page.",
+      "billing-not-configured": "Bills can't be prepared yet. Contact Fawtir.",
+      "subscription-not-tracked": "Fawtir manages billing for your subscription directly. Contact Fawtir to pay.",
+      "idempotency-key-reused": "Reload the page and try again.",
+      "other": "That did not go through. Reload the page and try again.",
+      "bill-stale": "Your plan changed, so that bill was replaced. Pay the current bill below."
+    },
+    "bankUnavailable": "Bank transfer is temporarily unavailable because proof can't be stored safely right now. Try again in a few minutes.",
+    "superseded": "Replaced after a plan change",
+    "olderBills": "Show older bills"
   }
 }

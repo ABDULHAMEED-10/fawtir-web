@@ -36,6 +36,17 @@ const CUSTOMER = {
   updatedAt: '2026-09-10T08:00:00Z',
 }
 
+const GOVERNMENT_CUSTOMER = {
+  ...CUSTOMER,
+  id: 'g-1',
+  type: 'GOVERNMENT',
+  displayName: 'Ministry of Health',
+  profile: {
+    ...CUSTOMER.profile,
+    details: { vatRegistrationNumber: null, defaultBuyerReference: 'MOH-BR-7' },
+  },
+}
+
 const PRODUCT = {
   id: 'p-1',
   code: 'FLT-1',
@@ -138,6 +149,7 @@ let activityCode: string | null
 let paymentResponse: () => Response
 let storedFiles: unknown[]
 let attachmentResponse: () => Response
+let readinessResponse: () => Response
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -166,6 +178,7 @@ beforeEach(async () => {
       attachedAt: '2026-09-29T08:00:00Z',
       attachedByName: 'Hafidh Saif',
     })
+  readinessResponse = () => json(404, { type: 'about:blank' })
   issueResponse = () =>
     json(200, {
       ...draft({ version: 5, authoringState: 'ISSUED' }),
@@ -186,10 +199,19 @@ beforeEach(async () => {
     }
     if (url === '/api/v1/company-profile/industrial-classification')
       return json(200, { code: activityCode })
+    if (url === '/api/v1/invoicing/readiness') return readinessResponse()
     if (url === '/api/v1/branches')
       return json(200, [
         { id: 'b-1', code: 'MAIN', name: 'Head office', type: 'HEAD_OFFICE', city: 'Muscat' },
       ])
+    if (url.startsWith('/api/v1/customers?') && url.includes('type=GOVERNMENT'))
+      return json(200, {
+        content: [GOVERNMENT_CUSTOMER],
+        page: 0,
+        size: 20,
+        totalElements: 1,
+        totalPages: 1,
+      })
     if (url.startsWith('/api/v1/customers?'))
       return json(200, { content: [CUSTOMER], page: 0, size: 20, totalElements: 1, totalPages: 1 })
     if (url === '/api/v1/customers/c-1') return json(200, CUSTOMER)
@@ -252,6 +274,11 @@ function renderAt(path: string) {
           <Route path="/invoices/:id/edit" element={<CreateInvoicePage />} />
           <Route path="/invoices" element={<p>invoices list</p>} />
           <Route path="/invoices/:id" element={<IssuedLanding />} />
+          <Route path="/expenditure/self-billing/:id/edit" element={<p>self-billing editor</p>} />
+          <Route
+            path="/expenditure/self-billing/credit-notes/:id/edit"
+            element={<p>self-billed credit note editor</p>}
+          />
         </Routes>
       </MemoryRouter>
     </ReferenceDataContext.Provider>,
@@ -327,6 +354,19 @@ describe('a new invoice draft', () => {
     await waitFor(async () => expect(await terms()).toContain('Net 30 days'))
   })
 
+  it('notes, without blocking, that a government buyer may ask for its references', async () => {
+    renderAt('/invoices/new')
+    const note = /Government buyers may ask for a buyer reference/
+    expect(await screen.findByRole('button', { name: 'Payment terms' })).toBeTruthy()
+    expect(screen.queryByText(note)).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /Government/ }))
+    expect(await screen.findByText(note)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Business/ }))
+    await waitFor(() => expect(screen.queryByText(note)).toBeNull())
+  })
+
   it("shows the company's stored business activity, or warns that none is set", async () => {
     renderAt('/invoices/new')
     expect(await screen.findByText('Business activity: 561001 · Restaurants')).toBeTruthy()
@@ -342,6 +382,70 @@ describe('a new invoice draft', () => {
     renderAt('/invoices/new')
     expect(await screen.findByText('Assigned when the invoice is issued')).toBeTruthy()
     expect(screen.getByText('New draft · not saved yet')).toBeTruthy()
+  })
+})
+
+describe('the buyer reference (IBT-010) on a government invoice', () => {
+  const field = () => screen.getByRole('textbox', { name: 'Buyer reference' })
+
+  // Owner, 6 Oct 2026: government invoices only; the design draws no such row for business.
+  it('is not offered on a business or a consumer invoice', async () => {
+    renderAt('/invoices/new')
+    await chooseCustomerAndProduct()
+    expect(screen.queryByRole('textbox', { name: 'Buyer reference' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    await waitFor(() => expect(calls('POST', '/api/v1/invoice-drafts')).toHaveLength(1))
+    expect(bodyOf(calls('POST', '/api/v1/invoice-drafts')[0]).draft.details).not.toHaveProperty(
+      'buyerReference',
+    )
+
+    cleanup()
+    renderAt('/invoices/new')
+    fireEvent.click(await screen.findByRole('button', { name: /Consumer/ }))
+    await waitFor(() =>
+      expect(screen.queryByRole('textbox', { name: 'Buyer reference' })).toBeNull(),
+    )
+  })
+
+  it("starts from a government customer's default, which this invoice may change", async () => {
+    renderAt('/invoices/new')
+    fireEvent.click(await screen.findByRole('button', { name: /Government/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Select customer' }))
+    fireEvent.click(await screen.findByRole('option', { name: /Ministry of Health/ }))
+    await waitFor(() => expect(field()).toHaveProperty('value', 'MOH-BR-7'))
+
+    fireEvent.change(field(), { target: { value: 'MOH-BR-OCT' } })
+    fireEvent.click(screen.getByRole('button', { name: /Pick from catalogue/ }))
+    fireEvent.click(await screen.findByRole('option', { name: /Flat White/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+
+    await waitFor(() => expect(calls('POST', '/api/v1/invoice-drafts')).toHaveLength(1))
+    expect(bodyOf(calls('POST', '/api/v1/invoice-drafts')[0]).draft.details).toMatchObject({
+      buyerReference: 'MOH-BR-OCT',
+    })
+  })
+
+  it('reads a saved buyer reference and PO reference back and keeps both on the next save', async () => {
+    loaded = draft({
+      details: {
+        ...draft().details,
+        buyerReference: 'BR-SAVED',
+        purchaseOrderReference: 'PO-77',
+      },
+    })
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByDisplayValue('BR-SAVED')).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: 'Purchase order reference' })).toHaveProperty(
+      'value',
+      'PO-77',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    await waitFor(() => expect(calls('PUT', '/api/v1/invoice-drafts/d-1')).toHaveLength(1))
+    expect(bodyOf(calls('PUT', '/api/v1/invoice-drafts/d-1')[0]).draft.details).toMatchObject({
+      buyerReference: 'BR-SAVED',
+      purchaseOrderReference: 'PO-77',
+    })
   })
 })
 
@@ -475,6 +579,52 @@ describe('issuing from the composer', () => {
     renderAt('/invoices/d-1/edit')
     expect(await screen.findByDisplayValue('September supply')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Create invoice' })).toBeNull()
+  })
+
+  it('names, before Issue, the prerequisites the server would refuse on, and leaves Issue to the server', async () => {
+    // "Fix this" goes to a settings write, so the card offers it only with admin.settings.manage
+    // (#157 review, 78f7700); this issuer may also change settings.
+    who = { ...ISSUER, permissions: [...ISSUER.permissions, 'admin.settings.manage'] }
+    readinessResponse = () =>
+      json(200, {
+        ready: false,
+        items: [
+          { code: 'COMPANY_VERIFIED', status: 'AWAITING_PLATFORM', owner: 'PLATFORM' },
+          { code: 'ACTIVE_BRANCH', status: 'ACTION_REQUIRED', owner: 'COMPANY' },
+          { code: 'CONTACT_PHONE', status: 'DONE', owner: 'COMPANY' },
+        ],
+      })
+    renderAt('/invoices/d-1/edit')
+
+    const card = within(
+      (await screen.findByText(i18n.t('readiness.composer.title'))).closest('section')!,
+    )
+    expect(card.getByText(i18n.t('readiness.item.COMPANY_VERIFIED'))).toBeTruthy()
+    expect(card.getByText(i18n.t('readiness.awaitingFawtir'))).toBeTruthy()
+    expect(card.getByRole('link', { name: i18n.t('readiness.fix') }).getAttribute('href')).toBe(
+      '/settings/branches/new',
+    )
+    expect(card.queryByText(i18n.t('readiness.item.CONTACT_PHONE'))).toBeNull()
+    expect(
+      (screen.getByRole('button', { name: 'Create invoice' }) as HTMLButtonElement).disabled,
+    ).toBe(false)
+  })
+
+  it('shows no readiness note when the company is ready, or when the answer is unavailable', async () => {
+    who = ISSUER
+    for (const answer of [
+      () => json(200, { ready: true, items: [] }),
+      () => json(403, { type: 'about:blank' }),
+    ]) {
+      readinessResponse = answer
+      const view = renderAt('/invoices/d-1/edit')
+      expect(await screen.findByDisplayValue('September supply')).toBeTruthy()
+      await waitFor(() =>
+        expect(fetchMock.mock.calls.some(([url]) => url === '/api/v1/invoicing/readiness')).toBe(true),
+      )
+      expect(screen.queryByText(i18n.t('readiness.composer.title'))).toBeNull()
+      view.unmount()
+    }
   })
 
   it('confirms a saved draft with its dates and server total, issues it once and lands on the invoice', async () => {
@@ -807,6 +957,20 @@ describe('payment, attachments and duplicate (INCOME.md 3.4, 3.5, 1.4)', () => {
     expect(body.draft.details.subject).toBe('September supply')
     expect(body.draft.lines[0].description).toBe('Flat White')
     expect(body.draft.details.deliveryDate).toBeNull()
+    expect(calls('PUT', '/api/v1/invoice-drafts/d-1')).toHaveLength(0)
+  })
+})
+
+describe('a self-billed draft opened from an Income address', () => {
+  // Owner decision, 6 Oct 2026: self-billing lives under Expenditure, so its drafts are never
+  // edited in the sales composer, and nothing is saved on the way.
+  it.each([
+    ['SELF_BILLED_INVOICE', 'self-billing editor'],
+    ['SELF_BILLED_CREDIT_NOTE', 'self-billed credit note editor'],
+  ] as const)('sends a %s draft to its Expenditure editor', async (type, landing) => {
+    loaded = draft({ type })
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByText(landing)).toBeTruthy()
     expect(calls('PUT', '/api/v1/invoice-drafts/d-1')).toHaveLength(0)
   })
 })

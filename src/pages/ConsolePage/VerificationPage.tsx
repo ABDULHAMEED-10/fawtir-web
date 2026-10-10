@@ -19,6 +19,8 @@ import {
 } from '../../lib/console/companyVerification'
 import { countryName, formatDay, localeFor } from '../../lib/console/format'
 import { VerificationStatusPill } from './verification/VerificationStatusPill'
+import { CONSOLE_PAGE, CONSOLE_ROWS, CONSOLE_TABLE, CONSOLE_TABLE_BODY, CONSOLE_TAB_BAR, CONSOLE_TAB_LINE, CONSOLE_THEAD, ConsolePageHeader } from '../../layouts/ConsoleShell/consoleStyle'
+import { consoleTab } from '../../layouts/ConsoleShell/consoleTones'
 
 const DEFAULT_TAB: QueueTab = 'pending'
 
@@ -85,19 +87,15 @@ function VerificationQueue() {
   const loaded = read.status === 'ready' && read.data.items.length > 0 ? read.data : null
 
   return (
-    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+    <div className={CONSOLE_PAGE}>
       <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.verification' }]} />
-      <div>
-        <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-          {t('console.verification.title')}
-        </h1>
-        <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
-          {t('console.verification.subtitle')}
-        </p>
-      </div>
+      <ConsolePageHeader
+        title={t('console.verification.title')}
+        subtitle={t('console.verification.subtitle')}
+      />
 
-      <section className="flex flex-col rounded-md bg-surface-card">
-        <div className="flex flex-wrap gap-x-6 gap-y-2 border-b border-border-subtle px-6 pt-4">
+      <section className="flex flex-col rounded-sm bg-surface-card">
+        <div className={CONSOLE_TAB_BAR}>
           {QUEUE_TABS.map((entry) => {
             const active = entry === tab
             return (
@@ -106,26 +104,21 @@ function VerificationQueue() {
                 type="button"
                 onClick={() => goTo(entry, 1)}
                 aria-pressed={active}
-                className={[
-                  'relative flex items-center gap-1.5 pb-3 text-base transition-colors',
-                  active
-                    ? 'font-semibold text-primary-800'
-                    : 'font-medium text-text-tertiary hover:text-text-secondary',
-                ].join(' ')}
+                className={consoleTab(active)}
               >
                 {t(`console.verification.tab.${entry}`)}
                 {active ? (
-                  <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary-700" />
+                  <span className={CONSOLE_TAB_LINE} />
                 ) : null}
               </button>
             )
           })}
         </div>
 
-        <div className="px-6 py-4">{body}</div>
+        <div className={CONSOLE_TABLE_BODY}>{body}</div>
 
         {loaded ? (
-          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border-subtle px-6 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border-subtle px-5 py-4">
             <p className="text-sm font-medium text-text-tertiary">
               {t('console.verification.showing', {
                 from: number.format(loaded.page * loaded.size + 1),
@@ -157,10 +150,10 @@ function QueueTable({ rows, returnTo }: { rows: CompanySummary[]; returnTo: Queu
   const none = t('console.verification.detail.none')
 
   return (
-    <RowsView>
-      <table className="w-full min-w-[760px] border-collapse text-start">
+    <RowsView className={CONSOLE_ROWS}>
+      <table className={`${CONSOLE_TABLE} min-w-[760px]`}>
         <thead>
-          <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+          <tr className={CONSOLE_THEAD}>
             <th className="px-4 py-3 text-start font-semibold">
               {t('console.verification.col.company')}
             </th>
@@ -196,10 +189,10 @@ function QueueTable({ rows, returnTo }: { rows: CompanySummary[]; returnTo: Queu
                     {company.country ? ` · ${countryName(company.country, i18n.language)}` : ''}
                   </span>
                 </td>
-                <td className="px-2 py-4 text-sm font-medium text-text-secondary">
-                  {company.tenantCode}
+                <td className="px-2 py-4 text-sm font-medium text-text-secondary [overflow-wrap:anywhere]">
+                  <bdi dir="ltr">{company.tenantCode}</bdi>
                 </td>
-                <td className="px-2 py-4 text-sm font-medium text-text-secondary">
+                <td className="whitespace-nowrap px-2 py-4 text-sm font-medium text-text-secondary">
                   {company.submittedAt ? formatDay(company.submittedAt, i18n.language) : none}
                 </td>
                 <td className="px-2 py-4">
@@ -208,7 +201,7 @@ function QueueTable({ rows, returnTo }: { rows: CompanySummary[]; returnTo: Queu
                     submitted={submitted}
                   />
                 </td>
-                <td className="px-2 py-4 text-sm font-medium text-text-secondary">
+                <td className="whitespace-nowrap px-2 py-4 text-sm font-medium text-text-secondary">
                   {company.decidedAt ? formatDay(company.decidedAt, i18n.language) : none}
                 </td>
               </tr>

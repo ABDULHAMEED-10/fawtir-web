@@ -224,9 +224,6 @@ export const ACTIVITY_SUMMARY = {
   previousAverageSeconds: BOOK.previousAverageSeconds,
 }
 
-/** The badge on the sidebar counts only what a person still has to act on. */
-export const ATTENTION_COUNT = BOOK.needsAttention
-
 /** `134` → `2m 14s`. */
 export const formatDuration = (seconds: number) =>
   `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s`
@@ -288,14 +285,3 @@ export const ACTIVITY_SORTS: { value: ActivitySortKey; labelKey: string }[] = [
   { value: 'invoiceAsc', labelKey: 'activity.sortOptions.invoiceAsc' },
 ]
 
-/**
- * What has to be true before anything can be reported.
- *
- * Shown on the empty state, where the point is that the connection is already working and only
- * a document is missing.
- */
-export const CONNECTION_CHECKS = [
-  { id: 'vat', values: { vat: 'OM1100392000' } },
-  { id: 'peppol', values: { id: '0248:OM1100392000' } },
-  { id: 'fawtara', values: { latency: '0.9s', until: 'Mar 2027' } },
-]

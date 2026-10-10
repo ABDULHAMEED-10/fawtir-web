@@ -43,16 +43,11 @@ export const TDD_RESUBMIT = {
    * The monthly submission allowance. TODO(backend): ACTIVITY.md 2.18. The design's figures until
    * the tenant's allowance and usage are on the API.
    */
-  quota: { used: 412, allowance: 500 },
 }
 
 /** What this fix uses from the allowance: one report per invoice, or two documents (credit note and new invoice) each reported. */
 export function quotaAboutToUse(invoices: number, kind: RefusalKind): number {
   return kind === 'invoice' ? invoices * 2 : invoices
-}
-
-export function quotaLeft(aboutToUse: number): number {
-  return Math.max(0, TDD_RESUBMIT.quota.allowance - TDD_RESUBMIT.quota.used - aboutToUse)
 }
 
 const round3 = (value: number) => Math.round(value * 1000) / 1000

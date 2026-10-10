@@ -3,25 +3,21 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell } from './SettingsShell'
 import { withRial } from '../../components/ui'
+import { SETTINGS_TABS, BOOK, longDate, type SettingsTab } from '../../lib/settings'
+import { HOW_YOU_PAY } from '../../lib/settingsBilling'
+import { LAST_EXPORT_ON } from '../../lib/settingsRecords'
+import { demoModulesEnabled } from '../../lib/demoModules'
+import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
 import {
-  shortMonth,
-  SETTINGS_TABS,
-  BOOK,
-  usageForecast,
-  longDate,
-  COMPANY,
-  type SettingsTab,
-} from '../../lib/settings'
-import {
-  OPEN_BRANCHES,
-  CERT_EXPIRES,
-  CERT_DAYS_LEFT,
-  certificateState,
-  SIGNING_CERTIFICATE,
-} from '../../lib/settingsCompany'
-import { MEMBERS, withoutTwoStep, ROLES, SEATS } from '../../lib/settingsPeople'
-import { nextBill, HOW_YOU_PAY } from '../../lib/settingsBilling'
-import { LOG_BOOK, LAST_EXPORT_ON } from '../../lib/settingsRecords'
+  PEOPLE_PATH,
+  ROLES_PATH,
+  ROLES_PERMISSION,
+  USERS_PERMISSION,
+  loadPeople,
+  loadRoles,
+  type RoleDto,
+  type UserPage,
+} from '../../api/settings/people'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import peppolIcon from '../../assets/settings/tile-peppol.svg'
 import companyIcon from '../../assets/settings/tile-company.svg'
@@ -48,9 +44,17 @@ import {
 import { sourceSystemName } from '../../lib/erp/sourceSystem'
 import { listErpConnections } from '../../api/erp/connections'
 import { useErpAccess } from '../../hooks/useErpAccess'
+import { useEntitlements } from '../../hooks/useEntitlements'
+import { hasPermission } from '../../lib/identity/entitlements'
+import { isPermissionDenied } from '../../lib/apiFailure'
 import { useFeature } from '../../lib/planAccess'
 import type { Feature } from '../../lib/plans'
 import { LockIcon } from '../../components/ui/icons'
+import {
+  PARTICIPANT_STANDING_PATH,
+  type ParticipantIdStanding,
+} from '../../api/peppol/participantStanding'
+import { BRANCHES_OVERVIEW_PATH, type BranchOverviewDto } from '../../api/settings/branches'
 
 type Tone = 'danger' | 'success' | 'neutral' | 'pending'
 
@@ -60,9 +64,8 @@ type Card = {
   icon: string
   iconTint: string
   to: string
-  /** A card can lead with a bar (how much of something is spent) or a row of faces. */
+  /** A card can lead with a bar: how much of something is spent. */
   bar?: { spent: number; tone: Tone }
-  faces?: string[]
   /** The wide card carries its figure at full size. */
   figure?: { value: string; unitKey: string; values?: Record<string, string | number | undefined> }
   pillKey: string
@@ -109,13 +112,29 @@ export function SettingsPage() {
   const [params, setParams] = useSearchParams()
   const group = (params.get('group') ?? 'all') as SettingsTab
 
-  const forecast = usageForecast()
-  const bill = nextBill()
-  // Two reads, not the mapping screens' eight — see loadErpMappingCard. Until they land the card
-  // shows the neutral "not set up" pill rather than a figure it does not have yet.
-  const mappingCard = useApiRead<ErpMappingCard>(ERP_MAPPING_CARD_KEY, () =>
+  const { i18n } = useTranslation()
+  // Two reads, not the mapping screens' eight — see loadErpMappingCard. Asked only of a reader the
+  // mapping routes admit (Phase 9): the card used to read for everyone and fold a 403, a failure
+  // and the wait itself into "Not set up", telling a reader without access that the company had
+  // no mapping.
+  const { entitlements } = useEntitlements()
+  const mayReadMapping =
+    entitlements !== null &&
+    (hasPermission(entitlements, 'admin.settings.manage') ||
+      hasPermission(entitlements, 'mapping.read'))
+  const mappingCard = useApiRead<ErpMappingCard>(mayReadMapping ? ERP_MAPPING_CARD_KEY : null, () =>
     loadErpMappingCard('JSON'),
   )
+  /** Why the card has no status yet, when it has none: never folded into "not set up". */
+  const mappingWait: 'NO_ACCESS' | 'CHECKING' | 'UNAVAILABLE' | null = !mayReadMapping
+    ? 'NO_ACCESS'
+    : mappingCard.read.status === 'loading'
+      ? 'CHECKING'
+      : mappingCard.read.status === 'failed'
+        ? isPermissionDenied(mappingCard.read.error)
+          ? 'NO_ACCESS'
+          : 'UNAVAILABLE'
+        : null
   // Memoized so the fallback object is not a fresh identity on every render, which would make the
   // cards memo below recompute each time. It was already in that memo's dependency list; the
   // lint only surfaced once the mock connector values left the list and stopped masking it.
@@ -146,11 +165,49 @@ export function SettingsPage() {
   // mock-derived count, an "N need attention" badge for a state the backend does not have, and a
   // "{{collected}} of {{limit}} this month" figure for extraction that does not run.
   const { access: erpAccess } = useErpAccess()
-  const connectionCount = useApiRead(
-    erpAccess.read ? 'settings-erp-connection-count' : null,
-    () => listErpConnections(false).then((page) => page.total),
+  const connectionCount = useApiRead(erpAccess.read ? 'settings-erp-connection-count' : null, () =>
+    listErpConnections(false).then((page) => page.total),
   )
   const connections = connectionCount.read.status === 'ready' ? connectionCount.read.data : null
+  // The Peppol and Branches cards used to print another company's Participant ID, a certificate
+  // expiry and branch names from fixtures. They now read the same keys their pages read, and say
+  // nothing beyond what those reads answer.
+  const standingRead = useApiRead<ParticipantIdStanding>(PARTICIPANT_STANDING_PATH).read
+  const standing = standingRead.status === 'ready' ? standingRead.data : null
+  const standingFailed = standingRead.status === 'failed'
+  const overviewRead = useApiRead<BranchOverviewDto>(BRANCHES_OVERVIEW_PATH).read
+  const overviewFailed = overviewRead.status === 'failed'
+  const openBranches = useMemo(
+    () =>
+      overviewRead.status === 'ready'
+        ? overviewRead.data.branches.filter((branch) => branch.active && !branch.closedOn)
+        : null,
+    [overviewRead],
+  )
+
+  // The plan, role and sign-in cards used to print a sample company's 880 of 1,000, its five roles
+  // and "1 without two-step". Each now reads the endpoint its screen reads, only when the reader
+  // may, and shows no figure rather than a guessed one while it cannot.
+  const planRead = useApiRead<PlanOverviewDto>(PLAN_OVERVIEW_PATH, loadPlanOverview).read
+  const planOverview =
+    planRead.status === 'ready' && planRead.data?.plan && planRead.data?.usage ? planRead.data : null
+  const planFailed = planRead.status === 'failed'
+  const mayListRoles = entitlements !== null && hasPermission(entitlements, ROLES_PERMISSION)
+  const rolesRead = useApiRead<RoleDto[]>(mayListRoles ? ROLES_PATH : null, loadRoles).read
+  const roleCount = rolesRead.status === 'ready' ? rolesRead.data.length : null
+  const mayListPeople = entitlements !== null && hasPermission(entitlements, USERS_PERMISSION)
+  const peopleRead = useApiRead<UserPage>(mayListPeople ? PEOPLE_PATH : null, loadPeople).read
+  const withoutApp =
+    peopleRead.status === 'ready' && peopleRead.data.totalElements === peopleRead.data.content.length
+      ? peopleRead.data.content.filter((person) => person.enabled && !person.mfaEnabled).length
+      : null
+  const demo = demoModulesEnabled()
+  const periodEnd = planOverview
+    ? new Date(`${planOverview.usage.period.end}T00:00:00`).toLocaleDateString(i18n.language, {
+        day: 'numeric',
+        month: 'long',
+      })
+    : ''
 
   const cards = useMemo<Card[]>(
     () => [
@@ -158,17 +215,27 @@ export function SettingsPage() {
         id: 'peppol',
         group: 'company',
         icon: peppolIcon,
-        iconTint: CERT_DAYS_LEFT <= 14 ? 'bg-danger-100' : 'bg-primary-50',
+        iconTint: standing?.state === 'VERIFIED' ? 'bg-success-100' : 'bg-primary-50',
         to: '/settings/peppol',
-        bar: {
-          spent: certificateState(SIGNING_CERTIFICATE).spent,
-          tone: CERT_DAYS_LEFT <= 14 ? 'danger' : 'pending',
+        pillKey:
+          standing !== null
+            ? standing.state === 'VERIFIED'
+              ? 'settings.card.peppolPillVerified'
+              : 'settings.card.peppolPillNotVerified'
+            : standingFailed
+              ? 'settings.card.pillNotAvailable'
+              : 'settings.card.pillChecking',
+        pillTone:
+          standing === null ? 'neutral' : standing.state === 'VERIFIED' ? 'success' : 'pending',
+        footKey:
+          standing?.state === 'VERIFIED' && standing.verification
+            ? 'settings.card.peppolFoot'
+            : undefined,
+        footValues: {
+          id: standing?.verification
+            ? `${standing.verification.participantScheme}:${standing.verification.participantValue}`
+            : '',
         },
-        pillKey: 'settings.card.peppolPill',
-        pillValues: { date: shortMonth(CERT_EXPIRES) },
-        pillTone: 'danger',
-        footKey: 'settings.card.peppolFoot',
-        footValues: { id: COMPANY.peppolId },
       },
       {
         id: 'company',
@@ -176,9 +243,8 @@ export function SettingsPage() {
         icon: companyIcon,
         iconTint: 'bg-primary-50',
         to: '/settings/company',
-        pillKey: 'settings.card.companyPill',
-        pillTone: 'success',
-        footKey: 'settings.card.companyFoot',
+        pillKey: 'settings.card.teamPillOpen',
+        pillTone: 'neutral',
       },
       {
         id: 'branches',
@@ -186,11 +252,16 @@ export function SettingsPage() {
         icon: branchesIcon,
         iconTint: 'bg-primary-50',
         to: '/settings/branches',
-        pillKey: 'settings.card.branchesPill',
-        pillValues: { count: OPEN_BRANCHES.length },
+        pillKey:
+          openBranches !== null
+            ? 'settings.card.branchesPill'
+            : overviewFailed
+              ? 'settings.card.pillNotAvailable'
+              : 'settings.card.pillChecking',
+        pillValues: { count: openBranches?.length ?? 0 },
         pillTone: 'neutral',
-        footKey: 'settings.card.branchesFoot',
-        footValues: { names: OPEN_BRANCHES.map((branch) => branch.name).join(' · ') },
+        footKey: openBranches && openBranches.length > 0 ? 'settings.card.branchesFoot' : undefined,
+        footValues: { names: openBranches?.map((branch) => branch.name).join(' · ') ?? '' },
       },
       {
         id: 'team',
@@ -198,12 +269,9 @@ export function SettingsPage() {
         icon: teamIcon,
         iconTint: 'bg-primary-50',
         to: '/settings/team',
-        faces: MEMBERS.slice(0, 4).map((member) => member.initials),
-        pillKey: 'settings.card.teamPill',
-        pillValues: { used: MEMBERS.length, seats: SEATS.included },
+        // The faces, seat count and seat price were sample people and a sample price list.
+        pillKey: 'settings.card.teamPillOpen',
         pillTone: 'neutral',
-        footKey: 'settings.card.teamFoot',
-        footValues: { amount: SEATS.extraMonthly.toFixed(3) },
       },
       {
         id: 'roles',
@@ -211,19 +279,30 @@ export function SettingsPage() {
         icon: rolesIcon,
         iconTint: 'bg-primary-50',
         to: '/settings/roles',
-        pillKey: 'settings.card.rolesPill',
-        pillValues: { count: ROLES.length },
+        pillKey: roleCount !== null ? 'settings.card.rolesPill' : 'settings.card.teamPillOpen',
+        pillValues: { count: roleCount ?? 0 },
         pillTone: 'neutral',
       },
       {
         id: 'signing',
         group: 'people',
         icon: signingIcon,
-        iconTint: 'bg-pending-100',
+        iconTint: withoutApp ? 'bg-pending-100' : 'bg-primary-50',
         to: '/settings/signing-in',
-        pillKey: 'settings.card.signingPill',
-        pillValues: { count: withoutTwoStep.length },
-        pillTone: 'pending',
+        pillKey: withoutApp !== null ? 'settings.card.signingPillNoApp' : 'settings.card.teamPillOpen',
+        pillValues: { count: withoutApp ?? 0 },
+        pillTone: withoutApp ? 'pending' : 'neutral',
+      },
+      {
+        id: 'erpOverview',
+        group: 'integration',
+        feature: 'erpMapping',
+        icon: integrationIcon,
+        iconTint: 'bg-primary-50',
+        to: '/settings/erp',
+        pillKey: 'settings.card.erpOverviewPill',
+        pillTone: 'neutral',
+        footKey: 'settings.card.erpOverviewFoot',
       },
       {
         id: 'erpMapping',
@@ -235,22 +314,29 @@ export function SettingsPage() {
             ? 'bg-pending-100'
             : 'bg-primary-50',
         to: '/settings/erp-mapping',
-        pillKey: `settings.card.erpMappingPill.${mappingStatus}`,
+        pillKey: `settings.card.erpMappingPill.${mappingWait ?? mappingStatus}`,
         pillTone:
-          mappingStatus === 'CERTIFIED'
-            ? 'success'
-            : mappingStatus === 'NOT_SET_UP'
-              ? 'neutral'
-              : // Same tones as the mapping screens' own status pill (ErpShell), bar STALE's red.
-                mappingStatus === 'STALE' ||
-                  mappingStatus === 'DRAFT' ||
-                  mappingStatus === 'PARTIALLY_CERTIFIED' ||
-                  mappingStatus === 'READY_UNCERTIFIED'
-                ? 'pending'
-                : 'neutral',
-        footKey: mapping.hasGuided
-          ? 'settings.card.erpMappingFoot'
-          : 'settings.card.erpMappingFootNone',
+          mappingWait !== null
+            ? 'neutral'
+            : mappingStatus === 'CERTIFIED'
+              ? 'success'
+              : mappingStatus === 'NOT_SET_UP'
+                ? 'neutral'
+                : // Same tones as the mapping screens' own status pill (ErpShell), bar STALE's red.
+                  mappingStatus === 'STALE' ||
+                    mappingStatus === 'DRAFT' ||
+                    mappingStatus === 'PARTIALLY_CERTIFIED' ||
+                    mappingStatus === 'READY_UNCERTIFIED'
+                  ? 'pending'
+                  : 'neutral',
+        footKey:
+          mappingWait === 'NO_ACCESS'
+            ? 'settings.card.erpMappingFootNoAccess'
+            : mappingWait !== null
+              ? 'settings.card.erpMappingFootUnknown'
+              : mapping.hasGuided
+                ? 'settings.card.erpMappingFoot'
+                : 'settings.card.erpMappingFootNone',
         footValues: {
           system: mapping.sourceSystem ? sourceSystemName(t, mapping.sourceSystem) : '',
           mapped: mapping.mapped,
@@ -262,7 +348,8 @@ export function SettingsPage() {
         group: 'integration',
         feature: 'erpMapping',
         icon: connectIcon,
-        iconTint: connections !== null && connections > 0 ? 'bg-success-100' : 'bg-surface-background',
+        iconTint:
+          connections !== null && connections > 0 ? 'bg-success-100' : 'bg-surface-background',
         to: '/settings/erp/connections',
         // Until the count arrives — or when the reader may not see it — the card says nothing
         // about how many there are, rather than guessing at zero.
@@ -286,6 +373,17 @@ export function SettingsPage() {
         footKey: 'settings.card.bridgeFoot',
       },
       {
+        id: 'apiPush',
+        group: 'integration',
+        feature: 'erpMapping',
+        icon: connectIcon,
+        iconTint: 'bg-surface-background',
+        to: '/settings/erp/api-push',
+        pillKey: 'settings.card.apiPushPill',
+        pillTone: 'neutral',
+        footKey: 'settings.card.apiPushFoot',
+      },
+      {
         id: 'erpActivity',
         group: 'integration',
         feature: 'erpMapping',
@@ -297,33 +395,61 @@ export function SettingsPage() {
         footKey: 'settings.card.erpActivityFoot',
       },
       {
+        id: 'erpAccess',
+        group: 'integration',
+        feature: 'erpMapping',
+        icon: logIcon,
+        iconTint: 'bg-surface-background',
+        to: '/settings/erp/access',
+        pillKey: 'settings.card.erpAccessPill',
+        pillTone: 'neutral',
+        footKey: 'settings.card.erpAccessFoot',
+      },
+      {
         id: 'plan',
         group: 'billing',
         icon: planIcon,
-        iconTint: 'bg-pending-100',
+        iconTint: 'bg-primary-50',
         to: '/settings/plan',
         wide: true,
-        figure: {
-          value: forecast.used.toLocaleString('en-US'),
-          unitKey: 'settings.card.planOf',
-          values: { allowance: forecast.allowance },
-        },
-        bar: { spent: forecast.used / forecast.allowance, tone: 'pending' },
-        pillKey: 'settings.card.planPill',
-        pillTone: 'pending',
-        footKey: 'settings.card.planFoot',
-        footValues: { date: longDate(bill.dueOn) },
+        figure: planOverview
+          ? {
+              value: planOverview.usage.used.toLocaleString(i18n.language),
+              unitKey: 'settings.card.planOf',
+              values: { allowance: planOverview.usage.quota.toLocaleString(i18n.language) },
+            }
+          : undefined,
+        bar:
+          planOverview && planOverview.usage.quota > 0
+            ? { spent: planOverview.usage.used / planOverview.usage.quota, tone: 'neutral' }
+            : undefined,
+        pillKey: planOverview
+          ? 'settings.card.planPillName'
+          : planFailed
+            ? 'settings.card.pillNotAvailable'
+            : 'settings.card.pillChecking',
+        pillValues: { name: planOverview?.plan.name ?? '' },
+        pillTone: 'neutral',
+        footKey: planOverview ? 'settings.card.planFootReal' : undefined,
+        footValues: { date: periodEnd },
       },
       {
         id: 'bills',
         group: 'billing',
         icon: billsIcon,
-        iconTint: 'bg-success-100',
+        // Billing, export and closing have no server yet: their cards carry the prototype's sample
+        // facts exactly when their prototype pages are shown (lib/demoModules), and say "not
+        // available yet" when a build hides those pages.
+        iconTint: demo ? 'bg-success-100' : 'bg-surface-background',
         to: '/settings/bills',
-        pillKey: 'settings.card.billsPill',
-        pillTone: 'success',
-        footKey: 'settings.card.billsFoot',
-        footValues: { method: t(`bills.method.${HOW_YOU_PAY.method}`) },
+        ...(demo
+          ? {
+              pillKey: 'settings.card.billsPill',
+              pillTone: 'success' as const,
+              footKey: 'settings.card.billsFoot',
+              footValues: { method: t(`bills.method.${HOW_YOU_PAY.method}`) },
+            }
+          : { pillKey: 'moduleUnavailable.badge', pillTone: 'neutral' as const }),
       },
       {
         id: 'log',
@@ -334,8 +460,8 @@ export function SettingsPage() {
         pillKey: 'settings.card.logPill',
         pillValues: { years: BOOK.retentionYears },
         pillTone: 'neutral',
-        footKey: 'settings.card.logFoot',
-        footValues: { count: LOG_BOOK.thisMonth.toLocaleString('en-US') },
+        // The monthly count was the sample log's; the real log has no count endpoint.
+        footKey: 'settings.card.logFootReal',
       },
       {
         id: 'export',
@@ -343,10 +469,9 @@ export function SettingsPage() {
         icon: exportIcon,
         iconTint: 'bg-primary-50',
         to: '/settings/export',
-        pillKey: 'settings.card.exportPill',
+        pillKey: demo ? 'settings.card.exportPill' : 'moduleUnavailable.badge',
         pillTone: 'neutral',
-        footKey: 'settings.card.exportFoot',
-        footValues: { date: longDate(LAST_EXPORT_ON) },
+        ...(demo ? { footKey: 'settings.card.exportFoot', footValues: { date: longDate(LAST_EXPORT_ON) } } : {}),
       },
       {
         // The tile grid is otherwise mock-fed; this card carries no figure on purpose, so the most
@@ -367,12 +492,29 @@ export function SettingsPage() {
         icon: closingIcon,
         iconTint: 'bg-surface-background',
         to: '/settings/closing',
-        pillKey: 'settings.card.closingPill',
+        pillKey: demo ? 'settings.card.closingPill' : 'moduleUnavailable.badge',
         pillTone: 'neutral',
-        footKey: 'settings.card.closingFoot',
+        ...(demo ? { footKey: 'settings.card.closingFoot' } : {}),
       },
     ],
-    [forecast, bill, t, mapping, mappingStatus, connections],
+    [
+      t,
+      roleCount,
+      withoutApp,
+      planOverview,
+      planFailed,
+      periodEnd,
+      demo,
+      i18n.language,
+      mapping,
+      mappingStatus,
+      mappingWait,
+      connections,
+      standing,
+      standingFailed,
+      openBranches,
+      overviewFailed,
+    ],
   )
 
   const groups = SETTINGS_TABS.filter((tab) => tab.id !== 'all').filter(
@@ -480,25 +622,7 @@ function HubCard({ card }: { card: Card }) {
         </span>
       ) : null}
 
-      {card.faces ? (
-        <span className="mt-4 flex items-center gap-1">
-          {card.faces.map((initials) => (
-            <span
-              key={initials}
-              className="flex size-7 items-center justify-center rounded-full bg-primary-50 text-[10px] font-semibold text-primary-800"
-            >
-              {initials}
-            </span>
-          ))}
-          {MEMBERS.length > card.faces.length ? (
-            <span className="flex size-7 items-center justify-center rounded-full bg-surface-background text-[10px] font-semibold text-text-tertiary">
-              +{MEMBERS.length - card.faces.length}
-            </span>
-          ) : null}
-        </span>
-      ) : null}
-
-      {!card.faces && !card.figure ? (
+      {!card.figure ? (
         <p
           className={[
             'mt-3 text-sm font-medium leading-[1.5]',

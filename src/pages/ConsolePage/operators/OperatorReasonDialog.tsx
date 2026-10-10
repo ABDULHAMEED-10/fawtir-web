@@ -2,13 +2,14 @@ import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
-import { Button, Input, Modal } from '../../../components/ui'
+import { Input, Modal } from '../../../components/ui'
 import { OPERATOR_REASON_MAX } from '../../../lib/console/platformOperators'
 import { forgetEntitlements } from '../../../lib/identity/entitlements'
 import { focusFirstInvalid } from '../../../lib/forms'
 import type { FormMessage } from '../../../lib/identity/errors'
 import { LOGIN_ROUTE } from '../../../lib/identity/login'
 import { required } from '../../../lib/validation'
+import { ConsoleButton } from '../../../layouts/ConsoleShell/consoleStyle'
 
 type OperatorReasonDialogProps<T> = {
   formId: string
@@ -103,12 +104,12 @@ export function OperatorReasonDialog<T>({
       title={title}
       footer={
         <div className="flex flex-wrap justify-end gap-2.5">
-          <Button type="button" size="md" variant="secondary" disabled={sending} onClick={onClose}>
+          <ConsoleButton type="button" size="md" variant="secondary" disabled={sending} onClick={onClose}>
             {t('common.cancel')}
-          </Button>
-          <Button type="submit" form={formId} size="md" disabled={sending || Boolean(blockedNote)}>
+          </ConsoleButton>
+          <ConsoleButton type="submit" form={formId} size="md" disabled={sending || Boolean(blockedNote)}>
             {sending ? confirmingLabel : confirmLabel}
-          </Button>
+          </ConsoleButton>
         </div>
       }
     >
