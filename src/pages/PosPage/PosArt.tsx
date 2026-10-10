@@ -1,12 +1,44 @@
 import type { ItemArt } from '../../lib/pos'
+import cappuccino from '../../assets/pos/cappuccino.jpg'
+import coldBrew from '../../assets/pos/cold-brew.jpg'
+import cortado from '../../assets/pos/cortado.jpg'
+import dateWalnut from '../../assets/pos/date-walnut.jpg'
+import espresso from '../../assets/pos/espresso.jpg'
+import flatWhite from '../../assets/pos/flat-white.jpg'
+import handGrinder from '../../assets/pos/hand-grinder.jpg'
+import houseBlend from '../../assets/pos/house-blend.jpg'
+import icedLatte from '../../assets/pos/iced-latte.jpg'
+import latte from '../../assets/pos/latte.jpg'
+import matchaLatte from '../../assets/pos/matcha-latte.jpg'
+import pumpkinSpice from '../../assets/pos/pumpkin-spice.jpg'
+import ramadanBox from '../../assets/pos/ramadan-box.jpg'
+import v60 from '../../assets/pos/v60.jpg'
 
 /**
  * The picture on a shelf tile (Figma 143:18015).
  *
- * Flat illustrations on a tinted ground, drawn here rather than photographed. The till used to
- * hotlink product photographs from Wikimedia Commons, which meant a third party decided whether
- * the shelf had pictures on it; these ship with the app.
+ * The demo shelf shows a real photograph of each item. The photos ship with the app (CC0 or public
+ * domain, sources in `src/assets/pos/CREDITS.md`); the till once hotlinked Wikimedia Commons, which
+ * left a third party deciding whether the shelf had pictures. An item with no photo falls back to
+ * a flat illustration on a tinted ground.
  */
+
+const PHOTO: Record<string, string> = {
+  'flat-white': flatWhite,
+  cappuccino,
+  espresso,
+  'cold-brew': coldBrew,
+  v60,
+  cortado,
+  latte,
+  'iced-latte': icedLatte,
+  'matcha-latte': matchaLatte,
+  'house-blend': houseBlend,
+  'date-walnut': dateWalnut,
+  'hand-grinder': handGrinder,
+  'pumpkin-spice': pumpkinSpice,
+  'ramadan-box': ramadanBox,
+}
 
 const GROUND: Record<ItemArt, string> = {
   cup: '#efe6dc',
@@ -110,8 +142,20 @@ function Bottle() {
   )
 }
 
-/** One tile's picture, filling the square it is given. */
-export function PosArt({ art, className = '' }: { art: ItemArt; className?: string }) {
+/** One tile's picture, filling the box it is given. */
+export function PosArt({
+  itemId,
+  art,
+  className = '',
+}: {
+  itemId?: string
+  art: ItemArt
+  className?: string
+}) {
+  const photo = itemId ? PHOTO[itemId] : undefined
+  if (photo) {
+    return <img src={photo} alt="" loading="lazy" className={className} />
+  }
   return (
     <svg viewBox="0 0 144 120" className={className} role="presentation" aria-hidden="true">
       <rect width="144" height="120" fill={GROUND[art]} />
