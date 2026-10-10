@@ -1,22 +1,31 @@
-import type { FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
+import { OnboardingFormError } from '../../components/auth/OnboardingFormError'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Button, ChevronRightIcon, Input } from '../../components/ui'
+import { Button, ChevronRightIcon, Input, Rial } from '../../components/ui'
 import { useOnboardingStep } from '../../hooks/useOnboardingStep'
-import { PENDING_ROUTE, submitForReview } from '../../lib/identity/onboarding'
+import { billAmounts } from '../../hooks/useSignupPlanTerms'
+import {
+  PAYMENT_ROUTE,
+  PENDING_ROUTE,
+  PLANS_ROUTE,
+  submitForReview,
+} from '../../lib/identity/onboarding'
 import { markOnboardingSubmitted } from '../../lib/identity/onboardingSession'
 import {
   BUSINESS_SIZE_LABEL_KEYS,
   CATEGORY_LABEL_KEYS,
   INVOICING_METHOD_LABEL_KEYS,
   onboardingStateFrom,
+  planDisplayName,
 } from '../../lib/onboarding'
 import { SUB_TYPES_BY_BUSINESS } from '../../lib/subBusinessTypes'
 import { toOmanE164 } from '../../lib/validation'
 import { findCode, nameOf } from '../../lib/codeLists/codeList'
 import { ISIC_ACTIVITIES } from '../../lib/codeLists/isic'
 
-type Row = { label: string; value: string }
+/** `money`: the value is a rial figure and carries the rial sign. */
+type Row = { label: string; value: string; money?: boolean }
 
 function ReviewSection({ title, editTo, rows }: { title: string; editTo: string; rows: Row[] }) {
   const { t } = useTranslation()
@@ -35,7 +44,14 @@ function ReviewSection({ title, editTo, rows }: { title: string; editTo: string;
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {rows.map((row) => (
-          <Input key={row.label} label={row.label} value={row.value} readOnly readOnlyAppearance />
+          <Input
+            key={row.label}
+            label={row.label}
+            value={row.value}
+            readOnly
+            readOnlyAppearance
+            leadingIcon={row.money ? <Rial className="text-text-secondary" /> : undefined}
+          />
         ))}
       </div>
     </section>
@@ -43,20 +59,23 @@ function ReviewSection({ title, editTo, rows }: { title: string; editTo: string;
 }
 
 /**
- * The last page before a human takes over. Shows the answers this tab saved — the backend has no
- * endpoint that reads a draft back — each section with a way to change it, because editing closes
- * once the draft is with a reviewer (backend signup guide §10a).
+ * The last page before a human takes over. Shows the saved answers — carried by this tab, or
+ * refilled from the status read's draft when the page opens without them — each section with a
+ * way to change it, because editing closes once the draft is with a reviewer (backend signup
+ * guide §10a).
  */
 export function SignupReviewForm() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
-  const state = onboardingStateFrom(useLocation().state)
+  const location = useLocation()
+  const state = onboardingStateFrom(location.state)
   const { save, submitting, formError } = useOnboardingStep({
     conflictKey: 'signupReview.conflict',
   })
+  const [planMissing, setPlanMissing] = useState(false)
   const activity = findCode(ISIC_ACTIVITIES, state.identity?.industrialClassification)
-  // Opened without this tab's answers (a typed URL): the steps are saved on the server, but there
-  // is nothing honest to show for them, so each field says so instead of looking empty.
+  // Only for a value the server did not return (an older server, or a step it reports complete
+  // without its draft): it is saved, but there is nothing honest to show, so the field says so.
   const saved = t('signupReview.savedEarlier')
   const shown = (key: string | undefined) => (key ? t(key) : saved)
   const optional = (value: string | undefined) => (address ? value || '—' : saved)
@@ -73,13 +92,30 @@ export function SignupReviewForm() {
   const accentKey = identity && `businessIdentity.accents.${identity.accent}`
   const governorateKey = address && `governorate.${address.governorate}`
 
+  // A plan, and for every plan but Enterprise a way to pay, before anything reaches a reviewer.
+  const { plan, paymentMethod } = state
+  const planChosen = Boolean(plan && (plan === 'enterprise' || paymentMethod))
+  // From the status read only; an older server sends no trial and no amounts, and the page then
+  // says they are not known rather than working them out from the launch catalogue.
+  const trialDays = state.planTerms ? state.planTerms.trialDays : undefined
+  const amounts = billAmounts(state.planTerms ?? null)
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (!planChosen) {
+      setPlanMissing(true)
+      return
+    }
+    // The server refuses the same draft itself (`signup-plan-required`,
+    // `signup-payment-preference-required`); this check only spares the request.
     const result = await save((token, signal) => submitForReview(token, signal))
     if (!result.saved) return
     markOnboardingSubmitted(true)
     // Replace: the draft is now closed, so Back must not reopen a page that can only mislead.
-    navigate(PENDING_ROUTE, { replace: true, state: { submitted: true } })
+    navigate(PENDING_ROUTE, {
+      replace: true,
+      state: { ...state, submitted: true, email: state.accountEmail },
+    })
   }
 
   const sections: Array<{ key: string; title: string; editTo: string; rows: Row[] }> = [
@@ -97,7 +133,7 @@ export function SignupReviewForm() {
               ? saved
               : t(state.usesPos ? 'signupReview.posYes' : 'signupReview.posNo'),
         },
-        // The trade is asked only of POS users; without POS the backend holds a placeholder.
+        // The trade is asked only of POS users; without POS the backend holds none.
         ...(state.usesPos === false
           ? []
           : [
@@ -131,7 +167,10 @@ export function SignupReviewForm() {
       editTo: '/address-contact',
       rows: [
         { label: t('addressContact.addressLine'), value: address?.addressLine ?? saved },
-        { label: t('addressContact.postalCode'), value: optional(address?.postalCode) },
+        { label: t('addressContact.addressLine2'), value: address?.addressLine2 ?? saved },
+        { label: t('addressContact.addressLine3'), value: address?.addressLine3 ?? saved },
+        { label: t('addressContact.postalCode'), value: address?.postalCode ?? saved },
+        { label: t('addressContact.poBox'), value: optional(address?.poBox) },
         { label: t('addressContact.city'), value: address?.city ?? saved },
         { label: t('addressContact.governorate'), value: shown(governorateKey) },
         { label: t('addressContact.contactName'), value: address?.contactName ?? saved },
@@ -139,6 +178,61 @@ export function SignupReviewForm() {
         { label: t('addressContact.phone'), value: address ? toOmanE164(address.phone) : saved },
         { label: t('addressContact.email'), value: address?.email ?? saved },
       ],
+    },
+    {
+      key: 'plan',
+      title: t('signupReview.sections.plan'),
+      editTo: plan && plan !== 'enterprise' ? PAYMENT_ROUTE : PLANS_ROUTE,
+      rows: !plan
+        ? [{ label: t('signupReview.fields.plan'), value: t('signupReview.notChosen') }]
+        : plan === 'enterprise'
+          ? [
+              { label: t('signupReview.fields.plan'), value: t('plans.enterprise.name') },
+              { label: t('signupReview.fields.terms'), value: t('signupReview.enterpriseTerms') },
+            ]
+          : [
+              {
+                label: t('signupReview.fields.plan'),
+                value: t('signupReview.planValue', {
+                  plan: planDisplayName(t, state, i18n.language),
+                  cycle: t(
+                    state.billing === 'annual'
+                      ? 'signupReview.billedAnnually'
+                      : 'signupReview.billedMonthly',
+                  ),
+                }),
+              },
+              {
+                label: t('signupReview.fields.payment'),
+                value: paymentMethod
+                  ? paymentMethod === 'cardLink'
+                    ? t(`signupReview.payment.cardLink.${state.linkVia ?? 'email'}`)
+                    : t(`signupReview.payment.${paymentMethod}`)
+                  : t('signupReview.notChosen'),
+              },
+              {
+                label: t('signupReview.fields.firstBill'),
+                value:
+                  trialDays === undefined || trialDays === 0
+                    ? t('signupReview.firstBillUnknown')
+                    : trialDays === null
+                      ? t('signupReview.firstBillOnApproval')
+                      : t('signupReview.firstBillAfterTrial', { count: trialDays }),
+              },
+              amounts
+                ? {
+                    label: t('signupReview.fields.firstBillAmount'),
+                    value: amounts.inclVat,
+                    money: true,
+                  }
+                : {
+                    label: t('signupReview.fields.firstBillAmount'),
+                    value: t('signupReview.amountUnavailable'),
+                  },
+              ...(state.addon
+                ? [{ label: t('payment.addon.title'), value: t('signupReview.addonValue') }]
+                : []),
+            ],
     },
   ]
 
@@ -169,11 +263,20 @@ export function SignupReviewForm() {
         ))}
       </div>
 
-      {formError ? (
+      {planMissing && !planChosen ? (
         <p className="text-xs font-medium text-text-danger" role="alert">
-          {t(formError.key, formError.values)}
+          {t('signupReview.planMissing')}{' '}
+          <Link
+            to={plan && plan !== 'enterprise' ? PAYMENT_ROUTE : PLANS_ROUTE}
+            state={location.state}
+            className="font-semibold text-primary-700 underline"
+          >
+            {t(plan ? 'signupReview.choosePayment' : 'signupReview.choosePlan')}
+          </Link>
         </p>
       ) : null}
+
+      <OnboardingFormError error={formError} />
 
       <Button type="submit" disabled={submitting} className="w-full max-w-[400px] gap-1.5">
         {submitting ? t('signupReview.submitting') : t('signupReview.submit')}

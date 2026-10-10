@@ -6,9 +6,9 @@ import { withQuery } from '../query'
  * The ERP reporting routes (`ExtractionRunReportController`, `SourceDocumentReportController`).
  *
  * **Every read needs `invoice.read`**, not the connection permissions: a run is a record of
- * documents entering the invoice ledger (backend Phase 3B decision D1). No route here writes
- * anything, and the backend exposes no replay or recovery action, so nothing in this file may
- * either.
+ * documents entering the invoice ledger (backend Phase 3B decision D1). The one write is a Managed
+ * Pull document's recovery (`SourceDocumentRecoveryController`, Phase 10), which has its own
+ * permission and sends no body: the source position it replays is the server's, never the caller's.
  *
  * **No tenant parameter exists.** The tenant is the caller's, read from the session; a run or
  * record id of another tenant answers 404.
@@ -73,8 +73,12 @@ export const FAILURE_REASONS = [
   'SOURCE_TIMEOUT',
   'SOURCE_AUTHENTICATION_REJECTED',
   'INFRASTRUCTURE_ERROR',
+  'MAPPING_CAPACITY_UNAVAILABLE',
   'ATTEMPTS_EXHAUSTED',
   'SOURCE_PAYLOAD_UNREADABLE',
+  'SOURCE_IDENTITY_INVALID',
+  'SOURCE_CONTENT_CHANGED',
+  'SOURCE_PAYLOAD_TOO_LARGE',
   'DUPLICATE_SOURCE_RECORD',
   'MAPPING_PROFILE_ABSENT',
   'MAPPING_FAILED',
@@ -106,6 +110,7 @@ export const RECONCILIATION_LABELS = [
   'RECOVERY_PENDING',
   'WAITING_FOR_MAPPING',
   'RETRYABLE_FAILURE',
+  'ATTEMPTS_EXHAUSTED',
   'ACCEPTED_WITHOUT_INVOICE',
   'TRANSPORT_PENDING',
   'RESPONSE_PENDING',
@@ -123,6 +128,7 @@ export const TIMELINE_TYPES = [
   'SOURCE_CLAIMED',
   'SOURCE_DEFERRED',
   'RECOVERY',
+  'OPERATOR_RECOVERY',
   'SOURCE_REJECTED',
   'SOURCE_DUPLICATE',
   'SOURCE_ACCEPTED',
@@ -426,4 +432,35 @@ export async function loadReconciliation(path: string): Promise<ReconciliationPa
     SnakePage<ReconciliationItemDto> & { unevaluated_labels?: ReconciliationLabel[] | null }
   >(path)
   return { ...fromSnakePage(body), unevaluatedLabels: body.unevaluated_labels ?? [] }
+}
+
+/* ----------------------------------------------------------------- recovery */
+
+/** `SourceDocumentRecoveryController.RECOVER`: humanOnly, held by the built-in ADMIN role. */
+export const RECOVER_PERMISSION = 'erp.document.recover'
+
+/** The outcomes of a recovery the server ran (200). A refusal is a problem document instead. */
+export type RecoveryOutcome = 'SUCCEEDED' | 'DUPLICATE_NOOP' | 'PROCESSING_FAILED'
+
+export type SourceDocumentRecoveryDto = {
+  record_id: string
+  outcome: RecoveryOutcome
+  processing_state: ProcessingState
+  reason_code: FailureReason | null
+  submission_id: string | null
+  invoice_uuid: string | null
+  recovery_count: number
+  recovered_at: string | null
+  /** Whether another recovery could still succeed: true only after a retryable processing failure. */
+  recoverable: boolean
+}
+
+/**
+ * Replays the request that first returned this document and processes only it, if the source
+ * answers with the same bytes. No body: there is no cursor, window or page a caller could pass.
+ */
+export function recoverSourceDocument(recordId: string): Promise<SourceDocumentRecoveryDto> {
+  return apiRequest<SourceDocumentRecoveryDto>(`${documentDetailPath(recordId)}/recovery`, {
+    method: 'POST',
+  })
 }

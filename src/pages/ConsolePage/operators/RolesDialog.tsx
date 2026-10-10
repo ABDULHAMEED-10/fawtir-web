@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
-import { Button, Modal } from '../../../components/ui'
+import { Modal } from '../../../components/ui'
 import { ConsoleStatusPill } from '../../../layouts/ConsoleShell/ConsoleStatusPill'
 import {
   PLATFORM_ROLES,
@@ -19,6 +19,7 @@ import {
 import { forgetEntitlements } from '../../../lib/identity/entitlements'
 import type { FormMessage } from '../../../lib/identity/errors'
 import { LOGIN_ROUTE } from '../../../lib/identity/login'
+import { ConsoleButton } from '../../../layouts/ConsoleShell/consoleStyle'
 
 type Pending = { role: PlatformRole; action: 'grant' | 'revoke' }
 
@@ -88,7 +89,7 @@ export function RolesDialog({ user, team, wholeTeam, selfId, onClose, onChanged 
         title={t(granting ? 'console.operators.confirm.giveTitle' : 'console.operators.confirm.removeTitle', values)}
         footer={
           <div className="flex flex-wrap justify-end gap-2.5">
-            <Button
+            <ConsoleButton
               type="button"
               size="md"
               variant="secondary"
@@ -99,12 +100,12 @@ export function RolesDialog({ user, team, wholeTeam, selfId, onClose, onChanged 
               }}
             >
               {t('common.back')}
-            </Button>
-            <Button type="button" size="md" disabled={saving} onClick={() => void confirm()}>
+            </ConsoleButton>
+            <ConsoleButton type="button" size="md" disabled={saving} onClick={() => void confirm()}>
               {granting
                 ? t(saving ? 'console.operators.confirm.giving' : 'console.operators.confirm.give')
                 : t(saving ? 'console.operators.confirm.removing' : 'console.operators.confirm.remove')}
-            </Button>
+            </ConsoleButton>
           </div>
         }
       >
@@ -143,7 +144,7 @@ export function RolesDialog({ user, team, wholeTeam, selfId, onClose, onChanged 
     >
       <ul className="flex flex-col">
         {PLATFORM_ROLES.map((role) => {
-          const held = user.roles.includes(role)
+          const held = (user.roles ?? []).includes(role)
           const blocked = held
             ? isLastTenantAdmin(user, team, wholeTeam) && role === TENANT_ADMIN
               ? 'console.operators.lastAdmin'
@@ -170,10 +171,10 @@ export function RolesDialog({ user, team, wholeTeam, selfId, onClose, onChanged 
                   tone={held ? 'success' : 'neutral'}
                   label={t(held ? 'console.operators.held' : 'console.operators.notHeld')}
                 />
-                <Button
+                <ConsoleButton
                   type="button"
                   size="md"
-                  variant="secondary"
+                  variant="small"
                   disabled={blocked !== null}
                   aria-label={t(held ? 'console.operators.removeRole' : 'console.operators.giveRole', {
                     role: roleName(role),
@@ -181,7 +182,7 @@ export function RolesDialog({ user, team, wholeTeam, selfId, onClose, onChanged 
                   onClick={() => setPending({ role, action: held ? 'revoke' : 'grant' })}
                 >
                   {t(held ? 'console.operators.remove' : 'console.operators.give')}
-                </Button>
+                </ConsoleButton>
               </div>
             </li>
           )

@@ -93,5 +93,5 @@ export function connectionLinks(connectionId: string): ReportLinks {
 export function useDocumentDetail(recordId: string) {
   const readable = useReportReadable()
   const path = readable ? documentDetailPath(recordId) : null
-  return useApiRead<SourceDocumentDetailDto>(path)
+  return { ...useApiRead<SourceDocumentDetailDto>(path), recordId }
 }

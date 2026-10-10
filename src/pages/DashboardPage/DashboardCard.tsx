@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import chevron from '../../assets/dashboard/chevron.svg'
 
 type DashboardCardProps = {
   title: string
@@ -31,17 +30,5 @@ export function DashboardCard({
       </div>
       <div className={['p-4', bodyClassName].filter(Boolean).join(' ')}>{children}</div>
     </section>
-  )
-}
-
-export function PeriodSelect({ label }: { label: string }) {
-  return (
-    <button
-      type="button"
-      className="inline-flex h-11 items-center gap-2 rounded-sm border border-black/10 bg-surface-card px-4 text-sm font-medium text-text-secondary"
-    >
-      {label}
-      <img src={chevron} alt="" className="size-5 rotate-90 opacity-60" />
-    </button>
   )
 }

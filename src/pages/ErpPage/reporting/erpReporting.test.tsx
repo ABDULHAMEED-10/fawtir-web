@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../../lib/identity/entitlements'
 import { resetSharedRequests } from '../../../api'
-import { RECONCILIATION_LABELS } from '../../../api/erp/reporting'
+import { FAILURE_REASONS, RECONCILIATION_LABELS } from '../../../api/erp/reporting'
 import { ErpDocumentsPage } from './ErpDocumentsPage'
 import { ErpDocumentDetailPage } from './ErpDocumentDetailPage'
 import { ErpAttentionPage } from './ErpAttentionPage'
@@ -262,6 +262,31 @@ describe('the read gate', () => {
     routes['/api/v1/erp/source-documents'] = () => problem(403)
     renderAt('/settings/erp/documents')
     expect(await screen.findByText(/doesn't have access/i)).toBeTruthy()
+    expect(screen.queryByText('No documents were received in this period.')).toBeNull()
+  })
+})
+
+describe('a report past its statement budget (Phase 4, ERP_REPORT_TIMEOUT)', () => {
+  it('renders 503 as a temporary failure with a retry and the reference, never the server text', async () => {
+    const timeout = () =>
+      new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/erp-report-timeout',
+          title: 'Service unavailable',
+          status: 503,
+          detail: 'SERVER-PROSE-MARKER statement_timeout 15000 ms',
+          code: 'ERP_REPORT_TIMEOUT',
+          correlationId: 'corr-503',
+        }),
+        { status: 503, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    routes['/api/v1/erp/source-documents'] = timeout
+    routes['/api/v1/erp/source-documents/summary'] = timeout
+    renderAt('/settings/erp/documents')
+    expect((await screen.findAllByText(/temporarily unavailable/)).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/corr-503/).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: 'Try again' }).length).toBeGreaterThan(0)
+    expect(document.body.textContent).not.toContain('SERVER-PROSE-MARKER')
     expect(screen.queryByText('No documents were received in this period.')).toBeNull()
   })
 })
@@ -547,7 +572,8 @@ describe('a source document', () => {
     expect(await screen.findByText('No findings were kept for this document.')).toBeTruthy()
   })
 
-  it('offers no replay, recovery or any other action, because the backend has none', async () => {
+  // Recovery exists only for an exhausted managed pull document (documentRecovery.test.tsx).
+  it('offers no replay, recovery or any other action on an accepted upload', async () => {
     renderAt(`/settings/erp/documents/${RECORD_ID}`)
     await screen.findByRole('heading', { name: 'SO-1001' })
     expect(screen.queryByRole('button', { name: /replay|retry|recover|resend/i })).toBeNull()
@@ -590,6 +616,25 @@ describe('needs attention', () => {
     }
   })
 
+  it('shows the recipient answer the server recorded, in words (Phase 9)', async () => {
+    routes['/api/v1/erp/source-documents/reconciliation'] = () =>
+      json(200, {
+        ...page([
+          {
+            ...doc(),
+            delivery_route: 'PEPPOL_NETWORK',
+            tax_report_status: null,
+            recipient_response_code: 'RE',
+            findings: [{ label: 'DELIVERY_FAILED', since: '2026-10-01T07:00:00Z' }],
+          },
+        ]),
+        unevaluated_labels: ['RESPONSE_PENDING'],
+      })
+    renderAt('/settings/erp/attention')
+    const row = (await screen.findByText('SO-1001')).closest('tr')!
+    expect(within(row).getByText('Recipient answer: Refused or not delivered')).toBeTruthy()
+  })
+
   it('repeats that RESPONSE_PENDING was not evaluated instead of timing it here', async () => {
     renderAt('/settings/erp/attention')
     expect(
@@ -598,6 +643,16 @@ describe('needs attention', () => {
     const before = reportCalls().length
     vi.advanceTimersByTime(24 * 60 * 60 * 1000)
     expect(reportCalls().length).toBe(before)
+  })
+
+  it('asks the server for exhausted documents by their own label', async () => {
+    renderAt('/settings/erp/attention')
+    await screen.findByText('Nothing needs attention in this period.')
+    fireEvent.click(await screen.findByRole('button', { name: 'Label' }))
+    fireEvent.click(await screen.findByRole('option', { name: /^Every attempt was used/ }))
+    await waitFor(() => {
+      expect(query(reportCalls().at(-1)!.url).get('label')).toBe('ATTEMPTS_EXHAUSTED')
+    })
   })
 
   it('sends the label as the server names it, within a required window', async () => {
@@ -720,5 +775,15 @@ describe('Arabic', () => {
     renderAt('/settings/erp/documents')
     expect(await screen.findByRole('heading', { name: 'المستندات المصدرية' })).toBeTruthy()
     expect(screen.getByText('SO-1001').closest('[dir="ltr"]')).not.toBeNull()
+  })
+})
+
+describe('reason words', () => {
+  // useCode falls back to the bare code, so a reason the backend adds (SOURCE_PAYLOAD_TOO_LARGE
+  // arrived this way in backend #470) would reach customers as a constant without failing anything.
+  // getResource, not exists: exists answers through fallbackLng, so Arabic would borrow English.
+  it.each(['en', 'ar'])('words every failure reason in %s', (lng) => {
+    const missing = FAILURE_REASONS.filter((reason) => !i18n.getResource(lng, 'translation', `erp.reporting.reason.${reason}`))
+    expect(missing).toEqual([])
   })
 })

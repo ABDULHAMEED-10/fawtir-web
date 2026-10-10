@@ -4,20 +4,29 @@ import { hasPermission, type Entitlements } from '../identity/entitlements'
 /**
  * Whether the customer app insists on a signed-in session.
  *
- * On in development, off in a production build unless `VITE_REQUIRE_SESSION=true`. It defaults
- * off because the deployed build was a prototype whose `/api` was rewritten to `index.html` and
- * so never reached a backend, leaving a guard with nothing to show but the sign-in page. That
- * rewrite is fixed, so the reason has expired: set the variable once the deployed build is meant
- * to require a session.
+ * Always on in a production build. `VITE_REQUIRE_SESSION=false` is honoured only by a development
+ * build (`npm run dev`, vitest, `NODE_ENV=development vite build`), where it lets the mock screens be
+ * looked at without signing in.
+ *
+ * It used to default OFF in production and be switched on by setting the variable. The deployed
+ * build never set it, so www.fawtir.om rendered every screen outside the guard: no session was
+ * loaded and the sidebar showed a demo user ("Hafidh Saif / Owner / Your company") to whoever was
+ * actually signed in (TEST, 7 October 2026). The backend still authorised every request; the shell
+ * simply never asked who was there. Failing toward the guard means a missing or mistyped
+ * deployment variable can no longer recreate that.
  */
-export const REQUIRE_SESSION: boolean =
-  import.meta.env.VITE_REQUIRE_SESSION === undefined
-    ? import.meta.env.DEV
-    : import.meta.env.VITE_REQUIRE_SESSION === 'true'
+export const REQUIRE_SESSION: boolean = requireSession(
+  import.meta.env.DEV,
+  import.meta.env.VITE_REQUIRE_SESSION,
+)
+
+export function requireSession(developmentBuild: boolean, configured: string | undefined): boolean {
+  return !(developmentBuild && configured === 'false')
+}
 
 /**
- * Who is signed in to the customer app, as `/v1/me/entitlements` described them. `null` when
- * there is no session because the guard is off (the prototype build).
+ * Who is signed in to the customer app, as `/v1/me/entitlements` described them. `null` while that
+ * answer is still loading, and in a development build run with the guard switched off.
  */
 export const SessionContext = createContext<Entitlements | null>(null)
 

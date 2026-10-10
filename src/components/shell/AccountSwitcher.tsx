@@ -7,8 +7,8 @@ import {
   type BranchOverviewRow,
 } from '../../api/settings/branches'
 import { useApiRead } from '../../hooks/useApiRead'
-import { useSession } from '../../lib/session/session'
-import { useTenantPlan } from '../../lib/planAccess'
+import { REQUIRE_SESSION, useSession } from '../../lib/session/session'
+import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
 import { CompanyAvatar } from './CompanyAvatar'
 import chevron from '../../assets/dashboard/chevron.svg'
 
@@ -27,16 +27,26 @@ import chevron from '../../assets/dashboard/chevron.svg'
  */
 export function AccountSwitcher() {
   const { t } = useTranslation()
-  // The plan is the account's; no subscription backend exists yet to read it from, so this stays
-  // the design's placeholder deliberately (owner, 2026-09-27) rather than a real read.
-  const planLabel = t('shell.plan.named', { plan: t(`plan.planName.${useTenantPlan()}`) })
+  // GET /v1/settings/plan now exists, so the card names the tenant's real plan. It used to state
+  // "Business plan" for every tenant; without an answer (loading, no tenant.plan.read, a failure)
+  // it names no plan rather than a placeholder one.
+  const planRead = useApiRead<PlanOverviewDto>(PLAN_OVERVIEW_PATH, loadPlanOverview).read
+  // Chrome every screen draws: an answer without a plan name names nothing, never crashes the shell.
+  const planName = planRead.status === 'ready' ? planRead.data?.plan?.name : undefined
+  const planLabel = planName ? t('shell.plan.named', { plan: planName }) : null
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [branch, setBranch] = useState<BranchOverviewRow | null>(null)
   const session = useSession()
   // `tenantName` is null when RLS hides the tenant row; a blank card is worse than a generic
-  // label, and a fabricated company name (this card's old fallback) is worse than either.
-  const accountName = branch?.name ?? session?.tenantName ?? t('shell.account.unnamed')
+  // label, and a fabricated company name (this card's old fallback) is worse than either. Before
+  // the session has answered there is no company to name yet, and "Your company" would read as
+  // an answer, so the card says it is loading instead.
+  const accountName =
+    branch?.name ??
+    (session
+      ? (session.tenantName ?? t('shell.account.unnamed'))
+      : t(REQUIRE_SESSION ? 'shell.account.loading' : 'shell.account.unnamed'))
   // Loads once the popover is worth opening; failing silently (wrong role, or none yet) shows the
   // signed-in company alone rather than an error on chrome every screen renders.
   const { read } = useApiRead<BranchOverviewDto>(BRANCHES_OVERVIEW_PATH)
@@ -56,12 +66,15 @@ export function AccountSwitcher() {
         <span className="flex min-w-0 items-center gap-[7px]">
           <CompanyAvatar name={accountName} size={31} />
           <span className="min-w-0">
-            <span className="block truncate text-sm font-medium leading-[1.2] text-[#3e443e]">
+            {/* dir=auto: a Latin company name in the Arabic layout is cut at its own end, not its start. */}
+            <span dir="auto" className="block truncate text-sm font-medium leading-[1.2] text-[#3e443e] rtl:text-right">
               {accountName}
             </span>
-            <span className="block truncate text-xs font-medium leading-[1.2] text-text-quaternary">
-              {planLabel}
-            </span>
+            {planLabel ? (
+              <span className="block truncate text-xs font-medium leading-[1.2] text-text-quaternary">
+                {planLabel}
+              </span>
+            ) : null}
           </span>
         </span>
         <img src={chevron} alt="" className="size-5 rotate-90 opacity-70" />
@@ -91,7 +104,7 @@ export function AccountSwitcher() {
                 >
                   <CompanyAvatar name={row.name} size={28} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-text-primary">
+                    <span dir="auto" className="block truncate text-sm font-medium text-text-primary rtl:text-right">
                       {row.name}
                     </span>
                   </span>
@@ -101,9 +114,11 @@ export function AccountSwitcher() {
             )
           })}
         </ul>
-        <p className="border-t border-border-subtle px-3 py-2.5 text-xs font-medium text-text-quaternary">
-          {t('shell.account.planNote', { plan: planLabel })}
-        </p>
+        {planLabel ? (
+          <p className="border-t border-border-subtle px-3 py-2.5 text-xs font-medium text-text-quaternary">
+            {t('shell.account.planNote', { plan: planLabel })}
+          </p>
+        ) : null}
       </Popover>
     </>
   )

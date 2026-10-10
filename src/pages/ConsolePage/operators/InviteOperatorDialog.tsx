@@ -2,12 +2,13 @@ import { useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
-import { Button, Input, Modal } from '../../../components/ui'
+import { Input, Modal } from '../../../components/ui'
 import { describeInviteFailure, inviteOperator, type Invitation } from '../../../lib/console/operatorInvitations'
 import { forgetEntitlements } from '../../../lib/identity/entitlements'
 import type { FormMessage } from '../../../lib/identity/errors'
 import { LOGIN_ROUTE } from '../../../lib/identity/login'
 import { email as validateEmail } from '../../../lib/validation'
+import { ConsoleButton } from '../../../layouts/ConsoleShell/consoleStyle'
 
 const FORM_ID = 'invite-operator'
 
@@ -68,12 +69,12 @@ export function InviteOperatorDialog({
       subtitle={t('console.operators.invite.subtitle')}
       footer={
         <div className="flex flex-wrap justify-end gap-2.5">
-          <Button type="button" size="md" variant="secondary" disabled={sending} onClick={onClose}>
+          <ConsoleButton type="button" size="md" variant="secondary" disabled={sending} onClick={onClose}>
             {t('common.cancel')}
-          </Button>
-          <Button type="submit" form={FORM_ID} size="md" disabled={sending}>
+          </ConsoleButton>
+          <ConsoleButton type="submit" form={FORM_ID} size="md" disabled={sending}>
             {sending ? t('console.operators.invite.sending') : t('console.operators.invite.send')}
-          </Button>
+          </ConsoleButton>
         </div>
       }
     >

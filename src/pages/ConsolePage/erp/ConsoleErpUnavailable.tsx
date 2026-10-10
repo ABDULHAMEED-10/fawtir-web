@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { ConsoleShell } from '../../../layouts/ConsoleShell'
 import { ConsoleBreadcrumbs } from '../../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { ConsoleNotice } from '../../../layouts/ConsoleShell/ConsoleNotice'
+import { CONSOLE_PAGE, ConsolePageHeader } from '../../../layouts/ConsoleShell/consoleStyle'
 
 /**
  * The platform's view of tenant ERP connections, which does not exist yet.
@@ -18,33 +19,32 @@ import { ConsoleNotice } from '../../../layouts/ConsoleShell/ConsoleNotice'
  * Step 10 (`ConnectionFeatureUnavailable`), and this is that decision applied to the console.
  *
  * The routes stay reachable so an operator's bookmark does not 404, but they are off the console
- * nav. The fixture itself is kept: the ERP templates, add-on requests, audit and queue screens
- * still read it, and they are a separate question from this one.
+ * nav. The retired templates and add-on requests screens answer here too: their approvals only
+ * changed the fixture. A tenant's ERP access is changed on that tenant's page, against the real
+ * entitlement API, so this notice sends the operator there. The fixture is still read by the
+ * console audit and queue screens, which are a separate question.
  */
 export function ConsoleErpUnavailable() {
   const { t } = useTranslation()
 
   return (
     <ConsoleShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <div className={CONSOLE_PAGE}>
         <ConsoleBreadcrumbs
           items={[
             { labelKey: 'console.nav.group.erp' },
             { labelKey: 'console.erp.unavailable.crumb' },
           ]}
         />
-        <div>
-          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary max-md:text-2xl">
-            {t('console.erp.unavailable.title')}
-          </h1>
-          <p className="mt-1.5 max-w-[760px] text-sm font-medium leading-[1.5] text-text-quaternary">
-            {t('console.erp.unavailable.subtitle')}
-          </p>
-        </div>
+        <ConsolePageHeader
+          title={t('console.erp.unavailable.title')}
+          subtitle={t('console.erp.unavailable.subtitle')}
+          subtitleClassName="max-w-[760px]"
+        />
         <ConsoleNotice
           badge={t('console.erp.unavailable.badge')}
           body={t('console.erp.unavailable.body')}
-          action={{ to: '/console', label: t('console.erp.unavailable.action') }}
+          action={{ to: '/console/tenants', label: t('console.erp.unavailable.action') }}
         />
       </div>
     </ConsoleShell>

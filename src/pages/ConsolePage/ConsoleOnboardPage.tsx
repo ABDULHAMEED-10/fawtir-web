@@ -18,13 +18,13 @@ import {
   Rial,
   Select,
   StepTracker,
+  withRial,
   Switch,
   type TrackerStep,
 } from '../../components/ui'
 import {
   METHODS,
   MONTHS_OF,
-  TENANT_IDENTITIES,
   periodAmount,
   planLabelKey,
   withVat,
@@ -35,6 +35,7 @@ import {
 import { PLATFORM_SETTINGS } from '../../lib/platformSettings'
 import { omr } from '../../lib/superAdmin'
 import { omanPhone } from '../../lib/validation'
+import { countryName } from '../../lib/console/format'
 import {
   Field,
   SummaryLine,
@@ -49,6 +50,13 @@ import {
   useTermOptions,
   type Errors,
 } from './subscriptions/modalFields'
+import {
+  CONSOLE_CARD_TITLE,
+  CONSOLE_PAGE,
+  CONSOLE_PRIMARY,
+  CONSOLE_SECONDARY,
+  ConsolePageHeader,
+} from '../../layouts/ConsoleShell/consoleStyle'
 
 const STEPS = ['company', 'owner', 'plan', 'review'] as const
 type Step = (typeof STEPS)[number]
@@ -66,10 +74,14 @@ const BUSINESS_TYPES = [
   'professional',
 ] as const
 
-/** Every town a known tenant sits in, once each — the picker's list. */
-const TOWNS = [...new Set(Object.values(TENANT_IDENTITIES).map((tenant) => tenant.town))].sort(
-  (a, b) => a.localeCompare(b),
-)
+/** The countries the company picker offers, as ISO codes; the request carries the code. */
+const COUNTRIES = ['OM'] as const
+
+/**
+ * The towns the picker offers: a fixed reference list. It used to be gathered from the console's
+ * sample tenants, so the list itself leaked which invented customers the prototype held.
+ */
+const TOWNS = ['Muscat', 'Nizwa', 'Salalah', 'Sohar', 'Sur'] as const
 
 type Draft = {
   tenantCode: string
@@ -131,10 +143,8 @@ const ORDER: Record<Exclude<Step, 'review'>, FieldName[]> = {
   plan: ['plan', 'term', 'method', 'amount', 'receivedOn', 'reference'],
 }
 
-const PRIMARY_BUTTON =
-  'inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:cursor-not-allowed disabled:opacity-50'
-const SECONDARY_BUTTON =
-  'inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:cursor-not-allowed disabled:opacity-50'
+const PRIMARY_BUTTON = CONSOLE_PRIMARY
+const SECONDARY_BUTTON = CONSOLE_SECONDARY
 const TEXT_BUTTON =
   'inline-flex h-[46px] items-center text-sm font-semibold text-text-tertiary transition-colors hover:text-text-secondary'
 
@@ -313,8 +323,8 @@ export function ConsoleOnboardPage() {
       tenantCode: draft.tenantCode.trim().toUpperCase(),
       tenantName: draft.tradingName.trim(),
       legalName: draft.legalName.trim(),
-      taxNumber: draft.vat.replace(/s/g, '').toUpperCase(),
-      commercialRegistrationNumber: draft.cr.replace(/s/g, ''),
+      taxNumber: draft.vat.replace(/\s/g, '').toUpperCase(),
+      commercialRegistrationNumber: draft.cr.replace(/\s/g, ''),
       country: draft.country.trim().toUpperCase(),
       registeredAddress: draft.registeredAddress.trim(),
       administratorEmail: draft.ownerEmail.trim(),
@@ -340,24 +350,22 @@ export function ConsoleOnboardPage() {
 
   return (
     <ConsoleShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <div className={CONSOLE_PAGE}>
         <ConsoleBreadcrumbs
           items={[
             { labelKey: 'console.nav.tenants', to: '/console/tenants' },
             { labelKey: 'console.onboard.title' },
           ]}
         />
-        <div>
-          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-            {t('console.onboard.title')}
-          </h1>
-          <p className="mt-1.5 max-w-[720px] text-sm font-medium leading-[1.4] text-text-quaternary">
-            {t('console.onboard.subtitle')}
-          </p>
-        </div>
+        <ConsolePageHeader
+          title={t('console.onboard.title')}
+          subtitle={t('console.onboard.subtitle')}
+          subtitleClassName="max-w-[720px]"
+        />
 
-        <section className="overflow-hidden rounded-md bg-surface-card">
-          <div className="flex justify-center border-b border-border-subtle px-5 py-5 max-md:overflow-x-auto">
+        <section className="overflow-hidden rounded-sm bg-surface-card">
+          {/* The shared tracker prints its labels at 9 px; here they read at 12 px, with longer connectors (wider columns that let a label wrap on a phone) so they do not touch. */}
+          <div className="flex justify-center border-b border-border-subtle px-5 py-5 max-md:overflow-x-auto [&_span.whitespace-nowrap]:text-xs md:[&_span.h-px]:w-16 max-md:[&_span.h-px]:w-2 max-md:[&_div.flex-col]:w-[60px] max-md:[&_span.whitespace-nowrap]:whitespace-normal max-md:[&_span.whitespace-nowrap]:text-center">
             <StepTracker steps={trackerSteps} size="md" />
           </div>
 
@@ -422,7 +430,7 @@ type StepProps = {
 function StepHeading({ children, note }: { children: string; note?: string }) {
   return (
     <div>
-      <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">{children}</h2>
+      <h2 className={CONSOLE_CARD_TITLE}>{children}</h2>
       {note ? (
         <p className="mt-1 max-w-[680px] text-sm font-medium leading-[1.6] text-text-tertiary">
           {note}
@@ -433,7 +441,7 @@ function StepHeading({ children, note }: { children: string; note?: string }) {
 }
 
 function CompanyStep({ draft, errors, patch }: StepProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const k = (name: string) => t(`console.onboard.company.${name}`)
   return (
     <div className="flex flex-col gap-5">
@@ -475,19 +483,21 @@ function CompanyStep({ draft, errors, patch }: StepProps) {
             error={errors.tenantCode}
           />
         </div>
-        <div data-field="country">
-          <Input
-            bordered
-            name="country"
-            label={k('country')}
-            requiredMark
-            autoComplete="country"
-            maxLength={2}
+        {/*
+          Fawtir onboards Omani companies, so the picker offers Oman by name; the value it keeps is
+          still the ISO code "OM" the request has always carried.
+        */}
+        <Field name="country" label={k('country')} required error={errors.country}>
+          <Select
             value={draft.country}
-            onChange={(event) => patch({ country: event.target.value.toUpperCase() })}
-            error={errors.country}
+            onChange={(value) => patch({ country: value })}
+            options={COUNTRIES.map((code) => ({
+              value: code,
+              label: countryName(code, i18n.language),
+            }))}
+            ariaLabel={k('country')}
           />
-        </div>
+        </Field>
         <div data-field="registeredAddress" className="md:col-span-2">
           <Input
             bordered
@@ -536,7 +546,10 @@ function CompanyStep({ draft, errors, patch }: StepProps) {
             value={draft.town}
             onChange={(value) => patch({ town: value })}
             placeholder={k('townPlaceholder')}
-            options={TOWNS.map((town) => ({ value: town, label: town }))}
+            options={TOWNS.map((town) => ({
+              value: town,
+              label: t(`console.operations.town.${town}`, { defaultValue: town }),
+            }))}
             ariaLabel={k('town')}
           />
         </Field>
@@ -822,7 +835,10 @@ function ReviewStep({ draft, onEdit }: { draft: Draft; onEdit: (step: Step) => v
             label={c('vat')}
             value={<span dir="ltr">{draft.vat.replace(/\s/g, '').toUpperCase()}</span>}
           />
-          <SummaryLine label={c('town')} value={draft.town} />
+          <SummaryLine
+            label={c('town')}
+            value={t(`console.operations.town.${draft.town}`, { defaultValue: draft.town })}
+          />
           <SummaryLine
             label={c('businessType')}
             value={draft.businessType ? t(`businessType.options.${draft.businessType}`) : '—'}
@@ -880,7 +896,9 @@ function ReviewStep({ draft, onEdit }: { draft: Draft; onEdit: (step: Step) => v
         </ReviewCard>
         <section className="flex flex-col gap-2 rounded-sm bg-primary-25 p-4">
           <h3 className="text-sm font-semibold text-primary-800">{k('result')}</h3>
-          <p className="text-sm font-medium leading-[1.6] text-text-secondary">{result}</p>
+          <p className="text-sm font-medium leading-[1.6] text-text-secondary">
+            {withRial(result)}
+          </p>
           <p className="text-sm font-medium leading-[1.6] text-text-tertiary">
             {t('console.onboard.review.invitation', { email: draft.ownerEmail.trim() })}
           </p>

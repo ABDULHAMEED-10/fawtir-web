@@ -151,14 +151,14 @@ export function MakeRolePage() {
             bordered
             label={t('makeRole.nameThisRole')}
             requiredMark
-            hint={t('makeRole.nameHint')}
+            labelNote={t('makeRole.nameHint')}
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
           <Input
             bordered
             label={t('makeRole.whatItsFor')}
-            hint={t('makeRole.whatItsForHint')}
+            labelNote={t('makeRole.whatItsForHint')}
             value={purpose}
             onChange={(event) => setPurpose(event.target.value)}
           />
