@@ -1,6 +1,6 @@
 import { ApiError } from '../api'
 import { commonFailureMessage, type FormMessage } from './identity/errors'
-import { refusalMessageKey } from './expenditureRefusals'
+import { refusalMessageKey, refusalMessageValues } from './expenditureRefusals'
 import { selfBillingMessageKey } from './selfBillingRefusals'
 
 /**
@@ -16,7 +16,10 @@ export function describeApiFailure(error: unknown): FormMessage & { reference: s
     // Before any status branch: a refusal is a decision the server made by name, and saying
     // "try again" about one is wrong advice, not merely a vague message.
     const refusal = refusalMessageKey(error)
-    if (refusal !== null) return { key: refusal, reference }
+    if (refusal !== null) {
+      const values = refusalMessageValues(error)
+      return values ? { key: refusal, values, reference } : { key: refusal, reference }
+    }
     // Before the 409 branch on purpose: seven self-billing refusals answer Conflict, and telling
     // someone with no agreement to "reload to see the latest version" is false, not merely vague.
     const selfBilling = selfBillingMessageKey(error)

@@ -5,12 +5,13 @@ import { describeApiFailure } from './apiFailure'
 import { MAPPED_REFUSAL_CODES, REFUSAL_FALLBACK_KEY, refusalMessageKey } from './expenditureRefusals'
 import { refusalOf } from './paymentRuns'
 
-const refusal = (code: string | null) =>
+const refusal = (code: string | null, problem?: Record<string, unknown>) =>
   new ApiError({
     status: 400,
     problemType: 'expenditure-refused',
     code,
     correlationId: 'trace-1',
+    problem,
   })
 
 describe('an Expenditure refusal is a decision, not a fault', () => {
@@ -138,5 +139,73 @@ describe('an Expenditure refusal is a decision, not a fault', () => {
     await i18n.changeLanguage('en')
     // The payment run screens are outside this round and keep the sentence they already had.
     expect(refusalOf(held, i18n.t)).toBe('That bill is on hold. Release it before paying.')
+  })
+
+  // The owner's sentences of 6 Oct for the bill a credit is set against, and the refund's date.
+  it('gives each credit note refusal the sentence the owner approved, in both languages', () => {
+    const sentences: Record<string, [string, string]> = {
+      CREDIT_NOTE_TARGET_ON_HOLD: [
+        'This bill is on hold. Release it before setting a credit against it.',
+        'هذه الفاتورة قيد الانتظار. أفرج عنها قبل خصم الرصيد منها.',
+      ],
+      CREDIT_NOTE_TARGET_REJECTED: [
+        'This bill was rejected, so a credit cannot be set against it.',
+        'هذه الفاتورة مرفوضة، لذا لا يمكن خصم الرصيد منها.',
+      ],
+      CREDIT_NOTE_TARGET_DEBIT_NOTE_REFUSED: [
+        'This debit note was refused, so a credit cannot be set against it.',
+        'هذا الإشعار المدين مرفوض، لذا لا يمكن خصم الرصيد منه.',
+      ],
+      CREDIT_NOTE_REFUND_DATE_IN_FUTURE: [
+        'The refund date cannot be in the future.',
+        'لا يمكن أن يكون تاريخ الاسترداد في المستقبل.',
+      ],
+      CREDIT_NOTE_REFUND_DATE_BEFORE_NOTE: [
+        "The refund date cannot be before the credit note's date.",
+        'لا يمكن أن يكون تاريخ الاسترداد قبل تاريخ الإشعار الدائن.',
+      ],
+      CREDIT_NOTE_TARGET_CANCELLED: [
+        'This bill was cancelled, so a credit cannot be set against it.',
+        'أُلغيت هذه الفاتورة، لذا لا يمكن خصم الرصيد منها.',
+      ],
+      CREDIT_NOTE_TARGET_FULLY_CREDITED: [
+        'This bill is already fully credited.',
+        'خُصم من هذه الفاتورة رصيد بكامل قيمتها بالفعل.',
+      ],
+    }
+    for (const [code, [english, arabic]] of Object.entries(sentences)) {
+      const message = describeApiFailure(refusal(code))
+      expect(MAPPED_REFUSAL_CODES, code).toContain(code)
+      expect(i18n.t(message.key, { ...message.values, lng: 'en' }), code).toBe(english)
+      expect(i18n.t(message.key, { ...message.values, lng: 'ar' }), code).toBe(arabic)
+      expect(message.reference).toBe('trace-1')
+    }
+  })
+
+  it('names the payment run the bill is in, from the problem beside the code', () => {
+    const message = describeApiFailure(
+      refusal('CREDIT_NOTE_TARGET_IN_PAYMENT_RUN', { paymentRunReference: 'PR-0007' }),
+    )
+    expect(message.values).toEqual({ run: 'PR-0007' })
+    expect(i18n.t(message.key, { ...message.values, lng: 'en' })).toBe(
+      'This bill is already in payment run PR-0007. Take it out of the run first.',
+    )
+    expect(i18n.t(message.key, { ...message.values, lng: 'ar' })).toBe(
+      'هذه الفاتورة ضمن دفعة السداد PR-0007 بالفعل. أخرجها من الدفعة أولًا.',
+    )
+    // As the bill pages read it: a server that sends no run leaves the place empty, never a
+    // placeholder or a raw key.
+    const bare = describeApiFailure(refusal('CREDIT_NOTE_TARGET_IN_PAYMENT_RUN'))
+    expect(bare.values).toEqual({ run: '' })
+    expect(i18n.t(bare.key, { ...bare.values, lng: 'en' })).not.toContain('{{run}}')
+  })
+
+  it('leaves the two sentences held back unmapped, so they read as the generic refusal', () => {
+    // PAYMENT_RUN_AMOUNT_CHANGED waits for a payment run decision; CREDIT_NOTE_ON_HOLD was dropped.
+    expect(MAPPED_REFUSAL_CODES).not.toContain('PAYMENT_RUN_AMOUNT_CHANGED')
+    expect(MAPPED_REFUSAL_CODES).not.toContain('CREDIT_NOTE_ON_HOLD')
+    expect(refusalMessageKey(refusal('PAYMENT_RUN_AMOUNT_CHANGED'))).toBe(REFUSAL_FALLBACK_KEY)
+    // A refusal with no value to name carries none.
+    expect(describeApiFailure(refusal('CREDIT_NOTE_TARGET_ON_HOLD')).values).toBeUndefined()
   })
 })

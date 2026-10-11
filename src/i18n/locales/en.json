@@ -17925,7 +17925,15 @@
       "reminderRepeatNotAllowed": "That reminder does not repeat.",
       "reminderRecipientUnknown": "One of the people chosen is no longer on the team. Choose again.",
       "reminderDaysOutOfRange": "That number of days isn't allowed here.",
-      "paymentRunBillOnHold": "A bill in this run is on hold. Release it or take it out of the run first."
+      "paymentRunBillOnHold": "A bill in this run is on hold. Release it or take it out of the run first.",
+      "creditNoteTargetOnHold": "This bill is on hold. Release it before setting a credit against it.",
+      "creditNoteTargetInRun": "This bill is already in payment run {{run}}. Take it out of the run first.",
+      "creditNoteTargetRejected": "This bill was rejected, so a credit cannot be set against it.",
+      "creditNoteTargetDebitNoteRefused": "This debit note was refused, so a credit cannot be set against it.",
+      "creditNoteTargetCancelled": "This bill was cancelled, so a credit cannot be set against it.",
+      "creditNoteTargetFullyCredited": "This bill is already fully credited.",
+      "refundDateInFuture": "The refund date cannot be in the future.",
+      "refundDateBeforeNote": "The refund date cannot be before the credit note's date."
     },
     "selfBilling": {
       "generic": "The server refused this because of the self-billing agreement with this supplier. Check the agreement before trying again.",

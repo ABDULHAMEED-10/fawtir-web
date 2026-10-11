@@ -297,7 +297,7 @@ describe('upload a supplier credit note', () => {
     confirmAnswer = async () =>
       json(400, {
         type: 'https://api.fawtir.om/problems/expenditure-refused',
-        error: 'CREDIT_NOTE_TARGET_ON_HOLD',
+        error: 'SOME_RULE_THIS_BUILD_HAS_NOT_MAPPED',
       })
     await uploadNote()
     await chooseBill()
@@ -306,6 +306,76 @@ describe('upload a supplier credit note', () => {
 
     expect(await screen.findByText(/^The server refused this\. Nothing was changed/)).toBeTruthy()
     expect(calls('POST', CONFIRM)).toHaveLength(1)
+  })
+
+  // The confirm sets the credit against the chosen bill in the same request, so it is refused
+  // with the apply's own code, and says the owner's sentence for it.
+  it('says the chosen bill is on hold when the confirm is refused for it', async () => {
+    confirmAnswer = async () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/expenditure-refused',
+        error: 'CREDIT_NOTE_TARGET_ON_HOLD',
+      })
+    await uploadNote()
+    await chooseBill()
+    fireEvent.change(reasonField(), { target: { value: REASON } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save and set against the bill' }))
+
+    expect(
+      await screen.findByText(
+        'This bill is on hold. Release it before setting a credit against it.',
+      ),
+    ).toBeTruthy()
+    expect(calls('POST', CONFIRM)).toHaveLength(1)
+    expect(screen.queryByText('credit note page')).toBeNull()
+  })
+
+  it('names the payment run the chosen bill is in, in both languages', async () => {
+    confirmAnswer = async () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/expenditure-refused',
+        error: 'CREDIT_NOTE_TARGET_IN_PAYMENT_RUN',
+        paymentRunReference: 'PR-0007',
+      })
+    await uploadNote()
+    await chooseBill()
+    fireEvent.change(reasonField(), { target: { value: REASON } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save and set against the bill' }))
+    expect(
+      await screen.findByText(
+        'This bill is already in payment run PR-0007. Take it out of the run first.',
+      ),
+    ).toBeTruthy()
+
+    await i18n.changeLanguage('ar')
+    fireEvent.click(await screen.findByRole('button', { name: 'احفظ واخصمه من الفاتورة' }))
+    expect(
+      await screen.findByText(
+        'هذه الفاتورة ضمن دفعة السداد PR-0007 بالفعل. أخرجها من الدفعة أولًا.',
+      ),
+    ).toBeTruthy()
+    expect(calls('POST', CONFIRM)).toHaveLength(2)
+  })
+
+  // Owner, 6 Oct: the frame's "pay OMR ... less" is a designer's slip; money shows the sign.
+  it('shows the amount the credit takes off the bill with the Rial sign, not "OMR"', async () => {
+    await uploadNote()
+    await chooseBill()
+    const visible = (element: Element) => {
+      const copy = element.cloneNode(true) as Element
+      copy.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+      return copy.textContent ?? ''
+    }
+
+    const english = screen.getByText(/^The bill is unpaid, so you simply pay/)
+    expect(english.querySelector('svg')).not.toBeNull()
+    expect(visible(english)).toMatch(/^The bill is unpaid, so you simply pay\s+105\.000 less\.$/)
+    expect(visible(english)).not.toContain('OMR')
+
+    await i18n.changeLanguage('ar')
+    const arabic = await screen.findByText(/^الفاتورة غير مدفوعة، فتدفع ببساطة أقل بمقدار/)
+    expect(arabic.querySelector('svg')).not.toBeNull()
+    expect(visible(arabic)).not.toContain('OMR')
   })
 
   it('sends one confirm however quickly the button is pressed twice', async () => {
