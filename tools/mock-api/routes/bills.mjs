@@ -68,8 +68,10 @@ function bill(id, supplierId, number, issued, dueDays, lines, extra = {}) {
   const total = round3(net + vat)
   const paid = extra.paidAmount ?? 0
   const credited = extra.creditedAmount ?? 0
+  // The early-payment discount a payment run took settles the bill too, but is not paid.
+  const discounted = extra.discountTaken?.amount ?? 0
   const isCredit = extra.documentTypeCode === '381' || extra.documentTypeCode === '261'
-  const outstanding = round3(Math.max(0, total - paid - credited))
+  const outstanding = round3(Math.max(0, total - paid - credited - discounted))
   const dueDate = dueDays === null ? null : shift(issued, dueDays)
   const state = extra.workflowState ?? 'NEW'
   const overdue =
@@ -355,7 +357,16 @@ const BILLS = [
     [L('Green beans, Sidamo', 200, 'KG', 6.9)],
     {
       workflowState: 'PAID',
-      paidAmount: 1449,
+      // Paid by a payment run that took the supplier's 2% early-payment discount; the supplier's
+      // credit note for it has not arrived yet (EXPENDITURE.md row 2.20).
+      paidAmount: 1420.02,
+      discountTaken: {
+        amount: 28.98,
+        takenOn: '2026-08-10',
+        paymentRunId: 'run-2026-11',
+        paymentReference: 'RUN-2026-11',
+        creditNoteId: null,
+      },
       match: matched('PO-0019'),
       inboundDeliveryId: 'd-8702',
     },
@@ -730,6 +741,25 @@ function detailReply(row) {
           },
         ]
       : []
+  // The discount a payment run took reads right after the payment it came with: not cash, so no
+  // method, and listed only while its payment stands.
+  const discount = extra.discountTaken ?? null
+  if (discount && payments.length > 0) {
+    payments[0].paymentDate = discount.takenOn
+    payments[0].occurredAt = `${discount.takenOn}T09:30:00Z`
+    payments[0].paymentReference = discount.paymentReference
+    payments.push({
+      id: `dsc-${row.id}`,
+      entryType: 'DISCOUNT',
+      amount: discount.amount,
+      currency: row.currencyCode,
+      methodCode: null,
+      paymentReference: discount.paymentReference,
+      paymentDate: discount.takenOn,
+      occurredAt: `${discount.takenOn}T09:30:00Z`,
+    })
+  }
+  const creditNoteOutstanding = discount && !discount.creditNoteId ? discount.amount : 0
   const arrivedAt = `${row.issueDate}T08:11:00Z`
   const activity = []
   if (paid)
@@ -872,9 +902,20 @@ function detailReply(row) {
       paymentState: paid ? 'PAID' : row.paidAmount > 0 ? 'PARTIALLY_PAID' : 'UNPAID',
       overdue: row.overdue,
       dueDate: row.dueDate,
+      // Moves into creditedAmount once the supplier's credit note for it arrives.
+      discountAmount: creditNoteOutstanding,
     },
     payments,
     paymentRunReference: row.paymentRunReference,
+    discountTaken: discount
+      ? {
+          amount: discount.amount,
+          takenOn: discount.takenOn,
+          paymentRunId: discount.paymentRunId,
+          creditNoteId: discount.creditNoteId,
+          creditNoteOutstanding,
+        }
+      : null,
     intake:
       row.source === 'UPLOADED' || row.source === 'SCANNED'
         ? {

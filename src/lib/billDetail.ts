@@ -203,6 +203,28 @@ export function canRecordPayment(
   )
 }
 
+/**
+ * The early-payment discount a payment run took, shown as its own line beside what was paid
+ * (owner, 8 Oct 2026): the bill's `DISCOUNT` entries in its own currency, summed. It settles the
+ * bill but is not money paid, so the Paid figure stays the server's `paidAmount`, and the bill's
+ * totals and VAT never change because of it. Zero when none was taken.
+ */
+export function discountLineOf(detail: BillDetailDto): number {
+  const currency = detail.settlement.currency
+  const total = detail.payments
+    .filter((entry) => entry.entryType === 'DISCOUNT' && (!currency || entry.currency === currency))
+    .reduce((sum, entry) => sum + entry.amount, 0)
+  return Math.round(total * 1000) / 1000
+}
+
+/**
+ * A discount was taken and the supplier's credit note for it has not arrived yet: a state to
+ * follow up, not an error. Once a credit note covers it nothing more is said.
+ */
+export function awaitingDiscountCreditNote(detail: BillDetailDto): boolean {
+  return (detail.discountTaken?.creditNoteOutstanding ?? 0) > 0
+}
+
 /** The sentence under the amount in the decision panel. */
 export function decisionNoteOf(detail: BillDetailDto): Note {
   const { readiness, hold, settlement } = detail

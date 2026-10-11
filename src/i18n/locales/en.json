@@ -5821,7 +5821,9 @@
       "paid": "Paid",
       "credited": "Credited",
       "outstanding": "Outstanding",
-      "run": "Payment run"
+      "run": "Payment run",
+      "discount": "Early-payment discount",
+      "discountAwaitingCreditNote": "Discount taken · waiting for the supplier's credit note"
     },
     "refused": {
       "alreadyApproved": "You have already approved this bill. It needs a different approver.",
