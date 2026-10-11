@@ -1265,6 +1265,19 @@ export default [
             trace_id: 'trace-mock',
           },
         }
+      // A note paid in part cannot be refused either; the paid part is refunded first.
+      if (decision === 'REFUSED' && note.paymentState !== 'PAID' && note.paidAmount > 0)
+        return {
+          status: 400,
+          body: {
+            type: 'https://api.fawtir.om/problems/expenditure-refused',
+            title: 'DEBIT_NOTE_PARTLY_PAID',
+            status: 400,
+            detail: 'This debit note is partly paid.',
+            error: 'DEBIT_NOTE_PARTLY_PAID',
+            trace_id: 'trace-mock',
+          },
+        }
       const record = {
         decision,
         reason: decision === 'REFUSED' ? body.reason : null,

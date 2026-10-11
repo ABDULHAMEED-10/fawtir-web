@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -431,15 +431,19 @@ describe('a refused supplier debit note in a payment run (owner, 8 Oct 2026)', (
     ).toBeTruthy()
   })
 
-  it('keeps the generic refusal when marking the run paid is refused', async () => {
+  it('names the note when marking the run paid is refused', async () => {
     detail = { ...DETAIL, run: run({ state: 'EXPORTED' }) }
     override = (url) => (url.endsWith(`/${RUN_ID}/mark-paid`) ? debitNoteRefused() : null)
     renderAt(`/expenditure/payments/${RUN_ID}`)
     fireEvent.click(await screen.findByRole('button', { name: 'Mark as paid' }, { timeout: 8000 }))
     const dialog = await screen.findByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Mark as paid' }))
-    expect(await screen.findByText(/^The server refused this\./)).toBeTruthy()
-    expect(screen.queryByText(/DN-7/)).toBeNull()
+    expect(
+      await screen.findByText(
+        'DN-7 was refused after the bank file was made. Mark the others paid and take DN-7 out of the run.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText(/^The server refused this\./)).toBeNull()
   })
 
   it('says why a refused debit note cannot be paid in words, not its code', async () => {
@@ -499,5 +503,408 @@ describe('a refused supplier debit note in a payment run (owner, 8 Oct 2026)', (
     await i18n.changeLanguage('ar')
     renderAt('/suppliers/sup-1')
     expect(within(await row('DN-7')).getByText('مرفوض')).toBeTruthy()
+  })
+})
+
+/** A sent run of two bills: MR-1 can be paid, MR-3 now owes less than the file pays. */
+const SENT: PaymentRunDetailDto = {
+  run: run({ state: 'EXPORTED', exportedAt: '2026-09-19T10:00:00Z' }),
+  items: [
+    { ...DETAIL.items[0], markPaidBlock: null },
+    {
+      id: 'i-3',
+      billId: 'b-3',
+      supplierId: 'sup-2',
+      supplierName: 'Sohar Steel',
+      supplierBillNumber: 'SS-3',
+      issueDate: '2026-08-30',
+      dueDate: '2026-09-18',
+      amount: 200,
+      discountTaken: 0,
+      outstanding: 200,
+      markPaidBlock: { code: 'PAYMENT_RUN_AMOUNT_CHANGED', owedNow: 150 },
+    },
+  ],
+  activity: [],
+}
+
+const VIEWER: Entitlements = { ...MANAGER, username: 'viewer', permissions: ['invoice.read'] }
+
+const sentRunRefusal = (code: string) =>
+  json(400, {
+    type: 'https://api.fawtir.om/problems/expenditure-refused',
+    status: 400,
+    error: code,
+    detail: `${code} for SS-3`,
+    billId: 'b-3',
+    supplierBillNumber: 'SS-3',
+    documentTypeCode: '380',
+  })
+
+async function openMarkPaid() {
+  fireEvent.click(await screen.findByRole('button', { name: 'Mark as paid' }, { timeout: 8000 }))
+  return screen.findByRole('dialog')
+}
+
+describe('the ways out of a sent run (owner, 8 Oct 2026)', () => {
+  beforeEach(() => {
+    detail = SENT
+    override = (url, method) =>
+      method === 'POST' && url === `/api/v1/payment-runs/${RUN_ID}/cancel`
+        ? json(200, run({ state: 'CANCELLED' }))
+        : null
+  })
+
+  it('lists the bills, ticks the one that cannot be paid now, and asks for its reason before marking the others paid', async () => {
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const dialog = within(await openMarkPaid())
+    expect(dialog.getByText('MR-1')).toBeTruthy()
+    expect(dialog.getByText('SS-3')).toBeTruthy()
+    const ticks = dialog.getAllByRole('checkbox', { name: 'Take out of the run' })
+    expect(ticks.map((tick) => (tick as HTMLInputElement).checked)).toEqual([false, true])
+    // Only what is still paid is recorded: 980.000 less nothing for MR-1 alone.
+    expect(dialog.getByText(/This records/).textContent).toContain('980.000')
+
+    fireEvent.click(dialog.getByRole('button', { name: 'Mark the others paid' }))
+    expect(await dialog.findByText('This field is required')).toBeTruthy()
+    expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)).toHaveLength(0)
+
+    fireEvent.change(dialog.getByLabelText('Reason'), {
+      target: { value: 'A credit note came after the file was made' },
+    })
+    fireEvent.click(dialog.getByRole('button', { name: 'Mark the others paid' }))
+    await waitFor(() =>
+      expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)).toHaveLength(1),
+    )
+    expect(bodyOf(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)[0])).toEqual({
+      takeOut: [{ billId: 'b-3', reason: 'A credit note came after the file was made' }],
+    })
+  })
+
+  // Owner, 9 Oct 2026: the sign stands before the figure, as everywhere else in the app.
+  it('draws the rial sign before the amount being marked paid, in both languages', async () => {
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const dialog = within(await openMarkPaid())
+    const check = (sentence: HTMLElement) => {
+      const amount = sentence.querySelector('.whitespace-nowrap')!
+      expect(amount.firstElementChild!.querySelector('svg')).not.toBeNull()
+      expect(amount.textContent!.replace(/\s+/g, ' ')).toBe('OMR 980.000')
+      const shown = sentence.cloneNode(true) as Element
+      shown.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+      expect(shown.textContent).not.toContain('OMR')
+    }
+    check(dialog.getByText(/^This records/))
+    await act(async () => {
+      await i18n.changeLanguage('ar')
+    })
+    check(await dialog.findByText(/^يُسجَّل مبلغ/))
+  })
+
+  it('lets any other bill be taken out too, each with its reason', async () => {
+    detail = {
+      ...SENT,
+      items: [
+        ...SENT.items,
+        { ...SENT.items[0], id: 'i-4', billId: 'b-4', supplierBillNumber: 'MR-4', amount: 100 },
+      ],
+    }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const dialog = within(await openMarkPaid())
+    const ticks = dialog.getAllByRole('checkbox', { name: 'Take out of the run' })
+    fireEvent.click(ticks[2])
+    const reasons = dialog.getAllByLabelText('Reason')
+    expect(reasons).toHaveLength(2)
+    fireEvent.change(reasons[0], { target: { value: 'Amount changed' } })
+    fireEvent.change(reasons[1], { target: { value: 'The bank returned it' } })
+    fireEvent.click(dialog.getByRole('button', { name: 'Mark the others paid' }))
+    await waitFor(() =>
+      expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)).toHaveLength(1),
+    )
+    expect(bodyOf(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)[0])).toEqual({
+      takeOut: [
+        { billId: 'b-3', reason: 'Amount changed' },
+        { billId: 'b-4', reason: 'The bank returned it' },
+      ],
+    })
+  })
+
+  it('marks the whole run paid with no body once nothing is ticked', async () => {
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const dialog = within(await openMarkPaid())
+    fireEvent.click(dialog.getAllByRole('checkbox', { name: 'Take out of the run' })[1])
+    expect(dialog.queryByLabelText('Reason')).toBeNull()
+    fireEvent.click(dialog.getByRole('button', { name: 'Mark as paid' }))
+    await waitFor(() =>
+      expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)).toHaveLength(1),
+    )
+    const [, init] = calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)[0]
+    expect((init as RequestInit).body).toBeUndefined()
+  })
+
+  it('offers Cancel the run instead when every bill is ticked, never Mark the others paid', async () => {
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const dialog = within(await openMarkPaid())
+    fireEvent.click(dialog.getAllByRole('checkbox', { name: 'Take out of the run' })[0])
+    expect(dialog.queryByRole('button', { name: 'Mark the others paid' })).toBeNull()
+    expect(dialog.queryByRole('button', { name: 'Mark as paid' })).toBeNull()
+    fireEvent.click(dialog.getByRole('button', { name: 'Cancel the run' }))
+    const cancel = within(await screen.findByRole('dialog'))
+    expect(
+      cancel.getByRole('checkbox', { name: 'The bank paid nothing from this file' }),
+    ).toBeTruthy()
+    expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/mark-paid`)).toHaveLength(0)
+  })
+
+  it('cancels a sent run only with the tick and a reason, and says so to the server', async () => {
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }, { timeout: 8000 }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Cancel the run/ }))
+    const dialog = within(await screen.findByRole('dialog'))
+    expect(dialog.getByText('Cancel PR-0001?')).toBeTruthy()
+
+    fireEvent.click(dialog.getByRole('button', { name: 'Cancel the run' }))
+    expect(await dialog.findAllByText('This field is required')).toHaveLength(2)
+    expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/cancel`)).toHaveLength(0)
+
+    fireEvent.click(dialog.getByRole('checkbox', { name: 'The bank paid nothing from this file' }))
+    fireEvent.change(dialog.getByLabelText('Reason'), {
+      target: { value: 'The bank rejected the file' },
+    })
+    fireEvent.click(dialog.getByRole('button', { name: 'Cancel the run' }))
+    await waitFor(() =>
+      expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/cancel`)).toHaveLength(1),
+    )
+    expect(bodyOf(calls('POST', `/api/v1/payment-runs/${RUN_ID}/cancel`)[0])).toEqual({
+      bankPaidNothing: true,
+      reason: 'The bank rejected the file',
+    })
+  })
+
+  it('reads both dialogs in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    fireEvent.click(await screen.findByRole('button', { name: 'سجّل كمدفوعة' }, { timeout: 8000 }))
+    const dialog = within(await screen.findByRole('dialog'))
+    expect(dialog.getAllByRole('checkbox', { name: 'إخراج من الدفعة' })).toHaveLength(2)
+    expect(dialog.getByRole('button', { name: 'سجّل الباقي كمدفوع' })).toBeTruthy()
+    fireEvent.click(dialog.getAllByRole('checkbox', { name: 'إخراج من الدفعة' })[0])
+    fireEvent.click(dialog.getByRole('button', { name: 'ألغِ الدفعة' }))
+    const cancel = within(await screen.findByRole('dialog'))
+    expect(cancel.getByRole('checkbox', { name: 'لم يدفع البنك شيئًا من هذا الملف' })).toBeTruthy()
+  })
+
+  it('gives a Viewer neither way out', async () => {
+    override = (url) => (url === '/api/v1/me/entitlements' ? json(200, VIEWER) : null)
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }, { timeout: 8000 }))
+    expect(await screen.findByRole('menuitem', { name: /Copy into a new run/ })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: /Cancel the run/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Mark as paid' })).toBeNull()
+  })
+
+  it('names the bill when marking the run paid is refused for a changed amount', async () => {
+    override = (url) =>
+      url.endsWith(`/${RUN_ID}/mark-paid`) ? sentRunRefusal('PAYMENT_RUN_AMOUNT_CHANGED') : null
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const dialog = within(await openMarkPaid())
+    fireEvent.click(dialog.getAllByRole('checkbox', { name: 'Take out of the run' })[1])
+    fireEvent.click(dialog.getByRole('button', { name: 'Mark as paid' }))
+    expect(
+      await screen.findByText(
+        'The amount owed on SS-3 changed after the bank file was made. Mark the others paid and take SS-3 out of the run.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('warns beside Download again that the file was already sent, and only on a sent run', async () => {
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(
+      await screen.findByRole('button', { name: 'Download the file again' }, { timeout: 8000 }),
+    ).toBeTruthy()
+    expect(
+      screen.getByText('This file was already sent to the bank. Do not upload it again.'),
+    ).toBeTruthy()
+  })
+
+  it('says nothing of a sent file on a scheduled run', async () => {
+    detail = DETAIL
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(await screen.findByRole('button', { name: 'Download' }, { timeout: 8000 })).toBeTruthy()
+    expect(screen.queryByText(/already sent to the bank/)).toBeNull()
+  })
+
+  it('says the sent-file warning in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(
+      await screen.findByText('أُرسل هذا الملف إلى البنك بالفعل. لا ترفعه مرة أخرى.', undefined, {
+        timeout: 8000,
+      }),
+    ).toBeTruthy()
+  })
+
+  it('names the bill when making the bank file is refused for a changed amount', async () => {
+    detail = DETAIL
+    override = (url) =>
+      url.endsWith(`/${RUN_ID}/export`) ? sentRunRefusal('PAYMENT_RUN_AMOUNT_CHANGED') : null
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    fireEvent.click(await screen.findByRole('button', { name: 'Download' }, { timeout: 8000 }))
+    expect(
+      await screen.findByText(
+        'The amount owed on SS-3 changed after it joined this run. Take it out and add it again.',
+      ),
+    ).toBeTruthy()
+  })
+
+  /** The run as the server answers once MR-1 was paid and SS-3 taken out with its reason. */
+  const PAID_WITH_ONE_OUT: PaymentRunDetailDto = {
+    ...SENT,
+    run: run({ state: 'PAID', exportedAt: '2026-09-19T10:00:00Z', paidAt: '2026-09-20T10:00:00Z' }),
+    items: [
+      { ...SENT.items[0], takenOut: null },
+      {
+        ...SENT.items[1],
+        markPaidBlock: null,
+        takenOut: {
+          at: '2026-09-20T10:00:00Z',
+          actor: 'u-1',
+          reason: 'A credit note came after the file was made',
+        },
+      },
+    ],
+  }
+  const billRow = async (number: string) =>
+    (await screen.findByRole('link', { name: number }, { timeout: 8000 })).closest(
+      'div.border-t',
+    ) as HTMLElement
+
+  it("labels a taken-out bill's row on a paid run with its reason, and only that row", async () => {
+    detail = PAID_WITH_ONE_OUT
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const out = within(await billRow('SS-3'))
+    expect(out.getByText('Taken out · A credit note came after the file was made')).toBeTruthy()
+    expect(within(await billRow('MR-1')).queryByText(/Taken out/)).toBeNull()
+    expect(screen.getAllByText(/^Taken out · /)).toHaveLength(1)
+  })
+
+  it('says it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    detail = PAID_WITH_ONE_OUT
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(
+      within(await billRow('SS-3')).getByText(
+        'أُخرج من الدفعة · A credit note came after the file was made',
+      ),
+    ).toBeTruthy()
+    expect(screen.getAllByText(/^أُخرج من الدفعة · /)).toHaveLength(1)
+  })
+
+  /** A paid run where Sohar Steel had one bill paid (SS-4) and one taken out (SS-3). */
+  const PAID_SPLIT: PaymentRunDetailDto = {
+    ...PAID_WITH_ONE_OUT,
+    items: [
+      ...PAID_WITH_ONE_OUT.items,
+      {
+        ...SENT.items[1],
+        id: 'i-4',
+        billId: 'b-4',
+        supplierBillNumber: 'SS-4',
+        amount: 80.25,
+        markPaidBlock: null,
+        takenOut: null,
+      },
+    ],
+  }
+  const EN_SPLIT = /^Paid .+ · taken out /
+  const AR_SPLIT = /^مدفوع .+ · أُخرج من الدفعة /
+  /** The line under the totals, as seen (the hidden "OMR" left out), and its drawn signs. */
+  const splitLine = (pattern: RegExp) => {
+    const [line] = screen.queryAllByText(
+      (_, element) => element?.tagName === 'P' && pattern.test(element.textContent ?? ''),
+    )
+    if (!line) return null
+    const copy = line.cloneNode(true) as Element
+    copy.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+    return {
+      text: (copy.textContent ?? '').replace(/\s+/g, ' '),
+      signs: line.querySelectorAll('svg').length,
+    }
+  }
+  /** A supplier's header in the bill list: its count line and amount. */
+  const supplierHeader = async (name: string) =>
+    (await screen.findAllByText(name, { selector: 'p.text-base' }, { timeout: 8000 }))[0].closest(
+      'div.bg-surface-background',
+    ) as HTMLElement
+
+  // Owner, 9 Oct 2026 (D2): the bank file's totals stay; a line under them says what was paid
+  // and what was taken out.
+  it('splits a paid run into paid and taken out under the totals, with the rial sign', async () => {
+    detail = PAID_SPLIT
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    await billRow('SS-3')
+    expect(splitLine(EN_SPLIT)).toEqual({ text: 'Paid 1,060.250 · taken out 200.000', signs: 2 })
+    expect(splitLine(EN_SPLIT)!.text).not.toContain('OMR')
+    // The totals themselves are the run's, as the bank received them.
+    expect(screen.getByText('Leaving your account').parentElement!.textContent).toContain('980.000')
+  })
+
+  it('says the split in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    detail = PAID_SPLIT
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    await billRow('SS-3')
+    expect(splitLine(AR_SPLIT)).toEqual({
+      text: 'مدفوع 1,060.250 · أُخرج من الدفعة 200.000',
+      signs: 2,
+    })
+  })
+
+  it('draws no split when nothing was taken out, or the run is only sent', async () => {
+    detail = {
+      ...PAID_WITH_ONE_OUT,
+      items: PAID_WITH_ONE_OUT.items.map((item) => ({ ...item, takenOut: null })),
+    }
+    const paid = renderAt(`/expenditure/payments/${RUN_ID}`)
+    await billRow('SS-3')
+    expect(splitLine(EN_SPLIT)).toBeNull()
+    paid.unmount()
+
+    detail = { ...PAID_SPLIT, run: { ...PAID_SPLIT.run, state: 'EXPORTED', paidAt: null } }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    await billRow('SS-3')
+    expect(splitLine(EN_SPLIT)).toBeNull()
+  })
+
+  // E3: on a paid run, the supplier's header counts the bills actually paid.
+  it("leaves a taken-out bill out of its supplier's header on a paid run, but keeps its row", async () => {
+    detail = PAID_SPLIT
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const header = within(await supplierHeader('Sohar Steel'))
+    expect(header.getByText('1 bill · paid on its own')).toBeTruthy()
+    expect(header.getByText('80.250')).toBeTruthy()
+    expect(within(await billRow('SS-3')).getByText(/^Taken out · /)).toBeTruthy()
+    expect(await billRow('SS-4')).toBeTruthy()
+  })
+
+  it('counts every bill in the header of a run that is only sent', async () => {
+    detail = { ...PAID_SPLIT, run: { ...PAID_SPLIT.run, state: 'EXPORTED', paidAt: null } }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const header = within(await supplierHeader('Sohar Steel'))
+    expect(header.getByText('2 bills · paid as one transfer')).toBeTruthy()
+    expect(header.getByText('280.250')).toBeTruthy()
+  })
+
+  it('shows no label when no bill was taken out, or the server does not say', async () => {
+    detail = {
+      ...PAID_WITH_ONE_OUT,
+      items: [
+        { ...SENT.items[0], takenOut: null },
+        { ...SENT.items[1], markPaidBlock: null },
+      ],
+    }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(await billRow('SS-3')).toBeTruthy()
+    expect(await billRow('MR-1')).toBeTruthy()
+    expect(screen.queryByText(/Taken out/)).toBeNull()
   })
 })

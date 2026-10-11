@@ -2,13 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { DateField, Popover, Select, TableCheckbox } from '../../components/ui'
+import { DateField, Popover, Select, TableCheckbox, withRial } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
   PAYER_ACCOUNTS_PATH,
   addToRun,
   blockedPath,
+  cancelRun,
   candidatesPath,
   createRun,
   exportRun,
@@ -50,8 +51,9 @@ import { can, useSession } from '../../lib/session/session'
 import {
   AddPayerAccountModal,
   Amount,
-  ConfirmModal,
+  CancelSentRunModal,
   HEADER_BUTTON,
+  MarkPaidModal,
   PRIMARY_BUTTON,
   RunMenu,
   RunStatePill,
@@ -132,6 +134,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
   const [busy, setBusy] = useState(false)
   const [addingAccount, setAddingAccount] = useState(false)
   const [confirmingPaid, setConfirmingPaid] = useState(false)
+  const [cancellingSent, setCancellingSent] = useState(false)
   const inFlight = useRef(false)
 
   useEffect(() => {
@@ -177,6 +180,23 @@ function RunBuilder({ runId }: { runId: string | null }) {
       })),
     [detail],
   )
+  // A bill taken out as the rest of a sent run was marked paid: the run paid nothing for it.
+  const takenOut = new Map(
+    (detail?.items ?? []).flatMap((item) => (item.takenOut ? [[item.billId, item.takenOut]] : [])),
+  )
+  // On a paid run with bills taken out, the bank file's totals stay what the bank received; a
+  // line under them splits it into what was paid and what was taken out (owner, 9 Oct 2026).
+  const paidRun = run?.state === 'PAID'
+  const runItems = detail?.items ?? []
+  const split =
+    paidRun && runItems.some((item) => item.takenOut != null)
+      ? {
+          paid: sum(runItems.filter((item) => item.takenOut == null).map((item) => item.amount)),
+          takenOut: sum(
+            runItems.filter((item) => item.takenOut != null).map((item) => item.amount),
+          ),
+        }
+      : null
   const candidates: RunBill[] = offered.read.status === 'ready' ? offered.read.data : []
   const ticked = new Set(inRun.map((bill) => bill.billId))
   const every = [...inRun, ...candidates.filter((bill) => !ticked.has(bill.billId))]
@@ -351,6 +371,9 @@ function RunBuilder({ runId }: { runId: string | null }) {
                 items={detail.items}
                 onNotice={setNotice}
                 onChanged={() => loaded.retry()}
+                onCancelSent={
+                  canManage && run.state === 'EXPORTED' ? () => setCancellingSent(true) : undefined
+                }
               />
             ) : null}
           </div>
@@ -362,6 +385,11 @@ function RunBuilder({ runId }: { runId: string | null }) {
               })
             : t('paymentsPage.subtitle')}
         </p>
+        {canExport && run?.state === 'EXPORTED' ? (
+          <p className="text-sm font-medium leading-[1.3] text-pending-700">
+            {t('paymentRuns.sentFileWarning')}
+          </p>
+        ) : null}
       </div>
 
       {notice ? (
@@ -516,6 +544,11 @@ function RunBuilder({ runId }: { runId: string | null }) {
                   const chosen = group.bills.filter((bill) => ticked.has(bill.billId))
                   const allOn = chosen.length === group.bills.length
                   const someOn = chosen.length > 0 && !allOn
+                  // On a paid run the supplier's header counts only the bills actually paid; a
+                  // taken-out row still shows, with its label (owner, 9 Oct 2026).
+                  const counted = paidRun
+                    ? chosen.filter((bill) => !takenOut.has(bill.billId))
+                    : chosen
                   return (
                     <div
                       key={group.key}
@@ -547,12 +580,12 @@ function RunBuilder({ runId }: { runId: string | null }) {
                             {group.name ?? t('paymentRuns.noSupplier')}
                           </p>
                           <p className="mt-0.5 text-xs font-medium leading-[1.2] text-text-muted">
-                            {t('paymentsPage.billsAsOneTransfer', { count: chosen.length })}
+                            {t('paymentsPage.billsAsOneTransfer', { count: counted.length })}
                           </p>
                         </div>
                         <div className="ms-auto text-end">
                           <Amount
-                            value={sum(chosen.map((bill) => bill.amount))}
+                            value={sum(counted.map((bill) => bill.amount))}
                             currency={currency}
                           />
                           <p className="mt-0.5 text-[10px] font-medium leading-[1.2] text-text-muted">
@@ -596,6 +629,18 @@ function RunBuilder({ runId }: { runId: string | null }) {
                                     })
                                   : t('paymentRuns.noDate')}
                               </p>
+                              {takenOut.has(bill.billId) ? (
+                                <span
+                                  className={[
+                                    'mt-1 inline-flex items-center rounded-sm px-3 py-1 text-[10px] font-medium leading-[1.2]',
+                                    DUE_CHIP.none,
+                                  ].join(' ')}
+                                >
+                                  {t('paymentRuns.takenOutRow', {
+                                    reason: takenOut.get(bill.billId)!.reason,
+                                  })}
+                                </span>
+                              ) : null}
                             </div>
                             <span
                               className={[
@@ -827,6 +872,16 @@ function RunBuilder({ runId }: { runId: string | null }) {
                 className="whitespace-nowrap text-2xl font-semibold leading-[1.2] text-text-primary"
               />
             </div>
+            {split ? (
+              <p className="mt-0.5 text-end text-[10px] font-medium leading-[1.2] text-text-muted">
+                {withRial(
+                  t('paymentRuns.paidAndTakenOut', {
+                    paid: `${currency} ${formatAmount(split.paid, currency, i18n.language)}`,
+                    takenOut: `${currency} ${formatAmount(split.takenOut, currency, i18n.language)}`,
+                  }),
+                )}
+              </p>
+            ) : null}
           </section>
 
           <section className="rounded-md bg-surface-card p-5">
@@ -918,21 +973,38 @@ function RunBuilder({ runId }: { runId: string | null }) {
           }}
         />
       ) : null}
-      {confirmingPaid && runId && run ? (
-        <ConfirmModal
-          title={t('paymentRuns.confirmPaid.title', { reference: run.reference })}
-          body={t('paymentRuns.confirmPaid.body', {
-            amount: `${formatAmount(run.netTotal, currency, i18n.language)} ${currency}`,
-          })}
-          confirm={t('paymentRuns.markPaid')}
+      {confirmingPaid && runId && run && detail ? (
+        <MarkPaidModal
+          run={run}
+          items={detail.items}
           onClose={() => setConfirmingPaid(false)}
-          onConfirm={async () => {
+          onCancelInstead={() => {
+            setConfirmingPaid(false)
+            setCancellingSent(true)
+          }}
+          onConfirm={async (takeOut) => {
             try {
-              await markRunPaid(runId)
+              await markRunPaid(runId, takeOut)
               setConfirmingPaid(false)
               loaded.retry()
             } catch (error) {
               setConfirmingPaid(false)
+              setNotice(refusalOf(error, t, 'markPaid'))
+            }
+          }}
+        />
+      ) : null}
+      {cancellingSent && runId && run ? (
+        <CancelSentRunModal
+          run={run}
+          onClose={() => setCancellingSent(false)}
+          onConfirm={async (reason) => {
+            try {
+              await cancelRun(runId, { reason })
+              setCancellingSent(false)
+              loaded.retry()
+            } catch (error) {
+              setCancellingSent(false)
               setNotice(refusalOf(error, t))
             }
           }}

@@ -332,7 +332,9 @@ export type BillDetailDto = {
     at: string | null
     /**
      * The last three are the steps of the self-billed document, on a `SELF_BILLED` bill only, and
-     * only from a server that sends them.
+     * only from a server that sends them. The two payment run kinds come from a sent run: the
+     * rest marked paid without this bill, or the run cancelled because the bank paid nothing;
+     * their detail is "{run} · {reason}".
      */
     kind:
       | 'ARRIVED'
@@ -344,6 +346,8 @@ export type BillDetailDto = {
       | 'RELEASED'
       | 'PAID'
       | 'REVERSED'
+      | 'TAKEN_OUT_OF_PAYMENT_RUN'
+      | 'PAYMENT_RUN_CANCELLED'
       | 'DRAFT_CREATED'
       | 'ISSUED'
       | 'CANCELLED'

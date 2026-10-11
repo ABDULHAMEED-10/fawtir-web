@@ -500,6 +500,38 @@ describe('A bill, wired to the API', () => {
     expect(card.queryByText(/SOMETHING_NEW/)).toBeNull()
   })
 
+  it('says in words that a sent payment run took the bill out or was cancelled, with the run and the reason', async () => {
+    billResponse = () =>
+      json(200, {
+        ...detail(),
+        activity: [
+          {
+            at: '2026-10-08T09:00:00Z',
+            kind: 'PAYMENT_RUN_CANCELLED',
+            detail: 'PR-0012 · The bank rejected the file',
+            actor: 'u-2',
+          },
+          {
+            at: '2026-10-07T09:00:00Z',
+            kind: 'TAKEN_OUT_OF_PAYMENT_RUN',
+            detail: 'PR-0011 · Credit note arrived',
+            actor: 'u-2',
+          },
+        ],
+      })
+    renderBill()
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Activity' })
+    const card = within(heading.closest('section') as HTMLElement)
+    expect(card.getByText('Payment run cancelled')).toBeTruthy()
+    expect(card.getByText('Taken out of a payment run')).toBeTruthy()
+    expect(card.getByText(/PR-0012 · The bank rejected the file/)).toBeTruthy()
+    expect(card.queryByText(/PAYMENT_RUN_CANCELLED|TAKEN_OUT_OF_PAYMENT_RUN|Recorded/)).toBeNull()
+
+    await act(() => i18n.changeLanguage('ar'))
+    expect(await card.findByText('أُلغيت دفعة السداد')).toBeTruthy()
+    expect(card.getByText('أُخرجت من دفعة سداد')).toBeTruthy()
+  })
+
   const scanned = (note: string | null | undefined): BillDetailDto => ({
     ...detail(),
     bill: { ...detail().bill, source: 'SCANNED', inboundDeliveryId: null, note },

@@ -5730,7 +5730,9 @@
         "NO_ORDER": "Looked for an order",
         "DRAFT_CREATED": "Draft created",
         "ISSUED": "Issued",
-        "CANCELLED": "Cancelled"
+        "CANCELLED": "Cancelled",
+        "TAKEN_OUT_OF_PAYMENT_RUN": "Taken out of a payment run",
+        "PAYMENT_RUN_CANCELLED": "Payment run cancelled"
       }
     },
     "decision": {
@@ -17938,7 +17940,7 @@
       "reminderDaysOutOfRange": "That number of days isn't allowed here.",
       "paymentRunBillOnHold": "A bill in this run is on hold. Release it or take it out of the run first.",
       "creditNoteTargetOnHold": "This bill is on hold. Release it before setting a credit against it.",
-      "creditNoteTargetInRun": "This bill is already in payment run {{run}}. Take it out of the run first.",
+      "creditNoteTargetInRun": "This bill is in payment run {{run}}, whose bank file is already made. Keep the credit for another bill.",
       "creditNoteTargetRejected": "This bill was rejected, so a credit cannot be set against it.",
       "creditNoteTargetDebitNoteRefused": "This debit note was refused, so a credit cannot be set against it.",
       "creditNoteTargetCancelled": "This bill was cancelled, so a credit cannot be set against it.",
@@ -17946,7 +17948,9 @@
       "refundDateInFuture": "The refund date cannot be in the future.",
       "refundDateBeforeNote": "The refund date cannot be before the credit note's date.",
       "billPaymentDebitNoteRefused": "This debit note was refused, so it cannot be paid. Accept it first if it is owed after all.",
-      "debitNoteAlreadyPaid": "This debit note is already paid. Record a refund from the supplier instead."
+      "debitNoteAlreadyPaid": "This debit note is already paid. Record a refund from the supplier instead.",
+      "paymentReversalInSentRun": "This bill is in payment run {{run}}, whose bank file is already made. Use the run's Mark paid or Cancel instead.",
+      "debitNotePartlyPaid": "This debit note is partly paid. Record a refund from the supplier for the paid part first."
     },
     "selfBilling": {
       "generic": "The server refused this because of the self-billing agreement with this supplier. Check the agreement before trying again.",
@@ -18503,7 +18507,12 @@
       "payerRequired": "Choose the account you pay from first.",
       "payerInactive": "That account is switched off. Choose another.",
       "debitNoteRefusedAdd": "{{note}} was refused, so it cannot go into a payment run.",
-      "debitNoteRefusedExport": "{{note}} was refused after it joined this run. Take it out of the run first."
+      "debitNoteRefusedExport": "{{note}} was refused after it joined this run. Take it out of the run first.",
+      "amountChangedMarkPaid": "The amount owed on {{bill}} changed after the bank file was made. Mark the others paid and take {{bill}} out of the run.",
+      "debitNoteRefusedMarkPaid": "{{note}} was refused after the bank file was made. Mark the others paid and take {{note}} out of the run.",
+      "amountChangedExport": "The amount owed on {{bill}} changed after it joined this run. Take it out and add it again.",
+      "settledBill": "{{bill}} is already paid in full. Take it out of the run.",
+      "settledDebitNote": "{{bill}} is already paid in full. Take it out of the run."
     },
     "addModal": {
       "open": "Add to a payment run",
@@ -18539,7 +18548,13 @@
       "resetBody": "Every bill is taken out of the run. The run stays, empty, for you to fill again.",
       "delete": "Delete",
       "notYet": "Not available yet: this needs the backend."
-    }
+    },
+    "markOthersPaid": "Mark the others paid",
+    "takeOutOfRun": "Take out of the run",
+    "bankPaidNothing": "The bank paid nothing from this file",
+    "sentFileWarning": "This file was already sent to the bank. Do not upload it again.",
+    "takenOutRow": "Taken out · {{reason}}",
+    "paidAndTakenOut": "Paid {{paid}} · taken out {{takenOut}}"
   },
   "billIntake": {
     "supplier": "Supplier",

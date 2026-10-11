@@ -135,7 +135,6 @@ export const RUN_REFUSALS: Record<string, string> = {
   PAYMENT_RUN_BILL_ON_HOLD: 'paymentRuns.refused.onHold',
   PAYMENT_RUN_BILL_MISMATCHED: 'paymentRuns.refused.mismatched',
   PAYMENT_RUN_CURRENCY_MISMATCH: 'paymentRuns.refused.currency',
-  PAYMENT_RUN_BILL_SETTLED: 'paymentRuns.refused.settled',
   PAYMENT_RUN_BILL_NOT_PAYABLE: 'paymentRuns.refused.notPayable',
   PAYMENT_RUN_BILL_ALREADY_SCHEDULED: 'paymentRuns.refused.alreadyScheduled',
   PAYMENT_RUN_BANK_DETAILS_MISSING: 'paymentRuns.refused.bankDetailsMissing',
@@ -153,16 +152,33 @@ export const RUN_REFUSALS: Record<string, string> = {
 }
 
 /** What was being done to a run when it refused, where one code needs a sentence per action. */
-export type RunAction = 'add' | 'export'
+export type RunAction = 'add' | 'export' | 'markPaid'
 
 /**
- * `PAYMENT_RUN_DEBIT_NOTE_REFUSED` is one code with a sentence per action (owner, 8 Oct 2026),
- * naming the note by the number the server sends beside the code. Marking a run paid has no
- * sentence yet and keeps the generic refusal.
+ * The refusals that are one code with a sentence per action (owner, 8 Oct 2026), each naming the
+ * bill or note by the number the server sends beside the code. An action with no sentence keeps
+ * the generic refusal.
  */
-const DEBIT_NOTE_REFUSED_BY_ACTION: Record<RunAction, string> = {
-  add: 'paymentRuns.refused.debitNoteRefusedAdd',
-  export: 'paymentRuns.refused.debitNoteRefusedExport',
+const BY_ACTION: Record<string, Partial<Record<RunAction, string>>> = {
+  PAYMENT_RUN_DEBIT_NOTE_REFUSED: {
+    add: 'paymentRuns.refused.debitNoteRefusedAdd',
+    export: 'paymentRuns.refused.debitNoteRefusedExport',
+    markPaid: 'paymentRuns.refused.debitNoteRefusedMarkPaid',
+  },
+  PAYMENT_RUN_AMOUNT_CHANGED: {
+    export: 'paymentRuns.refused.amountChangedExport',
+    markPaid: 'paymentRuns.refused.amountChangedMarkPaid',
+  },
+}
+
+/**
+ * `PAYMENT_RUN_BILL_SETTLED` names the bill, in every action. The Arabic agrees with the document:
+ * a supplier debit note (383) is masculine, a bill feminine (owner, 8 Oct 2026).
+ */
+function settledKey(documentTypeCode: unknown): string {
+  return String(documentTypeCode ?? '') === '383'
+    ? 'paymentRuns.refused.settledDebitNote'
+    : 'paymentRuns.refused.settledBill'
 }
 
 /**
@@ -170,12 +186,14 @@ const DEBIT_NOTE_REFUSED_BY_ACTION: Record<RunAction, string> = {
  * act on. `action` says what was being done, for the refusals whose sentence depends on it.
  */
 export function refusalOf(error: unknown, t: TFunction, action?: RunAction): string {
-  if (error instanceof ApiError && error.code === 'PAYMENT_RUN_DEBIT_NOTE_REFUSED' && action)
-    return t(DEBIT_NOTE_REFUSED_BY_ACTION[action], {
-      note: String(error.problem.supplierBillNumber ?? ''),
-    })
-  if (error instanceof ApiError && error.code && RUN_REFUSALS[error.code])
-    return t(RUN_REFUSALS[error.code])
+  if (error instanceof ApiError && error.code) {
+    const number = String(error.problem.supplierBillNumber ?? '')
+    const byAction = action ? BY_ACTION[error.code]?.[action] : undefined
+    if (byAction) return t(byAction, { note: number, bill: number })
+    if (error.code === 'PAYMENT_RUN_BILL_SETTLED')
+      return t(settledKey(error.problem.documentTypeCode), { bill: number })
+    if (RUN_REFUSALS[error.code]) return t(RUN_REFUSALS[error.code])
+  }
   const described = describeApiFailure(error)
   return t(described.key, described.values)
 }

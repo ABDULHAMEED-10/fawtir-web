@@ -50,6 +50,8 @@ const REFUSALS: Record<string, string> = {
   DEBIT_NOTE_REASON_TOO_LONG: 'apiErrors.refused.debitNoteReasonTooLong',
   // Refusing a note already paid in full (owner's sentence, 8 Oct 2026).
   DEBIT_NOTE_ALREADY_PAID: 'apiErrors.refused.debitNoteAlreadyPaid',
+  // Refusing a note paid in part (owner's sentence, 8 Oct 2026).
+  DEBIT_NOTE_PARTLY_PAID: 'apiErrors.refused.debitNotePartlyPaid',
 
   // Walking a purchase order through its states.
   PURCHASE_ORDER_TRANSITION_INVALID: 'apiErrors.refused.orderTransitionInvalid',
@@ -93,6 +95,8 @@ const REFUSALS: Record<string, string> = {
   BILL_PAYMENT_DEBIT_NOTE_REFUSED: 'apiErrors.refused.billPaymentDebitNoteRefused',
   BILL_PAYMENT_CURRENCY_MISMATCH: 'apiErrors.refused.paymentCurrencyMismatch',
   BILL_PAYMENT_ALREADY_REVERSED: 'apiErrors.refused.paymentAlreadyReversed',
+  // Reversing a payment of a bill in a run whose bank file is made (owner's sentence, 8 Oct 2026).
+  BILL_PAYMENT_REVERSAL_IN_SENT_RUN: 'apiErrors.refused.paymentReversalInSentRun',
   APPROVAL_ALREADY_GIVEN: 'apiErrors.refused.approvalAlreadyGiven',
   APPROVAL_REJECTION_REASON_REQUIRED: 'apiErrors.refused.approvalReasonRequired',
   // Exporting or marking paid a run that holds a held bill. The payment run screens name this
@@ -114,6 +118,9 @@ const REFUSAL_VALUES: Record<
   (problem: Readonly<Record<string, unknown>>) => Record<string, string>
 > = {
   CREDIT_NOTE_TARGET_IN_PAYMENT_RUN: (problem) => ({
+    run: String(problem.paymentRunReference ?? ''),
+  }),
+  BILL_PAYMENT_REVERSAL_IN_SENT_RUN: (problem) => ({
     run: String(problem.paymentRunReference ?? ''),
   }),
 }

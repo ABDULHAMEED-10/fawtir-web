@@ -357,7 +357,7 @@ describe('upload a supplier credit note', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save and set against the bill' }))
     expect(
       await screen.findByText(
-        'This bill is already in payment run PR-0007. Take it out of the run first.',
+        'This bill is in payment run PR-0007, whose bank file is already made. Keep the credit for another bill.',
       ),
     ).toBeTruthy()
 
@@ -365,7 +365,7 @@ describe('upload a supplier credit note', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'احفظ واخصمه من الفاتورة' }))
     expect(
       await screen.findByText(
-        'هذه الفاتورة ضمن دفعة السداد PR-0007 بالفعل. أخرجها من الدفعة أولًا.',
+        'هذه الفاتورة ضمن دفعة السداد PR-0007 وقد أُنشئ ملفها البنكي. احتفظ بالرصيد لفاتورة أخرى.',
       ),
     ).toBeTruthy()
     expect(calls('POST', CONFIRM)).toHaveLength(2)
