@@ -36,6 +36,12 @@ export type PaymentRunDto = {
   takenOutTotal?: number | null
   exportedAt: string | null
   paidAt: string | null
+  /**
+   * Backend #480, on a list row: the day the run's bills were paid, as chosen in Mark as paid;
+   * null unless the run is PAID, absent from an older server. `paymentDate` stays the date the run
+   * was planned for. The run's detail carries it beside `run` (`PaymentRunDetailDto.paidOn`).
+   */
+  paidOn?: string | null
   cancelledAt: string | null
   createdAt: string
   version: number
@@ -109,6 +115,11 @@ export type PaymentRunActivityDto = {
 
 export type PaymentRunDetailDto = {
   run: PaymentRunDto
+  /**
+   * Backend #480: the day the run's bills were paid, as chosen in Mark as paid; null unless the
+   * run is PAID, absent from an older server.
+   */
+  paidOn?: string | null
   items: PaymentRunItemDto[]
   /** Absent from a server from before the sent-run exits. */
   activity?: PaymentRunActivityDto[]

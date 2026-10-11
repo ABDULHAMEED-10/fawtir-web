@@ -204,9 +204,9 @@ export function ConfirmModal({
  * Mark a run paid (owner, 8 Oct 2026; from a draft or scheduled run too since 9 Oct 2026): every
  * bill of the run is listed, and any can be taken out of the run with a reason, as it was not paid.
  * A bill the server says cannot be marked paid now (`markPaidBlock`) starts ticked, with why beside
- * it, as on the run page. With a bill
- * ticked the button reads "Mark the others paid"; with every bill ticked there is nothing left to
- * mark paid, so the button becomes the run's own "Cancel the run" and leads to that dialog instead.
+ * it, as on the run page, and so does the bill the last refusal named. With a bill ticked the
+ * button reads "Mark the others paid"; with every bill ticked there is nothing left to mark paid,
+ * so the button becomes the run's own "Cancel the run" and leads to that dialog instead.
  *
  * It asks the day the suppliers were paid (owner, 10 Oct 2026), as Record payment does: it starts
  * on the run's payment date, or today in Muscat when there is none or it is in the future, and
@@ -216,6 +216,7 @@ export function MarkPaidModal({
   run,
   items,
   today,
+  refused = null,
   onConfirm,
   onCancelInstead,
   onClose,
@@ -224,6 +225,11 @@ export function MarkPaidModal({
   items: PaymentRunItemDto[]
   /** The Muscat day, so "not in the future" means what the server means by it. */
   today: string
+  /**
+   * The bill the last Mark as paid refusal named, with the words for why: ticked to be taken out
+   * and flagged, as a markPaidBlock is.
+   */
+  refused?: { billId: string; key: string | null } | null
   onConfirm: (takeOut: TakeOut[], paymentDate: string) => Promise<void>
   onCancelInstead: () => void
   onClose: () => void
@@ -232,7 +238,12 @@ export function MarkPaidModal({
   const [paymentDate, setPaymentDate] = useState(() => markPaidDateFor(run, today))
   const [dateProblem, setDateProblem] = useState<string | null>(null)
   const [ticked, setTicked] = useState<Set<string>>(
-    () => new Set(items.filter((item) => item.markPaidBlock).map((item) => item.billId)),
+    () =>
+      new Set(
+        items
+          .filter((item) => item.markPaidBlock || item.billId === refused?.billId)
+          .map((item) => item.billId),
+      ),
   )
   const [reasons, setReasons] = useState<Record<string, string>>({})
   const [missing, setMissing] = useState<Set<string>>(new Set())
@@ -312,7 +323,9 @@ export function MarkPaidModal({
         <ul className="mt-5 overflow-hidden rounded-sm border border-border-subtle">
           {items.map((item, index) => {
             const on = ticked.has(item.billId)
-            const block = markPaidBlockKey(item.markPaidBlock?.code)
+            const block =
+              markPaidBlockKey(item.markPaidBlock?.code) ??
+              (item.billId === refused?.billId ? refused.key : null)
             return (
               <li
                 key={item.billId}

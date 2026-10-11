@@ -889,3 +889,71 @@ describe('a credit note the supplier refunded', () => {
     expect(periodTotals(REFUNDED)).toEqual({ billedNet: 285, paid: 0 })
   })
 })
+
+// Browser re-check of 11 Oct 2026 (C-5): a debit note's line read "BILL" / «فاتورة».
+describe("a supplier debit note's line", () => {
+  const WITH_NOTE: SupplierStatementDto = {
+    ...STATEMENT,
+    bills: 1205,
+    closing: 1005,
+    entries: [
+      { ...STATEMENT.entries[0], documentTypeCode: '380' },
+      {
+        date: '2026-07-30',
+        kind: 'BILL',
+        documentId: 'dn-1',
+        reference: 'SOHAR-DN-1',
+        amount: 5,
+        runningBalance: 1405,
+        documentTypeCode: '383',
+      },
+      ...STATEMENT.entries.slice(1).map((entry) => ({
+        ...entry,
+        runningBalance: entry.runningBalance + 5,
+      })),
+    ],
+  }
+
+  beforeEach(() => {
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.startsWith(`${ONE}/statement?`)) return json(200, WITH_NOTE)
+      return base(url, init)
+    })
+  })
+
+  const kindOf = (reference: string) =>
+    screen.getByRole('link', { name: reference }).closest('tr')!.querySelectorAll('td')[2]
+      .textContent
+
+  it('is called a debit note when the server says so, and a bill otherwise', async () => {
+    renderStatement()
+    await screen.findByRole('link', { name: 'SOHAR-DN-1' })
+    expect(kindOf('SOHAR-DN-1')).toBe('Debit note')
+    expect(kindOf('SOHAR-1002')).toBe('Bill')
+  })
+
+  it('reads in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    renderStatement()
+    await screen.findByRole('link', { name: 'SOHAR-DN-1' })
+    expect(kindOf('SOHAR-DN-1')).toBe('إشعار مدين')
+    expect(kindOf('SOHAR-1002')).toBe('فاتورة')
+  })
+
+  it('stays a bill from a server that does not say which document it is', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.startsWith(`${ONE}/statement?`))
+        return json(200, {
+          ...WITH_NOTE,
+          entries: WITH_NOTE.entries.map((entry) => ({ ...entry, documentTypeCode: undefined })),
+        })
+      if (url === '/api/v1/me/entitlements') return json(200, who)
+      if (url === ONE) return json(200, detail)
+      throw new Error(`unexpected ${url}`)
+    })
+    renderStatement()
+    await screen.findByRole('link', { name: 'SOHAR-DN-1' })
+    expect(kindOf('SOHAR-DN-1')).toBe('Bill')
+  })
+})

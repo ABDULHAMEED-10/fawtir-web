@@ -2579,3 +2579,33 @@ describe('an overpaid bill', () => {
     ).toEqual(['b-10'])
   })
 })
+
+// Browser re-check of 11 Oct 2026 (C-6): a refused debit note's tracker read "SCHEDULED · Not yet".
+describe("a refused debit note's steps", () => {
+  const format = { day: (iso: string) => iso, instantDay: (iso: string) => iso }
+  const note = (debitNoteDecision: 'ACCEPTED' | 'REFUSED' | null) => ({
+    ...detail(),
+    readiness: { state: 'READY' as const, distinctApprovals: 1, required: 1, autoApproved: false },
+    bill: { ...detail().bill, documentTypeCode: '383', debitNoteDecision },
+  })
+
+  it('stops at the decision: it is never scheduled or paid', () => {
+    expect(stepsOf(note('REFUSED'), format).map((step) => step.id)).toEqual([
+      'arrived',
+      'matched',
+      'approved',
+    ])
+  })
+
+  it('keeps every step for an accepted or undecided note, and for a bill', () => {
+    for (const decision of ['ACCEPTED', null] as const)
+      expect(stepsOf(note(decision), format).map((step) => step.id)).toEqual([
+        'arrived',
+        'matched',
+        'approved',
+        'scheduled',
+        'paid',
+      ])
+    expect(stepsOf(detail(), format)).toHaveLength(5)
+  })
+})

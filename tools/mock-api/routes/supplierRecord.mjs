@@ -649,7 +649,18 @@ const STATEMENT = (from, to) => {
         : -1
   const entries = raw.map((e) => {
     balance = scale(balance + sign(e.kind) * e.amount)
-    return { ...e, runningBalance: balance }
+    // Backend #480: the document a line is, 380 a bill, 383 a supplier debit note, 381 / 261 a
+    // credit note; null on payments and the other kinds.
+    return {
+      ...e,
+      documentTypeCode:
+        e.kind === 'BILL'
+          ? (e.documentTypeCode ?? '380')
+          : e.kind === 'CREDIT_NOTE'
+            ? (e.documentTypeCode ?? '381')
+            : null,
+      runningBalance: balance,
+    }
   })
   const of = (kind) => sum(entries.filter((e) => e.kind === kind).map((e) => e.amount))
   return {

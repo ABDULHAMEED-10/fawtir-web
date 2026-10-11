@@ -349,6 +349,12 @@ export type SupplierStatementDto = {
     detail?: string | null
     /** What is still owed on a bill entry, so an open bill can be shaded. Backend ask 7.13. */
     outstanding?: number | null
+    /**
+     * Backend #480: the document a line is, `380` a bill, `383` a supplier debit note (a `BILL`
+     * line the statement then calls a debit note), `381` / `261` a credit note; null on payments
+     * and the other kinds. Absent from an older server: every `BILL` line reads "Bill".
+     */
+    documentTypeCode?: string | null
   }[]
   ageing: { NOT_DUE: number; DUE_WITHIN_30: number; LATE_30: number; LATE_60_PLUS: number }
   /** Bills and next due date behind each ageing figure (the design's "1 bill · due 28 Aug"). Backend ask 7.14. */

@@ -633,8 +633,13 @@ function SupplierStatement({ id }: { id: string }) {
                             was set against. */}
                         {entry.kind === 'OVERPAYMENT_CREDIT_APPLIED' && entry.reference
                           ? t('supplierStatement.creditUsedOn', { bill: entry.reference })
-                          : // A kind added after this build reads by its name, as the API asks.
-                            t(`supplierStatement.kind.${entry.kind}`, { defaultValue: entry.kind })}
+                          : // A supplier debit note (383) is a bill line the server tells apart.
+                            entry.kind === 'BILL' && entry.documentTypeCode === '383'
+                            ? t('supplierStatement.kind.DEBIT_NOTE')
+                            : // A kind added after this build reads by its name, as the API asks.
+                              t(`supplierStatement.kind.${entry.kind}`, {
+                                defaultValue: entry.kind,
+                              })}
                       </span>
                     </td>
                     <td className="px-5 py-4 align-top text-end text-sm font-semibold text-text-primary tabular-nums">

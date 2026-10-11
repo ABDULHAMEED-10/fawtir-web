@@ -110,10 +110,14 @@ export function actionsFor(state: PaymentRunState | null): RunActions {
 }
 
 /**
- * The day a paid run's bills were paid, as the server records it: the run's payment date when it
- * has one that was not after the day it was marked paid, else that day (Muscat). Null before then.
+ * The day a paid run's bills were paid: the server's `paidOn` (the day chosen in Mark as paid,
+ * backend #480). A server without it: the run's payment date when it has one that was not after
+ * the day it was marked paid, else that day (Muscat). Null before then.
  */
-export function paidOn(run: Pick<PaymentRunDto, 'paymentDate' | 'paidAt'>): string | null {
+export function paidOn(
+  run: Pick<PaymentRunDto, 'paymentDate' | 'paidAt'> & Pick<Partial<PaymentRunDto>, 'paidOn'>,
+): string | null {
+  if (run.paidOn) return run.paidOn
   const marked = run.paidAt ? muscatToday(new Date(run.paidAt)) : null
   if (run.paymentDate && (marked === null || run.paymentDate <= marked)) return run.paymentDate
   return marked
@@ -185,6 +189,25 @@ export const MARK_PAID_BLOCK_KEYS: Record<MarkPaidBlockCode, string> = {
 /** A block's words, or null for a code this screen does not know (it is still ticked). */
 export function markPaidBlockKey(code: string | null | undefined): string | null {
   return code ? (MARK_PAID_BLOCK_KEYS[code as MarkPaidBlockCode] ?? null) : null
+}
+
+/**
+ * A Mark as paid refusal that names one bill of the run (its `billId`) and is about that bill: the
+ * markPaidBlock reasons, and a date after the bill's early-payment discount ends. Reopened, the
+ * dialog ticks that bill to be taken out with these words beside it, as it does a markPaidBlock.
+ * Null for any other refusal.
+ */
+export function refusedBillOf(
+  error: unknown,
+  billIds: readonly string[],
+): { billId: string; key: string | null } | null {
+  if (!(error instanceof ApiError) || !error.code) return null
+  const billId = error.problem.billId
+  if (typeof billId !== 'string' || !billIds.includes(billId)) return null
+  if (error.code === 'PAYMENT_RUN_PAYMENT_DATE_AFTER_DISCOUNT')
+    return { billId, key: 'paymentRuns.markPaidBlock.afterDiscount' }
+  if (error.code in MARK_PAID_BLOCK_KEYS) return { billId, key: markPaidBlockKey(error.code) }
+  return null
 }
 
 /** The run refusals a person can act on, by the server's code. */

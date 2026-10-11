@@ -827,16 +827,18 @@ describe('the ways out of a sent run (owner, 8 Oct 2026)', () => {
       'div.bg-surface-background',
     ) as HTMLElement
 
-  // Owner, 9 Oct 2026 (D2): the bank file's totals stay; a line under them says what was paid
-  // and what was taken out.
+  // Owner, 9 Oct 2026 (D2): a line under the totals says what was paid and what was taken out.
+  // Since the browser re-check of 11 Oct 2026 the totals above it count only what was paid.
   it('splits a paid run into paid and taken out under the totals, with the rial sign', async () => {
     detail = PAID_SPLIT
     renderAt(`/expenditure/payments/${RUN_ID}`)
     await billRow('SS-3')
     expect(splitLine(EN_SPLIT)).toEqual({ text: 'Paid 1,060.250 · taken out 200.000', signs: 2 })
     expect(splitLine(EN_SPLIT)!.text).not.toContain('OMR')
-    // The totals themselves are the run's, as the bank received them.
-    expect(screen.getByText('Leaving your account').parentElement!.textContent).toContain('980.000')
+    // What left the account is what was paid.
+    expect(screen.getByText('Leaving your account').parentElement!.textContent).toContain(
+      '1,060.250',
+    )
   })
 
   it('says the split in Arabic', async () => {
@@ -1570,7 +1572,8 @@ describe('the end-to-end check of 10 Oct 2026', () => {
     copy.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
     expect((copy.textContent ?? '').replace(/\s+/g, ' ')).toBe('Paid 50.000 · taken out 69.200')
     expect(line.querySelectorAll('svg')).toHaveLength(2)
-    expect(within(row).getByText('119.200')).toBeTruthy()
+    // The figure is what was paid (browser re-check, 11 Oct 2026), not the planned 119.200.
+    expect(within(row).queryByText('119.200')).toBeNull()
     // Nothing taken out, or not paid: no line.
     for (const reference of ['PR-0000', 'PR-0003']) {
       const other = screen.getByRole('link', { name: reference }).closest('tr')!
@@ -2082,5 +2085,303 @@ describe("the owner's last points of 10 Oct 2026", () => {
       'This records every bill in the run as paid, 980.000 in all. Take out the bills you did not pay.',
     )
     expect(sentence.querySelector('svg')).not.toBeNull()
+  })
+})
+
+describe('the browser re-check of 11 Oct 2026', () => {
+  /** An element's text as seen: the hidden "OMR" left out. */
+  const seen = (element: Element) => {
+    const copy = element.cloneNode(true) as Element
+    copy.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+    return (copy.textContent ?? '').replace(/\s+/g, ' ').trim()
+  }
+  const thisRun = (label: string) =>
+    seen(screen.getByText(label, { selector: 'dt' }).parentElement!.querySelector('dd')!)
+  const leaving = () =>
+    seen(
+      screen
+        .getByText('Leaving your account', { selector: 'span' })
+        .parentElement!.querySelector(':scope > :last-child')!,
+    )
+  const listOf = (rows: PaymentRunDto[]) => {
+    override = (url, method) =>
+      (url === '/api/v1/payment-runs' || url.startsWith('/api/v1/payment-runs?')) &&
+      method === 'GET'
+        ? json(200, rows)
+        : null
+  }
+
+  // W-1: a run dated 1 Oct and paid on 11 Oct said "Paid on 1 Oct 2026".
+  it("says the day a run was paid from the server's paidOn, not the planned date", async () => {
+    // Backend #480: `paidOn` sits beside `run` in the detail.
+    detail = {
+      ...DETAIL,
+      run: run({ state: 'PAID', paymentDate: '2026-10-01', paidAt: '2026-10-11T08:00:00Z' }),
+      paidOn: '2026-10-11',
+    }
+    const view = renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(
+      await screen.findByText(
+        `Paid on ${formatDate('2026-10-11')}. Each bill's payment is recorded.`,
+        undefined,
+        { timeout: 8000 },
+      ),
+    ).toBeTruthy()
+    view.unmount()
+
+    // A server without paidOn: as before, the run's date when it was not after the day marked.
+    detail = {
+      ...DETAIL,
+      run: run({ state: 'PAID', paymentDate: '2026-10-01', paidAt: '2026-10-11T08:00:00Z' }),
+    }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(
+      await screen.findByText(
+        `Paid on ${formatDate('2026-10-01')}. Each bill's payment is recorded.`,
+        undefined,
+        { timeout: 8000 },
+      ),
+    ).toBeTruthy()
+  })
+
+  it('reads paidOn first in the rule, and falls back without it', () => {
+    expect(
+      paidOn({ paymentDate: '2026-10-01', paidAt: '2026-10-11T08:00:00Z', paidOn: '2026-10-11' }),
+    ).toBe('2026-10-11')
+    expect(paidOn({ paymentDate: '2026-10-01', paidAt: '2026-10-11T08:00:00Z' })).toBe('2026-10-01')
+    expect(
+      paidOn({ paymentDate: '2026-10-01', paidAt: '2026-10-11T08:00:00Z', paidOn: null }),
+    ).toBe('2026-10-01')
+  })
+
+  it('dates a paid run on the list by the day it was paid, and any other by its plan', async () => {
+    listOf([
+      run({ state: 'PAID', paymentDate: '2026-10-01', paidOn: '2026-10-11' }),
+      run({ id: 'run-2', reference: 'PR-0002', state: 'PAID', paymentDate: '2026-09-05' }),
+      run({ id: 'run-3', reference: 'PR-0003', paymentDate: '2026-10-20', paidOn: null }),
+    ])
+    renderAt('/expenditure/payments')
+    const row = async (reference: string) =>
+      (await screen.findByRole('link', { name: reference }, { timeout: 8000 })).closest('tr')!
+    const paid = await row('PR-0001')
+    expect(within(paid).getByText(formatDate('2026-10-11'))).toBeTruthy()
+    expect(within(paid).queryByText(formatDate('2026-10-01'))).toBeNull()
+    expect(within(await row('PR-0002')).getByText(formatDate('2026-09-05'))).toBeTruthy()
+    expect(within(await row('PR-0003')).getByText(formatDate('2026-10-20'))).toBeTruthy()
+  })
+
+  // C-1: "Bills selected 2 of 2", the discount and "Leaving your account" counted the bill taken out.
+  it('counts only what was paid in This run on a paid run with a bill taken out', async () => {
+    detail = {
+      ...PAID_SOHAR_OUT,
+      run: { ...PAID_SOHAR_OUT.run, billsTotal: 1200, discountTotal: 24, netTotal: 1176 },
+    }
+    const view = renderAt(`/expenditure/payments/${RUN_ID}`)
+    await screen.findByText('Sohar Steel', { selector: 'p.text-base' }, { timeout: 8000 })
+    expect(thisRun('Bills selected')).toBe('1 of 2')
+    expect(thisRun('Bills total')).toBe('1,000.000')
+    expect(thisRun('Early-payment discount')).toBe('-20.000')
+    expect(leaving()).toBe('980.000')
+    // The line under it still says what was paid and what was taken out.
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === 'P' && /^Paid .+ · taken out /.test(element.textContent ?? ''),
+      ),
+    ).toBeTruthy()
+    view.unmount()
+
+    // A run still to be paid keeps the server's totals.
+    detail = { ...detail, run: { ...detail.run, state: 'SCHEDULED' } }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    await screen.findByText('Sohar Steel', { selector: 'p.text-base' }, { timeout: 8000 })
+    expect(thisRun('Bills total')).toBe('1,200.000')
+    expect(thisRun('Early-payment discount')).toBe('-24.000')
+    expect(leaving()).toBe('1,176.000')
+  })
+
+  it('shows what was paid as the figure of a paid run with take-outs on the list', async () => {
+    listOf([
+      run({ state: 'PAID', netTotal: 119.2, paidTotal: 50, takenOutTotal: 69.2 }),
+      run({
+        id: 'run-2',
+        reference: 'PR-0002',
+        state: 'PAID',
+        netTotal: 980,
+        paidTotal: 980,
+        takenOutTotal: 0,
+      }),
+    ])
+    renderAt('/expenditure/payments')
+    const row = (await screen.findByRole('link', { name: 'PR-0001' }, { timeout: 8000 })).closest(
+      'tr',
+    )!
+    const figure = row.querySelectorAll('td')[4].firstElementChild!
+    expect(seen(figure)).toBe('50.000')
+    expect(within(row).queryByText('119.200')).toBeNull()
+    const whole = screen.getByRole('link', { name: 'PR-0002' }).closest('tr')!
+    expect(within(whole).getByText('980.000')).toBeTruthy()
+  })
+
+  // C-3: after a refusal naming the bill, the dialog opened again did not flag it.
+  it('ticks and flags the bill a mark-paid refusal named when the dialog opens again', async () => {
+    detail = {
+      ...SCHEDULED_TWO,
+      items: SCHEDULED_TWO.items.map((item) => ({ ...item, markPaidBlock: null })),
+    }
+    override = (url) =>
+      url.endsWith(`/${RUN_ID}/mark-paid`)
+        ? runRefusal('PAYMENT_RUN_PAYMENT_DATE_AFTER_DISCOUNT', {
+            billId: 'b-3',
+            supplierBillNumber: 'SS-3',
+            documentTypeCode: '380',
+          })
+        : null
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    let dialog = within(await openMarkPaid())
+    expect(
+      dialog
+        .getAllByRole('checkbox', { name: 'Take out of the run' })
+        .map((box) => (box as HTMLInputElement).checked),
+    ).toEqual([false, false])
+    fireEvent.click(dialog.getByRole('button', { name: 'Mark as paid' }))
+    expect(
+      await screen.findByText(
+        'SS-3 was priced with an early-payment discount that ends before the date you paid. Choose an earlier date, or take SS-3 out of the run.',
+      ),
+    ).toBeTruthy()
+
+    dialog = within(await openMarkPaid())
+    expect(
+      dialog
+        .getAllByRole('checkbox', { name: 'Take out of the run' })
+        .map((box) => (box as HTMLInputElement).checked),
+    ).toEqual([false, true])
+    const flagged = dialog.getByText('Discount ended before the date paid')
+    expect(flagged.closest('li')!.textContent).toContain('SS-3')
+    expect(dialog.getByRole('button', { name: 'Mark the others paid' })).toBeTruthy()
+  })
+
+  it('reads which refusals name a bill to flag, in both languages', async () => {
+    const { ApiError } = await import('../../api')
+    const { refusedBillOf } = await import('../../lib/paymentRuns')
+    const refused = (code: string, problem: Record<string, unknown>) =>
+      new ApiError({ status: 400, problemType: 'expenditure-refused', code, problem })
+    const ids = ['b-in', 'b-3']
+    expect(
+      refusedBillOf(refused('PAYMENT_RUN_DEBIT_NOTE_NOT_ACCEPTED', { billId: 'b-3' }), ids),
+    ).toEqual({ billId: 'b-3', key: 'apiErrors.refused.debitNoteNotAccepted' })
+    expect(refusedBillOf(refused('PAYMENT_RUN_AMOUNT_CHANGED', { billId: 'b-in' }), ids)).toEqual({
+      billId: 'b-in',
+      key: 'paymentRuns.markPaidBlock.amountChanged',
+    })
+    // Not about one bill of this run: nothing is flagged.
+    expect(
+      refusedBillOf(refused('PAYMENT_RUN_TAKE_OUT_DUPLICATE', { billId: 'b-3' }), ids),
+    ).toBeNull()
+    expect(
+      refusedBillOf(refused('PAYMENT_RUN_DEBIT_NOTE_REFUSED', { billId: 'b-9' }), ids),
+    ).toBeNull()
+    expect(refusedBillOf(refused('PAYMENT_RUN_BILL_ON_HOLD', {}), ids)).toBeNull()
+    expect(refusedBillOf(new Error('offline'), ids)).toBeNull()
+    expect(i18n.getFixedT('ar')('paymentRuns.markPaidBlock.afterDiscount')).toBe(
+      'انتهى الخصم قبل تاريخ الدفع',
+    )
+  })
+
+  // C-4: the heading said only "they haven't cleared approval, or are held".
+  it('names debit notes not accepted in the heading of what cannot be paid yet', async () => {
+    const blockedWith = (reasonCodes: string[]) => {
+      override = (url) =>
+        url === `/api/v1/payment-runs/${RUN_ID}/blocked`
+          ? json(200, [
+              {
+                billId: 'dn-1',
+                supplierBillNumber: 'GCL-DN-0091',
+                supplierId: SUPPLIER,
+                supplierName: 'Muscat Roastery Co',
+                dueDate: null,
+                outstanding: 5,
+                reasonCodes,
+                approvalsGiven: null,
+                approvalsRequired: null,
+              },
+            ])
+          : null
+    }
+    for (const code of ['DEBIT_NOTE_NOT_ACCEPTED', 'DEBIT_NOTE_REFUSED']) {
+      blockedWith([code])
+      const view = renderAt(`/expenditure/payments/${RUN_ID}`)
+      expect(
+        await screen.findByText(
+          "they haven't cleared approval, are held, or are debit notes you haven't accepted",
+          { exact: false },
+          { timeout: 8000 },
+        ),
+      ).toBeTruthy()
+      view.unmount()
+    }
+
+    blockedWith(['ON_HOLD'])
+    const view = renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(
+      await screen.findByText(
+        "they haven't cleared approval, or are held",
+        { exact: false },
+        { timeout: 8000 },
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText(/debit notes you haven't accepted/)).toBeNull()
+    view.unmount()
+
+    await i18n.changeLanguage('ar')
+    blockedWith(['DEBIT_NOTE_REFUSED'])
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(
+      await screen.findByText(
+        'لم تُعتمد بعد، أو قيد الانتظار، أو إشعارات مدينة لم تقبلها',
+        {
+          exact: false,
+        },
+        { timeout: 8000 },
+      ),
+    ).toBeTruthy()
+  })
+
+  // C-6: a saved draft was titled "New payment run"; a paid row kept "Due in N days".
+  it('titles a saved draft by its reference, and only a run not yet made "New payment run"', async () => {
+    detail = { ...DETAIL, run: run({ state: 'DRAFT', paymentDate: null }) }
+    const view = renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(
+      await screen.findByRole(
+        'heading',
+        { level: 1, name: 'Payment run PR-0001' },
+        { timeout: 8000 },
+      ),
+    ).toBeTruthy()
+    view.unmount()
+
+    renderAt('/expenditure/payments/new')
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'New payment run' }, { timeout: 8000 }),
+    ).toBeTruthy()
+  })
+
+  it('says no due date on a bill a paid run paid, and keeps it on a bill taken out', async () => {
+    const due = /^Due |late$|^No due date$/
+    const rowOf = async (number: string) =>
+      (await screen.findByRole('link', { name: number }, { timeout: 8000 })).closest(
+        'div.border-t',
+      ) as HTMLElement
+    detail = PAID_SOHAR_OUT
+    const view = renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(within(await rowOf('MR-1')).queryByText(due)).toBeNull()
+    expect(within(await rowOf('SS-3')).getByText(due)).toBeTruthy()
+    view.unmount()
+
+    // A run still to be paid keeps the chip on every row.
+    detail = { ...PAID_SOHAR_OUT, run: run({ state: 'SCHEDULED' }) }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(within(await rowOf('MR-1')).getByText(due)).toBeTruthy()
   })
 })

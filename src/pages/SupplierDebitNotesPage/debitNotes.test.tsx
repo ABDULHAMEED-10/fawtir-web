@@ -10,6 +10,7 @@ import type {
   DebitNoteSummaryDto,
 } from '../../api/expenditure/notes'
 import { toDebitNoteItem } from '../../lib/supplierNoteList'
+import { debitEffect } from '../../lib/supplierDebitNotes'
 import { SupplierDebitNotesPage } from './SupplierDebitNotesPage'
 import { SupplierDebitNoteDetailPage } from '../SupplierDebitNoteDetailPage'
 
@@ -702,6 +703,47 @@ describe("a debit note's You'd pay", () => {
     renderDetail()
     await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
     expect(await youdPay('ستدفع')).toEqual({ text: '300.000', rial: true })
+  })
+
+  // Browser re-check of 11 Oct 2026 (W-2): with a credit on the bill the tiles read
+  // 60.000 + 5.000 = 55.000. Both ends are now what the bill still owes.
+  it('adds up once a credit has lowered the bill: what it still owes + the charge', async () => {
+    billRows = [{ ...BILL_ROW, totalIncludingVat: 60, outstandingAmount: 50 }]
+    notes = [note({ status: 'ACCEPTED', totalIncludingVat: 5, amountDue: 5, outstandingAmount: 5 })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(await youdPay('The bill still owes')).toEqual({ text: '50.000', rial: true })
+    expect(await youdPay("You'd pay")).toEqual({ text: '55.000', rial: true })
+    expect(screen.queryByText('They billed')).toBeNull()
+  })
+
+  it('keeps "They billed" while nothing has lowered the bill', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(await youdPay('They billed')).toEqual({ text: '300.000', rial: true })
+    expect(screen.queryByText('The bill still owes')).toBeNull()
+  })
+
+  it('says what the bill still owes in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    billRows = [{ ...BILL_ROW, totalIncludingVat: 60, outstandingAmount: 50 }]
+    notes = [note({ status: 'ACCEPTED', totalIncludingVat: 5, amountDue: 5, outstandingAmount: 5 })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(await youdPay('المتبقي على الفاتورة')).toEqual({ text: '50.000', rial: true })
+    expect(await youdPay('ستدفع')).toEqual({ text: '55.000', rial: true })
+  })
+
+  it('works the tiles out on one basis', () => {
+    const bill = { totalIncludingVat: 60, outstandingAmount: 50 }
+    expect(debitEffect(bill, 5, false)).toEqual({ billed: 50, reduced: true, willPay: 55 })
+    expect(debitEffect(bill, 5, true)).toEqual({ billed: 50, reduced: true, willPay: 50 })
+    expect(debitEffect({ totalIncludingVat: 60, outstandingAmount: 60 }, 0.1, false)).toEqual({
+      billed: 60,
+      reduced: false,
+      willPay: 60.1,
+    })
+    expect(debitEffect(null, 5, false)).toEqual({ billed: null, reduced: false, willPay: null })
   })
 })
 

@@ -133,7 +133,12 @@ export function stepsOf(detail: BillDetailDto, format: DateFormat): BillStep[] {
         : null,
   }
 
-  const steps = [arrived, matched, approved, scheduled, paidStep]
+  // A refused debit note is not owed and is never scheduled or paid (unless it already was): the
+  // steps it will not reach are left out rather than shown as "Not yet".
+  const steps =
+    refusedDebitNote(detail) && !paid && !detail.paymentRunReference
+      ? [arrived, matched, approved]
+      : [arrived, matched, approved, scheduled, paidStep]
   // The first step not yet done is the one the bill is waiting at, and only one is ever current.
   const at = steps.findIndex((step) => step.state !== 'done')
   return steps.map((step, index) => ({

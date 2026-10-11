@@ -6043,7 +6043,8 @@
       "mismatch": "Mismatch: 3 boxes more than we received",
       "openDispute": "Open the dispute",
       "more_one": "{{count}} more bill can't be paid yet",
-      "more_other": "{{count}} more bills can't be paid yet"
+      "more_other": "{{count}} more bills can't be paid yet",
+      "reasonWithDebitNotes": "they haven't cleared approval, are held, or are debit notes you haven't accepted"
     },
     "whenAndWhere": "When and from where",
     "paymentDate": "Payment date",
@@ -7103,7 +7104,8 @@
       "heldNote": "On hold. Nothing is added and nothing is recorded until you decide.",
       "reasonRecorded": "Your reason is recorded against the note. It is not sent to the supplier from here.",
       "rateCardMissing": "No rate card is on file for this supplier yet. When one is, the charge is read against it here.",
-      "acceptedBodyNoDate": "The charge was accepted and is owed."
+      "acceptedBodyNoDate": "The charge was accepted and is owed.",
+      "billStillOwes": "The bill still owes"
     },
     "status": {
       "UNCHECKED": "Not checked yet",
@@ -8959,7 +8961,8 @@
       "DISCOUNT": "Early-payment discount",
       "OVERPAYMENT_REFUND": "Refund from the supplier",
       "OVERPAYMENT_CREDIT_APPLIED": "Credit used",
-      "CREDIT_NOTE_REFUND": "Credit note refunded"
+      "CREDIT_NOTE_REFUND": "Credit note refunded",
+      "DEBIT_NOTE": "Debit note"
     },
     "broughtForward": "Brought forward",
     "broughtForwardNote": "Owed before this period began",
@@ -18598,7 +18601,8 @@
     "paidAndTakenOut": "Paid {{paid}} · taken out {{takenOut}}",
     "markPaidBlock": {
       "amountChanged": "Amount owed changed",
-      "settled": "Already paid in full"
+      "settled": "Already paid in full",
+      "afterDiscount": "Discount ended before the date paid"
     },
     "bankDetailsChanged": "{{supplier}}'s bank details changed. Check before you pay.",
     "paidOnRequired": "Choose the date you paid.",

@@ -47,6 +47,7 @@ import {
   REFUSAL_REASONS,
   billStateKey,
   debitActivity,
+  debitEffect,
   debitNoteChecks,
 } from '../../lib/supplierDebitNotes'
 import { describeApiFailure } from '../../lib/apiFailure'
@@ -209,6 +210,7 @@ function DebitNoteDetail() {
 
   const bill = against.bill
   const total = row.totalIncludingVat ?? 0
+  const effect = debitEffect(bill, total, row.status === 'REFUSED')
   const billNumber = bill?.supplierBillNumber ?? row.relatesTo?.billNumber ?? null
   // As the credit-note page links its bill: the bill read, else the id the note names.
   const billTo = bill
@@ -408,13 +410,13 @@ function DebitNoteDetail() {
             tiles={[
               {
                 key: 'theyBilled',
-                label: t('supplierDebitNotes.detail.theyBilled'),
+                // What the bill still owes, the basis "You'd pay" is on; said so when a credit or
+                // a payment has already lowered it below what they billed.
+                label: effect.reduced
+                  ? t('supplierDebitNotes.detail.billStillOwes')
+                  : t('supplierDebitNotes.detail.theyBilled'),
                 value:
-                  bill?.totalIncludingVat == null ? (
-                    '—'
-                  ) : (
-                    <SignedAmount value={money(bill.totalIncludingVat)} />
-                  ),
+                  effect.billed === null ? '—' : <SignedAmount value={money(effect.billed)} />,
                 note: bill
                   ? `${billNumber ?? ''} · ${bill.issueDate ? fmt.date(bill.issueDate) : ''}`
                   : billNumber
@@ -432,17 +434,8 @@ function DebitNoteDetail() {
                 label: t('supplierDebitNotes.detail.youdPay'),
                 // A refused charge is not added to what is owed, so you'd pay the bill as it is
                 // (owner, 9 Oct 2026).
-                value: bill ? (
-                  <SignedAmount
-                    value={money(
-                      row.status === 'REFUSED'
-                        ? bill.outstandingAmount
-                        : bill.outstandingAmount + total,
-                    )}
-                  />
-                ) : (
-                  '—'
-                ),
+                value:
+                  effect.willPay === null ? '—' : <SignedAmount value={money(effect.willPay)} />,
                 note: bill?.dueDate
                   ? t('supplierCreditNotes.detail.dueOn', { date: fmt.date(bill.dueDate) })
                   : row.dueDate

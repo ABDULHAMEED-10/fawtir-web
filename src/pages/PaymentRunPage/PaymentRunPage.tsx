@@ -40,6 +40,7 @@ import {
   markPaidBlockKey,
   paidOn,
   refusalOf,
+  refusedBillOf,
   sum,
   windowEnd,
   type DueTone,
@@ -135,6 +136,10 @@ function RunBuilder({ runId }: { runId: string | null }) {
   const [confirmingPaid, setConfirmingPaid] = useState(false)
   const [cancellingSent, setCancellingSent] = useState(false)
   const [cancellingUnsent, setCancellingUnsent] = useState(false)
+  // The bill the last Mark as paid refusal named, flagged when the dialog is opened again.
+  const [refusedBill, setRefusedBill] = useState<{ billId: string; key: string | null } | null>(
+    null,
+  )
   const inFlight = useRef(false)
 
   useEffect(() => {
@@ -191,14 +196,20 @@ function RunBuilder({ runId }: { runId: string | null }) {
       return key ? [[item.billId, key] as const] : []
     }),
   )
-  // On a paid run with bills taken out, the run's totals stay as they were; a line under them
-  // splits them into what was paid and what was taken out (owner, 9 Oct 2026).
+  // On a paid run with bills taken out, a line under the totals splits the run into what was paid
+  // and what was taken out (owner, 9 Oct 2026), and the totals above it count only what was paid.
   const paidRun = run?.state === 'PAID'
   const runItems = detail?.items ?? []
+  const paidItems = runItems.filter((item) => item.takenOut == null)
   const split =
     paidRun && runItems.some((item) => item.takenOut != null)
       ? {
-          paid: sum(runItems.filter((item) => item.takenOut == null).map((item) => item.amount)),
+          paid: sum(paidItems.map((item) => item.amount)),
+          // "This run" counts what was paid, by the rule "Who gets paid" follows: the bills, the
+          // early-payment discount and what left the account, without the taken-out bills.
+          count: paidItems.length,
+          billsTotal: sum(paidItems.map((item) => item.outstanding)),
+          discount: sum(paidItems.map((item) => item.discountTaken)),
           // What the taken-out bills still owe, with no early-payment discount: none was taken,
           // as they were not paid (owner, 10 Oct 2026). An older server sends no `owedNow`.
           takenOut: sum(
@@ -291,8 +302,12 @@ function RunBuilder({ runId }: { runId: string | null }) {
     add(dueBy(candidates, end).map((bill) => bill.billId))
   }
 
-  // A paid run says the day its bills were paid on, as the server records it.
-  const noteDay = run?.state === 'PAID' ? paidOn(run) : (run?.paymentDate ?? null)
+  // A paid run says the day its bills were paid on, as the server records it (backend #480:
+  // `paidOn` beside `run` in the detail).
+  const noteDay =
+    run?.state === 'PAID'
+      ? paidOn({ ...run, paidOn: detail?.paidOn ?? run.paidOn })
+      : (run?.paymentDate ?? null)
   const stateDate = noteDay ? formatDate(noteDay, i18n.language) : ''
   // The payment date is only planned and may be left out (owner, 10 Oct 2026): "Scheduled for"
   // is said only when there is a date.
@@ -332,9 +347,8 @@ function RunBuilder({ runId }: { runId: string | null }) {
 
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-            {run && run.state !== 'DRAFT'
-              ? t('paymentRuns.runTitle', { reference: run.reference })
-              : t('paymentsPage.title')}
+            {/* A saved run, a draft too, is called by its reference; only one not yet made is new. */}
+            {run ? t('paymentRuns.runTitle', { reference: run.reference }) : t('paymentsPage.title')}
           </h1>
           <RunStatePill state={run?.state ?? 'DRAFT'} />
           <div className="ms-auto flex flex-wrap items-center gap-3">
@@ -610,6 +624,8 @@ function RunBuilder({ runId }: { runId: string | null }) {
                         const out = takenOut.has(bill.billId)
                         const owedNow = takenOut.get(bill.billId)?.owedNow ?? bill.outstanding
                         const saved = out ? 0 : discountPercent(bill.discount, bill.outstanding)
+                        // A bill a paid run paid is due no more: no "Due in" chip on its row.
+                        const settled = paidRun && !out
                         return (
                           <div
                             key={bill.billId}
@@ -658,18 +674,22 @@ function RunBuilder({ runId }: { runId: string | null }) {
                                 </span>
                               ) : null}
                             </div>
-                            <span
-                              className={[
-                                'ms-auto inline-flex items-center rounded-sm px-3 py-1 text-[10px] font-medium leading-[1.2]',
-                                DUE_CHIP[due.tone],
-                              ].join(' ')}
+                            {settled ? null : (
+                              <span
+                                className={[
+                                  'ms-auto inline-flex items-center rounded-sm px-3 py-1 text-[10px] font-medium leading-[1.2]',
+                                  DUE_CHIP[due.tone],
+                                ].join(' ')}
+                              >
+                                {t(due.key, {
+                                  count: due.days,
+                                  date: bill.dueDate ? formatDate(bill.dueDate, i18n.language) : '',
+                                })}
+                              </span>
+                            )}
+                            <div
+                              className={['w-[150px] text-end', settled ? 'ms-auto' : ''].join(' ')}
                             >
-                              {t(due.key, {
-                                count: due.days,
-                                date: bill.dueDate ? formatDate(bill.dueDate, i18n.language) : '',
-                              })}
-                            </span>
-                            <div className="w-[150px] text-end">
                               <Amount
                                 value={out ? owedNow : bill.amount}
                                 currency={currency}
@@ -703,7 +723,14 @@ function RunBuilder({ runId }: { runId: string | null }) {
                       {t('paymentsPage.blocked.more', { count: blockedRows.length })}
                     </span>
                     {' · '}
-                    {t('paymentsPage.blocked.reason')}
+                    {/* Debit notes not accepted (undecided or refused) are held back too. */}
+                    {blockedRows.some((row) =>
+                      row.reasonCodes.some(
+                        (code) => code === 'DEBIT_NOTE_NOT_ACCEPTED' || code === 'DEBIT_NOTE_REFUSED',
+                      ),
+                    )
+                      ? t('paymentsPage.blocked.reasonWithDebitNotes')
+                      : t('paymentsPage.blocked.reason')}
                   </span>
                   <img
                     src={chevronIcon}
@@ -858,7 +885,10 @@ function RunBuilder({ runId }: { runId: string | null }) {
               {[
                 [
                   t('paymentsPage.billsSelected'),
-                  t('paymentsPage.ofTotal', { selected: inRun.length, total: every.length }),
+                  t('paymentsPage.ofTotal', {
+                    selected: split ? split.count : inRun.length,
+                    total: every.length,
+                  }),
                 ],
                 // On a paid run, the suppliers and transfers actually paid (lead, 10 Oct 2026).
                 [t('paymentsPage.suppliers'), String(payees.length)],
@@ -874,7 +904,11 @@ function RunBuilder({ runId }: { runId: string | null }) {
                   {t('paymentsPage.billsTotal')}
                 </dt>
                 <dd>
-                  <Amount value={run?.billsTotal ?? 0} currency={currency} size="md" />
+                  <Amount
+                    value={split ? split.billsTotal : (run?.billsTotal ?? 0)}
+                    currency={currency}
+                    size="md"
+                  />
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-3">
@@ -884,7 +918,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
                 <dd className="flex items-center gap-1 text-sm font-medium text-[#3d5648]">
                   <span aria-hidden="true">-</span>
                   <Amount
-                    value={run?.discountTotal ?? 0}
+                    value={split ? split.discount : (run?.discountTotal ?? 0)}
                     currency={currency}
                     className="text-sm font-medium text-[#3d5648]"
                   />
@@ -896,7 +930,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
                 {t('paymentsPage.leavingYourAccount')}
               </span>
               <Amount
-                value={run?.netTotal ?? 0}
+                value={split ? split.paid : (run?.netTotal ?? 0)}
                 currency={currency}
                 size="lg"
                 className="whitespace-nowrap text-2xl font-semibold leading-[1.2] text-text-primary"
@@ -963,6 +997,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
           run={run}
           items={detail.items}
           today={today}
+          refused={refusedBill}
           onClose={() => setConfirmingPaid(false)}
           onCancelInstead={() => {
             setConfirmingPaid(false)
@@ -977,6 +1012,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
               setConfirmingPaid(false)
               // A refusal from an earlier try no longer applies to the run now paid.
               setNotice(null)
+              setRefusedBill(null)
               loaded.retry()
             } catch (error) {
               setConfirmingPaid(false)
@@ -990,6 +1026,12 @@ function RunBuilder({ runId }: { runId: string | null }) {
                 return flagged.length === 1 ? flagged[0].supplierBillNumber : null
               }
               setNotice(refusalOf(error, t, 'markPaid', knownBill))
+              setRefusedBill(
+                refusedBillOf(
+                  error,
+                  detail.items.map((item) => item.billId),
+                ),
+              )
             }
           }}
         />

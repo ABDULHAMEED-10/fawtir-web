@@ -1208,3 +1208,14 @@ describe('arriving from the upload', () => {
     expect(screen.queryByText(/^Saved/)).toBeNull()
   })
 })
+
+// Browser re-check of 11 Oct 2026 (C-7): the brand is «فوتر», with no vowel mark.
+describe("the credit notes' VAT notes in Arabic", () => {
+  it('write the brand as «فوتر»', () => {
+    const ar = i18n.getFixedT('ar')
+    for (const key of ['supplierCreditNotes.detail.vatNote', 'supplierCreditNotes.upload.vatNote']) {
+      expect(ar(key)).toContain('فوتر')
+      expect(ar(key)).not.toContain('فوتِر')
+    }
+  })
+})

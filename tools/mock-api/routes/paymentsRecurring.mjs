@@ -875,7 +875,7 @@ function runDto(run) {
   const items = runItems(run)
   const billsTotal = money(items.reduce((s, i) => s + i.outstanding, 0))
   const discountTotal = money(items.reduce((s, i) => s + i.discountTaken, 0))
-  const { billIds, takenOut, events, bankPaidNothing, ...rest } = run
+  const { billIds, takenOut, events, bankPaidNothing, paidOn, ...rest } = run
   // Backend #477: on a paid run, what was paid and what was taken out; null on any other run.
   const paid = run.state === 'PAID'
   const out = items.filter((i) => i.takenOut)
@@ -884,6 +884,9 @@ function runDto(run) {
     billsTotal,
     discountTotal,
     netTotal: money(billsTotal - discountTotal),
+    // Backend #480: the day the bills were paid, on each list row (and at the top of the
+    // detail), null unless PAID. The runs paid before it was kept were paid on their planned date.
+    paidOn: paid ? (paidOn ?? run.paymentDate) : null,
     paidTotal: paid
       ? money(items.filter((i) => !i.takenOut).reduce((s, i) => s + i.amount, 0))
       : null,
@@ -903,8 +906,13 @@ const CHANGED_SINCE_FILE = { 'run-0012': ['s-sp'] }
 /** Suppliers whose new bank details nobody has confirmed: no first bank file pays them. */
 const BANK_UNCONFIRMED = new Set(['s-mz'])
 
-const runDetail = (run) => ({
-  run: runDto(run),
+// Backend #480: the day paid is at the top of the run's detail, beside `run`, not inside it.
+const runDetail = (run) => {
+  const { paidOn, ...dto } = runDto(run)
+  return { run: dto, paidOn, ...runDetailRest(run) }
+}
+
+const runDetailRest = (run) => ({
   items: runItems(run),
   activity: runActivity(run),
   fileStored: run.exportedAt ? (KEPT_FILES[run.id] ?? true) : null,
@@ -1986,10 +1994,11 @@ export default [
         })
       run.state = 'PAID'
       run.paidAt = `${TODAY}T11:00:00Z`
-      // The date sent; without one, the run's date when it is set and not in the future, else
-      // today in Muscat (a draft run is paid today and gets that date).
-      if (paidOn !== null) run.paymentDate = paidOn
-      else if (!run.paymentDate || run.paymentDate > TODAY) run.paymentDate = TODAY
+      // The day paid (backend #480, `paidOn`): the date sent, else the run's date when it is set
+      // and not in the future, else today in Muscat. The run keeps its planned date; a run with
+      // none takes the day paid.
+      run.paidOn = paidDay
+      if (!run.paymentDate) run.paymentDate = paidDay
       run.takenOut = {}
       run.events = []
       for (const entry of takeOut) {
