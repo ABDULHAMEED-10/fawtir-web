@@ -28,6 +28,7 @@ const INVITED = '/api/v1/users/invitations?status=PENDING&page=0&size=50'
 const ROLES = '/api/v1/roles'
 const PLAN = '/api/v1/settings/plan'
 const SUBSCRIPTION = '/api/v1/settings/subscription'
+const PUBLIC_PLANS = '/api/v1/public/plans'
 const NOT_TRACKED = {
   tracked: false, access: 'NOT_TRACKED', restrictionsEnforced: false, today: '2026-10-08', planCode: 'STARTER',
   planName: 'Starter', billingCycle: null, periodPrice: '35.000', trialStartsOn: null, trialEndsOn: null,
@@ -67,6 +68,34 @@ const PLAN_OVERVIEW = {
   activeBranches: 1,
 }
 
+const catalogued = (code: string, nameEn: string, monthlyPrice: string, invoicesPerMonth: number, sortOrder: number) => ({
+  code, nameEn, nameAr: null, descriptionEn: null, descriptionAr: null, currency: 'OMR',
+  priceVersionId: `v-${code}`, monthlyPrice, annualPrice: '0.000', annualFreeMonths: 2, invoicesPerMonth,
+  peopleIncluded: 3, extraPersonPrice: null, branchesIncluded: null, extraBranchPrice: null,
+  overagePricePerInvoice: null, apiAccess: false, prioritySupport: false, recommended: false,
+  trialDays: 14, trialDocuments: null, features: [], sortOrder,
+})
+const CATALOGUE = [catalogued('STARTER', 'Starter', '35.000', 300, 1), catalogued('BUSINESS', 'Business', '80.000', 800, 2)]
+
+/** What the settings shell (sidebar and account card) reads on every page, whatever the page. */
+const SHELL_READS = [
+  'GET /api/v1/me/entitlements',
+  'GET /api/v1/settings/plan',
+  'GET /api/v1/branches/overview',
+  'GET /api/v1/reference-data',
+]
+const isShellRead = (line: string) =>
+  SHELL_READS.includes(line) || line.startsWith('GET /api/v1/compliance/activity/summary?')
+
+/** Every request the page itself sent, as "METHOD url", leaving out the shell's own reads. */
+function requests(): string[] {
+  return fetchMock.mock.calls
+    .map(([url, init]) => `${(init as RequestInit | undefined)?.method ?? 'GET'} ${url}`)
+    .filter((line) => !isShellRead(line))
+}
+
+const NOT_AVAILABLE = 'Not available yet'
+
 function json(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
     status,
@@ -91,6 +120,7 @@ beforeEach(async () => {
     [ROLES]: () => json(200, ROLE_LIST),
     [PLAN]: () => json(200, PLAN_OVERVIEW),
     [SUBSCRIPTION]: () => json(200, NOT_TRACKED),
+    [PUBLIC_PLANS]: () => json(200, CATALOGUE),
   }
   fetchMock = vi.fn(async (url: string) => {
     if (url === '/api/v1/me/entitlements') return json(200, who)
@@ -130,8 +160,33 @@ describe('Team members', () => {
     const clerk = screen.getByText('clerk@real.example').closest('tr')!
     expect(within(clerk).getByText('Locked')).toBeTruthy()
     expect(within(clerk).getByText('Not set up')).toBeTruthy()
+    // The invitations waiting are the design's "Waiting to accept" tab.
+    fireEvent.click(await screen.findByRole('button', { name: /Waiting to accept/ }))
     expect(await screen.findByText('new@real.example')).toBeTruthy()
     expect(document.body.textContent).not.toMatch(SAMPLE_NAMES)
+  })
+
+  it('draws the four figures and the tabs from the lists, and the rest as not available yet', async () => {
+    renderAt('/settings/team')
+    await screen.findByText('Mona Rashid')
+    const figure = (label: string) =>
+      screen.getAllByRole('heading', { name: label }).find((h) => h.closest('article'))!.closest('article')!
+    expect(within(figure('With a login')).getByText('2')).toBeTruthy()
+    expect(await within(figure('With a login')).findByText('1 invitation waiting')).toBeTruthy()
+    expect(within(figure('Two-step sign-in')).getByText('1')).toBeTruthy()
+    expect(within(figure('Signed in this week')).getByText(NOT_AVAILABLE)).toBeTruthy()
+    expect(within(figure('Extra people cost')).getByText(NOT_AVAILABLE)).toBeTruthy()
+    // Sign-in history is drawn as a column, one "not available yet" per person.
+    expect(screen.getByRole('columnheader', { name: 'Last signed in' })).toBeTruthy()
+    expect(within(screen.getByText('Mona Rashid').closest('tr')!).getByText(NOT_AVAILABLE)).toBeTruthy()
+    // The tabs the lists cannot answer are drawn, and cannot be chosen.
+    expect((screen.getByRole('button', { name: /Not signed in lately/ }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: /Removed/ }) as HTMLButtonElement).disabled).toBe(true)
+    // "Without two-step" leaves only the person with no authenticator app.
+    fireEvent.click(screen.getByRole('button', { name: /Without two-step/ }))
+    expect(screen.queryByText('Mona Rashid')).toBeNull()
+    expect(screen.getByText('clerk@real.example')).toBeTruthy()
+    expect(new Set(requests())).toEqual(new Set([`GET ${PEOPLE}`, `GET ${INVITED}`, `GET ${ROLES}`]))
   })
 
   it('says no access without admin.users.manage, and asks for nobody', async () => {
@@ -150,11 +205,19 @@ describe('Team members', () => {
 })
 
 describe('Signing in', () => {
-  it('counts authenticator apps from the real list and offers no switches that save nothing', async () => {
+  it('counts authenticator apps from the real list and draws the policy switches disabled, saving nothing', async () => {
     renderAt('/settings/signing-in')
     expect(await screen.findByText('1 of 2 people has an authenticator app set up.')).toBeTruthy()
-    expect(screen.queryByText(i18n.t('signingIn.requireEveryone'))).toBeNull()
+    // The design's switches are drawn but cannot be used: no policy endpoint stands behind them.
+    const requireAll = screen.getByRole('switch', { name: i18n.t('signingIn.requireEveryone') }) as HTMLButtonElement
+    expect(requireAll.disabled).toBe(true)
+    expect(requireAll.getAttribute('aria-checked')).toBe('false')
+    expect(screen.getByText(/1 of your 2 would be prompted/)).toBeTruthy()
+    expect(screen.getByText(i18n.t('signingIn.sessions'))).toBeTruthy()
+    expect(screen.getAllByText(NOT_AVAILABLE).length).toBeGreaterThanOrEqual(3)
+    fireEvent.click(requireAll)
     expect(screen.queryByRole('button', { name: i18n.t('signingIn.save') })).toBeNull()
+    expect(new Set(requests())).toEqual(new Set([`GET ${PEOPLE}`, `GET ${ROLES}`]))
   })
 })
 
@@ -166,6 +229,28 @@ describe('Roles', () => {
     expect(within(accountant).getByText('1 person')).toBeTruthy()
     expect(within(accountant).getByText('1 permission')).toBeTruthy()
     expect(screen.queryByText(/wholesale/i)).toBeNull()
+  })
+
+  it('names permissions in words, never as raw codes, and fills the matrix from the roles', async () => {
+    renderAt('/settings/roles')
+    const accountant = (await screen.findByRole('heading', { name: 'Accountant' })).closest('section')!
+    expect(within(accountant).getByText('Invoices: See')).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/invoice\.read|admin\.users\.manage/)
+    // The matrix: one row per code any role holds, a mark per role.
+    expect(screen.getByRole('img', { name: 'Invoices: See, Accountant: Can do it' })).toBeTruthy()
+    expect(screen.getByRole('img', { name: "People: Manage, Accountant: Can't" })).toBeTruthy()
+    expect(screen.getByRole('img', { name: 'People: Manage, Administrator: Can do it' })).toBeTruthy()
+    // Export is drawn, disabled; "Make a role" needs admin.roles.manage.
+    expect((screen.getByRole('button', { name: /Export this as a PDF/ }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.queryByRole('link', { name: /Make a role/ })).toBeNull()
+    expect(requests().every((line) => line.startsWith('GET '))).toBe(true)
+  })
+
+  it('offers "Make a role" to those who may manage roles', async () => {
+    who = { ...ADMIN, permissions: [...ADMIN.permissions, 'admin.roles.manage'] } as Entitlements
+    renderAt('/settings/roles')
+    const link = await screen.findByRole('link', { name: /Make a role/ })
+    expect(link.getAttribute('href')).toBe('/settings/roles/new')
   })
 })
 
@@ -191,6 +276,36 @@ describe('Invite someone', () => {
     expect(await screen.findByText('Invitation sent to x@real.example.')).toBeTruthy()
     expect(sent).toEqual({ email: 'x@real.example', roleCodes: ['ACCOUNTANT'] })
     expect(document.body.textContent).not.toMatch(SAMPLE_NAMES)
+  })
+
+  it('draws the name, note, branches and two-step ask as not available yet, and sends none of them', async () => {
+    let sent: unknown = null
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === '/api/v1/me/entitlements') return json(200, who)
+      if (url === '/api/v1/users/invitations' && init?.method === 'POST') {
+        sent = JSON.parse(String(init.body))
+        return json(201, { id: 'i-9', email: 'y@real.example', roleCodes: [], status: 'PENDING',
+          expiresAt: '2026-10-15T00:00:00Z', sentCount: 1, lastSentAt: null, createdAt: '2026-10-08T00:00:00Z' })
+      }
+      const answer = answers[url]
+      return answer ? answer() : json(404, { type: 'about:blank' })
+    })
+    renderAt('/settings/team/invite')
+    const name = (await screen.findByRole('textbox', { name: 'Name' })) as HTMLInputElement
+    expect(name.disabled).toBe(true)
+    expect((screen.getByRole('textbox', { name: /Add a note/ }) as HTMLTextAreaElement).disabled).toBe(true)
+    expect((screen.getByRole('switch', { name: i18n.t('invite.askTwoStep') }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText(i18n.t('invite.branchesUnavailable'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('invite.previewNote'))).toBeTruthy()
+    // The preview names the real company from the session, not a sample one.
+    expect(screen.getByText('owner has invited you to Real Trading LLC on Fawtir')).toBeTruthy()
+    // Role cards name what each role reaches in words.
+    expect((await screen.findAllByText('People')).length).toBeGreaterThan(0)
+    fireEvent.change(screen.getByRole('textbox', { name: /Email/ }), { target: { value: 'y@real.example' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('people.invite.send') }))
+    expect(await screen.findByText('Invitation sent to y@real.example.')).toBeTruthy()
+    expect(sent).toEqual({ email: 'y@real.example', roleCodes: [] })
+    expect(requests()).toEqual([`GET ${ROLES}`, 'POST /api/v1/users/invitations'])
   })
 
   it('says why an invitation was refused and claims no success', async () => {
@@ -220,6 +335,40 @@ describe('Plan and usage', () => {
     expect(screen.getByText('2 of 3 included')).toBeTruthy()
     expect(screen.getByText('1 (no limit on your plan)')).toBeTruthy()
     expect(document.body.textContent).not.toMatch(/880|1,000|Business plan/)
+  })
+
+  it('draws the forecast, the four stats, the plans and the add-ons, with what the API lacks as not available yet', async () => {
+    renderAt('/settings/plan')
+    await screen.findByText('Your plan: Starter')
+    // 42 over 8 days is about 5 a day; 23 days left need 115, well within the 258 left.
+    expect(screen.getByText('You have room to the end of this period')).toBeTruthy()
+    expect(screen.getByText('1 of the 42')).toBeTruthy()
+    const stat = (label: string) => screen.getByText(label).closest('div')!
+    expect(within(stat('Busiest day so far')).getByText(NOT_AVAILABLE)).toBeTruthy()
+    expect(within(stat('Last month')).getByText(NOT_AVAILABLE)).toBeTruthy()
+    // The plans come from the published catalogue; Enterprise always offers a call.
+    const business = (await screen.findByRole('heading', { name: 'Business' })).closest('article')!
+    expect(within(business).getByText(/45\.000/)).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Talk to our team' }).getAttribute('href')).toBe('/contact')
+    expect(screen.getByRole('link', { name: 'Open ERP integration' }).getAttribute('href')).toBe('/settings/erp')
+    // Without tenant.plan.manage no move is offered at all.
+    expect(screen.queryByRole('button', { name: /Move/ })).toBeNull()
+    expect(new Set(requests())).toEqual(new Set([`GET ${SUBSCRIPTION}`, `GET ${PUBLIC_PLANS}`]))
+    expect(fetchMock.mock.calls.some(([url]) => url === PLAN)).toBe(true)
+  })
+
+  it('draws the plan moves disabled for those who may manage the plan, and sends nothing when pressed', async () => {
+    who = { ...ADMIN, permissions: [...ADMIN.permissions, 'tenant.plan.manage'] } as Entitlements
+    renderAt('/settings/plan')
+    const move = (await screen.findByRole('button', { name: 'Move to Business' })) as HTMLButtonElement
+    expect(move.disabled).toBe(true)
+    const up = screen.getByRole('button', { name: 'Move up a plan' }) as HTMLButtonElement
+    expect(up.disabled).toBe(true)
+    expect((screen.getByRole('button', { name: 'Switch overage on or off' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText(/Moving up applies straight away/)).toBeTruthy()
+    fireEvent.click(move)
+    fireEvent.click(up)
+    expect(requests().every((line) => line.startsWith('GET '))).toBe(true)
   })
 
   it('offers a retry when the plan cannot be read', async () => {

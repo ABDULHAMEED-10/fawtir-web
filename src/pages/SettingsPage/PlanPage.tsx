@@ -1,80 +1,243 @@
-import { useTranslation } from 'react-i18next'
+import type { ReactNode } from 'react'
+import { Link } from 'react-router-dom'
+import { useTranslation, Trans } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { useApiRead } from '../../hooks'
+import { useCan } from '../../lib/session/session'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
+import { Rial, RialText, withRial } from '../../components/ui'
 import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
+import {
+  PUBLIC_PLANS_PATH,
+  baisaOf,
+  readPublicPlans,
+  type SignupCataloguePlan,
+} from '../../lib/identity/signupPlans'
 import { SubscriptionStatusSection } from './SubscriptionStatusSection'
-import { formatCount, formatDate } from '../../lib/format'
+import { formatAmount, formatCount, formatDate } from '../../lib/format'
+import tickIcon from '../../assets/settings/check-ink.svg'
+import tickGreenIcon from '../../assets/settings/check-green.svg'
+import infoIcon from '../../assets/settings/info.svg'
+
+/** Changing the plan or its overage is `tenant.plan.manage`, as on the subscription section. */
+const PLAN_MANAGE = 'tenant.plan.manage'
+
+const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
- * Settings › Plan and usage, from `GET /v1/settings/plan` alone. The screen used to forecast a
- * run-out date from a sample company's count on a calendar fixed at 26 September, split "raised
- * today" across its three branches and quote its busiest day and last month; none of that is
- * recorded for this tenant, so only the server's figures are drawn. The subscription section
- * above them is `GET /v1/settings/subscription` (V270).
+ * Settings › Plan and usage (Figma 135:40605), from `GET /v1/settings/plan`, with the subscription
+ * section (`GET /v1/settings/subscription`, V270) above it and the plans this company could move
+ * to from the published catalogue (`GET /v1/public/plans`, the one /pricing and sign-up read).
+ *
+ * PR #166 replaced the sample company's figures with the server's and, with them, dropped what the
+ * server cannot answer. The design keeps those parts: they are drawn again, the figures the API
+ * gives are computed from it (the forecast is arithmetic on `used`, `quota` and the period), and
+ * the rest reads "Not available yet" with a `TODO(backend)` naming its SETTINGS.md row.
  */
 export function PlanPage() {
   const { t } = useTranslation()
-  const plan = useApiRead<PlanOverviewDto>(PLAN_OVERVIEW_PATH, loadPlanOverview)
-
   return (
     <SettingsShell group="billing">
-      <SettingsHeader title={t('plan.title')} subtitle={t('people.plan.subtitle')} />
+      <SettingsHeader
+        title={t('plan.title')}
+        subtitle={t('people.plan.subtitle')}
+        actions={
+          <Link
+            to="/settings/bills"
+            className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+          >
+            {t('plan.billsAndPayment')}
+          </Link>
+        }
+      />
       <SubscriptionStatusSection page="plan" />
-      {plan.read.status === 'loading' ? (
-        <LoadingNotice />
-      ) : plan.read.status === 'failed' ? (
-        <ApiReadFailure error={plan.read.error} retry={plan.retry} />
-      ) : (
-        <PlanFigures data={plan.read.data} />
-      )}
+      <PlanBody />
     </SettingsShell>
   )
 }
 
-function PlanFigures({ data }: { data: PlanOverviewDto }) {
+/** Inside the shell, which is what provides the session the permission is read from. */
+function PlanBody() {
+  const plan = useApiRead<PlanOverviewDto>(PLAN_OVERVIEW_PATH, loadPlanOverview)
+  const mayManage = useCan(PLAN_MANAGE)
+
+  if (plan.read.status === 'loading') return <LoadingNotice />
+  if (plan.read.status === 'failed')
+    return <ApiReadFailure error={plan.read.error} retry={plan.retry} />
+  return (
+    <>
+      <PlanFigures data={plan.read.data} mayManage={mayManage} />
+      <PlanCards current={plan.read.data} mayManage={mayManage} />
+      <AddonsSection />
+    </>
+  )
+}
+
+/** Whole days from one business date to another (`YYYY-MM-DD`), read as UTC calendar days. */
+function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS)
+}
+
+function addDays(iso: string, days: number): string {
+  return new Date(Date.parse(`${iso}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10)
+}
+
+/**
+ * The design's forecast, from the server's own count and period: the daily rate is what has been
+ * raised over the days gone, the run-out date what is left at that rate, the shortfall what the
+ * days still to run would need beyond what is left. The three move together or not at all.
+ */
+export function forecastOf(usage: PlanOverviewDto['usage']) {
+  const { used, quota, period } = usage
+  const daysGone = Math.max(1, daysBetween(period.start, period.today) + 1)
+  const daysLeft = Math.max(0, daysBetween(period.today, period.end))
+  const left = Math.max(0, quota - used)
+  const perDay = Math.round(used / daysGone)
+  const shortfall = daysLeft * perDay - left
+  const runOut = perDay > 0 ? addDays(period.today, Math.floor(left / perDay)) : null
+  return {
+    perDay,
+    daysLeft,
+    left,
+    shortfall,
+    willRunOut: perDay > 0 && shortfall > 0 && runOut !== null && runOut <= period.end,
+    runOut,
+    resetsOn: addDays(period.end, 1),
+  }
+}
+
+function PlanFigures({ data, mayManage }: { data: PlanOverviewDto; mayManage: boolean }) {
   const { t, i18n } = useTranslation()
   // lib/format keeps digits Latin in Arabic too (decision D15); toLocaleString would not.
   const number = (value: number) => formatCount(value, i18n.language)
   const date = (iso: string) => formatDate(iso, i18n.language)
   const { usage, plan } = data
   const percent = usage.quota > 0 ? Math.min(100, Math.round((usage.used / usage.quota) * 100)) : 0
+  const forecast = forecastOf(usage)
 
   return (
     <>
-      <section aria-labelledby="plan-usage" className="flex flex-col gap-3 rounded-md bg-surface-card p-5">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h3 id="plan-usage" className="text-lg font-semibold text-text-primary">
-            {t('plan.invoicesThisMonth')}
-          </h3>
-          <span className="text-sm font-semibold text-text-secondary">{t('plan.yourPlan')}: {plan.name}</span>
+      <section aria-labelledby="plan-usage" className="overflow-hidden rounded-md bg-surface-card">
+        <div className="flex flex-wrap gap-6 p-5">
+          <div className="shrink-0">
+            <p className="flex items-baseline gap-1">
+              <span className="text-[54px] font-semibold leading-[1] text-pending-700 tabular-nums">
+                {number(usage.used)}
+              </span>
+              <span className="text-lg font-medium text-text-quaternary">
+                {t('people.plan.ofAllowance', { allowance: number(usage.quota) })}
+              </span>
+            </p>
+            <h3
+              id="plan-usage"
+              className="mt-1 text-[11px] font-semibold uppercase tracking-[0.6px] text-text-quaternary"
+            >
+              {t('plan.invoicesThisMonth')}
+            </h3>
+            <p className="mt-2 text-sm font-semibold text-text-secondary">
+              {t('plan.yourPlan')}: {plan.name}
+            </p>
+          </div>
+
+          <div className="min-w-0 flex-1 md:min-w-[320px]">
+            <p className="text-xl font-medium leading-[1.2] text-text-primary">
+              {forecast.willRunOut && forecast.runOut
+                ? t('plan.runOutHeadline', { date: date(forecast.runOut) })
+                : t('plan.comfortableHeadlinePeriod')}
+            </p>
+            <p className="mt-2 max-w-[640px] text-sm font-medium leading-[1.6] text-text-tertiary">
+              <Trans
+                i18nKey={forecast.willRunOut ? 'plan.runOutBodyPeriod' : 'plan.comfortableBodyPeriod'}
+                values={{
+                  perDay: number(forecast.perDay),
+                  days: number(forecast.daysLeft),
+                  short: number(Math.abs(forecast.shortfall)),
+                  spare: number(Math.max(0, -forecast.shortfall)),
+                }}
+                components={{ b: <b className="font-semibold text-text-primary" /> }}
+              />
+            </p>
+
+            <div
+              className="mt-4 h-2 w-full overflow-hidden rounded-full bg-surface-background"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={usage.quota}
+              aria-valuenow={usage.used}
+              aria-label={t('plan.invoicesThisMonth')}
+            >
+              <div className="h-full rounded-full bg-pending-500" style={{ width: `${percent}%` }} />
+            </div>
+            <p className="mt-2 flex flex-wrap items-center justify-between gap-3">
+              <span className="flex flex-wrap items-center gap-4 text-xs font-medium text-text-quaternary">
+                <span className="flex items-center gap-1.5">
+                  <span className="size-2 rounded-[2px] bg-pending-500" />
+                  {t('plan.used', { count: usage.used })}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="size-2 rounded-[2px] bg-pending-100" />
+                  {t('plan.leftCount', { count: forecast.left })}
+                </span>
+              </span>
+              <span className="text-xs font-medium text-text-quaternary">
+                {t('people.plan.period', {
+                  start: date(usage.period.start),
+                  end: date(usage.period.end),
+                })}{' '}
+                {t('plan.resetsOn', { date: date(forecast.resetsOn) })}
+              </span>
+            </p>
+          </div>
+
+          {mayManage ? (
+            <div className="flex shrink-0 flex-col gap-2.5 max-md:w-full">
+              {/* TODO(backend): SETTINGS.md row 5.1. No plan-change endpoint yet. */}
+              <button
+                type="button"
+                disabled
+                className="inline-flex h-[46px] items-center justify-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white disabled:opacity-40"
+              >
+                {t('plan.moveUp')}
+              </button>
+              {/* TODO(backend): SETTINGS.md row 5.2. Overage cannot be read or switched. */}
+              <button
+                type="button"
+                disabled
+                className="inline-flex h-[46px] items-center justify-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary disabled:opacity-40"
+              >
+                {t('plan.overageSwitch')}
+              </button>
+              <span className="text-center text-xs font-medium text-text-quaternary">
+                {t('plan.notAvailableYet')}
+              </span>
+            </div>
+          ) : null}
         </div>
-        <p className="text-sm font-medium text-text-primary">
-          <span className="text-2xl font-semibold">{number(usage.used)}</span>{' '}
-          {t('people.plan.ofAllowance', { allowance: number(usage.quota) })}
-        </p>
-        <div
-          className="h-2 w-full overflow-hidden rounded-full bg-surface-background"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={usage.quota}
-          aria-valuenow={usage.used}
-          aria-label={t('plan.invoicesThisMonth')}
-        >
-          <div className="h-full rounded-full bg-primary-700" style={{ width: `${percent}%` }} />
-        </div>
-        <p className="text-sm font-medium text-text-tertiary">
-          {t('people.plan.period', { start: date(usage.period.start), end: date(usage.period.end) })}
-        </p>
+
+        <dl className="grid border-t border-surface-background sm:grid-cols-2 xl:grid-cols-4">
+          <Stat
+            label={t('plan.stat.raisedToday')}
+            value={number(usage.raisedToday)}
+            // TODO(backend): SETTINGS.md row 5.5. The design splits the figure by branch.
+            note={t('plan.byBranchUnavailable')}
+          />
+          <Stat
+            label={t('plan.stat.resubmissions')}
+            value={t('plan.stat.resubmissionsOf', {
+              count: number(usage.resubmissions),
+              total: number(usage.used),
+            })}
+            note={t('plan.stat.resubmissionsNote')}
+            tone="pending"
+          />
+          {/* TODO(backend): SETTINGS.md row 5.3. */}
+          <Stat label={t('plan.stat.busiest')} unavailable />
+          {/* TODO(backend): SETTINGS.md row 5.4. */}
+          <Stat label={t('plan.stat.lastMonth')} unavailable />
+        </dl>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <Figure label={t('plan.stat.raisedToday')} value={number(usage.raisedToday)} />
-        <Figure
-          label={t('plan.stat.resubmissions')}
-          value={number(usage.resubmissions)}
-          note={t('plan.stat.resubmissionsNote')}
-        />
+      <div className="grid gap-4 md:grid-cols-2">
         <Figure
           label={t('people.plan.people')}
           value={t('people.plan.ofIncluded', {
@@ -99,6 +262,46 @@ function PlanFigures({ data }: { data: PlanOverviewDto }) {
   )
 }
 
+function Stat({
+  label,
+  value,
+  note,
+  tone,
+  unavailable,
+}: {
+  label: string
+  value?: string
+  note?: string
+  tone?: 'pending'
+  unavailable?: boolean
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="border-b border-e border-surface-background px-5 py-4 last:border-e-0">
+      <dt className="text-[10px] font-semibold uppercase leading-[1.5] tracking-[0.5px] text-text-quaternary">
+        {label}
+      </dt>
+      <dd className="mt-1.5">
+        {unavailable ? (
+          <p className="text-sm font-medium leading-[1.6] text-text-quaternary">
+            {t('plan.notAvailableYet')}
+          </p>
+        ) : (
+          <p
+            className={[
+              'text-lg font-semibold leading-[1.2] tabular-nums',
+              tone === 'pending' ? 'text-pending-700' : 'text-text-primary',
+            ].join(' ')}
+          >
+            {value}
+          </p>
+        )}
+        {note ? <p className="mt-1 text-xs font-medium text-text-quaternary">{note}</p> : null}
+      </dd>
+    </div>
+  )
+}
+
 function Figure({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
     <div className="flex flex-col gap-1 rounded-md bg-surface-card p-5">
@@ -106,5 +309,273 @@ function Figure({ label, value, note }: { label: string; value: string; note?: s
       <span className="text-xl font-semibold text-text-primary">{value}</span>
       {note ? <span className="text-xs font-medium text-text-tertiary">{note}</span> : null}
     </div>
+  )
+}
+
+/**
+ * The plans, from the published catalogue: the company's own marked "Your plan" by its code, the
+ * dearer ones offered as a move up, the cheaper ones as a move down at renewal (owner: upgrades
+ * apply immediately, downgrades at renewal). There is no plan-change endpoint yet, so the move
+ * buttons are drawn disabled (SETTINGS.md row 5.1). Enterprise has no price and its one action
+ * is to talk to the team.
+ * TODO: show the Enterprise card only to companies on Business Plus, the one plan it is the next
+ * step from (owner, 7 Oct 2026: agreed, to be done later).
+ */
+function PlanCards({ current, mayManage }: { current: PlanOverviewDto; mayManage: boolean }) {
+  const { t } = useTranslation()
+  const catalogue = useApiRead<SignupCataloguePlan[]>(PUBLIC_PLANS_PATH, () => readPublicPlans())
+
+  if (catalogue.read.status === 'loading') return <LoadingNotice />
+  if (catalogue.read.status === 'failed')
+    return <ApiReadFailure error={catalogue.read.error} retry={catalogue.retry} />
+
+  const plans = catalogue.read.data.filter((plan) => !/enterprise/i.test(plan.code))
+  const mine = plans.find((plan) => plan.code === current.plan.code)
+  const myPrice = baisaOf(mine?.monthlyPrice ?? current.plan.monthlyPrice ?? null)
+
+  return (
+    <section aria-label={t('plan.plansTitle')} className="flex flex-col gap-3">
+      {mayManage ? (
+        <p className="flex items-start gap-2 text-sm font-medium text-text-tertiary">
+          <img src={infoIcon} alt="" className="mt-0.5 size-4 shrink-0" />
+          <span>
+            {t('plan.changeRule')} {t('plan.changeNotAvailable')}
+          </span>
+        </p>
+      ) : null}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {plans.map((plan) => (
+          <PlanCard
+            key={plan.code}
+            plan={plan}
+            current={plan.code === current.plan.code}
+            myPrice={myPrice}
+            mayManage={mayManage}
+          />
+        ))}
+        <EnterpriseCard />
+      </div>
+    </section>
+  )
+}
+
+function PlanCard({
+  plan,
+  current,
+  myPrice,
+  mayManage,
+}: {
+  plan: SignupCataloguePlan
+  current: boolean
+  myPrice: number | null
+  mayManage: boolean
+}) {
+  const { t, i18n } = useTranslation()
+  const price = baisaOf(plan.monthlyPrice)
+  const difference = price !== null && myPrice !== null ? price - myPrice : null
+  const better = !current && difference !== null && difference > 0
+  const smaller = !current && difference !== null && difference < 0
+  const name = (i18n.language.startsWith('ar') && plan.nameAr) || plan.nameEn
+  const amount = (value: string) => formatAmount(value, 'OMR', i18n.language)
+
+  const features: ReactNode[] = [
+    t('plan.feature.invoices', { count: formatCount(plan.invoicesPerMonth, i18n.language) }),
+    plan.extraPersonPrice
+      ? withRial(
+          t('plan.feature.peopleThen', {
+            count: plan.peopleIncluded,
+            amount: amount(plan.extraPersonPrice),
+          }),
+        )
+      : t('plan.feature.people', { count: plan.peopleIncluded }),
+    plan.branchesIncluded === null
+      ? t('plan.feature.unlimitedBranches')
+      : t('plan.feature.branches', { count: plan.branchesIncluded }),
+    plan.apiAccess ? t('plan.feature.api') : t('plan.feature.noApi'),
+    plan.overagePricePerInvoice
+      ? withRial(t('plan.feature.overage', { amount: amount(plan.overagePricePerInvoice) }))
+      : t('plan.feature.noOverage'),
+    ...(plan.prioritySupport ? [t('plan.feature.prioritySupport')] : []),
+  ]
+
+  return (
+    <article
+      className={[
+        'flex flex-col rounded-md bg-surface-card p-5',
+        current ? 'ring-1 ring-primary-700' : '',
+      ].join(' ')}
+    >
+      <span
+        className={[
+          'inline-flex h-[24px] w-fit items-center rounded-[3px] px-2 text-[10px] font-semibold uppercase tracking-[0.4px]',
+          current
+            ? 'bg-primary-700 text-white'
+            : better
+              ? 'bg-[#3d5648] text-white'
+              : 'bg-surface-background text-text-tertiary',
+        ].join(' ')}
+      >
+        {current ? t('plan.yourPlan') : better ? t('plan.larger') : t('plan.smaller')}
+      </span>
+
+      <h3 className="mt-3 text-xl font-medium leading-[1.2] text-text-primary">{name}</h3>
+
+      <p className="mt-2 flex flex-wrap items-baseline gap-x-1.5">
+        <span className="text-[28px] font-semibold leading-[1.1] text-text-primary">
+          <Rial />
+        </span>
+        <span className="text-[28px] font-semibold leading-[1.1] text-text-primary tabular-nums">
+          {amount(plan.monthlyPrice)}
+        </span>
+        <span className="whitespace-nowrap text-sm font-medium text-text-quaternary">
+          {t('plan.perMonth')}
+        </span>
+      </p>
+
+      <ul className="mt-4 flex flex-col gap-2.5">
+        {features.map((feature, index) => (
+          <li key={index} className="flex items-start gap-2">
+            <img src={tickIcon} alt="" className="mt-0.5 size-4 shrink-0 opacity-70" />
+            <span className="text-sm font-medium leading-[1.4] text-text-tertiary">{feature}</span>
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-auto pt-5">
+        {current ? (
+          <p className="flex items-start gap-2 rounded-sm bg-surface-background px-3 py-2.5 text-xs font-medium leading-[1.6] text-text-tertiary">
+            <img src={infoIcon} alt="" className="mt-0.5 size-4 shrink-0" />
+            <span>{t('plan.thisIsYours')}</span>
+          </p>
+        ) : better || smaller ? (
+          <>
+            <p
+              className={[
+                'flex items-start gap-2 rounded-sm px-3 py-2.5 text-xs font-medium leading-[1.6]',
+                better ? 'bg-success-100 text-[#3d5648]' : 'bg-surface-background text-text-tertiary',
+              ].join(' ')}
+            >
+              <img src={better ? tickGreenIcon : infoIcon} alt="" className="mt-0.5 size-4 shrink-0" />
+              <span>
+                <Trans
+                  i18nKey={better ? 'plan.moreAMonth' : 'plan.lessAMonth'}
+                  values={{ amount: amount((Math.abs(difference ?? 0) / 1000).toFixed(3)) }}
+                  components={{ b: <RialText as="b" className="font-semibold" /> }}
+                />
+              </span>
+            </p>
+            {mayManage ? (
+              // TODO(backend): SETTINGS.md row 5.1. Drawn, cannot be pressed until the API can
+              // change the plan (up: straight away; down: from the next renewal).
+              <button
+                type="button"
+                disabled
+                className={[
+                  'mt-3 inline-flex h-[46px] w-full items-center justify-center rounded-sm text-sm font-semibold disabled:opacity-40',
+                  better
+                    ? 'bg-primary-700 text-white'
+                    : 'border border-border-subtle bg-white text-text-secondary',
+                ].join(' ')}
+              >
+                {t('plan.moveTo', { plan: name })}
+              </button>
+            ) : null}
+          </>
+        ) : null}
+      </div>
+    </article>
+  )
+}
+
+/**
+ * Enterprise: Business Plus with documents, people and branches agreed on a call, so it shows
+ * "Custom" where the others show a price, and its one action is to talk to the team (the
+ * Contact page, as on /pricing).
+ */
+function EnterpriseCard() {
+  const { t } = useTranslation()
+  const features = (['f1', 'f2', 'f3'] as const).map((key) => t(`plans.enterprise.features.${key}`))
+
+  return (
+    <article className="flex flex-col rounded-md bg-surface-card p-5">
+      <span className="inline-flex h-[24px] w-fit items-center rounded-[3px] bg-surface-background px-2 text-[10px] font-semibold uppercase tracking-[0.4px] text-text-tertiary">
+        {t('plan.larger')}
+      </span>
+      <h3 className="mt-3 text-xl font-medium leading-[1.2] text-text-primary">
+        {t('plan.planName.enterprise')}
+      </h3>
+      <p className="mt-2 flex flex-wrap items-baseline gap-1.5">
+        <span className="text-[28px] font-semibold leading-[1.1] text-text-primary">
+          {t('plans.enterprise.price')}
+        </span>
+        <span className="text-sm font-medium text-text-quaternary">
+          {t('plans.enterprise.billingNote')}
+        </span>
+      </p>
+      <ul className="mt-4 flex flex-col gap-2.5">
+        {features.map((feature) => (
+          <li key={feature} className="flex items-start gap-2">
+            <img src={tickIcon} alt="" className="mt-0.5 size-4 shrink-0 opacity-70" />
+            <span className="text-sm font-medium leading-[1.4] text-text-tertiary">{feature}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-auto pt-5">
+        <Link
+          to="/contact"
+          className="inline-flex h-[46px] w-full items-center justify-center rounded-sm border border-border-subtle bg-white text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+        >
+          {t('plans.talkToTeam')}
+        </Link>
+      </div>
+    </article>
+  )
+}
+
+/**
+ * What the account has on top of the plan: today only ERP integration. ERP is enabled per
+ * organisation by Fawtir and has no add-on, price or usage read yet, so the card says so and
+ * points to where the real state is shown (TODO(backend): SETTINGS.md row 5.6).
+ */
+function AddonsSection() {
+  const { t } = useTranslation()
+  return (
+    <section aria-labelledby="plan-addons" className="overflow-hidden rounded-md bg-surface-card">
+      <div className="p-5">
+        <h3 id="plan-addons" className="text-lg font-semibold leading-[1.2] text-text-primary">
+          {t('plan.addons.title')}
+        </h3>
+        <p className="mt-0.5 text-xs font-medium leading-[1.5] text-text-quaternary">
+          {t('plan.addons.subtitle')}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-start gap-5 border-t border-surface-background p-5">
+        <div className="min-w-0 flex-1 md:min-w-[260px]">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-base font-semibold text-text-primary">
+              {t('plan.addons.extraction.name')}
+            </p>
+            <span className="inline-flex h-[24px] items-center gap-1.5 rounded-[3px] bg-surface-background px-2 text-[10px] font-semibold uppercase tracking-[0.4px] text-text-tertiary">
+              <span className="size-1.5 rounded-full bg-current" />
+              {t('plan.addons.state.managedByFawtir')}
+            </span>
+          </div>
+          <p className="mt-1 max-w-[560px] text-sm font-medium leading-[1.6] text-text-tertiary">
+            {t('plan.addons.extraction.body')}
+          </p>
+          <p className="mt-3 max-w-[560px] text-sm font-medium leading-[1.6] text-text-secondary">
+            {t('plan.addons.extraction.realState')}
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+          <Link
+            to="/settings/erp"
+            className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+          >
+            {t('plan.addons.openIntegration')}
+          </Link>
+        </div>
+      </div>
+    </section>
   )
 }
