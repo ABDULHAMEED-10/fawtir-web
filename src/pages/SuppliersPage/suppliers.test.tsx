@@ -393,7 +393,13 @@ describe('Suppliers list, wired to the API', () => {
     who = { ...ADMIN, username: 'records', permissions: ['supplier.read', 'supplier.manage'] }
     listResponses = [EVERY_ISSUE]
     renderSuppliers('/suppliers?tab=all')
-    expect((await rowOf('Bank Changed Co')).getByRole('link', { name: 'Check it' })).toBeTruthy()
+    // Nobody confirms a changed IBAN since 10 Oct 2026: a row a server still flags has nothing to check.
+    const changed = await rowOf('Bank Changed Co')
+    expect(changed.queryByRole('link', { name: 'Check it' })).toBeNull()
+    expect(changed.queryByText('Bank details to confirm')).toBeNull()
+    expect(changed.queryByText('Confirm before the next run')).toBeNull()
+    expect(changed.queryByText(/Bank changed/)).toBeNull()
+    expect(screen.queryByText(/changed account/)).toBeNull()
     expect((await rowOf('No Vat Co')).getByRole('link', { name: 'Add it' })).toBeTruthy()
     expect((await rowOf('Paper Co')).getByRole('link', { name: 'Chase it' })).toBeTruthy()
     expect((await rowOf('Switched Off Co')).getByRole('button', { name: 'Turn back on' })).toBeTruthy()
@@ -583,14 +589,15 @@ describe('toSupplierListItem', () => {
     const risky = toSupplierListItem(
       row({ record: { ...row().record, health: ['NO_VAT_NUMBER', 'BANK_CHANGED_UNCONFIRMED'] } }),
     )
-    expect(risky.issue).toBe('bankChanged')
-    expect(risky.score).toBe(2)
-    expect(risky.recordNote?.key).toBe('suppliersPage.recordNote.confirmBeforeRun')
+    // A changed IBAN is no issue since 10 Oct 2026, so the missing VAT number shows.
+    expect(risky.issue).toBe('noVatNumber')
+    expect(risky.score).toBe(3)
+    expect(risky.recordNote?.key).toBe('suppliersPage.recordNote.cantReclaim')
 
     const complete = toSupplierListItem(row())
     expect(complete).toMatchObject({ issue: 'complete', score: 4, owedAlert: true })
 
-    // The frame's "Bank changed 4d ago", from the row's own date.
+    // No "Bank changed 4d ago" any more: the record reads as complete.
     const now = Date.parse('2026-09-25T12:00:00Z')
     const dated = toSupplierListItem(
       row({
@@ -602,10 +609,8 @@ describe('toSupplierListItem', () => {
       }),
       now,
     )
-    expect(dated.recordLabel).toEqual({
-      key: 'suppliersPage.record.bankChangedAgo',
-      values: { count: 4 },
-    })
+    expect(dated).toMatchObject({ issue: 'complete', score: 4 })
+    expect(dated.recordLabel).toEqual({ key: 'suppliersPage.record.complete' })
     expect(
       toSupplierListItem(row({ status: 'SWITCHED_OFF', switchedOffAt: '2026-04-12T09:30:00Z' }))
         .switchedOffAt,

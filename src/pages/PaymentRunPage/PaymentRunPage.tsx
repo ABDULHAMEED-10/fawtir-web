@@ -12,7 +12,6 @@ import {
   cancelRun,
   candidatesPath,
   createRun,
-  exportRun,
   loadBlocked,
   loadCandidates,
   loadPayerAccounts,
@@ -31,14 +30,17 @@ import { formatAmount, formatDate } from '../../lib/format'
 import { muscatToday } from '../../lib/invoiceIssue'
 import {
   DUE_WINDOWS,
-  FORMATS,
   REASON_KEYS,
   actionsFor,
+  bankDetailsChangedIn,
   discountPercent,
   dueBy,
   dueNote,
   groupBySupplier,
+  markPaidBlockKey,
+  paidOn,
   refusalOf,
+  refusedBillOf,
   sum,
   windowEnd,
   type DueTone,
@@ -46,13 +48,14 @@ import {
   type RunAction,
   type RunBill,
 } from '../../lib/paymentRuns'
-import { saveDownload } from '../../lib/supplierRecord'
 import { can, useSession } from '../../lib/session/session'
 import {
   AddPayerAccountModal,
   Amount,
   CancelSentRunModal,
+  ConfirmModal,
   HEADER_BUTTON,
+  MarkPaidBlockChip,
   MarkPaidModal,
   PRIMARY_BUTTON,
   RunMenu,
@@ -61,12 +64,9 @@ import {
   SupplierTile,
 } from './RunParts'
 import printIcon from '../../assets/invoice-details/print.svg'
-import downloadIcon from '../../assets/invoice-details/download.svg'
 import viewInvoiceIcon from '../../assets/bill-capture/file.svg'
 import infoIcon from '../../assets/bill-capture/info.svg'
 import tickIcon from '../../assets/bill-detail/tick.svg'
-import csvIcon from '../../assets/bill-capture/file.svg'
-import isoIcon from '../../assets/create-invoice/doc-order.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 
 const DUE_CHIP: Record<DueTone, string> = {
@@ -76,16 +76,14 @@ const DUE_CHIP: Record<DueTone, string> = {
   none: 'bg-surface-background text-text-tertiary',
 }
 
-const FORMAT_ICON: Record<PaymentRunFormat, string> = {
-  BANK_MUSCAT_CSV: csvIcon,
-  PAIN_001: isoIcon,
-  PRINTED_LIST: printIcon,
-}
-
 type Details = {
   paymentDate: string | null
   payerAccountId: string | null
   runReference: string
+  /**
+   * Not chosen on this page any more (owner, 9 Oct 2026: Fawtir makes no bank files); the run's
+   * stored format is sent back unchanged, as the update replaces all four details.
+   */
   format: PaymentRunFormat | null
 }
 
@@ -100,6 +98,9 @@ const NO_DETAILS: Details = {
  * Expenditure › Payments › a run (Figma 163:16960). `/expenditure/payments/new` builds a run that
  * does not exist yet: it is created when the first bill is ticked (decision 1). Every figure comes
  * from the server: what a bill would cost on the run's date, what the run totals, what cannot be paid.
+ *
+ * Fawtir makes no bank files (owner, 9 Oct 2026): the company pays its suppliers itself, then marks
+ * the run paid here. The frame's "How to send it to the bank" step and its Download are not drawn.
  */
 export function PaymentRunPage() {
   const { runId = null } = useParams()
@@ -116,7 +117,6 @@ function RunBuilder({ runId }: { runId: string | null }) {
   const navigate = useNavigate()
   const today = muscatToday()
   const canManage = can(session, 'invoice.payment.manage')
-  const canExport = can(session, 'invoice.export')
   const canAddAccount = can(session, 'admin.settings.manage')
 
   const loaded = useApiRead<PaymentRunDetailDto>(runId ? runPath(runId) : null, () =>
@@ -135,6 +135,11 @@ function RunBuilder({ runId }: { runId: string | null }) {
   const [addingAccount, setAddingAccount] = useState(false)
   const [confirmingPaid, setConfirmingPaid] = useState(false)
   const [cancellingSent, setCancellingSent] = useState(false)
+  const [cancellingUnsent, setCancellingUnsent] = useState(false)
+  // The bill the last Mark as paid refusal named, flagged when the dialog is opened again.
+  const [refusedBill, setRefusedBill] = useState<{ billId: string; key: string | null } | null>(
+    null,
+  )
   const inFlight = useRef(false)
 
   useEffect(() => {
@@ -184,16 +189,33 @@ function RunBuilder({ runId }: { runId: string | null }) {
   const takenOut = new Map(
     (detail?.items ?? []).flatMap((item) => (item.takenOut ? [[item.billId, item.takenOut]] : [])),
   )
-  // On a paid run with bills taken out, the bank file's totals stay what the bank received; a
-  // line under them splits it into what was paid and what was taken out (owner, 9 Oct 2026).
+  // Why a bill of a live run cannot be marked paid now, flagged on its row as in the dialog.
+  const blocks = new Map(
+    (detail?.items ?? []).flatMap((item) => {
+      const key = markPaidBlockKey(item.markPaidBlock?.code)
+      return key ? [[item.billId, key] as const] : []
+    }),
+  )
+  // On a paid run with bills taken out, a line under the totals splits the run into what was paid
+  // and what was taken out (owner, 9 Oct 2026), and the totals above it count only what was paid.
   const paidRun = run?.state === 'PAID'
   const runItems = detail?.items ?? []
+  const paidItems = runItems.filter((item) => item.takenOut == null)
   const split =
     paidRun && runItems.some((item) => item.takenOut != null)
       ? {
-          paid: sum(runItems.filter((item) => item.takenOut == null).map((item) => item.amount)),
+          paid: sum(paidItems.map((item) => item.amount)),
+          // "This run" counts what was paid, by the rule "Who gets paid" follows: the bills, the
+          // early-payment discount and what left the account, without the taken-out bills.
+          count: paidItems.length,
+          billsTotal: sum(paidItems.map((item) => item.outstanding)),
+          discount: sum(paidItems.map((item) => item.discountTaken)),
+          // What the taken-out bills still owe, with no early-payment discount: none was taken,
+          // as they were not paid (owner, 10 Oct 2026). An older server sends no `owedNow`.
           takenOut: sum(
-            runItems.filter((item) => item.takenOut != null).map((item) => item.amount),
+            runItems.flatMap((item) =>
+              item.takenOut ? [item.takenOut.owedNow ?? item.outstanding] : [],
+            ),
           ),
         }
       : null
@@ -203,11 +225,13 @@ function RunBuilder({ runId }: { runId: string | null }) {
   const groups = groupBySupplier(every)
   const shown = supplierFilter ? groups.filter((group) => group.key === supplierFilter) : groups
   const paying = groupBySupplier(inRun)
+  // "Who gets paid" on a paid run counts only the bills actually paid, as the supplier headers do
+  // (owner, 10 Oct 2026); a supplier whose bills were all taken out is not paid.
+  const payees = paidRun
+    ? groupBySupplier(inRun.filter((bill) => !takenOut.has(bill.billId)))
+    : paying
   const blockedRows = blocked.read.status === 'ready' ? blocked.read.data : []
-  const changedSinceFile = (detail?.bankDetailsChangedSinceFile ?? []).filter(
-    (supplier): supplier is { supplierId: string; supplierName: string } =>
-      Boolean(supplier.supplierName?.trim()),
-  )
+  const changedSinceAdded = bankDetailsChangedIn(run?.state ?? null, detail?.items ?? [])
 
   /** One write at a time: a tick while another is in flight would be sent against a stale run. */
   const act = async (write: () => Promise<void>, action?: RunAction) => {
@@ -271,19 +295,26 @@ function RunBuilder({ runId }: { runId: string | null }) {
     })
   }
 
-  const download = () =>
-    act(async () => {
-      if (!runId || !run) return
-      saveDownload(await exportRun(runId), run.reference)
-      loaded.retry()
-    }, 'export')
-
   const pickWindow = (next: DueWindow) => {
     setWindow(next)
     const end = windowEnd(next, today)
     setDueByDate(end ?? '')
     add(dueBy(candidates, end).map((bill) => bill.billId))
   }
+
+  // A paid run says the day its bills were paid on, as the server records it (backend #480:
+  // `paidOn` beside `run` in the detail).
+  const noteDay =
+    run?.state === 'PAID'
+      ? paidOn({ ...run, paidOn: detail?.paidOn ?? run.paidOn })
+      : (run?.paymentDate ?? null)
+  const stateDate = noteDay ? formatDate(noteDay, i18n.language) : ''
+  // The payment date is only planned and may be left out (owner, 10 Oct 2026): "Scheduled for"
+  // is said only when there is a date.
+  const stateNote =
+    run?.state === 'SCHEDULED' && !noteDay
+      ? t('paymentRuns.stateNoteUndated')
+      : t(`paymentRuns.stateNote.${run?.state ?? 'DRAFT'}`, { date: stateDate })
 
   if (runId && loaded.read.status === 'loading') return <LoadingNotice />
   if (runId && loaded.read.status === 'failed')
@@ -297,8 +328,6 @@ function RunBuilder({ runId }: { runId: string | null }) {
     label: account.name,
     hint: account.iban,
   }))
-
-  const required = <span className="text-xl leading-4 text-primary-700">*</span>
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
@@ -318,9 +347,8 @@ function RunBuilder({ runId }: { runId: string | null }) {
 
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-            {run && run.state !== 'DRAFT'
-              ? t('paymentRuns.runTitle', { reference: run.reference })
-              : t('paymentsPage.title')}
+            {/* A saved run, a draft too, is called by its reference; only one not yet made is new. */}
+            {run ? t('paymentRuns.runTitle', { reference: run.reference }) : t('paymentsPage.title')}
           </h1>
           <RunStatePill state={run?.state ?? 'DRAFT'} />
           <div className="ms-auto flex flex-wrap items-center gap-3">
@@ -333,27 +361,8 @@ function RunBuilder({ runId }: { runId: string | null }) {
               <img src={printIcon} alt="" className="size-5 shrink-0" />
               <span className="max-lg:sr-only">{t('paymentsPage.print')}</span>
             </button>
-            {canExport && run ? (
-              <button
-                type="button"
-                disabled={!actions.canExport || busy}
-                onClick={() => void download()}
-                className={[HEADER_BUTTON, 'max-lg:w-[46px] max-lg:px-0'].join(' ')}
-                title={
-                  run && actions.canExport
-                    ? t('paymentsPage.download')
-                    : t('paymentRuns.downloadWhenScheduled')
-                }
-              >
-                <img src={downloadIcon} alt="" className="size-5 shrink-0" />
-                <span className="max-lg:sr-only">
-                  {run?.state === 'EXPORTED'
-                    ? t('paymentRuns.downloadAgain')
-                    : t('paymentsPage.download')}
-                </span>
-              </button>
-            ) : null}
-            {canManage && run && actions.canMarkPaid ? (
+            {/* An empty run has nothing to mark paid. */}
+            {canManage && run && actions.canMarkPaid && runItems.length > 0 ? (
               <button
                 type="button"
                 disabled={busy}
@@ -369,12 +378,16 @@ function RunBuilder({ runId }: { runId: string | null }) {
                 {t('paymentsPage.viewInvoices')}
               </Link>
             ) : null}
-            {run && detail ? (
+            {/* Copy, reset and delete change runs: hidden, not greyed, from who may not. */}
+            {run && detail && canManage ? (
               <RunMenu
                 run={run}
                 items={detail.items}
                 onNotice={setNotice}
-                onChanged={() => loaded.retry()}
+                onChanged={() => {
+                  setNotice(null)
+                  loaded.retry()
+                }}
                 onCancelSent={
                   canManage && run.state === 'EXPORTED' ? () => setCancellingSent(true) : undefined
                 }
@@ -383,24 +396,12 @@ function RunBuilder({ runId }: { runId: string | null }) {
           </div>
         </div>
         <p className="text-base font-medium leading-[1.3] text-text-quaternary">
-          {run && run.state !== 'DRAFT'
-            ? t(`paymentRuns.stateNote.${run.state}`, {
-                date: run.paymentDate ? formatDate(run.paymentDate, i18n.language) : '',
-              })
-            : t('paymentsPage.subtitle')}
+          {run && run.state !== 'DRAFT' ? stateNote : t('paymentsPage.subtitle')}
         </p>
-        {canExport && run?.state === 'EXPORTED' ? (
-          <p className="text-sm font-medium leading-[1.3] text-pending-700">
-            {t('paymentRuns.sentFileWarning')}
-          </p>
-        ) : null}
-        {/* Owner, 8 Oct 2026: a supplier whose IBAN changed after the kept file was made. */}
-        {changedSinceFile.map((supplier) => (
-          <p
-            key={supplier.supplierId}
-            className="text-sm font-medium leading-[1.3] text-pending-700"
-          >
-            {t('paymentRuns.bankDetailsChangedSinceFile', { supplier: supplier.supplierName })}
+        {/* Owner, 10 Oct 2026: a supplier whose bank details changed after their bill joined. */}
+        {changedSinceAdded.map((supplier) => (
+          <p key={supplier.key} className="text-sm font-medium leading-[1.3] text-pending-700">
+            {t('paymentRuns.bankDetailsChanged', { supplier: supplier.name })}
           </p>
         ))}
       </div>
@@ -562,6 +563,8 @@ function RunBuilder({ runId }: { runId: string | null }) {
                   const counted = paidRun
                     ? chosen.filter((bill) => !takenOut.has(bill.billId))
                     : chosen
+                  // Every bill of this supplier was taken out: nothing went to them (10 Oct 2026).
+                  const allTakenOut = paidRun && chosen.length > 0 && counted.length === 0
                   return (
                     <div
                       key={group.key}
@@ -593,23 +596,36 @@ function RunBuilder({ runId }: { runId: string | null }) {
                             {group.name ?? t('paymentRuns.noSupplier')}
                           </p>
                           <p className="mt-0.5 text-xs font-medium leading-[1.2] text-text-muted">
-                            {t('paymentsPage.billsAsOneTransfer', { count: counted.length })}
+                            {allTakenOut
+                              ? t('paymentRuns.supplierTakenOut')
+                              : t('paymentsPage.billsAsOneTransfer', { count: counted.length })}
                           </p>
                         </div>
-                        <div className="ms-auto text-end">
-                          <Amount
-                            value={sum(counted.map((bill) => bill.amount))}
-                            currency={currency}
-                          />
-                          <p className="mt-0.5 text-[10px] font-medium leading-[1.2] text-text-muted">
-                            {t('paymentsPage.oneTransfer')}
-                          </p>
-                        </div>
+                        {/* Nothing went to a supplier whose bills were all taken out: no amount
+                            and no transfer (lead, 10 Oct 2026). */}
+                        {allTakenOut ? null : (
+                          <div className="ms-auto text-end">
+                            <Amount
+                              value={sum(counted.map((bill) => bill.amount))}
+                              currency={currency}
+                            />
+                            <p className="mt-0.5 text-[10px] font-medium leading-[1.2] text-text-muted">
+                              {t('paymentsPage.oneTransfer')}
+                            </p>
+                          </div>
+                        )}
                       </div>
                       {group.bills.map((bill) => {
                         const due = dueNote(bill.dueDate, today)
                         const on = ticked.has(bill.billId)
-                        const saved = discountPercent(bill.discount, bill.outstanding)
+                        // A bill taken out was not paid, so no early-payment discount was taken:
+                        // its row shows what it still owes, with no saving (the server's
+                        // `owedNow`, else the item's outstanding from an older server).
+                        const out = takenOut.has(bill.billId)
+                        const owedNow = takenOut.get(bill.billId)?.owedNow ?? bill.outstanding
+                        const saved = out ? 0 : discountPercent(bill.discount, bill.outstanding)
+                        // A bill a paid run paid is due no more: no "Due in" chip on its row.
+                        const settled = paidRun && !out
                         return (
                           <div
                             key={bill.billId}
@@ -642,6 +658,9 @@ function RunBuilder({ runId }: { runId: string | null }) {
                                     })
                                   : t('paymentRuns.noDate')}
                               </p>
+                              {blocks.has(bill.billId) && !takenOut.has(bill.billId) ? (
+                                <MarkPaidBlockChip label={t(blocks.get(bill.billId)!)} />
+                              ) : null}
                               {takenOut.has(bill.billId) ? (
                                 <span
                                   className={[
@@ -655,19 +674,26 @@ function RunBuilder({ runId }: { runId: string | null }) {
                                 </span>
                               ) : null}
                             </div>
-                            <span
-                              className={[
-                                'ms-auto inline-flex items-center rounded-sm px-3 py-1 text-[10px] font-medium leading-[1.2]',
-                                DUE_CHIP[due.tone],
-                              ].join(' ')}
+                            {settled ? null : (
+                              <span
+                                className={[
+                                  'ms-auto inline-flex items-center rounded-sm px-3 py-1 text-[10px] font-medium leading-[1.2]',
+                                  DUE_CHIP[due.tone],
+                                ].join(' ')}
+                              >
+                                {t(due.key, {
+                                  count: due.days,
+                                  date: bill.dueDate ? formatDate(bill.dueDate, i18n.language) : '',
+                                })}
+                              </span>
+                            )}
+                            <div
+                              className={['w-[150px] text-end', settled ? 'ms-auto' : ''].join(' ')}
                             >
-                              {t(due.key, {
-                                count: due.days,
-                                date: bill.dueDate ? formatDate(bill.dueDate, i18n.language) : '',
-                              })}
-                            </span>
-                            <div className="w-[150px] text-end">
-                              <Amount value={bill.amount} currency={currency} />
+                              <Amount
+                                value={out ? owedNow : bill.amount}
+                                currency={currency}
+                              />
                               {saved > 0 ? (
                                 <p className="mt-0.5 text-[10px] font-medium leading-[1.2] text-[#3d5648]">
                                   {t('paymentsPage.savedEarly', { percent: saved })}
@@ -697,7 +723,14 @@ function RunBuilder({ runId }: { runId: string | null }) {
                       {t('paymentsPage.blocked.more', { count: blockedRows.length })}
                     </span>
                     {' · '}
-                    {t('paymentsPage.blocked.reason')}
+                    {/* Debit notes not accepted (undecided or refused) are held back too. */}
+                    {blockedRows.some((row) =>
+                      row.reasonCodes.some(
+                        (code) => code === 'DEBIT_NOTE_NOT_ACCEPTED' || code === 'DEBIT_NOTE_REFUSED',
+                      ),
+                    )
+                      ? t('paymentsPage.blocked.reasonWithDebitNotes')
+                      : t('paymentsPage.blocked.reason')}
                   </span>
                   <img
                     src={chevronIcon}
@@ -763,15 +796,25 @@ function RunBuilder({ runId }: { runId: string | null }) {
               <div className="flex flex-col gap-1.5">
                 <span className="flex items-center gap-0.5 text-sm font-medium leading-[1.2] text-text-primary">
                   {t('paymentsPage.paymentDate')}
-                  {required}
                 </span>
+                {/* Optional: a planned date only; the day paid is asked in Mark as paid (10 Oct 2026). */}
                 <DateField
                   value={details.paymentDate ?? ''}
-                  onChange={(paymentDate) => change({ paymentDate })}
+                  onChange={(paymentDate) => change({ paymentDate: paymentDate || null })}
                   ariaLabel={t('paymentsPage.paymentDate')}
                   min={today}
                   disabled={!editable || busy}
                 />
+                {editable && details.paymentDate ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => change({ paymentDate: null })}
+                    className="self-start text-sm font-semibold text-primary-700 hover:underline"
+                  >
+                    {t('common.clear')}
+                  </button>
+                ) : null}
                 {editable ? (
                   <span className="text-xs font-medium text-text-quaternary">
                     {t('paymentRuns.dateNote')}
@@ -779,9 +822,9 @@ function RunBuilder({ runId }: { runId: string | null }) {
                 ) : null}
               </div>
               <div className="flex flex-col gap-1.5">
+                {/* Optional: kept with the run for tracking; nothing asks for it (9 Oct 2026). */}
                 <span className="flex items-center gap-0.5 text-sm font-medium leading-[1.2] text-text-primary">
                   {t('paymentsPage.payFrom')}
-                  {required}
                 </span>
                 <Select
                   value={details.payerAccountId ?? ''}
@@ -842,10 +885,14 @@ function RunBuilder({ runId }: { runId: string | null }) {
               {[
                 [
                   t('paymentsPage.billsSelected'),
-                  t('paymentsPage.ofTotal', { selected: inRun.length, total: every.length }),
+                  t('paymentsPage.ofTotal', {
+                    selected: split ? split.count : inRun.length,
+                    total: every.length,
+                  }),
                 ],
-                [t('paymentsPage.suppliers'), String(paying.length)],
-                [t('paymentsPage.transfers'), String(paying.length)],
+                // On a paid run, the suppliers and transfers actually paid (lead, 10 Oct 2026).
+                [t('paymentsPage.suppliers'), String(payees.length)],
+                [t('paymentsPage.transfers'), String(payees.length)],
               ].map(([label, value]) => (
                 <div key={label} className="flex items-center justify-between gap-3">
                   <dt className="text-sm font-medium text-text-tertiary">{label}</dt>
@@ -857,7 +904,11 @@ function RunBuilder({ runId }: { runId: string | null }) {
                   {t('paymentsPage.billsTotal')}
                 </dt>
                 <dd>
-                  <Amount value={run?.billsTotal ?? 0} currency={currency} size="md" />
+                  <Amount
+                    value={split ? split.billsTotal : (run?.billsTotal ?? 0)}
+                    currency={currency}
+                    size="md"
+                  />
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-3">
@@ -867,7 +918,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
                 <dd className="flex items-center gap-1 text-sm font-medium text-[#3d5648]">
                   <span aria-hidden="true">-</span>
                   <Amount
-                    value={run?.discountTotal ?? 0}
+                    value={split ? split.discount : (run?.discountTotal ?? 0)}
                     currency={currency}
                     className="text-sm font-medium text-[#3d5648]"
                   />
@@ -879,7 +930,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
                 {t('paymentsPage.leavingYourAccount')}
               </span>
               <Amount
-                value={run?.netTotal ?? 0}
+                value={split ? split.paid : (run?.netTotal ?? 0)}
                 currency={currency}
                 size="lg"
                 className="whitespace-nowrap text-2xl font-semibold leading-[1.2] text-text-primary"
@@ -901,13 +952,13 @@ function RunBuilder({ runId }: { runId: string | null }) {
             <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">
               {t('paymentsPage.whoGetsPaid')}
             </h2>
-            {paying.length === 0 ? (
+            {payees.length === 0 ? (
               <p className="mt-4 border-t border-surface-background pt-4 text-sm font-medium text-text-tertiary">
                 {t('paymentsPage.nobodyYet')}
               </p>
             ) : (
               <ul className="mt-4 flex flex-col gap-4 border-t border-surface-background pt-4">
-                {paying.map((group) => (
+                {payees.map((group) => (
                   <li key={group.key} className="flex items-center gap-3">
                     <SupplierTile name={group.name} />
                     <div className="min-w-0 flex-1">
@@ -931,51 +982,6 @@ function RunBuilder({ runId }: { runId: string | null }) {
         </aside>
       </div>
 
-      {/* 3: how to send it */}
-      <section id="format" className="rounded-md bg-surface-card p-5">
-        <SectionTitle step={3} title={t('paymentsPage.howToSend')} />
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
-          {FORMATS.map((option) => {
-            const active = option.id === details.format
-            return (
-              <button
-                key={option.id}
-                type="button"
-                disabled={!editable || busy}
-                onClick={() => change({ format: option.id })}
-                aria-pressed={active}
-                className={[
-                  'flex items-start gap-3 rounded-sm border p-4 text-start transition-colors disabled:cursor-default',
-                  active
-                    ? 'border-primary-700 bg-primary-25'
-                    : 'border-border-subtle bg-white hover:border-primary-300',
-                ].join(' ')}
-              >
-                <img src={FORMAT_ICON[option.id]} alt="" className="mt-0.5 size-5 shrink-0" />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-base font-medium leading-[1.2] text-text-primary">
-                    {t(option.titleKey)}
-                  </span>
-                  <span className="mt-1 block text-xs font-medium leading-[1.3] text-text-quaternary">
-                    {t(option.noteKey)}
-                  </span>
-                </span>
-                {active ? (
-                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary-700">
-                    <img src={tickIcon} alt="" className="size-3 brightness-0 invert" />
-                  </span>
-                ) : null}
-              </button>
-            )
-          })}
-        </div>
-        {details.format === 'PAIN_001' && !details.payerAccountId ? (
-          <p className="mt-3 text-xs font-medium text-pending-700">
-            {t('paymentRuns.painNeedsAccount')}
-          </p>
-        ) : null}
-      </section>
-
       {addingAccount ? (
         <AddPayerAccountModal
           onClose={() => setAddingAccount(false)}
@@ -990,19 +996,62 @@ function RunBuilder({ runId }: { runId: string | null }) {
         <MarkPaidModal
           run={run}
           items={detail.items}
+          today={today}
+          refused={refusedBill}
           onClose={() => setConfirmingPaid(false)}
           onCancelInstead={() => {
             setConfirmingPaid(false)
-            setCancellingSent(true)
+            // A run made before bank files were dropped asks whether the bank paid nothing; any
+            // other is cancelled as from the menu.
+            if (run.state === 'EXPORTED') setCancellingSent(true)
+            else setCancellingUnsent(true)
           }}
-          onConfirm={async (takeOut) => {
+          onConfirm={async (takeOut, paymentDate) => {
             try {
-              await markRunPaid(runId, takeOut)
+              await markRunPaid(runId, takeOut, paymentDate)
               setConfirmingPaid(false)
+              // A refusal from an earlier try no longer applies to the run now paid.
+              setNotice(null)
+              setRefusedBill(null)
               loaded.retry()
             } catch (error) {
               setConfirmingPaid(false)
-              setNotice(refusalOf(error, t, 'markPaid'))
+              // The bill a refusal is about, when the screen can tell: the one bill left in the
+              // run that the server flagged for that reason.
+              const out = new Set(takeOut.map((entry) => entry.billId))
+              const knownBill = (code: string) => {
+                const flagged = detail.items.filter(
+                  (item) => item.markPaidBlock?.code === code && !out.has(item.billId),
+                )
+                return flagged.length === 1 ? flagged[0].supplierBillNumber : null
+              }
+              setNotice(refusalOf(error, t, 'markPaid', knownBill))
+              setRefusedBill(
+                refusedBillOf(
+                  error,
+                  detail.items.map((item) => item.billId),
+                ),
+              )
+            }
+          }}
+        />
+      ) : null}
+      {cancellingUnsent && runId && run ? (
+        <ConfirmModal
+          title={t('paymentRuns.confirmCancel.title', { reference: run.reference })}
+          body={t('paymentRuns.confirmCancel.body')}
+          confirm={t('paymentRuns.cancel')}
+          danger
+          onClose={() => setCancellingUnsent(false)}
+          onConfirm={async () => {
+            try {
+              await cancelRun(runId)
+              setCancellingUnsent(false)
+              setNotice(null)
+              loaded.retry()
+            } catch (error) {
+              setCancellingUnsent(false)
+              setNotice(refusalOf(error, t))
             }
           }}
         />
@@ -1015,6 +1064,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
             try {
               await cancelRun(runId, { reason })
               setCancellingSent(false)
+              setNotice(null)
               loaded.retry()
             } catch (error) {
               setCancellingSent(false)

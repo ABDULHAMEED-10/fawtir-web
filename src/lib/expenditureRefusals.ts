@@ -93,6 +93,8 @@ const REFUSALS: Record<string, string> = {
   BILL_PAYMENT_MISMATCHED: 'paymentRuns.refused.mismatched',
   // A single payment on a supplier debit note that was refused (owner's sentence, 8 Oct 2026).
   BILL_PAYMENT_DEBIT_NOTE_REFUSED: 'apiErrors.refused.billPaymentDebitNoteRefused',
+  // A debit note nobody has accepted is not owed yet (backend #480, 10 Oct 2026).
+  BILL_PAYMENT_DEBIT_NOTE_NOT_ACCEPTED: 'apiErrors.refused.debitNoteNotAccepted',
   BILL_PAYMENT_CURRENCY_MISMATCH: 'apiErrors.refused.paymentCurrencyMismatch',
   BILL_PAYMENT_ALREADY_REVERSED: 'apiErrors.refused.paymentAlreadyReversed',
   // Reversing a payment of a bill in a run whose bank file is made (owner's sentence, 8 Oct 2026).
@@ -105,11 +107,6 @@ const REFUSALS: Record<string, string> = {
   // The supplier import, a file whose header row is neither template's (owner's Round 5
   // answer 5, 2 Oct 2026: his sentence in both languages). The detail names the column, in English.
   SUPPLIER_IMPORT_HEADER_NOT_RECOGNISED: 'stagedImport.refused.headerNotRecognised',
-  // Confirming a supplier's changed bank details (owner, 8 Oct 2026): by the person who changed
-  // them, and without the tick when it is required. The supplier form says the first in place of
-  // Confirm and its dialog asks for the tick, so these are what a stale page reads.
-  SUPPLIER_BANK_CONFIRM_SAME_PERSON: 'supplierForm.bankConfirm.samePerson',
-  SUPPLIER_BANK_CONFIRM_CHECK_REQUIRED: 'supplierForm.bankConfirm.checkRequired',
   // Reachable from Settings > Bill approvals since E-17.
   APPROVAL_POLICY_INVALID: 'apiErrors.refused.approvalPolicyInvalid',
 }

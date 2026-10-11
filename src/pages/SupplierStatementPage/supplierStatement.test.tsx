@@ -12,6 +12,7 @@ import {
   customRangeProblem,
   emailBlocker,
   entryLink,
+  memoAmountOf,
   periodRange,
   periodTotals,
 } from '../../lib/supplierStatement'
@@ -222,7 +223,10 @@ describe('The supplier statement, wired to the API', () => {
     expect(screen.getByRole('link', { name: 'SOHAR-1002' }).getAttribute('href')).toBe(
       '/expenditure/bills/bill-1',
     )
-    expect(screen.getByText('−100.000')).toBeTruthy()
+    // Every table figure carries the rial sign, a minus before it (E2E 10 Oct, F-14).
+    const refundCell = screen.getAllByRole('cell').find((cell) => cell.textContent === '−100.000')
+    expect(refundCell).toBeTruthy()
+    expect(refundCell!.querySelector('svg')).not.toBeNull()
     // The ageing strip (Figma 163:28602): four figures, the design's labels, no paragraph around them.
     expect(screen.getByText('Late by 60 or more')).toBeTruthy()
     expect(screen.getByText('Not due yet')).toBeTruthy()
@@ -570,5 +574,386 @@ describe('statement helpers', () => {
       'supplierStatement.email.switchedOff',
     )
     expect(emailBlocker({ ...DETAIL.profile, emailRecipients: [] }, false)).toBeNull()
+  })
+})
+
+/**
+ * The statement's later kinds (owner's answers of 8 Oct 2026): an early-payment discount lowers
+ * what they billed, the supplier's refund of an overpayment gives back what was paid, and credit
+ * used on another bill is shown but moves nothing. The running balance is always the server's.
+ */
+describe('a statement with discounts, refunds and credit used', () => {
+  const LATER: SupplierStatementDto = {
+    ...STATEMENT,
+    opening: 200,
+    bills: 1200,
+    credits: 0,
+    payments: 1300,
+    discounts: 24,
+    overpaymentRefunds: 40,
+    overpaid: 50,
+    closing: 116,
+    entries: [
+      {
+        date: '2026-07-27',
+        kind: 'BILL',
+        documentId: 'bill-1',
+        reference: 'SOHAR-1002',
+        amount: 1200,
+        runningBalance: 1400,
+      },
+      {
+        date: '2026-08-01',
+        kind: 'PAYMENT',
+        documentId: 'pay-1',
+        reference: 'TRF-9',
+        amount: 1300,
+        runningBalance: 100,
+      },
+      {
+        date: '2026-08-02',
+        kind: 'DISCOUNT',
+        documentId: 'bill-2',
+        reference: 'SOHAR-1005',
+        amount: 24,
+        runningBalance: 76,
+      },
+      {
+        date: '2026-08-10',
+        kind: 'OVERPAYMENT_REFUND',
+        documentId: 'bill-1',
+        reference: 'RF-1',
+        amount: 30,
+        runningBalance: 106,
+      },
+      {
+        date: '2026-08-20',
+        kind: 'OVERPAYMENT_CREDIT_APPLIED',
+        documentId: 'bill-1',
+        reference: null,
+        amount: 20,
+        runningBalance: 106,
+      },
+      // A second refund of the same bill: its own line.
+      {
+        date: '2026-08-24',
+        kind: 'OVERPAYMENT_REFUND',
+        documentId: 'bill-1',
+        reference: 'RF-2',
+        amount: 10,
+        runningBalance: 116,
+      },
+    ],
+  }
+  let statement: SupplierStatementDto
+
+  beforeEach(() => {
+    statement = LATER
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.startsWith(`${ONE}/statement?`)) return json(200, statement)
+      return base(url, init)
+    })
+  })
+
+  /** The table row whose kind chip reads `kind`, as its six cells' text. */
+  function rowOf(kind: string, nth = 0): HTMLElement[] {
+    const chip = screen.getAllByText(kind, { selector: 'span' })[nth]
+    return Array.from(chip.closest('tr')!.querySelectorAll('td'))
+  }
+
+  it('puts each in its column, keeps the server running balance, and links the bill', async () => {
+    renderStatement()
+    await screen.findByRole('heading', { level: 1, name: 'Statement' })
+
+    const discount = rowOf('Early-payment discount')
+    expect(discount[3].textContent).toBe('−24.000')
+    expect(discount[4].textContent).toBe('')
+    expect(discount[5].textContent).toBe('76.000')
+    expect(within(discount[1]).getByRole('link', { name: 'SOHAR-1005' }).getAttribute('href')).toBe(
+      '/expenditure/bills/bill-2',
+    )
+
+    const refund = rowOf('Refund from the supplier')
+    expect(refund[3].textContent).toBe('')
+    expect(refund[4].textContent).toBe('−30.000')
+    expect(refund[5].textContent).toBe('106.000')
+    expect(within(refund[1]).getByRole('link', { name: 'RF-1' }).getAttribute('href')).toBe(
+      '/expenditure/bills/bill-1',
+    )
+    expect(rowOf('Refund from the supplier', 1)[4].textContent).toBe('−10.000')
+
+    // Credit used moves nothing: no column, its amount under the reference, and no balance of
+    // its own (owner, 9 Oct 2026): the cell is blank and a note says why.
+    const used = rowOf('Credit used')
+    expect(used[3].textContent).toBe('')
+    expect(used[4].textContent).toBe('')
+    expect(used[1].textContent).toContain('20.000')
+    expect(used[1].querySelector('svg')).toBeTruthy()
+    expect(within(used[1]).getByText('Already counted when the bill was overpaid')).toBeTruthy()
+    expect(used[5].textContent).toBe('')
+    // Only that line: the others keep their balance and carry no note.
+    expect(screen.getAllByText('Already counted when the bill was overpaid')).toHaveLength(1)
+    expect(rowOf('Refund from the supplier', 1)[5].textContent).toBe('116.000')
+
+    // The footer adds up its columns: billed less the discount, paid less the refunds.
+    const footer = screen.getByText('Over the period').closest('tr')!
+    const cells = footer.querySelectorAll('td')
+    expect(cells[1].textContent).toBe('1,176.000')
+    expect(cells[2].textContent).toBe('1,260.000')
+    // And the sum above the table names both, so it still reads to the closing balance.
+    expect(screen.getAllByText('Early-payment discount', { selector: 'p' })).toHaveLength(1)
+    expect(screen.getAllByText('Refund from the supplier', { selector: 'p' })).toHaveLength(1)
+    expect(screen.getAllByText('40.000').length).toBeGreaterThan(0)
+  })
+
+  it('says "Overpaid by" beside the closing balance, with the rial sign', async () => {
+    renderStatement()
+    await screen.findByRole('heading', { level: 1, name: 'Statement' })
+    const line = screen.getByText(
+      (_, node) => node?.tagName === 'P' && /^Overpaid by/.test(node.textContent ?? ''),
+    )
+    expect(line.textContent).toBe('Overpaid by OMR50.000')
+    expect(line.querySelector('svg')).toBeTruthy()
+  })
+
+  it('names the bill the credit was used on, from the line reference', async () => {
+    statement = {
+      ...LATER,
+      entries: LATER.entries.map((entry) =>
+        entry.kind === 'OVERPAYMENT_CREDIT_APPLIED' ? { ...entry, reference: 'SOHAR-1010' } : entry,
+      ),
+    }
+    renderStatement()
+    await screen.findByRole('heading', { level: 1, name: 'Statement' })
+    expect(rowOf('Credit used on SOHAR-1010')[5].textContent).toBe('')
+  })
+
+  it('reads in Arabic, with the rial sign and three decimals', async () => {
+    await i18n.changeLanguage('ar')
+    statement = {
+      ...LATER,
+      entries: LATER.entries.map((entry) =>
+        entry.kind === 'OVERPAYMENT_CREDIT_APPLIED' ? { ...entry, reference: 'SOHAR-1010' } : entry,
+      ),
+    }
+    renderStatement()
+    expect(await screen.findAllByText('خصم سداد مبكر', { selector: 'span' })).toHaveLength(1)
+    expect(screen.getAllByText('استرداد من المورّد', { selector: 'span' })).toHaveLength(2)
+    expect(screen.getByText('رصيد مستخدم في SOHAR-1010')).toBeTruthy()
+    expect(
+      within(rowOf('رصيد مستخدم في SOHAR-1010')[1]).getByText(
+        'احتُسب عند دفع مبلغ زائد على الفاتورة',
+      ),
+    ).toBeTruthy()
+    const line = screen.getByText(
+      (_, node) => node?.tagName === 'P' && /^دُفع بزيادة/.test(node.textContent ?? ''),
+    )
+    expect(line.textContent).toBe('دُفع بزيادة OMR50.000')
+    expect(line.querySelector('svg')).toBeTruthy()
+  })
+
+  it('draws none of it for a statement without them, and a kind it does not know by its name', async () => {
+    statement = {
+      ...STATEMENT,
+      entries: [
+        ...STATEMENT.entries,
+        {
+          date: '2026-08-30',
+          kind: 'SOMETHING_NEW' as SupplierStatementDto['entries'][number]['kind'],
+          documentId: 'x-1',
+          reference: 'X-1',
+          amount: 5,
+          runningBalance: 1000,
+        },
+      ],
+    }
+    renderStatement()
+    await screen.findByRole('heading', { level: 1, name: 'Statement' })
+    expect(screen.queryByText(/Overpaid by/)).toBeNull()
+    expect(screen.queryByText('Early-payment discount')).toBeNull()
+    expect(screen.queryByText('Refund from the supplier')).toBeNull()
+    expect(rowOf('SOMETHING_NEW')[3].textContent).toBe('')
+  })
+
+  it('sorts the three kinds into columns, links each to its bill, and totals the columns', () => {
+    expect(columnsOf('DISCOUNT', 24)).toEqual({ billed: -24, paid: null })
+    expect(columnsOf('OVERPAYMENT_REFUND', 30)).toEqual({ billed: null, paid: -30 })
+    expect(columnsOf('OVERPAYMENT_CREDIT_APPLIED', 20)).toEqual({ billed: null, paid: null })
+    expect(memoAmountOf('OVERPAYMENT_CREDIT_APPLIED', 20)).toBe(20)
+    expect(memoAmountOf('PAYMENT', 20)).toBeNull()
+    for (const kind of ['DISCOUNT', 'OVERPAYMENT_REFUND', 'OVERPAYMENT_CREDIT_APPLIED'] as const)
+      expect(entryLink(kind, 'b-1')).toBe('/expenditure/bills/b-1')
+    expect(periodTotals(LATER)).toEqual({ billedNet: 1176, paid: 1260 })
+    // A server without the two totals: as before.
+    expect(periodTotals(STATEMENT)).toEqual({ billedNet: 1100, paid: 300 })
+  })
+})
+
+describe('a credit note the supplier refunded', () => {
+  // The note's line took 25.000 off; the supplier paid 10.000 of it back in two refunds, so the
+  // statement closes 10.000 higher than the note alone left it. The balances are the server's.
+  const REFUNDED: SupplierStatementDto = {
+    ...STATEMENT,
+    opening: 0,
+    bills: 300,
+    credits: 15,
+    payments: 0,
+    closing: 285,
+    entries: [
+      {
+        date: '2026-07-27',
+        kind: 'BILL',
+        documentId: 'bill-1',
+        reference: 'SOHAR-1002',
+        amount: 300,
+        runningBalance: 300,
+      },
+      {
+        date: '2026-08-01',
+        kind: 'CREDIT_NOTE',
+        documentId: 'cn-1',
+        reference: 'SOHAR-CN-7',
+        amount: 25,
+        runningBalance: 275,
+      },
+      {
+        date: '2026-08-05',
+        kind: 'CREDIT_NOTE_REFUND',
+        documentId: 'cn-1',
+        reference: 'RF-CN-1',
+        amount: 6,
+        runningBalance: 281,
+      },
+      // A refund given no reference of its own carries the note's number.
+      {
+        date: '2026-08-06',
+        kind: 'CREDIT_NOTE_REFUND',
+        documentId: 'cn-1',
+        reference: 'SOHAR-CN-7',
+        amount: 4,
+        runningBalance: 285,
+      },
+    ],
+  }
+
+  beforeEach(() => {
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.startsWith(`${ONE}/statement?`)) return json(200, REFUNDED)
+      return base(url, init)
+    })
+  })
+
+  function rowOf(kind: string, nth = 0): HTMLElement[] {
+    const chip = screen.getAllByText(kind, { selector: 'span' })[nth]
+    return Array.from(chip.closest('tr')!.querySelectorAll('td'))
+  }
+
+  it('gives back in the credit note column what the note took off, and links the note', async () => {
+    renderStatement()
+    await screen.findByRole('heading', { level: 1, name: 'Statement' })
+
+    const note = rowOf('Credit')
+    expect(note[3].textContent).toBe('−25.000')
+
+    const refund = rowOf('Credit note refunded')
+    expect(refund[3].textContent).toBe('6.000')
+    expect(refund[4].textContent).toBe('')
+    expect(refund[5].textContent).toBe('281.000')
+    expect(within(refund[1]).getByRole('link', { name: 'RF-CN-1' }).getAttribute('href')).toBe(
+      '/expenditure/credit-notes/cn-1',
+    )
+    const second = rowOf('Credit note refunded', 1)
+    expect(second[3].textContent).toBe('4.000')
+    expect(second[5].textContent).toBe('285.000')
+
+    // The footer's billed column adds up its lines: 300 less the 15 net credits.
+    const footer = screen.getByText('Over the period').closest('tr')!
+    expect(footer.querySelectorAll('td')[1].textContent).toBe('285.000')
+    expect(screen.queryByText('Refund from the supplier')).toBeNull()
+  })
+
+  it('reads in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    renderStatement()
+    expect(await screen.findAllByText('استُرد الإشعار الدائن', { selector: 'span' })).toHaveLength(
+      2,
+    )
+  })
+
+  it('puts the refund in the billed column and links it to the credit note', () => {
+    expect(columnsOf('CREDIT_NOTE_REFUND', 6)).toEqual({ billed: 6, paid: null })
+    expect(memoAmountOf('CREDIT_NOTE_REFUND', 6)).toBeNull()
+    expect(entryLink('CREDIT_NOTE_REFUND', 'cn-1')).toBe('/expenditure/credit-notes/cn-1')
+    expect(periodTotals(REFUNDED)).toEqual({ billedNet: 285, paid: 0 })
+  })
+})
+
+// Browser re-check of 11 Oct 2026 (C-5): a debit note's line read "BILL" / «فاتورة».
+describe("a supplier debit note's line", () => {
+  const WITH_NOTE: SupplierStatementDto = {
+    ...STATEMENT,
+    bills: 1205,
+    closing: 1005,
+    entries: [
+      { ...STATEMENT.entries[0], documentTypeCode: '380' },
+      {
+        date: '2026-07-30',
+        kind: 'BILL',
+        documentId: 'dn-1',
+        reference: 'SOHAR-DN-1',
+        amount: 5,
+        runningBalance: 1405,
+        documentTypeCode: '383',
+      },
+      ...STATEMENT.entries.slice(1).map((entry) => ({
+        ...entry,
+        runningBalance: entry.runningBalance + 5,
+      })),
+    ],
+  }
+
+  beforeEach(() => {
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.startsWith(`${ONE}/statement?`)) return json(200, WITH_NOTE)
+      return base(url, init)
+    })
+  })
+
+  const kindOf = (reference: string) =>
+    screen.getByRole('link', { name: reference }).closest('tr')!.querySelectorAll('td')[2]
+      .textContent
+
+  it('is called a debit note when the server says so, and a bill otherwise', async () => {
+    renderStatement()
+    await screen.findByRole('link', { name: 'SOHAR-DN-1' })
+    expect(kindOf('SOHAR-DN-1')).toBe('Debit note')
+    expect(kindOf('SOHAR-1002')).toBe('Bill')
+  })
+
+  it('reads in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    renderStatement()
+    await screen.findByRole('link', { name: 'SOHAR-DN-1' })
+    expect(kindOf('SOHAR-DN-1')).toBe('إشعار مدين')
+    expect(kindOf('SOHAR-1002')).toBe('فاتورة')
+  })
+
+  it('stays a bill from a server that does not say which document it is', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.startsWith(`${ONE}/statement?`))
+        return json(200, {
+          ...WITH_NOTE,
+          entries: WITH_NOTE.entries.map((entry) => ({ ...entry, documentTypeCode: undefined })),
+        })
+      if (url === '/api/v1/me/entitlements') return json(200, who)
+      if (url === ONE) return json(200, detail)
+      throw new Error(`unexpected ${url}`)
+    })
+    renderStatement()
+    await screen.findByRole('link', { name: 'SOHAR-DN-1' })
+    expect(kindOf('SOHAR-DN-1')).toBe('Bill')
   })
 })

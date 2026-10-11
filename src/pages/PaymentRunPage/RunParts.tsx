@@ -1,8 +1,9 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ActionMenu, Modal, RialMark, withRial } from '../../components/ui'
+import { ActionMenu, DateField, Modal, RialMark, withRial } from '../../components/ui'
 import { CheckboxRow, TextAreaField, TextField } from '../../components/form'
+import { Field } from '../ConsolePage/subscriptions/modalFields'
 import {
   addToRun,
   cancelRun,
@@ -21,15 +22,16 @@ import { formatAmount } from '../../lib/format'
 import {
   BIC_SHAPE,
   actionsFor,
-  formatLabelKey,
   ibanValid,
+  markPaidBlockKey,
+  markPaidDateFor,
+  markPaidDateProblem,
   refusalOf,
   sum,
   supplierTile,
 } from '../../lib/paymentRuns'
 import spreadsheetIcon from '../../assets/payment-run-menu/sheet.svg'
 import emailIcon from '../../assets/payment-run-menu/email.svg'
-import bankIcon from '../../assets/payment-run-menu/format.svg'
 import copyIcon from '../../assets/payment-run-menu/copy.svg'
 import resetIcon from '../../assets/payment-run-menu/reset.svg'
 import deleteIcon from '../../assets/payment-run-menu/delete.svg'
@@ -199,28 +201,49 @@ export function ConfirmModal({
 }
 
 /**
- * Mark a sent run paid (owner, 8 Oct 2026): every bill of the run is listed, and any can be taken
- * out of the run with a reason, as the bank did not pay it. A bill the server says cannot be marked
- * paid now (`markPaidBlock`) starts ticked. With a bill ticked the button reads "Mark the others
- * paid"; with every bill ticked there is nothing left to mark paid, so the button becomes the
- * run's own "Cancel the run" and leads to that dialog instead.
+ * Mark a run paid (owner, 8 Oct 2026; from a draft or scheduled run too since 9 Oct 2026): every
+ * bill of the run is listed, and any can be taken out of the run with a reason, as it was not paid.
+ * A bill the server says cannot be marked paid now (`markPaidBlock`) starts ticked, with why beside
+ * it, as on the run page, and so does the bill the last refusal named. With a bill ticked the
+ * button reads "Mark the others paid"; with every bill ticked there is nothing left to mark paid,
+ * so the button becomes the run's own "Cancel the run" and leads to that dialog instead.
+ *
+ * It asks the day the suppliers were paid (owner, 10 Oct 2026), as Record payment does: it starts
+ * on the run's payment date, or today in Muscat when there is none or it is in the future, and
+ * refuses a future day. It is hidden while the button reads "Cancel the run".
  */
 export function MarkPaidModal({
   run,
   items,
+  today,
+  refused = null,
   onConfirm,
   onCancelInstead,
   onClose,
 }: {
   run: PaymentRunDto
   items: PaymentRunItemDto[]
-  onConfirm: (takeOut: TakeOut[]) => Promise<void>
+  /** The Muscat day, so "not in the future" means what the server means by it. */
+  today: string
+  /**
+   * The bill the last Mark as paid refusal named, with the words for why: ticked to be taken out
+   * and flagged, as a markPaidBlock is.
+   */
+  refused?: { billId: string; key: string | null } | null
+  onConfirm: (takeOut: TakeOut[], paymentDate: string) => Promise<void>
   onCancelInstead: () => void
   onClose: () => void
 }) {
   const { t, i18n } = useTranslation()
+  const [paymentDate, setPaymentDate] = useState(() => markPaidDateFor(run, today))
+  const [dateProblem, setDateProblem] = useState<string | null>(null)
   const [ticked, setTicked] = useState<Set<string>>(
-    () => new Set(items.filter((item) => item.markPaidBlock).map((item) => item.billId)),
+    () =>
+      new Set(
+        items
+          .filter((item) => item.markPaidBlock || item.billId === refused?.billId)
+          .map((item) => item.billId),
+      ),
   )
   const [reasons, setReasons] = useState<Record<string, string>>({})
   const [missing, setMissing] = useState<Set<string>>(new Set())
@@ -251,8 +274,10 @@ export function MarkPaidModal({
       takeOut.filter((entry) => !entry.reason).map((entry) => entry.billId),
     )
     setMissing(unexplained)
-    if (unexplained.size > 0) return
-    await onConfirm(takeOut)
+    const problem = markPaidDateProblem(paymentDate, today)
+    setDateProblem(problem)
+    if (unexplained.size > 0 || problem) return
+    await onConfirm(takeOut, paymentDate)
   }
 
   return (
@@ -274,10 +299,33 @@ export function MarkPaidModal({
       onClose={onClose}
       onConfirm={confirm}
     >
+      {everything ? null : (
+        <div className="mt-5">
+          <Field
+            name="paymentDate"
+            label={t('billDetail.pay.date')}
+            required
+            error={dateProblem ? t(dateProblem) : undefined}
+          >
+            <DateField
+              value={paymentDate}
+              onChange={(next) => {
+                setPaymentDate(next)
+                setDateProblem(null)
+              }}
+              max={today}
+              ariaLabel={t('billDetail.pay.date')}
+            />
+          </Field>
+        </div>
+      )}
       {items.length > 0 ? (
         <ul className="mt-5 overflow-hidden rounded-sm border border-border-subtle">
           {items.map((item, index) => {
             const on = ticked.has(item.billId)
+            const block =
+              markPaidBlockKey(item.markPaidBlock?.code) ??
+              (item.billId === refused?.billId ? refused.key : null)
             return (
               <li
                 key={item.billId}
@@ -294,6 +342,7 @@ export function MarkPaidModal({
                     <p className="mt-0.5 text-[10px] font-medium leading-[1.2] text-text-muted">
                       {item.supplierName ?? t('paymentRuns.noSupplier')}
                     </p>
+                    {block ? <MarkPaidBlockChip label={t(block)} /> : null}
                   </div>
                   <div className="ms-auto">
                     <Amount value={item.amount} currency={run.currency} />
@@ -327,6 +376,18 @@ export function MarkPaidModal({
         </ul>
       ) : null}
     </ConfirmModal>
+  )
+}
+
+/**
+ * Why a bill in a live run cannot be marked paid now (`markPaidBlock`): "On hold" and the like,
+ * on its row of the run and in the Mark as paid dialog.
+ */
+export function MarkPaidBlockChip({ label }: { label: string }) {
+  return (
+    <span className="mt-1 inline-flex items-center rounded-sm bg-pending-100 px-3 py-1 text-[10px] font-medium leading-[1.2] text-pending-700">
+      {label}
+    </span>
   )
 }
 
@@ -508,7 +569,8 @@ export function AddPayerAccountModal({
  * The run's "3 Dot" menu (Figma 163:24153): this run, start again, delete.
  *
  * Copying, resetting and deleting are the API's own calls. A spreadsheet export and a remittance
- * e-mail have nothing behind them yet: each says so when chosen.
+ * e-mail have nothing behind them yet: each says so when chosen. "Change the bank format" is not
+ * drawn: Fawtir makes no bank files (owner, 9 Oct 2026).
  */
 export function RunMenu({
   run,
@@ -598,14 +660,6 @@ export function RunMenu({
             onSelect: notYet,
           },
           {
-            id: 'format',
-            labelKey: 'paymentRuns.menu.changeFormat',
-            descriptionKey: 'paymentRuns.menu.changeFormatNote',
-            values: { format: t(formatLabelKey(run.format)) },
-            icon: bankIcon,
-            to: `/expenditure/payments/${run.id}#format`,
-          },
-          {
             id: 'copy',
             sectionKey: 'paymentRuns.menu.startAgain',
             labelKey: 'paymentRuns.menu.copyRun',
@@ -657,7 +711,8 @@ export function RunMenu({
         <ConfirmModal
           title={t('paymentRuns.confirmCancel.title', { reference: run.reference })}
           body={t('paymentRuns.confirmCancel.body')}
-          confirm={t('paymentRuns.menu.delete')}
+          // The run is cancelled, not deleted: the button says so, as the run's other cancel does.
+          confirm={t('paymentRuns.cancel')}
           danger
           onClose={() => setConfirming(null)}
           onConfirm={remove}

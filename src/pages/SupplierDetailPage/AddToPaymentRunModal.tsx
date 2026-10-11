@@ -283,16 +283,18 @@ export function AddToPaymentRunModal({
                     {/* A refused debit note says so in the run page's word, not "Rejected". */}
                     {bill.reasonCodes.includes('DEBIT_NOTE_REFUSED')
                       ? t(REASON_KEYS.DEBIT_NOTE_REFUSED)
-                      : bill.reasonCodes.includes('AWAITING_APPROVALS')
-                        ? t('supplierPay.bill.waitingApproval', {
-                            given: bill.approvalsGiven ?? 0,
-                            required: bill.approvalsRequired ?? 1,
-                          })
-                        : bill.reasonCodes.includes('ON_HOLD')
-                          ? t('supplierPay.bill.onHold')
-                          : bill.reasonCodes.includes('MISMATCH')
-                            ? t('supplierPay.bill.mismatch')
-                            : t('supplierPay.bill.rejected')}
+                      : bill.reasonCodes.includes('DEBIT_NOTE_NOT_ACCEPTED')
+                        ? t(REASON_KEYS.DEBIT_NOTE_NOT_ACCEPTED)
+                        : bill.reasonCodes.includes('AWAITING_APPROVALS')
+                          ? t('supplierPay.bill.waitingApproval', {
+                              given: bill.approvalsGiven ?? 0,
+                              required: bill.approvalsRequired ?? 1,
+                            })
+                          : bill.reasonCodes.includes('ON_HOLD')
+                            ? t('supplierPay.bill.onHold')
+                            : bill.reasonCodes.includes('MISMATCH')
+                              ? t('supplierPay.bill.mismatch')
+                              : t('supplierPay.bill.rejected')}
                   </span>
                 </span>
                 <span className="shrink-0 text-end">

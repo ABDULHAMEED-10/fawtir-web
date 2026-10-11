@@ -41,7 +41,9 @@ function UploadDebitNote() {
         current={t('supplierDebitNotes.upload.breadcrumb')}
       />
 
-      <div className="-mt-2">
+      {/* 16 px under the breadcrumb, as on a note's own page: any closer and the Arabic
+          breadcrumb runs into the title. */}
+      <div>
         <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
           {uploaded
             ? t('supplierDebitNotes.upload.title')

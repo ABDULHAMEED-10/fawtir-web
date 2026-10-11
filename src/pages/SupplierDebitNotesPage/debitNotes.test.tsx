@@ -10,6 +10,7 @@ import type {
   DebitNoteSummaryDto,
 } from '../../api/expenditure/notes'
 import { toDebitNoteItem } from '../../lib/supplierNoteList'
+import { debitEffect } from '../../lib/supplierDebitNotes'
 import { SupplierDebitNotesPage } from './SupplierDebitNotesPage'
 import { SupplierDebitNoteDetailPage } from '../SupplierDebitNoteDetailPage'
 
@@ -210,7 +211,7 @@ describe('Debit notes list, wired to the API', () => {
       expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
         'All10',
         'Accepted5',
-        'Rejected3',
+        'Refused3',
       ]),
     )
   })
@@ -240,7 +241,7 @@ describe('Debit notes list, wired to the API', () => {
       expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
         'All1',
         'Accepted0',
-        'Rejected0',
+        'Refused0',
       ]),
     )
 
@@ -703,6 +704,47 @@ describe("a debit note's You'd pay", () => {
     await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
     expect(await youdPay('ستدفع')).toEqual({ text: '300.000', rial: true })
   })
+
+  // Browser re-check of 11 Oct 2026 (W-2): with a credit on the bill the tiles read
+  // 60.000 + 5.000 = 55.000. Both ends are now what the bill still owes.
+  it('adds up once a credit has lowered the bill: what it still owes + the charge', async () => {
+    billRows = [{ ...BILL_ROW, totalIncludingVat: 60, outstandingAmount: 50 }]
+    notes = [note({ status: 'ACCEPTED', totalIncludingVat: 5, amountDue: 5, outstandingAmount: 5 })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(await youdPay('The bill still owes')).toEqual({ text: '50.000', rial: true })
+    expect(await youdPay("You'd pay")).toEqual({ text: '55.000', rial: true })
+    expect(screen.queryByText('They billed')).toBeNull()
+  })
+
+  it('keeps "They billed" while nothing has lowered the bill', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(await youdPay('They billed')).toEqual({ text: '300.000', rial: true })
+    expect(screen.queryByText('The bill still owes')).toBeNull()
+  })
+
+  it('says what the bill still owes in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    billRows = [{ ...BILL_ROW, totalIncludingVat: 60, outstandingAmount: 50 }]
+    notes = [note({ status: 'ACCEPTED', totalIncludingVat: 5, amountDue: 5, outstandingAmount: 5 })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(await youdPay('المتبقي على الفاتورة')).toEqual({ text: '50.000', rial: true })
+    expect(await youdPay('ستدفع')).toEqual({ text: '55.000', rial: true })
+  })
+
+  it('works the tiles out on one basis', () => {
+    const bill = { totalIncludingVat: 60, outstandingAmount: 50 }
+    expect(debitEffect(bill, 5, false)).toEqual({ billed: 50, reduced: true, willPay: 55 })
+    expect(debitEffect(bill, 5, true)).toEqual({ billed: 50, reduced: true, willPay: 50 })
+    expect(debitEffect({ totalIncludingVat: 60, outstandingAmount: 60 }, 0.1, false)).toEqual({
+      billed: 60,
+      reduced: false,
+      willPay: 60.1,
+    })
+    expect(debitEffect(null, 5, false)).toEqual({ billed: null, reduced: false, willPay: null })
+  })
 })
 
 // Owner's answer C9 (8 Oct 2026): someone without invoice.approve is offered no decision.
@@ -726,5 +768,83 @@ describe('a debit note for someone who may only read', () => {
       expect(screen.queryByRole('button', { name: 'Refuse it' }), status).toBeNull()
       view.unmount()
     }
+  })
+})
+
+describe('the end-to-end check of 10 Oct 2026', () => {
+  const PAYER: Entitlements = {
+    ...APPROVER,
+    permissions: ['invoice.read', 'invoice.approve', 'invoice.payment.manage'],
+  }
+
+  // F-20: a Viewer saw "Upload a debit note"; Credit notes hides its Upload.
+  it('draws Upload a debit note only for someone who may record one, hidden for a reader', async () => {
+    who = READER
+    const view = renderList()
+    await screen.findByText('QMS-DN-1')
+    expect(screen.queryByRole('link', { name: 'Upload a debit note' })).toBeNull()
+    expect(screen.queryByText('Upload a debit note')).toBeNull()
+    view.unmount()
+
+    who = PAYER
+    forgetEntitlements()
+    renderList()
+    expect(await screen.findByRole('link', { name: 'Upload a debit note' })).toBeTruthy()
+  })
+
+  // F-24: the list said "Rejected" where every other screen says "Refused".
+  it('calls refused notes Refused on the list, in both languages', async () => {
+    const view = renderList()
+    await screen.findByText('QMS-DN-1')
+    expect(screen.getByRole('tab', { name: /^Refused/ })).toBeTruthy()
+    expect(screen.getByText('Refused this year')).toBeTruthy()
+    expect(screen.queryByText(/Rejected/)).toBeNull()
+    view.unmount()
+
+    await i18n.changeLanguage('ar')
+    renderList()
+    await screen.findByText('QMS-DN-1')
+    expect(screen.getByRole('tab', { name: /^مرفوضة/ })).toBeTruthy()
+  })
+
+  // F-15: "The charge was accepted and is owed, due ." with no date.
+  it('drops the due clause of an accepted note that has no due date', async () => {
+    notes = [note({ status: 'ACCEPTED', dueDate: null })]
+    renderDetail()
+    expect(await screen.findByText('The charge was accepted and is owed.')).toBeTruthy()
+    expect(screen.queryByText(/due \./)).toBeNull()
+  })
+
+  it('keeps the due date when the note has one', async () => {
+    notes = [note({ status: 'ACCEPTED' })]
+    renderDetail()
+    expect(await screen.findByText(/^The charge was accepted and is owed, due \d/)).toBeTruthy()
+  })
+
+  // F-21: the Activity listed one refusal twice, "Refused by Eman Admin" and "Refused".
+  it('lists the decision the note stands on once in its Activity', async () => {
+    notes = [
+      note({
+        status: 'REFUSED',
+        decidedBy: 'u-9',
+        decidedByName: 'Eman Admin',
+        decidedAt: '2026-10-10T00:20:00Z',
+        decisionReason: 'Already charged',
+      }),
+    ]
+    decisions = [
+      {
+        decision: 'REFUSED',
+        reason: 'Already charged',
+        decidedBy: 'u-9',
+        decidedAt: '2026-10-10T00:20:00Z',
+      },
+      { decision: 'ACCEPTED', reason: null, decidedBy: 'u-9', decidedAt: '2026-10-09T10:00:00Z' },
+    ]
+    renderDetail()
+    const activity = await screen.findByRole('list', { name: 'Activity' })
+    await waitFor(() => expect(within(activity).getByText('Refused by Eman Admin')).toBeTruthy())
+    await waitFor(() => expect(activity.textContent).toMatch(/Accepted/))
+    expect(within(activity).queryAllByText(/^Refused$/)).toHaveLength(0)
   })
 })

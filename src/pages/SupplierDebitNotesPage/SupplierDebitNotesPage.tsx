@@ -83,6 +83,8 @@ export function SupplierDebitNotesPage() {
 
 function DebitNotesScreen() {
   const { t, i18n } = useTranslation()
+  // The upload page itself needs the right to record what is owed, as the credit note one does.
+  const canUpload = can(useSession(), 'invoice.payment.manage')
   const language = i18n.language
   const [params, setParams] = useSearchParams()
 
@@ -185,13 +187,16 @@ function DebitNotesScreen() {
             {t('supplierDebitNotes.subtitle')}
           </p>
         </div>
-        <Link
-          to="/expenditure/debit-notes/upload"
-          className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white"
-        >
-          <img src={uploadIcon} alt="" className="size-6" />
-          {t('supplierDebitNotes.upload.cta')}
-        </Link>
+        {/* Hidden, not greyed, from someone who may not record a debit note, as on Credit notes. */}
+        {canUpload ? (
+          <Link
+            to="/expenditure/debit-notes/upload"
+            className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white"
+          >
+            <img src={uploadIcon} alt="" className="size-6" />
+            {t('supplierDebitNotes.upload.cta')}
+          </Link>
+        ) : null}
       </div>
 
       {summary.read.status === 'failed' ? (
@@ -269,7 +274,7 @@ function DebitNotesScreen() {
                 <img src={kpiAlertIcon} alt="" className="size-5" />
               </span>
               <h3 className="text-xl font-medium leading-[1.2] text-text-secondary">
-                {t('supplierDebitNotes.kpi.rejected')}
+                {t('supplierDebitNotes.kpi.refused')}
               </h3>
             </div>
             <div className="flex items-center gap-1">

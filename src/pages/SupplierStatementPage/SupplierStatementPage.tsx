@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { DateField, Modal, OmAmount, Popover, RowsView } from '../../components/ui'
+import { OverpaidBy } from '../../components/bills'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import { ApiError } from '../../api'
@@ -34,6 +35,7 @@ import {
   emailBlocker,
   entryLink,
   entryOpen,
+  memoAmountOf,
   issuerAddress,
   periodRange,
   periodTotals,
@@ -44,11 +46,20 @@ import chevronDownIcon from '../../assets/create-invoice/chevron.svg'
 import printIcon from '../../assets/invoice-details/print.svg'
 import mailIcon from '../../assets/suppliers/chip-email.svg'
 
+/**
+ * The later kinds take the tone of the kind they move like: a discount lowers what was billed as
+ * a credit does, a supplier's refund (of an overpayment or of a credit note) gives something back
+ * as a reversal does, and credit used on another bill moves nothing, so it is as plain as a bill.
+ */
 const KIND_CHIP: Record<StatementEntryKind, string> = {
   BILL: 'bg-surface-background text-text-tertiary',
   CREDIT_NOTE: 'bg-pending-100 text-pending-700',
   PAYMENT: 'bg-success-100 text-[#3d5648]',
   REVERSAL: 'bg-warning-100 text-[#6d5a39]',
+  DISCOUNT: 'bg-pending-100 text-pending-700',
+  OVERPAYMENT_REFUND: 'bg-warning-100 text-[#6d5a39]',
+  OVERPAYMENT_CREDIT_APPLIED: 'bg-surface-background text-text-tertiary',
+  CREDIT_NOTE_REFUND: 'bg-warning-100 text-[#6d5a39]',
 }
 
 const BUCKET_TONE = [
@@ -210,7 +221,9 @@ function SupplierStatement({ id }: { id: string }) {
               {t('supplierStatement.title')}
             </span>
           </div>
-          <h1 className="mt-1 text-[32px] font-medium leading-[1.2] text-text-primary">
+          {/* 16 px under the breadcrumb, as on the note pages: any closer and the Arabic
+              breadcrumb runs into the title. */}
+          <h1 className="mt-4 text-[32px] font-medium leading-[1.2] text-text-primary">
             {t('supplierStatement.title')}
           </h1>
           <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">
@@ -384,7 +397,16 @@ function SupplierStatement({ id }: { id: string }) {
     const prepared = preparedAt
     const dayOf = day
     const money = (value: number) => formatAmount(value, data.currencyCode, language)
-    const signed = (value: number) => `${value < 0 ? '−' : ''}${money(Math.abs(value))}`
+    // A table figure with the rial sign before it (a minus before the sign), as every amount.
+    const cell = (value: number) => (
+      <OmAmount
+        size="xs"
+        prefix={value < 0 ? '−' : undefined}
+        amount={money(Math.abs(value))}
+        className="justify-end"
+        amountClassName="text-sm font-semibold text-text-primary tabular-nums"
+      />
+    )
     const totals = periodTotals(data)
     const issuer = data.issuer
     const issuerName = issuer
@@ -469,6 +491,26 @@ function SupplierStatement({ id }: { id: string }) {
           <Figure label={t('supplierStatement.youPaid')} value={money(data.payments)} />
           <Operator>−</Operator>
           <Figure label={t('supplierStatement.credits')} value={money(data.credits)} />
+          {/* The two later totals, each only when the period has one, so the sum still reads
+              to the closing balance. */}
+          {(data.discounts ?? 0) > 0 ? (
+            <>
+              <Operator>−</Operator>
+              <Figure
+                label={t('supplierStatement.kind.DISCOUNT')}
+                value={money(data.discounts ?? 0)}
+              />
+            </>
+          ) : null}
+          {(data.overpaymentRefunds ?? 0) > 0 ? (
+            <>
+              <Operator>+</Operator>
+              <Figure
+                label={t('supplierStatement.kind.OVERPAYMENT_REFUND')}
+                value={money(data.overpaymentRefunds ?? 0)}
+              />
+            </>
+          ) : null}
           <div className="ms-auto text-end">
             <p className="text-[11px] font-semibold uppercase tracking-[0.7px] text-text-quaternary">
               {t('supplierStatement.owedOn', { date: dayOf(data.to) })}
@@ -479,6 +521,13 @@ function SupplierStatement({ id }: { id: string }) {
               className="mt-1.5 justify-end"
               amountClassName="text-[28px] font-semibold leading-[1.2] text-text-primary tabular-nums"
             />
+            {/* "Overpaid by" today (owner's answer 13, 8 Oct 2026), beside the closing balance
+                and never read from it: the closing nets it against their other bills. */}
+            {(data.overpaid ?? 0) > 0 ? (
+              <p className="mt-1.5 text-sm font-semibold text-text-primary">
+                <OverpaidBy amount={money(data.overpaid ?? 0)} />
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -518,16 +567,19 @@ function SupplierStatement({ id }: { id: string }) {
                 <td />
                 <td />
                 <td className="px-5 py-4 align-top text-end text-sm font-semibold text-text-primary tabular-nums">
-                  {money(data.opening)}
+                  {cell(data.opening)}
                 </td>
               </tr>
-              {data.entries.map((entry) => {
+              {data.entries.map((entry, index) => {
                 const { billed, paid } = columnsOf(entry.kind, entry.amount)
                 const link = entryLink(entry.kind, entry.documentId)
                 const reference = entry.reference ?? t('supplierStatement.noReference')
+                const memo = memoAmountOf(entry.kind, entry.amount)
                 return (
                   <tr
-                    key={`${entry.kind}-${entry.documentId}`}
+                    // A bill can have more than one refund or use of its credit, so its id alone
+                    // does not name a line.
+                    key={`${entry.kind}-${entry.documentId}-${index}`}
                     className={[
                       'border-b border-surface-background',
                       entryOpen(entry) ? 'bg-surface-background/40' : '',
@@ -552,25 +604,52 @@ function SupplierStatement({ id }: { id: string }) {
                           {entry.detail}
                         </p>
                       ) : null}
+                      {/* Credit used on another bill moves no balance, so its amount is shown
+                          here rather than in a column. */}
+                      {memo !== null ? (
+                        <OmAmount
+                          size="xs"
+                          amount={money(memo)}
+                          className="mt-1"
+                          amountClassName="text-xs font-medium text-text-quaternary tabular-nums"
+                        />
+                      ) : null}
+                      {/* Its balance would only repeat the line before, so the cell is left blank
+                          and this says why (owner, 9 Oct 2026). */}
+                      {memo !== null ? (
+                        <p className="mt-1 max-w-[280px] text-xs font-medium leading-[1.5] text-text-quaternary">
+                          {t('supplierStatement.alreadyCounted')}
+                        </p>
+                      ) : null}
                     </td>
                     <td className="px-5 py-4 align-top">
                       <span
                         className={[
                           'inline-flex h-[24px] items-center rounded-sm px-2 text-[11px] font-semibold uppercase tracking-[0.4px]',
-                          KIND_CHIP[entry.kind],
+                          KIND_CHIP[entry.kind] ?? KIND_CHIP.BILL,
                         ].join(' ')}
                       >
-                        {t(`supplierStatement.kind.${entry.kind}`)}
+                        {/* On a credit-used line the server's reference is the bill the credit
+                            was set against. */}
+                        {entry.kind === 'OVERPAYMENT_CREDIT_APPLIED' && entry.reference
+                          ? t('supplierStatement.creditUsedOn', { bill: entry.reference })
+                          : // A supplier debit note (383) is a bill line the server tells apart.
+                            entry.kind === 'BILL' && entry.documentTypeCode === '383'
+                            ? t('supplierStatement.kind.DEBIT_NOTE')
+                            : // A kind added after this build reads by its name, as the API asks.
+                              t(`supplierStatement.kind.${entry.kind}`, {
+                                defaultValue: entry.kind,
+                              })}
                       </span>
                     </td>
                     <td className="px-5 py-4 align-top text-end text-sm font-semibold text-text-primary tabular-nums">
-                      {billed === null ? '' : signed(billed)}
+                      {billed === null ? '' : cell(billed)}
                     </td>
                     <td className="px-5 py-4 align-top text-end text-sm font-semibold text-text-primary tabular-nums">
-                      {paid === null ? '' : signed(paid)}
+                      {paid === null ? '' : cell(paid)}
                     </td>
                     <td className="px-5 py-4 align-top text-end text-sm font-semibold text-text-primary tabular-nums">
-                      {money(entry.runningBalance)}
+                      {memo !== null ? '' : cell(entry.runningBalance)}
                     </td>
                   </tr>
                 )
@@ -590,10 +669,10 @@ function SupplierStatement({ id }: { id: string }) {
                   {t('supplierStatement.overThePeriod')}
                 </td>
                 <td className="px-5 py-4 text-end text-sm font-semibold text-text-primary tabular-nums">
-                  {signed(totals.billedNet)}
+                  {cell(totals.billedNet)}
                 </td>
                 <td className="px-5 py-4 text-end text-sm font-semibold text-text-primary tabular-nums">
-                  {money(totals.paid)}
+                  {cell(totals.paid)}
                 </td>
                 <td className="px-5 py-4 text-end">
                   <OmAmount

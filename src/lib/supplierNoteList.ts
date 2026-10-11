@@ -1,6 +1,7 @@
 import type {
   CreditNoteRowDto,
   CreditNoteStatusDto,
+  CreditNoteUsageDto,
   DebitNoteRowDto,
   DebitNoteStatusDto,
   NoteSortDto,
@@ -98,24 +99,62 @@ export function isCreditTab(value: string | null): value is CreditTabId {
 
 export type CreditChipTone = 'usable' | 'waiting' | 'done' | 'refunded'
 
-export const CREDIT_STATUS_CHIP: Record<CreditNoteStatusDto, CreditChipTone> = {
+/**
+ * Where a note stands, as the screens show it: the server's status, plus PARTLY_USED for a note
+ * some of whose credit has gone (used on a bill or refunded) while some is still left.
+ */
+export type CreditState = CreditNoteStatusDto | 'PARTLY_USED'
+
+/**
+ * The state the screens show. A note bigger than its bill, or partly refunded, comes back
+ * UNAPPLIED (credit is left) with money already used, and reading only the status called it
+ * "Not yet used" and offered to set it against the bill it had already cleared. So the server's
+ * `usage` decides how much has gone (backend #477), and without it the balance does; the status
+ * only says which way a fully used note went, or that an unused one waits for its bill. Holds
+ * whatever status word the server sends, including one this screen does not know yet.
+ */
+export function creditStateOf(row: {
+  status: CreditNoteStatusDto | string
+  usage?: CreditNoteUsageDto | string | null
+  balance: { applied: number; refunded: number; remaining: number }
+}): CreditState {
+  const { applied, refunded, remaining } = row.balance
+  const usage =
+    row.usage === 'NOT_USED' || row.usage === 'PARTLY_USED' || row.usage === 'FULLY_USED'
+      ? row.usage
+      : remaining <= 0 && (applied > 0 || refunded > 0)
+        ? 'FULLY_USED'
+        : applied > 0 || refunded > 0
+          ? 'PARTLY_USED'
+          : 'NOT_USED'
+  if (usage === 'PARTLY_USED') return 'PARTLY_USED'
+  if (usage === 'FULLY_USED') {
+    if (row.status === 'APPLIED' || row.status === 'REFUNDED') return row.status
+    return refunded > applied ? 'REFUNDED' : 'APPLIED'
+  }
+  return row.status === 'WAITING_FOR_BILL' ? 'WAITING_FOR_BILL' : 'UNAPPLIED'
+}
+
+export const CREDIT_STATUS_CHIP: Record<CreditState, CreditChipTone> = {
   UNAPPLIED: 'usable',
   WAITING_FOR_BILL: 'waiting',
   APPLIED: 'done',
   REFUNDED: 'refunded',
+  PARTLY_USED: 'usable',
 }
 
 /** The chip's words, as the frame prints them. */
-export const CREDIT_STATUS_LABEL: Record<CreditNoteStatusDto, string> = {
+export const CREDIT_STATUS_LABEL: Record<CreditState, string> = {
   UNAPPLIED: 'supplierCreditNotes.state.notUsed',
   WAITING_FOR_BILL: 'supplierCreditNotes.state.waitingForBill',
   APPLIED: 'supplierCreditNotes.state.used',
   REFUNDED: 'supplierCreditNotes.state.refunded',
+  PARTLY_USED: 'supplierCreditNotes.state.partlyUsed',
 }
 
 /** The one thing a row offers under its chip. */
 export const CREDIT_ROW_ACTION: Record<
-  CreditNoteStatusDto,
+  CreditState,
   { labelKey: string; primary?: boolean; goesTo: 'bill' | 'note' }
 > = {
   UNAPPLIED: { labelKey: 'supplierCreditNotes.actions.setAgainst', primary: true, goesTo: 'note' },
@@ -124,14 +163,17 @@ export const CREDIT_ROW_ACTION: Record<
   WAITING_FOR_BILL: { labelKey: 'supplierCreditNotes.actions.openNote', goesTo: 'note' },
   APPLIED: { labelKey: 'supplierCreditNotes.actions.viewBill', goesTo: 'bill' },
   REFUNDED: { labelKey: 'supplierCreditNotes.actions.seePayment', goesTo: 'note' },
+  // What is left goes against another bill, chosen on the note; the bill it cleared would refuse.
+  PARTLY_USED: { labelKey: 'supplierCreditNotes.actions.openNote', goesTo: 'note' },
 }
 
 /** What the figure column says under the amount. */
-export const CREDIT_AMOUNT_NOTE: Record<CreditNoteStatusDto, string> = {
+export const CREDIT_AMOUNT_NOTE: Record<CreditState, string> = {
   UNAPPLIED: 'supplierCreditNotes.rows.youdPayLess',
   WAITING_FOR_BILL: 'supplierCreditNotes.rows.youdPayLess',
   APPLIED: 'supplierCreditNotes.rows.takenOff',
   REFUNDED: 'supplierCreditNotes.rows.paidBack',
+  PARTLY_USED: 'supplierCreditNotes.rows.youdPayLess',
 }
 
 export type CreditNoteItem = {
@@ -156,7 +198,8 @@ export type CreditNoteItem = {
   reasonCode: string | null
   /** The supplier's finer reason behind the code, when sent. */
   reasonDetail: string | null
-  status: CreditNoteStatusDto
+  /** The server's status read with the balance: see {@link creditStateOf}. */
+  status: CreditState
   currency: string
   credited: number | null
   remaining: number
@@ -182,7 +225,7 @@ export function toCreditNoteItem(row: CreditNoteRowDto): CreditNoteItem {
     applied: row.credits.applied,
     reasonCode: row.reasonCode,
     reasonDetail: row.reasonDetail ?? null,
-    status: row.status,
+    status: creditStateOf(row),
     currency: row.currencyCode,
     credited: row.creditedAmount,
     remaining: row.balance.remaining,
@@ -204,7 +247,7 @@ export const DEBIT_TAB_STATUS: Record<DebitTabId, DebitNoteStatusDto | 'ALL'> = 
 export const DEBIT_TAB_LABEL: Record<DebitTabId, string> = {
   all: 'supplierDebitNotes.tabs.all',
   accepted: 'supplierDebitNotes.tabs.accepted',
-  refused: 'supplierDebitNotes.tabs.rejected',
+  refused: 'supplierDebitNotes.tabs.refused',
   unchecked: 'supplierDebitNotes.tabs.unchecked',
 }
 

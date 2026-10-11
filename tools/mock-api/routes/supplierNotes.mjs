@@ -96,6 +96,12 @@ const SUPPLIERS = [
   ),
 ]
 
+/** Backend #477: NOT_USED, PARTLY_USED or FULLY_USED, from what was applied, refunded and is left. */
+function usageOf(balance) {
+  if (balance.remaining <= 0) return 'FULLY_USED'
+  return balance.applied > 0 || balance.refunded > 0 ? 'PARTLY_USED' : 'NOT_USED'
+}
+
 function supplier(id, displayName, vatNumber, legalName, participantId) {
   return {
     id,
@@ -472,6 +478,10 @@ function creditNote({
     approval: 'NONE',
     status,
     balance,
+    // Backend #477: how much of the credit has gone, beside `status` (which says whether any is left).
+    get usage() {
+      return usageOf(this.balance)
+    },
     receivedAt: `${issueDate}T11:05:00Z`,
     intakeId: source === 'UPLOADED' ? `intake-${id}` : null,
     onHold: false,
@@ -1198,7 +1208,7 @@ export default [
         occurredAt: new Date().toISOString(),
       }
       ;(CREDIT_SETTLEMENTS[note.id] ??= []).push(settlement)
-      return { settlement, status: note.status, balance: note.balance }
+      return { settlement, status: note.status, balance: note.balance, usage: note.usage }
     },
   },
   {
@@ -1226,13 +1236,28 @@ export default [
         occurredAt: new Date().toISOString(),
       }
       ;(CREDIT_SETTLEMENTS[note.id] ??= []).push(settlement)
-      return { settlement, status: note.status, balance: note.balance }
+      return { settlement, status: note.status, balance: note.balance, usage: note.usage }
     },
   },
 
   /* debit notes */
   { match: '/api/v1/debit-notes/summary', reply: ({ query }) => debitSummary(query) },
   { match: '/api/v1/debit-notes', reply: ({ query }) => noteList(DEBIT_NOTES, query) },
+  {
+    // A payment by hand on a debit note (backend #480, owner 10 Oct 2026): refused until it is
+    // accepted, and while it stands refused.
+    method: 'POST',
+    match: /^\/api\/v1\/bills\/(dn-[^/]+)\/payments$/,
+    reply: ({ params }) => {
+      const note = DEBIT_NOTES.find((n) => n.id === params[0])
+      if (!note) return { status: 404 }
+      if (note.status === 'UNCHECKED')
+        return refusal(400, 'BILL_PAYMENT_DEBIT_NOTE_NOT_ACCEPTED', 'Accept the debit note first.')
+      if (note.status === 'REFUSED')
+        return refusal(400, 'BILL_PAYMENT_DEBIT_NOTE_REFUSED', 'The debit note was refused.')
+      return { status: 201, body: { billId: note.id } }
+    },
+  },
   {
     match: /^\/api\/v1\/debit-notes\/([^/]+)$/,
     reply: ({ params }) => DEBIT_NOTES.find((n) => n.id === params[0]) ?? { status: 404 },

@@ -312,6 +312,8 @@ const OVERVIEW = () => ({
     onHold: { amount: 0, bills: 0, nextDue: null },
     everLate: false,
     total: sum(inRun.map((b) => b.outstandingAmount)),
+    // What they still hold of MR-INV-8712's second payment, as on the statement.
+    overpaidTotal: 30,
   },
 })
 
@@ -541,6 +543,14 @@ const STATEMENT = (from, to) => {
       amount: 242.5,
       detail: 'Short delivery on PO-0021 · 25 KG never arrived',
     },
+    // The supplier paid 42.500 of that credit note back: it gives back what the note took off.
+    {
+      date: '2026-07-02',
+      kind: 'CREDIT_NOTE_REFUND',
+      documentId: 'cn-0118',
+      reference: 'MR-RF-0031',
+      amount: 42.5,
+    },
     {
       date: '2026-07-16',
       kind: 'PAYMENT',
@@ -556,6 +566,52 @@ const STATEMENT = (from, to) => {
       reference: 'PR-0011',
       amount: 961.5,
       detail: 'Bank transfer · cleared the brought-forward balance',
+    },
+    // MR-INV-8712 paid a second time by mistake: 120.000 overpaid. The supplier refunded 50.000,
+    // 40.000 was kept as credit and used on MR-INV-8790, so they still hold 30.000 ("overpaid").
+    {
+      date: '2026-07-24',
+      kind: 'PAYMENT',
+      documentId: 'pay-8712-again',
+      reference: 'BM-4502-0724',
+      amount: 120,
+    },
+    {
+      date: '2026-08-12',
+      kind: 'OVERPAYMENT_REFUND',
+      documentId: 'bill-8712',
+      reference: 'MR-RF-0042',
+      amount: 50,
+    },
+    // MR-INV-8702, paid by run RUN-2026-11 less the supplier's 2% early-payment discount.
+    {
+      date: '2026-08-01',
+      kind: 'BILL',
+      documentId: 'bill-8702',
+      reference: 'MR-INV-8702',
+      amount: 1449,
+      outstanding: 0,
+    },
+    {
+      date: '2026-08-10',
+      kind: 'PAYMENT',
+      documentId: 'pay-8702',
+      reference: 'RUN-2026-11',
+      amount: 1420.02,
+    },
+    {
+      date: '2026-08-10',
+      kind: 'DISCOUNT',
+      documentId: 'bill-8702',
+      reference: 'MR-INV-8702',
+      amount: 28.98,
+    },
+    {
+      date: '2026-09-12',
+      kind: 'OVERPAYMENT_CREDIT_APPLIED',
+      documentId: 'bill-8712',
+      reference: 'MR-INV-8712',
+      amount: 40,
     },
     {
       date: '2026-08-30',
@@ -575,11 +631,36 @@ const STATEMENT = (from, to) => {
       detail: 'Against PO-0031 · due 19 Oct · in draft run PR-0014',
       outstanding: 2354.31,
     },
-  ].filter((e) => e.date >= from && e.date <= to)
+  ]
+    .filter((e) => e.date >= from && e.date <= to)
+    // In date order, as the server lists them (a stable sort keeps same-day lines as written).
+    .sort((a, b) => a.date.localeCompare(b.date))
   let balance = opening
+  // Bills, reversals and a supplier's refund (of an overpayment or a credit note) add; credit
+  // used on another bill moves nothing.
+  const sign = (kind) =>
+    kind === 'BILL' ||
+    kind === 'REVERSAL' ||
+    kind === 'OVERPAYMENT_REFUND' ||
+    kind === 'CREDIT_NOTE_REFUND'
+      ? 1
+      : kind === 'OVERPAYMENT_CREDIT_APPLIED'
+        ? 0
+        : -1
   const entries = raw.map((e) => {
-    balance = scale(balance + (e.kind === 'BILL' || e.kind === 'REVERSAL' ? e.amount : -e.amount))
-    return { ...e, runningBalance: balance }
+    balance = scale(balance + sign(e.kind) * e.amount)
+    // Backend #480: the document a line is, 380 a bill, 383 a supplier debit note, 381 / 261 a
+    // credit note; null on payments and the other kinds.
+    return {
+      ...e,
+      documentTypeCode:
+        e.kind === 'BILL'
+          ? (e.documentTypeCode ?? '380')
+          : e.kind === 'CREDIT_NOTE'
+            ? (e.documentTypeCode ?? '381')
+            : null,
+      runningBalance: balance,
+    }
   })
   const of = (kind) => sum(entries.filter((e) => e.kind === kind).map((e) => e.amount))
   return {
@@ -589,9 +670,14 @@ const STATEMENT = (from, to) => {
     to,
     opening,
     bills: of('BILL'),
-    credits: of('CREDIT_NOTE'),
+    // Net of what the supplier refunded of its credit notes, as the server sends it.
+    credits: scale(of('CREDIT_NOTE') - of('CREDIT_NOTE_REFUND')),
     payments: scale(of('PAYMENT') - of('REVERSAL')),
     closing: balance,
+    discounts: of('DISCOUNT'),
+    overpaymentRefunds: of('OVERPAYMENT_REFUND'),
+    // Today, whatever the period: 120.000 overpaid, less 50.000 refunded and 40.000 used.
+    overpaid: 30,
     entries,
     ageing: {
       NOT_DUE: bucket(notDue).amount,

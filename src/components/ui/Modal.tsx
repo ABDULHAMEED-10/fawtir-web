@@ -32,7 +32,7 @@ export function Modal({
   open: boolean
   onClose: () => void
   title: string
-  subtitle?: string
+  subtitle?: ReactNode
   children: ReactNode
   /** Pinned below the scrolling body, as the design's action bars are. */
   footer?: ReactNode

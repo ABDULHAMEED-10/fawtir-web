@@ -1738,7 +1738,8 @@
       "owe": "You owe them",
       "oweNote": "Across {{count}} open bills",
       "needsFix": "Records needing a fix",
-      "needsFixNote": "{{bank}} with no bank details · {{vat}} missing VAT · {{account}} changed account"
+      "needsFixNote": "{{bank}} with no bank details · {{vat}} missing VAT · {{account}} changed account",
+      "needsFixBankVat": "{{bank}} with no bank details · {{vat}} missing VAT"
     },
     "tabs": {
       "all": "All",
@@ -5459,7 +5460,9 @@
       "otherCurrencies_one": "{{count}} bill in another currency is not in these {{currency}} totals.",
       "otherCurrencies_other": "{{count}} bills in other currencies are not in these {{currency}} totals.",
       "payableDisputed_one": "{{amount}} disputed on {{count}} refused bill",
-      "payableDisputed_other": "{{amount}} disputed on {{count}} refused bills"
+      "payableDisputed_other": "{{amount}} disputed on {{count}} refused bills",
+      "payableAwaitingDecision_one": "Awaiting your decision: {{amount}} on {{count}} debit note",
+      "payableAwaitingDecision_other": "Awaiting your decision: {{amount}} on {{count}} debit notes"
     },
     "tabs": {
       "needsAttention": "Needs attention",
@@ -5732,7 +5735,11 @@
         "ISSUED": "Issued",
         "CANCELLED": "Cancelled",
         "TAKEN_OUT_OF_PAYMENT_RUN": "Taken out of a payment run",
-        "PAYMENT_RUN_CANCELLED": "Payment run cancelled"
+        "PAYMENT_RUN_CANCELLED": "Payment run cancelled",
+        "OVERPAYMENT_REFUNDED": "Supplier's refund recorded",
+        "OVERPAYMENT_KEPT_AS_CREDIT": "Kept as credit",
+        "OVERPAYMENT_CREDIT_APPLIED": "Credit set against another bill",
+        "OVERPAYMENT_CREDIT_RECEIVED": "Credit from another bill set against this one"
       }
     },
     "decision": {
@@ -5748,7 +5755,8 @@
       "paid": "Paid in full.",
       "creditNote": "A credit note lowers what you owe. There is nothing to approve or pay on it.",
       "release": "Release",
-      "queryIt": "Query it"
+      "queryIt": "Query it",
+      "inRun": "Approved for payment and in payment run {{run}}. It is paid when the run is marked paid."
     },
     "compliance": {
       "title": "Compliance",
@@ -5871,6 +5879,18 @@
       "onHold": "This bill is on hold. Release it, then record the payment.",
       "tooMuch": "That is more than this bill still owes.",
       "tooMuchMost": "That is more than this bill still owes. The most you can record is {{amount}}."
+    },
+    "overpaid": {
+      "overpaidBy": "Overpaid by {{amount}}",
+      "kept": "{{amount}} kept as credit",
+      "recordRefund": "Record the supplier's refund",
+      "setAgainst": "Set against a bill",
+      "tooMuch": "That is more than the {{amount}} this bill was overpaid by.",
+      "overKept": "That is more than the {{amount}} kept as credit.",
+      "refused": {
+        "dateBeforeOverpayment": "A refund cannot be dated before the payment that overpaid this bill.",
+        "inRun": "This bill is in payment run {{run}}. Take it out of the run first."
+      }
     }
   },
   "uploadBill": {
@@ -5981,7 +6001,7 @@
     "breadcrumb": "Payments",
     "title": "New payment run",
     "draft": "Draft",
-    "subtitle": "Pick the bills to pay together. Fawtir groups them by supplier and builds one file for your bank.",
+    "subtitle": "Pick the bills to pay together. Fawtir groups them by supplier so you can track what is paid and what is still owed.",
     "print": "Print",
     "download": "Download",
     "viewInvoices": "View their invoice",
@@ -6023,13 +6043,14 @@
       "mismatch": "Mismatch: 3 boxes more than we received",
       "openDispute": "Open the dispute",
       "more_one": "{{count}} more bill can't be paid yet",
-      "more_other": "{{count}} more bills can't be paid yet"
+      "more_other": "{{count}} more bills can't be paid yet",
+      "reasonWithDebitNotes": "they haven't cleared approval, are held, or are debit notes you haven't accepted"
     },
     "whenAndWhere": "When and from where",
     "paymentDate": "Payment date",
     "payFrom": "Pay from",
     "runReference": "Run reference",
-    "shownOnStatements": "shown on statements",
+    "shownOnStatements": "for your records",
     "howToSend": "How to send it to the bank",
     "format": {
       "csv": "Bank Muscat CSV",
@@ -6587,7 +6608,8 @@
       "UNAPPLIED": "Not used yet",
       "WAITING_FOR_BILL": "Waiting for a bill",
       "APPLIED": "Used",
-      "REFUNDED": "Refunded"
+      "REFUNDED": "Refunded",
+      "partlyUsed": "Partly used"
     },
     "actions": {
       "setAgainst": "Set against the bill",
@@ -6786,7 +6808,9 @@
       "stillUnpaidOf": "{{amount}} still unpaid",
       "reasonCode": "Reason code {{code}}",
       "lineBilledOn": "Billed on {{bill}}",
-      "decisionNoteNoBill": "Choose the bill this credit reduces, keep it for a later bill, or record a refund."
+      "decisionNoteNoBill": "Choose the bill this credit reduces, keep it for a later bill, or record a refund.",
+      "setAgainstAnother": "Set against a bill",
+      "partlyUsedBody": "Part of this credit is already used or refunded. Set the rest against another bill, keep it for a later one, or record a refund."
     },
     "source": {
       "peppol": "Received over Peppol",
@@ -6812,7 +6836,8 @@
       "rejected": "Rejected this year",
       "rejectedNote_one": "{{count}} charge refused",
       "rejectedNote_other": "{{count}} charges refused",
-      "acceptedNote": "{{count}} accepted · {{open}} still open"
+      "acceptedNote": "{{count}} accepted · {{open}} still open",
+      "refused": "Refused this year"
     },
     "tabs": {
       "all": "All",
@@ -7078,7 +7103,9 @@
       "lineAgainst": "Stated against {{bill}}",
       "heldNote": "On hold. Nothing is added and nothing is recorded until you decide.",
       "reasonRecorded": "Your reason is recorded against the note. It is not sent to the supplier from here.",
-      "rateCardMissing": "No rate card is on file for this supplier yet. When one is, the charge is read against it here."
+      "rateCardMissing": "No rate card is on file for this supplier yet. When one is, the charge is read against it here.",
+      "acceptedBodyNoDate": "The charge was accepted and is owed.",
+      "billStillOwes": "The bill still owes"
     },
     "status": {
       "UNCHECKED": "Not checked yet",
@@ -8930,7 +8957,12 @@
       "BILL": "Bill",
       "CREDIT_NOTE": "Credit",
       "PAYMENT": "Payment",
-      "REVERSAL": "Reversal"
+      "REVERSAL": "Reversal",
+      "DISCOUNT": "Early-payment discount",
+      "OVERPAYMENT_REFUND": "Refund from the supplier",
+      "OVERPAYMENT_CREDIT_APPLIED": "Credit used",
+      "CREDIT_NOTE_REFUND": "Credit note refunded",
+      "DEBIT_NOTE": "Debit note"
     },
     "broughtForward": "Brought forward",
     "broughtForwardNote": "Owed before this period began",
@@ -8971,7 +9003,9 @@
       "sendFailed": "The statement could not be sent just now. Try again, or download it and send it yourself."
     },
     "unusedCredits_one": "{{count}} credit note still unused",
-    "unusedCredits_other": "{{count}} credit notes still unused"
+    "unusedCredits_other": "{{count}} credit notes still unused",
+    "creditUsedOn": "Credit used on {{bill}}",
+    "alreadyCounted": "Already counted when the bill was overpaid"
   },
   "activity": {
     "title": "TDD & OTA",
@@ -17952,7 +17986,8 @@
       "billPaymentDebitNoteRefused": "This debit note was refused, so it cannot be paid. Accept it first if it is owed after all.",
       "debitNoteAlreadyPaid": "This debit note is already paid. Record a refund from the supplier instead.",
       "paymentReversalInSentRun": "This bill is in payment run {{run}}, whose bank file is already made. Use the run's Mark paid or Cancel instead.",
-      "debitNotePartlyPaid": "This debit note is partly paid. Record a refund from the supplier for the paid part first."
+      "debitNotePartlyPaid": "This debit note is partly paid. Record a refund from the supplier for the paid part first.",
+      "debitNoteNotAccepted": "Accept the debit note before you pay it."
     },
     "selfBilling": {
       "generic": "The server refused this because of the self-billing agreement with this supplier. Check the agreement before trying again.",
@@ -18412,7 +18447,7 @@
   },
   "paymentRuns": {
     "title": "Payments",
-    "subtitle": "Pick the bills to pay together. Fawtir groups them by supplier and builds one file for your bank.",
+    "subtitle": "Pick the bills to pay together. Fawtir groups them by supplier so you can track what is paid and what is still owed.",
     "newRun": "New payment run",
     "all": "All",
     "none": "No payment runs yet.",
@@ -18437,7 +18472,7 @@
     "newNote": "Tick the bills to pay. The run is saved as a draft as soon as the first bill is ticked.",
     "stateNote": {
       "DRAFT": "A draft. Give it a payment date to schedule it.",
-      "SCHEDULED": "Scheduled for {{date}}. Make the bank file when the run is ready.",
+      "SCHEDULED": "Scheduled for {{date}}. Mark the run paid once you have paid the suppliers.",
       "EXPORTED": "The bank file was made. Mark the run paid once the bank has paid it.",
       "PAID": "Paid on {{date}}. Each bill's payment is recorded.",
       "CANCELLED": "Cancelled. Its bills are free for another run."
@@ -18480,7 +18515,7 @@
       "add": "+ Add a bank account",
       "askAdmin": "An administrator adds the accounts you pay from.",
       "title": "Add a bank account",
-      "subtitle": "The account payments leave from. It is named in the bank file.",
+      "subtitle": "The account payments leave from. It is kept with the run for your records.",
       "name": "Account name",
       "iban": "IBAN",
       "bic": "BIC / SWIFT",
@@ -18491,7 +18526,7 @@
     },
     "confirmPaid": {
       "title": "Mark {{reference}} as paid?",
-      "body": "This records {{amount}} as paid against each bill in the run. Do it once the bank has made the transfers."
+      "body": "This records every bill in the run as paid, {{amount}} in all. Take out the bills you did not pay."
     },
     "confirmCancel": {
       "title": "Cancel {{reference}}?",
@@ -18511,21 +18546,26 @@
       "notEditable": "This run can no longer be changed.",
       "transition": "The run can't do that in its current state.",
       "concurrent": "Someone else changed this run. Reload it and try again.",
-      "dateRequired": "Set a payment date first.",
       "formatRequired": "Choose how to send it to the bank first.",
       "empty": "Tick at least one bill first.",
       "payerRequired": "Choose the account you pay from first.",
       "payerInactive": "That account is switched off. Choose another.",
       "debitNoteRefusedAdd": "{{note}} was refused, so it cannot go into a payment run.",
       "debitNoteRefusedExport": "{{note}} was refused after it joined this run. Take it out of the run first.",
-      "amountChangedMarkPaid": "The amount owed on {{bill}} changed after the bank file was made. Mark the others paid and take {{bill}} out of the run.",
-      "debitNoteRefusedMarkPaid": "{{note}} was refused after the bank file was made. Mark the others paid and take {{note}} out of the run.",
+      "amountChangedMarkPaid": "The amount owed on {{bill}} changed after it joined this run. Mark the others paid and take {{bill}} out of the run.",
+      "debitNoteRefusedMarkPaid": "{{note}} was refused after it joined this run. Mark the others paid and take {{note}} out of the run.",
       "amountChangedExport": "The amount owed on {{bill}} changed after it joined this run. Take it out and add it again.",
       "settledBill": "{{bill}} is already paid in full. Take it out of the run.",
       "settledDebitNote": "{{bill}} is already paid in full. Take it out of the run.",
       "bankDetailsUnconfirmed": "{{supplier}}'s new bank details are not confirmed yet. Confirm them, or take their bills out of the run.",
       "payerAccountInactive": "The account you pay from, {{account}}, is switched off. Choose an active account.",
-      "payerNameNotLatin": "The bank file needs the company's legal name in English letters. Update it in Company settings, then try again."
+      "payerNameNotLatin": "The bank file needs the company's legal name in English letters. Update it in Company settings, then try again.",
+      "onHoldMarkPaid": "A bill in this run is on hold. Release it, or take it out of the run and mark the others paid.",
+      "rejectedMarkPaid": "{{bill}} was rejected after it joined this run. Mark the others paid and take {{bill}} out of the run.",
+      "onHoldMarkPaidNamed": "{{bill}} is on hold. Release it, or take it out of the run and mark the others paid.",
+      "dateAfterDiscount": "A bill in this run was priced with an early-payment discount that ends before the date you paid. Choose an earlier date.",
+      "dateAfterDiscountBill": "{{bill}} was priced with an early-payment discount that ends before the date you paid. Choose an earlier date, or take {{bill}} out of the run.",
+      "dateAfterDiscountDebitNote": "{{bill}} was priced with an early-payment discount that ends before the date you paid. Choose an earlier date, or take {{bill}} out of the run."
     },
     "addModal": {
       "open": "Add to a payment run",
@@ -18542,7 +18582,7 @@
     "noDate": "No date yet",
     "noFormat": "Not chosen yet",
     "noReference": "No reference",
-    "nothingSent": "Nothing sent",
+    "nothingSent": "Nothing paid",
     "downloadWhenScheduled": "Give the run a payment date first, then the file can be made.",
     "menu": {
       "thisRun": "This run",
@@ -18568,7 +18608,16 @@
     "sentFileWarning": "This file was already sent to the bank. Do not upload it again.",
     "bankDetailsChangedSinceFile": "{{supplier}}'s bank details changed after this file was made. This file keeps the old IBAN; new runs use the new one.",
     "takenOutRow": "Taken out · {{reason}}",
-    "paidAndTakenOut": "Paid {{paid}} · taken out {{takenOut}}"
+    "paidAndTakenOut": "Paid {{paid}} · taken out {{takenOut}}",
+    "markPaidBlock": {
+      "amountChanged": "Amount owed changed",
+      "settled": "Already paid in full",
+      "afterDiscount": "Discount ended before the date paid"
+    },
+    "bankDetailsChanged": "{{supplier}}'s bank details changed. Check before you pay.",
+    "paidOnRequired": "Choose the date you paid.",
+    "stateNoteUndated": "Mark the run paid once you have paid the suppliers.",
+    "supplierTakenOut": "Taken out"
   },
   "billIntake": {
     "supplier": "Supplier",

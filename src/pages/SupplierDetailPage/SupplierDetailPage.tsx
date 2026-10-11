@@ -5,6 +5,7 @@ import { AppShell } from '../../layouts/AppShell'
 import { Popover } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { BillStatusChip } from '../../components/bills/BillStatusChip'
+import { OverpaidBy } from '../../components/bills/OverpaidBy'
 import { useApiRead } from '../../hooks'
 import type { Page } from '../../api'
 import { loadSupplier, supplierPath, type SupplierDetailDto } from '../../api/expenditure/suppliers'
@@ -30,7 +31,7 @@ import {
 } from '../../api/expenditure/supplierRecord'
 import { dueNoteOf, toBillListItem } from '../../lib/billList'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { formatAmount, formatDate, initialsOf } from '../../lib/format'
+import { formatAmount, formatDate, formatInstantDay, initialsOf } from '../../lib/format'
 import { muscatToday } from '../../lib/invoiceIssue'
 import { addDays } from '../../lib/dates'
 import { can, useSession } from '../../lib/session/session'
@@ -825,6 +826,13 @@ function SupplierRecord({ id }: { id: string }) {
                   {text(oweExplanation(head, latest, runList))}
                 </p>
               ) : null}
+              {/* "Overpaid by" (owner's answer 13, 8 Oct 2026): what they still hold of what was
+                  overpaid on their bills, beside what is owed and never netted against it. */}
+              {head && (head.payables.overpaidTotal ?? 0) > 0 ? (
+                <p className="mt-2.5 text-sm font-semibold leading-[1.5] text-text-primary">
+                  <OverpaidBy amount={money(head.payables.overpaidTotal ?? 0)} />
+                </p>
+              ) : null}
               {canPay && head && head.payables.total > 0 ? (
                 <div className="mt-4 flex flex-wrap gap-2.5">
                   <Link
@@ -861,16 +869,11 @@ function SupplierRecord({ id }: { id: string }) {
                 label={t('supplierDetail.detailsLastChanged')}
                 value={
                   profile.bankDetails?.changedAt
-                    ? day(profile.bankDetails.changedAt.slice(0, 10))
+                    ? formatInstantDay(profile.bankDetails.changedAt, language)
                     : '—'
                 }
                 last
               />
-              {profile.health.includes('BANK_CHANGED_UNCONFIRMED') ? (
-                <p className="mt-2 rounded-sm bg-pending-100 p-3 text-xs font-medium leading-[1.4] text-pending-700">
-                  {t('supplierRecord.bankUnconfirmed')}
-                </p>
-              ) : null}
             </SideCard>
 
             <SideCard title={t('supplierDetail.howTheyBillYou')}>

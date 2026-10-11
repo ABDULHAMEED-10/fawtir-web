@@ -33,7 +33,17 @@ export type SupplierListRowDto = {
     /** English card text; the screen writes its own from the two numbers above. */
     earlyPaymentDiscount: string | null
   }
-  youOwe: { amount: number; currency: string; openBills: number; onHold: number }
+  /**
+   * `overpaidTotal` is "Overpaid by" (owner's answer 13, 8 Oct 2026), in `currency` only, beside
+   * `amount` and never netted against it. Typed, not drawn on the list. Absent from a server before it.
+   */
+  youOwe: {
+    amount: number
+    currency: string
+    openBills: number
+    onHold: number
+    overpaidTotal?: number
+  }
   record: {
     health: SupplierHealthFlag[]
     paidOnTimeCount: number

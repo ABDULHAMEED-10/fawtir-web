@@ -392,6 +392,30 @@ describe('upload a supplier credit note', () => {
     expect(visible(arabic)).not.toContain('OMR')
   })
 
+  // E2E 10 Oct, F-2: a 31.500 credit on a 20.000 bill said "you simply pay 31.500 less".
+  it('says the bill comes down by no more than it still owes when the credit is bigger', async () => {
+    billRows = [{ ...BILL, totalIncludingVat: 50, outstandingAmount: 50 }]
+    await uploadNote()
+    await chooseBill()
+    const sentence = screen.getByText(/^The bill is unpaid, so you simply pay/)
+    expect(sentence.textContent).toMatch(/\s50\.000 less\.$/)
+    expect(sentence.textContent).not.toContain('105.000')
+  })
+
+  // E2E 10 Oct, F-14: the chosen bill's card read "Approved · 60.000 unpaid".
+  it('writes what the chosen bill still owes with the rial sign before it', async () => {
+    await uploadNote()
+    await chooseBill()
+    const card = screen.getByText(
+      (_, element) =>
+        element?.tagName === 'P' && /315\.000 unpaid · due /.test(element.textContent ?? ''),
+    )
+    expect(card.querySelector('svg')).not.toBeNull()
+    const visible = card.cloneNode(true) as Element
+    visible.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+    expect(visible.textContent).not.toContain('OMR')
+  })
+
   it('sends one confirm however quickly the button is pressed twice', async () => {
     let answer: (response: Response) => void = () => {}
     confirmAnswer = () =>
@@ -746,8 +770,10 @@ describe('a credit note correcting a supplier debit note on upload', () => {
       expect(english.querySelector('svg')).not.toBeNull()
       const shown = english.cloneNode(true) as Element
       shown.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+      // A 105.000 credit on a debit note that owes 52.500: no more than it still owes comes off,
+      // as for a bill (E2E 10 Oct, F-2).
       expect(shown.textContent).toMatch(
-        /^The debit note is unpaid, so you simply pay\s+105\.000 less\.$/,
+        /^The debit note is unpaid, so you simply pay\s+52\.500 less\.$/,
       )
       expect(screen.getByRole('radio', { name: /Hold it as credit/ })).toBeTruthy()
       expect(screen.queryByText(/This debit note was refused/)).toBeNull()
@@ -772,7 +798,7 @@ describe('a credit note correcting a supplier debit note on upload', () => {
       const shownAr = arabic.cloneNode(true) as Element
       shownAr.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
       expect(shownAr.textContent).toMatch(
-        /^الإشعار المدين غير مدفوع، لذا تدفع أقل بمقدار\s+105\.000 فحسب\.$/,
+        /^الإشعار المدين غير مدفوع، لذا تدفع أقل بمقدار\s+52\.500 فحسب\.$/,
       )
     })
 

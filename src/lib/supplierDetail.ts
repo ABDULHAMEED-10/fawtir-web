@@ -4,7 +4,7 @@ import type { SupplierDocumentDto, SupplierOverviewDto } from '../api/expenditur
 import type { SupplierDetailDto } from '../api/expenditure/suppliers'
 import { workflowStateOf } from './billList'
 import { addDays } from './dates'
-import type { Band, Note } from './supplierRecord'
+import { muscatDayOf, type Band, type Note } from './supplierRecord'
 
 /**
  * The Overview tab of a supplier's record (Suppliers › Detail, Figma 163:26275), written from
@@ -177,7 +177,7 @@ export function openRun(
  */
 export function documentLine(entry: SupplierDocumentDto): { note: Note; remark: string | null } {
   const d = entry.document
-  const date = d.documentDate ?? d.uploadedAt.slice(0, 10)
+  const date = d.documentDate ?? muscatDayOf(d.uploadedAt)
   const key = d.provenance
     ? `supplierRecord.provenance.${d.provenance}`
     : 'supplierRecord.documents.uploaded'

@@ -168,11 +168,8 @@ function supplierDetail(id) {
       notes: null,
       supplierCategory: null,
       selfBillingAgreement: false,
-      health: s.iban
-        ? BANK_UNCONFIRMED.has(id)
-          ? ['BANK_CHANGED_UNCONFIRMED']
-          : []
-        : ['NO_BANK_DETAILS'],
+      // Nobody confirms a changed IBAN since 10 Oct 2026.
+      health: s.iban ? [] : ['NO_BANK_DETAILS'],
       supplierSince: '2025-02-01',
       switchedOffAt: null,
       status: 'ACTIVE',
@@ -189,19 +186,7 @@ function supplierDetail(id) {
     },
     sameAsInvoicingAddress: true,
     deliveryAddress: null,
-    // A change saved by someone else, before the platform kept the IBAN it replaced.
-    bankDetailsChange: BANK_UNCONFIRMED.has(id)
-      ? {
-          previousIban: null,
-          newIban: s.iban,
-          changedById: 'u-hafidh',
-          changedBy: 'Hafidh Saif',
-          changedAt: '2026-09-28T08:00:00Z',
-          firstEntry: false,
-          confirmable: true,
-          checkRequired: false,
-        }
-      : null,
+    bankDetailsChange: null,
     bankDetailsActivity: [],
   }
 }
@@ -814,6 +799,25 @@ const MARK_PAID_BLOCKS = {
   'b-sp-1158': { code: 'PAYMENT_RUN_AMOUNT_CHANGED', owedNow: 250.0 },
 }
 
+/**
+ * What marking the run paid would refuse this bill for (backend #476): only on a live run (DRAFT,
+ * SCHEDULED, EXPORTED); a hold first, then, before a bank file, a rejection, then the seeded cases.
+ */
+function markPaidBlockOf(run, b) {
+  if (!['DRAFT', 'SCHEDULED', 'EXPORTED'].includes(run.state)) return null
+  const owedNow = priced(b, run.paymentDate).outstanding
+  if (b.workflowState === 'ON_HOLD') return { code: 'PAYMENT_RUN_BILL_ON_HOLD', owedNow }
+  if (run.state !== 'EXPORTED' && b.workflowState === 'REJECTED')
+    return { code: 'PAYMENT_RUN_BILL_NOT_READY', owedNow }
+  return MARK_PAID_BLOCKS[b.id] ?? null
+}
+
+/**
+ * Bills whose supplier's bank details changed after the bill was added to the run (owner, 10 Oct
+ * 2026), as `runId:billId`: Sohar Packaging's IBAN changed after its bill joined draft PR-0014.
+ */
+const BANK_CHANGED_SINCE_ADDED = new Set(['run-0014:b-sp-1140'])
+
 function runItems(run) {
   return run.billIds.map((billId) => {
     const b = billById(billId)
@@ -830,7 +834,8 @@ function runItems(run) {
       discountTaken: p.discount,
       outstanding: p.outstanding,
       takenOut: run.takenOut?.[billId] ?? null,
-      markPaidBlock: (run.state === 'EXPORTED' && MARK_PAID_BLOCKS[billId]) || null,
+      markPaidBlock: markPaidBlockOf(run, b),
+      supplierBankDetailsChangedSinceAdded: BANK_CHANGED_SINCE_ADDED.has(`${run.id}:${billId}`),
     }
   })
 }
@@ -870,8 +875,26 @@ function runDto(run) {
   const items = runItems(run)
   const billsTotal = money(items.reduce((s, i) => s + i.outstanding, 0))
   const discountTotal = money(items.reduce((s, i) => s + i.discountTaken, 0))
-  const { billIds, takenOut, events, bankPaidNothing, ...rest } = run
-  return { ...rest, billsTotal, discountTotal, netTotal: money(billsTotal - discountTotal) }
+  const { billIds, takenOut, events, bankPaidNothing, paidOn, ...rest } = run
+  // Backend #477: on a paid run, what was paid and what was taken out; null on any other run.
+  const paid = run.state === 'PAID'
+  const out = items.filter((i) => i.takenOut)
+  return {
+    ...rest,
+    billsTotal,
+    discountTotal,
+    netTotal: money(billsTotal - discountTotal),
+    // Backend #480: the day the bills were paid, on each list row (and at the top of the
+    // detail), null unless PAID. The runs paid before it was kept were paid on their planned date.
+    paidOn: paid ? (paidOn ?? run.paymentDate) : null,
+    paidTotal: paid
+      ? money(items.filter((i) => !i.takenOut).reduce((s, i) => s + i.amount, 0))
+      : null,
+    // What the taken-out bills still owe, without the discount (owner, 10 Oct 2026).
+    takenOutTotal: paid
+      ? money(out.reduce((s, i) => s + (i.takenOut.owedNow ?? i.outstanding), 0))
+      : null,
+  }
 }
 
 /**
@@ -883,8 +906,13 @@ const CHANGED_SINCE_FILE = { 'run-0012': ['s-sp'] }
 /** Suppliers whose new bank details nobody has confirmed: no first bank file pays them. */
 const BANK_UNCONFIRMED = new Set(['s-mz'])
 
-const runDetail = (run) => ({
-  run: runDto(run),
+// Backend #480: the day paid is at the top of the run's detail, beside `run`, not inside it.
+const runDetail = (run) => {
+  const { paidOn, ...dto } = runDto(run)
+  return { run: dto, paidOn, ...runDetailRest(run) }
+}
+
+const runDetailRest = (run) => ({
   items: runItems(run),
   activity: runActivity(run),
   fileStored: run.exportedAt ? (KEPT_FILES[run.id] ?? true) : null,
@@ -939,8 +967,27 @@ const REFUSED_DEBIT_NOTES = [
   },
 ]
 
+/**
+ * A supplier debit note nobody has accepted or refused yet (the debit-note fixture GCL-DN-0091):
+ * not payable until accepted (backend #480, owner 10 Oct 2026). Blocked with
+ * DEBIT_NOTE_NOT_ACCEPTED, never a candidate, refused by name when added to a run.
+ */
+const UNDECIDED_DEBIT_NOTES = [
+  {
+    billId: 'dn-gcl-0091',
+    supplierBillNumber: 'GCL-DN-0091',
+    supplierId: 's-gcl',
+    supplierName: SUPPLIERS['s-gcl'].name,
+    dueDate: '2026-08-25',
+    outstanding: 96.5,
+    reasonCodes: ['DEBIT_NOTE_NOT_ACCEPTED'],
+    approvalsGiven: null,
+    approvalsRequired: null,
+  },
+]
+
 function blocked() {
-  return [...REFUSED_DEBIT_NOTES, ...blockedBills()]
+  return [...REFUSED_DEBIT_NOTES, ...UNDECIDED_DEBIT_NOTES, ...blockedBills()]
 }
 
 function blockedBills() {
@@ -1820,6 +1867,13 @@ export default [
             billId,
             supplierBillNumber: refused.supplierBillNumber,
           })
+        const undecided = UNDECIDED_DEBIT_NOTES.find((note) => note.billId === billId)
+        if (undecided)
+          return refuse('PAYMENT_RUN_DEBIT_NOTE_NOT_ACCEPTED', 400, {
+            billId,
+            supplierBillNumber: undecided.supplierBillNumber,
+            documentTypeCode: '383',
+          })
         const b = billById(billId)
         if (!b) return { status: 404 }
         if (b.workflowState !== 'APPROVED') return refuse('PAYMENT_RUN_BILL_NOT_READY')
@@ -1887,8 +1941,16 @@ export default [
     reply: ({ params, body }) => {
       const run = runById(params[0])
       if (!run) return { status: 404 }
-      if (run.state !== 'EXPORTED') return refuse('PAYMENT_RUN_TRANSITION_INVALID')
-      // The way out when the bank paid the rest: any bill of the run, each with a reason.
+      // Backend `feat/payment-run-mark-paid-without-file`: a draft or scheduled run is marked paid
+      // as a sent one is, with the same take-out list; a run with no bills is refused.
+      if (!['DRAFT', 'SCHEDULED', 'EXPORTED'].includes(run.state))
+        return refuse('PAYMENT_RUN_TRANSITION_INVALID')
+      if (run.billIds.length === 0) return refuse('PAYMENT_RUN_EMPTY')
+      // The day the suppliers were paid (owner, 10 Oct 2026): optional, never in the future.
+      const paidOn = body?.paymentDate ?? null
+      if (paidOn !== null && (!/^\d{4}-\d{2}-\d{2}$/.test(paidOn) || paidOn > TODAY))
+        return refuse('PAYMENT_RUN_PAYMENT_DATE_IN_FUTURE')
+      // The way out when only some were paid: any bill of the run, each with a reason.
       const takeOut = body?.takeOut ?? []
       const named = new Set()
       for (const entry of takeOut) {
@@ -1903,23 +1965,47 @@ export default [
       }
       if (run.billIds.length > 0 && run.billIds.every((id) => named.has(id)))
         return refuse('PAYMENT_RUN_TAKE_OUT_EVERYTHING')
-      // Every bill left in that cannot be marked paid now is refused by name.
-      const blocked = run.billIds.find((id) => !named.has(id) && MARK_PAID_BLOCKS[id])
+      // Every bill left in that cannot be marked paid now is refused, by name except a hold.
+      const blocked = run.billIds.find((id) => !named.has(id) && markPaidBlockOf(run, billById(id)))
       if (blocked) {
         const b = billById(blocked)
-        return refuse(MARK_PAID_BLOCKS[blocked].code, 400, {
+        const { code } = markPaidBlockOf(run, b)
+        if (code === 'PAYMENT_RUN_BILL_ON_HOLD') return refuse(code)
+        return refuse(code, 400, {
           billId: blocked,
           supplierBillNumber: b.number,
           documentTypeCode: '380',
         })
       }
+      // Owner, 10 Oct 2026: a bill priced with an early-payment discount cannot be paid on a day
+      // after that discount ends; the refusal names it.
+      const paidDay =
+        paidOn ?? (run.paymentDate && run.paymentDate <= TODAY ? run.paymentDate : TODAY)
+      const late = run.billIds.find((id) => {
+        if (named.has(id)) return false
+        const b = billById(id)
+        return priced(b, run.paymentDate).discount > 0 && priced(b, paidDay).discount === 0
+      })
+      if (late)
+        return refuse('PAYMENT_RUN_PAYMENT_DATE_AFTER_DISCOUNT', 400, {
+          billId: late,
+          supplierBillNumber: billById(late).number,
+          documentTypeCode: '380',
+        })
       run.state = 'PAID'
       run.paidAt = `${TODAY}T11:00:00Z`
+      // The day paid (backend #480, `paidOn`): the date sent, else the run's date when it is set
+      // and not in the future, else today in Muscat. The run keeps its planned date; a run with
+      // none takes the day paid.
+      run.paidOn = paidDay
+      if (!run.paymentDate) run.paymentDate = paidDay
       run.takenOut = {}
       run.events = []
       for (const entry of takeOut) {
         const at = `${TODAY}T11:00:00Z`
-        run.takenOut[entry.billId] = { at, actor: 'u-hafidh', reason: entry.reason }
+        // What it still owes, without the discount the run priced it with (owner, 10 Oct 2026).
+        const owedNow = priced(billById(entry.billId), null).outstanding
+        run.takenOut[entry.billId] = { at, actor: 'u-hafidh', reason: entry.reason, owedNow }
         run.events.unshift({
           at,
           kind: 'TAKEN_OUT',
@@ -2039,6 +2125,8 @@ export default [
       readyToPayTotal: 8800,
       disputedCount: 0,
       disputedTotal: 0,
+      debitNotesAwaitingDecisionCount: 0,
+      debitNotesAwaitingDecisionTotal: 0,
       excludedFromTotals: 0,
       needsAttention: {
         draft: 0,

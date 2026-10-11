@@ -9,6 +9,7 @@ import type {
 import type { ApiDownload } from '../api/client'
 import type { ContactPurpose } from '../api/expenditure/supplierRecord'
 import * as validate from './validation'
+import { muscatToday } from './invoiceIssue'
 
 /**
  * A supplier's record page (decisions of 2026-09-17, E-03/E-04), written only from what the API
@@ -89,10 +90,16 @@ export function paymentLines(payments: readonly SupplierPaymentDto[]): PaymentLi
   return payments.filter((row) => row.entryType === 'PAYMENT').map((row) => ({ ...row, reversed: reversed.has(row.id) }))
 }
 
+/** The Muscat calendar day a server instant fell on, as `YYYY-MM-DD` (not the UTC day). */
+export function muscatDayOf(instant: string): string {
+  const at = new Date(instant)
+  return Number.isNaN(at.getTime()) ? instant.slice(0, 10) : muscatToday(at)
+}
+
 export function documentMeta(entry: SupplierDocumentDto): Note {
   const d = entry.document
   if (d.documentDate) return { key: 'supplierRecord.documents.dated', values: { date: d.documentDate } }
-  return { key: 'supplierRecord.documents.uploaded', values: { date: d.uploadedAt.slice(0, 10) } }
+  return { key: 'supplierRecord.documents.uploaded', values: { date: muscatDayOf(d.uploadedAt) } }
 }
 
 export function fileSize(bytes: number, language: string): string {
