@@ -1562,10 +1562,24 @@ function seededRuns(r) {
 // Beside the routes it serves, so this module's other areas are left as they are.
 import { saveRules, saveSettings, settingsAnswer } from '../lib/billReminderRules.mjs'
 
+/** In the full `RecordUserResponse` shape, since Settings › Team members reads the same list. */
+const user = (id, username, firstName, lastName, roles, mfaEnabled) => ({
+  id,
+  username,
+  email: `${username}@example.om`,
+  firstName,
+  lastName,
+  enabled: true,
+  mfaEnabled,
+  roles,
+  createdAt: '2026-09-01T08:00:00Z',
+  locked: false,
+  lockedUntil: null,
+})
 const USERS = [
-  { id: 'u-yusuf', username: 'yusuf', firstName: 'Yusuf', lastName: 'Al Balushi' },
-  { id: 'u-hafidh', username: 'hafidh', firstName: 'Hafidh', lastName: 'Saif' },
-  { id: 'u-aisha', username: 'aisha', firstName: 'Aisha', lastName: 'Al Hinai' },
+  user('u-yusuf', 'yusuf', 'Yusuf', 'Al Balushi', ['TENANT_ADMIN'], true),
+  user('u-hafidh', 'hafidh', 'Hafidh', 'Saif', ['ACCOUNTANT'], false),
+  user('u-aisha', 'aisha', 'Aisha', 'Al Hinai', ['ACCOUNTANT'], true),
 ]
 
 let RULES = [

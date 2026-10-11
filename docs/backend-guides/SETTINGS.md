@@ -19,7 +19,7 @@ API does not provide yet, and what to add.
 - **Finding it in the code.** Every gap is a `// TODO(backend)` comment naming its row. Search for
   `TODO(backend)` in `src/pages/SettingsPage/CompanyProfilePage.tsx`.
 
-**Screens in this guide:** Settings › Company profile, Activity log, Branches, Peppol and tax.
+**Screens in this guide:** Settings › Company profile, Activity log, Branches, Peppol and tax, Plan and usage, Team members, Invite someone, Roles, Signing in.
 
 ---
 
@@ -83,3 +83,70 @@ yet" until the server answers it (rows 4.3 and 4.4). Fawtir manages the access-p
 | 4.2 | "Oman SMP publication" | `participantReference` is masked, so the screen cannot tell which registration belongs to the verified ID; it says "Published" if any registration is `CONFIRMED_ACTIVE`. An unmasked reference for the tenant's own registrations, or a per-standing publication flag, would let it match exactly |
 | 4.3 | "Certificates": signing certificate, AS4 transport certificate and OTA reporting credentials, each named with its note and "Not available yet" where the frame shows the issuer and the days left | A read of each certificate that applies to the company: what it is, who issued it, when it expires, and whether it renews itself. The design's renewal steps ("Ask Oman CA for a new one", "Upload it here") come back once that read exists, for any certificate the company itself holds |
 | 4.4 | "How you appear to others": Listed in the Peppol directory, Accept bills sent to you over Peppol, Accept self-billing, Send a copy by email as well. Drawn at their usual settings, cannot be switched; the card reads "Not available yet" | Each as a company setting that can be read and saved (for example `GET`/`PUT /v1/peppol/visibility`), with the directory listing published to the Peppol Directory and "accept bills" reflected in the SMP registration |
+
+## 5. Plan and usage (`GET /v1/settings/plan`, `GET /v1/settings/subscription`, `GET /v1/public/plans`)
+
+PR #166 drew this screen from the server's figures and dropped what the server cannot answer. The
+design's parts are drawn again (11 Oct 2026): the forecast is computed from `used`, `quota` and the
+period, the plan cards come from the published catalogue (`GET /v1/public/plans`, marked "Your
+plan" by `plan.code`), and the rest reads "Not available yet". **Owner decision:** a move to a
+larger plan applies straight away; a move to a smaller plan applies from the next renewal.
+
+| # | Element on the screen | What the backend needs to add |
+|---|---|---|
+| 5.1 | "Move up a plan" beside the usage, and "Move to {plan}" on each plan card (dearer and cheaper). Drawn disabled with "Not available yet", shown only to `tenant.plan.manage` | A plan change: `POST /v1/settings/subscription/plan-change` with `{planCode, billingCycle, priceVersionId}` (the catalogue's price version, so a repricing is caught), permission `tenant.plan.manage`, idempotent. An upgrade applies at once (pro rata, as `platformSettings` `upgrade: immediateProRata` describes) and answers the new `SubscriptionStatusDto`; a downgrade is stored as the `scheduledChange` the status already returns (and `DELETE /scheduled-change` already withdraws), effective on `renewsOn`. Refusals as problem types the screen can name (plan not offered, payment being checked, people or branches above the smaller plan's ceiling) |
+| 5.2 | "Switch overage on or off" beside the usage. Drawn disabled, "Not available yet" | Whether overage is on for the tenant, readable on `GET /v1/settings/plan` (`overageEnabled`), and a way to switch it (`PUT /v1/settings/plan/overage {enabled}`, `tenant.plan.manage`). The plan's `overagePricePerInvoice` already says whether the plan offers it at all |
+| 5.3 | "Busiest day so far" (the count and the date). Reads "Not available yet" | On the usage: `busiestDay: {date, count}` for the current period |
+| 5.4 | "Last month" (documents used of the allowance then). Reads "Not available yet" | On the usage: `previousPeriod: {start, end, used, quota}` |
+| 5.5 | "Raised today" split by branch (the design's note, "Muscat 3 · Nizwa 2"). The figure is shown; the note reads "By branch: not available yet" | On the usage: `raisedTodayByBranch: [{branchId, name, count}]` |
+| 5.6 | "Add-ons": the ERP integration card (state, price, documents collected, reset date). Shows "Enabled by Fawtir" and links to ERP integration | A read of the tenant's add-ons, for example `GET /v1/settings/addons`: for ERP extraction, its availability on the plan (not offered, priced, included), whether it is active, its monthly price and allowance, and this period's collected count |
+| 5.7 | The plan cards mark "Your plan" by matching `plan.code` against the public catalogue | A company on a retired or private plan finds no card marked as its own, and the price difference on the other cards falls back to `plan.monthlyPrice`. A list of the plans this tenant may move to, with the difference in price for its billing cycle (`GET /v1/settings/plan/options`), would answer it exactly |
+
+## 6. Team members (`GET /v1/users`, `GET /v1/users/invitations`)
+
+The four figures and the tabs are drawn again (11 Oct 2026). "With a login", the invitations
+waiting and "Two-step sign-in" (people without an authenticator app) are counted from the lists;
+the tabs All, Waiting to accept and Without two-step work on them.
+
+| # | Element on the screen | What the backend needs to add |
+|---|---|---|
+| 6.1 | "Signed in this week" (figure and note), the "Last signed in" column, the "Not signed in lately" tab and the "Signed in most recently" sort. Each reads "Not available yet" or cannot be chosen | `lastSignedInAt` on `RecordUserResponse` (and, for the design's second line, the channel: web, mobile or till device, and the branch). Optionally a `signedInSince` filter on `GET /v1/users` |
+| 6.2 | "Extra people cost" (what the people beyond the plan's included count cost a month). Reads "Not available yet" | The server's own figure, readable by `admin.users.manage` (the Team screen's permission, not `tenant.plan.read`): for example `extraPeople: {count, monthlyCost}` on the users list or on `GET /v1/settings/plan` with the permission widened. The screen will not compute charges itself |
+| 6.3 | The "Removed" tab ("Removed people keep their entries in the activity log, but hold no place"). Cannot be chosen | A list of removed people: a `status=REMOVED` (or `enabled=false`) filter on `GET /v1/users`, and a statement of whether a deactivated person still holds a place on the plan |
+
+## 7. Invite someone (`POST /v1/users/invitations`)
+
+`InviteUserRequest` carries an email and role codes only, and the server refuses unknown members,
+so the fields below are drawn disabled and **never sent** (11 Oct 2026).
+
+| # | Element on the screen | What the backend needs to add |
+|---|---|---|
+| 7.1 | "Name" beside the email. Disabled, "Not available yet" | `firstName` and `lastName` (or `displayName`) on `InviteUserRequest`, used in the email and carried to the user created on acceptance |
+| 7.2 | "Which branches" (the branches the person works at). Shows "Not available yet" in place of the list | `branchIds` on `InviteUserRequest`, applied on acceptance (see row 3.3 for the branch-side view) |
+| 7.3 | "Add a note to the email". Disabled, "Not available yet" | `message` (plain text, up to 500 characters) on `InviteUserRequest`, included in the invitation email |
+| 7.4 | "Ask them to set up two-step sign-in". Drawn off, disabled | `requireMfa` on `InviteUserRequest`, so the person is asked to set up an authenticator app at first sign-in |
+| 7.5 | "What they'll receive" (the email preview) and "What happens next" (link works for, place taken, charged from). The preview is built from the session and the form and says so; the last three rows read "Not available yet" | (1) A preview of the server's own email: `POST /v1/users/invitations/preview` with the request body, answering `{subject, bodyText}` in the inviter's language. (2) The invitation's lifetime before it is sent (`invitationValidityDays`, the gap between `createdAt` and `expiresAt`), and when a place is taken and charged (on sending or on acceptance) |
+
+## 8. Roles (`GET /v1/roles`)
+
+The permission matrix is drawn again (11 Oct 2026) from each role's `permissionCodes`: every code
+any role holds is a row, grouped by what it concerns. The codes are named in words by the screen
+(`src/lib/permissionLabels.ts`), never shown raw. The matrix is read-only for now; changing a mark
+needs `PATCH /v1/roles/{id}`, which the server has (front-end work, not a backend gap).
+
+| # | Element on the screen | What the backend needs to add |
+|---|---|---|
+| 8.1 | The matrix rows and the permission lists on each role card, named by the screen's own words | A permission catalogue, `GET /v1/permissions` (readable with `role.list`): each code with its group and an English and Arabic name and description. The matrix can then also show permissions no role holds yet, and use the server's wording |
+| 8.2 | "Export this as a PDF" beside "Make a role". Drawn disabled, "Not available yet" | `GET /v1/roles/export?format=pdf` (the roles, their holders and the matrix), `role.list` |
+| 8.3 | The legend's "Can, but only so far" (a grant with a limit: "own branch", "up to 10%"). Shown with "Not available yet"; no cell uses it | Limits on a grant: a role's permission as `{code, scope}` (for example `BRANCH_OWN`, a discount ceiling), returned on `GET /v1/roles` and accepted on `PATCH /v1/roles/{id}` |
+
+## 9. Signing in (`GET /v1/users`)
+
+PR #166 removed the policy switches because nothing saved them. They are drawn again, disabled,
+each reading "Not available yet" (11 Oct 2026); the page still says these rules are Fawtir's for
+now.
+
+| # | Element on the screen | What the backend needs to add |
+|---|---|---|
+| 9.1 | "Require it of everyone" under Two-step sign-in, with how many people would be prompted (counted from the users list). Drawn off, disabled | A tenant security policy: `GET`/`PUT /v1/settings/security` with `requireMfa` (permission `admin.settings.manage`), enforced at sign-in by asking anyone without an authenticator app to set one up |
+| 9.2 | "How long a session lasts": on a browser (a day, a week, a fortnight, a month) and on a till device (until the shift ends, a day, don't sign out). Both pickers disabled, "Not available yet" | On the same policy: `browserSessionLength` and `tillSessionLength` (as enums, not ISO durations), applied to the refresh-token lifetime for that kind of client |

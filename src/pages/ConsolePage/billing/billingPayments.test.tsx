@@ -187,7 +187,7 @@ describe('Console › Subscription payments', () => {
     expect(panel.queryByRole('button', { name: i18n.t('console.billing.verify') })).toBeNull()
     expect(panel.queryByRole('button', { name: i18n.t('console.billing.reject') })).toBeNull()
     await user.type(panel.getByRole('textbox', { name: i18n.t('console.billing.cash.number') }), 'RC-77')
-    await user.type(panel.getByLabelText(i18n.t('console.billing.cash.at')), '2026-10-18T10:30')
+    await user.type(panel.getByRole('textbox', { name: i18n.t('console.billing.cash.time') }), '10:30')
     await user.type(panel.getByRole('textbox', { name: i18n.t('console.billing.cash.collector') }), 'Salim')
     await user.click(panel.getByRole('button', { name: i18n.t('console.billing.cash.record') }))
 
@@ -196,6 +196,8 @@ describe('Console › Subscription payments', () => {
       expect(call).toBeTruthy()
       expect(headerOf(call![1], 'If-Match')).toBe('"3"')
       expect(JSON.parse(String(call![1]?.body))).toMatchObject({ receiptNumber: 'RC-77', receivedAmount: '36.750', collectorName: 'Salim' })
+      // The cashier's clock is Muscat's, whatever zone the operator's browser is in.
+      expect(JSON.parse(String(call![1]?.body)).receivedAt).toMatch(/^\d{4}-\d{2}-\d{2}T10:30:00\+04:00$/)
     })
   })
 })
@@ -232,5 +234,23 @@ describe('Console › Bank account', () => {
 
     await user.click(await screen.findByRole('button', { name: i18n.t('console.bankAccounts.confirm') }))
     expect(await screen.findByText(i18n.t('console.bankAccounts.refusal.sameOperator'))).toBeTruthy()
+  })
+})
+
+describe('Console › Bank account, retiring the live account', () => {
+  it('asks before retiring the account customers pay into, and sends nothing on Keep it', async () => {
+    answers[BENEFICIARIES] = () => json(200, [{
+      id: 'a-1', legalName: 'Fawtir LLC', bankName: 'Bank Muscat', iban: 'OM810180000001299123456', swiftCode: null,
+      status: 'ACTIVE', reason: 'Main account', createdBy: 'u-other', createdAt: '2026-10-18T05:00:00Z',
+      confirmedBy: 'u-third', version: 2,
+    }])
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/accounts')
+
+    await user.click(await screen.findByRole('button', { name: i18n.t('console.bankAccounts.retire') }))
+    expect(screen.getByText(i18n.t('console.bankAccounts.retireConfirm'))).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: i18n.t('console.bankAccounts.keep') }))
+    expect(screen.queryByText(i18n.t('console.bankAccounts.retireConfirm'))).toBeNull()
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/retire'))).toBe(false)
   })
 })

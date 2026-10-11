@@ -1100,7 +1100,7 @@ describe('marking a run paid with no bank file (owner, 9 Oct 2026; lead, 10 Oct 
     renderAt('/expenditure/payments/new')
     expect(
       await screen.findByText(
-        'اختر الفواتير التي ستُدفع معًا. تجمعها فوتر حسب المورّد لتتابع ما دُفع وما بقي مستحقًا.',
+        'اختر الفواتير التي ستُدفع معًا. يجمعها فوتر حسب المورّد لتتابع ما دُفع وما بقي مستحقًا.',
         undefined,
         { timeout: 8000 },
       ),
