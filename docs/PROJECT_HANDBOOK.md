@@ -458,6 +458,15 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   existing billing and settlement logic is unchanged. The web never computes the Paymob amount:
   it shows the server's three-decimal figure and the server's state (ONBOARDING.md rows 1.12 to
   1.15).
+- **Card-paid subscription amounts end in 0 baisa** (owner, 11 Oct 2026), because Paymob takes two
+  decimals. The rule is on the final charged amount, after VAT and pro-rata. Subscription and
+  add-on prices are multiples of 0.200 OMR, the only prices whose 5% VAT total stays at two
+  decimals (35.000 + VAT = 36.750; 35.120 + VAT = 36.876 would not); the console refuses any
+  other price. Pro-rata amounts are worked at full precision, then rounded down to the nearest
+  0.010 OMR in the customer's favour (12.347 is charged as 12.340), and the bill shows exactly what
+  is charged. The refusal for a nonzero third decimal stays as a safety net. Bank transfer and
+  cash keep three decimals and the existing logic; invoices and tax reports always show three
+  decimals (ONBOARDING.md rows 1.16, 1.17).
 - **Sign-up:** "Tell us about your business" asks **"Will you use Fawtir POS?"** (unticked by
   default). Ticked: Business type and Sub business type are asked. Unticked: those screens are
   skipped, and the page quietly saves a placeholder category and type (Food & Beverage,
