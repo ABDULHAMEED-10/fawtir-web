@@ -9042,7 +9042,15 @@
       "timeToAcceptanceDown": "Typical this year, down from {{previous}}.",
       "timeToAcceptanceUp": "Typical this year, up from {{previous}}.",
       "timeToAcceptancePlain": "Typical this year.",
-      "unconfirmedCount": "{{n}} delivered, unconfirmed"
+      "unconfirmedCount": "{{n}} delivered, unconfirmed",
+      "notSentCount": "{{n}} not sent",
+      "waitingOnYouTail": "Until they're fixed, those sales aren't reported.",
+      "waitingOnYouNone": "Nothing needs your attention.",
+      "part": {
+        "rejected": "{{n}} turned down by the OTA",
+        "stopped": "{{n}} stopped at Fawtir",
+        "refusedOnDelivery": "{{n}} refused on delivery"
+      }
     },
     "tabs": {
       "all": "All",
@@ -9089,7 +9097,9 @@
       "waiting": "Still waiting",
       "superseded": "Superseded",
       "notOwed": "No TDD owed",
-      "deliveredUnconfirmed": "Delivered, unconfirmed"
+      "deliveredUnconfirmed": "Delivered, unconfirmed",
+      "notSent": "Not sent",
+      "stopped": "Stopped at Fawtir"
     },
     "verdict": {
       "noPeppolId": "The customer has no Peppol ID on their record.",
@@ -20715,7 +20725,8 @@
       "trialEnding_one": "Your free trial ends on {{date}}. {{count}} day left.",
       "trialEnding_other": "Your free trial ends on {{date}}. {{count}} days left.",
       "grace": "Your paid period ended on {{ended}}. Invoicing and tax reporting keep working until {{until}}.",
-      "paymentRequired": "Payment is due. Your issued invoices, reports and exports stay available. Paying online is not available in Fawtir yet, so contact Fawtir to pay.",
+      "paymentRequiredBilling": "Payment is due. Your issued invoices, reports and exports stay available. Pay the bill below using one of the ways shown.",
+      "paymentRequiredPlan": "Payment is due. Your issued invoices, reports and exports stay available. Pay the bill in Settings › Bills and payment.",
       "cancelled": "Your subscription ended on {{date}}. Your issued invoices and reports stay available to read and export.",
       "cancelScheduled": "Your subscription ends on {{date}} and will not renew."
     },
@@ -20791,10 +20802,15 @@
       "CASH": {
         "title": "Cash",
         "body": "Ask us to collect the payment in cash."
+      },
+      "CARD": {
+        "title": "Pay by card",
+        "body": "Pay the total now on the card provider's secure page."
       }
     },
     "noMethod": "Payment can't be made here yet. Contact Fawtir to pay this bill.",
     "bank": {
+      "amount": "Amount to transfer",
       "holder": "Account holder",
       "bank": "Bank",
       "iban": "IBAN",
@@ -20816,9 +20832,9 @@
     "note": "Note for Fawtir (optional)",
     "waiting": {
       "BANK_TRANSFER": {
-        "SUBMITTED": "We have your transfer receipt. The bill is paid once Fawtir has checked it against our bank account.",
-        "RECEIPT_RECORDED": "We have your transfer receipt and are checking it.",
-        "AWAITING_SECOND_APPROVAL": "Your transfer has been checked and is waiting for a second approval at Fawtir."
+        "SUBMITTED": "Pending verification by Fawtir Finance. We have your transfer receipt; the bill is paid once Finance has checked it against our bank account.",
+        "RECEIPT_RECORDED": "Pending verification by Fawtir Finance. We have your transfer receipt and are checking it.",
+        "AWAITING_SECOND_APPROVAL": "Pending verification by Fawtir Finance. Your transfer has been checked and is waiting for a second approval."
       },
       "CASH": {
         "SUBMITTED": "Your cash collection request is with Fawtir. We will contact you to collect it.",
@@ -20841,7 +20857,34 @@
       "bill-stale": "Your plan changed, so that bill was replaced. Pay the current bill below."
     },
     "bankUnavailable": "Bank transfer is temporarily unavailable because proof can't be stored safely right now. Try again in a few minutes.",
+    "bankNoAccount": "Bank transfer is temporarily unavailable because Fawtir has not configured a verified bank account.",
     "superseded": "Replaced after a plan change",
-    "olderBills": "Show older bills"
+    "olderBills": "Show older bills",
+    "card": {
+      "amount": "Amount to pay by card",
+      "instructions": "You will enter your card on the card provider's secure page, not in Fawtir. The bill is paid once the provider has confirmed the payment to Fawtir.",
+      "submit": "Continue to secure card payment",
+      "redirecting": "Taking you to the secure card page…",
+      "continue": "Continue to payment",
+      "checkAgain": "Check again",
+      "uncertain": "We couldn't confirm whether your card payment was started. Check again before paying another way: checking never charges you twice.",
+      "notStarted": "The card payment was not completed. Check your payment status before trying again.",
+      "notForThisBill": "This bill can't be paid by card. Please use bank transfer or cash.",
+      "notRepresentable": "This bill can't be paid by card. Please use bank transfer or cash. Bill total:",
+      "underReviewBill": "A card payment for this bill is being reviewed. Please don't pay again; Fawtir Finance will contact you.",
+      "switchedOff": "Card payment isn't available right now. Please use bank transfer or cash.",
+      "contactMissing": "Add your company's contact person, e-mail and phone before paying by card.",
+      "contactMissingLink": "Open Company profile",
+      "untrustedPage": "The card payment page could not be opened safely. Nothing was charged. Contact Fawtir.",
+      "statusUnreachable": "We couldn't check your card payment just now. We'll keep trying.",
+      "status": {
+        "READY": "Your card payment is ready.",
+        "PROCESSING": "Pending confirmation from the card provider. This usually takes a moment.",
+        "PAID": "Paid. Thank you.",
+        "NOT_COMPLETED": "The card payment was not completed. Check your payment status before trying again.",
+        "UNDER_REVIEW": "We received a card payment we need to check. Fawtir Finance will contact you; please don't pay again.",
+        "REVERSED": "This card payment was refunded. Fawtir Finance will contact you about this bill."
+      }
+    }
   }
 }

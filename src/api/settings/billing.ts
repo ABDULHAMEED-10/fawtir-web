@@ -11,7 +11,7 @@ export const BILLING_PATH = '/v1/settings/billing'
 
 export type BillStatus = 'OPEN' | 'PENDING_VERIFICATION' | 'PAID' | 'VOID'
 
-export type PaymentMethod = 'BANK_TRANSFER' | 'CASH'
+export type PaymentMethod = 'BANK_TRANSFER' | 'CASH' | 'CARD'
 
 export type PaymentStatus =
   | 'SUBMITTED'
@@ -69,7 +69,25 @@ export type BeneficiaryDto = {
   swiftCode: string | null
 }
 
-export type BillWithPaymentsDto = { bill: SubscriptionBillDto; payments: SubscriptionPaymentDto[] }
+/**
+ * Whether one OPEN bill can be paid by card, decided by the server (backend Phase 3C): the bill's
+ * purpose, the exact conversion of its final total, and no earlier card money for it under review.
+ * `reason` says why not; the screen never works this out itself.
+ */
+export type CardOptionDto = {
+  available: boolean
+  purpose: 'NEW_SUBSCRIPTION' | 'SUBSCRIPTION_UPGRADE' | 'SUBSCRIPTION_RENEWAL' | null
+  reason:
+    | 'CARD_NOT_AVAILABLE'
+    | 'PAYMOB_AMOUNT_NOT_REPRESENTABLE'
+    | 'CARD_PAYMENT_PURPOSE_NOT_ELIGIBLE'
+    | 'CARD_PAYMENT_UNDER_REVIEW'
+    | 'BILL_NOT_PAYABLE'
+    | null
+}
+
+/** `card` is present for an OPEN bill only, and absent from servers before Phase 3C. */
+export type BillWithPaymentsDto = { bill: SubscriptionBillDto; payments: SubscriptionPaymentDto[]; card?: CardOptionDto | null }
 
 /** Why bank transfer is or is not open; STORAGE_UNAVAILABLE recovers by itself. */
 export type BankTransferStatus = 'AVAILABLE' | 'NOT_OFFERED' | 'NO_ACCOUNT' | 'STORAGE_UNAVAILABLE'
@@ -79,7 +97,8 @@ export type BillingOverviewDto = {
   bills: BillWithPaymentsDto[]
   nextBillsCursor: string | null
   beneficiary: BeneficiaryDto | null
-  methods: { bankTransfer: boolean; bankTransferStatus: BankTransferStatus; cash: boolean }
+  /** `card` is false (or absent, before Phase 3C) whenever card checkout is not switched on. */
+  methods: { bankTransfer: boolean; bankTransferStatus: BankTransferStatus; cash: boolean; card?: boolean }
   proofMaximumBytes: number
 }
 
@@ -138,4 +157,59 @@ export function withdrawPayment(paymentId: string): Promise<SubscriptionPaymentD
   return apiRequest<SubscriptionPaymentDto>(`${BILLING_PATH}/payments/${encodeURIComponent(paymentId)}/withdrawal`, {
     method: 'POST',
   })
+}
+
+/**
+ * A card payment as the customer may see it. PAID only once the provider-confirmed payment settled
+ * the bill on the server; returning from the provider's page never makes it PAID.
+ */
+export type CardCheckoutStatus = 'PROCESSING' | 'READY' | 'PAID' | 'NOT_COMPLETED' | 'UNDER_REVIEW' | 'REVERSED'
+
+export type CardCheckoutDto = {
+  paymentId: string
+  billId: string
+  status: CardCheckoutStatus
+  /** The provider's hosted checkout, only while READY. It carries the checkout's secret: never log it. */
+  checkoutUrl: string | null
+  expiresAt: string | null
+  amount: string
+  currency: 'OMR'
+}
+
+/** The only host the backend ever sends a customer to; anything else is refused before navigating. */
+export const CARD_CHECKOUT_HOST = 'https://oman.paymob.com/'
+
+/**
+ * The one way this app leaves for the provider: a full-page navigation, never an iframe or a new
+ * window, so the hosted page keeps its own origin. Held in an object so a test can stand in for it.
+ */
+export const hostedCheckout = {
+  open(url: string): void {
+    window.location.assign(url)
+  },
+}
+
+export function isTrustedCheckoutUrl(url: string | null | undefined): url is string {
+  if (!url) return false
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'https:' && `${parsed.origin}/` === CARD_CHECKOUT_HOST && !parsed.username && !parsed.password
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Opens (or, with the same key, returns) the card checkout for a bill. No body: the server charges the
+ * bill's own final total, so nothing the browser holds can change the amount.
+ */
+export function startCardCheckout(billId: string, idempotencyKey: string): Promise<CardCheckoutDto> {
+  return apiRequest<CardCheckoutDto>(`${BILLING_PATH}/bills/${encodeURIComponent(billId)}/card-checkout`, {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+export function loadCardCheckout(paymentId: string, signal?: AbortSignal): Promise<CardCheckoutDto> {
+  return apiRequest<CardCheckoutDto>(`${BILLING_PATH}/payments/${encodeURIComponent(paymentId)}/card-checkout`, { signal })
 }

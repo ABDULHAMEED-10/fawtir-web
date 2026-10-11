@@ -100,6 +100,16 @@ function writes() {
 }
 
 describe('Settings › Billing: the charge', () => {
+  it('points a customer who owes payment to the ways to pay below, not to Fawtir, when one works', async () => {
+    answers[SUBSCRIPTION] = () => json(200, { ...STATUS, access: 'PAYMENT_REQUIRED', trialDay: null, trialDaysLeft: null })
+    renderBilling()
+    const notice = await screen.findByText(i18n.t('subscription.notice.paymentRequiredBilling'))
+    expect(notice.textContent).not.toMatch(/contact Fawtir/i)
+    expect(await screen.findByRole('radio', { name: new RegExp(i18n.t('billing.method.BANK_TRANSFER.title')) })).toBeTruthy()
+    expect(screen.getByRole('radio', { name: new RegExp(i18n.t('billing.method.CASH.title')) })).toBeTruthy()
+    expect(screen.queryByText(i18n.t('billing.noMethod'))).toBeNull()
+  })
+
   it('shows the server-computed subtotal, 5% VAT and total with the rial sign, and says it is not a tax invoice', async () => {
     renderBilling()
     expect(await screen.findByText('FWT-SUB-2026-000007')).toBeTruthy()
@@ -159,12 +169,73 @@ describe('Settings › Billing: the charge', () => {
     await waitFor(() => expect(writes().some(([url]) => String(url).endsWith('/payments/p-1/withdrawal'))).toBe(true))
   })
 
-  it('offers no way to pay when the server reports no method available', async () => {
+  it('offers no way to pay when the server reports no method available, says why, and keeps the contact fallback', async () => {
     answers[BILLING] = () => json(200, overview({ beneficiary: null, methods: { bankTransfer: false, bankTransferStatus: 'NO_ACCOUNT', cash: false } }))
     renderBilling()
 
     expect(await screen.findByText(i18n.t('billing.noMethod'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('billing.bankNoAccount'))).toBeTruthy()
     expect(within(charges()).queryByRole('radio')).toBeNull()
+  })
+
+  it('shows the confirmed account and the exact amount to transfer, in rials with three decimals', async () => {
+    const user = userEvent.setup({ delay: null })
+    renderBilling()
+
+    await user.click(await screen.findByRole('radio', { name: new RegExp(i18n.t('billing.method.BANK_TRANSFER.title')) }))
+    const region = charges()
+    for (const [label, value] of [
+      ['billing.bank.holder', 'Fawtir LLC'],
+      ['billing.bank.bank', 'Bank Muscat'],
+      ['billing.bank.iban', 'OM810180000001299123456'],
+      ['billing.bank.swift', 'BMUSOMMX'],
+    ]) {
+      expect(within(region).getByText(i18n.t(label))).toBeTruthy()
+      expect(within(region).getByText(value)).toBeTruthy()
+    }
+    // The bill's own total (36.750), not the plan's price (35.000), beside the account.
+    const amount = within(region).getByText(i18n.t('billing.bank.amount')).parentElement as HTMLElement
+    expect(within(amount).getByText('36.750')).toBeTruthy()
+    expect(amount.textContent).not.toMatch(/OMR|35\.000/)
+    expect(within(region).getByRole('radio', { name: new RegExp(i18n.t('billing.method.CASH.title')) })).toBeTruthy()
+  })
+
+  it('says bank transfer is unavailable when Fawtir has no confirmed account, shows no account, and still offers cash', async () => {
+    answers[BILLING] = () =>
+      json(200, overview({ beneficiary: null, methods: { bankTransfer: false, bankTransferStatus: 'NO_ACCOUNT', cash: true } }))
+    renderBilling()
+
+    expect(await screen.findByText(i18n.t('billing.bankNoAccount'))).toBeTruthy()
+    const region = charges()
+    expect(within(region).getAllByRole('radio')).toHaveLength(1)
+    expect(within(region).getByRole('radio', { name: new RegExp(i18n.t('billing.method.CASH.title')) })).toBeTruthy()
+    expect(within(region).queryByText(i18n.t('billing.bank.iban'))).toBeNull()
+    expect(within(region).queryByText(i18n.t('billing.noMethod'))).toBeNull()
+  })
+
+  it('adds no bank warning when the deployment does not offer bank transfer at all', async () => {
+    answers[BILLING] = () =>
+      json(200, overview({ beneficiary: null, methods: { bankTransfer: false, bankTransferStatus: 'NOT_OFFERED', cash: true } }))
+    renderBilling()
+
+    expect(await screen.findByRole('radio', { name: new RegExp(i18n.t('billing.method.CASH.title')) })).toBeTruthy()
+    expect(screen.queryByText(i18n.t('billing.bankNoAccount'))).toBeNull()
+    expect(screen.queryByText(i18n.t('billing.bankUnavailable'))).toBeNull()
+  })
+
+  it('shows a sent receipt as pending verification by Fawtir Finance at every step, never as paid', async () => {
+    for (const status of ['SUBMITTED', 'RECEIPT_RECORDED', 'AWAITING_SECOND_APPROVAL']) {
+      answers[BILLING] = () =>
+        json(200, overview({ bills: [{ bill: { ...BILL, status: 'PENDING_VERIFICATION' }, payments: [{ id: 'p-2', billId: 'b-1', method: 'BANK_TRANSFER', status, amount: '36.750', submittedAt: '2026-10-18T06:00:00Z', reference: 'TRX-1001', customerNote: null, proofContentType: 'application/pdf', receiptNumber: null, receivedAmount: null, receivedAt: null, rejectionReason: null, version: 0 }] }] }))
+      resetSharedRequests()
+      const { unmount } = renderBilling()
+
+      const waiting = await screen.findByText(i18n.t(`billing.waiting.BANK_TRANSFER.${status}`))
+      expect(waiting.textContent).toMatch(/^Pending verification by Fawtir Finance\./)
+      expect(within(charges()).queryByText(i18n.t('billing.billStatus.PAID'))).toBeNull()
+      expect(within(charges()).queryByRole('radio')).toBeNull()
+      unmount()
+    }
   })
 
   it('shows the reason for a rejected payment and lets the customer pay again', async () => {
@@ -237,5 +308,22 @@ describe('Settings › Billing: the charge', () => {
     expect(await screen.findByText('FWT-SUB-2026-000007')).toBeTruthy()
     expect(within(charges()).getByText('36.750')).toBeTruthy()
     expect(charges().textContent).not.toMatch(/[٠-٩]/)
+  })
+
+  it('in Arabic, keeps the IBAN left to right, the amount in Latin digits, and the new wording translated', async () => {
+    await i18n.changeLanguage('ar')
+    const user = userEvent.setup({ delay: null })
+    renderBilling()
+
+    await user.click(await screen.findByRole('radio', { name: new RegExp(i18n.t('billing.method.BANK_TRANSFER.title')) }))
+    const region = charges()
+    expect(within(region).getByText('OM810180000001299123456').getAttribute('dir')).toBe('ltr')
+    const amount = within(region).getByText(i18n.t('billing.bank.amount')).parentElement as HTMLElement
+    expect(within(amount).getByText('36.750')).toBeTruthy()
+    expect(region.textContent).not.toMatch(/[٠-٩]/)
+    for (const key of ['billing.bank.amount', 'billing.bankNoAccount', 'billing.waiting.BANK_TRANSFER.SUBMITTED',
+      'subscription.notice.paymentRequiredBilling', 'subscription.notice.paymentRequiredPlan']) {
+      expect(i18n.t(key)).toMatch(/[\u0600-\u06FF]/)
+    }
   })
 })

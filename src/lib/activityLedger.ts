@@ -112,7 +112,12 @@ export const ACTIVITY_TABS = [
   { id: 'attention', filters: { attention: 'true' as const } },
   { id: 'accepted', filters: { tddAck: 'AP' as const } },
   { id: 'rejected', filters: { tddAck: 'RE' as const } },
-  { id: 'waiting', filters: { tddAck: 'NONE' as const } },
+  // Submitted and unanswered only (N5b). tdd_ack=NONE stays beside it so a server without the
+  // tdd_state filter still lists silence rather than every document.
+  {
+    id: 'waiting',
+    filters: { tddAck: 'NONE' as const, tddState: 'AWAITING_RESPONSE' as const },
+  },
   { id: 'superseded', filters: { tddStatus: 'SUPERSEDED' } },
 ] as const
 
@@ -120,6 +125,40 @@ export type ActivityTabId = (typeof ACTIVITY_TABS)[number]['id']
 
 export function isActivityTab(value: string | null): value is ActivityTabId {
   return ACTIVITY_TABS.some((tab) => tab.id === value)
+}
+
+/** Where the window's reports stand with the OTA, for every card, tab and report that says so. */
+export type ReportStates = {
+  /** Submitted and not answered: the only reports anyone at the OTA is being waited on for. */
+  awaiting: number
+  /** Built here and not submitted yet. */
+  notSubmitted: number
+  /** Stopped by Fawtir itself (SLA dead-letter, generation failure); never the OTA's doing. */
+  stopped: number
+  /** Turned down by the OTA (MLS RE). */
+  rejected: number
+}
+
+/**
+ * Reads the server's report states (N5b). A server that does not send them yet gets the counts
+ * the screens used before, so an older backend can make nothing worse than it was.
+ */
+export function reportStatesOf(summary: ActivitySummaryDto): ReportStates {
+  const state = summary.tdd_state
+  if (!state) {
+    return {
+      awaiting: summary.tdd_ack.none,
+      notSubmitted: 0,
+      stopped: 0,
+      rejected: summary.tdd_ack.re,
+    }
+  }
+  return {
+    awaiting: state.awaiting_response,
+    notSubmitted: state.never_submitted,
+    stopped: state.internally_stopped,
+    rejected: state.authority_rejected,
+  }
 }
 
 /** What each tab counts, from the summary, so the tabs and the cards above them agree. */
@@ -136,7 +175,7 @@ export function tabCount(summary: ActivitySummaryDto, tab: ActivityTabId): numbe
     case 'rejected':
       return summary.tdd_ack.re
     case 'waiting':
-      return summary.tdd_ack.none
+      return reportStatesOf(summary).awaiting
     case 'superseded':
       // TODO(backend): not on the summary yet (asks row 2.4); zero until it is.
       return summary.superseded ?? 0
@@ -186,8 +225,20 @@ export type RowOutcome =
   | 'deliveredUnconfirmed'
   | 'rejected'
   | 'waiting'
+  | 'notSent'
+  | 'stopped'
   | 'superseded'
   | 'notOwed'
+
+/**
+ * Fawtir stopped the report itself: GENERATION_FAILED parks it before sending (FR-201) and
+ * DEAD_LETTERED is our own SLA watchdog or exhausted transport retries (FR-203/204). Neither is
+ * the OTA's doing, and neither is waiting on the OTA (Phase 13 findings N1, N5).
+ */
+export const TDD_STOPPED_AT_FAWTIR: ReadonlySet<string> = new Set([
+  'GENERATION_FAILED',
+  'DEAD_LETTERED',
+])
 
 /**
  * The frame's four outcomes, read off the TDD leg, plus "Delivered, unconfirmed".
@@ -197,6 +248,9 @@ export type RowOutcome =
  * acceptance an AP. AB (delivered without confirmation) is neither: it gets its own label and is
  * never counted as accepted. Silence stays "Still waiting": it is not a failure and never offers a
  * resend on its own (SPOG v1.0.0 §6.2); the resend is the server's link, as before.
+ *
+ * Silence counts as waiting only once the report was submitted: a report Fawtir stopped, or one
+ * with no `submitted_at`, never reached the OTA, so nobody there is being waited on (N5).
  */
 export function outcomeOf(item: ActivityItemDto): RowOutcome {
   const leg = item.tdd_leg
@@ -205,6 +259,8 @@ export function outcomeOf(item: ActivityItemDto): RowOutcome {
   if (leg.ack === 'RE') return 'rejected'
   if (leg.ack === 'AP') return 'accepted'
   if (leg.ack === 'AB') return 'deliveredUnconfirmed'
+  if (TDD_STOPPED_AT_FAWTIR.has(leg.status)) return 'stopped'
+  if (!leg.submitted_at) return 'notSent'
   return 'waiting'
 }
 

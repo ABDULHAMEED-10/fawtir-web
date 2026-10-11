@@ -29,7 +29,7 @@ export function BillingPage() {
           </Link>
         }
       />
-      <SubscriptionStatusSection />
+      <SubscriptionStatusSection page="billing" />
       <SubscriptionBillingSection />
     </SettingsShell>
   )

@@ -40,6 +40,7 @@ import {
   isActivityTab,
   isDirectionFilter,
   outcomeOf,
+  reportStatesOf,
   routeOf,
   rowRefusalKind,
   secondsBetween,
@@ -101,6 +102,17 @@ const OUTCOME_STYLE: Record<RowOutcome, { chip: string; dot: string; body: strin
     chip: 'bg-pending-100 text-pending-700',
     dot: 'bg-pending-700',
     body: 'text-pending-500',
+  },
+  // Not sent yet is not a failure either, so it keeps the amber; stopped needs attention here.
+  notSent: {
+    chip: 'bg-pending-100 text-pending-700',
+    dot: 'bg-pending-700',
+    body: 'text-pending-500',
+  },
+  stopped: {
+    chip: 'bg-danger-100 text-danger-700',
+    dot: 'bg-danger-700',
+    body: 'text-danger-700',
   },
   superseded: {
     chip: 'bg-surface-background text-text-quaternary',
@@ -365,6 +377,20 @@ function ActivityLedger() {
   const accepted = book.tdd_ack.ap
   const unconfirmed = book.tdd_ack.ab
   const decided = accepted + unconfirmed + book.tdd_ack.re + book.tdd_ack.none
+  // "Still waiting" and "turned down" come from the report states, never from MLS silence or the
+  // attention count, which also hold reports that never reached the OTA (N5b).
+  const states = reportStatesOf(book)
+  const notSent = states.notSubmitted + states.stopped
+  const refusedOnDelivery = Math.max(0, book.attention - states.rejected - states.stopped)
+  const attentionParts = book.tdd_state
+    ? [
+        states.rejected > 0 ? t('activity.kpi.part.rejected', { n: count(states.rejected) }) : null,
+        states.stopped > 0 ? t('activity.kpi.part.stopped', { n: count(states.stopped) }) : null,
+        refusedOnDelivery > 0
+          ? t('activity.kpi.part.refusedOnDelivery', { n: count(refusedOnDelivery) })
+          : null,
+      ].filter((part): part is string => part !== null)
+    : null
   const bar = [
     { key: 'accepted', value: accepted, tone: 'bg-[#4c6c5a]' },
     { key: 'unconfirmed', value: unconfirmed, tone: 'bg-success-100' },
@@ -422,7 +448,13 @@ function ActivityLedger() {
               {t('activity.kpi.rejectedCount', { n: count(book.tdd_ack.re) })}
             </span>
             {' - '}
-            {t('activity.kpi.waitingCount', { n: count(book.tdd_ack.none) })}
+            {t('activity.kpi.waitingCount', { n: count(states.awaiting) })}
+            {notSent > 0 ? (
+              <>
+                {' - '}
+                {t('activity.kpi.notSentCount', { n: count(notSent) })}
+              </>
+            ) : null}
           </p>
         </Kpi>
 
@@ -431,7 +463,11 @@ function ActivityLedger() {
             {count(book.attention)}
           </p>
           <p className="mt-2.5 text-xs font-medium leading-[1.4] text-text-quaternary">
-            {t('activity.kpi.waitingOnYouNote')}
+            {attentionParts === null
+              ? t('activity.kpi.waitingOnYouNote')
+              : attentionParts.length === 0
+                ? t('activity.kpi.waitingOnYouNone')
+                : `${attentionParts.join(' · ')}. ${t('activity.kpi.waitingOnYouTail')}`}
           </p>
         </Kpi>
 
@@ -698,6 +734,9 @@ function SubmissionRow({
     language,
     t,
   )
+  // An owed report with no submission time was never sent; the issue time must not stand in for
+  // a sending time under the "Sent" column (N5).
+  const neverSent = !received && !!leg && !leg.submitted_at
   const refusal = rowRefusalKind(item)
   const number = item.invoice_number ?? t('activity.unnumbered')
   const offerResubmit = canResubmit(item) && mayResubmit
@@ -711,7 +750,10 @@ function SubmissionRow({
         ? t('activity.ref.neverAccepted')
         : outcome === 'notOwed'
           ? t('activity.noTdd')
-          : t('activity.ref.waiting')
+          : // Nothing reached Fawtara, so no reference is on its way either.
+            outcome === 'notSent' || outcome === 'stopped'
+            ? t('activityDetail.versions.noReference')
+            : t('activity.ref.waiting')
 
   const cleared = secondsBetween(leg?.submitted_at ?? null, leg?.ack_at ?? null)
   const verdict = (() => {
@@ -728,6 +770,10 @@ function SubmissionRow({
           usual: formatDuration(typicalSeconds ?? 120),
         })
       }
+      case 'notSent':
+        return t('activityDetail.versions.notSentBody')
+      case 'stopped':
+        return t('activityDetail.versions.heldBody')
       case 'superseded':
         return t('activity.verdict.replacedByUs')
       case 'deliveredUnconfirmed':
@@ -883,8 +929,16 @@ function SubmissionRow({
       </td>
 
       <td className="px-4 py-5 align-top">
-        <p className="whitespace-nowrap text-sm font-medium text-text-secondary">{sent.day}</p>
-        <p className="mt-1 text-xs font-medium text-text-tertiary tabular-nums">{sent.time}</p>
+        {neverSent ? (
+          <p className="whitespace-nowrap text-sm font-medium text-text-secondary">
+            {t('activityDetail.versionState.notSent')}
+          </p>
+        ) : (
+          <>
+            <p className="whitespace-nowrap text-sm font-medium text-text-secondary">{sent.day}</p>
+            <p className="mt-1 text-xs font-medium text-text-tertiary tabular-nums">{sent.time}</p>
+          </>
+        )}
       </td>
 
       <td className="px-4 py-5 align-top">
