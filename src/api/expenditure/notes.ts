@@ -240,6 +240,11 @@ export type RelatedInvoiceDto = {
   billNumber: string | null
   issueDate: string | null
   documentUuid: string | null
+  /**
+   * The bill on file the note adds to, for the screens to link to (as `credits.billId` on a
+   * credit note); null when the server cannot name exactly one.
+   */
+  billId?: string | null
 }
 
 export type DebitNoteRowDto = {
@@ -276,6 +281,8 @@ export type DebitNoteRowDto = {
   paymentState: string
   status: DebitNoteStatusDto
   decidedBy: string | null
+  /** Who took the current decision, by name; null while unchecked or once they have left. */
+  decidedByName?: string | null
   decidedAt: string | null
   decisionReason: string | null
   relatesTo: RelatedInvoiceDto | null

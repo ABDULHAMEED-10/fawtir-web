@@ -818,7 +818,30 @@ function candidates(excludeRun, paymentDate) {
   })
 }
 
+/**
+ * A supplier debit note whose current decision is REFUSED (the debit-note fixture MZ-DN-0088): a
+ * disputed charge, listed as blocked with DEBIT_NOTE_REFUSED first, never a candidate, and refused
+ * by name when added to a run (EXPENDITURE.md 1.24).
+ */
+const REFUSED_DEBIT_NOTES = [
+  {
+    billId: 'dn-mz-0088',
+    supplierBillNumber: 'MZ-DN-0088',
+    supplierId: 's-mz',
+    supplierName: SUPPLIERS['s-mz'].name,
+    dueDate: '2026-08-15',
+    outstanding: 122.7,
+    reasonCodes: ['DEBIT_NOTE_REFUSED'],
+    approvalsGiven: null,
+    approvalsRequired: null,
+  },
+]
+
 function blocked() {
+  return [...REFUSED_DEBIT_NOTES, ...blockedBills()]
+}
+
+function blockedBills() {
   return BILLS.filter(
     (b) =>
       b.workflowState === 'ON_HOLD' ||
@@ -842,7 +865,7 @@ function blocked() {
   }))
 }
 
-const refuse = (code, status = 400) => ({
+const refuse = (code, status = 400, properties = {}) => ({
   status,
   body: {
     type: 'https://api.fawtir.om/problems/expenditure-refused',
@@ -850,6 +873,7 @@ const refuse = (code, status = 400) => ({
     status,
     error: code,
     detail: code,
+    ...properties,
   },
 })
 
@@ -1688,6 +1712,12 @@ export default [
       if (run.state !== 'DRAFT' && run.state !== 'SCHEDULED')
         return refuse('PAYMENT_RUN_NOT_EDITABLE')
       for (const billId of body?.billIds ?? []) {
+        const refused = REFUSED_DEBIT_NOTES.find((note) => note.billId === billId)
+        if (refused)
+          return refuse('PAYMENT_RUN_DEBIT_NOTE_REFUSED', 400, {
+            billId,
+            supplierBillNumber: refused.supplierBillNumber,
+          })
         const b = billById(billId)
         if (!b) return { status: 404 }
         if (b.workflowState !== 'APPROVED') return refuse('PAYMENT_RUN_BILL_NOT_READY')

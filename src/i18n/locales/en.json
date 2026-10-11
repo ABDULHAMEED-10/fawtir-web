@@ -5606,6 +5606,11 @@
       "notPending": "This bill is no longer waiting for approval. Reload to see where it is.",
       "noApprover": "Nobody on this account can approve this bill. Check the approval rules in Settings.",
       "unavailable": "Bill reminders are not switched on, so nobody was told."
+    },
+    "debitNote": {
+      "type": "Debit note",
+      "accepted": "Accepted",
+      "refused": "Refused"
     }
   },
   "billDetail": {
@@ -6842,7 +6847,8 @@
       "acceptedPlain": "Accepted",
       "refused": "Refused",
       "onHold": "On hold",
-      "refusedWhy": "Refused · {{reason}}"
+      "refusedWhy": "Refused · {{reason}}",
+      "refusedBy": "Refused by {{who}}"
     },
     "outcome": {
       "youdPayMore": "you'd pay more",
@@ -17933,7 +17939,9 @@
       "creditNoteTargetCancelled": "This bill was cancelled, so a credit cannot be set against it.",
       "creditNoteTargetFullyCredited": "This bill is already fully credited.",
       "refundDateInFuture": "The refund date cannot be in the future.",
-      "refundDateBeforeNote": "The refund date cannot be before the credit note's date."
+      "refundDateBeforeNote": "The refund date cannot be before the credit note's date.",
+      "billPaymentDebitNoteRefused": "This debit note was refused, so it cannot be paid. Accept it first if it is owed after all.",
+      "debitNoteAlreadyPaid": "This debit note is already paid. Record a refund from the supplier instead."
     },
     "selfBilling": {
       "generic": "The server refused this because of the self-billing agreement with this supplier. Check the agreement before trying again.",
@@ -18443,7 +18451,8 @@
       "mismatch": "Doesn't match its order",
       "rejected": "Rejected",
       "awaiting": "{{given}} of {{required}} approvals",
-      "open": "Open the bill"
+      "open": "Open the bill",
+      "debitNoteRefused": "Refused"
     },
     "dateNote": "Changing the date re-works any early-payment discount.",
     "noAccount": "Not chosen",
@@ -18487,7 +18496,9 @@
       "formatRequired": "Choose how to send it to the bank first.",
       "empty": "Tick at least one bill first.",
       "payerRequired": "Choose the account you pay from first.",
-      "payerInactive": "That account is switched off. Choose another."
+      "payerInactive": "That account is switched off. Choose another.",
+      "debitNoteRefusedAdd": "{{note}} was refused, so it cannot go into a payment run.",
+      "debitNoteRefusedExport": "{{note}} was refused after it joined this run. Take it out of the run first."
     },
     "addModal": {
       "open": "Add to a payment run",

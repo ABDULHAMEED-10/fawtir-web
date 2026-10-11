@@ -1522,3 +1522,52 @@ describe('why a rejection was refused, in its own sentence', () => {
     expect(await screen.findByText(GENERIC)).toBeTruthy()
   })
 })
+
+// Owner's answer C4 (8 Oct 2026): a supplier debit note says what it is, and its decision.
+describe('a supplier debit note on the list', () => {
+  const debitNote = (id: string, number: string, decision: 'ACCEPTED' | 'REFUSED' | null) =>
+    bill({ id, documentTypeCode: '383', supplierBillNumber: number, debitNoteDecision: decision })
+  const rows = () => [
+    debitNote('dn-1', 'DN-1', 'REFUSED'),
+    debitNote('dn-2', 'DN-2', 'ACCEPTED'),
+    debitNote('dn-3', 'DN-3', null),
+    bill({ id: 'b-4', supplierBillNumber: 'INV-4' }),
+  ]
+  const rowOf = async (number: string) => (await screen.findByText(number)).closest('tr')!
+
+  it('carries a "Debit note" badge and the decision badge beside the source badge', async () => {
+    listResponses = [() => json(200, itemsPage(rows()))]
+    renderBills()
+    const refused = await rowOf('DN-1')
+    expect(within(refused).getByText('Debit note')).toBeTruthy()
+    expect(within(refused).getByText('Refused')).toBeTruthy()
+    // In the supplier cell, after the source badge, in its style.
+    const supplierCell = within(refused).getByText('Qalhat Marine Supplies').closest('td')!
+    const badges = [...supplierCell.querySelectorAll('span')].map((span) => span.textContent)
+    expect(badges).toEqual(['Peppol', 'Debit note', 'Refused'])
+
+    const accepted = await rowOf('DN-2')
+    expect(within(accepted).getByText('Debit note')).toBeTruthy()
+    expect(within(accepted).getByText('Accepted')).toBeTruthy()
+
+    // Undecided: the type alone.
+    const undecided = await rowOf('DN-3')
+    expect(within(undecided).getByText('Debit note')).toBeTruthy()
+    expect(within(undecided).queryByText('Accepted')).toBeNull()
+    expect(within(undecided).queryByText('Refused')).toBeNull()
+
+    // Any other document: neither.
+    const plain = await rowOf('INV-4')
+    expect(within(plain).queryByText('Debit note')).toBeNull()
+  })
+
+  it('reads in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    listResponses = [() => json(200, itemsPage(rows()))]
+    renderBills()
+    const refused = await rowOf('DN-1')
+    expect(within(refused).getByText('إشعار مدين')).toBeTruthy()
+    expect(within(refused).getByText('مرفوض')).toBeTruthy()
+    expect(within(await rowOf('DN-2')).getByText('مقبول')).toBeTruthy()
+  })
+})

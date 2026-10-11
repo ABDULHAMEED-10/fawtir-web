@@ -126,6 +126,7 @@ export const REASON_KEYS: Record<BlockedReasonCode, string> = {
   MISMATCH: 'paymentRuns.blocked.mismatch',
   REJECTED: 'paymentRuns.blocked.rejected',
   AWAITING_APPROVALS: 'paymentRuns.blocked.awaiting',
+  DEBIT_NOTE_REFUSED: 'paymentRuns.blocked.debitNoteRefused',
 }
 
 /** The run refusals a person can act on, by the server's code. */
@@ -151,8 +152,28 @@ export const RUN_REFUSALS: Record<string, string> = {
   PAYER_ACCOUNT_NAME_INVALID: 'paymentRuns.account.nameInvalid',
 }
 
-/** A run's refusal in the page's language, or the generic failure when it is not one a person can act on. */
-export function refusalOf(error: unknown, t: TFunction): string {
+/** What was being done to a run when it refused, where one code needs a sentence per action. */
+export type RunAction = 'add' | 'export'
+
+/**
+ * `PAYMENT_RUN_DEBIT_NOTE_REFUSED` is one code with a sentence per action (owner, 8 Oct 2026),
+ * naming the note by the number the server sends beside the code. Marking a run paid has no
+ * sentence yet and keeps the generic refusal.
+ */
+const DEBIT_NOTE_REFUSED_BY_ACTION: Record<RunAction, string> = {
+  add: 'paymentRuns.refused.debitNoteRefusedAdd',
+  export: 'paymentRuns.refused.debitNoteRefusedExport',
+}
+
+/**
+ * A run's refusal in the page's language, or the generic failure when it is not one a person can
+ * act on. `action` says what was being done, for the refusals whose sentence depends on it.
+ */
+export function refusalOf(error: unknown, t: TFunction, action?: RunAction): string {
+  if (error instanceof ApiError && error.code === 'PAYMENT_RUN_DEBIT_NOTE_REFUSED' && action)
+    return t(DEBIT_NOTE_REFUSED_BY_ACTION[action], {
+      note: String(error.problem.supplierBillNumber ?? ''),
+    })
   if (error instanceof ApiError && error.code && RUN_REFUSALS[error.code])
     return t(RUN_REFUSALS[error.code])
   const described = describeApiFailure(error)

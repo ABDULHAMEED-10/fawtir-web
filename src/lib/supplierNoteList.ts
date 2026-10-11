@@ -244,6 +244,8 @@ export type DebitNoteItem = {
   source: NoteSourceBadge
   networkVerified: boolean
   inboundDeliveryId: string | null
+  /** The bill on file the note adds to, when the server names exactly one. */
+  againstBillId: string | null
   againstBillNumber: string | null
   againstBillIssueDate: string | null
   reasonCode: string | null
@@ -253,6 +255,8 @@ export type DebitNoteItem = {
   decisionReason: string | null
   decidedAt: string | null
   decidedBy: string | null
+  /** Who took the current decision, by name, when the server knows it. */
+  decidedByName: string | null
   currency: string
   total: number | null
   outstanding: number
@@ -277,6 +281,7 @@ export function toDebitNoteItem(row: DebitNoteRowDto): DebitNoteItem {
     source: SOURCE[row.source],
     networkVerified: row.networkVerified,
     inboundDeliveryId: row.inboundDeliveryId,
+    againstBillId: row.relatesTo?.billId ?? null,
     againstBillNumber: row.relatesTo?.billNumber ?? null,
     againstBillIssueDate: row.relatesTo?.issueDate ?? null,
     reasonCode: row.reasonCode,
@@ -285,6 +290,7 @@ export function toDebitNoteItem(row: DebitNoteRowDto): DebitNoteItem {
     decisionReason: row.decisionReason,
     decidedAt: row.decidedAt,
     decidedBy: row.decidedBy,
+    decidedByName: row.decidedByName ?? null,
     currency: row.currencyCode,
     total: row.totalIncludingVat,
     outstanding: row.outstandingAmount,

@@ -104,6 +104,8 @@ function json(status: number, body?: unknown) {
 
 let fetchMock: ReturnType<typeof vi.fn>
 let detail: PaymentRunDetailDto
+/** An answer a test puts ahead of the usual ones, or null to answer as usual. */
+let override: ((url: string, method: string) => Response | null) | null
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
     ([called, init]) =>
@@ -116,8 +118,11 @@ beforeEach(async () => {
   await i18n.changeLanguage('en')
   forgetEntitlements()
   detail = DETAIL
+  override = null
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
+    const forced = override?.(url, method)
+    if (forced) return forced
     if (url === '/api/v1/me/entitlements') return json(200, MANAGER)
     if (url === '/api/v1/payer-bank-accounts' && method === 'GET') return json(200, [])
     if (url === '/api/v1/payer-bank-accounts' && method === 'POST')
@@ -377,5 +382,122 @@ describe('payment runs', () => {
     expect(bodyOf(calls('POST', '/api/v1/payment-runs/run-new/items')[0])).toEqual({
       billIds: ['b-1'],
     })
+  })
+})
+
+/** The server's refusal of a refused debit note, naming it beside the code. */
+const debitNoteRefused = () =>
+  json(400, {
+    type: 'https://api.fawtir.om/problems/expenditure-refused',
+    status: 400,
+    error: 'PAYMENT_RUN_DEBIT_NOTE_REFUSED',
+    detail: 'Debit note DN-7 is refused',
+    billId: 'b-dn-7',
+    supplierBillNumber: 'DN-7',
+  })
+
+describe('a refused supplier debit note in a payment run (owner, 8 Oct 2026)', () => {
+  it('names the note when adding it to a run is refused', async () => {
+    override = (url, method) =>
+      method === 'POST' && url.endsWith('/items') ? debitNoteRefused() : null
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Select MR-2' }))
+    expect(
+      await screen.findByText('DN-7 was refused, so it cannot go into a payment run.'),
+    ).toBeTruthy()
+    expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/items`)).toHaveLength(1)
+  })
+
+  it('names the note when adding from the supplier page is refused', async () => {
+    override = (url, method) =>
+      method === 'POST' && url.endsWith('/items') ? debitNoteRefused() : null
+    renderAt('/suppliers/sup-1')
+    expect(await screen.findByText('MR-2')).toBeTruthy()
+    fireEvent.click(await screen.findByRole('radio', { name: /Start a run just for them/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Start the run' }))
+    expect(
+      await screen.findByText('DN-7 was refused, so it cannot go into a payment run.'),
+    ).toBeTruthy()
+  })
+
+  it('names the note when making the bank file is refused', async () => {
+    override = (url) => (url.endsWith(`/${RUN_ID}/export`) ? debitNoteRefused() : null)
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    fireEvent.click(await screen.findByRole('button', { name: 'Download' }, { timeout: 8000 }))
+    expect(
+      await screen.findByText(
+        'DN-7 was refused after it joined this run. Take it out of the run first.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('keeps the generic refusal when marking the run paid is refused', async () => {
+    detail = { ...DETAIL, run: run({ state: 'EXPORTED' }) }
+    override = (url) => (url.endsWith(`/${RUN_ID}/mark-paid`) ? debitNoteRefused() : null)
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    fireEvent.click(await screen.findByRole('button', { name: 'Mark as paid' }, { timeout: 8000 }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Mark as paid' }))
+    expect(await screen.findByText(/^The server refused this\./)).toBeTruthy()
+    expect(screen.queryByText(/DN-7/)).toBeNull()
+  })
+
+  it('says why a refused debit note cannot be paid in words, not its code', async () => {
+    override = (url) =>
+      url === `/api/v1/payment-runs/${RUN_ID}/blocked`
+        ? json(200, [
+            {
+              billId: 'b-dn-7',
+              supplierBillNumber: 'DN-7',
+              supplierId: SUPPLIER,
+              supplierName: 'Muscat Roastery Co',
+              dueDate: null,
+              outstanding: 50,
+              reasonCodes: ['DEBIT_NOTE_REFUSED'],
+              approvalsGiven: null,
+              approvalsRequired: null,
+            },
+          ])
+        : null
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(
+      await screen.findByRole('button', { name: /1 more bill can't be paid yet/ }),
+    ).toBeTruthy()
+    expect(screen.getByText('Refused')).toBeTruthy()
+    expect(screen.queryByText(/DEBIT_NOTE_REFUSED/)).toBeNull()
+  })
+
+  it('calls a refused debit note "Refused" on the supplier page, as the run page does', async () => {
+    const blockedRow = (billId: string, number: string, reasonCodes: string[]) => ({
+      billId,
+      supplierBillNumber: number,
+      supplierId: SUPPLIER,
+      supplierName: 'Muscat Roastery Co',
+      dueDate: null,
+      outstanding: 50,
+      reasonCodes,
+      approvalsGiven: null,
+      approvalsRequired: null,
+    })
+    override = (url) =>
+      url.startsWith('/api/v1/payment-runs/blocked')
+        ? json(200, [
+            blockedRow('b-dn-7', 'DN-7', ['DEBIT_NOTE_REFUSED']),
+            blockedRow('b-rej', 'RJ-1', ['REJECTED']),
+          ])
+        : null
+    const view = renderAt('/suppliers/sup-1')
+    const row = async (number: string) =>
+      (await screen.findByText(number)).closest('li') as HTMLElement
+    expect(within(await row('DN-7')).getByText('Refused')).toBeTruthy()
+    expect(within(await row('DN-7')).queryByText(/Rejected/)).toBeNull()
+    // A rejected bill keeps its words.
+    expect(within(await row('RJ-1')).getByText("Rejected · can't be paid")).toBeTruthy()
+    expect(screen.queryByText(/DEBIT_NOTE_REFUSED/)).toBeNull()
+    view.unmount()
+
+    await i18n.changeLanguage('ar')
+    renderAt('/suppliers/sup-1')
+    expect(within(await row('DN-7')).getByText('مرفوض')).toBeTruthy()
   })
 })

@@ -705,12 +705,16 @@ function debitNote({
     paymentState: paid >= total ? 'PAID' : paid > 0 ? 'PARTIALLY_PAID' : 'UNPAID',
     status,
     decidedBy: decidedAt ? 'u-hafidh' : null,
+    // Who took the current decision, by name (EXPENDITURE.md 5.15).
+    decidedByName: decidedAt ? 'Hafidh Saif' : null,
     decidedAt,
     decisionReason,
     relatesTo: {
       billNumber: billRow.supplierBillNumber,
       issueDate: billRow.issueDate,
       documentUuid: `uuid-${billRow.id}`,
+      // The bill on file the note adds to (EXPENDITURE.md 5.15).
+      billId: billRow.id,
     },
   }
 }
@@ -891,6 +895,8 @@ function noteAsBillDetail(note, kind) {
     hold: null,
     paymentRunReference: null,
     paidOnTheSpot: false,
+    // A debit note's current decision, null until one is taken (EXPENDITURE.md 1.24).
+    debitNoteDecision: kind === 'debit' && note.status !== 'UNCHECKED' ? note.status : null,
     inboundDeliveryId: note.inboundDeliveryId,
     networkVerified: note.networkVerified,
     amountDue: total,
@@ -1246,6 +1252,19 @@ export default [
         return refusal(409, 'DEBIT_NOTE_DECISION_UNCHANGED', 'That decision is already recorded.')
       if (decision === 'REFUSED' && !body?.reason)
         return refusal(400, 'DEBIT_NOTE_REASON_REQUIRED', 'A refusal needs a reason.')
+      // A note paid in full cannot be refused; a refund is recorded instead.
+      if (decision === 'REFUSED' && note.paymentState === 'PAID' && note.paidAmount > 0)
+        return {
+          status: 400,
+          body: {
+            type: 'https://api.fawtir.om/problems/expenditure-refused',
+            title: 'DEBIT_NOTE_ALREADY_PAID',
+            status: 400,
+            detail: 'This debit note is already paid. Record a refund from the supplier instead.',
+            error: 'DEBIT_NOTE_ALREADY_PAID',
+            trace_id: 'trace-mock',
+          },
+        }
       const record = {
         decision,
         reason: decision === 'REFUSED' ? body.reason : null,
@@ -1254,6 +1273,7 @@ export default [
       }
       note.status = decision
       note.decidedBy = record.decidedBy
+      note.decidedByName = 'Hafidh Saif'
       note.decidedAt = record.decidedAt
       note.decisionReason = record.reason
       ;(DEBIT_DECISIONS[note.id] ??= []).unshift(record)

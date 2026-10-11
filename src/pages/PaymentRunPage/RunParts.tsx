@@ -335,7 +335,7 @@ export function RunMenu({
       if (fresh.length > 0) await addToRun(created.id, fresh)
       navigate(`/expenditure/payments/${created.id}`)
     } catch (error) {
-      onNotice(refusalOf(error, t))
+      onNotice(refusalOf(error, t, 'add'))
     }
   }
 

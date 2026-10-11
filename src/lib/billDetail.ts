@@ -171,11 +171,20 @@ export function mismatchUnresolved(detail: BillDetailDto): boolean {
 }
 
 /**
+ * A supplier debit note (383) whose current decision is REFUSED: a disputed charge, not owed. The
+ * server refuses a payment on it (`BILL_PAYMENT_DEBIT_NOTE_REFUSED`) until it is accepted again.
+ */
+export function refusedDebitNote(detail: BillDetailDto): boolean {
+  return detail.bill.documentTypeCode === '383' && detail.bill.debitNoteDecision === 'REFUSED'
+}
+
+/**
  * Whether a payment can be recorded on this bill now: it is approved, not on hold, does not
- * disagree with its order, is not in a payment run, still owes money, and the reader may record
- * payments. Anything else and the action is not offered at all (owner decision 2026-10-01:
- * hidden, not disabled). A held bill is released first; a mismatch is resolved first; a bill in a
- * run is paid there, or taken out of the run.
+ * disagree with its order, is not in a payment run, is not a refused debit note, still owes
+ * money, and the reader may record payments. Anything else and the action is not offered at all
+ * (owner decision 2026-10-01: hidden, not disabled). A held bill is released first; a mismatch is
+ * resolved first; a bill in a run is paid there, or taken out of the run; a refused debit note is
+ * accepted first (owner, 8 Oct 2026).
  */
 export function canRecordPayment(
   detail: BillDetailDto,
@@ -188,6 +197,7 @@ export function canRecordPayment(
     detail.hold === null &&
     !mismatchUnresolved(detail) &&
     !inPaymentRun(detail) &&
+    !refusedDebitNote(detail) &&
     detail.settlement.paymentState !== 'PAID' &&
     detail.settlement.outstandingAmount > 0
   )
