@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { Modal, Rial, RialMark, withRial } from '../../components/ui'
-import { BillStatusChip } from '../../components/bills'
+import { BillStatusChip, OverpaidBy } from '../../components/bills'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import { ApiError } from '../../api'
@@ -11,10 +11,13 @@ import {
   approveBill,
   billMatchPath,
   billOriginalPath,
+  billOverpaymentPath,
   downloadBillOriginal,
   holdBill,
+  keepOverpaymentAsCredit,
   loadBill,
   loadBillMatch,
+  loadBillOverpayment,
   loadSupplierOrders,
   matchBill,
   recordBillPayment,
@@ -23,6 +26,7 @@ import {
   unmatchBill,
   type BillDetailDto,
   type BillMatchDto,
+  type BillOverpaymentDto,
   type PurchaseOrderOptionDto,
 } from '../../api/expenditure/bills'
 import { loadSupplier, supplierPath, type SupplierDetailDto } from '../../api/expenditure/suppliers'
@@ -33,12 +37,16 @@ import {
 } from '../../api/expenditure/supplierRecord'
 import {
   activityOf,
+  awaitingDiscountCreditNote,
   canRecordPayment,
   complianceOf,
   lineVatOf,
   decisionNoteOf,
   decisionsOf,
+  discountLineOf,
   isSelfBilled,
+  overpaidOf,
+  refusedDebitNote,
   singleVatRate,
   stepsOf,
   termsDaysOf,
@@ -65,6 +73,7 @@ import clockIcon from '../../assets/invoice-details/clock.svg'
 import docOrderIcon from '../../assets/create-invoice/doc-order.svg'
 import recordPaymentIcon from '../../assets/self-bill-detail/record-payment.svg'
 import { RecordPaymentModal } from '../InvoiceDetailsPage/RecordPaymentModal'
+import { OverpaymentApplyModal, OverpaymentRefundModal } from './OverpaymentDialogs'
 import docDeliveryIcon from '../../assets/create-invoice/doc-delivery.svg'
 import pdfIcon from '../../assets/invoice-details/pdf.svg'
 import fileIcon from '../../assets/bill-capture/file.svg'
@@ -132,6 +141,30 @@ const REFUSALS: Record<string, string> = {
   BILL_HOLD_REASON_REQUIRED: 'billDetail.refused.holdReasonRequired',
   BILL_HOLD_REASON_TOO_LONG: 'billDetail.refused.holdReasonTooLong',
   GOODS_RECEIPT_WRONG_ORDER: 'billDetail.refused.wrongReceipt',
+  // Settling what a bill was overpaid by. The dialogs check the amount against what the page
+  // holds, so an amount the server finds too large, or a bill no longer overpaid, means the bill
+  // changed after the page loaded: it is read again. The target's states read the sentences the
+  // owner gave for a credit note's target (6 and 8 Oct 2026), the same bill states. Codes the
+  // page cannot cause (another supplier or currency, a reference over 200, a credit note) read
+  // as the generic refusal.
+  BILL_NOT_OVERPAID: 'billDetail.refused.changed',
+  BILL_OVERPAYMENT_EXCEEDS_OVERPAID: 'billDetail.refused.changed',
+  BILL_OVERPAYMENT_KEEP_EXCEEDS_OVERPAID: 'billDetail.refused.changed',
+  BILL_OVERPAYMENT_NOT_KEPT_AS_CREDIT: 'billDetail.refused.changed',
+  BILL_OVERPAYMENT_APPLY_EXCEEDS_CREDIT: 'billDetail.refused.changed',
+  BILL_OVERPAYMENT_APPLY_EXCEEDS_BILL: 'apiErrors.refused.creditNoteExceedsBill',
+  BILL_OVERPAYMENT_AMOUNT_SCALE_INVALID: 'invoiceDetails.pay.error.amountScale',
+  BILL_OVERPAYMENT_DATE_REQUIRED: 'apiErrors.refused.refundDateRequired',
+  BILL_OVERPAYMENT_DATE_IN_FUTURE: 'apiErrors.refused.refundDateInFuture',
+  BILL_OVERPAYMENT_DATE_BEFORE_OVERPAYMENT: 'billDetail.overpaid.refused.dateBeforeOverpayment',
+  BILL_OVERPAYMENT_IN_PAYMENT_RUN: 'billDetail.overpaid.refused.inRun',
+  BILL_OVERPAYMENT_TARGET_NOT_PAYABLE: 'apiErrors.refused.creditNoteTargetNotPayable',
+  BILL_OVERPAYMENT_TARGET_ON_HOLD: 'apiErrors.refused.creditNoteTargetOnHold',
+  BILL_OVERPAYMENT_TARGET_IN_PAYMENT_RUN: 'apiErrors.refused.creditNoteTargetInRun',
+  BILL_OVERPAYMENT_TARGET_REJECTED: 'apiErrors.refused.creditNoteTargetRejected',
+  BILL_OVERPAYMENT_TARGET_DEBIT_NOTE_REFUSED: 'apiErrors.refused.creditNoteTargetDebitNoteRefused',
+  BILL_OVERPAYMENT_TARGET_CANCELLED: 'apiErrors.refused.creditNoteTargetCancelled',
+  BILL_OVERPAYMENT_TARGET_FULLY_CREDITED: 'apiErrors.refused.creditNoteTargetFullyCredited',
 }
 
 const OUTLINE_BUTTON =
@@ -202,27 +235,42 @@ function BillScreen() {
     () => loadSupplierOverview(supplierId!),
   )
 
+  // Where an overpaid bill's excess stands (kept as credit, still undecided), read only while the
+  // bill is overpaid. "Overpaid by" itself is on the bill's settlement.
+  const overpaid = bill.read.status === 'ready' ? overpaidOf(bill.read.data) : 0
+  const overpaymentPath = overpaid > 0 ? billOverpaymentPath(id) : null
+  const overpayment = useApiRead<BillOverpaymentDto>(overpaymentPath, () => loadBillOverpayment(id))
+
   // A success is held as its key, not its text: the notice stays on screen across a language
   // switch, and a sentence translated when it was raised would stay in the old language.
-  const [notice, setNotice] = useState<{ key: string } | { body: string } | null>(null)
+  const [notice, setNotice] = useState<
+    { key: string; values?: Record<string, string> } | { body: string } | null
+  >(null)
   const [busy, setBusy] = useState(false)
   const [asking, setAsking] = useState<'reject' | 'hold' | null>(null)
   const [reason, setReason] = useState('')
   const [matching, setMatching] = useState(false)
   const [paying, setPaying] = useState(false)
+  const [settling, setSettling] = useState<'refund' | 'apply' | null>(null)
 
-  const act = async (run: () => Promise<unknown>, done: string) => {
+  const act = async (
+    run: () => Promise<unknown>,
+    done: string,
+    values?: Record<string, string>,
+  ) => {
     setBusy(true)
     setNotice(null)
     try {
       await run()
-      setNotice({ key: done })
+      setNotice({ key: done, values })
       bill.retry()
       if (matchPath) match.retry()
+      if (overpaymentPath) overpayment.retry()
       return true
     } catch (error) {
       setNotice({ body: refusalText(t, error) })
       bill.retry()
+      if (overpaymentPath) overpayment.retry()
       return false
     } finally {
       setBusy(false)
@@ -260,6 +308,18 @@ function BillScreen() {
   const profile = supplier.read.status === 'ready' ? supplier.read.data.profile : null
   const payables = standing.read.status === 'ready' ? standing.read.data.payables : null
   const openBills = standing.read.status === 'ready' ? standing.read.data.tabs?.openBills : undefined
+  // Settling an overpaid bill: the refund, keeping it as credit and using that credit on another
+  // bill are recorded like a payment (`invoice.payment.manage`), and hidden without it. Keeping
+  // needs something still undecided and using needs credit kept, both from the overpayment read.
+  const canSettleOverpayment = can(session, 'invoice.payment.manage') && overpaid > 0
+  const standingOverpayment =
+    overpayment.read.status === 'ready' && overpaymentPath ? overpayment.read.data : null
+  const afterSettling = (key: string) => {
+    setSettling(null)
+    setNotice({ key })
+    bill.retry()
+    overpayment.retry()
+  }
 
   const download = async () => {
     if (!original) return
@@ -299,7 +359,15 @@ function BillScreen() {
           <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
             {row.supplierBillNumber ?? t('billsPage.rows.noNumber')}
           </h1>
-          <BillStatusChip item={listItem} className="h-[31px]" />
+          {/* A refused debit note says so, as on its own page, not the approval it went through. */}
+          {refusedDebitNote(detail) ? (
+            <span className="inline-flex h-[31px] items-center gap-2 rounded-sm bg-danger-100 px-3 py-1 text-sm font-semibold leading-[1.2] text-danger-700">
+              <span className="size-1.5 rounded-full bg-danger-700" />
+              {t('supplierDebitNotes.state.refused')}
+            </span>
+          ) : (
+            <BillStatusChip item={listItem} className="h-[31px]" />
+          )}
           {row.source === 'PEPPOL' && row.networkVerified ? (
             <span className="inline-flex h-[31px] items-center gap-1.5 rounded-full bg-success-100 px-3 text-xs font-semibold uppercase tracking-[0.5px] text-success-700">
               <img src={peppolBadgeIcon} alt="" className="size-4" />
@@ -382,7 +450,7 @@ function BillScreen() {
 
       {notice ? (
         <Notice
-          body={'key' in notice ? t(notice.key) : notice.body}
+          body={'key' in notice ? t(notice.key, notice.values) : notice.body}
           action={{ label: t('common.close'), onClick: () => setNotice(null) }}
         />
       ) : null}
@@ -611,11 +679,24 @@ function BillScreen() {
                       ) : null}
                     </p>
                     <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
-                      {/* The server writes amounts as "79.800 OMR"; shown with the rial sign. */}
-                      {withRial(
-                        [event.detail, event.at ? formatInstant(event.at, language) : null]
-                          .filter(Boolean)
-                          .join(' · '),
+                      {event.overpayment ? (
+                        // What became of an overpayment: its amount with the rial sign.
+                        <RialInText
+                          text={[
+                            `¤${formatAmount(event.overpayment.amount, event.overpayment.currency, language)}`,
+                            event.overpayment.rest,
+                            event.at ? formatInstant(event.at, language) : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        />
+                      ) : (
+                        // The server writes amounts as "79.800 OMR"; shown with the rial sign.
+                        withRial(
+                          [event.detail, event.at ? formatInstant(event.at, language) : null]
+                            .filter(Boolean)
+                            .join(' · '),
+                        )
                       )}
                     </p>
                   </div>
@@ -695,7 +776,52 @@ function BillScreen() {
             </div>
           </section>
 
-          <PaymentTermsCard detail={detail} profile={profile} language={language} />
+          <PaymentTermsCard
+            detail={detail}
+            profile={profile}
+            language={language}
+            overpayment={standingOverpayment}
+            settle={
+              canSettleOverpayment ? (
+                <div className="mt-4 flex flex-col gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setSettling('refund')}
+                    disabled={busy}
+                    className={QUIET_BUTTON}
+                  >
+                    {t('billDetail.overpaid.recordRefund')}
+                  </button>
+                  {standingOverpayment && standingOverpayment.undecided > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        act(
+                          () => keepOverpaymentAsCredit(id),
+                          'supplierCreditNotes.detail.keptDone',
+                          { supplier: row.supplierName ?? t('billDetail.supplierUnknown') },
+                        )
+                      }
+                      disabled={busy}
+                      className={QUIET_BUTTON}
+                    >
+                      {t('supplierCreditNotes.detail.keepAsCredit')}
+                    </button>
+                  ) : null}
+                  {standingOverpayment && standingOverpayment.keptAsCredit > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setSettling('apply')}
+                      disabled={busy}
+                      className={QUIET_BUTTON}
+                    >
+                      {t('billDetail.overpaid.setAgainst')}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null
+            }
+          />
 
           <Card title={t('billDetail.compliance.title')}>
             <ul className="flex flex-col gap-2.5">
@@ -846,7 +972,35 @@ function BillScreen() {
             setNotice({ key: 'billDetail.done.recorded' })
             // The Paid step, the Payment terms card and Activity are all read with the bill.
             bill.retry()
+            // A payment can make the bill overpaid, or change by how much.
+            if (overpaymentPath) overpayment.retry()
           }}
+        />
+      ) : null}
+
+      {settling === 'refund' ? (
+        <OverpaymentRefundModal
+          billId={id}
+          currency={detail.settlement.currency}
+          overpaid={overpaid}
+          suggested={
+            standingOverpayment && standingOverpayment.undecided > 0
+              ? standingOverpayment.undecided
+              : overpaid
+          }
+          today={muscatToday()}
+          refusal={(error) => refusalText(t, error)}
+          onClose={() => setSettling(null)}
+          onDone={() => afterSettling('supplierCreditNoteDetail.refundedDone')}
+        />
+      ) : null}
+      {settling === 'apply' && standingOverpayment ? (
+        <OverpaymentApplyModal
+          detail={detail}
+          kept={standingOverpayment.keptAsCredit}
+          refusal={(error) => refusalText(t, error)}
+          onClose={() => setSettling(null)}
+          onDone={() => afterSettling('supplierCreditNoteDetail.appliedDone')}
         />
       ) : null}
     </div>
@@ -1310,10 +1464,16 @@ function PaymentTermsCard({
   detail,
   profile,
   language,
+  overpayment,
+  settle,
 }: {
   detail: BillDetailDto
   profile: SupplierDetailDto['profile'] | null
   language: string
+  /** Where the excess stands, when the bill is overpaid and it could be read. */
+  overpayment: BillOverpaymentDto | null
+  /** The ways to settle an overpaid bill, for someone who may. */
+  settle: React.ReactNode
 }) {
   const { t } = useTranslation()
   const { bill, settlement } = detail
@@ -1335,6 +1495,9 @@ function PaymentTermsCard({
       ? Math.round(bill.totalIncludingVat * discount.percent * 10) / 1000
       : null
   const bank = profile?.bankDetails
+  const discountTaken = discountLineOf(detail)
+  const overpaid = overpaidOf(detail)
+  const kept = overpaid > 0 ? (overpayment?.keptAsCredit ?? 0) : 0
   const rows: [string, string, string?][] = [
     [
       'billDetail.terms.due',
@@ -1364,9 +1527,14 @@ function PaymentTermsCard({
         ? `${bank.bankName ?? t('billDetail.terms.bank')} ···${bank.iban.replace(/\s/g, '').slice(-4)}`
         : t('billDetail.terms.noBank'),
     ],
-    ...(settlement.paidAmount > 0
+    // The discount a payment run took is its own line, after what was paid: it settles the
+    // bill but is not money paid, so the Paid figure stays the server's.
+    ...(settlement.paidAmount > 0 || discountTaken > 0
       ? ([
           ['billDetail.payment.paid', `¤${money(settlement.paidAmount)}`],
+          ...(discountTaken > 0
+            ? [['billDetail.payment.discount', `¤${money(discountTaken)}`]]
+            : []),
           ['billDetail.payment.outstanding', `¤${money(settlement.outstandingAmount)}`],
         ] as [string, string][])
       : []),
@@ -1389,6 +1557,21 @@ function PaymentTermsCard({
           </div>
         ))}
       </dl>
+      {/* "Overpaid by" (owner's answer 13, 8 Oct 2026), under what was paid and is outstanding;
+          then what of it is kept as credit for the supplier's next bill, and the ways to settle it. */}
+      {overpaid > 0 ? (
+        <div className="mt-3 flex flex-col gap-1.5">
+          <p className="text-sm font-semibold text-text-primary">
+            <OverpaidBy amount={money(overpaid)} />
+          </p>
+          {kept > 0 ? (
+            <p className="text-sm font-medium text-text-tertiary">
+              <RialInText text={t('billDetail.overpaid.kept', { amount: `¤${money(kept)}` })} />
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      {overpaid > 0 ? settle : null}
       {saving !== null && discount ? (
         <p className="mt-4 flex items-center justify-between gap-2 rounded-sm bg-surface-background px-3 py-2.5 text-xs font-medium leading-[1.3] text-text-tertiary">
           <span className="flex items-center gap-1.5">
@@ -1399,6 +1582,14 @@ function PaymentTermsCard({
             <Rial />
             {money(saving)}
           </span>
+        </p>
+      ) : null}
+      {/* In the saving note's place: once a run took the discount the bill is paid, and only the
+          supplier's credit note for it is awaited. */}
+      {awaitingDiscountCreditNote(detail) ? (
+        <p className="mt-4 flex items-center gap-1.5 rounded-sm bg-surface-background px-3 py-2.5 text-xs font-medium leading-[1.3] text-text-tertiary">
+          <img src={clockIcon} alt="" className="size-4" />
+          {t('billDetail.payment.discountAwaitingCreditNote')}
         </p>
       ) : null}
     </Card>

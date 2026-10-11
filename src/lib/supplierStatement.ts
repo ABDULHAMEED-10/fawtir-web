@@ -50,8 +50,13 @@ export function customRangeProblem(from: string, to: string, today: string): str
 }
 
 /**
- * Which column an entry's amount is in, signed as it moves what is owed: a credit note lowers
- * what they billed, a reversal gives back what was paid.
+ * Which column an entry's amount is in, signed as it moves what is owed: a credit note and an
+ * early-payment discount lower what they billed, and the supplier's refund of a credit note gives
+ * back in that column what the note took off; a reversal and a supplier's refund of an
+ * overpayment give back what was paid. Credit kept from an overpaid bill and used on another moves
+ * no money between the two, so it is in neither column (its amount is shown on its line, see
+ * {@link memoAmountOf}). The running balance is always the server's, never summed here. A kind
+ * this build does not know is in neither column, so the statement still draws.
  */
 export function columnsOf(
   kind: StatementEntryKind,
@@ -61,17 +66,44 @@ export function columnsOf(
     case 'BILL':
       return { billed: amount, paid: null }
     case 'CREDIT_NOTE':
+    case 'DISCOUNT':
       return { billed: -amount, paid: null }
+    case 'CREDIT_NOTE_REFUND':
+      return { billed: amount, paid: null }
     case 'PAYMENT':
       return { billed: null, paid: amount }
     case 'REVERSAL':
+    case 'OVERPAYMENT_REFUND':
       return { billed: null, paid: -amount }
+    default:
+      return { billed: null, paid: null }
   }
 }
 
-/** Bills and credit notes are rows of the bills list and open there; a payment has no page of its own. */
+/** The amount a line shows that moves no balance: credit kept from an overpaid bill, used on another. */
+export function memoAmountOf(kind: StatementEntryKind, amount: number): number | null {
+  return kind === 'OVERPAYMENT_CREDIT_APPLIED' ? amount : null
+}
+
+/**
+ * Bills and credit notes are rows of the bills list and open there, and so does the bill a
+ * discount, a refund of an overpayment or the use of its credit is about (`documentId` is that
+ * bill). A credit note's refund opens the credit note it refunded, where refunds are recorded.
+ * A payment has no page of its own.
+ */
 export function entryLink(kind: StatementEntryKind, documentId: string): string | null {
-  return kind === 'BILL' || kind === 'CREDIT_NOTE' ? `/expenditure/bills/${documentId}` : null
+  switch (kind) {
+    case 'BILL':
+    case 'CREDIT_NOTE':
+    case 'DISCOUNT':
+    case 'OVERPAYMENT_REFUND':
+    case 'OVERPAYMENT_CREDIT_APPLIED':
+      return `/expenditure/bills/${documentId}`
+    case 'CREDIT_NOTE_REFUND':
+      return `/expenditure/credit-notes/${documentId}`
+    default:
+      return null
+  }
 }
 
 export const AGEING_BUCKETS: readonly StatementAgeingBucket[] = [
@@ -165,10 +197,18 @@ export const STATEMENT_EMAIL_REFUSALS: Record<string, string> = {
   SUPPLIER_STATEMENT_SEND_FAILED: 'supplierStatement.email.sendFailed',
 }
 
+/**
+ * The footer's two column totals, so each adds up its column: billed less credits (the server's,
+ * already net of what the supplier refunded of its credit notes) and early-payment discounts, and paid less what the supplier refunded of overpayments. A server
+ * without the two newer totals sends neither kind of line, so they count as zero.
+ */
 export function periodTotals(statement: SupplierStatementDto): { billedNet: number; paid: number } {
   // Rounded to the fils so a float remainder never prints as a stray thousandth.
+  const discounts = statement.discounts ?? 0
+  const refunds = statement.overpaymentRefunds ?? 0
   return {
-    billedNet: Math.round((statement.bills - statement.credits) * 1000) / 1000,
-    paid: statement.payments,
+    billedNet: Math.round((statement.bills - statement.credits - discounts) * 1000) / 1000,
+    paid:
+      refunds === 0 ? statement.payments : Math.round((statement.payments - refunds) * 1000) / 1000,
   }
 }

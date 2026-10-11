@@ -1,8 +1,10 @@
 import type {
   CreditNoteRowDto,
   CreditNoteStatusDto,
+  CreditNoteUsageDto,
   DebitNoteRowDto,
   DebitNoteStatusDto,
+  NoteSortDto,
   NoteSourceDto,
 } from '../api/expenditure/notes'
 
@@ -26,57 +28,44 @@ const SOURCE: Record<NoteSourceDto, NoteSourceBadge> = {
   SELF_BILLED: 'selfBilled',
 }
 
-/** The toolbar's sort choices. The endpoint takes none, so they order the page in hand. */
+/** The toolbar's sort choices, and the server's order each one asks for. */
 export type NoteSort = 'natural' | 'amountDesc' | 'amountAsc' | 'supplierAsc'
 
-export const NOTE_SORTS: { value: NoteSort; labelKey: string }[] = [
-  { value: 'natural', labelKey: 'supplierNotes.sort.natural' },
-  { value: 'amountDesc', labelKey: 'supplierNotes.sort.amountDesc' },
-  { value: 'amountAsc', labelKey: 'supplierNotes.sort.amountAsc' },
-  { value: 'supplierAsc', labelKey: 'supplierNotes.sort.supplierAsc' },
+export const NOTE_SORTS: { value: NoteSort; labelKey: string; sort: NoteSortDto }[] = [
+  { value: 'natural', labelKey: 'supplierNotes.sort.natural', sort: 'NEWEST' },
+  { value: 'amountDesc', labelKey: 'supplierNotes.sort.amountDesc', sort: 'AMOUNT_HIGHEST' },
+  { value: 'amountAsc', labelKey: 'supplierNotes.sort.amountAsc', sort: 'AMOUNT_LOWEST' },
+  { value: 'supplierAsc', labelKey: 'supplierNotes.sort.supplierAsc', sort: 'SUPPLIER' },
 ]
 
 export function isNoteSort(value: string | null): value is NoteSort {
   return NOTE_SORTS.some((option) => option.value === value)
 }
 
-type Narrowable = {
-  number: string | null
-  supplier: string | null
-  againstBillNumber: string | null
-  amount: number | null
+export function noteSortOf(value: NoteSort): NoteSortDto {
+  return NOTE_SORTS.find((option) => option.value === value)?.sort ?? 'NEWEST'
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * The supplier filter from the address: a supplier record's id, else `all`. A link saved before
+ * the filter went to the server held the supplier's name, which `supplier_id` would refuse.
+ */
+export function supplierFilterOf(value: string | null): string {
+  return value !== null && UUID.test(value) ? value : 'all'
 }
 
 /**
- * The search box, supplier filter and sort the frame draws, applied to the rows on screen.
- *
- * TODO(backend): `GET /v1/credit-notes` and `/v1/debit-notes` take only `status` and paging, so
- * these narrow the page that was fetched rather than the whole set. Ask: `q`, `supplier_id` and
- * `sort` on both list endpoints (row 5.1 in docs/backend-guides/EXPENDITURE.md).
+ * The suppliers the filter offers, by record id: the server narrows on `supplier_id`. A note
+ * whose supplier was never matched to a record has no id to narrow by, so it is not offered.
  */
-export function narrowNotes<T extends Narrowable>(
-  rows: T[],
-  { query, supplier, sort }: { query: string; supplier: string; sort: NoteSort },
-): T[] {
-  const needle = query.trim().toLowerCase()
-  const kept = rows.filter((row) => {
-    if (supplier !== 'all' && row.supplier !== supplier) return false
-    if (needle === '') return true
-    return [row.number, row.supplier, row.againstBillNumber].some((value) =>
-      (value ?? '').toLowerCase().includes(needle),
-    )
-  })
-  if (sort === 'natural') return kept
-  return [...kept].sort((a, b) => {
-    if (sort === 'supplierAsc') return (a.supplier ?? '').localeCompare(b.supplier ?? '')
-    const diff = (a.amount ?? 0) - (b.amount ?? 0)
-    return sort === 'amountAsc' ? diff : -diff
-  })
-}
-
-/** The suppliers on the page, for the filter menu. */
-export function supplierNames(rows: { supplier: string | null }[]): string[] {
-  return [...new Set(rows.map((row) => row.supplier).filter((name): name is string => !!name))]
+export function supplierOptions(
+  rows: { supplierId: string | null; supplier: string | null }[],
+): Record<string, string> {
+  const found: Record<string, string> = {}
+  for (const row of rows) if (row.supplierId && row.supplier) found[row.supplierId] = row.supplier
+  return found
 }
 
 // ─────────────────────────────────────────────────────────────── credit notes
@@ -110,24 +99,62 @@ export function isCreditTab(value: string | null): value is CreditTabId {
 
 export type CreditChipTone = 'usable' | 'waiting' | 'done' | 'refunded'
 
-export const CREDIT_STATUS_CHIP: Record<CreditNoteStatusDto, CreditChipTone> = {
+/**
+ * Where a note stands, as the screens show it: the server's status, plus PARTLY_USED for a note
+ * some of whose credit has gone (used on a bill or refunded) while some is still left.
+ */
+export type CreditState = CreditNoteStatusDto | 'PARTLY_USED'
+
+/**
+ * The state the screens show. A note bigger than its bill, or partly refunded, comes back
+ * UNAPPLIED (credit is left) with money already used, and reading only the status called it
+ * "Not yet used" and offered to set it against the bill it had already cleared. So the server's
+ * `usage` decides how much has gone (backend #477), and without it the balance does; the status
+ * only says which way a fully used note went, or that an unused one waits for its bill. Holds
+ * whatever status word the server sends, including one this screen does not know yet.
+ */
+export function creditStateOf(row: {
+  status: CreditNoteStatusDto | string
+  usage?: CreditNoteUsageDto | string | null
+  balance: { applied: number; refunded: number; remaining: number }
+}): CreditState {
+  const { applied, refunded, remaining } = row.balance
+  const usage =
+    row.usage === 'NOT_USED' || row.usage === 'PARTLY_USED' || row.usage === 'FULLY_USED'
+      ? row.usage
+      : remaining <= 0 && (applied > 0 || refunded > 0)
+        ? 'FULLY_USED'
+        : applied > 0 || refunded > 0
+          ? 'PARTLY_USED'
+          : 'NOT_USED'
+  if (usage === 'PARTLY_USED') return 'PARTLY_USED'
+  if (usage === 'FULLY_USED') {
+    if (row.status === 'APPLIED' || row.status === 'REFUNDED') return row.status
+    return refunded > applied ? 'REFUNDED' : 'APPLIED'
+  }
+  return row.status === 'WAITING_FOR_BILL' ? 'WAITING_FOR_BILL' : 'UNAPPLIED'
+}
+
+export const CREDIT_STATUS_CHIP: Record<CreditState, CreditChipTone> = {
   UNAPPLIED: 'usable',
   WAITING_FOR_BILL: 'waiting',
   APPLIED: 'done',
   REFUNDED: 'refunded',
+  PARTLY_USED: 'usable',
 }
 
 /** The chip's words, as the frame prints them. */
-export const CREDIT_STATUS_LABEL: Record<CreditNoteStatusDto, string> = {
+export const CREDIT_STATUS_LABEL: Record<CreditState, string> = {
   UNAPPLIED: 'supplierCreditNotes.state.notUsed',
   WAITING_FOR_BILL: 'supplierCreditNotes.state.waitingForBill',
   APPLIED: 'supplierCreditNotes.state.used',
   REFUNDED: 'supplierCreditNotes.state.refunded',
+  PARTLY_USED: 'supplierCreditNotes.state.partlyUsed',
 }
 
 /** The one thing a row offers under its chip. */
 export const CREDIT_ROW_ACTION: Record<
-  CreditNoteStatusDto,
+  CreditState,
   { labelKey: string; primary?: boolean; goesTo: 'bill' | 'note' }
 > = {
   UNAPPLIED: { labelKey: 'supplierCreditNotes.actions.setAgainst', primary: true, goesTo: 'note' },
@@ -136,14 +163,17 @@ export const CREDIT_ROW_ACTION: Record<
   WAITING_FOR_BILL: { labelKey: 'supplierCreditNotes.actions.openNote', goesTo: 'note' },
   APPLIED: { labelKey: 'supplierCreditNotes.actions.viewBill', goesTo: 'bill' },
   REFUNDED: { labelKey: 'supplierCreditNotes.actions.seePayment', goesTo: 'note' },
+  // What is left goes against another bill, chosen on the note; the bill it cleared would refuse.
+  PARTLY_USED: { labelKey: 'supplierCreditNotes.actions.openNote', goesTo: 'note' },
 }
 
 /** What the figure column says under the amount. */
-export const CREDIT_AMOUNT_NOTE: Record<CreditNoteStatusDto, string> = {
+export const CREDIT_AMOUNT_NOTE: Record<CreditState, string> = {
   UNAPPLIED: 'supplierCreditNotes.rows.youdPayLess',
   WAITING_FOR_BILL: 'supplierCreditNotes.rows.youdPayLess',
   APPLIED: 'supplierCreditNotes.rows.takenOff',
   REFUNDED: 'supplierCreditNotes.rows.paidBack',
+  PARTLY_USED: 'supplierCreditNotes.rows.youdPayLess',
 }
 
 export type CreditNoteItem = {
@@ -156,6 +186,10 @@ export type CreditNoteItem = {
   networkVerified: boolean
   /** The Peppol delivery the document came in on, which is where its file is downloaded from. */
   inboundDeliveryId: string | null
+  /** The upload the note was confirmed from, where an uploaded note's file is downloaded from. */
+  intakeId: string | null
+  /** When the note was recorded (an instant), or null from a server that does not say. */
+  receivedAt: string | null
   /** The bill this credit actually reduces, when it reduces exactly one. */
   againstBillId: string | null
   againstBillNumber: string | null
@@ -164,11 +198,10 @@ export type CreditNoteItem = {
   reasonCode: string | null
   /** The supplier's finer reason behind the code, when sent. */
   reasonDetail: string | null
-  status: CreditNoteStatusDto
+  /** The server's status read with the balance: see {@link creditStateOf}. */
+  status: CreditState
   currency: string
   credited: number | null
-  /** `credited`, for the shared narrowing helpers. */
-  amount: number | null
   remaining: number
   /** Whether any of the credit is still to be spent: what the "still usable" figure counts. */
   usable: boolean
@@ -184,16 +217,17 @@ export function toCreditNoteItem(row: CreditNoteRowDto): CreditNoteItem {
     source: SOURCE[row.source],
     networkVerified: row.networkVerified,
     inboundDeliveryId: row.inboundDeliveryId,
+    intakeId: row.intakeId ?? null,
+    receivedAt: row.receivedAt ?? null,
     againstBillId: row.credits.billId,
     againstBillNumber: row.credits.billNumber,
     againstBillIssueDate: row.credits.issueDate,
     applied: row.credits.applied,
     reasonCode: row.reasonCode,
     reasonDetail: row.reasonDetail ?? null,
-    status: row.status,
+    status: creditStateOf(row),
     currency: row.currencyCode,
     credited: row.creditedAmount,
-    amount: row.creditedAmount,
     remaining: row.balance.remaining,
     usable: row.balance.remaining > 0,
   }
@@ -213,7 +247,7 @@ export const DEBIT_TAB_STATUS: Record<DebitTabId, DebitNoteStatusDto | 'ALL'> = 
 export const DEBIT_TAB_LABEL: Record<DebitTabId, string> = {
   all: 'supplierDebitNotes.tabs.all',
   accepted: 'supplierDebitNotes.tabs.accepted',
-  refused: 'supplierDebitNotes.tabs.rejected',
+  refused: 'supplierDebitNotes.tabs.refused',
   unchecked: 'supplierDebitNotes.tabs.unchecked',
 }
 
@@ -253,6 +287,8 @@ export type DebitNoteItem = {
   source: NoteSourceBadge
   networkVerified: boolean
   inboundDeliveryId: string | null
+  /** The bill on file the note adds to, when the server names exactly one. */
+  againstBillId: string | null
   againstBillNumber: string | null
   againstBillIssueDate: string | null
   reasonCode: string | null
@@ -262,10 +298,10 @@ export type DebitNoteItem = {
   decisionReason: string | null
   decidedAt: string | null
   decidedBy: string | null
+  /** Who took the current decision, by name, when the server knows it. */
+  decidedByName: string | null
   currency: string
   total: number | null
-  /** `total`, for the shared narrowing helpers. */
-  amount: number | null
   outstanding: number
   paid: number
   /**
@@ -288,6 +324,7 @@ export function toDebitNoteItem(row: DebitNoteRowDto): DebitNoteItem {
     source: SOURCE[row.source],
     networkVerified: row.networkVerified,
     inboundDeliveryId: row.inboundDeliveryId,
+    againstBillId: row.relatesTo?.billId ?? null,
     againstBillNumber: row.relatesTo?.billNumber ?? null,
     againstBillIssueDate: row.relatesTo?.issueDate ?? null,
     reasonCode: row.reasonCode,
@@ -296,9 +333,9 @@ export function toDebitNoteItem(row: DebitNoteRowDto): DebitNoteItem {
     decisionReason: row.decisionReason,
     decidedAt: row.decidedAt,
     decidedBy: row.decidedBy,
+    decidedByName: row.decidedByName ?? null,
     currency: row.currencyCode,
     total: row.totalIncludingVat,
-    amount: row.totalIncludingVat,
     outstanding: row.outstandingAmount,
     paid: row.paidAmount,
     owes: row.status !== 'REFUSED' && row.outstandingAmount > 0,
@@ -316,7 +353,7 @@ export function debitAmountNoteKey(item: DebitNoteItem): string {
 }
 
 /**
- * The reason as something to read: the supplier's finer reason when sent, else the CL-02-OM code. A code with no label is shown as the code: inventing
+ * The reason as something to read: the words given with the note when sent, else the CL-02-OM code. A code with no label is shown as the code: inventing
  * a sentence for it would put words in the supplier's mouth, and a blank would hide that they
  * gave a reason at all.
  */
@@ -324,8 +361,9 @@ export function reasonLabelKey(
   code: string | null,
   detail: string | null = null,
 ): { key: string; fallback: string } | null {
-  // The finer reason ("Short delivery") reads better than the CL-02-OM code's own label; the
-  // code is still shown beside it on the detail screens. TODO(backend): EXPENDITURE.md R.3.
+  // The words given with the note (or an older row's reason id, which reads as its label) say
+  // more than the CL-02-OM code's own label; the code is still shown beside them on the detail
+  // screens. Words with no label read as written.
   if (detail) return { key: `expenditureNotes.reason.${detail}`, fallback: detail }
   if (!code) return null
   return { key: `expenditureNotes.reason.${code}`, fallback: code }

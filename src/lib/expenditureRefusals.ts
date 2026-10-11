@@ -29,15 +29,29 @@ const REFUSALS: Record<string, string> = {
   CREDIT_NOTE_APPLY_EXCEEDS_CREDIT: 'apiErrors.refused.creditNoteExceedsCredit',
   CREDIT_NOTE_TARGET_NOT_PAYABLE: 'apiErrors.refused.creditNoteTargetNotPayable',
   CREDIT_NOTE_APPLY_AMOUNT_INVALID: 'apiErrors.refused.applyAmountInvalid',
+  // A bill that cannot take a credit now (owner's sentences, 6 Oct 2026). Raised by the apply and
+  // by an upload confirm that names a bill, which applies the credit in the same request.
+  CREDIT_NOTE_TARGET_ON_HOLD: 'apiErrors.refused.creditNoteTargetOnHold',
+  CREDIT_NOTE_TARGET_IN_PAYMENT_RUN: 'apiErrors.refused.creditNoteTargetInRun',
+  CREDIT_NOTE_TARGET_REJECTED: 'apiErrors.refused.creditNoteTargetRejected',
+  CREDIT_NOTE_TARGET_DEBIT_NOTE_REFUSED: 'apiErrors.refused.creditNoteTargetDebitNoteRefused',
+  CREDIT_NOTE_TARGET_CANCELLED: 'apiErrors.refused.creditNoteTargetCancelled',
+  CREDIT_NOTE_TARGET_FULLY_CREDITED: 'apiErrors.refused.creditNoteTargetFullyCredited',
   // Refunding one.
   CREDIT_NOTE_REFUND_EXCEEDS_CREDIT: 'apiErrors.refused.creditNoteExceedsCredit',
   CREDIT_NOTE_REFUND_AMOUNT_INVALID: 'apiErrors.refused.refundAmountInvalid',
   CREDIT_NOTE_REFUND_DATE_REQUIRED: 'apiErrors.refused.refundDateRequired',
+  CREDIT_NOTE_REFUND_DATE_IN_FUTURE: 'apiErrors.refused.refundDateInFuture',
+  CREDIT_NOTE_REFUND_DATE_BEFORE_NOTE: 'apiErrors.refused.refundDateBeforeNote',
 
   // Deciding on a supplier's debit note.
   DEBIT_NOTE_ALREADY_DECIDED: 'apiErrors.refused.debitNoteAlreadyDecided',
   DEBIT_NOTE_REFUSAL_REASON_REQUIRED: 'apiErrors.refused.debitNoteReasonRequired',
   DEBIT_NOTE_REASON_TOO_LONG: 'apiErrors.refused.debitNoteReasonTooLong',
+  // Refusing a note already paid in full (owner's sentence, 8 Oct 2026).
+  DEBIT_NOTE_ALREADY_PAID: 'apiErrors.refused.debitNoteAlreadyPaid',
+  // Refusing a note paid in part (owner's sentence, 8 Oct 2026).
+  DEBIT_NOTE_PARTLY_PAID: 'apiErrors.refused.debitNotePartlyPaid',
 
   // Walking a purchase order through its states.
   PURCHASE_ORDER_TRANSITION_INVALID: 'apiErrors.refused.orderTransitionInvalid',
@@ -77,8 +91,14 @@ const REFUSALS: Record<string, string> = {
   // A single payment on a bill whose mismatch is unresolved (owner's answer 2, 2 Oct 2026): the
   // payment run's own sentence for the same refusal (`PAYMENT_RUN_BILL_MISMATCHED`).
   BILL_PAYMENT_MISMATCHED: 'paymentRuns.refused.mismatched',
+  // A single payment on a supplier debit note that was refused (owner's sentence, 8 Oct 2026).
+  BILL_PAYMENT_DEBIT_NOTE_REFUSED: 'apiErrors.refused.billPaymentDebitNoteRefused',
+  // A debit note nobody has accepted is not owed yet (backend #480, 10 Oct 2026).
+  BILL_PAYMENT_DEBIT_NOTE_NOT_ACCEPTED: 'apiErrors.refused.debitNoteNotAccepted',
   BILL_PAYMENT_CURRENCY_MISMATCH: 'apiErrors.refused.paymentCurrencyMismatch',
   BILL_PAYMENT_ALREADY_REVERSED: 'apiErrors.refused.paymentAlreadyReversed',
+  // Reversing a payment of a bill in a run whose bank file is made (owner's sentence, 8 Oct 2026).
+  BILL_PAYMENT_REVERSAL_IN_SENT_RUN: 'apiErrors.refused.paymentReversalInSentRun',
   APPROVAL_ALREADY_GIVEN: 'apiErrors.refused.approvalAlreadyGiven',
   APPROVAL_REJECTION_REASON_REQUIRED: 'apiErrors.refused.approvalReasonRequired',
   // Exporting or marking paid a run that holds a held bill. The payment run screens name this
@@ -89,6 +109,22 @@ const REFUSALS: Record<string, string> = {
   SUPPLIER_IMPORT_HEADER_NOT_RECOGNISED: 'stagedImport.refused.headerNotRecognised',
   // Reachable from Settings > Bill approvals since E-17.
   APPROVAL_POLICY_INVALID: 'apiErrors.refused.approvalPolicyInvalid',
+}
+
+/**
+ * The refusals whose sentence names a value the server sends beside the code. The run is read as
+ * the bill pages read it: an empty run where a server sends none.
+ */
+const REFUSAL_VALUES: Record<
+  string,
+  (problem: Readonly<Record<string, unknown>>) => Record<string, string>
+> = {
+  CREDIT_NOTE_TARGET_IN_PAYMENT_RUN: (problem) => ({
+    run: String(problem.paymentRunReference ?? ''),
+  }),
+  BILL_PAYMENT_REVERSAL_IN_SENT_RUN: (problem) => ({
+    run: String(problem.paymentRunReference ?? ''),
+  }),
 }
 
 /** A refusal the Expenditure module made by name, as opposed to a validation or transport failure. */
@@ -107,6 +143,12 @@ export function refusalMessageKey(error: unknown): string | null {
   const code = error.code
   if (code === null) return REFUSAL_FALLBACK_KEY
   return REFUSALS[code] ?? REFUSAL_FALLBACK_KEY
+}
+
+/** The values a refusal's sentence names, or undefined when it names none. */
+export function refusalMessageValues(error: unknown): Record<string, string> | undefined {
+  if (!isExpenditureRefusal(error) || error.code === null) return undefined
+  return REFUSAL_VALUES[error.code]?.(error.problem)
 }
 
 /** The codes this build has a sentence for. Exported so a test can pin the set. */

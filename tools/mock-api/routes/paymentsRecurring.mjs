@@ -168,6 +168,7 @@ function supplierDetail(id) {
       notes: null,
       supplierCategory: null,
       selfBillingAgreement: false,
+      // Nobody confirms a changed IBAN since 10 Oct 2026.
       health: s.iban ? [] : ['NO_BANK_DETAILS'],
       supplierSince: '2025-02-01',
       switchedOffAt: null,
@@ -185,6 +186,8 @@ function supplierDetail(id) {
     },
     sameAsInvoicingAddress: true,
     deliveryAddress: null,
+    bankDetailsChange: null,
+    bankDetailsActivity: [],
   }
 }
 
@@ -363,6 +366,30 @@ const BILLS = [
       matchVerdict: 'MATCHED',
       approvedAt: '2026-09-23T07:00:00Z',
       intakeFile: { id: 'in-1152', filename: 'SP-INV-1152.svg', contentType: 'image/svg+xml' },
+    },
+  ),
+  // The second bill of the sent run PR-0012: a credit note arrived for it after the bank file
+  // was made, so it now owes less than the file pays (its markPaidBlock).
+  bill(
+    'b-sp-1158',
+    's-sp',
+    'SP-INV-1158',
+    '2026-09-23',
+    '2026-10-12',
+    'UPLOADED',
+    [
+      {
+        description: 'Kraft coffee bags 250g, plain',
+        quantity: 4000,
+        unit: 'EA',
+        unitPrice: 0.081,
+        vatRate: 5,
+      },
+    ],
+    {
+      purchaseOrder: 'PO-0034',
+      matchVerdict: 'MATCHED',
+      approvedAt: '2026-09-23T09:00:00Z',
     },
   ),
   bill(
@@ -611,6 +638,7 @@ function billDetail(b) {
       obligation: b.source === 'PEPPOL' ? 'REPORTED_BY_SENDER' : 'PENDING_COMPLIANCE_INPUT',
     },
     activity: [
+      ...(b.extraActivity ?? []),
       { at: `${b.issueDate}T12:00:00Z`, kind: 'ARRIVED', detail: null, actor: null },
       ...(b.approvedAt
         ? [{ at: b.approvedAt, kind: 'APPROVED', detail: null, actor: b.approvedBy }]
@@ -704,7 +732,7 @@ const RUNS = [
     runReference: 'ALBAHJA-PR-0012',
     format: 'PAIN_001',
     currency: 'OMR',
-    billIds: ['b-sp-1152'],
+    billIds: ['b-sp-1152', 'b-sp-1158'],
     exportedAt: '2026-09-17T13:00:00Z',
     paidAt: null,
     cancelledAt: null,
@@ -763,6 +791,33 @@ const RUNS = [
 
 const runById = (id) => RUNS.find((r) => r.id === id)
 
+/**
+ * Why a bill of a sent run cannot be marked paid now (the sent-run exits, owner 8 Oct 2026): a
+ * credit note for SP-INV-1158 arrived after PR-0012's bank file was made.
+ */
+const MARK_PAID_BLOCKS = {
+  'b-sp-1158': { code: 'PAYMENT_RUN_AMOUNT_CHANGED', owedNow: 250.0 },
+}
+
+/**
+ * What marking the run paid would refuse this bill for (backend #476): only on a live run (DRAFT,
+ * SCHEDULED, EXPORTED); a hold first, then, before a bank file, a rejection, then the seeded cases.
+ */
+function markPaidBlockOf(run, b) {
+  if (!['DRAFT', 'SCHEDULED', 'EXPORTED'].includes(run.state)) return null
+  const owedNow = priced(b, run.paymentDate).outstanding
+  if (b.workflowState === 'ON_HOLD') return { code: 'PAYMENT_RUN_BILL_ON_HOLD', owedNow }
+  if (run.state !== 'EXPORTED' && b.workflowState === 'REJECTED')
+    return { code: 'PAYMENT_RUN_BILL_NOT_READY', owedNow }
+  return MARK_PAID_BLOCKS[b.id] ?? null
+}
+
+/**
+ * Bills whose supplier's bank details changed after the bill was added to the run (owner, 10 Oct
+ * 2026), as `runId:billId`: Sohar Packaging's IBAN changed after its bill joined draft PR-0014.
+ */
+const BANK_CHANGED_SINCE_ADDED = new Set(['run-0014:b-sp-1140'])
+
 function runItems(run) {
   return run.billIds.map((billId) => {
     const b = billById(billId)
@@ -778,19 +833,94 @@ function runItems(run) {
       amount: p.amount,
       discountTaken: p.discount,
       outstanding: p.outstanding,
+      takenOut: run.takenOut?.[billId] ?? null,
+      markPaidBlock: markPaidBlockOf(run, b),
+      supplierBankDetailsChangedSinceAdded: BANK_CHANGED_SINCE_ADDED.has(`${run.id}:${billId}`),
     }
   })
+}
+
+/** The run's timeline, newest first: what the run keeps, and what was done to it here. */
+function runActivity(run) {
+  const kept = [
+    { at: run.createdAt, kind: 'CREATED', actor: 'u-hafidh' },
+    run.exportedAt ? { at: run.exportedAt, kind: 'EXPORTED' } : null,
+    run.paidAt ? { at: run.paidAt, kind: 'PAID' } : null,
+    run.cancelledAt && !run.bankPaidNothing ? { at: run.cancelledAt, kind: 'CANCELLED' } : null,
+  ].filter(Boolean)
+  return [...(run.events ?? []), ...kept.reverse()].map((entry) => ({
+    reason: null,
+    actor: null,
+    billId: null,
+    supplierBillNumber: null,
+    ...entry,
+  }))
+}
+
+/** A line on a bill's own Activity, as the server writes it for a sent run's way out. */
+function noteOnBill(billId, kind, run, reason) {
+  const b = billById(billId)
+  b.extraActivity = [
+    {
+      at: `${TODAY}T11:00:00Z`,
+      kind,
+      detail: `${run.runReference ?? run.reference} · ${reason}`,
+      actor: 'u-hafidh',
+    },
+    ...(b.extraActivity ?? []),
+  ]
 }
 
 function runDto(run) {
   const items = runItems(run)
   const billsTotal = money(items.reduce((s, i) => s + i.outstanding, 0))
   const discountTotal = money(items.reduce((s, i) => s + i.discountTaken, 0))
-  const { billIds, ...rest } = run
-  return { ...rest, billsTotal, discountTotal, netTotal: money(billsTotal - discountTotal) }
+  const { billIds, takenOut, events, bankPaidNothing, paidOn, ...rest } = run
+  // Backend #477: on a paid run, what was paid and what was taken out; null on any other run.
+  const paid = run.state === 'PAID'
+  const out = items.filter((i) => i.takenOut)
+  return {
+    ...rest,
+    billsTotal,
+    discountTotal,
+    netTotal: money(billsTotal - discountTotal),
+    // Backend #480: the day the bills were paid, on each list row (and at the top of the
+    // detail), null unless PAID. The runs paid before it was kept were paid on their planned date.
+    paidOn: paid ? (paidOn ?? run.paymentDate) : null,
+    paidTotal: paid
+      ? money(items.filter((i) => !i.takenOut).reduce((s, i) => s + i.amount, 0))
+      : null,
+    // What the taken-out bills still owe, without the discount (owner, 10 Oct 2026).
+    takenOutTotal: paid
+      ? money(out.reduce((s, i) => s + (i.takenOut.owedNow ?? i.outstanding), 0))
+      : null,
+  }
 }
 
-const runDetail = (run) => ({ run: runDto(run), items: runItems(run) })
+/**
+ * The kept bank file (owner, 8 Oct 2026): PR-0012's file is kept, and Sohar Packaging's IBAN
+ * changed after it was made; the paid runs were exported before files were kept.
+ */
+const KEPT_FILES = { 'run-0012': true, 'run-0011': false, 'run-0009': false }
+const CHANGED_SINCE_FILE = { 'run-0012': ['s-sp'] }
+/** Suppliers whose new bank details nobody has confirmed: no first bank file pays them. */
+const BANK_UNCONFIRMED = new Set(['s-mz'])
+
+// Backend #480: the day paid is at the top of the run's detail, beside `run`, not inside it.
+const runDetail = (run) => {
+  const { paidOn, ...dto } = runDto(run)
+  return { run: dto, paidOn, ...runDetailRest(run) }
+}
+
+const runDetailRest = (run) => ({
+  items: runItems(run),
+  activity: runActivity(run),
+  fileStored: run.exportedAt ? (KEPT_FILES[run.id] ?? true) : null,
+  bankDetailsChangedSinceFile: (CHANGED_SINCE_FILE[run.id] ?? []).map((supplierId) => ({
+    supplierId,
+    supplierName: SUPPLIERS[supplierId]?.name ?? null,
+  })),
+})
 
 /** Approved, unpaid, in no open run: what a run may take. */
 function candidates(excludeRun, paymentDate) {
@@ -818,7 +948,49 @@ function candidates(excludeRun, paymentDate) {
   })
 }
 
+/**
+ * A supplier debit note whose current decision is REFUSED (the debit-note fixture MZ-DN-0088): a
+ * disputed charge, listed as blocked with DEBIT_NOTE_REFUSED first, never a candidate, and refused
+ * by name when added to a run (EXPENDITURE.md 1.24).
+ */
+const REFUSED_DEBIT_NOTES = [
+  {
+    billId: 'dn-mz-0088',
+    supplierBillNumber: 'MZ-DN-0088',
+    supplierId: 's-mz',
+    supplierName: SUPPLIERS['s-mz'].name,
+    dueDate: '2026-08-15',
+    outstanding: 122.7,
+    reasonCodes: ['DEBIT_NOTE_REFUSED'],
+    approvalsGiven: null,
+    approvalsRequired: null,
+  },
+]
+
+/**
+ * A supplier debit note nobody has accepted or refused yet (the debit-note fixture GCL-DN-0091):
+ * not payable until accepted (backend #480, owner 10 Oct 2026). Blocked with
+ * DEBIT_NOTE_NOT_ACCEPTED, never a candidate, refused by name when added to a run.
+ */
+const UNDECIDED_DEBIT_NOTES = [
+  {
+    billId: 'dn-gcl-0091',
+    supplierBillNumber: 'GCL-DN-0091',
+    supplierId: 's-gcl',
+    supplierName: SUPPLIERS['s-gcl'].name,
+    dueDate: '2026-08-25',
+    outstanding: 96.5,
+    reasonCodes: ['DEBIT_NOTE_NOT_ACCEPTED'],
+    approvalsGiven: null,
+    approvalsRequired: null,
+  },
+]
+
 function blocked() {
+  return [...REFUSED_DEBIT_NOTES, ...UNDECIDED_DEBIT_NOTES, ...blockedBills()]
+}
+
+function blockedBills() {
   return BILLS.filter(
     (b) =>
       b.workflowState === 'ON_HOLD' ||
@@ -842,7 +1014,7 @@ function blocked() {
   }))
 }
 
-const refuse = (code, status = 400) => ({
+const refuse = (code, status = 400, properties = {}) => ({
   status,
   body: {
     type: 'https://api.fawtir.om/problems/expenditure-refused',
@@ -850,6 +1022,7 @@ const refuse = (code, status = 400) => ({
     status,
     error: code,
     detail: code,
+    ...properties,
   },
 })
 
@@ -1702,6 +1875,19 @@ export default [
       if (run.state !== 'DRAFT' && run.state !== 'SCHEDULED')
         return refuse('PAYMENT_RUN_NOT_EDITABLE')
       for (const billId of body?.billIds ?? []) {
+        const refused = REFUSED_DEBIT_NOTES.find((note) => note.billId === billId)
+        if (refused)
+          return refuse('PAYMENT_RUN_DEBIT_NOTE_REFUSED', 400, {
+            billId,
+            supplierBillNumber: refused.supplierBillNumber,
+          })
+        const undecided = UNDECIDED_DEBIT_NOTES.find((note) => note.billId === billId)
+        if (undecided)
+          return refuse('PAYMENT_RUN_DEBIT_NOTE_NOT_ACCEPTED', 400, {
+            billId,
+            supplierBillNumber: undecided.supplierBillNumber,
+            documentTypeCode: '383',
+          })
         const b = billById(billId)
         if (!b) return { status: 404 }
         if (b.workflowState !== 'APPROVED') return refuse('PAYMENT_RUN_BILL_NOT_READY')
@@ -1731,6 +1917,22 @@ export default [
       if (run.state !== 'SCHEDULED' && run.state !== 'EXPORTED')
         return refuse('PAYMENT_RUN_TRANSITION_INVALID')
       if (!run.format) return refuse('PAYMENT_RUN_FORMAT_REQUIRED')
+      if (run.state === 'SCHEDULED') {
+        const unconfirmed = [
+          ...new Set(
+            runItems(run)
+              .map((i) => i.supplierId)
+              .filter((id) => BANK_UNCONFIRMED.has(id)),
+          ),
+        ]
+        if (unconfirmed.length > 0)
+          return refuse('PAYMENT_RUN_BANK_DETAILS_UNCONFIRMED', 400, {
+            suppliers: unconfirmed.map((supplierId) => ({
+              supplierId,
+              supplierName: SUPPLIERS[supplierId].name,
+            })),
+          })
+      }
       run.state = 'EXPORTED'
       run.exportedAt = `${TODAY}T10:00:00Z`
       const rows = runItems(run).map(
@@ -1750,27 +1952,130 @@ export default [
   {
     method: 'POST',
     match: /^\/api\/v1\/payment-runs\/([^/]+)\/mark-paid$/,
-    reply: ({ params }) => {
+    reply: ({ params, body }) => {
       const run = runById(params[0])
       if (!run) return { status: 404 }
-      if (run.state !== 'EXPORTED') return refuse('PAYMENT_RUN_TRANSITION_INVALID')
+      // Backend `feat/payment-run-mark-paid-without-file`: a draft or scheduled run is marked paid
+      // as a sent one is, with the same take-out list; a run with no bills is refused.
+      if (!['DRAFT', 'SCHEDULED', 'EXPORTED'].includes(run.state))
+        return refuse('PAYMENT_RUN_TRANSITION_INVALID')
+      if (run.billIds.length === 0) return refuse('PAYMENT_RUN_EMPTY')
+      // The day the suppliers were paid (owner, 10 Oct 2026): optional, never in the future.
+      const paidOn = body?.paymentDate ?? null
+      if (paidOn !== null && (!/^\d{4}-\d{2}-\d{2}$/.test(paidOn) || paidOn > TODAY))
+        return refuse('PAYMENT_RUN_PAYMENT_DATE_IN_FUTURE')
+      // The way out when only some were paid: any bill of the run, each with a reason.
+      const takeOut = body?.takeOut ?? []
+      const named = new Set()
+      for (const entry of takeOut) {
+        if (!entry?.billId) return refuse('PAYMENT_RUN_TAKE_OUT_BILL_REQUIRED')
+        if (named.has(entry.billId))
+          return refuse('PAYMENT_RUN_TAKE_OUT_DUPLICATE', 400, { billId: entry.billId })
+        named.add(entry.billId)
+        if (!entry.reason?.trim()) return refuse('PAYMENT_RUN_REASON_REQUIRED')
+        if (entry.reason.length > 1000) return refuse('PAYMENT_RUN_REASON_TOO_LONG')
+        if (!run.billIds.includes(entry.billId))
+          return refuse('PAYMENT_RUN_TAKE_OUT_NOT_IN_RUN', 400, { billId: entry.billId })
+      }
+      if (run.billIds.length > 0 && run.billIds.every((id) => named.has(id)))
+        return refuse('PAYMENT_RUN_TAKE_OUT_EVERYTHING')
+      // Every bill left in that cannot be marked paid now is refused, by name except a hold.
+      const blocked = run.billIds.find((id) => !named.has(id) && markPaidBlockOf(run, billById(id)))
+      if (blocked) {
+        const b = billById(blocked)
+        const { code } = markPaidBlockOf(run, b)
+        if (code === 'PAYMENT_RUN_BILL_ON_HOLD') return refuse(code)
+        return refuse(code, 400, {
+          billId: blocked,
+          supplierBillNumber: b.number,
+          documentTypeCode: '380',
+        })
+      }
+      // Owner, 10 Oct 2026: a bill priced with an early-payment discount cannot be paid on a day
+      // after that discount ends; the refusal names it.
+      const paidDay =
+        paidOn ?? (run.paymentDate && run.paymentDate <= TODAY ? run.paymentDate : TODAY)
+      const late = run.billIds.find((id) => {
+        if (named.has(id)) return false
+        const b = billById(id)
+        return priced(b, run.paymentDate).discount > 0 && priced(b, paidDay).discount === 0
+      })
+      if (late)
+        return refuse('PAYMENT_RUN_PAYMENT_DATE_AFTER_DISCOUNT', 400, {
+          billId: late,
+          supplierBillNumber: billById(late).number,
+          documentTypeCode: '380',
+        })
       run.state = 'PAID'
       run.paidAt = `${TODAY}T11:00:00Z`
-      for (const id of run.billIds) billById(id).workflowState = 'PAID'
+      // The day paid (backend #480, `paidOn`): the date sent, else the run's date when it is set
+      // and not in the future, else today in Muscat. The run keeps its planned date; a run with
+      // none takes the day paid.
+      run.paidOn = paidDay
+      if (!run.paymentDate) run.paymentDate = paidDay
+      run.takenOut = {}
+      run.events = []
+      for (const entry of takeOut) {
+        const at = `${TODAY}T11:00:00Z`
+        // What it still owes, without the discount the run priced it with (owner, 10 Oct 2026).
+        const owedNow = priced(billById(entry.billId), null).outstanding
+        run.takenOut[entry.billId] = { at, actor: 'u-hafidh', reason: entry.reason, owedNow }
+        run.events.unshift({
+          at,
+          kind: 'TAKEN_OUT',
+          reason: entry.reason,
+          actor: 'u-hafidh',
+          billId: entry.billId,
+          supplierBillNumber: billById(entry.billId).number,
+        })
+        noteOnBill(entry.billId, 'TAKEN_OUT_OF_PAYMENT_RUN', run, entry.reason)
+      }
+      for (const id of run.billIds) if (!named.has(id)) billById(id).workflowState = 'PAID'
       return runDto(run)
     },
   },
   {
     method: 'POST',
     match: /^\/api\/v1\/payment-runs\/([^/]+)\/cancel$/,
-    reply: ({ params }) => {
+    reply: ({ params, body }) => {
       const run = runById(params[0])
       if (!run) return { status: 404 }
+      // The way out when the bank paid nothing: a sent run, on the person's word, with a reason.
+      if (run.state === 'EXPORTED' && body?.bankPaidNothing === true) {
+        if (!body.reason?.trim()) return refuse('PAYMENT_RUN_REASON_REQUIRED')
+        if (body.reason.length > 1000) return refuse('PAYMENT_RUN_REASON_TOO_LONG')
+        run.state = 'CANCELLED'
+        run.cancelledAt = `${TODAY}T11:00:00Z`
+        run.bankPaidNothing = true
+        run.events = [
+          {
+            at: run.cancelledAt,
+            kind: 'CANCELLED_BANK_PAID_NOTHING',
+            reason: body.reason,
+            actor: 'u-hafidh',
+          },
+        ]
+        for (const id of run.billIds) noteOnBill(id, 'PAYMENT_RUN_CANCELLED', run, body.reason)
+        return runDto(run)
+      }
       if (run.state !== 'DRAFT' && run.state !== 'SCHEDULED')
         return refuse('PAYMENT_RUN_TRANSITION_INVALID')
       run.state = 'CANCELLED'
       run.cancelledAt = `${TODAY}T11:00:00Z`
       return runDto(run)
+    },
+  },
+  {
+    // Reversing a payment of a bill in a run whose bank file is made is refused, naming the run.
+    method: 'POST',
+    match: /^\/api\/v1\/bills\/([^/]+)\/payments\/([^/]+)\/reverse$/,
+    reply: ({ params }) => {
+      const run = RUNS.find((r) => r.state === 'EXPORTED' && r.billIds.includes(params[0]))
+      if (run)
+        return refuse('BILL_PAYMENT_REVERSAL_IN_SENT_RUN', 400, {
+          paymentRunReference: run.runReference ?? run.reference,
+        })
+      return { status: 404 }
     },
   },
   { match: '/api/v1/payer-bank-accounts', reply: () => PAYER_ACCOUNTS },
@@ -1834,6 +2139,8 @@ export default [
       readyToPayTotal: 8800,
       disputedCount: 0,
       disputedTotal: 0,
+      debitNotesAwaitingDecisionCount: 0,
+      debitNotesAwaitingDecisionTotal: 0,
       excludedFromTotals: 0,
       needsAttention: {
         draft: 0,

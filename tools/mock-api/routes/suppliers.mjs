@@ -94,7 +94,7 @@ const FEATURED = [
     participantId: '0248:OM1100447102',
     selfBilling: false,
     terms: terms('NET30', 30, 2, 7),
-    youOwe: { amount: 2759.1, currency: 'OMR', openBills: 2, onHold: 0 },
+    youOwe: { amount: 2759.1, currency: 'OMR', openBills: 2, onHold: 0, overpaidTotal: 30 },
     record: record([], 11, 11),
     status: 'ACTIVE',
     switchedOffAt: null,
@@ -108,7 +108,7 @@ const FEATURED = [
     selfBilling: false,
     terms: terms('NET30', 30),
     youOwe: { amount: 699.9, currency: 'OMR', openBills: 1, onHold: 1 },
-    record: record(['BANK_CHANGED_UNCONFIRMED'], 8, 9, daysAgo(4)),
+    record: record([], 8, 9, daysAgo(4)),
     status: 'ACTIVE',
     switchedOffAt: null,
   },
@@ -412,6 +412,53 @@ const PROFILE_EXTRA = {
 
 const versions = new Map()
 
+/** The signed-in mock user (server.mjs), who confirms here. */
+const ME = { id: 'u-nasser', name: 'Nasser Al Habsi' }
+
+/**
+ * Who changed each supplier's IBAN and what it was before (owner, 8 Oct 2026): Gulf Cold
+ * Logistics' new account was saved by someone else, so the signed-in user may confirm it. A save
+ * through the form makes the signed-in user the changer, and Confirm then gives way to the note.
+ */
+const BANK_CHANGES = {
+  [uuid(2)]: {
+    previousIban: 'OM700270000012345678901',
+    changedById: 'u-hafidh',
+    changedBy: 'Hafidh Saif',
+  },
+}
+const BANK_ACTIVITY = {
+  [uuid(2)]: [
+    {
+      kind: 'CHANGED',
+      at: daysAgo(4),
+      actorId: 'u-hafidh',
+      actorName: 'Hafidh Saif',
+      previousIban: 'OM700270000012345678901',
+      newIban: 'OM230270000098765432101',
+      checkedWithSupplier: false,
+    },
+  ],
+}
+
+function bankDetailsChange(row, bank) {
+  if (!row.record.health.includes('BANK_CHANGED_UNCONFIRMED') || !bank?.iban) return null
+  const change = BANK_CHANGES[row.id] ?? { previousIban: null, changedById: null, changedBy: null }
+  const own = change.changedById === ME.id
+  return {
+    previousIban: change.previousIban,
+    newIban: bank.iban,
+    changedById: change.changedById,
+    changedBy: change.changedBy,
+    changedAt: bank.changedAt ?? new Date().toISOString(),
+    firstEntry: false,
+    // In the mock somebody else can always confirm, so the changer never may.
+    confirmable: !own,
+    // Nobody on record as the maker: confirming needs the tick.
+    checkRequired: change.changedById === null,
+  }
+}
+
 function detail(row) {
   const extra = PROFILE_EXTRA[row.id] ?? {}
   const [scheme, value] = row.participantId ? row.participantId.split(':') : [null, null]
@@ -482,6 +529,8 @@ function detail(row) {
     invoiceAddress: extra.invoiceAddress ?? null,
     sameAsInvoicingAddress: true,
     deliveryAddress: null,
+    bankDetailsChange: bankDetailsChange(row, extra.bankDetails),
+    bankDetailsActivity: BANK_ACTIVITY[row.id] ?? [],
   }
 }
 
@@ -513,12 +562,28 @@ function applyRequest(row, body) {
     extra.autoMatchPurchaseOrders = body.autoMatchPurchaseOrders
   extra.invoiceAddress = body.invoiceAddress
   if (body.bankDetails) {
+    const before = extra.bankDetails?.iban ?? null
+    if (before !== body.bankDetails.iban) {
+      BANK_CHANGES[row.id] = { previousIban: before, changedById: ME.id, changedBy: ME.name }
+      BANK_ACTIVITY[row.id] = [
+        {
+          kind: 'CHANGED',
+          at: new Date().toISOString(),
+          actorId: ME.id,
+          actorName: ME.name,
+          previousIban: before,
+          newIban: body.bankDetails.iban,
+          checkedWithSupplier: false,
+        },
+        ...(BANK_ACTIVITY[row.id] ?? []),
+      ]
+    }
     extra.bankDetails = {
       ...body.bankDetails,
       changedAt: new Date().toISOString(),
       confirmedAt: null,
     }
-    row.record.health = [...new Set([...row.record.health, 'BANK_CHANGED_UNCONFIRMED'])]
+    // Owner, 10 Oct 2026: a changed IBAN is used as soon as it is saved; nobody confirms it.
     row.record.bankChangedAt = extra.bankDetails.changedAt
   }
   row.record.health = row.record.health.filter((flag) => flag !== 'NO_VAT_NUMBER')
@@ -903,9 +968,37 @@ export default [
   {
     method: 'POST',
     match: /^\/api\/v1\/suppliers\/([^/]+)\/bank-details\/confirm$/,
-    reply: ({ params }) => {
+    reply: ({ params, body }) => {
       const row = byId(params[0])
       if (!row) return { status: 404 }
+      const waiting = bankDetailsChange(row, PROFILE_EXTRA[row.id]?.bankDetails)
+      const refused = (code) => ({
+        status: 400,
+        body: {
+          type: 'https://api.fawtir.om/problems/expenditure-refused',
+          title: code,
+          status: 400,
+          error: code,
+          detail: code,
+        },
+      })
+      if (waiting && !waiting.confirmable) return refused('SUPPLIER_BANK_CONFIRM_SAME_PERSON')
+      if (waiting?.checkRequired && body?.checkedWithSupplier !== true)
+        return refused('SUPPLIER_BANK_CONFIRM_CHECK_REQUIRED')
+      if (waiting) {
+        BANK_ACTIVITY[row.id] = [
+          {
+            kind: 'CONFIRMED',
+            at: new Date().toISOString(),
+            actorId: ME.id,
+            actorName: ME.name,
+            previousIban: waiting.previousIban,
+            newIban: waiting.newIban,
+            checkedWithSupplier: body?.checkedWithSupplier === true,
+          },
+          ...(BANK_ACTIVITY[row.id] ?? []),
+        ]
+      }
       row.record.health = row.record.health.filter((flag) => flag !== 'BANK_CHANGED_UNCONFIRMED')
       row.record.bankChangedAt = null
       const extra = PROFILE_EXTRA[row.id]

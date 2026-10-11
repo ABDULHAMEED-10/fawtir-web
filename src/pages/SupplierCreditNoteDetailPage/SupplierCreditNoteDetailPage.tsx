@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { DateField, withRial } from '../../components/ui'
@@ -40,6 +40,7 @@ import {
   type BillDetailDto,
   type BillRowDto,
 } from '../../api/expenditure/bills'
+import { intakePath } from '../../api/expenditure/billIntake'
 import { loadSupplier, supplierPath, type SupplierDetailDto } from '../../api/expenditure/suppliers'
 import {
   loadSupplierOverview,
@@ -90,6 +91,9 @@ const FIELD =
  * the credit. "Keep as credit" is the third choice the frame draws: it changes nothing on the
  * server, because an unapplied note already is held credit.
  */
+/** What the upload hands this page: the sentence that says what the save did, said once. */
+export type SavedNoteState = { saved?: { key: string; values?: Record<string, string> } }
+
 export function SupplierCreditNoteDetailPage() {
   return (
     <AppShell>
@@ -102,6 +106,8 @@ function CreditNoteDetail() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const { id = '' } = useParams()
+  const location = useLocation()
+  const navigate = useNavigate()
   const session = useSession()
   const canSettle = can(session, 'invoice.payment.manage')
 
@@ -132,7 +138,17 @@ function CreditNoteDetail() {
     () => loadSupplierOverview(row!.supplierId!),
   )
 
-  const [notice, setNotice] = useState<string | null>(null)
+  // What the upload did with the note, said once on arrival: a reload or a step back is not
+  // another save, so the state is cleared at once.
+  const arrived = (location.state as SavedNoteState | null)?.saved
+  const [notice, setNotice] = useState<string | null>(
+    arrived ? t(arrived.key, arrived.values) : null,
+  )
+  useEffect(() => {
+    if (arrived) navigate(location.pathname, { replace: true, state: null })
+    // Only on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [failure, setFailure] = useState<string | null>(null)
   const [kept, setKept] = useState(false)
   const [mode, setMode] = useState<'idle' | 'apply' | 'refund'>('idle')
@@ -163,11 +179,14 @@ function CreditNoteDetail() {
     )
   }
 
+  // The note's own bill read names its file; until it answers, the row's delivery or upload.
   const original = own
     ? billOriginalPath(own)
     : row?.inboundDeliveryId
       ? `/v1/inbound-invoices/${encodeURIComponent(row.inboundDeliveryId)}/document`
-      : null
+      : row?.intakeId
+        ? `${intakePath(row.intakeId)}/file`
+        : null
   const download = async () => {
     if (!original) return
     try {
@@ -196,11 +215,23 @@ function CreditNoteDetail() {
 
   const bill = against.bill
   const remaining = row.balance.remaining
-  const effect = creditEffect(remaining > 0 ? remaining : (row.creditedAmount ?? 0), bill)
+  // Read from the balance, not the status word: a note partly used or refunded still comes back
+  // UNAPPLIED, and it is neither unused nor offerable against the bill it already reduced.
+  const state = item.status
+  const usedOnBill = row.credits.applied
+  const effect = creditEffect(
+    {
+      credited: row.creditedAmount ?? 0,
+      applied: row.balance.applied,
+      remaining,
+      appliedHere: usedOnBill,
+    },
+    bill,
+  )
   const vat = vatEffect(bill?.vatAmount ?? null, row.vatAmount)
   const reason = reasonLabelKey(row.reasonCode, row.reasonDetail ?? null)
   // "QTY · Quantity correction": the code in the Tax Authority's list (CL-02-OM), under the
-  // friendly label. TODO(backend): EXPENDITURE.md R.3.
+  // supplier's words (`reasonDetail`) or, without them, the code's own label.
   const cl02 = cl02ReasonOf(row.reasonCode)
   const reasonText = reason
     ? t(reason.key, { defaultValue: reason.fallback })
@@ -216,25 +247,32 @@ function CreditNoteDetail() {
   const net = (row.creditedAmount ?? 0) - (row.vatAmount ?? 0)
 
   const bannerTitle =
-    row.status === 'REFUNDED'
+    state === 'REFUNDED'
       ? t('supplierCreditNotes.detail.refundedTitle', { amount: money(row.balance.refunded) })
-      : row.status === 'APPLIED'
+      : state === 'APPLIED'
         ? t('supplierCreditNotes.detail.paidLessTitle', { amount: money(row.balance.applied) })
-        : bill
+        : bill && state !== 'PARTLY_USED'
           ? t('supplierCreditNotes.detail.youllPayLess', { amount: money(remaining) })
           : t('supplierCreditNotes.detail.creditToUse', { amount: money(remaining) })
   const bannerBody =
-    row.status === 'REFUNDED'
+    state === 'REFUNDED'
       ? t('supplierCreditNotes.detail.refundedBody')
-      : row.status === 'APPLIED'
+      : state === 'APPLIED'
         ? t('supplierCreditNotes.detail.paidLessBody', { bill: billNumber ?? '' })
-        : row.status === 'WAITING_FOR_BILL'
-          ? t('supplierCreditNotes.detail.waitingBody')
-          : bill
-            ? bill.outstandingAmount > 0
-              ? t('supplierCreditNotes.detail.youllPayLessNote')
-              : t('supplierCreditNotes.detail.billPaidNote')
-            : t('supplierCreditNotes.detail.noBillNote')
+        : state === 'PARTLY_USED'
+          ? t('supplierCreditNotes.detail.partlyUsedBody')
+          : state === 'WAITING_FOR_BILL'
+            ? t('supplierCreditNotes.detail.waitingBody')
+            : bill
+              ? bill.outstandingAmount > 0
+                ? t('supplierCreditNotes.detail.youllPayLessNote')
+                : t('supplierCreditNotes.detail.billPaidNote')
+              : t('supplierCreditNotes.detail.noBillNote')
+
+  // Once the note has reduced its bill, what is left can only go against another one.
+  const setAgainstKey = usedOnBill
+    ? 'supplierCreditNotes.detail.setAgainstAnother'
+    : 'supplierCreditNotes.detail.setAgainst'
 
   const linked: LinkedDocument[] = []
   if (billNumber) {
@@ -326,15 +364,17 @@ function CreditNoteDetail() {
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:shrink">
-          <button
-            type="button"
-            disabled={!original}
-            onClick={() => void download()}
-            className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
-          >
-            <img src={downloadIcon} alt="" className="size-5" />
-            {t('supplierCreditNotes.detail.download')}
-          </button>
+          {/* Hidden, not greyed, when the note has no file on record (owner, 6 Oct). */}
+          {original ? (
+            <button
+              type="button"
+              onClick={() => void download()}
+              className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
+            >
+              <img src={downloadIcon} alt="" className="size-5" />
+              {t('supplierCreditNotes.detail.download')}
+            </button>
+          ) : null}
           {canSettle && remaining > 0 ? (
             <button
               type="button"
@@ -342,7 +382,7 @@ function CreditNoteDetail() {
               className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
             >
               <img src={setIcon} alt="" className="size-5" />
-              {t('supplierCreditNotes.detail.setAgainst')}
+              {t(setAgainstKey)}
             </button>
           ) : null}
         </div>
@@ -392,9 +432,11 @@ function CreditNoteDetail() {
                 note: bill?.dueDate
                   ? t('supplierCreditNotes.detail.dueOn', { date: fmt.date(bill.dueDate) })
                   : bill && effect.outstanding !== null && effect.outstanding !== effect.billed
-                    ? t('supplierCreditNotes.detail.stillUnpaidOf', {
-                        amount: money(effect.outstanding),
-                      })
+                    ? withRial(
+                        t('supplierCreditNotes.detail.stillUnpaidOf', {
+                          amount: `${currency} ${money(effect.outstanding)}`,
+                        }),
+                      )
                     : t('supplierCreditNotes.detail.noBillTile'),
               },
             ]}
@@ -405,8 +447,6 @@ function CreditNoteDetail() {
               {reasonText}
             </p>
             {row.reasonCode ? (
-              // TODO(backend): the frame quotes the supplier's own note text; the row carries
-              // only the CL-02-OM code (row 5.8).
               <p className="mt-2 text-xs font-medium text-text-quaternary">
                 {cl02
                   ? t('expenditureNotes.reasonCodeLine', {
@@ -593,7 +633,7 @@ function CreditNoteDetail() {
                   ? t('supplierCreditNoteDetail.nothingLeft')
                   : !canSettle
                     ? t('appAccess.missingPermission')
-                    : billNumber
+                    : billNumber && !usedOnBill
                       ? t('supplierCreditNotes.detail.decisionNote', { bill: billNumber })
                       : t('supplierCreditNotes.detail.decisionNoteNoBill')}
             </p>
@@ -615,7 +655,8 @@ function CreditNoteDetail() {
                   supplierId={row.supplierId}
                   supplierName={item.supplier}
                   knownBill={
-                    bill
+                    // The bill this note already reduced would refuse it a second time.
+                    bill && !usedOnBill
                       ? { id: bill.id, label: bill.supplierBillNumber ?? billNumber ?? '' }
                       : null
                   }
@@ -640,7 +681,7 @@ function CreditNoteDetail() {
                     className="mt-4 inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-sm bg-primary-700 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
                   >
                     <img src={setIcon} alt="" className="size-5" />
-                    {t('supplierCreditNotes.detail.setAgainst')}
+                    {t(setAgainstKey)}
                   </button>
                   <div className="mt-2.5 flex gap-2.5">
                     <button
@@ -920,9 +961,11 @@ function ApplyForm({
       </label>
       {over ? (
         <p role="alert" className="mt-1 text-sm font-medium text-warning-700">
-          {t('supplierCreditNoteDetail.overRemaining', {
-            amount: formatAmount(remaining, currency, language),
-          })}
+          {withRial(
+            t('supplierCreditNoteDetail.overRemaining', {
+              amount: `${currency} ${formatAmount(remaining, currency, language)}`,
+            }),
+          )}
         </p>
       ) : (
         <p className="mt-1 text-xs font-medium text-text-quaternary">
@@ -1013,9 +1056,11 @@ function RefundForm({
       </label>
       {over ? (
         <p role="alert" className="mt-1 text-sm font-medium text-warning-700">
-          {t('supplierCreditNoteDetail.overRemaining', {
-            amount: formatAmount(remaining, currency, language),
-          })}
+          {withRial(
+            t('supplierCreditNoteDetail.overRemaining', {
+              amount: `${currency} ${formatAmount(remaining, currency, language)}`,
+            }),
+          )}
         </p>
       ) : null}
       <div className="mt-3 flex flex-col gap-1">

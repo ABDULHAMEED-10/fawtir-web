@@ -1,6 +1,7 @@
 import type { CreditNoteRowDto, CreditNoteSettlementDto } from '../api/expenditure/notes'
 import type { BillRowDto } from '../api/expenditure/bills'
 import { receiptReportNote } from './billDetail'
+import { creditStateOf } from './supplierNoteList'
 
 /**
  * Credit notes a supplier issued to us: Expenditure > Credit notes (Figma 163:18691, 163:19080,
@@ -40,16 +41,25 @@ export type CreditEffect = {
 }
 
 /**
- * "They billed − this credit = you'll pay". The bill's total is what they billed; what is left to
- * pay comes off what is still outstanding, which is the same figure until something has been
- * paid on it.
+ * "They billed − this credit = you'll pay". The bill's total is what they billed.
+ *
+ * What is left to pay starts from what the bill still owes, and the server already takes off
+ * that figure every credit it has applied. So only the part of the credit not yet on the bill
+ * comes off it here: once this note reduces the bill (`appliedHere`), nothing more does, and the
+ * tile shows what it took off; before that, what is left of the note would. Taking the whole
+ * credit off `outstandingAmount` again counted it twice (They billed 50 − 10.5 = 29).
  */
-export function creditEffect(credit: number, bill: BillRowDto | null): CreditEffect {
+export function creditEffect(
+  note: { credited: number; applied: number; remaining: number; appliedHere: boolean },
+  bill: BillRowDto | null,
+): CreditEffect {
+  const pending = note.appliedHere ? 0 : Math.max(note.remaining, 0)
+  const credit = note.appliedHere ? note.applied : pending > 0 ? pending : note.credited
   if (!bill) return { billed: null, credit, willPay: null, outstanding: null }
   return {
     billed: bill.totalIncludingVat,
     credit,
-    willPay: Math.max(bill.outstandingAmount - credit, 0),
+    willPay: Math.max(bill.outstandingAmount - pending, 0),
     outstanding: bill.outstandingAmount,
   }
 }
@@ -126,44 +136,54 @@ export function creditActivity(
 ): NoteActivity[] {
   const bill = row.credits.billNumber ?? ''
   const credited = row.creditedAmount ?? 0
+  const state = creditStateOf(row)
   const current: NoteActivity =
-    row.status === 'UNAPPLIED'
+    state === 'PARTLY_USED'
       ? {
+          // Part of it is used or refunded (the rows below say which): what is left waits.
           id: 'now',
-          titleKey: 'supplierCreditNotes.detail.activity.waiting',
-          detailKey: bill
-            ? 'supplierCreditNotes.detail.activity.waitingDetail'
-            : 'supplierCreditNotes.detail.activity.waitingNoBill',
-          values: { bill, amount: fmt.money(credited), left: fmt.money(row.balance.remaining) },
+          titleKey: 'supplierCreditNotes.state.partlyUsed',
+          detailKey: 'supplierCreditNotes.detail.activity.waitingNoBill',
+          values: { left: fmt.money(row.balance.remaining) },
           tone: 'current',
         }
-      : row.status === 'WAITING_FOR_BILL'
+      : state === 'UNAPPLIED'
         ? {
             id: 'now',
-            titleKey: 'supplierCreditNotes.detail.activity.waitingBill',
-            detailKey: 'supplierCreditNotes.detail.activity.waitingBillDetail',
-            values: { amount: fmt.money(row.balance.remaining) },
+            titleKey: 'supplierCreditNotes.detail.activity.waiting',
+            detailKey: bill
+              ? 'supplierCreditNotes.detail.activity.waitingDetail'
+              : 'supplierCreditNotes.detail.activity.waitingNoBill',
+            values: { bill, amount: fmt.money(credited), left: fmt.money(row.balance.remaining) },
             tone: 'current',
           }
-        : row.status === 'APPLIED'
+        : state === 'WAITING_FOR_BILL'
           ? {
               id: 'now',
-              titleKey: 'supplierCreditNotes.detail.activity.applied',
-              detailKey: bill
-                ? settlements.length === 0
-                  ? 'supplierCreditNotes.detail.activity.appliedLinked'
-                  : 'supplierCreditNotes.detail.activity.appliedDetail'
-                : 'supplierCreditNotes.detail.activity.appliedNoBill',
-              values: { bill, amount: fmt.money(row.balance.applied) },
+              titleKey: 'supplierCreditNotes.detail.activity.waitingBill',
+              detailKey: 'supplierCreditNotes.detail.activity.waitingBillDetail',
+              values: { amount: fmt.money(row.balance.remaining) },
               tone: 'current',
             }
-          : {
-              id: 'now',
-              titleKey: 'supplierCreditNotes.detail.activity.refunded',
-              detailKey: 'supplierCreditNotes.detail.activity.refundedDetail',
-              values: { amount: fmt.money(row.balance.refunded) },
-              tone: 'current',
-            }
+          : state === 'APPLIED'
+            ? {
+                id: 'now',
+                titleKey: 'supplierCreditNotes.detail.activity.applied',
+                detailKey: bill
+                  ? settlements.length === 0
+                    ? 'supplierCreditNotes.detail.activity.appliedLinked'
+                    : 'supplierCreditNotes.detail.activity.appliedDetail'
+                  : 'supplierCreditNotes.detail.activity.appliedNoBill',
+                values: { bill, amount: fmt.money(row.balance.applied) },
+                tone: 'current',
+              }
+            : {
+                id: 'now',
+                titleKey: 'supplierCreditNotes.detail.activity.refunded',
+                detailKey: 'supplierCreditNotes.detail.activity.refundedDetail',
+                values: { amount: fmt.money(row.balance.refunded) },
+                tone: 'current',
+              }
 
   const done: NoteActivity[] = [...settlements]
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))

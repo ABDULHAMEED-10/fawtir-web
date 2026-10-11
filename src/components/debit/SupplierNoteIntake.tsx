@@ -21,7 +21,7 @@ import {
   type PossibleDuplicateDto,
 } from '../../api/expenditure/billIntake'
 import { billListPath, loadBillPage, type BillRowDto } from '../../api/expenditure/bills'
-import { applyCreditNote, acceptDebitNote, refuseDebitNote } from '../../api/expenditure/notes'
+import { acceptDebitNote, refuseDebitNote } from '../../api/expenditure/notes'
 import { describeApiFailure } from '../../lib/apiFailure'
 import {
   CONFIRM_REFUSALS,
@@ -61,6 +61,8 @@ import deleteIcon from '../../assets/invoice-details/delete.svg'
 const SHELL = 'border-primary-300 bg-surface-tab-bar'
 const ZOOM_STEPS = [0.75, 1, 1.25, 1.5]
 const SEARCH_DELAY_MS = 250
+/** A supplier's debit note (UNCL1001 383), listed among the bills by `GET /bills`. */
+const DEBIT_NOTE_CODE = '383'
 
 const REQUEST_FIELDS: Record<string, BillField> = {
   supplierName: 'supplier',
@@ -82,10 +84,11 @@ export type NoteKind = 'credit' | 'debit'
  * Both frames draw the same composer, one green and one sand: the file, who sent it, which bill
  * it corrects or adds to and what that changes, the lines, and then the choice the note calls
  * for: how to use a credit, or whether to accept a charge. It is confirmed exactly as a bill is
- * (`POST /v1/bills/intake/{id}/confirm`, `documentTypeCode` 381 or 383), and the choice is then
- * carried out with the note's own endpoints: `POST /credit-notes/{id}/apply`, or
- * `POST /debit-notes/{id}/accept` / `/refuse`. The total and the VAT sent are the lines' own
- * figures, through the same engine every invoice uses.
+ * (`POST /v1/bills/intake/{id}/confirm`, `documentTypeCode` 381 or 383). A credit set against
+ * the chosen bill is applied by that same request (`relatedBillId`); held as credit, the bill is
+ * sent with `holdAsCredit` and kept only as the note's reference. A charge's decision is then
+ * carried out with the note's own endpoints, `POST /debit-notes/{id}/accept` / `/refuse`. The
+ * total and the VAT sent are the lines' own figures, through the same engine every invoice uses.
  *
  * Nothing is read out of a PDF or a photo; only a Peppol/UBL XML file fills fields in.
  */
@@ -103,8 +106,8 @@ export function SupplierNoteIntake({
   cancelTo: string
   /** After the intake is discarded, so the picker can be shown again. */
   onReplace: () => void
-  /** The confirmed note, and the key of the sentence that says what was done with it. */
-  onSaved: (note: ConfirmedBillDto, doneKey: string) => void
+  /** The confirmed note, and the key (and values) of the sentence that says what was done. */
+  onSaved: (note: ConfirmedBillDto, doneKey: string, doneValues?: Record<string, string>) => void
 }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
@@ -155,7 +158,15 @@ export function SupplierNoteIntake({
   const addsUp =
     printedTotal !== null && linesTotal !== null && Math.abs(printedTotal - linesTotal) <= 0.001
 
-  const effect = creditEffect(linesTotal ?? 0, chosenBill)
+  const effect = creditEffect(
+    { credited: linesTotal ?? 0, applied: 0, remaining: linesTotal ?? 0, appliedHere: false },
+    chosenBill,
+  )
+  // A credit note may correct one of the supplier's debit notes; its sentences then name the debit
+  // note rather than "the bill". A refused one is closed by the credit whichever choice is made, so
+  // the choice is not offered for it.
+  const debitNoteChosen = kind === 'credit' && chosenBill?.documentTypeCode === DEBIT_NOTE_CODE
+  const refusedDebitNote = debitNoteChosen && chosenBill?.debitNoteDecision === 'REFUSED'
   const vat = vatEffect(chosenBill?.vatAmount ?? null, totals ? Number(totals.vat) : null)
   const checks =
     kind === 'debit'
@@ -191,14 +202,18 @@ export function SupplierNoteIntake({
           ? 'refuse'
           : 'none'
 
+  // A debit note chosen, the button names it (owner, 9 Oct 2026); a refused one is closed by the
+  // credit whatever was picked before it was chosen.
   const primaryLabel =
-    followUp === 'apply'
-      ? t('supplierCreditNotes.upload.saveAndSet')
-      : followUp === 'accept'
-        ? t('supplierDebitNotes.upload.saveAndAccept')
-        : followUp === 'refuse'
-          ? t('supplierDebitNotes.upload.saveAndRefuse')
-          : t(`${ns}.save`)
+    debitNoteChosen && (followUp === 'apply' || refusedDebitNote)
+      ? t('supplierCreditNotes.upload.saveAndSetDebitNote')
+      : followUp === 'apply'
+        ? t('supplierCreditNotes.upload.saveAndSet')
+        : followUp === 'accept'
+          ? t('supplierDebitNotes.upload.saveAndAccept')
+          : followUp === 'refuse'
+            ? t('supplierDebitNotes.upload.saveAndRefuse')
+            : t(`${ns}.save`)
 
   const save = async (notDuplicateOf: string | null) => {
     if (inFlight.current || saved) return
@@ -220,26 +235,46 @@ export function SupplierNoteIntake({
     setBusy(true)
     setNotice(null)
     try {
-      // TODO(backend): `ConfirmRequest` has no place for the note's reason (BTOM-032, mandatory
-      // under IBR-023-OM) nor for the bill it corrects; both are typed here and neither is
-      // sent (row 5.12 in docs/backend-guides/EXPENDITURE.md).
+      // A credit note sends the reason as typed (`reasonDetail`; the form has no CL-02-OM code
+      // to pick, so no `reasonCode`) and the chosen bill, if any. Set against it, the server
+      // takes the credit off that bill in the same request (the largest amount that fits) or
+      // refuses the whole save. Held as credit (`holdAsCredit`), the bill is kept as the note's
+      // reference and nothing is applied. A debit note's form has no reason box, so it sends no
+      // reason, and never `holdAsCredit`; its chosen bill is sent too, and the server only
+      // records it as the bill the charge adds to, so the note can link to it.
       const note = await confirmIntake(
         intake.id,
         toConfirmation(submitted, {
           notDuplicateOf,
           documentTypeCode: kind === 'credit' ? '381' : '383',
+          ...(kind === 'credit' ? { reasonDetail: reason } : {}),
+          ...(chosenBill ? { relatedBillId: chosenBill.id } : {}),
+          ...(kind === 'credit' && chosenBill && use === 'hold' ? { holdAsCredit: true } : {}),
         }),
       )
       setSaved(note)
+      // Whether any credit came off the bill is the confirm answer's to say (`creditApplied`):
+      // a bill that already owed nothing takes none, so the credit is held. An older server
+      // does not say; then the bill as listed decides.
+      const applied =
+        note.creditApplied !== undefined
+          ? note.creditApplied !== null
+          : followUp === 'apply' && chosenBill!.outstandingAmount > 0
       let doneKey =
         kind === 'credit'
-          ? 'supplierCreditNotes.upload.savedHeld'
+          ? refusedDebitNote
+            ? 'supplierCreditNotes.upload.savedClosesRefusedDebitNote'
+            : applied
+              ? debitNoteChosen
+                ? 'supplierCreditNotes.upload.savedAppliedDebitNote'
+                : 'supplierCreditNotes.upload.savedApplied'
+              : 'supplierCreditNotes.upload.savedHeld'
           : 'supplierDebitNotes.upload.savedHeld'
+      const doneValues = refusedDebitNote
+        ? { note: chosenBill?.supplierBillNumber ?? '' }
+        : undefined
       try {
-        if (followUp === 'apply') {
-          await applyCreditNote(note.id, chosenBill!.id, null)
-          doneKey = 'supplierCreditNotes.upload.savedApplied'
-        } else if (followUp === 'accept') {
+        if (followUp === 'accept') {
           await acceptDebitNote(note.id)
           doneKey = 'supplierDebitNotes.upload.savedAccepted'
         } else if (followUp === 'refuse') {
@@ -253,7 +288,7 @@ export function SupplierNoteIntake({
         setNotice(`${t('supplierNotes.savedButNot')} ${t(described.key, described.values)}`)
         return
       }
-      onSaved(note, doneKey)
+      onSaved(note, doneKey, doneValues)
     } catch (failure) {
       refuse(failure)
     } finally {
@@ -727,6 +762,9 @@ export function SupplierNoteIntake({
               <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">
                 {t('supplierCreditNotes.upload.howToUse')}
               </h2>
+              {refusedDebitNote ? (
+                <InfoNote plain>{t('supplierCreditNotes.upload.refusedDebitNoteCloses')}</InfoNote>
+              ) : null}
               <div
                 className="mt-4 flex flex-col gap-3"
                 role="radiogroup"
@@ -742,9 +780,22 @@ export function SupplierNoteIntake({
                           })
                         : t('supplierCreditNotes.upload.setNowNoBill'),
                       note: chosenBill
-                        ? t('supplierCreditNotes.upload.setNowNote', {
-                            amount: money(linesTotal ?? 0),
-                          })
+                        ? t(
+                            debitNoteChosen
+                              ? 'supplierCreditNotes.upload.setNowNoteDebitNote'
+                              : 'supplierCreditNotes.upload.setNowNote',
+                            {
+                              // What actually comes off: never more than the bill or debit note
+                              // still owes, the rest stays as credit (the server applies the
+                              // largest that fits).
+                              amount: money(
+                                Math.min(
+                                  linesTotal ?? 0,
+                                  Math.max(chosenBill.outstandingAmount, 0),
+                                ),
+                              ),
+                            },
+                          )
                         : t('supplierCreditNotes.upload.setNowPick'),
                       disabled: !chosenBill || chosenBill.outstandingAmount <= 0,
                     },
@@ -765,26 +816,30 @@ export function SupplierNoteIntake({
                       disabled: true,
                     },
                   ] as const
-                ).map((option) => {
-                  const active =
-                    use === option.id ||
-                    (option.id === 'hold' && use === 'setAgainst' && !chosenBill)
-                  return (
-                    <ChoiceRow
-                      key={option.id}
-                      active={active}
-                      disabled={option.disabled}
-                      onPick={() => setUse(option.id)}
-                      title={option.title}
-                      note={withRial(option.note)}
-                      trailing={
-                        option.disabled && option.id === 'refund'
-                          ? t('supplierCreditNotes.upload.notYet')
-                          : undefined
-                      }
-                    />
-                  )
-                })}
+                )
+                  // A refused debit note leaves nothing to choose: the two ways to use the credit
+                  // give way to the line above.
+                  .filter((option) => !refusedDebitNote || option.id === 'refund')
+                  .map((option) => {
+                    const active =
+                      use === option.id ||
+                      (option.id === 'hold' && use === 'setAgainst' && !chosenBill)
+                    return (
+                      <ChoiceRow
+                        key={option.id}
+                        active={active}
+                        disabled={option.disabled}
+                        onPick={() => setUse(option.id)}
+                        title={option.title}
+                        note={withRial(option.note)}
+                        trailing={
+                          option.disabled && option.id === 'refund'
+                            ? t('supplierCreditNotes.upload.notYet')
+                            : undefined
+                        }
+                      />
+                    )
+                  })}
               </div>
             </section>
           ) : (
@@ -1096,7 +1151,8 @@ function ChoiceRow({
 
 /**
  * The bill this note corrects or adds to: searched among the supplier's bills (narrowed by the
- * server via `supplier_id`), shown as the frame's bill card once chosen.
+ * server via `supplier_id`), shown as the frame's bill card once chosen. A credit note's list also
+ * offers the supplier's debit notes, each named "Debit note".
  *
  * TODO(backend): an e-invoice file carries the bill reference (IBT-025), but `ExtractedFields`
  * does not, so nothing is pre-chosen from the file (row 5.12).
@@ -1142,12 +1198,15 @@ function BillChooser({
   const bills = useApiRead<Page<BillRowDto>>(path, () => loadBillPage(path!))
 
   const CREDIT_NOTE_CODES = ['381', '261']
+  // A credit note may correct one of the supplier's debit notes as well as a bill (owner, 8 Oct
+  // 2026); a debit note adds to a bill only, and the server refuses another debit note for it.
   const offerable = (bill: BillRowDto) =>
     bill.id !== excludeId &&
     (supplierId
       ? bill.supplierId === supplierId
       : (bill.supplierName ?? '').trim().toLowerCase() === supplierName.trim().toLowerCase()) &&
     !CREDIT_NOTE_CODES.includes(bill.documentTypeCode ?? '') &&
+    (kind === 'credit' || bill.documentTypeCode !== DEBIT_NOTE_CODE) &&
     (kind === 'debit' || bill.outstandingAmount > 0)
   const found = bills.read.status === 'ready' ? bills.read.data.items.filter(offerable) : null
   const money = (value: number, currency: string) => formatAmount(value, currency, language)
@@ -1166,11 +1225,14 @@ function BillChooser({
                 <SignedAmount value={money(chosen.totalIncludingVat ?? 0, chosen.currencyCode)} />
               </p>
               <p className="mt-1 text-sm font-medium leading-[1.3] text-text-tertiary">
-                {t('supplierNotes.billCard', {
-                  state: t(billStateKey(chosen)),
-                  outstanding: money(chosen.outstandingAmount, chosen.currencyCode),
-                  due: chosen.dueDate ? formatDate(chosen.dueDate, language) : '—',
-                })}
+                {withRial(
+                  t('supplierNotes.billCard', {
+                    state: t(billStateKey(chosen)),
+                    // The code before the figure: the rial sign is drawn in its place.
+                    outstanding: `${chosen.currencyCode} ${money(chosen.outstandingAmount, chosen.currencyCode)}`,
+                    due: chosen.dueDate ? formatDate(chosen.dueDate, language) : '—',
+                  }),
+                )}
                 {chosen.paymentRunReference
                   ? ` · ${t('supplierNotes.inRun', { run: chosen.paymentRunReference })}`
                   : ''}
@@ -1237,7 +1299,14 @@ function BillChooser({
                 >
                   {bill.supplierBillNumber ?? t('supplierCreditNotes.rows.unnumbered')}
                   <span className="block text-xs text-text-quaternary">
-                    {t(billStateKey(bill))} · {money(bill.outstandingAmount, bill.currencyCode)}{' '}
+                    {bill.documentTypeCode === DEBIT_NOTE_CODE
+                      ? `${t('billsPage.debitNote.type')} · `
+                      : null}
+                    {/* What it still owes, with the rial sign before the figure (owner, 9 Oct 2026). */}
+                    {t(billStateKey(bill))} ·{' '}
+                    {withRial(
+                      `${bill.currencyCode} ${money(bill.outstandingAmount, bill.currencyCode)}`,
+                    )}{' '}
                     {t('supplierCreditNoteDetail.stillOwed')}
                   </span>
                 </button>

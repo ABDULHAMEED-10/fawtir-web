@@ -190,10 +190,16 @@ export function RecordPaymentModal({
       width={640}
       onClose={onClose}
       title={t('invoiceDetails.pay.title')}
-      subtitle={t('invoiceDetails.pay.subtitle', {
-        number: invoiceNumber ?? '—',
-        amount: outstanding === null ? '—' : formatAmount(outstanding, currency, i18n.language),
-      })}
+      // The code before the figure, so the rial sign drawn in its place stands before it.
+      subtitle={withRial(
+        t('invoiceDetails.pay.subtitle', {
+          number: invoiceNumber ?? '—',
+          amount:
+            outstanding === null
+              ? '—'
+              : `${currency} ${formatAmount(outstanding, currency, i18n.language)}`,
+        }),
+      )}
       footer={
         <ModalFooter
           formId={FORM_ID}

@@ -50,6 +50,38 @@ export function billStateKey(bill: BillRowDto): string {
   return STATE_KEY[workflowStateOf(bill)]
 }
 
+/** The three tiles of the banner: what the bill stands at, this charge, what you'd pay. */
+export type DebitEffect = {
+  /** What the bill still owes; null without the bill. */
+  billed: number | null
+  /**
+   * Whether `billed` is less than the bill's total (a credit or a payment already on it): the
+   * first tile then says what the bill still owes rather than what they billed.
+   */
+  reduced: boolean
+  willPay: number | null
+}
+
+/**
+ * "They billed + this charge = you'd pay", on one basis: what the bill still owes, as the
+ * credit-note page's "You'll pay" is. Taking "They billed" from the bill's total and "You'd pay"
+ * from what it still owes did not add up once a credit was on the bill (60 + 5 = 55). A refused
+ * charge is not added to what is owed, so you'd pay the bill as it is (owner, 9 Oct 2026).
+ */
+export function debitEffect(
+  bill: Pick<BillRowDto, 'totalIncludingVat' | 'outstandingAmount'> | null,
+  charge: number,
+  refused: boolean,
+): DebitEffect {
+  if (!bill) return { billed: null, reduced: false, willPay: null }
+  const owed = bill.outstandingAmount
+  return {
+    billed: owed,
+    reduced: bill.totalIncludingVat != null && owed !== bill.totalIncludingVat,
+    willPay: refused ? owed : Math.round((owed + charge) * 1000) / 1000,
+  }
+}
+
 /** VAT at Oman's standard rate on a gross figure, to the rial's three places. */
 function standardVatOf(total: number): number {
   return Math.round((total * 5 * 1000) / 105) / 1000
@@ -310,7 +342,10 @@ export function debitActivity(
       : row.status === 'ACCEPTED'
         ? {
             id: 'now',
-            titleKey: 'supplierDebitNotes.detail.activity.accepted',
+            // "Accepted by {name}" once the server names who (owner, 8 Oct 2026).
+            titleKey: row.decidedByName
+              ? 'supplierDebitNotes.state.accepted'
+              : 'supplierDebitNotes.detail.activity.accepted',
             detailKey:
               row.outstandingAmount > 0
                 ? 'supplierDebitNotes.detail.activity.acceptedDetail'
@@ -318,23 +353,32 @@ export function debitActivity(
             values: {
               amount: fmt.money(row.outstandingAmount),
               when: row.decidedAt ? fmt.when(row.decidedAt) : '',
+              who: row.decidedByName ?? '',
             },
             tone: 'current',
           }
         : {
             id: 'now',
-            titleKey: 'supplierDebitNotes.detail.activity.refused',
+            titleKey: row.decidedByName
+              ? 'supplierDebitNotes.state.refusedBy'
+              : 'supplierDebitNotes.detail.activity.refused',
             detailKey: row.decisionReason
               ? 'supplierDebitNotes.detail.activity.refusedDetail'
               : 'supplierDebitNotes.detail.activity.refusedPlain',
             values: {
               reason: row.decisionReason ?? '',
               when: row.decidedAt ? fmt.when(row.decidedAt) : '',
+              who: row.decidedByName ?? '',
             },
             tone: 'current',
           }
 
-  const history: NoteActivity[] = decisions.map((decision, index) => ({
+  // The history comes newest first, and its newest row is the decision the note stands on, which
+  // the line above already says (with who and why): listing it again showed one refusal twice.
+  const [newest, ...older] = decisions
+  const shown =
+    newest && row.status !== 'UNCHECKED' && newest.decision === row.status ? older : decisions
+  const history: NoteActivity[] = shown.map((decision, index) => ({
     id: `decision-${index}`,
     titleKey:
       decision.decision === 'ACCEPTED'

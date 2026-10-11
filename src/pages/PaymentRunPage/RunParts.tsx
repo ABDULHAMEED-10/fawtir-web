@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ActionMenu, Modal, RialMark, withRial } from '../../components/ui'
-import { TextField } from '../../components/form'
+import { ActionMenu, DateField, Modal, RialMark, withRial } from '../../components/ui'
+import { CheckboxRow, TextAreaField, TextField } from '../../components/form'
+import { Field } from '../ConsolePage/subscriptions/modalFields'
 import {
   addToRun,
   cancelRun,
@@ -15,19 +16,22 @@ import {
   type PaymentRunDto,
   type PaymentRunItemDto,
   type PaymentRunState,
+  type TakeOut,
 } from '../../api/expenditure/paymentRuns'
 import { formatAmount } from '../../lib/format'
 import {
   BIC_SHAPE,
   actionsFor,
-  formatLabelKey,
   ibanValid,
+  markPaidBlockKey,
+  markPaidDateFor,
+  markPaidDateProblem,
   refusalOf,
+  sum,
   supplierTile,
 } from '../../lib/paymentRuns'
 import spreadsheetIcon from '../../assets/payment-run-menu/sheet.svg'
 import emailIcon from '../../assets/payment-run-menu/email.svg'
-import bankIcon from '../../assets/payment-run-menu/format.svg'
 import copyIcon from '../../assets/payment-run-menu/copy.svg'
 import resetIcon from '../../assets/payment-run-menu/reset.svg'
 import deleteIcon from '../../assets/payment-run-menu/delete.svg'
@@ -138,6 +142,7 @@ export function ConfirmModal({
   danger,
   onConfirm,
   onClose,
+  children,
 }: {
   title: string
   body: string
@@ -145,6 +150,8 @@ export function ConfirmModal({
   danger?: boolean
   onConfirm: () => Promise<void>
   onClose: () => void
+  /** What the confirmation asks for beyond the sentence: a tick, a reason, bills to take out. */
+  children?: ReactNode
 }) {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
@@ -188,7 +195,266 @@ export function ConfirmModal({
       }
     >
       <p className="text-sm font-medium leading-[1.5] text-text-secondary">{withRial(body)}</p>
+      {children}
     </Modal>
+  )
+}
+
+/**
+ * Mark a run paid (owner, 8 Oct 2026; from a draft or scheduled run too since 9 Oct 2026): every
+ * bill of the run is listed, and any can be taken out of the run with a reason, as it was not paid.
+ * A bill the server says cannot be marked paid now (`markPaidBlock`) starts ticked, with why beside
+ * it, as on the run page, and so does the bill the last refusal named. With a bill ticked the
+ * button reads "Mark the others paid"; with every bill ticked there is nothing left to mark paid,
+ * so the button becomes the run's own "Cancel the run" and leads to that dialog instead.
+ *
+ * It asks the day the suppliers were paid (owner, 10 Oct 2026), as Record payment does: it starts
+ * on the run's payment date, or today in Muscat when there is none or it is in the future, and
+ * refuses a future day. It is hidden while the button reads "Cancel the run".
+ */
+export function MarkPaidModal({
+  run,
+  items,
+  today,
+  refused = null,
+  onConfirm,
+  onCancelInstead,
+  onClose,
+}: {
+  run: PaymentRunDto
+  items: PaymentRunItemDto[]
+  /** The Muscat day, so "not in the future" means what the server means by it. */
+  today: string
+  /**
+   * The bill the last Mark as paid refusal named, with the words for why: ticked to be taken out
+   * and flagged, as a markPaidBlock is.
+   */
+  refused?: { billId: string; key: string | null } | null
+  onConfirm: (takeOut: TakeOut[], paymentDate: string) => Promise<void>
+  onCancelInstead: () => void
+  onClose: () => void
+}) {
+  const { t, i18n } = useTranslation()
+  const [paymentDate, setPaymentDate] = useState(() => markPaidDateFor(run, today))
+  const [dateProblem, setDateProblem] = useState<string | null>(null)
+  const [ticked, setTicked] = useState<Set<string>>(
+    () =>
+      new Set(
+        items
+          .filter((item) => item.markPaidBlock || item.billId === refused?.billId)
+          .map((item) => item.billId),
+      ),
+  )
+  const [reasons, setReasons] = useState<Record<string, string>>({})
+  const [missing, setMissing] = useState<Set<string>>(new Set())
+
+  const everything = items.length > 0 && items.every((item) => ticked.has(item.billId))
+  const paying = items.filter((item) => !ticked.has(item.billId))
+  const amount = ticked.size === 0 ? run.netTotal : sum(paying.map((item) => item.amount))
+
+  const toggle = (billId: string, on: boolean) => {
+    setTicked((current) => {
+      const next = new Set(current)
+      if (on) next.add(billId)
+      else next.delete(billId)
+      return next
+    })
+    if (!on) setMissing((current) => new Set([...current].filter((id) => id !== billId)))
+  }
+
+  const confirm = async () => {
+    if (everything) {
+      onCancelInstead()
+      return
+    }
+    const takeOut = items
+      .filter((item) => ticked.has(item.billId))
+      .map((item) => ({ billId: item.billId, reason: (reasons[item.billId] ?? '').trim() }))
+    const unexplained = new Set(
+      takeOut.filter((entry) => !entry.reason).map((entry) => entry.billId),
+    )
+    setMissing(unexplained)
+    const problem = markPaidDateProblem(paymentDate, today)
+    setDateProblem(problem)
+    if (unexplained.size > 0 || problem) return
+    await onConfirm(takeOut, paymentDate)
+  }
+
+  return (
+    <ConfirmModal
+      title={t('paymentRuns.confirmPaid.title', { reference: run.reference })}
+      body={t('paymentRuns.confirmPaid.body', {
+        // The code before the figure, so the sign drawn in its place stands before it, as
+        // everywhere else in the app (owner, 9 Oct 2026).
+        amount: `${run.currency} ${formatAmount(amount, run.currency, i18n.language)}`,
+      })}
+      confirm={
+        everything
+          ? t('paymentRuns.cancel')
+          : ticked.size > 0
+            ? t('paymentRuns.markOthersPaid')
+            : t('paymentRuns.markPaid')
+      }
+      danger={everything}
+      onClose={onClose}
+      onConfirm={confirm}
+    >
+      {everything ? null : (
+        <div className="mt-5">
+          <Field
+            name="paymentDate"
+            label={t('billDetail.pay.date')}
+            required
+            error={dateProblem ? t(dateProblem) : undefined}
+          >
+            <DateField
+              value={paymentDate}
+              onChange={(next) => {
+                setPaymentDate(next)
+                setDateProblem(null)
+              }}
+              max={today}
+              ariaLabel={t('billDetail.pay.date')}
+            />
+          </Field>
+        </div>
+      )}
+      {items.length > 0 ? (
+        <ul className="mt-5 overflow-hidden rounded-sm border border-border-subtle">
+          {items.map((item, index) => {
+            const on = ticked.has(item.billId)
+            const block =
+              markPaidBlockKey(item.markPaidBlock?.code) ??
+              (item.billId === refused?.billId ? refused.key : null)
+            return (
+              <li
+                key={item.billId}
+                className={[
+                  'flex flex-col gap-3 px-4 py-3',
+                  index > 0 ? 'border-t border-border-subtle' : '',
+                ].join(' ')}
+              >
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold leading-[1.2] text-text-primary">
+                      {item.supplierBillNumber ?? t('paymentRuns.unnumbered')}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-medium leading-[1.2] text-text-muted">
+                      {item.supplierName ?? t('paymentRuns.noSupplier')}
+                    </p>
+                    {block ? <MarkPaidBlockChip label={t(block)} /> : null}
+                  </div>
+                  <div className="ms-auto">
+                    <Amount value={item.amount} currency={run.currency} />
+                  </div>
+                </div>
+                <CheckboxRow
+                  id={`take-out-${item.billId}`}
+                  name={`takeOut-${item.billId}`}
+                  label={t('paymentRuns.takeOutOfRun')}
+                  checked={on}
+                  onChange={(next) => toggle(item.billId, next)}
+                />
+                {on ? (
+                  <TextAreaField
+                    id={`take-out-reason-${item.billId}`}
+                    name={`takeOutReason-${item.billId}`}
+                    label={t('billDetail.reject.reason')}
+                    rows={2}
+                    minHeightClass="min-h-[64px]"
+                    maxLength={1000}
+                    value={reasons[item.billId] ?? ''}
+                    onChange={(next) =>
+                      setReasons((current) => ({ ...current, [item.billId]: next }))
+                    }
+                    error={missing.has(item.billId) ? t('validation.required') : undefined}
+                  />
+                ) : null}
+              </li>
+            )
+          })}
+        </ul>
+      ) : null}
+    </ConfirmModal>
+  )
+}
+
+/**
+ * Why a bill in a live run cannot be marked paid now (`markPaidBlock`): "On hold" and the like,
+ * on its row of the run and in the Mark as paid dialog.
+ */
+export function MarkPaidBlockChip({ label }: { label: string }) {
+  return (
+    <span className="mt-1 inline-flex items-center rounded-sm bg-pending-100 px-3 py-1 text-[10px] font-medium leading-[1.2] text-pending-700">
+      {label}
+    </span>
+  )
+}
+
+/**
+ * Cancel a sent run (owner, 8 Oct 2026): only on the person's word that the bank paid nothing from
+ * the file, and with a reason. Every bill goes back to "to pay".
+ */
+export function CancelSentRunModal({
+  run,
+  onConfirm,
+  onClose,
+}: {
+  run: PaymentRunDto
+  onConfirm: (reason: string) => Promise<void>
+  onClose: () => void
+}) {
+  const { t } = useTranslation()
+  const [paidNothing, setPaidNothing] = useState(false)
+  const [reason, setReason] = useState('')
+  const [errors, setErrors] = useState<{ tick?: boolean; reason?: boolean }>({})
+
+  const confirm = async () => {
+    const next = { tick: !paidNothing, reason: !reason.trim() }
+    setErrors(next)
+    if (next.tick || next.reason) return
+    await onConfirm(reason.trim())
+  }
+
+  return (
+    <ConfirmModal
+      title={t('paymentRuns.confirmCancel.title', { reference: run.reference })}
+      body={t('paymentRuns.confirmCancel.body')}
+      confirm={t('paymentRuns.cancel')}
+      danger
+      onClose={onClose}
+      onConfirm={confirm}
+    >
+      <div className="mt-5 flex flex-col gap-5">
+        <div className="flex flex-col gap-1">
+          <CheckboxRow
+            id="bank-paid-nothing"
+            name="bankPaidNothing"
+            label={t('paymentRuns.bankPaidNothing')}
+            checked={paidNothing}
+            onChange={(next) => {
+              setPaidNothing(next)
+              if (next) setErrors((current) => ({ ...current, tick: false }))
+            }}
+          />
+          {errors.tick ? (
+            <p className="text-xs font-medium leading-[1.2] text-text-danger" role="alert">
+              {t('validation.required')}
+            </p>
+          ) : null}
+        </div>
+        <TextAreaField
+          id="cancel-sent-reason"
+          name="reason"
+          label={t('billDetail.reject.reason')}
+          rows={3}
+          maxLength={1000}
+          value={reason}
+          onChange={setReason}
+          error={errors.reason ? t('validation.required') : undefined}
+        />
+      </div>
+    </ConfirmModal>
   )
 }
 
@@ -303,19 +569,26 @@ export function AddPayerAccountModal({
  * The run's "3 Dot" menu (Figma 163:24153): this run, start again, delete.
  *
  * Copying, resetting and deleting are the API's own calls. A spreadsheet export and a remittance
- * e-mail have nothing behind them yet: each says so when chosen.
+ * e-mail have nothing behind them yet: each says so when chosen. "Change the bank format" is not
+ * drawn: Fawtir makes no bank files (owner, 9 Oct 2026).
  */
 export function RunMenu({
   run,
   items,
   onNotice,
   onChanged,
+  onCancelSent,
 }: {
   run: PaymentRunDto
   items: PaymentRunItemDto[]
   onNotice: (text: string) => void
   /** The run was reset or cancelled: reload it. */
   onChanged: () => void
+  /**
+   * Given only for a sent run and someone allowed to cancel it: the menu then offers "Cancel the
+   * run", which asks the page for the bank-paid-nothing dialog.
+   */
+  onCancelSent?: () => void
 }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -335,7 +608,7 @@ export function RunMenu({
       if (fresh.length > 0) await addToRun(created.id, fresh)
       navigate(`/expenditure/payments/${created.id}`)
     } catch (error) {
-      onNotice(refusalOf(error, t))
+      onNotice(refusalOf(error, t, 'add'))
     }
   }
 
@@ -387,14 +660,6 @@ export function RunMenu({
             onSelect: notYet,
           },
           {
-            id: 'format',
-            labelKey: 'paymentRuns.menu.changeFormat',
-            descriptionKey: 'paymentRuns.menu.changeFormatNote',
-            values: { format: t(formatLabelKey(run.format)) },
-            icon: bankIcon,
-            to: `/expenditure/payments/${run.id}#format`,
-          },
-          {
             id: 'copy',
             sectionKey: 'paymentRuns.menu.startAgain',
             labelKey: 'paymentRuns.menu.copyRun',
@@ -420,6 +685,17 @@ export function RunMenu({
                 },
               ]
             : []),
+          ...(run.state === 'EXPORTED' && onCancelSent
+            ? [
+                {
+                  id: 'cancelSent',
+                  labelKey: 'paymentRuns.cancel',
+                  icon: deleteIcon,
+                  danger: true,
+                  onSelect: onCancelSent,
+                },
+              ]
+            : []),
         ]}
       />
       {confirming === 'reset' ? (
@@ -435,7 +711,8 @@ export function RunMenu({
         <ConfirmModal
           title={t('paymentRuns.confirmCancel.title', { reference: run.reference })}
           body={t('paymentRuns.confirmCancel.body')}
-          confirm={t('paymentRuns.menu.delete')}
+          // The run is cancelled, not deleted: the button says so, as the run's other cancel does.
+          confirm={t('paymentRuns.cancel')}
           danger
           onClose={() => setConfirming(null)}
           onConfirm={remove}

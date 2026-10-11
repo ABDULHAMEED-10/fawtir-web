@@ -62,6 +62,16 @@ export type BillRowDto = {
   note?: string | null
   /** The self-billed invoice or credit note this payable was raised from; null for any other source. */
   issuedInvoiceId?: string | null
+  /**
+   * On a supplier debit note (383), its current decision; null on any other document and on a
+   * note nobody has decided yet. A REFUSED note is disputed and cannot be paid.
+   */
+  debitNoteDecision?: 'ACCEPTED' | 'REFUSED' | null
+  /**
+   * "Overpaid by" (owner's answer 13, 8 Oct 2026): what the supplier still holds of what payments
+   * and credits paid beyond the bill. Zero unless overpaid; absent from a server before it.
+   */
+  overpaidAmount?: number
 }
 
 /** `BillController.BillSummaryResponse`. */
@@ -77,6 +87,12 @@ export type BillSummaryDto = {
   /** Refused in our books but still owed: a rejection is our opinion, not a settlement. */
   disputedCount: number
   disputedTotal: number
+  /**
+   * Supplier debit notes nobody has accepted or refused yet (owner, 10 Oct 2026): not owed until
+   * accepted, so outside `openTotal`. Absent from an older server.
+   */
+  debitNotesAwaitingDecisionCount?: number
+  debitNotesAwaitingDecisionTotal?: number
   excludedFromTotals: number
   needsAttention: { draft: number; new: number; mismatch: number; awaitingApproval: number; total: number; truncated: boolean }
   tabs: {
@@ -292,10 +308,27 @@ export type BillDetailDto = {
     paymentState: string
     overdue: boolean
     dueDate: string | null
+    /**
+     * The early-payment discount a payment run took that still settles part of the bill: neither
+     * paid nor credited, so it is never added to `paidAmount`. Zero once the supplier's credit
+     * note for it arrives (it moves into `creditedAmount`). Absent from a server before it.
+     */
+    discountAmount?: number
+    /**
+     * "Overpaid by" (owner's answer 13, 8 Oct 2026): what payments and credits exceed the bill by,
+     * less what the supplier refunded or what was set against another bill as credit. Zero when
+     * not overpaid and on a credit note; additive, so `outstandingAmount` stays floored at zero and
+     * the bill's totals and VAT never change. Absent from a server before it.
+     */
+    overpaidAmount?: number
   }
+  /**
+   * `DISCOUNT` is the early-payment discount a payment run took, read only and listed right after
+   * the payment it came with. It settles that much of the bill but is not money paid.
+   */
   payments: {
     id: string
-    entryType: 'PAYMENT' | 'REVERSAL'
+    entryType: 'PAYMENT' | 'REVERSAL' | 'DISCOUNT'
     amount: number
     currency: string
     methodCode: string | null
@@ -304,6 +337,18 @@ export type BillDetailDto = {
     occurredAt: string
   }[]
   paymentRunReference: string | null
+  /**
+   * The early-payment discount a payment run took on this bill; null when none was taken (or its
+   * payment was reversed), absent from a server before it. `creditNoteOutstanding` is the part no
+   * supplier credit note covers yet, zero once one does.
+   */
+  discountTaken?: {
+    amount: number
+    takenOn: string
+    paymentRunId: string
+    creditNoteId: string | null
+    creditNoteOutstanding: number
+  } | null
   intake: { id: string; source: BillSourceDto; filename: string | null; contentType: string | null; uploadedAt: string } | null
   /**
    * Present exactly when the bill is self-billed: the document this company issued through
@@ -327,7 +372,11 @@ export type BillDetailDto = {
     at: string | null
     /**
      * The last three are the steps of the self-billed document, on a `SELF_BILLED` bill only, and
-     * only from a server that sends them.
+     * only from a server that sends them. The two payment run kinds come from a sent run: the
+     * rest marked paid without this bill, or the run cancelled because the bank paid nothing;
+     * their detail is "{run} · {reason}". The four `OVERPAYMENT_*` kinds say what became of what
+     * the bill was overpaid by, or (`OVERPAYMENT_CREDIT_RECEIVED`) of credit from another bill set
+     * against this one; their detail is "{amount} {currency} · {reference or the other bill's number}".
      */
     kind:
       | 'ARRIVED'
@@ -339,6 +388,12 @@ export type BillDetailDto = {
       | 'RELEASED'
       | 'PAID'
       | 'REVERSED'
+      | 'TAKEN_OUT_OF_PAYMENT_RUN'
+      | 'PAYMENT_RUN_CANCELLED'
+      | 'OVERPAYMENT_REFUNDED'
+      | 'OVERPAYMENT_KEPT_AS_CREDIT'
+      | 'OVERPAYMENT_CREDIT_APPLIED'
+      | 'OVERPAYMENT_CREDIT_RECEIVED'
       | 'DRAFT_CREATED'
       | 'ISSUED'
       | 'CANCELLED'
@@ -349,6 +404,94 @@ export type BillDetailDto = {
 
 export function loadBill(billId: string): Promise<BillDetailDto> {
   return apiRequest<BillDetailDto>(billPath(billId))
+}
+
+/** One thing done with what a bill was overpaid by. Append only. */
+export type BillOverpaymentSettlementDto = {
+  id: string
+  billId: string
+  kind: 'REFUNDED' | 'KEPT_AS_CREDIT' | 'APPLIED'
+  amount: number
+  currency: string
+  /** The bill the credit was set against; only on `APPLIED`. */
+  targetBillId: string | null
+  settledOn: string
+  /** The supplier's refund reference. */
+  reference: string | null
+  actorId: string
+  occurredAt: string
+}
+
+/**
+ * `GET /bills/{id}/overpayment` (`invoice.read`). `overpaidAmount` is "Overpaid by": reduced by a
+ * refund and by credit set against another bill, never by the decision to keep it.
+ * `keptAsCredit` is kept and not used yet (what may be set against a bill); `undecided` is the rest
+ * (what may still be kept). All zero when the bill is not overpaid.
+ */
+export type BillOverpaymentDto = {
+  billId: string
+  currency: string
+  overpaidAmount: number
+  keptAsCredit: number
+  undecided: number
+  refunded: number
+  applied: number
+  settlements: BillOverpaymentSettlementDto[]
+}
+
+/** Each of the three writes answers with the row written and where the bill stands now. */
+export type BillOverpaymentActionDto = {
+  settlement: BillOverpaymentSettlementDto
+  overpayment: BillOverpaymentDto
+}
+
+export const billOverpaymentPath = (billId: string) => `${billPath(billId)}/overpayment`
+
+export function loadBillOverpayment(billId: string): Promise<BillOverpaymentDto> {
+  return apiRequest<BillOverpaymentDto>(billOverpaymentPath(billId))
+}
+
+/**
+ * Records money the supplier paid back of what the bill was overpaid by
+ * (`invoice.payment.manage`). `refundedOn` is the day it arrived, never after today in Muscat.
+ */
+export function recordOverpaymentRefund(
+  billId: string,
+  refund: { amount: number; refundedOn: string; reference: string | null },
+): Promise<BillOverpaymentActionDto> {
+  return apiRequest<BillOverpaymentActionDto>(`${billOverpaymentPath(billId)}/refunds`, {
+    method: 'POST',
+    body: refund,
+  })
+}
+
+/**
+ * Keeps the excess as credit with the supplier for their next bill (`invoice.payment.manage`).
+ * Moves no money. With no amount the server keeps all of `undecided`.
+ */
+export function keepOverpaymentAsCredit(
+  billId: string,
+  amount: number | null = null,
+): Promise<BillOverpaymentActionDto> {
+  return apiRequest<BillOverpaymentActionDto>(`${billOverpaymentPath(billId)}/keep-as-credit`, {
+    method: 'POST',
+    body: amount === null ? {} : { amount },
+  })
+}
+
+/**
+ * Sets credit kept from this bill against another bill of the same supplier and currency
+ * (`invoice.payment.manage`). With no amount the server applies the largest that fits both.
+ */
+export function applyOverpaymentCredit(
+  billId: string,
+  targetBillId: string,
+  amount: number | null,
+): Promise<BillOverpaymentActionDto> {
+  return apiRequest<BillOverpaymentActionDto>(`${billOverpaymentPath(billId)}/apply`, {
+    method: 'POST',
+    body: amount === null ? { targetBillId } : { targetBillId, amount },
+  })
 }
 
 /** `BillMatchController.MatchResponse`: what was ordered, received and billed, per line. */

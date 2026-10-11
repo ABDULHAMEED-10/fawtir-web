@@ -970,9 +970,18 @@ describe('a disputed bill', () => {
     renderBills()
 
     expect(await screen.findByText('8,765.432')).toBeTruthy()
-    expect(
-      screen.getByText(/13 open · 2 overdue · 3,140.000 disputed on 1 refused bill/),
-    ).toBeTruthy()
+    const meta = screen.getByText(
+      (_, element) =>
+        element?.tagName === 'P' &&
+        /^13 open · 2 overdue · .*3,140\.000 disputed on 1 refused bill$/.test(
+          element.textContent ?? '',
+        ),
+    )
+    // The disputed amount carries the rial sign before it (E2E 10 Oct, F-14), never "OMR".
+    expect(meta.querySelector('svg')).not.toBeNull()
+    const visible = meta.cloneNode(true) as Element
+    visible.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+    expect(visible.textContent).not.toContain('OMR')
   })
 
   it('says nothing when there is no dispute', async () => {
@@ -980,6 +989,58 @@ describe('a disputed bill', () => {
     expect(await screen.findByText('8,765.432')).toBeTruthy()
     expect(screen.getByText('13 open · 2 overdue')).toBeTruthy()
     expect(screen.queryByText(/disputed/)).toBeNull()
+  })
+})
+
+describe('debit notes awaiting a decision (owner, 10 Oct 2026)', () => {
+  /** The Total payable card's context line, as seen: the hidden "OMR" left out. */
+  const payableLine = async () => {
+    const line = (await screen.findByText(/^13 open · 2 overdue/)) as HTMLElement
+    const copy = line.cloneNode(true) as Element
+    copy.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+    return { text: (copy.textContent ?? '').replace(/\s+/g, ' '), line }
+  }
+
+  it('names them beside total payable, with the rial sign, only when there are some', async () => {
+    summaryResponse = () =>
+      json(200, {
+        ...SUMMARY,
+        debitNotesAwaitingDecisionCount: 2,
+        debitNotesAwaitingDecisionTotal: 42.5,
+      })
+    const view = renderBills()
+    const { text, line } = await payableLine()
+    expect(text).toBe('13 open · 2 overdue · Awaiting your decision: 42.500 on 2 debit notes')
+    expect(line.querySelector('svg')).not.toBeNull()
+    view.unmount()
+
+    for (const absent of [
+      { debitNotesAwaitingDecisionCount: 0, debitNotesAwaitingDecisionTotal: 0 },
+      {},
+    ]) {
+      summaryResponse = () => json(200, { ...SUMMARY, ...absent })
+      const again = renderBills()
+      expect((await payableLine()).text).toBe('13 open · 2 overdue')
+      expect(screen.queryByText(/Awaiting your decision/)).toBeNull()
+      again.unmount()
+    }
+  })
+
+  it('says it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    summaryResponse = () =>
+      json(200, {
+        ...SUMMARY,
+        debitNotesAwaitingDecisionCount: 1,
+        debitNotesAwaitingDecisionTotal: 42.5,
+      })
+    renderBills()
+    const [line] = await screen.findAllByText(
+      (_, element) =>
+        element?.tagName === 'P' &&
+        /بانتظار قرارك: .*42\.500 على إشعار مدين واحد$/.test(element.textContent ?? ''),
+    )
+    expect(line.querySelector('svg')).not.toBeNull()
   })
 })
 
@@ -1520,5 +1581,54 @@ describe('why a rejection was refused, in its own sentence', () => {
     decisionResponse = refusal('APPROVAL_CODE_WITH_NO_SENTENCE')
     await reject()
     expect(await screen.findByText(GENERIC)).toBeTruthy()
+  })
+})
+
+// Owner's answer C4 (8 Oct 2026): a supplier debit note says what it is, and its decision.
+describe('a supplier debit note on the list', () => {
+  const debitNote = (id: string, number: string, decision: 'ACCEPTED' | 'REFUSED' | null) =>
+    bill({ id, documentTypeCode: '383', supplierBillNumber: number, debitNoteDecision: decision })
+  const rows = () => [
+    debitNote('dn-1', 'DN-1', 'REFUSED'),
+    debitNote('dn-2', 'DN-2', 'ACCEPTED'),
+    debitNote('dn-3', 'DN-3', null),
+    bill({ id: 'b-4', supplierBillNumber: 'INV-4' }),
+  ]
+  const rowOf = async (number: string) => (await screen.findByText(number)).closest('tr')!
+
+  it('carries a "Debit note" badge and the decision badge beside the source badge', async () => {
+    listResponses = [() => json(200, itemsPage(rows()))]
+    renderBills()
+    const refused = await rowOf('DN-1')
+    expect(within(refused).getByText('Debit note')).toBeTruthy()
+    expect(within(refused).getByText('Refused')).toBeTruthy()
+    // In the supplier cell, after the source badge, in its style.
+    const supplierCell = within(refused).getByText('Qalhat Marine Supplies').closest('td')!
+    const badges = [...supplierCell.querySelectorAll('span')].map((span) => span.textContent)
+    expect(badges).toEqual(['Peppol', 'Debit note', 'Refused'])
+
+    const accepted = await rowOf('DN-2')
+    expect(within(accepted).getByText('Debit note')).toBeTruthy()
+    expect(within(accepted).getByText('Accepted')).toBeTruthy()
+
+    // Undecided: the type alone.
+    const undecided = await rowOf('DN-3')
+    expect(within(undecided).getByText('Debit note')).toBeTruthy()
+    expect(within(undecided).queryByText('Accepted')).toBeNull()
+    expect(within(undecided).queryByText('Refused')).toBeNull()
+
+    // Any other document: neither.
+    const plain = await rowOf('INV-4')
+    expect(within(plain).queryByText('Debit note')).toBeNull()
+  })
+
+  it('reads in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    listResponses = [() => json(200, itemsPage(rows()))]
+    renderBills()
+    const refused = await rowOf('DN-1')
+    expect(within(refused).getByText('إشعار مدين')).toBeTruthy()
+    expect(within(refused).getByText('مرفوض')).toBeTruthy()
+    expect(within(await rowOf('DN-2')).getByText('مقبول')).toBeTruthy()
   })
 })

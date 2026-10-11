@@ -655,9 +655,6 @@ describe('an existing supplier', () => {
   it('still asks for the account to keep when the IBAN of a real account is cleared', async () => {
     renderAt(`/suppliers/${ID}/edit`)
     await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
-    expect(
-      screen.getByText('Changing the account asks someone to confirm it before the next payment.'),
-    ).toBeTruthy()
     // The whole account is cleared: a bank name or BIC left behind asks for the IBAN instead.
     for (const name of ['bankName', 'bic', 'iban'])
       fireEvent.change(document.querySelector(`input[name="${name}"]`)!, { target: { value: '' } })
@@ -667,18 +664,6 @@ describe('an existing supplier', () => {
       await screen.findByText("Bank details can't be removed here. Enter the account to keep."),
     ).toBeTruthy()
     expect(calls('PUT', ONE)).toHaveLength(0)
-  })
-
-  it('confirms bank details that changed', async () => {
-    renderAt(`/suppliers/${ID}/edit`)
-    expect(
-      await screen.findByText(/The bank details changed and nobody has confirmed them/),
-    ).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm bank details' }))
-
-    expect(await screen.findByText('Bank details confirmed.')).toBeTruthy()
-    expect(calls('POST', `${ONE}/bank-details/confirm`)).toHaveLength(1)
-    expect(screen.queryByRole('button', { name: 'Confirm bank details' })).toBeNull()
   })
 
   it('offers no save to someone who may only read suppliers', async () => {
@@ -729,5 +714,148 @@ describe('supplier form rules', () => {
     expect(placed.fields.vatNumber).toEqual({ key: 'validation.vatin' })
     expect(placed.fields.telephone).toEqual({ text: 'Telephone is odd' })
     expect(placed.other).toEqual(['Logo content type is unsupported'])
+  })
+})
+
+/** A change of IBAN waiting for a second person, as the server describes it (owner, 8 Oct 2026). */
+function waiting(
+  change: Partial<NonNullable<SupplierDetailDto['bankDetailsChange']>> = {},
+): SupplierDetailDto {
+  return {
+    ...detail(),
+    bankDetailsChange: {
+      previousIban: 'OM020180000099988877766',
+      newIban: 'OM810180000012345678901',
+      changedById: 'u-2',
+      changedBy: 'Salma Al Busaidi',
+      changedAt: '2026-10-07T09:00:00Z',
+      firstEntry: false,
+      confirmable: true,
+      checkRequired: false,
+      ...change,
+    },
+    bankDetailsActivity: [
+      {
+        kind: 'CHANGED',
+        at: '2026-10-07T09:00:00Z',
+        actorId: 'u-2',
+        actorName: 'Salma Al Busaidi',
+        previousIban: 'OM020180000099988877766',
+        newIban: 'OM810180000012345678901',
+        checkedWithSupplier: false,
+      },
+    ],
+  }
+}
+
+const confirmCalls = () => calls('POST', `${ONE}/bank-details/confirm`)
+
+/** Every word the IBAN confirmation drew, in English and Arabic; none is drawn since 10 Oct 2026. */
+const CONFIRM_WORDS = [
+  /nobody has confirmed them/,
+  /Confirm bank details/,
+  /someone else must confirm/,
+  /Previous IBAN|New IBAN|Not on record/,
+  /I checked the new details with the supplier/,
+  /asks someone to confirm it/,
+  /لم يؤكدها أحد|تأكيد البيانات البنكية|يجب أن يؤكدها شخص آخر|رقم الآيبان السابق|رقم الآيبان الجديد|تحققت من البيانات الجديدة/,
+]
+
+const noConfirmWords = () => {
+  for (const words of CONFIRM_WORDS) expect(screen.queryAllByText(words)).toHaveLength(0)
+  expect(screen.queryByRole('button', { name: /Confirm bank details|تأكيد البيانات البنكية/ })).toBeNull()
+  expect(screen.queryByRole('dialog')).toBeNull()
+}
+
+describe('no second person confirms a changed IBAN (owner, 10 Oct 2026)', () => {
+  it('draws no confirm box, button, note or hint, even when a server still says it waits', async () => {
+    // What a server from before the answer sends: flagged, waiting, and the tick asked for.
+    loaded = () => ({
+      ...waiting({ checkRequired: true }),
+      profile: detail({ health: ['BANK_CHANGED_UNCONFIRMED'] }).profile,
+    })
+    renderAt(`/suppliers/${ID}/edit`)
+    await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
+    expect(screen.getByLabelText(/^IBAN/)).toBeTruthy()
+    noConfirmWords()
+  })
+
+  it('draws nothing for the person who changed them either', async () => {
+    loaded = () => waiting({ changedById: MANAGER.userId, confirmable: false })
+    renderAt(`/suppliers/${ID}/edit`)
+    await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
+    noConfirmWords()
+  })
+
+  it('saves a changed IBAN with one PUT and says it is saved, with nothing waiting after', async () => {
+    // The answer comes back flagged, as an older server would send it: still nothing is drawn.
+    updateResponse = () => json(200, { ...waiting(), profile: detail({ version: 8 }).profile })
+    renderAt(`/suppliers/${ID}/edit`)
+    await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
+    typeInto(/^IBAN/, 'OM230270000098765432101')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save changes' })[0])
+
+    expect(await screen.findByText('Changes saved.')).toBeTruthy()
+    expect(calls('PUT', ONE)).toHaveLength(1)
+    expect(bodyOf(calls('PUT', ONE)[0]).bankDetails.iban).toBe('OM230270000098765432101')
+    expect(confirmCalls()).toHaveLength(0)
+    noConfirmWords()
+  })
+
+  it('draws none of it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    loaded = () => ({
+      ...waiting({ checkRequired: true }),
+      profile: detail({ health: ['BANK_CHANGED_UNCONFIRMED'] }).profile,
+    })
+    renderAt(`/suppliers/${ID}/edit`)
+    await waitFor(() => expect(document.querySelector('input[name="iban"]')).toBeTruthy())
+    noConfirmWords()
+  })
+
+  it('still lists past changes and confirmations in Recent changes, without the tick', async () => {
+    loaded = () => ({
+      ...detail({
+        health: [],
+        bankDetails: {
+          beneficiaryName: 'Qalhat Marine Supplies',
+          iban: 'OM810180000012345678901',
+          bic: 'BMUSOMRX',
+          bankName: 'Bank Muscat',
+          changedAt: '2026-10-07T09:00:00Z',
+          confirmedAt: '2026-10-08T07:00:00Z',
+        },
+      }),
+      bankDetailsChange: null,
+      bankDetailsActivity: [
+        {
+          kind: 'CONFIRMED',
+          at: '2026-10-08T07:00:00Z',
+          actorId: 'u-3',
+          actorName: 'Hafidh Al Amri',
+          previousIban: null,
+          newIban: 'OM810180000012345678901',
+          checkedWithSupplier: true,
+        },
+        {
+          kind: 'CHANGED',
+          at: '2026-10-07T09:00:00Z',
+          actorId: 'u-2',
+          actorName: 'Salma Al Busaidi',
+          previousIban: null,
+          newIban: 'OM810180000012345678901',
+          checkedWithSupplier: false,
+        },
+      ],
+    })
+    renderAt(`/suppliers/${ID}/edit`)
+    const changes = within(
+      (await screen.findByRole('heading', { name: 'Recent changes' })).closest('section')!,
+    )
+    expect(changes.getAllByText('Bank details confirmed')).toHaveLength(1)
+    expect(changes.getAllByText('IBAN updated')).toHaveLength(1)
+    expect(changes.getByText(/Hafidh Al Amri/)).toBeTruthy()
+    expect(changes.getByText(/Salma Al Busaidi/)).toBeTruthy()
+    expect(changes.queryByText('I checked the new details with the supplier.')).toBeNull()
   })
 })

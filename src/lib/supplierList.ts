@@ -65,13 +65,12 @@ const CHANNEL: Record<BillingChannel, SupplierChannel> = {
 }
 
 /**
- * A bank account changed and not yet confirmed is where a payment can go to a fraudster, so it
- * is the issue a row shows when it has more than one.
+ * The issue a row shows. A changed IBAN is no longer one: since 10 Oct 2026 it is used as soon as
+ * it is saved and nobody confirms it, so `BANK_CHANGED_UNCONFIRMED` from an older server is ignored.
  */
 function issueOf(row: SupplierListRowDto): RecordIssue {
   if (row.status === 'SWITCHED_OFF') return 'switchedOff'
   const health = row.record.health
-  if (health.includes('BANK_CHANGED_UNCONFIRMED')) return 'bankChanged'
   if (health.includes('NO_BANK_DETAILS')) return 'noBankDetails'
   if (health.includes('NO_VAT_NUMBER')) return 'noVatNumber'
   if (row.billingChannel !== 'PEPPOL') return 'notOnPeppol'
@@ -81,14 +80,15 @@ function issueOf(row: SupplierListRowDto): RecordIssue {
 /**
  * The four dots: bank details on file, bank details confirmed, a VAT number, and bills arriving
  * over Peppol. The design draws the dots without defining them, and these are the four facts the
- * row carries about the record's quality.
+ * row carries about the record's quality. Nobody confirms bank details since 10 Oct 2026, so that
+ * dot is always on.
  */
 function scoreOf(row: SupplierListRowDto): number {
   if (row.status === 'SWITCHED_OFF') return 0
   const health = row.record.health
   return [
     !health.includes('NO_BANK_DETAILS'),
-    !health.includes('BANK_CHANGED_UNCONFIRMED'),
+    true,
     !health.includes('NO_VAT_NUMBER'),
     row.billingChannel === 'PEPPOL',
   ].filter(Boolean).length

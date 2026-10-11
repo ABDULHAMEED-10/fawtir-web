@@ -129,6 +129,24 @@ export type ConfirmIntakeDto = {
   taxCategoryCode?: string | null
   /** Free text kept on the bill, at most 500 characters. Sent only when something was typed. */
   note?: string
+  /**
+   * A credit or debit note's reason in the person's words (beside BTOM-032), at most 500
+   * characters. Refused on a 380. Sent only by a note's upload, and only when typed.
+   */
+  reasonDetail?: string
+  /**
+   * The bill on file a credit or debit note corrects (IBT-025/026 are copied from it). On a
+   * credit note (381) the server also takes the credit off that bill in the same request: the
+   * largest amount that fits, any excess stays as credit, and a refusal refuses the confirm.
+   */
+  relatedBillId?: string
+  /**
+   * A credit note's "Hold it as credit": true keeps `relatedBillId` as the note's reference but
+   * applies nothing (`creditApplied` null), so the whole note waits as unused credit. Absent
+   * means false, which applies as above. Refused on a 380 or a 383
+   * (`BILL_INTAKE_HOLD_AS_CREDIT_NOT_ALLOWED`), so it is sent only on a 381.
+   */
+  holdAsCredit?: boolean
 }
 
 /** `ConfirmedBillResponse`. */
@@ -137,6 +155,12 @@ export type ConfirmedBillDto = {
   supplierBillNumber: string | null
   totalIncludingVat: number
   currencyCode: string | null
+  /**
+   * The credit this confirm took off the chosen bill (a credit note with `relatedBillId`), or null
+   * when nothing was applied: no bill, a debit note, or a bill that already owed nothing. Absent
+   * from an older server, which does not say.
+   */
+  creditApplied?: { billId: string; amount: number } | null
 }
 
 export function confirmIntake(id: string, body: ConfirmIntakeDto): Promise<ConfirmedBillDto> {

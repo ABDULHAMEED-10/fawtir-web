@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { RowsView } from '../../components/ui'
+import { RowsView, withRial } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
@@ -11,8 +11,8 @@ import {
   type PaymentRunDto,
   type PaymentRunState,
 } from '../../api/expenditure/paymentRuns'
-import { formatDate } from '../../lib/format'
-import { FORMATS, RUN_STATES } from '../../lib/paymentRuns'
+import { formatAmount, formatDate, formatInstantDay } from '../../lib/format'
+import { RUN_STATES } from '../../lib/paymentRuns'
 import { can, useSession } from '../../lib/session/session'
 import { Amount, PRIMARY_BUTTON, RunStatePill } from './RunParts'
 import plusIcon from '../../assets/bill-capture/plus.svg'
@@ -21,8 +21,15 @@ import plusIcon from '../../assets/bill-capture/plus.svg'
  * Expenditure › Payments: every run, by state, and the way into a new one.
  *
  * The Payments frame (163:16960) draws the run itself; this list has no frame of its own and is
- * kept to the frames' shell: the page header, a card, the same pills and figures.
+ * kept to the frames' shell: the page header, a card, the same pills and figures. It has no bank
+ * format column: Fawtir makes no bank files (owner, 9 Oct 2026).
  */
+/**
+ * The tabs. No run reaches "Sent to bank" now that no file is made; a run sent before that still
+ * shows under All, with its pill.
+ */
+const LISTED_STATES = RUN_STATES.filter((entry) => entry !== 'EXPORTED')
+
 export function PaymentRunsListPage() {
   return (
     <AppShell>
@@ -62,7 +69,7 @@ function PaymentRunsList() {
           role="tablist"
           className="flex flex-wrap items-center gap-x-8 gap-y-2 border-b border-border-subtle px-6 pt-4 max-md:gap-x-5"
         >
-          {[null, ...RUN_STATES].map((entry) => {
+          {[null, ...LISTED_STATES].map((entry) => {
             const active = state === entry
             return (
               <button
@@ -108,9 +115,6 @@ function PaymentRunsList() {
                     {t('paymentsPage.paymentDate')}
                   </th>
                   <th className="px-3 py-3 text-start font-semibold">
-                    {t('paymentsPage.howToSend')}
-                  </th>
-                  <th className="px-3 py-3 text-start font-semibold">
                     {t('paymentsPage.runReference')}
                   </th>
                   <th className="px-6 py-3 text-end font-semibold">
@@ -119,53 +123,68 @@ function PaymentRunsList() {
                 </tr>
               </thead>
               <tbody>
-                {runs.read.data.map((run) => (
-                  <tr key={run.id} className="border-b border-surface-background last:border-0">
-                    <td className="px-6 py-4">
-                      <Link
-                        to={`/expenditure/payments/${run.id}`}
-                        className="text-sm font-semibold text-primary-700 hover:underline"
-                      >
-                        {run.reference}
-                      </Link>
-                      <p className="mt-1 text-xs font-medium text-text-quaternary">
-                        {t('paymentRuns.createdOn', {
-                          date: formatDate(run.createdAt.slice(0, 10), i18n.language),
-                        })}
-                      </p>
-                    </td>
-                    <td className="px-3 py-4">
-                      <RunStatePill state={run.state} />
-                    </td>
-                    <td className="px-3 py-4 text-sm font-medium text-text-secondary">
-                      {run.paymentDate
-                        ? formatDate(run.paymentDate, i18n.language)
-                        : t('paymentRuns.noDate')}
-                    </td>
-                    <td className="px-3 py-4 text-sm font-medium text-text-tertiary">
-                      {run.format
-                        ? t(FORMATS.find((entry) => entry.id === run.format)!.titleKey)
-                        : t('paymentRuns.noFormat')}
-                    </td>
-                    <td className="px-3 py-4 text-sm font-medium text-text-secondary">
-                      {run.runReference ?? t('paymentRuns.noReference')}
-                    </td>
-                    <td className="px-6 py-4 text-end">
-                      {/* A cancelled run sends nothing, whatever its bills added up to. */}
-                      {run.state === 'CANCELLED' ? (
-                        <span className="text-sm font-medium text-text-quaternary">
-                          {t('paymentRuns.nothingSent')}
-                        </span>
-                      ) : (
-                        <Amount
-                          value={run.netTotal}
-                          currency={run.currency}
-                          className="text-sm font-semibold text-text-primary"
-                        />
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {runs.read.data.map((run) => {
+                  // A paid run is dated the day it was paid (`paidOn`, backend #480); a server
+                  // without it shows the planned date, as before.
+                  const day = run.paidOn ?? run.paymentDate
+                  // A paid run with bills taken out: what left the account is what was paid.
+                  const split =
+                    run.state === 'PAID' && run.paidTotal != null && (run.takenOutTotal ?? 0) > 0
+                  return (
+                    <tr key={run.id} className="border-b border-surface-background last:border-0">
+                      <td className="px-6 py-4">
+                        <Link
+                          to={`/expenditure/payments/${run.id}`}
+                          className="text-sm font-semibold text-primary-700 hover:underline"
+                        >
+                          {run.reference}
+                        </Link>
+                        <p className="mt-1 text-xs font-medium text-text-quaternary">
+                          {t('paymentRuns.createdOn', {
+                            date: formatInstantDay(run.createdAt, i18n.language),
+                          })}
+                        </p>
+                      </td>
+                      <td className="px-3 py-4">
+                        <RunStatePill state={run.state} />
+                      </td>
+                      <td className="px-3 py-4 text-sm font-medium text-text-secondary">
+                        {day ? formatDate(day, i18n.language) : t('paymentRuns.noDate')}
+                      </td>
+                      <td className="px-3 py-4 text-sm font-medium text-text-secondary">
+                        {run.runReference ?? t('paymentRuns.noReference')}
+                      </td>
+                      <td className="px-6 py-4 text-end">
+                        {/* A cancelled run pays nothing, whatever its bills added up to. */}
+                        {run.state === 'CANCELLED' ? (
+                          <span className="text-sm font-medium text-text-quaternary">
+                            {t('paymentRuns.nothingSent')}
+                          </span>
+                        ) : (
+                          <>
+                            <Amount
+                              value={split ? run.paidTotal! : run.netTotal}
+                              currency={run.currency}
+                              className="text-sm font-semibold text-text-primary"
+                            />
+                            {/* A paid run with bills taken out: what was paid and what was not,
+                                under its total, as on the run itself (owner, 9 Oct 2026, D2). */}
+                            {split ? (
+                              <p className="mt-0.5 text-end text-[10px] font-medium leading-[1.2] text-text-muted">
+                                {withRial(
+                                  t('paymentRuns.paidAndTakenOut', {
+                                    paid: `${run.currency} ${formatAmount(run.paidTotal!, run.currency, i18n.language)}`,
+                                    takenOut: `${run.currency} ${formatAmount(run.takenOutTotal!, run.currency, i18n.language)}`,
+                                  }),
+                                )}
+                              </p>
+                            ) : null}
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </RowsView>

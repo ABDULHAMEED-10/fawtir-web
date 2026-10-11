@@ -1,4 +1,9 @@
-import type { BillDetailDto, BillMatchDto, ReceiptReportDto } from '../api/expenditure/bills'
+import type {
+  BillDetailDto,
+  BillMatchDto,
+  BillRowDto,
+  ReceiptReportDto,
+} from '../api/expenditure/bills'
 
 /**
  * One supplier bill, opened (Figma 86:16520), written only from what `GET /bills/{id}` carries.
@@ -128,7 +133,12 @@ export function stepsOf(detail: BillDetailDto, format: DateFormat): BillStep[] {
         : null,
   }
 
-  const steps = [arrived, matched, approved, scheduled, paidStep]
+  // A refused debit note is not owed and is never scheduled or paid (unless it already was): the
+  // steps it will not reach are left out rather than shown as "Not yet".
+  const steps =
+    refusedDebitNote(detail) && !paid && !detail.paymentRunReference
+      ? [arrived, matched, approved]
+      : [arrived, matched, approved, scheduled, paidStep]
   // The first step not yet done is the one the bill is waiting at, and only one is ever current.
   const at = steps.findIndex((step) => step.state !== 'done')
   return steps.map((step, index) => ({
@@ -171,11 +181,29 @@ export function mismatchUnresolved(detail: BillDetailDto): boolean {
 }
 
 /**
+ * A supplier debit note (383) whose current decision is REFUSED: a disputed charge, not owed. The
+ * server refuses a payment on it (`BILL_PAYMENT_DEBIT_NOTE_REFUSED`) until it is accepted again.
+ */
+export function refusedDebitNote(detail: BillDetailDto): boolean {
+  return detail.bill.documentTypeCode === '383' && detail.bill.debitNoteDecision === 'REFUSED'
+}
+
+/**
+ * A supplier debit note (383) nobody has accepted or refused yet: not owed until accepted, so the
+ * server refuses a payment on it (`BILL_PAYMENT_DEBIT_NOTE_NOT_ACCEPTED`, backend #480; owner,
+ * 10 Oct 2026). A server that does not send `debitNoteDecision` at all decides for itself.
+ */
+export function undecidedDebitNote(detail: BillDetailDto): boolean {
+  return detail.bill.documentTypeCode === '383' && detail.bill.debitNoteDecision === null
+}
+
+/**
  * Whether a payment can be recorded on this bill now: it is approved, not on hold, does not
- * disagree with its order, is not in a payment run, still owes money, and the reader may record
- * payments. Anything else and the action is not offered at all (owner decision 2026-10-01:
- * hidden, not disabled). A held bill is released first; a mismatch is resolved first; a bill in a
- * run is paid there, or taken out of the run.
+ * disagree with its order, is not in a payment run, is not a refused or undecided debit note, still owes
+ * money, and the reader may record payments. Anything else and the action is not offered at all
+ * (owner decision 2026-10-01: hidden, not disabled). A held bill is released first; a mismatch is
+ * resolved first; a bill in a run is paid there, or taken out of the run; a refused debit note is
+ * accepted first (owner, 8 Oct 2026).
  */
 export function canRecordPayment(
   detail: BillDetailDto,
@@ -188,9 +216,33 @@ export function canRecordPayment(
     detail.hold === null &&
     !mismatchUnresolved(detail) &&
     !inPaymentRun(detail) &&
+    !refusedDebitNote(detail) &&
+    !undecidedDebitNote(detail) &&
     detail.settlement.paymentState !== 'PAID' &&
     detail.settlement.outstandingAmount > 0
   )
+}
+
+/**
+ * The early-payment discount a payment run took, shown as its own line beside what was paid
+ * (owner, 8 Oct 2026): the bill's `DISCOUNT` entries in its own currency, summed. It settles the
+ * bill but is not money paid, so the Paid figure stays the server's `paidAmount`, and the bill's
+ * totals and VAT never change because of it. Zero when none was taken.
+ */
+export function discountLineOf(detail: BillDetailDto): number {
+  const currency = detail.settlement.currency
+  const total = detail.payments
+    .filter((entry) => entry.entryType === 'DISCOUNT' && (!currency || entry.currency === currency))
+    .reduce((sum, entry) => sum + entry.amount, 0)
+  return Math.round(total * 1000) / 1000
+}
+
+/**
+ * A discount was taken and the supplier's credit note for it has not arrived yet: a state to
+ * follow up, not an error. Once a credit note covers it nothing more is said.
+ */
+export function awaitingDiscountCreditNote(detail: BillDetailDto): boolean {
+  return (detail.discountTaken?.creditNoteOutstanding ?? 0) > 0
 }
 
 /** The sentence under the amount in the decision panel. */
@@ -198,6 +250,10 @@ export function decisionNoteOf(detail: BillDetailDto): Note {
   const { readiness, hold, settlement } = detail
   if (isCreditNote(detail)) return { key: 'billDetail.decision.creditNote' }
   if (settlement.paymentState === 'PAID') return { key: 'billDetail.decision.paid' }
+  // A refused debit note says its refusal, as its own page does, whatever approval it went through.
+  if (refusedDebitNote(detail)) return { key: 'supplierDebitNotes.detail.refusedBody' }
+  // Not payable until accepted (owner, 10 Oct 2026): what to do first, in place of the approval.
+  if (undecidedDebitNote(detail)) return { key: 'apiErrors.refused.debitNoteNotAccepted' }
   if (hold) return { key: 'billDetail.decision.held', values: { reason: hold.reason ?? '' } }
   if (readiness.state === 'REJECTED') {
     const rejection = detail.approvals.find((entry) => entry.decision === 'REJECTED')
@@ -208,6 +264,9 @@ export function decisionNoteOf(detail: BillDetailDto): Note {
     // until that is resolved, so the panel does not say it can be paid. It says what the match
     // card says (owner's Round 5 answer 1, 2 Oct 2026: keep showing Mismatch).
     if (mismatchUnresolved(detail)) return { key: 'billDetail.match.differs' }
+    // Already in a run: the sentence for an approved bill nobody has scheduled would contradict it.
+    if (!readiness.autoApproved && detail.paymentRunReference)
+      return { key: 'billDetail.decision.inRun', values: { run: detail.paymentRunReference } }
     return {
       key: readiness.autoApproved
         ? 'billDetail.decision.belowLimit'
@@ -423,6 +482,8 @@ export type ActivityEntry = {
   at: string | null
   detail: string | null
   byYou: boolean
+  /** On an overpayment step, its amount for the rial sign and the rest of its detail. */
+  overpayment?: { amount: number; currency: string; rest: string | null } | null
 }
 
 /**
@@ -430,7 +491,11 @@ export type ActivityEntry = {
  * and the steps of the self-billed document a self-billed bill was raised from (`DRAFT_CREATED`,
  * `ISSUED`, `CANCELLED`; owner's answer 3, 2 Oct 2026: "take it from the self-billed document's
  * history"). Those three are the invoice history's own event names and carry the same words the
- * self-bill page uses for them (`invoiceDetails.event.*`).
+ * self-bill page uses for them (`invoiceDetails.event.*`). `TAKEN_OUT_OF_PAYMENT_RUN` and
+ * `PAYMENT_RUN_CANCELLED` are a sent payment run's two ways out; their detail names the run and
+ * the reason given. The four `OVERPAYMENT_*` kinds are what became of what the bill was overpaid
+ * by (owner's answer 13, 8 Oct 2026: both ways of settling it are recorded in Activity); their
+ * amount is drawn with the rial sign ({@link overpaymentStepOf}).
  *
  * TODO(backend): EXPENDITURE.md row 1.23. The full history of the self-billed document in
  * `activity[]` (owner's Round 5 answer 4: created, issued and cancelled are enough for now).
@@ -445,6 +510,12 @@ const KNOWN_KINDS = new Set([
   'RELEASED',
   'PAID',
   'REVERSED',
+  'TAKEN_OUT_OF_PAYMENT_RUN',
+  'PAYMENT_RUN_CANCELLED',
+  'OVERPAYMENT_REFUNDED',
+  'OVERPAYMENT_KEPT_AS_CREDIT',
+  'OVERPAYMENT_CREDIT_APPLIED',
+  'OVERPAYMENT_CREDIT_RECEIVED',
   'DRAFT_CREATED',
   'ISSUED',
   'CANCELLED',
@@ -480,6 +551,7 @@ export function activityOf(detail: BillDetailDto, userId: string | null): Activi
           ? (detail.bill.match?.summary ?? null)
           : entry.detail,
     byYou: userId !== null && entry.actor === userId,
+    overpayment: overpaymentStepOf(entry.kind, entry.detail),
   }))
 }
 
@@ -526,4 +598,58 @@ export function singleVatRate(detail: BillDetailDto): number | null {
   )
   const categories = new Set(detail.lines.map(categoryOf))
   return rates.size === 1 && categories.size <= 1 ? [...rates][0] : null
+}
+
+/**
+ * "Overpaid by" (owner's answer 13, 8 Oct 2026): what the supplier still holds of what payments
+ * and credits paid beyond the bill, as the server works it out. Zero for a server before it.
+ */
+export function overpaidOf(detail: BillDetailDto): number {
+  return detail.settlement.overpaidAmount ?? 0
+}
+
+const OVERPAYMENT_STEPS = new Set([
+  'OVERPAYMENT_REFUNDED',
+  'OVERPAYMENT_KEPT_AS_CREDIT',
+  'OVERPAYMENT_CREDIT_APPLIED',
+  'OVERPAYMENT_CREDIT_RECEIVED',
+])
+
+/**
+ * The amount on an overpayment step, read out of the server's "{amount} {currency} · {other}" so
+ * the page can draw it with the rial sign and three decimals instead of the currency code. Null
+ * for any other step, or a detail not in that shape (then it is shown as sent).
+ */
+export function overpaymentStepOf(
+  kind: string,
+  detail: string | null,
+): { amount: number; currency: string; rest: string | null } | null {
+  if (!OVERPAYMENT_STEPS.has(kind) || !detail) return null
+  const match = /^(-?\d+(?:\.\d+)?) ([A-Z]{3})(?: · (.+))?$/.exec(detail.trim())
+  if (!match) return null
+  return { amount: Number(match[1]), currency: match[2], rest: match[3] ?? null }
+}
+
+/**
+ * The bills the kept credit can be set against, of those a search returned: the same supplier and
+ * currency (the server refuses any other), not this bill and not a credit note, still owing
+ * something, and not one the server would refuse outright (held, rejected or a refused debit
+ * note). A bill in a run whose bank file is made is not told apart here; the server's sentence
+ * says so.
+ */
+export function creditTargetsOf(detail: BillDetailDto, rows: readonly BillRowDto[]): BillRowDto[] {
+  const { bill } = detail
+  const CREDIT_NOTE_CODES = ['381', '261']
+  return rows.filter(
+    (row) =>
+      row.id !== bill.id &&
+      bill.supplierId !== null &&
+      row.supplierId === bill.supplierId &&
+      row.currencyCode === bill.currencyCode &&
+      !CREDIT_NOTE_CODES.includes(row.documentTypeCode ?? '') &&
+      row.outstandingAmount > 0 &&
+      row.hold === null &&
+      row.readiness.state !== 'REJECTED' &&
+      row.debitNoteDecision !== 'REFUSED',
+  )
 }

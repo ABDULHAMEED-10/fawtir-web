@@ -18,7 +18,7 @@ import {
   type PaymentRunDto,
 } from '../../api/expenditure/paymentRuns'
 import { formatAmount, formatDate } from '../../lib/format'
-import { refusalOf, sum } from '../../lib/paymentRuns'
+import { REASON_KEYS, refusalOf, sum } from '../../lib/paymentRuns'
 import { addDays } from '../../lib/dates'
 import omrRowIcon from '../../assets/invoices/omr-row.svg'
 import tickIcon from '../../assets/supplier-credit-notes/act-set.svg'
@@ -123,7 +123,7 @@ export function AddToPaymentRunModal({
       )
       navigate(`/expenditure/payments/${runId}`)
     } catch (error) {
-      setNotice(refusalOf(error, t))
+      setNotice(refusalOf(error, t, 'add'))
     } finally {
       inFlight.current = false
       setBusy(false)
@@ -280,16 +280,21 @@ export function AddToPaymentRunModal({
                     {bill.supplierBillNumber ?? t('paymentRuns.unnumbered')}
                   </span>
                   <span className="mt-1 block text-xs font-medium leading-[1.4] text-pending-500">
-                    {bill.reasonCodes.includes('AWAITING_APPROVALS')
-                      ? t('supplierPay.bill.waitingApproval', {
-                          given: bill.approvalsGiven ?? 0,
-                          required: bill.approvalsRequired ?? 1,
-                        })
-                      : bill.reasonCodes.includes('ON_HOLD')
-                        ? t('supplierPay.bill.onHold')
-                        : bill.reasonCodes.includes('MISMATCH')
-                          ? t('supplierPay.bill.mismatch')
-                          : t('supplierPay.bill.rejected')}
+                    {/* A refused debit note says so in the run page's word, not "Rejected". */}
+                    {bill.reasonCodes.includes('DEBIT_NOTE_REFUSED')
+                      ? t(REASON_KEYS.DEBIT_NOTE_REFUSED)
+                      : bill.reasonCodes.includes('DEBIT_NOTE_NOT_ACCEPTED')
+                        ? t(REASON_KEYS.DEBIT_NOTE_NOT_ACCEPTED)
+                        : bill.reasonCodes.includes('AWAITING_APPROVALS')
+                          ? t('supplierPay.bill.waitingApproval', {
+                              given: bill.approvalsGiven ?? 0,
+                              required: bill.approvalsRequired ?? 1,
+                            })
+                          : bill.reasonCodes.includes('ON_HOLD')
+                            ? t('supplierPay.bill.onHold')
+                            : bill.reasonCodes.includes('MISMATCH')
+                              ? t('supplierPay.bill.mismatch')
+                              : t('supplierPay.bill.rejected')}
                   </span>
                 </span>
                 <span className="shrink-0 text-end">

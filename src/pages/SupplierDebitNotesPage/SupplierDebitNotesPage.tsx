@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -10,6 +10,7 @@ import { pageCountOf, type Page } from '../../api'
 import {
   DEBIT_NOTE_SUMMARY_PATH,
   debitNoteListPath,
+  debitNoteTabCountsPath,
   loadDebitNotePage,
   loadDebitNoteSummary,
   type DebitNoteRowDto,
@@ -26,9 +27,10 @@ import {
   debitAmountNoteKey,
   isDebitTab,
   isNoteSort,
-  narrowNotes,
+  noteSortOf,
   reasonLabelKey,
-  supplierNames,
+  supplierFilterOf,
+  supplierOptions,
   toDebitNoteItem,
   type DebitNoteItem,
   type DebitTabId,
@@ -37,6 +39,7 @@ import {
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
 import { saveDownload } from '../../lib/supplierRecord'
+import { can, useSession } from '../../lib/session/session'
 import kpiEyeIcon from '../../assets/supplier-debit-notes/kpi-eye.svg'
 import kpiPlusIcon from '../../assets/supplier-debit-notes/kpi-plus.svg'
 import kpiAlertIcon from '../../assets/supplier-debit-notes/kpi-alert.svg'
@@ -47,6 +50,9 @@ import filterIcon from '../../assets/bills/filter.svg'
 import viewIcon from '../../assets/actions/view.svg'
 import statementIcon from '../../assets/actions/statement.svg'
 import omrIcon from '../../assets/invoices/omr.svg'
+
+/** The pause after typing before the search is sent, as on the Bills list. */
+const SEARCH_DELAY_MS = 300
 
 const CHIP: Record<DebitNoteItem['status'], { bg: string; fg: string; dot: string }> = {
   UNCHECKED: { bg: 'bg-pending-100', fg: 'text-pending-700', dot: 'bg-pending-700' },
@@ -77,6 +83,8 @@ export function SupplierDebitNotesPage() {
 
 function DebitNotesScreen() {
   const { t, i18n } = useTranslation()
+  // The upload page itself needs the right to record what is owed, as the credit note one does.
+  const canUpload = can(useSession(), 'invoice.payment.manage')
   const language = i18n.language
   const [params, setParams] = useSearchParams()
 
@@ -84,11 +92,14 @@ function DebitNotesScreen() {
     ? (params.get('tab') as DebitTabId)
     : DEFAULT_DEBIT_TAB
   const pageNumber = Math.max(1, Number.parseInt(params.get('page') ?? '1', 10) || 1)
-  const supplier = params.get('supplier') ?? 'all'
+  // A supplier record's id; an older link that held the supplier's name filters nothing.
+  const supplier = supplierFilterOf(params.get('supplier'))
   const sort: NoteSort = isNoteSort(params.get('sort'))
     ? (params.get('sort') as NoteSort)
     : 'natural'
   const [query, setQuery] = useState('')
+  // What the server was last asked for: the box as typed, once typing pauses.
+  const [searched, setSearched] = useState('')
   const [notice, setNotice] = useState<string | null>(null)
 
   const update = (changes: Record<string, string | null>) =>
@@ -104,22 +115,56 @@ function DebitNotesScreen() {
       { replace: true },
     )
 
+  // The search, supplier and sort go to the server, as on the credit-notes list.
+  useEffect(() => {
+    if (query.trim() === searched) return
+    const timer = window.setTimeout(() => {
+      setSearched(query.trim())
+      update({ page: null })
+    }, SEARCH_DELAY_MS)
+    return () => window.clearTimeout(timer)
+    // Armed by typing only; `update` reads the params when it runs, so nothing goes stale.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query])
+
+  const narrowing = {
+    q: searched,
+    supplierId: supplier === 'all' ? null : supplier,
+    sort: noteSortOf(sort),
+  }
   const summary = useApiRead<DebitNoteSummaryDto>(DEBIT_NOTE_SUMMARY_PATH, loadDebitNoteSummary)
-  const listPath = debitNoteListPath(DEBIT_TAB_STATUS[tab], pageNumber - 1)
+  const countsPath = debitNoteTabCountsPath(narrowing)
+  const counts = useApiRead<DebitNoteSummaryDto>(countsPath, () =>
+    loadDebitNoteSummary(countsPath!),
+  )
+  const lastTabs = useRef<DebitNoteSummaryDto['tabs'] | null>(null)
+  const listPath = debitNoteListPath(DEBIT_TAB_STATUS[tab], pageNumber - 1, narrowing)
   const list = useApiRead<Page<DebitNoteRowDto>>(listPath, () => loadDebitNotePage(listPath))
 
   const page = list.read.status === 'ready' ? list.read.data : null
-  const items = page ? page.items.map(toDebitNoteItem) : []
-  const rows = narrowNotes(items, { query, supplier, sort })
+  const rows = page ? page.items.map(toDebitNoteItem) : []
   const totals = summary.read.status === 'ready' ? summary.read.data : null
   const count = (value: number) => formatCount(value, language)
   const money = (value: number, currency: string) => formatAmount(value, currency, language)
 
-  // See the credit-notes list: the server totals only the tab asked for (row 5.2).
-  const [tabTotals, setTabTotals] = useState<Partial<Record<DebitTabId, number>>>({})
+  // The summary's per-tab counts; with a search or a supplier, counted over the same notes.
+  const tabs =
+    countsPath === null
+      ? (totals?.tabs ?? null)
+      : counts.read.status === 'ready'
+        ? counts.read.data.tabs
+        : (lastTabs.current ?? totals?.tabs ?? null)
+  lastTabs.current = countsPath === null ? null : tabs
+
+  // The suppliers met so far, so the filter keeps offering the others once one is chosen.
+  const [suppliers, setSuppliers] = useState<Record<string, string>>({})
   useEffect(() => {
-    if (page && page.total !== null) setTabTotals((known) => ({ ...known, [tab]: page.total! }))
-  }, [page, tab])
+    if (!page) return
+    const found = supplierOptions(page.items.map(toDebitNoteItem))
+    setSuppliers((known) =>
+      Object.keys(found).every((id) => known[id] === found[id]) ? known : { ...known, ...found },
+    )
+  }, [page])
 
   const onFailure = (error: unknown) => {
     const message = describeApiFailure(error)
@@ -142,13 +187,16 @@ function DebitNotesScreen() {
             {t('supplierDebitNotes.subtitle')}
           </p>
         </div>
-        <Link
-          to="/expenditure/debit-notes/upload"
-          className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white"
-        >
-          <img src={uploadIcon} alt="" className="size-6" />
-          {t('supplierDebitNotes.upload.cta')}
-        </Link>
+        {/* Hidden, not greyed, from someone who may not record a debit note, as on Credit notes. */}
+        {canUpload ? (
+          <Link
+            to="/expenditure/debit-notes/upload"
+            className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white"
+          >
+            <img src={uploadIcon} alt="" className="size-6" />
+            {t('supplierDebitNotes.upload.cta')}
+          </Link>
+        ) : null}
       </div>
 
       {summary.read.status === 'failed' ? (
@@ -226,7 +274,7 @@ function DebitNotesScreen() {
                 <img src={kpiAlertIcon} alt="" className="size-5" />
               </span>
               <h3 className="text-xl font-medium leading-[1.2] text-text-secondary">
-                {t('supplierDebitNotes.kpi.rejected')}
+                {t('supplierDebitNotes.kpi.refused')}
               </h3>
             </div>
             <div className="flex items-center gap-1">
@@ -255,7 +303,7 @@ function DebitNotesScreen() {
         >
           {strip.map((entry) => {
             const active = entry === tab
-            const total = tabTotals[entry]
+            const total = tabs?.[entry]
             return (
               <button
                 key={entry}
@@ -305,10 +353,10 @@ function DebitNotesScreen() {
               defaultValue="all"
               icon={filterIcon}
               width={260}
-              onChange={(value) => update({ supplier: value === 'all' ? null : value })}
+              onChange={(value) => update({ supplier: value === 'all' ? null : value, page: null })}
               options={[
                 { value: 'all', label: t('supplierDebitNotes.allSuppliers') },
-                ...supplierNames(items).map((name) => ({ value: name, label: name })),
+                ...Object.entries(suppliers).map(([id, name]) => ({ value: id, label: name })),
               ]}
             />
             <SortMenu
@@ -316,7 +364,7 @@ function DebitNotesScreen() {
               options={NOTE_SORTS}
               label={t('billsPage.sort')}
               width={230}
-              onChange={(value) => update({ sort: value === 'natural' ? null : value })}
+              onChange={(value) => update({ sort: value === 'natural' ? null : value, page: null })}
             />
           </div>
         </div>
@@ -419,6 +467,10 @@ function DebitRow({
   const action = DEBIT_ROW_ACTION[note.status]
   const reason = reasonLabelKey(note.reasonCode, note.reasonDetail ?? null)
   const detailTo = `/expenditure/debit-notes/${note.id}`
+  // The bill the note adds to, linked as the credit-note row links its bill.
+  const billTo = note.againstBillId ? `/expenditure/bills/${note.againstBillId}` : null
+  // "Accept or refuse" is hidden, not greyed, from someone who may not decide (owner, 8 Oct).
+  const canDecide = can(useSession(), 'invoice.approve')
   const money = (value: number) => formatAmount(value, note.currency, language)
 
   const download = async () => {
@@ -436,15 +488,19 @@ function DebitRow({
     }
   }
 
+  // "Accepted by Hafidh" as the frame prints it, from `decidedByName` (row 5.15); without a name
+  // the chip says what it said before.
   const statusLabel =
     note.status === 'ACCEPTED'
-      ? // TODO(backend): `decidedBy` is a user id; the frame prints the person's name ("Accepted
-        // by Hafidh"). Until the name is on the row the chip says only that it was accepted (row 5.6).
-        t('supplierDebitNotes.state.acceptedPlain')
+      ? note.decidedByName
+        ? t('supplierDebitNotes.state.accepted', { who: note.decidedByName })
+        : t('supplierDebitNotes.state.acceptedPlain')
       : note.status === 'REFUSED'
-        ? note.decisionReason
-          ? t('supplierDebitNotes.state.refusedWhy', { reason: note.decisionReason })
-          : t('supplierDebitNotes.state.refused')
+        ? note.decidedByName
+          ? t('supplierDebitNotes.state.refusedBy', { who: note.decidedByName })
+          : note.decisionReason
+            ? t('supplierDebitNotes.state.refusedWhy', { reason: note.decisionReason })
+            : t('supplierDebitNotes.state.refused')
         : t('supplierDebitNotes.state.unchecked')
 
   return (
@@ -473,16 +529,24 @@ function DebitRow({
       </td>
 
       <td className="px-4 py-4 align-middle">
-        <p className="text-sm font-semibold leading-[1.2] text-text-primary">
-          {/* The API names the bill the supplier referenced but gives no id for it, so this is
-              text rather than a link: a link built from a number we have not resolved would go
-              to the wrong bill or nowhere. The note itself resolves it (row 5.5). */}
-          {note.againstBillNumber ?? (
-            <span className="font-medium text-text-quaternary">
-              {t('supplierCreditNotes.rows.noBill')}
-            </span>
-          )}
-        </p>
+        {billTo ? (
+          <Link
+            to={billTo}
+            className="text-sm font-semibold leading-[1.2] text-primary-700 hover:underline"
+          >
+            {note.againstBillNumber ?? t('supplierNotes.thisBill')}
+          </Link>
+        ) : (
+          <p className="text-sm font-semibold leading-[1.2] text-text-primary">
+            {/* Text, not a link, when the server names no bill on file (`relatesTo.billId`, row
+                5.15): a link built from a number would go to the wrong bill or nowhere. */}
+            {note.againstBillNumber ?? (
+              <span className="font-medium text-text-quaternary">
+                {t('supplierCreditNotes.rows.noBill')}
+              </span>
+            )}
+          </p>
+        )}
         <p className="mt-1 text-xs font-medium leading-[1.2] text-text-quaternary">
           {note.againstBillIssueDate
             ? t('supplierNotes.rows.billed', {
@@ -513,24 +577,26 @@ function DebitRow({
           <span className={['size-1.5 shrink-0 rounded-full', chip.dot].join(' ')} />
           <span className="truncate">{statusLabel}</span>
         </span>
-        <div className="mt-2">
-          {action.primary ? (
-            <Link
-              to={detailTo}
-              className="inline-flex h-[34px] items-center rounded-sm bg-primary-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-primary-800"
-            >
-              {t(action.labelKey)}
-            </Link>
-          ) : (
-            <Link
-              to={detailTo}
-              className="inline-flex items-center gap-1 text-xs font-medium text-text-quaternary transition-colors hover:text-text-secondary"
-            >
-              {t(action.labelKey)}
-              <img src={actChevronIcon} alt="" className="size-3 rtl:rotate-180" />
-            </Link>
-          )}
-        </div>
+        {action.primary && !canDecide ? null : (
+          <div className="mt-2">
+            {action.primary ? (
+              <Link
+                to={detailTo}
+                className="inline-flex h-[34px] items-center rounded-sm bg-primary-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-primary-800"
+              >
+                {t(action.labelKey)}
+              </Link>
+            ) : (
+              <Link
+                to={action.goesTo === 'bill' && billTo ? billTo : detailTo}
+                className="inline-flex items-center gap-1 text-xs font-medium text-text-quaternary transition-colors hover:text-text-secondary"
+              >
+                {t(action.labelKey)}
+                <img src={actChevronIcon} alt="" className="size-3 rtl:rotate-180" />
+              </Link>
+            )}
+          </div>
+        )}
       </td>
 
       <td className="px-4 py-4 align-middle">

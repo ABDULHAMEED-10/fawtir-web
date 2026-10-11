@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -11,12 +11,14 @@ import {
   CREDIT_NOTE_SUMMARY_PATH,
   applyCreditNote,
   creditNoteListPath,
+  creditNoteTabCountsPath,
   loadCreditNotePage,
   loadCreditNoteSummary,
   type CreditNoteRowDto,
   type CreditNoteSummaryDto,
 } from '../../api/expenditure/notes'
 import { downloadBillOriginal } from '../../api/expenditure/bills'
+import { intakePath } from '../../api/expenditure/billIntake'
 import {
   CREDIT_AMOUNT_NOTE,
   CREDIT_ROW_ACTION,
@@ -29,9 +31,10 @@ import {
   NOTE_SORTS,
   isCreditTab,
   isNoteSort,
-  narrowNotes,
+  noteSortOf,
   reasonLabelKey,
-  supplierNames,
+  supplierFilterOf,
+  supplierOptions,
   toCreditNoteItem,
   type CreditChipTone,
   type CreditNoteItem,
@@ -39,7 +42,7 @@ import {
   type NoteSort,
 } from '../../lib/supplierNoteList'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { formatAmount, formatCount, formatDate } from '../../lib/format'
+import { formatAmount, formatCount, formatDate, formatInstantDay } from '../../lib/format'
 import { saveDownload } from '../../lib/supplierRecord'
 import { can, useSession } from '../../lib/session/session'
 import kpiMinusIcon from '../../assets/supplier-credit-notes/kpi-minus.svg'
@@ -62,6 +65,18 @@ const CHIP: Record<CreditChipTone, { bg: string; fg: string; dot: string }> = {
 
 const COLUMNS = ['creditNote', 'supplier', 'against', 'why', 'status', 'credit'] as const
 
+/** The pause after typing before the search is sent, as on the Bills list. */
+const SEARCH_DELAY_MS = 300
+
+/** A tab's count in the summary's `tabs`. */
+const TAB_COUNT: Record<CreditTabId, keyof CreditNoteSummaryDto['tabs']> = {
+  all: 'all',
+  applied: 'applied',
+  refunded: 'refunded',
+  unapplied: 'unapplied',
+  waiting: 'waitingForBill',
+}
+
 /**
  * Expenditure > Credit notes (E-15), on its frame (Figma 163:18691).
  *
@@ -70,8 +85,8 @@ const COLUMNS = ['creditNote', 'supplier', 'against', 'why', 'status', 'credit']
  * answers is where the credit went, not when it must be paid.
  *
  * The list and the summary are the server's (`GET /v1/credit-notes?status=…`, `/summary`). The
- * frame's search box, supplier filter and sort narrow the page in hand until the endpoint takes
- * them; the tab counts are the totals the server reported for each tab as it was opened.
+ * frame's search box, supplier filter and sort are sent with the list (`q`, `supplier_id`,
+ * `sort`), and the tab counts are the summary's `tabs`, counted over the same search and supplier.
  */
 export function SupplierCreditNotesPage() {
   // AppShell provides the session, so the body is a child of it: see PaymentRemindersPage.
@@ -93,11 +108,14 @@ function CreditNotesScreen() {
     ? (params.get('tab') as CreditTabId)
     : DEFAULT_CREDIT_TAB
   const pageNumber = Math.max(1, Number.parseInt(params.get('page') ?? '1', 10) || 1)
-  const supplier = params.get('supplier') ?? 'all'
+  // A supplier record's id; an older link that held the supplier's name filters nothing.
+  const supplier = supplierFilterOf(params.get('supplier'))
   const sort: NoteSort = isNoteSort(params.get('sort'))
     ? (params.get('sort') as NoteSort)
     : 'natural'
   const [query, setQuery] = useState('')
+  // What the server was last asked for: the box as typed, once typing pauses.
+  const [searched, setSearched] = useState('')
   const [notice, setNotice] = useState<string | null>(null)
 
   const update = (changes: Record<string, string | null>) =>
@@ -113,31 +131,62 @@ function CreditNotesScreen() {
       { replace: true },
     )
 
+  useEffect(() => {
+    if (query.trim() === searched) return
+    const timer = window.setTimeout(() => {
+      setSearched(query.trim())
+      update({ page: null })
+    }, SEARCH_DELAY_MS)
+    return () => window.clearTimeout(timer)
+    // Armed by typing only; `update` reads the params when it runs, so nothing goes stale.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query])
+
+  const narrowing = {
+    q: searched,
+    supplierId: supplier === 'all' ? null : supplier,
+    sort: noteSortOf(sort),
+  }
   const summary = useApiRead<CreditNoteSummaryDto>(CREDIT_NOTE_SUMMARY_PATH, loadCreditNoteSummary)
-  const listPath = creditNoteListPath(CREDIT_TAB_STATUS[tab], pageNumber - 1)
+  // With a search or a supplier chosen, the tab counts are counted over the same notes as the
+  // rows, in a read of their own, so the cards above (the whole ledger's) stay on screen.
+  const countsPath = creditNoteTabCountsPath(narrowing)
+  const counts = useApiRead<CreditNoteSummaryDto>(countsPath, () =>
+    loadCreditNoteSummary(countsPath!),
+  )
+  // The badges keep their last figures while the next ones load.
+  const lastTabs = useRef<CreditNoteSummaryDto['tabs'] | null>(null)
+  const listPath = creditNoteListPath(CREDIT_TAB_STATUS[tab], pageNumber - 1, narrowing)
   const list = useApiRead<Page<CreditNoteRowDto>>(listPath, () => loadCreditNotePage(listPath))
 
   const page = list.read.status === 'ready' ? list.read.data : null
-  const items = page ? page.items.map(toCreditNoteItem) : []
-  const rows = narrowNotes(items, { query, supplier, sort })
+  const rows = page ? page.items.map(toCreditNoteItem) : []
   const totals = summary.read.status === 'ready' ? summary.read.data : null
   const count = (value: number) => formatCount(value, language)
   const money = (value: number, currency: string) => formatAmount(value, currency, language)
 
-  /*
-   * The frame prints a count on every tab. The server reports a total only for the tab that was
-   * asked for, so each tab remembers the last total it was opened with; the others fill in as
-   * they are visited. TODO(backend): per-status counts on `GET /v1/credit-notes/summary`, as the
-   * Bills summary already carries `tabs` (row 5.2 in docs/backend-guides/EXPENDITURE.md).
-   */
-  const [tabTotals, setTabTotals] = useState<Partial<Record<CreditTabId, number>>>({})
+  const tabs =
+    countsPath === null
+      ? (totals?.tabs ?? null)
+      : counts.read.status === 'ready'
+        ? counts.read.data.tabs
+        : (lastTabs.current ?? totals?.tabs ?? null)
+  lastTabs.current = countsPath === null ? null : tabs
+
+  // The suppliers met so far, so the filter keeps offering the others once one is chosen.
+  const [suppliers, setSuppliers] = useState<Record<string, string>>({})
   useEffect(() => {
-    if (page && page.total !== null) setTabTotals((known) => ({ ...known, [tab]: page.total! }))
-  }, [page, tab])
+    if (!page) return
+    const found = supplierOptions(page.items.map(toCreditNoteItem))
+    setSuppliers((known) =>
+      Object.keys(found).every((id) => known[id] === found[id]) ? known : { ...known, ...found },
+    )
+  }, [page])
 
   const afterAction = () => {
     list.retry()
     summary.retry()
+    if (countsPath) counts.retry()
   }
   const onFailure = (error: unknown) => {
     const message = describeApiFailure(error)
@@ -160,13 +209,16 @@ function CreditNotesScreen() {
             {t('supplierCreditNotes.subtitle')}
           </p>
         </div>
-        <Link
-          to="/expenditure/credit-notes/upload"
-          className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white"
-        >
-          <img src={uploadIcon} alt="" className="size-6" />
-          {t('supplierCreditNotes.upload.cta')}
-        </Link>
+        {/* Hidden, not greyed, from someone who may not record a credit note (owner, 6 Oct). */}
+        {canSettle ? (
+          <Link
+            to="/expenditure/credit-notes/upload"
+            className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white"
+          >
+            <img src={uploadIcon} alt="" className="size-6" />
+            {t('supplierCreditNotes.upload.cta')}
+          </Link>
+        ) : null}
       </div>
 
       {summary.read.status === 'failed' ? (
@@ -276,7 +328,7 @@ function CreditNotesScreen() {
         >
           {strip.map((entry) => {
             const active = entry === tab
-            const total = tabTotals[entry]
+            const total = tabs?.[TAB_COUNT[entry]]
             return (
               <button
                 key={entry}
@@ -326,10 +378,10 @@ function CreditNotesScreen() {
               defaultValue="all"
               icon={filterIcon}
               width={260}
-              onChange={(value) => update({ supplier: value === 'all' ? null : value })}
+              onChange={(value) => update({ supplier: value === 'all' ? null : value, page: null })}
               options={[
                 { value: 'all', label: t('supplierCreditNotes.allSuppliers') },
-                ...supplierNames(items).map((name) => ({ value: name, label: name })),
+                ...Object.entries(suppliers).map(([id, name]) => ({ value: id, label: name })),
               ]}
             />
             <SortMenu
@@ -337,7 +389,7 @@ function CreditNotesScreen() {
               options={NOTE_SORTS}
               label={t('billsPage.sort')}
               width={230}
-              onChange={(value) => update({ sort: value === 'natural' ? null : value })}
+              onChange={(value) => update({ sort: value === 'natural' ? null : value, page: null })}
             />
           </div>
         </div>
@@ -476,17 +528,23 @@ function CreditRow({
   }
 
   const download = async () => {
-    // TODO(backend): an uploaded note's intake id is not on the list row, so only a Peppol
-    // document downloads from here; the others open the note, which has it (row 5.4).
-    if (!note.inboundDeliveryId) {
+    // A Peppol note's file is its delivery's document; an uploaded one's is the file uploaded.
+    // A note with neither opens instead.
+    const path = note.inboundDeliveryId
+      ? `/v1/inbound-invoices/${encodeURIComponent(note.inboundDeliveryId)}/document`
+      : note.intakeId
+        ? `${intakePath(note.intakeId)}/file`
+        : null
+    if (!path) {
       navigate(detailTo)
       return
     }
     try {
-      const file = await downloadBillOriginal(
-        `/v1/inbound-invoices/${encodeURIComponent(note.inboundDeliveryId)}/document`,
+      const file = await downloadBillOriginal(path)
+      saveDownload(
+        file,
+        note.inboundDeliveryId ? `${note.number ?? note.id}.xml` : (note.number ?? note.id),
       )
-      saveDownload(file, `${note.number ?? note.id}.xml`)
     } catch (error) {
       onFailure(error)
     }
@@ -501,11 +559,15 @@ function CreditRow({
         >
           {note.number ?? t('supplierCreditNotes.rows.unnumbered')}
         </Link>
-        {note.issueDate ? (
+        {note.receivedAt || note.issueDate ? (
           <p className="mt-1 text-xs font-medium leading-[1.2] text-text-quaternary">
-            {/* TODO(backend): the frame prints the arrival date; the row carries the issue date
-                only, so that is what "Arrived" shows until `receivedAt` exists (row 5.4). */}
-            {t('supplierCreditNotes.rows.arrived', { date: formatDate(note.issueDate, language) })}
+            {/* The day the note arrived; the issue date stands in from a server that does not
+                say. */}
+            {t('supplierCreditNotes.rows.arrived', {
+              date: note.receivedAt
+                ? formatInstantDay(note.receivedAt, language)
+                : formatDate(note.issueDate!, language),
+            })}
           </p>
         ) : null}
       </td>
@@ -566,26 +628,29 @@ function CreditRow({
           <span className={['size-1.5 rounded-full', chip.dot].join(' ')} />
           {t(CREDIT_STATUS_LABEL[note.status])}
         </span>
-        <div className="mt-2">
-          {action.primary ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void setAgainst()}
-              className="inline-flex h-[34px] items-center rounded-sm bg-primary-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60"
-            >
-              {busy ? t('common.saving') : t(action.labelKey)}
-            </button>
-          ) : (
-            <Link
-              to={action.goesTo === 'bill' && billTo ? billTo : detailTo}
-              className="inline-flex items-center gap-1 text-xs font-medium text-text-quaternary transition-colors hover:text-text-secondary"
-            >
-              {t(action.labelKey)}
-              <img src={actChevronIcon} alt="" className="size-3 rtl:rotate-180" />
-            </Link>
-          )}
-        </div>
+        {/* "Set against the bill" is hidden from someone who may not settle a credit. */}
+        {action.primary && !canSettle ? null : (
+          <div className="mt-2">
+            {action.primary ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void setAgainst()}
+                className="inline-flex h-[34px] items-center rounded-sm bg-primary-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60"
+              >
+                {busy ? t('common.saving') : t(action.labelKey)}
+              </button>
+            ) : (
+              <Link
+                to={action.goesTo === 'bill' && billTo ? billTo : detailTo}
+                className="inline-flex items-center gap-1 text-xs font-medium text-text-quaternary transition-colors hover:text-text-secondary"
+              >
+                {t(action.labelKey)}
+                <img src={actChevronIcon} alt="" className="size-3 rtl:rotate-180" />
+              </Link>
+            )}
+          </div>
+        )}
       </td>
 
       <td className="px-4 py-4 align-middle">
@@ -613,12 +678,17 @@ function CreditRow({
           floating
           items={[
             { id: 'open', labelKey: 'supplierCreditNotes.menu.open', icon: viewIcon, to: detailTo },
-            {
-              id: 'download',
-              labelKey: 'supplierCreditNotes.menu.download',
-              icon: statementIcon,
-              onSelect: () => void download(),
-            },
+            // A note with no file on record offers no Download, for anyone.
+            ...(note.inboundDeliveryId || note.intakeId
+              ? [
+                  {
+                    id: 'download',
+                    labelKey: 'supplierCreditNotes.menu.download',
+                    icon: statementIcon,
+                    onSelect: () => void download(),
+                  },
+                ]
+              : []),
           ]}
         />
       </td>

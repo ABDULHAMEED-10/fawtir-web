@@ -3,14 +3,24 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
-import type { BillDetailDto, BillMatchDto } from '../../api/expenditure/bills'
+import type {
+  BillDetailDto,
+  BillMatchDto,
+  BillOverpaymentDto,
+  BillRowDto,
+} from '../../api/expenditure/bills'
 import {
   activityOf,
+  awaitingDiscountCreditNote,
   canRecordPayment,
+  creditTargetsOf,
   decisionNoteOf,
   complianceOf,
   decisionsOf,
+  discountLineOf,
   lineVatOf,
+  overpaidOf,
+  overpaymentStepOf,
   singleVatRate,
   stepsOf,
 } from '../../lib/billDetail'
@@ -427,7 +437,7 @@ describe('A bill, wired to the API', () => {
     expect(screen.queryByText('The supplier sent no lines with this bill.')).toBeNull()
   })
 
-  it('shows a self-billed bill\'s Activity from the document\'s history, in the self-bill page\'s words', async () => {
+  it("shows a self-billed bill's Activity from the document's history, in the self-bill page's words", async () => {
     billResponse = () =>
       json(200, {
         ...selfBilled(AGREED),
@@ -457,12 +467,14 @@ describe('A bill, wired to the API', () => {
     expect(card.queryByText(/billDetail\.activity/)).toBeNull()
   })
 
-  it('reads a self-billed bill\'s heading and history in Arabic', async () => {
+  it("reads a self-billed bill's heading and history in Arabic", async () => {
     await i18n.changeLanguage('ar')
     billResponse = () =>
       json(200, { ...selfBilled(AGREED), lines: SELF_BILLED_LINES, activity: SELF_BILLED_ACTIVITY })
     renderBill()
-    expect(await screen.findByRole('heading', { level: 2, name: 'البنود المورَّدة إليك' })).toBeTruthy()
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'البنود المورَّدة إليك' }),
+    ).toBeTruthy()
     expect(screen.getByText('صدرت')).toBeTruthy()
     expect(screen.getByText('أُنشئت المسودة')).toBeTruthy()
     expect(screen.queryByText('كما أرسله المورد')).toBeNull()
@@ -472,16 +484,20 @@ describe('A bill, wired to the API', () => {
     // A server from before the change, or a document that can no longer be read: 200, no lines.
     billResponse = () => json(200, { ...selfBilled(AGREED), lines: [], activity: [] })
     renderBill()
-    expect(await screen.findByRole('heading', { level: 2, name: 'Items supplied to you' })).toBeTruthy()
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Items supplied to you' }),
+    ).toBeTruthy()
     expect(screen.queryByText('The supplier sent no lines with this bill.')).toBeNull()
     expect(screen.queryByText('as sent by the supplier')).toBeNull()
     expect(screen.getByText('Nothing has been recorded against this bill yet.')).toBeTruthy()
   })
 
-  it('keeps the supplier\'s heading and empty line for a bill the supplier sent', async () => {
+  it("keeps the supplier's heading and empty line for a bill the supplier sent", async () => {
     billResponse = () => json(200, { ...detail(), lines: [] })
     renderBill()
-    expect(await screen.findByRole('heading', { level: 2, name: "What they're charging for" })).toBeTruthy()
+    expect(
+      await screen.findByRole('heading', { level: 2, name: "What they're charging for" }),
+    ).toBeTruthy()
     expect(screen.getByText('as sent by the supplier')).toBeTruthy()
     expect(screen.getByText('The supplier sent no lines with this bill.')).toBeTruthy()
     expect(screen.queryByRole('heading', { name: 'Items supplied to you' })).toBeNull()
@@ -491,13 +507,49 @@ describe('A bill, wired to the API', () => {
     billResponse = () =>
       json(200, {
         ...detail(),
-        activity: [{ at: '2026-10-01T08:00:00Z', kind: 'SOMETHING_NEW', detail: null, actor: null }],
+        activity: [
+          { at: '2026-10-01T08:00:00Z', kind: 'SOMETHING_NEW', detail: null, actor: null },
+        ],
       })
     renderBill()
     const heading = await screen.findByRole('heading', { level: 2, name: 'Activity' })
     const card = within(heading.closest('section') as HTMLElement)
     expect(card.getByText('Recorded')).toBeTruthy()
     expect(card.queryByText(/SOMETHING_NEW/)).toBeNull()
+  })
+
+  it('says in words that a sent payment run took the bill out or was cancelled, with the run and the reason', async () => {
+    billResponse = () =>
+      json(200, {
+        ...detail(),
+        activity: [
+          {
+            at: '2026-10-08T09:00:00Z',
+            kind: 'PAYMENT_RUN_CANCELLED',
+            detail: 'PR-0012 · The bank rejected the file',
+            actor: 'u-2',
+          },
+          {
+            at: '2026-10-07T09:00:00Z',
+            kind: 'TAKEN_OUT_OF_PAYMENT_RUN',
+            detail: 'PR-0011 · Credit note arrived',
+            actor: 'u-2',
+          },
+        ],
+      })
+    renderBill()
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Activity' })
+    const card = within(heading.closest('section') as HTMLElement)
+    expect(card.getByText('Payment run cancelled')).toBeTruthy()
+    expect(card.getByText('Taken out of a payment run')).toBeTruthy()
+    expect(card.getByText(/PR-0012 · The bank rejected the file/)).toBeTruthy()
+    expect(card.queryByText(/PAYMENT_RUN_CANCELLED|TAKEN_OUT_OF_PAYMENT_RUN|Recorded/)).toBeNull()
+
+    await act(() => i18n.changeLanguage('ar'))
+    expect(await card.findByText('أُلغيت دفعة السداد')).toBeTruthy()
+    // The owner's approved wording (PR2), masculine as the bill's activity line reads.
+    expect(card.getByText('أُخرج من دفعة سداد')).toBeTruthy()
+    expect(card.queryByText('أُخرجت من دفعة سداد')).toBeNull()
   })
 
   const scanned = (note: string | null | undefined): BillDetailDto => ({
@@ -510,7 +562,11 @@ describe('A bill, wired to the API', () => {
       contentType: 'image/jpeg',
       uploadedAt: '2026-09-12T08:00:00Z',
     },
-    compliance: { source: 'SCANNED', networkVerified: false, obligation: 'PENDING_COMPLIANCE_INPUT' },
+    compliance: {
+      source: 'SCANNED',
+      networkVerified: false,
+      obligation: 'PENDING_COMPLIANCE_INPUT',
+    },
   })
   const fileRow = async () =>
     (await screen.findByRole('button', { name: 'receipt-4471.jpg' })).closest('li') as HTMLElement
@@ -572,9 +628,7 @@ describe('A bill, wired to the API', () => {
     renderBill()
     const line = await screen.findByText('أصدرتها أنت عبر فوتر نيابةً عن المورّد')
     const card = within(line.closest('ul') as HTMLElement)
-    expect(
-      card.getByText('فاتورة ضريبية صحيحة: ضريبة القيمة المضافة قابلة للاسترداد'),
-    ).toBeTruthy()
+    expect(card.getByText('فاتورة ضريبية صحيحة: ضريبة القيمة المضافة قابلة للاسترداد')).toBeTruthy()
     expect(card.getByText(/^اتفاقية فوترة ذاتية/)).toBeTruthy()
     expect(card.getByRole('link', { name: 'SBA-2026-003' }).getAttribute('href')).toBe(
       '/expenditure/self-billing/sb-1',
@@ -633,9 +687,14 @@ describe('A bill, wired to the API', () => {
     expect(screen.queryByText('VAT · 5%')).toBeNull()
   })
 
-  it('names each line\'s VAT category from the letter the server sends: S, Z, E, O and none', async () => {
+  it("names each line's VAT category from the letter the server sends: S, Z, E, O and none", async () => {
     const base = detail()
-    const line = (lineNo: number, description: string, vatRate: number | null, code?: string | null) => ({
+    const line = (
+      lineNo: number,
+      description: string,
+      vatRate: number | null,
+      code?: string | null,
+    ) => ({
       ...base.lines[0],
       lineNo,
       description,
@@ -761,6 +820,14 @@ describe('A bill, wired to the API', () => {
     const dialog = await screen.findByRole('dialog')
     const amount = within(dialog).getByRole('textbox', { name: /Amount paid/ }) as HTMLInputElement
     expect(amount.value).toBe('2354.310')
+    // The subtitle's amount carries the rial sign before it (E2E 10 Oct, F-14).
+    const subtitle = within(dialog).getByText(
+      (_, element) =>
+        element?.tagName === 'P' &&
+        /^Against QMS-7781 · .*still owed$/.test(element.textContent ?? ''),
+    )
+    expect(subtitle.querySelector('svg')).not.toBeNull()
+    expect(subtitle.textContent).toMatch(/2,354\.310 still owed$/)
     expect(within(dialog).getByText('Paid on')).toBeTruthy()
     expect(within(dialog).queryByText(/Amount received|Received on/)).toBeNull()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Record payment' }))
@@ -820,7 +887,12 @@ describe('A bill, wired to the API', () => {
     expect(
       await offered({
         ...base,
-        settlement: { ...base.settlement, paidAmount: 2354.31, outstandingAmount: 0, paymentState: 'PAID' },
+        settlement: {
+          ...base.settlement,
+          paidAmount: 2354.31,
+          outstandingAmount: 0,
+          paymentState: 'PAID',
+        },
       }),
       'nothing owed',
     ).toBe(false)
@@ -862,12 +934,186 @@ describe('A bill, wired to the API', () => {
     )
   })
 
+  // Owner's answer C5 (8 Oct 2026): a refused supplier debit note is not paid.
+  it('offers no Record payment on a refused debit note, and offers it on an accepted one', async () => {
+    const debitNote = (debitNoteDecision: 'ACCEPTED' | 'REFUSED') =>
+      detail({
+        readiness: APPROVED,
+        bill: {
+          ...detail().bill,
+          documentTypeCode: '383',
+          workflowState: 'APPROVED',
+          readiness: APPROVED,
+          debitNoteDecision,
+        },
+      })
+    billResponse = () => json(200, debitNote('REFUSED'))
+    const first = renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    // Hidden, not greyed.
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+    first.unmount()
+    cleanup()
+
+    billResponse = () => json(200, debitNote('ACCEPTED'))
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy()
+  })
+
+  // E2E 10 Oct, F-11: a refused debit note opened from Bills read "Approved" and "Approved for
+  // payment. It is not scheduled until someone puts it in a payment run."
+  it('says a refused debit note is refused, not approved for payment, and offers no payment', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          readiness: APPROVED,
+          bill: {
+            ...detail().bill,
+            documentTypeCode: '383',
+            workflowState: 'APPROVED',
+            readiness: APPROVED,
+            debitNoteDecision: 'REFUSED',
+          },
+        }),
+      )
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(screen.getByText('Refused')).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Nothing was added to what you owe. Your reason is recorded against the note.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText(/Approved for payment/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+  })
+
+  // E2E 10 Oct, F-7: a bill in a run said "It is not scheduled until someone puts it in a
+  // payment run" under a header that said it was in one.
+  it('says an approved bill in a payment run is in that run, not waiting for one', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          readiness: APPROVED,
+          paymentRunReference: 'PR-0002',
+          bill: {
+            ...detail().bill,
+            workflowState: 'IN_PAYMENT_RUN',
+            readiness: APPROVED,
+            paymentRunReference: 'PR-0002',
+          },
+        }),
+      )
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(
+      screen.getByText(
+        'Approved for payment and in payment run PR-0002. It is paid when the run is marked paid.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText(/not scheduled until someone puts it in a payment run/)).toBeNull()
+
+    cleanup()
+    await i18n.changeLanguage('ar')
+    renderBill()
+    expect(
+      await screen.findByText(
+        'معتمدة للدفع وضمن دفعة السداد PR-0002. تُسجَّل مدفوعة عند تسجيل الدفعة كمدفوعة.',
+      ),
+    ).toBeTruthy()
+  })
+
+  // Owner, 10 Oct 2026 (backend #480): a debit note nobody has accepted is not owed yet.
+  it('offers no Record payment on an undecided debit note, and says to accept it first', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          readiness: APPROVED,
+          bill: {
+            ...detail().bill,
+            documentTypeCode: '383',
+            workflowState: 'APPROVED',
+            readiness: APPROVED,
+            debitNoteDecision: null,
+          },
+        }),
+      )
+    const view = renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+    expect(screen.getByText('Accept the debit note before you pay it.')).toBeTruthy()
+    view.unmount()
+    cleanup()
+
+    await i18n.changeLanguage('ar')
+    renderBill()
+    expect(await screen.findByText('اقبل الإشعار المدين قبل أن تدفعه.')).toBeTruthy()
+  })
+
+  it('says why a payment on a debit note not yet accepted is refused', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          readiness: APPROVED,
+          bill: { ...detail().bill, documentTypeCode: '383', debitNoteDecision: 'ACCEPTED' },
+        }),
+      )
+    actionResponse = () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/expenditure-refused',
+        error: 'BILL_PAYMENT_DEBIT_NOTE_NOT_ACCEPTED',
+        detail: 'Accept the debit note first',
+        status: 400,
+      })
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Record payment' }))
+    const said = await screen.findAllByText('Accept the debit note before you pay it.')
+    expect(said.length).toBeGreaterThan(0)
+  })
+
+  it('says why a payment on a debit note refused after the page loaded is refused', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          readiness: APPROVED,
+          bill: { ...detail().bill, documentTypeCode: '383', debitNoteDecision: 'ACCEPTED' },
+        }),
+      )
+    actionResponse = () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/expenditure-refused',
+        error: 'BILL_PAYMENT_DEBIT_NOTE_REFUSED',
+        detail: 'This debit note is refused (disputed); accept it again before recording a payment',
+        status: 400,
+      })
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Record payment' }))
+    expect(
+      await within(dialog).findByText(
+        /^This debit note was refused, so it cannot be paid\. Accept it first if it is owed after all\./,
+      ),
+    ).toBeTruthy()
+  })
+
   it('names the payment run when the bill joined one after the page loaded', async () => {
     billResponse = () => json(200, detail({ readiness: APPROVED }))
     actionResponse = () =>
       json(400, {
         error: 'BILL_PAYMENT_IN_PAYMENT_RUN',
-        detail: 'This bill is in payment run RUN-0012. Pay it there, or take it out of the run first.',
+        detail:
+          'This bill is in payment run RUN-0012. Pay it there, or take it out of the run first.',
         paymentRunReference: 'RUN-0012',
         status: 400,
       })
@@ -943,7 +1189,12 @@ describe('A bill, wired to the API', () => {
   // approved, the verdict still a mismatch. Approve is offered from the approvals, never from the
   // word "Mismatch", or the click would answer APPROVAL_TRANSITION_INVALID.
   it('offers the match actions, and no Approve, on a bill one person approved that still reads Mismatch', async () => {
-    const oneOfOne = { state: 'READY', distinctApprovals: 1, required: 1, autoApproved: false } as const
+    const oneOfOne = {
+      state: 'READY',
+      distinctApprovals: 1,
+      required: 1,
+      autoApproved: false,
+    } as const
     billResponse = () =>
       json(
         200,
@@ -1037,7 +1288,12 @@ describe('A bill, wired to the API', () => {
 
   // Confirmed item 21 (2 Oct): a bill approved by its amount reads APPROVED from the server.
   it('shows a bill approved by its amount as Approved, with nothing left to approve and a payment on offer', async () => {
-    const byAmount = { state: 'READY', distinctApprovals: 0, required: 2, autoApproved: true } as const
+    const byAmount = {
+      state: 'READY',
+      distinctApprovals: 0,
+      required: 2,
+      autoApproved: true,
+    } as const
     billResponse = () =>
       json(
         200,
@@ -1226,9 +1482,9 @@ describe('bill detail mapping', () => {
     const approved = detail({ readiness: APPROVED })
     expect(canRecordPayment(approved, all)).toBe(true)
     expect(canRecordPayment(detail(), all)).toBe(false)
-    expect(canRecordPayment(approved, (permission) => permission !== 'invoice.payment.manage')).toBe(
-      false,
-    )
+    expect(
+      canRecordPayment(approved, (permission) => permission !== 'invoice.payment.manage'),
+    ).toBe(false)
     expect(
       canRecordPayment({ ...approved, bill: { ...approved.bill, documentTypeCode: '381' } }, all),
     ).toBe(false)
@@ -1239,6 +1495,16 @@ describe('bill detail mapping', () => {
       ),
     ).toBe(false)
     expect(canRecordPayment({ ...approved, paymentRunReference: 'RUN-0012' }, all)).toBe(false)
+    // A refused or undecided supplier debit note is accepted first (owner, 10 Oct 2026); a server
+    // that sends no decision at all decides for itself.
+    const note383 = (debitNoteDecision: 'ACCEPTED' | 'REFUSED' | null | undefined) => ({
+      ...approved,
+      bill: { ...approved.bill, documentTypeCode: '383', debitNoteDecision },
+    })
+    expect(canRecordPayment(note383('REFUSED'), all)).toBe(false)
+    expect(canRecordPayment(note383('ACCEPTED'), all)).toBe(true)
+    expect(canRecordPayment(note383(null), all)).toBe(false)
+    expect(canRecordPayment(note383(undefined), all)).toBe(true)
     expect(
       canRecordPayment(
         { ...approved, bill: { ...approved.bill, workflowState: 'IN_PAYMENT_RUN' } },
@@ -1251,7 +1517,10 @@ describe('bill detail mapping', () => {
     const all = () => true
     const withVerdict = (verdict: 'MATCHED' | 'MATCHED_BY_HAND' | 'MISMATCH' | 'NO_ORDER') => {
       const approved = detail({ readiness: APPROVED })
-      return { ...approved, bill: { ...approved.bill, match: { ...approved.bill.match!, verdict } } }
+      return {
+        ...approved,
+        bill: { ...approved.bill, match: { ...approved.bill.match!, verdict } },
+      }
     }
     expect(canRecordPayment(withVerdict('MISMATCH'), all)).toBe(false)
     // Approved by its amount, not by a person: the same rule.
@@ -1276,10 +1545,8 @@ describe('bill detail mapping', () => {
     const approved = detail({ readiness: APPROVED })
     expect(decisionsOf(approved, all).reject).toBe(true)
     expect(
-      decisionsOf(
-        { ...approved, settlement: { ...approved.settlement, paidAmount: 0.001 } },
-        all,
-      ).reject,
+      decisionsOf({ ...approved, settlement: { ...approved.settlement, paidAmount: 0.001 } }, all)
+        .reject,
     ).toBe(false)
     expect(decisionsOf({ ...approved, paymentRunReference: 'RUN-0012' }, all).reject).toBe(false)
   })
@@ -1364,11 +1631,15 @@ describe('bill detail mapping', () => {
     ])
   })
 
-  it('writes a self-billed bill as this company\'s own document, not as one that never arrived', () => {
+  it("writes a self-billed bill as this company's own document, not as one that never arrived", () => {
     const selfBilledBill: BillDetailDto = {
       ...detail(),
       bill: { ...detail().bill, source: 'SELF_BILLED', inboundDeliveryId: null },
-      compliance: { source: 'SELF_BILLED', networkVerified: true, obligation: 'REPORTED_BY_SENDER' },
+      compliance: {
+        source: 'SELF_BILLED',
+        networkVerified: true,
+        obligation: 'REPORTED_BY_SENDER',
+      },
     }
     const withAgreement = complianceOf({
       ...selfBilledBill,
@@ -1422,13 +1693,20 @@ describe('bill detail mapping', () => {
     ])
   })
 
-  it('words the self-billed document\'s steps, keeps the bill\'s own kinds, and has a word for an unknown one', () => {
+  it("words the self-billed document's steps, keeps the bill's own kinds, and has a word for an unknown one", () => {
     const entry = (kind: string) =>
-      ({ at: '2026-10-01T08:00:00Z', kind, detail: null, actor: 'u-1' }) as BillDetailDto['activity'][number]
+      ({
+        at: '2026-10-01T08:00:00Z',
+        kind,
+        detail: null,
+        actor: 'u-1',
+      }) as BillDetailDto['activity'][number]
     const keys = activityOf(
       {
         ...detail(),
-        activity: ['DRAFT_CREATED', 'ISSUED', 'CANCELLED', 'APPROVED', 'PAID', 'BRAND_NEW'].map(entry),
+        activity: ['DRAFT_CREATED', 'ISSUED', 'CANCELLED', 'APPROVED', 'PAID', 'BRAND_NEW'].map(
+          entry,
+        ),
       },
       'u-1',
     ).map((item) => item.key)
@@ -1487,8 +1765,10 @@ async function moneySentence(dialog: HTMLElement, text: string): Promise<HTMLEle
 }
 
 describe('why a bill was refused, in its own sentence', () => {
-  const refusal = (error: string, extra: Record<string, unknown> = {}) => () =>
-    json(400, { type: 'https://api.fawtir.om/problems/expenditure-refused', error, ...extra })
+  const refusal =
+    (error: string, extra: Record<string, unknown> = {}) =>
+    () =>
+      json(400, { type: 'https://api.fawtir.om/problems/expenditure-refused', error, ...extra })
   const GENERIC = /The server refused this\. Nothing was changed/
 
   async function pay() {
@@ -1670,7 +1950,9 @@ describe('why a bill was refused, in its own sentence', () => {
     actionResponse = refusal(error)
     renderBill()
     await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
-    fireEvent.click(screen.getAllByRole('button', { name: i18n.t('billDetail.decision.putOnHold') })[0])
+    fireEvent.click(
+      screen.getAllByRole('button', { name: i18n.t('billDetail.decision.putOnHold') })[0],
+    )
     const dialog = await screen.findByRole('dialog')
     fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Disputed' } })
     fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('billDetail.hold.confirm') }))
@@ -1772,5 +2054,558 @@ describe('the original file, for someone who only reads bills', () => {
     renderBill()
     await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
     expect(screen.queryByRole('button', { name: 'Download' })).toBeNull()
+  })
+})
+
+/**
+ * Owner's answers of 8 Oct 2026: the early-payment discount a payment run took is its own line in
+ * the bill's payments, the bill counts as paid, its VAT never changes because of it, and until the
+ * supplier's credit note arrives the bill says so.
+ */
+describe('the early-payment discount a payment run took', () => {
+  const PAYMENT: BillDetailDto['payments'][number] = {
+    id: 'p-1',
+    entryType: 'PAYMENT',
+    amount: 2307.224,
+    currency: 'OMR',
+    methodCode: '30',
+    paymentReference: 'PR-0014',
+    paymentDate: '2026-09-07',
+    occurredAt: '2026-09-07T09:30:00Z',
+  }
+  const DISCOUNT: BillDetailDto['payments'][number] = {
+    ...PAYMENT,
+    id: 'd-1',
+    entryType: 'DISCOUNT',
+    amount: 47.086,
+    methodCode: null,
+  }
+
+  function discounted(creditNoteOutstanding = 47.086): BillDetailDto {
+    const base = detail({ readiness: APPROVED })
+    return {
+      ...base,
+      bill: { ...base.bill, workflowState: 'PAID', paidAmount: 2307.224, outstandingAmount: 0 },
+      settlement: {
+        ...base.settlement,
+        paidAmount: 2307.224,
+        outstandingAmount: 0,
+        paymentState: 'PAID',
+        discountAmount: creditNoteOutstanding,
+        creditedAmount: 47.086 - creditNoteOutstanding,
+      },
+      payments: [PAYMENT, DISCOUNT],
+      discountTaken: {
+        amount: 47.086,
+        takenOn: '2026-09-07',
+        paymentRunId: 'run-1',
+        creditNoteId: creditNoteOutstanding > 0 ? null : 'cn-1',
+        creditNoteOutstanding,
+      },
+    }
+  }
+
+  /** The figure beside a Payment terms label, and whether the rial sign is drawn with it. */
+  function termsRow(label: string): { text: string; rial: boolean } {
+    const value = screen.getByText(label, { selector: 'dt' }).nextElementSibling as HTMLElement
+    return { text: value.textContent ?? '', rial: value.querySelector('svg') !== null }
+  }
+
+  it('lists the discount as its own line after what was paid, and never adds it to Paid', async () => {
+    billResponse = () => json(200, discounted())
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+
+    expect(termsRow('Paid')).toEqual({ text: 'OMR2,307.224', rial: true })
+    expect(termsRow('Early-payment discount')).toEqual({ text: 'OMR47.086', rial: true })
+    expect(termsRow('Outstanding')).toEqual({ text: 'OMR0.000', rial: true })
+    const labels = [...document.querySelectorAll('dt')].map((dt) => dt.textContent)
+    expect(labels.indexOf('Early-payment discount')).toBe(labels.indexOf('Paid') + 1)
+
+    // The bill's own figures are the server's and do not move: total, net and VAT.
+    expect(screen.getAllByText('2,354.310').length).toBeGreaterThan(0)
+    expect(screen.getByText('2,242.200')).toBeTruthy()
+    expect(screen.getByText('VAT · 5%')).toBeTruthy()
+    // Paid, as the server says, with the date of the payment, not of the discount line.
+    expect(screen.getByText('Paid 7 Sept 2026')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+  })
+
+  it("says the discount is taken and the supplier's credit note awaited, in the Payment terms card", async () => {
+    billResponse = () => json(200, discounted())
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    const note = screen.getByText("Discount taken · waiting for the supplier's credit note")
+    expect(note.closest('section, div')?.textContent).toContain('Payment terms')
+    // The bill is paid, so the "Paying by ... saves" note is not drawn beside it.
+    expect(screen.queryByText(/saves/)).toBeNull()
+  })
+
+  it('says nothing more once the credit note has arrived, and keeps the discount line', async () => {
+    billResponse = () => json(200, discounted(0))
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(termsRow('Early-payment discount')).toEqual({ text: 'OMR47.086', rial: true })
+    expect(screen.queryByText(/waiting for the supplier's credit note/)).toBeNull()
+  })
+
+  it('draws neither on a bill with no discount, or from a server that sends none', async () => {
+    const base = detail({ readiness: APPROVED })
+    billResponse = () =>
+      json(200, {
+        ...base,
+        settlement: {
+          ...base.settlement,
+          paidAmount: 1000,
+          outstandingAmount: 1354.31,
+          paymentState: 'PARTIALLY_PAID',
+        },
+        payments: [{ ...PAYMENT, amount: 1000 }],
+      })
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(termsRow('Paid')).toEqual({ text: 'OMR1,000.000', rial: true })
+    expect(screen.queryByText('Early-payment discount')).toBeNull()
+    expect(screen.queryByText(/waiting for the supplier's credit note/)).toBeNull()
+  })
+
+  it('reads in Arabic, with the rial sign and three decimals', async () => {
+    await i18n.changeLanguage('ar')
+    billResponse = () => json(200, discounted())
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(termsRow('خصم سداد مبكر')).toEqual({ text: 'OMR47.086', rial: true })
+    expect(termsRow(i18n.t('billDetail.payment.paid'))).toEqual({
+      text: 'OMR2,307.224',
+      rial: true,
+    })
+    expect(screen.getByText('أُخذ الخصم · بانتظار الإشعار الدائن من المورّد')).toBeTruthy()
+  })
+
+  it('sums the DISCOUNT entries in the bill currency only, and waits while some is uncovered', () => {
+    expect(discountLineOf(detail())).toBe(0)
+    expect(discountLineOf(discounted())).toBe(47.086)
+    expect(
+      discountLineOf({
+        ...discounted(),
+        payments: [
+          PAYMENT,
+          DISCOUNT,
+          { ...DISCOUNT, id: 'd-2', amount: 0.004 },
+          { ...DISCOUNT, id: 'd-3', currency: 'USD', amount: 5 },
+        ],
+      }),
+    ).toBe(47.09)
+    expect(awaitingDiscountCreditNote(discounted())).toBe(true)
+    expect(awaitingDiscountCreditNote(discounted(0))).toBe(false)
+    expect(awaitingDiscountCreditNote(detail())).toBe(false)
+    // The Paid step's date is the payment's, never the discount line's.
+    const steps = stepsOf(
+      { ...discounted(), payments: [PAYMENT, { ...DISCOUNT, paymentDate: '2026-09-30' }] },
+      { day: (iso) => iso, instantDay: (iso) => iso },
+    )
+    expect(steps.find((step) => step.id === 'paid')?.detail?.values?.date).toBe('2026-09-07')
+  })
+})
+
+/**
+ * Owner's answer 13 of 8 Oct 2026: "Overpaid by {amount}" on the bill with the rial sign, and two
+ * ways to settle it, the supplier's refund or keeping it as credit for their next bill, then
+ * using that credit on another bill. All recorded in Activity.
+ */
+describe('an overpaid bill', () => {
+  const OVERPAYMENT_URL = `${BILL_URL}/overpayment`
+  let standing: BillOverpaymentDto
+  let targets: BillRowDto[]
+
+  function overpaid(): BillDetailDto {
+    const base = detail({ readiness: APPROVED })
+    return {
+      ...base,
+      bill: { ...base.bill, workflowState: 'PAID', paidAmount: 2394.31, outstandingAmount: 0 },
+      settlement: {
+        ...base.settlement,
+        paidAmount: 2394.31,
+        outstandingAmount: 0,
+        paymentState: 'PAID',
+        overpaidAmount: 40,
+      },
+    }
+  }
+
+  const target = (overrides: Partial<BillRowDto>): BillRowDto => ({
+    ...overpaid().bill,
+    id: 'b-2',
+    supplierBillNumber: 'QMS-7790',
+    workflowState: 'APPROVED',
+    paidAmount: 0,
+    outstandingAmount: 150,
+    readiness: APPROVED,
+    ...overrides,
+  })
+
+  beforeEach(() => {
+    standing = {
+      billId: ID,
+      currency: 'OMR',
+      overpaidAmount: 40,
+      keptAsCredit: 0,
+      undecided: 40,
+      refunded: 0,
+      applied: 0,
+      settlements: [],
+    }
+    targets = [
+      target({}),
+      // Not offered: this bill, another supplier's, another currency, held, a credit note.
+      target({ id: ID, supplierBillNumber: 'QMS-7781' }),
+      target({ id: 'b-3', supplierBillNumber: 'OTHER-1', supplierId: 's-9' }),
+      target({ id: 'b-4', supplierBillNumber: 'QMS-USD', currencyCode: 'USD' }),
+      target({
+        id: 'b-5',
+        supplierBillNumber: 'QMS-HELD',
+        hold: { reason: 'Query', openedAt: '2026-09-20T08:00:00Z' },
+      }),
+      target({ id: 'b-6', supplierBillNumber: 'QMS-CN', documentTypeCode: '381' }),
+    ]
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      const method = init?.method ?? 'GET'
+      if (url === OVERPAYMENT_URL && method === 'GET') return json(200, standing)
+      if (url.startsWith('/api/v1/bills?'))
+        return json(200, {
+          items: targets,
+          page: 0,
+          pageSize: 20,
+          count: targets.length,
+          total: targets.length,
+        })
+      return base(url, init)
+    })
+    billResponse = () => json(200, overpaid())
+  })
+
+  /** The sentence under Payment terms that carries an amount, and whether the sign is drawn. */
+  function line(pattern: RegExp): { text: string; rial: boolean } {
+    const element = screen.getByText(
+      (_, node) => node?.tagName === 'P' && pattern.test(node.textContent ?? ''),
+    )
+    return { text: element.textContent ?? '', rial: element.querySelector('svg') !== null }
+  }
+
+  const sent = (path: string) => {
+    const call = fetchMock.mock.calls.find(
+      ([url, init]) => String(url) === path && (init as RequestInit)?.method === 'POST',
+    )
+    return call ? JSON.parse(String((call[1] as RequestInit).body)) : undefined
+  }
+
+  it('says "Overpaid by" with the rial sign and three decimals, and offers the two ways to settle it', async () => {
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(line(/^Overpaid by/)).toEqual({ text: 'Overpaid by OMR40.000', rial: true })
+    expect(line(/^Overpaid by/).text).not.toMatch(/OMR /)
+    // In the Payment terms card, after what was paid and is outstanding.
+    const card = screen.getByText(/^Overpaid by/).closest('section')!
+    expect(within(card).getByText('Payment terms')).toBeTruthy()
+    await waitFor(() => expect(calls()).toContain(`GET ${OVERPAYMENT_URL}`))
+    expect(await screen.findByRole('button', { name: 'Keep as credit' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: "Record the supplier's refund" })).toBeTruthy()
+    // Nothing is kept yet, so there is nothing to set against a bill.
+    expect(screen.queryByRole('button', { name: 'Set against a bill' })).toBeNull()
+    expect(screen.queryByText(/kept as credit/)).toBeNull()
+  })
+
+  it('shows the figure to a reader without the payment permission, and hides every action', async () => {
+    who = READ_ONLY
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(line(/^Overpaid by/)).toEqual({ text: 'Overpaid by OMR40.000', rial: true })
+    await waitFor(() => expect(calls()).toContain(`GET ${OVERPAYMENT_URL}`))
+    expect(screen.queryByRole('button', { name: "Record the supplier's refund" })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Keep as credit' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Set against a bill' })).toBeNull()
+  })
+
+  it('draws nothing and reads nothing more for a bill that is not overpaid', async () => {
+    billResponse = () => json(200, detail({ readiness: APPROVED }))
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(screen.queryByText(/Overpaid by/)).toBeNull()
+    expect(screen.queryByRole('button', { name: "Record the supplier's refund" })).toBeNull()
+    expect(calls()).not.toContain(`GET ${OVERPAYMENT_URL}`)
+  })
+
+  it("records the supplier's refund: amount, the day it arrived and a reference", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-05T09:00:00Z'))
+    standing = { ...standing, keptAsCredit: 15, undecided: 25 }
+    renderBill()
+    fireEvent.click(await screen.findByRole('button', { name: "Record the supplier's refund" }))
+    const dialog = await screen.findByRole('dialog', { name: "Record the supplier's refund" })
+    expect(
+      within(dialog).getByText('The supplier gave the money back rather than crediting a bill.'),
+    ).toBeTruthy()
+    // Filled with what nobody has decided about yet.
+    const amount = within(dialog).getByRole('spinbutton', { name: 'Amount' }) as HTMLInputElement
+    expect(amount.value).toBe('25.000')
+    expect(within(dialog).getByText('Paid on')).toBeTruthy()
+
+    // More than it was overpaid by is stopped before asking, with the sign on the figure.
+    fireEvent.change(amount, { target: { value: '40.5' } })
+    const alert = within(dialog).getByRole('alert')
+    expect(alert.textContent).toBe('That is more than the OMR 40.000 this bill was overpaid by.')
+    expect(alert.querySelector('svg')).toBeTruthy()
+    const save = within(dialog).getByRole('button', { name: 'Record the refund' })
+    expect((save as HTMLButtonElement).disabled).toBe(true)
+
+    fireEvent.change(amount, { target: { value: '40' } })
+    fireEvent.change(
+      within(dialog).getByRole('textbox', { name: 'Payment reference (optional)' }),
+      {
+        target: { value: 'RF-0042' },
+      },
+    )
+    fireEvent.click(save)
+    await waitFor(() =>
+      expect(sent(`${OVERPAYMENT_URL}/refunds`)).toEqual({
+        amount: 40,
+        refundedOn: '2026-10-05',
+        reference: 'RF-0042',
+      }),
+    )
+    expect(await screen.findByText('The refund was recorded.')).toBeTruthy()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    vi.useRealTimers()
+  })
+
+  it('keeps it as credit with one press, and says so', async () => {
+    renderBill()
+    fireEvent.click(await screen.findByRole('button', { name: 'Keep as credit' }))
+    await waitFor(() => expect(sent(`${OVERPAYMENT_URL}/keep-as-credit`)).toEqual({}))
+    expect(
+      await screen.findByText(
+        'Kept as credit against Qalhat Marine Supplies. Nothing changes until you set it against a bill.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('shows what is kept, and sets it against another bill of the supplier in its currency', async () => {
+    standing = { ...standing, keptAsCredit: 40, undecided: 0 }
+    renderBill()
+    fireEvent.click(await screen.findByRole('button', { name: 'Set against a bill' }))
+    expect(line(/kept as credit$/)).toEqual({ text: 'OMR40.000 kept as credit', rial: true })
+    // All of it is kept, so there is nothing left to keep.
+    expect(screen.queryByRole('button', { name: 'Keep as credit' })).toBeNull()
+
+    const dialog = await screen.findByRole('dialog', { name: 'Set against a bill' })
+    // Searched among this supplier's bills, on the server.
+    await waitFor(() =>
+      expect(
+        calls().some(
+          (call) => call.startsWith('GET /api/v1/bills?') && call.includes('supplier_id=s-1'),
+        ),
+      ).toBe(true),
+    )
+    const offered = await within(dialog).findAllByRole('button', { name: /QMS-7790/ })
+    expect(offered).toHaveLength(1)
+    for (const number of ['QMS-7781', 'OTHER-1', 'QMS-USD', 'QMS-HELD', 'QMS-CN'])
+      expect(within(dialog).queryByRole('button', { name: new RegExp(number) })).toBeNull()
+    expect(offered[0].querySelector('svg')).toBeTruthy()
+    // What it still owes: the rial sign before the figure, no "OMR" (owner, 9 Oct 2026).
+    const owes = within(offered[0]).getByText(/still owed$/)
+    expect(owes.firstElementChild!.tagName.toLowerCase()).toBe('svg')
+    expect(owes.textContent).toMatch(/^\d[\d,]*\.\d{3} still owed$/)
+    fireEvent.click(offered[0])
+    expect(within(dialog).getByText(/Applying to QMS-7790/)).toBeTruthy()
+
+    const amount = within(dialog).getByRole('spinbutton', { name: 'Amount (optional)' })
+    fireEvent.change(amount, { target: { value: '41' } })
+    expect(within(dialog).getByRole('alert').textContent).toBe(
+      'That is more than the OMR 40.000 kept as credit.',
+    )
+    fireEvent.change(amount, { target: { value: '' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Use it' }))
+    // Left blank, the server uses the largest amount that fits both.
+    await waitFor(() => expect(sent(`${OVERPAYMENT_URL}/apply`)).toEqual({ targetBillId: 'b-2' }))
+    expect(await screen.findByText('The credit was used against that bill.')).toBeTruthy()
+  })
+
+  it('says why the server refused, in the dialog', async () => {
+    actionResponse = () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/expenditure-refused',
+        error: 'BILL_OVERPAYMENT_IN_PAYMENT_RUN',
+        paymentRunReference: 'PR-0014',
+      })
+    renderBill()
+    fireEvent.click(await screen.findByRole('button', { name: "Record the supplier's refund" }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Record the refund' }))
+    expect(
+      await within(dialog).findByText(
+        'This bill is in payment run PR-0014. Take it out of the run first.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('reads the target refusals in the credit note sentences', async () => {
+    standing = { ...standing, keptAsCredit: 40, undecided: 0 }
+    actionResponse = () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/expenditure-refused',
+        error: 'BILL_OVERPAYMENT_TARGET_ON_HOLD',
+      })
+    renderBill()
+    fireEvent.click(await screen.findByRole('button', { name: 'Set against a bill' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(await within(dialog).findByRole('button', { name: /QMS-7790/ }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Use it' }))
+    expect(
+      await within(dialog).findByText(
+        'This bill is on hold. Release it before setting a credit against it.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('reads in Arabic, with the rial sign and three decimals', async () => {
+    await i18n.changeLanguage('ar')
+    standing = { ...standing, keptAsCredit: 15, undecided: 25 }
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(line(/^دُفع بزيادة/)).toEqual({ text: 'دُفع بزيادة OMR40.000', rial: true })
+    expect(await screen.findByRole('button', { name: 'تسجيل استرداد من المورّد' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'الاحتفاظ به رصيدًا' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'خصمه من فاتورة' })).toBeTruthy()
+    expect(line(/محتفظ به رصيدًا$/)).toEqual({ text: 'OMR15.000 محتفظ به رصيدًا', rial: true })
+  })
+
+  // Owner's Arabic, 9 Oct 2026, for the two amount checks; the figure keeps the rial sign.
+  it('says the two amount checks in Arabic, with the rial sign', async () => {
+    await i18n.changeLanguage('ar')
+    standing = { ...standing, keptAsCredit: 15, undecided: 25 }
+    renderBill()
+    fireEvent.click(await screen.findByRole('button', { name: 'تسجيل استرداد من المورّد' }))
+    let dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getAllByRole('spinbutton')[0], { target: { value: '40.5' } })
+    let alert = within(dialog).getByRole('alert')
+    expect(alert.textContent).toBe(
+      'هذا أكثر من مبلغ OMR\u00A040.000 المدفوع زيادةً على هذه الفاتورة.',
+    )
+    expect(alert.querySelector('svg')).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'إلغاء' }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'خصمه من فاتورة' }))
+    dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getAllByRole('spinbutton')[0], { target: { value: '16' } })
+    alert = within(dialog).getByRole('alert')
+    expect(alert.textContent).toBe('هذا أكثر من مبلغ OMR\u00A015.000 المحتفظ به رصيدًا.')
+    expect(alert.querySelector('svg')).toBeTruthy()
+  })
+
+  it('lists the four steps in Activity with their amounts in rials', async () => {
+    billResponse = () =>
+      json(200, {
+        ...overpaid(),
+        activity: [
+          {
+            at: '2026-10-04T09:00:00Z',
+            kind: 'OVERPAYMENT_CREDIT_RECEIVED',
+            detail: '5.000 OMR · QMS-7700',
+            actor: null,
+          },
+          {
+            at: '2026-10-03T09:00:00Z',
+            kind: 'OVERPAYMENT_CREDIT_APPLIED',
+            detail: '10.5 OMR · QMS-7790',
+            actor: null,
+          },
+          {
+            at: '2026-10-02T09:00:00Z',
+            kind: 'OVERPAYMENT_KEPT_AS_CREDIT',
+            detail: '25.000 OMR',
+            actor: null,
+          },
+          {
+            at: '2026-10-01T09:00:00Z',
+            kind: 'OVERPAYMENT_REFUNDED',
+            detail: '15.000 OMR · RF-0042',
+            actor: 'u-1',
+          },
+        ],
+      })
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    const step = (title: string) => {
+      const heading = screen.getByText(title)
+      return heading.closest('li')!.querySelectorAll('p')[1] as HTMLElement
+    }
+    expect(screen.getByText("Supplier's refund recorded")).toBeTruthy()
+    expect(step("Supplier's refund recorded").textContent).toMatch(/^OMR15\.000 · RF-0042 · /)
+    expect(step("Supplier's refund recorded").querySelector('svg')).toBeTruthy()
+    expect(step('Kept as credit').textContent).toMatch(/^OMR25\.000 · /)
+    // Three decimals always, whatever the server's scale.
+    expect(step('Credit set against another bill').textContent).toMatch(/^OMR10\.500 · QMS-7790 · /)
+    expect(step('Credit from another bill set against this one').textContent).toMatch(
+      /^OMR5\.000 · QMS-7700 · /,
+    )
+    expect(screen.queryByText(/ OMR/)).toBeNull()
+  })
+
+  it('reads the amount out of an overpayment step, and picks the bills the credit can go on', () => {
+    expect(overpaymentStepOf('OVERPAYMENT_REFUNDED', '12.5 OMR · RF-1')).toEqual({
+      amount: 12.5,
+      currency: 'OMR',
+      rest: 'RF-1',
+    })
+    expect(overpaymentStepOf('OVERPAYMENT_KEPT_AS_CREDIT', '40.000 OMR')).toEqual({
+      amount: 40,
+      currency: 'OMR',
+      rest: null,
+    })
+    // Any other step, or a detail in another shape, is shown as sent.
+    expect(overpaymentStepOf('PAID', '12.5 OMR')).toBeNull()
+    expect(overpaymentStepOf('OVERPAYMENT_REFUNDED', 'refunded')).toBeNull()
+    expect(overpaidOf(detail())).toBe(0)
+    expect(overpaidOf(overpaid())).toBe(40)
+    expect(creditTargetsOf(overpaid(), targets).map((row) => row.id)).toEqual(['b-2'])
+    expect(
+      creditTargetsOf(overpaid(), [
+        target({ id: 'b-7', outstandingAmount: 0 }),
+        target({ id: 'b-8', readiness: { ...APPROVED, state: 'REJECTED' } }),
+        target({ id: 'b-9', documentTypeCode: '383', debitNoteDecision: 'REFUSED' }),
+        target({ id: 'b-10', documentTypeCode: '383', debitNoteDecision: 'ACCEPTED' }),
+      ]).map((row) => row.id),
+    ).toEqual(['b-10'])
+  })
+})
+
+// Browser re-check of 11 Oct 2026 (C-6): a refused debit note's tracker read "SCHEDULED · Not yet".
+describe("a refused debit note's steps", () => {
+  const format = { day: (iso: string) => iso, instantDay: (iso: string) => iso }
+  const note = (debitNoteDecision: 'ACCEPTED' | 'REFUSED' | null) => ({
+    ...detail(),
+    readiness: { state: 'READY' as const, distinctApprovals: 1, required: 1, autoApproved: false },
+    bill: { ...detail().bill, documentTypeCode: '383', debitNoteDecision },
+  })
+
+  it('stops at the decision: it is never scheduled or paid', () => {
+    expect(stepsOf(note('REFUSED'), format).map((step) => step.id)).toEqual([
+      'arrived',
+      'matched',
+      'approved',
+    ])
+  })
+
+  it('keeps every step for an accepted or undecided note, and for a bill', () => {
+    for (const decision of ['ACCEPTED', null] as const)
+      expect(stepsOf(note(decision), format).map((step) => step.id)).toEqual([
+        'arrived',
+        'matched',
+        'approved',
+        'scheduled',
+        'paid',
+      ])
+    expect(stepsOf(detail(), format)).toHaveLength(5)
   })
 })

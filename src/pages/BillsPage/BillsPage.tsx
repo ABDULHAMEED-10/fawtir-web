@@ -11,6 +11,7 @@ import {
   RowsView,
   SortMenu,
   TableCheckbox,
+  withRial,
   type ActionMenuItem,
 } from '../../components/ui'
 import { BillStatusChip } from '../../components/bills'
@@ -105,6 +106,24 @@ const SOURCE_STYLES: Record<BillSourceBadge, { bg: string; fg: string; labelKey:
     labelKey: 'billsPage.source.selfBilled',
   },
 }
+
+/**
+ * A supplier debit note's badges, after the source badge and in its style (owner, 8 Oct 2026):
+ * what the document is, then the decision on it once one is taken.
+ */
+const DEBIT_NOTE_BADGES = {
+  type: {
+    bg: 'bg-surface-background',
+    fg: 'text-text-tertiary',
+    labelKey: 'billsPage.debitNote.type',
+  },
+  ACCEPTED: {
+    bg: 'bg-success-100',
+    fg: 'text-success-700',
+    labelKey: 'billsPage.debitNote.accepted',
+  },
+  REFUSED: { bg: 'bg-danger-100', fg: 'text-danger-700', labelKey: 'billsPage.debitNote.refused' },
+} as const
 
 /**
  * The button under a row's status chip (Figma 163:21928). Only Approve is filled: it is the one
@@ -709,8 +728,18 @@ function BillKpiCards({
         }),
         totals.disputedCount > 0
           ? t('billsPage.kpi.payableDisputed', {
-              amount: money(totals.disputedTotal),
+              // The code before the figure: the rial sign is drawn in its place.
+              amount: `${totals.currencyCode} ${money(totals.disputedTotal)}`,
               count: totals.disputedCount,
+            })
+          : null,
+        // Undecided debit notes are not owed until accepted, so they are outside the figure
+        // above and named here (owner, 10 Oct 2026). The code goes before the amount for the
+        // rial sign to stand in its place.
+        (totals.debitNotesAwaitingDecisionCount ?? 0) > 0
+          ? t('billsPage.kpi.payableAwaitingDecision', {
+              amount: `${totals.currencyCode} ${money(totals.debitNotesAwaitingDecisionTotal ?? 0)}`,
+              count: totals.debitNotesAwaitingDecisionCount,
             })
           : null,
       ]
@@ -758,7 +787,9 @@ function BillKpiCards({
               {kpi.money ? <RialMark className="w-8 shrink-0" /> : null}
               <p className="text-[32px] font-semibold leading-[1.2] tabular-nums">{kpi.figure}</p>
             </div>
-            <p className="text-sm font-medium leading-[1.4] text-text-tertiary">{kpi.meta}</p>
+            <p className="text-sm font-medium leading-[1.4] text-text-tertiary">
+              {withRial(kpi.meta)}
+            </p>
             {kpi.link ? (
               kpi.link.to ? (
                 <Link to={kpi.link.to} className={linkClass}>
@@ -1092,6 +1123,23 @@ function BillTableRow({
         >
           {t(source.labelKey)}
         </span>
+        {row.debitNote
+          ? [
+              DEBIT_NOTE_BADGES.type,
+              ...(row.debitNote.decision ? [DEBIT_NOTE_BADGES[row.debitNote.decision]] : []),
+            ].map((badge) => (
+              <span
+                key={badge.labelKey}
+                className={[
+                  'ms-1 mt-1 inline-flex items-center rounded-[2px] px-2 py-1 text-[10px] font-semibold uppercase leading-[1.2]',
+                  badge.bg,
+                  badge.fg,
+                ].join(' ')}
+              >
+                {t(badge.labelKey)}
+              </span>
+            ))
+          : null}
       </td>
 
       <td className="px-2 py-2.5 align-middle">

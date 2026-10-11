@@ -288,6 +288,16 @@ export type ConfirmExtras = {
   taxCategoryCode?: string | null
   /** The note typed on a receipt, kept on the bill: sent only when something was typed. */
   note?: string | null
+  /** A supplier note's reason as typed: sent only when something was typed. */
+  reasonDetail?: string | null
+  /** The bill a supplier note corrects: sent only when one is given. */
+  relatedBillId?: string | null
+  /**
+   * A credit note's "Hold it as credit": the related bill stays its reference and nothing is
+   * applied. Sent only when true, and only on a credit note (381); the server refuses it on a
+   * bill or a debit note.
+   */
+  holdAsCredit?: boolean
 }
 
 export function toConfirmation(form: BillForm, extras: ConfirmExtras = {}): ConfirmIntakeDto {
@@ -323,6 +333,9 @@ export function toConfirmation(form: BillForm, extras: ConfirmExtras = {}): Conf
     // TODO(backend): EXPENDITURE.md M.2. A receipt's category: 0% zero-rated and exempt apart.
     ...(extras.taxCategoryCode ? { taxCategoryCode: extras.taxCategoryCode } : {}),
     ...(extras.note?.trim() ? { note: extras.note.trim() } : {}),
+    ...(extras.reasonDetail?.trim() ? { reasonDetail: extras.reasonDetail.trim() } : {}),
+    ...(extras.relatedBillId ? { relatedBillId: extras.relatedBillId } : {}),
+    ...(extras.holdAsCredit && extras.documentTypeCode === '381' ? { holdAsCredit: true } : {}),
   }
 }
 

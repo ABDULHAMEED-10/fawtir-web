@@ -22,6 +22,39 @@ export const DEBIT_NOTE_SUMMARY_PATH = `${DEBIT_NOTES_PATH}/summary`
 
 export const NOTE_PAGE_SIZE = 20
 
+/** `SupplierNoteSort`, on both lists. NEWEST is the server's default and is not sent. */
+export type NoteSortDto = 'NEWEST' | 'AMOUNT_HIGHEST' | 'AMOUNT_LOWEST' | 'SUPPLIER'
+
+/**
+ * The search box, the supplier filter and the sort, as both lists send them. `q` matches the
+ * note's number, the supplier's name or Peppol id, and the bill it names; the server takes at
+ * most 200 characters.
+ */
+export type NoteListQuery = { q: string; supplierId: string | null; sort: NoteSortDto }
+
+export const NOTE_QUERY_MAX = 200
+
+const ANY_NOTE: NoteListQuery = { q: '', supplierId: null, sort: 'NEWEST' }
+
+function noteListParams(query: NoteListQuery) {
+  return {
+    q: query.q.trim().slice(0, NOTE_QUERY_MAX),
+    supplier_id: query.supplierId,
+    sort: query.sort === 'NEWEST' ? undefined : query.sort,
+  }
+}
+
+/**
+ * The summary whose tab counts are counted over the notes a search and a supplier filter leave,
+ * as the Bills list does: each then equals the `total` of the list under that tab. The cards
+ * are the whole ledger's either way. Null with neither, where the plain summary already says it.
+ */
+function tabCountsPath(summaryPath: string, query: Pick<NoteListQuery, 'q' | 'supplierId'>) {
+  const q = query.q.trim().slice(0, NOTE_QUERY_MAX)
+  if (q === '' && query.supplierId === null) return null
+  return withQuery(summaryPath, { q, supplier_id: query.supplierId })
+}
+
 /** Shared by both lists: where the document came from, and whether the platform vouched for it. */
 export type NoteSourceDto = 'PEPPOL' | 'UPLOADED' | 'SCANNED' | 'RECURRING' | 'SELF_BILLED'
 
@@ -30,6 +63,12 @@ export type ApprovalDto = 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED'
 // ─────────────────────────────────────────────────────────────── credit notes
 
 export type CreditNoteStatusDto = 'UNAPPLIED' | 'WAITING_FOR_BILL' | 'APPLIED' | 'REFUNDED'
+
+/**
+ * Backend #477: how much of the credit has gone (applied or refunded). `status` says only whether
+ * any is left, so a partly used note is still UNAPPLIED; this tells it from an unused one.
+ */
+export type CreditNoteUsageDto = 'NOT_USED' | 'PARTLY_USED' | 'FULLY_USED'
 
 /** How much of the credit has gone where. Presented positive, like `creditedAmount`. */
 export type CreditNoteBalanceDto = {
@@ -73,14 +112,21 @@ export type CreditNoteRowDto = {
   /** BTOM-032 — why the supplier credited. Mandatory under IBR-023-OM, coded by CL-02-OM. */
   reasonCode: string | null
   /**
-   * The finer reason behind the CL-02-OM code, as the app's own reason id (SHORT_DELIVERY,
-   * DAMAGED, SURCHARGE…). TODO(backend): EXPENDITURE.md R.3.
+   * The words beside the CL-02-OM code, as typed when the note was uploaded; null when none were
+   * given or the note came over Peppol. Older rows may hold the app's own reason ids
+   * (SHORT_DELIVERY, DAMAGED…), which still read as their labels.
    */
   reasonDetail?: string | null
   /** Our own receipt report to the OTA (om-tdd, role 02). TODO(backend): EXPENDITURE.md R.1. */
   receiptReport?: ReceiptReportDto | null
+  /** When the note was recorded: projected from Peppol, or confirmed from an upload. */
+  receivedAt?: string | null
+  /** The upload the note was confirmed from, whose file is `GET /v1/bills/intake/{id}/file`. */
+  intakeId?: string | null
   approval: ApprovalDto
   status: CreditNoteStatusDto
+  /** Absent from a server before backend #477: then read from `balance`. */
+  usage?: CreditNoteUsageDto | null
   balance: CreditNoteBalanceDto
   credits: CreditedBillDto
 }
@@ -93,6 +139,14 @@ export type CreditNoteSummaryDto = {
   recoveredThisQuarter: number
   topSupplier: { supplierId: string | null; supplierName: string | null; noteCount: number } | null
   excludedFromTotals: number
+  /** Notes per tab of the list, narrowed by the list's `q` and `supplier_id` when sent. */
+  tabs: {
+    all: number
+    unapplied: number
+    waitingForBill: number
+    applied: number
+    refunded: number
+  }
 }
 
 export type CreditNoteSettlementDto = {
@@ -112,18 +166,29 @@ export type CreditNoteSettlementDto = {
 export type CreditNoteActionDto = {
   settlement: CreditNoteSettlementDto
   status: CreditNoteStatusDto
+  usage?: CreditNoteUsageDto | null
   balance: CreditNoteBalanceDto
 }
 
-export function creditNoteListPath(status: CreditNoteStatusDto | 'ALL', page: number, pageSize = NOTE_PAGE_SIZE) {
+export function creditNoteListPath(
+  status: CreditNoteStatusDto | 'ALL',
+  page: number,
+  query: NoteListQuery = ANY_NOTE,
+  pageSize = NOTE_PAGE_SIZE,
+) {
   return withQuery(CREDIT_NOTES_PATH, {
     // Sent explicitly rather than omitted: the server rejects an unknown value instead of
     // reading it as ALL, and a filter that silently widened would show every note to someone
     // who believed they were looking at the unapplied ones.
     status,
+    ...noteListParams(query),
     page,
     page_size: pageSize,
   })
+}
+
+export function creditNoteTabCountsPath(query: Pick<NoteListQuery, 'q' | 'supplierId'>) {
+  return tabCountsPath(CREDIT_NOTE_SUMMARY_PATH, query)
 }
 
 export function creditNotePath(id: string) {
@@ -138,8 +203,11 @@ export function loadCreditNote(id: string): Promise<CreditNoteRowDto> {
   return apiRequest<CreditNoteRowDto>(creditNotePath(id))
 }
 
-export function loadCreditNoteSummary(): Promise<CreditNoteSummaryDto> {
-  return apiRequest<CreditNoteSummaryDto>(CREDIT_NOTE_SUMMARY_PATH)
+/** @param path the plain summary, or {@link creditNoteTabCountsPath} for narrowed counts. */
+export function loadCreditNoteSummary(
+  path = CREDIT_NOTE_SUMMARY_PATH,
+): Promise<CreditNoteSummaryDto> {
+  return apiRequest<CreditNoteSummaryDto>(path)
 }
 
 export function loadCreditNoteSettlements(id: string): Promise<CreditNoteSettlementDto[]> {
@@ -181,6 +249,11 @@ export type RelatedInvoiceDto = {
   billNumber: string | null
   issueDate: string | null
   documentUuid: string | null
+  /**
+   * The bill on file the note adds to, for the screens to link to (as `credits.billId` on a
+   * credit note); null when the server cannot name exactly one.
+   */
+  billId?: string | null
 }
 
 export type DebitNoteRowDto = {
@@ -203,8 +276,9 @@ export type DebitNoteRowDto = {
   amountDue: number | null
   reasonCode: string | null
   /**
-   * The finer reason behind the CL-02-OM code, as the app's own reason id (SHORT_DELIVERY,
-   * DAMAGED, SURCHARGE…). TODO(backend): EXPENDITURE.md R.3.
+   * The words beside the CL-02-OM code, as typed when the note was uploaded; null when none were
+   * given or the note came over Peppol. Older rows may hold the app's own reason ids
+   * (SURCHARGE, LATE_FEE…), which still read as their labels.
    */
   reasonDetail?: string | null
   /** Our own receipt report to the OTA (om-tdd, role 02). TODO(backend): EXPENDITURE.md R.1. */
@@ -216,6 +290,8 @@ export type DebitNoteRowDto = {
   paymentState: string
   status: DebitNoteStatusDto
   decidedBy: string | null
+  /** Who took the current decision, by name; null while unchecked or once they have left. */
+  decidedByName?: string | null
   decidedAt: string | null
   decisionReason: string | null
   relatesTo: RelatedInvoiceDto | null
@@ -231,10 +307,26 @@ export type DebitNoteSummaryDto = {
   rejectedThisYearCount: number
   rejectedThisYearTotal: number
   excludedFromTotals: number
+  /** Notes per tab of the list, narrowed by the list's `q` and `supplier_id` when sent. */
+  tabs: { all: number; unchecked: number; accepted: number; refused: number }
 }
 
-export function debitNoteListPath(status: DebitNoteStatusDto | 'ALL', page: number, pageSize = NOTE_PAGE_SIZE) {
-  return withQuery(DEBIT_NOTES_PATH, { status, page, page_size: pageSize })
+export function debitNoteListPath(
+  status: DebitNoteStatusDto | 'ALL',
+  page: number,
+  query: NoteListQuery = ANY_NOTE,
+  pageSize = NOTE_PAGE_SIZE,
+) {
+  return withQuery(DEBIT_NOTES_PATH, {
+    status,
+    ...noteListParams(query),
+    page,
+    page_size: pageSize,
+  })
+}
+
+export function debitNoteTabCountsPath(query: Pick<NoteListQuery, 'q' | 'supplierId'>) {
+  return tabCountsPath(DEBIT_NOTE_SUMMARY_PATH, query)
 }
 
 export function debitNotePath(id: string) {
@@ -249,8 +341,9 @@ export function loadDebitNote(id: string): Promise<DebitNoteRowDto> {
   return apiRequest<DebitNoteRowDto>(debitNotePath(id))
 }
 
-export function loadDebitNoteSummary(): Promise<DebitNoteSummaryDto> {
-  return apiRequest<DebitNoteSummaryDto>(DEBIT_NOTE_SUMMARY_PATH)
+/** @param path the plain summary, or {@link debitNoteTabCountsPath} for narrowed counts. */
+export function loadDebitNoteSummary(path = DEBIT_NOTE_SUMMARY_PATH): Promise<DebitNoteSummaryDto> {
+  return apiRequest<DebitNoteSummaryDto>(path)
 }
 
 /** Newest first, so the current decision reads before what it replaced. */
