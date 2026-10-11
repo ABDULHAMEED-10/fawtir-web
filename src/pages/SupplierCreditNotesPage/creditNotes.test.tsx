@@ -15,6 +15,8 @@ const BILL_ID = '70000000-0000-0000-0000-000000000002'
 const OTHER_BILL_ID = '70000000-0000-0000-0000-000000000003'
 const SETTLED_BILL_ID = '70000000-0000-0000-0000-000000000004'
 const DEBIT_BILL_ID = '70000000-0000-0000-0000-000000000005'
+/** A supplier record's id, as the server's are. */
+const NIZWA = '5d000000-0000-4000-8000-000000000002'
 
 /** A row of our own supplier's, to vary one field at a time. */
 const OURS = {
@@ -59,6 +61,7 @@ const SUMMARY: CreditNoteSummaryDto = {
   recoveredThisQuarter: 180,
   topSupplier: { supplierId: 's-1', supplierName: 'Qalhat Marine Supplies', noteCount: 4 },
   excludedFromTotals: 1,
+  tabs: { all: 5, unapplied: 3, waitingForBill: 0, applied: 1, refunded: 1 },
 }
 
 function note(overrides: Partial<CreditNoteRowDto> = {}): CreditNoteRowDto {
@@ -106,6 +109,7 @@ let settlements: unknown[]
 let applyBody: unknown
 let applyRefusal: Record<string, unknown> | null
 let refundBody: unknown
+let downloads: string[]
 
 const calls = (prefix: string) =>
   fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith(prefix))
@@ -119,13 +123,24 @@ beforeEach(async () => {
   applyBody = null
   applyRefusal = null
   refundBody = null
+  downloads = []
 
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(
       typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
     )
     if (url.startsWith(ENTITLEMENTS_URL)) return json(200, who)
+    // Narrowed by a search or a supplier, the summary counts its tabs over what is left.
+    if (url.startsWith(`${SUMMARY_URL}?`))
+      return json(200, {
+        ...SUMMARY,
+        tabs: { all: 1, unapplied: 1, waitingForBill: 0, applied: 0, refunded: 0 },
+      })
     if (url.startsWith(SUMMARY_URL)) return json(200, SUMMARY)
+    if (url.includes('/inbound-invoices/') || url.includes('/bills/intake/')) {
+      downloads.push(url)
+      return new Response('<CreditNote/>', { status: 200 })
+    }
     if (url.includes(`/credit-notes/${NOTE_ID}/settlements`)) return json(200, settlements)
     if (url.includes(`/credit-notes/${NOTE_ID}/apply`)) {
       applyBody = JSON.parse(String(init?.body))
@@ -299,12 +314,12 @@ describe('Credit notes list, wired to the API', () => {
   it('draws the frame: three tabs, a search box, Filters and Sort, and a row menu', async () => {
     renderList()
     await screen.findByText('QMS-CN-1')
-    // The count on the open tab is the total the server reported for it, drawn once it arrives.
+    // Every tab carries the summary's count for it, as the frame draws (All 5 · Used 1 · Refunded 1).
     await waitFor(() =>
       expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
-        'All1',
-        'Used',
-        'Refunded',
+        'All5',
+        'Used1',
+        'Refunded1',
       ]),
     )
     expect(screen.getByLabelText('Search supplier, bill number...')).toBeTruthy()
@@ -320,7 +335,7 @@ describe('Credit notes list, wired to the API', () => {
       '/api/v1/credit-notes?status=ALL&page=0&page_size=20',
     ])
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Refunded' }))
+    fireEvent.click(screen.getByRole('tab', { name: /^Refunded/ }))
     await waitFor(() =>
       expect(calls('/api/v1/credit-notes?').at(-1)).toBe(
         '/api/v1/credit-notes?status=REFUNDED&page=0&page_size=20',
@@ -341,22 +356,90 @@ describe('Credit notes list, wired to the API', () => {
     expect(screen.getByRole('tab', { name: /Not used yet/ })).toBeTruthy()
   })
 
-  it('narrows the page in hand from the search box, and says so is the page not the set', async () => {
+  it('sends the search to the server once typing pauses, and counts the tabs over it', async () => {
+    renderList()
+    await screen.findByText('QMS-CN-1')
+    fireEvent.change(screen.getByLabelText('Search supplier, bill number...'), {
+      target: { value: '  nizwa ' },
+    })
+    await waitFor(() =>
+      expect(calls('/api/v1/credit-notes?').at(-1)).toBe(
+        '/api/v1/credit-notes?status=ALL&q=nizwa&page=0&page_size=20',
+      ),
+    )
+    expect(calls(`${SUMMARY_URL}?`)).toEqual([`${SUMMARY_URL}?q=nizwa`])
+    await waitFor(() =>
+      expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+        'All1',
+        'Used0',
+        'Refunded0',
+      ]),
+    )
+    // The cards describe the whole ledger, so they stay as they were.
+    expect(screen.getByText('420.500')).toBeTruthy()
+  })
+
+  it('filters by the supplier record and sorts on the server', async () => {
     notes = [
       note(),
-      note({ id: 'other', creditNoteNumber: 'QMS-CN-2', supplierName: 'Nizwa Dates Trading' }),
+      note({
+        id: 'other',
+        creditNoteNumber: 'NDT-CN-2',
+        supplierId: NIZWA,
+        supplierName: 'Nizwa Dates Trading',
+      }),
     ]
     renderList()
-    await screen.findByText('QMS-CN-2')
-    fireEvent.change(screen.getByLabelText('Search supplier, bill number...'), {
-      target: { value: 'nizwa' },
-    })
-    expect(screen.queryByText('QMS-CN-1')).toBeNull()
-    expect(screen.getByText('QMS-CN-2')).toBeTruthy()
-    // No request left for it: the endpoint has no search parameter (backend ask 5.1).
+    await screen.findByText('NDT-CN-2')
+
+    fireEvent.click(screen.getByRole('button', { name: /Filters/ }))
+    fireEvent.click(screen.getByRole('option', { name: 'Nizwa Dates Trading' }))
+    await waitFor(() =>
+      expect(calls('/api/v1/credit-notes?').at(-1)).toBe(
+        `/api/v1/credit-notes?status=ALL&supplier_id=${NIZWA}&page=0&page_size=20`,
+      ),
+    )
+    expect(calls(`${SUMMARY_URL}?`)).toEqual([`${SUMMARY_URL}?supplier_id=${NIZWA}`])
+
+    fireEvent.click(screen.getByRole('button', { name: /Sort/ }))
+    fireEvent.click(screen.getByRole('option', { name: 'Amount: high to low' }))
+    await waitFor(() =>
+      expect(calls('/api/v1/credit-notes?').at(-1)).toBe(
+        `/api/v1/credit-notes?status=ALL&supplier_id=${NIZWA}&sort=AMOUNT_HIGHEST&page=0&page_size=20`,
+      ),
+    )
+  })
+
+  it('ignores an old link whose supplier was a name, rather than sending it as supplier_id', async () => {
+    renderList('/expenditure/credit-notes?supplier=Nizwa%20Dates%20Trading')
+    await screen.findByText('QMS-CN-1')
     expect(calls('/api/v1/credit-notes?')).toEqual([
       '/api/v1/credit-notes?status=ALL&page=0&page_size=20',
     ])
+    expect(calls(`${SUMMARY_URL}?`)).toEqual([])
+    expect(screen.getByRole('button', { name: /^Filters/ })).toBeTruthy()
+  })
+
+  it('says when the note arrived, and downloads an uploaded note from its upload', async () => {
+    notes = [
+      note({
+        source: 'UPLOADED',
+        receivedAt: '2026-09-03T21:30:00Z',
+        intakeId: 'intake-1',
+      }),
+    ]
+    vi.stubGlobal(
+      'URL',
+      Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} }),
+    )
+    renderList()
+    await screen.findByText('QMS-CN-1')
+    // An instant read in Muscat: 21:30 UTC on the 3rd is the 4th there.
+    expect(screen.getByText(/^Arrived 4 Sep/)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Credit note actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /Download/ }))
+    await waitFor(() => expect(downloads).toEqual(['/api/v1/bills/intake/intake-1/file']))
   })
 
   it('links a credit to its bill only when one bill actually carries it', async () => {
@@ -604,5 +687,25 @@ describe('One credit note', () => {
     await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
     expect(screen.getAllByText('CL02-RETURN').length).toBeGreaterThan(0)
     expect(screen.getByText('Reason code CL02-RETURN')).toBeTruthy()
+  })
+
+  it('prints the words given with the note as its reason, the CL-02-OM code under them', async () => {
+    notes = [note({ reasonCode: 'QTY', reasonDetail: 'Three boxes short. Credited in full.' })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.getAllByText('Three boxes short. Credited in full.').length).toBeGreaterThan(0)
+    expect(screen.getByText(/^QTY · /)).toBeTruthy()
+  })
+
+  it('downloads an uploaded note from its upload when the bill read gives no file', async () => {
+    notes = [note({ source: 'UPLOADED', networkVerified: false, intakeId: 'intake-1' })]
+    vi.stubGlobal(
+      'URL',
+      Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} }),
+    )
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    fireEvent.click(screen.getByRole('button', { name: 'Download' }))
+    await waitFor(() => expect(downloads).toEqual(['/api/v1/bills/intake/intake-1/file']))
   })
 })

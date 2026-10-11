@@ -5,7 +5,9 @@ import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { IntakeDto } from '../../api/expenditure/billIntake'
 import type { BillRowDto } from '../../api/expenditure/bills'
-import type { CreditNoteActionDto } from '../../api/expenditure/notes'
+import { SessionContext } from '../../lib/session/session'
+import { SupplierNoteIntake, type NoteKind } from '../../components/debit/SupplierNoteIntake'
+import { fromIntake, toConfirmation } from '../../lib/billIntake'
 import { UploadCreditNotePage } from './UploadCreditNotePage'
 
 const MANAGER: Entitlements = {
@@ -87,22 +89,6 @@ const BILL: BillRowDto = {
   paidOnTheSpot: false,
 }
 
-const APPLIED: CreditNoteActionDto = {
-  settlement: {
-    id: 's-1',
-    creditNoteId: NOTE_ID,
-    billId: BILL_ID,
-    kind: 'APPLIED',
-    amount: 105,
-    paymentReference: null,
-    settledOn: '2026-09-17',
-    actorId: 'u-1',
-    occurredAt: '2026-09-17T08:01:00Z',
-  },
-  status: 'APPLIED',
-  balance: { applied: 105, refunded: 0, remaining: 0 },
-}
-
 function json(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
     status,
@@ -114,8 +100,6 @@ let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
 /** What the confirm answers, when set; a saved note otherwise. */
 let confirmAnswer: (() => Promise<Response>) | null
-/** What the apply answers, when set; a settlement otherwise. */
-let applyAnswer: (() => Response) | null
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -126,14 +110,12 @@ const calls = (method: string, prefix: string) =>
 const bodyOf = (call: unknown[]) => JSON.parse((call[1] as RequestInit).body as string)
 
 const CONFIRM = `/api/v1/bills/intake/${XML_NOTE.id}/confirm`
-const APPLY = `/api/v1/credit-notes/${NOTE_ID}/apply`
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   forgetEntitlements()
   who = MANAGER
   confirmAnswer = null
-  applyAnswer = null
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, who)
@@ -148,7 +130,6 @@ beforeEach(async () => {
             totalIncludingVat: 105,
             currencyCode: 'OMR',
           })
-    if (url === APPLY && method === 'POST') return applyAnswer ? applyAnswer() : json(200, APPLIED)
     if (url.startsWith('/api/v1/bills/intake/') && method === 'DELETE')
       return new Response(null, { status: 204 })
     if (url.startsWith('/api/v1/bills?') && method === 'GET')
@@ -245,39 +226,51 @@ describe('upload a supplier credit note', () => {
       category: null,
       paidOnTheSpot: null,
       notDuplicateOf: null,
+      // The reason as typed; the form has no CL-02-OM code to pick, so no `reasonCode`.
+      reasonDetail: REASON,
     })
-    // The current contract (row 5.12): the confirm request has no place for the note's reason,
-    // so the reason typed on the screen is not sent anywhere. When the backend adds the field,
-    // this assertion is the one to turn around.
-    expect(JSON.stringify(body)).not.toContain(REASON)
-    // No bill was chosen, so nothing follows the save.
+    // No bill was chosen, so none is named, nothing is held against one, and nothing follows.
+    expect(body).not.toHaveProperty('relatedBillId')
+    expect(body).not.toHaveProperty('holdAsCredit')
     expect(calls('POST', '/api/v1/credit-notes/')).toHaveLength(0)
   })
 
-  it('sets the credit against the chosen bill after saving it', async () => {
+  it('names the chosen bill on the confirm, which sets the credit against it, and calls no apply', async () => {
     await uploadNote()
     await chooseBill()
     fireEvent.change(reasonField(), { target: { value: REASON } })
     fireEvent.click(screen.getByRole('button', { name: 'Save and set against the bill' }))
 
     expect(await screen.findByText('credit note page')).toBeTruthy()
-    // The current contract (row 5.12): the confirm request has no place for the bill the note
-    // corrects either; the bill only reaches the server through the apply call that follows.
     const confirmed = bodyOf(calls('POST', CONFIRM)[0])
     expect(confirmed.documentTypeCode).toBe('381')
-    expect(JSON.stringify(confirmed)).not.toContain(BILL_ID)
-    expect(JSON.stringify(confirmed)).not.toContain(REASON)
-
-    expect(calls('POST', APPLY)).toHaveLength(1)
-    // A null amount asks for the largest amount that fits both the credit and the bill.
-    expect(bodyOf(calls('POST', APPLY)[0])).toEqual({ billId: BILL_ID, amount: null })
-    // The save comes first: the apply names the note the confirm created.
-    const order = fetchMock.mock.calls.map(([url]) => String(url))
-    expect(order.indexOf(CONFIRM)).toBeLessThan(order.indexOf(APPLY))
+    expect(confirmed.relatedBillId).toBe(BILL_ID)
+    // Set against is the server's default, so no `holdAsCredit` is sent.
+    expect(confirmed).not.toHaveProperty('holdAsCredit')
+    expect(confirmed.reasonDetail).toBe(REASON)
+    expect(confirmed).not.toHaveProperty('reasonCode')
+    // The server applies the credit in the confirm itself; a second apply would be refused.
+    expect(calls('POST', '/api/v1/credit-notes/')).toHaveLength(0)
   })
 
-  it('keeps the note saved when setting it against the bill is refused, and says so', async () => {
-    applyAnswer = () =>
+  it('keeps the chosen bill as the reference when the credit is held, and asks the server to apply nothing', async () => {
+    await uploadNote()
+    await chooseBill()
+    fireEvent.click(screen.getByRole('radio', { name: /Hold it as credit/ }))
+    fireEvent.change(reasonField(), { target: { value: REASON } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save the credit note' }))
+
+    expect(await screen.findByText('credit note page')).toBeTruthy()
+    const confirmed = bodyOf(calls('POST', CONFIRM)[0])
+    expect(confirmed.documentTypeCode).toBe('381')
+    expect(confirmed.relatedBillId).toBe(BILL_ID)
+    expect(confirmed.holdAsCredit).toBe(true)
+    expect(confirmed.reasonDetail).toBe(REASON)
+    expect(calls('POST', '/api/v1/credit-notes/')).toHaveLength(0)
+  })
+
+  it('saves nothing when the chosen bill cannot take the credit, and stays on the form to choose again', async () => {
+    confirmAnswer = async () =>
       json(400, {
         type: 'https://api.fawtir.om/problems/expenditure-refused',
         error: 'CREDIT_NOTE_SUPPLIER_MISMATCH',
@@ -289,19 +282,30 @@ describe('upload a supplier credit note', () => {
 
     expect(
       await screen.findByText(
-        'The note is saved, but the next step did not go through. This credit note is from a different supplier than that bill. A credit can only reduce a bill from the supplier who issued it.',
+        'This credit note is from a different supplier than that bill. A credit can only reduce a bill from the supplier who issued it.',
       ),
     ).toBeTruthy()
-    // Still on the form, which now points at the saved note instead of offering to save again.
     expect(screen.queryByText('credit note page')).toBeNull()
-    expect(screen.getByRole('link', { name: 'Open the note' }).getAttribute('href')).toBe(
-      `/expenditure/credit-notes/${NOTE_ID}`,
-    )
+    // Nothing was saved, so the form offers to save again rather than to open a note.
+    expect(screen.queryByRole('link', { name: 'Open the note' })).toBeNull()
     const primary = screen.getByRole('button', { name: 'Save and set against the bill' })
-    expect((primary as HTMLButtonElement).disabled).toBe(true)
-    fireEvent.click(primary)
+    expect((primary as HTMLButtonElement).disabled).toBe(false)
+    expect(calls('POST', '/api/v1/credit-notes/')).toHaveLength(0)
+  })
+
+  it('reads a refusal it has no sentence for as the generic refusal, not a retry', async () => {
+    confirmAnswer = async () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/expenditure-refused',
+        error: 'CREDIT_NOTE_TARGET_ON_HOLD',
+      })
+    await uploadNote()
+    await chooseBill()
+    fireEvent.change(reasonField(), { target: { value: REASON } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save and set against the bill' }))
+
+    expect(await screen.findByText(/^The server refused this\. Nothing was changed/)).toBeTruthy()
     expect(calls('POST', CONFIRM)).toHaveLength(1)
-    expect(calls('POST', APPLY)).toHaveLength(1)
   })
 
   it('sends one confirm however quickly the button is pressed twice', async () => {
@@ -348,5 +352,130 @@ describe('upload a supplier credit note', () => {
     expect(document.querySelector('input[type=file]')).toBeNull()
     expect(screen.queryByText("Choose the supplier's credit note")).toBeNull()
     expect(calls('POST', '/api/v1/bills/intake')).toHaveLength(0)
+  })
+})
+
+/**
+ * What the composer reports once saved: the confirm answer's `creditApplied` says whether any
+ * credit came off the chosen bill; an older server that omits it leaves the bill as listed to
+ * decide.
+ */
+describe('the outcome of a credit note set against its bill on upload', () => {
+  async function saveAgainstBill(creditApplied: unknown) {
+    confirmAnswer = async () =>
+      json(201, {
+        id: NOTE_ID,
+        supplierBillNumber: 'MR-CN-0042',
+        totalIncludingVat: 105,
+        currencyCode: 'OMR',
+        ...(creditApplied === undefined ? {} : { creditApplied }),
+      })
+    const onSaved = vi.fn()
+    render(
+      <MemoryRouter>
+        <SessionContext.Provider value={MANAGER}>
+          <SupplierNoteIntake
+            kind="credit"
+            intake={XML_NOTE}
+            file={new File(['<CreditNote/>'], 'note.xml', { type: 'application/xml' })}
+            cancelTo="/expenditure/credit-notes"
+            onReplace={() => {}}
+            onSaved={onSaved}
+          />
+        </SessionContext.Provider>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByDisplayValue('MR-CN-0042')).toBeTruthy()
+    await chooseBill()
+    fireEvent.change(reasonField(), { target: { value: REASON } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save and set against the bill' }))
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))
+    expect(bodyOf(calls('POST', CONFIRM)[0]).relatedBillId).toBe(BILL_ID)
+    return onSaved.mock.calls[0][1]
+  }
+
+  it('says it was set against the bill when the server took credit off it', async () => {
+    expect(await saveAgainstBill({ billId: BILL_ID, amount: 105 })).toBe(
+      'supplierCreditNotes.upload.savedApplied',
+    )
+  })
+
+  it('says the credit is held when the server took nothing off the bill', async () => {
+    expect(await saveAgainstBill(null)).toBe('supplierCreditNotes.upload.savedHeld')
+  })
+
+  it('falls back to the bill as listed when the server does not say', async () => {
+    // The chosen bill still owed 315.000, so the credit came off it.
+    expect(await saveAgainstBill(undefined)).toBe('supplierCreditNotes.upload.savedApplied')
+  })
+})
+
+/** "Hold it as credit" (`holdAsCredit`) belongs to a credit note: the server refuses it on a 383. */
+describe('holding a credit against its bill on upload', () => {
+  function renderComposer(kind: NoteKind, onSaved = vi.fn()) {
+    render(
+      <MemoryRouter>
+        <SessionContext.Provider value={MANAGER}>
+          <SupplierNoteIntake
+            kind={kind}
+            intake={XML_NOTE}
+            file={new File(['<Note/>'], 'note.xml', { type: 'application/xml' })}
+            cancelTo="/expenditure"
+            onReplace={() => {}}
+            onSaved={onSaved}
+          />
+        </SessionContext.Provider>
+      </MemoryRouter>,
+    )
+    return onSaved
+  }
+
+  it('says the credit is held once saved, as before', async () => {
+    confirmAnswer = async () =>
+      json(201, {
+        id: NOTE_ID,
+        supplierBillNumber: 'MR-CN-0042',
+        totalIncludingVat: 105,
+        currencyCode: 'OMR',
+        creditApplied: null,
+      })
+    const onSaved = renderComposer('credit')
+    expect(await screen.findByDisplayValue('MR-CN-0042')).toBeTruthy()
+    await chooseBill()
+    fireEvent.click(screen.getByRole('radio', { name: /Hold it as credit/ }))
+    fireEvent.change(reasonField(), { target: { value: REASON } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save the credit note' }))
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))
+    const confirmed = bodyOf(calls('POST', CONFIRM)[0])
+    expect(confirmed.relatedBillId).toBe(BILL_ID)
+    expect(confirmed.holdAsCredit).toBe(true)
+    expect(onSaved.mock.calls[0][1]).toBe('supplierCreditNotes.upload.savedHeld')
+  })
+
+  it('never sends it on a debit note, even with a bill chosen, but sends the bill', async () => {
+    const onSaved = renderComposer('debit')
+    expect(await screen.findByDisplayValue('MR-CN-0042')).toBeTruthy()
+    fireEvent.click(await screen.findByRole('button', { name: /MR-INV-8821/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save the debit note' }))
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))
+    const confirmed = bodyOf(calls('POST', CONFIRM)[0])
+    expect(confirmed.documentTypeCode).toBe('383')
+    expect(confirmed).not.toHaveProperty('holdAsCredit')
+    // The bill the charge adds to: the server records it as the note's link (it applies nothing).
+    expect(confirmed.relatedBillId).toBeTruthy()
+  })
+
+  it('is dropped from any confirmation that is not a credit note', () => {
+    const form = fromIntake(XML_NOTE)
+    for (const documentTypeCode of ['380', '383'] as const)
+      expect(
+        toConfirmation(form, { documentTypeCode, relatedBillId: BILL_ID, holdAsCredit: true }),
+      ).not.toHaveProperty('holdAsCredit')
+    expect(
+      toConfirmation(form, { documentTypeCode: '381', relatedBillId: BILL_ID, holdAsCredit: true })
+        .holdAsCredit,
+    ).toBe(true)
   })
 })
