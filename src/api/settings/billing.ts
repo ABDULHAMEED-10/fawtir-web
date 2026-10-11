@@ -210,6 +210,6 @@ export function startCardCheckout(billId: string, idempotencyKey: string): Promi
   })
 }
 
-export function loadCardCheckout(paymentId: string): Promise<CardCheckoutDto> {
-  return apiRequest<CardCheckoutDto>(`${BILLING_PATH}/payments/${encodeURIComponent(paymentId)}/card-checkout`)
+export function loadCardCheckout(paymentId: string, signal?: AbortSignal): Promise<CardCheckoutDto> {
+  return apiRequest<CardCheckoutDto>(`${BILLING_PATH}/payments/${encodeURIComponent(paymentId)}/card-checkout`, { signal })
 }

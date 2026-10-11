@@ -20766,7 +20766,7 @@
       "continue": "Continue to payment",
       "checkAgain": "Check again",
       "uncertain": "We couldn't confirm whether your card payment was started. Check again before paying another way: checking never charges you twice.",
-      "notStarted": "The card payment could not be started. No money was taken. You can try again or choose another way to pay.",
+      "notStarted": "The card payment was not completed. Check your payment status before trying again.",
       "notForThisBill": "This bill can't be paid by card. Please use bank transfer or cash.",
       "notRepresentable": "This bill can't be paid by card. Please use bank transfer or cash. Bill total:",
       "underReviewBill": "A card payment for this bill is being reviewed. Please don't pay again; Fawtir Finance will contact you.",
@@ -20779,7 +20779,7 @@
         "READY": "Your card payment is ready.",
         "PROCESSING": "Pending confirmation from the card provider. This usually takes a moment.",
         "PAID": "Paid. Thank you.",
-        "NOT_COMPLETED": "The card payment was not completed. No money was taken. You can try again or choose another way to pay.",
+        "NOT_COMPLETED": "The card payment was not completed. Check your payment status before trying again.",
         "UNDER_REVIEW": "We received a card payment we need to check. Fawtir Finance will contact you; please don't pay again.",
         "REVERSED": "This card payment was refunded. Fawtir Finance will contact you about this bill."
       }

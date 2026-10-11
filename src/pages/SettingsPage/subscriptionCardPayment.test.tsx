@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
@@ -7,7 +7,7 @@ import en from '../../i18n/locales/en.json'
 import ar from '../../i18n/locales/ar.json'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { resetSharedRequests } from '../../api'
-import { hostedCheckout } from '../../api/settings/billing'
+import { hostedCheckout, isTrustedCheckoutUrl } from '../../api/settings/billing'
 import { BillingPage } from './BillingPage'
 
 const PAYER: Entitlements = {
@@ -146,6 +146,37 @@ async function chooseCard(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole('radio', { name: new RegExp(i18n.t('billing.method.CARD.title')) }))
 }
 
+describe('Settings › Billing: the hosted checkout host', () => {
+  it.each([
+    ['https://oman.paymob.com/unifiedcheckout/?publicKey=a&clientSecret=b'],
+    ['https://OMAN.PAYMOB.COM/unifiedcheckout/'],
+    ['https://oman.paymob.com:443/unifiedcheckout/'],
+  ])('accepts %s', (url) => {
+    expect(isTrustedCheckoutUrl(url)).toBe(true)
+  })
+
+  it.each([
+    ['http://oman.paymob.com/checkout'],
+    ['https://oman.paymob.com.evil.example/'],
+    ['https://evil.example/oman.paymob.com/'],
+    ['https://evil.example/?next=https://oman.paymob.com/'],
+    ['https://oman.paymob.com@evil.example/'],
+    ['https://user:pass@oman.paymob.com/'],
+    ['https://oman.paymob.com:8443/'],
+    ['https://oman.paymob.com./'],
+    ['https://accept.paymob.com/'],
+    ['//oman.paymob.com/unifiedcheckout/'],
+    ['/unifiedcheckout/'],
+    ['javascript:alert(1)'],
+    ['data:text/html,<script>alert(1)</script>'],
+    ['blob:https://oman.paymob.com/1234'],
+    [' '],
+    [''],
+  ])('refuses %s', (url) => {
+    expect(isTrustedCheckoutUrl(url)).toBe(false)
+  })
+})
+
 describe('Settings › Billing: card availability', () => {
   it('offers no card when the server reports card switched off, even if the bill would qualify, and keeps bank and cash', async () => {
     answers[BILLING] = () => json(200, overview({}, CARD_OK, false))
@@ -280,14 +311,33 @@ describe('Settings › Billing: starting a card payment', () => {
   })
 
   it('treats an unreachable server as uncertain, not as a failure to retry', async () => {
+    let attempts = 0
     answers[CHECKOUT] = () => {
-      throw new TypeError('Failed to fetch')
+      attempts += 1
+      if (attempts === 1) throw new TypeError('Failed to fetch')
+      return json(201, checkout('READY'))
     }
     const user = userEvent.setup({ delay: null })
     renderBilling()
     await chooseCard(user)
     await user.click(screen.getByRole('button', { name: i18n.t('billing.card.submit') }))
     expect(await screen.findByText(i18n.t('billing.card.uncertain'))).toBeTruthy()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(calls(CHECKOUT)).toHaveLength(1)
+    expect(opened).not.toHaveBeenCalled()
+  })
+
+  it('two clicks in the same tick still make one request', async () => {
+    answers[CHECKOUT] = () => json(201, checkout('READY'))
+    const user = userEvent.setup({ delay: null })
+    renderBilling()
+    await chooseCard(user)
+    const button = screen.getByRole('button', { name: i18n.t('billing.card.submit') })
+    act(() => {
+      fireEvent.click(button)
+      fireEvent.click(button)
+    })
+    await waitFor(() => expect(opened).toHaveBeenCalledTimes(1))
     expect(calls(CHECKOUT)).toHaveLength(1)
   })
 
@@ -434,6 +484,54 @@ describe('Settings › Billing: a card payment in progress', () => {
     expect(before - afterMinute).toBeLessThanOrEqual(1)
     await vi.advanceTimersByTimeAsync(16_000)
     expect(calls(STATUS_OF_P1).length).toBeGreaterThan(before)
+  })
+
+  it('stops asking when the bill leaves the screen', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] })
+    answers[BILLING] = () => json(200, pending())
+    answers[STATUS_OF_P1] = () => json(200, checkout('PROCESSING'))
+    const view = renderBilling()
+    expect(await screen.findByText(i18n.t('billing.card.status.PROCESSING'))).toBeTruthy()
+    view.unmount()
+    const asked = calls(STATUS_OF_P1).length
+    await vi.advanceTimersByTimeAsync(120_000)
+    expect(calls(STATUS_OF_P1).length).toBe(asked)
+  })
+
+  it('does not poll a hidden tab, and asks at once when it is shown again', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] })
+    let visibility: DocumentVisibilityState = 'visible'
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
+    answers[BILLING] = () => json(200, pending())
+    answers[STATUS_OF_P1] = () => json(200, checkout('PROCESSING'))
+    renderBilling()
+    expect(await screen.findByText(i18n.t('billing.card.status.PROCESSING'))).toBeTruthy()
+    visibility = 'hidden'
+    await vi.advanceTimersByTimeAsync(3_000)
+    const parked = calls(STATUS_OF_P1).length
+    await vi.advanceTimersByTimeAsync(120_000)
+    expect(calls(STATUS_OF_P1).length).toBe(parked)
+    visibility = 'visible'
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await waitFor(() => expect(calls(STATUS_OF_P1).length).toBe(parked + 1))
+  })
+
+  it('waits as long as the gateway asks when it is rate limited', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: false, toFake: ['setTimeout', 'clearTimeout'] })
+    answers[BILLING] = () => json(200, pending())
+    answers[STATUS_OF_P1] = () =>
+      new Response(JSON.stringify({ type: 'https://api.fawtir.om/problems/rate-limited' }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/problem+json', 'Retry-After': '40' },
+      })
+    renderBilling()
+    await vi.waitFor(() => expect(calls(STATUS_OF_P1).length).toBe(1))
+    await vi.advanceTimersByTimeAsync(39_000)
+    expect(calls(STATUS_OF_P1).length).toBe(1)
+    await vi.advanceTimersByTimeAsync(2_000)
+    expect(calls(STATUS_OF_P1).length).toBe(2)
   })
 
   it.each([

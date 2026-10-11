@@ -307,6 +307,9 @@ function PayForm({
   // answer keeps it, so asking again returns the checkout already opened instead of a second one.
   const cardKey = useRef<string>(newPaymentKey())
   const [cardState, setCardState] = useState<'idle' | 'redirecting' | 'uncertain'>('idle')
+  // Set synchronously, before any re-render can disable the button: two clicks in the same tick
+  // must still make one request.
+  const cardInFlight = useRef(false)
   const [cardFailure, setCardFailure] = useState<ReactNode>(null)
 
   // Why bank transfer is missing, from the server's own reason. NOT_OFFERED (switched off for this
@@ -349,6 +352,16 @@ function PayForm({
     }
   }
   const payByCard = async () => {
+    if (cardInFlight.current) return
+    cardInFlight.current = true
+    try {
+      await openCardCheckout()
+    } finally {
+      cardInFlight.current = false
+    }
+  }
+
+  const openCardCheckout = async () => {
     setBusy(true)
     setFailure(null)
     setCardFailure(null)
@@ -605,10 +618,20 @@ function CardPaymentStatus({
   useEffect(() => {
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | undefined
+    let request: AbortController | null = null
+    let parkedWhileHidden = false
     const startedAt = Date.now()
     const check = async () => {
+      // A hidden tab is not polled: nobody is reading it, and the gateway's rate limit is shared
+      // with everything else this company does. It resumes the moment the tab is shown again.
+      if (document.visibilityState === 'hidden') {
+        parkedWhileHidden = true
+        return
+      }
+      let delay = Date.now() - startedAt < CARD_POLL_FAST_FOR_MS ? CARD_POLL_FAST_MS : CARD_POLL_SLOW_MS
+      request = new AbortController()
       try {
-        const current = await loadCardCheckout(paymentId)
+        const current = await loadCardCheckout(paymentId, request.signal)
         if (cancelled) return
         setCheckout(current)
         setUnreachable(false)
@@ -619,17 +642,27 @@ function CardPaymentStatus({
           }
           return
         }
-      } catch {
+      } catch (error) {
         if (cancelled) return
+        if (error instanceof ApiError && error.status === 429 && error.retryAfterSeconds) {
+          delay = Math.max(delay, error.retryAfterSeconds * 1000)
+        }
         setUnreachable(true)
       }
-      const delay = Date.now() - startedAt < CARD_POLL_FAST_FOR_MS ? CARD_POLL_FAST_MS : CARD_POLL_SLOW_MS
       timer = setTimeout(check, delay)
     }
+    const resume = () => {
+      if (cancelled || !parkedWhileHidden || document.visibilityState === 'hidden') return
+      parkedWhileHidden = false
+      void check()
+    }
+    document.addEventListener('visibilitychange', resume)
     void check()
     return () => {
       cancelled = true
       if (timer) clearTimeout(timer)
+      request?.abort()
+      document.removeEventListener('visibilitychange', resume)
     }
   }, [paymentId, nudge, t])
 
