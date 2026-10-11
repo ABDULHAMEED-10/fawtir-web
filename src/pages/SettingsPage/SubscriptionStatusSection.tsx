@@ -35,12 +35,17 @@ type Pending = 'cancel' | 'keep' | 'withdrawChange' | null
  * Where the subscription stands, from `GET /v1/settings/subscription`: the same section on
  * Settings › Plan and Settings › Billing, so both pages show one set of dates.
  *
+ * `page` says which of the two it sits on, because "payment is due" must point somewhere true:
+ * on Bills and payment the ways to pay are right below it, on Plan they are on the other page.
+ * It used to say "contact Fawtir to pay" on both, directly above a working bank-transfer and cash
+ * form (BILLING-UX-01). When no way to pay is usable, the billing section itself says so.
+ *
  * There is no pay button and no auto-renew switch. The backend has no payment provider yet, and
  * a button that looked like it paid would be the thing the owner asked us never to show. A
  * customer who owes payment is told so in words, and that their invoices, reports and exports
  * stay available.
  */
-export function SubscriptionStatusSection() {
+export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }) {
   const { t, i18n } = useTranslation()
   const day = (iso: string | null) => (iso ? formatDate(iso, i18n.language) : '')
   const read = useApiRead<SubscriptionStatusDto>(SUBSCRIPTION_PATH, loadSubscription)
@@ -84,7 +89,7 @@ export function SubscriptionStatusSection() {
         </span>
       </div>
 
-      <StandingNotice status={status} />
+      <StandingNotice status={status} page={page} />
 
       {status.tracked ? <Facts status={status} /> : null}
 
@@ -160,7 +165,7 @@ export function SubscriptionStatusSection() {
   )
 }
 
-function StandingNotice({ status }: { status: SubscriptionStatusDto }) {
+function StandingNotice({ status, page }: { status: SubscriptionStatusDto; page: 'billing' | 'plan' }) {
   const { t, i18n } = useTranslation()
   const date = (iso: string | null) => (iso ? formatDate(iso, i18n.language) : '')
   let message: string | null = null
@@ -183,7 +188,7 @@ function StandingNotice({ status }: { status: SubscriptionStatusDto }) {
       tone = 'bg-pending-100 text-pending-700'
       break
     case 'PAYMENT_REQUIRED':
-      message = t('subscription.notice.paymentRequired')
+      message = t(page === 'billing' ? 'subscription.notice.paymentRequiredBilling' : 'subscription.notice.paymentRequiredPlan')
       tone = 'bg-danger-100 text-danger-700'
       break
     case 'CANCELLED':

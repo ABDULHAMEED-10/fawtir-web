@@ -20,7 +20,7 @@ export function PlanPage() {
   return (
     <SettingsShell group="billing">
       <SettingsHeader title={t('plan.title')} subtitle={t('people.plan.subtitle')} />
-      <SubscriptionStatusSection />
+      <SubscriptionStatusSection page="plan" />
       {plan.read.status === 'loading' ? (
         <LoadingNotice />
       ) : plan.read.status === 'failed' ? (
