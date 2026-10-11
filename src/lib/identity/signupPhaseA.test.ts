@@ -61,18 +61,21 @@ describe('plan and payment preference (contract §1-§2)', () => {
     expect(buildPlanRequest('GROWTH', 'annual', 'pv-g').planCode).toBe('GROWTH')
   })
 
-  it('sends a link channel for a card only', () => {
-    expect(buildPaymentPreferenceRequest('cardLink', 'whatsapp', true)).toEqual({
-      method: 'CARD_LINK',
-      linkChannel: 'WHATSAPP',
+  it('sends a trial with no method, and pay-now with its method and no link channel', () => {
+    expect(buildPaymentPreferenceRequest({ enrollment: 'trial' }, true)).toEqual({
+      enrollment: 'TRIAL',
+      method: null,
       erpExtractionAddon: true,
     })
-    expect(buildPaymentPreferenceRequest('bankTransfer', 'whatsapp', false)).toEqual({
-      method: 'BANK_TRANSFER',
-      linkChannel: null,
-      erpExtractionAddon: false,
-    })
-    expect(buildPaymentPreferenceRequest('cash', 'email', false).linkChannel).toBeNull()
+    expect(
+      buildPaymentPreferenceRequest({ enrollment: 'payNow', method: 'cardLink' }, false),
+    ).toEqual({ enrollment: 'PAY_NOW', method: 'CARD_LINK', erpExtractionAddon: false })
+    expect(
+      buildPaymentPreferenceRequest({ enrollment: 'payNow', method: 'bankTransfer' }, false),
+    ).toEqual({ enrollment: 'PAY_NOW', method: 'BANK_TRANSFER', erpExtractionAddon: false })
+    expect(
+      buildPaymentPreferenceRequest({ enrollment: 'payNow', method: 'cash' }, false),
+    ).not.toHaveProperty('linkChannel')
   })
 
   it('routes the new PLAN and PAYMENT stages to their screens', () => {

@@ -924,7 +924,9 @@
       "note": "We email you the invoice. The Fawtir team activates your account once the transfer is confirmed, usually within one business day.",
       "detailsOnRequest": "Fawtir sends you its bank details with the subscription invoice. Only pay into the account named on that invoice.",
       "noteLater": "Your first bill comes {{when}}, emailed with these details. Put the invoice number in the reference, and the Fawtir team confirms the transfer, usually within one business day.",
-      "unavailable": "Bank transfer isn't available yet."
+      "unavailable": "Bank transfer isn't available yet.",
+      "storageUnavailable": "Bank transfer is unavailable for a moment. Try again shortly.",
+      "afterApproval": "Don't transfer yet. Once your account is approved, your bill appears in Settings > Bills: transfer that exact amount, put the bill number in the reference, and upload the receipt there. The Fawtir team then verifies it."
     },
     "summary": {
       "title": "Order summary",
@@ -954,7 +956,7 @@
     "method": {
       "cardLink": {
         "title": "Card",
-        "subtitle": "Secure link · Paymob"
+        "subtitle": "Secure checkout · Paymob"
       },
       "bankTransfer": {
         "title": "Bank transfer",
@@ -966,16 +968,7 @@
       }
     },
     "cardLink": {
-      "viaWhatsAppNote": "To {{phone}} · valid {{days}} days",
-      "viaEmailNote": "To {{email}} · valid {{days}} days",
-      "yourPhone": "your phone",
-      "yourEmail": "your email",
-      "noteLater": "Your first bill comes {{when}} with a secure Paymob link. Your card is entered on Paymob's checkout, never on Fawtir.",
-      "sendTo": "Send the payment link",
-      "byVia": {
-        "email": "By email",
-        "whatsapp": "By WhatsApp"
-      }
+      "noteHosted": "Once your account is approved, you pay your bill on Paymob's secure checkout page. Your card is entered there, never on Fawtir."
     },
     "cash": {
       "noteLater": "Your first bill comes {{when}}. Pay it at Fawtir's office in Muscat or to your Fawtir representative, and you get a receipt."
@@ -997,7 +990,23 @@
       "later": "after your account is approved"
     },
     "continueCta": "Continue to review",
-    "descriptionPending": "Nothing is charged today. Your first bill comes after your account is approved, by the method you choose here."
+    "descriptionPending": "Nothing is charged today. Your first bill comes after your account is approved, by the method you choose here.",
+    "descriptionChoose": "Nothing is charged today. Start with a free trial, or choose how you'll pay your first bill once your account is approved.",
+    "trial": {
+      "toggle_one": "Start with a {{count}}-day free trial",
+      "toggle_other": "Start with a {{count}}-day free trial",
+      "offHint": "Off: you pay from the start. Your first bill comes when your account is approved.",
+      "onHint": "On: no payment now. Your trial starts when your account is approved.",
+      "note_one": "No payment is taken now. Your {{count}}-day free trial starts when your account is approved, and you choose how to pay before it ends.",
+      "note_other": "No payment is taken now. Your {{count}}-day free trial starts when your account is approved, and you choose how to pay before it ends."
+    },
+    "methodGroup": "Payment method",
+    "methodRequired": "Choose how you'll pay, or start with the free trial.",
+    "optionsLoading": "Checking which payment methods are available…",
+    "optionsFailed": "We couldn't check which payment methods are available. Reload the page to try again.",
+    "noMethod": "No payment method is available right now.",
+    "cardUnavailable": "Card payment isn't available yet.",
+    "cashUnavailable": "Cash payment isn't available yet."
   },
   "fawtaraStatus": {
     "heroTitle": "E-invoicing compliance, handled for you.",
@@ -15090,12 +15099,11 @@
     "billedMonthly": "billed monthly",
     "billedAnnually": "billed annually",
     "payment": {
-      "cardLink": {
-        "email": "Card, Paymob link by email",
-        "whatsapp": "Card, Paymob link by WhatsApp"
-      },
       "bankTransfer": "Bank transfer",
-      "cash": "Cash at our office"
+      "cash": "Cash at our office",
+      "card": "Card, on Paymob's secure checkout",
+      "trial_one": "Free trial ({{count}} day), no payment now",
+      "trial_other": "Free trial ({{count}} days), no payment now"
     },
     "firstBillAfterTrial_one": "After your {{count}}-day free trial",
     "firstBillAfterTrial_other": "After your {{count}}-day free trial",

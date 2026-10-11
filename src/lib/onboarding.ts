@@ -3,7 +3,6 @@ import type { TFunction } from 'i18next'
 import {
   isKnownPlanId,
   type BillingCycle,
-  type PaymentLinkVia,
   type PlanId,
   type SignupPaymentMethod,
 } from './pricing'
@@ -146,9 +145,13 @@ export type OnboardingState = {
   planTerms?: SignupStatusPlan
   /** The automatic ERP extraction add-on, ticked on /payment. */
   addon?: boolean
-  /** Chosen on /payment; never set for Enterprise, whose terms are agreed on a call. */
+  /**
+   * Chosen on /payment (V282): a free trial, or paying from approval. Undefined until chosen, and
+   * for a preference saved before the choice existed; never set for Enterprise.
+   */
+  enrollment?: 'trial' | 'payNow'
+  /** Chosen on /payment for `payNow` only; never set for a trial or for Enterprise. */
   paymentMethod?: SignupPaymentMethod
-  linkVia?: PaymentLinkVia
   /**
    * Set when this state was refilled from `/signup/status`, so the gate renders the page instead
    * of asking again: a draft with nothing saved yet would otherwise never look "ready".

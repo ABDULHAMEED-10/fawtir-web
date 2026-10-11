@@ -6,7 +6,6 @@ import {
   isKnownPlanId,
   type BillingCycle,
   type KnownPlanId,
-  type PaymentLinkVia,
   type PlanId,
   type SignupPaymentMethod,
 } from '../pricing'
@@ -123,6 +122,8 @@ export type SignupPlanCode = 'STARTER' | 'BUSINESS' | 'BUSINESS_PLUS' | 'ENTERPR
 export type SignupBillingCycle = 'MONTHLY' | 'ANNUAL'
 export type SignupPaymentMethodCode = 'CARD_LINK' | 'BANK_TRANSFER' | 'CASH'
 export type SignupLinkChannel = 'EMAIL' | 'WHATSAPP'
+/** V282: a free trial, or paying from approval. Neither charges anything at signup. */
+export type SignupEnrollmentCode = 'TRIAL' | 'PAY_NOW'
 
 /**
  * The saved answers the status read returns (Phase A contract §4), so a reload or a new tab shows
@@ -176,7 +177,10 @@ export type SignupStatusResponse = {
   paymentPreferenceComplete?: boolean
   plan?: SignupStatusPlan | null
   paymentPreference?: {
-    method: SignupPaymentMethodCode
+    /** `null` on a preference saved before the choice existed: the step then reads incomplete. */
+    enrollment?: SignupEnrollmentCode | null
+    /** `null` for a trial. */
+    method: SignupPaymentMethodCode | null
     linkChannel: SignupLinkChannel | null
     erpExtractionAddon: boolean
   } | null
@@ -281,6 +285,8 @@ export function submitForReview(onboardingToken: string, signal?: AbortSignal): 
 export const SIGNUP_PLAN_REQUIRED = 'signup-plan-required'
 export const SIGNUP_PAYMENT_PREFERENCE_REQUIRED = 'signup-payment-preference-required'
 export const SIGNUP_PAYMENT_NOT_APPLICABLE = 'signup-payment-not-applicable'
+/** A free trial was asked for on a plan that has none (also re-checked at submission). */
+export const SIGNUP_TRIAL_NOT_OFFERED = 'signup-trial-not-offered'
 /**
  * The `priceVersionId` sent with the plan is no longer the plan's current version (catalogue
  * contract §10): the price changed while the screen was open, so nothing was saved.
@@ -313,10 +319,6 @@ export const PAYMENT_METHOD_CODE: Record<SignupPaymentMethod, SignupPaymentMetho
   bankTransfer: 'BANK_TRANSFER',
   cash: 'CASH',
 }
-export const LINK_CHANNEL: Record<PaymentLinkVia, SignupLinkChannel> = {
-  email: 'EMAIL',
-  whatsapp: 'WHATSAPP',
-}
 
 /**
  * @param priceVersionId the catalogue version the screen showed, so the server refuses the choice
@@ -347,31 +349,68 @@ export function recordPlan(
   )
 }
 
-export function buildPaymentPreferenceRequest(
-  method: SignupPaymentMethod,
-  linkVia: PaymentLinkVia,
-  addon: boolean,
-) {
-  // The channel is required for a card link and refused for every other method (contract §2).
-  return {
-    method: PAYMENT_METHOD_CODE[method],
-    linkChannel: method === 'cardLink' ? LINK_CHANNEL[linkVia] : null,
-    erpExtractionAddon: addon,
-  }
+/**
+ * A trial or a paid start, as the payment screen decided it. The union makes "trial with a method"
+ * and "pay now without one" unrepresentable here; the server refuses both too (V282).
+ */
+export type EnrollmentChoice =
+  | { enrollment: 'trial' }
+  | { enrollment: 'payNow'; method: SignupPaymentMethod }
+
+export function buildPaymentPreferenceRequest(choice: EnrollmentChoice, addon: boolean) {
+  // No link channel: the owner removed the email/WhatsApp link choice (11 Oct 2026), and the
+  // server no longer requires one for a card.
+  return choice.enrollment === 'trial'
+    ? { enrollment: 'TRIAL' as const, method: null, erpExtractionAddon: addon }
+    : {
+        enrollment: 'PAY_NOW' as const,
+        method: PAYMENT_METHOD_CODE[choice.method],
+        erpExtractionAddon: addon,
+      }
 }
 
 export function recordPaymentPreference(
   onboardingToken: string,
-  method: SignupPaymentMethod,
-  linkVia: PaymentLinkVia,
+  choice: EnrollmentChoice,
   addon: boolean,
   signal?: AbortSignal,
 ): Promise<void> {
   return post(
     '/v1/auth/signup/payment-preference',
-    { onboardingToken, ...buildPaymentPreferenceRequest(method, linkVia, addon) },
+    { onboardingToken, ...buildPaymentPreferenceRequest(choice, addon) },
     signal,
   )
+}
+
+export type SignupBankTransferStatus =
+  | 'AVAILABLE'
+  | 'NOT_OFFERED'
+  | 'NO_ACCOUNT'
+  | 'STORAGE_UNAVAILABLE'
+
+/**
+ * Which methods can be chosen, from the server: bank transfer only with a confirmed ACTIVE account,
+ * card only with a configured provider. Replaces the static `bankBeneficiaryVerified` flag.
+ */
+export type SignupPaymentOptions = {
+  bankTransfer: boolean
+  bankTransferStatus: SignupBankTransferStatus
+  cash: boolean
+  card: boolean
+  beneficiary: { legalName: string; bankName: string; iban: string; swiftCode: string | null } | null
+}
+
+export function readPaymentOptions(
+  onboardingToken: string,
+  signal?: AbortSignal,
+): Promise<SignupPaymentOptions> {
+  // POST so the bearer token travels in the body, never a URL (backend SignupController).
+  return apiRequest<SignupPaymentOptions>('/v1/auth/signup/payment-options', {
+    method: 'POST',
+    body: { onboardingToken },
+    signal,
+    credentials: 'omit',
+  })
 }
 
 /**
