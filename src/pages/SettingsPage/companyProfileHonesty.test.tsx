@@ -178,7 +178,11 @@ describe('Settings › Company profile: only what the server holds', () => {
     renderPage()
     await ready()
 
-    const card = within(await waitFor(() => lastChanged()!))
+    // findByRole retries until the card is there. waitFor(() => lastChanged()!) did not: the `!`
+    // only silences TypeScript, so the callback returned undefined without throwing and waitFor
+    // settled before the change log loaded, failing under load.
+    await screen.findByRole('heading', { name: t('companyProfile.lastChanged') })
+    const card = within(lastChanged() as HTMLElement)
     const rows = card.getAllByRole('term').map((term) => term.textContent)
     expect(rows).toEqual([
       t('companyProfile.brandColour'),
