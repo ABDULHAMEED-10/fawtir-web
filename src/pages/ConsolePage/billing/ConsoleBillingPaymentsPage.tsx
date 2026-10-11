@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { OmAmount } from '../../../components/ui'
+import { DateField, OmAmount, Rial } from '../../../components/ui'
+import { selectAllOnFocus } from '../../../components/invoice/numericInput'
 import { ApiError } from '../../../api'
 import { ConsoleShell } from '../../../layouts/ConsoleShell'
 import { ConsoleBreadcrumbs } from '../../../layouts/ConsoleShell/ConsoleBreadcrumbs'
@@ -338,6 +339,14 @@ function PaymentPanel({
   )
 }
 
+/** Today in Muscat as `yyyy-mm-dd`, the latest day a receipt can carry. */
+function muscatToday(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
+}
+
+const AMOUNT = /^\d+(\.\d{1,3})?$/
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
+
 function CashReceiptForm({
   total,
   busy,
@@ -345,30 +354,90 @@ function CashReceiptForm({
 }: {
   total: string
   busy: boolean
-  onRecord: (receipt: { receiptNumber: string; receivedAmount: string; receivedAt: string; collectorName: string }) => void
+  onRecord: (receipt: {
+    receiptNumber: string
+    receivedAmount: string
+    receivedAt: string
+    collectorName: string
+  }) => void
 }) {
   const { t } = useTranslation()
   const [receiptNumber, setReceiptNumber] = useState('')
   const [receivedAmount, setReceivedAmount] = useState(total)
-  const [receivedAt, setReceivedAt] = useState('')
+  const [receivedOn, setReceivedOn] = useState(muscatToday())
+  const [receivedTime, setReceivedTime] = useState('')
   const [collectorName, setCollectorName] = useState('')
-  const ready = receiptNumber.trim() && receivedAmount.trim() && receivedAt && collectorName.trim()
+  const amount = receivedAmount.trim()
+  const time = receivedTime.trim()
+  const amountWrong = amount !== '' && !AMOUNT.test(amount)
+  const timeWrong = time !== '' && !TIME.test(time)
+  const ready =
+    receiptNumber.trim() &&
+    AMOUNT.test(amount) &&
+    receivedOn &&
+    TIME.test(time) &&
+    collectorName.trim()
   return (
     <fieldset className="flex flex-col gap-3 rounded-sm border border-border-subtle p-4">
-      <legend className="px-1 text-sm font-semibold text-text-primary">{t('console.billing.cash.title')}</legend>
+      <legend className="px-1 text-sm font-semibold text-text-primary">
+        {t('console.billing.cash.title')}
+      </legend>
       <div className="grid gap-3 md:grid-cols-2">
-        <Field label={t('console.billing.cash.number')} value={receiptNumber} onChange={setReceiptNumber} />
-        <Field label={t('console.billing.cash.amount')} value={receivedAmount} onChange={setReceivedAmount} ltr />
+        <Field
+          label={t('console.billing.cash.number')}
+          value={receiptNumber}
+          onChange={setReceiptNumber}
+        />
         <label className="flex flex-col gap-1 text-sm font-medium text-text-secondary">
-          {t('console.billing.cash.at')}
-          <input
-            type="datetime-local"
-            className="h-10 rounded-sm border border-border-default bg-white px-3"
-            value={receivedAt}
-            onChange={(event) => setReceivedAt(event.target.value)}
-          />
+          {t('console.billing.cash.amount')}
+          <span className="flex h-10 items-center gap-2 rounded-sm border border-border-default bg-white px-3">
+            <Rial className="shrink-0 text-text-secondary" />
+            <input
+              dir="ltr"
+              inputMode="decimal"
+              className="min-w-0 flex-1 bg-transparent outline-none"
+              value={receivedAmount}
+              aria-invalid={amountWrong || undefined}
+              onFocus={selectAllOnFocus}
+              onChange={(event) => setReceivedAmount(event.target.value)}
+              onBlur={() => {
+                if (AMOUNT.test(amount)) setReceivedAmount(Number(amount).toFixed(3))
+              }}
+            />
+          </span>
+          {amountWrong ? (
+            <span className="text-xs text-danger-700">{t('console.billing.cash.amountWrong')}</span>
+          ) : null}
         </label>
-        <Field label={t('console.billing.cash.collector')} value={collectorName} onChange={setCollectorName} />
+        <div className="flex flex-col gap-1 text-sm font-medium text-text-secondary">
+          <span>{t('console.billing.cash.on')}</span>
+          <DateField
+            value={receivedOn}
+            onChange={setReceivedOn}
+            max={muscatToday()}
+            ariaLabel={t('console.billing.cash.on')}
+          />
+        </div>
+        <label className="flex flex-col gap-1 text-sm font-medium text-text-secondary">
+          {t('console.billing.cash.time')}
+          <input
+            dir="ltr"
+            inputMode="numeric"
+            placeholder="14:30"
+            className="h-10 rounded-sm border border-border-default bg-white px-3"
+            value={receivedTime}
+            aria-invalid={timeWrong || undefined}
+            onChange={(event) => setReceivedTime(event.target.value)}
+          />
+          {timeWrong ? (
+            <span className="text-xs text-danger-700">{t('console.billing.cash.timeWrong')}</span>
+          ) : null}
+        </label>
+        <Field
+          label={t('console.billing.cash.collector')}
+          value={collectorName}
+          onChange={setCollectorName}
+        />
       </div>
       <p className="text-xs font-medium text-text-tertiary">{t('console.billing.cash.note')}</p>
       <div>
@@ -379,8 +448,10 @@ function CashReceiptForm({
           onClick={() =>
             onRecord({
               receiptNumber: receiptNumber.trim(),
-              receivedAmount: receivedAmount.trim(),
-              receivedAt: new Date(receivedAt).toISOString(),
+              receivedAmount: Number(amount).toFixed(3),
+              // Oman keeps one offset all year, so the clock the cashier read is +04:00 wherever
+              // the operator's own browser happens to be.
+              receivedAt: `${receivedOn}T${time}:00+04:00`,
               collectorName: collectorName.trim(),
             })
           }

@@ -50,17 +50,21 @@ function BankAccounts() {
   const { read, retry } = useConsoleRead<BeneficiaryRecordDto[]>(BENEFICIARIES_PATH)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
+  // Retiring the live account closes bank transfer for every customer at once, so it asks first.
+  const [retiring, setRetiring] = useState<string | null>(null)
   const entitlements = peekEntitlements()
   const canManage = entitlements ? hasPermission(entitlements, BILLING_MANAGE_PERMISSION) : false
 
-  const act = async (work: () => Promise<unknown>) => {
+  const act = async (work: () => Promise<unknown>): Promise<boolean> => {
     setBusy(true)
     setFailure(null)
     try {
       await work()
       retry()
+      return true
     } catch (error) {
       setFailure(message(t, error))
+      return false
     } finally {
       setBusy(false)
     }
@@ -109,12 +113,48 @@ function BankAccounts() {
                   type="button"
                   className={CONSOLE_SMALL_DANGER}
                   disabled={busy}
-                  onClick={() => act(() => retireBeneficiary(account.id, account.version))}
+                  onClick={() =>
+                    account.status === 'ACTIVE'
+                      ? setRetiring(account.id)
+                      : act(() => retireBeneficiary(account.id, account.version))
+                  }
                 >
                   {t('console.bankAccounts.retire')}
                 </button>
               ) : null}
             </div>
+            {retiring === account.id ? (
+              <div
+                role="alert"
+                className="flex w-full flex-wrap items-center justify-between gap-3 rounded-sm bg-danger-100 px-4 py-3"
+              >
+                <p className="text-sm font-medium text-danger-700">
+                  {t('console.bankAccounts.retireConfirm')}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className={CONSOLE_SMALL}
+                    disabled={busy}
+                    onClick={() => setRetiring(null)}
+                  >
+                    {t('console.bankAccounts.keep')}
+                  </button>
+                  <button
+                    type="button"
+                    className={CONSOLE_SMALL_DANGER}
+                    disabled={busy}
+                    onClick={async () => {
+                      if (await act(() => retireBeneficiary(account.id, account.version))) {
+                        setRetiring(null)
+                      }
+                    }}
+                  >
+                    {t('console.bankAccounts.retireNow')}
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </li>
         ))}
       </ul>
@@ -131,7 +171,9 @@ function BankAccounts() {
         </p>
       ) : null}
       {body}
-      {canManage ? <ProposeForm busy={busy} onPropose={(account) => act(() => proposeBeneficiary(account))} /> : null}
+      {canManage ? (
+        <ProposeForm busy={busy} onPropose={(account) => act(() => proposeBeneficiary(account))} />
+      ) : null}
     </div>
   )
 }
@@ -141,7 +183,13 @@ function ProposeForm({
   onPropose,
 }: {
   busy: boolean
-  onPropose: (account: { legalName: string; bankName: string; iban: string; swiftCode: string; reason: string }) => void
+  onPropose: (account: {
+    legalName: string
+    bankName: string
+    iban: string
+    swiftCode: string
+    reason: string
+  }) => Promise<boolean>
 }) {
   const { t } = useTranslation()
   const [legalName, setLegalName] = useState('')
@@ -168,7 +216,16 @@ function ProposeForm({
           type="button"
           className={CONSOLE_PRIMARY}
           disabled={!ready || busy}
-          onClick={() => onPropose({ legalName, bankName, iban, swiftCode, reason })}
+          onClick={async () => {
+            // Cleared once the server took it, so a second click cannot propose the same account.
+            if (await onPropose({ legalName, bankName, iban, swiftCode, reason })) {
+              setLegalName('')
+              setBankName('')
+              setIban('')
+              setSwiftCode('')
+              setReason('')
+            }
+          }}
         >
           {t('console.bankAccounts.submit')}
         </button>

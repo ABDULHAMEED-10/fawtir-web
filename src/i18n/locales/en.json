@@ -14677,11 +14677,15 @@
       "cash": {
         "title": "Record the cash received",
         "number": "Receipt number",
-        "amount": "Amount received (OMR)",
+        "amount": "Amount received",
         "at": "Received at",
         "collector": "Collected by",
         "note": "The amount must match the bill total. Someone else must verify what you record.",
-        "record": "Record receipt"
+        "record": "Record receipt",
+        "amountWrong": "Enter the amount in rials, up to three decimals, such as 52.500.",
+        "on": "Received on",
+        "time": "Time received, Muscat",
+        "timeWrong": "Enter the time as hours and minutes, such as 14:30."
       },
       "done": {
         "proof": "The receipt was downloaded. The download is recorded.",
@@ -14736,7 +14740,10 @@
       "refusal": {
         "sameOperator": "You entered this account, so another operator must confirm it.",
         "invalid": "Check the details: the IBAN must be a valid Omani IBAN."
-      }
+      },
+      "retireConfirm": "This is the account customers pay into. Retiring it stops bank transfer for every customer until another account is confirmed.",
+      "keep": "Keep it",
+      "retireNow": "Retire the account"
     }
   },
   "shell": {
