@@ -2575,6 +2575,8 @@ describe('an overpaid bill', () => {
         target({ id: 'b-8', readiness: { ...APPROVED, state: 'REJECTED' } }),
         target({ id: 'b-9', documentTypeCode: '383', debitNoteDecision: 'REFUSED' }),
         target({ id: 'b-10', documentTypeCode: '383', debitNoteDecision: 'ACCEPTED' }),
+        // Browser check of 11 Oct 2026 (F-H): an undecided debit note is not owed, so takes no credit.
+        target({ id: 'b-11', documentTypeCode: '383', debitNoteDecision: null }),
       ]).map((row) => row.id),
     ).toEqual(['b-10'])
   })
