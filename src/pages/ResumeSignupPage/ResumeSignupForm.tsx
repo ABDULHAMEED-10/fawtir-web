@@ -134,7 +134,7 @@ export function ResumeSignupForm() {
     const minutesLeft = Math.max(0, Math.ceil((deadlines.codeExpiresAt - now) / 60_000))
     return (
       <VerifyCodeView
-        description={t('signupResume.codeSent', { contact: sentTo, minutes: minutesLeft })}
+        description={t('signupResume.codeSent', { contact: sentTo, minutes: minutesLeft, count: minutesLeft })}
         code={code}
         onCodeChange={(next) => {
           setCode(next)

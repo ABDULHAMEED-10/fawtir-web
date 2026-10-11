@@ -947,7 +947,9 @@
       "vatRate": "VAT ({{rate}}%)",
       "vatUnknownRate": "VAT",
       "addonOnTop": "Automatic ERP extraction ({{cycle}}), billed on top",
-      "monthsWithFree": "{{count}} months · {{free}} free"
+      "monthsWithFree": "{{count}} months · {{free}} free",
+      "months_one": "{{count}} month",
+      "months_other": "{{count}} months"
     },
     "method": {
       "cardLink": {
@@ -20606,7 +20608,9 @@
     "submit": "Send code",
     "sending": "Sending…",
     "codeSent": "If a registration with {{contact}} is waiting to be finished, we've sent it a 6-digit code. It expires in {{minutes}} minutes.",
-    "invalid": "That code is incorrect or no longer valid. Check your latest email, or request a new code."
+    "invalid": "That code is incorrect or no longer valid. Check your latest email, or request a new code.",
+    "codeSent_one": "If a registration with {{contact}} is waiting to be finished, we've sent it a 6-digit code. It expires in 1 minute.",
+    "codeSent_other": "If a registration with {{contact}} is waiting to be finished, we've sent it a 6-digit code. It expires in {{minutes}} minutes."
   },
   "subscription": {
     "title": "Subscription",

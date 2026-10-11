@@ -648,7 +648,7 @@ describe('the ledger screen', () => {
     items = [stoppedRow()]
     renderLedger()
     const row = (await screen.findByText('INV/2026/4001')).closest('tr')!
-    expect(within(row).getByText('توقف لدى فوتير')).toBeTruthy()
+    expect(within(row).getByText('توقف لدى فوتر')).toBeTruthy()
     expect(within(row).getByText('لم يُرسل')).toBeTruthy()
     expect(within(row).queryByText('بالانتظار')).toBeNull()
     expect(row.textContent).not.toMatch(/activity(Detail)?\./)
@@ -745,7 +745,7 @@ describe('the ledger screen', () => {
     expect(document.body.textContent).toContain('0 بالانتظار')
     expect(document.body.textContent).toContain('12 لم تُرسل')
     expect(
-      screen.getByText('12 توقفت لدى فوتير. وحتى تُصحَّح لا تُبلَّغ تلك المبيعات.'),
+      screen.getByText('12 توقفت لدى فوتر. وحتى تُصحَّح لا تُبلَّغ تلك المبيعات.'),
     ).toBeTruthy()
     expect(document.body.textContent).not.toMatch(/activity\.kpi\./)
   })
@@ -951,7 +951,7 @@ describe("one document's record", () => {
     renderDetail(`/compliance/activity/${UUID_A}`)
     expect(await screen.findByText('لم تُرسل عبر Peppol بعد')).toBeTruthy()
     expect(screen.getByText('لم يُرسل إلى فوترة بعد')).toBeTruthy()
-    expect(screen.getByText('توقف لدى فوتير، ويحتاج إلى متابعة')).toBeTruthy()
+    expect(screen.getByText('توقف لدى فوتر، ويحتاج إلى متابعة')).toBeTruthy()
     expect(document.body.textContent).not.toMatch(/activityDetail\./)
   })
 
