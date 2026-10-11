@@ -18283,7 +18283,7 @@
       "switchedOn": "Supplier switched back on."
     },
     "error": {
-      "peppolShape": "Use the scheme and ID together, for example 0248:OM1100000000 or 0242:…",
+      "peppolShape": "Use the scheme, a colon and the ID, for example 0248:OM1100000000.",
       "peppolVat": "A 0248 ID is the supplier's VAT number: OM11 followed by 8 digits.",
       "vatGroup": "A VAT group number (OM12…) can't be used as a Peppol ID.",
       "duplicateEmail": "This email address is listed twice.",

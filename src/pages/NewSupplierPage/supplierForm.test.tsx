@@ -212,7 +212,7 @@ describe('a new supplier', () => {
     ).toBeTruthy()
     expect(screen.getAllByText('This field is required')).toHaveLength(2)
     expect(screen.getByText('Use OM11 or OM12 followed by 8 digits')).toBeTruthy()
-    expect(screen.getByText(/Use the scheme and ID together/)).toBeTruthy()
+    expect(screen.getByText(/Use the scheme, a colon and the ID/)).toBeTruthy()
     expect(calls('POST', '/api/v1/suppliers')).toHaveLength(0)
   })
 
@@ -691,9 +691,13 @@ describe('supplier form rules', () => {
     expect(supplierProblems({ ...values, sameAsBilling: false }, null)).toEqual({
       'pickup.cityName': 'supplierForm.error.pickupRequired',
     })
-    // A group VAT number is refused as a participant before the server says so.
-    expect(supplierProblems({ ...values, peppolId: '0248:OM1200447102' }, null)).toEqual({
-      peppolId: 'supplierForm.error.peppolVat',
+    // Any scheme and any case pass the form (owner, 11 Oct 2026): the server and the SMP decide.
+    for (const peppolId of ['0248:OM1200447102', '0248:om1199999001', '0242:000006-TESTBED.3001', '9922:OPTBCNTRLP1007']) {
+      expect(supplierProblems({ ...values, peppolId }, null)).toEqual({})
+    }
+    // Only a missing scheme or id is refused.
+    expect(supplierProblems({ ...values, peppolId: 'OM1100447102' }, null)).toEqual({
+      peppolId: 'supplierForm.error.peppolShape',
     })
   })
 

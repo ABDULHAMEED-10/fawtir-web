@@ -37,8 +37,8 @@ export type ChangeRow = {
 }
 
 export const TDD_RESUBMIT = {
-  /** Oman's Peppol scheme is 0248, followed by the VAT number (OM and ten digits). */
-  fix: { pattern: /^0248:OM\d{10}$/ },
+  /** A scheme, a colon and the id, in any case; the server and the SMP decide whether it is real. */
+  fix: { pattern: /^\d{4}:\S+$/ },
   /**
    * The monthly submission allowance. TODO(backend): ACTIVITY.md 2.18. The design's figures until
    * the tenant's allowance and usage are on the API.

@@ -224,8 +224,6 @@ export function toCustomerRequest(values: CustomerFormValues, expectedVersion?: 
 
 export type CustomerProblems = Partial<Record<CustomerField, string>>
 
-const OM_PARTICIPANT = /^OM11\d{8}$/
-
 /**
  * What the server would refuse, said before the request goes — including the sending-method rules,
  * which the server refuses without naming a field. It still decides: a 0242 identifier's grammar and
@@ -245,11 +243,9 @@ export function customerProblems(values: CustomerFormValues): CustomerProblems {
       if (vat) problems.vatNumber = vat
     }
     if (values.registeredOnPeppol) {
-      const [scheme, ...rest] = values.peppolId.trim().split(':')
-      const value = rest.join(':').trim().toUpperCase()
-      if (!values.peppolId.trim()) problems.peppolId = 'validation.required'
-      else if ((scheme !== '0248' && scheme !== '0242') || !value) problems.peppolId = 'supplierForm.error.peppolShape'
-      else if (scheme === '0248' && !OM_PARTICIPANT.test(value)) problems.peppolId = 'supplierForm.error.peppolVat'
+      // Any scheme and any case: the server and the SMP decide whether the id is real.
+      const peppol = validate.peppolParticipant(values.peppolId)
+      if (peppol) problems.peppolId = peppol
     }
   }
   // The B2G form asks for it (directive of 2026-08-13); the API does not require it.

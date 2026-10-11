@@ -261,7 +261,7 @@ describe('a new customer', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Save customer' })[0])
 
-    expect(await screen.findByText(/Use the scheme and ID together/)).toBeTruthy()
+    expect(await screen.findByText(/Use the scheme, a colon and the ID/)).toBeTruthy()
     expect(screen.getByText('This is longer than allowed')).toBeTruthy()
   })
 
@@ -371,6 +371,26 @@ describe('customer form rules', () => {
       sendingMethod: 'customerForm.error.peppolNotRegistered',
     })
     expect(toCustomerRequest(consumer).details.registeredForVat).toBeNull()
+  })
+
+  it('accepts any Peppol scheme and case, the testbed ids included (owner, 11 Oct 2026)', () => {
+    const business = {
+      ...blankCustomerForm('BUSINESS'),
+      legalName: 'X',
+      contactPerson: 'Y',
+      vatNumber: 'OM1110309032',
+      registeredOnPeppol: true,
+    }
+    for (const peppolId of ['0248:om1199999001', '0242:000006-TESTBED.3001', '9922:OPTBCNTRLP1007']) {
+      expect(customerProblems({ ...business, peppolId }).peppolId).toBeUndefined()
+    }
+    expect(customerProblems({ ...business, peppolId: 'OM1199999001' }).peppolId).toBe(
+      'supplierForm.error.peppolShape',
+    )
+    // What is sent is unchanged: the scheme, and the id upper-cased as before.
+    expect(
+      toCustomerRequest({ ...business, peppolId: '0248:om1199999001' }).details.peppolParticipantId,
+    ).toEqual({ scheme: '0248', value: 'OM1199999001' })
   })
 
   it('places refusals by model path and keeps unknown ones for a notice', () => {

@@ -141,7 +141,7 @@ const inputId = (field: SupplierField) =>
       ? 'supplier-billing-address'
       : `supplier-${field}`
 
-const PEPPOL_SHAPE = /^(0248|0242):\S+$/
+const PEPPOL_SHAPE = validate.PEPPOL_PARTICIPANT_SHAPE
 
 type FormNotice = { key: string; values?: Record<string, string> } | { body: string }
 

@@ -152,6 +152,20 @@ export function confirmPassword(value: string, against: string): FieldError {
   return value === against ? undefined : 'validation.passwordMismatch'
 }
 
+/**
+ * A Peppol participant id as typed: a four-digit scheme, a colon and an identifier, in any case
+ * (`0248:OM1100112233`, `0248:om1199999001`, `0242:000006-TESTBED.3001`, `9922:OPTBCNTRLP1007`).
+ * Any scheme is accepted, test ones included; whether the id exists is the SMP's and the
+ * server's call, not this form's (owner, 11 Oct 2026).
+ */
+export const PEPPOL_PARTICIPANT_SHAPE = /^\d{4}:\S+$/
+
+export function peppolParticipant(value: string): FieldError {
+  const trimmed = value.trim()
+  if (!trimmed) return 'validation.required'
+  return PEPPOL_PARTICIPANT_SHAPE.test(trimmed) ? undefined : 'supplierForm.error.peppolShape'
+}
+
 /** Peppol participant id built from a VAT number, e.g. `0248:OM1100112233`. */
 export function peppolIdFor(vat: string): string {
   const trimmed = vat.trim().toUpperCase()

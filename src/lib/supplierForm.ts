@@ -414,7 +414,6 @@ export function withTag(tags: readonly string[], typed: string): string[] {
 
 const IBAN_SHAPE = /^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/
 const BIC_SHAPE = /^[A-Z0-9]{8}([A-Z0-9]{3})?$/
-const OM_PARTICIPANT = /^OM11\d{8}$/
 /** Onboarding's limit on a CR number (`lib/identity/onboarding.ts`). */
 const CR_MAX_LENGTH = 20
 
@@ -444,14 +443,9 @@ export function supplierProblems(
     if (postal) problems['billing.postalCode'] = postal
   }
   if (values.registeredOnPeppol) {
-    const [scheme, ...rest] = values.peppolId.trim().split(':')
-    const value = rest.join(':').trim().toUpperCase()
-    if (!values.peppolId.trim()) problems.peppolId = 'validation.required'
-    else if ((scheme !== '0248' && scheme !== '0242') || !value)
-      problems.peppolId = 'supplierForm.error.peppolShape'
-    // OM11 only: a group VAT number (OM12) is not a participant, which the server names separately.
-    else if (scheme === '0248' && !OM_PARTICIPANT.test(value))
-      problems.peppolId = 'supplierForm.error.peppolVat'
+    // Any scheme and any case: the server and the SMP decide whether the id is real.
+    const peppol = validate.peppolParticipant(values.peppolId)
+    if (peppol) problems.peppolId = peppol
   }
   const emails = emailList(values.emails)
   if (emails.some((entry) => validate.email(entry))) problems.emails = 'validation.email'
