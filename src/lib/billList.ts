@@ -152,8 +152,11 @@ export function toBillListItem(row: BillRowDto): BillListItem {
           : undefined,
     holdReason: row.workflowState === 'ON_HOLD' ? (row.hold?.reason ?? null) : null,
     // A mismatch is approved only after its difference has been looked at, which is the detail's job.
+    // A credit note has nothing to approve, and the server refuses it (APPROVAL_CREDIT_NOTE).
     canApprove:
-      pending && (row.workflowState === 'NEW' || row.workflowState === 'AWAITING_APPROVAL'),
+      pending &&
+      !isCreditNote(row) &&
+      (row.workflowState === 'NEW' || row.workflowState === 'AWAITING_APPROVAL'),
     currency: row.currencyCode,
     amount: row.totalIncludingVat,
     amountNote: amountNoteOf(row),

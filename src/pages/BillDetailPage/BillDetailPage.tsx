@@ -163,6 +163,7 @@ const REFUSALS: Record<string, string> = {
   BILL_OVERPAYMENT_TARGET_IN_PAYMENT_RUN: 'apiErrors.refused.creditNoteTargetInRun',
   BILL_OVERPAYMENT_TARGET_REJECTED: 'apiErrors.refused.creditNoteTargetRejected',
   BILL_OVERPAYMENT_TARGET_DEBIT_NOTE_REFUSED: 'apiErrors.refused.creditNoteTargetDebitNoteRefused',
+  BILL_OVERPAYMENT_TARGET_DEBIT_NOTE_NOT_ACCEPTED: 'apiErrors.refused.debitNoteNotAccepted',
   BILL_OVERPAYMENT_TARGET_CANCELLED: 'apiErrors.refused.creditNoteTargetCancelled',
   BILL_OVERPAYMENT_TARGET_FULLY_CREDITED: 'apiErrors.refused.creditNoteTargetFullyCredited',
 }

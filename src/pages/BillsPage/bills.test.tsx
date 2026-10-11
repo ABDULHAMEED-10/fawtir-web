@@ -1202,6 +1202,20 @@ describe('nudging the approver', () => {
     expect(rowActionOf(fresh, { canApprove: true, canCapture: false })).toBe('approve')
     expect(rowActionOf(fresh, { canApprove: false, canCapture: true })).toBeNull()
   })
+
+  // Browser check of 11 Oct 2026 (F-C): a credit note waiting in the list was offered Approve.
+  it('offers no Approve and no nudge on a credit note, whatever its state', async () => {
+    for (const documentTypeCode of ['381', '261']) {
+      const note = toBillListItem(bill({ workflowState: 'AWAITING_APPROVAL', documentTypeCode }))
+      expect(note.canApprove).toBe(false)
+      expect(rowActionOf(note, { canApprove: true, canCapture: true })).toBeNull()
+    }
+    const creditNote = bill({ workflowState: 'AWAITING_APPROVAL', documentTypeCode: '381' })
+    listResponses = [() => json(200, itemsPage([creditNote], 1))]
+    renderBills()
+    await screen.findByText('Credit note')
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
+  })
 })
 
 describe('a draft row for a reader who cannot capture bills', () => {

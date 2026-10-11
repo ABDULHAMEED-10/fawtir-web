@@ -650,6 +650,8 @@ export function creditTargetsOf(detail: BillDetailDto, rows: readonly BillRowDto
       row.outstandingAmount > 0 &&
       row.hold === null &&
       row.readiness.state !== 'REJECTED' &&
-      row.debitNoteDecision !== 'REFUSED',
+      // Kept credit spent on a bill pays it, and a supplier debit note is owed only once accepted
+      // (BILL_OVERPAYMENT_TARGET_DEBIT_NOTE_NOT_ACCEPTED), so an undecided one is not offered.
+      (row.documentTypeCode !== '383' || row.debitNoteDecision === 'ACCEPTED'),
   )
 }
