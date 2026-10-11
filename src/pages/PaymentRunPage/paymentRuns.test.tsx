@@ -908,3 +908,125 @@ describe('the ways out of a sent run (owner, 8 Oct 2026)', () => {
     expect(screen.queryByText(/Taken out/)).toBeNull()
   })
 })
+
+const exportRefusal = (code: string, fields: Record<string, unknown>) =>
+  json(400, {
+    type: 'https://api.fawtir.om/problems/expenditure-refused',
+    status: 400,
+    error: code,
+    detail: `${code} in English`,
+    ...fields,
+  })
+
+const TWO_UNCONFIRMED = {
+  suppliers: [
+    { supplierId: SUPPLIER, supplierName: 'Muscat Roastery Co' },
+    { supplierId: 'sup-2', supplierName: 'Sohar Steel' },
+  ],
+}
+
+describe('the bank file and changed supplier IBANs (owner, 8 Oct 2026)', () => {
+  async function refusedExport(code: string, fields: Record<string, unknown>) {
+    override = (url) => (url.endsWith(`/${RUN_ID}/export`) ? exportRefusal(code, fields) : null)
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Download|تنزيل/ }, { timeout: 8000 }),
+    )
+  }
+
+  it('names each supplier whose new bank details are not confirmed when the file is refused', async () => {
+    await refusedExport('PAYMENT_RUN_BANK_DETAILS_UNCONFIRMED', TWO_UNCONFIRMED)
+    expect(
+      await screen.findByText(
+        "Muscat Roastery Co's new bank details are not confirmed yet. Confirm them, or take their bills out of the run. " +
+          "Sohar Steel's new bank details are not confirmed yet. Confirm them, or take their bills out of the run.",
+      ),
+    ).toBeTruthy()
+    expect(calls('POST', `/api/v1/payment-runs/${RUN_ID}/export`)).toHaveLength(1)
+  })
+
+  it('names the switched-off account the run pays from', async () => {
+    await refusedExport('PAYMENT_RUN_PAYER_ACCOUNT_INACTIVE', { accountName: 'Bank Muscat 4471' })
+    expect(
+      await screen.findByText(
+        'The account you pay from, Bank Muscat 4471, is switched off. Choose an active account.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('asks for the legal name in English letters for the pain.001 file', async () => {
+    await refusedExport('PAYMENT_RUN_PAYER_NAME_NOT_LATIN', {})
+    expect(
+      await screen.findByText(
+        "The bank file needs the company's legal name in English letters. Update it in Company settings, then try again.",
+      ),
+    ).toBeTruthy()
+  })
+
+  it('says the three refusals in Arabic, with their values', async () => {
+    const { refusalOf } = await import('../../lib/paymentRuns')
+    const { ApiError } = await import('../../api')
+    const refused = (code: string, problem: Record<string, unknown>) =>
+      new ApiError({ status: 400, problemType: 'expenditure-refused', code, problem })
+    const ar = i18n.getFixedT('ar')
+    expect(
+      refusalOf(refused('PAYMENT_RUN_BANK_DETAILS_UNCONFIRMED', TWO_UNCONFIRMED), ar, 'export'),
+    ).toBe(
+      'البيانات البنكية الجديدة للمورّد Muscat Roastery Co لم تُؤكَّد بعد. أكّدها أو أخرج فواتيره من الدفعة. ' +
+        'البيانات البنكية الجديدة للمورّد Sohar Steel لم تُؤكَّد بعد. أكّدها أو أخرج فواتيره من الدفعة.',
+    )
+    expect(
+      refusalOf(
+        refused('PAYMENT_RUN_PAYER_ACCOUNT_INACTIVE', { accountName: 'Bank Muscat 4471' }),
+        ar,
+        'export',
+      ),
+    ).toBe('الحساب الذي تدفع منه، Bank Muscat 4471، موقوف. اختر حسابًا نشطًا.')
+    expect(refusalOf(refused('PAYMENT_RUN_PAYER_NAME_NOT_LATIN', {}), ar, 'export')).toBe(
+      'يحتاج الملف البنكي إلى الاسم القانوني للشركة بالأحرف الإنجليزية. حدّثه في إعدادات الشركة ثم حاول مرة أخرى.',
+    )
+  })
+
+  it('says, one line per supplier, that their IBAN changed after the file was made', async () => {
+    detail = {
+      ...SENT,
+      fileStored: true,
+      bankDetailsChangedSinceFile: TWO_UNCONFIRMED.suppliers,
+    }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(
+      await screen.findByText(
+        "Muscat Roastery Co's bank details changed after this file was made. This file keeps the old IBAN; new runs use the new one.",
+        undefined,
+        { timeout: 8000 },
+      ),
+    ).toBeTruthy()
+    expect(
+      screen.getByText(
+        "Sohar Steel's bank details changed after this file was made. This file keeps the old IBAN; new runs use the new one.",
+      ),
+    ).toBeTruthy()
+  })
+
+  it('says the changed-IBAN line in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    detail = { ...SENT, bankDetailsChangedSinceFile: [TWO_UNCONFIRMED.suppliers[1]] }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(
+      await screen.findByText(
+        'تغيّرت البيانات البنكية للمورّد Sohar Steel بعد إنشاء هذا الملف. يبقى هذا الملف بالآيبان القديم، وتستخدم الدفعات الجديدة الآيبان الجديد.',
+        undefined,
+        { timeout: 8000 },
+      ),
+    ).toBeTruthy()
+  })
+
+  it('says nothing of changed IBANs when none changed, or the server does not say', async () => {
+    detail = { ...SENT, fileStored: true, bankDetailsChangedSinceFile: [] }
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(
+      await screen.findByRole('button', { name: 'Download the file again' }, { timeout: 8000 }),
+    ).toBeTruthy()
+    expect(screen.queryByText(/changed after this file was made/)).toBeNull()
+  })
+})

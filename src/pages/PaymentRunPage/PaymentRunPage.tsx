@@ -204,6 +204,10 @@ function RunBuilder({ runId }: { runId: string | null }) {
   const shown = supplierFilter ? groups.filter((group) => group.key === supplierFilter) : groups
   const paying = groupBySupplier(inRun)
   const blockedRows = blocked.read.status === 'ready' ? blocked.read.data : []
+  const changedSinceFile = (detail?.bankDetailsChangedSinceFile ?? []).filter(
+    (supplier): supplier is { supplierId: string; supplierName: string } =>
+      Boolean(supplier.supplierName?.trim()),
+  )
 
   /** One write at a time: a tick while another is in flight would be sent against a stale run. */
   const act = async (write: () => Promise<void>, action?: RunAction) => {
@@ -390,6 +394,15 @@ function RunBuilder({ runId }: { runId: string | null }) {
             {t('paymentRuns.sentFileWarning')}
           </p>
         ) : null}
+        {/* Owner, 8 Oct 2026: a supplier whose IBAN changed after the kept file was made. */}
+        {changedSinceFile.map((supplier) => (
+          <p
+            key={supplier.supplierId}
+            className="text-sm font-medium leading-[1.3] text-pending-700"
+          >
+            {t('paymentRuns.bankDetailsChangedSinceFile', { supplier: supplier.supplierName })}
+          </p>
+        ))}
       </div>
 
       {notice ? (

@@ -248,7 +248,46 @@ export type SupplierDetailDto = {
   invoiceAddress: SupplierAddressDto | null
   sameAsInvoicingAddress: boolean
   deliveryAddress: SupplierAddressDto | null
+  /**
+   * The change of bank details waiting for a second person (owner, 8 Oct 2026); null when nothing
+   * waits. Optional: a server older than the field leaves it out, and Confirm works as before.
+   */
+  bankDetailsChange?: SupplierBankDetailsChangeDto | null
+  /** Each change and confirmation of the bank details, newest first. Optional, as above. */
+  bankDetailsActivity?: SupplierBankDetailsActivityDto[]
 }
+
+/** `bankDetailsChange` on the supplier detail. */
+export type SupplierBankDetailsChangeDto = {
+  /** Null when there was none, or it is not on record. */
+  previousIban: string | null
+  newIban: string
+  /** Who made the change; null when not on record. */
+  changedById: string | null
+  changedBy: string | null
+  changedAt: string
+  /** The supplier's first IBAN, saved by a known user: no second person is needed. */
+  firstEntry: boolean
+  /** Whether the signed-in user may confirm it. Says nothing of their permissions. */
+  confirmable: boolean
+  /** Confirming needs `checkedWithSupplier: true`, the dialog's tick. */
+  checkRequired: boolean
+}
+
+/** One line of `bankDetailsActivity`. */
+export type SupplierBankDetailsActivityDto = {
+  kind: 'CHANGED' | 'CONFIRMED'
+  at: string
+  actorId: string | null
+  actorName: string | null
+  previousIban: string | null
+  newIban: string | null
+  /** On CONFIRMED, the confirmer ticked "I checked the new details with the supplier." */
+  checkedWithSupplier?: boolean
+}
+
+/** The optional body of `POST /suppliers/{id}/bank-details/confirm`. */
+export type ConfirmBankDetailsRequestDto = { checkedWithSupplier: true }
 
 export const supplierPath = (id: string) => `${SUPPLIERS_PATH}/${encodeURIComponent(id)}`
 
@@ -273,10 +312,17 @@ export function updateSupplier(id: string, body: SupplierRequestDto): Promise<Su
   return apiRequest<SupplierDetailDto>(supplierPath(id), { method: 'PUT', body })
 }
 
-/** Someone checked the new account with the supplier; clears `BANK_CHANGED_UNCONFIRMED`. */
-export function confirmSupplierBankDetails(id: string): Promise<SupplierDetailDto> {
+/**
+ * Someone checked the new account with the supplier; clears `BANK_CHANGED_UNCONFIRMED`. The body
+ * is sent only with the dialog's tick; without it the request is as it always was.
+ */
+export function confirmSupplierBankDetails(
+  id: string,
+  body?: ConfirmBankDetailsRequestDto,
+): Promise<SupplierDetailDto> {
   return apiRequest<SupplierDetailDto>(`${supplierPath(id)}/bank-details/confirm`, {
     method: 'POST',
+    ...(body ? { body } : {}),
   })
 }
 

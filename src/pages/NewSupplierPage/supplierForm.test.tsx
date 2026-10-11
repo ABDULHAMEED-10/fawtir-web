@@ -678,6 +678,8 @@ describe('an existing supplier', () => {
 
     expect(await screen.findByText('Bank details confirmed.')).toBeTruthy()
     expect(calls('POST', `${ONE}/bank-details/confirm`)).toHaveLength(1)
+    // A server that says nothing of who changed them: no dialog, and no body, as before.
+    expect((calls('POST', `${ONE}/bank-details/confirm`)[0][1] as RequestInit).body).toBeUndefined()
     expect(screen.queryByRole('button', { name: 'Confirm bank details' })).toBeNull()
   })
 
@@ -729,5 +731,213 @@ describe('supplier form rules', () => {
     expect(placed.fields.vatNumber).toEqual({ key: 'validation.vatin' })
     expect(placed.fields.telephone).toEqual({ text: 'Telephone is odd' })
     expect(placed.other).toEqual(['Logo content type is unsupported'])
+  })
+})
+
+/** A change of IBAN waiting for a second person, as the server describes it (owner, 8 Oct 2026). */
+function waiting(
+  change: Partial<NonNullable<SupplierDetailDto['bankDetailsChange']>> = {},
+): SupplierDetailDto {
+  return {
+    ...detail(),
+    bankDetailsChange: {
+      previousIban: 'OM020180000099988877766',
+      newIban: 'OM810180000012345678901',
+      changedById: 'u-2',
+      changedBy: 'Salma Al Busaidi',
+      changedAt: '2026-10-07T09:00:00Z',
+      firstEntry: false,
+      confirmable: true,
+      checkRequired: false,
+      ...change,
+    },
+    bankDetailsActivity: [
+      {
+        kind: 'CHANGED',
+        at: '2026-10-07T09:00:00Z',
+        actorId: 'u-2',
+        actorName: 'Salma Al Busaidi',
+        previousIban: 'OM020180000099988877766',
+        newIban: 'OM810180000012345678901',
+        checkedWithSupplier: false,
+      },
+    ],
+  }
+}
+
+const confirmCalls = () => calls('POST', `${ONE}/bank-details/confirm`)
+
+async function openConfirm() {
+  fireEvent.click(await screen.findByRole('button', { name: 'Confirm bank details' }))
+  return within(await screen.findByRole('dialog'))
+}
+
+describe('a changed IBAN confirmed by a second person (owner, 8 Oct 2026)', () => {
+  it('shows the previous and the new IBAN, and confirms with no body when no tick is asked', async () => {
+    loaded = () => waiting()
+    renderAt(`/suppliers/${ID}/edit`)
+    const dialog = await openConfirm()
+    expect(dialog.getByText('Previous IBAN')).toBeTruthy()
+    expect(dialog.getByText('New IBAN')).toBeTruthy()
+    expect(dialog.getByText('OM020180000099988877766').getAttribute('dir')).toBe('ltr')
+    expect(dialog.getByText('OM810180000012345678901').getAttribute('dir')).toBe('ltr')
+    expect(dialog.queryByText('I checked the new details with the supplier.')).toBeNull()
+    expect(confirmCalls()).toHaveLength(0)
+
+    fireEvent.click(dialog.getByRole('button', { name: 'Confirm bank details' }))
+    expect(await screen.findByText('Bank details confirmed.')).toBeTruthy()
+    expect(confirmCalls()).toHaveLength(1)
+    expect((confirmCalls()[0][1] as RequestInit).body).toBeUndefined()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('asks for the tick when it is required, checking it on press, and sends it', async () => {
+    loaded = () => waiting({ checkRequired: true, previousIban: null, changedById: null })
+    renderAt(`/suppliers/${ID}/edit`)
+    const dialog = await openConfirm()
+    expect(dialog.getByText('Not on record')).toBeTruthy()
+    const confirm = dialog.getByRole('button', { name: 'Confirm bank details' })
+    // Never greyed out: pressing it without the tick says what is missing and sends nothing.
+    expect((confirm as HTMLButtonElement).disabled).toBe(false)
+    fireEvent.click(confirm)
+    expect(await dialog.findByText('This field is required')).toBeTruthy()
+    expect(confirmCalls()).toHaveLength(0)
+
+    fireEvent.click(dialog.getByLabelText('I checked the new details with the supplier.'))
+    expect(dialog.queryByText('This field is required')).toBeNull()
+    fireEvent.click(confirm)
+    expect(await screen.findByText('Bank details confirmed.')).toBeTruthy()
+    expect(confirmCalls()).toHaveLength(1)
+    expect(bodyOf(confirmCalls()[0])).toEqual({ checkedWithSupplier: true })
+  })
+
+  it('tells the person who changed them that someone else must confirm, in place of Confirm', async () => {
+    loaded = () => waiting({ changedById: MANAGER.userId, confirmable: false })
+    renderAt(`/suppliers/${ID}/edit`)
+    expect(
+      await screen.findByText('You changed these bank details, so someone else must confirm them.'),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Confirm bank details' })).toBeNull()
+  })
+
+  it('lets the changer confirm with the tick when nobody else can', async () => {
+    loaded = () => waiting({ changedById: MANAGER.userId, confirmable: true, checkRequired: true })
+    renderAt(`/suppliers/${ID}/edit`)
+    const dialog = await openConfirm()
+    expect(
+      screen.queryByText('You changed these bank details, so someone else must confirm them.'),
+    ).toBeNull()
+    fireEvent.click(dialog.getByLabelText('I checked the new details with the supplier.'))
+    fireEvent.click(dialog.getByRole('button', { name: 'Confirm bank details' }))
+    await waitFor(() => expect(confirmCalls()).toHaveLength(1))
+    expect(bodyOf(confirmCalls()[0])).toEqual({ checkedWithSupplier: true })
+  })
+
+  it('shows a Viewer neither Confirm nor the note', async () => {
+    who = { ...MANAGER, userId: 'u-2', permissions: ['supplier.read'] }
+    loaded = () => waiting({ confirmable: false })
+    renderAt(`/suppliers/${ID}/edit`)
+    expect(await screen.findByText('You can see this supplier but not change it.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Confirm bank details' })).toBeNull()
+    expect(screen.queryByText(/someone else must confirm them/)).toBeNull()
+  })
+
+  it('reads the server refusals in words, in English and Arabic', async () => {
+    const refusal = (code: string) =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/expenditure-refused',
+        status: 400,
+        error: code,
+        detail: 'English detail',
+      })
+    let code = 'SUPPLIER_BANK_CONFIRM_SAME_PERSON'
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      const method = init?.method ?? 'GET'
+      if (url === '/api/v1/me/entitlements') return json(200, who)
+      if (url === ONE && method === 'GET') return json(200, waiting())
+      if (url === `${ONE}/bank-details/confirm`) return refusal(code)
+      throw new Error(`unexpected ${method} ${url}`)
+    })
+    const view = renderAt(`/suppliers/${ID}/edit`)
+    fireEvent.click((await openConfirm()).getByRole('button', { name: 'Confirm bank details' }))
+    expect(
+      await screen.findByText('You changed these bank details, so someone else must confirm them.'),
+    ).toBeTruthy()
+    view.unmount()
+
+    code = 'SUPPLIER_BANK_CONFIRM_CHECK_REQUIRED'
+    await i18n.changeLanguage('ar')
+    renderAt(`/suppliers/${ID}/edit`)
+    fireEvent.click(await screen.findByRole('button', { name: 'تأكيد البيانات البنكية' }))
+    const dialog = within(await screen.findByRole('dialog'))
+    expect(dialog.getByText('رقم الآيبان السابق')).toBeTruthy()
+    expect(dialog.getByText('رقم الآيبان الجديد')).toBeTruthy()
+    fireEvent.click(dialog.getByRole('button', { name: 'تأكيد البيانات البنكية' }))
+    expect(
+      await screen.findByText('ضع علامة على «تحققت من البيانات الجديدة مع المورّد» للتأكيد.'),
+    ).toBeTruthy()
+  })
+
+  it('says the note and the tick in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    loaded = () => waiting({ changedById: MANAGER.userId, confirmable: false })
+    const view = renderAt(`/suppliers/${ID}/edit`)
+    expect(
+      await screen.findByText('أنت من غيّر هذه البيانات البنكية، لذا يجب أن يؤكدها شخص آخر.'),
+    ).toBeTruthy()
+    view.unmount()
+
+    loaded = () => waiting({ checkRequired: true, previousIban: null })
+    renderAt(`/suppliers/${ID}/edit`)
+    fireEvent.click(await screen.findByRole('button', { name: 'تأكيد البيانات البنكية' }))
+    const dialog = within(await screen.findByRole('dialog'))
+    expect(dialog.getByText('غير مسجّل')).toBeTruthy()
+    expect(dialog.getByLabelText('تحققت من البيانات الجديدة مع المورّد.')).toBeTruthy()
+  })
+
+  it('lists the change and the confirmation in Recent changes, with who and the tick', async () => {
+    loaded = () => ({
+      ...detail({
+        health: [],
+        bankDetails: {
+          beneficiaryName: 'Qalhat Marine Supplies',
+          iban: 'OM810180000012345678901',
+          bic: 'BMUSOMRX',
+          bankName: 'Bank Muscat',
+          changedAt: '2026-10-07T09:00:00Z',
+          confirmedAt: '2026-10-08T07:00:00Z',
+        },
+      }),
+      bankDetailsChange: null,
+      bankDetailsActivity: [
+        {
+          kind: 'CONFIRMED',
+          at: '2026-10-08T07:00:00Z',
+          actorId: 'u-3',
+          actorName: 'Hafidh Al Amri',
+          previousIban: null,
+          newIban: 'OM810180000012345678901',
+          checkedWithSupplier: true,
+        },
+        {
+          kind: 'CHANGED',
+          at: '2026-10-07T09:00:00Z',
+          actorId: 'u-2',
+          actorName: 'Salma Al Busaidi',
+          previousIban: null,
+          newIban: 'OM810180000012345678901',
+          checkedWithSupplier: false,
+        },
+      ],
+    })
+    renderAt(`/suppliers/${ID}/edit`)
+    const changes = within(
+      (await screen.findByRole('heading', { name: 'Recent changes' })).closest('section')!,
+    )
+    expect(changes.getAllByText('Bank details confirmed')).toHaveLength(1)
+    expect(changes.getAllByText('IBAN updated')).toHaveLength(1)
+    expect(changes.getByText(/Hafidh Al Amri/)).toBeTruthy()
+    expect(changes.getByText(/Salma Al Busaidi/)).toBeTruthy()
+    expect(changes.getAllByText('I checked the new details with the supplier.')).toHaveLength(1)
   })
 })

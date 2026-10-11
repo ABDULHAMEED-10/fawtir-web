@@ -82,6 +82,16 @@ export type PaymentRunDetailDto = {
   items: PaymentRunItemDto[]
   /** Absent from a server from before the sent-run exits. */
   activity?: PaymentRunActivityDto[]
+  /**
+   * Null until the bank file is first made; then whether it is kept, so "Download again" returns
+   * it byte for byte (false: a run exported before files were kept). Absent from older servers.
+   */
+  fileStored?: boolean | null
+  /**
+   * Suppliers whose IBAN today differs from the one the kept file pays, in the file's order.
+   * Empty when none changed or no file is kept; absent from older servers.
+   */
+  bankDetailsChangedSinceFile?: { supplierId: string; supplierName: string | null }[]
 }
 
 /** A bill a run could take now, priced for the run's payment date. */
