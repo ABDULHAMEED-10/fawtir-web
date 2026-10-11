@@ -10350,7 +10350,8 @@
       "twoStepNote": "Not required on your plan",
       "cost": "Extra people cost",
       "costNote": "Nothing beyond the plan yet",
-      "costNoteOver": "{{count}} beyond the five included"
+      "costNoteOver": "{{count}} beyond the five included",
+      "twoStepNoteReal": "Counts authenticator apps. A code by email needs nothing set up."
     },
     "tab": {
       "all": "All",
@@ -10422,7 +10423,8 @@
       "remove": "Remove them",
       "freesAPlace": "frees a place",
       "oneDevice": "1 device"
-    }
+    },
+    "notAvailableYet": "Not available yet"
   },
   "invite": {
     "title": "Invite someone",
@@ -10490,7 +10492,10 @@
       "noBranch": "No branch ticked yet",
       "allBranches": "Every branch: the role reaches all of them",
       "costs": "Costs OMR {{amount}} a month",
-      "free": "Within the five included"
+      "free": "Within the five included",
+      "emailFilled": "Email filled in",
+      "emailMissing": "Email still needed",
+      "defaultRole": "No role ticked: the default role"
     },
     "footer": "{{name}} · {{role}} at {{branches}} · OMR {{amount}} a month once accepted",
     "footerFree": "{{name}} · {{role}} at {{branches}} · within the plan",
@@ -10501,7 +10506,14 @@
     "peopleCount_other": "{{count}} people",
     "tillCount_one": "{{count}} till",
     "tillCount_other": "{{count}} tills",
-    "noTill": "no till"
+    "noTill": "no till",
+    "notAvailableYet": "Not available yet",
+    "branchesUnavailable": "Not available yet. An invitation cannot name branches, so set the person's branch after they join.",
+    "previewNote": "A preview built from this form. The exact email Fawtir sends is not available yet.",
+    "someone": "Someone",
+    "yourCompany": "your company",
+    "moreAreas": "+{{count}} more",
+    "footerEmailNeeded": "Fill in an email to send it"
   },
   "roles": {
     "title": "What each role can do",
@@ -10578,7 +10590,9 @@
       "cant": "Can't"
     },
     "tapToChange": "Tap any mark to change it",
-    "ownerFixed": "The owner holds everything and cannot be reduced."
+    "ownerFixed": "The owner holds everything and cannot be reduced.",
+    "notAvailableYet": "Not available yet",
+    "changeNotAvailable": "Changing a mark here is not available yet."
   },
   "makeRole": {
     "title": "Make a role",
@@ -10822,7 +10836,20 @@
       "notSupportedNote": "Available on {{plan}}. Move up a plan to add it.",
       "openIntegration": "Open ERP integration"
     },
-    "larger": "Larger"
+    "larger": "Larger",
+    "notAvailableYet": "Not available yet",
+    "comfortableHeadlinePeriod": "You have room to the end of this period",
+    "runOutBodyPeriod": "You're raising about <b>{{perDay}} a day</b> and there are <b>{{days}} days left</b> in this period. That's roughly <b>{{short}} more than you have left</b>.",
+    "comfortableBodyPeriod": "You're raising about <b>{{perDay}} a day</b> and there are <b>{{days}} days left</b> in this period. At that rate you'd finish with <b>{{spare}} to spare</b>.",
+    "leftCount": "{{count}} left",
+    "overageSwitch": "Switch overage on or off",
+    "byBranchUnavailable": "By branch: not available yet",
+    "plansTitle": "Plans",
+    "changeRule": "Moving up applies straight away. Moving down applies from your next renewal.",
+    "changeNotAvailable": "Changing the plan from here is not available yet.",
+    "thisIsYours": "This is the plan you're on now.",
+    "moreAMonth": "<b>OMR {{amount}} more</b> a month than your plan.",
+    "lessAMonth": "<b>OMR {{amount}} less</b> a month than your plan, from your next renewal."
   },
   "bills": {
     "title": "Bills and payment",
@@ -11226,7 +11253,8 @@
     "oneDevice": "One device on mobile",
     "oneDeviceNote": "Signing in on a new phone signs the old one out. Stops a login being passed around.",
     "save": "Save",
-    "saved": "Saved"
+    "saved": "Saved",
+    "notAvailableYet": "Not available yet"
   },
   "governorate": {
     "muscat": "Muscat",
@@ -20754,5 +20782,75 @@
     "bankNoAccount": "Bank transfer is temporarily unavailable because Fawtir has not configured a verified bank account.",
     "superseded": "Replaced after a plan change",
     "olderBills": "Show older bills"
+  },
+  "permissionLabel": {
+    "pair": "{{group}}: {{action}}",
+    "resource": {
+      "admin": "Administration",
+      "admin_users": "People",
+      "admin_settings": "Company settings",
+      "admin_roles": "Roles",
+      "tenant": "Company",
+      "tenant_plan": "Plan and billing",
+      "invoice": "Invoices",
+      "invoice_attachment": "Invoice attachments",
+      "invoice_payment": "Invoice payments",
+      "role": "Roles",
+      "user": "People",
+      "erp": "ERP integration",
+      "erp_connection": "ERP connections",
+      "erp_audit": "ERP audit trail",
+      "erp_document": "ERP documents",
+      "mapping": "ERP field mapping",
+      "supplier": "Suppliers",
+      "customer": "Customers",
+      "product": "Catalogue",
+      "catalog": "Catalogue",
+      "branch": "Branches",
+      "compliance": "Compliance",
+      "selfbilling": "Self-billing",
+      "selfbilling_agreement": "Self-billing agreements",
+      "report": "Reports",
+      "bill": "Supplier bills",
+      "expense": "Expenses",
+      "document": "Documents",
+      "peppol": "Peppol",
+      "apikey": "API keys",
+      "api_key": "API keys",
+      "webhook": "Webhooks",
+      "activity": "Activity log",
+      "audit": "Activity log",
+      "note": "Credit and debit notes",
+      "pos": "Point of sale",
+      "stock": "Stock",
+      "platform": "Fawtir platform"
+    },
+    "action": {
+      "any": "Everything",
+      "read": "See",
+      "list": "See the list",
+      "manage": "Manage",
+      "write": "Create and change",
+      "create": "Create",
+      "update": "Change",
+      "delete": "Delete",
+      "submit": "Submit",
+      "approve": "Approve",
+      "cancel": "Cancel",
+      "issue": "Issue",
+      "draft": "Draft",
+      "export": "Export",
+      "import": "Import",
+      "test": "Test",
+      "recover": "Recover",
+      "certify": "Certify",
+      "sample": "Fetch a sample",
+      "record": "Record",
+      "verify": "Verify",
+      "send": "Send",
+      "pay": "Pay",
+      "void": "Void",
+      "support": "Support"
+    }
   }
 }

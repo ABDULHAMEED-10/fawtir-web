@@ -10925,7 +10925,8 @@
       "withLoginNote_zero": "{{count}} دعوات بالانتظار",
       "withLoginNote_two": "{{count}} دعوات بالانتظار",
       "withLoginNote_few": "{{count}} دعوات بالانتظار",
-      "withLoginNote_many": "{{count}} دعوات بالانتظار"
+      "withLoginNote_many": "{{count}} دعوات بالانتظار",
+      "twoStepNoteReal": "يُحتسب تطبيق المصادقة فقط. الرمز عبر البريد الإلكتروني لا يحتاج إلى إعداد."
     },
     "tab": {
       "all": "الكل",
@@ -11009,7 +11010,8 @@
     "inviteExpires_zero": "تنتهي الدعوة خلال {{count}} أيام",
     "inviteExpires_two": "تنتهي الدعوة خلال {{count}} أيام",
     "inviteExpires_few": "تنتهي الدعوة خلال {{count}} أيام",
-    "inviteExpires_many": "تنتهي الدعوة خلال {{count}} أيام"
+    "inviteExpires_many": "تنتهي الدعوة خلال {{count}} أيام",
+    "notAvailableYet": "غير متاح بعد"
   },
   "invite": {
     "title": "ادعُ شخصًا",
@@ -11081,7 +11083,10 @@
       "branchChosen_zero": "{{count}} فروع · {{names}}",
       "branchChosen_two": "{{count}} فروع · {{names}}",
       "branchChosen_few": "{{count}} فروع · {{names}}",
-      "branchChosen_many": "{{count}} فروع · {{names}}"
+      "branchChosen_many": "{{count}} فروع · {{names}}",
+      "emailFilled": "تم إدخال البريد الإلكتروني",
+      "emailMissing": "البريد الإلكتروني مطلوب",
+      "defaultRole": "لم يُحدَّد دور: الدور الافتراضي"
     },
     "footer": "{{name}} · {{role}} في {{branches}} · {{amount}} ر.ع. شهريًا عند القبول",
     "footerFree": "{{name}} · {{role}} في {{branches}} · ضمن الخطة",
@@ -11104,7 +11109,14 @@
     "branchMeta_zero": "{{people}} أشخاص · {{tills}} كاشير",
     "branchMeta_two": "{{people}} أشخاص · {{tills}} كاشير",
     "branchMeta_few": "{{people}} أشخاص · {{tills}} كاشير",
-    "branchMeta_many": "{{people}} أشخاص · {{tills}} كاشير"
+    "branchMeta_many": "{{people}} أشخاص · {{tills}} كاشير",
+    "notAvailableYet": "غير متاح بعد",
+    "branchesUnavailable": "غير متاح بعد. لا يمكن للدعوة أن تحدد الفروع، لذا حدّد فرع الشخص بعد انضمامه.",
+    "previewNote": "معاينة مبنية من هذا النموذج. نص البريد الذي يرسله «فوتر» بالضبط غير متاح بعد.",
+    "someone": "شخص ما",
+    "yourCompany": "شركتك",
+    "moreAreas": "+{{count}} أخرى",
+    "footerEmailNeeded": "أدخل بريدًا إلكترونيًا لإرسال الدعوة"
   },
   "roles": {
     "title": "ما يستطيعه كل دور",
@@ -11189,7 +11201,9 @@
     "invited_zero": "{{count}} مدعوون",
     "invited_two": "{{count}} مدعوون",
     "invited_few": "{{count}} مدعوون",
-    "invited_many": "{{count}} مدعوون"
+    "invited_many": "{{count}} مدعوون",
+    "notAvailableYet": "غير متاح بعد",
+    "changeNotAvailable": "تغيير العلامات من هنا غير متاح بعد."
   },
   "makeRole": {
     "title": "اصنع دورًا",
@@ -11445,7 +11459,20 @@
       "notSupportedNote": "متاح على {{plan}}. انتقل إلى خطة أعلى لإضافته.",
       "openIntegration": "افتح تكامل ERP"
     },
-    "larger": "أكبر"
+    "larger": "أكبر",
+    "notAvailableYet": "غير متاح بعد",
+    "comfortableHeadlinePeriod": "لديك ما يكفي حتى نهاية هذه الفترة",
+    "runOutBodyPeriod": "تُصدر نحو <b>{{perDay}} يوميًا</b> وبقي <b>{{days}} يومًا</b> في هذه الفترة، أي نحو <b>{{short}} أكثر مما تبقى لك</b>.",
+    "comfortableBodyPeriod": "تُصدر نحو <b>{{perDay}} يوميًا</b> وبقي <b>{{days}} يومًا</b> في هذه الفترة. بهذا المعدل ستنتهي الفترة <b>ويتبقى لك {{spare}}</b>.",
+    "leftCount": "المتبقي {{count}}",
+    "overageSwitch": "تشغيل الزيادة أو إيقافها",
+    "byBranchUnavailable": "حسب الفرع: غير متاح بعد",
+    "plansTitle": "الخطط",
+    "changeRule": "الانتقال إلى خطة أعلى يسري فورًا، والانتقال إلى خطة أصغر يسري من التجديد التالي.",
+    "changeNotAvailable": "تغيير الخطة من هنا غير متاح بعد.",
+    "thisIsYours": "هذه هي خطتك الحالية.",
+    "moreAMonth": "<b>{{amount}} ر.ع. أكثر</b> شهريًا من خطتك.",
+    "lessAMonth": "<b>{{amount}} ر.ع. أقل</b> شهريًا من خطتك، ابتداءً من التجديد التالي."
   },
   "bills": {
     "title": "الفواتير والدفع",
@@ -11861,7 +11888,8 @@
     "oneDevice": "جهاز واحد على الجوال",
     "oneDeviceNote": "الدخول من هاتف جديد يُخرج القديم. يمنع تداول الحساب.",
     "save": "حفظ",
-    "saved": "حُفظ"
+    "saved": "حُفظ",
+    "notAvailableYet": "غير متاح بعد"
   },
   "governorate": {
     "muscat": "مسقط",
@@ -21912,5 +21940,75 @@
     "bankNoAccount": "التحويل البنكي غير متاح مؤقتاً لأن فوتير لم تُعِدّ حساباً بنكياً موثقاً بعد.",
     "superseded": "استُبدلت بعد تغيير الخطة",
     "olderBills": "عرض الفواتير الأقدم"
+  },
+  "permissionLabel": {
+    "pair": "{{group}}: {{action}}",
+    "resource": {
+      "admin": "الإدارة",
+      "admin_users": "الأشخاص",
+      "admin_settings": "إعدادات الشركة",
+      "admin_roles": "الأدوار",
+      "tenant": "الشركة",
+      "tenant_plan": "الخطة والفوترة",
+      "invoice": "الفواتير",
+      "invoice_attachment": "مرفقات الفواتير",
+      "invoice_payment": "مدفوعات الفواتير",
+      "role": "الأدوار",
+      "user": "الأشخاص",
+      "erp": "تكامل ERP",
+      "erp_connection": "اتصالات ERP",
+      "erp_audit": "سجل تدقيق ERP",
+      "erp_document": "مستندات ERP",
+      "mapping": "ربط حقول ERP",
+      "supplier": "المورّدون",
+      "customer": "العملاء",
+      "product": "الكتالوج",
+      "catalog": "الكتالوج",
+      "branch": "الفروع",
+      "compliance": "الامتثال",
+      "selfbilling": "الفوترة الذاتية",
+      "selfbilling_agreement": "اتفاقيات الفوترة الذاتية",
+      "report": "التقارير",
+      "bill": "فواتير المورّدين",
+      "expense": "المصروفات",
+      "document": "المستندات",
+      "peppol": "Peppol",
+      "apikey": "مفاتيح API",
+      "api_key": "مفاتيح API",
+      "webhook": "Webhooks",
+      "activity": "سجل النشاط",
+      "audit": "سجل النشاط",
+      "note": "الإشعارات الدائنة والمدينة",
+      "pos": "نقاط البيع",
+      "stock": "المخزون",
+      "platform": "منصة «فوتر»"
+    },
+    "action": {
+      "any": "كل شيء",
+      "read": "عرض",
+      "list": "عرض القائمة",
+      "manage": "إدارة",
+      "write": "إنشاء وتعديل",
+      "create": "إنشاء",
+      "update": "تعديل",
+      "delete": "حذف",
+      "submit": "إرسال",
+      "approve": "اعتماد",
+      "cancel": "إلغاء",
+      "issue": "إصدار",
+      "draft": "إعداد مسودة",
+      "export": "تصدير",
+      "import": "استيراد",
+      "test": "اختبار",
+      "recover": "استرداد",
+      "certify": "تصديق",
+      "sample": "جلب عيّنة",
+      "record": "تسجيل",
+      "verify": "تحقق",
+      "send": "إرسال",
+      "pay": "دفع",
+      "void": "إبطال",
+      "support": "الدعم"
+    }
   }
 }
