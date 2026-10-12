@@ -49,6 +49,7 @@ import {
   debitActivity,
   debitEffect,
   debitNoteChecks,
+  linkedBillDetailKey,
 } from '../../lib/supplierDebitNotes'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { lineVatOf } from '../../lib/billDetail'
@@ -258,7 +259,7 @@ function DebitNoteDetail() {
       title: billNumber,
       kind: t('supplierDebitNotes.detail.linked.theBill'),
       detail: bill
-        ? t('supplierDebitNotes.detail.linked.billDetail', {
+        ? t(linkedBillDetailKey('supplierDebitNotes', bill), {
             date: bill.issueDate ? fmt.date(bill.issueDate) : '',
             state: t(billStateKey(bill)),
             due: bill.dueDate ? fmt.date(bill.dueDate) : '',
@@ -440,7 +441,10 @@ function DebitNoteDetail() {
                   ? t('supplierCreditNotes.detail.dueOn', { date: fmt.date(bill.dueDate) })
                   : row.dueDate
                     ? t('supplierCreditNotes.detail.dueOn', { date: fmt.date(row.dueDate) })
-                    : t('supplierCreditNotes.detail.noBillTile'),
+                    : // A bill is named but no date is known: never "No bill yet" (owner, C9).
+                      billNumber
+                      ? t('supplierDebitNotes.detail.afterThisNote')
+                      : t('supplierCreditNotes.detail.noBillTile'),
               },
             ]}
           />
@@ -612,7 +616,9 @@ function DebitNoteDetail() {
                           bill: billNumber ?? t('supplierNotes.thisBill'),
                         }),
                       )
-                    : t('supplierDebitNotes.reverseOnly', { status: t(STATUS_LABEL[row.status]) })}
+                    : row.status === 'REFUSED'
+                      ? t('supplierDebitNotes.reverseOnlyRefused')
+                      : t('supplierDebitNotes.reverseOnlyAccepted')}
             </p>
 
             {canDecide ? (

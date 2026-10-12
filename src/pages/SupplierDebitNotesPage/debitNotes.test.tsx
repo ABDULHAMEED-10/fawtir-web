@@ -379,17 +379,38 @@ describe('One debit note', () => {
     for (const button of screen.getAllByRole('button', { name: 'Refuse it' })) {
       expect(button).toHaveProperty('disabled', false)
     }
-    expect(screen.getByText(/Only the opposite decision can be recorded/)).toBeTruthy()
+    // Owner, D1 (12 Oct 2026): a whole sentence per decision, never the chip's capitalised word.
+    expect(
+      screen.getByText('Already accepted. Only the opposite decision can be recorded.'),
+    ).toBeTruthy()
     accepted.unmount()
 
     notes = [note({ status: 'REFUSED', decisionReason: 'Already charged' })]
     renderDetail()
     await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(
+      screen.getByText('Already refused. Only the opposite decision can be recorded.'),
+    ).toBeTruthy()
+    expect(screen.queryByText(/Already Refused/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'Refuse it' })).toBeNull()
     expect(screen.getAllByRole('button', { name: 'Accept it' })).toHaveLength(2)
     for (const button of screen.getAllByRole('button', { name: 'Accept it' })) {
       expect(button).toHaveProperty('disabled', false)
     }
+  })
+
+  it('says the decision is already taken in Arabic, one sentence per decision', async () => {
+    await i18n.changeLanguage('ar')
+    notes = [note({ status: 'REFUSED', decisionReason: 'Already charged' })]
+    const refused = renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(screen.getByText('مرفوض بالفعل. لا يمكن تسجيل سوى القرار المعاكس.')).toBeTruthy()
+    refused.unmount()
+
+    notes = [note({ status: 'ACCEPTED' })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(screen.getByText('مقبول بالفعل. لا يمكن تسجيل سوى القرار المعاكس.')).toBeTruthy()
   })
 
   it('offers both decisions on a charge nobody has checked', async () => {
@@ -732,6 +753,92 @@ describe("a debit note's You'd pay", () => {
     await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
     expect(await youdPay('المتبقي على الفاتورة')).toEqual({ text: '50.000', rial: true })
     expect(await youdPay('ستدفع')).toEqual({ text: '55.000', rial: true })
+  })
+
+  // Owner, C9 (12 Oct 2026): with a bill named, the caption never says "No bill yet".
+  it('captions You\'d pay "after this note" when a bill is named but no date is known', async () => {
+    billRows = [{ ...BILL_ROW, dueDate: null }]
+    notes = [note({ dueDate: null })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    const tile = (await screen.findByText("You'd pay")).parentElement!
+    await waitFor(() => expect(tile.textContent).toContain('after this note'))
+    expect(tile.textContent).not.toContain('No bill yet')
+  })
+
+  it('captions You\'d pay "after this note" when the named bill is not on file', async () => {
+    billRows = null
+    notes = [note({ dueDate: null })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    const tile = (await screen.findByText("You'd pay")).parentElement!
+    expect(tile.textContent).toContain('after this note')
+    expect(tile.textContent).not.toContain('No bill yet')
+  })
+
+  it('keeps "No bill yet" under You\'d pay when no bill is named', async () => {
+    notes = [note({ dueDate: null, relatesTo: null })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    const tile = (await screen.findByText("You'd pay")).parentElement!
+    expect(tile.textContent).toContain('No bill yet')
+    expect(tile.textContent).not.toContain('after this note')
+  })
+
+  it('keeps the due date under You\'d pay when the bill has one', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    const tile = (await screen.findByText("You'd pay")).parentElement!
+    await waitFor(() => expect(tile.textContent).toContain('due 19 Sept 2026'))
+  })
+
+  it('captions You\'d pay "after this note" in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    billRows = [{ ...BILL_ROW, dueDate: null }]
+    notes = [note({ dueDate: null })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    const tile = (await screen.findByText('ستدفع')).parentElement!
+    await waitFor(() => expect(tile.textContent).toContain('بعد هذا الإشعار'))
+  })
+
+  // Owner, D2 (12 Oct 2026): a bill without a due date reads "no due date", never "· due".
+  it('says the linked bill has no due date rather than "due" with nothing after it', async () => {
+    billRows = [{ ...BILL_ROW, dueDate: null }]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(await screen.findByText('Received 20 Aug 2026 · Approved · no due date')).toBeTruthy()
+    expect(screen.queryByText(/· due\s*$/)).toBeNull()
+  })
+
+  it('keeps the due date on the linked bill when it has one', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(
+      await screen.findByText('Received 20 Aug 2026 · Approved · due 19 Sept 2026'),
+    ).toBeTruthy()
+  })
+
+  it('drops "Received" from the linked bill when it has no received date', async () => {
+    billRows = [{ ...BILL_ROW, issueDate: null, dueDate: null }]
+    const view = renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(await screen.findByText('Approved · no due date')).toBeTruthy()
+    expect(screen.queryByText(/^Received\s+·/)).toBeNull()
+    view.unmount()
+
+    billRows = [{ ...BILL_ROW, issueDate: null }]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(await screen.findByText('Approved · due 19 Sept 2026')).toBeTruthy()
+  })
+
+  it('says the linked bill has no due date in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    billRows = [{ ...BILL_ROW, issueDate: null, dueDate: null }]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(await screen.findByText('معتمدة · بلا تاريخ استحقاق')).toBeTruthy()
   })
 
   it('works the tiles out on one basis', () => {

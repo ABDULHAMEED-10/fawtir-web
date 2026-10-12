@@ -1110,6 +1110,44 @@ describe('One credit note', () => {
     expect(await screen.findByText(/reduces it automatically/)).toBeTruthy()
   })
 
+  // Owner, D2 (12 Oct 2026): a bill without a due date reads "no due date", never "· due".
+  it('says the linked bill has no due date rather than "due" with nothing after it', async () => {
+    notes = [
+      note({
+        credits: {
+          billNumber: 'QMS-7781',
+          issueDate: '2026-09-01',
+          documentUuid: null,
+          billId: BILL_ID,
+          applied: false,
+        },
+      }),
+    ]
+    billDetail = {
+      bill: { ...OURS, id: BILL_ID, supplierBillNumber: 'QMS-7781', dueDate: null },
+      lines: [],
+    }
+    const view = renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(await screen.findByText('Received 1 Sept 2026 · Approved · no due date')).toBeTruthy()
+    expect(screen.queryByText(/· due\s*$/)).toBeNull()
+    view.unmount()
+
+    await i18n.changeLanguage('ar')
+    billDetail = {
+      bill: {
+        ...OURS,
+        id: BILL_ID,
+        supplierBillNumber: 'QMS-7781',
+        issueDate: null,
+        dueDate: null,
+      },
+      lines: [],
+    }
+    renderDetail()
+    expect(await screen.findByText('معتمدة · بلا تاريخ استحقاق')).toBeTruthy()
+  })
+
   it('shows a reason code as the code when nothing names it', async () => {
     renderDetail()
     await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })

@@ -7110,7 +7110,10 @@
         "original": "الملف الأصلي",
         "originalDetail": "الملف الأصلي كما أرسله المورّد",
         "billDetail": "استُلمت في {{date}} · {{state}} · تستحق في {{due}}",
-        "billNotOnFile": "مذكورة على الإشعار، وليست بين فواتير هذا المورّد"
+        "billNotOnFile": "مذكورة على الإشعار، وليست بين فواتير هذا المورّد",
+        "billDetailNoDue": "استُلمت في {{date}} · {{state}} · بلا تاريخ استحقاق",
+        "billStateDue": "{{state}} · تستحق في {{due}}",
+        "billStateNoDue": "{{state}} · بلا تاريخ استحقاق"
       },
       "activityTitle": "النشاط",
       "activity": {
@@ -7427,7 +7430,10 @@
         "receiptDetail": "وقّع عليه يوسف البلوشي الساعة ٠٧:٤٠ · ٢٥ يوليو",
         "rateCardDetail": "٩٦٫٠٠٠ ريال ثابتة لكل تسليم، ٠٦:٠٠–١٨:٠٠، دون رسوم إضافية",
         "billDetail": "استُلمت في {{date}} · {{state}} · تستحق في {{due}}",
-        "billNotOnFile": "مذكورة على الإشعار، وليست بين فواتير هذا المورّد"
+        "billNotOnFile": "مذكورة على الإشعار، وليست بين فواتير هذا المورّد",
+        "billDetailNoDue": "استُلمت في {{date}} · {{state}} · بلا تاريخ استحقاق",
+        "billStateDue": "{{state}} · تستحق في {{due}}",
+        "billStateNoDue": "{{state}} · بلا تاريخ استحقاق"
       },
       "activityTitle": "النشاط",
       "activity": {
@@ -7463,7 +7469,8 @@
       "reasonRecorded": "يُسجَّل سببك على الإشعار. لا يُرسل إلى المورّد من هنا.",
       "rateCardMissing": "لا بطاقة أسعار مسجلة لهذا المورّد بعد. حين تُسجَّل، يُقرأ الرسم مقابلها هنا.",
       "acceptedBodyNoDate": "قُبل الرسم وهو مستحق.",
-      "billStillOwes": "المتبقي على الفاتورة"
+      "billStillOwes": "المتبقي على الفاتورة",
+      "afterThisNote": "بعد هذا الإشعار"
     },
     "status": {
       "UNCHECKED": "لم تُراجع بعد",
@@ -7549,7 +7556,9 @@
       "summaryBeforeAccept_two": "{{count}} أمور تستحق النظر قبل القبول.",
       "summaryBeforeAccept_few": "{{count}} أمور تستحق النظر قبل القبول.",
       "summaryBeforeAccept_many": "{{count}} أمور تستحق النظر قبل القبول."
-    }
+    },
+    "reverseOnlyRefused": "مرفوض بالفعل. لا يمكن تسجيل سوى القرار المعاكس.",
+    "reverseOnlyAccepted": "مقبول بالفعل. لا يمكن تسجيل سوى القرار المعاكس."
   },
   "expenditureReminders": {
     "title": "التذكيرات",
@@ -21179,7 +21188,8 @@
     "billChosenByHand": "اختيرت يدويًا. تحقق منها مقابل المرجع المطبوع على الملف.",
     "findBill": "أي فاتورة",
     "findBillPlaceholder": "ابحث برقم الفاتورة",
-    "pickSupplierFirst": "اختر المورّد أولًا"
+    "pickSupplierFirst": "اختر المورّد أولًا",
+    "billCardNoDue": "{{state}} · {{outstanding}} غير مدفوع · بلا تاريخ استحقاق"
   },
   "expenditureNotes": {
     "reason": {
