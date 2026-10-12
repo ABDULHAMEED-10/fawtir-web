@@ -6561,7 +6561,9 @@
       "topSupplier": "Most notes from",
       "topSupplierMeta": "{{count}} notes",
       "noTopSupplier": "No supplier stands out",
-      "noTopSupplierMeta": "No supplier has sent a credit note yet"
+      "noTopSupplierMeta": "No supplier has sent a credit note yet",
+      "stillUsableMeta_one": "{{count}} note with credit left to use",
+      "stillUsableMeta_other": "{{count}} notes with credit left to use"
     },
     "tabs": {
       "all": "All",
@@ -6703,7 +6705,8 @@
       "savedClosesRefusedDebitNote": "Saved. The credit closes refused debit note {{note}}; anything left over stays as credit.",
       "refusedDebitNoteCloses": "This debit note was refused, so the credit closes it. Anything left over stays as credit.",
       "setNowNoteDebitNote": "The debit note is unpaid, so you simply pay OMR {{amount}} less.",
-      "saveAndSetDebitNote": "Save and set against the debit note"
+      "saveAndSetDebitNote": "Save and set against the debit note",
+      "restStaysAsCredit": "The other OMR {{amount}} stays as credit for a later bill."
     },
     "detail": {
       "creditNotePeppol": "Credit note · Peppol",
@@ -6797,7 +6800,8 @@
         "settledRefunded": "Refund recorded",
         "settledRefundedDetail": "OMR {{amount}} paid on {{date}} · recorded {{when}}",
         "settledRefundedRef": "OMR {{amount}} paid on {{date}} · ref {{reference}} · recorded {{when}}",
-        "arrivedNoBill": "Issued {{date}} · no bill named"
+        "arrivedNoBill": "Issued {{date}} · no bill named",
+        "settledAppliedTo": "Used against {{bill}}"
       },
       "decisionTaken": "{{what}}",
       "supplierName": "Name",
@@ -20070,7 +20074,8 @@
     "billChosenByHand": "Chosen by hand. Check it against the reference printed on the file.",
     "findBill": "Which bill",
     "findBillPlaceholder": "Search by bill number",
-    "pickSupplierFirst": "Choose the supplier first"
+    "pickSupplierFirst": "Choose the supplier first",
+    "refusedNothingOwed": "Refused · nothing owed"
   },
   "expenditureNotes": {
     "reason": {
