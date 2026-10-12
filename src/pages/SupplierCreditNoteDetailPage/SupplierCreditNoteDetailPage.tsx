@@ -61,7 +61,7 @@ import {
   vatEffect,
   type NoteFormat,
 } from '../../lib/supplierCreditNotes'
-import { billStateKey } from '../../lib/supplierDebitNotes'
+import { billStateKey, linkedBillDetailKey } from '../../lib/supplierDebitNotes'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { lineVatOf } from '../../lib/billDetail'
 import { muscatToday } from '../../lib/invoiceIssue'
@@ -296,7 +296,7 @@ function CreditNoteDetail() {
       title: billNumber,
       kind: t('supplierCreditNotes.detail.linked.theBill'),
       detail: bill
-        ? t('supplierCreditNotes.detail.linked.billDetail', {
+        ? t(linkedBillDetailKey('supplierCreditNotes', bill), {
             date: bill.issueDate ? fmt.date(bill.issueDate) : '',
             state: t(billStateKey(bill)),
             due: bill.dueDate ? fmt.date(bill.dueDate) : '',

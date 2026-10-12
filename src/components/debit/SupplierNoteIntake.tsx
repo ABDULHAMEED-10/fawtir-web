@@ -1237,11 +1237,12 @@ function BillChooser({
               <p className="mt-1 text-sm font-medium leading-[1.3] text-text-tertiary">
                 {/* A refused debit note owes nothing, whatever its figures still say. */}
                 {refusedNote(chosen) ? t('supplierNotes.refusedNothingOwed') : withRial(
-                  t('supplierNotes.billCard', {
+                  // No due date reads "no due date", never "due —" (owner, D2, 12 Oct 2026).
+                  t(chosen.dueDate ? 'supplierNotes.billCard' : 'supplierNotes.billCardNoDue', {
                     state: t(billStateKey(chosen)),
                     // The code before the figure: the rial sign is drawn in its place.
                     outstanding: `${chosen.currencyCode} ${money(chosen.outstandingAmount, chosen.currencyCode)}`,
-                    due: chosen.dueDate ? formatDate(chosen.dueDate, language) : '—',
+                    due: chosen.dueDate ? formatDate(chosen.dueDate, language) : '',
                   }),
                 )}
                 {chosen.paymentRunReference

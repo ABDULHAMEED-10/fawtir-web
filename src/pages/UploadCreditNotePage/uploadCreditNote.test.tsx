@@ -948,3 +948,34 @@ describe('a credit note correcting a supplier debit note on upload', () => {
     expect(screen.queryByText(/Debit note · /)).toBeNull()
   })
 })
+
+// Owner, D2 (12 Oct 2026): a chosen bill without a due date reads "no due date", never "due —".
+describe('the chosen bill without a due date', () => {
+  const card = () =>
+    screen.getByText(
+      (_, element) =>
+        element?.tagName === 'P' && /(unpaid|غير مدفوع) · /.test(element.textContent ?? ''),
+    )
+  const visible = (element: Element) => {
+    const copy = element.cloneNode(true) as Element
+    copy.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+    return (copy.textContent ?? '').replace(/\s+/g, ' ').trim()
+  }
+
+  it('says "no due date"', async () => {
+    billRows = [{ ...BILL, dueDate: null }]
+    await uploadNote()
+    await chooseBill()
+    expect(visible(card())).toMatch(/^Approved · 315\.000 unpaid · no due date$/)
+    expect(visible(card())).not.toContain('—')
+  })
+
+  it('says "no due date" in Arabic', async () => {
+    billRows = [{ ...BILL, dueDate: null }]
+    await uploadNote()
+    await chooseBill()
+    await i18n.changeLanguage('ar')
+    await waitFor(() => expect(visible(card())).toMatch(/· بلا تاريخ استحقاق$/))
+    expect(visible(card())).toMatch(/^معتمدة · /)
+  })
+})
