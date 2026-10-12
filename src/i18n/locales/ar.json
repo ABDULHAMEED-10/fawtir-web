@@ -5699,14 +5699,14 @@
       "otherCurrencies_few": "{{count}} فاتورة بعملة أخرى غير مشمولة في إجماليات {{currency}}.",
       "otherCurrencies_many": "{{count}} فاتورة بعملة أخرى غير مشمولة في إجماليات {{currency}}.",
       "otherCurrencies_other": "{{count}} فاتورة بعملة أخرى غير مشمولة في إجماليات {{currency}}.",
-      "payableDisputed_one": "{{amount}} متنازع عليها على فاتورة مرفوضة واحدة",
-      "payableDisputed_two": "{{amount}} متنازع عليها على فاتورتين مرفوضتين",
-      "payableDisputed_few": "{{amount}} متنازع عليها على {{count}} فواتير مرفوضة",
-      "payableDisputed_many": "{{amount}} متنازع عليها على {{count}} فاتورة مرفوضة",
-      "payableDisputed_other": "{{amount}} متنازع عليها على {{count}} فاتورة مرفوضة",
+      "payableDisputed_one": "{{amount}} متنازع عليها في إشعار مدين مرفوض واحد",
+      "payableDisputed_two": "{{amount}} متنازع عليها في إشعارين مدينين مرفوضين",
+      "payableDisputed_few": "{{amount}} متنازع عليها في {{count}} إشعارات مدينة مرفوضة",
+      "payableDisputed_many": "{{amount}} متنازع عليها في {{count}} إشعار مدين مرفوض",
+      "payableDisputed_other": "{{amount}} متنازع عليها في {{count}} إشعار مدين مرفوض",
       "attentionDrafts_zero": "{{count}} مرفوعة للتأكيد",
       "otherCurrencies_zero": "{{count}} فاتورة بعملة أخرى غير مشمولة في إجماليات {{currency}}.",
-      "payableDisputed_zero": "{{amount}} متنازع عليها على {{count}} فاتورة مرفوضة",
+      "payableDisputed_zero": "{{amount}} متنازع عليها في {{count}} إشعار مدين مرفوض",
       "payableAwaitingDecision_zero": "بانتظار قرارك: {{amount}} على {{count}} إشعار مدين",
       "payableAwaitingDecision_one": "بانتظار قرارك: {{amount}} على إشعار مدين واحد",
       "payableAwaitingDecision_two": "بانتظار قرارك: {{amount}} على إشعارين مدينين",
@@ -5841,7 +5841,9 @@
       "rejected": "مرفوضة",
       "inPaymentRun": "ضمن دفعة سداد",
       "inPaymentRunRef": "ضمن دفعة السداد {{run}}",
-      "paid": "مدفوعة"
+      "paid": "مدفوعة",
+      "partPaid": "مدفوعة جزئيًا",
+      "refusedClosed": "مرفوض · أُغلق بإشعار دائن"
     },
     "notice": {
       "drafts_one": "فاتورة واحدة مرفوعة أو ممسوحة بانتظار تفاصيلها، وستظهر هنا بعد تأكيدها.",
@@ -5922,7 +5924,8 @@
       "dueOn": "تستحق {{date}}",
       "automatically": "تلقائيًا",
       "arrivedVia": "{{date}} · {{source}}",
-      "notYet": "ليس بعد"
+      "notYet": "ليس بعد",
+      "paidOf": "دُفع OMR {{paid}} من OMR {{total}}"
     },
     "match": {
       "ordered": "المطلوب",
@@ -6168,7 +6171,9 @@
       "refused": {
         "dateBeforeOverpayment": "لا يمكن أن يسبق تاريخ الاسترداد تاريخ الدفعة التي زادت على مبلغ هذه الفاتورة.",
         "inRun": "هذه الفاتورة ضمن دفعة السداد {{run}}. أخرجها من الدفعة أولًا."
-      }
+      },
+      "refundedBySupplier": "ردّه المورّد OMR {{amount}}",
+      "debitNotesOnceAccepted": "تظهر إشعارات المدين هنا بعد قبولها."
     }
   },
   "uploadBill": {
@@ -6896,7 +6901,13 @@
       "topSupplier": "أكثر المورّدين إصدارًا",
       "topSupplierMeta": "{{count}} إشعارات",
       "noTopSupplier": "لا يوجد مورّد بارز",
-      "noTopSupplierMeta": "لم يرسل أي مورّد إشعارًا دائنًا بعد"
+      "noTopSupplierMeta": "لم يرسل أي مورّد إشعارًا دائنًا بعد",
+      "stillUsableMeta_zero": "لا إشعارات دائنة فيها رصيد متبقٍ للاستخدام",
+      "stillUsableMeta_one": "إشعار دائن واحد فيه رصيد متبقٍ للاستخدام",
+      "stillUsableMeta_two": "إشعاران دائنان فيهما رصيد متبقٍ للاستخدام",
+      "stillUsableMeta_few": "{{count}} إشعارات دائنة فيها رصيد متبقٍ للاستخدام",
+      "stillUsableMeta_many": "{{count}} إشعارًا دائنًا فيه رصيد متبقٍ للاستخدام",
+      "stillUsableMeta_other": "{{count}} إشعار دائن فيه رصيد متبقٍ للاستخدام"
     },
     "tabs": {
       "all": "الكل",
@@ -7042,7 +7053,8 @@
       "savedClosesRefusedDebitNote": "حُفظ. يُغلق هذا الرصيد الإشعار المدين المرفوض {{note}}، وما يزيد يبقى رصيدًا.",
       "refusedDebitNoteCloses": "هذا الإشعار المدين مرفوض، لذا يُغلقه هذا الرصيد. وما يزيد يبقى رصيدًا.",
       "setNowNoteDebitNote": "الإشعار المدين غير مدفوع، لذا تدفع أقل بمقدار OMR {{amount}} فحسب.",
-      "saveAndSetDebitNote": "احفظ واخصم من الإشعار المدين"
+      "saveAndSetDebitNote": "احفظ واخصم من الإشعار المدين",
+      "restStaysAsCredit": "ويبقى الباقي OMR {{amount}} رصيدًا لفاتورة لاحقة."
     },
     "detail": {
       "creditNotePeppol": "إشعار دائن · Peppol",
@@ -7110,7 +7122,10 @@
         "original": "الملف الأصلي",
         "originalDetail": "الملف الأصلي كما أرسله المورّد",
         "billDetail": "استُلمت في {{date}} · {{state}} · تستحق في {{due}}",
-        "billNotOnFile": "مذكورة على الإشعار، وليست بين فواتير هذا المورّد"
+        "billNotOnFile": "مذكورة على الإشعار، وليست بين فواتير هذا المورّد",
+        "billDetailNoDue": "استُلمت في {{date}} · {{state}} · بلا تاريخ استحقاق",
+        "billStateDue": "{{state}} · تستحق في {{due}}",
+        "billStateNoDue": "{{state}} · بلا تاريخ استحقاق"
       },
       "activityTitle": "النشاط",
       "activity": {
@@ -7136,13 +7151,14 @@
         "settledRefunded": "سُجّل استرداد",
         "settledRefundedDetail": "OMR {{amount}} دُفع في {{date}} · سُجّل {{when}}",
         "settledRefundedRef": "OMR {{amount}} دُفع في {{date}} · المرجع {{reference}} · سُجّل {{when}}",
-        "arrivedNoBill": "صدر في {{date}} · لم تُذكر فاتورة"
+        "arrivedNoBill": "صدر في {{date}} · لم تُذكر فاتورة",
+        "settledAppliedTo": "استُخدم مقابل {{bill}}"
       },
       "decisionTaken": "{{what}}",
       "supplierName": "الاسم",
       "supplierVat": "الرقم الضريبي",
       "creditToUse": "رصيد OMR {{amount}} للاستخدام",
-      "paidLessTitle": "دفعت أقل بمقدار OMR {{amount}}",
+      "paidLessTitle": "دفعتَ أقل بمقدار OMR {{amount}}",
       "refundedTitle": "استُرد لك OMR {{amount}}",
       "refundedBody": "أعاد المورّد الرصيد بدل خصمه من فاتورة.",
       "paidLessBody": "خُصم الرصيد من {{bill}} ونزل مما كنت تدين به.",
@@ -7156,7 +7172,11 @@
       "lineBilledOn": "فُوتر على {{bill}}",
       "decisionNoteNoBill": "اختر الفاتورة التي يخفّضها هذا الرصيد، أو احتفظ به لفاتورة لاحقة، أو سجّل استردادًا.",
       "setAgainstAnother": "خصمه من فاتورة",
-      "partlyUsedBody": "استُخدم جزء من هذا الرصيد أو استُرد بالفعل. اخصم المتبقي من فاتورة أخرى، أو احتفظ به لفاتورة لاحقة، أو سجّل استردادًا."
+      "partlyUsedBody": "استُخدم جزء من هذا الرصيد أو استُرد بالفعل. اخصم المتبقي من فاتورة أخرى، أو احتفظ به لفاتورة لاحقة، أو سجّل استردادًا.",
+      "closesRefusedTitle": "يُغلق إشعار المدين المرفوض {{number}}.",
+      "closesRefusedBody": "لم يكن عليه أي مبلغ مستحق.",
+      "billOnHold": "{{bill}} قيد الانتظار. أفرِج عنها قبل خصم هذا الرصيد منها.",
+      "afterThisNote": "بعد هذا الإشعار"
     },
     "source": {
       "peppol": "وردت عبر Peppol",
@@ -7427,7 +7447,10 @@
         "receiptDetail": "وقّع عليه يوسف البلوشي الساعة ٠٧:٤٠ · ٢٥ يوليو",
         "rateCardDetail": "٩٦٫٠٠٠ ريال ثابتة لكل تسليم، ٠٦:٠٠–١٨:٠٠، دون رسوم إضافية",
         "billDetail": "استُلمت في {{date}} · {{state}} · تستحق في {{due}}",
-        "billNotOnFile": "مذكورة على الإشعار، وليست بين فواتير هذا المورّد"
+        "billNotOnFile": "مذكورة على الإشعار، وليست بين فواتير هذا المورّد",
+        "billDetailNoDue": "استُلمت في {{date}} · {{state}} · بلا تاريخ استحقاق",
+        "billStateDue": "{{state}} · تستحق في {{due}}",
+        "billStateNoDue": "{{state}} · بلا تاريخ استحقاق"
       },
       "activityTitle": "النشاط",
       "activity": {
@@ -7463,7 +7486,8 @@
       "reasonRecorded": "يُسجَّل سببك على الإشعار. لا يُرسل إلى المورّد من هنا.",
       "rateCardMissing": "لا بطاقة أسعار مسجلة لهذا المورّد بعد. حين تُسجَّل، يُقرأ الرسم مقابلها هنا.",
       "acceptedBodyNoDate": "قُبل الرسم وهو مستحق.",
-      "billStillOwes": "المتبقي على الفاتورة"
+      "billStillOwes": "المتبقي على الفاتورة",
+      "afterThisNote": "بعد هذا الإشعار"
     },
     "status": {
       "UNCHECKED": "لم تُراجع بعد",
@@ -7549,7 +7573,9 @@
       "summaryBeforeAccept_two": "{{count}} أمور تستحق النظر قبل القبول.",
       "summaryBeforeAccept_few": "{{count}} أمور تستحق النظر قبل القبول.",
       "summaryBeforeAccept_many": "{{count}} أمور تستحق النظر قبل القبول."
-    }
+    },
+    "reverseOnlyRefused": "مرفوض بالفعل. لا يمكن تسجيل سوى القرار المعاكس.",
+    "reverseOnlyAccepted": "مقبول بالفعل. لا يمكن تسجيل سوى القرار المعاكس."
   },
   "expenditureReminders": {
     "title": "التذكيرات",
@@ -9479,7 +9505,8 @@
     "unusedCredits_few": "{{count}} إشعارات دائنة لم تُستخدم بعد",
     "unusedCredits_many": "{{count}} إشعارًا دائنًا لم يُستخدم بعد",
     "creditUsedOn": "رصيد مستخدم في {{bill}}",
-    "alreadyCounted": "احتُسب عند دفع مبلغ زائد على الفاتورة"
+    "alreadyCounted": "احتُسب عند دفع مبلغ زائد على الفاتورة",
+    "lessUnusedCredit": "يُخصم رصيد غير مستخدم OMR {{credit}} · ودفع بزيادة OMR {{overpaid}}"
   },
   "activity": {
     "title": "TDD وجهاز الضرائب",
@@ -21149,7 +21176,8 @@
       "onHold": "قيد الانتظار",
       "rejected": "مرفوضة",
       "inPaymentRun": "في دفعة سداد",
-      "paid": "مدفوعة"
+      "paid": "مدفوعة",
+      "refusedClosed": "مرفوض · أُغلق بإشعار دائن"
     },
     "activity": {
       "arrivedPeppol": "وصل الإشعار الدائن عبر بيبول",
@@ -21179,7 +21207,9 @@
     "billChosenByHand": "اختيرت يدويًا. تحقق منها مقابل المرجع المطبوع على الملف.",
     "findBill": "أي فاتورة",
     "findBillPlaceholder": "ابحث برقم الفاتورة",
-    "pickSupplierFirst": "اختر المورّد أولًا"
+    "pickSupplierFirst": "اختر المورّد أولًا",
+    "refusedNothingOwed": "مرفوض · لا شيء مستحق",
+    "billCardNoDue": "{{state}} · {{outstanding}} غير مدفوع · بلا تاريخ استحقاق"
   },
   "expenditureNotes": {
     "reason": {

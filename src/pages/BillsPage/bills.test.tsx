@@ -927,6 +927,118 @@ describe('bill list mapping', () => {
       'billsPage.state.onHold',
     )
   })
+
+  // Owner's answer P4 (12 Oct 2026): an approved bill with some paid and some still owed.
+  it('reads an approved bill that is part paid as "Part paid", and nothing else', () => {
+    const ready = { state: 'READY', distinctApprovals: 1, required: 1, autoApproved: false } as const
+    const part = toBillListItem(
+      bill({ workflowState: 'APPROVED', readiness: ready, paidAmount: 200, outstandingAmount: 1034.56 }),
+    )
+    expect(part.status).toBe('partPaid')
+    expect(statusLabelKey(part)).toBe('billsPage.state.partPaid')
+    expect(i18n.t('billsPage.state.partPaid')).toBe('Part paid')
+    // Nothing paid yet, or nothing left: the plain states.
+    expect(toBillListItem(bill({ workflowState: 'APPROVED', readiness: ready })).status).toBe(
+      'approved',
+    )
+    expect(
+      toBillListItem(
+        bill({ workflowState: 'PAID', readiness: ready, paidAmount: 1234.56, outstandingAmount: 0 }),
+      ).status,
+    ).toBe('paid')
+    // Only an approved bill: one held, in a run or still differing from its order keeps its state.
+    for (const workflowState of ['ON_HOLD', 'IN_PAYMENT_RUN', 'AWAITING_APPROVAL'] as const) {
+      expect(
+        toBillListItem(bill({ workflowState, paidAmount: 200, outstandingAmount: 1034.56 })).status,
+      ).not.toBe('partPaid')
+    }
+    expect(
+      toBillListItem(
+        bill({
+          workflowState: 'APPROVED',
+          paidAmount: 200,
+          outstandingAmount: 1034.56,
+          match: { verdict: 'MISMATCH', purchaseOrderNumber: 'PO-9', byHand: false },
+        }),
+      ).status,
+    ).toBe('mismatch')
+  })
+
+  // Owner's answer D4 (12 Oct 2026): a refused debit note its credit note closed.
+  it('reads a refused debit note closed by a credit note as such, wherever its state is named', () => {
+    const closed = bill({
+      documentTypeCode: '383',
+      debitNoteDecision: 'REFUSED',
+      workflowState: 'REFUSED_CLOSED',
+      paidAmount: 0,
+      outstandingAmount: 0,
+      dueDate: muscatDay(-30),
+    })
+    const item = toBillListItem(closed)
+    expect(item.status).toBe('refusedClosed')
+    expect(statusLabelKey(item)).toBe('billsPage.state.refusedClosed')
+    expect(i18n.t('billsPage.state.refusedClosed')).toBe('Refused · closed by credit note')
+    // Settled: no due date to chase, nothing owed, nothing to approve.
+    expect(dueNoteOf(item)).toBeNull()
+    expect(item.owes).toBe(false)
+    expect(item.canApprove).toBe(false)
+    expect(rowActionOf(item, { canApprove: true, canCapture: true })).toBeNull()
+    // A note picking a bill names it in the same words, and the supplier's page sends it to the bill.
+    expect(billStateKey(closed)).toBe('supplierNotes.billState.refusedClosed')
+    expect(i18n.t('supplierNotes.billState.refusedClosed')).toBe('Refused · closed by credit note')
+    expect(whereNote(closed, null)).toBeNull()
+    expect(rowAction(closed, null, true)).toEqual({
+      key: 'supplierRecord.openBill',
+      to: `/expenditure/bills/${closed.id}`,
+    })
+  })
+})
+
+describe('a bill part paid, and a refused debit note closed by credit, on the list', () => {
+  const ready = { state: 'READY', distinctApprovals: 1, required: 1, autoApproved: false } as const
+  const rows = () => [
+    bill({
+      id: 'b-part',
+      supplierBillNumber: 'PART-1',
+      workflowState: 'APPROVED',
+      readiness: ready,
+      paidAmount: 20,
+      outstandingAmount: 30,
+      totalIncludingVat: 50,
+    }),
+    bill({
+      id: 'dn-closed',
+      supplierBillNumber: 'DN-CLOSED',
+      documentTypeCode: '383',
+      debitNoteDecision: 'REFUSED',
+      workflowState: 'REFUSED_CLOSED',
+      readiness: ready,
+      paidAmount: 0,
+      outstandingAmount: 0,
+    }),
+  ]
+  const rowOf = async (number: string) => (await screen.findByText(number)).closest('tr')!
+
+  it('shows "Part paid" and "Refused · closed by credit note" under All', async () => {
+    listResponses = [() => json(200, itemsPage(rows()))]
+    renderBills('/expenditure/bills?tab=all')
+    const part = await rowOf('PART-1')
+    expect(within(part).getByText('Part paid')).toBeTruthy()
+    expect(within(part).queryByText('Approved')).toBeNull()
+    const closed = await rowOf('DN-CLOSED')
+    expect(within(closed).getByText('Refused · closed by credit note')).toBeTruthy()
+    expect(within(closed).queryByText('Paid')).toBeNull()
+    // The All tab asks for every bill: no filter.
+    expect(listCalls()).toEqual(['/api/v1/bills?page=0&page_size=10'])
+  })
+
+  it('reads in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    listResponses = [() => json(200, itemsPage(rows()))]
+    renderBills('/expenditure/bills?tab=all')
+    expect(within(await rowOf('PART-1')).getByText('مدفوعة جزئيًا')).toBeTruthy()
+    expect(within(await rowOf('DN-CLOSED')).getByText('مرفوض · أُغلق بإشعار دائن')).toBeTruthy()
+  })
 })
 
 function intakeRow(
@@ -973,7 +1085,7 @@ describe('a disputed bill', () => {
     const meta = screen.getByText(
       (_, element) =>
         element?.tagName === 'P' &&
-        /^13 open · 2 overdue · .*3,140\.000 disputed on 1 refused bill$/.test(
+        /^13 open · 2 overdue · .*3,140\.000 disputed on 1 refused debit note$/.test(
           element.textContent ?? '',
         ),
     )
@@ -982,6 +1094,30 @@ describe('a disputed bill', () => {
     const visible = meta.cloneNode(true) as Element
     visible.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
     expect(visible.textContent).not.toContain('OMR')
+  })
+
+  // Owner's answer D3 (12 Oct 2026): the line names refused debit notes, with every plural form.
+  it('counts refused debit notes, in English and in Arabic', async () => {
+    summaryResponse = () => json(200, { ...SUMMARY, disputedCount: 2, disputedTotal: 12.6 })
+    renderBills()
+    expect(await screen.findByText('8,765.432')).toBeTruthy()
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === 'P' &&
+          /^13 open · 2 overdue · .*12\.600 disputed on 2 refused debit notes$/.test(
+            element.textContent ?? '',
+          ),
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText(/refused bills?$/)).toBeNull()
+
+    const ar = (count: number) =>
+      i18n.getFixedT('ar')('billsPage.kpi.payableDisputed', { amount: 'X', count })
+    expect(ar(1)).toBe('X متنازع عليها في إشعار مدين مرفوض واحد')
+    expect(ar(2)).toBe('X متنازع عليها في إشعارين مدينين مرفوضين')
+    expect(ar(3)).toBe('X متنازع عليها في 3 إشعارات مدينة مرفوضة')
+    expect(ar(11)).toBe('X متنازع عليها في 11 إشعار مدين مرفوض')
   })
 
   it('says nothing when there is no dispute', async () => {
@@ -1215,6 +1351,100 @@ describe('nudging the approver', () => {
     renderBills()
     await screen.findByText('Credit note')
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
+  })
+})
+
+// Owner's answer C1 (12 Oct 2026): a credit note's row never shows an approval chip. It shows the
+// note's own credit state, in the Credit notes list's words.
+describe('a credit note on the list', () => {
+  const note = (
+    id: string,
+    number: string,
+    creditNote: BillRowDto['creditNote'],
+    documentTypeCode = '381',
+  ) =>
+    bill({
+      id,
+      supplierBillNumber: number,
+      documentTypeCode,
+      workflowState: 'AWAITING_APPROVAL',
+      creditNote,
+    })
+  const rows = () => [
+    note('cn-1', 'CN-UNUSED', {
+      status: 'UNAPPLIED',
+      usage: 'NOT_USED',
+      balance: { applied: 0, refunded: 0, remaining: 80 },
+    }),
+    note('cn-2', 'CN-USED', {
+      status: 'APPLIED',
+      usage: 'FULLY_USED',
+      balance: { applied: 80, refunded: 0, remaining: 0 },
+    }),
+    note('cn-3', 'CN-REFUNDED', {
+      status: 'REFUNDED',
+      usage: 'FULLY_USED',
+      balance: { applied: 0, refunded: 80, remaining: 0 },
+    }),
+    note(
+      'cn-4',
+      'CN-PARTLY',
+      { status: 'UNAPPLIED', usage: 'PARTLY_USED', balance: { applied: 30, refunded: 0, remaining: 50 } },
+      '261',
+    ),
+    note('cn-5', 'CN-WAITING', {
+      status: 'WAITING_FOR_BILL',
+      usage: 'NOT_USED',
+      balance: { applied: 0, refunded: 0, remaining: 80 },
+    }),
+  ]
+  const rowOf = async (number: string) => (await screen.findByText(number)).closest('tr')!
+  const APPROVAL_WORDS = ['Waiting on approval', 'Approved', 'New, not reviewed', 'Part paid']
+
+  it("shows the note's credit state in the Credit notes list's words, never an approval", async () => {
+    listResponses = [() => json(200, itemsPage(rows()))]
+    renderBills('/expenditure/bills?tab=all')
+    const expected: [string, string][] = [
+      ['CN-UNUSED', 'Not yet used'],
+      ['CN-USED', 'Used on the bill'],
+      ['CN-REFUNDED', 'Refunded to us'],
+      ['CN-PARTLY', 'Partly used'],
+      ['CN-WAITING', 'Waiting for a bill'],
+    ]
+    for (const [number, words] of expected) {
+      const row = await rowOf(number)
+      expect(within(row).getByText(words)).toBeTruthy()
+      for (const approval of APPROVAL_WORDS) expect(within(row).queryByText(approval)).toBeNull()
+    }
+  })
+
+  it('shows no chip at all from a server that does not say where the credit stands', async () => {
+    const old = bill({
+      id: 'cn-old',
+      supplierBillNumber: 'CN-OLD',
+      documentTypeCode: '381',
+      workflowState: 'AWAITING_APPROVAL',
+    })
+    expect(toBillListItem(old).credit).toBeNull()
+    listResponses = [() => json(200, itemsPage([old, { ...old, id: 'cn-null', supplierBillNumber: 'CN-NULL', creditNote: null }]))]
+    renderBills('/expenditure/bills?tab=all')
+    for (const number of ['CN-OLD', 'CN-NULL']) {
+      const row = await rowOf(number)
+      for (const approval of APPROVAL_WORDS) expect(within(row).queryByText(approval)).toBeNull()
+      expect(within(row).queryByText(/used|Refunded|Waiting/)).toBeNull()
+      // The amount column still says what it is.
+      expect(within(row).getByText('Credit note')).toBeTruthy()
+    }
+  })
+
+  it('reads in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    listResponses = [() => json(200, itemsPage(rows()))]
+    renderBills('/expenditure/bills?tab=all')
+    expect(within(await rowOf('CN-UNUSED')).getByText('لم يُستخدم بعد')).toBeTruthy()
+    expect(within(await rowOf('CN-USED')).getByText('استُخدم على الفاتورة')).toBeTruthy()
+    expect(within(await rowOf('CN-PARTLY')).getByText('مستخدم جزئيًا')).toBeTruthy()
+    expect(within(await rowOf('CN-UNUSED')).queryByText('بانتظار الاعتماد')).toBeNull()
   })
 })
 

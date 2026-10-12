@@ -154,6 +154,10 @@ export type CreditNoteSettlementDto = {
   creditNoteId: string
   /** Null on a refund: the money left the relationship rather than reducing a bill. */
   billId: string | null
+  /** The supplier's number on `billId`; null on a refund, absent from an older server. */
+  billNumber?: string | null
+  /** The document type of `billId` (380, 383...); null on a refund, absent from an older server. */
+  billDocumentTypeCode?: string | null
   kind: 'APPLIED' | 'REFUNDED'
   amount: number
   paymentReference: string | null

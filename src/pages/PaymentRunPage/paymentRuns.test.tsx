@@ -334,6 +334,10 @@ describe('payment runs', () => {
       await screen.findByRole('button', { name: /1 more bill can't be paid yet/ }),
     ).toBeTruthy()
     expect(screen.getByText('On hold · 1 of 2 approvals')).toBeTruthy()
+    // P2: a held bill's link opens the bill, not a dispute (owner, 12 Oct 2026).
+    const open = screen.getByRole('link', { name: 'Open the bill' })
+    expect(open.getAttribute('href')).toBe('/expenditure/bills/b-held')
+    expect(screen.queryByRole('link', { name: 'Open the dispute' })).toBeNull()
 
     fireEvent.click(inRun)
     await waitFor(() =>
@@ -1499,11 +1503,14 @@ describe('the end-to-end check of 10 Oct 2026', () => {
   })
 
   // F-12: cancelling a run from the menu asked "Cancel PR-0001?" with a "Delete" button.
+  // P1: the menu item itself says "Cancel the run" too, never "Delete" (owner, 12 Oct 2026).
   it('asks to cancel the run from the menu with a button that says so', async () => {
     detail = SCHEDULED_TWO
     renderAt(`/expenditure/payments/${RUN_ID}`)
     fireEvent.click(await screen.findByRole('button', { name: 'More actions' }, { timeout: 8000 }))
-    fireEvent.click(await screen.findByRole('menuitem', { name: /Delete/ }))
+    const cancelItem = await screen.findByRole('menuitem', { name: /Cancel the run/ })
+    expect(screen.queryByRole('menuitem', { name: /Delete/ })).toBeNull()
+    fireEvent.click(cancelItem)
     const dialog = within(await screen.findByRole('dialog'))
     expect(dialog.getByRole('button', { name: 'Cancel the run' })).toBeTruthy()
     expect(dialog.queryByRole('button', { name: 'Delete' })).toBeNull()
