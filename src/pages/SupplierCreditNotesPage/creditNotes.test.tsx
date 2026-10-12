@@ -327,6 +327,32 @@ describe('Credit notes list, wired to the API', () => {
     expect(screen.getByText(/not counted above/)).toBeTruthy()
   })
 
+  // Owner, 12 Oct 2026 (C3): a partly used note still has credit to use, so the tile counts
+  // notes with credit left rather than notes "not yet set against a bill".
+  it('counts the notes with credit left to use under the tile, in both languages', async () => {
+    renderList()
+    expect(await screen.findByText('3 notes with credit left to use')).toBeTruthy()
+    expect(screen.queryByText(/not yet set against a bill/)).toBeNull()
+
+    await i18n.changeLanguage('ar')
+    expect(
+      await screen.findByText('3 إشعارات دائنة فيها رصيد متبقٍ للاستخدام'),
+    ).toBeTruthy()
+  })
+
+  it('says the tile count in the singular for one note, and in every Arabic plural form', async () => {
+    const meta = (count: number, lng: string) =>
+      i18n.t('supplierCreditNotes.kpi.stillUsableMeta', { count, lng })
+    expect(meta(1, 'en')).toBe('1 note with credit left to use')
+    expect(meta(2, 'en')).toBe('2 notes with credit left to use')
+    expect(meta(0, 'ar')).toBe('لا إشعارات دائنة فيها رصيد متبقٍ للاستخدام')
+    expect(meta(1, 'ar')).toBe('إشعار دائن واحد فيه رصيد متبقٍ للاستخدام')
+    expect(meta(2, 'ar')).toBe('إشعاران دائنان فيهما رصيد متبقٍ للاستخدام')
+    expect(meta(5, 'ar')).toBe('5 إشعارات دائنة فيها رصيد متبقٍ للاستخدام')
+    expect(meta(11, 'ar')).toBe('11 إشعارًا دائنًا فيه رصيد متبقٍ للاستخدام')
+    expect(meta(100, 'ar')).toBe('100 إشعار دائن فيه رصيد متبقٍ للاستخدام')
+  })
+
   it('draws the frame: three tabs, a search box, Filters and Sort, and a row menu', async () => {
     renderList()
     await screen.findByText('QMS-CN-1')
@@ -652,6 +678,41 @@ describe('One credit note', () => {
       within(activity).getByText('Until it is, QMS-7781 still shows its full amount'),
     ).toBeTruthy()
     expect(activity.textContent).not.toMatch(/OMR\s*\d/)
+  })
+
+  // Owner, 12 Oct 2026 (C11): the trail names the bill the credit went to, from the settlement's
+  // `billNumber`; an older server that leaves it out keeps "Used against a bill".
+  it('names the bill each use of the credit went to, and keeps the old words without one', async () => {
+    const settlement = (id: string, amount: number, extra: Record<string, unknown>) => ({
+      id,
+      creditNoteId: NOTE_ID,
+      billId: BILL_ID,
+      kind: 'APPLIED',
+      amount,
+      paymentReference: null,
+      settledOn: '2026-09-05',
+      actorId: 'u-1',
+      occurredAt: `2026-09-05T0${id.length}:00:00Z`,
+      ...extra,
+    })
+    notes = [note({ balance: { applied: 30, refunded: 0, remaining: 170 } })]
+    settlements = [
+      settlement('st-new', 20, { billNumber: 'QMS-7781', billDocumentTypeCode: '380' }),
+      settlement('st-old-server', 10, {}),
+    ]
+    renderDetail()
+    const activity = await screen.findByRole('list', { name: 'Activity' })
+    const named = await within(activity).findByText('Used against QMS-7781')
+    // The amount stays on the line under it, with the rial sign.
+    const detail = named.nextElementSibling as HTMLElement
+    expect(detail.querySelector('svg')).not.toBeNull()
+    const shown = detail.cloneNode(true) as Element
+    shown.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+    expect(shown.textContent).toMatch(/^\s*20\.000 on /)
+    expect(within(activity).getByText('Used against a bill')).toBeTruthy()
+
+    await i18n.changeLanguage('ar')
+    expect(await within(activity).findByText('استُخدم مقابل QMS-7781')).toBeTruthy()
   })
 
   it('offers no target the guard would refuse: not itself, not a credit note, not a settled bill', async () => {

@@ -795,7 +795,14 @@ export function SupplierNoteIntake({
                                 ),
                               ),
                             },
-                          )
+                          ) +
+                          // ...and says what is left of the credit when it is bigger.
+                          (chosenBill.outstandingAmount > 0 &&
+                          (linesTotal ?? 0) > chosenBill.outstandingAmount
+                            ? ` ${t('supplierCreditNotes.upload.restStaysAsCredit', {
+                                amount: money((linesTotal ?? 0) - chosenBill.outstandingAmount),
+                              })}`
+                            : '')
                         : t('supplierCreditNotes.upload.setNowPick'),
                       disabled: !chosenBill || chosenBill.outstandingAmount <= 0,
                     },
@@ -1210,6 +1217,9 @@ function BillChooser({
     (kind === 'debit' || bill.outstandingAmount > 0)
   const found = bills.read.status === 'ready' ? bills.read.data.items.filter(offerable) : null
   const money = (value: number, currency: string) => formatAmount(value, currency, language)
+  // A refused debit note: nothing is owed on it, so the picker says so (owner, 12 Oct 2026).
+  const refusedNote = (bill: BillRowDto) =>
+    bill.documentTypeCode === DEBIT_NOTE_CODE && bill.debitNoteDecision === 'REFUSED'
 
   if (chosen) {
     return (
@@ -1225,7 +1235,8 @@ function BillChooser({
                 <SignedAmount value={money(chosen.totalIncludingVat ?? 0, chosen.currencyCode)} />
               </p>
               <p className="mt-1 text-sm font-medium leading-[1.3] text-text-tertiary">
-                {withRial(
+                {/* A refused debit note owes nothing, whatever its figures still say. */}
+                {refusedNote(chosen) ? t('supplierNotes.refusedNothingOwed') : withRial(
                   t('supplierNotes.billCard', {
                     state: t(billStateKey(chosen)),
                     // The code before the figure: the rial sign is drawn in its place.
@@ -1303,11 +1314,20 @@ function BillChooser({
                       ? `${t('billsPage.debitNote.type')} · `
                       : null}
                     {/* What it still owes, with the rial sign before the figure (owner, 9 Oct 2026). */}
-                    {t(billStateKey(bill))} ·{' '}
-                    {withRial(
-                      `${bill.currencyCode} ${money(bill.outstandingAmount, bill.currencyCode)}`,
-                    )}{' '}
-                    {t('supplierCreditNoteDetail.stillOwed')}
+                    {refusedNote(bill) ? (
+                      t('supplierNotes.refusedNothingOwed')
+                    ) : (
+                      <>
+                        {t(billStateKey(bill))} ·{' '}
+                        {withRial(
+                          `${bill.currencyCode} ${money(
+                            bill.outstandingAmount,
+                            bill.currencyCode,
+                          )}`,
+                        )}{' '}
+                        {t('supplierCreditNoteDetail.stillOwed')}
+                      </>
+                    )}
                   </span>
                 </button>
               </li>

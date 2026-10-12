@@ -6896,7 +6896,13 @@
       "topSupplier": "أكثر المورّدين إصدارًا",
       "topSupplierMeta": "{{count}} إشعارات",
       "noTopSupplier": "لا يوجد مورّد بارز",
-      "noTopSupplierMeta": "لم يرسل أي مورّد إشعارًا دائنًا بعد"
+      "noTopSupplierMeta": "لم يرسل أي مورّد إشعارًا دائنًا بعد",
+      "stillUsableMeta_zero": "لا إشعارات دائنة فيها رصيد متبقٍ للاستخدام",
+      "stillUsableMeta_one": "إشعار دائن واحد فيه رصيد متبقٍ للاستخدام",
+      "stillUsableMeta_two": "إشعاران دائنان فيهما رصيد متبقٍ للاستخدام",
+      "stillUsableMeta_few": "{{count}} إشعارات دائنة فيها رصيد متبقٍ للاستخدام",
+      "stillUsableMeta_many": "{{count}} إشعارًا دائنًا فيه رصيد متبقٍ للاستخدام",
+      "stillUsableMeta_other": "{{count}} إشعار دائن فيه رصيد متبقٍ للاستخدام"
     },
     "tabs": {
       "all": "الكل",
@@ -7042,7 +7048,8 @@
       "savedClosesRefusedDebitNote": "حُفظ. يُغلق هذا الرصيد الإشعار المدين المرفوض {{note}}، وما يزيد يبقى رصيدًا.",
       "refusedDebitNoteCloses": "هذا الإشعار المدين مرفوض، لذا يُغلقه هذا الرصيد. وما يزيد يبقى رصيدًا.",
       "setNowNoteDebitNote": "الإشعار المدين غير مدفوع، لذا تدفع أقل بمقدار OMR {{amount}} فحسب.",
-      "saveAndSetDebitNote": "احفظ واخصم من الإشعار المدين"
+      "saveAndSetDebitNote": "احفظ واخصم من الإشعار المدين",
+      "restStaysAsCredit": "ويبقى الباقي OMR {{amount}} رصيدًا لفاتورة لاحقة."
     },
     "detail": {
       "creditNotePeppol": "إشعار دائن · Peppol",
@@ -7136,7 +7143,8 @@
         "settledRefunded": "سُجّل استرداد",
         "settledRefundedDetail": "OMR {{amount}} دُفع في {{date}} · سُجّل {{when}}",
         "settledRefundedRef": "OMR {{amount}} دُفع في {{date}} · المرجع {{reference}} · سُجّل {{when}}",
-        "arrivedNoBill": "صدر في {{date}} · لم تُذكر فاتورة"
+        "arrivedNoBill": "صدر في {{date}} · لم تُذكر فاتورة",
+        "settledAppliedTo": "استُخدم مقابل {{bill}}"
       },
       "decisionTaken": "{{what}}",
       "supplierName": "الاسم",
@@ -21179,7 +21187,8 @@
     "billChosenByHand": "اختيرت يدويًا. تحقق منها مقابل المرجع المطبوع على الملف.",
     "findBill": "أي فاتورة",
     "findBillPlaceholder": "ابحث برقم الفاتورة",
-    "pickSupplierFirst": "اختر المورّد أولًا"
+    "pickSupplierFirst": "اختر المورّد أولًا",
+    "refusedNothingOwed": "مرفوض · لا شيء مستحق"
   },
   "expenditureNotes": {
     "reason": {
