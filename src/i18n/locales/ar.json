@@ -5702,7 +5702,7 @@
       "payableDisputed_one": "{{amount}} متنازع عليها في إشعار مدين مرفوض واحد",
       "payableDisputed_two": "{{amount}} متنازع عليها في إشعارين مدينين مرفوضين",
       "payableDisputed_few": "{{amount}} متنازع عليها في {{count}} إشعارات مدينة مرفوضة",
-      "payableDisputed_many": "{{amount}} متنازع عليها في {{count}} إشعار مدين مرفوض",
+      "payableDisputed_many": "{{amount}} متنازع عليها في {{count}} إشعارًا مدينًا مرفوضًا",
       "payableDisputed_other": "{{amount}} متنازع عليها في {{count}} إشعار مدين مرفوض",
       "attentionDrafts_zero": "{{count}} مرفوعة للتأكيد",
       "otherCurrencies_zero": "{{count}} فاتورة بعملة أخرى غير مشمولة في إجماليات {{currency}}.",
