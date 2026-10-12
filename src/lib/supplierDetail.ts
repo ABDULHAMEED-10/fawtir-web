@@ -65,6 +65,7 @@ export function discountOn(
   if (
     row.workflowState === 'PAID' ||
     row.workflowState === 'REJECTED' ||
+    row.workflowState === 'REFUSED_CLOSED' ||
     row.outstandingAmount <= 0
   ) {
     return null

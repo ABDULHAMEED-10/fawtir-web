@@ -7,6 +7,7 @@ import type {
   BillWorkflowState,
 } from '../api/expenditure/bills'
 import type { IntakeDto } from '../api/expenditure/billIntake'
+import { CREDIT_STATUS_LABEL, creditStateOf, type CreditState } from './supplierNoteList'
 
 /**
  * The Bills list's view model, written only from what a row carries. The mock's per-row sentences
@@ -28,6 +29,12 @@ export type BillStatusChip =
   | 'rejected'
   | 'inPaymentRun'
   | 'paid'
+  /** Approved, with some of it paid and some still owed. */
+  | 'partPaid'
+  /** A refused debit note a credit note has closed. */
+  | 'refusedClosed'
+  /** A credit note: its chip says where its credit stands ({@link BillListItem.credit}), not an approval. */
+  | 'creditNote'
 
 export type BillListItem = {
   id: string
@@ -44,6 +51,12 @@ export type BillListItem = {
     | { verdict: 'none'; theirOrder: string | null }
   status: BillStatusChip
   statusValues?: Record<string, string | number>
+  /**
+   * On a credit note, where its credit stands, in the Credit notes list's words. Null when the
+   * server does not say (one before `BillRow.creditNote`): the row then shows no chip at all,
+   * rather than an approval a credit note never needs.
+   */
+  credit?: CreditState | null
   /** A person's reason for holding the bill, shown under the chip. */
   holdReason: string | null
   canApprove: boolean
@@ -96,6 +109,7 @@ const STATUS: Record<BillWorkflowState, BillStatusChip> = {
   REJECTED: 'rejected',
   IN_PAYMENT_RUN: 'inPaymentRun',
   PAID: 'paid',
+  REFUSED_CLOSED: 'refusedClosed',
 }
 
 /** A supplier's credit note (381) or a self-billed one (261): it lowers a bill, nothing is owed on it. */
@@ -115,8 +129,19 @@ export function workflowStateOf(
     : row.workflowState
 }
 
+/**
+ * The chip a row shows. A credit note never shows an approval: it has none to wait for. An
+ * approved bill that is part paid says so.
+ */
+function statusOf(row: BillRowDto): BillStatusChip {
+  if (isCreditNote(row)) return 'creditNote'
+  const state = workflowStateOf(row)
+  if (state === 'APPROVED' && row.paidAmount > 0 && row.outstandingAmount > 0) return 'partPaid'
+  return STATUS[state]
+}
+
 export function toBillListItem(row: BillRowDto): BillListItem {
-  const status = STATUS[workflowStateOf(row)]
+  const status = statusOf(row)
   const pending = row.readiness.state === 'PENDING'
   return {
     id: row.id,
@@ -126,7 +151,8 @@ export function toBillListItem(row: BillRowDto): BillListItem {
     issueDate: row.issueDate,
     dueDate: row.dueDate,
     paidOnTheSpot: row.paidOnTheSpot,
-    paid: row.workflowState === 'PAID',
+    // Settled: paid, or a refused debit note a credit note closed. Nothing is left to chase.
+    paid: row.workflowState === 'PAID' || row.workflowState === 'REFUSED_CLOSED',
     // NO_ORDER is a verdict too: the matcher looked and found no order to hold the bill against.
     match:
       row.match && row.match.verdict !== 'NO_ORDER'
@@ -150,6 +176,7 @@ export function toBillListItem(row: BillRowDto): BillListItem {
         : status === 'inPaymentRun' && row.paymentRunReference
           ? { run: row.paymentRunReference }
           : undefined,
+    ...(status === 'creditNote' ? { credit: row.creditNote ? creditStateOf(row.creditNote) : null } : {}),
     holdReason: row.workflowState === 'ON_HOLD' ? (row.hold?.reason ?? null) : null,
     // A mismatch is approved only after its difference has been looked at, which is the detail's job.
     // A credit note has nothing to approve, and the server refuses it (APPROVAL_CREDIT_NOTE).
@@ -268,7 +295,8 @@ function amountNoteOf(row: BillRowDto): Note | null {
 }
 
 /** Status chip label key, with the approver count when the policy needs more than one. */
-export function statusLabelKey(item: BillListItem): string {
+export function statusLabelKey(item: Pick<BillListItem, 'status' | 'statusValues' | 'credit'>): string {
+  if (item.status === 'creditNote' && item.credit) return CREDIT_STATUS_LABEL[item.credit]
   if (item.status === 'awaitingApproval' && item.statusValues)
     return 'billsPage.state.awaitingApprovals'
   if (item.status === 'inPaymentRun' && item.statusValues) return 'billsPage.state.inPaymentRunRef'
