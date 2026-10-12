@@ -38,7 +38,7 @@ import rialIcon from '../../assets/brand/omr.svg'
 
 /**
  * The free-trial or pay-now choice, and for pay-now how the first bill will be paid (15 Sep 2026;
- * reshaped 8 Oct 2026; trial made a choice 11 Oct 2026, V282).
+ * reshaped 8 Oct 2026; trial made a choice 11 Oct 2026, V283).
  *
  * Nothing is charged here. Every payment belongs to a bill, and bills exist only after the Fawtir
  * team approves the registration (ONBOARDING.md row 1.5), so a card checkout or a transfer receipt
@@ -156,7 +156,7 @@ export function PaymentForm() {
       onSubmit={handleSubmit}
       className="my-auto flex w-full max-w-[700px] flex-col items-center gap-11"
     >
-      <div className="flex w-full flex-col gap-6">
+      <div className="@container flex w-full flex-col gap-6">
         <div className="flex flex-col gap-3">
           <h2 className="text-[32px] font-medium leading-[1.2] text-text-primary">
             {t('payment.title')}
@@ -214,7 +214,9 @@ export function PaymentForm() {
           </>
         )}
 
-        <div className="flex w-full flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+        {/* Two columns only when this form itself is wide enough: it sits beside the illustration,
+            so the window width said nothing about its room and the summary ran off the edge (F-09). */}
+        <div className="flex w-full flex-col gap-6 @min-[700px]:flex-row @min-[700px]:items-start @min-[700px]:justify-between">
           <div className="w-full max-w-[351px] shrink-0">
             {trialChosen ? (
               <Note icon={tickIcon} text={t('payment.trial.note', { count: trialDays })} />
@@ -227,7 +229,7 @@ export function PaymentForm() {
             ) : null}
           </div>
 
-          <div className="flex w-full max-w-[332px] flex-col gap-4 lg:shrink-0">
+          <div className="flex w-full max-w-[332px] flex-col gap-4 @min-[700px]:shrink-0">
             {offer === 'priced' ? (
               <AddonOffer
                 checked={addon}
@@ -416,6 +418,28 @@ function BankTransferDetails({
         </dl>
       </div>
       <Note icon={emailIcon} text={t('payment.bank.afterApproval')} />
+      {/* Shown so the registrant knows what will be asked, and disabled: evidence is accepted only
+          against the first bill, which exists once the company is approved (owner, 12 Oct 2026). */}
+      <fieldset disabled className="flex flex-col gap-3 rounded-sm border border-dashed border-black/15 p-4">
+        <legend className="px-1 text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
+          {t('payment.bank.evidenceTitle')}
+        </legend>
+        <label className="flex flex-col gap-1 text-sm font-medium text-text-quaternary">
+          {t('payment.bank.receiptLabel')}
+          <input type="file" aria-describedby="bank-evidence-later" className="text-xs disabled:cursor-not-allowed" />
+        </label>
+        <label className="flex flex-col gap-1 text-sm font-medium text-text-quaternary">
+          {t('payment.bank.notesLabel')}
+          <textarea
+            rows={2}
+            aria-describedby="bank-evidence-later"
+            className="rounded-sm border border-border-subtle bg-surface-background px-3 py-2 text-sm disabled:cursor-not-allowed"
+          />
+        </label>
+        <p id="bank-evidence-later" className="text-xs font-medium text-text-tertiary">
+          {t('payment.bank.evidenceLater')}
+        </p>
+      </fieldset>
     </div>
   )
 }
@@ -473,7 +497,7 @@ function OrderSummaryCard({
     )
 
   return (
-    <div className="flex h-auto min-h-[370px] w-full max-w-[332px] flex-col overflow-hidden rounded-sm border border-[#f3f3f3] bg-surface-card lg:shrink-0">
+    <div className="flex h-auto min-h-[370px] w-full max-w-[332px] flex-col overflow-hidden rounded-sm border border-[#f3f3f3] bg-surface-card @min-[700px]:shrink-0">
       <div className="px-[18px] pb-3 pt-5">
         <p className="text-base font-medium text-text-primary">{t('payment.summary.title')}</p>
       </div>

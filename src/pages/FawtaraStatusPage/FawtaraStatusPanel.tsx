@@ -86,7 +86,7 @@ function PlanNote({ choice }: { choice: OnboardingState }) {
   const { t, i18n } = useTranslation()
   const { plan, paymentMethod, enrollment } = choice
   if (!plan) return null
-  // The trial as the status read reported it, and only when it was chosen (V282): a pay-now
+  // The trial as the status read reported it, and only when it was chosen (V283): a pay-now
   // registration gets none, and with no report the note makes no trial claim.
   const trialDays = choice.planTerms?.trialDays
   const lines =

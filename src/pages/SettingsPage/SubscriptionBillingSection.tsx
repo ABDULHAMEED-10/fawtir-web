@@ -294,7 +294,11 @@ function PayForm({
   // Only the server's reasons the customer can act on; card switched off says nothing at all.
   const cardExcluded =
     cardOn && (card?.reason === 'PAYMOB_AMOUNT_NOT_REPRESENTABLE' || card?.reason === 'CARD_PAYMENT_PURPOSE_NOT_ELIGIBLE')
-  const [method, setMethod] = useState<Method | null>(available.length === 1 ? available[0] : null)
+  // The method chosen at a pay-now signup, when it can still be used; otherwise the only one, or none.
+  const signupMethod = overview.signupMethod ?? null
+  const [method, setMethod] = useState<Method | null>(
+    signupMethod && available.includes(signupMethod) ? signupMethod : available.length === 1 ? available[0] : null,
+  )
   const [proof, setProof] = useState<File | null>(null)
   const [proofProblem, setProofProblem] = useState<string | null>(null)
   const [reference, setReference] = useState('')

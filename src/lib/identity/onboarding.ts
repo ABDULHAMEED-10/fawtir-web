@@ -122,7 +122,7 @@ export type SignupPlanCode = 'STARTER' | 'BUSINESS' | 'BUSINESS_PLUS' | 'ENTERPR
 export type SignupBillingCycle = 'MONTHLY' | 'ANNUAL'
 export type SignupPaymentMethodCode = 'CARD_LINK' | 'BANK_TRANSFER' | 'CASH'
 export type SignupLinkChannel = 'EMAIL' | 'WHATSAPP'
-/** V282: a free trial, or paying from approval. Neither charges anything at signup. */
+/** V283: a free trial, or paying from approval. Neither charges anything at signup. */
 export type SignupEnrollmentCode = 'TRIAL' | 'PAY_NOW'
 
 /**
@@ -351,7 +351,7 @@ export function recordPlan(
 
 /**
  * A trial or a paid start, as the payment screen decided it. The union makes "trial with a method"
- * and "pay now without one" unrepresentable here; the server refuses both too (V282).
+ * and "pay now without one" unrepresentable here; the server refuses both too (V283).
  */
 export type EnrollmentChoice =
   | { enrollment: 'trial' }

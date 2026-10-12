@@ -926,7 +926,11 @@
       "noteLater": "Your first bill comes {{when}}, emailed with these details. Put the invoice number in the reference, and the Fawtir team confirms the transfer, usually within one business day.",
       "unavailable": "Bank transfer isn't available yet.",
       "storageUnavailable": "Bank transfer is unavailable for a moment. Try again shortly.",
-      "afterApproval": "Don't transfer yet. Once your account is approved, your bill appears in Settings > Bills: transfer that exact amount, put the bill number in the reference, and upload the receipt there. The Fawtir team then verifies it."
+      "afterApproval": "Don't transfer yet. Once your account is approved, your first bill is issued automatically and shown when you sign in: transfer that exact amount with the bill number as the reference, then upload the receipt on the bill. The Fawtir team then verifies it.",
+      "evidenceTitle": "Transfer receipt",
+      "receiptLabel": "Receipt (PDF, PNG or JPEG)",
+      "notesLabel": "Notes (optional)",
+      "evidenceLater": "Available on your first bill after your account is approved. Nothing can be uploaded before then."
     },
     "summary": {
       "title": "Order summary",
@@ -21003,5 +21007,11 @@
       "void": "Void",
       "support": "Support"
     }
+  },
+  "billDue": {
+    "title": "Your subscription bill is ready",
+    "body": "Bill {{number}} for",
+    "activation": "Pay it to activate your subscription. Your plan becomes active once the Fawtir team confirms the payment.",
+    "cta": "Pay your bill"
   }
 }

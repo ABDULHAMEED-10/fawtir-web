@@ -146,7 +146,7 @@ export type OnboardingState = {
   /** The automatic ERP extraction add-on, ticked on /payment. */
   addon?: boolean
   /**
-   * Chosen on /payment (V282): a free trial, or paying from approval. Undefined until chosen, and
+   * Chosen on /payment (V283): a free trial, or paying from approval. Undefined until chosen, and
    * for a preference saved before the choice existed; never set for Enterprise.
    */
   enrollment?: 'trial' | 'payNow'

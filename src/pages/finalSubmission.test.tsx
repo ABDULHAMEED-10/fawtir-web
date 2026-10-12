@@ -206,7 +206,7 @@ describe('Review and submit', () => {
     )
   })
 
-  it('treats a draft with a method but no trial-or-pay choice (pre-V282) as not chosen', async () => {
+  it('treats a draft with a method but no trial-or-pay choice (pre-V283) as not chosen', async () => {
     renderAt('/signup-review', { ...COMPLETE, enrollment: undefined })
     expect(valueOf('signupReview.fields.payment')).toBe(i18n.t('signupReview.notChosen'))
     await userEvent.setup({ delay: null }).click(submit())
@@ -222,7 +222,7 @@ describe('Review and submit', () => {
       }),
     )
     expect(valueOf('signupReview.fields.payment')).toBe(i18n.t('signupReview.payment.bankTransfer'))
-    // Pay-now opens no trial (V282): the first bill comes on approval.
+    // Pay-now opens no trial (V283): the first bill comes on approval.
     expect(valueOf('signupReview.fields.firstBill')).toBe(i18n.t('signupReview.firstBillOnApproval'))
     expect(valueOf('signupReview.fields.firstBillAmount')).toBe('840.000')
     await userEvent.setup({ delay: null }).click(submit())

@@ -108,7 +108,7 @@ export function onboardingStateFromStatus(
     plan,
     billing: reverse<BillingCycle, string>(BILLING_CYCLE, status.plan?.billingCycle),
     planTerms: status.plan ?? undefined,
-    // A preference saved before V282 has no enrollment: left undefined so the screen asks again,
+    // A preference saved before V283 has no enrollment: left undefined so the screen asks again,
     // never read as a trial.
     enrollment:
       preference?.enrollment === 'TRIAL'

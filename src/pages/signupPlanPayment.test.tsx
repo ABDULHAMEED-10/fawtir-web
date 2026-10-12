@@ -666,7 +666,7 @@ describe("How you'll pay", () => {
     })
   })
 
-  it('shows the confirmed account from the server for bank transfer, and takes no receipt here', async () => {
+  it('shows the confirmed account, and the receipt and notes as disabled until the first bill', async () => {
     withTerms()
     renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly' })
     const user = userEvent.setup({ delay: null })
@@ -678,8 +678,20 @@ describe("How you'll pay", () => {
     expect(screen.getByText(SERVER_OPTIONS.beneficiary!.iban)).toBeTruthy()
     expect(screen.getByText(SERVER_OPTIONS.beneficiary!.legalName)).toBeTruthy()
     expect(screen.getByText(i18n.t('payment.bank.afterApproval'))).toBeTruthy()
-    // A receipt belongs to a bill, and bills exist only after approval.
-    expect(document.querySelector('input[type="file"]')).toBeNull()
+    // A receipt belongs to a bill, and bills exist only after approval: shown, never usable here.
+    const receipt = screen.getByLabelText(i18n.t('payment.bank.receiptLabel')) as HTMLInputElement
+    const notes = screen.getByLabelText(i18n.t('payment.bank.notesLabel')) as HTMLTextAreaElement
+    expect(receipt.type).toBe('file')
+    expect(receipt.matches(':disabled')).toBe(true)
+    expect(notes.matches(':disabled')).toBe(true)
+    expect(screen.getByText(i18n.t('payment.bank.evidenceLater'))).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+    expect(writes()[0].body).toEqual({
+      onboardingToken: 'so.token',
+      enrollment: 'PAY_NOW',
+      method: 'BANK_TRANSFER',
+      erpExtractionAddon: false,
+    })
   })
 
   it('offers bank transfer as unavailable without a confirmed account, and shows none', async () => {
