@@ -536,6 +536,22 @@ function activityKey(kind: string): string {
 }
 
 /** A self-billed bill: this company's own document, issued on the supplier's behalf. */
+/**
+ * The "Not counted in VAT" caption for a document the server leaves out of input VAT, or null.
+ * Only the three reasons with approved wording say anything (owner, 12 Oct 2026); any other
+ * reason, a counted document and a server that does not send `inputVat` say nothing.
+ */
+export function inputVatNoteKey(inputVat: BillRowDto['inputVat'] | null | undefined): string | null {
+  if (!inputVat || inputVat.counted) return null
+  return INPUT_VAT_NOTES[inputVat.reason] ?? null
+}
+
+const INPUT_VAT_NOTES: Record<string, string> = {
+  DEBIT_NOTE_NOT_ACCEPTED: 'billDetail.inputVat.debitNoteNotAccepted',
+  REJECTED: 'billDetail.inputVat.rejected',
+  NO_SUPPLIER_TAX_INVOICE: 'billDetail.inputVat.noSupplierTaxInvoice',
+}
+
 export function isSelfBilled(detail: BillDetailDto): boolean {
   return detail.bill.source === 'SELF_BILLED'
 }

@@ -5898,6 +5898,11 @@
       },
       "refundedBySupplier": "Refunded by supplier OMR {{amount}}",
       "debitNotesOnceAccepted": "Debit notes appear here once accepted."
+    },
+    "inputVat": {
+      "debitNoteNotAccepted": "Not counted in VAT until you accept it.",
+      "rejected": "Not counted in VAT while rejected.",
+      "noSupplierTaxInvoice": "Not counted in VAT: no supplier tax invoice yet."
     }
   },
   "uploadBill": {

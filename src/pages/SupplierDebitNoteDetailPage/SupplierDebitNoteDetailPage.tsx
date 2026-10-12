@@ -52,7 +52,7 @@ import {
   linkedBillDetailKey,
 } from '../../lib/supplierDebitNotes'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { lineVatOf } from '../../lib/billDetail'
+import { inputVatNoteKey, lineVatOf } from '../../lib/billDetail'
 import { formatAmount, formatDate, formatInstant } from '../../lib/format'
 import { saveDownload } from '../../lib/supplierRecord'
 import { can, useSession } from '../../lib/session/session'
@@ -210,6 +210,7 @@ function DebitNoteDetail() {
   }
 
   const bill = against.bill
+  const inputVatNote = inputVatNoteKey(own?.bill.inputVat)
   const total = row.totalIncludingVat ?? 0
   const effect = debitEffect(bill, total, row.status === 'REFUSED')
   const billNumber = bill?.supplierBillNumber ?? row.relatesTo?.billNumber ?? null
@@ -770,6 +771,9 @@ function DebitNoteDetail() {
               ]}
             />
             <InfoNote>{t('supplierDebitNotes.detail.vatNote')}</InfoNote>
+            {/* Said only when the server says the note is out of input VAT (absent on an older
+                server): "Not counted in VAT until you accept it." */}
+            {inputVatNote ? <InfoNote plain>{t(inputVatNote)}</InfoNote> : null}
           </NoteCard>
 
           <NoteCard title={t('supplierDebitNotes.detail.supplierTitle')}>

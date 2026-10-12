@@ -183,6 +183,20 @@ export type VatReportDto = {
   output: VatRowDto[]
   input: VatRowDto[]
   net: VatRowDto[]
+  /**
+   * Input VAT on bills that state no OMR VAT, per period and currency, kept out of the OMR input
+   * rows. Absent on an older server. Not shown yet.
+   */
+  inputWithoutOmrVat?: VatInputWithoutOmrDto[]
+}
+
+export type VatInputWithoutOmrDto = {
+  periodLabel: string
+  periodStart: string
+  periodEnd: string
+  currency: string
+  documents: number
+  vatAmount: number
 }
 
 export type ListsDatasetDto = {

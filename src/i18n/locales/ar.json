@@ -6174,6 +6174,11 @@
       },
       "refundedBySupplier": "ردّه المورّد OMR {{amount}}",
       "debitNotesOnceAccepted": "تظهر إشعارات المدين هنا بعد قبولها."
+    },
+    "inputVat": {
+      "debitNoteNotAccepted": "لا تُحتسب في ضريبة القيمة المضافة حتى تقبلها.",
+      "rejected": "لا تُحتسب في ضريبة القيمة المضافة ما دامت مرفوضة.",
+      "noSupplierTaxInvoice": "لا تُحتسب في ضريبة القيمة المضافة: لا توجد فاتورة ضريبية من المورّد بعد."
     }
   },
   "uploadBill": {
