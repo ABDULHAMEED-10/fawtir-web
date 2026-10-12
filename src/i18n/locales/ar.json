@@ -9479,7 +9479,8 @@
     "unusedCredits_few": "{{count}} إشعارات دائنة لم تُستخدم بعد",
     "unusedCredits_many": "{{count}} إشعارًا دائنًا لم يُستخدم بعد",
     "creditUsedOn": "رصيد مستخدم في {{bill}}",
-    "alreadyCounted": "احتُسب عند دفع مبلغ زائد على الفاتورة"
+    "alreadyCounted": "احتُسب عند دفع مبلغ زائد على الفاتورة",
+    "lessUnusedCredit": "يُخصم رصيد غير مستخدم OMR {{credit}} · ودفع بزيادة OMR {{overpaid}}"
   },
   "activity": {
     "title": "TDD وجهاز الضرائب",

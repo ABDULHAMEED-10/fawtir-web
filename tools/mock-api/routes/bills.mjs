@@ -1328,6 +1328,30 @@ function supplierOverview(id) {
       everLate: false,
       total: round3(open.reduce((sum, row) => sum + row.outstandingAmount, 0)),
       overpaidTotal: round3(rows.reduce((sum, row) => sum + overpaidOf(row), 0)),
+      // The runs holding their bills, by reference (P6, 12 Oct 2026). These runs have no record
+      // here, so the id is made from the reference.
+      inRuns: [
+        ...new Set(
+          open
+            .filter((row) => row.workflowState === 'IN_PAYMENT_RUN' && row.paymentRunReference)
+            .map((row) => row.paymentRunReference),
+        ),
+      ]
+        .sort()
+        .map((reference) => {
+          const held = open.filter(
+            (row) =>
+              row.workflowState === 'IN_PAYMENT_RUN' && row.paymentRunReference === reference,
+          )
+          return {
+            runId: reference.toLowerCase(),
+            reference,
+            state: 'DRAFT',
+            bills: held.length,
+            amount: round3(held.reduce((sum, row) => sum + row.outstandingAmount, 0)),
+            currencyCode: 'OMR',
+          }
+        }),
     },
   }
 }
