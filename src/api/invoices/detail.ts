@@ -101,6 +101,42 @@ export type InvoiceDetailDto = {
    * that predates it. Paid through `POST /bills/{billId}/payments`.
    */
   payable?: SelfBilledPayableDto | null
+  /**
+   * The seller and buyer as the document was issued: a snapshot frozen at issue, so null on a
+   * draft. Optional because a server older than the field does not send it; the screen then falls
+   * back to the live company profile and customer record.
+   */
+  seller?: InvoiceSellerDto | null
+  buyer?: InvoiceBuyerDto | null
+}
+
+export type InvoicePartyAddressDto = {
+  streetName: string | null
+  additionalStreetName: string | null
+  addressLine3: string | null
+  buildingNumber: string | null
+  cityName: string | null
+  postalCode: string | null
+  /** The governorate, in the English spelling printed on the document (IBT-039 / IBT-054). */
+  countrySubentity: string | null
+  countryCode: string | null
+  poBox: string | null
+}
+
+export type InvoiceSellerDto = {
+  legalName: string
+  vatin: string
+  /** `scheme:value`. */
+  participantId: string | null
+  address: InvoicePartyAddressDto
+}
+
+export type InvoiceBuyerDto = {
+  name: string
+  vatin: string | null
+  /** `scheme:value`. */
+  participantId: string | null
+  address: InvoicePartyAddressDto | null
 }
 
 /** `SelfBilledPayable`: the bill's own settlement. `NOT_PAYABLE` for a self-billed credit note. */

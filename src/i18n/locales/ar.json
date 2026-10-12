@@ -21142,7 +21142,8 @@
       "30": "تحويل بنكي",
       "48": "بطاقة",
       "68": "دفع إلكتروني"
-    }
+    },
+    "netTerm": "صافي {{count}} يومًا"
   },
   "selfBillDetail": {
     "breadcrumbSelfBilled": "الفوترة الذاتية",
@@ -22368,5 +22369,9 @@
       "void": "إبطال",
       "support": "الدعم"
     }
+  },
+  "documentParty": {
+    "building": "مبنى {{number}}",
+    "poBox": "صندوق البريد {{number}}"
   }
 }

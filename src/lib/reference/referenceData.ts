@@ -83,3 +83,33 @@ export function taxCategoryFor(
   if (!code) return null
   return (data?.taxCategories ?? []).find((row) => row.code === code) ?? null
 }
+
+/** A payment term or means as a document stores it: the code, and the words it was saved with. */
+type StoredCode = { code: string; label: string } | null | undefined
+
+/**
+ * A document's payment terms in the reader's language. The stored label is a snapshot of the
+ * composer's language when the draft was saved, so an invoice saved in English read "Net 30 days"
+ * in the Arabic UI (E2E qualification, 12 Oct 2026). The code decides the words, in the composer's
+ * order; the stored label is the last resort, for a code this build has no words for.
+ */
+export function paymentTermLabel(t: Translate, term: StoredCode): string | null {
+  if (!term) return null
+  const netDays = /^NET(\d+)$/.exec(term.code)
+  const lastResort = netDays
+    ? t('reference.netTerm', { count: Number(netDays[1]) })
+    : term.label || term.code
+  return t(`createInvoice.terms.${term.code}`, {
+    defaultValue: t(`reference.paymentTerm.${term.code}`, { defaultValue: lastResort }),
+  })
+}
+
+/** A document's UNCL4461 payment means in the reader's language; see {@link paymentTermLabel}. */
+export function paymentMethodLabel(t: Translate, method: StoredCode): string | null {
+  if (!method) return null
+  return t(`createInvoice.paymentMethods.${method.code}`, {
+    defaultValue: t(`reference.paymentMethod.${method.code}`, {
+      defaultValue: method.label || method.code,
+    }),
+  })
+}

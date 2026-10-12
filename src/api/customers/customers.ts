@@ -38,7 +38,13 @@ export type CustomerDto = {
       /** The customer's own reminder switch, when the list carries it (the reminders page counts the muted). */
       automaticPaymentReminders?: boolean
     } | null
-    invoiceAddress: { cityName: string | null; countryCode: string | null } | null
+    /**
+     * The whole `CustomerAddress` is on the wire. Only city and country were typed until the
+     * document preview needed the full address, so the rest is optional to keep older readers valid.
+     */
+    invoiceAddress:
+      | ({ cityName: string | null; countryCode: string | null } & Partial<CustomerAddressDto>)
+      | null
   }
   peppolDelivery: CustomerPeppolDelivery
   /** False while the record cannot fill a compliant buyer party; issue refuses it (SRS §15). */

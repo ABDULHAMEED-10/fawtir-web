@@ -37,6 +37,12 @@ import {
 } from '../../api/invoices/detail'
 import type { NoteKind } from '../../api/invoices/drafts'
 import { loadCustomer, type CustomerDto } from '../../api/customers/customers'
+import {
+  COMPANY_PROFILE_PATH,
+  loadCompanyProfile,
+  type CompanyProfileDto,
+} from '../../api/company/companyProfile'
+import { buyerParty, sellerParty } from '../../lib/documentParties'
 import { RecordPaymentModal } from '../InvoiceDetailsPage/RecordPaymentModal'
 import {
   PAYMENT_REFUSALS,
@@ -46,7 +52,7 @@ import {
   timelineOf,
 } from '../../lib/invoiceDetail'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { formatAmount, formatDate, formatInstant } from '../../lib/format'
+import { formatAmount, formatDate, formatInstant, initialsOf } from '../../lib/format'
 import { formatFileSize } from '../../lib/files'
 import { muscatToday } from '../../lib/invoiceIssue'
 import {
@@ -203,6 +209,13 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
   const customer = useApiRead<CustomerDto>(
     document && can(session, 'customer.read') ? `/v1/customers/${document.customerId}` : null,
     () => loadCustomer(document!.customerId),
+  )
+  // As on the invoice: the live profile stands in for the seller only without an issued snapshot.
+  const companyProfile = useApiRead<CompanyProfileDto>(
+    document && !document.seller && can(session, 'admin.settings.manage')
+      ? COMPANY_PROFILE_PATH
+      : null,
+    loadCompanyProfile,
   )
   // The invoice this note corrects, and what it still owes, for "Reverses INV-2044" and the effect.
   const original = useApiRead<InvoiceDetailDto>(originalId ? invoicePath(originalId) : null, () =>
@@ -445,24 +458,38 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
       : []),
   ]
 
+  const seller = sellerParty(
+    data.seller,
+    companyProfile.read.status === 'ready' ? companyProfile.read.data : null,
+    t,
+    language,
+  )
+  const buyer = buyerParty(
+    data.buyer,
+    customer.read.status === 'ready' ? customer.read.data : null,
+    t,
+    language,
+  )
+  const vatLine = (vat: string | null | undefined) =>
+    vat ? t('invoiceDetails.vatNumber', { number: vat }) : ''
   const printable: PreviewDocument = {
     kind: t(`salesNote.detail.preview.kind.${kindKey}`),
     number: data.invoiceNumber ?? t('salesNote.draft'),
     statusLabel: status === 'toSend' ? t('salesNote.status.toSend') : undefined,
-    // TODO(backend): the seller's identity (name, VAT number, address) for the printed document.
     brand: {
-      name: t('salesNote.detail.preview.seller'),
-      initial: t('salesNote.detail.preview.sellerInitial'),
-      vat: '',
+      name: seller?.name ?? t('salesNote.detail.preview.seller'),
+      initial: seller ? initialsOf(seller.name) : t('salesNote.detail.preview.sellerInitial'),
+      vat: vatLine(seller?.vat),
     },
-    from: { name: t('salesNote.detail.preview.seller'), lines: [], vat: '' },
+    from: {
+      name: seller?.name ?? t('salesNote.detail.preview.seller'),
+      lines: seller?.addressLines ?? [],
+      vat: vatLine(seller?.vat),
+    },
     to: {
-      name: customerName,
-      lines: [],
-      vat:
-        customer.read.status === 'ready'
-          ? (customer.read.data.profile.details?.vatRegistrationNumber ?? '')
-          : '',
+      name: buyer?.name ?? customerName,
+      lines: buyer?.addressLines ?? [],
+      vat: vatLine(buyer?.vat),
     },
     meta: [
       { label: t('salesNote.detail.preview.issueDate'), value: day(data.issueDate) },

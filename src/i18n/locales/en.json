@@ -20030,7 +20030,8 @@
       "30": "Bank transfer",
       "48": "Card payment",
       "68": "Online payment"
-    }
+    },
+    "netTerm": "Net {{count}} days"
   },
   "selfBillDetail": {
     "breadcrumbSelfBilled": "Self-billed",
@@ -21194,5 +21195,9 @@
       "void": "Void",
       "support": "Support"
     }
+  },
+  "documentParty": {
+    "building": "Building {{number}}",
+    "poBox": "PO Box {{number}}"
   }
 }

@@ -52,8 +52,15 @@ import {
   type ReminderScheduleDto,
 } from '../../api/invoices/reminders'
 import type { Page } from '../../api'
-import { NOTE_ROUTES } from '../../lib/salesNote'
+import { NOTE_ROUTES, unitLabel } from '../../lib/salesNote'
 import { loadCustomer, type CustomerDto } from '../../api/customers/customers'
+import {
+  COMPANY_PROFILE_PATH,
+  loadCompanyProfile,
+  type CompanyProfileDto,
+} from '../../api/company/companyProfile'
+import { buyerParty, sellerParty, type DocumentParty } from '../../lib/documentParties'
+import { paymentMethodLabel, paymentTermLabel } from '../../lib/reference/referenceData'
 import { RecordPaymentModal } from './RecordPaymentModal'
 import { IssueInvoiceModal } from '../../components/invoice/IssueInvoiceModal'
 import { SendInvoiceModal } from '../../components/invoice/SendInvoiceModal'
@@ -235,6 +242,14 @@ function InvoiceScreen() {
     () => loadCustomer(document!.customerId),
   )
   const branches = useApiRead<BranchDto[]>(document ? '/v1/branches' : null, loadBranches)
+  // The live profile stands in for the seller only where the document carries no issued snapshot
+  // (a draft, or a server older than the snapshot), and only for a reader the profile admits.
+  const companyProfile = useApiRead<CompanyProfileDto>(
+    document && !document.seller && can(session, 'admin.settings.manage')
+      ? COMPANY_PROFILE_PATH
+      : null,
+    loadCompanyProfile,
+  )
   // A draft owes nothing to the network, so only an issued (or since-cancelled) document asks.
   const dispatchRead = useApiRead<InvoiceDispatchDto>(
     document && !isDraft(document) ? `${invoicePath(id)}/dispatch` : null,
@@ -617,7 +632,19 @@ function InvoiceScreen() {
     <DocumentPreview
       data={data}
       status={t(status.key, status.values)}
-      customer={customer.read.status === 'ready' ? customer.read.data : null}
+      seller={sellerParty(
+        data.seller,
+        companyProfile.read.status === 'ready' ? companyProfile.read.data : null,
+        t,
+        language,
+      )}
+      buyer={buyerParty(
+        data.buyer,
+        customer.read.status === 'ready' ? customer.read.data : null,
+        t,
+        language,
+      )}
+      paymentTerms={paymentTermLabel(t, data.details?.paymentTerms) ?? '—'}
       branch={branchName}
       lineTotals={totals}
       money={money}
@@ -1031,7 +1058,7 @@ function InvoiceScreen() {
               />
               <MetaField
                 label={t('invoiceDetails.fields.paymentTerms')}
-                value={data.details?.paymentTerms?.label ?? '—'}
+                value={paymentTermLabel(t, data.details?.paymentTerms) ?? '—'}
               />
               <MetaField
                 label={t('invoiceDetails.fields.currency')}
@@ -1049,7 +1076,7 @@ function InvoiceScreen() {
               />
               <MetaField
                 label={t('invoiceDetails.fields.paymentMethod')}
-                value={data.details?.paymentMethod?.label ?? '—'}
+                value={paymentMethodLabel(t, data.details?.paymentMethod) ?? '—'}
               />
             </div>
           </SectionCard>
@@ -1151,7 +1178,7 @@ function InvoiceScreen() {
                     <p className="text-base font-medium text-text-primary">{line.description}</p>
                     <p className="mt-1 text-sm font-medium text-text-quaternary">
                       {[
-                        line.unitCode,
+                        unitLabel(line.unitCode, t),
                         line.productCode
                           ? t('invoiceDetails.catalogRef', { code: line.productCode })
                           : null,
@@ -1174,7 +1201,7 @@ function InvoiceScreen() {
                     {line.quantity}
                   </td>
                   <td className="py-3 text-base font-medium text-text-secondary">
-                    {line.unitCode}
+                    {unitLabel(line.unitCode, t)}
                   </td>
                   <td className="py-3 text-sm font-medium text-text-secondary">
                     {line.discountValue === 0
@@ -1786,7 +1813,9 @@ function InvoiceScreen() {
 function DocumentPreview({
   data,
   status,
-  customer,
+  seller,
+  buyer,
+  paymentTerms,
   branch,
   lineTotals: totals,
   money,
@@ -1794,7 +1823,9 @@ function DocumentPreview({
 }: {
   data: InvoiceDetailDto
   status: string
-  customer: CustomerDto | null
+  seller: DocumentParty | null
+  buyer: DocumentParty | null
+  paymentTerms: string
   branch: string | undefined
   lineTotals: Map<number, number>
   money: (value: number | null | undefined) => string
@@ -1807,15 +1838,19 @@ function DocumentPreview({
       : data.type === 'DEBIT_NOTE'
         ? 'debitNote'
         : 'taxInvoice'
+  // Without a seller (a reader the company profile does not admit, on a document with no issued
+  // snapshot) the branch is all the page knows, which is what it showed before.
+  const masthead = seller?.name ?? branch
   return (
     <div className="mx-auto w-full max-w-[420px] rounded-[3px] bg-white p-5 text-[9px] leading-[1.35] text-text-secondary shadow-card">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="flex size-7 items-center justify-center rounded-sm bg-primary-700 text-[11px] font-bold text-white">
-            {initialsOf(branch ?? 'F')}
+            {initialsOf(masthead ?? 'F')}
           </span>
           <div>
-            <p className="text-[11px] font-semibold text-text-primary">{branch ?? '—'}</p>
+            <p className="text-[11px] font-semibold text-text-primary">{masthead ?? '—'}</p>
+            {seller && branch ? <p className="text-text-quaternary">{branch}</p> : null}
           </div>
         </div>
         <div className="text-end">
@@ -1835,28 +1870,22 @@ function DocumentPreview({
           <p className="text-[7px] font-semibold uppercase tracking-wide text-text-quaternary">
             {t('invoiceDetails.preview.from')}
           </p>
-          <p className="font-semibold text-text-primary">{branch ?? '—'}</p>
+          {seller ? (
+            <PartyLines party={seller} />
+          ) : (
+            <p className="font-semibold text-text-primary">{branch ?? '—'}</p>
+          )}
+          {seller && branch ? <p>{branch}</p> : null}
         </div>
         <div>
           <p className="text-[7px] font-semibold uppercase tracking-wide text-text-quaternary">
             {t(counterpartyKeys(data.type).section)}
           </p>
-          <p className="font-semibold text-text-primary">{customer?.displayName ?? '—'}</p>
-          {customer?.profile.invoiceAddress?.cityName ? (
-            <p>
-              {customer.profile.invoiceAddress.cityName}
-              {customer.profile.invoiceAddress.countryCode
-                ? `, ${customer.profile.invoiceAddress.countryCode}`
-                : ''}
-            </p>
-          ) : null}
-          {customer?.profile.details?.vatRegistrationNumber ? (
-            <p>
-              {t('invoiceDetails.vatNumber', {
-                number: customer.profile.details.vatRegistrationNumber,
-              })}
-            </p>
-          ) : null}
+          {buyer ? (
+            <PartyLines party={buyer} />
+          ) : (
+            <p className="font-semibold text-text-primary">—</p>
+          )}
         </div>
       </div>
       <div className="mt-3 grid grid-cols-4 gap-2">
@@ -1867,7 +1896,7 @@ function DocumentPreview({
             ? []
             : [['invoiceDetails.fields.dueDate', day(data.dueDate)]]),
           ['invoiceDetails.fields.poReference', data.details?.purchaseOrderReference ?? '—'],
-          ['invoiceDetails.fields.paymentTerms', data.details?.paymentTerms?.label ?? '—'],
+          ['invoiceDetails.fields.paymentTerms', paymentTerms],
         ].map(([label, value]) => (
           <div key={label}>
             <p className="text-[7px] font-semibold uppercase tracking-wide text-text-quaternary">
@@ -1934,6 +1963,19 @@ function DocumentPreview({
         <p className="mt-4 text-[8px] text-text-quaternary">{data.details.customerVisibleNote}</p>
       ) : null}
     </div>
+  )
+}
+
+function PartyLines({ party }: { party: DocumentParty }) {
+  const { t } = useTranslation()
+  return (
+    <>
+      <p className="font-semibold text-text-primary">{party.name}</p>
+      {party.vat ? <p>{t('invoiceDetails.vatNumber', { number: party.vat })}</p> : null}
+      {party.addressLines.map((line) => (
+        <p key={line}>{line}</p>
+      ))}
+    </>
   )
 }
 
