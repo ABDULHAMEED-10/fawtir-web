@@ -143,16 +143,28 @@ export function oweExplanation(
   runs: readonly PaymentRunDto[],
 ): Note {
   if (overview.payables.total <= 0) return { key: 'supplierRecord.nothingOwed' }
-  const inRun = latest.filter((row) => row.workflowState === 'IN_PAYMENT_RUN')
-  if (inRun.length > 0) {
-    const run = runOf(inRun[0], runs)
-    const reference = inRun[0].paymentRunReference ?? ''
-    return run?.paymentDate
+  const inRunNote = (count: number, reference: string, run: PaymentRunDto | null): Note =>
+    run?.paymentDate
       ? {
           key: 'supplierDetail.oweInRunPaying',
-          values: { count: inRun.length, run: reference, date: run.paymentDate },
+          values: { count, run: reference, date: run.paymentDate },
         }
-      : { key: 'supplierDetail.oweInRun', values: { count: inRun.length, run: reference } }
+      : { key: 'supplierDetail.oweInRun', values: { count, run: reference } }
+  // The server's count of this supplier's bills in each live run (P6, 12 Oct 2026): the latest
+  // bills are one short page and undercounted it. The sentence names the first run, with its count.
+  const inRuns = overview.payables.inRuns
+  if (inRuns) {
+    const first = inRuns.find((entry) => entry.bills > 0)
+    if (first) {
+      const run = runs.find((candidate) => candidate.id === first.runId) ?? null
+      return inRunNote(first.bills, first.reference, run)
+    }
+  } else {
+    // A server before `inRuns`: counted from the latest bills, as before.
+    const inRun = latest.filter((row) => row.workflowState === 'IN_PAYMENT_RUN')
+    if (inRun.length > 0) {
+      return inRunNote(inRun.length, inRun[0].paymentRunReference ?? '', runOf(inRun[0], runs))
+    }
   }
   return {
     key: overview.payables.everLate ? 'supplierRecord.everLate' : 'supplierRecord.neverLate',

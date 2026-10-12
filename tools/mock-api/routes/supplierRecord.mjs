@@ -314,8 +314,38 @@ const OVERVIEW = () => ({
     total: sum(inRun.map((b) => b.outstandingAmount)),
     // What they still hold of MR-INV-8712's second payment, as on the statement.
     overpaidTotal: 30,
+    // The live runs holding their bills, with how many of theirs each holds (P6, 12 Oct 2026).
+    inRuns: inRunsOf(inRun),
   },
 })
+
+/** `payables.inRuns`: the supplier's bills grouped by the live run they sit in, by reference. */
+function inRunsOf(rows) {
+  const byReference = new Map()
+  for (const row of rows) {
+    if (!row.paymentRunReference) continue
+    byReference.set(row.paymentRunReference, [
+      ...(byReference.get(row.paymentRunReference) ?? []),
+      row,
+    ])
+  }
+  return [...byReference.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .flatMap(([reference, held]) => {
+      const run = runs.find((r) => r.reference === reference)
+      if (!run || run.state === 'PAID' || run.state === 'CANCELLED') return []
+      return [
+        {
+          runId: run.id,
+          reference,
+          state: run.state,
+          bills: held.length,
+          amount: sum(held.map((b) => b.outstandingAmount)),
+          currencyCode: 'OMR',
+        },
+      ]
+    })
+}
 
 const page = (items, query, size = 20) => {
   const p = Number(query.get('page') ?? 0)
@@ -693,6 +723,8 @@ const STATEMENT = (from, to) => {
     },
     everLate: false,
     unusedCredits: 1,
+    // P7 (12 Oct 2026): MR-CN-0118's credit not yet used or refunded, 242.500 less 42.500.
+    unusedCredit: 200,
     issuer: {
       legalName: 'Al Bahja Coffee LLC',
       legalNameAr: 'شركة البهجة للقهوة ش.م.م',

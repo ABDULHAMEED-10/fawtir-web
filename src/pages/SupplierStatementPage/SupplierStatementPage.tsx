@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { DateField, Modal, OmAmount, Popover, RowsView } from '../../components/ui'
+import { DateField, Modal, OmAmount, Popover, RowsView, withRial } from '../../components/ui'
 import { OverpaidBy } from '../../components/bills'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
@@ -730,6 +730,19 @@ function SupplierStatement({ id }: { id: string }) {
             )
           })}
         </div>
+        {/* P7 (owner, 12 Oct 2026): what comes off the ageing to reach the closing balance. A
+            server before `unusedCredit` cannot say it, so nothing is drawn rather than a 0. */}
+        {typeof data.unusedCredit === 'number' &&
+        (data.unusedCredit > 0 || (data.overpaid ?? 0) > 0) ? (
+          <p className="-mt-2 px-6 pb-6 text-sm font-medium leading-[1.5] text-text-tertiary">
+            {withRial(
+              t('supplierStatement.lessUnusedCredit', {
+                credit: money(data.unusedCredit),
+                overpaid: money(data.overpaid ?? 0),
+              }),
+            )}
+          </p>
+        ) : null}
       </section>
     )
   }
