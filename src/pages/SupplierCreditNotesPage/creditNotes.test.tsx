@@ -5,6 +5,7 @@ import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { CreditNoteRowDto, CreditNoteSummaryDto } from '../../api/expenditure/notes'
 import { toCreditNoteItem } from '../../lib/supplierNoteList'
+import { vatEffect } from '../../lib/supplierCreditNotes'
 import { SupplierCreditNotesPage } from './SupplierCreditNotesPage'
 import { SupplierCreditNoteDetailPage } from '../SupplierCreditNoteDetailPage'
 
@@ -1552,6 +1553,75 @@ describe('arriving from the upload', () => {
 })
 
 // Browser re-check of 11 Oct 2026 (C-7): the brand is «فوتر», with no vowel mark.
+// Owner, 12 Oct 2026: a credit note on a bill out of input VAT (a refused debit note, a rejected
+// bill) is left out with it, so the card claims nothing on the bill and takes nothing off.
+describe("a credit note's Effect on your VAT", () => {
+  /** The figure beside a label in the VAT card, without the screen-reader currency word. */
+  const vatRow = async (label: string) => {
+    const value = (await screen.findByText(label)).nextElementSibling!
+    await waitFor(() => expect(value.textContent).toMatch(/\d|—/))
+    const copy = value.cloneNode(true) as Element
+    copy.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+    return (copy.textContent ?? '').trim()
+  }
+
+  const onBill = (bill: Record<string, unknown>) => {
+    notes = [
+      note({
+        credits: {
+          billNumber: 'QMS-DN-1',
+          issueDate: '2026-09-01',
+          documentUuid: null,
+          billId: BILL_ID,
+          applied: false,
+        },
+      }),
+    ]
+    billDetail = { bill: { ...OURS, id: BILL_ID, supplierBillNumber: 'QMS-DN-1', ...bill }, lines: [] }
+  }
+
+  it('claims nothing and reduces nothing when the bill it closes is not counted', async () => {
+    onBill({
+      documentTypeCode: '383',
+      debitNoteDecision: 'REFUSED',
+      inputVat: {
+        counted: false,
+        countedOn: null,
+        reason: 'DEBIT_NOTE_NOT_ACCEPTED',
+        vatAmountOmr: null,
+      },
+    })
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    await waitFor(() => expect(calls(`/api/v1/bills/${BILL_ID}`).length).toBeGreaterThan(0))
+    await waitFor(async () => expect(await vatRow('Input VAT claimed on the bill')).toBe('—'))
+    expect(await vatRow('Reduced by this note')).toBe('−0.000')
+    expect(await vatRow('Reclaimable amount')).toBe('—')
+  })
+
+  it('reads as before on a counted bill', async () => {
+    onBill({
+      inputVat: { counted: true, countedOn: '2026-09-02', reason: 'COUNTED', vatAmountOmr: 15 },
+    })
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    await waitFor(async () => expect(await vatRow('Input VAT claimed on the bill')).toBe('15.000'))
+    expect(await vatRow('Reduced by this note')).toBe('−9.524')
+    expect(await vatRow('Reclaimable amount')).toBe('5.476')
+  })
+
+  it('works the figures out from whether the bill is counted', () => {
+    // A server before `inputVat` (undefined) and a counted bill read the same as before.
+    for (const counted of [undefined, true]) {
+      const effect = vatEffect(15, 9.524, counted)
+      expect(effect.claimed).toBe(15)
+      expect(effect.reduced).toBe(9.524)
+      expect(effect.reclaimable).toBeCloseTo(5.476, 3)
+    }
+    expect(vatEffect(15, 9.524, false)).toEqual({ claimed: null, reduced: 0, reclaimable: null })
+  })
+})
+
 describe("the credit notes' VAT notes in Arabic", () => {
   it('write the brand as «فوتر»', () => {
     const ar = i18n.getFixedT('ar')

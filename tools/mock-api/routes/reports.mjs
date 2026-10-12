@@ -364,6 +364,8 @@ function vat(query) {
     output: fold(output),
     input: fold(input),
     net: fold(net),
+    // Input VAT on bills with no OMR VAT stated; every bill here is in rials, so none.
+    inputWithoutOmrVat: [],
   }
 }
 

@@ -95,6 +95,8 @@ let acceptCalls: number
 let refuseFailure: (() => Response) | null
 /** The supplier's bills, when a test needs the note's bill on file; unanswered otherwise. */
 let billRows: BillRowDto[] | null
+/** The note's own bill (`GET /bills/{noteId}`), when a test needs it; unanswered otherwise. */
+let ownBill: unknown
 
 const calls = (prefix: string) =>
   fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith(prefix))
@@ -109,6 +111,7 @@ beforeEach(async () => {
   acceptCalls = 0
   refuseFailure = null
   billRows = null
+  ownBill = null
 
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(
@@ -149,6 +152,7 @@ beforeEach(async () => {
         total: notes.length,
       })
     }
+    if (ownBill && url === `/api/v1/bills/${NOTE_ID}`) return json(200, ownBill)
     if (billRows && url.startsWith('/api/v1/bills?')) {
       return json(200, {
         items: billRows,
@@ -329,6 +333,70 @@ describe('One debit note', () => {
         'Waiting for someone to decide',
       ),
     ).toBeTruthy()
+  })
+
+  // Owner, 12 Oct 2026: the VAT card says a note out of input VAT is not counted until accepted.
+  it('says in the VAT card that a refused note is not counted until accepted', async () => {
+    notes = [note({ status: 'REFUSED', decisionReason: 'Already charged' })]
+    ownBill = {
+      bill: {
+        id: NOTE_ID,
+        inboundDeliveryId: null,
+        documentTypeCode: '383',
+        inputVat: {
+          counted: false,
+          countedOn: null,
+          reason: 'DEBIT_NOTE_NOT_ACCEPTED',
+          vatAmountOmr: null,
+        },
+      },
+      lines: [],
+      intake: null,
+    }
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(await screen.findByText('Not counted in VAT until you accept it.')).toBeTruthy()
+    // Beside the card's own note, not instead of it.
+    expect(screen.getByText('Nothing changes on your return unless you accept.')).toBeTruthy()
+  })
+
+  it('says it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    ownBill = {
+      bill: {
+        id: NOTE_ID,
+        inboundDeliveryId: null,
+        inputVat: {
+          counted: false,
+          countedOn: null,
+          reason: 'DEBIT_NOTE_NOT_ACCEPTED',
+          vatAmountOmr: null,
+        },
+      },
+      lines: [],
+      intake: null,
+    }
+    renderDetail()
+    expect(
+      await screen.findByText('لا تُحتسب في ضريبة القيمة المضافة حتى تقبلها.'),
+    ).toBeTruthy()
+  })
+
+  it('says nothing about counting once accepted, or from a server that does not send it', async () => {
+    notes = [note({ status: 'ACCEPTED' })]
+    ownBill = {
+      bill: {
+        id: NOTE_ID,
+        inboundDeliveryId: null,
+        inputVat: { counted: true, countedOn: '2026-09-21', reason: 'COUNTED', vatAmountOmr: 3.5 },
+      },
+      lines: [],
+      intake: null,
+    }
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    await waitFor(() => expect(calls(`/api/v1/bills/${NOTE_ID}`).length).toBeGreaterThan(0))
+    expect(screen.queryByText(/Not counted in VAT/)).toBeNull()
   })
 
   it('accepts the charge', async () => {

@@ -44,6 +44,7 @@ import {
   decisionNoteOf,
   decisionsOf,
   discountLineOf,
+  inputVatNoteKey,
   isSelfBilled,
   overpaidOf,
   paidBeyondTotal,
@@ -306,6 +307,7 @@ function BillScreen() {
   const decisions = decisionsOf(detail, (permission) => can(session, permission))
   const payable = canRecordPayment(detail, (permission) => can(session, permission))
   const selfBilled = isSelfBilled(detail)
+  const inputVatNote = inputVatNoteKey(row.inputVat)
   const original = billOriginalPath(detail)
   const orderNumber =
     row.match?.verdict !== 'NO_ORDER' ? (row.match?.purchaseOrderNumber ?? null) : null
@@ -621,6 +623,13 @@ function BillScreen() {
                   >
                     <dt className="text-sm font-medium text-text-tertiary">
                       {t(labelKey, values)}
+                      {/* "Not counted in VAT ..." under the VAT figure, only when the server says
+                          the document is out of input VAT; nothing from an older server. */}
+                      {labelKey !== 'billDetail.lines.net' && inputVatNote ? (
+                        <span className="mt-1 block text-xs font-medium leading-[1.2] text-text-quaternary">
+                          {t(inputVatNote)}
+                        </span>
+                      ) : null}
                     </dt>
                     <dd className="text-sm font-semibold text-text-secondary tabular-nums">
                       <span className="me-1">

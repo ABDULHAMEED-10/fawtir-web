@@ -29,7 +29,7 @@ import {
   type VatReportDto,
   type VolumeReportDto,
 } from '../../api/reports/reports'
-import { categoryAmounts, currenciesIn, vatMonths } from '../../lib/vatReport'
+import { categoryAmounts, currenciesIn, reportCurrency, vatMonths } from '../../lib/vatReport'
 import { selfBilledVat } from '../../lib/volumeReport'
 import {
   MONTH_IDS,
@@ -165,7 +165,7 @@ function VatBody({
   t: (key: string, values?: Record<string, unknown>) => string
 }) {
   const currencies = currenciesIn(report)
-  const currency = currencies[0] ?? 'OMR'
+  const currency = reportCurrency(currencies)
 
   if (currencies.length === 0) {
     return (

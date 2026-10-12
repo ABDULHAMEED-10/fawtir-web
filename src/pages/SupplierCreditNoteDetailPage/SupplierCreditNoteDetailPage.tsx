@@ -229,7 +229,7 @@ function CreditNoteDetail() {
     },
     bill,
   )
-  const vat = vatEffect(bill?.vatAmount ?? null, row.vatAmount)
+  const vat = vatEffect(bill?.vatAmount ?? null, row.vatAmount, bill?.inputVat?.counted)
   const reason = reasonLabelKey(row.reasonCode, row.reasonDetail ?? null)
   // "QTY · Quantity correction": the code in the Tax Authority's list (CL-02-OM), under the
   // supplier's words (`reasonDetail`) or, without them, the code's own label.

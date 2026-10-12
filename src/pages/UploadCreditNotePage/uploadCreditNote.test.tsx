@@ -750,6 +750,33 @@ describe('a credit note correcting a supplier debit note on upload', () => {
     expect(confirmed.holdAsCredit).toBe(true)
   })
 
+  // Owner, 12 Oct 2026: a credit note on a debit note out of input VAT is left out with it.
+  it('claims nothing on a debit note out of input VAT, and reduces nothing', async () => {
+    billRows = [
+      BILL,
+      {
+        ...DEBIT_NOTE,
+        inputVat: {
+          counted: false,
+          countedOn: null,
+          reason: 'DEBIT_NOTE_NOT_ACCEPTED',
+          vatAmountOmr: null,
+        },
+      },
+    ]
+    await uploadNote()
+    fireEvent.click(await debitNoteRow())
+    const figure = async (label: string) => {
+      const value = (await screen.findByText(label)).nextElementSibling!
+      const copy = value.cloneNode(true) as Element
+      copy.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+      return (copy.textContent ?? '').trim()
+    }
+    await waitFor(async () => expect(await figure('Input VAT claimed on MR-DN-0007')).toBe('—'))
+    expect(await figure('Reduced by this note')).toMatch(/^−0\.000$/)
+    expect(await figure('Reclaimable amount')).toBe('—')
+  })
+
   it('closes a refused debit note: no choice, one line instead, in both languages', async () => {
     await uploadNote()
     fireEvent.click(await debitNoteRow())

@@ -167,7 +167,11 @@ export function SupplierNoteIntake({
   // the choice is not offered for it.
   const debitNoteChosen = kind === 'credit' && chosenBill?.documentTypeCode === DEBIT_NOTE_CODE
   const refusedDebitNote = debitNoteChosen && chosenBill?.debitNoteDecision === 'REFUSED'
-  const vat = vatEffect(chosenBill?.vatAmount ?? null, totals ? Number(totals.vat) : null)
+  const vat = vatEffect(
+    chosenBill?.vatAmount ?? null,
+    totals ? Number(totals.vat) : null,
+    chosenBill?.inputVat?.counted,
+  )
   const checks =
     kind === 'debit'
       ? intakeChecks({
