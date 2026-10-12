@@ -113,6 +113,8 @@ let refundRefusal: Record<string, unknown> | null
 let downloads: string[]
 /** `GET /bills/{BILL_ID}` as a detail, when a test needs the bill a note names read directly. */
 let billDetail: unknown
+/** `GET /suppliers/s-1/overview`, when a test needs the supplier panel's figures. */
+let overview: unknown
 
 const calls = (prefix: string) =>
   fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith(prefix))
@@ -129,12 +131,14 @@ beforeEach(async () => {
   refundRefusal = null
   downloads = []
   billDetail = null
+  overview = null
 
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(
       typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
     )
     if (url.startsWith(ENTITLEMENTS_URL)) return json(200, who)
+    if (overview !== null && url.includes('/suppliers/s-1/overview')) return json(200, overview)
     // Narrowed by a search or a supplier, the summary counts its tabs over what is left.
     if (url.startsWith(`${SUMMARY_URL}?`))
       return json(200, {
@@ -613,6 +617,43 @@ describe('Credit notes list, wired to the API', () => {
   })
 })
 
+/** What a reader sees: the rial sign's hidden "OMR" left out, spaces as one. */
+function visibleText(element: Element) {
+  const copy = element.cloneNode(true) as Element
+  copy.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+  return (copy.textContent ?? '').replace(/\s+/g, ' ').trim()
+}
+
+/** The effect banner's sentence, once the bill it names has been read. */
+async function heroSaying(start: RegExp) {
+  return waitFor(() => {
+    const hero = screen
+      .getAllByRole('heading', { level: 2 })
+      .find((heading) => start.test(visibleText(heading)))
+    expect(hero).toBeTruthy()
+    return hero!
+  })
+}
+
+/** A note that took `applied` off the bill it names, which still owes `outstanding`. */
+function appliedTo(bill: Record<string, unknown>, applied = 10.5) {
+  notes = [
+    note({
+      creditedAmount: applied,
+      status: 'APPLIED',
+      balance: { applied, refunded: 0, remaining: 0 },
+      credits: {
+        billNumber: String(bill.supplierBillNumber),
+        issueDate: '2026-09-01',
+        documentUuid: null,
+        billId: BILL_ID,
+        applied: true,
+      },
+    }),
+  ]
+  billDetail = { bill: { ...OURS, id: BILL_ID, ...bill }, lines: [] }
+}
+
 describe('One credit note', () => {
   it('draws the frame: title chips, the effect banner, the side cards and the activity trail', async () => {
     renderDetail()
@@ -652,6 +693,196 @@ describe('One credit note', () => {
       within(activity).getByText('Until it is, QMS-7781 still shows its full amount'),
     ).toBeTruthy()
     expect(activity.textContent).not.toMatch(/OMR\s*\d/)
+  })
+
+  // Wording fixes 12 Oct (C7): the credit comes off a bill still to be paid, so the hero says
+  // "You'll pay less" until the bill is paid, and only then "You paid less". Both with the sign.
+  it.each([
+    ['en', 'still unpaid', 39.5, "You'll pay 10.500 less"],
+    ['en', 'paid', 0, 'You paid 10.500 less'],
+    ['ar', 'still unpaid', 39.5, 'ستدفع أقل بمقدار 10.500'],
+    ['ar', 'paid', 0, 'دفعتَ أقل بمقدار 10.500'],
+  ] as const)(
+    'says what the credit does to a bill (%s, %s) with the rial sign, never "OMR"',
+    async (language, _state, outstanding, sentence) => {
+      await i18n.changeLanguage(language)
+      appliedTo({
+        supplierBillNumber: 'QMS-7781',
+        totalIncludingVat: 50,
+        paidAmount: outstanding > 0 ? 0 : 39.5,
+        outstandingAmount: outstanding,
+        workflowState: outstanding > 0 ? 'APPROVED' : 'PAID',
+      })
+      renderDetail()
+      const hero = await heroSaying(new RegExp(`^${sentence.split(' 10.500')[0]}`))
+      expect(visibleText(hero)).toBe(sentence)
+      expect(hero.querySelector('svg')).not.toBeNull()
+      expect(visibleText(hero)).not.toMatch(/OMR|ر\.ع/)
+    },
+  )
+
+  // Wording fixes 12 Oct (C6): a refused debit note was never owed, so its credit only closes it.
+  it.each([
+    ['en', 'Closes refused debit note QMS-DN-9.', 'Nothing was owed on it.'],
+    ['ar', 'يُغلق إشعار المدين المرفوض QMS-DN-9.', 'لم يكن عليه أي مبلغ مستحق.'],
+  ] as const)(
+    'says a credit closing a refused debit note only closes it (%s)',
+    async (language, title, body) => {
+      await i18n.changeLanguage(language)
+      appliedTo({
+        supplierBillNumber: 'QMS-DN-9',
+        documentTypeCode: '383',
+        debitNoteDecision: 'REFUSED',
+        totalIncludingVat: 10.5,
+        paidAmount: 0,
+        outstandingAmount: 0,
+        workflowState: 'PAID',
+      })
+      renderDetail()
+      const hero = await heroSaying(new RegExp(`^${title.split(' ')[0]}`))
+      expect(visibleText(hero)).toBe(title)
+      expect(screen.getByText(body)).toBeTruthy()
+      expect(screen.queryByText(/You paid|came off what you owed|دفعتَ/)).toBeNull()
+    },
+  )
+
+  // Wording fixes 12 Oct (C8): a held bill refuses the credit, so the panel says release it first.
+  it.each([
+    ['en', 'QMS-7781 is on hold. Release it before setting this credit against it.'],
+    ['ar', 'QMS-7781 قيد الانتظار. أفرِج عنها قبل خصم هذا الرصيد منها.'],
+  ] as const)(
+    'says the bill is on hold before offering to set the credit (%s)',
+    async (language, text) => {
+      await i18n.changeLanguage(language)
+      notes = [
+        note({
+          credits: {
+            billNumber: 'QMS-7781',
+            issueDate: '2026-09-01',
+            documentUuid: null,
+            billId: BILL_ID,
+            applied: false,
+          },
+        }),
+      ]
+      billDetail = {
+        bill: {
+          ...OURS,
+          id: BILL_ID,
+          supplierBillNumber: 'QMS-7781',
+          workflowState: 'ON_HOLD',
+          hold: { reason: 'Goods damaged', openedAt: '2026-10-11T08:00:00Z' },
+        },
+        lines: [],
+      }
+      renderDetail()
+      expect(await screen.findByText(text)).toBeTruthy()
+      expect(screen.queryByText(/clears the mismatch|يزيل الاختلاف/)).toBeNull()
+    },
+  )
+
+  it('still says setting it releases the bill when the bill is not on hold', async () => {
+    notes = [
+      note({
+        credits: {
+          billNumber: 'QMS-7781',
+          issueDate: '2026-09-01',
+          documentUuid: null,
+          billId: BILL_ID,
+          applied: false,
+        },
+      }),
+    ]
+    billDetail = { bill: { ...OURS, id: BILL_ID, supplierBillNumber: 'QMS-7781' }, lines: [] }
+    renderDetail()
+    expect(
+      await screen.findByText(
+        'Setting it against QMS-7781 clears the mismatch and releases the bill for approval.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText(/is on hold/)).toBeNull()
+  })
+
+  // Wording fixes 12 Oct (C9): with a bill named, the You'll pay tile never says "No bill yet".
+  it.each([
+    ['en', 'after this note'],
+    ['ar', 'بعد هذا الإشعار'],
+  ] as const)(
+    "captions You'll pay \"after this note\" when a bill is named (%s)",
+    async (language, caption) => {
+      await i18n.changeLanguage(language)
+      notes = [
+        note({
+          credits: {
+            billNumber: 'QMS-7781',
+            issueDate: '2026-09-01',
+            documentUuid: null,
+            billId: BILL_ID,
+            applied: false,
+          },
+        }),
+      ]
+      // No due date, nothing paid yet: the two captions that come first have nothing to say.
+      billDetail = {
+        bill: { ...OURS, id: BILL_ID, supplierBillNumber: 'QMS-7781', dueDate: null },
+        lines: [],
+      }
+      renderDetail()
+      const label = language === 'en' ? "You'll pay" : 'ستدفع'
+      await waitFor(() =>
+        expect(screen.getByText(label).parentElement?.textContent).toContain(caption),
+      )
+      expect(screen.getByText(label).parentElement?.textContent).not.toMatch(
+        /No bill yet|لا فاتورة بعد/,
+      )
+    },
+  )
+
+  it("keeps \"No bill yet\" under You'll pay when no bill is named", async () => {
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    const tile = screen.getByText("You'll pay").parentElement!
+    expect(tile.textContent).toContain('No bill yet')
+    expect(tile.textContent).not.toContain('after this note')
+  })
+
+  // Wording fixes 12 Oct (C13): the supplier panel counts the supplier's credit notes.
+  const SUPPLIER_OVERVIEW = {
+    tabs: { bills: 9, payments: 3, orders: 2, documents: 1, openBills: 2 },
+    match: { agreed: 0, orderBacked: 0, summary: null },
+    usualLeadTimeDays: null,
+    payables: {
+      currencyCode: 'OMR',
+      notDue: { amount: 300, bills: 2, nextDue: null },
+      dueSoon: { amount: 0, bills: 0, nextDue: null },
+      late: { amount: 0, bills: 0, nextDue: null },
+      onHold: { amount: 0, bills: 0, nextDue: null },
+      everLate: false,
+      total: 300,
+    },
+  }
+  const creditNotesRow = () =>
+    screen.getByText('Credit notes', { selector: 'dt' }).nextElementSibling?.textContent
+
+  it("counts the supplier's credit notes in the supplier panel", async () => {
+    overview = { ...SUPPLIER_OVERVIEW, tabs: { ...SUPPLIER_OVERVIEW.tabs, creditNotes: 6 } }
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    await waitFor(() => expect(creditNotesRow()).toBe('6'))
+    expect(calls('/api/v1/suppliers/s-1/overview')).toHaveLength(1)
+  })
+
+  it('shows "—" for the credit notes only when the server sends no count', async () => {
+    overview = SUPPLIER_OVERVIEW
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    // The overview has answered (the open bills are drawn) and still has no count.
+    await waitFor(() =>
+      expect(
+        screen.getByText('Open bills', { selector: 'dt' }).nextElementSibling?.textContent,
+      ).toContain('2'),
+    )
+    expect(creditNotesRow()).toBe('—')
   })
 
   it('offers no target the guard would refuse: not itself, not a credit note, not a settled bill', async () => {
@@ -821,6 +1052,18 @@ describe('One credit note', () => {
     await waitFor(() =>
       expect(refundBody).toEqual({ amount: 200, paidOn, paymentReference: 'TRF-9' }),
     )
+  })
+
+  // Wording fixes 12 Oct (C12): as on Record payment and Mark as paid, no day after today.
+  it('offers no day after today for the refund date', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask for a refund' }))
+    fireEvent.click(screen.getByLabelText('Paid on'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Next month' }))
+    const fifteenth = screen.getAllByRole('button', { name: '15' })
+    expect(fifteenth.length).toBeGreaterThan(0)
+    for (const day of fifteenth) expect((day as HTMLButtonElement).disabled).toBe(true)
   })
 
   it.each([

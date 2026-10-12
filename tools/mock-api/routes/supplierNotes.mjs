@@ -1516,6 +1516,7 @@ export default [
           payments: 3,
           orders: 2,
           documents: 1,
+          creditNotes: CREDIT_NOTES.filter((n) => n.supplierId === params[0]).length,
         },
         match: { agreed: 4, orderBacked: 5, summary: null },
         usualLeadTimeDays: 3,

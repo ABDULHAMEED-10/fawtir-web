@@ -6812,7 +6812,11 @@
       "lineBilledOn": "Billed on {{bill}}",
       "decisionNoteNoBill": "Choose the bill this credit reduces, keep it for a later bill, or record a refund.",
       "setAgainstAnother": "Set against a bill",
-      "partlyUsedBody": "Part of this credit is already used or refunded. Set the rest against another bill, keep it for a later one, or record a refund."
+      "partlyUsedBody": "Part of this credit is already used or refunded. Set the rest against another bill, keep it for a later one, or record a refund.",
+      "closesRefusedTitle": "Closes refused debit note {{number}}.",
+      "closesRefusedBody": "Nothing was owed on it.",
+      "billOnHold": "{{bill}} is on hold. Release it before setting this credit against it.",
+      "afterThisNote": "after this note"
     },
     "source": {
       "peppol": "Received over Peppol",

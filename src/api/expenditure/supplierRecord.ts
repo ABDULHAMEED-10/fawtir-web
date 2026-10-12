@@ -16,10 +16,18 @@ export type PayablesBucketDto = { amount: number; bills: number; nextDue: string
 export type SupplierOverviewDto = {
   /**
    * `bills` counts every document (the Bills tab). `openBills` counts the bills still owed, in any
-   * currency: the same rule as the list row's `youOwe.openBills`. Typed optional because a server
+   * currency: the same rule as the list row's `youOwe.openBills`. `creditNotes` counts the
+   * supplier's credit notes (381 and 261) in every status. Both typed optional because a server
    * older than the field leaves it out.
    */
-  tabs: { bills: number; payments: number; orders: number; documents: number; openBills?: number }
+  tabs: {
+    bills: number
+    payments: number
+    orders: number
+    documents: number
+    openBills?: number
+    creditNotes?: number
+  }
   /** Of the bills backed by an order, how many agreed with it. `summary` is English and not shown. */
   match: { agreed: number; orderBacked: number; summary: string | null }
   usualLeadTimeDays: number | null
