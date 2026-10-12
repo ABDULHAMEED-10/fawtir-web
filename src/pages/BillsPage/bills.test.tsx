@@ -1117,7 +1117,7 @@ describe('a disputed bill', () => {
     expect(ar(1)).toBe('X متنازع عليها في إشعار مدين مرفوض واحد')
     expect(ar(2)).toBe('X متنازع عليها في إشعارين مدينين مرفوضين')
     expect(ar(3)).toBe('X متنازع عليها في 3 إشعارات مدينة مرفوضة')
-    expect(ar(11)).toBe('X متنازع عليها في 11 إشعار مدين مرفوض')
+    expect(ar(11)).toBe('X متنازع عليها في 11 إشعارًا مدينًا مرفوضًا')
   })
 
   it('says nothing when there is no dispute', async () => {
