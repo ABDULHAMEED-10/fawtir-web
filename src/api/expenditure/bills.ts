@@ -88,6 +88,35 @@ export type BillRowDto = {
     usage: CreditNoteUsageDto | string | null
     balance: { applied: number; refunded: number; remaining: number }
   } | null
+  /**
+   * Whether this document's VAT is in the input VAT figure, and why not when it is out. Absent
+   * from a server before it, and then nothing is said about it.
+   */
+  inputVat?: BillInputVatDto
+  /** The Peppol bill this upload certainly duplicates (same supplier VAT number, number and total). Not shown yet. */
+  duplicateOf?: string | null
+  /** A Peppol bill this one may duplicate (a less certain match, for the user to confirm). Not shown yet. */
+  possibleDuplicateOf?: string | null
+}
+
+/** Why a document is in or out of input VAT. Unknown values from a newer server are kept as text. */
+export type BillInputVatReasonDto =
+  | 'COUNTED'
+  | 'DEBIT_NOTE_NOT_ACCEPTED'
+  | 'REJECTED'
+  | 'NO_SUPPLIER_TAX_INVOICE'
+  | 'DUPLICATE_OF_PEPPOL'
+  | 'SELF_BILLED_SALE'
+  | 'SELF_BILLED_CANCELLED'
+  | 'TARGET_NOT_COUNTED'
+  | 'NO_OMR_VAT'
+
+export type BillInputVatDto = {
+  counted: boolean
+  /** The date of the entry currently in force. */
+  countedOn: string | null
+  reason: BillInputVatReasonDto | string
+  vatAmountOmr: number | null
 }
 
 /** `BillController.BillSummaryResponse`. */

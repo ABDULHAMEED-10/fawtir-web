@@ -19,6 +19,7 @@ import {
   currenciesIn,
   outputByCategory,
   periodsOf,
+  reportCurrency,
   vatMonths,
   vatPosition,
 } from '../../lib/vatReport'
@@ -297,6 +298,13 @@ describe('VAT arithmetic', () => {
       'USD',
     ])
   })
+
+  it('opens on OMR whenever the report has it, not the first currency by name', () => {
+    expect(reportCurrency(['AED', 'OMR', 'USD'])).toBe('OMR')
+    // No OMR row at all: the first currency named, as before.
+    expect(reportCurrency(['AED', 'USD'])).toBe('AED')
+    expect(reportCurrency([])).toBe('OMR')
+  })
 })
 
 describe('volume arithmetic', () => {
@@ -482,6 +490,29 @@ describe('the VAT page', () => {
     })
     renderAt('/reports/vat-tax', <ReportsVatPage />)
     expect(await screen.findByText(/more than one currency \(OMR, USD\)/)).toBeTruthy()
+  })
+
+  it('opens on OMR even when another currency comes first by name', async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(
+        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+      )
+      if (url.includes('/me/entitlements')) return json(200, READER)
+      if (url.includes('/reports/vat'))
+        return json(200, {
+          ...VAT,
+          input: [
+            ...VAT.input,
+            vatRow({ side: 'INPUT', category: 'ALL', rate: null, currency: 'AED', vatAmount: 7 }),
+          ],
+        })
+      return json(404)
+    })
+    renderAt('/reports/vat-tax', <ReportsVatPage />)
+    expect(await screen.findByText(/more than one currency \(AED, OMR\)/)).toBeTruthy()
+    // The OMR input, not the 7 AED that sorts first.
+    expect(screen.getByText('30.000')).toBeTruthy()
+    expect(screen.queryByText('7.000')).toBeNull()
   })
 })
 

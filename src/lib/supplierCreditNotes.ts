@@ -64,8 +64,15 @@ export function creditEffect(
   }
 }
 
-/** Input VAT already claimed on the bill, less what this note takes off it. */
-export function vatEffect(billVat: number | null, noteVat: number | null) {
+/**
+ * Input VAT already claimed on the bill, less what this note takes off it.
+ *
+ * `billCounted` is the bill's `inputVat.counted`. A bill out of input VAT (a debit note not
+ * accepted, a rejected bill) has claimed nothing, and the note is left out with it, so nothing
+ * is claimed and nothing reduced. Undefined (a server before `inputVat`) reads as today.
+ */
+export function vatEffect(billVat: number | null, noteVat: number | null, billCounted?: boolean) {
+  if (billCounted === false) return { claimed: null, reduced: 0, reclaimable: null }
   const reduced = noteVat ?? 0
   return {
     claimed: billVat,

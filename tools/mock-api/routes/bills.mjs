@@ -363,6 +363,8 @@ const BILLS = [
     [L('Cancels debit note GCL-DN-0093', 1, 'EA', 40)],
     {
       documentTypeCode: '381',
+      // Left out of input VAT with the refused debit note it closes.
+      creditsBillId: 'b-gcl-dn-0093',
       workflowState: 'APPROVED',
       creditNote: {
         status: 'APPLIED',
@@ -644,7 +646,33 @@ const SORTS = {
 const publicRow = ({ _lines, _extra, ...row }) => ({
   ...row,
   overpaidAmount: overpaidOf({ ...row, _extra }),
+  inputVat: inputVatOf({ ...row, _extra }),
+  duplicateOf: null,
+  possibleDuplicateOf: null,
 })
+
+/**
+ * Whether the document counts in input VAT (`inputVat`), worked out on read as the server does:
+ * a debit note only once accepted, a rejected bill not while rejected, a recurring bill Fawtir
+ * raised not until the supplier's tax invoice is attached, and a credit note not while the
+ * document it credits (`_extra.creditsBillId`) is out. Counted on the day it arrived.
+ */
+function inputVatOf(row) {
+  const out = (reason) => ({ counted: false, countedOn: null, reason, vatAmountOmr: null })
+  if (row.documentTypeCode === '383' && row.debitNoteDecision !== 'ACCEPTED')
+    return out('DEBIT_NOTE_NOT_ACCEPTED')
+  if (row.workflowState === 'REJECTED' || row.readiness?.state === 'REJECTED') return out('REJECTED')
+  if (row.source === 'RECURRING') return out('NO_SUPPLIER_TAX_INVOICE')
+  const target = row._extra?.creditsBillId ? findBill(row._extra.creditsBillId) : null
+  if (target && !inputVatOf(target).counted) return out('TARGET_NOT_COUNTED')
+  const omr = row.currencyCode === 'OMR'
+  return {
+    counted: true,
+    countedOn: row.issueDate,
+    reason: omr ? 'COUNTED' : 'NO_OMR_VAT',
+    vatAmountOmr: omr ? row.vatAmount : null,
+  }
+}
 
 /**
  * What was done with what bills were overpaid by (`BillOverpaymentSettlement`), oldest first.

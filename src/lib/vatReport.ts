@@ -71,6 +71,14 @@ export function currenciesIn(report: VatReportDto): string[] {
   return [...seen].sort()
 }
 
+/**
+ * The currency the page opens on: OMR whenever the report has it, since the VAT return is filed
+ * in OMR. Only a report with no OMR row at all falls back to the first currency it names.
+ */
+export function reportCurrency(currencies: string[]): string {
+  return currencies.includes('OMR') ? 'OMR' : (currencies[0] ?? 'OMR')
+}
+
 /** The whole report in one line: charged, reclaimable, and what is owed. */
 export function vatPosition(report: VatReportDto): { output: number; input: number; net: number } {
   return {

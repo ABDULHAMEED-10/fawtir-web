@@ -18,6 +18,7 @@ import {
   complianceOf,
   decisionsOf,
   discountLineOf,
+  inputVatNoteKey,
   lineVatOf,
   overpaidOf,
   overpaymentStepOf,
@@ -2802,5 +2803,100 @@ describe('the steps of a paid and a part-paid bill', () => {
     expect(
       stepsOf(detail({ readiness: APPROVED }), format).find((step) => step.id === 'paid')?.detail,
     ).toEqual({ key: 'billDetail.steps.dueOn', values: { date: '2026-10-01' } })
+  })
+})
+
+// Owner, 12 Oct 2026: a document out of input VAT says so under its VAT figure, in his words.
+describe('whether a bill counts in input VAT', () => {
+  const outOfVat = (
+    reason: string,
+    bill: Partial<BillDetailDto['bill']> = {},
+  ): BillDetailDto =>
+    detail({
+      bill: {
+        ...detail().bill,
+        ...bill,
+        inputVat: { counted: false, countedOn: null, reason, vatAmountOmr: null },
+      },
+    })
+
+  it('says a refused debit note is not counted until accepted', async () => {
+    billResponse = () =>
+      json(
+        200,
+        outOfVat('DEBIT_NOTE_NOT_ACCEPTED', {
+          documentTypeCode: '383',
+          debitNoteDecision: 'REFUSED',
+        }),
+      )
+    renderBill()
+    expect(await screen.findByText('Not counted in VAT until you accept it.')).toBeTruthy()
+  })
+
+  it('says a rejected bill is not counted while rejected', async () => {
+    billResponse = () =>
+      json(
+        200,
+        outOfVat('REJECTED', {
+          readiness: { state: 'REJECTED', distinctApprovals: 0, required: 2, autoApproved: false },
+        }),
+      )
+    renderBill()
+    expect(await screen.findByText('Not counted in VAT while rejected.')).toBeTruthy()
+  })
+
+  it('says a recurring bill Fawtir raised has no supplier tax invoice yet', async () => {
+    billResponse = () =>
+      json(200, outOfVat('NO_SUPPLIER_TAX_INVOICE', { source: 'RECURRING', inboundDeliveryId: null }))
+    renderBill()
+    expect(
+      await screen.findByText('Not counted in VAT: no supplier tax invoice yet.'),
+    ).toBeTruthy()
+  })
+
+  it('reads the rejected caption in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    billResponse = () => json(200, outOfVat('REJECTED'))
+    renderBill()
+    expect(
+      await screen.findByText('لا تُحتسب في ضريبة القيمة المضافة ما دامت مرفوضة.'),
+    ).toBeTruthy()
+  })
+
+  it('says nothing on a counted bill, or from a server that does not send it', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          bill: {
+            ...detail().bill,
+            inputVat: { counted: true, countedOn: '2026-09-02', reason: 'COUNTED', vatAmountOmr: 112.11 },
+          },
+        }),
+      )
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(screen.queryByText(/Not counted in VAT/)).toBeNull()
+    cleanup()
+    billResponse = () => json(200, detail())
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(screen.queryByText(/Not counted in VAT/)).toBeNull()
+  })
+
+  it('has words only for the three reasons the owner worded', () => {
+    const out = (reason: string) => ({ counted: false, countedOn: null, reason, vatAmountOmr: null })
+    expect(inputVatNoteKey(out('DEBIT_NOTE_NOT_ACCEPTED'))).toBe(
+      'billDetail.inputVat.debitNoteNotAccepted',
+    )
+    expect(inputVatNoteKey(out('REJECTED'))).toBe('billDetail.inputVat.rejected')
+    expect(inputVatNoteKey(out('NO_SUPPLIER_TAX_INVOICE'))).toBe(
+      'billDetail.inputVat.noSupplierTaxInvoice',
+    )
+    // No approved wording yet: nothing is said rather than a guess.
+    for (const reason of ['DUPLICATE_OF_PEPPOL', 'SELF_BILLED_SALE', 'TARGET_NOT_COUNTED', 'NO_OMR_VAT'])
+      expect(inputVatNoteKey(out(reason))).toBeNull()
+    expect(inputVatNoteKey({ ...out('REJECTED'), counted: true })).toBeNull()
+    expect(inputVatNoteKey(undefined)).toBeNull()
   })
 })
