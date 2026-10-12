@@ -5658,7 +5658,8 @@
       "dueOn": "Due {{date}}",
       "automatically": "Automatically",
       "arrivedVia": "{{date}} · {{source}}",
-      "notYet": "Not yet"
+      "notYet": "Not yet",
+      "paidOf": "Paid OMR {{paid}} of OMR {{total}}"
     },
     "match": {
       "ordered": "Ordered",
@@ -5892,7 +5893,9 @@
       "refused": {
         "dateBeforeOverpayment": "A refund cannot be dated before the payment that overpaid this bill.",
         "inRun": "This bill is in payment run {{run}}. Take it out of the run first."
-      }
+      },
+      "refundedBySupplier": "Refunded by supplier OMR {{amount}}",
+      "debitNotesOnceAccepted": "Debit notes appear here once accepted."
     }
   },
   "uploadBill": {

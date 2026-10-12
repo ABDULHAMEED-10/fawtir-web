@@ -5922,7 +5922,8 @@
       "dueOn": "تستحق {{date}}",
       "automatically": "تلقائيًا",
       "arrivedVia": "{{date}} · {{source}}",
-      "notYet": "ليس بعد"
+      "notYet": "ليس بعد",
+      "paidOf": "دُفع OMR {{paid}} من OMR {{total}}"
     },
     "match": {
       "ordered": "المطلوب",
@@ -6168,7 +6169,9 @@
       "refused": {
         "dateBeforeOverpayment": "لا يمكن أن يسبق تاريخ الاسترداد تاريخ الدفعة التي زادت على مبلغ هذه الفاتورة.",
         "inRun": "هذه الفاتورة ضمن دفعة السداد {{run}}. أخرجها من الدفعة أولًا."
-      }
+      },
+      "refundedBySupplier": "ردّه المورّد OMR {{amount}}",
+      "debitNotesOnceAccepted": "تظهر إشعارات المدين هنا بعد قبولها."
     }
   },
   "uploadBill": {

@@ -120,6 +120,10 @@ export function stepsOf(detail: BillDetailDto, format: DateFormat): BillStep[] {
   }
 
   const lastPayment = detail.payments.find((entry) => entry.entryType === 'PAYMENT')
+  // A part-paid bill says how far it has got: "Paid {paid} of {total}" (owner, 12 Oct 2026, P4).
+  // The amounts stay numbers here; the page writes them in the reader's language with the sign.
+  const total = settlement.billTotal ?? bill.totalIncludingVat
+  const partPaid = !paid && settlement.paidAmount > 0 && total !== null
   const paidStep: BillStep = {
     id: 'paid',
     labelKey: 'billDetail.steps.paid',
@@ -128,9 +132,14 @@ export function stepsOf(detail: BillDetailDto, format: DateFormat): BillStep[] {
       ? lastPayment?.paymentDate
         ? { key: 'billDetail.steps.paidOn', values: { date: format.day(lastPayment.paymentDate) } }
         : null
-      : settlement.dueDate
-        ? { key: 'billDetail.steps.dueOn', values: { date: format.day(settlement.dueDate) } }
-        : null,
+      : partPaid
+        ? {
+            key: 'billDetail.steps.paidOf',
+            values: { paid: settlement.paidAmount, total, currency: bill.currencyCode },
+          }
+        : settlement.dueDate
+          ? { key: 'billDetail.steps.dueOn', values: { date: format.day(settlement.dueDate) } }
+          : null,
   }
 
   // A refused debit note is not owed and is never scheduled or paid (unless it already was): the
@@ -606,6 +615,16 @@ export function singleVatRate(detail: BillDetailDto): number | null {
  */
 export function overpaidOf(detail: BillDetailDto): number {
   return detail.settlement.overpaidAmount ?? 0
+}
+
+/**
+ * Payments and credits came to more than the bill: it was overpaid at some point, even when the
+ * supplier has since refunded all of it and "Overpaid by" is back to zero (P5, 12 Oct 2026).
+ */
+export function paidBeyondTotal(detail: BillDetailDto): boolean {
+  const total = detail.settlement.billTotal ?? detail.bill.totalIncludingVat
+  if (total === null || isCreditNote(detail)) return false
+  return detail.settlement.paidAmount + detail.settlement.creditedAmount - total > 0.0005
 }
 
 const OVERPAYMENT_STEPS = new Set([
