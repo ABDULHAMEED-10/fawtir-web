@@ -678,7 +678,7 @@ export function RunMenu({
                 },
                 {
                   id: 'delete',
-                  labelKey: 'paymentRuns.menu.delete',
+                  labelKey: 'paymentRuns.cancel',
                   icon: deleteIcon,
                   danger: true,
                   onSelect: () => setConfirming('delete'),

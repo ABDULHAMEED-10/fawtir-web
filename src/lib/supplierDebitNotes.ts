@@ -44,10 +44,30 @@ const STATE_KEY: Record<BillRowDto['workflowState'], string> = {
   REJECTED: 'supplierNotes.billState.rejected',
   IN_PAYMENT_RUN: 'supplierNotes.billState.inPaymentRun',
   PAID: 'supplierNotes.billState.paid',
+  REFUSED_CLOSED: 'supplierNotes.billState.refusedClosed',
 }
 
 export function billStateKey(bill: BillRowDto): string {
   return STATE_KEY[workflowStateOf(bill)]
+}
+
+/**
+ * The key for the linked-bill line on a note page ("Received {date} · {state} · due {due}"). A
+ * bill without a due date reads "no due date" rather than "· due" with nothing after it, and one
+ * without a received date drops "Received" rather than print it bare (owner, D2, 12 Oct 2026).
+ */
+export function linkedBillDetailKey(
+  page: 'supplierDebitNotes' | 'supplierCreditNotes',
+  bill: Pick<BillRowDto, 'issueDate' | 'dueDate'>,
+): string {
+  const key = bill.issueDate
+    ? bill.dueDate
+      ? 'billDetail'
+      : 'billDetailNoDue'
+    : bill.dueDate
+      ? 'billStateDue'
+      : 'billStateNoDue'
+  return `${page}.detail.linked.${key}`
 }
 
 /** The three tiles of the banner: what the bill stands at, this charge, what you'd pay. */

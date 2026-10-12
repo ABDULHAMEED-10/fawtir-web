@@ -44,8 +44,10 @@ export function SortMenu<T extends string>({
         {label ?? t('common.sort')}
       </button>
 
-      <Popover anchorRef={anchorRef} open={open} onClose={() => setOpen(false)}>
-        <ul className="py-1.5" style={{ width }} role="listbox">
+      {/* The panel takes the menu's width, not the trigger's: the pill is narrower than its
+          longest choice, and the panel clips what overflows it. */}
+      <Popover anchorRef={anchorRef} open={open} onClose={() => setOpen(false)} width={width}>
+        <ul className="py-1.5" role="listbox">
           {options.map((option) => (
             <li key={option.value}>
               <button

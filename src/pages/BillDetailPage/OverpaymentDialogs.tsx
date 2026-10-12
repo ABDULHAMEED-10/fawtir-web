@@ -285,7 +285,10 @@ export function OverpaymentApplyModal({
                   ? t('supplierCreditNoteDetail.noBills')
                   : t('supplierCreditNoteDetail.noBillsForSupplier', {
                       supplier: bill.supplierName,
-                    })}
+                    })}{' '}
+                {/* Only here, not in the shared sentence: a debit note takes this credit only
+                    once it is accepted (C14, 12 Oct 2026). */}
+                {t('billDetail.overpaid.debitNotesOnceAccepted')}
               </p>
             ) : null}
             {found && found.length > 0 ? (

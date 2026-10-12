@@ -12,14 +12,35 @@ import { supplierPath } from './suppliers'
 
 export type PayablesBucketDto = { amount: number; bills: number; nextDue: string | null }
 
+/**
+ * A live payment run holding this supplier's bills (`payables.inRuns`): `bills` is how many of
+ * theirs it holds and `amount` their total in it. `state` is the run's state name.
+ */
+export type PayablesInRunDto = {
+  runId: string
+  reference: string
+  state: string
+  bills: number
+  amount: number
+  currencyCode: string
+}
+
 /** `SupplierOverview`. A held bill counts only in `onHold`; "due soon" is within 7 days. */
 export type SupplierOverviewDto = {
   /**
    * `bills` counts every document (the Bills tab). `openBills` counts the bills still owed, in any
-   * currency: the same rule as the list row's `youOwe.openBills`. Typed optional because a server
+   * currency: the same rule as the list row's `youOwe.openBills`. `creditNotes` counts the
+   * supplier's credit notes (381 and 261) in every status. Both typed optional because a server
    * older than the field leaves it out.
    */
-  tabs: { bills: number; payments: number; orders: number; documents: number; openBills?: number }
+  tabs: {
+    bills: number
+    payments: number
+    orders: number
+    documents: number
+    openBills?: number
+    creditNotes?: number
+  }
   /** Of the bills backed by an order, how many agreed with it. `summary` is English and not shown. */
   match: { agreed: number; orderBacked: number; summary: string | null }
   usualLeadTimeDays: number | null
@@ -37,6 +58,11 @@ export type SupplierOverviewDto = {
      * netted against it. Absent from a server before it.
      */
     overpaidTotal?: number
+    /**
+     * The live payment runs holding this supplier's bills, ordered by reference; empty when none.
+     * Absent from a server before it, when the count is read from the latest bills instead.
+     */
+    inRuns?: PayablesInRunDto[]
   }
 }
 
@@ -365,6 +391,12 @@ export type SupplierStatementDto = {
   everLate?: boolean | null
   /** Credit notes on the statement not yet applied to a bill (the footer's "1 credit note still unused"). Backend ask 7.15. */
   unusedCredits?: number | null
+  /**
+   * The amount of credit-note credit not yet used or refunded, in the statement's currency, as of
+   * today (`unusedCredits` is how many notes hold it). Ageing total less this and `overpaid` is
+   * the closing balance. Absent from a server before it.
+   */
+  unusedCredit?: number | null
   issuer: StatementIssuerDto | null
 }
 

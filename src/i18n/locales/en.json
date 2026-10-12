@@ -5461,8 +5461,8 @@
       "readyBills_other": "{{count}} approved bills",
       "otherCurrencies_one": "{{count}} bill in another currency is not in these {{currency}} totals.",
       "otherCurrencies_other": "{{count}} bills in other currencies are not in these {{currency}} totals.",
-      "payableDisputed_one": "{{amount}} disputed on {{count}} refused bill",
-      "payableDisputed_other": "{{amount}} disputed on {{count}} refused bills",
+      "payableDisputed_one": "{{amount}} disputed on {{count}} refused debit note",
+      "payableDisputed_other": "{{amount}} disputed on {{count}} refused debit notes",
       "payableAwaitingDecision_one": "Awaiting your decision: {{amount}} on {{count}} debit note",
       "payableAwaitingDecision_other": "Awaiting your decision: {{amount}} on {{count}} debit notes"
     },
@@ -5581,7 +5581,9 @@
       "rejected": "Rejected",
       "inPaymentRun": "In a payment run",
       "inPaymentRunRef": "In payment run {{run}}",
-      "paid": "Paid"
+      "paid": "Paid",
+      "partPaid": "Part paid",
+      "refusedClosed": "Refused · closed by credit note"
     },
     "notice": {
       "drafts_one": "{{count}} uploaded or scanned bill is waiting for its details. It appears here once confirmed.",
@@ -5658,7 +5660,8 @@
       "dueOn": "Due {{date}}",
       "automatically": "Automatically",
       "arrivedVia": "{{date}} · {{source}}",
-      "notYet": "Not yet"
+      "notYet": "Not yet",
+      "paidOf": "Paid OMR {{paid}} of OMR {{total}}"
     },
     "match": {
       "ordered": "Ordered",
@@ -5892,7 +5895,9 @@
       "refused": {
         "dateBeforeOverpayment": "A refund cannot be dated before the payment that overpaid this bill.",
         "inRun": "This bill is in payment run {{run}}. Take it out of the run first."
-      }
+      },
+      "refundedBySupplier": "Refunded by supplier OMR {{amount}}",
+      "debitNotesOnceAccepted": "Debit notes appear here once accepted."
     }
   },
   "uploadBill": {
@@ -6556,7 +6561,9 @@
       "topSupplier": "Most notes from",
       "topSupplierMeta": "{{count}} notes",
       "noTopSupplier": "No supplier stands out",
-      "noTopSupplierMeta": "No supplier has sent a credit note yet"
+      "noTopSupplierMeta": "No supplier has sent a credit note yet",
+      "stillUsableMeta_one": "{{count}} note with credit left to use",
+      "stillUsableMeta_other": "{{count}} notes with credit left to use"
     },
     "tabs": {
       "all": "All",
@@ -6698,7 +6705,8 @@
       "savedClosesRefusedDebitNote": "Saved. The credit closes refused debit note {{note}}; anything left over stays as credit.",
       "refusedDebitNoteCloses": "This debit note was refused, so the credit closes it. Anything left over stays as credit.",
       "setNowNoteDebitNote": "The debit note is unpaid, so you simply pay OMR {{amount}} less.",
-      "saveAndSetDebitNote": "Save and set against the debit note"
+      "saveAndSetDebitNote": "Save and set against the debit note",
+      "restStaysAsCredit": "The other OMR {{amount}} stays as credit for a later bill."
     },
     "detail": {
       "creditNotePeppol": "Credit note · Peppol",
@@ -6766,7 +6774,10 @@
         "original": "original file",
         "originalDetail": "The original file as the supplier sent it",
         "billDetail": "Received {{date}} · {{state}} · due {{due}}",
-        "billNotOnFile": "Named on the note, not among this supplier's bills"
+        "billNotOnFile": "Named on the note, not among this supplier's bills",
+        "billDetailNoDue": "Received {{date}} · {{state}} · no due date",
+        "billStateDue": "{{state}} · due {{due}}",
+        "billStateNoDue": "{{state}} · no due date"
       },
       "activityTitle": "Activity",
       "activity": {
@@ -6792,7 +6803,8 @@
         "settledRefunded": "Refund recorded",
         "settledRefundedDetail": "OMR {{amount}} paid on {{date}} · recorded {{when}}",
         "settledRefundedRef": "OMR {{amount}} paid on {{date}} · ref {{reference}} · recorded {{when}}",
-        "arrivedNoBill": "Issued {{date}} · no bill named"
+        "arrivedNoBill": "Issued {{date}} · no bill named",
+        "settledAppliedTo": "Used against {{bill}}"
       },
       "decisionTaken": "{{what}}",
       "supplierName": "Name",
@@ -6812,7 +6824,11 @@
       "lineBilledOn": "Billed on {{bill}}",
       "decisionNoteNoBill": "Choose the bill this credit reduces, keep it for a later bill, or record a refund.",
       "setAgainstAnother": "Set against a bill",
-      "partlyUsedBody": "Part of this credit is already used or refunded. Set the rest against another bill, keep it for a later one, or record a refund."
+      "partlyUsedBody": "Part of this credit is already used or refunded. Set the rest against another bill, keep it for a later one, or record a refund.",
+      "closesRefusedTitle": "Closes refused debit note {{number}}.",
+      "closesRefusedBody": "Nothing was owed on it.",
+      "billOnHold": "{{bill}} is on hold. Release it before setting this credit against it.",
+      "afterThisNote": "after this note"
     },
     "source": {
       "peppol": "Received over Peppol",
@@ -7071,7 +7087,10 @@
         "receiptDetail": "Signed for at 07:40 by Yusuf Al Balushi · 25 Jul",
         "rateCardDetail": "Flat OMR 96.000 per delivery, 06:00–18:00, no surcharges",
         "billDetail": "Received {{date}} · {{state}} · due {{due}}",
-        "billNotOnFile": "Named on the note, not among this supplier's bills"
+        "billNotOnFile": "Named on the note, not among this supplier's bills",
+        "billDetailNoDue": "Received {{date}} · {{state}} · no due date",
+        "billStateDue": "{{state}} · due {{due}}",
+        "billStateNoDue": "{{state}} · no due date"
       },
       "activityTitle": "Activity",
       "activity": {
@@ -7107,7 +7126,8 @@
       "reasonRecorded": "Your reason is recorded against the note. It is not sent to the supplier from here.",
       "rateCardMissing": "No rate card is on file for this supplier yet. When one is, the charge is read against it here.",
       "acceptedBodyNoDate": "The charge was accepted and is owed.",
-      "billStillOwes": "The bill still owes"
+      "billStillOwes": "The bill still owes",
+      "afterThisNote": "after this note"
     },
     "status": {
       "UNCHECKED": "Not checked yet",
@@ -7185,7 +7205,9 @@
         "notSubmitted": "Received over Peppol and validated. Receipt not reported yet.",
         "unavailable": "Received over Peppol and validated. Receipt report status not available yet."
       }
-    }
+    },
+    "reverseOnlyRefused": "Already refused. Only the opposite decision can be recorded.",
+    "reverseOnlyAccepted": "Already accepted. Only the opposite decision can be recorded."
   },
   "expenditureReminders": {
     "title": "Reminders",
@@ -9007,7 +9029,8 @@
     "unusedCredits_one": "{{count}} credit note still unused",
     "unusedCredits_other": "{{count}} credit notes still unused",
     "creditUsedOn": "Credit used on {{bill}}",
-    "alreadyCounted": "Already counted when the bill was overpaid"
+    "alreadyCounted": "Already counted when the bill was overpaid",
+    "lessUnusedCredit": "Less unused credit OMR {{credit}} · overpaid OMR {{overpaid}}"
   },
   "activity": {
     "title": "TDD & OTA",
@@ -20029,7 +20052,8 @@
       "onHold": "On hold",
       "rejected": "Rejected",
       "inPaymentRun": "In a payment run",
-      "paid": "Paid"
+      "paid": "Paid",
+      "refusedClosed": "Refused · closed by credit note"
     },
     "activity": {
       "arrivedPeppol": "Credit note arrived over Peppol",
@@ -20059,7 +20083,9 @@
     "billChosenByHand": "Chosen by hand. Check it against the reference printed on the file.",
     "findBill": "Which bill",
     "findBillPlaceholder": "Search by bill number",
-    "pickSupplierFirst": "Choose the supplier first"
+    "pickSupplierFirst": "Choose the supplier first",
+    "refusedNothingOwed": "Refused · nothing owed",
+    "billCardNoDue": "{{state}} · {{outstanding}} unpaid · no due date"
   },
   "expenditureNotes": {
     "reason": {

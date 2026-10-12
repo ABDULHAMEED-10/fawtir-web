@@ -189,9 +189,12 @@ export function creditActivity(
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
     .map((settlement) => ({
       id: settlement.id,
+      // Names the bill it went to when the server says which; an older server leaves it out.
       titleKey:
         settlement.kind === 'APPLIED'
-          ? 'supplierCreditNotes.detail.activity.settledApplied'
+          ? settlement.billNumber
+            ? 'supplierCreditNotes.detail.activity.settledAppliedTo'
+            : 'supplierCreditNotes.detail.activity.settledApplied'
           : 'supplierCreditNotes.detail.activity.settledRefunded',
       detailKey:
         settlement.kind === 'APPLIED'
@@ -200,6 +203,7 @@ export function creditActivity(
             ? 'supplierCreditNotes.detail.activity.settledRefundedRef'
             : 'supplierCreditNotes.detail.activity.settledRefundedDetail',
       values: {
+        bill: settlement.billNumber ?? '',
         amount: fmt.money(settlement.amount),
         date: fmt.date(settlement.settledOn),
         reference: settlement.paymentReference ?? '',
