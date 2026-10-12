@@ -297,6 +297,7 @@ const OVERVIEW = () => ({
     orders: orders.length,
     documents: DOCUMENTS.length,
     openBills: open.length,
+    creditNotes: bills.filter((b) => ['381', '261'].includes(b.documentTypeCode)).length,
   },
   match: {
     agreed: bills.length,

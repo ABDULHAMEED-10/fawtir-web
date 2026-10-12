@@ -1351,6 +1351,7 @@ function supplierOverview(id) {
       payments: paidRows.length,
       orders: Object.values(ORDERS).length,
       documents: 2,
+      creditNotes: BILLS.filter((row) => row.supplierId === id && isCredit(row)).length,
     },
     match: {
       agreed: rows.filter((row) => row.match?.verdict === 'MATCHED').length,

@@ -64,6 +64,7 @@ import {
 import { billStateKey } from '../../lib/supplierDebitNotes'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { lineVatOf } from '../../lib/billDetail'
+import { muscatToday } from '../../lib/invoiceIssue'
 import { formatAmount, formatDate, formatInstant, formatInstantDay } from '../../lib/format'
 import { saveDownload } from '../../lib/supplierRecord'
 import { can, useSession } from '../../lib/session/session'
@@ -246,16 +247,28 @@ function CreditNoteDetail() {
   const lines = own?.lines ?? []
   const net = (row.creditedAmount ?? 0) - (row.vatAmount ?? 0)
 
-  const bannerTitle =
-    state === 'REFUNDED'
+  // A credit closing a REFUSED debit note took nothing off what is owed: nothing was (C6).
+  const closesRefused =
+    bill?.documentTypeCode === '383' &&
+    bill.debitNoteDecision === 'REFUSED' &&
+    state !== 'REFUNDED' &&
+    state !== 'PARTLY_USED'
+  // The credit is taken off a bill still to be paid: "You'll pay less" until it is paid (C7).
+  const targetUnpaid = bill !== null && bill.outstandingAmount > 0
+  const bannerTitle = closesRefused
+    ? t('supplierCreditNotes.detail.closesRefusedTitle', { number: billNumber ?? '' })
+    : state === 'REFUNDED'
       ? t('supplierCreditNotes.detail.refundedTitle', { amount: money(row.balance.refunded) })
       : state === 'APPLIED'
-        ? t('supplierCreditNotes.detail.paidLessTitle', { amount: money(row.balance.applied) })
+        ? targetUnpaid
+          ? t('supplierCreditNotes.detail.youllPayLess', { amount: money(row.balance.applied) })
+          : t('supplierCreditNotes.detail.paidLessTitle', { amount: money(row.balance.applied) })
         : bill && state !== 'PARTLY_USED'
           ? t('supplierCreditNotes.detail.youllPayLess', { amount: money(remaining) })
           : t('supplierCreditNotes.detail.creditToUse', { amount: money(remaining) })
-  const bannerBody =
-    state === 'REFUNDED'
+  const bannerBody = closesRefused
+    ? t('supplierCreditNotes.detail.closesRefusedBody')
+    : state === 'REFUNDED'
       ? t('supplierCreditNotes.detail.refundedBody')
       : state === 'APPLIED'
         ? t('supplierCreditNotes.detail.paidLessBody', { bill: billNumber ?? '' })
@@ -268,6 +281,8 @@ function CreditNoteDetail() {
                 ? t('supplierCreditNotes.detail.youllPayLessNote')
                 : t('supplierCreditNotes.detail.billPaidNote')
               : t('supplierCreditNotes.detail.noBillNote')
+  // Held, the bill refuses any credit until it is released (C8).
+  const billOnHold = bill !== null && (Boolean(bill.hold) || bill.workflowState === 'ON_HOLD')
 
   // Once the note has reduced its bill, what is left can only go against another one.
   const setAgainstKey = usedOnBill
@@ -437,7 +452,10 @@ function CreditNoteDetail() {
                           amount: `${currency} ${money(effect.outstanding)}`,
                         }),
                       )
-                    : t('supplierCreditNotes.detail.noBillTile'),
+                    : // A bill is named: never "No bill yet" (C9).
+                      billNumber
+                      ? t('supplierCreditNotes.detail.afterThisNote')
+                      : t('supplierCreditNotes.detail.noBillTile'),
               },
             ]}
           />
@@ -634,7 +652,9 @@ function CreditNoteDetail() {
                   : !canSettle
                     ? t('appAccess.missingPermission')
                     : billNumber && !usedOnBill
-                      ? t('supplierCreditNotes.detail.decisionNote', { bill: billNumber })
+                      ? billOnHold
+                        ? t('supplierCreditNotes.detail.billOnHold', { bill: billNumber })
+                        : t('supplierCreditNotes.detail.decisionNote', { bill: billNumber })
                       : t('supplierCreditNotes.detail.decisionNoteNoBill')}
             </p>
 
@@ -767,8 +787,16 @@ function CreditNoteDetail() {
                       '—'
                     ),
                 },
-                // TODO(backend): notes this year and short deliveries per supplier (row 5.11).
-                { label: t('supplierCreditNotes.detail.creditNotes'), value: '—' },
+                {
+                  label: t('supplierCreditNotes.detail.creditNotes'),
+                  // The supplier's credit notes in every status (C13); none from an older server.
+                  value:
+                    overview.read.status === 'ready' &&
+                    typeof overview.read.data.tabs.creditNotes === 'number'
+                      ? String(overview.read.data.tabs.creditNotes)
+                      : '—',
+                },
+                // TODO(backend): short deliveries per supplier (row 5.11).
                 { label: t('supplierCreditNotes.detail.shortDeliveries'), value: '—' },
               ]}
             />
@@ -1070,6 +1098,7 @@ function RefundForm({
         <DateField
           value={paidOn}
           onChange={setPaidOn}
+          max={muscatToday()}
           ariaLabel={t('supplierCreditNoteDetail.paidOn')}
         />
       </div>
