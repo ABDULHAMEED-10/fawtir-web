@@ -5699,14 +5699,14 @@
       "otherCurrencies_few": "{{count}} فاتورة بعملة أخرى غير مشمولة في إجماليات {{currency}}.",
       "otherCurrencies_many": "{{count}} فاتورة بعملة أخرى غير مشمولة في إجماليات {{currency}}.",
       "otherCurrencies_other": "{{count}} فاتورة بعملة أخرى غير مشمولة في إجماليات {{currency}}.",
-      "payableDisputed_one": "{{amount}} متنازع عليها على فاتورة مرفوضة واحدة",
-      "payableDisputed_two": "{{amount}} متنازع عليها على فاتورتين مرفوضتين",
-      "payableDisputed_few": "{{amount}} متنازع عليها على {{count}} فواتير مرفوضة",
-      "payableDisputed_many": "{{amount}} متنازع عليها على {{count}} فاتورة مرفوضة",
-      "payableDisputed_other": "{{amount}} متنازع عليها على {{count}} فاتورة مرفوضة",
+      "payableDisputed_one": "{{amount}} متنازع عليها في إشعار مدين مرفوض واحد",
+      "payableDisputed_two": "{{amount}} متنازع عليها في إشعارين مدينين مرفوضين",
+      "payableDisputed_few": "{{amount}} متنازع عليها في {{count}} إشعارات مدينة مرفوضة",
+      "payableDisputed_many": "{{amount}} متنازع عليها في {{count}} إشعار مدين مرفوض",
+      "payableDisputed_other": "{{amount}} متنازع عليها في {{count}} إشعار مدين مرفوض",
       "attentionDrafts_zero": "{{count}} مرفوعة للتأكيد",
       "otherCurrencies_zero": "{{count}} فاتورة بعملة أخرى غير مشمولة في إجماليات {{currency}}.",
-      "payableDisputed_zero": "{{amount}} متنازع عليها على {{count}} فاتورة مرفوضة",
+      "payableDisputed_zero": "{{amount}} متنازع عليها في {{count}} إشعار مدين مرفوض",
       "payableAwaitingDecision_zero": "بانتظار قرارك: {{amount}} على {{count}} إشعار مدين",
       "payableAwaitingDecision_one": "بانتظار قرارك: {{amount}} على إشعار مدين واحد",
       "payableAwaitingDecision_two": "بانتظار قرارك: {{amount}} على إشعارين مدينين",
@@ -5841,7 +5841,9 @@
       "rejected": "مرفوضة",
       "inPaymentRun": "ضمن دفعة سداد",
       "inPaymentRunRef": "ضمن دفعة السداد {{run}}",
-      "paid": "مدفوعة"
+      "paid": "مدفوعة",
+      "partPaid": "مدفوعة جزئيًا",
+      "refusedClosed": "مرفوض · أُغلق بإشعار دائن"
     },
     "notice": {
       "drafts_one": "فاتورة واحدة مرفوعة أو ممسوحة بانتظار تفاصيلها، وستظهر هنا بعد تأكيدها.",
@@ -21149,7 +21151,8 @@
       "onHold": "قيد الانتظار",
       "rejected": "مرفوضة",
       "inPaymentRun": "في دفعة سداد",
-      "paid": "مدفوعة"
+      "paid": "مدفوعة",
+      "refusedClosed": "مرفوض · أُغلق بإشعار دائن"
     },
     "activity": {
       "arrivedPeppol": "وصل الإشعار الدائن عبر بيبول",

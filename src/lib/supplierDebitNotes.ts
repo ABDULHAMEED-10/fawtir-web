@@ -44,6 +44,7 @@ const STATE_KEY: Record<BillRowDto['workflowState'], string> = {
   REJECTED: 'supplierNotes.billState.rejected',
   IN_PAYMENT_RUN: 'supplierNotes.billState.inPaymentRun',
   PAID: 'supplierNotes.billState.paid',
+  REFUSED_CLOSED: 'supplierNotes.billState.refusedClosed',
 }
 
 export function billStateKey(bill: BillRowDto): string {

@@ -1,6 +1,7 @@
 import { apiDownload, apiRequest, type ApiDownload } from '../client'
 import { fromItemsPage, type ItemsPage, type Page } from '../page'
 import { withQuery } from '../query'
+import type { CreditNoteStatusDto, CreditNoteUsageDto } from './notes'
 
 /**
  * The Bills endpoints (`BillController`, `ExpenditureApprovalController`),
@@ -23,6 +24,11 @@ export type BillWorkflowState =
   | 'REJECTED'
   | 'IN_PAYMENT_RUN'
   | 'PAID'
+  /**
+   * A supplier debit note (383) that was refused and that a credit note has fully settled. Shown
+   * under the All tab only: never Paid, Needs attention, Awaiting approval or Approved.
+   */
+  | 'REFUSED_CLOSED'
 
 /** `BillController.BillRow`, the members the list reads. */
 export type BillRowDto = {
@@ -72,6 +78,16 @@ export type BillRowDto = {
    * and credits paid beyond the bill. Zero unless overpaid; absent from a server before it.
    */
   overpaidAmount?: number
+  /**
+   * On a credit note (381, 261): where its credit stands, with the same values and meaning as
+   * `status`, `usage` and `balance` on a `GET /credit-notes` row. Null on every other document;
+   * absent from a server before it.
+   */
+  creditNote?: {
+    status: CreditNoteStatusDto | string
+    usage: CreditNoteUsageDto | string | null
+    balance: { applied: number; refunded: number; remaining: number }
+  } | null
 }
 
 /** `BillController.BillSummaryResponse`. */
