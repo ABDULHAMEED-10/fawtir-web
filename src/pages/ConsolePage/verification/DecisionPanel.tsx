@@ -14,6 +14,7 @@ import {
   uploadEvidence,
   type CompanyDetail,
   type EvidenceUpload,
+  type RejectionClassification,
   type RejectionReason,
   type VerificationStatus,
 } from '../../../lib/console/companyVerification'
@@ -55,6 +56,10 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
   const [dialog, setDialog] = useState<Dialog>(null)
   const [reason, setReason] = useState<RejectionReason | ''>('')
   const [reasonTouched, setReasonTouched] = useState(false)
+  // CORRECTABLE unless the reviewer says otherwise: a final refusal closes the application and
+  // opens a refund for confirmed money, so it is never the default (owner, 12 Oct 2026).
+  const [classification, setClassification] = useState<RejectionClassification>('CORRECTABLE')
+  const [finalReason, setFinalReason] = useState('')
   const [deciding, setDeciding] = useState(false)
   const [decisionError, setDecisionError] = useState<FormMessage | null>(null)
   // One request per action: a double drop, a double click on a dialog's button, or an upload
@@ -105,7 +110,7 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
 
   const decide = async () => {
     if (inFlight.current) return
-    if (dialog === 'reject' && reason === '') {
+    if (dialog === 'reject' && (reason === '' || (classification === 'FINAL' && !finalReason.trim()))) {
       setReasonTouched(true)
       return
     }
@@ -123,6 +128,8 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
           : await rejectCompany(company.tenantId, {
               expectedRevision: company.expectedRevision,
               reason: reason as RejectionReason,
+              classification,
+              finalReason: classification === 'FINAL' ? finalReason.trim() : null,
             })
       setDialog(null)
       onDecided(result.verificationStatus)
@@ -137,6 +144,8 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
   const openDialog = (next: Exclude<Dialog, null>) => {
     setDecisionError(null)
     setReasonTouched(false)
+    setClassification('CORRECTABLE')
+    setFinalReason('')
     setDialog(next)
   }
 
@@ -334,6 +343,48 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
               {reasonTouched && reason === '' ? (
                 <p role="alert" className="text-sm font-medium text-danger-700">
                   {t('console.verification.decision.reasonRequired')}
+                </p>
+              ) : null}
+              <fieldset className="mt-2 flex flex-col gap-2">
+                <legend className="text-sm font-medium text-text-secondary">
+                  {t('console.verification.decision.classification')}
+                </legend>
+                {(['CORRECTABLE', 'FINAL'] as const).map((option) => (
+                  <label key={option} className="flex items-start gap-2 text-sm text-text-secondary">
+                    <input
+                      type="radio"
+                      name="rejection-classification"
+                      value={option}
+                      checked={classification === option}
+                      onChange={() => setClassification(option)}
+                      className="mt-1"
+                    />
+                    <span>
+                      <span className="font-semibold text-text-primary">
+                        {t(`console.verification.decision.classificationOption.${option}.title`)}
+                      </span>
+                      <span className="block text-xs font-medium text-text-tertiary">
+                        {t(`console.verification.decision.classificationOption.${option}.body`)}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+              {classification === 'FINAL' ? (
+                <label className="flex flex-col gap-1 text-sm font-medium text-text-secondary">
+                  {t('console.verification.decision.finalReason')}
+                  <textarea
+                    rows={3}
+                    maxLength={500}
+                    value={finalReason}
+                    onChange={(event) => setFinalReason(event.target.value)}
+                    className="rounded-sm border border-border-subtle bg-white px-3 py-2 text-sm"
+                  />
+                </label>
+              ) : null}
+              {reasonTouched && classification === 'FINAL' && !finalReason.trim() ? (
+                <p role="alert" className="text-sm font-medium text-danger-700">
+                  {t('console.verification.decision.finalReasonRequired')}
                 </p>
               ) : null}
             </div>

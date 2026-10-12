@@ -923,14 +923,19 @@
       "yourInvoice": "your invoice number",
       "note": "We email you the invoice. The Fawtir team activates your account once the transfer is confirmed, usually within one business day.",
       "detailsOnRequest": "Fawtir sends you its bank details with the subscription invoice. Only pay into the account named on that invoice.",
-      "noteLater": "Your first bill comes {{when}}, emailed with these details. Put the invoice number in the reference, and the Fawtir team confirms the transfer, usually within one business day.",
       "unavailable": "Bank transfer isn't available yet.",
       "storageUnavailable": "Bank transfer is unavailable for a moment. Try again shortly.",
-      "afterApproval": "Don't transfer yet. Once your account is approved, your first bill is issued automatically and shown when you sign in: transfer that exact amount with the bill number as the reference, then upload the receipt on the bill. The Fawtir team then verifies it.",
       "evidenceTitle": "Transfer receipt",
       "receiptLabel": "Receipt (PDF, PNG or JPEG)",
       "notesLabel": "Notes (optional)",
-      "evidenceLater": "Available on your first bill after your account is approved. Nothing can be uploaded before then."
+      "transferNow": "Transfer the total shown to this account, then upload the receipt. It is held with your application: your subscription starts only after your company is approved and the Fawtir team has confirmed the transfer. If the application is finally refused, confirmed money is refunded.",
+      "receiptPick": "Choose or drop the receipt",
+      "receiptRequired": "Upload the transfer receipt to continue.",
+      "referenceLabel": "Transfer reference",
+      "referenceRequired": "Enter the reference your bank gave the transfer.",
+      "received": "Receipt received (reference {{reference}}). The Fawtir team checks it after you submit.",
+      "verified": "Your transfer is confirmed. It is held until your company is approved.",
+      "replace": "Replace receipt"
     },
     "summary": {
       "title": "Order summary",
@@ -955,7 +960,9 @@
       "addonOnTop": "Automatic ERP extraction ({{cycle}}), billed on top",
       "monthsWithFree": "{{count}} months · {{free}} free",
       "months_one": "{{count}} month",
-      "months_other": "{{count}} months"
+      "months_other": "{{count}} months",
+      "payNowTotal": "Total to pay",
+      "payNowNote": "Your paid period starts on the day your account is activated, never earlier. "
     },
     "method": {
       "cardLink": {
@@ -975,7 +982,7 @@
       "noteHosted": "Once your account is approved, you pay your bill on Paymob's secure checkout page. Your card is entered there, never on Fawtir."
     },
     "cash": {
-      "noteLater": "Your first bill comes {{when}}. Pay it at Fawtir's office in Muscat or to your Fawtir representative, and you get a receipt."
+      "noteSignup": "Continue, and the Fawtir team contacts you to collect the payment in cash, with a receipt. Your subscription starts only after your company is approved and the cash is confirmed."
     },
     "addon": {
       "title": "Add-on",
@@ -1009,7 +1016,7 @@
     "optionsLoading": "Checking which payment methods are available…",
     "optionsFailed": "We couldn't check which payment methods are available. Reload the page to try again.",
     "noMethod": "No payment method is available right now.",
-    "cardUnavailable": "Card payment isn't available yet.",
+    "cardUnavailable": "Card payment at signup isn't available yet.",
     "cashUnavailable": "Cash payment isn't available yet."
   },
   "fawtaraStatus": {
@@ -12676,7 +12683,20 @@
         "tooLarge": "The file is too large for the server to accept.",
         "staleEvidence": "The company changed after this evidence was filed. Reload it and upload the evidence again.",
         "verified": "Company verified. The registrant can now sign in.",
-        "rejected": "Registration rejected. The registrant has it back to correct."
+        "rejected": "Registration rejected. The registrant has it back to correct.",
+        "classification": "Can the company correct this?",
+        "classificationOption": {
+          "CORRECTABLE": {
+            "title": "Correctable",
+            "body": "The application reopens for 30 days. Any payment is kept and is not charged again."
+          },
+          "FINAL": {
+            "title": "Final",
+            "body": "The application closes and cannot be resubmitted. Money Finance has confirmed goes to a refund case."
+          }
+        },
+        "finalReason": "Why this is final",
+        "finalReasonRequired": "A final rejection needs its reason."
       },
       "participant": {
         "title": "Peppol Participant ID",
@@ -12735,6 +12755,25 @@
         "policyInForce": "Policy in force",
         "policyVersion": "Version {{number}}",
         "noPolicyInForce": "None in force"
+      },
+      "payment": {
+        "title": "Payment with the application",
+        "loading": "Loading the payment…",
+        "none": "No payment was made with this application.",
+        "method": "Method",
+        "amount": "Amount",
+        "status": "Status",
+        "reference": "Reference",
+        "note": "Customer note",
+        "submitted": "Sent",
+        "receipt": "Receipt",
+        "receiptInQueue": "Attached; open it from the Payments queue",
+        "noReceipt": "None",
+        "refund": "Refund case",
+        "refundReason": {
+          "FINAL_REJECTION": "Open: final rejection",
+          "CORRECTION_WINDOW_EXPIRED": "Open: not corrected within 30 days"
+        }
       }
     },
     "plans": {
@@ -14751,7 +14790,8 @@
         "AWAITING_SECOND_APPROVAL": "Needs 2nd approval",
         "CONFIRMED": "Confirmed",
         "REJECTED": "Rejected",
-        "WITHDRAWN": "Withdrawn"
+        "WITHDRAWN": "Withdrawn",
+        "FUNDS_VERIFIED": "Verified, held"
       },
       "receipt": "Cash receipt",
       "threshold": "Approval threshold",
@@ -14809,7 +14849,10 @@
         "bill-stale": "This bill no longer matches the company's plan for its period. Reject the payment so a new bill can be issued.",
         "payment-confirmation-mismatch": "The confirmation does not match the bill. Nothing was paid; reconcile it with finance."
       },
-      "loadMore": "Load more"
+      "loadMore": "Load more",
+      "signupPayment": "Signup payment (no bill yet)",
+      "signupAmount": "Amount (signup quote)",
+      "signupHeld": "Paid with the application. Verifying it holds the money; the first bill and the paid period start only when the company is approved."
     },
     "bankAccounts": {
       "title": "Bank account",
@@ -15068,7 +15111,9 @@
     "conflict": "This step could not be saved. Review your answers and try again.",
     "planRequired": "Choose a plan first: none is saved for this registration yet.",
     "paymentPreferenceRequired": "Choose how you'll pay before you submit.",
-    "paymentNotApplicable": "Enterprise terms are agreed on a call, so there is no payment method to choose. Go back to the plans to pick a different one."
+    "paymentNotApplicable": "Enterprise terms are agreed on a call, so there is no payment method to choose. Go back to the plans to pick a different one.",
+    "signupPaymentRequired": "Attach the transfer receipt on the payment step before submitting. If your payment is being refunded, contact Fawtir.",
+    "applicationClosed": "The Fawtir team closed this application, so it cannot be submitted again. Contact Fawtir."
   },
   "signupReview": {
     "title": "Review and submit",
@@ -15090,7 +15135,9 @@
       "payment": "How you'll pay",
       "firstBill": "First bill",
       "terms": "Terms",
-      "firstBillAmount": "First bill, VAT included"
+      "firstBillAmount": "First bill, VAT included",
+      "startsOn": "Subscription starts",
+      "paidNow": "Paid with this application, VAT included"
     },
     "edit": "Edit",
     "savedEarlier": "Saved earlier",
@@ -15103,15 +15150,14 @@
     "billedMonthly": "billed monthly",
     "billedAnnually": "billed annually",
     "payment": {
-      "bankTransfer": "Bank transfer",
-      "cash": "Cash at our office",
+      "bankTransfer": "Bank transfer, receipt attached",
+      "cash": "Cash, collected by the Fawtir team",
       "card": "Card, on Paymob's secure checkout",
       "trial_one": "Free trial ({{count}} day), no payment now",
       "trial_other": "Free trial ({{count}} days), no payment now"
     },
     "firstBillAfterTrial_one": "After your {{count}}-day free trial",
     "firstBillAfterTrial_other": "After your {{count}}-day free trial",
-    "firstBillOnApproval": "When your account is approved",
     "enterpriseTerms": "Agreed on a call with our team",
     "notChosen": "Not chosen yet",
     "planMissing": "Choose your plan and how you'll pay before you submit.",
@@ -15119,7 +15165,8 @@
     "choosePayment": "Choose how you'll pay",
     "amountUnavailable": "Not available yet",
     "firstBillUnknown": "Confirmed when your account is approved",
-    "addonValue": "ERP extraction requested; Fawtir confirms it"
+    "addonValue": "ERP extraction requested; Fawtir confirms it",
+    "startsOnActivation": "When your company is approved and the payment is confirmed"
   },
   "signupPending": {
     "approved": {

@@ -140,8 +140,20 @@ const calls = () =>
   (fetchMock.mock.calls as Array<[string, RequestInit]>).map(([url, init]) => ({
     url,
     method: init.method ?? 'GET',
-    body: init.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : undefined,
+    body: bodyOf(init.body),
+    idempotencyKey: (init.headers as Record<string, string> | undefined)?.['Idempotency-Key'],
   }))
+
+/** JSON as sent; a multipart upload as its fields, a file by name. */
+function bodyOf(body: RequestInit['body']): Record<string, unknown> | undefined {
+  if (!body) return undefined
+  if (body instanceof FormData) {
+    return Object.fromEntries(
+      [...body.entries()].map(([name, value]) => [name, value instanceof File ? `file:${value.name}` : value]),
+    )
+  }
+  return JSON.parse(body as string) as Record<string, unknown>
+}
 const writes = () =>
   calls().filter(
     (call) => call.method !== 'GET' && call.url !== STATUS_URL && call.url !== OPTIONS_URL,
@@ -539,7 +551,7 @@ describe("How you'll pay", () => {
     const user = userEvent.setup({ delay: null })
     await waitFor(() => expect((methodButton('cash') as HTMLButtonElement).disabled).toBe(false))
     await user.click(methodButton('cash'))
-    expect(screen.getByText(i18n.t('payment.cash.noteLater', { when: i18n.t('payment.when.onApproval') }))).toBeTruthy()
+    expect(screen.getByText(i18n.t('payment.cash.noteSignup'))).toBeTruthy()
     await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
 
     expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
@@ -666,7 +678,7 @@ describe("How you'll pay", () => {
     })
   })
 
-  it('shows the confirmed account, and the receipt and notes as disabled until the first bill', async () => {
+  it('takes the transfer receipt, reference and notes at signup, after saving the method', async () => {
     withTerms()
     renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly' })
     const user = userEvent.setup({ delay: null })
@@ -677,21 +689,60 @@ describe("How you'll pay", () => {
 
     expect(screen.getByText(SERVER_OPTIONS.beneficiary!.iban)).toBeTruthy()
     expect(screen.getByText(SERVER_OPTIONS.beneficiary!.legalName)).toBeTruthy()
-    expect(screen.getByText(i18n.t('payment.bank.afterApproval'))).toBeTruthy()
-    // A receipt belongs to a bill, and bills exist only after approval: shown, never usable here.
-    const receipt = screen.getByLabelText(i18n.t('payment.bank.receiptLabel')) as HTMLInputElement
-    const notes = screen.getByLabelText(i18n.t('payment.bank.notesLabel')) as HTMLTextAreaElement
-    expect(receipt.type).toBe('file')
-    expect(receipt.matches(':disabled')).toBe(true)
-    expect(notes.matches(':disabled')).toBe(true)
-    expect(screen.getByText(i18n.t('payment.bank.evidenceLater'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('payment.bank.transferNow'))).toBeTruthy()
+
+    // Without a receipt nothing is sent.
     await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
-    expect(writes()[0].body).toEqual({
+    expect(screen.getByText(i18n.t('payment.bank.receiptRequired'))).toBeTruthy()
+    expect(writes()).toHaveLength(0)
+
+    const picker = document.querySelector('input[type="file"]') as HTMLInputElement
+    await user.upload(picker, new File(['%PDF-1.7'], 'receipt.pdf', { type: 'application/pdf' }))
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+    expect(screen.getByText(i18n.t('payment.bank.referenceRequired'))).toBeTruthy()
+    expect(writes()).toHaveLength(0)
+
+    await user.type(screen.getByLabelText(i18n.t('payment.bank.referenceLabel')), 'TRF-0001')
+    await user.type(screen.getByLabelText(i18n.t('payment.bank.notesLabel')), 'Paid from Bank Dhofar')
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+
+    expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
+    const [preference, upload] = writes()
+    expect(preference.body).toEqual({
       onboardingToken: 'so.token',
       enrollment: 'PAY_NOW',
       method: 'BANK_TRANSFER',
       erpExtractionAddon: false,
     })
+    expect(upload.url).toBe('/api/v1/auth/signup/payment-evidence')
+    expect(upload.body).toEqual({
+      onboardingToken: 'so.token',
+      proof: 'file:receipt.pdf',
+      reference: 'TRF-0001',
+      note: 'Paid from Bank Dhofar',
+    })
+    expect(upload.idempotencyKey).toMatch(/^signup-payment-/)
+  })
+
+  it('shows a receipt the server already holds instead of asking for it again', async () => {
+    withTerms()
+    answer({
+      [STATUS_URL]: () =>
+        json(200, {
+          stage: 'PAYMENT',
+          plan: BUSINESS_MONTHLY,
+          paymentPreference: { enrollment: 'PAY_NOW', method: 'BANK_TRANSFER', linkChannel: null, erpExtractionAddon: false },
+          signupPayment: { method: 'BANK_TRANSFER', status: 'SUBMITTED', amount: '96.600', reference: 'TRF-0001', hasProof: true },
+        }),
+    })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly', planTerms: BUSINESS_MONTHLY })
+
+    expect(await screen.findByText(i18n.t('payment.bank.received', { reference: 'TRF-0001' }))).toBeTruthy()
+    const user = userEvent.setup({ delay: null })
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+
+    expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
+    expect(writes().map((call) => call.url)).toEqual([PREFERENCE_URL])
   })
 
   it('offers bank transfer as unavailable without a confirmed account, and shows none', async () => {

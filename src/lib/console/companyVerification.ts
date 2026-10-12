@@ -254,15 +254,50 @@ export function attestCompany(
   )
 }
 
+/**
+ * CORRECTABLE reopens the application for 30 days, keeping any payment held with it. FINAL closes
+ * it, needs a reason, and opens a refund case for money Finance has confirmed (backend V285).
+ */
+export type RejectionClassification = 'CORRECTABLE' | 'FINAL'
+
 export function rejectCompany(
   tenantId: string,
-  decision: { expectedRevision: number; reason: RejectionReason },
+  decision: {
+    expectedRevision: number
+    reason: RejectionReason
+    classification: RejectionClassification
+    finalReason: string | null
+  },
 ): Promise<VerificationDecision> {
   return apiRequest<VerificationDecision>(`/v1/tenants/${tenantId}/company-verification/rejection`, {
     method: 'POST',
-    body: { expectedRevision: decision.expectedRevision, reason: decision.reason },
+    body: {
+      expectedRevision: decision.expectedRevision,
+      reason: decision.reason,
+      classification: decision.classification,
+      finalReason: decision.finalReason,
+    },
     credentials: 'same-origin',
   })
+}
+
+/** The payment held with an application, as the reviewer sees it beside the company. */
+export type SignupPaymentReview = {
+  payment: {
+    id: string
+    method: 'BANK_TRANSFER' | 'CASH' | 'CARD'
+    status: string
+    amount: string
+    reference: string | null
+    customerNote: string | null
+    submittedAt: string
+    proofContentType: string | null
+  } | null
+  refundCase: { reason: 'FINAL_REJECTION' | 'CORRECTION_WINDOW_EXPIRED'; amount: string; status: string } | null
+}
+
+export function signupPaymentPath(tenantId: string): string {
+  return `${COMPANIES_PATH}/${tenantId}/signup-payment`
 }
 
 /**

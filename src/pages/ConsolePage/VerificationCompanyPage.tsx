@@ -22,6 +22,7 @@ import { countryName, formatDay, formatMoment, localeFor } from '../../lib/conso
 import { peekEntitlements } from '../../lib/identity/entitlements'
 import { DecisionPanel } from './verification/DecisionPanel'
 import { ParticipantPanel } from './verification/ParticipantPanel'
+import { SignupPaymentPanel } from './verification/SignupPaymentPanel'
 import { ReviewCard, ReviewLine } from './verification/ReviewCard'
 import { VerificationStatusPill } from './verification/VerificationStatusPill'
 import { CONSOLE_H1, CONSOLE_PAGE } from '../../layouts/ConsoleShell/consoleStyle'
@@ -250,6 +251,7 @@ function CompanyView({
               onDecided={onDecided}
             />
           ) : null}
+          {submitted ? <SignupPaymentPanel tenantId={company.tenantId} /> : null}
           {submitted ? (
             <ParticipantPanel company={company} operatorId={peekEntitlements()?.userId ?? null} />
           ) : null}

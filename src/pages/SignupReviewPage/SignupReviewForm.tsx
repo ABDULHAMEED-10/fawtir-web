@@ -217,25 +217,23 @@ export function SignupReviewForm() {
                       : t(`signupReview.payment.${paymentMethod}`)
                     : t('signupReview.notChosen'),
               },
-              {
-                label: t('signupReview.fields.firstBill'),
-                value:
-                  enrollment === 'payNow'
-                    ? t('signupReview.firstBillOnApproval')
-                    : trialChosen && typeof trialDays === 'number' && trialDays > 0
-                      ? t('signupReview.firstBillAfterTrial', { count: trialDays })
-                      : t('signupReview.firstBillUnknown'),
-              },
-              amounts
-                ? {
-                    label: t('signupReview.fields.firstBillAmount'),
-                    value: amounts.inclVat,
-                    money: true,
-                  }
+              // Paying now is paying with the application; the paid period still starts only at
+              // activation, never on the payment date (owner, 12 Oct 2026).
+              enrollment === 'payNow'
+                ? { label: t('signupReview.fields.startsOn'), value: t('signupReview.startsOnActivation') }
                 : {
-                    label: t('signupReview.fields.firstBillAmount'),
-                    value: t('signupReview.amountUnavailable'),
+                    label: t('signupReview.fields.firstBill'),
+                    value:
+                      trialChosen && typeof trialDays === 'number' && trialDays > 0
+                        ? t('signupReview.firstBillAfterTrial', { count: trialDays })
+                        : t('signupReview.firstBillUnknown'),
                   },
+              {
+                label: t(enrollment === 'payNow' ? 'signupReview.fields.paidNow' : 'signupReview.fields.firstBillAmount'),
+                ...(amounts
+                  ? { value: amounts.inclVat, money: true }
+                  : { value: t('signupReview.amountUnavailable') }),
+              },
               ...(state.addon
                 ? [{ label: t('payment.addon.title'), value: t('signupReview.addonValue') }]
                 : []),

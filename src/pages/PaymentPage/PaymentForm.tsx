@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button, ChevronRightIcon, OmAmount, SelectionCard, Checkbox, Switch } from '../../components/ui'
+import { FileDropzone } from '../../components/ui/FileDropzone'
 import { OnboardingFormError } from '../../components/auth/OnboardingFormError'
 import { useOnboardingStep } from '../../hooks/useOnboardingStep'
 import {
@@ -15,7 +16,9 @@ import {
   PAYMENT_METHOD_CODE,
   REVIEW_ROUTE,
   recordPaymentPreference,
+  uploadSignupPaymentEvidence,
   type EnrollmentChoice,
+  type SignupHeldPayment,
   type SignupPaymentOptions,
 } from '../../lib/identity/onboarding'
 import { onboardingStateFrom, planDisplayName, type OnboardingState } from '../../lib/onboarding'
@@ -32,20 +35,18 @@ import {
 import { PLATFORM_SETTINGS } from '../../lib/platformSettings'
 import cardIcon from '../../assets/payment/card.svg'
 import bankIcon from '../../assets/payment/bank.svg'
-import emailIcon from '../../assets/payment/email.svg'
 import tickIcon from '../../assets/payment/tick-circle.svg'
 import rialIcon from '../../assets/brand/omr.svg'
 
 /**
- * The free-trial or pay-now choice, and for pay-now how the first bill will be paid (15 Sep 2026;
- * reshaped 8 Oct 2026; trial made a choice 11 Oct 2026, V283).
+ * The free-trial or pay-now choice, and for pay-now the payment itself (15 Sep 2026; reshaped
+ * 8 Oct 2026; trial made a choice 11 Oct 2026, V283; payment before approval 12 Oct 2026, V285).
  *
- * Nothing is charged here. Every payment belongs to a bill, and bills exist only after the Fawtir
- * team approves the registration (ONBOARDING.md row 1.5), so a card checkout or a transfer receipt
- * cannot be taken on this screen: they happen on the bill, in Settings > Bills. A trial is opened
- * at approval only when chosen here; pay-now opens none. Fawtir never takes card details: a card
- * bill is paid on Paymob's hosted checkout. Which methods can be chosen comes from the server
- * (`/signup/payment-options`), not from app settings.
+ * A bank transfer's receipt is uploaded here, before review, and held with the application: the
+ * reviewer sees it, Finance verifies it with four-eyes, and nothing activates until the company is
+ * approved and the money is confirmed. Cash is a request the Fawtir team collects. Card is offered
+ * only once Paymob's embedded checkout is built; Fawtir never takes card details in its own form.
+ * Which methods can be chosen comes from the server (`/signup/payment-options`).
  */
 export type { SignupPaymentMethod }
 
@@ -119,19 +120,52 @@ export function PaymentForm() {
 
   const chosenAvailable = method !== null && availableIn(options, method)
 
+  const held = termsRead.status === 'ready' ? termsRead.held : null
+  const [evidence, setEvidence] = useState<BankEvidence>({ proof: null, reference: '', note: '' })
+  const [evidenceProblem, setEvidenceProblem] = useState<'receipt' | 'reference' | null>(null)
+  // One key per receipt as entered: a retried Continue resends the same upload and the server
+  // returns the payment it already recorded instead of a second one.
+  const uploadKey = useRef<string | null>(null)
+  const changeEvidence = (next: Partial<BankEvidence>) => {
+    uploadKey.current = null
+    setEvidenceProblem(null)
+    setEvidence((current) => ({ ...current, ...next }))
+  }
+  const keepsHeldReceipt = heldBankReceipt(held) && evidence.proof === null
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!trialChosen && (method === null || !chosenAvailable)) {
       setMethodMissing(true)
       return
     }
+    const uploading = !trialChosen && method === 'bankTransfer' && !keepsHeldReceipt
+    if (uploading && evidence.proof === null) {
+      setEvidenceProblem('receipt')
+      return
+    }
+    if (uploading && !evidence.reference.trim()) {
+      setEvidenceProblem('reference')
+      return
+    }
     const withAddon = addon && offer === 'priced'
     const choice: EnrollmentChoice = trialChosen
       ? { enrollment: 'trial' }
       : { enrollment: 'payNow', method: method as SignupPaymentMethod }
-    const result = await save((token, signal) =>
-      recordPaymentPreference(token, choice, withAddon, signal),
-    )
+    uploadKey.current ??= `signup-payment-${crypto.randomUUID()}`
+    const key = uploadKey.current
+    const result = await save(async (token, signal) => {
+      // The method first: switching it withdraws a receipt still waiting under another one.
+      await recordPaymentPreference(token, choice, withAddon, signal)
+      if (uploading && evidence.proof) {
+        await uploadSignupPaymentEvidence(
+          token,
+          { proof: evidence.proof, reference: evidence.reference.trim(), note: evidence.note },
+          key,
+          signal,
+        )
+      }
+    })
     if (!result.saved) return
     const next: OnboardingState = {
       ...state,
@@ -223,9 +257,16 @@ export function PaymentForm() {
             ) : method === 'cardLink' && chosenAvailable ? (
               <Note icon={cardIcon} text={t('payment.cardLink.noteHosted')} />
             ) : method === 'bankTransfer' && chosenAvailable && options?.beneficiary ? (
-              <BankTransferDetails beneficiary={options.beneficiary} />
+              <BankTransferDetails
+                beneficiary={options.beneficiary}
+                maxBytes={options.proofMaximumBytes}
+                held={heldBankReceipt(held) ? held : null}
+                evidence={evidence}
+                problem={evidenceProblem}
+                onChange={changeEvidence}
+              />
             ) : method === 'cash' && chosenAvailable ? (
-              <Note icon={tickIcon} text={t('payment.cash.noteLater', { when })} />
+              <Note icon={tickIcon} text={t('payment.cash.noteSignup')} />
             ) : null}
           </div>
 
@@ -249,6 +290,7 @@ export function PaymentForm() {
                 addon && offer === 'priced' ? toBaisa(extractionMonthly()) * months : null
               }
               when={when}
+              payNow={!trialChosen}
             />
           </div>
         </div>
@@ -391,19 +433,42 @@ function Note({ icon, text }: { icon: string; text: string }) {
   )
 }
 
+type BankEvidence = { proof: File | null; reference: string; note: string }
+
+const PROOF_ACCEPT = '.pdf,.png,.jpg,.jpeg'
+
+/** A transfer receipt the server already holds that still counts: not rejected or withdrawn. */
+const heldBankReceipt = (held: SignupHeldPayment | null): held is SignupHeldPayment =>
+  held !== null &&
+  held.method === 'BANK_TRANSFER' &&
+  held.hasProof &&
+  held.status !== 'REJECTED' &&
+  held.status !== 'WITHDRAWN'
 
 /**
- * The confirmed ACTIVE account the server returned, never an app constant. No receipt or note is
- * taken here: a receipt belongs to a bill, and the first bill exists only after approval, so the
- * upload happens on that bill in Settings > Bills, where Finance verifies it. The IBAN and SWIFT
+ * The confirmed ACTIVE account the server returned, never an app constant, and the receipt for the
+ * transfer into it. A receipt the server already holds is shown instead of asked for again; it can
+ * be replaced only while nobody has verified it, which the server enforces too. The IBAN and SWIFT
  * are Latin in either language, hence `ltr`.
  */
 function BankTransferDetails({
   beneficiary,
+  maxBytes,
+  held,
+  evidence,
+  problem,
+  onChange,
 }: {
   beneficiary: NonNullable<SignupPaymentOptions['beneficiary']>
+  maxBytes: number | undefined
+  held: SignupHeldPayment | null
+  evidence: BankEvidence
+  problem: 'receipt' | 'reference' | null
+  onChange: (next: Partial<BankEvidence>) => void
 }) {
   const { t } = useTranslation()
+  const [replacing, setReplacing] = useState(false)
+  const [fileProblem, setFileProblem] = useState<'size' | 'type' | null>(null)
   return (
     <div className="flex flex-col gap-3">
       <div className="rounded-sm border border-black/10 bg-surface-card p-4">
@@ -417,29 +482,83 @@ function BankTransferDetails({
           {beneficiary.swiftCode ? <Row label="SWIFT" value={beneficiary.swiftCode} mono /> : null}
         </dl>
       </div>
-      <Note icon={emailIcon} text={t('payment.bank.afterApproval')} />
-      {/* Shown so the registrant knows what will be asked, and disabled: evidence is accepted only
-          against the first bill, which exists once the company is approved (owner, 12 Oct 2026). */}
-      <fieldset disabled className="flex flex-col gap-3 rounded-sm border border-dashed border-black/15 p-4">
-        <legend className="px-1 text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
-          {t('payment.bank.evidenceTitle')}
-        </legend>
-        <label className="flex flex-col gap-1 text-sm font-medium text-text-quaternary">
-          {t('payment.bank.receiptLabel')}
-          <input type="file" aria-describedby="bank-evidence-later" className="text-xs disabled:cursor-not-allowed" />
-        </label>
-        <label className="flex flex-col gap-1 text-sm font-medium text-text-quaternary">
-          {t('payment.bank.notesLabel')}
-          <textarea
-            rows={2}
-            aria-describedby="bank-evidence-later"
-            className="rounded-sm border border-border-subtle bg-surface-background px-3 py-2 text-sm disabled:cursor-not-allowed"
-          />
-        </label>
-        <p id="bank-evidence-later" className="text-xs font-medium text-text-tertiary">
-          {t('payment.bank.evidenceLater')}
-        </p>
-      </fieldset>
+      <Note icon={tickIcon} text={t('payment.bank.transferNow')} />
+      {held === null || replacing ? (
+        <fieldset className="flex flex-col gap-3 rounded-sm border border-black/10 bg-surface-card p-4">
+          <legend className="px-1 text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
+            {t('payment.bank.evidenceTitle')}
+          </legend>
+          <span id="signup-receipt-label" className="text-sm font-medium text-text-secondary">
+            {t('payment.bank.receiptLabel')}
+          </span>
+          <FileDropzone
+            accept={PROOF_ACCEPT}
+            maxBytes={maxBytes}
+            labelledBy="signup-receipt-label"
+            describedBy="signup-receipt-problem"
+            onFiles={(files) => {
+              setFileProblem(null)
+              onChange({ proof: files[0] ?? null })
+            }}
+            onReject={(reason) => setFileProblem(reason)}
+          >
+            {() => (
+              <span className="flex min-h-14 items-center justify-center rounded-sm border border-dashed border-border-default bg-white px-4 py-3 text-sm font-medium text-text-secondary">
+                {evidence.proof ? evidence.proof.name : t('payment.bank.receiptPick')}
+              </span>
+            )}
+          </FileDropzone>
+          {fileProblem || problem === 'receipt' ? (
+            <p id="signup-receipt-problem" role="alert" className="text-xs font-medium text-danger-700">
+              {fileProblem
+                ? t(`billing.bank.proofRejected.${fileProblem}`)
+                : t('payment.bank.receiptRequired')}
+            </p>
+          ) : null}
+          <label className="flex flex-col gap-1 text-sm font-medium text-text-secondary">
+            {t('payment.bank.referenceLabel')}
+            <input
+              value={evidence.reference}
+              maxLength={100}
+              aria-invalid={problem === 'reference'}
+              onChange={(event) => onChange({ reference: event.target.value })}
+              className="rounded-sm border border-border-subtle bg-white px-3 py-2 text-sm"
+            />
+          </label>
+          {problem === 'reference' ? (
+            <p role="alert" className="text-xs font-medium text-danger-700">
+              {t('payment.bank.referenceRequired')}
+            </p>
+          ) : null}
+          <label className="flex flex-col gap-1 text-sm font-medium text-text-secondary">
+            {t('payment.bank.notesLabel')}
+            <textarea
+              rows={2}
+              maxLength={500}
+              value={evidence.note}
+              onChange={(event) => onChange({ note: event.target.value })}
+              className="rounded-sm border border-border-subtle bg-white px-3 py-2 text-sm"
+            />
+          </label>
+        </fieldset>
+      ) : (
+        <div className="flex flex-col gap-2 rounded-sm border border-black/10 bg-surface-card p-4">
+          <p className="text-sm font-medium text-text-secondary">
+            {held.status === 'SUBMITTED'
+              ? t('payment.bank.received', { reference: held.reference ?? '' })
+              : t('payment.bank.verified')}
+          </p>
+          {held.status === 'SUBMITTED' ? (
+            <button
+              type="button"
+              onClick={() => setReplacing(true)}
+              className="self-start text-sm font-semibold text-primary-700 underline"
+            >
+              {t('payment.bank.replace')}
+            </button>
+          ) : null}
+        </div>
+      )}
     </div>
   )
 }
@@ -474,6 +593,7 @@ function OrderSummaryCard({
   termsRead,
   addonBaisa,
   when,
+  payNow,
 }: {
   planName: string
   billing: BillingCycle
@@ -481,6 +601,8 @@ function OrderSummaryCard({
   termsRead: PlanTermsRead
   addonBaisa: number | null
   when: string
+  /** Paid with the application: the total is due now, and the period still starts at activation. */
+  payNow: boolean
 }) {
   const { t } = useTranslation()
   const terms = termsRead.status === 'ready' ? termsRead.terms : null
@@ -551,7 +673,7 @@ function OrderSummaryCard({
 
       <div className="flex items-center justify-between gap-2 px-3 py-4">
         <span className="text-base font-medium text-text-primary/90">
-          {t('payment.summary.firstBill')}
+          {payNow ? t('payment.summary.payNowTotal') : t('payment.summary.firstBill')}
         </span>
         <span className="text-[22px] font-semibold text-text-primary/90">
           {figure(amounts?.inclVat, 'text-[22px] font-semibold text-text-primary/90', 'sm')}
@@ -572,7 +694,7 @@ function OrderSummaryCard({
       <div className="border-t border-dashed border-[#e8e8e8]" />
 
       <p className="px-[18px] py-4 text-center text-[10px] font-medium leading-normal text-text-primary/60">
-        {t('payment.summary.firstBillNote', { when })}
+        {payNow ? t('payment.summary.payNowNote') : t('payment.summary.firstBillNote', { when })}
         <span className="text-primary-700">{t('payment.summary.cancelAnytime')}</span>
         {t('payment.summary.renewSuffix')}
       </p>

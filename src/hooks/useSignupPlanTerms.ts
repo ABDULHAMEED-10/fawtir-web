@@ -3,6 +3,7 @@ import {
   BILLING_CYCLE,
   planCodeFor,
   readSignupStatus,
+  type SignupHeldPayment,
   type SignupStatusResponse,
   type SignupStatusPlan,
 } from '../lib/identity/onboarding'
@@ -12,7 +13,13 @@ import type { BillingCycle, PlanId } from '../lib/pricing'
 export type PlanTermsRead =
   | { status: 'loading' }
   /** `terms: null`: the server gave no figures for this choice (an older server, or none saved). */
-  | { status: 'ready'; terms: SignupStatusPlan | null; preference: SignupStatusResponse['paymentPreference'] | null }
+  | {
+      status: 'ready'
+      terms: SignupStatusPlan | null
+      preference: SignupStatusResponse['paymentPreference'] | null
+      /** The receipt or cash request already held with the application, so a revisit need not resend it. */
+      held: SignupHeldPayment | null
+    }
 
 const describes = (
   terms: SignupStatusPlan | null | undefined,
@@ -41,7 +48,7 @@ export function useSignupPlanTerms(plan: PlanId, billing: BillingCycle): PlanTer
     requested.current = choice
     const token = readOnboardingSession()?.onboardingToken
     if (!token) {
-      setRead({ status: 'ready', terms: null, preference: null })
+      setRead({ status: 'ready', terms: null, preference: null, held: null })
       return
     }
     setRead({ status: 'loading' })
@@ -53,10 +60,11 @@ export function useSignupPlanTerms(plan: PlanId, billing: BillingCycle): PlanTer
           terms: terms && describes(terms, plan, billing) ? terms : null,
           // The saved method too: browser Back carries a history entry from before it was chosen.
           preference: status?.paymentPreference ?? null,
+          held: status?.signupPayment ?? null,
         })
       },
       // The save itself reports an ended session; here the amounts are simply not known.
-      () => setRead({ status: 'ready', terms: null, preference: null }),
+      () => setRead({ status: 'ready', terms: null, preference: null, held: null }),
     )
   }, [plan, billing])
 

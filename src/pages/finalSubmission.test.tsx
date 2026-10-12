@@ -222,9 +222,9 @@ describe('Review and submit', () => {
       }),
     )
     expect(valueOf('signupReview.fields.payment')).toBe(i18n.t('signupReview.payment.bankTransfer'))
-    // Pay-now opens no trial (V283): the first bill comes on approval.
-    expect(valueOf('signupReview.fields.firstBill')).toBe(i18n.t('signupReview.firstBillOnApproval'))
-    expect(valueOf('signupReview.fields.firstBillAmount')).toBe('840.000')
+    // Pay-now is paid with the application (V285); the subscription still starts only on activation.
+    expect(valueOf('signupReview.fields.startsOn')).toBe(i18n.t('signupReview.startsOnActivation'))
+    expect(valueOf('signupReview.fields.paidNow')).toBe('840.000')
     await userEvent.setup({ delay: null }).click(submit())
 
     expect(await screen.findByText(i18n.t('fawtaraStatus.review.title'))).toBeTruthy()
@@ -246,7 +246,7 @@ describe('Review and submit', () => {
   it('says the amount and trial are not known when the server sent none, and works out neither', () => {
     const { planTerms: _terms, ...older } = COMPLETE
     void _terms
-    // A trial whose length the server did not send; a pay-now first bill is on approval either way.
+    // A trial whose length the server did not send.
     renderAt('/signup-review', { ...older, enrollment: 'trial', paymentMethod: undefined })
     expect(valueOf('signupReview.fields.firstBillAmount')).toBe(
       i18n.t('signupReview.amountUnavailable'),

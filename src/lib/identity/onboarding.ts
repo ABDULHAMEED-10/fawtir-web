@@ -163,6 +163,16 @@ export type SignupStatusPlan = {
   trialDays?: number | null
 }
 
+export type SignupHeldPayment = {
+  /** The ledger's method, not the preference's: CARD rather than CARD_LINK. */
+  method: 'BANK_TRANSFER' | 'CASH' | 'CARD'
+  /** SUBMITTED, FUNDS_VERIFIED, CONFIRMED, REJECTED or WITHDRAWN, as the payment ledger has it. */
+  status: string
+  amount: string
+  reference: string | null
+  hasProof: boolean
+}
+
 export type SignupStatusResponse = {
   stage: SignupStage
   businessProfileComplete: boolean
@@ -184,6 +194,11 @@ export type SignupStatusResponse = {
     linkChannel: SignupLinkChannel | null
     erpExtractionAddon: boolean
   } | null
+  /**
+   * The payment held with the application, if any: a transfer receipt or a cash request, waiting
+   * for Finance and for approval (owner, 12 Oct 2026). Never the receipt itself.
+   */
+  signupPayment?: SignupHeldPayment | null
   /** The registrant's own email (ONBOARDING.md row 1.8). */
   accountEmail?: string | null
   draft?: SignupDraft | null
@@ -285,6 +300,10 @@ export function submitForReview(onboardingToken: string, signal?: AbortSignal): 
 export const SIGNUP_PLAN_REQUIRED = 'signup-plan-required'
 export const SIGNUP_PAYMENT_PREFERENCE_REQUIRED = 'signup-payment-preference-required'
 export const SIGNUP_PAYMENT_NOT_APPLICABLE = 'signup-payment-not-applicable'
+/** A pay-now bank transfer submitted without its receipt, or a payment being refunded (V285). */
+export const SIGNUP_PAYMENT_REQUIRED = 'signup-payment-required'
+/** The reviewer closed the application with a final rejection; it cannot be resubmitted (V285). */
+export const SIGNUP_APPLICATION_CLOSED = 'signup-application-closed'
 /** A free trial was asked for on a plan that has none (also re-checked at submission). */
 export const SIGNUP_TRIAL_NOT_OFFERED = 'signup-trial-not-offered'
 /**
@@ -398,6 +417,34 @@ export type SignupPaymentOptions = {
   cash: boolean
   card: boolean
   beneficiary: { legalName: string; bankName: string; iban: string; swiftCode: string | null } | null
+  /** The largest receipt the server accepts; absent from an older server. */
+  proofMaximumBytes?: number
+}
+
+/**
+ * The transfer receipt sent with the application, before review. Held against it until Finance
+ * verifies the money and the company is approved; never applied to anything earlier. The same
+ * Idempotency-Key returns the same payment, so a retried upload cannot record a second one.
+ */
+export function uploadSignupPaymentEvidence(
+  onboardingToken: string,
+  evidence: { proof: File; reference: string; note: string },
+  idempotencyKey: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  const form = new FormData()
+  // The token is a form field, never a URL parameter (backend SignupController).
+  form.append('onboardingToken', onboardingToken)
+  form.append('proof', evidence.proof)
+  form.append('reference', evidence.reference)
+  if (evidence.note.trim()) form.append('note', evidence.note.trim())
+  return apiRequest<void>('/v1/auth/signup/payment-evidence', {
+    method: 'POST',
+    body: form,
+    signal,
+    credentials: 'omit',
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
 }
 
 export function readPaymentOptions(
