@@ -913,6 +913,7 @@
       "pixelFailed": "The secure card form couldn't be loaded. Please choose bank transfer or cash, or try again later.",
       "noteEmbedded": "Pay with your application in Paymob's secure form below. Fawtir never sees your card. The payment is confirmed with Paymob, and your subscription starts only after your company is approved.",
       "open": "Open the secure card form",
+      "openFailed": "The secure card form couldn't be opened, and nothing was charged. Try again in a moment, or choose bank transfer or cash.",
       "processing": "Confirming your payment with Paymob…",
       "verified": "Card payment confirmed. It is held with your application; your subscription starts once your company is approved.",
       "notCompleted": "The card payment wasn't completed and nothing was taken. You can try again or choose another method.",

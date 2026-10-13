@@ -55,18 +55,23 @@ export function SignupCardPayment({
   // one, but the browser must not lean on that).
   const opening = useRef(false)
   const [busy, setBusy] = useState(false)
+  // The form-level error renders above Continue, below the fold on this screen: a refused open
+  // must also say so here, where the customer just clicked (local acceptance, 13 Oct 2026).
+  const [openFailed, setOpenFailed] = useState(false)
   const open = async () => {
     if (opening.current) return
     opening.current = true
     setBusy(true)
+    setOpenFailed(false)
     attemptKey.current ??= `signup-card-${crypto.randomUUID()}`
     const key = attemptKey.current
     try {
-      await save(async (token, signal) => {
+      const result = await save(async (token, signal) => {
         // The preference first: the server opens a card attempt only for a saved PAY_NOW + card choice.
         await recordPaymentPreference(token, { enrollment: 'payNow', method: 'cardLink' }, addon, signal)
         setCheckout(await startSignupCardCheckout(token, key, signal))
       })
+      if (!result.saved) setOpenFailed(true)
     } finally {
       opening.current = false
       setBusy(false)
@@ -128,6 +133,7 @@ export function SignupCardPayment({
           {t('payment.card.open')}
         </Button>
       ) : null}
+      {checkout === null && openFailed ? <Message tone="alert" text={t('payment.card.openFailed')} /> : null}
       {checkout?.status === 'READY' && checkout.publishableKey && checkout.clientSecret ? (
         <PaymobPixelCard
           session={{ publicKey: checkout.publishableKey, clientSecret: checkout.clientSecret }}
