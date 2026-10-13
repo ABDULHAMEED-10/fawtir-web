@@ -156,6 +156,8 @@ function answer(handlers: Record<string, Handler | Handler[]>) {
     const handler = Array.isArray(entry) ? (entry.length > 1 ? entry.shift() : entry[0]) : entry
     if (handler) return handler()
     if (PID_CURRENT_PATH.test(url)) return json(200, null)
+    // The signup payment panel (#185) reads beside the company; no payment unless a test says so.
+    if (url.endsWith('/signup-payment')) return json(200, { payment: null, refundCase: null })
     throw new Error(`unexpected request to ${url}`)
   })
 }
