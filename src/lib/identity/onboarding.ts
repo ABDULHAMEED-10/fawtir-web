@@ -122,7 +122,7 @@ export type SignupPlanCode = 'STARTER' | 'BUSINESS' | 'BUSINESS_PLUS' | 'ENTERPR
 export type SignupBillingCycle = 'MONTHLY' | 'ANNUAL'
 export type SignupPaymentMethodCode = 'CARD_LINK' | 'BANK_TRANSFER' | 'CASH'
 export type SignupLinkChannel = 'EMAIL' | 'WHATSAPP'
-/** V283: a free trial, or paying from approval. Neither charges anything at signup. */
+/** V287: a free trial, which charges nothing, or paying now with the application (V289). */
 export type SignupEnrollmentCode = 'TRIAL' | 'PAY_NOW'
 
 /**
@@ -300,9 +300,9 @@ export function submitForReview(onboardingToken: string, signal?: AbortSignal): 
 export const SIGNUP_PLAN_REQUIRED = 'signup-plan-required'
 export const SIGNUP_PAYMENT_PREFERENCE_REQUIRED = 'signup-payment-preference-required'
 export const SIGNUP_PAYMENT_NOT_APPLICABLE = 'signup-payment-not-applicable'
-/** A pay-now bank transfer submitted without its receipt, or a payment being refunded (V285). */
+/** A pay-now bank transfer submitted without its receipt, or a payment being refunded (V289). */
 export const SIGNUP_PAYMENT_REQUIRED = 'signup-payment-required'
-/** The reviewer closed the application with a final rejection; it cannot be resubmitted (V285). */
+/** The reviewer closed the application with a final rejection; it cannot be resubmitted (V289). */
 export const SIGNUP_APPLICATION_CLOSED = 'signup-application-closed'
 /** A free trial was asked for on a plan that has none (also re-checked at submission). */
 export const SIGNUP_TRIAL_NOT_OFFERED = 'signup-trial-not-offered'
@@ -370,7 +370,7 @@ export function recordPlan(
 
 /**
  * A trial or a paid start, as the payment screen decided it. The union makes "trial with a method"
- * and "pay now without one" unrepresentable here; the server refuses both too (V283).
+ * and "pay now without one" unrepresentable here; the server refuses both too (V287).
  */
 export type EnrollmentChoice =
   | { enrollment: 'trial' }

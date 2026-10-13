@@ -206,7 +206,7 @@ describe('Review and submit', () => {
     )
   })
 
-  it('treats a draft with a method but no trial-or-pay choice (pre-V283) as not chosen', async () => {
+  it('treats a draft with a method but no trial-or-pay choice (pre-V287) as not chosen', async () => {
     renderAt('/signup-review', { ...COMPLETE, enrollment: undefined })
     expect(valueOf('signupReview.fields.payment')).toBe(i18n.t('signupReview.notChosen'))
     await userEvent.setup({ delay: null }).click(submit())
@@ -222,7 +222,7 @@ describe('Review and submit', () => {
       }),
     )
     expect(valueOf('signupReview.fields.payment')).toBe(i18n.t('signupReview.payment.bankTransfer'))
-    // Pay-now is paid with the application (V285); the subscription still starts only on activation.
+    // Pay-now is paid with the application (V289); the subscription still starts only on activation.
     expect(valueOf('signupReview.fields.startsOn')).toBe(i18n.t('signupReview.startsOnActivation'))
     expect(valueOf('signupReview.fields.paidNow')).toBe('840.000')
     await userEvent.setup({ delay: null }).click(submit())

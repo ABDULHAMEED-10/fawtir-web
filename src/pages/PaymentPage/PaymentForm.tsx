@@ -40,7 +40,7 @@ import rialIcon from '../../assets/brand/omr.svg'
 
 /**
  * The free-trial or pay-now choice, and for pay-now the payment itself (15 Sep 2026; reshaped
- * 8 Oct 2026; trial made a choice 11 Oct 2026, V283; payment before approval 12 Oct 2026, V285).
+ * 8 Oct 2026; trial made a choice 11 Oct 2026, V287; payment before approval 12 Oct 2026, V289).
  *
  * A bank transfer's receipt is uploaded here, before review, and held with the application: the
  * reviewer sees it, Finance verifies it with four-eyes, and nothing activates until the company is

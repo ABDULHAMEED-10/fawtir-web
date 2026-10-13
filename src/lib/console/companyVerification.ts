@@ -256,7 +256,7 @@ export function attestCompany(
 
 /**
  * CORRECTABLE reopens the application for 30 days, keeping any payment held with it. FINAL closes
- * it, needs a reason, and opens a refund case for money Finance has confirmed (backend V285).
+ * it, needs a reason, and opens a refund case for money Finance has confirmed (backend V289).
  */
 export type RejectionClassification = 'CORRECTABLE' | 'FINAL'
 

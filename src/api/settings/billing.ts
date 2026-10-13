@@ -17,7 +17,7 @@ export type PaymentStatus =
   | 'SUBMITTED'
   | 'RECEIPT_RECORDED'
   | 'AWAITING_SECOND_APPROVAL'
-  /** A signup payment Finance has verified, held until the company is approved (V285). */
+  /** A signup payment Finance has verified, held until the company is approved (V289). */
   | 'FUNDS_VERIFIED'
   | 'CONFIRMED'
   | 'REJECTED'

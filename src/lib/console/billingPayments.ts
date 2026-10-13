@@ -18,7 +18,7 @@ export const BENEFICIARIES_PATH = '/v1/platform/billing/beneficiaries'
 export type PlatformPaymentDto = {
   id: string
   tenantId: string
-  /** Null for a payment made with the application: its first bill is issued at activation (V285). */
+  /** Null for a payment made with the application: its first bill is issued at activation (V289). */
   billId: string | null
   kind?: 'BILL' | 'SIGNUP'
   method: PaymentMethod
