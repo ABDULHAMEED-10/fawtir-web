@@ -74,8 +74,17 @@ describe('Pixel options', () => {
       forceSaveCard: false,
     })
     expect(Object.keys(options).sort()).toEqual(
-      ['cardValidationChanged', 'clientSecret', 'disablePay', 'elementId', 'forceSaveCard', 'paymentMethods',
-        'publicKey', 'showSaveCard'].sort(),
+      ['afterPaymentComplete', 'cardValidationChanged', 'clientSecret', 'disablePay', 'elementId', 'forceSaveCard',
+        'paymentMethods', 'publicKey', 'showSaveCard'].sort(),
     )
+  })
+
+  it("shows Paymob's own Pay button only when the screen asks for it, and passes the completion prompt on", () => {
+    const done = vi.fn()
+    const paying = pixelOptions({ publicKey: 'p', clientSecret: 's' }, 'el', { onPaymentComplete: done }, true)
+    expect(paying.disablePay).toBe(false)
+    paying.afterPaymentComplete!()
+    expect(done).toHaveBeenCalledOnce()
+    expect(pixelOptions({ publicKey: 'p', clientSecret: 's' }, 'el').disablePay).toBe(true)
   })
 })

@@ -37,6 +37,7 @@ export type PixelOptions = {
   showSaveCard: boolean
   forceSaveCard: boolean
   cardValidationChanged?: (valid: boolean) => void
+  afterPaymentComplete?: () => void
 }
 
 type PixelConstructor = new (options: PixelOptions) => unknown
@@ -86,25 +87,36 @@ export function loadPaymobPixel(doc: Document = document): Promise<PixelConstruc
   return loading
 }
 
+export type PixelHandlers = {
+  onValidation?: (valid: boolean) => void
+  /**
+   * Paymob finished with the card. Only a prompt to ask Fawtir's server: the browser's word is never
+   * taken as payment, which the server verifies against Paymob's own records.
+   */
+  onPaymentComplete?: () => void
+}
+
 /**
- * The options Fawtir mounts Pixel with. Card only; Paymob's own pay button stays off, so paying is
- * a deliberate step the screen triggers once the rest of the application is valid, and cards are
- * never saved for later charges (auto-renew and saved cards are not offered).
+ * The options Fawtir mounts Pixel with. Card only, and cards are never saved for later charges
+ * (auto-renew and saved cards are not offered). Paymob's own Pay button is shown only where the
+ * screen means the card to be charged ({@code payButton}); otherwise the form only collects.
  */
 export function pixelOptions(
   session: PixelSession,
   elementId: string,
-  onValidation?: (valid: boolean) => void,
+  handlers: PixelHandlers = {},
+  payButton = false,
 ): PixelOptions {
   return {
     publicKey: session.publicKey,
     clientSecret: session.clientSecret,
     paymentMethods: ['card'],
     elementId,
-    disablePay: true,
+    disablePay: !payButton,
     showSaveCard: false,
     forceSaveCard: false,
-    cardValidationChanged: onValidation,
+    cardValidationChanged: handlers.onValidation,
+    afterPaymentComplete: handlers.onPaymentComplete,
   }
 }
 

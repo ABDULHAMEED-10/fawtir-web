@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { SignupCardPayment } from './SignupCardPayment'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button, ChevronRightIcon, OmAmount, SelectionCard, Checkbox, Switch } from '../../components/ui'
@@ -18,6 +19,7 @@ import {
   recordPaymentPreference,
   uploadSignupPaymentEvidence,
   type EnrollmentChoice,
+  type SignupCardStatus,
   type SignupHeldPayment,
   type SignupPaymentOptions,
 } from '../../lib/identity/onboarding'
@@ -132,11 +134,18 @@ export function PaymentForm() {
     setEvidence((current) => ({ ...current, ...next }))
   }
   const keepsHeldReceipt = heldBankReceipt(held) && evidence.proof === null
+  // Card: Continue only once Fawtir's server has verified the payment with Paymob.
+  const [cardStatus, setCardStatus] = useState<SignupCardStatus | null>(null)
+  const [cardProblem, setCardProblem] = useState(false)
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!trialChosen && (method === null || !chosenAvailable)) {
       setMethodMissing(true)
+      return
+    }
+    if (!trialChosen && method === 'cardLink' && cardStatus !== 'VERIFIED') {
+      setCardProblem(true)
       return
     }
     const uploading = !trialChosen && method === 'bankTransfer' && !keepsHeldReceipt
@@ -255,7 +264,15 @@ export function PaymentForm() {
             {trialChosen ? (
               <Note icon={tickIcon} text={t('payment.trial.note', { count: trialDays })} />
             ) : method === 'cardLink' && chosenAvailable ? (
-              <Note icon={cardIcon} text={t('payment.cardLink.noteHosted')} />
+              <SignupCardPayment
+                save={save}
+                addon={addon && offer === 'priced'}
+                held={held}
+                onStatus={(next) => {
+                  setCardStatus(next)
+                  if (next === 'VERIFIED') setCardProblem(false)
+                }}
+              />
             ) : method === 'bankTransfer' && chosenAvailable && options?.beneficiary ? (
               <BankTransferDetails
                 beneficiary={options.beneficiary}
@@ -295,6 +312,12 @@ export function PaymentForm() {
           </div>
         </div>
       </div>
+
+      {cardProblem ? (
+        <p className="text-xs font-medium text-text-danger" role="alert">
+          {t('payment.card.verifyBeforeContinue')}
+        </p>
+      ) : null}
 
       <OnboardingFormError error={formError} />
 

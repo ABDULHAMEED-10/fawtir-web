@@ -460,6 +460,57 @@ export function readPaymentOptions(
   })
 }
 
+/** Where the application's card payment stands (backend `SignupCardCheckoutUseCase.Status`). */
+export type SignupCardStatus = 'PROCESSING' | 'READY' | 'VERIFIED' | 'NOT_COMPLETED' | 'UNDER_REVIEW' | 'REVERSED'
+
+/**
+ * The application's card payment. `publishableKey` and `clientSecret` are present only while READY:
+ * they are what Paymob's embedded form needs, and are handed straight to it, never stored or logged.
+ */
+export type SignupCardCheckout = {
+  paymentId: string
+  status: SignupCardStatus
+  publishableKey: string | null
+  clientSecret: string | null
+  expiresAt: string | null
+  amount: string
+  currency: 'OMR'
+}
+
+/**
+ * Opens the card payment for the application in Paymob's embedded checkout, priced by the server
+ * from the frozen quote. The same Idempotency-Key, or an attempt still open, returns that attempt:
+ * the provider is never asked twice. Needs the PAY_NOW + card preference saved first.
+ */
+export function startSignupCardCheckout(
+  onboardingToken: string,
+  idempotencyKey: string,
+  signal?: AbortSignal,
+): Promise<SignupCardCheckout> {
+  return apiRequest<SignupCardCheckout>('/v1/auth/signup/card-checkout', {
+    method: 'POST',
+    body: { onboardingToken },
+    signal,
+    credentials: 'omit',
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+/** Polled after the embedded form is submitted: VERIFIED only once Paymob's own records prove it. */
+export function readSignupCardCheckout(
+  onboardingToken: string,
+  paymentId: string,
+  signal?: AbortSignal,
+): Promise<SignupCardCheckout> {
+  // The token travels in the body; only the payment id, not a secret, is in the path.
+  return apiRequest<SignupCardCheckout>(`/v1/auth/signup/card-checkout/${encodeURIComponent(paymentId)}`, {
+    method: 'POST',
+    body: { onboardingToken },
+    signal,
+    credentials: 'omit',
+  })
+}
+
 /**
  * `usesPos` is always sent. Without POS the backend stores no business category or type and does
  * not require them (Phase A contract §5); a placeholder category and type used to be posted here

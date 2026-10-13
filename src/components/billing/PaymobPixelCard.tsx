@@ -12,9 +12,14 @@ type Status = 'loading' | 'ready' | 'failed'
 export function PaymobPixelCard({
   session,
   onValidation,
+  onPaymentComplete,
+  payButton = false,
 }: {
   session: PixelSession
   onValidation?: (valid: boolean) => void
+  onPaymentComplete?: () => void
+  /** Show Paymob's own Pay button inside its form. */
+  payButton?: boolean
 }) {
   const { t } = useTranslation()
   const elementId = `paymob-pixel-${useId().replace(/[^A-Za-z0-9_-]/g, '')}`
@@ -23,6 +28,8 @@ export function PaymobPixelCard({
   const [status, setStatus] = useState<Status>('loading')
   const validation = useRef(onValidation)
   validation.current = onValidation
+  const completed = useRef(onPaymentComplete)
+  completed.current = onPaymentComplete
 
   useEffect(() => {
     if (mountedFor.current === session.clientSecret) return
@@ -32,7 +39,17 @@ export function PaymobPixelCard({
       .then((Pixel) => {
         if (cancelled || mountedFor.current === session.clientSecret) return
         mountedFor.current = session.clientSecret
-        new Pixel(pixelOptions(session, elementId, (valid) => validation.current?.(valid)))
+        new Pixel(
+          pixelOptions(
+            session,
+            elementId,
+            {
+              onValidation: (valid) => validation.current?.(valid),
+              onPaymentComplete: () => completed.current?.(),
+            },
+            payButton,
+          ),
+        )
         setStatus('ready')
       })
       .catch(() => {
@@ -41,7 +58,7 @@ export function PaymobPixelCard({
     return () => {
       cancelled = true
     }
-  }, [session, elementId])
+  }, [session, elementId, payButton])
 
   useEffect(() => {
     const node = container.current
