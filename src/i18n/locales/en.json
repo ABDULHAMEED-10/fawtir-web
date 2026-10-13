@@ -908,7 +908,9 @@
       "cvcLabel": "CVC",
       "cvcPlaceholder": "•••",
       "countryLabel": "Billing Country",
-      "saveCard": "Save this card for automatic renewals"
+      "saveCard": "Save this card for automatic renewals",
+      "pixelLoading": "Loading the secure card form from Paymob…",
+      "pixelFailed": "The secure card form couldn't be loaded. Please choose bank transfer or cash, or try again later."
     },
     "bank": {
       "title": "Bank transfer",
