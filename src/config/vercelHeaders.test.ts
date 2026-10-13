@@ -98,12 +98,25 @@ describe('vercel.json security headers (D6)', () => {
   it('reports, without enforcing, the full content policy derived from the build', () => {
     const policy = directives(header(spaRule(), 'Content-Security-Policy-Report-Only') ?? '')
     expect(policy.get('default-src')).toEqual(["'self'"])
+    // Paymob Pixel (signup card) adds only Paymob Oman's API and card frames, the data: fonts and the
+    // exact hashes of the <style> elements the pinned SDK 1.2.8 injects: no 'unsafe-inline', no
+    // wildcard, and the SDK itself is served from 'self' (measured in a headed browser, 13 Oct 2026).
     expect(policy.get('script-src')).toEqual(["'self'"])
-    expect(policy.get('connect-src')).toEqual(["'self'"])
-    expect(policy.get('style-src')).toEqual(["'self'", 'https://fonts.googleapis.com'])
-    expect(policy.get('font-src')).toEqual(["'self'", 'https://fonts.gstatic.com'])
+    expect(policy.get('connect-src')).toEqual(["'self'", 'https://oman.paymob.com'])
+    expect(policy.get('style-src')).toEqual([
+      "'self'",
+      'https://fonts.googleapis.com',
+      "'sha256-CgLFojiRsKnEL6fQZV7Mf0qgp01myRTR4yQA3PCNCFM='",
+      "'sha256-R2puzgWDVCpN0ExvowmD7Paq3UosmUmtVN681XKgqrg='",
+      "'sha256-WcQj8//Oile+lAZdyyeK4LJFadh+7mvA1KikT3mF7Qg='",
+    ])
+    expect(policy.get('style-src')).not.toContain("'unsafe-inline'")
+    expect(policy.get('font-src')).toEqual(["'self'", 'https://fonts.gstatic.com', 'data:'])
     expect(policy.get('img-src')).toEqual(["'self'", 'data:', 'blob:'])
-    expect(policy.get('frame-src')).toEqual(["'self'", 'blob:'])
+    expect(policy.get('frame-src')).toEqual(["'self'", 'blob:', 'https://om.checkout.paymob.com'])
+    for (const sources of policy.values()) {
+      expect(sources.some((s) => s.includes('*'))).toBe(false)
+    }
     expect(policy.get('object-src')).toEqual(["'none'"])
     // Browsers ignore frame-ancestors in a report-only policy and warn about it.
     expect(policy.has('frame-ancestors')).toBe(false)
