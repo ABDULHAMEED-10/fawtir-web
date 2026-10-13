@@ -947,7 +947,8 @@
       "referenceRequired": "Enter the reference your bank gave the transfer.",
       "received": "Receipt received (reference {{reference}}). The Fawtir team checks it after you submit.",
       "verified": "Your transfer is confirmed. It is held until your company is approved.",
-      "replace": "Replace receipt"
+      "replace": "Replace receipt",
+      "noAccountDetails": "Fawtir's bank account details aren't shown here yet. Attach the receipt of your transfer with its reference below. The Fawtir team checks every payment, and your subscription starts only after your company is approved and your payment is confirmed."
     },
     "summary": {
       "title": "Order summary",

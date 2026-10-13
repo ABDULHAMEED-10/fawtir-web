@@ -273,10 +273,12 @@ export function PaymentForm() {
                   if (next === 'VERIFIED') setCardProblem(false)
                 }}
               />
-            ) : method === 'bankTransfer' && chosenAvailable && options?.beneficiary ? (
+            ) : method === 'bankTransfer' && chosenAvailable ? (
+              // Offered with or without a confirmed Fawtir account (owner, 13 Oct 2026); the account
+              // is shown only when the server returns a verified one.
               <BankTransferDetails
-                beneficiary={options.beneficiary}
-                maxBytes={options.proofMaximumBytes}
+                beneficiary={options?.beneficiary ?? null}
+                maxBytes={options?.proofMaximumBytes}
                 held={heldBankReceipt(held) ? held : null}
                 evidence={evidence}
                 problem={evidenceProblem}
@@ -482,7 +484,7 @@ function BankTransferDetails({
   problem,
   onChange,
 }: {
-  beneficiary: NonNullable<SignupPaymentOptions['beneficiary']>
+  beneficiary: SignupPaymentOptions['beneficiary']
   maxBytes: number | undefined
   held: SignupHeldPayment | null
   evidence: BankEvidence
@@ -494,18 +496,25 @@ function BankTransferDetails({
   const [fileProblem, setFileProblem] = useState<'size' | 'type' | null>(null)
   return (
     <div className="flex flex-col gap-3">
-      <div className="rounded-sm border border-black/10 bg-surface-card p-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
-          {t('payment.bank.detailsTitle')}
-        </p>
-        <dl className="mt-2 flex flex-col gap-1.5 text-sm">
-          <Row label={t('payment.bank.accountName')} value={beneficiary.legalName} />
-          <Row label={t('payment.bank.bank')} value={beneficiary.bankName} />
-          <Row label="IBAN" value={beneficiary.iban} mono />
-          {beneficiary.swiftCode ? <Row label="SWIFT" value={beneficiary.swiftCode} mono /> : null}
-        </dl>
-      </div>
-      <Note icon={tickIcon} text={t('payment.bank.transferNow')} />
+      {beneficiary ? (
+        <>
+          <div className="rounded-sm border border-black/10 bg-surface-card p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
+              {t('payment.bank.detailsTitle')}
+            </p>
+            <dl className="mt-2 flex flex-col gap-1.5 text-sm">
+              <Row label={t('payment.bank.accountName')} value={beneficiary.legalName} />
+              <Row label={t('payment.bank.bank')} value={beneficiary.bankName} />
+              <Row label="IBAN" value={beneficiary.iban} mono />
+              {beneficiary.swiftCode ? <Row label="SWIFT" value={beneficiary.swiftCode} mono /> : null}
+            </dl>
+          </div>
+          <Note icon={tickIcon} text={t('payment.bank.transferNow')} />
+        </>
+      ) : (
+        // No verified account to show: nothing is made up in its place.
+        <Note icon={tickIcon} text={t('payment.bank.noAccountDetails')} />
+      )}
       {held === null || replacing ? (
         <fieldset className="flex flex-col gap-3 rounded-sm border border-black/10 bg-surface-card p-4">
           <legend className="px-1 text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">

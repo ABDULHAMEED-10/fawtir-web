@@ -739,30 +739,55 @@ describe("How you'll pay", () => {
     expect(writes().map((call) => call.url)).toEqual([PREFERENCE_URL])
   })
 
-  it('offers bank transfer as unavailable without a confirmed account, and shows none', async () => {
+  it('offers bank transfer without a confirmed account: selectable, no invented details, receipt taken', async () => {
+    withTerms()
+    answer({
+      [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: BUSINESS_MONTHLY }),
+      // What the server answers since 13 Oct 2026: offered, with no account to show.
+      [OPTIONS_URL]: () =>
+        json(200, { ...SERVER_OPTIONS, bankTransfer: true, bankTransferStatus: 'NO_ACCOUNT', beneficiary: null }),
+    })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly', planTerms: BUSINESS_MONTHLY })
+    const user = userEvent.setup({ delay: null })
+    await waitFor(() => expect((methodButton('bankTransfer') as HTMLButtonElement).disabled).toBe(false))
+    expect(screen.queryByText(i18n.t('payment.bank.unavailable'))).toBeNull()
+    await user.click(methodButton('bankTransfer'))
+
+    expect(screen.getByText(i18n.t('payment.bank.noAccountDetails'))).toBeTruthy()
+    expect(text()).not.toMatch(/IBAN|SWIFT|OM\d{2}/)
+    expect(screen.queryByText(i18n.t('payment.bank.detailsTitle'))).toBeNull()
+    expect(screen.getByLabelText(i18n.t('payment.bank.referenceLabel'))).toBeTruthy()
+    expect(screen.getByLabelText(i18n.t('payment.bank.notesLabel'))).toBeTruthy()
+
+    const picker = document.querySelector('input[type="file"]') as HTMLInputElement
+    await user.upload(picker, new File(['%PDF-1.7'], 'receipt.pdf', { type: 'application/pdf' }))
+    await user.type(screen.getByLabelText(i18n.t('payment.bank.referenceLabel')), 'TRF-0002')
+    await user.type(screen.getByLabelText(i18n.t('payment.bank.notesLabel')), 'Transferred on 13 Oct')
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+
+    expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
+    const [preference, upload] = writes()
+    expect(preference.body).toMatchObject({ enrollment: 'PAY_NOW', method: 'BANK_TRANSFER' })
+    expect(upload.url).toBe('/api/v1/auth/signup/payment-evidence')
+    expect(upload.body).toEqual({
+      onboardingToken: 'so.token',
+      proof: 'file:receipt.pdf',
+      reference: 'TRF-0002',
+      note: 'Transferred on 13 Oct',
+    })
+  })
+
+  it('still says bank transfer is unavailable when the server cannot store a receipt safely', async () => {
     withTerms()
     answer({
       [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: BUSINESS_MONTHLY }),
       [OPTIONS_URL]: () =>
-        json(200, {
-          ...SERVER_OPTIONS,
-          bankTransfer: false,
-          bankTransferStatus: 'NO_ACCOUNT',
-          beneficiary: null,
-        }),
+        json(200, { ...SERVER_OPTIONS, bankTransfer: false, bankTransferStatus: 'STORAGE_UNAVAILABLE' }),
     })
-    renderAt('/payment', {
-      ...AFTER_ADDRESS,
-      plan: 'premium',
-      billing: 'monthly',
-      paymentMethod: 'bankTransfer',
-      planTerms: BUSINESS_MONTHLY,
-    })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly', planTerms: BUSINESS_MONTHLY })
 
-    expect(await screen.findByText(i18n.t('payment.bank.unavailable'))).toBeTruthy()
-    const bank = methodButton('bankTransfer')
-    expect((bank as HTMLButtonElement).disabled).toBe(true)
-    expect(text()).not.toMatch(/IBAN|OM55|Insight Technology/)
+    expect(await screen.findByText(i18n.t('payment.bank.storageUnavailable'))).toBeTruthy()
+    expect((methodButton('bankTransfer') as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('offers card as unavailable while Paymob is switched off', async () => {
@@ -1062,7 +1087,7 @@ describe('Card at signup: Paymob Pixel on this screen', () => {
     expect(await screen.findByText(i18n.t('payment.card.verified'), undefined, { timeout: 5_000 })).toBeTruthy()
     expect(callsTo(`${CARD_URL}/pay-1`)[0].body).toEqual({ onboardingToken: 'so.token' })
     await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
-    expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
+    expect((await screen.findByTestId('location', undefined, { timeout: 5_000 })).textContent).toBe('/signup-review')
   })
 
   it('polls after Paymob reports completion and stops at the final answer', async () => {
@@ -1115,7 +1140,7 @@ describe('Card at signup: Paymob Pixel on this screen', () => {
     expect(await screen.findByText(i18n.t('payment.card.verified'))).toBeTruthy()
     await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
 
-    expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
+    expect((await screen.findByTestId('location', undefined, { timeout: 5_000 })).textContent).toBe('/signup-review')
     expect(callsTo(CARD_URL)).toHaveLength(0)
   })
 
