@@ -436,9 +436,11 @@ Checked on 2026-09-28 against PDK 1.4.4. Findings from that check are in
 
 - **Plans:** Starter, Business, Business Plus, Enterprise, differing by features and limits, both
   configurable in the console (`src/lib/plans.ts`). Prices 35 / 80 / 150 OMR a month for 200 /
-  1,000 / 3,000 documents; overage 0.150 / 0.060 / 0.040 per extra invoice; an extra branch is
+  1,000 / 3,000 documents; extra documents 0.150 / 0.060 / 0.040 each, bought ahead (see
+  **Subscriptions** below); an extra branch is
   8 OMR on every plan; annual billing gives free months. Enterprise is Business Plus with
-  negotiated limits. A **14-day trial** of the chosen plan (not on Enterprise). **Compliance
+  negotiated limits. A **14-day trial** of the chosen plan (not on Enterprise), off by default
+  (owner, 13 Oct 2026). **Compliance
   features are never gated.** Plan gating is built but switched off (`PLAN_GATING_ENABLED =
 false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an upgrade nudge,
   never hidden.
@@ -447,26 +449,71 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
 - **Payments for subscriptions:** Paymob hosted checkout (owner, 7 Oct 2026: Paymob, not Thawani), owned by the backend; the app never
   takes card details (never Stripe). Operators record offline payments and activate tenants in
   the console. Operators land on `/console` after sign-in.
-- **Paymob Oman sandbox amounts** (owner, 11 Oct 2026). Unverified assumption, sandbox only:
-  Paymob is sent the OMR amount times a configurable multiplier, set to `100` in sandbox
-  (OMR 35.12 is `3512`, OMR 80.00 is `8000`). Fawtir's own figures stay three-decimal OMR. An
-  amount with a nonzero third decimal (35.125) is refused at checkout, never rounded or cut.
-  Before a sandbox payment settles, the backend checks the amount Paymob reports in its
-  transaction inquiry against the bill; if the two cannot be reconciled the payment stays
-  pending. **Production payments stay off** until Paymob confirms how OMR amounts are written.
-  Paymob is used only for new subscriptions, upgrades and paying an expired subscription;
-  existing billing and settlement logic is unchanged. The web never computes the Paymob amount:
-  it shows the server's three-decimal figure and the server's state (ONBOARDING.md rows 1.12 to
-  1.15).
-- **Card-paid subscription amounts end in 0 baisa** (owner, 11 Oct 2026), because Paymob takes two
-  decimals. The rule is on the final charged amount, after VAT and pro-rata. Subscription and
-  add-on prices are multiples of 0.200 OMR, the only prices whose 5% VAT total stays at two
-  decimals (35.000 + VAT = 36.750; 35.120 + VAT = 36.876 would not); the console refuses any
-  other price. Pro-rata amounts are worked at full precision, then rounded down to the nearest
-  0.010 OMR in the customer's favour (12.347 is charged as 12.340), and the bill shows exactly what
-  is charged. The refusal for a nonzero third decimal stays as a safety net. Bank transfer and
-  cash keep three decimals and the existing logic; invoices and tax reports always show three
-  decimals (ONBOARDING.md rows 1.16, 1.17).
+- **Paymob amounts are sent in baisa** (Paymob, confirmed by Saif, 12 Oct 2026: "1 Oman reyal
+  should be send as 1000 because the request is in Baisa with currency OMR"). The backend sends
+  the three-decimal OMR amount times **1000** (35.125 is `35125`), so card amounts keep three
+  decimals like bank transfer and cash. This replaces the sandbox assumption of 11 Oct 2026
+  (multiplier `100`, a refusal for a nonzero third decimal, prices in multiples of 0.200 OMR and
+  pro-rata rounded down to 0.010): those rules are dropped, and so is the card refusal reason
+  `PAYMOB_AMOUNT_NOT_REPRESENTABLE` once the backend removes it. Pro-rata is worked at full
+  precision and rounded to three decimals like every other bill. Before a payment settles, the
+  backend still checks the amount Paymob reports in its transaction inquiry against the bill; if
+  the two cannot be reconciled the payment stays pending. Paymob says nothing on its side blocks
+  calls (no CORS block), so a refused call is looked for on our side: origin, Oman base URL,
+  public key or the `client_secret` flow. Paymob is used for new subscriptions, upgrades, paying
+  an expired subscription and buying extra documents; other bills keep the existing billing and
+  settlement logic. The web never computes the Paymob amount: it shows the server's
+  three-decimal figure and the server's state (ONBOARDING.md rows 1.12 to 1.17, whose 0.200 and
+  0.010 rules this decision replaces). Paymob keys live only in the backend's server
+  environment, never in Vercel, a `VITE_` variable or git.
+- **Subscriptions: quota, extra documents, cancellation** (owner, 12 and 13 Oct 2026; standard
+  SaaS practice). The backend owns every figure and state; the web shows what it is sent.
+  - **Trial and grace.** The 14-day trial is off by default and offered per tenant. An unpaid
+    renewal gets **7 days' grace**, then the account is read-only (suspended) until paid. The
+    14 days and day 1/7/13 notices in `docs/erp-and-console-plan.md` are superseded.
+  - **Paying at onboarding.** A company can pay with its application: bank transfer (receipt and
+    reference) or cash, confirmed by an operator.
+  - **Default branch.** Every approved company gets "{company} Head Branch", in Arabic
+    «{company} - الفرع الرئيسي».
+  - **Roles.** Approver and Viewer are permissions, not roles; Sales manager is a new role.
+  - **Monthly quota.** The allowance resets every month on the **subscription date**, not the
+    calendar month. Unused documents **expire** at the reset and never carry over (500 allowed,
+    260 used: the other 240 end, and the new month starts again at 500).
+  - **What counts.** Every legal document issued counts **once**, whether sending passed or failed;
+    a resend never counts again.
+  - **Over the quota: buy ahead, never billed after.** Issuing stops at the limit until extra
+    documents are bought; drafts can still be saved and every record read. The customer is warned
+    at 80%, 90% and 100%. "Buy extra documents" (Settings, Subscription, and in each warning)
+    takes any number through a minus / plus field the customer can also type into. The price is
+    the plan's per-document rate times the number, plus VAT, quoted by the server and shown live
+    at three decimals with the rial sign. Card (Paymob) adds them at once; bank transfer or cash
+    when an operator confirms. They are kept as a **separate allowance** ("Extra this month"),
+    used only after the plan's own documents. An upgrade is suggested when extras would cost more
+    than the next plan. This replaces "usage over the limit is charged, not blocked".
+  - **Cancelling.** **No refunds**, for unused days or unused extra documents. The subscription
+    stays active to the end of the paid period, then the company is **read-only**: it can sign in,
+    read, search, download and export everything, but cannot issue documents, add users or use
+    the ERP or API (those actions are hidden, not greyed). Documents already in flight still
+    receive their Tax Authority and Peppol replies.
+  - **Nothing from onboarding is touched** by cancelling, suspension or expiry: company profile,
+    VAT and CR numbers, Peppol registration and participant ID, signing certificate, branches,
+    users and permissions, customers, suppliers, products, number series, templates, settings and
+    the ERP mapping all stay. Renewing reopens everything as it was; the next invoice number
+    follows the last, and the customer **never goes through onboarding again**.
+  - **Supplier invoices while cancelled.** The Peppol registration stays and Fawtir keeps
+    receiving the company's supplier invoices, so the supplier's sending never fails. They are
+    held on the server and not shown; on renewal they are released into Bills together with
+    "{count} supplier invoices arrived while your subscription was inactive". Each keeps its real
+    receipt date (TDOM-04), so it counts for VAT in the quarter received. What the receiving
+    access point must still do on its own for a held invoice (delivery reply, any reporting) is
+    checked against the PINT-OM rules, not decided from memory; the customer's own accept or
+    reject waits for renewal.
+  - **Data is kept, always.** Retention is mandatory: there is no deletion and no "close
+    company" for the customer. Records are kept for the full legal period (section 7, question 6)
+    in every subscription state, and reading and export always work.
+  - **On the server.** Every write checks the subscription state; reads and exports never do.
+    Cancelling changes the subscription state only and never resets onboarding data or the
+    onboarding-complete flag.
 - **Sign-up:** "Tell us about your business" asks **"Will you use Fawtir POS?"** (unticked by
   default). Ticked: Business type and Sub business type are asked. Unticked: those screens are
   skipped, and the page quietly saves a placeholder category and type (Food & Beverage,
@@ -503,8 +550,8 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   reminders), Expenditure (bills and bill reminders; bill upload and scan from a photo to be
   confirmed with Atiq), reports and the dashboard. POS and the catalogue come to mobile later
   (future work). **No self-billing and no customer import from a file on mobile.** Every
-  approved company gets a default head office branch (owner, 9 Oct 2026; ONBOARDING.md row
-  1.11). Handoff is in phases, each change doc sent only
+  approved company gets a default branch, named as in **Subscriptions** below (owner, 9 Oct
+  2026; ONBOARDING.md row 1.11). Handoff is in phases, each change doc sent only
   after Abrar's end-to-end test of that phase passes: (1) onboarding to an invoice sent over
   Peppol: sign-up, sign-in, subscription, company settings, branches, Peppol settings, customers,
   invoice creation, bulk invoice upload, sending; (2) credit notes, debit notes and reminders,
@@ -615,6 +662,11 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
    same company is kept twice. Should agreements and self-billed invoices be linked to the
    supplier record instead? (Asked of the backend in `EXPENDITURE.md` S.2, detailed in S.5 to S.7
    with the order of work and checks; the screens keep the current behaviour until then.)
+
+8. Buying extra documents: the per-document rate on each plan (the 0.150 / 0.060 / 0.040 above,
+   or new figures), whether the rate is before VAT, a minimum or maximum per purchase, and
+   whether unused extras end at the monthly reset with the plan's own documents (the suggested
+   default).
 
 ---
 
