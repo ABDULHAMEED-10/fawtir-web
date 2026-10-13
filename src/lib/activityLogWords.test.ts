@@ -41,12 +41,13 @@ const EMITTED = [
   'TenantIdentityPolicyUpdated', 'WebhookEndpointCreated', 'WebhookEndpointDeleted',
   'WebhookSecretRotated', 'WebhookTestRequested', 'SmpParticipantReRegistrationQueued',
   'SmpParticipantReRegistrationSkipped', 'SmpTenantVerifiedSubmissionReleased',
+  'SupplierCreated', 'SupplierUpdated',
 ]
 
 const RESOURCES = [
   'USER', 'SESSION', 'DEVICE', 'TENANT', 'CUSTOMER', 'CUSTOMER_IMPORT', 'CUSTOMER_LOGO', 'API_KEY',
   'OAUTH_CLIENT', 'USER_INVITATION', 'ROLE', 'BANK_BENEFICIARY', 'SUBSCRIPTION_PAYMENT',
-  'SUBSCRIPTION_BILL', 'WEBHOOK_ENDPOINT', 'INVOICE_BATCH', 'SELF_BILLING_AGREEMENT',
+  'SUBSCRIPTION_BILL', 'WEBHOOK_ENDPOINT', 'INVOICE_BATCH', 'SELF_BILLING_AGREEMENT', 'SUPPLIER',
 ]
 
 type Locale = { activityLog: { event: Record<string, string>; resource: Record<string, string> } }
@@ -73,6 +74,19 @@ describe('activity log words', () => {
     expect(activityEventWords(i18n, 'LoginSucceeded')).toBe('Signed in')
     await i18n.changeLanguage('ar')
     expect(activityEventWords(i18n, 'CustomerCreated')).toBe('أُضيف عميل')
+  })
+
+  // TEST, 12 Oct 2026: a supplier added from the supplier form read "Customer added". The
+  // server now writes its own Supplier* events; a customer is still "Customer added".
+  it('tells a supplier write from a customer write', async () => {
+    expect(activityEventWords(i18n, 'SupplierCreated')).toBe('Supplier added')
+    expect(activityEventWords(i18n, 'SupplierUpdated')).toBe('Supplier changed')
+    expect(activityEventWords(i18n, 'CustomerCreated')).toBe('Customer added')
+    expect(i18n.t('activityLog.resource.SUPPLIER')).toBe('Supplier')
+    await i18n.changeLanguage('ar')
+    expect(activityEventWords(i18n, 'SupplierCreated')).toBe('أُضيف مورد')
+    expect(activityEventWords(i18n, 'SupplierUpdated')).toBe('عُدّل مورد')
+    expect(i18n.t('activityLog.resource.SUPPLIER')).toBe('مورد')
   })
 
   it('reads an unknown event from its type, and says "Recorded event" only when none is given', () => {
