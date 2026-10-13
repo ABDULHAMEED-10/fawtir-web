@@ -350,16 +350,22 @@ describe('the activity log', () => {
   it('lists only what the server holds, worded, never by a server code', async () => {
     routes['/api/v1/settings/activity-log'] = () =>
       json(200, {
-        items: [LOG_ENTRY, { ...LOG_ENTRY, id: 'e-2', event_type: 'SomethingNew' }],
+        items: [
+          LOG_ENTRY,
+          { ...LOG_ENTRY, id: 'e-2', event_type: 'SomethingNew' },
+          { ...LOG_ENTRY, id: 'e-3', event_type: '' },
+        ],
         page: 0,
         page_size: 50,
         has_more: false,
       })
     renderAt('/settings/activity-log')
     expect(await screen.findByText('Connection added')).toBeTruthy()
-    // An event this build has no words for is named generically, never by its code.
-    expect(screen.getByText('Recorded event')).toBeTruthy()
+    // An event this build has no words for is named readably from its type, never as the bare
+    // code; "Recorded event" is left for an entry that names no event at all.
+    expect(screen.getByText('Something new')).toBeTruthy()
     expect(screen.queryByText(/SomethingNew/)).toBeNull()
+    expect(screen.getAllByText('Recorded event')).toHaveLength(1)
     // The designed tiles and export are drawn, but no invented figure: the log returns no counts.
     expect(screen.getByText('Export as PDF')).toBeTruthy()
     expect(screen.getByText('This month')).toBeTruthy()

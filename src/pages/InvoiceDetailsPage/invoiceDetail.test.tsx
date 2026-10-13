@@ -1327,3 +1327,201 @@ describe('self-billed documents', () => {
     },
   )
 })
+
+describe('the preview paper names the seller and the buyer', () => {
+  const ADDRESS = {
+    streetName: 'Way 3021',
+    additionalStreetName: 'Al Khuwair',
+    addressLine3: null,
+    buildingNumber: '12',
+    cityName: 'Bawshar',
+    postalCode: '112',
+    countrySubentity: 'Muscat',
+    countryCode: 'OM',
+    poBox: '450',
+  }
+  const SELLER = {
+    legalName: 'Nizwa Dates Trading LLC',
+    vatin: 'OM1100000001',
+    participantId: '0235:OM1100000001',
+    address: ADDRESS,
+  }
+  const BUYER = {
+    name: 'Sohar Port Logistics SAOC',
+    vatin: 'OM1100999001',
+    participantId: null,
+    address: { ...ADDRESS, streetName: 'Port Road', buildingNumber: null, cityName: 'Sohar' },
+  }
+  const PROFILE = {
+    tenantId: 't-1',
+    tenantCode: 'NIZWA',
+    tenantName: 'Nizwa Dates',
+    legalName: 'Nizwa Dates Trading LLC (live profile)',
+    legalNameAr: null,
+    tradingName: null,
+    taxNumber: 'OM1100000002',
+    commercialRegistrationNumber: '1234567',
+    country: 'OM',
+    registeredAddress: 'Souq Street',
+    registeredAddressLine2: null,
+    registeredAddressLine3: null,
+    registeredCity: 'Nizwa',
+    registeredPostalCode: '611',
+    registeredCountrySubdivision: 'Ad Dakhiliyah',
+    registeredPoBox: null,
+    contactPersonName: null,
+    contactPhone: null,
+    contactEmail: null,
+    profileRevision: 3,
+    verificationStatus: 'VERIFIED',
+  }
+  const SETTINGS_ADMIN: Entitlements = {
+    ...ADMIN,
+    permissions: [...ADMIN.permissions, 'admin.settings.manage'],
+  }
+
+  /** The paper's "From" and "Bill to" blocks, found by their headings. */
+  const party = (heading: string) =>
+    within(screen.getByText(heading, { selector: 'p.tracking-wide' }).parentElement!)
+
+  /** Answers the reads these cases add, and hands every other one to the suite's own mock. */
+  function alsoAnswer(extra: Record<string, unknown>) {
+    const suite = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      const match = Object.keys(extra).find((prefix) => url.startsWith(prefix))
+      return match ? json(200, extra[match]) : suite(url, init)
+    })
+  }
+
+  it('prints the issued snapshot: legal name, VAT number, the whole address, the branch beneath', async () => {
+    invoiceResponse = () => json(200, invoice({ seller: SELLER, buyer: BUYER }))
+    renderInvoice()
+    await screen.findByText('From', { selector: 'p.tracking-wide' })
+    const from = party('From')
+    expect(from.getByText('Nizwa Dates Trading LLC')).toBeTruthy()
+    expect(from.getByText('VAT OM1100000001')).toBeTruthy()
+    for (const line of [
+      'Way 3021',
+      'Al Khuwair',
+      'Building 12',
+      'PO Box 450',
+      '112 Bawshar',
+      'Muscat',
+      'Oman',
+    ]) {
+      expect(from.getByText(line)).toBeTruthy()
+    }
+    await waitFor(() => expect(from.getByText('Head office')).toBeTruthy())
+    const billTo = party('Bill to')
+    expect(billTo.getByText('Sohar Port Logistics SAOC')).toBeTruthy()
+    expect(billTo.getByText('VAT OM1100999001')).toBeTruthy()
+    expect(billTo.getByText('Port Road')).toBeTruthy()
+    expect(billTo.getByText('112 Sohar')).toBeTruthy()
+    // The snapshot is the issued truth, so the live profile is not even asked for.
+    expect(calls().some((call) => call.includes('/company-profile'))).toBe(false)
+  })
+
+  it('stands the live company profile in for the seller on a draft', async () => {
+    who = SETTINGS_ADMIN
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          authoringState: 'DRAFT',
+          invoiceNumber: null,
+          totals: null,
+          seller: null,
+          buyer: null,
+        }),
+      )
+    alsoAnswer({ '/api/v1/company-profile': PROFILE })
+    renderInvoice()
+    expect(
+      await screen.findAllByText('Nizwa Dates Trading LLC (live profile)'),
+    ).not.toHaveLength(0)
+    const from = party('From')
+    expect(from.getByText('VAT OM1100000002')).toBeTruthy()
+    expect(from.getByText('Souq Street')).toBeTruthy()
+    expect(from.getByText('611 Nizwa')).toBeTruthy()
+    expect(from.getByText('Ad Dakhiliyah')).toBeTruthy()
+    // The buyer falls back to the customer the draft names.
+    await waitFor(() => expect(party('Bill to').getByText('Sohar Port Logistics')).toBeTruthy())
+  })
+
+  it('names the consumer on a B2C invoice from the customer it references', async () => {
+    alsoAnswer({
+      '/api/v1/customers/': {
+        id: 'c-1',
+        type: 'CONSUMER',
+        displayName: 'Salim Al Harthy',
+        profile: {
+          details: { vatRegistrationNumber: null },
+          contact: null,
+          deliveryPreferences: null,
+          invoiceAddress: { cityName: 'Muscat', countryCode: 'OM', streetName: 'Way 12' },
+        },
+        peppolDelivery: 'NOT_APPLICABLE',
+        status: 'ACTIVE',
+        updatedAt: '2026-08-01T00:00:00Z',
+      },
+    })
+    renderInvoice()
+    await screen.findByText('From', { selector: 'p.tracking-wide' })
+    await waitFor(() => expect(party('Bill to').getByText('Salim Al Harthy')).toBeTruthy())
+    expect(party('Bill to').getByText('Way 12')).toBeTruthy()
+    expect(party('Bill to').queryByText('—')).toBeNull()
+  })
+
+  it('names the buyer from the snapshot for a reader who may not open the customer', async () => {
+    who = READ_ONLY
+    invoiceResponse = () => json(200, invoice({ buyer: { ...BUYER, name: 'Salim Al Harthy' } }))
+    renderInvoice()
+    await screen.findByText('From', { selector: 'p.tracking-wide' })
+    expect(party('Bill to').getByText('Salim Al Harthy')).toBeTruthy()
+    expect(calls().some((call) => call.includes('/api/v1/customers/'))).toBe(false)
+  })
+})
+
+describe('the invoice in Arabic', () => {
+  it('words the payment terms and means from their codes, never the stored English label', async () => {
+    await i18n.changeLanguage('ar')
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          details: {
+            ...invoice().details!,
+            paymentTerms: { code: 'NET30', label: 'Net 30 days' },
+            paymentMethod: { code: '30', label: 'Bank transfer' },
+          },
+        }),
+      )
+    renderInvoice()
+    expect(await screen.findByText('الرصيد المستحق')).toBeTruthy()
+    // On the page and again on the preview paper.
+    expect(screen.getAllByText('صافي 30 يومًا').length).toBeGreaterThan(1)
+    expect(screen.getByText('تحويل بنكي')).toBeTruthy()
+    expect(screen.queryByText(/Net 30 days/)).toBeNull()
+    expect(screen.queryByText(/Bank transfer/)).toBeNull()
+  })
+
+  it('falls back to the stored label only for a code this build has no words for', async () => {
+    await i18n.changeLanguage('ar')
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          details: {
+            ...invoice().details!,
+            paymentTerms: { code: 'NET90', label: 'Net 90 days' },
+            paymentMethod: { code: '97', label: 'Clearing between partners' },
+          },
+        }),
+      )
+    renderInvoice()
+    expect(await screen.findByText('الرصيد المستحق')).toBeTruthy()
+    // A NETn term is still worded from its days; an unknown means keeps what was stored.
+    expect(screen.getAllByText('صافي 90 يومًا').length).toBeGreaterThan(0)
+    expect(screen.getByText('Clearing between partners')).toBeTruthy()
+  })
+})
