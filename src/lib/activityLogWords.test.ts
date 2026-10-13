@@ -84,9 +84,9 @@ describe('activity log words', () => {
     expect(activityEventWords(i18n, 'CustomerCreated')).toBe('Customer added')
     expect(i18n.t('activityLog.resource.SUPPLIER')).toBe('Supplier')
     await i18n.changeLanguage('ar')
-    expect(activityEventWords(i18n, 'SupplierCreated')).toBe('أُضيف مورد')
-    expect(activityEventWords(i18n, 'SupplierUpdated')).toBe('عُدّل مورد')
-    expect(i18n.t('activityLog.resource.SUPPLIER')).toBe('مورد')
+    expect(activityEventWords(i18n, 'SupplierCreated')).toBe('أُضيف مورّد')
+    expect(activityEventWords(i18n, 'SupplierUpdated')).toBe('عُدّل مورّد')
+    expect(i18n.t('activityLog.resource.SUPPLIER')).toBe('مورّد')
   })
 
   it('reads an unknown event from its type, and says "Recorded event" only when none is given', () => {
