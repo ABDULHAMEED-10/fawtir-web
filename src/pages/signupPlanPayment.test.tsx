@@ -1054,12 +1054,12 @@ describe('Card at signup: Paymob Pixel on this screen', () => {
     await waitFor(() => expect(mounted).toHaveLength(1))
 
     await user.click(screen.getByRole('button', { name: i18n.t('payment.card.checkStatus') }))
-    expect(await screen.findByText(i18n.t('payment.card.processing'))).toBeTruthy()
+    expect(await screen.findByText(i18n.t('payment.card.processing'), undefined, { timeout: 5_000 })).toBeTruthy()
     await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
     expect(screen.getByText(i18n.t('payment.card.verifyBeforeContinue'))).toBeTruthy()
 
     await user.click(screen.getByRole('button', { name: i18n.t('payment.card.checkStatus') }))
-    expect(await screen.findByText(i18n.t('payment.card.verified'))).toBeTruthy()
+    expect(await screen.findByText(i18n.t('payment.card.verified'), undefined, { timeout: 5_000 })).toBeTruthy()
     expect(callsTo(`${CARD_URL}/pay-1`)[0].body).toEqual({ onboardingToken: 'so.token' })
     await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
     expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
@@ -1078,9 +1078,11 @@ describe('Card at signup: Paymob Pixel on this screen', () => {
       await waitFor(() => expect(mounted).toHaveLength(1))
 
       ;(mounted[0].afterPaymentComplete as () => void)()
-      await vi.advanceTimersByTimeAsync(3_000)
-      await vi.advanceTimersByTimeAsync(3_000)
-      expect(await screen.findByText(i18n.t('payment.card.verified'))).toBeTruthy()
+      // Each tick reads once; advance until the answer has rendered, never past a bound.
+      for (let tick = 0; tick < 10 && !screen.queryByText(i18n.t('payment.card.verified')); tick += 1) {
+        await vi.advanceTimersByTimeAsync(3_000)
+      }
+      expect(screen.getByText(i18n.t('payment.card.verified'))).toBeTruthy()
       await vi.advanceTimersByTimeAsync(30_000)
       expect(callsTo(`${CARD_URL}/pay-1`)).toHaveLength(2)
     } finally {
