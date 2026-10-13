@@ -43,6 +43,7 @@ const STATUS_TONE: Record<PlatformPaymentDto['status'], ConsolePillTone> = {
   SUBMITTED: 'pending',
   RECEIPT_RECORDED: 'pending',
   AWAITING_SECOND_APPROVAL: 'info',
+  FUNDS_VERIFIED: 'info',
   CONFIRMED: 'success',
   REJECTED: 'danger',
   WITHDRAWN: 'neutral',
@@ -125,7 +126,7 @@ function PaymentQueue() {
               <tr key={payment.id}>
                 <td className="px-4 py-3 font-medium text-text-primary">{tenantName ?? payment.tenantId}</td>
                 <td className="px-4 py-3 text-text-secondary">
-                  {bill.number}
+                  {bill ? bill.number : t('console.billing.signupPayment')}
                   <span className="block text-xs text-text-tertiary">
                     {formatInstant(payment.submittedAt, i18n.language)}
                   </span>
@@ -225,7 +226,7 @@ function PaymentPanel({
     <section aria-labelledby="payment-panel" className={`${CONSOLE_CARD} flex flex-col gap-4 p-5`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="payment-panel" className="text-lg font-semibold text-text-primary">
-          {tenantName ?? payment.tenantId} · {bill.number}
+          {tenantName ?? payment.tenantId} · {bill ? bill.number : t('console.billing.signupPayment')}
         </h2>
         <div className="flex items-center gap-3">
           <ConsoleStatusPill tone={STATUS_TONE[payment.status]} label={t(`console.billing.status.${payment.status}`)} />
@@ -237,14 +238,26 @@ function PaymentPanel({
 
       <dl className="grid gap-x-6 gap-y-3 md:grid-cols-3">
         <Fact label={t('console.billing.col.method')} value={t(`billing.method.${payment.method}.title`)} />
-        <Fact label={t('billing.bill.total')} value={money(bill.total)} />
-        <Fact
-          label={t('billing.bill.period')}
-          value={t('billing.bill.periodRange', {
-            start: formatDate(bill.periodStartsOn, i18n.language),
-            end: formatDate(bill.periodEndsOn, i18n.language),
-          })}
-        />
+        {bill ? (
+          <>
+            <Fact label={t('billing.bill.total')} value={money(bill.total)} />
+            <Fact
+              label={t('billing.bill.period')}
+              value={t('billing.bill.periodRange', {
+                start: formatDate(bill.periodStartsOn, i18n.language),
+                end: formatDate(bill.periodEndsOn, i18n.language),
+              })}
+            />
+          </>
+        ) : (
+          // No bill yet: the amount is the server's frozen signup quote, and verifying it holds the
+          // money; the first bill and the paid period come only when the company is approved.
+          <Fact
+            label={t('console.billing.signupAmount')}
+            value={money(payment.amount)}
+            note={t('console.billing.signupHeld')}
+          />
+        )}
         {payment.reference ? <Fact label={t('billing.bank.reference')} value={payment.reference} /> : null}
         {payment.customerNote ? <Fact label={t('billing.note')} value={payment.customerNote} /> : null}
         {payment.receiptNumber ? (
@@ -301,7 +314,7 @@ function PaymentPanel({
 
       {payment.method === 'CASH' && payment.status === 'SUBMITTED' && can(BILLING_CASH_PERMISSION) ? (
         <CashReceiptForm
-          total={bill.total}
+          total={bill ? bill.total : payment.amount}
           busy={busy}
           onRecord={(receipt) =>
             act(() => recordCashReceipt(payment.id, payment.version, receipt), 'console.billing.done.recorded')

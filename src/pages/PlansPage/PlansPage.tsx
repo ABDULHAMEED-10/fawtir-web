@@ -133,9 +133,9 @@ function PlansContent() {
     // Enterprise is agreed on a call: no trial and no payment step, straight to review. The
     // server clears a saved payment preference on the same choice (contract §1).
     if (plan === 'enterprise') {
-      const { paymentMethod: _method, linkVia: _via, addon: _addon, ...rest } = kept
+      const { paymentMethod: _method, enrollment: _enrollment, addon: _addon, ...rest } = kept
       void _method
-      void _via
+      void _enrollment
       void _addon
       const next: OnboardingState = { ...rest, plan, billing }
       navigate(REVIEW_ROUTE, { state: next })

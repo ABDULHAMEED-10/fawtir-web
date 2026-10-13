@@ -17,6 +17,8 @@ export type PaymentStatus =
   | 'SUBMITTED'
   | 'RECEIPT_RECORDED'
   | 'AWAITING_SECOND_APPROVAL'
+  /** A signup payment Finance has verified, held until the company is approved (V289). */
+  | 'FUNDS_VERIFIED'
   | 'CONFIRMED'
   | 'REJECTED'
   | 'WITHDRAWN'
@@ -100,6 +102,8 @@ export type BillingOverviewDto = {
   /** `card` is false (or absent, before Phase 3C) whenever card checkout is not switched on. */
   methods: { bankTransfer: boolean; bankTransferStatus: BankTransferStatus; cash: boolean; card?: boolean }
   proofMaximumBytes: number
+  /** How a pay-now registrant chose to pay at signup; the pay form opens on it when it is offered. */
+  signupMethod?: PaymentMethod | null
 }
 
 export type BillPageDto = { bills: BillWithPaymentsDto[]; nextCursor: string | null }

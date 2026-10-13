@@ -6,12 +6,11 @@ import {
   type InvoicingMethod,
   type OnboardingState,
 } from '../onboarding'
-import type { BillingCycle, PaymentLinkVia, SignupPaymentMethod } from '../pricing'
+import type { BillingCycle, SignupPaymentMethod } from '../pricing'
 import {
   BILLING_CYCLE,
   BUSINESS_SIZE,
   INVOICING_METHOD,
-  LINK_CHANNEL,
   PAYMENT_METHOD_CODE,
   categoryIdFor,
   planIdFor,
@@ -109,11 +108,18 @@ export function onboardingStateFromStatus(
     plan,
     billing: reverse<BillingCycle, string>(BILLING_CYCLE, status.plan?.billingCycle),
     planTerms: status.plan ?? undefined,
+    // A preference saved before V287 has no enrollment: left undefined so the screen asks again,
+    // never read as a trial.
+    enrollment:
+      preference?.enrollment === 'TRIAL'
+        ? 'trial'
+        : preference?.enrollment === 'PAY_NOW'
+          ? 'payNow'
+          : undefined,
     paymentMethod:
       plan === 'enterprise'
         ? undefined
         : reverse<SignupPaymentMethod, string>(PAYMENT_METHOD_CODE, preference?.method),
-    linkVia: reverse<PaymentLinkVia, string>(LINK_CHANNEL, preference?.linkChannel),
     addon: typeof preference?.erpExtractionAddon === 'boolean' ? preference.erpExtractionAddon : undefined,
   })
   const merged: OnboardingState = { ...cached, ...fromServer, restored: true }
@@ -126,9 +132,11 @@ export function onboardingStateFromStatus(
   }
   // Enterprise skips payment, and choosing it clears a saved preference (contract §1).
   if (merged.plan === 'enterprise') {
+    delete merged.enrollment
     delete merged.paymentMethod
-    delete merged.linkVia
     delete merged.addon
   }
+  // A trial carries no method; one cached from an earlier visit must not ride along with it.
+  if (merged.enrollment === 'trial') delete merged.paymentMethod
   return merged
 }

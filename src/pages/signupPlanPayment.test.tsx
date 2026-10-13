@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../i18n'
 import { resetSharedRequests } from '../api'
-import type { SignupStatusPlan } from '../lib/identity/onboarding'
+import type { SignupPaymentOptions, SignupStatusPlan } from '../lib/identity/onboarding'
 import { saveOnboardingSession } from '../lib/identity/onboardingSession'
 import type { SignupCataloguePlan } from '../lib/identity/signupPlans'
 import type { OnboardingState } from '../lib/onboarding'
@@ -43,6 +43,21 @@ const PLANS_URL = '/api/v1/auth/signup/plans'
 const PLAN_URL = '/api/v1/auth/signup/plan'
 const STATUS_URL = '/api/v1/auth/signup/status'
 const PREFERENCE_URL = '/api/v1/auth/signup/payment-preference'
+const OPTIONS_URL = '/api/v1/auth/signup/payment-options'
+
+/** Every method available, with a confirmed account: what a configured server answers. */
+const SERVER_OPTIONS: SignupPaymentOptions = {
+  bankTransfer: true,
+  bankTransferStatus: 'AVAILABLE',
+  cash: true,
+  card: true,
+  beneficiary: {
+    legalName: 'Fawtir Test LLC',
+    bankName: 'Bank Muscat',
+    iban: 'OM810180000001299123456',
+    swiftCode: 'BMUSOMRX',
+  },
+}
 
 const features = (on: string[], off: string[] = []) => [
   ...on.map((key) => ({ key, enabled: true })),
@@ -103,8 +118,12 @@ const noContent = () => new Response(null, { status: 204 })
 
 /** Answers by URL; an array is a queue whose last answer repeats. Anything else is a 204. */
 function answer(routes: Record<string, Handler | Handler[]>) {
+  const withOptions: Record<string, Handler | Handler[]> = {
+    [OPTIONS_URL]: () => json(200, SERVER_OPTIONS),
+    ...routes,
+  }
   const queues = Object.fromEntries(
-    Object.entries(routes).map(([url, handler]) => [
+    Object.entries(withOptions).map(([url, handler]) => [
       url,
       Array.isArray(handler) ? [...handler] : handler,
     ]),
@@ -121,9 +140,24 @@ const calls = () =>
   (fetchMock.mock.calls as Array<[string, RequestInit]>).map(([url, init]) => ({
     url,
     method: init.method ?? 'GET',
-    body: init.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : undefined,
+    body: bodyOf(init.body),
+    idempotencyKey: (init.headers as Record<string, string> | undefined)?.['Idempotency-Key'],
   }))
-const writes = () => calls().filter((call) => call.method !== 'GET' && call.url !== STATUS_URL)
+
+/** JSON as sent; a multipart upload as its fields, a file by name. */
+function bodyOf(body: RequestInit['body']): Record<string, unknown> | undefined {
+  if (!body) return undefined
+  if (body instanceof FormData) {
+    return Object.fromEntries(
+      [...body.entries()].map(([name, value]) => [name, value instanceof File ? `file:${value.name}` : value]),
+    )
+  }
+  return JSON.parse(body as string) as Record<string, unknown>
+}
+const writes = () =>
+  calls().filter(
+    (call) => call.method !== 'GET' && call.url !== STATUS_URL && call.url !== OPTIONS_URL,
+  )
 const callsTo = (url: string) => calls().filter((call) => call.url === url)
 
 function Probe() {
@@ -463,38 +497,61 @@ const BUSINESS_MONTHLY: SignupStatusPlan = {
 }
 
 describe("How you'll pay", () => {
+  const methodButton = (method: 'cardLink' | 'bankTransfer' | 'cash') =>
+    screen.getByRole('button', { name: new RegExp(i18n.t(`payment.method.${method}.title`)) })
+  const trialSwitch = () =>
+    screen.getByRole('switch', { name: i18n.t('payment.trial.toggle', { count: 14 }) })
+  const withTerms = (plan: SignupStatusPlan = BUSINESS_MONTHLY) =>
+    answer({ [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan }) })
+
   it('preselects the saved method from the server over a stale history entry (browser Back)', async () => {
     answer({
       [STATUS_URL]: () =>
         json(200, {
           stage: 'READY_FOR_SUBMISSION',
           plan: BUSINESS_ANNUAL,
-          paymentPreference: { method: 'CASH', linkChannel: null, erpExtractionAddon: false },
+          paymentPreference: {
+            enrollment: 'PAY_NOW',
+            method: 'CASH',
+            linkChannel: null,
+            erpExtractionAddon: false,
+          },
         }),
     })
     // The history entry from before the method was chosen carries none.
     renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'annual' })
 
-    const cash = () =>
-      screen.getByRole('button', { name: new RegExp(i18n.t('payment.method.cash.title')) })
-    await waitFor(() => expect(cash().getAttribute('aria-pressed')).toBe('true'))
+    await waitFor(() => expect(methodButton('cash').getAttribute('aria-pressed')).toBe('true'))
+    expect(trialSwitch().getAttribute('aria-checked')).toBe('false')
   })
 
-  it('charges nothing, saves the method, and continues to review with the server figures', async () => {
-    answer({ [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: BUSINESS_MONTHLY }) })
+  it('shows the free-trial toggle OFF by default, with the methods to choose from', async () => {
+    withTerms()
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly' })
+
+    expect(await screen.findByText(i18n.t('payment.descriptionChoose'))).toBeTruthy()
+    expect(trialSwitch().getAttribute('aria-checked')).toBe('false')
+    expect(screen.getByText(i18n.t('payment.trial.offHint'))).toBeTruthy()
+    await waitFor(() => expect((methodButton('cash') as HTMLButtonElement).disabled).toBe(false))
+    // No method is assumed: the registrant picks one.
+    expect(methodButton('cash').getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('pay-now: charges nothing, saves PAY_NOW with cash, and continues to review', async () => {
+    withTerms()
     renderAt('/payment', {
       ...AFTER_ADDRESS,
       plan: 'premium',
       billing: 'monthly',
       planTerms: BUSINESS_MONTHLY,
     })
-
-    expect(await screen.findByText(i18n.t('payment.descriptionTrial', { count: 14 }))).toBeTruthy()
+    expect(await screen.findByText(i18n.t('payment.descriptionChoose'))).toBeTruthy()
     expect(text()).not.toMatch(/Pay .* & activate/)
-    expect(screen.getByText(/owner@alnoor\.test/)).toBeTruthy()
 
     const user = userEvent.setup({ delay: null })
-    await user.click(screen.getByText(i18n.t('payment.method.cash.title')))
+    await waitFor(() => expect((methodButton('cash') as HTMLButtonElement).disabled).toBe(false))
+    await user.click(methodButton('cash'))
+    expect(screen.getByText(i18n.t('payment.cash.noteSignup'))).toBeTruthy()
     await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
 
     expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
@@ -506,8 +563,8 @@ describe("How you'll pay", () => {
         method: 'POST',
         body: {
           onboardingToken: 'so.token',
+          enrollment: 'PAY_NOW',
           method: 'CASH',
-          linkChannel: null,
           erpExtractionAddon: false,
         },
       },
@@ -515,9 +572,238 @@ describe("How you'll pay", () => {
     expect(stateNow()).toMatchObject({
       plan: 'premium',
       billing: 'monthly',
+      enrollment: 'payNow',
       paymentMethod: 'cash',
       planTerms: { amountInclVat: '84.000' },
     })
+  })
+
+  it('trial ON hides every payment method and saves TRIAL with no method', async () => {
+    withTerms()
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly', paymentMethod: 'cash' })
+    const user = userEvent.setup({ delay: null })
+    await user.click(await screen.findByRole('switch'))
+
+    expect(trialSwitch().getAttribute('aria-checked')).toBe('true')
+    expect(screen.queryByRole('button', { name: new RegExp(i18n.t('payment.method.cash.title')) })).toBeNull()
+    expect(screen.queryByRole('button', { name: new RegExp(i18n.t('payment.method.cardLink.title')) })).toBeNull()
+    expect(screen.getByText(i18n.t('payment.trial.note', { count: 14 }))).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+
+    expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
+    expect(writes()[0].body).toEqual({
+      onboardingToken: 'so.token',
+      enrollment: 'TRIAL',
+      method: null,
+      erpExtractionAddon: false,
+    })
+    expect(stateNow().enrollment).toBe('trial')
+    expect(stateNow().paymentMethod).toBeUndefined()
+  })
+
+  it('trial OFF again brings the methods back', async () => {
+    withTerms()
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly' })
+    const user = userEvent.setup({ delay: null })
+    await user.click(await screen.findByRole('switch'))
+    await user.click(trialSwitch())
+
+    expect(trialSwitch().getAttribute('aria-checked')).toBe('false')
+    expect(methodButton('cash')).toBeTruthy()
+    expect(methodButton('bankTransfer')).toBeTruthy()
+  })
+
+  it('restores a saved TRIAL from the server with the toggle ON', async () => {
+    answer({
+      [STATUS_URL]: () =>
+        json(200, {
+          stage: 'READY_FOR_SUBMISSION',
+          plan: BUSINESS_MONTHLY,
+          paymentPreference: {
+            enrollment: 'TRIAL',
+            method: null,
+            linkChannel: null,
+            erpExtractionAddon: false,
+          },
+        }),
+    })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly' })
+    await waitFor(() => expect(trialSwitch().getAttribute('aria-checked')).toBe('true'))
+    expect(screen.queryByRole('button', { name: new RegExp(i18n.t('payment.method.cash.title')) })).toBeNull()
+  })
+
+  it('offers no trial toggle on a plan without a trial', async () => {
+    withTerms({ ...BUSINESS_MONTHLY, trialDays: null })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly' })
+    expect(await screen.findByText(i18n.t('payment.descriptionNoTrial'))).toBeTruthy()
+    expect(screen.queryByRole('switch')).toBeNull()
+  })
+
+  it('asks for a method instead of saving a pay-now choice without one', async () => {
+    withTerms()
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly' })
+    const user = userEvent.setup({ delay: null })
+    await screen.findByRole('switch')
+    await waitFor(() =>
+      expect(
+        (screen.getByRole('button', { name: i18n.t('payment.continueCta') }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(false),
+    )
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+
+    expect(await screen.findByText(i18n.t('payment.methodRequired'))).toBeTruthy()
+    expect(writes()).toHaveLength(0)
+  })
+
+  it('asks for no payment-link channel: no email or WhatsApp choice anywhere', async () => {
+    withTerms()
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'businessPlus', billing: 'annual' })
+    const user = userEvent.setup({ delay: null })
+    await waitFor(() => expect((methodButton('cardLink') as HTMLButtonElement).disabled).toBe(false))
+    await user.click(methodButton('cardLink'))
+
+    expect(screen.queryAllByRole('radio')).toHaveLength(0)
+    expect(text()).not.toMatch(/WhatsApp|Send the payment link|By email|valid 7 days/i)
+    expect(screen.getByText(i18n.t('payment.cardLink.noteHosted'))).toBeTruthy()
+    await user.click(screen.getByLabelText(i18n.t('payment.addon.label')))
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+
+    expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
+    expect(writes()[0].body).toEqual({
+      onboardingToken: 'so.token',
+      enrollment: 'PAY_NOW',
+      method: 'CARD_LINK',
+      erpExtractionAddon: true,
+    })
+  })
+
+  it('takes the transfer receipt, reference and notes at signup, after saving the method', async () => {
+    withTerms()
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly' })
+    const user = userEvent.setup({ delay: null })
+    await waitFor(() =>
+      expect((methodButton('bankTransfer') as HTMLButtonElement).disabled).toBe(false),
+    )
+    await user.click(methodButton('bankTransfer'))
+
+    expect(screen.getByText(SERVER_OPTIONS.beneficiary!.iban)).toBeTruthy()
+    expect(screen.getByText(SERVER_OPTIONS.beneficiary!.legalName)).toBeTruthy()
+    expect(screen.getByText(i18n.t('payment.bank.transferNow'))).toBeTruthy()
+
+    // Without a receipt nothing is sent.
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+    expect(screen.getByText(i18n.t('payment.bank.receiptRequired'))).toBeTruthy()
+    expect(writes()).toHaveLength(0)
+
+    const picker = document.querySelector('input[type="file"]') as HTMLInputElement
+    await user.upload(picker, new File(['%PDF-1.7'], 'receipt.pdf', { type: 'application/pdf' }))
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+    expect(screen.getByText(i18n.t('payment.bank.referenceRequired'))).toBeTruthy()
+    expect(writes()).toHaveLength(0)
+
+    await user.type(screen.getByLabelText(i18n.t('payment.bank.referenceLabel')), 'TRF-0001')
+    await user.type(screen.getByLabelText(i18n.t('payment.bank.notesLabel')), 'Paid from Bank Dhofar')
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+
+    expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
+    const [preference, upload] = writes()
+    expect(preference.body).toEqual({
+      onboardingToken: 'so.token',
+      enrollment: 'PAY_NOW',
+      method: 'BANK_TRANSFER',
+      erpExtractionAddon: false,
+    })
+    expect(upload.url).toBe('/api/v1/auth/signup/payment-evidence')
+    expect(upload.body).toEqual({
+      onboardingToken: 'so.token',
+      proof: 'file:receipt.pdf',
+      reference: 'TRF-0001',
+      note: 'Paid from Bank Dhofar',
+    })
+    expect(upload.idempotencyKey).toMatch(/^signup-payment-/)
+  })
+
+  it('shows a receipt the server already holds instead of asking for it again', async () => {
+    withTerms()
+    answer({
+      [STATUS_URL]: () =>
+        json(200, {
+          stage: 'PAYMENT',
+          plan: BUSINESS_MONTHLY,
+          paymentPreference: { enrollment: 'PAY_NOW', method: 'BANK_TRANSFER', linkChannel: null, erpExtractionAddon: false },
+          signupPayment: { method: 'BANK_TRANSFER', status: 'SUBMITTED', amount: '96.600', reference: 'TRF-0001', hasProof: true },
+        }),
+    })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly', planTerms: BUSINESS_MONTHLY })
+
+    expect(await screen.findByText(i18n.t('payment.bank.received', { reference: 'TRF-0001' }))).toBeTruthy()
+    const user = userEvent.setup({ delay: null })
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+
+    expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
+    expect(writes().map((call) => call.url)).toEqual([PREFERENCE_URL])
+  })
+
+  it('offers bank transfer as unavailable without a confirmed account, and shows none', async () => {
+    withTerms()
+    answer({
+      [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: BUSINESS_MONTHLY }),
+      [OPTIONS_URL]: () =>
+        json(200, {
+          ...SERVER_OPTIONS,
+          bankTransfer: false,
+          bankTransferStatus: 'NO_ACCOUNT',
+          beneficiary: null,
+        }),
+    })
+    renderAt('/payment', {
+      ...AFTER_ADDRESS,
+      plan: 'premium',
+      billing: 'monthly',
+      paymentMethod: 'bankTransfer',
+      planTerms: BUSINESS_MONTHLY,
+    })
+
+    expect(await screen.findByText(i18n.t('payment.bank.unavailable'))).toBeTruthy()
+    const bank = methodButton('bankTransfer')
+    expect((bank as HTMLButtonElement).disabled).toBe(true)
+    expect(text()).not.toMatch(/IBAN|OM55|Insight Technology/)
+  })
+
+  it('offers card as unavailable while Paymob is switched off', async () => {
+    answer({
+      [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: BUSINESS_MONTHLY }),
+      [OPTIONS_URL]: () => json(200, { ...SERVER_OPTIONS, card: false }),
+    })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly' })
+
+    expect(await screen.findByText(i18n.t('payment.cardUnavailable'))).toBeTruthy()
+    expect((methodButton('cardLink') as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('offers no method when the server cannot say which are available, but the trial still works', async () => {
+    answer({
+      [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: BUSINESS_MONTHLY }),
+      [OPTIONS_URL]: () => json(500, {}),
+    })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly' })
+
+    expect(await screen.findByText(i18n.t('payment.optionsFailed'))).toBeTruthy()
+    expect((methodButton('cash') as HTMLButtonElement).disabled).toBe(true)
+    const user = userEvent.setup({ delay: null })
+    await user.click(screen.getByRole('switch'))
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+    expect(writes()[0].body).toMatchObject({ enrollment: 'TRIAL', method: null })
+  })
+
+  it('reads the trial toggle in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    withTerms()
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly' })
+    const toggle = await screen.findByRole('switch')
+    expect(toggle.getAttribute('aria-label')).toBe(i18n.t('payment.trial.toggle', { count: 14 }))
+    expect(toggle.getAttribute('aria-label')).toMatch(/تجريبية/)
   })
 
   it('shows the server quote, never stale figures carried in the tab history (browser Back)', async () => {
@@ -606,42 +892,6 @@ describe("How you'll pay", () => {
     ).toBeTruthy()
   })
 
-  it('sends the card link channel only for a card', async () => {
-    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'businessPlus', billing: 'annual' })
-    const user = userEvent.setup({ delay: null })
-    await user.click(
-      screen.getByRole('radio', { name: new RegExp(i18n.t('payment.cardLink.byVia.whatsapp')) }),
-    )
-    await user.click(screen.getByLabelText(i18n.t('payment.addon.label')))
-    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
-
-    expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
-    expect(writes()[0].body).toEqual({
-      onboardingToken: 'so.token',
-      method: 'CARD_LINK',
-      linkChannel: 'WHATSAPP',
-      erpExtractionAddon: true,
-    })
-  })
-
-  it('offers bank transfer as unavailable and shows no bank account', () => {
-    renderAt('/payment', {
-      ...AFTER_ADDRESS,
-      plan: 'premium',
-      billing: 'monthly',
-      paymentMethod: 'bankTransfer',
-      planTerms: BUSINESS_MONTHLY,
-    })
-
-    const bank = screen.getByRole('button', {
-      name: new RegExp(i18n.t('payment.method.bankTransfer.title')),
-    })
-    expect((bank as HTMLButtonElement).disabled).toBe(true)
-    expect(bank.getAttribute('aria-pressed')).toBe('false')
-    expect(screen.getByText(i18n.t('payment.bank.unavailable'))).toBeTruthy()
-    expect(text()).not.toMatch(/IBAN|OM55|Insight Technology|Bank Muscat/)
-  })
-
   it('does not draw the cash icon as the selected tick', () => {
     renderAt('/payment', {
       ...AFTER_ADDRESS,
@@ -649,9 +899,7 @@ describe("How you'll pay", () => {
       billing: 'monthly',
       planTerms: BUSINESS_MONTHLY,
     })
-    const cash = screen.getByRole('button', {
-      name: new RegExp(i18n.t('payment.method.cash.title')),
-    })
+    const cash = methodButton('cash')
     expect(cash.getAttribute('aria-pressed')).toBe('false')
     expect(cash.querySelectorAll('img')).toHaveLength(1)
     expect(cash.querySelector('img')?.getAttribute('src')).not.toMatch(/tick/)
@@ -666,22 +914,29 @@ describe("How you'll pay", () => {
       ...AFTER_ADDRESS,
       plan: 'premium',
       billing: 'monthly',
+      paymentMethod: 'cash',
       planTerms: BUSINESS_MONTHLY,
     })
-    await userEvent
-      .setup({ delay: null })
-      .click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+    const user = userEvent.setup({ delay: null })
+    await waitFor(() => expect((methodButton('cash') as HTMLButtonElement).disabled).toBe(false))
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
 
     expect(await screen.findByText(i18n.t('onboarding.planRequired'))).toBeTruthy()
     expect(writes()).toHaveLength(1)
   })
 
   it('offers the ERP extraction add-on where the console prices it, and carries the tick to review', async () => {
-    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'businessPlus', billing: 'monthly' })
+    renderAt('/payment', {
+      ...AFTER_ADDRESS,
+      plan: 'businessPlus',
+      billing: 'monthly',
+      paymentMethod: 'cash',
+    })
     // The owner keeps the add-on (handbook section 6); what it says must still be true: no promise
     // to write anything back to the ERP, which the product does not do.
     expect(document.body.textContent).not.toMatch(/write.{0,10}back/i)
     const user = userEvent.setup({ delay: null })
+    await waitFor(() => expect((methodButton('cash') as HTMLButtonElement).disabled).toBe(false))
     await user.click(screen.getByRole('checkbox', { name: i18n.t('payment.addon.label') }))
     await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
     expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
@@ -704,7 +959,12 @@ describe("How you'll pay", () => {
         json(200, {
           stage: 'READY_FOR_SUBMISSION',
           plan: BUSINESS_ANNUAL,
-          paymentPreference: { method: 'CASH', linkChannel: null, erpExtractionAddon: false },
+          paymentPreference: {
+            enrollment: 'PAY_NOW',
+            method: 'CASH',
+            linkChannel: null,
+            erpExtractionAddon: false,
+          },
           accountEmail: 'owner@alnoor.test',
           draft: {
             addressContact: {
@@ -724,11 +984,7 @@ describe("How you'll pay", () => {
     renderAt('/payment')
 
     expect(await screen.findByText(i18n.t('payment.title'))).toBeTruthy()
-    expect(
-      screen
-        .getByRole('button', { name: new RegExp(i18n.t('payment.method.cash.title')) })
-        .getAttribute('aria-pressed'),
-    ).toBe('true')
+    await waitFor(() => expect(methodButton('cash').getAttribute('aria-pressed')).toBe('true'))
     expect(await screen.findByText('840.000')).toBeTruthy()
     // The gate restores the choice; the amounts are read again so they are never carried figures.
     expect(callsTo(STATUS_URL)).toHaveLength(2)
