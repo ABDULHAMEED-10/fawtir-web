@@ -908,7 +908,20 @@
       "cvcLabel": "CVC",
       "cvcPlaceholder": "•••",
       "countryLabel": "Billing Country",
-      "saveCard": "Save this card for automatic renewals"
+      "saveCard": "Save this card for automatic renewals",
+      "pixelLoading": "Loading the secure card form from Paymob…",
+      "pixelFailed": "The secure card form couldn't be loaded. Please choose bank transfer or cash, or try again later.",
+      "noteEmbedded": "Pay with your application in Paymob's secure form below. Fawtir never sees your card. The payment is confirmed with Paymob, and your subscription starts only after your company is approved.",
+      "open": "Open the secure card form",
+      "openFailed": "The secure card form couldn't be opened, and nothing was charged. Try again in a moment, or choose bank transfer or cash.",
+      "processing": "Confirming your payment with Paymob…",
+      "verified": "Card payment confirmed. It is held with your application; your subscription starts once your company is approved.",
+      "notCompleted": "The card payment wasn't completed and nothing was taken. You can try again or choose another method.",
+      "underReview": "Your payment is being checked by the Fawtir team. We will contact you; please do not pay again.",
+      "reversed": "This card payment was refunded or cancelled by the bank. Please contact Fawtir.",
+      "tryAgain": "Try again",
+      "checkStatus": "Check payment status",
+      "verifyBeforeContinue": "Pay by card and wait for the payment to be confirmed before you continue."
     },
     "bank": {
       "title": "Bank transfer",
@@ -935,7 +948,8 @@
       "referenceRequired": "Enter the reference your bank gave the transfer.",
       "received": "Receipt received (reference {{reference}}). The Fawtir team checks it after you submit.",
       "verified": "Your transfer is confirmed. It is held until your company is approved.",
-      "replace": "Replace receipt"
+      "replace": "Replace receipt",
+      "noAccountDetails": "Fawtir's bank account details aren't shown here yet. Attach the receipt of your transfer with its reference below. The Fawtir team checks every payment, and your subscription starts only after your company is approved and your payment is confirmed."
     },
     "summary": {
       "title": "Order summary",

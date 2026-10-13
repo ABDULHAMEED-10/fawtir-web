@@ -656,7 +656,7 @@ describe("How you'll pay", () => {
     expect(writes()).toHaveLength(0)
   })
 
-  it('asks for no payment-link channel: no email or WhatsApp choice anywhere', async () => {
+  it('asks for no payment-link channel, and a card choice cannot continue before the payment is verified', async () => {
     withTerms()
     renderAt('/payment', { ...AFTER_ADDRESS, plan: 'businessPlus', billing: 'annual' })
     const user = userEvent.setup({ delay: null })
@@ -665,17 +665,11 @@ describe("How you'll pay", () => {
 
     expect(screen.queryAllByRole('radio')).toHaveLength(0)
     expect(text()).not.toMatch(/WhatsApp|Send the payment link|By email|valid 7 days/i)
-    expect(screen.getByText(i18n.t('payment.cardLink.noteHosted'))).toBeTruthy()
-    await user.click(screen.getByLabelText(i18n.t('payment.addon.label')))
+    expect(screen.getByText(i18n.t('payment.card.noteEmbedded'))).toBeTruthy()
     await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
 
-    expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
-    expect(writes()[0].body).toEqual({
-      onboardingToken: 'so.token',
-      enrollment: 'PAY_NOW',
-      method: 'CARD_LINK',
-      erpExtractionAddon: true,
-    })
+    expect(screen.getByText(i18n.t('payment.card.verifyBeforeContinue'))).toBeTruthy()
+    expect(writes()).toHaveLength(0)
   })
 
   it('takes the transfer receipt, reference and notes at signup, after saving the method', async () => {
@@ -745,30 +739,55 @@ describe("How you'll pay", () => {
     expect(writes().map((call) => call.url)).toEqual([PREFERENCE_URL])
   })
 
-  it('offers bank transfer as unavailable without a confirmed account, and shows none', async () => {
+  it('offers bank transfer without a confirmed account: selectable, no invented details, receipt taken', async () => {
+    withTerms()
+    answer({
+      [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: BUSINESS_MONTHLY }),
+      // What the server answers since 13 Oct 2026: offered, with no account to show.
+      [OPTIONS_URL]: () =>
+        json(200, { ...SERVER_OPTIONS, bankTransfer: true, bankTransferStatus: 'NO_ACCOUNT', beneficiary: null }),
+    })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly', planTerms: BUSINESS_MONTHLY })
+    const user = userEvent.setup({ delay: null })
+    await waitFor(() => expect((methodButton('bankTransfer') as HTMLButtonElement).disabled).toBe(false))
+    expect(screen.queryByText(i18n.t('payment.bank.unavailable'))).toBeNull()
+    await user.click(methodButton('bankTransfer'))
+
+    expect(screen.getByText(i18n.t('payment.bank.noAccountDetails'))).toBeTruthy()
+    expect(text()).not.toMatch(/IBAN|SWIFT|OM\d{2}/)
+    expect(screen.queryByText(i18n.t('payment.bank.detailsTitle'))).toBeNull()
+    expect(screen.getByLabelText(i18n.t('payment.bank.referenceLabel'))).toBeTruthy()
+    expect(screen.getByLabelText(i18n.t('payment.bank.notesLabel'))).toBeTruthy()
+
+    const picker = document.querySelector('input[type="file"]') as HTMLInputElement
+    await user.upload(picker, new File(['%PDF-1.7'], 'receipt.pdf', { type: 'application/pdf' }))
+    await user.type(screen.getByLabelText(i18n.t('payment.bank.referenceLabel')), 'TRF-0002')
+    await user.type(screen.getByLabelText(i18n.t('payment.bank.notesLabel')), 'Transferred on 13 Oct')
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+
+    expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
+    const [preference, upload] = writes()
+    expect(preference.body).toMatchObject({ enrollment: 'PAY_NOW', method: 'BANK_TRANSFER' })
+    expect(upload.url).toBe('/api/v1/auth/signup/payment-evidence')
+    expect(upload.body).toEqual({
+      onboardingToken: 'so.token',
+      proof: 'file:receipt.pdf',
+      reference: 'TRF-0002',
+      note: 'Transferred on 13 Oct',
+    })
+  })
+
+  it('still says bank transfer is unavailable when the server cannot store a receipt safely', async () => {
     withTerms()
     answer({
       [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: BUSINESS_MONTHLY }),
       [OPTIONS_URL]: () =>
-        json(200, {
-          ...SERVER_OPTIONS,
-          bankTransfer: false,
-          bankTransferStatus: 'NO_ACCOUNT',
-          beneficiary: null,
-        }),
+        json(200, { ...SERVER_OPTIONS, bankTransfer: false, bankTransferStatus: 'STORAGE_UNAVAILABLE' }),
     })
-    renderAt('/payment', {
-      ...AFTER_ADDRESS,
-      plan: 'premium',
-      billing: 'monthly',
-      paymentMethod: 'bankTransfer',
-      planTerms: BUSINESS_MONTHLY,
-    })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly', planTerms: BUSINESS_MONTHLY })
 
-    expect(await screen.findByText(i18n.t('payment.bank.unavailable'))).toBeTruthy()
-    const bank = methodButton('bankTransfer')
-    expect((bank as HTMLButtonElement).disabled).toBe(true)
-    expect(text()).not.toMatch(/IBAN|OM55|Insight Technology/)
+    expect(await screen.findByText(i18n.t('payment.bank.storageUnavailable'))).toBeTruthy()
+    expect((methodButton('bankTransfer') as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('offers card as unavailable while Paymob is switched off', async () => {
@@ -988,5 +1007,260 @@ describe("How you'll pay", () => {
     expect(await screen.findByText('840.000')).toBeTruthy()
     // The gate restores the choice; the amounts are read again so they are never carried figures.
     expect(callsTo(STATUS_URL)).toHaveLength(2)
+  })
+})
+
+describe('Card at signup: Paymob Pixel on this screen', () => {
+  const CARD_URL = '/api/v1/auth/signup/card-checkout'
+  const methodButton = (method: 'cardLink' | 'bankTransfer' | 'cash') =>
+    screen.getByRole('button', { name: new RegExp(i18n.t(`payment.method.${method}.title`)) })
+  const statusWith = (signupPayment?: unknown) =>
+    json(200, { stage: 'PAYMENT', plan: BUSINESS_MONTHLY, ...(signupPayment ? { signupPayment } : {}) })
+  const view = (status: string, extra: Record<string, unknown> = {}) => ({
+    paymentId: 'pay-1',
+    status,
+    publishableKey: status === 'READY' ? 'omn_pk_test_fixture' : null,
+    clientSecret: status === 'READY' ? 'omn_csk_test_one' : null,
+    expiresAt: null,
+    amount: '84.000',
+    currency: 'OMR',
+    ...extra,
+  })
+  let mounted: Array<Record<string, unknown>>
+
+  beforeEach(() => {
+    mounted = []
+    window.Pixel = class {
+      constructor(options: Record<string, unknown>) {
+        mounted.push(options)
+      }
+    } as never
+  })
+  afterEach(() => {
+    delete window.Pixel
+  })
+
+  async function chooseCard() {
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'businessPlus', billing: 'monthly' })
+    const user = userEvent.setup({ delay: null })
+    await waitFor(() => expect((methodButton('cardLink') as HTMLButtonElement).disabled).toBe(false))
+    await user.click(methodButton('cardLink'))
+    return user
+  }
+
+  it("saves the card choice, opens the server's attempt with a key, and mounts only Paymob's form with its Pay button", async () => {
+    answer({ [STATUS_URL]: () => statusWith(), [CARD_URL]: () => json(200, view('READY')) })
+    const user = await chooseCard()
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.card.open') }))
+
+    await waitFor(() => expect(mounted).toHaveLength(1))
+    expect(writes().map((call) => call.url)).toEqual([PREFERENCE_URL, CARD_URL])
+    expect(writes()[0].body).toMatchObject({ enrollment: 'PAY_NOW', method: 'CARD_LINK' })
+    expect(writes()[1].body).toEqual({ onboardingToken: 'so.token' })
+    expect(writes()[1].idempotencyKey).toMatch(/^signup-card-/)
+    expect(mounted[0]).toMatchObject({
+      publicKey: 'omn_pk_test_fixture',
+      clientSecret: 'omn_csk_test_one',
+      paymentMethods: ['card'],
+      disablePay: false,
+      showSaveCard: false,
+    })
+    expect(document.querySelectorAll('input[autocomplete^="cc-"], input[name*="card" i]')).toHaveLength(0)
+  })
+
+  it('after Paymob completes, asks the server; only a VERIFIED answer lets the application continue', async () => {
+    answer({
+      [STATUS_URL]: () => statusWith(),
+      [CARD_URL]: () => json(200, view('READY')),
+      [`${CARD_URL}/pay-1`]: [() => json(200, view('PROCESSING')), () => json(200, view('VERIFIED'))],
+    })
+    const user = await chooseCard()
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.card.open') }))
+    await waitFor(() => expect(mounted).toHaveLength(1))
+
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.card.checkStatus') }))
+    expect(await screen.findByText(i18n.t('payment.card.processing'), undefined, { timeout: 5_000 })).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+    expect(screen.getByText(i18n.t('payment.card.verifyBeforeContinue'))).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.card.checkStatus') }))
+    expect(await screen.findByText(i18n.t('payment.card.verified'), undefined, { timeout: 5_000 })).toBeTruthy()
+    expect(callsTo(`${CARD_URL}/pay-1`)[0].body).toEqual({ onboardingToken: 'so.token' })
+    // The panel shows VERIFIED one render before the form hears it; the warning clearing is the form's own signal.
+    await waitFor(() => expect(screen.queryByText(i18n.t('payment.card.verifyBeforeContinue'))).toBeNull())
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+    expect((await screen.findByTestId('location', undefined, { timeout: 5_000 })).textContent).toBe('/signup-review')
+  })
+
+  it('polls after Paymob reports completion and stops at the final answer', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      answer({
+        [STATUS_URL]: () => statusWith(),
+        [CARD_URL]: () => json(200, view('READY')),
+        [`${CARD_URL}/pay-1`]: [() => json(200, view('PROCESSING')), () => json(200, view('VERIFIED'))],
+      })
+      const user = await chooseCard()
+      await user.click(screen.getByRole('button', { name: i18n.t('payment.card.open') }))
+      await waitFor(() => expect(mounted).toHaveLength(1))
+
+      ;(mounted[0].afterPaymentComplete as () => void)()
+      // Each tick reads once; advance until the answer has rendered, never past a bound.
+      for (let tick = 0; tick < 10 && !screen.queryByText(i18n.t('payment.card.verified')); tick += 1) {
+        await vi.advanceTimersByTimeAsync(3_000)
+      }
+      expect(screen.getByText(i18n.t('payment.card.verified'))).toBeTruthy()
+      await vi.advanceTimersByTimeAsync(30_000)
+      expect(callsTo(`${CARD_URL}/pay-1`)).toHaveLength(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a declined attempt says nothing was taken and starts a fresh attempt with a new key', async () => {
+    answer({
+      [STATUS_URL]: () => statusWith(),
+      [CARD_URL]: [() => json(200, view('NOT_COMPLETED')), () => json(200, view('READY', { paymentId: 'pay-2' }))],
+    })
+    const user = await chooseCard()
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.card.open') }))
+    expect(await screen.findByText(i18n.t('payment.card.notCompleted'))).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.card.tryAgain') }))
+    await waitFor(() => expect(mounted).toHaveLength(1))
+    const keys = callsTo(CARD_URL).map((call) => call.idempotencyKey)
+    expect(keys).toHaveLength(2)
+    expect(keys[0]).not.toBe(keys[1])
+  })
+
+  it('a card payment already verified for this application lets it continue after a refresh, without a new attempt', async () => {
+    answer({
+      [STATUS_URL]: () =>
+        statusWith({ method: 'CARD', status: 'FUNDS_VERIFIED', amount: '84.000', reference: null, hasProof: false }),
+    })
+    const user = await chooseCard()
+    expect(await screen.findByText(i18n.t('payment.card.verified'))).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+
+    expect((await screen.findByTestId('location', undefined, { timeout: 5_000 })).textContent).toBe('/signup-review')
+    expect(callsTo(CARD_URL)).toHaveLength(0)
+  })
+
+  it('loading the screen and choosing Card, Bank or Cash open no card attempt; nothing is preselected', async () => {
+    let releaseOptions: () => void = () => {}
+    answer({
+      [STATUS_URL]: () => statusWith(),
+      [OPTIONS_URL]: () =>
+        new Promise<Response>((resolve) => {
+          releaseOptions = () => resolve(json(200, SERVER_OPTIONS))
+        }),
+      [CARD_URL]: () => json(200, view('READY')),
+    })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly', planTerms: BUSINESS_MONTHLY })
+    const user = userEvent.setup({ delay: null })
+    await screen.findByRole('button', { name: new RegExp(i18n.t('payment.method.cardLink.title')) })
+
+    // While the options load nothing can be pressed, and no card button exists to land a click on.
+    for (const id of ['cardLink', 'bankTransfer', 'cash'] as const) {
+      expect((methodButton(id) as HTMLButtonElement).disabled).toBe(true)
+      expect(methodButton(id).getAttribute('aria-pressed')).toBe('false')
+    }
+    expect(screen.queryByRole('button', { name: i18n.t('payment.card.open') })).toBeNull()
+    releaseOptions()
+    await waitFor(() => expect((methodButton('cardLink') as HTMLButtonElement).disabled).toBe(false))
+    const trial = screen.getByRole('switch')
+
+    // Trial off is the default here: still no method chosen for the customer.
+    expect(trial.getAttribute('aria-checked')).toBe('false')
+    await user.click(trial)
+    await user.click(trial)
+    for (const id of ['cardLink', 'bankTransfer', 'cash'] as const) {
+      expect(methodButton(id).getAttribute('aria-pressed')).toBe('false')
+    }
+
+    await user.click(methodButton('cardLink'))
+    expect(screen.getByRole('button', { name: i18n.t('payment.card.open') })).toBeTruthy()
+    await user.click(methodButton('bankTransfer'))
+    await user.click(methodButton('cash'))
+    await user.click(methodButton('cardLink'))
+    expect(callsTo(CARD_URL)).toHaveLength(0)
+    expect(mounted).toHaveLength(0)
+
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.card.open') }))
+    await waitFor(() => expect(mounted).toHaveLength(1))
+    expect(callsTo(CARD_URL)).toHaveLength(1)
+  })
+
+  it('a double click while the attempt is opening sends one request, and the button waits', async () => {
+    let releaseCard: () => void = () => {}
+    answer({
+      [STATUS_URL]: () => statusWith(),
+      [CARD_URL]: () =>
+        new Promise<Response>((resolve) => {
+          releaseCard = () => resolve(json(200, view('READY')))
+        }),
+    })
+    const user = await chooseCard()
+    const openButton = screen.getByRole('button', { name: i18n.t('payment.card.open') })
+    await user.dblClick(openButton)
+    await user.click(openButton)
+
+    await waitFor(() => expect(callsTo(CARD_URL)).toHaveLength(1))
+    expect((openButton as HTMLButtonElement).disabled).toBe(true)
+    releaseCard()
+    await waitFor(() => expect(mounted).toHaveLength(1))
+    expect(callsTo(CARD_URL)).toHaveLength(1)
+  })
+
+  it('a refused open says so inside the card panel, without provider detail, and retries with the same key', async () => {
+    answer({
+      [STATUS_URL]: () => statusWith(),
+      [CARD_URL]: [() => json(503, { status: 503, detail: 'upstream paymob 502 at oman.paymob.com' }), () => json(200, view('READY'))],
+    })
+    const user = await chooseCard()
+    const openButton = screen.getByRole('button', { name: i18n.t('payment.card.open') })
+    await user.click(openButton)
+
+    const inPanel = await screen.findByText(i18n.t('payment.card.openFailed'))
+    expect(inPanel.getAttribute('role')).toBe('alert')
+    const panel = openButton.parentElement as HTMLElement
+    expect(panel.contains(inPanel)).toBe(true)
+    expect(panel.textContent).not.toMatch(/paymob\.com|upstream|503|502/)
+    expect(mounted).toHaveLength(0)
+    expect((openButton as HTMLButtonElement).disabled).toBe(false)
+
+    await user.click(openButton)
+    await waitFor(() => expect(mounted).toHaveLength(1))
+    const keys = callsTo(CARD_URL).map((call) => call.idempotencyKey)
+    expect(keys).toHaveLength(2)
+    expect(keys[1]).toBe(keys[0])
+    expect(screen.queryByText(i18n.t('payment.card.openFailed'))).toBeNull()
+  })
+
+  it('a verified card is kept when the customer looks at another method and comes back', async () => {
+    answer({
+      [STATUS_URL]: () =>
+        statusWith({ method: 'CARD', status: 'FUNDS_VERIFIED', amount: '84.000', reference: null, hasProof: false }),
+    })
+    const user = await chooseCard()
+    expect(await screen.findByText(i18n.t('payment.card.verified'))).toBeTruthy()
+    await user.click(methodButton('bankTransfer'))
+    await user.click(methodButton('cardLink'))
+
+    expect(await screen.findByText(i18n.t('payment.card.verified'))).toBeTruthy()
+    expect(callsTo(CARD_URL)).toHaveLength(0)
+    expect(writes()).toHaveLength(0)
+  })
+
+  it('in Arabic, the card panel speaks Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    answer({ [STATUS_URL]: () => statusWith() })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'businessPlus', billing: 'monthly' })
+    const user = userEvent.setup({ delay: null })
+    const card = await screen.findByRole('button', { name: new RegExp(i18n.t('payment.method.cardLink.title')) })
+    await waitFor(() => expect((card as HTMLButtonElement).disabled).toBe(false))
+    await user.click(card)
+    expect(screen.getByRole('button', { name: i18n.t('payment.card.open') }).textContent).toBe('افتح نموذج البطاقة الآمن')
+    expect(screen.getByText(i18n.t('payment.card.noteEmbedded')).textContent).toMatch(/Paymob/)
   })
 })

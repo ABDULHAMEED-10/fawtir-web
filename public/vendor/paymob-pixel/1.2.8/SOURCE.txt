@@ -1,0 +1,3 @@
+paymob-pixel 1.2.8 (npm), MIT, author "Paymob <support@paymob.com>".
+main.js is byte-identical to the npm tarball (registry dist.integrity sha512-8SweaBsSnt8NH7/GAAF6++UHwNzAbSISzqtSr/9dYCYSpNhJWMYZXyVgahLs9zR3KN7A/oPd2SE6AiQkn+YCdw==)
+and served from our own origin with Subresource Integrity (src/lib/paymobPixel.ts). Do not edit; replace only with another pinned release.
