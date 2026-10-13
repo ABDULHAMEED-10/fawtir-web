@@ -1212,6 +1212,31 @@ describe('Card at signup: Paymob Pixel on this screen', () => {
     expect(callsTo(CARD_URL)).toHaveLength(1)
   })
 
+  it('a refused open says so inside the card panel, without provider detail, and retries with the same key', async () => {
+    answer({
+      [STATUS_URL]: () => statusWith(),
+      [CARD_URL]: [() => json(503, { status: 503, detail: 'upstream paymob 502 at oman.paymob.com' }), () => json(200, view('READY'))],
+    })
+    const user = await chooseCard()
+    const openButton = screen.getByRole('button', { name: i18n.t('payment.card.open') })
+    await user.click(openButton)
+
+    const inPanel = await screen.findByText(i18n.t('payment.card.openFailed'))
+    expect(inPanel.getAttribute('role')).toBe('alert')
+    const panel = openButton.parentElement as HTMLElement
+    expect(panel.contains(inPanel)).toBe(true)
+    expect(panel.textContent).not.toMatch(/paymob\.com|upstream|503|502/)
+    expect(mounted).toHaveLength(0)
+    expect((openButton as HTMLButtonElement).disabled).toBe(false)
+
+    await user.click(openButton)
+    await waitFor(() => expect(mounted).toHaveLength(1))
+    const keys = callsTo(CARD_URL).map((call) => call.idempotencyKey)
+    expect(keys).toHaveLength(2)
+    expect(keys[1]).toBe(keys[0])
+    expect(screen.queryByText(i18n.t('payment.card.openFailed'))).toBeNull()
+  })
+
   it('a verified card is kept when the customer looks at another method and comes back', async () => {
     answer({
       [STATUS_URL]: () =>
