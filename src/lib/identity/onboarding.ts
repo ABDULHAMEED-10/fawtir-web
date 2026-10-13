@@ -219,9 +219,9 @@ export const ONBOARDING_ROUTES = [
 
 /**
  * The plan and how the first bill will be paid, chosen after the address and before review
- * (owner decision, 8 Oct 2026). Nothing is charged here: the trial starts on approval and the
- * first bill goes out when it ends. Both choices are saved on the draft (ONBOARDING.md rows 1.2
- * and 1.3, Phase A contract §1-§2).
+ * (owner decision, 8 Oct 2026). A trial charges nothing and starts on approval; paying now is
+ * paid with the application, held until approval and Finance settlement (owner, 12 Oct 2026).
+ * Both choices are saved on the draft (ONBOARDING.md rows 1.2 and 1.3, Phase A contract §1-§2).
  */
 export const PLANS_ROUTE = '/plans'
 export const PAYMENT_ROUTE = '/payment'
