@@ -112,6 +112,15 @@ function bill(id, supplierId, number, issued, dueDays, lines, extra = {}) {
     paidOnTheSpot: extra.paidOnTheSpot ?? false,
     // A debit note's (383) current decision; null on every other document (EXPENDITURE.md 1.24).
     debitNoteDecision: extra.debitNoteDecision ?? null,
+    // On a credit note (381, 261), where its credit stands, as a `GET /credit-notes` row says it;
+    // null on every other document. Unless stated, nothing of it has been used yet.
+    creditNote: isCredit
+      ? (extra.creditNote ?? {
+          status: 'UNAPPLIED',
+          usage: 'NOT_USED',
+          balance: { applied: 0, refunded: 0, remaining: total },
+        })
+      : null,
     // Kept beside the row for the detail; the list ignores them.
     _lines: lines,
     _extra: extra,
@@ -326,6 +335,43 @@ const BILLS = [
       workflowState: 'APPROVED',
       match: { verdict: 'NO_ORDER', purchaseOrderNumber: null, byHand: false },
       inboundDeliveryId: 'd-0442',
+    },
+  ),
+  // A debit note refused and then closed by the supplier's credit note: nothing is owed on it, and
+  // it reads "Refused · closed by credit note" under All, never under Paid.
+  bill(
+    'b-gcl-dn-0093',
+    's-gcl',
+    'GCL-DN-0093',
+    '2026-09-08',
+    21,
+    [L('Waiting-time surcharge, Salalah', 1, 'EA', 40)],
+    {
+      documentTypeCode: '383',
+      workflowState: 'REFUSED_CLOSED',
+      debitNoteDecision: 'REFUSED',
+      creditedAmount: 42,
+      match: { verdict: 'NO_ORDER', purchaseOrderNumber: null, byHand: false },
+    },
+  ),
+  bill(
+    'b-gcl-cn-0094',
+    's-gcl',
+    'GCL-CN-0094',
+    '2026-09-15',
+    null,
+    [L('Cancels debit note GCL-DN-0093', 1, 'EA', 40)],
+    {
+      documentTypeCode: '381',
+      // Left out of input VAT with the refused debit note it closes.
+      creditsBillId: 'b-gcl-dn-0093',
+      workflowState: 'APPROVED',
+      creditNote: {
+        status: 'APPLIED',
+        usage: 'FULLY_USED',
+        balance: { applied: 42, refunded: 0, remaining: 0 },
+      },
+      match: { verdict: 'NO_ORDER', purchaseOrderNumber: null, byHand: false },
     },
   ),
   bill(
@@ -600,7 +646,33 @@ const SORTS = {
 const publicRow = ({ _lines, _extra, ...row }) => ({
   ...row,
   overpaidAmount: overpaidOf({ ...row, _extra }),
+  inputVat: inputVatOf({ ...row, _extra }),
+  duplicateOf: null,
+  possibleDuplicateOf: null,
 })
+
+/**
+ * Whether the document counts in input VAT (`inputVat`), worked out on read as the server does:
+ * a debit note only once accepted, a rejected bill not while rejected, a recurring bill Fawtir
+ * raised not until the supplier's tax invoice is attached, and a credit note not while the
+ * document it credits (`_extra.creditsBillId`) is out. Counted on the day it arrived.
+ */
+function inputVatOf(row) {
+  const out = (reason) => ({ counted: false, countedOn: null, reason, vatAmountOmr: null })
+  if (row.documentTypeCode === '383' && row.debitNoteDecision !== 'ACCEPTED')
+    return out('DEBIT_NOTE_NOT_ACCEPTED')
+  if (row.workflowState === 'REJECTED' || row.readiness?.state === 'REJECTED') return out('REJECTED')
+  if (row.source === 'RECURRING') return out('NO_SUPPLIER_TAX_INVOICE')
+  const target = row._extra?.creditsBillId ? findBill(row._extra.creditsBillId) : null
+  if (target && !inputVatOf(target).counted) return out('TARGET_NOT_COUNTED')
+  const omr = row.currencyCode === 'OMR'
+  return {
+    counted: true,
+    countedOn: row.issueDate,
+    reason: omr ? 'COUNTED' : 'NO_OMR_VAT',
+    vatAmountOmr: omr ? row.vatAmount : null,
+  }
+}
 
 /**
  * What was done with what bills were overpaid by (`BillOverpaymentSettlement`), oldest first.
@@ -800,7 +872,8 @@ function detailReply(row) {
   const extra = row._extra
   const order = row.match?.purchaseOrderNumber ? ORDERS[row.match.purchaseOrderNumber] : null
   const net = round3(row.totalIncludingVat - row.vatAmount)
-  const paid = row.workflowState === 'PAID'
+  // A refused debit note a credit note closed is settled in full, as a paid bill is.
+  const paid = row.workflowState === 'PAID' || row.workflowState === 'REFUSED_CLOSED'
   const payments =
     row.paidAmount > 0 && extra.paidTwice
       ? [1, 2].map((n) => ({
@@ -1306,6 +1379,7 @@ function supplierOverview(id) {
       payments: paidRows.length,
       orders: Object.values(ORDERS).length,
       documents: 2,
+      creditNotes: BILLS.filter((row) => row.supplierId === id && isCredit(row)).length,
     },
     match: {
       agreed: rows.filter((row) => row.match?.verdict === 'MATCHED').length,
@@ -1328,6 +1402,30 @@ function supplierOverview(id) {
       everLate: false,
       total: round3(open.reduce((sum, row) => sum + row.outstandingAmount, 0)),
       overpaidTotal: round3(rows.reduce((sum, row) => sum + overpaidOf(row), 0)),
+      // The runs holding their bills, by reference (P6, 12 Oct 2026). These runs have no record
+      // here, so the id is made from the reference.
+      inRuns: [
+        ...new Set(
+          open
+            .filter((row) => row.workflowState === 'IN_PAYMENT_RUN' && row.paymentRunReference)
+            .map((row) => row.paymentRunReference),
+        ),
+      ]
+        .sort()
+        .map((reference) => {
+          const held = open.filter(
+            (row) =>
+              row.workflowState === 'IN_PAYMENT_RUN' && row.paymentRunReference === reference,
+          )
+          return {
+            runId: reference.toLowerCase(),
+            reference,
+            state: 'DRAFT',
+            bills: held.length,
+            amount: round3(held.reduce((sum, row) => sum + row.outstandingAmount, 0)),
+            currencyCode: 'OMR',
+          }
+        }),
     },
   }
 }

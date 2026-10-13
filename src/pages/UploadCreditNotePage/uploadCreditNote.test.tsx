@@ -398,8 +398,39 @@ describe('upload a supplier credit note', () => {
     await uploadNote()
     await chooseBill()
     const sentence = screen.getByText(/^The bill is unpaid, so you simply pay/)
-    expect(sentence.textContent).toMatch(/\s50\.000 less\.$/)
+    expect(sentence.textContent).toMatch(/\s50\.000 less\. /)
     expect(sentence.textContent).not.toContain('105.000')
+  })
+
+  // Owner, 12 Oct 2026 (C10): the sentence also says what is left of the credit, with the sign.
+  it('says the rest of a bigger credit stays as credit for a later bill, in both languages', async () => {
+    billRows = [{ ...BILL, totalIncludingVat: 50, outstandingAmount: 50 }]
+    await uploadNote()
+    await chooseBill()
+    const visible = (element: Element) => {
+      const copy = element.cloneNode(true) as Element
+      copy.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+      return copy.textContent?.replace(/\s+/g, ' ') ?? ''
+    }
+    const english = screen.getByText(/^The bill is unpaid, so you simply pay/)
+    expect(visible(english)).toMatch(
+      /^The bill is unpaid, so you simply pay 50\.000 less\. The other 55\.000 stays as credit for a later bill\.$/,
+    )
+    expect(english.querySelectorAll('svg')).toHaveLength(2)
+    expect(visible(english)).not.toContain('OMR')
+
+    await i18n.changeLanguage('ar')
+    const arabic = await screen.findByText(/^الفاتورة غير مدفوعة، فتدفع ببساطة أقل بمقدار/)
+    expect(visible(arabic)).toMatch(/ويبقى الباقي 55\.000 رصيدًا لفاتورة لاحقة\.$/)
+    expect(visible(arabic)).not.toContain('OMR')
+  })
+
+  it('says nothing of a rest when the bill takes the whole credit', async () => {
+    await uploadNote()
+    await chooseBill()
+    expect(screen.getByText(/^The bill is unpaid, so you simply pay/).textContent).not.toMatch(
+      /stays as credit/,
+    )
   })
 
   // E2E 10 Oct, F-14: the chosen bill's card read "Approved · 60.000 unpaid".
@@ -653,6 +684,7 @@ describe('a credit note correcting a supplier debit note on upload', () => {
 
   // Owner, 9 Oct 2026: what each document still owes carries the rial sign, before the figure.
   it('shows what each document still owes with the rial sign before the figure', async () => {
+    billRows = [BILL, OPEN_DEBIT_NOTE]
     await uploadNote()
     for (const [row, figure] of [
       [await debitNoteRow(), '52.500'],
@@ -666,6 +698,26 @@ describe('a credit note correcting a supplier debit note on upload', () => {
       expect(amount.firstElementChild!.querySelector('svg')).not.toBeNull()
       expect(amount.textContent!.replace(/\s+/g, ' ')).toBe(`OMR ${figure}`)
     }
+  })
+
+  // Owner, 12 Oct 2026 (D5): a refused debit note read "Awaiting approval · 52.500 still owed".
+  it('says a refused debit note owes nothing, in the list and on the chosen card, in both languages', async () => {
+    await uploadNote()
+    const row = await debitNoteRow()
+    expect(row.textContent).toBe('MR-DN-0007Debit note · Refused · nothing owed')
+    expect(row.querySelector('svg')).toBeNull()
+    // A bill keeps its figure.
+    expect(screen.getByRole('button', { name: /MR-INV-8821/ }).textContent).toMatch(/still owed$/)
+
+    fireEvent.click(row)
+    const card = await screen.findByText('Refused · nothing owed')
+    expect(card.tagName).toBe('P')
+    expect(card.textContent).not.toMatch(/unpaid|due/)
+
+    await act(async () => {
+      await i18n.changeLanguage('ar')
+    })
+    expect(await screen.findByText('مرفوض · لا شيء مستحق')).toBeTruthy()
   })
 
   it("sends the chosen debit note's id as the bill the credit corrects", async () => {
@@ -696,6 +748,33 @@ describe('a credit note correcting a supplier debit note on upload', () => {
     const confirmed = bodyOf(calls('POST', CONFIRM)[0])
     expect(confirmed.relatedBillId).toBe(DEBIT_NOTE_ID)
     expect(confirmed.holdAsCredit).toBe(true)
+  })
+
+  // Owner, 12 Oct 2026: a credit note on a debit note out of input VAT is left out with it.
+  it('claims nothing on a debit note out of input VAT, and reduces nothing', async () => {
+    billRows = [
+      BILL,
+      {
+        ...DEBIT_NOTE,
+        inputVat: {
+          counted: false,
+          countedOn: null,
+          reason: 'DEBIT_NOTE_NOT_ACCEPTED',
+          vatAmountOmr: null,
+        },
+      },
+    ]
+    await uploadNote()
+    fireEvent.click(await debitNoteRow())
+    const figure = async (label: string) => {
+      const value = (await screen.findByText(label)).nextElementSibling!
+      const copy = value.cloneNode(true) as Element
+      copy.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+      return (copy.textContent ?? '').trim()
+    }
+    await waitFor(async () => expect(await figure('Input VAT claimed on MR-DN-0007')).toBe('—'))
+    expect(await figure('Reduced by this note')).toMatch(/^−0\.000$/)
+    expect(await figure('Reclaimable amount')).toBe('—')
   })
 
   it('closes a refused debit note: no choice, one line instead, in both languages', async () => {
@@ -771,9 +850,9 @@ describe('a credit note correcting a supplier debit note on upload', () => {
       const shown = english.cloneNode(true) as Element
       shown.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
       // A 105.000 credit on a debit note that owes 52.500: no more than it still owes comes off,
-      // as for a bill (E2E 10 Oct, F-2).
+      // as for a bill (E2E 10 Oct, F-2), and the rest is said to stay as credit (C10).
       expect(shown.textContent).toMatch(
-        /^The debit note is unpaid, so you simply pay\s+52\.500 less\.$/,
+        /^The debit note is unpaid, so you simply pay\s+52\.500 less\. The other\s+52\.500 stays as credit for a later bill\.$/,
       )
       expect(screen.getByRole('radio', { name: /Hold it as credit/ })).toBeTruthy()
       expect(screen.queryByText(/This debit note was refused/)).toBeNull()
@@ -798,7 +877,7 @@ describe('a credit note correcting a supplier debit note on upload', () => {
       const shownAr = arabic.cloneNode(true) as Element
       shownAr.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
       expect(shownAr.textContent).toMatch(
-        /^الإشعار المدين غير مدفوع، لذا تدفع أقل بمقدار\s+52\.500 فحسب\.$/,
+        /^الإشعار المدين غير مدفوع، لذا تدفع أقل بمقدار\s+52\.500 فحسب\. ويبقى الباقي\s+52\.500 رصيدًا لفاتورة لاحقة\.$/,
       )
     })
 
@@ -894,5 +973,36 @@ describe('a credit note correcting a supplier debit note on upload', () => {
     expect(await screen.findByRole('button', { name: /MR-INV-8821/ })).toBeTruthy()
     expect(screen.queryByRole('button', { name: /MR-DN-0007/ })).toBeNull()
     expect(screen.queryByText(/Debit note · /)).toBeNull()
+  })
+})
+
+// Owner, D2 (12 Oct 2026): a chosen bill without a due date reads "no due date", never "due —".
+describe('the chosen bill without a due date', () => {
+  const card = () =>
+    screen.getByText(
+      (_, element) =>
+        element?.tagName === 'P' && /(unpaid|غير مدفوع) · /.test(element.textContent ?? ''),
+    )
+  const visible = (element: Element) => {
+    const copy = element.cloneNode(true) as Element
+    copy.querySelectorAll('.sr-only').forEach((hidden) => hidden.remove())
+    return (copy.textContent ?? '').replace(/\s+/g, ' ').trim()
+  }
+
+  it('says "no due date"', async () => {
+    billRows = [{ ...BILL, dueDate: null }]
+    await uploadNote()
+    await chooseBill()
+    expect(visible(card())).toMatch(/^Approved · 315\.000 unpaid · no due date$/)
+    expect(visible(card())).not.toContain('—')
+  })
+
+  it('says "no due date" in Arabic', async () => {
+    billRows = [{ ...BILL, dueDate: null }]
+    await uploadNote()
+    await chooseBill()
+    await i18n.changeLanguage('ar')
+    await waitFor(() => expect(visible(card())).toMatch(/· بلا تاريخ استحقاق$/))
+    expect(visible(card())).toMatch(/^معتمدة · /)
   })
 })

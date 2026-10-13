@@ -49,9 +49,10 @@ import {
   debitActivity,
   debitEffect,
   debitNoteChecks,
+  linkedBillDetailKey,
 } from '../../lib/supplierDebitNotes'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { lineVatOf } from '../../lib/billDetail'
+import { inputVatNoteKey, lineVatOf } from '../../lib/billDetail'
 import { formatAmount, formatDate, formatInstant } from '../../lib/format'
 import { saveDownload } from '../../lib/supplierRecord'
 import { can, useSession } from '../../lib/session/session'
@@ -209,6 +210,7 @@ function DebitNoteDetail() {
   }
 
   const bill = against.bill
+  const inputVatNote = inputVatNoteKey(own?.bill.inputVat)
   const total = row.totalIncludingVat ?? 0
   const effect = debitEffect(bill, total, row.status === 'REFUSED')
   const billNumber = bill?.supplierBillNumber ?? row.relatesTo?.billNumber ?? null
@@ -258,7 +260,7 @@ function DebitNoteDetail() {
       title: billNumber,
       kind: t('supplierDebitNotes.detail.linked.theBill'),
       detail: bill
-        ? t('supplierDebitNotes.detail.linked.billDetail', {
+        ? t(linkedBillDetailKey('supplierDebitNotes', bill), {
             date: bill.issueDate ? fmt.date(bill.issueDate) : '',
             state: t(billStateKey(bill)),
             due: bill.dueDate ? fmt.date(bill.dueDate) : '',
@@ -440,7 +442,10 @@ function DebitNoteDetail() {
                   ? t('supplierCreditNotes.detail.dueOn', { date: fmt.date(bill.dueDate) })
                   : row.dueDate
                     ? t('supplierCreditNotes.detail.dueOn', { date: fmt.date(row.dueDate) })
-                    : t('supplierCreditNotes.detail.noBillTile'),
+                    : // A bill is named but no date is known: never "No bill yet" (owner, C9).
+                      billNumber
+                      ? t('supplierDebitNotes.detail.afterThisNote')
+                      : t('supplierCreditNotes.detail.noBillTile'),
               },
             ]}
           />
@@ -612,7 +617,9 @@ function DebitNoteDetail() {
                           bill: billNumber ?? t('supplierNotes.thisBill'),
                         }),
                       )
-                    : t('supplierDebitNotes.reverseOnly', { status: t(STATUS_LABEL[row.status]) })}
+                    : row.status === 'REFUSED'
+                      ? t('supplierDebitNotes.reverseOnlyRefused')
+                      : t('supplierDebitNotes.reverseOnlyAccepted')}
             </p>
 
             {canDecide ? (
@@ -764,6 +771,9 @@ function DebitNoteDetail() {
               ]}
             />
             <InfoNote>{t('supplierDebitNotes.detail.vatNote')}</InfoNote>
+            {/* Said only when the server says the note is out of input VAT (absent on an older
+                server): "Not counted in VAT until you accept it." */}
+            {inputVatNote ? <InfoNote plain>{t(inputVatNote)}</InfoNote> : null}
           </NoteCard>
 
           <NoteCard title={t('supplierDebitNotes.detail.supplierTitle')}>

@@ -5727,14 +5727,14 @@
       "otherCurrencies_few": "{{count}} فاتورة بعملة أخرى غير مشمولة في إجماليات {{currency}}.",
       "otherCurrencies_many": "{{count}} فاتورة بعملة أخرى غير مشمولة في إجماليات {{currency}}.",
       "otherCurrencies_other": "{{count}} فاتورة بعملة أخرى غير مشمولة في إجماليات {{currency}}.",
-      "payableDisputed_one": "{{amount}} متنازع عليها على فاتورة مرفوضة واحدة",
-      "payableDisputed_two": "{{amount}} متنازع عليها على فاتورتين مرفوضتين",
-      "payableDisputed_few": "{{amount}} متنازع عليها على {{count}} فواتير مرفوضة",
-      "payableDisputed_many": "{{amount}} متنازع عليها على {{count}} فاتورة مرفوضة",
-      "payableDisputed_other": "{{amount}} متنازع عليها على {{count}} فاتورة مرفوضة",
+      "payableDisputed_one": "{{amount}} متنازع عليها في إشعار مدين مرفوض واحد",
+      "payableDisputed_two": "{{amount}} متنازع عليها في إشعارين مدينين مرفوضين",
+      "payableDisputed_few": "{{amount}} متنازع عليها في {{count}} إشعارات مدينة مرفوضة",
+      "payableDisputed_many": "{{amount}} متنازع عليها في {{count}} إشعار مدين مرفوض",
+      "payableDisputed_other": "{{amount}} متنازع عليها في {{count}} إشعار مدين مرفوض",
       "attentionDrafts_zero": "{{count}} مرفوعة للتأكيد",
       "otherCurrencies_zero": "{{count}} فاتورة بعملة أخرى غير مشمولة في إجماليات {{currency}}.",
-      "payableDisputed_zero": "{{amount}} متنازع عليها على {{count}} فاتورة مرفوضة",
+      "payableDisputed_zero": "{{amount}} متنازع عليها في {{count}} إشعار مدين مرفوض",
       "payableAwaitingDecision_zero": "بانتظار قرارك: {{amount}} على {{count}} إشعار مدين",
       "payableAwaitingDecision_one": "بانتظار قرارك: {{amount}} على إشعار مدين واحد",
       "payableAwaitingDecision_two": "بانتظار قرارك: {{amount}} على إشعارين مدينين",
@@ -5869,7 +5869,9 @@
       "rejected": "مرفوضة",
       "inPaymentRun": "ضمن دفعة سداد",
       "inPaymentRunRef": "ضمن دفعة السداد {{run}}",
-      "paid": "مدفوعة"
+      "paid": "مدفوعة",
+      "partPaid": "مدفوعة جزئيًا",
+      "refusedClosed": "مرفوض · أُغلق بإشعار دائن"
     },
     "notice": {
       "drafts_one": "فاتورة واحدة مرفوعة أو ممسوحة بانتظار تفاصيلها، وستظهر هنا بعد تأكيدها.",
@@ -5950,7 +5952,8 @@
       "dueOn": "تستحق {{date}}",
       "automatically": "تلقائيًا",
       "arrivedVia": "{{date}} · {{source}}",
-      "notYet": "ليس بعد"
+      "notYet": "ليس بعد",
+      "paidOf": "دُفع OMR {{paid}} من OMR {{total}}"
     },
     "match": {
       "ordered": "المطلوب",
@@ -6196,7 +6199,14 @@
       "refused": {
         "dateBeforeOverpayment": "لا يمكن أن يسبق تاريخ الاسترداد تاريخ الدفعة التي زادت على مبلغ هذه الفاتورة.",
         "inRun": "هذه الفاتورة ضمن دفعة السداد {{run}}. أخرجها من الدفعة أولًا."
-      }
+      },
+      "refundedBySupplier": "ردّه المورّد OMR {{amount}}",
+      "debitNotesOnceAccepted": "تظهر إشعارات المدين هنا بعد قبولها."
+    },
+    "inputVat": {
+      "debitNoteNotAccepted": "لا تُحتسب في ضريبة القيمة المضافة حتى تقبلها.",
+      "rejected": "لا تُحتسب في ضريبة القيمة المضافة ما دامت مرفوضة.",
+      "noSupplierTaxInvoice": "لا تُحتسب في ضريبة القيمة المضافة: لا توجد فاتورة ضريبية من المورّد بعد."
     }
   },
   "uploadBill": {
@@ -6924,7 +6934,13 @@
       "topSupplier": "أكثر المورّدين إصدارًا",
       "topSupplierMeta": "{{count}} إشعارات",
       "noTopSupplier": "لا يوجد مورّد بارز",
-      "noTopSupplierMeta": "لم يرسل أي مورّد إشعارًا دائنًا بعد"
+      "noTopSupplierMeta": "لم يرسل أي مورّد إشعارًا دائنًا بعد",
+      "stillUsableMeta_zero": "لا إشعارات دائنة فيها رصيد متبقٍ للاستخدام",
+      "stillUsableMeta_one": "إشعار دائن واحد فيه رصيد متبقٍ للاستخدام",
+      "stillUsableMeta_two": "إشعاران دائنان فيهما رصيد متبقٍ للاستخدام",
+      "stillUsableMeta_few": "{{count}} إشعارات دائنة فيها رصيد متبقٍ للاستخدام",
+      "stillUsableMeta_many": "{{count}} إشعارًا دائنًا فيه رصيد متبقٍ للاستخدام",
+      "stillUsableMeta_other": "{{count}} إشعار دائن فيه رصيد متبقٍ للاستخدام"
     },
     "tabs": {
       "all": "الكل",
@@ -7070,7 +7086,8 @@
       "savedClosesRefusedDebitNote": "حُفظ. يُغلق هذا الرصيد الإشعار المدين المرفوض {{note}}، وما يزيد يبقى رصيدًا.",
       "refusedDebitNoteCloses": "هذا الإشعار المدين مرفوض، لذا يُغلقه هذا الرصيد. وما يزيد يبقى رصيدًا.",
       "setNowNoteDebitNote": "الإشعار المدين غير مدفوع، لذا تدفع أقل بمقدار OMR {{amount}} فحسب.",
-      "saveAndSetDebitNote": "احفظ واخصم من الإشعار المدين"
+      "saveAndSetDebitNote": "احفظ واخصم من الإشعار المدين",
+      "restStaysAsCredit": "ويبقى الباقي OMR {{amount}} رصيدًا لفاتورة لاحقة."
     },
     "detail": {
       "creditNotePeppol": "إشعار دائن · Peppol",
@@ -7138,7 +7155,10 @@
         "original": "الملف الأصلي",
         "originalDetail": "الملف الأصلي كما أرسله المورّد",
         "billDetail": "استُلمت في {{date}} · {{state}} · تستحق في {{due}}",
-        "billNotOnFile": "مذكورة على الإشعار، وليست بين فواتير هذا المورّد"
+        "billNotOnFile": "مذكورة على الإشعار، وليست بين فواتير هذا المورّد",
+        "billDetailNoDue": "استُلمت في {{date}} · {{state}} · بلا تاريخ استحقاق",
+        "billStateDue": "{{state}} · تستحق في {{due}}",
+        "billStateNoDue": "{{state}} · بلا تاريخ استحقاق"
       },
       "activityTitle": "النشاط",
       "activity": {
@@ -7164,13 +7184,14 @@
         "settledRefunded": "سُجّل استرداد",
         "settledRefundedDetail": "OMR {{amount}} دُفع في {{date}} · سُجّل {{when}}",
         "settledRefundedRef": "OMR {{amount}} دُفع في {{date}} · المرجع {{reference}} · سُجّل {{when}}",
-        "arrivedNoBill": "صدر في {{date}} · لم تُذكر فاتورة"
+        "arrivedNoBill": "صدر في {{date}} · لم تُذكر فاتورة",
+        "settledAppliedTo": "استُخدم مقابل {{bill}}"
       },
       "decisionTaken": "{{what}}",
       "supplierName": "الاسم",
       "supplierVat": "الرقم الضريبي",
       "creditToUse": "رصيد OMR {{amount}} للاستخدام",
-      "paidLessTitle": "دفعت أقل بمقدار OMR {{amount}}",
+      "paidLessTitle": "دفعتَ أقل بمقدار OMR {{amount}}",
       "refundedTitle": "استُرد لك OMR {{amount}}",
       "refundedBody": "أعاد المورّد الرصيد بدل خصمه من فاتورة.",
       "paidLessBody": "خُصم الرصيد من {{bill}} ونزل مما كنت تدين به.",
@@ -7184,7 +7205,11 @@
       "lineBilledOn": "فُوتر على {{bill}}",
       "decisionNoteNoBill": "اختر الفاتورة التي يخفّضها هذا الرصيد، أو احتفظ به لفاتورة لاحقة، أو سجّل استردادًا.",
       "setAgainstAnother": "خصمه من فاتورة",
-      "partlyUsedBody": "استُخدم جزء من هذا الرصيد أو استُرد بالفعل. اخصم المتبقي من فاتورة أخرى، أو احتفظ به لفاتورة لاحقة، أو سجّل استردادًا."
+      "partlyUsedBody": "استُخدم جزء من هذا الرصيد أو استُرد بالفعل. اخصم المتبقي من فاتورة أخرى، أو احتفظ به لفاتورة لاحقة، أو سجّل استردادًا.",
+      "closesRefusedTitle": "يُغلق إشعار المدين المرفوض {{number}}.",
+      "closesRefusedBody": "لم يكن عليه أي مبلغ مستحق.",
+      "billOnHold": "{{bill}} قيد الانتظار. أفرِج عنها قبل خصم هذا الرصيد منها.",
+      "afterThisNote": "بعد هذا الإشعار"
     },
     "source": {
       "peppol": "وردت عبر Peppol",
@@ -7455,7 +7480,10 @@
         "receiptDetail": "وقّع عليه يوسف البلوشي الساعة ٠٧:٤٠ · ٢٥ يوليو",
         "rateCardDetail": "٩٦٫٠٠٠ ريال ثابتة لكل تسليم، ٠٦:٠٠–١٨:٠٠، دون رسوم إضافية",
         "billDetail": "استُلمت في {{date}} · {{state}} · تستحق في {{due}}",
-        "billNotOnFile": "مذكورة على الإشعار، وليست بين فواتير هذا المورّد"
+        "billNotOnFile": "مذكورة على الإشعار، وليست بين فواتير هذا المورّد",
+        "billDetailNoDue": "استُلمت في {{date}} · {{state}} · بلا تاريخ استحقاق",
+        "billStateDue": "{{state}} · تستحق في {{due}}",
+        "billStateNoDue": "{{state}} · بلا تاريخ استحقاق"
       },
       "activityTitle": "النشاط",
       "activity": {
@@ -7491,7 +7519,8 @@
       "reasonRecorded": "يُسجَّل سببك على الإشعار. لا يُرسل إلى المورّد من هنا.",
       "rateCardMissing": "لا بطاقة أسعار مسجلة لهذا المورّد بعد. حين تُسجَّل، يُقرأ الرسم مقابلها هنا.",
       "acceptedBodyNoDate": "قُبل الرسم وهو مستحق.",
-      "billStillOwes": "المتبقي على الفاتورة"
+      "billStillOwes": "المتبقي على الفاتورة",
+      "afterThisNote": "بعد هذا الإشعار"
     },
     "status": {
       "UNCHECKED": "لم تُراجع بعد",
@@ -7577,7 +7606,9 @@
       "summaryBeforeAccept_two": "{{count}} أمور تستحق النظر قبل القبول.",
       "summaryBeforeAccept_few": "{{count}} أمور تستحق النظر قبل القبول.",
       "summaryBeforeAccept_many": "{{count}} أمور تستحق النظر قبل القبول."
-    }
+    },
+    "reverseOnlyRefused": "مرفوض بالفعل. لا يمكن تسجيل سوى القرار المعاكس.",
+    "reverseOnlyAccepted": "مقبول بالفعل. لا يمكن تسجيل سوى القرار المعاكس."
   },
   "expenditureReminders": {
     "title": "التذكيرات",
@@ -9507,7 +9538,8 @@
     "unusedCredits_few": "{{count}} إشعارات دائنة لم تُستخدم بعد",
     "unusedCredits_many": "{{count}} إشعارًا دائنًا لم يُستخدم بعد",
     "creditUsedOn": "رصيد مستخدم في {{bill}}",
-    "alreadyCounted": "احتُسب عند دفع مبلغ زائد على الفاتورة"
+    "alreadyCounted": "احتُسب عند دفع مبلغ زائد على الفاتورة",
+    "lessUnusedCredit": "يُخصم رصيد غير مستخدم OMR {{credit}} · ودفع بزيادة OMR {{overpaid}}"
   },
   "activity": {
     "title": "TDD وجهاز الضرائب",
@@ -11761,7 +11793,36 @@
       "MAPPING_CERTIFICATION": "اعتماد الربط",
       "ERP_SOURCE_DOCUMENT": "مستند ERP",
       "ERP_EXTRACTION_RUN": "عملية جمع",
-      "ERP_ENTITLEMENT": "تفعيل ERP"
+      "ERP_ENTITLEMENT": "تفعيل ERP",
+      "TENANT": "المؤسسة",
+      "CUSTOMER": "عميل",
+      "CUSTOMER_IMPORT": "استيراد عملاء",
+      "CUSTOMER_EXPORT": "تصدير عملاء",
+      "CUSTOMER_LOGO": "شعار عميل",
+      "COUNTERPARTY_DOCUMENT": "مستند عميل أو مورد",
+      "SUPPLIER_IMPORT": "استيراد موردين",
+      "OAUTH_CLIENT": "عميل واجهة",
+      "REFRESH_TOKEN": "رمز دخول",
+      "MTLS_PRINCIPAL": "شهادة عميل",
+      "ROLE": "دور",
+      "USER_INVITATION": "دعوة",
+      "USER_ROLE_ASSIGNMENT": "إسناد دور",
+      "PLATFORM_ROLE_ASSIGNMENT": "دور في فوتر",
+      "TENANT_POLICY": "سياسة تسجيل الدخول",
+      "BANK_BENEFICIARY": "حساب بنكي",
+      "BILLING_SETTINGS": "إعدادات الفوترة",
+      "SUBSCRIPTION_BILL": "فاتورة اشتراك",
+      "SUBSCRIPTION_PAYMENT": "دفع اشتراك",
+      "SUBSCRIPTION_PLAN": "الباقة",
+      "WEBHOOK_ENDPOINT": "خطاف ويب",
+      "INVOICE": "فاتورة",
+      "INVOICE_BATCH": "دفعة فواتير",
+      "PAYMENT_REMINDER_SCHEDULE": "جدول التذكيرات",
+      "SELF_BILLING_AGREEMENT": "اتفاقية فوترة ذاتية",
+      "PRIVACY_REQUEST": "طلب خصوصية",
+      "HTTP_REQUEST": "طلب",
+      "AS4_MESSAGE": "رسالة Peppol",
+      "IMPERSONATION": "وصول الدعم"
     },
     "event": {
       "other": "حدث مسجّل",
@@ -11798,7 +11859,146 @@
       "MappingCertificationStarted": "بدأ اعتماد الربط",
       "MappingDraftSaved": "حُفظت مسودة الربط",
       "MappingProfileDeactivated": "أُلغي تفعيل الربط",
-      "MappingProfileStored": "حُفظ الربط"
+      "MappingProfileStored": "حُفظ الربط",
+      "AllOtherSessionsRevokedByUser": "سُجّل الخروج من كل الجلسات الأخرى",
+      "As4TargetedTransmissionCompleted": "اكتمل إرسال Peppol موجّه",
+      "As4TargetedTransmissionRequested": "طُلب إرسال Peppol موجّه",
+      "AuthoredInvoiceDispatchRecovered": "استُعيد إرسال فاتورة",
+      "BankBeneficiaryConfirmed": "أُكّد حساب بنكي",
+      "BankBeneficiaryProposed": "اقتُرح حساب بنكي",
+      "BankBeneficiaryRetired": "أُوقف حساب بنكي نهائيًا",
+      "BillingSettingsChanged": "تغيّرت إعدادات الفوترة",
+      "CertificationInvoiceIssued": "أُصدرت فاتورة اعتماد",
+      "CertificationSelfBillingAgreementActivated": "فُعّلت اتفاقية فوترة ذاتية للاعتماد",
+      "CertificationSelfBillingAgreementOpened": "فُتحت اتفاقية فوترة ذاتية للاعتماد",
+      "CertificationSelfBillingSellerVerified": "تُحقق من بائع الفوترة الذاتية للاعتماد",
+      "CsrfRejected": "رُفض طلب في فحص الأمان",
+      "CustomerArchived": "أُرشف عميل",
+      "CustomerCreated": "أُضيف عميل",
+      "CustomerDocumentLegalHoldPlaced": "وُضع مستند تحت الحجز القانوني",
+      "CustomerDocumentLegalHoldReleased": "رُفع الحجز القانوني عن مستند",
+      "CustomerExportCompleted": "صُدّر العملاء",
+      "CustomerImportCompleted": "اكتمل استيراد العملاء",
+      "CustomerImportFailed": "فشل استيراد العملاء",
+      "CustomerImportRejected": "رُفض استيراد العملاء",
+      "CustomerImportStarted": "بدأ استيراد العملاء",
+      "CustomerLogoAttachRejected": "رُفض شعار عميل",
+      "CustomerLogoUploadRejected": "رُفض رفع شعار عميل",
+      "CustomerLogoUploaded": "رُفع شعار عميل",
+      "CustomerRestored": "استُعيد عميل",
+      "CustomerUpdated": "عُدّل عميل",
+      "DeviceEnrolled": "أُضيف جهاز",
+      "DeviceRevoked": "أُزيل جهاز",
+      "DeviceRevokedByAdmin": "أزال مسؤول جهازًا",
+      "DeviceTransferChallengeRequested": "طُلب رمز نقل جهاز",
+      "EmailVerificationResent": "أُعيد إرسال رسالة التحقق",
+      "ErpExtractionRecoveryFailed": "فشلت استعادة الجمع",
+      "ErpExtractionRecoveryRequested": "طُلبت استعادة الجمع",
+      "ErpExtractionRecoverySucceeded": "استُعيد الجمع",
+      "IdentityEmailVerified": "تُحقق من البريد الإلكتروني",
+      "IdentityInvitationAccepted": "قُبلت دعوة",
+      "IdentityInvitationIssued": "أُرسلت دعوة",
+      "IdentityInvitationResent": "أُعيد إرسال دعوة",
+      "IdentityInvitationRevoked": "سُحبت دعوة",
+      "IdentityPasswordReset": "أُعيد تعيين كلمة المرور",
+      "IdentityRoleAssigned": "مُنح مستخدم دورًا",
+      "IdentityRoleCreated": "أُنشئ دور",
+      "IdentityRoleDeleted": "حُذف دور",
+      "IdentityRoleRevoked": "سُحب دور من مستخدم",
+      "IdentityRoleUpdated": "عُدّل دور",
+      "IdentitySelfServiceSignup": "تم التسجيل",
+      "IdentitySelfServiceSignupDuplicate": "محاولة تسجيل ببريد مستخدم من قبل",
+      "IdentitySignupAccountActivated": "فُعّل الحساب",
+      "IdentitySignupEmailVerified": "تُحقق من بريد التسجيل",
+      "IdentitySignupOnboardingResumed": "استُؤنف التسجيل",
+      "IdentityUserCreated": "أُضيف مستخدم",
+      "IdentityUserDeactivated": "أُوقف مستخدم",
+      "IdentityUserLocked": "قُفل مستخدم",
+      "IdentityUserReactivated": "أُعيد تفعيل مستخدم",
+      "IdentityUserUnlocked": "فُتح قفل مستخدم",
+      "IdentityUserUpdated": "عُدّل مستخدم",
+      "ImpersonationRefused": "رُفض وصول الدعم",
+      "ImpersonationRequested": "طُلب وصول الدعم",
+      "ImpersonationStarted": "بدأ وصول الدعم",
+      "InvoiceBatchCompleted": "اكتملت دفعة فواتير",
+      "InvoiceBatchCompletedWithErrors": "اكتملت دفعة فواتير مع أخطاء",
+      "InvoiceBatchProcessingStarted": "بدأت معالجة دفعة فواتير",
+      "InvoiceBatchQueued": "أُدرجت دفعة فواتير في الانتظار",
+      "LoginFailed": "فشل تسجيل الدخول",
+      "LoginSucceeded": "تم تسجيل الدخول",
+      "MfaChallengeSucceeded": "تأكد رمز الدخول",
+      "MfaDisabled": "أُوقف الدخول بخطوتين",
+      "MfaEnrolled": "ضُبط الدخول بخطوتين",
+      "MfaReplaced": "استُبدل الدخول بخطوتين",
+      "MfaReplacementStepUp": "تأكدت الهوية لاستبدال الدخول بخطوتين",
+      "MtlsPrincipalDisabled": "أُوقفت شهادة عميل",
+      "MtlsPrincipalRegistered": "سُجّلت شهادة عميل",
+      "OAuthClientDisabled": "أُوقف عميل واجهة",
+      "OAuthClientSecretRotated": "استُبدل سر عميل واجهة",
+      "OAuthRefreshTokenReplayDetected": "اكتُشف إعادة استخدام رمز تحديث للواجهة",
+      "OAuthRefreshTokenRotated": "جُدّد رمز تحديث للواجهة",
+      "OAuthTokenIssued": "أُصدر رمز وصول للواجهة",
+      "OAuthTokenRevoked": "أُلغي رمز وصول للواجهة",
+      "PaymentReminderScheduleReplaced": "تغيّر جدول تذكيرات الدفع",
+      "PeppolTestAuthorityBootstrapped": "ضُبطت جهة اختبار Peppol",
+      "PeppolTestOperatorEmailRecovered": "استُعيد بريد مشغّل اختبار Peppol",
+      "PeppolTestTenantAdministratorProvisioned": "أُنشئ مسؤول اختبار Peppol",
+      "PeppolTestTenantCreated": "أُنشئت مؤسسة اختبار Peppol",
+      "PlatformBootstrapGrantConsumed": "استُخدم وصول المسؤول الأول",
+      "PlatformBootstrapGrantIssued": "أُصدر وصول المسؤول الأول",
+      "PlatformCompanyOnboarded": "أضاف فوتر الشركة",
+      "PlatformOperatorDeactivated": "أُوقف مشغّل فوتر",
+      "PlatformOperatorEmailChangeRequested": "طُلب تغيير بريد مشغّل فوتر",
+      "PlatformOperatorEmailChanged": "تغيّر بريد مشغّل فوتر",
+      "PlatformOperatorEmailRecovered": "استُعيد بريد مشغّل فوتر",
+      "PlatformOperatorLocked": "قُفل مشغّل فوتر",
+      "PlatformOperatorMfaReset": "أُعيد ضبط الدخول بخطوتين لمشغّل فوتر",
+      "PlatformOperatorReactivated": "أُعيد تفعيل مشغّل فوتر",
+      "PlatformOperatorUnlocked": "فُتح قفل مشغّل فوتر",
+      "PlatformRoleGranted": "مُنح دور في فوتر",
+      "PlatformRoleRevoked": "سُحب دور في فوتر",
+      "PlatformTenantPlanChanged": "غيّر فوتر الباقة",
+      "PrivacyDataExported": "صُدّرت البيانات الشخصية",
+      "PrivacyErasureRequested": "طُلب محو البيانات الشخصية",
+      "RefreshTokenReplayDetected": "اكتُشف إعادة استخدام رمز دخول",
+      "RefreshTokenRotated": "جُدّد تسجيل الدخول",
+      "SessionRevokedByAdmin": "سجّل مسؤول خروج جلسة",
+      "SessionRevokedByUser": "سُجّل الخروج من جلسة",
+      "SignupFinalSubmissionRequested": "أُرسل التسجيل",
+      "SignupSubmissionReopened": "أُعيد فتح التسجيل للتعديل",
+      "SignupSubmittedForReview": "أُرسل التسجيل للمراجعة",
+      "SmpParticipantReRegistrationQueued": "أُدرج تجديد تسجيل Peppol في الانتظار",
+      "SmpParticipantReRegistrationSkipped": "تُخطي تجديد تسجيل Peppol",
+      "SmpTenantVerifiedSubmissionReleased": "أُطلق تسجيل Peppol المُتحقق منه",
+      "SubscriptionBillIssued": "أُصدرت فاتورة اشتراك",
+      "SubscriptionBillSuperseded": "استُبدلت فاتورة اشتراك",
+      "SubscriptionBillVoided": "أُلغيت فاتورة اشتراك",
+      "SubscriptionCardCheckoutClosed": "أُغلق الدفع بالبطاقة",
+      "SubscriptionCardPaymentDuplicateCollection": "حُصّل دفع بالبطاقة مرتين",
+      "SubscriptionCardPaymentHeld": "عُلّق دفع بالبطاقة",
+      "SubscriptionCardPaymentRecovered": "استُعيد دفع بالبطاقة",
+      "SubscriptionCardPaymentReleased": "أُفرج عن دفع بالبطاقة",
+      "SubscriptionCardPaymentReversed": "عُكس دفع بالبطاقة",
+      "SubscriptionPaidPeriodExtended": "مُدّدت الفترة المدفوعة",
+      "SubscriptionPaymentCashReceiptRecorded": "سُجّل إيصال نقدي",
+      "SubscriptionPaymentConfirmed": "تأكد دفع الاشتراك",
+      "SubscriptionPaymentProofRead": "فُتح إثبات الدفع",
+      "SubscriptionPaymentRejected": "رُفض دفع الاشتراك",
+      "SubscriptionPaymentSecondApproved": "اعتُمد دفع الاشتراك مرة ثانية",
+      "SubscriptionPaymentSubmitted": "أُرسل دفع الاشتراك",
+      "SubscriptionPaymentVerified": "تُحقق من دفع الاشتراك",
+      "SubscriptionPaymentWithdrawn": "سُحب دفع الاشتراك",
+      "SubscriptionPlanAssigned": "عُيّنت الباقة",
+      "SubscriptionPlanChanged": "تغيّرت الباقة",
+      "SubscriptionTrialException": "مُددت التجربة استثناءً",
+      "SubscriptionTrialStarted": "بدأت التجربة",
+      "TenantIdentityPolicyEnforced": "طُبقت سياسة تسجيل الدخول",
+      "TenantIdentityPolicyUpdated": "تغيّرت سياسة تسجيل الدخول",
+      "UserReactivationRefused": "رُفضت إعادة تفعيل مستخدم",
+      "WebhookEndpointCreated": "أُضيف خطاف ويب",
+      "WebhookEndpointDeleted": "أُزيل خطاف ويب",
+      "WebhookSecretRotated": "استُبدل سر خطاف ويب",
+      "WebhookTestRequested": "أُرسل اختبار خطاف ويب"
     },
     "notAvailable": "غير متاح بعد",
     "exportUnavailable": "تصدير السجل كملف PDF غير متاح بعد.",
@@ -21013,7 +21213,8 @@
       "30": "تحويل بنكي",
       "48": "بطاقة",
       "68": "دفع إلكتروني"
-    }
+    },
+    "netTerm": "صافي {{count}} يومًا"
   },
   "selfBillDetail": {
     "breadcrumbSelfBilled": "الفوترة الذاتية",
@@ -21220,7 +21421,8 @@
       "onHold": "قيد الانتظار",
       "rejected": "مرفوضة",
       "inPaymentRun": "في دفعة سداد",
-      "paid": "مدفوعة"
+      "paid": "مدفوعة",
+      "refusedClosed": "مرفوض · أُغلق بإشعار دائن"
     },
     "activity": {
       "arrivedPeppol": "وصل الإشعار الدائن عبر بيبول",
@@ -21250,7 +21452,9 @@
     "billChosenByHand": "اختيرت يدويًا. تحقق منها مقابل المرجع المطبوع على الملف.",
     "findBill": "أي فاتورة",
     "findBillPlaceholder": "ابحث برقم الفاتورة",
-    "pickSupplierFirst": "اختر المورّد أولًا"
+    "pickSupplierFirst": "اختر المورّد أولًا",
+    "refusedNothingOwed": "مرفوض · لا شيء مستحق",
+    "billCardNoDue": "{{state}} · {{outstanding}} غير مدفوع · بلا تاريخ استحقاق"
   },
   "expenditureNotes": {
     "reason": {
@@ -22236,6 +22440,10 @@
       "void": "إبطال",
       "support": "الدعم"
     }
+  },
+  "documentParty": {
+    "building": "مبنى {{number}}",
+    "poBox": "صندوق البريد {{number}}"
   },
   "billDue": {
     "title": "فاتورة اشتراكك جاهزة",

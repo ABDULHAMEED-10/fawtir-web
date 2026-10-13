@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { Modal, Rial, RialMark, withRial } from '../../components/ui'
+import { Modal, Rial, RialMark, RialText, withRial } from '../../components/ui'
 import { BillStatusChip, OverpaidBy } from '../../components/bills'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
@@ -44,8 +44,10 @@ import {
   decisionNoteOf,
   decisionsOf,
   discountLineOf,
+  inputVatNoteKey,
   isSelfBilled,
   overpaidOf,
+  paidBeyondTotal,
   refusedDebitNote,
   singleVatRate,
   stepsOf,
@@ -236,10 +238,12 @@ function BillScreen() {
     () => loadSupplierOverview(supplierId!),
   )
 
-  // Where an overpaid bill's excess stands (kept as credit, still undecided), read only while the
-  // bill is overpaid. "Overpaid by" itself is on the bill's settlement.
+  // Where an overpaid bill's excess stands (kept as credit, still undecided, refunded), read while
+  // the bill is overpaid, and also once it was paid beyond its total, so a bill whose excess the
+  // supplier refunded in full still says so (P5). "Overpaid by" itself is on the bill's settlement.
   const overpaid = bill.read.status === 'ready' ? overpaidOf(bill.read.data) : 0
-  const overpaymentPath = overpaid > 0 ? billOverpaymentPath(id) : null
+  const paidBeyond = bill.read.status === 'ready' && paidBeyondTotal(bill.read.data)
+  const overpaymentPath = overpaid > 0 || paidBeyond ? billOverpaymentPath(id) : null
   const overpayment = useApiRead<BillOverpaymentDto>(overpaymentPath, () => loadBillOverpayment(id))
 
   // A success is held as its key, not its text: the notice stays on screen across a language
@@ -303,6 +307,7 @@ function BillScreen() {
   const decisions = decisionsOf(detail, (permission) => can(session, permission))
   const payable = canRecordPayment(detail, (permission) => can(session, permission))
   const selfBilled = isSelfBilled(detail)
+  const inputVatNote = inputVatNoteKey(row.inputVat)
   const original = billOriginalPath(detail)
   const orderNumber =
     row.match?.verdict !== 'NO_ORDER' ? (row.match?.purchaseOrderNumber ?? null) : null
@@ -499,7 +504,13 @@ function BillScreen() {
                       : 'font-medium text-text-quaternary',
                   ].join(' ')}
                 >
-                  {step.detail ? <StepDetail note={step.detail} /> : t('billDetail.steps.notYet')}
+                  {/* A step already passed with nothing more to say stays blank, never "Not yet":
+                      a bill paid without a payment run has still passed Scheduled (P3). */}
+                  {step.detail ? (
+                    <StepDetail note={step.detail} />
+                  ) : step.state === 'done' ? null : (
+                    t('billDetail.steps.notYet')
+                  )}
                 </span>
               </div>
             </Fragment>
@@ -612,6 +623,13 @@ function BillScreen() {
                   >
                     <dt className="text-sm font-medium text-text-tertiary">
                       {t(labelKey, values)}
+                      {/* "Not counted in VAT ..." under the VAT figure, only when the server says
+                          the document is out of input VAT; nothing from an older server. */}
+                      {labelKey !== 'billDetail.lines.net' && inputVatNote ? (
+                        <span className="mt-1 block text-xs font-medium leading-[1.2] text-text-quaternary">
+                          {t(inputVatNote)}
+                        </span>
+                      ) : null}
                     </dt>
                     <dd className="text-sm font-semibold text-text-secondary tabular-nums">
                       <span className="me-1">
@@ -1090,7 +1108,16 @@ function ComplianceText({ note }: { note: ComplianceNote }) {
 
 /** A step's detail: the source under "Arrived" is named through its own key. */
 function StepDetail({ note }: { note: Note }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  if (note.key === 'billDetail.steps.paidOf') {
+    const currency = String(note.values?.currency)
+    const money = (value: unknown) => formatAmount(Number(value), currency, i18n.language)
+    return (
+      <RialText>
+        {t(note.key, { paid: money(note.values?.paid), total: money(note.values?.total) })}
+      </RialText>
+    )
+  }
   if (note.key === 'billDetail.steps.arrivedVia') {
     return (
       <>
@@ -1499,6 +1526,8 @@ function PaymentTermsCard({
   const discountTaken = discountLineOf(detail)
   const overpaid = overpaidOf(detail)
   const kept = overpaid > 0 ? (overpayment?.keptAsCredit ?? 0) : 0
+  // What the supplier paid back of the excess, under Paid: Paid stays gross of it (P5).
+  const refunded = overpayment?.refunded ?? 0
   const rows: [string, string, string?][] = [
     [
       'billDetail.terms.due',
@@ -1548,14 +1577,27 @@ function PaymentTermsCard({
     <Card title={t('billDetail.terms.title')}>
       <dl className="flex flex-col gap-3">
         {rows.map(([label, value, tone]) => (
-          <div key={label} className="flex items-center justify-between gap-3">
-            <dt className="text-sm font-medium text-text-tertiary">{t(label)}</dt>
-            <dd
-              className={['text-end text-sm font-semibold', tone ?? 'text-text-primary'].join(' ')}
-            >
-              <RialInText text={value} />
-            </dd>
-          </div>
+          <Fragment key={label}>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-sm font-medium text-text-tertiary">{t(label)}</dt>
+              <dd
+                className={['text-end text-sm font-semibold', tone ?? 'text-text-primary'].join(
+                  ' ',
+                )}
+              >
+                <RialInText text={value} />
+              </dd>
+            </div>
+            {label === 'billDetail.payment.paid' && refunded > 0 ? (
+              <div>
+                <p className="text-sm font-medium text-text-tertiary">
+                  <RialText>
+                    {t('billDetail.overpaid.refundedBySupplier', { amount: money(refunded) })}
+                  </RialText>
+                </p>
+              </div>
+            ) : null}
+          </Fragment>
         ))}
       </dl>
       {/* "Overpaid by" (owner's answer 13, 8 Oct 2026), under what was paid and is outstanding;

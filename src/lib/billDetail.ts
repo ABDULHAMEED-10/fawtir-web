@@ -120,6 +120,10 @@ export function stepsOf(detail: BillDetailDto, format: DateFormat): BillStep[] {
   }
 
   const lastPayment = detail.payments.find((entry) => entry.entryType === 'PAYMENT')
+  // A part-paid bill says how far it has got: "Paid {paid} of {total}" (owner, 12 Oct 2026, P4).
+  // The amounts stay numbers here; the page writes them in the reader's language with the sign.
+  const total = settlement.billTotal ?? bill.totalIncludingVat
+  const partPaid = !paid && settlement.paidAmount > 0 && total !== null
   const paidStep: BillStep = {
     id: 'paid',
     labelKey: 'billDetail.steps.paid',
@@ -128,9 +132,14 @@ export function stepsOf(detail: BillDetailDto, format: DateFormat): BillStep[] {
       ? lastPayment?.paymentDate
         ? { key: 'billDetail.steps.paidOn', values: { date: format.day(lastPayment.paymentDate) } }
         : null
-      : settlement.dueDate
-        ? { key: 'billDetail.steps.dueOn', values: { date: format.day(settlement.dueDate) } }
-        : null,
+      : partPaid
+        ? {
+            key: 'billDetail.steps.paidOf',
+            values: { paid: settlement.paidAmount, total, currency: bill.currencyCode },
+          }
+        : settlement.dueDate
+          ? { key: 'billDetail.steps.dueOn', values: { date: format.day(settlement.dueDate) } }
+          : null,
   }
 
   // A refused debit note is not owed and is never scheduled or paid (unless it already was): the
@@ -527,6 +536,22 @@ function activityKey(kind: string): string {
 }
 
 /** A self-billed bill: this company's own document, issued on the supplier's behalf. */
+/**
+ * The "Not counted in VAT" caption for a document the server leaves out of input VAT, or null.
+ * Only the three reasons with approved wording say anything (owner, 12 Oct 2026); any other
+ * reason, a counted document and a server that does not send `inputVat` say nothing.
+ */
+export function inputVatNoteKey(inputVat: BillRowDto['inputVat'] | null | undefined): string | null {
+  if (!inputVat || inputVat.counted) return null
+  return INPUT_VAT_NOTES[inputVat.reason] ?? null
+}
+
+const INPUT_VAT_NOTES: Record<string, string> = {
+  DEBIT_NOTE_NOT_ACCEPTED: 'billDetail.inputVat.debitNoteNotAccepted',
+  REJECTED: 'billDetail.inputVat.rejected',
+  NO_SUPPLIER_TAX_INVOICE: 'billDetail.inputVat.noSupplierTaxInvoice',
+}
+
 export function isSelfBilled(detail: BillDetailDto): boolean {
   return detail.bill.source === 'SELF_BILLED'
 }
@@ -606,6 +631,16 @@ export function singleVatRate(detail: BillDetailDto): number | null {
  */
 export function overpaidOf(detail: BillDetailDto): number {
   return detail.settlement.overpaidAmount ?? 0
+}
+
+/**
+ * Payments and credits came to more than the bill: it was overpaid at some point, even when the
+ * supplier has since refunded all of it and "Overpaid by" is back to zero (P5, 12 Oct 2026).
+ */
+export function paidBeyondTotal(detail: BillDetailDto): boolean {
+  const total = detail.settlement.billTotal ?? detail.bill.totalIncludingVat
+  if (total === null || isCreditNote(detail)) return false
+  return detail.settlement.paidAmount + detail.settlement.creditedAmount - total > 0.0005
 }
 
 const OVERPAYMENT_STEPS = new Set([

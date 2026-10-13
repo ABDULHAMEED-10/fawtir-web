@@ -1370,6 +1370,86 @@ describe("a supplier's overpaid bills", () => {
   })
 })
 
+/**
+ * P6 (owner, 12 Oct 2026): "1 bill is approved and already in draft run PR-0001" when three of the
+ * supplier's bills were in it. The count and the run come from the server's `payables.inRuns`,
+ * not from the latest bills, which are one short page.
+ */
+describe('the bills of theirs already in a payment run', () => {
+  const inRun = (bills: number) => ({
+    runId: 'run-1',
+    reference: 'PR-0014',
+    state: 'DRAFT',
+    bills,
+    amount: 160.5,
+    currencyCode: 'OMR',
+  })
+  function withInRuns(inRuns: unknown) {
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === `${ONE}/overview`
+        ? json(200, { ...OVERVIEW, payables: { ...OVERVIEW.payables, inRuns } })
+        : base(url, init),
+    )
+  }
+  const owe = () =>
+    screen.getByText((_, node) => node?.tagName === 'P' && /draft run/.test(node.textContent ?? ''))
+
+  it('counts every one of them, though only one is among the latest bills', async () => {
+    withInRuns([inRun(3)])
+    renderSupplier()
+    await screen.findByText('160.500')
+    await waitFor(() =>
+      expect(owe().textContent).toMatch(
+        /^3 bills are approved and already in draft run PR-0014(, paying .+)?\.$/,
+      ),
+    )
+  })
+
+  it('says one bill in the singular', async () => {
+    withInRuns([inRun(1)])
+    renderSupplier()
+    await screen.findByText('160.500')
+    await waitFor(() =>
+      expect(owe().textContent).toMatch(
+        /^1 bill is approved and already in draft run PR-0014(, paying .+)?\.$/,
+      ),
+    )
+  })
+
+  it('reads in Arabic, with the plural form of the count', async () => {
+    await i18n.changeLanguage('ar')
+    withInRuns([inRun(3)])
+    renderSupplier()
+    await screen.findByText('160.500')
+    const said = await screen.findByText(
+      (_, node) => node?.tagName === 'P' && /مسودة الدفعة PR-0014/.test(node.textContent ?? ''),
+    )
+    expect(said.textContent).toMatch(/^3 فواتير معتمدة وموجودة في مسودة الدفعة PR-0014/)
+  })
+
+  it('says whether they were paid late when no run holds their bills', async () => {
+    withInRuns([])
+    openBills = [{ ...BILL, workflowState: 'IN_PAYMENT_RUN', paymentRunReference: 'PR-0014' }]
+    renderSupplier()
+    expect(
+      await screen.findByText('Some of their bills have been paid late before.'),
+    ).toBeTruthy()
+    expect(screen.queryByText(/already in draft run/)).toBeNull()
+  })
+
+  it('counts from the latest bills on a server without the field, as before', async () => {
+    openBills = [{ ...BILL, workflowState: 'IN_PAYMENT_RUN', paymentRunReference: 'PR-0014' }]
+    renderSupplier()
+    await screen.findByText('160.500')
+    await waitFor(() =>
+      expect(owe().textContent).toMatch(
+        /^1 bill is approved and already in draft run PR-0014(, paying .+)?\.$/,
+      ),
+    )
+  })
+})
+
 describe('the day a paper was uploaded (E2E 10 Oct, F-8)', () => {
   it('is the Muscat day of the instant, not its UTC slice', () => {
     expect(muscatDayOf('2026-10-09T23:54:00Z')).toBe('2026-10-10')

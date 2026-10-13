@@ -1583,3 +1583,73 @@ describe("a debit note's reminders card", () => {
     expect(previews()).toHaveLength(0)
   }, 30_000)
 })
+
+describe("the note's preview paper names the seller and the buyer", () => {
+  const ADDRESS = {
+    streetName: 'Way 3021',
+    additionalStreetName: null,
+    addressLine3: null,
+    buildingNumber: null,
+    cityName: 'Bawshar',
+    postalCode: '112',
+    countrySubentity: 'Muscat',
+    countryCode: 'OM',
+    poBox: '450',
+  }
+
+  it('prints the issued snapshot instead of "Your company"', async () => {
+    const issuedNote: InvoiceDetailDto = {
+      ...INVOICE,
+      id: NOTE_ID,
+      type: 'CREDIT_NOTE',
+      correctionOfInvoiceId: INVOICE_ID,
+      invoiceNumber: 'CRN-4',
+      lines: [line(1, 'Green beans', 1, 10)],
+      seller: {
+        legalName: 'Nizwa Dates Trading LLC',
+        vatin: 'OM1100000001',
+        participantId: null,
+        address: ADDRESS,
+      },
+      buyer: {
+        name: 'Sohar Port Logistics SAOC',
+        vatin: 'OM1100999001',
+        participantId: null,
+        address: { ...ADDRESS, streetName: 'Port Road', cityName: 'Sohar', poBox: null },
+      },
+    }
+    override = (url) => {
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, issuedNote)
+      if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/`))
+        return json(
+          200,
+          url.endsWith('/history')
+            ? { entries: [], truncated: false, limit: 200 }
+            : url.endsWith('/internal-note')
+              ? { internalNote: null }
+              : url.endsWith('/receivable')
+                ? RECEIVABLE
+                : [],
+        )
+      return undefined
+    }
+    render(
+      <MemoryRouter initialEntries={[`/income/credit-notes/${NOTE_ID}`]}>
+        <Routes>
+          <Route path="/income/credit-notes/:id" element={<CreditNoteDetailsPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: 'CRN-4' })).toBeTruthy()
+    const paper = document.querySelector('[data-document-preview]') as HTMLElement
+    const sheet = within(paper)
+    // In the masthead and again under "From".
+    expect(sheet.getAllByText('Nizwa Dates Trading LLC')).toHaveLength(2)
+    expect(sheet.getAllByText('VAT OM1100000001')).toHaveLength(2)
+    expect(sheet.getByText('PO Box 450')).toBeTruthy()
+    expect(sheet.getByText('Way 3021')).toBeTruthy()
+    expect(sheet.getByText('Sohar Port Logistics SAOC')).toBeTruthy()
+    expect(sheet.getByText('Port Road')).toBeTruthy()
+    expect(sheet.queryByText('Your company')).toBeNull()
+  }, 30_000)
+})

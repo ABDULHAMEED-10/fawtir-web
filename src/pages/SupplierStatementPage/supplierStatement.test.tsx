@@ -790,6 +790,71 @@ describe('a statement with discounts, refunds and credit used', () => {
   })
 })
 
+/**
+ * P7 (owner, 12 Oct 2026): under the ageing, what comes off it to reach the closing balance,
+ * "Less unused credit {credit} · overpaid {overpaid}", with the rial sign on both figures.
+ */
+describe('the credit and overpayment under the ageing', () => {
+  let statement: SupplierStatementDto
+
+  beforeEach(() => {
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.startsWith(`${ONE}/statement?`)) return json(200, statement)
+      return base(url, init)
+    })
+  })
+
+  const lessLine = (pattern: RegExp) =>
+    screen.queryByText((_, node) => node?.tagName === 'P' && pattern.test(node.textContent ?? ''))
+
+  it('says both figures under the ageing, each with the rial sign', async () => {
+    statement = { ...STATEMENT, unusedCredit: 200, unusedCredits: 1, overpaid: 50 }
+    renderStatement()
+    await screen.findByRole('heading', { level: 1, name: 'Statement' })
+    const line = lessLine(/^Less unused credit/)!
+    expect(line.textContent).toBe('Less unused credit OMR\u00A0200.000 · overpaid OMR\u00A050.000')
+    expect(line.querySelectorAll('svg')).toHaveLength(2)
+    // Under the ageing grid, the last thing in its section.
+    const ageing = screen.getByText('Late by 60 or more').closest('div.grid')!
+    expect(ageing.nextElementSibling).toBe(line)
+  })
+
+  it('still says it when only one of the two is owed back', async () => {
+    statement = { ...STATEMENT, unusedCredit: 0, overpaid: 50 }
+    renderStatement()
+    await screen.findByRole('heading', { level: 1, name: 'Statement' })
+    expect(lessLine(/^Less unused credit/)!.textContent).toBe(
+      'Less unused credit OMR\u00A00.000 · overpaid OMR\u00A050.000',
+    )
+  })
+
+  it('reads in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    statement = { ...STATEMENT, unusedCredit: 200, unusedCredits: 1, overpaid: 50 }
+    renderStatement()
+    const line = await screen.findByText(
+      (_, node) => node?.tagName === 'P' && /^يُخصم رصيد غير مستخدم/.test(node.textContent ?? ''),
+    )
+    expect(line.textContent).toBe(
+      'يُخصم رصيد غير مستخدم OMR\u00A0200.000 · ودفع بزيادة OMR\u00A050.000',
+    )
+    expect(line.querySelectorAll('svg')).toHaveLength(2)
+  })
+
+  it.each([
+    ['both are 0', { unusedCredit: 0, overpaid: 0 }],
+    ['the server sends neither', {}],
+    ['the server is older than the unused credit', { overpaid: 50 }],
+  ])('draws nothing when %s', async (_case, fields) => {
+    statement = { ...STATEMENT, ...fields }
+    renderStatement()
+    await screen.findByRole('heading', { level: 1, name: 'Statement' })
+    expect(screen.getByText('Late by 60 or more')).toBeTruthy()
+    expect(lessLine(/^Less unused credit/)).toBeNull()
+  })
+})
+
 describe('a credit note the supplier refunded', () => {
   // The note's line took 25.000 off; the supplier paid 10.000 of it back in two refunds, so the
   // statement closes 10.000 higher than the note alone left it. The balances are the server's.

@@ -436,6 +436,31 @@ const CREDIT_NOTES = [
     balance: { applied: 224.16, refunded: 0, remaining: 0 },
     billId: 'b-and-3301',
   }),
+  // Closes debit note MZ-DN-0088, which was refused: left out of input VAT together with it.
+  Object.assign(
+    creditNote({
+      id: 'cn-mz-0090',
+      supplierId: '5a000000-0000-4000-8000-000000000004',
+      number: 'MZ-CN-0090',
+      issueDate: '2026-07-20',
+      source: 'PEPPOL',
+      credited: 122.7,
+      vat: 5.843,
+      reasonCode: 'CAN',
+      reasonDetail: 'DUPLICATE',
+      status: 'APPLIED',
+      balance: { applied: 122.7, refunded: 0, remaining: 0 },
+    }),
+    {
+      credits: {
+        billNumber: 'MZ-DN-0088',
+        issueDate: '2026-07-16',
+        documentUuid: 'uuid-dn-mz-0088',
+        billId: 'dn-mz-0088',
+        applied: true,
+      },
+    },
+  ),
 ]
 
 function creditNote({
@@ -502,6 +527,8 @@ const CREDIT_SETTLEMENTS = {
       id: 'st-1',
       creditNoteId: 'cn-sp-0067',
       billId: 'b-sp-1140',
+      billNumber: 'SP-INV-1140',
+      billDocumentTypeCode: '380',
       kind: 'APPLIED',
       amount: 100.8,
       paymentReference: null,
@@ -515,6 +542,8 @@ const CREDIT_SETTLEMENTS = {
       id: 'st-2',
       creditNoteId: 'cn-mz-2210',
       billId: null,
+      billNumber: null,
+      billDocumentTypeCode: null,
       kind: 'REFUNDED',
       amount: 61.3,
       paymentReference: 'TRF-88213',
@@ -523,11 +552,28 @@ const CREDIT_SETTLEMENTS = {
       occurredAt: '2026-08-02T11:40:00Z',
     },
   ],
+  'cn-mz-0090': [
+    {
+      id: 'st-4',
+      creditNoteId: 'cn-mz-0090',
+      billId: 'dn-mz-0088',
+      billNumber: 'MZ-DN-0088',
+      billDocumentTypeCode: '383',
+      kind: 'APPLIED',
+      amount: 122.7,
+      paymentReference: null,
+      settledOn: '2026-07-21',
+      actorId: 'u-hafidh',
+      occurredAt: '2026-07-21T10:00:00Z',
+    },
+  ],
   'cn-and-0391': [
     {
       id: 'st-3',
       creditNoteId: 'cn-and-0391',
       billId: 'b-and-3301',
+      billNumber: 'AND-INV-3301',
+      billDocumentTypeCode: '380',
       kind: 'APPLIED',
       amount: 224.16,
       paymentReference: null,
@@ -880,6 +926,24 @@ const NOTE_LINES = {
   ],
 }
 
+/**
+ * Whether a note counts in input VAT, as the server says it: a debit note only once accepted, a
+ * credit note not while the debit note it credits is out.
+ */
+function noteInputVat(note, kind) {
+  const out = (reason) => ({ counted: false, countedOn: null, reason, vatAmountOmr: null })
+  if (kind === 'debit' && note.status !== 'ACCEPTED') return out('DEBIT_NOTE_NOT_ACCEPTED')
+  const target =
+    kind === 'credit' ? DEBIT_NOTES.find((n) => n.id === note.credits.billId) : undefined
+  if (target && target.status !== 'ACCEPTED') return out('TARGET_NOT_COUNTED')
+  return {
+    counted: true,
+    countedOn: kind === 'debit' ? (note.decidedAt ?? note.issueDate).slice(0, 10) : note.issueDate,
+    reason: 'COUNTED',
+    vatAmountOmr: note.vatAmount,
+  }
+}
+
 function noteAsBillDetail(note, kind) {
   const total = kind === 'credit' ? note.creditedAmount : note.totalIncludingVat
   const number = kind === 'credit' ? note.creditNoteNumber : note.debitNoteNumber
@@ -912,6 +976,9 @@ function noteAsBillDetail(note, kind) {
     amountDue: total,
     creditedAmount: 0,
     complianceObligation: note.networkVerified ? 'REPORTED_BY_SENDER' : 'PENDING_COMPLIANCE_INPUT',
+    inputVat: noteInputVat(note, kind),
+    duplicateOf: null,
+    possibleDuplicateOf: null,
   }
   return {
     bill: row,
@@ -1200,6 +1267,8 @@ export default [
         id: `st-${Date.now()}`,
         creditNoteId: note.id,
         billId: target.id,
+        billNumber: target.supplierBillNumber ?? null,
+        billDocumentTypeCode: target.documentTypeCode ?? null,
         kind: 'APPLIED',
         amount,
         paymentReference: null,
@@ -1228,6 +1297,8 @@ export default [
         id: `st-${Date.now()}`,
         creditNoteId: note.id,
         billId: null,
+        billNumber: null,
+        billDocumentTypeCode: null,
         kind: 'REFUNDED',
         amount,
         paymentReference: body?.paymentReference ?? null,
@@ -1461,6 +1532,10 @@ export default [
             id: `st-${Date.now()}`,
             creditNoteId: note.id,
             billId: related.id,
+            billNumber: relatedDebitNote
+              ? (related.debitNoteNumber ?? null)
+              : (related.supplierBillNumber ?? null),
+            billDocumentTypeCode: relatedDebitNote ? '383' : (related.documentTypeCode ?? null),
             kind: 'APPLIED',
             amount,
             paymentReference: null,
@@ -1516,6 +1591,7 @@ export default [
           payments: 3,
           orders: 2,
           documents: 1,
+          creditNotes: CREDIT_NOTES.filter((n) => n.supplierId === params[0]).length,
         },
         match: { agreed: 4, orderBacked: 5, summary: null },
         usualLeadTimeDays: 3,

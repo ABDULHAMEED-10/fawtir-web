@@ -778,7 +778,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
                             (code) =>
                               code === 'ON_HOLD' || code === 'MISMATCH' || code === 'REJECTED',
                           )
-                            ? t('paymentsPage.blocked.openDispute')
+                            ? t('rowActions.bill.view')
                             : t('paymentRuns.blocked.open')}
                         </Link>
                       </div>

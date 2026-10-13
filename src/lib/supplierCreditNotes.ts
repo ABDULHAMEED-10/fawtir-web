@@ -64,8 +64,15 @@ export function creditEffect(
   }
 }
 
-/** Input VAT already claimed on the bill, less what this note takes off it. */
-export function vatEffect(billVat: number | null, noteVat: number | null) {
+/**
+ * Input VAT already claimed on the bill, less what this note takes off it.
+ *
+ * `billCounted` is the bill's `inputVat.counted`. A bill out of input VAT (a debit note not
+ * accepted, a rejected bill) has claimed nothing, and the note is left out with it, so nothing
+ * is claimed and nothing reduced. Undefined (a server before `inputVat`) reads as today.
+ */
+export function vatEffect(billVat: number | null, noteVat: number | null, billCounted?: boolean) {
+  if (billCounted === false) return { claimed: null, reduced: 0, reclaimable: null }
   const reduced = noteVat ?? 0
   return {
     claimed: billVat,
@@ -189,9 +196,12 @@ export function creditActivity(
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
     .map((settlement) => ({
       id: settlement.id,
+      // Names the bill it went to when the server says which; an older server leaves it out.
       titleKey:
         settlement.kind === 'APPLIED'
-          ? 'supplierCreditNotes.detail.activity.settledApplied'
+          ? settlement.billNumber
+            ? 'supplierCreditNotes.detail.activity.settledAppliedTo'
+            : 'supplierCreditNotes.detail.activity.settledApplied'
           : 'supplierCreditNotes.detail.activity.settledRefunded',
       detailKey:
         settlement.kind === 'APPLIED'
@@ -200,6 +210,7 @@ export function creditActivity(
             ? 'supplierCreditNotes.detail.activity.settledRefundedRef'
             : 'supplierCreditNotes.detail.activity.settledRefundedDetail',
       values: {
+        bill: settlement.billNumber ?? '',
         amount: fmt.money(settlement.amount),
         date: fmt.date(settlement.settledOn),
         reference: settlement.paymentReference ?? '',

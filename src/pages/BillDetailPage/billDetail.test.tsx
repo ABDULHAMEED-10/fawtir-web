@@ -18,6 +18,7 @@ import {
   complianceOf,
   decisionsOf,
   discountLineOf,
+  inputVatNoteKey,
   lineVatOf,
   overpaidOf,
   overpaymentStepOf,
@@ -2552,6 +2553,96 @@ describe('an overpaid bill', () => {
     expect(screen.queryByText(/ OMR/)).toBeNull()
   })
 
+  // Owner, 12 Oct 2026 (P5): Paid stays gross of a refund, so what the supplier gave back is said
+  // under it, with the rial sign.
+  it('says what the supplier refunded under Paid, while some is still overpaid', async () => {
+    standing = { ...standing, overpaidAmount: 30, undecided: 30, refunded: 10 }
+    billResponse = () =>
+      json(200, { ...overpaid(), settlement: { ...overpaid().settlement, overpaidAmount: 30 } })
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    await waitFor(() => expect(calls()).toContain(`GET ${OVERPAYMENT_URL}`))
+    const refunded = await screen.findByText(
+      (_, node) => node?.tagName === 'P' && /^Refunded by supplier/.test(node.textContent ?? ''),
+    )
+    expect(refunded.textContent).toBe('Refunded by supplier OMR\u00A010.000')
+    expect(refunded.querySelector('svg')).toBeTruthy()
+    // Right under the Paid row, in the Payment terms card.
+    const paidRow = screen.getByText('Paid', { selector: 'dt' }).parentElement!
+    expect(paidRow.nextElementSibling?.contains(refunded)).toBe(true)
+    expect(line(/^Overpaid by/)).toEqual({ text: 'Overpaid by OMR30.000', rial: true })
+  })
+
+  it('still reads and says the refund once the supplier refunded all of it', async () => {
+    standing = { ...standing, overpaidAmount: 0, undecided: 0, refunded: 40 }
+    billResponse = () =>
+      json(200, { ...overpaid(), settlement: { ...overpaid().settlement, overpaidAmount: 0 } })
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    // Paid 2,394.310 on a 2,354.310 bill: read although "Overpaid by" is back to zero.
+    await waitFor(() => expect(calls()).toContain(`GET ${OVERPAYMENT_URL}`))
+    const refunded = await screen.findByText(
+      (_, node) => node?.tagName === 'P' && /^Refunded by supplier/.test(node.textContent ?? ''),
+    )
+    expect(refunded.textContent).toBe('Refunded by supplier OMR\u00A040.000')
+    expect(screen.queryByText(/Overpaid by/)).toBeNull()
+    expect(screen.queryByRole('button', { name: "Record the supplier's refund" })).toBeNull()
+  })
+
+  it('reads the refund line in Arabic, with the rial sign', async () => {
+    await i18n.changeLanguage('ar')
+    standing = { ...standing, refunded: 10 }
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    const refunded = await screen.findByText(
+      (_, node) => node?.tagName === 'P' && /^ردّه المورّد/.test(node.textContent ?? ''),
+    )
+    expect(refunded.textContent).toBe('ردّه المورّد OMR\u00A010.000')
+    expect(refunded.querySelector('svg')).toBeTruthy()
+  })
+
+  it('draws no refund line when nothing was refunded', async () => {
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    await waitFor(() => expect(calls()).toContain(`GET ${OVERPAYMENT_URL}`))
+    expect(await screen.findByRole('button', { name: 'Keep as credit' })).toBeTruthy()
+    expect(screen.queryByText(/Refunded by supplier/)).toBeNull()
+  })
+
+  // Owner, 12 Oct 2026 (C14): in this dialog only, say why an unaccepted debit note is missing.
+  it('says debit notes appear once accepted when the search finds no bill', async () => {
+    standing = { ...standing, keptAsCredit: 40, undecided: 0 }
+    targets = []
+    renderBill()
+    fireEvent.click(await screen.findByRole('button', { name: 'Set against a bill' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Set against a bill' })
+    expect(
+      (
+        await within(dialog).findByText(
+          (_, node) => node?.tagName === 'P' && /^No bills from/.test(node.textContent ?? ''),
+        )
+      ).textContent,
+    ).toBe(
+      'No bills from Qalhat Marine Supplies match that. Only their own bills can take this credit. Debit notes appear here once accepted.',
+    )
+    // The shared sentence itself is unchanged for the other pages that use it.
+    expect(
+      i18n.t('supplierCreditNoteDetail.noBillsForSupplier', { supplier: 'Qalhat Marine Supplies' }),
+    ).toBe('No bills from Qalhat Marine Supplies match that. Only their own bills can take this credit.')
+  })
+
+  it('says it in Arabic too', async () => {
+    await i18n.changeLanguage('ar')
+    standing = { ...standing, keptAsCredit: 40, undecided: 0 }
+    targets = []
+    renderBill()
+    fireEvent.click(
+      await screen.findByRole('button', { name: i18n.t('billDetail.overpaid.setAgainst') }),
+    )
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByText(/تظهر إشعارات المدين هنا بعد قبولها\.$/)).toBeTruthy()
+  })
+
   it('reads the amount out of an overpayment step, and picks the bills the credit can go on', () => {
     expect(overpaymentStepOf('OVERPAYMENT_REFUNDED', '12.5 OMR · RF-1')).toEqual({
       amount: 12.5,
@@ -2609,5 +2700,203 @@ describe("a refused debit note's steps", () => {
         'paid',
       ])
     expect(stepsOf(detail(), format)).toHaveLength(5)
+  })
+})
+
+// Owner, 12 Oct 2026: a paid bill has passed Scheduled, run or no run (P3), and a part-paid bill
+// says how much of it is paid (P4).
+describe('the steps of a paid and a part-paid bill', () => {
+  const format = { day: (iso: string) => iso, instantDay: (iso: string) => iso }
+  const PAID_IN_FULL: BillDetailDto['payments'][number] = {
+    id: 'p-1',
+    entryType: 'PAYMENT',
+    amount: 2354.31,
+    currency: 'OMR',
+    methodCode: 'BANK',
+    paymentReference: null,
+    paymentDate: '2026-09-20',
+    occurredAt: '2026-09-20T08:00:00Z',
+  }
+  const paidWithoutRun = (): BillDetailDto => {
+    const base = detail({ readiness: APPROVED })
+    return {
+      ...base,
+      bill: { ...base.bill, workflowState: 'PAID', paidAmount: 2354.31, outstandingAmount: 0 },
+      settlement: {
+        ...base.settlement,
+        paymentState: 'PAID',
+        paidAmount: 2354.31,
+        outstandingAmount: 0,
+      },
+      payments: [PAID_IN_FULL],
+    }
+  }
+  const partPaid = (): BillDetailDto =>
+    detail({
+      readiness: APPROVED,
+      settlement: {
+        ...detail().settlement,
+        paidAmount: 1000,
+        outstandingAmount: 1354.31,
+        paymentState: 'PARTIALLY_PAID',
+      },
+    })
+
+  /** The text under a step's label in the tracker. */
+  function stepUnder(label: string): HTMLElement {
+    const name = screen
+      .getAllByText(label, { selector: 'span' })
+      .find((span) => span.parentElement?.classList.contains('w-[104px]'))!
+    return name.nextElementSibling as HTMLElement
+  }
+  const stepText = (label: string) => stepUnder(label).textContent ?? ''
+
+  it('marks Scheduled as passed on a bill paid without a run, with no "Not yet"', async () => {
+    const steps = stepsOf(paidWithoutRun(), format)
+    expect(steps.map((step) => `${step.id}:${step.state}`)).toEqual([
+      'arrived:done',
+      'matched:done',
+      'approved:done',
+      'scheduled:done',
+      'paid:done',
+    ])
+    billResponse = () => json(200, paidWithoutRun())
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(stepText('Scheduled')).toBe('')
+    expect(stepText('Paid')).toMatch(/^Paid \d/)
+    expect(screen.queryByText('Not yet')).toBeNull()
+  })
+
+  it('still says "Not yet" on a step the bill has not reached', async () => {
+    billResponse = () => json(200, detail({ readiness: APPROVED }))
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(stepText('Scheduled')).toBe('Not yet')
+  })
+
+  it('says "Paid {paid} of {total}" on a part-paid bill, with the rial sign', async () => {
+    expect(stepsOf(partPaid(), format).find((step) => step.id === 'paid')?.detail).toEqual({
+      key: 'billDetail.steps.paidOf',
+      values: { paid: 1000, total: 2354.31, currency: 'OMR' },
+    })
+    billResponse = () => json(200, partPaid())
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    const under = stepUnder('Paid')
+    expect(under.textContent).toBe('Paid OMR\u00A01,000.000 of OMR\u00A02,354.310')
+    expect(under.querySelectorAll('svg')).toHaveLength(2)
+    expect(under.textContent).not.toMatch(/Due/)
+  })
+
+  it('reads it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    billResponse = () => json(200, partPaid())
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(stepText(i18n.t('billDetail.steps.paid'))).toBe(
+      'دُفع OMR\u00A01,000.000 من OMR\u00A02,354.310',
+    )
+  })
+
+  it('keeps the due date on a bill with nothing paid yet', () => {
+    expect(
+      stepsOf(detail({ readiness: APPROVED }), format).find((step) => step.id === 'paid')?.detail,
+    ).toEqual({ key: 'billDetail.steps.dueOn', values: { date: '2026-10-01' } })
+  })
+})
+
+// Owner, 12 Oct 2026: a document out of input VAT says so under its VAT figure, in his words.
+describe('whether a bill counts in input VAT', () => {
+  const outOfVat = (
+    reason: string,
+    bill: Partial<BillDetailDto['bill']> = {},
+  ): BillDetailDto =>
+    detail({
+      bill: {
+        ...detail().bill,
+        ...bill,
+        inputVat: { counted: false, countedOn: null, reason, vatAmountOmr: null },
+      },
+    })
+
+  it('says a refused debit note is not counted until accepted', async () => {
+    billResponse = () =>
+      json(
+        200,
+        outOfVat('DEBIT_NOTE_NOT_ACCEPTED', {
+          documentTypeCode: '383',
+          debitNoteDecision: 'REFUSED',
+        }),
+      )
+    renderBill()
+    expect(await screen.findByText('Not counted in VAT until you accept it.')).toBeTruthy()
+  })
+
+  it('says a rejected bill is not counted while rejected', async () => {
+    billResponse = () =>
+      json(
+        200,
+        outOfVat('REJECTED', {
+          readiness: { state: 'REJECTED', distinctApprovals: 0, required: 2, autoApproved: false },
+        }),
+      )
+    renderBill()
+    expect(await screen.findByText('Not counted in VAT while rejected.')).toBeTruthy()
+  })
+
+  it('says a recurring bill Fawtir raised has no supplier tax invoice yet', async () => {
+    billResponse = () =>
+      json(200, outOfVat('NO_SUPPLIER_TAX_INVOICE', { source: 'RECURRING', inboundDeliveryId: null }))
+    renderBill()
+    expect(
+      await screen.findByText('Not counted in VAT: no supplier tax invoice yet.'),
+    ).toBeTruthy()
+  })
+
+  it('reads the rejected caption in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    billResponse = () => json(200, outOfVat('REJECTED'))
+    renderBill()
+    expect(
+      await screen.findByText('لا تُحتسب في ضريبة القيمة المضافة ما دامت مرفوضة.'),
+    ).toBeTruthy()
+  })
+
+  it('says nothing on a counted bill, or from a server that does not send it', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          bill: {
+            ...detail().bill,
+            inputVat: { counted: true, countedOn: '2026-09-02', reason: 'COUNTED', vatAmountOmr: 112.11 },
+          },
+        }),
+      )
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(screen.queryByText(/Not counted in VAT/)).toBeNull()
+    cleanup()
+    billResponse = () => json(200, detail())
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(screen.queryByText(/Not counted in VAT/)).toBeNull()
+  })
+
+  it('has words only for the three reasons the owner worded', () => {
+    const out = (reason: string) => ({ counted: false, countedOn: null, reason, vatAmountOmr: null })
+    expect(inputVatNoteKey(out('DEBIT_NOTE_NOT_ACCEPTED'))).toBe(
+      'billDetail.inputVat.debitNoteNotAccepted',
+    )
+    expect(inputVatNoteKey(out('REJECTED'))).toBe('billDetail.inputVat.rejected')
+    expect(inputVatNoteKey(out('NO_SUPPLIER_TAX_INVOICE'))).toBe(
+      'billDetail.inputVat.noSupplierTaxInvoice',
+    )
+    // No approved wording yet: nothing is said rather than a guess.
+    for (const reason of ['DUPLICATE_OF_PEPPOL', 'SELF_BILLED_SALE', 'TARGET_NOT_COUNTED', 'NO_OMR_VAT'])
+      expect(inputVatNoteKey(out(reason))).toBeNull()
+    expect(inputVatNoteKey({ ...out('REJECTED'), counted: true })).toBeNull()
+    expect(inputVatNoteKey(undefined)).toBeNull()
   })
 })

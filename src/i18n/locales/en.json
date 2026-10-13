@@ -5481,8 +5481,8 @@
       "readyBills_other": "{{count}} approved bills",
       "otherCurrencies_one": "{{count}} bill in another currency is not in these {{currency}} totals.",
       "otherCurrencies_other": "{{count}} bills in other currencies are not in these {{currency}} totals.",
-      "payableDisputed_one": "{{amount}} disputed on {{count}} refused bill",
-      "payableDisputed_other": "{{amount}} disputed on {{count}} refused bills",
+      "payableDisputed_one": "{{amount}} disputed on {{count}} refused debit note",
+      "payableDisputed_other": "{{amount}} disputed on {{count}} refused debit notes",
       "payableAwaitingDecision_one": "Awaiting your decision: {{amount}} on {{count}} debit note",
       "payableAwaitingDecision_other": "Awaiting your decision: {{amount}} on {{count}} debit notes"
     },
@@ -5601,7 +5601,9 @@
       "rejected": "Rejected",
       "inPaymentRun": "In a payment run",
       "inPaymentRunRef": "In payment run {{run}}",
-      "paid": "Paid"
+      "paid": "Paid",
+      "partPaid": "Part paid",
+      "refusedClosed": "Refused · closed by credit note"
     },
     "notice": {
       "drafts_one": "{{count}} uploaded or scanned bill is waiting for its details. It appears here once confirmed.",
@@ -5678,7 +5680,8 @@
       "dueOn": "Due {{date}}",
       "automatically": "Automatically",
       "arrivedVia": "{{date}} · {{source}}",
-      "notYet": "Not yet"
+      "notYet": "Not yet",
+      "paidOf": "Paid OMR {{paid}} of OMR {{total}}"
     },
     "match": {
       "ordered": "Ordered",
@@ -5912,7 +5915,14 @@
       "refused": {
         "dateBeforeOverpayment": "A refund cannot be dated before the payment that overpaid this bill.",
         "inRun": "This bill is in payment run {{run}}. Take it out of the run first."
-      }
+      },
+      "refundedBySupplier": "Refunded by supplier OMR {{amount}}",
+      "debitNotesOnceAccepted": "Debit notes appear here once accepted."
+    },
+    "inputVat": {
+      "debitNoteNotAccepted": "Not counted in VAT until you accept it.",
+      "rejected": "Not counted in VAT while rejected.",
+      "noSupplierTaxInvoice": "Not counted in VAT: no supplier tax invoice yet."
     }
   },
   "uploadBill": {
@@ -6576,7 +6586,9 @@
       "topSupplier": "Most notes from",
       "topSupplierMeta": "{{count}} notes",
       "noTopSupplier": "No supplier stands out",
-      "noTopSupplierMeta": "No supplier has sent a credit note yet"
+      "noTopSupplierMeta": "No supplier has sent a credit note yet",
+      "stillUsableMeta_one": "{{count}} note with credit left to use",
+      "stillUsableMeta_other": "{{count}} notes with credit left to use"
     },
     "tabs": {
       "all": "All",
@@ -6718,7 +6730,8 @@
       "savedClosesRefusedDebitNote": "Saved. The credit closes refused debit note {{note}}; anything left over stays as credit.",
       "refusedDebitNoteCloses": "This debit note was refused, so the credit closes it. Anything left over stays as credit.",
       "setNowNoteDebitNote": "The debit note is unpaid, so you simply pay OMR {{amount}} less.",
-      "saveAndSetDebitNote": "Save and set against the debit note"
+      "saveAndSetDebitNote": "Save and set against the debit note",
+      "restStaysAsCredit": "The other OMR {{amount}} stays as credit for a later bill."
     },
     "detail": {
       "creditNotePeppol": "Credit note · Peppol",
@@ -6786,7 +6799,10 @@
         "original": "original file",
         "originalDetail": "The original file as the supplier sent it",
         "billDetail": "Received {{date}} · {{state}} · due {{due}}",
-        "billNotOnFile": "Named on the note, not among this supplier's bills"
+        "billNotOnFile": "Named on the note, not among this supplier's bills",
+        "billDetailNoDue": "Received {{date}} · {{state}} · no due date",
+        "billStateDue": "{{state}} · due {{due}}",
+        "billStateNoDue": "{{state}} · no due date"
       },
       "activityTitle": "Activity",
       "activity": {
@@ -6812,7 +6828,8 @@
         "settledRefunded": "Refund recorded",
         "settledRefundedDetail": "OMR {{amount}} paid on {{date}} · recorded {{when}}",
         "settledRefundedRef": "OMR {{amount}} paid on {{date}} · ref {{reference}} · recorded {{when}}",
-        "arrivedNoBill": "Issued {{date}} · no bill named"
+        "arrivedNoBill": "Issued {{date}} · no bill named",
+        "settledAppliedTo": "Used against {{bill}}"
       },
       "decisionTaken": "{{what}}",
       "supplierName": "Name",
@@ -6832,7 +6849,11 @@
       "lineBilledOn": "Billed on {{bill}}",
       "decisionNoteNoBill": "Choose the bill this credit reduces, keep it for a later bill, or record a refund.",
       "setAgainstAnother": "Set against a bill",
-      "partlyUsedBody": "Part of this credit is already used or refunded. Set the rest against another bill, keep it for a later one, or record a refund."
+      "partlyUsedBody": "Part of this credit is already used or refunded. Set the rest against another bill, keep it for a later one, or record a refund.",
+      "closesRefusedTitle": "Closes refused debit note {{number}}.",
+      "closesRefusedBody": "Nothing was owed on it.",
+      "billOnHold": "{{bill}} is on hold. Release it before setting this credit against it.",
+      "afterThisNote": "after this note"
     },
     "source": {
       "peppol": "Received over Peppol",
@@ -7091,7 +7112,10 @@
         "receiptDetail": "Signed for at 07:40 by Yusuf Al Balushi · 25 Jul",
         "rateCardDetail": "Flat OMR 96.000 per delivery, 06:00–18:00, no surcharges",
         "billDetail": "Received {{date}} · {{state}} · due {{due}}",
-        "billNotOnFile": "Named on the note, not among this supplier's bills"
+        "billNotOnFile": "Named on the note, not among this supplier's bills",
+        "billDetailNoDue": "Received {{date}} · {{state}} · no due date",
+        "billStateDue": "{{state}} · due {{due}}",
+        "billStateNoDue": "{{state}} · no due date"
       },
       "activityTitle": "Activity",
       "activity": {
@@ -7127,7 +7151,8 @@
       "reasonRecorded": "Your reason is recorded against the note. It is not sent to the supplier from here.",
       "rateCardMissing": "No rate card is on file for this supplier yet. When one is, the charge is read against it here.",
       "acceptedBodyNoDate": "The charge was accepted and is owed.",
-      "billStillOwes": "The bill still owes"
+      "billStillOwes": "The bill still owes",
+      "afterThisNote": "after this note"
     },
     "status": {
       "UNCHECKED": "Not checked yet",
@@ -7205,7 +7230,9 @@
         "notSubmitted": "Received over Peppol and validated. Receipt not reported yet.",
         "unavailable": "Received over Peppol and validated. Receipt report status not available yet."
       }
-    }
+    },
+    "reverseOnlyRefused": "Already refused. Only the opposite decision can be recorded.",
+    "reverseOnlyAccepted": "Already accepted. Only the opposite decision can be recorded."
   },
   "expenditureReminders": {
     "title": "Reminders",
@@ -9027,7 +9054,8 @@
     "unusedCredits_one": "{{count}} credit note still unused",
     "unusedCredits_other": "{{count}} credit notes still unused",
     "creditUsedOn": "Credit used on {{bill}}",
-    "alreadyCounted": "Already counted when the bill was overpaid"
+    "alreadyCounted": "Already counted when the bill was overpaid",
+    "lessUnusedCredit": "Less unused credit OMR {{credit}} · overpaid OMR {{overpaid}}"
   },
   "activity": {
     "title": "TDD & OTA",
@@ -11114,7 +11142,36 @@
       "MAPPING_CERTIFICATION": "Mapping certification",
       "ERP_SOURCE_DOCUMENT": "ERP document",
       "ERP_EXTRACTION_RUN": "Collection run",
-      "ERP_ENTITLEMENT": "ERP enablement"
+      "ERP_ENTITLEMENT": "ERP enablement",
+      "TENANT": "Organisation",
+      "CUSTOMER": "Customer",
+      "CUSTOMER_IMPORT": "Customer import",
+      "CUSTOMER_EXPORT": "Customer export",
+      "CUSTOMER_LOGO": "Customer logo",
+      "COUNTERPARTY_DOCUMENT": "Customer or supplier document",
+      "SUPPLIER_IMPORT": "Supplier import",
+      "OAUTH_CLIENT": "API client",
+      "REFRESH_TOKEN": "Sign-in token",
+      "MTLS_PRINCIPAL": "Client certificate",
+      "ROLE": "Role",
+      "USER_INVITATION": "Invitation",
+      "USER_ROLE_ASSIGNMENT": "Role assignment",
+      "PLATFORM_ROLE_ASSIGNMENT": "Fawtir role",
+      "TENANT_POLICY": "Sign-in policy",
+      "BANK_BENEFICIARY": "Bank account",
+      "BILLING_SETTINGS": "Billing settings",
+      "SUBSCRIPTION_BILL": "Subscription bill",
+      "SUBSCRIPTION_PAYMENT": "Subscription payment",
+      "SUBSCRIPTION_PLAN": "Plan",
+      "WEBHOOK_ENDPOINT": "Webhook",
+      "INVOICE": "Invoice",
+      "INVOICE_BATCH": "Invoice batch",
+      "PAYMENT_REMINDER_SCHEDULE": "Reminder schedule",
+      "SELF_BILLING_AGREEMENT": "Self-billing agreement",
+      "PRIVACY_REQUEST": "Privacy request",
+      "HTTP_REQUEST": "Request",
+      "AS4_MESSAGE": "Peppol message",
+      "IMPERSONATION": "Support access"
     },
     "event": {
       "other": "Recorded event",
@@ -11151,7 +11208,146 @@
       "MappingCertificationStarted": "Mapping certification started",
       "MappingDraftSaved": "Mapping draft saved",
       "MappingProfileDeactivated": "Mapping deactivated",
-      "MappingProfileStored": "Mapping saved"
+      "MappingProfileStored": "Mapping saved",
+      "AllOtherSessionsRevokedByUser": "Signed out of all other sessions",
+      "As4TargetedTransmissionCompleted": "Targeted Peppol transmission completed",
+      "As4TargetedTransmissionRequested": "Targeted Peppol transmission requested",
+      "AuthoredInvoiceDispatchRecovered": "Invoice sending recovered",
+      "BankBeneficiaryConfirmed": "Bank account confirmed",
+      "BankBeneficiaryProposed": "Bank account proposed",
+      "BankBeneficiaryRetired": "Bank account retired",
+      "BillingSettingsChanged": "Billing settings changed",
+      "CertificationInvoiceIssued": "Certification invoice issued",
+      "CertificationSelfBillingAgreementActivated": "Certification self-billing agreement activated",
+      "CertificationSelfBillingAgreementOpened": "Certification self-billing agreement opened",
+      "CertificationSelfBillingSellerVerified": "Certification self-billing seller verified",
+      "CsrfRejected": "Request refused by the security check",
+      "CustomerArchived": "Customer archived",
+      "CustomerCreated": "Customer added",
+      "CustomerDocumentLegalHoldPlaced": "Document placed on legal hold",
+      "CustomerDocumentLegalHoldReleased": "Legal hold on a document released",
+      "CustomerExportCompleted": "Customers exported",
+      "CustomerImportCompleted": "Customer import completed",
+      "CustomerImportFailed": "Customer import failed",
+      "CustomerImportRejected": "Customer import refused",
+      "CustomerImportStarted": "Customer import started",
+      "CustomerLogoAttachRejected": "Customer logo refused",
+      "CustomerLogoUploadRejected": "Customer logo upload refused",
+      "CustomerLogoUploaded": "Customer logo uploaded",
+      "CustomerRestored": "Customer restored",
+      "CustomerUpdated": "Customer changed",
+      "DeviceEnrolled": "Device added",
+      "DeviceRevoked": "Device removed",
+      "DeviceRevokedByAdmin": "Device removed by an administrator",
+      "DeviceTransferChallengeRequested": "Device transfer code requested",
+      "EmailVerificationResent": "Verification email sent again",
+      "ErpExtractionRecoveryFailed": "Collection recovery failed",
+      "ErpExtractionRecoveryRequested": "Collection recovery requested",
+      "ErpExtractionRecoverySucceeded": "Collection recovered",
+      "IdentityEmailVerified": "Email address verified",
+      "IdentityInvitationAccepted": "Invitation accepted",
+      "IdentityInvitationIssued": "Invitation sent",
+      "IdentityInvitationResent": "Invitation sent again",
+      "IdentityInvitationRevoked": "Invitation withdrawn",
+      "IdentityPasswordReset": "Password reset",
+      "IdentityRoleAssigned": "Role given to a user",
+      "IdentityRoleCreated": "Role created",
+      "IdentityRoleDeleted": "Role deleted",
+      "IdentityRoleRevoked": "Role taken from a user",
+      "IdentityRoleUpdated": "Role changed",
+      "IdentitySelfServiceSignup": "Signed up",
+      "IdentitySelfServiceSignupDuplicate": "Sign-up with an email already in use",
+      "IdentitySignupAccountActivated": "Account activated",
+      "IdentitySignupEmailVerified": "Sign-up email verified",
+      "IdentitySignupOnboardingResumed": "Sign-up resumed",
+      "IdentityUserCreated": "User added",
+      "IdentityUserDeactivated": "User deactivated",
+      "IdentityUserLocked": "User locked",
+      "IdentityUserReactivated": "User reactivated",
+      "IdentityUserUnlocked": "User unlocked",
+      "IdentityUserUpdated": "User changed",
+      "ImpersonationRefused": "Support access refused",
+      "ImpersonationRequested": "Support access requested",
+      "ImpersonationStarted": "Support access started",
+      "InvoiceBatchCompleted": "Invoice batch completed",
+      "InvoiceBatchCompletedWithErrors": "Invoice batch completed with errors",
+      "InvoiceBatchProcessingStarted": "Invoice batch processing started",
+      "InvoiceBatchQueued": "Invoice batch queued",
+      "LoginFailed": "Sign-in failed",
+      "LoginSucceeded": "Signed in",
+      "MfaChallengeSucceeded": "Sign-in code confirmed",
+      "MfaDisabled": "Two-step sign-in turned off",
+      "MfaEnrolled": "Two-step sign-in set up",
+      "MfaReplaced": "Two-step sign-in replaced",
+      "MfaReplacementStepUp": "Identity confirmed to replace two-step sign-in",
+      "MtlsPrincipalDisabled": "Client certificate disabled",
+      "MtlsPrincipalRegistered": "Client certificate registered",
+      "OAuthClientDisabled": "API client disabled",
+      "OAuthClientSecretRotated": "API client secret replaced",
+      "OAuthRefreshTokenReplayDetected": "Reused API refresh token detected",
+      "OAuthRefreshTokenRotated": "API refresh token renewed",
+      "OAuthTokenIssued": "API access token issued",
+      "OAuthTokenRevoked": "API access token revoked",
+      "PaymentReminderScheduleReplaced": "Payment reminder schedule changed",
+      "PeppolTestAuthorityBootstrapped": "Peppol test authority set up",
+      "PeppolTestOperatorEmailRecovered": "Peppol test operator email recovered",
+      "PeppolTestTenantAdministratorProvisioned": "Peppol test administrator created",
+      "PeppolTestTenantCreated": "Peppol test organisation created",
+      "PlatformBootstrapGrantConsumed": "First administrator access used",
+      "PlatformBootstrapGrantIssued": "First administrator access issued",
+      "PlatformCompanyOnboarded": "Company onboarded by Fawtir",
+      "PlatformOperatorDeactivated": "Fawtir operator deactivated",
+      "PlatformOperatorEmailChangeRequested": "Fawtir operator email change requested",
+      "PlatformOperatorEmailChanged": "Fawtir operator email changed",
+      "PlatformOperatorEmailRecovered": "Fawtir operator email recovered",
+      "PlatformOperatorLocked": "Fawtir operator locked",
+      "PlatformOperatorMfaReset": "Fawtir operator two-step sign-in reset",
+      "PlatformOperatorReactivated": "Fawtir operator reactivated",
+      "PlatformOperatorUnlocked": "Fawtir operator unlocked",
+      "PlatformRoleGranted": "Fawtir role granted",
+      "PlatformRoleRevoked": "Fawtir role withdrawn",
+      "PlatformTenantPlanChanged": "Plan changed by Fawtir",
+      "PrivacyDataExported": "Personal data exported",
+      "PrivacyErasureRequested": "Personal data erasure requested",
+      "RefreshTokenReplayDetected": "Reused sign-in token detected",
+      "RefreshTokenRotated": "Sign-in renewed",
+      "SessionRevokedByAdmin": "Signed out by an administrator",
+      "SessionRevokedByUser": "Signed out of a session",
+      "SignupFinalSubmissionRequested": "Sign-up submitted",
+      "SignupSubmissionReopened": "Sign-up reopened for changes",
+      "SignupSubmittedForReview": "Sign-up sent for review",
+      "SmpParticipantReRegistrationQueued": "Peppol registration renewal queued",
+      "SmpParticipantReRegistrationSkipped": "Peppol registration renewal skipped",
+      "SmpTenantVerifiedSubmissionReleased": "Verified Peppol registration released",
+      "SubscriptionBillIssued": "Subscription bill issued",
+      "SubscriptionBillSuperseded": "Subscription bill replaced",
+      "SubscriptionBillVoided": "Subscription bill voided",
+      "SubscriptionCardCheckoutClosed": "Card checkout closed",
+      "SubscriptionCardPaymentDuplicateCollection": "Card payment collected twice",
+      "SubscriptionCardPaymentHeld": "Card payment held",
+      "SubscriptionCardPaymentRecovered": "Card payment recovered",
+      "SubscriptionCardPaymentReleased": "Card payment released",
+      "SubscriptionCardPaymentReversed": "Card payment reversed",
+      "SubscriptionPaidPeriodExtended": "Paid period extended",
+      "SubscriptionPaymentCashReceiptRecorded": "Cash receipt recorded",
+      "SubscriptionPaymentConfirmed": "Subscription payment confirmed",
+      "SubscriptionPaymentProofRead": "Payment proof opened",
+      "SubscriptionPaymentRejected": "Subscription payment refused",
+      "SubscriptionPaymentSecondApproved": "Subscription payment approved a second time",
+      "SubscriptionPaymentSubmitted": "Subscription payment submitted",
+      "SubscriptionPaymentVerified": "Subscription payment verified",
+      "SubscriptionPaymentWithdrawn": "Subscription payment withdrawn",
+      "SubscriptionPlanAssigned": "Plan assigned",
+      "SubscriptionPlanChanged": "Plan changed",
+      "SubscriptionTrialException": "Trial extended as an exception",
+      "SubscriptionTrialStarted": "Trial started",
+      "TenantIdentityPolicyEnforced": "Sign-in policy enforced",
+      "TenantIdentityPolicyUpdated": "Sign-in policy changed",
+      "UserReactivationRefused": "User reactivation refused",
+      "WebhookEndpointCreated": "Webhook added",
+      "WebhookEndpointDeleted": "Webhook removed",
+      "WebhookSecretRotated": "Webhook secret replaced",
+      "WebhookTestRequested": "Webhook test sent"
     },
     "notAvailable": "Not available yet",
     "exportUnavailable": "Exporting the log as a PDF is not available yet.",
@@ -19893,7 +20089,8 @@
       "30": "Bank transfer",
       "48": "Card payment",
       "68": "Online payment"
-    }
+    },
+    "netTerm": "Net {{count}} days"
   },
   "selfBillDetail": {
     "breadcrumbSelfBilled": "Self-billed",
@@ -20088,7 +20285,8 @@
       "onHold": "On hold",
       "rejected": "Rejected",
       "inPaymentRun": "In a payment run",
-      "paid": "Paid"
+      "paid": "Paid",
+      "refusedClosed": "Refused · closed by credit note"
     },
     "activity": {
       "arrivedPeppol": "Credit note arrived over Peppol",
@@ -20118,7 +20316,9 @@
     "billChosenByHand": "Chosen by hand. Check it against the reference printed on the file.",
     "findBill": "Which bill",
     "findBillPlaceholder": "Search by bill number",
-    "pickSupplierFirst": "Choose the supplier first"
+    "pickSupplierFirst": "Choose the supplier first",
+    "refusedNothingOwed": "Refused · nothing owed",
+    "billCardNoDue": "{{state}} · {{outstanding}} unpaid · no due date"
   },
   "expenditureNotes": {
     "reason": {
@@ -21054,6 +21254,10 @@
       "void": "Void",
       "support": "Support"
     }
+  },
+  "documentParty": {
+    "building": "Building {{number}}",
+    "poBox": "PO Box {{number}}"
   },
   "billDue": {
     "title": "Your subscription bill is ready",
