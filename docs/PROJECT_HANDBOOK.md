@@ -511,6 +511,13 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   - **Data is kept, always.** Retention is mandatory: there is no deletion and no "close
     company" for the customer. Records are kept for the full legal period (section 7, question 6)
     in every subscription state, and reading and export always work.
+  - **Upgrade and downgrade** (default, standard practice). An upgrade applies at once, charged pro
+    rata for the days left; a downgrade applies at the next renewal, with no refund. Over the new
+    plan's users or branches, the customer picks who stays; the others are switched off, never
+    deleted, and the Head Branch is never switched off. Extra users, branches and the ERP add-on
+    are added pro rata and removed at the renewal.
+  - **The full rules** for backend, web and mobile are in the shared doc "Fawtir Subscription Rules"
+    (https://claude.ai/code/artifact/e34f1427-8685-4c10-bf87-cbd78bc5168d).
   - **On the server.** Every write checks the subscription state; reads and exports never do.
     Cancelling changes the subscription state only and never resets onboarding data or the
     onboarding-complete flag.
