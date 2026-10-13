@@ -511,15 +511,17 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   - **Data is kept, always.** Retention is mandatory: there is no deletion and no "close
     company" for the customer. Records are kept for the full legal period (section 7, question 6)
     in every subscription state, and reading and export always work.
-  - **Leaving Fawtir as service provider is not cancelling** (Tax Authority Fawtara FAQ,
-    https://tms.taxoman.gov.om/portal/documents/d/taxportal/monthly-faq-s-1-pdf, read 13 Oct 2026):
-    a taxpayer can disconnect from its provider itself on the Fawtara Portal; a provider "may
-    initiate a disconnection request; final disconnection is based on the Taxpayer's approval";
-    a taxpayer is connected to one provider at a time, so it disconnects from Fawtir before
-    connecting to another ASP. Cancelling does not disconnect. After disconnection nothing more is
-    sent or received through Fawtir; records stay for the legal period, readable and exportable.
-    The exact steps are in the Tax Authority's "Taxpayer and Service Provider Association
-    Management guide", to be read before any disconnect feature is built.
+  - **Leaving Fawtir as service provider is not cancelling** (Tax Authority "Service Provider and
+    Taxpayer Association Management User Manual",
+    https://tms.taxoman.gov.om/portal/documents/d/taxportal/service-provider-and-taxpayer-association-management-user-manual?download=true,
+    and the Fawtara FAQ; read 13 Oct 2026; docs.peppol.eu does not cover this). One provider at a
+    time. A taxpayer disconnects itself on the Fawtara Portal at once, or by connecting to another
+    provider; either way Fawtir must remove it from the Oman SMP within 1 business day (manual
+    5.4.2, 3.8.1). Fawtir may ask to disconnect a taxpayer; the taxpayer approves or rejects, and
+    no answer in 3 days cancels the request (4.3). On accepting a connection Fawtir adds the
+    taxpayer to the SMP within 3 business days (7.5.1). The SMP API accepts add, amend or remove
+    only for a confirmed connection (11.2). The portal sends these events by email, SMS and portal
+    notice only. Cancelling never disconnects; records stay for the legal period in every case.
   - **Upgrade and downgrade** (default, standard practice). An upgrade applies at once, charged pro
     rata for the days left; a downgrade applies at the next renewal, with no refund. Over the new
     plan's users or branches, the customer picks who stays; the others are switched off, never
