@@ -527,6 +527,10 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     plan's users or branches, the customer picks who stays; the others are switched off, never
     deleted, and the Head Branch is never switched off. Extra users, branches and the ERP add-on
     are added pro rata and removed at the renewal.
+  - **Subscription handling is web only on mobile's side** (owner, 13 Oct 2026): buying extra
+    documents, upgrading, downgrading, adding paid users or branches and cancelling are on the web.
+    Mobile keeps the sign-up payment, plan and usage (read only), the usage warnings and the
+    read-only banner with Pay; elsewhere it says "Manage your subscription on the Fawtir website."
   - **The full rules** for backend, web and mobile are in the shared doc "Fawtir Subscription Rules"
     (https://claude.ai/code/artifact/e34f1427-8685-4c10-bf87-cbd78bc5168d).
   - **On the server.** Every write checks the subscription state; reads and exports never do.
