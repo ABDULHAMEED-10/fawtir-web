@@ -327,3 +327,23 @@ describe('Settings › Billing: the charge', () => {
     }
   })
 })
+
+describe('Settings › Billing: after a pay-now signup', () => {
+  it('opens the pay form on the method chosen at signup, and any offered method can still be picked', async () => {
+    answers[BILLING] = () => json(200, overview({ signupMethod: 'CASH' }))
+    renderBilling()
+    const cash = await screen.findByRole('radio', { name: new RegExp(i18n.t('billing.method.CASH.title')) })
+    expect((cash as HTMLInputElement).checked).toBe(true)
+    const bank = screen.getByRole('radio', { name: new RegExp(i18n.t('billing.method.BANK_TRANSFER.title')) })
+    expect((bank as HTMLInputElement).checked).toBe(false)
+    expect((bank as HTMLInputElement).disabled).toBe(false)
+  })
+
+  it('ignores a signup method that is not offered any more', async () => {
+    answers[BILLING] = () => json(200, overview({ signupMethod: 'CARD' }))
+    renderBilling()
+    const bank = await screen.findByRole('radio', { name: new RegExp(i18n.t('billing.method.BANK_TRANSFER.title')) })
+    expect((bank as HTMLInputElement).checked).toBe(false)
+    expect((screen.getByRole('radio', { name: new RegExp(i18n.t('billing.method.CASH.title')) }) as HTMLInputElement).checked).toBe(false)
+  })
+})

@@ -18,7 +18,9 @@ export const BENEFICIARIES_PATH = '/v1/platform/billing/beneficiaries'
 export type PlatformPaymentDto = {
   id: string
   tenantId: string
-  billId: string
+  /** Null for a payment made with the application: its first bill is issued at activation (V289). */
+  billId: string | null
+  kind?: 'BILL' | 'SIGNUP'
   method: PaymentMethod
   status: PaymentStatus
   amount: string
@@ -52,7 +54,7 @@ export type PaymentEventDto = {
   occurredAt: string
 }
 
-export type QueueItemDto = { payment: PlatformPaymentDto; bill: SubscriptionBillDto; tenantName: string | null }
+export type QueueItemDto = { payment: PlatformPaymentDto; bill: SubscriptionBillDto | null; tenantName: string | null }
 
 /** Oldest first, fifty at a time; pass {@link nextCursor} as `after` for the next page. */
 export type QueuePageDto = { items: QueueItemDto[]; nextCursor: string | null }

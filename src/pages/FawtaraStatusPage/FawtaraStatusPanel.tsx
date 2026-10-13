@@ -84,24 +84,25 @@ const BADGE_TONE: Record<GoingLivePhase, { box: string; dot: string; text: strin
 /** The plan and payment carried from sign-up; absent after sign-in or on a fresh tab. */
 function PlanNote({ choice }: { choice: OnboardingState }) {
   const { t, i18n } = useTranslation()
-  const { plan, paymentMethod } = choice
+  const { plan, paymentMethod, enrollment } = choice
   if (!plan) return null
-  // The trial as the status read reported it; with no report the note makes no trial claim.
+  // The trial as the status read reported it, and only when it was chosen (V287): a pay-now
+  // registration gets none, and with no report the note makes no trial claim.
   const trialDays = choice.planTerms?.trialDays
   const lines =
     plan === 'enterprise'
       ? [t('fawtaraStatus.plan.enterprise')]
       : [
-          trialDays === undefined || trialDays === 0
-            ? null
-            : trialDays === null
-              ? t('fawtaraStatus.plan.noTrial')
-              : t('fawtaraStatus.plan.trial', { count: trialDays }),
-          paymentMethod
+          enrollment === 'payNow'
+            ? t('fawtaraStatus.plan.noTrial')
+            : enrollment === 'trial' && typeof trialDays === 'number' && trialDays > 0
+              ? t('fawtaraStatus.plan.trial', { count: trialDays })
+              : null,
+          enrollment === 'payNow' && paymentMethod
             ? t('fawtaraStatus.plan.paidBy', {
                 method:
                   paymentMethod === 'cardLink'
-                    ? t(`signupReview.payment.cardLink.${choice.linkVia ?? 'email'}`)
+                    ? t('signupReview.payment.card')
                     : t(`signupReview.payment.${paymentMethod}`),
               })
             : null,

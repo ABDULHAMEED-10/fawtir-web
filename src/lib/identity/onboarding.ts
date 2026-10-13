@@ -6,7 +6,6 @@ import {
   isKnownPlanId,
   type BillingCycle,
   type KnownPlanId,
-  type PaymentLinkVia,
   type PlanId,
   type SignupPaymentMethod,
 } from '../pricing'
@@ -123,6 +122,8 @@ export type SignupPlanCode = 'STARTER' | 'BUSINESS' | 'BUSINESS_PLUS' | 'ENTERPR
 export type SignupBillingCycle = 'MONTHLY' | 'ANNUAL'
 export type SignupPaymentMethodCode = 'CARD_LINK' | 'BANK_TRANSFER' | 'CASH'
 export type SignupLinkChannel = 'EMAIL' | 'WHATSAPP'
+/** V287: a free trial, which charges nothing, or paying now with the application (V289). */
+export type SignupEnrollmentCode = 'TRIAL' | 'PAY_NOW'
 
 /**
  * The saved answers the status read returns (Phase A contract §4), so a reload or a new tab shows
@@ -162,6 +163,16 @@ export type SignupStatusPlan = {
   trialDays?: number | null
 }
 
+export type SignupHeldPayment = {
+  /** The ledger's method, not the preference's: CARD rather than CARD_LINK. */
+  method: 'BANK_TRANSFER' | 'CASH' | 'CARD'
+  /** SUBMITTED, FUNDS_VERIFIED, CONFIRMED, REJECTED or WITHDRAWN, as the payment ledger has it. */
+  status: string
+  amount: string
+  reference: string | null
+  hasProof: boolean
+}
+
 export type SignupStatusResponse = {
   stage: SignupStage
   businessProfileComplete: boolean
@@ -176,10 +187,18 @@ export type SignupStatusResponse = {
   paymentPreferenceComplete?: boolean
   plan?: SignupStatusPlan | null
   paymentPreference?: {
-    method: SignupPaymentMethodCode
+    /** `null` on a preference saved before the choice existed: the step then reads incomplete. */
+    enrollment?: SignupEnrollmentCode | null
+    /** `null` for a trial. */
+    method: SignupPaymentMethodCode | null
     linkChannel: SignupLinkChannel | null
     erpExtractionAddon: boolean
   } | null
+  /**
+   * The payment held with the application, if any: a transfer receipt or a cash request, waiting
+   * for Finance and for approval (owner, 12 Oct 2026). Never the receipt itself.
+   */
+  signupPayment?: SignupHeldPayment | null
   /** The registrant's own email (ONBOARDING.md row 1.8). */
   accountEmail?: string | null
   draft?: SignupDraft | null
@@ -200,9 +219,9 @@ export const ONBOARDING_ROUTES = [
 
 /**
  * The plan and how the first bill will be paid, chosen after the address and before review
- * (owner decision, 8 Oct 2026). Nothing is charged here: the trial starts on approval and the
- * first bill goes out when it ends. Both choices are saved on the draft (ONBOARDING.md rows 1.2
- * and 1.3, Phase A contract §1-§2).
+ * (owner decision, 8 Oct 2026). A trial charges nothing and starts on approval; paying now is
+ * paid with the application, held until approval and Finance settlement (owner, 12 Oct 2026).
+ * Both choices are saved on the draft (ONBOARDING.md rows 1.2 and 1.3, Phase A contract §1-§2).
  */
 export const PLANS_ROUTE = '/plans'
 export const PAYMENT_ROUTE = '/payment'
@@ -281,6 +300,12 @@ export function submitForReview(onboardingToken: string, signal?: AbortSignal): 
 export const SIGNUP_PLAN_REQUIRED = 'signup-plan-required'
 export const SIGNUP_PAYMENT_PREFERENCE_REQUIRED = 'signup-payment-preference-required'
 export const SIGNUP_PAYMENT_NOT_APPLICABLE = 'signup-payment-not-applicable'
+/** A pay-now bank transfer submitted without its receipt, or a payment being refunded (V289). */
+export const SIGNUP_PAYMENT_REQUIRED = 'signup-payment-required'
+/** The reviewer closed the application with a final rejection; it cannot be resubmitted (V289). */
+export const SIGNUP_APPLICATION_CLOSED = 'signup-application-closed'
+/** A free trial was asked for on a plan that has none (also re-checked at submission). */
+export const SIGNUP_TRIAL_NOT_OFFERED = 'signup-trial-not-offered'
 /**
  * The `priceVersionId` sent with the plan is no longer the plan's current version (catalogue
  * contract §10): the price changed while the screen was open, so nothing was saved.
@@ -313,10 +338,6 @@ export const PAYMENT_METHOD_CODE: Record<SignupPaymentMethod, SignupPaymentMetho
   bankTransfer: 'BANK_TRANSFER',
   cash: 'CASH',
 }
-export const LINK_CHANNEL: Record<PaymentLinkVia, SignupLinkChannel> = {
-  email: 'EMAIL',
-  whatsapp: 'WHATSAPP',
-}
 
 /**
  * @param priceVersionId the catalogue version the screen showed, so the server refuses the choice
@@ -347,31 +368,96 @@ export function recordPlan(
   )
 }
 
-export function buildPaymentPreferenceRequest(
-  method: SignupPaymentMethod,
-  linkVia: PaymentLinkVia,
-  addon: boolean,
-) {
-  // The channel is required for a card link and refused for every other method (contract §2).
-  return {
-    method: PAYMENT_METHOD_CODE[method],
-    linkChannel: method === 'cardLink' ? LINK_CHANNEL[linkVia] : null,
-    erpExtractionAddon: addon,
-  }
+/**
+ * A trial or a paid start, as the payment screen decided it. The union makes "trial with a method"
+ * and "pay now without one" unrepresentable here; the server refuses both too (V287).
+ */
+export type EnrollmentChoice =
+  | { enrollment: 'trial' }
+  | { enrollment: 'payNow'; method: SignupPaymentMethod }
+
+export function buildPaymentPreferenceRequest(choice: EnrollmentChoice, addon: boolean) {
+  // No link channel: the owner removed the email/WhatsApp link choice (11 Oct 2026), and the
+  // server no longer requires one for a card.
+  return choice.enrollment === 'trial'
+    ? { enrollment: 'TRIAL' as const, method: null, erpExtractionAddon: addon }
+    : {
+        enrollment: 'PAY_NOW' as const,
+        method: PAYMENT_METHOD_CODE[choice.method],
+        erpExtractionAddon: addon,
+      }
 }
 
 export function recordPaymentPreference(
   onboardingToken: string,
-  method: SignupPaymentMethod,
-  linkVia: PaymentLinkVia,
+  choice: EnrollmentChoice,
   addon: boolean,
   signal?: AbortSignal,
 ): Promise<void> {
   return post(
     '/v1/auth/signup/payment-preference',
-    { onboardingToken, ...buildPaymentPreferenceRequest(method, linkVia, addon) },
+    { onboardingToken, ...buildPaymentPreferenceRequest(choice, addon) },
     signal,
   )
+}
+
+export type SignupBankTransferStatus =
+  | 'AVAILABLE'
+  | 'NOT_OFFERED'
+  | 'NO_ACCOUNT'
+  | 'STORAGE_UNAVAILABLE'
+
+/**
+ * Which methods can be chosen, from the server: bank transfer only with a confirmed ACTIVE account,
+ * card only with a configured provider. Replaces the static `bankBeneficiaryVerified` flag.
+ */
+export type SignupPaymentOptions = {
+  bankTransfer: boolean
+  bankTransferStatus: SignupBankTransferStatus
+  cash: boolean
+  card: boolean
+  beneficiary: { legalName: string; bankName: string; iban: string; swiftCode: string | null } | null
+  /** The largest receipt the server accepts; absent from an older server. */
+  proofMaximumBytes?: number
+}
+
+/**
+ * The transfer receipt sent with the application, before review. Held against it until Finance
+ * verifies the money and the company is approved; never applied to anything earlier. The same
+ * Idempotency-Key returns the same payment, so a retried upload cannot record a second one.
+ */
+export function uploadSignupPaymentEvidence(
+  onboardingToken: string,
+  evidence: { proof: File; reference: string; note: string },
+  idempotencyKey: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  const form = new FormData()
+  // The token is a form field, never a URL parameter (backend SignupController).
+  form.append('onboardingToken', onboardingToken)
+  form.append('proof', evidence.proof)
+  form.append('reference', evidence.reference)
+  if (evidence.note.trim()) form.append('note', evidence.note.trim())
+  return apiRequest<void>('/v1/auth/signup/payment-evidence', {
+    method: 'POST',
+    body: form,
+    signal,
+    credentials: 'omit',
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+export function readPaymentOptions(
+  onboardingToken: string,
+  signal?: AbortSignal,
+): Promise<SignupPaymentOptions> {
+  // POST so the bearer token travels in the body, never a URL (backend SignupController).
+  return apiRequest<SignupPaymentOptions>('/v1/auth/signup/payment-options', {
+    method: 'POST',
+    body: { onboardingToken },
+    signal,
+    credentials: 'omit',
+  })
 }
 
 /**

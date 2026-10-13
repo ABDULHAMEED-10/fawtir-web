@@ -4,6 +4,7 @@ import { DASHBOARD_PATH, type DashboardDto } from '../../api/reports/dashboard'
 import { BILL_SUMMARY_PATH, loadBillSummary, type BillSummaryDto } from '../../api/expenditure/bills'
 import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
 import { InvoicingReadinessCard } from '../../components/readiness/InvoicingReadinessCard'
+import { BillDueCard } from '../../components/billing/BillDueCard'
 import { DashboardHeader, KpiCards } from './KpiSection'
 import { RevenueChart } from './RevenueChart'
 import { RecentInvoices } from './RecentInvoices'
@@ -32,6 +33,7 @@ function DashboardBody() {
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
       <DashboardHeader />
+      <BillDueCard />
       <InvoicingReadinessCard />
       <KpiCards
         cash={tileOf(dashboard, (data) => data.cash)}

@@ -16,10 +16,11 @@ export type KnownPlanId = 'starter' | 'premium' | 'businessPlus' | 'enterprise'
  */
 export type PlanId = KnownPlanId | (string & {})
 export type BillingCycle = 'monthly' | 'annual'
-/** How the first bill will be paid: a Paymob link, a bank transfer, or cash at the office. */
+/**
+ * How the first bill will be paid: card on Paymob's hosted checkout, a bank transfer, or cash at
+ * the office. `cardLink` keeps the contract's `CARD_LINK` code; no link is sent any more.
+ */
 export type SignupPaymentMethod = 'cardLink' | 'bankTransfer' | 'cash'
-/** Where a card customer wants the Paymob link sent when the first bill is due. */
-export type PaymentLinkVia = 'whatsapp' | 'email'
 
 export type OrderSummary = {
   plan: Exclude<KnownPlanId, 'enterprise'>

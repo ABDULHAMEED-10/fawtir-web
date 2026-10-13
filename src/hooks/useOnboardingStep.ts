@@ -11,7 +11,9 @@ import {
   PENDING_ROUTE,
   PLAN_PRICE_CHANGED,
   SIGNUP_PAYMENT_NOT_APPLICABLE,
+  SIGNUP_APPLICATION_CLOSED,
   SIGNUP_PAYMENT_PREFERENCE_REQUIRED,
+  SIGNUP_PAYMENT_REQUIRED,
   SIGNUP_PLAN_REQUIRED,
   allowedRoute,
   readSignupStatus,
@@ -26,6 +28,8 @@ const CHOICE_CONFLICTS: Partial<Record<string, string>> = {
   [SIGNUP_PLAN_REQUIRED]: 'onboarding.planRequired',
   [SIGNUP_PAYMENT_PREFERENCE_REQUIRED]: 'onboarding.paymentPreferenceRequired',
   [SIGNUP_PAYMENT_NOT_APPLICABLE]: 'onboarding.paymentNotApplicable',
+  [SIGNUP_PAYMENT_REQUIRED]: 'onboarding.signupPaymentRequired',
+  [SIGNUP_APPLICATION_CLOSED]: 'onboarding.applicationClosed',
   [PLAN_PRICE_CHANGED]: 'plans.priceChanged',
 }
 

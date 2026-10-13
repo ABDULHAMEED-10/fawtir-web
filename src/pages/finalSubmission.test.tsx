@@ -44,6 +44,7 @@ const COMPLETE: OnboardingState = {
   accountEmail: 'owner@alnoor.test',
   plan: 'premium',
   billing: 'annual',
+  enrollment: 'payNow',
   paymentMethod: 'bankTransfer',
   // As `/signup/status` computed them from the pinned price version (catalogue contract §10).
   planTerms: {
@@ -195,6 +196,23 @@ describe('Review and submit', () => {
     expect(readOnboardingSession()?.submitted).toBe(true)
   })
 
+  it('shows a free-trial choice as the trial with no payment, and the first bill after it', () => {
+    renderAt('/signup-review', { ...COMPLETE, enrollment: 'trial', paymentMethod: undefined })
+    expect(valueOf('signupReview.fields.payment')).toBe(
+      i18n.t('signupReview.payment.trial', { count: 14 }),
+    )
+    expect(valueOf('signupReview.fields.firstBill')).toBe(
+      i18n.t('signupReview.firstBillAfterTrial', { count: 14 }),
+    )
+  })
+
+  it('treats a draft with a method but no trial-or-pay choice (pre-V287) as not chosen', async () => {
+    renderAt('/signup-review', { ...COMPLETE, enrollment: undefined })
+    expect(valueOf('signupReview.fields.payment')).toBe(i18n.t('signupReview.notChosen'))
+    await userEvent.setup({ delay: null }).click(submit())
+    expect(requests()).toEqual([])
+  })
+
   it('shows the plan and payment, and the waiting screen names the account email', async () => {
     renderAt('/signup-review', COMPLETE)
     expect(valueOf('signupReview.fields.plan')).toBe(
@@ -204,10 +222,9 @@ describe('Review and submit', () => {
       }),
     )
     expect(valueOf('signupReview.fields.payment')).toBe(i18n.t('signupReview.payment.bankTransfer'))
-    expect(valueOf('signupReview.fields.firstBill')).toBe(
-      i18n.t('signupReview.firstBillAfterTrial', { count: 14 }),
-    )
-    expect(valueOf('signupReview.fields.firstBillAmount')).toBe('840.000')
+    // Pay-now is paid with the application (V289); the subscription still starts only on activation.
+    expect(valueOf('signupReview.fields.startsOn')).toBe(i18n.t('signupReview.startsOnActivation'))
+    expect(valueOf('signupReview.fields.paidNow')).toBe('840.000')
     await userEvent.setup({ delay: null }).click(submit())
 
     expect(await screen.findByText(i18n.t('fawtaraStatus.review.title'))).toBeTruthy()
@@ -229,7 +246,8 @@ describe('Review and submit', () => {
   it('says the amount and trial are not known when the server sent none, and works out neither', () => {
     const { planTerms: _terms, ...older } = COMPLETE
     void _terms
-    renderAt('/signup-review', older)
+    // A trial whose length the server did not send.
+    renderAt('/signup-review', { ...older, enrollment: 'trial', paymentMethod: undefined })
     expect(valueOf('signupReview.fields.firstBillAmount')).toBe(
       i18n.t('signupReview.amountUnavailable'),
     )
@@ -328,7 +346,12 @@ describe('Review and submit', () => {
         planComplete: true,
         paymentPreferenceComplete: true,
         plan: { planCode: 'BUSINESS', billingCycle: 'ANNUAL' },
-        paymentPreference: { method: 'CARD_LINK', linkChannel: 'WHATSAPP', erpExtractionAddon: false },
+        paymentPreference: {
+          enrollment: 'PAY_NOW',
+          method: 'CARD_LINK',
+          linkChannel: 'WHATSAPP',
+          erpExtractionAddon: false,
+        },
         accountEmail: 'owner@alnoor.test',
         draft: {
           businessProfile: {
@@ -377,9 +400,8 @@ describe('Review and submit', () => {
         cycle: i18n.t('signupReview.billedAnnually'),
       }),
     )
-    expect(valueOf('signupReview.fields.payment')).toBe(
-      i18n.t('signupReview.payment.cardLink.whatsapp'),
-    )
+    // A channel saved before the owner removed the link choice is not shown any more.
+    expect(valueOf('signupReview.fields.payment')).toBe(i18n.t('signupReview.payment.card'))
     expect(requests()).toEqual([
       { url: '/api/v1/auth/signup/status', body: { onboardingToken: TOKEN } },
     ])

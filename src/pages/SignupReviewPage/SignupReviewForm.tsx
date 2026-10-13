@@ -92,9 +92,14 @@ export function SignupReviewForm() {
   const accentKey = identity && `businessIdentity.accents.${identity.accent}`
   const governorateKey = address && `governorate.${address.governorate}`
 
-  // A plan, and for every plan but Enterprise a way to pay, before anything reaches a reviewer.
-  const { plan, paymentMethod } = state
-  const planChosen = Boolean(plan && (plan === 'enterprise' || paymentMethod))
+  // A plan, and for every plan but Enterprise a trial or a way to pay, before anything reaches a
+  // reviewer.
+  const { plan, paymentMethod, enrollment } = state
+  const trialChosen = enrollment === 'trial'
+  const planChosen = Boolean(
+    plan &&
+      (plan === 'enterprise' || trialChosen || (enrollment === 'payNow' && paymentMethod)),
+  )
   // From the status read only; an older server sends no trial and no amounts, and the page then
   // says they are not known rather than working them out from the launch catalogue.
   const trialDays = state.planTerms ? state.planTerms.trialDays : undefined
@@ -204,31 +209,31 @@ export function SignupReviewForm() {
               },
               {
                 label: t('signupReview.fields.payment'),
-                value: paymentMethod
-                  ? paymentMethod === 'cardLink'
-                    ? t(`signupReview.payment.cardLink.${state.linkVia ?? 'email'}`)
-                    : t(`signupReview.payment.${paymentMethod}`)
-                  : t('signupReview.notChosen'),
+                value: trialChosen
+                  ? t('signupReview.payment.trial', { count: trialDays ?? 0 })
+                  : enrollment === 'payNow' && paymentMethod
+                    ? paymentMethod === 'cardLink'
+                      ? t('signupReview.payment.card')
+                      : t(`signupReview.payment.${paymentMethod}`)
+                    : t('signupReview.notChosen'),
               },
-              {
-                label: t('signupReview.fields.firstBill'),
-                value:
-                  trialDays === undefined || trialDays === 0
-                    ? t('signupReview.firstBillUnknown')
-                    : trialDays === null
-                      ? t('signupReview.firstBillOnApproval')
-                      : t('signupReview.firstBillAfterTrial', { count: trialDays }),
-              },
-              amounts
-                ? {
-                    label: t('signupReview.fields.firstBillAmount'),
-                    value: amounts.inclVat,
-                    money: true,
-                  }
+              // Paying now is paying with the application; the paid period still starts only at
+              // activation, never on the payment date (owner, 12 Oct 2026).
+              enrollment === 'payNow'
+                ? { label: t('signupReview.fields.startsOn'), value: t('signupReview.startsOnActivation') }
                 : {
-                    label: t('signupReview.fields.firstBillAmount'),
-                    value: t('signupReview.amountUnavailable'),
+                    label: t('signupReview.fields.firstBill'),
+                    value:
+                      trialChosen && typeof trialDays === 'number' && trialDays > 0
+                        ? t('signupReview.firstBillAfterTrial', { count: trialDays })
+                        : t('signupReview.firstBillUnknown'),
                   },
+              {
+                label: t(enrollment === 'payNow' ? 'signupReview.fields.paidNow' : 'signupReview.fields.firstBillAmount'),
+                ...(amounts
+                  ? { value: amounts.inclVat, money: true }
+                  : { value: t('signupReview.amountUnavailable') }),
+              },
               ...(state.addon
                 ? [{ label: t('payment.addon.title'), value: t('signupReview.addonValue') }]
                 : []),

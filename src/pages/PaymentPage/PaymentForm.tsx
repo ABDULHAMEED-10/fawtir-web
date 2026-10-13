@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Button, ChevronRightIcon, OmAmount, SelectionCard, Checkbox } from '../../components/ui'
+import { Button, ChevronRightIcon, OmAmount, SelectionCard, Checkbox, Switch } from '../../components/ui'
+import { FileDropzone } from '../../components/ui/FileDropzone'
 import { OnboardingFormError } from '../../components/auth/OnboardingFormError'
 import { useOnboardingStep } from '../../hooks/useOnboardingStep'
 import {
@@ -10,11 +11,15 @@ import {
   vatPercent,
   type PlanTermsRead,
 } from '../../hooks/useSignupPlanTerms'
+import { useSignupPaymentOptions } from '../../hooks/useSignupPaymentOptions'
 import {
-  LINK_CHANNEL,
   PAYMENT_METHOD_CODE,
   REVIEW_ROUTE,
   recordPaymentPreference,
+  uploadSignupPaymentEvidence,
+  type EnrollmentChoice,
+  type SignupHeldPayment,
+  type SignupPaymentOptions,
 } from '../../lib/identity/onboarding'
 import { onboardingStateFrom, planDisplayName, type OnboardingState } from '../../lib/onboarding'
 import {
@@ -22,39 +27,38 @@ import {
   formatOmr,
   toBaisa,
   type BillingCycle,
-  type PaymentLinkVia,
   type PlanId,
   type SignupPaymentMethod,
   extractionOffer,
   extractionMonthly,
 } from '../../lib/pricing'
 import { PLATFORM_SETTINGS } from '../../lib/platformSettings'
-import { toOmanE164 } from '../../lib/validation'
 import cardIcon from '../../assets/payment/card.svg'
 import bankIcon from '../../assets/payment/bank.svg'
-import emailIcon from '../../assets/payment/email.svg'
 import tickIcon from '../../assets/payment/tick-circle.svg'
 import rialIcon from '../../assets/brand/omr.svg'
 
 /**
- * How a new account will pay its first bill (15 Sep 2026; reshaped 8 Oct 2026).
+ * The free-trial or pay-now choice, and for pay-now the payment itself (15 Sep 2026; reshaped
+ * 8 Oct 2026; trial made a choice 11 Oct 2026, V287; payment before approval 12 Oct 2026, V289).
  *
- * Nothing is charged here. The trial starts when the Fawtir team approves the registration, and
- * the first bill goes out by the method chosen here when it ends, or on approval for a plan the
- * super admin gives no trial. Fawtir never takes card details: a card bill arrives as a Paymob
- * link. The methods on offer, the bank details and the link's life are console settings
- * (`PLATFORM_SETTINGS.payments`). The choice is saved on the draft (ONBOARDING.md row 1.3).
+ * A bank transfer's receipt is uploaded here, before review, and held with the application: the
+ * reviewer sees it, Finance verifies it with four-eyes, and nothing activates until the company is
+ * approved and the money is confirmed. Cash is a request the Fawtir team collects. Card is offered
+ * only once Paymob's embedded checkout is built; Fawtir never takes card details in its own form.
+ * Which methods can be chosen comes from the server (`/signup/payment-options`).
  */
 export type { SignupPaymentMethod }
 
 const METHODS: SignupPaymentMethod[] = ['cardLink', 'bankTransfer', 'cash']
 
-/**
- * Bank transfer stays on screen but cannot be chosen until Fawtir's beneficiary is confirmed: the
- * registrant would otherwise expect to pay into an account the screen cannot name (A3).
- */
-const unavailable = (method: SignupPaymentMethod) =>
-  method === 'bankTransfer' && !PLATFORM_SETTINGS.payments.bankBeneficiaryVerified
+const availableIn = (options: SignupPaymentOptions | null, method: SignupPaymentMethod) =>
+  options !== null &&
+  (method === 'cardLink'
+    ? options.card
+    : method === 'bankTransfer'
+      ? options.bankTransfer
+      : options.cash)
 
 export function PaymentForm() {
   const { t, i18n } = useTranslation()
@@ -69,20 +73,25 @@ export function PaymentForm() {
   const terms = termsRead.status === 'ready' ? termsRead.terms : null
   // `undefined`: not known (still reading, or a server that sends no trial); `null`: no trial.
   const trialDays = terms ? terms.trialDays : undefined
+  const trialOffered = typeof trialDays === 'number' && trialDays > 0
   // Automatic ERP extraction: offered as a priced add-on only where the console says so (handbook
   // section 6).
   const offer = extractionOffer(plan)
   const [addon, setAddon] = useState(Boolean(state.addon))
   const months = billing === 'annual' ? 12 : 1
 
+  const optionsRead = useSignupPaymentOptions()
+  const options = optionsRead.status === 'ready' ? optionsRead.options : null
   const offered = METHODS.filter((id) => PLATFORM_SETTINGS.payments.methods[id])
-  const choosable = offered.filter((id) => !unavailable(id))
-  const [method, setMethod] = useState<SignupPaymentMethod>(
-    state.paymentMethod && choosable.includes(state.paymentMethod)
-      ? state.paymentMethod
-      : (choosable[0] ?? 'cardLink'),
+
+  // Off unless the registrant turns it on: an unanswered choice must never become a trial.
+  const [trial, setTrial] = useState(state.enrollment === 'trial')
+  const [method, setMethod] = useState<SignupPaymentMethod | null>(
+    state.enrollment === 'trial' ? null : (state.paymentMethod ?? null),
   )
-  const [linkVia, setLinkVia] = useState<PaymentLinkVia>(state.linkVia ?? 'email')
+  const [methodMissing, setMethodMissing] = useState(false)
+  // A plan without a trial cannot carry one, whatever an earlier visit chose.
+  const trialChosen = trial && trialOffered
 
   // The saved preference is the server's, and wins over the tab's history until the registrant
   // picks something on this visit: browser Back lands on a history entry from before the choice,
@@ -91,43 +100,80 @@ export function PaymentForm() {
   const saved = termsRead.status === 'ready' ? termsRead.preference : null
   useEffect(() => {
     if (!saved || touched.current) return
-    const savedMethod = (Object.keys(PAYMENT_METHOD_CODE) as SignupPaymentMethod[]).find(
-      (id) => PAYMENT_METHOD_CODE[id] === saved.method,
-    )
-    if (savedMethod && choosable.includes(savedMethod)) setMethod(savedMethod)
-    const savedVia = (Object.keys(LINK_CHANNEL) as PaymentLinkVia[]).find(
-      (via) => LINK_CHANNEL[via] === saved.linkChannel,
-    )
-    if (savedVia) setLinkVia(savedVia)
+    if (saved.enrollment === 'TRIAL') {
+      setTrial(true)
+      setMethod(null)
+    } else if (saved.enrollment === 'PAY_NOW') {
+      setTrial(false)
+      const savedMethod = (Object.keys(PAYMENT_METHOD_CODE) as SignupPaymentMethod[]).find(
+        (id) => PAYMENT_METHOD_CODE[id] === saved.method,
+      )
+      setMethod(savedMethod ?? null)
+    }
     setAddon(saved.erpExtractionAddon)
-    // choosable is derived from static settings; the saved preference is the only input.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved])
 
   const planName = planDisplayName(t, state, i18n.language)
-  const linkDays = PLATFORM_SETTINGS.payments.linkExpiryDays
-  const when =
-    trialDays === undefined || trialDays === 0
-      ? t('payment.when.later')
-      : trialDays === null
-        ? t('payment.when.onApproval')
-        : t('payment.when.afterTrial', { count: trialDays })
+  const when = trialChosen
+    ? t('payment.when.afterTrial', { count: trialDays })
+    : t('payment.when.onApproval')
+
+  const chosenAvailable = method !== null && availableIn(options, method)
+
+  const held = termsRead.status === 'ready' ? termsRead.held : null
+  const [evidence, setEvidence] = useState<BankEvidence>({ proof: null, reference: '', note: '' })
+  const [evidenceProblem, setEvidenceProblem] = useState<'receipt' | 'reference' | null>(null)
+  // One key per receipt as entered: a retried Continue resends the same upload and the server
+  // returns the payment it already recorded instead of a second one.
+  const uploadKey = useRef<string | null>(null)
+  const changeEvidence = (next: Partial<BankEvidence>) => {
+    uploadKey.current = null
+    setEvidenceProblem(null)
+    setEvidence((current) => ({ ...current, ...next }))
+  }
+  const keepsHeldReceipt = heldBankReceipt(held) && evidence.proof === null
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (unavailable(method)) return
+    if (!trialChosen && (method === null || !chosenAvailable)) {
+      setMethodMissing(true)
+      return
+    }
+    const uploading = !trialChosen && method === 'bankTransfer' && !keepsHeldReceipt
+    if (uploading && evidence.proof === null) {
+      setEvidenceProblem('receipt')
+      return
+    }
+    if (uploading && !evidence.reference.trim()) {
+      setEvidenceProblem('reference')
+      return
+    }
     const withAddon = addon && offer === 'priced'
-    const result = await save((token, signal) =>
-      recordPaymentPreference(token, method, linkVia, withAddon, signal),
-    )
+    const choice: EnrollmentChoice = trialChosen
+      ? { enrollment: 'trial' }
+      : { enrollment: 'payNow', method: method as SignupPaymentMethod }
+    uploadKey.current ??= `signup-payment-${crypto.randomUUID()}`
+    const key = uploadKey.current
+    const result = await save(async (token, signal) => {
+      // The method first: switching it withdraws a receipt still waiting under another one.
+      await recordPaymentPreference(token, choice, withAddon, signal)
+      if (uploading && evidence.proof) {
+        await uploadSignupPaymentEvidence(
+          token,
+          { proof: evidence.proof, reference: evidence.reference.trim(), note: evidence.note },
+          key,
+          signal,
+        )
+      }
+    })
     if (!result.saved) return
     const next: OnboardingState = {
       ...state,
       plan,
       billing,
       addon: withAddon,
-      paymentMethod: method,
-      linkVia: method === 'cardLink' ? linkVia : undefined,
+      enrollment: choice.enrollment,
+      paymentMethod: choice.enrollment === 'payNow' ? choice.method : undefined,
       // Review shows the same server figures without asking for them again.
       planTerms: terms ?? undefined,
     }
@@ -137,13 +183,14 @@ export function PaymentForm() {
   // The rial sign, drawn like the card and bank outlines: the filled blue tick it replaced read
   // as "selected" on a card that was not.
   const icon = { cardLink: cardIcon, bankTransfer: bankIcon, cash: rialIcon } as const
+  const waitingForOptions = !trialChosen && optionsRead.status === 'loading'
 
   return (
     <form
       onSubmit={handleSubmit}
       className="my-auto flex w-full max-w-[700px] flex-col items-center gap-11"
     >
-      <div className="flex w-full flex-col gap-6">
+      <div className="@container flex w-full flex-col gap-6">
         <div className="flex flex-col gap-3">
           <h2 className="text-[32px] font-medium leading-[1.2] text-text-primary">
             {t('payment.title')}
@@ -151,98 +198,79 @@ export function PaymentForm() {
           <p className="text-base font-medium leading-[1.2] text-text-quaternary">
             {trialDays === undefined || trialDays === 0
               ? t('payment.descriptionPending')
-              : trialDays === null
-                ? t('payment.descriptionNoTrial')
-                : t('payment.descriptionTrial', { count: trialDays })}
+              : trialOffered
+                ? t('payment.descriptionChoose')
+                : t('payment.descriptionNoTrial')}
           </p>
         </div>
 
-        <div className="grid w-full grid-cols-1 gap-[17px] sm:grid-cols-3">
-          {offered.map((id) => (
-            <SelectionCard
-              key={id}
-              title={t(`payment.method.${id}.title`)}
-              description={t(`payment.method.${id}.subtitle`)}
-              selected={method === id}
-              disabled={unavailable(id)}
-              onSelect={() => {
-                touched.current = true
-                setMethod(id)
-              }}
-              icon={<img src={icon[id]} alt="" className="size-6 object-contain" />}
-            />
-          ))}
-        </div>
-        {offered.some(unavailable) ? (
-          <p className="text-xs font-medium text-text-quaternary">
-            {t('payment.bank.unavailable')}
-          </p>
+        {trialOffered ? (
+          <TrialToggle
+            days={trialDays}
+            checked={trial}
+            onChange={(next) => {
+              touched.current = true
+              setTrial(next)
+              setMethodMissing(false)
+            }}
+          />
         ) : null}
 
-        <div className="flex w-full flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+        {trialChosen ? null : (
+          <>
+            <div
+              role="group"
+              aria-label={t('payment.methodGroup')}
+              className="grid w-full grid-cols-1 gap-[17px] sm:grid-cols-3"
+            >
+              {offered.map((id) => (
+                <SelectionCard
+                  key={id}
+                  title={t(`payment.method.${id}.title`)}
+                  description={t(`payment.method.${id}.subtitle`)}
+                  selected={method === id}
+                  disabled={!availableIn(options, id)}
+                  onSelect={() => {
+                    touched.current = true
+                    setMethod(id)
+                    setMethodMissing(false)
+                  }}
+                  icon={<img src={icon[id]} alt="" className="size-6 object-contain" />}
+                />
+              ))}
+            </div>
+            <MethodAvailabilityNote read={optionsRead} offered={offered} />
+            {methodMissing ? (
+              <p role="alert" className="text-sm font-medium text-danger-700">
+                {t('payment.methodRequired')}
+              </p>
+            ) : null}
+          </>
+        )}
+
+        {/* Two columns only when this form itself is wide enough: it sits beside the illustration,
+            so the window width said nothing about its room and the summary ran off the edge (F-09). */}
+        <div className="flex w-full flex-col gap-6 @min-[700px]:flex-row @min-[700px]:items-start @min-[700px]:justify-between">
           <div className="w-full max-w-[351px] shrink-0">
-            {method === 'cardLink' ? (
-              <div className="flex flex-col gap-3">
-                <Note icon={cardIcon} text={t('payment.cardLink.noteLater', { when })} />
-                <fieldset className="flex flex-col gap-2">
-                  <legend className="mb-1 text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
-                    {t('payment.cardLink.sendTo')}
-                  </legend>
-                  {(['email', 'whatsapp'] as const).map((option) => (
-                    <label
-                      key={option}
-                      className={[
-                        'flex cursor-pointer items-center gap-3 rounded-sm border px-3.5 py-3 transition-colors',
-                        linkVia === option
-                          ? 'border-primary-300 bg-primary-25'
-                          : 'border-border-subtle bg-surface-card hover:border-primary-300',
-                      ].join(' ')}
-                    >
-                      <input
-                        type="radio"
-                        name="linkVia"
-                        value={option}
-                        checked={linkVia === option}
-                        onChange={() => {
-                          touched.current = true
-                          setLinkVia(option)
-                        }}
-                        className="size-4 accent-primary-700"
-                      />
-                      <span className="min-w-0">
-                        <span className="block text-sm font-semibold text-text-primary">
-                          {t(`payment.cardLink.byVia.${option}`)}
-                        </span>
-                        <span className="block break-words text-xs font-medium text-text-quaternary">
-                          {option === 'whatsapp'
-                            ? t('payment.cardLink.viaWhatsAppNote', {
-                                // Isolated so the leading + stays at the start in Arabic.
-                                phone: state.address
-                                  ? `\u2066${toOmanE164(state.address.phone)}\u2069`
-                                  : t('payment.cardLink.yourPhone'),
-                                days: linkDays,
-                              })
-                            : t('payment.cardLink.viaEmailNote', {
-                                email:
-                                  state.accountEmail ??
-                                  state.address?.email ??
-                                  t('payment.cardLink.yourEmail'),
-                                days: linkDays,
-                              })}
-                        </span>
-                      </span>
-                    </label>
-                  ))}
-                </fieldset>
-              </div>
-            ) : method === 'bankTransfer' ? (
-              <BankTransferDetails when={when} />
-            ) : (
-              <Note icon={tickIcon} text={t('payment.cash.noteLater', { when })} />
-            )}
+            {trialChosen ? (
+              <Note icon={tickIcon} text={t('payment.trial.note', { count: trialDays })} />
+            ) : method === 'cardLink' && chosenAvailable ? (
+              <Note icon={cardIcon} text={t('payment.cardLink.noteHosted')} />
+            ) : method === 'bankTransfer' && chosenAvailable && options?.beneficiary ? (
+              <BankTransferDetails
+                beneficiary={options.beneficiary}
+                maxBytes={options.proofMaximumBytes}
+                held={heldBankReceipt(held) ? held : null}
+                evidence={evidence}
+                problem={evidenceProblem}
+                onChange={changeEvidence}
+              />
+            ) : method === 'cash' && chosenAvailable ? (
+              <Note icon={tickIcon} text={t('payment.cash.noteSignup')} />
+            ) : null}
           </div>
 
-          <div className="flex w-full max-w-[332px] flex-col gap-4 lg:shrink-0">
+          <div className="flex w-full max-w-[332px] flex-col gap-4 @min-[700px]:shrink-0">
             {offer === 'priced' ? (
               <AddonOffer
                 checked={addon}
@@ -262,6 +290,7 @@ export function PaymentForm() {
                 addon && offer === 'priced' ? toBaisa(extractionMonthly()) * months : null
               }
               when={when}
+              payNow={!trialChosen}
             />
           </div>
         </div>
@@ -269,11 +298,84 @@ export function PaymentForm() {
 
       <OnboardingFormError error={formError} />
 
-      <Button type="submit" disabled={submitting} className="w-full max-w-[400px] gap-1.5">
+      <Button
+        type="submit"
+        disabled={submitting || waitingForOptions}
+        className="w-full max-w-[400px] gap-1.5"
+      >
         {t('payment.continueCta')}
         <ChevronRightIcon size={18} className="rtl:rotate-180" />
       </Button>
     </form>
+  )
+}
+
+/** "Start with a 14-day free trial": off by default, and only shown on a plan that has a trial. */
+function TrialToggle({
+  days,
+  checked,
+  onChange,
+}: {
+  days: number
+  checked: boolean
+  onChange: (next: boolean) => void
+}) {
+  const { t } = useTranslation()
+  const label = t('payment.trial.toggle', { count: days })
+  return (
+    <div className="flex w-full items-start justify-between gap-4 rounded-sm border border-black/10 bg-surface-card p-4">
+      <div className="min-w-0">
+        <p className="text-base font-semibold text-text-primary">{label}</p>
+        <p className="mt-1 text-sm font-medium text-text-quaternary">
+          {checked ? t('payment.trial.onHint') : t('payment.trial.offHint')}
+        </p>
+      </div>
+      <Switch checked={checked} onChange={onChange} label={label} />
+    </div>
+  )
+}
+
+/**
+ * Why a method card is greyed out, in the server's words: bank transfer without a confirmed
+ * account is not offered, rather than shown with details nobody has confirmed.
+ */
+function MethodAvailabilityNote({
+  read,
+  offered,
+}: {
+  read: ReturnType<typeof useSignupPaymentOptions>
+  offered: SignupPaymentMethod[]
+}) {
+  const { t } = useTranslation()
+  if (read.status === 'loading') {
+    return <p className="text-xs font-medium text-text-quaternary">{t('payment.optionsLoading')}</p>
+  }
+  if (read.status === 'failed') {
+    return (
+      <p role="alert" className="text-xs font-medium text-danger-700">
+        {t('payment.optionsFailed')}
+      </p>
+    )
+  }
+  const { options } = read
+  const lines: string[] = []
+  if (!offered.some((id) => availableIn(options, id))) lines.push(t('payment.noMethod'))
+  if (offered.includes('cardLink') && !options.card) lines.push(t('payment.cardUnavailable'))
+  if (offered.includes('bankTransfer') && !options.bankTransfer) {
+    lines.push(
+      options.bankTransferStatus === 'STORAGE_UNAVAILABLE'
+        ? t('payment.bank.storageUnavailable')
+        : t('payment.bank.unavailable'),
+    )
+  }
+  if (offered.includes('cash') && !options.cash) lines.push(t('payment.cashUnavailable'))
+  if (lines.length === 0) return null
+  return (
+    <ul className="flex flex-col gap-1 text-xs font-medium text-text-quaternary">
+      {lines.map((line) => (
+        <li key={line}>{line}</li>
+      ))}
+    </ul>
   )
 }
 
@@ -331,17 +433,42 @@ function Note({ icon, text }: { icon: string; text: string }) {
   )
 }
 
+type BankEvidence = { proof: File | null; reference: string; note: string }
+
+const PROOF_ACCEPT = '.pdf,.png,.jpg,.jpeg'
+
+/** A transfer receipt the server already holds that still counts: not rejected or withdrawn. */
+const heldBankReceipt = (held: SignupHeldPayment | null): held is SignupHeldPayment =>
+  held !== null &&
+  held.method === 'BANK_TRANSFER' &&
+  held.hasProof &&
+  held.status !== 'REJECTED' &&
+  held.status !== 'WITHDRAWN'
+
 /**
- * Only reachable once the beneficiary is verified (the card is disabled before). The reference
- * reads "your invoice number" in the reader's language, so it is not set in the Latin monospace
- * the IBAN uses.
+ * The confirmed ACTIVE account the server returned, never an app constant, and the receipt for the
+ * transfer into it. A receipt the server already holds is shown instead of asked for again; it can
+ * be replaced only while nobody has verified it, which the server enforces too. The IBAN and SWIFT
+ * are Latin in either language, hence `ltr`.
  */
-function BankTransferDetails({ when }: { when: string }) {
+function BankTransferDetails({
+  beneficiary,
+  maxBytes,
+  held,
+  evidence,
+  problem,
+  onChange,
+}: {
+  beneficiary: NonNullable<SignupPaymentOptions['beneficiary']>
+  maxBytes: number | undefined
+  held: SignupHeldPayment | null
+  evidence: BankEvidence
+  problem: 'receipt' | 'reference' | null
+  onChange: (next: Partial<BankEvidence>) => void
+}) {
   const { t } = useTranslation()
-  const bank = PLATFORM_SETTINGS.payments.bank
-  if (!PLATFORM_SETTINGS.payments.bankBeneficiaryVerified) {
-    return <Note icon={bankIcon} text={t('payment.bank.detailsOnRequest')} />
-  }
+  const [replacing, setReplacing] = useState(false)
+  const [fileProblem, setFileProblem] = useState<'size' | 'type' | null>(null)
   return (
     <div className="flex flex-col gap-3">
       <div className="rounded-sm border border-black/10 bg-surface-card p-4">
@@ -349,16 +476,89 @@ function BankTransferDetails({ when }: { when: string }) {
           {t('payment.bank.detailsTitle')}
         </p>
         <dl className="mt-2 flex flex-col gap-1.5 text-sm">
-          <Row label={t('payment.bank.accountName')} value={bank.accountName} />
-          <Row label={t('payment.bank.bank')} value={bank.bank} />
-          <Row label="IBAN" value={bank.iban} mono />
-          <Row
-            label={t('payment.bank.reference')}
-            value={bank.referenceFormat.replace('{invoice}', t('payment.bank.yourInvoice'))}
-          />
+          <Row label={t('payment.bank.accountName')} value={beneficiary.legalName} />
+          <Row label={t('payment.bank.bank')} value={beneficiary.bankName} />
+          <Row label="IBAN" value={beneficiary.iban} mono />
+          {beneficiary.swiftCode ? <Row label="SWIFT" value={beneficiary.swiftCode} mono /> : null}
         </dl>
       </div>
-      <Note icon={emailIcon} text={t('payment.bank.noteLater', { when })} />
+      <Note icon={tickIcon} text={t('payment.bank.transferNow')} />
+      {held === null || replacing ? (
+        <fieldset className="flex flex-col gap-3 rounded-sm border border-black/10 bg-surface-card p-4">
+          <legend className="px-1 text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
+            {t('payment.bank.evidenceTitle')}
+          </legend>
+          <span id="signup-receipt-label" className="text-sm font-medium text-text-secondary">
+            {t('payment.bank.receiptLabel')}
+          </span>
+          <FileDropzone
+            accept={PROOF_ACCEPT}
+            maxBytes={maxBytes}
+            labelledBy="signup-receipt-label"
+            describedBy="signup-receipt-problem"
+            onFiles={(files) => {
+              setFileProblem(null)
+              onChange({ proof: files[0] ?? null })
+            }}
+            onReject={(reason) => setFileProblem(reason)}
+          >
+            {() => (
+              <span className="flex min-h-14 items-center justify-center rounded-sm border border-dashed border-border-default bg-white px-4 py-3 text-sm font-medium text-text-secondary">
+                {evidence.proof ? evidence.proof.name : t('payment.bank.receiptPick')}
+              </span>
+            )}
+          </FileDropzone>
+          {fileProblem || problem === 'receipt' ? (
+            <p id="signup-receipt-problem" role="alert" className="text-xs font-medium text-danger-700">
+              {fileProblem
+                ? t(`billing.bank.proofRejected.${fileProblem}`)
+                : t('payment.bank.receiptRequired')}
+            </p>
+          ) : null}
+          <label className="flex flex-col gap-1 text-sm font-medium text-text-secondary">
+            {t('payment.bank.referenceLabel')}
+            <input
+              value={evidence.reference}
+              maxLength={100}
+              aria-invalid={problem === 'reference'}
+              onChange={(event) => onChange({ reference: event.target.value })}
+              className="rounded-sm border border-border-subtle bg-white px-3 py-2 text-sm"
+            />
+          </label>
+          {problem === 'reference' ? (
+            <p role="alert" className="text-xs font-medium text-danger-700">
+              {t('payment.bank.referenceRequired')}
+            </p>
+          ) : null}
+          <label className="flex flex-col gap-1 text-sm font-medium text-text-secondary">
+            {t('payment.bank.notesLabel')}
+            <textarea
+              rows={2}
+              maxLength={500}
+              value={evidence.note}
+              onChange={(event) => onChange({ note: event.target.value })}
+              className="rounded-sm border border-border-subtle bg-white px-3 py-2 text-sm"
+            />
+          </label>
+        </fieldset>
+      ) : (
+        <div className="flex flex-col gap-2 rounded-sm border border-black/10 bg-surface-card p-4">
+          <p className="text-sm font-medium text-text-secondary">
+            {held.status === 'SUBMITTED'
+              ? t('payment.bank.received', { reference: held.reference ?? '' })
+              : t('payment.bank.verified')}
+          </p>
+          {held.status === 'SUBMITTED' ? (
+            <button
+              type="button"
+              onClick={() => setReplacing(true)}
+              className="self-start text-sm font-semibold text-primary-700 underline"
+            >
+              {t('payment.bank.replace')}
+            </button>
+          ) : null}
+        </div>
+      )}
     </div>
   )
 }
@@ -393,6 +593,7 @@ function OrderSummaryCard({
   termsRead,
   addonBaisa,
   when,
+  payNow,
 }: {
   planName: string
   billing: BillingCycle
@@ -400,6 +601,8 @@ function OrderSummaryCard({
   termsRead: PlanTermsRead
   addonBaisa: number | null
   when: string
+  /** Paid with the application: the total is due now, and the period still starts at activation. */
+  payNow: boolean
 }) {
   const { t } = useTranslation()
   const terms = termsRead.status === 'ready' ? termsRead.terms : null
@@ -416,7 +619,7 @@ function OrderSummaryCard({
     )
 
   return (
-    <div className="flex h-auto min-h-[370px] w-full max-w-[332px] flex-col overflow-hidden rounded-sm border border-[#f3f3f3] bg-surface-card lg:shrink-0">
+    <div className="flex h-auto min-h-[370px] w-full max-w-[332px] flex-col overflow-hidden rounded-sm border border-[#f3f3f3] bg-surface-card @min-[700px]:shrink-0">
       <div className="px-[18px] pb-3 pt-5">
         <p className="text-base font-medium text-text-primary">{t('payment.summary.title')}</p>
       </div>
@@ -470,7 +673,7 @@ function OrderSummaryCard({
 
       <div className="flex items-center justify-between gap-2 px-3 py-4">
         <span className="text-base font-medium text-text-primary/90">
-          {t('payment.summary.firstBill')}
+          {payNow ? t('payment.summary.payNowTotal') : t('payment.summary.firstBill')}
         </span>
         <span className="text-[22px] font-semibold text-text-primary/90">
           {figure(amounts?.inclVat, 'text-[22px] font-semibold text-text-primary/90', 'sm')}
@@ -491,7 +694,7 @@ function OrderSummaryCard({
       <div className="border-t border-dashed border-[#e8e8e8]" />
 
       <p className="px-[18px] py-4 text-center text-[10px] font-medium leading-normal text-text-primary/60">
-        {t('payment.summary.firstBillNote', { when })}
+        {payNow ? t('payment.summary.payNowNote') : t('payment.summary.firstBillNote', { when })}
         <span className="text-primary-700">{t('payment.summary.cancelAnytime')}</span>
         {t('payment.summary.renewSuffix')}
       </p>
