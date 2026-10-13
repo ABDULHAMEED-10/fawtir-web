@@ -6,6 +6,7 @@ import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNoti
 import { ReportPager } from '../ErpPage/reporting/reportingParts'
 import { useApiRead } from '../../hooks/useApiRead'
 import { formatInstant, formatInstantDay } from '../../lib/format'
+import { activityEventWords } from '../../lib/activityLogWords'
 import {
   activityLogPath,
   loadActivityLog,
@@ -158,7 +159,6 @@ function resourceWord(t: Translate, code: string): string {
 
 function Entry({ entry }: { entry: ActivityLogItemDto }) {
   const { t, i18n } = useTranslation()
-  const known = i18n.exists(`activityLog.event.${entry.event_type}`)
   // A person shows the person glyph: the log carries no name yet (SETTINGS.md row 2.7).
   const actor =
     entry.actor_type === 'USER' ? (
@@ -194,7 +194,7 @@ function Entry({ entry }: { entry: ActivityLogItemDto }) {
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium leading-[1.5] text-text-secondary">
-          {known ? t(`activityLog.event.${entry.event_type}`) : t('activityLog.event.other')}
+          {activityEventWords(i18n, entry.event_type)}
         </p>
         <span className="mt-2 flex flex-wrap items-center gap-2">
           {actorWord ? (

@@ -12,6 +12,7 @@ import { useApiRead } from '../../hooks/useApiRead'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { hasPermission } from '../../lib/identity/entitlements'
 import { BUSINESS_TIME_ZONE } from '../../lib/format'
+import { activityEventWords } from '../../lib/activityLogWords'
 import {
   activityLogPath,
   loadActivityLog,
@@ -316,15 +317,11 @@ type I18n = ReturnType<typeof useTranslation>['i18n']
 /** The words an entry is shown with, which is what the search looks through. */
 function searchText(i18n: I18n, entry: ActivityLogItemDto): string {
   return [
-    eventWords(i18n, entry.event_type),
+    activityEventWords(i18n, entry.event_type),
     entry.resource_type ? wordOr(i18n, `activityLog.resource.${entry.resource_type}`) : '',
     entry.resource_id ?? '',
     wordOr(i18n, `activityLog.outcome.${entry.outcome}`),
   ].join(' ')
-}
-
-function eventWords(i18n: I18n, eventType: string): string {
-  return wordOr(i18n, `activityLog.event.${eventType}`) || i18n.t('activityLog.event.other')
 }
 
 /** The words for a key, or '' when this build has none: a server code is never shown. */
@@ -407,7 +404,7 @@ function Entry({ entry }: { entry: ActivityLogItemDto }) {
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium leading-[1.5] text-text-secondary">
-          {eventWords(i18n, entry.event_type)}
+          {activityEventWords(i18n, entry.event_type)}
         </p>
         <span className="mt-2 flex flex-wrap items-center gap-2">
           {actor ? (
