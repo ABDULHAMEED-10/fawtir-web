@@ -17,7 +17,9 @@ const config = JSON.parse(readFileSync(join(process.cwd(), 'vercel.json'), 'utf8
 const SPA_SOURCE = '/((?!api(?:/|$)).*)'
 
 function spaRule() {
-  const rule = config.headers.find((candidate) => candidate.source === SPA_SOURCE)
+  const rule = config.headers.find(
+    (candidate) => candidate.source === SPA_SOURCE && header(candidate, 'X-Frame-Options'),
+  )
   if (!rule) throw new Error(`vercel.json has no header rule for ${SPA_SOURCE}`)
   return rule
 }
@@ -105,6 +107,20 @@ describe('vercel.json security headers (D6)', () => {
     expect(policy.get('object-src')).toEqual(["'none'"])
     // Browsers ignore frame-ancestors in a report-only policy and warn about it.
     expect(policy.has('frame-ancestors')).toBe(false)
+  })
+
+  // Vercel replaces the upstream Cache-Control with any matching rule's value, so a catch-all rule
+  // turned the backend's `no-store` on authenticated JSON into `public` (D8). Only the app's own
+  // files may carry a Vercel cache policy; /api must keep whatever the backend sends.
+  it('never sets a cache policy on the proxied API', () => {
+    for (const rule of config.headers) {
+      if (!header(rule, 'Cache-Control')) continue
+      for (const path of ['/api', '/api/v1/customers', '/API/v1/authored-invoices']) {
+        expect(matches(rule.source, path), `${rule.source} ${path}`).toBe(false)
+      }
+    }
+    const appCache = config.headers.find((rule) => rule.source === SPA_SOURCE && header(rule, 'Cache-Control'))
+    expect(header(appCache!, 'Cache-Control')).toBe('public, max-age=0, must-revalidate')
   })
 
   it('does not set a wildcard CORS header on the app', () => {
