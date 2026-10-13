@@ -50,14 +50,27 @@ export function SignupCardPayment({
     reportStatus.current(status)
   }, [status])
 
+  // A ref, not state: a double click fires both handlers before React re-renders the disabled
+  // button, and each would ask the server to open an attempt (the server would return the same
+  // one, but the browser must not lean on that).
+  const opening = useRef(false)
+  const [busy, setBusy] = useState(false)
   const open = async () => {
+    if (opening.current) return
+    opening.current = true
+    setBusy(true)
     attemptKey.current ??= `signup-card-${crypto.randomUUID()}`
     const key = attemptKey.current
-    await save(async (token, signal) => {
-      // The preference first: the server opens a card attempt only for a saved PAY_NOW + card choice.
-      await recordPaymentPreference(token, { enrollment: 'payNow', method: 'cardLink' }, addon, signal)
-      setCheckout(await startSignupCardCheckout(token, key, signal))
-    })
+    try {
+      await save(async (token, signal) => {
+        // The preference first: the server opens a card attempt only for a saved PAY_NOW + card choice.
+        await recordPaymentPreference(token, { enrollment: 'payNow', method: 'cardLink' }, addon, signal)
+        setCheckout(await startSignupCardCheckout(token, key, signal))
+      })
+    } finally {
+      opening.current = false
+      setBusy(false)
+    }
   }
 
   const check = async (signal?: AbortSignal) => {
@@ -97,6 +110,7 @@ export function SignupCardPayment({
   }, [polling])
 
   const retry = () => {
+    if (opening.current) return
     attemptKey.current = null
     setCheckout(null)
     void open()
@@ -110,7 +124,7 @@ export function SignupCardPayment({
     <div className="flex flex-col gap-3 rounded-sm border border-black/10 bg-surface-card p-4">
       <p className="text-xs font-medium text-text-quaternary">{t('payment.card.noteEmbedded')}</p>
       {checkout === null ? (
-        <Button type="button" onClick={() => void open()} className="w-full">
+        <Button type="button" onClick={() => void open()} disabled={busy} aria-busy={busy} className="w-full">
           {t('payment.card.open')}
         </Button>
       ) : null}
@@ -127,7 +141,7 @@ export function SignupCardPayment({
       {checkout?.status === 'NOT_COMPLETED' ? (
         <>
           <Message tone="alert" text={t('payment.card.notCompleted')} />
-          <Button type="button" variant="secondary" onClick={retry} className="w-full">
+          <Button type="button" variant="secondary" onClick={retry} disabled={busy} className="w-full">
             {t('payment.card.tryAgain')}
           </Button>
         </>

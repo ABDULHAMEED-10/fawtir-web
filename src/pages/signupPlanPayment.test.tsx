@@ -1086,6 +1086,8 @@ describe('Card at signup: Paymob Pixel on this screen', () => {
     await user.click(screen.getByRole('button', { name: i18n.t('payment.card.checkStatus') }))
     expect(await screen.findByText(i18n.t('payment.card.verified'), undefined, { timeout: 5_000 })).toBeTruthy()
     expect(callsTo(`${CARD_URL}/pay-1`)[0].body).toEqual({ onboardingToken: 'so.token' })
+    // The panel shows VERIFIED one render before the form hears it; the warning clearing is the form's own signal.
+    await waitFor(() => expect(screen.queryByText(i18n.t('payment.card.verifyBeforeContinue'))).toBeNull())
     await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
     expect((await screen.findByTestId('location', undefined, { timeout: 5_000 })).textContent).toBe('/signup-review')
   })
@@ -1142,6 +1144,87 @@ describe('Card at signup: Paymob Pixel on this screen', () => {
 
     expect((await screen.findByTestId('location', undefined, { timeout: 5_000 })).textContent).toBe('/signup-review')
     expect(callsTo(CARD_URL)).toHaveLength(0)
+  })
+
+  it('loading the screen and choosing Card, Bank or Cash open no card attempt; nothing is preselected', async () => {
+    let releaseOptions: () => void = () => {}
+    answer({
+      [STATUS_URL]: () => statusWith(),
+      [OPTIONS_URL]: () =>
+        new Promise<Response>((resolve) => {
+          releaseOptions = () => resolve(json(200, SERVER_OPTIONS))
+        }),
+      [CARD_URL]: () => json(200, view('READY')),
+    })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly', planTerms: BUSINESS_MONTHLY })
+    const user = userEvent.setup({ delay: null })
+    await screen.findByRole('button', { name: new RegExp(i18n.t('payment.method.cardLink.title')) })
+
+    // While the options load nothing can be pressed, and no card button exists to land a click on.
+    for (const id of ['cardLink', 'bankTransfer', 'cash'] as const) {
+      expect((methodButton(id) as HTMLButtonElement).disabled).toBe(true)
+      expect(methodButton(id).getAttribute('aria-pressed')).toBe('false')
+    }
+    expect(screen.queryByRole('button', { name: i18n.t('payment.card.open') })).toBeNull()
+    releaseOptions()
+    await waitFor(() => expect((methodButton('cardLink') as HTMLButtonElement).disabled).toBe(false))
+    const trial = screen.getByRole('switch')
+
+    // Trial off is the default here: still no method chosen for the customer.
+    expect(trial.getAttribute('aria-checked')).toBe('false')
+    await user.click(trial)
+    await user.click(trial)
+    for (const id of ['cardLink', 'bankTransfer', 'cash'] as const) {
+      expect(methodButton(id).getAttribute('aria-pressed')).toBe('false')
+    }
+
+    await user.click(methodButton('cardLink'))
+    expect(screen.getByRole('button', { name: i18n.t('payment.card.open') })).toBeTruthy()
+    await user.click(methodButton('bankTransfer'))
+    await user.click(methodButton('cash'))
+    await user.click(methodButton('cardLink'))
+    expect(callsTo(CARD_URL)).toHaveLength(0)
+    expect(mounted).toHaveLength(0)
+
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.card.open') }))
+    await waitFor(() => expect(mounted).toHaveLength(1))
+    expect(callsTo(CARD_URL)).toHaveLength(1)
+  })
+
+  it('a double click while the attempt is opening sends one request, and the button waits', async () => {
+    let releaseCard: () => void = () => {}
+    answer({
+      [STATUS_URL]: () => statusWith(),
+      [CARD_URL]: () =>
+        new Promise<Response>((resolve) => {
+          releaseCard = () => resolve(json(200, view('READY')))
+        }),
+    })
+    const user = await chooseCard()
+    const openButton = screen.getByRole('button', { name: i18n.t('payment.card.open') })
+    await user.dblClick(openButton)
+    await user.click(openButton)
+
+    await waitFor(() => expect(callsTo(CARD_URL)).toHaveLength(1))
+    expect((openButton as HTMLButtonElement).disabled).toBe(true)
+    releaseCard()
+    await waitFor(() => expect(mounted).toHaveLength(1))
+    expect(callsTo(CARD_URL)).toHaveLength(1)
+  })
+
+  it('a verified card is kept when the customer looks at another method and comes back', async () => {
+    answer({
+      [STATUS_URL]: () =>
+        statusWith({ method: 'CARD', status: 'FUNDS_VERIFIED', amount: '84.000', reference: null, hasProof: false }),
+    })
+    const user = await chooseCard()
+    expect(await screen.findByText(i18n.t('payment.card.verified'))).toBeTruthy()
+    await user.click(methodButton('bankTransfer'))
+    await user.click(methodButton('cardLink'))
+
+    expect(await screen.findByText(i18n.t('payment.card.verified'))).toBeTruthy()
+    expect(callsTo(CARD_URL)).toHaveLength(0)
+    expect(writes()).toHaveLength(0)
   })
 
   it('in Arabic, the card panel speaks Arabic', async () => {
