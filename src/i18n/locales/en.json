@@ -858,9 +858,9 @@
     "faq": {
       "title": "Frequently asked questions",
       "q1": "Do I need a card to start?",
-      "a1": "No. Every plan except Enterprise starts with a {{days}}-day free trial of the plan you pick, with {{documents}} documents. Nothing is charged, and the trial never turns into a paid plan by itself.",
+      "a1": "No. Every plan except Enterprise can start with a {{days}}-day free trial of the plan you pick, with {{documents}} documents. The trial is optional: with it nothing is charged, and it never turns into a paid plan by itself. Or you can pay with your application instead.",
       "q2": "How do I pay?",
-      "a2": "After you pick a plan you choose how to pay: by card through a secure payment link we send you on WhatsApp or email, by bank transfer, or in cash. The Fawtir team activates your account as soon as the payment is confirmed.",
+      "a2": "You choose when you sign up: start the free trial, or pay with your application by bank transfer, uploading the receipt, or in cash. The Fawtir team checks your company and Peppol participant details, and your paid subscription starts only after your company is approved and your payment is confirmed.",
       "q3": "What counts as a document?",
       "a3": "Every tax document you issue or receive: invoices, credit and debit notes, self-billed invoices, documents traded over Peppol and simplified invoices from the point of sale. Drafts, voided documents and documents that fail validation are not counted.",
       "q4": "What happens when I pass my allowance?",
