@@ -15317,7 +15317,20 @@
         }
       }
     },
-    "unreadable": "Reminders could not be read. Reload to try again."
+    "unreadable": "Reminders could not be read. Reload to try again.",
+    "subscription": {
+      "trialEnding": {
+        "title": "Your free trial ends on {{date}}.",
+        "body": "Choose a plan to keep issuing and receiving documents."
+      },
+      "grace": {
+        "title": "Your subscription ended on {{ended}} and the renewal is unpaid.",
+        "body": "Pay it by {{until}} to keep issuing and receiving documents.",
+        "bodyNoDate": "Pay the bill to keep issuing and receiving documents."
+      },
+      "choosePlan": "Choose a plan",
+      "payBill": "Pay the bill"
+    }
   },
   "onboarding": {
     "sessionExpired": "Your signup session has ended. Your answers are saved: continue your registration with a new code sent to your email.",
