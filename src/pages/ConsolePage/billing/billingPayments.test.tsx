@@ -142,6 +142,26 @@ describe('Console › Subscription payments', () => {
     expect(await screen.findByText(i18n.t('console.billing.refusal.payment-approver-not-independent'))).toBeTruthy()
   })
 
+  it('asks the cash verifier to confirm again above the threshold, where a transfer needs a second approver', async () => {
+    const awaiting = payment({
+      method: 'CASH', reference: null, proofSha256: null, proofContentType: null, status: 'AWAITING_SECOND_APPROVAL',
+      verifiedBy: 'u-admin', requiresSecondApproval: true, thresholdApplied: '50.000', version: 4,
+    })
+    answers[QUEUE] = () => json(200, page([{ payment: awaiting, bill: BILL, tenantName: 'Payments LLC' }]))
+    answers[`${QUEUE}/p-1`] = () => json(200, { payment: awaiting, bill: BILL, tenantName: 'Payments LLC', history: [] })
+    answers[`POST ${QUEUE}/p-1/second-approval`] = () =>
+      json(200, { payment: { ...awaiting, status: 'CONFIRMED', version: 5 }, bill: BILL, tenantName: 'Payments LLC', history: [] })
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/payments')
+
+    const panel = await openFirst(user)
+    expect(panel.getByText(i18n.t('console.billing.secondNeededCash'))).toBeTruthy()
+    expect(panel.getByText(i18n.t('console.billing.confirmAgainNote', { amount: '50.000' }))).toBeTruthy()
+    expect(panel.queryByRole('button', { name: i18n.t('console.billing.approveSecond') })).toBeNull()
+    await user.click(panel.getByRole('button', { name: i18n.t('console.billing.confirmAgain') }))
+    expect(await screen.findByText(i18n.t('console.billing.done.confirmedAgain'))).toBeTruthy()
+  })
+
   it('loads the next page of the queue from the cursor and keeps the first page', async () => {
     answers[QUEUE] = () => json(200, page([{ payment: payment(), bill: BILL, tenantName: 'Payments LLC' }], 'cursor-2'))
     answers[`${QUEUE}?after=cursor-2`] = () => json(200, page([{

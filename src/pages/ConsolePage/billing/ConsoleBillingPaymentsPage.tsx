@@ -221,6 +221,9 @@ function PaymentPanel({
     payment.method === 'BANK_TRANSFER' ? payment.status === 'SUBMITTED' : payment.status === 'RECEIPT_RECORDED'
   const live = ['SUBMITTED', 'RECEIPT_RECORDED', 'AWAITING_SECOND_APPROVAL'].includes(payment.status)
   const money = (value: string) => <OmAmount amount={formatAmount(value, 'OMR', i18n.language)} size="xs" />
+  // Cash above the threshold is two people (owner, 14 Oct 2026): the verifier confirms again, and
+  // only a bank transfer still needs a different second approver. The server enforces both.
+  const cashConfirmsAgain = payment.method === 'CASH' && payment.requiresSecondApproval === true
 
   return (
     <section aria-labelledby="payment-panel" className={`${CONSOLE_CARD} flex flex-col gap-4 p-5`}>
@@ -271,7 +274,13 @@ function PaymentPanel({
           <Fact
             label={t('console.billing.threshold')}
             value={payment.thresholdApplied ? money(payment.thresholdApplied) : t('subscription.none')}
-            note={t(payment.requiresSecondApproval ? 'console.billing.secondNeeded' : 'console.billing.secondNotNeeded')}
+            note={t(
+              !payment.requiresSecondApproval
+                ? 'console.billing.secondNotNeeded'
+                : cashConfirmsAgain
+                  ? 'console.billing.secondNeededCash'
+                  : 'console.billing.secondNeeded',
+            )}
           />
         ) : null}
         {payment.rejectionReason ? <Fact label={t('console.billing.rejection')} value={payment.rejectionReason} /> : null}
@@ -305,12 +314,25 @@ function PaymentPanel({
             type="button"
             className={CONSOLE_PRIMARY}
             disabled={busy}
-            onClick={() => act(() => approvePaymentSecond(payment.id, payment.version), 'console.billing.done.approved')}
+            onClick={() =>
+              act(
+                () => approvePaymentSecond(payment.id, payment.version),
+                cashConfirmsAgain ? 'console.billing.done.confirmedAgain' : 'console.billing.done.approved',
+              )
+            }
           >
-            {t('console.billing.approveSecond')}
+            {t(cashConfirmsAgain ? 'console.billing.confirmAgain' : 'console.billing.approveSecond')}
           </button>
         ) : null}
       </div>
+
+      {cashConfirmsAgain && payment.status === 'AWAITING_SECOND_APPROVAL' && can(BILLING_VERIFY_PERMISSION) ? (
+        <p className="text-xs font-medium text-text-tertiary">
+          {t('console.billing.confirmAgainNote', {
+            amount: formatAmount(payment.thresholdApplied ?? '', 'OMR', i18n.language),
+          })}
+        </p>
+      ) : null}
 
       {payment.method === 'CASH' && payment.status === 'SUBMITTED' && can(BILLING_CASH_PERMISSION) ? (
         <CashReceiptForm
