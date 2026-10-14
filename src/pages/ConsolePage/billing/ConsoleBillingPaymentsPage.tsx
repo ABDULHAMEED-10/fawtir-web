@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { DateField, OmAmount, Rial } from '../../../components/ui'
+import { DateField, OmAmount, Rial, withRial } from '../../../components/ui'
 import { selectAllOnFocus } from '../../../components/invoice/numericInput'
 import { ApiError } from '../../../api'
 import { ConsoleShell } from '../../../layouts/ConsoleShell'
@@ -334,9 +334,11 @@ function PaymentPanel({
 
       {cashConfirmsAgain && offerSecondStep ? (
         <p className="text-xs font-medium text-text-tertiary">
-          {t('console.billing.confirmAgainNote', {
-            amount: formatAmount(payment.thresholdApplied ?? '', 'OMR', i18n.language),
-          })}
+          {withRial(
+            t('console.billing.confirmAgainNote', {
+              amount: formatAmount(payment.thresholdApplied ?? '', 'OMR', i18n.language),
+            }),
+          )}
         </p>
       ) : null}
 

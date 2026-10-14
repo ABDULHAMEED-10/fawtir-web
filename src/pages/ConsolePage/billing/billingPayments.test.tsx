@@ -164,7 +164,9 @@ describe('Console › Subscription payments', () => {
 
     const panel = await openFirst(user)
     expect(panel.getByText(i18n.t('console.billing.secondNeededCash'))).toBeTruthy()
-    expect(panel.getByText(i18n.t('console.billing.confirmAgainNote', { amount: '50.000' }))).toBeTruthy()
+    // The note names the threshold with the drawn rial sign (OMR survives only for screen readers).
+    const note = panel.getByText((_, el) => el?.tagName === 'P' && /50\.000/.test(el.textContent ?? ''))
+    expect(note.querySelector('svg')).toBeTruthy()
     expect(panel.queryByRole('button', { name: i18n.t('console.billing.approveSecond') })).toBeNull()
     expect(panel.getByText(i18n.t('console.billing.event.PAYMENT_CONFIRMED_AGAIN'), { exact: false })).toBeTruthy()
     expect(panel.queryByText(i18n.t('console.billing.event.PAYMENT_SECOND_APPROVED'), { exact: false })).toBeNull()
@@ -187,7 +189,7 @@ describe('Console › Subscription payments', () => {
     expect(panel.getByText(i18n.t('console.billing.secondNeededCash'))).toBeTruthy()
     expect(panel.queryByRole('button', { name: i18n.t('console.billing.confirmAgain') })).toBeNull()
     expect(panel.queryByRole('button', { name: i18n.t('console.billing.approveSecond') })).toBeNull()
-    expect(panel.queryByText(i18n.t('console.billing.confirmAgainNote', { amount: '50.000' }))).toBeNull()
+    expect(panel.queryByText((_, el) => el?.tagName === 'P' && /Confirm again\./.test(el.textContent ?? ''))).toBeNull()
   })
 
   it('still offers a bank transfer second approval to an operator who did not verify it', async () => {
