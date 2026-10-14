@@ -12524,7 +12524,9 @@
       "erpRequests": "Add-on requests",
       "policies": "Validation policies",
       "payments": "Subscription payments",
-      "bankAccounts": "Bank account"
+      "bankAccounts": "Bank account",
+      "billingSettings": "Billing settings",
+      "seller": "Seller"
     },
     "user": {
       "team": "Fawtir team",
@@ -15090,6 +15092,70 @@
       "retireConfirm": "This is the account customers pay into. Retiring it stops bank transfer for every customer until another account is confirmed.",
       "keep": "Keep it",
       "retireNow": "Retire the account"
+    },
+    "billingSettings": {
+      "title": "Billing settings",
+      "subtitle": "Grace, second approval, VAT and renewal timing for subscription bills. Every change is kept with its reason.",
+      "loading": "Loading settings",
+      "card": "Subscription billing",
+      "cardNote": "Applies to bills issued from now on. Bills already issued keep their figures.",
+      "graceDays": "Grace days",
+      "graceDaysHint": "Days a bill can stay unpaid after its due date, 0 to 60.",
+      "leadDays": "Renewal bill, days ahead",
+      "leadDaysHint": "How many days before paid time runs out the renewal bill is prepared, 0 to 60.",
+      "threshold": "Second approver above",
+      "thresholdHint": "A manual payment above this amount needs a second operator to approve it.",
+      "vat": "Charge VAT on subscription bills",
+      "vatNote": "Off: bills carry no VAT and show no VAT line. On: the rate below is added to every new bill.",
+      "vatRate": "VAT rate",
+      "vatRateHint": "A percentage above 0 and below 100, up to three decimals.",
+      "reason": "Why this change",
+      "lastChange": "Last changed: {{reason}} · {{when}}",
+      "readOnly": "Only an operator who manages billing can change these.",
+      "error": {
+        "amount": "An amount of 0 or more, up to three decimals",
+        "percent": "Above 0 and below 100, up to three decimals"
+      },
+      "refusal": {
+        "conflict": "Someone else changed these settings while you were editing. They have been reloaded: check them and save again.",
+        "invalid": "The server did not accept these values. Check them and try again.",
+        "realm": "Billing settings are changed from the production console only.",
+        "impersonation": "End the impersonation before changing billing settings."
+      }
+    },
+    "seller": {
+      "title": "Seller",
+      "subtitle": "The company named as seller on every subscription bill. A bill keeps the seller in force when it was issued.",
+      "loading": "Loading the seller",
+      "none": "No seller has been entered yet. Bills issued now name no seller.",
+      "card": "Seller details",
+      "cardNote": "Changes apply to bills issued from now on.",
+      "legalNameEn": "Legal name (English)",
+      "legalNameAr": "Legal name (Arabic)",
+      "legalType": "Legal form",
+      "legalTypeHint": "Optional. For example Sole Proprietor Company (SPC).",
+      "crNumber": "Commercial registration number",
+      "tin": "Tax identification number",
+      "vatNumber": "VAT number",
+      "vatNumberHint": "Leave empty when the seller is not VAT registered. OM followed by 10 digits.",
+      "addressEn": "Address (English)",
+      "addressAr": "Address (Arabic)",
+      "optional": "Optional",
+      "reason": "Why this change",
+      "history": "Earlier versions",
+      "version": "Version {{version}}",
+      "historyFailed": "The earlier versions could not be loaded.",
+      "error": {
+        "digits": "Digits only, up to 20",
+        "vatNumber": "OM followed by 10 digits"
+      },
+      "refusal": {
+        "conflict": "Someone else changed the seller while you were editing. It has been reloaded: check it and save again.",
+        "invalid": "The server did not accept these details. Check them and try again."
+      },
+      "crShort": "CR {{number}}",
+      "tinShort": "TIN {{number}}",
+      "vatShort": "VAT {{number}}"
     }
   },
   "shell": {
