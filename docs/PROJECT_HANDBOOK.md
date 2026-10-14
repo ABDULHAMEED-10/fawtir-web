@@ -505,6 +505,11 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     no supplier invoices through Fawtir. Receiving resumes as normal on renewal; anything sent in
     the gap is missed and the supplier must resend it. How the access point refuses delivery is
     checked against the Peppol and PINT-OM rules, not decided from memory.
+  - **Seller and VAT** (owner, 14 Oct 2026): Fawtir is the brand; the legal seller on every
+    subscription bill and tax invoice is **Insight Information Security LLC** (CR 1731556, VAT
+    OM1100009460, Peppol ID 0248:OM1100009460). Subscription bills charge 5% VAT and get a tax
+    invoice. "Insight Technology LLC" in the payment settings and cheque wording is wrong and is
+    to be replaced with the legal name.
   - **Other answers of 14 Oct 2026:** received supplier invoices never count against the
     allowance; every allowance, rate, limit and price is configurable in the super admin console;
     the ERP add-on is offered on Business Plus and Enterprise only; saved cards and automatic
