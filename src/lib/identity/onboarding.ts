@@ -214,6 +214,11 @@ export type SignupStatusResponse = {
    * and submitted; `null` otherwise. Absent from an older server.
    */
   correctableUntil?: string | null
+  /**
+   * True exactly when Fawtir holds money from this application that must be returned. Absent from
+   * an older server, which is read as nothing to return.
+   */
+  refundDue?: boolean
   /** The registrant's own email (ONBOARDING.md row 1.8). */
   accountEmail?: string | null
   draft?: SignupDraft | null

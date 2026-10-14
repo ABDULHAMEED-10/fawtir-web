@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import type { SignupStatusResponse } from '../../lib/identity/onboarding'
-import { asSentence, isConfirmedPayment, rejectionReasonLabel } from '../../lib/identity/signupRejection'
+import { asSentence, rejectionReasonLabel } from '../../lib/identity/signupRejection'
 import { SUPPORT_EMAIL } from '../../lib/fawtaraStatus'
 
 /**
@@ -24,7 +24,7 @@ export function SignupClosedPanel({ status }: { status: SignupStatusResponse }) 
         <p className="text-base font-medium leading-[1.4] text-text-quaternary">
           {t('signupPending.closed.final')}
         </p>
-        {isConfirmedPayment(status.signupPayment?.status) ? (
+        {status.refundDue === true ? (
           <p className="text-base font-medium leading-[1.4] text-text-quaternary">
             {t('signupPending.closed.refund')}
           </p>

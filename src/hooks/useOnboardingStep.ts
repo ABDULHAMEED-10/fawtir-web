@@ -76,6 +76,14 @@ export function useOnboardingStep<F extends string = never>(options: StepOptions
     }
   }
 
+  const readsClosed = async (onboardingToken: string): Promise<boolean> => {
+    try {
+      return (await readSignupStatus(onboardingToken)).closed === true
+    } catch {
+      return false
+    }
+  }
+
   const explain = async (error: unknown, onboardingToken: string): Promise<StepSaveResult<F>> => {
     const unsaved: StepSaveResult<F> = { saved: false, fieldErrors: {} }
     if (error instanceof ApiError) {
@@ -85,10 +93,16 @@ export function useOnboardingStep<F extends string = never>(options: StepOptions
         return unsaved
       }
       // A closed application has nothing left to save: the waiting screen says it was closed.
+      // A closed application goes to the closed screen, but only when the status read says closed:
+      // a server without that field would show the waiting screen as reopened, which leads back here.
       if (error.status === 409 && error.problemType === SIGNUP_APPLICATION_CLOSED) {
-        markOnboardingSubmitted(true)
-        navigate(PENDING_ROUTE, { replace: true })
-        return unsaved
+        if (await readsClosed(onboardingToken)) {
+          markOnboardingSubmitted(true)
+          navigate(PENDING_ROUTE, { replace: true })
+        } else {
+          setFormError({ key: 'onboarding.applicationClosed' })
+        }
+        return { ...unsaved, conflict: SIGNUP_APPLICATION_CLOSED }
       }
       // These name exactly what is missing, so they are answered before the generic "an earlier
       // step is missing" probe, which cannot tell a missing plan from a refused one.

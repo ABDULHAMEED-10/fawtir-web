@@ -226,7 +226,7 @@ describe('restoring the draft from the status read (contract §4)', () => {
   })
 
   it('carries a correctable rejection, its deadline and a held payment; never for a closed application', () => {
-    const payment = { method: 'CASH' as const, status: 'SUBMITTED', amount: '84.000', reference: null, hasProof: false }
+    const payment = { method: 'CASH' as const, status: 'FUNDS_VERIFIED', amount: '84.000', reference: null, hasProof: false }
     const reopened = onboardingStateFromStatus({
       ...base,
       verificationStatus: 'REJECTED',
@@ -238,7 +238,7 @@ describe('restoring the draft from the status read (contract §4)', () => {
     expect(reopened).toMatchObject({
       rejectionReason: 'COMPANY_PROFILE_MISMATCH',
       correctableUntil: '2026-10-28',
-      paidWithApplication: true,
+      paymentKept: true,
     })
     const closed = onboardingStateFromStatus(
       { ...base, closed: true, rejectionReason: 'COMPANY_PROFILE_MISMATCH', signupPayment: payment },
@@ -246,9 +246,25 @@ describe('restoring the draft from the status read (contract §4)', () => {
     )
     expect(closed.rejectionReason).toBeUndefined()
     expect(closed.correctableUntil).toBeUndefined()
-    expect(closed.paidWithApplication).toBeUndefined()
+    expect(closed.paymentKept).toBeUndefined()
     // An older server sends neither field: nothing is claimed, and a cached reason is not kept.
     expect(onboardingStateFromStatus(base, reopened).rejectionReason).toBeUndefined()
+  })
+
+  it('says the payment is kept only for verified money while the correction window is open', () => {
+    const reopened = (status: string, correctableUntil: string | null) =>
+      onboardingStateFromStatus({
+        ...base,
+        verificationStatus: 'REJECTED',
+        rejectionReason: 'COMPANY_PROFILE_MISMATCH',
+        correctableUntil,
+        signupPayment: { method: 'BANK_TRANSFER', status, amount: '84.000', reference: 'T-1', hasProof: true },
+      })
+    expect(reopened('FUNDS_VERIFIED', '2026-10-28').paymentKept).toBe(true)
+    // A receipt nobody has verified yet is not money Fawtir holds.
+    expect(reopened('SUBMITTED', '2026-10-28').paymentKept).toBeUndefined()
+    // No deadline: the window has passed or the money is in a refund case.
+    expect(reopened('FUNDS_VERIFIED', null).paymentKept).toBeUndefined()
   })
 
   it('does not guess a governorate it cannot name', () => {

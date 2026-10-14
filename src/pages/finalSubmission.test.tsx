@@ -209,12 +209,28 @@ describe('Review and submit', () => {
     expect(readOnboardingSession()?.submitted).toBe(true)
   })
 
+  it('on a server without the closed field, a closed refusal is said on the page, with no way round', async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url.endsWith('/final-submission')
+        ? json(409, { type: 'https://api.fawtir.om/problems/signup-application-closed', detail: 'Closed.' })
+        : status('READY_FOR_SUBMISSION', { verificationStatus: 'REJECTED' }),
+    )
+    renderAt('/signup-review', COMPLETE)
+    await userEvent.setup({ delay: null }).click(submit())
+
+    expect(await screen.findByText(i18n.t('onboarding.applicationClosed'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('signupReview.title'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('signupPending.closed.title'))).toBeNull()
+    expect(screen.queryByRole('button', { name: i18n.t('signupPending.rejected.correct') })).toBeNull()
+    expect(readOnboardingSession()?.submitted).not.toBe(true)
+  })
+
   it('a draft sent back for correction says why and by when, and that the payment is kept', () => {
     renderAt('/signup-review', {
       ...COMPLETE,
       rejectionReason: 'TAX_IDENTITY_EVIDENCE_MISSING',
       correctableUntil: '2026-10-28',
-      paidWithApplication: true,
+      paymentKept: true,
     })
     const reason = `${i18n.t('console.verification.detail.reason.TAX_IDENTITY_EVIDENCE_MISSING')}.`
     const line = screen.getByRole('status')
@@ -580,6 +596,7 @@ describe('Waiting screen', () => {
         closed: true,
         rejectionReason: 'COMPANY_PROFILE_MISMATCH',
         signupPayment: { method: 'BANK_TRANSFER', status: 'FUNDS_VERIFIED', amount: '840.000', reference: 'T-1', hasProof: true },
+        refundDue: true,
       }),
     )
     renderAt('/signup-pending')
@@ -597,14 +614,15 @@ describe('Waiting screen', () => {
     expect(readOnboardingSession()?.submitted).toBe(true)
   })
 
-  it('a closed application promises no refund when no payment was confirmed', async () => {
+  it('a closed application promises no refund unless the server says one is due', async () => {
     fetchMock.mockResolvedValue(
       status('REJECTED', {
         submitted: true,
         verificationStatus: 'REJECTED',
         closed: true,
         rejectionReason: 'COMPANY_PROFILE_MISMATCH',
-        signupPayment: { method: 'BANK_TRANSFER', status: 'SUBMITTED', amount: '840.000', reference: 'T-1', hasProof: true },
+        // Verified money, but no refundDue from the server: nothing is promised.
+        signupPayment: { method: 'BANK_TRANSFER', status: 'FUNDS_VERIFIED', amount: '840.000', reference: 'T-1', hasProof: true },
       }),
     )
     renderAt('/signup-pending')

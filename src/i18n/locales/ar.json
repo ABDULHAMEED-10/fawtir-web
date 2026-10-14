@@ -15861,7 +15861,7 @@
         "CARD_CHECKOUT_CLOSED": "أُغلقت صفحة الدفع بالبطاقة",
         "PAYMENT_REVERSAL_RECORDED": "سُجّل عكس الدفعة",
         "SIGNUP_FUNDS_VERIFIED": "تم التحقق من دفعة التسجيل",
-        "SIGNUP_PAYMENT_ALLOCATED": "خُصّصت دفعة التسجيل للفاتورة الأولى",
+        "SIGNUP_PAYMENT_ALLOCATED": "خُصّصت دفعة التسجيل للمطالبة الأولى",
         "REFUND_CASE_OPENED": "فُتحت حالة استرداد"
       },
       "refusal": {

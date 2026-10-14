@@ -262,7 +262,7 @@ export function SignupReviewForm() {
                 reason: asSentence(rejectionReasonLabel(state.rejectionReason, t, i18n)),
                 date: state.correctableUntil ? formatDate(state.correctableUntil, i18n.language) : '',
               })}
-              {state.paidWithApplication ? <> {t('signupReview.paymentKept')}</> : null}
+              {state.paymentKept ? <> {t('signupReview.paymentKept')}</> : null}
             </p>
           ) : null}
           <p className="text-base font-medium leading-[1.2] text-text-quaternary">

@@ -126,11 +126,12 @@ export function onboardingStateFromStatus(
   // Only the server says whether the draft is back for correction; a tab's older answer is dropped.
   delete merged.rejectionReason
   delete merged.correctableUntil
-  delete merged.paidWithApplication
+  delete merged.paymentKept
   if (status.rejectionReason && status.closed !== true) {
     merged.rejectionReason = status.rejectionReason
     if (status.correctableUntil) merged.correctableUntil = status.correctableUntil
-    if (status.signupPayment) merged.paidWithApplication = true
+    // The deadline is gone once the window has passed or the money is in a refund case.
+    if (status.correctableUntil && status.signupPayment?.status === 'FUNDS_VERIFIED') merged.paymentKept = true
   }
   // Names the tab carried for another plan than the one saved would label it wrongly.
   if (merged.planNames && cached.plan !== merged.plan) delete merged.planNames
