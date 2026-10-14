@@ -13898,7 +13898,10 @@
         "invoiceSeries": "Subscription invoice series prefix",
         "invoiceSeriesHint": "Its own series, separate from tenant documents: {{prefix}}-000123.",
         "pricesExclusive": "Prices shown exclusive of VAT",
-        "pricesExclusiveNote": "Plan prices are shown without VAT; the tax is added on the subscription invoice."
+        "pricesExclusiveNote": "Plan prices are shown without VAT; the tax is added on the subscription invoice.",
+        "vatMoved": "VAT on subscription bills",
+        "vatMovedNote": "Switched on or off, with its rate, on Console › Billing settings. Bills use that setting.",
+        "vatMovedValue": "Billing settings"
       },
       "counting": {
         "kind": "Document kind",
