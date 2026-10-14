@@ -1,7 +1,6 @@
 import { baisaOf, type SignupCataloguePlan } from '../../lib/identity/signupPlans'
 import { FEATURES, FEATURE_GROUPS, type Feature } from '../../lib/plans'
 import { DEFAULT_SETTINGS, PLATFORM_SETTINGS } from '../../lib/platformSettings'
-import { SUBSCRIPTION_VAT_PERCENT } from '../../lib/pricing'
 import { launchCopy, trialSummary } from './catalogueView'
 
 /*
@@ -139,7 +138,10 @@ const SUPPORT_GROUP: Group = {
           : dash
         : negotiated,
     ),
-    limitRow('vat', () => value('vatExcl', { rate: SUBSCRIPTION_VAT_PERCENT })),
+    limitRow('vat', () => {
+      const rate = subscriptionVatPercent()
+      return rate > 0 ? value('vatExcl', { rate }) : value('noVat')
+    }),
   ],
 }
 
@@ -158,6 +160,12 @@ export const comparisonColumns = (plans: readonly SignupCataloguePlan[]): Column
 
 export const FAQ_COUNT = 9
 
+/**
+ * The console's VAT rate as a percentage. The seller differs per environment (testing sells
+ * without VAT), so no screen may quote a fixed 5%; at 0 the answers say no VAT is added.
+ */
+const subscriptionVatPercent = () => Math.round(PLATFORM_SETTINGS.billing.vatRate * 10_000) / 100
+
 export type FaqParams = ReturnType<typeof faqParams>
 
 /**
@@ -175,10 +183,14 @@ export function faqParams(plans: readonly SignupCataloguePlan[] | null) {
     grace: lifecycle.graceDays,
     // The grace answer counts days, and Arabic words a count by its plural form.
     count: lifecycle.graceDays,
-    rate: SUBSCRIPTION_VAT_PERCENT,
+    rate: subscriptionVatPercent(),
   }
 }
 
 /** The first answer quotes the trial, so it has a wording for plans that do not share one. */
 export const faqAnswerKey = (index: number, params: FaqParams) =>
-  index === 0 && params.days === undefined ? 'plans.faq.a1Varies' : `plans.faq.a${index + 1}`
+  index === 0 && params.days === undefined
+    ? 'plans.faq.a1Varies'
+    : index === 6 && params.rate === 0
+      ? 'plans.faq.a7NoVat'
+      : `plans.faq.a${index + 1}`

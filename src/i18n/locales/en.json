@@ -849,6 +849,7 @@
         "accountManager": "Account manager",
         "twoMonthsFree": "2 months free",
         "vatExcl": "Excluded, {{rate}}% on the bill",
+        "noVat": "No VAT added",
         "agreed": "Agreed on a call",
         "notOffered": "Not offered",
         "monthsFree_one": "{{count}} month free",
@@ -871,6 +872,7 @@
       "a6": "No. Point of sale and thermal receipts are on every plan with no terminal charge. A POS receipt counts as one document against your allowance.",
       "q7": "Do prices include VAT?",
       "a7": "No. Prices are shown exclusive of {{rate}}% VAT, which is added to your subscription bill.",
+      "a7NoVat": "No VAT is added to Fawtir subscriptions, so the price shown is the amount on your subscription bill.",
       "q8": "What is different about Enterprise?",
       "a8": "Enterprise is Business Plus with limits agreed on a call: documents, people, branches and price are set for your contract, automatic ERP extraction is included, and an account manager looks after you. Talk to our team and we will put a proposal together.",
       "q9": "Which plan can connect my ERP?",
@@ -11038,7 +11040,7 @@
     },
     "methodHint": {
       "cardLink": "Paymob checkout · nothing stored with us",
-      "bankTransfer": "Bank Muscat · quote the bill number",
+      "bankTransfer": "{{bank}} · quote the bill number",
       "cash": "At Fawtir's office or to your representative",
       "cheque": "Made out to Insight Technology LLC"
     },

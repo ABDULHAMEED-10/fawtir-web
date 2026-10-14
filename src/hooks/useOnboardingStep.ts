@@ -92,7 +92,6 @@ export function useOnboardingStep<F extends string = never>(options: StepOptions
         setFormError({ key: 'onboarding.sessionExpired' })
         return unsaved
       }
-      // A closed application has nothing left to save: the waiting screen says it was closed.
       // A closed application goes to the closed screen, but only when the status read says closed:
       // a server without that field would show the waiting screen as reopened, which leads back here.
       if (error.status === 409 && error.problemType === SIGNUP_APPLICATION_CLOSED) {

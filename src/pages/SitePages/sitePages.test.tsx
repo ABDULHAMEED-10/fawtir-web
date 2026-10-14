@@ -8,7 +8,8 @@ import { FeaturesPage } from './FeaturesPage'
 import { PricingPage } from './PricingPage'
 import { resetSharedRequests } from '../../api'
 import type { SignupCataloguePlan } from '../../lib/identity/signupPlans'
-import { comparisonGroups, faqParams } from '../PlansPage/comparison'
+import { comparisonGroups, faqAnswerKey, faqParams } from '../PlansPage/comparison'
+import { DEFAULT_SETTINGS, settingsStore } from '../../lib/platformSettings'
 
 let fetchMock: ReturnType<typeof vi.fn>
 
@@ -150,6 +151,24 @@ describe('Pricing page', () => {
     expect(arabic).toContain('على 7 أيام من المهلة')
     expect(i18n.t('plans.faq.a5', { ...params, count: 14, lng: 'ar' })).toContain('على 14 يومًا من المهلة')
     expect(i18n.t('plans.faq.a5', { ...params, lng: 'en' })).toContain('7 days of grace')
+  })
+
+  it('says no VAT is added when the console rate is zero, and quotes the rate otherwise', () => {
+    const vatRow = comparisonGroups(CATALOGUE)
+      .flatMap((group) => group.rows)
+      .find((row) => row.key === 'vat')!
+    expect(faqAnswerKey(6, faqParams(CATALOGUE))).toBe('plans.faq.a7')
+    expect(vatRow.cell(null)).toMatchObject({ params: { rate: 5 } })
+    settingsStore.save('billing', { ...DEFAULT_SETTINGS.billing, vatRate: 0 })
+    try {
+      const params = faqParams(CATALOGUE)
+      expect(faqAnswerKey(6, params)).toBe('plans.faq.a7NoVat')
+      expect(i18n.t(faqAnswerKey(6, params), { ...params, lng: 'en' })).not.toContain('%')
+      expect(i18n.t(faqAnswerKey(6, params), { ...params, lng: 'ar' })).not.toContain('%')
+      expect(vatRow.cell(null)).toMatchObject({ key: expect.stringContaining('noVat') })
+    } finally {
+      settingsStore.reset('billing')
+    }
   })
 
   it('reads in Arabic with the published Arabic names', async () => {
