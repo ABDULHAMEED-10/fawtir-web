@@ -153,22 +153,29 @@ describe('Pricing page', () => {
     expect(i18n.t('plans.faq.a5', { ...params, lng: 'en' })).toContain('7 days of grace')
   })
 
-  it('says no VAT is added when the console rate is zero, and quotes the rate otherwise', () => {
-    const vatRow = comparisonGroups(CATALOGUE)
-      .flatMap((group) => group.rows)
-      .find((row) => row.key === 'vat')!
-    expect(faqAnswerKey(6, faqParams(CATALOGUE))).toBe('plans.faq.a7')
-    expect(vatRow.cell(null)).toMatchObject({ params: { rate: 5 } })
+  it('quotes the VAT rate the server sends with the plans, and says no VAT is added at zero', () => {
+    const vatCell = (plans: readonly SignupCataloguePlan[]) =>
+      comparisonGroups(plans).flatMap((group) => group.rows).find((row) => row.key === 'vat')!.cell(null)
+    const noVat = CATALOGUE.map((plan) => ({ ...plan, vatRate: '0.00000' }))
+    const params = faqParams(noVat)
+    expect(faqAnswerKey(6, params)).toBe('plans.faq.a7NoVat')
+    expect(i18n.t(faqAnswerKey(6, params), { ...params, lng: 'en' })).not.toContain('%')
+    expect(i18n.t(faqAnswerKey(6, params), { ...params, lng: 'ar' })).not.toContain('%')
+    expect(vatCell(noVat)).toMatchObject({ key: 'plans.compare.value.noVat' })
+
+    // The server's rate wins over the console's.
     settingsStore.save('billing', { ...DEFAULT_SETTINGS.billing, vatRate: 0 })
     try {
-      const params = faqParams(CATALOGUE)
-      expect(faqAnswerKey(6, params)).toBe('plans.faq.a7NoVat')
-      expect(i18n.t(faqAnswerKey(6, params), { ...params, lng: 'en' })).not.toContain('%')
-      expect(i18n.t(faqAnswerKey(6, params), { ...params, lng: 'ar' })).not.toContain('%')
-      expect(vatRow.cell(null)).toMatchObject({ key: expect.stringContaining('noVat') })
+      const withVat = CATALOGUE.map((plan) => ({ ...plan, vatRate: '0.05000' }))
+      expect(faqAnswerKey(6, faqParams(withVat))).toBe('plans.faq.a7')
+      expect(faqParams(withVat).rate).toBe(5)
+      expect(vatCell(withVat)).toMatchObject({ params: { rate: 5 } })
+      // An older server sends no rate: the console's is used.
+      expect(faqAnswerKey(6, faqParams(CATALOGUE))).toBe('plans.faq.a7NoVat')
     } finally {
       settingsStore.reset('billing')
     }
+    expect(faqParams(CATALOGUE).rate).toBe(5)
   })
 
   it('reads in Arabic with the published Arabic names', async () => {

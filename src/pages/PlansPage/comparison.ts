@@ -123,7 +123,7 @@ function featureGroups(plans: readonly SignupCataloguePlan[]): Group[] {
   })).filter((group) => group.rows.length > 0)
 }
 
-const SUPPORT_GROUP: Group = {
+const supportGroup = (vatPercent: number): Group => ({
   key: 'support',
   labelKey: 'plans.compare.group.support',
   rows: [
@@ -138,18 +138,15 @@ const SUPPORT_GROUP: Group = {
           : dash
         : negotiated,
     ),
-    limitRow('vat', () => {
-      const rate = subscriptionVatPercent()
-      return rate > 0 ? value('vatExcl', { rate }) : value('noVat')
-    }),
+    limitRow('vat', () => (vatPercent > 0 ? value('vatExcl', { rate: vatPercent }) : value('noVat'))),
   ],
-}
+})
 
 /** Also read by the public pricing page, so both tables list the same rows. */
 export const comparisonGroups = (plans: readonly SignupCataloguePlan[]): Group[] => [
   ...LIMIT_GROUPS,
   ...featureGroups(plans),
-  SUPPORT_GROUP,
+  supportGroup(subscriptionVatPercent(plans)),
 ]
 
 /** The catalogue's plans in its order, then Enterprise. */
@@ -161,10 +158,15 @@ export const comparisonColumns = (plans: readonly SignupCataloguePlan[]): Column
 export const FAQ_COUNT = 9
 
 /**
- * The console's VAT rate as a percentage. The seller differs per environment (testing sells
- * without VAT), so no screen may quote a fixed 5%; at 0 the answers say no VAT is added.
+ * The subscription VAT rate as a percentage: the server's, sent with every plan, else the console's
+ * (a server older than the field sends none). The seller differs per environment and testing sells
+ * without VAT, so no screen may quote a fixed 5%; at 0 the answers say no VAT is added.
  */
-const subscriptionVatPercent = () => Math.round(PLATFORM_SETTINGS.billing.vatRate * 10_000) / 100
+export function subscriptionVatPercent(plans: readonly SignupCataloguePlan[] | null): number {
+  const sent = plans?.find((plan) => plan.vatRate != null)?.vatRate
+  const rate = sent != null && Number.isFinite(Number(sent)) ? Number(sent) : PLATFORM_SETTINGS.billing.vatRate
+  return Math.round(rate * 10_000) / 100
+}
 
 export type FaqParams = ReturnType<typeof faqParams>
 
@@ -183,7 +185,7 @@ export function faqParams(plans: readonly SignupCataloguePlan[] | null) {
     grace: lifecycle.graceDays,
     // The grace answer counts days, and Arabic words a count by its plural form.
     count: lifecycle.graceDays,
-    rate: subscriptionVatPercent(),
+    rate: subscriptionVatPercent(plans),
   }
 }
 
