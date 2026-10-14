@@ -316,8 +316,12 @@ describe('Settings › Billing: the charge', () => {
   })
 
   it('shows older bills a page at a time from the cursor', async () => {
+    const seller = {
+      legalNameEn: 'Thumb International SPC', legalNameAr: null, crNumber: '1383315',
+      taxIdentificationNumber: null, vatNumber: null, addressEn: 'Muscat', addressAr: null,
+    }
     const paid = (id: string, number: string) => ({
-      bill: { ...BILL, id, number, status: 'PAID', paidAt: '2026-09-20T08:00:00Z', appliedPaidThrough: '2026-10-22' },
+      bill: { ...BILL, id, number, status: 'PAID', paidAt: '2026-09-20T08:00:00Z', appliedPaidThrough: '2026-10-22', seller },
       payments: [],
     })
     answers[BILLING] = () =>
@@ -333,6 +337,8 @@ describe('Settings › Billing: the charge', () => {
 
     expect(await screen.findByText(/FWT-SUB-2026-000001/)).toBeTruthy()
     expect(screen.getByText(/FWT-SUB-2026-000006/)).toBeTruthy()
+    // A paid bill names the seller it was issued under.
+    expect(screen.getAllByText(i18n.t('billing.bill.seller', { name: 'Thumb International SPC' })).length).toBeGreaterThanOrEqual(2)
     expect(screen.queryByRole('button', { name: i18n.t('billing.olderBills') })).toBeNull()
   })
 

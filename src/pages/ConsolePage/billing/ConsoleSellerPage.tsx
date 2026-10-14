@@ -251,21 +251,22 @@ function validate(form: Form): Errors {
   return errors
 }
 
-/** Newest first, as the server sends it; the first row is the seller in force. */
+/** Newest first, as the server sends it. The first row is the seller in force, shown above, so the list starts after it. */
 function History({ read }: { read: ConsoleRead<BillingSellerDto[]> }) {
   const { t, i18n } = useTranslation()
   if (read.status === 'loading') return null
   if (read.status === 'failed') {
     return <p className="text-xs font-medium text-text-tertiary">{t(`${K}historyFailed`)}</p>
   }
-  if (read.data.length === 0) return null
+  const earlier = read.data.slice(1)
+  if (earlier.length === 0) return null
   return (
     <section aria-labelledby="seller-history" className="flex flex-col gap-3">
       <h2 id="seller-history" className="text-base font-semibold text-text-primary">
         {t(`${K}history`)}
       </h2>
       <ul className="flex flex-col gap-3">
-        {read.data.map((entry) => (
+        {earlier.map((entry) => (
           <li key={entry.version} className={`${CONSOLE_CARD} flex flex-col gap-1 p-4`}>
             <span className="text-sm font-semibold text-text-primary">
               {t(`${K}version`, { version: entry.version })} · {entry.legalNameEn}

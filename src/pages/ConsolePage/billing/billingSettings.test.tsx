@@ -237,6 +237,8 @@ describe('Console › Seller', () => {
     renderAt('/console/billing/seller')
 
     expect(await screen.findByText(new RegExp(`${L('version', { version: 1 })} · Old Name LLC`))).toBeTruthy()
+    // The version in force is the form above; the earlier list starts after it.
+    expect(screen.queryByText(new RegExp(`${L('version', { version: 2 })} ·`))).toBeNull()
     await user.type(screen.getByRole('textbox', { name: L('vatNumber') }), 'om1234567890')
     await user.type(screen.getByRole('textbox', { name: L('reason') }), 'VAT registered')
     await user.click(screen.getByRole('button', { name: i18n.t('console.settings.save') }))

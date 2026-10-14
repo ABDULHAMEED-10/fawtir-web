@@ -767,12 +767,20 @@ function History({ bills, nextCursor }: { bills: BillWithPaymentsDto[]; nextCurs
           const confirmed = payments.find((payment) => payment.status === 'CONFIRMED')
           return (
             <li key={bill.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
-              <span className="font-medium text-text-primary">
-                {bill.number} ·{' '}
-                {t('billing.bill.periodRange', {
-                  start: formatDate(bill.periodStartsOn, i18n.language),
-                  end: formatDate(bill.periodEndsOn, i18n.language),
-                })}
+              <span className="flex flex-col">
+                <span className="font-medium text-text-primary">
+                  {bill.number} ·{' '}
+                  {t('billing.bill.periodRange', {
+                    start: formatDate(bill.periodStartsOn, i18n.language),
+                    end: formatDate(bill.periodEndsOn, i18n.language),
+                  })}
+                </span>
+                {/* A paid bill keeps the seller it was issued under, so it is named here too. */}
+                {sellerName(bill.seller, i18n.language) ? (
+                  <span className="text-xs font-medium text-text-tertiary">
+                    {t('billing.bill.seller', { name: sellerName(bill.seller, i18n.language) })}
+                  </span>
+                ) : null}
               </span>
               <span className="flex items-center gap-3 text-text-secondary">
                 <OmAmount amount={formatAmount(bill.total, 'OMR', i18n.language)} size="xs" />

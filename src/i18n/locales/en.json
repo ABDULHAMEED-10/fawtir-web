@@ -21180,7 +21180,7 @@
     "method": {
       "BANK_TRANSFER": {
         "title": "Bank transfer",
-        "body": "Transfer the total to Fawtir's account, then send us the receipt."
+        "body": "Transfer the total to the account shown, then send us the receipt."
       },
       "CASH": {
         "title": "Cash",
