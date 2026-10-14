@@ -500,14 +500,15 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     users and permissions, customers, suppliers, products, number series, templates, settings and
     the ERP mapping all stay. Renewing reopens everything as it was; the next invoice number
     follows the last, and the customer **never goes through onboarding again**.
-  - **Supplier invoices while cancelled.** The Peppol registration stays and Fawtir keeps
-    receiving the company's supplier invoices, so the supplier's sending never fails. They are
-    held on the server and not shown; on renewal they are released into Bills together with
-    "{count} supplier invoices arrived while your subscription was inactive". Each keeps its real
-    receipt date (TDOM-04), so it counts for VAT in the quarter received. What the receiving
-    access point must still do on its own for a held invoice (delivery reply, any reporting) is
-    checked against the PINT-OM rules, not decided from memory; the customer's own accept or
-    reject waits for renewal.
+  - **Supplier invoices while the subscription has ended** (updated by the owner, 14 Oct 2026;
+    replaces "held and released on renewal"). While Suspended or Cancelled, the company receives
+    no supplier invoices through Fawtir. Receiving resumes as normal on renewal; anything sent in
+    the gap is missed and the supplier must resend it. How the access point refuses delivery is
+    checked against the Peppol and PINT-OM rules, not decided from memory.
+  - **Other answers of 14 Oct 2026:** received supplier invoices never count against the
+    allowance; every allowance, rate, limit and price is configurable in the super admin console;
+    the ERP add-on is offered on Business Plus and Enterprise only; saved cards and automatic
+    renewal wait on what Paymob supports; cash keeps its second approval as implemented.
   - **Data is kept, always.** Retention is mandatory: there is no deletion and no "close
     company" for the customer. Records are kept for the full legal period (section 7, question 6)
     in every subscription state, and reading and export always work.
