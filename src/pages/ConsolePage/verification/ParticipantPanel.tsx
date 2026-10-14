@@ -15,7 +15,7 @@ import {
   verifyParticipant,
   type PidSubmission,
 } from '../../../lib/console/pidSubmission'
-import { formatMoment } from '../../../lib/console/format'
+import { formatInstant } from '../../../lib/format'
 import { problemReference } from '../../../lib/console/problemReference'
 import {
   PID_POLICY_TYPE,
@@ -281,7 +281,7 @@ function ParticipantCard({
           />
           <ReviewLine
             label={t('console.verification.participant.verifiedAt')}
-            value={formatMoment(recorded.verifiedAt, i18n.language)}
+            value={formatInstant(recorded.verifiedAt, i18n.language)}
           />
           <ReviewLine
             label={t('console.verification.participant.policyInForce')}

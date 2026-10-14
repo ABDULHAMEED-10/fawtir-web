@@ -8,7 +8,6 @@ import {
   freeMonthsSummary,
   fullRial,
   launchCopy,
-  perMonthBaisa,
   periodPriceBaisa,
   planDescription,
   planName,
@@ -214,12 +213,6 @@ function PlanCard({ plan, yearly }: { plan?: SignupCataloguePlan; yearly: boolea
     .filter((line) => line !== 'plans.enterprise.features.f2')
     .map((line) => t(line))
 
-  // The note carries a price per document; the rial sign goes in where the figure is.
-  const [before, after] = t('site.pricing.each', { amount: '\u0000' }).split('\u0000')
-  // Display only, to the baisa: what one document of the allowance works out at.
-  const monthly = plan ? perMonthBaisa(plan, yearly ? 'annual' : 'monthly') : null
-  const each = plan && monthly !== null ? Math.round(monthly / plan.invoicesPerMonth) : null
-
   return (
     <article
       className={`relative flex flex-col gap-10 rounded-lg border border-[#e8e8ea] bg-white p-8 max-md:p-5 ${
@@ -256,24 +249,16 @@ function PlanCard({ plan, yearly }: { plan?: SignupCataloguePlan; yearly: boolea
             {t('plans.enterprise.price')}
           </p>
         )}
-        <p
-          className={`flex flex-wrap items-center gap-x-1 text-lg leading-[normal] ${
-            featured ? 'text-white' : 'text-[#2c4eb7]'
-          }`}
-        >
-          {plan ? (
-            <>
-              {before.trimEnd()}
-              <span className="inline-flex items-center gap-1 tabular-nums">
-                <RialMark className="w-3.5" />
-                {fullRial(each)}
-              </span>
-              {after.trimStart()}
-            </>
-          ) : (
-            t('plans.enterprise.billingNote')
-          )}
-        </p>
+        {/* No price per document: the web never works out a price (owner, 14 Oct 2026). */}
+        {plan ? null : (
+          <p
+            className={`flex flex-wrap items-center gap-x-1 text-lg leading-[normal] ${
+              featured ? 'text-white' : 'text-[#2c4eb7]'
+            }`}
+          >
+            {t('plans.enterprise.billingNote')}
+          </p>
+        )}
         {plan && yearly ? (
           <p className={`text-sm leading-[normal] ${soft}`}>
             {plan.annualFreeMonths > 0

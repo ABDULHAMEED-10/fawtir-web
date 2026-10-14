@@ -848,7 +848,8 @@
         "emailChat": "Email and chat",
         "accountManager": "Account manager",
         "twoMonthsFree": "2 months free",
-        "vatExcl": "Excluded, {{rate}}% on the invoice",
+        "vatExcl": "Excluded, {{rate}}% on the bill",
+        "noVat": "No VAT added",
         "agreed": "Agreed on a call",
         "notOffered": "Not offered",
         "monthsFree_one": "{{count}} month free",
@@ -862,15 +863,16 @@
       "q2": "How do I pay?",
       "a2": "You choose when you sign up: start the free trial, or pay with your application by bank transfer, uploading the receipt, or in cash. The Fawtir team checks your company and Peppol participant details, and your paid subscription starts only after your company is approved and your payment is confirmed.",
       "q3": "What counts as a document?",
-      "a3": "Every tax document you issue or receive: invoices, credit and debit notes, self-billed invoices, documents traded over Peppol and simplified invoices from the point of sale. Drafts, voided documents and documents that fail validation are not counted.",
+      "a3": "Every document your company issues: invoices, including simplified invoices from the point of sale, credit notes, debit notes and self-billed invoices. A document still counts if you cancel it later. Drafts and documents you receive are not counted.",
       "q4": "What happens when I pass my allowance?",
-      "a4": "We tell you at {{thresholds}} percent of the allowance. Past it, each document costs the plan's overage rate, or you can move up a plan, which applies at once and is charged pro rata for the rest of the period.",
+      "a4": "We email you when you reach {{thresholds}} percent of the allowance. Once it is used up, you cannot issue more documents until the next period. To move to a bigger plan, contact the Fawtir team and they will change it for you.",
       "q5": "Can I change or cancel my plan?",
-      "a5": "Any time. Upgrades apply immediately, downgrades take effect at the end of the current period. There are no setup fees and no minimum term. If a payment is missed you keep {{grace}} days of grace before the account goes read-only, and your records stay readable and exportable for the 10 years the law requires.",
+      "a5": "You can cancel any time, and your plan runs to the end of the period you paid for. To change your plan, contact the Fawtir team; a smaller plan starts from your next renewal. There are no setup fees and no minimum term. If a renewal is not paid, you keep {{grace}} days of grace before the account goes read-only, and your records stay readable and exportable for the 10 years the law requires.",
       "q6": "Is point of sale extra?",
       "a6": "No. Point of sale and thermal receipts are on every plan with no terminal charge. A POS receipt counts as one document against your allowance.",
       "q7": "Do prices include VAT?",
-      "a7": "No. Prices are shown exclusive of {{rate}}% VAT, which is added on your subscription invoice.",
+      "a7": "No. Prices are shown exclusive of {{rate}}% VAT, which is added to your subscription bill.",
+      "a7NoVat": "No VAT is added to Fawtir subscriptions, so the price shown is the amount on your subscription bill.",
       "q8": "What is different about Enterprise?",
       "a8": "Enterprise is Business Plus with limits agreed on a call: documents, people, branches and price are set for your contract, automatic ERP extraction is included, and an account manager looks after you. Talk to our team and we will put a proposal together.",
       "q9": "Which plan can connect my ERP?",
@@ -944,6 +946,7 @@
       "transferNow": "Transfer the total shown to this account, then upload the receipt. It is held with your application: your subscription starts only after your company is approved and the Fawtir team has confirmed the transfer. If the application is finally refused, confirmed money is refunded.",
       "receiptPick": "Choose or drop the receipt",
       "receiptRequired": "Upload the transfer receipt to continue.",
+      "receiptRefused": "We could not accept this receipt. Use a PDF, PNG or JPEG file, and check the bank reference.",
       "referenceLabel": "Transfer reference",
       "referenceRequired": "Enter the reference your bank gave the transfer.",
       "received": "Receipt received (reference {{reference}}). The Fawtir team checks it after you submit.",
@@ -965,7 +968,7 @@
       "renewSuffix": ", access continues to the end of the period.",
       "addonLine": "Automatic ERP extraction ({{cycle}})",
       "firstBill": "First bill",
-      "firstBillNote": "Your first bill comes {{when}}, and we remind you before. ",
+      "firstBillNote": "When your free trial ends, choose how to pay to keep using Fawtir. ",
       "loading": "Loading…",
       "unavailable": "Not available yet",
       "monthlyPrice": "Monthly price {{rate}}",
@@ -997,7 +1000,8 @@
       "noteHosted": "Once your account is approved, you pay your bill on Paymob's secure checkout page. Your card is entered there, never on Fawtir."
     },
     "cash": {
-      "noteSignup": "Continue, and the Fawtir team contacts you to collect the payment in cash, with a receipt. The payment stays pending until the cash is collected and verified. Your subscription starts only after your company is approved and the cash is confirmed."
+      "noteSignup": "Continue, and the Fawtir team contacts you to collect the payment in cash, with a receipt. The payment stays pending until the cash is collected and verified. Your subscription starts only after your company is approved and the cash is confirmed.",
+      "received": "Fawtir has received and confirmed your cash payment."
     },
     "addon": {
       "title": "Add-on",
@@ -10009,7 +10013,7 @@
       "planPill": "Overage off",
       "planFoot": "Business plan · resets {{date}}",
       "billsTitle": "Bills and payment",
-      "billsBody": "Every invoice Fawtir has sent you, and how you pay them.",
+      "billsBody": "Every bill Fawtir has sent you for your subscription, and how you pay them.",
       "billsPill": "Paid up",
       "billsFoot": "{{method}}",
       "logTitle": "Activity log",
@@ -10959,7 +10963,7 @@
     "overageSwitch": "Switch overage on or off",
     "byBranchUnavailable": "By branch: not available yet",
     "plansTitle": "Plans",
-    "changeRule": "Moving up applies straight away. Moving down applies from your next renewal.",
+    "changeRule": "To change your plan, contact the Fawtir team. Moving down applies from your next renewal.",
     "changeNotAvailable": "Changing the plan from here is not available yet.",
     "thisIsYours": "This is the plan you're on now.",
     "moreAMonth": "<b>OMR {{amount}} more</b> a month than your plan.",
@@ -10967,7 +10971,7 @@
   },
   "bills": {
     "title": "Bills and payment",
-    "subtitle": "Every invoice Fawtir has sent you, and how you pay them",
+    "subtitle": "Every bill Fawtir has sent you for your subscription, and how you pay them",
     "planAndUsage": "Plan and usage",
     "downloadAll": "Download them all",
     "yourNextBill": "Your next bill",
@@ -11000,7 +11004,7 @@
     "makeDefault": "Make default",
     "addAnotherCard": "Add another card",
     "addAnotherCardNote": "Kept as a fallback if the first is declined",
-    "billingDetails": "Billing details on your invoices",
+    "billingDetails": "Billing details on your bills",
     "change": "Change",
     "pastBills": "Past bills",
     "downloadTheYear": "Download the year",
@@ -11037,7 +11041,7 @@
     },
     "methodHint": {
       "cardLink": "Paymob checkout · nothing stored with us",
-      "bankTransfer": "Bank Muscat · quote the invoice number",
+      "bankTransfer": "{{bank}} · quote the bill number",
       "cash": "At Fawtir's office or to your representative",
       "cheque": "Made out to {{seller}}"
     },
@@ -11055,7 +11059,7 @@
       "linkSentNow": "Link sent by {{to}}. Valid {{days}} days. Nothing is charged until you pay it.",
       "payNow": "Send the link now",
       "next": {
-        "bankTransfer": "Transfer the amount to the account on the right, quoting the invoice number. The Fawtir team activates the next period once it arrives, usually within a business day.",
+        "bankTransfer": "Transfer the amount to the account on the right, quoting the bill number. The Fawtir team activates the next period once it arrives, usually within a business day.",
         "cash": "Pay at Fawtir's office or to your representative. You get a receipt, and the Fawtir team activates the next period once it is recorded, usually the same day.",
         "cheque": "Hand a cheque made out to {{seller}} to your representative. The period is activated once it clears."
       },
@@ -12883,10 +12887,12 @@
         "reject": "Reject registration",
         "verifyTitle": "Verify {{name}}?",
         "verifyBody": "The company's account is activated, the registrant can sign in, and they get an email.",
+        "paymentNotConfirmed": "The payment with this application is not confirmed yet. The paid subscription starts only when it is.",
         "verifyConfirm": "Verify",
         "verifying": "Verifying…",
         "rejectTitle": "Reject this registration?",
         "rejectBody": "The registrant gets the registration back to correct, with an email naming the reason.",
+        "rejectBodyFinal": "The application closes and cannot be resubmitted. The registrant gets an email with the reason. Any payment Finance has confirmed goes to a refund case.",
         "reason": "Reason",
         "reasonPlaceholder": "Choose a reason",
         "reasonRequired": "Choose a reason.",
@@ -12900,6 +12906,8 @@
         "staleEvidence": "The company changed after this evidence was filed. Reload it and upload the evidence again.",
         "verified": "Company verified. The registrant can now sign in.",
         "rejected": "Registration rejected. The registrant has it back to correct.",
+        "rejectedFinal": "Registration rejected and the application closed.",
+        "refundOpened": "A refund case was opened for the confirmed payment.",
         "classification": "Can the company correct this?",
         "classificationOption": {
           "CORRECTABLE": {
@@ -15054,7 +15062,13 @@
         "PAYMENT_SECOND_APPROVED": "Second approval given",
         "PAYMENT_CONFIRMED": "Payment confirmed",
         "PAYMENT_REJECTED": "Payment rejected",
-        "PROOF_READ": "Receipt downloaded"
+        "PROOF_READ": "Receipt downloaded",
+        "CARD_CHECKOUT_OPENED": "Card checkout opened",
+        "CARD_CHECKOUT_CLOSED": "Card checkout closed",
+        "PAYMENT_REVERSAL_RECORDED": "Payment reversal recorded",
+        "SIGNUP_FUNDS_VERIFIED": "Sign-up payment verified",
+        "SIGNUP_PAYMENT_ALLOCATED": "Sign-up payment applied to the first bill",
+        "REFUND_CASE_OPENED": "Refund case opened"
       },
       "refusal": {
         "payment-approver-not-independent": "You handled this payment, so someone else must approve it.",
@@ -15396,11 +15410,15 @@
     "paymentPreferenceRequired": "Choose how you'll pay before you submit.",
     "paymentNotApplicable": "Enterprise terms are agreed on a call, so there is no payment method to choose. Go back to the plans to pick a different one.",
     "signupPaymentRequired": "Attach the transfer receipt on the payment step before submitting. If your payment is being refunded, contact Fawtir.",
+    "paymentStateConflict": "Fawtir is already checking the payment for this application, so it cannot be changed.",
     "applicationClosed": "The Fawtir team closed this application, so it cannot be submitted again. Contact Fawtir."
   },
   "signupReview": {
     "title": "Review and submit",
     "description": "Check your details before you submit. A member of our team then reviews your registration, and it can’t be changed while that review is under way.",
+    "sentBack": "The Fawtir team sent your registration back. {{reason}} Correct it and submit it again by {{date}}.",
+    "sentBackNoDate": "The Fawtir team sent your registration back. {{reason}} Correct it and submit it again.",
+    "paymentKept": "Your payment is kept, and you will not be charged again.",
     "sections": {
       "business": "Your business",
       "identity": "Business identity",
@@ -15461,7 +15479,15 @@
     },
     "rejected": {
       "correct": "Correct your registration"
-    }
+    },
+    "closed": {
+      "title": "This application was closed",
+      "reason": "The Fawtir team closed it: {{reason}}",
+      "final": "It cannot be corrected or submitted again.",
+      "refund": "Fawtir Finance will contact you about returning your payment.",
+      "contact": "If you have any questions, contact Fawtir support."
+    },
+    "reasonOther": "See the email Fawtir sent you."
   },
   "operatorInvitation": {
     "title": "Join the Fawtir team",
@@ -20720,7 +20746,6 @@
         "lead": "Everything,",
         "em": "compared"
       },
-      "each": "About {{amount}} a document",
       "limits": {
         "documents": "{{documents}} documents a month",
         "people_one": "{{count}} person",

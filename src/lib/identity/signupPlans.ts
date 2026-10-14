@@ -39,6 +39,11 @@ export type SignupCataloguePlan = {
   trialDocuments: number | null
   features: CatalogueFeature[]
   sortOrder: number
+  /**
+   * The subscription VAT rate as a fraction ("0.05000", "0.00000" for none), the same on every
+   * plan; `null` while none is set. Absent from a server older than the field.
+   */
+  vatRate?: string | null
 }
 
 export const SIGNUP_PLANS_PATH = '/v1/auth/signup/plans'

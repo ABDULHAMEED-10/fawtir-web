@@ -8,6 +8,7 @@ import { formatAmount, formatDate, formatInstantDay } from '../../lib/format'
 import { Button, FileDropzone, OmAmount } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { ApiError, NetworkError } from '../../api'
+import { withoutFinalStop } from '../../lib/identity/signupRejection'
 import {
   BILLING_PATH,
   SUPERSEDED_PREFIX,
@@ -230,7 +231,9 @@ function OutstandingBill({
       ) : (
         <>
           {lastRejected ? (
-            <Alert>{t('billing.rejected', { reason: lastRejected.rejectionReason ?? '' })}</Alert>
+            <Alert>
+              {t('billing.rejected', { reason: withoutFinalStop(lastRejected.rejectionReason ?? '') })}
+            </Alert>
           ) : null}
           {canPay ? <PayForm bill={bill} card={card} overview={overview} onSubmitted={onChanged} /> : null}
         </>
