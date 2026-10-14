@@ -173,6 +173,8 @@ export function faqParams(plans: readonly SignupCataloguePlan[] | null) {
     documents: uniform?.documents,
     thresholds: notices.thresholds.join(', '),
     grace: lifecycle.graceDays,
+    // The grace answer counts days, and Arabic words a count by its plural form.
+    count: lifecycle.graceDays,
     rate: SUBSCRIPTION_VAT_PERCENT,
   }
 }

@@ -944,6 +944,7 @@
       "transferNow": "Transfer the total shown to this account, then upload the receipt. It is held with your application: your subscription starts only after your company is approved and the Fawtir team has confirmed the transfer. If the application is finally refused, confirmed money is refunded.",
       "receiptPick": "Choose or drop the receipt",
       "receiptRequired": "Upload the transfer receipt to continue.",
+      "receiptRefused": "We could not accept this receipt. Use a PDF, PNG or JPEG file, and check the bank reference.",
       "referenceLabel": "Transfer reference",
       "referenceRequired": "Enter the reference your bank gave the transfer.",
       "received": "Receipt received (reference {{reference}}). The Fawtir team checks it after you submit.",

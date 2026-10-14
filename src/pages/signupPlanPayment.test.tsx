@@ -525,7 +525,7 @@ describe("How you'll pay", () => {
     expect(trialSwitch().getAttribute('aria-checked')).toBe('false')
   })
 
-  it("shows the server's reason a receipt was refused under the receipt, not the generic line", async () => {
+  it('says under the receipt, in its own words, that the server refused it, not the generic line', async () => {
     answer({
       [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: BUSINESS_MONTHLY }),
       '/api/v1/auth/signup/payment-evidence': () =>
@@ -543,8 +543,10 @@ describe("How you'll pay", () => {
     await user.type(screen.getByLabelText(i18n.t('payment.bank.referenceLabel')), 'TRF-0001')
     await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
 
-    const refusal = await screen.findByText('The receipt must be a PDF, PNG or JPEG.')
+    const refusal = await screen.findByText(i18n.t('payment.bank.receiptRefused'))
     expect(refusal.id).toBe('signup-receipt-problem')
+    // The server's English sentence is never shown on a translated screen.
+    expect(screen.queryByText('The receipt must be a PDF, PNG or JPEG.')).toBeNull()
     expect(screen.queryByText(i18n.t('identityErrors.validation'))).toBeNull()
     expect(screen.queryByTestId('location')).toBeNull()
   })

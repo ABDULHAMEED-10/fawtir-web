@@ -143,6 +143,15 @@ describe('Pricing page', () => {
     expect(screen.getByText(i18n.t('plans.faq.a1', faqParams(CATALOGUE)))).toBeTruthy()
   })
 
+  it('counts the grace days in Arabic by their plural form', () => {
+    const params = faqParams(CATALOGUE)
+    expect(params.count).toBe(7)
+    const arabic = i18n.t('plans.faq.a5', { ...params, lng: 'ar' })
+    expect(arabic).toContain('على 7 أيام من المهلة')
+    expect(i18n.t('plans.faq.a5', { ...params, count: 14, lng: 'ar' })).toContain('على 14 يومًا من المهلة')
+    expect(i18n.t('plans.faq.a5', { ...params, lng: 'en' })).toContain('7 days of grace')
+  })
+
   it('reads in Arabic with the published Arabic names', async () => {
     await i18n.changeLanguage('ar')
     renderPage(<PricingPage />)

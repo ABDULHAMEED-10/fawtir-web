@@ -140,12 +140,12 @@ export function PaymentForm() {
   const changeEvidence = (next: Partial<BankEvidence>) => {
     uploadKey.current = null
     setEvidenceProblem(null)
-    setReceiptRefusal(null)
+    setReceiptRefused(false)
     setEvidence((current) => ({ ...current, ...next }))
   }
-  // The server's reason a receipt was refused (a `400` with a detail), shown under the receipt
-  // instead of the generic "not accepted" line.
-  const [receiptRefusal, setReceiptRefusal] = useState<string | null>(null)
+  // The server refused the receipt (`400`): said under the receipt, in the reader's language,
+  // instead of the generic "not accepted" line. The server's own sentence is English, so not shown.
+  const [receiptRefused, setReceiptRefused] = useState(false)
   const keepsHeldReceipt = heldBankReceipt(held) && evidence.proof === null
   // Money Finance has confirmed is held with this application: the method can no longer change.
   const paymentLocked = isConfirmedPayment(held?.status)
@@ -185,7 +185,7 @@ export function PaymentForm() {
       : { enrollment: 'payNow', method: method as SignupPaymentMethod }
     uploadKey.current ??= `signup-payment-${crypto.randomUUID()}`
     const key = uploadKey.current
-    setReceiptRefusal(null)
+    setReceiptRefused(false)
     const result = await save(async (token, signal) => {
       // The method first: switching it withdraws a receipt still waiting under another one.
       await recordPaymentPreference(token, choice, withAddon, signal)
@@ -198,8 +198,7 @@ export function PaymentForm() {
             signal,
           )
         } catch (error) {
-          const detail = error instanceof ApiError && error.status === 400 ? error.problem.detail : null
-          if (typeof detail === 'string' && detail.trim()) setReceiptRefusal(detail.trim())
+          if (error instanceof ApiError && error.status === 400) setReceiptRefused(true)
           throw error
         }
       }
@@ -311,7 +310,7 @@ export function PaymentForm() {
                 held={heldBankReceipt(held) ? held : null}
                 evidence={evidence}
                 problem={evidenceProblem}
-                refusal={receiptRefusal}
+                refused={receiptRefused}
                 onChange={changeEvidence}
               />
             ) : method === 'cash' && chosenAvailable ? (
@@ -358,7 +357,7 @@ export function PaymentForm() {
         </p>
       ) : null}
 
-      <OnboardingFormError error={receiptRefusal ? null : formError} />
+      <OnboardingFormError error={receiptRefused ? null : formError} />
 
       <Button
         type="submit"
@@ -519,7 +518,7 @@ function BankTransferDetails({
   held,
   evidence,
   problem,
-  refusal,
+  refused,
   onChange,
 }: {
   beneficiary: SignupPaymentOptions['beneficiary']
@@ -527,8 +526,8 @@ function BankTransferDetails({
   held: SignupHeldPayment | null
   evidence: BankEvidence
   problem: 'receipt' | 'reference' | null
-  /** The server's own reason the last receipt was refused. */
-  refusal: string | null
+  /** The server refused the last receipt sent. */
+  refused: boolean
   onChange: (next: Partial<BankEvidence>) => void
 }) {
   const { t } = useTranslation()
@@ -580,13 +579,13 @@ function BankTransferDetails({
               </span>
             )}
           </FileDropzone>
-          {fileProblem || problem === 'receipt' || refusal ? (
+          {fileProblem || problem === 'receipt' || refused ? (
             <p id="signup-receipt-problem" role="alert" className="text-xs font-medium text-danger-700">
               {fileProblem
                 ? t(`billing.bank.proofRejected.${fileProblem}`)
                 : problem === 'receipt'
                   ? t('payment.bank.receiptRequired')
-                  : refusal}
+                  : t('payment.bank.receiptRefused')}
             </p>
           ) : null}
           <label className="flex flex-col gap-1 text-sm font-medium text-text-secondary">
