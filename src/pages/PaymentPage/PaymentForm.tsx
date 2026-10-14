@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Button, ChevronRightIcon, OmAmount, SelectionCard, Checkbox, Switch } from '../../components/ui'
 import { FileDropzone } from '../../components/ui/FileDropzone'
 import { OnboardingFormError } from '../../components/auth/OnboardingFormError'
+import { ApiError } from '../../api'
 import { useOnboardingStep } from '../../hooks/useOnboardingStep'
 import {
   billAmounts,
@@ -35,6 +36,7 @@ import {
   extractionMonthly,
 } from '../../lib/pricing'
 import { PLATFORM_SETTINGS } from '../../lib/platformSettings'
+import { isConfirmedPayment } from '../../lib/identity/signupRejection'
 import cardIcon from '../../assets/payment/card.svg'
 import bankIcon from '../../assets/payment/bank.svg'
 import tickIcon from '../../assets/payment/tick-circle.svg'
@@ -53,6 +55,13 @@ import rialIcon from '../../assets/brand/omr.svg'
 export type { SignupPaymentMethod }
 
 const METHODS: SignupPaymentMethod[] = ['cardLink', 'bankTransfer', 'cash']
+
+/** The ledger's method of a held payment as the method card it was paid with. */
+const HELD_METHOD: Record<SignupHeldPayment['method'], SignupPaymentMethod> = {
+  CARD: 'cardLink',
+  BANK_TRANSFER: 'bankTransfer',
+  CASH: 'cash',
+}
 
 const availableIn = (options: SignupPaymentOptions | null, method: SignupPaymentMethod) =>
   options !== null &&
@@ -131,9 +140,22 @@ export function PaymentForm() {
   const changeEvidence = (next: Partial<BankEvidence>) => {
     uploadKey.current = null
     setEvidenceProblem(null)
+    setReceiptRefusal(null)
     setEvidence((current) => ({ ...current, ...next }))
   }
+  // The server's reason a receipt was refused (a `400` with a detail), shown under the receipt
+  // instead of the generic "not accepted" line.
+  const [receiptRefusal, setReceiptRefusal] = useState<string | null>(null)
   const keepsHeldReceipt = heldBankReceipt(held) && evidence.proof === null
+  // Money Finance has confirmed is held with this application: the method can no longer change.
+  const paymentLocked = isConfirmedPayment(held?.status)
+  const heldMethod = held ? HELD_METHOD[held.method] : null
+  // ...so the confirmed payment's own method is the one shown chosen.
+  useEffect(() => {
+    if (!paymentLocked || !heldMethod) return
+    setTrial(false)
+    setMethod(heldMethod)
+  }, [paymentLocked, heldMethod])
   // Card: Continue only once Fawtir's server has verified the payment with Paymob.
   const [cardStatus, setCardStatus] = useState<SignupCardStatus | null>(null)
   const [cardProblem, setCardProblem] = useState(false)
@@ -163,16 +185,23 @@ export function PaymentForm() {
       : { enrollment: 'payNow', method: method as SignupPaymentMethod }
     uploadKey.current ??= `signup-payment-${crypto.randomUUID()}`
     const key = uploadKey.current
+    setReceiptRefusal(null)
     const result = await save(async (token, signal) => {
       // The method first: switching it withdraws a receipt still waiting under another one.
       await recordPaymentPreference(token, choice, withAddon, signal)
       if (uploading && evidence.proof) {
-        await uploadSignupPaymentEvidence(
-          token,
-          { proof: evidence.proof, reference: evidence.reference.trim(), note: evidence.note },
-          key,
-          signal,
-        )
+        try {
+          await uploadSignupPaymentEvidence(
+            token,
+            { proof: evidence.proof, reference: evidence.reference.trim(), note: evidence.note },
+            key,
+            signal,
+          )
+        } catch (error) {
+          const detail = error instanceof ApiError && error.status === 400 ? error.problem.detail : null
+          if (typeof detail === 'string' && detail.trim()) setReceiptRefusal(detail.trim())
+          throw error
+        }
       }
     })
     if (!result.saved) return
@@ -238,7 +267,7 @@ export function PaymentForm() {
                   title={t(`payment.method.${id}.title`)}
                   description={t(`payment.method.${id}.subtitle`)}
                   selected={method === id}
-                  disabled={!availableIn(options, id)}
+                  disabled={!availableIn(options, id) || paymentLocked}
                   onSelect={() => {
                     touched.current = true
                     setMethod(id)
@@ -282,10 +311,18 @@ export function PaymentForm() {
                 held={heldBankReceipt(held) ? held : null}
                 evidence={evidence}
                 problem={evidenceProblem}
+                refusal={receiptRefusal}
                 onChange={changeEvidence}
               />
             ) : method === 'cash' && chosenAvailable ? (
-              <Note icon={tickIcon} text={t('payment.cash.noteSignup')} />
+              <Note
+                icon={tickIcon}
+                text={t(
+                  held?.method === 'CASH' && held.status === 'FUNDS_VERIFIED'
+                    ? 'payment.cash.received'
+                    : 'payment.cash.noteSignup',
+                )}
+              />
             ) : null}
           </div>
 
@@ -321,7 +358,7 @@ export function PaymentForm() {
         </p>
       ) : null}
 
-      <OnboardingFormError error={formError} />
+      <OnboardingFormError error={receiptRefusal ? null : formError} />
 
       <Button
         type="submit"
@@ -482,6 +519,7 @@ function BankTransferDetails({
   held,
   evidence,
   problem,
+  refusal,
   onChange,
 }: {
   beneficiary: SignupPaymentOptions['beneficiary']
@@ -489,6 +527,8 @@ function BankTransferDetails({
   held: SignupHeldPayment | null
   evidence: BankEvidence
   problem: 'receipt' | 'reference' | null
+  /** The server's own reason the last receipt was refused. */
+  refusal: string | null
   onChange: (next: Partial<BankEvidence>) => void
 }) {
   const { t } = useTranslation()
@@ -540,11 +580,13 @@ function BankTransferDetails({
               </span>
             )}
           </FileDropzone>
-          {fileProblem || problem === 'receipt' ? (
+          {fileProblem || problem === 'receipt' || refusal ? (
             <p id="signup-receipt-problem" role="alert" className="text-xs font-medium text-danger-700">
               {fileProblem
                 ? t(`billing.bank.proofRejected.${fileProblem}`)
-                : t('payment.bank.receiptRequired')}
+                : problem === 'receipt'
+                  ? t('payment.bank.receiptRequired')
+                  : refusal}
             </p>
           ) : null}
           <label className="flex flex-col gap-1 text-sm font-medium text-text-secondary">

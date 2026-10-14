@@ -22,11 +22,11 @@ import type { PlanId } from '../../lib/pricing'
 import { PlanComparison, PlanFaq } from './PlanComparison'
 import {
   annualSavingNote,
+  fullRial,
   launchCopy,
   periodPriceBaisa,
   planDescription,
   planName,
-  shortRial,
   trialNote,
   usePlanCatalogue,
 } from './catalogueView'
@@ -160,7 +160,7 @@ function PlansContent() {
       <OmAmount
         size="sm"
         onDark={dark}
-        amount={shortRial(periodPriceBaisa(plan, billing))}
+        amount={fullRial(periodPriceBaisa(plan, billing))}
         amountClassName={['text-[40px] leading-[1.2]', dark ? 'text-white' : ''].join(' ')}
       />
       <span className={['text-base', dark ? 'text-primary-25' : 'text-neutral-300'].join(' ')}>
