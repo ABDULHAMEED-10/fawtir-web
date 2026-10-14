@@ -15105,7 +15105,7 @@
       "leadDays": "Renewal bill, days ahead",
       "leadDaysHint": "How many days before paid time runs out the renewal bill is prepared, 0 to 60.",
       "threshold": "Second approver above",
-      "thresholdHint": "A manual payment above this amount needs a second operator to approve it.",
+      "thresholdHint": "Above this amount, a bank transfer needs a second operator to approve it, and cash is confirmed again by the operator who verified it.",
       "vat": "Charge VAT on subscription bills",
       "vatNote": "Off: bills carry no VAT and show no VAT line. On: the rate below is added to every new bill.",
       "vatRate": "VAT rate",
