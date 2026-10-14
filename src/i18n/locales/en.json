@@ -15035,9 +15035,9 @@
       },
       "done": {
         "proof": "The receipt was downloaded. The download is recorded.",
+        "confirmedAgain": "Confirmed again.",
         "verified": "Payment verified.",
         "approved": "Second approval given. The bill is paid.",
-        "confirmedAgain": "Confirmed again.",
         "recorded": "Cash receipt recorded. Another person must now verify it.",
         "rejected": "Payment rejected. The bill is open again."
       },
