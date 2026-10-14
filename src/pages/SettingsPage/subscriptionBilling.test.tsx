@@ -124,6 +124,41 @@ describe('Settings › Billing: the charge', () => {
     expect(within(region).queryByText(/card/i)).toBeNull()
   })
 
+  it('shows no VAT line on a bill at rate 0, and names the seller the bill carries', async () => {
+    const seller = {
+      legalNameEn: 'Thumb International SPC', legalNameAr: 'الإبهام العالمية ش ش و', crNumber: '1383315',
+      taxIdentificationNumber: '1875504', vatNumber: null, addressEn: 'Al Khuwair, Muscat', addressAr: null,
+    }
+    const bill = { ...BILL, vatRate: '0.00000', vatAmount: '0.000', total: '35.000', seller }
+    answers[BILLING] = () => json(200, overview({ bills: [{ bill, payments: [] }] }))
+    renderBilling()
+
+    expect(await screen.findByText(i18n.t('billing.bill.seller', { name: 'Thumb International SPC' }))).toBeTruthy()
+    const region = charges()
+    expect(within(region).queryByText(i18n.t('billing.bill.vat', { rate: '0%' }))).toBeNull()
+    expect(within(region).getByText(i18n.t('billing.bill.subtotal'))).toBeTruthy()
+    expect(within(region).getByText(i18n.t('billing.bill.total'))).toBeTruthy()
+  })
+
+  it('names the Arabic seller in Arabic, and no seller for a bill issued before one existed', async () => {
+    const seller = {
+      legalNameEn: 'Thumb International SPC', legalNameAr: 'الإبهام العالمية ش ش و', crNumber: '1383315',
+      taxIdentificationNumber: null, vatNumber: null, addressEn: 'Al Khuwair, Muscat', addressAr: null,
+    }
+    await i18n.changeLanguage('ar')
+    answers[BILLING] = () => json(200, overview({ bills: [{ bill: { ...BILL, seller }, payments: [] }] }))
+    const { unmount } = renderBilling()
+    expect(await screen.findByText(i18n.t('billing.bill.seller', { name: 'الإبهام العالمية ش ش و' }))).toBeTruthy()
+    unmount()
+
+    await i18n.changeLanguage('en')
+    resetSharedRequests()
+    answers[BILLING] = () => json(200, overview({ bills: [{ bill: { ...BILL, seller: null }, payments: [] }] }))
+    renderBilling()
+    expect(await screen.findByText('FWT-SUB-2026-000007')).toBeTruthy()
+    expect(charges().textContent).not.toContain(i18n.t('billing.bill.seller', { name: '' }).trim())
+  })
+
   it('sends bank-transfer proof as multipart with an Idempotency-Key, and a retry reuses the key', async () => {
     let attempts = 0
     answers[`POST ${BILLING}/bills/b-1/bank-transfer`] = () => {

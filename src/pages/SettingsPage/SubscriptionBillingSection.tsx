@@ -19,6 +19,7 @@ import {
   newPaymentKey,
   prepareNextBill,
   requestCash,
+  sellerName,
   startCardCheckout,
   submitBankTransfer,
   withdrawPayment,
@@ -178,11 +179,16 @@ function OutstandingBill({
   const live = payments.find((payment) => LIVE.includes(payment.status))
   const lastRejected = payments.find((payment) => payment.status === 'REJECTED')
   const money = (value: string) => <OmAmount amount={formatAmount(value, 'OMR', i18n.language)} size="xs" />
+  const seller = sellerName(bill.seller, i18n.language)
 
   return (
     <div className="flex flex-col gap-4">
       <dl className="grid gap-x-6 gap-y-3 md:grid-cols-2 xl:grid-cols-4">
-        <Fact label={t('billing.bill.number')} value={bill.number} />
+        <Fact
+          label={t('billing.bill.number')}
+          value={bill.number}
+          note={seller ? t('billing.bill.seller', { name: seller }) : undefined}
+        />
         <Fact
           label={t('billing.bill.period')}
           value={t('billing.bill.periodRange', {
@@ -196,10 +202,13 @@ function OutstandingBill({
       </dl>
       <dl className="flex flex-col gap-2 rounded-sm bg-surface-background px-4 py-3 text-sm">
         <Line label={t('billing.bill.subtotal')} value={money(bill.subtotal)} />
-        <Line
-          label={t('billing.bill.vat', { rate: formatRate(bill.vatRate, i18n.language) })}
-          value={money(bill.vatAmount)}
-        />
+        {/* Rate 0 is how the server says no VAT is charged: no line, rather than "VAT 0%". */}
+        {Number(bill.vatRate) === 0 ? null : (
+          <Line
+            label={t('billing.bill.vat', { rate: formatRate(bill.vatRate, i18n.language) })}
+            value={money(bill.vatAmount)}
+          />
+        )}
         <Line label={t('billing.bill.total')} value={money(bill.total)} strong />
       </dl>
       <p className="text-xs font-medium text-text-tertiary">{t('billing.bill.notTaxInvoice')}</p>

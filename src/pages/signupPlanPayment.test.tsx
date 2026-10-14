@@ -474,6 +474,16 @@ describe('Choose a plan: saving the choice', () => {
   })
 })
 
+const SELLER = {
+  legalNameEn: 'Thumb International SPC',
+  legalNameAr: 'الإبهام العالمية ش ش و',
+  crNumber: '1383315',
+  taxIdentificationNumber: '1875504',
+  vatNumber: null,
+  addressEn: 'Al Khuwair, Bousher, Muscat Governorate',
+  addressAr: null,
+}
+
 /** What the backend computes for Business, annual, at the owner's figures (catalogue contract). */
 const BUSINESS_ANNUAL: SignupStatusPlan = {
   planCode: 'BUSINESS',
@@ -875,6 +885,45 @@ describe("How you'll pay", () => {
     expect((await screen.findAllByText(i18n.t('payment.summary.unavailable'))).length).toBe(3)
     expect(text()).not.toMatch(/840\.000|800\.000|40\.000/)
     expect(screen.getByText(i18n.t('payment.descriptionPending'))).toBeTruthy()
+  })
+
+  it('shows no VAT line at rate 0, and names the seller the server sends', async () => {
+    const noVat: SignupStatusPlan = {
+      ...BUSINESS_ANNUAL,
+      vatRate: '0.00000',
+      vatAmount: '0.000',
+      amountInclVat: '800.000',
+    }
+    answer({
+      [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: noVat }),
+      [OPTIONS_URL]: () => json(200, { ...SERVER_OPTIONS, seller: SELLER }),
+    })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'annual' })
+
+    expect(await screen.findByText(i18n.t('payment.summary.seller', { name: 'Thumb International SPC' }))).toBeTruthy()
+    await waitFor(() => expect(text()).toContain('800.000'))
+    expect(text()).not.toContain(i18n.t('payment.summary.vatRate', { rate: '0' }))
+    expect(text()).not.toContain(i18n.t('payment.summary.vatUnknownRate'))
+  })
+
+  it('names the seller in Arabic when the page is Arabic, and names nobody when none is sent', async () => {
+    await i18n.changeLanguage('ar')
+    answer({
+      [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: BUSINESS_ANNUAL }),
+      [OPTIONS_URL]: () => json(200, { ...SERVER_OPTIONS, seller: SELLER }),
+    })
+    const { unmount } = renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'annual' })
+    expect(await screen.findByText(i18n.t('payment.summary.seller', { name: 'الإبهام العالمية ش ش و' }))).toBeTruthy()
+    unmount()
+
+    await i18n.changeLanguage('en')
+    answer({
+      [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: BUSINESS_ANNUAL }),
+      [OPTIONS_URL]: () => json(200, { ...SERVER_OPTIONS, seller: null }),
+    })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'annual' })
+    expect(await screen.findByText('840.000')).toBeTruthy()
+    expect(text()).not.toContain(i18n.t('payment.summary.seller', { name: '' }).trim())
   })
 
   it('never shows figures the server computed for another plan or cycle', async () => {

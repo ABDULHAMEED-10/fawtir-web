@@ -976,7 +976,8 @@
       "months_one": "{{count}} month",
       "months_other": "{{count}} months",
       "payNowTotal": "Total to pay",
-      "payNowNote": "Your paid period starts on the day your account is activated, never earlier. "
+      "payNowNote": "Your paid period starts on the day your account is activated, never earlier. ",
+      "seller": "Seller: {{name}}"
     },
     "method": {
       "cardLink": {
@@ -21166,7 +21167,8 @@
       "subtotal": "Subscription",
       "vat": "VAT {{rate}}",
       "total": "Total",
-      "notTaxInvoice": "This is a statement of your subscription charge, not a tax invoice."
+      "notTaxInvoice": "This is a statement of your subscription charge, not a tax invoice.",
+      "seller": "Seller: {{name}}"
     },
     "billStatus": {
       "OPEN": "Waiting for payment",
