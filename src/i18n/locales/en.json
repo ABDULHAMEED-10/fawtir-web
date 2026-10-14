@@ -14986,7 +14986,7 @@
     },
     "billing": {
       "title": "Subscription payments",
-      "subtitle": "Bank transfers and cash waiting for a decision. Nobody approves a payment they submitted or recorded, and above the threshold a second person approves.",
+      "subtitle": "Bank transfers and cash waiting for a decision. Nobody approves a payment they submitted or recorded. Above the threshold a bank transfer needs a second person, and cash is confirmed again by the person who verified it.",
       "loading": "Loading payments",
       "empty": "No payments are waiting.",
       "open": "Open",
@@ -15050,6 +15050,7 @@
         "CASH_RECEIPT_RECORDED": "Cash receipt recorded",
         "PAYMENT_VERIFIED": "Payment verified",
         "PAYMENT_SECOND_APPROVED": "Second approval given",
+        "PAYMENT_CONFIRMED_AGAIN": "Confirmed again",
         "PAYMENT_CONFIRMED": "Payment confirmed",
         "PAYMENT_REJECTED": "Payment rejected",
         "PROOF_READ": "Receipt downloaded"
