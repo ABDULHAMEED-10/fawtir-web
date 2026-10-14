@@ -225,6 +225,32 @@ describe('restoring the draft from the status read (contract §4)', () => {
     expect(restored).toEqual({ businessSize: '2-10', accountEmail: 'a@b.om', restored: true })
   })
 
+  it('carries a correctable rejection, its deadline and a held payment; never for a closed application', () => {
+    const payment = { method: 'CASH' as const, status: 'SUBMITTED', amount: '84.000', reference: null, hasProof: false }
+    const reopened = onboardingStateFromStatus({
+      ...base,
+      verificationStatus: 'REJECTED',
+      closed: false,
+      rejectionReason: 'COMPANY_PROFILE_MISMATCH',
+      correctableUntil: '2026-10-28',
+      signupPayment: payment,
+    })
+    expect(reopened).toMatchObject({
+      rejectionReason: 'COMPANY_PROFILE_MISMATCH',
+      correctableUntil: '2026-10-28',
+      paidWithApplication: true,
+    })
+    const closed = onboardingStateFromStatus(
+      { ...base, closed: true, rejectionReason: 'COMPANY_PROFILE_MISMATCH', signupPayment: payment },
+      reopened,
+    )
+    expect(closed.rejectionReason).toBeUndefined()
+    expect(closed.correctableUntil).toBeUndefined()
+    expect(closed.paidWithApplication).toBeUndefined()
+    // An older server sends neither field: nothing is claimed, and a cached reason is not kept.
+    expect(onboardingStateFromStatus(base, reopened).rejectionReason).toBeUndefined()
+  })
+
   it('does not guess a governorate it cannot name', () => {
     const restored = onboardingStateFromStatus({
       ...base,

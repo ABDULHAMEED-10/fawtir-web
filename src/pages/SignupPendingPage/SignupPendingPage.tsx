@@ -9,6 +9,7 @@ import { onboardingStateFromStatus } from '../../lib/identity/signupDraft'
 import { onboardingStateFrom } from '../../lib/onboarding'
 import { FawtaraStatusHero } from '../FawtaraStatusPage/FawtaraStatusHero'
 import { FawtaraStatusPanel } from '../FawtaraStatusPage/FawtaraStatusPanel'
+import { SignupClosedPanel } from './SignupClosedPanel'
 
 /**
  * The waiting screen after final submission, drawn as the "getting you live" road in the Fawtara
@@ -44,6 +45,8 @@ export function SignupPendingPage() {
           titleKey="signupPending.ended.title"
           descriptionKey="signupPending.ended.description"
         />
+      ) : progress.kind === 'closed' ? (
+        <SignupClosedPanel status={progress.status} />
       ) : progress.kind === 'phase' ? (
         <FawtaraStatusPanel
           // TODO(backend): approval is all the status read reports, so an approved account is

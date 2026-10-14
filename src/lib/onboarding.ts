@@ -153,6 +153,15 @@ export type OnboardingState = {
   /** Chosen on /payment for `payNow` only; never set for a trial or for Enterprise. */
   paymentMethod?: SignupPaymentMethod
   /**
+   * The code of the rejection that sent this draft back for correction, from `/signup/status`.
+   * Never set for a closed application, which cannot be corrected.
+   */
+  rejectionReason?: string
+  /** The last day (`YYYY-MM-DD`) that reopened draft can be submitted, when the server says. */
+  correctableUntil?: string
+  /** That reopened draft has a payment held with it, which is kept for the next submission. */
+  paidWithApplication?: boolean
+  /**
    * Set when this state was refilled from `/signup/status`, so the gate renders the page instead
    * of asking again: a draft with nothing saved yet would otherwise never look "ready".
    */

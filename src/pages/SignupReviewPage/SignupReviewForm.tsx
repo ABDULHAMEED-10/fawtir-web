@@ -22,6 +22,8 @@ import {
 import { SUB_TYPES_BY_BUSINESS } from '../../lib/subBusinessTypes'
 import { toOmanE164 } from '../../lib/validation'
 import { findCode, nameOf } from '../../lib/codeLists/codeList'
+import { asSentence, rejectionReasonLabel } from '../../lib/identity/signupRejection'
+import { formatDate } from '../../lib/format'
 import { ISIC_ACTIVITIES } from '../../lib/codeLists/isic'
 
 /** `money`: the value is a rial figure and carries the rial sign. */
@@ -254,6 +256,15 @@ export function SignupReviewForm() {
           <h2 className="text-[32px] font-medium leading-[1.2] text-text-primary">
             {t('signupReview.title')}
           </h2>
+          {state.rejectionReason ? (
+            <p role="status" className="text-base font-medium leading-[1.4] text-text-danger">
+              {t(state.correctableUntil ? 'signupReview.sentBack' : 'signupReview.sentBackNoDate', {
+                reason: asSentence(rejectionReasonLabel(state.rejectionReason, t, i18n)),
+                date: state.correctableUntil ? formatDate(state.correctableUntil, i18n.language) : '',
+              })}
+              {state.paidWithApplication ? <> {t('signupReview.paymentKept')}</> : null}
+            </p>
+          ) : null}
           <p className="text-base font-medium leading-[1.2] text-text-quaternary">
             {t('signupReview.description')}
           </p>

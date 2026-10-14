@@ -14,9 +14,10 @@ import {
   SIGNUP_APPLICATION_CLOSED,
   SIGNUP_PAYMENT_PREFERENCE_REQUIRED,
   SIGNUP_PAYMENT_REQUIRED,
+  SIGNUP_PAYMENT_STATE_CONFLICT,
   SIGNUP_PLAN_REQUIRED,
-  allowedRoute,
   readSignupStatus,
+  routeForStatus,
 } from '../lib/identity/onboarding'
 import {
   endOnboardingSession,
@@ -29,7 +30,7 @@ const CHOICE_CONFLICTS: Partial<Record<string, string>> = {
   [SIGNUP_PAYMENT_PREFERENCE_REQUIRED]: 'onboarding.paymentPreferenceRequired',
   [SIGNUP_PAYMENT_NOT_APPLICABLE]: 'onboarding.paymentNotApplicable',
   [SIGNUP_PAYMENT_REQUIRED]: 'onboarding.signupPaymentRequired',
-  [SIGNUP_APPLICATION_CLOSED]: 'onboarding.applicationClosed',
+  [SIGNUP_PAYMENT_STATE_CONFLICT]: 'onboarding.paymentStateConflict',
   [PLAN_PRICE_CHANGED]: 'plans.priceChanged',
 }
 
@@ -68,7 +69,7 @@ export function useOnboardingStep<F extends string = never>(options: StepOptions
   const earlierStepThan = async (onboardingToken: string): Promise<string | null> => {
     try {
       const status = await readSignupStatus(onboardingToken)
-      const route = allowedRoute(status.stage, location.pathname)
+      const route = routeForStatus(status, location.pathname)
       return route === location.pathname ? null : route
     } catch {
       return null
@@ -81,6 +82,12 @@ export function useOnboardingStep<F extends string = never>(options: StepOptions
       if (error.status === 401) {
         endOnboardingSession()
         setFormError({ key: 'onboarding.sessionExpired' })
+        return unsaved
+      }
+      // A closed application has nothing left to save: the waiting screen says it was closed.
+      if (error.status === 409 && error.problemType === SIGNUP_APPLICATION_CLOSED) {
+        markOnboardingSubmitted(true)
+        navigate(PENDING_ROUTE, { replace: true })
         return unsaved
       }
       // These name exactly what is missing, so they are answered before the generic "an earlier
