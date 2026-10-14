@@ -11039,7 +11039,7 @@
       "cardLink": "Paymob checkout · nothing stored with us",
       "bankTransfer": "Bank Muscat · quote the invoice number",
       "cash": "At Fawtir's office or to your representative",
-      "cheque": "Made out to Insight Technology LLC"
+      "cheque": "Made out to {{seller}}"
     },
     "confirmedBy": {
       "fawtir": "Confirmed by the Fawtir team {{date}}",
@@ -11057,7 +11057,7 @@
       "next": {
         "bankTransfer": "Transfer the amount to the account on the right, quoting the invoice number. The Fawtir team activates the next period once it arrives, usually within a business day.",
         "cash": "Pay at Fawtir's office or to your representative. You get a receipt, and the Fawtir team activates the next period once it is recorded, usually the same day.",
-        "cheque": "Hand a cheque made out to Insight Technology LLC to your representative. The period is activated once it clears."
+        "cheque": "Hand a cheque made out to {{seller}} to your representative. The period is activated once it clears."
       },
       "linkTitle": "Card by secure link",
       "linkNote": "A Paymob link comes by {{to}} a week before each bill, valid {{days}} days. Fawtir never sees or stores your card.",
