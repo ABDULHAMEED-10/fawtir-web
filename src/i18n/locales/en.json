@@ -1002,7 +1002,7 @@
       "noteHosted": "Once your account is approved, you pay your bill on Paymob's secure checkout page. Your card is entered there, never on Fawtir."
     },
     "cash": {
-      "noteSignup": "Continue, and the Fawtir team contacts you to collect the payment in cash, with a receipt. The payment stays pending until the cash is collected and verified. Your subscription starts only after your company is approved and the cash is confirmed.",
+      "noteSignup": "Continue, then pay the total in cash at Fawtir's office and keep the receipt. The payment stays pending until Fawtir has confirmed it. Your subscription starts only after your company is approved and the cash payment is confirmed.",
       "received": "Fawtir has received and confirmed your cash payment."
     },
     "addon": {
@@ -15459,7 +15459,7 @@
     "billedAnnually": "billed annually",
     "payment": {
       "bankTransfer": "Bank transfer, receipt attached",
-      "cash": "Cash, collected by the Fawtir team",
+      "cash": "Cash, paid at Fawtir's office",
       "card": "Card, on Paymob's secure checkout",
       "trial_one": "Free trial ({{count}} day), no payment now",
       "trial_other": "Free trial ({{count}} days), no payment now"
@@ -21222,7 +21222,7 @@
       },
       "CASH": {
         "title": "Cash",
-        "body": "Ask us to collect the payment in cash."
+        "body": "Pay the total in cash at Fawtir's office."
       },
       "CARD": {
         "title": "Pay by card",
@@ -21247,8 +21247,8 @@
       "submit": "Send for checking"
     },
     "cash": {
-      "instructions": "We will contact you to arrange collection. Your bill stays open until we have received the cash and checked it.",
-      "submit": "Ask for cash collection"
+      "instructions": "Pay the total in cash at Fawtir's office. Your bill stays open until Fawtir has confirmed the cash payment.",
+      "submit": "I will pay in cash"
     },
     "note": "Note for Fawtir (optional)",
     "waiting": {
@@ -21258,7 +21258,7 @@
         "AWAITING_SECOND_APPROVAL": "Pending verification by Fawtir Finance. Your transfer has been checked and is waiting for a second approval."
       },
       "CASH": {
-        "SUBMITTED": "Your cash collection request is with Fawtir. We will contact you to collect it.",
+        "SUBMITTED": "Your cash payment is with Fawtir and is being confirmed. The bill is paid once it is confirmed. Please do not pay again.",
         "RECEIPT_RECORDED": "Fawtir has recorded your cash payment and is checking it.",
         "AWAITING_SECOND_APPROVAL": "Your cash payment has been checked and is waiting for a second approval at Fawtir."
       }
@@ -21308,8 +21308,8 @@
       }
     },
     "signupWaiting": {
-      "BANK_TRANSFER": "Your transfer is being checked. Fawtir has the bank transfer receipt you sent when you signed up, and your subscription starts once Finance has confirmed it. Please do not pay again.",
-      "CASH": "Your cash payment from sign-up is with Fawtir. We will contact you to collect it if we have not already, and your subscription starts once it is confirmed. Please do not pay again.",
+      "BANK_TRANSFER": "Your transfer is being checked. Fawtir has the bank transfer receipt you sent when you signed up, and your subscription starts once Fawtir has confirmed it. Please do not pay again.",
+      "CASH": "Your cash payment is with Fawtir and is being confirmed. Your subscription starts once it is confirmed. Please do not pay again.",
       "CARD": "Your card payment from sign-up is with Fawtir. Your subscription starts once Fawtir has confirmed it. Please do not pay again."
     },
     "signupConfirmed": "Your payment from sign-up is confirmed. Your subscription starts when Fawtir activates your company."

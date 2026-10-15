@@ -252,3 +252,40 @@ describe('K-BC05: no usage period before the subscription starts', () => {
     await waitFor(() => expect(within(card).getByText(/This period ends/)).toBeTruthy())
   })
 })
+
+describe('Customer cash and transfer wording (Abdul review 15 Oct: CS-1, BT-2)', () => {
+  // Cash is paid at Fawtir's office; Fawtir does not collect it or call to arrange collection.
+  const CASH_KEYS = [
+    'billing.signupWaiting.CASH',
+    'billing.waiting.CASH.SUBMITTED',
+    'billing.method.CASH.body',
+    'billing.cash.instructions',
+    'billing.cash.submit',
+    'payment.cash.noteSignup',
+    'signupReview.payment.cash',
+  ]
+
+  it.each(['en', 'ar'])('promises no cash collection or contact in %s', (lng) => {
+    for (const key of CASH_KEYS) {
+      const text = i18n.t(key, { lng })
+      expect(text).not.toBe(key)
+      expect(text).not.toMatch(/collect|contact|تحصيل|يحصّل|سنتواصل|سيتواصل/i)
+    }
+  })
+
+  it('names Fawtir, not Finance, as checking the sign-up transfer', () => {
+    expect(i18n.t('billing.signupWaiting.BANK_TRANSFER', { lng: 'en' })).toContain('once Fawtir has confirmed it')
+    expect(i18n.t('billing.signupWaiting.BANK_TRANSFER', { lng: 'en' })).not.toMatch(/Finance/)
+    expect(i18n.t('billing.signupWaiting.BANK_TRANSFER', { lng: 'ar' })).not.toMatch(/المالية/)
+  })
+
+  it('shows the exact cash text for a cash sign-up', async () => {
+    answers[BILLING] = () => json(200, { ...OVERVIEW_NO_BILLS, signupMethod: 'CASH' })
+    renderAt('/settings/bills')
+    expect(
+      await screen.findByText(
+        'Your cash payment is with Fawtir and is being confirmed. Your subscription starts once it is confirmed. Please do not pay again.',
+      ),
+    ).toBeTruthy()
+  })
+})
