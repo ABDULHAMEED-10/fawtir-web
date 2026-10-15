@@ -28,6 +28,7 @@ import {
   changeRows,
   formatOmr,
   quotaAboutToUse,
+  tddResubmitRefusalKey,
   vatOf,
   type ChangeCell,
   type ChangeRow,
@@ -164,8 +165,13 @@ function ResubmitScreen() {
       }
       navigate(`/compliance/activity/${dto.invoice_uuid}`)
     } catch (error) {
-      const message = describeApiFailure(error)
-      setFailure(t(message.key, message.values))
+      const refusal = tddResubmitRefusalKey(error)
+      if (refusal) {
+        setFailure(t(refusal))
+      } else {
+        const message = describeApiFailure(error)
+        setFailure(t(message.key, message.values))
+      }
     } finally {
       setSending(false)
     }

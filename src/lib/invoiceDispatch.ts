@@ -186,6 +186,10 @@ export const SEND_REFUSALS: Record<string, string> = {
   DISPATCH_IN_PROGRESS: 'invoiceDispatch.refused.inProgress',
   DISPATCH_DEAD_LETTERED: 'invoiceDispatch.refused.deadLettered',
   DISPATCH_UNAVAILABLE: 'invoiceDispatch.refused.unavailable',
+  // Raised only for an invoice an operator armed for a controlled Peppol TEST window, before the
+  // claim (AuthoredInvoiceSendPreflightAdapter). The window's own reason rides in the English
+  // detail, which never reaches the screen, so every cause shares one sentence.
+  OUTBOUND_WINDOW_SEND_REFUSED: 'invoiceDispatch.refused.windowReserved',
 }
 
 export function sendRefusalKey(error: unknown): string | null {

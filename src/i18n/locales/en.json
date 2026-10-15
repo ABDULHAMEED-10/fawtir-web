@@ -2210,7 +2210,8 @@
       "notSendable": "This invoice has nothing left to send.",
       "inProgress": "This invoice is already being sent. Check again in a moment.",
       "deadLettered": "Sending this invoice stopped and needs support before it can be retried.",
-      "unavailable": "Sending is not available right now."
+      "unavailable": "Sending is not available right now.",
+      "windowReserved": "This invoice is reserved for a controlled test transmission and cannot be sent right now. Nothing was sent. Try again later or contact Fawtir support."
     },
     "buyer": {
       "peppol": "The buyer receives it over Peppol",
@@ -9724,7 +9725,10 @@
       "unknown_one": "1 invoice · 1 from your quota · nothing goes to the customer",
       "unknown_other": "{{count}} invoices · {{count}} from your quota · nothing goes to the customer"
     },
-    "quotaUnavailable": "Your document allowance is not available right now, so what this costs cannot be shown."
+    "quotaUnavailable": "Your document allowance is not available right now, so what this costs cannot be shown.",
+    "refused": {
+      "held": "This correction is on hold for an authorised decision at Fawtir. Nothing was sent to the Tax Authority, and resubmitting again will not send it."
+    }
   },
   "complianceReport": {
     "title": "Compliance report",
@@ -17444,7 +17448,8 @@
         "emissionBlocked": "Invoicing is paused for a short while on Fawtir's side. Try again later.",
         "tooLarge": "This document is too large to send in one upload (4 MB).",
         "notJsonBody": "The upload could not be sent in the expected form. Start again.",
-        "unreachable": "Fawtir could not be reached. Check your connection and upload again; the same upload is recognised and is not invoiced twice."
+        "unreachable": "Fawtir could not be reached. Check your connection and upload again; the same upload is recognised and is not invoiced twice.",
+        "numberReserved": "This invoice number is reserved for a controlled test transmission on Fawtir's side for now. Nothing was submitted. Upload it again later."
       },
       "layer": {
         "L1_XSD": "Document structure",
@@ -17625,7 +17630,8 @@
         "MAPPING_CAPACITY_UNAVAILABLE": "Fawtir's mapping service was busy",
         "SOURCE_IDENTITY_INVALID": "The document's identifier or version is missing, blank or too long",
         "SOURCE_CONTENT_CHANGED": "Your ERP sent different content under the same version",
-        "SOURCE_PAYLOAD_TOO_LARGE": "Your ERP sent a document larger than the 4 MiB limit"
+        "SOURCE_PAYLOAD_TOO_LARGE": "Your ERP sent a document larger than the 4 MiB limit",
+        "OUTBOUND_WINDOW_INVOICE_RESERVED": "The invoice number was reserved for a controlled test transmission"
       },
       "stage": {
         "SOURCE": "your ERP",
