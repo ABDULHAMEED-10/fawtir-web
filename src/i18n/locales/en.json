@@ -979,7 +979,8 @@
       "months_one": "{{count}} month",
       "months_other": "{{count}} months",
       "payNowTotal": "Total to pay",
-      "payNowNote": "Your paid period starts on the day your account is activated, never earlier. "
+      "payNowNote": "Your paid period starts on the day your account is activated, never earlier. ",
+      "seller": "Seller: {{name}}"
     },
     "method": {
       "cardLink": {
@@ -11042,7 +11043,7 @@
       "cardLink": "Paymob checkout · nothing stored with us",
       "bankTransfer": "{{bank}} · quote the bill number",
       "cash": "At Fawtir's office or to your representative",
-      "cheque": "Made out to Insight Technology LLC"
+      "cheque": "Made out to {{seller}}"
     },
     "confirmedBy": {
       "fawtir": "Confirmed by the Fawtir team {{date}}",
@@ -11060,7 +11061,7 @@
       "next": {
         "bankTransfer": "Transfer the amount to the account on the right, quoting the bill number. The Fawtir team activates the next period once it arrives, usually within a business day.",
         "cash": "Pay at Fawtir's office or to your representative. You get a receipt, and the Fawtir team activates the next period once it is recorded, usually the same day.",
-        "cheque": "Hand a cheque made out to Insight Technology LLC to your representative. The period is activated once it clears."
+        "cheque": "Hand a cheque made out to {{seller}} to your representative. The period is activated once it clears."
       },
       "linkTitle": "Card by secure link",
       "linkNote": "A Paymob link comes by {{to}} a week before each bill, valid {{days}} days. Fawtir never sees or stores your card.",
@@ -12528,7 +12529,9 @@
       "erpRequests": "Add-on requests",
       "policies": "Validation policies",
       "payments": "Subscription payments",
-      "bankAccounts": "Bank account"
+      "bankAccounts": "Bank account",
+      "billingSettings": "Billing settings",
+      "seller": "Seller"
     },
     "user": {
       "team": "Fawtir team",
@@ -13903,7 +13906,10 @@
         "invoiceSeries": "Subscription invoice series prefix",
         "invoiceSeriesHint": "Its own series, separate from tenant documents: {{prefix}}-000123.",
         "pricesExclusive": "Prices shown exclusive of VAT",
-        "pricesExclusiveNote": "Plan prices are shown without VAT; the tax is added on the subscription invoice."
+        "pricesExclusiveNote": "Plan prices are shown without VAT; the tax is added on the subscription invoice.",
+        "vatMoved": "VAT on subscription bills",
+        "vatMovedNote": "Switched on or off, with its rate, on Console › Billing settings. Bills use that setting.",
+        "vatMovedValue": "Billing settings"
       },
       "counting": {
         "kind": "Document kind",
@@ -15104,6 +15110,70 @@
       "retireConfirm": "This is the account customers pay into. Retiring it stops bank transfer for every customer until another account is confirmed.",
       "keep": "Keep it",
       "retireNow": "Retire the account"
+    },
+    "billingSettings": {
+      "title": "Billing settings",
+      "subtitle": "Grace, second approval, VAT and renewal timing for subscription bills. Every change is kept with its reason.",
+      "loading": "Loading settings",
+      "card": "Subscription billing",
+      "cardNote": "Applies to bills issued from now on. Bills already issued keep their figures.",
+      "graceDays": "Grace days",
+      "graceDaysHint": "Days a bill can stay unpaid after its due date, 0 to 60.",
+      "leadDays": "Renewal bill, days ahead",
+      "leadDaysHint": "How many days before paid time runs out the renewal bill is prepared, 0 to 60.",
+      "threshold": "Second approver above",
+      "thresholdHint": "Above this amount, a bank transfer needs a second operator to approve it, and cash is confirmed again by the operator who verified it.",
+      "vat": "Charge VAT on subscription bills",
+      "vatNote": "Off: bills carry no VAT and show no VAT line. On: the rate below is added to every new bill.",
+      "vatRate": "VAT rate",
+      "vatRateHint": "A percentage above 0 and below 100, up to three decimals.",
+      "reason": "Why this change",
+      "lastChange": "Last changed: {{reason}} · {{when}}",
+      "readOnly": "Only an operator who manages billing can change these.",
+      "error": {
+        "amount": "An amount of 0 or more, up to three decimals",
+        "percent": "Above 0 and below 100, up to three decimals"
+      },
+      "refusal": {
+        "conflict": "Someone else changed these settings while you were editing. They have been reloaded: check them and save again.",
+        "invalid": "The server did not accept these values. Check them and try again.",
+        "realm": "Billing settings are changed from the production console only.",
+        "impersonation": "End the impersonation before changing billing settings."
+      }
+    },
+    "seller": {
+      "title": "Seller",
+      "subtitle": "The company named as seller on every subscription bill. A bill keeps the seller in force when it was issued.",
+      "loading": "Loading the seller",
+      "none": "No seller has been entered yet. Bills issued now name no seller.",
+      "card": "Seller details",
+      "cardNote": "Changes apply to bills issued from now on.",
+      "legalNameEn": "Legal name (English)",
+      "legalNameAr": "Legal name (Arabic)",
+      "legalType": "Legal form",
+      "legalTypeHint": "Optional. For example Sole Proprietor Company (SPC).",
+      "crNumber": "Commercial registration number",
+      "tin": "Tax identification number",
+      "vatNumber": "VAT number",
+      "vatNumberHint": "Leave empty when the seller is not VAT registered. OM followed by 10 digits.",
+      "addressEn": "Address (English)",
+      "addressAr": "Address (Arabic)",
+      "optional": "Optional",
+      "reason": "Why this change",
+      "history": "Earlier versions",
+      "version": "Version {{version}}",
+      "historyFailed": "The earlier versions could not be loaded.",
+      "error": {
+        "digits": "Digits only, up to 20",
+        "vatNumber": "OM followed by 10 digits"
+      },
+      "refusal": {
+        "conflict": "Someone else changed the seller while you were editing. It has been reloaded: check it and save again.",
+        "invalid": "The server did not accept these details. Check them and try again."
+      },
+      "crShort": "CR {{number}}",
+      "tinShort": "TIN {{number}}",
+      "vatShort": "VAT {{number}}"
     }
   },
   "shell": {
@@ -21125,7 +21195,8 @@
       "subtotal": "Subscription",
       "vat": "VAT {{rate}}",
       "total": "Total",
-      "notTaxInvoice": "This is a statement of your subscription charge, not a tax invoice."
+      "notTaxInvoice": "This is a statement of your subscription charge, not a tax invoice.",
+      "seller": "Seller: {{name}}"
     },
     "billStatus": {
       "OPEN": "Waiting for payment",
@@ -21137,7 +21208,7 @@
     "method": {
       "BANK_TRANSFER": {
         "title": "Bank transfer",
-        "body": "Transfer the total to Fawtir's account, then send us the receipt."
+        "body": "Transfer the total to the account shown, then send us the receipt."
       },
       "CASH": {
         "title": "Cash",

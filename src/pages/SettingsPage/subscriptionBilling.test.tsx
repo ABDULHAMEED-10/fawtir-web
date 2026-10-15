@@ -124,6 +124,41 @@ describe('Settings › Billing: the charge', () => {
     expect(within(region).queryByText(/card/i)).toBeNull()
   })
 
+  it('shows no VAT line on a bill at rate 0, and names the seller the bill carries', async () => {
+    const seller = {
+      legalNameEn: 'Thumb International SPC', legalNameAr: 'الإبهام العالمية ش ش و', crNumber: '1383315',
+      taxIdentificationNumber: '1875504', vatNumber: null, addressEn: 'Al Khuwair, Muscat', addressAr: null,
+    }
+    const bill = { ...BILL, vatRate: '0.00000', vatAmount: '0.000', total: '35.000', seller }
+    answers[BILLING] = () => json(200, overview({ bills: [{ bill, payments: [] }] }))
+    renderBilling()
+
+    expect(await screen.findByText(i18n.t('billing.bill.seller', { name: 'Thumb International SPC' }))).toBeTruthy()
+    const region = charges()
+    expect(within(region).queryByText(i18n.t('billing.bill.vat', { rate: '0%' }))).toBeNull()
+    expect(within(region).getByText(i18n.t('billing.bill.subtotal'))).toBeTruthy()
+    expect(within(region).getByText(i18n.t('billing.bill.total'))).toBeTruthy()
+  })
+
+  it('names the Arabic seller in Arabic, and no seller for a bill issued before one existed', async () => {
+    const seller = {
+      legalNameEn: 'Thumb International SPC', legalNameAr: 'الإبهام العالمية ش ش و', crNumber: '1383315',
+      taxIdentificationNumber: null, vatNumber: null, addressEn: 'Al Khuwair, Muscat', addressAr: null,
+    }
+    await i18n.changeLanguage('ar')
+    answers[BILLING] = () => json(200, overview({ bills: [{ bill: { ...BILL, seller }, payments: [] }] }))
+    const { unmount } = renderBilling()
+    expect(await screen.findByText(i18n.t('billing.bill.seller', { name: 'الإبهام العالمية ش ش و' }))).toBeTruthy()
+    unmount()
+
+    await i18n.changeLanguage('en')
+    resetSharedRequests()
+    answers[BILLING] = () => json(200, overview({ bills: [{ bill: { ...BILL, seller: null }, payments: [] }] }))
+    renderBilling()
+    expect(await screen.findByText('FWT-SUB-2026-000007')).toBeTruthy()
+    expect(charges().textContent).not.toContain(i18n.t('billing.bill.seller', { name: '' }).trim())
+  })
+
   it('sends bank-transfer proof as multipart with an Idempotency-Key, and a retry reuses the key', async () => {
     let attempts = 0
     answers[`POST ${BILLING}/bills/b-1/bank-transfer`] = () => {
@@ -292,8 +327,12 @@ describe('Settings › Billing: the charge', () => {
   })
 
   it('shows older bills a page at a time from the cursor', async () => {
+    const seller = {
+      legalNameEn: 'Thumb International SPC', legalNameAr: null, crNumber: '1383315',
+      taxIdentificationNumber: null, vatNumber: null, addressEn: 'Muscat', addressAr: null,
+    }
     const paid = (id: string, number: string) => ({
-      bill: { ...BILL, id, number, status: 'PAID', paidAt: '2026-09-20T08:00:00Z', appliedPaidThrough: '2026-10-22' },
+      bill: { ...BILL, id, number, status: 'PAID', paidAt: '2026-09-20T08:00:00Z', appliedPaidThrough: '2026-10-22', seller },
       payments: [],
     })
     answers[BILLING] = () =>
@@ -309,6 +348,8 @@ describe('Settings › Billing: the charge', () => {
 
     expect(await screen.findByText(/FWT-SUB-2026-000001/)).toBeTruthy()
     expect(screen.getByText(/FWT-SUB-2026-000006/)).toBeTruthy()
+    // A paid bill names the seller it was issued under.
+    expect(screen.getAllByText(i18n.t('billing.bill.seller', { name: 'Thumb International SPC' })).length).toBeGreaterThanOrEqual(2)
     expect(screen.queryByRole('button', { name: i18n.t('billing.olderBills') })).toBeNull()
   })
 

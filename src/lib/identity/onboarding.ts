@@ -1,5 +1,6 @@
 import { apiRequest } from '../../api'
 import type { ServerFieldMap } from './errors'
+import type { SellerOnBillDto } from '../../api/settings/billing'
 import { GOVERNORATE_NAMES, type GovernorateId } from '../governorates'
 import type { BusinessSize, InvoiceAccent, InvoicingMethod } from '../onboarding'
 import {
@@ -449,6 +450,8 @@ export type SignupPaymentOptions = {
   beneficiary: { legalName: string; bankName: string; iban: string; swiftCode: string | null } | null
   /** The largest receipt the server accepts; absent from an older server. */
   proofMaximumBytes?: number
+  /** Who the registrant pays: the seller in force now. Null before one is entered. */
+  seller?: SellerOnBillDto | null
 }
 
 /**

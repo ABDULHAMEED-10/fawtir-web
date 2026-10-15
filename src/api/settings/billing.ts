@@ -23,6 +23,26 @@ export type PaymentStatus =
   | 'REJECTED'
   | 'WITHDRAWN'
 
+/** The seller as the bill names it: the version in force when the bill was issued. */
+export type SellerOnBillDto = {
+  legalNameEn: string
+  legalNameAr: string | null
+  crNumber: string
+  taxIdentificationNumber: string | null
+  vatNumber: string | null
+  addressEn: string
+  addressAr: string | null
+}
+
+/**
+ * The seller's legal name in the reader's language, the English one when no Arabic name was
+ * entered. Null when there is no seller: no name is better than a wrong one.
+ */
+export function sellerName(seller: SellerOnBillDto | null | undefined, language: string): string | null {
+  if (!seller) return null
+  return language.startsWith('ar') && seller.legalNameAr ? seller.legalNameAr : seller.legalNameEn
+}
+
 /** Amounts are three-decimal OMR strings computed by the server. */
 export type SubscriptionBillDto = {
   id: string
@@ -45,6 +65,8 @@ export type SubscriptionBillDto = {
   appliedPaidThrough: string | null
   voidReason: string | null
   version: number
+  /** Null for a bill issued before any seller was entered; absent from older servers. */
+  seller?: SellerOnBillDto | null
 }
 
 export type SubscriptionPaymentDto = {

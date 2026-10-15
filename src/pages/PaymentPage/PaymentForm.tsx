@@ -37,6 +37,7 @@ import {
 } from '../../lib/pricing'
 import { PLATFORM_SETTINGS } from '../../lib/platformSettings'
 import { isConfirmedPayment } from '../../lib/identity/signupRejection'
+import { sellerName } from '../../api/settings/billing'
 import cardIcon from '../../assets/payment/card.svg'
 import bankIcon from '../../assets/payment/bank.svg'
 import tickIcon from '../../assets/payment/tick-circle.svg'
@@ -341,6 +342,7 @@ export function PaymentForm() {
               billing={billing}
               months={months}
               termsRead={termsRead}
+              seller={sellerName(options?.seller, i18n.language)}
               addonBaisa={
                 addon && offer === 'priced' ? toBaisa(extractionMonthly()) * months : null
               }
@@ -664,6 +666,7 @@ function OrderSummaryCard({
   billing,
   months,
   termsRead,
+  seller,
   addonBaisa,
   when,
   payNow,
@@ -672,6 +675,8 @@ function OrderSummaryCard({
   billing: BillingCycle
   months: number
   termsRead: PlanTermsRead
+  /** Who is paid, in the reader's language; null when the server named no seller. */
+  seller: string | null
   addonBaisa: number | null
   when: string
   /** Paid with the application: the total is due now, and the period still starts at activation. */
@@ -705,6 +710,11 @@ function OrderSummaryCard({
             ? t('payment.summary.annualBilling')
             : t('payment.summary.monthlyBilling')}
         </p>
+        {seller ? (
+          <p className="text-sm font-medium text-text-primary/70">
+            {t('payment.summary.seller', { name: seller })}
+          </p>
+        ) : null}
       </div>
       <div className="border-t border-dashed border-[#e8e8e8]" />
 
@@ -733,14 +743,17 @@ function OrderSummaryCard({
             </span>
           </div>
         ) : null}
-        <div className="flex items-center justify-between gap-2 text-sm">
-          <span className="font-medium text-text-primary/70">
-            {rate === null
-              ? t('payment.summary.vatUnknownRate')
-              : t('payment.summary.vatRate', { rate })}
-          </span>
-          {figure(amounts?.vat, 'font-semibold text-text-primary/80', 'xs')}
-        </div>
+        {/* Rate 0 is how the server says no VAT is charged: no line, rather than "VAT (0%)". */}
+        {rate === '0' ? null : (
+          <div className="flex items-center justify-between gap-2 text-sm">
+            <span className="font-medium text-text-primary/70">
+              {rate === null
+                ? t('payment.summary.vatUnknownRate')
+                : t('payment.summary.vatRate', { rate })}
+            </span>
+            {figure(amounts?.vat, 'font-semibold text-text-primary/80', 'xs')}
+          </div>
+        )}
       </div>
       <div className="border-t border-dashed border-[#e8e8e8]" />
 
