@@ -249,6 +249,17 @@ describe('Settings › Billing: the charge', () => {
     expect(within(charges()).getAllByRole('radio')).toHaveLength(2)
   })
 
+  it('a reason that ends with a full stop is not followed by a second one', async () => {
+    answers[BILLING] = () =>
+      json(200, overview({
+        bills: [{ bill: BILL, payments: [{ id: 'p-0', billId: 'b-1', method: 'BANK_TRANSFER', status: 'REJECTED', amount: '36.750', submittedAt: '2026-10-17T06:00:00Z', reference: 'X', customerNote: null, proofContentType: 'application/pdf', receiptNumber: null, receivedAmount: null, receivedAt: null, rejectionReason: 'Amount on the receipt is 30.000.', version: 2 }] }],
+      }))
+    renderBilling()
+
+    const alert = await screen.findByText(i18n.t('billing.rejected', { reason: 'Amount on the receipt is 30.000' }))
+    expect(alert.textContent).not.toContain('..')
+  })
+
   it('says why bank transfer is missing when proof storage is unavailable, and still offers cash', async () => {
     answers[BILLING] = () =>
       json(200, overview({ methods: { bankTransfer: false, bankTransferStatus: 'STORAGE_UNAVAILABLE', cash: true } }))

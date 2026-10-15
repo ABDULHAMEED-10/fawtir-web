@@ -8,7 +8,8 @@ import { FeaturesPage } from './FeaturesPage'
 import { PricingPage } from './PricingPage'
 import { resetSharedRequests } from '../../api'
 import type { SignupCataloguePlan } from '../../lib/identity/signupPlans'
-import { comparisonGroups, faqParams } from '../PlansPage/comparison'
+import { comparisonGroups, faqAnswerKey, faqParams } from '../PlansPage/comparison'
+import { DEFAULT_SETTINGS, settingsStore } from '../../lib/platformSettings'
 
 let fetchMock: ReturnType<typeof vi.fn>
 
@@ -141,6 +142,40 @@ describe('Pricing page', () => {
     fireEvent.click(question)
     expect(question.getAttribute('aria-expanded')).toBe('true')
     expect(screen.getByText(i18n.t('plans.faq.a1', faqParams(CATALOGUE)))).toBeTruthy()
+  })
+
+  it('counts the grace days in Arabic by their plural form', () => {
+    const params = faqParams(CATALOGUE)
+    expect(params.count).toBe(7)
+    const arabic = i18n.t('plans.faq.a5', { ...params, lng: 'ar' })
+    expect(arabic).toContain('على 7 أيام من المهلة')
+    expect(i18n.t('plans.faq.a5', { ...params, count: 14, lng: 'ar' })).toContain('على 14 يومًا من المهلة')
+    expect(i18n.t('plans.faq.a5', { ...params, lng: 'en' })).toContain('7 days of grace')
+  })
+
+  it('quotes the VAT rate the server sends with the plans, and says no VAT is added at zero', () => {
+    const vatCell = (plans: readonly SignupCataloguePlan[]) =>
+      comparisonGroups(plans).flatMap((group) => group.rows).find((row) => row.key === 'vat')!.cell(null)
+    const noVat = CATALOGUE.map((plan) => ({ ...plan, vatRate: '0.00000' }))
+    const params = faqParams(noVat)
+    expect(faqAnswerKey(6, params)).toBe('plans.faq.a7NoVat')
+    expect(i18n.t(faqAnswerKey(6, params), { ...params, lng: 'en' })).not.toContain('%')
+    expect(i18n.t(faqAnswerKey(6, params), { ...params, lng: 'ar' })).not.toContain('%')
+    expect(vatCell(noVat)).toMatchObject({ key: 'plans.compare.value.noVat' })
+
+    // The server's rate wins over the console's.
+    settingsStore.save('billing', { ...DEFAULT_SETTINGS.billing, vatRate: 0 })
+    try {
+      const withVat = CATALOGUE.map((plan) => ({ ...plan, vatRate: '0.05000' }))
+      expect(faqAnswerKey(6, faqParams(withVat))).toBe('plans.faq.a7')
+      expect(faqParams(withVat).rate).toBe(5)
+      expect(vatCell(withVat)).toMatchObject({ params: { rate: 5 } })
+      // An older server sends no rate: the console's is used.
+      expect(faqAnswerKey(6, faqParams(CATALOGUE))).toBe('plans.faq.a7NoVat')
+    } finally {
+      settingsStore.reset('billing')
+    }
+    expect(faqParams(CATALOGUE).rate).toBe(5)
   })
 
   it('reads in Arabic with the published Arabic names', async () => {

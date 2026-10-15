@@ -5,6 +5,7 @@ import { ApiError } from '../../api'
 import { Button, ChevronRightIcon, Input, MailIcon } from '../../components/ui'
 import { commonFailureMessage, type FormMessage } from '../../lib/identity/errors'
 import {
+  PENDING_ROUTE,
   ROUTE_FOR_STAGE,
   isSubmittedStage,
   readSignupStatus,
@@ -117,9 +118,10 @@ export function ResumeSignupForm() {
       // The step to land on is the server's. If the read fails, the first step's gate asks again.
       try {
         const status = await readSignupStatus(session.onboardingToken)
-        const submitted = isSubmittedStage(status.stage)
+        // A closed application opens only the waiting screen, which says it was closed.
+        const submitted = isSubmittedStage(status.stage) || status.closed === true
         markOnboardingSubmitted(submitted)
-        navigate(ROUTE_FOR_STAGE[status.stage], {
+        navigate(status.closed === true ? PENDING_ROUTE : ROUTE_FOR_STAGE[status.stage], {
           replace: true,
           state: submitted ? undefined : onboardingStateFromStatus(status),
         })
