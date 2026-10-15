@@ -14,6 +14,12 @@ import {
   type SignupCataloguePlan,
 } from '../../lib/identity/signupPlans'
 import { SubscriptionStatusSection } from './SubscriptionStatusSection'
+import {
+  SUBSCRIPTION_PATH,
+  loadSubscription,
+  subscriptionNotStarted,
+  type SubscriptionStatusDto,
+} from '../../api/settings/subscription'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
 import tickIcon from '../../assets/settings/check-ink.svg'
 import tickGreenIcon from '../../assets/settings/check-green.svg'
@@ -59,6 +65,9 @@ export function PlanPage() {
 /** Inside the shell, which is what provides the session the permission is read from. */
 function PlanBody() {
   const plan = useApiRead<PlanOverviewDto>(PLAN_OVERVIEW_PATH, loadPlanOverview)
+  // The section above reads the same path; the shared request makes this one fetch, not two.
+  const subscription = useApiRead<SubscriptionStatusDto>(SUBSCRIPTION_PATH, loadSubscription).read
+  const notStarted = subscription.status === 'ready' && subscriptionNotStarted(subscription.data)
   const mayManage = useCan(PLAN_MANAGE)
 
   if (plan.read.status === 'loading') return <LoadingNotice />
@@ -66,7 +75,7 @@ function PlanBody() {
     return <ApiReadFailure error={plan.read.error} retry={plan.retry} />
   return (
     <>
-      <PlanFigures data={plan.read.data} mayManage={mayManage} />
+      <PlanFigures data={plan.read.data} mayManage={mayManage} notStarted={notStarted} />
       <PlanCards current={plan.read.data} mayManage={mayManage} />
       <AddonsSection />
     </>
@@ -106,7 +115,20 @@ export function forecastOf(usage: PlanOverviewDto['usage']) {
   }
 }
 
-function PlanFigures({ data, mayManage }: { data: PlanOverviewDto; mayManage: boolean }) {
+/**
+ * `notStarted`: before the first paid period the server counts usage against the calendar month,
+ * which is not the period that applies once the subscription starts (K-BC05). The period, its
+ * reset date and the forecast built on its days are left out rather than shown wrong.
+ */
+function PlanFigures({
+  data,
+  mayManage,
+  notStarted,
+}: {
+  data: PlanOverviewDto
+  mayManage: boolean
+  notStarted: boolean
+}) {
   const { t, i18n } = useTranslation()
   // lib/format keeps digits Latin in Arabic too (decision D15); toLocaleString would not.
   const number = (value: number) => formatCount(value, i18n.language)
@@ -140,23 +162,27 @@ function PlanFigures({ data, mayManage }: { data: PlanOverviewDto; mayManage: bo
           </div>
 
           <div className="min-w-0 flex-1 md:min-w-[320px]">
-            <p className="text-xl font-medium leading-[1.2] text-text-primary">
-              {forecast.willRunOut && forecast.runOut
-                ? t('plan.runOutHeadline', { date: date(forecast.runOut) })
-                : t('plan.comfortableHeadlinePeriod')}
-            </p>
-            <p className="mt-2 max-w-[640px] text-sm font-medium leading-[1.6] text-text-tertiary">
-              <Trans
-                i18nKey={forecast.willRunOut ? 'plan.runOutBodyPeriod' : 'plan.comfortableBodyPeriod'}
-                values={{
-                  perDay: number(forecast.perDay),
-                  days: number(forecast.daysLeft),
-                  short: number(Math.abs(forecast.shortfall)),
-                  spare: number(Math.max(0, -forecast.shortfall)),
-                }}
-                components={{ b: <b className="font-semibold text-text-primary" /> }}
-              />
-            </p>
+            {notStarted ? null : (
+              <>
+                <p className="text-xl font-medium leading-[1.2] text-text-primary">
+                  {forecast.willRunOut && forecast.runOut
+                    ? t('plan.runOutHeadline', { date: date(forecast.runOut) })
+                    : t('plan.comfortableHeadlinePeriod')}
+                </p>
+                <p className="mt-2 max-w-[640px] text-sm font-medium leading-[1.6] text-text-tertiary">
+                  <Trans
+                    i18nKey={forecast.willRunOut ? 'plan.runOutBodyPeriod' : 'plan.comfortableBodyPeriod'}
+                    values={{
+                      perDay: number(forecast.perDay),
+                      days: number(forecast.daysLeft),
+                      short: number(Math.abs(forecast.shortfall)),
+                      spare: number(Math.max(0, -forecast.shortfall)),
+                    }}
+                    components={{ b: <b className="font-semibold text-text-primary" /> }}
+                  />
+                </p>
+              </>
+            )}
 
             <div
               className="mt-4 h-2 w-full overflow-hidden rounded-full bg-surface-background"
@@ -179,13 +205,15 @@ function PlanFigures({ data, mayManage }: { data: PlanOverviewDto; mayManage: bo
                   {t('plan.leftCount', { count: forecast.left })}
                 </span>
               </span>
-              <span className="text-xs font-medium text-text-quaternary">
-                {t('people.plan.period', {
-                  start: date(usage.period.start),
-                  end: date(usage.period.end),
-                })}{' '}
-                {t('plan.resetsOn', { date: date(forecast.resetsOn) })}
-              </span>
+              {notStarted ? null : (
+                <span className="text-xs font-medium text-text-quaternary">
+                  {t('people.plan.period', {
+                    start: date(usage.period.start),
+                    end: date(usage.period.end),
+                  })}{' '}
+                  {t('plan.resetsOn', { date: date(forecast.resetsOn) })}
+                </span>
+              )}
             </p>
           </div>
 

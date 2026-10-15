@@ -4,10 +4,17 @@ import { useTranslation } from 'react-i18next'
 import { SettingsShell } from './SettingsShell'
 import { withRial } from '../../components/ui'
 import { SETTINGS_TABS, BOOK, longDate, type SettingsTab } from '../../lib/settings'
-import { HOW_YOU_PAY } from '../../lib/settingsBilling'
 import { LAST_EXPORT_ON } from '../../lib/settingsRecords'
 import { demoModulesEnabled } from '../../lib/demoModules'
 import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
+import {
+  SUBSCRIPTION_PATH,
+  loadSubscription,
+  subscriptionDisplay,
+  subscriptionNotStarted,
+  type SubscriptionDisplay,
+  type SubscriptionStatusDto,
+} from '../../api/settings/subscription'
 import {
   PEOPLE_PATH,
   ROLES_PATH,
@@ -57,6 +64,17 @@ import {
 import { BRANCHES_OVERVIEW_PATH, type BranchOverviewDto } from '../../api/settings/branches'
 
 type Tone = 'danger' | 'success' | 'neutral' | 'pending'
+
+/** The Bills card's pill: the same words as the subscription pill on the page it opens. */
+const SUBSCRIPTION_TONE: Record<SubscriptionDisplay, Tone> = {
+  NOT_TRACKED: 'neutral',
+  TRIAL: 'neutral',
+  ACTIVE: 'success',
+  GRACE: 'pending',
+  PAYMENT_REQUIRED: 'danger',
+  NOT_STARTED: 'pending',
+  CANCELLED: 'neutral',
+}
 
 type Card = {
   id: string
@@ -192,6 +210,14 @@ export function SettingsPage() {
   const planOverview =
     planRead.status === 'ready' && planRead.data?.plan && planRead.data?.usage ? planRead.data : null
   const planFailed = planRead.status === 'failed'
+  // The Bills card said "Paid up" from sample data beside a subscription the page called "Payment
+  // required" (K-BC03); it now reads the subscription its page reads.
+  const subscriptionRead = useApiRead<SubscriptionStatusDto>(SUBSCRIPTION_PATH, loadSubscription).read
+  const subscription = subscriptionRead.status === 'ready' ? subscriptionRead.data : null
+  const subscriptionFailed = subscriptionRead.status === 'failed'
+  // Before the subscription starts, the plan's usage period is a calendar month the server falls
+  // back to, not the period that will apply once it is paid (K-BC05): no end date is shown.
+  const notStarted = subscription !== null && subscriptionNotStarted(subscription)
   const mayListRoles = entitlements !== null && hasPermission(entitlements, ROLES_PERMISSION)
   const rolesRead = useApiRead<RoleDto[]>(mayListRoles ? ROLES_PATH : null, loadRoles).read
   const roleCount = rolesRead.status === 'ready' ? rolesRead.data.length : null
@@ -430,26 +456,21 @@ export function SettingsPage() {
             : 'settings.card.pillChecking',
         pillValues: { name: planOverview?.plan.name ?? '' },
         pillTone: 'neutral',
-        footKey: planOverview ? 'settings.card.planFootReal' : undefined,
+        footKey: planOverview && !notStarted ? 'settings.card.planFootReal' : undefined,
         footValues: { date: periodEnd },
       },
       {
         id: 'bills',
         group: 'billing',
         icon: billsIcon,
-        // Billing, export and closing have no server yet: their cards carry the prototype's sample
-        // facts exactly when their prototype pages are shown (lib/demoModules), and say "not
-        // available yet" when a build hides those pages.
-        iconTint: demo ? 'bg-success-100' : 'bg-surface-background',
+        iconTint: subscription && subscriptionDisplay(subscription) === 'ACTIVE' ? 'bg-success-100' : 'bg-surface-background',
         to: '/settings/bills',
-        ...(demo
-          ? {
-              pillKey: 'settings.card.billsPill',
-              pillTone: 'success' as const,
-              footKey: 'settings.card.billsFoot',
-              footValues: { method: t(`bills.method.${HOW_YOU_PAY.method}`) },
-            }
-          : { pillKey: 'moduleUnavailable.badge', pillTone: 'neutral' as const }),
+        pillKey: subscription
+          ? `subscription.access.${subscriptionDisplay(subscription)}`
+          : subscriptionFailed
+            ? 'settings.card.pillNotAvailable'
+            : 'settings.card.pillChecking',
+        pillTone: subscription ? SUBSCRIPTION_TONE[subscriptionDisplay(subscription)] : 'neutral',
       },
       {
         id: 'log',
@@ -504,6 +525,9 @@ export function SettingsPage() {
       planOverview,
       planFailed,
       periodEnd,
+      notStarted,
+      subscription,
+      subscriptionFailed,
       demo,
       i18n.language,
       mapping,

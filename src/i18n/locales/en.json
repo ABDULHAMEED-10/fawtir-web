@@ -21133,7 +21133,8 @@
       "ACTIVE": "Active",
       "GRACE": "Grace period",
       "PAYMENT_REQUIRED": "Payment required",
-      "CANCELLED": "Ended"
+      "CANCELLED": "Ended",
+      "NOT_STARTED": "Not started"
     },
     "notice": {
       "notTracked": "Fawtir manages this subscription for you. Contact Fawtir about renewal or changes.",
@@ -21143,7 +21144,9 @@
       "paymentRequiredBilling": "Payment is due. Your issued invoices, reports and exports stay available. Pay the bill below using one of the ways shown.",
       "paymentRequiredPlan": "Payment is due. Your issued invoices, reports and exports stay available. Pay the bill in Settings › Bills and payment.",
       "cancelled": "Your subscription ended on {{date}}. Your issued invoices and reports stay available to read and export.",
-      "cancelScheduled": "Your subscription ends on {{date}} and will not renew."
+      "cancelScheduled": "Your subscription ends on {{date}} and will not renew.",
+      "notStartedBilling": "Your subscription has not started yet. It starts when Fawtir has confirmed your payment. Your records stay available to read, download and export.",
+      "notStartedPlan": "Your subscription has not started yet. It starts when Fawtir has confirmed your payment; Settings › Bills and payment shows where it stands. Your records stay available to read, download and export."
     },
     "cycle": {
       "MONTHLY": "Monthly",
@@ -21301,6 +21304,11 @@
         "UNDER_REVIEW": "We received a card payment we need to check. Fawtir Finance will contact you; please don't pay again.",
         "REVERSED": "This card payment was refunded. Fawtir Finance will contact you about this bill."
       }
+    },
+    "signupWaiting": {
+      "BANK_TRANSFER": "Your transfer is being checked. Fawtir has the bank transfer receipt you sent when you signed up, and your subscription starts once Finance has confirmed it. Please do not pay again.",
+      "CASH": "Your cash payment from sign-up is with Fawtir. We will contact you to collect it if we have not already, and your subscription starts once it is confirmed. Please do not pay again.",
+      "CARD": "Your card payment from sign-up is with Fawtir. Your subscription starts once Fawtir has confirmed it. Please do not pay again."
     }
   },
   "permissionLabel": {

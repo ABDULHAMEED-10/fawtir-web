@@ -447,6 +447,43 @@ describe('Business identity', () => {
     expect(await screen.findByText(i18n.t('businessIdentity.identifierTaken'))).toBeTruthy()
     expect(document.body.textContent).not.toContain('A tenant with this tax number')
   })
+
+  it('clears the "already registered" answer once the VATIN or CR number is edited (G6)', async () => {
+    const taken = () =>
+      fetchMock.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(
+        status('BUSINESS_IDENTITY', {
+          businessProfileComplete: true,
+          businessCategoryComplete: true,
+          businessTypeComplete: true,
+        }),
+      )
+    taken()
+    const user = userEvent.setup({ delay: null })
+    renderAt('/business-identity', AFTER_TYPE)
+    await user.type(field('companyName'), 'Al Noor Bakery LLC')
+    await user.type(field('crNumber'), '1234567')
+    await user.type(field('vatin'), 'OM1100112233')
+    await user.click(submit())
+    expect(await screen.findByText(i18n.t('businessIdentity.identifierTaken'))).toBeTruthy()
+
+    // Editing the VATIN into something the client refuses: only the client's message remains.
+    await user.type(field('vatin'), '9')
+    expect(screen.queryByText(i18n.t('businessIdentity.identifierTaken'))).toBeNull()
+    await user.click(submit())
+    expect(await screen.findByText(i18n.t('validation.vatin'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('businessIdentity.identifierTaken'))).toBeNull()
+
+    // The CR number clears it as well; the company name does not answer the conflict.
+    await user.clear(field('vatin'))
+    await user.type(field('vatin'), 'OM1100112233')
+    taken()
+    await user.click(submit())
+    expect(await screen.findByText(i18n.t('businessIdentity.identifierTaken'))).toBeTruthy()
+    await user.type(field('companyName'), 'x')
+    expect(screen.getByText(i18n.t('businessIdentity.identifierTaken'))).toBeTruthy()
+    await user.type(field('crNumber'), '8')
+    expect(screen.queryByText(i18n.t('businessIdentity.identifierTaken'))).toBeNull()
+  })
 })
 
 describe('Address and contact', () => {

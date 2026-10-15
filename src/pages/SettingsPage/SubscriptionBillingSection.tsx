@@ -118,6 +118,13 @@ export function SubscriptionBillingSection() {
           onChanged={changed}
           onCardFinished={cardFinished}
         />
+      ) : overview.signupMethod && overview.bills.length === 0 ? (
+        // Paid at sign-up and no bill yet: the first bill is issued only when Fawtir confirms that
+        // payment, and the server refuses to prepare another until then. "Nothing is due" with a
+        // button to prepare a bill would invite paying twice (K-BC03).
+        <p role="status" className="rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium leading-[1.6] text-pending-700">
+          {t(`billing.signupWaiting.${overview.signupMethod}`)}
+        </p>
       ) : (
         <NoOutstandingBill canPay={canPay} onPrepared={() => changed()} />
       )}

@@ -318,3 +318,47 @@ describe('Console › Bank account, retiring the live account', () => {
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/retire'))).toBe(false)
   })
 })
+
+describe('Console › Bank account, refusals and labels (retest 15 Oct 2026)', () => {
+  const PENDING = [{
+    id: 'a-1', legalName: 'Fawtir LLC', bankName: 'Bank Muscat', iban: 'OM810180000001299123456', swiftCode: null,
+    status: 'PENDING_CONFIRMATION', reason: 'Main account', createdBy: 'u-other', createdAt: '2026-10-18T05:00:00Z',
+    confirmedBy: null, version: 0,
+  }]
+
+  it('says the session needs refreshing on a CSRF refusal, not "That did not go through" (K-UI-a)', async () => {
+    answers[BENEFICIARIES] = () => json(200, PENDING)
+    answers[`POST ${BENEFICIARIES}/a-1/confirmation`] = () =>
+      json(403, { type: 'https://api.fawtir.om/problems/csrf-rejected' })
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/accounts')
+
+    await user.click(await screen.findByRole('button', { name: i18n.t('console.bankAccounts.confirm') }))
+    expect((await screen.findByRole('alert')).textContent).toBe(i18n.t('apiErrors.csrf'))
+    expect(screen.queryByText(i18n.t('console.billing.refusal.other'))).toBeNull()
+  })
+
+  it('names a missing permission on any other 403 (K-UI-a)', async () => {
+    answers[BENEFICIARIES] = () => json(200, PENDING)
+    answers[`POST ${BENEFICIARIES}/a-1/confirmation`] = () =>
+      json(403, { type: 'https://api.fawtir.om/problems/forbidden' })
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/accounts')
+
+    await user.click(await screen.findByRole('button', { name: i18n.t('console.bankAccounts.confirm') }))
+    expect((await screen.findByRole('alert')).textContent).toBe(i18n.t('console.billing.refusal.forbidden'))
+  })
+
+  it('ties every field of the new-account form to its label (K-UI-b)', async () => {
+    answers[BENEFICIARIES] = () => json(200, [])
+    renderAt('/console/billing/accounts')
+    await screen.findByText(i18n.t('console.bankAccounts.empty'))
+
+    for (const key of ['billing.bank.holder', 'billing.bank.bank', 'billing.bank.iban', 'billing.bank.swift', 'console.bankAccounts.reason']) {
+      const input = screen.getByRole('textbox', { name: i18n.t(key) })
+      expect(input.id).not.toBe('')
+      const label = [...document.querySelectorAll('label')].find((each) => each.htmlFor === input.id)
+      expect(label?.textContent).toBe(i18n.t(key))
+    }
+  })
+})
