@@ -2,6 +2,7 @@ import { ApiError } from '../api'
 import { commonFailureMessage, type FormMessage } from './identity/errors'
 import { refusalMessageKey, refusalMessageValues } from './expenditureRefusals'
 import { selfBillingMessageKey } from './selfBillingRefusals'
+import { subscriptionRestrictedMessageKey } from './subscriptionRestricted'
 
 /**
  * The localized sentence for a failed customer-app request, and the reference support needs.
@@ -13,6 +14,10 @@ import { selfBillingMessageKey } from './selfBillingRefusals'
 export function describeApiFailure(error: unknown): FormMessage & { reference: string | null } {
   const reference = error instanceof ApiError ? error.correlationId : null
   if (error instanceof ApiError) {
+    // First: a read-only subscription answers 409, and the conflict sentence's "reload and try
+    // again" can never work for it; paying or choosing a plan is the way forward.
+    const subscription = subscriptionRestrictedMessageKey(error)
+    if (subscription !== null) return { key: subscription, reference }
     // Before any status branch: a refusal is a decision the server made by name, and saying
     // "try again" about one is wrong advice, not merely a vague message.
     const refusal = refusalMessageKey(error)

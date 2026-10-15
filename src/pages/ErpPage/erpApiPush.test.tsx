@@ -325,6 +325,17 @@ describe('E/F/G: rotation, completion and revocation', () => {
     await waitFor(() => expect(keyReads().length).toBeGreaterThanOrEqual(2))
   })
 
+  it('a rotation refused by a read-only subscription says so, not "already rotated or revoked"', async () => {
+    answers['POST /api/v1/apikeys/k-active/rotate'] = [() => problem(409, 'subscription-restricted')]
+    renderPage()
+    await openRowMenu('Odoo production')
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Rotate key' }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Rotate key' }))
+    expect(await screen.findByText(/Your subscription is read-only/)).toBeTruthy()
+    expect(screen.queryByText(/already rotated or revoked/)).toBeNull()
+    expect(screen.queryByText(/SERVER-PROSE-MARKER/)).toBeNull()
+  })
+
   it('G: completing a rotation is confirmed, explains the old key stops now, and reloads', async () => {
     renderPage()
     await openRowMenu('Odoo staging')
