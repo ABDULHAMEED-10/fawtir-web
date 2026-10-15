@@ -214,6 +214,7 @@ export function PaymentForm() {
       paymentMethod: choice.enrollment === 'payNow' ? choice.method : undefined,
       // Review shows the same server figures without asking for them again.
       planTerms: terms ?? undefined,
+      seller: options?.seller ?? undefined,
     }
     navigate(REVIEW_ROUTE, { state: next })
   }

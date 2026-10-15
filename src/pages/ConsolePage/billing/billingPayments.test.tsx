@@ -162,8 +162,12 @@ describe('Console › Subscription payments', () => {
     const user = userEvent.setup({ delay: null })
     renderAt('/console/billing/payments')
 
+    // Cash is confirmed again by its verifier, so its pill does not ask for a second approval (H3).
+    expect(await screen.findByText(i18n.t('console.billing.status.AWAITING_SECOND_APPROVAL_CASH'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('console.billing.status.AWAITING_SECOND_APPROVAL'))).toBeNull()
     const panel = await openFirst(user)
     expect(panel.getByText(i18n.t('console.billing.secondNeededCash'))).toBeTruthy()
+    expect(panel.getByText(i18n.t('console.billing.status.AWAITING_SECOND_APPROVAL_CASH'))).toBeTruthy()
     // The note names the threshold with the drawn rial sign (OMR survives only for screen readers).
     const note = panel.getByText((_, el) => el?.tagName === 'P' && /50\.000/.test(el.textContent ?? ''))
     expect(note.querySelector('svg')).toBeTruthy()

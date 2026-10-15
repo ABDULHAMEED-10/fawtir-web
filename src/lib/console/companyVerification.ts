@@ -292,6 +292,8 @@ export type SignupPaymentReview = {
     customerNote: string | null
     submittedAt: string
     proofContentType: string | null
+    /** The cash receipt Finance recorded; absent from an older server. */
+    receiptNumber?: string | null
   } | null
   refundCase: { reason: 'FINAL_REJECTION' | 'CORRECTION_WINDOW_EXPIRED'; amount: string; status: string } | null
 }

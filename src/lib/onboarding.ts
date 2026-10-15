@@ -7,6 +7,7 @@ import {
   type SignupPaymentMethod,
 } from './pricing'
 import type { BusinessTypeId } from './subBusinessTypes'
+import type { SellerOnBillDto } from '../api/settings/billing'
 
 export type BusinessSize = 'just-me' | '2-10' | '11-50' | '50-plus'
 export type InvoicingMethod = 'paper' | 'spreadsheets' | 'accounting' | 'erp'
@@ -145,6 +146,12 @@ export type OnboardingState = {
   planTerms?: SignupStatusPlan
   /** The automatic ERP extraction add-on, ticked on /payment. */
   addon?: boolean
+  /**
+   * Who the registrant pays, as /payment read it from `/signup/payment-options`, so review names
+   * the same seller without asking again (F36). Absent on a resumed draft that has not passed
+   * /payment in this tab; review then shows no seller line.
+   */
+  seller?: SellerOnBillDto | null
   /**
    * Chosen on /payment (V287): a free trial, or paying with the application. Undefined until chosen, and
    * for a preference saved before the choice existed; never set for Enterprise.

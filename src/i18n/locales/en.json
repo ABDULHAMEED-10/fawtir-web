@@ -779,8 +779,9 @@
       "f2": "Upgrades apply instantly, downgrades next cycle",
       "f3": "No setup fees"
     },
-    "payNote": "Next you choose how you'll pay: start with a free trial, or pay with your application.",
-    "trialNote": "Every plan except Enterprise starts with a {{days}}-day free trial of the plan you pick, from the day your account is approved: {{documents}} documents, and nothing to pay until it ends.",
+    "payNote": "Next you choose how you'll pay: start with the free trial, or pay with your application.",
+    "trialNote_one": "You can start any plan except Enterprise with a {{count}}-day free trial of that plan, from the day your account is approved: {{documents}} documents, and nothing to pay until it ends.",
+    "trialNote_other": "You can start any plan except Enterprise with a {{count}}-day free trial of that plan, from the day your account is approved: {{documents}} documents, and nothing to pay until it ends.",
     "businessPlus": {
       "name": "Business Plus",
       "description": "For established businesses and multi-branch operations.",
@@ -811,7 +812,7 @@
       },
       "row": {
         "documents": "Tax documents a month",
-        "overage": "Extra per invoice, past the allowance",
+        "overage": "Extra document, bought ahead",
         "peppol": "Send & receive over Peppol",
         "validation": "PINT-OM validation & OTA reporting",
         "pos": "Point of sale & thermal receipts",
@@ -889,11 +890,11 @@
     "saveAnnualMonths_other": "Save {{count}} months on annual",
     "saveAnnualUpTo_one": "Save up to {{count}} month on annual",
     "saveAnnualUpTo_other": "Save up to {{count}} months on annual",
-    "trialNoteDays_one": "Every plan except Enterprise starts with a {{count}}-day free trial of the plan you pick, from the day your account is approved, and nothing to pay until it ends.",
-    "trialNoteDays_other": "Every plan except Enterprise starts with a {{count}}-day free trial of the plan you pick, from the day your account is approved, and nothing to pay until it ends.",
+    "trialNoteDays_one": "You can start any plan except Enterprise with a {{count}}-day free trial of that plan, from the day your account is approved, and nothing to pay until it ends.",
+    "trialNoteDays_other": "You can start any plan except Enterprise with a {{count}}-day free trial of that plan, from the day your account is approved, and nothing to pay until it ends.",
     "trialNotePlan_one": "{{plan}}, {{count}}-day trial",
     "trialNotePlan_other": "{{plan}}, {{count}}-day trial",
-    "trialNoteMixed": "Plans with a free trial start it from the day your account is approved, and nothing is paid until it ends: {{plans}}.",
+    "trialNoteMixed": "You can start these plans with a free trial, from the day your account is approved, and nothing to pay until it ends: {{plans}}.",
     "listSeparator": "; ",
     "perYear": "/year"
   },
@@ -10770,7 +10771,7 @@
     "title": "Plan and usage",
     "subtitle": "What you're paying for, how much of it you've used, and what happens if you run out",
     "billsAndPayment": "Bills and payment",
-    "invoicesThisMonth": "Documents this month",
+    "invoicesThisMonth": "Documents this period",
     "runOutHeadline": "You'll run out around {{date}}",
     "comfortableHeadline": "You have room to the end of the month",
     "runOutBody": "You're raising about <b>{{perDay}} a day</b> and there are <b>{{days}} days left</b> in the month. That's roughly <b>{{short}} more than you have</b>. Overage is switched off, so the invoices after {{allowance}} would be <b>refused rather than charged for</b>.",
@@ -10809,7 +10810,7 @@
       "noApi": "No API access",
       "api": "API and webhooks",
       "prioritySupport": "Priority support",
-      "overage": "OMR {{amount}} per invoice over the quota",
+      "overage": "Extra documents, bought ahead: OMR {{amount}} each",
       "noOverage": "Invoicing stops at the quota",
       "everythingIn": "Everything in {{plan}}, plus",
       "extraction": "{{name}}: {{availability}}"
@@ -12916,7 +12917,7 @@
           },
           "FINAL": {
             "title": "Final",
-            "body": "The application closes and cannot be resubmitted. Money Finance has confirmed goes to a refund case."
+            "body": "The application closes and cannot be resubmitted. Any payment Finance has confirmed goes to a refund case."
           }
         },
         "finalReason": "Why this is final",
@@ -13027,7 +13028,7 @@
         "extraPersonHint": "Leave empty to make the people count a hard limit.",
         "branchesIncluded": "Branches included",
         "branchesHint": "Leave empty for unlimited branches.",
-        "overagePrice": "Price per invoice over the quota",
+        "overagePrice": "Price per extra document",
         "overageHint": "Leave empty if overage is not offered.",
         "sortOrder": "Position in the list",
         "sortOrderHint": "Lower numbers come first.",
@@ -15015,6 +15016,7 @@
         "SUBMITTED": "Submitted",
         "RECEIPT_RECORDED": "Receipt recorded",
         "AWAITING_SECOND_APPROVAL": "Needs 2nd approval",
+        "AWAITING_SECOND_APPROVAL_CASH": "Needs confirming again",
         "CONFIRMED": "Confirmed",
         "REJECTED": "Rejected",
         "WITHDRAWN": "Withdrawn",
@@ -15442,8 +15444,11 @@
       "firstBill": "First bill",
       "terms": "Terms",
       "firstBillAmount": "First bill, VAT included",
+      "firstBillAmountNoVat": "First bill amount",
       "startsOn": "Subscription starts",
-      "paidNow": "Paid with this application, VAT included"
+      "paidNow": "Paid with this application, VAT included",
+      "paidNowNoVat": "Paid with this application",
+      "seller": "Seller"
     },
     "edit": "Edit",
     "savedEarlier": "Saved earlier",
@@ -21255,7 +21260,7 @@
       "CASH": {
         "SUBMITTED": "Your cash collection request is with Fawtir. We will contact you to collect it.",
         "RECEIPT_RECORDED": "Fawtir has recorded your cash payment and is checking it.",
-        "AWAITING_SECOND_APPROVAL": "Your cash payment has been checked and is waiting for a second approval at Fawtir."
+        "AWAITING_SECOND_APPROVAL": "Your cash payment has been checked and is waiting for a final confirmation at Fawtir."
       }
     },
     "withdraw": "Withdraw this payment",

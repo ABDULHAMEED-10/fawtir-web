@@ -29,6 +29,7 @@ import {
   approvePaymentSecond,
   downloadProof,
   paymentPath,
+  paymentStatusKey,
   recordCashReceipt,
   rejectPayment,
   verifyPayment,
@@ -136,7 +137,7 @@ function PaymentQueue() {
                   <OmAmount amount={formatAmount(payment.amount, 'OMR', i18n.language)} size="xs" />
                 </td>
                 <td className="px-4 py-3">
-                  <ConsoleStatusPill tone={STATUS_TONE[payment.status]} label={t(`console.billing.status.${payment.status}`)} />
+                  <ConsoleStatusPill tone={STATUS_TONE[payment.status]} label={t(paymentStatusKey(payment.status, payment.method))} />
                 </td>
                 <td className="px-4 py-3 text-end">
                   <button type="button" className={CONSOLE_SMALL} onClick={() => setSelected(payment.id)}>
@@ -238,7 +239,7 @@ function PaymentPanel({
           {tenantName ?? payment.tenantId} · {bill ? bill.number : t('console.billing.signupPayment')}
         </h2>
         <div className="flex items-center gap-3">
-          <ConsoleStatusPill tone={STATUS_TONE[payment.status]} label={t(`console.billing.status.${payment.status}`)} />
+          <ConsoleStatusPill tone={STATUS_TONE[payment.status]} label={t(paymentStatusKey(payment.status, payment.method))} />
           <button type="button" className={CONSOLE_SMALL} onClick={onClose}>
             {t('common.close')}
           </button>

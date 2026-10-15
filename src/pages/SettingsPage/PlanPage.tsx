@@ -112,6 +112,18 @@ function PlanFigures({ data, mayManage }: { data: PlanOverviewDto; mayManage: bo
   const number = (value: number) => formatCount(value, i18n.language)
   const date = (iso: string) => formatDate(iso, i18n.language)
   const { usage, plan } = data
+  // The overview carries the plan's English name only: an Arabic reader gets the catalogue's
+  // Arabic name by the plan's code, as Bills and payment does (F37/G11). The plan cards below read
+  // the same catalogue, so this is not a second request.
+  const arabic = i18n.language.startsWith('ar')
+  const catalogue = useApiRead<SignupCataloguePlan[]>(arabic ? PUBLIC_PLANS_PATH : null, () =>
+    readPublicPlans(),
+  )
+  const planName =
+    (arabic &&
+      catalogue.read.status === 'ready' &&
+      catalogue.read.data.find((entry) => entry.code === plan.code)?.nameAr?.trim()) ||
+    plan.name
   const percent = usage.quota > 0 ? Math.min(100, Math.round((usage.used / usage.quota) * 100)) : 0
   const forecast = forecastOf(usage)
 
@@ -135,7 +147,7 @@ function PlanFigures({ data, mayManage }: { data: PlanOverviewDto; mayManage: bo
               {t('plan.invoicesThisMonth')}
             </h3>
             <p className="mt-2 text-sm font-semibold text-text-secondary">
-              {t('plan.yourPlan')}: {plan.name}
+              {t('plan.yourPlan')}: {planName}
             </p>
           </div>
 
@@ -172,11 +184,11 @@ function PlanFigures({ data, mayManage }: { data: PlanOverviewDto; mayManage: bo
               <span className="flex flex-wrap items-center gap-4 text-xs font-medium text-text-quaternary">
                 <span className="flex items-center gap-1.5">
                   <span className="size-2 rounded-[2px] bg-pending-500" />
-                  {t('plan.used', { count: usage.used })}
+                  {t('plan.used', { count: number(usage.used) })}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="size-2 rounded-[2px] bg-pending-100" />
-                  {t('plan.leftCount', { count: forecast.left })}
+                  {t('plan.leftCount', { count: number(forecast.left) })}
                 </span>
               </span>
               <span className="text-xs font-medium text-text-quaternary">
