@@ -36,7 +36,7 @@ const TRIAL: SubscriptionNoticeDto = {
   graceUntil: null,
   noticeOn: '2026-10-24',
   headline:
-    'Your free trial ends on 27 October 2026. Choose a plan to keep issuing and receiving documents.',
+    'Your free trial ends on 27 October 2026. Choose a plan to keep issuing documents and open the ones you receive.',
   actionLabel: 'Choose a plan',
   actionPath: '/settings/plan',
   createdAt: hoursAgo(1),
@@ -159,14 +159,14 @@ describe('subscription reminders in the bell', () => {
     const trial = (
       await within(panel).findByText('Your free trial ends on 27 October 2026.')
     ).closest('li')!
-    expect(trial.textContent).toContain('Choose a plan to keep issuing and receiving documents.')
+    expect(trial.textContent).toContain('Choose a plan to keep issuing documents and open the ones you receive.')
     expect(within(trial).getByRole('button', { name: 'Choose a plan' })).toBeTruthy()
 
     const grace = within(panel)
       .getByText('Your subscription ended on 22 November 2026 and the renewal is unpaid.')
       .closest('li')!
     expect(grace.textContent).toContain(
-      'Pay it by 29 November 2026 to keep issuing and receiving documents.',
+      'Pay it by 29 November 2026 to keep issuing documents and open the ones you receive.',
     )
     expect(within(grace).getByRole('button', { name: 'Pay the bill' })).toBeTruthy()
     expect(called('GET', NOTICES).some((c) => c.search === '?limit=20')).toBe(true)
@@ -227,7 +227,7 @@ describe('subscription reminders in the bell', () => {
     const trial = (
       await within(panel).findByText(/^تنتهي فترتك التجريبية المجانية في 27 /)
     ).closest('li')!
-    expect(trial.textContent).toContain('اختر خطة لمواصلة إصدار المستندات واستلامها.')
+    expect(trial.textContent).toContain('اختر خطة لمواصلة إصدار المستندات وفتح المستندات التي تستلمها.')
     expect(within(trial).getByRole('button', { name: 'اختر خطة' })).toBeTruthy()
     const grace = within(panel)
       .getByText(/^انتهى اشتراكك في 22 /)
@@ -246,7 +246,7 @@ describe('subscription reminders in the bell', () => {
         'Your subscription ended on 22 November 2026 and the renewal is unpaid.',
       )
     ).closest('li')!
-    expect(row.textContent).toContain('Pay the bill to keep issuing and receiving documents.')
+    expect(row.textContent).toContain('Pay the bill to keep issuing documents and open the ones you receive.')
   })
 
   it('shows the server’s own sentence for a kind it does not know, and never leaves the app', async () => {

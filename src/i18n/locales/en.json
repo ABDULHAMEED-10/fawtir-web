@@ -15321,12 +15321,12 @@
     "subscription": {
       "trialEnding": {
         "title": "Your free trial ends on {{date}}.",
-        "body": "Choose a plan to keep issuing and receiving documents."
+        "body": "Choose a plan to keep issuing documents and open the ones you receive."
       },
       "grace": {
         "title": "Your subscription ended on {{ended}} and the renewal is unpaid.",
-        "body": "Pay it by {{until}} to keep issuing and receiving documents.",
-        "bodyNoDate": "Pay the bill to keep issuing and receiving documents."
+        "body": "Pay it by {{until}} to keep issuing documents and open the ones you receive.",
+        "bodyNoDate": "Pay the bill to keep issuing documents and open the ones you receive."
       },
       "choosePlan": "Choose a plan",
       "payBill": "Pay the bill"
