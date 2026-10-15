@@ -695,7 +695,9 @@
     "isicPlaceholder": "Search by activity",
     "isicSearch": "Type an activity, e.g. restaurant",
     "isicNone": "No activity matches",
-    "isicHintNoPos": "What your business does, as registered. Search by activity name."
+    "isicHintNoPos": "What your business does, as registered. Search by activity name.",
+    "vatinTaken": "A business with this VATIN is already registered.",
+    "crTaken": "A business with this CR number is already registered."
   },
   "addressContact": {
     "title": "Address & contact",

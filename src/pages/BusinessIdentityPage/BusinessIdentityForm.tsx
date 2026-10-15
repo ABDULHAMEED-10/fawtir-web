@@ -74,6 +74,12 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
   const { save, submitting, formError, setFormError } = useOnboardingStep<BusinessIdentityField>({
     serverFields: BUSINESS_IDENTITY_SERVER_FIELDS,
     conflictKey: IDENTIFIER_TAKEN,
+    // Backend #532 names which identifier is taken (G9); a server without the code, or the
+    // final-submission clash, still gets the combined message above.
+    conflictFields: {
+      TAX_NUMBER_ALREADY_REGISTERED: { field: 'vatin', key: 'businessIdentity.vatinTaken' },
+      COMMERCIAL_REGISTRATION_ALREADY_REGISTERED: { field: 'crNumber', key: 'businessIdentity.crTaken' },
+    },
   })
 
   const clearError = (field: BusinessIdentityField | 'logo') =>
