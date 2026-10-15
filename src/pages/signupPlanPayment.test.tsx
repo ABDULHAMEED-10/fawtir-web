@@ -232,6 +232,9 @@ describe('Choose a plan: the published catalogue', () => {
     expect(text()).toContain(i18n.t('plans.trialNote', { count: 21, documents: 30 }))
     expectNoLaunchPrices()
     expect(text()).not.toContain(i18n.t('plans.trialNote', { count: 14, documents: 25 }))
+    // A customer cannot upgrade alone: the footer says the Fawtir team does it, as the FAQ does (G1).
+    expect(text()).toContain('Upgrades through the Fawtir team, downgrades at renewal')
+    expect(text()).not.toContain('Upgrades apply instantly')
   })
 
   it('marks the plan the server recommends as the popular one', async () => {
