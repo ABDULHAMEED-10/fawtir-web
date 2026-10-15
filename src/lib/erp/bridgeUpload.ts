@@ -110,6 +110,7 @@ export type BridgeRefusal =
         | 'idempotency'
         | 'notOperational'
         | 'emissionBlocked'
+        | 'numberReserved'
         | 'tooLarge'
         | 'notJsonBody'
         | 'unreachable'
@@ -148,6 +149,10 @@ export function classifyBridgeFailure(error: unknown): BridgeRefusal {
       return { kind: 'notOperational' }
     case 'EMISSION_BLOCKED':
       return { kind: 'emissionBlocked' }
+    // A 409 like DUPLICATE_IDEMPOTENCY, but nothing was recorded and the key was not spent: the
+    // number is free again once the controlled Peppol TEST window closes, so it is not "clashed".
+    case 'OUTBOUND_WINDOW_INVOICE_RESERVED':
+      return { kind: 'numberReserved' }
   }
   if (error.status === 413) return { kind: 'tooLarge' }
   if (error.status === 415) return { kind: 'notJsonBody' }

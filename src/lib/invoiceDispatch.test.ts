@@ -136,6 +136,18 @@ describe('invoice dispatch sentences', () => {
     expect(sendRefusalKey(new ApiError({ status: 409, problemType: 'x', code: 'OTHER' }))).toBeNull()
     expect(sendRefusalKey(new Error('offline'))).toBeNull()
   })
+
+  it('words a controlled-window refusal by its code, whatever the detail says', () => {
+    const refused = new ApiError({
+      status: 409,
+      problemType: 'outbound-window-send-refused',
+      code: 'OUTBOUND_WINDOW_SEND_REFUSED',
+      problem: { detail: 'This invoice is reserved by a controlled transmission window (WINDOW_EXPIRED)' },
+    })
+    expect(sendRefusalKey(refused)).toBe('invoiceDispatch.refused.windowReserved')
+    expect(lookup(en, 'invoiceDispatch.refused.windowReserved')).toMatch(/Nothing was sent/)
+    expect(lookup(ar, 'invoiceDispatch.refused.windowReserved')).not.toMatch(/[A-Za-z]/)
+  })
 })
 
 describe('transport progress', () => {
