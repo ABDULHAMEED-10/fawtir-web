@@ -15097,7 +15097,7 @@
       "title": "Bank account",
       "subtitle": "The account customers pay Fawtir into. Customers see it only after a second operator confirms it.",
       "loading": "Loading accounts",
-      "empty": "No account has been entered. Until one is confirmed, customers can't pay bills by bank transfer, and sign-up asks for a transfer receipt without showing account details.",
+      "empty": "No account has been entered. Enter Fawtir's account and have a second operator confirm it before any customer signs up: customers need it to pay by bank transfer.",
       "status": {
         "PENDING_CONFIRMATION": "Needs confirmation",
         "ACTIVE": "Shown to customers",
