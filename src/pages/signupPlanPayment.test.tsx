@@ -225,8 +225,8 @@ describe('Choose a plan: the published catalogue', () => {
     expect(screen.getByText('For a kiosk that sells one thing well.')).toBeTruthy()
     // No published description: the app's own audience line fills in, never a price.
     expect(screen.getByText(i18n.t('plan.audience.business'))).toBeTruthy()
-    expect(screen.getAllByText('41.25').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('92').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('41.250').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('92.000').length).toBeGreaterThan(0)
     expect(screen.getAllByText('240').length).toBeGreaterThan(0)
     expect(screen.getAllByText('1,300').length).toBeGreaterThan(0)
     expect(text()).toContain(i18n.t('plans.trialNote', { days: 21, documents: 30 }))
@@ -258,8 +258,8 @@ describe('Choose a plan: the published catalogue', () => {
       .click(screen.getByRole('tab', { name: i18n.t('plans.annual') }))
     // Owner, 9 Oct 2026: the annual cycle shows what the year costs (the published annual price),
     // never a monthly equivalent such as 30.938.
-    expect(screen.getAllByText('371.25').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('828').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('371.250').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('828.000').length).toBeGreaterThan(0)
     expect(screen.queryByText('30.938')).toBeNull()
     expect(screen.getAllByText(i18n.t('plans.perYear')).length).toBeGreaterThan(0)
   })
@@ -408,7 +408,7 @@ describe('Choose a plan: saving the choice', () => {
     await userEvent.setup({ delay: null }).click(starter)
 
     expect(await screen.findByText(i18n.t('plans.priceChanged'))).toBeTruthy()
-    expect((await screen.findAllByText('44')).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText('44.000')).length).toBeGreaterThan(0)
     expect(callsTo(PLANS_URL)).toHaveLength(2)
     // The 409 is not read as a missing earlier step, so it adds no status read of its own.
     expect(callsTo(STATUS_URL)).toHaveLength(statusReadsBefore)
@@ -474,6 +474,16 @@ describe('Choose a plan: saving the choice', () => {
   })
 })
 
+const SELLER = {
+  legalNameEn: 'Thumb International SPC',
+  legalNameAr: 'الإبهام العالمية ش ش و',
+  crNumber: '1383315',
+  taxIdentificationNumber: '1875504',
+  vatNumber: null,
+  addressEn: 'Al Khuwair, Bousher, Muscat Governorate',
+  addressAr: null,
+}
+
 /** What the backend computes for Business, annual, at the owner's figures (catalogue contract). */
 const BUSINESS_ANNUAL: SignupStatusPlan = {
   planCode: 'BUSINESS',
@@ -523,6 +533,68 @@ describe("How you'll pay", () => {
 
     await waitFor(() => expect(methodButton('cash').getAttribute('aria-pressed')).toBe('true'))
     expect(trialSwitch().getAttribute('aria-checked')).toBe('false')
+  })
+
+  it('says under the receipt, in its own words, that the server refused it, not the generic line', async () => {
+    answer({
+      [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: BUSINESS_MONTHLY }),
+      '/api/v1/auth/signup/payment-evidence': () =>
+        json(400, {
+          type: 'https://api.fawtir.om/problems/validation-failed',
+          detail: 'The receipt must be a PDF, PNG or JPEG.',
+        }),
+    })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly', planTerms: BUSINESS_MONTHLY })
+    const user = userEvent.setup({ delay: null })
+    await waitFor(() => expect((methodButton('bankTransfer') as HTMLButtonElement).disabled).toBe(false))
+    await user.click(methodButton('bankTransfer'))
+    const picker = document.querySelector('input[type="file"]') as HTMLInputElement
+    await user.upload(picker, new File(['%PDF-1.7'], 'receipt.pdf', { type: 'application/pdf' }))
+    await user.type(screen.getByLabelText(i18n.t('payment.bank.referenceLabel')), 'TRF-0001')
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+
+    const refusal = await screen.findByText(i18n.t('payment.bank.receiptRefused'))
+    expect(refusal.id).toBe('signup-receipt-problem')
+    // The server's English sentence is never shown on a translated screen.
+    expect(screen.queryByText('The receipt must be a PDF, PNG or JPEG.')).toBeNull()
+    expect(screen.queryByText(i18n.t('identityErrors.validation'))).toBeNull()
+    expect(screen.queryByTestId('location')).toBeNull()
+  })
+
+  it('says Fawtir is already checking the payment when the method cannot change (409)', async () => {
+    answer({
+      [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: BUSINESS_MONTHLY }),
+      [PREFERENCE_URL]: () =>
+        json(409, { type: 'https://api.fawtir.om/problems/payment-state-conflict', detail: 'Locked.' }),
+    })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly', planTerms: BUSINESS_MONTHLY })
+    const user = userEvent.setup({ delay: null })
+    await waitFor(() => expect((methodButton('cash') as HTMLButtonElement).disabled).toBe(false))
+    await user.click(methodButton('cash'))
+    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
+
+    expect(await screen.findByText(i18n.t('onboarding.paymentStateConflict'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('onboarding.conflict'))).toBeNull()
+  })
+
+  it('a cash payment Fawtir has confirmed says so, and locks the method', async () => {
+    answer({
+      [STATUS_URL]: () =>
+        json(200, {
+          stage: 'READY_FOR_SUBMISSION',
+          plan: BUSINESS_MONTHLY,
+          signupPayment: { method: 'CASH', status: 'FUNDS_VERIFIED', amount: '84.000', reference: null, hasProof: false },
+        }),
+    })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly', planTerms: BUSINESS_MONTHLY })
+
+    expect(await screen.findByText(i18n.t('payment.cash.received'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('payment.cash.noteSignup'))).toBeNull()
+    await waitFor(() => expect(screen.queryByText(i18n.t('payment.optionsLoading'))).toBeNull())
+    expect(methodButton('cash').getAttribute('aria-pressed')).toBe('true')
+    for (const id of ['cardLink', 'bankTransfer', 'cash'] as const) {
+      expect((methodButton(id) as HTMLButtonElement).disabled).toBe(true)
+    }
   })
 
   it('shows the free-trial toggle OFF by default, with the methods to choose from', async () => {
@@ -877,6 +949,45 @@ describe("How you'll pay", () => {
     expect(screen.getByText(i18n.t('payment.descriptionPending'))).toBeTruthy()
   })
 
+  it('shows no VAT line at rate 0, and names the seller the server sends', async () => {
+    const noVat: SignupStatusPlan = {
+      ...BUSINESS_ANNUAL,
+      vatRate: '0.00000',
+      vatAmount: '0.000',
+      amountInclVat: '800.000',
+    }
+    answer({
+      [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: noVat }),
+      [OPTIONS_URL]: () => json(200, { ...SERVER_OPTIONS, seller: SELLER }),
+    })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'annual' })
+
+    expect(await screen.findByText(i18n.t('payment.summary.seller', { name: 'Thumb International SPC' }))).toBeTruthy()
+    await waitFor(() => expect(text()).toContain('800.000'))
+    expect(text()).not.toContain(i18n.t('payment.summary.vatRate', { rate: '0' }))
+    expect(text()).not.toContain(i18n.t('payment.summary.vatUnknownRate'))
+  })
+
+  it('names the seller in Arabic when the page is Arabic, and names nobody when none is sent', async () => {
+    await i18n.changeLanguage('ar')
+    answer({
+      [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: BUSINESS_ANNUAL }),
+      [OPTIONS_URL]: () => json(200, { ...SERVER_OPTIONS, seller: SELLER }),
+    })
+    const { unmount } = renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'annual' })
+    expect(await screen.findByText(i18n.t('payment.summary.seller', { name: 'الإبهام العالمية ش ش و' }))).toBeTruthy()
+    unmount()
+
+    await i18n.changeLanguage('en')
+    answer({
+      [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: BUSINESS_ANNUAL }),
+      [OPTIONS_URL]: () => json(200, { ...SERVER_OPTIONS, seller: null }),
+    })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'annual' })
+    expect(await screen.findByText('840.000')).toBeTruthy()
+    expect(text()).not.toContain(i18n.t('payment.summary.seller', { name: '' }).trim())
+  })
+
   it('never shows figures the server computed for another plan or cycle', async () => {
     answer({ [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: BUSINESS_MONTHLY }) })
     renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'annual' })
@@ -1138,8 +1249,12 @@ describe('Card at signup: Paymob Pixel on this screen', () => {
       [STATUS_URL]: () =>
         statusWith({ method: 'CARD', status: 'FUNDS_VERIFIED', amount: '84.000', reference: null, hasProof: false }),
     })
-    const user = await chooseCard()
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'businessPlus', billing: 'monthly' })
+    const user = userEvent.setup({ delay: null })
+    // The confirmed payment's method is shown chosen; nothing else can be picked.
     expect(await screen.findByText(i18n.t('payment.card.verified'))).toBeTruthy()
+    expect(methodButton('cardLink').getAttribute('aria-pressed')).toBe('true')
+    await waitFor(() => expect(screen.queryByText(i18n.t('payment.optionsLoading'))).toBeNull())
     await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
 
     expect((await screen.findByTestId('location', undefined, { timeout: 5_000 })).textContent).toBe('/signup-review')
@@ -1237,16 +1352,21 @@ describe('Card at signup: Paymob Pixel on this screen', () => {
     expect(screen.queryByText(i18n.t('payment.card.openFailed'))).toBeNull()
   })
 
-  it('a verified card is kept when the customer looks at another method and comes back', async () => {
+  it('a verified card locks the method: the other methods cannot be picked', async () => {
     answer({
       [STATUS_URL]: () =>
         statusWith({ method: 'CARD', status: 'FUNDS_VERIFIED', amount: '84.000', reference: null, hasProof: false }),
     })
-    const user = await chooseCard()
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'businessPlus', billing: 'monthly' })
+    const user = userEvent.setup({ delay: null })
     expect(await screen.findByText(i18n.t('payment.card.verified'))).toBeTruthy()
+    await waitFor(() => expect(screen.queryByText(i18n.t('payment.optionsLoading'))).toBeNull())
+    for (const id of ['cardLink', 'bankTransfer', 'cash'] as const) {
+      expect((methodButton(id) as HTMLButtonElement).disabled).toBe(true)
+    }
     await user.click(methodButton('bankTransfer'))
-    await user.click(methodButton('cardLink'))
 
+    expect(methodButton('cardLink').getAttribute('aria-pressed')).toBe('true')
     expect(await screen.findByText(i18n.t('payment.card.verified'))).toBeTruthy()
     expect(callsTo(CARD_URL)).toHaveLength(0)
     expect(writes()).toHaveLength(0)

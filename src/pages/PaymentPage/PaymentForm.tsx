@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Button, ChevronRightIcon, OmAmount, SelectionCard, Checkbox, Switch } from '../../components/ui'
 import { FileDropzone } from '../../components/ui/FileDropzone'
 import { OnboardingFormError } from '../../components/auth/OnboardingFormError'
+import { ApiError } from '../../api'
 import { useOnboardingStep } from '../../hooks/useOnboardingStep'
 import {
   billAmounts,
@@ -35,6 +36,8 @@ import {
   extractionMonthly,
 } from '../../lib/pricing'
 import { PLATFORM_SETTINGS } from '../../lib/platformSettings'
+import { isConfirmedPayment } from '../../lib/identity/signupRejection'
+import { sellerName } from '../../api/settings/billing'
 import cardIcon from '../../assets/payment/card.svg'
 import bankIcon from '../../assets/payment/bank.svg'
 import tickIcon from '../../assets/payment/tick-circle.svg'
@@ -53,6 +56,13 @@ import rialIcon from '../../assets/brand/omr.svg'
 export type { SignupPaymentMethod }
 
 const METHODS: SignupPaymentMethod[] = ['cardLink', 'bankTransfer', 'cash']
+
+/** The ledger's method of a held payment as the method card it was paid with. */
+const HELD_METHOD: Record<SignupHeldPayment['method'], SignupPaymentMethod> = {
+  CARD: 'cardLink',
+  BANK_TRANSFER: 'bankTransfer',
+  CASH: 'cash',
+}
 
 const availableIn = (options: SignupPaymentOptions | null, method: SignupPaymentMethod) =>
   options !== null &&
@@ -131,9 +141,22 @@ export function PaymentForm() {
   const changeEvidence = (next: Partial<BankEvidence>) => {
     uploadKey.current = null
     setEvidenceProblem(null)
+    setReceiptRefused(false)
     setEvidence((current) => ({ ...current, ...next }))
   }
+  // The server refused the receipt (`400`): said under the receipt, in the reader's language,
+  // instead of the generic "not accepted" line. The server's own sentence is English, so not shown.
+  const [receiptRefused, setReceiptRefused] = useState(false)
   const keepsHeldReceipt = heldBankReceipt(held) && evidence.proof === null
+  // Money Finance has confirmed is held with this application: the method can no longer change.
+  const paymentLocked = isConfirmedPayment(held?.status)
+  const heldMethod = held ? HELD_METHOD[held.method] : null
+  // ...so the confirmed payment's own method is the one shown chosen.
+  useEffect(() => {
+    if (!paymentLocked || !heldMethod) return
+    setTrial(false)
+    setMethod(heldMethod)
+  }, [paymentLocked, heldMethod])
   // Card: Continue only once Fawtir's server has verified the payment with Paymob.
   const [cardStatus, setCardStatus] = useState<SignupCardStatus | null>(null)
   const [cardProblem, setCardProblem] = useState(false)
@@ -163,16 +186,22 @@ export function PaymentForm() {
       : { enrollment: 'payNow', method: method as SignupPaymentMethod }
     uploadKey.current ??= `signup-payment-${crypto.randomUUID()}`
     const key = uploadKey.current
+    setReceiptRefused(false)
     const result = await save(async (token, signal) => {
       // The method first: switching it withdraws a receipt still waiting under another one.
       await recordPaymentPreference(token, choice, withAddon, signal)
       if (uploading && evidence.proof) {
-        await uploadSignupPaymentEvidence(
-          token,
-          { proof: evidence.proof, reference: evidence.reference.trim(), note: evidence.note },
-          key,
-          signal,
-        )
+        try {
+          await uploadSignupPaymentEvidence(
+            token,
+            { proof: evidence.proof, reference: evidence.reference.trim(), note: evidence.note },
+            key,
+            signal,
+          )
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 400) setReceiptRefused(true)
+          throw error
+        }
       }
     })
     if (!result.saved) return
@@ -238,7 +267,7 @@ export function PaymentForm() {
                   title={t(`payment.method.${id}.title`)}
                   description={t(`payment.method.${id}.subtitle`)}
                   selected={method === id}
-                  disabled={!availableIn(options, id)}
+                  disabled={!availableIn(options, id) || paymentLocked}
                   onSelect={() => {
                     touched.current = true
                     setMethod(id)
@@ -282,10 +311,18 @@ export function PaymentForm() {
                 held={heldBankReceipt(held) ? held : null}
                 evidence={evidence}
                 problem={evidenceProblem}
+                refused={receiptRefused}
                 onChange={changeEvidence}
               />
             ) : method === 'cash' && chosenAvailable ? (
-              <Note icon={tickIcon} text={t('payment.cash.noteSignup')} />
+              <Note
+                icon={tickIcon}
+                text={t(
+                  held?.method === 'CASH' && held.status === 'FUNDS_VERIFIED'
+                    ? 'payment.cash.received'
+                    : 'payment.cash.noteSignup',
+                )}
+              />
             ) : null}
           </div>
 
@@ -305,6 +342,7 @@ export function PaymentForm() {
               billing={billing}
               months={months}
               termsRead={termsRead}
+              seller={sellerName(options?.seller, i18n.language)}
               addonBaisa={
                 addon && offer === 'priced' ? toBaisa(extractionMonthly()) * months : null
               }
@@ -321,7 +359,7 @@ export function PaymentForm() {
         </p>
       ) : null}
 
-      <OnboardingFormError error={formError} />
+      <OnboardingFormError error={receiptRefused ? null : formError} />
 
       <Button
         type="submit"
@@ -482,6 +520,7 @@ function BankTransferDetails({
   held,
   evidence,
   problem,
+  refused,
   onChange,
 }: {
   beneficiary: SignupPaymentOptions['beneficiary']
@@ -489,6 +528,8 @@ function BankTransferDetails({
   held: SignupHeldPayment | null
   evidence: BankEvidence
   problem: 'receipt' | 'reference' | null
+  /** The server refused the last receipt sent. */
+  refused: boolean
   onChange: (next: Partial<BankEvidence>) => void
 }) {
   const { t } = useTranslation()
@@ -540,11 +581,13 @@ function BankTransferDetails({
               </span>
             )}
           </FileDropzone>
-          {fileProblem || problem === 'receipt' ? (
+          {fileProblem || problem === 'receipt' || refused ? (
             <p id="signup-receipt-problem" role="alert" className="text-xs font-medium text-danger-700">
               {fileProblem
                 ? t(`billing.bank.proofRejected.${fileProblem}`)
-                : t('payment.bank.receiptRequired')}
+                : problem === 'receipt'
+                  ? t('payment.bank.receiptRequired')
+                  : t('payment.bank.receiptRefused')}
             </p>
           ) : null}
           <label className="flex flex-col gap-1 text-sm font-medium text-text-secondary">
@@ -623,6 +666,7 @@ function OrderSummaryCard({
   billing,
   months,
   termsRead,
+  seller,
   addonBaisa,
   when,
   payNow,
@@ -631,6 +675,8 @@ function OrderSummaryCard({
   billing: BillingCycle
   months: number
   termsRead: PlanTermsRead
+  /** Who is paid, in the reader's language; null when the server named no seller. */
+  seller: string | null
   addonBaisa: number | null
   when: string
   /** Paid with the application: the total is due now, and the period still starts at activation. */
@@ -664,6 +710,11 @@ function OrderSummaryCard({
             ? t('payment.summary.annualBilling')
             : t('payment.summary.monthlyBilling')}
         </p>
+        {seller ? (
+          <p className="text-sm font-medium text-text-primary/70">
+            {t('payment.summary.seller', { name: seller })}
+          </p>
+        ) : null}
       </div>
       <div className="border-t border-dashed border-[#e8e8e8]" />
 
@@ -692,14 +743,17 @@ function OrderSummaryCard({
             </span>
           </div>
         ) : null}
-        <div className="flex items-center justify-between gap-2 text-sm">
-          <span className="font-medium text-text-primary/70">
-            {rate === null
-              ? t('payment.summary.vatUnknownRate')
-              : t('payment.summary.vatRate', { rate })}
-          </span>
-          {figure(amounts?.vat, 'font-semibold text-text-primary/80', 'xs')}
-        </div>
+        {/* Rate 0 is how the server says no VAT is charged: no line, rather than "VAT (0%)". */}
+        {rate === '0' ? null : (
+          <div className="flex items-center justify-between gap-2 text-sm">
+            <span className="font-medium text-text-primary/70">
+              {rate === null
+                ? t('payment.summary.vatUnknownRate')
+                : t('payment.summary.vatRate', { rate })}
+            </span>
+            {figure(amounts?.vat, 'font-semibold text-text-primary/80', 'xs')}
+          </div>
+        )}
       </div>
       <div className="border-t border-dashed border-[#e8e8e8]" />
 

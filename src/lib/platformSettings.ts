@@ -187,8 +187,8 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
     trialAutoConverts: TRIAL.autoConverts,
     trialNeedsPaymentDetails: TRIAL.paymentDetailsRequired,
     autoRenewal: true,
-    graceDays: 14,
-    graceNoticeDays: [1, 7, 13],
+    graceDays: 7,
+    graceNoticeDays: [1, 7],
     cancellationNoticeDays: 0,
     refundMidPeriod: false,
     upgrade: 'immediateProRata',
@@ -196,7 +196,7 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
     whileSuspended: 'readOnly',
   },
   notices: {
-    thresholds: [50, 80, 100],
+    thresholds: [80, 100],
     recipients: 'ownerAndAdmins',
     language: 'customer',
     channels: { email: true, inApp: true },
@@ -217,7 +217,10 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
     publishableKeyTail: '…7f3a',
     methods: { cardLink: true, bankTransfer: true, cash: true, cheque: true },
     bank: {
-      accountName: 'Insight Technology LLC',
+      // Empty for the same reason as the IBAN below: the real account holder is entered on the
+      // console's Bank account screen and the seller on its Seller screen, so a name kept here
+      // could only be out of date.
+      accountName: '',
       bank: 'Bank Muscat',
       // Empty on purpose. The launch default was unconfirmed and not even a valid Omani IBAN
       // (20 characters; Oman's are 23), so it is gone rather than merely hidden; the console's

@@ -1,10 +1,9 @@
 import { useTranslation } from 'react-i18next'
 import { OmAmount } from '../../../components/ui'
-import { formatAmount } from '../../../lib/format'
-import { useConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
+import { formatAmount, formatInstant } from '../../../lib/format'
+import type { ConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
 import { ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
-import { formatMoment } from '../../../lib/console/format'
-import { signupPaymentPath, type SignupPaymentReview } from '../../../lib/console/companyVerification'
+import type { SignupPaymentReview } from '../../../lib/console/companyVerification'
 import { ReviewCard, ReviewLine } from './ReviewCard'
 
 /**
@@ -13,9 +12,15 @@ import { ReviewCard, ReviewLine } from './ReviewCard'
  * billing queue, where the receipt is opened through the audited proof route. The reviewer sees
  * whether money is held so a FINAL rejection is taken knowing it opens a refund.
  */
-export function SignupPaymentPanel({ tenantId }: { tenantId: string }) {
+export function SignupPaymentPanel({
+  read,
+  retry,
+}: {
+  /** Read by the page, which reads it again after a decision that may open a refund case. */
+  read: ConsoleRead<SignupPaymentReview>
+  retry: () => void
+}) {
   const { t, i18n } = useTranslation()
-  const { read, retry } = useConsoleRead<SignupPaymentReview>(signupPaymentPath(tenantId))
 
   return (
     <ReviewCard title={t('console.verification.payment.title')}>
@@ -47,7 +52,7 @@ export function SignupPaymentPanel({ tenantId }: { tenantId: string }) {
           ) : null}
           <ReviewLine
             label={t('console.verification.payment.submitted')}
-            value={formatMoment(read.data.payment.submittedAt, i18n.language)}
+            value={formatInstant(read.data.payment.submittedAt, i18n.language)}
           />
           <ReviewLine
             label={t('console.verification.payment.receipt')}

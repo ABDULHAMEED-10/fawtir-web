@@ -14,11 +14,14 @@ import {
   isCompanyId,
   isSubmitted,
   queueReturnOf,
+  signupPaymentPath,
   type CompanyDetail,
   type HistoryEntry,
+  type SignupPaymentReview,
   type VerificationStatus,
 } from '../../lib/console/companyVerification'
-import { countryName, formatDay, formatMoment, localeFor } from '../../lib/console/format'
+import { countryName, localeFor } from '../../lib/console/format'
+import { formatInstant, formatInstantDay } from '../../lib/format'
 import { peekEntitlements } from '../../lib/identity/entitlements'
 import { DecisionPanel } from './verification/DecisionPanel'
 import { ParticipantPanel } from './verification/ParticipantPanel'
@@ -48,16 +51,25 @@ function CompanyReview() {
   // Both reads start in the same commit, so they travel in parallel; neither needs the other.
   const detail = useConsoleRead<CompanyDetail>(valid ? companyPath(companyId) : null)
   const history = useConsoleRead<HistoryEntry[]>(valid ? historyPath(companyId) : null)
+  // The payment sent with the application, once the company is known to have submitted one.
+  const submittedCompany =
+    valid && detail.read.status === 'ready' && isSubmitted(detail.read.data) ? companyId : null
+  const payment = useConsoleRead<SignupPaymentReview>(
+    submittedCompany ? signupPaymentPath(submittedCompany) : null,
+  )
   const backTo = `${VERIFICATION_ROUTE}${queueReturnOf(location.state)}`
   const [decided, setDecided] = useState<VerificationStatus | null>(null)
+  const [decidedFinal, setDecidedFinal] = useState(false)
 
   // After a decision, or a reload the reviewer asked for, the company is read again rather than
   // patched locally: the decision moved the status, the tenant and the history together, and only
   // the backend's own answer shows all three consistently.
-  const refresh = (outcome: VerificationStatus | null) => {
+  const refresh = (outcome: VerificationStatus | null, final = false) => {
     setDecided(outcome)
+    setDecidedFinal(final)
     detail.retry()
     history.retry()
+    payment.retry()
   }
 
   let body: ReactNode
@@ -73,7 +85,10 @@ function CompanyReview() {
         company={detail.read.data}
         history={history.read}
         retryHistory={history.retry}
+        payment={payment.read}
+        retryPayment={payment.retry}
         decided={decided}
+        decidedFinal={decidedFinal}
         onDecided={refresh}
       />
     )
@@ -103,22 +118,30 @@ function CompanyView({
   company,
   history,
   retryHistory,
+  payment,
+  retryPayment,
   decided,
+  decidedFinal,
   onDecided,
 }: {
   company: CompanyDetail
   history: ConsoleRead<HistoryEntry[]>
   retryHistory: () => void
+  payment: ConsoleRead<SignupPaymentReview>
+  retryPayment: () => void
   /** The decision just taken on this screen, to confirm it. */
   decided: VerificationStatus | null
-  onDecided: (outcome: VerificationStatus | null) => void
+  /** Whether that decision was a FINAL rejection, which closed the application. */
+  decidedFinal: boolean
+  onDecided: (outcome: VerificationStatus | null, final?: boolean) => void
 }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const none = t('console.verification.detail.none')
   const yesNo = (value: boolean) => t(value ? 'common.yes' : 'common.no')
-  const moment = (iso: string | null) => (iso ? formatMoment(iso, language) : none)
+  const moment = (iso: string | null) => (iso ? formatInstant(iso, language) : none)
   const submitted = isSubmitted(company)
+  const heldPayment = payment.status === 'ready' ? payment.data : null
 
   return (
     <>
@@ -152,8 +175,13 @@ function CompanyView({
           {t(
             decided === 'VERIFIED'
               ? 'console.verification.decision.verified'
-              : 'console.verification.decision.rejected',
+              : decidedFinal
+                ? 'console.verification.decision.rejectedFinal'
+                : 'console.verification.decision.rejected',
           )}
+          {decided === 'REJECTED' && decidedFinal && heldPayment?.refundCase ? (
+            <> {t('console.verification.decision.refundOpened')}</>
+          ) : null}
         </p>
       ) : null}
 
@@ -214,7 +242,7 @@ function CompanyView({
             />
             <ReviewLine
               label={t('console.verification.detail.field.registered')}
-              value={formatDay(company.createdAt, language)}
+              value={formatInstantDay(company.createdAt, language)}
             />
             {company.signupAdministrator ? (
               <>
@@ -248,10 +276,11 @@ function CompanyView({
               key={`${company.tenantId}:${company.expectedRevision}`}
               company={company}
               operatorId={peekEntitlements()?.userId ?? null}
+              paymentStatus={heldPayment?.payment?.status ?? null}
               onDecided={onDecided}
             />
           ) : null}
-          {submitted ? <SignupPaymentPanel tenantId={company.tenantId} /> : null}
+          {submitted ? <SignupPaymentPanel read={payment} retry={retryPayment} /> : null}
           {submitted ? (
             <ParticipantPanel company={company} operatorId={peekEntitlements()?.userId ?? null} />
           ) : null}
@@ -328,7 +357,7 @@ function History({ read, retry }: { read: ConsoleRead<HistoryEntry[]>; retry: ()
             {t(`console.verification.detail.event.${entry.event}`)}
           </p>
           <p className="mt-1 text-xs font-medium text-text-quaternary">
-            {formatMoment(entry.occurredAt, i18n.language)} ·{' '}
+            {formatInstant(entry.occurredAt, i18n.language)} ·{' '}
             {t('console.verification.detail.revision', {
               revision: number.format(entry.profileRevision),
             })}

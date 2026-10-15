@@ -21,6 +21,8 @@ export type SignupProgress =
    * with a REJECTED verification), so the screen offers the way back to it.
    */
   | { kind: 'phase'; phase: GoingLivePhase; reopened?: boolean; status?: SignupStatusResponse }
+  /** Fawtir closed the application with a final rejection; it can never be submitted again. */
+  | { kind: 'closed'; status: SignupStatusResponse }
   /** This tab held a token the server no longer accepts: the registration exists. */
   | { kind: 'ended' }
   /** No onboarding token in this tab at all. */
@@ -33,6 +35,7 @@ export type SignupProgress =
  * login-enabled account) is "approved", and with no token there is no stage to show at all.
  */
 export function phaseFor(status: SignupStatusResponse): SignupProgress {
+  if (status.closed === true) return { kind: 'closed', status }
   if (status.stage === 'ACTIVATED' || status.loginEnabled) {
     return { kind: 'phase', phase: 'request', status }
   }
@@ -69,7 +72,7 @@ export function useSignupProgress(justSubmitted: boolean): SignupProgress {
         const next = phaseFor(status)
         // Keeps the closed pages closed while a reviewer holds the draft, and reopens them when a
         // rejection hands it back.
-        markOnboardingSubmitted(next.kind === 'phase' && !next.reopened)
+        markOnboardingSubmitted(next.kind === 'closed' || (next.kind === 'phase' && !next.reopened))
         setProgress(next)
       })
       .catch((error: unknown) => {

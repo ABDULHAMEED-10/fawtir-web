@@ -45,6 +45,27 @@ export type PlatformPaymentDto = {
   version: number
 }
 
+/** Every kind the backend records in a payment's history (`PaymentEvent.Kind`); each has a label. */
+export const PAYMENT_EVENT_KINDS = [
+  'BILL_ISSUED',
+  'BILL_VOIDED',
+  'BILL_PAID',
+  'PAYMENT_SUBMITTED',
+  'PAYMENT_WITHDRAWN',
+  'CASH_RECEIPT_RECORDED',
+  'PAYMENT_VERIFIED',
+  'PAYMENT_SECOND_APPROVED',
+  'PAYMENT_CONFIRMED',
+  'PAYMENT_REJECTED',
+  'PROOF_READ',
+  'CARD_CHECKOUT_OPENED',
+  'CARD_CHECKOUT_CLOSED',
+  'PAYMENT_REVERSAL_RECORDED',
+  'SIGNUP_FUNDS_VERIFIED',
+  'SIGNUP_PAYMENT_ALLOCATED',
+  'REFUND_CASE_OPENED',
+] as const
+
 export type PaymentEventDto = {
   id: string
   paymentId: string | null

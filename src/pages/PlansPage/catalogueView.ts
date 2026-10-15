@@ -62,28 +62,11 @@ const LAUNCH_COPY: Record<string, { key: string; audience: AnyPlanId; lines: num
 export const launchCopy = (code: string) => LAUNCH_COPY[code]
 
 /**
- * A price for one month of the chosen cycle, in baisa. Annual is the published year's price over
- * twelve, rounded half up to the baisa: display only, never charged, since the backend bills the
- * stored annual price.
- */
-export function perMonthBaisa(plan: SignupCataloguePlan, billing: BillingCycle): number | null {
-  if (billing === 'monthly') return baisaOf(plan.monthlyPrice)
-  const year = baisaOf(plan.annualPrice)
-  return year === null ? null : Math.floor((year + 6) / 12)
-}
-
-/**
  * The price of one full period of the chosen cycle, in baisa: the month, or the published year.
  * Owner, 9 Oct 2026: an annual plan shows what the year actually costs, not a monthly equivalent.
  */
 export function periodPriceBaisa(plan: SignupCataloguePlan, billing: BillingCycle): number | null {
   return baisaOf(billing === 'monthly' ? plan.monthlyPrice : plan.annualPrice)
-}
-
-/** A rial figure as the sign-up cards print it: `35`, `29.167` (no padding zeros). */
-export function shortRial(baisa: number | null): string {
-  if (baisa === null) return '—'
-  return formatBaisa(baisa).replace(/\.?0+$/, '')
 }
 
 /** A rial figure to three places with thousands separators, as the site and the tables print it. */

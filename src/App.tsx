@@ -167,6 +167,8 @@ import {
   ConsolePlansPage,
   ConsoleBillingPaymentsPage,
   ConsoleBankAccountsPage,
+  ConsoleBillingSettingsPage,
+  ConsoleSellerPage,
   ConsoleQueuePage,
   ConsoleIncidentsPage,
   ConsoleAuditPage,
@@ -813,6 +815,8 @@ function App() {
           <Route path="/console/plans" element={<ConsolePlansPage />} />
           <Route path="/console/billing/payments" element={<ConsoleBillingPaymentsPage />} />
           <Route path="/console/billing/accounts" element={<ConsoleBankAccountsPage />} />
+          <Route path="/console/billing/settings" element={<ConsoleBillingSettingsPage />} />
+          <Route path="/console/billing/seller" element={<ConsoleSellerPage />} />
           <Route path="/console/operators" element={<OperatorsPage />} />
           <Route path="/console/policies" element={<ValidationPoliciesPage />} />
           <Route path="/console/policies/:type" element={<ValidationPolicyPage />} />
