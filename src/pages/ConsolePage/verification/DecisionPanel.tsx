@@ -32,8 +32,13 @@ type DecisionPanelProps = {
   company: CompanyDetail
   /** The signed-in operator, from the entitlements; compared with the submitter for four-eyes. */
   operatorId: string | null
-  /** Called once a decision is recorded, or when the reviewer asks to reload a moved case. */
-  onDecided: (outcome: VerificationStatus | null) => void
+  /** The status of the payment sent with the application; absent while unknown or when none was sent. */
+  paymentStatus?: string | null
+  /**
+   * Called once a decision is recorded, or when the reviewer asks to reload a moved case. `final`
+   * is true when the decision was a FINAL rejection, which closes the application.
+   */
+  onDecided: (outcome: VerificationStatus | null, final?: boolean) => void
 }
 
 /**
@@ -44,7 +49,7 @@ type DecisionPanelProps = {
  * (the revision the decision quotes, the evidence digest, the four-eyes rule); what this panel
  * checks locally only saves a request that would certainly be refused.
  */
-export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelProps) {
+export function DecisionPanel({ company, operatorId, paymentStatus, onDecided }: DecisionPanelProps) {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const [evidence, setEvidence] = useState<EvidenceUpload | null>(null)
@@ -65,6 +70,10 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
   // One request per action: a double drop, a double click on a dialog's button, or an upload
   // racing a decision would each be another write the backend has to refuse or, worse, accept.
   const inFlight = useRef(false)
+  // A payment sent with the application that Finance has not confirmed yet: the verify dialog says
+  // the paid subscription waits for it.
+  const paymentUnconfirmed =
+    typeof paymentStatus === 'string' && paymentStatus !== 'FUNDS_VERIFIED' && paymentStatus !== 'CONFIRMED'
 
   // Four-eyes, as `CompanyVerificationService.requireIndependentReviewer` enforces it. Checked
   // here only so the reviewer is told instead of being offered buttons that must fail.
@@ -132,7 +141,7 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
               finalReason: classification === 'FINAL' ? finalReason.trim() : null,
             })
       setDialog(null)
-      onDecided(result.verificationStatus)
+      onDecided(result.verificationStatus, dialog === 'reject' && classification === 'FINAL')
     } catch (error) {
       if (!leaveIfSignedOut(error)) setDecisionError(describeDecisionFailure(error))
     } finally {
@@ -392,8 +401,15 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
           <p className="text-sm font-medium leading-[1.6] text-text-tertiary">
             {dialog === 'verify'
               ? t('console.verification.decision.verifyBody')
-              : t('console.verification.decision.rejectBody')}
+              : classification === 'FINAL'
+                ? t('console.verification.decision.rejectBodyFinal')
+                : t('console.verification.decision.rejectBody')}
           </p>
+          {dialog === 'verify' && paymentUnconfirmed ? (
+            <p className="text-sm font-medium leading-[1.6] text-text-tertiary">
+              {t('console.verification.decision.paymentNotConfirmed')}
+            </p>
+          ) : null}
           {decisionError ? (
             <p role="alert" className="text-sm font-medium text-danger-700">
               {t(decisionError.key, decisionError.values)}

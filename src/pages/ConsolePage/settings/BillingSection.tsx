@@ -16,17 +16,14 @@ export function BillingSection({ form, set, errors }: SectionProps<'billing'>) {
         note={t(`${K}currencyNote`)}
         value={t(`${K}currencyValue`)}
       />
+      {/* The real VAT switch lives on Billing settings (platform API); a second, local field here
+          could contradict what bills charge. */}
+      <LockedRow
+        title={t(`${K}vatMoved`)}
+        note={t(`${K}vatMovedNote`)}
+        value={t(`${K}vatMovedValue`)}
+      />
       <FieldGrid>
-        <NumberField
-          name="vatRate"
-          label={t(`${K}vatRate`)}
-          hint={t(`${K}vatRateHint`)}
-          decimal
-          value={form.vatRate}
-          onChange={(value) => set((current) => ({ ...current, vatRate: value }))}
-          error={err('vatRate')}
-          trailingIcon={<span className="text-sm font-medium">%</span>}
-        />
         <NumberField
           name="minimumTermMonths"
           label={t(`${K}minimumTerm`)}

@@ -123,6 +123,16 @@ export function onboardingStateFromStatus(
     addon: typeof preference?.erpExtractionAddon === 'boolean' ? preference.erpExtractionAddon : undefined,
   })
   const merged: OnboardingState = { ...cached, ...fromServer, restored: true }
+  // Only the server says whether the draft is back for correction; a tab's older answer is dropped.
+  delete merged.rejectionReason
+  delete merged.correctableUntil
+  delete merged.paymentKept
+  if (status.rejectionReason && status.closed !== true) {
+    merged.rejectionReason = status.rejectionReason
+    if (status.correctableUntil) merged.correctableUntil = status.correctableUntil
+    // The deadline is gone once the window has passed or the money is in a refund case.
+    if (status.correctableUntil && status.signupPayment?.status === 'FUNDS_VERIFIED') merged.paymentKept = true
+  }
   // Names the tab carried for another plan than the one saved would label it wrongly.
   if (merged.planNames && cached.plan !== merged.plan) delete merged.planNames
   // Without POS the server holds no trade; a cached one would be shown as if it were saved.

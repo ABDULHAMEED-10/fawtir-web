@@ -118,6 +118,21 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         Icon: ConsolePlansIcon,
         requires: 'platform.billing.read',
       },
+      {
+        id: 'billingSettings',
+        labelKey: 'console.nav.billingSettings',
+        to: '/console/billing/settings',
+        Icon: NavSettingsIcon,
+        requires: 'platform.billing.read',
+      },
+      {
+        id: 'seller',
+        labelKey: 'console.nav.seller',
+        to: '/console/billing/seller',
+        Icon: NavDocumentsIcon,
+        // The seller routes are read and changed under the manage permission alone (contract).
+        requires: 'platform.billing.manage',
+      },
     ],
   },
   // No ERP group. Its two screens, add-on requests and templates, drew a story fixture, and the

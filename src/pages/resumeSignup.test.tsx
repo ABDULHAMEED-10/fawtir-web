@@ -112,6 +112,30 @@ describe('Continue your registration', () => {
     ])
   })
 
+  it('a closed application opens only the waiting screen, marked submitted', async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response(null, { status: 202 }))
+      .mockResolvedValueOnce(
+        json(200, {
+          onboardingToken: 'so.resumed',
+          onboardingTokenExpiresAt: new Date(Date.now() + 7_200_000).toISOString(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        status('READY_FOR_SUBMISSION', { verificationStatus: 'REJECTED', closed: true, rejectionReason: 'COMPANY_PROFILE_MISMATCH' }),
+      )
+    renderAt('/signup/resume')
+    const user = userEvent.setup({ delay: null })
+    await user.type(screen.getByLabelText(new RegExp(i18n.t('signupResume.emailLabel'))), 'owner@alnoor.test')
+    await user.click(screen.getByRole('button', { name: i18n.t('signupResume.submit') }))
+    await screen.findByText(/If a registration with owner@alnoor\.test is waiting/)
+    await enterCode(user, '123456')
+    await user.click(screen.getByRole('button', { name: i18n.t('verifyCode.submit') }))
+
+    expect((await screen.findByTestId('location')).textContent).toBe('/signup-pending')
+    expect(readOnboardingSession()?.submitted).toBe(true)
+  })
+
   it('answers a refused code with the generic message and stores nothing', async () => {
     fetchMock
       .mockResolvedValueOnce(new Response(null, { status: 202 }))

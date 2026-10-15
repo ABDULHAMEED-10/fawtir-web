@@ -365,7 +365,7 @@ describe('Plan and usage', () => {
     const up = screen.getByRole('button', { name: 'Move up a plan' }) as HTMLButtonElement
     expect(up.disabled).toBe(true)
     expect((screen.getByRole('button', { name: 'Switch overage on or off' }) as HTMLButtonElement).disabled).toBe(true)
-    expect(screen.getByText(/Moving up applies straight away/)).toBeTruthy()
+    expect(screen.getByText(/To change your plan, contact the Fawtir team/)).toBeTruthy()
     fireEvent.click(move)
     fireEvent.click(up)
     expect(requests().every((line) => line.startsWith('GET '))).toBe(true)
