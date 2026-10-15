@@ -21382,5 +21382,21 @@
     "body": "Bill {{number}} for",
     "activation": "Pay it to activate your subscription. Your plan becomes active once the Fawtir team confirms the payment.",
     "cta": "Pay your bill"
+  },
+  "companyInvitation": {
+    "title": "Join your company on Fawtir",
+    "description": "Choose the username and password you will sign in with. The address this invitation was sent to stays your sign-in email.",
+    "done": {
+      "title": "Your account is ready",
+      "body": "Sign in with your new username and password. Your administrator chose your role when they invited you."
+    },
+    "missing": {
+      "title": "This link is incomplete",
+      "body": "Open the invitation link from your email again. For your security the link is read once and then removed from the address bar."
+    },
+    "spent": {
+      "title": "This invitation can’t be used",
+      "body": "The link is invalid, has expired, or was already used. Ask your company’s administrator to send a new invitation."
+    }
   }
 }
