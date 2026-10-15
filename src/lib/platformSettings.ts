@@ -196,7 +196,7 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
     whileSuspended: 'readOnly',
   },
   notices: {
-    thresholds: [80, 100],
+    thresholds: [80, 90, 100],
     recipients: 'ownerAndAdmins',
     language: 'customer',
     channels: { email: true, inApp: true },

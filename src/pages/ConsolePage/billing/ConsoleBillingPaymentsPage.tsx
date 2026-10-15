@@ -201,7 +201,11 @@ function PaymentPanel({
   if (read.status === 'failed') return <ConsoleReadFailure error={read.error} retry={retry} />
   const { payment, bill, tenantName, history } = read.data
 
-  const act = async (work: () => Promise<unknown>, doneKey: string) => {
+  const act = async (
+    work: () => Promise<unknown>,
+    doneKey: string,
+    refusal: (error: unknown) => string = (error) => decisionMessage(t, error),
+  ) => {
     setBusy(true)
     setFailure(null)
     setDone(null)
@@ -211,7 +215,7 @@ function PaymentPanel({
       onDecided()
       retry()
     } catch (error) {
-      setFailure(decisionMessage(t, error))
+      setFailure(refusal(error))
     } finally {
       setBusy(false)
     }
@@ -347,7 +351,11 @@ function PaymentPanel({
           total={bill ? bill.total : payment.amount}
           busy={busy}
           onRecord={(receipt) =>
-            act(() => recordCashReceipt(payment.id, payment.version, receipt), 'console.billing.done.recorded')
+            act(
+              () => recordCashReceipt(payment.id, payment.version, receipt),
+              'console.billing.done.recorded',
+              (error) => cashReceiptMessage(t, error),
+            )
           }
         />
       ) : null}
@@ -578,6 +586,23 @@ const DECISION_REFUSALS = [
   'production-platform-realm-required',
   'impersonation-not-allowed',
 ]
+
+/**
+ * Recording a cash receipt: a `400 validation-failed` here is the server refusing the receipt
+ * itself, which the form cannot fully check first: a time received later than now (the server
+ * allows five minutes of clock difference) or an amount of zero. The server sends no code, only an
+ * English sentence, so it is said in our words rather than as "Reload and try again" (F25).
+ */
+function cashReceiptMessage(t: (key: string) => string, error: unknown): string {
+  if (
+    error instanceof ApiError &&
+    error.status === 400 &&
+    error.problemType === 'validation-failed'
+  ) {
+    return t('console.billing.cash.refused')
+  }
+  return decisionMessage(t, error)
+}
 
 function decisionMessage(t: (key: string) => string, error: unknown): string {
   if (error instanceof ApiError && error.problemType && DECISION_REFUSALS.includes(error.problemType)) {
