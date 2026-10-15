@@ -15491,7 +15491,7 @@
       "title": "This application was closed",
       "reason": "The Fawtir team closed it: {{reason}}",
       "final": "It cannot be corrected or submitted again.",
-      "refund": "Fawtir Finance will contact you about returning your payment.",
+      "refund": "Fawtir will contact you about returning your payment.",
       "contact": "If you have any questions, contact Fawtir support."
     },
     "reasonOther": "See the email Fawtir sent you."
@@ -21253,9 +21253,9 @@
     "note": "Note for Fawtir (optional)",
     "waiting": {
       "BANK_TRANSFER": {
-        "SUBMITTED": "Pending verification by Fawtir Finance. We have your transfer receipt; the bill is paid once Finance has checked it against our bank account.",
-        "RECEIPT_RECORDED": "Pending verification by Fawtir Finance. We have your transfer receipt and are checking it.",
-        "AWAITING_SECOND_APPROVAL": "Pending verification by Fawtir Finance. Your transfer has been checked and is waiting for a second approval."
+        "SUBMITTED": "Pending verification by Fawtir. We have your transfer receipt; the bill is paid once Fawtir has checked it against our bank account.",
+        "RECEIPT_RECORDED": "Pending verification by Fawtir. We have your transfer receipt and are checking it.",
+        "AWAITING_SECOND_APPROVAL": "Pending verification by Fawtir. Your transfer has been checked and is waiting for a second approval."
       },
       "CASH": {
         "SUBMITTED": "Your cash payment is with Fawtir and is being confirmed. The bill is paid once it is confirmed. Please do not pay again.",
@@ -21292,7 +21292,7 @@
       "notStarted": "The card payment was not completed. Check your payment status before trying again.",
       "notForThisBill": "This bill can't be paid by card. Please use bank transfer or cash.",
       "notRepresentable": "This bill can't be paid by card. Please use bank transfer or cash. Bill total:",
-      "underReviewBill": "A card payment for this bill is being reviewed. Please don't pay again; Fawtir Finance will contact you.",
+      "underReviewBill": "A card payment for this bill is being reviewed. Please don't pay again; Fawtir will contact you.",
       "switchedOff": "Card payment isn't available right now. Please use bank transfer or cash.",
       "contactMissing": "Add your company's contact person, e-mail and phone before paying by card.",
       "contactMissingLink": "Open Company profile",
@@ -21303,8 +21303,8 @@
         "PROCESSING": "Pending confirmation from the card provider. This usually takes a moment.",
         "PAID": "Paid. Thank you.",
         "NOT_COMPLETED": "The card payment was not completed. Check your payment status before trying again.",
-        "UNDER_REVIEW": "We received a card payment we need to check. Fawtir Finance will contact you; please don't pay again.",
-        "REVERSED": "This card payment was refunded. Fawtir Finance will contact you about this bill."
+        "UNDER_REVIEW": "We received a card payment we need to check. Fawtir will contact you; please don't pay again.",
+        "REVERSED": "This card payment was refunded. Fawtir will contact you about this bill."
       }
     },
     "signupWaiting": {

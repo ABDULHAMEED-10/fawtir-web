@@ -273,6 +273,24 @@ describe('Customer cash and transfer wording (Abdul review 15 Oct: CS-1, BT-2)',
     }
   })
 
+  it.each(['en', 'ar'])('names Fawtir, never Finance, on every customer payment line in %s', (lng) => {
+    for (const key of [
+      'billing.signupWaiting.BANK_TRANSFER',
+      'billing.waiting.BANK_TRANSFER.SUBMITTED',
+      'billing.waiting.BANK_TRANSFER.RECEIPT_RECORDED',
+      'billing.waiting.BANK_TRANSFER.AWAITING_SECOND_APPROVAL',
+      'billing.card.underReviewBill',
+      'billing.card.status.UNDER_REVIEW',
+      'billing.card.status.REVERSED',
+      'signupPending.closed.refund',
+    ]) {
+      const text = i18n.t(key, { lng })
+      expect(text).not.toBe(key)
+      expect(text).not.toMatch(/Finance|المالية/)
+      expect(text).toMatch(lng === 'en' ? /Fawtir/ : /فوتر/)
+    }
+  })
+
   it('names Fawtir, not Finance, as checking the sign-up transfer', () => {
     expect(i18n.t('billing.signupWaiting.BANK_TRANSFER', { lng: 'en' })).toContain('once Fawtir has confirmed it')
     expect(i18n.t('billing.signupWaiting.BANK_TRANSFER', { lng: 'en' })).not.toMatch(/Finance/)
