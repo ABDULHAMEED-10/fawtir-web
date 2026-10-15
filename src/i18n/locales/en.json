@@ -21311,7 +21311,8 @@
       "BANK_TRANSFER": "Your transfer is being checked. Fawtir has the bank transfer receipt you sent when you signed up, and your subscription starts once Finance has confirmed it. Please do not pay again.",
       "CASH": "Your cash payment from sign-up is with Fawtir. We will contact you to collect it if we have not already, and your subscription starts once it is confirmed. Please do not pay again.",
       "CARD": "Your card payment from sign-up is with Fawtir. Your subscription starts once Fawtir has confirmed it. Please do not pay again."
-    }
+    },
+    "signupConfirmed": "Your payment from sign-up is confirmed. Your subscription starts when Fawtir activates your company."
   },
   "permissionLabel": {
     "pair": "{{group}}: {{action}}",

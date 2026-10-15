@@ -171,6 +171,50 @@ describe('K-BC03: a subscription that has not started', () => {
   })
 })
 
+describe('K-BC03 with the sign-up payment status (backend #533)', () => {
+  const withSignup = (signupPayment: unknown) => () => json(200, { ...OVERVIEW_NO_BILLS, signupPayment })
+  const PAYMENT = { method: 'BANK_TRANSFER', amount: '36.750', submittedAt: '2026-10-15T15:50:00Z' }
+
+  it('says the transfer is being checked while it is SUBMITTED', async () => {
+    answers[BILLING] = withSignup({ ...PAYMENT, status: 'SUBMITTED' })
+    renderAt('/settings/bills')
+    expect(await screen.findByText(i18n.t('billing.signupWaiting.BANK_TRANSFER'))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('billing.prepare') })).toBeNull()
+  })
+
+  it.each(['FUNDS_VERIFIED', 'CONFIRMED'])('says the payment is confirmed, not being checked, when %s', async (status) => {
+    answers[BILLING] = withSignup({ ...PAYMENT, status })
+    renderAt('/settings/bills')
+    expect(await screen.findByText(i18n.t('billing.signupConfirmed'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('billing.signupWaiting.BANK_TRANSFER'))).toBeNull()
+    expect(screen.queryByRole('button', { name: i18n.t('billing.prepare') })).toBeNull()
+  })
+
+  it("names a rejection with Finance's reason and keeps the way to pay again", async () => {
+    answers[BILLING] = withSignup({ ...PAYMENT, status: 'REJECTED', rejectionReason: 'The amount on the receipt is 30.000.' })
+    renderAt('/settings/bills')
+    const alert = await screen.findByRole('alert')
+    // One full stop: the reason's own is dropped before the sentence closes.
+    expect(alert.textContent).toBe(i18n.t('billing.rejected', { reason: 'The amount on the receipt is 30.000' }))
+    expect(alert.textContent).not.toContain('..')
+    expect(screen.getByRole('button', { name: i18n.t('billing.prepare') })).toBeTruthy()
+    expect(screen.queryByText(i18n.t('billing.signupWaiting.BANK_TRANSFER'))).toBeNull()
+    expect(screen.queryByText(i18n.t('billing.nothingDue'))).toBeNull()
+  })
+
+  it('trusts an explicit null over signupMethod: nothing was paid at sign-up', async () => {
+    answers[BILLING] = withSignup(null)
+    renderAt('/settings/bills')
+    expect(await screen.findByText(i18n.t('billing.nothingDue'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('billing.signupWaiting.BANK_TRANSFER'))).toBeNull()
+  })
+
+  it('falls back to signupMethod when the field is absent (server before #533)', async () => {
+    renderAt('/settings/bills')
+    expect(await screen.findByText(i18n.t('billing.signupWaiting.BANK_TRANSFER'))).toBeTruthy()
+  })
+})
+
 describe('K-BC05: no usage period before the subscription starts', () => {
   const periodText = () =>
     i18n.t('people.plan.period', { start: '1 Oct 2026', end: '31 Oct 2026' })
