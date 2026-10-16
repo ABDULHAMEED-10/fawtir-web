@@ -5,6 +5,7 @@ import type { ConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
 import { ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
 import type { SignupPaymentReview } from '../../../lib/console/companyVerification'
 import { ReviewCard, ReviewLine } from './ReviewCard'
+import { paymentStatusKey } from '../../../lib/console/billingPayments'
 
 /**
  * The payment sent with the application, beside the company it pays for (owner, 12 Oct 2026).
@@ -42,7 +43,7 @@ export function SignupPaymentPanel({
           />
           <ReviewLine
             label={t('console.verification.payment.status')}
-            value={t(`console.billing.status.${read.data.payment.status}`)}
+            value={t(paymentStatusKey(read.data.payment.status, read.data.payment.method))}
           />
           {read.data.payment.reference ? (
             <ReviewLine label={t('console.verification.payment.reference')} value={read.data.payment.reference} />
@@ -54,14 +55,21 @@ export function SignupPaymentPanel({
             label={t('console.verification.payment.submitted')}
             value={formatInstant(read.data.payment.submittedAt, i18n.language)}
           />
-          <ReviewLine
-            label={t('console.verification.payment.receipt')}
-            value={
-              read.data.payment.proofContentType
-                ? t('console.verification.payment.receiptInQueue')
-                : t('console.verification.payment.noReceipt')
-            }
-          />
+          {/* A transfer's receipt is its uploaded file; cash has the receipt number Finance recorded,
+              and no row until one is recorded rather than "None" (H1). */}
+          {read.data.payment.proofContentType ? (
+            <ReviewLine
+              label={t('console.verification.payment.receipt')}
+              value={t('console.verification.payment.receiptInQueue')}
+            />
+          ) : read.data.payment.receiptNumber ? (
+            <ReviewLine label={t('console.verification.payment.receipt')} value={read.data.payment.receiptNumber} />
+          ) : read.data.payment.method === 'BANK_TRANSFER' ? (
+            <ReviewLine
+              label={t('console.verification.payment.receipt')}
+              value={t('console.verification.payment.noReceipt')}
+            />
+          ) : null}
           {read.data.refundCase ? (
             <ReviewLine
               label={t('console.verification.payment.refund')}

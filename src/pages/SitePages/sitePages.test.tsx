@@ -99,7 +99,7 @@ describe('Pricing page', () => {
     ).toBeTruthy()
     expect(screen.getByText(i18n.t('plan.feature.unlimitedBranches'))).toBeTruthy()
     expect(screen.getAllByText('Published description').length).toBe(2)
-    expect(screen.getByText(i18n.t('plans.trialNote', { days: 10, documents: 40 }))).toBeTruthy()
+    expect(screen.getByText(i18n.t('plans.trialNote', { count: 10, documents: 40 }))).toBeTruthy()
     expect(screen.getAllByText(i18n.t('plans.enterprise.price')).length).toBeGreaterThan(0)
     for (const launch of ['35.000', '80.000', '150.000']) {
       expect(screen.queryByText(launch)).toBeNull()

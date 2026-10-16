@@ -102,7 +102,7 @@ export function trialNote(
   if (trial.kind === 'uniform') {
     return trial.documents === null
       ? t('plans.trialNoteDays', { count: trial.days })
-      : t('plans.trialNote', { days: trial.days, documents: trial.documents })
+      : t('plans.trialNote', { count: trial.days, documents: trial.documents })
   }
   const each = plans
     .filter((plan) => plan.trialDays !== null)

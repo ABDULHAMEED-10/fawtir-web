@@ -392,6 +392,19 @@ describe('Plan and usage', () => {
     expect(requests().every((line) => line.startsWith('GET '))).toBe(true)
   })
 
+  it('names the plan in Arabic from the catalogue, and groups the figures, for an Arabic reader (G11)', async () => {
+    await i18n.changeLanguage('ar')
+    answers[PLAN] = () =>
+      json(200, { ...PLAN_OVERVIEW, usage: { ...PLAN_OVERVIEW.usage, used: 0, quota: 1000, raisedToday: 0, resubmissions: 0 } })
+    answers[PUBLIC_PLANS] = () =>
+      json(200, CATALOGUE.map((plan) => (plan.code === 'STARTER' ? { ...plan, nameAr: 'المبتدئة' } : plan)))
+    renderAt('/settings/plan')
+    expect(await screen.findByText(`${i18n.t('plan.yourPlan')}: المبتدئة`)).toBeTruthy()
+    expect(screen.getByText(i18n.t('plan.leftCount', { count: '1,000' }))).toBeTruthy()
+    expect(screen.getByRole('link', { name: i18n.t('plan.billsAndPayment') })).toBeTruthy()
+    expect(i18n.t('plan.billsAndPayment')).toBe(i18n.t('bills.title'))
+  })
+
   it('offers a retry when the plan cannot be read', async () => {
     answers[PLAN] = () => json(500, { type: 'about:blank', title: 'boom' })
     renderAt('/settings/plan')
