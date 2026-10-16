@@ -20,6 +20,7 @@ const ENTITLEMENTS = {
     'platform.support',
     'admin.users.manage',
     'admin.roles.manage',
+    'admin.settings.manage',
     'role.read',
     'role.list',
     'invoice.read',

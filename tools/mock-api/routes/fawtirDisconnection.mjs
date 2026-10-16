@@ -7,8 +7,7 @@
  * records nothing. Enough for screenshots and the responsive harness; never used by a build.
  *
  * The danger zone shows only to an owner or an Administrator holding `admin.settings.manage`;
- * `agreements.mjs` answers `/me/entitlements` first and holds neither, so check this screen with a
- * copy of `server.mjs` that loads this module and gives the session those (handbook section 4).
+ * the session `agreements.mjs` answers `/me/entitlements` with is the owner and holds it.
  */
 const PATH = '/api/v1/settings/fawtir-disconnection'
 const COMPANY = { legalName: 'Al Bahja Coffee LLC', name: 'Al Bahja Coffee', legalNameAr: 'شركة البهجة للقهوة' }
