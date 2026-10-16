@@ -239,8 +239,13 @@ function ActivityLedger() {
   const [busy, setBusy] = useState<string | null>(null)
   const [reportOpen, setReportOpen] = useState(false)
 
-  const fail = (error: unknown) => {
+  /** `refusalKey` is a sentence the caller already chose for a refusal it knows by code. */
+  const fail = (error: unknown, refusalKey: string | null = null) => {
     setNotice(null)
+    if (refusalKey) {
+      setFailure(t(refusalKey))
+      return
+    }
     const message = describeApiFailure(error)
     setFailure(t(message.key, message.values))
   }
@@ -256,12 +261,10 @@ function ActivityLedger() {
       summary.retry()
     } catch (error) {
       const refusal = tddResubmitRefusalKey(error)
-      if (refusal) {
-        setNotice(null)
-        setFailure(t(refusal))
-      } else {
-        fail(error)
-      }
+      fail(error, refusal)
+      // A backend that reports holds drops the row's resubmit link; re-read so the menu stops
+      // offering a send that would only be held again.
+      if (refusal) list.retry()
     } finally {
       setBusy(null)
     }

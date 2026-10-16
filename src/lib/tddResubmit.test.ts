@@ -32,3 +32,12 @@ describe('tddResubmitRefusalKey', () => {
     expect(ar.tddResubmit.refused.held).not.toMatch(/[A-Za-z]/)
   })
 })
+
+describe('the partly-held sentence', () => {
+  it('exists in English and Arabic and names both counts', () => {
+    for (const sentence of [en.tddResubmit.refused.partlyHeld, ar.tddResubmit.refused.partlyHeld]) {
+      expect(sentence).toContain('{{sent}}')
+      expect(sentence).toContain('{{held}}')
+    }
+  })
+})

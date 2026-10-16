@@ -1030,6 +1030,56 @@ describe("one document's record", () => {
     await waitFor(() => expect(resubmitted).toEqual(['/api/v1/invoices/inv-1/tdd/resubmit']))
   })
 
+  it('sends the rest of a group past a held one, says how many went, and re-reads', async () => {
+    const reason = 'The report signature could not be verified.'
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes('/inv-2/tdd/resubmit') && init?.method === 'POST') {
+        resubmitted.push(String(input))
+        return json(409, {
+          type: 'https://api.fawtir.om/problems/resource-conflict',
+          code: 'TDD_CORRECTION_HELD',
+        })
+      }
+      return base(input, init)
+    })
+    detailReply = {
+      ...DETAIL,
+      tdd_lineage: [{ ...DETAIL.tdd_lineage[1], status: 'REJECTED', failure_reason: reason }],
+      summary: {
+        ...DETAIL.summary,
+        tdd_leg: { ...DETAIL.summary.tdd_leg!, ack: 'RE', reason },
+        links: { ...DETAIL.summary.links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' },
+      },
+    }
+    items = [
+      item({
+        invoice_uuid: UUID_B,
+        invoice_number: 'INV-0002',
+        tdd_leg: { ...item().tdd_leg!, status: 'REJECTED', ack: 'RE', reason },
+        links: { ...item().links, resubmit: '/api/v1/invoices/inv-2/tdd/resubmit' },
+      }),
+    ]
+    renderDetail(`/compliance/activity/${UUID_A}/resubmit`)
+    const button = await screen.findByRole('button', { name: /^Fix and send/ })
+    await waitFor(() => expect(calls('tdd_ack=RE')).toHaveLength(1))
+    const detailReads = calls(`/compliance/activity/${UUID_A}`).length
+
+    fireEvent.click(button)
+    expect(
+      await screen.findByText(
+        'Reports sent again: 1. Held for an authorised decision at Fawtir and not sent: 1.',
+      ),
+    ).toBeTruthy()
+    expect(resubmitted).toEqual([
+      '/api/v1/invoices/inv-1/tdd/resubmit',
+      '/api/v1/invoices/inv-2/tdd/resubmit',
+    ])
+    expect(screen.queryByText(HELD_SENTENCE)).toBeNull()
+    await waitFor(() => expect(calls('tdd_ack=RE')).toHaveLength(2))
+    expect(calls(`/compliance/activity/${UUID_A}`).length).toBe(detailReads + 1)
+  })
+
   it('stays on the fix and says so when the correction is held', async () => {
     holdResubmits()
     detailReply = {
