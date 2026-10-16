@@ -46,6 +46,7 @@ import {
   WaiveOverageModal,
   type SubscriptionAction,
 } from './subscriptions'
+import { CompanySubscriptionCards } from './tenant/CompanySubscriptionCards'
 import { TenantErpEntitlementCard } from './erp/TenantErpEntitlementCard'
 import invoiceIcon from '../../assets/actions/invoice.svg'
 import creditNoteIcon from '../../assets/actions/credit-note.svg'
@@ -279,10 +280,11 @@ function TenantDetail({
   // Where the reader came from — the queue, the invoices list, or the tenants list — is what the
   // breadcrumb leads back to. It rides in the URL so a deep link from a row menu keeps it too.
   const from = searchParams.get('from') ?? (location.state as { from?: string } | null)?.from
+  // The subscriptions screens are sample data, so only the prototype path leads back to them.
   const parentCrumbs =
-    from === 'subscriptions'
+    prototype && from === 'subscriptions'
       ? [{ labelKey: 'console.nav.subscriptions', to: '/console/subscriptions' }]
-      : from === 'invoices'
+      : prototype && from === 'invoices'
         ? [
             { labelKey: 'console.nav.subscriptions', to: '/console/subscriptions' },
             {
@@ -441,6 +443,8 @@ function TenantDetail({
       <TenantFacts
         overview={prototype ? withLedger(overview, subscription, t) : overview}
       />
+
+      {prototype ? null : <CompanySubscriptionCards tenantId={tenantId} />}
 
       {prototype ? null : (
         <TenantErpEntitlementCard tenantId={tenantId} tenantCode={overview.identity.tenantCode} />
