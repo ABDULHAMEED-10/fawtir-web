@@ -20,6 +20,12 @@ import {
 } from '../../lib/identity/signupPlans'
 import { SubscriptionStatusSection } from './SubscriptionStatusSection'
 import {
+  quotaWarningBodyKey,
+  quotaWarningOf,
+  quotaWarningTitleKey,
+  type QuotaWarning,
+} from '../../lib/quotaNotice'
+import {
   SUBSCRIPTION_PATH,
   loadSubscription,
   subscriptionNotStarted,
@@ -163,10 +169,12 @@ function PlanFigures({ data, notStarted }: { data: PlanOverviewDto; notStarted: 
     counted.quota > 0 ? Math.min(100, Math.round((counted.used / counted.quota) * 100)) : 0
   const forecast = forecastOf(counted)
   const resetsOn = allowance?.resetsOn ?? forecast.resetsOn
+  const warning = quotaWarningOf(allowance)
 
   return (
     <>
       <section aria-labelledby="plan-usage" className="overflow-hidden rounded-md bg-surface-card">
+        {warning ? <QuotaWarningCallout warning={warning} /> : null}
         <div className="flex flex-wrap gap-6 p-5">
           <div className="shrink-0">
             <p className="flex items-baseline gap-1">
@@ -301,6 +309,37 @@ function PlanFigures({ data, notStarted }: { data: PlanOverviewDto; notStarted: 
         />
       </div>
     </>
+  )
+}
+
+/**
+ * AL-8 in the app: the server's 80%, 90% or 100% warning, inside the usage card it is about. The
+ * 100% one says plainly that issuing stops and received documents are held until extras are bought.
+ */
+function QuotaWarningCallout({ warning }: { warning: QuotaWarning }) {
+  const { t, i18n } = useTranslation()
+  const number = (value: number) => formatCount(value, i18n.language)
+  return (
+    <div className="p-5 pb-0">
+      <p
+        role="status"
+        className={[
+          'rounded-sm px-4 py-3 text-sm font-medium leading-[1.6]',
+          warning.percent === 100
+            ? 'bg-danger-100 text-danger-700'
+            : 'bg-pending-100 text-pending-700',
+        ].join(' ')}
+      >
+        <b className="font-semibold">
+          {t(quotaWarningTitleKey(warning), { percent: warning.percent })}
+        </b>{' '}
+        <Trans
+          i18nKey={quotaWarningBodyKey(warning)}
+          values={{ used: number(warning.used), allowance: number(warning.allowance) }}
+          components={{ b: <b className="font-semibold" /> }}
+        />
+      </p>
+    </div>
   )
 }
 

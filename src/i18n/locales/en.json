@@ -21482,5 +21482,16 @@
       "title": "This invitation can’t be used",
       "body": "The link is invalid, has expired, or was already used. Ask your company’s administrator to send a new invitation."
     }
+  },
+  "quotaWarning": {
+    "near": {
+      "title": "You have used {{percent}}% of this period's documents.",
+      "body": "<b>{{used}} of {{allowance}}</b> used, issued and received together: supplier documents you receive count too. When none are left, issuing stops and received documents are held until extra documents are bought."
+    },
+    "full": {
+      "title": "You have used all of this period's documents.",
+      "body": "<b>{{used}} of {{allowance}}</b> used. Issuing has stopped, and the supplier documents you receive are held until extra documents are bought. They open as soon as extras are added."
+    },
+    "openPlan": "Look at the plan"
   }
 }
