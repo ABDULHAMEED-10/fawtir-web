@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
 import { ConsoleShell } from '../../../layouts/ConsoleShell'
@@ -245,10 +245,13 @@ function Field({
   onChange: (value: string) => void
   ltr?: boolean
 }) {
+  // Tied by id as well as by nesting: the retest found these read as unnamed textboxes (K-UI-b).
+  const id = useId()
   return (
-    <label className="flex flex-col gap-1 text-sm font-medium text-text-secondary">
+    <label htmlFor={id} className="flex flex-col gap-1 text-sm font-medium text-text-secondary">
       {label}
       <input
+        id={id}
         className="h-10 rounded-sm border border-border-default bg-white px-3"
         dir={ltr ? 'ltr' : undefined}
         value={value}
@@ -263,6 +266,13 @@ function message(t: (key: string) => string, error: unknown): string {
     if (error.problemType === 'payment-approver-not-independent') return t('console.bankAccounts.refusal.sameOperator')
     if (error.problemType === 'payment-version-conflict') return t('console.billing.refusal.payment-version-conflict')
     if (error.status === 400) return t('console.bankAccounts.refusal.invalid')
+    // A 403 used to fall through to "That did not go through" (K-UI-a); the other billing console
+    // pages name it, and a CSRF refusal is the expired-session case, not a missing permission.
+    if (error.problemType === 'production-platform-realm-required')
+      return t('console.billing.refusal.production-platform-realm-required')
+    if (error.problemType === 'impersonation-not-allowed') return t('console.billing.refusal.impersonation-not-allowed')
+    if (error.problemType === 'csrf-rejected') return t('apiErrors.csrf')
+    if (error.status === 403) return t('console.billing.refusal.forbidden')
   }
   return t('console.billing.refusal.other')
 }

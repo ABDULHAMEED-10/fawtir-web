@@ -11,8 +11,10 @@ import { LoginPage } from './pages/LoginPage'
 import { LoginCodePage } from './pages/LoginCodePage'
 import { NewPasswordPage } from './pages/NewPasswordPage'
 import { OperatorInvitationPage } from './pages/OperatorInvitationPage'
+import { CompanyInvitationPage } from './pages/CompanyInvitationPage'
 import { AccountEmailConfirmPage } from './pages/AccountEmailConfirmPage'
 import { ACCOUNT_EMAIL_CONFIRM_ROUTE } from './lib/identity/accountEmail'
+import { COMPANY_INVITATION_ROUTE } from './lib/identity/operatorInvitation'
 import { PlansPage } from './pages/PlansPage'
 import { PaymentPage } from './pages/PaymentPage'
 import { FawtaraStatusPage } from './pages/FawtaraStatusPage'
@@ -167,6 +169,8 @@ import {
   ConsolePlansPage,
   ConsoleBillingPaymentsPage,
   ConsoleBankAccountsPage,
+  ConsoleBillingSettingsPage,
+  ConsoleSellerPage,
   ConsoleQueuePage,
   ConsoleIncidentsPage,
   ConsoleAuditPage,
@@ -211,6 +215,7 @@ function App() {
           <Route path="/verify-code" element={<VerifyCodePage />} />
           <Route path="/new-password" element={<NewPasswordPage />} />
           <Route path="/operator-invitation" element={<OperatorInvitationPage />} />
+          <Route path={COMPANY_INVITATION_ROUTE} element={<CompanyInvitationPage />} />
           <Route path={ACCOUNT_EMAIL_CONFIRM_ROUTE} element={<AccountEmailConfirmPage />} />
           <Route path="/about-business" element={<AboutBusinessPage />} />
           <Route path="/business-type" element={<BusinessTypePage />} />
@@ -813,6 +818,8 @@ function App() {
           <Route path="/console/plans" element={<ConsolePlansPage />} />
           <Route path="/console/billing/payments" element={<ConsoleBillingPaymentsPage />} />
           <Route path="/console/billing/accounts" element={<ConsoleBankAccountsPage />} />
+          <Route path="/console/billing/settings" element={<ConsoleBillingSettingsPage />} />
+          <Route path="/console/billing/seller" element={<ConsoleSellerPage />} />
           <Route path="/console/operators" element={<OperatorsPage />} />
           <Route path="/console/policies" element={<ValidationPoliciesPage />} />
           <Route path="/console/policies/:type" element={<ValidationPolicyPage />} />

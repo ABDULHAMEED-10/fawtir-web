@@ -695,7 +695,9 @@
     "isicPlaceholder": "Search by activity",
     "isicSearch": "Type an activity, e.g. restaurant",
     "isicNone": "No activity matches",
-    "isicHintNoPos": "What your business does, as registered. Search by activity name."
+    "isicHintNoPos": "What your business does, as registered. Search by activity name.",
+    "vatinTaken": "A business with this VATIN is already registered.",
+    "crTaken": "A business with this CR number is already registered."
   },
   "addressContact": {
     "title": "Address & contact",
@@ -776,11 +778,12 @@
     },
     "footer": {
       "f1": "Change or cancel anytime",
-      "f2": "Upgrades apply instantly, downgrades next cycle",
+      "f2": "Upgrades through the Fawtir team, downgrades at renewal",
       "f3": "No setup fees"
     },
-    "payNote": "Next you choose how you'll pay: start with a free trial, or pay with your application.",
-    "trialNote": "Every plan except Enterprise starts with a {{days}}-day free trial of the plan you pick, from the day your account is approved: {{documents}} documents, and nothing to pay until it ends.",
+    "payNote": "Next you choose how you'll pay: start with the free trial, or pay with your application.",
+    "trialNote_one": "You can start any plan except Enterprise with a {{count}}-day free trial of that plan, from the day your account is approved: {{documents}} documents, and nothing to pay until it ends.",
+    "trialNote_other": "You can start any plan except Enterprise with a {{count}}-day free trial of that plan, from the day your account is approved: {{documents}} documents, and nothing to pay until it ends.",
     "businessPlus": {
       "name": "Business Plus",
       "description": "For established businesses and multi-branch operations.",
@@ -811,7 +814,7 @@
       },
       "row": {
         "documents": "Tax documents a month",
-        "overage": "Extra per invoice, past the allowance",
+        "overage": "Extra document, bought ahead",
         "peppol": "Send & receive over Peppol",
         "validation": "PINT-OM validation & OTA reporting",
         "pos": "Point of sale & thermal receipts",
@@ -848,7 +851,8 @@
         "emailChat": "Email and chat",
         "accountManager": "Account manager",
         "twoMonthsFree": "2 months free",
-        "vatExcl": "Excluded, {{rate}}% on the invoice",
+        "vatExcl": "Excluded, {{rate}}% on the bill",
+        "noVat": "No VAT added",
         "agreed": "Agreed on a call",
         "notOffered": "Not offered",
         "monthsFree_one": "{{count}} month free",
@@ -862,15 +866,16 @@
       "q2": "How do I pay?",
       "a2": "You choose when you sign up: start the free trial, or pay with your application by bank transfer, uploading the receipt, or in cash. The Fawtir team checks your company and Peppol participant details, and your paid subscription starts only after your company is approved and your payment is confirmed.",
       "q3": "What counts as a document?",
-      "a3": "Every tax document you issue or receive: invoices, credit and debit notes, self-billed invoices, documents traded over Peppol and simplified invoices from the point of sale. Drafts, voided documents and documents that fail validation are not counted.",
+      "a3": "Every document your company issues: invoices, including simplified invoices from the point of sale, credit notes, debit notes and self-billed invoices. A document still counts if you cancel it later, and sending it again is free. Supplier invoices, credit notes and debit notes you receive count too, once each when they arrive, unless your plan does not count received documents. Drafts are not counted.",
       "q4": "What happens when I pass my allowance?",
-      "a4": "We tell you at {{thresholds}} percent of the allowance. Past it, each document costs the plan's overage rate, or you can move up a plan, which applies at once and is charged pro rata for the rest of the period.",
+      "a4": "We email you when you reach {{thresholds}} percent of the allowance. When none is left, you cannot issue documents, and supplier invoices you receive are held: you see that they are waiting, but cannot open them until you buy extra documents. Extra documents are bought ahead: by card they are added at once, by bank transfer or cash once Fawtir confirms the payment. They are used after your plan's own documents and end with your subscription month, with no carry-over and no refund. Your allowance resets each month on your subscription date. To move to a bigger plan, contact the Fawtir team and they will change it for you.",
       "q5": "Can I change or cancel my plan?",
-      "a5": "Any time. Upgrades apply immediately, downgrades take effect at the end of the current period. There are no setup fees and no minimum term. If a payment is missed you keep {{grace}} days of grace before the account goes read-only, and your records stay readable and exportable for the 10 years the law requires.",
+      "a5": "You can cancel any time, and your plan runs to the end of the period you paid for. To change your plan, contact the Fawtir team; a smaller plan starts from your next renewal. There are no setup fees and no minimum term. If a renewal is not paid, you keep {{grace}} days of grace before the account goes read-only, and your records stay readable and exportable for the 10 years the law requires.",
       "q6": "Is point of sale extra?",
       "a6": "No. Point of sale and thermal receipts are on every plan with no terminal charge. A POS receipt counts as one document against your allowance.",
       "q7": "Do prices include VAT?",
-      "a7": "No. Prices are shown exclusive of {{rate}}% VAT, which is added on your subscription invoice.",
+      "a7": "No. Prices are shown exclusive of {{rate}}% VAT, which is added to your subscription bill.",
+      "a7NoVat": "No VAT is added to Fawtir subscriptions, so the price shown is the amount on your subscription bill.",
       "q8": "What is different about Enterprise?",
       "a8": "Enterprise is Business Plus with limits agreed on a call: documents, people, branches and price are set for your contract, automatic ERP extraction is included, and an account manager looks after you. Talk to our team and we will put a proposal together.",
       "q9": "Which plan can connect my ERP?",
@@ -887,11 +892,11 @@
     "saveAnnualMonths_other": "Save {{count}} months on annual",
     "saveAnnualUpTo_one": "Save up to {{count}} month on annual",
     "saveAnnualUpTo_other": "Save up to {{count}} months on annual",
-    "trialNoteDays_one": "Every plan except Enterprise starts with a {{count}}-day free trial of the plan you pick, from the day your account is approved, and nothing to pay until it ends.",
-    "trialNoteDays_other": "Every plan except Enterprise starts with a {{count}}-day free trial of the plan you pick, from the day your account is approved, and nothing to pay until it ends.",
+    "trialNoteDays_one": "You can start any plan except Enterprise with a {{count}}-day free trial of that plan, from the day your account is approved, and nothing to pay until it ends.",
+    "trialNoteDays_other": "You can start any plan except Enterprise with a {{count}}-day free trial of that plan, from the day your account is approved, and nothing to pay until it ends.",
     "trialNotePlan_one": "{{plan}}, {{count}}-day trial",
     "trialNotePlan_other": "{{plan}}, {{count}}-day trial",
-    "trialNoteMixed": "Plans with a free trial start it from the day your account is approved, and nothing is paid until it ends: {{plans}}.",
+    "trialNoteMixed": "You can start these plans with a free trial, from the day your account is approved, and nothing to pay until it ends: {{plans}}.",
     "listSeparator": "; ",
     "perYear": "/year"
   },
@@ -944,6 +949,7 @@
       "transferNow": "Transfer the total shown to this account, then upload the receipt. It is held with your application: your subscription starts only after your company is approved and the Fawtir team has confirmed the transfer. If the application is finally refused, confirmed money is refunded.",
       "receiptPick": "Choose or drop the receipt",
       "receiptRequired": "Upload the transfer receipt to continue.",
+      "receiptRefused": "We could not accept this receipt. Use a PDF, PNG or JPEG file, and check the bank reference.",
       "referenceLabel": "Transfer reference",
       "referenceRequired": "Enter the reference your bank gave the transfer.",
       "received": "Receipt received (reference {{reference}}). The Fawtir team checks it after you submit.",
@@ -965,7 +971,7 @@
       "renewSuffix": ", access continues to the end of the period.",
       "addonLine": "Automatic ERP extraction ({{cycle}})",
       "firstBill": "First bill",
-      "firstBillNote": "Your first bill comes {{when}}, and we remind you before. ",
+      "firstBillNote": "When your free trial ends, choose how to pay to keep using Fawtir. We remind you 3 days before it ends, in the app and by email. ",
       "loading": "Loading…",
       "unavailable": "Not available yet",
       "monthlyPrice": "Monthly price {{rate}}",
@@ -976,7 +982,8 @@
       "months_one": "{{count}} month",
       "months_other": "{{count}} months",
       "payNowTotal": "Total to pay",
-      "payNowNote": "Your paid period starts on the day your account is activated, never earlier. "
+      "payNowNote": "Your paid period starts on the day your account is activated, never earlier. ",
+      "seller": "Seller: {{name}}"
     },
     "method": {
       "cardLink": {
@@ -996,7 +1003,8 @@
       "noteHosted": "Once your account is approved, you pay your bill on Paymob's secure checkout page. Your card is entered there, never on Fawtir."
     },
     "cash": {
-      "noteSignup": "Continue, and the Fawtir team contacts you to collect the payment in cash, with a receipt. The payment stays pending until the cash is collected and verified. Your subscription starts only after your company is approved and the cash is confirmed."
+      "noteSignup": "Continue, then pay the total in cash at Fawtir's office and keep the receipt. The payment stays pending until Fawtir has confirmed it. Your subscription starts only after your company is approved and the cash payment is confirmed.",
+      "received": "Fawtir has received and confirmed your cash payment."
     },
     "addon": {
       "title": "Add-on",
@@ -1253,7 +1261,7 @@
       "awaiting": "No answer yet"
     },
     "quota": {
-      "title": "Invoice quota",
+      "title": "Documents this period",
       "used": "used",
       "periodEnds": "Period ends {{date}}"
     },
@@ -10012,7 +10020,7 @@
       "planPill": "Overage off",
       "planFoot": "Business plan · resets {{date}}",
       "billsTitle": "Bills and payment",
-      "billsBody": "Every invoice Fawtir has sent you, and how you pay them.",
+      "billsBody": "Every bill Fawtir has sent you for your subscription, and how you pay them.",
       "billsPill": "Paid up",
       "billsFoot": "{{method}}",
       "logTitle": "Activity log",
@@ -10769,7 +10777,7 @@
     "title": "Plan and usage",
     "subtitle": "What you're paying for, how much of it you've used, and what happens if you run out",
     "billsAndPayment": "Bills and payment",
-    "invoicesThisMonth": "Documents this month",
+    "invoicesThisMonth": "Documents this period",
     "runOutHeadline": "You'll run out around {{date}}",
     "comfortableHeadline": "You have room to the end of the month",
     "runOutBody": "You're raising about <b>{{perDay}} a day</b> and there are <b>{{days}} days left</b> in the month. That's roughly <b>{{short}} more than you have</b>. Overage is switched off, so the invoices after {{allowance}} would be <b>refused rather than charged for</b>.",
@@ -10808,7 +10816,7 @@
       "noApi": "No API access",
       "api": "API and webhooks",
       "prioritySupport": "Priority support",
-      "overage": "OMR {{amount}} per invoice over the quota",
+      "overage": "Extra documents, bought ahead: OMR {{amount}} each",
       "noOverage": "Invoicing stops at the quota",
       "everythingIn": "Everything in {{plan}}, plus",
       "extraction": "{{name}}: {{availability}}"
@@ -10962,7 +10970,7 @@
     "overageSwitch": "Switch overage on or off",
     "byBranchUnavailable": "By branch: not available yet",
     "plansTitle": "Plans",
-    "changeRule": "Moving up applies straight away. Moving down applies from your next renewal.",
+    "changeRule": "To change your plan, contact the Fawtir team. Moving down applies from your next renewal.",
     "changeNotAvailable": "Changing the plan from here is not available yet.",
     "thisIsYours": "This is the plan you're on now.",
     "moreAMonth": "<b>OMR {{amount}} more</b> a month than your plan.",
@@ -10970,7 +10978,7 @@
   },
   "bills": {
     "title": "Bills and payment",
-    "subtitle": "Every invoice Fawtir has sent you, and how you pay them",
+    "subtitle": "Every bill Fawtir has sent you for your subscription, and how you pay them",
     "planAndUsage": "Plan and usage",
     "downloadAll": "Download them all",
     "yourNextBill": "Your next bill",
@@ -10986,7 +10994,7 @@
       "extraPeopleSome": "{{count}} beyond the five included",
       "overage": "Documents beyond the plan",
       "overageOff": "Overage is switched off, so nothing can accrue here",
-      "overageOn": "Charged at OMR {{rate}} each past the allowance",
+      "overageOn": "Nothing is charged past the allowance: extra documents are bought ahead at OMR {{rate}} each",
       "extraBranches": "Extra branches",
       "extraBranchesNone": "None beyond the {{included}} included",
       "extraBranchesSome_one": "{{count}} beyond the {{included}} included, at OMR {{each}} a month",
@@ -11003,7 +11011,7 @@
     "makeDefault": "Make default",
     "addAnotherCard": "Add another card",
     "addAnotherCardNote": "Kept as a fallback if the first is declined",
-    "billingDetails": "Billing details on your invoices",
+    "billingDetails": "Billing details on your bills",
     "change": "Change",
     "pastBills": "Past bills",
     "downloadTheYear": "Download the year",
@@ -11040,9 +11048,9 @@
     },
     "methodHint": {
       "cardLink": "Paymob checkout · nothing stored with us",
-      "bankTransfer": "Bank Muscat · quote the invoice number",
+      "bankTransfer": "{{bank}} · quote the bill number",
       "cash": "At Fawtir's office or to your representative",
-      "cheque": "Made out to Insight Technology LLC"
+      "cheque": "Made out to {{seller}}"
     },
     "confirmedBy": {
       "fawtir": "Confirmed by the Fawtir team {{date}}",
@@ -11058,9 +11066,9 @@
       "linkSentNow": "Link sent by {{to}}. Valid {{days}} days. Nothing is charged until you pay it.",
       "payNow": "Send the link now",
       "next": {
-        "bankTransfer": "Transfer the amount to the account on the right, quoting the invoice number. The Fawtir team activates the next period once it arrives, usually within a business day.",
+        "bankTransfer": "Transfer the amount to the account on the right, quoting the bill number. The Fawtir team activates the next period once it arrives, usually within a business day.",
         "cash": "Pay at Fawtir's office or to your representative. You get a receipt, and the Fawtir team activates the next period once it is recorded, usually the same day.",
-        "cheque": "Hand a cheque made out to Insight Technology LLC to your representative. The period is activated once it clears."
+        "cheque": "Hand a cheque made out to {{seller}} to your representative. The period is activated once it clears."
       },
       "linkTitle": "Card by secure link",
       "linkNote": "A Paymob link comes by {{to}} a week before each bill, valid {{days}} days. Fawtir never sees or stores your card.",
@@ -12528,7 +12536,9 @@
       "erpRequests": "Add-on requests",
       "policies": "Validation policies",
       "payments": "Subscription payments",
-      "bankAccounts": "Bank account"
+      "bankAccounts": "Bank account",
+      "billingSettings": "Billing settings",
+      "seller": "Seller"
     },
     "user": {
       "team": "Fawtir team",
@@ -12884,10 +12894,12 @@
         "reject": "Reject registration",
         "verifyTitle": "Verify {{name}}?",
         "verifyBody": "The company's account is activated, the registrant can sign in, and they get an email.",
+        "paymentNotConfirmed": "The payment with this application is not confirmed yet. The paid subscription starts only when it is.",
         "verifyConfirm": "Verify",
         "verifying": "Verifying…",
         "rejectTitle": "Reject this registration?",
         "rejectBody": "The registrant gets the registration back to correct, with an email naming the reason.",
+        "rejectBodyFinal": "The application closes and cannot be resubmitted. The registrant gets an email with the reason. Any payment Finance has confirmed goes to a refund case.",
         "reason": "Reason",
         "reasonPlaceholder": "Choose a reason",
         "reasonRequired": "Choose a reason.",
@@ -12901,6 +12913,8 @@
         "staleEvidence": "The company changed after this evidence was filed. Reload it and upload the evidence again.",
         "verified": "Company verified. The registrant can now sign in.",
         "rejected": "Registration rejected. The registrant has it back to correct.",
+        "rejectedFinal": "Registration rejected and the application closed.",
+        "refundOpened": "A refund case was opened for the confirmed payment.",
         "classification": "Can the company correct this?",
         "classificationOption": {
           "CORRECTABLE": {
@@ -12909,7 +12923,7 @@
           },
           "FINAL": {
             "title": "Final",
-            "body": "The application closes and cannot be resubmitted. Money Finance has confirmed goes to a refund case."
+            "body": "The application closes and cannot be resubmitted. Any payment Finance has confirmed goes to a refund case."
           }
         },
         "finalReason": "Why this is final",
@@ -13020,7 +13034,7 @@
         "extraPersonHint": "Leave empty to make the people count a hard limit.",
         "branchesIncluded": "Branches included",
         "branchesHint": "Leave empty for unlimited branches.",
-        "overagePrice": "Price per invoice over the quota",
+        "overagePrice": "Price per extra document",
         "overageHint": "Leave empty if overage is not offered.",
         "sortOrder": "Position in the list",
         "sortOrderHint": "Lower numbers come first.",
@@ -13545,7 +13559,7 @@
         "people": "People",
         "branches": "Branches",
         "ofAllowance": "{{used}} of {{allowance}}",
-        "overageOn": "Overage on: documents past the allowance are billed at the plan's rate",
+        "overageOn": "Overage on: past the allowance, the company buys extra documents ahead at the plan's rate; nothing is billed after the fact",
         "overageOff": "Overage off: filing stops at the allowance",
         "grant": "+{{documents}} granted until {{date}}: {{reason}}"
       },
@@ -13899,7 +13913,10 @@
         "invoiceSeries": "Subscription invoice series prefix",
         "invoiceSeriesHint": "Its own series, separate from tenant documents: {{prefix}}-000123.",
         "pricesExclusive": "Prices shown exclusive of VAT",
-        "pricesExclusiveNote": "Plan prices are shown without VAT; the tax is added on the subscription invoice."
+        "pricesExclusiveNote": "Plan prices are shown without VAT; the tax is added on the subscription invoice.",
+        "vatMoved": "VAT on subscription bills",
+        "vatMovedNote": "Switched on or off, with its rate, on Console › Billing settings. Bills use that setting.",
+        "vatMovedValue": "Billing settings"
       },
       "counting": {
         "kind": "Document kind",
@@ -14990,7 +15007,7 @@
     },
     "billing": {
       "title": "Subscription payments",
-      "subtitle": "Bank transfers and cash waiting for a decision. Nobody approves a payment they submitted or recorded, and above the threshold a second person approves.",
+      "subtitle": "Bank transfers and cash waiting for a decision. Nobody approves a payment they submitted or recorded. Above the threshold a bank transfer needs a second person, and cash is confirmed again by the person who verified it.",
       "loading": "Loading payments",
       "empty": "No payments are waiting.",
       "open": "Open",
@@ -15005,6 +15022,7 @@
         "SUBMITTED": "Submitted",
         "RECEIPT_RECORDED": "Receipt recorded",
         "AWAITING_SECOND_APPROVAL": "Needs 2nd approval",
+        "AWAITING_SECOND_APPROVAL_CASH": "Needs confirming again",
         "CONFIRMED": "Confirmed",
         "REJECTED": "Rejected",
         "WITHDRAWN": "Withdrawn",
@@ -15013,11 +15031,14 @@
       "receipt": "Cash receipt",
       "threshold": "Approval threshold",
       "secondNeeded": "Above the threshold: a second approver is required",
+      "secondNeededCash": "Above the threshold: the verifier confirms it a second time",
       "secondNotNeeded": "At or below the threshold: one verifier",
       "rejection": "Rejected because",
       "proof": "Download receipt",
       "verify": "Verify payment",
       "approveSecond": "Give second approval",
+      "confirmAgain": "Confirm again",
+      "confirmAgainNote": "This payment is above {{amount}} OMR. Confirm again.",
       "reject": "Reject payment",
       "rejectReason": "Reason for rejecting (the customer sees it)",
       "history": "History",
@@ -15032,10 +15053,12 @@
         "amountWrong": "Enter the amount in rials, up to three decimals, such as 52.500.",
         "on": "Received on",
         "time": "Time received, Muscat",
-        "timeWrong": "Enter the time as hours and minutes, such as 14:30."
+        "timeWrong": "Enter the time as hours and minutes, such as 14:30.",
+        "refused": "The receipt was not recorded: the time received cannot be later than now, and the amount must be more than zero. Check them and record it again."
       },
       "done": {
         "proof": "The receipt was downloaded. The download is recorded.",
+        "confirmedAgain": "Confirmed again.",
         "verified": "Payment verified.",
         "approved": "Second approval given. The bill is paid.",
         "recorded": "Cash receipt recorded. Another person must now verify it.",
@@ -15050,9 +15073,16 @@
         "CASH_RECEIPT_RECORDED": "Cash receipt recorded",
         "PAYMENT_VERIFIED": "Payment verified",
         "PAYMENT_SECOND_APPROVED": "Second approval given",
+        "PAYMENT_CONFIRMED_AGAIN": "Confirmed again",
         "PAYMENT_CONFIRMED": "Payment confirmed",
         "PAYMENT_REJECTED": "Payment rejected",
-        "PROOF_READ": "Receipt downloaded"
+        "PROOF_READ": "Receipt downloaded",
+        "CARD_CHECKOUT_OPENED": "Card checkout opened",
+        "CARD_CHECKOUT_CLOSED": "Card checkout closed",
+        "PAYMENT_REVERSAL_RECORDED": "Payment reversal recorded",
+        "SIGNUP_FUNDS_VERIFIED": "Sign-up payment verified",
+        "SIGNUP_PAYMENT_ALLOCATED": "Sign-up payment applied to the first bill",
+        "REFUND_CASE_OPENED": "Refund case opened"
       },
       "refusal": {
         "payment-approver-not-independent": "You handled this payment, so someone else must approve it.",
@@ -15075,7 +15105,7 @@
       "title": "Bank account",
       "subtitle": "The account customers pay Fawtir into. Customers see it only after a second operator confirms it.",
       "loading": "Loading accounts",
-      "empty": "No account has been entered. Customers can't pay by bank transfer until one is confirmed.",
+      "empty": "No account has been entered. Enter Fawtir's account and have a second operator confirm it before any customer signs up: customers need it to pay by bank transfer.",
       "status": {
         "PENDING_CONFIRMATION": "Needs confirmation",
         "ACTIVE": "Shown to customers",
@@ -15094,6 +15124,70 @@
       "retireConfirm": "This is the account customers pay into. Retiring it stops bank transfer for every customer until another account is confirmed.",
       "keep": "Keep it",
       "retireNow": "Retire the account"
+    },
+    "billingSettings": {
+      "title": "Billing settings",
+      "subtitle": "Grace, second approval, VAT and renewal timing for subscription bills. Every change is kept with its reason.",
+      "loading": "Loading settings",
+      "card": "Subscription billing",
+      "cardNote": "Applies to bills issued from now on. Bills already issued keep their figures.",
+      "graceDays": "Grace days",
+      "graceDaysHint": "Days a bill can stay unpaid after its due date, 0 to 60.",
+      "leadDays": "Renewal bill, days ahead",
+      "leadDaysHint": "How many days before paid time runs out the renewal bill is prepared, 0 to 60.",
+      "threshold": "Second approver above",
+      "thresholdHint": "Above this amount, a bank transfer needs a second operator to approve it, and cash is confirmed again by the operator who verified it.",
+      "vat": "Charge VAT on subscription bills",
+      "vatNote": "Off: bills carry no VAT and show no VAT line. On: the rate below is added to every new bill.",
+      "vatRate": "VAT rate",
+      "vatRateHint": "A percentage above 0 and below 100, up to three decimals.",
+      "reason": "Why this change",
+      "lastChange": "Last changed: {{reason}} · {{when}}",
+      "readOnly": "Only an operator who manages billing can change these.",
+      "error": {
+        "amount": "An amount of 0 or more, up to three decimals",
+        "percent": "Above 0 and below 100, up to three decimals"
+      },
+      "refusal": {
+        "conflict": "Someone else changed these settings while you were editing. They have been reloaded: check them and save again.",
+        "invalid": "The server did not accept these values. Check them and try again.",
+        "realm": "Billing settings are changed from the production console only.",
+        "impersonation": "End the impersonation before changing billing settings."
+      }
+    },
+    "seller": {
+      "title": "Seller",
+      "subtitle": "The company named as seller on every subscription bill. A bill keeps the seller in force when it was issued.",
+      "loading": "Loading the seller",
+      "none": "No seller has been entered yet. Bills issued now name no seller.",
+      "card": "Seller details",
+      "cardNote": "Changes apply to bills issued from now on.",
+      "legalNameEn": "Legal name (English)",
+      "legalNameAr": "Legal name (Arabic)",
+      "legalType": "Legal form",
+      "legalTypeHint": "Optional. For example Sole Proprietor Company (SPC).",
+      "crNumber": "Commercial registration number",
+      "tin": "Tax identification number",
+      "vatNumber": "VAT number",
+      "vatNumberHint": "Leave empty when the seller is not VAT registered. OM followed by 10 digits.",
+      "addressEn": "Address (English)",
+      "addressAr": "Address (Arabic)",
+      "optional": "Optional",
+      "reason": "Why this change",
+      "history": "Earlier versions",
+      "version": "Version {{version}}",
+      "historyFailed": "The earlier versions could not be loaded.",
+      "error": {
+        "digits": "Digits only, up to 20",
+        "vatNumber": "OM followed by 10 digits"
+      },
+      "refusal": {
+        "conflict": "Someone else changed the seller while you were editing. It has been reloaded: check it and save again.",
+        "invalid": "The server did not accept these details. Check them and try again."
+      },
+      "crShort": "CR {{number}}",
+      "tinShort": "TIN {{number}}",
+      "vatShort": "VAT {{number}}"
     }
   },
   "shell": {
@@ -15321,7 +15415,20 @@
         }
       }
     },
-    "unreadable": "Reminders could not be read. Reload to try again."
+    "unreadable": "Reminders could not be read. Reload to try again.",
+    "subscription": {
+      "trialEnding": {
+        "title": "Your free trial ends on {{date}}.",
+        "body": "Choose a plan to keep issuing documents and open the ones you receive."
+      },
+      "grace": {
+        "title": "Your subscription ended on {{ended}} and the renewal is unpaid.",
+        "body": "Pay it by {{until}} to keep issuing documents and open the ones you receive.",
+        "bodyNoDate": "Pay the bill to keep issuing documents and open the ones you receive."
+      },
+      "choosePlan": "Choose a plan",
+      "payBill": "Pay the bill"
+    }
   },
   "onboarding": {
     "sessionExpired": "Your signup session has ended. Your answers are saved: continue your registration with a new code sent to your email.",
@@ -15330,11 +15437,15 @@
     "paymentPreferenceRequired": "Choose how you'll pay before you submit.",
     "paymentNotApplicable": "Enterprise terms are agreed on a call, so there is no payment method to choose. Go back to the plans to pick a different one.",
     "signupPaymentRequired": "Attach the transfer receipt on the payment step before submitting. If your payment is being refunded, contact Fawtir.",
+    "paymentStateConflict": "Fawtir is already checking the payment for this application, so it cannot be changed.",
     "applicationClosed": "The Fawtir team closed this application, so it cannot be submitted again. Contact Fawtir."
   },
   "signupReview": {
     "title": "Review and submit",
     "description": "Check your details before you submit. A member of our team then reviews your registration, and it can’t be changed while that review is under way.",
+    "sentBack": "The Fawtir team sent your registration back. {{reason}} Correct it and submit it again by {{date}}.",
+    "sentBackNoDate": "The Fawtir team sent your registration back. {{reason}} Correct it and submit it again.",
+    "paymentKept": "Your payment is kept, and you will not be charged again.",
     "sections": {
       "business": "Your business",
       "identity": "Business identity",
@@ -15353,8 +15464,11 @@
       "firstBill": "First bill",
       "terms": "Terms",
       "firstBillAmount": "First bill, VAT included",
+      "firstBillAmountNoVat": "First bill amount",
       "startsOn": "Subscription starts",
-      "paidNow": "Paid with this application, VAT included"
+      "paidNow": "Paid with this application, VAT included",
+      "paidNowNoVat": "Paid with this application",
+      "seller": "Seller"
     },
     "edit": "Edit",
     "savedEarlier": "Saved earlier",
@@ -15368,7 +15482,7 @@
     "billedAnnually": "billed annually",
     "payment": {
       "bankTransfer": "Bank transfer, receipt attached",
-      "cash": "Cash, collected by the Fawtir team",
+      "cash": "Cash, paid at Fawtir's office",
       "card": "Card, on Paymob's secure checkout",
       "trial_one": "Free trial ({{count}} day), no payment now",
       "trial_other": "Free trial ({{count}} days), no payment now"
@@ -15395,7 +15509,15 @@
     },
     "rejected": {
       "correct": "Correct your registration"
-    }
+    },
+    "closed": {
+      "title": "This application was closed",
+      "reason": "The Fawtir team closed it: {{reason}}",
+      "final": "It cannot be corrected or submitted again.",
+      "refund": "Fawtir will contact you about returning your payment.",
+      "contact": "If you have any questions, contact Fawtir support."
+    },
+    "reasonOther": "See the email Fawtir sent you."
   },
   "operatorInvitation": {
     "title": "Join the Fawtir team",
@@ -17983,6 +18105,18 @@
           "platformUnavailable": {
             "title": "Fawtir could not open the connection's stored sign-in details.",
             "body": "Nothing was fetched or processed. This is on Fawtir's side; try again later, and contact support if it continues."
+          },
+          "subscriptionNotStarted": {
+            "title": "Your subscription hasn't started yet.",
+            "body": "Documents can be recovered once it starts, when your company is approved and your payment is confirmed."
+          },
+          "subscriptionSuspended": {
+            "title": "Your subscription is suspended.",
+            "body": "Pay the open bill in Settings, under Bills and payment, to recover documents again."
+          },
+          "subscriptionCancelled": {
+            "title": "Your subscription has ended.",
+            "body": "Choose a plan in Settings, under Plan and usage, to recover documents again."
           }
         }
       }
@@ -18324,6 +18458,16 @@
       "supplierIsicMissing": "This supplier has no business activity (ISIC code) on its record. A self-billed document carries the supplier's activity, not yours. In Self-billing, Agreements, choose Set business activity from the agreement's menu, then issue.",
       "supplierIsicAction": "Go to agreements",
       "supplierSwitchedOff": "This supplier is switched off. Switch it back on, then issue."
+    },
+    "subscriptionRestricted": {
+      "notStarted": "Your subscription hasn't started yet, so this isn't available. It starts when your company is approved and your payment is confirmed. Your bill is in Settings, under Bills and payment.",
+      "suspended": "Your subscription is suspended, so this isn't available. Pay the open bill in Settings, under Bills and payment, to continue. You can still view, download and export every record.",
+      "cancelled": "Your subscription has ended, so this isn't available. Choose a plan in Settings, under Plan and usage, to continue. You can still view, download and export every record.",
+      "generic": "Your subscription is read-only, so this isn't available now. You can still view, download and export every record.",
+      "action": {
+        "bills": "Go to Bills and payment",
+        "plan": "Choose a plan"
+      }
     }
   },
   "appAccess": {
@@ -20656,7 +20800,6 @@
         "lead": "Everything,",
         "em": "compared"
       },
-      "each": "About {{amount}} a document",
       "limits": {
         "documents": "{{documents}} documents a month",
         "people_one": "{{count}} person",
@@ -21039,7 +21182,8 @@
       "ACTIVE": "Active",
       "GRACE": "Grace period",
       "PAYMENT_REQUIRED": "Payment required",
-      "CANCELLED": "Ended"
+      "CANCELLED": "Ended",
+      "NOT_STARTED": "Not started"
     },
     "notice": {
       "notTracked": "Fawtir manages this subscription for you. Contact Fawtir about renewal or changes.",
@@ -21049,7 +21193,9 @@
       "paymentRequiredBilling": "Payment is due. Your issued invoices, reports and exports stay available. Pay the bill below using one of the ways shown.",
       "paymentRequiredPlan": "Payment is due. Your issued invoices, reports and exports stay available. Pay the bill in Settings › Bills and payment.",
       "cancelled": "Your subscription ended on {{date}}. Your issued invoices and reports stay available to read and export.",
-      "cancelScheduled": "Your subscription ends on {{date}} and will not renew."
+      "cancelScheduled": "Your subscription ends on {{date}} and will not renew.",
+      "notStartedBilling": "Your subscription has not started yet. It starts when Fawtir has confirmed your payment. Your records stay available to read, download and export.",
+      "notStartedPlan": "Your subscription has not started yet. It starts when Fawtir has confirmed your payment; Settings › Bills and payment shows where it stands. Your records stay available to read, download and export."
     },
     "cycle": {
       "MONTHLY": "Monthly",
@@ -21106,7 +21252,8 @@
       "subtotal": "Subscription",
       "vat": "VAT {{rate}}",
       "total": "Total",
-      "notTaxInvoice": "This is a statement of your subscription charge, not a tax invoice."
+      "notTaxInvoice": "This is a statement of your subscription charge, not a tax invoice.",
+      "seller": "Seller: {{name}}"
     },
     "billStatus": {
       "OPEN": "Waiting for payment",
@@ -21118,11 +21265,11 @@
     "method": {
       "BANK_TRANSFER": {
         "title": "Bank transfer",
-        "body": "Transfer the total to Fawtir's account, then send us the receipt."
+        "body": "Transfer the total to the account shown, then send us the receipt."
       },
       "CASH": {
         "title": "Cash",
-        "body": "Ask us to collect the payment in cash."
+        "body": "Pay the total in cash at Fawtir's office."
       },
       "CARD": {
         "title": "Pay by card",
@@ -21147,20 +21294,20 @@
       "submit": "Send for checking"
     },
     "cash": {
-      "instructions": "We will contact you to arrange collection. Your bill stays open until we have received the cash and checked it.",
-      "submit": "Ask for cash collection"
+      "instructions": "Pay the total in cash at Fawtir's office. Your bill stays open until Fawtir has confirmed the cash payment.",
+      "submit": "I will pay in cash"
     },
     "note": "Note for Fawtir (optional)",
     "waiting": {
       "BANK_TRANSFER": {
-        "SUBMITTED": "Pending verification by Fawtir Finance. We have your transfer receipt; the bill is paid once Finance has checked it against our bank account.",
-        "RECEIPT_RECORDED": "Pending verification by Fawtir Finance. We have your transfer receipt and are checking it.",
-        "AWAITING_SECOND_APPROVAL": "Pending verification by Fawtir Finance. Your transfer has been checked and is waiting for a second approval."
+        "SUBMITTED": "Pending verification by Fawtir. We have your transfer receipt; the bill is paid once Fawtir has checked it against our bank account.",
+        "RECEIPT_RECORDED": "Pending verification by Fawtir. We have your transfer receipt and are checking it.",
+        "AWAITING_SECOND_APPROVAL": "Pending verification by Fawtir. Your transfer has been checked and is waiting for a second approval."
       },
       "CASH": {
-        "SUBMITTED": "Your cash collection request is with Fawtir. We will contact you to collect it.",
+        "SUBMITTED": "Your cash payment is with Fawtir and is being confirmed. The bill is paid once it is confirmed. Please do not pay again.",
         "RECEIPT_RECORDED": "Fawtir has recorded your cash payment and is checking it.",
-        "AWAITING_SECOND_APPROVAL": "Your cash payment has been checked and is waiting for a second approval at Fawtir."
+        "AWAITING_SECOND_APPROVAL": "Your cash payment has been checked and is waiting for a final confirmation at Fawtir."
       }
     },
     "withdraw": "Withdraw this payment",
@@ -21192,7 +21339,7 @@
       "notStarted": "The card payment was not completed. Check your payment status before trying again.",
       "notForThisBill": "This bill can't be paid by card. Please use bank transfer or cash.",
       "notRepresentable": "This bill can't be paid by card. Please use bank transfer or cash. Bill total:",
-      "underReviewBill": "A card payment for this bill is being reviewed. Please don't pay again; Fawtir Finance will contact you.",
+      "underReviewBill": "A card payment for this bill is being reviewed. Please don't pay again; Fawtir will contact you.",
       "switchedOff": "Card payment isn't available right now. Please use bank transfer or cash.",
       "contactMissing": "Add your company's contact person, e-mail and phone before paying by card.",
       "contactMissingLink": "Open Company profile",
@@ -21203,10 +21350,16 @@
         "PROCESSING": "Pending confirmation from the card provider. This usually takes a moment.",
         "PAID": "Paid. Thank you.",
         "NOT_COMPLETED": "The card payment was not completed. Check your payment status before trying again.",
-        "UNDER_REVIEW": "We received a card payment we need to check. Fawtir Finance will contact you; please don't pay again.",
-        "REVERSED": "This card payment was refunded. Fawtir Finance will contact you about this bill."
+        "UNDER_REVIEW": "We received a card payment we need to check. Fawtir will contact you; please don't pay again.",
+        "REVERSED": "This card payment was refunded. Fawtir will contact you about this bill."
       }
-    }
+    },
+    "signupWaiting": {
+      "BANK_TRANSFER": "Your transfer is being checked. Fawtir has the bank transfer receipt you sent when you signed up, and your subscription starts once Fawtir has confirmed it. Please do not pay again.",
+      "CASH": "Your cash payment is with Fawtir and is being confirmed. Your subscription starts once it is confirmed. Please do not pay again.",
+      "CARD": "Your card payment from sign-up is with Fawtir. Your subscription starts once Fawtir has confirmed it. Please do not pay again."
+    },
+    "signupConfirmed": "Your payment from sign-up is confirmed. Your subscription starts when Fawtir activates your company."
   },
   "permissionLabel": {
     "pair": "{{group}}: {{action}}",
@@ -21287,5 +21440,21 @@
     "body": "Bill {{number}} for",
     "activation": "Pay it to activate your subscription. Your plan becomes active once the Fawtir team confirms the payment.",
     "cta": "Pay your bill"
+  },
+  "companyInvitation": {
+    "title": "Join your company on Fawtir",
+    "description": "Choose the username and password you will sign in with. The address this invitation was sent to stays your sign-in email.",
+    "done": {
+      "title": "Your account is ready",
+      "body": "Sign in with your new username and password. Your administrator chose your role when they invited you."
+    },
+    "missing": {
+      "title": "This link is incomplete",
+      "body": "Open the invitation link from your email again. For your security the link is read once and then removed from the address bar."
+    },
+    "spent": {
+      "title": "This invitation can’t be used",
+      "body": "The link is invalid, has expired, or was already used. Ask your company’s administrator to send a new invitation."
+    }
   }
 }

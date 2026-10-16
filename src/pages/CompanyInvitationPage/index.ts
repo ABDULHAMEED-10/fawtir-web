@@ -1,0 +1,1 @@
+export { CompanyInvitationPage } from './CompanyInvitationPage'

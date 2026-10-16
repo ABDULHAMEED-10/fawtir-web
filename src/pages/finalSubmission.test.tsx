@@ -196,6 +196,61 @@ describe('Review and submit', () => {
     expect(readOnboardingSession()?.submitted).toBe(true)
   })
 
+  it('a submission refused because the application was closed goes to the closed screen', async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url.endsWith('/final-submission')
+        ? json(409, { type: 'https://api.fawtir.om/problems/signup-application-closed', detail: 'Closed.' })
+        : status('REJECTED', { submitted: true, verificationStatus: 'REJECTED', closed: true, rejectionReason: null }),
+    )
+    renderAt('/signup-review', COMPLETE)
+    await userEvent.setup({ delay: null }).click(submit())
+
+    expect(await screen.findByText(i18n.t('signupPending.closed.title'))).toBeTruthy()
+    expect(readOnboardingSession()?.submitted).toBe(true)
+  })
+
+  it('on a server without the closed field, a closed refusal is said on the page, with no way round', async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url.endsWith('/final-submission')
+        ? json(409, { type: 'https://api.fawtir.om/problems/signup-application-closed', detail: 'Closed.' })
+        : status('READY_FOR_SUBMISSION', { verificationStatus: 'REJECTED' }),
+    )
+    renderAt('/signup-review', COMPLETE)
+    await userEvent.setup({ delay: null }).click(submit())
+
+    expect(await screen.findByText(i18n.t('onboarding.applicationClosed'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('signupReview.title'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('signupPending.closed.title'))).toBeNull()
+    expect(screen.queryByRole('button', { name: i18n.t('signupPending.rejected.correct') })).toBeNull()
+    expect(readOnboardingSession()?.submitted).not.toBe(true)
+  })
+
+  it('a draft sent back for correction says why and by when, and that the payment is kept', () => {
+    renderAt('/signup-review', {
+      ...COMPLETE,
+      rejectionReason: 'TAX_IDENTITY_EVIDENCE_MISSING',
+      correctableUntil: '2026-10-28',
+      paymentKept: true,
+    })
+    const reason = `${i18n.t('console.verification.detail.reason.TAX_IDENTITY_EVIDENCE_MISSING')}.`
+    const line = screen.getByRole('status')
+    expect(line.textContent).toBe(
+      `${i18n.t('signupReview.sentBack', { reason, date: '28 Oct 2026' })} ${i18n.t('signupReview.paymentKept')}`,
+    )
+    expect(line.textContent).not.toContain('..')
+  })
+
+  it('without a deadline from the server, the sent-back line ends at "submit it again"', () => {
+    renderAt('/signup-review', { ...COMPLETE, rejectionReason: 'COMPANY_PROFILE_MISMATCH' })
+    const reason = `${i18n.t('console.verification.detail.reason.COMPANY_PROFILE_MISMATCH')}.`
+    expect(screen.getByRole('status').textContent).toBe(i18n.t('signupReview.sentBackNoDate', { reason }))
+  })
+
+  it('a draft never sent back shows no sent-back line', () => {
+    renderAt('/signup-review', COMPLETE)
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
   it('shows a free-trial choice as the trial with no payment, and the first bill after it', () => {
     renderAt('/signup-review', { ...COMPLETE, enrollment: 'trial', paymentMethod: undefined })
     expect(valueOf('signupReview.fields.payment')).toBe(
@@ -241,6 +296,40 @@ describe('Review and submit', () => {
     ])
     // The portal request comes after Fawtir's review, so it is not offered yet.
     expect(screen.queryByText(i18n.t('fawtaraStatus.openPortal'))).toBeNull()
+  })
+
+  it('says no "VAT included" when the seller charges none, and names the seller as /payment did', () => {
+    const noVat = {
+      ...COMPLETE,
+      planTerms: { ...COMPLETE.planTerms!, vatRate: '0', vatAmount: '0.000', amountInclVat: '800.000' },
+      seller: {
+        legalNameEn: 'Thumb International SPC',
+        legalNameAr: 'الإبهام العالمية ش ش و',
+        crNumber: '1234567',
+        taxIdentificationNumber: null,
+        vatNumber: null,
+        addressEn: 'Muscat',
+        addressAr: null,
+      },
+    }
+    renderAt('/signup-review', noVat)
+    expect(valueOf('signupReview.fields.paidNowNoVat')).toBe('800.000')
+    expect(screen.queryByLabelText(i18n.t('signupReview.fields.paidNow'))).toBeNull()
+    expect(valueOf('signupReview.fields.seller')).toBe('Thumb International SPC')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('labels a trial first bill without VAT when none is charged', () => {
+    renderAt('/signup-review', {
+      ...COMPLETE,
+      enrollment: 'trial',
+      paymentMethod: undefined,
+      planTerms: { ...COMPLETE.planTerms!, vatRate: '0', vatAmount: '0.000', amountInclVat: '800.000' },
+    })
+    expect(valueOf('signupReview.fields.firstBillAmountNoVat')).toBe('800.000')
+    expect(screen.queryByLabelText(i18n.t('signupReview.fields.firstBillAmount'))).toBeNull()
+    // No seller was carried from /payment (a resumed draft): no seller line rather than a guess.
+    expect(screen.queryByLabelText(i18n.t('signupReview.fields.seller'))).toBeNull()
   })
 
   it('says the amount and trial are not known when the server sent none, and works out neither', () => {
@@ -531,6 +620,48 @@ describe('Waiting screen', () => {
       .setup({ delay: null })
       .click(screen.getByRole('button', { name: i18n.t('signupPending.rejected.correct') }))
     expect(await screen.findByText(i18n.t('signupReview.title'))).toBeTruthy()
+  })
+
+  it('a closed application says so, with the reason, the refund for confirmed money, and support', async () => {
+    fetchMock.mockResolvedValue(
+      status('REJECTED', {
+        submitted: true,
+        verificationStatus: 'REJECTED',
+        closed: true,
+        rejectionReason: 'COMPANY_PROFILE_MISMATCH',
+        signupPayment: { method: 'BANK_TRANSFER', status: 'FUNDS_VERIFIED', amount: '840.000', reference: 'T-1', hasProof: true },
+        refundDue: true,
+      }),
+    )
+    renderAt('/signup-pending')
+
+    expect(await screen.findByText(i18n.t('signupPending.closed.title'))).toBeTruthy()
+    const reason = `${i18n.t('console.verification.detail.reason.COMPANY_PROFILE_MISMATCH')}.`
+    expect(screen.getByText(i18n.t('signupPending.closed.reason', { reason }))).toBeTruthy()
+    expect(screen.getByText(i18n.t('signupPending.closed.final'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('signupPending.closed.refund'))).toBeTruthy()
+    expect(screen.getByRole('link', { name: i18n.t('signupPending.closed.contact') }).getAttribute('href')).toBe(
+      'mailto:support@fawtir.om',
+    )
+    expect(screen.queryByText(i18n.t('fawtaraStatus.rejected.title'))).toBeNull()
+    expect(screen.queryByRole('button', { name: i18n.t('signupPending.rejected.correct') })).toBeNull()
+    expect(readOnboardingSession()?.submitted).toBe(true)
+  })
+
+  it('a closed application promises no refund unless the server says one is due', async () => {
+    fetchMock.mockResolvedValue(
+      status('REJECTED', {
+        submitted: true,
+        verificationStatus: 'REJECTED',
+        closed: true,
+        rejectionReason: 'COMPANY_PROFILE_MISMATCH',
+        // Verified money, but no refundDue from the server: nothing is promised.
+        signupPayment: { method: 'BANK_TRANSFER', status: 'FUNDS_VERIFIED', amount: '840.000', reference: 'T-1', hasProof: true },
+      }),
+    )
+    renderAt('/signup-pending')
+    expect(await screen.findByText(i18n.t('signupPending.closed.title'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('signupPending.closed.refund'))).toBeNull()
   })
 
   it('shows a closed rejection without offering to edit', async () => {

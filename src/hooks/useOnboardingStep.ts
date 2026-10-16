@@ -14,9 +14,10 @@ import {
   SIGNUP_APPLICATION_CLOSED,
   SIGNUP_PAYMENT_PREFERENCE_REQUIRED,
   SIGNUP_PAYMENT_REQUIRED,
+  SIGNUP_PAYMENT_STATE_CONFLICT,
   SIGNUP_PLAN_REQUIRED,
-  allowedRoute,
   readSignupStatus,
+  routeForStatus,
 } from '../lib/identity/onboarding'
 import {
   endOnboardingSession,
@@ -29,7 +30,7 @@ const CHOICE_CONFLICTS: Partial<Record<string, string>> = {
   [SIGNUP_PAYMENT_PREFERENCE_REQUIRED]: 'onboarding.paymentPreferenceRequired',
   [SIGNUP_PAYMENT_NOT_APPLICABLE]: 'onboarding.paymentNotApplicable',
   [SIGNUP_PAYMENT_REQUIRED]: 'onboarding.signupPaymentRequired',
-  [SIGNUP_APPLICATION_CLOSED]: 'onboarding.applicationClosed',
+  [SIGNUP_PAYMENT_STATE_CONFLICT]: 'onboarding.paymentStateConflict',
   [PLAN_PRICE_CHANGED]: 'plans.priceChanged',
 }
 
@@ -42,6 +43,12 @@ type StepOptions<F extends string> = {
   serverFields?: ServerFieldMap<F>
   /** Shown for a `409` that is not a missing earlier step. */
   conflictKey?: string
+  /**
+   * A `409` whose `code` names the field it refuses (a VATIN or CR number already registered),
+   * answered under that field. Such a code is the step's own rule, never a missing earlier step,
+   * so the progress probe is skipped. Without a code the `409` falls back to `conflictKey`.
+   */
+  conflictFields?: Partial<Record<string, { field: F; key: string }>>
 }
 
 /**
@@ -68,10 +75,18 @@ export function useOnboardingStep<F extends string = never>(options: StepOptions
   const earlierStepThan = async (onboardingToken: string): Promise<string | null> => {
     try {
       const status = await readSignupStatus(onboardingToken)
-      const route = allowedRoute(status.stage, location.pathname)
+      const route = routeForStatus(status, location.pathname)
       return route === location.pathname ? null : route
     } catch {
       return null
+    }
+  }
+
+  const readsClosed = async (onboardingToken: string): Promise<boolean> => {
+    try {
+      return (await readSignupStatus(onboardingToken)).closed === true
+    } catch {
+      return false
     }
   }
 
@@ -83,12 +98,27 @@ export function useOnboardingStep<F extends string = never>(options: StepOptions
         setFormError({ key: 'onboarding.sessionExpired' })
         return unsaved
       }
+      // A closed application goes to the closed screen, but only when the status read says closed:
+      // a server without that field would show the waiting screen as reopened, which leads back here.
+      if (error.status === 409 && error.problemType === SIGNUP_APPLICATION_CLOSED) {
+        if (await readsClosed(onboardingToken)) {
+          markOnboardingSubmitted(true)
+          navigate(PENDING_ROUTE, { replace: true })
+        } else {
+          setFormError({ key: 'onboarding.applicationClosed' })
+        }
+        return { ...unsaved, conflict: SIGNUP_APPLICATION_CLOSED }
+      }
       // These name exactly what is missing, so they are answered before the generic "an earlier
       // step is missing" probe, which cannot tell a missing plan from a refused one.
       const named = error.status === 409 && error.problemType && CHOICE_CONFLICTS[error.problemType]
       if (named) {
         setFormError({ key: named })
         return { ...unsaved, conflict: error.problemType ?? undefined }
+      }
+      const onField = error.status === 409 && error.code ? options.conflictFields?.[error.code] : undefined
+      if (onField) {
+        return { saved: false, fieldErrors: { [onField.field]: onField.key } as Partial<Record<F, string>> }
       }
       if (error.status === 409) {
         const route = await earlierStepThan(onboardingToken)

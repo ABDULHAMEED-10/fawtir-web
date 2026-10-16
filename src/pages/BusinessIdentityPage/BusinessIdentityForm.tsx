@@ -41,6 +41,7 @@ import { isClean, type FieldError } from '../../lib/validation'
 import { candidateParticipantId } from '../../lib/peppolParticipant'
 
 const LOGO_TYPES = ['image/png', 'image/svg+xml']
+const IDENTIFIER_TAKEN = 'businessIdentity.identifierTaken'
 const LOGO_MAX_BYTES = 2 * 1024 * 1024
 
 type BusinessIdentityFormProps = {
@@ -70,13 +71,25 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
   const [errors, setErrors] = useState<Partial<Record<BusinessIdentityField | 'logo', FieldError>>>(
     {},
   )
-  const { save, submitting, formError } = useOnboardingStep<BusinessIdentityField>({
+  const { save, submitting, formError, setFormError } = useOnboardingStep<BusinessIdentityField>({
     serverFields: BUSINESS_IDENTITY_SERVER_FIELDS,
-    conflictKey: 'businessIdentity.identifierTaken',
+    conflictKey: IDENTIFIER_TAKEN,
+    // Backend #532 names which identifier is taken (G9); a server without the code, or the
+    // final-submission clash, still gets the combined message above.
+    conflictFields: {
+      TAX_NUMBER_ALREADY_REGISTERED: { field: 'vatin', key: 'businessIdentity.vatinTaken' },
+      COMMERCIAL_REGISTRATION_ALREADY_REGISTERED: { field: 'crNumber', key: 'businessIdentity.crTaken' },
+    },
   })
 
   const clearError = (field: BusinessIdentityField | 'logo') =>
     setErrors((current) => (current[field] ? { ...current, [field]: undefined } : current))
+
+  // The server's "already registered" answers the CR number and VATIN that were sent; once either
+  // is edited it no longer describes what is on screen and stayed beside the new field error (G6).
+  const clearIdentifierTaken = () => {
+    if (formError?.key === IDENTIFIER_TAKEN) setFormError(null)
+  }
 
   // Shown as `0248:` + the VAT number once that number is valid, never typed: it is a candidate
   // Fawtir reviews with the registration, where an OM12 group VATIN (Fawtara SP#6) or an ID
@@ -281,6 +294,7 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
               onChange={(e) => {
                 setCrNumber(e.target.value)
                 clearError('crNumber')
+                clearIdentifierTaken()
               }}
               error={errors.crNumber ? t(errors.crNumber) : undefined}
               leadingIcon={<HashIcon size={14} />}
@@ -329,6 +343,7 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
               onChange={(e) => {
                 setVatin(e.target.value.toUpperCase())
                 clearError('vatin')
+                clearIdentifierTaken()
               }}
               error={errors.vatin ? t(errors.vatin) : undefined}
               leadingIcon={<HashIcon size={14} />}

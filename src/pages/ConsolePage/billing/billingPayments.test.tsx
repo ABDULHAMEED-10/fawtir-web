@@ -50,6 +50,11 @@ function payment(over: Record<string, unknown> = {}) {
   }
 }
 
+const SECOND_APPROVED = {
+  id: 'e-1', paymentId: 'p-1', kind: 'PAYMENT_SECOND_APPROVED', details: {}, actorId: 'u-admin',
+  occurredAt: '2026-10-18T07:00:00Z',
+}
+
 /** The queue answers one page at a time (Phase 2.1). */
 function page(items: unknown[], nextCursor: string | null = null) {
   return { items, nextCursor }
@@ -130,7 +135,8 @@ describe('Console › Subscription payments', () => {
   it('names the four-eyes refusal when the same person tries to approve twice', async () => {
     const awaiting = payment({ status: 'AWAITING_SECOND_APPROVAL', verifiedBy: 'u-admin', requiresSecondApproval: true, thresholdApplied: '50.000' })
     answers[QUEUE] = () => json(200, page([{ payment: awaiting, bill: BILL, tenantName: 'Payments LLC' }]))
-    answers[`${QUEUE}/p-1`] = () => json(200, { payment: awaiting, bill: BILL, tenantName: 'Payments LLC', history: [] })
+    answers[`${QUEUE}/p-1`] = () =>
+      json(200, { payment: awaiting, bill: BILL, tenantName: 'Payments LLC', history: [SECOND_APPROVED] })
     answers[`POST ${QUEUE}/p-1/second-approval`] = () =>
       json(403, { type: 'https://api.fawtir.om/problems/payment-approver-not-independent' })
     const user = userEvent.setup({ delay: null })
@@ -138,8 +144,70 @@ describe('Console › Subscription payments', () => {
 
     const panel = await openFirst(user)
     expect(panel.getByText(i18n.t('console.billing.secondNeeded'))).toBeTruthy()
+    expect(panel.getByText(i18n.t('console.billing.event.PAYMENT_SECOND_APPROVED'), { exact: false })).toBeTruthy()
     await user.click(panel.getByRole('button', { name: i18n.t('console.billing.approveSecond') }))
     expect(await screen.findByText(i18n.t('console.billing.refusal.payment-approver-not-independent'))).toBeTruthy()
+  })
+
+  it('asks the cash verifier to confirm again above the threshold, where a transfer needs a second approver', async () => {
+    const awaiting = payment({
+      method: 'CASH', reference: null, proofSha256: null, proofContentType: null, status: 'AWAITING_SECOND_APPROVAL',
+      verifiedBy: 'u-admin', requiresSecondApproval: true, thresholdApplied: '50.000', version: 4,
+    })
+    answers[QUEUE] = () => json(200, page([{ payment: awaiting, bill: BILL, tenantName: 'Payments LLC' }]))
+    answers[`${QUEUE}/p-1`] = () =>
+      json(200, { payment: awaiting, bill: BILL, tenantName: 'Payments LLC', history: [SECOND_APPROVED] })
+    answers[`POST ${QUEUE}/p-1/second-approval`] = () =>
+      json(200, { payment: { ...awaiting, status: 'CONFIRMED', version: 5 }, bill: BILL, tenantName: 'Payments LLC', history: [] })
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/payments')
+
+    // Cash is confirmed again by its verifier, so its pill does not ask for a second approval (H3).
+    expect(await screen.findByText(i18n.t('console.billing.status.AWAITING_SECOND_APPROVAL_CASH'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('console.billing.status.AWAITING_SECOND_APPROVAL'))).toBeNull()
+    const panel = await openFirst(user)
+    expect(panel.getByText(i18n.t('console.billing.secondNeededCash'))).toBeTruthy()
+    expect(panel.getByText(i18n.t('console.billing.status.AWAITING_SECOND_APPROVAL_CASH'))).toBeTruthy()
+    // The note names the threshold with the drawn rial sign (OMR survives only for screen readers).
+    const note = panel.getByText((_, el) => el?.tagName === 'P' && /50\.000/.test(el.textContent ?? ''))
+    expect(note.querySelector('svg')).toBeTruthy()
+    expect(panel.queryByRole('button', { name: i18n.t('console.billing.approveSecond') })).toBeNull()
+    expect(panel.getByText(i18n.t('console.billing.event.PAYMENT_CONFIRMED_AGAIN'), { exact: false })).toBeTruthy()
+    expect(panel.queryByText(i18n.t('console.billing.event.PAYMENT_SECOND_APPROVED'), { exact: false })).toBeNull()
+    await user.click(panel.getByRole('button', { name: i18n.t('console.billing.confirmAgain') }))
+    expect(await screen.findByText(i18n.t('console.billing.done.confirmedAgain'))).toBeTruthy()
+  })
+
+  it('offers confirm again on cash only to its verifier, not to the operator who recorded it', async () => {
+    const awaiting = payment({
+      method: 'CASH', reference: null, proofSha256: null, proofContentType: null, status: 'AWAITING_SECOND_APPROVAL',
+      receiptRecordedBy: 'u-admin', verifiedBy: 'u-other', requiresSecondApproval: true, thresholdApplied: '50.000',
+      version: 4,
+    })
+    answers[QUEUE] = () => json(200, page([{ payment: awaiting, bill: BILL, tenantName: 'Payments LLC' }]))
+    answers[`${QUEUE}/p-1`] = () => json(200, { payment: awaiting, bill: BILL, tenantName: 'Payments LLC', history: [] })
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/payments')
+
+    const panel = await openFirst(user)
+    expect(panel.getByText(i18n.t('console.billing.secondNeededCash'))).toBeTruthy()
+    expect(panel.queryByRole('button', { name: i18n.t('console.billing.confirmAgain') })).toBeNull()
+    expect(panel.queryByRole('button', { name: i18n.t('console.billing.approveSecond') })).toBeNull()
+    expect(panel.queryByText((_, el) => el?.tagName === 'P' && /Confirm again\./.test(el.textContent ?? ''))).toBeNull()
+  })
+
+  it('still offers a bank transfer second approval to an operator who did not verify it', async () => {
+    const awaiting = payment({
+      status: 'AWAITING_SECOND_APPROVAL', verifiedBy: 'u-other', requiresSecondApproval: true, thresholdApplied: '50.000',
+    })
+    answers[QUEUE] = () => json(200, page([{ payment: awaiting, bill: BILL, tenantName: 'Payments LLC' }]))
+    answers[`${QUEUE}/p-1`] = () => json(200, { payment: awaiting, bill: BILL, tenantName: 'Payments LLC', history: [] })
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/payments')
+
+    const panel = await openFirst(user)
+    expect(panel.getByRole('button', { name: i18n.t('console.billing.approveSecond') })).toBeTruthy()
+    expect(panel.queryByRole('button', { name: i18n.t('console.billing.confirmAgain') })).toBeNull()
   })
 
   it('loads the next page of the queue from the cursor and keeps the first page', async () => {
@@ -200,6 +268,32 @@ describe('Console › Subscription payments', () => {
       expect(JSON.parse(String(call![1]?.body)).receivedAt).toMatch(/^\d{4}-\d{2}-\d{2}T10:30:00\+04:00$/)
     })
   })
+
+  it("says why a cash receipt was refused (a time later than now) instead of 'Reload and try again' (F25)", async () => {
+    who = SUPPORT
+    const cash = payment({ method: 'CASH', reference: null, proofSha256: null, proofContentType: null, amount: '36.750' })
+    const bill = { ...BILL, total: '36.750' }
+    answers[QUEUE] = () => json(200, page([{ payment: cash, bill, tenantName: 'Payments LLC' }]))
+    answers[`${QUEUE}/p-1`] = () => json(200, { payment: cash, bill, tenantName: 'Payments LLC', history: [] })
+    answers[`POST ${QUEUE}/p-1/cash-receipt`] = () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/validation-failed',
+        detail: 'When the cash was received is required and cannot be in the future',
+      })
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/payments')
+
+    const panel = await openFirst(user)
+    await user.type(panel.getByRole('textbox', { name: i18n.t('console.billing.cash.number') }), 'RC-78')
+    await user.type(panel.getByRole('textbox', { name: i18n.t('console.billing.cash.time') }), '23:59')
+    await user.type(panel.getByRole('textbox', { name: i18n.t('console.billing.cash.collector') }), 'Salim')
+    await user.click(panel.getByRole('button', { name: i18n.t('console.billing.cash.record') }))
+
+    expect(await screen.findByText(i18n.t('console.billing.cash.refused'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('console.billing.refusal.other'))).toBeNull()
+    // The server's English sentence is never shown.
+    expect(screen.queryByText(/cannot be in the future/)).toBeNull()
+  })
 })
 
 describe('Console › Bank account', () => {
@@ -252,5 +346,49 @@ describe('Console › Bank account, retiring the live account', () => {
     await user.click(screen.getByRole('button', { name: i18n.t('console.bankAccounts.keep') }))
     expect(screen.queryByText(i18n.t('console.bankAccounts.retireConfirm'))).toBeNull()
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/retire'))).toBe(false)
+  })
+})
+
+describe('Console › Bank account, refusals and labels (retest 15 Oct 2026)', () => {
+  const PENDING = [{
+    id: 'a-1', legalName: 'Fawtir LLC', bankName: 'Bank Muscat', iban: 'OM810180000001299123456', swiftCode: null,
+    status: 'PENDING_CONFIRMATION', reason: 'Main account', createdBy: 'u-other', createdAt: '2026-10-18T05:00:00Z',
+    confirmedBy: null, version: 0,
+  }]
+
+  it('says the session needs refreshing on a CSRF refusal, not "That did not go through" (K-UI-a)', async () => {
+    answers[BENEFICIARIES] = () => json(200, PENDING)
+    answers[`POST ${BENEFICIARIES}/a-1/confirmation`] = () =>
+      json(403, { type: 'https://api.fawtir.om/problems/csrf-rejected' })
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/accounts')
+
+    await user.click(await screen.findByRole('button', { name: i18n.t('console.bankAccounts.confirm') }))
+    expect((await screen.findByRole('alert')).textContent).toBe(i18n.t('apiErrors.csrf'))
+    expect(screen.queryByText(i18n.t('console.billing.refusal.other'))).toBeNull()
+  })
+
+  it('names a missing permission on any other 403 (K-UI-a)', async () => {
+    answers[BENEFICIARIES] = () => json(200, PENDING)
+    answers[`POST ${BENEFICIARIES}/a-1/confirmation`] = () =>
+      json(403, { type: 'https://api.fawtir.om/problems/forbidden' })
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/accounts')
+
+    await user.click(await screen.findByRole('button', { name: i18n.t('console.bankAccounts.confirm') }))
+    expect((await screen.findByRole('alert')).textContent).toBe(i18n.t('console.billing.refusal.forbidden'))
+  })
+
+  it('ties every field of the new-account form to its label (K-UI-b)', async () => {
+    answers[BENEFICIARIES] = () => json(200, [])
+    renderAt('/console/billing/accounts')
+    await screen.findByText(i18n.t('console.bankAccounts.empty'))
+
+    for (const key of ['billing.bank.holder', 'billing.bank.bank', 'billing.bank.iban', 'billing.bank.swift', 'console.bankAccounts.reason']) {
+      const input = screen.getByRole('textbox', { name: i18n.t(key) })
+      expect(input.id).not.toBe('')
+      const label = [...document.querySelectorAll('label')].find((each) => each.htmlFor === input.id)
+      expect(label?.textContent).toBe(i18n.t(key))
+    }
   })
 })

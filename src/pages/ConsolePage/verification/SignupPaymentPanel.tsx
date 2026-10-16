@@ -1,11 +1,11 @@
 import { useTranslation } from 'react-i18next'
 import { OmAmount } from '../../../components/ui'
-import { formatAmount } from '../../../lib/format'
-import { useConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
+import { formatAmount, formatInstant } from '../../../lib/format'
+import type { ConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
 import { ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
-import { formatMoment } from '../../../lib/console/format'
-import { signupPaymentPath, type SignupPaymentReview } from '../../../lib/console/companyVerification'
+import type { SignupPaymentReview } from '../../../lib/console/companyVerification'
 import { ReviewCard, ReviewLine } from './ReviewCard'
+import { paymentStatusKey } from '../../../lib/console/billingPayments'
 
 /**
  * The payment sent with the application, beside the company it pays for (owner, 12 Oct 2026).
@@ -13,9 +13,15 @@ import { ReviewCard, ReviewLine } from './ReviewCard'
  * billing queue, where the receipt is opened through the audited proof route. The reviewer sees
  * whether money is held so a FINAL rejection is taken knowing it opens a refund.
  */
-export function SignupPaymentPanel({ tenantId }: { tenantId: string }) {
+export function SignupPaymentPanel({
+  read,
+  retry,
+}: {
+  /** Read by the page, which reads it again after a decision that may open a refund case. */
+  read: ConsoleRead<SignupPaymentReview>
+  retry: () => void
+}) {
   const { t, i18n } = useTranslation()
-  const { read, retry } = useConsoleRead<SignupPaymentReview>(signupPaymentPath(tenantId))
 
   return (
     <ReviewCard title={t('console.verification.payment.title')}>
@@ -37,7 +43,7 @@ export function SignupPaymentPanel({ tenantId }: { tenantId: string }) {
           />
           <ReviewLine
             label={t('console.verification.payment.status')}
-            value={t(`console.billing.status.${read.data.payment.status}`)}
+            value={t(paymentStatusKey(read.data.payment.status, read.data.payment.method))}
           />
           {read.data.payment.reference ? (
             <ReviewLine label={t('console.verification.payment.reference')} value={read.data.payment.reference} />
@@ -47,16 +53,23 @@ export function SignupPaymentPanel({ tenantId }: { tenantId: string }) {
           ) : null}
           <ReviewLine
             label={t('console.verification.payment.submitted')}
-            value={formatMoment(read.data.payment.submittedAt, i18n.language)}
+            value={formatInstant(read.data.payment.submittedAt, i18n.language)}
           />
-          <ReviewLine
-            label={t('console.verification.payment.receipt')}
-            value={
-              read.data.payment.proofContentType
-                ? t('console.verification.payment.receiptInQueue')
-                : t('console.verification.payment.noReceipt')
-            }
-          />
+          {/* A transfer's receipt is its uploaded file; cash has the receipt number Finance recorded,
+              and no row until one is recorded rather than "None" (H1). */}
+          {read.data.payment.proofContentType ? (
+            <ReviewLine
+              label={t('console.verification.payment.receipt')}
+              value={t('console.verification.payment.receiptInQueue')}
+            />
+          ) : read.data.payment.receiptNumber ? (
+            <ReviewLine label={t('console.verification.payment.receipt')} value={read.data.payment.receiptNumber} />
+          ) : read.data.payment.method === 'BANK_TRANSFER' ? (
+            <ReviewLine
+              label={t('console.verification.payment.receipt')}
+              value={t('console.verification.payment.noReceipt')}
+            />
+          ) : null}
           {read.data.refundCase ? (
             <ReviewLine
               label={t('console.verification.payment.refund')}

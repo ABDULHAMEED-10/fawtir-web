@@ -1,5 +1,6 @@
 import { apiRequest } from '../../api'
 import type { ServerFieldMap } from './errors'
+import type { SellerOnBillDto } from '../../api/settings/billing'
 import { GOVERNORATE_NAMES, type GovernorateId } from '../governorates'
 import type { BusinessSize, InvoiceAccent, InvoicingMethod } from '../onboarding'
 import {
@@ -199,6 +200,26 @@ export type SignupStatusResponse = {
    * for Finance and for approval (owner, 12 Oct 2026). Never the receipt itself.
    */
   signupPayment?: SignupHeldPayment | null
+  /**
+   * True when Fawtir closed the application with a final rejection: it can never be submitted
+   * again. Absent from an older server, which is read as not closed.
+   */
+  closed?: boolean
+  /**
+   * The code of the latest rejection, when a correctable one reopened the draft or a final one
+   * closed it; otherwise `null`. Absent from an older server.
+   */
+  rejectionReason?: string | null
+  /**
+   * The last day (`YYYY-MM-DD`) a draft reopened after a correctable rejection can be corrected
+   * and submitted; `null` otherwise. Absent from an older server.
+   */
+  correctableUntil?: string | null
+  /**
+   * True exactly when Fawtir holds money from this application that must be returned. Absent from
+   * an older server, which is read as nothing to return.
+   */
+  refundDue?: boolean
   /** The registrant's own email (ONBOARDING.md row 1.8). */
   accountEmail?: string | null
   draft?: SignupDraft | null
@@ -272,6 +293,14 @@ export function allowedRoute(stage: SignupStage, requested: string): string {
   return index !== -1 && index <= FLOW_ROUTES.indexOf(next) ? requested : next
 }
 
+/**
+ * {@link allowedRoute} for a status read: a closed application has only the waiting screen, which
+ * then says it was closed, whatever stage it reports.
+ */
+export function routeForStatus(status: SignupStatusResponse, requested: string): string {
+  return status.closed === true ? PENDING_ROUTE : allowedRoute(status.stage, requested)
+}
+
 const post = (path: string, body: object, signal?: AbortSignal) =>
   apiRequest<void>(path, { method: 'POST', body, signal, credentials: 'omit' })
 
@@ -304,6 +333,8 @@ export const SIGNUP_PAYMENT_NOT_APPLICABLE = 'signup-payment-not-applicable'
 export const SIGNUP_PAYMENT_REQUIRED = 'signup-payment-required'
 /** The reviewer closed the application with a final rejection; it cannot be resubmitted (V289). */
 export const SIGNUP_APPLICATION_CLOSED = 'signup-application-closed'
+/** Fawtir is already checking the payment held with the application, so its method cannot change. */
+export const SIGNUP_PAYMENT_STATE_CONFLICT = 'payment-state-conflict'
 /** A free trial was asked for on a plan that has none (also re-checked at submission). */
 export const SIGNUP_TRIAL_NOT_OFFERED = 'signup-trial-not-offered'
 /**
@@ -419,6 +450,8 @@ export type SignupPaymentOptions = {
   beneficiary: { legalName: string; bankName: string; iban: string; swiftCode: string | null } | null
   /** The largest receipt the server accepts; absent from an older server. */
   proofMaximumBytes?: number
+  /** Who the registrant pays: the seller in force now. Null before one is entered. */
+  seller?: SellerOnBillDto | null
 }
 
 /**

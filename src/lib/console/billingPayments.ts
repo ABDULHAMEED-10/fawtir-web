@@ -45,6 +45,27 @@ export type PlatformPaymentDto = {
   version: number
 }
 
+/** Every kind the backend records in a payment's history (`PaymentEvent.Kind`); each has a label. */
+export const PAYMENT_EVENT_KINDS = [
+  'BILL_ISSUED',
+  'BILL_VOIDED',
+  'BILL_PAID',
+  'PAYMENT_SUBMITTED',
+  'PAYMENT_WITHDRAWN',
+  'CASH_RECEIPT_RECORDED',
+  'PAYMENT_VERIFIED',
+  'PAYMENT_SECOND_APPROVED',
+  'PAYMENT_CONFIRMED',
+  'PAYMENT_REJECTED',
+  'PROOF_READ',
+  'CARD_CHECKOUT_OPENED',
+  'CARD_CHECKOUT_CLOSED',
+  'PAYMENT_REVERSAL_RECORDED',
+  'SIGNUP_FUNDS_VERIFIED',
+  'SIGNUP_PAYMENT_ALLOCATED',
+  'REFUND_CASE_OPENED',
+] as const
+
 export type PaymentEventDto = {
   id: string
   paymentId: string | null
@@ -137,4 +158,15 @@ export function retireBeneficiary(id: string, version: number): Promise<Benefici
     method: 'POST',
     headers: decision(version),
   })
+}
+
+/**
+ * The i18n key of a payment's status pill. Cash above the threshold is two people, not three
+ * (owner, 14 Oct 2026): the verifier confirms it again, so it reads "Needs confirming again"
+ * rather than "Needs 2nd approval", which stays for a bank transfer's different second approver.
+ */
+export function paymentStatusKey(status: string, method: string): string {
+  return status === 'AWAITING_SECOND_APPROVAL' && method === 'CASH'
+    ? 'console.billing.status.AWAITING_SECOND_APPROVAL_CASH'
+    : `console.billing.status.${status}`
 }

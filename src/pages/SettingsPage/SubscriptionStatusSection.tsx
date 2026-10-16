@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useApiRead } from '../../hooks'
+import { usePlanName } from '../../hooks/usePlanName'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { hasPermission } from '../../lib/identity/entitlements'
 import { formatAmount, formatDate } from '../../lib/format'
@@ -12,17 +13,19 @@ import {
   loadSubscription,
   scheduleCancellation,
   withdrawCancellation,
+  subscriptionDisplay,
   withdrawScheduledChange,
-  type SubscriptionAccess,
+  type SubscriptionDisplay,
   type SubscriptionStatusDto,
 } from '../../api/settings/subscription'
 
-const ACCESS_TONE: Record<SubscriptionAccess, string> = {
+const ACCESS_TONE: Record<SubscriptionDisplay, string> = {
   NOT_TRACKED: 'bg-primary-50 text-primary-800',
   TRIAL: 'bg-primary-50 text-primary-800',
   ACTIVE: 'bg-success-100 text-success-700',
   GRACE: 'bg-pending-100 text-pending-700',
   PAYMENT_REQUIRED: 'bg-danger-100 text-danger-700',
+  NOT_STARTED: 'bg-pending-100 text-pending-700',
   CANCELLED: 'bg-primary-25 text-primary-800',
 }
 
@@ -56,10 +59,12 @@ export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }
   const [confirmCancel, setConfirmCancel] = useState(false)
   // The key of the message to show; a payment being checked blocks a change for a known reason.
   const [failure, setFailure] = useState<string | null>(null)
+  const planName = usePlanName()
 
   if (read.read.status === 'loading') return <LoadingNotice />
   if (read.read.status === 'failed') return <ApiReadFailure error={read.read.error} retry={read.retry} />
   const status = latest ?? read.read.data
+  const display = subscriptionDisplay(status)
 
   const act = async (which: Exclude<Pending, null>, call: () => Promise<SubscriptionStatusDto>) => {
     setPending(which)
@@ -84,8 +89,8 @@ export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }
         <h3 id="subscription-standing" className="text-lg font-semibold text-text-primary">
           {t('subscription.title')}
         </h3>
-        <span className={['rounded-full px-3 py-1 text-xs font-semibold', ACCESS_TONE[status.access]].join(' ')}>
-          {t(`subscription.access.${status.access}`)}
+        <span className={['rounded-full px-3 py-1 text-xs font-semibold', ACCESS_TONE[display]].join(' ')}>
+          {t(`subscription.access.${display}`)}
         </span>
       </div>
 
@@ -97,7 +102,7 @@ export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm bg-surface-background px-4 py-3">
           <p className="text-sm font-medium text-text-secondary">
             {t('subscription.scheduledChange', {
-              plan: status.scheduledChange.planName,
+              plan: planName(status.scheduledChange.planCode, status.scheduledChange.planName),
               date: day(status.scheduledChange.effectiveOn),
             })}
           </p>
@@ -188,6 +193,13 @@ function StandingNotice({ status, page }: { status: SubscriptionStatusDto; page:
       tone = 'bg-pending-100 text-pending-700'
       break
     case 'PAYMENT_REQUIRED':
+      // Never started: no bill is owed yet and a payment made at sign-up may be with Fawtir, so
+      // "payment is due, pay the bill below" would contradict the billing section (K-BC03).
+      if (subscriptionDisplay(status) === 'NOT_STARTED') {
+        message = t(page === 'billing' ? 'subscription.notice.notStartedBilling' : 'subscription.notice.notStartedPlan')
+        tone = 'bg-pending-100 text-pending-700'
+        break
+      }
       message = t(page === 'billing' ? 'subscription.notice.paymentRequiredBilling' : 'subscription.notice.paymentRequiredPlan')
       tone = 'bg-danger-100 text-danger-700'
       break
@@ -212,10 +224,12 @@ function Facts({ status }: { status: SubscriptionStatusDto }) {
   const { t, i18n } = useTranslation()
   const date = (iso: string | null) => (iso ? formatDate(iso, i18n.language) : t('subscription.none'))
   const cycle = status.billingCycle ? t(`subscription.cycle.${status.billingCycle}`) : t('subscription.none')
+  // The status carries the plan's English name only (F37): an Arabic reader gets its Arabic name.
+  const planName = usePlanName()
 
   return (
     <dl className="grid gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
-      <Fact label={t('subscription.fact.plan')} value={`${status.planName} · ${cycle}`} />
+      <Fact label={t('subscription.fact.plan')} value={`${planName(status.planCode, status.planName)} · ${cycle}`} />
       <Fact
         label={t(status.billingCycle === 'ANNUAL' ? 'subscription.fact.pricePerYear' : 'subscription.fact.pricePerMonth')}
         value={

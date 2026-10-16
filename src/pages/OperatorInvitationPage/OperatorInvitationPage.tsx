@@ -4,17 +4,18 @@ import { useTranslation } from 'react-i18next'
 import { AuthLayout } from '../../components/auth/AuthLayout'
 import { LOGIN_ROUTE } from '../../lib/identity/login'
 import { tokenFromFragment } from '../../lib/identity/operatorInvitation'
-import { OperatorInvitationForm } from './OperatorInvitationForm'
+import { OperatorInvitationForm, type InvitationCopy } from './OperatorInvitationForm'
 
 /**
- * Where an operator invitation mail lands (`/operator-invitation#token=…`). Public: the invitee
- * has no account yet.
+ * Where an operator invitation mail lands (`/operator-invitation#token=…`), and, with
+ * `copy="companyInvitation"`, a company invitation mail (`/invitation#token=…`). Public: the
+ * invitee has no account yet.
  *
  * The token is read from the fragment once and the fragment is then removed, so it does not
  * linger in the address bar, the history entry or a copied URL. It is never stored: reloading
  * the page after that point means opening the link from the mail again.
  */
-export function OperatorInvitationPage() {
+export function OperatorInvitationPage({ copy = 'operatorInvitation' }: { copy?: InvitationCopy }) {
   const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
@@ -31,10 +32,10 @@ export function OperatorInvitationPage() {
       <div className="flex w-full max-w-[400px] flex-col gap-6" role="alert">
         <div className="flex flex-col gap-3">
           <h2 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-            {t(spent ? 'operatorInvitation.spent.title' : 'operatorInvitation.missing.title')}
+            {t(spent ? `${copy}.spent.title` : `${copy}.missing.title`)}
           </h2>
           <p className="text-base font-medium leading-[1.4] text-text-quaternary">
-            {t(spent ? 'operatorInvitation.spent.body' : 'operatorInvitation.missing.body')}
+            {t(spent ? `${copy}.spent.body` : `${copy}.missing.body`)}
           </p>
         </div>
         <Link to={LOGIN_ROUTE} className="text-sm font-semibold text-primary-700 hover:text-primary-800">
@@ -43,7 +44,7 @@ export function OperatorInvitationPage() {
       </div>
     )
   } else {
-    content = <OperatorInvitationForm token={token} onLinkSpent={() => setSpent(true)} />
+    content = <OperatorInvitationForm token={token} onLinkSpent={() => setSpent(true)} copy={copy} />
   }
 
   return <AuthLayout>{content}</AuthLayout>

@@ -4,7 +4,7 @@ import { AuthLayout } from '../../components/auth/AuthLayout'
 import { SignupResumePrompt } from '../../components/auth/SignupResumePrompt'
 import { Button, ChevronRightIcon } from '../../components/ui'
 import { useSignupProgress } from '../../hooks/useSignupProgress'
-import { REVIEW_ROUTE } from '../../lib/identity/onboarding'
+import { PENDING_ROUTE, REVIEW_ROUTE } from '../../lib/identity/onboarding'
 import { onboardingStateFromStatus } from '../../lib/identity/signupDraft'
 import { FawtaraStatusHero } from './FawtaraStatusHero'
 import { FawtaraStatusPanel } from './FawtaraStatusPanel'
@@ -27,6 +27,8 @@ export function FawtaraStatusPage() {
   const progress = useSignupProgress(false)
 
   if (progress.kind === 'redirect') return <Navigate to={progress.route} replace />
+  // A closed application has one screen, the waiting screen saying it was closed.
+  if (progress.kind === 'closed') return <Navigate to={PENDING_ROUTE} replace />
   const restored =
     progress.kind === 'phase' && progress.status ? onboardingStateFromStatus(progress.status) : {}
 

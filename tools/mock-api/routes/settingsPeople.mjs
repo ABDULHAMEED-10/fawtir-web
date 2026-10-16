@@ -5,6 +5,23 @@
  */
 const TODAY = '2026-10-11'
 
+const SUBSCRIPTION_NOTICES = [
+  {
+    id: '7f3c1a52-3c1e-4b8e-9d0a-5c1f00000001',
+    kind: 'TRIAL_ENDING',
+    coveredThrough: '2026-10-14',
+    graceDay: null,
+    graceUntil: null,
+    noticeOn: TODAY,
+    headline:
+      'Your free trial ends on 14 October 2026. Choose a plan to keep issuing and receiving documents.',
+    actionLabel: 'Choose a plan',
+    actionPath: '/settings/plan',
+    createdAt: `${TODAY}T04:00:00Z`,
+    read: false,
+  },
+]
+
 const ROLES = [
   {
     id: 'r-admin',
@@ -117,6 +134,25 @@ export default [
       openInvitations: 1,
       activeBranches: 2,
     }),
+  },
+  // Trial-ending and grace reminders (backend #515, V299), for the bell. Read state lives here so
+  // marking one read shows on the next read, as the server does.
+  {
+    match: '/api/v1/settings/subscription/notices',
+    reply: ({ query }) => {
+      const unread = query?.get ? query.get('unread') === 'true' : query?.unread === 'true'
+      return SUBSCRIPTION_NOTICES.filter((notice) => !unread || !notice.read)
+    },
+  },
+  {
+    method: 'POST',
+    match: /^\/api\/v1\/settings\/subscription\/notices\/([^/]+)\/acknowledge$/,
+    reply: ({ params }) => {
+      const notice = SUBSCRIPTION_NOTICES.find((entry) => entry.id === params[0])
+      if (!notice) return { status: 404, body: { status: 404 } }
+      notice.read = true
+      return { status: 204 }
+    },
   },
   {
     match: '/api/v1/settings/subscription',

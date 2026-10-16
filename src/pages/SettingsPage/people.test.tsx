@@ -322,6 +322,31 @@ describe('Invite someone', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: i18n.t('people.invite.send') })).toBeTruthy())
     expect(screen.queryByText(/Invitation sent/)).toBeNull()
   })
+
+  it('says a suspended subscription stopped the invitation, not a conflict, and links to the bills', async () => {
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === '/api/v1/me/entitlements') return json(200, who)
+      if (url === '/api/v1/users/invitations' && init?.method === 'POST')
+        return json(409, {
+          type: 'https://api.fawtir.om/problems/subscription-restricted',
+          title: 'Conflict',
+          status: 409,
+          detail: 'Your subscription is read-only until the renewal is paid.',
+          code: 'SUBSCRIPTION_SUSPENDED',
+          action: 'ADD_PEOPLE',
+        })
+      const answer = answers[url]
+      return answer ? answer() : json(404, { type: 'about:blank' })
+    })
+    renderAt('/settings/team/invite')
+    fireEvent.change(await screen.findByRole('textbox', { name: /Email/ }), { target: { value: 'x@real.example' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('people.invite.send') }))
+    expect(await screen.findByText(i18n.t('apiErrors.subscriptionRestricted.suspended'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('apiErrors.conflict'))).toBeNull()
+    const link = screen.getByRole('link', { name: i18n.t('apiErrors.subscriptionRestricted.action.bills') })
+    expect(link.getAttribute('href')).toBe('/settings/bills')
+    expect(screen.queryByText(/Invitation sent/)).toBeNull()
+  })
 })
 
 describe('Plan and usage', () => {
@@ -357,18 +382,27 @@ describe('Plan and usage', () => {
     expect(fetchMock.mock.calls.some(([url]) => url === PLAN)).toBe(true)
   })
 
-  it('draws the plan moves disabled for those who may manage the plan, and sends nothing when pressed', async () => {
+  it('hides the plan moves and the overage switch, not greys them, even for those who may manage the plan (plan v4)', async () => {
     who = { ...ADMIN, permissions: [...ADMIN.permissions, 'tenant.plan.manage'] } as Entitlements
     renderAt('/settings/plan')
-    const move = (await screen.findByRole('button', { name: 'Move to Business' })) as HTMLButtonElement
-    expect(move.disabled).toBe(true)
-    const up = screen.getByRole('button', { name: 'Move up a plan' }) as HTMLButtonElement
-    expect(up.disabled).toBe(true)
-    expect((screen.getByRole('button', { name: 'Switch overage on or off' }) as HTMLButtonElement).disabled).toBe(true)
-    expect(screen.getByText(/Moving up applies straight away/)).toBeTruthy()
-    fireEvent.click(move)
-    fireEvent.click(up)
+    await screen.findByRole('heading', { name: 'Business' })
+    expect(screen.queryByRole('button', { name: /Move/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Switch overage on or off' })).toBeNull()
+    expect(screen.getByText(/To change your plan, contact the Fawtir team/)).toBeTruthy()
     expect(requests().every((line) => line.startsWith('GET '))).toBe(true)
+  })
+
+  it('names the plan in Arabic from the catalogue, and groups the figures, for an Arabic reader (G11)', async () => {
+    await i18n.changeLanguage('ar')
+    answers[PLAN] = () =>
+      json(200, { ...PLAN_OVERVIEW, usage: { ...PLAN_OVERVIEW.usage, used: 0, quota: 1000, raisedToday: 0, resubmissions: 0 } })
+    answers[PUBLIC_PLANS] = () =>
+      json(200, CATALOGUE.map((plan) => (plan.code === 'STARTER' ? { ...plan, nameAr: 'المبتدئة' } : plan)))
+    renderAt('/settings/plan')
+    expect(await screen.findByText(`${i18n.t('plan.yourPlan')}: المبتدئة`)).toBeTruthy()
+    expect(screen.getByText(i18n.t('plan.leftCount', { count: '1,000' }))).toBeTruthy()
+    expect(screen.getByRole('link', { name: i18n.t('plan.billsAndPayment') })).toBeTruthy()
+    expect(i18n.t('plan.billsAndPayment')).toBe(i18n.t('bills.title'))
   })
 
   it('offers a retry when the plan cannot be read', async () => {

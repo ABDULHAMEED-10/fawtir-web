@@ -7,6 +7,7 @@ import {
   type SignupPaymentMethod,
 } from './pricing'
 import type { BusinessTypeId } from './subBusinessTypes'
+import type { SellerOnBillDto } from '../api/settings/billing'
 
 export type BusinessSize = 'just-me' | '2-10' | '11-50' | '50-plus'
 export type InvoicingMethod = 'paper' | 'spreadsheets' | 'accounting' | 'erp'
@@ -146,12 +147,30 @@ export type OnboardingState = {
   /** The automatic ERP extraction add-on, ticked on /payment. */
   addon?: boolean
   /**
+   * Who the registrant pays, as /payment read it from `/signup/payment-options`, so review names
+   * the same seller without asking again (F36). Absent on a resumed draft that has not passed
+   * /payment in this tab; review then shows no seller line.
+   */
+  seller?: SellerOnBillDto | null
+  /**
    * Chosen on /payment (V287): a free trial, or paying with the application. Undefined until chosen, and
    * for a preference saved before the choice existed; never set for Enterprise.
    */
   enrollment?: 'trial' | 'payNow'
   /** Chosen on /payment for `payNow` only; never set for a trial or for Enterprise. */
   paymentMethod?: SignupPaymentMethod
+  /**
+   * The code of the rejection that sent this draft back for correction, from `/signup/status`.
+   * Never set for a closed application, which cannot be corrected.
+   */
+  rejectionReason?: string
+  /** The last day (`YYYY-MM-DD`) that reopened draft can be submitted, when the server says. */
+  correctableUntil?: string
+  /**
+   * That reopened draft holds a payment Finance has verified, kept for the next submission while
+   * the correction window is open.
+   */
+  paymentKept?: boolean
   /**
    * Set when this state was refilled from `/signup/status`, so the gate renders the page instead
    * of asking again: a draft with nothing saved yet would otherwise never look "ready".

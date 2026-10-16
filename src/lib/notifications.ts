@@ -15,6 +15,12 @@ import { usageForecast } from './settings'
 import { SIGNING_CERTIFICATE, certificateState } from './settingsCompany'
 import { invited } from './settingsPeople'
 import { STOCK_BOOK, SUPPLIER } from './catalogStock'
+import {
+  subscribeSubscriptionNotices,
+  subscriptionNote,
+  subscriptionNoticesSnapshot,
+  subscriptionNoticesStore,
+} from './subscriptionNotices'
 
 /**
  * The bell in the topbar (Figma 144:33521).
@@ -38,6 +44,10 @@ import { STOCK_BOOK, SUPPLIER } from './catalogStock'
  * (`GET /bill-reminders/inbox`): see the store below and `reminderNotices.ts`. The design's seven
  * sample lines (`NOTES`) are kept here as drawn but are no longer shown: none of them has a
  * source, and typed-in sample lines beside real ones would be read as real.
+ *
+ * Beside them, for a reader with `tenant.plan.read`, are the trial-ending and grace reminders
+ * (`GET /settings/subscription/notices`): their own store is in `subscriptionNotices.ts`, and the
+ * store below hands each line's reading and marking to whichever of the two it belongs to.
  */
 
 export type NoteTone = 'danger' | 'warning' | 'success' | 'neutral' | 'brand'
@@ -80,9 +90,10 @@ export type Note = {
   values: Record<string, string | number | Date>
   /**
    * How a date in `values` is written: "29 September" unless a line asks for the short form the
-   * design gives a bill reminder ("5 Aug"), which keeps Latin digits in Arabic as bills do.
+   * design gives a bill reminder ("5 Aug"), which keeps Latin digits in Arabic as bills do, or the
+   * long form with the year a subscription reminder gives ("27 October 2026"), Latin digits too.
    */
-  dates?: 'short'
+  dates?: 'short' | 'long'
   /** An amount for the body, written out by the panel in the reader's language as `{{amount}}`. */
   money?: { amount: number; currency: string }
   /** When it happened — phrased by the panel in the reader's language. */
@@ -362,8 +373,10 @@ export const notesStore = {
   /** The panel has been opened: read its lines and the count. */
   refresh() {
     void read(true)
+    subscriptionNoticesStore.refresh()
   },
   markRead(id: string) {
+    if (subscriptionNoticesStore.markRead(id)) return
     const item = state.items?.find((entry) => entry.id === id)
     if (!item || isAcknowledged(item)) return
     const owner = state.owner
@@ -381,6 +394,7 @@ export const notesStore = {
       })
   },
   markAllRead() {
+    subscriptionNoticesStore.markAllRead()
     if (state.unread === 0 && !(state.items ?? []).some((item) => !isAcknowledged(item))) return
     const owner = state.owner
     const shownUnread = (state.items ?? []).filter((item) => !isAcknowledged(item))
@@ -419,6 +433,7 @@ export const notesStore = {
     writes = Promise.resolve()
     edits = 0
     set(EMPTY)
+    subscriptionNoticesStore.reset()
   },
 }
 
@@ -431,25 +446,39 @@ export type NoteScope = 'tenant' | 'console'
 
 export function useNotes(scope: NoteScope = 'tenant') {
   const current = useSyncExternalStore(subscribe, () => state)
+  const plan = useSyncExternalStore(subscribeSubscriptionNotices, subscriptionNoticesSnapshot)
   const mine = scope === 'tenant' && current.owner !== null
+  const planMine = scope === 'tenant' && plan.owner !== null
   const items = mine ? (current.items ?? []) : []
+  const planItems = planMine ? (plan.items ?? []) : []
   const now = new Date()
-  const shown = items
-    .filter((item) => !current.dismissed.has(item.id))
-    .map((item) => reminderNote(item, now))
+  // The two lists merged newest first. Each keeps the server's own order: a subscription
+  // reminder goes in ahead of the first bill reminder older than it.
+  const merged: Note[] = []
+  let next = 0
+  for (const item of items) {
+    const at = Date.parse(item.createdAt) || 0
+    while (next < planItems.length && (Date.parse(planItems[next].createdAt) || 0) > at)
+      merged.push(subscriptionNote(planItems[next++], now))
+    merged.push(reminderNote(item, now))
+  }
+  while (next < planItems.length) merged.push(subscriptionNote(planItems[next++], now))
+  const shown = merged.filter((note) => !current.dismissed.has(note.id))
   return {
     shown,
-    unread: mine ? current.unread : 0,
-    /** False while the first read of the list is still on its way. */
-    loaded: !mine || current.items !== null,
+    unread: (mine ? current.unread : 0) + (planMine ? plan.unread : 0),
+    /** False while the first read of either list is still on its way. */
+    loaded: (!mine || current.items !== null) && (!planMine || plan.items !== null),
     /** The lines could not be read, so an empty list here is not "nothing to show". */
     failed: mine && current.listFailed,
     isRead: (id: string) => {
+      const reminder = planItems.find((entry) => entry.id === id)
+      if (reminder) return reminder.read
       const item = items.find((entry) => entry.id === id)
       return item ? isAcknowledged(item) : true
     },
     doneKey: (id: string) => current.done.get(id),
-    anyDismissed: mine && current.dismissed.size > 0,
+    anyDismissed: (mine || planMine) && current.dismissed.size > 0,
   }
 }
 
@@ -465,13 +494,18 @@ export function useUnreadReminders(): number {
 /** A note's values ready for `t()` — dates written out in the reader's language ("29 September"). */
 export function noteValues(note: Note, language: string) {
   const short = note.dates === 'short'
+  const long = note.dates === 'long'
   const arabic = language.startsWith('ar')
-  const locale = arabic ? (short ? 'ar-u-nu-latn' : 'ar') : 'en-GB'
+  const locale = arabic ? (short || long ? 'ar-u-nu-latn' : 'ar') : 'en-GB'
   const values: Record<string, string | number> = Object.fromEntries(
     Object.entries(note.values).map(([key, value]) => [
       key,
       value instanceof Date
-        ? value.toLocaleDateString(locale, { day: 'numeric', month: short ? 'short' : 'long' })
+        ? value.toLocaleDateString(locale, {
+            day: 'numeric',
+            month: short ? 'short' : 'long',
+            ...(long ? { year: 'numeric' as const } : {}),
+          })
         : value,
     ]),
   )

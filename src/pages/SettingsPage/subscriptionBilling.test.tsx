@@ -124,6 +124,41 @@ describe('Settings › Billing: the charge', () => {
     expect(within(region).queryByText(/card/i)).toBeNull()
   })
 
+  it('shows no VAT line on a bill at rate 0, and names the seller the bill carries', async () => {
+    const seller = {
+      legalNameEn: 'Thumb International SPC', legalNameAr: 'الإبهام العالمية ش ش و', crNumber: '1383315',
+      taxIdentificationNumber: '1875504', vatNumber: null, addressEn: 'Al Khuwair, Muscat', addressAr: null,
+    }
+    const bill = { ...BILL, vatRate: '0.00000', vatAmount: '0.000', total: '35.000', seller }
+    answers[BILLING] = () => json(200, overview({ bills: [{ bill, payments: [] }] }))
+    renderBilling()
+
+    expect(await screen.findByText(i18n.t('billing.bill.seller', { name: 'Thumb International SPC' }))).toBeTruthy()
+    const region = charges()
+    expect(within(region).queryByText(i18n.t('billing.bill.vat', { rate: '0%' }))).toBeNull()
+    expect(within(region).getByText(i18n.t('billing.bill.subtotal'))).toBeTruthy()
+    expect(within(region).getByText(i18n.t('billing.bill.total'))).toBeTruthy()
+  })
+
+  it('names the Arabic seller in Arabic, and no seller for a bill issued before one existed', async () => {
+    const seller = {
+      legalNameEn: 'Thumb International SPC', legalNameAr: 'الإبهام العالمية ش ش و', crNumber: '1383315',
+      taxIdentificationNumber: null, vatNumber: null, addressEn: 'Al Khuwair, Muscat', addressAr: null,
+    }
+    await i18n.changeLanguage('ar')
+    answers[BILLING] = () => json(200, overview({ bills: [{ bill: { ...BILL, seller }, payments: [] }] }))
+    const { unmount } = renderBilling()
+    expect(await screen.findByText(i18n.t('billing.bill.seller', { name: 'الإبهام العالمية ش ش و' }))).toBeTruthy()
+    unmount()
+
+    await i18n.changeLanguage('en')
+    resetSharedRequests()
+    answers[BILLING] = () => json(200, overview({ bills: [{ bill: { ...BILL, seller: null }, payments: [] }] }))
+    renderBilling()
+    expect(await screen.findByText('FWT-SUB-2026-000007')).toBeTruthy()
+    expect(charges().textContent).not.toContain(i18n.t('billing.bill.seller', { name: '' }).trim())
+  })
+
   it('sends bank-transfer proof as multipart with an Idempotency-Key, and a retry reuses the key', async () => {
     let attempts = 0
     answers[`POST ${BILLING}/bills/b-1/bank-transfer`] = () => {
@@ -223,7 +258,7 @@ describe('Settings › Billing: the charge', () => {
     expect(screen.queryByText(i18n.t('billing.bankUnavailable'))).toBeNull()
   })
 
-  it('shows a sent receipt as pending verification by Fawtir Finance at every step, never as paid', async () => {
+  it('shows a sent receipt as pending verification by Fawtir at every step, never as paid', async () => {
     for (const status of ['SUBMITTED', 'RECEIPT_RECORDED', 'AWAITING_SECOND_APPROVAL']) {
       answers[BILLING] = () =>
         json(200, overview({ bills: [{ bill: { ...BILL, status: 'PENDING_VERIFICATION' }, payments: [{ id: 'p-2', billId: 'b-1', method: 'BANK_TRANSFER', status, amount: '36.750', submittedAt: '2026-10-18T06:00:00Z', reference: 'TRX-1001', customerNote: null, proofContentType: 'application/pdf', receiptNumber: null, receivedAmount: null, receivedAt: null, rejectionReason: null, version: 0 }] }] }))
@@ -231,7 +266,7 @@ describe('Settings › Billing: the charge', () => {
       const { unmount } = renderBilling()
 
       const waiting = await screen.findByText(i18n.t(`billing.waiting.BANK_TRANSFER.${status}`))
-      expect(waiting.textContent).toMatch(/^Pending verification by Fawtir Finance\./)
+      expect(waiting.textContent).toMatch(/^Pending verification by Fawtir\./)
       expect(within(charges()).queryByText(i18n.t('billing.billStatus.PAID'))).toBeNull()
       expect(within(charges()).queryByRole('radio')).toBeNull()
       unmount()
@@ -247,6 +282,17 @@ describe('Settings › Billing: the charge', () => {
 
     expect(await screen.findByText(i18n.t('billing.rejected', { reason: 'Amount on the receipt is 30.000' }))).toBeTruthy()
     expect(within(charges()).getAllByRole('radio')).toHaveLength(2)
+  })
+
+  it('a reason that ends with a full stop is not followed by a second one', async () => {
+    answers[BILLING] = () =>
+      json(200, overview({
+        bills: [{ bill: BILL, payments: [{ id: 'p-0', billId: 'b-1', method: 'BANK_TRANSFER', status: 'REJECTED', amount: '36.750', submittedAt: '2026-10-17T06:00:00Z', reference: 'X', customerNote: null, proofContentType: 'application/pdf', receiptNumber: null, receivedAmount: null, receivedAt: null, rejectionReason: 'Amount on the receipt is 30.000.', version: 2 }] }],
+      }))
+    renderBilling()
+
+    const alert = await screen.findByText(i18n.t('billing.rejected', { reason: 'Amount on the receipt is 30.000' }))
+    expect(alert.textContent).not.toContain('..')
   })
 
   it('says why bank transfer is missing when proof storage is unavailable, and still offers cash', async () => {
@@ -281,8 +327,12 @@ describe('Settings › Billing: the charge', () => {
   })
 
   it('shows older bills a page at a time from the cursor', async () => {
+    const seller = {
+      legalNameEn: 'Thumb International SPC', legalNameAr: null, crNumber: '1383315',
+      taxIdentificationNumber: null, vatNumber: null, addressEn: 'Muscat', addressAr: null,
+    }
     const paid = (id: string, number: string) => ({
-      bill: { ...BILL, id, number, status: 'PAID', paidAt: '2026-09-20T08:00:00Z', appliedPaidThrough: '2026-10-22' },
+      bill: { ...BILL, id, number, status: 'PAID', paidAt: '2026-09-20T08:00:00Z', appliedPaidThrough: '2026-10-22', seller },
       payments: [],
     })
     answers[BILLING] = () =>
@@ -298,6 +348,8 @@ describe('Settings › Billing: the charge', () => {
 
     expect(await screen.findByText(/FWT-SUB-2026-000001/)).toBeTruthy()
     expect(screen.getByText(/FWT-SUB-2026-000006/)).toBeTruthy()
+    // A paid bill names the seller it was issued under.
+    expect(screen.getAllByText(i18n.t('billing.bill.seller', { name: 'Thumb International SPC' })).length).toBeGreaterThanOrEqual(2)
     expect(screen.queryByRole('button', { name: i18n.t('billing.olderBills') })).toBeNull()
   })
 
@@ -325,6 +377,54 @@ describe('Settings › Billing: the charge', () => {
       'subscription.notice.paymentRequiredBilling', 'subscription.notice.paymentRequiredPlan']) {
       expect(i18n.t(key)).toMatch(/[\u0600-\u06FF]/)
     }
+  })
+})
+
+describe('Settings › Billing: the plan on the bill in Arabic (F37)', () => {
+  const PUBLIC_PLANS = '/api/v1/public/plans'
+  const CATALOGUE = [
+    { code: 'BUSINESS', nameEn: 'Business', nameAr: 'الأعمال', sortOrder: 2 },
+    { code: 'STARTER', nameEn: 'Starter', nameAr: 'المبتدئ', sortOrder: 1 },
+  ]
+  const catalogueReads = () => fetchMock.mock.calls.filter(([url]) => url === PUBLIC_PLANS)
+
+  it('names the plan in Arabic from the catalogue, by the plan code, on the bill and in the status', async () => {
+    await i18n.changeLanguage('ar')
+    answers[PUBLIC_PLANS] = () => json(200, CATALOGUE)
+    renderBilling()
+
+    expect(await within(await screen.findByRole('region', { name: i18n.t('billing.title') })).findByText('المبتدئ · شهري')).toBeTruthy()
+    expect(charges().textContent).not.toContain('Starter')
+    // The subscription's own plan line above the bill reads the same.
+    expect(screen.getAllByText('المبتدئ · شهري')).toHaveLength(2)
+    expect(document.body.textContent).not.toContain('Starter')
+    // The status and the bill each ask (in-flight reads are shared, answers are not cached).
+    expect(catalogueReads().length).toBeGreaterThan(0)
+    expect(catalogueReads().length).toBeLessThanOrEqual(2)
+  })
+
+  it('keeps the bill’s own name when the catalogue cannot be read', async () => {
+    await i18n.changeLanguage('ar')
+    answers[PUBLIC_PLANS] = () => json(503, { type: 'about:blank' })
+    renderBilling()
+    expect(await within(await screen.findByRole('region', { name: i18n.t('billing.title') })).findByText('Starter · شهري')).toBeTruthy()
+    await waitFor(() => expect(catalogueReads().length).toBeGreaterThan(0))
+    expect(within(charges()).getByText('Starter · شهري')).toBeTruthy()
+  })
+
+  it('keeps the bill’s name for a plan the catalogue does not list or has no Arabic name for', async () => {
+    await i18n.changeLanguage('ar')
+    answers[PUBLIC_PLANS] = () => json(200, [{ ...CATALOGUE[1], code: 'OTHER' }, { ...CATALOGUE[0], code: 'STARTER', nameAr: null }])
+    renderBilling()
+    await waitFor(() => expect(catalogueReads().length).toBeGreaterThan(0))
+    expect(await within(await screen.findByRole('region', { name: i18n.t('billing.title') })).findByText('Starter · شهري')).toBeTruthy()
+  })
+
+  it('writes the English name in English and does not read the catalogue for it', async () => {
+    answers[PUBLIC_PLANS] = () => json(200, CATALOGUE)
+    renderBilling()
+    expect(await within(await screen.findByRole('region', { name: i18n.t('billing.title') })).findByText('Starter · Monthly')).toBeTruthy()
+    expect(catalogueReads()).toHaveLength(0)
   })
 })
 

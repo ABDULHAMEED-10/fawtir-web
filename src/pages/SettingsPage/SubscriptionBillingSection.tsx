@@ -2,12 +2,14 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useApiRead } from '../../hooks'
+import { usePlanName } from '../../hooks/usePlanName'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { hasPermission } from '../../lib/identity/entitlements'
 import { formatAmount, formatDate, formatInstantDay } from '../../lib/format'
 import { Button, FileDropzone, OmAmount } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { ApiError, NetworkError } from '../../api'
+import { withoutFinalStop } from '../../lib/identity/signupRejection'
 import {
   BILLING_PATH,
   SUPERSEDED_PREFIX,
@@ -19,6 +21,7 @@ import {
   newPaymentKey,
   prepareNextBill,
   requestCash,
+  sellerName,
   startCardCheckout,
   submitBankTransfer,
   withdrawPayment,
@@ -116,6 +119,8 @@ export function SubscriptionBillingSection() {
           onChanged={changed}
           onCardFinished={cardFinished}
         />
+      ) : overview.bills.length === 0 ? (
+        <BeforeFirstBill overview={overview} canPay={canPay} onPrepared={() => changed()} />
       ) : (
         <NoOutstandingBill canPay={canPay} onPrepared={() => changed()} />
       )}
@@ -124,7 +129,66 @@ export function SubscriptionBillingSection() {
   )
 }
 
-function NoOutstandingBill({ canPay, onPrepared }: { canPay: boolean; onPrepared: () => void }) {
+/**
+ * No bill has ever been issued. A company that paid at sign-up gets its first bill only when
+ * Fawtir confirms that payment and activates the company, and the server refuses to prepare
+ * another while it is pending, so "Nothing is due" with a Prepare button would invite paying
+ * twice (K-BC03).
+ *
+ * `signupPayment` (backend #533) says where that payment stands. A server without it sends only
+ * `signupMethod`; a pay-now submission was refused without the receipt, cash request or card funds,
+ * so a method with no bill is read as "with Fawtir". That reading cannot see a rejection.
+ */
+function BeforeFirstBill({
+  overview,
+  canPay,
+  onPrepared,
+}: {
+  overview: BillingOverviewDto
+  canPay: boolean
+  onPrepared: () => void
+}) {
+  const { t } = useTranslation()
+  const waiting = (key: string) => (
+    <p role="status" className="rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium leading-[1.6] text-pending-700">
+      {t(key)}
+    </p>
+  )
+  const signup = overview.signupPayment
+  if (signup === undefined) {
+    return overview.signupMethod ? (
+      waiting(`billing.signupWaiting.${overview.signupMethod}`)
+    ) : (
+      <NoOutstandingBill canPay={canPay} onPrepared={onPrepared} />
+    )
+  }
+  if (signup === null) return <NoOutstandingBill canPay={canPay} onPrepared={onPrepared} />
+  switch (signup.status) {
+    case 'SUBMITTED':
+      return waiting(`billing.signupWaiting.${signup.method}`)
+    case 'FUNDS_VERIFIED':
+    case 'CONFIRMED':
+      return waiting('billing.signupConfirmed')
+    case 'REJECTED':
+      return (
+        <div className="flex flex-col gap-3">
+          <Alert>{t('billing.rejected', { reason: withoutFinalStop(signup.rejectionReason ?? '') })}</Alert>
+          <NoOutstandingBill canPay={canPay} onPrepared={onPrepared} afterRejection />
+        </div>
+      )
+  }
+}
+
+function NoOutstandingBill({
+  canPay,
+  onPrepared,
+  afterRejection = false,
+}: {
+  canPay: boolean
+  onPrepared: () => void
+  /** Under "your last payment was not accepted… pay again below": only the way to pay again. */
+  afterRejection?: boolean
+}) {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
@@ -142,7 +206,7 @@ function NoOutstandingBill({ canPay, onPrepared }: { canPay: boolean; onPrepared
   }
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm font-medium text-text-secondary">{t('billing.nothingDue')}</p>
+      {afterRejection ? null : <p className="text-sm font-medium text-text-secondary">{t('billing.nothingDue')}</p>}
       {canPay ? (
         <div>
           <Button variant="secondary" size="md" disabled={busy} onClick={prepare}>
@@ -178,28 +242,38 @@ function OutstandingBill({
   const live = payments.find((payment) => LIVE.includes(payment.status))
   const lastRejected = payments.find((payment) => payment.status === 'REJECTED')
   const money = (value: string) => <OmAmount amount={formatAmount(value, 'OMR', i18n.language)} size="xs" />
+  const seller = sellerName(bill.seller, i18n.language)
+  // The bill carries the plan's English name only (F37): an Arabic reader gets its Arabic name.
+  const planName = usePlanName()(bill.planCode, bill.planName)
 
   return (
     <div className="flex flex-col gap-4">
       <dl className="grid gap-x-6 gap-y-3 md:grid-cols-2 xl:grid-cols-4">
-        <Fact label={t('billing.bill.number')} value={bill.number} />
+        <Fact
+          label={t('billing.bill.number')}
+          value={bill.number}
+          note={seller ? t('billing.bill.seller', { name: seller }) : undefined}
+        />
         <Fact
           label={t('billing.bill.period')}
           value={t('billing.bill.periodRange', {
             start: formatDate(bill.periodStartsOn, i18n.language),
             end: formatDate(bill.periodEndsOn, i18n.language),
           })}
-          note={`${bill.planName} · ${t(`subscription.cycle.${bill.billingCycle}`)}`}
+          note={`${planName} · ${t(`subscription.cycle.${bill.billingCycle}`)}`}
         />
         <Fact label={t('billing.bill.dueOn')} value={formatDate(bill.dueOn, i18n.language)} />
         <Fact label={t('billing.bill.status')} value={t(`billing.billStatus.${bill.status}`)} />
       </dl>
       <dl className="flex flex-col gap-2 rounded-sm bg-surface-background px-4 py-3 text-sm">
         <Line label={t('billing.bill.subtotal')} value={money(bill.subtotal)} />
-        <Line
-          label={t('billing.bill.vat', { rate: formatRate(bill.vatRate, i18n.language) })}
-          value={money(bill.vatAmount)}
-        />
+        {/* Rate 0 is how the server says no VAT is charged: no line, rather than "VAT 0%". */}
+        {Number(bill.vatRate) === 0 ? null : (
+          <Line
+            label={t('billing.bill.vat', { rate: formatRate(bill.vatRate, i18n.language) })}
+            value={money(bill.vatAmount)}
+          />
+        )}
         <Line label={t('billing.bill.total')} value={money(bill.total)} strong />
       </dl>
       <p className="text-xs font-medium text-text-tertiary">{t('billing.bill.notTaxInvoice')}</p>
@@ -221,7 +295,9 @@ function OutstandingBill({
       ) : (
         <>
           {lastRejected ? (
-            <Alert>{t('billing.rejected', { reason: lastRejected.rejectionReason ?? '' })}</Alert>
+            <Alert>
+              {t('billing.rejected', { reason: withoutFinalStop(lastRejected.rejectionReason ?? '') })}
+            </Alert>
           ) : null}
           {canPay ? <PayForm bill={bill} card={card} overview={overview} onSubmitted={onChanged} /> : null}
         </>
@@ -758,12 +834,20 @@ function History({ bills, nextCursor }: { bills: BillWithPaymentsDto[]; nextCurs
           const confirmed = payments.find((payment) => payment.status === 'CONFIRMED')
           return (
             <li key={bill.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
-              <span className="font-medium text-text-primary">
-                {bill.number} ·{' '}
-                {t('billing.bill.periodRange', {
-                  start: formatDate(bill.periodStartsOn, i18n.language),
-                  end: formatDate(bill.periodEndsOn, i18n.language),
-                })}
+              <span className="flex flex-col">
+                <span className="font-medium text-text-primary">
+                  {bill.number} ·{' '}
+                  {t('billing.bill.periodRange', {
+                    start: formatDate(bill.periodStartsOn, i18n.language),
+                    end: formatDate(bill.periodEndsOn, i18n.language),
+                  })}
+                </span>
+                {/* A paid bill keeps the seller it was issued under, so it is named here too. */}
+                {sellerName(bill.seller, i18n.language) ? (
+                  <span className="text-xs font-medium text-text-tertiary">
+                    {t('billing.bill.seller', { name: sellerName(bill.seller, i18n.language) })}
+                  </span>
+                ) : null}
               </span>
               <span className="flex items-center gap-3 text-text-secondary">
                 <OmAmount amount={formatAmount(bill.total, 'OMR', i18n.language)} size="xs" />

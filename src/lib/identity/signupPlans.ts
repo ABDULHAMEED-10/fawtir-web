@@ -39,6 +39,11 @@ export type SignupCataloguePlan = {
   trialDocuments: number | null
   features: CatalogueFeature[]
   sortOrder: number
+  /**
+   * The subscription VAT rate as a fraction ("0.05000", "0.00000" for none), the same on every
+   * plan; `null` while none is set. Absent from a server older than the field.
+   */
+  vatRate?: string | null
 }
 
 export const SIGNUP_PLANS_PATH = '/v1/auth/signup/plans'
@@ -65,6 +70,22 @@ export const readSignupPlans: CatalogueReader = (signal) => readCatalogue(SIGNUP
 
 /** The same catalogue for the marketing site's pricing page. */
 export const readPublicPlans: CatalogueReader = (signal) => readCatalogue(PUBLIC_PLANS_PATH, signal)
+
+/**
+ * A plan's name in the reader's language, found in the catalogue by its code: the Arabic name for
+ * an Arabic reader where the catalogue has one, else `fallback` (the name the caller already
+ * holds, for a plan the catalogue no longer lists or before it has been read).
+ */
+export function catalogueName(
+  plans: readonly SignupCataloguePlan[] | null | undefined,
+  code: string | null | undefined,
+  fallback: string,
+  language: string,
+): string {
+  if (!language.startsWith('ar') || !code) return fallback
+  const plan = plans?.find((entry) => entry.code === code)
+  return plan?.nameAr?.trim() || fallback
+}
 
 /**
  * A three-decimal OMR string to baisa with no float on the way: `"80.000"` is 80000. `null` for

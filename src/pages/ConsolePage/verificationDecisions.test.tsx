@@ -5,7 +5,7 @@ import i18n from '../../i18n'
 import { resetSharedRequests } from '../../api'
 import { forgetEntitlements, peekEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { CompanyDetail, HistoryEntry } from '../../lib/console/companyVerification'
-import { formatMoment } from '../../lib/console/format'
+import { formatInstant } from '../../lib/format'
 import { VerificationCompanyPage } from './VerificationCompanyPage'
 
 const ID = '11111111-1111-4111-8111-111111111111'
@@ -15,6 +15,17 @@ const HISTORY_URL = `/api/v1/platform/companies/${ID}/verification-history`
 const EVIDENCE_URL = `/api/v1/platform/companies/${ID}/verification-evidence`
 const ATTEST_URL = `/api/v1/tenants/${ID}/company-verification/manual-attestation`
 const REJECT_URL = `/api/v1/tenants/${ID}/company-verification/rejection`
+const PAYMENT_URL = `/api/v1/platform/companies/${ID}/signup-payment`
+const HELD = (status: string) => ({
+  id: 'pay-1',
+  method: 'BANK_TRANSFER',
+  status,
+  amount: '84.000',
+  reference: 'TRF-1',
+  customerNote: null,
+  submittedAt: '2026-09-12T05:00:00Z',
+  proofContentType: 'application/pdf',
+})
 const CSRF = 'csrf-token-value'
 
 const OPERATOR: Entitlements = {
@@ -255,6 +266,38 @@ describe('Verify', () => {
     fireEvent.change(referenceInput(), { target: { value: '  ATT-2026/0142 ' } })
   }
 
+  it('says in the confirm dialog when the payment sent with the application is not confirmed yet', async () => {
+    await readyToVerify({ [PAYMENT_URL]: () => json(200, { payment: HELD('SUBMITTED'), refundCase: null }) })
+    await screen.findAllByText(i18n.t('console.billing.status.SUBMITTED'))
+    fireEvent.click(button('console.verification.decision.verify'))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText(i18n.t('console.verification.decision.verifyBody'))).toBeTruthy()
+    expect(within(dialog).getByText(i18n.t('console.verification.decision.paymentNotConfirmed'))).toBeTruthy()
+  })
+
+  it('says nothing more in the confirm dialog once Finance has verified the payment', async () => {
+    await readyToVerify({ [PAYMENT_URL]: () => json(200, { payment: HELD('FUNDS_VERIFIED'), refundCase: null }) })
+    await screen.findAllByText(i18n.t('console.billing.status.FUNDS_VERIFIED'))
+    fireEvent.click(button('console.verification.decision.verify'))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).queryByText(i18n.t('console.verification.decision.paymentNotConfirmed'))).toBeNull()
+  })
+
+  it('names the cash receipt Finance recorded instead of "None" (H1)', async () => {
+    const cash = {
+      ...HELD('AWAITING_SECOND_APPROVAL'),
+      method: 'CASH',
+      reference: null,
+      proofContentType: null,
+      receiptNumber: 'RC-RT1015-C1',
+    }
+    await readyToVerify({ [PAYMENT_URL]: () => json(200, { payment: cash, refundCase: null }) })
+    expect(await screen.findByText('RC-RT1015-C1')).toBeTruthy()
+    expect(screen.queryByText(i18n.t('console.verification.payment.noReceipt'))).toBeNull()
+    // Cash above the threshold is confirmed again by its verifier, not given a second approval.
+    expect(screen.getByText(i18n.t('console.billing.status.AWAITING_SECOND_APPROVAL_CASH'))).toBeTruthy()
+  })
+
   it('stays disabled until evidence is filed and the reference is valid', async () => {
     await openPending({ [EVIDENCE_URL]: () => json(201, EVIDENCE) })
     expect(button('console.verification.decision.verify').disabled).toBe(true)
@@ -356,6 +399,7 @@ describe('Reject', () => {
 
     fireEvent.click(button('console.verification.decision.reject'))
     const dialog = screen.getByRole('dialog', { name: i18n.t('console.verification.decision.rejectTitle') })
+    expect(within(dialog).getByText(i18n.t('console.verification.decision.rejectBody'))).toBeTruthy()
     fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('console.verification.decision.rejectConfirm') }))
     expect(within(dialog).getByText(i18n.t('console.verification.decision.reasonRequired'))).toBeTruthy()
     expect(callsTo(REJECT_URL)).toHaveLength(0)
@@ -391,6 +435,9 @@ describe('Reject', () => {
         name: new RegExp(i18n.t('console.verification.decision.classificationOption.FINAL.title')),
       }),
     )
+    // A final rejection closes the application, and the dialog says so instead of "back to correct".
+    expect(within(dialog).getByText(i18n.t('console.verification.decision.rejectBodyFinal'))).toBeTruthy()
+    expect(within(dialog).queryByText(i18n.t('console.verification.decision.rejectBody'))).toBeNull()
     fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('console.verification.decision.rejectConfirm') }))
     expect(within(dialog).getByText(i18n.t('console.verification.decision.finalReasonRequired'))).toBeTruthy()
     expect(callsTo(REJECT_URL)).toHaveLength(0)
@@ -400,13 +447,42 @@ describe('Reject', () => {
     })
     fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('console.verification.decision.rejectConfirm') }))
 
-    expect(await screen.findByText(i18n.t('console.verification.decision.rejected'))).toBeTruthy()
+    expect(await screen.findByText(i18n.t('console.verification.decision.rejectedFinal'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('console.verification.decision.rejected'))).toBeNull()
+    expect(screen.queryByText(i18n.t('console.verification.decision.refundOpened'), { exact: false })).toBeNull()
     expect(JSON.parse(initOf(REJECT_URL).body as string)).toEqual({
       expectedRevision: 2,
       reason: 'TAX_IDENTITY_EVIDENCE_MISSING',
       classification: 'FINAL',
       finalReason: 'Forged registration certificate',
     })
+  })
+
+  it('after a final rejection with confirmed money, says the refund case was opened', async () => {
+    await openPending({
+      [REJECT_URL]: () => json(200, { tenantId: ID, verificationStatus: 'REJECTED', verificationMethod: null, tenantStatus: 'PENDING', decidedAt: '2026-09-12T06:00:00Z' }),
+      [DETAIL_URL]: [() => json(200, PENDING), () => json(200, { ...PENDING, verificationStatus: 'REJECTED', rejectionReason: 'TAX_IDENTITY_EVIDENCE_MISSING' })],
+      [PAYMENT_URL]: [
+        () => json(200, { payment: HELD('FUNDS_VERIFIED'), refundCase: null }),
+        () => json(200, { payment: HELD('FUNDS_VERIFIED'), refundCase: { reason: 'FINAL_REJECTION', amount: '84.000', status: 'OPEN' } }),
+      ],
+    })
+    fireEvent.click(button('console.verification.decision.reject'))
+    const dialog = screen.getByRole('dialog', { name: i18n.t('console.verification.decision.rejectTitle') })
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('console.verification.decision.reason') }))
+    fireEvent.click(screen.getByRole('option', { name: i18n.t('console.verification.detail.reason.TAX_IDENTITY_EVIDENCE_MISSING') }))
+    fireEvent.click(
+      within(dialog).getByRole('radio', {
+        name: new RegExp(i18n.t('console.verification.decision.classificationOption.FINAL.title')),
+      }),
+    )
+    fireEvent.change(within(dialog).getByLabelText(i18n.t('console.verification.decision.finalReason')), {
+      target: { value: 'Forged registration certificate' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('console.verification.decision.rejectConfirm') }))
+
+    const banner = await screen.findByText(i18n.t('console.verification.decision.rejectedFinal'), { exact: false })
+    await waitFor(() => expect(banner.textContent).toContain(i18n.t('console.verification.decision.refundOpened')))
   })
 
   it('can be cancelled without sending anything', async () => {
@@ -1011,7 +1087,7 @@ describe('Peppol Participant ID', () => {
       ).toBe(true)
       expect(participantCard().getByText(version(1))).toBeTruthy()
       expect(participantCard().getByText(version(2))).toBeTruthy()
-      expect(participantCard().getByText(formatMoment(EARLIER.verifiedAt, 'en'))).toBeTruthy()
+      expect(participantCard().getByText(formatInstant(EARLIER.verifiedAt, 'en'))).toBeTruthy()
       // Safe context only: no operator or tenant user identity reaches the card.
       expect(participantCard().queryByText(/u-tenant-admin|u-registrant|u-operator/)).toBeNull()
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { ApiError } from '../../api'
-import { PENDING_ROUTE, allowedRoute, readSignupStatus } from '../../lib/identity/onboarding'
+import { PENDING_ROUTE, readSignupStatus, routeForStatus } from '../../lib/identity/onboarding'
 import {
   endOnboardingSession,
   hasEndedOnboardingSession,
@@ -47,7 +47,7 @@ export function OnboardingGate({ ready, children }: OnboardingGateProps) {
     readSignupStatus(token)
       .then((status) =>
         setResolved({
-          route: allowedRoute(status.stage, location.pathname),
+          route: routeForStatus(status, location.pathname),
           state: onboardingStateFromStatus(status, onboardingStateFrom(location.state)),
         }),
       )
