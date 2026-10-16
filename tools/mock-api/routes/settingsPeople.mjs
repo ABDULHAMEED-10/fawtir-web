@@ -108,6 +108,99 @@ const CATALOGUE = [
   catalogued('BUSINESS_PLUS', 'Business Plus', 'الأعمال بلس', '150.000', 3000, 10, null, 3),
 ]
 
+/**
+ * A downgrade to Starter waits for the 1 November renewal, so Settings › Plan offers the choice
+ * of what switches off (`DowngradeSwitchOffService`). Starter includes 2 users and 1 branch: one
+ * of the three users below (`paymentsRecurring.mjs` names them) and one branch must go. The
+ * owner and the Head Branch always stay. Withdrawing the downgrade clears it and the choice.
+ */
+const SCHEDULED_CHANGE = {
+  planCode: 'STARTER',
+  planName: 'Starter',
+  billingCycle: 'MONTHLY',
+  periodPrice: '35.000',
+  effectiveOn: '2026-11-01',
+}
+let scheduledChange = SCHEDULED_CHANGE
+
+const SEATS = [
+  { userId: 'u-yusuf', addedAt: '2026-08-02T08:00:00Z', kept: 'OWNER' },
+  { userId: 'u-hafidh', addedAt: '2026-08-20T08:00:00Z', kept: null },
+  { userId: 'u-aisha', addedAt: '2026-09-14T08:00:00Z', kept: null },
+]
+const OPEN_BRANCHES = [
+  {
+    branchId: 'b-main',
+    name: 'Al Bahja Coffee (Main)',
+    addedAt: '2026-08-02T08:00:00Z',
+    kept: 'HEAD_BRANCH',
+  },
+  {
+    branchId: 'b-seeb',
+    name: 'Al Bahja Coffee (Seeb)',
+    addedAt: '2026-09-01T08:00:00Z',
+    kept: null,
+  },
+]
+let switchOffChoice = null
+
+/** As the server: the chosen first, then the most recently added, `excess` of them. */
+function goingOff(rows, idOf, chosen, excess) {
+  if (excess <= 0) return new Set()
+  const eligible = rows.filter((row) => row.kept === null)
+  const order = [
+    ...chosen.filter((id) => eligible.some((row) => idOf(row) === id)),
+    ...[...eligible].sort((a, b) => b.addedAt.localeCompare(a.addedAt)).map(idOf),
+  ]
+  return new Set([...new Set(order)].slice(0, excess))
+}
+
+function switchOffView() {
+  const chosenUsers = switchOffChoice?.userIds ?? []
+  const chosenBranches = switchOffChoice?.branchIds ?? []
+  const peopleIncluded = 2
+  const branchesIncluded = 1
+  const offUsers = goingOff(SEATS, (row) => row.userId, chosenUsers, SEATS.length - peopleIncluded)
+  const offBranches = goingOff(
+    OPEN_BRANCHES,
+    (row) => row.branchId,
+    chosenBranches,
+    OPEN_BRANCHES.length - branchesIncluded,
+  )
+  return {
+    planCode: scheduledChange.planCode,
+    planVersionId: 'pv-STARTER',
+    effectiveOn: scheduledChange.effectiveOn,
+    peopleIncluded,
+    branchesIncluded,
+    activeUsers: SEATS.length,
+    openBranches: OPEN_BRANCHES.length,
+    choiceRecordedAt: switchOffChoice?.recordedAt ?? null,
+    users: SEATS.map((row) => ({
+      ...row,
+      candidate: row.kept === null,
+      chosen: chosenUsers.includes(row.userId),
+      switchesOff: offUsers.has(row.userId),
+    })),
+    branches: OPEN_BRANCHES.map((row) => ({
+      ...row,
+      candidate: row.kept === null,
+      chosen: chosenBranches.includes(row.branchId),
+      switchesOff: offBranches.has(row.branchId),
+    })),
+  }
+}
+
+const NO_DOWNGRADE = {
+  status: 409,
+  body: {
+    type: 'https://api.fawtir.om/problems/downgrade-choice-not-allowed',
+    title: 'Conflict',
+    status: 409,
+    detail: 'No downgrade is waiting for the next renewal.',
+  },
+}
+
 export default [
   { match: '/api/v1/roles', reply: () => ROLES },
   { match: '/api/v1/users/invitations', reply: () => INVITATIONS },
@@ -155,30 +248,65 @@ export default [
     },
   },
   {
+    match: '/api/v1/settings/subscription/scheduled-change/switch-off',
+    reply: () => (scheduledChange ? switchOffView() : NO_DOWNGRADE),
+  },
+  {
+    method: 'PUT',
+    match: '/api/v1/settings/subscription/scheduled-change/switch-off',
+    reply: ({ body }) => {
+      if (!scheduledChange) return NO_DOWNGRADE
+      const userIds = [...new Set(body?.userIds ?? [])]
+      const branchIds = [...new Set(body?.branchIds ?? [])]
+      const users = userIds.every((id) =>
+        SEATS.some((row) => row.userId === id && row.kept === null),
+      )
+      const branches = branchIds.every((id) =>
+        OPEN_BRANCHES.some((row) => row.branchId === id && row.kept === null),
+      )
+      if (!users || !branches) return NO_DOWNGRADE
+      switchOffChoice = { userIds, branchIds, recordedAt: `${TODAY}T10:00:00Z` }
+      return switchOffView()
+    },
+  },
+  {
+    method: 'DELETE',
+    match: '/api/v1/settings/subscription/scheduled-change',
+    reply: () => {
+      scheduledChange = null
+      switchOffChoice = null
+      return subscription()
+    },
+  },
+  {
     match: '/api/v1/settings/subscription',
-    reply: () => ({
-      tracked: true,
-      access: 'ACTIVE',
-      restrictionsEnforced: false,
-      today: TODAY,
-      planCode: 'BUSINESS',
-      planName: 'Business',
-      billingCycle: 'MONTHLY',
-      periodPrice: '80.000',
-      trialStartsOn: null,
-      trialEndsOn: null,
-      trialDay: null,
-      trialDaysLeft: null,
-      paidThrough: '2026-10-31',
-      renewsOn: '2026-11-01',
-      graceDays: 7,
-      graceUntil: null,
-      autoRenew: false,
-      autoRenewAvailable: false,
-      autoRenewChangedAt: null,
-      cancelAtPeriodEnd: false,
-      accessEndsOn: null,
-      scheduledChange: null,
-    }),
+    reply: () => subscription(),
   },
 ]
+
+function subscription() {
+  return {
+    tracked: true,
+    access: 'ACTIVE',
+    restrictionsEnforced: false,
+    today: TODAY,
+    planCode: 'BUSINESS',
+    planName: 'Business',
+    billingCycle: 'MONTHLY',
+    periodPrice: '80.000',
+    trialStartsOn: null,
+    trialEndsOn: null,
+    trialDay: null,
+    trialDaysLeft: null,
+    paidThrough: '2026-10-31',
+    renewsOn: '2026-11-01',
+    graceDays: 7,
+    graceUntil: null,
+    autoRenew: false,
+    autoRenewAvailable: false,
+    autoRenewChangedAt: null,
+    cancelAtPeriodEnd: false,
+    accessEndsOn: null,
+    scheduledChange,
+  }
+}

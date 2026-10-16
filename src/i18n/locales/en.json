@@ -21237,7 +21237,53 @@
       "back": "Go back",
       "confirm": "Confirm cancellation"
     },
-    "blockedByPayment": "A payment for your next period is being checked by Fawtir. You can change your plan or cancel once it is confirmed or rejected."
+    "blockedByPayment": "A payment for your next period is being checked by Fawtir. You can change your plan or cancel once it is confirmed or rejected.",
+    "switchOff": {
+      "open": "Choose what switches off",
+      "title": "What switches off at renewal",
+      "subtitle": "Choose which users and branches switch off when your plan changes at renewal.",
+      "summaryTitle": "Your move to {{plan}}",
+      "summaryNote": "Takes effect on {{date}}, your renewal date.",
+      "usersFact": "Active users",
+      "branchesFact": "Open branches",
+      "ofIncluded": "{{active}} now, {{included}} included in the new plan",
+      "noBranchLimit": "{{open}} now, no limit in the new plan",
+      "howItWorks": "Nothing is deleted. From {{date}} a switched-off user can no longer sign in, and their name stays on everything they made. A switched-off branch keeps all its records. If you do not choose, the most recently added switch off first. The owner, administrators and the Head Branch always stay. You can change your choice until then.",
+      "usersTitle": "Users",
+      "usersChoose_one": "Choose {{count}} user to switch off on {{date}}.",
+      "usersChoose_other": "Choose {{count}} users to switch off on {{date}}.",
+      "usersAllStay": "The new plan includes everyone. All users stay active.",
+      "branchesTitle": "Branches",
+      "branchesChoose_one": "Choose {{count}} branch to switch off on {{date}}.",
+      "branchesChoose_other": "Choose {{count}} branches to switch off on {{date}}.",
+      "branchesAllStay": "The new plan includes all your open branches. They all stay open.",
+      "branchesUnlimited": "The new plan has no branch limit. All branches stay open.",
+      "col": {
+        "switchOff": "Switch off",
+        "user": "User",
+        "branch": "Branch",
+        "added": "Added",
+        "onDate": "On {{date}}"
+      },
+      "userAdded": "User added on {{date}}",
+      "chooseUser": "Switch off {{name}}",
+      "chooseBranch": "Switch off {{name}}",
+      "kept": {
+        "OWNER": "Owner, always stays",
+        "ADMINISTRATOR": "Administrator, always stays",
+        "HEAD_BRANCH": "Head Branch, always stays",
+        "other": "Always stays"
+      },
+      "switchesOff": "Switches off",
+      "staysOn": "Stays on",
+      "recordedOn": "Your choice was saved on {{date}}.",
+      "unsaved": "You have changes that are not saved yet.",
+      "save": "Save my choice",
+      "useDefault": "Clear my choice",
+      "notAllowed": "This choice could not be saved. Someone on it may have changed, or the plan change was withdrawn. Reload the page and choose again.",
+      "noneWaiting": "No plan change is waiting for your renewal, so nothing will switch off.",
+      "backToPlan": "Back to Plan and usage"
+    }
   },
   "billing": {
     "title": "Charges and payment",
