@@ -66,7 +66,7 @@ function PlanBody() {
     return <ApiReadFailure error={plan.read.error} retry={plan.retry} />
   return (
     <>
-      <PlanFigures data={plan.read.data} mayManage={mayManage} />
+      <PlanFigures data={plan.read.data} />
       <PlanCards current={plan.read.data} mayManage={mayManage} />
       <AddonsSection />
     </>
@@ -106,7 +106,7 @@ export function forecastOf(usage: PlanOverviewDto['usage']) {
   }
 }
 
-function PlanFigures({ data, mayManage }: { data: PlanOverviewDto; mayManage: boolean }) {
+function PlanFigures({ data }: { data: PlanOverviewDto }) {
   const { t, i18n } = useTranslation()
   // lib/format keeps digits Latin in Arabic too (decision D15); toLocaleString would not.
   const number = (value: number) => formatCount(value, i18n.language)
@@ -189,29 +189,11 @@ function PlanFigures({ data, mayManage }: { data: PlanOverviewDto; mayManage: bo
             </p>
           </div>
 
-          {mayManage ? (
-            <div className="flex shrink-0 flex-col gap-2.5 max-md:w-full">
-              {/* TODO(backend): SETTINGS.md row 5.1. No plan-change endpoint yet. */}
-              <button
-                type="button"
-                disabled
-                className="inline-flex h-[46px] items-center justify-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white disabled:opacity-40"
-              >
-                {t('plan.moveUp')}
-              </button>
-              {/* TODO(backend): SETTINGS.md row 5.2. Overage cannot be read or switched. */}
-              <button
-                type="button"
-                disabled
-                className="inline-flex h-[46px] items-center justify-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary disabled:opacity-40"
-              >
-                {t('plan.overageSwitch')}
-              </button>
-              <span className="text-center text-xs font-medium text-text-quaternary">
-                {t('plan.notAvailableYet')}
-              </span>
-            </div>
-          ) : null}
+          {/*
+           * TODO(backend): SETTINGS.md rows 5.1 and 5.2. "Move up" and the overage switch stay
+           * hidden, not greyed (plan v4: hide what cannot be done), until the web is wired to a
+           * plan-change endpoint and to buying extra documents. Shown then to PLAN_MANAGE only.
+           */}
         </div>
 
         <dl className="grid border-t border-surface-background sm:grid-cols-2 xl:grid-cols-4">
@@ -316,8 +298,8 @@ function Figure({ label, value, note }: { label: string; value: string; note?: s
  * The plans, from the published catalogue: the company's own marked "Your plan" by its code, the
  * dearer ones offered as a move up, the cheaper ones as a move down at renewal (owner: upgrades
  * apply immediately, downgrades at renewal). There is no plan-change endpoint yet, so the move
- * buttons are drawn disabled (SETTINGS.md row 5.1). Enterprise has no price and its one action
- * is to talk to the team.
+ * buttons are hidden, not greyed (plan v4; SETTINGS.md row 5.1). Enterprise has no price and its
+ * one action is to talk to the team.
  * TODO: show the Enterprise card only to companies on Business Plus, the one plan it is the next
  * step from (owner, 7 Oct 2026: agreed, to be done later).
  */
@@ -350,7 +332,6 @@ function PlanCards({ current, mayManage }: { current: PlanOverviewDto; mayManage
             plan={plan}
             current={plan.code === current.plan.code}
             myPrice={myPrice}
-            mayManage={mayManage}
           />
         ))}
         <EnterpriseCard />
@@ -363,12 +344,10 @@ function PlanCard({
   plan,
   current,
   myPrice,
-  mayManage,
 }: {
   plan: SignupCataloguePlan
   current: boolean
   myPrice: number | null
-  mayManage: boolean
 }) {
   const { t, i18n } = useTranslation()
   const price = baisaOf(plan.monthlyPrice)
@@ -464,22 +443,11 @@ function PlanCard({
                 />
               </span>
             </p>
-            {mayManage ? (
-              // TODO(backend): SETTINGS.md row 5.1. Drawn, cannot be pressed until the API can
-              // change the plan (up: straight away; down: from the next renewal).
-              <button
-                type="button"
-                disabled
-                className={[
-                  'mt-3 inline-flex h-[46px] w-full items-center justify-center rounded-sm text-sm font-semibold disabled:opacity-40',
-                  better
-                    ? 'bg-primary-700 text-white'
-                    : 'border border-border-subtle bg-white text-text-secondary',
-                ].join(' ')}
-              >
-                {t('plan.moveTo', { plan: name })}
-              </button>
-            ) : null}
+            {/*
+             * TODO(backend): SETTINGS.md row 5.1. The "Move to" button is hidden, not greyed
+             * (plan v4), until the API can change the plan (up: straight away; down: from the
+             * next renewal). Shown then to PLAN_MANAGE only.
+             */}
           </>
         ) : null}
       </div>

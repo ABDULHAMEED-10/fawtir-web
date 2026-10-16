@@ -153,6 +153,22 @@ describe('Pricing page', () => {
     expect(i18n.t('plans.faq.a5', { ...params, lng: 'en' })).toContain('7 days of grace')
   })
 
+  it('answers the allowance questions as the server counts it: 80, 90 and 100 percent, received documents, extras bought ahead (F2)', () => {
+    const params = faqParams(CATALOGUE)
+    expect(params.thresholds).toBe('80, 90, 100')
+    const counts = i18n.t('plans.faq.a3', { ...params, lng: 'en' })
+    expect(counts).toContain('Supplier invoices, credit notes and debit notes you receive count too')
+    expect(counts).toContain('sending it again is free')
+    const over = i18n.t('plans.faq.a4', { ...params, lng: 'en' })
+    expect(over).toContain('80, 90, 100 percent')
+    expect(over).toContain('held')
+    expect(over).toContain('by card they are added at once')
+    expect(over).toContain('no carry-over and no refund')
+    expect(over).toContain('resets each month on your subscription date')
+    expect(over).not.toMatch(/overage|per document|next period/)
+    expect(i18n.t('plans.faq.a4', { ...params, lng: 'ar' })).toContain('80, 90, 100 بالمئة')
+  })
+
   it('quotes the VAT rate the server sends with the plans, and says no VAT is added at zero', () => {
     const vatCell = (plans: readonly SignupCataloguePlan[]) =>
       comparisonGroups(plans).flatMap((group) => group.rows).find((row) => row.key === 'vat')!.cell(null)

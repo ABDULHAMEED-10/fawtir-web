@@ -863,9 +863,9 @@
       "q2": "How do I pay?",
       "a2": "You choose when you sign up: start the free trial, or pay with your application by bank transfer, uploading the receipt, or in cash. The Fawtir team checks your company and Peppol participant details, and your paid subscription starts only after your company is approved and your payment is confirmed.",
       "q3": "What counts as a document?",
-      "a3": "Every document your company issues: invoices, including simplified invoices from the point of sale, credit notes, debit notes and self-billed invoices. A document still counts if you cancel it later. Drafts and documents you receive are not counted.",
+      "a3": "Every document your company issues: invoices, including simplified invoices from the point of sale, credit notes, debit notes and self-billed invoices. A document still counts if you cancel it later, and sending it again is free. Supplier invoices, credit notes and debit notes you receive count too, once each when they arrive, unless your plan does not count received documents. Drafts are not counted.",
       "q4": "What happens when I pass my allowance?",
-      "a4": "We email you when you reach {{thresholds}} percent of the allowance. Once it is used up, you cannot issue more documents until the next period. To move to a bigger plan, contact the Fawtir team and they will change it for you.",
+      "a4": "We email you when you reach {{thresholds}} percent of the allowance. When none is left, you cannot issue documents, and supplier invoices you receive are held: you see that they are waiting, but cannot open them until you buy extra documents. Extra documents are bought ahead: by card they are added at once, by bank transfer or cash once Fawtir confirms the payment. They are used after your plan's own documents and end with your subscription month, with no carry-over and no refund. Your allowance resets each month on your subscription date. To move to a bigger plan, contact the Fawtir team and they will change it for you.",
       "q5": "Can I change or cancel my plan?",
       "a5": "You can cancel any time, and your plan runs to the end of the period you paid for. To change your plan, contact the Fawtir team; a smaller plan starts from your next renewal. There are no setup fees and no minimum term. If a renewal is not paid, you keep {{grace}} days of grace before the account goes read-only, and your records stay readable and exportable for the 10 years the law requires.",
       "q6": "Is point of sale extra?",
@@ -15049,7 +15049,8 @@
         "amountWrong": "Enter the amount in rials, up to three decimals, such as 52.500.",
         "on": "Received on",
         "time": "Time received, Muscat",
-        "timeWrong": "Enter the time as hours and minutes, such as 14:30."
+        "timeWrong": "Enter the time as hours and minutes, such as 14:30.",
+        "refused": "The receipt was not recorded: the time received cannot be later than now, and the amount must be more than zero. Check them and record it again."
       },
       "done": {
         "proof": "The receipt was downloaded. The download is recorded.",
@@ -15100,7 +15101,7 @@
       "title": "Bank account",
       "subtitle": "The account customers pay Fawtir into. Customers see it only after a second operator confirms it.",
       "loading": "Loading accounts",
-      "empty": "No account has been entered. Customers can't pay by bank transfer until one is confirmed.",
+      "empty": "No account has been entered. Enter Fawtir's account and have a second operator confirm it before any customer signs up: customers need it to pay by bank transfer.",
       "status": {
         "PENDING_CONFIRMATION": "Needs confirmation",
         "ACTIVE": "Shown to customers",

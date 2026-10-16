@@ -357,17 +357,13 @@ describe('Plan and usage', () => {
     expect(fetchMock.mock.calls.some(([url]) => url === PLAN)).toBe(true)
   })
 
-  it('draws the plan moves disabled for those who may manage the plan, and sends nothing when pressed', async () => {
+  it('hides the plan moves and the overage switch, not greys them, even for those who may manage the plan (plan v4)', async () => {
     who = { ...ADMIN, permissions: [...ADMIN.permissions, 'tenant.plan.manage'] } as Entitlements
     renderAt('/settings/plan')
-    const move = (await screen.findByRole('button', { name: 'Move to Business' })) as HTMLButtonElement
-    expect(move.disabled).toBe(true)
-    const up = screen.getByRole('button', { name: 'Move up a plan' }) as HTMLButtonElement
-    expect(up.disabled).toBe(true)
-    expect((screen.getByRole('button', { name: 'Switch overage on or off' }) as HTMLButtonElement).disabled).toBe(true)
+    await screen.findByRole('heading', { name: 'Business' })
+    expect(screen.queryByRole('button', { name: /Move/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Switch overage on or off' })).toBeNull()
     expect(screen.getByText(/To change your plan, contact the Fawtir team/)).toBeTruthy()
-    fireEvent.click(move)
-    fireEvent.click(up)
     expect(requests().every((line) => line.startsWith('GET '))).toBe(true)
   })
 
