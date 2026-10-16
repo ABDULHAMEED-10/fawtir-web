@@ -203,7 +203,9 @@ describe('Console › Disconnections', () => {
     renderQueue('/console/disconnections?open=d-1')
 
     const panel = within(
-      await screen.findByRole('region', { name: i18n.t('console.disconnections.path.ASK_FAWTIR') }),
+      await screen.findByRole('region', {
+        name: `Muscat Print House LLC · ${i18n.t('console.disconnections.path.ASK_FAWTIR')}`,
+      }),
     )
     expect(panel.getByText(i18n.t('console.disconnections.next.RAISE_PORTAL_REQUEST'))).toBeTruthy()
     // Only what can follow a request support has not raised yet.
@@ -284,7 +286,9 @@ describe('Console › Disconnections', () => {
     renderQueue('/console/disconnections?open=d-1')
 
     const panel = within(
-      await screen.findByRole('region', { name: i18n.t('console.disconnections.path.ASK_FAWTIR') }),
+      await screen.findByRole('region', {
+        name: new RegExp(i18n.t('console.disconnections.path.ASK_FAWTIR')),
+      }),
     )
     expect(panel.getByText(i18n.t('console.disconnections.approvalLapsed'))).toBeTruthy()
     // An expiry carries no date of its own: no time to type, the button is ready.
@@ -311,7 +315,7 @@ describe('Console › Disconnections', () => {
 
     const panel = within(
       await screen.findByRole('region', {
-        name: i18n.t('console.disconnections.path.ALREADY_DISCONNECTED'),
+        name: new RegExp(i18n.t('console.disconnections.path.ALREADY_DISCONNECTED')),
       }),
     )
     await user.type(
@@ -344,7 +348,9 @@ describe('Console › Disconnections', () => {
     renderQueue('/console/disconnections?open=d-1')
 
     const panel = within(
-      await screen.findByRole('region', { name: i18n.t('console.disconnections.path.ASK_FAWTIR') }),
+      await screen.findByRole('region', {
+        name: new RegExp(i18n.t('console.disconnections.path.ASK_FAWTIR')),
+      }),
     )
     const history = within(panel.getByRole('list'))
     expect(history.getByText(i18n.t('console.disconnections.step.REQUESTED'))).toBeTruthy()
@@ -384,7 +390,9 @@ describe('Console › Company page: Disconnect from Fawtir', () => {
       screen.getByRole('button', { name: i18n.t('console.disconnections.start.path') }),
     )
     await user.click(
-      screen.getByRole('option', { name: i18n.t('console.disconnections.path.ASK_FAWTIR') }),
+      screen.getByRole('option', {
+        name: new RegExp(i18n.t('console.disconnections.path.ASK_FAWTIR')),
+      }),
     )
     // A Tax Authority notice says a company has left; it is never a request to leave.
     await user.click(

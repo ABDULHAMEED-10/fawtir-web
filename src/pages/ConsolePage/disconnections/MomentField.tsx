@@ -43,7 +43,7 @@ export function MomentField({
           placeholder="14:30"
           aria-label={t('console.disconnections.moment.time', { label })}
           aria-invalid={timeWrong || undefined}
-          className="h-10 rounded-sm border border-border-default bg-white px-3 text-sm"
+          className="h-[50px] rounded-sm border border-border-default bg-white px-4 text-sm"
           value={time}
           disabled={disabled}
           onChange={(event) => onTime(event.target.value)}

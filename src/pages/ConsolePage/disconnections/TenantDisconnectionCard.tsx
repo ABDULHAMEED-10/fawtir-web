@@ -258,6 +258,7 @@ function StartForm({
           />
         </div>
         <Input
+          bordered
           label={t(
             askedVia === 'TAX_AUTHORITY_NOTICE'
               ? 'console.disconnections.start.noticeFrom'

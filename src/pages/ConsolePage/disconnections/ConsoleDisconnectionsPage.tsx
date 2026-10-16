@@ -165,6 +165,11 @@ function DisconnectionQueue() {
         <DisconnectionPanel
           key={selected}
           disconnectionId={selected}
+          companyName={
+            read.status === 'ready'
+              ? (read.data.find((row) => row.id === selected)?.companyName ?? null)
+              : null
+          }
           onRecorded={retry}
           onClose={() => select(null)}
         />
@@ -189,10 +194,13 @@ function Due({ dueAt, overdue }: { dueAt: string | null; overdue: boolean }) {
 
 function DisconnectionPanel({
   disconnectionId,
+  companyName,
   onRecorded,
   onClose,
 }: {
   disconnectionId: string
+  /** From the queue row, when the request is listed there; the request itself carries only its id. */
+  companyName: string | null
   onRecorded: () => void
   onClose: () => void
 }) {
@@ -221,6 +229,7 @@ function DisconnectionPanel({
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="disconnection-panel" className="text-lg font-semibold text-text-primary">
+          {companyName ? `${companyName} · ` : ''}
           {t(`console.disconnections.path.${request.path}`)}
         </h2>
         <div className="flex items-center gap-3">
@@ -474,6 +483,7 @@ function StepForm({
       ) : null}
       <div className="grid gap-5 md:grid-cols-2">
         <Input
+          bordered
           label={t('console.disconnections.form.reference')}
           value={reference}
           maxLength={200}
@@ -482,6 +492,7 @@ function StepForm({
           onChange={(event) => setReference(event.target.value)}
         />
         <Input
+          bordered
           label={t('console.disconnections.form.note')}
           value={note}
           maxLength={500}
