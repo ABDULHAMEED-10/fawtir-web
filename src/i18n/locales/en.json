@@ -1259,7 +1259,7 @@
       "awaiting": "No answer yet"
     },
     "quota": {
-      "title": "Invoice quota",
+      "title": "Documents this period",
       "used": "used",
       "periodEnds": "Period ends {{date}}"
     },
@@ -10992,7 +10992,7 @@
       "extraPeopleSome": "{{count}} beyond the five included",
       "overage": "Documents beyond the plan",
       "overageOff": "Overage is switched off, so nothing can accrue here",
-      "overageOn": "Charged at OMR {{rate}} each past the allowance",
+      "overageOn": "Nothing is charged past the allowance: extra documents are bought ahead at OMR {{rate}} each",
       "extraBranches": "Extra branches",
       "extraBranchesNone": "None beyond the {{included}} included",
       "extraBranchesSome_one": "{{count}} beyond the {{included}} included, at OMR {{each}} a month",
@@ -13557,7 +13557,7 @@
         "people": "People",
         "branches": "Branches",
         "ofAllowance": "{{used}} of {{allowance}}",
-        "overageOn": "Overage on: documents past the allowance are billed at the plan's rate",
+        "overageOn": "Overage on: past the allowance, the company buys extra documents ahead at the plan's rate; nothing is billed after the fact",
         "overageOff": "Overage off: filing stops at the allowance",
         "grant": "+{{documents}} granted until {{date}}: {{reason}}"
       },
