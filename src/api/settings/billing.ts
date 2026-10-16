@@ -100,7 +100,7 @@ export type BeneficiaryDto = {
  */
 export type CardOptionDto = {
   available: boolean
-  purpose: 'NEW_SUBSCRIPTION' | 'SUBSCRIPTION_UPGRADE' | 'SUBSCRIPTION_RENEWAL' | null
+  purpose: 'NEW_SUBSCRIPTION' | 'SUBSCRIPTION_UPGRADE' | 'SUBSCRIPTION_RENEWAL' | 'EXTRA_DOCUMENTS' | null
   reason:
     | 'CARD_NOT_AVAILABLE'
     | 'PAYMOB_AMOUNT_NOT_REPRESENTABLE'

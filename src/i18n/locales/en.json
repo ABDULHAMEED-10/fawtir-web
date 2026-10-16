@@ -21456,5 +21456,79 @@
       "title": "This invitation can’t be used",
       "body": "The link is invalid, has expired, or was already used. Ask your company’s administrator to send a new invitation."
     }
+  },
+  "extraDocuments": {
+    "title": "Buy extra documents",
+    "subtitle": "Documents bought ahead, on top of your plan's monthly allowance, for this subscription month.",
+    "backToPlan": "Plan and usage",
+    "entry": "Buy extra documents",
+    "month": {
+      "title": "This month's allowance",
+      "period": "{{start}} to {{end}}. Resets on {{reset}}.",
+      "plan": "Plan documents",
+      "extra": "Extra this month",
+      "used": "Used",
+      "usedOf": "{{used}} of {{total}}",
+      "left": "Left",
+      "none": "None left. You can't issue documents until you add extra documents or the allowance resets, and supplier documents you receive are held.",
+      "held_one": "{{documents}} supplier document is waiting. Held documents open first, oldest first, when extra documents are added.",
+      "held_other": "{{documents}} supplier documents are waiting. Held documents open first, oldest first, when extra documents are added.",
+      "expiry": "Extra documents are used after your plan's own documents and end on {{date}}, with them. Unused ones are not carried over or refunded."
+    },
+    "buy": {
+      "title": "Choose how many",
+      "note": "Priced by Fawtir at your plan's rate per document.",
+      "count": "Number of documents",
+      "fewer": "One fewer",
+      "more": "One more",
+      "limits": "From {{min}} to {{max}} at a time.",
+      "howAdded": "Ordering issues a bill to pay. By card the documents are added at once; by bank transfer or cash, once Fawtir confirms the payment.",
+      "submit": "Order and pay"
+    },
+    "quote": {
+      "line_one": "{{documents}} extra document",
+      "line_other": "{{documents}} extra documents",
+      "expires": "Added to this subscription month. They end on {{date}}.",
+      "loading": "Getting the price…",
+      "upgrade": "This month's extra documents would cost more than moving up to the {{plan}} plan. Contact Fawtir to move to a bigger plan."
+    },
+    "order": {
+      "title": "Your order",
+      "note_one": "{{documents}} extra document, added once the payment is confirmed.",
+      "note_other": "{{documents}} extra documents, added once the payment is confirmed.",
+      "change": "Change the number",
+      "keep": "Keep my order",
+      "replaces": "Ordering a different number replaces the order you have not paid yet."
+    },
+    "result": {
+      "added_one": "Paid. {{documents}} extra document is added to this month, and held supplier documents open first.",
+      "added_other": "Paid. {{documents}} extra documents are added to this month, and held supplier documents open first."
+    },
+    "notOffered": "Your plan has no extra documents to buy. Contact Fawtir about your allowance.",
+    "noPermission": "Only people who manage the plan can buy extra documents.",
+    "history": {
+      "title": "Extra documents",
+      "note": "Bought by your company or added by Fawtir. Unused extra documents are never refunded.",
+      "ends": "ends {{date}}",
+      "source": {
+        "PURCHASE": "Bought",
+        "GRANT": "Added by Fawtir",
+        "GIVE_BACK": "Given back by Fawtir"
+      },
+      "status": {
+        "PENDING": "Waiting for payment",
+        "ACTIVE": "Added",
+        "CANCELLED": "Cancelled"
+      }
+    },
+    "refusal": {
+      "extra-documents-not-offered": "Your plan has no extra documents to buy. Contact Fawtir.",
+      "billing-not-configured": "Extra documents can't be billed yet. Contact Fawtir.",
+      "subscription-not-tracked": "Fawtir manages billing for your subscription directly. Contact Fawtir to add documents.",
+      "subscription-state-conflict": "Extra documents can be bought while your subscription is active. Pay your subscription first.",
+      "payFirstLink": "Go to Bills and payment",
+      "payment-state-conflict": "A payment for extra documents is already being checked. Wait for it before ordering more.",
+      "outOfRange": "Choose a number from {{min}} to {{max}}."
+    }
   }
 }

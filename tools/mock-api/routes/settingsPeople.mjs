@@ -122,6 +122,7 @@ export default [
         peopleIncluded: 5,
         branchesIncluded: 2,
         monthlyPrice: '80.000',
+        overagePricePerInvoice: '0.060',
       },
       usage: {
         period: { start: '2026-10-01', end: '2026-10-31', today: TODAY },

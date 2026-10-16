@@ -5,7 +5,7 @@ import { useApiRead } from '../../hooks'
 import { usePlanName } from '../../hooks/usePlanName'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { hasPermission } from '../../lib/identity/entitlements'
-import { formatAmount, formatDate, formatInstantDay } from '../../lib/format'
+import { formatAmount, formatCount, formatDate, formatInstantDay } from '../../lib/format'
 import { Button, FileDropzone, OmAmount } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { ApiError, NetworkError } from '../../api'
@@ -33,6 +33,11 @@ import {
   type SubscriptionBillDto,
   type SubscriptionPaymentDto,
 } from '../../api/settings/billing'
+import {
+  EXTRA_DOCUMENTS_PATH,
+  loadExtraDocuments,
+  type ExtraDocumentsOverviewDto,
+} from '../../api/settings/extraDocuments'
 
 const LIVE: SubscriptionPaymentDto['status'][] = ['SUBMITTED', 'RECEIPT_RECORDED', 'AWAITING_SECOND_APPROVAL']
 const PROOF_ACCEPT = '.pdf,.png,.jpg,.jpeg'
@@ -72,8 +77,12 @@ const PAYMOB_RETURN_PARAMS = new Set([
  * reloads and says why, rather than leaving the customer on a bill that can no longer be paid.
  */
 export function SubscriptionBillingSection() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const read = useApiRead<BillingOverviewDto>(BILLING_PATH, loadBillingOverview)
+  // A bill carries no kind (SETTINGS.md row 5.8): an extra documents order is recognised by its
+  // bill id, so it is not called "Subscription". Unreadable, the bill keeps the usual label.
+  const extras = useApiRead<ExtraDocumentsOverviewDto>(EXTRA_DOCUMENTS_PATH, loadExtraDocuments).read
+  const extrasOrder = extras.status === 'ready' ? extras.data.outstanding : null
   const { entitlements } = useEntitlements()
   const canPay = entitlements !== null && hasPermission(entitlements, 'tenant.plan.manage')
   const [notice, setNotice] = useState<string | null>(null)
@@ -118,6 +127,14 @@ export function SubscriptionBillingSection() {
           reportedCards={reportedCards}
           onChanged={changed}
           onCardFinished={cardFinished}
+          subtotalLabel={
+            extrasOrder && extrasOrder.bill.id === outstanding.bill.id
+              ? t('extraDocuments.quote.line', {
+                  count: extrasOrder.credit.documents,
+                  documents: formatCount(extrasOrder.credit.documents, i18n.language),
+                })
+              : undefined
+          }
         />
       ) : overview.bills.length === 0 ? (
         <BeforeFirstBill overview={overview} canPay={canPay} onPrepared={() => changed()} />
@@ -219,7 +236,12 @@ function NoOutstandingBill({
   )
 }
 
-function OutstandingBill({
+/**
+ * One bill still to pay and how to pay it. Exported for the extra documents screen, which pays its
+ * own bill through the same form: `subtotalLabel` names what the bill charges for when it is not
+ * the subscription itself.
+ */
+export function OutstandingBill({
   bill,
   payments,
   card,
@@ -228,6 +250,7 @@ function OutstandingBill({
   reportedCards,
   onChanged,
   onCardFinished,
+  subtotalLabel,
 }: {
   bill: SubscriptionBillDto
   payments: SubscriptionPaymentDto[]
@@ -237,6 +260,7 @@ function OutstandingBill({
   reportedCards: ReadonlySet<string>
   onChanged: (why?: string) => void
   onCardFinished: (paymentId: string, why: string) => void
+  subtotalLabel?: string
 }) {
   const { t, i18n } = useTranslation()
   const live = payments.find((payment) => LIVE.includes(payment.status))
@@ -266,7 +290,7 @@ function OutstandingBill({
         <Fact label={t('billing.bill.status')} value={t(`billing.billStatus.${bill.status}`)} />
       </dl>
       <dl className="flex flex-col gap-2 rounded-sm bg-surface-background px-4 py-3 text-sm">
-        <Line label={t('billing.bill.subtotal')} value={money(bill.subtotal)} />
+        <Line label={subtotalLabel ?? t('billing.bill.subtotal')} value={money(bill.subtotal)} />
         {/* Rate 0 is how the server says no VAT is charged: no line, rather than "VAT 0%". */}
         {Number(bill.vatRate) === 0 ? null : (
           <Line
@@ -906,7 +930,7 @@ function Alert({ children }: { children: ReactNode }) {
 }
 
 /** "0.05000" as "5%", with Latin digits in Arabic too. */
-function formatRate(rate: string, language: string): string {
+export function formatRate(rate: string, language: string): string {
   const percent = Number(rate) * 100
   return `${new Intl.NumberFormat(language.startsWith('ar') ? 'ar-u-nu-latn' : 'en-US', {
     maximumFractionDigits: 3,

@@ -7,6 +7,9 @@ import { issueDraft, newIdempotencyKey, previewDraft, type DraftPreview } from '
 import type { InvoiceDetailDto } from '../../api/invoices/detail'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { subscriptionRestrictedAction } from '../../lib/subscriptionRestricted'
+import { useCan } from '../../lib/session/session'
+import { ApiError } from '../../api'
+import { EXTRA_DOCUMENTS_ROUTE } from '../../api/settings/extraDocuments'
 import {
   SELF_BILLED_SUPPLIER_SWITCHED_OFF_KEY,
   SELF_BILLING_AGREEMENTS_ROUTE,
@@ -63,9 +66,11 @@ export function IssueInvoiceModal({
   const [key, setKey] = useState(newIdempotencyKey)
   const [errors, setErrors] = useState<Partial<Record<IssueField, string>>>({})
   const [failure, setFailure] = useState<string | null>(null)
-  // Only the supplier's missing business activity carries a way out: the page where it is set.
+  // A way out where there is one: the page where the supplier's business activity is set, or, at
+  // 0 documents left, buying extra documents.
   const [failureLink, setFailureLink] = useState<{ to: string; labelKey: string } | null>(null)
   const [busy, setBusy] = useState(false)
+  const mayBuyExtras = useCan('tenant.plan.manage')
   // Two clicks in one tick both run before `busy` renders the button disabled; the second would be
   // refused by the key (409, request in progress) and flash an error over a successful issue.
   const inFlight = useRef(false)
@@ -119,6 +124,10 @@ export function IssueInvoiceModal({
         setErrors({ [refusal.field]: refusal.key })
       } else if (refusal) {
         setFailure(t(refusal.key, refusal.values))
+        // At 0 left the way on is to buy extra documents ahead, for those who may (EX-1).
+        if (error instanceof ApiError && error.code === 'QUOTA_EXCEEDED' && mayBuyExtras) {
+          setFailureLink({ to: EXTRA_DOCUMENTS_ROUTE, labelKey: 'extraDocuments.entry' })
+        }
       } else {
         const message = describeApiFailure(error)
         const body = t(message.key, message.values)
