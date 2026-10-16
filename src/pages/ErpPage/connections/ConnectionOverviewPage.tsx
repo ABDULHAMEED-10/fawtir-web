@@ -17,6 +17,7 @@ import { ConnectionShell, ConnectionNotFound } from './ConnectionShell'
 import { ConnectionFailure, TestOutcomePill } from './connectionParts'
 import { useConnectionDetail, useMutation } from './connectionData'
 import { useErpAccess } from '../../../hooks/useErpAccess'
+import { useSubscriptionAllows } from '../../../lib/subscriptionReadOnly'
 import { useLanguage } from '../../../hooks'
 import { isNotFound } from '../../../lib/apiFailure'
 import { erpConnectionControls, testReasonKey } from '../../../lib/erp/connectionPolicy'
@@ -86,7 +87,16 @@ function Overview({
   const { language } = useLanguage()
   const navigate = useNavigate()
   const { access } = useErpAccess()
-  const controls = erpConnectionControls(connection, access)
+  // Checking, enabling and changing settings use the ERP, which stops while the subscription is
+  // read-only (ST-2); disabling and archiving only take capability away, so they stay.
+  const erpAllowed = useSubscriptionAllows('ERP')
+  const policy = erpConnectionControls(connection, access)
+  const controls = {
+    ...policy,
+    canTest: policy.canTest && erpAllowed,
+    canMarkReady: policy.canMarkReady && erpAllowed,
+    canEdit: policy.canEdit && erpAllowed,
+  }
   const mutation = useMutation()
   const [confirmArchive, setConfirmArchive] = useState(false)
   // The freshest verdict, held beside the connection so a check does not have to wait for the

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { useApiRead } from '../../hooks'
 import { useCan } from '../../lib/session/session'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import {
   ApiReadFailure,
   LoadingNotice,
@@ -69,6 +70,8 @@ export function TeamPage() {
 function Team() {
   const { t } = useTranslation()
   const mayManage = useCan(USERS_PERMISSION)
+  // Nobody new is added while the subscription is read-only (ST-2); the lists stay.
+  const mayInvite = useSubscriptionAllows('ADD_PEOPLE')
 
   return (
     <>
@@ -76,7 +79,7 @@ function Team() {
         title={t('team.title')}
         subtitle={t('people.team.subtitle')}
         actions={
-          mayManage ? (
+          mayManage && mayInvite ? (
             <Link
               to="/settings/team/invite"
               className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"

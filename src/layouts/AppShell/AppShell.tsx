@@ -12,6 +12,7 @@ import { REQUIRE_SESSION, SessionContext } from '../../lib/session/session'
 import { useApiRead } from '../../hooks'
 import { REFERENCE_DATA_PATH, loadReferenceData, type ReferenceDataDto } from '../../api/reference/referenceData'
 import { ReferenceDataContext, useReferenceData } from '../../lib/reference/referenceData'
+import { SubscriptionReadOnlyLine } from '../../components/shell/SubscriptionReadOnlyLine'
 
 type AppShellProps = {
   children: ReactNode
@@ -105,7 +106,11 @@ function Frame({ children }: AppShellProps) {
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar onOpenNav={() => setNavOpen(true)} />
-        <main className="min-h-0 flex-1 overflow-y-auto px-4 py-3 lg:px-4 lg:pb-6">{children}</main>
+        <main className="min-h-0 flex-1 overflow-y-auto px-4 py-3 lg:px-4 lg:pb-6">
+          {/* The read-only line (ST-2): above every screen, and nothing while the subscription is usable. */}
+          <SubscriptionReadOnlyLine />
+          {children}
+        </main>
       </div>
     </div>
   )

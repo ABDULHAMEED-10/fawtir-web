@@ -99,6 +99,7 @@ import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatDate, formatInstant, initialsOf } from '../../lib/format'
 import { formatFileSize } from '../../lib/files'
 import { can, useSession } from '../../lib/session/session'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import backIcon from '../../assets/invoice-details/back.svg'
 import creditNoteIcon from '../../assets/invoice-details/credit-note.svg'
 import clockIcon from '../../assets/invoice-details/clock.svg'
@@ -196,6 +197,8 @@ function InvoiceScreen() {
   const reference = useReferenceData()
   const language = i18n.language
   const session = useSession()
+  // Issuing stops while the subscription is read-only (ST-2): the action is hidden, not greyed.
+  const mayIssue = useSubscriptionAllows('ISSUE_DOCUMENTS')
   const navigate = useNavigate()
   const location = useLocation()
   const { id = '' } = useParams()
@@ -692,7 +695,7 @@ function InvoiceScreen() {
                 {t('invoiceDetails.actions.edit')}
               </Link>
             ) : null}
-            {draft && can(session, 'invoice.issue') ? (
+            {draft && can(session, 'invoice.issue') && mayIssue ? (
               <button type="button" onClick={() => setIssuing(true)} className={PRIMARY_BUTTON}>
                 {t(
                   noteType === 'CREDIT_NOTE'

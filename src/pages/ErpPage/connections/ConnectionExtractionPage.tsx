@@ -21,6 +21,7 @@ import { EXTRACTION_STATUS_TONE } from '../../../lib/erp/extractionTone'
 import { useConnectionDetail, useMutation } from './connectionData'
 import { useExtractionSettings, useExtractionStatus } from './extractionData'
 import { useErpAccess } from '../../../hooks/useErpAccess'
+import { useSubscriptionAllows } from '../../../lib/subscriptionReadOnly'
 import { isNotFound } from '../../../lib/apiFailure'
 import { erpRefusalOf } from '../../../lib/erp/connectionPolicy'
 import { formatInstant } from '../../../lib/format'
@@ -144,6 +145,9 @@ export function ConnectionExtractionPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const { access, ready: accessReady } = useErpAccess()
+  // Saving the settings, taking a sample and switching collection on use the ERP, which stops while
+  // the subscription is read-only (ST-2). Switching it off only takes capability away, so it stays.
+  const erpAllowed = useSubscriptionAllows('ERP')
   // Each read waits for the one before it: nothing about this connection is requested until the
   // operator is known to be allowed to read it, and nothing about extraction until the connection
   // is known to be one Fawtir collects from. Any other mode answers
@@ -190,7 +194,7 @@ export function ConnectionExtractionPage() {
   }
 
   const version = connection.version
-  const canManage = access.manage
+  const canManage = access.manage && erpAllowed
   const canSample = access.test
   const missingIssueTime = isMissingIssueTime(settings)
   // The refusal belongs next to the field it names as well as in the banner, because the banner
@@ -453,6 +457,7 @@ export function ConnectionExtractionPage() {
         sample={sample}
         busy={mutation.busy === 'sample'}
         canSample={canSample}
+        mayFetch={erpAllowed}
         onFetch={takeSample}
         connectionId={connection.id}
       />
@@ -460,7 +465,8 @@ export function ConnectionExtractionPage() {
       <EnablementPanel
         settings={settings}
         status={status}
-        canManage={canManage}
+        canManage={access.manage}
+        mayEnable={erpAllowed}
         busy={mutation.busy}
         onEnable={() => setEnabled(true)}
         onDisable={() => setEnabled(false)}
@@ -595,12 +601,15 @@ function SamplePanel({
   sample,
   busy,
   canSample,
+  mayFetch,
   onFetch,
   connectionId,
 }: {
   sample: ExtractionSampleDto | null
   busy: boolean
   canSample: boolean
+  /** False while the subscription is read-only: fetching contacts the ERP, so it is not offered. */
+  mayFetch: boolean
   onFetch: () => void
   connectionId: string
 }) {
@@ -640,19 +649,21 @@ function SamplePanel({
       note={t('erp.extraction.sample.description')}
     >
       <div className={CARD_BODY}>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            className={SECONDARY_BUTTON}
-            disabled={!canSample || busy}
-            onClick={onFetch}
-          >
-            {busy ? t('erp.extraction.sample.fetching') : t('erp.extraction.sample.fetch')}
-          </button>
-          {!canSample ? (
-            <p className="text-sm text-text-quaternary">{t('erp.extraction.sample.noPermission')}</p>
-          ) : null}
-        </div>
+        {mayFetch ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className={SECONDARY_BUTTON}
+              disabled={!canSample || busy}
+              onClick={onFetch}
+            >
+              {busy ? t('erp.extraction.sample.fetching') : t('erp.extraction.sample.fetch')}
+            </button>
+            {!canSample ? (
+              <p className="text-sm text-text-quaternary">{t('erp.extraction.sample.noPermission')}</p>
+            ) : null}
+          </div>
+        ) : null}
 
         {sample !== null ? (
           <>
@@ -715,6 +726,7 @@ function EnablementPanel({
   settings,
   status,
   canManage,
+  mayEnable,
   busy,
   onEnable,
   onDisable,
@@ -722,6 +734,8 @@ function EnablementPanel({
   settings: ExtractionSettingsDto | null
   status: ExtractionStatusDto | null
   canManage: boolean
+  /** False while the subscription is read-only: Enable is not offered, Disable still is. */
+  mayEnable: boolean
   busy: string | null
   onEnable: () => void
   onDisable: () => void
@@ -771,7 +785,7 @@ function EnablementPanel({
                 ? t('erp.extraction.enablement.disabling')
                 : t('erp.extraction.enablement.disable')}
             </button>
-          ) : (
+          ) : mayEnable ? (
             <button
               type="button"
               className={PRIMARY_BUTTON}
@@ -782,7 +796,7 @@ function EnablementPanel({
                 ? t('erp.extraction.enablement.enabling')
                 : t('erp.extraction.enablement.enable')}
             </button>
-          )}
+          ) : null}
           <p className="text-sm text-text-quaternary">
             {t(
               enabled

@@ -21456,5 +21456,17 @@
       "title": "This invitation can’t be used",
       "body": "The link is invalid, has expired, or was already used. Ask your company’s administrator to send a new invitation."
     }
+  },
+  "subscriptionReadOnly": {
+    "reason": {
+      "suspended": "Your subscription is read-only until the renewal is paid.",
+      "trialEnded": "Your free trial has ended. Your subscription is read-only until you pay.",
+      "cancelled": "Your subscription has ended and is read-only until you renew it.",
+      "notStarted": "Your subscription is read-only until your payment is confirmed.",
+      "enterpriseTerms": "Your subscription is read-only until the Fawtir team sets your Enterprise terms.",
+      "generic": "Your subscription is read-only."
+    },
+    "askToPay": "An administrator of your company can pay.",
+    "pay": "Pay"
   }
 }
