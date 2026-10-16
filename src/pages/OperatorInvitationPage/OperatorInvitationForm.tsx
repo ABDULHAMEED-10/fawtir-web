@@ -38,13 +38,29 @@ function optionalName(value: string): FieldError {
 }
 
 /**
- * The invitee's side of an operator invitation: they choose a username and their own password.
+ * Which invitation the form serves. Both accept through the same endpoint with the same fields;
+ * only the wording around the form differs (an operator joins the console with no role, a company
+ * user joins their company with the role the administrator chose).
+ */
+export type InvitationCopy = 'operatorInvitation' | 'companyInvitation'
+
+/**
+ * The invitee's side of an operator or company invitation: they choose a username and their own
+ * password.
  *
  * The username follows the backend's V174 rule here, because acceptance itself does not check
  * the pattern yet and a name the database refuses would come back as a server fault. When the
  * link turns out to be spent, the form gives way to a message: nothing typed could fix it.
  */
-export function OperatorInvitationForm({ token, onLinkSpent }: { token: string; onLinkSpent: () => void }) {
+export function OperatorInvitationForm({
+  token,
+  onLinkSpent,
+  copy = 'operatorInvitation',
+}: {
+  token: string
+  onLinkSpent: () => void
+  copy?: InvitationCopy
+}) {
   const { t } = useTranslation()
   const [values, setValues] = useState({ username: '', firstName: '', lastName: '', password: '', confirmPassword: '' })
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({})
@@ -110,8 +126,8 @@ export function OperatorInvitationForm({ token, onLinkSpent }: { token: string; 
     return (
       <div className="flex w-full max-w-[400px] flex-col gap-6" role="status">
         <div className="flex flex-col gap-3">
-          <h2 className="text-[32px] font-medium leading-[1.2] text-text-primary">{t('operatorInvitation.done.title')}</h2>
-          <p className="text-base font-medium leading-[1.4] text-text-quaternary">{t('operatorInvitation.done.body')}</p>
+          <h2 className="text-[32px] font-medium leading-[1.2] text-text-primary">{t(`${copy}.done.title`)}</h2>
+          <p className="text-base font-medium leading-[1.4] text-text-quaternary">{t(`${copy}.done.body`)}</p>
         </div>
         <Link
           to={LOGIN_ROUTE}
@@ -139,8 +155,8 @@ export function OperatorInvitationForm({ token, onLinkSpent }: { token: string; 
     <form noValidate onSubmit={(event) => void submit(event)} className="flex w-full max-w-[400px] flex-col gap-11">
       <div className="flex flex-col gap-9">
         <div className="flex flex-col gap-3">
-          <h2 className="text-[32px] font-medium leading-[1.2] text-text-primary">{t('operatorInvitation.title')}</h2>
-          <p className="text-base font-medium leading-[1.2] text-text-quaternary">{t('operatorInvitation.description')}</p>
+          <h2 className="text-[32px] font-medium leading-[1.2] text-text-primary">{t(`${copy}.title`)}</h2>
+          <p className="text-base font-medium leading-[1.2] text-text-quaternary">{t(`${copy}.description`)}</p>
         </div>
 
         <div className="flex flex-col gap-6">

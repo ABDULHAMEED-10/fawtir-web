@@ -10,6 +10,13 @@ import { commonFailureMessage, mapServerFieldErrors, type FormMessage, type Serv
  */
 export const OPERATOR_INVITATION_ROUTE = '/operator-invitation'
 
+/**
+ * Where a company user's invitation mail lands, also with `#token=<token>`. The backend builds the
+ * link from `FAWTIR_IDENTITY_INVITATION_ACCEPTANCE_URL`, so that setting must name this path. The
+ * acceptance call and its refusals are the operator invitation's: one endpoint serves both.
+ */
+export const COMPANY_INVITATION_ROUTE = '/invitation'
+
 /** `AcceptInvitationRequest`: the token plus what the invitee chooses. The email is the invitation's. */
 export type AcceptInvitationRequest = {
   token: string
