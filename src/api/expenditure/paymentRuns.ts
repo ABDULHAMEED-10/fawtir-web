@@ -227,7 +227,7 @@ export function loadBlocked(path: string): Promise<PaymentRunBlockedDto[]> {
   return apiRequest<PaymentRunBlockedDto[]>(path)
 }
 
-/** `invoice.export`. Makes the bank file; a SCHEDULED run becomes EXPORTED, an EXPORTED one is made again. */
+/** `bill.export` and `bill.settle`. Makes the bank file; a SCHEDULED run becomes EXPORTED, an EXPORTED one is made again. */
 export function exportRun(id: string): Promise<ApiDownload> {
   return apiDownload(`${runPath(id)}/export`, { method: 'POST' })
 }
@@ -236,7 +236,7 @@ export function exportRun(id: string): Promise<ApiDownload> {
 export type TakeOut = { billId: string; reason: string }
 
 /**
- * `invoice.payment.manage`. DRAFT, SCHEDULED or EXPORTED -> PAID (DRAFT and SCHEDULED since
+ * `bill.settle`. DRAFT, SCHEDULED or EXPORTED -> PAID (DRAFT and SCHEDULED since
  * backend #476; no bank file is needed). With `takeOut`, the named bills are left unpaid and the
  * rest is marked paid. `paymentDate` (owner, 10 Oct 2026) is the day the suppliers were paid, never
  * in the future; the server refuses a future one. With neither, no body is sent, as before.

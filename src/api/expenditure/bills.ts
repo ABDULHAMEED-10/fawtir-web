@@ -270,7 +270,7 @@ export type RecordBillPaymentRequest = {
 }
 
 /**
- * Records a payment made against a bill (`invoice.payment.manage`, `Idempotency-Key`). The bill must
+ * Records a payment made against a bill (`bill.settle`, `Idempotency-Key`). The bill must
  * be approval-READY: an unapproved one is refused with `BILL_NOT_READY_FOR_PAYMENT`.
  */
 export function recordBillPayment(
@@ -498,7 +498,7 @@ export function loadBillOverpayment(billId: string): Promise<BillOverpaymentDto>
 
 /**
  * Records money the supplier paid back of what the bill was overpaid by
- * (`invoice.payment.manage`). `refundedOn` is the day it arrived, never after today in Muscat.
+ * (`bill.settle`). `refundedOn` is the day it arrived, never after today in Muscat.
  */
 export function recordOverpaymentRefund(
   billId: string,
@@ -511,7 +511,7 @@ export function recordOverpaymentRefund(
 }
 
 /**
- * Keeps the excess as credit with the supplier for their next bill (`invoice.payment.manage`).
+ * Keeps the excess as credit with the supplier for their next bill (`bill.settle`).
  * Moves no money. With no amount the server keeps all of `undecided`.
  */
 export function keepOverpaymentAsCredit(
@@ -526,7 +526,7 @@ export function keepOverpaymentAsCredit(
 
 /**
  * Sets credit kept from this bill against another bill of the same supplier and currency
- * (`invoice.payment.manage`). With no amount the server applies the largest that fits both.
+ * (`bill.settle`). With no amount the server applies the largest that fits both.
  */
 export function applyOverpaymentCredit(
   billId: string,

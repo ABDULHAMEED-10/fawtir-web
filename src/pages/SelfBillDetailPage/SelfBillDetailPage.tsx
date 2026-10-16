@@ -373,12 +373,13 @@ function SelfBillScreen() {
     attachments.read.status === 'ready'
       ? attachmentRows(attachments.read.data, (bytes) => fileSize(bytes, language))
       : []
-  // Paying needs an issued document with something owed on its payable and the right to record it.
+  // Paying needs an issued document with something owed on its payable and the right to settle it
+  // (`bill.settle`, as a bill: the payable is paid on the bill's own route).
   // Otherwise the action is not offered at all, as on the invoice and bill pages (owner decisions
   // 2026-10-01: hidden, not disabled; no greyed button on a draft or a paid document either).
   const canPay =
     payable !== null &&
-    can(session, 'invoice.payment.manage') &&
+    can(session, 'bill.settle') &&
     data.authoringState === 'ISSUED' &&
     owed !== null &&
     owed.paymentState !== 'NOT_APPLICABLE' &&

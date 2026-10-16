@@ -209,7 +209,8 @@ export function undecidedDebitNote(detail: BillDetailDto): boolean {
 /**
  * Whether a payment can be recorded on this bill now: it is approved, not on hold, does not
  * disagree with its order, is not in a payment run, is not a refused or undecided debit note, still owes
- * money, and the reader may record payments. Anything else and the action is not offered at all
+ * money, and the reader may settle bills (`bill.settle`: the Finance Manager pays what the
+ * Accountant prepared, RL-4). Anything else and the action is not offered at all
  * (owner decision 2026-10-01: hidden, not disabled). A held bill is released first; a mismatch is
  * resolved first; a bill in a run is paid there, or taken out of the run; a refused debit note is
  * accepted first (owner, 8 Oct 2026).
@@ -219,7 +220,7 @@ export function canRecordPayment(
   can: (permission: string) => boolean,
 ): boolean {
   return (
-    can('invoice.payment.manage') &&
+    can('bill.settle') &&
     !isCreditNote(detail) &&
     detail.readiness.state === 'READY' &&
     detail.hold === null &&
