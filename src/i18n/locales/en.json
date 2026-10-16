@@ -20059,7 +20059,8 @@
       "erpMapping": "Map the fields of your ERP's invoices so Fawtir reads, checks and reports them.",
       "api": "Your own system talks to Fawtir directly.",
       "webhooks": "Fawtir tells your systems the moment something changes."
-    }
+    },
+    "perMonthNoVat": "a month"
   },
   "lineComposer": {
     "exclVat": "Excl. VAT",
@@ -21233,7 +21234,7 @@
     "actionFailed": "That did not go through. Reload the page and try again.",
     "cancelConfirm": {
       "title": "Cancel your subscription?",
-      "body": "Everything keeps working until {{date}}. After that the subscription will not renew, and your issued invoices and reports stay available to read and export.",
+      "body": "Your subscription stays active until {{date}}. After that it will not renew, and your issued invoices and reports stay available to read and export. Payments already made are not refunded.",
       "back": "Go back",
       "confirm": "Confirm cancellation"
     },
