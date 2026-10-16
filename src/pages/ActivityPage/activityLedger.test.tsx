@@ -142,6 +142,28 @@ beforeEach(async () => {
 
 afterEach(() => vi.unstubAllGlobals())
 
+/** The resubmit answered as the correction guard answers it (backend PR #519, OD5). */
+function holdResubmits() {
+  const base = fetchMock.getMockImplementation()!
+  fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).includes('/tdd/resubmit') && init?.method === 'POST') {
+      resubmitted.push(String(input))
+      return json(409, {
+        type: 'https://api.fawtir.om/problems/resource-conflict',
+        title: 'TDD correction held',
+        detail: 'The original TDD of this invoice was not reported to the configured C5',
+        error: 'TDD_CORRECTION_HELD',
+        code: 'TDD_CORRECTION_HELD',
+        held_correction_id: '9f0c1e2d-0000-4000-8000-000000000001',
+        held_reason: 'C5_DIFFERS',
+      })
+    }
+    return base(input, init)
+  })
+}
+
+const HELD_SENTENCE = /This correction is on hold for an authorised decision at Fawtir/
+
 const calls = (fragment: string) =>
   fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.includes(fragment))
 
@@ -473,6 +495,21 @@ describe('the ledger screen', () => {
     await waitFor(() => expect(resubmitted).toHaveLength(1))
     // The /api the catalogue states and the /api the client adds must not both be sent.
     expect(resubmitted[0]).toBe('/api/v1/invoices/inv-1/tdd/resubmit')
+  })
+
+  it('says a held correction was not sent, not that the row changed', async () => {
+    holdResubmits()
+    items = [item({ links: { ...item().links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' } })]
+    renderLedger()
+    await screen.findByText('INV-0001')
+
+    openRowMenu('INV-0001')
+    fireEvent.click(screen.getByRole('menuitem', { name: /Send the report again/ }))
+    expect(await screen.findByText(HELD_SENTENCE)).toBeTruthy()
+    expect(resubmitted).toHaveLength(1)
+    expect(screen.queryByText(/Reload to see the latest version/)).toBeNull()
+    expect(screen.queryByText(/Sent again/)).toBeNull()
+    expect(document.body.textContent).not.toMatch(/TDD_CORRECTION_HELD/)
   })
 
   it('offers no resubmission on silence, even where a link might be expected', async () => {
@@ -991,6 +1028,34 @@ describe("one document's record", () => {
     renderDetail(`/compliance/activity/${UUID_A}/resubmit`)
     fireEvent.click(await screen.findByRole('button', { name: /^Fix and send/ }))
     await waitFor(() => expect(resubmitted).toEqual(['/api/v1/invoices/inv-1/tdd/resubmit']))
+  })
+
+  it('stays on the fix and says so when the correction is held', async () => {
+    holdResubmits()
+    detailReply = {
+      ...DETAIL,
+      tdd_lineage: [
+        {
+          ...DETAIL.tdd_lineage[1],
+          status: 'REJECTED',
+          failure_reason: 'The report signature could not be verified.',
+        },
+      ],
+      summary: {
+        ...DETAIL.summary,
+        tdd_leg: {
+          ...DETAIL.summary.tdd_leg!,
+          ack: 'RE',
+          reason: 'The report signature could not be verified.',
+        },
+        links: { ...DETAIL.summary.links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' },
+      },
+    }
+    renderDetail(`/compliance/activity/${UUID_A}/resubmit`)
+    fireEvent.click(await screen.findByRole('button', { name: /^Fix and send/ }))
+    expect(await screen.findByText(HELD_SENTENCE)).toBeTruthy()
+    expect(resubmitted).toEqual(['/api/v1/invoices/inv-1/tdd/resubmit'])
+    expect(screen.getByRole('button', { name: /^Fix and send/ })).toBeTruthy()
   })
 
   it('offers the fix only to someone who may submit', async () => {

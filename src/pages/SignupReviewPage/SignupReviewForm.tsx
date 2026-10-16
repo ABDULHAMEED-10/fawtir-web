@@ -24,6 +24,7 @@ import { toOmanE164 } from '../../lib/validation'
 import { findCode, nameOf } from '../../lib/codeLists/codeList'
 import { asSentence, rejectionReasonLabel } from '../../lib/identity/signupRejection'
 import { formatDate } from '../../lib/format'
+import { sellerName } from '../../api/settings/billing'
 import { ISIC_ACTIVITIES } from '../../lib/codeLists/isic'
 
 /** `money`: the value is a rial figure and carries the rial sign. */
@@ -106,6 +107,10 @@ export function SignupReviewForm() {
   // says they are not known rather than working them out from the launch catalogue.
   const trialDays = state.planTerms ? state.planTerms.trialDays : undefined
   const amounts = billAmounts(state.planTerms ?? null)
+  // VAT 0 is how the server says none is charged: the amount is then not labelled "VAT included",
+  // as the payment step shows no VAT line (F28).
+  const noVat = amounts !== null && Number(amounts.vat) === 0
+  const seller = sellerName(state.seller, i18n.language)
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -230,8 +235,18 @@ export function SignupReviewForm() {
                         ? t('signupReview.firstBillAfterTrial', { count: trialDays })
                         : t('signupReview.firstBillUnknown'),
                   },
+              // The seller, named as the payment step names it (F36).
+              ...(seller ? [{ label: t('signupReview.fields.seller'), value: seller }] : []),
               {
-                label: t(enrollment === 'payNow' ? 'signupReview.fields.paidNow' : 'signupReview.fields.firstBillAmount'),
+                label: t(
+                  enrollment === 'payNow'
+                    ? noVat
+                      ? 'signupReview.fields.paidNowNoVat'
+                      : 'signupReview.fields.paidNow'
+                    : noVat
+                      ? 'signupReview.fields.firstBillAmountNoVat'
+                      : 'signupReview.fields.firstBillAmount',
+                ),
                 ...(amounts
                   ? { value: amounts.inclVat, money: true }
                   : { value: t('signupReview.amountUnavailable') }),

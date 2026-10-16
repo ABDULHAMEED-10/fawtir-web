@@ -283,6 +283,21 @@ describe('Verify', () => {
     expect(within(dialog).queryByText(i18n.t('console.verification.decision.paymentNotConfirmed'))).toBeNull()
   })
 
+  it('names the cash receipt Finance recorded instead of "None" (H1)', async () => {
+    const cash = {
+      ...HELD('AWAITING_SECOND_APPROVAL'),
+      method: 'CASH',
+      reference: null,
+      proofContentType: null,
+      receiptNumber: 'RC-RT1015-C1',
+    }
+    await readyToVerify({ [PAYMENT_URL]: () => json(200, { payment: cash, refundCase: null }) })
+    expect(await screen.findByText('RC-RT1015-C1')).toBeTruthy()
+    expect(screen.queryByText(i18n.t('console.verification.payment.noReceipt'))).toBeNull()
+    // Cash above the threshold is confirmed again by its verifier, not given a second approval.
+    expect(screen.getByText(i18n.t('console.billing.status.AWAITING_SECOND_APPROVAL_CASH'))).toBeTruthy()
+  })
+
   it('stays disabled until evidence is filed and the reference is valid', async () => {
     await openPending({ [EVIDENCE_URL]: () => json(201, EVIDENCE) })
     expect(button('console.verification.decision.verify').disabled).toBe(true)

@@ -57,6 +57,7 @@ import {
 import { defaultReportRange, downloadReport } from '../../api/reports/reports'
 import { saveDownload } from '../../lib/supplierRecord'
 import { describeApiFailure } from '../../lib/apiFailure'
+import { tddResubmitRefusalKey } from '../../lib/tddResubmit'
 import { BUSINESS_TIME_ZONE, formatAmount, formatCount } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import { ActivityEmptyState } from './ActivityEmptyState'
@@ -254,7 +255,13 @@ function ActivityLedger() {
       list.retry()
       summary.retry()
     } catch (error) {
-      fail(error)
+      const refusal = tddResubmitRefusalKey(error)
+      if (refusal) {
+        setNotice(null)
+        setFailure(t(refusal))
+      } else {
+        fail(error)
+      }
     } finally {
       setBusy(null)
     }

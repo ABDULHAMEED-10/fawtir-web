@@ -1,5 +1,6 @@
 import { ApiError, NetworkError } from '../../api'
 import type { ApiKeySummaryDto } from '../../api/settings/apiKeys'
+import { isSubscriptionRestricted } from '../subscriptionRestricted'
 
 /**
  * How a refused key action reads on the API push screen.
@@ -30,6 +31,8 @@ export function classifyApiKeyFailure(error: unknown): ApiKeyRefusal {
     if (error.problemType === 'erp-entitlement-required') return 'erpNotEnabled'
     return error.problemType === 'csrf-rejected' ? 'other' : 'forbidden'
   }
+  // A read-only subscription is a 409 too, but not a key that moved: the shared sentence says why.
+  if (isSubscriptionRestricted(error)) return 'other'
   if (error.status === 409) {
     return error.problemType === 'plan-limit-reached' ? 'noApiAccess' : 'conflict'
   }

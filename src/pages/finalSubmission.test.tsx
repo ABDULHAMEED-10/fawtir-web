@@ -298,6 +298,40 @@ describe('Review and submit', () => {
     expect(screen.queryByText(i18n.t('fawtaraStatus.openPortal'))).toBeNull()
   })
 
+  it('says no "VAT included" when the seller charges none, and names the seller as /payment did', () => {
+    const noVat = {
+      ...COMPLETE,
+      planTerms: { ...COMPLETE.planTerms!, vatRate: '0', vatAmount: '0.000', amountInclVat: '800.000' },
+      seller: {
+        legalNameEn: 'Thumb International SPC',
+        legalNameAr: 'الإبهام العالمية ش ش و',
+        crNumber: '1234567',
+        taxIdentificationNumber: null,
+        vatNumber: null,
+        addressEn: 'Muscat',
+        addressAr: null,
+      },
+    }
+    renderAt('/signup-review', noVat)
+    expect(valueOf('signupReview.fields.paidNowNoVat')).toBe('800.000')
+    expect(screen.queryByLabelText(i18n.t('signupReview.fields.paidNow'))).toBeNull()
+    expect(valueOf('signupReview.fields.seller')).toBe('Thumb International SPC')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('labels a trial first bill without VAT when none is charged', () => {
+    renderAt('/signup-review', {
+      ...COMPLETE,
+      enrollment: 'trial',
+      paymentMethod: undefined,
+      planTerms: { ...COMPLETE.planTerms!, vatRate: '0', vatAmount: '0.000', amountInclVat: '800.000' },
+    })
+    expect(valueOf('signupReview.fields.firstBillAmountNoVat')).toBe('800.000')
+    expect(screen.queryByLabelText(i18n.t('signupReview.fields.firstBillAmount'))).toBeNull()
+    // No seller was carried from /payment (a resumed draft): no seller line rather than a guess.
+    expect(screen.queryByLabelText(i18n.t('signupReview.fields.seller'))).toBeNull()
+  })
+
   it('says the amount and trial are not known when the server sent none, and works out neither', () => {
     const { planTerms: _terms, ...older } = COMPLETE
     void _terms

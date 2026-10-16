@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useApiRead } from '../../hooks'
+import { usePlanName } from '../../hooks/usePlanName'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { hasPermission } from '../../lib/identity/entitlements'
 import { formatAmount, formatDate, formatInstantDay } from '../../lib/format'
@@ -242,6 +243,8 @@ function OutstandingBill({
   const lastRejected = payments.find((payment) => payment.status === 'REJECTED')
   const money = (value: string) => <OmAmount amount={formatAmount(value, 'OMR', i18n.language)} size="xs" />
   const seller = sellerName(bill.seller, i18n.language)
+  // The bill carries the plan's English name only (F37): an Arabic reader gets its Arabic name.
+  const planName = usePlanName()(bill.planCode, bill.planName)
 
   return (
     <div className="flex flex-col gap-4">
@@ -257,7 +260,7 @@ function OutstandingBill({
             start: formatDate(bill.periodStartsOn, i18n.language),
             end: formatDate(bill.periodEndsOn, i18n.language),
           })}
-          note={`${bill.planName} · ${t(`subscription.cycle.${bill.billingCycle}`)}`}
+          note={`${planName} · ${t(`subscription.cycle.${bill.billingCycle}`)}`}
         />
         <Fact label={t('billing.bill.dueOn')} value={formatDate(bill.dueOn, i18n.language)} />
         <Fact label={t('billing.bill.status')} value={t(`billing.billStatus.${bill.status}`)} />

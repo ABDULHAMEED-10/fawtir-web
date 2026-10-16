@@ -99,7 +99,7 @@ describe('Pricing page', () => {
     ).toBeTruthy()
     expect(screen.getByText(i18n.t('plan.feature.unlimitedBranches'))).toBeTruthy()
     expect(screen.getAllByText('Published description').length).toBe(2)
-    expect(screen.getByText(i18n.t('plans.trialNote', { days: 10, documents: 40 }))).toBeTruthy()
+    expect(screen.getByText(i18n.t('plans.trialNote', { count: 10, documents: 40 }))).toBeTruthy()
     expect(screen.getAllByText(i18n.t('plans.enterprise.price')).length).toBeGreaterThan(0)
     for (const launch of ['35.000', '80.000', '150.000']) {
       expect(screen.queryByText(launch)).toBeNull()
@@ -151,6 +151,22 @@ describe('Pricing page', () => {
     expect(arabic).toContain('على 7 أيام من المهلة')
     expect(i18n.t('plans.faq.a5', { ...params, count: 14, lng: 'ar' })).toContain('على 14 يومًا من المهلة')
     expect(i18n.t('plans.faq.a5', { ...params, lng: 'en' })).toContain('7 days of grace')
+  })
+
+  it('answers the allowance questions as the server counts it: 80, 90 and 100 percent, received documents, extras bought ahead (F2)', () => {
+    const params = faqParams(CATALOGUE)
+    expect(params.thresholds).toBe('80, 90, 100')
+    const counts = i18n.t('plans.faq.a3', { ...params, lng: 'en' })
+    expect(counts).toContain('Supplier invoices, credit notes and debit notes you receive count too')
+    expect(counts).toContain('sending it again is free')
+    const over = i18n.t('plans.faq.a4', { ...params, lng: 'en' })
+    expect(over).toContain('80, 90, 100 percent')
+    expect(over).toContain('held')
+    expect(over).toContain('by card they are added at once')
+    expect(over).toContain('no carry-over and no refund')
+    expect(over).toContain('resets each month on your subscription date')
+    expect(over).not.toMatch(/overage|per document|next period/)
+    expect(i18n.t('plans.faq.a4', { ...params, lng: 'ar' })).toContain('80, 90, 100 بالمئة')
   })
 
   it('quotes the VAT rate the server sends with the plans, and says no VAT is added at zero', () => {

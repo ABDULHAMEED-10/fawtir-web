@@ -1,4 +1,5 @@
 import { apiRequest } from '../client'
+import { withQuery } from '../query'
 
 /**
  * `/v1/settings/subscription` (`SubscriptionController`, V270): trial, paid-through, renewal,
@@ -86,4 +87,53 @@ export function withdrawCancellation(): Promise<SubscriptionStatusDto> {
 /** Withdraws a downgrade waiting for the next renewal. Idempotent. */
 export function withdrawScheduledChange(): Promise<SubscriptionStatusDto> {
   return apiRequest<SubscriptionStatusDto>(`${SUBSCRIPTION_PATH}/scheduled-change`, { method: 'DELETE' })
+}
+
+/**
+ * The caller's own trial-ending and grace reminders (`GET /settings/subscription/notices`, V299),
+ * newest first. Needs `tenant.plan.read`; only owners and administrators are sent them, so anyone
+ * else reads an empty list. A server from before V299 answers 404.
+ *
+ * `headline` and `actionLabel` are the server's e-mail text, fixed in one language when the
+ * reminder was raised: the bell writes its own sentence from the dates instead.
+ */
+export const SUBSCRIPTION_NOTICES_PATH = `${SUBSCRIPTION_PATH}/notices`
+
+export type SubscriptionNoticeKind = 'TRIAL_ENDING' | 'GRACE'
+
+export type SubscriptionNoticeDto = {
+  id: string
+  /** A kind this screen does not know yet is shown by its `headline`. */
+  kind: SubscriptionNoticeKind | (string & {})
+  /** TRIAL_ENDING: the last trial day. GRACE: the last paid day, which lapsed unpaid. */
+  coveredThrough: string
+  /** GRACE only: 1 is the day after `coveredThrough`. */
+  graceDay?: number | null
+  /** GRACE only: the last day of grace, inclusive. */
+  graceUntil?: string | null
+  noticeOn: string
+  headline: string
+  actionLabel: string
+  /** The web route the action opens: `/settings/plan` or `/settings/bills`. */
+  actionPath: string
+  createdAt: string
+  read: boolean
+}
+
+/** The server's own cap on one read. */
+export const SUBSCRIPTION_NOTICES_MAX = 100
+
+export function subscriptionNoticesPath(unread: boolean, limit: number) {
+  return withQuery(SUBSCRIPTION_NOTICES_PATH, { unread: unread ? 'true' : null, limit })
+}
+
+export function loadSubscriptionNotices(path: string): Promise<SubscriptionNoticeDto[]> {
+  return apiRequest<SubscriptionNoticeDto[]>(path)
+}
+
+/** Idempotent; scoped to the caller, so a reminder addressed to someone else answers 404. */
+export async function acknowledgeSubscriptionNotice(id: string): Promise<void> {
+  await apiRequest<unknown>(`${SUBSCRIPTION_NOTICES_PATH}/${encodeURIComponent(id)}/acknowledge`, {
+    method: 'POST',
+  })
 }

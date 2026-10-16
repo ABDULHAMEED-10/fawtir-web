@@ -162,8 +162,12 @@ describe('Console › Subscription payments', () => {
     const user = userEvent.setup({ delay: null })
     renderAt('/console/billing/payments')
 
+    // Cash is confirmed again by its verifier, so its pill does not ask for a second approval (H3).
+    expect(await screen.findByText(i18n.t('console.billing.status.AWAITING_SECOND_APPROVAL_CASH'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('console.billing.status.AWAITING_SECOND_APPROVAL'))).toBeNull()
     const panel = await openFirst(user)
     expect(panel.getByText(i18n.t('console.billing.secondNeededCash'))).toBeTruthy()
+    expect(panel.getByText(i18n.t('console.billing.status.AWAITING_SECOND_APPROVAL_CASH'))).toBeTruthy()
     // The note names the threshold with the drawn rial sign (OMR survives only for screen readers).
     const note = panel.getByText((_, el) => el?.tagName === 'P' && /50\.000/.test(el.textContent ?? ''))
     expect(note.querySelector('svg')).toBeTruthy()
@@ -263,6 +267,32 @@ describe('Console › Subscription payments', () => {
       // The cashier's clock is Muscat's, whatever zone the operator's browser is in.
       expect(JSON.parse(String(call![1]?.body)).receivedAt).toMatch(/^\d{4}-\d{2}-\d{2}T10:30:00\+04:00$/)
     })
+  })
+
+  it("says why a cash receipt was refused (a time later than now) instead of 'Reload and try again' (F25)", async () => {
+    who = SUPPORT
+    const cash = payment({ method: 'CASH', reference: null, proofSha256: null, proofContentType: null, amount: '36.750' })
+    const bill = { ...BILL, total: '36.750' }
+    answers[QUEUE] = () => json(200, page([{ payment: cash, bill, tenantName: 'Payments LLC' }]))
+    answers[`${QUEUE}/p-1`] = () => json(200, { payment: cash, bill, tenantName: 'Payments LLC', history: [] })
+    answers[`POST ${QUEUE}/p-1/cash-receipt`] = () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/validation-failed',
+        detail: 'When the cash was received is required and cannot be in the future',
+      })
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/payments')
+
+    const panel = await openFirst(user)
+    await user.type(panel.getByRole('textbox', { name: i18n.t('console.billing.cash.number') }), 'RC-78')
+    await user.type(panel.getByRole('textbox', { name: i18n.t('console.billing.cash.time') }), '23:59')
+    await user.type(panel.getByRole('textbox', { name: i18n.t('console.billing.cash.collector') }), 'Salim')
+    await user.click(panel.getByRole('button', { name: i18n.t('console.billing.cash.record') }))
+
+    expect(await screen.findByText(i18n.t('console.billing.cash.refused'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('console.billing.refusal.other'))).toBeNull()
+    // The server's English sentence is never shown.
+    expect(screen.queryByText(/cannot be in the future/)).toBeNull()
   })
 })
 

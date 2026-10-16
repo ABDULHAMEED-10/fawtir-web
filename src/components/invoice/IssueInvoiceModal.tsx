@@ -6,6 +6,7 @@ import { Field, ModalFooter, focusFirstInvalidField } from '../../pages/ConsoleP
 import { issueDraft, newIdempotencyKey, previewDraft, type DraftPreview } from '../../api/invoices/drafts'
 import type { InvoiceDetailDto } from '../../api/invoices/detail'
 import { describeApiFailure } from '../../lib/apiFailure'
+import { subscriptionRestrictedAction } from '../../lib/subscriptionRestricted'
 import {
   SELF_BILLED_SUPPLIER_SWITCHED_OFF_KEY,
   SELF_BILLING_AGREEMENTS_ROUTE,
@@ -63,7 +64,7 @@ export function IssueInvoiceModal({
   const [errors, setErrors] = useState<Partial<Record<IssueField, string>>>({})
   const [failure, setFailure] = useState<string | null>(null)
   // Only the supplier's missing business activity carries a way out: the page where it is set.
-  const [failureLink, setFailureLink] = useState<string | null>(null)
+  const [failureLink, setFailureLink] = useState<{ to: string; labelKey: string } | null>(null)
   const [busy, setBusy] = useState(false)
   // Two clicks in one tick both run before `busy` renders the button disabled; the second would be
   // refused by the key (409, request in progress) and flash an error over a successful issue.
@@ -111,7 +112,7 @@ export function IssueInvoiceModal({
       const refusal = issueRefusalOf(error)
       if (selfBilled && isSupplierIsicMissing(error)) {
         setFailure(t(SUPPLIER_ISIC_MISSING_KEY))
-        setFailureLink(SELF_BILLING_AGREEMENTS_ROUTE)
+        setFailureLink({ to: SELF_BILLING_AGREEMENTS_ROUTE, labelKey: 'apiErrors.selfBilling.supplierIsicAction' })
       } else if (selfBilled && isSelfBilledSupplierSwitchedOff(error)) {
         setFailure(t(SELF_BILLED_SUPPLIER_SWITCHED_OFF_KEY))
       } else if (refusal?.field) {
@@ -122,6 +123,7 @@ export function IssueInvoiceModal({
         const message = describeApiFailure(error)
         const body = t(message.key, message.values)
         setFailure(message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body)
+        setFailureLink(subscriptionRestrictedAction(error))
       }
     } finally {
       inFlight.current = false
@@ -149,7 +151,7 @@ export function IssueInvoiceModal({
         {failure ? (
           <Notice
             body={failure}
-            action={failureLink ? { label: t('apiErrors.selfBilling.supplierIsicAction'), to: failureLink } : undefined}
+            action={failureLink ? { label: t(failureLink.labelKey), to: failureLink.to } : undefined}
           />
         ) : null}
 

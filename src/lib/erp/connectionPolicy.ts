@@ -1,4 +1,5 @@
 import { ApiError } from '../../api'
+import { isSubscriptionRestricted } from '../subscriptionRestricted'
 import type {
   ErpConnectionDto,
   ErpConnectionState,
@@ -255,6 +256,8 @@ export function erpRefusalOf(error: unknown): ErpRefusal | null {
   if (error.code !== null && REFUSAL_BY_CODE[error.code] !== undefined) {
     return REFUSAL_BY_CODE[error.code]
   }
+  // A read-only subscription is a 409 but no concurrency problem: the shared sentence words it.
+  if (isSubscriptionRestricted(error)) return null
   // No recognised code. A bare 409 is still a concurrency problem in this module's contract --
   // the only three conflicts the server raises are version, name and transition -- so reload is
   // the right advice rather than a generic failure.

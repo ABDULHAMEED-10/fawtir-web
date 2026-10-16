@@ -29,6 +29,7 @@ import {
   approvePaymentSecond,
   downloadProof,
   paymentPath,
+  paymentStatusKey,
   recordCashReceipt,
   rejectPayment,
   verifyPayment,
@@ -136,7 +137,7 @@ function PaymentQueue() {
                   <OmAmount amount={formatAmount(payment.amount, 'OMR', i18n.language)} size="xs" />
                 </td>
                 <td className="px-4 py-3">
-                  <ConsoleStatusPill tone={STATUS_TONE[payment.status]} label={t(`console.billing.status.${payment.status}`)} />
+                  <ConsoleStatusPill tone={STATUS_TONE[payment.status]} label={t(paymentStatusKey(payment.status, payment.method))} />
                 </td>
                 <td className="px-4 py-3 text-end">
                   <button type="button" className={CONSOLE_SMALL} onClick={() => setSelected(payment.id)}>
@@ -201,7 +202,11 @@ function PaymentPanel({
   if (read.status === 'failed') return <ConsoleReadFailure error={read.error} retry={retry} />
   const { payment, bill, tenantName, history } = read.data
 
-  const act = async (work: () => Promise<unknown>, doneKey: string) => {
+  const act = async (
+    work: () => Promise<unknown>,
+    doneKey: string,
+    refusal: (error: unknown) => string = (error) => decisionMessage(t, error),
+  ) => {
     setBusy(true)
     setFailure(null)
     setDone(null)
@@ -211,7 +216,7 @@ function PaymentPanel({
       onDecided()
       retry()
     } catch (error) {
-      setFailure(decisionMessage(t, error))
+      setFailure(refusal(error))
     } finally {
       setBusy(false)
     }
@@ -238,7 +243,7 @@ function PaymentPanel({
           {tenantName ?? payment.tenantId} · {bill ? bill.number : t('console.billing.signupPayment')}
         </h2>
         <div className="flex items-center gap-3">
-          <ConsoleStatusPill tone={STATUS_TONE[payment.status]} label={t(`console.billing.status.${payment.status}`)} />
+          <ConsoleStatusPill tone={STATUS_TONE[payment.status]} label={t(paymentStatusKey(payment.status, payment.method))} />
           <button type="button" className={CONSOLE_SMALL} onClick={onClose}>
             {t('common.close')}
           </button>
@@ -347,7 +352,11 @@ function PaymentPanel({
           total={bill ? bill.total : payment.amount}
           busy={busy}
           onRecord={(receipt) =>
-            act(() => recordCashReceipt(payment.id, payment.version, receipt), 'console.billing.done.recorded')
+            act(
+              () => recordCashReceipt(payment.id, payment.version, receipt),
+              'console.billing.done.recorded',
+              (error) => cashReceiptMessage(t, error),
+            )
           }
         />
       ) : null}
@@ -578,6 +587,23 @@ const DECISION_REFUSALS = [
   'production-platform-realm-required',
   'impersonation-not-allowed',
 ]
+
+/**
+ * Recording a cash receipt: a `400 validation-failed` here is the server refusing the receipt
+ * itself, which the form cannot fully check first: a time received later than now (the server
+ * allows five minutes of clock difference) or an amount of zero. The server sends no code, only an
+ * English sentence, so it is said in our words rather than as "Reload and try again" (F25).
+ */
+function cashReceiptMessage(t: (key: string) => string, error: unknown): string {
+  if (
+    error instanceof ApiError &&
+    error.status === 400 &&
+    error.problemType === 'validation-failed'
+  ) {
+    return t('console.billing.cash.refused')
+  }
+  return decisionMessage(t, error)
+}
 
 function decisionMessage(t: (key: string) => string, error: unknown): string {
   if (error instanceof ApiError && error.problemType && DECISION_REFUSALS.includes(error.problemType)) {

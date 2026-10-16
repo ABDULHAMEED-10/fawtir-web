@@ -229,9 +229,12 @@ describe('Choose a plan: the published catalogue', () => {
     expect(screen.getAllByText('92.000').length).toBeGreaterThan(0)
     expect(screen.getAllByText('240').length).toBeGreaterThan(0)
     expect(screen.getAllByText('1,300').length).toBeGreaterThan(0)
-    expect(text()).toContain(i18n.t('plans.trialNote', { days: 21, documents: 30 }))
+    expect(text()).toContain(i18n.t('plans.trialNote', { count: 21, documents: 30 }))
     expectNoLaunchPrices()
-    expect(text()).not.toContain(i18n.t('plans.trialNote', { days: 14, documents: 25 }))
+    expect(text()).not.toContain(i18n.t('plans.trialNote', { count: 14, documents: 25 }))
+    // A customer cannot upgrade alone: the footer says the Fawtir team does it, as the FAQ does (G1).
+    expect(text()).toContain('Upgrades through the Fawtir team, downgrades at renewal')
+    expect(text()).not.toContain('Upgrades apply instantly')
   })
 
   it('marks the plan the server recommends as the popular one', async () => {

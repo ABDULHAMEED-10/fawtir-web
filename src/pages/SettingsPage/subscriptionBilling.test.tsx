@@ -380,6 +380,54 @@ describe('Settings › Billing: the charge', () => {
   })
 })
 
+describe('Settings › Billing: the plan on the bill in Arabic (F37)', () => {
+  const PUBLIC_PLANS = '/api/v1/public/plans'
+  const CATALOGUE = [
+    { code: 'BUSINESS', nameEn: 'Business', nameAr: 'الأعمال', sortOrder: 2 },
+    { code: 'STARTER', nameEn: 'Starter', nameAr: 'المبتدئ', sortOrder: 1 },
+  ]
+  const catalogueReads = () => fetchMock.mock.calls.filter(([url]) => url === PUBLIC_PLANS)
+
+  it('names the plan in Arabic from the catalogue, by the plan code, on the bill and in the status', async () => {
+    await i18n.changeLanguage('ar')
+    answers[PUBLIC_PLANS] = () => json(200, CATALOGUE)
+    renderBilling()
+
+    expect(await within(await screen.findByRole('region', { name: i18n.t('billing.title') })).findByText('المبتدئ · شهري')).toBeTruthy()
+    expect(charges().textContent).not.toContain('Starter')
+    // The subscription's own plan line above the bill reads the same.
+    expect(screen.getAllByText('المبتدئ · شهري')).toHaveLength(2)
+    expect(document.body.textContent).not.toContain('Starter')
+    // The status and the bill each ask (in-flight reads are shared, answers are not cached).
+    expect(catalogueReads().length).toBeGreaterThan(0)
+    expect(catalogueReads().length).toBeLessThanOrEqual(2)
+  })
+
+  it('keeps the bill’s own name when the catalogue cannot be read', async () => {
+    await i18n.changeLanguage('ar')
+    answers[PUBLIC_PLANS] = () => json(503, { type: 'about:blank' })
+    renderBilling()
+    expect(await within(await screen.findByRole('region', { name: i18n.t('billing.title') })).findByText('Starter · شهري')).toBeTruthy()
+    await waitFor(() => expect(catalogueReads().length).toBeGreaterThan(0))
+    expect(within(charges()).getByText('Starter · شهري')).toBeTruthy()
+  })
+
+  it('keeps the bill’s name for a plan the catalogue does not list or has no Arabic name for', async () => {
+    await i18n.changeLanguage('ar')
+    answers[PUBLIC_PLANS] = () => json(200, [{ ...CATALOGUE[1], code: 'OTHER' }, { ...CATALOGUE[0], code: 'STARTER', nameAr: null }])
+    renderBilling()
+    await waitFor(() => expect(catalogueReads().length).toBeGreaterThan(0))
+    expect(await within(await screen.findByRole('region', { name: i18n.t('billing.title') })).findByText('Starter · شهري')).toBeTruthy()
+  })
+
+  it('writes the English name in English and does not read the catalogue for it', async () => {
+    answers[PUBLIC_PLANS] = () => json(200, CATALOGUE)
+    renderBilling()
+    expect(await within(await screen.findByRole('region', { name: i18n.t('billing.title') })).findByText('Starter · Monthly')).toBeTruthy()
+    expect(catalogueReads()).toHaveLength(0)
+  })
+})
+
 describe('Settings › Billing: after a pay-now signup', () => {
   it('opens the pay form on the method chosen at signup, and any offered method can still be picked', async () => {
     answers[BILLING] = () => json(200, overview({ signupMethod: 'CASH' }))
