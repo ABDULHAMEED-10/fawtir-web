@@ -65,6 +65,11 @@ import {
   type Note,
 } from '../../lib/billList'
 import { describeApiFailure } from '../../lib/apiFailure'
+import {
+  WAITING_COUNT_PATH,
+  loadWaitingCount,
+  type WaitingCountDto,
+} from '../../api/expenditure/waitingDocuments'
 import { formatAmount, formatCount, formatDate, formatInstantDay } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import kpiAttentionIcon from '../../assets/bills/kpi-attention.svg'
@@ -407,6 +412,7 @@ function BillsScreen() {
     return (
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
         {header}
+        <WaitingDocumentsBanner />
         {summary.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
@@ -438,6 +444,7 @@ function BillsScreen() {
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
       {header}
+      <WaitingDocumentsBanner />
       <BillKpiCards
         totals={totals}
         canStartRun={canCapture}
@@ -873,6 +880,40 @@ function NoteText({ note, currency }: { note: Note; currency: string }) {
     values.amount = formatAmount(values.amount, currency, i18n.language)
   if (typeof values.date === 'string') values.date = formatInstantDay(values.date, i18n.language)
   return <>{t(note.key, values)}</>
+}
+
+/**
+ * Supplier documents that arrived while the company may not open them (Business Rules AL-7): the
+ * count, and the way to the list that names them. Nothing is drawn while nothing waits, while the
+ * count is on its way, or when it cannot be read: the bills below do not depend on it.
+ */
+function WaitingDocumentsBanner() {
+  const { t, i18n } = useTranslation()
+  const waiting = useApiRead<WaitingCountDto>(WAITING_COUNT_PATH, loadWaitingCount)
+  if (waiting.read.status !== 'ready' || waiting.read.data.total <= 0) return null
+  const total = waiting.read.data.total
+  return (
+    <div
+      role="status"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-sm bg-pending-100 px-4 py-3 text-pending-700"
+    >
+      <p className="min-w-0 flex-1 text-sm font-medium leading-[1.6] md:min-w-[320px]">
+        <b className="font-semibold">
+          {t('waitingDocuments.banner.title', {
+            count: total,
+            n: formatCount(total, i18n.language),
+          })}
+        </b>{' '}
+        {t('waitingDocuments.banner.body')}
+      </p>
+      <Link
+        to="/expenditure/bills/waiting"
+        className="inline-flex h-[38px] shrink-0 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+      >
+        {t('waitingDocuments.banner.open')}
+      </Link>
+    </div>
+  )
 }
 
 function BillTable({

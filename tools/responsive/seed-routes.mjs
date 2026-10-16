@@ -54,6 +54,7 @@ export const SEED_ROUTES = [
   '/expenditure/bills',
   '/expenditure/bills/upload',
   '/expenditure/bills/scan',
+  '/expenditure/bills/waiting',
   '/expenditure/payments',
   '/expenditure/recurring-bills',
   '/expenditure/recurring-bills/new',
