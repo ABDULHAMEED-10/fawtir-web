@@ -150,7 +150,11 @@ function PlanFigures({ data, notStarted }: { data: PlanOverviewDto; notStarted: 
   const counted: PlanOverviewDto['usage'] = allowance
     ? {
         ...usage,
-        period: { start: allowance.periodStart, end: allowance.periodEnd, today: usage.period.today },
+        period: {
+          start: allowance.periodStart,
+          end: allowance.periodEnd,
+          today: usage.period.today,
+        },
         used: allowance.used,
         quota: allowance.totalAllowance,
       }
@@ -369,7 +373,10 @@ function BranchUsage({ allowance }: { allowance: AllowanceUsageDto }) {
   const cell = 'px-2 py-3 text-end text-sm font-medium tabular-nums text-text-secondary'
   const head = 'px-2 py-2.5 text-end font-semibold'
   return (
-    <section aria-labelledby="plan-by-branch" className="overflow-hidden rounded-md bg-surface-card">
+    <section
+      aria-labelledby="plan-by-branch"
+      className="overflow-hidden rounded-md bg-surface-card"
+    >
       <div className="p-5">
         <h3 id="plan-by-branch" className="text-lg font-semibold leading-[1.2] text-text-primary">
           {t('plan.byBranch.title')}
@@ -414,7 +421,10 @@ function BranchUsage({ allowance }: { allowance: AllowanceUsageDto }) {
           </tbody>
           <tfoot>
             <tr className="border-t border-surface-background">
-              <th scope="row" className="px-5 py-3 text-start text-sm font-semibold text-text-primary">
+              <th
+                scope="row"
+                className="px-5 py-3 text-start text-sm font-semibold text-text-primary"
+              >
                 {t('plan.byBranch.company')}
               </th>
               <td className={`${cell} font-semibold text-text-primary`}>
