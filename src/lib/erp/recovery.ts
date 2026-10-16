@@ -1,4 +1,5 @@
 import { ApiError, NetworkError } from '../../api'
+import { isSubscriptionRestricted } from '../subscriptionRestricted'
 import type {
   FailureReason,
   SourceDocumentDto,
@@ -51,6 +52,9 @@ export type RecoveryNoticeKind =
   | 'sourceUnavailable'
   | 'platformUnavailable'
   | 'erpNotEnabled'
+  | 'subscriptionNotStarted'
+  | 'subscriptionSuspended'
+  | 'subscriptionCancelled'
   | 'forbidden'
   | 'notFound'
   | 'rateLimited'
@@ -152,11 +156,23 @@ const BY_CODE: Record<string, Omit<RecoveryNotice, 'reason' | 'invoiceCreated'>>
   },
 }
 
+const SUBSCRIPTION_KIND: Record<string, RecoveryNoticeKind> = {
+  SUBSCRIPTION_NOT_STARTED: 'subscriptionNotStarted',
+  SUBSCRIPTION_SUSPENDED: 'subscriptionSuspended',
+  SUBSCRIPTION_CANCELLED: 'subscriptionCancelled',
+}
+
 export function noticeOfFailure(error: unknown): RecoveryNotice {
   if (error instanceof NetworkError) return { kind: 'unreachable', tone: 'danger', retry: true }
   if (!(error instanceof ApiError)) return { kind: 'other', tone: 'danger', retry: true }
   const known = error.code ? BY_CODE[error.code] : undefined
   if (known) return { ...known }
+  if (isSubscriptionRestricted(error)) {
+    // Recovery contacts the ERP, which stops while the subscription is read-only; asking again
+    // gives the same answer until it is paid.
+    const kind = SUBSCRIPTION_KIND[error.code ?? ''] ?? 'subscriptionSuspended'
+    return { kind, tone: 'warning', retry: false }
+  }
   if (error.status === 403) {
     if (error.problemType === 'erp-entitlement-required') {
       return { kind: 'erpNotEnabled', tone: 'danger', retry: false }

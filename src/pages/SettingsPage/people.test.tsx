@@ -322,6 +322,31 @@ describe('Invite someone', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: i18n.t('people.invite.send') })).toBeTruthy())
     expect(screen.queryByText(/Invitation sent/)).toBeNull()
   })
+
+  it('says a suspended subscription stopped the invitation, not a conflict, and links to the bills', async () => {
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === '/api/v1/me/entitlements') return json(200, who)
+      if (url === '/api/v1/users/invitations' && init?.method === 'POST')
+        return json(409, {
+          type: 'https://api.fawtir.om/problems/subscription-restricted',
+          title: 'Conflict',
+          status: 409,
+          detail: 'Your subscription is read-only until the renewal is paid.',
+          code: 'SUBSCRIPTION_SUSPENDED',
+          action: 'ADD_PEOPLE',
+        })
+      const answer = answers[url]
+      return answer ? answer() : json(404, { type: 'about:blank' })
+    })
+    renderAt('/settings/team/invite')
+    fireEvent.change(await screen.findByRole('textbox', { name: /Email/ }), { target: { value: 'x@real.example' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('people.invite.send') }))
+    expect(await screen.findByText(i18n.t('apiErrors.subscriptionRestricted.suspended'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('apiErrors.conflict'))).toBeNull()
+    const link = screen.getByRole('link', { name: i18n.t('apiErrors.subscriptionRestricted.action.bills') })
+    expect(link.getAttribute('href')).toBe('/settings/bills')
+    expect(screen.queryByText(/Invitation sent/)).toBeNull()
+  })
 })
 
 describe('Plan and usage', () => {

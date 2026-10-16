@@ -20,6 +20,7 @@ import {
   type RoleDto,
 } from '../../api/settings/people'
 import { describeApiFailure } from '../../lib/apiFailure'
+import { subscriptionRestrictedAction } from '../../lib/subscriptionRestricted'
 import { permissionWords } from '../../lib/permissionLabels'
 import tickIcon from '../../assets/settings/check-green.svg'
 import circleIcon from '../../assets/settings/minus-amber.svg'
@@ -63,12 +64,14 @@ function InviteForm() {
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState<Sent | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
+  const [failureLink, setFailureLink] = useState<{ to: string; labelKey: string } | null>(null)
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (sending || email.trim() === '') return
     setSending(true)
     setFailure(null)
+    setFailureLink(null)
     try {
       const invitation = await inviteUser(email.trim(), chosen)
       setSent({ email: invitation.email })
@@ -77,6 +80,7 @@ function InviteForm() {
     } catch (error) {
       const message = describeApiFailure(error)
       setFailure(t(message.key, message.values))
+      setFailureLink(subscriptionRestrictedAction(error))
     } finally {
       setSending(false)
     }
@@ -96,7 +100,12 @@ function InviteForm() {
           action={{ label: t('common.close'), onClick: () => setSent(null) }}
         />
       ) : null}
-      {failure ? <Notice body={failure} /> : null}
+      {failure ? (
+        <Notice
+          body={failure}
+          action={failureLink ? { label: t(failureLink.labelKey), to: failureLink.to } : undefined}
+        />
+      ) : null}
 
       <div className="flex flex-col gap-4 xl:flex-row">
         <div className="flex min-w-0 flex-1 flex-col gap-4">

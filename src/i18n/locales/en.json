@@ -18098,6 +18098,18 @@
           "platformUnavailable": {
             "title": "Fawtir could not open the connection's stored sign-in details.",
             "body": "Nothing was fetched or processed. This is on Fawtir's side; try again later, and contact support if it continues."
+          },
+          "subscriptionNotStarted": {
+            "title": "Your subscription hasn't started yet.",
+            "body": "Documents can be recovered once it starts, when your company is approved and your payment is confirmed."
+          },
+          "subscriptionSuspended": {
+            "title": "Your subscription is suspended.",
+            "body": "Pay the open bill in Settings, under Bills and payment, to recover documents again."
+          },
+          "subscriptionCancelled": {
+            "title": "Your subscription has ended.",
+            "body": "Choose a plan in Settings, under Plan and usage, to recover documents again."
           }
         }
       }
@@ -18439,6 +18451,16 @@
       "supplierIsicMissing": "This supplier has no business activity (ISIC code) on its record. A self-billed document carries the supplier's activity, not yours. In Self-billing, Agreements, choose Set business activity from the agreement's menu, then issue.",
       "supplierIsicAction": "Go to agreements",
       "supplierSwitchedOff": "This supplier is switched off. Switch it back on, then issue."
+    },
+    "subscriptionRestricted": {
+      "notStarted": "Your subscription hasn't started yet, so this isn't available. It starts when your company is approved and your payment is confirmed. Your bill is in Settings, under Bills and payment.",
+      "suspended": "Your subscription is suspended, so this isn't available. Pay the open bill in Settings, under Bills and payment, to continue. You can still view, download and export every record.",
+      "cancelled": "Your subscription has ended, so this isn't available. Choose a plan in Settings, under Plan and usage, to continue. You can still view, download and export every record.",
+      "generic": "Your subscription is read-only, so this isn't available now. You can still view, download and export every record.",
+      "action": {
+        "bills": "Go to Bills and payment",
+        "plan": "Choose a plan"
+      }
     }
   },
   "appAccess": {
