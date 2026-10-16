@@ -13058,7 +13058,10 @@
         "recommended": "Marked as the most popular plan",
         "reason": "Reason for the change",
         "reasonHint": "Required: this changes a price or limit and publishes a new version. Companies already on the plan keep their current terms.",
-        "reasonHintAdd": "Required for a new plan: it is recorded with the plan's first price version."
+        "reasonHintAdd": "Required for a new plan: it is recorded with the plan's first price version.",
+        "trial": "{{days}}-day trial",
+        "trialHint": "The trial is always {{days}} days. Switched off, the customer pays with the application, and the paid period starts on activation, after approval and confirmed payment.",
+        "trialDocumentsSwitchHint": "How many documents the trial allows. Needs the trial switched on."
       },
       "validation": {
         "money": "Enter an amount in rials with up to 3 decimals",
@@ -13073,7 +13076,9 @@
         "trialDays": "Enter a whole number from 1 to 90",
         "trialDocumentsNeedDays": "Set the trial days too, or leave this empty",
         "reasonRequired": "Give a reason for this price or limit change",
-        "reasonLength": "Use 500 characters or fewer"
+        "reasonLength": "Use 500 characters or fewer",
+        "trialDocumentsNeedTrial": "Switch the trial on too, or leave this empty",
+        "trialFixed": "The trial is always 14 days. Switch it on or off; another length is not accepted."
       },
       "readOnly": "You can view the catalogue. Changing plans is for platform tenant administrators.",
       "readOnlyNote": "View only. Changing plans is for platform tenant administrators.",
@@ -13121,6 +13126,34 @@
           "VISIBILITY_CHANGED": "Visibility changed",
           "FEATURES_CHANGED": "Features changed",
           "other": "Other change"
+        }
+      },
+      "counting": {
+        "open": "Count received documents",
+        "openFor": "Count received documents on {{name}}",
+        "title": "Count received documents: {{name}}",
+        "subtitle": "Whether supplier documents a company receives use this plan's allowance.",
+        "loading": "Loading Count received documents…",
+        "on": "On",
+        "off": "Off",
+        "onBody": "Received supplier documents use the allowance, once each when they arrive.",
+        "offBody": "Only issued documents use the allowance. Received documents are never held.",
+        "applies": "A change applies to each company on this plan from its next subscription date, never in the middle of a month.",
+        "switch": "Count received documents",
+        "reason": "Reason for the change",
+        "reasonHint": "Kept in the history with your name and the date. Up to 500 characters.",
+        "reasonRequired": "Give a reason for the change",
+        "unchanged": "Switch it on or off first: nothing has changed.",
+        "save": "Save",
+        "saved": "Saved. Each company on this plan gets the change from its next subscription date.",
+        "history": "Changes",
+        "noHistory": "No changes yet. It has been on since the plan was created.",
+        "switchedOn": "Switched on",
+        "switchedOff": "Switched off",
+        "refusal": {
+          "conflict": "Someone else changed this setting after you opened it, so your change was not saved. The latest version is shown; make your change again.",
+          "gone": "This plan no longer exists. Close this and reload the plans.",
+          "invalid": "Fawtir did not accept this change. Check the reason and try again."
         }
       }
     },

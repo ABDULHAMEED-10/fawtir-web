@@ -80,7 +80,7 @@ describe('planFormFrom / toPlanRequest', () => {
       ...planFormFrom(PLAN),
       monthlyPrice: '99.5',
       extraPersonPrice: ' ',
-      trialDays: '',
+      trial: false,
     }
     const request = toPlanRequest({ ...form, trialDocuments: '' }, 'edit', PLAN)
     expect(request.monthlyPrice).toBe('99.500')
@@ -100,6 +100,16 @@ describe('planFormFrom / toPlanRequest', () => {
     expect(request.features).toContainEqual({ key: 'approvals', enabled: true })
   })
 
+  it('sends the fixed 14-day trial when on and no trial when off (TR-1)', () => {
+    expect(toPlanRequest({ ...planFormFrom(PLAN), trial: true }, 'edit', PLAN).trialDays).toBe(14)
+    // A length stored before TR-1 reads as on, and a save publishes the fixed 14 days.
+    const older = { ...PLAN, trialDays: 30 }
+    expect(planFormFrom(older).trial).toBe(true)
+    expect(toPlanRequest(planFormFrom(older), 'edit', older).trialDays).toBe(14)
+    expect(planFormFrom({ ...PLAN, trialDays: null }).trial).toBe(false)
+    expect(toPlanRequest(emptyPlanForm(), 'add').trialDays).toBeNull()
+  })
+
   it('sends the code only when adding', () => {
     expect(toPlanRequest({ ...emptyPlanForm(), code: 'NEW' }, 'add').code).toBe('NEW')
   })
@@ -111,7 +121,7 @@ describe('changesTerms', () => {
     expect(changesTerms(PLAN, form)).toBe(false)
     expect(changesTerms(PLAN, { ...form, monthlyPrice: '80' })).toBe(false)
     expect(
-      changesTerms(PLAN, { ...form, nameAr: 'x', publicVisible: false, trialDays: '30' }),
+      changesTerms(PLAN, { ...form, nameAr: 'x', publicVisible: false, trial: false }),
     ).toBe(false)
     expect(changesTerms(PLAN, { ...form, monthlyPrice: '81' })).toBe(true)
     expect(changesTerms(PLAN, { ...form, branchesIncluded: '' })).toBe(true)
@@ -159,12 +169,10 @@ describe('validatePlanForm', () => {
     expect(errorsOf({ ...valid, annualFreeMonths: '12' })).toEqual({
       annualFreeMonths: 'console.plans.validation.freeMonths',
     })
-    expect(errorsOf({ ...valid, trialDays: '91' })).toEqual({
-      trialDays: 'console.plans.validation.trialDays',
-    })
     expect(errorsOf({ ...valid, trialDocuments: '10' })).toEqual({
-      trialDocuments: 'console.plans.validation.trialDocumentsNeedDays',
+      trialDocuments: 'console.plans.validation.trialDocumentsNeedTrial',
     })
+    expect(errorsOf({ ...valid, trial: true, trialDocuments: '10' })).toEqual({})
     expect(errorsOf({ ...valid, descriptionAr: 'x'.repeat(501) })).toEqual({
       descriptionAr: 'console.plans.validation.descriptionLength',
     })
@@ -196,6 +204,13 @@ describe('describePlanSaveFailure', () => {
         conflict: true,
       })
     }
+  })
+
+  it('reads the fixed-trial refusal in words', () => {
+    const error = new ApiError({ status: 400, problemType: 'trial-length-fixed' })
+    expect(describePlanSaveFailure(error, 'edit').formError).toEqual({
+      key: 'console.plans.validation.trialFixed',
+    })
   })
 
   it('reads a 409 on a create as the code being taken', () => {
