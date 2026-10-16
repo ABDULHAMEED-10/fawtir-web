@@ -133,6 +133,32 @@ export default [
       activePeople: 4,
       openInvitations: 1,
       activeBranches: 2,
+      // Plan v4 §6 (AllowanceUsage): issued and received apart, per branch. Received documents
+      // sit on the row with no branch, so the rows add up to `used`.
+      allowance: {
+        periodStart: '2026-10-01',
+        periodEnd: '2026-10-31',
+        resetsOn: '2026-11-01',
+        planDocuments: 1000,
+        extraDocuments: 0,
+        totalAllowance: 1000,
+        issued: 380,
+        resubmissions: 6,
+        received: 32,
+        receivedHidden: 0,
+        used: 412,
+        planUsed: 412,
+        extraUsed: 0,
+        left: 588,
+        warningPercent: null,
+        issuingAllowed: true,
+        extrasExpireOn: '2026-10-31',
+        byBranch: [
+          { branchId: 'b-main', branchName: 'Al Bahja Coffee (Muscat)', issued: 251, received: 0, total: 251 },
+          { branchId: 'b-nizwa', branchName: 'Al Bahja Coffee (Nizwa)', issued: 127, received: 0, total: 127 },
+          { branchId: null, branchName: null, issued: 2, received: 32, total: 34 },
+        ],
+      },
     }),
   },
   // Trial-ending and grace reminders (backend #515, V299), for the bell. Read state lives here so
