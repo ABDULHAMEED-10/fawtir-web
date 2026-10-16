@@ -1,5 +1,21 @@
+import { ApiError } from '../api'
 import type { ActivityItemDto } from '../api/compliance/activity'
 import type { RefusalCause, RefusalKind } from './activityLedger'
+
+/**
+ * The resubmit refusals with a sentence of their own; anything else falls to the shared failure
+ * text. TDD_CORRECTION_HELD is a 409, which the shared text reads as "someone changed this,
+ * reload", and that is false: the correction was held for an authorised decision and nothing was
+ * raised. The `resubmit` link does not account for a hold, so pressing it again is held again,
+ * and the sentence says so.
+ */
+const RESUBMIT_REFUSALS: Readonly<Record<string, string>> = {
+  TDD_CORRECTION_HELD: 'tddResubmit.refused.held',
+}
+
+export function tddResubmitRefusalKey(error: unknown): string | null {
+  return error instanceof ApiError && error.code ? (RESUBMIT_REFUSALS[error.code] ?? null) : null
+}
 
 /**
  * Putting a turned-down report right: Compliance › Activity › Resubmit (Figma 154:108616).

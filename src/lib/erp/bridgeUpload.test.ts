@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import en from '../../i18n/locales/en.json'
+import ar from '../../i18n/locales/ar.json'
 import { ApiError, NetworkError } from '../../api'
 import { buildBridgeRequest } from '../../api/erp/bridge'
 import {
@@ -34,6 +36,8 @@ describe('classifyBridgeFailure', () => {
       [409, 'DUPLICATE_IDEMPOTENCY', 'idempotency'],
       [409, 'TENANT_NOT_OPERATIONAL', 'notOperational'],
       [503, 'EMISSION_BLOCKED', 'emissionBlocked'],
+      // Also a 409, but neither a reused key nor a duplicate: nothing was recorded.
+      [409, 'OUTBOUND_WINDOW_INVOICE_RESERVED', 'numberReserved'],
     ]
     for (const [status, code, kind] of cases) {
       expect(classifyBridgeFailure(refusal(status, code)).kind, code).toBe(kind)
@@ -186,5 +190,12 @@ describe('isIssueTime', () => {
     expect(isIssueTime('24:00')).toBe(false)
     expect(isIssueTime('9:30')).toBe(false)
     expect(isIssueTime('')).toBe(false)
+  })
+})
+
+describe('the reserved-number refusal', () => {
+  it('has its sentence in English and Arabic', () => {
+    expect(en.erp.bridge.refusal.numberReserved).toMatch(/Nothing was submitted/)
+    expect(ar.erp.bridge.refusal.numberReserved).not.toMatch(/[A-Za-z]/)
   })
 })
