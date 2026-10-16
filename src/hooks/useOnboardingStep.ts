@@ -43,6 +43,12 @@ type StepOptions<F extends string> = {
   serverFields?: ServerFieldMap<F>
   /** Shown for a `409` that is not a missing earlier step. */
   conflictKey?: string
+  /**
+   * A `409` whose `code` names the field it refuses (a VATIN or CR number already registered),
+   * answered under that field. Such a code is the step's own rule, never a missing earlier step,
+   * so the progress probe is skipped. Without a code the `409` falls back to `conflictKey`.
+   */
+  conflictFields?: Partial<Record<string, { field: F; key: string }>>
 }
 
 /**
@@ -109,6 +115,10 @@ export function useOnboardingStep<F extends string = never>(options: StepOptions
       if (named) {
         setFormError({ key: named })
         return { ...unsaved, conflict: error.problemType ?? undefined }
+      }
+      const onField = error.status === 409 && error.code ? options.conflictFields?.[error.code] : undefined
+      if (onField) {
+        return { saved: false, fieldErrors: { [onField.field]: onField.key } as Partial<Record<F, string>> }
       }
       if (error.status === 409) {
         const route = await earlierStepThan(onboardingToken)

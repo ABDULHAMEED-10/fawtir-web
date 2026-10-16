@@ -119,6 +119,8 @@ export function SubscriptionBillingSection() {
           onChanged={changed}
           onCardFinished={cardFinished}
         />
+      ) : overview.bills.length === 0 ? (
+        <BeforeFirstBill overview={overview} canPay={canPay} onPrepared={() => changed()} />
       ) : (
         <NoOutstandingBill canPay={canPay} onPrepared={() => changed()} />
       )}
@@ -127,7 +129,66 @@ export function SubscriptionBillingSection() {
   )
 }
 
-function NoOutstandingBill({ canPay, onPrepared }: { canPay: boolean; onPrepared: () => void }) {
+/**
+ * No bill has ever been issued. A company that paid at sign-up gets its first bill only when
+ * Fawtir confirms that payment and activates the company, and the server refuses to prepare
+ * another while it is pending, so "Nothing is due" with a Prepare button would invite paying
+ * twice (K-BC03).
+ *
+ * `signupPayment` (backend #533) says where that payment stands. A server without it sends only
+ * `signupMethod`; a pay-now submission was refused without the receipt, cash request or card funds,
+ * so a method with no bill is read as "with Fawtir". That reading cannot see a rejection.
+ */
+function BeforeFirstBill({
+  overview,
+  canPay,
+  onPrepared,
+}: {
+  overview: BillingOverviewDto
+  canPay: boolean
+  onPrepared: () => void
+}) {
+  const { t } = useTranslation()
+  const waiting = (key: string) => (
+    <p role="status" className="rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium leading-[1.6] text-pending-700">
+      {t(key)}
+    </p>
+  )
+  const signup = overview.signupPayment
+  if (signup === undefined) {
+    return overview.signupMethod ? (
+      waiting(`billing.signupWaiting.${overview.signupMethod}`)
+    ) : (
+      <NoOutstandingBill canPay={canPay} onPrepared={onPrepared} />
+    )
+  }
+  if (signup === null) return <NoOutstandingBill canPay={canPay} onPrepared={onPrepared} />
+  switch (signup.status) {
+    case 'SUBMITTED':
+      return waiting(`billing.signupWaiting.${signup.method}`)
+    case 'FUNDS_VERIFIED':
+    case 'CONFIRMED':
+      return waiting('billing.signupConfirmed')
+    case 'REJECTED':
+      return (
+        <div className="flex flex-col gap-3">
+          <Alert>{t('billing.rejected', { reason: withoutFinalStop(signup.rejectionReason ?? '') })}</Alert>
+          <NoOutstandingBill canPay={canPay} onPrepared={onPrepared} afterRejection />
+        </div>
+      )
+  }
+}
+
+function NoOutstandingBill({
+  canPay,
+  onPrepared,
+  afterRejection = false,
+}: {
+  canPay: boolean
+  onPrepared: () => void
+  /** Under "your last payment was not accepted… pay again below": only the way to pay again. */
+  afterRejection?: boolean
+}) {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
@@ -145,7 +206,7 @@ function NoOutstandingBill({ canPay, onPrepared }: { canPay: boolean; onPrepared
   }
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm font-medium text-text-secondary">{t('billing.nothingDue')}</p>
+      {afterRejection ? null : <p className="text-sm font-medium text-text-secondary">{t('billing.nothingDue')}</p>}
       {canPay ? (
         <div>
           <Button variant="secondary" size="md" disabled={busy} onClick={prepare}>

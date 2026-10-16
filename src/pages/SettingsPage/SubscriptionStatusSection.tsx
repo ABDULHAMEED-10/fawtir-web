@@ -13,17 +13,19 @@ import {
   loadSubscription,
   scheduleCancellation,
   withdrawCancellation,
+  subscriptionDisplay,
   withdrawScheduledChange,
-  type SubscriptionAccess,
+  type SubscriptionDisplay,
   type SubscriptionStatusDto,
 } from '../../api/settings/subscription'
 
-const ACCESS_TONE: Record<SubscriptionAccess, string> = {
+const ACCESS_TONE: Record<SubscriptionDisplay, string> = {
   NOT_TRACKED: 'bg-primary-50 text-primary-800',
   TRIAL: 'bg-primary-50 text-primary-800',
   ACTIVE: 'bg-success-100 text-success-700',
   GRACE: 'bg-pending-100 text-pending-700',
   PAYMENT_REQUIRED: 'bg-danger-100 text-danger-700',
+  NOT_STARTED: 'bg-pending-100 text-pending-700',
   CANCELLED: 'bg-primary-25 text-primary-800',
 }
 
@@ -62,6 +64,7 @@ export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }
   if (read.read.status === 'loading') return <LoadingNotice />
   if (read.read.status === 'failed') return <ApiReadFailure error={read.read.error} retry={read.retry} />
   const status = latest ?? read.read.data
+  const display = subscriptionDisplay(status)
 
   const act = async (which: Exclude<Pending, null>, call: () => Promise<SubscriptionStatusDto>) => {
     setPending(which)
@@ -86,8 +89,8 @@ export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }
         <h3 id="subscription-standing" className="text-lg font-semibold text-text-primary">
           {t('subscription.title')}
         </h3>
-        <span className={['rounded-full px-3 py-1 text-xs font-semibold', ACCESS_TONE[status.access]].join(' ')}>
-          {t(`subscription.access.${status.access}`)}
+        <span className={['rounded-full px-3 py-1 text-xs font-semibold', ACCESS_TONE[display]].join(' ')}>
+          {t(`subscription.access.${display}`)}
         </span>
       </div>
 
@@ -190,6 +193,13 @@ function StandingNotice({ status, page }: { status: SubscriptionStatusDto; page:
       tone = 'bg-pending-100 text-pending-700'
       break
     case 'PAYMENT_REQUIRED':
+      // Never started: no bill is owed yet and a payment made at sign-up may be with Fawtir, so
+      // "payment is due, pay the bill below" would contradict the billing section (K-BC03).
+      if (subscriptionDisplay(status) === 'NOT_STARTED') {
+        message = t(page === 'billing' ? 'subscription.notice.notStartedBilling' : 'subscription.notice.notStartedPlan')
+        tone = 'bg-pending-100 text-pending-700'
+        break
+      }
       message = t(page === 'billing' ? 'subscription.notice.paymentRequiredBilling' : 'subscription.notice.paymentRequiredPlan')
       tone = 'bg-danger-100 text-danger-700'
       break

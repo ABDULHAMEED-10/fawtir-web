@@ -447,6 +447,99 @@ describe('Business identity', () => {
     expect(await screen.findByText(i18n.t('businessIdentity.identifierTaken'))).toBeTruthy()
     expect(document.body.textContent).not.toContain('A tenant with this tax number')
   })
+
+  it('names a taken VATIN under the VATIN field when the server sends its code (G9)', async () => {
+    fetchMock.mockResolvedValueOnce(
+      json(409, {
+        type: 'https://api.fawtir.om/problems/resource-conflict',
+        detail: 'A tenant with this tax number already exists.',
+        code: 'TAX_NUMBER_ALREADY_REGISTERED',
+        field: 'taxNumber',
+      }),
+    )
+    const user = userEvent.setup({ delay: null })
+    renderAt('/business-identity', AFTER_TYPE)
+    await user.type(field('companyName'), 'Al Noor Bakery LLC')
+    await user.type(field('crNumber'), '1234567')
+    await user.type(field('vatin'), 'OM1100112233')
+    await user.click(submit())
+
+    const message = await screen.findByText(i18n.t('businessIdentity.vatinTaken'))
+    expect(field('vatin').getAttribute('aria-invalid')).toBe('true')
+    const describedBy = field('vatin').getAttribute('aria-describedby') ?? ''
+    expect(describedBy.split(' ').map((id) => document.getElementById(id)?.textContent)).toContain(
+      message.textContent,
+    )
+    expect(screen.queryByText(i18n.t('businessIdentity.identifierTaken'))).toBeNull()
+    expect(screen.queryByText(i18n.t('businessIdentity.crTaken'))).toBeNull()
+    // Editing the VATIN clears its error (G6).
+    await user.type(field('vatin'), '4')
+    expect(screen.queryByText(i18n.t('businessIdentity.vatinTaken'))).toBeNull()
+  })
+
+  it('names a taken CR number under the CR field when the server sends its code (G9)', async () => {
+    fetchMock.mockResolvedValueOnce(
+      json(409, {
+        type: 'https://api.fawtir.om/problems/resource-conflict',
+        detail: 'A tenant with this CR number already exists.',
+        code: 'COMMERCIAL_REGISTRATION_ALREADY_REGISTERED',
+        field: 'commercialRegistrationNumber',
+      }),
+    )
+    const user = userEvent.setup({ delay: null })
+    renderAt('/business-identity', AFTER_TYPE)
+    await user.type(field('companyName'), 'Al Noor Bakery LLC')
+    await user.type(field('crNumber'), '1234567')
+    await user.type(field('vatin'), 'OM1100112233')
+    await user.click(submit())
+
+    const message = await screen.findByText(i18n.t('businessIdentity.crTaken'))
+    expect(field('crNumber').getAttribute('aria-invalid')).toBe('true')
+    const describedBy = field('crNumber').getAttribute('aria-describedby') ?? ''
+    expect(describedBy.split(' ').map((id) => document.getElementById(id)?.textContent)).toContain(
+      message.textContent,
+    )
+    expect(screen.queryByText(i18n.t('businessIdentity.identifierTaken'))).toBeNull()
+    await user.type(field('crNumber'), '8')
+    expect(screen.queryByText(i18n.t('businessIdentity.crTaken'))).toBeNull()
+  })
+
+  it('clears the "already registered" answer once the VATIN or CR number is edited (G6)', async () => {
+    const taken = () =>
+      fetchMock.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(
+        status('BUSINESS_IDENTITY', {
+          businessProfileComplete: true,
+          businessCategoryComplete: true,
+          businessTypeComplete: true,
+        }),
+      )
+    taken()
+    const user = userEvent.setup({ delay: null })
+    renderAt('/business-identity', AFTER_TYPE)
+    await user.type(field('companyName'), 'Al Noor Bakery LLC')
+    await user.type(field('crNumber'), '1234567')
+    await user.type(field('vatin'), 'OM1100112233')
+    await user.click(submit())
+    expect(await screen.findByText(i18n.t('businessIdentity.identifierTaken'))).toBeTruthy()
+
+    // Editing the VATIN into something the client refuses: only the client's message remains.
+    await user.type(field('vatin'), '9')
+    expect(screen.queryByText(i18n.t('businessIdentity.identifierTaken'))).toBeNull()
+    await user.click(submit())
+    expect(await screen.findByText(i18n.t('validation.vatin'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('businessIdentity.identifierTaken'))).toBeNull()
+
+    // The CR number clears it as well; the company name does not answer the conflict.
+    await user.clear(field('vatin'))
+    await user.type(field('vatin'), 'OM1100112233')
+    taken()
+    await user.click(submit())
+    expect(await screen.findByText(i18n.t('businessIdentity.identifierTaken'))).toBeTruthy()
+    await user.type(field('companyName'), 'x')
+    expect(screen.getByText(i18n.t('businessIdentity.identifierTaken'))).toBeTruthy()
+    await user.type(field('crNumber'), '8')
+    expect(screen.queryByText(i18n.t('businessIdentity.identifierTaken'))).toBeNull()
+  })
 })
 
 describe('Address and contact', () => {

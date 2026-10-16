@@ -126,6 +126,21 @@ export type BillingOverviewDto = {
   proofMaximumBytes: number
   /** How a pay-now registrant chose to pay at signup; the pay form opens on it when it is offered. */
   signupMethod?: PaymentMethod | null
+  /**
+   * The payment made with the sign-up application (backend #533): null when none was made, or only
+   * a withdrawn attempt; absent from servers before #533, which leave the screen to infer it.
+   */
+  signupPayment?: SignupPaymentDto | null
+}
+
+export type SignupPaymentDto = {
+  method: PaymentMethod
+  status: 'SUBMITTED' | 'FUNDS_VERIFIED' | 'CONFIRMED' | 'REJECTED'
+  /** Three-decimal OMR string, VAT included. */
+  amount: string
+  submittedAt: string
+  /** Present only when REJECTED. */
+  rejectionReason?: string | null
 }
 
 export type BillPageDto = { bills: BillWithPaymentsDto[]; nextCursor: string | null }

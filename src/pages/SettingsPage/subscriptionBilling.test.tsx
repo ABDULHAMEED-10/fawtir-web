@@ -258,7 +258,7 @@ describe('Settings › Billing: the charge', () => {
     expect(screen.queryByText(i18n.t('billing.bankUnavailable'))).toBeNull()
   })
 
-  it('shows a sent receipt as pending verification by Fawtir Finance at every step, never as paid', async () => {
+  it('shows a sent receipt as pending verification by Fawtir at every step, never as paid', async () => {
     for (const status of ['SUBMITTED', 'RECEIPT_RECORDED', 'AWAITING_SECOND_APPROVAL']) {
       answers[BILLING] = () =>
         json(200, overview({ bills: [{ bill: { ...BILL, status: 'PENDING_VERIFICATION' }, payments: [{ id: 'p-2', billId: 'b-1', method: 'BANK_TRANSFER', status, amount: '36.750', submittedAt: '2026-10-18T06:00:00Z', reference: 'TRX-1001', customerNote: null, proofContentType: 'application/pdf', receiptNumber: null, receivedAmount: null, receivedAt: null, rejectionReason: null, version: 0 }] }] }))
@@ -266,7 +266,7 @@ describe('Settings › Billing: the charge', () => {
       const { unmount } = renderBilling()
 
       const waiting = await screen.findByText(i18n.t(`billing.waiting.BANK_TRANSFER.${status}`))
-      expect(waiting.textContent).toMatch(/^Pending verification by Fawtir Finance\./)
+      expect(waiting.textContent).toMatch(/^Pending verification by Fawtir\./)
       expect(within(charges()).queryByText(i18n.t('billing.billStatus.PAID'))).toBeNull()
       expect(within(charges()).queryByRole('radio')).toBeNull()
       unmount()
