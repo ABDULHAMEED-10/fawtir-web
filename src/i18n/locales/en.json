@@ -15153,6 +15153,27 @@
         "invalid": "The server did not accept these values. Check them and try again.",
         "realm": "Billing settings are changed from the production console only.",
         "impersonation": "End the impersonation before changing billing settings."
+      },
+      "extraDocuments": {
+        "card": "Extra documents per purchase",
+        "cardNote": "The fewest and most extra documents a company can buy in one purchase, on the web and in the mobile app. Applies to purchases made from now on.",
+        "loading": "Loading the purchase limits",
+        "min": "Fewest per purchase",
+        "minHint": "A whole number, 1 or more.",
+        "max": "Most per purchase",
+        "maxHint": "A whole number, at least the fewest and at most {{max}}.",
+        "error": {
+          "min": "A whole number, 1 or more",
+          "max": "A whole number from 1 to {{max}}",
+          "maxBelowMin": "Must be at least the fewest per purchase"
+        },
+        "refusal": {
+          "conflict": "Someone else changed these limits while you were editing. They have been reloaded: check them and save again.",
+          "invalid": "The server did not accept these limits. Check them and try again."
+        },
+        "history": "Earlier purchase limits",
+        "historyEntry": "Version {{version}} · {{min}} to {{max}} documents",
+        "historyFailed": "The earlier purchase limits could not be loaded."
       }
     },
     "seller": {
