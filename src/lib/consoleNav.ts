@@ -104,6 +104,14 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         requires: 'platform.plans.read',
       },
       {
+        id: 'disconnections',
+        labelKey: 'console.nav.disconnections',
+        to: '/console/disconnections',
+        Icon: ConsoleQueueIcon,
+        // "Disconnect from Fawtir" requests, worked by Platform support (V302).
+        requires: 'platform.smp.operations.review',
+      },
+      {
         id: 'payments',
         labelKey: 'console.nav.payments',
         to: '/console/billing/payments',

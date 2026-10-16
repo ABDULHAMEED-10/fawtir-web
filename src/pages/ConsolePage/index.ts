@@ -21,3 +21,4 @@ export { ConsoleBillingPaymentsPage } from './billing/ConsoleBillingPaymentsPage
 export { ConsoleBankAccountsPage } from './billing/ConsoleBankAccountsPage'
 export { ConsoleBillingSettingsPage } from './billing/ConsoleBillingSettingsPage'
 export { ConsoleSellerPage } from './billing/ConsoleSellerPage'
+export { ConsoleDisconnectionsPage } from './disconnections/ConsoleDisconnectionsPage'

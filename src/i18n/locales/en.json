@@ -12538,7 +12538,8 @@
       "payments": "Subscription payments",
       "bankAccounts": "Bank account",
       "billingSettings": "Billing settings",
-      "seller": "Seller"
+      "seller": "Seller",
+      "disconnections": "Disconnections"
     },
     "user": {
       "team": "Fawtir team",
@@ -15188,6 +15189,166 @@
       "crShort": "CR {{number}}",
       "tinShort": "TIN {{number}}",
       "vatShort": "VAT {{number}}"
+    },
+    "disconnections": {
+      "title": "Disconnect from Fawtir",
+      "subtitle": "Requests to leave Fawtir: what support does next on the Fawtara Portal and the Oman SMP, and by when.",
+      "loading": "Loading disconnection requests…",
+      "emptyOpen": "Nothing is waiting for support.",
+      "empty": "No disconnection requests yet.",
+      "tab": {
+        "open": "Needs action",
+        "all": "All"
+      },
+      "col": {
+        "company": "Company",
+        "path": "Path",
+        "status": "Status",
+        "next": "Next for support",
+        "due": "Due"
+      },
+      "requestedOn": "Requested {{date}}",
+      "recordedOn": "recorded {{date}}",
+      "open": "Open",
+      "noDeadline": "No deadline",
+      "overdue": "Overdue",
+      "dueBy": "Due by {{date}}",
+      "dueOverdue": "Overdue since {{date}}",
+      "approvalLapsed": "The customer's 3 days on the Fawtara Portal have run out. Record the request as not approved in time.",
+      "notYet": "Not yet",
+      "history": "Steps",
+      "reference": "Reference",
+      "recorded": "Recorded: {{step}}.",
+      "path": {
+        "ALREADY_DISCONNECTED": "Already disconnected on the portal",
+        "ASK_FAWTIR": "Asked Fawtir to disconnect",
+        "MOVED_TO_ANOTHER_PROVIDER": "Moved to another provider"
+      },
+      "origin": {
+        "CUSTOMER": "From the customer's Settings",
+        "CONSOLE": "Started by support"
+      },
+      "via": {
+        "CALL": "Phone call",
+        "EMAIL": "E-mail",
+        "TAX_AUTHORITY_NOTICE": "Tax Authority notice"
+      },
+      "status": {
+        "REQUESTED": "Requested",
+        "WAITING_FOR_CUSTOMER_APPROVAL": "Waiting for the customer's approval",
+        "DISCONNECTED": "Disconnected",
+        "NOT_COMPLETED": "Not completed",
+        "WITHDRAWN": "Withdrawn"
+      },
+      "next": {
+        "RAISE_PORTAL_REQUEST": "Raise the disconnection request on the Fawtara Portal",
+        "CONFIRM_ON_PORTAL": "Check the disconnection on the Fawtara Portal",
+        "AWAIT_CUSTOMER_APPROVAL": "Wait for the customer to approve on the Fawtara Portal",
+        "REMOVE_FROM_SMP": "Remove the company from the Oman SMP",
+        "WITHDRAW_PORTAL_REQUEST": "Withdraw the request on the Fawtara Portal",
+        "NONE": "Nothing to do"
+      },
+      "notCompleted": {
+        "CUSTOMER_REJECTED": "The customer rejected it on the portal",
+        "EXPIRED": "Not approved within 3 days",
+        "NOT_DISCONNECTED_ON_PORTAL": "Still connected on the portal"
+      },
+      "fact": {
+        "requested": "Requested",
+        "origin": "Started from",
+        "askedBy": "Asked by",
+        "reason": "Reason",
+        "typedName": "Name typed to confirm",
+        "portalRaised": "Raised on the portal",
+        "approvalDue": "Customer approves by",
+        "disconnected": "Disconnected",
+        "smpDue": "SMP removal due",
+        "smpRemoved": "Removed from the SMP",
+        "notCompleted": "Why not completed",
+        "portalWithdrawn": "Withdrawn on the portal",
+        "subscriptionEnds": "Subscription ends"
+      },
+      "step": {
+        "REQUESTED": "Requested",
+        "PORTAL_REQUEST_RAISED": "Request raised on the Fawtara Portal",
+        "CUSTOMER_APPROVED": "Customer approved on the Fawtara Portal",
+        "CUSTOMER_REJECTED": "Customer rejected on the Fawtara Portal",
+        "REQUEST_EXPIRED": "Not approved within 3 days",
+        "PORTAL_DISCONNECTION_CONFIRMED": "Disconnection confirmed on the Fawtara Portal",
+        "PORTAL_NOT_DISCONNECTED": "Still connected on the Fawtara Portal",
+        "WITHDRAWN": "Withdrawn",
+        "PORTAL_REQUEST_WITHDRAWN": "Request withdrawn on the Fawtara Portal",
+        "SMP_REMOVED": "Removed from the Oman SMP"
+      },
+      "actor": {
+        "CUSTOMER": "By the customer",
+        "OPERATOR": "By Fawtir support",
+        "SYSTEM": "Automatically"
+      },
+      "form": {
+        "title": "Record a step",
+        "step": "What happened",
+        "occurredAt": "When it happened",
+        "reference": "Reference (optional)",
+        "note": "Note (optional)",
+        "record": "Record step"
+      },
+      "record": {
+        "PORTAL_REQUEST_RAISED": "I raised the disconnection request on the Fawtara Portal",
+        "CUSTOMER_APPROVED": "The customer approved it on the Fawtara Portal",
+        "CUSTOMER_REJECTED": "The customer rejected it on the Fawtara Portal",
+        "REQUEST_EXPIRED": "The customer did not approve within 3 days",
+        "PORTAL_DISCONNECTION_CONFIRMED": "The Fawtara Portal shows the company disconnected",
+        "PORTAL_NOT_DISCONNECTED": "The Fawtara Portal still shows Fawtir as the provider",
+        "WITHDRAWN": "The customer withdrew the request",
+        "PORTAL_REQUEST_WITHDRAWN": "I withdrew the request on the Fawtara Portal",
+        "SMP_REMOVED": "I removed the company from the Oman SMP"
+      },
+      "recordHint": {
+        "PORTAL_REQUEST_RAISED": "The customer then has 3 days to approve it on the portal.",
+        "CUSTOMER_APPROVED": "Completes the disconnection. The company must then be removed from the Oman SMP within 1 business day.",
+        "CUSTOMER_REJECTED": "The company stays connected and stays on the Oman SMP.",
+        "REQUEST_EXPIRED": "The portal has cancelled the request. The company stays connected and stays on the Oman SMP.",
+        "PORTAL_DISCONNECTION_CONFIRMED": "Completes the disconnection. The company must then be removed from the Oman SMP within 1 business day.",
+        "PORTAL_NOT_DISCONNECTED": "The request is not completed and the company stays connected.",
+        "WITHDRAWN": "The company stays connected. If the request was raised on the portal, withdraw it there too.",
+        "PORTAL_REQUEST_WITHDRAWN": "Records that the portal request no longer stands.",
+        "SMP_REMOVED": "Only after the disconnection is complete."
+      },
+      "moment": {
+        "day": "{{label}}: day",
+        "time": "{{label}}: time",
+        "note": "Oman time, 24-hour, such as 14:30. Not later than now.",
+        "timeWrong": "Type the time as hours and minutes, such as 14:30."
+      },
+      "refusal": {
+        "disconnection-state-conflict": "That can't follow where the request stands now. The latest state is shown.",
+        "production-platform-realm-required": "Disconnections are handled only from the production Fawtir console.",
+        "impersonation-not-allowed": "This can't be done while signed in as a company.",
+        "invalid": "Check the details: a date can't be later than now, and every required field must be filled.",
+        "forbidden": "Your role can't do this, or your sign-in needs a fresh verification code.",
+        "notFound": "This request or company no longer exists.",
+        "other": "That didn't go through. Try again."
+      },
+      "card": {
+        "title": "Disconnect from Fawtir",
+        "none": "No disconnection request.",
+        "openInQueue": "Open in disconnections",
+        "start": "Start on the customer's request",
+        "started": "Started. The owner and administrators are e-mailed now."
+      },
+      "start": {
+        "title": "Start a disconnection",
+        "note": "Only when the customer asked by phone or e-mail, or a Tax Authority notice says the company has already left. Never on Fawtir's own initiative. The owner and administrators are told at once, and a request to Fawtir still needs the customer's approval on the Fawtara Portal.",
+        "path": "What the customer said",
+        "via": "How they asked",
+        "choose": "Choose",
+        "askedBy": "Who asked",
+        "noticeFrom": "Notice from (sender or reference)",
+        "askedAt": "When they asked",
+        "reason": "Reason",
+        "submit": "Start disconnection"
+      }
     }
   },
   "shell": {
