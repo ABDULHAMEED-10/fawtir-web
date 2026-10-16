@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useApiRead } from '../../hooks'
+import { usePlanName } from '../../hooks/usePlanName'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { hasPermission } from '../../lib/identity/entitlements'
 import { formatAmount, formatDate } from '../../lib/format'
@@ -56,6 +57,7 @@ export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }
   const [confirmCancel, setConfirmCancel] = useState(false)
   // The key of the message to show; a payment being checked blocks a change for a known reason.
   const [failure, setFailure] = useState<string | null>(null)
+  const planName = usePlanName()
 
   if (read.read.status === 'loading') return <LoadingNotice />
   if (read.read.status === 'failed') return <ApiReadFailure error={read.read.error} retry={read.retry} />
@@ -97,7 +99,7 @@ export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm bg-surface-background px-4 py-3">
           <p className="text-sm font-medium text-text-secondary">
             {t('subscription.scheduledChange', {
-              plan: status.scheduledChange.planName,
+              plan: planName(status.scheduledChange.planCode, status.scheduledChange.planName),
               date: day(status.scheduledChange.effectiveOn),
             })}
           </p>
@@ -212,10 +214,12 @@ function Facts({ status }: { status: SubscriptionStatusDto }) {
   const { t, i18n } = useTranslation()
   const date = (iso: string | null) => (iso ? formatDate(iso, i18n.language) : t('subscription.none'))
   const cycle = status.billingCycle ? t(`subscription.cycle.${status.billingCycle}`) : t('subscription.none')
+  // The status carries the plan's English name only (F37): an Arabic reader gets its Arabic name.
+  const planName = usePlanName()
 
   return (
     <dl className="grid gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
-      <Fact label={t('subscription.fact.plan')} value={`${status.planName} · ${cycle}`} />
+      <Fact label={t('subscription.fact.plan')} value={`${planName(status.planCode, status.planName)} · ${cycle}`} />
       <Fact
         label={t(status.billingCycle === 'ANNUAL' ? 'subscription.fact.pricePerYear' : 'subscription.fact.pricePerMonth')}
         value={

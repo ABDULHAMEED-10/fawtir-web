@@ -72,6 +72,22 @@ export const readSignupPlans: CatalogueReader = (signal) => readCatalogue(SIGNUP
 export const readPublicPlans: CatalogueReader = (signal) => readCatalogue(PUBLIC_PLANS_PATH, signal)
 
 /**
+ * A plan's name in the reader's language, found in the catalogue by its code: the Arabic name for
+ * an Arabic reader where the catalogue has one, else `fallback` (the name the caller already
+ * holds, for a plan the catalogue no longer lists or before it has been read).
+ */
+export function catalogueName(
+  plans: readonly SignupCataloguePlan[] | null | undefined,
+  code: string | null | undefined,
+  fallback: string,
+  language: string,
+): string {
+  if (!language.startsWith('ar') || !code) return fallback
+  const plan = plans?.find((entry) => entry.code === code)
+  return plan?.nameAr?.trim() || fallback
+}
+
+/**
  * A three-decimal OMR string to baisa with no float on the way: `"80.000"` is 80000. `null` for
  * anything that is not such a figure, so a malformed amount is shown as unavailable, never guessed.
  */

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { notesStore, useNotes, type NoteScope } from '../../lib/notifications'
 import { can, useSession } from '../../lib/session/session'
+import { subscriptionNoticesStore } from '../../lib/subscriptionNotices'
 import { NotificationsPanel } from './NotificationsPanel'
 import bellIcon from '../../assets/dashboard/bell.svg'
 
@@ -16,6 +17,10 @@ import bellIcon from '../../assets/dashboard/bell.svg'
  * need `invoice.read`. Without a session, without that permission, or in the console, there is no
  * inbox to read: nothing is asked and the bell is quiet. The count is asked for when a page mounts
  * the bell; the lines are read when the panel is opened.
+ *
+ * It also counts the reader's trial-ending and grace reminders
+ * (`GET /settings/subscription/notices`), which need `tenant.plan.read` and are asked for the same
+ * way. A server without that route shows the bill reminders alone.
  */
 export function NotificationsBell({ scope = 'tenant' }: { scope?: NoteScope }) {
   const { t } = useTranslation()
@@ -32,9 +37,19 @@ export function NotificationsBell({ scope = 'tenant' }: { scope?: NoteScope }) {
         ? `${session.tenantId}:${session.userId}`
         : null
 
+  const planOwner =
+    session === null
+      ? undefined
+      : scope === 'tenant' && can(session, 'tenant.plan.read')
+        ? `${session.tenantId}:${session.userId}`
+        : null
+
   useEffect(() => {
     if (owner !== undefined) notesStore.watch(owner)
   }, [owner])
+  useEffect(() => {
+    if (planOwner !== undefined) subscriptionNoticesStore.watch(planOwner)
+  }, [planOwner])
   useEffect(() => {
     if (open) notesStore.refresh()
   }, [open])

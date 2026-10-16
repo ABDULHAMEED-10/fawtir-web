@@ -968,7 +968,7 @@
       "renewSuffix": ", access continues to the end of the period.",
       "addonLine": "Automatic ERP extraction ({{cycle}})",
       "firstBill": "First bill",
-      "firstBillNote": "When your free trial ends, choose how to pay to keep using Fawtir. ",
+      "firstBillNote": "When your free trial ends, choose how to pay to keep using Fawtir. We remind you 3 days before it ends, in the app and by email. ",
       "loading": "Loading…",
       "unavailable": "Not available yet",
       "monthlyPrice": "Monthly price {{rate}}",
@@ -15410,7 +15410,20 @@
         }
       }
     },
-    "unreadable": "Reminders could not be read. Reload to try again."
+    "unreadable": "Reminders could not be read. Reload to try again.",
+    "subscription": {
+      "trialEnding": {
+        "title": "Your free trial ends on {{date}}.",
+        "body": "Choose a plan to keep issuing documents and open the ones you receive."
+      },
+      "grace": {
+        "title": "Your subscription ended on {{ended}} and the renewal is unpaid.",
+        "body": "Pay it by {{until}} to keep issuing documents and open the ones you receive.",
+        "bodyNoDate": "Pay the bill to keep issuing documents and open the ones you receive."
+      },
+      "choosePlan": "Choose a plan",
+      "payBill": "Pay the bill"
+    }
   },
   "onboarding": {
     "sessionExpired": "Your signup session has ended. Your answers are saved: continue your registration with a new code sent to your email.",
