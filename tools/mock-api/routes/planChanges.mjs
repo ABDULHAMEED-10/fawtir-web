@@ -8,7 +8,9 @@
  * every other screenshot is unchanged. `MOCK_PLAN_CHANGE=on` opens it.
  * `MOCK_PLAN_CHANGE_STATE=pending` starts with an upgrade to Business Plus waiting for payment,
  * `=ending` refuses every move with `plan-change-while-ending`, `=keep` quotes keeping Business
- * after the Starter renewal was paid early (pair it with `MOCK_SUBSCRIPTION_STATE=downgradePaid`).
+ * after the Starter renewal was paid early (pair it with `MOCK_SUBSCRIPTION_STATE=downgradePaid`),
+ * `=enterprise` quotes every move with `plan-change-via-fawtir` first in `blockers` and refuses it
+ * (the company's own Enterprise terms, backend #598 and #614).
  *
  * A charged change issues a PLAN_CHANGE bill, listed on Bills and payment by `extraDocuments.mjs`
  * through {@link planChangeBillRows}; a downgrade is set as the subscription's scheduled change.
@@ -98,7 +100,12 @@ function preview(planCode, cycle) {
     erpAddonStops: false,
     users: null,
     branches: null,
-    blockers: MODE === 'ending' ? ['plan-change-while-ending'] : [],
+    blockers:
+      MODE === 'enterprise'
+        ? ['plan-change-via-fawtir']
+        : MODE === 'ending'
+          ? ['plan-change-while-ending']
+          : [],
   }
   const allowance = (after) => ({ now: 1000, used: 412, afterChange: after })
   if (planCode === 'BUSINESS' && cycle === 'MONTHLY') {
@@ -367,6 +374,7 @@ export default [
           billingCycle: quote.to.cycle,
           periodPrice: quote.to.periodPrice,
           effectiveOn: quote.effectiveOn,
+          kind: quote.kind,
         })
       }
       return { status: 201, body: made }
