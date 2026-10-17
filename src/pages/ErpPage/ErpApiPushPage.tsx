@@ -34,6 +34,7 @@ import { useApiRead, type ApiRead } from '../../hooks/useApiRead'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { useLanguage } from '../../hooks'
 import { hasPermission } from '../../lib/identity/entitlements'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatInstant, formatInstantDay } from '../../lib/format'
 import { DEFAULT_TRANSACTION_TYPE } from '../../lib/erp/mappingState'
@@ -105,6 +106,8 @@ export function ErpApiPushPage() {
   const { t } = useTranslation()
   const { entitlements, ready } = useEntitlements()
   const canManage = entitlements !== null && hasPermission(entitlements, MANAGE_PERMISSION)
+  // A new key stops while the subscription is read-only (ST-2); existing keys stay listed.
+  const mayCreateKey = useSubscriptionAllows('CREATE_API_KEY')
   const [creating, setCreating] = useState(false)
 
   return (
@@ -113,7 +116,7 @@ export function ErpApiPushPage() {
         title={t('erp.apiPush.title')}
         subtitle={t('erp.apiPush.subtitle')}
         actions={
-          ready && canManage ? (
+          ready && canManage && mayCreateKey ? (
             <button type="button" className={PRIMARY_BUTTON} onClick={() => setCreating(true)}>
               {t('erp.apiPush.create.open')}
             </button>
@@ -316,9 +319,12 @@ function KeyRow({
   const status = apiKey.status
   const name = apiKey.clientName ?? apiKey.label
   const used = lastUsedPhrase(apiKey.lastUsedAt, Date.now(), language)
+  // A rotation mints a new key, which stops while the subscription is read-only (ST-2). Completing
+  // a rotation and revoking only take keys away, so they stay.
+  const mayRotate = useSubscriptionAllows('CREATE_API_KEY')
 
   const items: ActionMenuItem[] = []
-  if (status === 'ACTIVE' || status === 'EXPIRED') {
+  if (mayRotate && (status === 'ACTIVE' || status === 'EXPIRED')) {
     items.push({
       id: 'rotate',
       labelKey: 'erp.apiPush.actions.rotate',

@@ -64,6 +64,7 @@ import {
   type NoteListStatus,
 } from '../../lib/salesNote'
 import { can, useSession } from '../../lib/session/session'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import backIcon from '../../assets/invoice-details/back.svg'
 import chevronIcon from '../../assets/invoice-details/chevron.svg'
 import downloadIcon from '../../assets/invoice-details/download.svg'
@@ -165,6 +166,8 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const session = useSession()
+  // Issuing stops while the subscription is read-only (ST-2): the action is hidden, not greyed.
+  const mayIssue = useSubscriptionAllows('ISSUE_DOCUMENTS')
   const navigate = useNavigate()
   const location = useLocation()
   const { id = '' } = useParams()
@@ -554,7 +557,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                     {t('salesNote.detail.editDraft')}
                   </Link>
                 ) : null}
-                {can(session, 'invoice.issue') ? (
+                {can(session, 'invoice.issue') && mayIssue ? (
                   <Link to={`${base}/${data.id}/edit`} className={PRIMARY_BUTTON}>
                     {t(`salesNote.${kindKey}.issue`)}
                   </Link>

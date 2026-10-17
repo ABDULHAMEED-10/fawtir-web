@@ -39,6 +39,10 @@ const ENTITLEMENTS = {
     'selfbilling.create',
     'selfbilling.agreement.manage',
     'creditnote.create',
+    // Reading and paying the subscription, only for a run that picks a read-only state
+    // (`MOCK_SUBSCRIPTION_STATE`, settingsPeople.mjs): otherwise the bell's reminders would join
+    // every other screenshot.
+    ...(process.env.MOCK_SUBSCRIPTION_STATE ? ['tenant.plan.read', 'tenant.plan.manage'] : []),
   ],
   scopes: ['platform.tenants.manage', 'platform.operators.manage', 'platform.support'],
   featureFlags: {},

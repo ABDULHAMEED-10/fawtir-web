@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Button, Modal } from '../../../components/ui'
 import { useEntitlements } from '../../../hooks/useEntitlements'
 import { hasPermission } from '../../../lib/identity/entitlements'
+import { useSubscriptionAllows } from '../../../lib/subscriptionReadOnly'
 import { RECOVER_PERMISSION, type SourceDocumentDto } from '../../../api/erp/reporting'
 import { recoveryOffer, type RecoveryNotice } from '../../../lib/erp/recovery'
 import { SECONDARY_BUTTON, SectionCard } from '../overview/idiom'
@@ -72,6 +73,9 @@ export function RecoveryCard({
   const [confirming, setConfirming] = useState(false)
   // No snapshot means no offer: the button is shown only to someone the server will let through.
   const canRecover = entitlements !== null && hasPermission(entitlements, RECOVER_PERMISSION)
+  // Recovery contacts the ERP and can issue an invoice, so it stops while the subscription is
+  // read-only (ST-2): the action is hidden, and the line at the top of the screen says why.
+  const mayRecover = useSubscriptionAllows('ERP')
   const offer = recoveryOffer(document, canRecover)
   if (offer === 'none') return null
 
@@ -79,7 +83,7 @@ export function RecoveryCard({
     <SectionCard title={t('erp.reporting.recover.title')} note={t('erp.reporting.recover.note')}>
       <div className="flex flex-col items-start gap-3 px-5 pb-5">
         <p className="text-sm text-text-secondary">{t('erp.reporting.recover.explain')}</p>
-        {offer === 'offer' ? (
+        {!mayRecover ? null : offer === 'offer' ? (
           <button
             type="button"
             className={SECONDARY_BUTTON}

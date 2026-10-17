@@ -50,6 +50,11 @@ export type SubscriptionStatusDto = {
    * null. The server fills it only while restrictions are enforced, so it is optional here.
    */
   restriction?: string | null
+  /**
+   * Null unless the company chose Enterprise at sign-up (F22). While `termsSet` is false Fawtir has
+   * not set its terms yet, so there is nothing to pay. Absent from a server before F22.
+   */
+  enterprise?: { termsSet: boolean } | null
 }
 
 /** What the status pill and the Settings card say: the server's access, or that nothing has started. */

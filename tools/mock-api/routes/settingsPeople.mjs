@@ -22,6 +22,84 @@ const SUBSCRIPTION_NOTICES = [
   },
 ]
 
+/**
+ * The subscription the shells read. Active by default; `MOCK_SUBSCRIPTION_STATE` picks one of the
+ * read-only states below (with the restrictions switch on), for screenshots of the read-only line:
+ *
+ *   MOCK_SUBSCRIPTION_STATE=suspended node tools/mock-api/server.mjs
+ *
+ * `restrictionsOff` is a suspended subscription with the switch off: nothing is restricted.
+ */
+const SUBSCRIPTION_ACTIVE = {
+  tracked: true,
+  access: 'ACTIVE',
+  restrictionsEnforced: false,
+  today: TODAY,
+  planCode: 'BUSINESS',
+  planName: 'Business',
+  billingCycle: 'MONTHLY',
+  periodPrice: '80.000',
+  trialStartsOn: null,
+  trialEndsOn: null,
+  trialDay: null,
+  trialDaysLeft: null,
+  paidThrough: '2026-10-31',
+  renewsOn: '2026-11-01',
+  graceDays: 7,
+  graceUntil: null,
+  autoRenew: false,
+  autoRenewAvailable: false,
+  autoRenewChangedAt: null,
+  cancelAtPeriodEnd: false,
+  accessEndsOn: null,
+  scheduledChange: null,
+  enterprise: null,
+  restriction: null,
+}
+
+const LAPSED = { paidThrough: '2026-09-30', renewsOn: '2026-10-01', graceUntil: '2026-10-07' }
+const SUBSCRIPTION_STATES = {
+  suspended: { access: 'PAYMENT_REQUIRED', restrictionsEnforced: true, restriction: 'SUBSCRIPTION_SUSPENDED', ...LAPSED },
+  trialEnded: {
+    access: 'PAYMENT_REQUIRED',
+    restrictionsEnforced: true,
+    restriction: 'SUBSCRIPTION_SUSPENDED',
+    trialStartsOn: '2026-09-24',
+    trialEndsOn: '2026-10-07',
+    paidThrough: null,
+    renewsOn: null,
+  },
+  cancelled: {
+    access: 'CANCELLED',
+    restrictionsEnforced: true,
+    restriction: 'SUBSCRIPTION_CANCELLED',
+    cancelAtPeriodEnd: true,
+    accessEndsOn: '2026-09-30',
+    ...LAPSED,
+  },
+  notStarted: {
+    access: 'PAYMENT_REQUIRED',
+    restrictionsEnforced: true,
+    restriction: 'SUBSCRIPTION_NOT_STARTED',
+    paidThrough: null,
+    renewsOn: null,
+  },
+  enterpriseTerms: {
+    tracked: false,
+    access: 'NOT_TRACKED',
+    restrictionsEnforced: true,
+    restriction: 'SUBSCRIPTION_NOT_STARTED',
+    planCode: 'ENTERPRISE',
+    planName: 'Enterprise',
+    billingCycle: null,
+    periodPrice: null,
+    paidThrough: null,
+    renewsOn: null,
+    enterprise: { termsSet: false },
+  },
+  restrictionsOff: { access: 'PAYMENT_REQUIRED', restrictionsEnforced: false, restriction: null, ...LAPSED },
+}
+
 const ROLES = [
   {
     id: 'r-admin',
@@ -157,28 +235,8 @@ export default [
   {
     match: '/api/v1/settings/subscription',
     reply: () => ({
-      tracked: true,
-      access: 'ACTIVE',
-      restrictionsEnforced: false,
-      today: TODAY,
-      planCode: 'BUSINESS',
-      planName: 'Business',
-      billingCycle: 'MONTHLY',
-      periodPrice: '80.000',
-      trialStartsOn: null,
-      trialEndsOn: null,
-      trialDay: null,
-      trialDaysLeft: null,
-      paidThrough: '2026-10-31',
-      renewsOn: '2026-11-01',
-      graceDays: 7,
-      graceUntil: null,
-      autoRenew: false,
-      autoRenewAvailable: false,
-      autoRenewChangedAt: null,
-      cancelAtPeriodEnd: false,
-      accessEndsOn: null,
-      scheduledChange: null,
+      ...SUBSCRIPTION_ACTIVE,
+      ...(SUBSCRIPTION_STATES[process.env.MOCK_SUBSCRIPTION_STATE ?? ''] ?? {}),
     }),
   },
 ]

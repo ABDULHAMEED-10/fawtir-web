@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { DateField, Input, Select, Switch } from '../../components/ui'
 import { useCan } from '../../lib/session/session'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import { useApiRead } from '../../hooks'
 import { GOVERNORATES, BRANCH_BEHAVIOUR, firstInvoiceFor } from '../../lib/settingsCompany'
 import { governorateIdFor, GOVERNORATE_NAMES, type GovernorateId } from '../../lib/governorates'
@@ -51,7 +52,9 @@ export function AddBranchPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   // Inviting is a user-management action; the link is offered only to those who may.
-  const canInvite = useCan('admin.users.manage')
+  // Nobody new is added while the subscription is read-only (ST-2).
+  const mayAddPeople = useSubscriptionAllows('ADD_PEOPLE')
+  const canInvite = useCan('admin.users.manage') && mayAddPeople
   const { id } = useParams()
 
   /** Opening an existing branch fills the same form from what it already holds. */

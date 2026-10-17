@@ -13,6 +13,7 @@ import { ConnectionShell, ConnectionNotFound } from './ConnectionShell'
 import { ConnectionFailure, ConnectionNotice } from './connectionParts'
 import { useConnectionDetail, useMutation } from './connectionData'
 import { useErpAccess } from '../../../hooks/useErpAccess'
+import { useSubscriptionAllows } from '../../../lib/subscriptionReadOnly'
 import { useLanguage } from '../../../hooks'
 import { isNotFound } from '../../../lib/apiFailure'
 import {
@@ -124,6 +125,8 @@ function EditForm({ connection, reload }: { connection: ErpConnectionDto; reload
   const { t } = useTranslation()
   const { access } = useErpAccess()
   const controls = erpConnectionControls(connection, access)
+  // Changing the settings is ERP work, which stops while the subscription is read-only (ST-2).
+  const erpAllowed = useSubscriptionAllows('ERP')
   const mutation = useMutation()
 
   const [name, setName] = useState(connection.name)
@@ -158,6 +161,8 @@ function EditForm({ connection, reload }: { connection: ErpConnectionDto; reload
     if (saved !== undefined) reload()
   }
 
+  // Hidden, not explained here: the line at the top of the screen says why (ST-2).
+  if (!erpAllowed) return null
   if (!controls.canEdit) {
     return (
       <SectionCard title={t('erp.connections.edit.heading')}>
@@ -287,6 +292,8 @@ function CredentialCard({
   const { language } = useLanguage()
   const { access } = useErpAccess()
   const controls = erpConnectionControls(connection, access)
+  // Storing a credential is ERP work, which stops while the subscription is read-only (ST-2).
+  const erpAllowed = useSubscriptionAllows('ERP')
   const mutation = useMutation()
 
   const [open, setOpen] = useState(false)
@@ -392,7 +399,7 @@ function CredentialCard({
     <SectionCard
       title={t('erp.connections.credential.heading')}
       actions={
-        controls.canConfigureCredential && !open ? (
+        controls.canConfigureCredential && erpAllowed && !open ? (
           <button type="button" className={SECONDARY_BUTTON} onClick={() => setOpen(true)}>
             {connection.credentialConfigured
               ? t('erp.connections.credential.replace')
