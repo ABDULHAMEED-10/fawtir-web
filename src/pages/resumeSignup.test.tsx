@@ -175,7 +175,7 @@ describe('/fawtara-status reads the real stage', () => {
 
   it.each([
     ['UNDER_REVIEW', 'fawtaraStatus.review.title'],
-    ['ACTIVATED', 'fawtaraStatus.request.title'],
+    ['ACTIVATED', 'fawtaraStatus.registering.title'],
     ['REJECTED', 'fawtaraStatus.rejected.title'],
   ])('%s shows %s', async (stage, titleKey) => {
     saveOnboardingSession({
