@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type FocusEvent, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Input, Select, Switch, type SelectOption } from '../../../components/ui'
 import lockIcon from '../../../assets/settings/menu-key.svg'
@@ -224,11 +224,14 @@ export function NumberField({
   decimal,
   leadingIcon,
   trailingIcon,
+  onFocus,
 }: {
   name: string
   label: string
   value: string
   onChange: (value: string) => void
+  /** `selectAllOnFocus` for a figure that should be replaced by typing (house rule). */
+  onFocus?: (event: FocusEvent<HTMLInputElement>) => void
   hint?: string
   /** The message to show, already translated. */
   error?: string
@@ -250,6 +253,7 @@ export function NumberField({
       leadingIcon={leadingIcon}
       trailingIcon={trailingIcon}
       value={value}
+      onFocus={onFocus}
       onChange={(event) => onChange(event.target.value)}
     />
   )

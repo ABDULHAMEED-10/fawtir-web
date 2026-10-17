@@ -15717,7 +15717,8 @@
           "WHATSAPP": "Payment link created for WhatsApp.",
           "COPIED": "Payment link created and copied."
         },
-        "billHint": "Due {{date}}"
+        "billHint": "Due {{date}}",
+        "emailNotSent": "Payment link created, but the email did not go. The link is still active: make a new link to copy or send by WhatsApp."
       },
       "links": {
         "show": "Payment links",
@@ -15745,7 +15746,16 @@
         "firstOpened": "first opened {{when}}",
         "neverOpened": "not opened yet",
         "opens_one": "{{count}} open",
-        "opens_other": "{{count}} opens"
+        "opens_other": "{{count}} opens",
+        "madeAt": "Made on {{when}}",
+        "revokedBecause": "Revoked: {{reason}}",
+        "closeReason": {
+          "NEW_LINK": "Replaced by a newer link for this bill",
+          "BILL_VOIDED": "Closed because the bill was voided",
+          "TERMS_CHANGED": "Closed because the bill's price changed",
+          "DISCONNECTED": "Closed because the company disconnected from Fawtir",
+          "TOO_MANY_REJECTED": "Closed after too many payments were not confirmed"
+        }
       },
       "revoke": {
         "open": "Revoke",

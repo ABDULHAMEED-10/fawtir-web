@@ -23,11 +23,6 @@ export type BillingSettingsDto = {
   vatRate: string | null
   /** Null only on version 1. */
   renewalBillLeadDays: number | null
-  /**
-   * How many days a new payment link stays valid (1 to 14); null on versions before it existed,
-   * which the server reads as 7. Absent from a server without payment links.
-   */
-  payLinkValidityDays?: number | null
 }
 
 export type BillingSettingsRequest = {
@@ -36,8 +31,6 @@ export type BillingSettingsRequest = {
   /** Omitted keeps the rate in force. */
   vatRate?: string
   renewalBillLeadDays?: number
-  /** Omitted keeps the validity in force. */
-  payLinkValidityDays?: number
   reason: string
 }
 

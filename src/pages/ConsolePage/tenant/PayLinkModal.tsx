@@ -148,7 +148,8 @@ export function PayLinkModal({
         key.current,
       )
       setCreated(answer)
-      if (answer.url && channel === 'COPIED') void copy(answer.message ?? answer.url)
+      if (answer.payLinkUrl && channel === 'COPIED')
+        void copy(answer.shareText ?? answer.payLinkUrl)
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         forgetEntitlements()
@@ -321,7 +322,7 @@ function Created({
   day: (iso: string) => string
 }) {
   const { t } = useTranslation()
-  if (!created.url) {
+  if (!created.payLinkUrl) {
     // A replay of the same request: the address was shown once, and the server keeps no copy.
     return (
       <p className="rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium leading-[1.6] text-pending-700">
@@ -329,21 +330,26 @@ function Created({
       </p>
     )
   }
-  const url = created.url
-  const message = created.message ?? url
+  const url = created.payLinkUrl
+  const message = created.shareText ?? url
+  const { link } = created
   return (
     <div className="flex flex-col gap-4">
       <div className="rounded-sm bg-success-100 px-4 py-3">
-        <p className="text-sm font-semibold text-success-700">
-          {t(`${K}created.${created.channel}`)}
-        </p>
+        <p className="text-sm font-semibold text-success-700">{t(`${K}created.${link.channel}`)}</p>
         <p className="mt-1 text-xs font-medium leading-[1.5] text-success-700">
           {t(`${K}createdBody`, {
-            date: day(created.expiresAt.slice(0, 10)),
-            hint: created.tokenHint,
+            date: day(link.expiresAt.slice(0, 10)),
+            hint: link.tokenHint,
           })}
         </p>
       </div>
+      {created.emailSent === false ? (
+        // The link is made and still active; only the email did not go.
+        <p className="rounded-sm bg-pending-100 px-4 py-3 text-xs font-semibold leading-[1.5] text-pending-700">
+          {t(`${K}emailNotSent`)}
+        </p>
+      ) : null}
       <p className="rounded-sm bg-pending-100 px-4 py-3 text-xs font-semibold leading-[1.5] text-pending-700">
         {t(`${K}onlyOnce`)}
       </p>
@@ -362,7 +368,7 @@ function Created({
         >
           {copied ? t(`${K}copiedNow`) : t(`${K}copy`)}
         </ConsoleButton>
-        {created.channel === 'WHATSAPP' ? (
+        {link.channel === 'WHATSAPP' ? (
           <ConsoleButton
             type="button"
             size="md"

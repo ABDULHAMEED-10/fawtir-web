@@ -62,39 +62,49 @@ const BILLS = {
 const LINKS = [
   {
     id: 'pl-2',
+    billId: OPEN_BILL,
     status: 'ACTIVE',
     channel: 'EMAIL',
     language: 'en',
     tokenHint: 'q7Zk',
     recipient: 'a***@surmarine.test',
     createdBy: 'u-nasser',
-    createdByName: 'Nasser Al Habsi',
     createdAt: '2026-10-17T06:10:00Z',
     sentAt: '2026-10-17T06:10:04Z',
     firstOpenedAt: '2026-10-17T07:42:00Z',
     openCount: 3,
     expiresAt: '2026-10-24T06:10:00Z',
+    closedAt: null,
     closeReason: null,
     version: 1,
   },
   {
     id: 'pl-1',
+    billId: OPEN_BILL,
     status: 'SUPERSEDED',
     channel: 'WHATSAPP',
     language: 'ar',
     tokenHint: 'Lm2c',
     recipient: '+968 ****2233',
     createdBy: 'u-nasser',
-    createdByName: 'Nasser Al Habsi',
     createdAt: '2026-10-16T09:00:00Z',
     sentAt: null,
     firstOpenedAt: null,
     openCount: 0,
     expiresAt: '2026-10-23T09:00:00Z',
-    closeReason: 'A newer link was made for this bill',
+    closedAt: '2026-10-17T06:10:00Z',
+    closeReason: 'NEW_LINK',
     version: 2,
   },
 ]
+
+const PAY_LINK_SETTINGS = {
+  enabled: true,
+  cardEnabled: true,
+  validityDays: 7,
+  maxValidityDays: 14,
+  settingsVersion: 3,
+}
 
 const UNBILLED_OVERVIEW = {
   identity: {
@@ -173,16 +183,27 @@ const status = (tracked) => ({
   scheduledChange: null,
 })
 
+// `CreatedPayLink`: the link, and the address and share text shown this once.
 const created = (body) => ({
-  status: 201,
+  status: 200,
   body: {
-    id: 'pl-3',
-    url: 'https://app.fawtir.om/pay#n3wT0kenForScreenshotsOnly000000000000000',
-    expiresAt: '2026-10-24T09:00:00Z',
-    status: 'ACTIVE',
-    channel: body?.channel ?? 'COPIED',
-    tokenHint: '0000',
-    message:
+    link: {
+      ...LINKS[0],
+      id: 'pl-3',
+      channel: body?.channel ?? 'COPIED',
+      language: body?.language ?? 'en',
+      tokenHint: '0000',
+      sentAt: body?.channel === 'EMAIL' ? '2026-10-17T09:00:02Z' : null,
+      firstOpenedAt: null,
+      openCount: 0,
+      createdAt: '2026-10-17T09:00:00Z',
+      expiresAt: '2026-10-24T09:00:00Z',
+      version: 0,
+    },
+    payLinkUrl: 'https://app.fawtir.om/pay#n3wT0kenForScreenshotsOnly000000000000000',
+    tokenShownOnce: false,
+    emailSent: body?.channel === 'EMAIL' ? true : null,
+    shareText:
       body?.language === 'ar'
         ? 'مرحبًا، هذا رابط دفع فاتورة فوتر FSB-2026-0042 بمبلغ OMR 80.000، يعمل حتى 24 أكتوبر 2026: https://app.fawtir.om/pay#n3wT0kenForScreenshotsOnly000000000000000'
         : 'Hello, here is the link to pay Fawtir bill FSB-2026-0042 for OMR 80.000. It works until 24 Oct 2026: https://app.fawtir.om/pay#n3wT0kenForScreenshotsOnly000000000000000',
@@ -209,7 +230,19 @@ export default [
     reply: ({ params }) => ({
       ...(LINKS.find((link) => link.id === params[0]) ?? LINKS[0]),
       status: 'REVOKED',
-      closeReason: 'Revoked',
+      closedAt: '2026-10-17T09:00:00Z',
+      closeReason: 'Sent to the wrong person',
+    }),
+  },
+  // `PayLinkSettings`: present only on a server with N8; `enabled` is the switch.
+  { match: '/api/v1/platform/billing/pay-link-settings', reply: () => PAY_LINK_SETTINGS },
+  {
+    method: 'PUT',
+    match: '/api/v1/platform/billing/pay-link-settings',
+    reply: ({ body }) => ({
+      ...PAY_LINK_SETTINGS,
+      validityDays: body?.validityDays ?? 7,
+      settingsVersion: PAY_LINK_SETTINGS.settingsVersion + 1,
     }),
   },
 

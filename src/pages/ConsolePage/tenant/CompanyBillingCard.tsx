@@ -12,17 +12,14 @@ import {
 import { CONSOLE_CARD, ConsoleButton } from '../../../layouts/ConsoleShell/consoleStyle'
 import { useConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
 import {
-  BILLING_SETTINGS_PATH,
-  type BillingSettingsDto,
-} from '../../../lib/console/billingSettings'
-import {
   BILLING_MANAGE,
   BILLING_READ,
   companySubscriptionPath,
   type PlatformSubscriptionDto,
 } from '../../../lib/console/companySubscription'
 import {
-  PAY_LINK_DEFAULT_DAYS,
+  PAY_LINK_CLOSE_REASONS,
+  PAY_LINK_SETTINGS_PATH,
   companyBillsPath,
   describePayLinkFailure,
   isOpenBill,
@@ -31,6 +28,7 @@ import {
   revokePayLink,
   type CompanyBillsDto,
   type PayLinkDto,
+  type PayLinkSettingsDto,
   type StartBillingDto,
   type SubscriptionBillDto,
 } from '../../../lib/console/payLinks'
@@ -74,6 +72,11 @@ const known = (value: string, set: Record<string, unknown>) => (value in set ? v
  *
  * Every action is hidden without `platform.billing.manage`; the card is hidden without
  * `platform.billing.read`.
+ *
+ * Gated on what the server reports, not only on permissions: the card is drawn only once
+ * `GET /platform/billing/pay-link-settings` answers (a server without N8 answers 404, and the card
+ * then stays away, so the tenant page is as it was). Sending a link and the link lists need
+ * `enabled` (`FAWTIR_BILLING_PAY_LINKS_ENABLED`) as well.
  */
 export function CompanyBillingCard({
   overview,
@@ -87,7 +90,29 @@ export function CompanyBillingCard({
   const may = (permission: string) =>
     entitlements !== null && hasPermission(entitlements, permission)
   if (!may(BILLING_READ)) return null
-  return <BillingCard overview={overview} canManage={may(BILLING_MANAGE)} onStarted={onStarted} />
+  return <ServerGate overview={overview} canManage={may(BILLING_MANAGE)} onStarted={onStarted} />
+}
+
+/** Nothing at all, not even a loader, until the server says it has payment links. */
+function ServerGate({
+  overview,
+  canManage,
+  onStarted,
+}: {
+  overview: TenantOverview
+  canManage: boolean
+  onStarted: () => void
+}) {
+  const { read } = useConsoleRead<PayLinkSettingsDto>(PAY_LINK_SETTINGS_PATH)
+  if (read.status !== 'ready') return null
+  return (
+    <BillingCard
+      overview={overview}
+      canManage={canManage}
+      payLinks={read.data}
+      onStarted={onStarted}
+    />
+  )
 }
 
 type Dialog =
@@ -99,19 +124,18 @@ type Dialog =
 function BillingCard({
   overview,
   canManage,
+  payLinks,
   onStarted,
 }: {
   overview: TenantOverview
   canManage: boolean
+  payLinks: PayLinkSettingsDto
   onStarted: () => void
 }) {
   const { t, i18n } = useTranslation()
   const tenantId = overview.identity.tenantId
   const subscription = useConsoleRead<PlatformSubscriptionDto>(companySubscriptionPath(tenantId))
   const bills = useConsoleRead<CompanyBillsDto>(companyBillsPath(tenantId))
-  const settings = useConsoleRead<BillingSettingsDto & { payLinkValidityDays?: number | null }>(
-    canManage ? BILLING_SETTINGS_PATH : null,
-  )
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [done, setDone] = useState<string | null>(null)
   // Bumped after a link changes, so the open list reads it again.
@@ -141,10 +165,7 @@ function BillingCard({
   )
   const verified = overview.verification.status === 'VERIFIED'
   const day = (iso: string | null) => (iso ? formatDate(iso, i18n.language) : null)
-  const validity =
-    settings.read.status === 'ready' && 'payLinkValidityDays' in settings.read.data
-      ? (settings.read.data.payLinkValidityDays ?? PAY_LINK_DEFAULT_DAYS)
-      : null
+  const linksOn = payLinks.enabled
 
   const close = () => setDialog(null)
   const finish = (message: string) => {
@@ -189,6 +210,7 @@ function BillingCard({
               key={entry.id}
               bill={entry}
               canManage={canManage}
+              linksOn={linksOn}
               linksRead={linksRead}
               onSend={() => setDialog({ kind: 'send', billId: entry.id })}
               onRevoke={(link) => setDialog({ kind: 'revoke', link, billId: entry.id })}
@@ -247,10 +269,17 @@ function BillingCard({
             email: overview.company.contactEmail,
             phone: overview.company.contactPhone,
           }}
-          validityDays={validity}
+          validityDays={payLinks.validityDays}
           onClose={close}
           onDone={(created) => {
-            finish(t(`${K}send.finished.${created.channel}`))
+            const channel = created.link.channel
+            finish(
+              t(
+                channel === 'EMAIL' && created.emailSent === false
+                  ? `${K}send.emailNotSent`
+                  : `${K}send.finished.${channel}`,
+              ),
+            )
             setLinksRead((n) => n + 1)
           }}
         />
@@ -297,6 +326,7 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
 function BillRow({
   bill,
   canManage,
+  linksOn,
   linksRead,
   onSend,
   onRevoke,
@@ -304,6 +334,8 @@ function BillRow({
 }: {
   bill: SubscriptionBillDto
   canManage: boolean
+  /** Payment links are switched on at the server. */
+  linksOn: boolean
   linksRead: number
   onSend: () => void
   onRevoke: (link: PayLinkDto) => void
@@ -335,21 +367,23 @@ function BillRow({
           .filter(Boolean)
           .join(' · ')}
       </span>
-      <div className="flex flex-wrap gap-2.5">
-        {canManage && bill.status === 'OPEN' ? (
-          <ConsoleButton variant="smallPrimary" onClick={onSend}>
-            {t(`${K}send.open`)}
+      {linksOn ? (
+        <div className="flex flex-wrap gap-2.5">
+          {canManage && bill.status === 'OPEN' ? (
+            <ConsoleButton variant="smallPrimary" onClick={onSend}>
+              {t(`${K}send.open`)}
+            </ConsoleButton>
+          ) : null}
+          <ConsoleButton
+            variant="small"
+            aria-expanded={showLinks}
+            onClick={() => setShowLinks((v) => !v)}
+          >
+            {showLinks ? t(`${K}links.hide`) : t(`${K}links.show`)}
           </ConsoleButton>
-        ) : null}
-        <ConsoleButton
-          variant="small"
-          aria-expanded={showLinks}
-          onClick={() => setShowLinks((v) => !v)}
-        >
-          {showLinks ? t(`${K}links.hide`) : t(`${K}links.show`)}
-        </ConsoleButton>
-      </div>
-      {showLinks ? (
+        </div>
+      ) : null}
+      {linksOn && showLinks ? (
         // Remounted after a link changes, so the list is read again.
         <PayLinkList key={linksRead} billId={bill.id} canManage={canManage} onRevoke={onRevoke} />
       ) : null}
@@ -404,10 +438,7 @@ function PayLinkList({
                     {link.recipient}
                   </bdi>
                 ) : null,
-                t(`${K}links.created`, {
-                  name: link.createdByName ?? t('console.plans.history.system'),
-                  when: when(link.createdAt),
-                }),
+                t(`${K}links.madeAt`, { when: when(link.createdAt) }),
                 link.channel === 'EMAIL'
                   ? link.sentAt
                     ? t(`${K}links.sent`, { when: when(link.sentAt) })
@@ -432,7 +463,12 @@ function PayLinkList({
               ].join(' · ')}
             </span>
             {link.closeReason ? (
-              <span className="text-xs font-medium text-text-tertiary">{link.closeReason}</span>
+              <span className="text-xs font-medium text-text-tertiary">
+                {(PAY_LINK_CLOSE_REASONS as readonly string[]).includes(link.closeReason)
+                  ? t(`${K}links.closeReason.${link.closeReason}`)
+                  : // An operator's own revocation reason, in their words.
+                    t(`${K}links.revokedBecause`, { reason: link.closeReason })}
+              </span>
             ) : null}
             {canManage && link.status === 'ACTIVE' ? (
               <div>

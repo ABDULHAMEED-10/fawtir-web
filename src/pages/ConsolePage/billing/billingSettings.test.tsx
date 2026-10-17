@@ -12,6 +12,7 @@ import { ConsoleSellerPage } from './ConsoleSellerPage'
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const SETTINGS = '/api/v1/platform/billing/settings'
 const SELLER = '/api/v1/platform/billing/seller'
+const PAY_LINK_SETTINGS = '/api/v1/platform/billing/pay-link-settings'
 const EXTRA = '/api/v1/platform/billing/extra-documents/settings'
 const EXTRA_HISTORY = '/api/v1/platform/billing/extra-documents/settings/history?limit=50'
 const SELLER_HISTORY = '/api/v1/platform/billing/seller/history?limit=50'
@@ -36,6 +37,17 @@ function settings(over: Record<string, unknown> = {}) {
   return {
     version: 3, graceDays: 7, dualApprovalThreshold: '50.000', currency: 'OMR', reason: 'Launch values',
     createdBy: 'u-other', createdAt: '2026-10-14T05:00:00Z', vatRate: '0.00000', renewalBillLeadDays: 7, ...over,
+  }
+}
+
+function payLinkSettings(over: Record<string, unknown> = {}) {
+  return {
+    enabled: true,
+    cardEnabled: true,
+    validityDays: 7,
+    maxValidityDays: 14,
+    settingsVersion: 3,
+    ...over,
   }
 }
 
@@ -164,22 +176,65 @@ describe('Console › Billing settings', () => {
     })
   })
 
-  it('saves the payment link validity, 1 to 14 days, only on a server that has it', async () => {
-    answers[SETTINGS] = () => json(200, settings({ payLinkValidityDays: null }))
-    answers[`PUT ${SETTINGS}`] = () => json(200, settings({ version: 4, payLinkValidityDays: 10 }))
+  it('saves the payment link validity alone on its own route, 1 to 14 days', async () => {
+    answers[SETTINGS] = () => json(200, settings())
+    answers[PAY_LINK_SETTINGS] = () => json(200, payLinkSettings())
+    answers[`PUT ${PAY_LINK_SETTINGS}`] = () =>
+      json(200, payLinkSettings({ validityDays: 10, settingsVersion: 4 }))
     const user = userEvent.setup({ delay: null })
     renderAt('/console/billing/settings')
 
     const days = await screen.findByRole('textbox', { name: S('linkDays') })
+    expect((days as HTMLInputElement).value).toBe('7')
+    await user.clear(days)
     await user.type(days, '30')
-    await user.type((await billingCard()).getByRole('textbox', { name: S('reason') }), 'Longer links')
-    await user.click((await billingCard()).getByRole('button', { name: i18n.t('console.settings.save') }))
-    expect(sent('PUT', SETTINGS)).toBeNull()
+    await user.type(
+      (await billingCard()).getByRole('textbox', { name: S('reason') }),
+      'Longer links',
+    )
+    await user.click(
+      (await billingCard()).getByRole('button', { name: i18n.t('console.settings.save') }),
+    )
+    expect(sent('PUT', PAY_LINK_SETTINGS)).toBeNull()
 
     await user.clear(days)
     await user.type(days, '10')
-    await user.click((await billingCard()).getByRole('button', { name: i18n.t('console.settings.save') }))
-    await waitFor(() => expect(sent('PUT', SETTINGS)?.body.payLinkValidityDays).toBe(10))
+    await user.click(
+      (await billingCard()).getByRole('button', { name: i18n.t('console.settings.save') }),
+    )
+    await waitFor(() => expect(sent('PUT', PAY_LINK_SETTINGS)).not.toBeNull())
+    const put = sent('PUT', PAY_LINK_SETTINGS)!
+    expect(headerOf(put.init, 'If-Match')).toBe('"3"')
+    expect(put.body).toEqual({ validityDays: 10, reason: 'Longer links' })
+    // Only the validity changed: the billing settings are not published again.
+    expect(sent('PUT', SETTINGS)).toBeNull()
+  })
+
+  it('saves the settings first, then the validity against the version they made', async () => {
+    answers[SETTINGS] = () => json(200, settings())
+    answers[`PUT ${SETTINGS}`] = () => json(200, settings({ version: 4, graceDays: 10 }))
+    answers[PAY_LINK_SETTINGS] = () => json(200, payLinkSettings())
+    answers[`PUT ${PAY_LINK_SETTINGS}`] = () =>
+      json(200, payLinkSettings({ validityDays: 5, settingsVersion: 5 }))
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/settings')
+
+    const grace = await screen.findByRole('textbox', { name: S('graceDays') })
+    await user.clear(grace)
+    await user.type(grace, '10')
+    const days = screen.getByRole('textbox', { name: S('linkDays') })
+    await user.clear(days)
+    await user.type(days, '5')
+    await user.type((await billingCard()).getByRole('textbox', { name: S('reason') }), 'Both')
+    await user.click(
+      (await billingCard()).getByRole('button', { name: i18n.t('console.settings.save') }),
+    )
+
+    await waitFor(() => expect(sent('PUT', PAY_LINK_SETTINGS)).not.toBeNull())
+    expect(headerOf(sent('PUT', SETTINGS)!.init, 'If-Match')).toBe('"3"')
+    expect(sent('PUT', SETTINGS)!.body).not.toHaveProperty('validityDays')
+    expect(headerOf(sent('PUT', PAY_LINK_SETTINGS)!.init, 'If-Match')).toBe('"4"')
+    expect(sent('PUT', PAY_LINK_SETTINGS)!.body).toEqual({ validityDays: 5, reason: 'Both' })
   })
 
   it('draws no payment link validity for a server without payment links', async () => {

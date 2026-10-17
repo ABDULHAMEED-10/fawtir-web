@@ -31,8 +31,6 @@ export const enterpriseTermsPath = (tenantId: string) => `${company(tenantId)}/e
 
 /** The most days a link may stay valid (security review: 14 rather than 30). */
 export const PAY_LINK_MAX_DAYS = 14
-/** The validity the server uses while the billing settings name none. */
-export const PAY_LINK_DEFAULT_DAYS = 7
 
 export type BillingCycle = 'MONTHLY' | 'ANNUAL'
 export type BillStatus = 'OPEN' | 'PENDING_VERIFICATION' | 'PAID' | 'VOID'
@@ -70,7 +68,8 @@ export const isOpenBill = (entry: SubscriptionBillDto) => entry.status === 'OPEN
 export type StartBillingRequest = {
   /** Omitted for an Enterprise company, which is billed on its own plan. */
   planCode?: string
-  billingCycle: BillingCycle
+  /** Required for a catalogue plan; for Enterprise it defaults to, and must match, the terms. */
+  billingCycle?: BillingCycle
   reason: string
 }
 
@@ -125,37 +124,74 @@ export type CreatePayLinkRequest = {
 }
 
 /**
- * The creation answer. `url` and `message` carry the token and exist only in this answer: a replay
- * with the same key returns the record with `url: null` and `tokenShownOnce: true`.
+ * The creation answer (`CreatedPayLink`). `payLinkUrl` and `shareText` carry the token and exist
+ * only in this answer: a replay with the same key returns the link with `payLinkUrl: null` and
+ * `tokenShownOnce: true`. `emailSent` is set for EMAIL only (false: the sender refused it and the
+ * link stays ACTIVE).
  */
 export type CreatedPayLinkDto = {
-  id: string
-  url: string | null
-  expiresAt: string
-  status: PayLinkStatus
-  channel: PayLinkChannel
-  tokenHint: string
-  message: string | null
-  tokenShownOnce?: boolean
+  link: PayLinkDto
+  payLinkUrl: string | null
+  shareText: string | null
+  tokenShownOnce: boolean
+  emailSent: boolean | null
 }
 
-/** One link as the console lists it; the contact arrives masked (`a***@x.om`, `+968 ****1234`). */
+/** Why the server closed a link itself; any other `closeReason` is an operator's revocation reason. */
+export const PAY_LINK_CLOSE_REASONS = [
+  'NEW_LINK',
+  'BILL_VOIDED',
+  'TERMS_CHANGED',
+  'DISCONNECTED',
+  'TOO_MANY_REJECTED',
+] as const
+
+/** One link (`PayLink`); the contact arrives masked (`a***@x.om`, `+968 ****1234`). */
 export type PayLinkDto = {
   id: string
+  billId: string
   status: PayLinkStatus | (string & {})
   channel: PayLinkChannel | (string & {})
   language: PayLinkLanguage
   tokenHint: string
   recipient: string | null
-  createdBy: string | null
-  createdByName: string | null
+  createdBy: string
   createdAt: string
   sentAt: string | null
   firstOpenedAt: string | null
   openCount: number
   expiresAt: string
+  closedAt: string | null
   closeReason: string | null
   version: number
+}
+
+/**
+ * `PayLinkSettings`. The route exists only on a server that has payment links (otherwise 404),
+ * and `enabled` is `FAWTIR_BILLING_PAY_LINKS_ENABLED`: the console draws nothing about links
+ * until a server answers this read, and offers no new link while `enabled` is false.
+ */
+export type PayLinkSettingsDto = {
+  enabled: boolean
+  cardEnabled: boolean
+  validityDays: number
+  maxValidityDays: number
+  settingsVersion: number
+}
+
+export const PAY_LINK_SETTINGS_PATH = '/v1/platform/billing/pay-link-settings'
+
+/** `If-Match` is the billing settings version, shared with `/platform/billing/settings`. */
+export function savePayLinkValidity(
+  settingsVersion: number,
+  validityDays: number,
+  reason: string,
+): Promise<PayLinkSettingsDto> {
+  return apiRequest(PAY_LINK_SETTINGS_PATH, {
+    method: 'PUT',
+    headers: { 'If-Match': `"${settingsVersion}"` },
+    body: { validityDays, reason },
+  })
 }
 
 export function createPayLink(
