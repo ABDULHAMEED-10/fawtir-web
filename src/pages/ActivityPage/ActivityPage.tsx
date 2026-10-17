@@ -31,6 +31,7 @@ import {
   ACTIVITY_TABS,
   belongsInTab,
   canResubmit,
+  correctionHeld,
   customerAckOf,
   deliveredCount,
   DIRECTION_FILTERS,
@@ -806,6 +807,9 @@ function SubmissionRow({
     }
   })()
 
+  // Said in the row's own verdict line rather than a new mark, so the row's design is unchanged.
+  const verdictLine = correctionHeld(item) ? `${verdict} ${t('activity.correctionHeld')}` : verdict
+
   const routeLine = routeOf(item)
   const route = t(routeLine.key, routeLine.values)
 
@@ -966,7 +970,7 @@ function SubmissionRow({
             ' ',
           )}
         >
-          {verdict}
+          {verdictLine}
         </p>
       </td>
 

@@ -41,7 +41,17 @@ export function isFailure(ack: MlsAckDto): boolean {
  * a screen that can see silence.
  */
 export function canResubmit(item: ActivityItemDto): boolean {
-  return item.links.resubmit !== null
+  // A backend that reports holds also nulls the link; the flag is checked too so a row that
+  // somehow carries both never offers a send that can only be held again.
+  return item.links.resubmit !== null && !correctionHeld(item)
+}
+
+/**
+ * Whether a RESUBMIT of this document is held for an authorised decision. Only the server's
+ * `tdd_leg.correction_held` says so; absent (an older backend) means not held.
+ */
+export function correctionHeld(item: ActivityItemDto): boolean {
+  return item.tdd_leg?.correction_held === true
 }
 
 export type SlaState = 'met' | 'missed' | 'pending' | 'none'

@@ -9777,7 +9777,8 @@
       "nav": "صفحات الإرسالات"
     },
     "noCounterparty": "لا طرف مقابل",
-    "rowActionsFor": "إجراءات {{number}}"
+    "rowActionsFor": "إجراءات {{number}}",
+    "correctionHeld": "التصحيح معلّق بانتظار قرار من جهة مخوّلة في فوتر."
   },
   "activityEvent": {
     "copyXml": "انسخ ملف XML",

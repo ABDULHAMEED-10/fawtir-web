@@ -9288,7 +9288,8 @@
       "nav": "Pages of submissions"
     },
     "noCounterparty": "No counterparty",
-    "rowActionsFor": "Actions for {{number}}"
+    "rowActionsFor": "Actions for {{number}}",
+    "correctionHeld": "Correction held for an authorised decision."
   },
   "activityEvent": {
     "copyXml": "Copy the XML",
