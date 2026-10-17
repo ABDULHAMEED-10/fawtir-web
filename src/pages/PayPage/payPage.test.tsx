@@ -249,7 +249,7 @@ describe('Pay page › paying', () => {
   it('opens the provider checkout with one key, reused on a retry, and only at the provider address', async () => {
     answers[VIEW] = () => json(200, view({ methods: { ...view().methods, card: true } }))
     answers[CARD] = () =>
-      json(200, { paymentId: 'p-card', billId: 'b', status: 'READY', checkoutUrl: 'https://oman.paymob.com/unifiedcheckout/?x=1', expiresAt: null, amount: '80.000', currency: 'OMR' })
+      json(200, { paymentId: 'p-card', status: 'READY', checkoutUrl: 'https://oman.paymob.com/unifiedcheckout/?x=1', expiresAt: null, amount: '80.000', currency: 'OMR' })
     const open = vi.spyOn(hostedCheckout, 'open').mockImplementation(() => {})
     const user = userEvent.setup({ delay: null })
     openPay()
@@ -274,7 +274,7 @@ describe('Pay page › paying', () => {
     expect(await screen.findByText(L('problem.cardUnavailable'))).toBeTruthy()
 
     answers[CARD] = () =>
-      json(201, { paymentId: 'p-old', billId: 'b', status: 'NOT_COMPLETED', checkoutUrl: null, expiresAt: null, amount: '80.000', currency: 'OMR' })
+      json(201, { paymentId: 'p-old', status: 'NOT_COMPLETED', checkoutUrl: null, expiresAt: null, amount: '80.000', currency: 'OMR' })
     await user.click(screen.getByRole('button', { name: L('card.open') }))
     await user.click(await screen.findByRole('button', { name: L('card.open') }))
     await waitFor(() => expect(calls(CARD)).toHaveLength(3))
@@ -300,7 +300,7 @@ describe('Pay page › paying', () => {
   it('never navigates to an address that is not the provider', async () => {
     answers[VIEW] = () => json(200, view({ methods: { ...view().methods, card: true } }))
     answers[CARD] = () =>
-      json(200, { paymentId: 'p-card', billId: 'b', status: 'READY', checkoutUrl: 'https://evil.example/pay', expiresAt: null, amount: '80.000', currency: 'OMR' })
+      json(200, { paymentId: 'p-card', status: 'READY', checkoutUrl: 'https://evil.example/pay', expiresAt: null, amount: '80.000', currency: 'OMR' })
     const open = vi.spyOn(hostedCheckout, 'open').mockImplementation(() => {})
     const user = userEvent.setup({ delay: null })
     openPay()
@@ -325,7 +325,7 @@ describe('Pay page › back from the card provider', () => {
     sessionStorage.setItem('fawtir.payLink.token', TOKEN)
     sessionStorage.setItem('fawtir.payLink.cardPayment', 'p-card')
     answers[STATUS] = () =>
-      json(200, { paymentId: 'p-card', billId: 'b', status: 'NOT_COMPLETED', checkoutUrl: null, expiresAt: null, amount: '80.000', currency: 'OMR' })
+      json(200, { paymentId: 'p-card', status: 'NOT_COMPLETED', checkoutUrl: null, expiresAt: null, amount: '80.000', currency: 'OMR' })
     openDone('/pay/done?success=true&hmac=forged&id=1')
 
     expect(window.location.search).toBe('')
@@ -339,7 +339,7 @@ describe('Pay page › back from the card provider', () => {
     sessionStorage.setItem('fawtir.payLink.token', TOKEN)
     sessionStorage.setItem('fawtir.payLink.cardPayment', 'p-card')
     answers[STATUS] = () =>
-      json(200, { paymentId: 'p-card', billId: 'b', status: 'PAID', checkoutUrl: null, expiresAt: null, amount: '80.000', currency: 'OMR' })
+      json(200, { paymentId: 'p-card', status: 'PAID', checkoutUrl: null, expiresAt: null, amount: '80.000', currency: 'OMR' })
     openDone('/pay/done')
     expect(await screen.findByText(L('done.paid'))).toBeTruthy()
   })

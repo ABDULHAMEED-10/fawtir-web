@@ -101,14 +101,11 @@ const summary = (method) => ({
 
 const checkout = (status) => ({
   paymentId: 'p-card-50',
-  billId: 'b-50',
   status,
   checkoutUrl: status === 'READY' ? 'https://oman.paymob.com/unifiedcheckout/?mock=1' : null,
   expiresAt: '2026-10-17T09:00:00Z',
   amount: '80.000',
   currency: 'OMR',
-  publishableKey: null,
-  clientSecret: null,
 })
 
 const guarded =

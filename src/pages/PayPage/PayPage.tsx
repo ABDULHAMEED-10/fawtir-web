@@ -4,11 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { AuthLayout } from '../../components/auth/AuthLayout'
 import { Button, OmAmount, SelectionCard } from '../../components/ui'
 import { LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
-import {
-  hostedCheckout,
-  isTrustedCheckoutUrl,
-  type CardCheckoutDto,
-} from '../../api/settings/billing'
+import { hostedCheckout, isTrustedCheckoutUrl } from '../../api/settings/billing'
 import { formatDate } from '../../lib/format'
 import {
   PAY_ROUTE,
@@ -25,6 +21,7 @@ import {
   startPayLinkCard,
   submitPayLinkBankTransfer,
   takePayLinkToken,
+  type PayLinkCardCheckout,
   type PayLinkProblem,
   type PayLinkView,
 } from '../../lib/payLink'
@@ -99,7 +96,7 @@ export function PayDonePage() {
     return keptPayLinkToken()
   })
   const [paymentId] = useState(() => keptCardPayment())
-  const [card, setCard] = useState<CardCheckoutDto | null>(null)
+  const [card, setCard] = useState<PayLinkCardCheckout | null>(null)
   const [problem, setProblem] = useState<PayLinkProblem | null>(null)
   const [polls, setPolls] = useState(0)
 

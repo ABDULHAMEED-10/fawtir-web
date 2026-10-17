@@ -1,5 +1,5 @@
 import { ApiError, NetworkError, apiRequest } from '../api'
-import type { CardCheckoutDto } from '../api/settings/billing'
+import type { CardCheckoutStatus } from '../api/settings/billing'
 
 /**
  * The public pay page (`/pay`, P2-8 §3.11): someone without a Fawtir sign-in pays one bill through
@@ -145,10 +145,25 @@ export type PayLinkView = {
   lastPaymentNotConfirmed?: boolean
 }
 
-/** `PayLinkPaymentReceipt` */
+/**
+ * `PayLinkCardCheckout`: the in-app card checkout without the bill id or the provider's SDK keys
+ * (security review M12). PAID only once the provider-confirmed payment settled the bill.
+ */
+export type PayLinkCardCheckout = {
+  paymentId: string
+  status: CardCheckoutStatus
+  /** The provider's hosted checkout, only while READY. It carries the checkout's secret: never log it. */
+  checkoutUrl: string | null
+  /** Only while READY. */
+  expiresAt: string | null
+  amount: string
+  currency: 'OMR'
+}
+
+/** `PayLinkPaymentReceipt`: a card payment never answers with one. */
 export type PayLinkPaymentSummary = {
   paymentId: string
-  method: PayLinkMethod | (string & {})
+  method: 'BANK_TRANSFER' | 'CASH' | (string & {})
   status: 'PAYMENT_PENDING' | (string & {})
   submittedAt: string
 }
@@ -173,7 +188,7 @@ export function loadPayLink(token: string, signal?: AbortSignal): Promise<PayLin
   return publicCall(PAY_LINK_VIEW_PATH, token, { signal })
 }
 
-export function startPayLinkCard(token: string, idempotencyKey: string): Promise<CardCheckoutDto> {
+export function startPayLinkCard(token: string, idempotencyKey: string): Promise<PayLinkCardCheckout> {
   return publicCall(PAY_LINK_CARD_PATH, token, { idempotencyKey })
 }
 
@@ -181,7 +196,7 @@ export function loadPayLinkCard(
   token: string,
   paymentId: string,
   signal?: AbortSignal,
-): Promise<CardCheckoutDto> {
+): Promise<PayLinkCardCheckout> {
   return publicCall(PAY_LINK_CARD_STATUS_PATH, token, { body: { paymentId }, signal })
 }
 
