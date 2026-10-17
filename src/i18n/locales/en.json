@@ -15610,7 +15610,8 @@
         "confirmMismatch": "Type the company code {{code}} exactly.",
         "confirm": "Start billing",
         "sending": "Starting…",
-        "done": "Billing started. Bill {{number}} for {{total}} is due {{date}}."
+        "done": "Billing started. Bill {{number}} for {{total}} is due {{date}}.",
+        "enterpriseCycle": "Billing cycle from its terms: {{cycle}}"
       },
       "raise": {
         "open": "Raise bill",

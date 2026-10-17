@@ -172,7 +172,7 @@ describe('Console › Tenant › Start billing', () => {
 
   it('starts a staff-created company on a plan and cycle, with the typed code and a reason', async () => {
     answers[`POST ${SUBSCRIPTION}/start`] = () =>
-      json(200, { subscription: subscription(true), bill: bill({ number: 'FSB-2026-0050' }) })
+      json(200, { plan: { planCode: 'BUSINESS', planName: 'Business', billingCycle: 'ANNUAL' }, subscription: subscription(true).status, bill: bill({ number: 'FSB-2026-0050' }) })
     const user = userEvent.setup({ delay: null })
     const onStarted = renderCard()
 
@@ -213,7 +213,7 @@ describe('Console › Tenant › Start billing', () => {
         plan: { code: 'ENT-1111', nameEn: 'Sur Marine Enterprise', nameAr: null },
         nextBill: { billingCycle: 'ANNUAL', amountExclVat: '1200.000', vatRate: '0.05000', vatAmount: '60.000', amountInclVat: '1260.000', currency: 'OMR' },
       })
-    answers[`POST ${SUBSCRIPTION}/start`] = () => json(200, { subscription: subscription(true), bill: bill() })
+    answers[`POST ${SUBSCRIPTION}/start`] = () => json(200, { plan: { planCode: 'ENT-1111', planName: 'Ent', billingCycle: 'ANNUAL' }, subscription: subscription(true).status, bill: bill() })
     const user = userEvent.setup({ delay: null })
     renderCard()
 

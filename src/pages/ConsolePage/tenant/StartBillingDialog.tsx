@@ -100,18 +100,25 @@ export function StartBillingDialog({
             />
           </Field>
         )}
-        <Field name="cycle" label={t(`${K}cycle`)} required error={errors.cycle}>
-          <Select
-            value={chosenCycle}
-            ariaLabel={t(`${K}cycle`)}
-            placeholder={t(`${K}cyclePlaceholder`)}
-            onChange={(value) => {
-              setCycle(value as BillingCycle)
-              setErrors((current) => ({ ...current, cycle: undefined }))
-            }}
-            options={CYCLES.map((value) => ({ value, label: t(`${K}cycleName.${value}`) }))}
-          />
-        </Field>
+        {enterpriseTerms && termsCycle ? (
+          // The Enterprise terms fix the cycle; the server refuses any other.
+          <p className="text-sm font-medium leading-[1.6] text-text-secondary">
+            {t(`${K}enterpriseCycle`, { cycle: t(`${K}cycleName.${termsCycle}`) })}
+          </p>
+        ) : (
+          <Field name="cycle" label={t(`${K}cycle`)} required error={errors.cycle}>
+            <Select
+              value={chosenCycle}
+              ariaLabel={t(`${K}cycle`)}
+              placeholder={t(`${K}cyclePlaceholder`)}
+              onChange={(value) => {
+                setCycle(value as BillingCycle)
+                setErrors((current) => ({ ...current, cycle: undefined }))
+              }}
+              options={CYCLES.map((value) => ({ value, label: t(`${K}cycleName.${value}`) }))}
+            />
+          </Field>
+        )}
         <Quote enterprise={enterpriseTerms} plan={chosenPlan} cycle={chosenCycle} />
         <Input
           bordered

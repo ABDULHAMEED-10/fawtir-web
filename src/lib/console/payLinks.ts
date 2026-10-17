@@ -1,6 +1,7 @@
 import { ApiError, apiRequest } from '../../api'
 import { commonFailureMessage, type FormMessage } from '../identity/errors'
-import { companySubscriptionPath, type PlatformSubscriptionDto } from './companySubscription'
+import type { SubscriptionStatusDto } from '../../api/settings/subscription'
+import { companySubscriptionPath } from './companySubscription'
 
 /**
  * Billing for a company Fawtir created, and the payment links that let someone without a Fawtir
@@ -73,9 +74,10 @@ export type StartBillingRequest = {
   reason: string
 }
 
-/** The subscription as it now stands, and the first bill the server issued. */
+/** `BillingStarted`: the plan and cycle now held, the subscription status, and the first bill. */
 export type StartBillingDto = {
-  subscription: PlatformSubscriptionDto
+  plan: { planCode: string; planName: string; billingCycle: BillingCycle | null }
+  subscription: SubscriptionStatusDto
   bill: SubscriptionBillDto
 }
 

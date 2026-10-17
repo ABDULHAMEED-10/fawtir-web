@@ -233,7 +233,8 @@ export default [
     method: 'POST',
     match: `${company(UNBILLED)}/subscription/start`,
     reply: () => ({
-      subscription: { status: status(true), events: [] },
+      plan: { planCode: 'STARTER', planName: 'Starter', billingCycle: 'MONTHLY' },
+      subscription: status(true),
       bill: bill({
         tenantId: UNBILLED,
         number: 'FSB-2026-0050',
