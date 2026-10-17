@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Input, Modal, OmAmount, Rial, Switch } from '../../../components/ui'
+import { selectAllOnFocus } from '../../../components/invoice/numericInput'
 import { useEntitlements } from '../../../hooks/useEntitlements'
 import { ConsoleShell } from '../../../layouts/ConsoleShell'
 import { ConsoleBreadcrumbs } from '../../../layouts/ConsoleShell/ConsoleBreadcrumbs'
@@ -346,6 +347,7 @@ function TermsForm({
       requiredMark={required && canManage}
       hint={hint}
       inputMode="decimal"
+      onFocus={selectAllOnFocus}
       autoComplete="off"
       spellCheck={false}
       dir="ltr"
@@ -363,6 +365,7 @@ function TermsForm({
       requiredMark={required && canManage}
       hint={hint}
       inputMode="numeric"
+      onFocus={selectAllOnFocus}
       autoComplete="off"
       spellCheck={false}
       dir="ltr"
