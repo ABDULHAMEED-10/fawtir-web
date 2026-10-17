@@ -10976,7 +10976,33 @@
     "changeNotAvailable": "Changing the plan from here is not available yet.",
     "thisIsYours": "This is the plan you're on now.",
     "moreAMonth": "<b>OMR {{amount}} more</b> a month than your plan.",
-    "lessAMonth": "<b>OMR {{amount}} less</b> a month than your plan, from your next renewal."
+    "lessAMonth": "<b>OMR {{amount}} less</b> a month than your plan, from your next renewal.",
+    "split": {
+      "title": "Plan documents and extras, issued and received",
+      "plan": "Plan documents",
+      "usedOf": "{{used}} of {{of}} used",
+      "extra": "Extra this month",
+      "extraEnds": "Extras end on {{date}}",
+      "noExtra": "None added this month",
+      "issued": "Issued",
+      "issuedNote": "Invoices and notes you sent",
+      "received": "Received",
+      "receivedNote": "Supplier documents that arrived",
+      "receivedWaiting_one": "{{n}} more is waiting to open",
+      "receivedWaiting_other": "{{n}} more are waiting to open"
+    },
+    "byBranch": {
+      "title": "Usage by branch",
+      "subtitle": "This period's documents per branch. The branches add up to the company total.",
+      "branch": "Branch",
+      "issued": "Issued",
+      "received": "Received",
+      "total": "Total",
+      "noBranch": "No branch",
+      "noBranchNote": "Received documents, and documents issued without a branch",
+      "unnamed": "Unnamed branch",
+      "company": "Company total"
+    }
   },
   "bills": {
     "title": "Bills and payment",
