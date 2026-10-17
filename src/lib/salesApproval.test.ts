@@ -40,7 +40,7 @@ const approval = (status: SalesApprovalDto['status']): SalesApprovalDto => ({
   callerMayDecide: false,
 })
 
-const refusal = (status: number, code: string) => new ApiError({ status, problemType: null, code })
+const refusal = (status: number, code: string | null) => new ApiError({ status, problemType: null, code })
 
 describe('sales approval rule form', () => {
   it('sends the whole rule against the version it was read at', () => {
