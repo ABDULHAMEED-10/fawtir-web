@@ -12,6 +12,7 @@ import {
   type AllowanceUsageDto,
   type PlanOverviewDto,
 } from '../../api/settings/plan'
+import { EXTRA_DOCUMENTS_ROUTE } from '../../api/settings/extraDocuments'
 import {
   PUBLIC_PLANS_PATH,
   baisaOf,
@@ -86,7 +87,7 @@ function PlanBody() {
     return <ApiReadFailure error={plan.read.error} retry={plan.retry} />
   return (
     <>
-      <PlanFigures data={plan.read.data} notStarted={notStarted} />
+      <PlanFigures data={plan.read.data} notStarted={notStarted} mayManage={mayManage} />
       <PlanCards current={plan.read.data} mayManage={mayManage} />
       <AddonsSection />
     </>
@@ -131,7 +132,15 @@ export function forecastOf(usage: PlanOverviewDto['usage']) {
  * which is not the period that applies once the subscription starts (K-BC05). The period, its
  * reset date and the forecast built on its days are left out rather than shown wrong.
  */
-function PlanFigures({ data, notStarted }: { data: PlanOverviewDto; notStarted: boolean }) {
+function PlanFigures({
+  data,
+  notStarted,
+  mayManage,
+}: {
+  data: PlanOverviewDto
+  notStarted: boolean
+  mayManage: boolean
+}) {
   const { t, i18n } = useTranslation()
   // lib/format keeps digits Latin in Arabic too (decision D15); toLocaleString would not.
   const number = (value: number) => formatCount(value, i18n.language)
@@ -253,10 +262,21 @@ function PlanFigures({ data, notStarted }: { data: PlanOverviewDto; notStarted: 
           </div>
 
           {/*
-           * TODO(backend): SETTINGS.md rows 5.1 and 5.2. "Move up" and the overage switch stay
-           * hidden, not greyed (plan v4: hide what cannot be done), until the web is wired to a
-           * plan-change endpoint and to buying extra documents. Shown then to PLAN_MANAGE only.
+           * TODO(backend): SETTINGS.md row 5.1. "Move up" stays hidden, not greyed (plan v4: hide
+           * what cannot be done), until the web is wired to a plan-change endpoint. The overage
+           * switch (row 5.2) is replaced by buying extra documents ahead: nothing is billed after
+           * the fact. Offered to PLAN_MANAGE on a plan with a per-document rate.
            */}
+          {mayManage && Number(plan.overagePricePerInvoice ?? 0) > 0 ? (
+            <div className="shrink-0 self-start">
+              <Link
+                to={EXTRA_DOCUMENTS_ROUTE}
+                className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+              >
+                {t('extraDocuments.entry')}
+              </Link>
+            </div>
+          ) : null}
         </div>
 
         <dl className="grid border-t border-surface-background sm:grid-cols-2 xl:grid-cols-4">

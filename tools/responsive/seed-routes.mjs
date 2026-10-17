@@ -118,6 +118,7 @@ export const SEED_ROUTES = [
   '/settings/roles/new',
   '/settings/plan',
   '/settings/plan/switch-off',
+  '/settings/plan/extra-documents',
   '/settings/bills',
   '/settings/activity-log',
   '/settings/export',
