@@ -28,6 +28,19 @@ export type Entitlements = {
   permissions: string[]
   scopes: string[]
   featureFlags: Record<string, boolean>
+  /** The caller is the company's stored Owner (Business Rules OW-1). Absent from older servers. */
+  isOwner?: boolean
+  /**
+   * The caller sees every branch: the Owner, Administrators, and everyone while branch access is
+   * not switched on (BA-2). Absent from older servers, which means every branch.
+   */
+  allBranches?: boolean
+  /** The caller's own branches when `allBranches` is false; empty otherwise. */
+  branchIds?: string[]
+  /** Holds `branch.users.manage` without being an Administrator: manages their branches' people (LG-3). */
+  branchAdministrator?: boolean
+  /** The branches a branch administrator may give people; empty for everyone else. */
+  manageableBranchIds?: string[]
 }
 
 /**

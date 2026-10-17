@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
+import { BranchRoster } from './BranchRoster'
 import { DateField, Input, Select, Switch } from '../../components/ui'
 import { useCan } from '../../lib/session/session'
 import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
@@ -357,9 +358,7 @@ export function AddBranchPage() {
             </p>
           </Panel>
 
-          {/* TODO(backend): docs/backend-guides/SETTINGS.md row 3.3. A person's branch is set on
-              their own profile and nothing lists who works at a branch, so the designed roster says
-              so; inviting someone new still works for those who may. */}
+          {/* Who works there (BA-1): GET/PUT /v1/branches/{id}/people, once the branch exists. */}
           <Panel
             title={t('addBranch.whoWorksThere')}
             note={t('addBranch.whoWorksThereNote')}
@@ -374,9 +373,13 @@ export function AddBranchPage() {
               ) : undefined
             }
           >
-            <p className="text-sm font-medium text-text-quaternary">
-              {t('addBranch.notAvailableYet')}
-            </p>
+            {existing ? (
+              <BranchRoster branchId={existing.id} />
+            ) : (
+              <p className="text-sm font-medium text-text-quaternary">
+                {t('branchAccess.roster.afterAdding')}
+              </p>
+            )}
           </Panel>
 
           <Panel title={t('addBranch.behaviour')} note={t('addBranch.behaviourNote')} flush>

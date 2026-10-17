@@ -196,7 +196,10 @@ describe('Team members', () => {
     fireEvent.click(screen.getByRole('button', { name: /Without two-step/ }))
     expect(screen.queryByText('Mona Rashid')).toBeNull()
     expect(screen.getByText('clerk@real.example')).toBeTruthy()
-    expect(new Set(pageRequests())).toEqual(new Set([`GET ${PEOPLE}`, `GET ${INVITED}`, `GET ${ROLES}`]))
+    // The branches column names branches from the picker's list (BA-1).
+    expect(new Set(pageRequests())).toEqual(
+      new Set([`GET ${PEOPLE}`, `GET ${INVITED}`, `GET ${ROLES}`, 'GET /api/v1/branches']),
+    )
   })
 
   it('says no access without admin.users.manage, and asks for nobody', async () => {
@@ -281,14 +284,15 @@ describe('Invite someone', () => {
     const email = (await screen.findByRole('textbox', { name: /Email/ })) as HTMLInputElement
     expect(email.value).toBe('')
     fireEvent.change(email, { target: { value: 'x@real.example' } })
-    fireEvent.click(await screen.findByRole('checkbox', { name: /Accountant/ }))
+    // One role per person (RL-1): a single choice.
+    fireEvent.click(await screen.findByRole('radio', { name: /Accountant/ }))
     fireEvent.click(screen.getByRole('button', { name: i18n.t('people.invite.send') }))
     expect(await screen.findByText('Invitation sent to x@real.example.')).toBeTruthy()
     expect(sent).toEqual({ email: 'x@real.example', roleCodes: ['ACCOUNTANT'] })
     expect(document.body.textContent).not.toMatch(SAMPLE_NAMES)
   })
 
-  it('draws the name, note, branches and two-step ask as not available yet, and sends none of them', async () => {
+  it('draws the name, note and two-step ask as not available yet, and sends none of them', async () => {
     let sent: unknown = null
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
       if (url === '/api/v1/me/entitlements') return json(200, who)
@@ -305,7 +309,8 @@ describe('Invite someone', () => {
     expect(name.disabled).toBe(true)
     expect((screen.getByRole('textbox', { name: /Add a note/ }) as HTMLTextAreaElement).disabled).toBe(true)
     expect((screen.getByRole('switch', { name: i18n.t('invite.askTwoStep') }) as HTMLButtonElement).disabled).toBe(true)
-    expect(screen.getByText(i18n.t('invite.branchesUnavailable'))).toBeTruthy()
+    // The branches are chosen now (BA-1); with none to offer the panel says so and sends none.
+    expect(await screen.findByText(i18n.t('branchAccess.invite.noBranches'))).toBeTruthy()
     expect(screen.getByText(i18n.t('invite.previewNote'))).toBeTruthy()
     // The preview names the real company from the session, not a sample one.
     expect(screen.getByText('owner has invited you to Real Trading LLC on Fawtir')).toBeTruthy()
@@ -315,7 +320,9 @@ describe('Invite someone', () => {
     fireEvent.click(screen.getByRole('button', { name: i18n.t('people.invite.send') }))
     expect(await screen.findByText('Invitation sent to y@real.example.')).toBeTruthy()
     expect(sent).toEqual({ email: 'y@real.example', roleCodes: [] })
-    expect(pageRequests()).toEqual([`GET ${ROLES}`, 'POST /api/v1/users/invitations'])
+    expect(new Set(pageRequests())).toEqual(
+      new Set([`GET ${ROLES}`, 'GET /api/v1/branches', 'POST /api/v1/users/invitations']),
+    )
   })
 
   it('says why an invitation was refused and claims no success', async () => {

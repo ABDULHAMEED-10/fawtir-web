@@ -152,3 +152,13 @@ now.
 |---|---|---|
 | 9.1 | "Require it of everyone" under Two-step sign-in, with how many people would be prompted (counted from the users list). Drawn off, disabled | A tenant security policy: `GET`/`PUT /v1/settings/security` with `requireMfa` (permission `admin.settings.manage`), enforced at sign-in by asking anyone without an authenticator app to set one up |
 | 9.2 | "How long a session lasts": on a browser (a day, a week, a fortnight, a month) and on a till device (until the shift ends, a day, don't sign out). Both pickers disabled, "Not available yet" | On the same policy: `browserSessionLength` and `tillSessionLength` (as enums, not ISO durations), applied to the refresh-token lifetime for that kind of client |
+
+## Update 17 Oct 2026: branch access (rows 3.3 and 7.2 answered)
+
+Rows 3.3 and 7.2 are now built against the live API (backend #561 to #581): "Who works there" on a
+branch (`GET/PUT /v1/branches/{id}/people`) and "Which branches" on the invitation (`branchIds`).
+The same change adds the branches column and the Owner mark on Team members, and a page per person
+(`/settings/team/:userId`: role through `PUT /v1/users/{id}/role`, branches through
+`PUT /v1/users/{id}/branches`, own grants and denials through `GET/PUT /v1/users/{id}/permissions`,
+and the Owner's handover through `POST /v1/settings/owner/handover`). The rows above are kept as
+they were (append only).

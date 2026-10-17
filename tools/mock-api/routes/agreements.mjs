@@ -49,6 +49,12 @@ const ENTITLEMENTS = {
   ],
   scopes: ['platform.tenants.manage', 'platform.operators.manage', 'platform.support'],
   featureFlags: {},
+  // Branch access (BA-1, OW-1): this session is the company's Owner and sees every branch.
+  isOwner: true,
+  allBranches: true,
+  branchIds: [],
+  branchAdministrator: false,
+  manageableBranchIds: [],
 }
 
 const agreement = (id, customerId, reference, from, to, extra = {}) => ({

@@ -1,0 +1,542 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import i18n from '../../i18n'
+import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
+import { resetSharedRequests } from '../../api'
+import { forgetSubscriptionStanding } from '../../lib/subscriptionReadOnly'
+import { TeamPage } from './TeamPage'
+import { InvitePage } from './InvitePage'
+import { PersonPage } from './PersonPage'
+import { BranchRoster } from './BranchRoster'
+
+/** Branch access screens (Business Rules BA-1, BA-2, OW-1, OW-4, RL-1, RL-2, RL-3, LG-3). */
+
+const OWNER: Entitlements = {
+  userId: 'p-owner',
+  username: 'mona',
+  tenantId: 't-1',
+  tenantName: 'Real Trading LLC',
+  roles: [{ id: 'r-1', code: 'ADMIN', name: 'Administrator', systemRole: true }],
+  permissions: [
+    'admin.users.manage',
+    'admin.roles.manage',
+    'role.list',
+    'role.read',
+    'branch.manage',
+    'invoice.read',
+  ],
+  scopes: [],
+  featureFlags: {},
+  isOwner: true,
+  allBranches: true,
+  branchIds: [],
+  branchAdministrator: false,
+  manageableBranchIds: [],
+}
+
+const BRANCH_ADMIN: Entitlements = {
+  ...OWNER,
+  userId: 'p-lead',
+  roles: [{ id: 'r-3', code: 'SALES_MANAGER', name: 'Sales manager', systemRole: true }],
+  permissions: ['branch.users.manage', 'role.list', 'invoice.read'],
+  isOwner: false,
+  allBranches: false,
+  branchIds: ['b-sohar'],
+  branchAdministrator: true,
+  manageableBranchIds: ['b-sohar'],
+}
+
+const PEOPLE_URL = '/api/v1/users?page=0&size=100&sort=createdAt,asc'
+const INVITED = '/api/v1/users/invitations?status=PENDING&page=0&size=50'
+const OVERVIEW = '/api/v1/branches/overview'
+
+const user = (
+  id: string,
+  firstName: string,
+  roles: string[],
+  branchIds: string[],
+  owner = false,
+) => ({
+  id,
+  username: firstName.toLowerCase(),
+  email: `${firstName.toLowerCase()}@real.example`,
+  firstName,
+  lastName: null,
+  enabled: true,
+  mfaEnabled: true,
+  roles,
+  createdAt: '2026-10-01T08:00:00Z',
+  locked: false,
+  lockedUntil: null,
+  owner,
+  branchIds,
+})
+
+const MONA = user('p-owner', 'Mona', ['ADMIN'], ['b-muscat', 'b-sohar'], true)
+const SAMI = user('p-admin', 'Sami', ['ADMIN'], [])
+const LAILA = user('p-clerk', 'Laila', ['ACCOUNTANT'], ['b-muscat', 'b-sohar', 'b-sur'])
+
+const branchRow = (id: string, name: string, active = true) => ({
+  id,
+  code: id,
+  name,
+  headOffice: false,
+  active,
+  closedOn: null,
+  invoicePrefix: null,
+  nextNumber: null,
+  invoicesThisMonth: 0,
+  invoicedThisMonth: 0,
+  people: 0,
+  devices: 0,
+})
+const OVERVIEW_BODY = {
+  openCount: 3,
+  everCount: 4,
+  peopleAcross: 3,
+  peopleInSeveral: 2,
+  invoicesThisMonth: 0,
+  branches: [
+    branchRow('b-muscat', 'Muscat'),
+    branchRow('b-sohar', 'Sohar'),
+    branchRow('b-sur', 'Sur'),
+    branchRow('b-old', 'Old souq', false),
+  ],
+}
+
+const ROLE_LIST = [
+  {
+    id: 'r-1',
+    code: 'ADMIN',
+    name: 'Administrator',
+    description: null,
+    enabled: true,
+    systemRole: true,
+    permissionCodes: ['admin.users.manage', 'invoice.read'],
+    catalogueKind: 'ROLE',
+  },
+  {
+    id: 'r-2',
+    code: 'ACCOUNTANT',
+    name: 'Accountant',
+    description: null,
+    enabled: true,
+    systemRole: true,
+    permissionCodes: ['invoice.read', 'bill.read'],
+    catalogueKind: 'ROLE',
+  },
+  {
+    id: 'r-3',
+    code: 'SALES_MANAGER',
+    name: 'Sales manager',
+    description: null,
+    enabled: true,
+    systemRole: true,
+    permissionCodes: ['invoice.read'],
+    catalogueKind: 'ROLE',
+  },
+  {
+    id: 'r-4',
+    code: 'APPROVER',
+    name: 'Approver',
+    description: null,
+    enabled: true,
+    systemRole: true,
+    permissionCodes: ['invoice.approve'],
+    catalogueKind: 'PERMISSION_SET',
+  },
+  {
+    id: 'r-5',
+    code: 'VIEWER',
+    name: 'Viewer',
+    description: null,
+    enabled: true,
+    systemRole: true,
+    permissionCodes: ['invoice.read'],
+    catalogueKind: 'PERMISSION_SET',
+  },
+]
+
+function json(status: number, body?: unknown) {
+  return new Response(body === undefined ? null : JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': status >= 400 ? 'application/problem+json' : 'application/json' },
+  })
+}
+
+const refusal = (status: number, type: string) =>
+  json(status, {
+    type: `https://api.fawtir.om/problems/${type}`,
+    title: 'Refused',
+    status,
+    detail: 'English detail',
+  })
+
+let who: Entitlements
+let answers: Record<string, (init?: RequestInit) => Response>
+let fetchMock: ReturnType<typeof vi.fn>
+
+/** Every body sent with this method to this URL, parsed. */
+function sent(method: string, url: string): unknown[] {
+  return fetchMock.mock.calls
+    .filter(
+      ([u, init]) => u === url && ((init as RequestInit | undefined)?.method ?? 'GET') === method,
+    )
+    .map(([, init]) => JSON.parse(String((init as RequestInit).body)))
+}
+
+beforeEach(async () => {
+  await i18n.changeLanguage('en')
+  resetSharedRequests()
+  forgetEntitlements()
+  forgetSubscriptionStanding()
+  who = OWNER
+  answers = {
+    [PEOPLE_URL]: () =>
+      json(200, {
+        content: [MONA, SAMI, LAILA],
+        totalElements: 3,
+        totalPages: 1,
+        number: 0,
+        size: 100,
+      }),
+    [INVITED]: () => json(200, []),
+    [OVERVIEW]: () => json(200, OVERVIEW_BODY),
+    '/api/v1/branches': () =>
+      json(200, [{ id: 'b-sohar', code: 'SOH', name: 'Sohar', type: 'STORE', city: null }]),
+    '/api/v1/roles': () => json(200, ROLE_LIST),
+    '/api/v1/users/p-owner': () => json(200, MONA),
+    '/api/v1/users/p-admin': () => json(200, SAMI),
+    '/api/v1/users/p-clerk': () => json(200, LAILA),
+    '/api/v1/users/p-clerk/permissions': () =>
+      json(200, {
+        userId: 'p-clerk',
+        role: 'ACCOUNTANT',
+        roleCodes: ['ACCOUNTANT'],
+        grants: [{ code: 'invoice.approve', qualifier: null, value: null }],
+        denials: ['bill.read'],
+        effective: ['invoice.approve', 'invoice.read'],
+      }),
+    '/api/v1/permissions': () =>
+      json(
+        200,
+        [
+          'invoice.read',
+          'invoice.approve',
+          'bill.read',
+          'bill.settle',
+          'branch.users.manage',
+          'tenant.plan.manage',
+        ].map((code) => ({ code, module: 'X', description: code, assignable: true })),
+      ),
+  }
+  fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url === '/api/v1/me/entitlements') return json(200, who)
+    const method = init?.method ?? 'GET'
+    const answer = answers[method === 'GET' ? url : `${method} ${url}`]
+    return answer ? answer(init) : json(404, { type: 'about:blank' })
+  })
+  vi.stubGlobal('fetch', fetchMock)
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+function renderAt(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path="/settings/team" element={<TeamPage />} />
+        <Route path="/settings/team/invite" element={<InvitePage />} />
+        <Route path="/settings/team/:userId" element={<PersonPage />} />
+        <Route path="/roster" element={<BranchRoster branchId="b-sohar" />} />
+      </Routes>
+    </MemoryRouter>,
+  )
+}
+
+describe('Team members', () => {
+  it('marks the Owner, says "Every branch" for the Owner and Administrators, and names other people\'s branches', async () => {
+    renderAt('/settings/team')
+    const owner = await screen.findByRole('link', { name: 'Mona' })
+    expect(owner.getAttribute('href')).toBe('/settings/team/p-owner')
+    const ownerRow = owner.closest('tr') as HTMLElement
+    expect(within(ownerRow).getByText('Owner')).toBeTruthy()
+    expect(within(ownerRow).getByText('Every branch')).toBeTruthy()
+    const samiRow = screen.getByRole('link', { name: 'Sami' }).closest('tr') as HTMLElement
+    expect(within(samiRow).getByText('Every branch')).toBeTruthy()
+    const lailaRow = screen.getByRole('link', { name: 'Laila' }).closest('tr') as HTMLElement
+    expect(within(lailaRow).getByText('Muscat, Sohar +1')).toBeTruthy()
+  })
+
+  it('lets a branch administrator see their people, without asking for the invitation list', async () => {
+    who = BRANCH_ADMIN
+    answers[PEOPLE_URL] = () =>
+      json(200, { content: [LAILA], totalElements: 1, totalPages: 1, number: 0, size: 100 })
+    renderAt('/settings/team')
+    expect(await screen.findByRole('link', { name: 'Laila' })).toBeTruthy()
+    expect(fetchMock.mock.calls.some(([url]) => url === INVITED)).toBe(false)
+  })
+})
+
+describe('Invite someone', () => {
+  it('sends one role, approval as a set on top, and the branches chosen', async () => {
+    answers['POST /api/v1/users/invitations'] = () =>
+      json(201, {
+        id: 'i-1',
+        email: 'x@real.example',
+        roleCodes: ['ACCOUNTANT'],
+        status: 'PENDING',
+        expiresAt: '2026-10-25T00:00:00Z',
+        sentCount: 1,
+        lastSentAt: null,
+        createdAt: '2026-10-17T00:00:00Z',
+      })
+    renderAt('/settings/team/invite')
+    fireEvent.change(await screen.findByRole('textbox', { name: /Email/ }), {
+      target: { value: 'x@real.example' },
+    })
+    fireEvent.click(await screen.findByRole('radio', { name: /Accountant/ }))
+    fireEvent.click(screen.getByRole('radio', { name: /Sales manager/ }))
+    fireEvent.click(screen.getByRole('radio', { name: /Accountant/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Can approve/ }))
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Sohar' }))
+    // A closed branch is not offered for new work.
+    expect(screen.queryByRole('checkbox', { name: 'Old souq' })).toBeNull()
+    expect(screen.getByText('You will work in: Sohar')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('people.invite.send') }))
+    expect(await screen.findByText('Invitation sent to x@real.example.')).toBeTruthy()
+    expect(sent('POST', '/api/v1/users/invitations')).toEqual([
+      { email: 'x@real.example', roleCodes: ['ACCOUNTANT', 'APPROVER'], branchIds: ['b-sohar'] },
+    ])
+  })
+
+  it('asks for a branch before sending, unless the role is Administrator', async () => {
+    answers['POST /api/v1/users/invitations'] = () =>
+      json(201, {
+        id: 'i-2',
+        email: 'a@real.example',
+        roleCodes: ['ADMIN'],
+        status: 'PENDING',
+        expiresAt: '2026-10-25T00:00:00Z',
+        sentCount: 1,
+        lastSentAt: null,
+        createdAt: '2026-10-17T00:00:00Z',
+      })
+    renderAt('/settings/team/invite')
+    fireEvent.change(await screen.findByRole('textbox', { name: /Email/ }), {
+      target: { value: 'a@real.example' },
+    })
+    await screen.findByRole('checkbox', { name: 'Sohar' })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('people.invite.send') }))
+    expect((await screen.findAllByText('Choose at least one branch.')).length).toBeGreaterThan(0)
+    expect(sent('POST', '/api/v1/users/invitations')).toEqual([])
+
+    fireEvent.click(screen.getByRole('radio', { name: /Administrator/ }))
+    expect(
+      screen.getByText('Administrators see every branch, so there is nothing to choose.'),
+    ).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('people.invite.send') }))
+    await screen.findByText('Invitation sent to a@real.example.')
+    expect(sent('POST', '/api/v1/users/invitations')).toEqual([
+      { email: 'a@real.example', roleCodes: ['ADMIN'] },
+    ])
+  })
+
+  it('view only clears the role; a branch administrator is offered only their branches and never Administrator', async () => {
+    who = BRANCH_ADMIN
+    renderAt('/settings/team/invite')
+    expect(await screen.findByRole('radio', { name: /Accountant/ })).toBeTruthy()
+    expect(screen.queryByRole('radio', { name: /Administrator/ })).toBeNull()
+    expect(await screen.findByRole('checkbox', { name: 'Sohar' })).toBeTruthy()
+    expect(screen.queryByRole('checkbox', { name: 'Muscat' })).toBeNull()
+    fireEvent.click(screen.getByRole('radio', { name: /Accountant/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /View only/ }))
+    expect((screen.getByRole('radio', { name: /Accountant/ }) as HTMLInputElement).checked).toBe(
+      false,
+    )
+  })
+
+  it('says a refused escalation in our words, never the server detail', async () => {
+    answers['POST /api/v1/users/invitations'] = () => refusal(403, 'permission-escalation')
+    renderAt('/settings/team/invite')
+    fireEvent.change(await screen.findByRole('textbox', { name: /Email/ }), {
+      target: { value: 'x@real.example' },
+    })
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Sohar' }))
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('people.invite.send') }))
+    expect(
+      await screen.findByText("You can't give permissions or branches you don't have."),
+    ).toBeTruthy()
+    expect(screen.queryByText('English detail')).toBeNull()
+  })
+})
+
+describe('One person', () => {
+  it('saves the permission ticks as grants and denials against the role, keeping reserved codes off', async () => {
+    answers['PUT /api/v1/users/p-clerk/permissions'] = () =>
+      json(200, {
+        userId: 'p-clerk',
+        role: 'ACCOUNTANT',
+        roleCodes: ['ACCOUNTANT'],
+        grants: [],
+        denials: [],
+        effective: ['bill.read', 'invoice.read'],
+      })
+    renderAt('/settings/team/p-clerk')
+    expect(await screen.findByRole('heading', { name: 'Laila' })).toBeTruthy()
+    // Approval was given; reading bills was taken away from the role.
+    await screen.findByText('Given to them')
+    expect(screen.getByText('Taken away from them')).toBeTruthy()
+    // Only the Administrator's: never offered as a person's own.
+    expect(document.body.textContent).not.toMatch(/tenant\.plan\.manage/)
+    const boxes = screen.getAllByRole('checkbox')
+    const settle = boxes.find((box) =>
+      box.closest('label')?.textContent?.includes('Settle'),
+    ) as HTMLInputElement
+    fireEvent.click(settle)
+    fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }))
+    await screen.findByText('Permissions saved. They apply from their next action.')
+    expect(sent('PUT', '/api/v1/users/p-clerk/permissions')).toEqual([
+      { grants: [{ code: 'invoice.approve' }, { code: 'bill.settle' }], denials: ['bill.read'] },
+    ])
+  })
+
+  it('makes someone a branch administrator by a grant, for the Administrator', async () => {
+    answers['PUT /api/v1/users/p-clerk/permissions'] = () =>
+      json(200, {
+        userId: 'p-clerk',
+        role: 'ACCOUNTANT',
+        roleCodes: ['ACCOUNTANT'],
+        grants: [],
+        denials: [],
+        effective: [],
+      })
+    renderAt('/settings/team/p-clerk')
+    fireEvent.click(
+      await screen.findByRole('checkbox', { name: /Make them a branch administrator/ }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }))
+    await waitFor(() => expect(sent('PUT', '/api/v1/users/p-clerk/permissions')).toHaveLength(1))
+    expect(sent('PUT', '/api/v1/users/p-clerk/permissions')[0]).toEqual({
+      grants: [{ code: 'invoice.approve' }, { code: 'branch.users.manage' }],
+      denials: ['bill.read'],
+    })
+  })
+
+  it('saves branches, and says the server refusal in our words', async () => {
+    answers['PUT /api/v1/users/p-clerk/branches'] = () => refusal(403, 'permission-escalation')
+    renderAt('/settings/team/p-clerk')
+    const sur = await screen.findByRole('checkbox', { name: 'Sur' })
+    expect((sur as HTMLInputElement).checked).toBe(true)
+    fireEvent.click(sur)
+    fireEvent.click(screen.getByRole('button', { name: 'Save branches' }))
+    expect(
+      await screen.findByText("You can't give permissions or branches you don't have."),
+    ).toBeTruthy()
+    expect(sent('PUT', '/api/v1/users/p-clerk/branches')).toEqual([
+      { branchIds: ['b-muscat', 'b-sohar'] },
+    ])
+  })
+
+  it('changes the one role through PUT /role', async () => {
+    answers['PUT /api/v1/users/p-clerk/role'] = () => json(200, ['SALES_MANAGER'])
+    renderAt('/settings/team/p-clerk')
+    await screen.findByRole('heading', { name: 'Laila' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Role' }))
+    fireEvent.click(await screen.findByRole('option', { name: /Sales manager/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Change role' }))
+    await screen.findByText('Role changed.')
+    expect(sent('PUT', '/api/v1/users/p-clerk/role')).toEqual([{ roleCode: 'SALES_MANAGER' }])
+  })
+
+  it('shows the Owner read-only, and only the Owner can hand ownership to another Administrator', async () => {
+    answers['POST /api/v1/settings/owner/handover'] = () =>
+      json(200, { userId: 'p-admin', name: 'Sami' })
+    renderAt('/settings/team/p-owner')
+    expect(await screen.findByText("The Owner has full access. It can't be reduced.")).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Change role' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Hand over ownership' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'New Owner' }))
+    fireEvent.click(await screen.findByRole('option', { name: /Sami/ }))
+    fireEvent.change(within(dialog).getByLabelText(/Type Real Trading LLC to confirm/), {
+      target: { value: 'Real Trading LLC' },
+    })
+    fireEvent.change(within(dialog).getByLabelText('Your password'), {
+      target: { value: 'secret-1' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hand over' }))
+    await waitFor(() => expect(sent('POST', '/api/v1/settings/owner/handover')).toHaveLength(1))
+    expect(sent('POST', '/api/v1/settings/owner/handover')[0]).toEqual({
+      toUserId: 'p-admin',
+      currentPassword: 'secret-1',
+      confirmCompanyName: 'Real Trading LLC',
+    })
+  })
+
+  it('offers no handover to an Administrator looking at the Owner', async () => {
+    who = { ...OWNER, userId: 'p-admin', isOwner: false }
+    renderAt('/settings/team/p-owner')
+    await screen.findByText("The Owner has full access. It can't be reduced.")
+    expect(screen.queryByRole('button', { name: 'Hand over ownership' })).toBeNull()
+  })
+})
+
+describe('Who works there', () => {
+  const ROSTER = [
+    {
+      userId: 'p-owner',
+      name: 'Mona',
+      owner: true,
+      allBranches: true,
+      assigned: false,
+      otherBranchCount: 0,
+    },
+    {
+      userId: 'p-clerk',
+      name: 'Laila',
+      owner: false,
+      allBranches: false,
+      assigned: true,
+      otherBranchCount: 2,
+    },
+    {
+      userId: 'p-new',
+      name: 'Omar',
+      owner: false,
+      allBranches: false,
+      assigned: false,
+      otherBranchCount: 1,
+    },
+  ]
+
+  it('ticks who works here, keeps the Owner and Administrators fixed, and saves the whole list', async () => {
+    answers['/api/v1/branches/b-sohar/people'] = () => json(200, ROSTER)
+    answers['PUT /api/v1/branches/b-sohar/people'] = () => json(200, ROSTER)
+    renderAt('/roster')
+    const mona = (await screen.findByRole('checkbox', { name: /Mona/ })) as HTMLInputElement
+    expect(mona.checked && mona.disabled).toBe(true)
+    fireEvent.click(screen.getByRole('checkbox', { name: /Omar/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save who works here' }))
+    await screen.findByText('Saved.')
+    expect(sent('PUT', '/api/v1/branches/b-sohar/people')).toEqual([
+      { userIds: ['p-clerk', 'p-new'] },
+    ])
+  })
+
+  it('says why a save that strands someone was refused', async () => {
+    answers['/api/v1/branches/b-sohar/people'] = () => json(200, ROSTER)
+    answers['PUT /api/v1/branches/b-sohar/people'] = () => refusal(409, 'branch-required')
+    renderAt('/roster')
+    fireEvent.click(await screen.findByRole('checkbox', { name: /Laila/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save who works here' }))
+    expect(
+      await screen.findByText(
+        'Someone you unticked works in no other branch. Give them another branch first.',
+      ),
+    ).toBeTruthy()
+  })
+})

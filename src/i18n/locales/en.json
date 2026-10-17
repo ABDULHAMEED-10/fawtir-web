@@ -22114,5 +22114,98 @@
       "changed": "The request changed meanwhile. The latest status is shown.",
       "failed": "That didn't go through. Try again."
     }
+  },
+  "branchAccess": {
+    "col": {
+      "branches": "Branches"
+    },
+    "owner": "Owner",
+    "everyBranch": "Every branch",
+    "noBranch": "No branch yet",
+    "branchesAndMore_one": "{{names}} +{{count}}",
+    "branchesAndMore_other": "{{names}} +{{count}}",
+    "saving": "Saving…",
+    "closed": "Closed",
+    "refusal": {
+      "branchRequired": "Choose at least one branch.",
+      "ownerProtected": "The Owner always has full access. This can't be changed for them.",
+      "adminHasAllBranches": "Administrators see every branch, so they have no branches to choose.",
+      "adminFullAccess": "Administrators have full access. Nothing can be taken away from them.",
+      "reservedPermission": "Only Administrators can have this permission. Make them an Administrator instead.",
+      "permissionEscalation": "You can't give permissions or branches you don't have.",
+      "lastAdministrator": "This is the last Administrator who can sign in. Make someone else an Administrator first.",
+      "oneRoleOnly": "A person has one role. Change their role instead of adding another.",
+      "notOwner": "Only the Owner can hand over ownership.",
+      "handoverTargetNotAdministrator": "Ownership can only go to an Administrator who can sign in.",
+      "handoverTargetSelf": "You are already the Owner. Choose another Administrator."
+    },
+    "invite": {
+      "oneRole": "One role per person. No role means the default role.",
+      "extrasTitle": "On top of the role",
+      "canApprove": "Can approve",
+      "canApproveNote": "They can approve on top of their role.",
+      "viewOnly": "View only",
+      "viewOnlyNote": "They can see but not change anything. View only has no role.",
+      "administratorSeesAll": "Administrators see every branch, so there is nothing to choose.",
+      "noBranches": "There are no open branches to choose.",
+      "previewBranches": "You will work in: {{branches}}",
+      "previewEveryBranch": "You will see every branch.",
+      "checkBranches_one": "One branch chosen",
+      "checkBranches_other": "{{count}} branches chosen",
+      "checkNoBranch": "Choose at least one branch"
+    },
+    "person": {
+      "title": "Team member",
+      "subtitle": "Their role, branches and permissions.",
+      "roleSaved": "Role changed.",
+      "branchesSaved": "Branches saved.",
+      "roleTitle": "Role",
+      "roleNote": "Each person has one role, the same in every branch.",
+      "ownerNote": "The Owner sees every branch and always has full access. Only the Owner can hand it over.",
+      "changeRole": "Change role",
+      "branchesTitle": "Branches",
+      "branchesNote": "They see and work only in these branches.",
+      "ownerSeesAll": "The Owner sees every branch.",
+      "administratorSeesAll": "Administrators see every branch.",
+      "saveBranches": "Save branches",
+      "permissionsTitle": "Permissions",
+      "permissionsNote": "Their role's permissions, with anything given to them or taken away.",
+      "ownerFullAccess": "The Owner has full access. It can't be reduced.",
+      "administratorFullAccess": "Administrators have full access. Change their role to limit what they can do.",
+      "branchAdminTitle": "Branch administrator",
+      "branchAdminNote": "Manages the people of their own branches.",
+      "branchAdminLabel": "Make them a branch administrator",
+      "branchAdminHint": "Once branch access is on, they manage the people of their own branches and can never give anyone more than they have.",
+      "savePermissions": "Save permissions",
+      "permissionsSaved": "Permissions saved. They apply from their next action.",
+      "fromRole": "From their role",
+      "takenAway": "Taken away from them",
+      "given": "Given to them"
+    },
+    "handover": {
+      "open": "Hand over ownership",
+      "title": "Hand over ownership",
+      "explain": "Choose an Administrator. You stay an Administrator, and they become the Owner and can't be removed.",
+      "explainNamed": "You stay an Administrator. {{name}} becomes the Owner and can't be removed.",
+      "noAdministrator": "There is no other Administrator. Make someone an Administrator first.",
+      "to": "New Owner",
+      "pick": "Choose an Administrator",
+      "typeName": "Type {{company}} to confirm",
+      "password": "Your password",
+      "cancel": "Cancel",
+      "confirm": "Hand over"
+    },
+    "roster": {
+      "afterAdding": "Choose who works here once the branch is added.",
+      "adminOnly": "Only Administrators choose who works in a branch.",
+      "lastBranch": "Someone you unticked works in no other branch. Give them another branch first.",
+      "empty": "No one here yet.",
+      "seesEveryBranch": "Sees every branch",
+      "alsoIn_one": "Also works in one other branch",
+      "alsoIn_other": "Also works in {{count}} other branches",
+      "onlyHere": "Works only here",
+      "saved": "Saved.",
+      "save": "Save who works here"
+    }
   }
 }
