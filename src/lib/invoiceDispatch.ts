@@ -144,8 +144,8 @@ export function transportNotes(
 /**
  * Whether the delivery bar may show its tick: only once the receiving access point has answered
  * with an MLS (AP, or AB, which is final too). SENT is the AS4 receipt alone, and an RE can still
- * follow it (UNDELIVERABLE, or C4_UNREACHABLE in the backend's SubmissionState), so a tick at SENT
- * claimed a delivery that could yet be refused.
+ * follow it (the ledger's C4_UNREACHABLE, which this read reports as UNDELIVERABLE), so a tick at
+ * SENT claimed a delivery that could yet be refused.
  */
 export function dispatchSucceeded(dispatch: InvoiceDispatchDto | null): boolean {
   return (

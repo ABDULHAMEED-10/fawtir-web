@@ -386,7 +386,8 @@ const SENT_INVOICE_STATES = new Set([
 /**
  * The ledger states that record an MLS outcome, and the code each one stands for. The ledger keeps
  * the first valid MLS (SubmissionState); the detail lists every MLS row, so a later reply there
- * must not overturn it. UNDELIVERABLE is absent: it is an RE or an exhausted transport alike.
+ * must not overturn it. UNDELIVERABLE is absent: the backend sets it only when the AS4 transport
+ * fails terminally (OutboundRetryScheduler), so it records no MLS at all.
  */
 const LEDGER_ANSWER: Record<string, MlsRecordDto['ack']> = {
   DELIVERED: 'AP',
