@@ -16,6 +16,8 @@ import {
   withdrawCancellation,
   subscriptionDisplay,
   withdrawScheduledChange,
+  waitingWording,
+  withdrawalOf,
   type SubscriptionDisplay,
   type SubscriptionStatusDto,
 } from '../../api/settings/subscription'
@@ -84,17 +86,9 @@ export function SubscriptionStatusSection({
   if (read.read.status === 'failed') return <ApiReadFailure error={read.read.error} retry={read.retry} />
   const status = latest ?? read.read.data
   const display = subscriptionDisplay(status)
-  const enterprise = status.enterprise?.termsSet === true
   const scheduled = status.scheduledChange
-  // Annual to monthly on the same plan (PC-2): the waiting change is the billing, not the plan.
-  const toMonthly =
-    scheduled !== null &&
-    scheduled.planCode === status.planCode &&
-    status.billingCycle === 'ANNUAL' &&
-    scheduled.billingCycle === 'MONTHLY'
-  // The first period at the lower price is already paid: withdrawing it means paying the difference.
-  const paidAtLowerPrice =
-    scheduled !== null && status.paidThrough !== null && scheduled.effectiveOn <= status.paidThrough
+  const wording = scheduled ? waitingWording(status, scheduled) : null
+  const withdrawal = scheduled ? withdrawalOf(status, scheduled, selfService) : 'NONE'
 
   const act = async (which: Exclude<Pending, null>, call: () => Promise<SubscriptionStatusDto>) => {
     setPending(which)
@@ -131,7 +125,7 @@ export function SubscriptionStatusSection({
       {status.scheduledChange ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm bg-surface-background px-4 py-3">
           <p className="text-sm font-medium text-text-secondary">
-            {enterprise
+            {wording === 'enterprise'
               ? // New Enterprise terms Fawtir set for the next renewal, not a plan the customer chose.
                 withRial(
                   t('subscription.enterpriseChange', {
@@ -144,7 +138,7 @@ export function SubscriptionStatusSection({
                     ),
                   }),
                 )
-              : toMonthly
+              : wording === 'toMonthly'
                 ? t('planChange.waiting.toMonthly', { date: day(status.scheduledChange.effectiveOn) })
                 : t('subscription.scheduledChange', {
                     plan: planName(status.scheduledChange.planCode, status.scheduledChange.planName),
@@ -160,8 +154,8 @@ export function SubscriptionStatusSection({
               >
                 {t('subscription.switchOff.open')}
               </Link>
-              {/* D4: Enterprise terms change only through Fawtir. TODO(backend): CONSOLE.md 3.4. */}
-              {enterprise ? null : selfService && paidAtLowerPrice && status.billingCycle ? (
+              {/* D4: Enterprise terms change only through Fawtir (withdrawal NONE). */}
+              {withdrawal === 'KEEP_PLAN' ? (
                 <Button
                   variant="secondary"
                   size="md"
@@ -172,7 +166,7 @@ export function SubscriptionStatusSection({
                 >
                   {t('planChange.keep', { plan: planName(status.planCode, status.planName) })}
                 </Button>
-              ) : (
+              ) : withdrawal === 'FREE' ? (
                 <Button
                   variant="secondary"
                   size="md"
@@ -181,7 +175,7 @@ export function SubscriptionStatusSection({
                 >
                   {t('subscription.withdrawChange')}
                 </Button>
-              )}
+              ) : null}
             </div>
           ) : null}
         </div>
