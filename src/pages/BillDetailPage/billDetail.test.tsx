@@ -40,6 +40,7 @@ const ADMIN: Entitlements = {
     'invoice.read',
     'invoice.approve',
     'invoice.payment.manage',
+    'bill.settle',
     'purchase-order.read',
     'supplier.read',
   ],
@@ -47,6 +48,27 @@ const ADMIN: Entitlements = {
   featureFlags: {},
 }
 const READ_ONLY: Entitlements = { ...ADMIN, username: 'viewer', permissions: ['invoice.read'] }
+// RL-4: the Accountant captures bills and records payments received, and does not settle them;
+// the Finance Manager does (`bill.settle`).
+const ACCOUNTANT: Entitlements = {
+  ...ADMIN,
+  username: 'accountant',
+  roles: [{ id: 'r-2', code: 'ACCOUNTANT', name: 'Accountant', systemRole: true }],
+  permissions: ['invoice.read', 'invoice.payment.manage', 'purchase-order.read', 'supplier.read'],
+}
+const FINANCE_MANAGER: Entitlements = {
+  ...ADMIN,
+  username: 'finance',
+  roles: [{ id: 'r-3', code: 'FINANCE_MANAGER', name: 'Finance Manager', systemRole: true }],
+  permissions: [
+    'invoice.read',
+    'invoice.approve',
+    'invoice.payment.manage',
+    'bill.settle',
+    'purchase-order.read',
+    'supplier.read',
+  ],
+}
 const APPROVED: BillDetailDto['readiness'] = {
   state: 'READY',
   distinctApprovals: 2,
@@ -898,6 +920,9 @@ describe('A bill, wired to the API', () => {
       'nothing owed',
     ).toBe(false)
     expect(await offered(base, READ_ONLY), 'no payment permission').toBe(false)
+    // RL-4: paying a bill settles it, which the Accountant does not do; the Finance Manager does.
+    expect(await offered(base, ACCOUNTANT), 'an Accountant').toBe(false)
+    expect(await offered(base, FINANCE_MANAGER), 'a Finance Manager').toBe(true)
     // Draft and exported runs alike: it is paid there, or taken out of the run first.
     expect(await offered({ ...base, paymentRunReference: 'RUN-0012' }), 'in a payment run').toBe(
       false,
@@ -1354,6 +1379,15 @@ describe('A bill, wired to the API', () => {
     ).toBeTruthy()
   })
 
+  it('lets an Accountant hold an approved bill, and offers them no Record payment', async () => {
+    who = ACCOUNTANT
+    billResponse = () => json(200, detail({ readiness: APPROVED }))
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(screen.getByRole('button', { name: 'Put on hold' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+  })
+
   it('offers only reading to someone who cannot approve or pay', async () => {
     who = READ_ONLY
     renderBill()
@@ -1484,8 +1518,13 @@ describe('bill detail mapping', () => {
     expect(canRecordPayment(approved, all)).toBe(true)
     expect(canRecordPayment(detail(), all)).toBe(false)
     expect(
-      canRecordPayment(approved, (permission) => permission !== 'invoice.payment.manage'),
+      canRecordPayment(approved, (permission) => permission !== 'bill.settle'),
     ).toBe(false)
+    // Recording payments received is not settling a bill (RL-4).
+    expect(
+      canRecordPayment(approved, (permission) => permission === 'invoice.payment.manage'),
+    ).toBe(false)
+    expect(canRecordPayment(approved, (permission) => permission === 'bill.settle')).toBe(true)
     expect(
       canRecordPayment({ ...approved, bill: { ...approved.bill, documentTypeCode: '381' } }, all),
     ).toBe(false)
@@ -2326,6 +2365,25 @@ describe('an overpaid bill', () => {
     expect(screen.queryByRole('button', { name: "Record the supplier's refund" })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Keep as credit' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Set against a bill' })).toBeNull()
+  })
+
+  it('hides every action from an Accountant, who does not settle supplier money', async () => {
+    who = ACCOUNTANT
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(line(/^Overpaid by/)).toEqual({ text: 'Overpaid by OMR40.000', rial: true })
+    await waitFor(() => expect(calls()).toContain(`GET ${OVERPAYMENT_URL}`))
+    expect(screen.queryByRole('button', { name: "Record the supplier's refund" })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Keep as credit' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Set against a bill' })).toBeNull()
+  })
+
+  it('offers a Finance Manager the ways to settle it', async () => {
+    who = FINANCE_MANAGER
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(await screen.findByRole('button', { name: 'Keep as credit' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: "Record the supplier's refund" })).toBeTruthy()
   })
 
   it('draws nothing and reads nothing more for a bill that is not overpaid', async () => {

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { useApiRead } from '../../hooks'
 import { useCan, useSession } from '../../lib/session/session'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import {
   ApiReadFailure,
   LoadingNotice,
@@ -49,7 +50,12 @@ export function InvitePage() {
 
 /** Inside the shell, which is what provides the session the permission is read from. */
 function Gate() {
-  return useCan(USERS_PERMISSION) ? <InviteForm /> : <PermissionDeniedNotice />
+  const mayManage = useCan(USERS_PERMISSION)
+  // While the subscription is read-only the form is not offered at all (ST-2); the line at the top
+  // of the screen says why.
+  const mayInvite = useSubscriptionAllows('ADD_PEOPLE')
+  if (!mayManage) return <PermissionDeniedNotice />
+  return mayInvite ? <InviteForm /> : null
 }
 
 type Sent = { email: string }

@@ -10,6 +10,7 @@ import {
 } from '../../components/feedback/ApiNotice'
 import { RowsView, Switch } from '../../components/ui'
 import { useErpAccess } from '../../hooks/useErpAccess'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import { useLanguage } from '../../hooks'
 import { useConnectionList } from './connections/connectionData'
 import { CollectionCell, ConnectionStatePill, TestOutcomePill } from './connections/connectionParts'
@@ -33,6 +34,8 @@ import type { ErpConnectionDto } from '../../api/erp/connections'
 export function ErpConnectionsPage() {
   const { t } = useTranslation()
   const { access, ready } = useErpAccess()
+  // A new connection is ERP work, which stops while the subscription is read-only (ST-2).
+  const erpAllowed = useSubscriptionAllows('ERP')
   const [includeArchived, setIncludeArchived] = useState(false)
   const { read, reload } = useConnectionList(includeArchived, ready && access.read)
 
@@ -42,7 +45,7 @@ export function ErpConnectionsPage() {
         title={t('erp.connections.title')}
         subtitle={t('erp.connections.lead')}
         actions={
-          access.manage ? (
+          access.manage && erpAllowed ? (
             <PrimaryLink to="/settings/erp/connections/new">
               {t('erp.connections.list.add')}
             </PrimaryLink>

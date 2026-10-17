@@ -315,9 +315,9 @@ function BillScreen() {
   const payables = standing.read.status === 'ready' ? standing.read.data.payables : null
   const openBills = standing.read.status === 'ready' ? standing.read.data.tabs?.openBills : undefined
   // Settling an overpaid bill: the refund, keeping it as credit and using that credit on another
-  // bill are recorded like a payment (`invoice.payment.manage`), and hidden without it. Keeping
+  // bill are settled like a payment (`bill.settle`), and hidden without it. Keeping
   // needs something still undecided and using needs credit kept, both from the overpayment read.
-  const canSettleOverpayment = can(session, 'invoice.payment.manage') && overpaid > 0
+  const canSettleOverpayment = can(session, 'bill.settle') && overpaid > 0
   const standingOverpayment =
     overpayment.read.status === 'ready' && overpaymentPath ? overpayment.read.data : null
   const afterSettling = (key: string) => {

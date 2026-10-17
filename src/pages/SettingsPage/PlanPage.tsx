@@ -5,8 +5,14 @@ import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { useApiRead } from '../../hooks'
 import { useCan } from '../../lib/session/session'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
-import { Rial, RialText, withRial } from '../../components/ui'
-import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
+import { Rial, RialText, RowsView, withRial } from '../../components/ui'
+import {
+  PLAN_OVERVIEW_PATH,
+  loadPlanOverview,
+  type AllowanceUsageDto,
+  type PlanOverviewDto,
+} from '../../api/settings/plan'
+import { EXTRA_DOCUMENTS_ROUTE } from '../../api/settings/extraDocuments'
 import {
   PUBLIC_PLANS_PATH,
   baisaOf,
@@ -14,6 +20,12 @@ import {
   type SignupCataloguePlan,
 } from '../../lib/identity/signupPlans'
 import { SubscriptionStatusSection } from './SubscriptionStatusSection'
+import {
+  quotaWarningBodyKey,
+  quotaWarningOf,
+  quotaWarningTitleKey,
+  type QuotaWarning,
+} from '../../lib/quotaNotice'
 import {
   SUBSCRIPTION_PATH,
   loadSubscription,
@@ -75,7 +87,7 @@ function PlanBody() {
     return <ApiReadFailure error={plan.read.error} retry={plan.retry} />
   return (
     <>
-      <PlanFigures data={plan.read.data} notStarted={notStarted} />
+      <PlanFigures data={plan.read.data} notStarted={notStarted} mayManage={mayManage} />
       <PlanCards current={plan.read.data} mayManage={mayManage} />
       <AddonsSection />
     </>
@@ -120,7 +132,15 @@ export function forecastOf(usage: PlanOverviewDto['usage']) {
  * which is not the period that applies once the subscription starts (K-BC05). The period, its
  * reset date and the forecast built on its days are left out rather than shown wrong.
  */
-function PlanFigures({ data, notStarted }: { data: PlanOverviewDto; notStarted: boolean }) {
+function PlanFigures({
+  data,
+  notStarted,
+  mayManage,
+}: {
+  data: PlanOverviewDto
+  notStarted: boolean
+  mayManage: boolean
+}) {
   const { t, i18n } = useTranslation()
   // lib/format keeps digits Latin in Arabic too (decision D15); toLocaleString would not.
   const number = (value: number) => formatCount(value, i18n.language)
@@ -138,20 +158,40 @@ function PlanFigures({ data, notStarted }: { data: PlanOverviewDto; notStarted: 
       catalogue.read.status === 'ready' &&
       catalogue.read.data.find((entry) => entry.code === plan.code)?.nameAr?.trim()) ||
     plan.name
-  const percent = usage.quota > 0 ? Math.min(100, Math.round((usage.used / usage.quota) * 100)) : 0
-  const forecast = forecastOf(usage)
+  // AL-9: the server's allowance counts issued and received documents against the plan's
+  // documents and the extras together, so the headline figure, the bar and the forecast read it
+  // when it is there. A server without it is shown its issued-only `usage`, as before.
+  const allowance = data.allowance ?? null
+  const counted: PlanOverviewDto['usage'] = allowance
+    ? {
+        ...usage,
+        period: {
+          start: allowance.periodStart,
+          end: allowance.periodEnd,
+          today: usage.period.today,
+        },
+        used: allowance.used,
+        quota: allowance.totalAllowance,
+      }
+    : usage
+  const percent =
+    counted.quota > 0 ? Math.min(100, Math.round((counted.used / counted.quota) * 100)) : 0
+  const forecast = forecastOf(counted)
+  const resetsOn = allowance?.resetsOn ?? forecast.resetsOn
+  const warning = quotaWarningOf(allowance)
 
   return (
     <>
       <section aria-labelledby="plan-usage" className="overflow-hidden rounded-md bg-surface-card">
+        {warning ? <QuotaWarningCallout warning={warning} /> : null}
         <div className="flex flex-wrap gap-6 p-5">
           <div className="shrink-0">
             <p className="flex items-baseline gap-1">
               <span className="text-[54px] font-semibold leading-[1] text-pending-700 tabular-nums">
-                {number(usage.used)}
+                {number(counted.used)}
               </span>
               <span className="text-lg font-medium text-text-quaternary">
-                {t('people.plan.ofAllowance', { allowance: number(usage.quota) })}
+                {t('people.plan.ofAllowance', { allowance: number(counted.quota) })}
               </span>
             </p>
             <h3
@@ -192,8 +232,8 @@ function PlanFigures({ data, notStarted }: { data: PlanOverviewDto; notStarted: 
               className="mt-4 h-2 w-full overflow-hidden rounded-full bg-surface-background"
               role="progressbar"
               aria-valuemin={0}
-              aria-valuemax={usage.quota}
-              aria-valuenow={usage.used}
+              aria-valuemax={counted.quota}
+              aria-valuenow={counted.used}
               aria-label={t('plan.invoicesThisMonth')}
             >
               <div className="h-full rounded-full bg-pending-500" style={{ width: `${percent}%` }} />
@@ -202,7 +242,7 @@ function PlanFigures({ data, notStarted }: { data: PlanOverviewDto; notStarted: 
               <span className="flex flex-wrap items-center gap-4 text-xs font-medium text-text-quaternary">
                 <span className="flex items-center gap-1.5">
                   <span className="size-2 rounded-[2px] bg-pending-500" />
-                  {t('plan.used', { count: number(usage.used) })}
+                  {t('plan.used', { count: number(counted.used) })}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="size-2 rounded-[2px] bg-pending-100" />
@@ -212,20 +252,31 @@ function PlanFigures({ data, notStarted }: { data: PlanOverviewDto; notStarted: 
               {notStarted ? null : (
                 <span className="text-xs font-medium text-text-quaternary">
                   {t('people.plan.period', {
-                    start: date(usage.period.start),
-                    end: date(usage.period.end),
+                    start: date(counted.period.start),
+                    end: date(counted.period.end),
                   })}{' '}
-                  {t('plan.resetsOn', { date: date(forecast.resetsOn) })}
+                  {t('plan.resetsOn', { date: date(resetsOn) })}
                 </span>
               )}
             </p>
           </div>
 
           {/*
-           * TODO(backend): SETTINGS.md rows 5.1 and 5.2. "Move up" and the overage switch stay
-           * hidden, not greyed (plan v4: hide what cannot be done), until the web is wired to a
-           * plan-change endpoint and to buying extra documents. Shown then to PLAN_MANAGE only.
+           * TODO(backend): SETTINGS.md row 5.1. "Move up" stays hidden, not greyed (plan v4: hide
+           * what cannot be done), until the web is wired to a plan-change endpoint. The overage
+           * switch (row 5.2) is replaced by buying extra documents ahead: nothing is billed after
+           * the fact. Offered to PLAN_MANAGE on a plan with a per-document rate.
            */}
+          {mayManage && Number(plan.overagePricePerInvoice ?? 0) > 0 ? (
+            <div className="shrink-0 self-start">
+              <Link
+                to={EXTRA_DOCUMENTS_ROUTE}
+                className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+              >
+                {t('extraDocuments.entry')}
+              </Link>
+            </div>
+          ) : null}
         </div>
 
         <dl className="grid border-t border-surface-background sm:grid-cols-2 xl:grid-cols-4">
@@ -239,7 +290,8 @@ function PlanFigures({ data, notStarted }: { data: PlanOverviewDto; notStarted: 
             label={t('plan.stat.resubmissions')}
             value={t('plan.stat.resubmissionsOf', {
               count: number(usage.resubmissions),
-              total: number(usage.used),
+              // A resend is of an issued document: counted against those, not the received ones.
+              total: number(allowance?.issued ?? usage.used),
             })}
             note={t('plan.stat.resubmissionsNote')}
             tone="pending"
@@ -249,7 +301,11 @@ function PlanFigures({ data, notStarted }: { data: PlanOverviewDto; notStarted: 
           {/* TODO(backend): SETTINGS.md row 5.4. */}
           <Stat label={t('plan.stat.lastMonth')} unavailable />
         </dl>
+
+        {allowance ? <AllowanceSplit allowance={allowance} /> : null}
       </section>
+
+      {allowance && allowance.byBranch.length > 0 ? <BranchUsage allowance={allowance} /> : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <Figure
@@ -273,6 +329,177 @@ function PlanFigures({ data, notStarted }: { data: PlanOverviewDto; notStarted: 
         />
       </div>
     </>
+  )
+}
+
+/**
+ * AL-8 in the app: the server's 80%, 90% or 100% warning, inside the usage card it is about. The
+ * 100% one says plainly that issuing stops and received documents are held until extras are bought.
+ */
+function QuotaWarningCallout({ warning }: { warning: QuotaWarning }) {
+  const { t, i18n } = useTranslation()
+  const number = (value: number) => formatCount(value, i18n.language)
+  return (
+    <div className="p-5 pb-0">
+      <p
+        role="status"
+        className={[
+          'rounded-sm px-4 py-3 text-sm font-medium leading-[1.6]',
+          warning.percent === 100
+            ? 'bg-danger-100 text-danger-700'
+            : 'bg-pending-100 text-pending-700',
+        ].join(' ')}
+      >
+        <b className="font-semibold">
+          {t(quotaWarningTitleKey(warning), { percent: warning.percent })}
+        </b>{' '}
+        <Trans
+          i18nKey={quotaWarningBodyKey(warning)}
+          values={{ used: number(warning.used), allowance: number(warning.allowance) }}
+          components={{ b: <b className="font-semibold" /> }}
+        />
+      </p>
+    </div>
+  )
+}
+
+/**
+ * AL-9, as plan v4 §6 words it: "Plan 200, used 200 (150 issued, 50 received) · Extra this month
+ * 0". The plan's documents and the extras apart, issued and received apart, all the server's.
+ */
+function AllowanceSplit({ allowance }: { allowance: AllowanceUsageDto }) {
+  const { t, i18n } = useTranslation()
+  const number = (value: number) => formatCount(value, i18n.language)
+  return (
+    <dl
+      aria-label={t('plan.split.title')}
+      className="grid border-t border-surface-background sm:grid-cols-2 xl:grid-cols-4"
+    >
+      <Stat
+        label={t('plan.split.plan')}
+        value={t('plan.split.usedOf', {
+          used: number(allowance.planUsed),
+          of: number(allowance.planDocuments),
+        })}
+      />
+      <Stat
+        label={t('plan.split.extra')}
+        value={
+          allowance.extraDocuments > 0
+            ? t('plan.split.usedOf', {
+                used: number(allowance.extraUsed),
+                of: number(allowance.extraDocuments),
+              })
+            : number(0)
+        }
+        note={
+          allowance.extraDocuments > 0 && allowance.extrasExpireOn
+            ? t('plan.split.extraEnds', {
+                date: formatDate(allowance.extrasExpireOn, i18n.language),
+              })
+            : t('plan.split.noExtra')
+        }
+      />
+      <Stat
+        label={t('plan.split.issued')}
+        value={number(allowance.issued)}
+        note={t('plan.split.issuedNote')}
+      />
+      <Stat
+        label={t('plan.split.received')}
+        value={number(allowance.received)}
+        note={
+          allowance.receivedHidden > 0
+            ? t('plan.split.receivedWaiting', {
+                count: allowance.receivedHidden,
+                n: number(allowance.receivedHidden),
+              })
+            : t('plan.split.receivedNote')
+        }
+      />
+    </dl>
+  )
+}
+
+/**
+ * AL-9: the month per branch, issued and received, from the server's rows. Received documents and
+ * documents issued without a branch sit on the row with no branch, so the rows add up exactly to
+ * the company's total, which closes the table.
+ */
+function BranchUsage({ allowance }: { allowance: AllowanceUsageDto }) {
+  const { t, i18n } = useTranslation()
+  const number = (value: number) => formatCount(value, i18n.language)
+  const cell = 'px-2 py-3 text-end text-sm font-medium tabular-nums text-text-secondary'
+  const head = 'px-2 py-2.5 text-end font-semibold'
+  return (
+    <section
+      aria-labelledby="plan-by-branch"
+      className="overflow-hidden rounded-md bg-surface-card"
+    >
+      <div className="p-5">
+        <h3 id="plan-by-branch" className="text-lg font-semibold leading-[1.2] text-text-primary">
+          {t('plan.byBranch.title')}
+        </h3>
+        <p className="mt-0.5 text-xs font-medium leading-[1.5] text-text-quaternary">
+          {t('plan.byBranch.subtitle')}
+        </p>
+      </div>
+      <RowsView>
+        <table className="w-full border-collapse text-start">
+          <thead>
+            <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+              <th className="px-5 py-2.5 text-start font-semibold">{t('plan.byBranch.branch')}</th>
+              <th className={head}>{t('plan.byBranch.issued')}</th>
+              <th className={head}>{t('plan.byBranch.received')}</th>
+              <th className={`${head} pe-5`}>{t('plan.byBranch.total')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allowance.byBranch.map((row) => (
+              <tr
+                key={row.branchId ?? 'none'}
+                className="border-b border-surface-background last:border-0"
+              >
+                <td className="px-5 py-3 text-sm font-semibold text-text-primary">
+                  {row.branchId === null ? (
+                    <>
+                      {t('plan.byBranch.noBranch')}
+                      <span className="block text-xs font-medium text-text-quaternary">
+                        {t('plan.byBranch.noBranchNote')}
+                      </span>
+                    </>
+                  ) : (
+                    row.branchName || t('plan.byBranch.unnamed')
+                  )}
+                </td>
+                <td className={cell}>{number(row.issued)}</td>
+                <td className={cell}>{number(row.received)}</td>
+                <td className={`${cell} pe-5`}>{number(row.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-surface-background">
+              <th
+                scope="row"
+                className="px-5 py-3 text-start text-sm font-semibold text-text-primary"
+              >
+                {t('plan.byBranch.company')}
+              </th>
+              <td className={`${cell} font-semibold text-text-primary`}>
+                {number(allowance.issued)}
+              </td>
+              <td className={`${cell} font-semibold text-text-primary`}>
+                {number(allowance.received)}
+              </td>
+              <td className={`${cell} pe-5 font-semibold text-text-primary`}>
+                {number(allowance.used)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </RowsView>
+    </section>
   )
 }
 

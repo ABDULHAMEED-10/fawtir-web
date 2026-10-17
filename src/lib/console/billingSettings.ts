@@ -52,6 +52,33 @@ export type BillingSellerDto = {
 
 export type BillingSellerRequest = Omit<BillingSellerDto, 'version' | 'createdBy' | 'createdAt'>
 
+/**
+ * The fewest and most extra documents one purchase may buy: a versioned record of its own
+ * (`PlatformExtraDocumentsController`), read with `platform.billing.read` and changed with
+ * `platform.billing.manage`, MFA, `If-Match` and a reason.
+ */
+export const EXTRA_DOCUMENT_SETTINGS_PATH = '/v1/platform/billing/extra-documents/settings'
+export const EXTRA_DOCUMENT_SETTINGS_HISTORY_PATH = `${EXTRA_DOCUMENT_SETTINGS_PATH}/history?limit=50`
+/** The server's ceiling for the maximum per purchase. */
+export const MAX_PER_PURCHASE_CEILING = 1_000_000
+
+export type ExtraDocumentSettingsDto = {
+  id: string
+  version: number
+  minPerPurchase: number
+  maxPerPurchase: number
+  reason: string
+  /** Null on the seeded first version. */
+  createdBy: string | null
+  createdAt: string
+}
+
+export type ExtraDocumentSettingsRequest = {
+  minPerPurchase: number
+  maxPerPurchase: number
+  reason: string
+}
+
 const ifMatch = (version: number) => ({ 'If-Match': `"${version}"` })
 
 export function saveBillingSettings(
@@ -106,4 +133,15 @@ export function isPercent(value: string): boolean {
 /** VAT is off exactly when the rate is zero; there is no separate flag to disagree with it. */
 export function chargesVat(rate: string | null | undefined): boolean {
   return rate != null && Number(rate) > 0
+}
+
+export function saveExtraDocumentSettings(
+  version: number,
+  request: ExtraDocumentSettingsRequest,
+): Promise<ExtraDocumentSettingsDto> {
+  return apiRequest(EXTRA_DOCUMENT_SETTINGS_PATH, {
+    method: 'PUT',
+    headers: ifMatch(version),
+    body: request,
+  })
 }

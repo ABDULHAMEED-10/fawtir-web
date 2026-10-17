@@ -90,6 +90,7 @@ import { missingCustomerFields } from '../../lib/customerEligibility'
 import { formatAmount as formatMoney } from '../../lib/format'
 import { usePlanUsage } from '../../hooks/usePlanUsage'
 import { can, useSession } from '../../lib/session/session'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import {
   calculateInvoice,
   formatAmount,
@@ -541,6 +542,8 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   const { id } = useParams()
   const navigate = useNavigate()
   const session = useSession()
+  // Issuing stops while the subscription is read-only (ST-2): the action is hidden, not greyed.
+  const mayIssue = useSubscriptionAllows('ISSUE_DOCUMENTS')
   const { t, i18n } = useTranslation()
   const reference = useReferenceData() ?? DESIGN_REFERENCE
   const usage = usePlanUsage()
@@ -548,7 +551,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   // `selfbilling.create`, not `invoice.draft`: writing an invoice on someone else's behalf is a
   // different authority from writing your own, and the server keeps them apart.
   const canSave = can(session, selfBilled ? 'selfbilling.create' : 'invoice.draft')
-  const canIssue = canSave && can(session, 'invoice.issue')
+  const canIssue = canSave && can(session, 'invoice.issue') && mayIssue
   const canReadNote = can(session, 'invoice.internal-note.read')
   const canAddCustomer = can(session, 'customer.manage')
 

@@ -27,6 +27,7 @@ const ENTITLEMENTS = {
     'invoice.write',
     'invoice.approve',
     'invoice.payment.manage',
+    'bill.settle',
     'customer.read',
     'customer.manage',
     'customer.import',

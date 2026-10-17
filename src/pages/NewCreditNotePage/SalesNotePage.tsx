@@ -69,6 +69,7 @@ import {
   type NoteProblems,
 } from '../../lib/salesNote'
 import { can, useSession } from '../../lib/session/session'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import { NoteLinesTable } from './NoteLinesTable'
 import backIcon from '../../assets/invoice-details/back.svg'
 import saveDraftIcon from '../../assets/credit-note/save-draft.svg'
@@ -493,6 +494,8 @@ function NoteEditor({
   const reference = useReferenceData()
   const navigate = useNavigate()
   const session = useSession()
+  // Issuing stops while the subscription is read-only (ST-2): the action is hidden, not greyed.
+  const mayIssue = useSubscriptionAllows('ISSUE_DOCUMENTS')
   const credit = kind === 'CREDIT_NOTE'
   const kindKey = credit ? 'credit' : 'debit'
   const [form, setForm] = useState<NoteForm>(() =>
@@ -714,7 +717,7 @@ function NoteEditor({
               {t('salesNote.saveDraft')}
             </button>
           ) : null}
-          {can(session, 'invoice.issue') ? (
+          {can(session, 'invoice.issue') && mayIssue ? (
             <button
               type="button"
               disabled={busy || !invoiceIssued}

@@ -297,6 +297,42 @@ describe('Tenant detail — real backend data', () => {
   })
 })
 
+describe('Tenant detail — subscription cards', () => {
+  it('a real tenant shows its subscription from the platform routes to a billing reader', async () => {
+    const BILLING_READER: Entitlements = {
+      ...OPERATOR,
+      permissions: ['platform.tenants.manage', 'platform.billing.read'],
+    }
+    answer({
+      [ENTITLEMENTS_URL]: () => json(200, BILLING_READER),
+      [OVERVIEW_URL]: () => json(200, OVERVIEW),
+      [`/api/v1/platform/companies/${TENANT_ID}/subscription`]: () =>
+        json(200, {
+          status: {
+            tracked: true, access: 'ACTIVE', restrictionsEnforced: false, today: '2026-10-16',
+            planCode: 'STANDARD', planName: 'Standard', billingCycle: 'MONTHLY', periodPrice: '39.000',
+            trialStartsOn: null, trialEndsOn: null, trialDay: null, trialDaysLeft: null,
+            paidThrough: '2026-10-31', renewsOn: '2026-11-01', graceDays: 7, graceUntil: null,
+            autoRenew: false, autoRenewAvailable: false, autoRenewChangedAt: null,
+            cancelAtPeriodEnd: false, accessEndsOn: null, scheduledChange: null,
+          },
+          events: [],
+        }),
+      [`/api/v1/platform/companies/${TENANT_ID}/extra-documents`]: () => json(404, {}),
+    })
+    renderAt(`/console/tenants/${TENANT_ID}`)
+
+    expect(
+      await screen.findByRole('heading', { name: i18n.t('console.companySubscription.title') }),
+    ).toBeTruthy()
+    expect(
+      await screen.findByText(i18n.t('console.companySubscription.access.ACTIVE')),
+    ).toBeTruthy()
+    // Not a reader of the plan catalogue: the counting override is never asked for.
+    expect(callsTo(`/api/v1/platform/companies/${TENANT_ID}/received-document-counting`)).toHaveLength(0)
+  })
+})
+
 describe('Tenant detail — deep-link regression', () => {
   const TABS: Array<[string, string]> = [
     ['', 'Subscription'],

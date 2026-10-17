@@ -35,6 +35,7 @@ const MANAGER: Entitlements = {
   permissions: [
     'invoice.read',
     'invoice.payment.manage',
+    'bill.settle',
     'invoice.export',
     'admin.settings.manage',
   ],
@@ -544,6 +545,20 @@ const SENT: PaymentRunDetailDto = {
 }
 
 const VIEWER: Entitlements = { ...MANAGER, username: 'viewer', permissions: ['invoice.read'] }
+// RL-4: the Accountant prepares runs (`invoice.payment.manage`); the Finance Manager settles them
+// (`bill.settle`).
+const ACCOUNTANT: Entitlements = {
+  ...MANAGER,
+  username: 'accountant',
+  roles: [{ id: 'r-2', code: 'ACCOUNTANT', name: 'Accountant', systemRole: true }],
+  permissions: ['invoice.read', 'invoice.payment.manage'],
+}
+const FINANCE_MANAGER: Entitlements = {
+  ...MANAGER,
+  username: 'finance',
+  roles: [{ id: 'r-3', code: 'FINANCE_MANAGER', name: 'Finance Manager', systemRole: true }],
+  permissions: ['invoice.read', 'invoice.payment.manage', 'bill.settle'],
+}
 
 const sentRunRefusal = (code: string) =>
   json(400, {
@@ -1236,6 +1251,24 @@ describe('marking a run paid with no bank file (owner, 9 Oct 2026; lead, 10 Oct 
     expect(screen.queryByText(/Sent to bank|bank file|exported/i)).toBeNull()
     expect(screen.queryByRole('button', { name: /Download/ })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Mark as paid' })).toBeNull()
+  })
+
+  it('gives an Accountant no Mark as paid on a scheduled run, and keeps the run menu', async () => {
+    detail = SCHEDULED_TWO
+    override = (url) => (url === '/api/v1/me/entitlements' ? json(200, ACCOUNTANT) : null)
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(await screen.findByRole('link', { name: 'MR-1' }, { timeout: 8000 })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Mark as paid' })).toBeNull()
+    // Preparing and cancelling the run stay with the Accountant.
+    expect(screen.getByRole('button', { name: 'More actions' })).toBeTruthy()
+  })
+
+  it('offers a Finance Manager Mark as paid on a scheduled run', async () => {
+    detail = SCHEDULED_TWO
+    override = (url) => (url === '/api/v1/me/entitlements' ? json(200, FINANCE_MANAGER) : null)
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(await screen.findByRole('link', { name: 'MR-1' }, { timeout: 8000 })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Mark as paid' })).toBeTruthy()
   })
 
   it('gives a Viewer no Mark as paid on a scheduled run', async () => {

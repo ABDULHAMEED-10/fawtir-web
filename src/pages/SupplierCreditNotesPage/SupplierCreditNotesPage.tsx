@@ -102,7 +102,10 @@ function CreditNotesScreen() {
   const language = i18n.language
   const [params, setParams] = useSearchParams()
   const session = useSession()
-  const canSettle = can(session, 'invoice.payment.manage')
+  // Recording a credit note is capture (`invoice.payment.manage`); setting it against a bill
+  // settles it (`bill.settle`), which the Accountant does not hold (RL-4).
+  const canUpload = can(session, 'invoice.payment.manage')
+  const canSettle = can(session, 'bill.settle')
 
   const tab: CreditTabId = isCreditTab(params.get('tab'))
     ? (params.get('tab') as CreditTabId)
@@ -210,7 +213,7 @@ function CreditNotesScreen() {
           </p>
         </div>
         {/* Hidden, not greyed, from someone who may not record a credit note (owner, 6 Oct). */}
-        {canSettle ? (
+        {canUpload ? (
           <Link
             to="/expenditure/credit-notes/upload"
             className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white"

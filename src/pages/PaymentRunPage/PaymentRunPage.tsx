@@ -117,6 +117,9 @@ function RunBuilder({ runId }: { runId: string | null }) {
   const navigate = useNavigate()
   const today = muscatToday()
   const canManage = can(session, 'invoice.payment.manage')
+  // Marking a run paid settles it (`bill.settle`): the Accountant prepares runs, the Finance
+  // Manager settles them (RL-4).
+  const canSettle = can(session, 'bill.settle')
   const canAddAccount = can(session, 'admin.settings.manage')
 
   const loaded = useApiRead<PaymentRunDetailDto>(runId ? runPath(runId) : null, () =>
@@ -362,7 +365,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
               <span className="max-lg:sr-only">{t('paymentsPage.print')}</span>
             </button>
             {/* An empty run has nothing to mark paid. */}
-            {canManage && run && actions.canMarkPaid && runItems.length > 0 ? (
+            {canSettle && run && actions.canMarkPaid && runItems.length > 0 ? (
               <button
                 type="button"
                 disabled={busy}

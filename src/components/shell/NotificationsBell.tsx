@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { notesStore, useNotes, type NoteScope } from '../../lib/notifications'
 import { can, useSession } from '../../lib/session/session'
 import { subscriptionNoticesStore } from '../../lib/subscriptionNotices'
+import { quotaNoticeStore } from '../../lib/quotaNotice'
 import { NotificationsPanel } from './NotificationsPanel'
 import bellIcon from '../../assets/dashboard/bell.svg'
 
@@ -21,6 +22,9 @@ import bellIcon from '../../assets/dashboard/bell.svg'
  * It also counts the reader's trial-ending and grace reminders
  * (`GET /settings/subscription/notices`), which need `tenant.plan.read` and are asked for the same
  * way. A server without that route shows the bill reminders alone.
+ *
+ * With the same permission it shows the allowance warning at 80%, 90% and 100% (AL-8), from the
+ * server's `allowance.warningPercent` on `GET /settings/plan` (`lib/quotaNotice.ts`).
  */
 export function NotificationsBell({ scope = 'tenant' }: { scope?: NoteScope }) {
   const { t } = useTranslation()
@@ -48,7 +52,10 @@ export function NotificationsBell({ scope = 'tenant' }: { scope?: NoteScope }) {
     if (owner !== undefined) notesStore.watch(owner)
   }, [owner])
   useEffect(() => {
-    if (planOwner !== undefined) subscriptionNoticesStore.watch(planOwner)
+    if (planOwner !== undefined) {
+      subscriptionNoticesStore.watch(planOwner)
+      quotaNoticeStore.watch(planOwner)
+    }
   }, [planOwner])
   useEffect(() => {
     if (open) notesStore.refresh()
