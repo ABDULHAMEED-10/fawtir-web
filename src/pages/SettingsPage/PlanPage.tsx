@@ -180,6 +180,7 @@ function PlanBody({ onPlanChanged }: { onPlanChanged: (why?: string) => void }) 
           current={plan.read.data}
           mayManage={mayManage}
           selfService={selfService}
+          selfServiceOpen={changesRead?.available === true}
           onPlanChanged={onPlanChanged}
         />
       )}
@@ -688,12 +689,15 @@ function PlanCards({
   current,
   mayManage,
   selfService,
+  selfServiceOpen,
   onPlanChanged,
 }: {
   current: PlanOverviewDto
   mayManage: boolean
   /** Set when the customer may change the plan here (P2-2), with the cycle billed today. */
   selfService: SelfService | null
+  /** The server's switch is on: the rule is worded for self-service even while the moves are hidden. */
+  selfServiceOpen: boolean
   onPlanChanged: (why?: string) => void
 }) {
   const { t, i18n } = useTranslation()
@@ -711,7 +715,7 @@ function PlanCards({
 
   return (
     <section aria-label={t('plan.plansTitle')} className="flex flex-col gap-3">
-      {selfService ? (
+      {mayManage && selfServiceOpen ? (
         <p className="flex items-start gap-2 text-sm font-medium text-text-tertiary">
           <img src={infoIcon} alt="" className="mt-0.5 size-4 shrink-0" />
           <span>{t('planChange.rule')}</span>

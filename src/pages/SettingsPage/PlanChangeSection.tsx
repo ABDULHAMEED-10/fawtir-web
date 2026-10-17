@@ -423,6 +423,9 @@ function Losses({ preview }: { preview: PlanChangePreviewDto }) {
       {branchesOver && preview.branches ? (
         <PlacesOver kind="branches" places={preview.branches} plan={plan} date={date} />
       ) : null}
+      {usersOver || branchesOver ? (
+        <p className="text-xs text-text-tertiary">{t('planChange.loss.chooseLater')}</p>
+      ) : null}
     </div>
   )
 }
@@ -470,7 +473,6 @@ function PlacesOver({
           {t('planChange.loss.byDefault', { names: names.join(t('planChange.loss.separator')) })}
         </p>
       ) : null}
-      <p className="text-xs text-text-tertiary">{t('planChange.loss.chooseLater')}</p>
     </div>
   )
 }
