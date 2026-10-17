@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApiRead } from '../../hooks'
 import { usePlanName } from '../../hooks/usePlanName'
@@ -107,14 +108,23 @@ export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }
             })}
           </p>
           {canManage ? (
-            <Button
-              variant="secondary"
-              size="md"
-              disabled={pending !== null}
-              onClick={() => act('withdrawChange', withdrawScheduledChange)}
-            >
-              {t('subscription.withdrawChange')}
-            </Button>
+            <div className="flex flex-wrap gap-3">
+              {/* Who and which branches go off at renewal when the new plan has fewer (BR-5, US-4). */}
+              <Link
+                to="/settings/plan/switch-off"
+                className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+              >
+                {t('subscription.switchOff.open')}
+              </Link>
+              <Button
+                variant="secondary"
+                size="md"
+                disabled={pending !== null}
+                onClick={() => act('withdrawChange', withdrawScheduledChange)}
+              >
+                {t('subscription.withdrawChange')}
+              </Button>
+            </div>
           ) : null}
         </div>
       ) : null}
