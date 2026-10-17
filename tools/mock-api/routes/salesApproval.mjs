@@ -7,52 +7,78 @@
  * Draft `draft-2045` waits for approval with one of two given, and the mock user (who did not
  * prepare it) may decide; `draft-2046` has not been sent yet. Any other draft needs none. The
  * steps change the in-memory state, so a click shows the next state.
+ *
+ *   MOCK_SALES_APPROVAL=off node tools/mock-api/server.mjs
+ *
+ * plays the deployed server with its switch (`fawtir.invoice.sales-approval.enabled`) off: the rule
+ * reads 200 as never set (version 0, off), every draft reads NOT_REQUIRED, the list carries no
+ * approval state and the summary counts 0, and switching the rule on or taking any step answers
+ * 503 SALES_APPROVAL_UNAVAILABLE.
  */
+const SWITCHED_OFF = process.env.MOCK_SALES_APPROVAL === 'off'
+const UNAVAILABLE = {
+  status: 503,
+  body: { status: 503, code: 'SALES_APPROVAL_UNAVAILABLE' },
+}
 const RULE_PATH = '/api/v1/settings/sales-approval-rule'
 const ID = '([^/]+)'
 
-let rule = {
-  version: 3,
-  enabled: true,
-  covers: { invoice: true, creditNote: true, debitNote: false, selfBilled: false },
-  requiredApprovals: 2,
-  autoApproveBelow: 100,
-  reason: null,
-  updatedBy: 'u-nasser',
-  updatedAt: '2026-10-15T09:00:00Z',
-  approverCount: 3,
-}
+let rule = SWITCHED_OFF
+  ? {
+      version: 0,
+      enabled: false,
+      covers: { invoice: true, creditNote: true, debitNote: true, selfBilled: false },
+      requiredApprovals: 1,
+      autoApproveBelow: null,
+      reason: null,
+      updatedBy: null,
+      updatedAt: null,
+      approverCount: 3,
+    }
+  : {
+      version: 3,
+      enabled: true,
+      covers: { invoice: true, creditNote: true, debitNote: false, selfBilled: false },
+      requiredApprovals: 2,
+      autoApproveBelow: 100,
+      reason: null,
+      updatedBy: 'u-nasser',
+      updatedAt: '2026-10-15T09:00:00Z',
+      approverCount: 3,
+    }
 
 const SARA = '5f0c2b1e-7a44-4c1d-9b55-0d0f6a1c2e31'
 
-const approvals = {
-  'draft-2045': {
-    status: 'PENDING',
-    requiredApprovals: 2,
-    distinctApprovals: 1,
-    draftVersion: 3,
-    payableAmount: 409.5,
-    currency: 'OMR',
-    requestedBy: SARA,
-    requestedAt: '2026-10-16T07:30:00Z',
-    lastDecision: null,
-    callerMayRequest: false,
-    callerMayDecide: true,
-  },
-  'draft-2046': {
-    status: 'NOT_REQUESTED',
-    requiredApprovals: 2,
-    distinctApprovals: 0,
-    draftVersion: 3,
-    payableAmount: 157.5,
-    currency: 'OMR',
-    requestedBy: null,
-    requestedAt: null,
-    lastDecision: null,
-    callerMayRequest: true,
-    callerMayDecide: false,
-  },
-}
+const approvals = SWITCHED_OFF
+  ? {}
+  : {
+      'draft-2045': {
+        status: 'PENDING',
+        requiredApprovals: 2,
+        distinctApprovals: 1,
+        draftVersion: 3,
+        payableAmount: 409.5,
+        currency: 'OMR',
+        requestedBy: SARA,
+        requestedAt: '2026-10-16T07:30:00Z',
+        lastDecision: null,
+        callerMayRequest: false,
+        callerMayDecide: true,
+      },
+      'draft-2046': {
+        status: 'NOT_REQUESTED',
+        requiredApprovals: 2,
+        distinctApprovals: 0,
+        draftVersion: 3,
+        payableAmount: 157.5,
+        currency: 'OMR',
+        requestedBy: null,
+        requestedAt: null,
+        lastDecision: null,
+        callerMayRequest: true,
+        callerMayDecide: false,
+      },
+    }
 
 /** The list's `approvalState` for a draft, read by `invoices.mjs`. */
 export function approvalStateOf(id) {
@@ -75,6 +101,7 @@ const notRequired = () => ({
 })
 
 function step(id, command, body) {
+  if (SWITCHED_OFF) return UNAVAILABLE
   const current = approvals[id]
   if (!current) return { status: 409, body: { code: 'SALES_APPROVAL_NOT_REQUIRED' } }
   const now = new Date().toISOString()
@@ -125,6 +152,8 @@ export default [
     method: 'PUT',
     match: RULE_PATH,
     reply: ({ body }) => {
+      // Switching off is always allowed; switching on needs the deployment's switch.
+      if (SWITCHED_OFF && body?.enabled) return UNAVAILABLE
       if (body?.expectedVersion !== rule.version) {
         return { status: 409, body: { code: 'SALES_APPROVAL_RULE_VERSION_CONFLICT' } }
       }
