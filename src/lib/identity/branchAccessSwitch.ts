@@ -9,14 +9,18 @@ import type { Entitlements } from './entitlements'
  * that names no branch is given every branch (BA-6, `BranchAssignmentService.checkNewPerson`).
  *
  * The server (`FAWTIR_IDENTITY_BRANCH_ACCESS_ENFORCED`, off in production) says so in
- * `GET /v1/me/entitlements` only indirectly: `allBranches` is false, and `branchAdministrator`
- * true, only while it is on. For the Owner and Administrators both read the same either way, and
- * `featureFlags` is always empty, so for them it reads as off.
- * TODO(backend): docs/backend-guides/SETTINGS.md row 7.6.
+ * `GET /v1/me/entitlements` as `branchAccessEnforced`, the same for every caller. A server older
+ * than the field omits it, which reads as off, so the Owner and Administrators see the screens as
+ * they were. `allBranches` false and `branchAdministrator` true are only ever sent while it is on,
+ * so either still counts as on.
  */
 export function branchAccessOn(session: Entitlements | null): boolean {
   if (!session) return false
-  return session.branchAdministrator === true || session.allBranches === false
+  return (
+    session.branchAccessEnforced === true ||
+    session.branchAdministrator === true ||
+    session.allBranches === false
+  )
 }
 
 export function useBranchAccessOn(): boolean {

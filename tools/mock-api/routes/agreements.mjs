@@ -56,12 +56,15 @@ const ENTITLEMENTS = {
   branchIds: [],
   branchAdministrator: false,
   manageableBranchIds: [],
+  branchAccessEnforced: ['on', 'owner'].includes(process.env.MOCK_BRANCH_ACCESS),
 }
 
 /**
- * `MOCK_BRANCH_ACCESS=on`: branch access switched on, seen by the one session the server marks
- * for it, a branch administrator (Hafidh, of Nizwa): `allBranches` false and `branchAdministrator`
- * true, with `branch.users.manage` instead of the Administrator's `admin.users.manage` (LG-3).
+ * `MOCK_BRANCH_ACCESS=on`: branch access switched on (`branchAccessEnforced` true), seen as a
+ * branch administrator (Hafidh, of Nizwa): `allBranches` false and `branchAdministrator` true, with
+ * `branch.users.manage` instead of the Administrator's `admin.users.manage` (LG-3).
+ * `MOCK_BRANCH_ACCESS=owner`: switched on, seen as the Owner, who still sees every branch.
+ * Unset: switched off, `branchAccessEnforced` false.
  */
 const BRANCH_ADMINISTRATOR = {
   ...ENTITLEMENTS,

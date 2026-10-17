@@ -15,23 +15,9 @@ import { branchAccessOn } from '../../lib/identity/branchAccessSwitch'
 /** Branch access screens (Business Rules BA-1, BA-2, OW-1, OW-4, RL-1, RL-2, RL-3, LG-3). */
 
 /**
- * The switch. The server tells only a branch administrator that branch access is on
- * (`allBranches` false, `branchAdministrator` true); an Administrator's session reads the same
- * either way (SETTINGS.md row 7.6). `forcedOn` stands in for that missing signal in the "on"
- * fixture, so the Administrator's screens are tested as they will be once it exists; the "off"
- * fixture and the branch administrator's tests read the real session.
+ * The switch is read from the session: `branchAccessEnforced` on `GET /v1/me/entitlements`. The
+ * fixtures below are sessions with it on; "Branch access off" reads the Owner with it off.
  */
-const switchState = vi.hoisted(() => ({ forcedOn: true }))
-vi.mock('../../lib/identity/branchAccessSwitch', async (importOriginal) => {
-  const real = await importOriginal<typeof import('../../lib/identity/branchAccessSwitch')>()
-  return {
-    ...real,
-    useBranchAccessOn: () => {
-      const fromSession = real.useBranchAccessOn()
-      return switchState.forcedOn || fromSession
-    },
-  }
-})
 
 const OWNER: Entitlements = {
   userId: 'p-owner',
@@ -54,7 +40,11 @@ const OWNER: Entitlements = {
   branchIds: [],
   branchAdministrator: false,
   manageableBranchIds: [],
+  branchAccessEnforced: true,
 }
+
+/** The Owner on a server with branch access off: every branch, and the switch reads false. */
+const OWNER_OFF: Entitlements = { ...OWNER, branchAccessEnforced: false }
 
 const BRANCH_ADMIN: Entitlements = {
   ...OWNER,
@@ -213,7 +203,6 @@ beforeEach(async () => {
   forgetEntitlements()
   forgetSubscriptionStanding()
   who = OWNER
-  switchState.forcedOn = true
   answers = {
     [PEOPLE_URL]: () =>
       json(200, {
@@ -281,15 +270,27 @@ function renderAt(path: string) {
 }
 
 describe('The switch', () => {
-  it('reads on only from what the deployed server says: a branch administrator, or not every branch', () => {
+  it('reads on from branchAccessEnforced, for the Owner and Administrators too', () => {
     expect(branchAccessOn(null)).toBe(false)
-    // While FAWTIR_IDENTITY_BRANCH_ACCESS_ENFORCED is off everyone sees every branch.
-    expect(branchAccessOn(OWNER)).toBe(false)
-    expect(branchAccessOn({ ...OWNER, isOwner: false, allBranches: undefined })).toBe(false)
-    expect(branchAccessOn(BRANCH_ADMIN)).toBe(true)
+    expect(branchAccessOn(OWNER)).toBe(true)
+    expect(branchAccessOn({ ...OWNER, isOwner: false })).toBe(true)
+    expect(branchAccessOn(OWNER_OFF)).toBe(false)
+    expect(branchAccessOn({ ...OWNER_OFF, isOwner: false, allBranches: undefined })).toBe(false)
+  })
+
+  it('reads a server that omits the field as off', () => {
+    const older: Entitlements = { ...OWNER }
+    delete older.branchAccessEnforced
+    expect(branchAccessOn(older)).toBe(false)
+  })
+
+  it('still reads on from a branch administrator, or not every branch, without the field', () => {
+    const older: Entitlements = { ...BRANCH_ADMIN }
+    delete older.branchAccessEnforced
+    expect(branchAccessOn(older)).toBe(true)
     expect(
       branchAccessOn({
-        ...BRANCH_ADMIN,
+        ...older,
         branchAdministrator: false,
         permissions: ['invoice.read'],
       }),
@@ -299,7 +300,7 @@ describe('The switch', () => {
 
 describe('Branch access off (production today)', () => {
   beforeEach(() => {
-    switchState.forcedOn = false
+    who = OWNER_OFF
   })
 
   it('draws Team members as before: no Branches column, no Owner mark, no link', async () => {
@@ -387,7 +388,6 @@ describe('Team members', () => {
   })
 
   it('lets a branch administrator see their people, without asking for the invitation list', async () => {
-    switchState.forcedOn = false
     who = BRANCH_ADMIN
     answers[PEOPLE_URL] = () =>
       json(200, { content: [LAILA], totalElements: 1, totalPages: 1, number: 0, size: 100 })
@@ -462,7 +462,6 @@ describe('Invite someone', () => {
   })
 
   it('view only clears the role; a branch administrator is offered only their branches and never Administrator', async () => {
-    switchState.forcedOn = false
     who = BRANCH_ADMIN
     renderAt('/settings/team/invite')
     expect(await screen.findByRole('radio', { name: /Accountant/ })).toBeTruthy()

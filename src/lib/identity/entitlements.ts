@@ -41,6 +41,11 @@ export type Entitlements = {
   branchAdministrator?: boolean
   /** The branches a branch administrator may give people; empty for everyone else. */
   manageableBranchIds?: string[]
+  /**
+   * Branch access is switched on for this server (`FAWTIR_IDENTITY_BRANCH_ACCESS_ENFORCED`), the
+   * same for every caller. Absent from older servers, which means off.
+   */
+  branchAccessEnforced?: boolean
 }
 
 /**

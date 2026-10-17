@@ -168,9 +168,9 @@ All of it waits for branch access to be switched on (`FAWTIR_IDENTITY_BRANCH_ACC
 in production): while it is off, Invite someone, Team members and a branch's "Who works there" are
 drawn exactly as before, the invitation names no branch (the server then gives every branch, BA-6),
 and a person's page goes back to Team members. The screens read "on" from `GET /v1/me/entitlements`
-(`src/lib/identity/branchAccessSwitch.ts`), which says it only for a branch administrator
-(`branchAdministrator` true, `allBranches` false).
+(`src/lib/identity/branchAccessSwitch.ts`): `branchAccessEnforced` true, or, for a branch
+administrator, `branchAdministrator` true or `allBranches` false. A server without the field reads off.
 
 | # | Element on the screen | What the backend needs to add |
 |---|---|---|
-| 7.6 | Every branch access screen above, for the Owner and Administrators. Their session reads the same whether branch access is on or off (`allBranches` true, `branchAdministrator` false, `featureFlags` empty), so for them the screens stay as they were even once it is on | A field on `GET /v1/me/entitlements` that says whether branch access is enforced on this server, for example `branchAccessEnforced: boolean` (or a `featureFlags` entry), true exactly when `FAWTIR_IDENTITY_BRANCH_ACCESS_ENFORCED` is |
+| 7.6 | Every branch access screen above, for the Owner and Administrators. Their session reads the same whether branch access is on or off (`allBranches` true, `branchAdministrator` false, `featureFlags` empty), so for them the screens stay as they were even once it is on | **Closed by backend PR #616** (Rixon-agency/fawtir-backend): `GET /v1/me/entitlements` carries `branchAccessEnforced: boolean`, true exactly when `FAWTIR_IDENTITY_BRANCH_ACCESS_ENFORCED` is, for every caller. The screens read it; a server before #616 omits it, which reads off |
