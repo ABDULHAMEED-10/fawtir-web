@@ -49,13 +49,14 @@ export function SignupPendingPage() {
         <SignupClosedPanel status={progress.status} />
       ) : progress.kind === 'phase' ? (
         <FawtaraStatusPanel
-          // TODO(backend): approval is all the status read reports, so an approved account is
-          // shown as still to send its portal request. ONBOARDING.md row 1.9.
+          // TODO(backend): approval is all the status read reports. Approval follows Fawtir's
+          // acceptance of the portal request, so an approved account is shown as being registered
+          // on the SMP until a read reports the connection. ONBOARDING.md row 1.9.
           phase={progress.phase}
           email={email}
           choice={restored.plan ? restored : undefined}
           action={
-            progress.phase === 'request' ? (
+            progress.phase === 'registering' ? (
               <Button type="button" className="gap-1.5" onClick={() => navigate('/login')}>
                 {t('signupPending.approved.signIn')}
                 <ChevronRightIcon size={18} className="rtl:rotate-180" />
