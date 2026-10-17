@@ -22,6 +22,84 @@ const SUBSCRIPTION_NOTICES = [
   },
 ]
 
+/**
+ * The subscription the shells read. Active by default; `MOCK_SUBSCRIPTION_STATE` picks one of the
+ * read-only states below (with the restrictions switch on), for screenshots of the read-only line:
+ *
+ *   MOCK_SUBSCRIPTION_STATE=suspended node tools/mock-api/server.mjs
+ *
+ * `restrictionsOff` is a suspended subscription with the switch off: nothing is restricted.
+ */
+const SUBSCRIPTION_ACTIVE = {
+  tracked: true,
+  access: 'ACTIVE',
+  restrictionsEnforced: false,
+  today: TODAY,
+  planCode: 'BUSINESS',
+  planName: 'Business',
+  billingCycle: 'MONTHLY',
+  periodPrice: '80.000',
+  trialStartsOn: null,
+  trialEndsOn: null,
+  trialDay: null,
+  trialDaysLeft: null,
+  paidThrough: '2026-10-31',
+  renewsOn: '2026-11-01',
+  graceDays: 7,
+  graceUntil: null,
+  autoRenew: false,
+  autoRenewAvailable: false,
+  autoRenewChangedAt: null,
+  cancelAtPeriodEnd: false,
+  accessEndsOn: null,
+  scheduledChange: null,
+  enterprise: null,
+  restriction: null,
+}
+
+const LAPSED = { paidThrough: '2026-09-30', renewsOn: '2026-10-01', graceUntil: '2026-10-07' }
+const SUBSCRIPTION_STATES = {
+  suspended: { access: 'PAYMENT_REQUIRED', restrictionsEnforced: true, restriction: 'SUBSCRIPTION_SUSPENDED', ...LAPSED },
+  trialEnded: {
+    access: 'PAYMENT_REQUIRED',
+    restrictionsEnforced: true,
+    restriction: 'SUBSCRIPTION_SUSPENDED',
+    trialStartsOn: '2026-09-24',
+    trialEndsOn: '2026-10-07',
+    paidThrough: null,
+    renewsOn: null,
+  },
+  cancelled: {
+    access: 'CANCELLED',
+    restrictionsEnforced: true,
+    restriction: 'SUBSCRIPTION_CANCELLED',
+    cancelAtPeriodEnd: true,
+    accessEndsOn: '2026-09-30',
+    ...LAPSED,
+  },
+  notStarted: {
+    access: 'PAYMENT_REQUIRED',
+    restrictionsEnforced: true,
+    restriction: 'SUBSCRIPTION_NOT_STARTED',
+    paidThrough: null,
+    renewsOn: null,
+  },
+  enterpriseTerms: {
+    tracked: false,
+    access: 'NOT_TRACKED',
+    restrictionsEnforced: true,
+    restriction: 'SUBSCRIPTION_NOT_STARTED',
+    planCode: 'ENTERPRISE',
+    planName: 'Enterprise',
+    billingCycle: null,
+    periodPrice: null,
+    paidThrough: null,
+    renewsOn: null,
+    enterprise: { termsSet: false },
+  },
+  restrictionsOff: { access: 'PAYMENT_REQUIRED', restrictionsEnforced: false, restriction: null, ...LAPSED },
+}
+
 const ROLES = [
   {
     id: 'r-admin',
@@ -108,6 +186,99 @@ const CATALOGUE = [
   catalogued('BUSINESS_PLUS', 'Business Plus', 'الأعمال بلس', '150.000', 3000, 10, null, 3),
 ]
 
+/**
+ * A downgrade to Starter waits for the 1 November renewal, so Settings › Plan offers the choice
+ * of what switches off (`DowngradeSwitchOffService`). Starter includes 2 users and 1 branch: one
+ * of the three users below (`paymentsRecurring.mjs` names them) and one branch must go. The
+ * owner and the Head Branch always stay. Withdrawing the downgrade clears it and the choice.
+ */
+const SCHEDULED_CHANGE = {
+  planCode: 'STARTER',
+  planName: 'Starter',
+  billingCycle: 'MONTHLY',
+  periodPrice: '35.000',
+  effectiveOn: '2026-11-01',
+}
+let scheduledChange = SCHEDULED_CHANGE
+
+const SEATS = [
+  { userId: 'u-yusuf', addedAt: '2026-08-02T08:00:00Z', kept: 'OWNER' },
+  { userId: 'u-hafidh', addedAt: '2026-08-20T08:00:00Z', kept: null },
+  { userId: 'u-aisha', addedAt: '2026-09-14T08:00:00Z', kept: null },
+]
+const OPEN_BRANCHES = [
+  {
+    branchId: 'b-main',
+    name: 'Al Bahja Coffee (Main)',
+    addedAt: '2026-08-02T08:00:00Z',
+    kept: 'HEAD_BRANCH',
+  },
+  {
+    branchId: 'b-seeb',
+    name: 'Al Bahja Coffee (Seeb)',
+    addedAt: '2026-09-01T08:00:00Z',
+    kept: null,
+  },
+]
+let switchOffChoice = null
+
+/** As the server: the chosen first, then the most recently added, `excess` of them. */
+function goingOff(rows, idOf, chosen, excess) {
+  if (excess <= 0) return new Set()
+  const eligible = rows.filter((row) => row.kept === null)
+  const order = [
+    ...chosen.filter((id) => eligible.some((row) => idOf(row) === id)),
+    ...[...eligible].sort((a, b) => b.addedAt.localeCompare(a.addedAt)).map(idOf),
+  ]
+  return new Set([...new Set(order)].slice(0, excess))
+}
+
+function switchOffView() {
+  const chosenUsers = switchOffChoice?.userIds ?? []
+  const chosenBranches = switchOffChoice?.branchIds ?? []
+  const peopleIncluded = 2
+  const branchesIncluded = 1
+  const offUsers = goingOff(SEATS, (row) => row.userId, chosenUsers, SEATS.length - peopleIncluded)
+  const offBranches = goingOff(
+    OPEN_BRANCHES,
+    (row) => row.branchId,
+    chosenBranches,
+    OPEN_BRANCHES.length - branchesIncluded,
+  )
+  return {
+    planCode: scheduledChange.planCode,
+    planVersionId: 'pv-STARTER',
+    effectiveOn: scheduledChange.effectiveOn,
+    peopleIncluded,
+    branchesIncluded,
+    activeUsers: SEATS.length,
+    openBranches: OPEN_BRANCHES.length,
+    choiceRecordedAt: switchOffChoice?.recordedAt ?? null,
+    users: SEATS.map((row) => ({
+      ...row,
+      candidate: row.kept === null,
+      chosen: chosenUsers.includes(row.userId),
+      switchesOff: offUsers.has(row.userId),
+    })),
+    branches: OPEN_BRANCHES.map((row) => ({
+      ...row,
+      candidate: row.kept === null,
+      chosen: chosenBranches.includes(row.branchId),
+      switchesOff: offBranches.has(row.branchId),
+    })),
+  }
+}
+
+const NO_DOWNGRADE = {
+  status: 409,
+  body: {
+    type: 'https://api.fawtir.om/problems/downgrade-choice-not-allowed',
+    title: 'Conflict',
+    status: 409,
+    detail: 'No downgrade is waiting for the next renewal.',
+  },
+}
+
 export default [
   { match: '/api/v1/roles', reply: () => ROLES },
   { match: '/api/v1/users/invitations', reply: () => INVITATIONS },
@@ -122,6 +293,7 @@ export default [
         peopleIncluded: 5,
         branchesIncluded: 2,
         monthlyPrice: '80.000',
+        overagePricePerInvoice: '0.060',
       },
       usage: {
         period: { start: '2026-10-01', end: '2026-10-31', today: TODAY },
@@ -133,6 +305,32 @@ export default [
       activePeople: 4,
       openInvitations: 1,
       activeBranches: 2,
+      // Plan v4 §6 (AllowanceUsage): issued and received apart, per branch. Received documents
+      // sit on the row with no branch, so the rows add up to `used`.
+      allowance: {
+        periodStart: '2026-10-01',
+        periodEnd: '2026-10-31',
+        resetsOn: '2026-11-01',
+        planDocuments: 1000,
+        extraDocuments: 0,
+        totalAllowance: 1000,
+        issued: 380,
+        resubmissions: 6,
+        received: 32,
+        receivedHidden: 0,
+        used: 412,
+        planUsed: 412,
+        extraUsed: 0,
+        left: 588,
+        warningPercent: null,
+        issuingAllowed: true,
+        extrasExpireOn: '2026-10-31',
+        byBranch: [
+          { branchId: 'b-main', branchName: 'Al Bahja Coffee (Muscat)', issued: 251, received: 0, total: 251 },
+          { branchId: 'b-nizwa', branchName: 'Al Bahja Coffee (Nizwa)', issued: 127, received: 0, total: 127 },
+          { branchId: null, branchName: null, issued: 2, received: 32, total: 34 },
+        ],
+      },
     }),
   },
   // Trial-ending and grace reminders (backend #515, V299), for the bell. Read state lives here so
@@ -155,30 +353,46 @@ export default [
     },
   },
   {
+    match: '/api/v1/settings/subscription/scheduled-change/switch-off',
+    reply: () => (scheduledChange ? switchOffView() : NO_DOWNGRADE),
+  },
+  {
+    method: 'PUT',
+    match: '/api/v1/settings/subscription/scheduled-change/switch-off',
+    reply: ({ body }) => {
+      if (!scheduledChange) return NO_DOWNGRADE
+      const userIds = [...new Set(body?.userIds ?? [])]
+      const branchIds = [...new Set(body?.branchIds ?? [])]
+      const users = userIds.every((id) =>
+        SEATS.some((row) => row.userId === id && row.kept === null),
+      )
+      const branches = branchIds.every((id) =>
+        OPEN_BRANCHES.some((row) => row.branchId === id && row.kept === null),
+      )
+      if (!users || !branches) return NO_DOWNGRADE
+      switchOffChoice = { userIds, branchIds, recordedAt: `${TODAY}T10:00:00Z` }
+      return switchOffView()
+    },
+  },
+  {
+    method: 'DELETE',
+    match: '/api/v1/settings/subscription/scheduled-change',
+    reply: () => {
+      scheduledChange = null
+      switchOffChoice = null
+      return subscription()
+    },
+  },
+  {
     match: '/api/v1/settings/subscription',
-    reply: () => ({
-      tracked: true,
-      access: 'ACTIVE',
-      restrictionsEnforced: false,
-      today: TODAY,
-      planCode: 'BUSINESS',
-      planName: 'Business',
-      billingCycle: 'MONTHLY',
-      periodPrice: '80.000',
-      trialStartsOn: null,
-      trialEndsOn: null,
-      trialDay: null,
-      trialDaysLeft: null,
-      paidThrough: '2026-10-31',
-      renewsOn: '2026-11-01',
-      graceDays: 7,
-      graceUntil: null,
-      autoRenew: false,
-      autoRenewAvailable: false,
-      autoRenewChangedAt: null,
-      cancelAtPeriodEnd: false,
-      accessEndsOn: null,
-      scheduledChange: null,
-    }),
+    reply: () => subscription(),
   },
 ]
+
+function subscription() {
+  return {
+    ...SUBSCRIPTION_ACTIVE,
+    ...(SUBSCRIPTION_STATES[process.env.MOCK_SUBSCRIPTION_STATE ?? ''] ?? {}),
+    scheduledChange,
+  }
+}

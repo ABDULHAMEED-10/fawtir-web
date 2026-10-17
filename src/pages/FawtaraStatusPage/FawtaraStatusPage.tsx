@@ -17,8 +17,8 @@ import { FawtaraStatusPanel } from './FawtaraStatusPanel'
  * asks the reader to sign in or continue the registration instead of assuming one.
  *
  * TODO(backend): nothing reports the portal connection yet (requested, accepted, registered on
- * the SMP, declined, expired), so an approved account is shown as still to send its request, and
- * a signed-in session has no read of its own here; once one reports it, sign-in should land here
+ * the SMP, declined, expired), so an account under review is always asked for its request and an
+ * approved one is shown as being registered, and a signed-in session has no read of its own here; once one reports it, sign-in should land here
  * until the account is connected, then on the dashboard. ONBOARDING.md rows 1.7 to 1.9.
  */
 export function FawtaraStatusPage() {

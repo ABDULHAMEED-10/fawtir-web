@@ -34,6 +34,7 @@ import { netDaysFor, useReferenceData } from '../../lib/reference/referenceData'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { selfBilledIssueMessageKey } from '../../lib/selfBillingRefusals'
 import { can, useSession } from '../../lib/session/session'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import { formatAmount } from '../../lib/format'
 import {
   SELF_BILL_KINDS,
@@ -337,6 +338,8 @@ function SelfBillComposer() {
   const navigate = useNavigate()
   const { id: routeId } = useParams<{ id: string }>()
   const session = useSession()
+  // Issuing stops while the subscription is read-only (ST-2): the action is hidden, not greyed.
+  const mayIssue = useSubscriptionAllows('ISSUE_DOCUMENTS')
   const reference = useReferenceData()
   const today = muscatToday()
 
@@ -1345,7 +1348,7 @@ function SelfBillComposer() {
               {t('newSelfBill.actions.saveDraft')}
             </button>
           ) : null}
-          {canSave ? (
+          {canSave && mayIssue ? (
             <button
               type="button"
               disabled={!editable || saving}

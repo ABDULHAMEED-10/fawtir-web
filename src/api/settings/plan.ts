@@ -36,12 +36,59 @@ export type PlanUsageDto = {
   raisedToday: number
 }
 
+/** One branch's share of the month. The row with a null branch holds what belongs to no branch. */
+export type BranchAllowanceUsageDto = {
+  branchId: string | null
+  branchName: string | null
+  issued: number
+  received: number
+  total: number
+}
+
+/**
+ * The month's allowance as plan v4 §6 shows it (`AllowanceUsage`): the plan's documents and the
+ * extras apart, issued and received apart, per branch and in total. Every figure is the server's;
+ * the per-branch rows add up exactly to `used`.
+ */
+export type AllowanceUsageDto = {
+  periodStart: string
+  periodEnd: string
+  resetsOn: string
+  planDocuments: number
+  /** Extra documents active this month, bought and paid or granted. */
+  extraDocuments: number
+  totalAllowance: number
+  issued: number
+  resubmissions: number
+  /** Supplier documents that used this month's allowance. */
+  received: number
+  /** Received documents held now and waiting to open; not counted in `used` until they open. */
+  receivedHidden: number
+  used: number
+  planUsed: number
+  extraUsed: number
+  left: number
+  /** The highest of 80, 90 and 100 reached against `totalAllowance`, or null. */
+  warningPercent: number | null
+  issuingAllowed: boolean
+  extrasExpireOn: string | null
+  byBranch: BranchAllowanceUsageDto[]
+}
+
 export type PlanOverviewDto = {
   plan: SubscriptionPlanDto
   usage: PlanUsageDto
   activePeople: number
   openInvitations: number
   activeBranches: number
+  /** Absent from a server older than plan v4 §6; the screen then shows `usage` alone. */
+  allowance?: AllowanceUsageDto | null
+  /**
+   * Null unless the company is Enterprise (F22, V348). While `termsSet` is false the plan, quota
+   * and allowance above are the platform's fallback plan, not the company's terms, and are not
+   * shown as its plan. Absent from a server before F22.
+   */
+  enterprise?: { termsSet: boolean } | null
 }
 
 export function loadPlanOverview(): Promise<PlanOverviewDto> {

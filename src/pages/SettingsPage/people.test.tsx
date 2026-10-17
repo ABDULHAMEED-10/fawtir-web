@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { resetSharedRequests } from '../../api'
+import { forgetSubscriptionStanding } from '../../lib/subscriptionReadOnly'
 import { TeamPage } from './TeamPage'
 import { SigningInPage } from './SigningInPage'
 import { RolesPage } from './RolesPage'
@@ -94,6 +95,14 @@ function requests(): string[] {
     .filter((line) => !isShellRead(line))
 }
 
+/**
+ * The same, leaving out the subscription too: the read-only line above every screen reads it for
+ * anyone who may (ST-2). For pages that do not read it themselves.
+ */
+function pageRequests(): string[] {
+  return requests().filter((line) => line !== `GET ${SUBSCRIPTION}`)
+}
+
 const NOT_AVAILABLE = 'Not available yet'
 
 function json(status: number, body?: unknown) {
@@ -111,6 +120,7 @@ beforeEach(async () => {
   await i18n.changeLanguage('en')
   resetSharedRequests()
   forgetEntitlements()
+  forgetSubscriptionStanding()
   who = ADMIN
   answers = {
     [PEOPLE]: () => json(200, USERS),
@@ -186,7 +196,7 @@ describe('Team members', () => {
     fireEvent.click(screen.getByRole('button', { name: /Without two-step/ }))
     expect(screen.queryByText('Mona Rashid')).toBeNull()
     expect(screen.getByText('clerk@real.example')).toBeTruthy()
-    expect(new Set(requests())).toEqual(new Set([`GET ${PEOPLE}`, `GET ${INVITED}`, `GET ${ROLES}`]))
+    expect(new Set(pageRequests())).toEqual(new Set([`GET ${PEOPLE}`, `GET ${INVITED}`, `GET ${ROLES}`]))
   })
 
   it('says no access without admin.users.manage, and asks for nobody', async () => {
@@ -217,7 +227,7 @@ describe('Signing in', () => {
     expect(screen.getAllByText(NOT_AVAILABLE).length).toBeGreaterThanOrEqual(3)
     fireEvent.click(requireAll)
     expect(screen.queryByRole('button', { name: i18n.t('signingIn.save') })).toBeNull()
-    expect(new Set(requests())).toEqual(new Set([`GET ${PEOPLE}`, `GET ${ROLES}`]))
+    expect(new Set(pageRequests())).toEqual(new Set([`GET ${PEOPLE}`, `GET ${ROLES}`]))
   })
 })
 
@@ -305,7 +315,7 @@ describe('Invite someone', () => {
     fireEvent.click(screen.getByRole('button', { name: i18n.t('people.invite.send') }))
     expect(await screen.findByText('Invitation sent to y@real.example.')).toBeTruthy()
     expect(sent).toEqual({ email: 'y@real.example', roleCodes: [] })
-    expect(requests()).toEqual([`GET ${ROLES}`, 'POST /api/v1/users/invitations'])
+    expect(pageRequests()).toEqual([`GET ${ROLES}`, 'POST /api/v1/users/invitations'])
   })
 
   it('says why an invitation was refused and claims no success', async () => {
@@ -347,6 +357,65 @@ describe('Invite someone', () => {
     expect(link.getAttribute('href')).toBe('/settings/bills')
     expect(screen.queryByText(/Invitation sent/)).toBeNull()
   })
+
+  it('at the plan\'s user capacity, leads whoever manages the plan to buy a place (US-1)', async () => {
+    who = { ...ADMIN, permissions: [...ADMIN.permissions, 'tenant.plan.manage'] } as Entitlements
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === '/api/v1/me/entitlements') return json(200, who)
+      if (url === '/api/v1/users/invitations' && init?.method === 'POST')
+        return json(409, {
+          type: 'https://api.fawtir.om/problems/extra-place-required',
+          title: 'Conflict', status: 409, detail: 'English detail', kind: 'USER', included: 5, inUse: 5, capacity: 5,
+        })
+      const answer = answers[url]
+      return answer ? answer() : json(404, { type: 'about:blank' })
+    })
+    renderAt('/settings/team/invite')
+    fireEvent.change(await screen.findByRole('textbox', { name: /Email/ }), { target: { value: 'x@real.example' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('people.invite.send') }))
+    expect(await screen.findByText(i18n.t('paidExtras.refusal.extraPlace.USER'))).toBeTruthy()
+    const link = screen.getByRole('link', { name: i18n.t('paidExtras.refusal.extraPlaceLink') })
+    expect(link.getAttribute('href')).toBe('/settings/plan/extras')
+    expect(screen.queryByText('English detail')).toBeNull()
+  })
+})
+
+describe('while the subscription is read-only (ST-2)', () => {
+  const SUSPENDED = {
+    ...NOT_TRACKED, tracked: true, access: 'PAYMENT_REQUIRED', restrictionsEnforced: true, billingCycle: 'MONTHLY',
+    paidThrough: '2026-09-30', renewsOn: '2026-10-01', graceUntil: '2026-10-07', enterprise: null,
+    restriction: 'SUBSCRIPTION_SUSPENDED',
+  }
+  const invite = () => screen.queryByRole('link', { name: i18n.t('team.inviteSomeone') })
+
+  it('offers Invite on the team while the subscription is usable', async () => {
+    renderAt('/settings/team')
+    await screen.findByText('Mona Rashid')
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url === SUBSCRIPTION)).toBe(true))
+    expect(invite()).toBeTruthy()
+  })
+
+  it('hides Invite but keeps the lists, and does not draw the invite form', async () => {
+    answers[SUBSCRIPTION] = () => json(200, SUSPENDED)
+    renderAt('/settings/team')
+    await screen.findByText('Mona Rashid')
+    await waitFor(() => expect(invite()).toBeNull())
+    expect(screen.getByText('clerk@real.example')).toBeTruthy()
+  })
+
+  it('does not draw the invite form at its own address either', async () => {
+    answers[SUBSCRIPTION] = () => json(200, SUSPENDED)
+    renderAt('/settings/team/invite')
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url === SUBSCRIPTION)).toBe(true))
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: /Email/ })).toBeNull())
+    expect(screen.queryByRole('button', { name: i18n.t('people.invite.send') })).toBeNull()
+  })
+
+  it('hides nothing with the backend switch off', async () => {
+    answers[SUBSCRIPTION] = () => json(200, { ...SUSPENDED, restrictionsEnforced: false, restriction: null })
+    renderAt('/settings/team/invite')
+    expect(await screen.findByRole('textbox', { name: /Email/ })).toBeTruthy()
+  })
 })
 
 describe('Plan and usage', () => {
@@ -378,7 +447,10 @@ describe('Plan and usage', () => {
     expect(screen.getByRole('link', { name: 'Open ERP integration' }).getAttribute('href')).toBe('/settings/erp')
     // Without tenant.plan.manage no move is offered at all.
     expect(screen.queryByRole('button', { name: /Move/ })).toBeNull()
-    expect(new Set(requests())).toEqual(new Set([`GET ${SUBSCRIPTION}`, `GET ${PUBLIC_PLANS}`]))
+    // The paid places and the add-on (US-1, BR-3, ER-1) are read once for both of their cards.
+    expect(new Set(requests())).toEqual(
+      new Set([`GET ${SUBSCRIPTION}`, `GET ${PUBLIC_PLANS}`, 'GET /api/v1/settings/plan/extras']),
+    )
     expect(fetchMock.mock.calls.some(([url]) => url === PLAN)).toBe(true)
   })
 

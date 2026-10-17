@@ -8,6 +8,7 @@ import { PRIMARY_BUTTON, SECONDARY_BUTTON, SectionCard, SecondaryLink } from './
 import { ConnectionFailure } from './connections/connectionParts'
 import { useMutation } from './connections/connectionData'
 import { useErpAccess } from '../../hooks/useErpAccess'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import { sourceSystemName } from '../../lib/erp/sourceSystem'
 import {
   createErpConnection,
@@ -47,6 +48,9 @@ export function ErpConnectPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { access, ready } = useErpAccess()
+  // A new connection is ERP work, which stops while the subscription is read-only (ST-2): the form
+  // is not offered, and the line at the top of the screen says why.
+  const erpAllowed = useSubscriptionAllows('ERP')
   const mutation = useMutation()
 
   const [name, setName] = useState('')
@@ -86,14 +90,14 @@ export function ErpConnectPage() {
       </SettingsShell>
     )
   }
-  if (!access.manage) {
+  if (!access.manage || !erpAllowed) {
     return (
       <SettingsShell group="integration">
         <SettingsHeader
           title={t('erp.connections.create.heading')}
           subtitle={t('erp.connections.create.intro')}
         />
-        <PermissionDeniedNotice />
+        {access.manage ? null : <PermissionDeniedNotice />}
         <div>
           <SecondaryLink to="/settings/erp/connections">
             {t('erp.connections.backToList')}

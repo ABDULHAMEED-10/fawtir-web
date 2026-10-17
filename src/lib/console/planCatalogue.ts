@@ -14,6 +14,12 @@ export const PLANS_READ_PERMISSION = 'platform.plans.read'
 export const PLANS_MANAGE_PERMISSION = 'platform.plans.manage'
 export const PLANS_PATH = '/v1/platform/plans'
 
+/**
+ * The trial is always 14 days (business rule TR-1, decided 16 Oct 2026): the console only switches
+ * it on or off per plan, so the editor never sends another length.
+ */
+export const TRIAL_DAYS = 14
+
 export const planPath = (code: string) => `${PLANS_PATH}/${encodeURIComponent(code)}`
 export const planHistoryPath = (code: string) => `${planPath(code)}/history`
 
@@ -140,7 +146,8 @@ export type PlanFormValues = {
   extraBranchPrice: string
   overagePricePerInvoice: string
   annualFreeMonths: string
-  trialDays: string
+  /** The 14-day trial is offered on this plan ({@link TRIAL_DAYS}). */
+  trial: boolean
   trialDocuments: string
   sortOrder: string
   apiAccess: boolean
@@ -169,7 +176,6 @@ export const PLAN_FIELD_ORDER: readonly PlanField[] = [
   'extraBranchPrice',
   'overagePricePerInvoice',
   'annualFreeMonths',
-  'trialDays',
   'trialDocuments',
   'sortOrder',
   'reason',
@@ -208,7 +214,7 @@ export function emptyPlanForm(): PlanFormValues {
     overagePricePerInvoice: '',
     // The column's own default (V265): two months free unless the operator says otherwise.
     annualFreeMonths: '2',
-    trialDays: '',
+    trial: false,
     trialDocuments: '',
     sortOrder: '0',
     apiAccess: false,
@@ -244,7 +250,8 @@ export function planFormFrom(plan: CatalogueAdminPlan): PlanFormValues {
     extraBranchPrice: decimal(terms.extraBranchPrice),
     overagePricePerInvoice: decimal(terms.overagePricePerInvoice),
     annualFreeMonths: String(plan.annualFreeMonths),
-    trialDays: optionalCount(plan.trialDays),
+    // Any stored length reads as "on": a save then sends the fixed 14 days (TR-1).
+    trial: plan.trialDays !== null,
     trialDocuments: optionalCount(plan.trialDocuments),
     sortOrder: String(plan.sortOrder),
     apiAccess: terms.apiAccess,
@@ -372,16 +379,10 @@ export function validatePlanForm(
       max: 11,
       outOfRange: 'console.plans.validation.freeMonths',
     }),
-    trialDays: whole(values.trialDays, {
-      required: false,
-      min: 1,
-      max: 90,
-      outOfRange: 'console.plans.validation.trialDays',
-    }),
     trialDocuments:
       whole(values.trialDocuments, { required: false, min: 1 }) ??
-      (values.trialDocuments.trim() && !values.trialDays.trim()
-        ? 'console.plans.validation.trialDocumentsNeedDays'
+      (values.trialDocuments.trim() && !values.trial
+        ? 'console.plans.validation.trialDocumentsNeedTrial'
         : undefined),
     sortOrder: whole(values.sortOrder, { required: true, min: INT_MIN }),
     reason: !needsReason
@@ -434,7 +435,7 @@ export function toPlanRequest(
     recommended: values.recommended,
     sortOrder: Number(values.sortOrder.trim()),
     annualFreeMonths: Number(values.annualFreeMonths.trim()),
-    trialDays: count(values.trialDays),
+    trialDays: values.trial ? TRIAL_DAYS : null,
     trialDocuments: count(values.trialDocuments),
     monthlyPrice: amount(values.monthlyPrice) ?? '0.000',
     invoicesPerMonth: Number(values.invoicesPerMonth.trim()),
@@ -558,7 +559,6 @@ const SERVER_FIELDS: ReadonlyMap<string, PlanField> = new Map<string, PlanField>
   ['peopleIncluded', 'peopleIncluded'],
   ['branchesIncluded', 'branchesIncluded'],
   ['annualFreeMonths', 'annualFreeMonths'],
-  ['trialDays', 'trialDays'],
   ['trialDocuments', 'trialDocuments'],
   ['sortOrder', 'sortOrder'],
   ['reason', 'reason'],
@@ -590,6 +590,9 @@ export function describePlanSaveFailure(error: unknown, mode: 'add' | 'edit'): P
     }
     if (mode === 'edit' && (error.status === 412 || error.status === 409)) {
       return { fieldErrors: {}, conflict: true, formError: { key: 'console.plans.conflict' } }
+    }
+    if (error.status === 400 && error.problemType === 'trial-length-fixed') {
+      return { ...none, formError: { key: 'console.plans.validation.trialFixed' } }
     }
     if (error.status === 400) {
       const fieldErrors: PlanFieldErrors = {}

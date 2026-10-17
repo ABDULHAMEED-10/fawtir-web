@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { DateField, Input, Select, Switch } from '../../components/ui'
 import { useCan } from '../../lib/session/session'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import { useApiRead } from '../../hooks'
 import { GOVERNORATES, BRANCH_BEHAVIOUR, firstInvoiceFor } from '../../lib/settingsCompany'
 import { governorateIdFor, GOVERNORATE_NAMES, type GovernorateId } from '../../lib/governorates'
@@ -17,6 +18,7 @@ import {
   type ParticipantIdStanding,
 } from '../../api/peppol/participantStanding'
 import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
+import { PAID_EXTRAS_ROUTE, extraPlaceRequired } from '../../api/settings/paidExtras'
 import {
   assignInvoicePrefix,
   codeFromName,
@@ -51,7 +53,9 @@ export function AddBranchPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   // Inviting is a user-management action; the link is offered only to those who may.
-  const canInvite = useCan('admin.users.manage')
+  // Nobody new is added while the subscription is read-only (ST-2).
+  const mayAddPeople = useSubscriptionAllows('ADD_PEOPLE')
+  const canInvite = useCan('admin.users.manage') && mayAddPeople
   const { id } = useParams()
 
   /** Opening an existing branch fills the same form from what it already holds. */
@@ -88,6 +92,9 @@ export function AddBranchPage() {
   )
   const [saving, setSaving] = useState(false)
   const [saveFailed, setSaveFailed] = useState(false)
+  // BR-3: at the plan's branch capacity the server asks for a paid place first.
+  const [needsPlace, setNeedsPlace] = useState(false)
+  const mayBuyPlaces = useCan('tenant.plan.manage')
 
   // A reopened branch fills once its real data arrives, not on every keystroke after. The loading
   // gate below hides the form while the fetch is in flight; for one render after it resolves, a
@@ -156,7 +163,8 @@ export function AddBranchPage() {
         await designateHeadOffice(saved.id)
       }
       navigate('/settings/branches')
-    } catch {
+    } catch (error) {
+      setNeedsPlace(extraPlaceRequired(error) === 'BRANCH')
       setSaveFailed(true)
     } finally {
       setSaving(false)
@@ -439,7 +447,18 @@ export function AddBranchPage() {
       {/* Footer */}
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle bg-white px-4 py-3">
         <p className="text-sm font-medium text-text-tertiary">
-          {saveFailed ? (
+          {saveFailed && needsPlace ? (
+            <span role="alert" className="text-danger-700">
+              {t('paidExtras.refusal.extraPlace.BRANCH')}{' '}
+              {mayBuyPlaces ? (
+                <Link to={PAID_EXTRAS_ROUTE} className="font-semibold underline">
+                  {t('paidExtras.refusal.extraPlaceLink')}
+                </Link>
+              ) : (
+                t('paidExtras.refusal.extraPlaceAsk')
+              )}
+            </span>
+          ) : saveFailed ? (
             <span role="alert" className="text-danger-700">
               {t('addBranch.saveFailed')}
             </span>

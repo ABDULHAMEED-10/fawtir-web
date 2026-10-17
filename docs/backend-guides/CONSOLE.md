@@ -46,3 +46,31 @@ register is longer than one page. Amounts below are OMR strings with three decim
 | 1.10 | Search "Name, VAT number or Peppol ID…" | A `q` parameter on `GET /v1/platform/companies` matching name, legal name, tenant code, VAT number and Peppol participant ID across the whole register. Today the search covers name and code on the loaded page, and its placeholder says so |
 | 1.11 | **Filters** and **Sort** | List parameters: `tenantStatus` (the existing `status` is the verification status), and `sort` (`submittedAt,desc` default, `submittedAt,asc`, `tenantName,asc`, and once 1.5 to 1.8 exist `monthlyAmount,desc`, `quotaShare,desc`). Today both run over the loaded page |
 | 1.12 | **Export the list** | `GET /v1/platform/companies/export?format=csv` taking the same filters as the list, behind `platform.tenants.manage`. The button is drawn disabled, with a note, until it exists |
+
+## 2. Tenant page, subscription (`/console/tenants/:id`, real companies)
+
+The page shows the company's subscription, its documents this month with the extra-document
+credits, received-document counting for Enterprise, and the lifecycle history, from
+`GET …/subscription`, `GET …/extra-documents` and `GET …/received-document-counting`. It offers the
+trial exception, the temporary grant and the counting override. These are still missing:
+
+| # | The screen wants | Ask |
+|---|---|---|
+| 2.1 | **Bills and payments** for one company (two tables, each payment linking to the payments queue; refund cases read-only) | `GET /v1/platform/companies/{id}/bills` and `…/payments` (with refund cases), paged, behind `platform.billing.read`. Not drawn until they exist |
+| 2.2 | **History** that reads who, when, what and why, covering grants, give-backs, counting changes and operator plan changes as well as lifecycle events | A history read that unions those sources, newest first with a cursor, and names the actor (operator, customer, system). Today the card lists the subscription read's lifecycle events and shows the actor's id |
+| 2.3 | "Would be read-only now; restrictions are switched off on this server" | `wouldRestrict` on the subscription read: the restriction the company would have if restrictions were enforced. Not drawn until it exists |
+| 2.4 | **Give back documents**: search the company's documents by number or date and pick the ones a Fawtir fault cost the customer | A document lookup for give-back (number, type, issued date, already given back). The give-back route takes document ids the console cannot find today, so the action is not drawn |
+| 2.5 | **Upgrade at no charge** with a required reason, shown in the history | A `reason` on `PUT /v1/platform/companies/{id}/plan`, recorded in the company history. Today the route takes `planCode` only and refuses unknown fields, so the action is not drawn |
+
+## 3. Enterprise terms (`/console/tenants/:id/enterprise-terms`, `/console/enterprise`)
+
+The terms screen reads and writes `GET/PUT /v1/platform/companies/{id}/enterprise-terms` and its
+`/quote`, and lists companies from `GET /v1/platform/enterprise-terms` (V348). The customer's
+Plan and usage reads `enterprise.termsSet` on `/v1/settings/plan` and `/v1/settings/subscription`.
+
+| # | What the screen shows | What the backend must add |
+|---|---|---|
+| 3.1 | **ERP add-on price a month** on the terms form (empty = not offered as a paid add-on) | An `erpAddonMonthlyPrice` field on the terms request and on the plan version it publishes (the paid-extras add-on price). Not drawn until the request takes it; a note points to the ERP access card for ERP included in the contract |
+| 3.2 | Who saved each set of terms, by name | `createdByName` on each `history` entry. Today only `createdBy` (an id) is recorded, so the screen shows "you" for the reader's own saves and the id otherwise |
+| 3.3 | The Enterprise view on the customer's Plan and usage for every company on Enterprise terms | `enterprise` on `/settings/plan` and `/settings/subscription` is null unless the company chose Enterprise at sign-up, so a company moved to Enterprise by Fawtir's sales sees the plan list and a withdrawable "you move to" line. It should be set for any company that holds its own Enterprise plan |
+| 3.4 | New Enterprise terms waiting for the renewal, with no withdraw button | `DELETE /settings/subscription/scheduled-change` should refuse to withdraw terms an operator scheduled (`ENTERPRISE_TERMS_SCHEDULED`); the screen hides the button, the server does not refuse yet |

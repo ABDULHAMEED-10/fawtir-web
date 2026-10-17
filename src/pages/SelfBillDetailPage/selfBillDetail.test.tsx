@@ -29,6 +29,7 @@ const BUYER: Entitlements = {
   permissions: [
     'invoice.read',
     'invoice.payment.manage',
+    'bill.settle',
     'customer.read',
     'branch.read',
     'selfbilling.agreement.manage',
@@ -384,6 +385,38 @@ describe('A self-billed invoice through its own door', () => {
     )
     expect(await screen.findByText('Paid')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+  })
+
+  it('does not offer an Accountant Record payment on the payable, which only a Finance Manager settles', async () => {
+    // RL-4: the Accountant records payments received, not what the company pays its suppliers.
+    who = {
+      ...BUYER,
+      roles: [{ id: 'r-2', code: 'ACCOUNTANT', name: 'Accountant', systemRole: true }],
+      permissions: ['invoice.read', 'invoice.payment.manage', 'customer.read', 'branch.read'],
+    }
+    invoiceResponse = () => json(200, invoice({ payable: PAYABLE }))
+    renderPage()
+    await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })
+    await waitFor(() => expect(calls()).toContain(`GET ${URL_BASE}/receivable`))
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+  })
+
+  it('offers a Finance Manager Record payment on the payable', async () => {
+    who = {
+      ...BUYER,
+      roles: [{ id: 'r-3', code: 'FINANCE_MANAGER', name: 'Finance Manager', systemRole: true }],
+      permissions: [
+        'invoice.read',
+        'invoice.payment.manage',
+        'bill.settle',
+        'customer.read',
+        'branch.read',
+      ],
+    }
+    invoiceResponse = () => json(200, invoice({ payable: PAYABLE }))
+    renderPage()
+    await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })
+    expect(await screen.findByRole('button', { name: 'Record payment' })).toBeTruthy()
   })
 
   it('does not offer Record payment to a reader without invoice.payment.manage, even with something owed', async () => {

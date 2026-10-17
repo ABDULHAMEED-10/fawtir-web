@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { ApiError } from '../../api'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
+import { TenantDisconnectionCard } from './disconnections/TenantDisconnectionCard'
 import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { ConsoleNotice, ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
 import { ConsoleStatusPill } from '../../layouts/ConsoleShell/ConsoleStatusPill'
@@ -46,7 +47,9 @@ import {
   WaiveOverageModal,
   type SubscriptionAction,
 } from './subscriptions'
+import { CompanySubscriptionCards } from './tenant/CompanySubscriptionCards'
 import { TenantErpEntitlementCard } from './erp/TenantErpEntitlementCard'
+import { EnterpriseTermsLink } from './enterprise/EnterpriseTermsLink'
 import invoiceIcon from '../../assets/actions/invoice.svg'
 import creditNoteIcon from '../../assets/actions/credit-note.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
@@ -279,10 +282,11 @@ function TenantDetail({
   // Where the reader came from — the queue, the invoices list, or the tenants list — is what the
   // breadcrumb leads back to. It rides in the URL so a deep link from a row menu keeps it too.
   const from = searchParams.get('from') ?? (location.state as { from?: string } | null)?.from
+  // The subscriptions screens are sample data, so only the prototype path leads back to them.
   const parentCrumbs =
-    from === 'subscriptions'
+    prototype && from === 'subscriptions'
       ? [{ labelKey: 'console.nav.subscriptions', to: '/console/subscriptions' }]
-      : from === 'invoices'
+      : prototype && from === 'invoices'
         ? [
             { labelKey: 'console.nav.subscriptions', to: '/console/subscriptions' },
             {
@@ -426,7 +430,9 @@ function TenantDetail({
               size="md"
             />
           </div>
-        ) : null}
+        ) : (
+          <EnterpriseTermsLink tenantId={tenantId} />
+        )}
       </div>
 
       {done ? (
@@ -442,9 +448,13 @@ function TenantDetail({
         overview={prototype ? withLedger(overview, subscription, t) : overview}
       />
 
+      {prototype ? null : <CompanySubscriptionCards tenantId={tenantId} />}
+
       {prototype ? null : (
         <TenantErpEntitlementCard tenantId={tenantId} tenantCode={overview.identity.tenantCode} />
       )}
+
+      {prototype ? null : <TenantDisconnectionCard tenantId={tenantId} />}
 
       {/*
         Tabs, their content and every action modal are sample-data features: the subscription

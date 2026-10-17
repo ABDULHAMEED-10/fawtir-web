@@ -30,6 +30,7 @@ import {
   SettingsSectionCard,
   SwitchRow,
 } from '../settings/shared'
+import { ExtraDocumentLimitsCard } from './ExtraDocumentLimitsCard'
 
 const K = 'console.billingSettings.'
 const MAX_DAYS = 60
@@ -99,6 +100,7 @@ function BillingSettings() {
           }}
         />
       )}
+      <ExtraDocumentLimitsCard canManage={canManage} />
     </div>
   )
 }

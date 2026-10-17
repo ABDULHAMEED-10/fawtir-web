@@ -11,7 +11,6 @@ import {
   ConsoleIncidentIcon,
   ConsolePlansIcon,
   ConsoleQueueIcon,
-  ConsoleSubscriptionIcon,
 } from '../layouts/ConsoleShell/consoleIcons'
 
 type IconProps = { className?: string; active?: boolean }
@@ -89,12 +88,6 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         Icon: NavTddIcon,
       },
       {
-        id: 'subscriptions',
-        labelKey: 'console.nav.subscriptions',
-        to: '/console/subscriptions',
-        Icon: ConsoleSubscriptionIcon,
-      },
-      {
         id: 'plans',
         labelKey: 'console.nav.plans',
         to: '/console/plans',
@@ -102,6 +95,22 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         // Plans and rates are the platform's own prices: never shown to a tenant, and only to an
         // operator the catalogue's read permission covers.
         requires: 'platform.plans.read',
+      },
+      {
+        id: 'enterprise',
+        labelKey: 'console.nav.enterprise',
+        to: '/console/enterprise',
+        Icon: ConsolePlansIcon,
+        // Companies on negotiated Enterprise terms (V348), read under the billing permission.
+        requires: 'platform.billing.read',
+      },
+      {
+        id: 'disconnections',
+        labelKey: 'console.nav.disconnections',
+        to: '/console/disconnections',
+        Icon: ConsoleQueueIcon,
+        // "Disconnect from Fawtir" requests, worked by Platform support (V302).
+        requires: 'platform.smp.operations.review',
       },
       {
         id: 'payments',

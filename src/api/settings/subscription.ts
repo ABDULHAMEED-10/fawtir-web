@@ -50,6 +50,11 @@ export type SubscriptionStatusDto = {
    * null. The server fills it only while restrictions are enforced, so it is optional here.
    */
   restriction?: string | null
+  /**
+   * Null unless the company chose Enterprise at sign-up (F22). While `termsSet` is false Fawtir has
+   * not set its terms yet, so there is nothing to pay. Absent from a server before F22.
+   */
+  enterprise?: { termsSet: boolean } | null
 }
 
 /** What the status pill and the Settings card say: the server's access, or that nothing has started. */
@@ -136,4 +141,68 @@ export async function acknowledgeSubscriptionNotice(id: string): Promise<void> {
   await apiRequest<unknown>(`${SUBSCRIPTION_NOTICES_PATH}/${encodeURIComponent(id)}/acknowledge`, {
     method: 'POST',
   })
+}
+
+/**
+ * What a downgrade waiting for renewal will switch off, and the customer's choice
+ * (`GET/PUT /settings/subscription/scheduled-change/switch-off`, `DowngradeSwitchOffService`).
+ * Both need `tenant.plan.manage`. With no downgrade waiting the server refuses with 409
+ * `downgrade-choice-not-allowed`.
+ *
+ * Users carry an id only (names are encrypted at rest): the screen names them from `GET /users`.
+ * At renewal the chosen go first, then the most recently added, and only as many as the new plan
+ * requires. The owner, administrators and the Head Branch always stay and still count.
+ */
+export const SWITCH_OFF_PATH = `${SUBSCRIPTION_PATH}/scheduled-change/switch-off`
+
+/** The refusal slug for a choice the server will not take, or no downgrade waiting. */
+export const DOWNGRADE_CHOICE_NOT_ALLOWED = 'downgrade-choice-not-allowed'
+
+export type SwitchOffUserRow = {
+  userId: string
+  addedAt: string
+  /** OWNER or ADMINISTRATOR when the user can never be switched off, else null. */
+  kept: 'OWNER' | 'ADMINISTRATOR' | (string & {}) | null
+  /** Whether the customer may choose this user. */
+  candidate: boolean
+  /** Named in the recorded choice. */
+  chosen: boolean
+  /** What the renewal will do as things stand. */
+  switchesOff: boolean
+}
+
+export type SwitchOffBranchRow = {
+  branchId: string
+  name: string
+  addedAt: string
+  /** HEAD_BRANCH for the Head Branch, else null. */
+  kept: 'HEAD_BRANCH' | (string & {}) | null
+  candidate: boolean
+  chosen: boolean
+  switchesOff: boolean
+}
+
+export type DowngradeSwitchOffDto = {
+  planCode: string
+  planVersionId: string
+  /** The renewal date the downgrade applies on (`YYYY-MM-DD`). */
+  effectiveOn: string
+  peopleIncluded: number
+  /** Null: the new plan has no branch limit. */
+  branchesIncluded: number | null
+  activeUsers: number
+  openBranches: number
+  /** Null when nobody has chosen: the default (most recently added first) applies. */
+  choiceRecordedAt: string | null
+  users: SwitchOffUserRow[]
+  branches: SwitchOffBranchRow[]
+}
+
+export function loadSwitchOff(): Promise<DowngradeSwitchOffDto> {
+  return apiRequest<DowngradeSwitchOffDto>(SWITCH_OFF_PATH)
+}
+
+/** Replaces any earlier choice. Two empty lists mean "use the default". */
+export function saveSwitchOffChoice(userIds: string[], branchIds: string[]): Promise<DowngradeSwitchOffDto> {
+  return apiRequest<DowngradeSwitchOffDto>(SWITCH_OFF_PATH, { method: 'PUT', body: { userIds, branchIds } })
 }

@@ -6,6 +6,7 @@ import { Input, Modal, Rial, Switch } from '../../../components/ui'
 import { focusFirstInvalid } from '../../../lib/forms'
 import {
   PLAN_FIELD_ORDER,
+  TRIAL_DAYS,
   changesTerms,
   createPlan,
   describePlanSaveFailure,
@@ -43,11 +44,9 @@ type PlanEditorProps = {
 
 const FORM_ID = 'plan-editor'
 
-type TextField = Exclude<
-  PlanField,
-  'apiAccess' | 'prioritySupport' | 'active' | 'publicVisible' | 'recommended'
->
-type SwitchField = 'publicVisible' | 'recommended' | 'active' | 'apiAccess' | 'prioritySupport'
+type SwitchField =
+  'publicVisible' | 'recommended' | 'active' | 'apiAccess' | 'prioritySupport' | 'trial'
+type TextField = Exclude<PlanField, SwitchField>
 
 const DECIMAL_FIELDS: ReadonlySet<TextField> = new Set([
   'monthlyPrice',
@@ -298,12 +297,16 @@ export function PlanEditor({
 
         <div className="flex flex-col gap-3">
           {sectionTitle(t('console.plans.section.offer'))}
+          {/* TR-1: the trial is always 14 days, so the plan only switches it on or off. */}
+          <div className="flex flex-col">
+            {toggle('trial', t('console.plans.field.trial', { days: TRIAL_DAYS }))}
+            <p className="pb-1 text-xs font-medium leading-[1.5] text-text-quaternary">
+              {t('console.plans.field.trialHint', { days: TRIAL_DAYS })}
+            </p>
+          </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {field('trialDays', t('console.plans.field.trialDays'), {
-              hint: t('console.plans.field.trialDaysHint'),
-            })}
             {field('trialDocuments', t('console.plans.field.trialDocuments'), {
-              hint: t('console.plans.field.trialDocumentsHint'),
+              hint: t('console.plans.field.trialDocumentsSwitchHint'),
             })}
           </div>
           <div className="flex flex-col">

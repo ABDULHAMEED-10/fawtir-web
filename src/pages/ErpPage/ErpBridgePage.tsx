@@ -42,6 +42,7 @@ import {
   type BridgeUploadResponseDto,
 } from '../../api/erp/bridge'
 import { certificationStatusPath, loadCertificationStatus } from '../../api/erp/mapping'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 const FORMATS: BridgeFormat[] = ['JSON', 'XML']
 const UPLOAD_PERMISSION = 'invoice.submit'
@@ -77,6 +78,8 @@ type LocalProblem = BridgeDocumentProblem | 'size' | 'type' | 'tooLarge'
 export function ErpBridgePage() {
   const { t } = useTranslation()
   const { entitlements, ready } = useEntitlements()
+  // An upload issues a document, which stops while the subscription is read-only (ST-2).
+  const mayIssue = useSubscriptionAllows('ISSUE_DOCUMENTS')
 
   if (!ready) {
     return (
@@ -93,7 +96,11 @@ export function ErpBridgePage() {
       <SettingsHeader title={t('erp.bridge.title')} subtitle={t('erp.bridge.subtitle')} />
       <div className="flex flex-col gap-5">
         <ChannelsCard />
-        {canUpload ? <UploadForm canReadMapping={canReadMapping} /> : <PermissionDeniedNotice />}
+        {!canUpload ? (
+          <PermissionDeniedNotice />
+        ) : mayIssue ? (
+          <UploadForm canReadMapping={canReadMapping} />
+        ) : null}
       </div>
     </SettingsShell>
   )

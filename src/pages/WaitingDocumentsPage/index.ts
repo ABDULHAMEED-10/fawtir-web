@@ -1,0 +1,1 @@
+export { WaitingDocumentsPage } from './WaitingDocumentsPage'

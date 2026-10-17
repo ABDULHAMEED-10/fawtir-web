@@ -23,6 +23,7 @@ import { InvoicesPage } from './pages/InvoicesPage'
 import { BillsPage } from './pages/BillsPage'
 import { BillDetailPage } from './pages/BillDetailPage'
 import { UploadBillPage } from './pages/UploadBillPage'
+import { WaitingDocumentsPage } from './pages/WaitingDocumentsPage'
 import { ScanReceiptsPage } from './pages/ScanReceiptsPage'
 import { PaymentRunPage, PaymentRunsListPage } from './pages/PaymentRunPage'
 import { RecurringBillsPage } from './pages/RecurringBillsPage'
@@ -80,6 +81,9 @@ import {
   TeamPage,
   RolesPage,
   PlanPage,
+  DowngradeSwitchOffPage,
+  ExtraDocumentsPage,
+  PaidExtrasPage,
   BillingPage,
   ActivityLogPage,
   ExportPage,
@@ -171,6 +175,9 @@ import {
   ConsoleBankAccountsPage,
   ConsoleBillingSettingsPage,
   ConsoleSellerPage,
+  ConsoleDisconnectionsPage,
+  ConsoleEnterprisePage,
+  ConsoleEnterpriseTermsPage,
   ConsoleQueuePage,
   ConsoleIncidentsPage,
   ConsoleAuditPage,
@@ -183,8 +190,6 @@ import {
   VerificationCompanyPage,
   VerificationPage,
   TenantDetailPage,
-  SubscriptionsPage,
-  SubscriptionInvoicesPage,
   ConsoleSettingsPage,
   ValidationPoliciesPage,
   ValidationPolicyPage,
@@ -233,6 +238,7 @@ function App() {
           <Route path="/expenditure/bills/upload" element={<UploadBillPage />} />
           <Route path="/expenditure/bills/upload/:intakeId" element={<UploadBillPage />} />
           <Route path="/expenditure/bills/scan" element={<ScanReceiptsPage />} />
+          <Route path="/expenditure/bills/waiting" element={<WaitingDocumentsPage />} />
           <Route path="/expenditure/payments" element={<PaymentRunsListPage />} />
           <Route path="/expenditure/payments/new" element={<PaymentRunPage />} />
           <Route path="/expenditure/payments/:runId" element={<PaymentRunPage />} />
@@ -350,6 +356,9 @@ function App() {
           <Route path="/settings/roles" element={<RolesPage />} />
           <Route path="/settings/roles/new" element={<DemoModule module="makeRole"><MakeRolePage /></DemoModule>} />
           <Route path="/settings/plan" element={<PlanPage />} />
+          <Route path="/settings/plan/switch-off" element={<DowngradeSwitchOffPage />} />
+          <Route path="/settings/plan/extra-documents" element={<ExtraDocumentsPage />} />
+          <Route path="/settings/plan/extras" element={<PaidExtrasPage />} />
           {/* Real subscription dates above; the bills prototype inside keeps its own ribbon. */}
           <Route path="/settings/bills" element={<BillingPage />} />
           <Route path="/settings/activity-log" element={<ActivityLogPage />} />
@@ -808,8 +817,12 @@ function App() {
           <Route path="/console" element={<DemoModule module="console"><OperationsPage /></DemoModule>} />
           <Route path="/console/tenants" element={<TenantsPage />} />
           <Route path="/console/tenants/:id" element={<TenantDetailPage />} />
-          <Route path="/console/subscriptions" element={<DemoModule module="console"><SubscriptionsPage /></DemoModule>} />
-          <Route path="/console/subscriptions/invoices" element={<DemoModule module="console"><SubscriptionInvoicesPage /></DemoModule>} />
+          <Route path="/console/tenants/:id/enterprise-terms" element={<ConsoleEnterpriseTermsPage />} />
+          <Route path="/console/enterprise" element={<ConsoleEnterprisePage />} />
+          {/* The sample-data subscription screens are retired: a company's subscription is on its
+              tenant page, and payments have their own queue. Old links land there. */}
+          <Route path="/console/subscriptions" element={<Navigate to="/console/tenants" replace />} />
+          <Route path="/console/subscriptions/invoices" element={<Navigate to="/console/billing/payments" replace />} />
           <Route path="/console/queue" element={<DemoModule module="console"><ConsoleQueuePage /></DemoModule>} />
           <Route path="/console/incidents" element={<DemoModule module="console"><ConsoleIncidentsPage /></DemoModule>} />
           <Route path="/console/incidents/:id" element={<DemoModule module="console"><ConsoleIncidentsPage /></DemoModule>} />
@@ -820,6 +833,7 @@ function App() {
           <Route path="/console/billing/accounts" element={<ConsoleBankAccountsPage />} />
           <Route path="/console/billing/settings" element={<ConsoleBillingSettingsPage />} />
           <Route path="/console/billing/seller" element={<ConsoleSellerPage />} />
+          <Route path="/console/disconnections" element={<ConsoleDisconnectionsPage />} />
           <Route path="/console/operators" element={<OperatorsPage />} />
           <Route path="/console/policies" element={<ValidationPoliciesPage />} />
           <Route path="/console/policies/:type" element={<ValidationPolicyPage />} />
