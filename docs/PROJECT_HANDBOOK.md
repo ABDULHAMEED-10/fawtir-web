@@ -482,8 +482,8 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   - **What counts.** Every legal document issued counts **once**, whether sending passed or failed;
     a resend never counts again. Every supplier invoice **received** into Fawtir also counts once
     (owner, 14 Oct 2026; replaces "received invoices never count"): a 200-document plan with 150
-    invoices issued and 50 supplier invoices received has reached its limit. What happens to an incoming
-    supplier invoice once the allowance is used up is still open.
+    invoices issued and 50 supplier invoices received has reached its limit. What happens to an
+    incoming supplier invoice once the allowance is used up is still open.
   - **Over the quota: buy ahead, never billed after.** Issuing stops at the limit until extra
     documents are bought; drafts can still be saved and every record read. The customer is warned
     at 80%, 90% and 100%. "Buy extra documents" (Settings, Subscription, and in each warning)
