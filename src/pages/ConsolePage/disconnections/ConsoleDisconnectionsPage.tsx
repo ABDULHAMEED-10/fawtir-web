@@ -39,6 +39,7 @@ import { DISCONNECTION_STATUS_TONE } from './disconnectionTones'
 import { Due, Fact } from './disconnectionParts'
 import { MomentField } from './MomentField'
 import { ReconnectionQueueBody } from './ConsoleReconnections'
+import { SmpCallAction, smpCallsOn, smpStepByHand, useSmpCallStatus } from './SmpCallAction'
 
 /**
  * Platform support's disconnection queue (Business Rules LV-2 to LV-4, LV-7, FC-1; plan v4 §10,
@@ -237,6 +238,11 @@ function DisconnectionPanel({
   )
   const [done, setDone] = useState<string | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
+  const smp = useSmpCallStatus(
+    read.status === 'ready' ? read.data.request.tenantId : null,
+    'REMOVAL',
+    disconnectionId,
+  )
 
   if (read.status === 'loading')
     return <ConsoleNotice busy body={t('console.disconnections.loading')} />
@@ -244,7 +250,12 @@ function DisconnectionPanel({
   const view = read.data
   const { request } = view
   const at = (iso: string | null) => (iso ? formatInstant(iso, i18n.language) : null)
-  const offered = stepsOffered(view)
+  // With the console's SMP call on, the removal is made here and the server records the step; by
+  // hand only as the fallback (smpStepByHand).
+  const smpOn = smpCallsOn(smp.read)
+  const offered = stepsOffered(view).filter(
+    (step) => step !== 'SMP_REMOVED' || smpStepByHand(smp.read),
+  )
 
   return (
     <section
@@ -353,6 +364,22 @@ function DisconnectionPanel({
           />
         ) : null}
       </dl>
+
+      {smpOn && smp.read.status === 'ready' ? (
+        <SmpCallAction
+          tenantId={request.tenantId}
+          kind="REMOVAL"
+          linkId={request.id}
+          status={smp.read.data}
+          open={view.nextAction === 'REMOVE_FROM_SMP'}
+          canManage={canManage}
+          refresh={smp.retry}
+          onChanged={() => {
+            onRecorded()
+            retry()
+          }}
+        />
+      ) : null}
 
       {canManage && offered.length > 0 ? (
         <StepForm

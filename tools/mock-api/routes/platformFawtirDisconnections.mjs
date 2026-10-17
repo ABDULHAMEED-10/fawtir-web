@@ -178,6 +178,21 @@ const STATUS_AFTER = {
 
 let nextId = 100
 
+/**
+ * What the server does when the Oman SMP confirms a console removal (`platformSmpParticipant.mjs`):
+ * SMP_REMOVED recorded by the system. False when there is no such request or it is already done.
+ */
+export function markSmpRemoved(id, at, operationId) {
+  const entry = REQUESTS.find((e) => e.request.id === id)
+  if (!entry || entry.request.smpRemovedAt) return false
+  entry.request = { ...entry.request, smpRemovedAt: at, version: entry.request.version + 1 }
+  entry.steps = [
+    ...entry.steps,
+    { ...step(`s-${nextId++}`, 'SMP_REMOVED', entry.request.status, at, 'SYSTEM'), reference: `SMP operation ${operationId}`, note: 'Recorded when the Oman SMP confirmed the removal' },
+  ]
+  return true
+}
+
 export default [
   {
     match: BASE,

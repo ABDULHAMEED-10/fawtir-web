@@ -15813,6 +15813,39 @@
         "impersonation-not-allowed": "This can't be done while signed in as a company.",
         "invalid": "Check the details: a date can't be later than now, the effective date can't be before it, a decline needs a reason, and who asked is needed unless it was seen on the portal."
       }
+    },
+    "smpCall": {
+      "remove": {
+        "title": "Remove from the Oman SMP",
+        "body": "The company has left Fawtir. Remove it from the Oman SMP within 1 business day. It is not disabled: it can still sign in, read and export its records, and it keeps its verified Participant ID.",
+        "action": "Remove from SMP",
+        "confirm": "Fawtir asks the Oman SMP to remove this company, so nothing is sent to it or received for it through Fawtir. The company is not disabled or closed, and keeps its records and its verified Participant ID. The step is marked done when the SMP confirms."
+      },
+      "add": {
+        "title": "Add back to the Oman SMP",
+        "body": "Fawtir has accepted the company's connection on the Fawtara Portal. Add it back to the Oman SMP within 3 business days. Its Participant ID is still verified, so nothing has to be verified again.",
+        "action": "Add to SMP",
+        "confirm": "Fawtir asks the Oman SMP to add this company back with its earlier registration. If the company chose a later effective date on the portal, the call waits for that date. The step is marked done when the SMP confirms."
+      },
+      "outcome": {
+        "PENDING": "Sent. Waiting for the Oman SMP to confirm.",
+        "DONE": "The Oman SMP confirmed it, and the step is recorded.",
+        "FAILED": "The Oman SMP refused it. Check the company's SMP set-up, then try again.",
+        "RECONCILIATION_REQUIRED": "The Oman SMP's answer is not known. It must be checked in the SMP problem operations before anything is tried again."
+      },
+      "asked": "Asked on {{date}}, attempt {{attempt}}",
+      "tryAgain": "Try again",
+      "checkAgain": "Check again",
+      "sending": "Sending…",
+      "refusal": {
+        "platform-smp-participant-not-open": "SMP calls from the console are switched off on this server. Record the step by hand instead.",
+        "disconnection-state-conflict": "The company has not left, or has come back to Fawtir, so it stays on the Oman SMP.",
+        "reconnection-state-conflict": "Accept the company's connection on the Fawtara Portal and record it before adding the company to the Oman SMP.",
+        "production-platform-realm-required": "SMP calls are made only from the production Fawtir console.",
+        "impersonation-not-allowed": "This can't be done while signed in as a company.",
+        "invalid": "The SMP checks refused the call: the Participant ID policy or the publication set-up is not ready for this company.",
+        "conflict": "The company's SMP registration is not ready for this call, or another SMP call for it is still running."
+      }
     }
   },
   "shell": {

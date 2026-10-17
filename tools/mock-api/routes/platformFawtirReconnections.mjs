@@ -139,6 +139,25 @@ function view(entry) {
 
 let nextId = 100
 
+/**
+ * What the server does when the Oman SMP confirms a console add (`platformSmpParticipant.mjs`):
+ * SMP_ADDED recorded by the system. False when there is no such request or it is already done.
+ */
+export function markSmpAdded(id, at, operationId) {
+  const entry = REQUESTS.find((e) => e.request.id === id)
+  if (!entry || entry.request.smpAddedAt) return false
+  entry.request = { ...entry.request, smpAddedAt: at, version: entry.request.version + 1 }
+  entry.steps = [
+    ...entry.steps,
+    {
+      ...step(`rs-${nextId++}`, 'SMP_ADDED', entry.request.status, at, 'SYSTEM'),
+      reference: `SMP operation ${operationId}`,
+      note: 'Recorded when the Oman SMP confirmed the add',
+    },
+  ]
+  return true
+}
+
 export default [
   {
     match: BASE,

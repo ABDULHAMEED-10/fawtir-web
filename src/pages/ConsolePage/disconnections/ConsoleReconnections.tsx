@@ -32,6 +32,7 @@ import {
 import { RECONNECTION_STATUS_TONE } from './disconnectionTones'
 import { Due, Fact } from './disconnectionParts'
 import { MomentField } from './MomentField'
+import { SmpCallAction, smpCallsOn, smpStepByHand, useSmpCallStatus } from './SmpCallAction'
 
 /**
  * Console › Disconnections, Reconnections view (plan v4 §10; FC-1): companies coming back to
@@ -164,6 +165,11 @@ function ReconnectionPanel({
   const { read, retry } = useConsoleRead<PlatformReconnectionDto>(reconnectionPath(reconnectionId))
   const [done, setDone] = useState<string | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
+  const smp = useSmpCallStatus(
+    read.status === 'ready' ? read.data.request.tenantId : null,
+    'ADDITION',
+    reconnectionId,
+  )
 
   if (read.status === 'loading')
     return <ConsoleNotice busy body={t('console.disconnections.loading')} />
@@ -171,7 +177,12 @@ function ReconnectionPanel({
   const view = read.data
   const { request } = view
   const at = (iso: string | null) => (iso ? formatInstant(iso, i18n.language) : null)
-  const offered = reconnectionStepsOffered(view)
+  // With the console's SMP call on, the add is made here and the server records the step; by hand
+  // only as the fallback (smpStepByHand).
+  const smpOn = smpCallsOn(smp.read)
+  const offered = reconnectionStepsOffered(view).filter(
+    (step) => step !== 'SMP_ADDED' || smpStepByHand(smp.read),
+  )
 
   return (
     <section
@@ -208,7 +219,7 @@ function ReconnectionPanel({
             )}
           </p>
         ) : null}
-        {view.nextAction === 'ADD_TO_SMP' ? (
+        {view.nextAction === 'ADD_TO_SMP' && !smpOn ? (
           <p className="text-sm font-medium text-text-secondary">
             {t('console.reconnections.smpOutside')}
           </p>
@@ -267,6 +278,22 @@ function ReconnectionPanel({
           />
         ) : null}
       </dl>
+
+      {smpOn && smp.read.status === 'ready' ? (
+        <SmpCallAction
+          tenantId={request.tenantId}
+          kind="ADDITION"
+          linkId={request.id}
+          status={smp.read.data}
+          open={view.nextAction === 'ADD_TO_SMP'}
+          canManage={canManage}
+          refresh={smp.retry}
+          onChanged={() => {
+            onRecorded()
+            retry()
+          }}
+        />
+      ) : null}
 
       {canManage && offered.length > 0 ? (
         <ReconnectionStepForm

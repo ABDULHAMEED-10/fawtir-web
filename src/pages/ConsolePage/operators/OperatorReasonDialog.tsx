@@ -31,6 +31,8 @@ type OperatorReasonDialogProps<T> = {
   blockedNote?: string
   confirmLabel: string
   confirmingLabel: string
+  /** The reason's length limit, where the backend's differs from the operator audit's. */
+  reasonMax?: number
   /** Sends the change with the trimmed reason; called once per confirmation. */
   send: (reason: string) => Promise<T>
   describeFailure: (error: unknown) => FormMessage
@@ -52,6 +54,7 @@ export function OperatorReasonDialog<T>({
   blockedNote,
   confirmLabel,
   confirmingLabel,
+  reasonMax = OPERATOR_REASON_MAX,
   send,
   describeFailure,
   onDone,
@@ -125,14 +128,14 @@ export function OperatorReasonDialog<T>({
             label={t('console.operators.reason.label')}
             requiredMark
             autoComplete="off"
-            maxLength={OPERATOR_REASON_MAX}
+            maxLength={reasonMax}
             value={reason}
             onChange={(event) => {
               setReason(event.target.value)
               setFieldError(undefined)
               setFormError(null)
             }}
-            hint={t('console.operators.reason.hint', { max: OPERATOR_REASON_MAX })}
+            hint={t('console.operators.reason.hint', { max: reasonMax })}
             error={fieldError ? t(fieldError) : undefined}
           />
         )}
