@@ -29,6 +29,12 @@ import {
   type InvoiceTypeDto,
 } from '../../api/invoices/list'
 import { discardDraft, loadBranches, type BranchDto } from '../../api/invoices/drafts'
+import {
+  SALES_APPROVAL_RULE_PATH,
+  loadSalesApprovalRule,
+  type SalesApprovalRuleDto,
+} from '../../api/invoices/salesApproval'
+import { salesApprovalIsOn } from '../../lib/salesApproval'
 import { cancelInvoice, type InvoiceSendResultDto } from '../../api/invoices/detail'
 import { InvoiceImportModal } from '../../components/invoice/InvoiceImportModal'
 import { SendInvoiceModal } from '../../components/invoice/SendInvoiceModal'
@@ -112,15 +118,17 @@ const DELIVERY_HINTS: Record<PeppolResponse, string> = {
  * means: the list's `delivery=TO_SEND` and the summary's `toSend` read the same definition.
  */
 type TabId = InvoiceTabId | 'toSend' | 'toApprove'
-const TABS: { id: TabId; labelKey: string; danger?: boolean; permission?: string }[] = [
+const TABS: { id: TabId; labelKey: string; danger?: boolean }[] = [
   { id: 'all', labelKey: 'invoicesPage.tabs.all' },
   { id: 'drafts', labelKey: 'invoicesPage.tabs.drafts' },
   { id: 'toSend', labelKey: 'invoicesPage.tabs.toSend' },
   { id: 'awaiting', labelKey: 'invoicesPage.tabs.awaiting' },
   { id: 'overdue', labelKey: 'invoicesPage.tabs.overdue', danger: true },
   { id: 'paid', labelKey: 'invoicesPage.tabs.paid' },
-  // The approvers' queue (RL-6): drafts waiting for a sales approval, for holders of the code.
-  { id: 'toApprove', labelKey: 'invoicesPage.tabs.toApprove', permission: 'invoice.approve' },
+  // The approvers' queue (RL-6): drafts waiting for a sales approval. Drawn only for holders of
+  // invoice.approve whose company rule is on (`offersQueue` below); bill approvers hold the same
+  // code, so the code alone would show the tab on a deployment with sales approval switched off.
+  { id: 'toApprove', labelKey: 'invoicesPage.tabs.toApprove' },
 ]
 const isTab = (value: string | null): value is TabId =>
   value === 'toSend' || value === 'toApprove' || isInvoiceTab(value)
@@ -185,8 +193,20 @@ function InvoicesScreen() {
   const [params, setParams] = useSearchParams()
 
   const asked: TabId = isTab(params.get('tab')) ? (params.get('tab') as TabId) : 'all'
-  // Without the code the queue is not offered, and an address naming it opens on All.
-  const tab: TabId = asked === 'toApprove' && !can(session, 'invoice.approve') ? 'all' : asked
+  // The approvers' queue is offered only while the server says sales approval is on: the company
+  // rule reads `enabled` true. A deployment with the switch off can never turn a rule on (the
+  // write answers 503 SALES_APPROVAL_UNAVAILABLE), so its rule reads off and no tab is drawn. A
+  // failed read (403, 404, 503) is read as off too. Only an approver asks.
+  const mayApprove = can(session, 'invoice.approve')
+  const rule = useApiRead<SalesApprovalRuleDto>(
+    mayApprove ? SALES_APPROVAL_RULE_PATH : null,
+    loadSalesApprovalRule,
+  )
+  const ruleSettled = !mayApprove || rule.read.status !== 'loading'
+  const offersQueue = mayApprove && rule.read.status === 'ready' && salesApprovalIsOn(rule.read.data)
+  // An address naming the queue opens on All when it is not offered; while the rule is still being
+  // read the list waits rather than loading All and then switching.
+  const tab: TabId = asked === 'toApprove' && ruleSettled && !offersQueue ? 'all' : asked
   const type: InvoiceTypeDto | null = isInvoiceType(params.get('type'))
     ? (params.get('type') as InvoiceTypeDto)
     : null
@@ -241,7 +261,7 @@ function InvoicesScreen() {
   // The period counts back from the server's day, so the list waits for the summary to know it.
   const channelFilter = channel === 'all' ? null : channel === 'peppol' ? 'PEPPOL' : 'EMAIL'
   const filter: InvoiceListFilter | null =
-    summary.read.status === 'ready'
+    summary.read.status === 'ready' && (asked !== 'toApprove' || ruleSettled)
       ? {
           ...(tab === 'toApprove'
             ? {
@@ -448,7 +468,7 @@ function InvoicesScreen() {
 
       <section className="overflow-hidden rounded-md bg-surface-card">
         <div className="flex flex-wrap items-center gap-x-[52px] gap-y-2 border-b border-border-subtle px-6 pt-4 max-md:gap-x-6">
-          {TABS.filter((entry) => !entry.permission || can(session, entry.permission)).map((entry) => {
+          {TABS.filter((entry) => entry.id !== 'toApprove' || offersQueue).map((entry) => {
             const active = entry.id === tab
             // The owner asked for 0 rather than an empty badge when the summary is unavailable.
             const tally =

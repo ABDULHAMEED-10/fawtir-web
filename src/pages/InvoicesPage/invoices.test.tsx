@@ -121,7 +121,22 @@ let summaryResponse: () => Response
 let salesSummaryResponse: () => Response
 let exportResponse: () => Response
 let discardResponse: () => Response
+let ruleResponse: () => Response
 let who: Entitlements
+
+/** The sales approval rule as the deployed server reads it with its switch off: never set, off. */
+const RULE_OFF = {
+  version: 0,
+  enabled: false,
+  covers: { invoice: true, creditNote: true, debitNote: true, selfBilled: false },
+  requiredApprovals: 1,
+  autoApproveBelow: null,
+  reason: null,
+  updatedBy: null,
+  updatedAt: null,
+  approverCount: 0,
+}
+const RULE_ON = { ...RULE_OFF, version: 2, enabled: true, requiredApprovals: 2, approverCount: 3 }
 
 const calls = (prefix: string) =>
   fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith(prefix))
@@ -135,6 +150,7 @@ beforeEach(async () => {
   salesSummaryResponse = () => json(200, { ...SUMMARY, awaiting: 6, overdue: 4, paid: 17 })
   listResponses = [() => json(200, springPage([issued(), draft()], 2))]
   discardResponse = () => json(200, draft({ authoringState: 'DISCARDED' }))
+  ruleResponse = () => json(200, RULE_OFF)
   exportResponse = () =>
     new Response('invoiceNumber\n', {
       status: 200,
@@ -147,6 +163,7 @@ beforeEach(async () => {
     if (url === ENTITLEMENTS_URL) return json(200, who)
     if (url === SUMMARY_URL) return summaryResponse()
     if (url === SALES_SUMMARY_URL) return salesSummaryResponse()
+    if (url === '/api/v1/settings/sales-approval-rule') return ruleResponse()
     if (url.startsWith('/api/v1/authored-invoices/export.csv')) return exportResponse()
     if (url.startsWith('/api/v1/invoice-drafts/')) return discardResponse()
     if (url === '/api/v1/authored-invoices/inv-1/send')
@@ -588,8 +605,9 @@ describe('invoice list mapping', () => {
 describe('the approvers\' queue (RL-6)', () => {
   const APPROVER: Entitlements = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.approve'] }
 
-  it('is offered only to holders of invoice.approve, counted from the summary', async () => {
+  it('is offered to an approver while the company rule is on, counted from the summary', async () => {
     who = APPROVER
+    ruleResponse = () => json(200, RULE_ON)
     salesSummaryResponse = () =>
       json(200, { ...SUMMARY, awaiting: 6, overdue: 4, paid: 17, awaitingApproval: 2 })
     renderInvoices()
@@ -597,18 +615,43 @@ describe('the approvers\' queue (RL-6)', () => {
     expect(within(tab).getByText('2')).toBeTruthy()
   })
 
-  it('is not offered without the code, and an address naming it opens on All', async () => {
+  it('is not offered to an approver while sales approval is off, whatever the summary says', async () => {
+    // A bill approver on a deployment with the switch off: the rule reads off, and the summary
+    // carries awaitingApproval 0 as it always does.
+    who = APPROVER
+    salesSummaryResponse = () =>
+      json(200, { ...SUMMARY, awaiting: 6, overdue: 4, paid: 17, awaitingApproval: 0 })
+    renderInvoices('/invoices?tab=toApprove')
+    await screen.findByText('Sohar Port Logistics')
+    expect(screen.queryByRole('button', { name: /To approve/ })).toBeNull()
+    // The address naming the queue opens on All, and nothing asks for approval=PENDING.
+    expect(listCalls()[0]).toBe(FIRST_PAGE)
+    expect(listCalls().some((url) => url.includes('approval='))).toBe(false)
+  })
+
+  it('is not offered when the rule cannot be read (switched off, refused)', async () => {
+    who = APPROVER
+    ruleResponse = () => json(503, { status: 503, code: 'SALES_APPROVAL_UNAVAILABLE' })
+    renderInvoices()
+    await screen.findByText('Sohar Port Logistics')
+    expect(screen.queryByRole('button', { name: /To approve/ })).toBeNull()
+  })
+
+  it('is not offered without the code, and the rule is not even asked for', async () => {
     renderInvoices('/invoices?tab=toApprove')
     await screen.findByText('Sohar Port Logistics')
     expect(screen.queryByRole('button', { name: /To approve/ })).toBeNull()
     expect(listCalls()[0]).toBe(FIRST_PAGE)
+    expect(calls('/api/v1/settings/sales-approval-rule')).toHaveLength(0)
   })
 
   it('asks for drafts waiting for approval, and says so when there are none', async () => {
     who = APPROVER
+    ruleResponse = () => json(200, RULE_ON)
     listResponses = [() => json(200, springPage([]))]
     renderInvoices('/invoices?tab=toApprove')
     expect(await screen.findByText('Nothing is waiting for your approval.')).toBeTruthy()
+    // The list waited for the rule: its first request is already the queue's.
     const asked = listCalls()[0]
     expect(asked).toContain('state=DRAFT&')
     expect(asked).toContain('approval=PENDING')

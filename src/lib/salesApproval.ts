@@ -60,6 +60,17 @@ export function isSalesApprovalUnavailable(error: unknown): boolean {
 }
 
 /**
+ * Whether the screens offer sales approval to its approvers (the "To approve" tab): the company
+ * rule is on. The deployed server reads the rule with 200 whether or not its switch is on, and
+ * carries no field for the switch; but with the switch off a rule can never be switched on, so an
+ * `enabled` rule is the one signal that approval is live. `awaitingApproval` on the summary is no
+ * signal: it is always present, 0 with the switch off.
+ */
+export function salesApprovalIsOn(rule: SalesApprovalRuleDto | null): boolean {
+  return rule !== null && rule.enabled
+}
+
+/**
  * Whether issuing waits on approval. Approved and not-required drafts issue as before; a draft not
  * yet sent, waiting, or not approved does not. The server holds the same line at issue.
  */
