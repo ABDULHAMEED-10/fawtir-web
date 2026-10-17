@@ -194,18 +194,22 @@ export function ProposeCancellationDialog({
 /**
  * The open proposal or the cancellation in force, with who did what. The proposer sees "waiting
  * for a second operator" and Withdraw; another operator with the permission sees Confirm too.
+ * Neither is offered while the server reports the switch off (or does not report it).
  */
 export function FawtirCancellationBlock({
   tenantId,
   cancellation,
   me,
   canManage,
+  enabled,
   onChanged,
 }: {
   tenantId: string
   cancellation: FawtirCancellationDto
   me: string | null
   canManage: boolean
+  /** The server's `fawtirCancellationEnabled`: with the switch off it refuses Confirm and Withdraw. */
+  enabled: boolean
   onChanged: () => void
 }) {
   const { t, i18n } = useTranslation()
@@ -214,6 +218,7 @@ export function FawtirCancellationBlock({
   const day = (iso: string) => formatDate(iso, i18n.language)
   const proposed = cancellation.status === 'PROPOSED'
   const mine = me !== null && me === cancellation.proposedBy
+  const actionable = proposed && canManage && enabled
   const close = (changed: boolean) => {
     setDialog(null)
     if (changed) onChanged()
@@ -259,10 +264,10 @@ export function FawtirCancellationBlock({
           {t(`${K}cancel.refunds`, { count: cancellation.outcome.refundCases.length })}
         </span>
       ) : null}
-      {proposed && mine ? (
+      {actionable && mine ? (
         <span className="text-xs font-semibold text-pending-700">{t(`${K}cancel.waiting`)}</span>
       ) : null}
-      {proposed && canManage ? (
+      {actionable ? (
         <div className="flex flex-wrap gap-2.5">
           {mine ? null : (
             <ConsoleButton variant="danger" onClick={() => setDialog('confirm')}>
