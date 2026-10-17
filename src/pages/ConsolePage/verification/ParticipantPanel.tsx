@@ -79,7 +79,10 @@ export function ParticipantPanel({
   return (
     <ParticipantCard
       company={company}
-      submission={read.data}
+      // The backend answers "no submission yet" with an empty 200, not a JSON null, which the
+      // client reads as undefined. A company onboarded from Console > Tenants never files one, and
+      // the card's `!== null` guards would dereference it and blank the whole review page.
+      submission={read.data ?? null}
       operatorId={operatorId}
       onDecided={retry}
     />

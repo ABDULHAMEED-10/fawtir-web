@@ -57,9 +57,10 @@ export type TddLegDto = {
    */
   error_kind?: RefusalKindDto | null
   /**
-   * True while a RESUBMIT of this document is held for an authorised decision; the server then
-   * also leaves `links.resubmit` null, which is what the screens key on. Optional because older
-   * backends do not send it. Not drawn: a visible "held" mark would be a design change.
+   * True while a RESUBMIT of this document is held for an authorised decision (backend #538, which
+   * also leaves `links.resubmit` null then). The screens say so in the row's verdict line and the
+   * record's refusal box, and offer a resubmission only with a link AND no hold (`canResubmit`).
+   * Optional: backends before #538 do not send it, and absent means not held.
    */
   correction_held?: boolean
 }
