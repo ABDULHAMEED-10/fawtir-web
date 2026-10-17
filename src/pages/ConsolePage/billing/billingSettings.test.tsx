@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../../i18n'
@@ -12,6 +12,8 @@ import { ConsoleSellerPage } from './ConsoleSellerPage'
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const SETTINGS = '/api/v1/platform/billing/settings'
 const SELLER = '/api/v1/platform/billing/seller'
+const EXTRA = '/api/v1/platform/billing/extra-documents/settings'
+const EXTRA_HISTORY = '/api/v1/platform/billing/extra-documents/settings/history?limit=50'
 const SELLER_HISTORY = '/api/v1/platform/billing/seller/history?limit=50'
 
 const MANAGER: Entitlements = {
@@ -99,6 +101,30 @@ function sent(method: string, path: string) {
 }
 
 const S = (key: string, options?: Record<string, unknown>) => i18n.t(`console.billingSettings.${key}`, options)
+const X = (key: string, options?: Record<string, unknown>) =>
+  i18n.t(`console.billingSettings.extraDocuments.${key}`, options)
+
+/** The page has one card per record, each with its own reason and Save. */
+async function cardTitled(title: string) {
+  const heading = await screen.findByRole('heading', { name: title })
+  return within(heading.closest('section') as HTMLElement)
+}
+const billingCard = () => cardTitled(S('card'))
+/** The limits card once its read has settled: the loading card is a different element. */
+async function extraCard() {
+  return waitFor(() => {
+    const section = screen.getByRole('heading', { name: X('card') }).closest('section') as HTMLElement
+    expect(within(section).queryByText(X('loading'))).toBeNull()
+    return within(section)
+  })
+}
+
+function limits(over: Record<string, unknown> = {}) {
+  return {
+    id: 'x-2', version: 2, minPerPurchase: 10, maxPerPurchase: 5000, reason: 'Launch limits',
+    createdBy: 'u-other', createdAt: '2026-10-14T05:00:00Z', ...over,
+  }
+}
 const L = (key: string, options?: Record<string, unknown>) => i18n.t(`console.seller.${key}`, options)
 
 describe('VAT percent on the wire', () => {
@@ -127,8 +153,8 @@ describe('Console › Billing settings', () => {
 
     await user.click(vat)
     await user.type(screen.getByRole('textbox', { name: S('vatRate') }), '5')
-    await user.type(screen.getByRole('textbox', { name: S('reason') }), 'VAT registered')
-    await user.click(screen.getByRole('button', { name: i18n.t('console.settings.save') }))
+    await user.type((await billingCard()).getByRole('textbox', { name: S('reason') }), 'VAT registered')
+    await user.click((await billingCard()).getByRole('button', { name: i18n.t('console.settings.save') }))
 
     await waitFor(() => expect(sent('PUT', SETTINGS)).not.toBeNull())
     const put = sent('PUT', SETTINGS)!
@@ -146,8 +172,8 @@ describe('Console › Billing settings', () => {
 
     expect((await screen.findByRole('textbox', { name: S('vatRate') }) as HTMLInputElement).value).toBe('5')
     await user.click(screen.getByRole('switch', { name: S('vat') }))
-    await user.type(screen.getByRole('textbox', { name: S('reason') }), 'No VAT on subscriptions')
-    await user.click(screen.getByRole('button', { name: i18n.t('console.settings.save') }))
+    await user.type((await billingCard()).getByRole('textbox', { name: S('reason') }), 'No VAT on subscriptions')
+    await user.click((await billingCard()).getByRole('button', { name: i18n.t('console.settings.save') }))
 
     await waitFor(() => expect(sent('PUT', SETTINGS)?.body.vatRate).toBe('0'))
   })
@@ -159,8 +185,8 @@ describe('Console › Billing settings', () => {
 
     await user.click(await screen.findByRole('switch', { name: S('vat') }))
     await user.type(screen.getByRole('textbox', { name: S('vatRate') }), '0')
-    await user.type(screen.getByRole('textbox', { name: S('reason') }), 'Try zero')
-    await user.click(screen.getByRole('button', { name: i18n.t('console.settings.save') }))
+    await user.type((await billingCard()).getByRole('textbox', { name: S('reason') }), 'Try zero')
+    await user.click((await billingCard()).getByRole('button', { name: i18n.t('console.settings.save') }))
 
     expect(await screen.findByText(S('error.percent'))).toBeTruthy()
     expect(sent('PUT', SETTINGS)).toBeNull()
@@ -180,8 +206,8 @@ describe('Console › Billing settings', () => {
     const grace = await screen.findByRole('textbox', { name: S('graceDays') })
     await user.clear(grace)
     await user.type(grace, '14')
-    await user.type(screen.getByRole('textbox', { name: S('reason') }), 'Longer grace')
-    await user.click(screen.getByRole('button', { name: i18n.t('console.settings.save') }))
+    await user.type((await billingCard()).getByRole('textbox', { name: S('reason') }), 'Longer grace')
+    await user.click((await billingCard()).getByRole('button', { name: i18n.t('console.settings.save') }))
 
     expect(await screen.findByText(S('refusal.conflict'))).toBeTruthy()
     await waitFor(() =>
@@ -200,6 +226,108 @@ describe('Console › Billing settings', () => {
     expect(grace.matches(':disabled')).toBe(true)
     expect(screen.getByText(S('readOnly'))).toBeTruthy()
     expect(screen.queryByRole('button', { name: i18n.t('console.settings.save') })).toBeNull()
+  })
+})
+
+describe('Console › Billing settings › Extra documents per purchase', () => {
+  beforeEach(() => {
+    answers[SETTINGS] = () => json(200, settings())
+  })
+
+  it('saves the limits on their own record with their version and reason, and lists earlier versions', async () => {
+    answers[EXTRA] = () => json(200, limits())
+    answers[EXTRA_HISTORY] = () =>
+      json(200, [limits(), limits({ id: 'x-1', version: 1, minPerPurchase: 1, maxPerPurchase: 1000, reason: 'Seed', createdBy: null })])
+    answers[`PUT ${EXTRA}`] = () => json(200, limits({ version: 3, minPerPurchase: 50 }))
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/settings')
+
+    const card = await extraCard()
+    const min = (await card.findByRole('textbox', { name: X('min') })) as HTMLInputElement
+    expect(min.value).toBe('10')
+    expect((card.getByRole('textbox', { name: X('max') }) as HTMLInputElement).value).toBe('5000')
+    // The version in force is the form; the history starts after it.
+    expect(await screen.findByText(X('historyEntry', { version: 1, min: '1', max: '1,000' }))).toBeTruthy()
+    expect(screen.queryByText(X('historyEntry', { version: 2, min: '10', max: '5,000' }))).toBeNull()
+
+    await user.clear(min)
+    await user.type(min, '50')
+    await user.type(card.getByRole('textbox', { name: S('reason') }), 'Fewer tiny purchases')
+    await user.click(card.getByRole('button', { name: i18n.t('console.settings.save') }))
+
+    await waitFor(() => expect(sent('PUT', EXTRA)).not.toBeNull())
+    const put = sent('PUT', EXTRA)!
+    expect(headerOf(put.init, 'If-Match')).toBe('"2"')
+    expect(put.body).toEqual({ minPerPurchase: 50, maxPerPurchase: 5000, reason: 'Fewer tiny purchases' })
+    // The billing settings record is untouched by this card.
+    expect(sent('PUT', SETTINGS)).toBeNull()
+  })
+
+  it('refuses a maximum below the minimum or above the ceiling, and sends nothing', async () => {
+    answers[EXTRA] = () => json(200, limits())
+    answers[EXTRA_HISTORY] = () => json(200, [limits()])
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/settings')
+
+    const card = await extraCard()
+    const max = await card.findByRole('textbox', { name: X('max') })
+    await user.clear(max)
+    await user.type(max, '5')
+    await user.type(card.getByRole('textbox', { name: S('reason') }), 'Typo')
+    await user.click(card.getByRole('button', { name: i18n.t('console.settings.save') }))
+    expect(await card.findByText(X('error.maxBelowMin'))).toBeTruthy()
+
+    await user.clear(max)
+    await user.type(max, '1000001')
+    expect(await card.findByText(X('error.max', { max: '1,000,000' }))).toBeTruthy()
+    expect(sent('PUT', EXTRA)).toBeNull()
+  })
+
+  it('says someone else changed the limits on a version conflict and reloads them', async () => {
+    let reads = 0
+    answers[EXTRA] = () => {
+      reads += 1
+      return json(200, reads === 1 ? limits() : limits({ version: 3, maxPerPurchase: 8000 }))
+    }
+    answers[EXTRA_HISTORY] = () => json(200, [limits()])
+    answers[`PUT ${EXTRA}`] = () =>
+      json(409, { type: 'https://api.fawtir.om/problems/billing-settings-version-conflict' })
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/settings')
+
+    const card = await extraCard()
+    const max = await card.findByRole('textbox', { name: X('max') })
+    await user.clear(max)
+    await user.type(max, '6000')
+    await user.type(card.getByRole('textbox', { name: S('reason') }), 'More per purchase')
+    await user.click(card.getByRole('button', { name: i18n.t('console.settings.save') }))
+
+    expect(await screen.findByText(X('refusal.conflict'))).toBeTruthy()
+    await waitFor(async () =>
+      expect(((await extraCard()).getByRole('textbox', { name: X('max') }) as HTMLInputElement).value).toBe('8000'),
+    )
+  })
+
+  it('shows support the limits read-only', async () => {
+    who = SUPPORT
+    answers[EXTRA] = () => json(200, limits())
+    answers[EXTRA_HISTORY] = () => json(200, [limits()])
+    renderAt('/console/billing/settings')
+
+    const card = await extraCard()
+    const min = (await card.findByRole('textbox', { name: X('min') })) as HTMLInputElement
+    expect(min.matches(':disabled')).toBe(true)
+    expect(card.queryByRole('textbox', { name: S('reason') })).toBeNull()
+    expect(card.queryByRole('button', { name: i18n.t('console.settings.save') })).toBeNull()
+  })
+
+  it('keeps the billing settings usable when the limits cannot be read', async () => {
+    answers[EXTRA] = () => json(500, { type: 'about:blank' })
+    renderAt('/console/billing/settings')
+
+    expect(await (await billingCard()).findByRole('textbox', { name: S('graceDays') })).toBeTruthy()
+    const card = await extraCard()
+    expect(card.queryByRole('textbox', { name: X('min') })).toBeNull()
   })
 })
 
