@@ -9,6 +9,7 @@ export function PeopleTable({
   lastSignedIn = false,
   branchName,
   personLink,
+  markOwner = false,
 }: {
   people: CompanyUser[]
   roleNames: (code: string) => string
@@ -24,6 +25,8 @@ export function PeopleTable({
   branchName?: (id: string) => string | null
   /** Where the person's name leads (their own page); absent, the name is plain text. */
   personLink?: (person: CompanyUser) => string
+  /** Marks the company's Owner (OW-1); a branch access screen, so only once it is on. */
+  markOwner?: boolean
 }) {
   const { t } = useTranslation()
   return (
@@ -54,7 +57,7 @@ export function PeopleTable({
                   ) : (
                     <span className="font-semibold">{displayName(person)}</span>
                   )}
-                  {person.owner ? <OwnerPill /> : null}
+                  {markOwner && person.owner ? <OwnerPill /> : null}
                 </span>
                 <span className="block text-text-tertiary">{person.email}</span>
               </td>
@@ -104,7 +107,9 @@ function BranchesCell({
   const { t } = useTranslation()
   if (seesEveryBranch(person)) return <>{t('branchAccess.everyBranch')}</>
   // An older server sends no branches at all, which is not the same as none.
-  if (person.branchIds === undefined) return <span className="text-text-quaternary">—</span>
+  if (person.branchIds === undefined) {
+    return <span className="text-text-quaternary">{t('branchAccess.notAvailableYet')}</span>
+  }
   const names = (person.branchIds ?? [])
     .map(branchName)
     .filter((name): name is string => name !== null)

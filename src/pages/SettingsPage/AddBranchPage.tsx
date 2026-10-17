@@ -5,6 +5,7 @@ import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { BranchRoster } from './BranchRoster'
 import { DateField, Input, Select, Switch } from '../../components/ui'
 import { useCan } from '../../lib/session/session'
+import { useBranchAccessOn } from '../../lib/identity/branchAccessSwitch'
 import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import { useApiRead } from '../../hooks'
 import { GOVERNORATES, BRANCH_BEHAVIOUR, firstInvoiceFor } from '../../lib/settingsCompany'
@@ -363,7 +364,9 @@ export function AddBranchPage() {
             </p>
           </Panel>
 
-          {/* Who works there (BA-1): GET/PUT /v1/branches/{id}/people, once the branch exists. */}
+          {/* Who works there (BA-1): GET/PUT /v1/branches/{id}/people, once the branch exists and
+              branch access is on. While it is off, TODO(backend): docs/backend-guides/SETTINGS.md
+              row 3.3 as before (everyone works in every branch, BA-6). */}
           <Panel
             title={t('addBranch.whoWorksThere')}
             note={t('addBranch.whoWorksThereNote')}
@@ -378,13 +381,7 @@ export function AddBranchPage() {
               ) : undefined
             }
           >
-            {existing ? (
-              <BranchRoster branchId={existing.id} />
-            ) : (
-              <p className="text-sm font-medium text-text-quaternary">
-                {t('branchAccess.roster.afterAdding')}
-              </p>
-            )}
+            <WhoWorksThere branchId={existing?.id ?? null} />
           </Panel>
 
           <Panel title={t('addBranch.behaviour')} note={t('addBranch.behaviourNote')} flush>
@@ -658,5 +655,21 @@ function Row({ label, value, last }: { label: string; value: string; last?: bool
       <dt className="text-sm font-medium text-text-tertiary">{label}</dt>
       <dd className="shrink-0 text-sm font-semibold text-text-primary">{value}</dd>
     </div>
+  )
+}
+
+/**
+ * Inside the shell, which is what provides the session that says whether branch access is on.
+ * Off: the roster is not offered yet (SETTINGS.md row 3.3), as before.
+ */
+function WhoWorksThere({ branchId }: { branchId: string | null }) {
+  const { t } = useTranslation()
+  const branchAccessOn = useBranchAccessOn()
+  if (!branchAccessOn) {
+    return <p className="text-sm font-medium text-text-quaternary">{t('addBranch.notAvailableYet')}</p>
+  }
+  if (branchId) return <BranchRoster branchId={branchId} />
+  return (
+    <p className="text-sm font-medium text-text-quaternary">{t('branchAccess.roster.afterAdding')}</p>
   )
 }

@@ -42,15 +42,20 @@ export type NamedBranch = { id: string; name: string; active: boolean }
  * The company's branches by name, for the people screens. The branches overview (`branch.manage`,
  * the Administrator's) names closed branches too and is the read the settings shell already makes;
  * anyone else, such as a branch administrator, gets the branch picker's list, which the server
- * keeps to their own open branches (BA-1).
+ * keeps to their own open branches (BA-1). `enabled` false reads nothing (branch access off).
  */
-export function useBranchNames(): { branches: NamedBranch[]; ready: boolean; name: (id: string) => string | null } {
+export function useBranchNames(
+  enabled = true,
+): { branches: NamedBranch[]; ready: boolean; name: (id: string) => string | null } {
   const mayManageBranches = useCan('branch.manage')
   const overview = useApiRead<BranchOverviewDto>(
-    mayManageBranches ? BRANCHES_OVERVIEW_PATH : null,
+    enabled && mayManageBranches ? BRANCHES_OVERVIEW_PATH : null,
     () => loadBranchOverview(),
   ).read
-  const directory = useApiRead<BranchDto[]>(mayManageBranches ? null : BRANCHES_PATH, loadBranches).read
+  const directory = useApiRead<BranchDto[]>(
+    enabled && !mayManageBranches ? BRANCHES_PATH : null,
+    loadBranches,
+  ).read
   const branches: NamedBranch[] = mayManageBranches
     ? overview.status === 'ready' && Array.isArray(overview.data.branches)
       ? overview.data.branches.map((row) => ({ id: row.id, name: row.name, active: row.active }))
