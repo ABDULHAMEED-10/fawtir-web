@@ -357,6 +357,27 @@ describe('Invite someone', () => {
     expect(link.getAttribute('href')).toBe('/settings/bills')
     expect(screen.queryByText(/Invitation sent/)).toBeNull()
   })
+
+  it('at the plan\'s user capacity, leads whoever manages the plan to buy a place (US-1)', async () => {
+    who = { ...ADMIN, permissions: [...ADMIN.permissions, 'tenant.plan.manage'] } as Entitlements
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === '/api/v1/me/entitlements') return json(200, who)
+      if (url === '/api/v1/users/invitations' && init?.method === 'POST')
+        return json(409, {
+          type: 'https://api.fawtir.om/problems/extra-place-required',
+          title: 'Conflict', status: 409, detail: 'English detail', kind: 'USER', included: 5, inUse: 5, capacity: 5,
+        })
+      const answer = answers[url]
+      return answer ? answer() : json(404, { type: 'about:blank' })
+    })
+    renderAt('/settings/team/invite')
+    fireEvent.change(await screen.findByRole('textbox', { name: /Email/ }), { target: { value: 'x@real.example' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('people.invite.send') }))
+    expect(await screen.findByText(i18n.t('paidExtras.refusal.extraPlace.USER'))).toBeTruthy()
+    const link = screen.getByRole('link', { name: i18n.t('paidExtras.refusal.extraPlaceLink') })
+    expect(link.getAttribute('href')).toBe('/settings/plan/extras')
+    expect(screen.queryByText('English detail')).toBeNull()
+  })
 })
 
 describe('while the subscription is read-only (ST-2)', () => {
@@ -426,7 +447,10 @@ describe('Plan and usage', () => {
     expect(screen.getByRole('link', { name: 'Open ERP integration' }).getAttribute('href')).toBe('/settings/erp')
     // Without tenant.plan.manage no move is offered at all.
     expect(screen.queryByRole('button', { name: /Move/ })).toBeNull()
-    expect(new Set(requests())).toEqual(new Set([`GET ${SUBSCRIPTION}`, `GET ${PUBLIC_PLANS}`]))
+    // The paid places and the add-on (US-1, BR-3, ER-1) are read once for both of their cards.
+    expect(new Set(requests())).toEqual(
+      new Set([`GET ${SUBSCRIPTION}`, `GET ${PUBLIC_PLANS}`, 'GET /api/v1/settings/plan/extras']),
+    )
     expect(fetchMock.mock.calls.some(([url]) => url === PLAN)).toBe(true)
   })
 

@@ -97,6 +97,14 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         requires: 'platform.plans.read',
       },
       {
+        id: 'enterprise',
+        labelKey: 'console.nav.enterprise',
+        to: '/console/enterprise',
+        Icon: ConsolePlansIcon,
+        // Companies on negotiated Enterprise terms (V348), read under the billing permission.
+        requires: 'platform.billing.read',
+      },
+      {
         id: 'disconnections',
         labelKey: 'console.nav.disconnections',
         to: '/console/disconnections',

@@ -595,6 +595,16 @@ describe('Peppol Participant ID', () => {
     expect(screen.queryByRole('button', { name: i18n.t('console.verification.participant.approve') })).toBeNull()
   })
 
+  it('treats the empty 200 the backend really sends for "no submission" as not submitted', async () => {
+    // The server's actual answer: no body, no content type. json(200, null) above is a body the
+    // backend never sends, which is how the crash on console-onboarded companies went unseen.
+    await openWithPid(() => new Response(null, { status: 200 }), {})
+
+    expect(await screen.findByText(i18n.t('console.verification.participant.notSubmitted'))).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: 'Al Noor Bakery' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('console.verification.participant.approve') })).toBeNull()
+  })
+
   it('reports the operator has no access, distinctly from any other failure', async () => {
     await openWithPid(() => problem(403, 'insufficient-permission'), {})
 

@@ -284,18 +284,22 @@ describe('Review and submit', () => {
 
     expect(await screen.findByText(i18n.t('fawtaraStatus.review.title'))).toBeTruthy()
     expect(screen.getByText('owner@alnoor.test').tagName).toBe('B')
-    // In time order, the review under way (its marker carries the step's number).
-    const steps = screen.getAllByRole('listitem').map((item) => item.textContent)
-    expect(steps).toEqual([
-      i18n.t('fawtaraStatus.steps.sent'),
-      '2' + i18n.t('fawtaraStatus.steps.review') + i18n.t('fawtaraStatus.steps.reviewing'),
-      i18n.t('fawtaraStatus.steps.request'),
-      i18n.t('fawtaraStatus.steps.accept'),
-      i18n.t('fawtaraStatus.steps.register'),
-      i18n.t('fawtaraStatus.steps.connected'),
-    ])
-    // The portal request comes after Fawtir's review, so it is not offered yet.
-    expect(screen.queryByText(i18n.t('fawtaraStatus.openPortal'))).toBeNull()
+    // In time order: Fawtir approves only after accepting the portal request, so the request is
+    // the step under way (its marker carries the step's number) and approval comes after it.
+    const text = screen.getAllByRole('list')[0].textContent ?? ''
+    const order = ['sent', 'request', 'accept', 'review', 'register', 'connected'].map((id) =>
+      text.indexOf(i18n.t(`fawtaraStatus.steps.${id}`)),
+    )
+    expect(order.every((at) => at >= 0)).toBe(true)
+    expect([...order].sort((a, b) => a - b)).toEqual(order)
+    const current = screen
+      .getAllByRole('listitem')
+      .find((item) => item.getAttribute('aria-current') === 'step')
+    expect(current?.textContent?.startsWith('2' + i18n.t('fawtaraStatus.steps.request'))).toBe(true)
+    expect(screen.queryByText(i18n.t('fawtaraStatus.steps.approved'))).toBeNull()
+    // The request is asked for while the review runs.
+    expect(screen.getByText(i18n.t('fawtaraStatus.howTo.h4'))).toBeTruthy()
+    expect(screen.getByRole('link', { name: i18n.t('fawtaraStatus.openPortal') })).toBeTruthy()
   })
 
   it('says no "VAT included" when the seller charges none, and names the seller as /payment did', () => {
@@ -585,12 +589,13 @@ describe('Waiting screen', () => {
   it('shows an approval with the way to sign in', async () => {
     fetchMock.mockResolvedValue(status('ACTIVATED'))
     renderAt('/signup-pending')
-    // Approved: the taxpayer's turn to send Fawtir the connection request on the portal.
-    expect(await screen.findByText(i18n.t('fawtaraStatus.request.title'))).toBeTruthy()
-    expect(screen.getByText(i18n.t('fawtaraStatus.howTo.h4'))).toBeTruthy()
-    expect(
-      screen.getByRole('link', { name: i18n.t('fawtaraStatus.openPortal') }).getAttribute('href'),
-    ).toBe('https://tms.taxoman.gov.om/portal')
+    // Approved only after Fawtir accepted the portal request: the SMP registration is next, and
+    // the request is not asked for again.
+    expect(await screen.findByText(i18n.t('fawtaraStatus.registering.title'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('fawtaraStatus.steps.approved'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('fawtaraStatus.steps.accepted'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('fawtaraStatus.howTo.h4'))).toBeNull()
+    expect(screen.queryByRole('link', { name: i18n.t('fawtaraStatus.openPortal') })).toBeNull()
 
     await userEvent
       .setup({ delay: null })

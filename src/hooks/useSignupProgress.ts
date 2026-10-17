@@ -33,11 +33,13 @@ export type SignupProgress =
  * The real stage of the registration behind this tab, read once from `/signup/status` and never
  * polled. It is never presented as more advanced than the server says: only `ACTIVATED` (or a
  * login-enabled account) is "approved", and with no token there is no stage to show at all.
+ * Approval comes only after Fawtir accepted the portal connection request, so an approved account
+ * is being registered on the SMP; under review it still has the request to send.
  */
 export function phaseFor(status: SignupStatusResponse): SignupProgress {
   if (status.closed === true) return { kind: 'closed', status }
   if (status.stage === 'ACTIVATED' || status.loginEnabled) {
-    return { kind: 'phase', phase: 'request', status }
+    return { kind: 'phase', phase: 'registering', status }
   }
   if (status.stage === 'REJECTED') return { kind: 'phase', phase: 'rejected', status }
   if (isSubmittedStage(status.stage)) return { kind: 'phase', phase: 'review', status }
