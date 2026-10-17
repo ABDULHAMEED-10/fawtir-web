@@ -97,6 +97,9 @@ const SUBSCRIPTION_STATES = {
     renewsOn: null,
     enterprise: { termsSet: false },
   },
+  // P2-2 D3: the 1 November renewal was paid early at the Starter price, so keeping Business
+  // means paying the difference for that period (`KEEP_PLAN`, planChanges.mjs).
+  downgradePaid: { paidThrough: '2026-11-30', renewsOn: '2026-12-01' },
   restrictionsOff: { access: 'PAYMENT_REQUIRED', restrictionsEnforced: false, restriction: null, ...LAPSED },
 }
 
@@ -200,6 +203,12 @@ const SCHEDULED_CHANGE = {
   effectiveOn: '2026-11-01',
 }
 let scheduledChange = SCHEDULED_CHANGE
+
+/** A plan change scheduled through `/settings/plan/changes` (`planChanges.mjs`) waits here too. */
+export function setScheduledChange(change) {
+  scheduledChange = change
+  switchOffChoice = null
+}
 
 const SEATS = [
   { userId: 'u-yusuf', addedAt: '2026-08-02T08:00:00Z', kept: 'OWNER' },
