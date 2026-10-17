@@ -23655,8 +23655,8 @@
       "NOT_REQUIRED": "لا يلزم اعتماد",
       "NOT_REQUESTED": "بحاجة إلى اعتماد",
       "PENDING": "بانتظار الاعتماد",
-      "APPROVED": "معتمدة",
-      "REJECTED": "غير معتمدة"
+      "APPROVED": "معتمد",
+      "REJECTED": "غير معتمد"
     },
     "card": {
       "title": "الاعتماد",
