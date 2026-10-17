@@ -110,7 +110,7 @@ function CreditNoteDetail() {
   const location = useLocation()
   const navigate = useNavigate()
   const session = useSession()
-  const canSettle = can(session, 'invoice.payment.manage')
+  const canSettle = can(session, 'bill.settle')
 
   const note = useApiRead<CreditNoteRowDto>(id ? creditNotePath(id) : null, () =>
     loadCreditNote(id),

@@ -47,12 +47,26 @@ const ADMIN: Entitlements = {
   username: 'demo_admin',
   tenantId: 't-1',
   roles: [{ id: 'r-1', code: 'ADMIN', name: 'Administrator', systemRole: true }],
-  permissions: ['invoice.read', 'invoice.payment.manage'],
+  permissions: ['invoice.read', 'invoice.payment.manage', 'bill.settle'],
   scopes: [],
   featureFlags: {},
 }
 
 const READER: Entitlements = { ...ADMIN, permissions: ['invoice.read'] }
+// RL-4: the Accountant records a supplier credit note (capture) and does not settle it; the
+// Finance Manager does (`bill.settle`).
+const ACCOUNTANT: Entitlements = {
+  ...ADMIN,
+  username: 'accountant',
+  roles: [{ id: 'r-2', code: 'ACCOUNTANT', name: 'Accountant', systemRole: true }],
+  permissions: ['invoice.read', 'invoice.payment.manage'],
+}
+const FINANCE_MANAGER: Entitlements = {
+  ...ADMIN,
+  username: 'finance',
+  roles: [{ id: 'r-3', code: 'FINANCE_MANAGER', name: 'Finance Manager', systemRole: true }],
+  permissions: ['invoice.read', 'invoice.payment.manage', 'bill.settle'],
+}
 
 const SUMMARY: CreditNoteSummaryDto = {
   currencyCode: 'OMR',
@@ -596,6 +610,46 @@ describe('Credit notes list, wired to the API', () => {
     await screen.findByText('QMS-CN-1')
     // The constraint and the capability: someone who may settle sees both.
     expect(screen.getByRole('link', { name: 'Upload a credit note' })).toBeTruthy()
+    expect(
+      within(screen.getByRole('table')).getByRole('button', { name: 'Set against the bill' }),
+    ).toBeTruthy()
+  })
+
+  it('shows an Accountant Upload and no Set against', async () => {
+    who = ACCOUNTANT
+    notes = [
+      note({
+        credits: {
+          billNumber: 'QMS-7781',
+          issueDate: '2026-09-01',
+          documentUuid: null,
+          billId: BILL_ID,
+          applied: false,
+        },
+      }),
+    ]
+    renderList()
+    await screen.findByText('QMS-CN-1')
+    expect(screen.getByRole('link', { name: 'Upload a credit note' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    expect(applyBody).toBeNull()
+  })
+
+  it('shows a Finance Manager Set against from the row', async () => {
+    who = FINANCE_MANAGER
+    notes = [
+      note({
+        credits: {
+          billNumber: 'QMS-7781',
+          issueDate: '2026-09-01',
+          documentUuid: null,
+          billId: BILL_ID,
+          applied: false,
+        },
+      }),
+    ]
+    renderList()
+    await screen.findByText('QMS-CN-1')
     expect(
       within(screen.getByRole('table')).getByRole('button', { name: 'Set against the bill' }),
     ).toBeTruthy()
@@ -1194,6 +1248,23 @@ describe('One credit note', () => {
     renderDetail()
     await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
     expect(screen.queryByRole('button', { name: /hold/i })).toBeNull()
+  })
+
+  it('offers an Accountant no way to apply or refund the credit', async () => {
+    who = ACCOUNTANT
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Ask for a refund' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Keep as credit' })).toBeNull()
+  })
+
+  it('offers a Finance Manager the ways to apply or refund the credit', async () => {
+    who = FINANCE_MANAGER
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.getAllByRole('button', { name: 'Set against the bill' }).length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: 'Ask for a refund' })).toBeTruthy()
   })
 
   it('offers no disposition to someone who may only read', async () => {

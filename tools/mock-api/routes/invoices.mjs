@@ -833,6 +833,7 @@ export default [
         'invoice.export',
         'invoice.approve',
         'invoice.payment.manage',
+        'bill.settle',
         'invoice.internal-note.read',
         'invoice.attachment.manage',
         'creditnote.create',
