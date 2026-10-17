@@ -480,10 +480,15 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     calendar month. Unused documents **expire** at the reset and never carry over (500 allowed,
     260 used: the other 240 end, and the new month starts again at 500).
   - **What counts.** Every legal document issued counts **once**, whether sending passed or failed;
-    a resend never counts again. Every supplier invoice **received** into Fawtir also counts once
-    (owner, 14 Oct 2026; replaces "received invoices never count"): a 200-document plan with 150
-    invoices issued and 50 supplier invoices received has reached its limit. What happens to an
-    incoming supplier invoice once the allowance is used up is still open.
+    a resend never counts again. Every supplier document **received** into Fawtir (invoice,
+    credit note, debit note) also counts once, on arrival (owner, 14 Oct 2026; replaces "received
+    invoices never count"): a 200-document plan with 150 issued and 50 received has reached its
+    limit. A console switch, "Count received documents" (per plan, and per company on
+    Enterprise), is on by default; off, only issued documents count (client, 15 Oct 2026).
+  - **At 0 left** issuing stops and received documents are **held**, never refused: they are
+    still received and reported to the Tax Authority, the company sees that they arrived
+    (supplier, number, date, count) but cannot open them until it buys extras, which open the
+    held ones first, oldest first (owner, 14 Oct 2026).
   - **Over the quota: buy ahead, never billed after.** Issuing stops at the limit until extra
     documents are bought; drafts can still be saved and every record read. The customer is warned
     at 80%, 90% and 100%. "Buy extra documents" (Settings, Subscription, and in each warning)
@@ -503,19 +508,24 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     users and permissions, customers, suppliers, products, number series, templates, settings and
     the ERP mapping all stay. Renewing reopens everything as it was; the next invoice number
     follows the last, and the customer **never goes through onboarding again**.
-  - **Supplier invoices while the subscription has ended** (updated by the owner, 14 Oct 2026;
-    replaces "held and released on renewal"). While Suspended or Cancelled, the company receives
-    no supplier invoices through Fawtir. Receiving resumes as normal on renewal; anything sent in
-    the gap is missed and the supplier must resend it. How the access point refuses delivery is
-    checked against the Peppol and PINT-OM rules, not decided from memory.
-  - **Seller and VAT** (owner, 14 Oct 2026, later the same day; replaces Insight Information
-    Security LLC with 5% VAT): Fawtir is the brand; the legal seller on every subscription bill is
-    **Thumb International SPC** (CR 1383315, Tax Identification Number 1875504). **No VAT is
-    charged** on subscription bills and no tax invoice is issued. "Insight Technology LLC" in the
-    payment settings and cheque wording is to be replaced with the seller's legal name.
+  - **Supplier documents while the subscription has ended** (owner, 14 Oct 2026, final; replaces
+    "not received, missed in the gap"). While Suspended or Cancelled they are still received and
+    reported, but held (shown as arrived, not openable); on renewal they open and count against
+    the new period, oldest first. Fawtir never refuses delivery while the company is connected.
+  - **Seller and VAT depend on the environment** (client, 14 Oct 2026): Fawtir is the brand.
+    Testing (now): **Thumb International SPC** (CR 1383315, Tax Identification Number 1875504),
+    not VAT-registered, **no VAT**: bills show price and total only. Production: **Insight
+    Information Security LLC**, VAT charged. Seller details and VAT on/off with its rate are
+    console settings; a bill keeps the seller in force when issued; no seller name is hardcoded
+    ("Insight Technology LLC" in the payment settings and cheque wording is to go). Open: the tax
+    invoice Insight gives in production, and from when it must be a Peppol e-invoice.
+  - **Cancelling at once for abuse or fraud** needs two operators (one proposes, another
+    confirms); only a period paid ahead and not started is refunded; the customer gets a short
+    email, the internal reason stays private (16 Oct 2026).
   - **Other answers of 14 Oct 2026:** every allowance, rate, limit and price is configurable in the
-    super admin console; the ERP add-on is offered on Business Plus and Enterprise only; saved cards and automatic
-    renewal wait on what Paymob supports; cash keeps its second approval as implemented.
+    super admin console; the ERP add-on is offered on Business Plus and Enterprise only; saved
+    cards and automatic renewal wait on what Paymob supports; cash keeps its second approval as
+    implemented.
   - **Data is kept, always.** Retention is mandatory: there is no deletion and no "close
     company" for the customer. Records are kept for the full legal period (section 7, question 6)
     in every subscription state, and reading and export always work.
@@ -539,8 +549,10 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     documents, upgrading, downgrading, adding paid users or branches and cancelling are on the web.
     Mobile keeps the sign-up payment, plan and usage (read only), the usage warnings and the
     read-only banner with Pay; elsewhere it says "Manage your subscription on the Fawtir website."
-  - **The full rules** for backend, web and mobile are in the shared doc "Fawtir Subscription Rules"
-    (https://claude.ai/code/artifact/e34f1427-8685-4c10-bf87-cbd78bc5168d).
+  - **The full rules** are in **"Fawtir Business Rules"** (rule IDs such as AL-7, CA-5; it wins
+    where this section is shorter or older) and the Implementation Plan v4; the earlier shared
+    doc "Fawtir Subscription Rules"
+    (https://claude.ai/code/artifact/e34f1427-8685-4c10-bf87-cbd78bc5168d) is superseded by them.
   - **On the server.** Every write checks the subscription state; reads and exports never do.
     Cancelling changes the subscription state only and never resets onboarding data or the
     onboarding-complete flag.
