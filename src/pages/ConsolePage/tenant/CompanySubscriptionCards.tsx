@@ -246,6 +246,7 @@ function SubscriptionCards({
             cancellation={fawtirCancellation}
             me={entitlements?.userId ?? null}
             canManage={canManage}
+            enabled={Boolean(fawtirCancellationEnabled)}
             onChanged={reload}
           />
         ) : null}
