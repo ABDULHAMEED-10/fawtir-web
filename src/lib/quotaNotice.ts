@@ -13,6 +13,11 @@ import { formatCount } from './format'
  * the bell's line is built from that figure and its "read" mark is kept in this browser only.
  * TODO(backend): SETTINGS.md row 5.8, a server-side in-app allowance notice the bell can read and
  * acknowledge like the subscription reminders.
+ *
+ * The warnings are for the owner and the administrators only (AL-8). Today anyone who may read the
+ * plan sees the line, because `warningPercent` is sent to every such reader and nothing on the
+ * session names the owner. TODO(backend): once the plan read sends `warningPercent` (or its own
+ * notice) to the owner and administrators only, this follows it with no change here.
  */
 
 export type QuotaWarning = { percent: 80 | 90 | 100; used: number; allowance: number }
