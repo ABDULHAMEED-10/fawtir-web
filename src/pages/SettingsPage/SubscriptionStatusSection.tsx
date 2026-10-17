@@ -130,7 +130,7 @@ export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }
               >
                 {t('subscription.switchOff.open')}
               </Link>
-              {/* D4: Enterprise terms change only through Fawtir. TODO(backend): CONSOLE.md 3.4. */}
+              {/* D4: Enterprise terms change only through Fawtir; the server refuses a withdraw too. */}
               {enterprise ? null : (
                 <Button
                   variant="secondary"

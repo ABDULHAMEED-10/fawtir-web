@@ -97,11 +97,11 @@ function PlanBody() {
   if (plan.read.status === 'loading') return <LoadingNotice />
   if (plan.read.status === 'failed')
     return <ApiReadFailure error={plan.read.error} retry={plan.retry} />
-  // TODO(backend): CONSOLE.md 3.3, null for a company moved to Enterprise after sign-up.
+  // Set for a company that chose Enterprise at sign-up or holds its own Enterprise plan.
   const enterprise = plan.read.data.enterprise ?? null
-  // TODO(decision): a company that chose Enterprise but was given a catalogue plan reads
-  // `termsSet: false` from the server today, so it is shown "terms being prepared" here, and the
-  // console lists it as "Terms not set". How such a company should be shown is Zain's call.
+  // TERMS_NOT_SET: a company marked Enterprise without its own Enterprise plan, even one still on
+  // a public catalogue plan, has no terms. It reads "terms being prepared" here, with no plan list,
+  // and the console shows it as "Terms not set". A public plan is not its terms.
   if (enterprise && !enterprise.termsSet) {
     // The figures the server sends meanwhile are its fallback plan, not this company's (F22).
     return (

@@ -41,6 +41,8 @@ export type PlanVersion = {
   branchesIncluded: number | null
   extraBranchPrice: string | null
   overagePricePerInvoice: string | null
+  /** ER-1 (V341): the ERP and API add-on a month; null or absent = not offered as a paid add-on. */
+  erpAddonMonthlyPrice?: string | null
   apiAccess: boolean
   prioritySupport: boolean
   reason: string | null

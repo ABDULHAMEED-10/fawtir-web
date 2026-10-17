@@ -121,6 +121,7 @@ const SET = {
       contractReference: 'FWT-ENT-14',
       reason: 'Renewal negotiated',
       createdBy: 'u-other',
+      createdByName: 'Nasser Al Habsi',
       createdAt: '2026-10-15T09:00:00Z',
     },
     {
@@ -258,6 +259,7 @@ describe('Console › Enterprise terms', () => {
       peopleIncluded: 20,
       billingCycle: 'MONTHLY',
       contractReference: 'FWT-ENT-14',
+      erpAddonMonthlyPrice: null,
       reason: 'Contract signed',
     })
     // The answer is shown: the state, the change waiting for the renewal, and the history.
@@ -280,6 +282,8 @@ describe('Console › Enterprise terms', () => {
     renderTerms()
     await screen.findByText(T('state.BILLING_STARTED'))
     expect(field(i18n.t('console.plans.field.monthlyPrice')).value).toBe('450.000')
+    // No add-on price on this version: not offered as a paid add-on.
+    expect(field(T('form.erpAddonPrice')).value).toBe('')
     expect(screen.getByText(/Version 2, billed monthly, from 10 Nov 2026/)).toBeTruthy()
     expect(screen.getByText('472.500')).toBeTruthy()
     const history = within(
@@ -293,6 +297,17 @@ describe('Console › Enterprise terms', () => {
         `${i18n.t('console.plans.history.by')} ${i18n.t('console.plans.history.you')}`,
       ),
     ).toBeTruthy()
+    // Another operator's save is named by the server (OP-3), not shown as an id.
+    expect(history.getByText('Nasser Al Habsi')).toBeTruthy()
+    expect(history.queryByText('u-other')).toBeNull()
+  })
+
+  it('shows the id only when the server cannot name who saved', async () => {
+    answers[TERMS] = () =>
+      json(200, { ...SET, history: [{ ...SET.history[0], createdByName: null }] })
+    renderTerms()
+    await screen.findByText(T('state.BILLING_STARTED'))
+    expect(screen.getByText('u-other')).toBeTruthy()
   })
 
   it('offers a reload, not a retry, when someone else saved first', async () => {
