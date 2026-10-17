@@ -18,6 +18,8 @@ const ENTITLEMENTS = {
     'platform.tenants.manage',
     'platform.operators.manage',
     'platform.support',
+    'platform.smp.operations.review',
+    'platform.smp.operations.manage',
     'admin.users.manage',
     'admin.roles.manage',
     'admin.settings.manage',

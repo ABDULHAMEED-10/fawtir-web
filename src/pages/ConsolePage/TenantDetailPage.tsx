@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { ApiError } from '../../api'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
+import { TenantDisconnectionCard } from './disconnections/TenantDisconnectionCard'
 import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { ConsoleNotice, ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
 import { ConsoleStatusPill } from '../../layouts/ConsoleShell/ConsoleStatusPill'
@@ -449,6 +450,8 @@ function TenantDetail({
       {prototype ? null : (
         <TenantErpEntitlementCard tenantId={tenantId} tenantCode={overview.identity.tenantCode} />
       )}
+
+      {prototype ? null : <TenantDisconnectionCard tenantId={tenantId} />}
 
       {/*
         Tabs, their content and every action modal are sample-data features: the subscription
