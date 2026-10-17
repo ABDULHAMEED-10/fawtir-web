@@ -328,3 +328,95 @@ describe('each step follows the field that proves it', () => {
     expect(record.versions[0].state).toBe('rejected')
   })
 })
+
+describe("the customer's journey claims only what the access point said", () => {
+  const reply = (
+    ack: 'AP' | 'AB' | 'RE',
+    receivedAt: string,
+    channel = 'INVOICE',
+  ): ActivityDetailDto['mls'][number] => ({
+    channel,
+    ack,
+    received_at: receivedAt,
+    sender: null,
+    sbdh_instance_identifier: null,
+    reason: null,
+  })
+  const withState = (
+    transportState: string,
+    mls: ActivityDetailDto['mls'] = [],
+  ): ActivityDetailDto => {
+    const base = phase13('INV-1')
+    return { ...base, summary: { ...base.summary, transport_state: transportState }, mls }
+  }
+
+  // C4_UNREACHABLE comes only from an INVOICE-channel RE (backend SubmissionState): the access
+  // point held the invoice and refused it. Before, the state alone also read as "waiting for
+  // their reply".
+  it('shows an unreachable receiver as sent and then refused, even without its MLS row', () => {
+    const dto = withState('C4_UNREACHABLE')
+    expect(step(dto, 'peppol', 'sentPeppol')).toMatchObject({
+      labelKey: 'activityDetail.step.sentOverPeppol',
+      state: 'done',
+    })
+    expect(journey(dto, 'peppol').steps.map((s) => s.id)).not.toContain('noReply')
+    expect(journey(dto, 'peppol').verdictKey).toBe('activityDetail.verdict.theyRefused')
+    expect(journey(dto, 'peppol').tone).toBe('bad')
+  })
+
+  it('shows the refusal that made the receiver unreachable', () => {
+    const dto = withState('C4_UNREACHABLE', [reply('RE', '2026-10-10T08:20:00Z')])
+    expect(step(dto, 'peppol', 'mls-0')).toMatchObject({
+      labelKey: 'activityDetail.step.theyRefused',
+      state: 'failed',
+    })
+    expect(journey(dto, 'peppol').verdictKey).toBe('activityDetail.verdict.theyRefused')
+    expect(journey(dto, 'peppol').steps.map((s) => s.id)).not.toContain('noReply')
+  })
+
+  it('never reads an OTA answer to the report as the customer accepting the invoice', () => {
+    const dto = withState('SENDING', [reply('AP', '2026-10-10T08:20:00Z', 'TDD')])
+    expect(step(dto, 'peppol', 'sentPeppol').state).toBe('waiting')
+    expect(journey(dto, 'peppol').verdictKey).toBe('activityDetail.verdict.notSentYet')
+    expect(journey(dto, 'peppol').steps.some((s) => s.id.startsWith('mls-'))).toBe(false)
+  })
+
+  it('says AB is delivered without confirmation, never a confirmed receipt', () => {
+    const dto = withState('DELIVERED_UNCONFIRMED', [reply('AB', '2026-10-10T08:20:00Z')])
+    expect(step(dto, 'peppol', 'mls-0').labelKey).toBe('activity.ack.deliveredUnconfirmed')
+    expect(journey(dto, 'peppol').verdictKey).toBe('activity.ack.deliveredUnconfirmed')
+    expect(journey(dto, 'peppol').steps.map((s) => s.id)).toContain('accessPoint')
+  })
+
+  it("takes the verdict from the ledger's state, not from a later MLS row", () => {
+    expect(
+      journey(withState('DELIVERED', [reply('RE', '2026-10-10T08:25:00Z')]), 'peppol').verdictKey,
+    ).toBe('activityDetail.deliveredAccepted')
+    expect(
+      journey(withState('DELIVERED_UNCONFIRMED', [reply('AP', '2026-10-10T08:25:00Z')]), 'peppol')
+        .verdictKey,
+    ).toBe('activity.ack.deliveredUnconfirmed')
+    expect(
+      journey(withState('C4_UNREACHABLE', [reply('AP', '2026-10-10T08:25:00Z')]), 'peppol')
+        .verdictKey,
+    ).toBe('activityDetail.verdict.theyRefused')
+  })
+
+  it('falls back to the earliest MLS row only when the state records no outcome', () => {
+    const replies = [reply('RE', '2026-10-10T08:25:00Z'), reply('AP', '2026-10-10T08:20:00Z')]
+    const base = phase13('INV-1')
+    const noState = { ...base, summary: { ...base.summary, transport_state: null }, mls: replies }
+    expect(journey(noState, 'peppol').verdictKey).toBe('activityDetail.deliveredAccepted')
+    // SENT is the AS4 receipt: an MLS row ahead of the ledger still counts.
+    expect(journey(withState('SENT', replies), 'peppol').verdictKey).toBe(
+      'activityDetail.deliveredAccepted',
+    )
+  })
+
+  it('waits, without a verdict, while the AS4 receipt is all there is', () => {
+    const dto = withState('SENT')
+    expect(step(dto, 'peppol', 'noReply').state).toBe('waiting')
+    expect(journey(dto, 'peppol').verdictKey).toBe('activityDetail.verdict.noReplyYet')
+    expect(journey(dto, 'peppol').tone).toBe('waiting')
+  })
+})

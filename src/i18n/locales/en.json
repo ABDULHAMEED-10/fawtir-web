@@ -2186,9 +2186,8 @@
       "dispatched": "Accepted for sending",
       "queued": "Validated and queued for sending",
       "sending": "Sending",
-      "sent": "Sent, awaiting confirmation",
+      "sent": "Received by the receiver's access point, awaiting its delivery status",
       "delivered": "Delivered",
-      "deliveredUnconfirmed": "Delivered (not confirmed)",
       "undeliverable": "Could not be delivered"
     },
     "reason": {
@@ -9200,7 +9199,8 @@
       "NONE": "No acknowledgement yet",
       "waiting": "Not yet",
       "refused": "Turned it down",
-      "youReceived": "You received it"
+      "youReceived": "You received it",
+      "deliveredUnconfirmed": "Delivered, unconfirmed"
     },
     "today": "Today",
     "sortOptions": {
@@ -9353,14 +9353,12 @@
       "signed": "Signed",
       "sentOverPeppol": "Sent over Peppol",
       "accessPointTook": "Their access point took it",
-      "confirmedReceipt": "They confirmed receipt",
       "theyAccepted": "They accepted it",
       "waitingOnOta": "Waiting on the OTA",
       "waitingOnThem": "Waiting for their reply",
       "theyRefused": "They turned it down",
       "arrivedOverPeppol": "Arrived over Peppol",
       "validated": "Validated",
-      "deliveredUnconfirmed": "Delivered, unconfirmed",
       "notSentToFawtara": "Not sent to Fawtara yet",
       "stoppedAtFawtir": "Stopped at Fawtir, needs attention",
       "notSigned": "Not signed yet",
@@ -9494,11 +9492,9 @@
       "acceptedOnTry": "Accepted on attempt {{count}}",
       "turnedDown": "Turned down",
       "waiting": "Still waiting",
-      "delivered": "Delivered",
       "theyRefused": "Turned down by them",
       "noReplyYet": "No reply yet",
       "received": "Received",
-      "deliveredUnconfirmed": "Delivered, unconfirmed",
       "replaced": "Replaced by us",
       "stoppedAtFawtir": "Stopped at Fawtir",
       "notSentYet": "Not sent yet",
