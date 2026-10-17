@@ -15326,7 +15326,12 @@
           "DOWNGRADE_SCHEDULED": "Move to a smaller plan scheduled",
           "DOWNGRADE_WITHDRAWN": "Move to a smaller plan withdrawn",
           "DOWNGRADE_APPLIED": "Moved to a smaller plan",
-          "OTHER": "Subscription changed"
+          "OTHER": "Subscription changed",
+          "OPERATOR_PLAN_CHANGED": "Plan changed by Fawtir at no charge",
+          "FAWTIR_CANCELLATION_PROPOSED": "Cancellation at once proposed",
+          "FAWTIR_CANCELLATION_WITHDRAWN": "Proposed cancellation withdrawn",
+          "CANCELLED_BY_FAWTIR": "Cancelled by Fawtir",
+          "REOPENED_BY_RENEWAL": "Reopened by a renewal"
         }
       },
       "allowance": {
@@ -15398,7 +15403,58 @@
         "impersonation": "End the impersonation before changing a company's subscription.",
         "forbidden": "You can't do this. Confirm your sign-in code again, or ask an operator with this permission.",
         "gone": "This company could not be found.",
-        "invalid": "The server did not accept these values. Check them and try again."
+        "invalid": "The server did not accept these values. Check them and try again.",
+        "cancellationOff": "Cancelling at once is switched off on this server.",
+        "cancellationAlreadyProposed": "A cancellation is already proposed for this company. Close this window to see it.",
+        "cancellationNotOpen": "This proposal was already confirmed or withdrawn. Close this window to see where it stands.",
+        "sameOperator": "You proposed this cancellation, so another operator must confirm it.",
+        "cancellationNotTracked": "This company has no subscription lifecycle, so it cannot be cancelled at once.",
+        "alreadyEnded": "This subscription has already ended.",
+        "enterprisePlan": "That plan belongs to a company's Enterprise terms. Set Enterprise terms instead."
+      },
+      "upgrade": {
+        "open": "Upgrade at no charge",
+        "title": "Upgrade at no charge",
+        "body": "Moves this company to a bigger plan today. The customer is not charged. The reason is shown in the company's history.",
+        "plan": "New plan",
+        "planRequired": "Choose a plan",
+        "none": "There is no bigger plan to move this company to.",
+        "loadingPlans": "Loading the plans",
+        "confirm": "Upgrade at no charge"
+      },
+      "cancel": {
+        "open": "Cancel at once",
+        "title": "Cancel this subscription at once",
+        "body": "Only for abuse or fraud. Nothing is deleted. Once a second operator confirms, the company becomes read-only that day and is e-mailed your message. The reason below stays inside Fawtir.",
+        "restrictionsOff": "Restrictions are switched off on this server, so until they are on the company can still issue documents.",
+        "category": "Grounds",
+        "categories": {
+          "ABUSE": "Abuse",
+          "FRAUD": "Fraud"
+        },
+        "message": "Message to the customer",
+        "messageHint": "Shown in the e-mail and in the app. At most {{max}} characters.",
+        "messageRequired": "Write the message to the customer",
+        "code": "Type the company code to confirm: {{code}}",
+        "codeMismatch": "This is not this company's code.",
+        "confirm": "Propose the cancellation",
+        "someone": "an operator",
+        "proposedTitle": "Cancellation at once proposed",
+        "cancelledTitle": "Cancelled by Fawtir",
+        "proposedBy": "Proposed by {{name}}, {{date}}",
+        "confirmedBy": "Read-only from {{date}}. Proposed by {{proposer}}, confirmed by {{confirmer}}.",
+        "internal": "Internal reason",
+        "voided": "Bills voided:",
+        "refunds": "Refund cases opened: {{count}}",
+        "waiting": "Waiting for a second operator to confirm.",
+        "confirmOpen": "Confirm the cancellation",
+        "withdrawOpen": "Withdraw",
+        "confirmTitle": "Confirm the cancellation",
+        "confirmBody": "From today the company is read-only. Open bills are voided, and a period paid ahead that has not started is recorded for refund. The owner and administrators are e-mailed the message below. No operator can undo this; the customer can renew.",
+        "confirmButton": "Cancel the subscription now",
+        "withdrawTitle": "Withdraw the proposed cancellation",
+        "withdrawBody": "Nothing changes for the company. The reason is kept in its history.",
+        "withdrawConfirm": "Withdraw the proposal"
       }
     },
     "disconnections": {

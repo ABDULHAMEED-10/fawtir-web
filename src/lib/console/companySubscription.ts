@@ -1,6 +1,7 @@
 import { ApiError, apiRequest } from '../../api'
 import type { SubscriptionStatusDto } from '../../api/settings/subscription'
 import { commonFailureMessage, type FormMessage } from '../identity/errors'
+import { sortCatalogue, type CatalogueAdminPlan } from './planCatalogue'
 
 /**
  * One company's subscription as the console operates it, on the platform routes the backend
@@ -18,6 +19,8 @@ export const BILLING_READ = 'platform.billing.read'
 export const BILLING_MANAGE = 'platform.billing.manage'
 export const PLANS_READ = 'platform.plans.read'
 export const PLANS_MANAGE = 'platform.plans.manage'
+/** The operator's free upgrade (`PUT /platform/companies/{id}/plan`, business rule PC-5). */
+export const TENANTS_MANAGE = 'platform.tenants.manage'
 
 /** The server's bounds for the two numeric writes. */
 export const TRIAL_EXCEPTION_MAX_DAYS = 90
@@ -41,6 +44,11 @@ export type LifecycleEventKind =
   | 'DOWNGRADE_SCHEDULED'
   | 'DOWNGRADE_WITHDRAWN'
   | 'DOWNGRADE_APPLIED'
+  | 'OPERATOR_PLAN_CHANGED'
+  | 'FAWTIR_CANCELLATION_PROPOSED'
+  | 'FAWTIR_CANCELLATION_WITHDRAWN'
+  | 'CANCELLED_BY_FAWTIR'
+  | 'REOPENED_BY_RENEWAL'
 
 export type LifecycleEventDto = {
   id: string
@@ -54,10 +62,43 @@ export type LifecycleEventDto = {
   occurredAt: string
 }
 
+export type FawtirCancellationCategory = 'ABUSE' | 'FRAUD'
+
+/**
+ * Fawtir's cancel-at-once for abuse or fraud (business rules CA-7, CA-9): proposed by one operator,
+ * confirmed by a different one or withdrawn. `internalReason` is Fawtir's only; the customer is told
+ * `customerMessage`.
+ */
+export type FawtirCancellationDto = {
+  id: string
+  tenantId: string
+  tenantName: string | null
+  status: 'PROPOSED' | 'CONFIRMED' | 'WITHDRAWN'
+  category: FawtirCancellationCategory
+  internalReason: string
+  customerMessage: string
+  proposedBy: string
+  proposedByName: string | null
+  proposedAt: string
+  confirmedBy: string | null
+  confirmedByName: string | null
+  confirmedAt: string | null
+  effectiveOn: string | null
+  withdrawnBy: string | null
+  withdrawnByName: string | null
+  withdrawnAt: string | null
+  withdrawalReason: string | null
+  outcome: { voidedBills: string[]; refundCases: string[] }
+}
+
 export type PlatformSubscriptionDto = {
   status: SubscriptionStatusDto
   /** Newest first, at most 200. */
   events: LifecycleEventDto[]
+  /** The open proposal, otherwise the cancellation the company stands under now. Absent on older servers. */
+  fawtirCancellation?: FawtirCancellationDto | null
+  /** Whether cancel-at-once may be proposed and confirmed on this server. Absent on older servers. */
+  fawtirCancellationEnabled?: boolean
 }
 
 export type AllowanceUsageDto = {
@@ -170,6 +211,69 @@ export function setCompanyCounting(
   })
 }
 
+/** The longest internal reason or customer message the server keeps. */
+export const CANCELLATION_TEXT_MAX = 500
+
+export const fawtirCancellationsPath = (tenantId: string) =>
+  `${companySubscriptionPath(tenantId)}/fawtir-cancellations`
+
+export function proposeFawtirCancellation(
+  tenantId: string,
+  category: FawtirCancellationCategory,
+  internalReason: string,
+  customerMessage: string,
+  confirmTenantCode: string,
+): Promise<FawtirCancellationDto> {
+  return apiRequest(fawtirCancellationsPath(tenantId), {
+    method: 'POST',
+    body: { category, internalReason, customerMessage, confirmTenantCode },
+  })
+}
+
+export function confirmFawtirCancellation(
+  tenantId: string,
+  cancellationId: string,
+): Promise<FawtirCancellationDto> {
+  return apiRequest(
+    `${fawtirCancellationsPath(tenantId)}/${encodeURIComponent(cancellationId)}/confirmation`,
+    { method: 'POST' },
+  )
+}
+
+export function withdrawFawtirCancellation(
+  tenantId: string,
+  cancellationId: string,
+  reason: string,
+): Promise<FawtirCancellationDto> {
+  return apiRequest(
+    `${fawtirCancellationsPath(tenantId)}/${encodeURIComponent(cancellationId)}/withdrawal`,
+    { method: 'POST', body: { reason } },
+  )
+}
+
+/** The operator's upgrade at no charge; the reason is required and kept in the company history (PC-5). */
+export function upgradeCompanyPlan(
+  tenantId: string,
+  planCode: string,
+  reason: string,
+): Promise<unknown> {
+  return apiRequest(`${company(tenantId)}/plan`, { method: 'PUT', body: { planCode, reason } })
+}
+
+/**
+ * The plans an operator may move a company up to at no charge (business rule PC-5): published plans
+ * after the current one in the catalogue's own order. A current plan the catalogue does not list
+ * (the default, or Enterprise terms) leaves every other published plan.
+ */
+export function plansAbove(
+  plans: readonly CatalogueAdminPlan[],
+  current: string,
+): CatalogueAdminPlan[] {
+  const ordered = sortCatalogue(plans.filter((plan) => plan.active))
+  const at = ordered.findIndex((plan) => plan.code === current)
+  return ordered.filter((plan, index) => plan.code !== current && index > at)
+}
+
 const K = 'console.companySubscription.refusal.'
 
 /**
@@ -200,4 +304,30 @@ export function describeCompanySubscriptionFailure(error: unknown): FormMessage 
     if (error.status === 400) return { key: `${K}invalid` }
   }
   return commonFailureMessage(error)
+}
+
+/**
+ * The refusals of the cancel-at-once and free-upgrade writes, in the console's words. Codes the
+ * other writes share keep their meaning; a state conflict here means the company already ended.
+ */
+export function describeStaffActionFailure(error: unknown): FormMessage {
+  if (error instanceof ApiError) {
+    switch (error.problemType) {
+      case 'fawtir-cancellation-not-enabled':
+        return { key: `${K}cancellationOff` }
+      case 'fawtir-cancellation-already-proposed':
+        return { key: `${K}cancellationAlreadyProposed` }
+      case 'fawtir-cancellation-not-open':
+        return { key: `${K}cancellationNotOpen` }
+      case 'same-operator':
+        return { key: `${K}sameOperator` }
+      case 'subscription-not-tracked':
+        return { key: `${K}cancellationNotTracked` }
+      case 'subscription-state-conflict':
+        return { key: `${K}alreadyEnded` }
+      case 'enterprise-plan-managed-by-terms':
+        return { key: `${K}enterprisePlan` }
+    }
+  }
+  return describeCompanySubscriptionFailure(error)
 }

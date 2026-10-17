@@ -20,6 +20,10 @@ const ENTITLEMENTS = {
     'platform.support',
     'platform.smp.operations.review',
     'platform.smp.operations.manage',
+    // The console tenant page's subscription cards and their actions.
+    'platform.billing.read',
+    'platform.billing.manage',
+    'platform.plans.read',
     'admin.users.manage',
     'admin.roles.manage',
     'admin.settings.manage',

@@ -13,6 +13,9 @@ const TENANT = '11111111-1111-4111-8111-111111111111'
 const SUBSCRIPTION = `/api/v1/platform/companies/${TENANT}/subscription`
 const EXTRA = `/api/v1/platform/companies/${TENANT}/extra-documents`
 const COUNTING = `/api/v1/platform/companies/${TENANT}/received-document-counting`
+const PLAN = `/api/v1/platform/companies/${TENANT}/plan`
+const CANCELLATIONS = `${SUBSCRIPTION}/fawtir-cancellations`
+const PLANS = '/api/v1/platform/plans'
 
 const ADMIN: Entitlements = {
   userId: 'u-admin',
@@ -46,8 +49,27 @@ function status(over: Record<string, unknown> = {}) {
   }
 }
 
-function subscription(over: Record<string, unknown> = {}, events: unknown[] = []) {
-  return { status: status(over), events }
+function subscription(
+  over: Record<string, unknown> = {},
+  events: unknown[] = [],
+  extra: Record<string, unknown> = {},
+) {
+  return { status: status(over), events, fawtirCancellation: null, fawtirCancellationEnabled: true, ...extra }
+}
+
+function cancellation(over: Record<string, unknown> = {}) {
+  return {
+    id: 'fc-1', tenantId: TENANT, tenantName: null, status: 'PROPOSED', category: 'FRAUD',
+    internalReason: 'Chargeback ring', customerMessage: 'Fraudulent invoices were sent.',
+    proposedBy: 'u-other', proposedByName: 'Nasser Al Hinai', proposedAt: '2026-10-16T09:00:00Z',
+    confirmedBy: null, confirmedByName: null, confirmedAt: null, effectiveOn: null, withdrawnBy: null,
+    withdrawnByName: null, withdrawnAt: null, withdrawalReason: null,
+    outcome: { voidedBills: [], refundCases: [] }, ...over,
+  }
+}
+
+function plan(code: string, sortOrder: number, active = true) {
+  return { code, nameEn: code[0] + code.slice(1).toLowerCase(), nameAr: null, sortOrder, active }
 }
 
 function allowance(over: Record<string, unknown> = {}) {
@@ -112,7 +134,7 @@ const C = (key: string, options?: Record<string, unknown>) =>
 function renderCards() {
   return render(
     <MemoryRouter>
-      <CompanySubscriptionCards tenantId={TENANT} />
+      <CompanySubscriptionCards tenantId={TENANT} tenantCode="FT1111" />
     </MemoryRouter>,
   )
 }
@@ -220,6 +242,167 @@ describe('Console › Tenant › Subscription', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(ENTITLEMENTS_URL, expect.anything()))
     expect(screen.queryByRole('heading', { name: C('title') })).toBeNull()
     expect(fetchMock.mock.calls.filter(([url]) => url !== ENTITLEMENTS_URL)).toHaveLength(0)
+  })
+})
+
+describe('Console › Tenant › Upgrade at no charge', () => {
+  it('offers only bigger published plans and sends the plan with the reason', async () => {
+    answers[PLANS] = () =>
+      json(200, [plan('STARTER', 1), plan('BUSINESS', 2), plan('PRO', 3), plan('LEGACY', 4, false), plan('ENTERPRISE_X', 5)])
+    answers[`PUT ${PLAN}`] = () => json(200, {})
+    const user = userEvent.setup({ delay: null })
+    renderCards()
+
+    await user.click((await card(C('title'))).getByRole('button', { name: C('upgrade.open') }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(await within(dialog).findByRole('button', { name: C('upgrade.plan') }))
+    const options = (await screen.findAllByRole('option')).map((option) => option.textContent)
+    expect(options).toEqual(['Pro', 'Enterprise_x'])
+    await user.click(screen.getByRole('option', { name: 'Pro' }))
+    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(i18n.t('console.operators.reason.label')) }), 'Goodwill after the outage')
+    await user.click(within(dialog).getByRole('button', { name: C('upgrade.confirm') }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(sent('PUT', PLAN)!.body).toEqual({ planCode: 'PRO', reason: 'Goodwill after the outage' })
+    // The plan route answers with the plan, so the card reads the subscription again.
+    await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => url === SUBSCRIPTION)).toHaveLength(2))
+  })
+
+  it('does not send without a plan', async () => {
+    answers[PLANS] = () => json(200, [plan('BUSINESS', 2), plan('PRO', 3)])
+    const user = userEvent.setup({ delay: null })
+    renderCards()
+
+    await user.click((await card(C('title'))).getByRole('button', { name: C('upgrade.open') }))
+    const dialog = await screen.findByRole('dialog')
+    await within(dialog).findByRole('button', { name: C('upgrade.plan') })
+    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(i18n.t('console.operators.reason.label')) }), 'Goodwill')
+    await user.click(within(dialog).getByRole('button', { name: C('upgrade.confirm') }))
+
+    expect(await within(dialog).findAllByText(C('upgrade.planRequired'))).not.toHaveLength(0)
+    expect(sent('PUT', PLAN)).toBeNull()
+  })
+
+  it('is not offered without platform.tenants.manage', async () => {
+    who = { ...ADMIN, permissions: ADMIN.permissions.filter((p) => p !== 'platform.tenants.manage') }
+    renderCards()
+
+    expect((await card(C('title'))).queryByRole('button', { name: C('upgrade.open') })).toBeNull()
+  })
+})
+
+describe('Console › Tenant › Cancel at once', () => {
+  it('refuses a mistyped company code before sending, then proposes with the grounds, message and internal reason', async () => {
+    answers[`POST ${CANCELLATIONS}`] = () => json(201, cancellation({ proposedBy: 'u-admin' }))
+    const user = userEvent.setup({ delay: null })
+    renderCards()
+
+    await user.click((await card(C('title'))).getByRole('button', { name: C('cancel.open') }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(new RegExp(C('cancel.restrictionsOff')))).toBeTruthy()
+    await user.click(within(dialog).getByRole('button', { name: C('cancel.category') }))
+    await user.click(await screen.findByRole('option', { name: C('cancel.categories.FRAUD') }))
+    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(C('cancel.message')) }), 'Fraudulent invoices were sent.')
+    const code = within(dialog).getByRole('textbox', { name: new RegExp(C('cancel.code', { code: 'FT1111' })) })
+    await user.type(code, 'FT9999')
+    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(i18n.t('console.operators.reason.label')) }), 'Chargeback ring')
+    await user.click(within(dialog).getByRole('button', { name: C('cancel.confirm') }))
+
+    expect(await within(dialog).findByText(C('cancel.codeMismatch'))).toBeTruthy()
+    expect(sent('POST', CANCELLATIONS)).toBeNull()
+
+    await user.clear(code)
+    await user.type(code, 'ft1111')
+    await user.click(within(dialog).getByRole('button', { name: C('cancel.confirm') }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(sent('POST', CANCELLATIONS)!.body).toEqual({
+      category: 'FRAUD', internalReason: 'Chargeback ring', customerMessage: 'Fraudulent invoices were sent.', confirmTenantCode: 'ft1111',
+    })
+  })
+
+  it('shows another operator the proposal with Confirm and Withdraw, and confirms it', async () => {
+    answers[SUBSCRIPTION] = () => json(200, subscription({}, [], { fawtirCancellation: cancellation() }))
+    answers[`POST ${CANCELLATIONS}/fc-1/confirmation`] = () => json(200, cancellation({ status: 'CONFIRMED' }))
+    const user = userEvent.setup({ delay: null })
+    renderCards()
+
+    const sub = await card(C('title'))
+    expect(sub.getByText(/Nasser Al Hinai/)).toBeTruthy()
+    expect(sub.getByText(`${C('cancel.internal')}: Chargeback ring`)).toBeTruthy()
+    expect(sub.queryByRole('button', { name: C('cancel.open') })).toBeNull()
+    expect(sub.getByRole('button', { name: C('cancel.withdrawOpen') })).toBeTruthy()
+    await user.click(sub.getByRole('button', { name: C('cancel.confirmOpen') }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: C('cancel.confirmButton') }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(fetchMock.mock.calls.some(([url, init]) => url === `${CANCELLATIONS}/fc-1/confirmation` && init?.method === 'POST')).toBe(true)
+  })
+
+  it('shows the proposer that a second operator must confirm, without a Confirm button', async () => {
+    answers[SUBSCRIPTION] = () =>
+      json(200, subscription({}, [], { fawtirCancellation: cancellation({ proposedBy: 'u-admin' }) }))
+    renderCards()
+
+    const sub = await card(C('title'))
+    expect(sub.getByText(C('cancel.waiting'))).toBeTruthy()
+    expect(sub.queryByRole('button', { name: C('cancel.confirmOpen') })).toBeNull()
+    expect(sub.getByRole('button', { name: C('cancel.withdrawOpen') })).toBeTruthy()
+  })
+
+  it('says in words that the proposer cannot confirm when the server refuses it', async () => {
+    answers[SUBSCRIPTION] = () => json(200, subscription({}, [], { fawtirCancellation: cancellation() }))
+    answers[`POST ${CANCELLATIONS}/fc-1/confirmation`] = () =>
+      json(403, { type: 'https://api.fawtir.om/problems/same-operator' })
+    const user = userEvent.setup({ delay: null })
+    renderCards()
+
+    await user.click((await card(C('title'))).getByRole('button', { name: C('cancel.confirmOpen') }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: C('cancel.confirmButton') }))
+
+    expect(await within(dialog).findByText(C('refusal.sameOperator'))).toBeTruthy()
+  })
+
+  it('withdraws a proposal with a reason', async () => {
+    answers[SUBSCRIPTION] = () => json(200, subscription({}, [], { fawtirCancellation: cancellation() }))
+    answers[`POST ${CANCELLATIONS}/fc-1/withdrawal`] = () => json(200, cancellation({ status: 'WITHDRAWN' }))
+    const user = userEvent.setup({ delay: null })
+    renderCards()
+
+    await user.click((await card(C('title'))).getByRole('button', { name: C('cancel.withdrawOpen') }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(i18n.t('console.operators.reason.label')) }), 'Wrong company')
+    await user.click(within(dialog).getByRole('button', { name: C('cancel.withdrawConfirm') }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(sent('POST', `${CANCELLATIONS}/fc-1/withdrawal`)!.body).toEqual({ reason: 'Wrong company' })
+  })
+
+  it('shows a confirmed cancellation with who proposed and confirmed it, and offers no further action on it', async () => {
+    answers[SUBSCRIPTION] = () =>
+      json(200, subscription({ access: 'CANCELLED', trialDay: null, cancelAtPeriodEnd: true, accessEndsOn: '2026-10-15' }, [], {
+        fawtirCancellation: cancellation({
+          status: 'CONFIRMED', confirmedBy: 'u-admin', confirmedByName: 'Badr Billing', effectiveOn: '2026-10-16',
+          outcome: { voidedBills: ['FB-2026-000123'], refundCases: [] },
+        }),
+      }))
+    renderCards()
+
+    const sub = await card(C('title'))
+    expect(sub.getByText(new RegExp(C('cancel.cancelledTitle')))).toBeTruthy()
+    expect(sub.getByText(/Badr Billing/)).toBeTruthy()
+    expect(sub.getByText('FB-2026-000123')).toBeTruthy()
+    expect(sub.queryByRole('button', { name: C('cancel.open') })).toBeNull()
+    expect(sub.queryByRole('button', { name: C('cancel.confirmOpen') })).toBeNull()
+    expect(sub.queryByRole('button', { name: C('upgrade.open') })).toBeNull()
+  })
+
+  it('is not offered while the server has it switched off, or to support', async () => {
+    answers[SUBSCRIPTION] = () => json(200, subscription({}, [], { fawtirCancellationEnabled: false }))
+    renderCards()
+    expect((await card(C('title'))).queryByRole('button', { name: C('cancel.open') })).toBeNull()
   })
 })
 
