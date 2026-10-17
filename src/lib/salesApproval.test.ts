@@ -106,8 +106,11 @@ describe('refusals', () => {
     expect(salesApprovalMessageKey(refusal(409, 'SOMETHING_ELSE'))).toBeNull()
   })
 
-  it('reads 503 as switched off', () => {
+  it('reads only the 503 SALES_APPROVAL_UNAVAILABLE as switched off', () => {
     expect(isSalesApprovalUnavailable(refusal(503, 'SALES_APPROVAL_UNAVAILABLE'))).toBe(true)
     expect(isSalesApprovalUnavailable(refusal(409, 'SALES_APPROVAL_PENDING'))).toBe(false)
+    // Any other 503 is an outage, not the switch.
+    expect(isSalesApprovalUnavailable(refusal(503, 'DISPATCH_UNAVAILABLE'))).toBe(false)
+    expect(isSalesApprovalUnavailable(refusal(503, null))).toBe(false)
   })
 })

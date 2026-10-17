@@ -49,9 +49,14 @@ export function salesApprovalMessageKey(error: unknown): string | null {
 /** The codes this build has a sentence for. Exported so a test can pin the set. */
 export const MAPPED_SALES_APPROVAL_CODES = Object.freeze(Object.keys(REFUSALS))
 
-/** Sales approval is switched off on this deployment: the screens show nothing new. */
+/**
+ * Sales approval is switched off on this deployment: the server's 503 `SALES_APPROVAL_UNAVAILABLE`.
+ * Any other 503 is an outage and is reported as one.
+ */
 export function isSalesApprovalUnavailable(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 503
+  return (
+    error instanceof ApiError && error.status === 503 && error.code === 'SALES_APPROVAL_UNAVAILABLE'
+  )
 }
 
 /**
