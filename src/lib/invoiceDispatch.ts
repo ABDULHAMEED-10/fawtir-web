@@ -30,7 +30,8 @@ const STATE_KEYS: Record<InvoiceDispatchStateDto, string | null> = {
   SENDING: 'invoiceDispatch.state.sending',
   SENT: 'invoiceDispatch.state.sent',
   DELIVERED: 'invoiceDispatch.state.delivered',
-  DELIVERED_UNCONFIRMED: 'invoiceDispatch.state.deliveredUnconfirmed',
+  // MLS AB reads the same here, in the ledger and on the record: one key, one wording.
+  DELIVERED_UNCONFIRMED: 'activity.ack.deliveredUnconfirmed',
   UNDELIVERABLE: 'invoiceDispatch.state.undeliverable',
 }
 
@@ -140,27 +141,51 @@ export function transportNotes(
   )
 }
 
-/** Whether the document has left Fawtir's hands, for the delivery bar's tick. */
+/**
+ * Whether the delivery bar may show its tick: only once the receiving access point has answered
+ * with an MLS (AP, or AB, which is final too). SENT is the AS4 receipt alone, and an RE can still
+ * follow it (the ledger's C4_UNREACHABLE, which this read reports as UNDELIVERABLE), so a tick at
+ * SENT claimed a delivery that could yet be refused.
+ */
 export function dispatchSucceeded(dispatch: InvoiceDispatchDto | null): boolean {
   return (
     dispatch !== null &&
-    (dispatch.state === 'SENT' ||
-      dispatch.state === 'DELIVERED' ||
-      dispatch.state === 'DELIVERED_UNCONFIRMED')
+    (dispatch.state === 'DELIVERED' || dispatch.state === 'DELIVERED_UNCONFIRMED')
   )
 }
 
 /**
- * Re-read only while the server is mid-step: a send in flight, or a transmission under way. A
- * queued document waits on the transport schedule, which can be hours, so it is not watched.
+ * States the server moves on its own before the document reaches the network: the claim
+ * (PROCESSING) and the hand-off to the ledger (DISPATCHED). RETRY_SCHEDULED is left out: it waits
+ * on Send or on an outbox schedule that can be hours away, and `sendable` already offers the press.
  */
-export function dispatchIsMoving(dispatch: InvoiceDispatchDto | null): boolean {
+const LEDGER_PENDING: ReadonlySet<InvoiceDispatchStateDto> = new Set(['PROCESSING', 'DISPATCHED'])
+
+/**
+ * The buyer's Peppol leg: queued, on the wire, or AS4-received and awaiting its MLS. Watched only
+ * while the buyer is reached over Peppol (or the route is not known yet): for an e-mailed, printed
+ * or self-billed document no access point will ever answer, so re-reading only spends requests.
+ * A Tax Authority leg still on its way is caught by LEG_PENDING whatever the buyer route.
+ */
+const PEPPOL_PENDING: ReadonlySet<InvoiceDispatchStateDto> = new Set(['QUEUED', 'SENDING', 'SENT'])
+
+/** A leg the transport has not finished with; RETRY_SCHEDULED waits on its own `nextAttemptAt`. */
+const LEG_PENDING: ReadonlySet<InvoiceTransportLegStateDto> = new Set([
+  'QUEUED_NOT_ATTEMPTED',
+  'TRANSMITTING',
+])
+
+/**
+ * Whether the page should keep re-reading the dispatch: the ledger is not at an outcome yet, or a
+ * transport leg the page reports (the Tax Authority's, after the buyer's MLS) is still on its way.
+ */
+export function dispatchIsPending(dispatch: InvoiceDispatchDto | null): boolean {
   if (dispatch === null) return false
-  if (dispatch.state === 'PROCESSING') return true
-  if (dispatch.state !== 'SENDING') return false
-  // SENDING with a leg still waiting for, or between, attempts is the same wait as QUEUED.
-  const leg = leadingLeg(dispatch)
-  return !leg || leg.state === 'TRANSMITTING' || leg.state === 'TRANSMITTED'
+  if (LEDGER_PENDING.has(dispatch.state)) return true
+  const overPeppol = dispatch.buyerDelivery === null || dispatch.buyerDelivery === 'PEPPOL'
+  if (overPeppol && PEPPOL_PENDING.has(dispatch.state)) return true
+  const legs = [dispatch.transport?.buyer, dispatch.transport?.taxAuthority]
+  return legs.some((leg) => !!leg && LEG_PENDING.has(leg.state))
 }
 
 /** What a completed Send says, from its outcome and reason. */
