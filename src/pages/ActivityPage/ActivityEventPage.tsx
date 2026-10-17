@@ -242,8 +242,9 @@ function Record({
                 {/* How it is put right follows from what was refused (ACTIVITY.md 2.30). */}
                 <p className="mt-2 text-sm font-medium leading-[1.6] text-text-tertiary">
                   {t(`activityDetail.refusalKind.${record.rejection.kind}`)}
-                  {/* In the existing line, not a new mark: the frame has no slot for it. */}
-                  {record.rejection.held ? ` ${t('activity.correctionHeld')}` : null}
+                  {/* In the existing line, not a new mark: the frame has no slot for it. Worded
+                      for this line, which may just have said the report can be sent again. */}
+                  {record.rejection.held ? ` ${t('activityDetail.correctionHeld')}` : null}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2.5">
                   {record.rejection.later === 'open' &&

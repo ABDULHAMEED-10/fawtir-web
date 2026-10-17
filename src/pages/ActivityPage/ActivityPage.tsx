@@ -252,7 +252,7 @@ function ActivityLedger() {
   }
 
   const resubmit = async (item: ActivityItemDto) => {
-    if (!item.links.resubmit) return
+    if (!canResubmit(item) || !item.links.resubmit) return
     setBusy(item.invoice_uuid)
     setFailure(null)
     try {
@@ -808,7 +808,10 @@ function SubmissionRow({
   })()
 
   // Said in the row's own verdict line rather than a new mark, so the row's design is unchanged.
-  const verdictLine = correctionHeld(item) ? `${verdict} ${t('activity.correctionHeld')}` : verdict
+  // A raw server reason may end without a full stop; a dot keeps the two sentences apart.
+  const verdictLine = correctionHeld(item)
+    ? `${verdict}${/[.!?؟]$/.test(verdict.trim()) ? ' ' : ' · '}${t('activity.correctionHeld')}`
+    : verdict
 
   const routeLine = routeOf(item)
   const route = t(routeLine.key, routeLine.values)

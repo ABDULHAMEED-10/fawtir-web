@@ -1,5 +1,6 @@
 import { ApiError, apiRequest } from '../../api'
 import type { SubscriptionStatusDto } from '../../api/settings/subscription'
+import type { PaidExtrasOverviewDto } from '../../api/settings/paidExtras'
 import { commonFailureMessage, type FormMessage } from '../identity/errors'
 
 /**
@@ -29,6 +30,29 @@ export const companyExtraDocumentsPath = (tenantId: string) =>
   `${company(tenantId)}/extra-documents`
 export const companyCountingPath = (tenantId: string) =>
   `${company(tenantId)}/received-document-counting`
+/** `platform.billing.read`: the company's paid places and ERP add-on, read only (P2-1 §3.14). */
+export const companyPaidExtrasPath = (tenantId: string) => `${company(tenantId)}/paid-extras`
+
+/** The add-on's stored state as the console reads it; null when the company never ordered it. */
+export type CompanyErpAddonDto = {
+  tenantId: string
+  status: 'PENDING_PAYMENT' | 'ACTIVE' | 'ENDING' | 'ENDED'
+  startedOn: string | null
+  endsOn: string | null
+  endReason: 'CUSTOMER' | 'PLAN_DOWNGRADE' | null
+  /** True when the add-on, not an operator, granted the ERP entitlement. */
+  grantedEntitlement: boolean
+  changedBy: string
+  changedAt: string
+  version: number
+}
+
+export type CompanyPaidExtrasDto = {
+  tenantId: string
+  /** The overview the customer sees on Plan and usage. */
+  extras: PaidExtrasOverviewDto
+  erpAddon: CompanyErpAddonDto | null
+}
 
 export type LifecycleEventKind =
   | 'TRIAL_STARTED'

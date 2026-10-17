@@ -16,16 +16,21 @@
  *    business days (§7.5.1). The SMP checks the connection on the portal before it adds them
  *    (§11.2). Without an effective date the connection takes effect on acceptance (§3.7).
  *
+ * Fawtir approves a company only after it has accepted that connection request and the company's
+ * Participant ID is confirmed (decided 14 Oct 2026), so the request comes before approval and the
+ * SMP registration after it: Fawtir's SMP onboarding takes only an approved company.
+ *
  * One screen follows the whole road (owner decisions, 8 Oct 2026): it closes sign-up, and is shown
  * again after sign-in until the account is connected. Steps run in time order, top to bottom; the
  * Figma frame drew them upward, the designer's slip.
  */
 
 /**
- * Where the account stands: with Fawtir's reviewers; waiting for the taxpayer's request on the
- * portal; waiting for Fawtir to accept it; accepted and being registered on the SMP; connected;
- * or a request Fawtir declined or that expired, which the taxpayer sends again. `rejected` is
- * Fawtir's review turning the registration down: nothing after it has started.
+ * Where the account stands: with Fawtir's reviewers, who wait for the taxpayer's request on the
+ * portal; waiting for that request; waiting for Fawtir to accept it; accepted, approved and being
+ * registered on the SMP; connected; or a request Fawtir declined or that expired, which the
+ * taxpayer sends again. `rejected` is Fawtir's review turning the registration down: it claims
+ * nothing about the request either way.
  */
 export type GoingLivePhase =
   | 'review'
@@ -49,9 +54,9 @@ export type GoingLiveStep = {
 
 const STEP_IDS: GoingLiveStep['id'][] = [
   'sent',
-  'review',
   'request',
   'accept',
+  'review',
   'register',
   'connected',
 ]
@@ -59,34 +64,34 @@ const STEP_IDS: GoingLiveStep['id'][] = [
 /** The step each phase is waiting on. */
 const CURRENT: Record<GoingLivePhase, number> = {
   review: 1,
-  rejected: 1,
-  request: 2,
-  accepting: 3,
+  rejected: 3,
+  request: 1,
+  accepting: 2,
   registering: 4,
   connected: 6,
-  declined: 3,
-  expired: 3,
+  declined: 2,
+  expired: 2,
 }
 
 const STATUS: Partial<Record<GoingLivePhase, Partial<Record<GoingLiveStep['id'], string>>>> = {
-  review: { review: 'reviewing' },
+  review: { request: 'requestNow' },
   rejected: { review: 'rejected' },
-  request: { review: 'approved', request: 'requestNow' },
-  accepting: { review: 'approved', request: 'requestSent', accept: 'accepting' },
+  request: { request: 'requestNow' },
+  accepting: { request: 'requestSent', accept: 'accepting' },
   registering: {
-    review: 'approved',
     request: 'requestSent',
     accept: 'accepted',
+    review: 'approved',
     register: 'registering',
   },
   connected: {
-    review: 'approved',
     request: 'requestSent',
     accept: 'accepted',
+    review: 'approved',
     register: 'registered',
   },
-  declined: { review: 'approved', request: 'requestSent', accept: 'declined' },
-  expired: { review: 'approved', request: 'requestSent', accept: 'expired' },
+  declined: { request: 'requestSent', accept: 'declined' },
+  expired: { request: 'requestSent', accept: 'expired' },
 }
 
 export function goingLiveSteps(phase: GoingLivePhase): GoingLiveStep[] {
@@ -99,7 +104,8 @@ export function goingLiveSteps(phase: GoingLivePhase): GoingLiveStep[] {
       labelKey: `fawtaraStatus.steps.${id}`,
       statusKey: statusKey ? `fawtaraStatus.steps.${statusKey}` : undefined,
       state:
-        index < at || phase === 'connected'
+        // A rejection says nothing about the portal request, so only the sent step is done.
+        (index < at && (phase !== 'rejected' || index === 0)) || phase === 'connected'
           ? 'done'
           : index === at
             ? failed
@@ -110,9 +116,12 @@ export function goingLiveSteps(phase: GoingLivePhase): GoingLiveStep[] {
   })
 }
 
-/** Phases in which the taxpayer has to (re)send the request on the Fawtara Portal. */
+/**
+ * Phases in which the taxpayer has to (re)send the request on the Fawtara Portal. Under review it
+ * is shown too: approval waits for the request, and nothing here can tell whether it was sent.
+ */
 export const needsPortalRequest = (phase: GoingLivePhase) =>
-  phase === 'request' || phase === 'declined' || phase === 'expired'
+  phase === 'review' || phase === 'request' || phase === 'declined' || phase === 'expired'
 
 export const FAWTARA_PORTAL_URL = 'https://tms.taxoman.gov.om/portal'
 

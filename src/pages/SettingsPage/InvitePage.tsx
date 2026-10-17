@@ -26,6 +26,7 @@ import { branchAccessRefusalKey } from '../../lib/branchAccessRefusals'
 import { useBranchNames, useManagesPeople } from './peopleView'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { subscriptionRestrictedAction } from '../../lib/subscriptionRestricted'
+import { PAID_EXTRAS_ROUTE, extraPlaceRequired } from '../../api/settings/paidExtras'
 import { permissionWords } from '../../lib/permissionLabels'
 import tickIcon from '../../assets/settings/check-green.svg'
 import circleIcon from '../../assets/settings/minus-amber.svg'
@@ -75,6 +76,7 @@ function InviteForm() {
   const { t } = useTranslation()
   const session = useSession()
   const mayListRoles = useCan(ROLES_PERMISSION)
+  const mayBuyPlaces = useCan('tenant.plan.manage')
   const roles = useApiRead<RoleDto[]>(mayListRoles ? ROLES_PATH : null, loadRoles)
   const [email, setEmail] = useState('')
   /** The one job role (RL-1); empty means the server's default. */
@@ -115,8 +117,19 @@ function InviteForm() {
       setExtras([])
       setBranchIds([])
     } catch (error) {
+      // US-1: at the plan's capacity a paid place comes first; whoever manages the plan buys it.
+      const place = extraPlaceRequired(error)
       const refusal = branchAccessRefusalKey(error)
-      if (refusal) {
+      if (place !== null) {
+        setFailure(
+          mayBuyPlaces
+            ? t(`paidExtras.refusal.extraPlace.${place}`)
+            : `${t(`paidExtras.refusal.extraPlace.${place}`)} ${t('paidExtras.refusal.extraPlaceAsk')}`,
+        )
+        setFailureLink(
+          mayBuyPlaces ? { to: PAID_EXTRAS_ROUTE, labelKey: 'paidExtras.refusal.extraPlaceLink' } : null,
+        )
+      } else if (refusal) {
         setFailure(t(refusal))
       } else {
         const message = describeApiFailure(error)

@@ -83,6 +83,7 @@ import {
   PlanPage,
   DowngradeSwitchOffPage,
   ExtraDocumentsPage,
+  PaidExtrasPage,
   BillingPage,
   ActivityLogPage,
   ExportPage,
@@ -176,6 +177,8 @@ import {
   ConsoleBillingSettingsPage,
   ConsoleSellerPage,
   ConsoleDisconnectionsPage,
+  ConsoleEnterprisePage,
+  ConsoleEnterpriseTermsPage,
   ConsoleQueuePage,
   ConsoleIncidentsPage,
   ConsoleAuditPage,
@@ -357,6 +360,7 @@ function App() {
           <Route path="/settings/plan" element={<PlanPage />} />
           <Route path="/settings/plan/switch-off" element={<DowngradeSwitchOffPage />} />
           <Route path="/settings/plan/extra-documents" element={<ExtraDocumentsPage />} />
+          <Route path="/settings/plan/extras" element={<PaidExtrasPage />} />
           {/* Real subscription dates above; the bills prototype inside keeps its own ribbon. */}
           <Route path="/settings/bills" element={<BillingPage />} />
           <Route path="/settings/activity-log" element={<ActivityLogPage />} />
@@ -815,6 +819,8 @@ function App() {
           <Route path="/console" element={<DemoModule module="console"><OperationsPage /></DemoModule>} />
           <Route path="/console/tenants" element={<TenantsPage />} />
           <Route path="/console/tenants/:id" element={<TenantDetailPage />} />
+          <Route path="/console/tenants/:id/enterprise-terms" element={<ConsoleEnterpriseTermsPage />} />
+          <Route path="/console/enterprise" element={<ConsoleEnterprisePage />} />
           {/* The sample-data subscription screens are retired: a company's subscription is on its
               tenant page, and payments have their own queue. Old links land there. */}
           <Route path="/console/subscriptions" element={<Navigate to="/console/tenants" replace />} />
