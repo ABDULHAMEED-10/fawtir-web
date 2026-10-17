@@ -480,7 +480,10 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     calendar month. Unused documents **expire** at the reset and never carry over (500 allowed,
     260 used: the other 240 end, and the new month starts again at 500).
   - **What counts.** Every legal document issued counts **once**, whether sending passed or failed;
-    a resend never counts again.
+    a resend never counts again. Every supplier invoice **received** into Fawtir also counts once
+    (owner, 14 Oct 2026; replaces "received invoices never count"): a 200-document plan with 150
+    invoices issued and 50 supplier invoices received has reached its limit. What happens to an incoming
+    supplier invoice once the allowance is used up is still open.
   - **Over the quota: buy ahead, never billed after.** Issuing stops at the limit until extra
     documents are bought; drafts can still be saved and every record read. The customer is warned
     at 80%, 90% and 100%. "Buy extra documents" (Settings, Subscription, and in each warning)
@@ -510,9 +513,8 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     **Thumb International SPC** (CR 1383315, Tax Identification Number 1875504). **No VAT is
     charged** on subscription bills and no tax invoice is issued. "Insight Technology LLC" in the
     payment settings and cheque wording is to be replaced with the seller's legal name.
-  - **Other answers of 14 Oct 2026:** received supplier invoices never count against the
-    allowance; every allowance, rate, limit and price is configurable in the super admin console;
-    the ERP add-on is offered on Business Plus and Enterprise only; saved cards and automatic
+  - **Other answers of 14 Oct 2026:** every allowance, rate, limit and price is configurable in the
+    super admin console; the ERP add-on is offered on Business Plus and Enterprise only; saved cards and automatic
     renewal wait on what Paymob supports; cash keeps its second approval as implemented.
   - **Data is kept, always.** Retention is mandatory: there is no deletion and no "close
     company" for the customer. Records are kept for the full legal period (section 7, question 6)
