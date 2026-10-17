@@ -9291,7 +9291,8 @@
       "nav": "Pages of submissions"
     },
     "noCounterparty": "No counterparty",
-    "rowActionsFor": "Actions for {{number}}"
+    "rowActionsFor": "Actions for {{number}}",
+    "correctionHeld": "Correction held for an authorised decision."
   },
   "activityEvent": {
     "copyXml": "Copy the XML",
@@ -9735,7 +9736,8 @@
     },
     "quotaUnavailable": "Your document allowance is not available right now, so what this costs cannot be shown.",
     "refused": {
-      "held": "This correction is on hold for an authorised decision at Fawtir. Nothing was sent to the Tax Authority, and resubmitting again will not send it."
+      "held": "This correction is on hold for an authorised decision at Fawtir. Nothing was sent to the Tax Authority, and resubmitting again will not send it.",
+      "partlyHeld": "Reports sent again: {{sent}}. Held for an authorised decision at Fawtir and not sent: {{held}}."
     }
   },
   "complianceReport": {

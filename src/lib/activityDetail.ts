@@ -7,6 +7,8 @@ import type {
 } from '../api/compliance/activity'
 import { BUSINESS_TIME_ZONE } from './format'
 import {
+  canResubmit,
+  correctionHeld,
   flowOf,
   outcomeOf,
   refusalCauseOf,
@@ -94,6 +96,8 @@ export type ActivityRecord = {
     later: 'accepted' | 'open'
     cause: RefusalCause
     kind: RefusalKind
+    /** A RESUBMIT is held for an authorised decision (`tdd_leg.correction_held`). */
+    held: boolean
   } | null
   versions: ReportVersion[]
   proof: { reference: string | null; uuid: string | null; acceptedAt: string | null }
@@ -567,6 +571,7 @@ export function recordFromDetail(
         later: outcome === 'accepted' ? ('accepted' as const) : ('open' as const),
         cause,
         kind,
+        held: correctionHeld(item),
       }
     : null
 
@@ -663,7 +668,7 @@ export function recordFromDetail(
         metaKey: 'activityDetail.copies.invoiceMeta',
       },
     ],
-    resend: item.links.resubmit
+    resend: canResubmit(item)
       ? rejection?.kind === 'invoice'
         ? 'possibleInvoice'
         : 'possible'

@@ -512,6 +512,97 @@ describe('the ledger screen', () => {
     expect(document.body.textContent).not.toMatch(/TDD_CORRECTION_HELD/)
   })
 
+  it('re-reads the list exactly once per held answer, and never by itself', async () => {
+    holdResubmits()
+    items = [item({ links: { ...item().links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' } })]
+    const view = renderLedger()
+    await screen.findByText('INV-0001')
+    const listReads = () => calls('/compliance/activity?').length
+    const before = listReads()
+
+    openRowMenu('INV-0001')
+    fireEvent.click(screen.getByRole('menuitem', { name: /Send the report again/ }))
+    await screen.findByText(HELD_SENTENCE)
+    await waitFor(() => expect(listReads()).toBe(before + 1))
+
+    // Neither the re-read's own answer nor a later render asks again.
+    await screen.findByText('INV-0001')
+    view.rerender(
+      <MemoryRouter initialEntries={['/activity']}>
+        <Routes>
+          <Route path="/activity" element={<ActivityPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(listReads()).toBe(before + 1)
+    expect(resubmitted).toHaveLength(1)
+  })
+
+  it('does not re-read the list after a failure that is not a hold', async () => {
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) =>
+      String(input).includes('/tdd/resubmit') && init?.method === 'POST'
+        ? json(500, { type: 'https://api.fawtir.om/problems/internal-error' })
+        : base(input, init),
+    )
+    items = [item({ links: { ...item().links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' } })]
+    renderLedger()
+    await screen.findByText('INV-0001')
+    const before = calls('/compliance/activity?').length
+
+    openRowMenu('INV-0001')
+    fireEvent.click(screen.getByRole('menuitem', { name: /Send the report again/ }))
+    await waitFor(() => expect(calls('/tdd/resubmit')).toHaveLength(1))
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(calls('/compliance/activity?').length).toBe(before)
+    expect(screen.queryByText(HELD_SENTENCE)).toBeNull()
+  })
+
+  it('says a held correction on its row and offers no resubmission for it', async () => {
+    const reason = 'The report signature could not be verified.'
+    items = [
+      item({
+        tdd_leg: { ...item().tdd_leg!, status: 'REJECTED', ack: 'RE', reason, correction_held: true },
+        // Even if a link came with the flag, a held row offers no send.
+        links: { ...item().links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' },
+      }),
+    ]
+    renderLedger()
+    expect(
+      await screen.findByText(`${reason} Correction held for an authorised decision.`),
+    ).toBeTruthy()
+    openRowMenu('INV-0001')
+    expect(screen.queryByRole('menuitem', { name: /Send the report again/ })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: /Put it right/ })).toBeNull()
+  })
+
+  it.each([false, undefined])('shows a row as before when correction_held is %s', async (held) => {
+    const reason = 'The report signature could not be verified.'
+    items = [
+      item({
+        tdd_leg: { ...item().tdd_leg!, status: 'REJECTED', ack: 'RE', reason, correction_held: held },
+        links: { ...item().links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' },
+      }),
+    ]
+    renderLedger()
+    expect(await screen.findByText(reason)).toBeTruthy()
+    expect(screen.queryByText(/Correction held/)).toBeNull()
+    openRowMenu('INV-0001')
+    expect(screen.getByRole('menuitem', { name: /Send the report again/ })).toBeTruthy()
+  })
+
+  it('words the held mark in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    items = [
+      item({
+        tdd_leg: { ...item().tdd_leg!, status: 'REJECTED', ack: 'RE', reason: 'x', correction_held: true },
+      }),
+    ]
+    renderLedger()
+    expect(await screen.findByText(/التصحيح معلّق بانتظار قرار من جهة مخوّلة في فوتر/)).toBeTruthy()
+  })
+
   it('offers no resubmission on silence, even where a link might be expected', async () => {
     items = [item({ tdd_leg: { ...item().tdd_leg!, ack: 'NONE', ack_at: null, sla_met: null } })]
     renderLedger()
@@ -1028,6 +1119,95 @@ describe("one document's record", () => {
     renderDetail(`/compliance/activity/${UUID_A}/resubmit`)
     fireEvent.click(await screen.findByRole('button', { name: /^Fix and send/ }))
     await waitFor(() => expect(resubmitted).toEqual(['/api/v1/invoices/inv-1/tdd/resubmit']))
+  })
+
+  it('sends the rest of a group past a held one, says how many went, and re-reads', async () => {
+    const reason = 'The report signature could not be verified.'
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes('/inv-2/tdd/resubmit') && init?.method === 'POST') {
+        resubmitted.push(String(input))
+        return json(409, {
+          type: 'https://api.fawtir.om/problems/resource-conflict',
+          code: 'TDD_CORRECTION_HELD',
+        })
+      }
+      return base(input, init)
+    })
+    detailReply = {
+      ...DETAIL,
+      tdd_lineage: [{ ...DETAIL.tdd_lineage[1], status: 'REJECTED', failure_reason: reason }],
+      summary: {
+        ...DETAIL.summary,
+        tdd_leg: { ...DETAIL.summary.tdd_leg!, ack: 'RE', reason },
+        links: { ...DETAIL.summary.links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' },
+      },
+    }
+    items = [
+      item({
+        invoice_uuid: UUID_B,
+        invoice_number: 'INV-0002',
+        tdd_leg: { ...item().tdd_leg!, status: 'REJECTED', ack: 'RE', reason },
+        links: { ...item().links, resubmit: '/api/v1/invoices/inv-2/tdd/resubmit' },
+      }),
+    ]
+    renderDetail(`/compliance/activity/${UUID_A}/resubmit`)
+    const button = await screen.findByRole('button', { name: /^Fix and send/ })
+    await waitFor(() => expect(calls('tdd_ack=RE')).toHaveLength(1))
+    const detailReads = calls(`/compliance/activity/${UUID_A}`).length
+
+    fireEvent.click(button)
+    expect(
+      await screen.findByText(
+        'Reports sent again: 1. Held for an authorised decision at Fawtir and not sent: 1.',
+      ),
+    ).toBeTruthy()
+    expect(resubmitted).toEqual([
+      '/api/v1/invoices/inv-1/tdd/resubmit',
+      '/api/v1/invoices/inv-2/tdd/resubmit',
+    ])
+    expect(screen.queryByText(HELD_SENTENCE)).toBeNull()
+    await waitFor(() => expect(calls('tdd_ack=RE')).toHaveLength(2))
+    await waitFor(() =>
+      expect(calls(`/compliance/activity/${UUID_A}`).length).toBe(detailReads + 1),
+    )
+    // One re-read of each per send: the answers to the re-reads ask for nothing more.
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(calls('tdd_ack=RE')).toHaveLength(2)
+    expect(calls(`/compliance/activity/${UUID_A}`).length).toBe(detailReads + 1)
+    expect(resubmitted).toHaveLength(2)
+  })
+
+  it('says a held correction on the record and offers no way to put it right', async () => {
+    const reason = 'The report signature could not be verified.'
+    detailReply = {
+      ...DETAIL,
+      tdd_lineage: [{ ...DETAIL.tdd_lineage[1], status: 'REJECTED', failure_reason: reason }],
+      summary: {
+        ...DETAIL.summary,
+        tdd_leg: { ...DETAIL.summary.tdd_leg!, ack: 'RE', reason, correction_held: true },
+        links: { ...DETAIL.summary.links, resubmit: null },
+      },
+    }
+    renderDetail(`/compliance/activity/${UUID_A}`)
+    expect(await screen.findByText(/Correction held for an authorised decision\./)).toBeTruthy()
+    expect(screen.queryAllByRole('link', { name: /^Put it right/ })).toHaveLength(0)
+  })
+
+  it('shows the record as before when correction_held is absent', async () => {
+    const reason = 'The report signature could not be verified.'
+    detailReply = {
+      ...DETAIL,
+      tdd_lineage: [{ ...DETAIL.tdd_lineage[1], status: 'REJECTED', failure_reason: reason }],
+      summary: {
+        ...DETAIL.summary,
+        tdd_leg: { ...DETAIL.summary.tdd_leg!, ack: 'RE', reason },
+        links: { ...DETAIL.summary.links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' },
+      },
+    }
+    renderDetail(`/compliance/activity/${UUID_A}`)
+    expect((await screen.findAllByRole('link', { name: /^Put it right/ })).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Correction held/)).toBeNull()
   })
 
   it('stays on the fix and says so when the correction is held', async () => {

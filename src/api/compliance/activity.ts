@@ -56,6 +56,12 @@ export type TddLegDto = {
    * report. Until it arrives the screens classify from the reason and the error code.
    */
   error_kind?: RefusalKindDto | null
+  /**
+   * True while a RESUBMIT of this document is held for an authorised decision; the server then
+   * also leaves `links.resubmit` null, which is what the screens key on. Optional because older
+   * backends do not send it. Not drawn: a visible "held" mark would be a design change.
+   */
+  correction_held?: boolean
 }
 
 /** Which kind of error caused a refusal (ACTIVITY.md 2.30). */

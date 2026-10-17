@@ -149,8 +149,11 @@ export function classifyBridgeFailure(error: unknown): BridgeRefusal {
       return { kind: 'notOperational' }
     case 'EMISSION_BLOCKED':
       return { kind: 'emissionBlocked' }
-    // A 409 like DUPLICATE_IDEMPOTENCY, but nothing was recorded and the key was not spent: the
-    // number is free again once the controlled Peppol TEST window closes, so it is not "clashed".
+    // A 409 like DUPLICATE_IDEMPOTENCY, but not a clash of uploads: the number and year are
+    // reserved by a controlled Peppol TEST window. No invoice is made, though the route still
+    // records the upload's extraction run and a FAILED record with this reason. Once the window
+    // closes the number belongs to whichever invoice the ledger holds, so a later upload of the
+    // same number may be refused as DUPLICATE_INVOICE instead.
     case 'OUTBOUND_WINDOW_INVOICE_RESERVED':
       return { kind: 'numberReserved' }
   }

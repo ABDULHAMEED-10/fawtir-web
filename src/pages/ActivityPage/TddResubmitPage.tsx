@@ -16,6 +16,7 @@ import {
 } from '../../api/compliance/activity'
 import { whenOf } from '../../lib/activityDetail'
 import {
+  canResubmit,
   formatDuration,
   refusalCauseOf,
   refusalKindOf,
@@ -135,7 +136,7 @@ function ResubmitScreen() {
           (row) =>
             row.invoice_uuid !== dto.invoice_uuid &&
             row.tdd_leg?.reason === record.rejection.reason &&
-            row.links.resubmit !== null,
+            canResubmit(row),
         )
       : []
   const group = [item, ...sameCause]
@@ -144,7 +145,7 @@ function ResubmitScreen() {
   // The invoice total VAT (IBT-110) where the item carries it (asks row 2.34).
   const undeclaredVat = Math.round(group.reduce((sum, row) => sum + vatOf(row), 0) * 1000) / 1000
   const maySubmit = can(session, 'invoice.submit')
-  const mayResubmit = maySubmit && item.links.resubmit !== null
+  const mayResubmit = maySubmit && canResubmit(item)
   const peppolCause = cause === 'buyerPeppolId'
   const valid = TDD_RESUBMIT.fix.pattern.test(peppolId.trim())
   // TODO(backend): ACTIVITY.md 2.16. There is no route to save a typed fix, so nothing that
@@ -156,24 +157,48 @@ function ResubmitScreen() {
   const changes = changeRows(item, cause, kind, peppolId)
 
   const send = async () => {
-    if (!item.links.resubmit || kind === 'invoice' || blockedOnFix) return
+    if (!canResubmit(item) || kind === 'invoice' || blockedOnFix) return
     setSending(true)
     setFailure(null)
+    let sent = 0
+    let held = 0
+    let heldKey: string | null = null
+    let left = false
     try {
       for (const row of group) {
-        if (row.links.resubmit) await resubmitTdd(row.links.resubmit)
+        if (!canResubmit(row) || !row.links.resubmit) continue
+        try {
+          await resubmitTdd(row.links.resubmit)
+          sent += 1
+        } catch (error) {
+          // A hold refuses one invoice, not the group: stopping here told the reader that nothing
+          // was sent after earlier rows had gone, and left their links to be posted again.
+          heldKey = tddResubmitRefusalKey(error)
+          if (heldKey === null) throw error
+          held += 1
+        }
       }
-      navigate(`/compliance/activity/${dto.invoice_uuid}`)
-    } catch (error) {
-      const refusal = tddResubmitRefusalKey(error)
-      if (refusal) {
-        setFailure(t(refusal))
+      if (held === 0) {
+        left = true
+        navigate(`/compliance/activity/${dto.invoice_uuid}`)
+      } else if (sent === 0 && heldKey !== null) {
+        setFailure(t(heldKey))
       } else {
-        const message = describeApiFailure(error)
-        setFailure(t(message.key, message.values))
+        setFailure(
+          t('tddResubmit.refused.partlyHeld', { sent: String(sent), held: String(held) }),
+        )
       }
+    } catch (error) {
+      const message = describeApiFailure(error)
+      setFailure(t(message.key, message.values))
     } finally {
       setSending(false)
+      // Staying here after anything was posted: re-read, so the button and the same-cause rows
+      // offer only what the server still offers.
+      if (!left && (sent > 0 || held > 0)) {
+        detail.retry()
+        rejected.retry()
+      }
     }
   }
 
