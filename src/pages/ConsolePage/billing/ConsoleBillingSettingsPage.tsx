@@ -31,6 +31,7 @@ import {
   SwitchRow,
 } from '../settings/shared'
 import { ExtraDocumentLimitsCard } from './ExtraDocumentLimitsCard'
+import { PAY_LINK_MAX_DAYS } from '../../../lib/console/payLinks'
 
 const K = 'console.billingSettings.'
 const MAX_DAYS = 60
@@ -39,6 +40,7 @@ const REASON_MAX = 500
 type Form = {
   graceDays: string
   leadDays: string
+  linkDays: string
   threshold: string
   vatOn: boolean
   vatPercent: string
@@ -109,6 +111,7 @@ function toForm(settings: BillingSettingsDto): Form {
   return {
     graceDays: String(settings.graceDays),
     leadDays: settings.renewalBillLeadDays === null ? '' : String(settings.renewalBillLeadDays),
+    linkDays: settings.payLinkValidityDays == null ? '' : String(settings.payLinkValidityDays),
     threshold: settings.dualApprovalThreshold,
     vatOn: chargesVat(settings.vatRate),
     vatPercent:
@@ -136,7 +139,10 @@ function SettingsForm({
   const errors = attempted ? validate(form) : {}
   const err = (field: keyof Form) => {
     const key = errors[field]
-    return key ? t(key, { min: 0, max: MAX_DAYS }) : undefined
+    if (!key) return undefined
+    return field === 'linkDays'
+      ? t(key, { min: 1, max: PAY_LINK_MAX_DAYS })
+      : t(key, { min: 0, max: MAX_DAYS })
   }
   const dirty = JSON.stringify({ ...form, reason: '' }) !== JSON.stringify(stored)
   const set = <F extends keyof Form>(field: F, value: Form[F]) =>
@@ -159,6 +165,7 @@ function SettingsForm({
       request.vatRate = form.vatOn ? percentToFraction(form.vatPercent) : '0'
     }
     if (form.leadDays.trim() !== '') request.renewalBillLeadDays = Number(form.leadDays)
+    if (form.linkDays.trim() !== '') request.payLinkValidityDays = Number(form.linkDays)
     setBusy(true)
     try {
       await saveBillingSettings(settings.version, request)
@@ -207,6 +214,17 @@ function SettingsForm({
             onChange={(value) => set('leadDays', value)}
             error={err('leadDays')}
           />
+          {/* Only from a server that has payment links: an older one would ignore the value. */}
+          {'payLinkValidityDays' in settings ? (
+            <NumberField
+              name="linkDays"
+              label={t(`${K}linkDays`)}
+              hint={t(`${K}linkDaysHint`, { max: PAY_LINK_MAX_DAYS })}
+              value={form.linkDays}
+              onChange={(value) => set('linkDays', value)}
+              error={err('linkDays')}
+            />
+          ) : null}
           <NumberField
             name="threshold"
             label={t(`${K}threshold`)}
@@ -265,6 +283,13 @@ function validate(form: Form): Errors {
   if (!whole(form.graceDays)) errors.graceDays = 'console.settings.error.wholeBetween'
   if (form.leadDays.trim() !== '' && !whole(form.leadDays))
     errors.leadDays = 'console.settings.error.wholeBetween'
+  if (
+    form.linkDays.trim() !== '' &&
+    !(/^\d{1,2}$/.test(form.linkDays.trim()) &&
+      Number(form.linkDays) >= 1 &&
+      Number(form.linkDays) <= PAY_LINK_MAX_DAYS)
+  )
+    errors.linkDays = 'console.settings.error.wholeBetween'
   if (!/^\d{1,9}(\.\d{1,3})?$/.test(form.threshold.trim())) errors.threshold = `${K}error.amount`
   if (form.vatOn && (!isPercent(form.vatPercent) || Number(form.vatPercent) <= 0)) {
     errors.vatPercent = `${K}error.percent`

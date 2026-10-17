@@ -164,6 +164,31 @@ describe('Console › Billing settings', () => {
     })
   })
 
+  it('saves the payment link validity, 1 to 14 days, only on a server that has it', async () => {
+    answers[SETTINGS] = () => json(200, settings({ payLinkValidityDays: null }))
+    answers[`PUT ${SETTINGS}`] = () => json(200, settings({ version: 4, payLinkValidityDays: 10 }))
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/settings')
+
+    const days = await screen.findByRole('textbox', { name: S('linkDays') })
+    await user.type(days, '30')
+    await user.type((await billingCard()).getByRole('textbox', { name: S('reason') }), 'Longer links')
+    await user.click((await billingCard()).getByRole('button', { name: i18n.t('console.settings.save') }))
+    expect(sent('PUT', SETTINGS)).toBeNull()
+
+    await user.clear(days)
+    await user.type(days, '10')
+    await user.click((await billingCard()).getByRole('button', { name: i18n.t('console.settings.save') }))
+    await waitFor(() => expect(sent('PUT', SETTINGS)?.body.payLinkValidityDays).toBe(10))
+  })
+
+  it('draws no payment link validity for a server without payment links', async () => {
+    answers[SETTINGS] = () => json(200, settings())
+    renderAt('/console/billing/settings')
+    await screen.findByRole('switch', { name: S('vat') })
+    expect(screen.queryByRole('textbox', { name: S('linkDays') })).toBeNull()
+  })
+
   it('sends rate "0" when VAT is switched off', async () => {
     answers[SETTINGS] = () => json(200, settings({ vatRate: '0.05000' }))
     answers[`PUT ${SETTINGS}`] = () => json(200, settings({ version: 4 }))

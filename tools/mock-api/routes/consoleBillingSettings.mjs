@@ -14,6 +14,7 @@ const SETTINGS = {
   currency: 'OMR',
   vatRate: '0.00000',
   renewalBillLeadDays: 7,
+  payLinkValidityDays: null,
   reason: 'Launch values',
   createdBy: 'u-other',
   createdAt: '2026-10-14T05:00:00Z',

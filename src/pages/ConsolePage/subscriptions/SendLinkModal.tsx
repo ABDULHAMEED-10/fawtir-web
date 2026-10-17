@@ -31,7 +31,7 @@ const CHANNELS: LinkChannel[] = ['whatsapp', 'email', 'copied']
 
 type FieldName = 'invoice' | 'channel'
 
-function ChatIcon() {
+export function ChatIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" className="size-5" aria-hidden="true">
       <path
@@ -45,7 +45,7 @@ function ChatIcon() {
   )
 }
 
-function MailIcon() {
+export function MailIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" className="size-5" aria-hidden="true">
       <rect x="3.5" y="5.5" width="17" height="13" rx="2" stroke="currentColor" strokeWidth="1.6" />
@@ -54,7 +54,7 @@ function MailIcon() {
   )
 }
 
-function LinkIcon() {
+export function LinkIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" className="size-5" aria-hidden="true">
       <path
