@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import { paymentTermOptions, useReferenceData } from '../../lib/reference/referenceData'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
+import { DisconnectFromFawtirSection } from './DisconnectFromFawtirSection'
 import { Combobox, Input, Select, withRial, type SelectOption } from '../../components/ui'
 import { useApiRead } from '../../hooks/useApiRead'
 import { useSession } from '../../lib/session/session'
@@ -992,6 +993,8 @@ export function CompanyProfilePage() {
           <LastChangedCard />
         </aside>
       </div>
+
+      <DisconnectFromFawtirSection />
 
       {/* Sticky footer — counts what actually differs */}
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle bg-white px-4 py-3">

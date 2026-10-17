@@ -21678,5 +21678,97 @@
       "payment-state-conflict": "A payment for extra documents is already being checked. Wait for it before ordering more.",
       "outOfRange": "Choose a number from {{min}} to {{max}}."
     }
+  },
+  "fawtirDisconnection": {
+    "dangerZone": "Danger zone",
+    "dangerZoneNote": "Only the owner and Administrators see this.",
+    "title": "Disconnect from Fawtir",
+    "intro": "Stop using Fawtir as your e-invoicing service provider on the Fawtara Portal. This is separate from cancelling your subscription: cancelling never disconnects you.",
+    "start": "Disconnect from Fawtir",
+    "requestAgain": "Request again",
+    "withdraw": "Withdraw my request",
+    "stepsTitle": "Steps",
+    "toldNote": "The owner and administrators are e-mailed when the status changes.",
+    "onYourBehalfCall": "Fawtir support started this on your behalf after your call.",
+    "onYourBehalfEmail": "Fawtir support started this on your behalf after your e-mail.",
+    "fromNotice": "Recorded by Fawtir support from a Tax Authority notice.",
+    "status": {
+      "REQUESTED": "Requested",
+      "WAITING_FOR_CUSTOMER_APPROVAL": "Waiting for your approval",
+      "DISCONNECTED": "Disconnected",
+      "NOT_COMPLETED": "Not completed",
+      "WITHDRAWN": "Withdrawn"
+    },
+    "line": {
+      "removalReceived": "Received on {{date}}. We'll complete your removal within 1 business day.",
+      "askReceived": "Received on {{date}}. Fawtir will raise a disconnection request on the Fawtara Portal for you to approve there.",
+      "approveByDate": "Approve Fawtir's request on the Fawtara Portal by {{date}}. If you don't, it is cancelled after 3 days.",
+      "disconnected": "Disconnected on {{date}}.",
+      "notCompleted": "Your request was not completed, so you're still connected to Fawtir.",
+      "notDisconnectedOnPortal": "The Fawtara Portal still shows Fawtir as your service provider, so you're still connected to Fawtir.",
+      "withdrawn": "Withdrawn. You're still connected to Fawtir."
+    },
+    "after": {
+      "subscription": "Your subscription stays until {{date}}, then ends without renewing. The remaining days are not refunded.",
+      "nothingSent": "Nothing is sent or received through Fawtir any more.",
+      "records": "Every record stays readable and exportable for the legal retention period."
+    },
+    "step": {
+      "REQUESTED": "Requested",
+      "PORTAL_REQUEST_RAISED": "Fawtir raised the request on the Fawtara Portal",
+      "CUSTOMER_APPROVED": "Approved on the Fawtara Portal",
+      "CUSTOMER_REJECTED": "Rejected on the Fawtara Portal",
+      "REQUEST_EXPIRED": "Not approved within 3 days",
+      "PORTAL_DISCONNECTION_CONFIRMED": "Disconnection confirmed on the Fawtara Portal",
+      "PORTAL_NOT_DISCONNECTED": "Still connected on the Fawtara Portal",
+      "WITHDRAWN": "Withdrawn",
+      "PORTAL_REQUEST_WITHDRAWN": "Fawtir withdrew the request on the Fawtara Portal",
+      "SMP_REMOVED": "Removed from the Oman SMP"
+    },
+    "answer": {
+      "ALREADY_DISCONNECTED": {
+        "title": "Yes, I've already disconnected. Remove me from Fawtir.",
+        "body": "You have already ended Fawtir's connection on the Fawtara Portal."
+      },
+      "ASK_FAWTIR": {
+        "title": "No. Ask Fawtir to disconnect me.",
+        "body": "Fawtir raises a disconnection request on the Fawtara Portal and you approve it there."
+      },
+      "MOVING_TO_ANOTHER_PROVIDER": {
+        "title": "I'm moving to another service provider.",
+        "body": "You are connecting to a different provider on the Fawtara Portal."
+      }
+    },
+    "dialog": {
+      "title": "Disconnect from Fawtir?",
+      "question": "Have you already disconnected from Fawtir on the Fawtara Portal?",
+      "movingNote": "Nothing is needed in Fawtir. Connecting to your new provider on the Fawtara Portal is enough: a company uses one provider at a time, so Fawtir is told and removes you from the Oman SMP within 1 day.",
+      "warningTitle": "Before you confirm",
+      "path": {
+        "ALREADY_DISCONNECTED": "Fawtir checks the disconnection on the Fawtara Portal and removes you from the Oman SMP within 1 business day.",
+        "ASK_FAWTIR": "Fawtir raises a disconnection request on the Fawtara Portal. Approve it there within 3 days; if you reject it or don't answer, it is cancelled and you stay connected."
+      },
+      "warning": {
+        "nothingSent": "After disconnection, nothing is sent or received through Fawtir.",
+        "legalDuty": "Issuing e-invoices is your own legal duty, so have another service provider ready.",
+        "records": "Every record stays readable and exportable for the legal retention period.",
+        "subscription": "Your subscription runs to the end of the period already paid, then ends without renewing. The remaining days are not refunded.",
+        "withdraw": "You can withdraw the request until it completes."
+      },
+      "typeName": "Type {{name}} to confirm",
+      "back": "Keep my connection",
+      "close": "Done",
+      "confirm": {
+        "ALREADY_DISCONNECTED": "Remove me from Fawtir",
+        "ASK_FAWTIR": "Ask Fawtir to disconnect me"
+      }
+    },
+    "error": {
+      "nameMismatch": "That is not this company's name. Type it exactly as shown.",
+      "notOwner": "Only the company's owner or an Administrator can do this.",
+      "impersonating": "This can't be done while Fawtir support is signed in as your company.",
+      "changed": "The request changed meanwhile. The latest status is shown.",
+      "failed": "That didn't go through. Try again."
+    }
   }
 }
