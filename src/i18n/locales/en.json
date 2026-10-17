@@ -21847,7 +21847,8 @@
       "send": "Send",
       "pay": "Pay",
       "void": "Void",
-      "support": "Support"
+      "support": "Support",
+      "settle": "Settle"
     }
   },
   "documentParty": {

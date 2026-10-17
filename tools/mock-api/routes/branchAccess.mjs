@@ -46,7 +46,7 @@ const PEOPLE = [
 ]
 
 const ROLE_CODES = {
-  ACCOUNTANT: ['invoice.read', 'invoice.draft', 'customer.read', 'supplier.read', 'bill.read'],
+  ACCOUNTANT: ['invoice.read', 'customer.read', 'tenant.plan.read'],
   SALES_MANAGER: [
     'invoice.read',
     'invoice.draft',
@@ -59,7 +59,7 @@ const ROLE_CODES = {
 const PERMISSIONS = {
   'u-hafidh': {
     grants: [{ code: 'invoice.approve', qualifier: null, value: null }],
-    denials: ['bill.read'],
+    denials: ['tenant.plan.read'],
   },
   'u-aisha': { grants: [], denials: [] },
 }
@@ -73,7 +73,7 @@ const CATALOGUE = [
   'customer.read',
   'customer.manage',
   'supplier.read',
-  'bill.read',
+  'tenant.plan.read',
   'bill.settle',
   'branch.users.manage',
   'admin.users.manage',
