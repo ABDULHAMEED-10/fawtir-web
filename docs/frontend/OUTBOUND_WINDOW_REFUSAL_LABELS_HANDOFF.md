@@ -52,10 +52,17 @@ on the difference, and every value means the same thing to them (held, nothing r
   is still offered only for `ATTEMPTS_EXHAUSTED`, so this code enables no action.
 - TDD resubmit: before this, the 409 read as "someone changed this, reload", which is false.
 - "Put it right" resubmits the record and every same-cause row in turn. A held row no longer stops
-  the group: the rest are still sent. If none went, the held sentence shows; if some went, a
-  partial sentence gives both counts (`tddResubmit.refused.partlyHeld`). Either way the page
-  re-reads the record and the rejected rows, so it offers only what the server still offers. Any
-  other failure still stops the group, and the page re-reads if something had already gone.
+  the group. What the page says depends on how the group ended:
+  - Nothing sent, one held: the held sentence.
+  - Nothing sent, several held: `tddResubmit.refused.allHeld`, with the count.
+  - Some sent, some held: `tddResubmit.refused.partlyHeld`, with both counts.
+  - Any other failure (a 409 resubmission limit, a 5xx, a network failure) still stops the group.
+    If something had already been sent or held, `tddResubmit.refused.partlySent` gives both counts
+    and is followed by the usual failure sentence; otherwise only the failure sentence shows.
+
+  After anything was posted the page re-reads the record and the rejected rows. The sentence also
+  shows while that re-read loads, and above the read-failure panel if it fails, so what the send
+  did never disappears. A second press during a send is ignored, so the group is posted once.
 - Activity row: after a held answer the list is re-read once.
 
 ### Re-reads cannot loop
@@ -82,13 +89,21 @@ appears between the read and the press.
 When `tdd_leg.correction_held === true` (owner-authorised, 17 Oct 2026):
 
 - the Activity row's verdict line, the reason text under the outcome chip, ends with "Correction
-  held for an authorised decision." (AR "التصحيح معلّق بانتظار قرار من جهة مخوّلة في فوتر.");
-- the record page's "how it is put right" line in the refusal box ends with the same sentence;
+  held for an authorised decision at Fawtir." (AR "التصحيح معلّق بانتظار قرار من جهة مخوّلة في
+  فوتر."). A raw server reason without a full stop is kept apart from it by " · ";
+- the record page's "how it is put right" line in the refusal box ends with "This correction is
+  held for an authorised decision at Fawtir and is not offered again." (AR "هذا التصحيح معلّق
+  بانتظار قرار من جهة مخوّلة في فوتر ولا يُعرض للإرسال مرة أخرى."), worded so it reads after a
+  line that may have just said the report can be sent again;
 - `canResubmit` is false even if a link came with the flag, so no row menu, record link or
   "Put it right" send is offered.
 
 No element, class, colour, token or spacing was added: the sentence goes into the existing
 paragraphs. Nothing is inferred on the client; only the server's flag shows it.
+
+One composition change on "Put it right": while the record is re-read, or if that re-read fails,
+the page's existing failure `Notice` (same component and props) now sits above the loader or the
+read-failure panel instead of disappearing. No styles were added.
 
 ### Documentation gap (backend)
 
@@ -142,5 +157,6 @@ change. Nothing from the server's `detail` reaches the screen.
 - [ ] A Bridge upload carrying the reserved number and year shows the reserved sentence.
 - [ ] A held TDD correction shows the held sentence on the Activity row and on "Put it right".
 - [ ] A group with one held row says how many went and how many are held.
-- [ ] With backend #538, the resubmit action is gone after a hold and the row and record say
-      "Correction held for an authorised decision." (EN and AR).
+- [ ] With backend #538, the resubmit action is gone after a hold, and the row and the record show
+      their held sentences (EN and AR).
+- [ ] A group that stops on a 5xx after sending some says the counts, then the failure.
