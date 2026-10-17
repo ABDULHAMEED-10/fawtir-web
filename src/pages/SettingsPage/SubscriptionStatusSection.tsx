@@ -19,6 +19,12 @@ import {
   type SubscriptionDisplay,
   type SubscriptionStatusDto,
 } from '../../api/settings/subscription'
+import {
+  PLAN_CHANGES_PATH,
+  loadPlanChanges,
+  type PlanChangesDto,
+} from '../../api/settings/planChanges'
+import { PlanChangeDialog, planChangeDone, type PlanChangeTarget } from './PlanChangeSection'
 
 const ACCESS_TONE: Record<SubscriptionDisplay, string> = {
   NOT_TRACKED: 'bg-primary-50 text-primary-800',
@@ -49,7 +55,14 @@ type Pending = 'cancel' | 'keep' | 'withdrawChange' | null
  * customer who owes payment is told so in words, and that their invoices, reports and exports
  * stay available.
  */
-export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }) {
+export function SubscriptionStatusSection({
+  page,
+  onPlanChanged,
+}: {
+  page: 'billing' | 'plan'
+  /** After a plan change made from here (keeping the plan, P2-2 D3): the page reads everything again. */
+  onPlanChanged?: (why?: string) => void
+}) {
   const { t, i18n } = useTranslation()
   const day = (iso: string | null) => (iso ? formatDate(iso, i18n.language) : '')
   const read = useApiRead<SubscriptionStatusDto>(SUBSCRIPTION_PATH, loadSubscription)
@@ -61,12 +74,27 @@ export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }
   // The key of the message to show; a payment being checked blocks a change for a known reason.
   const [failure, setFailure] = useState<string | null>(null)
   const planName = usePlanName()
+  // P2-2: with self-service changes open, a downgrade already paid for at the lower price is kept
+  // back by paying the difference (KEEP_PLAN), through the change dialog. Off, nothing changes here.
+  const changes = useApiRead<PlanChangesDto>(PLAN_CHANGES_PATH, loadPlanChanges).read
+  const selfService = changes.status === 'ready' && changes.data.available
+  const [keepTarget, setKeepTarget] = useState<PlanChangeTarget | null>(null)
 
   if (read.read.status === 'loading') return <LoadingNotice />
   if (read.read.status === 'failed') return <ApiReadFailure error={read.read.error} retry={read.retry} />
   const status = latest ?? read.read.data
   const display = subscriptionDisplay(status)
   const enterprise = status.enterprise?.termsSet === true
+  const scheduled = status.scheduledChange
+  // Annual to monthly on the same plan (PC-2): the waiting change is the billing, not the plan.
+  const toMonthly =
+    scheduled !== null &&
+    scheduled.planCode === status.planCode &&
+    status.billingCycle === 'ANNUAL' &&
+    scheduled.billingCycle === 'MONTHLY'
+  // The first period at the lower price is already paid: withdrawing it means paying the difference.
+  const paidAtLowerPrice =
+    scheduled !== null && status.paidThrough !== null && scheduled.effectiveOn <= status.paidThrough
 
   const act = async (which: Exclude<Pending, null>, call: () => Promise<SubscriptionStatusDto>) => {
     setPending(which)
@@ -116,10 +144,12 @@ export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }
                     ),
                   }),
                 )
-              : t('subscription.scheduledChange', {
-                  plan: planName(status.scheduledChange.planCode, status.scheduledChange.planName),
-                  date: day(status.scheduledChange.effectiveOn),
-                })}
+              : toMonthly
+                ? t('planChange.waiting.toMonthly', { date: day(status.scheduledChange.effectiveOn) })
+                : t('subscription.scheduledChange', {
+                    plan: planName(status.scheduledChange.planCode, status.scheduledChange.planName),
+                    date: day(status.scheduledChange.effectiveOn),
+                  })}
           </p>
           {canManage ? (
             <div className="flex flex-wrap gap-3">
@@ -131,7 +161,18 @@ export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }
                 {t('subscription.switchOff.open')}
               </Link>
               {/* D4: Enterprise terms change only through Fawtir. TODO(backend): CONSOLE.md 3.4. */}
-              {enterprise ? null : (
+              {enterprise ? null : selfService && paidAtLowerPrice && status.billingCycle ? (
+                <Button
+                  variant="secondary"
+                  size="md"
+                  disabled={pending !== null}
+                  onClick={() =>
+                    setKeepTarget({ planCode: status.planCode, cycle: status.billingCycle ?? 'MONTHLY' })
+                  }
+                >
+                  {t('planChange.keep', { plan: planName(status.planCode, status.planName) })}
+                </Button>
+              ) : (
                 <Button
                   variant="secondary"
                   size="md"
@@ -171,6 +212,26 @@ export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }
           {t(failure)}
         </p>
       ) : null}
+
+      <PlanChangeDialog
+        target={keepTarget}
+        onClose={() => setKeepTarget(null)}
+        onDone={(change, preview) => {
+          setKeepTarget(null)
+          const why = planChangeDone(
+            t,
+            change,
+            preview,
+            planName(preview.to.planCode, preview.to.planName),
+            i18n.language,
+          )
+          if (onPlanChanged) onPlanChanged(why)
+          else {
+            setLatest(null)
+            read.retry()
+          }
+        }}
+      />
 
       <Modal
         open={confirmCancel}

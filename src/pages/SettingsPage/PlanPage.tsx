@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
@@ -6,7 +6,7 @@ import { useApiRead } from '../../hooks'
 import { usePlanName } from '../../hooks/usePlanName'
 import { useCan } from '../../lib/session/session'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
-import { OmAmount, Rial, RialText, RowsView, withRial } from '../../components/ui'
+import { Button, OmAmount, Rial, RialText, RowsView, withRial } from '../../components/ui'
 import {
   PLAN_OVERVIEW_PATH,
   loadPlanOverview,
@@ -30,6 +30,18 @@ import {
   type SignupCataloguePlan,
 } from '../../lib/identity/signupPlans'
 import { SubscriptionStatusSection } from './SubscriptionStatusSection'
+import {
+  PendingPlanChangeCard,
+  PlanChangeDialog,
+  planChangeDone,
+  type PlanChangeTarget,
+} from './PlanChangeSection'
+import {
+  PLAN_CHANGES_PATH,
+  loadPlanChanges,
+  type BillingCycle,
+  type PlanChangesDto,
+} from '../../api/settings/planChanges'
 import {
   quotaWarningBodyKey,
   quotaWarningOf,
@@ -64,6 +76,14 @@ const DAY_MS = 24 * 60 * 60 * 1000
  */
 export function PlanPage() {
   const { t } = useTranslation()
+  // A plan change moves the subscription, the plan and the bills at once: everything below is read
+  // again, and the sentence saying what happened stays above it.
+  const [revision, setRevision] = useState(0)
+  const [notice, setNotice] = useState<string | null>(null)
+  const changed = (why?: string) => {
+    setNotice(why ?? null)
+    setRevision((value) => value + 1)
+  }
   return (
     <SettingsShell group="billing">
       <SettingsHeader
@@ -78,14 +98,24 @@ export function PlanPage() {
           </Link>
         }
       />
-      <SubscriptionStatusSection page="plan" />
-      <PlanBody />
+      {notice ? (
+        <p
+          role="status"
+          className="rounded-sm bg-success-100 px-4 py-3 text-sm font-medium leading-[1.6] text-success-700"
+        >
+          {notice}
+        </p>
+      ) : null}
+      <Fragment key={revision}>
+        <SubscriptionStatusSection page="plan" onPlanChanged={changed} />
+        <PlanBody onPlanChanged={changed} />
+      </Fragment>
     </SettingsShell>
   )
 }
 
 /** Inside the shell, which is what provides the session the permission is read from. */
-function PlanBody() {
+function PlanBody({ onPlanChanged }: { onPlanChanged: (why?: string) => void }) {
   const plan = useApiRead<PlanOverviewDto>(PLAN_OVERVIEW_PATH, loadPlanOverview)
   // The section above reads the same path; the shared request makes this one fetch, not two.
   const subscription = useApiRead<SubscriptionStatusDto>(SUBSCRIPTION_PATH, loadSubscription).read
@@ -93,6 +123,9 @@ function PlanBody() {
   const mayManage = useCan(PLAN_MANAGE)
   // US-1, BR-3, ER-1: the paid places and the add-on, shared by the two cards that show them.
   const extras = useApiRead<PaidExtrasOverviewDto>(PAID_EXTRAS_PATH, loadPaidExtras)
+  // P2-2: whether self-service changes are open, and the change waiting for payment. Unreadable or
+  // switched off, nothing new is shown (`loadPlanChanges` never fails but for a lost session).
+  const changes = useApiRead<PlanChangesDto>(PLAN_CHANGES_PATH, loadPlanChanges).read
 
   if (plan.read.status === 'loading') return <LoadingNotice />
   if (plan.read.status === 'failed')
@@ -111,17 +144,44 @@ function PlanBody() {
       </>
     )
   }
+  const changesRead = changes.status === 'ready' ? changes.data : null
+  const pending =
+    changesRead?.available && changesRead.pending?.status === 'PENDING_PAYMENT'
+      ? changesRead.pending
+      : null
+  const status = subscription.status === 'ready' ? subscription.data : null
+  // The move buttons (plan-change table, PC-2): only with the server's switch on and the permission,
+  // never for Enterprise (D4) or an untracked subscription, not while it is ending (Q6: keep it
+  // first) and not while a charged change waits for payment (pay or withdraw it first).
+  const selfService: SelfService | null =
+    changesRead?.available === true &&
+    mayManage &&
+    !enterprise &&
+    status !== null &&
+    status.tracked &&
+    status.access !== 'NOT_TRACKED' &&
+    status.enterprise == null &&
+    !status.cancelAtPeriodEnd &&
+    pending === null
+      ? { cycle: status.billingCycle ?? 'MONTHLY' }
+      : null
   return (
     <>
       <PlanFigures data={plan.read.data} notStarted={notStarted} mayManage={mayManage} />
       {extras.read.status === 'ready' ? (
         <PaidExtrasSummary data={extras.read.data} mayManage={mayManage} />
       ) : null}
+      {pending ? <PendingPlanChangeCard change={pending} onChanged={onPlanChanged} /> : null}
       {/* D4: Enterprise terms change only through Fawtir, so no plan list to move to. */}
       {enterprise ? (
         <EnterpriseNotice terms="agreed" />
       ) : (
-        <PlanCards current={plan.read.data} mayManage={mayManage} />
+        <PlanCards
+          current={plan.read.data}
+          mayManage={mayManage}
+          selfService={selfService}
+          onPlanChanged={onPlanChanged}
+        />
       )}
       {/* ER-1: Starter and Business never show the add-on; a server that cannot say keeps the old card. */}
       {extras.read.status === 'ready' && !extras.read.data.erpAddon.offered ? null : (
@@ -622,8 +682,23 @@ function Figure({ label, value, note }: { label: string; value: string; note?: s
  * TODO: show the Enterprise card only to companies on Business Plus, the one plan it is the next
  * step from (owner, 7 Oct 2026: agreed, to be done later).
  */
-function PlanCards({ current, mayManage }: { current: PlanOverviewDto; mayManage: boolean }) {
-  const { t } = useTranslation()
+type SelfService = { cycle: BillingCycle }
+
+function PlanCards({
+  current,
+  mayManage,
+  selfService,
+  onPlanChanged,
+}: {
+  current: PlanOverviewDto
+  mayManage: boolean
+  /** Set when the customer may change the plan here (P2-2), with the cycle billed today. */
+  selfService: SelfService | null
+  onPlanChanged: (why?: string) => void
+}) {
+  const { t, i18n } = useTranslation()
+  const planName = usePlanName()
+  const [target, setTarget] = useState<PlanChangeTarget | null>(null)
   const catalogue = useApiRead<SignupCataloguePlan[]>(PUBLIC_PLANS_PATH, () => readPublicPlans())
 
   if (catalogue.read.status === 'loading') return <LoadingNotice />
@@ -636,7 +711,12 @@ function PlanCards({ current, mayManage }: { current: PlanOverviewDto; mayManage
 
   return (
     <section aria-label={t('plan.plansTitle')} className="flex flex-col gap-3">
-      {mayManage ? (
+      {selfService ? (
+        <p className="flex items-start gap-2 text-sm font-medium text-text-tertiary">
+          <img src={infoIcon} alt="" className="mt-0.5 size-4 shrink-0" />
+          <span>{t('planChange.rule')}</span>
+        </p>
+      ) : mayManage ? (
         <p className="flex items-start gap-2 text-sm font-medium text-text-tertiary">
           <img src={infoIcon} alt="" className="mt-0.5 size-4 shrink-0" />
           <span>
@@ -651,10 +731,28 @@ function PlanCards({ current, mayManage }: { current: PlanOverviewDto; mayManage
             plan={plan}
             current={plan.code === current.plan.code}
             myPrice={myPrice}
+            cycle={selfService?.cycle ?? null}
+            onChoose={selfService ? (cycle) => setTarget({ planCode: plan.code, cycle }) : null}
           />
         ))}
         <EnterpriseCard />
       </div>
+      <PlanChangeDialog
+        target={target}
+        onClose={() => setTarget(null)}
+        onDone={(change, preview) => {
+          setTarget(null)
+          onPlanChanged(
+            planChangeDone(
+              t,
+              change,
+              preview,
+              planName(preview.to.planCode, preview.to.planName),
+              i18n.language,
+            ),
+          )
+        }}
+      />
     </section>
   )
 }
@@ -663,10 +761,16 @@ function PlanCard({
   plan,
   current,
   myPrice,
+  cycle,
+  onChoose,
 }: {
   plan: SignupCataloguePlan
   current: boolean
   myPrice: number | null
+  /** The cycle billed today, when the plan can be changed here. */
+  cycle: BillingCycle | null
+  /** Opens the change dialog for this plan in a cycle; null hides the buttons (not greyed). */
+  onChoose: ((cycle: BillingCycle) => void) | null
 }) {
   const { t, i18n } = useTranslation()
   const price = baisaOf(plan.monthlyPrice)
@@ -741,10 +845,23 @@ function PlanCard({
 
       <div className="mt-auto pt-5">
         {current ? (
-          <p className="flex items-start gap-2 rounded-sm bg-surface-background px-3 py-2.5 text-xs font-medium leading-[1.6] text-text-tertiary">
-            <img src={infoIcon} alt="" className="mt-0.5 size-4 shrink-0" />
-            <span>{t('plan.thisIsYours')}</span>
-          </p>
+          <>
+            <p className="flex items-start gap-2 rounded-sm bg-surface-background px-3 py-2.5 text-xs font-medium leading-[1.6] text-text-tertiary">
+              <img src={infoIcon} alt="" className="mt-0.5 size-4 shrink-0" />
+              <span>{t('plan.thisIsYours')}</span>
+            </p>
+            {/* PC-2: monthly to yearly applies at once once paid; yearly to monthly at the year end. */}
+            {onChoose && cycle ? (
+              <Button
+                variant="secondary"
+                size="md"
+                className="mt-3 w-full"
+                onClick={() => onChoose(cycle === 'ANNUAL' ? 'MONTHLY' : 'ANNUAL')}
+              >
+                {t(cycle === 'ANNUAL' ? 'planChange.toMonthly' : 'planChange.toAnnual')}
+              </Button>
+            ) : null}
+          </>
         ) : better || smaller ? (
           <>
             <p
@@ -763,10 +880,15 @@ function PlanCard({
               </span>
             </p>
             {/*
-             * TODO(backend): SETTINGS.md row 5.1. The "Move to" button is hidden, not greyed
-             * (plan v4), until the API can change the plan (up: straight away; down: from the
-             * next renewal). Shown then to PLAN_MANAGE only.
+             * SETTINGS.md row 5.1, now answered by P2-2: "Move to" is shown only when the server's
+             * plan-change switch is on and to PLAN_MANAGE; otherwise hidden, not greyed (plan v4).
+             * Whether it is an upgrade or a downgrade, and what it costs, is the server's preview.
              */}
+            {onChoose && cycle ? (
+              <Button variant="secondary" size="md" className="mt-3 w-full" onClick={() => onChoose(cycle)}>
+                {t('planChange.moveTo', { plan: name })}
+              </Button>
+            ) : null}
           </>
         ) : null}
       </div>
