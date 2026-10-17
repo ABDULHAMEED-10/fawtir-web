@@ -16,16 +16,37 @@ const CASH = '/api/v1/public/pay-links/cash-request'
 
 function view(over: Record<string, unknown> = {}) {
   return {
-    status: 'PAYABLE', sellerName: 'Thumb International LLC', companyName: 'Wadi Builders SPC',
-    billNumber: 'FSB-2026-0050', planName: 'Business', billingCycle: 'MONTHLY', periodStartsOn: '2026-10-17',
-    periodEndsOn: '2026-11-16', subtotal: '80.000', vatRate: '0.00000', vatAmount: '0.000', total: '80.000',
-    currency: 'OMR', dueOn: '2026-10-24', expiresAt: '2026-10-24T06:00:00Z', tokenHint: 'x7Qa', paidAt: null,
+    status: 'PAYABLE',
+    sellerName: 'Thumb International LLC',
+    companyName: 'Wadi Builders SPC',
+    billNumber: 'FSB-2026-0050',
+    planName: 'Business',
+    billingCycle: 'MONTHLY',
+    periodStartsOn: '2026-10-17',
+    periodEndsOn: '2026-11-16',
+    subtotal: '80.000',
+    vatRate: '0.00000',
+    vatAmount: '0.000',
+    total: '80.000',
+    currency: 'OMR',
+    dueOn: '2026-10-24',
+    expiresAt: '2026-10-24T06:00:00Z',
+    tokenHint: 'x7Qa',
+    paidAt: null,
     methods: {
       card: false,
-      bankTransfer: { available: true, account: { beneficiary: 'Thumb International LLC', bank: 'Bank Muscat', iban: 'OM810180000001299123456' } },
+      bankTransfer: {
+        available: true,
+        account: {
+          beneficiary: 'Thumb International LLC',
+          bank: 'Bank Muscat',
+          iban: 'OM810180000001299123456',
+        },
+      },
       cash: true,
     },
-    pendingPayment: null, ...over,
+    pendingPayment: null,
+    ...over,
   }
 }
 
@@ -36,7 +57,12 @@ function json(status: number, body?: unknown) {
   })
 }
 const problem = (status: number, type: string) =>
-  json(status, { type: `https://api.fawtir.om/problems/${type}`, title: type, status, detail: 'English detail' })
+  json(status, {
+    type: `https://api.fawtir.om/problems/${type}`,
+    title: type,
+    status,
+    detail: 'English detail',
+  })
 
 let answers: Record<string, (init?: RequestInit) => Response>
 let fetchMock: ReturnType<typeof vi.fn>
@@ -119,6 +145,17 @@ describe('Pay page › the link', () => {
     expect(screen.queryByText(L('howToPay'))).toBeNull()
   })
 
+  it.each([401, 403, 405])(
+    'reads %i from a server without the public pay routes as an unknown link',
+    async (status) => {
+      answers[VIEW] = () => new Response('', { status })
+      openPay()
+      expect(await screen.findByText(L('problem.invalid'))).toBeTruthy()
+      expect(screen.queryByText(L('problem.other'))).toBeNull()
+      expect(screen.queryByText(L('howToPay'))).toBeNull()
+    },
+  )
+
   it('offers a retry when Fawtir cannot be reached', async () => {
     let up = false
     answers[VIEW] = () => {
@@ -155,7 +192,8 @@ describe('Pay page › the bill', () => {
   })
 
   it('shows the VAT line when VAT is charged', async () => {
-    answers[VIEW] = () => json(200, view({ vatRate: '0.05000', vatAmount: '4.000', total: '84.000' }))
+    answers[VIEW] = () =>
+      json(200, view({ vatRate: '0.05000', vatAmount: '4.000', total: '84.000' }))
     openPay()
     expect(await screen.findByText(L('summary.vat'))).toBeTruthy()
     expect(screen.getByText('84.000')).toBeTruthy()
@@ -163,9 +201,17 @@ describe('Pay page › the bill', () => {
 
   it('offers no payment while one is being checked', async () => {
     answers[VIEW] = () =>
-      json(200, view({ status: 'PAYMENT_PENDING', pendingPayment: { method: 'BANK_TRANSFER', submittedAt: '2026-10-17T07:30:00Z' } }))
+      json(
+        200,
+        view({
+          status: 'PAYMENT_PENDING',
+          pendingPayment: { method: 'BANK_TRANSFER', submittedAt: '2026-10-17T07:30:00Z' },
+        }),
+      )
     openPay()
-    expect(await screen.findByText(L('pending.BANK_TRANSFER', { date: '17 Oct 2026' }))).toBeTruthy()
+    expect(
+      await screen.findByText(L('pending.BANK_TRANSFER', { date: '17 Oct 2026' })),
+    ).toBeTruthy()
     expect(screen.queryByText(L('howToPay'))).toBeNull()
   })
 
@@ -186,15 +232,30 @@ describe('Pay page › paying', () => {
   it('needs a receipt and a reference, then uploads them with one key and shows the payment being checked', async () => {
     let paid = false
     answers[VIEW] = () =>
-      json(200, paid ? view({ status: 'PAYMENT_PENDING', pendingPayment: { method: 'BANK_TRANSFER', submittedAt: '2026-10-17T07:30:00Z' } }) : view())
+      json(
+        200,
+        paid
+          ? view({
+              status: 'PAYMENT_PENDING',
+              pendingPayment: { method: 'BANK_TRANSFER', submittedAt: '2026-10-17T07:30:00Z' },
+            })
+          : view(),
+      )
     answers[BANK] = () => {
       paid = true
-      return json(201, { paymentId: 'p-1', method: 'BANK_TRANSFER', status: 'PAYMENT_PENDING', submittedAt: '2026-10-17T07:30:00Z' })
+      return json(201, {
+        paymentId: 'p-1',
+        method: 'BANK_TRANSFER',
+        status: 'PAYMENT_PENDING',
+        submittedAt: '2026-10-17T07:30:00Z',
+      })
     }
     const user = userEvent.setup({ delay: null })
     openPay()
 
-    await user.click(await screen.findByRole('button', { name: new RegExp(L('method.bankTransfer.title')) }))
+    await user.click(
+      await screen.findByRole('button', { name: new RegExp(L('method.bankTransfer.title')) }),
+    )
     expect(screen.getByText('OM810180000001299123456')).toBeTruthy()
     await user.click(screen.getByRole('button', { name: L('bank.submit') }))
     expect(screen.getByText(i18n.t('payment.bank.receiptRequired'))).toBeTruthy()
@@ -203,10 +264,15 @@ describe('Pay page › paying', () => {
     const file = new File(['%PDF-1.4'], 'receipt.pdf', { type: 'application/pdf' })
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
     await user.upload(input, file)
-    await user.type(screen.getByRole('textbox', { name: i18n.t('payment.bank.referenceLabel') }), 'TRX-77')
+    await user.type(
+      screen.getByRole('textbox', { name: i18n.t('payment.bank.referenceLabel') }),
+      'TRX-77',
+    )
     await user.click(screen.getByRole('button', { name: L('bank.submit') }))
 
-    expect(await screen.findByText(L('pending.BANK_TRANSFER', { date: '17 Oct 2026' }))).toBeTruthy()
+    expect(
+      await screen.findByText(L('pending.BANK_TRANSFER', { date: '17 Oct 2026' })),
+    ).toBeTruthy()
     const [init] = calls(BANK)
     expect(init.credentials).toBe('omit')
     expect(headersOf(init)['X-Pay-Link-Token']).toBe(TOKEN)
@@ -218,19 +284,34 @@ describe('Pay page › paying', () => {
 
   it('says when there is no confirmed account, and still takes the receipt', async () => {
     answers[VIEW] = () =>
-      json(200, view({ methods: { card: false, bankTransfer: { available: true, account: null }, cash: true } }))
+      json(
+        200,
+        view({
+          methods: { card: false, bankTransfer: { available: true, account: null }, cash: true },
+        }),
+      )
     const user = userEvent.setup({ delay: null })
     openPay()
-    await user.click(await screen.findByRole('button', { name: new RegExp(L('method.bankTransfer.title')) }))
+    await user.click(
+      await screen.findByRole('button', { name: new RegExp(L('method.bankTransfer.title')) }),
+    )
     expect(screen.getByText(L('bank.noAccount'))).toBeTruthy()
     expect(screen.getByRole('button', { name: L('bank.submit') })).toBeTruthy()
   })
 
   it('opens a cash request', async () => {
-    answers[CASH] = () => json(201, { paymentId: 'p-2', method: 'CASH', status: 'PAYMENT_PENDING', submittedAt: '2026-10-17T07:30:00Z' })
+    answers[CASH] = () =>
+      json(201, {
+        paymentId: 'p-2',
+        method: 'CASH',
+        status: 'PAYMENT_PENDING',
+        submittedAt: '2026-10-17T07:30:00Z',
+      })
     const user = userEvent.setup({ delay: null })
     openPay()
-    await user.click(await screen.findByRole('button', { name: new RegExp(L('method.cash.title')) }))
+    await user.click(
+      await screen.findByRole('button', { name: new RegExp(L('method.cash.title')) }),
+    )
     await user.click(screen.getByRole('button', { name: L('cash.submit') }))
     await waitFor(() => expect(calls(CASH)).toHaveLength(1))
     expect(headersOf(calls(CASH)[0])['Idempotency-Key']).toBeTruthy()
@@ -241,7 +322,9 @@ describe('Pay page › paying', () => {
     answers[CASH] = () => problem(409, 'payment-state-conflict')
     const user = userEvent.setup({ delay: null })
     openPay()
-    await user.click(await screen.findByRole('button', { name: new RegExp(L('method.cash.title')) }))
+    await user.click(
+      await screen.findByRole('button', { name: new RegExp(L('method.cash.title')) }),
+    )
     await user.click(screen.getByRole('button', { name: L('cash.submit') }))
     expect(await screen.findByText(L('problem.slotTaken'))).toBeTruthy()
   })
@@ -249,19 +332,32 @@ describe('Pay page › paying', () => {
   it('opens the provider checkout with one key, reused on a retry, and only at the provider address', async () => {
     answers[VIEW] = () => json(200, view({ methods: { ...view().methods, card: true } }))
     answers[CARD] = () =>
-      json(200, { paymentId: 'p-card', status: 'READY', checkoutUrl: 'https://oman.paymob.com/unifiedcheckout/?x=1', expiresAt: null, amount: '80.000', currency: 'OMR' })
+      json(200, {
+        paymentId: 'p-card',
+        status: 'READY',
+        checkoutUrl: 'https://oman.paymob.com/unifiedcheckout/?x=1',
+        expiresAt: null,
+        amount: '80.000',
+        currency: 'OMR',
+      })
     const open = vi.spyOn(hostedCheckout, 'open').mockImplementation(() => {})
     const user = userEvent.setup({ delay: null })
     openPay()
 
-    await user.click(await screen.findByRole('button', { name: new RegExp(L('method.card.title')) }))
+    await user.click(
+      await screen.findByRole('button', { name: new RegExp(L('method.card.title')) }),
+    )
     await user.click(screen.getByRole('button', { name: L('card.open') }))
-    await waitFor(() => expect(open).toHaveBeenCalledWith('https://oman.paymob.com/unifiedcheckout/?x=1'))
+    await waitFor(() =>
+      expect(open).toHaveBeenCalledWith('https://oman.paymob.com/unifiedcheckout/?x=1'),
+    )
     expect(sessionStorage.getItem('fawtir.payLink.cardPayment')).toBe('p-card')
 
     await user.click(screen.getByRole('button', { name: L('card.open') }))
     await waitFor(() => expect(calls(CARD)).toHaveLength(2))
-    expect(headersOf(calls(CARD)[0])['Idempotency-Key']).toBe(headersOf(calls(CARD)[1])['Idempotency-Key'])
+    expect(headersOf(calls(CARD)[0])['Idempotency-Key']).toBe(
+      headersOf(calls(CARD)[1])['Idempotency-Key'],
+    )
   })
 
   it('says card is unavailable when the server refuses it, and forgets a finished attempt', async () => {
@@ -269,16 +365,27 @@ describe('Pay page › paying', () => {
     answers[CARD] = () => problem(409, 'payment-method-unavailable')
     const user = userEvent.setup({ delay: null })
     openPay()
-    await user.click(await screen.findByRole('button', { name: new RegExp(L('method.card.title')) }))
+    await user.click(
+      await screen.findByRole('button', { name: new RegExp(L('method.card.title')) }),
+    )
     await user.click(screen.getByRole('button', { name: L('card.open') }))
     expect(await screen.findByText(L('problem.cardUnavailable'))).toBeTruthy()
 
     answers[CARD] = () =>
-      json(201, { paymentId: 'p-old', status: 'NOT_COMPLETED', checkoutUrl: null, expiresAt: null, amount: '80.000', currency: 'OMR' })
+      json(201, {
+        paymentId: 'p-old',
+        status: 'NOT_COMPLETED',
+        checkoutUrl: null,
+        expiresAt: null,
+        amount: '80.000',
+        currency: 'OMR',
+      })
     await user.click(screen.getByRole('button', { name: L('card.open') }))
     await user.click(await screen.findByRole('button', { name: L('card.open') }))
     await waitFor(() => expect(calls(CARD)).toHaveLength(3))
-    expect(headersOf(calls(CARD)[1])['Idempotency-Key']).not.toBe(headersOf(calls(CARD)[2])['Idempotency-Key'])
+    expect(headersOf(calls(CARD)[1])['Idempotency-Key']).not.toBe(
+      headersOf(calls(CARD)[2])['Idempotency-Key'],
+    )
   })
 
   it('shows the link as expired when it dies while paying', async () => {
@@ -290,7 +397,9 @@ describe('Pay page › paying', () => {
     }
     const user = userEvent.setup({ delay: null })
     openPay()
-    await user.click(await screen.findByRole('button', { name: new RegExp(L('method.cash.title')) }))
+    await user.click(
+      await screen.findByRole('button', { name: new RegExp(L('method.cash.title')) }),
+    )
     await user.click(screen.getByRole('button', { name: L('cash.submit') }))
     await waitFor(() => expect(screen.queryByText(L('howToPay'))).toBeNull())
     expect(screen.getByText(L('problem.expired'))).toBeTruthy()
@@ -300,11 +409,20 @@ describe('Pay page › paying', () => {
   it('never navigates to an address that is not the provider', async () => {
     answers[VIEW] = () => json(200, view({ methods: { ...view().methods, card: true } }))
     answers[CARD] = () =>
-      json(200, { paymentId: 'p-card', status: 'READY', checkoutUrl: 'https://evil.example/pay', expiresAt: null, amount: '80.000', currency: 'OMR' })
+      json(200, {
+        paymentId: 'p-card',
+        status: 'READY',
+        checkoutUrl: 'https://evil.example/pay',
+        expiresAt: null,
+        amount: '80.000',
+        currency: 'OMR',
+      })
     const open = vi.spyOn(hostedCheckout, 'open').mockImplementation(() => {})
     const user = userEvent.setup({ delay: null })
     openPay()
-    await user.click(await screen.findByRole('button', { name: new RegExp(L('method.card.title')) }))
+    await user.click(
+      await screen.findByRole('button', { name: new RegExp(L('method.card.title')) }),
+    )
     await user.click(screen.getByRole('button', { name: L('card.open') }))
     expect(await screen.findByText(L('problem.notReady'))).toBeTruthy()
     expect(open).not.toHaveBeenCalled()
@@ -325,7 +443,14 @@ describe('Pay page › back from the card provider', () => {
     sessionStorage.setItem('fawtir.payLink.token', TOKEN)
     sessionStorage.setItem('fawtir.payLink.cardPayment', 'p-card')
     answers[STATUS] = () =>
-      json(200, { paymentId: 'p-card', status: 'NOT_COMPLETED', checkoutUrl: null, expiresAt: null, amount: '80.000', currency: 'OMR' })
+      json(200, {
+        paymentId: 'p-card',
+        status: 'NOT_COMPLETED',
+        checkoutUrl: null,
+        expiresAt: null,
+        amount: '80.000',
+        currency: 'OMR',
+      })
     openDone('/pay/done?success=true&hmac=forged&id=1')
 
     expect(window.location.search).toBe('')
@@ -339,7 +464,14 @@ describe('Pay page › back from the card provider', () => {
     sessionStorage.setItem('fawtir.payLink.token', TOKEN)
     sessionStorage.setItem('fawtir.payLink.cardPayment', 'p-card')
     answers[STATUS] = () =>
-      json(200, { paymentId: 'p-card', status: 'PAID', checkoutUrl: null, expiresAt: null, amount: '80.000', currency: 'OMR' })
+      json(200, {
+        paymentId: 'p-card',
+        status: 'PAID',
+        checkoutUrl: null,
+        expiresAt: null,
+        amount: '80.000',
+        currency: 'OMR',
+      })
     openDone('/pay/done')
     expect(await screen.findByText(L('done.paid'))).toBeTruthy()
   })

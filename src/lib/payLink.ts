@@ -188,7 +188,10 @@ export function loadPayLink(token: string, signal?: AbortSignal): Promise<PayLin
   return publicCall(PAY_LINK_VIEW_PATH, token, { signal })
 }
 
-export function startPayLinkCard(token: string, idempotencyKey: string): Promise<PayLinkCardCheckout> {
+export function startPayLinkCard(
+  token: string,
+  idempotencyKey: string,
+): Promise<PayLinkCardCheckout> {
   return publicCall(PAY_LINK_CARD_PATH, token, { idempotencyKey })
 }
 
@@ -261,7 +264,11 @@ export function payLinkProblemOf(error: unknown): PayLinkProblem {
     case 'rate-limited':
       return 'tooMany'
   }
-  if (error.status === 404) return 'invalid'
+  // 404: not a link, or a server where payment links are switched off. 401, 403 and 405: a
+  // server that does not have the public pay routes yet (its gateway asks for a sign-in), which
+  // the payer must read as the same "this link is not valid", never as a sign-in or a fault.
+  if (error.status === 404 || error.status === 401 || error.status === 403 || error.status === 405)
+    return 'invalid'
   if (error.status === 410) return 'expired'
   if (error.status === 429) return 'tooMany'
   if (error.status === 413) return 'receiptTooLarge'

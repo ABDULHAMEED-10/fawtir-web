@@ -151,7 +151,13 @@ describe('vercel.json headers on the public pay page (P2-8 M13)', () => {
     for (const path of ['/pay', '/pay/', '/pay/done', '/PAY/done']) {
       expect(matches(PAY_SOURCE, path), path).toBe(true)
     }
-    for (const path of ['/payment', '/payments', '/paywall', '/api/v1/public/pay-links/view', '/settings/pay']) {
+    for (const path of [
+      '/payment',
+      '/payments',
+      '/paywall',
+      '/api/v1/public/pay-links/view',
+      '/settings/pay',
+    ]) {
       expect(matches(PAY_SOURCE, path), path).toBe(false)
     }
   })
@@ -170,7 +176,9 @@ describe('vercel.json headers on the public pay page (P2-8 M13)', () => {
     expect(policy.get('form-action')).toEqual(["'self'"])
     expect(policy.get('frame-ancestors')).toEqual(["'none'"])
     for (const sources of policy.values()) {
-      expect(sources.some((s) => s.startsWith('http') || s.includes('*') || s.includes('unsafe'))).toBe(false)
+      expect(
+        sources.some((s) => s.startsWith('http') || s.includes('*') || s.includes('unsafe')),
+      ).toBe(false)
     }
   })
 
