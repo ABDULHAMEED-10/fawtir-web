@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import { useApiRead } from '../../hooks'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { formatDate, formatInstantDay } from '../../lib/format'
@@ -10,17 +11,35 @@ import {
   FAWTIR_DISCONNECTION_PATH,
   loadFawtirDisconnection,
   requestFawtirDisconnection,
+  requestFawtirReconnection,
   withdrawFawtirDisconnection,
+  withdrawFawtirReconnection,
   type CompanyDisconnectionDto,
   type DisconnectionAnswer,
   type DisconnectionStatus,
+  type ReconnectionStatus,
 } from '../../api/settings/fawtirDisconnection'
-import { canSeeDisconnection, disconnectionStanding } from '../../lib/fawtirDisconnection'
+import {
+  canSeeDisconnection,
+  currentReconnection,
+  disconnectionStanding,
+  reconnectionStanding,
+  renewalNeeded,
+  showsComingBack,
+} from '../../lib/fawtirDisconnection'
 
 const STATUS_TONE: Record<DisconnectionStatus, string> = {
   REQUESTED: 'bg-pending-100 text-pending-700',
   WAITING_FOR_CUSTOMER_APPROVAL: 'bg-pending-100 text-pending-700',
   DISCONNECTED: 'bg-danger-100 text-danger-700',
+  NOT_COMPLETED: 'bg-primary-25 text-primary-800',
+  WITHDRAWN: 'bg-primary-25 text-primary-800',
+}
+
+const RECONNECTION_TONE: Record<ReconnectionStatus, string> = {
+  REQUESTED: 'bg-pending-100 text-pending-700',
+  ACCEPTED: 'bg-pending-100 text-pending-700',
+  CONNECTED: 'bg-success-100 text-success-700',
   NOT_COMPLETED: 'bg-primary-25 text-primary-800',
   WITHDRAWN: 'bg-primary-25 text-primary-800',
 }
@@ -46,7 +65,9 @@ function failureKey(error: unknown): string {
  * (LV-5), and confirms by typing the company name (LV-1). The status line shows each step with its
  * date (LV-7), and a request that has not completed can be withdrawn (LV-4).
  *
- * Reconnecting after a completed disconnection is not offered: there is no path for it yet.
+ * Once disconnected, "Coming back to Fawtir" (plan v4 §10) tells Fawtir the company chose it again
+ * on the Fawtara Portal and shows where that stands; it shows only while the server offers it
+ * (`canReconnect`, off with `FAWTIR_RECONNECTION_ENABLED`) or a request to come back exists.
  */
 export function DisconnectFromFawtirSection() {
   const { entitlements } = useEntitlements()
@@ -133,7 +154,8 @@ function DangerZone() {
               </p>
             ) : null}
 
-            {request.status === 'DISCONNECTED' ? (
+            {/* Once back, these are no longer true; the disconnection stays as history. */}
+            {request.status === 'DISCONNECTED' && !view.connected ? (
               <ul className="flex list-disc flex-col gap-1 ps-5 text-sm font-medium leading-[1.6] text-text-secondary">
                 {request.subscriptionEndsOn ? (
                   <li>
@@ -175,6 +197,8 @@ function DangerZone() {
             <p className="text-xs font-medium text-text-tertiary">{t('fawtirDisconnection.toldNote')}</p>
           </div>
         ) : null}
+
+        {showsComingBack(view) ? <ComingBack view={view} onChanged={setLatest} onFailure={setFailure} /> : null}
 
         {view.canRequest || view.canWithdraw ? (
           <div className="flex flex-wrap gap-3">
@@ -230,6 +254,180 @@ function DangerZone() {
       </div>
       <div className="p-5">{body}</div>
     </section>
+  )
+}
+
+/** A reconnection refusal's slug to this card's sentence. */
+function reconnectionFailureKey(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.problemType === 'admin-authority-required') return 'fawtirDisconnection.error.notOwner'
+    if (error.problemType === 'impersonation-not-allowed') return 'fawtirDisconnection.error.impersonating'
+    if (error.problemType === 'reconnection-not-open') return 'fawtirReconnection.error.notOpen'
+    if (
+      error.problemType === 'reconnection-state-conflict' ||
+      error.problemType === 'disconnection-state-conflict'
+    ) {
+      return 'fawtirDisconnection.error.changed'
+    }
+    if (error.status === 400) return 'fawtirReconnection.error.confirm'
+    if (error.status === 403) return 'fawtirDisconnection.error.notOwner'
+  }
+  return 'fawtirDisconnection.error.failed'
+}
+
+const isStateConflict = (error: unknown) =>
+  error instanceof ApiError &&
+  (error.problemType === 'reconnection-state-conflict' ||
+    error.problemType === 'disconnection-state-conflict' ||
+    error.problemType === 'reconnection-not-open')
+
+/**
+ * "Coming back to Fawtir" (plan v4 §10, CA-6): the three steps, the confirmation, and where the
+ * Fawtara Portal request stands with the date of each step. Fawtir accepts the connection on the
+ * portal; issuing comes back from the acceptance or the date the company chose there, whichever is
+ * later. A request Fawtir has accepted is not withdrawn: once it takes effect the company can
+ * disconnect again.
+ */
+function ComingBack({
+  view,
+  onChanged,
+  onFailure,
+}: {
+  view: CompanyDisconnectionDto
+  onChanged: (view: CompanyDisconnectionDto) => void
+  /** Shown by the danger zone, so it outlives this block when a re-read hides it. */
+  onFailure: (key: string | null) => void
+}) {
+  const { t, i18n } = useTranslation()
+  const [confirmed, setConfirmed] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const reconnection = currentReconnection(view)
+  const standing = reconnection ? reconnectionStanding(reconnection) : null
+  const day = (iso: string | null) => (iso ? formatInstantDay(iso, i18n.language) : '')
+  const back = standing?.pill === 'CONNECTED'
+
+  const act = async (call: () => Promise<CompanyDisconnectionDto>) => {
+    setBusy(true)
+    onFailure(null)
+    try {
+      onChanged(await call())
+      setConfirmed(false)
+    } catch (error) {
+      onFailure(reconnectionFailureKey(error))
+      if (isStateConflict(error)) await reload(onChanged)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4 rounded-sm bg-surface-background px-4 py-3">
+      <h5 className="text-sm font-semibold text-text-primary">{t('fawtirReconnection.title')}</h5>
+
+      {reconnection && standing ? (
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <span
+              className={[
+                'rounded-full px-3 py-1 text-xs font-semibold',
+                RECONNECTION_TONE[standing.pill],
+              ].join(' ')}
+            >
+              {t(`fawtirReconnection.status.${standing.pill}`)}
+            </span>
+            <p role="status" className="min-w-0 flex-1 text-sm font-medium leading-[1.6] text-text-secondary">
+              {t(`fawtirReconnection.line.${standing.line}`, { date: day(standing.dateAt) })}
+            </p>
+          </div>
+          {reconnection.origin === 'CONSOLE' ? (
+            <p className="text-xs font-medium text-text-tertiary">{t('fawtirReconnection.onYourBehalf')}</p>
+          ) : null}
+          {standing.pill === 'ACCEPTED' ? (
+            <p className="text-xs font-medium text-text-tertiary">{t('fawtirReconnection.acceptedNote')}</p>
+          ) : null}
+          {back && view.request ? (
+            renewalNeeded(view.request) ? (
+              <p className="text-sm font-medium leading-[1.6] text-text-secondary">
+                {t('fawtirReconnection.renewNeeded')}{' '}
+                <Link to="/settings/plan" className="font-semibold text-primary-600 underline">
+                  {t('fawtirReconnection.renewLink')}
+                </Link>
+              </p>
+            ) : (
+              <p className="text-sm font-medium leading-[1.6] text-text-secondary">
+                {t('fawtirReconnection.carriesOn')}
+              </p>
+            )
+          ) : null}
+          {reconnection.steps.length > 0 ? (
+            <ol className="flex flex-col">
+              {reconnection.steps.map((step, index) => (
+                <li
+                  key={`${step.step}-${step.recordedAt}`}
+                  className={[
+                    'flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2',
+                    index < reconnection.steps.length - 1 ? 'border-b border-border-subtle' : '',
+                  ].join(' ')}
+                >
+                  <span className="text-sm font-medium text-text-secondary">
+                    {t(`fawtirReconnection.step.${step.step}`)}
+                  </span>
+                  <span className="shrink-0 text-sm font-semibold text-text-primary">
+                    {day(step.occurredAt)}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          ) : null}
+          {reconnection.status === 'REQUESTED' ? (
+            <div>
+              <Button
+                variant="secondary"
+                size="md"
+                disabled={busy}
+                onClick={() => act(withdrawFawtirReconnection)}
+              >
+                {t('fawtirReconnection.withdraw')}
+              </Button>
+            </div>
+          ) : null}
+        </>
+      ) : null}
+
+      {view.canReconnect ? (
+        <>
+          <ol className="flex list-decimal flex-col gap-1 ps-5 text-sm font-medium leading-[1.6] text-text-secondary">
+            <li>{t('fawtirReconnection.how.portal')}</li>
+            <li>{t('fawtirReconnection.how.tellUs')}</li>
+            <li>{t('fawtirReconnection.how.accept')}</li>
+          </ol>
+          <label className="flex items-start gap-3 text-sm font-medium text-text-primary">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={confirmed}
+              disabled={busy}
+              onChange={(event) => {
+                setConfirmed(event.target.checked)
+                onFailure(null)
+              }}
+            />
+            <span>{t('fawtirReconnection.confirm')}</span>
+          </label>
+          <div>
+            <Button
+              variant="primary"
+              size="md"
+              disabled={busy || !confirmed}
+              onClick={() => act(requestFawtirReconnection)}
+            >
+              {t(reconnection ? 'fawtirReconnection.tellAgain' : 'fawtirReconnection.tell')}
+            </Button>
+          </div>
+        </>
+      ) : null}
+
+    </div>
   )
 }
 

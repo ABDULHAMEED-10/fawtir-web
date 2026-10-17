@@ -106,6 +106,28 @@ const REQUESTS = [
   },
 ]
 
+// With `MOCK_RECONNECTION_STATE` set, the console's sample company (the one the tenant page mock
+// serves) has left Fawtir, so its card offers "Start a reconnection"
+// (`platformFawtirReconnections.mjs`, which matches this request's id).
+if (process.env.MOCK_RECONNECTION_STATE) {
+  REQUESTS.push({
+    request: request('d-company-left', '7a1c0b52-4f0e-4b8e-9d3a-2f6c1e0a9b11', {
+      path: 'ALREADY_DISCONNECTED',
+      status: 'DISCONNECTED',
+      requestedAt: ago(40),
+      disconnectedAt: ago(39),
+      smpRemovalDueAt: ago(38),
+      smpRemovedAt: ago(39),
+      subscriptionEndsOn: ahead(20).slice(0, 10),
+    }),
+    steps: [
+      step('s-left-1', 'REQUESTED', 'REQUESTED', ago(40)),
+      step('s-left-2', 'PORTAL_DISCONNECTION_CONFIRMED', 'DISCONNECTED', ago(39), 'OPERATOR'),
+      step('s-left-3', 'SMP_REMOVED', 'DISCONNECTED', ago(39), 'OPERATOR'),
+    ],
+  })
+}
+
 const live = (status) => status === 'REQUESTED' || status === 'WAITING_FOR_CUSTOMER_APPROVAL'
 
 function nextAction(r) {

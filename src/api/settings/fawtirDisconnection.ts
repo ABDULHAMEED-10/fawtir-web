@@ -65,15 +65,62 @@ export type CompanyDisconnectionRequestDto = {
   steps: CompanyDisconnectionStepDto[]
 }
 
+/** Coming back to Fawtir after a completed disconnection (V385). */
+export type ReconnectionStatus = 'REQUESTED' | 'ACCEPTED' | 'CONNECTED' | 'NOT_COMPLETED' | 'WITHDRAWN'
+
+export type ReconnectionStep =
+  | 'REQUESTED'
+  | 'PORTAL_CONNECTION_ACCEPTED'
+  | 'CONNECTION_EFFECTIVE'
+  | 'PORTAL_REQUEST_NOT_FOUND'
+  | 'CONNECTION_DECLINED'
+  | 'WITHDRAWN'
+  | 'SMP_ADDED'
+
+export type CompanyReconnectionStepDto = {
+  step: ReconnectionStep
+  statusAfter: ReconnectionStatus
+  occurredAt: string
+  recordedAt: string
+  actorType: 'CUSTOMER' | 'OPERATOR' | 'SYSTEM'
+}
+
+/**
+ * The latest request to come back to Fawtir. It carries no operator name and no decline reason:
+ * those stay Fawtir's own record.
+ */
+export type CompanyReconnectionDto = {
+  status: ReconnectionStatus
+  origin: 'CUSTOMER' | 'CONSOLE'
+  requestedAt: string
+  acceptedAt: string | null
+  /** Issuing comes back from here: the later of Fawtir's acceptance and the date chosen on the portal. */
+  effectiveFrom: string | null
+  /** An accepted connection whose date has come, even before it is recorded as connected. */
+  effectiveDue: boolean
+  connectedAt: string | null
+  smpAddedAt: string | null
+  notCompletedReason: 'PORTAL_REQUEST_NOT_FOUND' | 'DECLINED' | null
+  closedAt: string | null
+  steps: CompanyReconnectionStepDto[]
+}
+
 export type CompanyDisconnectionDto = {
   /** What the customer types to confirm. */
   companyName: string
-  /** False once a disconnection has completed. */
+  /** False once a disconnection has completed; true again once a reconnection takes effect. */
   connected: boolean
-  /** No live request and not disconnected. */
+  /** No live request and not disconnected (true again after a reconnection). */
   canRequest: boolean
   /** A live request exists. */
   canWithdraw: boolean
+  /**
+   * The company has left, no reconnection is open, and reconnecting is switched on
+   * (`FAWTIR_RECONNECTION_ENABLED`). Absent from a server older than V385, which reads as false.
+   */
+  canReconnect?: boolean
+  /** The latest reconnection, or null (or absent) when there has never been one. */
+  reconnection?: CompanyReconnectionDto | null
   request: CompanyDisconnectionRequestDto | null
 }
 
@@ -105,6 +152,35 @@ export function requestFawtirDisconnection(
 /** Withdraws a request that has not completed. Idempotent. */
 export function withdrawFawtirDisconnection(): Promise<CompanyDisconnectionDto> {
   return apiRequest<CompanyDisconnectionDto>(`${FAWTIR_DISCONNECTION_PATH}/withdrawal`, {
+    method: 'POST',
+  })
+}
+
+/**
+ * Settings, danger zone: "Coming back to Fawtir" (`FawtirReconnectionController`, V385). Same
+ * guards as the disconnection. Both routes answer with the danger zone's status line.
+ */
+export const FAWTIR_RECONNECTION_PATH = '/v1/settings/fawtir-reconnection'
+
+/**
+ * Tells Fawtir the company chose it again on the Fawtara Portal (`confirmed` must be true, 400
+ * otherwise). Repeating it while a request is open returns that request. 409
+ * `disconnection-state-conflict` when the company has not left, `reconnection-not-open` while
+ * reconnecting is switched off.
+ */
+export function requestFawtirReconnection(): Promise<CompanyDisconnectionDto> {
+  return apiRequest<CompanyDisconnectionDto>(FAWTIR_RECONNECTION_PATH, {
+    method: 'POST',
+    body: { confirmed: true },
+  })
+}
+
+/**
+ * Withdraws a reconnection Fawtir has not accepted yet. Idempotent. 409
+ * `reconnection-state-conflict` when nothing is open or Fawtir has already accepted it.
+ */
+export function withdrawFawtirReconnection(): Promise<CompanyDisconnectionDto> {
+  return apiRequest<CompanyDisconnectionDto>(`${FAWTIR_RECONNECTION_PATH}/withdrawal`, {
     method: 'POST',
   })
 }
