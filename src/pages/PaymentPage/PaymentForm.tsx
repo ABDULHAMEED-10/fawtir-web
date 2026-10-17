@@ -486,7 +486,7 @@ function AddonOffer({
   )
 }
 
-function Note({ icon, text }: { icon: string; text: string }) {
+export function Note({ icon, text }: { icon: string; text: string }) {
   return (
     <div className="flex gap-2 rounded-sm border border-black/10 bg-surface-card p-4">
       <img src={icon} alt="" className="mt-0.5 size-5 shrink-0" />
@@ -497,7 +497,7 @@ function Note({ icon, text }: { icon: string; text: string }) {
   )
 }
 
-type BankEvidence = { proof: File | null; reference: string; note: string }
+export type BankEvidence = { proof: File | null; reference: string; note: string }
 
 const PROOF_ACCEPT = '.pdf,.png,.jpg,.jpeg'
 
@@ -515,7 +515,7 @@ const heldBankReceipt = (held: SignupHeldPayment | null): held is SignupHeldPaym
  * be replaced only while nobody has verified it, which the server enforces too. The IBAN and SWIFT
  * are Latin in either language, hence `ltr`.
  */
-function BankTransferDetails({
+export function BankTransferDetails({
   beneficiary,
   maxBytes,
   held,
@@ -523,6 +523,8 @@ function BankTransferDetails({
   problem,
   refused,
   onChange,
+  transferNote,
+  noAccountNote,
 }: {
   beneficiary: SignupPaymentOptions['beneficiary']
   maxBytes: number | undefined
@@ -532,6 +534,9 @@ function BankTransferDetails({
   /** The server refused the last receipt sent. */
   refused: boolean
   onChange: (next: Partial<BankEvidence>) => void
+  /** The pay-link page's own wording; sign-up keeps its application sentences. */
+  transferNote?: string
+  noAccountNote?: string
 }) {
   const { t } = useTranslation()
   const [replacing, setReplacing] = useState(false)
@@ -551,11 +556,11 @@ function BankTransferDetails({
               {beneficiary.swiftCode ? <Row label="SWIFT" value={beneficiary.swiftCode} mono /> : null}
             </dl>
           </div>
-          <Note icon={tickIcon} text={t('payment.bank.transferNow')} />
+          <Note icon={tickIcon} text={transferNote ?? t('payment.bank.transferNow')} />
         </>
       ) : (
         // No verified account to show: nothing is made up in its place.
-        <Note icon={tickIcon} text={t('payment.bank.noAccountDetails')} />
+        <Note icon={tickIcon} text={noAccountNote ?? t('payment.bank.noAccountDetails')} />
       )}
       {held === null || replacing ? (
         <fieldset className="flex flex-col gap-3 rounded-sm border border-black/10 bg-surface-card p-4">
