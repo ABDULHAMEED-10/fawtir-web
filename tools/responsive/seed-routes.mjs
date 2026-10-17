@@ -154,8 +154,6 @@ export const SEED_ROUTES = [
   '/console',
   '/console/tenants',
   '/console/queue',
-  '/console/subscriptions',
-  '/console/subscriptions/invoices',
   '/console/tenants/al-noor',
   '/console/tenants/al-bahja',
   '/console/plans',

@@ -186,8 +186,6 @@ import {
   VerificationCompanyPage,
   VerificationPage,
   TenantDetailPage,
-  SubscriptionsPage,
-  SubscriptionInvoicesPage,
   ConsoleSettingsPage,
   ValidationPoliciesPage,
   ValidationPolicyPage,
@@ -814,8 +812,10 @@ function App() {
           <Route path="/console" element={<DemoModule module="console"><OperationsPage /></DemoModule>} />
           <Route path="/console/tenants" element={<TenantsPage />} />
           <Route path="/console/tenants/:id" element={<TenantDetailPage />} />
-          <Route path="/console/subscriptions" element={<DemoModule module="console"><SubscriptionsPage /></DemoModule>} />
-          <Route path="/console/subscriptions/invoices" element={<DemoModule module="console"><SubscriptionInvoicesPage /></DemoModule>} />
+          {/* The sample-data subscription screens are retired: a company's subscription is on its
+              tenant page, and payments have their own queue. Old links land there. */}
+          <Route path="/console/subscriptions" element={<Navigate to="/console/tenants" replace />} />
+          <Route path="/console/subscriptions/invoices" element={<Navigate to="/console/billing/payments" replace />} />
           <Route path="/console/queue" element={<DemoModule module="console"><ConsoleQueuePage /></DemoModule>} />
           <Route path="/console/incidents" element={<DemoModule module="console"><ConsoleIncidentsPage /></DemoModule>} />
           <Route path="/console/incidents/:id" element={<DemoModule module="console"><ConsoleIncidentsPage /></DemoModule>} />

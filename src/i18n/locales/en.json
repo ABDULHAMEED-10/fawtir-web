@@ -15270,6 +15270,135 @@
       "crShort": "CR {{number}}",
       "tinShort": "TIN {{number}}",
       "vatShort": "VAT {{number}}"
+    },
+    "companySubscription": {
+      "title": "Subscription",
+      "loading": "Loading the subscription",
+      "sending": "Sending…",
+      "yes": "Yes",
+      "access": {
+        "NOT_TRACKED": "Not tracked",
+        "TRIAL": "Free trial",
+        "ACTIVE": "Active",
+        "GRACE": "Grace period",
+        "PAYMENT_REQUIRED": "Payment required",
+        "CANCELLED": "Ended"
+      },
+      "planWithCycle": "{{plan}}, {{cycle}}",
+      "cycle": {
+        "MONTHLY": "billed monthly",
+        "ANNUAL": "billed yearly"
+      },
+      "notTrackedBody": "This company has no subscription lifecycle: it was approved before billing existed, is on Enterprise, or was set up by Fawtir. Nothing is billed or restricted for it here.",
+      "trial": "Trial",
+      "trialDay": "Day {{day}} of {{length}}",
+      "trialEnds": "Trial ends",
+      "paidThrough": "Paid through",
+      "graceUntil": "Grace until",
+      "renewsOn": "Renews on",
+      "cancelsAtPeriodEnd": "Cancels at the end of the period",
+      "accessEnds": "Access ended",
+      "scheduledChange": "Scheduled change",
+      "scheduledChangeValue": "Moves to {{plan}} on {{date}}",
+      "trialException": {
+        "open": "Trial exception",
+        "title": "Grant or extend the trial",
+        "body": "Gives this company a trial it never had, or moves its trial's end later by the days below (from today if it has already ended). Only before the first payment; never on Enterprise. The reason is kept in the company's history.",
+        "days": "Days",
+        "daysHint": "A whole number from 1 to {{max}}.",
+        "confirm": "Grant the trial days"
+      },
+      "error": {
+        "wholeBetween": "A whole number from {{min}} to {{max}}"
+      },
+      "history": {
+        "title": "Subscription history",
+        "empty": "Nothing has happened to this subscription yet.",
+        "kind": {
+          "TRIAL_STARTED": "Trial started",
+          "TRIAL_GRANTED": "Trial granted by Fawtir",
+          "TRIAL_EXTENDED": "Trial extended by Fawtir",
+          "PAID_PERIOD_EXTENDED": "Paid period added",
+          "AUTO_RENEW_CHANGED": "Automatic renewal changed",
+          "CANCELLATION_SCHEDULED": "Cancellation at the end of the period",
+          "CANCELLATION_WITHDRAWN": "Cancellation withdrawn",
+          "DOWNGRADE_SCHEDULED": "Move to a smaller plan scheduled",
+          "DOWNGRADE_WITHDRAWN": "Move to a smaller plan withdrawn",
+          "DOWNGRADE_APPLIED": "Moved to a smaller plan",
+          "OTHER": "Subscription changed"
+        }
+      },
+      "allowance": {
+        "title": "Documents this month",
+        "loading": "Loading the documents",
+        "month": "Allowance month",
+        "monthValue": "{{from}} to {{to}}",
+        "used": "Used",
+        "usedValue": "{{used}} of {{total}} (plan {{plan}}, extra {{extra}})",
+        "breakdown": "Issued and received",
+        "breakdownValue": "{{issued}} issued, {{received}} received",
+        "left": "Left",
+        "held": "Received documents held",
+        "resetsOn": "Resets on",
+        "issuingStopped": "No documents are left: issuing is refused until extra documents are added or the month resets.",
+        "credits": "Extra documents",
+        "noCredits": "No extra documents have been bought or granted.",
+        "creditLine": "{{source}}: {{documents}} documents",
+        "source": {
+          "PURCHASE": "Bought",
+          "GRANT": "Granted by Fawtir",
+          "GIVE_BACK": "Given back by Fawtir",
+          "OTHER": "Extra documents"
+        },
+        "status": {
+          "PENDING": "Waiting for payment",
+          "ACTIVE": "Active",
+          "CANCELLED": "Cancelled",
+          "OTHER": "Unknown"
+        },
+        "expires": "ends {{date}}"
+      },
+      "grant": {
+        "open": "Grant temporary documents",
+        "title": "Grant temporary documents",
+        "body": "Adds documents to this company's allowance at once, at no charge. They end on the date below, at the latest at the end of the current allowance month. The reason is kept in the company's history.",
+        "documents": "Documents",
+        "documentsHint": "A whole number from 1 to {{max}}.",
+        "expiresOn": "Ends on",
+        "expiresOnHint": "Leave empty to end with the allowance month on {{date}}.",
+        "expiresOnLate": "No later than {{date}}, the end of the allowance month",
+        "confirm": "Grant the documents"
+      },
+      "counting": {
+        "title": "Count received documents",
+        "on": "On",
+        "off": "Off",
+        "now": "This month (from {{date}})",
+        "fromNext": "From {{date}}",
+        "setting": "Setting for this company",
+        "choice": {
+          "on": "On",
+          "off": "Off",
+          "follow": "Follow the plan's setting"
+        },
+        "note": "Changes apply from the company's next subscription date, never in the middle of a month.",
+        "open": "Change",
+        "dialogTitle": "Count received documents for this company",
+        "dialogBody": "On: received documents use the allowance. Off: only issued documents do. The change applies from {{date}}.",
+        "confirm": "Save the setting"
+      },
+      "refusal": {
+        "notTracked": "This company has no subscription lifecycle, so it cannot be given a trial.",
+        "alreadyPaid": "This company has already paid, so its trial can no longer change.",
+        "paymentBeingChecked": "A payment for this company is being checked. Finish it on the payments screen first.",
+        "notEnterprise": "Only an Enterprise company has its own setting. This company follows its plan.",
+        "countingConflict": "Someone else changed this setting while you were editing. Close this window to see theirs, then try again.",
+        "realm": "This is changed from the production console only.",
+        "impersonation": "End the impersonation before changing a company's subscription.",
+        "forbidden": "You can't do this. Confirm your sign-in code again, or ask an operator with this permission.",
+        "gone": "This company could not be found.",
+        "invalid": "The server did not accept these values. Check them and try again."
+      }
     }
   },
   "shell": {

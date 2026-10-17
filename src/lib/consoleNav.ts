@@ -11,7 +11,6 @@ import {
   ConsoleIncidentIcon,
   ConsolePlansIcon,
   ConsoleQueueIcon,
-  ConsoleSubscriptionIcon,
 } from '../layouts/ConsoleShell/consoleIcons'
 
 type IconProps = { className?: string; active?: boolean }
@@ -87,12 +86,6 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         to: '/console/onboarding',
         requires: 'platform.tenants.manage',
         Icon: NavTddIcon,
-      },
-      {
-        id: 'subscriptions',
-        labelKey: 'console.nav.subscriptions',
-        to: '/console/subscriptions',
-        Icon: ConsoleSubscriptionIcon,
       },
       {
         id: 'plans',
