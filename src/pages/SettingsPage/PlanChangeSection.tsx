@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { useApiRead, type ApiRead } from '../../hooks'
@@ -50,6 +51,7 @@ const KNOWN_REFUSALS = [
   'plan-change-already-pending',
   'plan-change-already-paid',
   'plan-change-while-ending',
+  'plan-change-via-fawtir',
   'enterprise-terms-scheduled-by-fawtir',
   'plan-upgrade-requires-platform',
   'subscription-change-blocked-by-payment',
@@ -72,6 +74,17 @@ function refusalOf(t: TFunction, error: unknown): string {
     return planChangeRefusal(t, error.problemType)
   }
   return t('billing.refusal.other')
+}
+
+/**
+ * The company is on its own Enterprise terms (backend #598, #614): the preview lists this first in
+ * `blockers` and the request is refused 409. Changes go through Fawtir, so the dialog offers no
+ * move, only the sentence and the way to contact the team (P2-5 D4).
+ */
+export const PLAN_CHANGE_VIA_FAWTIR = 'plan-change-via-fawtir'
+
+function isViaFawtir(error: unknown): boolean {
+  return error instanceof ApiError && error.problemType === PLAN_CHANGE_VIA_FAWTIR
 }
 
 export type PlanChangeTarget = { planCode: string; cycle: BillingCycle }
@@ -124,6 +137,8 @@ function DialogBody({
   const [priceMoved, setPriceMoved] = useState(false)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
+  // The request was refused because the company's own Enterprise terms are in force.
+  const [refusedViaFawtir, setRefusedViaFawtir] = useState(false)
   // One key per confirmation of one set of figures: a retry after a timeout lands on the same change.
   const key = useRef(newPlanChangeKey())
   const inFlight = useRef(false)
@@ -149,8 +164,16 @@ function DialogBody({
   }
 
   const preview = read.status === 'ready' ? read.data : null
+  const viaFawtir =
+    refusedViaFawtir ||
+    preview?.blockers.includes(PLAN_CHANGE_VIA_FAWTIR) === true ||
+    (read.status === 'failed' && isViaFawtir(read.error))
   const canConfirm =
-    mayManage && preview !== null && preview.kind !== 'NONE' && preview.blockers.length === 0
+    mayManage &&
+    !viaFawtir &&
+    preview !== null &&
+    preview.kind !== 'NONE' &&
+    preview.blockers.length === 0
 
   const confirm = async () => {
     if (!preview || !canConfirm || inFlight.current) return
@@ -176,6 +199,7 @@ function DialogBody({
         setRead({ status: 'ready', data: fresh })
         setPriceMoved(true)
       } else {
+        setRefusedViaFawtir(isViaFawtir(error))
         setFailure(refusalOf(t, error))
       }
       setBusy(false)
@@ -185,7 +209,8 @@ function DialogBody({
   }
 
   let body: ReactNode
-  if (read.status === 'loading') body = <LoadingNotice />
+  if (viaFawtir) body = <ViaFawtir />
+  else if (read.status === 'loading') body = <LoadingNotice />
   else if (read.status === 'failed')
     body =
       read.error instanceof ApiError && read.error.status !== 401 && read.error.status < 500 ? (
@@ -197,24 +222,26 @@ function DialogBody({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium leading-[1.2] text-text-primary">
-          {t('planChange.dialog.cycle')}
-        </span>
-        <SegmentedControl<BillingCycle>
-          ariaLabel={t('planChange.dialog.cycle')}
-          value={cycle}
-          onChange={chooseCycle}
-          className="w-[220px]"
-          options={[
-            { value: 'MONTHLY', label: t('subscription.cycle.MONTHLY') },
-            { value: 'ANNUAL', label: t('subscription.cycle.ANNUAL') },
-          ]}
-        />
-      </div>
+      {viaFawtir ? null : (
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium leading-[1.2] text-text-primary">
+            {t('planChange.dialog.cycle')}
+          </span>
+          <SegmentedControl<BillingCycle>
+            ariaLabel={t('planChange.dialog.cycle')}
+            value={cycle}
+            onChange={chooseCycle}
+            className="w-[220px]"
+            options={[
+              { value: 'MONTHLY', label: t('subscription.cycle.MONTHLY') },
+              { value: 'ANNUAL', label: t('subscription.cycle.ANNUAL') },
+            ]}
+          />
+        </div>
+      )}
       {priceMoved ? <Callout>{t('planChange.dialog.priceChanged')}</Callout> : null}
       {body}
-      {failure ? <Alert>{failure}</Alert> : null}
+      {failure && !viaFawtir ? <Alert>{failure}</Alert> : null}
       <div className="flex flex-wrap justify-end gap-3">
         <Button variant="secondary" size="md" disabled={busy} onClick={onClose}>
           {t('planChange.dialog.back')}
@@ -627,6 +654,22 @@ function Line({
       >
         {value}
       </dd>
+    </div>
+  )
+}
+
+/** No self-service move on the company's own Enterprise terms: say so and point to the team. */
+function ViaFawtir() {
+  const { t } = useTranslation()
+  return (
+    <div className="flex flex-col items-start gap-3">
+      <Callout>{t('planChange.refusal.plan-change-via-fawtir')}</Callout>
+      <Link
+        to="/contact"
+        className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+      >
+        {t('plans.talkToTeam')}
+      </Link>
     </div>
   )
 }
