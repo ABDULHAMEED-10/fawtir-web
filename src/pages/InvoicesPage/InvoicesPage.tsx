@@ -25,6 +25,7 @@ import {
   type InvoiceListFilter,
   type InvoiceRowDto,
   type InvoiceSummaryDto,
+  type InvoiceListApproval,
   type InvoiceTypeDto,
 } from '../../api/invoices/list'
 import { discardDraft, loadBranches, type BranchDto } from '../../api/invoices/drafts'
@@ -110,16 +111,26 @@ const DELIVERY_HINTS: Record<PeppolResponse, string> = {
  * The design's six tabs (Figma 154:172772). "To send" is issued documents not yet delivered by any
  * means: the list's `delivery=TO_SEND` and the summary's `toSend` read the same definition.
  */
-type TabId = InvoiceTabId | 'toSend'
-const TABS: { id: TabId; labelKey: string; danger?: boolean }[] = [
+type TabId = InvoiceTabId | 'toSend' | 'toApprove'
+const TABS: { id: TabId; labelKey: string; danger?: boolean; permission?: string }[] = [
   { id: 'all', labelKey: 'invoicesPage.tabs.all' },
   { id: 'drafts', labelKey: 'invoicesPage.tabs.drafts' },
   { id: 'toSend', labelKey: 'invoicesPage.tabs.toSend' },
   { id: 'awaiting', labelKey: 'invoicesPage.tabs.awaiting' },
   { id: 'overdue', labelKey: 'invoicesPage.tabs.overdue', danger: true },
   { id: 'paid', labelKey: 'invoicesPage.tabs.paid' },
+  // The approvers' queue (RL-6): drafts waiting for a sales approval, for holders of the code.
+  { id: 'toApprove', labelKey: 'invoicesPage.tabs.toApprove', permission: 'invoice.approve' },
 ]
-const isTab = (value: string | null): value is TabId => value === 'toSend' || isInvoiceTab(value)
+const isTab = (value: string | null): value is TabId =>
+  value === 'toSend' || value === 'toApprove' || isInvoiceTab(value)
+
+/** A draft's approval state, in the palette the row's other pills already use. */
+const APPROVAL_STYLES: Record<InvoiceListApproval, Chip> = {
+  PENDING: { bg: 'bg-warning-100', dot: 'bg-[#6d5a39]', text: 'text-[#6d5a39]' },
+  APPROVED: { bg: 'bg-success-100', dot: 'bg-success-700', text: 'text-success-700' },
+  REJECTED: { bg: 'bg-danger-100', dot: 'bg-danger-700', text: 'text-danger-700' },
+}
 
 /** The design's Channel filter: the list reads the customer's sending method. */
 type ChannelId = 'all' | 'peppol' | 'email'
@@ -173,7 +184,9 @@ function InvoicesScreen() {
   const language = i18n.language
   const [params, setParams] = useSearchParams()
 
-  const tab: TabId = isTab(params.get('tab')) ? (params.get('tab') as TabId) : 'all'
+  const asked: TabId = isTab(params.get('tab')) ? (params.get('tab') as TabId) : 'all'
+  // Without the code the queue is not offered, and an address naming it opens on All.
+  const tab: TabId = asked === 'toApprove' && !can(session, 'invoice.approve') ? 'all' : asked
   const type: InvoiceTypeDto | null = isInvoiceType(params.get('type'))
     ? (params.get('type') as InvoiceTypeDto)
     : null
@@ -230,7 +243,16 @@ function InvoicesScreen() {
   const filter: InvoiceListFilter | null =
     summary.read.status === 'ready'
       ? {
-          ...(tab === 'toSend'
+          ...(tab === 'toApprove'
+            ? {
+                state: 'DRAFT',
+                approval: 'PENDING' as const,
+                payment: null,
+                type: type ?? SALES_TYPES,
+                ...periodRange(period, summary.read.data.asOf),
+                search: query,
+              }
+            : tab === 'toSend'
             ? {
                 state: 'ISSUED',
                 delivery: 'TO_SEND' as const,
@@ -426,10 +448,15 @@ function InvoicesScreen() {
 
       <section className="overflow-hidden rounded-md bg-surface-card">
         <div className="flex flex-wrap items-center gap-x-[52px] gap-y-2 border-b border-border-subtle px-6 pt-4 max-md:gap-x-6">
-          {TABS.map((entry) => {
+          {TABS.filter((entry) => !entry.permission || can(session, entry.permission)).map((entry) => {
             const active = entry.id === tab
             // The owner asked for 0 rather than an empty badge when the summary is unavailable.
-            const tally = entry.id === 'toSend' ? (totals.toSend ?? 0) : tabCount(totals, entry.id)
+            const tally =
+              entry.id === 'toSend'
+                ? (totals.toSend ?? 0)
+                : entry.id === 'toApprove'
+                  ? (totals.awaitingApproval ?? 0)
+                  : tabCount(totals, entry.id)
             return (
               <button
                 key={entry.id}
@@ -528,6 +555,7 @@ function InvoicesScreen() {
             page={page}
             branchNames={branchNames}
             nothingYet={totals.all === 0 && query === '' && type === null}
+            emptyKey={tab === 'toApprove' ? 'invoicesPage.nothingToApprove' : null}
             onDiscard={setDiscarding}
             onCancel={setCancelling}
             onSend={setSendingRow}
@@ -852,6 +880,7 @@ function InvoiceTable({
   page,
   branchNames,
   nothingYet,
+  emptyKey,
   onDiscard,
   onCancel,
   onSend,
@@ -860,6 +889,8 @@ function InvoiceTable({
   page: Page<InvoiceRowDto> | null
   branchNames: Map<string, string>
   nothingYet: boolean
+  /** The tab's own empty sentence, where it has one. */
+  emptyKey: string | null
   onDiscard: (item: InvoiceListItem) => void
   onCancel: (item: InvoiceListItem) => void
   onSend: (item: InvoiceListItem) => void
@@ -1004,7 +1035,7 @@ function InvoiceTable({
               </td>
             </tr>
           ) : rows.length === 0 ? (
-            message(nothingYet ? 'invoicesPage.nothingYet' : 'invoicesPage.noResults')
+            message(emptyKey ?? (nothingYet ? 'invoicesPage.nothingYet' : 'invoicesPage.noResults'))
           ) : (
             rows.map((row) => {
               const editable = row.isDraft && canDraft
@@ -1082,11 +1113,17 @@ function InvoiceRowCells({ row, branch }: { row: InvoiceListItem; branch: string
               ? t('invoicesPage.payment.overdueDays', { count: row.paymentValues?.count ?? 0 })
               : undefined,
         }
-      : {
-          chip: AUTHORING_STYLES[row.authoring],
-          label: t(`invoicesPage.authoring.${row.authoring}`),
-          title: undefined,
-        }
+      : row.approval
+        ? {
+            chip: APPROVAL_STYLES[row.approval],
+            label: t(`salesApproval.status.${row.approval}`),
+            title: undefined,
+          }
+        : {
+            chip: AUTHORING_STYLES[row.authoring],
+            label: t(`invoicesPage.authoring.${row.authoring}`),
+            title: undefined,
+          }
   // TODO(backend): no Peppol response is answered yet (list.ts `peppolResponse`); a manual send
   // is the one delivery fact recorded, and an undelivered document leaves the column blank.
   const delivery = row.peppolResponse

@@ -584,3 +584,42 @@ describe('invoice list mapping', () => {
     ).toBe('cancelled')
   })
 })
+
+describe('the approvers\' queue (RL-6)', () => {
+  const APPROVER: Entitlements = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.approve'] }
+
+  it('is offered only to holders of invoice.approve, counted from the summary', async () => {
+    who = APPROVER
+    salesSummaryResponse = () =>
+      json(200, { ...SUMMARY, awaiting: 6, overdue: 4, paid: 17, awaitingApproval: 2 })
+    renderInvoices()
+    const tab = await screen.findByRole('button', { name: /To approve/ })
+    expect(within(tab).getByText('2')).toBeTruthy()
+  })
+
+  it('is not offered without the code, and an address naming it opens on All', async () => {
+    renderInvoices('/invoices?tab=toApprove')
+    await screen.findByText('Sohar Port Logistics')
+    expect(screen.queryByRole('button', { name: /To approve/ })).toBeNull()
+    expect(listCalls()[0]).toBe(FIRST_PAGE)
+  })
+
+  it('asks for drafts waiting for approval, and says so when there are none', async () => {
+    who = APPROVER
+    listResponses = [() => json(200, springPage([]))]
+    renderInvoices('/invoices?tab=toApprove')
+    expect(await screen.findByText('Nothing is waiting for your approval.')).toBeTruthy()
+    const asked = listCalls()[0]
+    expect(asked).toContain('state=DRAFT&')
+    expect(asked).toContain('approval=PENDING')
+  })
+
+  it('marks a draft row with its approval state', async () => {
+    listResponses = [() => json(200, springPage([draft({ approvalState: 'PENDING' })]))]
+    renderInvoices()
+    expect(await screen.findByText('Waiting for approval')).toBeTruthy()
+    expect(toInvoiceListItem(draft({ approvalState: 'REJECTED' })).approval).toBe('REJECTED')
+    // An issued row never carries one, whatever arrives.
+    expect(toInvoiceListItem(issued({ approvalState: 'APPROVED' })).approval).toBeNull()
+  })
+})

@@ -1,4 +1,5 @@
 import type {
+  InvoiceListApproval,
   InvoiceListFilter,
   InvoiceListPayment,
   InvoiceListSort,
@@ -180,6 +181,8 @@ export type InvoiceListItem = {
   /** The issuing branch, named under the customer once the branches are known. */
   branchId: string | null
   isDraft: boolean
+  /** A draft's sales approval state when a request is open (RL-6). */
+  approval: InvoiceListApproval | null
 }
 
 const AUTHORING: Record<InvoiceStateDto, AuthoringChip> = {
@@ -269,5 +272,6 @@ export function toInvoiceListItem(row: InvoiceRowDto): InvoiceListItem {
     peppolResponse: row.peppolResponse ?? null,
     branchId: row.branchId ?? null,
     isDraft,
+    approval: isDraft ? (row.approvalState ?? null) : null,
   }
 }
