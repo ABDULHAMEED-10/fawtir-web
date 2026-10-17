@@ -163,3 +163,14 @@ The same change adds the branches column and the Owner mark on Team members, and
 `PUT /v1/users/{id}/branches`, own grants and denials through `GET/PUT /v1/users/{id}/permissions`,
 and the Owner's handover through `POST /v1/settings/owner/handover`). The rows above are kept as
 they were (append only).
+
+All of it waits for branch access to be switched on (`FAWTIR_IDENTITY_BRANCH_ACCESS_ENFORCED`, off
+in production): while it is off, Invite someone, Team members and a branch's "Who works there" are
+drawn exactly as before, the invitation names no branch (the server then gives every branch, BA-6),
+and a person's page goes back to Team members. The screens read "on" from `GET /v1/me/entitlements`
+(`src/lib/identity/branchAccessSwitch.ts`), which says it only for a branch administrator
+(`branchAdministrator` true, `allBranches` false).
+
+| # | Element on the screen | What the backend needs to add |
+|---|---|---|
+| 7.6 | Every branch access screen above, for the Owner and Administrators. Their session reads the same whether branch access is on or off (`allBranches` true, `branchAdministrator` false, `featureFlags` empty), so for them the screens stay as they were even once it is on | A field on `GET /v1/me/entitlements` that says whether branch access is enforced on this server, for example `branchAccessEnforced: boolean` (or a `featureFlags` entry), true exactly when `FAWTIR_IDENTITY_BRANCH_ACCESS_ENFORCED` is |
