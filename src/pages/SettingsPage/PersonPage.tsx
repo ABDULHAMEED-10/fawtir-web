@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { useApiRead } from '../../hooks'
 import { useCan, useSession } from '../../lib/session/session'
 import { forgetEntitlements } from '../../lib/identity/entitlements'
+import { useBranchAccessOn } from '../../lib/identity/branchAccessSwitch'
 import {
   ApiReadFailure,
   LoadingNotice,
@@ -23,6 +24,7 @@ import {
   isJobRole,
   loadPeople,
   loadRoles,
+  roleKind,
   type CompanyUser,
   type RoleDto,
   type UserPage,
@@ -78,6 +80,10 @@ export function PersonPage() {
 function Gate() {
   const { t } = useTranslation()
   const mayManage = useManagesPeople()
+  // A branch access screen (BA-1, RL-1): while it is off, Team members links to no one's page and
+  // an old link goes back to the list.
+  const branchAccessOn = useBranchAccessOn()
+  if (!branchAccessOn) return <Navigate to="/settings/team" replace />
   if (!mayManage) {
     return (
       <>
@@ -157,6 +163,15 @@ function InlineFailure({ text }: { text: string | null }) {
   ) : null
 }
 
+/** The codes that are not a job role (RL-2): approval and view only, and the technical roles. */
+const NOT_JOB_ROLES = new Set([
+  'APPROVER',
+  'VIEWER',
+  'MOBILE_USER',
+  'INTEGRATION',
+  'PLATFORM_OPERATOR',
+])
+
 function RoleCard({ person, onSaved }: { person: CompanyUser; onSaved: () => void }) {
   const { t } = useTranslation()
   const session = useSession()
@@ -164,35 +179,71 @@ function RoleCard({ person, onSaved }: { person: CompanyUser; onSaved: () => voi
   const mayListRoles = useCan(ROLES_PERMISSION)
   // Only the Administrator changes roles (RL-5); the Owner always stays an Administrator (OW-1).
   const mayChange = useCan('admin.roles.manage') && !person.owner
-  const roles = useApiRead<RoleDto[]>(mayChange && mayListRoles ? ROLES_PATH : null, loadRoles).read
+  const roles = useApiRead<RoleDto[]>(mayListRoles ? ROLES_PATH : null, loadRoles).read
+  const branchNames = useBranchNames(mayChange)
   const failureText = useFailureText()
-  const current = person.roles.find((code) => code === ADMIN_ROLE) ?? person.roles[0] ?? ''
+  const roleList = roles.status === 'ready' ? roles.data : []
+  const roleOf = (code: string) => roleList.find((entry) => entry.code === code)
+  // A person from before one role per person (RL-1) may hold several: their job roles only, not
+  // approval, view only or a technical role, which stay as they are when the role is replaced.
+  const heldJobRoles = person.roles.filter((code) => {
+    const known = roleOf(code)
+    return known ? isJobRole(known) : !NOT_JOB_ROLES.has(code)
+  })
+  const current = heldJobRoles.includes(ADMIN_ROLE) ? ADMIN_ROLE : (heldJobRoles[0] ?? '')
   const [choice, setChoice] = useState(current)
+  const [branchIds, setBranchIds] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
   const [handingOver, setHandingOver] = useState(false)
+  const [confirmingSelf, setConfirmingSelf] = useState(false)
   const isMe = session?.userId === person.id
   const mayHandOver = person.owner === true && session?.isOwner === true && isMe
 
-  const options =
-    roles.status === 'ready'
-      ? roles.data
-          .filter((role) => role.enabled && isJobRole(role))
-          .map((role) => ({ value: role.code, label: role.name }))
-      : []
+  const options = roleList
+    .filter((role) => role.enabled && isJobRole(role))
+    .map((role) => ({ value: role.code, label: role.name }))
+
+  // Approval and view only read as what the person may do, never as roles (RL-2).
+  const heldName = (code: string) => {
+    const known = roleOf(code)
+    const kind = known ? roleKind(known) : NOT_JOB_ROLES.has(code) ? 'PERMISSION_SET' : 'ROLE'
+    if (kind === 'PERMISSION_SET' && code === 'APPROVER') return t('branchAccess.invite.canApprove')
+    if (kind === 'PERMISSION_SET' && code === 'VIEWER') return t('branchAccess.invite.viewOnly')
+    return roleNames(code)
+  }
+
+  // Off Administrator, the person works only in branches (BA-1): name them in the same step, since
+  // the server refuses a person with none (409 branch-required). One branch is ticked for them.
+  const leavingAdministrator = current === ADMIN_ROLE && choice !== '' && choice !== ADMIN_ROLE
+  const branchChoices = branchNames.branches.filter((branch) => branch.active)
+  const onlyBranch = branchChoices.length === 1 ? branchChoices[0].id : null
+  const pickedBranchIds = onlyBranch ? [onlyBranch] : branchIds
 
   const save = async () => {
     if (!choice || choice === current) return
+    if (leavingAdministrator && pickedBranchIds.length === 0) {
+      setFailure(t('branchAccess.refusal.branchRequired'))
+      return
+    }
     setSaving(true)
     setFailure(null)
     try {
-      await replaceRole(person.id, choice)
+      await replaceRole(person.id, choice, leavingAdministrator ? pickedBranchIds : undefined)
+      setConfirmingSelf(false)
       onSaved()
     } catch (error) {
+      setConfirmingSelf(false)
       setFailure(failureText(error))
     } finally {
       setSaving(false)
     }
+  }
+
+  // An Administrator taking it away from themselves is asked first: they cannot undo it.
+  const askOrSave = () => {
+    if (isMe && leavingAdministrator) setConfirmingSelf(true)
+    else void save()
   }
 
   return (
@@ -209,7 +260,7 @@ function RoleCard({ person, onSaved }: { person: CompanyUser; onSaved: () => voi
     >
       <div className="flex flex-col gap-5 p-5 pt-0">
         <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-text-primary">
-          {person.roles.length ? person.roles.map(roleNames).join(', ') : t('people.noRole')}
+          {person.roles.length ? person.roles.map(heldName).join(', ') : t('people.noRole')}
           {person.owner ? <OwnerPill /> : null}
         </p>
         {person.owner ? (
@@ -217,6 +268,17 @@ function RoleCard({ person, onSaved }: { person: CompanyUser; onSaved: () => voi
             {t('branchAccess.person.ownerNote')}
           </p>
         ) : null}
+        {mayChange && heldJobRoles.length > 1 ? (
+          <p
+            role="note"
+            className="rounded-sm bg-surface-background px-4 py-3 text-sm font-medium text-text-secondary"
+          >
+            {t('branchAccess.person.severalRoles', {
+              roles: heldJobRoles.map(roleNames).join(', '),
+            })}
+          </p>
+        ) : null}
+        {mayChange && mayListRoles && roles.status === 'loading' ? <LoadingNotice /> : null}
         {mayChange && options.length ? (
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-[220px] flex-1 md:max-w-[360px]">
@@ -227,6 +289,7 @@ function RoleCard({ person, onSaved }: { person: CompanyUser; onSaved: () => voi
                   setFailure(null)
                 }}
                 options={options}
+                placeholder={t('branchAccess.person.pickRole')}
                 ariaLabel={t('branchAccess.person.roleTitle')}
               />
             </div>
@@ -234,11 +297,51 @@ function RoleCard({ person, onSaved }: { person: CompanyUser; onSaved: () => voi
               type="button"
               className={SMALL_BUTTON}
               disabled={saving || !choice || choice === current}
-              onClick={save}
+              onClick={askOrSave}
             >
               {saving ? t('branchAccess.saving') : t('branchAccess.person.changeRole')}
             </button>
           </div>
+        ) : null}
+        {leavingAdministrator ? (
+          <fieldset className="flex flex-col gap-2.5">
+            <legend className="mb-1 text-sm font-semibold text-text-primary">
+              {t('branchAccess.person.roleBranches')}
+            </legend>
+            <p className="text-xs font-medium text-text-tertiary">
+              {t('branchAccess.person.roleBranchesNote')}
+            </p>
+            {!branchNames.ready ? (
+              <LoadingNotice />
+            ) : branchChoices.length === 0 ? (
+              <p className="text-sm font-medium text-text-tertiary">
+                {t('branchAccess.invite.noBranches')}
+              </p>
+            ) : (
+              branchChoices.map((branch) => (
+                <label
+                  key={branch.id}
+                  className="flex cursor-pointer items-center gap-3 rounded-sm border border-border-subtle bg-white px-4 py-3 text-sm font-semibold text-text-primary transition-colors hover:bg-primary-25"
+                >
+                  <input
+                    type="checkbox"
+                    checked={pickedBranchIds.includes(branch.id)}
+                    disabled={onlyBranch !== null}
+                    onChange={(event) => {
+                      setFailure(null)
+                      setBranchIds((before) =>
+                        event.target.checked
+                          ? [...before, branch.id]
+                          : before.filter((id) => id !== branch.id),
+                      )
+                    }}
+                    className="size-[18px] shrink-0 accent-[#2c4eb7]"
+                  />
+                  <span className="min-w-0 flex-1">{branch.name}</span>
+                </label>
+              ))
+            )}
+          </fieldset>
         ) : null}
         <InlineFailure text={failure} />
       </div>
@@ -249,6 +352,27 @@ function RoleCard({ person, onSaved }: { person: CompanyUser; onSaved: () => voi
           ownerId={person.id}
         />
       ) : null}
+      <Modal
+        open={confirmingSelf}
+        onClose={() => setConfirmingSelf(false)}
+        title={t('branchAccess.person.demoteSelf.title')}
+        footer={
+          <div className="flex flex-wrap justify-end gap-3">
+            <Button variant="secondary" size="md" onClick={() => setConfirmingSelf(false)}>
+              {t('branchAccess.handover.cancel')}
+            </Button>
+            <Button size="md" disabled={saving} onClick={() => void save()}>
+              {saving ? t('branchAccess.saving') : t('branchAccess.person.demoteSelf.confirm')}
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm font-medium leading-[1.6] text-text-secondary">
+          {t('branchAccess.person.demoteSelf.body', {
+            role: options.find((option) => option.value === choice)?.label ?? '',
+          })}
+        </p>
+      </Modal>
     </SectionCard>
   )
 }
@@ -420,9 +544,15 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
   const view = permissions.read.data
   const grantCodes = new Set(view.grants.map((grant) => grant.code))
   const roleCodes = (() => {
-    const role =
-      roles.status === 'ready' ? roles.data.find((entry) => entry.code === view.role) : undefined
-    if (role) return new Set(role.permissionCodes)
+    // Every role the person holds, not only the job role: someone from before one role per person
+    // (RL-1) may also hold Approver or Viewer, whose codes are theirs from that role, never their
+    // own grants (re-sending them as grants is refused for the reserved ones, RL-5).
+    const held = view.roleCodes.length ? view.roleCodes : view.role ? [view.role] : []
+    const found =
+      roles.status === 'ready' ? roles.data.filter((entry) => held.includes(entry.code)) : []
+    if (held.length && found.length === held.length) {
+      return new Set(found.flatMap((entry) => entry.permissionCodes))
+    }
     // Without the role list: what the person has that was not given to them, and what was taken.
     return new Set([...view.effective.filter((code) => !grantCodes.has(code)), ...view.denials])
   })()
@@ -472,6 +602,8 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
     const previous = new Map(view.grants.map((grant) => [grant.code, grant]))
     const grants: PersonGrant[] = [...current]
       .filter((code) => !roleCodes.has(code) || previous.has(code))
+      // A reserved code is never given to a person (RL-5); one they already hold stays as it was.
+      .filter((code) => !isReservedPermission(code) || previous.has(code))
       .map((code) => previous.get(code) ?? { code, qualifier: null, value: null })
     const denials = [...roleCodes].filter((code) => !current.has(code))
     try {
@@ -610,7 +742,9 @@ function HandoverDialog({
         )
       : []
   const targetName = candidates.find((person) => person.id === target)
-  const ready = target !== '' && typed.trim() !== '' && password !== '' && !busy
+  // The name typed must be the company's, as the server checks it (spaces and case aside).
+  const nameMatches = company === '' ? typed.trim() !== '' : sameName(typed, company)
+  const ready = target !== '' && nameMatches && password !== '' && !busy
 
   const close = () => {
     setTarget('')
@@ -706,4 +840,11 @@ function HandoverDialog({
       </div>
     </Modal>
   )
+}
+
+/** As the server compares a typed company name: NFKC, trimmed, runs of space as one, any case. */
+function sameName(typed: string, name: string): boolean {
+  const normalise = (value: string) =>
+    value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase()
+  return normalise(typed) !== '' && normalise(typed) === normalise(name)
 }
