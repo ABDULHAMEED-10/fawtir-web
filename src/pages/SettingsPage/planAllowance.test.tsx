@@ -181,3 +181,30 @@ describe('AL-9: usage split on Plan and usage', () => {
     expect(i18n.t('plan.byBranch.title')).not.toBe('plan.byBranch.title')
   })
 })
+
+describe('AL-8: the allowance warning on Plan and usage', () => {
+  it('says at 100% that issuing stops and received documents are held until extras are bought', async () => {
+    renderPlan()
+    const warning = (await screen.findByText("You have used all of this period's documents.")).closest('p')!
+    expect(warning.textContent).toContain('200 of 200')
+    expect(warning.textContent).toContain(
+      'Issuing has stopped, and the supplier documents you receive are held until extra documents are bought.',
+    )
+  })
+
+  it('warns at 80% and 90% that received documents count too', async () => {
+    answers[PLAN] = () =>
+      json(200, { ...OVERVIEW, allowance: { ...ALLOWANCE, used: 180, planUsed: 180, left: 20, warningPercent: 90 } })
+    renderPlan()
+    const warning = (await screen.findByText("You have used 90% of this period's documents.")).closest('p')!
+    expect(warning.textContent).toContain('supplier documents you receive count too')
+  })
+
+  it('draws no warning below 80%, or with no allowance', async () => {
+    answers[PLAN] = () =>
+      json(200, { ...OVERVIEW, allowance: { ...ALLOWANCE, used: 100, planUsed: 100, left: 100, warningPercent: null } })
+    renderPlan()
+    await screen.findByText('Your plan: Starter')
+    expect(screen.queryByText(/of this period's documents\./)).toBeNull()
+  })
+})

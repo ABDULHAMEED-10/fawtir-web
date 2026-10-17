@@ -21,6 +21,7 @@ import {
   subscriptionNoticesSnapshot,
   subscriptionNoticesStore,
 } from './subscriptionNotices'
+import { quotaNoticeSnapshot, quotaNoticeStore, subscribeQuotaNotice } from './quotaNotice'
 
 /**
  * The bell in the topbar (Figma 144:33521).
@@ -376,6 +377,7 @@ export const notesStore = {
     subscriptionNoticesStore.refresh()
   },
   markRead(id: string) {
+    if (quotaNoticeStore.markRead(id)) return
     if (subscriptionNoticesStore.markRead(id)) return
     const item = state.items?.find((entry) => entry.id === id)
     if (!item || isAcknowledged(item)) return
@@ -394,6 +396,7 @@ export const notesStore = {
       })
   },
   markAllRead() {
+    quotaNoticeStore.markAllRead()
     subscriptionNoticesStore.markAllRead()
     if (state.unread === 0 && !(state.items ?? []).some((item) => !isAcknowledged(item))) return
     const owner = state.owner
@@ -434,6 +437,7 @@ export const notesStore = {
     edits = 0
     set(EMPTY)
     subscriptionNoticesStore.reset()
+    quotaNoticeStore.reset()
   },
 }
 
@@ -447,14 +451,17 @@ export type NoteScope = 'tenant' | 'console'
 export function useNotes(scope: NoteScope = 'tenant') {
   const current = useSyncExternalStore(subscribe, () => state)
   const plan = useSyncExternalStore(subscribeSubscriptionNotices, subscriptionNoticesSnapshot)
+  const quota = useSyncExternalStore(subscribeQuotaNotice, quotaNoticeSnapshot)
   const mine = scope === 'tenant' && current.owner !== null
   const planMine = scope === 'tenant' && plan.owner !== null
   const items = mine ? (current.items ?? []) : []
   const planItems = planMine ? (plan.items ?? []) : []
+  // The allowance warning (AL-8) is about now, so it heads the list.
+  const quotaNote = scope === 'tenant' && quota.owner !== null ? quota.note : null
   const now = new Date()
   // The two lists merged newest first. Each keeps the server's own order: a subscription
   // reminder goes in ahead of the first bill reminder older than it.
-  const merged: Note[] = []
+  const merged: Note[] = quotaNote ? [quotaNote] : []
   let next = 0
   for (const item of items) {
     const at = Date.parse(item.createdAt) || 0
@@ -466,19 +473,23 @@ export function useNotes(scope: NoteScope = 'tenant') {
   const shown = merged.filter((note) => !current.dismissed.has(note.id))
   return {
     shown,
-    unread: (mine ? current.unread : 0) + (planMine ? plan.unread : 0),
+    unread:
+      (mine ? current.unread : 0) +
+      (planMine ? plan.unread : 0) +
+      (quotaNote !== null && !quota.read ? 1 : 0),
     /** False while the first read of either list is still on its way. */
     loaded: (!mine || current.items !== null) && (!planMine || plan.items !== null),
     /** The lines could not be read, so an empty list here is not "nothing to show". */
     failed: mine && current.listFailed,
     isRead: (id: string) => {
+      if (quotaNote !== null && id === quotaNote.id) return quota.read
       const reminder = planItems.find((entry) => entry.id === id)
       if (reminder) return reminder.read
       const item = items.find((entry) => entry.id === id)
       return item ? isAcknowledged(item) : true
     },
     doneKey: (id: string) => current.done.get(id),
-    anyDismissed: (mine || planMine) && current.dismissed.size > 0,
+    anyDismissed: (mine || planMine || quotaNote !== null) && current.dismissed.size > 0,
   }
 }
 
