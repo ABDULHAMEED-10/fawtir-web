@@ -58,19 +58,37 @@ on the difference, and every value means the same thing to them (held, nothing r
   other failure still stops the group, and the page re-reads if something had already gone.
 - Activity row: after a held answer the list is re-read once.
 
+### Re-reads cannot loop
+
+Every re-read is started from the press handler, inside the answer to that one POST, never from
+an effect. A re-read only GETs, and its answer posts nothing and starts nothing.
+
+- Activity row: one list GET per `TDD_CORRECTION_HELD` answer. No re-read on any other failure.
+- "Put it right": one record GET and one rejected-list GET per send action that stays on the page,
+  whatever the number of rows posted.
+
+Tests pin both: one held press makes exactly one extra list GET, and a later render makes none.
+The group send makes exactly one of each, and no more after the re-reads answer. A 500 makes none.
+
 ### Held corrections and the resubmit link
 
 On backend `225a878b1` the Activity `links.resubmit` ignores a held correction, so after a hold
-the action stays offered and pressing it is held again; the sentence says so. A backend change in
-flight adds an optional `tdd_leg.correction_held` and leaves `links.resubmit` null while a live
-RESUBMIT hold exists. `TddLegDto` carries `correction_held?: boolean` (optional, so older backends
-still work). The screens already key on `links.resubmit`, so with that backend the action
-disappears after the re-read with no further code. `tddResubmitRefusalKey` stays for the race
-where a hold appears between the read and the press.
+the action stays offered and pressing it is held again; the sentence says so. Backend PR #538
+(open) adds an optional `tdd_leg.correction_held` and leaves `links.resubmit` null while a live
+RESUBMIT hold exists. `TddLegDto` carries `correction_held?: boolean`; absent means not held, so
+older backends behave exactly as before. `tddResubmitRefusalKey` stays for the race where a hold
+appears between the read and the press.
 
-VISUAL_BLOCKER (owner decision): a visible "held for a decision" mark on the row or the record,
-driven by `correction_held`, would be a design change, so it is not drawn. Minimal option: one
-line in the row's existing reason text.
+When `tdd_leg.correction_held === true` (owner-authorised, 17 Oct 2026):
+
+- the Activity row's verdict line, the reason text under the outcome chip, ends with "Correction
+  held for an authorised decision." (AR "التصحيح معلّق بانتظار قرار من جهة مخوّلة في فوتر.");
+- the record page's "how it is put right" line in the refusal box ends with the same sentence;
+- `canResubmit` is false even if a link came with the flag, so no row menu, record link or
+  "Put it right" send is offered.
+
+No element, class, colour, token or spacing was added: the sentence goes into the existing
+paragraphs. Nothing is inferred on the client; only the server's flag shows it.
 
 ### Documentation gap (backend)
 
@@ -81,7 +99,9 @@ line in the row's existing reason text.
 
 - `src/lib/invoiceDispatch.ts`, `src/lib/erp/bridgeUpload.ts`, `src/api/erp/reporting.ts`,
   `src/lib/tddResubmit.ts`
-- `src/pages/ActivityPage/ActivityPage.tsx`, `src/pages/ActivityPage/TddResubmitPage.tsx`
+- `src/pages/ActivityPage/ActivityPage.tsx`, `src/pages/ActivityPage/TddResubmitPage.tsx`,
+  `src/pages/ActivityPage/ActivityEventPage.tsx`, `src/lib/activityLedger.ts`,
+  `src/lib/activityDetail.ts`, `src/api/compliance/activity.ts`
 - `src/i18n/locales/en.json`, `src/i18n/locales/ar.json` (added with `tools/i18n/merge.cjs`)
 - Tests: `src/lib/invoiceDispatch.test.ts`, `src/lib/erp/bridgeUpload.test.ts`,
   `src/lib/tddResubmit.test.ts`, `src/pages/ActivityPage/activityLedger.test.tsx`; the existing
@@ -111,6 +131,9 @@ change. Nothing from the server's `detail` reaches the screen.
   key instead of being duplicated.
 - New test: a two-row group where the first row is sent and the second held shows the partial
   sentence, attempts both rows and re-reads both lists.
+- Owner decision, 17 Oct 2026: kept the Activity re-read, held responses only, with the loop
+  guarantees above. Added the held sentence driven by `correction_held`, placed in the existing
+  lines.
 
 ## Post-integration checklist
 
@@ -119,4 +142,5 @@ change. Nothing from the server's `detail` reaches the screen.
 - [ ] A Bridge upload carrying the reserved number and year shows the reserved sentence.
 - [ ] A held TDD correction shows the held sentence on the Activity row and on "Put it right".
 - [ ] A group with one held row says how many went and how many are held.
-- [ ] With the backend `correction_held` change, the resubmit action is gone after a hold.
+- [ ] With backend #538, the resubmit action is gone after a hold and the row and record say
+      "Correction held for an authorised decision." (EN and AR).
