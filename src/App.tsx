@@ -83,6 +83,7 @@ import {
   PlanPage,
   DowngradeSwitchOffPage,
   ExtraDocumentsPage,
+  PaidExtrasPage,
   BillingPage,
   ActivityLogPage,
   ExportPage,
@@ -355,6 +356,7 @@ function App() {
           <Route path="/settings/plan" element={<PlanPage />} />
           <Route path="/settings/plan/switch-off" element={<DowngradeSwitchOffPage />} />
           <Route path="/settings/plan/extra-documents" element={<ExtraDocumentsPage />} />
+          <Route path="/settings/plan/extras" element={<PaidExtrasPage />} />
           {/* Real subscription dates above; the bills prototype inside keeps its own ribbon. */}
           <Route path="/settings/bills" element={<BillingPage />} />
           <Route path="/settings/activity-log" element={<ActivityLogPage />} />

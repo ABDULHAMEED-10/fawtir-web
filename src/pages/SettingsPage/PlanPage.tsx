@@ -5,7 +5,7 @@ import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { useApiRead } from '../../hooks'
 import { useCan } from '../../lib/session/session'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
-import { Rial, RialText, RowsView, withRial } from '../../components/ui'
+import { OmAmount, Rial, RialText, RowsView, withRial } from '../../components/ui'
 import {
   PLAN_OVERVIEW_PATH,
   loadPlanOverview,
@@ -13,6 +13,15 @@ import {
   type PlanOverviewDto,
 } from '../../api/settings/plan'
 import { EXTRA_DOCUMENTS_ROUTE } from '../../api/settings/extraDocuments'
+import {
+  PAID_EXTRAS_PATH,
+  PAID_EXTRAS_ROUTE,
+  loadPaidExtras,
+  type PaidExtrasOverviewDto,
+  type PlaceKindOverviewDto,
+} from '../../api/settings/paidExtras'
+import { Pill } from '../ErpPage/ErpShell'
+import { SectionCard } from '../ErpPage/overview/idiom'
 import {
   PUBLIC_PLANS_PATH,
   baisaOf,
@@ -81,6 +90,8 @@ function PlanBody() {
   const subscription = useApiRead<SubscriptionStatusDto>(SUBSCRIPTION_PATH, loadSubscription).read
   const notStarted = subscription.status === 'ready' && subscriptionNotStarted(subscription.data)
   const mayManage = useCan(PLAN_MANAGE)
+  // US-1, BR-3, ER-1: the paid places and the add-on, shared by the two cards that show them.
+  const extras = useApiRead<PaidExtrasOverviewDto>(PAID_EXTRAS_PATH, loadPaidExtras)
 
   if (plan.read.status === 'loading') return <LoadingNotice />
   if (plan.read.status === 'failed')
@@ -88,8 +99,14 @@ function PlanBody() {
   return (
     <>
       <PlanFigures data={plan.read.data} notStarted={notStarted} mayManage={mayManage} />
+      {extras.read.status === 'ready' ? (
+        <PaidExtrasSummary data={extras.read.data} mayManage={mayManage} />
+      ) : null}
       <PlanCards current={plan.read.data} mayManage={mayManage} />
-      <AddonsSection />
+      {/* ER-1: Starter and Business never show the add-on; a server that cannot say keeps the old card. */}
+      {extras.read.status === 'ready' && !extras.read.data.erpAddon.offered ? null : (
+        <AddonsSection extras={extras.read.status === 'ready' ? extras.read.data : null} />
+      )}
     </>
   )
 }
@@ -760,12 +777,73 @@ function EnterpriseCard() {
 }
 
 /**
- * What the account has on top of the plan: today only ERP integration. ERP is enabled per
- * organisation by Fawtir and has no add-on, price or usage read yet, so the card says so and
- * points to where the real state is shown (TODO(backend): SETTINGS.md row 5.6).
+ * US-1, BR-3: users and branches against what the plan includes plus the paid places, with the
+ * way to the page that buys more (`tenant.plan.manage`) or shows them (`tenant.plan.read`).
  */
-function AddonsSection() {
+function PaidExtrasSummary({ data, mayManage }: { data: PaidExtrasOverviewDto; mayManage: boolean }) {
   const { t } = useTranslation()
+  const sold = data.users.offered || data.branches.offered
+  return (
+    <SectionCard
+      title={t('paidExtras.planCard.title')}
+      note={t('paidExtras.planCard.note')}
+      actions={
+        <Link
+          to={PAID_EXTRAS_ROUTE}
+          className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+        >
+          {mayManage && data.open && sold ? t('paidExtras.planCard.entry') : t('paidExtras.planCard.view')}
+        </Link>
+      }
+    >
+      <div className="grid gap-5 p-5 pt-0 md:grid-cols-2">
+        <PlaceSummary label={t('paidExtras.places.kind.USER')} place={data.users} />
+        <PlaceSummary label={t('paidExtras.places.kind.BRANCH')} place={data.branches} />
+      </div>
+    </SectionCard>
+  )
+}
+
+function PlaceSummary({ label, place }: { label: string; place: PlaceKindOverviewDto }) {
+  const { t, i18n } = useTranslation()
+  const n = (value: number) => formatCount(value, i18n.language)
+  const unlimited = place.capacity === null || place.included === null
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-sm font-medium text-text-quaternary">{label}</span>
+      <span className="text-xl font-semibold text-text-primary">
+        {unlimited
+          ? t('paidExtras.places.unlimited', { inUse: n(place.inUse) })
+          : t('paidExtras.places.inUseOf', { inUse: n(place.inUse), capacity: n(place.capacity ?? 0) })}
+      </span>
+      {unlimited ? null : (
+        <span className="text-xs font-medium text-text-tertiary">
+          {t('paidExtras.places.split', { included: n(place.included ?? 0), paid: n(place.paidPlacesNow) })}
+        </span>
+      )}
+    </div>
+  )
+}
+
+const ADDON_TONE = {
+  NONE: 'neutral',
+  PENDING_PAYMENT: 'pending',
+  ACTIVE: 'success',
+  ENDING: 'pending',
+  ENDED: 'neutral',
+} as const
+
+/**
+ * What the account has on top of the plan: the ERP and API add-on. Where the paid-extras read says
+ * the plan offers it (ER-1), the card shows its price and state and leads to where it is added or
+ * stopped (ER-2). Without that read it keeps the earlier wording: enabled per organisation by
+ * Fawtir, with the real state on ERP integration.
+ */
+function AddonsSection({ extras }: { extras: PaidExtrasOverviewDto | null }) {
+  const { t, i18n } = useTranslation()
+  const addon = extras?.erpAddon.offered ? extras.erpAddon : null
+  const state = addon?.status ?? 'NONE'
+  const endsOn = addon?.endsOn ? formatDate(addon.endsOn, i18n.language) : ''
   return (
     <section aria-labelledby="plan-addons" className="overflow-hidden rounded-md bg-surface-card">
       <div className="p-5">
@@ -780,21 +858,43 @@ function AddonsSection() {
         <div className="min-w-0 flex-1 md:min-w-[260px]">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-base font-semibold text-text-primary">
-              {t('plan.addons.extraction.name')}
+              {addon ? t('paidExtras.addon.title') : t('plan.addons.extraction.name')}
             </p>
-            <span className="inline-flex h-[24px] items-center gap-1.5 rounded-[3px] bg-surface-background px-2 text-[10px] font-semibold uppercase tracking-[0.4px] text-text-tertiary">
-              <span className="size-1.5 rounded-full bg-current" />
-              {t('plan.addons.state.managedByFawtir')}
-            </span>
+            {addon ? (
+              <Pill tone={ADDON_TONE[state]} label={t(`paidExtras.addon.status.${state}`, { date: endsOn })} />
+            ) : (
+              <span className="inline-flex h-[24px] items-center gap-1.5 rounded-[3px] bg-surface-background px-2 text-[10px] font-semibold uppercase tracking-[0.4px] text-text-tertiary">
+                <span className="size-1.5 rounded-full bg-current" />
+                {t('plan.addons.state.managedByFawtir')}
+              </span>
+            )}
           </div>
+          {addon?.monthlyPrice ? (
+            <p className="mt-1 inline-flex flex-wrap items-center gap-1 text-sm font-semibold text-text-secondary">
+              <OmAmount amount={formatAmount(addon.monthlyPrice, 'OMR', i18n.language)} size="xs" />{' '}
+              {t('paidExtras.places.perMonth')}
+            </p>
+          ) : null}
           <p className="mt-1 max-w-[560px] text-sm font-medium leading-[1.6] text-text-tertiary">
-            {t('plan.addons.extraction.body')}
+            {addon
+              ? t(`paidExtras.addon.body.${state}`, { date: endsOn })
+              : t('plan.addons.extraction.body')}
           </p>
-          <p className="mt-3 max-w-[560px] text-sm font-medium leading-[1.6] text-text-secondary">
-            {t('plan.addons.extraction.realState')}
-          </p>
+          {addon ? null : (
+            <p className="mt-3 max-w-[560px] text-sm font-medium leading-[1.6] text-text-secondary">
+              {t('plan.addons.extraction.realState')}
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+          {addon ? (
+            <Link
+              to={PAID_EXTRAS_ROUTE}
+              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+            >
+              {t('paidExtras.planCard.manageAddon')}
+            </Link>
+          ) : null}
           <Link
             to="/settings/erp"
             className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"

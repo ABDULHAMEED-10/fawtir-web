@@ -6,6 +6,8 @@
  *
  * `MOCK_EXTRAS_STATE=order` starts with an unpaid order of 100, `=none` with no allowance left.
  */
+import { paidExtrasBillRows, payPaidExtrasBill } from './paidExtras.mjs'
+
 const TODAY = '2026-10-11'
 const PERIOD = { start: '2026-10-01', end: '2026-10-31' }
 const RATE = '0.060'
@@ -212,17 +214,21 @@ export default [
   {
     match: '/api/v1/settings/billing',
     reply: () => ({
-      bills: state.order
-        ? [
-            {
-              bill: { ...state.order.bill, status: state.payment ? 'PENDING_VERIFICATION' : 'OPEN' },
-              payments: state.payment ? [state.payment] : [],
-              card: state.payment
-                ? null
-                : { available: true, purpose: 'EXTRA_DOCUMENTS', reason: null },
-            },
-          ]
-        : [],
+      // The paid-extras order (paidExtras.mjs) is listed too, so both can be paid here.
+      bills: [
+        ...paidExtrasBillRows(),
+        ...(state.order
+          ? [
+              {
+                bill: { ...state.order.bill, status: state.payment ? 'PENDING_VERIFICATION' : 'OPEN' },
+                payments: state.payment ? [state.payment] : [],
+                card: state.payment
+                  ? null
+                  : { available: true, purpose: 'EXTRA_DOCUMENTS', reason: null },
+              },
+            ]
+          : []),
+      ],
       nextBillsCursor: null,
       beneficiary: {
         legalName: 'Thumb International SPC',
@@ -240,6 +246,8 @@ export default [
     method: 'POST',
     match: /^\/api\/v1\/settings\/billing\/bills\/([^/]+)\/(bank-transfer|cash-request)$/,
     reply: ({ params }) => {
+      const extras = payPaidExtrasBill(params[0], params[1] === 'bank-transfer' ? 'BANK_TRANSFER' : 'CASH')
+      if (extras) return { status: 201, body: extras }
       if (!state.order || state.order.bill.id !== params[0]) return problem(409, 'bill-not-payable', 'No such bill.')
       state.payment = payment(params[1] === 'bank-transfer' ? 'BANK_TRANSFER' : 'CASH')
       return { status: 201, body: state.payment }

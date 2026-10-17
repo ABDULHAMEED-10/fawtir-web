@@ -15399,6 +15399,35 @@
         "forbidden": "You can't do this. Confirm your sign-in code again, or ask an operator with this permission.",
         "gone": "This company could not be found.",
         "invalid": "The server did not accept these values. Check them and try again."
+      },
+      "paidExtras": {
+        "title": "Paid extras",
+        "loading": "Loading the paid extras…",
+        "notOpen": "Paid extras are not open yet: the plan's included numbers apply.",
+        "users": "Users",
+        "branches": "Branches",
+        "kindValue": "{{inUse}} in use of {{capacity}} (included {{included}}, paid {{paid}})",
+        "unlimited": "{{inUse}} open, no limit",
+        "addon": "ERP and API add-on",
+        "addonNotOffered": "Not offered on this plan",
+        "addonNone": "Never ordered",
+        "addonStatus": {
+          "PENDING_PAYMENT": "Waiting for payment",
+          "ACTIVE": "On",
+          "ENDING": "Stops after {{date}}",
+          "ENDED": "Ended"
+        },
+        "endReason": {
+          "CUSTOMER": "Stopped by the customer",
+          "PLAN_DOWNGRADE": "Ended by a move to a smaller plan"
+        },
+        "entitlement": "ERP access",
+        "grantedByAddon": "Granted by the add-on",
+        "notByAddon": "Not granted by the add-on; an operator grant, if any, stays",
+        "outstanding": "Order waiting for payment",
+        "outstandingValue": "Bill {{number}}",
+        "places": "Paid places",
+        "noPlaces": "No paid places yet."
       }
     },
     "disconnections": {
@@ -22113,6 +22142,147 @@
       "impersonating": "This can't be done while Fawtir support is signed in as your company.",
       "changed": "The request changed meanwhile. The latest status is shown.",
       "failed": "That didn't go through. Try again."
+    }
+  },
+  "paidExtras": {
+    "title": "Extra users, branches and add-on",
+    "subtitle": "Paid places above what your plan includes, and the ERP and API add-on.",
+    "backToPlan": "Plan and usage",
+    "notOpen": "Fawtir has not opened paid extras yet. Your plan's included users and branches apply.",
+    "noPermission": "Only people who manage the plan can add users, branches or the add-on.",
+    "planCard": {
+      "title": "Extra users and branches",
+      "note": "Paid places above what your plan includes. Removing one takes effect at the renewal.",
+      "entry": "Add users or branches",
+      "view": "See paid places",
+      "manageAddon": "Manage the add-on"
+    },
+    "places": {
+      "title": "Users and branches",
+      "note": "Above what your plan includes, each extra place is paid for the rest of the period, then renews with your plan.",
+      "kind": {
+        "USER": "Users",
+        "BRANCH": "Branches"
+      },
+      "inUseOf": "{{inUse}} in use of {{capacity}}",
+      "unlimited": "{{inUse}} open, no limit on your plan",
+      "split": "Included in the plan: {{included}} · Paid places: {{paid}}",
+      "price": "Each extra place:",
+      "perMonth": "a month",
+      "notSold": "Your plan has no extra places to buy.",
+      "removal": "Switching off a user or closing a branch takes effect at once, but its paid place stays yours until the renewal and can be used again. From the renewal it is no longer charged. Nothing is refunded for the current period."
+    },
+    "addon": {
+      "title": "ERP and API add-on",
+      "note": "ERP extraction and API integration, added and stopped like a user.",
+      "status": {
+        "NONE": "Off",
+        "PENDING_PAYMENT": "Waiting for payment",
+        "ACTIVE": "On",
+        "ENDING": "Stops after {{date}}",
+        "ENDED": "Off"
+      },
+      "body": {
+        "NONE": "Add it to connect your ERP. It is priced for the rest of the period, then renews with your plan.",
+        "PENDING_PAYMENT": "It starts once the payment for your order is confirmed.",
+        "ACTIVE": "On, and renews with your plan. If you stop it, it stays on until the end of the time already paid.",
+        "ENDING": "It stays on until {{date}} and is not renewed. Your mapping and history are kept and come back if you add it again.",
+        "ENDED": "Stopped. Your mapping and history are kept and come back if you add it again."
+      },
+      "add": "Add the add-on",
+      "stop": "Stop the add-on",
+      "keep": "Keep the add-on",
+      "stopTitle": "Stop the ERP and API add-on?",
+      "stopBody": "It stays on until the end of the time already paid and is not renewed. Nothing is refunded. After that, ERP pulls and ERP keys stop; your mapping and history are kept.",
+      "stopConfirm": "Stop at the end of the paid time",
+      "stopCancel": "Keep it",
+      "stopped": "The add-on will stop at the end of the time already paid.",
+      "kept": "The add-on stays on and renews with your plan."
+    },
+    "buy": {
+      "title": "Add places",
+      "note": "Priced by Fawtir for the rest of your current period.",
+      "users": "Extra users",
+      "branches": "Extra branches",
+      "addon": "Add the ERP and API add-on",
+      "fewer": "One fewer: {{what}}",
+      "more": "One more: {{what}}",
+      "limit": "Up to {{max}} in one order.",
+      "nothingSold": "Your plan has no extra users or branches to buy.",
+      "howAdded": "Ordering issues a bill to pay. By card the places start at once; by bank transfer or cash, once Fawtir confirms the payment.",
+      "submit": "Order and pay"
+    },
+    "quote": {
+      "line": {
+        "USER_one": "{{n}} user, {{from}} to {{to}} ({{days}} of {{periodDays}} days)",
+        "USER_other": "{{n}} users, {{from}} to {{to}} ({{days}} of {{periodDays}} days)",
+        "BRANCH_one": "{{n}} branch, {{from}} to {{to}} ({{days}} of {{periodDays}} days)",
+        "BRANCH_other": "{{n}} branches, {{from}} to {{to}} ({{days}} of {{periodDays}} days)",
+        "ERP_ADDON": "ERP and API add-on, {{from}} to {{to}} ({{days}} of {{periodDays}} days)"
+      },
+      "renewal": "From {{date}} they renew with your plan, on its renewal bill.",
+      "placesEnd": "A move to a smaller plan is waiting: these places end on {{date}} and are not renewed.",
+      "loading": "Getting the price…"
+    },
+    "order": {
+      "title": "Your order",
+      "note": "{{what}}, starting once the payment is confirmed.",
+      "users_one": "{{n}} extra user",
+      "users_other": "{{n}} extra users",
+      "branches_one": "{{n}} extra branch",
+      "branches_other": "{{n}} extra branches",
+      "addon": "the ERP and API add-on",
+      "separator": ", ",
+      "change": "Change the order",
+      "keep": "Keep my order",
+      "replaces": "Ordering different numbers replaces the order you have not paid yet."
+    },
+    "result": {
+      "added": "Paid. Your extra places are on."
+    },
+    "history": {
+      "title": "Paid places",
+      "note": "Bought, renewed, or recorded by Fawtir for places already in use. Nothing is refunded.",
+      "kind": {
+        "USER_one": "{{n}} extra user",
+        "USER_other": "{{n}} extra users",
+        "BRANCH_one": "{{n}} extra branch",
+        "BRANCH_other": "{{n}} extra branches",
+        "ERP_ADDON": "ERP and API add-on"
+      },
+      "covers": "{{from}} to {{to}}",
+      "source": {
+        "PURCHASE": "Bought",
+        "RENEWAL": "Renewed",
+        "BACKFILL": "Already in use"
+      },
+      "status": {
+        "PENDING": "Waiting for payment",
+        "ACTIVE": "Active",
+        "CANCELLED": "Cancelled"
+      }
+    },
+    "refusal": {
+      "paid-extras-not-open": "Fawtir has not opened paid extras yet. Your plan's included users and branches apply.",
+      "paid-extras-not-offered": "Your plan does not offer this. Contact Fawtir about a bigger plan.",
+      "paid-extras-not-in-trial": "Extra users, branches and the add-on can be added after your first payment.",
+      "paid-extras-order-limit": "The most one order can add: users {{users}}, branches {{branches}}.",
+      "subscription-not-tracked": "Fawtir manages your subscription's billing directly. Contact Fawtir to add places.",
+      "subscription-state-conflict": "Places can be added while your subscription is active. Pay your subscription first.",
+      "payFirstLink": "Go to Bills and payment",
+      "billing-not-configured": "A bill for extra places can't be issued yet. Contact Fawtir.",
+      "payment-state-conflict": "A payment for your extras order is already being checked. Wait for it before ordering again.",
+      "extras-price-changed": "The price changed since you saw it. Check the new total and order again.",
+      "erp-addon-already-active": "The add-on is already on.",
+      "erp-addon-not-active": "The add-on is not on, so there is nothing to stop.",
+      "erp-addon-not-ending": "The add-on is not set to stop.",
+      "disconnected-from-fawtir": "Your company has left Fawtir, so nothing more can be bought.",
+      "extraPlace": {
+        "USER": "Your plan's users are all taken. Add a paid user place first.",
+        "BRANCH": "Your plan's branches are all taken. Add a paid branch place first."
+      },
+      "extraPlaceAsk": "Ask an administrator to add one.",
+      "extraPlaceLink": "Add places"
     }
   }
 }

@@ -208,3 +208,42 @@ describe('AL-8: the allowance warning on Plan and usage', () => {
     expect(screen.queryByText(/of this period's documents\./)).toBeNull()
   })
 })
+
+describe('US-1, BR-3, ER-1: paid places and the add-on on Plan and usage', () => {
+  const EXTRAS = '/api/v1/settings/plan/extras'
+  const kind = (included: number, inUse: number, paid: number) => ({
+    included, inUse, paidPlacesNow: paid, capacity: included + paid, unitMonthlyPrice: '2.500', offered: true,
+  })
+  const extras = (erpAddon: Record<string, unknown>) => ({
+    open: true, users: kind(5, 5, 1), branches: kind(2, 2, 0), erpAddon, maxUsersPerOrder: 50,
+    maxBranchesPerOrder: 20, outstanding: null, places: [],
+  })
+
+  it('shows users and branches against included plus paid places, and no add-on where the plan has none', async () => {
+    answers[EXTRAS] = () => json(200, extras({ offered: false, monthlyPrice: null, status: null, endsOn: null }))
+    renderPlan()
+    expect(await screen.findByText(i18n.t('paidExtras.places.inUseOf', { inUse: '5', capacity: '6' }))).toBeTruthy()
+    expect(screen.getByText(i18n.t('paidExtras.places.split', { included: '5', paid: '1' }))).toBeTruthy()
+    // A reader is shown the places, not offered to buy them.
+    expect(screen.getByRole('link', { name: i18n.t('paidExtras.planCard.view') }).getAttribute('href')).toBe(
+      '/settings/plan/extras',
+    )
+    expect(screen.queryByText(i18n.t('plan.addons.title'))).toBeNull()
+  })
+
+  it('shows the add-on with its price and state where the plan offers it', async () => {
+    answers[EXTRAS] = () => json(200, extras({ offered: true, monthlyPrice: '20.000', status: 'ACTIVE', endsOn: null }))
+    renderPlan()
+    expect(await screen.findByText(i18n.t('paidExtras.addon.status.ACTIVE'))).toBeTruthy()
+    expect(screen.getByText('20.000')).toBeTruthy()
+    expect(screen.getByRole('link', { name: i18n.t('paidExtras.planCard.manageAddon') }).getAttribute('href')).toBe(
+      '/settings/plan/extras',
+    )
+  })
+
+  it('keeps the earlier add-on card when the server has no paid-extras read', async () => {
+    renderPlan()
+    expect(await screen.findByText(i18n.t('plan.addons.state.managedByFawtir'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('paidExtras.planCard.title'))).toBeNull()
+  })
+})

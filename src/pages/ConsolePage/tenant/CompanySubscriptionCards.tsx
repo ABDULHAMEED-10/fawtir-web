@@ -20,6 +20,7 @@ import {
   TRIAL_EXCEPTION_MAX_DAYS,
   companyCountingPath,
   companyExtraDocumentsPath,
+  companyPaidExtrasPath,
   companySubscriptionPath,
   countingChoiceOf,
   describeCompanySubscriptionFailure,
@@ -28,11 +29,13 @@ import {
   setCompanyCounting,
   type CompanyCountingDto,
   type CompanyExtraDocumentsDto,
+  type CompanyPaidExtrasDto,
   type CountingChoice,
   type LifecycleEventDto,
   type PlatformSubscriptionDto,
 } from '../../../lib/console/companySubscription'
-import { formatCount, formatDate, formatInstant } from '../../../lib/format'
+import { formatAmount, formatCount, formatDate, formatInstant } from '../../../lib/format'
+import type { PaidExtraPlaceDto, PlaceKindOverviewDto } from '../../../api/settings/paidExtras'
 import { hasPermission } from '../../../lib/identity/entitlements'
 import { OperatorReasonDialog } from '../operators/OperatorReasonDialog'
 import { Field } from '../subscriptions/modalFields'
@@ -45,8 +48,10 @@ const K = 'console.companySubscription.'
  *
  * 1. Subscription: state, plan, trial, paid time, grace and renewal; the trial exception.
  * 2. Allowance: this month's documents and the extra-document credits; the temporary grant.
- * 3. Received-document counting, for Enterprise companies only; the override.
- * 4. History: the lifecycle events the subscription read carries, newest first.
+ * 3. Paid extras: users and branches against included plus paid places, the ERP add-on and
+ *    whether it granted ERP, and the places (read only; nothing is granted from here).
+ * 4. Received-document counting, for Enterprise companies only; the override.
+ * 5. History: the lifecycle events the subscription read carries, newest first.
  *
  * TODO(backend): CONSOLE.md 2.1–2.5: bills and payments for one company, a history that names the
  * operator and covers grants and plan changes, "would be read-only" while restrictions are off, a
@@ -65,6 +70,7 @@ export function CompanySubscriptionCards({ tenantId }: { tenantId: string }) {
       {may(BILLING_READ) ? (
         <AllowanceCard tenantId={tenantId} canManage={may(BILLING_MANAGE)} />
       ) : null}
+      {may(BILLING_READ) ? <PaidExtrasCard tenantId={tenantId} /> : null}
       {may(PLANS_READ) ? <CountingCard tenantId={tenantId} canManage={may(PLANS_MANAGE)} /> : null}
     </>
   )
@@ -624,6 +630,122 @@ function CountingCard({ tenantId, canManage }: { tenantId: string; canManage: bo
           }}
         />
       ) : null}
+    </Card>
+  )
+}
+
+const PLACE_TONE: Record<PaidExtraPlaceDto['status'], ConsolePillTone> = {
+  PENDING: 'pending',
+  ACTIVE: 'success',
+  CANCELLED: 'neutral',
+}
+
+/**
+ * P2-1 §3.14: the company's paid extras as the customer sees them (US-1, BR-3, ER-1), plus the
+ * add-on's stored state and whether the add-on or an operator granted ERP. Read only.
+ */
+function PaidExtrasCard({ tenantId }: { tenantId: string }) {
+  const { t, i18n } = useTranslation()
+  const { read, retry } = useConsoleRead<CompanyPaidExtrasDto>(companyPaidExtrasPath(tenantId))
+  const P = `${K}paidExtras.`
+  const title = t(`${P}title`)
+
+  if (read.status === 'loading') {
+    return (
+      <Card id="company-paid-extras" title={title}>
+        <ConsoleNotice busy body={t(`${P}loading`)} />
+      </Card>
+    )
+  }
+  if (read.status === 'failed') {
+    return (
+      <Card id="company-paid-extras" title={title}>
+        <ConsoleReadFailure error={read.error} retry={retry} />
+      </Card>
+    )
+  }
+
+  const { extras, erpAddon } = read.data
+  const n = (value: number) => formatCount(value, i18n.language)
+  const day = (iso: string) => formatDate(iso, i18n.language)
+  const kind = (place: PlaceKindOverviewDto) =>
+    place.capacity === null || place.included === null
+      ? t(`${P}unlimited`, { inUse: n(place.inUse) })
+      : t(`${P}kindValue`, {
+          inUse: n(place.inUse),
+          capacity: n(place.capacity),
+          included: n(place.included),
+          paid: n(place.paidPlacesNow),
+        })
+  const addonValue: ReactNode = !extras.erpAddon.offered ? (
+    t(`${P}addonNotOffered`)
+  ) : erpAddon === null ? (
+    t(`${P}addonNone`)
+  ) : (
+    <span className="flex flex-wrap items-center gap-2">
+      <ConsoleStatusPill
+        tone={erpAddon.status === 'ACTIVE' ? 'success' : erpAddon.status === 'ENDED' ? 'neutral' : 'pending'}
+        label={t(`${P}addonStatus.${erpAddon.status}`, { date: erpAddon.endsOn ? day(erpAddon.endsOn) : '' })}
+      />
+      {erpAddon.endReason ? (
+        <span className="text-xs text-text-tertiary">{t(`${P}endReason.${erpAddon.endReason}`)}</span>
+      ) : null}
+    </span>
+  )
+
+  return (
+    <Card id="company-paid-extras" title={title}>
+      {!extras.open ? (
+        <p className="rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium text-pending-700">
+          {t(`${P}notOpen`)}
+        </p>
+      ) : null}
+      <Facts
+        rows={[
+          [t(`${P}users`), kind(extras.users)],
+          [t(`${P}branches`), kind(extras.branches)],
+          [t(`${P}addon`), addonValue],
+          erpAddon
+            ? [t(`${P}entitlement`), erpAddon.grantedEntitlement ? t(`${P}grantedByAddon`) : t(`${P}notByAddon`)]
+            : null,
+          extras.outstanding
+            ? [t(`${P}outstanding`), t(`${P}outstandingValue`, { number: extras.outstanding.bill.number })]
+            : null,
+        ]}
+      />
+      <div className="flex flex-col gap-3">
+        <h3 className="text-sm font-semibold text-text-primary">{t(`${P}places`)}</h3>
+        {extras.places.length === 0 ? (
+          <p className="text-sm leading-[1.6] text-text-secondary">{t(`${P}noPlaces`)}</p>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {extras.places.map((place) => (
+              <li key={place.id} className={`${CONSOLE_CARD} flex flex-col gap-1 border border-border-subtle p-4`}>
+                <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-text-primary">
+                  {t(`paidExtras.history.kind.${place.kind}`, { count: place.quantity, n: n(place.quantity) })}
+                  <ConsoleStatusPill
+                    tone={PLACE_TONE[place.status]}
+                    label={t(`paidExtras.history.status.${place.status}`)}
+                  />
+                </span>
+                <span className="flex flex-wrap items-center gap-1 text-xs font-medium text-text-tertiary">
+                  {[
+                    t(`paidExtras.history.source.${place.source}`),
+                    t('paidExtras.history.covers', { from: day(place.coversFrom), to: day(place.coversTo) }),
+                    formatInstant(place.createdAt, i18n.language),
+                  ].join(' · ')}
+                  {place.netAmount ? (
+                    <>
+                      {' · '}
+                      <OmAmount amount={formatAmount(place.netAmount, 'OMR', i18n.language)} size="xs" />
+                    </>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </Card>
   )
 }
