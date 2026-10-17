@@ -12,7 +12,7 @@ import {
   type ActionMenuItem,
 } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
-import { useApiRead } from '../../hooks'
+import { useApiRead, usePendingRefresh } from '../../hooks'
 import { useReferenceData } from '../../lib/reference/referenceData'
 import { InvoiceRemindersCard } from '../../components/invoice/InvoiceRemindersCard'
 import { ApiError } from '../../api'
@@ -67,7 +67,7 @@ import { SendInvoiceModal } from '../../components/invoice/SendInvoiceModal'
 import {
   RELEASE_REFUSALS,
   buyerDeliveryNote,
-  dispatchIsMoving,
+  dispatchIsPending,
   dispatchNotes,
   dispatchSucceeded,
   transportNotes,
@@ -137,10 +137,6 @@ const STATUS_TONES: Record<Tone, string> = {
 }
 
 const ZOOMS = [0.75, 1, 1.25]
-
-/** Re-reads of a document the server is mid-step on: every 3 s for at most a minute. */
-const DISPATCH_POLL_MS = 3000
-const DISPATCH_POLL_LIMIT = 20
 
 type Translate = (key: string, values?: Record<string, unknown>) => string
 
@@ -263,32 +259,13 @@ function InvoiceScreen() {
   const [dispatchLatest, setDispatchLatest] = useState<InvoiceDispatchDto | null>(null)
   const dispatch =
     dispatchLatest ?? (dispatchRead.read.status === 'ready' ? dispatchRead.read.data : null)
-  const moving = dispatchIsMoving(dispatch)
-  useEffect(() => {
-    if (!moving) return
-    let live = true
-    let polls = 0
-    const timer = window.setInterval(() => {
-      polls += 1
-      // Bounded: a step that has not finished in a minute is shown as it stands, and the reader
-      // can reload; an open tab must not poll for ever.
-      if (polls > DISPATCH_POLL_LIMIT) {
-        window.clearInterval(timer)
-        return
-      }
-      loadDispatch(id).then(
-        (next) => {
-          if (live) setDispatchLatest(next)
-        },
-        // The next tick asks again; a transient failure is not worth a notice.
-        () => undefined,
-      )
-    }, DISPATCH_POLL_MS)
-    return () => {
-      live = false
-      window.clearInterval(timer)
-    }
-  }, [moving, id])
+  // Without this the AS4 receipt and the MLS outcome reached the page only on a reload: the earlier
+  // poll watched PROCESSING and an active transmission only.
+  usePendingRefresh(id, dispatchIsPending(dispatch), (live) =>
+    loadDispatch(id).then((next) => {
+      if (live()) setDispatchLatest(next)
+    }),
+  )
   const [sending, setSending] = useState(false)
   // The credit and debit notes that correct this invoice (I-10/I-11), listed on the invoice so a
   // reader sees why its balance moved and can open each note.
@@ -776,13 +753,11 @@ function InvoiceScreen() {
           {!draft ? (
             <>
               <span className="font-medium text-text-quaternary">
-                {data.peppolResponse
-                  ? t('invoiceDetails.sentViaPeppol')
-                  : data.deliveryState === 'SENT_MANUALLY'
-                    ? t('invoiceDetails.sentManually')
-                    : dispatchLine?.state
-                      ? t(dispatchLine.state.key)
-                      : t('invoiceDetails.notSentYet')}
+                {data.deliveryState === 'SENT_MANUALLY'
+                  ? t('invoiceDetails.sentManually')
+                  : dispatchLine?.state
+                    ? t(dispatchLine.state.key)
+                    : t('invoiceDetails.notSentYet')}
               </span>
               <span className="mx-1 size-1 rounded-full bg-text-quaternary" />
             </>
@@ -958,45 +933,34 @@ function InvoiceScreen() {
                 </div>
               </div>
 
-              {/* The response code and delivery time are still unanswered by the API, so between the manual-delivery fact and "not sent" the bar says where the dispatch stands. */}
+              {/* `peppolResponse` and `deliveredAt` are TODO(backend) and never answered, so nothing here reads them: a delivery is claimed only from the dispatch the server reports, never from a field whose meaning the API has not defined. */}
               <div className="mt-4 flex items-center gap-2 rounded-sm bg-surface-background px-3 py-2.5">
                 <DeliveryIcon
-                  sent={
-                    !!data.peppolResponse ||
-                    data.deliveryState === 'SENT_MANUALLY' ||
-                    dispatchSucceeded(dispatch)
-                  }
+                  sent={data.deliveryState === 'SENT_MANUALLY' || dispatchSucceeded(dispatch)}
                 />
                 <p className="text-xs font-medium leading-[1.3] text-text-tertiary">
-                  {data.peppolResponse
-                    ? t('invoiceDetails.delivered.peppol', {
+                  {data.deliveryState === 'SENT_MANUALLY'
+                    ? t('invoiceDetails.delivered.sentManually', {
                         customer: customerName,
-                        when: data.deliveredAt
-                          ? formatInstant(data.deliveredAt, language)
-                          : day(data.issueDate),
+                        when: sentAt ? formatInstant(sentAt, language) : day(data.issueDate),
                       })
-                    : data.deliveryState === 'SENT_MANUALLY'
-                      ? t('invoiceDetails.delivered.sentManually', {
-                          customer: customerName,
-                          when: sentAt ? formatInstant(sentAt, language) : day(data.issueDate),
-                        })
-                      : dispatchLine?.state && dispatch?.state !== 'NOT_SENT'
-                        ? [
-                            t(dispatchLine.state.key),
-                            dispatchLine.reason
-                              ? t(dispatchLine.reason.key, dispatchLine.reason.values)
-                              : null,
-                            buyerLine ? t(buyerLine.key) : null,
-                            ...transportLines.map((line) =>
-                              t(line.legKey, { state: t(line.state.key, line.state.values) }),
-                            ),
-                          ]
-                            .filter(Boolean)
-                            .join(' · ')
-                        : // A reader who may not see the customer gets the fact without a placeholder name.
-                          customer.read.status === 'ready'
-                          ? t('invoiceDetails.delivered.notSent', { customer: customerName })
-                          : t('invoiceDetails.notSentYet')}
+                    : dispatchLine?.state && dispatch?.state !== 'NOT_SENT'
+                      ? [
+                          t(dispatchLine.state.key),
+                          dispatchLine.reason
+                            ? t(dispatchLine.reason.key, dispatchLine.reason.values)
+                            : null,
+                          buyerLine ? t(buyerLine.key) : null,
+                          ...transportLines.map((line) =>
+                            t(line.legKey, { state: t(line.state.key, line.state.values) }),
+                          ),
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')
+                      : // A reader who may not see the customer gets the fact without a placeholder name.
+                        customer.read.status === 'ready'
+                        ? t('invoiceDetails.delivered.notSent', { customer: customerName })
+                        : t('invoiceDetails.notSentYet')}
                 </p>
               </div>
             </section>

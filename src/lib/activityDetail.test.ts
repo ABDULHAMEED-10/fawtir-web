@@ -328,3 +328,76 @@ describe('each step follows the field that proves it', () => {
     expect(record.versions[0].state).toBe('rejected')
   })
 })
+
+describe("the customer's journey claims only what the access point said", () => {
+  const reply = (
+    ack: 'AP' | 'AB' | 'RE',
+    receivedAt: string,
+    channel = 'INVOICE',
+  ): ActivityDetailDto['mls'][number] => ({
+    channel,
+    ack,
+    received_at: receivedAt,
+    sender: null,
+    sbdh_instance_identifier: null,
+    reason: null,
+  })
+  const withState = (
+    transportState: string,
+    mls: ActivityDetailDto['mls'] = [],
+  ): ActivityDetailDto => {
+    const base = phase13('INV-1')
+    return { ...base, summary: { ...base.summary, transport_state: transportState }, mls }
+  }
+
+  // C4_UNREACHABLE comes only from an RE (backend SubmissionState); the state alone read as sent
+  // and then as "waiting for their reply" for an invoice already refused.
+  it('does not show an unreachable receiver as sent on the state alone', () => {
+    const dto = withState('C4_UNREACHABLE')
+    expect(step(dto, 'peppol', 'sentPeppol')).toMatchObject({
+      labelKey: 'activityDetail.step.couldNotSendOverPeppol',
+      state: 'failed',
+    })
+    expect(journey(dto, 'peppol').steps.map((s) => s.id)).not.toContain('noReply')
+    expect(journey(dto, 'peppol').tone).toBe('bad')
+  })
+
+  it('shows the refusal that made the receiver unreachable', () => {
+    const dto = withState('C4_UNREACHABLE', [reply('RE', '2026-10-10T08:20:00Z')])
+    expect(step(dto, 'peppol', 'mls-0')).toMatchObject({
+      labelKey: 'activityDetail.step.theyRefused',
+      state: 'failed',
+    })
+    expect(journey(dto, 'peppol').verdictKey).toBe('activityDetail.verdict.theyRefused')
+    expect(journey(dto, 'peppol').steps.map((s) => s.id)).not.toContain('noReply')
+  })
+
+  it('never reads an OTA answer to the report as the customer accepting the invoice', () => {
+    const dto = withState('SENDING', [reply('AP', '2026-10-10T08:20:00Z', 'TDD')])
+    expect(step(dto, 'peppol', 'sentPeppol').state).toBe('waiting')
+    expect(journey(dto, 'peppol').verdictKey).toBe('activityDetail.verdict.notSentYet')
+    expect(journey(dto, 'peppol').steps.some((s) => s.id.startsWith('mls-'))).toBe(false)
+  })
+
+  it('says AB is delivered without confirmation, never a confirmed receipt', () => {
+    const dto = withState('DELIVERED_UNCONFIRMED', [reply('AB', '2026-10-10T08:20:00Z')])
+    expect(step(dto, 'peppol', 'mls-0').labelKey).toBe('activityDetail.step.deliveredUnconfirmed')
+    expect(journey(dto, 'peppol').verdictKey).toBe('activityDetail.verdict.deliveredUnconfirmed')
+    expect(journey(dto, 'peppol').steps.map((s) => s.id)).toContain('accessPoint')
+  })
+
+  it('lets the first answer decide, as the ledger does', () => {
+    const dto = withState('DELIVERED', [
+      reply('RE', '2026-10-10T08:25:00Z'),
+      reply('AP', '2026-10-10T08:20:00Z'),
+    ])
+    expect(journey(dto, 'peppol').verdictKey).toBe('activityDetail.deliveredAccepted')
+  })
+
+  it('waits, without a verdict, while the AS4 receipt is all there is', () => {
+    const dto = withState('SENT')
+    expect(step(dto, 'peppol', 'noReply').state).toBe('waiting')
+    expect(journey(dto, 'peppol').verdictKey).toBe('activityDetail.verdict.noReplyYet')
+    expect(journey(dto, 'peppol').tone).toBe('waiting')
+  })
+})

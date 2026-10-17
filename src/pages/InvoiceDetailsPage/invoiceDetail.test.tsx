@@ -1162,25 +1162,100 @@ describe('Send', () => {
     expect(screen.queryByRole('button', { name: 'Send' })).toBeNull()
   })
 
-  it('re-reads only while the server is mid-step, and stops when it settles', async () => {
+  const AWAITING_MLS = "Delivered to the receiver's access point, awaiting the business response"
+  /** The delivery bar's glyph: green tick for a delivery, grey clock for anything short of one. */
+  const barTicked = (barText: string) =>
+    screen
+      .getAllByText(barText)
+      .map((node) => node.previousElementSibling?.getAttribute('class') ?? '')
+      .some((className) => className.includes('text-success-700'))
+
+  // Before, only PROCESSING and an active transmission were watched, so the AS4 receipt and the
+  // MLS reached the page only on a reload.
+  it('keeps reading through QUEUED, SENDING and SENT until the MLS outcome, then stops', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
+      const answers: InvoiceDispatchDto[] = [
+        { ...NOT_SENT, state: 'PROCESSING', sendable: false },
+        QUEUED,
+        { ...QUEUED, state: 'SENDING' },
+        { ...QUEUED, state: 'SENT' },
+        { ...QUEUED, state: 'DELIVERED' },
+      ]
       let reads = 0
-      dispatchResponse = () => {
-        reads += 1
-        return json(200, reads < 3 ? { ...NOT_SENT, state: 'PROCESSING', sendable: false } : QUEUED)
-      }
+      dispatchResponse = () => json(200, answers[Math.min(reads++, answers.length - 1)])
       renderInvoice()
       expect(await screen.findAllByText('Being prepared for sending')).toHaveLength(2)
       await vi.advanceTimersByTimeAsync(3000)
-      await vi.advanceTimersByTimeAsync(3000)
       expect(await screen.findAllByText('Validated and queued for sending')).toHaveLength(2)
-      const settled = dispatchReads().length
-      await vi.advanceTimersByTimeAsync(15000)
-      expect(dispatchReads()).toHaveLength(settled)
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(await screen.findAllByText('Sending')).toHaveLength(2)
+      await vi.advanceTimersByTimeAsync(8000)
+      expect(await screen.findAllByText(AWAITING_MLS)).toHaveLength(2)
+      expect(barTicked(AWAITING_MLS)).toBe(false)
+      await vi.advanceTimersByTimeAsync(13000)
+      expect(await screen.findAllByText('Delivered')).toHaveLength(2)
+      expect(barTicked('Delivered')).toBe(true)
+      expect(dispatchReads()).toHaveLength(5)
+
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+      expect(dispatchReads()).toHaveLength(5)
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('stops asking after its cap when the MLS never comes', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      dispatchResponse = () => json(200, { ...QUEUED, state: 'SENT' } satisfies InvoiceDispatchDto)
+      renderInvoice()
+      expect(await screen.findAllByText(AWAITING_MLS)).toHaveLength(2)
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+      // The page's own read, then fifteen re-reads over about ten minutes, then nothing.
+      expect(dispatchReads()).toHaveLength(16)
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+      expect(dispatchReads()).toHaveLength(16)
+      expect(barTicked(AWAITING_MLS)).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not re-read an outcome', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      dispatchResponse = () =>
+        json(200, { ...QUEUED, state: 'UNDELIVERABLE' } satisfies InvoiceDispatchDto)
+      renderInvoice()
+      expect(await screen.findAllByText('Could not be delivered')).toHaveLength(2)
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+      expect(dispatchReads()).toHaveLength(1)
+      expect(barTicked('Could not be delivered')).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // `peppolResponse` and `deliveredAt` are TODO(backend): an RE in them must not read as delivered.
+  it('claims no delivery from the unanswered response fields', async () => {
+    invoiceResponse = () =>
+      json(200, invoice({ peppolResponse: 'RE', deliveredAt: '2026-10-04T10:05:00Z' }))
+    dispatchResponse = () => json(200, { ...QUEUED, state: 'SENT' } satisfies InvoiceDispatchDto)
+    renderInvoice()
+    expect(await screen.findAllByText(AWAITING_MLS)).toHaveLength(2)
+    expect(screen.queryByText('Sent via Peppol')).toBeNull()
+    expect(screen.queryByText(/Delivered on Peppol/)).toBeNull()
+    expect(barTicked(AWAITING_MLS)).toBe(false)
+  })
+
+  it('says the access point took it, not that the buyer accepted it, in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    dispatchResponse = () => json(200, { ...QUEUED, state: 'SENT' } satisfies InvoiceDispatchDto)
+    renderInvoice()
+    expect(
+      await screen.findAllByText('سُلّمت إلى نقطة الوصول لدى المستلم، بانتظار رده على الفاتورة'),
+    ).toHaveLength(2)
   })
 
   it('says how the buyer is reached, from the server, never from the customer preference', async () => {

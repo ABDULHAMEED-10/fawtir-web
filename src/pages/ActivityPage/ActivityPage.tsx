@@ -12,7 +12,7 @@ import {
   type ActionMenuItem,
 } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
-import { useApiRead } from '../../hooks'
+import { useApiRead, usePendingRefresh } from '../../hooks'
 import {
   ACTIVITY_PAGE_SIZE,
   activityListPath,
@@ -29,6 +29,7 @@ import {
 import {
   ACTIVITY_SORTS,
   ACTIVITY_TABS,
+  awaitsAnswer,
   belongsInTab,
   canResubmit,
   correctionHeld,
@@ -137,6 +138,8 @@ const FLOW_CHIP: Record<RowFlow, string> = {
 const CUSTOMER_ICON: Record<CustomerAck, string> = {
   received: ackYesIcon,
   youReceived: ackYesIcon,
+  // The glyph AB always had: only its word was wrong, so the row's design stays as drawn.
+  deliveredUnconfirmed: ackYesIcon,
   noCustomer: ackNoneIcon,
   notOnPeppol: ackLateIcon,
   waiting: ackLateIcon,
@@ -221,6 +224,14 @@ function ActivityLedger() {
   }
   const listPath = activityListPath(filters, pageNumber - 1)
   const list = useApiRead<ActivityListDto>(listPath, () => loadActivityList(listPath))
+  // A quiet re-read of the rows while one awaits an answer, kept apart from `list` so a refresh
+  // does not blank the table with a loader. Tied to its path, so a new filter never shows it.
+  const [listLatest, setListLatest] = useState<{ path: string; data: ActivityListDto } | null>(null)
+  // Any loud re-read drops the quiet one, which would otherwise stand over the newer rows.
+  const reloadList = () => {
+    setListLatest(null)
+    list.retry()
+  }
   // The summary refuses a call with no window (400, whatever the signature says the parameters
   // are). The ledger below is unwindowed and stays that way; only the counts above it need one.
   const summaryRange = defaultReportRange()
@@ -258,14 +269,14 @@ function ActivityLedger() {
     try {
       await resubmitTdd(item.links.resubmit)
       setNotice(t('activity.resubmitted'))
-      list.retry()
+      reloadList()
       summary.retry()
     } catch (error) {
       const refusal = tddResubmitRefusalKey(error)
       fail(error, refusal)
       // A backend that reports holds drops the row's resubmit link; re-read so the menu stops
       // offering a send that would only be held again.
-      if (refusal) list.retry()
+      if (refusal) reloadList()
     } finally {
       setBusy(null)
     }
@@ -307,7 +318,19 @@ function ActivityLedger() {
   }
 
   const totals = summary.read.status === 'ready' ? summary.read.data : null
-  const page = list.read.status === 'ready' ? list.read.data : null
+  const page =
+    list.read.status === 'ready'
+      ? listLatest?.path === listPath
+        ? listLatest.data
+        : list.read.data
+      : null
+  // Only the list is re-read, one request per refresh: the rows are where an answer shows. The
+  // cards above keep the counts they loaded with until the next filter change or reload.
+  usePendingRefresh(listPath, page?.items.some(awaitsAnswer) ?? false, (live) =>
+    loadActivityList(listPath).then((data) => {
+      if (live()) setListLatest({ path: listPath, data })
+    }),
+  )
   const filtered = search !== '' || direction !== 'all'
   const isEmpty =
     totals !== null &&
@@ -589,7 +612,7 @@ function ActivityLedger() {
 
         {list.read.status === 'loading' ? <LoadingNotice /> : null}
         {list.read.status === 'failed' ? (
-          <ApiReadFailure error={list.read.error} retry={list.retry} />
+          <ApiReadFailure error={list.read.error} retry={reloadList} />
         ) : null}
 
         {page ? (

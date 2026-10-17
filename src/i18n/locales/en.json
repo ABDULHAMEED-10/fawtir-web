@@ -2186,7 +2186,7 @@
       "dispatched": "Accepted for sending",
       "queued": "Validated and queued for sending",
       "sending": "Sending",
-      "sent": "Sent, awaiting confirmation",
+      "sent": "Delivered to the receiver's access point, awaiting the business response",
       "delivered": "Delivered",
       "deliveredUnconfirmed": "Delivered (not confirmed)",
       "undeliverable": "Could not be delivered"
@@ -9200,7 +9200,8 @@
       "NONE": "No acknowledgement yet",
       "waiting": "Not yet",
       "refused": "Turned it down",
-      "youReceived": "You received it"
+      "youReceived": "You received it",
+      "deliveredUnconfirmed": "Delivered, not confirmed"
     },
     "today": "Today",
     "sortOptions": {
