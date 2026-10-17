@@ -829,6 +829,247 @@ describe('Plan changes: keeping the plan after a downgrade paid early (D3, KEEP_
   })
 })
 
+/**
+ * Backend #614: `scheduledChange` says what waits (`kind`), whether its first period is paid
+ * (`paidFor`) and how it is taken back (`withdrawal`), so the screen stops inferring both. Each case
+ * below is set up so the old inference would have answered differently.
+ */
+const STARTER_WAITING = {
+  planCode: 'STARTER',
+  planName: 'Starter',
+  billingCycle: 'MONTHLY',
+  periodPrice: '35.000',
+  effectiveOn: '2026-11-01',
+}
+const keepButton = () =>
+  screen.queryByRole('button', { name: i18n.t('planChange.keep', { plan: 'Business' }) })
+const withdrawButton = () =>
+  screen.queryByRole('button', { name: i18n.t('subscription.withdrawChange') })
+const downgradeLine = i18n.t('subscription.scheduledChange', {
+  plan: 'Starter',
+  date: '1 Nov 2026',
+})
+
+describe('Plan changes: the waiting change from the server (backend #614)', () => {
+  it('words a DOWNGRADE by its plan, even where the old guess would have said monthly billing', async () => {
+    answers[SUBSCRIPTION] = () =>
+      json(200, {
+        ...ACTIVE,
+        billingCycle: 'ANNUAL',
+        paidThrough: '2027-09-30',
+        scheduledChange: {
+          ...STARTER_WAITING,
+          planCode: 'BUSINESS',
+          planName: 'Business',
+          effectiveOn: '2027-10-01',
+          kind: 'DOWNGRADE',
+          paidFor: false,
+          withdrawal: 'FREE',
+        },
+      })
+    renderPage()
+    expect(
+      await screen.findByText(
+        i18n.t('subscription.scheduledChange', { plan: 'Business', date: '1 Oct 2027' }),
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText(/Monthly billing starts/)).toBeNull()
+  })
+
+  it('words CYCLE_TO_MONTHLY as the billing, not the plan', async () => {
+    answers[SUBSCRIPTION] = () =>
+      json(200, {
+        ...ACTIVE,
+        billingCycle: 'ANNUAL',
+        paidThrough: '2027-09-30',
+        scheduledChange: {
+          planCode: 'BUSINESS',
+          planName: 'Business',
+          billingCycle: 'MONTHLY',
+          periodPrice: '80.000',
+          effectiveOn: '2027-10-01',
+          kind: 'CYCLE_TO_MONTHLY',
+          paidFor: false,
+          withdrawal: 'FREE',
+        },
+      })
+    renderPage()
+    expect(
+      await screen.findByText(i18n.t('planChange.waiting.toMonthly', { date: '1 Oct 2027' })),
+    ).toBeTruthy()
+    expect(
+      await screen.findByRole('button', { name: i18n.t('subscription.withdrawChange') }),
+    ).toBeTruthy()
+  })
+
+  it('words ENTERPRISE_TERMS as terms Fawtir set, with no way to take them back (NONE)', async () => {
+    answers[SUBSCRIPTION] = () =>
+      json(200, {
+        ...ACTIVE,
+        scheduledChange: {
+          planCode: 'ENT-REAL',
+          planName: 'Enterprise',
+          billingCycle: 'MONTHLY',
+          periodPrice: '450.000',
+          effectiveOn: '2026-11-01',
+          kind: 'ENTERPRISE_TERMS',
+          paidFor: false,
+          withdrawal: 'NONE',
+        },
+      })
+    renderPage()
+    expect(await screen.findByText(sentence(/your Enterprise terms change to/))).toBeTruthy()
+    expect(screen.queryByText(/You move to/)).toBeNull()
+    expect(withdrawButton()).toBeNull()
+    expect(keepButton()).toBeNull()
+  })
+
+  it('offers the free withdrawal for FREE, even with the period inside paidThrough', async () => {
+    answers[SUBSCRIPTION] = () =>
+      json(200, {
+        ...ACTIVE,
+        paidThrough: '2026-11-30',
+        scheduledChange: {
+          ...STARTER_WAITING,
+          kind: 'DOWNGRADE',
+          paidFor: true,
+          withdrawal: 'FREE',
+        },
+      })
+    renderPage()
+    expect(await screen.findByText(downgradeLine)).toBeTruthy()
+    expect(
+      await screen.findByRole('button', { name: i18n.t('subscription.withdrawChange') }),
+    ).toBeTruthy()
+    expect(keepButton()).toBeNull()
+  })
+
+  it('offers "Keep {plan}" for KEEP_PLAN while the changes say available', async () => {
+    answers[SUBSCRIPTION] = () =>
+      json(200, {
+        ...ACTIVE,
+        scheduledChange: {
+          ...STARTER_WAITING,
+          kind: 'DOWNGRADE',
+          paidFor: true,
+          withdrawal: 'KEEP_PLAN',
+        },
+      })
+    renderPage()
+    expect(
+      await screen.findByRole('button', { name: i18n.t('planChange.keep', { plan: 'Business' }) }),
+    ).toBeTruthy()
+    expect(withdrawButton()).toBeNull()
+  })
+
+  it('shows no action for KEEP_PLAN while the changes say not available', async () => {
+    answers[CHANGES] = () => json(200, { available: false, pending: null, history: [] })
+    answers[SUBSCRIPTION] = () =>
+      json(200, {
+        ...ACTIVE,
+        scheduledChange: {
+          ...STARTER_WAITING,
+          kind: 'DOWNGRADE',
+          paidFor: true,
+          withdrawal: 'KEEP_PLAN',
+        },
+      })
+    renderPage()
+    expect(await screen.findByText(downgradeLine)).toBeTruthy()
+    await waitFor(() => expect(calls(CHANGES).length).toBeGreaterThan(0))
+    expect(keepButton()).toBeNull()
+    expect(withdrawButton()).toBeNull()
+  })
+
+  it('shows no action for NONE', async () => {
+    answers[SUBSCRIPTION] = () =>
+      json(200, {
+        ...ACTIVE,
+        scheduledChange: {
+          ...STARTER_WAITING,
+          kind: 'DOWNGRADE',
+          paidFor: false,
+          withdrawal: 'NONE',
+        },
+      })
+    renderPage()
+    expect(await screen.findByText(downgradeLine)).toBeTruthy()
+    expect(keepButton()).toBeNull()
+    expect(withdrawButton()).toBeNull()
+  })
+
+  it('falls back to the old inference when the server sends no kind, paidFor or withdrawal', async () => {
+    // A server before #614: annual to monthly is recognised by the plan code, and a period inside
+    // paidThrough offers "Keep" (self-service open) instead of the free withdrawal.
+    answers[SUBSCRIPTION] = () =>
+      json(200, {
+        ...ACTIVE,
+        billingCycle: 'ANNUAL',
+        paidThrough: '2027-10-31',
+        scheduledChange: {
+          planCode: 'BUSINESS',
+          planName: 'Business',
+          billingCycle: 'MONTHLY',
+          periodPrice: '80.000',
+          effectiveOn: '2027-10-01',
+        },
+      })
+    renderPage()
+    expect(
+      await screen.findByText(i18n.t('planChange.waiting.toMonthly', { date: '1 Oct 2027' })),
+    ).toBeTruthy()
+    expect(
+      await screen.findByRole('button', { name: i18n.t('planChange.keep', { plan: 'Business' }) }),
+    ).toBeTruthy()
+    expect(withdrawButton()).toBeNull()
+  })
+})
+
+describe("Plan changes: the company's own Enterprise terms (plan-change-via-fawtir)", () => {
+  it('says plan changes go through Fawtir and offers no move when the preview lists it first', async () => {
+    const user = userEvent.setup({ delay: null })
+    answers[PREVIEW] = () =>
+      json(200, upgrade({ blockers: ['plan-change-via-fawtir', 'billing-not-configured'] }))
+    renderPage()
+    await user.click(await moveTo('Business Plus'))
+    const box = within(await dialog())
+    expect(await box.findByText(i18n.t('planChange.refusal.plan-change-via-fawtir'))).toBeTruthy()
+    expect(box.getByRole('link', { name: i18n.t('plans.talkToTeam') }).getAttribute('href')).toBe(
+      '/contact',
+    )
+    expect(box.queryByText(i18n.t('planChange.refusal.billing-not-configured'))).toBeNull()
+    expect(
+      box.queryByRole('button', { name: i18n.t('planChange.dialog.confirm.UPGRADE') }),
+    ).toBeNull()
+    expect(box.queryByRole('tab', { name: i18n.t('subscription.cycle.ANNUAL') })).toBeNull()
+    expect(document.body.textContent).not.toMatch(/English detail|plan-change-via-fawtir/)
+  })
+
+  it('words the 409 refusal of the request the same way and offers no retry', async () => {
+    const user = userEvent.setup({ delay: null })
+    answers[REQUEST] = () => problem(409, 'plan-change-via-fawtir')
+    renderPage()
+    await user.click(await moveTo('Business Plus'))
+    const box = within(await dialog())
+    await user.click(
+      await box.findByRole('button', { name: i18n.t('planChange.dialog.confirm.UPGRADE') }),
+    )
+    expect(await box.findByText(i18n.t('planChange.refusal.plan-change-via-fawtir'))).toBeTruthy()
+    expect(box.getByRole('link', { name: i18n.t('plans.talkToTeam') })).toBeTruthy()
+    expect(
+      box.queryByRole('button', { name: i18n.t('planChange.dialog.confirm.UPGRADE') }),
+    ).toBeNull()
+    expect(document.body.textContent).not.toMatch(/English detail/)
+  })
+
+  it('has the sentence in Arabic, with no em dash', async () => {
+    await i18n.changeLanguage('ar')
+    const line = i18n.t('planChange.refusal.plan-change-via-fawtir')
+    expect(line).toMatch(/فوتر/)
+    expect(line).not.toMatch(/—/)
+  })
+})
+
 describe('Plan changes: wording', () => {
   it('says "includes today" in Arabic too, and has every key in both languages', async () => {
     await i18n.changeLanguage('ar')
