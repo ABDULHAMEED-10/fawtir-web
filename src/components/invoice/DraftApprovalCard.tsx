@@ -45,9 +45,9 @@ export function preparePermission(type: InvoiceTypeDto): string {
 }
 
 /**
- * A draft's approval (RL-6), read only while it is a draft. A failed read, including the 503 a
- * deployment with sales approval switched off answers, leaves `approval` null: the screen then
- * behaves as it always has, and the server still holds the line at issue.
+ * A draft's approval (RL-6), read only while it is a draft. With sales approval switched off the
+ * server reads every draft NOT_REQUIRED, and a failed read leaves `approval` null: either way the
+ * screen behaves as it always has, and the server still holds the line at issue.
  */
 export function useSalesApproval(invoiceId: string, draft: boolean) {
   const read = useApiRead<SalesApprovalDto>(draft ? salesApprovalPath(invoiceId) : null, () =>

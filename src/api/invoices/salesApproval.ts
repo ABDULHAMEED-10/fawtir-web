@@ -10,8 +10,9 @@ import { apiRequest } from '../client'
  * the threshold or works out who prepared what.
  *
  * Reading the rule takes `invoice.read`; changing it takes `admin.settings.manage`, as the bills
- * policy does. With the deployment's switch off every approval route answers 503
- * `SALES_APPROVAL_UNAVAILABLE`, and the screens then show nothing new.
+ * policy does. With the deployment's switch off the reads still answer 200 (the rule as never set
+ * and off, each draft NOT_REQUIRED) while switching the rule on and every step on a draft answer
+ * 503 `SALES_APPROVAL_UNAVAILABLE`; the screens then show nothing new.
  */
 
 export const SALES_APPROVAL_RULE_PATH = '/v1/settings/sales-approval-rule'
