@@ -1048,12 +1048,12 @@
       "connected": "Connected",
       "requestSent": "Sent",
       "sent": "Registration sent",
-      "review": "Fawtir review",
+      "review": "Fawtir confirms your Participant ID and approves your registration",
       "reviewing": "Checking your business details",
       "approved": "Approved",
       "request": "Send Fawtir a connection request on the Fawtara Portal",
       "requestNow": "Waiting for your request",
-      "accept": "Fawtir accepts your request",
+      "accept": "Fawtir checks your details and accepts your request",
       "accepting": "Waiting for Fawtir",
       "accepted": "Accepted",
       "declined": "Declined",
@@ -1070,7 +1070,7 @@
     "footerReal": "Questions about the authorization?",
     "review": {
       "title": "We're getting you live",
-      "description": "Your registration is with the Fawtir team. Once it's approved, you authorise Fawtir as your provider on the Fawtara Portal, and your invoices can reach the OTA.",
+      "description": "Your registration is with the Fawtir team. Send Fawtir a connection request on the Fawtara Portal now: we check your business details against your portal record, accept the request and confirm your Participant ID, and only then approve your registration.",
       "badge": "Under review",
       "timing": "Review usually takes one business day.",
       "emailNote": "We'll email <b>{{email}}</b> the decision, you can safely close this page.",
@@ -1092,7 +1092,7 @@
     },
     "request": {
       "title": "Send Fawtir your connection request",
-      "description": "Your registration is approved. To report invoices through Fawtir, send Fawtir a connection request on the Fawtara Portal. Fawtir then accepts it and registers you on the Oman SMP.",
+      "description": "To finish your registration, send Fawtir a connection request on the Fawtara Portal. Fawtir checks it against your details, accepts it and confirms your Participant ID, then approves your registration and registers you on the Oman SMP.",
       "badge": "Your turn",
       "timing": "Fawtir can only connect you once your request reaches us on the portal.",
       "emailNote": "We'll email <b>{{email}}</b> when we accept it, you can safely close this page.",
@@ -1100,7 +1100,7 @@
     },
     "accepting": {
       "title": "Fawtir is reviewing your request",
-      "description": "Your connection request reached Fawtir on the Fawtara Portal. We check it against your account, then accept it and register you on the Oman SMP.",
+      "description": "Your connection request reached Fawtir on the Fawtara Portal. We check it against your registration, accept it and confirm your Participant ID, then approve your registration and register you on the Oman SMP.",
       "badge": "Waiting for Fawtir",
       "timing": "A request that is not answered in time expires on the portal, so we act on it quickly.",
       "emailNote": "We'll email <b>{{email}}</b> when it's accepted, you can safely close this page.",
@@ -1108,7 +1108,7 @@
     },
     "registering": {
       "title": "Registering you on the Oman SMP",
-      "description": "Fawtir accepted your connection request. We now register your Peppol ID on the Oman SMP, which checks the connection on the Fawtara Portal before adding you.",
+      "description": "Fawtir accepted your connection request and approved your registration. We now register your Peppol ID on the Oman SMP, which checks the connection on the Fawtara Portal before adding you.",
       "badge": "Registering",
       "timing": "Fawtir registers you within 3 business days of accepting.",
       "emailNote": "We'll email <b>{{email}}</b> when you're connected, you can safely close this page.",
@@ -2186,9 +2186,8 @@
       "dispatched": "Accepted for sending",
       "queued": "Validated and queued for sending",
       "sending": "Sending",
-      "sent": "Sent, awaiting confirmation",
+      "sent": "Received by the receiver's access point, awaiting its delivery status",
       "delivered": "Delivered",
-      "deliveredUnconfirmed": "Delivered (not confirmed)",
       "undeliverable": "Could not be delivered"
     },
     "reason": {
@@ -9200,7 +9199,8 @@
       "NONE": "No acknowledgement yet",
       "waiting": "Not yet",
       "refused": "Turned it down",
-      "youReceived": "You received it"
+      "youReceived": "You received it",
+      "deliveredUnconfirmed": "Delivered, unconfirmed"
     },
     "today": "Today",
     "sortOptions": {
@@ -9292,7 +9292,7 @@
     },
     "noCounterparty": "No counterparty",
     "rowActionsFor": "Actions for {{number}}",
-    "correctionHeld": "Correction held for an authorised decision."
+    "correctionHeld": "Correction held for an authorised decision at Fawtir."
   },
   "activityEvent": {
     "copyXml": "Copy the XML",
@@ -9353,14 +9353,12 @@
       "signed": "Signed",
       "sentOverPeppol": "Sent over Peppol",
       "accessPointTook": "Their access point took it",
-      "confirmedReceipt": "They confirmed receipt",
       "theyAccepted": "They accepted it",
       "waitingOnOta": "Waiting on the OTA",
       "waitingOnThem": "Waiting for their reply",
       "theyRefused": "They turned it down",
       "arrivedOverPeppol": "Arrived over Peppol",
       "validated": "Validated",
-      "deliveredUnconfirmed": "Delivered, unconfirmed",
       "notSentToFawtara": "Not sent to Fawtara yet",
       "stoppedAtFawtir": "Stopped at Fawtir, needs attention",
       "notSigned": "Not signed yet",
@@ -9494,11 +9492,9 @@
       "acceptedOnTry": "Accepted on attempt {{count}}",
       "turnedDown": "Turned down",
       "waiting": "Still waiting",
-      "delivered": "Delivered",
       "theyRefused": "Turned down by them",
       "noReplyYet": "No reply yet",
       "received": "Received",
-      "deliveredUnconfirmed": "Delivered, unconfirmed",
       "replaced": "Replaced by us",
       "stoppedAtFawtir": "Stopped at Fawtir",
       "notSentYet": "Not sent yet",
@@ -9511,7 +9507,8 @@
       "invoice": "This is about the invoice itself, so it is put right with a credit note and a new invoice, not by sending the report again.",
       "report": "This is about the report only, not the invoice: once it is put right, the report can be sent again. Nothing goes to the customer.",
       "unknown": "The refusal doesn't say whether it is about the invoice or the report. If it is about the invoice itself, it takes a credit note and a new invoice."
-    }
+    },
+    "correctionHeld": "This correction is held for an authorised decision at Fawtir and is not offered again."
   },
   "callLog": {
     "title": "The OTA call log",
@@ -9737,7 +9734,9 @@
     "quotaUnavailable": "Your document allowance is not available right now, so what this costs cannot be shown.",
     "refused": {
       "held": "This correction is on hold for an authorised decision at Fawtir. Nothing was sent to the Tax Authority, and resubmitting again will not send it.",
-      "partlyHeld": "Reports sent again: {{sent}}. Held for an authorised decision at Fawtir and not sent: {{held}}."
+      "partlyHeld": "Reports sent again: {{sent}}. Held for an authorised decision at Fawtir and not sent: {{held}}.",
+      "allHeld": "Nothing was sent. Reports held for an authorised decision at Fawtir: {{held}}.",
+      "partlySent": "Reports sent again: {{sent}}. Held for an authorised decision at Fawtir: {{held}}. The rest were not sent:"
     }
   },
   "complianceReport": {
@@ -11002,6 +11001,10 @@
       "noBranchNote": "Received documents, and documents issued without a branch",
       "unnamed": "Unnamed branch",
       "company": "Company total"
+    },
+    "enterprise": {
+      "preparing": "Your Enterprise terms are being prepared. Fawtir will contact you.",
+      "agreed": "Your Enterprise terms are agreed with Fawtir. Contact us to change them."
     }
   },
   "bills": {
@@ -12567,7 +12570,8 @@
       "bankAccounts": "Bank account",
       "billingSettings": "Billing settings",
       "seller": "Seller",
-      "disconnections": "Disconnections"
+      "disconnections": "Disconnections",
+      "enterprise": "Enterprise"
     },
     "user": {
       "team": "Fawtir team",
@@ -15455,6 +15459,35 @@
         "withdrawTitle": "Withdraw the proposed cancellation",
         "withdrawBody": "Nothing changes for the company. The reason is kept in its history.",
         "withdrawConfirm": "Withdraw the proposal"
+      },
+      "paidExtras": {
+        "title": "Paid extras",
+        "loading": "Loading the paid extras…",
+        "notOpen": "Paid extras are not open yet: the plan's included numbers apply.",
+        "users": "Users",
+        "branches": "Branches",
+        "kindValue": "{{inUse}} in use of {{capacity}} (included {{included}}, paid {{paid}})",
+        "unlimited": "{{inUse}} open, no limit",
+        "addon": "ERP and API add-on",
+        "addonNotOffered": "Not offered on this plan",
+        "addonNone": "Never ordered",
+        "addonStatus": {
+          "PENDING_PAYMENT": "Waiting for payment",
+          "ACTIVE": "On",
+          "ENDING": "Stops after {{date}}",
+          "ENDED": "Ended"
+        },
+        "endReason": {
+          "CUSTOMER": "Stopped by the customer",
+          "PLAN_DOWNGRADE": "Ended by a move to a smaller plan"
+        },
+        "entitlement": "ERP access",
+        "grantedByAddon": "Granted by the add-on",
+        "notByAddon": "Not granted by the add-on; an operator grant, if any, stays",
+        "outstanding": "Order waiting for payment",
+        "outstandingValue": "Bill {{number}}",
+        "places": "Paid places",
+        "noPlaces": "No paid places yet."
       }
     },
     "disconnections": {
@@ -15615,6 +15648,123 @@
         "askedAt": "When they asked",
         "reason": "Reason",
         "submit": "Start disconnection"
+      }
+    },
+    "enterprise": {
+      "title": "Enterprise companies",
+      "subtitle": "Companies that chose Enterprise or hold Enterprise terms, newest activity first.",
+      "loading": "Loading Enterprise companies…",
+      "tab": {
+        "TERMS_NOT_SET": "Waiting for terms",
+        "TERMS_SET": "Terms set",
+        "BILLING_STARTED": "Billing started",
+        "ALL": "All"
+      },
+      "empty": {
+        "TERMS_NOT_SET": "No Enterprise companies waiting for terms.",
+        "TERMS_SET": "No Enterprise companies with terms set and billing not started.",
+        "BILLING_STARTED": "No Enterprise companies with billing started.",
+        "ALL": "No Enterprise companies yet."
+      },
+      "col": {
+        "company": "Company",
+        "state": "State",
+        "since": "Since"
+      },
+      "open": "Open terms"
+    },
+    "enterpriseTerms": {
+      "title": "Enterprise terms",
+      "open": "Enterprise terms",
+      "company": "Company",
+      "loading": "Loading the Enterprise terms…",
+      "saved": "The Enterprise terms are saved.",
+      "reload": "Reload the terms",
+      "state": {
+        "TERMS_NOT_SET": "Terms not set",
+        "TERMS_SET": "Terms set",
+        "BILLING_STARTED": "Billing started"
+      },
+      "subtitle": {
+        "TERMS_NOT_SET": "No Enterprise terms yet. Saving creates this company's own Enterprise plan with the numbers below. A company on another plan moves to it as set out under the form.",
+        "TERMS_SET": "Terms are set. Billing has not started yet.",
+        "BILLING_STARTED": "Billing has started: the company's subscription follows these terms like any plan."
+      },
+      "versionNumber": "Version {{version}}",
+      "versionUnknown": "Current version",
+      "summary": {
+        "title": "Terms now",
+        "inForce": "In force",
+        "pending": "Waiting for the renewal",
+        "pendingValue": "{{version}}, {{cycle}}, from {{date}}",
+        "nextBill": "Next bill"
+      },
+      "quote": {
+        "includesVat": "including VAT",
+        "subtotal": "Subtotal",
+        "vat": "VAT",
+        "total": "Total"
+      },
+      "form": {
+        "title": "Negotiated terms",
+        "note": "Prices, limits and features agreed with this company. A change to a price or limit publishes a new version; what was agreed before stays on record.",
+        "readOnly": "Read only: setting Enterprise terms needs the billing manage permission.",
+        "nameEnHint": "Leave empty for \"Enterprise\".",
+        "nameArHint": "Leave empty for the default Arabic name.",
+        "price": "Price",
+        "annualPrice": "Annual price",
+        "annualPriceHint": "Filled in as the monthly price times {{months}}. Change it if a different annual price was agreed.",
+        "billingCycle": "Billed",
+        "billingCycleHint": "How often this company is billed.",
+        "cycle": {
+          "MONTHLY": "Monthly",
+          "ANNUAL": "Yearly"
+        },
+        "limits": "Documents, people and branches",
+        "overageHint": "The rate for extra documents. Leave empty if extra documents are not offered.",
+        "erpNote": "ERP integration included in the contract is switched on from the ERP access card on the company page.",
+        "features": "Features",
+        "contract": "Contract",
+        "contractReference": "Contract reference",
+        "contractHint": "Optional: the reference of the signed agreement.",
+        "applyNote": "Before anything is paid, saved terms apply at once and replace any open bill. Once a period is paid, they apply from the next renewal.",
+        "lastChange": "Last change: {{reason}}, {{when}}",
+        "quoting": "Preparing the quote…",
+        "save": "Save terms"
+      },
+      "confirm": {
+        "titleSet": "Set these Enterprise terms?",
+        "titleChange": "Save the new Enterprise terms?",
+        "subtitle": "One period on these terms, {{cycle}}, as Fawtir would bill it.",
+        "reason": "Reason",
+        "reasonHint": "Recorded with the terms and shown in their history.",
+        "confirm": "Save terms",
+        "saving": "Saving…"
+      },
+      "history": {
+        "title": "History",
+        "empty": "No Enterprise terms have been saved for this company.",
+        "kind": {
+          "SET": "Terms set",
+          "CHANGED": "Terms changed",
+          "OTHER": "Terms saved"
+        },
+        "fromAtOnce": "Applied at once on {{date}}",
+        "fromRenewal": "From the renewal on {{date}}",
+        "contract": "Contract {{reference}}"
+      },
+      "validation": {
+        "contractLength": "Use 100 characters or fewer"
+      },
+      "refusal": {
+        "conflict": "Someone else changed these terms since you opened them. Reload them and make your change again.",
+        "applyFrom": "When the terms apply changed while you were editing: a period has been paid, or the payment was undone. Reload the terms and save again.",
+        "paymentBeingChecked": "A payment from this company is being checked. Save the terms once the payment is confirmed or refused.",
+        "realm": "Enterprise terms can only be set from the production Fawtir console.",
+        "impersonation": "Enterprise terms cannot be set while acting as someone else.",
+        "forbidden": "You cannot set Enterprise terms. Sign in again with two-step verification, or ask a platform administrator.",
+        "gone": "This company could not be found. It may have been closed.",
+        "invalid": "Fawtir did not accept these terms. Check the figures and try again."
       }
     }
   },
@@ -21719,7 +21869,12 @@
       "noneWaiting": "No plan change is waiting for your renewal, so nothing will switch off.",
       "backToPlan": "Back to Plan and usage"
     },
-    "cancelledByFawtirRefusal": "Fawtir cancelled this subscription, so it cannot be withdrawn here. Renew it or contact support."
+    "cancelledByFawtirRefusal": "Fawtir cancelled this subscription, so it cannot be withdrawn here. Renew it or contact support.",
+    "enterpriseChange": "From {{date}}: your Enterprise terms change to OMR {{price}} {{cycle}}, as agreed with Fawtir.",
+    "enterpriseCycle": {
+      "MONTHLY": "a month",
+      "ANNUAL": "a year"
+    }
   },
   "billing": {
     "title": "Charges and payment",
@@ -22176,6 +22331,147 @@
       "impersonating": "This can't be done while Fawtir support is signed in as your company.",
       "changed": "The request changed meanwhile. The latest status is shown.",
       "failed": "That didn't go through. Try again."
+    }
+  },
+  "paidExtras": {
+    "title": "Extra users, branches and add-on",
+    "subtitle": "Paid places above what your plan includes, and the ERP and API add-on.",
+    "backToPlan": "Plan and usage",
+    "notOpen": "Fawtir has not opened paid extras yet. Your plan's included users and branches apply.",
+    "noPermission": "Only people who manage the plan can add users, branches or the add-on.",
+    "planCard": {
+      "title": "Extra users and branches",
+      "note": "Paid places above what your plan includes. Removing one takes effect at the renewal.",
+      "entry": "Add users or branches",
+      "view": "See paid places",
+      "manageAddon": "Manage the add-on"
+    },
+    "places": {
+      "title": "Users and branches",
+      "note": "Above what your plan includes, each extra place is paid for the rest of the period, then renews with your plan.",
+      "kind": {
+        "USER": "Users",
+        "BRANCH": "Branches"
+      },
+      "inUseOf": "{{inUse}} in use of {{capacity}}",
+      "unlimited": "{{inUse}} open, no limit on your plan",
+      "split": "Included in the plan: {{included}} · Paid places: {{paid}}",
+      "price": "Each extra place:",
+      "perMonth": "a month",
+      "notSold": "Your plan has no extra places to buy.",
+      "removal": "Switching off a user or closing a branch takes effect at once, but its paid place stays yours until the renewal and can be used again. From the renewal it is no longer charged. Nothing is refunded for the current period."
+    },
+    "addon": {
+      "title": "ERP and API add-on",
+      "note": "ERP extraction and API integration, added and stopped like a user.",
+      "status": {
+        "NONE": "Off",
+        "PENDING_PAYMENT": "Waiting for payment",
+        "ACTIVE": "On",
+        "ENDING": "Stops after {{date}}",
+        "ENDED": "Off"
+      },
+      "body": {
+        "NONE": "Add it to connect your ERP. It is priced for the rest of the period, then renews with your plan.",
+        "PENDING_PAYMENT": "It starts once the payment for your order is confirmed.",
+        "ACTIVE": "On, and renews with your plan. If you stop it, it stays on until the end of the time already paid.",
+        "ENDING": "It stays on until {{date}} and is not renewed. Your mapping and history are kept and come back if you add it again.",
+        "ENDED": "Stopped. Your mapping and history are kept and come back if you add it again."
+      },
+      "add": "Add the add-on",
+      "stop": "Stop the add-on",
+      "keep": "Keep the add-on",
+      "stopTitle": "Stop the ERP and API add-on?",
+      "stopBody": "It stays on until the end of the time already paid and is not renewed. Nothing is refunded. After that, ERP pulls and ERP keys stop; your mapping and history are kept.",
+      "stopConfirm": "Stop at the end of the paid time",
+      "stopCancel": "Keep it",
+      "stopped": "The add-on will stop at the end of the time already paid.",
+      "kept": "The add-on stays on and renews with your plan."
+    },
+    "buy": {
+      "title": "Add places",
+      "note": "Priced by Fawtir for the rest of your current period.",
+      "users": "Extra users",
+      "branches": "Extra branches",
+      "addon": "Add the ERP and API add-on",
+      "fewer": "One fewer: {{what}}",
+      "more": "One more: {{what}}",
+      "limit": "Up to {{max}} in one order.",
+      "nothingSold": "Your plan has no extra users or branches to buy.",
+      "howAdded": "Ordering issues a bill to pay. By card the places start at once; by bank transfer or cash, once Fawtir confirms the payment.",
+      "submit": "Order and pay"
+    },
+    "quote": {
+      "line": {
+        "USER_one": "{{n}} user, {{from}} to {{to}} ({{days}} of {{periodDays}} days)",
+        "USER_other": "{{n}} users, {{from}} to {{to}} ({{days}} of {{periodDays}} days)",
+        "BRANCH_one": "{{n}} branch, {{from}} to {{to}} ({{days}} of {{periodDays}} days)",
+        "BRANCH_other": "{{n}} branches, {{from}} to {{to}} ({{days}} of {{periodDays}} days)",
+        "ERP_ADDON": "ERP and API add-on, {{from}} to {{to}} ({{days}} of {{periodDays}} days)"
+      },
+      "renewal": "From {{date}} they renew with your plan, on its renewal bill.",
+      "placesEnd": "A move to a smaller plan is waiting: these places end on {{date}} and are not renewed.",
+      "loading": "Getting the price…"
+    },
+    "order": {
+      "title": "Your order",
+      "note": "{{what}}, starting once the payment is confirmed.",
+      "users_one": "{{n}} extra user",
+      "users_other": "{{n}} extra users",
+      "branches_one": "{{n}} extra branch",
+      "branches_other": "{{n}} extra branches",
+      "addon": "the ERP and API add-on",
+      "separator": ", ",
+      "change": "Change the order",
+      "keep": "Keep my order",
+      "replaces": "Ordering different numbers replaces the order you have not paid yet."
+    },
+    "result": {
+      "added": "Paid. Your extra places are on."
+    },
+    "history": {
+      "title": "Paid places",
+      "note": "Bought, renewed, or recorded by Fawtir for places already in use. Nothing is refunded.",
+      "kind": {
+        "USER_one": "{{n}} extra user",
+        "USER_other": "{{n}} extra users",
+        "BRANCH_one": "{{n}} extra branch",
+        "BRANCH_other": "{{n}} extra branches",
+        "ERP_ADDON": "ERP and API add-on"
+      },
+      "covers": "{{from}} to {{to}}",
+      "source": {
+        "PURCHASE": "Bought",
+        "RENEWAL": "Renewed",
+        "BACKFILL": "Already in use"
+      },
+      "status": {
+        "PENDING": "Waiting for payment",
+        "ACTIVE": "Active",
+        "CANCELLED": "Cancelled"
+      }
+    },
+    "refusal": {
+      "paid-extras-not-open": "Fawtir has not opened paid extras yet. Your plan's included users and branches apply.",
+      "paid-extras-not-offered": "Your plan does not offer this. Contact Fawtir about a bigger plan.",
+      "paid-extras-not-in-trial": "Extra users, branches and the add-on can be added after your first payment.",
+      "paid-extras-order-limit": "The most one order can add: users {{users}}, branches {{branches}}.",
+      "subscription-not-tracked": "Fawtir manages your subscription's billing directly. Contact Fawtir to add places.",
+      "subscription-state-conflict": "Places can be added while your subscription is active. Pay your subscription first.",
+      "payFirstLink": "Go to Bills and payment",
+      "billing-not-configured": "A bill for extra places can't be issued yet. Contact Fawtir.",
+      "payment-state-conflict": "A payment for your extras order is already being checked. Wait for it before ordering again.",
+      "extras-price-changed": "The price changed since you saw it. Check the new total and order again.",
+      "erp-addon-already-active": "The add-on is already on.",
+      "erp-addon-not-active": "The add-on is not on, so there is nothing to stop.",
+      "erp-addon-not-ending": "The add-on is not set to stop.",
+      "disconnected-from-fawtir": "Your company has left Fawtir, so nothing more can be bought.",
+      "extraPlace": {
+        "USER": "Your plan's users are all taken. Add a paid user place first.",
+        "BRANCH": "Your plan's branches are all taken. Add a paid branch place first."
+      },
+      "extraPlaceAsk": "Ask an administrator to add one.",
+      "extraPlaceLink": "Add places"
     }
   }
 }

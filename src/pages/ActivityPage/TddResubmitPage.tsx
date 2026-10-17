@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Trans, useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -78,12 +78,24 @@ function ResubmitScreen() {
   const [required, setRequired] = useState(false)
   const [sending, setSending] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
+  // Two clicks in one tick both run before `sending` renders the button disabled, and each would
+  // post the whole group.
+  const inFlight = useRef(false)
   // The tenant's own allowance (GET /v1/settings/plan); the bar used to draw a sample 412 of 500.
   const usage = usePlanUsage()
 
   if (detail.read.status !== 'ready') {
     return (
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+        {/* The re-read after a group send passes through here; what that send did must not vanish
+            with the record, least of all when the re-read fails. */}
+        {failure ? (
+          <Notice
+            badge={t('supplierCreditNoteDetail.notDone')}
+            body={failure}
+            action={{ label: t('common.close'), onClick: () => setFailure(null) }}
+          />
+        ) : null}
         {detail.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
@@ -157,13 +169,14 @@ function ResubmitScreen() {
   const changes = changeRows(item, cause, kind, peppolId)
 
   const send = async () => {
-    if (!canResubmit(item) || kind === 'invoice' || blockedOnFix) return
+    if (!canResubmit(item) || kind === 'invoice' || blockedOnFix || inFlight.current) return
+    inFlight.current = true
     setSending(true)
     setFailure(null)
     let sent = 0
     let held = 0
-    let heldKey: string | null = null
-    let left = false
+    let navigated = false
+    const counts = () => ({ sent: String(sent), held: String(held) })
     try {
       for (const row of group) {
         if (!canResubmit(row) || !row.links.resubmit) continue
@@ -173,29 +186,36 @@ function ResubmitScreen() {
         } catch (error) {
           // A hold refuses one invoice, not the group: stopping here told the reader that nothing
           // was sent after earlier rows had gone, and left their links to be posted again.
-          heldKey = tddResubmitRefusalKey(error)
-          if (heldKey === null) throw error
+          if (tddResubmitRefusalKey(error) === null) throw error
           held += 1
         }
       }
       if (held === 0) {
-        left = true
+        navigated = true
         navigate(`/compliance/activity/${dto.invoice_uuid}`)
-      } else if (sent === 0 && heldKey !== null) {
-        setFailure(t(heldKey))
-      } else {
+      } else if (sent === 0) {
         setFailure(
-          t('tddResubmit.refused.partlyHeld', { sent: String(sent), held: String(held) }),
+          held === 1
+            ? t('tddResubmit.refused.held')
+            : t('tddResubmit.refused.allHeld', { held: String(held) }),
         )
+      } else {
+        setFailure(t('tddResubmit.refused.partlyHeld', counts()))
       }
     } catch (error) {
       const message = describeApiFailure(error)
-      setFailure(t(message.key, message.values))
+      const reason = t(message.key, message.values)
+      // The group stopped part-way: the shared text alone would hide what had already gone, and
+      // the page would read as if nothing had.
+      setFailure(
+        sent > 0 || held > 0 ? `${t('tddResubmit.refused.partlySent', counts())} ${reason}` : reason,
+      )
     } finally {
+      inFlight.current = false
       setSending(false)
       // Staying here after anything was posted: re-read, so the button and the same-cause rows
       // offer only what the server still offers.
-      if (!left && (sent > 0 || held > 0)) {
+      if (!navigated && (sent > 0 || held > 0)) {
         detail.retry()
         rejected.retry()
       }

@@ -6,7 +6,7 @@ import { usePlanName } from '../../hooks/usePlanName'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { hasPermission } from '../../lib/identity/entitlements'
 import { formatAmount, formatDate } from '../../lib/format'
-import { Button, Modal, OmAmount } from '../../components/ui'
+import { Button, Modal, OmAmount, withRial } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { ApiError } from '../../api'
 import {
@@ -66,6 +66,7 @@ export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }
   if (read.read.status === 'failed') return <ApiReadFailure error={read.read.error} retry={read.retry} />
   const status = latest ?? read.read.data
   const display = subscriptionDisplay(status)
+  const enterprise = status.enterprise?.termsSet === true
 
   const act = async (which: Exclude<Pending, null>, call: () => Promise<SubscriptionStatusDto>) => {
     setPending(which)
@@ -104,10 +105,23 @@ export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }
       {status.scheduledChange ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm bg-surface-background px-4 py-3">
           <p className="text-sm font-medium text-text-secondary">
-            {t('subscription.scheduledChange', {
-              plan: planName(status.scheduledChange.planCode, status.scheduledChange.planName),
-              date: day(status.scheduledChange.effectiveOn),
-            })}
+            {enterprise
+              ? // New Enterprise terms Fawtir set for the next renewal, not a plan the customer chose.
+                withRial(
+                  t('subscription.enterpriseChange', {
+                    date: day(status.scheduledChange.effectiveOn),
+                    price: formatAmount(status.scheduledChange.periodPrice, 'OMR', i18n.language),
+                    cycle: t(
+                      status.scheduledChange.billingCycle === 'ANNUAL'
+                        ? 'subscription.enterpriseCycle.ANNUAL'
+                        : 'subscription.enterpriseCycle.MONTHLY',
+                    ),
+                  }),
+                )
+              : t('subscription.scheduledChange', {
+                  plan: planName(status.scheduledChange.planCode, status.scheduledChange.planName),
+                  date: day(status.scheduledChange.effectiveOn),
+                })}
           </p>
           {canManage ? (
             <div className="flex flex-wrap gap-3">
@@ -118,14 +132,17 @@ export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }
               >
                 {t('subscription.switchOff.open')}
               </Link>
-              <Button
-                variant="secondary"
-                size="md"
-                disabled={pending !== null}
-                onClick={() => act('withdrawChange', withdrawScheduledChange)}
-              >
-                {t('subscription.withdrawChange')}
-              </Button>
+              {/* D4: Enterprise terms change only through Fawtir. TODO(backend): CONSOLE.md 3.4. */}
+              {enterprise ? null : (
+                <Button
+                  variant="secondary"
+                  size="md"
+                  disabled={pending !== null}
+                  onClick={() => act('withdrawChange', withdrawScheduledChange)}
+                >
+                  {t('subscription.withdrawChange')}
+                </Button>
+              )}
             </div>
           ) : null}
         </div>

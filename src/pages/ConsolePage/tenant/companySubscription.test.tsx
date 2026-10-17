@@ -16,6 +16,7 @@ const COUNTING = `/api/v1/platform/companies/${TENANT}/received-document-countin
 const PLAN = `/api/v1/platform/companies/${TENANT}/plan`
 const CANCELLATIONS = `${SUBSCRIPTION}/fawtir-cancellations`
 const PLANS = '/api/v1/platform/plans'
+const PAID = `/api/v1/platform/companies/${TENANT}/paid-extras`
 
 const ADMIN: Entitlements = {
   userId: 'u-admin',
@@ -92,6 +93,28 @@ function counting(over: Record<string, unknown> = {}) {
   }
 }
 
+function paidExtras(over: Record<string, unknown> = {}, erpAddon: unknown = null) {
+  const kind = (included: number, inUse: number, paid: number) => ({
+    included, inUse, paidPlacesNow: paid, capacity: included + paid, unitMonthlyPrice: '2.500', offered: true,
+  })
+  return {
+    tenantId: TENANT,
+    extras: {
+      open: true, users: kind(10, 11, 1), branches: kind(5, 3, 0),
+      erpAddon: { offered: true, monthlyPrice: '20.000', status: null, endsOn: null },
+      maxUsersPerOrder: 50, maxBranchesPerOrder: 20, outstanding: null,
+      places: [{
+        id: 'pl-1', kind: 'USER', quantity: 1, source: 'PURCHASE', status: 'ACTIVE', unitPeriodPrice: '2.500',
+        netAmount: '1.694', planCode: 'BUSINESS_PLUS', billingCycle: 'MONTHLY', coversFrom: '2026-10-11',
+        coversTo: '2026-10-31', billId: 'b-1', reason: null, createdAt: '2026-10-11T08:00:00Z',
+        activatedAt: '2026-10-11T08:10:00Z', cancelledAt: null,
+      }],
+      ...over,
+    },
+    erpAddon,
+  }
+}
+
 function json(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
     status,
@@ -114,6 +137,7 @@ beforeEach(async () => {
     [SUBSCRIPTION]: () => json(200, subscription()),
     [EXTRA]: () => json(200, extras()),
     [COUNTING]: () => json(200, counting({ enterprise: false })),
+    [PAID]: () => json(200, paidExtras()),
   }
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (url === ENTITLEMENTS_URL) return json(200, who)
@@ -505,5 +529,38 @@ describe('Console › Tenant › Count received documents', () => {
 describe('Console › navigation', () => {
   it('no longer lists the sample-data Subscriptions screen', () => {
     expect(CONSOLE_ITEMS.map((item) => item.to)).not.toContain('/console/subscriptions')
+  })
+})
+
+describe('Console › company › paid extras (P2-1 §3.14, read only)', () => {
+  it('shows users and branches against included plus paid places, and the places, with no action', async () => {
+    renderCards()
+    const card = await screen.findByRole('region', { name: C('paidExtras.title') })
+    expect(
+      await within(card).findByText(C('paidExtras.kindValue', { inUse: '11', capacity: '11', included: '10', paid: '1' })),
+    ).toBeTruthy()
+    expect(within(card).getByText(C('paidExtras.addonNone'))).toBeTruthy()
+    expect(within(card).getByText('1.694')).toBeTruthy()
+    expect(within(card).queryByRole('button')).toBeNull()
+  })
+
+  it('says whether the add-on granted ERP, and why it ended', async () => {
+    answers[PAID] = () =>
+      json(200, paidExtras({ erpAddon: { offered: true, monthlyPrice: '20.000', status: 'ENDING', endsOn: '2026-10-31' } }, {
+        tenantId: TENANT, status: 'ENDING', startedOn: '2026-10-02', endsOn: '2026-10-31', endReason: 'PLAN_DOWNGRADE',
+        grantedEntitlement: true, changedBy: 'u-1', changedAt: '2026-10-12T08:00:00Z', version: 2,
+      }))
+    renderCards()
+    const card = await screen.findByRole('region', { name: C('paidExtras.title') })
+    expect(await within(card).findByText(C('paidExtras.grantedByAddon'))).toBeTruthy()
+    expect(within(card).getByText(C('paidExtras.endReason.PLAN_DOWNGRADE'))).toBeTruthy()
+  })
+
+  it('is hidden without platform.billing.read', async () => {
+    who = { ...ADMIN, permissions: ['platform.plans.read'] }
+    renderCards()
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(ENTITLEMENTS_URL, expect.anything()))
+    expect(screen.queryByRole('region', { name: C('paidExtras.title') })).toBeNull()
+    expect(fetchMock.mock.calls.some(([url]) => url === PAID)).toBe(false)
   })
 })
