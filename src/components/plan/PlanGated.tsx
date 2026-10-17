@@ -6,6 +6,12 @@ import { SettingsShell } from '../../pages/SettingsPage/SettingsShell'
 import { LockIcon, Rial } from '../ui'
 import { FEATURE_LIST, PLAN, hasFeature, type AnyPlanId, type Feature } from '../../lib/plans'
 import { planAccessStore, useFeature, useTenantPlan } from '../../lib/planAccess'
+import { useApiRead } from '../../hooks/useApiRead'
+import {
+  PUBLIC_PLANS_PATH,
+  readPublicPlans,
+  type SignupCataloguePlan,
+} from '../../lib/identity/signupPlans'
 
 /**
  * Reads `?plan=` once per URL change so the harness can open any screen as another plan would
@@ -49,10 +55,23 @@ function alsoAdds(current: AnyPlanId, needed: AnyPlanId, feature: Feature): Feat
   ).slice(0, 3)
 }
 
-function UpsellPanel({ feature, neededPlan }: { feature: Feature; neededPlan: AnyPlanId }) {
+/**
+ * Whether subscription prices carry VAT, from the rate the published catalogue sends with every
+ * plan. With VAT off a price has no "before VAT" wording; until the server has said a rate above
+ * 0 applies (still loading, unreadable, or a server older than the field), no VAT is claimed.
+ */
+function useSubscriptionVatCharged(): boolean {
+  const catalogue = useApiRead<SignupCataloguePlan[]>(PUBLIC_PLANS_PATH, () => readPublicPlans())
+  if (catalogue.read.status !== 'ready') return false
+  const sent = catalogue.read.data.find((plan) => plan.vatRate != null)?.vatRate
+  return sent != null && Number(sent) > 0
+}
+
+export function UpsellPanel({ feature, neededPlan }: { feature: Feature; neededPlan: AnyPlanId }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const current = useTenantPlan()
+  const vatCharged = useSubscriptionVatCharged()
   const planName = t(`plan.planName.${neededPlan}`)
   const more = alsoAdds(current, neededPlan, feature)
   const price = neededPlan === 'enterprise' ? null : PLAN[neededPlan].monthly
@@ -110,7 +129,7 @@ function UpsellPanel({ feature, neededPlan }: { feature: Feature; neededPlan: An
               {price.toFixed(3)}
             </span>
             <span className="text-sm font-medium text-text-quaternary">
-              {t('planGate.perMonth')}
+              {t(vatCharged ? 'planGate.perMonth' : 'planGate.perMonthNoVat')}
             </span>
           </>
         ) : (

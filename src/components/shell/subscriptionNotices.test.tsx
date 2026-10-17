@@ -233,7 +233,7 @@ describe('subscription reminders in the bell', () => {
       .getByText(/^انتهى اشتراكك في 22 /)
       .closest('li')!
     expect(grace.textContent).toMatch(/ادفعها حتى 29 .+ 2026 لمواصلة/)
-    expect(within(grace).getByRole('button', { name: 'ادفع الفاتورة' })).toBeTruthy()
+    expect(within(grace).getByRole('button', { name: 'ادفع المطالبة' })).toBeTruthy()
     expect(panel.textContent ?? '').not.toMatch(/[٠-٩]|notes\.|Choose a plan|Pay the bill/)
   })
 
