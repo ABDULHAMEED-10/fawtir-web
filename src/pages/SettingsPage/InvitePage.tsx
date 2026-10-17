@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
@@ -13,42 +13,36 @@ import {
 } from '../../components/feedback/ApiNotice'
 import { Input, Switch } from '../../components/ui'
 import {
-  ADMIN_ROLE,
   ROLES_PATH,
   ROLES_PERMISSION,
+  USERS_PERMISSION,
   inviteUser,
-  isJobRole,
   loadRoles,
-  roleKind,
   type RoleDto,
 } from '../../api/settings/people'
-import { branchAccessRefusalKey } from '../../lib/branchAccessRefusals'
-import { useBranchNames, useManagesPeople } from './peopleView'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { subscriptionRestrictedAction } from '../../lib/subscriptionRestricted'
 import { PAID_EXTRAS_ROUTE, extraPlaceRequired } from '../../api/settings/paidExtras'
 import { permissionWords } from '../../lib/permissionLabels'
-import tickIcon from '../../assets/settings/check-green.svg'
-import circleIcon from '../../assets/settings/minus-amber.svg'
+import { useBranchAccessOn } from '../../lib/identity/branchAccessSwitch'
+import { BranchInviteForm } from './BranchInviteForm'
+import { Check, Panel, Row } from './invitePieces'
+import { useManagesPeople } from './peopleView'
 import chipYesIcon from '../../assets/settings/check-green.svg'
 import sendIcon from '../../assets/settings/check-white.svg'
 
 /**
  * Settings › Invite someone (Figma 135:38912), through `POST /v1/users/invitations`
- * (`InviteUserRequest`: an email, role codes and the branches the person will work in).
+ * (`InviteUserRequest`: an email and role codes, nothing else).
  *
  * PR #166 emptied the form of its sample employee and, with it, removed the fields the request
- * cannot carry. The design keeps them, so they are drawn again: the name, the note and the "ask
- * for two-step" switch are shown disabled with "Not available yet" and are never sent (the server
- * refuses unknown members), and the email preview is built from the session and the form,
- * labelled as a preview. Each gap is a SETTINGS.md row (7.1, 7.3 to 7.5).
+ * cannot carry. The design keeps them, so they are drawn again: the name, the branches, the note
+ * and the "ask for two-step" switch are shown disabled with "Not available yet" and are never
+ * sent (the server refuses unknown members), and the email preview is built from the session and
+ * the form, labelled as a preview. Each gap is a SETTINGS.md row (7.1 to 7.5).
  *
- * One role per person (Business Rules RL-1): the role is a single choice. Approval and view only
- * are the person's own permissions, never roles (RL-2), so they are ticks under the role, sent as
- * the server's APPROVER and VIEWER sets, which it gives the person as their own grants. "View
- * only" means no job role at all, so it clears the role. The branches (BA-1, LG-1) are required
- * unless the role is Administrator, who sees every branch (BA-2). A branch administrator (LG-3)
- * is offered only their own branches and never the Administrator role.
+ * This is the form while branch access is off. Once it is on (`useBranchAccessOn`), the form with
+ * one role and the branches (`BranchInviteForm`) replaces it.
  */
 export function InvitePage() {
   const { t } = useTranslation()
@@ -62,12 +56,19 @@ export function InvitePage() {
 
 /** Inside the shell, which is what provides the session the permission is read from. */
 function Gate() {
-  const mayManage = useManagesPeople()
+  // Branch access off (production today): the form exactly as before, sending no branches, so the
+  // server gives the person every branch (BA-6). On: one role and the branches (BranchInviteForm).
+  const branchAccessOn = useBranchAccessOn()
+  const isAdministrator = useCan(USERS_PERMISSION)
+  // With branch access on, a branch administrator invites to their own branches too (LG-3).
+  const managesPeople = useManagesPeople()
+  const mayManage = branchAccessOn ? managesPeople : isAdministrator
   // While the subscription is read-only the form is not offered at all (ST-2); the line at the top
   // of the screen says why.
   const mayInvite = useSubscriptionAllows('ADD_PEOPLE')
   if (!mayManage) return <PermissionDeniedNotice />
-  return mayInvite ? <InviteForm /> : null
+  if (!mayInvite) return null
+  return branchAccessOn ? <BranchInviteForm /> : <InviteForm />
 }
 
 type Sent = { email: string }
@@ -79,21 +80,7 @@ function InviteForm() {
   const mayBuyPlaces = useCan('tenant.plan.manage')
   const roles = useApiRead<RoleDto[]>(mayListRoles ? ROLES_PATH : null, loadRoles)
   const [email, setEmail] = useState('')
-  /** The one job role (RL-1); empty means the server's default. */
-  const [role, setRole] = useState('')
-  /** The approval and view-only sets and any technical role, ticked on top of the role (RL-2). */
-  const [extras, setExtras] = useState<string[]>([])
-  const [branchIds, setBranchIds] = useState<string[]>([])
-  const [branchMissing, setBranchMissing] = useState(false)
-  const branchAdministrator = session?.branchAdministrator === true
-  const branchNames = useBranchNames()
-  // A branch administrator gives only their own branches (LG-3); the Administrator, any open one.
-  const branchChoices = branchAdministrator
-    ? (session?.manageableBranchIds ?? []).map((id) => ({ id, name: branchNames.name(id) ?? id }))
-    : branchNames.branches.filter((branch) => branch.active)
-  const chosen = [role, ...extras].filter(Boolean)
-  const administratorChosen = role === ADMIN_ROLE
-  const needsBranch = !administratorChosen && branchChoices.length > 0
+  const [chosen, setChosen] = useState<string[]>([])
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState<Sent | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
@@ -102,24 +89,17 @@ function InviteForm() {
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (sending || email.trim() === '') return
-    if (needsBranch && branchIds.length === 0) {
-      setBranchMissing(true)
-      return
-    }
     setSending(true)
     setFailure(null)
     setFailureLink(null)
     try {
-      const invitation = await inviteUser(email.trim(), chosen, administratorChosen ? [] : branchIds)
+      const invitation = await inviteUser(email.trim(), chosen)
       setSent({ email: invitation.email })
       setEmail('')
-      setRole('')
-      setExtras([])
-      setBranchIds([])
+      setChosen([])
     } catch (error) {
       // US-1: at the plan's capacity a paid place comes first; whoever manages the plan buys it.
       const place = extraPlaceRequired(error)
-      const refusal = branchAccessRefusalKey(error)
       if (place !== null) {
         setFailure(
           mayBuyPlaces
@@ -129,13 +109,11 @@ function InviteForm() {
         setFailureLink(
           mayBuyPlaces ? { to: PAID_EXTRAS_ROUTE, labelKey: 'paidExtras.refusal.extraPlaceLink' } : null,
         )
-      } else if (refusal) {
-        setFailure(t(refusal))
-      } else {
-        const message = describeApiFailure(error)
-        setFailure(t(message.key, message.values))
-        setFailureLink(subscriptionRestrictedAction(error))
+        return
       }
+      const message = describeApiFailure(error)
+      setFailure(t(message.key, message.values))
+      setFailureLink(subscriptionRestrictedAction(error))
     } finally {
       setSending(false)
     }
@@ -143,18 +121,9 @@ function InviteForm() {
 
   const roleList = roles.read.status === 'ready' ? roles.read.data : []
   const chosenNames = roleList
-    .filter((entry) => chosen.includes(entry.code))
-    .map((entry) => entry.name)
+    .filter((role) => chosen.includes(role.code))
+    .map((role) => role.name)
   const filledIn = email.trim().includes('@')
-  // Never the Administrator for a branch administrator: it would give more than they have.
-  const jobRoles = roleList.filter(
-    (entry) => entry.enabled && isJobRole(entry) && !(branchAdministrator && entry.code === ADMIN_ROLE),
-  )
-  const extraRoles = roleList.filter((entry) => entry.enabled && !isJobRole(entry))
-  const viewOnly = extras.includes('VIEWER')
-  const chosenBranchNames = branchChoices
-    .filter((branch) => branchIds.includes(branch.id))
-    .map((branch) => branch.name)
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
@@ -240,92 +209,36 @@ function InviteForm() {
             ) : roles.read.status === 'failed' ? (
               <ApiReadFailure error={roles.read.error} retry={roles.retry} />
             ) : (
-              <div className="flex flex-col gap-5">
-                <fieldset className="flex flex-col gap-2.5">
-                  <legend className="sr-only">{t('invite.whatTitle')}</legend>
-                  {jobRoles.map((entry) => (
+              <fieldset className="flex flex-col gap-2.5">
+                <legend className="sr-only">{t('invite.whatTitle')}</legend>
+                {roleList
+                  .filter((role) => role.enabled)
+                  .map((role) => (
                     <RoleChoice
-                      key={entry.id}
-                      role={entry}
-                      picked={role === entry.code}
-                      disabled={viewOnly}
-                      onChange={() => setRole(entry.code)}
+                      key={role.id}
+                      role={role}
+                      picked={chosen.includes(role.code)}
+                      onChange={(picked) =>
+                        setChosen((current) =>
+                          picked
+                            ? [...current, role.code]
+                            : current.filter((code) => code !== role.code),
+                        )
+                      }
                     />
                   ))}
-                  <p className="text-xs font-medium text-text-tertiary">
-                    {t('branchAccess.invite.oneRole')}
-                  </p>
-                </fieldset>
-                {extraRoles.length ? (
-                  <fieldset className="flex flex-col gap-2.5">
-                    <legend className="mb-1 text-sm font-semibold text-text-primary">
-                      {t('branchAccess.invite.extrasTitle')}
-                    </legend>
-                    {extraRoles.map((entry) => (
-                      <ExtraChoice
-                        key={entry.id}
-                        role={entry}
-                        picked={extras.includes(entry.code)}
-                        onChange={(picked) => {
-                          setExtras((current) =>
-                            picked
-                              ? [...current, entry.code]
-                              : current.filter((code) => code !== entry.code),
-                          )
-                          // View only is no job role at all (RL-2).
-                          if (picked && entry.code === 'VIEWER') setRole('')
-                        }}
-                      />
-                    ))}
-                  </fieldset>
-                ) : null}
-              </div>
+                <p className="text-xs font-medium text-text-tertiary">
+                  {t('people.invite.noRoleMeansDefault')}
+                </p>
+              </fieldset>
             )}
           </Panel>
 
-          {/* TODO(backend): SETTINGS.md row 7.4. No two-step request. */}
+          {/* TODO(backend): SETTINGS.md rows 7.2 and 7.4. No branches or two-step request. */}
           <Panel title={t('invite.branchesTitle')} note={t('invite.branchesNote')}>
-            {administratorChosen ? (
-              <p className="rounded-sm bg-surface-background px-4 py-3 text-sm font-medium text-text-tertiary">
-                {t('branchAccess.invite.administratorSeesAll')}
-              </p>
-            ) : !branchNames.ready && !branchAdministrator ? (
-              <LoadingNotice />
-            ) : branchChoices.length === 0 ? (
-              <p className="rounded-sm bg-surface-background px-4 py-3 text-sm font-medium text-text-tertiary">
-                {t('branchAccess.invite.noBranches')}
-              </p>
-            ) : (
-              <fieldset className="flex flex-col gap-2.5">
-                <legend className="sr-only">{t('invite.branchesTitle')}</legend>
-                {branchChoices.map((branch) => (
-                  <label
-                    key={branch.id}
-                    className="flex cursor-pointer items-center gap-3 rounded-sm border border-border-subtle bg-white px-4 py-3 text-sm font-semibold text-text-primary transition-colors hover:bg-primary-25"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={branchIds.includes(branch.id)}
-                      onChange={(event) => {
-                        setBranchMissing(false)
-                        setBranchIds((current) =>
-                          event.target.checked
-                            ? [...current, branch.id]
-                            : current.filter((id) => id !== branch.id),
-                        )
-                      }}
-                      className="size-[18px] shrink-0 accent-[#2c4eb7]"
-                    />
-                    {branch.name}
-                  </label>
-                ))}
-                {branchMissing ? (
-                  <p role="alert" className="text-sm font-medium text-danger-700">
-                    {t('branchAccess.refusal.branchRequired')}
-                  </p>
-                ) : null}
-              </fieldset>
-            )}
+            <p className="rounded-sm bg-surface-background px-4 py-3 text-sm font-medium text-text-tertiary">
+              {t('invite.branchesUnavailable')}
+            </p>
             <div className="mt-5 flex items-center justify-between gap-4 rounded-sm border border-border-subtle px-4 py-3.5">
               <div className="min-w-0">
                 <p className="text-sm font-semibold leading-[1.3] text-text-primary">
@@ -360,15 +273,6 @@ function InviteForm() {
                 {filledIn ? (
                   <p dir="ltr" className="mt-2 text-xs font-medium text-text-tertiary">
                     {email.trim()}
-                  </p>
-                ) : null}
-                {administratorChosen || chosenBranchNames.length ? (
-                  <p className="mt-2 text-xs font-medium text-text-tertiary">
-                    {administratorChosen
-                      ? t('branchAccess.invite.previewEveryBranch')
-                      : t('branchAccess.invite.previewBranches', {
-                          branches: chosenBranchNames.join(', '),
-                        })}
                   </p>
                 ) : null}
                 <span className="mt-3 inline-flex h-[34px] items-center rounded-sm bg-primary-700 px-3 text-xs font-semibold text-white">
@@ -415,16 +319,6 @@ function InviteForm() {
                     : t('invite.check.defaultRole')
                 }
               />
-              {needsBranch ? (
-                <Check
-                  done={branchIds.length > 0}
-                  label={
-                    branchIds.length > 0
-                      ? t('branchAccess.invite.checkBranches', { count: branchIds.length })
-                      : t('branchAccess.invite.checkNoBranch')
-                  }
-                />
-              ) : null}
             </ul>
           </section>
         </aside>
@@ -463,13 +357,11 @@ function InviteForm() {
 function RoleChoice({
   role,
   picked,
-  disabled,
   onChange,
 }: {
   role: RoleDto
   picked: boolean
-  disabled?: boolean
-  onChange: () => void
+  onChange: (picked: boolean) => void
 }) {
   const { t, i18n } = useTranslation()
   const groups = [
@@ -481,16 +373,13 @@ function RoleChoice({
     <label
       className={[
         'flex cursor-pointer gap-3 rounded-sm border p-4 transition-colors',
-        disabled ? 'cursor-not-allowed opacity-50' : '',
         picked ? 'border-primary-700 bg-primary-25' : 'border-border-subtle bg-white hover:bg-primary-25',
       ].join(' ')}
     >
       <input
-        type="radio"
-        name="invite-role"
+        type="checkbox"
         checked={picked}
-        disabled={disabled}
-        onChange={onChange}
+        onChange={(event) => onChange(event.target.checked)}
         className="mt-0.5 size-[18px] shrink-0 accent-[#2c4eb7]"
       />
       <span className="min-w-0 flex-1">
@@ -527,122 +416,5 @@ function RoleChoice({
         ) : null}
       </span>
     </label>
-  )
-}
-
-/**
- * Approval, view only, or a technical role, ticked on top of the one role. Approval and view only
- * read as what the person may do, not as roles (RL-2).
- */
-function ExtraChoice({
-  role,
-  picked,
-  onChange,
-}: {
-  role: RoleDto
-  picked: boolean
-  onChange: (picked: boolean) => void
-}) {
-  const { t } = useTranslation()
-  const kind = roleKind(role)
-  const label =
-    kind === 'PERMISSION_SET' && role.code === 'APPROVER'
-      ? t('branchAccess.invite.canApprove')
-      : kind === 'PERMISSION_SET' && role.code === 'VIEWER'
-        ? t('branchAccess.invite.viewOnly')
-        : role.name
-  const note =
-    kind === 'PERMISSION_SET' && role.code === 'APPROVER'
-      ? t('branchAccess.invite.canApproveNote')
-      : kind === 'PERMISSION_SET' && role.code === 'VIEWER'
-        ? t('branchAccess.invite.viewOnlyNote')
-        : role.description
-  return (
-    <label className="flex cursor-pointer gap-3 rounded-sm border border-border-subtle bg-white px-4 py-3 transition-colors hover:bg-primary-25">
-      <input
-        type="checkbox"
-        checked={picked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="mt-0.5 size-[18px] shrink-0 accent-[#2c4eb7]"
-      />
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-text-primary">{label}</span>
-        {note ? (
-          <span className="mt-1 block text-xs font-medium leading-[1.5] text-text-tertiary">{note}</span>
-        ) : null}
-      </span>
-    </label>
-  )
-}
-
-function Panel({
-  title,
-  note,
-  action,
-  children,
-}: {
-  title: string
-  note: string
-  action?: ReactNode
-  children: ReactNode
-}) {
-  return (
-    <section className="rounded-md bg-surface-card">
-      <div className="flex flex-wrap items-start justify-between gap-3 p-5">
-        <div>
-          <h3 className="text-lg font-semibold leading-[1.2] text-text-primary">{title}</h3>
-          <p className="mt-0.5 text-xs font-medium text-text-quaternary">{note}</p>
-        </div>
-        {action}
-      </div>
-      <div className="p-5 pt-0">{children}</div>
-    </section>
-  )
-}
-
-function Check({ done, label }: { done: boolean; label: string }) {
-  return (
-    <li className="flex items-start gap-2">
-      <img src={done ? tickIcon : circleIcon} alt="" className="mt-0.5 size-4 shrink-0" />
-      <span
-        className={[
-          'text-sm font-medium leading-[1.4]',
-          done ? 'text-text-secondary' : 'text-text-quaternary',
-        ].join(' ')}
-      >
-        {label}
-      </span>
-    </li>
-  )
-}
-
-function Row({
-  label,
-  value,
-  muted,
-  last,
-}: {
-  label: string
-  value: string
-  muted?: boolean
-  last?: boolean
-}) {
-  return (
-    <div
-      className={[
-        'flex items-center justify-between gap-3 py-2.5',
-        last ? '' : 'border-b border-surface-background',
-      ].join(' ')}
-    >
-      <dt className="text-sm font-medium text-text-tertiary">{label}</dt>
-      <dd
-        className={[
-          'shrink-0 text-sm',
-          muted ? 'font-medium text-text-quaternary' : 'font-semibold text-text-primary',
-        ].join(' ')}
-      >
-        {value}
-      </dd>
-    </div>
   )
 }

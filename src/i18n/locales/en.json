@@ -22312,7 +22312,9 @@
       "previewEveryBranch": "You will see every branch.",
       "checkBranches_one": "One branch chosen",
       "checkBranches_other": "{{count}} branches chosen",
-      "checkNoBranch": "Choose at least one branch"
+      "checkNoBranch": "Choose at least one branch",
+      "defaultRole": "The default role",
+      "defaultRoleNote": "No role of their own: the invitation gives the company's default role."
     },
     "person": {
       "title": "Team member",
@@ -22340,7 +22342,16 @@
       "permissionsSaved": "Permissions saved. They apply from their next action.",
       "fromRole": "From their role",
       "takenAway": "Taken away from them",
-      "given": "Given to them"
+      "given": "Given to them",
+      "pickRole": "Choose a role",
+      "severalRoles": "They hold more than one role from before: {{roles}}. A person now has one role, so changing it keeps only the one you choose.",
+      "roleBranches": "Branches for the new role",
+      "roleBranchesNote": "Administrators see every branch. In the new role they work only in the branches ticked here.",
+      "demoteSelf": {
+        "title": "Change your own role?",
+        "body": "You will be {{role}} and no longer an Administrator. You can't change it back yourself: another Administrator would have to.",
+        "confirm": "Change my role"
+      }
     },
     "handover": {
       "open": "Hand over ownership",
@@ -22366,7 +22377,8 @@
       "onlyHere": "Works only here",
       "saved": "Saved.",
       "save": "Save who works here"
-    }
+    },
+    "notAvailableYet": "Not available yet"
   },
   "paidExtras": {
     "title": "Extra users, branches and add-on",
