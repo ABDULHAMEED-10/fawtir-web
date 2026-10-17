@@ -9292,7 +9292,7 @@
     },
     "noCounterparty": "No counterparty",
     "rowActionsFor": "Actions for {{number}}",
-    "correctionHeld": "Correction held for an authorised decision."
+    "correctionHeld": "Correction held for an authorised decision at Fawtir."
   },
   "activityEvent": {
     "copyXml": "Copy the XML",
@@ -9511,7 +9511,8 @@
       "invoice": "This is about the invoice itself, so it is put right with a credit note and a new invoice, not by sending the report again.",
       "report": "This is about the report only, not the invoice: once it is put right, the report can be sent again. Nothing goes to the customer.",
       "unknown": "The refusal doesn't say whether it is about the invoice or the report. If it is about the invoice itself, it takes a credit note and a new invoice."
-    }
+    },
+    "correctionHeld": "This correction is held for an authorised decision at Fawtir and is not offered again."
   },
   "callLog": {
     "title": "The OTA call log",
@@ -9737,7 +9738,9 @@
     "quotaUnavailable": "Your document allowance is not available right now, so what this costs cannot be shown.",
     "refused": {
       "held": "This correction is on hold for an authorised decision at Fawtir. Nothing was sent to the Tax Authority, and resubmitting again will not send it.",
-      "partlyHeld": "Reports sent again: {{sent}}. Held for an authorised decision at Fawtir and not sent: {{held}}."
+      "partlyHeld": "Reports sent again: {{sent}}. Held for an authorised decision at Fawtir and not sent: {{held}}.",
+      "allHeld": "Nothing was sent. Reports held for an authorised decision at Fawtir: {{held}}.",
+      "partlySent": "Reports sent again: {{sent}}. Held for an authorised decision at Fawtir: {{held}}. The rest were not sent:"
     }
   },
   "complianceReport": {
