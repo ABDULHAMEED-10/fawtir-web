@@ -17,6 +17,7 @@ import {
 } from '../../lib/console/planCatalogue'
 import { hasPermission, peekEntitlements } from '../../lib/identity/entitlements'
 import { PlanEditor } from './plans/PlanEditor'
+import { PlanCountingPanel } from './plans/PlanCountingPanel'
 import { PlanHistoryPanel } from './plans/PlanHistoryPanel'
 import { displayPlanName } from './plans/planName'
 import tickIcon from '../../assets/settings/check-ink.svg'
@@ -50,6 +51,7 @@ function PlanCatalogue() {
   const [lastSaved, setLastSaved] = useState<string | null>(null)
   const [editing, setEditing] = useState<Editing>(null)
   const [history, setHistory] = useState<CatalogueAdminPlan | null>(null)
+  const [counting, setCounting] = useState<CatalogueAdminPlan | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   // Read here, inside the shell: it renders this only once the entitlements are loaded, whereas
   // the app-wide `useCan` answers "yes" to everything outside a session context.
@@ -94,6 +96,7 @@ function PlanCatalogue() {
             canManage={canManage}
             onOpen={() => edit(plan)}
             onHistory={() => setHistory(plan)}
+            onCounting={() => setCounting(plan)}
           />
         ))}
       </div>
@@ -149,6 +152,14 @@ function PlanCatalogue() {
       ) : null}
 
       {history ? <PlanHistoryPanel plan={history} onClose={() => setHistory(null)} /> : null}
+
+      {counting ? (
+        <PlanCountingPanel
+          plan={counting}
+          canManage={canManage}
+          onClose={() => setCounting(null)}
+        />
+      ) : null}
     </div>
   )
 }
@@ -159,11 +170,13 @@ function PlanCard({
   canManage,
   onOpen,
   onHistory,
+  onCounting,
 }: {
   plan: CatalogueAdminPlan
   canManage: boolean
   onOpen: () => void
   onHistory: () => void
+  onCounting: () => void
 }) {
   const { t, i18n } = useTranslation()
   const name = displayPlanName(plan, i18n.language)
@@ -232,6 +245,14 @@ function PlanCard({
           className={`${CONSOLE_SMALL} w-full`}
         >
           {t('console.plans.history.open')}
+        </button>
+        <button
+          type="button"
+          onClick={onCounting}
+          aria-label={t('console.plans.counting.openFor', { name })}
+          className={`${CONSOLE_SMALL} w-full`}
+        >
+          {t('console.plans.counting.open')}
         </button>
       </div>
     </article>

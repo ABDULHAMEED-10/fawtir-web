@@ -359,7 +359,10 @@ describe('Editing a plan', () => {
     expect(input('monthlyPrice')!.value).toBe('23.500')
     expect(input('extraBranchPrice')!.value).toBe('7.250')
     expect(input('annualFreeMonths')!.value).toBe('2')
-    expect(input('trialDays')!.value).toBe('14')
+    expect(input('trialDays')).toBeNull()
+    expect(
+      toggle(i18n.t('console.plans.field.trial', { days: 14 })).getAttribute('aria-checked'),
+    ).toBe('true')
     expect(input('trialDocuments')!.value).toBe('25')
     const peppol = toggle(i18n.t('plan.featureName.peppol')) as HTMLButtonElement
     expect(peppol.getAttribute('aria-checked')).toBe('true')
@@ -673,5 +676,163 @@ describe('History', () => {
     const retry = await within(panel).findByRole('button', { name: i18n.t('console.access.retry') })
     fireEvent.click(retry)
     expect(await within(panel).findByText('V176 seed', { exact: false })).toBeTruthy()
+  })
+})
+
+describe('Trial switch (TR-1: always 14 days)', () => {
+  const trialSwitch = () => toggle(i18n.t('console.plans.field.trial', { days: 14 }))
+
+  it('switches the trial off and sends no trial, with no reason asked', async () => {
+    await openCatalogue({
+      [`PUT ${planUrl('STARTER')}`]: () =>
+        json(200, { ...STARTER, trialDays: null, trialDocuments: null }),
+    })
+    await editPlan('Starter')
+    fireEvent.click(trialSwitch())
+    type('trialDocuments', '')
+    expect(input('reason')).toBeNull()
+    await save()
+    const body = bodyOf(planUrl('STARTER'), 'PUT')
+    expect(body.trialDays).toBeNull()
+    expect(body.trialDocuments).toBeNull()
+    expect(body).not.toHaveProperty('trialEnabled')
+  })
+
+  it('switches the trial on at 14 days, never another length', async () => {
+    const noTrial = { ...STARTER, trialDays: null, trialDocuments: null }
+    await openCatalogue(
+      { [`PUT ${planUrl('STARTER')}`]: () => json(200, { ...STARTER, trialDays: 14 }) },
+      () => json(200, [noTrial]),
+    )
+    await editPlan('Starter')
+    expect(trialSwitch().getAttribute('aria-checked')).toBe('false')
+    fireEvent.click(trialSwitch())
+    await save()
+    expect(bodyOf(planUrl('STARTER'), 'PUT').trialDays).toBe(14)
+  })
+
+  it('refuses a trial allowance with the trial off, before sending', async () => {
+    await openCatalogue()
+    await editPlan('Starter')
+    fireEvent.click(trialSwitch())
+    await save()
+    expect(callsTo(planUrl('STARTER'), 'PUT')).toHaveLength(0)
+    expect(
+      within(dialog()).getByText(i18n.t('console.plans.validation.trialDocumentsNeedTrial')),
+    ).toBeTruthy()
+  })
+})
+
+describe('Count received documents', () => {
+  const countingUrl = (code: string) => `${PLANS_URL}/${code}/received-document-counting`
+  const COUNTING = {
+    planCode: 'STARTER',
+    version: 1,
+    countsReceived: true,
+    history: [
+      {
+        id: 'c-1',
+        planCode: 'STARTER',
+        version: 1,
+        countsReceived: true,
+        reason: 'Launch default',
+        createdBy: 'u-other',
+        createdAt: '2026-10-15T08:00:00Z',
+      },
+    ],
+  }
+  const openCounting = async () => {
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: i18n.t('console.plans.counting.openFor', { name: 'Starter' }),
+      }),
+    )
+    await within(dialog()).findByText(i18n.t('console.plans.counting.onBody'))
+  }
+  const countingSwitch = () =>
+    within(dialog()).getByRole('switch', { name: i18n.t('console.plans.counting.switch') })
+  const saveCounting = async () => {
+    await act(async () => {
+      fireEvent.click(
+        within(dialog()).getByRole('button', { name: i18n.t('console.plans.counting.save') }),
+      )
+    })
+  }
+
+  it('shows the switch and its history, and saves with If-Match and a reason', async () => {
+    const after = {
+      ...COUNTING,
+      version: 2,
+      countsReceived: false,
+      history: [
+        { ...COUNTING.history[0], id: 'c-2', version: 2, countsReceived: false, reason: 'Owner' },
+        ...COUNTING.history,
+      ],
+    }
+    await openCatalogue({
+      [`GET ${countingUrl('STARTER')}`]: () => json(200, COUNTING),
+      [`PUT ${countingUrl('STARTER')}`]: () => json(200, after),
+    })
+    await openCounting()
+    expect(within(dialog()).getByText(i18n.t('console.plans.counting.applies'))).toBeTruthy()
+    expect(within(dialog()).getByText(/Launch default/)).toBeTruthy()
+
+    fireEvent.click(countingSwitch())
+    await saveCounting()
+    // No reason: nothing is sent.
+    expect(callsTo(countingUrl('STARTER'), 'PUT')).toHaveLength(0)
+    expect(
+      within(dialog()).getByText(i18n.t('console.plans.counting.reasonRequired')),
+    ).toBeTruthy()
+
+    type('reason', ' Owner ')
+    await saveCounting()
+    expect(callsTo(countingUrl('STARTER'), 'PUT')).toHaveLength(1)
+    const init = initOf(countingUrl('STARTER'), 'PUT')
+    expect(headerOf(init, 'If-Match')).toBe('"1"')
+    expect(bodyOf(countingUrl('STARTER'), 'PUT')).toEqual({ countsReceived: false, reason: 'Owner' })
+    expect(await within(dialog()).findByText(i18n.t('console.plans.counting.saved'))).toBeTruthy()
+    expect(within(dialog()).getByText(i18n.t('console.plans.counting.offBody'))).toBeTruthy()
+  })
+
+  it('sends nothing when the switch was not moved', async () => {
+    await openCatalogue({ [`GET ${countingUrl('STARTER')}`]: () => json(200, COUNTING) })
+    await openCounting()
+    type('reason', 'No change')
+    await saveCounting()
+    expect(callsTo(countingUrl('STARTER'), 'PUT')).toHaveLength(0)
+    expect(within(dialog()).getByText(i18n.t('console.plans.counting.unchanged'))).toBeTruthy()
+  })
+
+  it('reloads on a version conflict and says why', async () => {
+    const newer = { ...COUNTING, version: 2, countsReceived: false }
+    await openCatalogue({
+      [`GET ${countingUrl('STARTER')}`]: [() => json(200, COUNTING), () => json(200, newer)],
+      [`PUT ${countingUrl('STARTER')}`]: () => problem(409, 'received-counting-version-conflict'),
+    })
+    await openCounting()
+    fireEvent.click(countingSwitch())
+    type('reason', 'Owner')
+    await saveCounting()
+    expect(
+      await within(dialog()).findByText(i18n.t('console.plans.counting.refusal.conflict')),
+    ).toBeTruthy()
+    expect(await within(dialog()).findByText(i18n.t('console.plans.counting.offBody'))).toBeTruthy()
+    expect(callsTo(countingUrl('STARTER'), 'GET')).toHaveLength(2)
+    expect(document.body.textContent).not.toContain('Server prose')
+  })
+
+  it('is read-only for an operator who may only read plans', async () => {
+    await openCatalogue(
+      { [`GET ${countingUrl('STARTER')}`]: () => json(200, { ...COUNTING, history: [] }) },
+      undefined,
+      SUPPORT,
+    )
+    await openCounting()
+    expect(within(dialog()).queryByRole('switch')).toBeNull()
+    expect(
+      within(dialog()).queryByRole('button', { name: i18n.t('console.plans.counting.save') }),
+    ).toBeNull()
+    expect(within(dialog()).getByText(i18n.t('console.plans.counting.noHistory'))).toBeTruthy()
   })
 })
