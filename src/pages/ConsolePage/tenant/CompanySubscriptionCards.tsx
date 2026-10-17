@@ -529,8 +529,11 @@ function statusKey(status: string): string {
   return status === 'PENDING' || status === 'ACTIVE' || status === 'CANCELLED' ? status : 'OTHER'
 }
 
-/** Count received documents for an Enterprise company; other companies follow their plan (P2-5). */
-function CountingCard({ tenantId, canManage }: { tenantId: string; canManage: boolean }) {
+/**
+ * Count received documents for an Enterprise company; other companies follow their plan (P2-5).
+ * Also drawn under the company's Enterprise terms.
+ */
+export function CountingCard({ tenantId, canManage }: { tenantId: string; canManage: boolean }) {
   const { t, i18n } = useTranslation()
   const { read, retry } = useConsoleRead<CompanyCountingDto>(companyCountingPath(tenantId))
   const [changed, setChanged] = useState<CompanyCountingDto | null>(null)

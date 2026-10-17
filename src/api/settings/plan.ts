@@ -83,6 +83,12 @@ export type PlanOverviewDto = {
   activeBranches: number
   /** Absent from a server older than plan v4 §6; the screen then shows `usage` alone. */
   allowance?: AllowanceUsageDto | null
+  /**
+   * Null unless the company is Enterprise (F22, V348). While `termsSet` is false the plan, quota
+   * and allowance above are the platform's fallback plan, not the company's terms, and are not
+   * shown as its plan. Absent from a server before F22.
+   */
+  enterprise?: { termsSet: boolean } | null
 }
 
 export function loadPlanOverview(): Promise<PlanOverviewDto> {

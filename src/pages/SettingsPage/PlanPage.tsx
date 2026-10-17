@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { useApiRead } from '../../hooks'
+import { usePlanName } from '../../hooks/usePlanName'
 import { useCan } from '../../lib/session/session'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { Rial, RialText, RowsView, withRial } from '../../components/ui'
@@ -85,12 +86,62 @@ function PlanBody() {
   if (plan.read.status === 'loading') return <LoadingNotice />
   if (plan.read.status === 'failed')
     return <ApiReadFailure error={plan.read.error} retry={plan.retry} />
+  // TODO(backend): CONSOLE.md 3.3, null for a company moved to Enterprise after sign-up.
+  const enterprise = plan.read.data.enterprise ?? null
+  // TODO(decision): a company that chose Enterprise but was given a catalogue plan reads
+  // `termsSet: false` from the server today, so it is shown "terms being prepared" here, and the
+  // console lists it as "Terms not set". How such a company should be shown is Zain's call.
+  if (enterprise && !enterprise.termsSet) {
+    // The figures the server sends meanwhile are its fallback plan, not this company's (F22).
+    return (
+      <>
+        <EnterpriseNotice terms="preparing" />
+        <AddonsSection />
+      </>
+    )
+  }
   return (
     <>
       <PlanFigures data={plan.read.data} notStarted={notStarted} mayManage={mayManage} />
-      <PlanCards current={plan.read.data} mayManage={mayManage} />
+      {/* D4: Enterprise terms change only through Fawtir, so no plan list to move to. */}
+      {enterprise ? (
+        <EnterpriseNotice terms="agreed" />
+      ) : (
+        <PlanCards current={plan.read.data} mayManage={mayManage} />
+      )}
       <AddonsSection />
     </>
+  )
+}
+
+/**
+ * Enterprise (PL-1, SU-5): its terms are agreed with Fawtir, never chosen here. Before Fawtir has
+ * set them there is nothing to show as the company's plan; once set, changes go through Fawtir.
+ */
+function EnterpriseNotice({ terms }: { terms: 'preparing' | 'agreed' }) {
+  const { t } = useTranslation()
+  return (
+    <section
+      aria-labelledby="plan-enterprise"
+      className="flex flex-wrap items-start gap-5 rounded-md bg-surface-card p-5"
+    >
+      <div className="min-w-0 flex-1 md:min-w-[260px]">
+        <h3 id="plan-enterprise" className="text-lg font-semibold leading-[1.2] text-text-primary">
+          {t('plan.planName.enterprise')}
+        </h3>
+        <p className="mt-1 max-w-[640px] text-sm font-medium leading-[1.6] text-text-tertiary">
+          {t(terms === 'preparing' ? 'plan.enterprise.preparing' : 'plan.enterprise.agreed')}
+        </p>
+      </div>
+      {terms === 'agreed' ? (
+        <Link
+          to="/contact"
+          className="inline-flex h-[46px] shrink-0 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+        >
+          {t('plans.talkToTeam')}
+        </Link>
+      ) : null}
+    </section>
   )
 }
 
@@ -149,15 +200,7 @@ function PlanFigures({
   // The overview carries the plan's English name only: an Arabic reader gets the catalogue's
   // Arabic name by the plan's code, as Bills and payment does (F37/G11). The plan cards below read
   // the same catalogue, so this is not a second request.
-  const arabic = i18n.language.startsWith('ar')
-  const catalogue = useApiRead<SignupCataloguePlan[]>(arabic ? PUBLIC_PLANS_PATH : null, () =>
-    readPublicPlans(),
-  )
-  const planName =
-    (arabic &&
-      catalogue.read.status === 'ready' &&
-      catalogue.read.data.find((entry) => entry.code === plan.code)?.nameAr?.trim()) ||
-    plan.name
+  const planName = usePlanName()(plan.code, plan.name)
   // AL-9: the server's allowance counts issued and received documents against the plan's
   // documents and the extras together, so the headline figure, the bar and the forecast read it
   // when it is there. A server without it is shown its issued-only `usage`, as before.

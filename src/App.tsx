@@ -175,6 +175,8 @@ import {
   ConsoleBillingSettingsPage,
   ConsoleSellerPage,
   ConsoleDisconnectionsPage,
+  ConsoleEnterprisePage,
+  ConsoleEnterpriseTermsPage,
   ConsoleQueuePage,
   ConsoleIncidentsPage,
   ConsoleAuditPage,
@@ -813,6 +815,8 @@ function App() {
           <Route path="/console" element={<DemoModule module="console"><OperationsPage /></DemoModule>} />
           <Route path="/console/tenants" element={<TenantsPage />} />
           <Route path="/console/tenants/:id" element={<TenantDetailPage />} />
+          <Route path="/console/tenants/:id/enterprise-terms" element={<ConsoleEnterpriseTermsPage />} />
+          <Route path="/console/enterprise" element={<ConsoleEnterprisePage />} />
           {/* The sample-data subscription screens are retired: a company's subscription is on its
               tenant page, and payments have their own queue. Old links land there. */}
           <Route path="/console/subscriptions" element={<Navigate to="/console/tenants" replace />} />

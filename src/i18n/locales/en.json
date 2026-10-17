@@ -11002,6 +11002,10 @@
       "noBranchNote": "Received documents, and documents issued without a branch",
       "unnamed": "Unnamed branch",
       "company": "Company total"
+    },
+    "enterprise": {
+      "preparing": "Your Enterprise terms are being prepared. Fawtir will contact you.",
+      "agreed": "Your Enterprise terms are agreed with Fawtir. Contact us to change them."
     }
   },
   "bills": {
@@ -12567,7 +12571,8 @@
       "bankAccounts": "Bank account",
       "billingSettings": "Billing settings",
       "seller": "Seller",
-      "disconnections": "Disconnections"
+      "disconnections": "Disconnections",
+      "enterprise": "Enterprise"
     },
     "user": {
       "team": "Fawtir team",
@@ -15559,6 +15564,123 @@
         "askedAt": "When they asked",
         "reason": "Reason",
         "submit": "Start disconnection"
+      }
+    },
+    "enterprise": {
+      "title": "Enterprise companies",
+      "subtitle": "Companies that chose Enterprise or hold Enterprise terms, newest activity first.",
+      "loading": "Loading Enterprise companies…",
+      "tab": {
+        "TERMS_NOT_SET": "Waiting for terms",
+        "TERMS_SET": "Terms set",
+        "BILLING_STARTED": "Billing started",
+        "ALL": "All"
+      },
+      "empty": {
+        "TERMS_NOT_SET": "No Enterprise companies waiting for terms.",
+        "TERMS_SET": "No Enterprise companies with terms set and billing not started.",
+        "BILLING_STARTED": "No Enterprise companies with billing started.",
+        "ALL": "No Enterprise companies yet."
+      },
+      "col": {
+        "company": "Company",
+        "state": "State",
+        "since": "Since"
+      },
+      "open": "Open terms"
+    },
+    "enterpriseTerms": {
+      "title": "Enterprise terms",
+      "open": "Enterprise terms",
+      "company": "Company",
+      "loading": "Loading the Enterprise terms…",
+      "saved": "The Enterprise terms are saved.",
+      "reload": "Reload the terms",
+      "state": {
+        "TERMS_NOT_SET": "Terms not set",
+        "TERMS_SET": "Terms set",
+        "BILLING_STARTED": "Billing started"
+      },
+      "subtitle": {
+        "TERMS_NOT_SET": "No Enterprise terms yet. Saving creates this company's own Enterprise plan with the numbers below. A company on another plan moves to it as set out under the form.",
+        "TERMS_SET": "Terms are set. Billing has not started yet.",
+        "BILLING_STARTED": "Billing has started: the company's subscription follows these terms like any plan."
+      },
+      "versionNumber": "Version {{version}}",
+      "versionUnknown": "Current version",
+      "summary": {
+        "title": "Terms now",
+        "inForce": "In force",
+        "pending": "Waiting for the renewal",
+        "pendingValue": "{{version}}, {{cycle}}, from {{date}}",
+        "nextBill": "Next bill"
+      },
+      "quote": {
+        "includesVat": "including VAT",
+        "subtotal": "Subtotal",
+        "vat": "VAT",
+        "total": "Total"
+      },
+      "form": {
+        "title": "Negotiated terms",
+        "note": "Prices, limits and features agreed with this company. A change to a price or limit publishes a new version; what was agreed before stays on record.",
+        "readOnly": "Read only: setting Enterprise terms needs the billing manage permission.",
+        "nameEnHint": "Leave empty for \"Enterprise\".",
+        "nameArHint": "Leave empty for the default Arabic name.",
+        "price": "Price",
+        "annualPrice": "Annual price",
+        "annualPriceHint": "Filled in as the monthly price times {{months}}. Change it if a different annual price was agreed.",
+        "billingCycle": "Billed",
+        "billingCycleHint": "How often this company is billed.",
+        "cycle": {
+          "MONTHLY": "Monthly",
+          "ANNUAL": "Yearly"
+        },
+        "limits": "Documents, people and branches",
+        "overageHint": "The rate for extra documents. Leave empty if extra documents are not offered.",
+        "erpNote": "ERP integration included in the contract is switched on from the ERP access card on the company page.",
+        "features": "Features",
+        "contract": "Contract",
+        "contractReference": "Contract reference",
+        "contractHint": "Optional: the reference of the signed agreement.",
+        "applyNote": "Before anything is paid, saved terms apply at once and replace any open bill. Once a period is paid, they apply from the next renewal.",
+        "lastChange": "Last change: {{reason}}, {{when}}",
+        "quoting": "Preparing the quote…",
+        "save": "Save terms"
+      },
+      "confirm": {
+        "titleSet": "Set these Enterprise terms?",
+        "titleChange": "Save the new Enterprise terms?",
+        "subtitle": "One period on these terms, {{cycle}}, as Fawtir would bill it.",
+        "reason": "Reason",
+        "reasonHint": "Recorded with the terms and shown in their history.",
+        "confirm": "Save terms",
+        "saving": "Saving…"
+      },
+      "history": {
+        "title": "History",
+        "empty": "No Enterprise terms have been saved for this company.",
+        "kind": {
+          "SET": "Terms set",
+          "CHANGED": "Terms changed",
+          "OTHER": "Terms saved"
+        },
+        "fromAtOnce": "Applied at once on {{date}}",
+        "fromRenewal": "From the renewal on {{date}}",
+        "contract": "Contract {{reference}}"
+      },
+      "validation": {
+        "contractLength": "Use 100 characters or fewer"
+      },
+      "refusal": {
+        "conflict": "Someone else changed these terms since you opened them. Reload them and make your change again.",
+        "applyFrom": "When the terms apply changed while you were editing: a period has been paid, or the payment was undone. Reload the terms and save again.",
+        "paymentBeingChecked": "A payment from this company is being checked. Save the terms once the payment is confirmed or refused.",
+        "realm": "Enterprise terms can only be set from the production Fawtir console.",
+        "impersonation": "Enterprise terms cannot be set while acting as someone else.",
+        "forbidden": "You cannot set Enterprise terms. Sign in again with two-step verification, or ask a platform administrator.",
+        "gone": "This company could not be found. It may have been closed.",
+        "invalid": "Fawtir did not accept these terms. Check the figures and try again."
       }
     }
   },
@@ -21656,6 +21778,11 @@
       "notAllowed": "This choice could not be saved. Someone on it may have changed, or the plan change was withdrawn. Reload the page and choose again.",
       "noneWaiting": "No plan change is waiting for your renewal, so nothing will switch off.",
       "backToPlan": "Back to Plan and usage"
+    },
+    "enterpriseChange": "From {{date}}: your Enterprise terms change to OMR {{price}} {{cycle}}, as agreed with Fawtir.",
+    "enterpriseCycle": {
+      "MONTHLY": "a month",
+      "ANNUAL": "a year"
     }
   },
   "billing": {
