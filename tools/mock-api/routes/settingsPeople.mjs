@@ -77,6 +77,21 @@ const SUBSCRIPTION_STATES = {
     accessEndsOn: '2026-09-30',
     ...LAPSED,
   },
+  // Fawtir cancelled at once for abuse or fraud (CA-7, CA-9; backend V364/V365): CANCELLED from
+  // today, with Fawtir's message for the customer and the bell notice below.
+  cancelledByFawtir: {
+    access: 'CANCELLED',
+    restrictionsEnforced: true,
+    restriction: 'SUBSCRIPTION_CANCELLED',
+    cancelAtPeriodEnd: true,
+    autoRenew: false,
+    renewsOn: null,
+    accessEndsOn: '2026-10-10',
+    cancelledByFawtir: {
+      on: TODAY,
+      message: 'Your account was used to send invoices for a business that is not yours.',
+    },
+  },
   notStarted: {
     access: 'PAYMENT_REQUIRED',
     restrictionsEnforced: true,
@@ -339,14 +354,14 @@ export default [
     match: '/api/v1/settings/subscription/notices',
     reply: ({ query }) => {
       const unread = query?.get ? query.get('unread') === 'true' : query?.unread === 'true'
-      return SUBSCRIPTION_NOTICES.filter((notice) => !unread || !notice.read)
+      return subscriptionNotices().filter((notice) => !unread || !notice.read)
     },
   },
   {
     method: 'POST',
     match: /^\/api\/v1\/settings\/subscription\/notices\/([^/]+)\/acknowledge$/,
     reply: ({ params }) => {
-      const notice = SUBSCRIPTION_NOTICES.find((entry) => entry.id === params[0])
+      const notice = subscriptionNotices().find((entry) => entry.id === params[0])
       if (!notice) return { status: 404, body: { status: 404 } }
       notice.read = true
       return { status: 204 }
@@ -388,6 +403,29 @@ export default [
     reply: () => subscription(),
   },
 ]
+
+/** The cancellation's own notice (V365), only in the `cancelledByFawtir` state. */
+const CANCELLED_BY_FAWTIR_NOTICE = {
+  id: '7f3c1a52-3c1e-4b8e-9d0a-5c1f000000fc',
+  kind: 'CANCELLED_BY_FAWTIR',
+  coveredThrough: '2026-10-10',
+  graceDay: null,
+  graceUntil: null,
+  daysBefore: null,
+  planCode: null,
+  noticeOn: TODAY,
+  headline: 'Fawtir cancelled your subscription on 11 October 2026. Your account is read-only.',
+  actionLabel: 'View your plan',
+  actionPath: '/settings/plan',
+  createdAt: `${TODAY}T06:00:00Z`,
+  read: false,
+}
+
+function subscriptionNotices() {
+  return process.env.MOCK_SUBSCRIPTION_STATE === 'cancelledByFawtir'
+    ? [CANCELLED_BY_FAWTIR_NOTICE, ...SUBSCRIPTION_NOTICES]
+    : SUBSCRIPTION_NOTICES
+}
 
 function subscription() {
   return {

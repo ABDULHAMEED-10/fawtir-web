@@ -56,6 +56,21 @@ const GRACE: SubscriptionNoticeDto = {
   read: false,
 }
 
+/** CA-9, V365: the server sends the last covered day; the cancellation took effect the day after. */
+const CANCELLED: SubscriptionNoticeDto = {
+  id: 's-cancelled',
+  kind: 'CANCELLED_BY_FAWTIR',
+  coveredThrough: '2026-10-16',
+  graceDay: null,
+  graceUntil: null,
+  noticeOn: '2026-10-17',
+  headline: 'Fawtir cancelled your subscription on 17 October 2026. Your account is read-only.',
+  actionLabel: 'View your plan',
+  actionPath: '/settings/plan',
+  createdAt: hoursAgo(1),
+  read: false,
+}
+
 function json(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
     status,
@@ -187,6 +202,31 @@ describe('subscription reminders in the bell', () => {
     expect(screen.getByTestId('where').textContent).toBe('/settings/bills')
     await waitFor(() => expect(called('POST', `${NOTICES}/s-grace/acknowledge`)).toHaveLength(1))
     await waitFor(() => expect(bell().textContent).toBe('1'))
+  })
+
+  it('words the cancellation by Fawtir from the day it took effect and opens the plan', async () => {
+    notices = [CANCELLED]
+    renderBell()
+    await waitFor(() => expect(bell().textContent).toBe('1'))
+    const panel = await openPanel()
+    const line = (
+      await within(panel).findByText('Fawtir cancelled your subscription on 17 October 2026.')
+    ).closest('li')!
+    expect(line.textContent).toContain('Your account is read-only.')
+    fireEvent.click(within(line).getByRole('button', { name: 'View your plan' }))
+    expect(screen.getByTestId('where').textContent).toBe('/settings/plan')
+    await waitFor(() => expect(called('POST', `${NOTICES}/s-cancelled/acknowledge`)).toHaveLength(1))
+  })
+
+  it('words the cancellation by Fawtir in Arabic, with the Arabic brand only', async () => {
+    await i18n.changeLanguage('ar')
+    notices = [CANCELLED]
+    renderBell()
+    const panel = await openPanel('الإشعارات')
+    const line = (await within(panel).findByText(/^ألغت فوتر اشتراكك في 17 /)).closest('li')!
+    expect(line.textContent).toContain('حسابك الآن للقراءة فقط.')
+    expect(within(line).getByRole('button', { name: 'اعرض خطتك' })).toBeTruthy()
+    expect(line.textContent).not.toMatch(/Fawtir|فوتير|notes\./)
   })
 
   it('takes the trial reader to the plan page', async () => {

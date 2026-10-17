@@ -50,6 +50,13 @@ const PAYMENT_REQUIRED = {
   ...TRIAL_DAY_10, access: 'PAYMENT_REQUIRED', trialDay: null, trialDaysLeft: null, renewsOn: null,
 }
 
+/** CA-7, CA-9: Fawtir cancelled at once today; the trial dates are kept, as the server keeps them. */
+const CANCELLED_BY_FAWTIR = {
+  ...TRIAL_DAY_10, access: 'CANCELLED', trialDay: null, trialDaysLeft: null, renewsOn: null,
+  cancelAtPeriodEnd: true, accessEndsOn: '2026-10-17',
+  cancelledByFawtir: { on: '2026-10-18', message: 'Your account was used to send fraudulent invoices.' },
+}
+
 function json(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
     status,
@@ -198,6 +205,50 @@ describe('Settings › Plan: the subscription', () => {
 
     expect(await screen.findByText(i18n.t('subscription.notice.notTracked'))).toBeTruthy()
     expect(within(section()).queryByText(i18n.t('subscription.fact.renewsOn'))).toBeNull()
+  })
+
+  it("shows Fawtir's message when Fawtir cancelled, and offers no way to withdraw it", async () => {
+    answers[SUBSCRIPTION] = () => json(200, CANCELLED_BY_FAWTIR)
+    renderAt('/settings/plan')
+
+    const notice = await within(await screen.findByRole('region', { name: i18n.t('subscription.title') }))
+      .findByRole('status')
+    expect(notice.textContent).toBe(
+      'Cancelled by Fawtir on 18 Oct 2026: Your account was used to send fraudulent invoices. Your records stay' +
+        ' available to view and export. To continue, renew your subscription or contact support.',
+    )
+    expect(within(section()).queryByRole('button', { name: i18n.t('subscription.keep') })).toBeNull()
+    expect(within(section()).queryByRole('button', { name: i18n.t('subscription.cancel') })).toBeNull()
+  })
+
+  it("says Fawtir's cancellation cannot be withdrawn when the screen was opened before it", async () => {
+    answers[SUBSCRIPTION] = () =>
+      json(200, { ...TRIAL_DAY_10, cancelAtPeriodEnd: true, accessEndsOn: '2026-10-22', renewsOn: null })
+    answers[`DELETE ${SUBSCRIPTION}/cancellation`] = () =>
+      json(409, { type: 'https://api.fawtir.om/problems/subscription-cancelled-by-fawtir' })
+    const user = userEvent.setup({ delay: null })
+    renderAt('/settings/plan')
+
+    await user.click(await screen.findByRole('button', { name: i18n.t('subscription.keep') }))
+
+    expect(
+      await within(section()).findByText(
+        'Fawtir cancelled this subscription, so it cannot be withdrawn here. Renew it or contact support.',
+      ),
+    ).toBeTruthy()
+    expect(within(section()).queryByText(i18n.t('subscription.actionFailed'))).toBeNull()
+  })
+
+  it("shows Fawtir's message in Arabic, with the Arabic brand only", async () => {
+    await i18n.changeLanguage('ar')
+    answers[SUBSCRIPTION] = () => json(200, { ...CANCELLED_BY_FAWTIR, cancelledByFawtir: { on: '2026-10-18', message: 'استُخدم حسابك لإرسال فواتير احتيالية.' } })
+    renderAt('/settings/plan')
+
+    const notice = await within(await screen.findByRole('region', { name: i18n.t('subscription.title') }))
+      .findByRole('status')
+    expect(notice.textContent).toMatch(/^ألغته فوتر في 18 .+ 2026: استُخدم حسابك لإرسال فواتير احتيالية\. تبقى سجلاتك/)
+    expect(notice.textContent).toContain('للمتابعة، جدّد اشتراكك أو تواصل مع الدعم.')
+    expect(notice.textContent).not.toMatch(/Fawtir|فوتير|[٠-٩]/)
   })
 
   it('reads in Arabic with Latin digits', async () => {

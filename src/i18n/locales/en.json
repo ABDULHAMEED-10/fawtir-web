@@ -15855,7 +15855,12 @@
         "bodyNoDate": "Pay the bill to keep issuing documents and open the ones you receive."
       },
       "choosePlan": "Choose a plan",
-      "payBill": "Pay the bill"
+      "payBill": "Pay the bill",
+      "cancelledByFawtir": {
+        "title": "Fawtir cancelled your subscription on {{date}}.",
+        "body": "Your account is read-only."
+      },
+      "viewPlan": "View your plan"
     }
   },
   "onboarding": {
@@ -21624,7 +21629,8 @@
       "cancelled": "Your subscription ended on {{date}}. Your issued invoices and reports stay available to read and export.",
       "cancelScheduled": "Your subscription ends on {{date}} and will not renew.",
       "notStartedBilling": "Your subscription has not started yet. It starts when Fawtir has confirmed your payment. Your records stay available to read, download and export.",
-      "notStartedPlan": "Your subscription has not started yet. It starts when Fawtir has confirmed your payment; Settings › Bills and payment shows where it stands. Your records stay available to read, download and export."
+      "notStartedPlan": "Your subscription has not started yet. It starts when Fawtir has confirmed your payment; Settings › Bills and payment shows where it stands. Your records stay available to read, download and export.",
+      "cancelledByFawtir": "Cancelled by Fawtir on {{date}}: {{message}}. Your records stay available to view and export. To continue, renew your subscription or contact support."
     },
     "cycle": {
       "MONTHLY": "Monthly",
@@ -21712,7 +21718,8 @@
       "notAllowed": "This choice could not be saved. Someone on it may have changed, or the plan change was withdrawn. Reload the page and choose again.",
       "noneWaiting": "No plan change is waiting for your renewal, so nothing will switch off.",
       "backToPlan": "Back to Plan and usage"
-    }
+    },
+    "cancelledByFawtirRefusal": "Fawtir cancelled this subscription, so it cannot be withdrawn here. Renew it or contact support."
   },
   "billing": {
     "title": "Charges and payment",
