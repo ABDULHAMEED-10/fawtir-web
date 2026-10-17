@@ -9,6 +9,8 @@ import {
   ruleChangeOf,
   ruleChanged,
   ruleFormOf,
+  salesApprovalAvailable,
+  salesApprovalIsOn,
   salesApprovalMessageKey,
   tooFewApprovers,
 } from './salesApproval'
@@ -24,6 +26,7 @@ const RULE: SalesApprovalRuleDto = {
   updatedBy: null,
   updatedAt: null,
   approverCount: 3,
+  available: true,
 }
 
 const approval = (status: SalesApprovalDto['status']): SalesApprovalDto => ({
@@ -79,6 +82,25 @@ describe('sales approval rule form', () => {
     expect(tooFewApprovers(2, 2)).toBe(true)
     expect(tooFewApprovers(3, 2)).toBe(false)
     expect(tooFewApprovers(null, 2)).toBe(false)
+  })
+})
+
+describe('whether the deployment offers sales approval', () => {
+  it('needs the server to say available: true, and the rule on for the queue', () => {
+    expect(salesApprovalAvailable(RULE)).toBe(true)
+    expect(salesApprovalIsOn(RULE)).toBe(true)
+    expect(salesApprovalIsOn({ ...RULE, enabled: false })).toBe(false)
+    // Switched off, even with a rule left on from before.
+    expect(salesApprovalAvailable({ ...RULE, available: false })).toBe(false)
+    expect(salesApprovalIsOn({ ...RULE, available: false })).toBe(false)
+    expect(salesApprovalAvailable(null)).toBe(false)
+  })
+
+  it('reads a server that omits the field as off', () => {
+    const older: SalesApprovalRuleDto = { ...RULE }
+    delete older.available
+    expect(salesApprovalAvailable(older)).toBe(false)
+    expect(salesApprovalIsOn(older)).toBe(false)
   })
 })
 

@@ -18,6 +18,7 @@ import {
   coversProblem,
   isSalesApprovalUnavailable,
   ruleChangeOf,
+  salesApprovalAvailable,
   ruleChanged,
   ruleFormOf,
   tooFewApprovers,
@@ -45,8 +46,9 @@ const FIELD =
  *
  * Built like the bills cards above it, with its own save: the two rules are separate documents on
  * the server. Reading takes `invoice.read`, changing takes `admin.settings.manage`, so a reader
- * without the second sees it read-only. A 503 `SALES_APPROVAL_UNAVAILABLE`, a 403 or a 404 on the
- * read draws no card at all, and nothing is drawn while the read is in flight, so a card that is
+ * without the second sees it read-only. A rule read without `available: true` (the deployment's
+ * switch is off, or the server predates the field), a 503 `SALES_APPROVAL_UNAVAILABLE`, a 403 or a
+ * 404 draws no card at all, and nothing is drawn while the read is in flight, so a card that is
  * about to vanish never flashes a loading notice first.
  */
 export function SalesApprovalRuleCard({ canManage }: { canManage: boolean }) {
@@ -69,6 +71,8 @@ export function SalesApprovalRuleCard({ canManage }: { canManage: boolean }) {
     return <ApiReadFailure error={read.read.error} retry={read.retry} />
   }
   if (saved === null || form === null) return null
+  // Switched off on this deployment: no rule can be turned on here, so the page looks as before.
+  if (!salesApprovalAvailable(saved)) return null
 
   const set = (changes: Partial<SalesApprovalRuleForm>) => setForm({ ...form, ...changes })
   const approvers = approversProblem(form.requiredApprovals)

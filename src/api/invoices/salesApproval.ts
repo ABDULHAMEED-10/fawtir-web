@@ -12,7 +12,8 @@ import { apiRequest } from '../client'
  * Reading the rule takes `invoice.read`; changing it takes `admin.settings.manage`, as the bills
  * policy does. With the deployment's switch off the reads still answer 200 (the rule as never set
  * and off, each draft NOT_REQUIRED) while switching the rule on and every step on a draft answer
- * 503 `SALES_APPROVAL_UNAVAILABLE`; the screens then show nothing new.
+ * 503 `SALES_APPROVAL_UNAVAILABLE`. The rule read carries `available`, the deployment's switch;
+ * the screens offer nothing new unless it is true.
  */
 
 export const SALES_APPROVAL_RULE_PATH = '/v1/settings/sales-approval-rule'
@@ -37,6 +38,11 @@ export type SalesApprovalRuleDto = {
   updatedAt: string | null
   /** How many people can approve today; on the current rule only. */
   approverCount: number | null
+  /**
+   * Whether sales approval is switched on for this deployment. Not part of the rule. A server
+   * older than the field omits it, which reads as false.
+   */
+  available?: boolean
 }
 
 /** `SalesApprovalRuleRequest`: the rule replaced whole, against the version it was read at. */

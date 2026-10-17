@@ -126,8 +126,9 @@ const TABS: { id: TabId; labelKey: string; danger?: boolean }[] = [
   { id: 'overdue', labelKey: 'invoicesPage.tabs.overdue', danger: true },
   { id: 'paid', labelKey: 'invoicesPage.tabs.paid' },
   // The approvers' queue (RL-6): drafts waiting for a sales approval. Drawn only for holders of
-  // invoice.approve whose company rule is on (`offersQueue` below); bill approvers hold the same
-  // code, so the code alone would show the tab on a deployment with sales approval switched off.
+  // invoice.approve while the server offers sales approval and the company rule is on
+  // (`offersQueue` below); bill approvers hold the same code, so the code alone would show the
+  // tab on a deployment with sales approval switched off.
   { id: 'toApprove', labelKey: 'invoicesPage.tabs.toApprove' },
 ]
 const isTab = (value: string | null): value is TabId =>
@@ -193,10 +194,10 @@ function InvoicesScreen() {
   const [params, setParams] = useSearchParams()
 
   const asked: TabId = isTab(params.get('tab')) ? (params.get('tab') as TabId) : 'all'
-  // The approvers' queue is offered only while the server says sales approval is on: the company
-  // rule reads `enabled` true. A deployment with the switch off can never turn a rule on (the
-  // write answers 503 SALES_APPROVAL_UNAVAILABLE), so its rule reads off and no tab is drawn. A
-  // failed read (403, 404, 503) is read as off too. Only an approver asks.
+  // The approvers' queue is offered only while the server says sales approval is on: the rule read
+  // carries `available: true` (the deployment's switch) and `enabled` true (the company rule). A
+  // missing `available` (an older server), a rule left on after the switch was turned off, and a
+  // failed read (403, 404, 503) all draw no tab. Only an approver asks.
   const mayApprove = can(session, 'invoice.approve')
   const rule = useApiRead<SalesApprovalRuleDto>(
     mayApprove ? SALES_APPROVAL_RULE_PATH : null,

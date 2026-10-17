@@ -10,10 +10,10 @@
  *
  *   MOCK_SALES_APPROVAL=off node tools/mock-api/server.mjs
  *
- * plays the deployed server with its switch (`fawtir.invoice.sales-approval.enabled`) off: the rule
- * reads 200 as never set (version 0, off), every draft reads NOT_REQUIRED, the list carries no
- * approval state and the summary counts 0, and switching the rule on or taking any step answers
- * 503 SALES_APPROVAL_UNAVAILABLE.
+ * plays a server with its switch (`fawtir.invoice.sales-approval.enabled`) off: the rule reads 200
+ * as never set (version 0, off) with `available: false`, every draft reads NOT_REQUIRED, the list
+ * carries no approval state and the summary counts 0, and switching the rule on or taking any step
+ * answers 503 SALES_APPROVAL_UNAVAILABLE.
  */
 const SWITCHED_OFF = process.env.MOCK_SALES_APPROVAL === 'off'
 const UNAVAILABLE = {
@@ -34,6 +34,7 @@ let rule = SWITCHED_OFF
       updatedBy: null,
       updatedAt: null,
       approverCount: 3,
+      available: false,
     }
   : {
       version: 3,
@@ -45,6 +46,7 @@ let rule = SWITCHED_OFF
       updatedBy: 'u-nasser',
       updatedAt: '2026-10-15T09:00:00Z',
       approverCount: 3,
+      available: true,
     }
 
 const SARA = '5f0c2b1e-7a44-4c1d-9b55-0d0f6a1c2e31'
@@ -162,6 +164,7 @@ export default [
         ...body,
         version: rule.version + 1,
         updatedAt: new Date().toISOString(),
+        available: rule.available,
       }
       delete rule.expectedVersion
       return rule

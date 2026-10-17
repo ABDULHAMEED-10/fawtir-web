@@ -27,6 +27,7 @@ const RULE: SalesApprovalRuleDto = {
   updatedBy: null,
   updatedAt: null,
   approverCount: 1,
+  available: true,
 }
 
 function json(status: number, body?: unknown) {
@@ -78,6 +79,16 @@ function renderPage() {
 }
 
 const card = async () => screen.findByRole('region', { name: 'Sales invoices' })
+
+/** The rule has been asked for and its answer has had time to render. */
+async function ruleRead() {
+  await waitFor(() =>
+    expect(
+      vi.mocked(fetch).mock.calls.some(([url]) => String(url).startsWith('/api/v1/settings/sales-approval-rule')),
+    ).toBe(true),
+  )
+  await new Promise((resolve) => setTimeout(resolve, 20))
+}
 
 describe('the sales approval rule card', () => {
   it('switches the rule on with the whole rule, against the version read, and says what changes', async () => {
@@ -133,6 +144,25 @@ describe('the sales approval rule card', () => {
     renderPage()
     await screen.findAllByText(/approv/i)
     await waitFor(() => expect(screen.queryByRole('region', { name: 'Sales invoices' })).toBeNull())
+  })
+
+  it('is not drawn when the rule read says sales approval is not available here', async () => {
+    // The deployment's switch is off: the rule still reads 200, never set and off.
+    ruleResponse = () => json(200, { ...RULE, available: false })
+    renderPage()
+    await screen.findAllByText(/approv/i)
+    await ruleRead()
+    expect(screen.queryByRole('region', { name: 'Sales invoices' })).toBeNull()
+  })
+
+  it('is not drawn by a server that does not say whether sales approval is available', async () => {
+    const older: SalesApprovalRuleDto = { ...RULE }
+    delete older.available
+    ruleResponse = () => json(200, older)
+    renderPage()
+    await screen.findAllByText(/approv/i)
+    await ruleRead()
+    expect(screen.queryByRole('region', { name: 'Sales invoices' })).toBeNull()
   })
 
   it('is not drawn for a reader the server refuses (403)', async () => {

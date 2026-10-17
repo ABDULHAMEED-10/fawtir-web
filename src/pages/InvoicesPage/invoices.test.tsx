@@ -124,7 +124,7 @@ let discardResponse: () => Response
 let ruleResponse: () => Response
 let who: Entitlements
 
-/** The sales approval rule as the deployed server reads it with its switch off: never set, off. */
+/** The sales approval rule as a server reads it with its switch off: never set, off, not available. */
 const RULE_OFF = {
   version: 0,
   enabled: false,
@@ -135,8 +135,16 @@ const RULE_OFF = {
   updatedBy: null,
   updatedAt: null,
   approverCount: 0,
+  available: false,
 }
-const RULE_ON = { ...RULE_OFF, version: 2, enabled: true, requiredApprovals: 2, approverCount: 3 }
+const RULE_ON = {
+  ...RULE_OFF,
+  version: 2,
+  enabled: true,
+  requiredApprovals: 2,
+  approverCount: 3,
+  available: true,
+}
 
 const calls = (prefix: string) =>
   fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith(prefix))
@@ -627,6 +635,27 @@ describe('the approvers\' queue (RL-6)', () => {
     // The address naming the queue opens on All, and nothing asks for approval=PENDING.
     expect(listCalls()[0]).toBe(FIRST_PAGE)
     expect(listCalls().some((url) => url.includes('approval='))).toBe(false)
+  })
+
+  it('is not offered for a rule left on after the deployment switch was turned off', async () => {
+    who = APPROVER
+    ruleResponse = () => json(200, { ...RULE_ON, available: false })
+    salesSummaryResponse = () =>
+      json(200, { ...SUMMARY, awaiting: 6, overdue: 4, paid: 17, awaitingApproval: 2 })
+    renderInvoices('/invoices?tab=toApprove')
+    await screen.findByText('Sohar Port Logistics')
+    expect(screen.queryByRole('button', { name: /To approve/ })).toBeNull()
+    expect(listCalls().some((url) => url.includes('approval='))).toBe(false)
+  })
+
+  it('is not offered by a server that does not say whether sales approval is available', async () => {
+    who = APPROVER
+    const older: Partial<typeof RULE_ON> = { ...RULE_ON }
+    delete older.available
+    ruleResponse = () => json(200, older)
+    renderInvoices()
+    await screen.findByText('Sohar Port Logistics')
+    expect(screen.queryByRole('button', { name: /To approve/ })).toBeNull()
   })
 
   it('is not offered when the rule cannot be read (switched off, refused)', async () => {

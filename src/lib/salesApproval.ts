@@ -60,14 +60,22 @@ export function isSalesApprovalUnavailable(error: unknown): boolean {
 }
 
 /**
- * Whether the screens offer sales approval to its approvers (the "To approve" tab): the company
- * rule is on. The deployed server reads the rule with 200 whether or not its switch is on, and
- * carries no field for the switch; but with the switch off a rule can never be switched on, so an
- * `enabled` rule is the one signal that approval is live. `awaitingApproval` on the summary is no
- * signal: it is always present, 0 with the switch off.
+ * Whether this deployment offers sales approval at all: the rule read says `available: true`.
+ * The rule reads 200 whether or not the deployment's switch is on, so only this field tells them
+ * apart; a server older than the field omits it, and that counts as off. `awaitingApproval` on the
+ * summary is no signal: it is always present, 0 with the switch off.
+ */
+export function salesApprovalAvailable(rule: SalesApprovalRuleDto | null): boolean {
+  return rule !== null && rule.available === true
+}
+
+/**
+ * Whether the screens offer sales approval to its approvers (the "To approve" tab): the
+ * deployment offers it and the company rule is on. A rule left on when the switch was turned off
+ * (a rollback) holds nothing, so it draws no tab.
  */
 export function salesApprovalIsOn(rule: SalesApprovalRuleDto | null): boolean {
-  return rule !== null && rule.enabled
+  return rule !== null && salesApprovalAvailable(rule) && rule.enabled
 }
 
 /**
