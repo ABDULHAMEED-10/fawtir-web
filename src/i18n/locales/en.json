@@ -21517,5 +21517,55 @@
     },
     "askToPay": "An administrator of your company can pay.",
     "pay": "Pay"
+  },
+  "waitingDocuments": {
+    "breadcrumb": "Waiting supplier documents",
+    "title": "Supplier documents waiting",
+    "subtitle": "Documents your suppliers sent that you can't open yet",
+    "countTitle_one": "{{n}} supplier document is waiting",
+    "countTitle_other": "{{n}} supplier documents are waiting",
+    "reported": "They have arrived, the Tax Authority has been told you received them, and your suppliers have had their reply. You can see who sent each one and when, but you can't open it or record it as a bill until the reason below is put right. They open oldest first.",
+    "noneTitle": "Nothing is waiting",
+    "noneBody": "Every supplier document you have received is in your bills.",
+    "reason": {
+      "NO_DOCUMENTS_LEFT": "No documents left this month",
+      "SUBSCRIPTION_ENDED": "Subscription not paid",
+      "COMPANY_NOT_ACTIVE": "Company not active yet"
+    },
+    "explain": {
+      "NO_DOCUMENTS_LEFT": "Your documents for this month are used up. These open as soon as extra documents are added, or when your allowance resets.",
+      "SUBSCRIPTION_ENDED": "Your subscription has ended or is waiting for payment. These open as soon as it is paid.",
+      "COMPANY_NOT_ACTIVE": "Your company is not active on Fawtir yet. These open once Fawtir activates it."
+    },
+    "wayOut": {
+      "NO_DOCUMENTS_LEFT": "Go to Plan and usage",
+      "SUBSCRIPTION_ENDED": "Go to Bills and payment"
+    },
+    "askAdministrator": "Your administrator can do this.",
+    "notStated": "Not stated",
+    "col": {
+      "supplier": "Supplier",
+      "number": "Their number",
+      "type": "Type",
+      "issued": "Issued",
+      "received": "Received",
+      "reason": "Why it waits"
+    },
+    "type": {
+      "INVOICE": "Invoice",
+      "CREDIT_NOTE": "Credit note",
+      "DEBIT_NOTE": "Debit note"
+    },
+    "pager": {
+      "nav": "Pages of waiting documents",
+      "previous": "Previous page",
+      "next": "Next page"
+    },
+    "banner": {
+      "title_one": "{{n}} supplier document is waiting.",
+      "title_other": "{{n}} supplier documents are waiting.",
+      "body": "They have arrived and been reported to the Tax Authority, but can't be opened yet.",
+      "open": "See what's waiting"
+    }
   }
 }
