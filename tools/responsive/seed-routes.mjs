@@ -25,6 +25,10 @@ export const SEED_ROUTES = [
   '/payment',
   '/fawtara-status',
 
+  // The public pay page for a payment link (a mock-API token; see tools/mock-api/routes/publicPayLinks.mjs).
+  '/pay#payablexxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+  '/pay/done',
+
   // The app.
   '/dashboard',
   '/pos',
