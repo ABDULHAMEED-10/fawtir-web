@@ -134,4 +134,27 @@ describe('the sales approval rule card', () => {
     await screen.findAllByText(/approv/i)
     await waitFor(() => expect(screen.queryByRole('region', { name: 'Sales invoices' })).toBeNull())
   })
+
+  it('is not drawn for a reader the server refuses (403)', async () => {
+    ruleResponse = () => json(403, { status: 403, code: 'FORBIDDEN' })
+    renderPage()
+    await screen.findAllByText(/approv/i)
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Sales invoices' })).toBeNull())
+    expect(screen.queryByRole('button', { name: /try again/i })).toBeNull()
+  })
+
+  it('reports any other 503 as a failure, not as switched off', async () => {
+    ruleResponse = () => json(503, { status: 503, code: 'SOMETHING_DOWN' })
+    renderPage()
+    expect(await screen.findByRole('button', { name: /try again/i })).toBeTruthy()
+  })
+
+  it('selects the approvers figure on focus', async () => {
+    renderPage()
+    const region = await card()
+    const input = within(region).getByLabelText('People who must approve each document') as HTMLInputElement
+    const select = vi.spyOn(input, 'select')
+    fireEvent.focus(input)
+    expect(select).toHaveBeenCalled()
+  })
 })

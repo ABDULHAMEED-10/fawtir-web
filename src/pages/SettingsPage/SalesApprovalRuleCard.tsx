@@ -25,10 +25,16 @@ import {
 } from '../../lib/salesApproval'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount } from '../../lib/format'
-import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
+import { ApiReadFailure } from '../../components/feedback/ApiNotice'
+import { selectAllOnFocus } from '../../components/invoice'
 import { ApiError } from '../../api'
 
-const isNotFound = (error: unknown) => error instanceof ApiError && error.status === 404
+/**
+ * A read that says this reader gets no card: a server that predates the rule (404) or a reader
+ * the server does not let read it (403). The Approvals page then looks as it did before.
+ */
+const isNotForThisReader = (error: unknown) =>
+  error instanceof ApiError && (error.status === 404 || error.status === 403)
 
 const FIELD =
   'h-[46px] w-full rounded-sm border border-border-subtle bg-white px-3 text-sm font-medium text-text-secondary outline-none focus:border-primary-500'
@@ -39,8 +45,9 @@ const FIELD =
  *
  * Built like the bills cards above it, with its own save: the two rules are separate documents on
  * the server. Reading takes `invoice.read`, changing takes `admin.settings.manage`, so a reader
- * without the second sees it read-only. A deployment with sales approval switched off answers 503,
- * and the card is not drawn at all.
+ * without the second sees it read-only. A 503 `SALES_APPROVAL_UNAVAILABLE`, a 403 or a 404 on the
+ * read draws no card at all, and nothing is drawn while the read is in flight, so a card that is
+ * about to vanish never flashes a loading notice first.
  */
 export function SalesApprovalRuleCard({ canManage }: { canManage: boolean }) {
   const { t, i18n } = useTranslation()
@@ -57,11 +64,11 @@ export function SalesApprovalRuleCard({ canManage }: { canManage: boolean }) {
   }, [saved])
 
   if (read.read.status === 'failed') {
-    // Switched off (503), or a server that predates the rule (404): nothing new is drawn.
-    if (isSalesApprovalUnavailable(read.read.error) || isNotFound(read.read.error)) return null
+    // Switched off (503 SALES_APPROVAL_UNAVAILABLE), not readable (403) or not served (404).
+    if (isSalesApprovalUnavailable(read.read.error) || isNotForThisReader(read.read.error)) return null
     return <ApiReadFailure error={read.read.error} retry={read.retry} />
   }
-  if (saved === null || form === null) return <LoadingNotice />
+  if (saved === null || form === null) return null
 
   const set = (changes: Partial<SalesApprovalRuleForm>) => setForm({ ...form, ...changes })
   const approvers = approversProblem(form.requiredApprovals)
@@ -163,6 +170,7 @@ export function SalesApprovalRuleCard({ canManage }: { canManage: boolean }) {
               max={MAX_REQUIRED_APPROVALS}
               disabled={disabled}
               value={form.requiredApprovals}
+              onFocus={selectAllOnFocus}
               onChange={(event) => set({ requiredApprovals: event.target.value })}
               aria-label={t('salesApproval.rule.approvers')}
               aria-invalid={approvers !== null}
@@ -218,6 +226,7 @@ export function SalesApprovalRuleCard({ canManage }: { canManage: boolean }) {
                 inputMode="decimal"
                 disabled={disabled}
                 value={form.threshold}
+                onFocus={selectAllOnFocus}
                 onChange={(event) => set({ threshold: event.target.value })}
                 aria-label={t('salesApproval.rule.thresholdLabel')}
                 aria-invalid={threshold !== null}
