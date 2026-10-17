@@ -50,6 +50,7 @@ import {
 import { CompanySubscriptionCards } from './tenant/CompanySubscriptionCards'
 import { CompanyBillingCard } from './tenant/CompanyBillingCard'
 import { TenantErpEntitlementCard } from './erp/TenantErpEntitlementCard'
+import { EnterpriseTermsLink } from './enterprise/EnterpriseTermsLink'
 import invoiceIcon from '../../assets/actions/invoice.svg'
 import creditNoteIcon from '../../assets/actions/credit-note.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
@@ -432,7 +433,9 @@ function TenantDetail({
               size="md"
             />
           </div>
-        ) : null}
+        ) : (
+          <EnterpriseTermsLink tenantId={tenantId} />
+        )}
       </div>
 
       {done ? (

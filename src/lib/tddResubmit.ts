@@ -6,8 +6,9 @@ import type { RefusalCause, RefusalKind } from './activityLedger'
  * The resubmit refusals with a sentence of their own; anything else falls to the shared failure
  * text. TDD_CORRECTION_HELD is a 409, which the shared text reads as "someone changed this,
  * reload", and that is false: the correction was held for an authorised decision and nothing was
- * raised. The `resubmit` link does not account for a hold, so pressing it again is held again,
- * and the sentence says so.
+ * raised. On backends before #538 the `resubmit` link does not account for a hold, so pressing it
+ * again is held again, and the sentence says so. With #538 the link goes once a hold exists, and
+ * this still covers the race where a hold appears between reading the row and pressing.
  */
 const RESUBMIT_REFUSALS: Readonly<Record<string, string>> = {
   TDD_CORRECTION_HELD: 'tddResubmit.refused.held',
