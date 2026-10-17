@@ -1162,7 +1162,7 @@ describe('Send', () => {
     expect(screen.queryByRole('button', { name: 'Send' })).toBeNull()
   })
 
-  const AWAITING_MLS = "Delivered to the receiver's access point, awaiting the business response"
+  const AWAITING_MLS = "Received by the receiver's access point, awaiting its delivery status"
   /** The delivery bar's glyph: green tick for a delivery, grey clock for anything short of one. */
   const barTicked = (barText: string) =>
     screen
@@ -1249,12 +1249,12 @@ describe('Send', () => {
     expect(barTicked(AWAITING_MLS)).toBe(false)
   })
 
-  it('says the access point took it, not that the buyer accepted it, in Arabic', async () => {
+  it('says the access point received it, awaiting its delivery status, in Arabic', async () => {
     await i18n.changeLanguage('ar')
     dispatchResponse = () => json(200, { ...QUEUED, state: 'SENT' } satisfies InvoiceDispatchDto)
     renderInvoice()
     expect(
-      await screen.findAllByText('سُلّمت إلى نقطة الوصول لدى المستلم، بانتظار رده على الفاتورة'),
+      await screen.findAllByText('استلمتها نقطة الوصول لدى المستلم، بانتظار حالة التسليم'),
     ).toHaveLength(2)
   })
 
@@ -1304,6 +1304,63 @@ describe('Send', () => {
     await screen.findByText(/Buyer e-mail copy held/)
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
     expect(screen.queryByRole('menuitem', { name: 'Send held e-mail to buyer' })).toBeNull()
+  })
+
+  // Review L4: a quiet re-read that set out before the release answered must not repaint the
+  // state from before it.
+  it('drops a quiet read that set out before the release answered', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      who = SENDER
+      const held: InvoiceDispatchDto = {
+        ...QUEUED,
+        buyerDelivery: 'EMAIL_HELD',
+        buyerEmailReleasable: true,
+        // The Tax Authority leg still on its way is what keeps the page re-reading.
+        transport: {
+          buyer: null,
+          taxAuthority: {
+            messageId: 'm-2',
+            state: 'QUEUED_NOT_ATTEMPTED',
+            attempts: 0,
+            lastAttemptAt: null,
+            nextAttemptAt: null,
+          },
+        },
+      }
+      let reads = 0
+      let answerQuietRead: () => void = () => undefined
+      const base = fetchMock.getMockImplementation()!
+      fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+        if (url === `${URL_BASE}/dispatch`) {
+          reads += 1
+          if (reads === 1) return json(200, held)
+          return new Promise<Response>((resolve) => {
+            answerQuietRead = () => resolve(json(200, held))
+          })
+        }
+        if (url === `${URL_BASE}/buyer-email/release` && init?.method === 'POST') {
+          return json(200, { ...held, buyerDelivery: 'EMAIL_SENT', buyerEmailReleasable: false })
+        }
+        return base(url, init)
+      })
+      renderInvoice()
+      await screen.findByText(/Buyer e-mail copy held/)
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(reads).toBe(2)
+
+      fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+      fireEvent.click(await screen.findByRole('menuitem', { name: 'Send held e-mail to buyer' }))
+      expect(await screen.findByText('The held e-mail was released to the buyer.')).toBeTruthy()
+      expect(screen.getByText(/E-mailed to the buyer/)).toBeTruthy()
+
+      answerQuietRead()
+      await vi.advanceTimersByTimeAsync(50)
+      expect(screen.getByText(/E-mailed to the buyer/)).toBeTruthy()
+      expect(screen.queryByText(/Buyer e-mail copy held/)).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('is offered and answered in Arabic', async () => {

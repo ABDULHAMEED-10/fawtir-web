@@ -113,6 +113,29 @@ describe('invoice dispatch sentences', () => {
     expect(dispatchIsPending(null)).toBe(false)
   })
 
+  it('does not wait on an access point for a buyer not reached over Peppol', () => {
+    const route = (state: InvoiceDispatchStateDto, buyerDelivery: InvoiceDispatchDto['buyerDelivery']) =>
+      dispatchIsPending({ ...dispatch(state), buyerDelivery })
+    for (const state of ['QUEUED', 'SENDING', 'SENT'] as const) {
+      expect(route(state, 'PEPPOL'), state).toBe(true)
+      expect(route(state, null), state).toBe(true)
+      expect(route(state, 'EMAIL_SENT'), state).toBe(false)
+      expect(route(state, 'PRINTED_RECEIPT'), state).toBe(false)
+    }
+    // The hand-off is watched whatever the route, and so is a Tax Authority leg on its way.
+    expect(route('PROCESSING', 'EMAIL_SENT')).toBe(true)
+    expect(
+      dispatchIsPending({
+        ...dispatch('SENDING'),
+        buyerDelivery: 'EMAIL_SENT',
+        transport: {
+          buyer: null,
+          taxAuthority: { messageId: 'm-2', state: 'TRANSMITTING', attempts: 1, lastAttemptAt: null, nextAttemptAt: null },
+        },
+      }),
+    ).toBe(true)
+  })
+
   // SENT is the AS4 receipt only; an RE can still follow it, so it earns no tick.
   it('ticks the delivery bar only once the access point has answered', () => {
     expect(STATES.filter((state) => dispatchSucceeded(dispatch(state)))).toEqual([
@@ -121,11 +144,22 @@ describe('invoice dispatch sentences', () => {
     ])
   })
 
-  it('says SENT is the access point taking it, not the buyer accepting it', () => {
-    expect(en.invoiceDispatch.state.sent).toMatch(/access point/)
-    expect(en.invoiceDispatch.state.sent).toMatch(/awaiting the business response/)
-    expect(en.invoiceDispatch.state.sent).not.toMatch(/accepted/i)
-    expect(ar.invoiceDispatch.state.sent).toMatch(/نقطة الوصول/)
+  it('words AB with the one key the ledger and the record use', () => {
+    expect(dispatchNotes(dispatch('DELIVERED_UNCONFIRMED')).state?.key).toBe(
+      'activity.ack.deliveredUnconfirmed',
+    )
+  })
+
+  // SubmissionState.SENT: a positive transport MDN, awaiting the invoice-channel MLS. Not a
+  // delivery, and not the buyer's business response (an Invoice Response is another document).
+  it('says SENT is the access point receiving it, awaiting its delivery status', () => {
+    expect(en.invoiceDispatch.state.sent).toBe(
+      "Received by the receiver's access point, awaiting its delivery status",
+    )
+    expect(en.invoiceDispatch.state.sent).not.toMatch(/deliver(ed)? to|accepted|business response/i)
+    expect(ar.invoiceDispatch.state.sent).toBe(
+      'استلمتها نقطة الوصول لدى المستلم، بانتظار حالة التسليم',
+    )
   })
 
   it('answers a Send by its outcome', () => {

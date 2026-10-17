@@ -393,7 +393,7 @@ describe('one row, as the frame reads it', () => {
     const ab = item({ invoice_leg: { ack: 'AB', ack_at: '2026-09-20T08:01:00Z', reason: null } })
     expect(customerAckOf(ab)).toBe('deliveredUnconfirmed')
     expect(i18n.t('activity.ack.deliveredUnconfirmed', { lng: 'en' })).toBe(
-      'Delivered, not confirmed',
+      'Delivered, unconfirmed',
     )
     expect(i18n.t('activity.ack.deliveredUnconfirmed', { lng: 'ar' })).toBe('سُلّمت دون تأكيد')
   })
@@ -490,7 +490,7 @@ describe('the ledger screen', () => {
     items = [item({ invoice_leg: { ack: 'AB', ack_at: '2026-09-20T08:01:00Z', reason: null } })]
     const view = renderLedger()
     const table = await screen.findByRole('table')
-    expect(within(table).getByText('Delivered, not confirmed')).toBeTruthy()
+    expect(within(table).getByText('Delivered, unconfirmed')).toBeTruthy()
     expect(within(table).queryByText('Received it')).toBeNull()
     view.unmount()
 
@@ -547,6 +547,34 @@ describe('the ledger screen', () => {
       await screen.findByRole('table')
       await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
       expect(listReads()).toHaveLength(1)
+    })
+
+    // Review M1: the quiet rows were keyed by path, so after a visit to another tab they came
+    // back over the fresh read of the first one.
+    it('shows the fresh read, not old quiet rows, on coming back to a list', async () => {
+      const numbered = (invoice_number: string) => ({ ...silent(), invoice_number })
+      items = [numbered('INV-FIRST')]
+      renderLedger()
+      await screen.findByText('INV-FIRST')
+
+      items = [numbered('INV-QUIET')]
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(await screen.findByText('INV-QUIET')).toBeTruthy()
+
+      items = [numbered('INV-FRESH')]
+      fireEvent.click(screen.getByRole('tab', { name: /^Rejected/ }))
+      await screen.findByText('INV-FRESH')
+      fireEvent.click(screen.getByRole('tab', { name: /^All/ }))
+      await waitFor(() => expect(listReads()).toHaveLength(4))
+      // Asserted as the loud read lands, before the next quiet read could paper over the defect.
+      await vi.advanceTimersByTimeAsync(50)
+      expect(listReads()).toHaveLength(4)
+      expect(screen.getByText('INV-FRESH')).toBeTruthy()
+      expect(screen.queryByText('INV-QUIET')).toBeNull()
+
+      // The watch starts again for the list on screen.
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(listReads()).toHaveLength(5)
     })
   })
 

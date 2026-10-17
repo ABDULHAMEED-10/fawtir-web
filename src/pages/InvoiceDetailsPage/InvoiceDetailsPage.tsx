@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -259,13 +259,22 @@ function InvoiceScreen() {
   const [dispatchLatest, setDispatchLatest] = useState<InvoiceDispatchDto | null>(null)
   const dispatch =
     dispatchLatest ?? (dispatchRead.read.status === 'ready' ? dispatchRead.read.data : null)
+  // Bumped by every action that changes the dispatch (Send, release, cancel). A quiet re-read that
+  // set out before the action may answer after it, with the state from before it; it is dropped
+  // rather than painted over the action's newer answer.
+  const dispatchEpoch = useRef(0)
+  const adoptDispatch = (next: InvoiceDispatchDto | null) => {
+    dispatchEpoch.current += 1
+    setDispatchLatest(next)
+  }
   // Without this the AS4 receipt and the MLS outcome reached the page only on a reload: the earlier
   // poll watched PROCESSING and an active transmission only.
-  usePendingRefresh(id, dispatchIsPending(dispatch), (live) =>
-    loadDispatch(id).then((next) => {
-      if (live()) setDispatchLatest(next)
-    }),
-  )
+  usePendingRefresh(id, dispatchIsPending(dispatch), (live) => {
+    const epoch = dispatchEpoch.current
+    return loadDispatch(id).then((next) => {
+      if (live() && epoch === dispatchEpoch.current) setDispatchLatest(next)
+    })
+  })
   const [sending, setSending] = useState(false)
   // The credit and debit notes that correct this invoice (I-10/I-11), listed on the invoice so a
   // reader sees why its balance moved and can open each note.
@@ -441,7 +450,7 @@ function InvoiceScreen() {
       invoice.retry()
       history.retry()
       // Cancelling closes what was owed to the network, so the line under the title changes too.
-      setDispatchLatest(null)
+      adoptDispatch(null)
       dispatchRead.retry()
     } catch (error) {
       setNotice({ body: refusalText(t, error) })
@@ -453,7 +462,7 @@ function InvoiceScreen() {
   const releaseHeldEmail = async () => {
     setNotice(null)
     try {
-      setDispatchLatest(await releaseBuyerEmail(id))
+      adoptDispatch(await releaseBuyerEmail(id))
       setNotice({ key: 'invoiceDispatch.release.done' })
       history.retry()
     } catch (error) {
@@ -465,7 +474,7 @@ function InvoiceScreen() {
 
   const sent = (result: InvoiceSendResultDto) => {
     setSending(false)
-    setDispatchLatest(result.dispatch)
+    adoptDispatch(result.dispatch)
     setNotice(sendResultNote(result))
     history.retry()
   }
