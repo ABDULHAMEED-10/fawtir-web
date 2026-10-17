@@ -9,8 +9,29 @@ import { TeamPage } from './TeamPage'
 import { InvitePage } from './InvitePage'
 import { PersonPage } from './PersonPage'
 import { BranchRoster } from './BranchRoster'
+import { AddBranchPage } from './AddBranchPage'
+import { branchAccessOn } from '../../lib/identity/branchAccessSwitch'
 
 /** Branch access screens (Business Rules BA-1, BA-2, OW-1, OW-4, RL-1, RL-2, RL-3, LG-3). */
+
+/**
+ * The switch. The server tells only a branch administrator that branch access is on
+ * (`allBranches` false, `branchAdministrator` true); an Administrator's session reads the same
+ * either way (SETTINGS.md row 7.6). `forcedOn` stands in for that missing signal in the "on"
+ * fixture, so the Administrator's screens are tested as they will be once it exists; the "off"
+ * fixture and the branch administrator's tests read the real session.
+ */
+const switchState = vi.hoisted(() => ({ forcedOn: true }))
+vi.mock('../../lib/identity/branchAccessSwitch', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../lib/identity/branchAccessSwitch')>()
+  return {
+    ...real,
+    useBranchAccessOn: () => {
+      const fromSession = real.useBranchAccessOn()
+      return switchState.forcedOn || fromSession
+    },
+  }
+})
 
 const OWNER: Entitlements = {
   userId: 'p-owner',
@@ -192,6 +213,7 @@ beforeEach(async () => {
   forgetEntitlements()
   forgetSubscriptionStanding()
   who = OWNER
+  switchState.forcedOn = true
   answers = {
     [PEOPLE_URL]: () =>
       json(200, {
@@ -252,10 +274,103 @@ function renderAt(path: string) {
         <Route path="/settings/team/invite" element={<InvitePage />} />
         <Route path="/settings/team/:userId" element={<PersonPage />} />
         <Route path="/roster" element={<BranchRoster branchId="b-sohar" />} />
+        <Route path="/settings/branches/:id" element={<AddBranchPage />} />
       </Routes>
     </MemoryRouter>,
   )
 }
+
+describe('The switch', () => {
+  it('reads on only from what the deployed server says: a branch administrator, or not every branch', () => {
+    expect(branchAccessOn(null)).toBe(false)
+    // While FAWTIR_IDENTITY_BRANCH_ACCESS_ENFORCED is off everyone sees every branch.
+    expect(branchAccessOn(OWNER)).toBe(false)
+    expect(branchAccessOn({ ...OWNER, isOwner: false, allBranches: undefined })).toBe(false)
+    expect(branchAccessOn(BRANCH_ADMIN)).toBe(true)
+    expect(
+      branchAccessOn({
+        ...BRANCH_ADMIN,
+        branchAdministrator: false,
+        permissions: ['invoice.read'],
+      }),
+    ).toBe(true)
+  })
+})
+
+describe('Branch access off (production today)', () => {
+  beforeEach(() => {
+    switchState.forcedOn = false
+  })
+
+  it('draws Team members as before: no Branches column, no Owner mark, no link', async () => {
+    renderAt('/settings/team')
+    expect(await screen.findByText('Mona')).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Mona' })).toBeNull()
+    expect(screen.queryByRole('columnheader', { name: 'Branches' })).toBeNull()
+    expect(screen.queryByText('Owner')).toBeNull()
+    expect(screen.queryByText('Every branch')).toBeNull()
+    expect(screen.queryByText('No branch yet')).toBeNull()
+    expect(fetchMock.mock.calls.some(([url]) => url === INVITED)).toBe(true)
+  })
+
+  it('keeps the invitation as before and sends no branchIds, so the server gives every branch (BA-6)', async () => {
+    answers['POST /api/v1/users/invitations'] = () =>
+      json(201, {
+        id: 'i-9',
+        email: 'x@real.example',
+        roleCodes: ['ACCOUNTANT', 'APPROVER'],
+        status: 'PENDING',
+        expiresAt: '2026-10-25T00:00:00Z',
+        sentCount: 1,
+        lastSentAt: null,
+        createdAt: '2026-10-17T00:00:00Z',
+      })
+    renderAt('/settings/team/invite')
+    fireEvent.change(await screen.findByRole('textbox', { name: /Email/ }), {
+      target: { value: 'x@real.example' },
+    })
+    // The roles are ticks, as before; no branch is asked for.
+    fireEvent.click(await screen.findByRole('checkbox', { name: /Accountant/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Approver/ }))
+    expect(screen.queryByRole('radio')).toBeNull()
+    expect(screen.getByText(i18n.t('invite.branchesUnavailable'))).toBeTruthy()
+    expect(screen.queryByRole('checkbox', { name: 'Sohar' })).toBeNull()
+    expect(screen.getByText(i18n.t('people.invite.noRoleMeansDefault'))).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('people.invite.send') }))
+    expect(await screen.findByText('Invitation sent to x@real.example.')).toBeTruthy()
+    expect(sent('POST', '/api/v1/users/invitations')).toEqual([
+      { email: 'x@real.example', roleCodes: ['ACCOUNTANT', 'APPROVER'] },
+    ])
+  })
+
+  it("sends a person's page back to Team members", async () => {
+    renderAt('/settings/team/p-clerk')
+    expect(await screen.findByText('Mona')).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Laila' })).toBeNull()
+    expect(fetchMock.mock.calls.some(([url]) => url === '/api/v1/users/p-clerk')).toBe(false)
+  })
+
+  it('keeps "Who works there" on a branch as not available yet', async () => {
+    answers['/api/v1/branches/b-sohar'] = () =>
+      json(200, {
+        id: 'b-sohar',
+        code: 'SOH',
+        name: 'Sohar',
+        type: 'BRANCH',
+        headOffice: false,
+        active: true,
+      })
+    renderAt('/settings/branches/b-sohar')
+    expect(await screen.findByText(i18n.t('addBranch.whoWorksThere'))).toBeTruthy()
+    const panel = screen
+      .getByText(i18n.t('addBranch.whoWorksThere'))
+      .closest('section') as HTMLElement
+    expect(within(panel).getByText(i18n.t('addBranch.notAvailableYet'))).toBeTruthy()
+    expect(fetchMock.mock.calls.some(([url]) => url === '/api/v1/branches/b-sohar/people')).toBe(
+      false,
+    )
+  })
+})
 
 describe('Team members', () => {
   it('marks the Owner, says "Every branch" for the Owner and Administrators, and names other people\'s branches', async () => {
@@ -272,6 +387,7 @@ describe('Team members', () => {
   })
 
   it('lets a branch administrator see their people, without asking for the invitation list', async () => {
+    switchState.forcedOn = false
     who = BRANCH_ADMIN
     answers[PEOPLE_URL] = () =>
       json(200, { content: [LAILA], totalElements: 1, totalPages: 1, number: 0, size: 100 })
@@ -346,6 +462,7 @@ describe('Invite someone', () => {
   })
 
   it('view only clears the role; a branch administrator is offered only their branches and never Administrator', async () => {
+    switchState.forcedOn = false
     who = BRANCH_ADMIN
     renderAt('/settings/team/invite')
     expect(await screen.findByRole('radio', { name: /Accountant/ })).toBeTruthy()
@@ -357,6 +474,38 @@ describe('Invite someone', () => {
     expect((screen.getByRole('radio', { name: /Accountant/ }) as HTMLInputElement).checked).toBe(
       false,
     )
+  })
+
+  it('ticks the only branch for them, and the role can go back to the default', async () => {
+    answers[OVERVIEW] = () =>
+      json(200, { ...OVERVIEW_BODY, branches: [branchRow('b-sohar', 'Sohar')] })
+    answers['POST /api/v1/users/invitations'] = () =>
+      json(201, {
+        id: 'i-3',
+        email: 'd@real.example',
+        roleCodes: [],
+        status: 'PENDING',
+        expiresAt: '2026-10-25T00:00:00Z',
+        sentCount: 1,
+        lastSentAt: null,
+        createdAt: '2026-10-17T00:00:00Z',
+      })
+    renderAt('/settings/team/invite')
+    fireEvent.change(await screen.findByRole('textbox', { name: /Email/ }), {
+      target: { value: 'd@real.example' },
+    })
+    const sohar = (await screen.findByRole('checkbox', { name: 'Sohar' })) as HTMLInputElement
+    expect(sohar.checked && sohar.disabled).toBe(true)
+    fireEvent.click(await screen.findByRole('radio', { name: /Accountant/ }))
+    const fallback = screen.getByRole('radio', { name: /The default role/ }) as HTMLInputElement
+    expect(fallback.checked).toBe(false)
+    fireEvent.click(fallback)
+    expect(fallback.checked).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('people.invite.send') }))
+    await screen.findByText('Invitation sent to d@real.example.')
+    expect(sent('POST', '/api/v1/users/invitations')).toEqual([
+      { email: 'd@real.example', roleCodes: [], branchIds: ['b-sohar'] },
+    ])
   })
 
   it('says a refused escalation in our words, never the server detail', async () => {
@@ -452,6 +601,117 @@ describe('One person', () => {
     expect(sent('PUT', '/api/v1/users/p-clerk/role')).toEqual([{ roleCode: 'SALES_MANAGER' }])
   })
 
+  it("reads a legacy person by their job role, approval as a permission, and never re-sends a role's codes as grants", async () => {
+    const legacy = user('p-old', 'Badr', ['ACCOUNTANT', 'APPROVER'], ['b-sohar'])
+    answers['/api/v1/users/p-old'] = () => json(200, legacy)
+    answers['/api/v1/users/p-old/permissions'] = () =>
+      json(200, {
+        userId: 'p-old',
+        role: 'ACCOUNTANT',
+        roleCodes: ['ACCOUNTANT', 'APPROVER'],
+        grants: [],
+        denials: [],
+        effective: ['bill.read', 'invoice.approve', 'invoice.read'],
+      })
+    answers['PUT /api/v1/users/p-old/permissions'] = () =>
+      json(200, {
+        userId: 'p-old',
+        role: 'ACCOUNTANT',
+        roleCodes: ['ACCOUNTANT', 'APPROVER'],
+        grants: [],
+        denials: ['bill.read'],
+        effective: ['invoice.approve', 'invoice.read'],
+      })
+    renderAt('/settings/team/p-old')
+    expect(await screen.findByText('Accountant, Can approve')).toBeTruthy()
+    // The Select shows the job role, not Approver, which is not one of its options.
+    expect(screen.getByRole('button', { name: 'Role' }).textContent).toMatch(/Accountant/)
+    await screen.findAllByText('From their role')
+    expect(screen.queryByText('Given to them')).toBeNull()
+    const bills = screen
+      .getAllByRole('checkbox')
+      .find(
+        (box) =>
+          box.closest('label')?.textContent?.includes('From their role') &&
+          (box as HTMLInputElement).checked &&
+          !box.closest('label')?.textContent?.match(/approve/i),
+      ) as HTMLInputElement
+    fireEvent.click(bills)
+    fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }))
+    await screen.findByText('Permissions saved. They apply from their next action.')
+    const [body] = sent('PUT', '/api/v1/users/p-old/permissions') as {
+      grants: { code: string }[]
+      denials: string[]
+    }[]
+    expect(body.grants).toEqual([])
+    expect(body.denials).toHaveLength(1)
+  })
+
+  it('warns before collapsing several legacy job roles into one', async () => {
+    const two = user('p-two', 'Huda', ['ACCOUNTANT', 'SALES_MANAGER'], ['b-sohar'])
+    answers['/api/v1/users/p-two'] = () => json(200, two)
+    answers['/api/v1/users/p-two/permissions'] = () =>
+      json(200, {
+        userId: 'p-two',
+        role: 'ACCOUNTANT',
+        roleCodes: ['ACCOUNTANT', 'SALES_MANAGER'],
+        grants: [],
+        denials: [],
+        effective: ['bill.read', 'invoice.read'],
+      })
+    renderAt('/settings/team/p-two')
+    expect(
+      await screen.findByText(
+        /They hold more than one role from before: Accountant, Sales manager/,
+      ),
+    ).toBeTruthy()
+  })
+
+  it('asks for branches when an Administrator moves to a job role, and sends them with the role', async () => {
+    answers['PUT /api/v1/users/p-admin/role'] = () => json(200, ['ACCOUNTANT'])
+    renderAt('/settings/team/p-admin')
+    await screen.findByRole('heading', { name: 'Sami' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Role' }))
+    fireEvent.click(await screen.findByRole('option', { name: /Accountant/ }))
+    expect(await screen.findByText('Branches for the new role')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Change role' }))
+    expect(await screen.findByText('Choose at least one branch.')).toBeTruthy()
+    expect(sent('PUT', '/api/v1/users/p-admin/role')).toEqual([])
+    const roleCard = screen
+      .getByText('Branches for the new role')
+      .closest('fieldset') as HTMLElement
+    fireEvent.click(within(roleCard).getByRole('checkbox', { name: 'Sur' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Change role' }))
+    await screen.findByText('Role changed.')
+    expect(sent('PUT', '/api/v1/users/p-admin/role')).toEqual([
+      { roleCode: 'ACCOUNTANT', branchIds: ['b-sur'] },
+    ])
+  })
+
+  it('asks an Administrator to confirm before taking it away from themselves', async () => {
+    who = { ...OWNER, userId: 'p-admin', isOwner: false }
+    answers['PUT /api/v1/users/p-admin/role'] = () => json(200, ['ACCOUNTANT'])
+    renderAt('/settings/team/p-admin')
+    await screen.findByRole('heading', { name: 'Sami' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Role' }))
+    fireEvent.click(await screen.findByRole('option', { name: /Accountant/ }))
+    const roleCard = (await screen.findByText('Branches for the new role')).closest(
+      'fieldset',
+    ) as HTMLElement
+    fireEvent.click(within(roleCard).getByRole('checkbox', { name: 'Muscat' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Change role' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(
+      within(dialog).getByText(/You will be Accountant and no longer an Administrator/),
+    ).toBeTruthy()
+    expect(sent('PUT', '/api/v1/users/p-admin/role')).toEqual([])
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Change my role' }))
+    await screen.findByText('Role changed.')
+    expect(sent('PUT', '/api/v1/users/p-admin/role')).toEqual([
+      { roleCode: 'ACCOUNTANT', branchIds: ['b-muscat'] },
+    ])
+  })
+
   it('shows the Owner read-only, and only the Owner can hand ownership to another Administrator', async () => {
     answers['POST /api/v1/settings/owner/handover'] = () =>
       json(200, { userId: 'p-admin', name: 'Sami' })
@@ -462,11 +722,21 @@ describe('One person', () => {
     const dialog = await screen.findByRole('dialog')
     fireEvent.click(await within(dialog).findByRole('button', { name: 'New Owner' }))
     fireEvent.click(await screen.findByRole('option', { name: /Sami/ }))
-    fireEvent.change(within(dialog).getByLabelText(/Type Real Trading LLC to confirm/), {
-      target: { value: 'Real Trading LLC' },
-    })
     fireEvent.change(within(dialog).getByLabelText('Your password'), {
       target: { value: 'secret-1' },
+    })
+    const handOver = within(dialog).getByRole('button', { name: 'Hand over' }) as HTMLButtonElement
+    fireEvent.change(within(dialog).getByLabelText(/Type Real Trading LLC to confirm/), {
+      target: { value: 'Real Trading' },
+    })
+    // Not the company's name: the server would refuse it, so it is not offered.
+    expect(handOver.disabled).toBe(true)
+    fireEvent.change(within(dialog).getByLabelText(/Type Real Trading LLC to confirm/), {
+      target: { value: '  real  trading llc ' },
+    })
+    expect(handOver.disabled).toBe(false)
+    fireEvent.change(within(dialog).getByLabelText(/Type Real Trading LLC to confirm/), {
+      target: { value: 'Real Trading LLC' },
     })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Hand over' }))
     await waitFor(() => expect(sent('POST', '/api/v1/settings/owner/handover')).toHaveLength(1))
