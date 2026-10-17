@@ -47,7 +47,8 @@ function dayOf(day: string | null | undefined): Date | null {
 export function subscriptionNote(item: SubscriptionNoticeDto, now: Date): Note {
   const target = internalPath(item.actionPath)
   const cancelled = item.kind === 'CANCELLED_BY_FAWTIR'
-  const grace = item.kind === 'GRACE' || (item.kind !== 'TRIAL_ENDING' && !cancelled && target === BILLS_PATH)
+  const grace =
+    item.kind === 'GRACE' || (item.kind !== 'TRIAL_ENDING' && !cancelled && target === BILLS_PATH)
   const action: NoteAction = {
     id: 'open',
     labelKey: grace

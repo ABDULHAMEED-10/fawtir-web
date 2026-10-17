@@ -215,7 +215,9 @@ describe('subscription reminders in the bell', () => {
     expect(line.textContent).toContain('Your account is read-only.')
     fireEvent.click(within(line).getByRole('button', { name: 'View your plan' }))
     expect(screen.getByTestId('where').textContent).toBe('/settings/plan')
-    await waitFor(() => expect(called('POST', `${NOTICES}/s-cancelled/acknowledge`)).toHaveLength(1))
+    await waitFor(() =>
+      expect(called('POST', `${NOTICES}/s-cancelled/acknowledge`)).toHaveLength(1),
+    )
   })
 
   it('words the cancellation by Fawtir in Arabic, with the Arabic brand only', async () => {

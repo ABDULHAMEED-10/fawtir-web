@@ -150,7 +150,9 @@ export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }
 
       {canManage && status.tracked ? (
         <div className="flex flex-wrap gap-3">
-          {status.cancelAtPeriodEnd && !status.cancelledByFawtir && (status.access === 'TRIAL' || status.access === 'ACTIVE') ? (
+          {status.cancelAtPeriodEnd &&
+          !status.cancelledByFawtir &&
+          (status.access === 'TRIAL' || status.access === 'ACTIVE') ? (
             <Button
               variant="secondary"
               size="md"
