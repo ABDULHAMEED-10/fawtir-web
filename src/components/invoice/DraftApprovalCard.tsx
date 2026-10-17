@@ -90,20 +90,26 @@ export function DraftApprovalCard({
   const status = approval.status
   const mayPrepare = can(session, preparePermission(type))
   const mayWithdraw = mayPrepare && (status === 'PENDING' || status === 'APPROVED')
+  // The draft's own currency: `withRial` turns "OMR" into the rial sign, any other code stays text.
+  const currency = approval.currency ?? 'OMR'
   const amount =
     approval.payableAmount === null
       ? null
-      : `OMR ${formatAmount(approval.payableAmount, approval.currency ?? 'OMR', i18n.language)}`
+      : `${currency} ${formatAmount(approval.payableAmount, currency, i18n.language)}`
 
-  const run = async (command: SalesApprovalCommand, text?: string, then?: () => void) => {
+  const run = async (
+    command: SalesApprovalCommand,
+    text?: string,
+    then?: (next: SalesApprovalDto) => void,
+  ) => {
     setBusy(true)
     setFailure(null)
     try {
-      await decideSalesApproval(invoiceId, command, approval.draftVersion, text)
+      const next = await decideSalesApproval(invoiceId, command, approval.draftVersion, text)
       setRejecting(false)
       setReason('')
       onChanged()
-      then?.()
+      then?.(next)
     } catch (error) {
       const message = describeApiFailure(error)
       const body = t(message.key, message.values)
@@ -180,7 +186,14 @@ export function DraftApprovalCard({
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => void run('approve', undefined, onApproveAndIssue)}
+                  onClick={() =>
+                    // Only a fully approved draft can be issued. When more approvals are still
+                    // needed the server refuses the issue (SALES_APPROVAL_PENDING), so the dialog
+                    // stays shut and the card shows the count still owed.
+                    void run('approve', undefined, (next) => {
+                      if (next.status === 'APPROVED') onApproveAndIssue()
+                    })
+                  }
                   className={PRIMARY_BUTTON}
                 >
                   {t('salesApproval.actions.approveAndIssue')}

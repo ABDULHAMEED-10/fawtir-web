@@ -33,13 +33,16 @@ const base: SalesApprovalDto = {
 
 let posted: { url: string; body: unknown }[]
 let fetchMock: ReturnType<typeof vi.fn>
+/** What every step answers; a test sets the state the server would return. */
+let answer: SalesApprovalDto
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   posted = []
+  answer = base
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     posted.push({ url, body: init?.body ? JSON.parse(String(init.body)) : null })
-    return new Response(JSON.stringify(base), {
+    return new Response(JSON.stringify(answer), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     })
@@ -102,6 +105,7 @@ describe('the draft approval card', () => {
     })
     expect(screen.queryByRole('button', { name: 'Withdraw request' })).toBeNull()
 
+    answer = { ...base, status: 'APPROVED', distinctApprovals: 2 }
     fireEvent.click(screen.getByRole('button', { name: 'Approve and issue' }))
     await waitFor(() => expect(issue).toHaveBeenCalled())
     expect(posted[0].url).toBe('/api/v1/invoice-drafts/d-1/approval/approve')
@@ -117,6 +121,36 @@ describe('the draft approval card', () => {
       url: '/api/v1/invoice-drafts/d-1/approval/reject',
       body: { expectedVersion: 5, text: 'Wrong price' },
     })
+  })
+
+  it('opens the issue dialog only once the draft is fully approved', async () => {
+    const issue = vi.fn()
+    // The first of two approvals: the server answers PENDING and would refuse the issue.
+    answer = { ...base, status: 'PENDING', distinctApprovals: 1 }
+    const onChanged = show({ ...base, status: 'PENDING', callerMayDecide: true }, APPROVER, {
+      onApproveAndIssue: issue,
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Approve and issue' }))
+    await waitFor(() => expect(onChanged).toHaveBeenCalled())
+    expect(posted[0].url).toBe('/api/v1/invoice-drafts/d-1/approval/approve')
+    expect(issue).not.toHaveBeenCalled()
+  })
+
+  it("shows the amount in the draft's own currency", () => {
+    show({ ...base, status: 'PENDING', currency: 'USD', payableAmount: 250 }, PREPARER)
+    const line = screen.getByText(/Sent for approval at/)
+    expect(line.textContent).toMatch(/USD/)
+    expect(line.textContent).not.toMatch(/OMR/)
+    // No rial sign for a dollar draft.
+    expect(line.querySelector('.sr-only')).toBeNull()
+  })
+
+  it('shows the rial sign, not the word OMR, for a draft in rials', () => {
+    show({ ...base, status: 'PENDING' }, PREPARER)
+    const line = screen.getByText(/Sent for approval at/)
+    // The sign carries "OMR" for screen readers only; no visible "OMR" text node.
+    expect(line.querySelector('.sr-only')?.textContent).toBe('OMR')
+    expect(line.firstChild?.textContent).not.toMatch(/OMR/)
   })
 
   it('shows the reason a draft was not approved', () => {
