@@ -57,6 +57,46 @@ export function currentSubmissionPath(tenantId: string): string {
 }
 
 /**
+ * The reviewer's decision as this screen holds it. An approval carries what the reviewer relied on
+ * and why; a rejection carries neither, because `VerificationRequest` ignores both on a rejection
+ * and the contract asks for neither there (owner policy 2026-10-18).
+ */
+export type ParticipantDecision =
+  | {
+      approved: true
+      expectedOptimisticLockVersion: number
+      reasonCode: string
+      evidenceReference: string
+      justification: string
+    }
+  | { approved: false; expectedOptimisticLockVersion: number; reasonCode: string }
+
+/** `VerificationRequest`: exactly the fields the backend reads, nothing the form only shows. */
+export type VerificationRequestBody = {
+  expectedOptimisticLockVersion: number
+  approved: boolean
+  reasonCode: string
+  evidenceReference?: string
+  justification?: string
+}
+
+export function verificationRequestBody(decision: ParticipantDecision): VerificationRequestBody {
+  const body: VerificationRequestBody = {
+    expectedOptimisticLockVersion: decision.expectedOptimisticLockVersion,
+    approved: decision.approved,
+    reasonCode: decision.reasonCode.trim(),
+  }
+  if (decision.approved) {
+    // Trimmed because the backend parses the reference as a URI before it trims anything, so a
+    // stray leading space would make an otherwise valid reference unparseable. The justification
+    // goes as typed: the backend collapses its whitespace itself before recording it.
+    body.evidenceReference = decision.evidenceReference.trim()
+    body.justification = decision.justification
+  }
+  return body
+}
+
+/**
  * Approves or rejects the tenant's own candidate as submitted — the backend takes no reviewer-typed
  * override (`VerificationRequest` carries no scheme or value), so there is nothing here for a
  * reviewer to edit before deciding; they approve the candidate on record or reject it.
@@ -64,19 +104,11 @@ export function currentSubmissionPath(tenantId: string): string {
 export function verifyParticipant(
   tenantId: string,
   submissionId: string,
-  decision: { expectedOptimisticLockVersion: number; approved: boolean; reasonCode: string },
+  decision: ParticipantDecision,
 ): Promise<PidSubmission> {
   return apiRequest<PidSubmission>(
     `${PLATFORM_SMP_PATH}/tenants/${tenantId}/data-submissions/${submissionId}/verify`,
-    {
-      method: 'POST',
-      body: {
-        expectedOptimisticLockVersion: decision.expectedOptimisticLockVersion,
-        approved: decision.approved,
-        reasonCode: decision.reasonCode.trim(),
-      },
-      credentials: 'same-origin',
-    },
+    { method: 'POST', body: verificationRequestBody(decision), credentials: 'same-origin' },
   )
 }
 
@@ -88,6 +120,88 @@ export function reasonCodeError(value: string): 'required' | 'invalid' | null {
   if (!trimmed) return 'required'
   return REASON_CODE.test(trimmed) ? null : 'invalid'
 }
+
+/**
+ * `Character.isISOControl` over the value, which both backend checks below refuse anywhere in it.
+ * A code-unit loop rather than a character class, which the lint rule forbids for these ranges.
+ */
+function hasIsoControl(value: string): boolean {
+  for (let index = 0; index < value.length; index++) {
+    const unit = value.charCodeAt(index)
+    if (unit <= 0x1f || (unit >= 0x7f && unit <= 0x9f)) return true
+  }
+  return false
+}
+
+/** `VerificationRequest.evidenceReference` `@Size(max = 500)`. */
+export const EVIDENCE_REFERENCE_MAX_LENGTH = 500
+
+/**
+ * Characters `java.net.URI` never accepts unescaped, so `URI.create` refuses the reference. Only
+ * these: anything subtler about URI syntax is left to the server rather than re-implemented here.
+ */
+const NOT_IN_A_URI = /[\s<>"{}|\\^`]/
+
+/** An authority with a user part, the one URI shape the backend refuses outright: a credential. */
+const USERINFO = /^(?:[A-Za-z][A-Za-z0-9+.-]*:)?\/\/[^/?#]*@/
+
+/**
+ * Mirrors `SmpBlockerPolicyEngine.validateEvidenceReference(value, required = true)`: non-blank, at
+ * most 500 characters, no control characters, parseable as a URI and carrying no user info. A
+ * reference need not be a web link; `evidence://tickets/SUP-1200` and a bare ticket key both pass.
+ */
+export function evidenceReferenceError(value: string): 'required' | 'invalid' | 'credentials' | null {
+  const trimmed = value.trim()
+  if (!trimmed) return 'required'
+  if (
+    trimmed.length > EVIDENCE_REFERENCE_MAX_LENGTH ||
+    hasIsoControl(trimmed) ||
+    NOT_IN_A_URI.test(trimmed)
+  ) {
+    return 'invalid'
+  }
+  return USERINFO.test(trimmed) ? 'credentials' : null
+}
+
+/** `TransferReason`'s bounds, which the backend holds an approval's justification to. */
+export const JUSTIFICATION_MAX_LENGTH = 500
+const JUSTIFICATION_MIN_LENGTH = 20
+const JUSTIFICATION_MIN_WORDS = 3
+const JUSTIFICATION_MIN_DISTINCT = 8
+
+export type JustificationProblem = 'required' | 'invalid' | 'length' | 'words' | 'repetitive'
+
+/**
+ * Mirrors `TransferReason`, in its order. Control characters are refused before anything is
+ * collapsed, so a line break is refused rather than folded into a space. Once they are gone the only
+ * whitespace Java's `trim()` and `\s+` can still meet is the plain space, which is why only spaces
+ * are trimmed and collapsed here: JavaScript's own `trim()` would also drop Unicode spaces that the
+ * backend counts as characters.
+ */
+export function justificationError(value: string): JustificationProblem | null {
+  if (!value.trim()) return 'required'
+  if (hasIsoControl(value)) return 'invalid'
+  const collapsed = value.replace(/^ +| +$/g, '').replace(/ +/g, ' ')
+  if (collapsed.length < JUSTIFICATION_MIN_LENGTH || collapsed.length > JUSTIFICATION_MAX_LENGTH) {
+    return 'length'
+  }
+  if (collapsed.split(' ').length < JUSTIFICATION_MIN_WORDS) return 'words'
+  if (new Set(collapsed.toLowerCase()).size < JUSTIFICATION_MIN_DISTINCT) return 'repetitive'
+  return null
+}
+
+/**
+ * The refusals that say another tenant already claims the identifier (V386). The backend never
+ * names that tenant, so neither does the message; a reload cannot clear any of them.
+ */
+const CLAIM_REFUSALS: ReadonlyMap<string, string> = new Map([
+  ['PID_ALREADY_VERIFIED', 'console.verification.participant.alreadyVerified'],
+  ['PID_HELD_BY_TEST_BINDING', 'console.verification.participant.heldByTestBinding'],
+  ['PID_HELD_BY_MANAGED_REGISTRATION', 'console.verification.participant.heldByManagedRegistration'],
+  ['PID_HELD_BY_QUARANTINED_CLAIM', 'console.verification.participant.heldByQuarantinedClaim'],
+  ['PID_CLAIM_CONFLICT', 'console.verification.participant.claimConflict'],
+  ['PID_CLAIM_CONTESTED', 'console.verification.participant.claimContested'],
+])
 
 /**
  * Same shape of failure as company verification: `409` means the case moved (someone else decided
@@ -105,10 +219,15 @@ export function describeParticipantFailure(error: unknown): FormMessage {
     if (error.status === 400 && error.code === 'PID_CANDIDATE_REJECTED') {
       return { key: 'console.verification.participant.candidateRejected' }
     }
+    if (error.status === 400 && error.code === 'REVIEWER_EVIDENCE_REQUIRED') {
+      return { key: 'console.verification.participant.evidenceRefused' }
+    }
+    if (error.status === 400 && error.code === 'REVIEWER_JUSTIFICATION_REQUIRED') {
+      return { key: 'console.verification.participant.justificationRefused' }
+    }
     if (error.status === 409) {
-      if (error.code === 'PID_ALREADY_VERIFIED') {
-        return { key: 'console.verification.participant.alreadyVerified' }
-      }
+      const claim = error.code === null ? undefined : CLAIM_REFUSALS.get(error.code)
+      if (claim) return { key: claim }
       if (error.code === 'SELF_VERIFICATION_NOT_ALLOWED') {
         return { key: 'console.verification.participant.ownSubmission' }
       }

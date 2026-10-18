@@ -8,11 +8,16 @@ import { useConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
 import type { CompanyDetail } from '../../../lib/console/companyVerification'
 import {
   currentSubmissionPath,
+  EVIDENCE_REFERENCE_MAX_LENGTH,
+  JUSTIFICATION_MAX_LENGTH,
   describeParticipantFailure,
+  evidenceReferenceError,
   isPolicyNotActive,
   isReviewable,
+  justificationError,
   reasonCodeError,
   verifyParticipant,
+  type ParticipantDecision,
   type PidSubmission,
 } from '../../../lib/console/pidSubmission'
 import { formatInstant } from '../../../lib/format'
@@ -47,9 +52,10 @@ type Dialog = 'approve' | 'reject' | null
  *
  * A company cannot issue until its Participant ID is verified (`SELLER_PARTICIPANT_NOT_VERIFIED`),
  * and that review is separate from the company verification beside it. The backend takes no
- * reviewer-typed override — `POST .../data-submissions/{id}/verify` carries only the decision and
- * a reason code, never a scheme or value — so this card decides the tenant's own candidate as
- * filed, the same way `DecisionPanel` decides the company's own submitted profile.
+ * reviewer-typed override — `POST .../data-submissions/{id}/verify` carries the decision, a reason
+ * code and, for an approval, the reviewer's evidence and justification, never a scheme or value —
+ * so this card decides the tenant's own candidate as filed, the same way `DecisionPanel` decides
+ * the company's own submitted profile.
  */
 export function ParticipantPanel({
   company,
@@ -109,6 +115,10 @@ function ParticipantCard({
   const [dialog, setDialog] = useState<Dialog>(null)
   const [reason, setReason] = useState('')
   const [reasonTouched, setReasonTouched] = useState(false)
+  const [evidence, setEvidence] = useState('')
+  const [evidenceTouched, setEvidenceTouched] = useState(false)
+  const [justification, setJustification] = useState('')
+  const [justificationTouched, setJustificationTouched] = useState(false)
   const [deciding, setDeciding] = useState(false)
   const [decisionError, setDecisionError] = useState<FormMessage | null>(null)
   const [decisionReference, setDecisionReference] = useState<string | null>(null)
@@ -184,26 +194,43 @@ function ParticipantCard({
     setDecisionReference(null)
     setReason('')
     setReasonTouched(false)
+    // Emptied on every open, never prefilled: whatever an approval cites has to be what this
+    // reviewer typed for this candidate, not something left over from an earlier dialog.
+    setEvidence('')
+    setEvidenceTouched(false)
+    setJustification('')
+    setJustificationTouched(false)
     setDialog(next)
   }
 
   const decide = async () => {
     if (inFlight.current || submission === null) return
-    const problem = reasonCodeError(reason)
-    if (problem) {
+    const approving = dialog === 'approve'
+    const blocked =
+      reasonCodeError(reason) !== null ||
+      (approving && (evidenceReferenceError(evidence) !== null || justificationError(justification) !== null))
+    if (blocked) {
       setReasonTouched(true)
+      setEvidenceTouched(true)
+      setJustificationTouched(true)
       return
     }
+    const reasonCode = reason.trim().toUpperCase()
+    const decision: ParticipantDecision = approving
+      ? {
+          approved: true,
+          expectedOptimisticLockVersion: submission.optimisticLockVersion,
+          reasonCode,
+          evidenceReference: evidence,
+          justification,
+        }
+      : { approved: false, expectedOptimisticLockVersion: submission.optimisticLockVersion, reasonCode }
     inFlight.current = true
     setDeciding(true)
     setDecisionError(null)
     setDecisionReference(null)
     try {
-      await verifyParticipant(company.tenantId, submission.id, {
-        expectedOptimisticLockVersion: submission.optimisticLockVersion,
-        approved: dialog === 'approve',
-        reasonCode: reason.trim().toUpperCase(),
-      })
+      await verifyParticipant(company.tenantId, submission.id, decision)
       setDialog(null)
       onDecided()
     } catch (error) {
@@ -231,6 +258,8 @@ function ParticipantCard({
     </Link>
   )
   const reasonProblem = reasonCodeError(reason)
+  const evidenceProblem = evidenceReferenceError(evidence)
+  const justificationProblem = justificationError(justification)
 
   return (
     <ReviewCard title={t('console.verification.participant.title')}>
@@ -427,6 +456,46 @@ function ParticipantCard({
                 : undefined
             }
           />
+          {dialog === 'approve' ? (
+            <>
+              <Input
+                bordered
+                requiredMark
+                name="participantEvidenceReference"
+                dir="ltr"
+                label={t('console.verification.participant.evidenceLabel')}
+                hint={t('console.verification.participant.evidenceHint')}
+                value={evidence}
+                maxLength={EVIDENCE_REFERENCE_MAX_LENGTH}
+                autoComplete="off"
+                spellCheck={false}
+                onChange={(event) => setEvidence(event.target.value)}
+                onBlur={() => setEvidenceTouched(true)}
+                error={
+                  evidenceTouched && evidenceProblem
+                    ? t(`console.verification.participant.evidenceError.${evidenceProblem}`)
+                    : undefined
+                }
+              />
+              <Input
+                bordered
+                requiredMark
+                name="participantJustification"
+                label={t('console.verification.participant.justificationLabel')}
+                hint={t('console.verification.participant.justificationHint')}
+                value={justification}
+                maxLength={JUSTIFICATION_MAX_LENGTH}
+                autoComplete="off"
+                onChange={(event) => setJustification(event.target.value)}
+                onBlur={() => setJustificationTouched(true)}
+                error={
+                  justificationTouched && justificationProblem
+                    ? t(`console.verification.participant.justificationError.${justificationProblem}`)
+                    : undefined
+                }
+              />
+            </>
+          ) : null}
           <p className="text-sm font-medium leading-[1.6] text-text-tertiary">
             {dialog === 'approve'
               ? t('console.verification.participant.approveBody')

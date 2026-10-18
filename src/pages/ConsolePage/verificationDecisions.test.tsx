@@ -562,6 +562,18 @@ describe('Peppol Participant ID', () => {
     await screen.findByRole('heading', { level: 2, name: i18n.t('console.verification.participant.title') })
   }
 
+  // The example the backend's own contract test approves with (SmpDataBlockerHttpContractTest).
+  const EVIDENCE = 'evidence://tickets/SUP-1200'
+  const JUSTIFICATION = 'Commercial register extract SUP-1200 matches the VAT number'
+  const evidenceInput = () => document.querySelector<HTMLInputElement>('input[name="participantEvidenceReference"]')
+  const justificationInput = () => document.querySelector<HTMLInputElement>('input[name="participantJustification"]')
+
+  /** Fills what only an approval asks for; a rejection dialog has neither field. */
+  function fillApproval(evidence = EVIDENCE, justification = JUSTIFICATION) {
+    fireEvent.change(evidenceInput()!, { target: { value: evidence } })
+    fireEvent.change(justificationInput()!, { target: { value: justification } })
+  }
+
   /** Scoped to this card alone: some of its status words (e.g. "Submitted for review") also
    * appear in the History card's event log, which lists the same registration's own events. */
   const participantCard = () =>
@@ -650,7 +662,7 @@ describe('Peppol Participant ID', () => {
     expect(fetchMock.mock.calls.some(([url]) => url === PID_URL)).toBe(false)
   })
 
-  it('approves the candidate as filed, with a reason code, and re-reads the submission', async () => {
+  it('approves the candidate as filed, with a reason code, evidence and justification, once, and re-reads the submission', async () => {
     let release: (response: Response) => void = () => {}
     answer({
       ...reads(),
@@ -669,11 +681,19 @@ describe('Peppol Participant ID', () => {
     const confirm = within(dialog).getByRole('button', { name: i18n.t('console.verification.participant.approveConfirm') })
     fireEvent.click(confirm)
     expect(within(dialog).getByText(i18n.t('console.verification.participant.reasonRequired'))).toBeTruthy()
+    expect(within(dialog).getByText(i18n.t('console.verification.participant.evidenceError.required'))).toBeTruthy()
+    expect(within(dialog).getByText(i18n.t('console.verification.participant.justificationError.required'))).toBeTruthy()
     expect(callsTo(VERIFY_URL)).toHaveLength(0)
 
     const reasonInput = document.querySelector<HTMLInputElement>('input[name="participantReasonCode"]')!
     fireEvent.change(reasonInput, { target: { value: 'verified_by_compliance' } })
     expect(reasonInput.value).toBe('VERIFIED_BY_COMPLIANCE')
+    // A reason code alone, the body this console sent before the owner policy, is still held back.
+    fireEvent.click(confirm)
+    expect(callsTo(VERIFY_URL)).toHaveLength(0)
+
+    fillApproval(`  ${EVIDENCE} `)
+    fireEvent.click(confirm)
     fireEvent.click(confirm)
 
     expect(callsTo(VERIFY_URL)).toHaveLength(1)
@@ -681,6 +701,8 @@ describe('Peppol Participant ID', () => {
       expectedOptimisticLockVersion: 3,
       approved: true,
       reasonCode: 'VERIFIED_BY_COMPLIANCE',
+      evidenceReference: EVIDENCE,
+      justification: JUSTIFICATION,
     })
     await act(async () => release(json(200, submission({ status: 'VERIFIED' }))))
     await waitFor(() => expect(callsTo(PID_URL)).toHaveLength(2))
@@ -688,13 +710,15 @@ describe('Peppol Participant ID', () => {
     expect(callsTo(POLICY_URL)).toHaveLength(1)
   })
 
-  it('rejects with a reason code the same way', async () => {
+  it('rejects with a reason code alone, asking for no evidence or justification', async () => {
     answer({ ...reads(), ...POLICY_IN_FORCE, [PID_URL]: () => json(200, submission()), [VERIFY_URL]: () => json(200, submission({ status: 'REJECTED' })) })
     renderDetail()
     const reject = await screen.findByRole('button', { name: i18n.t('console.verification.participant.reject') })
 
     fireEvent.click(reject)
     const dialog = screen.getByRole('dialog', { name: i18n.t('console.verification.participant.rejectTitle') })
+    expect(evidenceInput()).toBeNull()
+    expect(justificationInput()).toBeNull()
     const reasonInput = document.querySelector<HTMLInputElement>('input[name="participantReasonCode"]')!
     fireEvent.change(reasonInput, { target: { value: 'MISSING_EVIDENCE' } })
     fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('console.verification.participant.rejectConfirm') }))
@@ -715,6 +739,7 @@ describe('Peppol Participant ID', () => {
     fireEvent.click(approve)
     const reasonInput = document.querySelector<HTMLInputElement>('input[name="participantReasonCode"]')!
     fireEvent.change(reasonInput, { target: { value: 'VERIFIED_BY_COMPLIANCE' } })
+    fillApproval()
     fireEvent.click(screen.getByRole('button', { name: i18n.t('console.verification.participant.approveConfirm') }))
 
     expect(await screen.findByText(i18n.t('console.verification.participant.conflict'))).toBeTruthy()
@@ -730,6 +755,7 @@ describe('Peppol Participant ID', () => {
     function fillReasonAndConfirm(confirmKey: string, code = 'VERIFIED_BY_COMPLIANCE') {
       const reasonInput = document.querySelector<HTMLInputElement>('input[name="participantReasonCode"]')!
       fireEvent.change(reasonInput, { target: { value: code } })
+      if (evidenceInput()) fillApproval()
       fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: i18n.t(confirmKey) }))
     }
 
@@ -820,6 +846,8 @@ describe('Peppol Participant ID', () => {
         expectedOptimisticLockVersion: 3,
         approved: true,
         reasonCode: 'VERIFIED_BY_COMPLIANCE',
+        evidenceReference: EVIDENCE,
+        justification: JUSTIFICATION,
       })
       expect(document.body.textContent).not.toContain('Server prose')
       // Behind the dialog the card has caught up: the approval is no longer offered.
@@ -830,7 +858,14 @@ describe('Peppol Participant ID', () => {
 
     it.each([
       [400, 'validation-failed', 'PID_CANDIDATE_REJECTED', 'console.verification.participant.candidateRejected'],
+      [400, 'validation-failed', 'REVIEWER_EVIDENCE_REQUIRED', 'console.verification.participant.evidenceRefused'],
+      [400, 'validation-failed', 'REVIEWER_JUSTIFICATION_REQUIRED', 'console.verification.participant.justificationRefused'],
       [409, 'resource-conflict', 'PID_ALREADY_VERIFIED', 'console.verification.participant.alreadyVerified'],
+      [409, 'resource-conflict', 'PID_HELD_BY_TEST_BINDING', 'console.verification.participant.heldByTestBinding'],
+      [409, 'resource-conflict', 'PID_HELD_BY_MANAGED_REGISTRATION', 'console.verification.participant.heldByManagedRegistration'],
+      [409, 'resource-conflict', 'PID_HELD_BY_QUARANTINED_CLAIM', 'console.verification.participant.heldByQuarantinedClaim'],
+      [409, 'resource-conflict', 'PID_CLAIM_CONFLICT', 'console.verification.participant.claimConflict'],
+      [409, 'resource-conflict', 'PID_CLAIM_CONTESTED', 'console.verification.participant.claimContested'],
       [409, 'resource-conflict', 'SELF_VERIFICATION_NOT_ALLOWED', 'console.verification.participant.ownSubmission'],
       [409, 'resource-conflict', 'STALE_VERSION', 'console.verification.participant.conflict'],
       [409, 'resource-conflict', 'INVALID_STATE', 'console.verification.participant.conflict'],
@@ -849,6 +884,52 @@ describe('Peppol Participant ID', () => {
       // A stale or already-decided submission keeps the reload it always offered.
       const reload = within(dialog).queryByRole('button', { name: i18n.t('console.verification.decision.reload') })
       expect(reload !== null).toBe(key === 'console.verification.participant.conflict')
+    })
+
+    it('holds back an approval whose evidence carries credentials or whose justification is a placeholder', async () => {
+      await openWithPid(undefined, { ...POLICY_IN_FORCE, [VERIFY_URL]: () => json(200, submission({ status: 'VERIFIED' })) })
+
+      fireEvent.click(await screen.findByRole('button', { name: approveName() }))
+      const dialog = screen.getByRole('dialog')
+      const reasonInput = document.querySelector<HTMLInputElement>('input[name="participantReasonCode"]')!
+      fireEvent.change(reasonInput, { target: { value: 'PID_OK' } })
+      fillApproval('https://reviewer:secret@tickets.example.test/SUP-1200', 'OKOK')
+      fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('console.verification.participant.approveConfirm') }))
+
+      expect(within(dialog).getByText(i18n.t('console.verification.participant.evidenceError.credentials'))).toBeTruthy()
+      expect(within(dialog).getByText(i18n.t('console.verification.participant.justificationError.length'))).toBeTruthy()
+      expect(callsTo(VERIFY_URL)).toHaveLength(0)
+    })
+
+    it('reads a 403 on the decision as a refusal of the decision', async () => {
+      await openWithPid(undefined, { ...POLICY_IN_FORCE, [VERIFY_URL]: () => problem(403, 'insufficient-permission') })
+
+      fireEvent.click(await screen.findByRole('button', { name: approveName() }))
+      fillReasonAndConfirm('console.verification.participant.approveConfirm')
+
+      const dialog = screen.getByRole('dialog')
+      expect(await within(dialog).findByText(i18n.t('console.verification.participant.forbidden'))).toBeTruthy()
+      expect(callsTo(VERIFY_URL)).toHaveLength(1)
+      expect(document.body.textContent).not.toContain('Server prose')
+    })
+
+    it('asks for evidence and explains a claim refusal in Arabic', async () => {
+      await i18n.changeLanguage('ar')
+      await openWithPid(undefined, {
+        ...POLICY_IN_FORCE,
+        [VERIFY_URL]: () => coded(409, 'resource-conflict', 'PID_HELD_BY_MANAGED_REGISTRATION'),
+      })
+
+      fireEvent.click(await screen.findByRole('button', { name: approveName() }))
+      const dialog = screen.getByRole('dialog')
+      expect(within(dialog).getByLabelText(/مرجع الدليل/)).toBeTruthy()
+      expect(within(dialog).getByLabelText(/المبرّر/)).toBeTruthy()
+      fillReasonAndConfirm('console.verification.participant.approveConfirm')
+
+      expect(
+        await within(dialog).findByText('معرّف المشارك هذا مسجّل في SMP لشركة أخرى، لذا لا يمكن اعتماده هنا.'),
+      ).toBeTruthy()
+      expect(document.body.textContent).not.toContain('Server prose')
     })
 
     it('says it in Arabic', async () => {
@@ -1106,6 +1187,7 @@ describe('Peppol Participant ID', () => {
         'input[name="participantReasonCode"]',
       )!
       fireEvent.change(reasonInput, { target: { value: 'POLICY_V2_RECHECKED' } })
+      fillApproval()
       fireEvent.click(
         screen.getByRole('button', {
           name: i18n.t('console.verification.participant.approveConfirm'),
@@ -1117,6 +1199,8 @@ describe('Peppol Participant ID', () => {
         expectedOptimisticLockVersion: 0,
         approved: true,
         reasonCode: 'POLICY_V2_RECHECKED',
+        evidenceReference: EVIDENCE,
+        justification: JUSTIFICATION,
       })
       await waitFor(() => expect(callsTo(PID_URL)).toHaveLength(2))
       // The card shows its loading state while the second read is in flight, so the status line
