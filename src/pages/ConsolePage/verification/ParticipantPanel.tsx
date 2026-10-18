@@ -8,10 +8,8 @@ import { useConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
 import type { CompanyDetail } from '../../../lib/console/companyVerification'
 import {
   currentSubmissionPath,
-  EVIDENCE_REFERENCE_MAX_LENGTH,
   JUSTIFICATION_MAX_LENGTH,
   describeParticipantFailure,
-  evidenceReferenceError,
   isPolicyNotActive,
   isReviewable,
   justificationError,
@@ -20,6 +18,7 @@ import {
   type ParticipantDecision,
   type PidSubmission,
 } from '../../../lib/console/pidSubmission'
+import { EVIDENCE_REFERENCE_MAX_LENGTH, evidenceReferenceError } from '../../../lib/console/evidenceReference'
 import { formatInstant } from '../../../lib/format'
 import { problemReference } from '../../../lib/console/problemReference'
 import {

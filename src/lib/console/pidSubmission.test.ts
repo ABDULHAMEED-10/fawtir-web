@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { ApiError, NetworkError } from '../../api'
 import {
   describeParticipantFailure,
-  evidenceReferenceError,
   justificationError,
   verificationRequestBody,
   type ParticipantDecision,
@@ -14,7 +13,8 @@ describe('verificationRequestBody', () => {
       approved: true,
       expectedOptimisticLockVersion: 4,
       reasonCode: ' PID_OK ',
-      evidenceReference: ' evidence://tickets/SUP-1200 ',
+      // Trimmed as Java trims: the no-break space is kept, so the server sees what the console checked.
+      evidenceReference: ' evidence://tickets/SUP-1200 \u00a0',
       justification: 'Commercial register extract SUP-1200 matches the VAT number',
       // A field the form might hold but the contract does not define must never reach the wire.
       candidate: '0248:OM1100000001',
@@ -24,7 +24,7 @@ describe('verificationRequestBody', () => {
       expectedOptimisticLockVersion: 4,
       approved: true,
       reasonCode: 'PID_OK',
-      evidenceReference: 'evidence://tickets/SUP-1200',
+      evidenceReference: 'evidence://tickets/SUP-1200 \u00a0',
       justification: 'Commercial register extract SUP-1200 matches the VAT number',
     })
   })
@@ -43,31 +43,6 @@ describe('verificationRequestBody', () => {
       approved: false,
       reasonCode: 'NOT_OURS',
     })
-  })
-})
-
-describe('evidenceReferenceError', () => {
-  it.each([
-    ['', 'required'],
-    ['   ', 'required'],
-    ['ticket SUP 1200', 'invalid'],
-    ['evidence://tickets/<SUP-1200>', 'invalid'],
-    ['evidence://tickets/SUP-1200\u0007', 'invalid'],
-    [`https://tickets.example.test/${'a'.repeat(480)}`, 'invalid'],
-    ['https://reviewer:secret@tickets.example.test/SUP-1200', 'credentials'],
-    ['//reviewer@tickets.example.test/SUP-1200', 'credentials'],
-  ])('refuses %j as %s', (value, problem) => {
-    expect(evidenceReferenceError(value)).toBe(problem)
-  })
-
-  it.each([
-    'evidence://tickets/SUP-1200',
-    'https://tickets.example.test/browse/SUP-1200?view=full#evidence',
-    'SUP-1200',
-    // Opaque: java.net.URI reports no user info for a mailto, so the backend accepts it.
-    'mailto:compliance@example.test',
-  ])('accepts %j, leaving anything subtler to the server', (value) => {
-    expect(evidenceReferenceError(value)).toBeNull()
   })
 })
 

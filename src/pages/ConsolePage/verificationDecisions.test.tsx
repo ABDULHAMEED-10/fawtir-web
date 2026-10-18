@@ -901,6 +901,24 @@ describe('Peppol Participant ID', () => {
       expect(callsTo(VERIFY_URL)).toHaveLength(0)
     })
 
+    it.each([
+      ['n/a', 'placeholder'],
+      ['https://jira.fawtir.om/', 'invalid'],
+    ])('holds back the evidence reference %j as %s, naming the accepted forms', async (evidence, problem) => {
+      await openWithPid(undefined, { ...POLICY_IN_FORCE, [VERIFY_URL]: () => json(200, submission({ status: 'VERIFIED' })) })
+
+      fireEvent.click(await screen.findByRole('button', { name: approveName() }))
+      const dialog = screen.getByRole('dialog')
+      expect(within(dialog).getByText(i18n.t('console.verification.participant.evidenceHint'))).toBeTruthy()
+      const reasonInput = document.querySelector<HTMLInputElement>('input[name="participantReasonCode"]')!
+      fireEvent.change(reasonInput, { target: { value: 'PID_OK' } })
+      fillApproval(evidence)
+      fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('console.verification.participant.approveConfirm') }))
+
+      expect(within(dialog).getByText(i18n.t(`console.verification.participant.evidenceError.${problem}`))).toBeTruthy()
+      expect(callsTo(VERIFY_URL)).toHaveLength(0)
+    })
+
     it('reads a 403 on the decision as a refusal of the decision', async () => {
       await openWithPid(undefined, { ...POLICY_IN_FORCE, [VERIFY_URL]: () => problem(403, 'insufficient-permission') })
 
@@ -924,6 +942,7 @@ describe('Peppol Participant ID', () => {
       const dialog = screen.getByRole('dialog')
       expect(within(dialog).getByLabelText(/مرجع الدليل/)).toBeTruthy()
       expect(within(dialog).getByLabelText(/المبرّر/)).toBeTruthy()
+      expect(within(dialog).getByText(/^اذكر السجل الذي اعتمدت عليه/)).toBeTruthy()
       fillReasonAndConfirm('console.verification.participant.approveConfirm')
 
       expect(

@@ -13004,10 +13004,11 @@
         "candidateRejected": "The proposed ID does not meet the validation policy in force.",
         "alreadyVerified": "This Participant ID is already verified for another company.",
         "evidenceLabel": "Evidence reference",
-        "evidenceHint": "Where the evidence you relied on is kept, such as a ticket key or a document link. No spaces, and no user name or password in a link.",
+        "evidenceHint": "Cite the record you relied on: an https:// or evidence:// link to it, a urn:, a ticket key such as SUP-1200, or an evidence ID (UUID). No spaces, and no user name or password in a link.",
         "evidenceError": {
           "required": "Enter the evidence reference you relied on.",
-          "invalid": "This reference cannot be read as a link or identifier. Remove spaces and special characters, up to 500 characters.",
+          "invalid": "Use one of the accepted forms: an https:// or evidence:// link with a path, a urn:, a ticket key such as SUP-1200, or an evidence ID (UUID). 6 to 500 characters, no spaces.",
+          "placeholder": "This looks like a placeholder. Cite the actual record you relied on.",
           "credentials": "Remove the user name or password from this link."
         },
         "justificationLabel": "Justification",
