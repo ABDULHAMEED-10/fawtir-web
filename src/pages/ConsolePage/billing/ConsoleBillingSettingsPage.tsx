@@ -31,13 +31,6 @@ import {
   SwitchRow,
 } from '../settings/shared'
 import { ExtraDocumentLimitsCard } from './ExtraDocumentLimitsCard'
-import {
-  PAY_LINK_MAX_DAYS,
-  PAY_LINK_SETTINGS_PATH,
-  savePayLinkValidity,
-  type PayLinkSettingsDto,
-} from '../../../lib/console/payLinks'
-import { selectAllOnFocus } from '../../../components/invoice/numericInput'
 
 const K = 'console.billingSettings.'
 const MAX_DAYS = 60
@@ -46,7 +39,6 @@ const REASON_MAX = 500
 type Form = {
   graceDays: string
   leadDays: string
-  linkDays: string
   threshold: string
   vatOn: boolean
   vatPercent: string
@@ -71,10 +63,6 @@ export function ConsoleBillingSettingsPage() {
 function BillingSettings() {
   const { t } = useTranslation()
   const { read, retry } = useConsoleRead<BillingSettingsDto>(BILLING_SETTINGS_PATH)
-  // Answers only on a server that has payment links (404 elsewhere): the validity field is drawn
-  // only from this read, so an older server shows the page exactly as before.
-  const payLinks = useConsoleRead<PayLinkSettingsDto>(PAY_LINK_SETTINGS_PATH)
-  const linkSettings = payLinks.read.status === 'ready' ? payLinks.read.data : null
   // Kept here, outside the form, so the conflict message survives the reload that remounts it.
   const [failure, setFailure] = useState<string | null>(null)
   const entitlements = peekEntitlements()
@@ -92,28 +80,23 @@ function BillingSettings() {
           {failure}
         </p>
       ) : null}
-      {read.status === 'loading' || payLinks.read.status === 'loading' ? (
+      {read.status === 'loading' ? (
         <ConsoleNotice busy body={t(`${K}loading`)} />
       ) : read.status === 'failed' ? (
         <ConsoleReadFailure error={read.error} retry={retry} />
       ) : (
         <SettingsForm
           // A new version read starts a fresh form, so nothing typed against the old one lingers.
-          key={`${read.data.version}:${linkSettings?.settingsVersion ?? ''}`}
+          key={read.data.version}
           settings={read.data}
-          payLinks={linkSettings}
           canManage={canManage}
           onSaved={() => {
             setFailure(null)
             retry()
-            payLinks.retry()
           }}
           onRefused={(error) => {
             setFailure(refusal(t, error))
-            if (isConflict(error)) {
-              retry()
-              payLinks.retry()
-            }
+            if (isConflict(error)) retry()
           }}
         />
       )}
@@ -122,11 +105,10 @@ function BillingSettings() {
   )
 }
 
-function toForm(settings: BillingSettingsDto, payLinks: PayLinkSettingsDto | null): Form {
+function toForm(settings: BillingSettingsDto): Form {
   return {
     graceDays: String(settings.graceDays),
     leadDays: settings.renewalBillLeadDays === null ? '' : String(settings.renewalBillLeadDays),
-    linkDays: payLinks ? String(payLinks.validityDays) : '',
     threshold: settings.dualApprovalThreshold,
     vatOn: chargesVat(settings.vatRate),
     vatPercent:
@@ -137,31 +119,24 @@ function toForm(settings: BillingSettingsDto, payLinks: PayLinkSettingsDto | nul
 
 function SettingsForm({
   settings,
-  payLinks,
   canManage,
   onSaved,
   onRefused,
 }: {
   settings: BillingSettingsDto
-  /** Null on a server without payment links: no validity field, nothing sent for it. */
-  payLinks: PayLinkSettingsDto | null
   canManage: boolean
   onSaved: () => void
   onRefused: (error: unknown) => void
 }) {
   const { t, i18n } = useTranslation()
-  const stored = toForm(settings, payLinks)
-  const maxLinkDays = payLinks?.maxValidityDays ?? PAY_LINK_MAX_DAYS
+  const stored = toForm(settings)
   const [form, setForm] = useState<Form>(stored)
   const [attempted, setAttempted] = useState(false)
   const [busy, setBusy] = useState(false)
-  const errors = attempted ? validate(form, payLinks ? maxLinkDays : null) : {}
+  const errors = attempted ? validate(form) : {}
   const err = (field: keyof Form) => {
     const key = errors[field]
-    if (!key) return undefined
-    return field === 'linkDays'
-      ? t(key, { min: 1, max: maxLinkDays })
-      : t(key, { min: 0, max: MAX_DAYS })
+    return key ? t(key, { min: 0, max: MAX_DAYS }) : undefined
   }
   const dirty = JSON.stringify({ ...form, reason: '' }) !== JSON.stringify(stored)
   const set = <F extends keyof Form>(field: F, value: Form[F]) =>
@@ -169,7 +144,7 @@ function SettingsForm({
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (Object.keys(validate(form, payLinks ? maxLinkDays : null)).length > 0) {
+    if (Object.keys(validate(form)).length > 0) {
       setAttempted(true)
       return
     }
@@ -184,21 +159,9 @@ function SettingsForm({
       request.vatRate = form.vatOn ? percentToFraction(form.vatPercent) : '0'
     }
     if (form.leadDays.trim() !== '') request.renewalBillLeadDays = Number(form.leadDays)
-    // The validity has its own route (it publishes a new billing settings version too), so only
-    // what changed is sent: the settings first, then the validity against the version they made.
-    const linkChanged = payLinks !== null && form.linkDays !== stored.linkDays
-    const settingsChanged =
-      JSON.stringify({ ...form, linkDays: '', reason: '' }) !==
-      JSON.stringify({ ...stored, linkDays: '' })
     setBusy(true)
     try {
-      let version = settings.version
-      if (settingsChanged || !linkChanged) {
-        version = (await saveBillingSettings(settings.version, request)).version
-      }
-      if (linkChanged) {
-        await savePayLinkValidity(version, Number(form.linkDays), form.reason.trim())
-      }
+      await saveBillingSettings(settings.version, request)
       onSaved()
     } catch (error) {
       onRefused(error)
@@ -244,18 +207,6 @@ function SettingsForm({
             onChange={(value) => set('leadDays', value)}
             error={err('leadDays')}
           />
-          {/* Only from a server that has payment links. */}
-          {payLinks ? (
-            <NumberField
-              name="linkDays"
-              label={t(`${K}linkDays`)}
-              hint={t(`${K}linkDaysHint`, { max: maxLinkDays })}
-              onFocus={selectAllOnFocus}
-              value={form.linkDays}
-              onChange={(value) => set('linkDays', value)}
-              error={err('linkDays')}
-            />
-          ) : null}
           <NumberField
             name="threshold"
             label={t(`${K}threshold`)}
@@ -308,21 +259,12 @@ function SettingsForm({
 }
 
 /** Error keys by field, checked before sending so the server's 400 is the exception. */
-function validate(form: Form, maxLinkDays: number | null): Errors {
+function validate(form: Form): Errors {
   const errors: Errors = {}
   const whole = (value: string) => /^\d{1,2}$/.test(value.trim()) && Number(value) <= MAX_DAYS
   if (!whole(form.graceDays)) errors.graceDays = 'console.settings.error.wholeBetween'
   if (form.leadDays.trim() !== '' && !whole(form.leadDays))
     errors.leadDays = 'console.settings.error.wholeBetween'
-  if (
-    maxLinkDays !== null &&
-    !(
-      /^\d{1,2}$/.test(form.linkDays.trim()) &&
-      Number(form.linkDays) >= 1 &&
-      Number(form.linkDays) <= maxLinkDays
-    )
-  )
-    errors.linkDays = 'console.settings.error.wholeBetween'
   if (!/^\d{1,9}(\.\d{1,3})?$/.test(form.threshold.trim())) errors.threshold = `${K}error.amount`
   if (form.vatOn && (!isPercent(form.vatPercent) || Number(form.vatPercent) <= 0)) {
     errors.vatPercent = `${K}error.percent`

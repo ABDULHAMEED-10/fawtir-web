@@ -4,8 +4,8 @@ import type { SubscriptionStatusDto } from '../../api/settings/subscription'
 import { companySubscriptionPath } from './companySubscription'
 
 /**
- * Billing for a company Fawtir created, and the payment links that let someone without a Fawtir
- * sign-in pay one of its bills (P2-8 §3.2, §3.6). Every route is in the production PLATFORM realm,
+ * Billing for a company Fawtir created, and the payment links Fawtir's staff send as a quick
+ * card-payment reminder for any company's due bill (P2-8 §3.2, §3.6; D9: card only, valid 7 days). Every route is in the production PLATFORM realm,
  * refuses impersonation, and re-asserts MFA on writes:
  *
  * - `POST /platform/companies/{id}/subscription/start` opens the lifecycle and issues the first bill
@@ -28,9 +28,6 @@ export const payLinksPath = (billId: string) => `${bill(billId)}/pay-links`
 export const revokePayLinkPath = (linkId: string) =>
   `/v1/platform/billing/pay-links/${encodeURIComponent(linkId)}/revocation`
 export const enterpriseTermsPath = (tenantId: string) => `${company(tenantId)}/enterprise-terms`
-
-/** The most days a link may stay valid (security review: 14 rather than 30). */
-export const PAY_LINK_MAX_DAYS = 14
 
 export type BillingCycle = 'MONTHLY' | 'ANNUAL'
 export type BillStatus = 'OPEN' | 'PENDING_VERIFICATION' | 'PAID' | 'VOID'
@@ -135,6 +132,11 @@ export type CreatedPayLinkDto = {
   shareText: string | null
   tokenShownOnce: boolean
   emailSent: boolean | null
+  /**
+   * `payLinkUrl` is Paymob's own payment page (QuickLink) rather than the Fawtir pay page. A server
+   * older than the field omits it: missing reads as false.
+   */
+  paymobQuickLink?: boolean
 }
 
 /** Why the server closed a link itself; any other `closeReason` is an operator's revocation reason. */
@@ -144,6 +146,8 @@ export const PAY_LINK_CLOSE_REASONS = [
   'TERMS_CHANGED',
   'DISCONNECTED',
   'TOO_MANY_REJECTED',
+  'PAYMOB_LINK_REFUSED',
+  'PAYMOB_LINK_UNKNOWN',
 ] as const
 
 /** One link (`PayLink`); the contact arrives masked (`a***@x.om`, `+968 ****1234`). */
@@ -174,25 +178,15 @@ export type PayLinkDto = {
 export type PayLinkSettingsDto = {
   enabled: boolean
   cardEnabled: boolean
+  /** Read only: a link is valid 7 days, fixed (D9). There is no route to change it. */
   validityDays: number
   maxValidityDays: number
   settingsVersion: number
+  /** New links are Paymob's own payment links (QuickLink). Missing means false. */
+  paymobQuickLink?: boolean
 }
 
 export const PAY_LINK_SETTINGS_PATH = '/v1/platform/billing/pay-link-settings'
-
-/** `If-Match` is the billing settings version, shared with `/platform/billing/settings`. */
-export function savePayLinkValidity(
-  settingsVersion: number,
-  validityDays: number,
-  reason: string,
-): Promise<PayLinkSettingsDto> {
-  return apiRequest(PAY_LINK_SETTINGS_PATH, {
-    method: 'PUT',
-    headers: { 'If-Match': `"${settingsVersion}"` },
-    body: { validityDays, reason },
-  })
-}
 
 export function createPayLink(
   billId: string,
@@ -242,8 +236,6 @@ export function describePayLinkFailure(error: unknown): FormMessage {
         return { key: `${K}paymentBeingChecked` }
       case 'subscription-not-tracked':
         return { key: `${K}notTracked` }
-      case 'pay-link-not-allowed':
-        return { key: `${K}notAllowed` }
       case 'bill-not-payable':
         return { key: `${K}billNotPayable` }
       case 'bill-stale':

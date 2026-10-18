@@ -242,7 +242,7 @@ beforeEach(async () => {
         enabled: true,
         cardEnabled: true,
         validityDays: 7,
-        maxValidityDays: 14,
+        maxValidityDays: 7,
         settingsVersion: 4,
       }),
     [LINKS]: () => json(200, []),
@@ -574,14 +574,50 @@ describe('Console › Tenant › Payment links', () => {
     expect(await within(dialog).findByText(P('send.shownOnce'))).toBeTruthy()
   })
 
-  it('refuses a company Fawtir did not create in words', async () => {
-    answers[`POST ${LINKS}`] = () => problem(409, 'pay-link-not-allowed')
+  it('words the link as a card-payment reminder, valid 7 days, with nothing to set (D9)', async () => {
     const user = userEvent.setup({ delay: null })
     renderCard()
     await user.click((await card()).getAllByRole('button', { name: P('send.open') })[0])
     const dialog = await screen.findByRole('dialog')
-    await user.click(within(dialog).getByRole('button', { name: P('send.submit.EMAIL') }))
-    expect(await within(dialog).findByText(P('refusal.notAllowed'))).toBeTruthy()
+    expect(within(dialog).getByText(P('send.subtitle', { tenant: 'Sur Marine' }))).toBeTruthy()
+    expect(within(dialog).getByText(P('send.validity', { count: 7 }))).toBeTruthy()
+    // No validity to choose, and no QuickLink note while the server makes Fawtir links.
+    expect(within(dialog).queryByRole('spinbutton')).toBeNull()
+    expect(within(dialog).queryByText(P('send.quickLinkNote'))).toBeNull()
+  })
+
+  it("shows Paymob's own payment link when the server made a QuickLink", async () => {
+    answers[PAY_LINK_SETTINGS] = () =>
+      json(200, {
+        enabled: true,
+        cardEnabled: true,
+        validityDays: 7,
+        maxValidityDays: 7,
+        settingsVersion: 4,
+        paymobQuickLink: true,
+      })
+    answers[`POST ${LINKS}`] = () =>
+      json(
+        200,
+        created({
+          link: link({ id: 'l-3', channel: 'COPIED', tokenHint: 'QL01' }),
+          payLinkUrl: 'https://oman.paymob.com/standalone/?ref=ql-1',
+          shareText: 'Pay bill FSB-2026-0042: https://oman.paymob.com/standalone/?ref=ql-1',
+          paymobQuickLink: true,
+        }),
+      )
+    const user = userEvent.setup({ delay: null })
+    renderCard()
+    await user.click((await card()).getAllByRole('button', { name: P('send.open') })[0])
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(P('send.quickLinkNote'))).toBeTruthy()
+    await user.click(
+      within(dialog).getByRole('button', { name: new RegExp(P('send.channels.COPIED.title')) }),
+    )
+    await user.click(within(dialog).getByRole('button', { name: P('send.submit.COPIED') }))
+    expect(await within(dialog).findByText(P('send.quickLinkCreated'))).toBeTruthy()
+    expect(within(dialog).getByText('https://oman.paymob.com/standalone/?ref=ql-1')).toBeTruthy()
+    expect(within(dialog).getByText(P('send.onlyOnce'))).toBeTruthy()
   })
 
   it("lists a bill's links and revokes an active one with If-Match and a reason", async () => {
@@ -683,13 +719,22 @@ describe('Console › Tenant › Payment links', () => {
           closedAt: '2026-10-17T08:00:00Z',
           closeReason: 'NEW_LINK',
         }),
+        link({
+          id: 'l-9',
+          status: 'REVOKED',
+          tokenHint: 'QL09',
+          closedAt: '2026-10-17T08:00:00Z',
+          closeReason: 'PAYMOB_LINK_REFUSED',
+        }),
       ])
     const user = userEvent.setup({ delay: null })
     renderCard()
     const box = await card()
     await user.click(box.getByRole('button', { name: P('links.show') }))
     expect(await box.findByText(P('links.closeReason.NEW_LINK'))).toBeTruthy()
+    expect(box.getByText(P('links.closeReason.PAYMOB_LINK_REFUSED'))).toBeTruthy()
     expect(box.queryByText('NEW_LINK')).toBeNull()
+    expect(box.queryByText(/PAYMOB_LINK_REFUSED/)).toBeNull()
   })
 })
 
@@ -714,7 +759,7 @@ describe('Console › Tenant › Billing card follows the server', () => {
         enabled: false,
         cardEnabled: false,
         validityDays: 7,
-        maxValidityDays: 14,
+        maxValidityDays: 7,
         settingsVersion: 4,
       })
     renderCard()
@@ -735,7 +780,6 @@ describe('Console › payment link refusals', () => {
     'billing-not-configured',
     'subscription-change-blocked-by-payment',
     'subscription-not-tracked',
-    'pay-link-not-allowed',
     'bill-not-payable',
     'bill-stale',
     'pay-link-state-conflict',

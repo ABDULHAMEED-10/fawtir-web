@@ -270,6 +270,7 @@ function BillingCard({
             phone: overview.company.contactPhone,
           }}
           validityDays={payLinks.validityDays}
+          quickLink={payLinks.paymobQuickLink === true}
           onClose={close}
           onDone={(created) => {
             const channel = created.link.channel

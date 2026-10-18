@@ -40,7 +40,8 @@ type FieldName = 'bill' | 'payerName' | 'payerEmail' | 'payerPhone'
 export type PayLinkContact = { name: string | null; email: string | null; phone: string | null }
 
 /**
- * The Send payment link modal on the real API (P2-8 §3.12), in the look of the sample-data
+ * The Send payment link modal on the real API (P2-8 §3.12): a quick card-payment reminder Fawtir's
+ * staff send for any company's due bill (D9: card only, valid 7 days, fixed), in the look of the sample-data
  * `SendLinkModal` it replaces for real companies: the open bill, the channel (Fawtir emails it, a
  * WhatsApp chat the operator opens, or the link to copy), the language, and the payer's details,
  * prefilled from the company contact.
@@ -55,6 +56,7 @@ export function PayLinkModal({
   billId,
   contact,
   validityDays,
+  quickLink = false,
   onClose,
   onDone,
 }: {
@@ -65,6 +67,8 @@ export function PayLinkModal({
   contact: PayLinkContact
   /** From the billing settings; null when the read is not available. */
   validityDays: number | null
+  /** The server makes Paymob's own payment link (QuickLink) instead of a Fawtir pay page link. */
+  quickLink?: boolean
   onClose: () => void
   onDone: (created: CreatedPayLinkDto, billId: string) => void
 }) {
@@ -296,6 +300,9 @@ export function PayLinkModal({
               ? t(`${K}validityUnknown`)
               : t(`${K}validity`, { count: validityDays })}
           </p>
+          {quickLink ? (
+            <p className="text-xs font-medium text-text-quaternary">{t(`${K}quickLinkNote`)}</p>
+          ) : null}
 
           {failure ? (
             <p role="alert" className="text-sm font-medium text-danger-700">
@@ -348,6 +355,12 @@ function Created({
         // The link is made and still active; only the email did not go.
         <p className="rounded-sm bg-pending-100 px-4 py-3 text-xs font-semibold leading-[1.5] text-pending-700">
           {t(`${K}emailNotSent`)}
+        </p>
+      ) : null}
+      {created.paymobQuickLink === true ? (
+        // The address is Paymob's own payment page for this bill, not the Fawtir pay page.
+        <p className="rounded-sm bg-surface-background px-4 py-3 text-xs font-medium leading-[1.5] text-text-tertiary">
+          {t(`${K}quickLinkCreated`)}
         </p>
       ) : null}
       <p className="rounded-sm bg-pending-100 px-4 py-3 text-xs font-semibold leading-[1.5] text-pending-700">

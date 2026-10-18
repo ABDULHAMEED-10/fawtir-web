@@ -15240,9 +15240,7 @@
         "history": "Earlier purchase limits",
         "historyEntry": "Version {{version}} · {{min}} to {{max}} documents",
         "historyFailed": "The earlier purchase limits could not be loaded."
-      },
-      "linkDays": "Payment link validity (days)",
-      "linkDaysHint": "How long a new payment link can be used, from 1 to {{max}} days. Empty keeps 7."
+      }
     },
     "seller": {
       "title": "Seller",
@@ -15656,7 +15654,7 @@
       "send": {
         "open": "Send payment link",
         "title": "Send a payment link",
-        "subtitle": "A link that lets someone pay one bill of {{tenant}} without signing in.",
+        "subtitle": "A quick reminder to pay one bill of {{tenant}} by card. The payer needs no sign-in.",
         "bill": "Bill",
         "billOption": "Bill {{number}}",
         "noOpenBill": "This company has no unpaid bill to send a link for.",
@@ -15675,7 +15673,7 @@
             "description": "To paste anywhere else"
           }
         },
-        "language": "Language of the message and page",
+        "language": "Language of the message",
         "languages": {
           "en": "English",
           "ar": "Arabic"
@@ -15683,12 +15681,12 @@
         "payerName": "Payer name",
         "payerEmail": "Payer email",
         "payerPhone": "Payer phone",
-        "payerNote": "Email is needed to send by email, and the phone to send by WhatsApp. Name, email and phone are all needed if the payer pays by card.",
+        "payerNote": "Email is needed to send by email, and the phone to send by WhatsApp. Card payment needs the payer's name, email and phone.",
         "emailInvalid": "Enter an email address like name@company.om",
         "phoneInvalid": "Enter the full number with the country code",
         "validity_one": "The link works for {{count}} day",
         "validity_other": "The link works for {{count}} days",
-        "validityUnknown": "The link works for the number of days set in the billing settings",
+        "validityUnknown": "The link works for a few days, until the date shown once it is made",
         "submit": {
           "EMAIL": "Send email",
           "WHATSAPP": "Create link",
@@ -15714,7 +15712,9 @@
           "COPIED": "Payment link created and copied."
         },
         "billHint": "Due {{date}}",
-        "emailNotSent": "Payment link created, but the email did not go. The link is still active: make a new link to copy or send by WhatsApp."
+        "emailNotSent": "Payment link created, but the email did not go. The link is still active: make a new link to copy or send by WhatsApp.",
+        "quickLinkNote": "The link opens Paymob's own card payment page for this bill.",
+        "quickLinkCreated": "This is Paymob's own payment page for this bill. The payer pays by card there, and Fawtir marks the bill paid once Paymob confirms it."
       },
       "links": {
         "show": "Payment links",
@@ -15750,7 +15750,9 @@
           "BILL_VOIDED": "Closed because the bill was voided",
           "TERMS_CHANGED": "Closed because the bill's price changed",
           "DISCONNECTED": "Closed because the company disconnected from Fawtir",
-          "TOO_MANY_REJECTED": "Closed after too many payments were not confirmed"
+          "TOO_MANY_REJECTED": "Closed after too many payments were not confirmed",
+          "PAYMOB_LINK_REFUSED": "Closed because Paymob did not make its payment link",
+          "PAYMOB_LINK_UNKNOWN": "Closed because Paymob did not answer when the link was made"
         }
       },
       "revoke": {
@@ -15768,12 +15770,11 @@
         "billingNotConfigured": "The billing settings or the seller are not complete. Finish them under Billing first.",
         "paymentBeingChecked": "A payment for this company is being checked. Finish it on the payments screen first.",
         "notTracked": "This company is not billed yet. Start billing first.",
-        "notAllowed": "Payment links are only for companies Fawtir created. This company pays in the app.",
         "billNotPayable": "This bill can no longer be paid: it is paid, voided or being checked.",
         "billStale": "This bill changed after it was read. Close this window and try again.",
         "linkClosed": "This link is no longer active, so it cannot be revoked.",
         "linkChanged": "Someone else changed this link meanwhile. Close this window to see it, then try again.",
-        "linksOff": "Payment links are switched off, or no payment method is available.",
+        "linksOff": "Payment links are switched off, or card payment isn't available.",
         "realm": "This is done from the production console only.",
         "impersonation": "End the impersonation before changing a company's billing.",
         "forbidden": "You can't do this. Confirm your sign-in code again, or ask an operator with this permission.",

@@ -98,12 +98,20 @@ const LINKS = [
   },
 ]
 
+// `MOCK_PAY_QUICKLINK=1`: new links are Paymob's own payment links (QuickLink).
+const QUICKLINK = process.env.MOCK_PAY_QUICKLINK === '1'
+const PAY_URL = QUICKLINK
+  ? 'https://oman.paymob.com/standalone/?ref=mockQuickLinkForScreenshotsOnly'
+  : 'https://app.fawtir.om/pay#n3wT0kenForScreenshotsOnly000000000000000'
+
+// Read only since D9: a link is valid 7 days, fixed, and there is no PUT.
 const PAY_LINK_SETTINGS = {
   enabled: true,
   cardEnabled: true,
   validityDays: 7,
-  maxValidityDays: 14,
+  maxValidityDays: 7,
   settingsVersion: 3,
+  paymobQuickLink: QUICKLINK,
 }
 
 const UNBILLED_OVERVIEW = {
@@ -200,13 +208,14 @@ const created = (body) => ({
       expiresAt: '2026-10-24T09:00:00Z',
       version: 0,
     },
-    payLinkUrl: 'https://app.fawtir.om/pay#n3wT0kenForScreenshotsOnly000000000000000',
+    payLinkUrl: PAY_URL,
     tokenShownOnce: false,
+    paymobQuickLink: QUICKLINK,
     emailSent: body?.channel === 'EMAIL' ? true : null,
     shareText:
       body?.language === 'ar'
-        ? 'مرحبًا، هذا رابط دفع فاتورة فوتر FSB-2026-0042 بمبلغ OMR 80.000، يعمل حتى 24 أكتوبر 2026: https://app.fawtir.om/pay#n3wT0kenForScreenshotsOnly000000000000000'
-        : 'Hello, here is the link to pay Fawtir bill FSB-2026-0042 for OMR 80.000. It works until 24 Oct 2026: https://app.fawtir.om/pay#n3wT0kenForScreenshotsOnly000000000000000',
+        ? `مرحبًا، هذا رابط دفع فاتورة فوتر FSB-2026-0042 بمبلغ OMR 80.000، يعمل حتى 24 أكتوبر 2026: ${PAY_URL}`
+        : `Hello, here is the link to pay Fawtir bill FSB-2026-0042 for OMR 80.000. It works until 24 Oct 2026: ${PAY_URL}`,
   },
 })
 
@@ -236,15 +245,6 @@ export default [
   },
   // `PayLinkSettings`: present only on a server with N8; `enabled` is the switch.
   { match: '/api/v1/platform/billing/pay-link-settings', reply: () => PAY_LINK_SETTINGS },
-  {
-    method: 'PUT',
-    match: '/api/v1/platform/billing/pay-link-settings',
-    reply: ({ body }) => ({
-      ...PAY_LINK_SETTINGS,
-      validityDays: body?.validityDays ?? 7,
-      settingsVersion: PAY_LINK_SETTINGS.settingsVersion + 1,
-    }),
-  },
 
   { match: `${company(UNBILLED)}/overview`, reply: () => UNBILLED_OVERVIEW },
   {
