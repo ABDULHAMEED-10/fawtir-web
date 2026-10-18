@@ -447,9 +447,15 @@ describe('Plan and usage', () => {
     expect(screen.getByRole('link', { name: 'Open ERP integration' }).getAttribute('href')).toBe('/settings/erp')
     // Without tenant.plan.manage no move is offered at all.
     expect(screen.queryByRole('button', { name: /Move/ })).toBeNull()
-    // The paid places and the add-on (US-1, BR-3, ER-1) are read once for both of their cards.
+    // The paid places and the add-on (US-1, BR-3, ER-1) are read once for both of their cards;
+    // whether self-service plan changes are open (P2-2) is read too, and here answers 404.
     expect(new Set(requests())).toEqual(
-      new Set([`GET ${SUBSCRIPTION}`, `GET ${PUBLIC_PLANS}`, 'GET /api/v1/settings/plan/extras']),
+      new Set([
+        `GET ${SUBSCRIPTION}`,
+        `GET ${PUBLIC_PLANS}`,
+        'GET /api/v1/settings/plan/extras',
+        'GET /api/v1/settings/plan/changes',
+      ]),
     )
     expect(fetchMock.mock.calls.some(([url]) => url === PLAN)).toBe(true)
   })

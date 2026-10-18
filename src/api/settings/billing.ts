@@ -111,8 +111,16 @@ export type CardOptionDto = {
     | null
 }
 
-/** `card` is present for an OPEN bill only, and absent from servers before Phase 3C. */
-export type BillWithPaymentsDto = { bill: SubscriptionBillDto; payments: SubscriptionPaymentDto[]; card?: CardOptionDto | null }
+/**
+ * `card` is present for an OPEN bill only, and absent from servers before Phase 3C. `kind` says what
+ * paying the bill grants; absent from older servers.
+ */
+export type BillWithPaymentsDto = {
+  bill: SubscriptionBillDto
+  payments: SubscriptionPaymentDto[]
+  card?: CardOptionDto | null
+  kind?: 'SUBSCRIPTION' | 'EXTRA_DOCUMENTS' | 'PAID_EXTRAS' | 'PLAN_CHANGE' | (string & {})
+}
 
 /** Why bank transfer is or is not open; STORAGE_UNAVAILABLE recovers by itself. */
 export type BankTransferStatus = 'AVAILABLE' | 'NOT_OFFERED' | 'NO_ACCOUNT' | 'STORAGE_UNAVAILABLE'

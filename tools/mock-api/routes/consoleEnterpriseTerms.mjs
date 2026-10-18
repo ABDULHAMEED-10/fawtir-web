@@ -218,6 +218,9 @@ if (customer === 'preparing' || customer === 'agreed') {
           billingCycle: 'MONTHLY',
           periodPrice: '450.000',
           effectiveOn: '2026-11-10',
+          kind: 'ENTERPRISE_TERMS',
+          paidFor: false,
+          withdrawal: 'NONE',
         }
       : null,
     restriction: null,

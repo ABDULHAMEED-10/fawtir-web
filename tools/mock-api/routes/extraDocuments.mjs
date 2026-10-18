@@ -7,6 +7,7 @@
  * `MOCK_EXTRAS_STATE=order` starts with an unpaid order of 100, `=none` with no allowance left.
  */
 import { paidExtrasBillRows, payPaidExtrasBill } from './paidExtras.mjs'
+import { planChangeBillRows, payPlanChangeBill } from './planChanges.mjs'
 
 const TODAY = '2026-10-11'
 const PERIOD = { start: '2026-10-01', end: '2026-10-31' }
@@ -214,8 +215,10 @@ export default [
   {
     match: '/api/v1/settings/billing',
     reply: () => ({
-      // The paid-extras order (paidExtras.mjs) is listed too, so both can be paid here.
+      // The plan-change bill (planChanges.mjs) and the paid-extras order (paidExtras.mjs) are listed
+      // too, so each can be paid here.
       bills: [
+        ...planChangeBillRows(),
         ...paidExtrasBillRows(),
         ...(state.order
           ? [
@@ -248,6 +251,8 @@ export default [
     reply: ({ params }) => {
       const extras = payPaidExtrasBill(params[0], params[1] === 'bank-transfer' ? 'BANK_TRANSFER' : 'CASH')
       if (extras) return { status: 201, body: extras }
+      const planChange = payPlanChangeBill(params[0], params[1] === 'bank-transfer' ? 'BANK_TRANSFER' : 'CASH')
+      if (planChange) return { status: 201, body: planChange }
       if (!state.order || state.order.bill.id !== params[0]) return problem(409, 'bill-not-payable', 'No such bill.')
       state.payment = payment(params[1] === 'bank-transfer' ? 'BANK_TRANSFER' : 'CASH')
       return { status: 201, body: state.payment }

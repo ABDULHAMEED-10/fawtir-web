@@ -22879,6 +22879,150 @@
       "extraPlaceLink": "Add places"
     }
   },
+  "planChange": {
+    "rule": "A bigger plan applies as soon as it is paid, and you pay only the difference for the days left; a smaller plan applies from your next renewal. Monthly to yearly billing applies at once, yearly to monthly at the end of the year.",
+    "moveTo": "Move to {{plan}}",
+    "toAnnual": "Switch to yearly billing",
+    "toMonthly": "Switch to monthly billing",
+    "keep": "Keep {{plan}}",
+    "per": {
+      "MONTHLY": "a month",
+      "ANNUAL": "a year"
+    },
+    "dialog": {
+      "title": "Change your plan",
+      "cycle": "Billing",
+      "back": "Back",
+      "confirm": {
+        "UPGRADE": "Confirm and pay",
+        "CYCLE_TO_ANNUAL": "Confirm and pay",
+        "KEEP_PLAN": "Confirm and pay",
+        "DOWNGRADE": "Schedule the change",
+        "CYCLE_TO_MONTHLY": "Schedule the change",
+        "CHANGE_AT_ONCE": "Change now",
+        "NONE": "Confirm",
+        "TRIAL_UPGRADE": "Confirm and pay"
+      },
+      "priceChanged": "The price changed; check the new amount."
+    },
+    "kind": {
+      "UPGRADE": "{{from}} to {{to}}: applies as soon as it is paid.",
+      "CYCLE_TO_ANNUAL": "Yearly billing on {{to}}: applies as soon as it is paid.",
+      "KEEP_PLAN": "Keep {{to}} instead of the smaller plan: applies as soon as it is paid.",
+      "DOWNGRADE": "{{from}} to {{to}} from {{date}}, your next renewal.",
+      "CYCLE_TO_MONTHLY": "Monthly billing on {{to}} from {{date}}, when your paid year ends.",
+      "CHANGE_AT_ONCE": "{{from}} to {{to}}: applies at once, with nothing to pay.",
+      "NONE": "This is already your plan and billing.",
+      "TRIAL_UPGRADE": "{{from}} to {{to}}: applies as soon as it is paid, and ends your free trial."
+    },
+    "charge": {
+      "period": "{{start}} to {{end}}: {{remaining}} of {{total}} days left",
+      "annualPrice": "Yearly price of {{plan}}",
+      "credit": "Less what you already paid for this year's months",
+      "extra": {
+        "USER": "Extra users: {{n}} at OMR {{unit}} a year each (monthly price × 10), less OMR {{credit}} already paid",
+        "BRANCH": "Extra branches: {{n}} at OMR {{unit}} a year each (monthly price × 10), less OMR {{credit}} already paid",
+        "ERP_ADDON": "ERP and API add-on at OMR {{unit}} a year (monthly price × 10), less OMR {{credit}} already paid"
+      },
+      "payNow_one": "You pay OMR {{total}} now for the {{n}} day left until {{date}} (includes today).",
+      "payNow_other": "You pay OMR {{total}} now for the {{n}} days left until {{date}} (includes today).",
+      "payNowFrom_one": "You pay OMR {{total}} now for the {{n}} day from {{start}} to {{end}}.",
+      "payNowFrom_other": "You pay OMR {{total}} now for the {{n}} days from {{start}} to {{end}}.",
+      "payNowAnnual": "You pay OMR {{total}} now, and your subscription is paid until {{date}}.",
+      "nothingNow": "Nothing to pay now. From {{date}} the price is OMR {{price}} {{cycle}}; nothing is refunded for the current period.",
+      "wholePeriod": {
+        "MONTHLY": "{{start}} to {{end}}: one whole month of {{plan}}",
+        "ANNUAL": "{{start}} to {{end}}: one whole year of {{plan}}"
+      },
+      "payNowTrial": {
+        "MONTHLY": "You pay OMR {{total}} now for one whole month of {{plan}}: {{start}} to {{end}}.",
+        "ANNUAL": "You pay OMR {{total}} now for one whole year of {{plan}}: {{start}} to {{end}}."
+      },
+      "extraTrial": {
+        "USER": "Extra users: {{n}} at OMR {{unit}} each for the period",
+        "BRANCH": "Extra branches: {{n}} at OMR {{unit}} each for the period",
+        "ERP_ADDON": "ERP and API add-on at OMR {{unit}} for the period"
+      }
+    },
+    "fact": {
+      "allowanceAtOnce": "Your allowance becomes {{after}} documents a month at once; the {{used}} already used this month still count.",
+      "allowanceOnDate": "Your allowance becomes {{after}} documents a month from {{date}}.",
+      "subscriptionDate": "Your subscription date does not change (day {{day}} of the month).",
+      "cycleChangeOn": "Monthly billing starts on {{date}}, when your paid year ends.",
+      "withdrawUntilPaid": "Once paid, it cannot be withdrawn. Until then you can withdraw it.",
+      "withdrawBefore": "You can withdraw it any time before {{date}}.",
+      "endsTrial": "Paying ends your free trial at once: your paid period starts on the day you pay, and unused trial days are not carried over.",
+      "allowanceTrial": "Your allowance becomes {{after}} documents a month from the day you pay."
+    },
+    "loss": {
+      "features": "{{plan}} does not have these, so they stop on {{date}}:",
+      "featuresAtOnce": "{{plan}} does not have these, so they stop at once:",
+      "otherFeatures": "Other features of your current plan",
+      "recordsStay": "Your records stay readable and can be downloaded and exported.",
+      "erp": "The ERP and API add-on stops on {{date}}. Its mapping and history stay readable.",
+      "erpAtOnce": "The ERP and API add-on stops at once. Its mapping and history stay readable.",
+      "users_one": "Users: {{plan}} includes {{included}} and you have {{inUse}}. {{n}} user will be switched off on {{date}}, never deleted.",
+      "users_other": "Users: {{plan}} includes {{included}} and you have {{inUse}}. {{n}} users will be switched off on {{date}}, never deleted.",
+      "branches_one": "Branches: {{plan}} includes {{included}} and you have {{inUse}} open. {{n}} branch will be closed on {{date}}, never deleted.",
+      "branches_other": "Branches: {{plan}} includes {{included}} and you have {{inUse}} open. {{n}} branches will be closed on {{date}}, never deleted.",
+      "byDefault": "Unless you choose, these go: {{names}}.",
+      "separator": ", ",
+      "chooseLater": "The most recently added go first; the owner, administrators and the Head Branch always stay. Once it is scheduled you can choose who stays."
+    },
+    "blockers": "This change cannot be made now:",
+    "refusal": {
+      "plan-change-unavailable": "Changing the plan from here is not available right now.",
+      "plan-change-quote-changed": "The price changed; check the new amount.",
+      "plan-change-already-pending": "A plan change is already waiting for payment. Pay it or withdraw it first.",
+      "plan-change-already-paid": "A payment for this change has been sent, so it cannot be withdrawn now.",
+      "plan-change-while-ending": "Your subscription is ending. Keep your subscription first, then change the plan.",
+      "enterprise-terms-scheduled-by-fawtir": "Fawtir has set your Enterprise terms for the next renewal, so the plan cannot be changed here. Talk to the Fawtir team.",
+      "plan-upgrade-requires-platform": "A bigger plan applies to paid time, and none is left. Pay your subscription first, then move up.",
+      "subscription-change-blocked-by-payment": "A payment for your subscription is being checked by Fawtir. You can change your plan once it is confirmed or rejected.",
+      "subscription-state-conflict": "Your next period is already paid at the lower price, so this change cannot replace it.",
+      "billing-not-configured": "Fawtir has not finished setting up billing, so a change that needs paying cannot be made yet.",
+      "subscription-not-tracked": "Your plan is managed by the Fawtir team. Talk to them to change it.",
+      "disconnected-from-fawtir": "Your company is disconnected from Fawtir, so the plan cannot be changed.",
+      "idempotency-key-reused": "That request was already used for another change. Close this and try again.",
+      "not-found": "This plan cannot be chosen.",
+      "plan-change-via-fawtir": "Your company is on its own Enterprise terms, so plan changes go through Fawtir. Contact us to change your plan."
+    },
+    "pending": {
+      "title": "Plan change waiting for payment",
+      "note": {
+        "UPGRADE": "Move to {{plan}}. It applies as soon as the payment is confirmed: your allowance rises at once and your subscription date stays the same.",
+        "CYCLE_TO_ANNUAL": "Yearly billing on {{plan}}, paid until {{date}}. It applies as soon as the payment is confirmed.",
+        "KEEP_PLAN": "Keep {{plan}} instead of the smaller plan. It applies as soon as the payment is confirmed.",
+        "TRIAL_UPGRADE": "Move to {{plan}}. It applies as soon as the payment is confirmed: your free trial then ends, your paid period starts on the day you paid, and unused trial days are not carried over."
+      },
+      "line": {
+        "UPGRADE": "Upgrade to {{plan}}",
+        "CYCLE_TO_ANNUAL": "Yearly billing on {{plan}}",
+        "KEEP_PLAN": "Keep {{plan}}",
+        "TRIAL_UPGRADE": "First paid period on {{plan}}"
+      },
+      "withdraw": "Withdraw the change",
+      "withdrawn": "The change was withdrawn. Nothing is owed for it.",
+      "noteTrial": {
+        "UPGRADE": "Move to {{plan}}. It applies as soon as the payment is confirmed: your free trial then ends, your paid period starts on the day you paid, and unused trial days are not carried over.",
+        "CYCLE_TO_ANNUAL": "Yearly billing on {{plan}}. It applies as soon as the payment is confirmed: your free trial then ends, your paid year starts on the day you paid, and unused trial days are not carried over."
+      }
+    },
+    "waiting": {
+      "toMonthly": "Monthly billing starts on {{date}}, when your paid year ends."
+    },
+    "done": {
+      "billIssued": "Your change is waiting for payment. Pay it below; it applies as soon as the payment is confirmed.",
+      "scheduled": "Done. You move to {{plan}} on {{date}}.",
+      "monthlyFrom": "Done. Monthly billing starts on {{date}}.",
+      "atOnce": "Done. You are now on {{plan}}.",
+      "nothing": "Nothing needed changing."
+    },
+    "bill": {
+      "line": "Plan change"
+    },
+    "ruleTrial": "During your free trial, paying for a bigger plan ends the trial at once: your paid period starts on the day you pay, and unused trial days are not carried over."
+  },
   "fawtirReconnection": {
     "title": "Coming back to Fawtir",
     "how": {

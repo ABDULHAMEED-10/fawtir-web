@@ -112,7 +112,20 @@ const SUBSCRIPTION_STATES = {
     renewsOn: null,
     enterprise: { termsSet: false },
   },
+  // P2-2 D3: the 1 November renewal was paid early at the Starter price, so keeping Business
+  // means paying the difference for that period (`KEEP_PLAN`, planChanges.mjs).
+  downgradePaid: { paidThrough: '2026-11-30', renewsOn: '2026-12-01' },
   restrictionsOff: { access: 'PAYMENT_REQUIRED', restrictionsEnforced: false, restriction: null, ...LAPSED },
+  // R1: day 11 of the 14-day trial; pair it with `MOCK_PLAN_CHANGE_STATE=trial` (planChanges.mjs).
+  trial: {
+    access: 'TRIAL',
+    trialStartsOn: '2026-10-01',
+    trialEndsOn: '2026-10-14',
+    trialDay: 11,
+    trialDaysLeft: 4,
+    paidThrough: null,
+    renewsOn: null,
+  },
 }
 
 const ROLES = [
@@ -242,8 +255,15 @@ const SCHEDULED_CHANGE = {
   billingCycle: 'MONTHLY',
   periodPrice: '35.000',
   effectiveOn: '2026-11-01',
+  kind: 'DOWNGRADE',
 }
 let scheduledChange = SCHEDULED_CHANGE
+
+/** A plan change scheduled through `/settings/plan/changes` (`planChanges.mjs`) waits here too. */
+export function setScheduledChange(change) {
+  scheduledChange = change
+  switchOffChoice = null
+}
 
 const SEATS = [
   { userId: 'u-yusuf', addedAt: '2026-08-02T08:00:00Z', kept: 'OWNER' },
@@ -457,9 +477,25 @@ function subscriptionNotices() {
 }
 
 function subscription() {
-  return {
+  const status = {
     ...SUBSCRIPTION_ACTIVE,
     ...(SUBSCRIPTION_STATES[process.env.MOCK_SUBSCRIPTION_STATE ?? ''] ?? {}),
-    scheduledChange,
   }
+  return { ...status, scheduledChange: scheduledView(status) }
+}
+
+/**
+ * The waiting change with backend #614's `paidFor` and `withdrawal`, worked out as the server
+ * does: paid for when its first period is inside `paidThrough`, and then taken back only by
+ * keeping the plan (a charged change); otherwise withdrawn for free.
+ * `MOCK_SCHEDULED_CHANGE_FIELDS=off` answers as a server before #614 (no kind, paidFor or
+ * withdrawal), to check the screen's fallback.
+ */
+function scheduledView(status) {
+  if (!scheduledChange) return null
+  const paidFor = status.paidThrough !== null && scheduledChange.effectiveOn <= status.paidThrough
+  const full = { ...scheduledChange, paidFor, withdrawal: paidFor ? 'KEEP_PLAN' : 'FREE' }
+  if (process.env.MOCK_SCHEDULED_CHANGE_FIELDS !== 'off') return full
+  const { kind: _kind, paidFor: _paidFor, withdrawal: _withdrawal, ...before } = full
+  return before
 }

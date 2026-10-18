@@ -131,7 +131,10 @@ export function SubscriptionBillingSection() {
           onChanged={changed}
           onCardFinished={cardFinished}
           subtotalLabel={
-            extrasOrder && extrasOrder.bill.id === outstanding.bill.id
+            // A self-service plan change (P2-2) is named as such, not as the subscription.
+            outstanding.kind === 'PLAN_CHANGE'
+              ? t('planChange.bill.line')
+              : extrasOrder && extrasOrder.bill.id === outstanding.bill.id
               ? t('extraDocuments.quote.line', {
                   count: extrasOrder.credit.documents,
                   documents: formatCount(extrasOrder.credit.documents, i18n.language),
