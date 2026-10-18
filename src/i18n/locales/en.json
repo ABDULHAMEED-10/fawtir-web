@@ -977,7 +977,7 @@
       "monthlyPrice": "Monthly price {{rate}}",
       "vatRate": "VAT ({{rate}}%)",
       "vatUnknownRate": "VAT",
-      "addonOnTop": "Automatic ERP extraction ({{cycle}}), billed on top",
+      "addonOnTop": "Automatic ERP extraction ({{cycle}}), billed separately with your first paid period",
       "monthsWithFree": "{{count}} months · {{free}} free",
       "months_one": "{{count}} month",
       "months_other": "{{count}} months",
@@ -1009,9 +1009,10 @@
     "addon": {
       "title": "Add-on",
       "label": "Add automatic ERP extraction",
-      "body": "Fawtir collects invoices from your ERP on a schedule and runs them through your field mapping. The Fawtir team confirms the add-on with your subscription.",
+      "body": "Fawtir collects invoices from your ERP on a schedule and runs them through your field mapping. The add-on is billed with your first paid period, on a bill of its own.",
       "perMonth": "a month",
-      "perMonthTimes": "a month, for {{count}} months"
+      "perMonthTimes": "a month, for {{count}} months",
+      "priceLater": "Its price is on that bill, for the whole first paid period."
     },
     "descriptionTrial_one": "Nothing is charged today. Your free trial starts when your account is approved, and your first bill comes after {{count}} day, by the method you choose here.",
     "descriptionTrial_other": "Nothing is charged today. Your {{count}}-day free trial starts when your account is approved, and your first bill comes when it ends, by the method you choose here.",
@@ -16018,7 +16019,7 @@
     "choosePayment": "Choose how you'll pay",
     "amountUnavailable": "Not available yet",
     "firstBillUnknown": "Confirmed when your account is approved",
-    "addonValue": "ERP extraction requested; Fawtir confirms it",
+    "addonValue": "ERP requested; billed with first paid period",
     "startsOnActivation": "When your company is approved and the payment is confirmed"
   },
   "signupPending": {

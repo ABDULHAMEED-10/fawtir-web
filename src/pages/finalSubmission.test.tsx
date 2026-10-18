@@ -159,10 +159,11 @@ describe('Review and submit', () => {
 
   it('shows a ticked ERP add-on as requested, not as already added', () => {
     renderAt('/signup-review', { ...COMPLETE, addon: true })
-    // The tick is not saved yet (TODO(backend), ONBOARDING.md row 1.3) and the Fawtir team confirms
-    // it, so review must not read as though the add-on were already part of the account.
+    // The add-on is billed with the first paid period on a bill of its own (backend #611), so
+    // review must not read as though it were already part of the account.
     expect(valueOf('payment.addon.title')).toBe(i18n.t('signupReview.addonValue'))
     expect(i18n.t('signupReview.addonValue')).toMatch(/requested/)
+    expect(i18n.t('signupReview.addonValue')).toMatch(/first paid period/)
     // Review values sit in a one-line read-only field about 308px wide; the first wording ran to
     // 533px and was cut off at "the Fawtir te" in the browser check, on desktop and mobile alike.
     for (const lng of ['en', 'ar']) {

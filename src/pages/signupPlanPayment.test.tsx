@@ -108,6 +108,17 @@ const BUSINESS: SignupCataloguePlan = {
   sortOrder: 20,
 }
 const CATALOGUE = [STARTER, BUSINESS]
+/** Business Plus with the ERP add-on priced by the server (17.250, unlike the console's 20). */
+const PLUS_WITH_ADDON: SignupCataloguePlan = {
+  ...BUSINESS,
+  code: 'BUSINESS_PLUS',
+  nameEn: 'Business Plus',
+  nameAr: 'الأعمال بلس',
+  priceVersionId: 'pv-plus-2',
+  recommended: false,
+  sortOrder: 30,
+  erpAddonMonthlyPrice: '17.250',
+}
 
 type Handler = (init: RequestInit) => Response | Promise<Response>
 let fetchMock: ReturnType<typeof vi.fn>
@@ -1006,7 +1017,10 @@ describe("How you'll pay", () => {
       vatAmount: '75.000',
       amountInclVat: '1575.000',
     }
-    answer({ [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: plusAnnual }) })
+    answer({
+      [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: plusAnnual }),
+      [PLANS_URL]: () => json(200, [...CATALOGUE, PLUS_WITH_ADDON]),
+    })
     renderAt('/payment', {
       ...AFTER_ADDRESS,
       plan: 'businessPlus',
@@ -1019,10 +1033,48 @@ describe("How you'll pay", () => {
 
     expect(screen.getByText('1575.000')).toBeTruthy()
     expect(
-      screen.getByText(
+      await screen.findByText(
         i18n.t('payment.summary.addonOnTop', { cycle: i18n.t('payment.summary.annual') }),
       ),
     ).toBeTruthy()
+    // 17.250 a month for 12 months, from the server's price, never the console default of 20.
+    expect(screen.getByText('207.000')).toBeTruthy()
+  })
+
+  it('prices the ERP add-on from the published catalogue, a month at a time (N1)', async () => {
+    answer({ [PLANS_URL]: () => json(200, [...CATALOGUE, PLUS_WITH_ADDON]) })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'businessPlus', billing: 'monthly' })
+    expect(await screen.findByText('17.250')).toBeTruthy()
+    expect(screen.queryByText('20.000')).toBeNull()
+    expect(screen.queryByText(i18n.t('payment.addon.priceLater'))).toBeNull()
+  })
+
+  it('shows no add-on figure when the server sends none, and says where it is priced (N1)', async () => {
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'businessPlus', billing: 'monthly' })
+    expect(await screen.findByText(i18n.t('payment.addon.priceLater'))).toBeTruthy()
+    expect(screen.queryByText('20.000')).toBeNull()
+    await userEvent
+      .setup({ delay: null })
+      .click(screen.getByLabelText(i18n.t('payment.addon.label')))
+    expect(
+      screen.queryByText(
+        i18n.t('payment.summary.addonOnTop', { cycle: i18n.t('payment.summary.monthly') }),
+      ),
+    ).toBeNull()
+  })
+
+  it('says the add-on is billed with the first paid period, not confirmed by the Fawtir team (N1, #611)', () => {
+    for (const lng of ['en', 'ar']) {
+      const words = [
+        i18n.t('payment.addon.body', { lng }),
+        i18n.t('signupReview.addonValue', { lng }),
+        i18n.t('payment.addon.priceLater', { lng }),
+      ].join(' ')
+      expect(words).not.toMatch(/confirms|يؤكد/)
+      expect(words).not.toMatch(/—/)
+    }
+    expect(i18n.t('payment.addon.body', { lng: 'en' })).toContain('billed with your first paid period')
+    expect(i18n.t('payment.addon.body', { lng: 'ar' })).toContain('مع أول فترة مدفوعة')
   })
 
   it('does not draw the cash icon as the selected tick', () => {
