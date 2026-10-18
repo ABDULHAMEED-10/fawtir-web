@@ -21528,8 +21528,7 @@
         "questionTitle": "Have any question?",
         "emailTitle": "Our email",
         "addressTitle": "Our address",
-        "address": "Al Rusayl 124, Sultanate of Oman",
-        "phone": "Toll free {{number}}"
+        "address": "Al Rusayl 124, Sultanate of Oman"
       }
     }
   },

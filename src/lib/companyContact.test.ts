@@ -40,14 +40,14 @@ describe('company contact details (CS-1)', () => {
     expect(resolveCompanyContact(null, 'en')).toEqual({
       supportEmail: 'support@fawtir.om',
       contactPageEmail: 'hello@fawtir.om',
-      contactPagePhone: '+2444 0100',
-      phoneFromServer: false,
+      contactPagePhone: null,
       address: null,
       website: null,
       linkedinUrl: null,
       instagramUrl: null,
     })
     expect(LEGACY_CONTACT.supportEmail).toBe('support@fawtir.om')
+    expect(LEGACY_CONTACT).not.toHaveProperty('contactPagePhone')
   })
 
   it('with a setting every place shows it, the address in the reader language', () => {
@@ -56,16 +56,14 @@ describe('company contact details (CS-1)', () => {
     expect(en.supportEmail).toBe('fawtara@insight.om')
     expect(en.contactPageEmail).toBe('fawtara@insight.om')
     expect(en.contactPagePhone).toBe('+968 0000 0000')
-    expect(en.phoneFromServer).toBe(true)
     expect(en.address).toBe('Al Rusayl 124, Sultanate of Oman')
     expect(resolveCompanyContact(contact, 'ar').address).toBe('الرسيل 124، سلطنة عُمان')
   })
 
-  it('a field the setting leaves empty falls back on its own', () => {
+  it('a field the setting leaves empty falls back on its own, and no phone means none', () => {
     const contact = parsePublicCompanyContact({ ...SETTING, supportPhone: null, addressAr: null })
     const ar = resolveCompanyContact(contact, 'ar')
-    expect(ar.contactPagePhone).toBe('+2444 0100')
-    expect(ar.phoneFromServer).toBe(false)
+    expect(ar.contactPagePhone).toBeNull()
     expect(ar.address).toBe('Al Rusayl 124, Sultanate of Oman')
   })
 

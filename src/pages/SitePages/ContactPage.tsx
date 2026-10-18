@@ -14,7 +14,8 @@ import { useFaqItems } from './faq'
  */
 
 // The email, number and address are the console's company contact setting (CS-1). Until the
-// server returns one, the page keeps the frame's own values (`LEGACY_CONTACT`).
+// server returns one, the page keeps the frame's own email and address (`LEGACY_CONTACT`); the
+// phone line shows only when the setting names a number.
 
 export function ContactPage() {
   const { t } = useTranslation()
@@ -46,13 +47,16 @@ function Touch() {
   const contact = useCompanyContact(i18n.language)
   const phone = contact.contactPagePhone
   const info = [
-    {
-      icon: callIcon,
-      title: t('site.contact.info.questionTitle'),
-      // "Toll free" belongs to the frame's number; a number from the setting is shown as given.
-      value: contact.phoneFromServer ? phone : t('site.contact.info.phone', { number: phone }),
-      href: `tel:${phone.replace(/\s/g, '')}`,
-    },
+    ...(phone
+      ? [
+          {
+            icon: callIcon,
+            title: t('site.contact.info.questionTitle'),
+            value: phone,
+            href: `tel:${phone.replace(/\s/g, '')}`,
+          },
+        ]
+      : []),
     {
       icon: mailIcon,
       title: t('site.contact.info.emailTitle'),

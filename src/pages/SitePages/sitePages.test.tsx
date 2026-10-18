@@ -292,7 +292,7 @@ describe('Contact page, company contact setting (CS-1)', () => {
 
     expect(await screen.findByText('fawtara@insight.om')).toBeTruthy()
     expect(link('mailto:fawtara@insight.om')).toBeTruthy()
-    // The setting's number is shown as given: "Toll free" was the frame's number's label.
+    // The setting's number is shown as given, with no label.
     expect(screen.getByText('+968 0000 0000').getAttribute('href')).toBe('tel:+96800000000')
     expect(screen.getByText('Knowledge Oasis, Muscat')).toBeTruthy()
     expect(screen.queryByText('hello@fawtir.om')).toBeNull()
@@ -320,6 +320,15 @@ describe('Contact page, company contact setting (CS-1)', () => {
     expect(location.href.startsWith('mailto:fawtara@insight.om?subject=')).toBe(true)
   })
 
+  it('a setting without a phone shows no phone line, and keeps its email', async () => {
+    answer(() => json(200, { ...SETTING, supportPhone: null }))
+    renderPage(<ContactPage />)
+
+    expect(await screen.findByText('fawtara@insight.om')).toBeTruthy()
+    expect(screen.queryByText(i18n.t('site.contact.info.questionTitle'))).toBeNull()
+    expect(document.querySelector('a[href^="tel:"]')).toBeNull()
+  })
+
   it('reads the Arabic address in Arabic', async () => {
     await i18n.changeLanguage('ar')
     answer(() => json(200, SETTING))
@@ -338,9 +347,10 @@ describe('Contact page, company contact setting (CS-1)', () => {
     await act(async () => {})
 
     expect(screen.getByText('hello@fawtir.om')).toBeTruthy()
-    expect(
-      screen.getByText(i18n.t('site.contact.info.phone', { number: '+2444 0100' })),
-    ).toBeTruthy()
+    // No number without one from the server: the frame's toll-free number is gone, line and all.
+    expect(screen.queryByText(/2444/)).toBeNull()
+    expect(screen.queryByText(i18n.t('site.contact.info.questionTitle'))).toBeNull()
+    expect(document.querySelector('a[href^="tel:"]')).toBeNull()
     expect(screen.getByText(i18n.t('site.contact.info.address'))).toBeTruthy()
     expect(link('mailto:support@fawtir.om?subject=Fawtir%20demo%20request')).toBeTruthy()
     expect(link('mailto:support@fawtir.om?subject=Fawtir%20partners')).toBeTruthy()
