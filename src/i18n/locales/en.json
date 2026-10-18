@@ -2042,7 +2042,8 @@
       "toSend": "To send",
       "awaiting": "Awaiting",
       "overdue": "Overdue",
-      "paid": "Paid"
+      "paid": "Paid",
+      "toApprove": "To approve"
     },
     "filters": {
       "thisMonth": "This month",
@@ -2175,7 +2176,8 @@
     },
     "notIssuedYet": "Not issued yet",
     "bulkUnavailable": "Bulk upload is not available yet: the import endpoint has not been built.",
-    "duplicateUnavailable": "Duplicating is not available yet: there is no route to copy a document."
+    "duplicateUnavailable": "Duplicating is not available yet: there is no route to copy a document.",
+    "nothingToApprove": "Nothing is waiting for your approval."
   },
   "invoiceDispatch": {
     "state": {
@@ -2395,7 +2397,12 @@
       "ATTACHMENT_REJECTED": "File refused",
       "ATTACHMENT_REMOVED": "File removed",
       "MARKED_SENT_MANUALLY": "Recorded as sent by hand",
-      "other": "Recorded"
+      "other": "Recorded",
+      "APPROVAL_REQUESTED": "Sent for approval",
+      "APPROVAL_WITHDRAWN": "Approval request withdrawn",
+      "APPROVED": "Approved",
+      "APPROVAL_REJECTED": "Not approved",
+      "APPROVAL_CLEARED_BY_EDIT": "Approval cleared by an edit"
     },
     "cancel": {
       "title": "Cancel this invoice?",
@@ -11230,7 +11237,8 @@
       "PRIVACY_REQUEST": "Privacy request",
       "HTTP_REQUEST": "Request",
       "AS4_MESSAGE": "Peppol message",
-      "IMPERSONATION": "Support access"
+      "IMPERSONATION": "Support access",
+      "SALES_APPROVAL_RULE": "Sales approval rule"
     },
     "event": {
       "other": "Recorded event",
@@ -11408,7 +11416,9 @@
       "WebhookEndpointCreated": "Webhook added",
       "WebhookEndpointDeleted": "Webhook removed",
       "WebhookSecretRotated": "Webhook secret replaced",
-      "WebhookTestRequested": "Webhook test sent"
+      "WebhookTestRequested": "Webhook test sent",
+      "SalesApprovalRuleChanged": "Sales approval rule changed",
+      "SalesInvoiceApprovalDecided": "Sales document approval decided"
     },
     "notAvailable": "Not available yet",
     "exportUnavailable": "Exporting the log as a PDF is not available yet.",
@@ -22665,6 +22675,86 @@
     "beforePaying": {
       "note": "Your company has left Fawtir. Reconnect to Fawtir before paying.",
       "link": "Reconnect in the danger zone"
+    }
+  },
+  "salesApproval": {
+    "status": {
+      "NOT_REQUIRED": "No approval needed",
+      "NOT_REQUESTED": "Needs approval",
+      "PENDING": "Waiting for approval",
+      "APPROVED": "Approved",
+      "REJECTED": "Not approved"
+    },
+    "card": {
+      "title": "Approval",
+      "NOT_REQUESTED": "This document needs approval before it is issued.",
+      "pending": "Waiting for approval · {{given}} of {{required}}",
+      "APPROVED": "Approved. It can now be issued.",
+      "REJECTED": "Not approved. Edit the draft and send it for approval again.",
+      "amount": "Sent for approval at {{amount}}",
+      "reason": "Reason: {{reason}}",
+      "editClears": "Editing the draft clears the approval."
+    },
+    "actions": {
+      "request": "Send for approval",
+      "withdraw": "Withdraw request",
+      "approve": "Approve",
+      "approveAndIssue": "Approve and issue",
+      "reject": "Reject"
+    },
+    "reject": {
+      "title": "Reject this document",
+      "body": "Say why it is not approved. The person who sent it will see your reason.",
+      "reason": "Reason",
+      "confirm": "Reject"
+    },
+    "refused": {
+      "preparer": "You prepared this draft, so someone else must approve it.",
+      "changed": "This draft changed while you were looking at it. Reload to see the latest version.",
+      "noApprover": "Nobody else can approve this yet. Ask your administrator to give someone the Approve permission.",
+      "alreadyPending": "This document is already waiting for approval.",
+      "alreadyApproved": "This document is already approved.",
+      "notRequired": "No approval rule covers this document. It can be issued directly.",
+      "notPending": "This document is not waiting for approval any more.",
+      "pendingEdit": "Withdraw the approval request before editing this document.",
+      "required": "This document needs approval before it is issued. Send it for approval from its draft.",
+      "pending": "This document is waiting for approval and cannot be issued yet.",
+      "rejected": "This document was not approved. Edit it and send it for approval again.",
+      "reasonRequired": "Say why the document is not approved.",
+      "tooLong": "The text is too long. Keep it under 1,000 characters.",
+      "typePermission": "You do not have permission to prepare this kind of document.",
+      "ruleChanged": "Someone else changed the rule while you were editing. Reload to see it.",
+      "ruleEmpty": "Choose at least one kind of document, or turn the rule off.",
+      "unavailable": "Approval of sales documents is not available yet."
+    },
+    "rule": {
+      "title": "Sales invoices",
+      "note": "Require approval before sales documents are issued. Whoever prepared a document can never approve it.",
+      "enabled": "Require approval before issuing",
+      "switchingOn": "Drafts not yet issued will need approval before they are issued.",
+      "covers": "Documents that need approval",
+      "cover": {
+        "invoice": "Invoices",
+        "creditNote": "Credit notes",
+        "debitNote": "Debit notes",
+        "selfBilled": "Self-billed documents"
+      },
+      "problem": {
+        "coversNothing": "Choose at least one kind of document, or turn the rule off."
+      },
+      "approvers": "People who must approve each document",
+      "approverCount": "People who can approve today: {{n}}.",
+      "tooFew": "Add the Approve permission to someone else, or every request will wait.",
+      "threshold": "When approval is needed",
+      "mode": {
+        "EVERY_BILL": "Every document, whatever its amount",
+        "BELOW_AMOUNT": "Only documents at or above an amount"
+      },
+      "thresholdLabel": "No approval needed below",
+      "boundary": "A document of exactly {{amount}} including VAT still needs approval.",
+      "erpNote": "Documents sent from your ERP or the API are issued by that system and are not held for approval.",
+      "saved": "Sales approval rule saved.",
+      "save": "Save the sales rule"
     }
   }
 }

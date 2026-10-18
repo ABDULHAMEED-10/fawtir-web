@@ -63,6 +63,8 @@ import { buyerParty, sellerParty, type DocumentParty } from '../../lib/documentP
 import { paymentMethodLabel, paymentTermLabel } from '../../lib/reference/referenceData'
 import { RecordPaymentModal } from './RecordPaymentModal'
 import { IssueInvoiceModal } from '../../components/invoice/IssueInvoiceModal'
+import { DraftApprovalCard, useSalesApproval } from '../../components/invoice/DraftApprovalCard'
+import { editWaitsOnApproval, issueWaitsOnApproval } from '../../lib/salesApproval'
 import { SendInvoiceModal } from '../../components/invoice/SendInvoiceModal'
 import {
   RELEASE_REFUSALS,
@@ -220,6 +222,8 @@ function InvoiceScreen() {
     document ? `${invoicePath(id)}/history` : null,
     () => loadHistory(id),
   )
+  // Approval before issue (RL-6): read only for a draft. Unread or switched off, nothing changes.
+  const salesApproval = useSalesApproval(id, document !== null && isDraft(document))
   // The design shows the internal note in its box (Figma 154:163406), so it is read with the page.
   // TODO(backend): reading it writes an audit event, so every visit now records a "note read";
   // please stop auditing the read, or answer the note on the detail itself.
@@ -668,7 +672,7 @@ function InvoiceScreen() {
                 variant="bordered"
               />
             ) : null}
-            {draft && can(session, 'invoice.draft') ? (
+            {draft && can(session, 'invoice.draft') && !editWaitsOnApproval(salesApproval.approval) ? (
               <Link
                 to={
                   data.type === 'CREDIT_NOTE' || data.type === 'DEBIT_NOTE'
@@ -681,7 +685,10 @@ function InvoiceScreen() {
                 {t('invoiceDetails.actions.edit')}
               </Link>
             ) : null}
-            {draft && can(session, 'invoice.issue') && mayIssue ? (
+            {draft &&
+            can(session, 'invoice.issue') &&
+            mayIssue &&
+            !issueWaitsOnApproval(salesApproval.approval) ? (
               <button type="button" onClick={() => setIssuing(true)} className={PRIMARY_BUTTON}>
                 {t(
                   noteType === 'CREDIT_NOTE'
@@ -789,6 +796,22 @@ function InvoiceScreen() {
             {t('invoiceDetails.draftNotice')}
           </p>
         </section>
+      ) : null}
+
+      {draft ? (
+        <DraftApprovalCard
+          invoiceId={data.id}
+          type={data.type}
+          approval={salesApproval.approval}
+          onChanged={() => {
+            salesApproval.retry()
+            invoice.retry()
+            history.retry()
+          }}
+          onApproveAndIssue={
+            can(session, 'invoice.issue') && mayIssue ? () => setIssuing(true) : undefined
+          }
+        />
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[1fr_340px]">

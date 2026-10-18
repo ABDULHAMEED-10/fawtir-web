@@ -5,6 +5,7 @@
  * Every figure is derived from the lines (see `priced`) so the summary, the rows and the detail
  * agree with each other; nothing is typed twice.
  */
+import { approvalStateOf } from './salesApproval.mjs'
 
 const TODAY = '2026-09-25'
 const scale = (n) => Math.round(n * 1000) / 1000
@@ -485,6 +486,7 @@ function row(d) {
     // TODO(backend): the design's PEPPOL/OTA column and delivery bar want the response code.
     peppolResponse: d.peppol ?? null,
     branchId: d.branchId,
+    approvalState: d.state === 'DRAFT' ? approvalStateOf(d.id) : null,
     payment: d.receivable
       ? {
           state: d.paymentState,
@@ -755,6 +757,8 @@ function summary() {
     oldestOverdueDueDate: oldest,
     paidTotal: sum(paid, (d) => d.paid),
     paidInvoices: paid.length,
+    awaitingApproval: live.filter((d) => d.state === 'DRAFT' && approvalStateOf(d.id) === 'PENDING')
+      .length,
   }
 }
 
@@ -769,6 +773,7 @@ function listRows(query) {
   const correctionOf = query.get('correction_of_invoice_id')
   const customerId = query.get('customer_id')
   const sort = query.get('sort') ?? 'UPDATED'
+  const approval = query.get('approval')
   let rows = DOCS.filter((d) => d.state !== 'DISCARDED')
   if (states) rows = rows.filter((d) => states.includes(d.state))
   if (payment === 'AWAITING')
@@ -780,6 +785,7 @@ function listRows(query) {
   if (to) rows = rows.filter((d) => d.issueDate && d.issueDate <= to)
   if (correctionOf) rows = rows.filter((d) => d.correctionOf === correctionOf)
   if (customerId) rows = rows.filter((d) => d.customerId === customerId)
+  if (approval) rows = rows.filter((d) => d.state === 'DRAFT' && approvalStateOf(d.id) === approval)
   if (q)
     rows = rows.filter(
       (d) =>
