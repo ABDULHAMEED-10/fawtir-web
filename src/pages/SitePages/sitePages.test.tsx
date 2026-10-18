@@ -153,6 +153,20 @@ describe('Pricing page', () => {
     expect(i18n.t('plans.faq.a5', { ...params, lng: 'en' })).toContain('7 days of grace')
   })
 
+  it('says a bigger plan paid for in the trial ends the trial at once, from the payment date, with no carry-over (R1)', () => {
+    const params = faqParams(CATALOGUE)
+    const english = i18n.t('plans.faq.a5', { ...params, lng: 'en' })
+    expect(english).toContain('during your free trial, the trial ends at once')
+    expect(english).toContain('your paid period starts on the day you pay')
+    expect(english).toContain('unused trial days are not carried over')
+    for (const count of [0, 1, 2, 7, 14, 100]) {
+      const arabic = i18n.t('plans.faq.a5', { ...params, count, lng: 'ar' })
+      expect(arabic).toContain('تنتهي الفترة التجريبية فورًا')
+      expect(arabic).toContain('تبدأ فترتك المدفوعة من يوم الدفع')
+      expect(arabic).toContain('لا تُرحَّل أيام التجربة غير المستخدمة')
+    }
+  })
+
   it('answers the allowance questions as the server counts it: 80, 90 and 100 percent, received documents, extras bought ahead (F2)', () => {
     const params = faqParams(CATALOGUE)
     expect(params.thresholds).toBe('80, 90, 100')
