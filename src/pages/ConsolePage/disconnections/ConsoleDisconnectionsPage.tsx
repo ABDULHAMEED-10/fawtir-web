@@ -36,7 +36,9 @@ import {
   type RecordStep,
 } from '../../../lib/console/fawtirDisconnections'
 import { DISCONNECTION_STATUS_TONE } from './disconnectionTones'
+import { Due, Fact } from './disconnectionParts'
 import { MomentField } from './MomentField'
+import { ReconnectionQueueBody } from './ConsoleReconnections'
 
 /**
  * Platform support's disconnection queue (Business Rules LV-2 to LV-4, LV-7, FC-1; plan v4 §10,
@@ -47,6 +49,9 @@ import { MomentField } from './MomentField'
  *
  * Only the steps that can follow the request's state are offered, as the server allows; the
  * server still decides, and after any answer the request and the queue are read again.
+ *
+ * A second view, Reconnections (`?view=reconnections`), is the queue of companies coming back to
+ * Fawtir after they left (plan v4 §10), with the same open/all filter.
  */
 export function ConsoleDisconnectionsPage() {
   return (
@@ -60,8 +65,18 @@ function DisconnectionQueue() {
   const { t, i18n } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [openOnly, setOpenOnly] = useState(true)
-  const { read, retry } = useConsoleRead<DisconnectionQueueItemDto[]>(queuePath(openOnly))
+  const reconnections = searchParams.get('view') === 'reconnections'
+  const { read, retry } = useConsoleRead<DisconnectionQueueItemDto[]>(
+    reconnections ? null : queuePath(openOnly),
+  )
   const selected = searchParams.get('open')
+  const showKind = (wanted: boolean) => {
+    const next = new URLSearchParams(searchParams)
+    if (wanted) next.set('view', 'reconnections')
+    else next.delete('view')
+    next.delete('open')
+    setSearchParams(next, { replace: true })
+  }
   const select = (id: string | null) => {
     const next = new URLSearchParams(searchParams)
     if (id) next.set('open', id)
@@ -70,7 +85,9 @@ function DisconnectionQueue() {
   }
 
   let body: ReactNode
-  if (read.status === 'loading') {
+  if (reconnections) {
+    body = <ReconnectionQueueBody openOnly={openOnly} selected={selected} select={select} />
+  } else if (read.status === 'loading') {
     body = <ConsoleNotice busy body={t('console.disconnections.loading')} />
   } else if (read.status === 'failed') {
     body = <ConsoleReadFailure error={read.error} retry={retry} />
@@ -141,27 +158,48 @@ function DisconnectionQueue() {
       <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.disconnections' }]} />
       <ConsolePageHeader
         title={t('console.disconnections.title')}
-        subtitle={t('console.disconnections.subtitle')}
+        subtitle={t(
+          reconnections ? 'console.reconnections.subtitle' : 'console.disconnections.subtitle',
+        )}
       />
-      <div className="flex flex-wrap gap-x-6 rounded-sm bg-surface-card px-5">
-        {([true, false] as const).map((only) => {
-          const active = only === openOnly
-          return (
-            <button
-              key={String(only)}
-              type="button"
-              aria-pressed={active}
-              className={consoleTab(active)}
-              onClick={() => setOpenOnly(only)}
-            >
-              {t(only ? 'console.disconnections.tab.open' : 'console.disconnections.tab.all')}
-              {active ? <span className={CONSOLE_TAB_LINE} /> : null}
-            </button>
-          )
-        })}
+      <div className="flex flex-wrap justify-between gap-x-6 rounded-sm bg-surface-card px-5">
+        <div className="flex flex-wrap gap-x-6">
+          {([false, true] as const).map((kind) => {
+            const active = kind === reconnections
+            return (
+              <button
+                key={String(kind)}
+                type="button"
+                aria-pressed={active}
+                className={consoleTab(active)}
+                onClick={() => showKind(kind)}
+              >
+                {t(kind ? 'console.reconnections.tab' : 'console.disconnections.kindTab')}
+                {active ? <span className={CONSOLE_TAB_LINE} /> : null}
+              </button>
+            )
+          })}
+        </div>
+        <div className="flex flex-wrap gap-x-6">
+          {([true, false] as const).map((only) => {
+            const active = only === openOnly
+            return (
+              <button
+                key={String(only)}
+                type="button"
+                aria-pressed={active}
+                className={consoleTab(active)}
+                onClick={() => setOpenOnly(only)}
+              >
+                {t(only ? 'console.disconnections.tab.open' : 'console.disconnections.tab.all')}
+                {active ? <span className={CONSOLE_TAB_LINE} /> : null}
+              </button>
+            )
+          })}
+        </div>
       </div>
       {body}
-      {selected ? (
+      {selected && !reconnections ? (
         <DisconnectionPanel
           key={selected}
           disconnectionId={selected}
@@ -175,20 +213,6 @@ function DisconnectionQueue() {
         />
       ) : null}
     </div>
-  )
-}
-
-function Due({ dueAt, overdue }: { dueAt: string | null; overdue: boolean }) {
-  const { t, i18n } = useTranslation()
-  if (!dueAt)
-    return <span className="text-text-tertiary">{t('console.disconnections.noDeadline')}</span>
-  return (
-    <span className="flex flex-wrap items-center gap-2 text-text-secondary">
-      {formatInstant(dueAt, i18n.language)}
-      {overdue ? (
-        <ConsoleStatusPill tone="danger" label={t('console.disconnections.overdue')} />
-      ) : null}
-    </span>
   )
 }
 
@@ -511,22 +535,5 @@ function StepForm({
         </button>
       </div>
     </fieldset>
-  )
-}
-
-function Fact({ label, value, note }: { label: string; value: ReactNode | null; note?: string }) {
-  const { t } = useTranslation()
-  return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-xs font-semibold uppercase tracking-[0.6px] text-text-muted">{label}</dt>
-      <dd className="break-words text-sm font-semibold text-text-primary">
-        {value ?? (
-          <span className="font-medium text-text-tertiary">
-            {t('console.disconnections.notYet')}
-          </span>
-        )}
-      </dd>
-      {note ? <dd className="text-xs font-medium text-text-tertiary">{note}</dd> : null}
-    </div>
   )
 }

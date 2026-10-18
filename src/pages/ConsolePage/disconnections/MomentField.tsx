@@ -5,6 +5,8 @@ import { isClockTime, muscatToday } from '../../../lib/console/fawtirDisconnecti
 /**
  * A day and an Oman clock time, for when something happened on the Fawtara Portal or the SMP, or
  * when the customer asked. Never later than today; the server refuses a moment in the future.
+ * `future` lifts that for a date chosen ahead (a reconnection's effective date, manual 3.7), and
+ * `noteKey` then names the hint to show instead.
  */
 export function MomentField({
   id,
@@ -14,6 +16,8 @@ export function MomentField({
   onDay,
   onTime,
   disabled,
+  future,
+  noteKey,
 }: {
   id: string
   label: string
@@ -22,6 +26,8 @@ export function MomentField({
   onDay: (value: string) => void
   onTime: (value: string) => void
   disabled?: boolean
+  future?: boolean
+  noteKey?: string
 }) {
   const { t } = useTranslation()
   const timeWrong = time.trim() !== '' && !isClockTime(time.trim())
@@ -32,7 +38,7 @@ export function MomentField({
         <DateField
           value={day}
           onChange={onDay}
-          max={muscatToday()}
+          max={future ? undefined : muscatToday()}
           ariaLabel={t('console.disconnections.moment.day', { label })}
           disabled={disabled}
         />
@@ -53,7 +59,7 @@ export function MomentField({
         {t(
           timeWrong
             ? 'console.disconnections.moment.timeWrong'
-            : 'console.disconnections.moment.note',
+            : (noteKey ?? 'console.disconnections.moment.note'),
         )}
       </span>
     </fieldset>

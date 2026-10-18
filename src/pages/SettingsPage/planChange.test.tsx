@@ -8,6 +8,7 @@ import ar from '../../i18n/locales/ar.json'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { forgetSubscriptionStanding } from '../../lib/subscriptionReadOnly'
 import { resetSharedRequests } from '../../api'
+import { resetLeftFawtirRefusal } from '../../lib/leftFawtirRefusal'
 import { PlanPage } from './PlanPage'
 
 /**
@@ -316,6 +317,7 @@ let fetchMock: ReturnType<typeof vi.fn>
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   resetSharedRequests()
+  resetLeftFawtirRefusal()
   forgetEntitlements()
   forgetSubscriptionStanding()
   me = MANAGER
@@ -802,6 +804,104 @@ describe('Plan changes: a bigger plan in the free trial (R1, D6)', () => {
       expect(text).toMatch(/تنتهي الفترة التجريبية/)
       expect(text).not.toMatch(/—/)
     }
+  })
+})
+
+describe('Plan changes: once the company has left Fawtir (A3.8, LV-6)', () => {
+  const DISCONNECTION = '/api/v1/settings/fawtir-disconnection'
+  const ADMIN: Entitlements = {
+    ...MANAGER,
+    permissions: ['admin.settings.manage', 'tenant.plan.read', 'tenant.plan.manage'],
+  } as Entitlements
+  const LEFT = {
+    companyName: 'Real Trading LLC',
+    connected: false,
+    canRequest: false,
+    canWithdraw: false,
+    canReconnect: true,
+    reconnection: null,
+    request: {
+      path: 'ALREADY_DISCONNECTED',
+      status: 'DISCONNECTED',
+      origin: 'CUSTOMER',
+      askedVia: null,
+      requestedAt: '2026-10-05T06:00:00Z',
+      portalRequestRaisedAt: null,
+      approvalDueAt: null,
+      approvalExpired: false,
+      disconnectedAt: '2026-10-06T09:00:00Z',
+      smpRemovedAt: '2026-10-06T10:00:00Z',
+      notCompletedReason: null,
+      closedAt: null,
+      subscriptionEndsOn: '2099-11-08',
+      steps: [],
+    },
+  }
+  const leftOnBilling = () =>
+    json(200, { ...BILLING_OVERVIEW, fawtirConnection: { leftFawtir: true } })
+
+  it('offers no confirm for a charged change, and says to reconnect first', async () => {
+    const user = userEvent.setup({ delay: null })
+    me = ADMIN
+    answers[DISCONNECTION] = () => json(200, LEFT)
+    renderPage()
+    await user.click(await moveTo('Business Plus'))
+    const box = within(await dialog())
+    await box.findAllByText('49.467')
+    expect(await box.findByText(i18n.t('fawtirReconnection.beforePaying.note'))).toBeTruthy()
+    expect(
+      box.queryByRole('button', { name: i18n.t('planChange.dialog.confirm.UPGRADE') }),
+    ).toBeNull()
+    expect(calls(REQUEST)).toHaveLength(0)
+  })
+
+  it('still offers a change that charges nothing (a downgrade)', async () => {
+    const user = userEvent.setup({ delay: null })
+    me = ADMIN
+    answers[DISCONNECTION] = () => json(200, LEFT)
+    renderPage()
+    await user.click(await moveTo('Starter'))
+    const box = within(await dialog())
+    expect(
+      await box.findByRole('button', { name: i18n.t('planChange.dialog.confirm.DOWNGRADE') }),
+    ).toBeTruthy()
+    expect(box.queryByText(i18n.t('fawtirReconnection.beforePaying.note'))).toBeNull()
+  })
+
+  it('holds the confirm back for a role that learns it from Settings › Billing', async () => {
+    const user = userEvent.setup({ delay: null })
+    answers[BILLING] = leftOnBilling
+    renderPage()
+    await user.click(await moveTo('Business Plus'))
+    const box = within(await dialog())
+    expect(await box.findByText(i18n.t('billing.refusal.disconnected-from-fawtir'))).toBeTruthy()
+    expect(
+      box.queryByRole('button', { name: i18n.t('planChange.dialog.confirm.UPGRADE') }),
+    ).toBeNull()
+  })
+
+  it('shows the waiting change with no way to pay it, but it can still be withdrawn', async () => {
+    answers[CHANGES] = () => json(200, { available: true, pending: PENDING, history: [] })
+    answers[BILLING] = leftOnBilling
+    renderPage()
+    expect(await screen.findByText('FWT-SUB-2026-000061')).toBeTruthy()
+    expect(await screen.findByText(i18n.t('billing.refusal.disconnected-from-fawtir'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('billing.method.CASH.title'))).toBeNull()
+    expect(screen.getByRole('button', { name: i18n.t('planChange.pending.withdraw') })).toBeTruthy()
+  })
+
+  it('offers the charged change as before while the company is connected', async () => {
+    const user = userEvent.setup({ delay: null })
+    me = ADMIN
+    answers[DISCONNECTION] = () =>
+      json(200, { ...LEFT, connected: true, canRequest: true, canReconnect: false, request: null })
+    renderPage()
+    await user.click(await moveTo('Business Plus'))
+    expect(
+      await within(await dialog()).findByRole('button', {
+        name: i18n.t('planChange.dialog.confirm.UPGRADE'),
+      }),
+    ).toBeTruthy()
   })
 })
 

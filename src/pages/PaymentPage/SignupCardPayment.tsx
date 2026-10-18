@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../components/ui'
 import { PaymobPixelCard } from '../../components/billing/PaymobPixelCard'
+import { usePendingRefresh } from '../../hooks'
 import type { useOnboardingStep } from '../../hooks/useOnboardingStep'
 import {
   readSignupCardCheckout,
@@ -13,11 +14,31 @@ import {
 } from '../../lib/identity/onboarding'
 import { readOnboardingSession } from '../../lib/identity/onboardingSession'
 
-/** After Paymob reports completion: how often, and how long, the screen asks Fawtir's server. */
-export const CARD_POLL_INTERVAL_MS = 3_000
-export const CARD_POLL_ATTEMPTS = 40
-
 const FINAL: ReadonlySet<SignupCardStatus> = new Set(['VERIFIED', 'NOT_COMPLETED', 'UNDER_REVIEW', 'REVERSED'])
+
+/**
+ * The attempt Paymob's form reported as paid in this tab. Only a hint for what to draw: it hides the
+ * form while the server catches up (a refresh before the callback lands would otherwise offer the
+ * card form again under a customer who has just paid). It never counts as payment.
+ */
+const PAID_IN_FORM = 'fawtir.signupCard.paidInForm'
+
+function paidInForm(paymentId: string): boolean {
+  try {
+    return window.sessionStorage.getItem(PAID_IN_FORM) === paymentId
+  } catch {
+    return false
+  }
+}
+
+function rememberPaidInForm(paymentId: string | null) {
+  try {
+    if (paymentId) window.sessionStorage.setItem(PAID_IN_FORM, paymentId)
+    else window.sessionStorage.removeItem(PAID_IN_FORM)
+  } catch {
+    // Storage refused (private window): the form simply stays hidden only until a reload.
+  }
+}
 
 /**
  * Card at signup (owner, 13 Oct 2026): Paymob's own embedded form, on this screen, for the amount the
@@ -39,10 +60,11 @@ export function SignupCardPayment({
   const { t } = useTranslation()
   const heldVerified = held?.method === 'CARD' && held.status === 'FUNDS_VERIFIED'
   const [checkout, setCheckout] = useState<SignupCardCheckout | null>(null)
-  const [polling, setPolling] = useState(false)
   // One key per attempt the registrant starts: a retried click returns the same attempt.
   const attemptKey = useRef<string | null>(null)
   const status: SignupCardStatus | null = heldVerified ? 'VERIFIED' : (checkout?.status ?? null)
+  const [submitted, setSubmitted] = useState(false)
+  const paidHere = submitted || (checkout !== null && paidInForm(checkout.paymentId))
 
   const reportStatus = useRef(onStatus)
   reportStatus.current = onStatus
@@ -78,52 +100,64 @@ export function SignupCardPayment({
     }
   }
 
-  const check = async (signal?: AbortSignal) => {
+  // Back after a refresh, or from Paymob's 3-D Secure page: the application already has a card
+  // attempt, and the server hands that same one back (one collection per application, V289), so it
+  // is read again instead of waiting for a click that would only look like a new payment.
+  const resumed = useRef(false)
+  useEffect(() => {
+    if (resumed.current || held?.method !== 'CARD' || held.status !== 'SUBMITTED') return
+    resumed.current = true
+    void open()
+    // Once per mount, for the attempt the server reported held when the screen loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [held])
+
+  const check = async (live: () => boolean = () => true) => {
     const session = readOnboardingSession()
     if (!session || !checkout) return null
-    const next = await readSignupCardCheckout(session.onboardingToken, checkout.paymentId, signal)
-    setCheckout(next)
+    const next = await readSignupCardCheckout(session.onboardingToken, checkout.paymentId)
+    if (live()) setCheckout(next)
     return next
   }
 
+  // Re-read while the server still owes an answer: after the form reported a payment, while the
+  // server is confirming one, and also while the form is merely open, so a payment whose browser
+  // event never fired (a 3-D Secure frame, a closed popup) is still noticed once its callback lands.
+  // Bounded and backed off by usePendingRefresh; a new spell starts when the form reports payment.
+  const awaiting = checkout !== null && !FINAL.has(checkout.status)
+  usePendingRefresh(
+    checkout ? `${checkout.paymentId}:${paidHere ? 'paid' : 'open'}` : null,
+    awaiting,
+    (live) => check(live),
+  )
+
   useEffect(() => {
-    if (!polling || !checkout) return
-    const controller = new AbortController()
-    let attempts = 0
-    const timer = setInterval(() => {
-      attempts += 1
-      check(controller.signal)
-        .then((next) => {
-          if (!next || FINAL.has(next.status) || attempts >= CARD_POLL_ATTEMPTS) {
-            clearInterval(timer)
-            setPolling(false)
-          }
-        })
-        .catch(() => {
-          if (attempts >= CARD_POLL_ATTEMPTS) {
-            clearInterval(timer)
-            setPolling(false)
-          }
-        })
-    }, CARD_POLL_INTERVAL_MS)
-    return () => {
-      clearInterval(timer)
-      controller.abort()
+    if (checkout && (checkout.status === 'NOT_COMPLETED' || checkout.status === 'VERIFIED')) {
+      rememberPaidInForm(null)
     }
-    // Restarted only when polling is switched on, not on every status it reads.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [polling])
+  }, [checkout])
+
+  const paid = () => {
+    if (!checkout) return
+    rememberPaidInForm(checkout.paymentId)
+    setSubmitted(true)
+    void check().catch(() => undefined)
+  }
 
   const retry = () => {
     if (opening.current) return
     attemptKey.current = null
+    rememberPaidInForm(null)
+    setSubmitted(false)
     setCheckout(null)
     void open()
   }
 
   if (status === 'VERIFIED') {
-    return <Message tone="ok" text={t('payment.card.verified')} />
+    return <Message tone="ok" text={t(heldVerified && checkout === null ? 'payment.card.verified' : 'payment.card.verifiedNow')} />
   }
+
+  const verifying = checkout !== null && (checkout.status === 'PROCESSING' || (checkout.status === 'READY' && paidHere))
 
   return (
     <div className="flex flex-col gap-3 rounded-sm border border-black/10 bg-surface-card p-4">
@@ -134,14 +168,14 @@ export function SignupCardPayment({
         </Button>
       ) : null}
       {checkout === null && openFailed ? <Message tone="alert" text={t('payment.card.openFailed')} /> : null}
-      {checkout?.status === 'READY' && checkout.publishableKey && checkout.clientSecret ? (
+      {checkout?.status === 'READY' && !paidHere && checkout.publishableKey && checkout.clientSecret ? (
         <PaymobPixelCard
           session={{ publicKey: checkout.publishableKey, clientSecret: checkout.clientSecret }}
           payButton
-          onPaymentComplete={() => setPolling(true)}
+          onPaymentComplete={paid}
         />
       ) : null}
-      {checkout?.status === 'PROCESSING' || polling ? <Message text={t('payment.card.processing')} /> : null}
+      {verifying ? <Message text={t('payment.card.processing')} /> : null}
       {checkout?.status === 'UNDER_REVIEW' ? <Message tone="alert" text={t('payment.card.underReview')} /> : null}
       {checkout?.status === 'REVERSED' ? <Message tone="alert" text={t('payment.card.reversed')} /> : null}
       {checkout?.status === 'NOT_COMPLETED' ? (
@@ -152,8 +186,8 @@ export function SignupCardPayment({
           </Button>
         </>
       ) : null}
-      {checkout && !polling && !FINAL.has(checkout.status) ? (
-        <Button type="button" variant="secondary" onClick={() => void check()} className="w-full">
+      {checkout && !FINAL.has(checkout.status) ? (
+        <Button type="button" variant="secondary" onClick={() => void check().catch(() => undefined)} className="w-full">
           {t('payment.card.checkStatus')}
         </Button>
       ) : null}

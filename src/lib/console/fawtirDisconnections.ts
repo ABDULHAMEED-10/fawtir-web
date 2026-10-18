@@ -72,6 +72,11 @@ export type DisconnectionRequestDto = {
   closedAt: string | null
   portalWithdrawnAt: string | null
   subscriptionEndsOn: string | null
+  /** The company came back through `reconnectionId` (V385); status stays DISCONNECTED as history. */
+  reconnectedAt?: string | null
+  reconnectionId?: string | null
+  /** The disconnection itself scheduled the subscription's end (V385). */
+  subscriptionCancelled?: boolean
   version: number
 }
 
@@ -139,6 +144,14 @@ export function recordDisconnectionStep(
   })
 }
 
+/**
+ * The company left through this request and has not come back. A reconnected disconnection keeps
+ * status DISCONNECTED as history (V385), so status alone no longer says the company is gone.
+ */
+export function hasLeft(request: DisconnectionRequestDto): boolean {
+  return request.status === 'DISCONNECTED' && !request.reconnectedAt
+}
+
 /** A request that has not completed: one is live per company at a time. */
 export function isLive(status: DisconnectionStatus): boolean {
   return status === 'REQUESTED' || status === 'WAITING_FOR_CUSTOMER_APPROVAL'
@@ -169,7 +182,8 @@ export function stepsOffered(view: PlatformDisconnectionDto): RecordStep['step']
         ? ['REQUEST_EXPIRED']
         : ['CUSTOMER_APPROVED', 'CUSTOMER_REJECTED', 'WITHDRAWN']
     case 'DISCONNECTED':
-      return request.smpRemovedAt === null ? ['SMP_REMOVED'] : []
+      // Once the company is back, taking it off the SMP would cut it off again.
+      return request.smpRemovedAt === null && !request.reconnectedAt ? ['SMP_REMOVED'] : []
     case 'WITHDRAWN':
       return request.portalRequestRaisedAt !== null && request.portalWithdrawnAt === null
         ? ['PORTAL_REQUEST_WITHDRAWN']

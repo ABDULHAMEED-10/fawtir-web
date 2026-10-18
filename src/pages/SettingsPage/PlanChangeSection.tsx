@@ -35,6 +35,10 @@ import {
   type PlanChangePreviewDto,
   type PlanChangeViewDto,
 } from '../../api/settings/planChanges'
+import { usePayingHeldUntilReconnected } from '../../hooks/usePayingHeldUntilReconnected'
+import { noteLeftFawtirRefusal } from '../../lib/leftFawtirRefusal'
+import { LeftFawtirRefusal } from '../../components/billing/LeftFawtirRefusal'
+import { ReconnectBeforePayingNote } from './ReconnectBeforePayingNote'
 
 /** Previewing, confirming and withdrawing are `tenant.plan.manage` on the server. */
 const PLAN_MANAGE = 'tenant.plan.manage'
@@ -69,6 +73,8 @@ export function planChangeRefusal(t: TFunction, code: string | null | undefined)
 }
 
 function refusalOf(t: TFunction, error: unknown): string {
+  // Records a `disconnected-from-fawtir` refusal, so every way to pay is held back from then on.
+  noteLeftFawtirRefusal(error)
   if (error instanceof ApiError) {
     if (error.status === 404) return t('planChange.refusal.not-found')
     return planChangeRefusal(t, error.problemType)
@@ -140,6 +146,9 @@ function DialogBody({
 }) {
   const { t } = useTranslation()
   const mayManage = useCan(PLAN_MANAGE)
+  // LV-6: a charged change issues a bill to pay, which is not started once the company has left
+  // Fawtir (A3.8); a change that charges nothing is offered as before.
+  const held = usePayingHeldUntilReconnected()
   const [cycle, setCycle] = useState<BillingCycle>(target.cycle)
   const [attempt, setAttempt] = useState(0)
   const [read, setRead] = useState<ApiRead<PlanChangePreviewDto>>({ status: 'loading' })
@@ -177,9 +186,11 @@ function DialogBody({
     refusedViaFawtir ||
     preview?.blockers.includes(PLAN_CHANGE_VIA_FAWTIR) === true ||
     (read.status === 'failed' && isViaFawtir(read.error))
+  const payingHeld = held && preview !== null && CHARGED.includes(preview.kind)
   const canConfirm =
     mayManage &&
     !viaFawtir &&
+    !payingHeld &&
     preview !== null &&
     preview.kind !== 'NONE' &&
     preview.blockers.length === 0
@@ -250,7 +261,13 @@ function DialogBody({
       )}
       {priceMoved ? <Callout>{t('planChange.dialog.priceChanged')}</Callout> : null}
       {body}
-      {failure && !viaFawtir ? <Alert>{failure}</Alert> : null}
+      {failure && !viaFawtir && !payingHeld ? <Alert>{failure}</Alert> : null}
+      {mayManage && payingHeld && !viaFawtir ? (
+        <>
+          <ReconnectBeforePayingNote />
+          <LeftFawtirRefusal />
+        </>
+      ) : null}
       <div className="flex flex-wrap justify-end gap-3">
         <Button variant="secondary" size="md" disabled={busy} onClick={onClose}>
           {t('planChange.dialog.back')}
@@ -646,6 +663,7 @@ export function PendingPlanChangeCard({
             {t('planChange.fact.cycleChangeOn', { date: date(change.cycleChangeOn) })}
           </p>
         ) : null}
+        {change.bill && mayManage ? <ReconnectBeforePayingNote /> : null}
         {body}
         {failure ? <Alert>{failure}</Alert> : null}
       </div>

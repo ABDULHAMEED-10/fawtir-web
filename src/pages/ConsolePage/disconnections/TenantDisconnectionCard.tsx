@@ -17,6 +17,7 @@ import {
   DISCONNECTIONS_MANAGE_PERMISSION,
   DISCONNECTIONS_READ_PERMISSION,
   companyDisconnectionsPath,
+  hasLeft,
   isClockTime,
   isLive,
   muscatInstant,
@@ -29,6 +30,7 @@ import {
 } from '../../../lib/console/fawtirDisconnections'
 import { DISCONNECTION_STATUS_TONE } from './disconnectionTones'
 import { MomentField } from './MomentField'
+import { TenantReconnectionSection } from './TenantReconnectionSection'
 
 const PATHS: DisconnectionPath[] = [
   'ALREADY_DISCONNECTED',
@@ -77,10 +79,10 @@ export function TenantDisconnectionCard({ tenantId }: { tenantId: string }) {
     return frame(<ConsoleReadFailure error={read.error} retry={retry} />)
 
   const latest = read.data[0] ?? null
-  // One request is live per company, and a company that has left cannot be asked to leave again.
+  // One request is live per company, and a company that has left cannot be asked to leave again
+  // until a reconnection takes effect.
   const canStart =
-    canManage &&
-    (!latest || (!isLive(latest.request.status) && latest.request.status !== 'DISCONNECTED'))
+    canManage && (!latest || (!isLive(latest.request.status) && !hasLeft(latest.request)))
 
   return frame(
     <>
@@ -162,6 +164,10 @@ export function TenantDisconnectionCard({ tenantId }: { tenantId: string }) {
             retry()
           }}
         />
+      ) : null}
+
+      {latest && latest.request.status === 'DISCONNECTED' ? (
+        <TenantReconnectionSection tenantId={tenantId} disconnection={latest.request} />
       ) : null}
     </>,
   )

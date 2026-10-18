@@ -1,4 +1,5 @@
 import { apiRequest } from '../client'
+import { noteFawtirConnection } from '../../lib/fawtirConnection'
 
 /**
  * `/v1/settings/billing` (`SubscriptionBillingController`, backend V271): subscription charge
@@ -139,6 +140,13 @@ export type BillingOverviewDto = {
    * a withdrawn attempt; absent from servers before #533, which leave the screen to infer it.
    */
   signupPayment?: SignupPaymentDto | null
+  /**
+   * Whether the company has left Fawtir (Business Rules LV-6): `leftFawtir` is true exactly while
+   * the server refuses every new bill, payment and order with `disconnected-from-fawtir`. Readable
+   * by every role that reads this page; absent from older servers, which leave the screen to learn
+   * it from the refusal.
+   */
+  fawtirConnection?: { leftFawtir: boolean } | null
 }
 
 export type SignupPaymentDto = {
@@ -157,7 +165,10 @@ export type BillPageDto = { bills: BillWithPaymentsDto[]; nextCursor: string | n
 export const SUPERSEDED_PREFIX = 'Superseded: '
 
 export function loadBillingOverview(): Promise<BillingOverviewDto> {
-  return apiRequest<BillingOverviewDto>(BILLING_PATH)
+  return apiRequest<BillingOverviewDto>(BILLING_PATH).then((overview) => {
+    noteFawtirConnection(overview.fawtirConnection)
+    return overview
+  })
 }
 
 export function loadBillHistory(before: string): Promise<BillPageDto> {
