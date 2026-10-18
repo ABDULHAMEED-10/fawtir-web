@@ -224,8 +224,22 @@ export function PaymentForm() {
   const icon = { cardLink: cardIcon, bankTransfer: bankIcon, cash: rialIcon } as const
   const waitingForOptions = !trialChosen && optionsRead.status === 'loading'
 
+  // A card the server verified while this screen watched moves on by itself, through Continue's own
+  // path so the preference is saved and every check above still runs. Only on the change: someone
+  // who comes back to a step already paid is left to read it and continue when ready.
+  const formRef = useRef<HTMLFormElement>(null)
+  const watchedCard = useRef<SignupCardStatus | null>(null)
+  useEffect(() => {
+    const before = watchedCard.current
+    watchedCard.current = cardStatus
+    if (cardStatus === 'VERIFIED' && before !== null && before !== 'VERIFIED' && method === 'cardLink' && !trialChosen) {
+      formRef.current?.requestSubmit()
+    }
+  }, [cardStatus, method, trialChosen])
+
   return (
     <form
+      ref={formRef}
       onSubmit={handleSubmit}
       className="my-auto flex w-full max-w-[700px] flex-col items-center gap-11"
     >
