@@ -150,3 +150,15 @@ function muscatToday(now: Date): string {
 export function renewalNeeded(request: CompanyDisconnectionRequestDto, now: Date = new Date()): boolean {
   return request.subscriptionEndsOn !== null && request.subscriptionEndsOn < muscatToday(now)
 }
+
+/**
+ * Plan v4 A3.8, billing screens while disconnected: the company has left Fawtir (a completed
+ * disconnection the danger zone offers to come back from) and no reconnection has taken effect, so
+ * paying must wait for reconnecting. Same gate as "Coming back to Fawtir" (`showsComingBack`): a
+ * server with reconnecting off, or older than V385, reads as nothing to say.
+ */
+export function mustReconnectBeforePaying(view: CompanyDisconnectionDto): boolean {
+  if (!showsComingBack(view)) return false
+  const reconnection = currentReconnection(view)
+  return reconnection === null || reconnectionStanding(reconnection).pill !== 'CONNECTED'
+}

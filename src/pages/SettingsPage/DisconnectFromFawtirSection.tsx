@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useApiRead } from '../../hooks'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { formatDate, formatInstantDay } from '../../lib/format'
@@ -88,6 +88,13 @@ function DangerZone() {
   const [failure, setFailure] = useState<string | null>(null)
 
   const day = (iso: string | null) => (iso ? formatInstantDay(iso, i18n.language) : '')
+  // Opened from a billing screen's "reconnect before paying" note (A3.8): bring the card into view.
+  const { hash } = useLocation()
+  useEffect(() => {
+    if (hash === '#danger-zone' && read.status === 'ready') {
+      document.getElementById('danger-zone')?.scrollIntoView?.({ block: 'start' })
+    }
+  }, [hash, read.status])
 
   let body
   if (read.status === 'loading') {
