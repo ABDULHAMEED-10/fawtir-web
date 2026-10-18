@@ -13218,7 +13218,7 @@
       "roleNote": {
         "PLATFORM_TENANT_ADMIN": "Decides company verification, changes plans, and gives or removes operators’ roles.",
         "PLATFORM_SUPPORT": "Support work and Oman SMP administration.",
-        "PLATFORM_PARTICIPANT_OWNERSHIP": "Requests or approves moving a verified Peppol Participant ID from one company to another. Every move needs two different operators, each signed in with two-step sign-in. This role allows nothing else."
+        "PLATFORM_PARTICIPANT_OWNERSHIP": "Requests, approves or rejects moving a verified Peppol Participant ID between companies, and sees the moves waiting for a decision. Every move needs two different operators, each signed in with two-step sign-in."
       },
       "dialog": {
         "title": "Roles for {{name}}",

@@ -1584,6 +1584,22 @@ describe('Participant ID ownership role (V386)', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
+  it('explains a last-administrator refusal (403) the screen could not foresee', async () => {
+    const url = roleUrl('u-self', 'PLATFORM_TENANT_ADMIN')
+    // The team spans pages, so the screen cannot know this is the last administrator and sends.
+    await openTeam(
+      { [url]: () => problem(403, 'last-administrator') },
+      () => json(200, page([SELF, NOOR], { totalElements: 60, totalPages: 2 })),
+    )
+    await manage('Hafidh Al Harthi')
+    fireEvent.click(actionButton('remove', 'PLATFORM_TENANT_ADMIN'))
+    await confirm('remove')
+
+    expect(await within(dialog()).findByText(t('console.operators.lastAdmin'))).toBeTruthy()
+    expect(document.body.textContent).not.toContain('Server prose')
+    expect(callsTo(url)).toHaveLength(1)
+  })
+
   it('is named and explained in Arabic', async () => {
     await i18n.changeLanguage('ar')
     await openTeam()
