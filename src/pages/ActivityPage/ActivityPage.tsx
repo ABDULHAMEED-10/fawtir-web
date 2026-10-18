@@ -12,7 +12,7 @@ import {
   type ActionMenuItem,
 } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
-import { useApiRead } from '../../hooks'
+import { useApiRead, usePendingRefresh } from '../../hooks'
 import {
   ACTIVITY_PAGE_SIZE,
   activityListPath,
@@ -29,6 +29,7 @@ import {
 import {
   ACTIVITY_SORTS,
   ACTIVITY_TABS,
+  awaitsAnswer,
   belongsInTab,
   canResubmit,
   correctionHeld,
@@ -137,6 +138,8 @@ const FLOW_CHIP: Record<RowFlow, string> = {
 const CUSTOMER_ICON: Record<CustomerAck, string> = {
   received: ackYesIcon,
   youReceived: ackYesIcon,
+  // The glyph AB always had: only its word was wrong, so the row's design stays as drawn.
+  deliveredUnconfirmed: ackYesIcon,
   noCustomer: ackNoneIcon,
   notOnPeppol: ackLateIcon,
   waiting: ackLateIcon,
@@ -221,6 +224,15 @@ function ActivityLedger() {
   }
   const listPath = activityListPath(filters, pageNumber - 1)
   const list = useApiRead<ActivityListDto>(listPath, () => loadActivityList(listPath))
+  // A quiet re-read of the rows while one awaits an answer, kept apart from `list` so a refresh
+  // does not blank the table with a loader. It stands only over the very read it refreshed
+  // (`over`): any later loud read (a new page or filter, a return to this one, a retry) settles
+  // as a new object and wins. Keyed by path instead, page 1's old quiet rows came back over its
+  // fresh read after a visit to page 2 (review M1).
+  const [listLatest, setListLatest] = useState<{
+    over: ActivityListDto
+    data: ActivityListDto
+  } | null>(null)
   // The summary refuses a call with no window (400, whatever the signature says the parameters
   // are). The ledger below is unwindowed and stays that way; only the counts above it need one.
   const summaryRange = defaultReportRange()
@@ -307,7 +319,16 @@ function ActivityLedger() {
   }
 
   const totals = summary.read.status === 'ready' ? summary.read.data : null
-  const page = list.read.status === 'ready' ? list.read.data : null
+  const loud = list.read.status === 'ready' ? list.read.data : null
+  const page = loud !== null && listLatest?.over === loud ? listLatest.data : loud
+  // Only the list is re-read, one request per refresh: the rows are where an answer shows. The
+  // cards above keep the counts they loaded with until the next filter change or reload.
+  usePendingRefresh(listPath, page?.items.some(awaitsAnswer) ?? false, (live) => {
+    const over = loud
+    return loadActivityList(listPath).then((data) => {
+      if (live() && over !== null) setListLatest({ over, data })
+    })
+  })
   const filtered = search !== '' || direction !== 'all'
   const isEmpty =
     totals !== null &&

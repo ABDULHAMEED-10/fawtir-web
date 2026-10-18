@@ -60,7 +60,9 @@ export type InvoiceDetailDto = {
   deliveryBlocker: string | null
   /**
    * TODO(backend): the design's header and delivery bar say "Sent via Peppol" and "Delivered on
-   * Peppol to … · when". Neither the response code nor the delivery time is answered today.
+   * Peppol to … · when". Neither the response code nor the delivery time is answered today. The
+   * detail screen reads neither until the API defines them: an RE here would otherwise have been
+   * shown as "Delivered on Peppol" with the success tick. Delivery is read from the dispatch.
    */
   peppolResponse?: 'AB' | 'AP' | 'RE' | null
   deliveredAt?: string | null

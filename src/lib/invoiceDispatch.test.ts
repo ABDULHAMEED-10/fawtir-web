@@ -13,7 +13,7 @@ import {
   RELEASE_REFUSALS,
   SEND_REFUSALS,
   buyerDeliveryNote,
-  dispatchIsMoving,
+  dispatchIsPending,
   dispatchNotes,
   dispatchSucceeded,
   sendRefusalKey,
@@ -102,17 +102,64 @@ describe('invoice dispatch sentences', () => {
     })
   })
 
-  it('watches only a step in progress', () => {
-    expect(STATES.filter((state) => dispatchIsMoving(dispatch(state)))).toEqual(['PROCESSING', 'SENDING'])
-    expect(dispatchIsMoving(null)).toBe(false)
+  it('watches every state the server will still move on its own, and no outcome', () => {
+    expect(STATES.filter((state) => dispatchIsPending(dispatch(state)))).toEqual([
+      'PROCESSING',
+      'DISPATCHED',
+      'QUEUED',
+      'SENDING',
+      'SENT',
+    ])
+    expect(dispatchIsPending(null)).toBe(false)
   })
 
-  it('ticks the delivery bar only once the document has left', () => {
+  it('does not wait on an access point for a buyer not reached over Peppol', () => {
+    const route = (state: InvoiceDispatchStateDto, buyerDelivery: InvoiceDispatchDto['buyerDelivery']) =>
+      dispatchIsPending({ ...dispatch(state), buyerDelivery })
+    for (const state of ['QUEUED', 'SENDING', 'SENT'] as const) {
+      expect(route(state, 'PEPPOL'), state).toBe(true)
+      expect(route(state, null), state).toBe(true)
+      expect(route(state, 'EMAIL_SENT'), state).toBe(false)
+      expect(route(state, 'PRINTED_RECEIPT'), state).toBe(false)
+    }
+    // The hand-off is watched whatever the route, and so is a Tax Authority leg on its way.
+    expect(route('PROCESSING', 'EMAIL_SENT')).toBe(true)
+    expect(
+      dispatchIsPending({
+        ...dispatch('SENDING'),
+        buyerDelivery: 'EMAIL_SENT',
+        transport: {
+          buyer: null,
+          taxAuthority: { messageId: 'm-2', state: 'TRANSMITTING', attempts: 1, lastAttemptAt: null, nextAttemptAt: null },
+        },
+      }),
+    ).toBe(true)
+  })
+
+  // SENT is the AS4 receipt only; an RE can still follow it, so it earns no tick.
+  it('ticks the delivery bar only once the access point has answered', () => {
     expect(STATES.filter((state) => dispatchSucceeded(dispatch(state)))).toEqual([
-      'SENT',
       'DELIVERED',
       'DELIVERED_UNCONFIRMED',
     ])
+  })
+
+  it('words AB with the one key the ledger and the record use', () => {
+    expect(dispatchNotes(dispatch('DELIVERED_UNCONFIRMED')).state?.key).toBe(
+      'activity.ack.deliveredUnconfirmed',
+    )
+  })
+
+  // SubmissionState.SENT: a positive transport MDN, awaiting the invoice-channel MLS. Not a
+  // delivery, and not the buyer's business response (an Invoice Response is another document).
+  it('says SENT is the access point receiving it, awaiting its delivery status', () => {
+    expect(en.invoiceDispatch.state.sent).toBe(
+      "Received by the receiver's access point, awaiting its delivery status",
+    )
+    expect(en.invoiceDispatch.state.sent).not.toMatch(/deliver(ed)? to|accepted|business response/i)
+    expect(ar.invoiceDispatch.state.sent).toBe(
+      'استلمتها نقطة الوصول لدى المستلم، بانتظار حالة التسليم',
+    )
   })
 
   it('answers a Send by its outcome', () => {
@@ -242,12 +289,20 @@ describe('transport progress', () => {
     )
   })
 
-  it('stops watching a document whose transmission is waiting rather than under way', () => {
-    expect(dispatchIsMoving(withLegs('SENDING', leg('QUEUED_NOT_ATTEMPTED')))).toBe(false)
-    expect(dispatchIsMoving(withLegs('SENDING', leg('RETRY_SCHEDULED')))).toBe(false)
-    expect(dispatchIsMoving(withLegs('SENDING', leg('FAILED')))).toBe(false)
-    expect(dispatchIsMoving(withLegs('SENDING', leg('TRANSMITTING')))).toBe(true)
-    expect(dispatchIsMoving(withLegs('SENDING', leg('TRANSMITTED')))).toBe(true)
-    expect(dispatchIsMoving(dispatch('SENDING'))).toBe(true)
+  it('keeps watching SENDING whatever its legs say, and SENT while the MLS is awaited', () => {
+    for (const state of LEG_STATES) {
+      expect(dispatchIsPending(withLegs('SENDING', leg(state))), state).toBe(true)
+    }
+    expect(dispatchIsPending(withLegs('SENT', leg('TRANSMITTED')))).toBe(true)
+  })
+
+  it('watches an outcome only while a leg it reports is still on its way', () => {
+    const delivered = (tax: InvoiceTransportLegStateDto) =>
+      dispatchIsPending(withLegs('DELIVERED', leg('TRANSMITTED'), leg(tax)))
+    expect(delivered('QUEUED_NOT_ATTEMPTED')).toBe(true)
+    expect(delivered('TRANSMITTING')).toBe(true)
+    expect(delivered('TRANSMITTED')).toBe(false)
+    expect(delivered('RETRY_SCHEDULED')).toBe(false)
+    expect(dispatchIsPending(withLegs('UNDELIVERABLE', leg('FAILED')))).toBe(false)
   })
 })
