@@ -15662,6 +15662,194 @@
       },
       "kindTab": "Disconnections"
     },
+    "payLinks": {
+      "title": "Bills and payment links",
+      "loading": "Loading bills",
+      "sending": "Sending…",
+      "notBilled": "Not billed yet. Start billing to choose a plan and issue the first bill.",
+      "notBilledUnverified": "Not billed yet. Billing can start once the company is verified.",
+      "noBills": "No bills yet.",
+      "bill": {
+        "number": "Bill {{number}}",
+        "period": "{{from}} to {{to}}",
+        "due": "Due {{date}}",
+        "status": {
+          "OPEN": "Not paid",
+          "PENDING_VERIFICATION": "Payment being checked",
+          "PAID": "Paid",
+          "VOID": "Voided",
+          "OTHER": "Other"
+        }
+      },
+      "start": {
+        "open": "Start billing",
+        "title": "Start billing",
+        "body": "Opens this company's subscription on the plan and cycle below and issues its first bill now. There is no trial. The company pays the bill in the app or through a payment link.",
+        "bodyEnterprise": "Opens this company's subscription on its own Enterprise terms and issues its first bill now. There is no trial.",
+        "loading": "Loading the plans",
+        "enterprisePlan": "Billed on its Enterprise plan: {{plan}}",
+        "plan": "Plan",
+        "planPlaceholder": "Choose a plan",
+        "cycle": "Billing cycle",
+        "cyclePlaceholder": "Choose a cycle",
+        "cycleName": {
+          "MONTHLY": "Monthly",
+          "ANNUAL": "Yearly"
+        },
+        "quotePlan": {
+          "MONTHLY": "Plan price per month, excl. VAT",
+          "ANNUAL": "Plan price per year, excl. VAT"
+        },
+        "quotePlanNote": "VAT and any paid places above the plan are added by Fawtir on the bill itself.",
+        "quoteExcl": "First bill, excl. VAT",
+        "quoteVat": "VAT",
+        "quoteTotal": "First bill total",
+        "quoteOnBill": "The first bill is priced by Fawtir for this cycle when it is issued.",
+        "confirmLabel": "Type {{code}} to confirm",
+        "confirmMismatch": "Type the company code {{code}} exactly.",
+        "confirm": "Start billing",
+        "sending": "Starting…",
+        "done": "Billing started. Bill {{number}} for {{total}} is due {{date}}.",
+        "enterpriseCycle": "Billing cycle from its terms: {{cycle}}"
+      },
+      "raise": {
+        "open": "Raise bill",
+        "title": "Raise the next bill",
+        "body": "Issues this company's next subscription bill now, at the price of the plan it is on.",
+        "confirm": "Raise bill",
+        "done": "Bill {{number}} for {{total}} raised."
+      },
+      "send": {
+        "open": "Send payment link",
+        "title": "Send a payment link",
+        "subtitle": "A quick reminder to pay one bill of {{tenant}} by card. The payer needs no sign-in.",
+        "bill": "Bill",
+        "billOption": "Bill {{number}}",
+        "noOpenBill": "This company has no unpaid bill to send a link for.",
+        "channel": "Send it by",
+        "channels": {
+          "EMAIL": {
+            "title": "Email",
+            "description": "Fawtir emails the link to the payer"
+          },
+          "WHATSAPP": {
+            "title": "WhatsApp",
+            "description": "You open a chat with the payer, message filled in"
+          },
+          "COPIED": {
+            "title": "Copy the link",
+            "description": "To paste anywhere else"
+          }
+        },
+        "language": "Language of the message",
+        "languages": {
+          "en": "English",
+          "ar": "Arabic"
+        },
+        "payerName": "Payer name",
+        "payerEmail": "Payer email",
+        "payerPhone": "Payer phone",
+        "payerNote": "Email is needed to send by email, and the phone to send by WhatsApp. Card payment needs the payer's name, email and phone.",
+        "emailInvalid": "Enter an email address like name@company.om",
+        "phoneInvalid": "Enter the full number with the country code",
+        "validity_one": "The link works for {{count}} day",
+        "validity_other": "The link works for {{count}} days",
+        "validityUnknown": "The link works for a few days, until the date shown once it is made",
+        "submit": {
+          "EMAIL": "Send email",
+          "WHATSAPP": "Create link",
+          "COPIED": "Create link"
+        },
+        "sending": "Creating…",
+        "created": {
+          "EMAIL": "Link created. Fawtir is emailing it to the payer.",
+          "WHATSAPP": "Link created. Open WhatsApp to send it.",
+          "COPIED": "Link created and copied."
+        },
+        "createdBody": "It works until {{date}} or until the bill is paid. It ends in {{hint}}.",
+        "onlyOnce": "This is the only time the link is shown. Copy it now; if it is lost, make a new link.",
+        "shownOnce": "This link was already shown once and Fawtir does not keep it. Make a new link if you need it again.",
+        "copy": "Copy",
+        "copiedNow": "Copied",
+        "openWhatsapp": "Open WhatsApp",
+        "message": "Message",
+        "done": "Done",
+        "finished": {
+          "EMAIL": "Payment link created. Fawtir is emailing it to the payer.",
+          "WHATSAPP": "Payment link created for WhatsApp.",
+          "COPIED": "Payment link created and copied."
+        },
+        "billHint": "Due {{date}}",
+        "emailNotSent": "Payment link created, but the email did not go. The link is still active: make a new link to copy or send by WhatsApp.",
+        "quickLinkNote": "The link opens Paymob's own card payment page for this bill.",
+        "quickLinkCreated": "This is Paymob's own payment page for this bill. The payer pays by card there, and Fawtir marks the bill paid once Paymob confirms it."
+      },
+      "links": {
+        "show": "Payment links",
+        "hide": "Hide payment links",
+        "loading": "Loading payment links",
+        "empty": "No payment links for this bill.",
+        "status": {
+          "ACTIVE": "Active",
+          "USED": "Used",
+          "EXPIRED": "Expired",
+          "REVOKED": "Revoked",
+          "SUPERSEDED": "Replaced",
+          "OTHER": "Other"
+        },
+        "channel": {
+          "EMAIL": "Email",
+          "WHATSAPP": "WhatsApp",
+          "COPIED": "Copied",
+          "OTHER": "Other"
+        },
+        "created": "Made by {{name}} on {{when}}",
+        "sent": "emailed {{when}}",
+        "notSent": "not emailed: copy a new link instead",
+        "expires": "Expires {{when}}",
+        "firstOpened": "first opened {{when}}",
+        "neverOpened": "not opened yet",
+        "opens_one": "{{count}} open",
+        "opens_other": "{{count}} opens",
+        "madeAt": "Made on {{when}}",
+        "revokedBecause": "Revoked: {{reason}}",
+        "closeReason": {
+          "NEW_LINK": "Replaced by a newer link for this bill",
+          "BILL_VOIDED": "Closed because the bill was voided",
+          "TERMS_CHANGED": "Closed because the bill's price changed",
+          "DISCONNECTED": "Closed because the company disconnected from Fawtir",
+          "TOO_MANY_REJECTED": "Closed after too many payments were not confirmed",
+          "PAYMOB_LINK_REFUSED": "Closed because Paymob did not make its payment link",
+          "PAYMOB_LINK_UNKNOWN": "Closed because Paymob did not answer when the link was made"
+        }
+      },
+      "revoke": {
+        "open": "Revoke",
+        "title": "Revoke this payment link",
+        "body": "The link ending in {{hint}} stops working at once. A payment already being made through it is still received.",
+        "confirm": "Revoke link",
+        "done": "The link ending in {{hint}} was revoked."
+      },
+      "refusal": {
+        "stateConflict": "This company is already billed, or it signed up itself and pays in the app. Use Change plan for a billed company.",
+        "notVerified": "The company is not verified yet. Billing can start once it is.",
+        "disconnected": "This company has left Fawtir, so it cannot be billed or sent a link.",
+        "termsRequired": "Set this company's Enterprise terms first, then start billing.",
+        "billingNotConfigured": "The billing settings or the seller are not complete. Finish them under Billing first.",
+        "paymentBeingChecked": "A payment for this company is being checked. Finish it on the payments screen first.",
+        "notTracked": "This company is not billed yet. Start billing first.",
+        "billNotPayable": "This bill can no longer be paid: it is paid, voided or being checked.",
+        "billStale": "This bill changed after it was read. Close this window and try again.",
+        "linkClosed": "This link is no longer active, so it cannot be revoked.",
+        "linkChanged": "Someone else changed this link meanwhile. Close this window to see it, then try again.",
+        "linksOff": "Payment links are switched off, or card payment isn't available.",
+        "realm": "This is done from the production console only.",
+        "impersonation": "End the impersonation before changing a company's billing.",
+        "forbidden": "You can't do this. Confirm your sign-in code again, or ask an operator with this permission.",
+        "gone": "This company or bill could not be found.",
+        "invalid": "The server did not accept these values. Check them and try again."
+      }
+    },
     "enterprise": {
       "title": "Enterprise companies",
       "subtitle": "Companies that chose Enterprise or hold Enterprise terms, newest activity first.",

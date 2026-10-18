@@ -48,6 +48,7 @@ import {
   type SubscriptionAction,
 } from './subscriptions'
 import { CompanySubscriptionCards } from './tenant/CompanySubscriptionCards'
+import { CompanyBillingCard } from './tenant/CompanyBillingCard'
 import { TenantErpEntitlementCard } from './erp/TenantErpEntitlementCard'
 import { EnterpriseTermsLink } from './enterprise/EnterpriseTermsLink'
 import invoiceIcon from '../../assets/actions/invoice.svg'
@@ -270,6 +271,8 @@ function TenantDetail({
     return isAction(action) ? { action, invoiceId: searchParams.get('invoice') ?? undefined } : null
   })
   const [done, setDone] = useState<string | null>(null)
+  // Bumped when billing starts, so the subscription cards read the new lifecycle.
+  const [subscriptionRead, setSubscriptionRead] = useState(0)
 
   // A deep link that arrives while the page is already open — the queue linking to another action.
   const wantedAction = searchParams.get('action')
@@ -449,7 +452,18 @@ function TenantDetail({
       />
 
       {prototype ? null : (
-        <CompanySubscriptionCards tenantId={tenantId} tenantCode={overview.identity.tenantCode} />
+        <CompanySubscriptionCards
+          key={subscriptionRead}
+          tenantId={tenantId}
+          tenantCode={overview.identity.tenantCode}
+        />
+      )}
+
+      {prototype ? null : (
+        <CompanyBillingCard
+          overview={overview}
+          onStarted={() => setSubscriptionRead((n) => n + 1)}
+        />
       )}
 
       {prototype ? null : (

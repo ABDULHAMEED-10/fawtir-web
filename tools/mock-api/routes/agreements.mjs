@@ -50,6 +50,10 @@ const ENTITLEMENTS = {
     // (`MOCK_SUBSCRIPTION_STATE`, settingsPeople.mjs): otherwise the bell's reminders would join
     // every other screenshot.
     ...(process.env.MOCK_SUBSCRIPTION_STATE ? ['tenant.plan.read', 'tenant.plan.manage'] : []),
+    // The console's billing cards on the tenant page (consolePayLinks.mjs), for a run that asks.
+    ...(process.env.MOCK_CONSOLE_BILLING
+      ? ['platform.billing.read', 'platform.billing.manage', 'platform.plans.read']
+      : []),
   ],
   scopes: ['platform.tenants.manage', 'platform.operators.manage', 'platform.support'],
   featureFlags: {},
