@@ -11,8 +11,6 @@ const TOKEN = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456'
 const VIEW = '/api/v1/public/pay-links/view'
 const CARD = '/api/v1/public/pay-links/card-checkout'
 const STATUS = '/api/v1/public/pay-links/card-checkout/status'
-const BANK = '/api/v1/public/pay-links/bank-transfer'
-const CASH = '/api/v1/public/pay-links/cash-request'
 
 function view(over: Record<string, unknown> = {}) {
   return {
@@ -33,18 +31,7 @@ function view(over: Record<string, unknown> = {}) {
     expiresAt: '2026-10-24T06:00:00Z',
     tokenHint: 'x7Qa',
     paidAt: null,
-    methods: {
-      card: false,
-      bankTransfer: {
-        available: true,
-        account: {
-          beneficiary: 'Thumb International LLC',
-          bank: 'Bank Muscat',
-          iban: 'OM810180000001299123456',
-        },
-      },
-      cash: true,
-    },
+    methods: { card: true },
     pendingPayment: null,
     ...over,
   }
@@ -53,7 +40,9 @@ function view(over: Record<string, unknown> = {}) {
 function json(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': status >= 400 ? 'application/problem+json' : 'application/json' },
+    headers: {
+      'Content-Type': status >= 400 ? 'application/problem+json' : 'application/json',
+    },
   })
 }
 const problem = (status: number, type: string) =>
@@ -142,7 +131,7 @@ describe('Pay page › the link', () => {
     answers[VIEW] = () => new Response('', { status: 404 })
     openPay()
     expect(await screen.findByText(L('problem.invalid'))).toBeTruthy()
-    expect(screen.queryByText(L('howToPay'))).toBeNull()
+    expect(screen.queryByText(L('payByCard'))).toBeNull()
   })
 
   it.each([401, 403, 405])(
@@ -152,7 +141,7 @@ describe('Pay page › the link', () => {
       openPay()
       expect(await screen.findByText(L('problem.invalid'))).toBeTruthy()
       expect(screen.queryByText(L('problem.other'))).toBeNull()
-      expect(screen.queryByText(L('howToPay'))).toBeNull()
+      expect(screen.queryByText(L('payByCard'))).toBeNull()
     },
   )
 
@@ -180,15 +169,59 @@ describe('Pay page › the link', () => {
 })
 
 describe('Pay page › the bill', () => {
-  it('shows the server figures, no VAT line at zero, and no card while card is off', async () => {
+  it('shows the server figures, no VAT line at zero, and the card form', async () => {
     openPay()
     expect(await screen.findByText('Wadi Builders SPC')).toBeTruthy()
     expect(screen.getAllByText('80.000').length).toBeGreaterThan(0)
     expect(screen.queryByText(L('summary.vat'))).toBeNull()
     expect(screen.getByText(L('summary.due', { date: '24 Oct 2026' }))).toBeTruthy()
-    expect(screen.queryByRole('button', { name: new RegExp(L('method.card.title')) })).toBeNull()
-    expect(screen.getByText(L('cardUnavailable'))).toBeTruthy()
+    expect(screen.getByText(L('payByCard'))).toBeTruthy()
+    expect(screen.getByRole('button', { name: L('card.open') })).toBeTruthy()
     expect(screen.getByText('x7Qa')).toBeTruthy()
+  })
+
+  it('offers card only: no bank transfer, receipt upload or cash request (D9)', async () => {
+    // Even a server that still describes the old methods gets none of them offered.
+    answers[VIEW] = () =>
+      json(
+        200,
+        view({
+          methods: {
+            card: true,
+            bankTransfer: {
+              available: true,
+              account: {
+                beneficiary: 'B',
+                bank: 'Bank Muscat',
+                iban: 'OM810180000001299123456',
+              },
+            },
+            cash: true,
+          },
+        }),
+      )
+    openPay()
+    expect(await screen.findByRole('button', { name: L('card.open') })).toBeTruthy()
+    expect(screen.queryByText('OM810180000001299123456')).toBeNull()
+    expect(document.querySelector('input[type="file"]')).toBeNull()
+    expect(screen.queryByRole('button', { name: /bank|transfer|cash|receipt/i })).toBeNull()
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(i18n.exists('payLink.bank')).toBe(false)
+    expect(i18n.exists('payLink.cash')).toBe(false)
+  })
+
+  it('says card is not available, and offers nothing else, while card is off', async () => {
+    answers[VIEW] = () => json(200, view({ methods: { card: false } }))
+    openPay()
+    expect(await screen.findByText(L('cardUnavailable'))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: L('card.open') })).toBeNull()
+  })
+
+  it('reads a view without methods as card off', async () => {
+    answers[VIEW] = () => json(200, view({ methods: undefined }))
+    openPay()
+    expect(await screen.findByText(L('cardUnavailable'))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: L('card.open') })).toBeNull()
   })
 
   it('shows the VAT line when VAT is charged', async () => {
@@ -205,14 +238,35 @@ describe('Pay page › the bill', () => {
         200,
         view({
           status: 'PAYMENT_PENDING',
-          pendingPayment: { method: 'BANK_TRANSFER', submittedAt: '2026-10-17T07:30:00Z' },
+          pendingPayment: {
+            method: 'BANK_TRANSFER',
+            submittedAt: '2026-10-17T07:30:00Z',
+          },
         }),
       )
     openPay()
     expect(
       await screen.findByText(L('pending.BANK_TRANSFER', { date: '17 Oct 2026' })),
     ).toBeTruthy()
-    expect(screen.queryByText(L('howToPay'))).toBeNull()
+    expect(screen.queryByText(L('payByCard'))).toBeNull()
+    expect(screen.queryByRole('button', { name: L('card.open') })).toBeNull()
+  })
+
+  it('says a card payment is being confirmed', async () => {
+    answers[VIEW] = () =>
+      json(
+        200,
+        view({
+          status: 'PAYMENT_PENDING',
+          pendingPayment: {
+            method: 'CARD',
+            submittedAt: '2026-10-17T07:30:00Z',
+          },
+        }),
+      )
+    openPay()
+    expect(await screen.findByText(L('pending.CARD', { date: '17 Oct 2026' }))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: L('card.open') })).toBeNull()
   })
 
   it('says a bill is paid', async () => {
@@ -229,108 +283,15 @@ describe('Pay page › the bill', () => {
 })
 
 describe('Pay page › paying', () => {
-  it('needs a receipt and a reference, then uploads them with one key and shows the payment being checked', async () => {
-    let paid = false
-    answers[VIEW] = () =>
-      json(
-        200,
-        paid
-          ? view({
-              status: 'PAYMENT_PENDING',
-              pendingPayment: { method: 'BANK_TRANSFER', submittedAt: '2026-10-17T07:30:00Z' },
-            })
-          : view(),
-      )
-    answers[BANK] = () => {
-      paid = true
-      return json(201, {
-        paymentId: 'p-1',
-        method: 'BANK_TRANSFER',
-        status: 'PAYMENT_PENDING',
-        submittedAt: '2026-10-17T07:30:00Z',
-      })
-    }
-    const user = userEvent.setup({ delay: null })
-    openPay()
-
-    await user.click(
-      await screen.findByRole('button', { name: new RegExp(L('method.bankTransfer.title')) }),
-    )
-    expect(screen.getByText('OM810180000001299123456')).toBeTruthy()
-    await user.click(screen.getByRole('button', { name: L('bank.submit') }))
-    expect(screen.getByText(i18n.t('payment.bank.receiptRequired'))).toBeTruthy()
-    expect(calls(BANK)).toHaveLength(0)
-
-    const file = new File(['%PDF-1.4'], 'receipt.pdf', { type: 'application/pdf' })
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    await user.upload(input, file)
-    await user.type(
-      screen.getByRole('textbox', { name: i18n.t('payment.bank.referenceLabel') }),
-      'TRX-77',
-    )
-    await user.click(screen.getByRole('button', { name: L('bank.submit') }))
-
-    expect(
-      await screen.findByText(L('pending.BANK_TRANSFER', { date: '17 Oct 2026' })),
-    ).toBeTruthy()
-    const [init] = calls(BANK)
-    expect(init.credentials).toBe('omit')
-    expect(headersOf(init)['X-Pay-Link-Token']).toBe(TOKEN)
-    expect(headersOf(init)['Idempotency-Key']).toMatch(/^[0-9a-f-]{36}$/)
-    const form = init.body as FormData
-    expect(form.get('reference')).toBe('TRX-77')
-    expect((form.get('proof') as File).name).toBe('receipt.pdf')
-  })
-
-  it('says when there is no confirmed account, and still takes the receipt', async () => {
-    answers[VIEW] = () =>
-      json(
-        200,
-        view({
-          methods: { card: false, bankTransfer: { available: true, account: null }, cash: true },
-        }),
-      )
-    const user = userEvent.setup({ delay: null })
-    openPay()
-    await user.click(
-      await screen.findByRole('button', { name: new RegExp(L('method.bankTransfer.title')) }),
-    )
-    expect(screen.getByText(L('bank.noAccount'))).toBeTruthy()
-    expect(screen.getByRole('button', { name: L('bank.submit') })).toBeTruthy()
-  })
-
-  it('opens a cash request', async () => {
-    answers[CASH] = () =>
-      json(201, {
-        paymentId: 'p-2',
-        method: 'CASH',
-        status: 'PAYMENT_PENDING',
-        submittedAt: '2026-10-17T07:30:00Z',
-      })
-    const user = userEvent.setup({ delay: null })
-    openPay()
-    await user.click(
-      await screen.findByRole('button', { name: new RegExp(L('method.cash.title')) }),
-    )
-    await user.click(screen.getByRole('button', { name: L('cash.submit') }))
-    await waitFor(() => expect(calls(CASH)).toHaveLength(1))
-    expect(headersOf(calls(CASH)[0])['Idempotency-Key']).toBeTruthy()
-    expect(calls(CASH)[0].credentials).toBe('omit')
-  })
-
   it('says a payment is already being checked when the slot is taken', async () => {
-    answers[CASH] = () => problem(409, 'payment-state-conflict')
+    answers[CARD] = () => problem(409, 'payment-state-conflict')
     const user = userEvent.setup({ delay: null })
     openPay()
-    await user.click(
-      await screen.findByRole('button', { name: new RegExp(L('method.cash.title')) }),
-    )
-    await user.click(screen.getByRole('button', { name: L('cash.submit') }))
+    await user.click(await screen.findByRole('button', { name: L('card.open') }))
     expect(await screen.findByText(L('problem.slotTaken'))).toBeTruthy()
   })
 
   it('opens the provider checkout with one key, reused on a retry, and only at the provider address', async () => {
-    answers[VIEW] = () => json(200, view({ methods: { ...view().methods, card: true } }))
     answers[CARD] = () =>
       json(200, {
         paymentId: 'p-card',
@@ -344,10 +305,7 @@ describe('Pay page › paying', () => {
     const user = userEvent.setup({ delay: null })
     openPay()
 
-    await user.click(
-      await screen.findByRole('button', { name: new RegExp(L('method.card.title')) }),
-    )
-    await user.click(screen.getByRole('button', { name: L('card.open') }))
+    await user.click(await screen.findByRole('button', { name: L('card.open') }))
     await waitFor(() =>
       expect(open).toHaveBeenCalledWith('https://oman.paymob.com/unifiedcheckout/?x=1'),
     )
@@ -361,14 +319,10 @@ describe('Pay page › paying', () => {
   })
 
   it('says card is unavailable when the server refuses it, and forgets a finished attempt', async () => {
-    answers[VIEW] = () => json(200, view({ methods: { ...view().methods, card: true } }))
     answers[CARD] = () => problem(409, 'payment-method-unavailable')
     const user = userEvent.setup({ delay: null })
     openPay()
-    await user.click(
-      await screen.findByRole('button', { name: new RegExp(L('method.card.title')) }),
-    )
-    await user.click(screen.getByRole('button', { name: L('card.open') }))
+    await user.click(await screen.findByRole('button', { name: L('card.open') }))
     expect(await screen.findByText(L('problem.cardUnavailable'))).toBeTruthy()
 
     answers[CARD] = () =>
@@ -391,23 +345,19 @@ describe('Pay page › paying', () => {
   it('shows the link as expired when it dies while paying', async () => {
     let dead = false
     answers[VIEW] = () => (dead ? problem(410, 'pay-link-expired') : json(200, view()))
-    answers[CASH] = () => {
+    answers[CARD] = () => {
       dead = true
       return problem(410, 'pay-link-expired')
     }
     const user = userEvent.setup({ delay: null })
     openPay()
-    await user.click(
-      await screen.findByRole('button', { name: new RegExp(L('method.cash.title')) }),
-    )
-    await user.click(screen.getByRole('button', { name: L('cash.submit') }))
-    await waitFor(() => expect(screen.queryByText(L('howToPay'))).toBeNull())
+    await user.click(await screen.findByRole('button', { name: L('card.open') }))
+    await waitFor(() => expect(screen.queryByText(L('payByCard'))).toBeNull())
     expect(screen.getByText(L('problem.expired'))).toBeTruthy()
     expect(calls(VIEW)).toHaveLength(2)
   })
 
   it('never navigates to an address that is not the provider', async () => {
-    answers[VIEW] = () => json(200, view({ methods: { ...view().methods, card: true } }))
     answers[CARD] = () =>
       json(200, {
         paymentId: 'p-card',
@@ -420,10 +370,7 @@ describe('Pay page › paying', () => {
     const open = vi.spyOn(hostedCheckout, 'open').mockImplementation(() => {})
     const user = userEvent.setup({ delay: null })
     openPay()
-    await user.click(
-      await screen.findByRole('button', { name: new RegExp(L('method.card.title')) }),
-    )
-    await user.click(screen.getByRole('button', { name: L('card.open') }))
+    await user.click(await screen.findByRole('button', { name: L('card.open') }))
     expect(await screen.findByText(L('problem.notReady'))).toBeTruthy()
     expect(open).not.toHaveBeenCalled()
   })

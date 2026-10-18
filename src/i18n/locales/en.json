@@ -22273,9 +22273,7 @@
   "payLink": {
     "loading": "Loading your bill",
     "title": "Bill {{number}}",
-    "howToPay": "How would you like to pay?",
-    "noMethod": "No way to pay is available right now. Contact Fawtir.",
-    "cardUnavailable": "Card payment isn't available right now.",
+    "cardUnavailable": "Card payment isn't available right now. Contact Fawtir.",
     "rejected": "Fawtir couldn't confirm your last payment. You can pay again below.",
     "paid": "This bill is paid. Thank you.",
     "paidOn": "Paid on {{date}}. Thank you.",
@@ -22285,35 +22283,11 @@
       "CASH": "We've noted that you'll pay in cash ({{date}}). The bill is marked paid once Fawtir records it.",
       "OTHER": "We've received your payment on {{date}}. Fawtir is checking it."
     },
-    "method": {
-      "card": {
-        "title": "Card",
-        "subtitle": "Secure checkout · Paymob"
-      },
-      "bankTransfer": {
-        "title": "Bank transfer",
-        "subtitle": "Attach your receipt"
-      },
-      "cash": {
-        "title": "Cash",
-        "subtitle": "At our office"
-      }
-    },
     "card": {
       "note": "You go to Paymob's secure page to enter your card. Fawtir never sees your card details.",
       "open": "Open the secure card form",
       "opening": "Opening…"
     },
-    "bank": {
-      "transferNow": "Transfer the total shown to this account, then attach the receipt. The bill is marked paid once Fawtir confirms the transfer.",
-      "noAccount": "Fawtir's bank details aren't shown yet: ask Fawtir, then attach your receipt.",
-      "submit": "Send the receipt"
-    },
-    "cash": {
-      "note": "Pay at Fawtir's office in Muscat; you get a receipt. The bill is marked paid once Fawtir records it.",
-      "submit": "I'll pay in cash"
-    },
-    "sending": "Sending…",
     "retry": "Try again",
     "summary": {
       "title": "Bill summary",
@@ -22336,10 +22310,8 @@
       "tooMany": "Too many attempts. Try again in a few minutes.",
       "notPayable": "This bill can't be paid any more. Ask Fawtir for help.",
       "slotTaken": "A payment for this bill is already being checked.",
-      "cardUnavailable": "Card payment isn't available right now. Choose another way to pay.",
-      "payerMissing": "Card payment needs the payer's name, email and phone. Ask Fawtir to send a new link with them, or choose another way to pay.",
-      "receiptRefused": "We could not accept this receipt.",
-      "receiptTooLarge": "This receipt is too large. Use a smaller PDF, PNG or JPEG file.",
+      "cardUnavailable": "Card payment isn't available right now. Try again later, or contact Fawtir.",
+      "payerMissing": "Card payment needs the payer's name, email and phone. Ask Fawtir to send a new link with them.",
       "network": "We couldn't reach Fawtir. Check your connection and try again.",
       "other": "Something went wrong. Try again.",
       "notReady": "The card form couldn't be opened. Try again in a moment."
@@ -22355,7 +22327,8 @@
       "underReview": "Fawtir is checking this payment. You don't need to pay again.",
       "reversed": "This card payment was reversed. Ask Fawtir for help.",
       "back": "Back to the bill"
-    }
+    },
+    "payByCard": "Pay by card"
   },
   "paidExtras": {
     "title": "Extra users, branches and add-on",

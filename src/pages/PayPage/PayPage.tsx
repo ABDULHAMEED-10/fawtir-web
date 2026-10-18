@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AuthLayout } from '../../components/auth/AuthLayout'
-import { Button, OmAmount, SelectionCard } from '../../components/ui'
+import { Button, OmAmount } from '../../components/ui'
 import { LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { hostedCheckout, isTrustedCheckoutUrl } from '../../api/settings/billing'
 import { formatDate } from '../../lib/format'
@@ -17,25 +17,17 @@ import {
   loadPayLinkCard,
   payLinkProblemOf,
   rememberCardPayment,
-  requestPayLinkCash,
   startPayLinkCard,
-  submitPayLinkBankTransfer,
   takePayLinkToken,
   type PayLinkCardCheckout,
   type PayLinkProblem,
   type PayLinkView,
 } from '../../lib/payLink'
-import { BankTransferDetails, Note, type BankEvidence } from '../PaymentPage/PaymentForm'
+import { Note } from '../PaymentPage/PaymentForm'
 import { PaymentHero } from '../PaymentPage/PaymentHero'
-import cardIcon from '../../assets/payment/card.svg'
-import bankIcon from '../../assets/payment/bank.svg'
 import tickIcon from '../../assets/payment/tick-circle.svg'
-import rialIcon from '../../assets/brand/omr.svg'
 
 const K = 'payLink.'
-
-type Method = 'card' | 'bankTransfer' | 'cash'
-const ICON: Record<Method, string> = { card: cardIcon, bankTransfer: bankIcon, cash: rialIcon }
 
 type Read =
   | { status: 'loading' }
@@ -44,7 +36,10 @@ type Read =
 
 /**
  * The public pay page for one bill (P2-8 §3.11): no sign-in, outside the app shell, in the sign-up
- * Payment step's look and with its card, bank and cash panels. Every figure is the server's.
+ * Payment step's look. A payment link is a quick card-payment reminder from Fawtir's staff (D9),
+ * so card is the only way to pay here: no bank transfer, receipt upload or cash request. Every
+ * figure is the server's. A link the server issued as a Paymob payment link never opens this page;
+ * it serves the links Fawtir issues itself, which hand over to Paymob's hosted checkout.
  * Security: see `lib/payLink.ts` (fragment token, `credentials: 'omit'`, untrusted card return).
  */
 export function PayPage() {
@@ -200,12 +195,8 @@ function Bill({
   const { t, i18n } = useTranslation()
   const day = (iso: string | null | undefined) =>
     iso ? formatDate(iso.slice(0, 10), i18n.language) : ''
-  const offered: Method[] = [
-    ...(view.methods.card ? (['card'] as const) : []),
-    ...(view.methods.bankTransfer.available ? (['bankTransfer'] as const) : []),
-    ...(view.methods.cash ? (['cash'] as const) : []),
-  ]
-  const [method, setMethod] = useState<Method | null>(null)
+  // Card is the only way to pay from a link (D9). A view without the field reads as card off.
+  const card = view.methods?.card === true
 
   let action: ReactNode = null
   if (view.status === 'PAID') {
@@ -216,6 +207,7 @@ function Bill({
       />
     )
   } else if (view.status === 'PAYMENT_PENDING') {
+    // The bill may also be waiting on a payment the company made in the app.
     const pending = view.pendingPayment
     const how =
       pending?.method === 'CARD' ||
@@ -237,30 +229,8 @@ function Bill({
             {t(`${K}rejected`)}
           </p>
         ) : null}
-        <h3 className="text-base font-semibold text-text-primary">{t(`${K}howToPay`)}</h3>
-        {offered.length === 0 ? (
-          <Notice body={t(`${K}noMethod`)} />
-        ) : (
-          <div
-            role="group"
-            aria-label={t(`${K}howToPay`)}
-            className="grid w-full grid-cols-1 gap-[17px] sm:grid-cols-3"
-          >
-            {offered.map((id) => (
-              <SelectionCard
-                key={id}
-                title={t(`${K}method.${id}.title`)}
-                description={t(`${K}method.${id}.subtitle`)}
-                selected={method === id}
-                onSelect={() => setMethod(id)}
-                icon={<img src={ICON[id]} alt="" className="size-6 object-contain" />}
-              />
-            ))}
-          </div>
-        )}
-        {!view.methods.card ? (
-          <p className="text-xs font-medium text-text-quaternary">{t(`${K}cardUnavailable`)}</p>
-        ) : null}
+        <h3 className="text-base font-semibold text-text-primary">{t(`${K}payByCard`)}</h3>
+        {card ? null : <Notice body={t(`${K}cardUnavailable`)} />}
       </>
     )
   } else {
@@ -282,12 +252,8 @@ function Bill({
         {action}
         <div className="flex w-full flex-col gap-6 @min-[700px]:flex-row @min-[700px]:items-start @min-[700px]:justify-between">
           <div className="w-full max-w-[351px] shrink-0">
-            {view.status === 'PAYABLE' && method === 'card' ? (
+            {view.status === 'PAYABLE' && card ? (
               <CardPanel token={token} onChanged={onChanged} />
-            ) : view.status === 'PAYABLE' && method === 'bankTransfer' ? (
-              <BankPanel view={view} token={token} onChanged={onChanged} />
-            ) : view.status === 'PAYABLE' && method === 'cash' ? (
-              <CashPanel token={token} onChanged={onChanged} />
             ) : null}
           </div>
           <BillSummary view={view} day={day} />
@@ -424,115 +390,6 @@ function CardPanel({ token, onChanged }: { token: string; onChanged: () => void 
       <Note icon={tickIcon} text={t(`${K}card.note`)} />
       <Button type="button" disabled={busy} onClick={() => void open()} className="w-full">
         {busy ? t(`${K}card.opening`) : t(`${K}card.open`)}
-      </Button>
-      {problem ? <PanelProblem problem={problem} /> : null}
-    </div>
-  )
-}
-
-function BankPanel({
-  view,
-  token,
-  onChanged,
-}: {
-  view: PayLinkView
-  token: string
-  onChanged: () => void
-}) {
-  const { t } = useTranslation()
-  const [evidence, setEvidence] = useState<BankEvidence>({ proof: null, reference: '', note: '' })
-  const [missing, setMissing] = useState<'receipt' | 'reference' | null>(null)
-  const [problem, setProblem] = useState<PayLinkProblem | null>(null)
-  const [busy, setBusy] = useState(false)
-  const key = useRef<string | null>(null)
-  const account = view.methods.bankTransfer.account
-
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (busy) return
-    if (!evidence.proof) return setMissing('receipt')
-    if (!evidence.reference.trim()) return setMissing('reference')
-    key.current ??= crypto.randomUUID()
-    setBusy(true)
-    setProblem(null)
-    try {
-      await submitPayLinkBankTransfer(
-        token,
-        { proof: evidence.proof, reference: evidence.reference.trim(), note: evidence.note },
-        key.current,
-      )
-      onChanged()
-    } catch (error) {
-      const found = payLinkProblemOf(error)
-      setProblem(found)
-      if (found === 'expired' || found === 'notPayable' || found === 'slotTaken') onChanged()
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <form noValidate onSubmit={(event) => void submit(event)} className="flex flex-col gap-3">
-      <BankTransferDetails
-        beneficiary={
-          account
-            ? {
-                legalName: account.beneficiary,
-                bankName: account.bank,
-                iban: account.iban,
-                swiftCode: null,
-              }
-            : null
-        }
-        // The view names no size limit: the server checks it and a 413 gets its own sentence.
-        maxBytes={undefined}
-        held={null}
-        evidence={evidence}
-        problem={missing}
-        refused={problem === 'receiptRefused'}
-        transferNote={t(`${K}bank.transferNow`)}
-        noAccountNote={t(`${K}bank.noAccount`)}
-        onChange={(next) => {
-          key.current = null
-          setMissing(null)
-          setProblem(null)
-          setEvidence((current) => ({ ...current, ...next }))
-        }}
-      />
-      {problem && problem !== 'receiptRefused' ? <PanelProblem problem={problem} /> : null}
-      <Button type="submit" disabled={busy} className="w-full">
-        {busy ? t(`${K}sending`) : t(`${K}bank.submit`)}
-      </Button>
-    </form>
-  )
-}
-
-function CashPanel({ token, onChanged }: { token: string; onChanged: () => void }) {
-  const { t } = useTranslation()
-  const [problem, setProblem] = useState<PayLinkProblem | null>(null)
-  const [busy, setBusy] = useState(false)
-  const key = useRef<string | null>(null)
-  const request = async () => {
-    if (busy) return
-    key.current ??= crypto.randomUUID()
-    setBusy(true)
-    setProblem(null)
-    try {
-      await requestPayLinkCash(token, '', key.current)
-      onChanged()
-    } catch (error) {
-      const found = payLinkProblemOf(error)
-      setProblem(found)
-      if (found === 'expired' || found === 'notPayable' || found === 'slotTaken') onChanged()
-    } finally {
-      setBusy(false)
-    }
-  }
-  return (
-    <div className="flex flex-col gap-3">
-      <Note icon={tickIcon} text={t(`${K}cash.note`)} />
-      <Button type="button" disabled={busy} onClick={() => void request()} className="w-full">
-        {busy ? t(`${K}sending`) : t(`${K}cash.submit`)}
       </Button>
       {problem ? <PanelProblem problem={problem} /> : null}
     </div>

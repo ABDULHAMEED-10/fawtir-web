@@ -3,16 +3,15 @@
  * `tools/mock-api/server.mjs` loads it.
  *
  * The public pay page (`/pay#<token>`), shapes from `src/lib/payLink.ts` (the backend's
- * `PayLinkBillView`, `CardCheckout` and `PayLinkPaymentReceipt`). The token in the
- * `X-Pay-Link-Token` header picks the state; each is 43 characters, as a real one:
+ * `PayLinkBillView` and `PayLinkCardCheckout`). Card only: there is no bank-transfer or cash
+ * route. The token in the `X-Pay-Link-Token` header picks the state; each is 43 characters, as a
+ * real one:
  *
- *   /pay#payable<x…>   payable, bank account confirmed, card off (as at launch)
- *   /pay#card<x…>      payable with card on (checkout READY at a Paymob address)
+ *   /pay#payable<x…>   payable by card (checkout READY at a Paymob address)
+ *   /pay#cardoff<x…>   payable, card switched off
  *   /pay#vat<x…>       payable with VAT charged
- *   /pay#noaccount<x…> payable, no confirmed bank account
  *   /pay#rejected<x…>  payable again after Fawtir rejected the last payment
- *   /pay#pending<x…>   a bank transfer being checked
- *   /pay#cash<x…>      a cash request waiting for Fawtir
+ *   /pay#pending<x…>   a card payment being confirmed
  *   /pay#paid<x…>      paid
  *   /pay#expired<x…>   410 (expired, revoked, superseded)
  *   /pay#limited<x…>   429
@@ -40,18 +39,7 @@ const view = (over = {}) => ({
   expiresAt: '2026-10-24T06:00:00Z',
   tokenHint: 'x7Qa',
   paidAt: null,
-  methods: {
-    card: false,
-    bankTransfer: {
-      available: true,
-      account: {
-        beneficiary: 'Thumb International LLC',
-        bank: 'Bank Muscat',
-        iban: 'OM810180000001299123456',
-      },
-    },
-    cash: true,
-  },
+  methods: { card: true },
   pendingPayment: null,
   lastPaymentNotConfirmed: false,
   ...over,
@@ -59,19 +47,12 @@ const view = (over = {}) => ({
 
 const VIEWS = {
   [token('payable')]: view(),
-  [token('card')]: view({ methods: { ...view().methods, card: true } }),
+  [token('cardoff')]: view({ methods: { card: false } }),
   [token('vat')]: view({ vatRate: '0.05000', vatAmount: '4.000', total: '84.000' }),
   [token('rejected')]: view({ lastPaymentNotConfirmed: true }),
-  [token('noaccount')]: view({
-    methods: { card: false, bankTransfer: { available: true, account: null }, cash: true },
-  }),
   [token('pending')]: view({
     status: 'PAYMENT_PENDING',
-    pendingPayment: { method: 'BANK_TRANSFER', submittedAt: '2026-10-17T07:30:00Z' },
-  }),
-  [token('cash')]: view({
-    status: 'PAYMENT_PENDING',
-    pendingPayment: { method: 'CASH', submittedAt: '2026-10-17T07:30:00Z' },
+    pendingPayment: { method: 'CARD', submittedAt: '2026-10-17T07:30:00Z' },
   }),
   [token('paid')]: view({ status: 'PAID', paidAt: '2026-10-17T08:00:00Z' }),
 }
@@ -93,11 +74,6 @@ function resolve(headers) {
   const found = VIEWS[value]
   return found ? { view: found } : { refusal: problem(404, 'pay-link-not-found') }
 }
-
-const summary = (method) => ({
-  status: 201,
-  body: { paymentId: 'p-50', method, status: 'PAYMENT_PENDING', submittedAt: new Date().toISOString() },
-})
 
 const checkout = (status) => ({
   paymentId: 'p-card-50',
@@ -130,21 +106,5 @@ export default [
     method: 'POST',
     match: '/api/v1/public/pay-links/card-checkout/status',
     reply: guarded(() => checkout('PAID')),
-  },
-  {
-    method: 'POST',
-    match: '/api/v1/public/pay-links/bank-transfer',
-    reply: guarded((found) =>
-      found.status === 'PAYABLE'
-        ? summary('BANK_TRANSFER')
-        : problem(409, 'payment-state-conflict'),
-    ),
-  },
-  {
-    method: 'POST',
-    match: '/api/v1/public/pay-links/cash-request',
-    reply: guarded((found) =>
-      found.status === 'PAYABLE' ? summary('CASH') : problem(409, 'payment-state-conflict'),
-    ),
   },
 ]

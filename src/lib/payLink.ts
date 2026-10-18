@@ -2,8 +2,9 @@ import { ApiError, NetworkError, apiRequest } from '../api'
 import type { CardCheckoutStatus } from '../api/settings/billing'
 
 /**
- * The public pay page (`/pay`, P2-8 §3.11): someone without a Fawtir sign-in pays one bill through
- * a link the Fawtir team sent. The link is `https://<app>/pay#<token>`.
+ * The public pay page (`/pay`, P2-8 §3.11): someone without a Fawtir sign-in pays one bill by card
+ * through a link the Fawtir team sent as a reminder (D9: card only, no bank transfer, receipt or
+ * cash on a public page). The link is `https://<app>/pay#<token>`.
  *
  * - The token travels in the URL fragment, so it never reaches a server log or a Referer. The page
  *   reads it once, removes it from the address bar, and keeps it in `sessionStorage` (for the
@@ -21,8 +22,6 @@ const BASE = '/v1/public/pay-links'
 export const PAY_LINK_VIEW_PATH = `${BASE}/view`
 export const PAY_LINK_CARD_PATH = `${BASE}/card-checkout`
 export const PAY_LINK_CARD_STATUS_PATH = `${BASE}/card-checkout/status`
-export const PAY_LINK_BANK_PATH = `${BASE}/bank-transfer`
-export const PAY_LINK_CASH_PATH = `${BASE}/cash-request`
 export const PAY_LINK_TOKEN_HEADER = 'X-Pay-Link-Token'
 
 /** 32 random bytes, base64url without padding. Anything else is not a link, and is not sent. */
@@ -132,14 +131,12 @@ export type PayLinkView = {
   /** The link's last four characters, so support can confirm a genuine link by phone (R2). */
   tokenHint?: string | null
   paidAt?: string | null
-  methods: {
-    card: boolean
-    bankTransfer: {
-      available: boolean
-      account: { beneficiary: string; bank: string; iban: string } | null
-    }
-    cash: boolean
-  }
+  /**
+   * Card is the only way to pay from a link (D9). A missing field reads as card off, so the page
+   * never offers a payment the server did not say it takes.
+   */
+  methods?: { card?: boolean } | null
+  /** The bill may also be waiting on a payment the company made in the app. */
   pendingPayment?: { method: PayLinkMethod | (string & {}); submittedAt: string } | null
   /** Fawtir rejected the last payment; the page says so in a fixed sentence (R7), never the reason. */
   lastPaymentNotConfirmed?: boolean
@@ -158,14 +155,6 @@ export type PayLinkCardCheckout = {
   expiresAt: string | null
   amount: string
   currency: 'OMR'
-}
-
-/** `PayLinkPaymentReceipt`: a card payment never answers with one. */
-export type PayLinkPaymentSummary = {
-  paymentId: string
-  method: 'BANK_TRANSFER' | 'CASH' | (string & {})
-  status: 'PAYMENT_PENDING' | (string & {})
-  submittedAt: string
 }
 
 const publicCall = <T>(
@@ -203,31 +192,6 @@ export function loadPayLinkCard(
   return publicCall(PAY_LINK_CARD_STATUS_PATH, token, { body: { paymentId }, signal })
 }
 
-export type PayLinkBankTransfer = { proof: File; reference: string; note: string }
-
-export function submitPayLinkBankTransfer(
-  token: string,
-  transfer: PayLinkBankTransfer,
-  idempotencyKey: string,
-): Promise<PayLinkPaymentSummary> {
-  const form = new FormData()
-  form.append('proof', transfer.proof)
-  form.append('reference', transfer.reference)
-  if (transfer.note.trim()) form.append('note', transfer.note.trim())
-  return publicCall(PAY_LINK_BANK_PATH, token, { body: form, idempotencyKey })
-}
-
-export function requestPayLinkCash(
-  token: string,
-  note: string,
-  idempotencyKey: string,
-): Promise<PayLinkPaymentSummary> {
-  return publicCall(PAY_LINK_CASH_PATH, token, {
-    body: note.trim() ? { note: note.trim() } : {},
-    idempotencyKey,
-  })
-}
-
 /** Why the page cannot go on, as one closed set; each has its own fixed sentence. */
 export type PayLinkProblem =
   | 'invalid'
@@ -237,8 +201,6 @@ export type PayLinkProblem =
   | 'slotTaken'
   | 'cardUnavailable'
   | 'payerMissing'
-  | 'receiptRefused'
-  | 'receiptTooLarge'
   | 'network'
   | 'other'
 
@@ -271,8 +233,6 @@ export function payLinkProblemOf(error: unknown): PayLinkProblem {
     return 'invalid'
   if (error.status === 410) return 'expired'
   if (error.status === 429) return 'tooMany'
-  if (error.status === 413) return 'receiptTooLarge'
-  if (error.status === 400) return 'receiptRefused'
   if (error.status === 409) return 'slotTaken'
   if (error.status === 503) return 'cardUnavailable'
   return 'other'
