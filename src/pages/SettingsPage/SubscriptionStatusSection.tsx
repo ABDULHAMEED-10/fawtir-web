@@ -78,7 +78,9 @@ export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }
       setFailure(
         error instanceof ApiError && error.problemType === 'subscription-change-blocked-by-payment'
           ? 'subscription.blockedByPayment'
-          : 'subscription.actionFailed',
+          : error instanceof ApiError && error.problemType === 'subscription-cancelled-by-fawtir'
+            ? 'subscription.cancelledByFawtirRefusal'
+            : 'subscription.actionFailed',
       )
     } finally {
       setPending(null)
@@ -148,7 +150,9 @@ export function SubscriptionStatusSection({ page }: { page: 'billing' | 'plan' }
 
       {canManage && status.tracked ? (
         <div className="flex flex-wrap gap-3">
-          {status.cancelAtPeriodEnd && (status.access === 'TRIAL' || status.access === 'ACTIVE') ? (
+          {status.cancelAtPeriodEnd &&
+          !status.cancelledByFawtir &&
+          (status.access === 'TRIAL' || status.access === 'ACTIVE') ? (
             <Button
               variant="secondary"
               size="md"
@@ -238,6 +242,15 @@ function StandingNotice({ status, page }: { status: SubscriptionStatusDto; page:
   }
   if (status.cancelAtPeriodEnd && (status.access === 'TRIAL' || status.access === 'ACTIVE')) {
     message = t('subscription.notice.cancelScheduled', { date: date(status.accessEndsOn) })
+    tone = 'bg-surface-background text-text-secondary'
+  }
+  // CA-9: Fawtir's own message, in the same line the CANCELLED state uses. The sentence carries its
+  // own full stop, so one the operator typed is not doubled.
+  if (status.cancelledByFawtir) {
+    message = t('subscription.notice.cancelledByFawtir', {
+      date: date(status.cancelledByFawtir.on),
+      message: status.cancelledByFawtir.message.trim().replace(/[.。]+$/u, ''),
+    })
     tone = 'bg-surface-background text-text-secondary'
   }
   return message ? (

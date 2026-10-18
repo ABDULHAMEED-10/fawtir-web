@@ -55,6 +55,12 @@ export type SubscriptionStatusDto = {
    * not set its terms yet, so there is nothing to pay. Absent from a server before F22.
    */
   enterprise?: { termsSet: boolean } | null
+  /**
+   * Set while Fawtir has cancelled the subscription at once (CA-7, CA-9): read-only from `on`, and
+   * `message` is what Fawtir wrote for the customer. Withdrawing the cancellation is refused
+   * (`subscription-cancelled-by-fawtir`); renewing clears it. Absent from a server before it.
+   */
+  cancelledByFawtir?: { on: string; message: string } | null
 }
 
 /** What the status pill and the Settings card say: the server's access, or that nothing has started. */
@@ -104,13 +110,16 @@ export function withdrawScheduledChange(): Promise<SubscriptionStatusDto> {
  */
 export const SUBSCRIPTION_NOTICES_PATH = `${SUBSCRIPTION_PATH}/notices`
 
-export type SubscriptionNoticeKind = 'TRIAL_ENDING' | 'GRACE'
+export type SubscriptionNoticeKind = 'TRIAL_ENDING' | 'GRACE' | 'CANCELLED_BY_FAWTIR'
 
 export type SubscriptionNoticeDto = {
   id: string
   /** A kind this screen does not know yet is shown by its `headline`. */
   kind: SubscriptionNoticeKind | (string & {})
-  /** TRIAL_ENDING: the last trial day. GRACE: the last paid day, which lapsed unpaid. */
+  /**
+   * TRIAL_ENDING: the last trial day. GRACE: the last paid day, which lapsed unpaid.
+   * CANCELLED_BY_FAWTIR (V365): the last covered day; Fawtir's cancellation took effect the day after.
+   */
   coveredThrough: string
   /** GRACE only: 1 is the day after `coveredThrough`. */
   graceDay?: number | null
