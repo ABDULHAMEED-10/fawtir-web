@@ -13212,11 +13212,13 @@
       "manage": "Roles",
       "role": {
         "PLATFORM_TENANT_ADMIN": "Tenant administration",
-        "PLATFORM_SUPPORT": "Support"
+        "PLATFORM_SUPPORT": "Support",
+        "PLATFORM_PARTICIPANT_OWNERSHIP": "Participant ID ownership"
       },
       "roleNote": {
         "PLATFORM_TENANT_ADMIN": "Decides company verification, changes plans, and gives or removes operators’ roles.",
-        "PLATFORM_SUPPORT": "Support work and Oman SMP administration."
+        "PLATFORM_SUPPORT": "Support work and Oman SMP administration.",
+        "PLATFORM_PARTICIPANT_OWNERSHIP": "Requests or approves moving a verified Peppol Participant ID from one company to another. Every move needs two different operators, each signed in with two-step sign-in. This role allows nothing else."
       },
       "dialog": {
         "title": "Roles for {{name}}",
