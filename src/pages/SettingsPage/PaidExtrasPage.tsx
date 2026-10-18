@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { OutstandingBill, formatRate } from './SubscriptionBillingSection'
+import { ReconnectBeforePayingNote } from './ReconnectBeforePayingNote'
 import { useApiRead, type ApiRead } from '../../hooks'
 import { useCan } from '../../lib/session/session'
 import { ApiError } from '../../api'
@@ -70,6 +71,7 @@ export function PaidExtrasPage() {
           </Link>
         }
       />
+      <ReconnectBeforePayingNote />
       <PaidExtrasBody />
     </SettingsShell>
   )

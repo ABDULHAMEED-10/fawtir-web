@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { OutstandingBill, formatRate } from './SubscriptionBillingSection'
+import { ReconnectBeforePayingNote } from './ReconnectBeforePayingNote'
 import { useApiRead, type ApiRead } from '../../hooks'
 import { usePlanName } from '../../hooks/usePlanName'
 import { useCan } from '../../lib/session/session'
@@ -52,6 +53,7 @@ export function ExtraDocumentsPage() {
           </Link>
         }
       />
+      <ReconnectBeforePayingNote />
       <ExtraDocumentsBody />
     </SettingsShell>
   )

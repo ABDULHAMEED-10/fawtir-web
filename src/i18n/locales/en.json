@@ -22553,6 +22553,10 @@
     "error": {
       "notOpen": "Coming back to Fawtir isn't open yet. Contact Fawtir support.",
       "confirm": "Tick the box to confirm you've chosen Fawtir on the Fawtara Portal."
+    },
+    "beforePaying": {
+      "note": "Your company has left Fawtir. Reconnect to Fawtir before paying.",
+      "link": "Reconnect in the danger zone"
     }
   }
 }
