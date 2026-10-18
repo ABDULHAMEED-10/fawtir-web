@@ -21995,7 +21995,8 @@
       "subscription-not-tracked": "Fawtir manages billing for your subscription directly. Contact Fawtir to pay.",
       "idempotency-key-reused": "Reload the page and try again.",
       "other": "That did not go through. Reload the page and try again.",
-      "bill-stale": "Your plan changed, so that bill was replaced. Pay the current bill below."
+      "bill-stale": "Your plan changed, so that bill was replaced. Pay the current bill below.",
+      "disconnected-from-fawtir": "Your company has left Fawtir, so nothing more can be paid. An owner or administrator can reconnect the company to Fawtir from the company profile."
     },
     "bankUnavailable": "Bank transfer is temporarily unavailable because proof can't be stored safely right now. Try again in a few minutes.",
     "bankNoAccount": "Bank transfer is temporarily unavailable because Fawtir has not configured a verified bank account.",

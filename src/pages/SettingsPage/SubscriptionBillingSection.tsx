@@ -39,6 +39,8 @@ import {
   type ExtraDocumentsOverviewDto,
 } from '../../api/settings/extraDocuments'
 import { usePayingHeldUntilReconnected } from '../../hooks/usePayingHeldUntilReconnected'
+import { noteLeftFawtirRefusal } from '../../lib/leftFawtirRefusal'
+import { LeftFawtirRefusal } from '../../components/billing/LeftFawtirRefusal'
 
 const LIVE: SubscriptionPaymentDto['status'][] = ['SUBMITTED', 'RECEIPT_RECORDED', 'AWAITING_SECOND_APPROVAL']
 const PROOF_ACCEPT = '.pdf,.png,.jpg,.jpeg'
@@ -234,7 +236,8 @@ function NoOutstandingBill({
           </Button>
         </div>
       ) : null}
-      {failure ? <Alert>{failure}</Alert> : null}
+      {canPay && held ? <LeftFawtirRefusal /> : null}
+      {failure && !held ? <Alert>{failure}</Alert> : null}
     </div>
   )
 }
@@ -329,7 +332,11 @@ export function OutstandingBill({
               {t('billing.rejected', { reason: withoutFinalStop(lastRejected.rejectionReason ?? '') })}
             </Alert>
           ) : null}
-          {canPay && !held ? <PayForm bill={bill} card={card} overview={overview} onSubmitted={onChanged} /> : null}
+          {canPay && held ? (
+            <LeftFawtirRefusal />
+          ) : canPay ? (
+            <PayForm bill={bill} card={card} overview={overview} onSubmitted={onChanged} />
+          ) : null}
         </>
       )}
     </div>
@@ -716,6 +723,8 @@ function CardPaymentStatus({
   onFinished: (why: string) => void
 }) {
   const { t } = useTranslation()
+  // A3.8: the checkout already opened is not continued once the company has left Fawtir (LV-6).
+  const held = usePayingHeldUntilReconnected()
   const [checkout, setCheckout] = useState<CardCheckoutDto | null>(null)
   const [unreachable, setUnreachable] = useState(false)
   const [nudge, setNudge] = useState(0)
@@ -791,7 +800,7 @@ function CardPaymentStatus({
       >
         {t(`billing.card.status.${status}`)}
       </p>
-      {status === 'READY' && trustedUrl ? (
+      {status === 'READY' && trustedUrl && !held ? (
         <div>
           <Button size="md" onClick={() => hostedCheckout.open(trustedUrl)}>
             {t('billing.card.continue')}
@@ -991,6 +1000,8 @@ const KNOWN_REFUSALS = [
 ]
 
 function refusalMessage(t: (key: string) => string, error: unknown): string {
+  // LV-6: remembered, so every way to pay is held back from here on (A3.8).
+  if (noteLeftFawtirRefusal(error)) return t('billing.refusal.disconnected-from-fawtir')
   if (error instanceof ApiError && error.problemType && KNOWN_REFUSALS.includes(error.problemType)) {
     return t(`billing.refusal.${error.problemType}`)
   }

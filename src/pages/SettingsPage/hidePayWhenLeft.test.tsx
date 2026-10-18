@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -8,6 +9,8 @@ import { BillingPage } from './BillingPage'
 import { ExtraDocumentsPage } from './ExtraDocumentsPage'
 import { PaidExtrasPage } from './PaidExtrasPage'
 import { BillDueCard } from '../../components/billing/BillDueCard'
+import { resetLeftFawtirRefusal } from '../../lib/leftFawtirRefusal'
+import { hostedCheckout } from '../../api/settings/billing'
 
 /**
  * Plan v4 A3.8 with Business Rules LV-6: once the server reports a completed disconnection that
@@ -270,6 +273,7 @@ let fetchMock: ReturnType<typeof vi.fn>
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   resetSharedRequests()
+  resetLeftFawtirRefusal()
   forgetEntitlements()
   me = ADMIN
   answers = {
@@ -282,14 +286,15 @@ beforeEach(async () => {
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const path = String(url).split('?')[0]
     if (path === '/api/v1/me/entitlements') return json(200, me)
-    if (init?.method && init.method !== 'GET') return json(404, { type: 'about:blank' })
-    const answer = answers[path]
+    const method = init?.method ?? 'GET'
+    const answer = answers[method === 'GET' ? path : `${method} ${path}`]
     return answer ? answer() : json(404, { type: 'about:blank' })
   })
   vi.stubGlobal('fetch', fetchMock)
 })
 
 afterEach(() => {
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
 
@@ -560,5 +565,137 @@ describe('A3.8 / LV-6: the dashboard bill card', () => {
     answers[DISCONNECTION] = () => json(200, view)
     renderAt('/', <BillDueCard />)
     expect(await screen.findByRole('link', { name: i18n.t('billDue.cta') })).toBeTruthy()
+  })
+})
+
+const LEFT_REFUSAL = () =>
+  json(409, {
+    type: 'https://api.fawtir.om/problems/disconnected-from-fawtir',
+    title: 'disconnected-from-fawtir',
+    status: 409,
+    detail: 'English detail',
+  })
+const refusedNote = () => i18n.t('billing.refusal.disconnected-from-fawtir')
+
+describe('D20 (a): a role that may pay but cannot read the view learns it from the refusal', () => {
+  it('says why after the server refuses cash, and holds every way to pay back from then on', async () => {
+    me = PAYER_ONLY
+    answers[`POST ${BILLING}/bills/000007/cash-request`] = LEFT_REFUSAL
+    const user = userEvent.setup({ delay: null })
+    const { unmount } = renderAt('/settings/bills', <BillingPage />)
+    await user.click(
+      await screen.findByRole('radio', { name: new RegExp(i18n.t('billing.method.CASH.title')) }),
+    )
+    await user.click(screen.getByRole('button', { name: i18n.t('billing.cash.submit') }))
+    expect(await screen.findByText(refusedNote())).toBeTruthy()
+    expect(method('CASH')).toBeNull()
+    expect(method('BANK_TRANSFER')).toBeNull()
+    expect(screen.queryByText(i18n.t('fawtirReconnection.beforePaying.note'))).toBeNull()
+    expect(disconnectionReads()).toHaveLength(0)
+    unmount()
+
+    // The rest of the session: buying extra documents is held back too, with the same words.
+    resetSharedRequests()
+    renderAt('/settings/plan/extra-documents', <ExtraDocumentsPage />)
+    expect(await screen.findByText(refusedNote())).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('extraDocuments.buy.submit') })).toBeNull()
+  })
+
+  it('says why after the server refuses a card checkout', async () => {
+    me = PAYER_ONLY
+    answers[`POST ${BILLING}/bills/000007/card-checkout`] = LEFT_REFUSAL
+    const user = userEvent.setup({ delay: null })
+    renderAt('/settings/bills', <BillingPage />)
+    await user.click(
+      await screen.findByRole('radio', { name: new RegExp(i18n.t('billing.method.CARD.title')) }),
+    )
+    await user.click(screen.getByRole('button', { name: i18n.t('billing.card.submit') }))
+    expect(await screen.findByText(refusedNote())).toBeTruthy()
+    expect(method('CARD')).toBeNull()
+  })
+
+  it('says why after the server refuses preparing the next bill, once', async () => {
+    me = PAYER_ONLY
+    answers[BILLING] = () => json(200, billing([]))
+    answers[`POST ${BILLING}/bills/next`] = LEFT_REFUSAL
+    const user = userEvent.setup({ delay: null })
+    renderAt('/settings/bills', <BillingPage />)
+    await user.click(await screen.findByRole('button', { name: i18n.t('billing.prepare') }))
+    expect(await screen.findByText(refusedNote())).toBeTruthy()
+    expect(screen.getAllByText(refusedNote())).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: i18n.t('billing.prepare') })).toBeNull()
+  })
+
+  it('shows no such words to anyone the server has not refused', async () => {
+    me = PAYER_ONLY
+    renderAt('/settings/bills', <BillingPage />)
+    expect(
+      await screen.findByRole('radio', { name: new RegExp(i18n.t('billing.method.CASH.title')) }),
+    ).toBeTruthy()
+    expect(screen.queryByText(refusedNote())).toBeNull()
+  })
+
+  it('has the words in English and Arabic, with no em dash', () => {
+    const english = i18n.getFixedT('en')('billing.refusal.disconnected-from-fawtir')
+    const arabic = i18n.getFixedT('ar')('billing.refusal.disconnected-from-fawtir')
+    expect(english).toMatch(/left Fawtir/)
+    expect(arabic).toMatch(/فوتر/)
+    expect(arabic).not.toBe(english)
+    expect(english + arabic).not.toMatch(/\u2014/)
+  })
+})
+
+describe('D20 (b): a card checkout already opened is not continued once the company has left', () => {
+  const HOSTED = 'https://oman.paymob.com/unifiedcheckout/?publicKey=pk_test&clientSecret=cs_test'
+  const live = {
+    id: 'p-1',
+    billId: '000007',
+    method: 'CARD',
+    status: 'SUBMITTED',
+    amount: '84.000',
+    submittedAt: '2026-10-18T06:00:00Z',
+    reference: null,
+    customerNote: null,
+    proofContentType: null,
+    receiptNumber: null,
+    receivedAmount: null,
+    receivedAt: null,
+    rejectionReason: null,
+    version: 0,
+  }
+  const ready = {
+    paymentId: 'p-1',
+    billId: '000007',
+    status: 'READY',
+    checkoutUrl: HOSTED,
+    expiresAt: '2099-10-18T06:30:00Z',
+    amount: '84.000',
+    currency: 'OMR',
+  }
+
+  beforeEach(() => {
+    vi.spyOn(hostedCheckout, 'open').mockImplementation(() => {})
+    answers[BILLING] = () =>
+      json(
+        200,
+        billing([{ bill: bill('000007', { status: 'PENDING_VERIFICATION' }), payments: [live] }]),
+      )
+    answers[`${BILLING}/payments/p-1/card-checkout`] = () => json(200, ready)
+  })
+
+  it('offers no Continue once the company has left, but still checks the status', async () => {
+    renderAt('/settings/bills', <BillingPage />)
+    expect(await screen.findByText(i18n.t('billing.card.status.READY'))).toBeTruthy()
+    await settled()
+    expect(screen.queryByRole('button', { name: i18n.t('billing.card.continue') })).toBeNull()
+    expect(screen.getByRole('button', { name: i18n.t('billing.card.checkAgain') })).toBeTruthy()
+  })
+
+  it.each(NOT_HELD)('offers Continue for %s', async (_, view) => {
+    answers[DISCONNECTION] = () => json(200, view)
+    renderAt('/settings/bills', <BillingPage />)
+    expect(
+      await screen.findByRole('button', { name: i18n.t('billing.card.continue') }),
+    ).toBeTruthy()
   })
 })

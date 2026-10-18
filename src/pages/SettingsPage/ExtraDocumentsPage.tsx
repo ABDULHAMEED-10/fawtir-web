@@ -5,6 +5,8 @@ import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { OutstandingBill, formatRate } from './SubscriptionBillingSection'
 import { ReconnectBeforePayingNote } from './ReconnectBeforePayingNote'
 import { usePayingHeldUntilReconnected } from '../../hooks/usePayingHeldUntilReconnected'
+import { noteLeftFawtirRefusal } from '../../lib/leftFawtirRefusal'
+import { LeftFawtirRefusal } from '../../components/billing/LeftFawtirRefusal'
 import { useApiRead, type ApiRead } from '../../hooks'
 import { usePlanName } from '../../hooks/usePlanName'
 import { useCan } from '../../lib/session/session'
@@ -129,7 +131,9 @@ function ExtraDocumentsBody() {
             reload(why)
           }}
         />
-      ) : held ? null : mayManage ? (
+      ) : held ? (
+        <LeftFawtirRefusal />
+      ) : mayManage ? (
         <SectionCard title={t('extraDocuments.buy.title')} note={t('extraDocuments.buy.note')}>
           <div className="p-5 pt-0">
             <BuyForm data={data} initial={data.minPerPurchase} onOrdered={() => reload()} />
@@ -578,6 +582,8 @@ function refusalMessage(
   min: number,
   max: number,
 ): string {
+  // LV-6: remembered, so every way to pay is held back from here on (A3.8).
+  if (noteLeftFawtirRefusal(error)) return t('billing.refusal.disconnected-from-fawtir')
   if (error instanceof ApiError) {
     if (error.problemType && KNOWN_REFUSALS.includes(error.problemType)) {
       return t(`extraDocuments.refusal.${error.problemType}`)

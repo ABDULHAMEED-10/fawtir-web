@@ -6,6 +6,8 @@ import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { OutstandingBill, formatRate } from './SubscriptionBillingSection'
 import { ReconnectBeforePayingNote } from './ReconnectBeforePayingNote'
 import { usePayingHeldUntilReconnected } from '../../hooks/usePayingHeldUntilReconnected'
+import { noteLeftFawtirRefusal } from '../../lib/leftFawtirRefusal'
+import { LeftFawtirRefusal } from '../../components/billing/LeftFawtirRefusal'
 import { useApiRead, type ApiRead } from '../../hooks'
 import { useCan } from '../../lib/session/session'
 import { ApiError } from '../../api'
@@ -176,7 +178,9 @@ function PaidExtrasBody() {
             reload(why)
           }}
         />
-      ) : held ? null : (
+      ) : held ? (
+        <LeftFawtirRefusal />
+      ) : (
         <SectionCard title={t('paidExtras.buy.title')} note={t('paidExtras.buy.note')}>
           <div className="p-5 pt-0">
             {blocked ? (
@@ -928,6 +932,8 @@ const KNOWN_REFUSALS = [
 
 /** Our own sentence for each refusal the server gives; its English `detail` is never shown. */
 function refusalMessage(t: TFunction, error: unknown): string {
+  // LV-6: remembered, so every way to pay is held back from here on (A3.8).
+  if (noteLeftFawtirRefusal(error)) return t('billing.refusal.disconnected-from-fawtir')
   if (error instanceof ApiError) {
     if (error.problemType === 'paid-extras-order-limit') {
       const max = (value: unknown) => (typeof value === 'number' ? String(value) : '')
