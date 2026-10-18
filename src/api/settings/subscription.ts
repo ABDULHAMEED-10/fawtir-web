@@ -19,7 +19,26 @@ export type ScheduledChangeDto = {
   /** Three-decimal OMR string for one period of the new plan. */
   periodPrice: string
   effectiveOn: string
+  /**
+   * What is waiting (backend #614): a cheaper plan, annual to monthly billing on the same plan
+   * (PC-2), or Enterprise terms an operator scheduled for the renewal (PL-1). The server may add
+   * values. Absent from a server before #614.
+   */
+  kind?: ScheduledChangeKind
+  /** The first period it governs is already paid at its price. Absent before #614. */
+  paidFor?: boolean
+  /**
+   * How the customer can take it back: FREE (`DELETE …/scheduled-change`), KEEP_PLAN (a charged
+   * change back to today's plan, offered only while `GET /v1/settings/plan/changes` says
+   * `available`) or NONE. Absent before #614.
+   */
+  withdrawal?: ScheduledChangeWithdrawal
 }
+
+export type ScheduledChangeKind =
+  'DOWNGRADE' | 'CYCLE_TO_MONTHLY' | 'ENTERPRISE_TERMS' | (string & {})
+
+export type ScheduledChangeWithdrawal = 'FREE' | 'KEEP_PLAN' | 'NONE' | (string & {})
 
 /** Dates are business dates (`YYYY-MM-DD`) in the company's time zone; every end date is inclusive. */
 export type SubscriptionStatusDto = {
@@ -55,6 +74,12 @@ export type SubscriptionStatusDto = {
    * not set its terms yet, so there is nothing to pay. Absent from a server before F22.
    */
   enterprise?: { termsSet: boolean } | null
+  /**
+   * Set while Fawtir has cancelled the subscription at once (CA-7, CA-9): read-only from `on`, and
+   * `message` is what Fawtir wrote for the customer. Withdrawing the cancellation is refused
+   * (`subscription-cancelled-by-fawtir`); renewing clears it. Absent from a server before it.
+   */
+  cancelledByFawtir?: { on: string; message: string } | null
 }
 
 /** What the status pill and the Settings card say: the server's access, or that nothing has started. */
@@ -74,6 +99,58 @@ export function subscriptionNotStarted(status: SubscriptionStatusDto): boolean {
 
 export function subscriptionDisplay(status: SubscriptionStatusDto): SubscriptionDisplay {
   return subscriptionNotStarted(status) && status.access === 'PAYMENT_REQUIRED' ? 'NOT_STARTED' : status.access
+}
+
+export type WaitingWording = 'enterprise' | 'toMonthly' | 'plan'
+
+/**
+ * How the waiting line is worded, from the server's `kind` (backend #614). A server before #614
+ * sends no `kind`; then the screen falls back to what it inferred before (SETTINGS.md row 5.11):
+ * Enterprise terms when the company's own terms are set, annual to monthly when the plan code is
+ * today's and only the cycle moves. A `kind` this screen does not know yet is worded by its plan.
+ */
+export function waitingWording(
+  status: SubscriptionStatusDto,
+  scheduled: ScheduledChangeDto,
+): WaitingWording {
+  if (scheduled.kind !== undefined) {
+    if (scheduled.kind === 'ENTERPRISE_TERMS') return 'enterprise'
+    if (scheduled.kind === 'CYCLE_TO_MONTHLY') return 'toMonthly'
+    return 'plan'
+  }
+  if (status.enterprise?.termsSet === true) return 'enterprise'
+  const toMonthly =
+    scheduled.planCode === status.planCode &&
+    status.billingCycle === 'ANNUAL' &&
+    scheduled.billingCycle === 'MONTHLY'
+  return toMonthly ? 'toMonthly' : 'plan'
+}
+
+/**
+ * Which action takes the waiting change back: the free withdrawal, "Keep {plan}" (a charged change
+ * back to today's plan, P2-2 D3) or none, from the server's `withdrawal` (backend #614). KEEP_PLAN
+ * is offered only while `GET /v1/settings/plan/changes` says `available`; otherwise nothing is
+ * shown, since a free withdrawal would be refused. A value this screen does not know shows nothing.
+ *
+ * A server before #614 sends no `withdrawal`; then the screen falls back to its old inference: no
+ * action on Enterprise terms, "Keep" when self-service is open and the first period at the new
+ * price is already paid (`paidFor`, or `effectiveOn` on or before `paidThrough`), else Withdraw.
+ */
+export function withdrawalOf(
+  status: SubscriptionStatusDto,
+  scheduled: ScheduledChangeDto,
+  selfService: boolean,
+): 'FREE' | 'KEEP_PLAN' | 'NONE' {
+  if (scheduled.withdrawal !== undefined) {
+    if (scheduled.withdrawal === 'FREE') return 'FREE'
+    if (scheduled.withdrawal === 'KEEP_PLAN') return selfService ? 'KEEP_PLAN' : 'NONE'
+    return 'NONE'
+  }
+  if (status.enterprise?.termsSet === true) return 'NONE'
+  const paidFor =
+    scheduled.paidFor ??
+    (status.paidThrough !== null && scheduled.effectiveOn <= status.paidThrough)
+  return selfService && paidFor && status.billingCycle ? 'KEEP_PLAN' : 'FREE'
 }
 
 export function loadSubscription(): Promise<SubscriptionStatusDto> {
@@ -104,13 +181,16 @@ export function withdrawScheduledChange(): Promise<SubscriptionStatusDto> {
  */
 export const SUBSCRIPTION_NOTICES_PATH = `${SUBSCRIPTION_PATH}/notices`
 
-export type SubscriptionNoticeKind = 'TRIAL_ENDING' | 'GRACE'
+export type SubscriptionNoticeKind = 'TRIAL_ENDING' | 'GRACE' | 'CANCELLED_BY_FAWTIR'
 
 export type SubscriptionNoticeDto = {
   id: string
   /** A kind this screen does not know yet is shown by its `headline`. */
   kind: SubscriptionNoticeKind | (string & {})
-  /** TRIAL_ENDING: the last trial day. GRACE: the last paid day, which lapsed unpaid. */
+  /**
+   * TRIAL_ENDING: the last trial day. GRACE: the last paid day, which lapsed unpaid.
+   * CANCELLED_BY_FAWTIR (V365): the last covered day; Fawtir's cancellation took effect the day after.
+   */
   coveredThrough: string
   /** GRACE only: 1 is the day after `coveredThrough`. */
   graceDay?: number | null

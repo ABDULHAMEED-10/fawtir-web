@@ -42,6 +42,7 @@ const PLAN: CatalogueAdminPlan = {
     branchesIncluded: null,
     extraBranchPrice: null,
     overagePricePerInvoice: '0.040',
+    erpAddonMonthlyPrice: '60',
     apiAccess: true,
     prioritySupport: false,
     reason: 'Renewal',
@@ -126,6 +127,27 @@ describe('Enterprise terms form', () => {
     expect(form.billingCycle).toBe('ANNUAL')
     expect(form.contractReference).toBe('FWT-ENT-14')
     expect(form.features.erpMapping).toBe(true)
+    expect(form.erpAddonMonthlyPrice).toBe('60.000')
+    expect(enterpriseFormFrom(NONE).erpAddonMonthlyPrice).toBe('')
+  })
+
+  it('takes an ERP add-on price above zero, only with ERP field mapping on (ER-1)', () => {
+    const form = enterpriseFormFrom(SET)
+    expect(validateEnterpriseForm({ ...form, erpAddonMonthlyPrice: '0' })).toEqual({
+      erpAddonMonthlyPrice: 'console.enterpriseTerms.validation.erpAddonAboveZero',
+    })
+    expect(validateEnterpriseForm({ ...form, erpAddonMonthlyPrice: '1.0001' })).toEqual({
+      erpAddonMonthlyPrice: 'console.plans.validation.money',
+    })
+    const noMapping = { ...form, features: { ...form.features, erpMapping: false } }
+    expect(validateEnterpriseForm(noMapping)).toEqual({
+      erpAddonMonthlyPrice: 'console.enterpriseTerms.validation.erpAddonNeedsMapping',
+    })
+    // Empty is "not offered as a paid add-on", whatever the features say.
+    expect(validateEnterpriseForm({ ...noMapping, erpAddonMonthlyPrice: ' ' })).toEqual({})
+    expect(toEnterpriseRequest(form, PLAN).erpAddonMonthlyPrice).toBe('60.000')
+    const notOffered = toEnterpriseRequest({ ...form, erpAddonMonthlyPrice: '' }, PLAN)
+    expect(notOffered.erpAddonMonthlyPrice).toBeNull()
   })
 
   it('prices a year at the monthly price times ten (PL-4)', () => {

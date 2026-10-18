@@ -1,4 +1,5 @@
 import { apiRequest } from '../client'
+import { noteFawtirConnection } from '../../lib/fawtirConnection'
 
 /**
  * `/v1/settings/billing` (`SubscriptionBillingController`, backend V271): subscription charge
@@ -110,8 +111,16 @@ export type CardOptionDto = {
     | null
 }
 
-/** `card` is present for an OPEN bill only, and absent from servers before Phase 3C. */
-export type BillWithPaymentsDto = { bill: SubscriptionBillDto; payments: SubscriptionPaymentDto[]; card?: CardOptionDto | null }
+/**
+ * `card` is present for an OPEN bill only, and absent from servers before Phase 3C. `kind` says what
+ * paying the bill grants; absent from older servers.
+ */
+export type BillWithPaymentsDto = {
+  bill: SubscriptionBillDto
+  payments: SubscriptionPaymentDto[]
+  card?: CardOptionDto | null
+  kind?: 'SUBSCRIPTION' | 'EXTRA_DOCUMENTS' | 'PAID_EXTRAS' | 'PLAN_CHANGE' | (string & {})
+}
 
 /** Why bank transfer is or is not open; STORAGE_UNAVAILABLE recovers by itself. */
 export type BankTransferStatus = 'AVAILABLE' | 'NOT_OFFERED' | 'NO_ACCOUNT' | 'STORAGE_UNAVAILABLE'
@@ -131,6 +140,13 @@ export type BillingOverviewDto = {
    * a withdrawn attempt; absent from servers before #533, which leave the screen to infer it.
    */
   signupPayment?: SignupPaymentDto | null
+  /**
+   * Whether the company has left Fawtir (Business Rules LV-6): `leftFawtir` is true exactly while
+   * the server refuses every new bill, payment and order with `disconnected-from-fawtir`. Readable
+   * by every role that reads this page; absent from older servers, which leave the screen to learn
+   * it from the refusal.
+   */
+  fawtirConnection?: { leftFawtir: boolean } | null
 }
 
 export type SignupPaymentDto = {
@@ -149,7 +165,10 @@ export type BillPageDto = { bills: BillWithPaymentsDto[]; nextCursor: string | n
 export const SUPERSEDED_PREFIX = 'Superseded: '
 
 export function loadBillingOverview(): Promise<BillingOverviewDto> {
-  return apiRequest<BillingOverviewDto>(BILLING_PATH)
+  return apiRequest<BillingOverviewDto>(BILLING_PATH).then((overview) => {
+    noteFawtirConnection(overview.fawtirConnection)
+    return overview
+  })
 }
 
 export function loadBillHistory(before: string): Promise<BillPageDto> {

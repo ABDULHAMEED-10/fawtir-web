@@ -104,6 +104,7 @@ larger plan applies straight away; a move to a smaller plan applies from the nex
 | 5.8 | The allowance warning at 80%, 90% and 100% (AL-8) in the bell and on Plan and usage. Built from `allowance.warningPercent` on `GET /v1/settings/plan`; the bell's "read" mark is kept in the browser only | A server-side in-app allowance notice, listed and acknowledged like the subscription reminders (`GET /v1/settings/subscription/notices` with a quota kind, or its own route), raised once per period and threshold and raised again after extras are bought and run out |
 | 5.9 | Buy extra documents (`/settings/plan/extra-documents`, 16 Oct 2026), which replaces the overage switch of row 5.2. On Bills and payment an extra documents bill is told apart from the subscription bill only by matching its id against `GET /v1/settings/plan/extra-documents` `outstanding.bill.id` | The kind of each bill on `SubscriptionBill` (`kind: SUBSCRIPTION | EXTRA_DOCUMENTS`, the stored `bill_kind`), so Bills and payment can name every bill, paid ones in the history included, without a second read. Also: the overview finds only the newest open bill, so a renewal bill and an extras bill open together show one at a time |
 | 5.10 | Extra users, branches and add-on (`/settings/plan/extras`, 17 Oct 2026), from `GET/…/quote/POST …/orders` and the add-on cancellation. Invite someone and Add branch name the 409 `extra-place-required` (problem field `kind`: `USER` or `BRANCH`) and link to the page for `tenant.plan.manage`, or say to ask an administrator | The refusal itself on invite, create, reactivate, branch create and branch reopen, with `kind`, `included`, `inUse` and `capacity` in the problem body (the limits wiring after #538). Until it is deployed the server answers `plan-limit-reached` there and the screens show their general failure. Row 5.6 is answered for plans that offer the add-on: Plan and usage reads its price and state from `GET /v1/settings/plan/extras` `erpAddon` |
+| 5.11 | Self-service plan changes on Plan and usage (17 Oct 2026, backend P2-2): "Move to {plan}" on each card, "Switch to yearly/monthly billing" on the own card, the change dialog from `GET /v1/settings/plan/changes/preview`, `POST /v1/settings/plan/changes`, the change waiting for payment with its bill and `DELETE …/{id}`, and "Keep {plan}" on a downgrade already paid for. Answers row 5.1. All of it only while `GET /v1/settings/plan/changes` says `available` | `scheduledChange` on `GET /v1/settings/subscription` carries no `kind` (the plan named `DOWNGRADE` / `CYCLE_TO_MONTHLY`), so a yearly-to-monthly change is recognised by the same plan code with another cycle, and "Keep {plan}" is offered when the change's `effectiveOn` falls inside `paidThrough`. A `kind` on `scheduledChange` (and whether withdrawing it is charged) would let the screen stop inferring both. **Closed by backend #614** (18 Oct 2026): `scheduledChange` now carries `kind` (`DOWNGRADE`, `CYCLE_TO_MONTHLY`, `ENTERPRISE_TERMS`), `paidFor` and `withdrawal` (`FREE`, `KEEP_PLAN`, `NONE`); the screen words the line by `kind` and offers the action `withdrawal` names ("Keep {plan}" only while `available`). The inference stays only as the fallback for a server that sends none of the three |
 
 ## 6. Team members (`GET /v1/users`, `GET /v1/users/invitations`)
 
@@ -153,3 +154,24 @@ now.
 |---|---|---|
 | 9.1 | "Require it of everyone" under Two-step sign-in, with how many people would be prompted (counted from the users list). Drawn off, disabled | A tenant security policy: `GET`/`PUT /v1/settings/security` with `requireMfa` (permission `admin.settings.manage`), enforced at sign-in by asking anyone without an authenticator app to set one up |
 | 9.2 | "How long a session lasts": on a browser (a day, a week, a fortnight, a month) and on a till device (until the shift ends, a day, don't sign out). Both pickers disabled, "Not available yet" | On the same policy: `browserSessionLength` and `tillSessionLength` (as enums, not ISO durations), applied to the refresh-token lifetime for that kind of client |
+
+## Update 17 Oct 2026: branch access (rows 3.3 and 7.2 answered)
+
+Rows 3.3 and 7.2 are now built against the live API (backend #561 to #581): "Who works there" on a
+branch (`GET/PUT /v1/branches/{id}/people`) and "Which branches" on the invitation (`branchIds`).
+The same change adds the branches column and the Owner mark on Team members, and a page per person
+(`/settings/team/:userId`: role through `PUT /v1/users/{id}/role`, branches through
+`PUT /v1/users/{id}/branches`, own grants and denials through `GET/PUT /v1/users/{id}/permissions`,
+and the Owner's handover through `POST /v1/settings/owner/handover`). The rows above are kept as
+they were (append only).
+
+All of it waits for branch access to be switched on (`FAWTIR_IDENTITY_BRANCH_ACCESS_ENFORCED`, off
+in production): while it is off, Invite someone, Team members and a branch's "Who works there" are
+drawn exactly as before, the invitation names no branch (the server then gives every branch, BA-6),
+and a person's page goes back to Team members. The screens read "on" from `GET /v1/me/entitlements`
+(`src/lib/identity/branchAccessSwitch.ts`): `branchAccessEnforced` true, or, for a branch
+administrator, `branchAdministrator` true or `allBranches` false. A server without the field reads off.
+
+| # | Element on the screen | What the backend needs to add |
+|---|---|---|
+| 7.6 | Every branch access screen above, for the Owner and Administrators. Their session reads the same whether branch access is on or off (`allBranches` true, `branchAdministrator` false, `featureFlags` empty), so for them the screens stay as they were even once it is on | **Closed by backend PR #616** (Rixon-agency/fawtir-backend): `GET /v1/me/entitlements` carries `branchAccessEnforced: boolean`, true exactly when `FAWTIR_IDENTITY_BRANCH_ACCESS_ENFORCED` is, for every caller. The screens read it; a server before #616 omits it, which reads off |

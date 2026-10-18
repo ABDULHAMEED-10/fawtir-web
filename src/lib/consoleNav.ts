@@ -142,6 +142,15 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         // The seller routes are read and changed under the manage permission alone (contract).
         requires: 'platform.billing.manage',
       },
+      {
+        id: 'companyContact',
+        labelKey: 'console.nav.companyContact',
+        to: '/console/company-contact',
+        Icon: NavSettingsIcon,
+        // Fawtir's own contact details (CS-1), read under the billing read permission like the
+        // billing settings; changing them needs the manage one.
+        requires: 'platform.billing.read',
+      },
     ],
   },
   // No ERP group. Its two screens, add-on requests and templates, drew a story fixture, and the

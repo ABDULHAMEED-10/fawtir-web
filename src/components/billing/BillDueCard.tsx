@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useApiRead } from '../../hooks/useApiRead'
 import { BILLING_PATH, loadBillingOverview, type BillingOverviewDto } from '../../api/settings/billing'
 import { OmAmount } from '../ui'
+import { usePayingHeldUntilReconnected } from '../../hooks/usePayingHeldUntilReconnected'
 
 /**
  * Brings a customer with an unpaid subscription bill to it. After approval a pay-now company gets
@@ -14,6 +15,8 @@ import { OmAmount } from '../ui'
 export function BillDueCard() {
   const { t } = useTranslation()
   const read = useApiRead<BillingOverviewDto>(BILLING_PATH, loadBillingOverview).read
+  // LV-6: a company that has left Fawtir is not sent to pay (A3.8); the bill is still named.
+  const held = usePayingHeldUntilReconnected()
   if (read.status !== 'ready') return null
   const open = read.data.bills.find((entry) => entry.bill.status === 'OPEN')?.bill
   if (!open) return null
@@ -32,12 +35,14 @@ export function BillDueCard() {
         </p>
         <p className="mt-1 text-sm font-medium text-text-quaternary">{t('billDue.activation')}</p>
       </div>
-      <Link
-        to="/settings/bills"
-        className="inline-flex items-center rounded-sm bg-primary-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-800"
-      >
-        {t('billDue.cta')}
-      </Link>
+      {held ? null : (
+        <Link
+          to="/settings/bills"
+          className="inline-flex items-center rounded-sm bg-primary-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-800"
+        >
+          {t('billDue.cta')}
+        </Link>
+      )}
     </section>
   )
 }

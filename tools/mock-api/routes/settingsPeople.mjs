@@ -77,6 +77,21 @@ const SUBSCRIPTION_STATES = {
     accessEndsOn: '2026-09-30',
     ...LAPSED,
   },
+  // Fawtir cancelled at once for abuse or fraud (CA-7, CA-9; backend V364/V365): CANCELLED from
+  // today, with Fawtir's message for the customer and the bell notice below.
+  cancelledByFawtir: {
+    access: 'CANCELLED',
+    restrictionsEnforced: true,
+    restriction: 'SUBSCRIPTION_CANCELLED',
+    cancelAtPeriodEnd: true,
+    autoRenew: false,
+    renewsOn: null,
+    accessEndsOn: '2026-10-10',
+    cancelledByFawtir: {
+      on: TODAY,
+      message: 'Your account was used to send invoices for a business that is not yours.',
+    },
+  },
   notStarted: {
     access: 'PAYMENT_REQUIRED',
     restrictionsEnforced: true,
@@ -97,13 +112,28 @@ const SUBSCRIPTION_STATES = {
     renewsOn: null,
     enterprise: { termsSet: false },
   },
+  // P2-2 D3: the 1 November renewal was paid early at the Starter price, so keeping Business
+  // means paying the difference for that period (`KEEP_PLAN`, planChanges.mjs).
+  downgradePaid: { paidThrough: '2026-11-30', renewsOn: '2026-12-01' },
   restrictionsOff: { access: 'PAYMENT_REQUIRED', restrictionsEnforced: false, restriction: null, ...LAPSED },
+  // R1: day 11 of the 14-day trial; pair it with `MOCK_PLAN_CHANGE_STATE=trial` (planChanges.mjs).
+  trial: {
+    access: 'TRIAL',
+    trialStartsOn: '2026-10-01',
+    trialEndsOn: '2026-10-14',
+    trialDay: 11,
+    trialDaysLeft: 4,
+    paidThrough: null,
+    renewsOn: null,
+  },
 }
 
 const ROLES = [
   {
     id: 'r-admin',
-    code: 'TENANT_ADMIN',
+    // The server's code for the company Administrator (DefaultRoleCatalogue), so branch access
+    // reads Administrators as seeing every branch.
+    code: 'ADMIN',
     name: 'Administrator',
     description: 'Runs the company account.',
     enabled: true,
@@ -129,6 +159,33 @@ const ROLES = [
     enabled: true,
     systemRole: false,
     permissionCodes: ['invoice.read', 'customer.read', 'tenant.plan.read'],
+  },
+  {
+    id: 'r-sales',
+    code: 'SALES_MANAGER',
+    name: 'Sales manager',
+    description: 'Sells, invoices and follows up customers.',
+    enabled: true,
+    systemRole: true,
+    permissionCodes: ['invoice.read', 'invoice.draft', 'invoice.issue', 'customer.read', 'customer.manage'],
+  },
+  {
+    id: 'r-approver',
+    code: 'APPROVER',
+    name: 'Approver',
+    description: null,
+    enabled: true,
+    systemRole: true,
+    permissionCodes: ['invoice.approve'],
+  },
+  {
+    id: 'r-viewer',
+    code: 'VIEWER',
+    name: 'Viewer',
+    description: null,
+    enabled: true,
+    systemRole: true,
+    permissionCodes: ['invoice.read', 'customer.read'],
   },
 ]
 
@@ -198,8 +255,15 @@ const SCHEDULED_CHANGE = {
   billingCycle: 'MONTHLY',
   periodPrice: '35.000',
   effectiveOn: '2026-11-01',
+  kind: 'DOWNGRADE',
 }
 let scheduledChange = SCHEDULED_CHANGE
+
+/** A plan change scheduled through `/settings/plan/changes` (`planChanges.mjs`) waits here too. */
+export function setScheduledChange(change) {
+  scheduledChange = change
+  switchOffChoice = null
+}
 
 const SEATS = [
   { userId: 'u-yusuf', addedAt: '2026-08-02T08:00:00Z', kept: 'OWNER' },
@@ -339,14 +403,14 @@ export default [
     match: '/api/v1/settings/subscription/notices',
     reply: ({ query }) => {
       const unread = query?.get ? query.get('unread') === 'true' : query?.unread === 'true'
-      return SUBSCRIPTION_NOTICES.filter((notice) => !unread || !notice.read)
+      return subscriptionNotices().filter((notice) => !unread || !notice.read)
     },
   },
   {
     method: 'POST',
     match: /^\/api\/v1\/settings\/subscription\/notices\/([^/]+)\/acknowledge$/,
     reply: ({ params }) => {
-      const notice = SUBSCRIPTION_NOTICES.find((entry) => entry.id === params[0])
+      const notice = subscriptionNotices().find((entry) => entry.id === params[0])
       if (!notice) return { status: 404, body: { status: 404 } }
       notice.read = true
       return { status: 204 }
@@ -389,10 +453,49 @@ export default [
   },
 ]
 
+/** The cancellation's own notice (V365), only in the `cancelledByFawtir` state. */
+const CANCELLED_BY_FAWTIR_NOTICE = {
+  id: '7f3c1a52-3c1e-4b8e-9d0a-5c1f000000fc',
+  kind: 'CANCELLED_BY_FAWTIR',
+  coveredThrough: '2026-10-10',
+  graceDay: null,
+  graceUntil: null,
+  daysBefore: null,
+  planCode: null,
+  noticeOn: TODAY,
+  headline: 'Fawtir cancelled your subscription on 11 October 2026. Your account is read-only.',
+  actionLabel: 'View your plan',
+  actionPath: '/settings/plan',
+  createdAt: `${TODAY}T06:00:00Z`,
+  read: false,
+}
+
+function subscriptionNotices() {
+  return process.env.MOCK_SUBSCRIPTION_STATE === 'cancelledByFawtir'
+    ? [CANCELLED_BY_FAWTIR_NOTICE, ...SUBSCRIPTION_NOTICES]
+    : SUBSCRIPTION_NOTICES
+}
+
 function subscription() {
-  return {
+  const status = {
     ...SUBSCRIPTION_ACTIVE,
     ...(SUBSCRIPTION_STATES[process.env.MOCK_SUBSCRIPTION_STATE ?? ''] ?? {}),
-    scheduledChange,
   }
+  return { ...status, scheduledChange: scheduledView(status) }
+}
+
+/**
+ * The waiting change with backend #614's `paidFor` and `withdrawal`, worked out as the server
+ * does: paid for when its first period is inside `paidThrough`, and then taken back only by
+ * keeping the plan (a charged change); otherwise withdrawn for free.
+ * `MOCK_SCHEDULED_CHANGE_FIELDS=off` answers as a server before #614 (no kind, paidFor or
+ * withdrawal), to check the screen's fallback.
+ */
+function scheduledView(status) {
+  if (!scheduledChange) return null
+  const paidFor = status.paidThrough !== null && scheduledChange.effectiveOn <= status.paidThrough
+  const full = { ...scheduledChange, paidFor, withdrawal: paidFor ? 'KEEP_PLAN' : 'FREE' }
+  if (process.env.MOCK_SCHEDULED_CHANGE_FIELDS !== 'off') return full
+  const { kind: _kind, paidFor: _paidFor, withdrawal: _withdrawal, ...before } = full
+  return before
 }

@@ -25,9 +25,16 @@ import {
   type InvoiceListFilter,
   type InvoiceRowDto,
   type InvoiceSummaryDto,
+  type InvoiceListApproval,
   type InvoiceTypeDto,
 } from '../../api/invoices/list'
 import { discardDraft, loadBranches, type BranchDto } from '../../api/invoices/drafts'
+import {
+  SALES_APPROVAL_RULE_PATH,
+  loadSalesApprovalRule,
+  type SalesApprovalRuleDto,
+} from '../../api/invoices/salesApproval'
+import { salesApprovalIsOn } from '../../lib/salesApproval'
 import { cancelInvoice, type InvoiceSendResultDto } from '../../api/invoices/detail'
 import { InvoiceImportModal } from '../../components/invoice/InvoiceImportModal'
 import { SendInvoiceModal } from '../../components/invoice/SendInvoiceModal'
@@ -110,7 +117,7 @@ const DELIVERY_HINTS: Record<PeppolResponse, string> = {
  * The design's six tabs (Figma 154:172772). "To send" is issued documents not yet delivered by any
  * means: the list's `delivery=TO_SEND` and the summary's `toSend` read the same definition.
  */
-type TabId = InvoiceTabId | 'toSend'
+type TabId = InvoiceTabId | 'toSend' | 'toApprove'
 const TABS: { id: TabId; labelKey: string; danger?: boolean }[] = [
   { id: 'all', labelKey: 'invoicesPage.tabs.all' },
   { id: 'drafts', labelKey: 'invoicesPage.tabs.drafts' },
@@ -118,8 +125,21 @@ const TABS: { id: TabId; labelKey: string; danger?: boolean }[] = [
   { id: 'awaiting', labelKey: 'invoicesPage.tabs.awaiting' },
   { id: 'overdue', labelKey: 'invoicesPage.tabs.overdue', danger: true },
   { id: 'paid', labelKey: 'invoicesPage.tabs.paid' },
+  // The approvers' queue (RL-6): drafts waiting for a sales approval. Drawn only for holders of
+  // invoice.approve while the server offers sales approval and the company rule is on
+  // (`offersQueue` below); bill approvers hold the same code, so the code alone would show the
+  // tab on a deployment with sales approval switched off.
+  { id: 'toApprove', labelKey: 'invoicesPage.tabs.toApprove' },
 ]
-const isTab = (value: string | null): value is TabId => value === 'toSend' || isInvoiceTab(value)
+const isTab = (value: string | null): value is TabId =>
+  value === 'toSend' || value === 'toApprove' || isInvoiceTab(value)
+
+/** A draft's approval state, in the palette the row's other pills already use. */
+const APPROVAL_STYLES: Record<InvoiceListApproval, Chip> = {
+  PENDING: { bg: 'bg-warning-100', dot: 'bg-[#6d5a39]', text: 'text-[#6d5a39]' },
+  APPROVED: { bg: 'bg-success-100', dot: 'bg-success-700', text: 'text-success-700' },
+  REJECTED: { bg: 'bg-danger-100', dot: 'bg-danger-700', text: 'text-danger-700' },
+}
 
 /** The design's Channel filter: the list reads the customer's sending method. */
 type ChannelId = 'all' | 'peppol' | 'email'
@@ -173,7 +193,21 @@ function InvoicesScreen() {
   const language = i18n.language
   const [params, setParams] = useSearchParams()
 
-  const tab: TabId = isTab(params.get('tab')) ? (params.get('tab') as TabId) : 'all'
+  const asked: TabId = isTab(params.get('tab')) ? (params.get('tab') as TabId) : 'all'
+  // The approvers' queue is offered only while the server says sales approval is on: the rule read
+  // carries `available: true` (the deployment's switch) and `enabled` true (the company rule). A
+  // missing `available` (an older server), a rule left on after the switch was turned off, and a
+  // failed read (403, 404, 503) all draw no tab. Only an approver asks.
+  const mayApprove = can(session, 'invoice.approve')
+  const rule = useApiRead<SalesApprovalRuleDto>(
+    mayApprove ? SALES_APPROVAL_RULE_PATH : null,
+    loadSalesApprovalRule,
+  )
+  const ruleSettled = !mayApprove || rule.read.status !== 'loading'
+  const offersQueue = mayApprove && rule.read.status === 'ready' && salesApprovalIsOn(rule.read.data)
+  // An address naming the queue opens on All when it is not offered; while the rule is still being
+  // read the list waits rather than loading All and then switching.
+  const tab: TabId = asked === 'toApprove' && ruleSettled && !offersQueue ? 'all' : asked
   const type: InvoiceTypeDto | null = isInvoiceType(params.get('type'))
     ? (params.get('type') as InvoiceTypeDto)
     : null
@@ -228,9 +262,18 @@ function InvoicesScreen() {
   // The period counts back from the server's day, so the list waits for the summary to know it.
   const channelFilter = channel === 'all' ? null : channel === 'peppol' ? 'PEPPOL' : 'EMAIL'
   const filter: InvoiceListFilter | null =
-    summary.read.status === 'ready'
+    summary.read.status === 'ready' && (asked !== 'toApprove' || ruleSettled)
       ? {
-          ...(tab === 'toSend'
+          ...(tab === 'toApprove'
+            ? {
+                state: 'DRAFT',
+                approval: 'PENDING' as const,
+                payment: null,
+                type: type ?? SALES_TYPES,
+                ...periodRange(period, summary.read.data.asOf),
+                search: query,
+              }
+            : tab === 'toSend'
             ? {
                 state: 'ISSUED',
                 delivery: 'TO_SEND' as const,
@@ -426,10 +469,15 @@ function InvoicesScreen() {
 
       <section className="overflow-hidden rounded-md bg-surface-card">
         <div className="flex flex-wrap items-center gap-x-[52px] gap-y-2 border-b border-border-subtle px-6 pt-4 max-md:gap-x-6">
-          {TABS.map((entry) => {
+          {TABS.filter((entry) => entry.id !== 'toApprove' || offersQueue).map((entry) => {
             const active = entry.id === tab
             // The owner asked for 0 rather than an empty badge when the summary is unavailable.
-            const tally = entry.id === 'toSend' ? (totals.toSend ?? 0) : tabCount(totals, entry.id)
+            const tally =
+              entry.id === 'toSend'
+                ? (totals.toSend ?? 0)
+                : entry.id === 'toApprove'
+                  ? (totals.awaitingApproval ?? 0)
+                  : tabCount(totals, entry.id)
             return (
               <button
                 key={entry.id}
@@ -528,6 +576,7 @@ function InvoicesScreen() {
             page={page}
             branchNames={branchNames}
             nothingYet={totals.all === 0 && query === '' && type === null}
+            emptyKey={tab === 'toApprove' ? 'invoicesPage.nothingToApprove' : null}
             onDiscard={setDiscarding}
             onCancel={setCancelling}
             onSend={setSendingRow}
@@ -852,6 +901,7 @@ function InvoiceTable({
   page,
   branchNames,
   nothingYet,
+  emptyKey,
   onDiscard,
   onCancel,
   onSend,
@@ -860,6 +910,8 @@ function InvoiceTable({
   page: Page<InvoiceRowDto> | null
   branchNames: Map<string, string>
   nothingYet: boolean
+  /** The tab's own empty sentence, where it has one. */
+  emptyKey: string | null
   onDiscard: (item: InvoiceListItem) => void
   onCancel: (item: InvoiceListItem) => void
   onSend: (item: InvoiceListItem) => void
@@ -1004,7 +1056,7 @@ function InvoiceTable({
               </td>
             </tr>
           ) : rows.length === 0 ? (
-            message(nothingYet ? 'invoicesPage.nothingYet' : 'invoicesPage.noResults')
+            message(emptyKey ?? (nothingYet ? 'invoicesPage.nothingYet' : 'invoicesPage.noResults'))
           ) : (
             rows.map((row) => {
               const editable = row.isDraft && canDraft
@@ -1082,11 +1134,17 @@ function InvoiceRowCells({ row, branch }: { row: InvoiceListItem; branch: string
               ? t('invoicesPage.payment.overdueDays', { count: row.paymentValues?.count ?? 0 })
               : undefined,
         }
-      : {
-          chip: AUTHORING_STYLES[row.authoring],
-          label: t(`invoicesPage.authoring.${row.authoring}`),
-          title: undefined,
-        }
+      : row.approval
+        ? {
+            chip: APPROVAL_STYLES[row.approval],
+            label: t(`salesApproval.status.${row.approval}`),
+            title: undefined,
+          }
+        : {
+            chip: AUTHORING_STYLES[row.authoring],
+            label: t(`invoicesPage.authoring.${row.authoring}`),
+            title: undefined,
+          }
   // TODO(backend): no Peppol response is answered yet (list.ts `peppolResponse`); a manual send
   // is the one delivery fact recorded, and an undelivered document leaves the column blank.
   const delivery = row.peppolResponse

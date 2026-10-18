@@ -17,6 +17,7 @@ import {
   GRANT_MAX_DOCUMENTS,
   PLANS_MANAGE,
   PLANS_READ,
+  TENANTS_MANAGE,
   TRIAL_EXCEPTION_MAX_DAYS,
   companyCountingPath,
   companyExtraDocumentsPath,
@@ -39,6 +40,7 @@ import type { PaidExtraPlaceDto, PlaceKindOverviewDto } from '../../../api/setti
 import { hasPermission } from '../../../lib/identity/entitlements'
 import { OperatorReasonDialog } from '../operators/OperatorReasonDialog'
 import { Field } from '../subscriptions/modalFields'
+import { FawtirCancellationBlock, ProposeCancellationDialog, UpgradeDialog } from './StaffActions'
 
 const K = 'console.companySubscription.'
 
@@ -46,26 +48,39 @@ const K = 'console.companySubscription.'
  * A real company's subscription on the console's tenant page (P2-4 §3.8), read from the platform
  * routes the backend serves today, each card hidden without the permission its read needs:
  *
- * 1. Subscription: state, plan, trial, paid time, grace and renewal; the trial exception.
+ * 1. Subscription: state, plan, trial, paid time, grace and renewal; the trial exception, the
+ *    upgrade at no charge (PC-5) and cancel at once for abuse or fraud with a second operator's
+ *    confirmation (CA-7, CA-9).
  * 2. Allowance: this month's documents and the extra-document credits; the temporary grant.
  * 3. Paid extras: users and branches against included plus paid places, the ERP add-on and
  *    whether it granted ERP, and the places (read only; nothing is granted from here).
  * 4. Received-document counting, for Enterprise companies only; the override.
  * 5. History: the lifecycle events the subscription read carries, newest first.
  *
- * TODO(backend): CONSOLE.md 2.1–2.5: bills and payments for one company, a history that names the
- * operator and covers grants and plan changes, "would be read-only" while restrictions are off, a
- * document lookup for giving documents back, and a reason on the operator plan change. Not drawn
+ * TODO(backend): CONSOLE.md 2.1–2.4: bills and payments for one company, a history that names the
+ * operator and covers grants and plan changes, "would be read-only" while restrictions are off, and a
+ * document lookup for giving documents back. Not drawn
  * until the reads exist; the sample-data tab this replaces never reached the server.
  */
-export function CompanySubscriptionCards({ tenantId }: { tenantId: string }) {
+export function CompanySubscriptionCards({
+  tenantId,
+  tenantCode,
+}: {
+  tenantId: string
+  tenantCode: string
+}) {
   const { entitlements } = useEntitlements()
   const may = (permission: string) =>
     entitlements !== null && hasPermission(entitlements, permission)
   return (
     <>
       {may(BILLING_READ) ? (
-        <SubscriptionCards tenantId={tenantId} canManage={may(BILLING_MANAGE)} />
+        <SubscriptionCards
+          tenantId={tenantId}
+          tenantCode={tenantCode}
+          canManage={may(BILLING_MANAGE)}
+          canUpgrade={may(TENANTS_MANAGE) && may(PLANS_READ)}
+        />
       ) : null}
       {may(BILLING_READ) ? (
         <AllowanceCard tenantId={tenantId} canManage={may(BILLING_MANAGE)} />
@@ -121,11 +136,22 @@ function daysInclusive(from: string, to: string): number {
   )
 }
 
-function SubscriptionCards({ tenantId, canManage }: { tenantId: string; canManage: boolean }) {
+function SubscriptionCards({
+  tenantId,
+  tenantCode,
+  canManage,
+  canUpgrade,
+}: {
+  tenantId: string
+  tenantCode: string
+  canManage: boolean
+  canUpgrade: boolean
+}) {
   const { t, i18n } = useTranslation()
+  const { entitlements } = useEntitlements()
   const { read, retry } = useConsoleRead<PlatformSubscriptionDto>(companySubscriptionPath(tenantId))
   const [changed, setChanged] = useState<PlatformSubscriptionDto | null>(null)
-  const [dialog, setDialog] = useState(false)
+  const [dialog, setDialog] = useState<'trial' | 'upgrade' | 'cancel' | null>(null)
   const [days, setDays] = useState('')
   const [daysError, setDaysError] = useState<string | undefined>()
   const title = t(`${K}title`)
@@ -145,7 +171,7 @@ function SubscriptionCards({ tenantId, canManage }: { tenantId: string; canManag
     )
   }
 
-  const { status, events } = changed ?? read.data
+  const { status, events, fawtirCancellation, fawtirCancellationEnabled } = changed ?? read.data
   const day = (iso: string | null) => (iso ? formatDate(iso, i18n.language) : null)
   const access = status.access in ACCESS_TONE ? status.access : 'NOT_TRACKED'
   const trialLength =
@@ -155,8 +181,19 @@ function SubscriptionCards({ tenantId, canManage }: { tenantId: string; canManag
   const closeDialog = () => {
     setDays('')
     setDaysError(undefined)
-    setDialog(false)
+    setDialog(null)
   }
+  // The writes below answer with something other than this read, so the card reads again.
+  const reload = () => {
+    setDialog(null)
+    setChanged(null)
+    retry()
+  }
+  const open = status.access !== 'CANCELLED'
+  const proposalOpen = fawtirCancellation?.status === 'PROPOSED'
+  const mayUpgrade = canUpgrade && status.tracked && open && !status.enterprise
+  const mayCancel =
+    canManage && status.tracked && open && Boolean(fawtirCancellationEnabled) && !proposalOpen
 
   return (
     <>
@@ -203,18 +240,57 @@ function SubscriptionCards({ tenantId, canManage }: { tenantId: string; canManag
               : null,
           ]}
         />
-        {canManage && status.tracked ? (
-          <div>
-            <ConsoleButton variant="secondary" onClick={() => setDialog(true)}>
-              {t(`${K}trialException.open`)}
-            </ConsoleButton>
+        {fawtirCancellation ? (
+          <FawtirCancellationBlock
+            tenantId={tenantId}
+            cancellation={fawtirCancellation}
+            me={entitlements?.userId ?? null}
+            canManage={canManage}
+            enabled={Boolean(fawtirCancellationEnabled)}
+            onChanged={reload}
+          />
+        ) : null}
+        {(canManage && status.tracked) || mayUpgrade || mayCancel ? (
+          <div className="flex flex-wrap gap-2.5">
+            {canManage && status.tracked ? (
+              <ConsoleButton variant="secondary" onClick={() => setDialog('trial')}>
+                {t(`${K}trialException.open`)}
+              </ConsoleButton>
+            ) : null}
+            {mayUpgrade ? (
+              <ConsoleButton variant="secondary" onClick={() => setDialog('upgrade')}>
+                {t(`${K}upgrade.open`)}
+              </ConsoleButton>
+            ) : null}
+            {mayCancel ? (
+              <ConsoleButton variant="danger" onClick={() => setDialog('cancel')}>
+                {t(`${K}cancel.open`)}
+              </ConsoleButton>
+            ) : null}
           </div>
         ) : null}
       </Card>
 
       <HistoryCard events={events} />
 
-      {dialog ? (
+      {dialog === 'upgrade' ? (
+        <UpgradeDialog
+          tenantId={tenantId}
+          currentPlan={status.planCode}
+          onDone={reload}
+          onClose={() => setDialog(null)}
+        />
+      ) : null}
+      {dialog === 'cancel' ? (
+        <ProposeCancellationDialog
+          tenantId={tenantId}
+          tenantCode={tenantCode}
+          restrictionsEnforced={status.restrictionsEnforced}
+          onDone={reload}
+          onClose={() => setDialog(null)}
+        />
+      ) : null}
+      {dialog === 'trial' ? (
         <OperatorReasonDialog<PlatformSubscriptionDto>
           formId="company-trial-exception"
           title={t(`${K}trialException.title`)}
@@ -272,6 +348,11 @@ const EVENT_KINDS = new Set([
   'DOWNGRADE_SCHEDULED',
   'DOWNGRADE_WITHDRAWN',
   'DOWNGRADE_APPLIED',
+  'OPERATOR_PLAN_CHANGED',
+  'FAWTIR_CANCELLATION_PROPOSED',
+  'FAWTIR_CANCELLATION_WITHDRAWN',
+  'CANCELLED_BY_FAWTIR',
+  'REOPENED_BY_RENEWAL',
 ])
 
 /** The lifecycle events, newest first, as the server sends them: what, when, by whom and why. */

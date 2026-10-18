@@ -20,6 +20,10 @@ const ENTITLEMENTS = {
     'platform.support',
     'platform.smp.operations.review',
     'platform.smp.operations.manage',
+    // The console tenant page's subscription cards and the contact details page (companyContact.mjs).
+    'platform.billing.read',
+    'platform.billing.manage',
+    'platform.plans.read',
     'admin.users.manage',
     'admin.roles.manage',
     'admin.settings.manage',
@@ -46,10 +50,50 @@ const ENTITLEMENTS = {
     // (`MOCK_SUBSCRIPTION_STATE`, settingsPeople.mjs): otherwise the bell's reminders would join
     // every other screenshot.
     ...(process.env.MOCK_SUBSCRIPTION_STATE ? ['tenant.plan.read', 'tenant.plan.manage'] : []),
+    // The console's billing cards on the tenant page (consolePayLinks.mjs), for a run that asks.
+    ...(process.env.MOCK_CONSOLE_BILLING
+      ? ['platform.billing.read', 'platform.billing.manage', 'platform.plans.read']
+      : []),
   ],
   scopes: ['platform.tenants.manage', 'platform.operators.manage', 'platform.support'],
   featureFlags: {},
+  // Branch access (BA-1, OW-1): this session is the company's Owner and sees every branch, which
+  // is also what the server says to everyone while branch access is off (the default here).
+  isOwner: true,
+  allBranches: true,
+  branchIds: [],
+  branchAdministrator: false,
+  manageableBranchIds: [],
+  branchAccessEnforced: ['on', 'owner'].includes(process.env.MOCK_BRANCH_ACCESS),
 }
+
+/**
+ * `MOCK_BRANCH_ACCESS=on`: branch access switched on (`branchAccessEnforced` true), seen as a
+ * branch administrator (Hafidh, of Nizwa): `allBranches` false and `branchAdministrator` true, with
+ * `branch.users.manage` instead of the Administrator's `admin.users.manage` (LG-3).
+ * `MOCK_BRANCH_ACCESS=owner`: switched on, seen as the Owner, who still sees every branch.
+ * Unset: switched off, `branchAccessEnforced` false.
+ */
+const BRANCH_ADMINISTRATOR = {
+  ...ENTITLEMENTS,
+  userId: 'u-hafidh',
+  username: 'hafidh',
+  roles: [{ id: 'r-accountant', code: 'ACCOUNTANT', name: 'Accountant', systemRole: true }],
+  permissions: [
+    ...ENTITLEMENTS.permissions.filter(
+      (code) => !code.startsWith('platform.') && !code.startsWith('admin.'),
+    ),
+    'branch.users.manage',
+  ],
+  scopes: [],
+  isOwner: false,
+  allBranches: false,
+  branchIds: ['b-nizwa'],
+  branchAdministrator: true,
+  manageableBranchIds: ['b-nizwa'],
+}
+
+const SESSION = process.env.MOCK_BRANCH_ACCESS === 'on' ? BRANCH_ADMINISTRATOR : ENTITLEMENTS
 
 const agreement = (id, customerId, reference, from, to, extra = {}) => ({
   id,
@@ -125,7 +169,7 @@ const toResponse = (id, version, draft) => ({
 })
 
 export default [
-  { match: '/api/v1/me/entitlements', reply: () => ENTITLEMENTS },
+  { match: '/api/v1/me/entitlements', reply: () => SESSION },
   { match: '/api/v1/self-billing-agreements', reply: () => AGREEMENTS },
   {
     match: /^\/api\/v1\/self-billing-agreements\/([^/]+)$/,

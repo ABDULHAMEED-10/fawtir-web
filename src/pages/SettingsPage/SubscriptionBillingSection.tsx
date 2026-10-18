@@ -38,6 +38,9 @@ import {
   loadExtraDocuments,
   type ExtraDocumentsOverviewDto,
 } from '../../api/settings/extraDocuments'
+import { usePayingHeldUntilReconnected } from '../../hooks/usePayingHeldUntilReconnected'
+import { noteLeftFawtirRefusal } from '../../lib/leftFawtirRefusal'
+import { LeftFawtirRefusal } from '../../components/billing/LeftFawtirRefusal'
 
 const LIVE: SubscriptionPaymentDto['status'][] = ['SUBMITTED', 'RECEIPT_RECORDED', 'AWAITING_SECOND_APPROVAL']
 const PROOF_ACCEPT = '.pdf,.png,.jpg,.jpeg'
@@ -128,7 +131,10 @@ export function SubscriptionBillingSection() {
           onChanged={changed}
           onCardFinished={cardFinished}
           subtotalLabel={
-            extrasOrder && extrasOrder.bill.id === outstanding.bill.id
+            // A self-service plan change (P2-2) is named as such, not as the subscription.
+            outstanding.kind === 'PLAN_CHANGE'
+              ? t('planChange.bill.line')
+              : extrasOrder && extrasOrder.bill.id === outstanding.bill.id
               ? t('extraDocuments.quote.line', {
                   count: extrasOrder.credit.documents,
                   documents: formatCount(extrasOrder.credit.documents, i18n.language),
@@ -207,6 +213,8 @@ function NoOutstandingBill({
   afterRejection?: boolean
 }) {
   const { t } = useTranslation()
+  // LV-6: no new bill is prepared once the company has left Fawtir (A3.8).
+  const held = usePayingHeldUntilReconnected()
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
   const prepare = async () => {
@@ -224,14 +232,15 @@ function NoOutstandingBill({
   return (
     <div className="flex flex-col gap-3">
       {afterRejection ? null : <p className="text-sm font-medium text-text-secondary">{t('billing.nothingDue')}</p>}
-      {canPay ? (
+      {canPay && !held ? (
         <div>
           <Button variant="secondary" size="md" disabled={busy} onClick={prepare}>
             {t('billing.prepare')}
           </Button>
         </div>
       ) : null}
-      {failure ? <Alert>{failure}</Alert> : null}
+      {canPay && held ? <LeftFawtirRefusal /> : null}
+      {failure && !held ? <Alert>{failure}</Alert> : null}
     </div>
   )
 }
@@ -269,6 +278,9 @@ export function OutstandingBill({
   const seller = sellerName(bill.seller, i18n.language)
   // The bill carries the plan's English name only (F37): an Arabic reader gets its Arabic name.
   const planName = usePlanName()(bill.planCode, bill.planName)
+  // LV-6: no card, bank transfer or cash payment starts once the company has left Fawtir (A3.8).
+  // A payment already sent stays as it is, and can still be withdrawn.
+  const held = usePayingHeldUntilReconnected()
 
   return (
     <div className="flex flex-col gap-4">
@@ -323,7 +335,11 @@ export function OutstandingBill({
               {t('billing.rejected', { reason: withoutFinalStop(lastRejected.rejectionReason ?? '') })}
             </Alert>
           ) : null}
-          {canPay ? <PayForm bill={bill} card={card} overview={overview} onSubmitted={onChanged} /> : null}
+          {canPay && held ? (
+            <LeftFawtirRefusal />
+          ) : canPay ? (
+            <PayForm bill={bill} card={card} overview={overview} onSubmitted={onChanged} />
+          ) : null}
         </>
       )}
     </div>
@@ -710,6 +726,8 @@ function CardPaymentStatus({
   onFinished: (why: string) => void
 }) {
   const { t } = useTranslation()
+  // A3.8: the checkout already opened is not continued once the company has left Fawtir (LV-6).
+  const held = usePayingHeldUntilReconnected()
   const [checkout, setCheckout] = useState<CardCheckoutDto | null>(null)
   const [unreachable, setUnreachable] = useState(false)
   const [nudge, setNudge] = useState(0)
@@ -785,7 +803,7 @@ function CardPaymentStatus({
       >
         {t(`billing.card.status.${status}`)}
       </p>
-      {status === 'READY' && trustedUrl ? (
+      {status === 'READY' && trustedUrl && !held ? (
         <div>
           <Button size="md" onClick={() => hostedCheckout.open(trustedUrl)}>
             {t('billing.card.continue')}
@@ -985,6 +1003,8 @@ const KNOWN_REFUSALS = [
 ]
 
 function refusalMessage(t: (key: string) => string, error: unknown): string {
+  // LV-6: remembered, so every way to pay is held back from here on (A3.8).
+  if (noteLeftFawtirRefusal(error)) return t('billing.refusal.disconnected-from-fawtir')
   if (error instanceof ApiError && error.problemType && KNOWN_REFUSALS.includes(error.problemType)) {
     return t(`billing.refusal.${error.problemType}`)
   }

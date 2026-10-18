@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell } from './SettingsShell'
+import { SalesApprovalRuleCard } from './SalesApprovalRuleCard'
 import { withRial } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
@@ -277,6 +278,8 @@ function ApprovalPolicy() {
           ) : null}
         </div>
       ) : null}
+
+      <SalesApprovalRuleCard canManage={canManage} />
     </div>
   )
 }

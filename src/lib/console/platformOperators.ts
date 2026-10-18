@@ -14,10 +14,15 @@ export const OPERATORS_PERMISSION = 'platform.operators.manage'
 export const OPERATORS_PERMISSIONS = [USERS_PERMISSION, OPERATORS_PERMISSION] as const
 
 /**
- * `PlatformRoleCatalogue.PRODUCTION_OPERATOR_ROLES`: the only codes the grant endpoint accepts.
- * Anything else answers 500 (`IllegalArgumentException`), so no other code is ever sent.
+ * `PlatformRoleCatalogue.ASSIGNABLE_PRODUCTION_ROLES`: the only codes the grant endpoint accepts.
+ * Anything else answers 500 (`IllegalArgumentException`), so no other code is ever sent. Kept
+ * here rather than read from `GET /roles`, which lists every role of the tenant and does not say
+ * which ones this endpoint will take.
+ *
+ * `PLATFORM_PARTICIPANT_OWNERSHIP` (V386) holds only `platform.smp.participant.transfer`.
+ * Bootstrap never confers it, so it reaches a person only through this screen, one grant at a time.
  */
-export const PLATFORM_ROLES = ['PLATFORM_TENANT_ADMIN', 'PLATFORM_SUPPORT'] as const
+export const PLATFORM_ROLES = ['PLATFORM_TENANT_ADMIN', 'PLATFORM_SUPPORT', 'PLATFORM_PARTICIPANT_OWNERSHIP'] as const
 export type PlatformRole = (typeof PLATFORM_ROLES)[number]
 
 /** Every reason an operator change asks for is `@NotBlank @Size(max = 280)` on the backend. */
@@ -132,15 +137,27 @@ export function isLastTenantAdmin(user: PlatformUser, team: readonly PlatformUse
 }
 
 /**
- * What a refused change means. The backend answers the same `403 insufficient-permission` for a
- * missing permission, a self-grant and a last-administrator revoke, telling them apart only in
- * English prose — which is never parsed or shown — so one message covers all three. The screen
- * stops the last two before sending, so a 403 here is rare.
+ * What a refused change means. A self-grant and a last-administrator revoke carry their own
+ * problem types (`RefusalType`); any other 403, a missing permission among them, keeps the general
+ * message. The screen stops the first two before sending, so they arrive only when its view of the
+ * team was stale.
+ *
+ * A change outside the production platform realm is `403 production-platform-realm-required` from
+ * backend PR #643 on; before it, the same refusal was `500 internal-error` and reads as a fault.
+ *
+ * A 404 is `resource-not-found` both for a person who has left the team and for a role code no
+ * platform role carries; the two differ only in English prose, which is never parsed, so the
+ * message names both rather than claim the person has gone.
  */
 export function describeRoleChangeFailure(error: unknown): FormMessage {
   if (error instanceof ApiError) {
-    if (error.status === 403) return { key: 'console.operators.error.refused' }
-    if (error.status === 404) return { key: 'console.operators.error.gone' }
+    if (error.status === 403) {
+      if (error.problemType === 'own-account-refused') return { key: 'console.operators.selfGive' }
+      if (error.problemType === 'last-administrator') return { key: 'console.operators.lastAdmin' }
+      if (error.problemType === 'production-platform-realm-required') return { key: 'console.operators.error.realm' }
+      return { key: 'console.operators.error.refused' }
+    }
+    if (error.status === 404) return { key: 'console.operators.error.roleTargetGone' }
   }
   return commonFailureMessage(error)
 }

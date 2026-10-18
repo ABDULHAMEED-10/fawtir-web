@@ -15,6 +15,7 @@ import linkedinIcon from '../../assets/home/linkedin.svg'
 import xIcon from '../../assets/home/x.svg'
 import pageLines from '../../assets/site/hero-lines.svg'
 import plusIcon from '../../assets/site/plus.svg'
+import { useSiteMail } from './siteMail'
 import './HomePage.css'
 
 /**
@@ -22,10 +23,6 @@ import './HomePage.css'
  * section headings, the closing band and the footer, on the frames' own numbers (1920 wide,
  * Urbanist). Home, Pricing, Features and Contact Us all draw them the same way.
  */
-
-export const DEMO_MAILTO = 'mailto:support@fawtir.om?subject=Fawtir%20demo%20request'
-// TODO(backend): SITE.md 1.3. No partner programme page exists yet; the link asks by email meanwhile.
-export const PARTNERS_MAILTO = 'mailto:support@fawtir.om?subject=Fawtir%20partners'
 
 export const INK = 'text-[#151c2d]'
 export const SOFT = 'text-[#494d56]'
@@ -174,6 +171,7 @@ function NavLogo({ arabic }: { arabic: boolean }) {
 
 export function Nav({ active }: { active: SitePage }) {
   const { t, i18n } = useTranslation()
+  const mail = useSiteMail()
   const arabic = i18n.language.startsWith('ar')
   const [menuOpen, setMenuOpen] = useState(false)
   const switchLanguage = () => {
@@ -227,7 +225,7 @@ export function Nav({ active }: { active: SitePage }) {
                 </Link>
               ),
             )}
-            <a href={PARTNERS_MAILTO}>{t('landing.nav.partners')}</a>
+            <a href={mail.partners}>{t('landing.nav.partners')}</a>
           </div>
         </div>
         <div className="landing-shadow flex h-[59px] items-center gap-2 rounded-lg border border-[#e8e8ea] bg-white px-2 py-4">
@@ -304,7 +302,7 @@ export function Nav({ active }: { active: SitePage }) {
                 </Link>
               ))}
               <a
-                href={PARTNERS_MAILTO}
+                href={mail.partners}
                 className={`rounded-lg px-3 py-3 text-base leading-[normal] ${INK}`}
               >
                 {t('landing.nav.partners')}
@@ -441,6 +439,7 @@ export function Faq({ items }: { items: { q: string; a: string }[] }) {
 
 export function ClosingBand() {
   const { t } = useTranslation()
+  const mail = useSiteMail()
   return (
     <section className="relative mt-[200px] min-h-[277px] overflow-hidden pt-[26px] max-md:mt-20">
       <img
@@ -460,7 +459,7 @@ export function ClosingBand() {
           <Cta to="/signup" tone="brand">
             {t('landing.band.start')}
           </Cta>
-          <Cta href={DEMO_MAILTO} arrow={false}>
+          <Cta href={mail.demo} arrow={false}>
             {t('landing.band.demo')}
           </Cta>
         </div>
@@ -472,28 +471,29 @@ export function ClosingBand() {
 
 export function Footer() {
   const { t } = useTranslation()
+  const mail = useSiteMail()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const year = new Date().getFullYear()
   // TODO(backend): SITE.md 1.2. No newsletter list exists; the form opens a prepared email to support meanwhile.
   const subscribe = (event: React.FormEvent) => {
     event.preventDefault()
-    const body = encodeURIComponent(`${name}\n${email}`)
-    window.location.href = `mailto:support@fawtir.om?subject=Fawtir%20newsletter&body=${body}`
+    window.location.href = mail.newsletter(`${name}\n${email}`)
   }
   const links: { key: string; to?: string; href?: string }[] = [
     { key: 'pricing', to: '/pricing' },
     { key: 'features', to: '/features' },
-    { key: 'partners', href: PARTNERS_MAILTO },
+    { key: 'partners', href: mail.partners },
     // TODO(backend): SITE.md 1.4. The privacy policy and terms have no pages yet.
     { key: 'privacy' },
     { key: 'terms' },
   ]
-  const socials = [
-    { icon: facebookIcon, label: 'Facebook' },
-    { icon: instagramIcon, label: 'Instagram' },
-    { icon: linkedinIcon, label: 'LinkedIn' },
-    { icon: xIcon, label: 'X' },
+  // An icon links only to a page the company contact setting names (CS-1); the rest stay drawn.
+  const socials: { icon: string; label: string; href: string | null }[] = [
+    { icon: facebookIcon, label: 'Facebook', href: null },
+    { icon: instagramIcon, label: 'Instagram', href: mail.contact.instagramUrl },
+    { icon: linkedinIcon, label: 'LinkedIn', href: mail.contact.linkedinUrl },
+    { icon: xIcon, label: 'X', href: null },
   ]
 
   return (
@@ -560,17 +560,30 @@ export function Footer() {
 
           <div className="flex items-center justify-between gap-4 border-t border-[#e8e8ea] pt-[30px] max-sm:flex-col max-sm:items-start">
             <div className="flex gap-2">
-              {socials.map((social) => (
-                // TODO(backend): SITE.md 1.5. Fawtir's social accounts are not decided yet; the icons are drawn, not linked.
-                <span
-                  key={social.label}
-                  role="img"
-                  aria-label={social.label}
-                  className="flex size-10 items-center justify-center rounded-lg bg-[#f3f4f5]"
-                >
-                  <img src={social.icon} alt="" className="size-5" />
-                </span>
-              ))}
+              {socials.map((social) =>
+                social.href ? (
+                  <a
+                    key={social.label}
+                    href={social.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={social.label}
+                    className="flex size-10 items-center justify-center rounded-lg bg-[#f3f4f5]"
+                  >
+                    <img src={social.icon} alt="" className="size-5" />
+                  </a>
+                ) : (
+                  // TODO(backend): SITE.md 1.5. Facebook and X have no setting yet; drawn, not linked.
+                  <span
+                    key={social.label}
+                    role="img"
+                    aria-label={social.label}
+                    className="flex size-10 items-center justify-center rounded-lg bg-[#f3f4f5]"
+                  >
+                    <img src={social.icon} alt="" className="size-5" />
+                  </span>
+                ),
+              )}
             </div>
             <p className={`landing-cap text-base leading-[normal] ${SOFT}`}>
               {t('landing.footer.rights', { year })}

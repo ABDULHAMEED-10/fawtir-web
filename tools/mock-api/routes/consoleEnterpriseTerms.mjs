@@ -28,6 +28,7 @@ const terms = (extra) => ({
   branchesIncluded: 10,
   extraBranchPrice: '8.000',
   overagePricePerInvoice: '0.040',
+  erpAddonMonthlyPrice: '60.000',
   apiAccess: true,
   prioritySupport: true,
   reason: 'Renewal negotiated',
@@ -102,6 +103,7 @@ const TERMS_SET = {
       contractReference: 'FWT-ENT-2026-014',
       reason: 'Renewal negotiated',
       createdBy: ADMIN,
+      createdByName: 'Huda Al Balushi',
       createdAt: '2026-10-15T09:00:00Z',
     },
     {
@@ -116,6 +118,7 @@ const TERMS_SET = {
       contractReference: 'FWT-ENT-2026-014',
       reason: 'Contract signed',
       createdBy: 'u-nasser',
+      createdByName: 'Nasser Al Habsi',
       createdAt: '2026-09-10T06:00:00Z',
     },
   ],
@@ -218,6 +221,9 @@ if (customer === 'preparing' || customer === 'agreed') {
           billingCycle: 'MONTHLY',
           periodPrice: '450.000',
           effectiveOn: '2026-11-10',
+          kind: 'ENTERPRISE_TERMS',
+          paidFor: false,
+          withdrawal: 'NONE',
         }
       : null,
     restriction: null,

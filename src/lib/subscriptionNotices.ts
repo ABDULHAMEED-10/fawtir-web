@@ -10,8 +10,9 @@ import { whenOf } from './reminderNotices'
 import type { Note, NoteAction } from './notifications'
 
 /**
- * The trial-ending and grace reminders (`GET /settings/subscription/notices`, V299) as lines of
- * the bell's panel, beside the bill reminders and drawn exactly as they are.
+ * The trial-ending and grace reminders (`GET /settings/subscription/notices`, V299), and the
+ * notice that Fawtir cancelled the subscription (V365), as lines of the bell's panel, beside the
+ * bill reminders and drawn exactly as they are.
  *
  * The sentence is written here from the dates the server sends, so it reads in the reader's
  * language; the server's `headline` is English e-mail text and is shown only for a kind this
@@ -45,10 +46,16 @@ function dayOf(day: string | null | undefined): Date | null {
 /** One reminder as one line of the panel. */
 export function subscriptionNote(item: SubscriptionNoticeDto, now: Date): Note {
   const target = internalPath(item.actionPath)
-  const grace = item.kind === 'GRACE' || (item.kind !== 'TRIAL_ENDING' && target === BILLS_PATH)
+  const cancelled = item.kind === 'CANCELLED_BY_FAWTIR'
+  const grace =
+    item.kind === 'GRACE' || (item.kind !== 'TRIAL_ENDING' && !cancelled && target === BILLS_PATH)
   const action: NoteAction = {
     id: 'open',
-    labelKey: grace ? 'notes.subscription.payBill' : 'notes.subscription.choosePlan',
+    labelKey: grace
+      ? 'notes.subscription.payBill'
+      : cancelled
+        ? 'notes.subscription.viewPlan'
+        : 'notes.subscription.choosePlan',
     kind: 'primary',
     to: target ?? (grace ? BILLS_PATH : PLAN_PATH),
   }
@@ -56,7 +63,7 @@ export function subscriptionNote(item: SubscriptionNoticeDto, now: Date): Note {
     id: item.id,
     ...whenOf(item.createdAt, now),
     icon: 'quota' as const,
-    tone: grace ? ('danger' as const) : ('warning' as const),
+    tone: grace || cancelled ? ('danger' as const) : ('warning' as const),
     // Written out in full, "27 October 2026", as the e-mail writes it.
     dates: 'long' as const,
     actions: [action],
@@ -78,6 +85,14 @@ export function subscriptionNote(item: SubscriptionNoticeDto, now: Date): Note {
       titleKey: 'notes.subscription.grace.title',
       bodyKey: until ? 'notes.subscription.grace.body' : 'notes.subscription.grace.bodyNoDate',
       values: until ? { ended: covered, until } : { ended: covered },
+    }
+  // CA-9: the server sends the last covered day; the cancellation took effect the day after.
+  if (cancelled && covered)
+    return {
+      ...base,
+      titleKey: 'notes.subscription.cancelledByFawtir.title',
+      bodyKey: 'notes.subscription.cancelledByFawtir.body',
+      values: { date: new Date(covered.getFullYear(), covered.getMonth(), covered.getDate() + 1) },
     }
   // A kind (or a date) this screen cannot word: the server's own sentence says what it is.
   return { ...base, titleKey: '', titleText: item.headline, values: {} }

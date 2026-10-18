@@ -14,6 +14,8 @@ import {
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import { InvoiceRemindersCard } from '../../components/invoice/InvoiceRemindersCard'
+import { DraftApprovalCard, useSalesApproval } from '../../components/invoice/DraftApprovalCard'
+import { editWaitsOnApproval, issueWaitsOnApproval } from '../../lib/salesApproval'
 import { DocumentPreview, type PreviewDocument } from '../../components/invoice/DocumentPreview'
 import { useDocumentPreview } from '../../components/invoice/useDocumentPreview'
 import { ApiError } from '../../api'
@@ -196,6 +198,8 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
     document ? `${invoicePath(id)}/history` : null,
     () => loadHistory(id),
   )
+  // Approval before issue (RL-6): read only for a draft. Unread or switched off, nothing changes.
+  const salesApproval = useSalesApproval(id, document !== null && isDraft(document))
   // The frame prints the internal note with the page; reading it is an audited event, so the
   // activity is re-read once it lands.
   const internalNote = useApiRead<{ internalNote: string | null }>(
@@ -551,13 +555,15 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
             ) : null}
             {draft ? (
               <>
-                {can(session, 'invoice.draft') ? (
+                {can(session, 'invoice.draft') && !editWaitsOnApproval(salesApproval.approval) ? (
                   <Link to={`${base}/${data.id}/edit`} className={GHOST_BUTTON}>
                     <img src={editIcon} alt="" className="size-5" />
                     {t('salesNote.detail.editDraft')}
                   </Link>
                 ) : null}
-                {can(session, 'invoice.issue') && mayIssue ? (
+                {can(session, 'invoice.issue') &&
+                mayIssue &&
+                !issueWaitsOnApproval(salesApproval.approval) ? (
                   <Link to={`${base}/${data.id}/edit`} className={PRIMARY_BUTTON}>
                     {t(`salesNote.${kindKey}.issue`)}
                   </Link>
@@ -611,6 +617,18 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
         />
       ) : null}
       {draft ? <Notice body={t('salesNote.detail.draftNotice')} /> : null}
+      {draft ? (
+        <DraftApprovalCard
+          invoiceId={data.id}
+          type={data.type}
+          approval={salesApproval.approval}
+          onChanged={() => {
+            salesApproval.retry()
+            note.retry()
+            history.retry()
+          }}
+        />
+      ) : null}
 
       {/* The printed document sits beside the amount and the details only; the rest is full width, as designed. */}
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_440px]">

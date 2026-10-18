@@ -457,10 +457,14 @@ function TermsForm({
               disabled={frozen}
               onChange={(checked) => set('prioritySupport', checked)}
             />
-            {/*
-              TODO(backend): CONSOLE.md 3.1. The ERP add-on price a month (P2-1) is not in the terms
-              request yet; ERP included in the contract is the ERP access card on the company page.
-            */}
+            {/* ER-1: the add-on as a paid extra; ERP included in the contract is the ERP grant. */}
+            <FieldGrid>
+              {money(
+                'erpAddonMonthlyPrice',
+                t(`${K}form.erpAddonPrice`),
+                t(`${K}form.erpAddonHint`),
+              )}
+            </FieldGrid>
             <NoteLine>{t(`${K}form.erpNote`)}</NoteLine>
 
             <GroupLabel>{t(`${K}form.features`)}</GroupLabel>
@@ -753,8 +757,10 @@ function TermsHistory({ terms }: { terms: EnterpriseTermsDto }) {
                   t('console.plans.history.system')
                 ) : change.createdBy === me ? (
                   t('console.plans.history.you')
+                ) : change.createdByName ? (
+                  <bdi>{change.createdByName}</bdi>
                 ) : (
-                  // TODO(backend): CONSOLE.md 3.2, the operator's name; only the id is recorded.
+                  // The server could not name the account (neither realm it reads): its id.
                   <bdi dir="ltr" className="font-mono text-[11px]">
                     {change.createdBy}
                   </bdi>

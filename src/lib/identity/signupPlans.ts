@@ -44,6 +44,12 @@ export type SignupCataloguePlan = {
    * plan; `null` while none is set. Absent from a server older than the field.
    */
   vatRate?: string | null
+  /**
+   * The ERP and API add-on, one month, as a three-decimal OMR string; `null` when the plan does not
+   * sell it. Not sent by the server yet (the public read leaves it out); while absent the sign-up
+   * add-on shows no figure rather than a price nobody published.
+   */
+  erpAddonMonthlyPrice?: string | null
 }
 
 export const SIGNUP_PLANS_PATH = '/v1/auth/signup/plans'
