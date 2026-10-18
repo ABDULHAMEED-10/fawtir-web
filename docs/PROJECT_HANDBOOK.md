@@ -438,9 +438,7 @@ Checked on 2026-09-28 against PDK 1.4.4. Findings from that check are in
   configurable in the console (`src/lib/plans.ts`). Prices 35 / 80 / 150 OMR a month for 200 /
   1,000 / 3,000 documents; extra documents 0.150 / 0.060 / 0.040 each, bought ahead (see
   **Subscriptions** below); an extra branch is
-  8 OMR on every plan; annual billing is the monthly price × 12, with **no free months or
-  annual discount**: the only free offer is the 14-day trial (owner, 18 Oct 2026; replaces "annual
-  billing gives free months" and PL-4's × 10). Enterprise is Business Plus with
+  8 OMR on every plan; annual billing gives free months. Enterprise is Business Plus with
   negotiated limits. A **14-day trial** of the chosen plan (not on Enterprise), off by default
   (owner, 13 Oct 2026). **Compliance
   features are never gated.** Plan gating is built but switched off (`PLAN_GATING_ENABLED =
