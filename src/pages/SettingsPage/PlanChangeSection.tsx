@@ -87,7 +87,16 @@ function isViaFawtir(error: unknown): boolean {
   return error instanceof ApiError && error.problemType === PLAN_CHANGE_VIA_FAWTIR
 }
 
-export type PlanChangeTarget = { planCode: string; cycle: BillingCycle }
+export type PlanChangeTarget = {
+  planCode: string
+  cycle: BillingCycle
+  /**
+   * The subscription is in its free trial (`access` TRIAL on `GET /settings/subscription`). R1: a
+   * charged change the server accepts then ends the trial at once, with the paid period from the
+   * payment date and no trial days carried over, so the paid-time facts are not promised.
+   */
+  inTrial?: boolean
+}
 
 /**
  * Choose another plan or cycle and see what it does before anything is saved, from the server's
@@ -218,7 +227,7 @@ function DialogBody({
       ) : (
         <ApiReadFailure error={read.error} retry={() => setAttempt((value) => value + 1)} />
       )
-  else body = <PreviewBody preview={read.data} />
+  else body = <PreviewBody preview={read.data} inTrial={target.inTrial === true} />
 
   return (
     <div className="flex flex-col gap-5">
@@ -257,7 +266,7 @@ function DialogBody({
 }
 
 /** What the change does, in the server's figures, kind by kind. */
-function PreviewBody({ preview }: { preview: PlanChangePreviewDto }) {
+function PreviewBody({ preview, inTrial }: { preview: PlanChangePreviewDto; inTrial: boolean }) {
   const { t, i18n } = useTranslation()
   const planName = usePlanName()
   const date = (iso: string | null) => (iso ? formatDate(iso, i18n.language) : '')
@@ -271,6 +280,8 @@ function PreviewBody({ preview }: { preview: PlanChangePreviewDto }) {
   const charge = preview.charge
   const charged = CHARGED.includes(preview.kind)
   const atOnce = preview.applies === 'AT_ONCE' || preview.applies === 'AT_ONCE_WHEN_PAID'
+  // R1: only once the server offers the charged change; while it is refused, the blocker says why.
+  const endsTrial = inTrial && charged && preview.blockers.length === 0
 
   return (
     <div className="flex flex-col gap-4">
@@ -376,7 +387,8 @@ function PreviewBody({ preview }: { preview: PlanChangePreviewDto }) {
                 })}
           </li>
         ) : null}
-        {preview.kind !== 'NONE' && preview.subscriptionDate !== null ? (
+        {endsTrial ? <li>{t('planChange.fact.endsTrial')}</li> : null}
+        {preview.kind !== 'NONE' && preview.subscriptionDate !== null && !inTrial ? (
           <li>{t('planChange.fact.subscriptionDate', { day: n(preview.subscriptionDate) })}</li>
         ) : null}
         {preview.cycleChangeOn ? (
@@ -513,9 +525,12 @@ function PlacesOver({
 export function PendingPlanChangeCard({
   change,
   onChanged,
+  inTrial = false,
 }: {
   change: PlanChangeViewDto
   onChanged: (why?: string) => void
+  /** R1: paying it ends the free trial, so "your subscription date stays the same" is not said. */
+  inTrial?: boolean
 }) {
   const { t, i18n } = useTranslation()
   const mayManage = useCan(PLAN_MANAGE)
@@ -591,10 +606,15 @@ export function PendingPlanChangeCard({
   return (
     <SectionCard
       title={t('planChange.pending.title')}
-      note={t(`planChange.pending.note.${change.kind}`, {
-        plan,
-        date: date(change.newPaidThrough),
-      })}
+      note={t(
+        inTrial && i18n.exists(`planChange.pending.noteTrial.${change.kind}`)
+          ? `planChange.pending.noteTrial.${change.kind}`
+          : `planChange.pending.note.${change.kind}`,
+        {
+          plan,
+          date: date(change.newPaidThrough),
+        },
+      )}
     >
       <div className="flex flex-col gap-4 p-5 pt-0">
         {change.cycleChangeOn ? (

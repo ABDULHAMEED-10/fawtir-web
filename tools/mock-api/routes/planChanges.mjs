@@ -10,7 +10,9 @@
  * `=ending` refuses every move with `plan-change-while-ending`, `=keep` quotes keeping Business
  * after the Starter renewal was paid early (pair it with `MOCK_SUBSCRIPTION_STATE=downgradePaid`),
  * `=enterprise` quotes every move with `plan-change-via-fawtir` first in `blockers` and refuses it
- * (the company's own Enterprise terms, backend #598 and #614).
+ * (the company's own Enterprise terms, backend #598 and #614). `=trial` (pair it with
+ * `MOCK_SUBSCRIPTION_STATE=trial`) quotes a bigger plan in the free trial as R1 has it: the trial
+ * ends on payment and a whole paid month starts that day, with no trial days carried over.
  *
  * A charged change issues a PLAN_CHANGE bill, listed on Bills and payment by `extraDocuments.mjs`
  * through {@link planChangeBillRows}; a downgrade is set as the subscription's scheduled change.
@@ -175,6 +177,35 @@ function preview(planCode, cycle) {
         end: YEAR_END,
         days: 355,
         newPaidThrough: YEAR_END,
+      }),
+      allowance: allowance(to.documents),
+    }
+  }
+  if (dearer && MODE === 'trial' && cycle === 'MONTHLY') {
+    const net = baisa(to.monthly)
+    return {
+      ...base,
+      subscriptionDate: 11,
+      kind: 'UPGRADE',
+      applies: 'AT_ONCE_WHEN_PAID',
+      effectiveOn: TODAY,
+      charge: charge({
+        periods: [
+          {
+            startsOn: TODAY,
+            endsOn: '2026-11-10',
+            totalDays: 31,
+            remainingDays: 31,
+            fromPrice: '0.000',
+            toPrice: to.monthly,
+            amount: omr(net),
+          },
+        ],
+        net,
+        start: TODAY,
+        end: '2026-11-10',
+        days: 31,
+        newPaidThrough: '2026-11-10',
       }),
       allowance: allowance(to.documents),
     }

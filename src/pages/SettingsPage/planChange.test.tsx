@@ -680,6 +680,131 @@ describe('Plan changes: monthly and yearly billing (PC-2, PL-4)', () => {
   })
 })
 
+/**
+ * R1 (Abdul, 18 Oct 2026, D6): paying for a bigger plan in the trial ends the trial at once, the
+ * paid period starts on the payment date and unused trial days are not carried over. The figures
+ * are the server's; the screen only stops promising "the difference for the days left" and "your
+ * subscription date does not change", which hold for paid time, not for a trial.
+ */
+const TRIAL = {
+  ...ACTIVE,
+  access: 'TRIAL',
+  trialStartsOn: '2026-10-01',
+  trialEndsOn: '2026-10-14',
+  trialDay: 11,
+  trialDaysLeft: 4,
+  paidThrough: null,
+  renewsOn: null,
+}
+
+function trialUpgrade(over: Record<string, unknown> = {}) {
+  return upgrade({
+    charge: {
+      windowStartsOn: '2026-10-11',
+      windowEndsOn: '2026-11-10',
+      daysLeft: 31,
+      includesToday: true,
+      periods: [
+        {
+          startsOn: '2026-10-11',
+          endsOn: '2026-11-10',
+          totalDays: 31,
+          remainingDays: 31,
+          fromPrice: '0.000',
+          toPrice: '150.000',
+          amount: '150.000',
+        },
+      ],
+      credit: '0.000',
+      extras: [],
+      subtotal: '150.000',
+      vatRate: '0.05000',
+      vatAmount: '7.500',
+      total: '157.500',
+      currency: 'OMR',
+      newPaidThrough: '2026-11-10',
+    },
+    subscriptionDate: 11,
+    ...over,
+  })
+}
+
+describe('Plan changes: a bigger plan in the free trial (R1, D6)', () => {
+  it('says paying ends the trial at once, from the payment date, with no carry-over', async () => {
+    const user = userEvent.setup({ delay: null })
+    answers[SUBSCRIPTION] = () => json(200, TRIAL)
+    answers[PREVIEW] = () => json(200, trialUpgrade())
+    renderPage()
+    expect(await screen.findByText(i18n.t('planChange.ruleTrial'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('planChange.rule'))).toBeNull()
+    await user.click(await moveTo('Business Plus'))
+    const box = within(await dialog())
+    expect((await box.findAllByText('157.500')).length).toBeGreaterThan(0)
+    expect(box.getByText(i18n.t('planChange.fact.endsTrial'))).toBeTruthy()
+    expect(box.queryByText(i18n.t('planChange.fact.subscriptionDate', { day: '11' }))).toBeNull()
+    expect(
+      box.getByRole('button', { name: i18n.t('planChange.dialog.confirm.UPGRADE') }),
+    ).toBeTruthy()
+  })
+
+  it('says nothing about the trial ending while the server still refuses the upgrade', async () => {
+    const user = userEvent.setup({ delay: null })
+    answers[SUBSCRIPTION] = () => json(200, TRIAL)
+    answers[PREVIEW] = () =>
+      json(200, upgrade({ charge: null, blockers: ['plan-upgrade-requires-platform'] }))
+    renderPage()
+    await user.click(await moveTo('Business Plus'))
+    const box = within(await dialog())
+    expect(
+      await box.findByText(i18n.t('planChange.refusal.plan-upgrade-requires-platform')),
+    ).toBeTruthy()
+    expect(box.queryByText(i18n.t('planChange.fact.endsTrial'))).toBeNull()
+    expect(
+      box.queryByRole('button', { name: i18n.t('planChange.dialog.confirm.UPGRADE') }),
+    ).toBeNull()
+  })
+
+  it('keeps the paid-time wording outside the trial', async () => {
+    const user = userEvent.setup({ delay: null })
+    renderPage()
+    expect(await screen.findByText(i18n.t('planChange.rule'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('planChange.ruleTrial'))).toBeNull()
+    await user.click(await moveTo('Business Plus'))
+    const box = within(await dialog())
+    await box.findAllByText('49.467')
+    expect(box.queryByText(i18n.t('planChange.fact.endsTrial'))).toBeNull()
+    expect(box.getByText(i18n.t('planChange.fact.subscriptionDate', { day: '1' }))).toBeTruthy()
+  })
+
+  it('words the change waiting for payment as ending the trial, not keeping the date', async () => {
+    answers[SUBSCRIPTION] = () => json(200, TRIAL)
+    answers[CHANGES] = () => json(200, { available: true, pending: PENDING, history: [] })
+    renderPage()
+    expect(
+      await screen.findByText(
+        i18n.t('planChange.pending.noteTrial.UPGRADE', { plan: 'Business Plus' }),
+      ),
+    ).toBeTruthy()
+    expect(
+      screen.queryByText(i18n.t('planChange.pending.note.UPGRADE', { plan: 'Business Plus' })),
+    ).toBeNull()
+  })
+
+  it('has the trial sentences in Arabic, with no em dash', async () => {
+    await i18n.changeLanguage('ar')
+    for (const key of [
+      'planChange.ruleTrial',
+      'planChange.fact.endsTrial',
+      'planChange.pending.noteTrial.UPGRADE',
+    ]) {
+      const text = i18n.t(key, { plan: 'x' })
+      expect(text).not.toBe(key)
+      expect(text).toMatch(/تنتهي الفترة التجريبية/)
+      expect(text).not.toMatch(/—/)
+    }
+  })
+})
+
 describe('Plan changes: the change waiting for payment', () => {
   it('can be withdrawn while its bill is open and nothing was sent for it', async () => {
     const user = userEvent.setup({ delay: null })

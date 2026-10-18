@@ -22467,7 +22467,8 @@
       "subscriptionDate": "Your subscription date does not change (day {{day}} of the month).",
       "cycleChangeOn": "Monthly billing starts on {{date}}, when your paid year ends.",
       "withdrawUntilPaid": "Once paid, it cannot be withdrawn. Until then you can withdraw it.",
-      "withdrawBefore": "You can withdraw it any time before {{date}}."
+      "withdrawBefore": "You can withdraw it any time before {{date}}.",
+      "endsTrial": "Paying ends your free trial at once: your paid period starts on the day you pay, and unused trial days are not carried over."
     },
     "loss": {
       "features": "{{plan}} does not have these, so they stop on {{date}}:",
@@ -22515,7 +22516,11 @@
         "KEEP_PLAN": "Keep {{plan}}"
       },
       "withdraw": "Withdraw the change",
-      "withdrawn": "The change was withdrawn. Nothing is owed for it."
+      "withdrawn": "The change was withdrawn. Nothing is owed for it.",
+      "noteTrial": {
+        "UPGRADE": "Move to {{plan}}. It applies as soon as the payment is confirmed: your free trial then ends, your paid period starts on the day you paid, and unused trial days are not carried over.",
+        "CYCLE_TO_ANNUAL": "Yearly billing on {{plan}}. It applies as soon as the payment is confirmed: your free trial then ends, your paid year starts on the day you paid, and unused trial days are not carried over."
+      }
     },
     "waiting": {
       "toMonthly": "Monthly billing starts on {{date}}, when your paid year ends."
@@ -22529,6 +22534,7 @@
     },
     "bill": {
       "line": "Plan change"
-    }
+    },
+    "ruleTrial": "During your free trial, paying for a bigger plan ends the trial at once: your paid period starts on the day you pay, and unused trial days are not carried over."
   }
 }

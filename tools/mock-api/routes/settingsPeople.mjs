@@ -101,6 +101,16 @@ const SUBSCRIPTION_STATES = {
   // means paying the difference for that period (`KEEP_PLAN`, planChanges.mjs).
   downgradePaid: { paidThrough: '2026-11-30', renewsOn: '2026-12-01' },
   restrictionsOff: { access: 'PAYMENT_REQUIRED', restrictionsEnforced: false, restriction: null, ...LAPSED },
+  // R1: day 11 of the 14-day trial; pair it with `MOCK_PLAN_CHANGE_STATE=trial` (planChanges.mjs).
+  trial: {
+    access: 'TRIAL',
+    trialStartsOn: '2026-10-01',
+    trialEndsOn: '2026-10-14',
+    trialDay: 11,
+    trialDaysLeft: 4,
+    paidThrough: null,
+    renewsOn: null,
+  },
 }
 
 const ROLES = [

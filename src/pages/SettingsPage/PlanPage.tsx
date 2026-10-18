@@ -165,13 +165,17 @@ function PlanBody({ onPlanChanged }: { onPlanChanged: (why?: string) => void }) 
     pending === null
       ? { cycle: status.billingCycle ?? 'MONTHLY' }
       : null
+  // R1 (D6): in the free trial a paid bigger plan ends the trial, so the paid-time rule is not said.
+  const inTrial = status?.access === 'TRIAL'
   return (
     <>
       <PlanFigures data={plan.read.data} notStarted={notStarted} mayManage={mayManage} />
       {extras.read.status === 'ready' ? (
         <PaidExtrasSummary data={extras.read.data} mayManage={mayManage} />
       ) : null}
-      {pending ? <PendingPlanChangeCard change={pending} onChanged={onPlanChanged} /> : null}
+      {pending ? (
+        <PendingPlanChangeCard change={pending} onChanged={onPlanChanged} inTrial={inTrial} />
+      ) : null}
       {/* D4: Enterprise terms change only through Fawtir, so no plan list to move to. */}
       {enterprise ? (
         <EnterpriseNotice terms="agreed" />
@@ -181,6 +185,7 @@ function PlanBody({ onPlanChanged }: { onPlanChanged: (why?: string) => void }) 
           mayManage={mayManage}
           selfService={selfService}
           selfServiceOpen={changesRead?.available === true}
+          inTrial={inTrial}
           onPlanChanged={onPlanChanged}
         />
       )}
@@ -690,6 +695,7 @@ function PlanCards({
   mayManage,
   selfService,
   selfServiceOpen,
+  inTrial,
   onPlanChanged,
 }: {
   current: PlanOverviewDto
@@ -698,6 +704,8 @@ function PlanCards({
   selfService: SelfService | null
   /** The server's switch is on: the rule is worded for self-service even while the moves are hidden. */
   selfServiceOpen: boolean
+  /** The subscription is in its free trial (R1). */
+  inTrial: boolean
   onPlanChanged: (why?: string) => void
 }) {
   const { t, i18n } = useTranslation()
@@ -718,7 +726,7 @@ function PlanCards({
       {mayManage && selfServiceOpen ? (
         <p className="flex items-start gap-2 text-sm font-medium text-text-tertiary">
           <img src={infoIcon} alt="" className="mt-0.5 size-4 shrink-0" />
-          <span>{t('planChange.rule')}</span>
+          <span>{t(inTrial ? 'planChange.ruleTrial' : 'planChange.rule')}</span>
         </p>
       ) : mayManage ? (
         <p className="flex items-start gap-2 text-sm font-medium text-text-tertiary">
@@ -736,7 +744,9 @@ function PlanCards({
             current={plan.code === current.plan.code}
             myPrice={myPrice}
             cycle={selfService?.cycle ?? null}
-            onChoose={selfService ? (cycle) => setTarget({ planCode: plan.code, cycle }) : null}
+            onChoose={
+              selfService ? (cycle) => setTarget({ planCode: plan.code, cycle, inTrial }) : null
+            }
           />
         ))}
         <EnterpriseCard />
