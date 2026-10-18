@@ -378,7 +378,14 @@ function CardPanel({ token, onChanged }: { token: string; onChanged: () => void 
     } catch (error) {
       const found = payLinkProblemOf(error)
       setProblem(found)
-      if (found === 'expired' || found === 'notPayable' || found === 'slotTaken') onChanged()
+      if (
+        found === 'expired' ||
+        found === 'revoked' ||
+        found === 'superseded' ||
+        found === 'notPayable' ||
+        found === 'slotTaken'
+      )
+        onChanged()
     } finally {
       inFlight.current = false
       setBusy(false)

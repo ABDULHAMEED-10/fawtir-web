@@ -13,7 +13,9 @@
  *   /pay#rejected<x…>  payable again after Fawtir rejected the last payment
  *   /pay#pending<x…>   a card payment being confirmed
  *   /pay#paid<x…>      paid
- *   /pay#expired<x…>   410 (expired, revoked, superseded)
+ *   /pay#expired<x…>   410 (expired, no linkStatus: an older server)
+ *   /pay#revoked<x…>   410 with linkStatus REVOKED
+ *   /pay#superseded<x…> 410 with linkStatus SUPERSEDED
  *   /pay#limited<x…>   429
  *   anything else      404 (also what every route answers while links are switched off)
  *
@@ -57,19 +59,24 @@ const VIEWS = {
   [token('paid')]: view({ status: 'PAID', paidAt: '2026-10-17T08:00:00Z' }),
 }
 
-const problem = (status, type) => ({
+const problem = (status, type, extra = {}) => ({
   status,
   body: {
     type: `https://api.fawtir.om/problems/${type}`,
     title: type,
     status,
     detail: 'Mock refusal.',
+    ...extra,
   },
 })
 
 function resolve(headers) {
   const value = headers['x-pay-link-token']
   if (value === token('expired')) return { refusal: problem(410, 'pay-link-expired') }
+  if (value === token('revoked'))
+    return { refusal: problem(410, 'pay-link-expired', { linkStatus: 'REVOKED' }) }
+  if (value === token('superseded'))
+    return { refusal: problem(410, 'pay-link-expired', { linkStatus: 'SUPERSEDED' }) }
   if (value === token('limited')) return { refusal: problem(429, 'rate-limited') }
   const found = VIEWS[value]
   return found ? { view: found } : { refusal: problem(404, 'pay-link-not-found') }

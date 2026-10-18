@@ -127,6 +127,45 @@ describe('Pay page › the link', () => {
     expect(screen.queryByText('English detail')).toBeNull()
   })
 
+  it.each([
+    ['REVOKED', 'problem.revoked'],
+    ['SUPERSEDED', 'problem.superseded'],
+    ['EXPIRED', 'problem.expired'],
+    ['SOMETHING_NEW', 'problem.expired'],
+  ])(
+    'names a link closed as %s in its own words (linkStatus, backend #631)',
+    async (status, key) => {
+      answers[VIEW] = () =>
+        json(410, {
+          type: 'https://api.fawtir.om/problems/pay-link-expired',
+          title: 'pay-link-expired',
+          status: 410,
+          detail: 'English detail',
+          linkStatus: status,
+        })
+      openPay()
+      expect(await screen.findByText(L(key))).toBeTruthy()
+      expect(screen.queryByText('English detail')).toBeNull()
+    },
+  )
+
+  it('keeps the expired sentence when the server sends no linkStatus', async () => {
+    answers[VIEW] = () => problem(410, 'pay-link-expired')
+    openPay()
+    expect(await screen.findByText(L('problem.expired'))).toBeTruthy()
+    expect(screen.queryByText(L('problem.revoked'))).toBeNull()
+  })
+
+  it('has the revoked and replaced sentences in Arabic, with no em dash', () => {
+    for (const key of ['revoked', 'superseded'] as const) {
+      const english = i18n.getFixedT('en')(`payLink.problem.${key}`)
+      const arabic = i18n.getFixedT('ar')(`payLink.problem.${key}`)
+      expect(english).not.toBe(`payLink.problem.${key}`)
+      expect(arabic).toMatch(/[\u0600-\u06FF]/)
+      expect(english + arabic).not.toMatch(/\u2014/)
+    }
+  })
+
   it('reads the switch being off as an unknown link (the server answers a bare 404)', async () => {
     answers[VIEW] = () => new Response('', { status: 404 })
     openPay()
@@ -354,6 +393,29 @@ describe('Pay page › paying', () => {
     await user.click(await screen.findByRole('button', { name: L('card.open') }))
     await waitFor(() => expect(screen.queryByText(L('payByCard'))).toBeNull())
     expect(screen.getByText(L('problem.expired'))).toBeTruthy()
+    expect(calls(VIEW)).toHaveLength(2)
+  })
+
+  it('shows the link as replaced when a newer one supersedes it while paying', async () => {
+    const replaced = () =>
+      json(410, {
+        type: 'https://api.fawtir.om/problems/pay-link-expired',
+        title: 'pay-link-expired',
+        status: 410,
+        detail: 'English detail',
+        linkStatus: 'SUPERSEDED',
+      })
+    let dead = false
+    answers[VIEW] = () => (dead ? replaced() : json(200, view()))
+    answers[CARD] = () => {
+      dead = true
+      return replaced()
+    }
+    const user = userEvent.setup({ delay: null })
+    openPay()
+    await user.click(await screen.findByRole('button', { name: L('card.open') }))
+    await waitFor(() => expect(screen.queryByText(L('payByCard'))).toBeNull())
+    expect(screen.getByText(L('problem.superseded'))).toBeTruthy()
     expect(calls(VIEW)).toHaveLength(2)
   })
 

@@ -22314,7 +22314,9 @@
       "payerMissing": "Card payment needs the payer's name, email and phone. Ask Fawtir to send a new link with them.",
       "network": "We couldn't reach Fawtir. Check your connection and try again.",
       "other": "Something went wrong. Try again.",
-      "notReady": "The card form couldn't be opened. Try again in a moment."
+      "notReady": "The card form couldn't be opened. Try again in a moment.",
+      "revoked": "This link was revoked. Ask Fawtir for a new one.",
+      "superseded": "This link was replaced by a newer one. Use the latest link Fawtir sent you, or ask for a new one."
     },
     "done": {
       "title": "Card payment",

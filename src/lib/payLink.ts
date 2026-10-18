@@ -196,6 +196,8 @@ export function loadPayLinkCard(
 export type PayLinkProblem =
   | 'invalid'
   | 'expired'
+  | 'revoked'
+  | 'superseded'
   | 'tooMany'
   | 'notPayable'
   | 'slotTaken'
@@ -203,6 +205,21 @@ export type PayLinkProblem =
   | 'payerMissing'
   | 'network'
   | 'other'
+
+/**
+ * A link closed in its own right says how (`linkStatus`, backend #631): revoked by Fawtir, or
+ * replaced by a newer link. Anything else, or a server without the field, reads as expired.
+ */
+function closedLinkProblem(error: ApiError): 'expired' | 'revoked' | 'superseded' {
+  switch (error.problem.linkStatus) {
+    case 'REVOKED':
+      return 'revoked'
+    case 'SUPERSEDED':
+      return 'superseded'
+    default:
+      return 'expired'
+  }
+}
 
 /** The server's refusal as one of the page's own sentences; its `detail` is never shown. */
 export function payLinkProblemOf(error: unknown): PayLinkProblem {
@@ -212,7 +229,7 @@ export function payLinkProblemOf(error: unknown): PayLinkProblem {
     case 'pay-link-not-found':
       return 'invalid'
     case 'pay-link-expired':
-      return 'expired'
+      return closedLinkProblem(error)
     case 'bill-not-payable':
     case 'bill-stale':
       return 'notPayable'
