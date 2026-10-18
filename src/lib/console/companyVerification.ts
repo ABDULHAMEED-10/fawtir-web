@@ -56,6 +56,13 @@ export type CompanySummary = {
   profileRevision: number
   submittedAt: string | null
   decidedAt: string | null
+  /**
+   * The last day (`YYYY-MM-DD`, Asia/Muscat) a company sent back for a correction was told to
+   * resubmit by; null unless it still awaits that correction. Absent from an older server.
+   */
+  correctableUntil?: string | null
+  /** Awaiting a correction and that day has passed. Absent from an older server, which means no. */
+  correctionOverdue?: boolean
 }
 
 /** `PlatformCompanyReview.SummaryPage`: the page the backend chose, with its exact totals. */
@@ -103,6 +110,10 @@ export type CompanyDetail = {
   signupAdministrator: SignupAdministrator | null
   createdAt: string
   updatedAt: string
+  /** As on `CompanySummary`. */
+  correctableUntil?: string | null
+  /** As on `CompanySummary`. While true, a final rejection closes the application. */
+  correctionOverdue?: boolean
 }
 
 /** `PlatformCompanyReview.HistoryEntry`, oldest first. */
@@ -118,15 +129,43 @@ export type HistoryEntry = {
   occurredAt: string
 }
 
-/** The queue's tabs, and the backend `status` each one asks for. `all` sends none. */
-export const QUEUE_TABS = ['pending', 'verified', 'rejected', 'all'] as const
+/**
+ * The queue's tabs, and the backend `status` each one asks for. `all` sends none, and
+ * `correctionOverdue` asks for the backend's own overdue filter instead.
+ */
+export const QUEUE_TABS = ['pending', 'verified', 'rejected', 'correctionOverdue', 'all'] as const
 export type QueueTab = (typeof QUEUE_TABS)[number]
 
 const STATUS_FOR_TAB: Record<QueueTab, VerificationStatus | null> = {
   pending: 'PENDING_VERIFICATION',
   verified: 'VERIFIED',
   rejected: 'REJECTED',
+  correctionOverdue: null,
   all: null,
+}
+
+/**
+ * Sent back for a correction that is now overdue (decision D11): nothing happens on its own, a
+ * Fawtir member chases the customer or closes it with a final rejection. Only the server's own
+ * flag counts, and only with the date it is overdue from; a missing field means no.
+ */
+export function isCorrectionOverdue(
+  company: Pick<CompanySummary, 'correctionOverdue' | 'correctableUntil'>,
+): boolean {
+  return company.correctionOverdue === true && typeof company.correctableUntil === 'string'
+}
+
+/** The first overdue day: the day after the last day to correct, as `YYYY-MM-DD`. */
+export function correctionOverdueSince(correctableUntil: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(correctableUntil)
+  if (!match) return correctableUntil
+  const next = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + 1))
+  return next.toISOString().slice(0, 10)
+}
+
+/** Whether the server reports the overdue flag at all: a row of a server that predates it has none. */
+export function reportsCorrectionOverdue(rows: readonly CompanySummary[]): boolean {
+  return rows.some((row) => typeof row.correctionOverdue === 'boolean')
 }
 
 export function isQueueTab(value: unknown): value is QueueTab {
@@ -155,6 +194,7 @@ export function queuePath(tab: QueueTab, page: number): string {
   const params = new URLSearchParams()
   const status = STATUS_FOR_TAB[tab]
   if (status) params.set('status', status)
+  if (tab === 'correctionOverdue') params.set('correctionOverdue', 'true')
   params.set('page', String(page))
   params.set('size', String(QUEUE_PAGE_SIZE))
   return `${COMPANIES_PATH}?${params.toString()}`

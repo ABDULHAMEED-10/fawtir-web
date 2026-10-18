@@ -9,9 +9,11 @@ import {
   QUEUE_TABS,
   REVIEW_PERMISSION,
   VERIFICATION_ROUTE,
+  isCorrectionOverdue,
   isQueueTab,
   isSubmitted,
   queuePath,
+  reportsCorrectionOverdue,
   type CompanySummary,
   type CompanySummaryPage,
   type QueueReturn,
@@ -19,6 +21,7 @@ import {
 } from '../../lib/console/companyVerification'
 import { countryName, formatDay, localeFor } from '../../lib/console/format'
 import { VerificationStatusPill } from './verification/VerificationStatusPill'
+import { ConsoleStatusPill } from '../../layouts/ConsoleShell/ConsoleStatusPill'
 import { CONSOLE_PAGE, CONSOLE_ROWS, CONSOLE_TABLE, CONSOLE_TABLE_BODY, CONSOLE_TAB_BAR, CONSOLE_TAB_LINE, CONSOLE_THEAD, ConsolePageHeader } from '../../layouts/ConsoleShell/consoleStyle'
 import { consoleTab } from '../../layouts/ConsoleShell/consoleTones'
 
@@ -63,8 +66,22 @@ function VerificationQueue() {
     setParams(next)
   }
 
+  // The overdue tab exists only on a server that reports the flag: an older one ignores the filter
+  // and would answer with every company under that name.
+  const reported = read.status === 'ready' && reportsCorrectionOverdue(read.data.items)
+  const unsupportedTab = tab === 'correctionOverdue' && read.status === 'ready' && !reported
+  const tabs = QUEUE_TABS.filter(
+    (entry) => entry !== 'correctionOverdue' || tab === 'correctionOverdue' || reported,
+  )
+
   let body
-  if (read.status === 'loading') {
+  if (unsupportedTab) {
+    body = (
+      <p className="px-6 py-12 text-center text-sm font-medium text-text-tertiary">
+        {t('console.verification.empty.correctionOverdue')}
+      </p>
+    )
+  } else if (read.status === 'loading') {
     body = <ConsoleNotice busy body={t('console.verification.loading')} />
   } else if (read.status === 'failed') {
     body = <ConsoleReadFailure error={read.error} retry={retry} />
@@ -84,7 +101,8 @@ function VerificationQueue() {
     body = <QueueTable rows={read.data.items} returnTo={{ queueSearch: location.search }} />
   }
 
-  const loaded = read.status === 'ready' && read.data.items.length > 0 ? read.data : null
+  const loaded =
+    read.status === 'ready' && read.data.items.length > 0 && !unsupportedTab ? read.data : null
 
   return (
     <div className={CONSOLE_PAGE}>
@@ -96,7 +114,7 @@ function VerificationQueue() {
 
       <section className="flex flex-col rounded-sm bg-surface-card">
         <div className={CONSOLE_TAB_BAR}>
-          {QUEUE_TABS.map((entry) => {
+          {tabs.map((entry) => {
             const active = entry === tab
             return (
               <button
@@ -196,10 +214,23 @@ function QueueTable({ rows, returnTo }: { rows: CompanySummary[]; returnTo: Queu
                   {company.submittedAt ? formatDay(company.submittedAt, i18n.language) : none}
                 </td>
                 <td className="px-2 py-4">
-                  <VerificationStatusPill
-                    status={company.verificationStatus}
-                    submitted={submitted}
-                  />
+                  {isCorrectionOverdue(company) ? (
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      <VerificationStatusPill
+                        status={company.verificationStatus}
+                        submitted={submitted}
+                      />
+                      <ConsoleStatusPill
+                        tone="pending"
+                        label={t('console.verification.correctionOverdue.badge')}
+                      />
+                    </span>
+                  ) : (
+                    <VerificationStatusPill
+                      status={company.verificationStatus}
+                      submitted={submitted}
+                    />
+                  )}
                 </td>
                 <td className="whitespace-nowrap px-2 py-4 text-sm font-medium text-text-secondary">
                   {company.decidedAt ? formatDay(company.decidedAt, i18n.language) : none}

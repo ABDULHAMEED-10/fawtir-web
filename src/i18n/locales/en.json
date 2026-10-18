@@ -12825,7 +12825,8 @@
         "pending": "Pending",
         "verified": "Verified",
         "rejected": "Rejected",
-        "all": "All"
+        "all": "All",
+        "correctionOverdue": "Correction overdue"
       },
       "col": {
         "company": "Company",
@@ -12846,7 +12847,8 @@
         "pending": "No registrations are waiting for verification.",
         "verified": "No companies have been verified yet.",
         "rejected": "No registrations have been rejected.",
-        "all": "There are no registrations yet."
+        "all": "There are no registrations yet.",
+        "correctionOverdue": "No registrations have an overdue correction."
       },
       "pastEnd": "There is nothing on this page.",
       "firstPage": "Back to the first page",
@@ -13051,6 +13053,13 @@
           "FINAL_REJECTION": "Open: final rejection",
           "CORRECTION_WINDOW_EXPIRED": "Open: not corrected within 30 days"
         }
+      },
+      "correctionOverdue": {
+        "badge": "Correction overdue",
+        "since": "Correction overdue since {{date}}.",
+        "closeIntro": "The customer did not resubmit within 30 days. Chase them, or close the application with a final rejection.",
+        "refund": "Any payment Finance has confirmed will be refunded.",
+        "close": "Close with final rejection"
       }
     },
     "plans": {
