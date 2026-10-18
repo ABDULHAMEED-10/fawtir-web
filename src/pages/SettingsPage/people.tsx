@@ -1,11 +1,15 @@
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { displayName, type CompanyUser } from '../../api/settings/people'
-import { TD, TH, personStatus } from './peopleView'
+import { TD, TH, personStatus, seesEveryBranch } from './peopleView'
 
 export function PeopleTable({
   people,
   roleNames,
   lastSignedIn = false,
+  branchName,
+  personLink,
+  markOwner = false,
 }: {
   people: CompanyUser[]
   roleNames: (code: string) => string
@@ -14,6 +18,15 @@ export function PeopleTable({
    * time yet, so each cell reads "Not available yet" (TODO(backend): SETTINGS.md row 6.1).
    */
   lastSignedIn?: boolean
+  /**
+   * Draws the branches column (BA-1): "Every branch" for the Owner and Administrators, else the
+   * person's branches by name. Absent, the column is not drawn.
+   */
+  branchName?: (id: string) => string | null
+  /** Where the person's name leads (their own page); absent, the name is plain text. */
+  personLink?: (person: CompanyUser) => string
+  /** Marks the company's Owner (OW-1); a branch access screen, so only once it is on. */
+  markOwner?: boolean
 }) {
   const { t } = useTranslation()
   return (
@@ -23,6 +36,7 @@ export function PeopleTable({
           <tr>
             <th className={TH}>{t('team.col.person')}</th>
             <th className={TH}>{t('team.col.role')}</th>
+            {branchName ? <th className={TH}>{t('branchAccess.col.branches')}</th> : null}
             <th className={TH}>{t('people.col.status')}</th>
             {lastSignedIn ? <th className={TH}>{t('team.col.lastSignedIn')}</th> : null}
             <th className={TH}>{t('people.col.authenticator')}</th>
@@ -32,12 +46,29 @@ export function PeopleTable({
           {people.map((person) => (
             <tr key={person.id} className="border-b border-surface-background last:border-0">
               <td className={TD}>
-                <span className="block font-semibold">{displayName(person)}</span>
+                <span className="flex flex-wrap items-center gap-2">
+                  {personLink ? (
+                    <Link
+                      to={personLink(person)}
+                      className="font-semibold text-primary-700 transition-colors hover:text-primary-800"
+                    >
+                      {displayName(person)}
+                    </Link>
+                  ) : (
+                    <span className="font-semibold">{displayName(person)}</span>
+                  )}
+                  {markOwner && person.owner ? <OwnerPill /> : null}
+                </span>
                 <span className="block text-text-tertiary">{person.email}</span>
               </td>
               <td className={TD}>
                 {person.roles.length ? person.roles.map(roleNames).join(', ') : t('people.noRole')}
               </td>
+              {branchName ? (
+                <td className={TD}>
+                  <BranchesCell person={person} branchName={branchName} />
+                </td>
+              ) : null}
               <td className={TD}>{t(`people.status.${personStatus(person)}`)}</td>
               {lastSignedIn ? (
                 <td className={TD}>
@@ -52,5 +83,45 @@ export function PeopleTable({
         </tbody>
       </table>
     </div>
+  )
+}
+
+/** The Owner's mark (OW-1), in the Pill shape the settings screens use for a state. */
+export function OwnerPill() {
+  const { t } = useTranslation()
+  return (
+    <span className="inline-flex h-[22px] items-center rounded-[3px] bg-primary-50 px-2 text-[10px] font-semibold uppercase tracking-[0.4px] text-primary-800">
+      {t('branchAccess.owner')}
+    </span>
+  )
+}
+
+/** Two names, then "+N": a person in many branches does not widen the row. */
+function BranchesCell({
+  person,
+  branchName,
+}: {
+  person: CompanyUser
+  branchName: (id: string) => string | null
+}) {
+  const { t } = useTranslation()
+  if (seesEveryBranch(person)) return <>{t('branchAccess.everyBranch')}</>
+  // An older server sends no branches at all, which is not the same as none.
+  if (person.branchIds === undefined) {
+    return <span className="text-text-quaternary">{t('branchAccess.notAvailableYet')}</span>
+  }
+  const names = (person.branchIds ?? [])
+    .map(branchName)
+    .filter((name): name is string => name !== null)
+  if (names.length === 0) {
+    return <span className="text-text-quaternary">{t('branchAccess.noBranch')}</span>
+  }
+  const shown = names.slice(0, 2).join(', ')
+  return (
+    <>
+      {names.length > 2
+        ? t('branchAccess.branchesAndMore', { names: shown, count: names.length - 2 })
+        : shown}
+    </>
   )
 }

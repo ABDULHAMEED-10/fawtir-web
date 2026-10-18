@@ -103,7 +103,9 @@ const SUBSCRIPTION_STATES = {
 const ROLES = [
   {
     id: 'r-admin',
-    code: 'TENANT_ADMIN',
+    // The server's code for the company Administrator (DefaultRoleCatalogue), so branch access
+    // reads Administrators as seeing every branch.
+    code: 'ADMIN',
     name: 'Administrator',
     description: 'Runs the company account.',
     enabled: true,
@@ -129,6 +131,33 @@ const ROLES = [
     enabled: true,
     systemRole: false,
     permissionCodes: ['invoice.read', 'customer.read', 'tenant.plan.read'],
+  },
+  {
+    id: 'r-sales',
+    code: 'SALES_MANAGER',
+    name: 'Sales manager',
+    description: 'Sells, invoices and follows up customers.',
+    enabled: true,
+    systemRole: true,
+    permissionCodes: ['invoice.read', 'invoice.draft', 'invoice.issue', 'customer.read', 'customer.manage'],
+  },
+  {
+    id: 'r-approver',
+    code: 'APPROVER',
+    name: 'Approver',
+    description: null,
+    enabled: true,
+    systemRole: true,
+    permissionCodes: ['invoice.approve'],
+  },
+  {
+    id: 'r-viewer',
+    code: 'VIEWER',
+    name: 'Viewer',
+    description: null,
+    enabled: true,
+    systemRole: true,
+    permissionCodes: ['invoice.read', 'customer.read'],
   },
 ]
 

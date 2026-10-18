@@ -92,6 +92,7 @@ import {
   ApprovalPolicyPage,
   AddBranchPage,
   InvitePage,
+  PersonPage,
   MakeRolePage,
 } from './pages/SettingsPage'
 import { DocumentDetailPage } from './pages/DocumentDetailPage'
@@ -353,6 +354,7 @@ function App() {
           <Route path="/settings/company" element={<CompanyProfilePage />} />
           <Route path="/settings/team" element={<TeamPage />} />
           <Route path="/settings/team/invite" element={<InvitePage />} />
+          <Route path="/settings/team/:userId" element={<PersonPage />} />
           <Route path="/settings/roles" element={<RolesPage />} />
           <Route path="/settings/roles/new" element={<DemoModule module="makeRole"><MakeRolePage /></DemoModule>} />
           <Route path="/settings/plan" element={<PlanPage />} />

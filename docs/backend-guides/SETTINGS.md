@@ -153,3 +153,24 @@ now.
 |---|---|---|
 | 9.1 | "Require it of everyone" under Two-step sign-in, with how many people would be prompted (counted from the users list). Drawn off, disabled | A tenant security policy: `GET`/`PUT /v1/settings/security` with `requireMfa` (permission `admin.settings.manage`), enforced at sign-in by asking anyone without an authenticator app to set one up |
 | 9.2 | "How long a session lasts": on a browser (a day, a week, a fortnight, a month) and on a till device (until the shift ends, a day, don't sign out). Both pickers disabled, "Not available yet" | On the same policy: `browserSessionLength` and `tillSessionLength` (as enums, not ISO durations), applied to the refresh-token lifetime for that kind of client |
+
+## Update 17 Oct 2026: branch access (rows 3.3 and 7.2 answered)
+
+Rows 3.3 and 7.2 are now built against the live API (backend #561 to #581): "Who works there" on a
+branch (`GET/PUT /v1/branches/{id}/people`) and "Which branches" on the invitation (`branchIds`).
+The same change adds the branches column and the Owner mark on Team members, and a page per person
+(`/settings/team/:userId`: role through `PUT /v1/users/{id}/role`, branches through
+`PUT /v1/users/{id}/branches`, own grants and denials through `GET/PUT /v1/users/{id}/permissions`,
+and the Owner's handover through `POST /v1/settings/owner/handover`). The rows above are kept as
+they were (append only).
+
+All of it waits for branch access to be switched on (`FAWTIR_IDENTITY_BRANCH_ACCESS_ENFORCED`, off
+in production): while it is off, Invite someone, Team members and a branch's "Who works there" are
+drawn exactly as before, the invitation names no branch (the server then gives every branch, BA-6),
+and a person's page goes back to Team members. The screens read "on" from `GET /v1/me/entitlements`
+(`src/lib/identity/branchAccessSwitch.ts`): `branchAccessEnforced` true, or, for a branch
+administrator, `branchAdministrator` true or `allBranches` false. A server without the field reads off.
+
+| # | Element on the screen | What the backend needs to add |
+|---|---|---|
+| 7.6 | Every branch access screen above, for the Owner and Administrators. Their session reads the same whether branch access is on or off (`allBranches` true, `branchAdministrator` false, `featureFlags` empty), so for them the screens stay as they were even once it is on | **Closed by backend PR #616** (Rixon-agency/fawtir-backend): `GET /v1/me/entitlements` carries `branchAccessEnforced: boolean`, true exactly when `FAWTIR_IDENTITY_BRANCH_ACCESS_ENFORCED` is, for every caller. The screens read it; a server before #616 omits it, which reads off |

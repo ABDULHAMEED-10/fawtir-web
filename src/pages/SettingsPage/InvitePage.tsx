@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
@@ -24,8 +24,10 @@ import { describeApiFailure } from '../../lib/apiFailure'
 import { subscriptionRestrictedAction } from '../../lib/subscriptionRestricted'
 import { PAID_EXTRAS_ROUTE, extraPlaceRequired } from '../../api/settings/paidExtras'
 import { permissionWords } from '../../lib/permissionLabels'
-import tickIcon from '../../assets/settings/check-green.svg'
-import circleIcon from '../../assets/settings/minus-amber.svg'
+import { useBranchAccessOn } from '../../lib/identity/branchAccessSwitch'
+import { BranchInviteForm } from './BranchInviteForm'
+import { Check, Panel, Row } from './invitePieces'
+import { useManagesPeople } from './peopleView'
 import chipYesIcon from '../../assets/settings/check-green.svg'
 import sendIcon from '../../assets/settings/check-white.svg'
 
@@ -38,6 +40,9 @@ import sendIcon from '../../assets/settings/check-white.svg'
  * and the "ask for two-step" switch are shown disabled with "Not available yet" and are never
  * sent (the server refuses unknown members), and the email preview is built from the session and
  * the form, labelled as a preview. Each gap is a SETTINGS.md row (7.1 to 7.5).
+ *
+ * This is the form while branch access is off. Once it is on (`useBranchAccessOn`), the form with
+ * one role and the branches (`BranchInviteForm`) replaces it.
  */
 export function InvitePage() {
   const { t } = useTranslation()
@@ -51,12 +56,19 @@ export function InvitePage() {
 
 /** Inside the shell, which is what provides the session the permission is read from. */
 function Gate() {
-  const mayManage = useCan(USERS_PERMISSION)
+  // Branch access off (production today): the form exactly as before, sending no branches, so the
+  // server gives the person every branch (BA-6). On: one role and the branches (BranchInviteForm).
+  const branchAccessOn = useBranchAccessOn()
+  const isAdministrator = useCan(USERS_PERMISSION)
+  // With branch access on, a branch administrator invites to their own branches too (LG-3).
+  const managesPeople = useManagesPeople()
+  const mayManage = branchAccessOn ? managesPeople : isAdministrator
   // While the subscription is read-only the form is not offered at all (ST-2); the line at the top
   // of the screen says why.
   const mayInvite = useSubscriptionAllows('ADD_PEOPLE')
   if (!mayManage) return <PermissionDeniedNotice />
-  return mayInvite ? <InviteForm /> : null
+  if (!mayInvite) return null
+  return branchAccessOn ? <BranchInviteForm /> : <InviteForm />
 }
 
 type Sent = { email: string }
@@ -404,77 +416,5 @@ function RoleChoice({
         ) : null}
       </span>
     </label>
-  )
-}
-
-function Panel({
-  title,
-  note,
-  action,
-  children,
-}: {
-  title: string
-  note: string
-  action?: ReactNode
-  children: ReactNode
-}) {
-  return (
-    <section className="rounded-md bg-surface-card">
-      <div className="flex flex-wrap items-start justify-between gap-3 p-5">
-        <div>
-          <h3 className="text-lg font-semibold leading-[1.2] text-text-primary">{title}</h3>
-          <p className="mt-0.5 text-xs font-medium text-text-quaternary">{note}</p>
-        </div>
-        {action}
-      </div>
-      <div className="p-5 pt-0">{children}</div>
-    </section>
-  )
-}
-
-function Check({ done, label }: { done: boolean; label: string }) {
-  return (
-    <li className="flex items-start gap-2">
-      <img src={done ? tickIcon : circleIcon} alt="" className="mt-0.5 size-4 shrink-0" />
-      <span
-        className={[
-          'text-sm font-medium leading-[1.4]',
-          done ? 'text-text-secondary' : 'text-text-quaternary',
-        ].join(' ')}
-      >
-        {label}
-      </span>
-    </li>
-  )
-}
-
-function Row({
-  label,
-  value,
-  muted,
-  last,
-}: {
-  label: string
-  value: string
-  muted?: boolean
-  last?: boolean
-}) {
-  return (
-    <div
-      className={[
-        'flex items-center justify-between gap-3 py-2.5',
-        last ? '' : 'border-b border-surface-background',
-      ].join(' ')}
-    >
-      <dt className="text-sm font-medium text-text-tertiary">{label}</dt>
-      <dd
-        className={[
-          'shrink-0 text-sm',
-          muted ? 'font-medium text-text-quaternary' : 'font-semibold text-text-primary',
-        ].join(' ')}
-      >
-        {value}
-      </dd>
-    </div>
   )
 }
