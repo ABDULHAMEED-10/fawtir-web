@@ -645,6 +645,86 @@ describe('D20 (a): a role that may pay but cannot read the view learns it from t
   })
 })
 
+describe('D20 (a): fawtirConnection on Settings > Billing tells every role up front', () => {
+  const leftOnBilling = (left: boolean) => {
+    answers[BILLING] = () => json(200, { ...OPEN_BILL, fawtirConnection: { leftFawtir: left } })
+  }
+  const posts = () => fetchMock.mock.calls.filter(([, init]) => (init?.method ?? 'GET') !== 'GET')
+
+  it('holds every way to pay back for a custom payer before any attempt, and says why', async () => {
+    me = PAYER_ONLY
+    leftOnBilling(true)
+    renderAt('/settings/bills', <BillingPage />)
+    expect(await screen.findByText(refusedNote())).toBeTruthy()
+    expect(await screen.findByText('FWT-SUB-2026-000007')).toBeTruthy()
+    await settled()
+    expect(method('BANK_TRANSFER')).toBeNull()
+    expect(method('CASH')).toBeNull()
+    expect(method('CARD')).toBeNull()
+    expect(screen.queryByText(i18n.t('fawtirReconnection.beforePaying.note'))).toBeNull()
+    expect(disconnectionReads()).toHaveLength(0)
+    expect(posts()).toHaveLength(0)
+    expect(fetchMock.mock.calls.filter(([url]) => url === BILLING)).toHaveLength(1)
+  })
+
+  it('prepares no next bill for a custom payer once the server says the company has left', async () => {
+    me = PAYER_ONLY
+    answers[BILLING] = () => json(200, billing([], { fawtirConnection: { leftFawtir: true } }))
+    renderAt('/settings/bills', <BillingPage />)
+    expect(await screen.findByText(refusedNote())).toBeTruthy()
+    await settled()
+    expect(screen.queryByRole('button', { name: i18n.t('billing.prepare') })).toBeNull()
+  })
+
+  it('holds buying extra documents and the dashboard link back for a custom payer too', async () => {
+    me = PAYER_ONLY
+    leftOnBilling(true)
+    const { unmount } = renderAt('/settings/plan/extra-documents', <ExtraDocumentsPage />)
+    expect(await screen.findByText(refusedNote())).toBeTruthy()
+    expect(
+      screen.queryByRole('button', {
+        name: i18n.t('extraDocuments.buy.submit'),
+      }),
+    ).toBeNull()
+    unmount()
+
+    resetSharedRequests()
+    renderAt('/', <BillDueCard />)
+    expect(await screen.findByText(i18n.t('billDue.title'))).toBeTruthy()
+    await settled()
+    expect(screen.queryByRole('link', { name: i18n.t('billDue.cta') })).toBeNull()
+  })
+
+  it('offers every way to pay when the server says the company has not left', async () => {
+    me = PAYER_ONLY
+    leftOnBilling(false)
+    renderAt('/settings/bills', <BillingPage />)
+    expect(
+      await screen.findByRole('radio', {
+        name: new RegExp(i18n.t('billing.method.CASH.title')),
+      }),
+    ).toBeTruthy()
+    expect(method('CARD')).toBeTruthy()
+    expect(screen.queryByText(refusedNote())).toBeNull()
+  })
+
+  it('without the field (an older server) offers paying until the refusal, as before', async () => {
+    me = PAYER_ONLY
+    answers[`POST ${BILLING}/bills/000007/cash-request`] = LEFT_REFUSAL
+    const user = userEvent.setup({ delay: null })
+    renderAt('/settings/bills', <BillingPage />)
+    await user.click(
+      await screen.findByRole('radio', {
+        name: new RegExp(i18n.t('billing.method.CASH.title')),
+      }),
+    )
+    expect(screen.queryByText(refusedNote())).toBeNull()
+    await user.click(screen.getByRole('button', { name: i18n.t('billing.cash.submit') }))
+    expect(await screen.findByText(refusedNote())).toBeTruthy()
+    expect(method('CASH')).toBeNull()
+  })
+})
+
 describe('D20 (b): a card checkout already opened is not continued once the company has left', () => {
   const HOSTED = 'https://oman.paymob.com/unifiedcheckout/?publicKey=pk_test&clientSecret=cs_test'
   const live = {

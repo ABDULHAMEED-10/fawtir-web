@@ -1,4 +1,5 @@
 import { ApiError } from '../api'
+import { resetFawtirConnection } from './fawtirConnection'
 
 /** The server's refusal of any new bill, payment or order once the company has left Fawtir (LV-6). */
 export const DISCONNECTED_FROM_FAWTIR = 'disconnected-from-fawtir'
@@ -33,8 +34,9 @@ export function subscribeLeftFawtirRefusal(listener: () => void): () => void {
   }
 }
 
-/** For tests only. */
+/** For tests only. Also forgets the last `fawtirConnection` Settings › Billing answered with. */
 export function resetLeftFawtirRefusal() {
   refused = false
   listeners.forEach((listener) => listener())
+  resetFawtirConnection()
 }
