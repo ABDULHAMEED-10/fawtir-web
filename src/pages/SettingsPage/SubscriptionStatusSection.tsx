@@ -60,8 +60,11 @@ type Pending = 'cancel' | 'keep' | 'withdrawChange' | null
 export function SubscriptionStatusSection({
   page,
   onPlanChanged,
+  onAction,
 }: {
   page: 'billing' | 'plan'
+  /** Before an action taken here: the page drops the sentence an earlier action left above. */
+  onAction?: () => void
   /** After a plan change made from here (keeping the plan, P2-2 D3): the page reads everything again. */
   onPlanChanged?: (why?: string) => void
 }) {
@@ -93,6 +96,7 @@ export function SubscriptionStatusSection({
   const act = async (which: Exclude<Pending, null>, call: () => Promise<SubscriptionStatusDto>) => {
     setPending(which)
     setFailure(null)
+    onAction?.()
     try {
       setLatest(await call())
       setConfirmCancel(false)
@@ -323,17 +327,20 @@ function Facts({ status }: { status: SubscriptionStatusDto }) {
         }
         note={t('subscription.fact.priceNote')}
       />
-      <Fact
-        label={t('subscription.fact.trial')}
-        value={
-          status.trialStartsOn
-            ? t('subscription.fact.trialRange', { start: date(status.trialStartsOn), end: date(status.trialEndsOn) })
-            : t('subscription.none')
-        }
-        note={
-          status.trialDaysLeft !== null ? t('subscription.fact.trialDaysLeft', { count: status.trialDaysLeft }) : undefined
-        }
-      />
+      {/* Only while the server reports a trial: once paid, the old trial dates are not news. */}
+      {status.access === 'TRIAL' ? (
+        <Fact
+          label={t('subscription.fact.trial')}
+          value={
+            status.trialStartsOn
+              ? t('subscription.fact.trialRange', { start: date(status.trialStartsOn), end: date(status.trialEndsOn) })
+              : t('subscription.none')
+          }
+          note={
+            status.trialDaysLeft !== null ? t('subscription.fact.trialDaysLeft', { count: status.trialDaysLeft }) : undefined
+          }
+        />
+      ) : null}
       <Fact label={t('subscription.fact.paidThrough')} value={date(status.paidThrough)} />
       <Fact
         label={t('subscription.fact.renewsOn')}

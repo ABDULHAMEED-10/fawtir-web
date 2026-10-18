@@ -22432,7 +22432,8 @@
         "DOWNGRADE": "Schedule the change",
         "CYCLE_TO_MONTHLY": "Schedule the change",
         "CHANGE_AT_ONCE": "Change now",
-        "NONE": "Confirm"
+        "NONE": "Confirm",
+        "TRIAL_UPGRADE": "Confirm and pay"
       },
       "priceChanged": "The price changed; check the new amount."
     },
@@ -22443,7 +22444,8 @@
       "DOWNGRADE": "{{from}} to {{to}} from {{date}}, your next renewal.",
       "CYCLE_TO_MONTHLY": "Monthly billing on {{to}} from {{date}}, when your paid year ends.",
       "CHANGE_AT_ONCE": "{{from}} to {{to}}: applies at once, with nothing to pay.",
-      "NONE": "This is already your plan and billing."
+      "NONE": "This is already your plan and billing.",
+      "TRIAL_UPGRADE": "{{from}} to {{to}}: applies as soon as it is paid, and ends your free trial."
     },
     "charge": {
       "period": "{{start}} to {{end}}: {{remaining}} of {{total}} days left",
@@ -22459,7 +22461,20 @@
       "payNowFrom_one": "You pay OMR {{total}} now for the {{n}} day from {{start}} to {{end}}.",
       "payNowFrom_other": "You pay OMR {{total}} now for the {{n}} days from {{start}} to {{end}}.",
       "payNowAnnual": "You pay OMR {{total}} now, and your subscription is paid until {{date}}.",
-      "nothingNow": "Nothing to pay now. From {{date}} the price is OMR {{price}} {{cycle}}; nothing is refunded for the current period."
+      "nothingNow": "Nothing to pay now. From {{date}} the price is OMR {{price}} {{cycle}}; nothing is refunded for the current period.",
+      "wholePeriod": {
+        "MONTHLY": "{{start}} to {{end}}: one whole month of {{plan}}",
+        "ANNUAL": "{{start}} to {{end}}: one whole year of {{plan}}"
+      },
+      "payNowTrial": {
+        "MONTHLY": "You pay OMR {{total}} now for one whole month of {{plan}}: {{start}} to {{end}}.",
+        "ANNUAL": "You pay OMR {{total}} now for one whole year of {{plan}}: {{start}} to {{end}}."
+      },
+      "extraTrial": {
+        "USER": "Extra users: {{n}} at OMR {{unit}} each for the period",
+        "BRANCH": "Extra branches: {{n}} at OMR {{unit}} each for the period",
+        "ERP_ADDON": "ERP and API add-on at OMR {{unit}} for the period"
+      }
     },
     "fact": {
       "allowanceAtOnce": "Your allowance becomes {{after}} documents a month at once; the {{used}} already used this month still count.",
@@ -22468,7 +22483,8 @@
       "cycleChangeOn": "Monthly billing starts on {{date}}, when your paid year ends.",
       "withdrawUntilPaid": "Once paid, it cannot be withdrawn. Until then you can withdraw it.",
       "withdrawBefore": "You can withdraw it any time before {{date}}.",
-      "endsTrial": "Paying ends your free trial at once: your paid period starts on the day you pay, and unused trial days are not carried over."
+      "endsTrial": "Paying ends your free trial at once: your paid period starts on the day you pay, and unused trial days are not carried over.",
+      "allowanceTrial": "Your allowance becomes {{after}} documents a month from the day you pay."
     },
     "loss": {
       "features": "{{plan}} does not have these, so they stop on {{date}}:",
@@ -22508,12 +22524,14 @@
       "note": {
         "UPGRADE": "Move to {{plan}}. It applies as soon as the payment is confirmed: your allowance rises at once and your subscription date stays the same.",
         "CYCLE_TO_ANNUAL": "Yearly billing on {{plan}}, paid until {{date}}. It applies as soon as the payment is confirmed.",
-        "KEEP_PLAN": "Keep {{plan}} instead of the smaller plan. It applies as soon as the payment is confirmed."
+        "KEEP_PLAN": "Keep {{plan}} instead of the smaller plan. It applies as soon as the payment is confirmed.",
+        "TRIAL_UPGRADE": "Move to {{plan}}. It applies as soon as the payment is confirmed: your free trial then ends, your paid period starts on the day you paid, and unused trial days are not carried over."
       },
       "line": {
         "UPGRADE": "Upgrade to {{plan}}",
         "CYCLE_TO_ANNUAL": "Yearly billing on {{plan}}",
-        "KEEP_PLAN": "Keep {{plan}}"
+        "KEEP_PLAN": "Keep {{plan}}",
+        "TRIAL_UPGRADE": "First paid period on {{plan}}"
       },
       "withdraw": "Withdraw the change",
       "withdrawn": "The change was withdrawn. Nothing is owed for it.",

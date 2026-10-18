@@ -107,7 +107,11 @@ export function PlanPage() {
         </p>
       ) : null}
       <Fragment key={revision}>
-        <SubscriptionStatusSection page="plan" onPlanChanged={changed} />
+        <SubscriptionStatusSection
+          page="plan"
+          onPlanChanged={changed}
+          onAction={() => setNotice(null)}
+        />
         <PlanBody onPlanChanged={changed} />
       </Fragment>
     </SettingsShell>

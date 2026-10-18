@@ -29,6 +29,8 @@ export type PlanChangeKind =
   | 'CYCLE_TO_MONTHLY'
   | 'CHANGE_AT_ONCE'
   | 'KEEP_PLAN'
+  /** A dearer plan bought in the free trial: a whole first period from the payment day (TR-5). */
+  | 'TRIAL_UPGRADE'
   | 'NONE'
 
 export type PlanChangeApplies = 'AT_ONCE_WHEN_PAID' | 'AT_ONCE' | 'ON_DATE' | 'NOTHING'

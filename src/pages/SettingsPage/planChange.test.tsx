@@ -1210,3 +1210,160 @@ describe('Plan changes: wording', () => {
     expect(JSON.stringify(en.planChange) + JSON.stringify(ar.planChange)).not.toMatch(/—/)
   })
 })
+
+/**
+ * TR-5 (D6, D15): in the free trial the server quotes a bigger plan as TRIAL_UPGRADE (backend
+ * #626): a whole first period of the new plan from the day the customer pays, nothing credited
+ * and nothing pro-rated. Every sentence is ours; no raw `planChange.` key may reach the screen.
+ */
+function trialUpgradeKind(over: Record<string, unknown> = {}) {
+  return trialUpgrade({
+    kind: 'TRIAL_UPGRADE',
+    from: side('STARTER', 'Starter', 'MONTHLY', '35.000'),
+    allowance: { now: 200, used: 0, afterChange: 3000 },
+    endsTrial: true,
+    ...over,
+  })
+}
+
+const TRIAL_PENDING = {
+  ...PENDING,
+  kind: 'TRIAL_UPGRADE',
+  fromPlanCode: 'STARTER',
+  windowEndsOn: '2026-11-10',
+  daysLeft: 31,
+  newPaidThrough: '2026-11-10',
+}
+
+const noRawKey = () =>
+  expect(document.body.textContent ?? '').not.toMatch(/planChange\.|subscription\.|billing\./)
+
+describe('Plan changes: TRIAL_UPGRADE from the server (TR-5, D6, D15)', () => {
+  for (const language of ['en', 'ar']) {
+    it(`words the dialog as a whole first period, with no raw key and no pro-rata (${language})`, async () => {
+      const user = userEvent.setup({ delay: null })
+      await i18n.changeLanguage(language)
+      answers[SUBSCRIPTION] = () =>
+        json(200, { ...TRIAL, planCode: 'STARTER', planName: 'Starter' })
+      answers[PREVIEW] = () => json(200, trialUpgradeKind())
+      renderPage()
+      await user.click(
+        await screen.findByRole('button', {
+          name: i18n.t('planChange.moveTo', { plan: 'Business Plus' }),
+        }),
+      )
+      const box = within(await dialog())
+      expect((await box.findAllByText('157.500')).length).toBeGreaterThan(0)
+      noRawKey()
+      expect(
+        box.getByRole('button', { name: i18n.t('planChange.dialog.confirm.TRIAL_UPGRADE') }),
+      ).toBeTruthy()
+      expect(box.getByText(i18n.t('planChange.fact.endsTrial'))).toBeTruthy()
+      // Not "31 of 31 days left", "the difference for the days left" or "the 0 already used".
+      const text = (await dialog()).textContent ?? ''
+      expect(text).not.toContain(
+        i18n.t('planChange.charge.period', {
+          start: '11 Oct 2026',
+          end: '10 Nov 2026',
+          remaining: '31',
+          total: '31',
+        }),
+      )
+      expect(text).not.toContain(
+        i18n.t('planChange.fact.allowanceAtOnce', { after: '3,000', used: '0' }),
+      )
+      expect(text).not.toMatch(/—/)
+    })
+  }
+
+  it("says the paid month runs from the day of payment, with the server's dates", async () => {
+    const user = userEvent.setup({ delay: null })
+    answers[SUBSCRIPTION] = () => json(200, { ...TRIAL, planCode: 'STARTER', planName: 'Starter' })
+    answers[PREVIEW] = () => json(200, trialUpgradeKind())
+    renderPage()
+    await user.click(await moveTo('Business Plus'))
+    const box = within(await dialog())
+    expect(
+      await box.findByText(
+        sentence(/one whole month of Business Plus: 11 Oct 2026 to 10 Nov 2026\.$/),
+      ),
+    ).toBeTruthy()
+    expect(box.getByText(i18n.t('planChange.fact.allowanceTrial', { after: '3,000' }))).toBeTruthy()
+  })
+
+  for (const language of ['en', 'ar']) {
+    it(`words the change waiting for payment with no raw key (${language})`, async () => {
+      await i18n.changeLanguage(language)
+      answers[SUBSCRIPTION] = () =>
+        json(200, { ...TRIAL, planCode: 'STARTER', planName: 'Starter' })
+      answers[CHANGES] = () => json(200, { available: true, pending: TRIAL_PENDING, history: [] })
+      renderPage()
+      expect(
+        await screen.findByText(
+          i18n.t('planChange.pending.note.TRIAL_UPGRADE', { plan: 'Business Plus' }),
+        ),
+      ).toBeTruthy()
+      await waitFor(() => expect(screen.queryByText(/FWT-SUB-2026-000061/)).toBeTruthy())
+      noRawKey()
+    })
+  }
+})
+
+describe('Plan page: the trial period row (F2)', () => {
+  it('shows the trial period while the server reports a trial', async () => {
+    answers[SUBSCRIPTION] = () => json(200, TRIAL)
+    renderPage()
+    expect(await screen.findByText(i18n.t('subscription.fact.trial'))).toBeTruthy()
+  })
+
+  it('drops it once the subscription is Active, even with the trial dates still sent', async () => {
+    answers[SUBSCRIPTION] = () =>
+      json(200, { ...ACTIVE, trialStartsOn: '2026-10-01', trialEndsOn: '2026-10-14' })
+    renderPage()
+    await screen.findByText(i18n.t('subscription.fact.paidThrough'))
+    expect(screen.queryByText(i18n.t('subscription.fact.trial'))).toBeNull()
+  })
+})
+
+describe('Plan page: the sentence after a change (F3)', () => {
+  it('clears the earlier "Done" when the booked change is then withdrawn', async () => {
+    const user = userEvent.setup({ delay: null })
+    answers[REQUEST] = () =>
+      json(201, {
+        ...PENDING,
+        id: null,
+        kind: 'DOWNGRADE',
+        status: null,
+        applies: 'ON_DATE',
+        effectiveOn: '2026-11-01',
+        toPlanCode: 'STARTER',
+        bill: null,
+      })
+    renderPage()
+    await user.click(await moveTo('Starter'))
+    await within(await dialog()).findByText(en.plan.featureName.approvals)
+    answers[SUBSCRIPTION] = () =>
+      json(200, {
+        ...ACTIVE,
+        scheduledChange: {
+          planCode: 'STARTER',
+          planName: 'Starter',
+          billingCycle: 'MONTHLY',
+          periodPrice: '35.000',
+          effectiveOn: '2026-11-01',
+          withdrawal: 'FREE',
+        },
+      })
+    await user.click(
+      screen.getByRole('button', { name: i18n.t('planChange.dialog.confirm.DOWNGRADE') }),
+    )
+    const done = i18n.t('planChange.done.scheduled', { plan: 'Starter', date: '1 Nov 2026' })
+    expect(await screen.findByText(done)).toBeTruthy()
+    answers[`DELETE ${SUBSCRIPTION}/scheduled-change`] = () => json(200, ACTIVE)
+    await user.click(
+      await screen.findByRole('button', { name: i18n.t('subscription.withdrawChange') }),
+    )
+    await waitFor(() => expect(calls(`DELETE ${SUBSCRIPTION}/scheduled-change`)).toHaveLength(1))
+    await waitFor(() => expect(screen.queryByText(done)).toBeNull())
+  })
+})

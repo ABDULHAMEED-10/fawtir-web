@@ -12,7 +12,9 @@
  * `=enterprise` quotes every move with `plan-change-via-fawtir` first in `blockers` and refuses it
  * (the company's own Enterprise terms, backend #598 and #614). `=trial` (pair it with
  * `MOCK_SUBSCRIPTION_STATE=trial`) quotes a bigger plan in the free trial as R1 has it: the trial
- * ends on payment and a whole paid month starts that day, with no trial days carried over.
+ * ends on payment and a whole paid month starts that day, with no trial days carried over, quoted
+ * `TRIAL_UPGRADE` as backend #626 does (TR-5); `=trialPending` starts with that change waiting for
+ * payment.
  *
  * A charged change issues a PLAN_CHANGE bill, listed on Bills and payment by `extraDocuments.mjs`
  * through {@link planChangeBillRows}; a downgrade is set as the subscription's scheduled change.
@@ -25,6 +27,7 @@ const YEAR_END = '2027-09-30'
 const VAT_RATE = '0.05000'
 const ON = process.env.MOCK_PLAN_CHANGE === 'on'
 const MODE = process.env.MOCK_PLAN_CHANGE_STATE ?? ''
+const TRIAL = MODE === 'trial' || MODE === 'trialPending'
 
 const PLANS = {
   STARTER: {
@@ -150,6 +153,39 @@ function preview(planCode, cycle) {
     }
   }
   const dearer = baisa(to.monthly) > baisa(PLANS.BUSINESS.monthly)
+  if (dearer && TRIAL) {
+    // TR-5: a whole first period of the new plan from today, the payment day; nothing credited.
+    const net = baisa(cycle === 'ANNUAL' ? to.annual : to.monthly)
+    const endsOn = cycle === 'ANNUAL' ? '2027-10-10' : '2026-11-10'
+    const days = cycle === 'ANNUAL' ? 365 : 31
+    return {
+      ...base,
+      subscriptionDate: 11,
+      kind: 'TRIAL_UPGRADE',
+      applies: 'AT_ONCE_WHEN_PAID',
+      effectiveOn: TODAY,
+      charge: charge({
+        periods: [
+          {
+            startsOn: TODAY,
+            endsOn,
+            totalDays: days,
+            remainingDays: days,
+            fromPrice: '0.000',
+            toPrice: omr(net),
+            amount: omr(net),
+          },
+        ],
+        net,
+        start: TODAY,
+        end: endsOn,
+        days,
+        newPaidThrough: endsOn,
+      }),
+      allowance: { now: 1000, used: 0, afterChange: to.documents },
+      endsTrial: true,
+    }
+  }
   if (cycle === 'ANNUAL' && planCode !== 'STARTER') {
     // PC-2: the year runs from 1 October; October's 80.000 is credited; the paid extra user moves
     // to 2.500 × 10 a year, less the 2.500 paid for October (PL-4).
@@ -177,35 +213,6 @@ function preview(planCode, cycle) {
         end: YEAR_END,
         days: 355,
         newPaidThrough: YEAR_END,
-      }),
-      allowance: allowance(to.documents),
-    }
-  }
-  if (dearer && MODE === 'trial' && cycle === 'MONTHLY') {
-    const net = baisa(to.monthly)
-    return {
-      ...base,
-      subscriptionDate: 11,
-      kind: 'UPGRADE',
-      applies: 'AT_ONCE_WHEN_PAID',
-      effectiveOn: TODAY,
-      charge: charge({
-        periods: [
-          {
-            startsOn: TODAY,
-            endsOn: '2026-11-10',
-            totalDays: 31,
-            remainingDays: 31,
-            fromPrice: '0.000',
-            toPrice: to.monthly,
-            amount: omr(net),
-          },
-        ],
-        net,
-        start: TODAY,
-        end: '2026-11-10',
-        days: 31,
-        newPaidThrough: '2026-11-10',
       }),
       allowance: allowance(to.documents),
     }
@@ -289,7 +296,7 @@ function bill(view, quote) {
 }
 
 function view(quote, id) {
-  const charged = ['UPGRADE', 'CYCLE_TO_ANNUAL', 'KEEP_PLAN'].includes(quote.kind)
+  const charged = ['UPGRADE', 'CYCLE_TO_ANNUAL', 'KEEP_PLAN', 'TRIAL_UPGRADE'].includes(quote.kind)
   const result = {
     id: charged ? id : null,
     kind: quote.kind,
@@ -317,7 +324,7 @@ function view(quote, id) {
   return result
 }
 
-if (ON && MODE === 'pending') state.pending = view(preview('BUSINESS_PLUS', 'MONTHLY'), 'pc-1')
+if (ON && (MODE === 'pending' || MODE === 'trialPending')) state.pending = view(preview('BUSINESS_PLUS', 'MONTHLY'), 'pc-1')
 
 /** The open plan-change bill as Bills and payment lists it (read by `extraDocuments.mjs`). */
 export function planChangeBillRows() {

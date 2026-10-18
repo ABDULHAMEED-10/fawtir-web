@@ -42,7 +42,7 @@ const PLAN_MANAGE = 'tenant.plan.manage'
 const LIVE_PAYMENT = ['SUBMITTED', 'RECEIPT_RECORDED', 'AWAITING_SECOND_APPROVAL']
 
 /** The kinds that issue a PLAN_CHANGE bill and apply once it is paid. */
-const CHARGED: PlanChangeKind[] = ['UPGRADE', 'CYCLE_TO_ANNUAL', 'KEEP_PLAN']
+const CHARGED: PlanChangeKind[] = ['UPGRADE', 'CYCLE_TO_ANNUAL', 'KEEP_PLAN', 'TRIAL_UPGRADE']
 
 /** Every refusal the plan-change routes give that has its own sentence (OpenAPI, P2-2). */
 const KNOWN_REFUSALS = [
@@ -282,6 +282,8 @@ function PreviewBody({ preview, inTrial }: { preview: PlanChangePreviewDto; inTr
   const atOnce = preview.applies === 'AT_ONCE' || preview.applies === 'AT_ONCE_WHEN_PAID'
   // R1: only once the server offers the charged change; while it is refused, the blocker says why.
   const endsTrial = inTrial && charged && preview.blockers.length === 0
+  // TR-5: a whole first period of the new plan from the payment day; nothing pro-rated or credited.
+  const trialUpgrade = preview.kind === 'TRIAL_UPGRADE'
 
   return (
     <div className="flex flex-col gap-4">
@@ -295,12 +297,20 @@ function PreviewBody({ preview, inTrial }: { preview: PlanChangePreviewDto; inTr
             {charge.periods.map((period) => (
               <Line
                 key={period.startsOn}
-                label={t('planChange.charge.period', {
-                  start: date(period.startsOn),
-                  end: date(period.endsOn),
-                  remaining: n(period.remainingDays),
-                  total: n(period.totalDays),
-                })}
+                label={
+                  trialUpgrade
+                    ? t(`planChange.charge.wholePeriod.${preview.to.cycle}`, {
+                        start: date(period.startsOn),
+                        end: date(period.endsOn),
+                        plan: to,
+                      })
+                    : t('planChange.charge.period', {
+                        start: date(period.startsOn),
+                        end: date(period.endsOn),
+                        remaining: n(period.remainingDays),
+                        total: n(period.totalDays),
+                      })
+                }
                 value={money(period.amount)}
               />
             ))}
@@ -319,7 +329,7 @@ function PreviewBody({ preview, inTrial }: { preview: PlanChangePreviewDto; inTr
               <Line
                 key={extra.type}
                 label={withRial(
-                  t(`planChange.charge.extra.${extra.type}`, {
+                  t(`planChange.charge.${trialUpgrade ? 'extraTrial' : 'extra'}.${extra.type}`, {
                     n: n(extra.count),
                     unit: amount(extra.annualUnitPrice),
                     credit: amount(extra.credit),
@@ -339,25 +349,32 @@ function PreviewBody({ preview, inTrial }: { preview: PlanChangePreviewDto; inTr
           </dl>
           <p className="text-sm font-medium leading-[1.6] text-text-secondary">
             {withRial(
-              preview.kind === 'CYCLE_TO_ANNUAL'
-                ? t('planChange.charge.payNowAnnual', {
+              trialUpgrade
+                ? t(`planChange.charge.payNowTrial.${preview.to.cycle}`, {
                     total: amount(charge.total),
-                    date: date(charge.newPaidThrough ?? charge.windowEndsOn),
+                    plan: to,
+                    start: date(charge.windowStartsOn),
+                    end: date(charge.newPaidThrough ?? charge.windowEndsOn),
                   })
-                : charge.includesToday
-                  ? t('planChange.charge.payNow', {
-                      count: charge.daysLeft,
+                : preview.kind === 'CYCLE_TO_ANNUAL'
+                  ? t('planChange.charge.payNowAnnual', {
                       total: amount(charge.total),
-                      n: n(charge.daysLeft),
-                      date: date(charge.windowEndsOn),
+                      date: date(charge.newPaidThrough ?? charge.windowEndsOn),
                     })
-                  : t('planChange.charge.payNowFrom', {
-                      count: charge.daysLeft,
-                      total: amount(charge.total),
-                      n: n(charge.daysLeft),
-                      start: date(charge.windowStartsOn),
-                      end: date(charge.windowEndsOn),
-                    }),
+                  : charge.includesToday
+                    ? t('planChange.charge.payNow', {
+                        count: charge.daysLeft,
+                        total: amount(charge.total),
+                        n: n(charge.daysLeft),
+                        date: date(charge.windowEndsOn),
+                      })
+                    : t('planChange.charge.payNowFrom', {
+                        count: charge.daysLeft,
+                        total: amount(charge.total),
+                        n: n(charge.daysLeft),
+                        start: date(charge.windowStartsOn),
+                        end: date(charge.windowEndsOn),
+                      }),
             )}
           </p>
         </div>
@@ -376,19 +393,26 @@ function PreviewBody({ preview, inTrial }: { preview: PlanChangePreviewDto; inTr
       <ul className="flex list-disc flex-col gap-2 ps-5 text-sm font-medium leading-[1.6] text-text-secondary">
         {preview.kind !== 'NONE' && preview.allowance.afterChange !== preview.allowance.now ? (
           <li>
-            {atOnce
-              ? t('planChange.fact.allowanceAtOnce', {
-                  after: n(preview.allowance.afterChange),
-                  used: n(preview.allowance.used),
-                })
-              : t('planChange.fact.allowanceOnDate', {
-                  after: n(preview.allowance.afterChange),
-                  date: date(preview.effectiveOn),
-                })}
+            {trialUpgrade
+              ? t('planChange.fact.allowanceTrial', { after: n(preview.allowance.afterChange) })
+              : atOnce
+                ? t('planChange.fact.allowanceAtOnce', {
+                    after: n(preview.allowance.afterChange),
+                    used: n(preview.allowance.used),
+                  })
+                : t('planChange.fact.allowanceOnDate', {
+                    after: n(preview.allowance.afterChange),
+                    date: date(preview.effectiveOn),
+                  })}
           </li>
         ) : null}
-        {endsTrial ? <li>{t('planChange.fact.endsTrial')}</li> : null}
-        {preview.kind !== 'NONE' && preview.subscriptionDate !== null && !inTrial ? (
+        {endsTrial || (trialUpgrade && preview.blockers.length === 0) ? (
+          <li>{t('planChange.fact.endsTrial')}</li>
+        ) : null}
+        {preview.kind !== 'NONE' &&
+        preview.subscriptionDate !== null &&
+        !inTrial &&
+        !trialUpgrade ? (
           <li>{t('planChange.fact.subscriptionDate', { day: n(preview.subscriptionDate) })}</li>
         ) : null}
         {preview.cycleChangeOn ? (
