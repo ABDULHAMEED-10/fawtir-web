@@ -13018,6 +13018,30 @@
         "viewPolicy": "View validation policy",
         "candidateRejected": "The proposed ID does not meet the validation policy in force.",
         "alreadyVerified": "This Participant ID is already verified for another company.",
+        "evidenceLabel": "Evidence reference",
+        "evidenceHint": "Cite the record you relied on: an https:// or evidence:// link to it, a urn:, a ticket key such as SUP-1200, or an evidence ID (UUID). No spaces, and no user name or password in a link.",
+        "evidenceError": {
+          "required": "Enter the evidence reference you relied on.",
+          "invalid": "Use one of the accepted forms: an https:// or evidence:// link with a path, a urn:, a ticket key such as SUP-1200, or an evidence ID (UUID). 6 to 500 characters, no spaces.",
+          "placeholder": "This looks like a placeholder. Cite the actual record you relied on.",
+          "credentials": "Remove the user name or password from this link."
+        },
+        "justificationLabel": "Justification",
+        "justificationHint": "Why the evidence supports this approval, in a sentence: 20–500 characters and at least three words.",
+        "justificationError": {
+          "required": "Explain why the evidence supports this approval.",
+          "invalid": "Write the justification on one line, without tabs or line breaks.",
+          "length": "Write between 20 and 500 characters.",
+          "words": "Write a sentence of at least three words.",
+          "repetitive": "Describe the decision in words rather than repeating characters."
+        },
+        "evidenceRefused": "Fawtir did not accept the evidence reference. Check it and approve again.",
+        "justificationRefused": "Fawtir did not accept the justification. Write a sentence explaining why the evidence supports this approval.",
+        "heldByTestBinding": "Another company holds this Participant ID as a test binding, so it cannot be approved here.",
+        "heldByManagedRegistration": "This Participant ID is registered in the SMP for another company, so it cannot be approved here.",
+        "heldByQuarantinedClaim": "Another company’s offboarding released this Participant ID, and it stays reserved until an authorised ownership transfer is approved.",
+        "claimConflict": "Another company claims this Participant ID, so it cannot be approved here.",
+        "claimContested": "Another company contests this Participant ID. Only a two-person transfer can settle it.",
         "standing": {
           "REVERIFICATION_REQUIRED": "Verified under an earlier policy",
           "NO_POLICY_IN_FORCE": "Verified, no policy in force"
