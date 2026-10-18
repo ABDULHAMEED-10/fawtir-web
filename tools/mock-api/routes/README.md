@@ -15,7 +15,8 @@ export default [
 ```
 
 `params` are the RegExp capture groups (`params[0]` is the first group), `query` is a
-`URLSearchParams`, `body` is the parsed JSON of a POST/PUT/PATCH (or `undefined`).
+`URLSearchParams`, `body` is the parsed JSON of a POST/PUT/PATCH (or `undefined`), `headers` the request's headers
+(lower-case names).
 
 Keep fixtures in the shape the frontend's `src/api/**` types expect — this is how the
 integrated screens render without a backend, for screenshots and the responsive harness only.

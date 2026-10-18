@@ -17,6 +17,8 @@ import { ACCOUNT_EMAIL_CONFIRM_ROUTE } from './lib/identity/accountEmail'
 import { COMPANY_INVITATION_ROUTE } from './lib/identity/operatorInvitation'
 import { PlansPage } from './pages/PlansPage'
 import { PaymentPage } from './pages/PaymentPage'
+import { PayDonePage, PayPage } from './pages/PayPage'
+import { PAY_DONE_ROUTE, PAY_ROUTE } from './lib/payLink'
 import { FawtaraStatusPage } from './pages/FawtaraStatusPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { InvoicesPage } from './pages/InvoicesPage'
@@ -221,6 +223,8 @@ function App() {
           <Route path="/verify-code" element={<VerifyCodePage />} />
           <Route path="/new-password" element={<NewPasswordPage />} />
           <Route path="/operator-invitation" element={<OperatorInvitationPage />} />
+          <Route path={PAY_ROUTE} element={<PayPage />} />
+          <Route path={PAY_DONE_ROUTE} element={<PayDonePage />} />
           <Route path={COMPANY_INVITATION_ROUTE} element={<CompanyInvitationPage />} />
           <Route path={ACCOUNT_EMAIL_CONFIRM_ROUTE} element={<AccountEmailConfirmPage />} />
           <Route path="/about-business" element={<AboutBusinessPage />} />

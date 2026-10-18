@@ -500,7 +500,7 @@ function AddonOffer({
   )
 }
 
-function Note({ icon, text }: { icon: string; text: string }) {
+export function Note({ icon, text }: { icon: string; text: string }) {
   return (
     <div className="flex gap-2 rounded-sm border border-black/10 bg-surface-card p-4">
       <img src={icon} alt="" className="mt-0.5 size-5 shrink-0" />
