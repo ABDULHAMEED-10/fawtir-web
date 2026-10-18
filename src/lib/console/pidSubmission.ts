@@ -200,6 +200,10 @@ const CLAIM_REFUSALS: ReadonlyMap<string, string> = new Map([
   ['PID_HELD_BY_MANAGED_REGISTRATION', 'console.verification.participant.heldByManagedRegistration'],
   ['PID_HELD_BY_QUARANTINED_CLAIM', 'console.verification.participant.heldByQuarantinedClaim'],
   ['PID_CLAIM_CONFLICT', 'console.verification.participant.claimConflict'],
+  // Not answered by /verify today: the backend raises it when a tenant's new draft would replace a
+  // contested verified ID. Kept because `SmpBlockerRefusal` is one vocabulary across these
+  // endpoints, and without the entry this 409 would fall through to "reload and look again",
+  // which cannot clear a contested claim.
   ['PID_CLAIM_CONTESTED', 'console.verification.participant.claimContested'],
 ])
 

@@ -13023,7 +13023,7 @@
         "justificationRefused": "Fawtir did not accept the justification. Write a sentence explaining why the evidence supports this approval.",
         "heldByTestBinding": "Another company holds this Participant ID as a test binding, so it cannot be approved here.",
         "heldByManagedRegistration": "This Participant ID is registered in the SMP for another company, so it cannot be approved here.",
-        "heldByQuarantinedClaim": "Another company that left Fawtir released this Participant ID. Only a two-person transfer can hand it to this company.",
+        "heldByQuarantinedClaim": "Another company’s offboarding released this Participant ID, and it stays reserved until an authorised ownership transfer is approved.",
         "claimConflict": "Another company claims this Participant ID, so it cannot be approved here.",
         "claimContested": "Another company contests this Participant ID. Only a two-person transfer can settle it.",
         "standing": {
