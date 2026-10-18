@@ -142,17 +142,22 @@ export function isLastTenantAdmin(user: PlatformUser, team: readonly PlatformUse
  * message. The screen stops the first two before sending, so they arrive only when its view of the
  * team was stale.
  *
- * A grant outside the production platform realm is refused with `IllegalArgumentException`, which
- * the backend answers as `500 internal-error`, so here it cannot be told apart from a fault.
+ * A change outside the production platform realm is `403 production-platform-realm-required` from
+ * backend PR #643 on; before it, the same refusal was `500 internal-error` and reads as a fault.
+ *
+ * A 404 is `resource-not-found` both for a person who has left the team and for a role code no
+ * platform role carries; the two differ only in English prose, which is never parsed, so the
+ * message names both rather than claim the person has gone.
  */
 export function describeRoleChangeFailure(error: unknown): FormMessage {
   if (error instanceof ApiError) {
     if (error.status === 403) {
       if (error.problemType === 'own-account-refused') return { key: 'console.operators.selfGive' }
       if (error.problemType === 'last-administrator') return { key: 'console.operators.lastAdmin' }
+      if (error.problemType === 'production-platform-realm-required') return { key: 'console.operators.error.realm' }
       return { key: 'console.operators.error.refused' }
     }
-    if (error.status === 404) return { key: 'console.operators.error.gone' }
+    if (error.status === 404) return { key: 'console.operators.error.roleTargetGone' }
   }
   return commonFailureMessage(error)
 }

@@ -13218,7 +13218,7 @@
       "roleNote": {
         "PLATFORM_TENANT_ADMIN": "Decides company verification, changes plans, and gives or removes operators’ roles.",
         "PLATFORM_SUPPORT": "Support work and Oman SMP administration.",
-        "PLATFORM_PARTICIPANT_OWNERSHIP": "Requests, approves or rejects moving a verified Peppol Participant ID between companies, and sees the moves waiting for a decision. Every move needs two different operators, each signed in with two-step sign-in."
+        "PLATFORM_PARTICIPANT_OWNERSHIP": "Requests, approves or rejects moving a verified Peppol Participant ID between companies, and sees the moves waiting for a decision and conflicting claims. Every move needs two different operators, each signed in with two-step sign-in."
       },
       "dialog": {
         "title": "Roles for {{name}}",
@@ -13247,7 +13247,9 @@
       "saved": "{{name}}’s roles were updated.",
       "error": {
         "refused": "Fawtir refused this change. Another operator may need to make it, it may leave the platform without tenant administration, or you may no longer have access.",
-        "gone": "This person is no longer on the platform team. Reload the page to see who is."
+        "gone": "This person is no longer on the platform team. Reload the page to see who is.",
+        "roleTargetGone": "Fawtir could not find this person on the platform team, or this role. Reload the page to see the current team and roles.",
+        "realm": "Platform roles can only be managed on the production platform tenant."
       },
       "invite": {
         "open": "Invite an operator",

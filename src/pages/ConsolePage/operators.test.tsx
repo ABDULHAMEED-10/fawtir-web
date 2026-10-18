@@ -436,7 +436,8 @@ describe('Roles dialog', () => {
 
   it.each([
     ['a refusal (403)', () => problem(403, 'insufficient-permission'), 'console.operators.error.refused'],
-    ['a person who has gone (404)', () => problem(404, 'resource-not-found'), 'console.operators.error.gone'],
+    ['a person or role that cannot be found (404)', () => problem(404, 'resource-not-found'), 'console.operators.error.roleTargetGone'],
+    ['a change outside the production platform realm (403)', () => problem(403, 'production-platform-realm-required'), 'console.operators.error.realm'],
     ['rate limiting (429)', () => problem(429, 'rate-limited'), 'identityErrors.rateLimited'],
     ['a server fault (500)', () => problem(500, 'internal-error'), 'identityErrors.service'],
     [
@@ -1608,5 +1609,7 @@ describe('Participant ID ownership role (V386)', () => {
     expect(within(dialog()).getByText('ملكية معرّف المشارك')).toBeTruthy()
     expect(within(dialog()).getByText(t(`console.operators.roleNote.${OWNERSHIP}`))).toBeTruthy()
     expect(dialog().textContent).not.toMatch(/Participant ID ownership|two different operators/)
+    expect(t('console.operators.error.realm')).toBe('لا يمكن إدارة أدوار المنصة إلا في مشترك المنصة الإنتاجي.')
+    expect(t('console.operators.error.roleTargetGone')).toMatch(/^لم يعثر فوتر/)
   })
 })

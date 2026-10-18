@@ -97,7 +97,8 @@ describe('describeRoleChangeFailure', () => {
     [new ApiError({ status: 403, problemType: 'own-account-refused' }), 'console.operators.selfGive'],
     [new ApiError({ status: 403, problemType: 'last-administrator' }), 'console.operators.lastAdmin'],
     [new ApiError({ status: 403, problemType: null }), 'console.operators.error.refused'],
-    [new ApiError({ status: 404, problemType: 'resource-not-found' }), 'console.operators.error.gone'],
+    [new ApiError({ status: 404, problemType: 'resource-not-found' }), 'console.operators.error.roleTargetGone'],
+    [new ApiError({ status: 403, problemType: 'production-platform-realm-required' }), 'console.operators.error.realm'],
     [new ApiError({ status: 500, problemType: 'internal-error' }), 'identityErrors.service'],
     [new NetworkError('timeout'), 'identityErrors.timeout'],
   ])('maps %o', (error, key) => {
