@@ -17,6 +17,7 @@ import { useSignupPaymentOptions } from '../../hooks/useSignupPaymentOptions'
 import {
   PAYMENT_METHOD_CODE,
   REVIEW_ROUTE,
+  planCodeFor,
   recordPaymentPreference,
   uploadSignupPaymentEvidence,
   type EnrollmentChoice,
@@ -27,14 +28,14 @@ import {
 import { onboardingStateFrom, planDisplayName, type OnboardingState } from '../../lib/onboarding'
 import {
   formatBaisa,
-  formatOmr,
   toBaisa,
   type BillingCycle,
   type PlanId,
   type SignupPaymentMethod,
   extractionOffer,
-  extractionMonthly,
 } from '../../lib/pricing'
+import { baisaOf, readSignupPlans } from '../../lib/identity/signupPlans'
+import { usePlanCatalogue } from '../PlansPage/catalogueView'
 import { PLATFORM_SETTINGS } from '../../lib/platformSettings'
 import { isConfirmedPayment } from '../../lib/identity/signupRejection'
 import { sellerName } from '../../api/settings/billing'
@@ -89,6 +90,15 @@ export function PaymentForm() {
   // Automatic ERP extraction: offered as a priced add-on only where the console says so (handbook
   // section 6).
   const offer = extractionOffer(plan)
+  // N1: the add-on's monthly price is the server's (the plan's `erpAddonMonthlyPrice`); with none
+  // sent, no figure is shown rather than the console's default.
+  const catalogue = usePlanCatalogue('signup-plans', readSignupPlans).read
+  const addonMonthlyBaisa =
+    catalogue.status === 'ready'
+      ? baisaOf(
+          catalogue.plans.find((entry) => entry.code === planCodeFor(plan))?.erpAddonMonthlyPrice,
+        )
+      : null
   const [addon, setAddon] = useState(Boolean(state.addon))
   const months = billing === 'annual' ? 12 : 1
 
@@ -350,6 +360,7 @@ export function PaymentForm() {
                   setAddon(checked)
                 }}
                 months={months}
+                monthlyBaisa={addonMonthlyBaisa}
               />
             ) : null}
             <OrderSummaryCard
@@ -359,7 +370,9 @@ export function PaymentForm() {
               termsRead={termsRead}
               seller={sellerName(options?.seller, i18n.language)}
               addonBaisa={
-                addon && offer === 'priced' ? toBaisa(extractionMonthly()) * months : null
+                addon && offer === 'priced' && addonMonthlyBaisa !== null
+                  ? addonMonthlyBaisa * months
+                  : null
               }
               when={when}
               payNow={!trialChosen}
@@ -458,21 +471,23 @@ function MethodAvailabilityNote({
 }
 
 /**
- * The add-on offer beside the order (handbook section 6). The tick is a request: it is not saved
- * yet (TODO(backend), ONBOARDING.md row 1.3) and the Fawtir team confirms it, so the words say
- * "requested" and promise nothing the product does not do, such as writing back to the ERP.
+ * The add-on offer beside the order (handbook section 6). The tick is saved with the payment
+ * preference; the add-on is never part of the sign-up payment but gets a bill of its own for the
+ * first paid period (backend #611), so the words say that and promise nothing the product does
+ * not do, such as writing back to the ERP. The price is the server's; without one, none is shown.
  */
 function AddonOffer({
   checked,
   onChange,
   months,
+  monthlyBaisa,
 }: {
   checked: boolean
   onChange: (next: boolean) => void
   months: number
+  monthlyBaisa: number | null
 }) {
   const { t } = useTranslation()
-  const monthly = extractionMonthly()
   return (
     <div className="w-full rounded-sm border border-[#f3f3f3] bg-surface-card px-[18px] py-4">
       <p className="text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
@@ -488,14 +503,20 @@ function AddonOffer({
       <p className="mt-1.5 text-xs font-medium leading-[1.5] text-text-tertiary">
         {t('payment.addon.body')}
       </p>
-      <p className="mt-2 flex items-baseline gap-1 text-sm font-semibold text-text-primary">
-        <OmAmount size="xs" amount={formatOmr(monthly)} amountClassName="font-semibold" />
-        <span className="text-xs font-medium text-text-quaternary">
-          {months > 1
-            ? t('payment.addon.perMonthTimes', { count: months })
-            : t('payment.addon.perMonth')}
-        </span>
-      </p>
+      {monthlyBaisa !== null ? (
+        <p className="mt-2 flex items-baseline gap-1 text-sm font-semibold text-text-primary">
+          <OmAmount size="xs" amount={formatBaisa(monthlyBaisa)} amountClassName="font-semibold" />
+          <span className="text-xs font-medium text-text-quaternary">
+            {months > 1
+              ? t('payment.addon.perMonthTimes', { count: months })
+              : t('payment.addon.perMonth')}
+          </span>
+        </p>
+      ) : (
+        <p className="mt-2 text-xs font-medium leading-[1.5] text-text-tertiary">
+          {t('payment.addon.priceLater')}
+        </p>
+      )}
     </div>
   )
 }
