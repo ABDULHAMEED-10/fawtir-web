@@ -448,7 +448,9 @@ function TenantDetail({
         overview={prototype ? withLedger(overview, subscription, t) : overview}
       />
 
-      {prototype ? null : <CompanySubscriptionCards tenantId={tenantId} />}
+      {prototype ? null : (
+        <CompanySubscriptionCards tenantId={tenantId} tenantCode={overview.identity.tenantCode} />
+      )}
 
       {prototype ? null : (
         <TenantErpEntitlementCard tenantId={tenantId} tenantCode={overview.identity.tenantCode} />
