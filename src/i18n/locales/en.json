@@ -15592,7 +15592,8 @@
         "askedAt": "When they asked",
         "reason": "Reason",
         "submit": "Start disconnection"
-      }
+      },
+      "kindTab": "Disconnections"
     },
     "enterprise": {
       "title": "Enterprise companies",
@@ -15709,6 +15710,104 @@
         "forbidden": "You cannot set Enterprise terms. Sign in again with two-step verification, or ask a platform administrator.",
         "gone": "This company could not be found. It may have been closed.",
         "invalid": "Fawtir did not accept these terms. Check the figures and try again."
+      }
+    },
+    "reconnections": {
+      "tab": "Reconnections",
+      "subtitle": "Companies coming back to Fawtir: accepting them on the Fawtara Portal and adding them back to the Oman SMP, and by when.",
+      "emptyOpen": "No reconnection needs action.",
+      "empty": "No reconnection requests.",
+      "panelTitle": "Coming back to Fawtir",
+      "effectiveDue": "Effective now",
+      "effectiveDueNote": "The effective date has come: issuing is back. The system records it shortly.",
+      "smpOutside": "Add the company to the Oman SMP outside this console, then record it here. This console only records the step.",
+      "col": {
+        "origin": "Asked from"
+      },
+      "status": {
+        "REQUESTED": "Requested",
+        "ACCEPTED": "Accepted",
+        "CONNECTED": "Connected",
+        "NOT_COMPLETED": "Not completed",
+        "WITHDRAWN": "Withdrawn"
+      },
+      "next": {
+        "ACCEPT_ON_PORTAL": "Accept the connection on the Fawtara Portal",
+        "ADD_TO_SMP": "Add the company back to the Oman SMP",
+        "NONE": "Nothing to do"
+      },
+      "via": {
+        "CALL": "Phone call",
+        "EMAIL": "E-mail",
+        "PORTAL_NOTICE": "Connect request seen on the Fawtara Portal"
+      },
+      "notCompleted": {
+        "PORTAL_REQUEST_NOT_FOUND": "No connection request on the Fawtara Portal",
+        "DECLINED": "Declined by Fawtir"
+      },
+      "fact": {
+        "askedVia": "Asked by",
+        "note": "Note",
+        "accepted": "Accepted on the portal",
+        "effectiveFrom": "Effective from",
+        "connected": "Connected",
+        "smpDue": "SMP add due",
+        "smpAdded": "Added to the SMP",
+        "subscription": "Subscription"
+      },
+      "subscriptionResumed": "The end the disconnection scheduled was withdrawn",
+      "subscriptionUnchanged": "Unchanged: the customer's own end stands, or the period had ended",
+      "step": {
+        "REQUESTED": "Requested",
+        "PORTAL_CONNECTION_ACCEPTED": "Accepted on the Fawtara Portal",
+        "CONNECTION_EFFECTIVE": "Connection took effect",
+        "PORTAL_REQUEST_NOT_FOUND": "No connection request on the Fawtara Portal",
+        "CONNECTION_DECLINED": "Declined",
+        "WITHDRAWN": "Withdrawn",
+        "SMP_ADDED": "Recorded as added to the Oman SMP"
+      },
+      "record": {
+        "PORTAL_CONNECTION_ACCEPTED": "Accepted the connection on the Fawtara Portal",
+        "PORTAL_REQUEST_NOT_FOUND": "Found no connection request on the Fawtara Portal",
+        "CONNECTION_DECLINED": "Declined the connection",
+        "WITHDRAWN": "Withdrawn on the customer's behalf",
+        "SMP_ADDED": "Record that the company was added to the Oman SMP"
+      },
+      "recordHint": {
+        "PORTAL_CONNECTION_ACCEPTED": "Issuing comes back from the acceptance or the effective date, whichever is later. The SMP add is then due within 3 business days.",
+        "PORTAL_REQUEST_NOT_FOUND": "The request closes as not completed; the customer is asked to choose Fawtir on the portal and tell us again.",
+        "CONNECTION_DECLINED": "Only for abuse or fraud. The reason stays with Fawtir; the customer is not told it.",
+        "WITHDRAWN": "Only before Fawtir accepts it. The company stays disconnected.",
+        "SMP_ADDED": "Records the SMP add made outside this console. It changes no status."
+      },
+      "form": {
+        "effectiveFrom": "Effective from (optional)",
+        "effectiveNote": "The date the company chose on the portal, Oman time. Leave empty for the acceptance.",
+        "declineReason": "Reason (required)",
+        "declineNote": "Never shown or e-mailed to the customer."
+      },
+      "card": {
+        "title": "Coming back to Fawtir",
+        "none": "The company has not asked to come back.",
+        "openInQueue": "Open in reconnections",
+        "start": "Start a reconnection",
+        "started": "Started. The owner and administrators are e-mailed now."
+      },
+      "start": {
+        "title": "Start a reconnection",
+        "note": "Record how the company told us it is coming back: by phone or e-mail, or the connect request you saw on the Fawtara Portal.",
+        "via": "How we heard",
+        "askedByOptional": "Who asked (optional)",
+        "seenAt": "When you saw it",
+        "submit": "Start the reconnection"
+      },
+      "refusal": {
+        "reconnection-state-conflict": "That can't follow where the reconnection stands now. The latest state is shown.",
+        "reconnection-not-open": "Reconnecting is switched off on this server.",
+        "disconnection-state-conflict": "This company has not left Fawtir, so there is nothing to reconnect.",
+        "production-platform-realm-required": "Reconnections are handled only from the production Fawtir console.",
+        "impersonation-not-allowed": "This can't be done while signed in as a company.",
+        "invalid": "Check the details: a date can't be later than now, the effective date can't be before it, a decline needs a reason, and who asked is needed unless it was seen on the portal."
       }
     }
   },
@@ -22409,6 +22508,51 @@
       },
       "extraPlaceAsk": "Ask an administrator to add one.",
       "extraPlaceLink": "Add places"
+    }
+  },
+  "fawtirReconnection": {
+    "title": "Coming back to Fawtir",
+    "how": {
+      "portal": "On the Fawtara Portal, choose Fawtir as your service provider and complete the stages there.",
+      "tellUs": "Tell us below.",
+      "accept": "Fawtir accepts the connection on the portal. You can issue again once it takes effect."
+    },
+    "confirm": "I've chosen Fawtir on the Fawtara Portal",
+    "tell": "Tell Fawtir I'm coming back",
+    "tellAgain": "Tell Fawtir again",
+    "withdraw": "Withdraw",
+    "onYourBehalf": "Fawtir support started this on your behalf.",
+    "acceptedNote": "This can't be withdrawn now. To stop it, disconnect again after that date.",
+    "carriesOn": "Your subscription carries on as before.",
+    "renewNeeded": "Your paid period ended while you were away. Renew to start issuing: the new period starts on the day you pay.",
+    "renewLink": "Go to Plan",
+    "status": {
+      "REQUESTED": "Waiting for Fawtir",
+      "ACCEPTED": "Accepted",
+      "CONNECTED": "Connected again",
+      "NOT_COMPLETED": "Not completed",
+      "WITHDRAWN": "Withdrawn"
+    },
+    "line": {
+      "requested": "Received on {{date}}. Fawtir will accept your connection on the Fawtara Portal and e-mail you when it's done.",
+      "accepted": "Fawtir accepted your connection on the Fawtara Portal. You reconnect on {{date}}.",
+      "connected": "Connected to Fawtir again on {{date}}. Issuing e-invoices is back.",
+      "notFound": "Closed on {{date}}: we didn't find your connection request on the Fawtara Portal. Choose Fawtir as your provider there, then tell us again.",
+      "declined": "Closed on {{date}}: Fawtir did not accept the connection. Contact us for details.",
+      "withdrawn": "Withdrawn on {{date}}. You're still disconnected from Fawtir."
+    },
+    "step": {
+      "REQUESTED": "You told Fawtir you're coming back",
+      "PORTAL_CONNECTION_ACCEPTED": "Fawtir accepted the connection on the Fawtara Portal",
+      "CONNECTION_EFFECTIVE": "Connection took effect",
+      "PORTAL_REQUEST_NOT_FOUND": "No connection request found on the Fawtara Portal",
+      "CONNECTION_DECLINED": "Fawtir did not accept the connection",
+      "WITHDRAWN": "Withdrawn",
+      "SMP_ADDED": "Added back to the Oman SMP"
+    },
+    "error": {
+      "notOpen": "Coming back to Fawtir isn't open yet. Contact Fawtir support.",
+      "confirm": "Tick the box to confirm you've chosen Fawtir on the Fawtara Portal."
     }
   }
 }
