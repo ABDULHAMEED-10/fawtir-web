@@ -178,6 +178,7 @@ import {
   ConsoleBankAccountsPage,
   ConsoleBillingSettingsPage,
   ConsoleSellerPage,
+  ConsoleCompanyContactPage,
   ConsoleDisconnectionsPage,
   ConsoleEnterprisePage,
   ConsoleEnterpriseTermsPage,
@@ -839,6 +840,7 @@ function App() {
           <Route path="/console/billing/accounts" element={<ConsoleBankAccountsPage />} />
           <Route path="/console/billing/settings" element={<ConsoleBillingSettingsPage />} />
           <Route path="/console/billing/seller" element={<ConsoleSellerPage />} />
+          <Route path="/console/company-contact" element={<ConsoleCompanyContactPage />} />
           <Route path="/console/disconnections" element={<ConsoleDisconnectionsPage />} />
           <Route path="/console/operators" element={<OperatorsPage />} />
           <Route path="/console/policies" element={<ValidationPoliciesPage />} />

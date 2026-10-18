@@ -12582,7 +12582,8 @@
       "billingSettings": "Billing settings",
       "seller": "Seller",
       "disconnections": "Disconnections",
-      "enterprise": "Enterprise"
+      "enterprise": "Enterprise",
+      "companyContact": "Contact details"
     },
     "user": {
       "team": "Fawtir team",
@@ -15969,6 +15970,41 @@
         "forbidden": "You cannot set Enterprise terms. Sign in again with two-step verification, or ask a platform administrator.",
         "gone": "This company could not be found. It may have been closed.",
         "invalid": "Fawtir did not accept these terms. Check the figures and try again."
+      }
+    },
+    "companyContact": {
+      "title": "Contact details",
+      "subtitle": "How customers and visitors reach Fawtir. The app, Fawtir's emails and the website's Contact page all show these details.",
+      "loading": "Loading the contact details",
+      "none": "No contact details have been saved yet. The app and the website show their earlier details until you save these.",
+      "card": "Fawtir contact details",
+      "cardNote": "Saving publishes a new version. The website can take up to five minutes to show it.",
+      "readOnly": "You can view these details. Changing them needs the billing manage permission.",
+      "supportEmail": "Support email",
+      "supportPhone": "Support phone",
+      "supportPhoneHint": "In international form, starting with +. For example +968 2400 0000.",
+      "websiteUrl": "Website",
+      "urlHint": "Optional. A full address starting with https://",
+      "addressEn": "Address (English)",
+      "addressAr": "Address (Arabic)",
+      "linkedinUrl": "LinkedIn page",
+      "instagramUrl": "Instagram page",
+      "optional": "Optional",
+      "reason": "Why this change",
+      "history": "Earlier versions",
+      "version": "Version {{version}}",
+      "historyFailed": "The earlier versions could not be loaded.",
+      "error": {
+        "email": "Enter an email address, for example support@example.com",
+        "phone": "Start with + and the country code, then 7 to 18 digits",
+        "url": "Enter a full address starting with https://"
+      },
+      "refusal": {
+        "conflict": "Someone else changed the contact details while you were editing. They have been reloaded: check them and save again.",
+        "invalid": "The server did not accept these details. Check them and try again.",
+        "realm": "Contact details are changed from the production console only.",
+        "impersonation": "End the impersonation before changing the contact details.",
+        "forbidden": "You can't change these details. Confirm your sign-in code again, or ask an operator with the billing manage permission."
       }
     },
     "reconnections": {
@@ -21855,8 +21891,7 @@
         "questionTitle": "Have any question?",
         "emailTitle": "Our email",
         "addressTitle": "Our address",
-        "address": "Al Rusayl 124, Sultanate of Oman",
-        "phone": "Toll free {{number}}"
+        "address": "Al Rusayl 124, Sultanate of Oman"
       }
     }
   },
