@@ -408,17 +408,44 @@ export type CustomerAck =
   | 'youReceived'
   | 'notOnPeppol'
   | 'noCustomer'
+  | 'deliveredUnconfirmed'
   | 'waiting'
   | 'refused'
 
+/**
+ * AB is kept apart from AP. The backend's SubmissionState defines AB as "delivered without
+ * confirmation": the receiving access point forwarded the invoice but cannot confirm the customer
+ * holds it, so "Received it" claimed exactly what it declined to say. AB is also final there (the
+ * first valid MLS is the one that counts), so it does not read as "not yet accepted" either.
+ */
 export function customerAckOf(item: ActivityItemDto): CustomerAck {
   if (item.direction === 'RECEIVED') return 'youReceived'
   if (item.b2c) return 'noCustomer'
   if (item.scenario?.stand_in_id || item.tdd_scope === 'INP') return 'notOnPeppol'
   const ack = item.invoice_leg.ack
-  if (ack === 'AP' || ack === 'AB') return 'received'
+  if (ack === 'AP') return 'received'
+  if (ack === 'AB') return 'deliveredUnconfirmed'
   if (ack === 'RE') return 'refused'
   return 'waiting'
+}
+
+/**
+ * The invoice ledger states (`peppol.invoices.state`, SubmissionState) the server still moves on
+ * its own: queued, on the wire, or AS4-received and awaiting the MLS.
+ */
+const INVOICE_IN_FLIGHT: ReadonlySet<string> = new Set(['QUEUED', 'SENDING', 'SENT'])
+
+/**
+ * Whether a row still owes the screen an answer: the customer's access point has not sent its MLS
+ * on an invoice that is on its way, or the OTA has not answered a submitted report. A report that
+ * was never submitted, or that Fawtir stopped, is not awaiting anyone (N5).
+ */
+export function awaitsAnswer(item: ActivityItemDto): boolean {
+  if (outcomeOf(item) === 'waiting') return true
+  return (
+    customerAckOf(item) === 'waiting' &&
+    INVOICE_IN_FLIGHT.has((item.transport_state ?? '').toUpperCase())
+  )
 }
 
 /** Whole seconds between two instants, or null when either is missing. */

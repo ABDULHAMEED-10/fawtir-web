@@ -10,6 +10,7 @@ import type {
 } from '../../api/compliance/activity'
 import {
   ACK_TONE,
+  awaitsAnswer,
   canResubmit,
   customerAckOf,
   flowOf,
@@ -387,6 +388,43 @@ describe('one row, as the frame reads it', () => {
     )
   })
 
+  // The backend's SubmissionState: AB is "delivered without confirmation", and final.
+  it('never says the customer received an invoice their access point would not confirm', () => {
+    const ab = item({ invoice_leg: { ack: 'AB', ack_at: '2026-09-20T08:01:00Z', reason: null } })
+    expect(customerAckOf(ab)).toBe('deliveredUnconfirmed')
+    expect(i18n.t('activity.ack.deliveredUnconfirmed', { lng: 'en' })).toBe(
+      'Delivered, unconfirmed',
+    )
+    expect(i18n.t('activity.ack.deliveredUnconfirmed', { lng: 'ar' })).toBe('سُلّمت دون تأكيد')
+  })
+
+  it('knows which rows still owe the screen an answer', () => {
+    const silentInvoice = { ack: 'NONE' as const, ack_at: null, reason: null }
+    const silentTdd = { ...item().tdd_leg!, ack: 'NONE' as const, ack_at: null }
+    // Nothing owed: both legs answered.
+    expect(awaitsAnswer(item())).toBe(false)
+    // The customer's MLS, on an invoice queued, on the wire, or AS4-received.
+    for (const transport_state of ['QUEUED', 'SENDING', 'SENT']) {
+      expect(awaitsAnswer(item({ transport_state, invoice_leg: silentInvoice })), transport_state).toBe(
+        true,
+      )
+    }
+    // An outcome, or a customer nobody reaches over Peppol, owes nothing more.
+    for (const transport_state of ['UNDELIVERABLE', 'C4_UNREACHABLE', 'DELIVERED']) {
+      expect(awaitsAnswer(item({ transport_state, invoice_leg: silentInvoice })), transport_state).toBe(
+        false,
+      )
+    }
+    expect(awaitsAnswer(item({ b2c: true, transport_state: 'SENT', invoice_leg: silentInvoice }))).toBe(
+      false,
+    )
+    expect(awaitsAnswer(item({ direction: 'RECEIVED', invoice_leg: silentInvoice }))).toBe(false)
+    // The OTA's MLS on a submitted report; not on one never submitted or stopped at Fawtir.
+    expect(awaitsAnswer(item({ tdd_leg: silentTdd }))).toBe(true)
+    expect(awaitsAnswer(item({ tdd_leg: { ...silentTdd, submitted_at: null } }))).toBe(false)
+    expect(awaitsAnswer(item({ tdd_leg: { ...silentTdd, status: 'DEAD_LETTERED' } }))).toBe(false)
+  })
+
   it('says a document a supplier sent us was received by us', () => {
     expect(customerAckOf(item({ direction: 'RECEIVED' }))).toBe('youReceived')
     // Reported by us as the receiver, never "flow 1" as if we sent it.
@@ -446,6 +484,98 @@ describe('the ledger screen', () => {
     expect(within(table).getByText('What the OTA said')).toBeTruthy()
     expect(within(table).getByText('Customer')).toBeTruthy()
     expect(within(table).getByText('Received it')).toBeTruthy()
+  })
+
+  it('says AB is delivered without confirmation, in English and Arabic', async () => {
+    items = [item({ invoice_leg: { ack: 'AB', ack_at: '2026-09-20T08:01:00Z', reason: null } })]
+    const view = renderLedger()
+    const table = await screen.findByRole('table')
+    expect(within(table).getByText('Delivered, unconfirmed')).toBeTruthy()
+    expect(within(table).queryByText('Received it')).toBeNull()
+    view.unmount()
+
+    await i18n.changeLanguage('ar')
+    renderLedger()
+    expect(within(await screen.findByRole('table')).getByText('سُلّمت دون تأكيد')).toBeTruthy()
+  })
+
+  describe('while a row awaits an answer', () => {
+    const listReads = () =>
+      calls('/compliance/activity').filter((url) => !url.includes('/compliance/activity/summary'))
+    const summaryReads = () => calls('/compliance/activity/summary')
+    const silent = () =>
+      item({ transport_state: 'SENT', invoice_leg: { ack: 'NONE', ack_at: null, reason: null } })
+
+    beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }))
+    afterEach(() => vi.useRealTimers())
+
+    it('re-reads the list alone, quietly, until the answer lands, then stops', async () => {
+      items = [silent()]
+      renderLedger()
+      const table = await screen.findByRole('table')
+      expect(within(table).getByText('Not yet')).toBeTruthy()
+      expect(listReads()).toHaveLength(1)
+
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(listReads()).toHaveLength(2)
+      // No loader between reads: the rows stay on screen.
+      expect(screen.getByRole('table')).toBeTruthy()
+
+      items = [item()]
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(listReads()).toHaveLength(3)
+      expect(await within(screen.getByRole('table')).findByText('Received it')).toBeTruthy()
+
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+      expect(listReads()).toHaveLength(3)
+      // One request per refresh: the summary is not re-read with it.
+      expect(summaryReads()).toHaveLength(1)
+    })
+
+    it('stops at its cap when no answer comes', async () => {
+      items = [silent()]
+      renderLedger()
+      await screen.findByRole('table')
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+      expect(listReads()).toHaveLength(16)
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+      expect(listReads()).toHaveLength(16)
+    })
+
+    it('asks nothing more when every row is answered', async () => {
+      renderLedger()
+      await screen.findByRole('table')
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+      expect(listReads()).toHaveLength(1)
+    })
+
+    // Review M1: the quiet rows were keyed by path, so after a visit to another tab they came
+    // back over the fresh read of the first one.
+    it('shows the fresh read, not old quiet rows, on coming back to a list', async () => {
+      const numbered = (invoice_number: string) => ({ ...silent(), invoice_number })
+      items = [numbered('INV-FIRST')]
+      renderLedger()
+      await screen.findByText('INV-FIRST')
+
+      items = [numbered('INV-QUIET')]
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(await screen.findByText('INV-QUIET')).toBeTruthy()
+
+      items = [numbered('INV-FRESH')]
+      fireEvent.click(screen.getByRole('tab', { name: /^Rejected/ }))
+      await screen.findByText('INV-FRESH')
+      fireEvent.click(screen.getByRole('tab', { name: /^All/ }))
+      await waitFor(() => expect(listReads()).toHaveLength(4))
+      // Asserted as the loud read lands, before the next quiet read could paper over the defect.
+      await vi.advanceTimersByTimeAsync(50)
+      expect(listReads()).toHaveLength(4)
+      expect(screen.getByText('INV-FRESH')).toBeTruthy()
+      expect(screen.queryByText('INV-QUIET')).toBeNull()
+
+      // The watch starts again for the list on screen.
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(listReads()).toHaveLength(5)
+    })
   })
 
   it('draws the frame: its cards, its tabs and its columns', async () => {
