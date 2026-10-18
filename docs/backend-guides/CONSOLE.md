@@ -68,9 +68,9 @@ The terms screen reads and writes `GET/PUT /v1/platform/companies/{id}/enterpris
 `/quote`, and lists companies from `GET /v1/platform/enterprise-terms` (V348). The customer's
 Plan and usage reads `enterprise.termsSet` on `/v1/settings/plan` and `/v1/settings/subscription`.
 
-| # | What the screen shows | What the backend must add |
+| # | What the screen shows | Backend |
 |---|---|---|
-| 3.1 | **ERP add-on price a month** on the terms form (empty = not offered as a paid add-on) | An `erpAddonMonthlyPrice` field on the terms request and on the plan version it publishes (the paid-extras add-on price). Not drawn until the request takes it; a note points to the ERP access card for ERP included in the contract |
-| 3.2 | Who saved each set of terms, by name | `createdByName` on each `history` entry. Today only `createdBy` (an id) is recorded, so the screen shows "you" for the reader's own saves and the id otherwise |
-| 3.3 | The Enterprise view on the customer's Plan and usage for every company on Enterprise terms | `enterprise` on `/settings/plan` and `/settings/subscription` is null unless the company chose Enterprise at sign-up, so a company moved to Enterprise by Fawtir's sales sees the plan list and a withdrawable "you move to" line. It should be set for any company that holds its own Enterprise plan |
-| 3.4 | New Enterprise terms waiting for the renewal, with no withdraw button | `DELETE /settings/subscription/scheduled-change` should refuse to withdraw terms an operator scheduled (`ENTERPRISE_TERMS_SCHEDULED`); the screen hides the button, the server does not refuse yet |
+| 3.1 | **ERP add-on price a month** on the terms form (empty = not offered as a paid add-on) | Done: `erpAddonMonthlyPrice` on the terms request and the plan version (above zero, needs `erpMapping`). ERP included in the contract stays the ERP access card |
+| 3.2 | Who saved each set of terms, by name | Done: `createdByName` on each `history` entry; the screen shows "you" for the reader's own saves, the name otherwise, and the id only when the server has no name |
+| 3.3 | The Enterprise view on the customer's Plan and usage for every company on Enterprise terms | Done: `enterprise` is set for a company that chose Enterprise at sign-up or holds its own Enterprise plan. One still on a public plan reads `termsSet: false` (TERMS_NOT_SET): "terms being prepared" for the customer, "Terms not set" in the console |
+| 3.4 | New Enterprise terms waiting for the renewal, with no withdraw button | Done: `DELETE /settings/subscription/scheduled-change` refuses with 409 `enterprise-terms-scheduled-by-fawtir` |

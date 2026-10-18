@@ -15930,7 +15930,9 @@
         "applyNote": "Before anything is paid, saved terms apply at once and replace any open bill. Once a period is paid, they apply from the next renewal.",
         "lastChange": "Last change: {{reason}}, {{when}}",
         "quoting": "Preparing the quote…",
-        "save": "Save terms"
+        "save": "Save terms",
+        "erpAddonPrice": "ERP and API add-on, a month",
+        "erpAddonHint": "Leave empty if the add-on is not offered as a paid extra."
       },
       "confirm": {
         "titleSet": "Set these Enterprise terms?",
@@ -15954,7 +15956,9 @@
         "contract": "Contract {{reference}}"
       },
       "validation": {
-        "contractLength": "Use 100 characters or fewer"
+        "contractLength": "Use 100 characters or fewer",
+        "erpAddonAboveZero": "Enter an amount above zero, or leave this empty",
+        "erpAddonNeedsMapping": "Switch on ERP field mapping under Features to offer the add-on"
       },
       "refusal": {
         "conflict": "Someone else changed these terms since you opened them. Reload them and make your change again.",
