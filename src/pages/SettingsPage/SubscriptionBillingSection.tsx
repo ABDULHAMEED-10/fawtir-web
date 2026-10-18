@@ -38,6 +38,7 @@ import {
   loadExtraDocuments,
   type ExtraDocumentsOverviewDto,
 } from '../../api/settings/extraDocuments'
+import { usePayingHeldUntilReconnected } from '../../hooks/usePayingHeldUntilReconnected'
 
 const LIVE: SubscriptionPaymentDto['status'][] = ['SUBMITTED', 'RECEIPT_RECORDED', 'AWAITING_SECOND_APPROVAL']
 const PROOF_ACCEPT = '.pdf,.png,.jpg,.jpeg'
@@ -207,6 +208,8 @@ function NoOutstandingBill({
   afterRejection?: boolean
 }) {
   const { t } = useTranslation()
+  // LV-6: no new bill is prepared once the company has left Fawtir (A3.8).
+  const held = usePayingHeldUntilReconnected()
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
   const prepare = async () => {
@@ -224,7 +227,7 @@ function NoOutstandingBill({
   return (
     <div className="flex flex-col gap-3">
       {afterRejection ? null : <p className="text-sm font-medium text-text-secondary">{t('billing.nothingDue')}</p>}
-      {canPay ? (
+      {canPay && !held ? (
         <div>
           <Button variant="secondary" size="md" disabled={busy} onClick={prepare}>
             {t('billing.prepare')}
@@ -269,6 +272,9 @@ export function OutstandingBill({
   const seller = sellerName(bill.seller, i18n.language)
   // The bill carries the plan's English name only (F37): an Arabic reader gets its Arabic name.
   const planName = usePlanName()(bill.planCode, bill.planName)
+  // LV-6: no card, bank transfer or cash payment starts once the company has left Fawtir (A3.8).
+  // A payment already sent stays as it is, and can still be withdrawn.
+  const held = usePayingHeldUntilReconnected()
 
   return (
     <div className="flex flex-col gap-4">
@@ -323,7 +329,7 @@ export function OutstandingBill({
               {t('billing.rejected', { reason: withoutFinalStop(lastRejected.rejectionReason ?? '') })}
             </Alert>
           ) : null}
-          {canPay ? <PayForm bill={bill} card={card} overview={overview} onSubmitted={onChanged} /> : null}
+          {canPay && !held ? <PayForm bill={bill} card={card} overview={overview} onSubmitted={onChanged} /> : null}
         </>
       )}
     </div>

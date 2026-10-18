@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { OutstandingBill, formatRate } from './SubscriptionBillingSection'
 import { ReconnectBeforePayingNote } from './ReconnectBeforePayingNote'
+import { usePayingHeldUntilReconnected } from '../../hooks/usePayingHeldUntilReconnected'
 import { useApiRead, type ApiRead } from '../../hooks'
 import { usePlanName } from '../../hooks/usePlanName'
 import { useCan } from '../../lib/session/session'
@@ -64,6 +65,8 @@ function ExtraDocumentsBody() {
   const { t, i18n } = useTranslation()
   const extras = useApiRead<ExtraDocumentsOverviewDto>(EXTRA_DOCUMENTS_PATH, loadExtraDocuments)
   const mayManage = useCan(PLAN_MANAGE)
+  // LV-6: no extra documents are ordered once the company has left Fawtir (A3.8).
+  const held = usePayingHeldUntilReconnected()
   const outstanding = extras.read.status === 'ready' ? extras.read.data.outstanding : null
   // The bill's payments and the ways to pay come from Bills and payment, read only once there is
   // a bill to pay.
@@ -118,6 +121,7 @@ function ExtraDocumentsBody() {
           billing={billing.read}
           retryBilling={billing.retry}
           mayManage={mayManage}
+          held={held}
           reportedCards={reportedCards}
           onChanged={reload}
           onCardFinished={(paymentId, why) => {
@@ -125,7 +129,7 @@ function ExtraDocumentsBody() {
             reload(why)
           }}
         />
-      ) : mayManage ? (
+      ) : held ? null : mayManage ? (
         <SectionCard title={t('extraDocuments.buy.title')} note={t('extraDocuments.buy.note')}>
           <div className="p-5 pt-0">
             <BuyForm data={data} initial={data.minPerPurchase} onOrdered={() => reload()} />
@@ -394,6 +398,7 @@ function OrderCard({
   billing,
   retryBilling,
   mayManage,
+  held,
   reportedCards,
   onChanged,
   onCardFinished,
@@ -403,6 +408,8 @@ function OrderCard({
   billing: ApiRead<BillingOverviewDto>
   retryBilling: () => void
   mayManage: boolean
+  /** Changing the order places a new one, which the server refuses once the company has left. */
+  held: boolean
   reportedCards: ReadonlySet<string>
   onChanged: (why?: string) => void
   onCardFinished: (paymentId: string, why: string) => void
@@ -422,8 +429,8 @@ function OrderCard({
     const listed = billing.data.bills.find((entry) => entry.bill.id === order.bill.id)
     const payments = listed?.payments ?? []
     const live = payments.some((payment) => LIVE_PAYMENT.includes(payment.status))
-    const changeable = mayManage && order.bill.status === 'OPEN' && !live && listed !== undefined
-    body = changing ? (
+    const changeable = mayManage && !held && order.bill.status === 'OPEN' && !live && listed !== undefined
+    body = changing && !held ? (
       <div className="flex flex-col gap-3">
         <p className="text-sm font-medium text-text-secondary">{t('extraDocuments.order.replaces')}</p>
         <BuyForm

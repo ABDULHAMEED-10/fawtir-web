@@ -22,7 +22,13 @@ let answer: () => Response
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   resetSharedRequests()
-  vi.stubGlobal('fetch', vi.fn(async () => answer()))
+  // Only the billing read is answered: who is signed in stays unknown, so nothing else is asked.
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) =>
+      url === '/api/v1/me/entitlements' ? json(404, { type: 'about:blank' }) : answer(),
+    ),
+  )
 })
 afterEach(() => vi.unstubAllGlobals())
 
