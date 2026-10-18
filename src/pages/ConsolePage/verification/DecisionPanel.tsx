@@ -39,6 +39,11 @@ type DecisionPanelProps = {
    * is true when the decision was a FINAL rejection, which closes the application.
    */
   onDecided: (outcome: VerificationStatus | null, final?: boolean) => void
+  /**
+   * The application was sent back and its correction is overdue (D11): the only decision left is
+   * to close it with a final rejection, so the panel offers that alone.
+   */
+  closeOverdue?: boolean
 }
 
 /**
@@ -49,7 +54,13 @@ type DecisionPanelProps = {
  * (the revision the decision quotes, the evidence digest, the four-eyes rule); what this panel
  * checks locally only saves a request that would certainly be refused.
  */
-export function DecisionPanel({ company, operatorId, paymentStatus, onDecided }: DecisionPanelProps) {
+export function DecisionPanel({
+  company,
+  operatorId,
+  paymentStatus,
+  onDecided,
+  closeOverdue = false,
+}: DecisionPanelProps) {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const [evidence, setEvidence] = useState<EvidenceUpload | null>(null)
@@ -63,7 +74,9 @@ export function DecisionPanel({ company, operatorId, paymentStatus, onDecided }:
   const [reasonTouched, setReasonTouched] = useState(false)
   // CORRECTABLE unless the reviewer says otherwise: a final refusal closes the application and
   // opens a refund for confirmed money, so it is never the default (owner, 12 Oct 2026).
-  const [classification, setClassification] = useState<RejectionClassification>('CORRECTABLE')
+  const [classification, setClassification] = useState<RejectionClassification>(
+    closeOverdue ? 'FINAL' : 'CORRECTABLE',
+  )
   const [finalReason, setFinalReason] = useState('')
   const [deciding, setDeciding] = useState(false)
   const [decisionError, setDecisionError] = useState<FormMessage | null>(null)
@@ -153,7 +166,7 @@ export function DecisionPanel({ company, operatorId, paymentStatus, onDecided }:
   const openDialog = (next: Exclude<Dialog, null>) => {
     setDecisionError(null)
     setReasonTouched(false)
-    setClassification('CORRECTABLE')
+    setClassification(closeOverdue ? 'FINAL' : 'CORRECTABLE')
     setFinalReason('')
     setDialog(next)
   }
@@ -170,117 +183,137 @@ export function DecisionPanel({ company, operatorId, paymentStatus, onDecided }:
 
   return (
     <ReviewCard title={t('console.verification.decision.title')}>
-      <p className="pb-3 text-sm font-medium leading-[1.6] text-text-tertiary">
-        {t('console.verification.decision.intro')}
-      </p>
-
-      <FileDropzone
-        accept={EVIDENCE_ACCEPT}
-        maxBytes={EVIDENCE_MAX_BYTES}
-        onFiles={(files) => void upload(files[0])}
-        onReject={(problem) =>
-          setUploadError({
-            key:
-              problem === 'size'
-                ? 'console.verification.decision.tooLargeLocal'
-                : 'console.verification.decision.wrongType',
-          })
-        }
-      >
-        {({ dragging }) => (
-          <span
-            aria-busy={uploading || undefined}
-            className={[
-              'flex min-h-[129px] flex-col items-center justify-center gap-2 rounded-sm border border-dashed px-4 py-6 text-center transition-colors',
-              dragging ? 'border-primary-700 bg-primary-25' : 'border-primary-300 bg-surface-tab-bar',
-            ].join(' ')}
-          >
-            <img src={uploadIcon} alt="" className="size-6" />
-            <span className="text-sm font-semibold text-text-secondary">
-              {uploading
-                ? t('console.verification.decision.uploading')
-                : evidence
-                  ? t('console.verification.decision.replace')
-                  : t('console.verification.decision.upload')}
-            </span>
-            <span className="text-sm font-medium text-text-quaternary">
-              {t('console.verification.decision.uploadHint')}
-            </span>
-          </span>
-        )}
-      </FileDropzone>
-
-      {uploadError ? (
-        <p role="alert" className="mt-2 text-sm font-medium text-danger-700">
-          {t(uploadError.key, uploadError.values)}
-        </p>
-      ) : null}
-
-      {evidence ? (
-        <div className="mt-2">
-          <ReviewLine
-            label={t('console.verification.decision.evidenceFile')}
-            value={evidence.filename ?? t('console.verification.detail.none')}
-          />
-          <ReviewLine label={t('console.verification.decision.evidenceSize')} value={size} />
-        </div>
-      ) : null}
-      {evidenceStale ? (
-        <p role="alert" className="mt-2 text-sm font-medium text-danger-700">
-          {t('console.verification.decision.staleEvidence')}
-        </p>
-      ) : null}
-
-      <div className="mt-4">
-        <Input
-          bordered
-          requiredMark
-          name="attestationReference"
-          label={t('console.verification.decision.reference')}
-          // The field's own hint prints at 10 px; this one is drawn below at the 12 px helper size
-          // and stays tied to the field for screen readers. An error replaces it, as before.
-          aria-describedby={referenceShowsError ? undefined : referenceHintId}
-          value={reference}
-          maxLength={100}
-          autoComplete="off"
-          spellCheck={false}
-          onChange={(event) => setReference(event.target.value)}
-          onBlur={() => setReferenceTouched(true)}
-          error={
-            referenceTouched && referenceProblem
-              ? t(
-                  referenceProblem === 'required'
-                    ? 'console.verification.decision.referenceRequired'
-                    : 'console.verification.decision.referenceInvalid',
-                )
-              : undefined
-          }
-        />
-        {referenceShowsError ? null : (
-          <p
-            id={referenceHintId}
-            className="mt-1.5 text-xs font-medium leading-[1.4] text-text-tertiary"
-          >
-            {t('console.verification.decision.referenceHint')}
+      {closeOverdue ? (
+        <>
+          <p className="pb-3 text-sm font-medium leading-[1.6] text-text-tertiary">
+            {t('console.verification.correctionOverdue.closeIntro')}{' '}
+            {t('console.verification.correctionOverdue.refund')}
           </p>
-        )}
-      </div>
+          <ConsoleButton
+            type="button"
+            size="md"
+            variant="secondary"
+            fullWidth
+            onClick={() => openDialog('reject')}
+          >
+            {t('console.verification.correctionOverdue.close')}
+          </ConsoleButton>
+        </>
+      ) : (
+        <>
+          <p className="pb-3 text-sm font-medium leading-[1.6] text-text-tertiary">
+            {t('console.verification.decision.intro')}
+          </p>
 
-      <div className="mt-4 flex flex-col gap-2.5">
-        <ConsoleButton type="button" size="md" fullWidth disabled={!canVerify} onClick={() => openDialog('verify')}>
-          {t('console.verification.decision.verify')}
-        </ConsoleButton>
-        <ConsoleButton
-          type="button"
-          size="md"
-          variant="secondary"
-          fullWidth
-          disabled={uploading}
-          onClick={() => openDialog('reject')}
-        >
-          {t('console.verification.decision.reject')}
-        </ConsoleButton>
-      </div>
+          <FileDropzone
+            accept={EVIDENCE_ACCEPT}
+            maxBytes={EVIDENCE_MAX_BYTES}
+            onFiles={(files) => void upload(files[0])}
+            onReject={(problem) =>
+              setUploadError({
+                key:
+                  problem === 'size'
+                    ? 'console.verification.decision.tooLargeLocal'
+                    : 'console.verification.decision.wrongType',
+              })
+            }
+          >
+            {({ dragging }) => (
+              <span
+                aria-busy={uploading || undefined}
+                className={[
+                  'flex min-h-[129px] flex-col items-center justify-center gap-2 rounded-sm border border-dashed px-4 py-6 text-center transition-colors',
+                  dragging ? 'border-primary-700 bg-primary-25' : 'border-primary-300 bg-surface-tab-bar',
+                ].join(' ')}
+              >
+                <img src={uploadIcon} alt="" className="size-6" />
+                <span className="text-sm font-semibold text-text-secondary">
+                  {uploading
+                    ? t('console.verification.decision.uploading')
+                    : evidence
+                      ? t('console.verification.decision.replace')
+                      : t('console.verification.decision.upload')}
+                </span>
+                <span className="text-sm font-medium text-text-quaternary">
+                  {t('console.verification.decision.uploadHint')}
+                </span>
+              </span>
+            )}
+          </FileDropzone>
+
+          {uploadError ? (
+            <p role="alert" className="mt-2 text-sm font-medium text-danger-700">
+              {t(uploadError.key, uploadError.values)}
+            </p>
+          ) : null}
+
+          {evidence ? (
+            <div className="mt-2">
+              <ReviewLine
+                label={t('console.verification.decision.evidenceFile')}
+                value={evidence.filename ?? t('console.verification.detail.none')}
+              />
+              <ReviewLine label={t('console.verification.decision.evidenceSize')} value={size} />
+            </div>
+          ) : null}
+          {evidenceStale ? (
+            <p role="alert" className="mt-2 text-sm font-medium text-danger-700">
+              {t('console.verification.decision.staleEvidence')}
+            </p>
+          ) : null}
+
+          <div className="mt-4">
+            <Input
+              bordered
+              requiredMark
+              name="attestationReference"
+              label={t('console.verification.decision.reference')}
+              // The field's own hint prints at 10 px; this one is drawn below at the 12 px helper size
+              // and stays tied to the field for screen readers. An error replaces it, as before.
+              aria-describedby={referenceShowsError ? undefined : referenceHintId}
+              value={reference}
+              maxLength={100}
+              autoComplete="off"
+              spellCheck={false}
+              onChange={(event) => setReference(event.target.value)}
+              onBlur={() => setReferenceTouched(true)}
+              error={
+                referenceTouched && referenceProblem
+                  ? t(
+                      referenceProblem === 'required'
+                        ? 'console.verification.decision.referenceRequired'
+                        : 'console.verification.decision.referenceInvalid',
+                    )
+                  : undefined
+              }
+            />
+            {referenceShowsError ? null : (
+              <p
+                id={referenceHintId}
+                className="mt-1.5 text-xs font-medium leading-[1.4] text-text-tertiary"
+              >
+                {t('console.verification.decision.referenceHint')}
+              </p>
+            )}
+          </div>
+
+          <div className="mt-4 flex flex-col gap-2.5">
+            <ConsoleButton type="button" size="md" fullWidth disabled={!canVerify} onClick={() => openDialog('verify')}>
+              {t('console.verification.decision.verify')}
+            </ConsoleButton>
+            <ConsoleButton
+              type="button"
+              size="md"
+              variant="secondary"
+              fullWidth
+              disabled={uploading}
+              onClick={() => openDialog('reject')}
+            >
+              {t('console.verification.decision.reject')}
+            </ConsoleButton>
+          </div>
+        </>
+      )}
 
       <Modal
         open={dialog !== null}
@@ -354,31 +387,33 @@ export function DecisionPanel({ company, operatorId, paymentStatus, onDecided }:
                   {t('console.verification.decision.reasonRequired')}
                 </p>
               ) : null}
-              <fieldset className="mt-2 flex flex-col gap-2">
-                <legend className="text-sm font-medium text-text-secondary">
-                  {t('console.verification.decision.classification')}
-                </legend>
-                {(['CORRECTABLE', 'FINAL'] as const).map((option) => (
-                  <label key={option} className="flex items-start gap-2 text-sm text-text-secondary">
-                    <input
-                      type="radio"
-                      name="rejection-classification"
-                      value={option}
-                      checked={classification === option}
-                      onChange={() => setClassification(option)}
-                      className="mt-1"
-                    />
-                    <span>
-                      <span className="font-semibold text-text-primary">
-                        {t(`console.verification.decision.classificationOption.${option}.title`)}
+              {closeOverdue ? null : (
+                <fieldset className="mt-2 flex flex-col gap-2">
+                  <legend className="text-sm font-medium text-text-secondary">
+                    {t('console.verification.decision.classification')}
+                  </legend>
+                  {(['CORRECTABLE', 'FINAL'] as const).map((option) => (
+                    <label key={option} className="flex items-start gap-2 text-sm text-text-secondary">
+                      <input
+                        type="radio"
+                        name="rejection-classification"
+                        value={option}
+                        checked={classification === option}
+                        onChange={() => setClassification(option)}
+                        className="mt-1"
+                      />
+                      <span>
+                        <span className="font-semibold text-text-primary">
+                          {t(`console.verification.decision.classificationOption.${option}.title`)}
+                        </span>
+                        <span className="block text-xs font-medium text-text-tertiary">
+                          {t(`console.verification.decision.classificationOption.${option}.body`)}
+                        </span>
                       </span>
-                      <span className="block text-xs font-medium text-text-tertiary">
-                        {t(`console.verification.decision.classificationOption.${option}.body`)}
-                      </span>
-                    </span>
-                  </label>
-                ))}
-              </fieldset>
+                    </label>
+                  ))}
+                </fieldset>
+              )}
               {classification === 'FINAL' ? (
                 <label className="flex flex-col gap-1 text-sm font-medium text-text-secondary">
                   {t('console.verification.decision.finalReason')}

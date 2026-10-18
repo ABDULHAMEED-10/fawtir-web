@@ -10,8 +10,10 @@ import {
   REVIEW_PERMISSION,
   VERIFICATION_ROUTE,
   companyPath,
+  correctionOverdueSince,
   historyPath,
   isCompanyId,
+  isCorrectionOverdue,
   isSubmitted,
   queueReturnOf,
   signupPaymentPath,
@@ -21,7 +23,7 @@ import {
   type VerificationStatus,
 } from '../../lib/console/companyVerification'
 import { countryName, localeFor } from '../../lib/console/format'
-import { formatInstant, formatInstantDay } from '../../lib/format'
+import { formatDate, formatInstant, formatInstantDay } from '../../lib/format'
 import { peekEntitlements } from '../../lib/identity/entitlements'
 import { DecisionPanel } from './verification/DecisionPanel'
 import { ParticipantPanel } from './verification/ParticipantPanel'
@@ -142,6 +144,7 @@ function CompanyView({
   const moment = (iso: string | null) => (iso ? formatInstant(iso, language) : none)
   const submitted = isSubmitted(company)
   const heldPayment = payment.status === 'ready' ? payment.data : null
+  const overdue = submitted && isCorrectionOverdue(company)
 
   return (
     <>
@@ -166,6 +169,14 @@ function CompanyView({
           {t('console.verification.detail.notSubmitted')}
         </p>
       )}
+
+      {overdue && company.correctableUntil ? (
+        <p className="rounded-sm bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary">
+          {t('console.verification.correctionOverdue.since', {
+            date: formatDate(correctionOverdueSince(company.correctableUntil), language),
+          })}
+        </p>
+      ) : null}
 
       {decided === 'VERIFIED' || decided === 'REJECTED' ? (
         <p
@@ -278,6 +289,16 @@ function CompanyView({
               operatorId={peekEntitlements()?.userId ?? null}
               paymentStatus={heldPayment?.payment?.status ?? null}
               onDecided={onDecided}
+            />
+          ) : null}
+          {overdue ? (
+            <DecisionPanel
+              key={`${company.tenantId}:${company.expectedRevision}:overdue`}
+              company={company}
+              operatorId={peekEntitlements()?.userId ?? null}
+              paymentStatus={heldPayment?.payment?.status ?? null}
+              onDecided={onDecided}
+              closeOverdue
             />
           ) : null}
           {submitted ? <SignupPaymentPanel read={payment} retry={retryPayment} /> : null}
