@@ -1,4 +1,10 @@
+import { beforeEach } from 'vitest'
 import { configure } from '@testing-library/react'
+import { resetCompanyContact } from '../lib/companyContact'
+
+// Fawtir's contact details are read once per page load (`lib/companyContact.ts`). A test is a page
+// load of its own: without this the first test in a file answers every later one from its stubs.
+beforeEach(() => resetCompanyContact())
 
 // `findByRole` walks the accessibility tree of the whole screen — the console shell's sidebar
 // included — and under the full suite's parallel load that took longer than Testing Library's

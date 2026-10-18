@@ -28,3 +28,9 @@ serves yet.
 | # | The design shows | Ask |
 |---|---|---|
 | 2.1 | Pricing: the plan cards, limits, comparison table and questions | Decided by the owner, 29 Sep 2026: the site shows the app's catalogue (`src/lib/plans.ts`: Starter, Business, Business Plus, Enterprise), the same one the sign-up plans screen reads, not the Figma frame's own figures. Serve the published catalogue publicly (`GET /v1/public/plans`, the console-edited `/platform/plans` without auth) so both read it instead of the file |
+
+## 3. Contact details
+
+| # | The design shows | Ask |
+|---|---|---|
+| 3.1 | Fawtir's email, phone and address on Contact Us; the site's demo, partner and newsletter mail links; the footer's Instagram and LinkedIn icons; the "contact support" links in sign-up and going live | Read from the console's company contact setting, `GET /v1/public/company-contact` (anonymous; edited at `/console/company-contact`). Until the server answers with a setting, or for a field it leaves empty, each place keeps the value it showed before (`src/lib/companyContact.ts`, `LEGACY_CONTACT`): hello@fawtir.om and the frame's number on Contact Us, support@fawtir.om elsewhere. Facebook and X have no field yet, so stay drawn, not linked (1.5) |

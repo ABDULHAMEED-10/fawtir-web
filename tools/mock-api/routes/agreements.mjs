@@ -20,6 +20,9 @@ const ENTITLEMENTS = {
     'platform.support',
     'platform.smp.operations.review',
     'platform.smp.operations.manage',
+    // The console's contact details page (companyContact.mjs) reads and changes under these.
+    'platform.billing.read',
+    'platform.billing.manage',
     'admin.users.manage',
     'admin.roles.manage',
     'admin.settings.manage',

@@ -3,12 +3,12 @@ import { Trans, useTranslation } from 'react-i18next'
 import { ExternalLinkIcon } from '../../components/ui'
 import {
   FAWTARA_PORTAL_URL,
-  SUPPORT_EMAIL,
   goingLiveSteps,
   needsPortalRequest,
   type GoingLivePhase,
   type GoingLiveStep,
 } from '../../lib/fawtaraStatus'
+import { mailto, useCompanyContact } from '../../lib/companyContact'
 import { planDisplayName, type OnboardingState } from '../../lib/onboarding'
 
 function StepMarker({ step, number }: { step: GoingLiveStep; number: number }) {
@@ -140,7 +140,8 @@ type GoingLivePanelProps = {
  * instead of the sample one, and a review step before Fawtara because sign-up now ends here.
  */
 export function FawtaraStatusPanel({ phase, email, choice, action }: GoingLivePanelProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const support = useCompanyContact(i18n.language).supportEmail
   const steps = goingLiveSteps(phase)
   const tone = BADGE_TONE[phase]
   const showPortal = needsPortalRequest(phase)
@@ -260,7 +261,7 @@ export function FawtaraStatusPanel({ phase, email, choice, action }: GoingLivePa
           <p>
             {t('fawtaraStatus.slow')}{' '}
             <a
-              href={`mailto:${SUPPORT_EMAIL}`}
+              href={mailto(support)}
               className="font-semibold text-text-brand hover:underline"
             >
               {t('fawtaraStatus.contactSupport')}

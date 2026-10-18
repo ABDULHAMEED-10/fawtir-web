@@ -5,6 +5,7 @@ import mailIcon from '../../assets/site/icon-mail.svg'
 import pinIcon from '../../assets/site/icon-pin.svg'
 import '../HomePage/HomePage.css'
 import { ClosingBand, Faq, Footer, Heading, INK, PageHero, Washes } from '../HomePage/site'
+import { mailto, useCompanyContact } from '../../lib/companyContact'
 import { useFaqItems } from './faq'
 
 /**
@@ -12,9 +13,8 @@ import { useFaqItems } from './faq'
  * three ways to reach us beneath it, then the questions.
  */
 
-const EMAIL = 'hello@fawtir.om'
-// The number is the frame's; the owner is to confirm it before launch.
-const PHONE = '+2444 0100'
+// The email, number and address are the console's company contact setting (CS-1). Until the
+// server returns one, the page keeps the frame's own values (`LEGACY_CONTACT`).
 
 export function ContactPage() {
   const { t } = useTranslation()
@@ -42,24 +42,27 @@ export function ContactPage() {
 }
 
 function Touch() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const contact = useCompanyContact(i18n.language)
+  const phone = contact.contactPagePhone
   const info = [
     {
       icon: callIcon,
       title: t('site.contact.info.questionTitle'),
-      value: t('site.contact.info.phone', { number: PHONE }),
-      href: `tel:${PHONE.replace(/\s/g, '')}`,
+      // "Toll free" belongs to the frame's number; a number from the setting is shown as given.
+      value: contact.phoneFromServer ? phone : t('site.contact.info.phone', { number: phone }),
+      href: `tel:${phone.replace(/\s/g, '')}`,
     },
     {
       icon: mailIcon,
       title: t('site.contact.info.emailTitle'),
-      value: EMAIL,
-      href: `mailto:${EMAIL}`,
+      value: contact.contactPageEmail,
+      href: mailto(contact.contactPageEmail),
     },
     {
       icon: pinIcon,
       title: t('site.contact.info.addressTitle'),
-      value: t('site.contact.info.address'),
+      value: contact.address ?? t('site.contact.info.address'),
     },
   ]
   return (
@@ -101,7 +104,8 @@ function Touch() {
 }
 
 function MessageForm() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const email = useCompanyContact(i18n.language).contactPageEmail
   const [fields, setFields] = useState({ name: '', email: '', phone: '', message: '' })
   const [sent, setSent] = useState(false)
   const set = (key: keyof typeof fields) => (value: string) =>
@@ -115,7 +119,7 @@ function MessageForm() {
       .filter((line, index) => index < 2 || line)
       .join('\n')
     const subject = `Fawtir enquiry from ${fields.name}`
-    window.location.href = `mailto:${EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    window.location.href = mailto(email, subject, body)
     setSent(true)
   }
 
@@ -177,7 +181,7 @@ function MessageForm() {
         </button>
         {sent ? (
           <p role="status" className="text-sm leading-5 text-[#494d56]">
-            {t('site.contact.form.sent', { email: EMAIL })}
+            {t('site.contact.form.sent', { email })}
           </p>
         ) : null}
       </div>

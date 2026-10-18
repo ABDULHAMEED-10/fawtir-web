@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import i18n from '../../i18n'
@@ -18,6 +18,9 @@ function renderPage(page: ReactNode) {
 }
 
 const PUBLIC_PLANS_URL = '/api/v1/public/plans'
+const CONTACT_URL = '/api/v1/public/company-contact'
+const plansCalls = () =>
+  fetchMock.mock.calls.map(([url]) => url).filter((url) => url !== CONTACT_URL)
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
@@ -91,7 +94,7 @@ describe('Pricing page', () => {
     ).toBe('page')
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Growth' })).toBeTruthy()
-    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([PUBLIC_PLANS_URL])
+    expect(plansCalls()).toEqual([PUBLIC_PLANS_URL])
     expect(screen.getAllByText('41.250').length).toBeGreaterThan(0)
     expect(screen.getAllByText('1,250.000').length).toBeGreaterThan(0)
     expect(
@@ -202,9 +205,10 @@ describe('Pricing page', () => {
   })
 
   it('offers a retry when the catalogue cannot be read, and never the launch prices', async () => {
-    fetchMock
-      .mockImplementationOnce(async () => json(503, {}))
-      .mockImplementation(async () => json(200, CATALOGUE))
+    let plansAsked = 0
+    fetchMock.mockImplementation(async (url: string) =>
+      url === PUBLIC_PLANS_URL && plansAsked++ === 0 ? json(503, {}) : json(200, CATALOGUE),
+    )
     renderPage(<PricingPage />)
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toContain(i18n.t('plans.unavailable'))
@@ -260,6 +264,86 @@ describe('Contact page', () => {
     expect(location.href).toContain('mailto:hello@fawtir.om')
     expect(decodeURIComponent(location.href)).toContain('Do you support two branches?')
     expect(screen.getByRole('status').textContent).toContain('hello@fawtir.om')
-    expect(fetchMock).not.toHaveBeenCalled()
+    // The form sends nothing to the server: the one read is the contact details.
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([CONTACT_URL])
+  })
+})
+
+describe('Contact page, company contact setting (CS-1)', () => {
+  const SETTING = {
+    version: 3,
+    supportEmail: 'fawtara@insight.om',
+    supportPhone: '+968 0000 0000',
+    websiteUrl: 'https://www.fawtir.om',
+    addressEn: 'Knowledge Oasis, Muscat',
+    addressAr: 'واحة المعرفة، مسقط',
+    linkedinUrl: 'https://www.linkedin.com/company/fawtir',
+    instagramUrl: null,
+  }
+  const answer = (contact: () => Response) =>
+    fetchMock.mockImplementation(async (url: string) =>
+      url === CONTACT_URL ? contact() : json(200, CATALOGUE),
+    )
+  const link = (href: string) => document.querySelector(`a[href="${href}"]`)
+
+  it('shows the email, number and address the console saved, and writes to that email', async () => {
+    answer(() => json(200, SETTING))
+    renderPage(<ContactPage />)
+
+    expect(await screen.findByText('fawtara@insight.om')).toBeTruthy()
+    expect(link('mailto:fawtara@insight.om')).toBeTruthy()
+    // The setting's number is shown as given: "Toll free" was the frame's number's label.
+    expect(screen.getByText('+968 0000 0000').getAttribute('href')).toBe('tel:+96800000000')
+    expect(screen.getByText('Knowledge Oasis, Muscat')).toBeTruthy()
+    expect(screen.queryByText('hello@fawtir.om')).toBeNull()
+    expect(screen.queryByText(i18n.t('site.contact.info.address'))).toBeNull()
+    // The demo, partner and social links follow the same setting.
+    expect(link('mailto:fawtara@insight.om?subject=Fawtir%20demo%20request')).toBeTruthy()
+    expect(link('mailto:support@fawtir.om?subject=Fawtir%20partners')).toBeNull()
+    expect(screen.getByRole('link', { name: 'LinkedIn' }).getAttribute('href')).toBe(
+      SETTING.linkedinUrl,
+    )
+    expect(screen.queryByRole('link', { name: 'Instagram' })).toBeNull()
+
+    const location = { href: '' }
+    vi.stubGlobal('location', location)
+    fireEvent.change(screen.getByLabelText(i18n.t('site.contact.form.name')), {
+      target: { value: 'Salim' },
+    })
+    fireEvent.change(screen.getByLabelText(i18n.t('site.contact.form.email')), {
+      target: { value: 'salim@example.om' },
+    })
+    fireEvent.change(screen.getByLabelText(i18n.t('site.contact.form.message')), {
+      target: { value: 'Hello' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('site.contact.form.send') }))
+    expect(location.href.startsWith('mailto:fawtara@insight.om?subject=')).toBe(true)
+  })
+
+  it('reads the Arabic address in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    answer(() => json(200, SETTING))
+    renderPage(<ContactPage />)
+    expect(await screen.findByText('واحة المعرفة، مسقط')).toBeTruthy()
+  })
+
+  it.each([
+    ['an older server without the endpoint', () => json(404, { status: 404 })],
+    ['no setting saved yet', () => new Response(null, { status: 204 })],
+    ['a server error', () => json(500, { status: 500 })],
+  ])('keeps the values it showed before on %s', async (_, contact) => {
+    answer(contact)
+    renderPage(<ContactPage />)
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledWith(CONTACT_URL, expect.anything()))
+    await act(async () => {})
+
+    expect(screen.getByText('hello@fawtir.om')).toBeTruthy()
+    expect(
+      screen.getByText(i18n.t('site.contact.info.phone', { number: '+2444 0100' })),
+    ).toBeTruthy()
+    expect(screen.getByText(i18n.t('site.contact.info.address'))).toBeTruthy()
+    expect(link('mailto:support@fawtir.om?subject=Fawtir%20demo%20request')).toBeTruthy()
+    expect(link('mailto:support@fawtir.om?subject=Fawtir%20partners')).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'LinkedIn' })).toBeNull()
   })
 })

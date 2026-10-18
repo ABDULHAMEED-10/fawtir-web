@@ -12,6 +12,7 @@ import {
 import type { OnboardingState } from '../lib/onboarding'
 import { SignupPendingPage } from './SignupPendingPage'
 import { SignupReviewPage } from './SignupReviewPage'
+import { withoutContactRead } from '../test/companyContact'
 
 const TOKEN = 'so.onboarding-token'
 
@@ -125,7 +126,8 @@ beforeEach(async () => {
     onboardingTokenExpiresAt: new Date(Date.now() + 3_600_000).toISOString(),
   })
   fetchMock = vi.fn().mockResolvedValue(noContent())
-  vi.stubGlobal('fetch', fetchMock)
+  // The waiting screen's support link reads Fawtir's contact details; kept out of these counts.
+  vi.stubGlobal('fetch', withoutContactRead(fetchMock))
 })
 
 afterEach(() => {
