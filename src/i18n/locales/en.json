@@ -15887,7 +15887,8 @@
         "forbidden": "You can't do this. Confirm your sign-in code again, or ask an operator with this permission.",
         "gone": "This company or bill could not be found.",
         "invalid": "The server did not accept these values. Check them and try again."
-      }
+      },
+      "titleBills": "Bills"
     },
     "enterprise": {
       "title": "Enterprise companies",

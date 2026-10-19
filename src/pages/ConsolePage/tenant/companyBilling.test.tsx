@@ -296,11 +296,9 @@ function sent(method: string, path: string) {
     : null
 }
 
-async function card() {
+async function card(title = P('title')) {
   return waitFor(() => {
-    const section = screen
-      .getByRole('heading', { name: P('title') })
-      .closest('section') as HTMLElement
+    const section = screen.getByRole('heading', { name: title }).closest('section') as HTMLElement
     expect(within(section).queryByRole('status', { name: '' })).toBeNull()
     expect(within(section).queryByText(P('loading'))).toBeNull()
     return within(section)
@@ -753,20 +751,55 @@ describe('Console › Tenant › Billing card follows the server', () => {
     expect(fetchMock.mock.calls.some(([url]) => url === BILLS || url === SUBSCRIPTION)).toBe(false)
   })
 
-  it('offers no payment link while links are switched off at the server', async () => {
-    answers[PAY_LINK_SETTINGS] = () =>
-      json(200, {
-        enabled: false,
-        cardEnabled: false,
-        validityDays: 7,
-        maxValidityDays: 7,
-        settingsVersion: 4,
-      })
-    renderCard()
-    const box = await card()
+  const SETTINGS = { cardEnabled: true, validityDays: 7, maxValidityDays: 7, settingsVersion: 4 }
+  /** Bills and start billing stay; every payment-link part is gone, title included. */
+  async function expectNoPayLinkParts() {
+    const box = await card(P('titleBills'))
+    expect(screen.queryByRole('heading', { name: P('title') })).toBeNull()
     expect(box.getByText(P('bill.number', { number: 'FSB-2026-0042' }))).toBeTruthy()
     expect(box.queryByRole('button', { name: P('send.open') })).toBeNull()
     expect(box.queryByRole('button', { name: P('links.show') })).toBeNull()
+    expect(fetchMock.mock.calls.some(([url]) => url === LINKS)).toBe(false)
+  }
+
+  it('offers no payment link while links are switched off at the server', async () => {
+    answers[PAY_LINK_SETTINGS] = () =>
+      json(200, { ...SETTINGS, enabled: false, cardEnabled: false })
+    renderCard()
+    await expectNoPayLinkParts()
+  })
+
+  it('reads a settings answer without `enabled` as links off', async () => {
+    answers[PAY_LINK_SETTINGS] = () => json(200, SETTINGS)
+    renderCard()
+    await expectNoPayLinkParts()
+  })
+
+  it('reads anything but `enabled: true` as links off', async () => {
+    answers[PAY_LINK_SETTINGS] = () => json(200, { ...SETTINGS, enabled: 'true' })
+    renderCard()
+    await expectNoPayLinkParts()
+  })
+
+  it('shows the payment-link parts while links are switched on', async () => {
+    answers[PAY_LINK_SETTINGS] = () => json(200, { ...SETTINGS, enabled: true })
+    renderCard()
+    const box = await card(P('title'))
+    expect(screen.queryByRole('heading', { name: P('titleBills') })).toBeNull()
+    expect(box.getByRole('button', { name: P('send.open') })).toBeTruthy()
+    expect(box.getByRole('button', { name: P('links.show') })).toBeTruthy()
+  })
+
+  it('draws nothing when the settings read fails', async () => {
+    answers[PAY_LINK_SETTINGS] = () => json(500, { status: 500 })
+    renderCard()
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some(([url]) => url === PAY_LINK_SETTINGS)).toBe(true),
+    )
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(screen.queryByRole('heading', { name: P('title') })).toBeNull()
+    expect(screen.queryByRole('heading', { name: P('titleBills') })).toBeNull()
+    expect(screen.queryByRole('button', { name: P('send.open') })).toBeNull()
     expect(fetchMock.mock.calls.some(([url]) => url === LINKS)).toBe(false)
   })
 })
