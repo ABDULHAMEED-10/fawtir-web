@@ -36,10 +36,9 @@ describe('company contact details (CS-1)', () => {
     expect(parsed?.instagramUrl).toBe('https://instagram.com/fawtir')
   })
 
-  it('without a setting every place keeps the value it showed before', () => {
+  it('without a setting every place, the Contact page included, uses the one support email', () => {
     expect(resolveCompanyContact(null, 'en')).toEqual({
       supportEmail: 'support@fawtir.om',
-      contactPageEmail: 'hello@fawtir.om',
       contactPagePhone: null,
       address: null,
       website: null,
@@ -48,13 +47,13 @@ describe('company contact details (CS-1)', () => {
     })
     expect(LEGACY_CONTACT.supportEmail).toBe('support@fawtir.om')
     expect(LEGACY_CONTACT).not.toHaveProperty('contactPagePhone')
+    expect(Object.values(LEGACY_CONTACT)).toEqual(['support@fawtir.om'])
   })
 
   it('with a setting every place shows it, the address in the reader language', () => {
     const contact = parsePublicCompanyContact(SETTING)
     const en = resolveCompanyContact(contact, 'en')
     expect(en.supportEmail).toBe('fawtara@insight.om')
-    expect(en.contactPageEmail).toBe('fawtara@insight.om')
     expect(en.contactPagePhone).toBe('+968 0000 0000')
     expect(en.address).toBe('Al Rusayl 124, Sultanate of Oman')
     expect(resolveCompanyContact(contact, 'ar').address).toBe('الرسيل 124، سلطنة عُمان')

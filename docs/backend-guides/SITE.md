@@ -17,7 +17,7 @@ serves yet.
 
 | # | The design shows | Ask |
 |---|---|---|
-| 1.1 | Contact Us "Write a message" form: name, email, phone, message, "Send message" | No endpoint takes a public enquiry. Add an unauthenticated `POST /v1/public/contact` (name, email, phone optional, message; rate-limited, with a captcha or similar) that files it to the support inbox. Until then the form opens the visitor's email app with the message filled in, addressed to hello@fawtir.om |
+| 1.1 | Contact Us "Write a message" form: name, email, phone, message, "Send message" | No endpoint takes a public enquiry. Add an unauthenticated `POST /v1/public/contact` (name, email, phone optional, message; rate-limited, with a captcha or similar) that files it to the support inbox. Until then the form opens the visitor's email app with the message filled in, addressed to the support email (support@fawtir.om until the setting names one) |
 | 1.2 | Footer "Newsletter" sign-up (name, email) | No mailing list endpoint. Until one exists the form opens a prepared email to support |
 | 1.3 | "For partners" in the nav and footer | No partner programme page or sign-up. The link asks by email meanwhile |
 | 1.4 | "Privacy policy" and "Terms of service" in the footer | No published pages; drawn as plain text until the documents exist |
@@ -33,4 +33,4 @@ serves yet.
 
 | # | The design shows | Ask |
 |---|---|---|
-| 3.1 | Fawtir's email, phone and address on Contact Us; the site's demo, partner and newsletter mail links; the footer's Instagram and LinkedIn icons; the "contact support" links in sign-up and going live | Read from the console's company contact setting, `GET /v1/public/company-contact` (anonymous; edited at `/console/company-contact`). Until the server answers with a setting, or for a field it leaves empty, each place keeps the value it showed before (`src/lib/companyContact.ts`, `LEGACY_CONTACT`): hello@fawtir.om and the frame's address on Contact Us (no phone line without a phone in the setting), support@fawtir.om elsewhere. Facebook and X have no field yet, so stay drawn, not linked (1.5) |
+| 3.1 | Fawtir's email, phone and address on Contact Us; the site's demo, partner and newsletter mail links; the footer's Instagram and LinkedIn icons; the "contact support" links in sign-up and going live | Read from the console's company contact setting, `GET /v1/public/company-contact` (anonymous; edited at `/console/company-contact`). Until the server answers with a setting, or for a field it leaves empty, each place keeps the value it showed before (`src/lib/companyContact.ts`, `LEGACY_CONTACT`): one support email everywhere, support@fawtir.om, the Contact page included, with the frame's address on Contact Us (no phone line without a phone in the setting). Facebook and X have no field yet, so stay drawn, not linked (1.5) |

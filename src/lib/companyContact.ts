@@ -37,22 +37,21 @@ export type PublicCompanyContact = {
 }
 
 /**
- * What each place showed before the setting existed. The Contact page named its own address (the
- * Figma frame's); every mail link elsewhere went to support. Kept apart so a fallback never moves
- * a value from one place to another. The frame's toll-free number is deliberately not kept: with
+ * The fallback while the setting is unknown: one support email everywhere, the Contact page
+ * included (agreed with the owner). The frame's toll-free number is deliberately not kept: with
  * no phone in the setting the page shows no phone at all.
  */
 export const LEGACY_CONTACT = {
   supportEmail: 'support@fawtir.om',
-  contactPageEmail: 'hello@fawtir.om',
 } as const
 
 /** The details a screen draws, every field already resolved to the server's or the old value. */
 export type CompanyContact = {
-  /** Every "write to support" link, the site's demo, partner and newsletter links included. */
+  /**
+   * Every "write to support" link: the Contact page's email and the address its form writes to,
+   * and the site's demo, partner and newsletter links.
+   */
   supportEmail: string
-  /** The Contact page's email and the address its form writes to. */
-  contactPageEmail: string
   /** Null: the setting names no phone, so the page shows no phone line. */
   contactPagePhone: string | null
   /** Null: no address from the server, so the page keeps its own translated one. */
@@ -121,7 +120,6 @@ export function resolveCompanyContact(
     : (contact?.addressEn ?? contact?.addressAr ?? null)
   return {
     supportEmail: contact?.supportEmail ?? LEGACY_CONTACT.supportEmail,
-    contactPageEmail: contact?.supportEmail ?? LEGACY_CONTACT.contactPageEmail,
     contactPagePhone: contact?.supportPhone ?? null,
     address,
     website: contact?.websiteUrl ?? null,

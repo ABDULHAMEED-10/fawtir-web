@@ -275,9 +275,9 @@ describe('Contact page', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: i18n.t('site.contact.form.send') }))
 
-    expect(location.href).toContain('mailto:hello@fawtir.om')
+    expect(location.href).toContain('mailto:support@fawtir.om')
     expect(decodeURIComponent(location.href)).toContain('Do you support two branches?')
-    expect(screen.getByRole('status').textContent).toContain('hello@fawtir.om')
+    expect(screen.getByRole('status').textContent).toContain('support@fawtir.om')
     // The form sends nothing to the server: the one read is the contact details.
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([CONTACT_URL])
   })
@@ -309,7 +309,7 @@ describe('Contact page, company contact setting (CS-1)', () => {
     // The setting's number is shown as given, with no label.
     expect(screen.getByText('+968 0000 0000').getAttribute('href')).toBe('tel:+96800000000')
     expect(screen.getByText('Knowledge Oasis, Muscat')).toBeTruthy()
-    expect(screen.queryByText('hello@fawtir.om')).toBeNull()
+    expect(screen.queryByText('support@fawtir.om')).toBeNull()
     expect(screen.queryByText(i18n.t('site.contact.info.address'))).toBeNull()
     // The demo, partner and social links follow the same setting.
     expect(link('mailto:fawtara@insight.om?subject=Fawtir%20demo%20request')).toBeTruthy()
@@ -360,7 +360,9 @@ describe('Contact page, company contact setting (CS-1)', () => {
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledWith(CONTACT_URL, expect.anything()))
     await act(async () => {})
 
-    expect(screen.getByText('hello@fawtir.om')).toBeTruthy()
+    // One support email everywhere, the Contact page included.
+    expect(screen.getByText('support@fawtir.om')).toBeTruthy()
+    expect(screen.queryByText('hello@fawtir.om')).toBeNull()
     // No number without one from the server: the frame's toll-free number is gone, line and all.
     expect(screen.queryByText(/2444/)).toBeNull()
     expect(screen.queryByText(i18n.t('site.contact.info.questionTitle'))).toBeNull()

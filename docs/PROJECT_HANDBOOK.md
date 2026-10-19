@@ -692,8 +692,8 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
    not the amount still open. Should it be capped?
 3. Should the onboarding items (POS question, ISIC at sign-up, the Company profile ISIC field)
    get their own backend guide instead of living in INCOME.md?
-4. Contact Us page: is the design's phone "+2444 0100" real, and should the address be
-   hello@fawtir.om or support@fawtir.om? The Features mockup images still show "OMR" and a
+4. Contact Us page: is the design's phone "+2444 0100" real? (Answered for the email: one
+   support email everywhere, support@fawtir.om until the console setting names one.) The Features mockup images still show "OMR" and a
    "0208:" participant ID (Oman is 0248); the designer should correct them.
 5. Parked until integration asks for it: the ~500 tap targets of 24 to 34 px (judged fine on a
    real device), POS product photos hot-linked from Wikimedia Commons, `/purchase-orders` having
