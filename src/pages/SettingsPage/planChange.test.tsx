@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
@@ -1465,5 +1465,65 @@ describe('Plan page: the sentence after a change (F3)', () => {
     )
     await waitFor(() => expect(calls(`DELETE ${SUBSCRIPTION}/scheduled-change`)).toHaveLength(1))
     await waitFor(() => expect(screen.queryByText(done)).toBeNull())
+  })
+})
+
+describe('Plan changes: a fast double click sends one request', () => {
+  /** An answer held open until released, so the second click lands while the first is in flight. */
+  function held(response: () => Response) {
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    return {
+      answer: () => gate.then(response) as unknown as Response,
+      release: () => act(async () => release()),
+    }
+  }
+  /** Two clicks in the same tick, before React can re-render the button as disabled. */
+  const doubleClick = (button: HTMLElement) =>
+    act(() => {
+      fireEvent.click(button)
+      fireEvent.click(button)
+    })
+
+  it('withdraws the waiting change once', async () => {
+    answers[CHANGES] = () => json(200, { available: true, pending: PENDING, history: [] })
+    const reply = held(() => json(200, { ...PENDING, status: 'WITHDRAWN' }))
+    answers[`DELETE ${CHANGES}/pc-1`] = reply.answer
+    renderPage()
+    const withdraw = await screen.findByRole('button', {
+      name: i18n.t('planChange.pending.withdraw'),
+    })
+    doubleClick(withdraw)
+    await reply.release()
+    expect(calls(`DELETE ${CHANGES}/pc-1`)).toHaveLength(1)
+  })
+
+  it('confirms the change once', async () => {
+    const user = userEvent.setup({ delay: null })
+    const reply = held(() => json(201, PENDING))
+    answers[REQUEST] = reply.answer
+    renderPage()
+    await user.click(await moveTo('Business Plus'))
+    await within(await dialog()).findAllByText('49.467')
+    const confirm = screen.getByRole('button', {
+      name: i18n.t('planChange.dialog.confirm.UPGRADE'),
+    })
+    doubleClick(confirm)
+    await reply.release()
+    expect(calls(REQUEST)).toHaveLength(1)
+  })
+
+  it('keeps the subscription once', async () => {
+    answers[SUBSCRIPTION] = () =>
+      json(200, { ...ACTIVE, cancelAtPeriodEnd: true, accessEndsOn: '2026-10-31' })
+    const reply = held(() => json(200, ACTIVE))
+    answers[`DELETE ${SUBSCRIPTION}/cancellation`] = reply.answer
+    renderPage()
+    const keep = await screen.findByRole('button', { name: i18n.t('subscription.keep') })
+    doubleClick(keep)
+    await reply.release()
+    expect(calls(`DELETE ${SUBSCRIPTION}/cancellation`)).toHaveLength(1)
   })
 })

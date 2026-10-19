@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApiRead } from '../../hooks'
@@ -84,6 +84,8 @@ export function SubscriptionStatusSection({
   const changes = useApiRead<PlanChangesDto>(PLAN_CHANGES_PATH, loadPlanChanges).read
   const selfService = changes.status === 'ready' && changes.data.available
   const [keepTarget, setKeepTarget] = useState<PlanChangeTarget | null>(null)
+  // Set synchronously, before any re-render can disable the buttons: a double click posts once.
+  const inFlight = useRef(false)
 
   if (read.read.status === 'loading') return <LoadingNotice />
   if (read.read.status === 'failed') return <ApiReadFailure error={read.read.error} retry={read.retry} />
@@ -94,6 +96,8 @@ export function SubscriptionStatusSection({
   const withdrawal = scheduled ? withdrawalOf(status, scheduled, selfService) : 'NONE'
 
   const act = async (which: Exclude<Pending, null>, call: () => Promise<SubscriptionStatusDto>) => {
+    if (inFlight.current) return
+    inFlight.current = true
     setPending(which)
     setFailure(null)
     onAction?.()
@@ -109,6 +113,7 @@ export function SubscriptionStatusSection({
             : 'subscription.actionFailed',
       )
     } finally {
+      inFlight.current = false
       setPending(null)
     }
   }
