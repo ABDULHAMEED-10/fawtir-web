@@ -17898,7 +17898,7 @@
     "firstBillUnknown": "يُؤكَّد عند الموافقة على حسابك",
     "addonValue": "طُلب ERP؛ يُفوتَر مع أول فترة مدفوعة",
     "startsOnActivation": "عند اعتماد شركتك وتأكيد الدفعة",
-    "addonInterestValue": "سُجّل اهتمامك بـERP؛ لا يُفوتَر"
+    "addonInterestValue": "سُجّل اهتمامك بإضافة تكامل ERP، دون أي رسوم."
   },
   "signupPending": {
     "approved": {

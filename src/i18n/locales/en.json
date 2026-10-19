@@ -16957,7 +16957,7 @@
     "firstBillUnknown": "Confirmed when your account is approved",
     "addonValue": "ERP requested; billed with first paid period",
     "startsOnActivation": "When your company is approved and the payment is confirmed",
-    "addonInterestValue": "ERP interest noted; not billed"
+    "addonInterestValue": "Interest in the ERP add-on noted, no charge."
   },
   "signupPending": {
     "approved": {
