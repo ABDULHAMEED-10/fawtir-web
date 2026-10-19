@@ -13792,8 +13792,8 @@
         "refundReason": {
           "FINAL_REJECTION": "مفتوحة: رفض نهائي",
           "CORRECTION_WINDOW_EXPIRED": "مفتوحة: لم يُصحح خلال 30 يومًا",
-          "CANCELLED_BY_FAWTIR": "مفتوحة: ألغاه فوتر (فترة مدفوعة مقدمًا)",
-          "CANCELLED_BY_CUSTOMER": "مفتوحة: ألغاه العميل (فترة مدفوعة مقدمًا)",
+          "CANCELLED_BY_FAWTIR": "مفتوحة: ألغاه فوتر (فترة مدفوعة مسبقًا)",
+          "CANCELLED_BY_CUSTOMER": "مفتوحة: ألغاه العميل (فترة مدفوعة مسبقًا)",
           "other": "مفتوحة"
         }
       },

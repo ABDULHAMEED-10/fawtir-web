@@ -62,9 +62,9 @@ describe('Refund reason labels (RF-2)', () => {
   it('speaks Arabic', async () => {
     await i18n.changeLanguage('ar')
     show('CANCELLED_BY_CUSTOMER')
-    expect(screen.getByText('مفتوحة: ألغاه العميل (فترة مدفوعة مقدمًا)')).toBeTruthy()
+    expect(screen.getByText('مفتوحة: ألغاه العميل (فترة مدفوعة مسبقًا)')).toBeTruthy()
     expect(i18n.t(refundReasonKey('CANCELLED_BY_FAWTIR'))).toBe(
-      'مفتوحة: ألغاه فوتر (فترة مدفوعة مقدمًا)',
+      'مفتوحة: ألغاه فوتر (فترة مدفوعة مسبقًا)',
     )
   })
 })
