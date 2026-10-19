@@ -2,10 +2,11 @@ import { apiRequest, withQuery } from '..'
 
 /**
  * Supplier documents the company may not open yet (`WaitingSupplierDocumentController`,
- * permission `invoice.read`). Each one was received, reported to the Tax Authority and answered
- * to the sender, and is held until the company is active, pays or buys extra documents. Only the
- * header facts are returned: no amount, lines or document. Oldest receipt first, which is the
- * order a release opens them in.
+ * permission `invoice.read`). Each one was received, and is held until the company is active, pays
+ * or buys extra documents. The server reports it to the Tax Authority and answers the sender on
+ * receipt, but this response carries neither outcome, which can fail (audit A2 F-01 to F-03, F-07),
+ * so the screen never says they happened. Only the header facts are returned: no amount, lines or
+ * document. Oldest receipt first, which is the order a release opens them in.
  */
 export const WAITING_DOCUMENTS_PATH = '/v1/inbound-invoices/waiting'
 export const WAITING_COUNT_PATH = '/v1/inbound-invoices/waiting/count'

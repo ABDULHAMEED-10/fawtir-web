@@ -392,3 +392,77 @@ describe('transport progress', () => {
     expect(dispatchIsPending(withLegs('UNDELIVERABLE', leg('FAILED')))).toBe(false)
   })
 })
+
+describe('retry, dead letter and the unknown, worded as they are', () => {
+  // AuthoredInvoiceDispatchProcessor dead-letters a retryable failure once the attempt budget is
+  // spent; the reason it stores still names the temporary cause.
+  it.each(['AUTHORED_INVOICE_DISPATCH_ERROR', 'PRECEDING_INVOICE_UNAVAILABLE'])(
+    'never promises another attempt on a dead-lettered %s',
+    (code) => {
+      const notes = dispatchNotes(dispatch('DEAD_LETTERED', code))
+      expect(notes.reason).toEqual({ key: 'invoiceDispatch.reason.retriesSpent' })
+      expect(en.invoiceDispatch.reason.retriesSpent).not.toMatch(/will be retried/)
+      expect(en.invoiceDispatch.reason.retriesSpent).toMatch(/will not be retried/)
+      expect(ar.invoiceDispatch.reason.retriesSpent).not.toMatch(/[A-Za-z]/)
+      // While attempts remain, the same reason still says it will be retried.
+      expect(dispatchNotes(dispatch('RETRY_SCHEDULED', code)).reason?.key).toBe(DISPATCH_REASONS[code])
+    },
+  )
+
+  it('says the same of a Send answered with a dead letter', () => {
+    const base = { invoiceId: 'i', invoiceNumber: 'INV-1', dispatch: dispatch('DEAD_LETTERED') }
+    expect(
+      sendResultNote({ ...base, outcome: 'DEAD_LETTERED', reasonCode: 'AUTHORED_INVOICE_DISPATCH_ERROR' }),
+    ).toEqual({ key: 'invoiceDispatch.reason.retriesSpent' })
+    expect(
+      sendResultNote({ ...base, outcome: 'RETRY_SCHEDULED', reasonCode: 'AUTHORED_INVOICE_DISPATCH_ERROR' }),
+    ).toEqual({ key: 'invoiceDispatch.reason.temporary' })
+  })
+
+  it('reads ALREADY_DISPATCHED as handed over, not as sent', () => {
+    expect(en.invoiceDispatch.sent.already).not.toMatch(/already been sent/)
+    expect(en.invoiceDispatch.sent.already).toMatch(/handed over for sending/)
+  })
+
+  it('says a state it does not know is unknown, never "not sent" or nothing', () => {
+    const notes = dispatchNotes(dispatch('ON_THE_MOON' as InvoiceDispatchStateDto))
+    expect(notes.state).toEqual({ key: 'invoiceDispatch.state.unknown' })
+    expect(dispatchSucceeded(dispatch('ON_THE_MOON' as InvoiceDispatchStateDto))).toBe(false)
+    // NOT_OWED keeps its deliberate silence.
+    expect(dispatchNotes(dispatch('NOT_OWED')).state).toBeNull()
+  })
+
+  it('says a leg state or buyer route it does not know is unknown', () => {
+    const unknownLeg = {
+      ...dispatch('SENDING'),
+      transport: {
+        buyer: null,
+        taxAuthority: {
+          messageId: 'm-2',
+          state: 'ON_THE_MOON' as InvoiceTransportLegStateDto,
+          attempts: 0,
+          lastAttemptAt: null,
+          nextAttemptAt: null,
+        },
+      },
+    }
+    expect(transportNotes(unknownLeg, (when) => when)).toEqual([
+      {
+        legKey: 'invoiceDispatch.transport.leg.taxAuthority',
+        state: { key: 'invoiceDispatch.transport.state.unknown' },
+      },
+    ])
+    expect(dispatchNotes(unknownLeg).state).toEqual({ key: 'invoiceDispatch.state.unknown' })
+    expect(
+      buyerDeliveryNote({ ...dispatch('SENT'), buyerDelivery: 'CARRIER_PIGEON' as InvoiceDispatchDto['buyerDelivery'] }),
+    ).toEqual({ key: 'invoiceDispatch.buyer.unknown' })
+    for (const key of [
+      'invoiceDispatch.state.unknown',
+      'invoiceDispatch.transport.state.unknown',
+      'invoiceDispatch.buyer.unknown',
+    ]) {
+      expect(typeof lookup(en, key), key).toBe('string')
+      expect(lookup(ar, key), key).not.toMatch(/[A-Za-z]/)
+    }
+  })
+})

@@ -5,7 +5,7 @@ import { AppShell } from '../../layouts/AppShell'
 import { Modal, Rial, RialMark, RialText, withRial } from '../../components/ui'
 import { BillStatusChip, OverpaidBy } from '../../components/bills'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
-import { useApiRead } from '../../hooks'
+import { useApiRead, usePendingRefresh } from '../../hooks'
 import { ApiError } from '../../api'
 import {
   approveBill,
@@ -31,6 +31,17 @@ import {
 } from '../../api/expenditure/bills'
 import { loadSupplier, supplierPath, type SupplierDetailDto } from '../../api/expenditure/suppliers'
 import {
+  inboundInvoicePath,
+  loadInboundInvoice,
+  type InboundInvoiceDto,
+} from '../../api/expenditure/inboundInvoice'
+import {
+  activityDetailPath,
+  loadActivityDetail,
+  type ActivityDetailDto,
+} from '../../api/compliance/activity'
+import { provesReceived, tddReportIsPending } from '../../lib/taxAuthorityReport'
+import {
   loadSupplierOverview,
   supplierOverviewPath,
   type SupplierOverviewDto,
@@ -49,6 +60,7 @@ import {
   overpaidOf,
   paidBeyondTotal,
   refusedDebitNote,
+  replyIsPending,
   singleVatRate,
   stepsOf,
   termsDaysOf,
@@ -56,6 +68,7 @@ import {
   type BillStepState,
   type ComplianceNote,
   type Note,
+  type ReceivedFacts,
 } from '../../lib/billDetail'
 import { toBillListItem } from '../../lib/billList'
 import { muscatToday } from '../../lib/invoiceIssue'
@@ -245,6 +258,56 @@ function BillScreen() {
   const paidBeyond = bill.read.status === 'ready' && paidBeyondTotal(bill.read.data)
   const overpaymentPath = overpaid > 0 || paidBeyond ? billOverpaymentPath(id) : null
   const overpayment = useApiRead<BillOverpaymentDto>(overpaymentPath, () => loadBillOverpayment(id))
+
+  // How we answered the supplier and where our receipt report stands are on the delivery record
+  // and the compliance record, not on the bill (A4 G3, EXPENDITURE.md R.1). Peppol bills only.
+  const deliveryId =
+    bill.read.status === 'ready' && bill.read.data.compliance.source === 'PEPPOL'
+      ? bill.read.data.bill.inboundDeliveryId
+      : null
+  const inbound = useApiRead<InboundInvoiceDto>(
+    deliveryId ? inboundInvoicePath(deliveryId) : null,
+    () => loadInboundInvoice(deliveryId!),
+  )
+  const correlationId = inbound.read.status === 'ready' ? inbound.read.data.correlationId : null
+  const recordRead = useApiRead<ActivityDetailDto>(
+    correlationId ? activityDetailPath(correlationId) : null,
+    () => loadActivityDetail(correlationId!),
+  )
+  // Kept with the id it answers, so a re-read for another document is never shown on this one.
+  const [recordLatest, setRecordLatest] = useState<{ id: string; detail: ActivityDetailDto } | null>(
+    null,
+  )
+  const recordDetail =
+    recordLatest && recordLatest.id === correlationId
+      ? recordLatest.detail
+      : recordRead.read.status === 'ready'
+        ? recordRead.read.data
+        : null
+  const record =
+    recordDetail && deliveryId && provesReceived(recordDetail, deliveryId)
+      ? recordDetail.summary
+      : null
+  const received: ReceivedFacts | undefined = !deliveryId
+    ? undefined
+    : inbound.read.status === 'ready'
+      ? { kind: 'ready', inbound: inbound.read.data, record }
+      : inbound.read.status === 'failed'
+        ? { kind: 'unavailable' }
+        : { kind: 'loading' }
+  usePendingRefresh(
+    correlationId,
+    record !== null &&
+      (tddReportIsPending(record.tdd_leg) ||
+        replyIsPending(record.invoice_leg.ack, record.invoice_leg.transport_state ?? null)),
+    (live) => {
+      const watched = correlationId
+      if (!watched) return Promise.resolve()
+      return loadActivityDetail(watched).then((detail) => {
+        if (live()) setRecordLatest({ id: watched, detail })
+      })
+    },
+  )
 
   // A success is held as its key, not its text: the notice stays on screen across a language
   // switch, and a sentence translated when it was raised would stay in the old language.
@@ -844,7 +907,7 @@ function BillScreen() {
 
           <Card title={t('billDetail.compliance.title')}>
             <ul className="flex flex-col gap-2.5">
-              {complianceOf(detail, (iso) => formatInstantDay(iso, language)).map((note) => (
+              {complianceOf(detail, (iso) => formatInstantDay(iso, language), received).map((note) => (
                 <li key={note.key} className="flex items-start gap-2">
                   <img
                     src={note.ok ? complianceIcon : clockIcon}

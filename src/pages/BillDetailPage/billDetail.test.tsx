@@ -25,6 +25,8 @@ import {
   singleVatRate,
   stepsOf,
 } from '../../lib/billDetail'
+import type { InboundInvoiceDto } from '../../api/expenditure/inboundInvoice'
+import type { ActivityDetailDto, ActivityItemDto } from '../../api/compliance/activity'
 import { BillDetailPage } from './BillDetailPage'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
@@ -205,6 +207,89 @@ let ordersResponse: () => Response
 let supplierBank: () => unknown
 let supplierOpenBills: number | undefined
 let who: Entitlements
+let inboundResponse: () => Response
+let recordResponse: () => Response
+
+// The bill fixture's `inboundDeliveryId` is 'd-1'; its delivery's Invoice UUID keys the record.
+const DELIVERY_ID = 'd-1'
+const CORRELATION_ID = '7c0e1d2a-0000-4000-8000-0000000000aa'
+const INBOUND_URL = `/api/v1/inbound-invoices/${DELIVERY_ID}`
+const RECORD_URL = `/api/v1/compliance/activity/${CORRELATION_ID}`
+
+function inbound(overrides: Partial<InboundInvoiceDto> = {}): InboundInvoiceDto {
+  return {
+    id: DELIVERY_ID,
+    correlationId: CORRELATION_ID,
+    state: 'AVAILABLE',
+    validationPassed: true,
+    validationFailedLayer: null,
+    receivedAt: '2026-09-01T08:00:00Z',
+    acknowledgedAt: null,
+    mlsCode: 'AB',
+    mlsEmittedAt: '2026-09-02T08:00:00Z',
+    mlsTransportState: 'DELIVERED',
+    mlsDeliveredAt: '2026-09-02T08:00:05Z',
+    ...overrides,
+  }
+}
+
+type RecordOverrides = {
+  tdd_leg?: Partial<NonNullable<ActivityItemDto['tdd_leg']>> | null
+  invoice_leg?: Partial<ActivityItemDto['invoice_leg']>
+  summary?: Partial<ActivityItemDto>
+  links?: Partial<ActivityItemDto['links']>
+}
+
+/** The compliance record of the fixture's delivery: answered AB to the supplier, report accepted. */
+function record(overrides: RecordOverrides = {}): ActivityDetailDto {
+  const summary: ActivityItemDto = {
+    invoice_uuid: CORRELATION_ID,
+    direction: 'RECEIVED',
+    document_kind: 'STANDARD_INVOICE',
+    document_type_code: '380',
+    invoice_number: 'QMS-2209',
+    counterparty: '0248:OM1100447102',
+    occurred_at: '2026-09-01T08:00:00Z',
+    validated_at: '2026-09-01T08:00:00Z',
+    b2c: false,
+    transport_state: 'AVAILABLE',
+    invoice_leg: {
+      ack: 'AB',
+      ack_at: '2026-09-02T08:00:00Z',
+      reason: null,
+      transport_state: 'DELIVERED',
+      delivered_at: '2026-09-02T08:00:05Z',
+      ...overrides.invoice_leg,
+    },
+    tdd_leg:
+      overrides.tdd_leg === null
+        ? null
+        : {
+            variant: 'SUBMIT',
+            status: 'ACCEPTED',
+            validated_at: '2026-09-01T08:00:00Z',
+            sla_deadline: '2026-09-01T08:15:00Z',
+            submitted_at: '2026-09-01T08:01:00Z',
+            sla_met: true,
+            ack: 'AP',
+            ack_at: '2026-09-01T08:03:00Z',
+            reason: null,
+            delivered_at: '2026-09-01T08:02:00Z',
+            transport_state: 'DELIVERED',
+            correction_held: false,
+            ...overrides.tdd_leg,
+          },
+    attention: false,
+    links: {
+      document: `/api/v1/inbound-invoices/${DELIVERY_ID}`,
+      tdd_xml: `/api/v1/inbound-invoices/${DELIVERY_ID}/tdd`,
+      resubmit: null,
+      ...overrides.links,
+    },
+    ...overrides.summary,
+  }
+  return { invoice_uuid: CORRELATION_ID, summary, tdd_lineage: [], mls: [], transmissions: [] }
+}
 
 const calls = () =>
   fetchMock.mock.calls.map(
@@ -231,6 +316,10 @@ beforeEach(async () => {
         },
       ],
     })
+  // The delivery record answers 404 to a person limited to some branches, which is what every test
+  // that does not set it sees: the received facts are "not available".
+  inboundResponse = () => json(404, { type: 'https://api.fawtir.om/problems/not-found' })
+  recordResponse = () => json(200, record())
   supplierOpenBills = undefined
   supplierBank = () => ({
     beneficiaryName: 'Qalhat Marine Supplies',
@@ -284,6 +373,8 @@ beforeEach(async () => {
     if (url === `${BILL_URL}/match`) return method === 'GET' ? matchResponse() : actionResponse()
     if (url.startsWith(`${BILL_URL}/`)) return actionResponse()
     if (url === BILL_URL) return billResponse()
+    if (url === INBOUND_URL && method === 'GET') return inboundResponse()
+    if (url === RECORD_URL && method === 'GET') return recordResponse()
     throw new Error(`unexpected request to ${method} ${url}`)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -358,7 +449,7 @@ describe('A bill, wired to the API', () => {
     renderBill()
     // PINT-OM (om-tdd): the receiver reports what it received; the supplier's report does not
     // cover it, so without the status the card says it is not known.
-    const line = await screen.findByText('Receipt report status not available yet')
+    const line = await screen.findByText('Receipt report status not available')
     // Read inside the Compliance card: the app's own menu names its "TDD & OTA" screen.
     const card = within(line.closest('ul') as HTMLElement)
     expect(card.getByText('Delivered over the Peppol network and verified')).toBeTruthy()
@@ -673,7 +764,7 @@ describe('A bill, wired to the API', () => {
       })
     renderBill()
     expect(await screen.findByText(/^Receipt reported to the Tax Authority · /)).toBeTruthy()
-    expect(screen.queryByText('Receipt report status not available yet')).toBeNull()
+    expect(screen.queryByText('Receipt report status not available')).toBeNull()
   })
 
   it('shows a zero-rated and an exempt line with their reason codes, and no single VAT rate', async () => {
@@ -1452,7 +1543,7 @@ describe('A bill, wired to the API', () => {
     await i18n.changeLanguage('ar')
     renderBill()
     expect(await screen.findByText('الطلب والاستلام والفاتورة متطابقة')).toBeTruthy()
-    expect(screen.getByText('حالة إبلاغ الاستلام غير متاحة بعد')).toBeTruthy()
+    expect(screen.getByText('حالة إبلاغ الاستلام غير متاحة')).toBeTruthy()
     expect(screen.getByText('2,242.200')).toBeTruthy()
   })
 })
@@ -2956,5 +3047,117 @@ describe('whether a bill counts in input VAT', () => {
       expect(inputVatNoteKey(out(reason))).toBeNull()
     expect(inputVatNoteKey({ ...out('REJECTED'), counted: true })).toBeNull()
     expect(inputVatNoteKey(undefined)).toBeNull()
+  })
+})
+
+// A4 G3 and A2 IN-17: how we answered the supplier and where our receipt report stands are read
+// from the delivery record and the compliance record, never assumed.
+describe('a bill received over Peppol: our reply and our receipt report', () => {
+  const card = async (text: string | RegExp) => {
+    const line = await screen.findByText(text)
+    return within(line.closest('ul') as HTMLElement)
+  }
+  const sideReads = () =>
+    calls().filter((call) => call.includes('/inbound-invoices/') || call.includes(RECORD_URL))
+
+  it('reads the delivery, then its record, and says both, linking the report to its record', async () => {
+    inboundResponse = () => json(200, inbound())
+    renderBill()
+    const lines = await card('Reply delivered to the supplier\'s access point: received, not confirmed')
+    const report = await lines.findByText(/^Receipt reported to the Tax Authority · /)
+    expect(report.closest('a')?.getAttribute('href')).toBe(`/compliance/activity/${CORRELATION_ID}`)
+    expect(sideReads()).toEqual([`GET ${INBOUND_URL}`, `GET ${RECORD_URL}`])
+    expect(calls().filter((call) => !call.startsWith('GET '))).toEqual([])
+  })
+
+  it('says not available to a person the delivery route hides, and reads no record', async () => {
+    renderBill()
+    const lines = await card("Reply to the supplier's access point: status not available")
+    expect(lines.getByText('Receipt report status not available')).toBeTruthy()
+    expect(sideReads()).toEqual([`GET ${INBOUND_URL}`])
+  })
+
+  it('falls back to the delivery record when the compliance record is refused', async () => {
+    inboundResponse = () => json(200, inbound({ mlsCode: 'AB', mlsTransportState: 'RETRY_SCHEDULED' }))
+    recordResponse = () => json(403, { type: 'https://api.fawtir.om/problems/branch-scope-company-report' })
+    renderBill()
+    const lines = await card("Reply to the supplier's access point failed and will be retried")
+    expect(lines.getByText('Receipt report status not available')).toBeTruthy()
+  })
+
+  it('never reads a record that links to another delivery', async () => {
+    inboundResponse = () => json(200, inbound())
+    recordResponse = () =>
+      json(200, record({ links: { document: '/api/v1/inbound-invoices/someone-else' } }))
+    renderBill()
+    const lines = await card('Receipt report status not available')
+    expect(lines.queryByText(/Receipt reported to the Tax Authority/)).toBeNull()
+  })
+
+  it('tells a pending report apart from one the Tax Authority answered', async () => {
+    inboundResponse = () => json(200, inbound())
+    recordResponse = () =>
+      json(200, record({ tdd_leg: { ack: 'NONE', ack_at: null, status: 'SUBMITTED', delivered_at: null, transport_state: 'PENDING' } }))
+    renderBill()
+    const lines = await card('Receipt not reported yet')
+    expect(lines.queryByText(/Receipt reported to the Tax Authority/)).toBeNull()
+  })
+
+  it('keeps reading a pending reply and report until both settle, then stops', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      inboundResponse = () => json(200, inbound({ mlsTransportState: 'PENDING', mlsDeliveredAt: null }))
+      const answers = [
+        record({
+          invoice_leg: { transport_state: 'PENDING', delivered_at: null },
+          tdd_leg: { ack: 'NONE', ack_at: null, status: 'SUBMITTED' },
+        }),
+        record(),
+      ]
+      let reads = 0
+      recordResponse = () => json(200, answers[Math.min(reads++, answers.length - 1)])
+      renderBill()
+      await card("Reply to the supplier's access point is on its way, not delivered yet")
+      expect(await screen.findByText("Receipt report delivered, waiting for the Tax Authority's answer")).toBeTruthy()
+      await vi.advanceTimersByTimeAsync(3000)
+      await card("Reply delivered to the supplier's access point: received, not confirmed")
+      expect(await screen.findByText(/^Receipt reported to the Tax Authority · /)).toBeTruthy()
+      const settled = calls().filter((call) => call === `GET ${RECORD_URL}`).length
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+      expect(calls().filter((call) => call === `GET ${RECORD_URL}`)).toHaveLength(settled)
+      // The delivery record is read once; only the compliance record is re-read.
+      expect(calls().filter((call) => call === `GET ${INBOUND_URL}`)).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('says a document that failed validation on arrival did, whatever networkVerified says', async () => {
+    inboundResponse = () => json(200, inbound({ validationPassed: false, validationFailedLayer: 'SCHEMATRON' }))
+    renderBill()
+    const lines = await card('Did not pass validation when it arrived')
+    expect(lines.queryByText('Passed PINT-OM validation')).toBeNull()
+    expect(lines.queryByText(/SCHEMATRON/)).toBeNull()
+  })
+
+  it('asks nothing of the delivery routes for a bill that did not come over Peppol', async () => {
+    billResponse = () =>
+      json(200, {
+        ...detail(),
+        bill: { ...detail().bill, source: 'UPLOADED', inboundDeliveryId: null },
+        compliance: { ...detail().compliance, source: 'UPLOADED', networkVerified: false },
+      })
+    renderBill()
+    await card('Not validated: it did not come over Peppol')
+    expect(sideReads()).toEqual([])
+    expect(screen.queryByText(/supplier's access point/)).toBeNull()
+  })
+
+  it('reads in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    inboundResponse = () => json(200, inbound())
+    renderBill()
+    const lines = await card('وصل الرد إلى نقطة الوصول لدى المورّد: استُلمت دون تأكيد')
+    expect(await lines.findByText(/^أُبلغت هيئة الضرائب بالاستلام · /)).toBeTruthy()
   })
 })
