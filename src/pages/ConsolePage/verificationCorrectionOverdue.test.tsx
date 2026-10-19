@@ -6,6 +6,7 @@ import { resetSharedRequests } from '../../api'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import {
   correctionOverdueSince,
+  isAwaitingCorrection,
   isCorrectionOverdue,
   queuePath,
   type CompanyDetail,
@@ -181,6 +182,21 @@ describe('correction overdue helpers', () => {
     expect(isCorrectionOverdue(ON_TIME)).toBe(false)
     expect(isCorrectionOverdue({ correctionOverdue: true, correctableUntil: null })).toBe(false)
     expect(isCorrectionOverdue({})).toBe(false)
+  })
+
+  it('counts any company sent back and not resubmitted as awaiting its correction', () => {
+    expect(isAwaitingCorrection(ROW)).toBe(true)
+    expect(isAwaitingCorrection(ON_TIME)).toBe(true)
+    expect(isAwaitingCorrection({ verificationStatus: 'REJECTED', correctableUntil: null })).toBe(
+      false,
+    )
+    expect(isAwaitingCorrection({ verificationStatus: 'REJECTED' })).toBe(false)
+    expect(
+      isAwaitingCorrection({
+        verificationStatus: 'PENDING_VERIFICATION',
+        correctableUntil: '2026-11-30',
+      }),
+    ).toBe(false)
   })
 
   it('is overdue from the day after the last day, across a month end', () => {
@@ -387,5 +403,156 @@ describe('Detail', () => {
       }),
     ).toBeTruthy()
     expect(i18n.t('console.verification.correctionOverdue.close')).toBe('إغلاق برفض نهائي')
+  })
+})
+
+describe('Detail, sent back and still inside the correction window (SU-7, SU-8)', () => {
+  const ON_TIME_DETAIL: CompanyDetail = {
+    ...OVERDUE,
+    correctableUntil: '2026-11-30',
+    correctionOverdue: false,
+  }
+
+  it('offers the same close, says until when the customer may resubmit, and is not overdue', async () => {
+    answer({
+      [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+      [DETAIL_URL]: () => json(200, ON_TIME_DETAIL),
+      [HISTORY_URL]: () => json(200, []),
+    })
+    renderAt(`/console/onboarding/${ID}`)
+
+    expect(
+      await screen.findByRole('button', {
+        name: i18n.t('console.verification.correctionOverdue.close'),
+      }),
+    ).toBeTruthy()
+    expect(
+      screen.getByText(
+        i18n.t('console.verification.correctionOverdue.closeIntroOnTime', {
+          date: formatDate('2026-11-30', 'en'),
+        }),
+        { exact: false },
+      ),
+    ).toBeTruthy()
+    expect(
+      screen.getByText(i18n.t('console.verification.correctionOverdue.refund'), { exact: false }),
+    ).toBeTruthy()
+    // Not overdue: no "overdue since" line and none of the overdue wording.
+    expect(screen.queryByText(/Correction overdue since/)).toBeNull()
+    expect(
+      screen.queryByText(i18n.t('console.verification.correctionOverdue.closeIntro'), {
+        exact: false,
+      }),
+    ).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: i18n.t('console.verification.decision.verify') }),
+    ).toBeNull()
+  })
+
+  it('closes with a FINAL rejection and its reason, exactly as an overdue one', async () => {
+    answer({
+      [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+      [DETAIL_URL]: [
+        () => json(200, ON_TIME_DETAIL),
+        () => json(200, { ...ON_TIME_DETAIL, correctableUntil: null }),
+      ],
+      [HISTORY_URL]: () => json(200, []),
+      [REJECT_URL]: () =>
+        json(200, {
+          tenantId: ID,
+          verificationStatus: 'REJECTED',
+          verificationMethod: null,
+          tenantStatus: 'PENDING',
+          decidedAt: '2026-10-19T06:00:00Z',
+        }),
+    })
+    renderAt(`/console/onboarding/${ID}`)
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: i18n.t('console.verification.correctionOverdue.close'),
+      }),
+    )
+    const dialog = screen.getByRole('dialog', {
+      name: i18n.t('console.verification.decision.rejectTitle'),
+    })
+    expect(within(dialog).queryByRole('radio')).toBeNull()
+    // The confirm needs a reason and the final reason, as before.
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: i18n.t('console.verification.decision.rejectConfirm'),
+      }),
+    )
+    expect(callsTo(REJECT_URL)).toHaveLength(0)
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: i18n.t('console.verification.decision.reason') }),
+    )
+    fireEvent.click(
+      screen.getByRole('option', {
+        name: i18n.t('console.verification.detail.reason.COMPANY_PROFILE_MISMATCH'),
+      }),
+    )
+    fireEvent.change(
+      within(dialog).getByLabelText(i18n.t('console.verification.decision.finalReason')),
+      { target: { value: 'Customer asked to withdraw' } },
+    )
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: i18n.t('console.verification.decision.rejectConfirm'),
+      }),
+    )
+
+    await screen.findByText(i18n.t('console.verification.decision.rejectedFinal'), {
+      exact: false,
+    })
+    expect(JSON.parse(callsTo(REJECT_URL)[0][1].body as string)).toEqual({
+      expectedRevision: 2,
+      reason: 'COMPANY_PROFILE_MISMATCH',
+      classification: 'FINAL',
+      finalReason: 'Customer asked to withdraw',
+    })
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', {
+          name: i18n.t('console.verification.correctionOverdue.close'),
+        }),
+      ).toBeNull(),
+    )
+  })
+
+  it('offers nothing once the application is closed (no correction date)', async () => {
+    answer({
+      [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+      [DETAIL_URL]: () => json(200, { ...ON_TIME_DETAIL, correctableUntil: null }),
+      [HISTORY_URL]: () => json(200, []),
+    })
+    renderAt(`/console/onboarding/${ID}`)
+    await screen.findByRole('heading', { level: 1, name: 'Al Noor Bakery' })
+    expect(
+      screen.queryByRole('button', {
+        name: i18n.t('console.verification.correctionOverdue.close'),
+      }),
+    ).toBeNull()
+  })
+
+  it('speaks Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    answer({
+      [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+      [DETAIL_URL]: () => json(200, ON_TIME_DETAIL),
+      [HISTORY_URL]: () => json(200, []),
+    })
+    renderAt(`/console/onboarding/${ID}`)
+    expect(
+      await screen.findByText(
+        i18n.t('console.verification.correctionOverdue.closeIntroOnTime', {
+          date: formatDate('2026-11-30', 'ar'),
+        }),
+        { exact: false },
+      ),
+    ).toBeTruthy()
+    expect(i18n.t('console.verification.correctionOverdue.closeIntroOnTime', { date: 'X' })).toBe(
+      'أُعيد الطلب إلى العميل لتصحيحه، وأمامه حتى X لإعادة إرساله. يمكنك إغلاقه الآن برفض نهائي.',
+    )
   })
 })

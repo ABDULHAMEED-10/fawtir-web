@@ -53,6 +53,7 @@ const DECIMAL_FIELDS: ReadonlySet<TextField> = new Set([
   'extraPersonPrice',
   'extraBranchPrice',
   'overagePricePerInvoice',
+  'erpAddonMonthlyPrice',
 ])
 const FREE_TEXT_FIELDS: ReadonlySet<TextField> = new Set([
   'nameEn',
@@ -287,6 +288,10 @@ export function PlanEditor({
             })}
             {field('extraBranchPrice', t('console.plans.field.extraBranchPrice'), {
               hint: t('console.plans.field.extraBranchHint'),
+            })}
+            {/* ER-1, PL-3: the ERP and API add-on as a paid extra; needs ERP field mapping on. */}
+            {field('erpAddonMonthlyPrice', t('console.plans.field.erpAddonPrice'), {
+              hint: t('console.plans.field.erpAddonHint'),
             })}
           </div>
           <div className="flex flex-col">

@@ -36,6 +36,7 @@ const FIELD_LABELS: Record<string, string> = {
   branchesIncluded: 'console.plans.field.branchesIncluded',
   extraBranchPrice: 'console.plans.field.extraBranchPrice',
   overagePricePerInvoice: 'console.plans.field.overagePrice',
+  erpAddonMonthlyPrice: 'console.plans.field.erpAddonPrice',
   apiAccess: 'console.plans.field.apiAccess',
   prioritySupport: 'console.plans.field.prioritySupport',
 }
@@ -195,6 +196,15 @@ function VersionEntry({ version, current }: { version: PlanVersion; current: boo
           }),
         )}
       </p>
+      {version.erpAddonMonthlyPrice ? (
+        <p className="mt-1 text-sm font-medium text-text-tertiary">
+          {withRial(
+            t('console.plans.history.erpAddon', {
+              amount: `OMR ${formatAmount(version.erpAddonMonthlyPrice)}`,
+            }),
+          )}
+        </p>
+      ) : null}
       <p className="mt-1 text-sm font-medium text-text-tertiary">
         {t('console.plans.history.limits', {
           invoices: version.invoicesPerMonth.toLocaleString('en-US'),

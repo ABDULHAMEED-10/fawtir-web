@@ -13075,7 +13075,10 @@
         "refund": "Refund case",
         "refundReason": {
           "FINAL_REJECTION": "Open: final rejection",
-          "CORRECTION_WINDOW_EXPIRED": "Open: not corrected within 30 days"
+          "CORRECTION_WINDOW_EXPIRED": "Open: not corrected within 30 days",
+          "CANCELLED_BY_FAWTIR": "Open: cancelled by Fawtir (period paid in advance)",
+          "CANCELLED_BY_CUSTOMER": "Open: cancelled by the customer (period paid in advance)",
+          "other": "Open"
         }
       },
       "correctionOverdue": {
@@ -13083,7 +13086,8 @@
         "since": "Correction overdue since {{date}}.",
         "closeIntro": "The customer did not resubmit within 30 days. Chase them, or close the application with a final rejection.",
         "refund": "Any payment Finance has confirmed will be refunded.",
-        "close": "Close with final rejection"
+        "close": "Close with final rejection",
+        "closeIntroOnTime": "The application was sent back for a correction and the customer has until {{date}} to resubmit. You can close it now with a final rejection."
       }
     },
     "plans": {
@@ -13140,7 +13144,9 @@
         "reasonHintAdd": "Required for a new plan: it is recorded with the plan's first price version.",
         "trial": "{{days}}-day trial",
         "trialHint": "The trial is always {{days}} days. Switched off, the customer pays with the application, and the paid period starts on activation, after approval and confirmed payment.",
-        "trialDocumentsSwitchHint": "How many documents the trial allows. Needs the trial switched on."
+        "trialDocumentsSwitchHint": "How many documents the trial allows. Needs the trial switched on.",
+        "erpAddonPrice": "ERP and API add-on, a month",
+        "erpAddonHint": "For plans with ERP field mapping on. A change publishes a new version. To stop offering the add-on, switch ERP field mapping off."
       },
       "validation": {
         "money": "Enter an amount in rials with up to 3 decimals",
@@ -13157,7 +13163,10 @@
         "reasonRequired": "Give a reason for this price or limit change",
         "reasonLength": "Use 500 characters or fewer",
         "trialDocumentsNeedTrial": "Switch the trial on too, or leave this empty",
-        "trialFixed": "The trial is always 14 days. Switch it on or off; another length is not accepted."
+        "trialFixed": "The trial is always 14 days. Switch it on or off; another length is not accepted.",
+        "erpAddonAboveZero": "Enter an amount above zero, or leave this empty",
+        "erpAddonNeedsMapping": "Switch on ERP field mapping under Features to offer the add-on",
+        "erpAddonKeep": "The price cannot be removed. To stop offering the add-on, switch ERP field mapping off."
       },
       "readOnly": "You can view the catalogue. Changing plans is for platform tenant administrators.",
       "readOnlyNote": "View only. Changing plans is for platform tenant administrators.",
@@ -13205,7 +13214,8 @@
           "VISIBILITY_CHANGED": "Visibility changed",
           "FEATURES_CHANGED": "Features changed",
           "other": "Other change"
-        }
+        },
+        "erpAddon": "ERP and API add-on: {{amount}} a month"
       },
       "counting": {
         "open": "Count received documents",
@@ -13234,7 +13244,8 @@
           "gone": "This plan no longer exists. Close this and reload the plans.",
           "invalid": "Fawtir did not accept this change. Check the reason and try again."
         }
-      }
+      },
+      "erpAddonLine": "ERP and API add-on: OMR {{amount}} a month"
     },
     "operators": {
       "title": "Operators",
@@ -15290,6 +15301,12 @@
         "history": "Earlier purchase limits",
         "historyEntry": "Version {{version}} · {{min}} to {{max}} documents",
         "historyFailed": "The earlier purchase limits could not be loaded."
+      },
+      "annualMonths": {
+        "erpAddonAnnualMonths": "ERP and API add-on, months charged a year",
+        "extraUserAnnualMonths": "Extra person, months charged a year",
+        "extraBranchAnnualMonths": "Extra branch, months charged a year",
+        "hint": "How many months of the monthly price one annual period charges, 1 to 12. The default is {{months}}."
       }
     },
     "seller": {

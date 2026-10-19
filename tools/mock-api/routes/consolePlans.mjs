@@ -51,8 +51,16 @@ const PLANS = [
     'Business Plus',
     'الأعمال بلس',
     30,
-    versionOf('BUSINESS_PLUS', '150.000', 3000, 10, 5),
-    { trialDays: null, trialDocuments: null },
+    // The ERP and API add-on on the plan that has ERP field mapping (ER-1, backend #656).
+    { ...versionOf('BUSINESS_PLUS', '150.000', 3000, 10, 5), erpAddonMonthlyPrice: '20.000' },
+    {
+      trialDays: null,
+      trialDocuments: null,
+      features: [
+        { key: 'peppol', enabled: true, compliance: true },
+        { key: 'erpMapping', enabled: true },
+      ],
+    },
   ),
 ]
 

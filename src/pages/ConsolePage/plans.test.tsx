@@ -836,3 +836,138 @@ describe('Count received documents', () => {
     expect(within(dialog()).getByText(i18n.t('console.plans.counting.noHistory'))).toBeTruthy()
   })
 })
+
+describe('ERP and API add-on price (ER-1, PL-3)', () => {
+  const ADDON: CatalogueAdminPlan = {
+    ...GROWTH,
+    currentVersion: version('GROWTH', 1, { erpAddonMonthlyPrice: '20.000' }),
+    features: [...GROWTH.features, { key: 'erpMapping', enabled: true }],
+  }
+  const addonCatalogue = () => json(200, [STARTER, ADDON, LEGACY])
+
+  it("shows the stored price on the plan's card, and nothing on a plan without one", async () => {
+    await openCatalogue({}, addonCatalogue)
+    // The rial sign stands in for "OMR" on screen.
+    expect(card('Growth').textContent).toContain('ERP and API add-on: ')
+    expect(card('Growth').textContent).toContain('20.000 a month')
+    expect(card('Starter').textContent).not.toContain('ERP and API add-on')
+  })
+
+  it('fills the field and sends nothing for it when it is not changed', async () => {
+    await openCatalogue({ [`PUT ${planUrl('GROWTH')}`]: () => json(200, ADDON) }, addonCatalogue)
+    await editPlan('Growth')
+    expect(input('erpAddonMonthlyPrice')!.value).toBe('20.000')
+    type('nameAr', 'النمو')
+    expect(input('reason')).toBeNull()
+    await save()
+    const body = bodyOf(planUrl('GROWTH'), 'PUT')
+    expect(body).not.toHaveProperty('erpAddonMonthlyPrice')
+    expect(body).not.toHaveProperty('reason')
+  })
+
+  it('asks for a reason when the price changes, and sends it at three decimals', async () => {
+    const stored = {
+      ...ADDON,
+      version: 2,
+      currentVersion: version('GROWTH', 2, { erpAddonMonthlyPrice: '22.500', reason: 'ER-1' }),
+    }
+    await openCatalogue({ [`PUT ${planUrl('GROWTH')}`]: () => json(200, stored) }, addonCatalogue)
+    await editPlan('Growth')
+    type('erpAddonMonthlyPrice', '22.5')
+    await save()
+    expect(
+      within(dialog()).getByText(i18n.t('console.plans.validation.reasonRequired')),
+    ).toBeTruthy()
+    expect(callsTo(planUrl('GROWTH'), 'PUT')).toHaveLength(0)
+
+    type('reason', 'ER-1')
+    await save()
+    expect(bodyOf(planUrl('GROWTH'), 'PUT')).toMatchObject({
+      erpAddonMonthlyPrice: '22.500',
+      reason: 'ER-1',
+    })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(card('Growth').textContent).toContain('22.500')
+  })
+
+  it('refuses a price without ERP field mapping, and zero, before sending', async () => {
+    await openCatalogue({ [`PUT ${planUrl('STARTER')}`]: () => json(200, STARTER) })
+    await editPlan('Starter')
+    type('erpAddonMonthlyPrice', '15')
+    type('reason', 'Offer the add-on')
+    await save()
+    expect(
+      within(dialog()).getByText(i18n.t('console.plans.validation.erpAddonNeedsMapping')),
+    ).toBeTruthy()
+    type('erpAddonMonthlyPrice', '0')
+    await save()
+    expect(
+      within(dialog()).getByText(i18n.t('console.plans.validation.erpAddonAboveZero')),
+    ).toBeTruthy()
+    expect(callsTo(planUrl('STARTER'), 'PUT')).toHaveLength(0)
+
+    type('erpAddonMonthlyPrice', '15')
+    fireEvent.click(toggle(i18n.t('plan.featureName.erpMapping')))
+    await save()
+    expect(bodyOf(planUrl('STARTER'), 'PUT')).toMatchObject({
+      erpAddonMonthlyPrice: '15.000',
+      reason: 'Offer the add-on',
+    })
+    const features = bodyOf(planUrl('STARTER'), 'PUT').features as Array<{
+      key: string
+      enabled: boolean
+    }>
+    expect(features).toContainEqual({ key: 'erpMapping', enabled: true })
+  })
+
+  it("shows the server's refusal of the price on the field", async () => {
+    await openCatalogue(
+      {
+        [`PUT ${planUrl('GROWTH')}`]: () =>
+          json(400, {
+            type: 'https://api.fawtir.om/problems/validation-failed',
+            detail: 'Server prose that must not be shown.',
+            errors: [{ field: 'erpAddonMonthlyPrice', message: 'must match' }],
+          }),
+      },
+      addonCatalogue,
+    )
+    await editPlan('Growth')
+    type('erpAddonMonthlyPrice', '30')
+    type('reason', 'ER-1')
+    await save()
+    expect(within(dialog()).getByText(i18n.t('console.plans.validation.server'))).toBeTruthy()
+    expect(screen.queryByText('Server prose that must not be shown.')).toBeNull()
+  })
+
+  it('shows each version’s price in the history, and names the field in a change', async () => {
+    const history: PlanHistory = {
+      code: 'GROWTH',
+      versions: [
+        version('GROWTH', 2, { erpAddonMonthlyPrice: '22.500', reason: 'ER-1' }),
+        version('GROWTH', 1),
+      ],
+      events: [
+        {
+          id: 'e-3',
+          planCode: 'GROWTH',
+          kind: 'PRICE_VERSION_PUBLISHED',
+          versionId: 'v-GROWTH-2',
+          changes: { erpAddonMonthlyPrice: { before: '20.000', after: '22.500' } },
+          actorId: 'u-admin',
+          occurredAt: '2026-10-19T09:00:00Z',
+        },
+      ],
+    }
+    await openCatalogue({ [`GET ${historyUrl('GROWTH')}`]: () => json(200, history) }, addonCatalogue)
+    fireEvent.click(
+      screen.getByRole('button', { name: i18n.t('console.plans.historyOf', { name: 'Growth' }) }),
+    )
+    const panel = await screen.findByRole('dialog')
+    await within(panel).findByText(i18n.t('console.plans.history.version', { version: 2 }))
+    expect(panel.textContent).toContain('22.500')
+    expect(panel.textContent).toContain(`${i18n.t('console.plans.field.erpAddonPrice')}:`)
+    // Version 1 has no add-on price: one add-on line only, for version 2.
+    expect(panel.textContent!.split('ERP and API add-on: ').length - 1).toBe(1)
+  })
+})
