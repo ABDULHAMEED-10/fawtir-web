@@ -72,6 +72,10 @@ describe('sender-standing refusals of a resubmit', () => {
     expect(held).toMatch(/held for a decision at Fawtir/)
     expect(held).toMatch(/pending guidance from the Tax Authority/)
     expect(held).toMatch(/original report/)
+    expect(held).toMatch(/Nothing is sent until Fawtir decides/)
+    // Once the owner enables the release, the same request succeeds (#640 review M1).
+    expect(held).not.toMatch(/will not send/)
+    expect(ar.tddResubmit.refused.historicalEligible).not.toMatch(/لن تُرسله/)
     expect(en.tddResubmit.refused.senderNotRegistered).not.toMatch(/held/)
   })
 
@@ -82,6 +86,7 @@ describe('sender-standing refusals of a resubmit', () => {
       'senderClaimConflict',
       'senderStandingUnknown',
       'partlyRefused',
+      'allRefused',
       'restNotSent',
     ] as const
     for (const key of keys) {
@@ -128,13 +133,20 @@ describe('groupResubmitOutcome', () => {
     ])
   })
 
+  it('drops the zero counts when every row was refused for standing', () => {
+    expect(groupResubmitOutcome(0, [NOT_REGISTERED, NOT_REGISTERED, NOT_REGISTERED], false)).toEqual([
+      { key: 'tddResubmit.refused.allRefused', values: { refused: '3' } },
+      { key: NOT_REGISTERED },
+    ])
+  })
+
   it('leads into the stopping failure with what had already happened', () => {
     expect(groupResubmitOutcome(0, [], true)).toEqual([])
     expect(groupResubmitOutcome(1, [], true)).toEqual([
       { key: 'tddResubmit.refused.partlySent', values: { sent: '1', held: '0' } },
     ])
     expect(groupResubmitOutcome(0, [NOT_REGISTERED], true)).toEqual([
-      { key: 'tddResubmit.refused.partlyRefused', values: { sent: '0', held: '0', refused: '1' } },
+      { key: 'tddResubmit.refused.allRefused', values: { refused: '1' } },
       { key: NOT_REGISTERED },
       { key: 'tddResubmit.refused.restNotSent' },
     ])

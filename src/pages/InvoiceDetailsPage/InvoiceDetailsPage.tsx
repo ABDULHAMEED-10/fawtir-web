@@ -183,9 +183,15 @@ const ICON_BUTTON =
   'flex size-8 shrink-0 items-center justify-center rounded-sm border border-border-subtle transition-colors hover:bg-neutral-25 disabled:cursor-not-allowed disabled:opacity-40'
 
 export function InvoiceDetailsPage() {
+  const { id = '' } = useParams()
+  // Keyed by id: `/invoices/:id` keeps this page mounted when the reader opens another invoice (the
+  // header search links straight to one), and the screen's own state (the last dispatch answer and
+  // its `sendable`, the notice, an open Send confirmation with its Idempotency-Key) was carried onto
+  // the next invoice (audit A4, D3; review of #249). A fresh screen per id starts clean, and an
+  // answer that lands for the one left behind goes to an unmounted screen and is dropped.
   return (
     <AppShell>
-      <InvoiceScreen />
+      <InvoiceScreen key={id} />
     </AppShell>
   )
 }
@@ -260,40 +266,26 @@ function InvoiceScreen() {
   )
   // A Send's answer, or a newer read while the server was mid-step. Kept apart from the read so a
   // refresh does not blank the line with a loader every few seconds.
-  //
-  // Kept with the id it answers: `/invoices/:id` reuses this page when the reader opens another
-  // invoice (the header search links straight to one), and an answer kept bare was painted on the
-  // next invoice, its `sendable` deciding Send there (audit A4, D3). One that lands for an id the
-  // page has left is dropped, the way useApiRead drops a result for an old key.
-  const [dispatchLatest, setDispatchLatest] = useState<{
-    id: string
-    dispatch: InvoiceDispatchDto | null
-  } | null>(null)
-  const shownId = useRef(id)
-  shownId.current = id
+  const [dispatchLatest, setDispatchLatest] = useState<InvoiceDispatchDto | null>(null)
   const dispatch =
-    (dispatchLatest?.id === id ? dispatchLatest.dispatch : null) ??
-    (dispatchRead.read.status === 'ready' ? dispatchRead.read.data : null)
+    dispatchLatest ?? (dispatchRead.read.status === 'ready' ? dispatchRead.read.data : null)
   // Bumped by every action that changes the dispatch (Send, release, cancel). A quiet re-read that
   // set out before the action may answer after it, with the state from before it; it is dropped
   // rather than painted over the action's newer answer.
   const dispatchEpoch = useRef(0)
-  const adoptDispatch = (forId: string, next: InvoiceDispatchDto | null) => {
-    if (forId !== shownId.current) return
+  const adoptDispatch = (next: InvoiceDispatchDto | null) => {
     dispatchEpoch.current += 1
-    setDispatchLatest({ id: forId, dispatch: next })
+    setDispatchLatest(next)
   }
   // Without this the AS4 receipt and the MLS outcome reached the page only on a reload: the earlier
   // poll watched PROCESSING and an active transmission only.
   usePendingRefresh(id, dispatchIsPending(dispatch), (live) => {
     const epoch = dispatchEpoch.current
     return loadDispatch(id).then((next) => {
-      if (live() && epoch === dispatchEpoch.current) setDispatchLatest({ id, dispatch: next })
+      if (live() && epoch === dispatchEpoch.current) setDispatchLatest(next)
     })
   })
   const [sending, setSending] = useState(false)
-  // The route id the confirmation was opened on, so its answer is shown only on that invoice.
-  const sendingFor = useRef(id)
   // The credit and debit notes that correct this invoice (I-10/I-11), listed on the invoice so a
   // reader sees why its balance moved and can open each note.
   const notesPath =
@@ -468,7 +460,7 @@ function InvoiceScreen() {
       invoice.retry()
       history.retry()
       // Cancelling closes what was owed to the network, so the line under the title changes too.
-      adoptDispatch(id, null)
+      adoptDispatch(null)
       dispatchRead.retry()
     } catch (error) {
       setNotice({ body: refusalText(t, error) })
@@ -480,9 +472,7 @@ function InvoiceScreen() {
   const releaseHeldEmail = async () => {
     setNotice(null)
     try {
-      const released = await releaseBuyerEmail(id)
-      if (id !== shownId.current) return
-      adoptDispatch(id, released)
+      adoptDispatch(await releaseBuyerEmail(id))
       setNotice({ key: 'invoiceDispatch.release.done' })
       history.retry()
     } catch (error) {
@@ -494,8 +484,7 @@ function InvoiceScreen() {
 
   const sent = (result: InvoiceSendResultDto) => {
     setSending(false)
-    if (sendingFor.current !== shownId.current) return
-    adoptDispatch(sendingFor.current, result.dispatch)
+    adoptDispatch(result.dispatch)
     setNotice(sendResultNote(result))
     history.retry()
   }
@@ -753,14 +742,7 @@ function InvoiceScreen() {
             ) : null}
             {/* A document not yet on its way is sent before its buyer is reminded of it. */}
             {canSend ? (
-              <button
-                type="button"
-                onClick={() => {
-                  sendingFor.current = id
-                  setSending(true)
-                }}
-                className={PRIMARY_BUTTON}
-              >
+              <button type="button" onClick={() => setSending(true)} className={PRIMARY_BUTTON}>
                 <img src={sendIcon} alt="" className="size-5 brightness-0 invert" />
                 {t('invoiceDetails.actions.send')}
               </button>

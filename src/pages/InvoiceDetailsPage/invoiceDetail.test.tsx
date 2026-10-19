@@ -1202,6 +1202,7 @@ describe('Send', () => {
         <ReferenceDataContext.Provider value={SEEDED_REFERENCE}>
           <MemoryRouter initialEntries={[`/invoices/${ID}`]}>
             <Link to={`/invoices/${ID_B}`}>open B</Link>
+            <Link to={`/invoices/${ID}`}>open A</Link>
             <Routes>
               <Route path="/invoices/:id" element={<InvoiceDetailsPage />} />
             </Routes>
@@ -1226,6 +1227,9 @@ describe('Send', () => {
         within(await screen.findByRole('dialog')).getByRole('button', { name: 'Send invoice' }),
       )
       expect(await screen.findByText(/^Not sent: needs attention · /)).toBeTruthy()
+      // The notice on A carries the refusal sentence on its own.
+      const refusal = /^Your company address on this invoice is incomplete/
+      expect(screen.getByText(refusal)).toBeTruthy()
       expect(screen.queryByRole('button', { name: 'Send' })).toBeNull()
 
       fireEvent.click(screen.getByRole('link', { name: 'open B' }))
@@ -1234,37 +1238,35 @@ describe('Send', () => {
       expect(await screen.findByRole('button', { name: 'Send' })).toBeTruthy()
       expect(screen.queryByText(/^Not sent: needs attention/)).toBeNull()
       expect(screen.getAllByText('Not sent yet').length).toBeGreaterThan(0)
+      // A's notice does not follow the reader either.
+      expect(screen.queryByText(refusal)).toBeNull()
+
+      // Back on A, the server's read decides again, not the answer kept from before.
+      fireEvent.click(screen.getByRole('link', { name: 'open A' }))
+      await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
+      expect(await screen.findByRole('button', { name: 'Send' })).toBeTruthy()
+      expect(screen.queryByText(refusal)).toBeNull()
     })
 
-    it("drops invoice A's Send answer when it lands after the reader opened B", async () => {
+    it('closes an open Send confirmation when the reader opens another invoice', async () => {
       who = SENDER
       withInvoiceB()
-      let answer: (response: Response) => void = () => undefined
-      const base = fetchMock.getMockImplementation()!
-      fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
-        url === `${URL_BASE}/send` && init?.method === 'POST'
-          ? new Promise<Response>((resolve) => {
-              answer = resolve
-            })
-          : base(url, init),
-      )
       renderWithLinkToB()
       fireEvent.click(await screen.findByRole('button', { name: 'Send' }))
-      fireEvent.click(
-        within(await screen.findByRole('dialog')).getByRole('button', { name: 'Send invoice' }),
-      )
-      await waitFor(() => expect(sends()).toHaveLength(1))
+      const dialogA = await screen.findByRole('dialog')
+      expect(within(dialogA).getByText('Send invoice INV-2026-0042?')).toBeTruthy()
 
       fireEvent.click(screen.getByRole('link', { name: 'open B' }))
       await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0043' })
-      answer(
-        json(200, { ...DISPATCHED, outcome: 'REFUSED', reasonCode: 'SELLER_ADDRESS_INCOMPLETE', dispatch: REFUSED }),
-      )
+      expect(screen.queryByRole('dialog')).toBeNull()
 
-      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-      expect(await screen.findByRole('button', { name: 'Send' })).toBeTruthy()
-      expect(screen.queryByText(/Not sent: needs attention/)).toBeNull()
-      expect(screen.queryByText(/Your company address on this invoice is incomplete/)).toBeNull()
+      // B's own confirmation, its key minted when it opened, posts to B only.
+      fireEvent.click(await screen.findByRole('button', { name: 'Send' }))
+      const dialogB = await screen.findByRole('dialog')
+      expect(within(dialogB).getByText('Send invoice INV-2026-0043?')).toBeTruthy()
+      fireEvent.click(within(dialogB).getByRole('button', { name: 'Send invoice' }))
+      await waitFor(() => expect(calls()).toContain(`POST ${URL_B}/send`))
+      expect(calls().filter((call) => call.endsWith('/send'))).toEqual([`POST ${URL_B}/send`])
     })
   })
 

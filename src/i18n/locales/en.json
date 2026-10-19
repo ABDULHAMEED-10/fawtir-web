@@ -2214,7 +2214,7 @@
       "senderNotRegistered": "Your company's Peppol participant is not verified yet, so nothing was sent. Sending resumes by itself once it is verified; contact Fawtir support if you need help.",
       "senderClaimConflict": "Your company's Peppol participant is under ownership review at Fawtir because another company also claims it, so nothing was sent. Sending resumes by itself once the review is resolved; contact Fawtir support for details.",
       "senderNotAuthorized": "The seller on this invoice is not your company's Peppol participant. It was fixed when the invoice was issued, so this invoice cannot be sent. Contact support with the invoice number.",
-      "transportUnavailable": "Sending over Peppol is not available on this service at the moment, so nothing was sent.",
+      "transportUnavailable": "Sending over Peppol was not available on this service, so nothing was sent.",
       "noOutcome": "The sending service gave no answer for this invoice, so it was not sent. Contact support with the invoice number."
     },
     "sent": {
@@ -9754,12 +9754,13 @@
       "partlyHeld": "Reports sent again: {{sent}}. Held for an authorised decision at Fawtir and not sent: {{held}}.",
       "allHeld": "Nothing was sent. Reports held for an authorised decision at Fawtir: {{held}}.",
       "partlySent": "Reports sent again: {{sent}}. Held for an authorised decision at Fawtir: {{held}}. The rest were not sent:",
-      "historicalEligible": "Your company no longer has a verified Peppol participant. This correction belongs to a report Fawtir filed while it had one, so it is held for a decision at Fawtir, pending guidance from the Tax Authority, and stays linked to the original report. Nothing was sent and the report is still owed; resubmitting again will not send it.",
+      "historicalEligible": "Your company no longer has a verified Peppol participant. This correction belongs to a report Fawtir filed while it had one, so it is held for a decision at Fawtir, pending guidance from the Tax Authority, and stays linked to the original report. Nothing is sent until Fawtir decides, and the report is still owed.",
       "senderNotRegistered": "Your company's Peppol participant is not verified, so corrections cannot be reported yet. Nothing was sent to the Tax Authority and the report is still owed. Complete Participant ID verification, or contact Fawtir support.",
       "senderClaimConflict": "Your company's Peppol participant is under ownership review at Fawtir because another company also claims it, so corrections cannot be reported until the review is resolved. Nothing was sent to the Tax Authority and the report is still owed. Contact Fawtir support.",
       "senderStandingUnknown": "Your company's Peppol standing could not be confirmed just now, so nothing was sent to the Tax Authority and the report is still owed. Try again later.",
       "partlyRefused": "Reports sent again: {{sent}}. Held for an authorised decision at Fawtir: {{held}}. Not sent: {{refused}}.",
-      "restNotSent": "The rest were not sent:"
+      "restNotSent": "The rest were not sent:",
+      "allRefused": "Nothing was sent. Reports not sent: {{refused}}."
     }
   },
   "complianceReport": {

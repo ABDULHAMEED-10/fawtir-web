@@ -67,11 +67,14 @@ function refusedSentences(
   counts: { sent: string; held: string },
   standing: readonly string[],
 ): ResubmitSentence[] {
+  const refused = String(standing.length)
   return [
-    {
-      key: 'tddResubmit.refused.partlyRefused',
-      values: { ...counts, refused: String(standing.length) },
-    },
+    // Rows after a standing refusal are still posted: HISTORICAL_ELIGIBLE is decided per correction,
+    // so one row's refusal does not say how the next is answered. When none went and none was held,
+    // the zero counts are noise.
+    counts.sent === '0' && counts.held === '0'
+      ? { key: 'tddResubmit.refused.allRefused', values: { refused } }
+      : { key: 'tddResubmit.refused.partlyRefused', values: { ...counts, refused } },
     ...[...new Set(standing)].map((key) => ({ key })),
   ]
 }

@@ -264,6 +264,14 @@ describe('sender standing on the dispatch', () => {
       state: { key: 'invoiceDispatch.state.retryScheduled' },
       reason: { key: 'invoiceDispatch.reason.transportUnavailable' },
     })
+    // The same reason rides a dead-lettered row, which waits on an operator, not on time.
+    expect(dispatchNotes(dispatch('DEAD_LETTERED', 'OUTBOUND_TRANSPORT_UNAVAILABLE')).reason).toEqual({
+      key: 'invoiceDispatch.reason.transportUnavailable',
+    })
+    expect(en.invoiceDispatch.reason.transportUnavailable).not.toMatch(/at the moment|right now|retried/)
+    expect(
+      ar.invoiceDispatch.reason.transportUnavailable.replace(/Peppol/g, ''),
+    ).not.toMatch(/[A-Za-z]|حاليًا/)
     expect(
       dispatchNotes(dispatch('DEAD_LETTERED', 'AUTHORED_INVOICE_DISPATCH_NO_OUTCOME')).reason,
     ).toEqual({ key: 'invoiceDispatch.reason.noOutcome' })
