@@ -447,7 +447,10 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
 - **ERP extraction** is a separate add-on with per-plan availability (not offered, priced,
   included), offered at payment and managed in Settings, Plan. White label was removed. On an
   annual plan the ERP add-on is its monthly price × 12: the annual free months apply to the plan
-  only, not to the add-on (owner, 18 Oct 2026; replaces PL-4's × 10 for the add-on).
+  only, not to the add-on (owner, 18 Oct 2026; replaces PL-4's × 10 for the add-on). Its price is
+  **20 OMR a month**, set in the super admin console; the web and app show the console's price,
+  never a fixed figure (owner, 19 Oct 2026). Extra users and extra branches stay × 10 on an
+  annual plan, like the plan; the months free for each add-on should be a console setting too.
 - **Payments for subscriptions:** Paymob hosted checkout (owner, 7 Oct 2026: Paymob, not Thawani), owned by the backend; the app never
   takes card details (never Stripe). Operators record offline payments and activate tenants in
   the console. Operators land on `/console` after sign-in.
@@ -500,7 +503,9 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     when an operator confirms. They are kept as a **separate allowance** ("Extra this month"),
     used only after the plan's own documents. An upgrade is suggested when extras would cost more
     than the next plan. This replaces "usage over the limit is charged, not blocked".
-  - **Cancelling.** **No refunds**, for unused days or unused extra documents. The subscription
+  - **Cancelling.** **No refunds**, for unused days or unused extra documents, with one exception:
+    a period paid in advance that has not started is refunded, **whoever cancels** (the customer
+    or Fawtir; owner, 18 and 19 Oct 2026; RF-1 and CA-1 to say so). The subscription
     stays active to the end of the paid period, then the company is **read-only**: it can sign in,
     read, search, download and export everything, but cannot issue documents, add users or use
     the ERP or API (those actions are hidden, not greyed). Documents already in flight still
@@ -547,6 +552,29 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     plan's users or branches, the customer picks who stays; the others are switched off, never
     deleted, and the Head Branch is never switched off. Extra users, branches and the ERP add-on
     are added pro rata and removed at the renewal.
+  - **Decisions of 18 and 19 Oct 2026:**
+    - **Sent-back applications:** after 30 days the console marks one "correction overdue"; staff
+      chase the customer or close it as a final rejection, at any time, before or after day 30,
+      and the payment is refunded under RF-2. Nothing happens automatically.
+    - **Self-billing agreements are company-wide**, not per branch (VAT Executive Regulations Art.
+      153–154); bills, supplier notes and supplier payments stay company-wide too (BA-5).
+    - **Payment links:** card only (Paymob), no upload on the public page; for companies Fawtir
+      creates and for any company with a failed renewal or a bill due; one bill per link, valid
+      7 days (a console setting), revocable by staff.
+    - **Support contact:** one support email and phone, set in the console and used everywhere
+      (app, emails, website Contact page); placeholders until the real ones are given.
+    - SMP registration happens after approval (VR-1); cash for extra documents on the web only,
+      card or bank transfer on mobile (EX-3/EX-7); uploads virus-scanned (ClamAV) before release;
+      a trial upgrade keeps the trial and charges the difference, the paid period starting on
+      the day the customer paid (D6); Plan v4 page 6 corrected to issue and send in one step.
+  - **Fawtara Portal steps are manual; the console only records them** (owner, 19 Oct 2026).
+    Accepting the taxpayer's connection, registering it on the Oman SMP, removing it from the
+    SMP and approving its Participant ID are done by a Fawtir member on the Fawtara Portal. The
+    console's tenant approval, Participant ID approval (with evidence and a justification) and
+    SMP add or remove steps are **tracking only**: the member records there what was done on the
+    portal, so the customer can use the platform once everything is set up. Fawtir makes no SMP
+    call itself (so #231 is reworked as record-only). **If the Tax Authority provides APIs for
+    these steps, Fawtir will handle them itself** from the console, replacing the manual steps.
   - **Subscription handling is web only on mobile's side** (owner, 13 Oct 2026): buying extra
     documents, upgrading, downgrading, adding paid users or branches and cancelling are on the web.
     Mobile keeps the sign-up payment, plan and usage (read only), the usage warnings and the
