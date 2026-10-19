@@ -52,8 +52,9 @@ export type EnterpriseTermsChangeDto = {
   billingCycle: BillingCycle
   contractReference: string | null
   reason: string
-  /** Only the id is recorded. */
   createdBy: string | null
+  /** The operator's name (OP-3); null when the account is in neither realm the server reads. */
+  createdByName?: string | null
   createdAt: string
 }
 
@@ -101,6 +102,8 @@ export type EnterpriseTermsRequest = {
   extraPersonPrice: string | null
   extraBranchPrice: string | null
   overagePricePerInvoice: string | null
+  /** The ERP and API add-on as a paid extra, one month (ER-1); null = not offered. */
+  erpAddonMonthlyPrice: string | null
   apiAccess: boolean
   prioritySupport: boolean
   features: PlanFeatureEntry[]
@@ -123,6 +126,7 @@ export type EnterpriseTermsForm = {
   extraPersonPrice: string
   extraBranchPrice: string
   overagePricePerInvoice: string
+  erpAddonMonthlyPrice: string
   apiAccess: boolean
   prioritySupport: boolean
   billingCycle: BillingCycle
@@ -147,6 +151,7 @@ export const ENTERPRISE_FIELD_ORDER: readonly (EnterpriseTermsField | 'reason')[
   'extraPersonPrice',
   'extraBranchPrice',
   'overagePricePerInvoice',
+  'erpAddonMonthlyPrice',
   'contractReference',
   'reason',
 ]
@@ -191,6 +196,7 @@ export function enterpriseFormFrom(terms: EnterpriseTermsDto): EnterpriseTermsFo
       extraPersonPrice: '',
       extraBranchPrice: '',
       overagePricePerInvoice: '',
+      erpAddonMonthlyPrice: '',
       apiAccess: false,
       prioritySupport: false,
       billingCycle: cycle,
@@ -213,6 +219,7 @@ export function enterpriseFormFrom(terms: EnterpriseTermsDto): EnterpriseTermsFo
     extraPersonPrice: decimal(version.extraPersonPrice),
     extraBranchPrice: decimal(version.extraBranchPrice),
     overagePricePerInvoice: decimal(version.overagePricePerInvoice),
+    erpAddonMonthlyPrice: decimal(version.erpAddonMonthlyPrice),
     apiAccess: version.apiAccess,
     prioritySupport: version.prioritySupport,
     billingCycle: cycle,
@@ -243,6 +250,21 @@ function atLeastOne(value: string, required: boolean): string | undefined {
   return Number(trimmed) >= 1 ? undefined : 'console.plans.validation.atLeastOne'
 }
 
+/**
+ * ER-1: the add-on price is above zero (ERP included in the contract is the ERP grant, not a zero
+ * price) and needs ERP field mapping on, as the server checks.
+ */
+function erpAddonPrice(form: EnterpriseTermsForm): string | undefined {
+  const trimmed = form.erpAddonMonthlyPrice.trim()
+  if (!trimmed) return undefined
+  const invalid = money(trimmed, false)
+  if (invalid) return invalid
+  if ((baisaOf(trimmed) ?? 0) <= 0) return 'console.enterpriseTerms.validation.erpAddonAboveZero'
+  return form.features.erpMapping
+    ? undefined
+    : 'console.enterpriseTerms.validation.erpAddonNeedsMapping'
+}
+
 const longer = (value: string, max: number, key: string) =>
   value.trim().length > max ? key : undefined
 
@@ -259,6 +281,7 @@ export function validateEnterpriseForm(form: EnterpriseTermsForm): EnterpriseTer
     extraPersonPrice: money(form.extraPersonPrice, false),
     extraBranchPrice: money(form.extraBranchPrice, false),
     overagePricePerInvoice: money(form.overagePricePerInvoice, false),
+    erpAddonMonthlyPrice: erpAddonPrice(form),
     contractReference: longer(
       form.contractReference,
       CONTRACT_MAX,
@@ -317,6 +340,7 @@ export function toEnterpriseRequest(
     extraPersonPrice: amount(form.extraPersonPrice),
     extraBranchPrice: amount(form.extraBranchPrice),
     overagePricePerInvoice: amount(form.overagePricePerInvoice),
+    erpAddonMonthlyPrice: amount(form.erpAddonMonthlyPrice),
     apiAccess: form.apiAccess,
     prioritySupport: form.prioritySupport,
     features,

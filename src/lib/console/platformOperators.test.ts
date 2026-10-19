@@ -31,6 +31,7 @@ describe('platform roles', () => {
   it('knows only the two catalogue codes', () => {
     expect(isPlatformRole('PLATFORM_TENANT_ADMIN')).toBe(true)
     expect(isPlatformRole('PLATFORM_SUPPORT')).toBe(true)
+    expect(isPlatformRole('PLATFORM_PARTICIPANT_OWNERSHIP')).toBe(true)
     // Present in the platform tenant but outside the grant endpoint's catalogue.
     expect(isPlatformRole('PLATFORM_OPERATOR')).toBe(false)
     expect(isPlatformRole('PEPPOL_TEST_OPERATOR')).toBe(false)
@@ -93,7 +94,11 @@ describe('isAdminLocked', () => {
 describe('describeRoleChangeFailure', () => {
   it.each([
     [new ApiError({ status: 403, problemType: 'insufficient-permission' }), 'console.operators.error.refused'],
-    [new ApiError({ status: 404, problemType: 'resource-not-found' }), 'console.operators.error.gone'],
+    [new ApiError({ status: 403, problemType: 'own-account-refused' }), 'console.operators.selfGive'],
+    [new ApiError({ status: 403, problemType: 'last-administrator' }), 'console.operators.lastAdmin'],
+    [new ApiError({ status: 403, problemType: null }), 'console.operators.error.refused'],
+    [new ApiError({ status: 404, problemType: 'resource-not-found' }), 'console.operators.error.roleTargetGone'],
+    [new ApiError({ status: 403, problemType: 'production-platform-realm-required' }), 'console.operators.error.realm'],
     [new ApiError({ status: 500, problemType: 'internal-error' }), 'identityErrors.service'],
     [new NetworkError('timeout'), 'identityErrors.timeout'],
   ])('maps %o', (error, key) => {

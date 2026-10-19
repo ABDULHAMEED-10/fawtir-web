@@ -333,8 +333,9 @@ describe('Roles dialog', () => {
 
     expect(actionButton('give', 'PLATFORM_TENANT_ADMIN')).toBeTruthy()
     expect(actionButton('remove', 'PLATFORM_SUPPORT')).toBeTruthy()
-    expect(within(dialog()).getByText(t('console.operators.notHeld'))).toBeTruthy()
-    expect(within(dialog()).getByText(t('console.operators.held'))).toBeTruthy()
+    // Not held: tenant administration and Participant ID ownership.
+    expect(within(dialog()).getAllByText(t('console.operators.notHeld'))).toHaveLength(2)
+    expect(within(dialog()).getAllByText(t('console.operators.held'))).toHaveLength(1)
   })
 
   it('does not offer the signed-in operator a role for themselves', async () => {
@@ -342,7 +343,9 @@ describe('Roles dialog', () => {
     await manage('Hafidh Al Harthi')
 
     expect(actionButton('give', 'PLATFORM_SUPPORT').disabled).toBe(true)
-    expect(within(dialog()).getByText(t('console.operators.selfGive'))).toBeTruthy()
+    expect(actionButton('give', 'PLATFORM_PARTICIPANT_OWNERSHIP').disabled).toBe(true)
+    // One note per role the operator does not hold: support and Participant ID ownership.
+    expect(within(dialog()).getAllByText(t('console.operators.selfGive'))).toHaveLength(2)
   })
 
   it('does not offer to remove the last tenant administrator', async () => {
@@ -433,7 +436,8 @@ describe('Roles dialog', () => {
 
   it.each([
     ['a refusal (403)', () => problem(403, 'insufficient-permission'), 'console.operators.error.refused'],
-    ['a person who has gone (404)', () => problem(404, 'resource-not-found'), 'console.operators.error.gone'],
+    ['a person or role that cannot be found (404)', () => problem(404, 'resource-not-found'), 'console.operators.error.roleTargetGone'],
+    ['a change outside the production platform realm (403)', () => problem(403, 'production-platform-realm-required'), 'console.operators.error.realm'],
     ['rate limiting (429)', () => problem(429, 'rate-limited'), 'identityErrors.rateLimited'],
     ['a server fault (500)', () => problem(500, 'internal-error'), 'identityErrors.service'],
     [
@@ -1487,5 +1491,125 @@ describe('Lock, unlock and deactivate (P9)', () => {
 
     expect(within(dialog()).getByRole('heading', { name: t('console.operators.lifecycle.deactivateTitle', { name: 'Noor' }) })).toBeTruthy()
     expect(t('console.operators.lifecycle.deactivateTitle', { name: 'Noor' })).toContain('إلغاء تنشيط')
+  })
+})
+
+describe('Participant ID ownership role (V386)', () => {
+  const OWNERSHIP = 'PLATFORM_PARTICIPANT_OWNERSHIP'
+  const ownershipUrl = roleUrl('u-noor', OWNERSHIP)
+
+  it('is offered beside the other platform roles, with its label and what it allows', async () => {
+    await openTeam()
+    await manage('Noor')
+
+    expect(within(dialog()).getByText('Participant ID ownership')).toBeTruthy()
+    expect(within(dialog()).getByText(t(`console.operators.roleNote.${OWNERSHIP}`))).toBeTruthy()
+    expect(t(`console.operators.roleNote.${OWNERSHIP}`)).toMatch(/two different operators/)
+    expect(actionButton('give', OWNERSHIP).disabled).toBe(false)
+    // The roles that were there before are offered exactly as they were.
+    expect(actionButton('give', 'PLATFORM_TENANT_ADMIN')).toBeTruthy()
+    expect(actionButton('remove', 'PLATFORM_SUPPORT')).toBeTruthy()
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+  })
+
+  it('gives the role with one bodiless POST to the role path', async () => {
+    await openTeam({
+      [ownershipUrl]: () => json(200, { userId: 'u-noor', platformRoles: ['PLATFORM_SUPPORT', OWNERSHIP] }),
+    })
+    await manage('Noor')
+    fireEvent.click(actionButton('give', OWNERSHIP))
+    expect(within(dialog()).getByText(t(`console.operators.roleNote.${OWNERSHIP}`))).toBeTruthy()
+    await confirm('give')
+
+    expect(callsTo(ownershipUrl)).toHaveLength(1)
+    expect(initOf(ownershipUrl).method).toBe('POST')
+    expect(initOf(ownershipUrl).body).toBeUndefined()
+    expect((initOf(ownershipUrl).headers as Record<string, string>)['X-CSRF-Token']).toBe(CSRF)
+    await screen.findByText(t('console.operators.saved', { name: 'Noor' }))
+    expect(within(row('Noor')).getByText('Participant ID ownership')).toBeTruthy()
+    expect(within(row('Noor')).getByText(roleName('PLATFORM_SUPPORT'))).toBeTruthy()
+    expect(fetchMock).toHaveBeenCalledTimes(5)
+  })
+
+  it('removes the role with one DELETE and shows the person without it', async () => {
+    const noor = { ...NOOR, roles: ['PLATFORM_SUPPORT', OWNERSHIP] }
+    await openTeam(
+      { [ownershipUrl]: () => json(200, { userId: 'u-noor', platformRoles: ['PLATFORM_SUPPORT'] }) },
+      () => json(200, page([SELF, noor])),
+    )
+    expect(within(row('Noor')).getByText('Participant ID ownership')).toBeTruthy()
+    await manage('Noor')
+    fireEvent.click(actionButton('remove', OWNERSHIP))
+    await confirm('remove')
+
+    expect(callsTo(ownershipUrl)).toHaveLength(1)
+    expect(initOf(ownershipUrl).method).toBe('DELETE')
+    expect(initOf(ownershipUrl).body).toBeUndefined()
+    await screen.findByText(t('console.operators.saved', { name: 'Noor' }))
+    expect(within(row('Noor')).queryByText('Participant ID ownership')).toBeNull()
+    expect(within(row('Noor')).getByText(roleName('PLATFORM_SUPPORT'))).toBeTruthy()
+  })
+
+  it('does not offer the role to the signed-in operator', async () => {
+    await openTeam()
+    await manage('Hafidh Al Harthi')
+
+    expect(actionButton('give', OWNERSHIP).disabled).toBe(true)
+  })
+
+  it.each([
+    ['a self-grant', 'own-account-refused', 'console.operators.selfGive'],
+    ['a missing permission', 'insufficient-permission', 'console.operators.error.refused'],
+  ])('explains %s refused with 403, without the server prose', async (_label, type, key) => {
+    await openTeam({ [ownershipUrl]: () => problem(403, type) })
+    await manage('Noor')
+    fireEvent.click(actionButton('give', OWNERSHIP))
+    await confirm('give')
+
+    expect(await within(dialog()).findByText(t(key))).toBeTruthy()
+    expect(document.body.textContent).not.toContain('Server prose')
+    expect(callsTo(ownershipUrl)).toHaveLength(1)
+    expect(within(row('Noor')).queryByText('Participant ID ownership')).toBeNull()
+  })
+
+  it.each([
+    ['holds only the transfer permission', ['platform.smp.participant.transfer'], 'console.access.missingPermission'],
+    ['is a customer administrator', ['admin.users.manage', 'admin.roles.manage'], 'console.access.notOperator'],
+  ])('shows no controls, and reads nothing, to someone who %s', async (_label, permissions, key) => {
+    answer({ [ENTITLEMENTS_URL]: () => json(200, { ...OPERATOR, permissions }) })
+    renderOperators()
+
+    expect(await screen.findByText(t(key))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: t('console.operators.actionsFor', { name: 'Noor' }) })).toBeNull()
+    expect(callsTo(usersUrl())).toHaveLength(0)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('explains a last-administrator refusal (403) the screen could not foresee', async () => {
+    const url = roleUrl('u-self', 'PLATFORM_TENANT_ADMIN')
+    // The team spans pages, so the screen cannot know this is the last administrator and sends.
+    await openTeam(
+      { [url]: () => problem(403, 'last-administrator') },
+      () => json(200, page([SELF, NOOR], { totalElements: 60, totalPages: 2 })),
+    )
+    await manage('Hafidh Al Harthi')
+    fireEvent.click(actionButton('remove', 'PLATFORM_TENANT_ADMIN'))
+    await confirm('remove')
+
+    expect(await within(dialog()).findByText(t('console.operators.lastAdmin'))).toBeTruthy()
+    expect(document.body.textContent).not.toContain('Server prose')
+    expect(callsTo(url)).toHaveLength(1)
+  })
+
+  it('is named and explained in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    await openTeam()
+    await manage('Noor')
+
+    expect(within(dialog()).getByText('ملكية معرّف المشارك')).toBeTruthy()
+    expect(within(dialog()).getByText(t(`console.operators.roleNote.${OWNERSHIP}`))).toBeTruthy()
+    expect(dialog().textContent).not.toMatch(/Participant ID ownership|two different operators/)
+    expect(t('console.operators.error.realm')).toBe('لا يمكن إدارة أدوار المنصة إلا في مشترك المنصة الإنتاجي.')
+    expect(t('console.operators.error.roleTargetGone')).toMatch(/^لم يعثر فوتر/)
   })
 })

@@ -17,6 +17,8 @@ import { ACCOUNT_EMAIL_CONFIRM_ROUTE } from './lib/identity/accountEmail'
 import { COMPANY_INVITATION_ROUTE } from './lib/identity/operatorInvitation'
 import { PlansPage } from './pages/PlansPage'
 import { PaymentPage } from './pages/PaymentPage'
+import { PayDonePage, PayPage } from './pages/PayPage'
+import { PAY_DONE_ROUTE, PAY_ROUTE } from './lib/payLink'
 import { FawtaraStatusPage } from './pages/FawtaraStatusPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { InvoicesPage } from './pages/InvoicesPage'
@@ -92,6 +94,7 @@ import {
   ApprovalPolicyPage,
   AddBranchPage,
   InvitePage,
+  PersonPage,
   MakeRolePage,
 } from './pages/SettingsPage'
 import { DocumentDetailPage } from './pages/DocumentDetailPage'
@@ -175,6 +178,7 @@ import {
   ConsoleBankAccountsPage,
   ConsoleBillingSettingsPage,
   ConsoleSellerPage,
+  ConsoleCompanyContactPage,
   ConsoleDisconnectionsPage,
   ConsoleEnterprisePage,
   ConsoleEnterpriseTermsPage,
@@ -220,6 +224,8 @@ function App() {
           <Route path="/verify-code" element={<VerifyCodePage />} />
           <Route path="/new-password" element={<NewPasswordPage />} />
           <Route path="/operator-invitation" element={<OperatorInvitationPage />} />
+          <Route path={PAY_ROUTE} element={<PayPage />} />
+          <Route path={PAY_DONE_ROUTE} element={<PayDonePage />} />
           <Route path={COMPANY_INVITATION_ROUTE} element={<CompanyInvitationPage />} />
           <Route path={ACCOUNT_EMAIL_CONFIRM_ROUTE} element={<AccountEmailConfirmPage />} />
           <Route path="/about-business" element={<AboutBusinessPage />} />
@@ -353,6 +359,7 @@ function App() {
           <Route path="/settings/company" element={<CompanyProfilePage />} />
           <Route path="/settings/team" element={<TeamPage />} />
           <Route path="/settings/team/invite" element={<InvitePage />} />
+          <Route path="/settings/team/:userId" element={<PersonPage />} />
           <Route path="/settings/roles" element={<RolesPage />} />
           <Route path="/settings/roles/new" element={<DemoModule module="makeRole"><MakeRolePage /></DemoModule>} />
           <Route path="/settings/plan" element={<PlanPage />} />
@@ -833,6 +840,7 @@ function App() {
           <Route path="/console/billing/accounts" element={<ConsoleBankAccountsPage />} />
           <Route path="/console/billing/settings" element={<ConsoleBillingSettingsPage />} />
           <Route path="/console/billing/seller" element={<ConsoleSellerPage />} />
+          <Route path="/console/company-contact" element={<ConsoleCompanyContactPage />} />
           <Route path="/console/disconnections" element={<ConsoleDisconnectionsPage />} />
           <Route path="/console/operators" element={<OperatorsPage />} />
           <Route path="/console/policies" element={<ValidationPoliciesPage />} />

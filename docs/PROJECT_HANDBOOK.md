@@ -445,7 +445,9 @@ Checked on 2026-09-28 against PDK 1.4.4. Findings from that check are in
 false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an upgrade nudge,
   never hidden.
 - **ERP extraction** is a separate add-on with per-plan availability (not offered, priced,
-  included), offered at payment and managed in Settings, Plan. White label was removed.
+  included), offered at payment and managed in Settings, Plan. White label was removed. On an
+  annual plan the ERP add-on is its monthly price × 12: the annual free months apply to the plan
+  only, not to the add-on (owner, 18 Oct 2026; replaces PL-4's × 10 for the add-on).
 - **Payments for subscriptions:** Paymob hosted checkout (owner, 7 Oct 2026: Paymob, not Thawani), owned by the backend; the app never
   takes card details (never Stripe). Operators record offline payments and activate tenants in
   the console. Operators land on `/console` after sign-in.

@@ -125,4 +125,3 @@ export const needsPortalRequest = (phase: GoingLivePhase) =>
 
 export const FAWTARA_PORTAL_URL = 'https://tms.taxoman.gov.om/portal'
 
-export const SUPPORT_EMAIL = 'support@fawtir.om'

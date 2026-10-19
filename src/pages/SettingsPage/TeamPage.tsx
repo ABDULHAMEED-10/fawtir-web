@@ -24,7 +24,8 @@ import {
   type UserPage,
 } from '../../api/settings/people'
 import { PeopleTable } from './people'
-import { TH, TD, useRoleNames } from './peopleView'
+import { TH, TD, useBranchNames, useManagesPeople, useRoleNames } from './peopleView'
+import { useBranchAccessOn } from '../../lib/identity/branchAccessSwitch'
 import plusIcon from '../../assets/settings/plus-white.svg'
 import searchIcon from '../../assets/invoices/search.svg'
 
@@ -69,7 +70,9 @@ export function TeamPage() {
 /** Inside the shell, which is what provides the session the permission is read from. */
 function Team() {
   const { t } = useTranslation()
-  const mayManage = useCan(USERS_PERMISSION)
+  // The Administrator, or, once branch access is on, a branch administrator for the people of
+  // their branches (LG-3). The server says "branch administrator" only while it is on.
+  const mayManage = useManagesPeople()
   // Nobody new is added while the subscription is read-only (ST-2); the lists stay.
   const mayInvite = useSubscriptionAllows('ADD_PEOPLE')
 
@@ -98,8 +101,17 @@ function Team() {
 function TeamLists() {
   const { t } = useTranslation()
   const people = useApiRead<UserPage>(PEOPLE_PATH, loadPeople)
-  const invitations = useApiRead<InvitationDto[]>(PENDING_INVITATIONS_PATH, loadPendingInvitations)
+  // The invitation list stays the Administrator's; a branch administrator is not asked for it.
+  const isAdministrator = useCan(USERS_PERMISSION)
+  const invitations = useApiRead<InvitationDto[]>(
+    isAdministrator ? PENDING_INVITATIONS_PATH : null,
+    loadPendingInvitations,
+  )
   const roleNames = useRoleNames()
+  // The Branches column, the Owner mark and each person's page wait for branch access (BA-1):
+  // while it is off the list is drawn as before and no branch is read.
+  const branchAccessOn = useBranchAccessOn()
+  const { name: branchName } = useBranchNames(branchAccessOn)
   const [tab, setTab] = useState<TeamTab>('all')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('name')
@@ -149,7 +161,12 @@ function TeamLists() {
           aria-label={t('people.team.peopleTitle')}
           className="flex flex-wrap items-center gap-1 border-b border-surface-background px-5 pt-4"
         >
-          {TABS.map((entry) => {
+          {TABS.map((tabEntry) => {
+            // Waiting invitations are the Administrator's list only.
+            const entry =
+              tabEntry.id === 'waiting' && !isAdministrator
+                ? { ...tabEntry, available: false }
+                : tabEntry
             const active = entry.id === tab
             const figure = count(entry.id)
             return (
@@ -233,7 +250,18 @@ function TeamLists() {
               </p>
             ) : (
               <>
-                <PeopleTable people={rows} roleNames={roleNames} lastSignedIn />
+                {branchAccessOn ? (
+                  <PeopleTable
+                    people={rows}
+                    roleNames={roleNames}
+                    lastSignedIn
+                    branchName={branchName}
+                    personLink={(person) => `/settings/team/${encodeURIComponent(person.id)}`}
+                    markOwner
+                  />
+                ) : (
+                  <PeopleTable people={rows} roleNames={roleNames} lastSignedIn />
+                )}
                 {people.read.data.totalElements > people.read.data.content.length ? (
                   <p className="text-sm font-medium text-text-tertiary">
                     {t('people.team.more', {

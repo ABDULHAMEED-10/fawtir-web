@@ -4,6 +4,10 @@ import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { OutstandingBill, formatRate } from './SubscriptionBillingSection'
+import { ReconnectBeforePayingNote } from './ReconnectBeforePayingNote'
+import { usePayingHeldUntilReconnected } from '../../hooks/usePayingHeldUntilReconnected'
+import { noteLeftFawtirRefusal } from '../../lib/leftFawtirRefusal'
+import { LeftFawtirRefusal } from '../../components/billing/LeftFawtirRefusal'
 import { useApiRead, type ApiRead } from '../../hooks'
 import { useCan } from '../../lib/session/session'
 import { ApiError } from '../../api'
@@ -70,6 +74,7 @@ export function PaidExtrasPage() {
           </Link>
         }
       />
+      <ReconnectBeforePayingNote />
       <PaidExtrasBody />
     </SettingsShell>
   )
@@ -82,6 +87,8 @@ function PaidExtrasBody() {
   // Shared with the subscription section: whether buying is possible at all in this state.
   const subscription = useApiRead<SubscriptionStatusDto>(SUBSCRIPTION_PATH, loadSubscription).read
   const mayManage = useCan(PLAN_MANAGE)
+  // LV-6: no users, branches or add-on are ordered once the company has left Fawtir (A3.8).
+  const held = usePayingHeldUntilReconnected()
   const outstanding = extras.read.status === 'ready' ? extras.read.data.outstanding : null
   const billing = useApiRead<BillingOverviewDto>(
     outstanding ? BILLING_PATH : null,
@@ -122,6 +129,7 @@ function PaidExtrasBody() {
   const payFirst = data.open && (access === 'PAYMENT_REQUIRED' || access === 'CANCELLED')
   const canAddAddon =
     mayManage &&
+    !held &&
     !blocked &&
     !payFirst &&
     !outstanding &&
@@ -162,6 +170,7 @@ function PaidExtrasBody() {
           billing={billing.read}
           retryBilling={billing.retry}
           mayManage={mayManage}
+          held={held}
           reportedCards={reportedCards}
           onChanged={reload}
           onCardFinished={(paymentId, why) => {
@@ -169,6 +178,8 @@ function PaidExtrasBody() {
             reload(why)
           }}
         />
+      ) : held ? (
+        <LeftFawtirRefusal />
       ) : (
         <SectionCard title={t('paidExtras.buy.title')} note={t('paidExtras.buy.note')}>
           <div className="p-5 pt-0">
@@ -339,7 +350,8 @@ function ErpAddonCard({
               {t(`paidExtras.addon.body.${state}`, { date: endsOn })}
             </p>
           </div>
-          {mayManage ? (
+          {/* No empty row when there is nothing to do, as once the company has left (A3.8). */}
+          {mayManage && (state === 'ACTIVE' || state === 'ENDING' || onAdd) ? (
             <div className="flex shrink-0 flex-wrap items-center gap-2.5">
               {state === 'ACTIVE' ? (
                 <Button variant="ghost" size="md" onClick={() => setConfirming(true)}>
@@ -725,6 +737,7 @@ function OrderCard({
   billing,
   retryBilling,
   mayManage,
+  held,
   reportedCards,
   onChanged,
   onCardFinished,
@@ -734,6 +747,8 @@ function OrderCard({
   billing: ApiRead<BillingOverviewDto>
   retryBilling: () => void
   mayManage: boolean
+  /** Changing the order places a new one, which the server refuses once the company has left. */
+  held: boolean
   reportedCards: ReadonlySet<string>
   onChanged: (why?: string) => void
   onCardFinished: (paymentId: string, why: string) => void
@@ -754,8 +769,8 @@ function OrderCard({
     const listed = billing.data.bills.find((entry) => entry.bill.id === order.bill.id)
     const payments = listed?.payments ?? []
     const live = payments.some((payment) => LIVE_PAYMENT.includes(payment.status))
-    const changeable = mayManage && order.bill.status === 'OPEN' && !live && listed !== undefined
-    body = changing ? (
+    const changeable = mayManage && !held && order.bill.status === 'OPEN' && !live && listed !== undefined
+    body = changing && !held ? (
       <div className="flex flex-col gap-3">
         <p className="text-sm font-medium text-text-secondary">{t('paidExtras.order.replaces')}</p>
         <BuyForm
@@ -917,6 +932,8 @@ const KNOWN_REFUSALS = [
 
 /** Our own sentence for each refusal the server gives; its English `detail` is never shown. */
 function refusalMessage(t: TFunction, error: unknown): string {
+  // LV-6: remembered, so every way to pay is held back from here on (A3.8).
+  if (noteLeftFawtirRefusal(error)) return t('billing.refusal.disconnected-from-fawtir')
   if (error instanceof ApiError) {
     if (error.problemType === 'paid-extras-order-limit') {
       const max = (value: unknown) => (typeof value === 'number' ? String(value) : '')

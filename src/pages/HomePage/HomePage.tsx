@@ -19,7 +19,8 @@ import posCatalog from '../../assets/home/pos-catalog.webp'
 import posPaid from '../../assets/home/pos-paid.webp'
 import showcaseDashboard from '../../assets/home/showcase-dashboard.webp'
 import './HomePage.css'
-import { ClosingBand, Cta, DEMO_MAILTO, Footer, Heading, INK, Nav, SOFT, Texture } from './site'
+import { ClosingBand, Cta, Footer, Heading, INK, Nav, SOFT, Texture } from './site'
+import { useSiteMail } from './siteMail'
 
 /**
  * The public landing page (Figma "Website", 186:12615), laid out on the frame's own numbers:
@@ -46,6 +47,7 @@ export function HomePage() {
 
 function Hero() {
   const { t } = useTranslation()
+  const mail = useSiteMail()
   return (
     <header id="top" className="relative isolate pb-5">
       <div aria-hidden="true" className="absolute inset-x-0 top-0 -z-10 h-[1200px] overflow-hidden">
@@ -75,7 +77,7 @@ function Hero() {
               <br className="max-md:hidden" /> {t('landing.hero.body2')}
             </p>
           </div>
-          <Cta href={DEMO_MAILTO}>{t('landing.cta.demo')}</Cta>
+          <Cta href={mail.demo}>{t('landing.cta.demo')}</Cta>
         </div>
 
         <div className="relative w-full">
@@ -100,6 +102,7 @@ function Hero() {
 
 function Overview() {
   const { t } = useTranslation()
+  const mail = useSiteMail()
   return (
     <section className="relative mx-auto mt-[120px] w-full max-w-[1720px] px-4 max-md:mt-10 md:px-8 min-[1800px]:px-0">
       {/* The frame's two stacked washes and its curve panel, 40 px apart each. */}
@@ -149,7 +152,7 @@ function Overview() {
               </p>
               <p className="mt-9">{t('landing.overview.closing')}</p>
             </div>
-            <Cta href={DEMO_MAILTO}>{t('landing.cta.demo')}</Cta>
+            <Cta href={mail.demo}>{t('landing.cta.demo')}</Cta>
           </div>
         </div>
 
@@ -266,6 +269,7 @@ const STEPS = ['sale', 'invoice', 'cleared', 'serve'] as const
 
 function Steps() {
   const { t } = useTranslation()
+  const mail = useSiteMail()
   const [active, setActive] = useState(0)
   const step = STEPS[active]
 
@@ -325,7 +329,7 @@ function Steps() {
             {t(`landing.steps.${step}.body`)}
           </p>
           <div className="mt-[40px]">
-            <Cta href={DEMO_MAILTO} tone="brand">
+            <Cta href={mail.demo} tone="brand">
               {t('landing.cta.demo')}
             </Cta>
           </div>

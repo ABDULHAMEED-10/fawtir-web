@@ -3,6 +3,7 @@ import { commonFailureMessage, type FormMessage } from './identity/errors'
 import { refusalMessageKey, refusalMessageValues } from './expenditureRefusals'
 import { selfBillingMessageKey } from './selfBillingRefusals'
 import { subscriptionRestrictedMessageKey } from './subscriptionRestricted'
+import { salesApprovalMessageKey } from './salesApproval'
 
 /**
  * The localized sentence for a failed customer-app request, and the reference support needs.
@@ -29,6 +30,10 @@ export function describeApiFailure(error: unknown): FormMessage & { reference: s
     // someone with no agreement to "reload to see the latest version" is false, not merely vague.
     const selfBilling = selfBillingMessageKey(error)
     if (selfBilling !== null) return { key: selfBilling, reference }
+    // Sales approval (RL-6) answers 409 and 403 by name: issuing a draft that waits on approval
+    // from any screen (composer, bulk upload, detail) says why, not "reload".
+    const salesApproval = salesApprovalMessageKey(error)
+    if (salesApproval !== null) return { key: salesApproval, reference }
     if (error.status === 403) {
       return { key: error.problemType === 'csrf-rejected' ? 'apiErrors.csrf' : 'apiErrors.forbidden', reference }
     }

@@ -269,9 +269,7 @@ function tddJourney(dto: ActivityDetailDto, outcome: RowOutcome, language: strin
       id: 'accepted',
       // AB is delivered without confirmation, never "accepted".
       labelKey:
-        leg.ack === 'AB'
-          ? 'activityDetail.step.deliveredUnconfirmed'
-          : 'activityDetail.step.accepted',
+        leg.ack === 'AB' ? 'activity.ack.deliveredUnconfirmed' : 'activityDetail.step.accepted',
       at: stampOf(leg.ack_at, language),
       note: dto.summary.fawtara_reference ?? live?.fawtara_reference ?? undefined,
       state: 'done',
@@ -304,7 +302,7 @@ function tddJourney(dto: ActivityDetailDto, outcome: RowOutcome, language: strin
             tone: 'good',
           }
       : outcome === 'deliveredUnconfirmed'
-        ? { verdictKey: 'activityDetail.verdict.deliveredUnconfirmed', tone: 'waiting' }
+        ? { verdictKey: 'activity.ack.deliveredUnconfirmed', tone: 'waiting' }
         : outcome === 'rejected'
           ? { verdictKey: 'activityDetail.verdict.turnedDown', tone: 'bad' }
           : outcome === 'superseded'
@@ -329,8 +327,13 @@ function tddJourney(dto: ActivityDetailDto, outcome: RowOutcome, language: strin
   }
 }
 
+/**
+ * AB is "delivered without confirmation" in the backend's SubmissionState: the access point
+ * forwarded the invoice but cannot confirm the customer holds it, so it never reads as a
+ * confirmed receipt.
+ */
 const MLS_STEP: Record<string, { labelKey: string; state: StepState }> = {
-  AB: { labelKey: 'activityDetail.step.confirmedReceipt', state: 'done' },
+  AB: { labelKey: 'activity.ack.deliveredUnconfirmed', state: 'done' },
   AP: { labelKey: 'activityDetail.step.theyAccepted', state: 'done' },
   RE: { labelKey: 'activityDetail.step.theyRefused', state: 'failed' },
 }
@@ -369,7 +372,9 @@ function receivedJourney(dto: ActivityDetailDto, language: string): Journey {
 /**
  * Proof that the invoice left over AS4. QUEUED and SENDING are only a row waiting in our outbox,
  * and `attempts` also counts failures before anything was sent; an MDN (SENT and the delivered
- * states, or SENT_AWAITING_MDN on the row) or a reply from their side is proof.
+ * states, or SENT_AWAITING_MDN on the row) or a reply from their side is proof. C4_UNREACHABLE
+ * is set only from an INVOICE-channel RE (backend SubmissionState), which the receiving access
+ * point can send only for an invoice it holds: it was sent, then refused.
  */
 const SENT_INVOICE_STATES = new Set([
   'SENT',
@@ -377,6 +382,24 @@ const SENT_INVOICE_STATES = new Set([
   'DELIVERED_UNCONFIRMED',
   'C4_UNREACHABLE',
 ])
+
+/**
+ * The ledger states that record an MLS outcome, and the code each one stands for. The ledger keeps
+ * the first valid MLS (SubmissionState); the detail lists every MLS row, so a later reply there
+ * must not overturn it. UNDELIVERABLE is absent: the backend sets it only when the AS4 transport
+ * fails terminally (OutboundRetryScheduler), so it records no MLS at all.
+ */
+const LEDGER_ANSWER: Record<string, MlsRecordDto['ack']> = {
+  DELIVERED: 'AP',
+  DELIVERED_UNCONFIRMED: 'AB',
+  C4_UNREACHABLE: 'RE',
+}
+
+/** Only the access point's answers belong on the customer's journey; the OTA's are the TDD's. */
+const invoiceReplies = (dto: ActivityDetailDto) =>
+  dto.mls
+    .filter((record: MlsRecordDto) => record.channel === 'INVOICE' && record.ack !== 'NONE')
+    .sort((a, b) => (a.received_at ?? '').localeCompare(b.received_at ?? ''))
 const SENT_TRANSMISSION_STATES = new Set(['SENT_AWAITING_MDN', 'DELIVERED'])
 
 const invoiceTransmissions = (dto: ActivityDetailDto) =>
@@ -407,9 +430,7 @@ function peppolJourney(dto: ActivityDetailDto, language: string): Journey | null
   // A walk-in sale or a buyer off Peppol is reported only: nothing travels to a customer.
   // An export to a buyer off Peppol is reported under TDD scope INP (ACTIVITY.md 2.32).
   if (item.b2c || item.scenario?.stand_in_id || item.tdd_scope === 'INP') return null
-  const replies = [...dto.mls]
-    .filter((record: MlsRecordDto) => record.ack !== 'NONE')
-    .sort((a, b) => (a.received_at ?? '').localeCompare(b.received_at ?? ''))
+  const replies = invoiceReplies(dto)
   const wire = onTheWire(dto, replies.length)
   const undeliverable = !wire && transportFailed(dto)
   const steps: JourneyStep[] = [
@@ -445,7 +466,8 @@ function peppolJourney(dto: ActivityDetailDto, language: string): Journey | null
         },
     // The frame's third step: the buyer's access point took the message (the AS4 receipt).
     // TODO(backend): the item says only that transport finished, not when (asks row 2.23).
-    ...(item.transport_state && /^(SENT|DELIVERED)$/i.test(item.transport_state)
+    ...(item.transport_state &&
+    /^(SENT|DELIVERED|DELIVERED_UNCONFIRMED)$/i.test(item.transport_state)
       ? [
           {
             id: 'accessPoint',
@@ -463,7 +485,11 @@ function peppolJourney(dto: ActivityDetailDto, language: string): Journey | null
       state: MLS_STEP[record.ack].state,
     })),
   ]
-  if (replies.length === 0 && wire) {
+  // The ledger's state is the authority. MLS rows decide only when it records no outcome, and then
+  // the earliest, since the backend keeps the first valid MLS; reading the last let a stray later
+  // reply overturn the ledger's verdict on screen.
+  const answer = LEDGER_ANSWER[item.transport_state?.toUpperCase() ?? ''] ?? replies[0]?.ack ?? null
+  if (answer === null && wire) {
     steps.push({
       id: 'noReply',
       labelKey: 'activityDetail.step.waitingOnThem',
@@ -471,16 +497,15 @@ function peppolJourney(dto: ActivityDetailDto, language: string): Journey | null
       state: 'waiting',
     })
   }
-  const last = replies[replies.length - 1]?.ack
   const verdict: Pick<Journey, 'verdictKey' | 'tone'> = !wire
     ? undeliverable
       ? { verdictKey: 'activityDetail.verdict.couldNotSend', tone: 'bad' }
       : { verdictKey: 'activityDetail.verdict.notSentYet', tone: 'waiting' }
-    : last === 'AP'
+    : answer === 'AP'
       ? { verdictKey: 'activityDetail.deliveredAccepted', tone: 'good' }
-      : last === 'AB'
-        ? { verdictKey: 'activityDetail.verdict.delivered', tone: 'good' }
-        : last === 'RE'
+      : answer === 'AB'
+        ? { verdictKey: 'activity.ack.deliveredUnconfirmed', tone: 'good' }
+        : answer === 'RE'
           ? { verdictKey: 'activityDetail.verdict.theyRefused', tone: 'bad' }
           : { verdictKey: 'activityDetail.verdict.noReplyYet', tone: 'waiting' }
   return {

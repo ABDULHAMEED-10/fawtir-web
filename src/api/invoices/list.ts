@@ -83,7 +83,12 @@ export type InvoiceRowDto = {
   /** A credit or debit note: the invoice it corrects, and that invoice's number. */
   correctionOfInvoiceId?: string | null
   correctionOfInvoiceNumber?: string | null
+  /** A draft with an open sales approval request for its current version (RL-6); else null. */
+  approvalState?: InvoiceListApproval | null
 }
+
+/** A draft's sales approval state, as the list reads it; `PENDING` is the approvers' queue. */
+export type InvoiceListApproval = 'PENDING' | 'APPROVED' | 'REJECTED'
 
 /** `InvoiceListSummary`. Tab counts cover every currency; the card figures cover `currencyCode`. */
 export type InvoiceSummaryDto = {
@@ -135,6 +140,8 @@ export type InvoiceSummaryDto = {
    * an API that predates it.
    */
   awaitingSupplier?: { count: number; oldestIssueDate: string | null }
+  /** Drafts waiting for sales approval (RL-6): the "To approve" tab's count. */
+  awaitingApproval?: number
 }
 
 /** What a tab, the toolbar and the search ask the server for. */
@@ -162,6 +169,8 @@ export type InvoiceListFilter = {
    * `toSend` counts (`InvoiceListDelivery`), so the tab's rows match its badge.
    */
   delivery?: 'TO_SEND' | null
+  /** Drafts in this sales approval state; `PENDING` with state DRAFT is the "To approve" tab. */
+  approval?: InvoiceListApproval | null
 }
 
 export type InvoiceListQuery = InvoiceListFilter & {
@@ -183,6 +192,7 @@ function filterParams(filter: InvoiceListFilter) {
     customer_id: filter.customerId ?? undefined,
     channel: filter.channel ?? undefined,
     delivery: filter.delivery ?? undefined,
+    approval: filter.approval ?? undefined,
   }
 }
 

@@ -142,3 +142,47 @@ describe('vercel.json security headers (D6)', () => {
     }
   })
 })
+
+describe('vercel.json headers on the public pay page (P2-8 M13)', () => {
+  const PAY_SOURCE = '/(pay(?:/.*)?)'
+  const rule = config.headers.find((candidate) => candidate.source === PAY_SOURCE)
+
+  it('covers the pay page and the card return, and nothing else', () => {
+    for (const path of ['/pay', '/pay/', '/pay/done', '/PAY/done']) {
+      expect(matches(PAY_SOURCE, path), path).toBe(true)
+    }
+    for (const path of [
+      '/payment',
+      '/payments',
+      '/paywall',
+      '/api/v1/public/pay-links/view',
+      '/settings/pay',
+    ]) {
+      expect(matches(PAY_SOURCE, path), path).toBe(false)
+    }
+  })
+
+  it('is not stored, not referred, not indexed', () => {
+    expect(rule).toBeDefined()
+    expect(header(rule!, 'Cache-Control')).toBe('no-store')
+    expect(header(rule!, 'Referrer-Policy')).toBe('no-referrer')
+    expect(header(rule!, 'X-Robots-Tag')).toContain('noindex')
+  })
+
+  it('enforces a self-only content policy with no third party and no framing', () => {
+    const policy = directives(header(rule!, 'Content-Security-Policy') ?? '')
+    expect(policy.get('default-src')).toEqual(["'self'"])
+    expect(policy.get('connect-src')).toEqual(["'self'"])
+    expect(policy.get('form-action')).toEqual(["'self'"])
+    expect(policy.get('frame-ancestors')).toEqual(["'none'"])
+    for (const sources of policy.values()) {
+      expect(
+        sources.some((s) => s.startsWith('http') || s.includes('*') || s.includes('unsafe')),
+      ).toBe(false)
+    }
+  })
+
+  it('comes after the site-wide rule, so its values win', () => {
+    expect(config.headers.indexOf(rule!)).toBeGreaterThan(config.headers.indexOf(spaRule()))
+  })
+})

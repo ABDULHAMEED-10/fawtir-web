@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -12,7 +12,7 @@ import {
   type ActionMenuItem,
 } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
-import { useApiRead } from '../../hooks'
+import { useApiRead, usePendingRefresh } from '../../hooks'
 import { useReferenceData } from '../../lib/reference/referenceData'
 import { InvoiceRemindersCard } from '../../components/invoice/InvoiceRemindersCard'
 import { ApiError } from '../../api'
@@ -63,11 +63,13 @@ import { buyerParty, sellerParty, type DocumentParty } from '../../lib/documentP
 import { paymentMethodLabel, paymentTermLabel } from '../../lib/reference/referenceData'
 import { RecordPaymentModal } from './RecordPaymentModal'
 import { IssueInvoiceModal } from '../../components/invoice/IssueInvoiceModal'
+import { DraftApprovalCard, useSalesApproval } from '../../components/invoice/DraftApprovalCard'
+import { editWaitsOnApproval, issueWaitsOnApproval } from '../../lib/salesApproval'
 import { SendInvoiceModal } from '../../components/invoice/SendInvoiceModal'
 import {
   RELEASE_REFUSALS,
   buyerDeliveryNote,
-  dispatchIsMoving,
+  dispatchIsPending,
   dispatchNotes,
   dispatchSucceeded,
   transportNotes,
@@ -137,10 +139,6 @@ const STATUS_TONES: Record<Tone, string> = {
 }
 
 const ZOOMS = [0.75, 1, 1.25]
-
-/** Re-reads of a document the server is mid-step on: every 3 s for at most a minute. */
-const DISPATCH_POLL_MS = 3000
-const DISPATCH_POLL_LIMIT = 20
 
 type Translate = (key: string, values?: Record<string, unknown>) => string
 
@@ -224,6 +222,8 @@ function InvoiceScreen() {
     document ? `${invoicePath(id)}/history` : null,
     () => loadHistory(id),
   )
+  // Approval before issue (RL-6): read only for a draft. Unread or switched off, nothing changes.
+  const salesApproval = useSalesApproval(id, document !== null && isDraft(document))
   // The design shows the internal note in its box (Figma 154:163406), so it is read with the page.
   // TODO(backend): reading it writes an audit event, so every visit now records a "note read";
   // please stop auditing the read, or answer the note on the detail itself.
@@ -263,32 +263,22 @@ function InvoiceScreen() {
   const [dispatchLatest, setDispatchLatest] = useState<InvoiceDispatchDto | null>(null)
   const dispatch =
     dispatchLatest ?? (dispatchRead.read.status === 'ready' ? dispatchRead.read.data : null)
-  const moving = dispatchIsMoving(dispatch)
-  useEffect(() => {
-    if (!moving) return
-    let live = true
-    let polls = 0
-    const timer = window.setInterval(() => {
-      polls += 1
-      // Bounded: a step that has not finished in a minute is shown as it stands, and the reader
-      // can reload; an open tab must not poll for ever.
-      if (polls > DISPATCH_POLL_LIMIT) {
-        window.clearInterval(timer)
-        return
-      }
-      loadDispatch(id).then(
-        (next) => {
-          if (live) setDispatchLatest(next)
-        },
-        // The next tick asks again; a transient failure is not worth a notice.
-        () => undefined,
-      )
-    }, DISPATCH_POLL_MS)
-    return () => {
-      live = false
-      window.clearInterval(timer)
-    }
-  }, [moving, id])
+  // Bumped by every action that changes the dispatch (Send, release, cancel). A quiet re-read that
+  // set out before the action may answer after it, with the state from before it; it is dropped
+  // rather than painted over the action's newer answer.
+  const dispatchEpoch = useRef(0)
+  const adoptDispatch = (next: InvoiceDispatchDto | null) => {
+    dispatchEpoch.current += 1
+    setDispatchLatest(next)
+  }
+  // Without this the AS4 receipt and the MLS outcome reached the page only on a reload: the earlier
+  // poll watched PROCESSING and an active transmission only.
+  usePendingRefresh(id, dispatchIsPending(dispatch), (live) => {
+    const epoch = dispatchEpoch.current
+    return loadDispatch(id).then((next) => {
+      if (live() && epoch === dispatchEpoch.current) setDispatchLatest(next)
+    })
+  })
   const [sending, setSending] = useState(false)
   // The credit and debit notes that correct this invoice (I-10/I-11), listed on the invoice so a
   // reader sees why its balance moved and can open each note.
@@ -464,7 +454,7 @@ function InvoiceScreen() {
       invoice.retry()
       history.retry()
       // Cancelling closes what was owed to the network, so the line under the title changes too.
-      setDispatchLatest(null)
+      adoptDispatch(null)
       dispatchRead.retry()
     } catch (error) {
       setNotice({ body: refusalText(t, error) })
@@ -476,7 +466,7 @@ function InvoiceScreen() {
   const releaseHeldEmail = async () => {
     setNotice(null)
     try {
-      setDispatchLatest(await releaseBuyerEmail(id))
+      adoptDispatch(await releaseBuyerEmail(id))
       setNotice({ key: 'invoiceDispatch.release.done' })
       history.retry()
     } catch (error) {
@@ -488,7 +478,7 @@ function InvoiceScreen() {
 
   const sent = (result: InvoiceSendResultDto) => {
     setSending(false)
-    setDispatchLatest(result.dispatch)
+    adoptDispatch(result.dispatch)
     setNotice(sendResultNote(result))
     history.retry()
   }
@@ -682,7 +672,7 @@ function InvoiceScreen() {
                 variant="bordered"
               />
             ) : null}
-            {draft && can(session, 'invoice.draft') ? (
+            {draft && can(session, 'invoice.draft') && !editWaitsOnApproval(salesApproval.approval) ? (
               <Link
                 to={
                   data.type === 'CREDIT_NOTE' || data.type === 'DEBIT_NOTE'
@@ -695,7 +685,10 @@ function InvoiceScreen() {
                 {t('invoiceDetails.actions.edit')}
               </Link>
             ) : null}
-            {draft && can(session, 'invoice.issue') && mayIssue ? (
+            {draft &&
+            can(session, 'invoice.issue') &&
+            mayIssue &&
+            !issueWaitsOnApproval(salesApproval.approval) ? (
               <button type="button" onClick={() => setIssuing(true)} className={PRIMARY_BUTTON}>
                 {t(
                   noteType === 'CREDIT_NOTE'
@@ -776,13 +769,11 @@ function InvoiceScreen() {
           {!draft ? (
             <>
               <span className="font-medium text-text-quaternary">
-                {data.peppolResponse
-                  ? t('invoiceDetails.sentViaPeppol')
-                  : data.deliveryState === 'SENT_MANUALLY'
-                    ? t('invoiceDetails.sentManually')
-                    : dispatchLine?.state
-                      ? t(dispatchLine.state.key)
-                      : t('invoiceDetails.notSentYet')}
+                {data.deliveryState === 'SENT_MANUALLY'
+                  ? t('invoiceDetails.sentManually')
+                  : dispatchLine?.state
+                    ? t(dispatchLine.state.key)
+                    : t('invoiceDetails.notSentYet')}
               </span>
               <span className="mx-1 size-1 rounded-full bg-text-quaternary" />
             </>
@@ -805,6 +796,22 @@ function InvoiceScreen() {
             {t('invoiceDetails.draftNotice')}
           </p>
         </section>
+      ) : null}
+
+      {draft ? (
+        <DraftApprovalCard
+          invoiceId={data.id}
+          type={data.type}
+          approval={salesApproval.approval}
+          onChanged={() => {
+            salesApproval.retry()
+            invoice.retry()
+            history.retry()
+          }}
+          onApproveAndIssue={
+            can(session, 'invoice.issue') && mayIssue ? () => setIssuing(true) : undefined
+          }
+        />
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
@@ -958,45 +965,34 @@ function InvoiceScreen() {
                 </div>
               </div>
 
-              {/* The response code and delivery time are still unanswered by the API, so between the manual-delivery fact and "not sent" the bar says where the dispatch stands. */}
+              {/* `peppolResponse` and `deliveredAt` are TODO(backend) and never answered, so nothing here reads them: a delivery is claimed only from the dispatch the server reports, never from a field whose meaning the API has not defined. */}
               <div className="mt-4 flex items-center gap-2 rounded-sm bg-surface-background px-3 py-2.5">
                 <DeliveryIcon
-                  sent={
-                    !!data.peppolResponse ||
-                    data.deliveryState === 'SENT_MANUALLY' ||
-                    dispatchSucceeded(dispatch)
-                  }
+                  sent={data.deliveryState === 'SENT_MANUALLY' || dispatchSucceeded(dispatch)}
                 />
                 <p className="text-xs font-medium leading-[1.3] text-text-tertiary">
-                  {data.peppolResponse
-                    ? t('invoiceDetails.delivered.peppol', {
+                  {data.deliveryState === 'SENT_MANUALLY'
+                    ? t('invoiceDetails.delivered.sentManually', {
                         customer: customerName,
-                        when: data.deliveredAt
-                          ? formatInstant(data.deliveredAt, language)
-                          : day(data.issueDate),
+                        when: sentAt ? formatInstant(sentAt, language) : day(data.issueDate),
                       })
-                    : data.deliveryState === 'SENT_MANUALLY'
-                      ? t('invoiceDetails.delivered.sentManually', {
-                          customer: customerName,
-                          when: sentAt ? formatInstant(sentAt, language) : day(data.issueDate),
-                        })
-                      : dispatchLine?.state && dispatch?.state !== 'NOT_SENT'
-                        ? [
-                            t(dispatchLine.state.key),
-                            dispatchLine.reason
-                              ? t(dispatchLine.reason.key, dispatchLine.reason.values)
-                              : null,
-                            buyerLine ? t(buyerLine.key) : null,
-                            ...transportLines.map((line) =>
-                              t(line.legKey, { state: t(line.state.key, line.state.values) }),
-                            ),
-                          ]
-                            .filter(Boolean)
-                            .join(' · ')
-                        : // A reader who may not see the customer gets the fact without a placeholder name.
-                          customer.read.status === 'ready'
-                          ? t('invoiceDetails.delivered.notSent', { customer: customerName })
-                          : t('invoiceDetails.notSentYet')}
+                    : dispatchLine?.state && dispatch?.state !== 'NOT_SENT'
+                      ? [
+                          t(dispatchLine.state.key),
+                          dispatchLine.reason
+                            ? t(dispatchLine.reason.key, dispatchLine.reason.values)
+                            : null,
+                          buyerLine ? t(buyerLine.key) : null,
+                          ...transportLines.map((line) =>
+                            t(line.legKey, { state: t(line.state.key, line.state.values) }),
+                          ),
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')
+                      : // A reader who may not see the customer gets the fact without a placeholder name.
+                        customer.read.status === 'ready'
+                        ? t('invoiceDetails.delivered.notSent', { customer: customerName })
+                        : t('invoiceDetails.notSentYet')}
                 </p>
               </div>
             </section>

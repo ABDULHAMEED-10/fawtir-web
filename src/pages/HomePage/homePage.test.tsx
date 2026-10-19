@@ -25,7 +25,7 @@ afterEach(() => {
 })
 
 describe('Landing page', () => {
-  it('draws every section of the frame and asks the API for nothing', () => {
+  it('draws every section of the frame and asks the API only for the contact details', () => {
     renderHome()
 
     expect(screen.getByRole('heading', { level: 1 }).textContent).toContain(
@@ -44,7 +44,8 @@ describe('Landing page', () => {
     expect(
       screen.getByText(i18n.t('landing.footer.rights', { year: new Date().getFullYear() })),
     ).toBeTruthy()
-    expect(fetchMock).not.toHaveBeenCalled()
+    // The mail links' address is the company contact setting; nothing else is read.
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/v1/public/company-contact'])
   })
 
   it('switches the step shown when a step is chosen', () => {

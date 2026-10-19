@@ -108,6 +108,17 @@ const BUSINESS: SignupCataloguePlan = {
   sortOrder: 20,
 }
 const CATALOGUE = [STARTER, BUSINESS]
+/** Business Plus with the ERP add-on priced by the server (17.250, unlike the console's 20). */
+const PLUS_WITH_ADDON: SignupCataloguePlan = {
+  ...BUSINESS,
+  code: 'BUSINESS_PLUS',
+  nameEn: 'Business Plus',
+  nameAr: 'الأعمال بلس',
+  priceVersionId: 'pv-plus-2',
+  recommended: false,
+  sortOrder: 30,
+  erpAddonMonthlyPrice: '17.250',
+}
 
 type Handler = (init: RequestInit) => Response | Promise<Response>
 let fetchMock: ReturnType<typeof vi.fn>
@@ -1006,7 +1017,10 @@ describe("How you'll pay", () => {
       vatAmount: '75.000',
       amountInclVat: '1575.000',
     }
-    answer({ [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: plusAnnual }) })
+    answer({
+      [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: plusAnnual }),
+      [PLANS_URL]: () => json(200, [...CATALOGUE, PLUS_WITH_ADDON]),
+    })
     renderAt('/payment', {
       ...AFTER_ADDRESS,
       plan: 'businessPlus',
@@ -1019,10 +1033,48 @@ describe("How you'll pay", () => {
 
     expect(screen.getByText('1575.000')).toBeTruthy()
     expect(
-      screen.getByText(
+      await screen.findByText(
         i18n.t('payment.summary.addonOnTop', { cycle: i18n.t('payment.summary.annual') }),
       ),
     ).toBeTruthy()
+    // 17.250 a month for 12 months, from the server's price, never the console default of 20.
+    expect(screen.getByText('207.000')).toBeTruthy()
+  })
+
+  it('prices the ERP add-on from the published catalogue, a month at a time (N1)', async () => {
+    answer({ [PLANS_URL]: () => json(200, [...CATALOGUE, PLUS_WITH_ADDON]) })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'businessPlus', billing: 'monthly' })
+    expect(await screen.findByText('17.250')).toBeTruthy()
+    expect(screen.queryByText('20.000')).toBeNull()
+    expect(screen.queryByText(i18n.t('payment.addon.priceLater'))).toBeNull()
+  })
+
+  it('shows no add-on figure when the server sends none, and says where it is priced (N1)', async () => {
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'businessPlus', billing: 'monthly' })
+    expect(await screen.findByText(i18n.t('payment.addon.priceLater'))).toBeTruthy()
+    expect(screen.queryByText('20.000')).toBeNull()
+    await userEvent
+      .setup({ delay: null })
+      .click(screen.getByLabelText(i18n.t('payment.addon.label')))
+    expect(
+      screen.queryByText(
+        i18n.t('payment.summary.addonOnTop', { cycle: i18n.t('payment.summary.monthly') }),
+      ),
+    ).toBeNull()
+  })
+
+  it('says the add-on is billed with the first paid period, not confirmed by the Fawtir team (N1, #611)', () => {
+    for (const lng of ['en', 'ar']) {
+      const words = [
+        i18n.t('payment.addon.body', { lng }),
+        i18n.t('signupReview.addonValue', { lng }),
+        i18n.t('payment.addon.priceLater', { lng }),
+      ].join(' ')
+      expect(words).not.toMatch(/confirms|يؤكد/)
+      expect(words).not.toMatch(/—/)
+    }
+    expect(i18n.t('payment.addon.body', { lng: 'en' })).toContain('billed with your first paid period')
+    expect(i18n.t('payment.addon.body', { lng: 'ar' })).toContain('مع أول فترة مدفوعة')
   })
 
   it('does not draw the cash icon as the selected tick', () => {
@@ -1144,6 +1196,8 @@ describe('Card at signup: Paymob Pixel on this screen', () => {
 
   beforeEach(() => {
     mounted = []
+    // Every case reuses pay-1: one case's "paid in the form" must not hide the next one's form.
+    window.sessionStorage.removeItem('fawtir.signupCard.paidInForm')
     window.Pixel = class {
       constructor(options: Record<string, unknown>) {
         mounted.push(options)
@@ -1197,13 +1251,14 @@ describe('Card at signup: Paymob Pixel on this screen', () => {
     await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
     expect(screen.getByText(i18n.t('payment.card.verifyBeforeContinue'))).toBeTruthy()
 
-    await user.click(screen.getByRole('button', { name: i18n.t('payment.card.checkStatus') }))
-    expect(await screen.findByText(i18n.t('payment.card.verified'), undefined, { timeout: 5_000 })).toBeTruthy()
+    // The panel may already have re-read on its own; either way VERIFIED moves the application on,
+    // through Continue's own save, without a second click.
+    const again = screen.queryByRole('button', { name: i18n.t('payment.card.checkStatus') })
+    if (again) await user.click(again)
+    expect((await screen.findByTestId('location', undefined, { timeout: 10_000 })).textContent).toBe('/signup-review')
     expect(callsTo(`${CARD_URL}/pay-1`)[0].body).toEqual({ onboardingToken: 'so.token' })
-    // The panel shows VERIFIED one render before the form hears it; the warning clearing is the form's own signal.
-    await waitFor(() => expect(screen.queryByText(i18n.t('payment.card.verifyBeforeContinue'))).toBeNull())
-    await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
-    expect((await screen.findByTestId('location', undefined, { timeout: 5_000 })).textContent).toBe('/signup-review')
+    expect(callsTo(PREFERENCE_URL).at(-1)?.body).toMatchObject({ enrollment: 'PAY_NOW', method: 'CARD_LINK' })
+    expect(callsTo(CARD_URL)).toHaveLength(1)
   })
 
   it('polls after Paymob reports completion and stops at the final answer', async () => {
@@ -1219,13 +1274,121 @@ describe('Card at signup: Paymob Pixel on this screen', () => {
       await waitFor(() => expect(mounted).toHaveLength(1))
 
       ;(mounted[0].afterPaymentComplete as () => void)()
-      // Each tick reads once; advance until the answer has rendered, never past a bound.
-      for (let tick = 0; tick < 10 && !screen.queryByText(i18n.t('payment.card.verified')); tick += 1) {
+      // Each tick reads at most once; advance until the answer has moved the screen on, never past a bound.
+      for (let tick = 0; tick < 10 && screen.queryByTestId('location') === null; tick += 1) {
         await vi.advanceTimersByTimeAsync(3_000)
       }
-      expect(screen.getByText(i18n.t('payment.card.verified'))).toBeTruthy()
+      expect(screen.getByTestId('location').textContent).toBe('/signup-review')
       await vi.advanceTimersByTimeAsync(30_000)
       expect(callsTo(`${CARD_URL}/pay-1`)).toHaveLength(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('no browser event from Paymob: the open form is re-read, turns to verifying once the server has the signed sale, and moves on at VERIFIED', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      answer({
+        [STATUS_URL]: () => statusWith(),
+        [CARD_URL]: () => json(200, view('READY')),
+        [`${CARD_URL}/pay-1`]: [() => json(200, view('PROCESSING')), () => json(200, view('VERIFIED'))],
+      })
+      const user = await chooseCard()
+      await user.click(screen.getByRole('button', { name: i18n.t('payment.card.open') }))
+      await waitFor(() => expect(mounted).toHaveLength(1))
+
+      await vi.advanceTimersByTimeAsync(3_000)
+      expect(await screen.findByText(i18n.t('payment.card.processing'))).toBeTruthy()
+      expect(screen.queryByTestId('paymob-pixel')).toBeNull()
+      expect(screen.queryByText(i18n.t('payment.card.verifiedNow'))).toBeNull()
+
+      for (let tick = 0; tick < 10 && screen.queryByTestId('location') === null; tick += 1) {
+        await vi.advanceTimersByTimeAsync(5_000)
+      }
+      expect(screen.getByTestId('location').textContent).toBe('/signup-review')
+      expect(mounted).toHaveLength(1)
+      expect(callsTo(CARD_URL)).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('paid in the form while the server still says READY: the form is not drawn again and the screen does not claim success', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      answer({
+        [STATUS_URL]: () => statusWith(),
+        [CARD_URL]: () => json(200, view('READY')),
+        [`${CARD_URL}/pay-1`]: () => json(200, view('READY')),
+      })
+      const user = await chooseCard()
+      await user.click(screen.getByRole('button', { name: i18n.t('payment.card.open') }))
+      await waitFor(() => expect(mounted).toHaveLength(1))
+
+      ;(mounted[0].afterPaymentComplete as () => void)()
+      expect(await screen.findByText(i18n.t('payment.card.processing'))).toBeTruthy()
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(screen.queryByTestId('paymob-pixel')).toBeNull()
+      expect(mounted).toHaveLength(1)
+      expect(screen.queryByText(i18n.t('payment.card.verifiedNow'))).toBeNull()
+      expect(screen.queryByTestId('location')).toBeNull()
+      expect(callsTo(CARD_URL)).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a payment Paymob never confirms is re-read a bounded number of times, then left to the Check button', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      answer({
+        [STATUS_URL]: () => statusWith(),
+        [CARD_URL]: () => json(200, view('PROCESSING')),
+        [`${CARD_URL}/pay-1`]: () => json(200, view('PROCESSING')),
+      })
+      const user = await chooseCard()
+      await user.click(screen.getByRole('button', { name: i18n.t('payment.card.open') }))
+      expect(await screen.findByText(i18n.t('payment.card.processing'))).toBeTruthy()
+
+      await vi.advanceTimersByTimeAsync(60 * 60_000)
+      const reads = callsTo(`${CARD_URL}/pay-1`).length
+      expect(reads).toBeGreaterThan(0)
+      expect(reads).toBeLessThanOrEqual(15)
+      await vi.advanceTimersByTimeAsync(60 * 60_000)
+      expect(callsTo(`${CARD_URL}/pay-1`)).toHaveLength(reads)
+      expect(screen.getByRole('button', { name: i18n.t('payment.card.checkStatus') })).toBeTruthy()
+      expect(screen.queryByTestId('location')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('after a refresh mid-verification, the application finds its own card attempt again, opens no new one, and moves on at VERIFIED', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      answer({
+        [STATUS_URL]: () =>
+          statusWith({ method: 'CARD', status: 'SUBMITTED', amount: '84.000', reference: null, hasProof: false }),
+        [CARD_URL]: () => json(200, view('PROCESSING')),
+        [`${CARD_URL}/pay-1`]: [() => json(200, view('PROCESSING')), () => json(200, view('VERIFIED'))],
+      })
+      renderAt('/payment', {
+        ...AFTER_ADDRESS,
+        plan: 'businessPlus',
+        billing: 'monthly',
+        enrollment: 'payNow',
+        paymentMethod: 'cardLink',
+      })
+      expect(await screen.findByText(i18n.t('payment.card.processing'))).toBeTruthy()
+      expect(callsTo(CARD_URL)).toHaveLength(1)
+      expect(mounted).toHaveLength(0)
+
+      for (let tick = 0; tick < 10 && screen.queryByTestId('location') === null; tick += 1) {
+        await vi.advanceTimersByTimeAsync(5_000)
+      }
+      expect(screen.getByTestId('location').textContent).toBe('/signup-review')
+      expect(callsTo(CARD_URL)).toHaveLength(1)
     } finally {
       vi.useRealTimers()
     }

@@ -8,6 +8,11 @@ import { apiRequest } from '../client'
  */
 export const USERS_PERMISSION = 'admin.users.manage'
 export const ROLES_PERMISSION = 'role.list'
+/**
+ * A branch administrator's code (Business Rules LG-3, RL-5): with branch access on, they manage the
+ * people of their own branches. The server filters every list to them.
+ */
+export const BRANCH_USERS_PERMISSION = 'branch.users.manage'
 
 /** The part of `RecordUserResponse` the settings screens read. */
 export type CompanyUser = {
@@ -24,6 +29,13 @@ export type CompanyUser = {
   createdAt: string
   locked: boolean
   lockedUntil: string | null
+  /** The company's stored Owner (OW-1). Absent from older servers. */
+  owner?: boolean
+  /**
+   * The branches the person is assigned to (BA-1). The Owner and Administrators see every branch
+   * whatever is assigned (BA-2), so a screen shows "every branch" for them instead.
+   */
+  branchIds?: string[]
 }
 
 export type UserPage = { content: CompanyUser[]; totalElements: number; totalPages: number; number: number; size: number }
@@ -59,11 +71,15 @@ export function loadPendingInvitations(): Promise<InvitationDto[]> {
   return apiRequest<InvitationDto[]>(PENDING_INVITATIONS_PATH)
 }
 
-/** `InviteUserRequest`: an empty role list means the server's default role. */
-export function inviteUser(email: string, roleCodes: string[]): Promise<InvitationDto> {
+/**
+ * `InviteUserRequest`: an empty role list means the server's default role. `branchIds` are the
+ * branches the person will work in (BA-1, LG-1); sent only when chosen, so an Administrator
+ * invitation, which sees every branch, carries none.
+ */
+export function inviteUser(email: string, roleCodes: string[], branchIds?: string[]): Promise<InvitationDto> {
   return apiRequest<InvitationDto>('/v1/users/invitations', {
     method: 'POST',
-    body: { email, roleCodes },
+    body: branchIds && branchIds.length ? { email, roleCodes, branchIds } : { email, roleCodes },
   })
 }
 
@@ -75,7 +91,29 @@ export type RoleDto = {
   enabled: boolean
   systemRole: boolean
   permissionCodes: string[]
+  /**
+   * ROLE, PERMISSION_SET (approval or view only), TECHNICAL (mobile, integration) or CUSTOM. Only
+   * ROLE and CUSTOM are a person's one role (RL-1). Absent from older servers: see `roleKind`.
+   */
+  catalogueKind?: 'ROLE' | 'PERMISSION_SET' | 'TECHNICAL' | 'CUSTOM'
 }
+
+/** The role's kind, from the server, or worked out the way the server works it out. */
+export function roleKind(role: Pick<RoleDto, 'code' | 'systemRole' | 'catalogueKind'>): NonNullable<RoleDto['catalogueKind']> {
+  if (role.catalogueKind) return role.catalogueKind
+  if (!role.systemRole) return 'CUSTOM'
+  if (role.code === 'APPROVER' || role.code === 'VIEWER') return 'PERMISSION_SET'
+  if (role.code === 'MOBILE_USER' || role.code === 'INTEGRATION' || role.code === 'PLATFORM_OPERATOR') return 'TECHNICAL'
+  return 'ROLE'
+}
+
+/** A job role: one a person holds as their one role (RL-1). */
+export function isJobRole(role: Pick<RoleDto, 'code' | 'systemRole' | 'catalogueKind'>): boolean {
+  const kind = roleKind(role)
+  return kind === 'ROLE' || kind === 'CUSTOM'
+}
+
+export const ADMIN_ROLE = 'ADMIN'
 
 export const ROLES_PATH = '/v1/roles'
 

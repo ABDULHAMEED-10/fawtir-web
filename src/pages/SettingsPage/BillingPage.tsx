@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { SubscriptionStatusSection } from './SubscriptionStatusSection'
 import { SubscriptionBillingSection } from './SubscriptionBillingSection'
+import { ReconnectBeforePayingNote } from './ReconnectBeforePayingNote'
 
 /**
  * Settings › Bills and payment, real throughout since V271: where the subscription stands
@@ -29,6 +30,7 @@ export function BillingPage() {
           </Link>
         }
       />
+      <ReconnectBeforePayingNote />
       <SubscriptionStatusSection page="billing" />
       <SubscriptionBillingSection />
     </SettingsShell>

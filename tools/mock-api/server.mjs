@@ -160,7 +160,12 @@ createServer(async (request, response) => {
   const found = findModuleRoute(method, path)
   if (found) {
     const body = method === 'GET' ? undefined : await readBody(request)
-    const answer = found.route.reply({ params: found.params, query: url.searchParams, body })
+    const answer = found.route.reply({
+      params: found.params,
+      query: url.searchParams,
+      body,
+      headers: request.headers,
+    })
     if (isAnswer(answer) && typeof answer.raw === 'string') {
       // A literal body (an XML file, a CSV): written as it is, under the route's own headers.
       response.writeHead(answer.status, { 'Content-Type': 'text/plain', ...(answer.headers ?? {}) })

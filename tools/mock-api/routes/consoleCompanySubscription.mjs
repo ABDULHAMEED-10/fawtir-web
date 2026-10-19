@@ -3,7 +3,8 @@
  * `tools/mock-api/server.mjs` loads it.
  *
  * One real company on the console's tenant page (`/console/tenants/<uuid>`): its overview, and the
- * subscription, documents and received-document counting cards. Shapes follow
+ * subscription (with a cancel-at-once proposal waiting for a second operator), documents and
+ * received-document counting cards. Shapes follow
  * `src/lib/console/tenantOverview.ts` and `src/lib/console/companySubscription.ts`. The company is
  * on Enterprise-like terms so the counting card shows too. The writes answer the read back so the
  * dialogs can be clicked through; nothing is kept between requests.
@@ -117,7 +118,33 @@ const SUBSCRIPTION = {
       occurredAt: '2026-09-10T04:00:00Z',
     },
   ],
+  // Proposed by another operator, so the tenant page shows Confirm and Withdraw (CA-9).
+  fawtirCancellation: {
+    id: '5d2e9a10-7c3b-4f61-9a0e-1b2c3d4e5f60',
+    tenantId: ID,
+    tenantName: null,
+    status: 'PROPOSED',
+    category: 'FRAUD',
+    internalReason: 'Card chargebacks traced to invoices issued from this account',
+    customerMessage: 'Your account was used to issue invoices for goods that were never supplied.',
+    proposedBy: 'b7f3e1c2-0d4a-4c55-8e21-6a9f0c3d2e10',
+    proposedByName: 'Nasser Al Hinai',
+    proposedAt: '2026-10-16T09:15:00Z',
+    confirmedBy: null,
+    confirmedByName: null,
+    confirmedAt: null,
+    effectiveOn: null,
+    withdrawnBy: null,
+    withdrawnByName: null,
+    withdrawnAt: null,
+    withdrawalReason: null,
+    outcome: { voidedBills: [], refundCases: [] },
+  },
+  fawtirCancellationEnabled: true,
 }
+
+const CANCELLATIONS = `${BASE}/subscription/fawtir-cancellations`
+const PROPOSAL = new RegExp(`^${CANCELLATIONS}/([^/]+)/(confirmation|withdrawal)$`)
 
 const EXTRA = {
   tenantId: ID,
@@ -196,6 +223,16 @@ export default [
   { match: `${BASE}/overview`, reply: () => OVERVIEW },
   { match: `${BASE}/subscription`, reply: () => SUBSCRIPTION },
   { method: 'POST', match: `${BASE}/subscription/trial-exception`, reply: () => SUBSCRIPTION },
+  { method: 'POST', match: CANCELLATIONS, reply: () => SUBSCRIPTION.fawtirCancellation },
+  {
+    method: 'POST',
+    match: PROPOSAL,
+    reply: ({ params }) =>
+      params[1] === 'confirmation'
+        ? { ...SUBSCRIPTION.fawtirCancellation, status: 'CONFIRMED', effectiveOn: '2026-10-16' }
+        : { ...SUBSCRIPTION.fawtirCancellation, status: 'WITHDRAWN' },
+  },
+  { method: 'PUT', match: `${BASE}/plan`, reply: () => OVERVIEW.subscription },
   { match: `${BASE}/extra-documents`, reply: () => EXTRA },
   { method: 'POST', match: `${BASE}/extra-documents/grants`, reply: () => EXTRA },
   { match: `${BASE}/received-document-counting`, reply: () => COUNTING },
