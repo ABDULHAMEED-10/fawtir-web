@@ -16211,7 +16211,7 @@
           "OPERATOR_PLAN_CHANGED": "غيّرت فوتر الخطة دون رسوم",
           "FAWTIR_CANCELLATION_PROPOSED": "اقتُرح إلغاء فوري",
           "FAWTIR_CANCELLATION_WITHDRAWN": "سُحب الإلغاء المقترح",
-          "CANCELLED_BY_FAWTIR": "ألغته فوتر",
+          "CANCELLED_BY_FAWTIR": "ألغاه فوتر",
           "REOPENED_BY_RENEWAL": "أُعيد فتحه بالتجديد"
         }
       },
@@ -16321,7 +16321,7 @@
         "confirm": "اقترح الإلغاء",
         "someone": "مشغّل",
         "proposedTitle": "إلغاء فوري مقترح",
-        "cancelledTitle": "ألغته فوتر",
+        "cancelledTitle": "ألغاه فوتر",
         "proposedBy": "اقترحه {{name}}، {{date}}",
         "confirmedBy": "للقراءة فقط منذ {{date}}. اقترحه {{proposer}} وأكّده {{confirmer}}.",
         "internal": "السبب الداخلي",
@@ -23371,7 +23371,7 @@
       "cancelScheduled": "ينتهي اشتراكك في {{date}} ولن يتجدد.",
       "notStartedBilling": "لم يبدأ اشتراكك بعد. يبدأ عندما يؤكد فوتر دفعتك. تبقى سجلاتك متاحة للاطلاع والتنزيل والتصدير.",
       "notStartedPlan": "لم يبدأ اشتراكك بعد. يبدأ عندما يؤكد فوتر دفعتك، وتعرض الإعدادات › المطالبات والدفع حالتها. تبقى سجلاتك متاحة للاطلاع والتنزيل والتصدير.",
-      "cancelledByFawtir": "ألغته فوتر في {{date}}: {{message}}. تبقى سجلاتك متاحة للعرض والتصدير. للمتابعة، جدّد اشتراكك أو تواصل مع الدعم."
+      "cancelledByFawtir": "ألغاه فوتر في {{date}}: {{message}}. تبقى سجلاتك متاحة للعرض والتصدير. للمتابعة، جدّد اشتراكك أو تواصل مع الدعم."
     },
     "cycle": {
       "MONTHLY": "شهري",
