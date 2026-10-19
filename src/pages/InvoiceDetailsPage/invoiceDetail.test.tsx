@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReferenceDataContext } from '../../lib/reference/referenceData'
 import { SEEDED_REFERENCE } from '../../testing/referenceData'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { Link, MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type {
@@ -1131,6 +1131,141 @@ describe('Send', () => {
       ),
     ).toBeTruthy()
     expect(screen.getByRole('dialog')).toBeTruthy()
+  })
+
+  // Backend V386 part 2: `sendable` does not account for sender standing, so Send stays offered and
+  // the press answers 409 with the standing code (AuthoredInvoiceSendService).
+  it('says a sender-standing refusal in words, not "reload", and keeps Send', async () => {
+    who = SENDER
+    sendResponse = () =>
+      json(409, {
+        type: 'https://api.fawtir.om/problems/resource-conflict',
+        code: 'SENDER_PARTICIPANT_NOT_REGISTERED',
+        detail: 'Your company has no verified Peppol participant yet, so it cannot send documents.',
+      })
+    renderInvoice()
+    fireEvent.click(await screen.findByRole('button', { name: 'Send' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Send invoice' }))
+
+    expect(
+      await within(dialog).findByText(/^Your company's Peppol participant is not verified yet, so invoices cannot be sent\./),
+    ).toBeTruthy()
+    expect(screen.queryByText(/Reload to see the latest version|Someone changed this/)).toBeNull()
+    expect(document.body.textContent).not.toMatch(/SENDER_PARTICIPANT_NOT_REGISTERED|no verified Peppol participant yet/)
+    expect(sends()).toHaveLength(1)
+  })
+
+  it('words the ownership-review refusal in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    who = SENDER
+    sendResponse = () =>
+      json(409, {
+        type: 'https://api.fawtir.om/problems/resource-conflict',
+        code: 'SENDER_PARTICIPANT_CLAIM_CONFLICT',
+      })
+    renderInvoice()
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('invoiceDetails.actions.send') }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('invoiceDispatch.modal.submit') }))
+    expect(
+      await within(dialog).findByText(i18n.t('invoiceDispatch.refused.senderClaimConflict')),
+    ).toBeTruthy()
+    expect(i18n.t('invoiceDispatch.refused.senderClaimConflict')).toMatch(/مراجعة الملكية/)
+  })
+
+  describe('moving to another invoice on the same page', () => {
+    const ID_B = '22222222-2222-2222-2222-222222222222'
+    const URL_B = `/api/v1/authored-invoices/${ID_B}`
+    const REFUSED: InvoiceDispatchDto = {
+      ...NOT_SENT,
+      state: 'DEAD_LETTERED',
+      reasonCode: 'SELLER_ADDRESS_INCOMPLETE',
+      attempts: 1,
+      sendable: false,
+    }
+
+    /** Invoice B answers like A except for its id and number; its dispatch is NOT_SENT and sendable. */
+    function withInvoiceB() {
+      const base = fetchMock.getMockImplementation()!
+      fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+        if (url === URL_B) return json(200, invoice({ id: ID_B, invoiceNumber: 'INV-2026-0043' }))
+        if (url === `${URL_B}/dispatch`) return json(200, NOT_SENT)
+        if (url.startsWith(URL_B)) return base(url.replace(URL_B, URL_BASE), init)
+        return base(url, init)
+      })
+    }
+
+    // The header search links straight to /invoices/{id}, which keeps this page mounted.
+    function renderWithLinkToB() {
+      return render(
+        <ReferenceDataContext.Provider value={SEEDED_REFERENCE}>
+          <MemoryRouter initialEntries={[`/invoices/${ID}`]}>
+            <Link to={`/invoices/${ID_B}`}>open B</Link>
+            <Routes>
+              <Route path="/invoices/:id" element={<InvoiceDetailsPage />} />
+            </Routes>
+          </MemoryRouter>
+        </ReferenceDataContext.Provider>,
+      )
+    }
+
+    it("does not paint invoice A's Send answer on invoice B", async () => {
+      who = SENDER
+      withInvoiceB()
+      sendResponse = () =>
+        json(200, {
+          ...DISPATCHED,
+          outcome: 'REFUSED',
+          reasonCode: 'SELLER_ADDRESS_INCOMPLETE',
+          dispatch: REFUSED,
+        })
+      renderWithLinkToB()
+      fireEvent.click(await screen.findByRole('button', { name: 'Send' }))
+      fireEvent.click(
+        within(await screen.findByRole('dialog')).getByRole('button', { name: 'Send invoice' }),
+      )
+      expect(await screen.findByText(/^Not sent: needs attention · /)).toBeTruthy()
+      expect(screen.queryByRole('button', { name: 'Send' })).toBeNull()
+
+      fireEvent.click(screen.getByRole('link', { name: 'open B' }))
+      await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0043' })
+      // B's own dispatch decides: not sent yet, and Send offered by its `sendable`.
+      expect(await screen.findByRole('button', { name: 'Send' })).toBeTruthy()
+      expect(screen.queryByText(/^Not sent: needs attention/)).toBeNull()
+      expect(screen.getAllByText('Not sent yet').length).toBeGreaterThan(0)
+    })
+
+    it("drops invoice A's Send answer when it lands after the reader opened B", async () => {
+      who = SENDER
+      withInvoiceB()
+      let answer: (response: Response) => void = () => undefined
+      const base = fetchMock.getMockImplementation()!
+      fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+        url === `${URL_BASE}/send` && init?.method === 'POST'
+          ? new Promise<Response>((resolve) => {
+              answer = resolve
+            })
+          : base(url, init),
+      )
+      renderWithLinkToB()
+      fireEvent.click(await screen.findByRole('button', { name: 'Send' }))
+      fireEvent.click(
+        within(await screen.findByRole('dialog')).getByRole('button', { name: 'Send invoice' }),
+      )
+      await waitFor(() => expect(sends()).toHaveLength(1))
+
+      fireEvent.click(screen.getByRole('link', { name: 'open B' }))
+      await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0043' })
+      answer(
+        json(200, { ...DISPATCHED, outcome: 'REFUSED', reasonCode: 'SELLER_ADDRESS_INCOMPLETE', dispatch: REFUSED }),
+      )
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+      expect(await screen.findByRole('button', { name: 'Send' })).toBeTruthy()
+      expect(screen.queryByText(/Not sent: needs attention/)).toBeNull()
+      expect(screen.queryByText(/Your company address on this invoice is incomplete/)).toBeNull()
+    })
   })
 
   it('says why a refused invoice cannot be sent and what to do instead', async () => {

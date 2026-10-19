@@ -59,7 +59,25 @@ export const DISPATCH_REASONS: Record<string, string> = {
   INVOICE_NO_LONGER_ISSUED: 'invoiceDispatch.reason.noLongerIssued',
   INVOICE_CANCELLED: 'invoiceDispatch.reason.noLongerIssued',
   AUTHORED_INVOICE_DISPATCH_ERROR: 'invoiceDispatch.reason.temporary',
+  // The tenant's sender standing (backend V386 part 2, AuthoredInvoiceDispatchAdapter). No verified
+  // participant, or one another company also claims, is deferred without charging an attempt, and
+  // the worker skips the tenant until it is resolved: the sentence says it waits, not that it stopped.
+  SENDER_PARTICIPANT_NOT_REGISTERED: 'invoiceDispatch.reason.senderNotRegistered',
+  SENDER_PARTICIPANT_CLAIM_CONFLICT: 'invoiceDispatch.reason.senderClaimConflict',
+  // A seller frozen at issue that is not the tenant's participant: dead-lettered, because the
+  // document cannot change.
+  SENDER_PARTICIPANT_NOT_AUTHORIZED: 'invoiceDispatch.reason.senderNotAuthorized',
+  // Retried with backoff; reachable only when a caller skips the pre-claim readiness check.
+  OUTBOUND_TRANSPORT_UNAVAILABLE: 'invoiceDispatch.reason.transportUnavailable',
+  // The dispatcher returned no outcome at all: dead-lettered at once, not retried.
+  AUTHORED_INVOICE_DISPATCH_NO_OUTCOME: 'invoiceDispatch.reason.noOutcome',
 }
+
+/** Reasons recorded for a hold the worker lifts by itself once the tenant's standing is resolved. */
+const DEFERRED_REASONS: ReadonlySet<string> = new Set([
+  'SENDER_PARTICIPANT_NOT_REGISTERED',
+  'SENDER_PARTICIPANT_CLAIM_CONFLICT',
+])
 
 function reasonNote(code: string | null): DispatchNote | null {
   if (!code) return null
@@ -74,10 +92,16 @@ export function dispatchNotes(dispatch: InvoiceDispatchDto): { state: DispatchNo
   // it stands, "Sending" told the reader a transmission had happened when nothing had left
   // (TEST, 7 October 2026). While the ledger has not moved past that, the transport's own record
   // decides the sentence.
+  // A deferred sender hold is stored as RETRY_SCHEDULED, but nothing was attempted or charged, so
+  // "sending failed" would be false.
   const key =
     leg && LEDGER_BEFORE_TRANSPORT.has(dispatch.state)
       ? LEG_HEADLINES[leg.state]
-      : STATE_KEYS[dispatch.state]
+      : dispatch.state === 'RETRY_SCHEDULED' &&
+          dispatch.reasonCode !== null &&
+          DEFERRED_REASONS.has(dispatch.reasonCode)
+        ? 'invoiceDispatch.state.heldSenderStanding'
+        : STATE_KEYS[dispatch.state]
   const failed =
     dispatch.state === 'RETRY_SCHEDULED' || dispatch.state === 'DEAD_LETTERED'
   return { state: key ? { key } : null, reason: failed ? reasonNote(dispatch.reasonCode) : null }
@@ -215,6 +239,12 @@ export const SEND_REFUSALS: Record<string, string> = {
   // claim (AuthoredInvoiceSendPreflightAdapter). The window's own reason rides in the English
   // detail, which never reaches the screen, so every cause shares one sentence.
   OUTBOUND_WINDOW_SEND_REFUSED: 'invoiceDispatch.refused.windowReserved',
+  // The tenant's sender standing, refused before the claim with nothing charged (backend V386
+  // part 2, AuthoredInvoiceSendService). Only these two reach Send: SenderStandingPort never
+  // answers NOT_AUTHORIZED, a per-document comparison the dispatcher makes later. `sendable` does
+  // not account for standing, so Send stays offered and this is what it answers.
+  SENDER_PARTICIPANT_NOT_REGISTERED: 'invoiceDispatch.refused.senderNotRegistered',
+  SENDER_PARTICIPANT_CLAIM_CONFLICT: 'invoiceDispatch.refused.senderClaimConflict',
 }
 
 export function sendRefusalKey(error: unknown): string | null {

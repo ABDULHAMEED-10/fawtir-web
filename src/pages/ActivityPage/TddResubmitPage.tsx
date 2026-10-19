@@ -28,11 +28,13 @@ import {
   TDD_RESUBMIT,
   changeRows,
   formatOmr,
+  groupResubmitOutcome,
   quotaAboutToUse,
   tddResubmitRefusalKey,
   vatOf,
   type ChangeCell,
   type ChangeRow,
+  type ResubmitSentence,
 } from '../../lib/tddResubmit'
 import { usePlanUsage } from '../../hooks/usePlanUsage'
 import chevronIcon from '../../assets/invoices/chevron.svg'
@@ -174,9 +176,10 @@ function ResubmitScreen() {
     setSending(true)
     setFailure(null)
     let sent = 0
-    let held = 0
+    const refusals: string[] = []
     let navigated = false
-    const counts = () => ({ sent: String(sent), held: String(held) })
+    const say = (sentences: ResubmitSentence[]) =>
+      sentences.map((sentence) => t(sentence.key, sentence.values)).join(' ')
     try {
       for (const row of group) {
         if (!canResubmit(row) || !row.links.resubmit) continue
@@ -184,38 +187,33 @@ function ResubmitScreen() {
           await resubmitTdd(row.links.resubmit)
           sent += 1
         } catch (error) {
-          // A hold refuses one invoice, not the group: stopping here told the reader that nothing
-          // was sent after earlier rows had gone, and left their links to be posted again.
-          if (tddResubmitRefusalKey(error) === null) throw error
-          held += 1
+          // A hold or a standing refusal turns down one invoice, not the group: stopping here told
+          // the reader that nothing was sent after earlier rows had gone, and left their links to
+          // be posted again.
+          const refusal = tddResubmitRefusalKey(error)
+          if (refusal === null) throw error
+          refusals.push(refusal)
         }
       }
-      if (held === 0) {
+      if (refusals.length === 0) {
         navigated = true
         navigate(`/compliance/activity/${dto.invoice_uuid}`)
-      } else if (sent === 0) {
-        setFailure(
-          held === 1
-            ? t('tddResubmit.refused.held')
-            : t('tddResubmit.refused.allHeld', { held: String(held) }),
-        )
       } else {
-        setFailure(t('tddResubmit.refused.partlyHeld', counts()))
+        setFailure(say(groupResubmitOutcome(sent, refusals, false)))
       }
     } catch (error) {
       const message = describeApiFailure(error)
       const reason = t(message.key, message.values)
       // The group stopped part-way: the shared text alone would hide what had already gone, and
       // the page would read as if nothing had.
-      setFailure(
-        sent > 0 || held > 0 ? `${t('tddResubmit.refused.partlySent', counts())} ${reason}` : reason,
-      )
+      const before = say(groupResubmitOutcome(sent, refusals, true))
+      setFailure(before ? `${before} ${reason}` : reason)
     } finally {
       inFlight.current = false
       setSending(false)
       // Staying here after anything was posted: re-read, so the button and the same-cause rows
       // offer only what the server still offers.
-      if (!navigated && (sent > 0 || held > 0)) {
+      if (!navigated && (sent > 0 || refusals.length > 0)) {
         detail.retry()
         rejected.retry()
       }

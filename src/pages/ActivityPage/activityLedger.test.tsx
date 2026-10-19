@@ -642,6 +642,34 @@ describe('the ledger screen', () => {
     expect(document.body.textContent).not.toMatch(/TDD_CORRECTION_HELD/)
   })
 
+  it('says a sender-standing refusal in words, not that the row changed', async () => {
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes('/tdd/resubmit') && init?.method === 'POST') {
+        resubmitted.push(String(input))
+        return json(409, {
+          type: 'https://api.fawtir.om/problems/resource-conflict',
+          title: 'TDD correction held',
+          detail: "Your company's Peppol participant is also claimed by another company",
+          error: 'SENDER_PARTICIPANT_CLAIM_CONFLICT',
+          code: 'SENDER_PARTICIPANT_CLAIM_CONFLICT',
+        })
+      }
+      return base(input, init)
+    })
+    items = [item({ links: { ...item().links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' } })]
+    renderLedger()
+    await screen.findByText('INV-0001')
+
+    openRowMenu('INV-0001')
+    fireEvent.click(screen.getByRole('menuitem', { name: /Send the report again/ }))
+    expect(await screen.findByText(/is under ownership review at Fawtir/)).toBeTruthy()
+    expect(resubmitted).toHaveLength(1)
+    expect(screen.queryByText(/Reload to see the latest version/)).toBeNull()
+    expect(screen.queryByText(HELD_SENTENCE)).toBeNull()
+    expect(document.body.textContent).not.toMatch(/SENDER_PARTICIPANT_CLAIM_CONFLICT|also claimed by/)
+  })
+
   it('re-reads the list exactly once per held answer, and never by itself', async () => {
     holdResubmits()
     items = [item({ links: { ...item().links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' } })]
@@ -1479,6 +1507,80 @@ describe("one document's record", () => {
       '/api/v1/invoices/inv-2/tdd/resubmit',
       '/api/v1/invoices/inv-3/tdd/resubmit',
     ])
+  })
+
+  const STANDING_409 = (code: string) =>
+    json(409, { type: 'https://api.fawtir.om/problems/resource-conflict', code, error: code })
+
+  it('sends the rest of a group past a standing refusal and says why those were not sent', async () => {
+    group((invoice) =>
+      invoice === 'inv-2' ? STANDING_409('SENDER_PARTICIPANT_NOT_REGISTERED') : undefined,
+    )
+    const { button, detailReads } = await openGroup()
+
+    fireEvent.click(button)
+    expect(
+      await screen.findByText(
+        /^Reports sent again: 2\. Held for an authorised decision at Fawtir: 0\. Not sent: 1\. Your company's Peppol participant is not verified/,
+      ),
+    ).toBeTruthy()
+    // The refusal did not stop the group: the third row was still tried.
+    expect(resubmitted).toEqual([
+      '/api/v1/invoices/inv-1/tdd/resubmit',
+      '/api/v1/invoices/inv-2/tdd/resubmit',
+      '/api/v1/invoices/inv-3/tdd/resubmit',
+    ])
+    expect(screen.queryByText(/Reload to see the latest version/)).toBeNull()
+    expect(document.body.textContent).not.toMatch(/SENDER_PARTICIPANT_NOT_REGISTERED/)
+    await waitFor(() =>
+      expect(calls(`/compliance/activity/${UUID_A}`).length).toBe(detailReads + 1),
+    )
+  })
+
+  it('counts the eligible hold with the holds, and a standing refusal apart', async () => {
+    group((invoice) =>
+      invoice === 'inv-1'
+        ? STANDING_409('SENDER_NOT_REGISTERED_HISTORICAL_ELIGIBLE')
+        : STANDING_409('SENDER_PARTICIPANT_NOT_REGISTERED'),
+    )
+    const { button } = await openGroup()
+
+    fireEvent.click(button)
+    expect(
+      await screen.findByText(
+        /^Reports sent again: 0\. Held for an authorised decision at Fawtir: 1\. Not sent: 2\./,
+      ),
+    ).toBeTruthy()
+    expect(resubmitted).toHaveLength(3)
+    // The standing sentence is said once, not once per row.
+    expect(document.body.textContent!.match(/is not verified, so corrections/g)).toHaveLength(1)
+  })
+
+  it('words the eligible hold on its own when it is the only row', async () => {
+    const reason = 'The report signature could not be verified.'
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes('/tdd/resubmit') && init?.method === 'POST') {
+        resubmitted.push(String(input))
+        return STANDING_409('SENDER_NOT_REGISTERED_HISTORICAL_ELIGIBLE')
+      }
+      return base(input, init)
+    })
+    detailReply = {
+      ...DETAIL,
+      tdd_lineage: [{ ...DETAIL.tdd_lineage[1], status: 'REJECTED', failure_reason: reason }],
+      summary: {
+        ...DETAIL.summary,
+        tdd_leg: { ...DETAIL.summary.tdd_leg!, ack: 'RE', reason },
+        links: { ...DETAIL.summary.links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' },
+      },
+    }
+    renderDetail(`/compliance/activity/${UUID_A}/resubmit`)
+    fireEvent.click(await screen.findByRole('button', { name: /^Fix and send/ }))
+    expect(
+      await screen.findByText(/held for a decision at Fawtir, pending guidance from the Tax Authority/),
+    ).toBeTruthy()
+    expect(resubmitted).toEqual(['/api/v1/invoices/inv-1/tdd/resubmit'])
   })
 
   it('shows the record as before when correction_held is absent', async () => {
