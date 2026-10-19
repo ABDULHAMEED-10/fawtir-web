@@ -90,6 +90,11 @@ export type DisconnectionStepRecordDto = {
   actorType: 'CUSTOMER' | 'OPERATOR' | 'SYSTEM'
   reference: string | null
   note: string | null
+  /** The staff member's name when the step was recorded; missing from older servers and rows. */
+  actorName?: string | null
+  /** Set on an SMP step support recorded instead of the console's SMP call (option C). */
+  smpChannel?: 'FAWTARA_PORTAL' | 'OTA_SUPPORT' | 'OTHER' | null
+  smpRecordKind?: 'REMOVED' | 'ADDED' | 'CONFIRMED' | null
 }
 
 export type PlatformDisconnectionDto = {
@@ -182,8 +187,13 @@ export function stepsOffered(view: PlatformDisconnectionDto): RecordStep['step']
         ? ['REQUEST_EXPIRED']
         : ['CUSTOMER_APPROVED', 'CUSTOMER_REJECTED', 'WITHDRAWN']
     case 'DISCONNECTED':
-      // Once the company is back, taking it off the SMP would cut it off again.
-      return request.smpRemovedAt === null && !request.reconnectedAt ? ['SMP_REMOVED'] : []
+      // Once the company is back, or Fawtir has accepted it back (the server's next action then
+      // stops being the removal), taking it off the SMP would cut it off again.
+      return request.smpRemovedAt === null &&
+        !request.reconnectedAt &&
+        view.nextAction === 'REMOVE_FROM_SMP'
+        ? ['SMP_REMOVED']
+        : []
     case 'WITHDRAWN':
       return request.portalRequestRaisedAt !== null && request.portalWithdrawnAt === null
         ? ['PORTAL_REQUEST_WITHDRAWN']

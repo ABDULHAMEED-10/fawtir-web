@@ -80,6 +80,11 @@ export type ReconnectionStepRecordDto = {
   actorType: 'CUSTOMER' | 'OPERATOR' | 'SYSTEM'
   reference: string | null
   note: string | null
+  /** The staff member's name when the step was recorded; missing from older servers and rows. */
+  actorName?: string | null
+  /** Set on an SMP step support recorded instead of the console's SMP call (option C). */
+  smpChannel?: 'FAWTARA_PORTAL' | 'OTA_SUPPORT' | 'OTHER' | null
+  smpRecordKind?: 'REMOVED' | 'ADDED' | 'CONFIRMED' | null
 }
 
 export type PlatformReconnectionDto = {

@@ -16153,7 +16153,7 @@
       "add": {
         "title": "Add back to the Oman SMP",
         "body": "Fawtir has accepted the company's connection on the Fawtara Portal. Add it back to the Oman SMP within 3 business days. Its Participant ID is still verified, so nothing has to be verified again.",
-        "action": "Add to SMP",
+        "action": "Add back to SMP",
         "confirm": "Fawtir asks the Oman SMP to add this company back with its earlier registration. If the company chose a later effective date on the portal, the call waits for that date. The step is marked done when the SMP confirms."
       },
       "outcome": {
@@ -16173,7 +16173,64 @@
         "production-platform-realm-required": "SMP calls are made only from the production Fawtir console.",
         "impersonation-not-allowed": "This can't be done while signed in as a company.",
         "invalid": "The SMP checks refused the call: the Participant ID policy or the publication set-up is not ready for this company.",
-        "conflict": "The company's SMP registration is not ready for this call, or another SMP call for it is still running."
+        "conflict": "The company's SMP registration is not ready for this call, or another SMP call for it is still running.",
+        "platform-smp-override-not-open": "Recording SMP changes made elsewhere is switched off on this server. Record the step by hand instead.",
+        "invalidRecord": "Check the date (not in the future, and not before the step it answers), the channel and the reason.",
+        "recordConflict": "This record is not what the company needs now, it is already recorded, or another SMP change for it is still running. Close this and look again."
+      },
+      "confirm": {
+        "title": "Confirm the Oman SMP registration"
+      },
+      "notice": {
+        "ACCEPTED_BACK": "Fawtir has accepted this company back, so it stays on the Oman SMP. Nothing is removed.",
+        "CHANGE_PENDING": "An Oman SMP change for this company is still queued or running. Wait for it to finish.",
+        "NEVER_REMOVED": "This company was never removed from the Oman SMP while it was away, so there is nothing to add back. Check that it is still listed, then confirm its registration.",
+        "ALREADY_ABSENT": "The Oman SMP answered that this company is not registered. Check it, then record the removal."
+      },
+      "notCallable": {
+        "CALLS_OFF": "SMP calls from the console are switched off on this server.",
+        "SMP_MODULE_OFF": "The connection to the Oman SMP is switched off on this server, so the console cannot make the call.",
+        "NO_REGISTRATION": "Fawtir has no Oman SMP registration for this company, so the console cannot make the call.",
+        "SEVERAL_REGISTRATIONS": "This company has more than one Oman SMP registration, so the console cannot make the call.",
+        "PID_NOT_APPROVED": "The company's Participant ID is not approved for the Oman SMP yet, so the console cannot make the call.",
+        "NOTHING_TO_RESTORE": "There is no earlier SMP registration to restore, so the console cannot make the call.",
+        "READINESS_BLOCKED": "The Oman SMP publication checks are not ready for this company, so the console cannot make the call.",
+        "other": "The console cannot make the SMP call for this company now."
+      },
+      "record": {
+        "REMOVED": {
+          "title": "Record a removal made elsewhere",
+          "body": "Use this when the console could not remove the company from the Oman SMP, or it was removed another way. Nothing is sent to the SMP. The removal is recorded with your name, and the company's SMP registration is marked as removed.",
+          "action": "Record removal made elsewhere"
+        },
+        "ADDED": {
+          "title": "Record an addition made elsewhere",
+          "body": "Use this when the console could not add the company back to the Oman SMP, or it was added another way. Nothing is sent to the SMP. The addition is recorded with your name, and the company's SMP registration is marked as active.",
+          "action": "Record addition made elsewhere"
+        },
+        "CONFIRMED": {
+          "title": "Confirm the Oman SMP registration",
+          "body": "The company was never removed from the Oman SMP, so it is still registered with Fawtir. Check that it is still listed, for example on the Fawtara Portal's SMP management page. Nothing is sent to the SMP. The confirmation is recorded with your name.",
+          "action": "Confirm SMP registration"
+        },
+        "date": "Date it happened (Oman)",
+        "dateInvalid": "Choose a date that is not in the future and not before the step it answers.",
+        "channel": "How you know",
+        "channelPlaceholder": "Choose",
+        "channelRequired": "Choose how you know.",
+        "channelOption": {
+          "FAWTARA_PORTAL": "Fawtara Portal",
+          "OTA_SUPPORT": "OTA support",
+          "OTHER": "Other"
+        },
+        "reference": "Reference (optional)",
+        "referenceHint": "For example an OTA ticket number",
+        "sending": "Recording…"
+      },
+      "history": {
+        "REMOVED": "Recorded instead of the console's SMP call, via {{channel}}",
+        "ADDED": "Recorded instead of the console's SMP call, via {{channel}}",
+        "CONFIRMED": "Confirmed as still registered, via {{channel}}"
       }
     }
   },

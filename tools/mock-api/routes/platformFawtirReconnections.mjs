@@ -143,19 +143,36 @@ let nextId = 100
  * What the server does when the Oman SMP confirms a console add (`platformSmpParticipant.mjs`):
  * SMP_ADDED recorded by the system. False when there is no such request or it is already done.
  */
-export function markSmpAdded(id, at, operationId) {
+export function markSmpAdded(id, at, operationId, record = null) {
   const entry = REQUESTS.find((e) => e.request.id === id)
   if (!entry || entry.request.smpAddedAt) return false
   entry.request = { ...entry.request, smpAddedAt: at, version: entry.request.version + 1 }
   entry.steps = [
     ...entry.steps,
-    {
-      ...step(`rs-${nextId++}`, 'SMP_ADDED', entry.request.status, at, 'SYSTEM'),
-      reference: `SMP operation ${operationId}`,
-      note: 'Recorded when the Oman SMP confirmed the add',
-    },
+    record
+      ? {
+          ...step(`rs-${nextId++}`, 'SMP_ADDED', entry.request.status, at, 'OPERATOR'),
+          reference: record.reference,
+          note: record.reason,
+          actorName: record.actorName,
+          smpChannel: record.channel,
+          smpRecordKind: record.kind,
+        }
+      : {
+          ...step(`rs-${nextId++}`, 'SMP_ADDED', entry.request.status, at, 'SYSTEM'),
+          reference: `SMP operation ${operationId}`,
+          note: 'Recorded when the Oman SMP confirmed the add',
+        },
   ]
   return true
+}
+
+/** The disconnection a reconnection answers, and whether its SMP add is still to do. */
+export function reconnectionFacts(id) {
+  const entry = REQUESTS.find((e) => e.request.id === id)
+  return entry
+    ? { disconnectionId: entry.request.disconnectionId, open: nextAction(entry.request) === 'ADD_TO_SMP' }
+    : null
 }
 
 export default [

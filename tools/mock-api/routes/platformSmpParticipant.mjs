@@ -8,13 +8,21 @@
  * for two seconds and then succeeds, marking SMP_REMOVED or SMP_ADDED on the request the way the
  * server's listener does. A reason containing "refuse" fails for good (FAILED), so asking again
  * is attempt 2. The server's own guards are not re-checked here.
+ *
+ * Option C: the read also lists the offered actions. `MOCK_PLATFORM_SMP_CALLABLE=off` makes the
+ * calls not callable (the SMP module off), so the screens offer support's record instead, and
+ * `MOCK_PLATFORM_SMP_OVERRIDE=off` switches that record off. An add-back for a company whose
+ * removal was never recorded (and which did not move to another provider) offers Confirm.
  */
-import { markSmpRemoved } from './platformFawtirDisconnections.mjs'
-import { markSmpAdded } from './platformFawtirReconnections.mjs'
+import { markSmpRemoved, smpRemovedOrMoved } from './platformFawtirDisconnections.mjs'
+import { markSmpAdded, reconnectionFacts } from './platformFawtirReconnections.mjs'
 
 const BASE = /^\/api\/v1\/platform\/peppol\/smp\/tenants\/([^/]+)\/participant/
 const PENDING_MS = 2000
 const enabled = () => process.env.MOCK_PLATFORM_SMP_PARTICIPANT !== 'off'
+const overrideEnabled = () => process.env.MOCK_PLATFORM_SMP_OVERRIDE !== 'off'
+const callable = () => enabled() && process.env.MOCK_PLATFORM_SMP_CALLABLE !== 'off'
+const STAFF = 'Sara Al Balushi'
 
 /** Every call made, newest last. */
 const CALLS = []
@@ -105,6 +113,52 @@ function call(kind) {
   }
 }
 
+/** Done ids, so a recorded step offers nothing more. */
+const RECORDED = new Set()
+
+function offered(kind, linkId, last) {
+  const outcome = last?.outcome ?? null
+  if (RECORDED.has(linkId) || outcome === 'PENDING' || outcome === 'DONE') {
+    return { actions: [], notice: null, why: callable() ? null : 'SMP_MODULE_OFF' }
+  }
+  const canCall = callable()
+  const record = overrideEnabled() && !(canCall && outcome === null)
+  if (kind === 'REMOVAL') {
+    const actions = []
+    if (canCall && (outcome === null || outcome === 'FAILED')) actions.push('REMOVE')
+    if (record) actions.push('RECORD_REMOVAL')
+    return { actions, notice: null, why: canCall ? null : 'SMP_MODULE_OFF' }
+  }
+  const facts = reconnectionFacts(linkId)
+  if (facts && !facts.open) return { actions: [], notice: null, why: null }
+  if (facts && !smpRemovedOrMoved(facts.disconnectionId)) {
+    return {
+      actions: overrideEnabled() ? ['CONFIRM_REGISTRATION'] : [],
+      notice: 'NEVER_REMOVED',
+      why: 'NOT_REMOVED',
+    }
+  }
+  const actions = []
+  if (canCall && (outcome === null || outcome === 'FAILED')) actions.push('ADD_BACK')
+  if (record) actions.push('RECORD_ADDITION')
+  return { actions, notice: null, why: canCall ? null : 'SMP_MODULE_OFF' }
+}
+
+function statusOf(kind, linkId) {
+  const last = latest(kind, linkId)
+  const { actions, notice, why } = offered(kind, linkId, last)
+  return {
+    enabled: enabled(),
+    latest: view(last),
+    overrideEnabled: overrideEnabled(),
+    callable: why === null,
+    notCallableReason: why,
+    actions,
+    registrationState: 'ACTIVE',
+    notice,
+  }
+}
+
 export default [
   {
     match: new RegExp(`${BASE.source}/requests/latest$`),
@@ -112,12 +166,37 @@ export default [
       const disconnectionId = query.get('disconnectionId')
       const reconnectionId = query.get('reconnectionId')
       if (!disconnectionId === !reconnectionId) return { status: 400 }
-      return {
-        enabled: enabled(),
-        latest: view(
-          disconnectionId ? latest('REMOVAL', disconnectionId) : latest('ADDITION', reconnectionId),
-        ),
+      return disconnectionId
+        ? statusOf('REMOVAL', disconnectionId)
+        : statusOf('ADDITION', reconnectionId)
+    },
+  },
+  {
+    method: 'POST',
+    match: new RegExp(`${BASE.source}/overrides$`),
+    reply: ({ body }) => {
+      if (!overrideEnabled()) {
+        return { status: 409, body: { type: '/problems/platform-smp-override-not-open', status: 409 } }
       }
+      const removal = body?.kind === 'REMOVED'
+      const linkId = removal ? body?.disconnectionId : body?.reconnectionId
+      if (!linkId || !body?.occurredOn || !body?.channel || !body?.reason?.trim()) {
+        return { status: 400, body: { status: 400 } }
+      }
+      const at = new Date(`${body.occurredOn}T08:00:00+04:00`).toISOString()
+      const record = {
+        kind: body.kind,
+        channel: body.channel,
+        reason: body.reason.trim(),
+        reference: body.reference ?? null,
+        actorName: STAFF,
+      }
+      const done = removal
+        ? markSmpRemoved(linkId, at, null, record)
+        : markSmpAdded(linkId, at, null, record)
+      if (!done) return { status: 409, body: { type: '/problems/conflict', status: 409 } }
+      RECORDED.add(linkId)
+      return statusOf(removal ? 'REMOVAL' : 'ADDITION', linkId)
     },
   },
   { method: 'POST', match: new RegExp(`${BASE.source}/removal$`), reply: call('REMOVAL') },

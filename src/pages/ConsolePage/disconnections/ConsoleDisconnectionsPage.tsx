@@ -36,10 +36,10 @@ import {
   type RecordStep,
 } from '../../../lib/console/fawtirDisconnections'
 import { DISCONNECTION_STATUS_TONE } from './disconnectionTones'
-import { Due, Fact } from './disconnectionParts'
+import { Due, Fact, SmpRecordLine, stepActor } from './disconnectionParts'
 import { MomentField } from './MomentField'
 import { ReconnectionQueueBody } from './ConsoleReconnections'
-import { SmpCallAction, smpCallsOn, smpStepByHand, useSmpCallStatus } from './SmpCallAction'
+import { SmpCallAction, smpPanelOn, smpStepByHand, useSmpCallStatus } from './SmpCallAction'
 
 /**
  * Platform support's disconnection queue (Business Rules LV-2 to LV-4, LV-7, FC-1; plan v4 §10,
@@ -243,6 +243,7 @@ function DisconnectionPanel({
     'REMOVAL',
     disconnectionId,
   )
+  const [callRefused, setCallRefused] = useState(false)
 
   if (read.status === 'loading')
     return <ConsoleNotice busy body={t('console.disconnections.loading')} />
@@ -250,11 +251,11 @@ function DisconnectionPanel({
   const view = read.data
   const { request } = view
   const at = (iso: string | null) => (iso ? formatInstant(iso, i18n.language) : null)
-  // With the console's SMP call on, the removal is made here and the server records the step; by
-  // hand only as the fallback (smpStepByHand).
-  const smpOn = smpCallsOn(smp.read)
+  // With the console's SMP call or support's record on, the removal is made or recorded in the SMP
+  // box; the bare step by hand only as the fallback (smpStepByHand).
+  const smpShown = smpPanelOn(smp.read)
   const offered = stepsOffered(view).filter(
-    (step) => step !== 'SMP_REMOVED' || smpStepByHand(smp.read),
+    (step) => step !== 'SMP_REMOVED' || smpStepByHand(smp.read, callRefused),
   )
 
   return (
@@ -365,7 +366,7 @@ function DisconnectionPanel({
         ) : null}
       </dl>
 
-      {smpOn && smp.read.status === 'ready' ? (
+      {smpShown && smp.read.status === 'ready' ? (
         <SmpCallAction
           tenantId={request.tenantId}
           kind="REMOVAL"
@@ -373,6 +374,8 @@ function DisconnectionPanel({
           status={smp.read.data}
           open={view.nextAction === 'REMOVE_FROM_SMP'}
           canManage={canManage}
+          minDay={request.disconnectedAt ? muscatToday(new Date(request.disconnectedAt)) : undefined}
+          onRefused={() => setCallRefused(true)}
           refresh={smp.retry}
           onChanged={() => {
             onRecorded()
@@ -437,7 +440,7 @@ function DisconnectionPanel({
                 <span className="text-sm text-text-secondary">{at(step.occurredAt)}</span>
               </span>
               <span className="text-xs text-text-tertiary">
-                {t(`console.disconnections.actor.${step.actorType}`)}
+                {stepActor(t, step)}
                 {step.recordedAt !== step.occurredAt
                   ? ` · ${t('console.disconnections.recordedOn', { date: at(step.recordedAt) })}`
                   : ''}
@@ -447,6 +450,7 @@ function DisconnectionPanel({
                   {t('console.disconnections.reference')}: <span dir="ltr">{step.reference}</span>
                 </span>
               ) : null}
+              <SmpRecordLine step={step} />
               {step.note ? <span className="text-xs text-text-secondary">{step.note}</span> : null}
             </li>
           ))}
