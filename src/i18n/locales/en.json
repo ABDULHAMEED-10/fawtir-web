@@ -16956,7 +16956,8 @@
     "amountUnavailable": "Not available yet",
     "firstBillUnknown": "Confirmed when your account is approved",
     "addonValue": "ERP requested; billed with first paid period",
-    "startsOnActivation": "When your company is approved and the payment is confirmed"
+    "startsOnActivation": "When your company is approved and the payment is confirmed",
+    "addonInterestValue": "ERP interest noted; not billed"
   },
   "signupPending": {
     "approved": {
@@ -22748,7 +22749,8 @@
       "title": "Cancel your subscription?",
       "body": "Your subscription stays active until {{date}}. After that it will not renew, and your issued invoices and reports stay available to read and export. Payments already made are not refunded.",
       "back": "Go back",
-      "confirm": "Confirm cancellation"
+      "confirm": "Confirm cancellation",
+      "bodyPaidAhead": "Your subscription stays active until {{date}}. After that it will not renew, and your issued invoices and reports stay available to read and export. The period you paid in advance will be refunded."
     },
     "blockedByPayment": "A payment for your next period is being checked by Fawtir. You can change your plan or cancel once it is confirmed or rejected.",
     "switchOff": {

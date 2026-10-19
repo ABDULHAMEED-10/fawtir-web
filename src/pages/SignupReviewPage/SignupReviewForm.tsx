@@ -252,7 +252,17 @@ export function SignupReviewForm() {
                   : { value: t('signupReview.amountUnavailable') }),
               },
               ...(state.addon
-                ? [{ label: t('payment.addon.title'), value: t('signupReview.addonValue') }]
+                ? [
+                    {
+                      label: t('payment.addon.title'),
+                      // Ticked while paid extras were off: noted, never billed.
+                      value: t(
+                        state.addonInterestOnly
+                          ? 'signupReview.addonInterestValue'
+                          : 'signupReview.addonValue',
+                      ),
+                    },
+                  ]
                 : []),
             ],
     },

@@ -46,6 +46,12 @@ export type Entitlements = {
    * same for every caller. Absent from older servers, which means off.
    */
   branchAccessEnforced?: boolean
+  /**
+   * The caller can start paying the company's subscription bills: holds `tenant.plan.manage` after
+   * their own grants and denials, and the company has not left Fawtir. When false, Pay and an open
+   * card checkout's Continue are hidden. Absent from older servers: the screens stay as before.
+   */
+  payAvailable?: boolean
 }
 
 /**
@@ -85,6 +91,11 @@ export function peekEntitlements(): Entitlements | null {
 export function forgetEntitlements(): void {
   cached = null
   settled = null
+}
+
+/** False only when the server says so; an older server without `payAvailable` changes nothing. */
+export function payAvailable(entitlements: Entitlements | null): boolean {
+  return entitlements?.payAvailable !== false
 }
 
 export function hasPermission(entitlements: Entitlements, code: string): boolean {

@@ -80,6 +80,40 @@ export type SubscriptionStatusDto = {
    * (`subscription-cancelled-by-fawtir`); renewing clears it. Absent from a server before it.
    */
   cancelledByFawtir?: { on: string; message: string } | null
+  /**
+   * Set when the customer cancelled with a period paid in advance (CA-1, RF-2): the subscription
+   * ends on `accessEndsOn`, the end of the period in progress, and what was paid from this day is
+   * refunded. Null otherwise, and once the cancellation is withdrawn. Absent from older servers.
+   */
+  paidAheadRefundedFrom?: string | null
+  /**
+   * Before any cancellation: the last day a cancellation made now would keep, the end of the trial
+   * or paid period in progress (CA-1). Earlier than `paidThrough` when a period is paid in advance,
+   * which would then be refunded. Null when nothing can be cancelled now or one is scheduled.
+   * Absent from a server before it.
+   */
+  cancellationEndsOn?: string | null
+}
+
+/**
+ * What the cancel dialog says: the day the subscription would stay active until, and whether a
+ * period paid in advance would be refunded (CA-1). `cancellationEndsOn` when the server sends it;
+ * otherwise, as before, the paid-through day while paid or the trial's last day.
+ */
+export function cancellationPreview(status: SubscriptionStatusDto): {
+  endsOn: string | null
+  refundsPaidAhead: boolean
+} {
+  const endsOn = status.cancellationEndsOn
+  if (endsOn) {
+    const refundsPaidAhead = status.paidThrough !== null && endsOn < status.paidThrough
+    return { endsOn, refundsPaidAhead }
+  }
+  return {
+    endsOn:
+      status.paidThrough && status.access === 'ACTIVE' ? status.paidThrough : status.trialEndsOn,
+    refundsPaidAhead: false,
+  }
 }
 
 /** What the status pill and the Settings card say: the server's access, or that nothing has started. */

@@ -194,6 +194,11 @@ export type SignupStatusResponse = {
     method: SignupPaymentMethodCode | null
     linkChannel: SignupLinkChannel | null
     erpExtractionAddon: boolean
+    /**
+     * The add-on was ticked while paid extras were off: kept as interest, never billed. Absent
+     * from a server older than the field, read as billed as before.
+     */
+    erpAddonInterestOnly?: boolean
   } | null
   /**
    * The payment held with the application, if any: a transfer receipt or a cash request, waiting

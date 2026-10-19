@@ -18,6 +18,7 @@ import {
   withdrawScheduledChange,
   waitingWording,
   withdrawalOf,
+  cancellationPreview,
   type SubscriptionDisplay,
   type SubscriptionStatusDto,
 } from '../../api/settings/subscription'
@@ -94,6 +95,8 @@ export function SubscriptionStatusSection({
   const scheduled = status.scheduledChange
   const wording = scheduled ? waitingWording(status, scheduled) : null
   const withdrawal = scheduled ? withdrawalOf(status, scheduled, selfService) : 'NONE'
+  // CA-1: the end a cancellation made now would keep, and whether a period paid ahead is refunded.
+  const cancelPreview = cancellationPreview(status)
 
   const act = async (which: Exclude<Pending, null>, call: () => Promise<SubscriptionStatusDto>) => {
     if (inFlight.current) return
@@ -256,9 +259,12 @@ export function SubscriptionStatusSection({
         }
       >
         <p className="text-sm font-medium leading-[1.6] text-text-secondary">
-          {t('subscription.cancelConfirm.body', {
-            date: day(status.paidThrough && status.access === 'ACTIVE' ? status.paidThrough : status.trialEndsOn),
-          })}
+          {t(
+            cancelPreview.refundsPaidAhead
+              ? 'subscription.cancelConfirm.bodyPaidAhead'
+              : 'subscription.cancelConfirm.body',
+            { date: day(cancelPreview.endsOn) },
+          )}
         </p>
       </Modal>
     </section>
