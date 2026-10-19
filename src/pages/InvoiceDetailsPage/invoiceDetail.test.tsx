@@ -1678,8 +1678,71 @@ describe('the Tax Authority report on the invoice', () => {
     activityDetails[UUID] = () =>
       json(200, detailOf(row(UUID, legs[Math.min(reads++, legs.length - 1)], links), ['m-1', 'm-2']))
   }
+  /** An hour after the fixtures' validation: inside the window in which a record is re-read. */
+  const TODAY = new Date('2026-10-19T09:00:00Z')
   const listReads = () => calls().filter((call) => call === `GET ${LIST_URL}`)
   const detailReads = () => calls().filter((call) => call === `GET ${DETAIL_URL}`)
+
+  // Review of #250, L1: an old document whose report never settles (the TEST transport hold, or
+  // a C5 that never answered) is read once, not re-read on every visit.
+  it('reads the record of an old invoice once and does not keep re-reading it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date('2026-10-21T09:00:00Z'))
+    try {
+      dispatchResponse = () => json(200, DELIVERED_BOTH)
+      serve([tddLeg({ delivered_at: null, transport_state: 'PENDING' })])
+      renderInvoice()
+      expect(
+        await screen.findByText(/Tax Authority report: not delivered to the Tax Authority yet/),
+      ).toBeTruthy()
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+      expect(detailReads()).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // Review of #250, L2: a record that lands just after the first lookup is found on one retry.
+  it('asks an unproven lookup once more and shows a record that landed late', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(TODAY)
+    try {
+      dispatchResponse = () => json(200, DELIVERED_BOTH)
+      serve([tddLeg({ ack: 'AP', status: 'ACCEPTED', ack_at: '2026-10-19T08:02:00Z' })])
+      const landed = activityListResponse
+      let lists = 0
+      activityListResponse = () =>
+        lists++ === 0
+          ? json(200, { items: [], page: 0, page_size: 5, has_more: false })
+          : landed()
+      renderInvoice()
+      expect(
+        await screen.findByText(/Tax Authority report: status not available on this page/),
+      ).toBeTruthy()
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(await screen.findByText(/Tax Authority report: accepted/)).toBeTruthy()
+      expect(listReads()).toHaveLength(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('retries an unproven lookup only once', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(TODAY)
+    try {
+      dispatchResponse = () => json(200, DELIVERED_BOTH)
+      renderInvoice()
+      expect(
+        await screen.findByText(/Tax Authority report: status not available on this page/),
+      ).toBeTruthy()
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+      expect(listReads()).toHaveLength(2)
+      expect(screen.getByText(/Tax Authority report: status not available on this page/)).toBeTruthy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 
   it("shows C5's acceptance once the record is proven, from one list and one detail read", async () => {
     dispatchResponse = () => json(200, DELIVERED_BOTH)
@@ -1693,6 +1756,7 @@ describe('the Tax Authority report on the invoice', () => {
 
   it('keeps reading past the AS4 receipt until C5 answers, then stops', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(TODAY)
     try {
       dispatchResponse = () => json(200, DELIVERED_BOTH)
       serve([

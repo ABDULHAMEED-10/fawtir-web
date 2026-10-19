@@ -273,7 +273,9 @@ describe('the waiting copy claims no report or reply it cannot see', () => {
     for (const sentence of said(en)) {
       expect(sentence).not.toMatch(/has been told|have had their reply|been reported/)
     }
-    expect(en.waitingDocuments.reported).toMatch(/cannot show how far either has got/)
+    expect(en.waitingDocuments.reported).toMatch(/cannot show their status/)
+    // With the positive-MLS cutover blank no automatic reply goes out (A2 F-02): no "on its own".
+    expect(en.waitingDocuments.reported).not.toMatch(/on its own|replies to your supplier/)
   })
 
   it('says the same in Arabic', async () => {

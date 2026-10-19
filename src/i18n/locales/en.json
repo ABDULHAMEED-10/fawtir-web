@@ -5882,11 +5882,11 @@
         "AP": "Reply delivered to the supplier's access point: received and confirmed",
         "AB": "Reply delivered to the supplier's access point: received, not confirmed",
         "RE": "Reply delivered to the supplier's access point: turned down",
-        "onItsWay": "Reply to the supplier's access point is on its way, not delivered yet",
         "retrying": "Reply to the supplier's access point failed and will be retried",
         "failed": "Reply to the supplier's access point could not be delivered",
         "unknown": "Reply to the supplier's access point: status not recognised",
-        "unavailable": "Reply to the supplier's access point: status not available"
+        "unavailable": "Reply to the supplier's access point: status not available",
+        "notDeliveredYet": "Reply to the supplier's access point: not delivered yet"
       }
     },
     "supplier": {
@@ -22544,7 +22544,7 @@
     "subtitle": "Documents your suppliers sent that you can't open yet",
     "countTitle_one": "{{n}} supplier document is waiting",
     "countTitle_other": "{{n}} supplier documents are waiting",
-    "reported": "They have arrived. Fawtir reports each one to the Tax Authority and replies to your supplier on its own, and this page cannot show how far either has got. You can see who sent each one and when, but you can't open it or record it as a bill until the reason below is put right. They open oldest first.",
+    "reported": "They have arrived. Fawtir handles the Tax Authority report and the reply to your supplier, and this page cannot show their status. You can see who sent each one and when, but you can't open it or record it as a bill until the reason below is put right. They open oldest first.",
     "noneTitle": "Nothing is waiting",
     "noneBody": "Every supplier document you have received is in your bills.",
     "reason": {

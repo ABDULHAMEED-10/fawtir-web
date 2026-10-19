@@ -3105,6 +3105,8 @@ describe('a bill received over Peppol: our reply and our receipt report', () => 
 
   it('keeps reading a pending reply and report until both settle, then stops', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
+    // Within a day of the fixture's receipt, so the record is still worth re-reading.
+    vi.setSystemTime(new Date('2026-09-01T09:00:00Z'))
     try {
       inboundResponse = () => json(200, inbound({ mlsTransportState: 'PENDING', mlsDeliveredAt: null }))
       const answers = [
@@ -3117,7 +3119,7 @@ describe('a bill received over Peppol: our reply and our receipt report', () => 
       let reads = 0
       recordResponse = () => json(200, answers[Math.min(reads++, answers.length - 1)])
       renderBill()
-      await card("Reply to the supplier's access point is on its way, not delivered yet")
+      await card("Reply to the supplier's access point: not delivered yet")
       expect(await screen.findByText("Receipt report delivered, waiting for the Tax Authority's answer")).toBeTruthy()
       await vi.advanceTimersByTimeAsync(3000)
       await card("Reply delivered to the supplier's access point: received, not confirmed")
@@ -3127,6 +3129,22 @@ describe('a bill received over Peppol: our reply and our receipt report', () => 
       expect(calls().filter((call) => call === `GET ${RECORD_URL}`)).toHaveLength(settled)
       // The delivery record is read once; only the compliance record is re-read.
       expect(calls().filter((call) => call === `GET ${INBOUND_URL}`)).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('reads an old pending record once and does not keep re-reading it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date('2026-09-03T09:00:00Z'))
+    try {
+      inboundResponse = () => json(200, inbound({ mlsTransportState: 'PENDING', mlsDeliveredAt: null }))
+      recordResponse = () =>
+        json(200, record({ invoice_leg: { transport_state: 'PENDING', delivered_at: null } }))
+      renderBill()
+      await card("Reply to the supplier's access point: not delivered yet")
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+      expect(calls().filter((call) => call === `GET ${RECORD_URL}`)).toHaveLength(1)
     } finally {
       vi.useRealTimers()
     }

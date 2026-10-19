@@ -82,6 +82,7 @@ import {
   REPORT_UNAVAILABLE,
   findIssuedReport,
   issuedReportNotes,
+  recentEnoughToWatch,
   refreshIssuedReport,
   tddReportIsPending,
   transportMessageIds,
@@ -317,11 +318,35 @@ function InvoiceScreen() {
   )
   const [reportLatest, setReportLatest] = useState<ReportLookup | null>(null)
   const report = reportLatest ?? (reportRead.read.status === 'ready' ? reportRead.read.data : null)
+  // An unproven lookup is asked once more, a few seconds on: the read is keyed by the number, so a
+  // transport row the dispatch poll reports later, or a ledger row that lands just after the first
+  // read, would otherwise leave "not available" until a reload (review of #250, L2). Once only, and
+  // after the read settles, so a number that genuinely matches nothing costs one extra round.
+  // The ref makes it one request whatever the timing: the spell's next timer can fire before the
+  // re-render that ends the spell has happened.
+  const [lookupRetried, setLookupRetried] = useState(false)
+  const lookupSpent = useRef(false)
+  usePendingRefresh(
+    reportNumber ? `${id}:report-lookup` : null,
+    report?.kind === 'unproven' && !lookupRetried,
+    (live) => {
+      if (lookupSpent.current) return Promise.resolve()
+      lookupSpent.current = true
+      return findIssuedReport(reportNumber!, messageIds)
+        .then((next) => {
+          if (live()) setReportLatest(next)
+        })
+        .finally(() => setLookupRetried(true))
+    },
+  )
   // Watched until C5 answers or Fawtir stops the report; the dispatch poll above ends at the AS4
-  // receipt, which said nothing of C5's answer. Only the proven record is re-read.
+  // receipt, which said nothing of C5's answer. Only the proven record is re-read, and only for a
+  // document recent enough that an answer may still arrive while the page is open.
   usePendingRefresh(
     report?.kind === 'found' ? report.invoiceUuid : null,
-    report?.kind === 'found' && tddReportIsPending(report.item.tdd_leg),
+    report?.kind === 'found' &&
+      tddReportIsPending(report.item.tdd_leg) &&
+      recentEnoughToWatch(report.item),
     (live) =>
       report?.kind === 'found'
         ? refreshIssuedReport(report.invoiceUuid, messageIds).then((next) => {

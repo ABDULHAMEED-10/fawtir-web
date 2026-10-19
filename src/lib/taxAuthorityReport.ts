@@ -59,11 +59,30 @@ export function tddReportStateOf(leg: TddLegDto | null): TddReportState {
 /**
  * Whether the server may still move the report on its own, so a screen keeps re-reading it.
  * AWAITING_RESPONSE stays pending although C5 may never answer: silence is never recorded as an
- * answer, so the re-read's own cap (usePendingRefresh) is what ends it, not a guess here.
+ * answer, so the re-read's own cap (usePendingRefresh) and the age window below end it, not a
+ * guess here.
  */
 export function tddReportIsPending(leg: TddLegDto | null): boolean {
   const state = tddReportStateOf(leg)
   return state === 'NOT_RAISED' || state === 'NEVER_SUBMITTED' || state === 'AWAITING_RESPONSE'
+}
+
+/**
+ * How long after a document was validated a screen keeps re-reading its record. The PASR Annex A
+ * deadline is 15 or 30 minutes and C5 answers within minutes of delivery, so an answer still owed
+ * a day later is not one an open tab will see arrive. Past this window the record is read once
+ * and not re-read: an old document whose report never settles (every TDD behind the TEST
+ * transport hold, or a C5 that never answered) would otherwise cost a full re-read spell on every
+ * visit (review of #250, L1). A transport hold itself is not visible to the web, so age is the
+ * only signal that needs no new field.
+ */
+export const REPORT_WATCH_WINDOW_MS = 24 * 60 * 60 * 1000
+
+/** Whether a record is recent enough to be worth re-reading; see REPORT_WATCH_WINDOW_MS. */
+export function recentEnoughToWatch(item: ActivityItemDto, now: number = Date.now()): boolean {
+  const since = item.tdd_leg?.validated_at ?? item.validated_at ?? item.occurred_at
+  const at = since ? new Date(since).getTime() : Number.NaN
+  return Number.isFinite(at) && now - at < REPORT_WATCH_WINDOW_MS
 }
 
 /**

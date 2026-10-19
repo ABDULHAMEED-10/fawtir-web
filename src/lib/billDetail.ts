@@ -391,8 +391,12 @@ export function receiptLegNote(
   }
 }
 
-/** Transport states of our MLS row that the sender loop is still moving (MessageState). */
-const REPLY_ON_ITS_WAY: ReadonlySet<string> = new Set(['PENDING', 'SENDING', 'SENT_AWAITING_MDN'])
+/**
+ * Transport states of our MLS row short of delivery that are not failures (MessageState). Worded
+ * "not delivered yet", not "on its way": behind an outbound hold a PENDING row does not move
+ * (review of #250, N1).
+ */
+const REPLY_UNDELIVERED: ReadonlySet<string> = new Set(['PENDING', 'SENDING', 'SENT_AWAITING_MDN'])
 /** MDN_FAILED feeds the retry loop like RETRY_SCHEDULED; neither is final. */
 const REPLY_RETRYING: ReadonlySet<string> = new Set(['MDN_FAILED', 'RETRY_SCHEDULED'])
 
@@ -412,7 +416,7 @@ export function replyNote(
   if (ack === null || ack === 'NONE') return note('none', false)
   if (transportState === null) return note('notQueued', false)
   if (transportState === 'DELIVERED') return note(ack, ack !== 'RE')
-  if (REPLY_ON_ITS_WAY.has(transportState)) return note('onItsWay', false)
+  if (REPLY_UNDELIVERED.has(transportState)) return note('notDeliveredYet', false)
   if (REPLY_RETRYING.has(transportState)) return note('retrying', false)
   if (transportState === 'DEAD_LETTERED') return note('failed', false)
   return note('unknown', false)
@@ -431,7 +435,7 @@ export function replyIsPending(ack: string | null, transportState: string | null
   if (ack === null || ack === 'NONE') return false
   return (
     transportState !== null &&
-    (REPLY_ON_ITS_WAY.has(transportState) || REPLY_RETRYING.has(transportState))
+    (REPLY_UNDELIVERED.has(transportState) || REPLY_RETRYING.has(transportState))
   )
 }
 

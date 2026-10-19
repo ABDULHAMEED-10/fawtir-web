@@ -40,7 +40,11 @@ import {
   loadActivityDetail,
   type ActivityDetailDto,
 } from '../../api/compliance/activity'
-import { provesReceived, tddReportIsPending } from '../../lib/taxAuthorityReport'
+import {
+  provesReceived,
+  recentEnoughToWatch,
+  tddReportIsPending,
+} from '../../lib/taxAuthorityReport'
 import {
   loadSupplierOverview,
   supplierOverviewPath,
@@ -295,9 +299,12 @@ function BillScreen() {
       : inbound.read.status === 'failed'
         ? { kind: 'unavailable' }
         : { kind: 'loading' }
+  // Re-read only for a recently received document (recentEnoughToWatch): an old one whose reply
+  // or report never settles would otherwise cost a full re-read spell on every visit.
   usePendingRefresh(
     correlationId,
     record !== null &&
+      recentEnoughToWatch(record) &&
       (tddReportIsPending(record.tdd_leg) ||
         replyIsPending(record.invoice_leg.ack, record.invoice_leg.transport_state ?? null)),
     (live) => {

@@ -5,10 +5,12 @@ import type { ActivityDetailDto, ActivityItemDto, TddLegDto } from '../api/compl
 import type { InvoiceDispatchDto } from '../api/invoices/detail'
 import {
   REPORT_UNAVAILABLE,
+  REPORT_WATCH_WINDOW_MS,
   findIssuedReport,
   issuedReportNotes,
   provesIssued,
   provesReceived,
+  recentEnoughToWatch,
   refreshIssuedReport,
   tddReportIsPending,
   tddReportStateOf,
@@ -365,8 +367,8 @@ describe("a received bill's receipt report and reply", () => {
     expect(key(null, null)).toBe('none')
     expect(key('NONE', null)).toBe('none')
     expect(key('AB', null)).toBe('notQueued')
-    expect(key('AB', 'PENDING')).toBe('onItsWay')
-    expect(key('AB', 'SENT_AWAITING_MDN')).toBe('onItsWay')
+    expect(key('AB', 'PENDING')).toBe('notDeliveredYet')
+    expect(key('AB', 'SENT_AWAITING_MDN')).toBe('notDeliveredYet')
     expect(key('AB', 'MDN_FAILED')).toBe('retrying')
     expect(key('AB', 'RETRY_SCHEDULED')).toBe('retrying')
     expect(key('AB', 'DEAD_LETTERED')).toBe('failed')
@@ -405,5 +407,27 @@ describe("a received bill's receipt report and reply", () => {
       }
     }
     expect(ar.billDetail.compliance.failedOnArrival).not.toMatch(/[A-Za-z]/)
+  })
+})
+
+describe('recentEnoughToWatch', () => {
+  const at = (iso: string) => new Date(iso).getTime()
+
+  it('watches inside a day of validation and not after', () => {
+    const fresh = item(leg({ validated_at: '2026-10-19T08:00:00Z' }))
+    expect(recentEnoughToWatch(fresh, at('2026-10-19T09:00:00Z'))).toBe(true)
+    expect(recentEnoughToWatch(fresh, at('2026-10-20T07:59:00Z'))).toBe(true)
+    expect(recentEnoughToWatch(fresh, at('2026-10-20T08:00:00Z'))).toBe(false)
+    expect(REPORT_WATCH_WINDOW_MS).toBe(24 * 60 * 60 * 1000)
+  })
+
+  it('falls back to the row when no report exists, and never watches an undated row', () => {
+    expect(recentEnoughToWatch(item(null), at('2026-10-19T09:00:00Z'))).toBe(true)
+    expect(
+      recentEnoughToWatch(
+        item(null, { validated_at: null, occurred_at: '' }),
+        at('2026-10-19T09:00:00Z'),
+      ),
+    ).toBe(false)
   })
 })
