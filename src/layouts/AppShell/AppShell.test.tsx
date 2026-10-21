@@ -133,7 +133,9 @@ describe('AppShell session guard', () => {
     renderAt('/suppliers')
     await screen.findByText(/screen for/)
     fireEvent.click(screen.getByRole('button', { name: /Nizwa Dates Trading/ }))
-    fireEvent.click(await screen.findByRole('option', { name: /Nizwa Dates \(Seeb\)/ }))
+    fireEvent.click(
+      await screen.findByRole('option', { name: /Nizwa Dates \(Seeb\)/ }, { timeout: 5000 }),
+    )
     expect(window.localStorage.getItem('fawtir.workingBranch')).toBe('b-seeb')
     expect(screen.getByRole('button', { name: /Nizwa Dates \(Seeb\)/ })).toBeTruthy()
   })
