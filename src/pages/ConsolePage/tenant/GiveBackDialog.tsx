@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Checkbox, Input } from '../../../components/ui'
 import { ConsoleButton } from '../../../layouts/ConsoleShell/consoleStyle'
@@ -51,6 +51,7 @@ export function GiveBackDialog({
   const [chosen, setChosen] = useState<Map<string, IssuedDocumentDto>>(new Map())
   const [chosenError, setChosenError] = useState<string | undefined>()
   const latest = useRef(0)
+  const hintId = useId()
   const n = (value: number) => formatCount(value, i18n.language)
   const day = (iso: string) => formatDate(iso, i18n.language)
 
@@ -92,34 +93,41 @@ export function GiveBackDialog({
       body={t(`${K}body`, { date: day(periodEnd) })}
       fields={
         <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-end gap-2.5">
-            <div className="min-w-0 flex-1 basis-[200px]">
-              <Input
-                bordered
-                name="number"
-                label={t(`${K}number`)}
-                autoComplete="off"
-                maxLength={50}
-                hint={t(`${K}numberHint`)}
-                value={number}
-                onChange={(event) => setNumber(event.target.value)}
-                onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
-                  // Enter looks the number up; it does not send the give-back.
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                    search(number)
-                  }
-                }}
-              />
+          {/* The hint sits under the whole row, so the Find button lines up with the field itself. */}
+          <div className="flex flex-col gap-1">
+            <div className="flex flex-wrap items-end gap-2.5">
+              <div className="min-w-0 flex-1 basis-[200px]">
+                <Input
+                  bordered
+                  name="number"
+                  label={t(`${K}number`)}
+                  autoComplete="off"
+                  maxLength={50}
+                  aria-describedby={hintId}
+                  value={number}
+                  onChange={(event) => setNumber(event.target.value)}
+                  onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
+                    // Enter looks the number up; it does not send the give-back.
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      search(number)
+                    }
+                  }}
+                />
+              </div>
+              <ConsoleButton
+                type="button"
+                size="md"
+                variant="secondary"
+                className="h-[50px]"
+                onClick={() => search(number)}
+              >
+                {t(`${K}search`)}
+              </ConsoleButton>
             </div>
-            <ConsoleButton
-              type="button"
-              size="md"
-              variant="secondary"
-              onClick={() => search(number)}
-            >
-              {t(`${K}search`)}
-            </ConsoleButton>
+            <p id={hintId} className="text-[10px] font-medium leading-[1.2] text-text-tertiary">
+              {t(`${K}numberHint`)}
+            </p>
           </div>
 
           <div
@@ -139,10 +147,21 @@ export function GiveBackDialog({
             ) : (
               <ul className="flex flex-col gap-2">
                 {lookup.rows.map((row) => (
-                  <li key={row.id} className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                  <li
+                    key={row.id}
+                    data-given-back={row.alreadyGivenBack || undefined}
+                    className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 ${
+                      row.alreadyGivenBack ? 'opacity-60' : ''
+                    }`}
+                  >
                     <Checkbox
                       label={<span dir="ltr">{row.number}</span>}
-                      className="!text-sm !font-semibold !text-text-primary"
+                      className={
+                        row.alreadyGivenBack
+                          ? // Already given back: muted and not selectable, the box included.
+                            '!cursor-not-allowed !text-sm !font-semibold !text-text-tertiary [&_input]:!cursor-not-allowed [&_input+span]:bg-neutral-100'
+                          : '!text-sm !font-semibold !text-text-primary'
+                      }
                       checked={chosen.has(row.id)}
                       disabled={row.alreadyGivenBack}
                       onChange={(event) => toggle(row, event.target.checked)}

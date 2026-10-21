@@ -59,7 +59,7 @@ const K = 'console.companySubscription.'
  * 4. Received-document counting, for Enterprise companies only; the override.
  * 5. History: the lifecycle events the subscription read carries, newest first.
  *
- * TODO(backend): CONSOLE.md 2.1–2.4: bills and payments for one company, a history that names the
+ * TODO(backend): CONSOLE.md 2.1–2.3: bills and payments for one company, a history that names the
  * operator and covers grants and plan changes, and "would be read-only" while restrictions are off. Not drawn
  * until the reads exist; the sample-data tab this replaces never reached the server.
  */
