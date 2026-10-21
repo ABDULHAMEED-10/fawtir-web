@@ -13,6 +13,7 @@ import {
   ConsolePageHeader,
 } from '../../../layouts/ConsoleShell/consoleStyle'
 import { formatInstant } from '../../../lib/format'
+import { permissionWords, spellOut } from '../../../lib/permissionLabels'
 import {
   READINESS_PERMISSION,
   byCompany,
@@ -80,6 +81,9 @@ function BranchAccessReadiness() {
 
 function CompanyCard({ company }: { company: CompanyReadiness }) {
   const { t, i18n } = useTranslation()
+  // A role in words: a system role's own name, else its code spelled out; never the raw code.
+  const roleWords = (code: string) =>
+    i18n.exists(`sessionRoles.${code}`) ? t(`sessionRoles.${code}`) : spellOut([code])
   return (
     <section className={CONSOLE_CARD} aria-label={company.companyName}>
       <ConsoleCardHead
@@ -118,9 +122,9 @@ function CompanyCard({ company }: { company: CompanyReadiness }) {
             <p>{t(`${K}reserved.note`)}</p>
             <p className="flex flex-wrap gap-x-3 gap-y-1 pt-1">
               {role.reservedCodes.map((code) => (
-                <bdi key={code} dir="ltr" className="font-mono text-[12px] text-text-tertiary">
-                  {code}
-                </bdi>
+                <span key={code} className="text-[12px] text-text-tertiary">
+                  {permissionWords(code, t, i18n).label}
+                </span>
               ))}
             </p>
           </li>
@@ -135,9 +139,9 @@ function CompanyCard({ company }: { company: CompanyReadiness }) {
             <p>{t(`${K}invitation.note`)}</p>
             <p className="flex flex-wrap gap-x-3 gap-y-1 pt-1">
               {[...invitation.jobRoles, ...invitation.otherRoles].map((code) => (
-                <bdi key={code} dir="ltr" className="font-mono text-[12px] text-text-tertiary">
-                  {code}
-                </bdi>
+                <span key={code} className="text-[12px] text-text-tertiary">
+                  {roleWords(code)}
+                </span>
               ))}
             </p>
           </li>

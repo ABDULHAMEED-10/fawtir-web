@@ -221,6 +221,21 @@ describe('Console › Owner handover through support (OW-4)', () => {
     expect(await screen.findByText(i18n.t('console.owners.handover.confirmed'))).toBeTruthy()
   })
 
+  it('names the Owner the server marks, and a person no longer listed as "a former user", never an id', async () => {
+    answers[HANDOVER] = () =>
+      json(200, [handover({ status: 'CONFIRMED', fromUserId: 'u-gone', toUserId: 'u-aisha' })])
+    answers[CANDIDATES] = () => json(200, [AISHA, KHALID])
+    renderAt('/console/tenants/t-1', <TenantOwnerHandoverCard tenantId="t-1" />)
+
+    expect(
+      await screen.findByText(
+        i18n.t('console.owners.handover.owner', { name: 'Aisha Al Balushi (aisha)' }),
+      ),
+    ).toBeTruthy()
+    expect(screen.getByText(new RegExp(i18n.t('console.owners.handover.formerUser')))).toBeTruthy()
+    expect(screen.queryByText(/u-gone/)).toBeNull()
+  })
+
   it('never offers the operator who asked the confirmation', async () => {
     answers[HANDOVER] = () => json(200, [handover({ requestedBy: 'u-me' })])
     answers[CANDIDATES] = () => json(200, [AISHA, KHALID])
@@ -290,7 +305,17 @@ describe('Console › Branch access check (BA-6)', () => {
         holders: 2,
       },
     ],
-    invitationsNamingSeveralRoles: [],
+    invitationsNamingSeveralRoles: [
+      {
+        tenantId: 't-2',
+        tenantCode: 'B',
+        companyName: 'Beta LLC',
+        invitationId: 'i-1',
+        expiresAt: '2026-11-01T00:00:00Z',
+        jobRoles: ['ACCOUNTANT'],
+        otherRoles: ['PLAN_DESK'],
+      },
+    ],
     peopleWithoutBranch: [
       { tenantId: 't-1', tenantCode: 'A', companyName: 'Alpha LLC', people: 3 },
     ],
@@ -324,5 +349,10 @@ describe('Console › Branch access check (BA-6)', () => {
       ),
     ).toBeTruthy()
     expect(screen.getByText(i18n.t('console.branchAccess.switch.off'))).toBeTruthy()
+    // Words, not codes: the permission and the roles are named, never printed as codes.
+    expect(within(beta).getByText('Accountant')).toBeTruthy()
+    expect(within(beta).getByText('Plan desk', { selector: 'span' })).toBeTruthy()
+    expect(within(beta).queryByText('tenant.plan.manage')).toBeNull()
+    expect(within(beta).queryByText('ACCOUNTANT')).toBeNull()
   })
 })

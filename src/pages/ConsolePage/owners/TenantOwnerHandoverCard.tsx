@@ -91,15 +91,11 @@ export function TenantOwnerHandoverCard({ tenantId }: { tenantId: string }) {
 
   const candidates = people.read.data
   const requests = history.read.data
+  // Only enabled Administrators are listed with a name; anyone else (no longer an Administrator,
+  // switched off or removed) is "a former user", never a raw user id.
   const nameOf = (userId: string) => {
     const person = candidates.find((c) => c.userId === userId)
-    return person ? (
-      candidateLabel(person)
-    ) : (
-      <bdi dir="ltr" className="font-mono text-[12px]">
-        {userId}
-      </bdi>
-    )
+    return person ? candidateLabel(person) : t(`${K}formerUser`)
   }
   const owner = candidates.find((c) => c.isOwner)
   const targets = candidates.filter((c) => !c.isOwner)
