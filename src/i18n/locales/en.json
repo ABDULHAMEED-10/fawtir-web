@@ -23481,5 +23481,46 @@
       "cancel": "Cancel",
       "save": "Save these {{count}}"
     }
+  },
+  "removal": {
+    "actionsFor": "Actions for {{name}}",
+    "actionsColumn": "Actions",
+    "cancel": "Cancel",
+    "saving": "Saving…",
+    "menu": {
+      "switchOff": "Switch off",
+      "backOn": "Switch back on"
+    },
+    "user": {
+      "title": "Switch {{name}} off?",
+      "body": "{{name}} cannot sign in from now on, and every session they have ends. Their name stays on everything they made.",
+      "placeDated": "Their paid place stays until the renewal on {{date}}, with no refund, and can be given to someone else until then.",
+      "placeUndated": "Their paid place stays until the next renewal, with no refund, and can be given to someone else until then.",
+      "confirm": "Switch off",
+      "doneDated": "Access stopped for {{name}}. The paid place stays until {{date}} and can be given to someone else.",
+      "doneUndated": "Access stopped for {{name}}. The paid place stays until the next renewal and can be given to someone else.",
+      "backOn": "{{name}} is back on, with no role yet.",
+      "noneOff": "Nobody is switched off.",
+      "backOnColumn": "Switch back on"
+    },
+    "branch": {
+      "title": "Close {{name}}?",
+      "body": "{{name}} closes now: nobody can work in it and no new document can be issued from it. Its invoices stay in your reports.",
+      "placeDated": "Its paid place stays until the renewal on {{date}}, with no refund, and can be given to a new branch until then.",
+      "placeUndated": "Its paid place stays until the next renewal, with no refund, and can be given to a new branch until then.",
+      "confirm": "Close now",
+      "doneDated": "{{name}} is closed. The paid place stays until {{date}} and can be given to a new branch.",
+      "doneUndated": "{{name}} is closed. The paid place stays until the next renewal and can be given to a new branch.",
+      "reopened": "{{name}} is open again."
+    },
+    "refusal": {
+      "headBranch": "The Head Branch is never closed. You can rename it.",
+      "lastAdministrator": "The company must keep at least one administrator.",
+      "ownerProtected": "The Owner is never switched off.",
+      "ownAccount": "You cannot switch yourself off. Ask another administrator.",
+      "noPlace": "Every place on your plan is in use. Add a place, or switch someone else off first.",
+      "planLimit": "Your plan has no room for another one.",
+      "alreadyActive": "This person is already on."
+    }
   }
 }
