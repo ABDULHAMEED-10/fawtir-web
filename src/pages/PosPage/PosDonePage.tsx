@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useWorkingBranch } from '../../components/branch/BranchPicker'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import QRCode from 'qrcode'
@@ -35,6 +36,8 @@ function ReceiptQr({ value }: { value: string }) {
 
 export function PosDonePage() {
   const { t } = useTranslation()
+  // The till's branch is the one picked on the sale screen; the sample's until branches load.
+  const branchName = useWorkingBranch().branch?.name ?? TILL.branch
   const navigate = useNavigate()
   const [way, setWay] = useState('print')
 
@@ -234,7 +237,7 @@ export function PosDonePage() {
                 <ReceiptRow label={RECEIPT.invoice} value={`${RECEIPT.date} · ${RECEIPT.time}`} />
                 <ReceiptRow
                   label={t('pos.done.till', { number: TILL.number, who: 'Maryam' })}
-                  value={TILL.branch}
+                  value={branchName}
                 />
               </div>
 

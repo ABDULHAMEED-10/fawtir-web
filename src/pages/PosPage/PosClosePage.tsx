@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useWorkingBranch } from '../../components/branch/BranchPicker'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
@@ -69,6 +70,8 @@ function Line({
 
 export function PosClosePage() {
   const { t, i18n } = useTranslation()
+  // The till's branch is the one picked on the sale screen; the sample's until branches load.
+  const branchName = useWorkingBranch().branch?.name ?? TILL.branch
   const [counted, setCounted] = useState(COUNTED)
   const [reason, setReason] = useState(SHORT_REASONS[0].id)
   const [byNote, setByNote] = useState(false)
@@ -99,7 +102,7 @@ export function PosClosePage() {
             </h1>
             <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
               {t('pos.close.subtitle', {
-                branch: TILL.branch,
+                branch: branchName,
                 till: TILL.number,
                 who: SHIFT.cashier,
                 from: SHIFT.from,

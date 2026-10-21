@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useWorkingBranch } from '../../components/branch/BranchPicker'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
@@ -25,6 +26,8 @@ const STATE_TONE = {
 
 export function PosTodayPage() {
   const { t, i18n } = useTranslation()
+  // The till's branch is the one picked on the sale screen; the sample's until branches load.
+  const branchName = useWorkingBranch().branch?.name ?? TILL.branch
   const [tab, setTab] = useState<TodayTabId>('all')
   const [query, setQuery] = useState('')
 
@@ -52,7 +55,7 @@ export function PosTodayPage() {
             </h1>
             <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
               {t('pos.today.subtitle', {
-                branch: TILL.branch,
+                branch: branchName,
                 till: TILL.number,
                 day,
                 upTo: '14:32',

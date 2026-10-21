@@ -23305,5 +23305,9 @@
       "back": "Back to the bill"
     },
     "payByCard": "Pay by card"
+  },
+  "workingBranch": {
+    "label": "Branch",
+    "none": "No branches yet"
   }
 }
