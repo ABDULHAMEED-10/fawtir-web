@@ -16214,6 +16214,80 @@
         "impersonation-not-allowed": "This can't be done while signed in as a company.",
         "invalid": "Check the details: a date can't be later than now, the effective date can't be before it, a decline needs a reason, and who asked is needed unless it was seen on the portal."
       }
+    },
+    "refundCases": {
+      "title": "Refund cases",
+      "reason": {
+        "FINAL_REJECTION": "Final rejection",
+        "CORRECTION_WINDOW_EXPIRED": "Not corrected within 30 days",
+        "CANCELLED_BY_FAWTIR": "Cancelled by Fawtir (period paid in advance)",
+        "CANCELLED_BY_CUSTOMER": "Cancelled by the customer (period paid in advance)",
+        "LEFT_FAWTIR_ANNUAL": "Left Fawtir (yearly: remaining whole months)",
+        "OTHER": "Refund",
+        "LEFT_FAWTIR_MONTHLY": "Left Fawtir (monthly: period paid in advance)",
+        "CANCELLED_ANNUAL_REMAINING": "Cancelled by the customer (yearly: remaining whole months)"
+      },
+      "status": {
+        "OPEN": "Open",
+        "REFUNDED": "Refunded",
+        "WITHDRAWN": "Closed, not refunded",
+        "UNDER_REVIEW": "Under review",
+        "DECLINED": "Not refunded",
+        "WAIVED": "Given up by the customer"
+      },
+      "opened": "Opened {{date}}",
+      "suggested_one": "Suggested {{amount}} for {{count}} whole month",
+      "suggested_other": "Suggested {{amount}} for {{count}} whole months",
+      "changedBecause": "Amount changed: {{reason}}",
+      "refundedVia": "Refunded {{method}} on {{date}}",
+      "method": {
+        "CARD": "to the card",
+        "CASH": "in cash",
+        "BANK_TRANSFER": "by bank transfer",
+        "OTHER": "another way"
+      },
+      "sending": "Saving…",
+      "amount": {
+        "open": "Change amount",
+        "title": "Change the refund amount",
+        "body": "The suggestion is each item paid for the period (plan, ERP add-on, extra users and branches) divided by 12, times the whole months left, added up and never more than was paid. A month paid in advance that had not started is suggested in full. Enter the amount to refund and say why it differs.",
+        "label": "Amount to refund",
+        "invalid": "Enter an amount above zero with at most three decimals.",
+        "confirm": "Save amount",
+        "done": "The refund amount is now {{amount}}."
+      },
+      "refund": {
+        "open": "Record refund",
+        "title": "Record the refund",
+        "body": "Record how the money went back to the company. The suggestion is worked out again for today, counting only months not yet started, and access ends with the last month not refunded. The case is then closed and can no longer be changed.",
+        "amount": "Amount",
+        "method": "Refunded",
+        "methodPlaceholder": "Choose how",
+        "reference": "Reference",
+        "referenceHint": "The card refund, transfer or receipt reference. Optional.",
+        "confirm": "Record refund",
+        "done": "{{amount}} recorded as refunded {{method}}."
+      },
+      "declinedBecause": "Not refunded: {{reason}}",
+      "decline": {
+        "open": "Close without refund",
+        "title": "Close without a refund",
+        "body": "The company keeps its access to the end of the period it paid for and nothing is refunded. Say why.",
+        "confirm": "Close without refund",
+        "done": "The case is closed without a refund."
+      },
+      "waivedBecause": "Given up in writing: {{evidence}}",
+      "waive": {
+        "open": "Customer gave up the refund",
+        "title": "The customer gave up the refund",
+        "body": "This refund is always paid back. Record it as given up only when the customer has said so in writing. Nothing is refunded and the case is closed.",
+        "evidence": "What the customer wrote",
+        "evidenceHint": "Their words giving the refund up.",
+        "reference": "Where it is kept",
+        "referenceHint": "The e-mail, ticket or letter reference.",
+        "confirm": "Record as given up",
+        "done": "The refund is recorded as given up by the customer."
+      }
     }
   },
   "shell": {

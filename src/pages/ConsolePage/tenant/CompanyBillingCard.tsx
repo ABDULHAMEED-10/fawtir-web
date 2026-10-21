@@ -39,6 +39,7 @@ import { LOGIN_ROUTE } from '../../../lib/identity/login'
 import { formatDate, formatInstant } from '../../../lib/format'
 import { hasPermission } from '../../../lib/identity/entitlements'
 import { OperatorReasonDialog } from '../operators/OperatorReasonDialog'
+import { CompanyRefundCases } from './CompanyRefundCases'
 import { PayLinkModal } from './PayLinkModal'
 import { StartBillingDialog } from './StartBillingDialog'
 
@@ -229,6 +230,8 @@ function BillingCard({
           </ConsoleButton>
         </div>
       ) : null}
+
+      <CompanyRefundCases tenantId={tenantId} canManage={canManage} onMessage={setDone} />
 
       {dialog?.kind === 'start' ? (
         <StartBillingDialog
