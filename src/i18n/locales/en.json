@@ -11835,7 +11835,8 @@
       "basics": "The basics",
       "price": "Price and tax",
       "sizes": "Sizes",
-      "addOns": "Add-ons"
+      "addOns": "Add-ons",
+      "branches": "Branches"
     },
     "kind": {
       "handOver": "Something hand over",
@@ -11912,7 +11913,18 @@
     "saveAndAddAnother": "Save & add another",
     "classificationHint": "Shown on invoices to businesses and government. Choose Other if nothing fits.",
     "discount": "Discount",
-    "discountHint": "An invoice line picked from this item starts with this discount."
+    "discountHint": "An invoice line picked from this item starts with this discount.",
+    "branches": {
+      "all": "Every branch",
+      "allNote": "Sold everywhere. You can still give a branch its own price.",
+      "chosen": "Chosen branches only",
+      "chosenNote": "Tick where it is sold. The others never show it at the till.",
+      "sold": "Sold here",
+      "notSold": "Not sold here",
+      "soldHere": "Sold at {{branch}}",
+      "priceHere": "Price before VAT at {{branch}}",
+      "note": "Leave a price empty to use the base price. The VAT category, its reason and the HS code are the same in every branch; stock is counted per branch."
+    }
   },
   "itemSells": {
     "export": "Export",

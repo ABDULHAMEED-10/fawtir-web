@@ -29,9 +29,14 @@ describe('the catalogue item form', () => {
       vi.fn(async (input: RequestInfo | URL) =>
         String(input) === '/api/v1/me/entitlements'
           ? json(OWNER)
-          : String(input).includes('/code-lists/hs')
-            ? json({ content: [], totalElements: 0, number: 0, size: 20 })
-            : new Response('', { status: 404 }),
+          : String(input) === '/api/v1/branches'
+            ? json([
+                { id: 'b-1', code: 'MCT', name: 'Muscat', type: 'HEAD_OFFICE', city: 'Muscat' },
+                { id: 'b-2', code: 'SHR', name: 'Sohar', type: 'STORE', city: 'Sohar' },
+              ])
+            : String(input).includes('/code-lists/hs')
+              ? json({ content: [], totalElements: 0, number: 0, size: 20 })
+              : new Response('', { status: 404 }),
       ),
     )
   })
@@ -73,5 +78,23 @@ describe('the catalogue item form', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tax category' }))
     fireEvent.click(within(screen.getByRole('listbox')).getByRole('option', { name: /Zero/ }))
     expect(screen.getAllByText(/^Reason no VAT is charged/).length).toBeGreaterThan(0)
+  })
+
+  it('is one product for the company, sold in every branch or chosen ones, with a price per branch', async () => {
+    await renderNew()
+    const sohar = await screen.findByLabelText('Price before VAT at Sohar')
+    // Every branch by default: no tick boxes, a price per branch is still possible.
+    expect(screen.queryByRole('checkbox', { name: 'Sold at Sohar' })).toBeNull()
+    fireEvent.change(sohar, { target: { value: '1.5' } })
+    fireEvent.blur(sohar)
+    expect((sohar as HTMLInputElement).value).toBe('1.500')
+    fireEvent.click(screen.getByRole('radio', { name: /Chosen branches only/ }))
+    expect((screen.getByLabelText('Price before VAT at Sohar') as HTMLInputElement).disabled).toBe(
+      true,
+    )
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Sold at Sohar' }))
+    expect((screen.getByLabelText('Price before VAT at Sohar') as HTMLInputElement).disabled).toBe(
+      false,
+    )
   })
 })

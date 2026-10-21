@@ -20,6 +20,7 @@ import {
 import type { DiscountType } from '../../lib/invoiceMath'
 import { CatalogShell, Pill } from './CatalogShell'
 import { ItemTabs } from './ItemTabs'
+import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
 import { Input, Rial, Select, Switch, TableCheckbox, withRial } from '../../components/ui'
 import { GROUPS, omr } from '../../lib/catalog'
 import {
@@ -110,6 +111,13 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const [keepCount, setKeepCount] = useState(ITEM.keepCountOfThis)
   const [sizes, setSizes] = useState<Size[]>(SIZES)
   const [addOns, setAddOns] = useState<AddOn[]>(ADD_ONS)
+  // Branches (owner, 21 Oct 2026; Business Rules BA-3): one company product, sold in every branch
+  // or only in chosen ones, with an optional price per branch. Its VAT and HS code never differ
+  // by branch. TODO(backend): the product does not carry branch settings yet (INCOME.md P.9).
+  const branchRead = useWorkingBranch()
+  const [allBranches, setAllBranches] = useState(true)
+  const [soldIn, setSoldIn] = useState<Record<string, boolean>>({})
+  const [branchPrices, setBranchPrices] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
 
   const itemType = ITEM_TYPE_OF_KIND[kind]
@@ -696,6 +704,123 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                 {t('item.addOne')}
               </button>
             </div>
+          </Step>
+
+          {/* 6 — branches */}
+          <Step n={6} title={t('item.step.branches')}>
+            <div
+              role="radiogroup"
+              aria-label={t('item.step.branches')}
+              className="grid gap-3 sm:grid-cols-2"
+            >
+              {[true, false].map((everywhere) => {
+                const picked = allBranches === everywhere
+                return (
+                  <button
+                    key={String(everywhere)}
+                    type="button"
+                    role="radio"
+                    aria-checked={picked}
+                    onClick={() => setAllBranches(everywhere)}
+                    className={[
+                      'flex flex-col rounded-sm border p-4 text-start transition-colors',
+                      picked
+                        ? 'border-primary-700 bg-primary-25'
+                        : 'border-border-subtle bg-white hover:bg-primary-25',
+                    ].join(' ')}
+                  >
+                    <span
+                      className={[
+                        'text-sm font-semibold',
+                        picked ? 'text-primary-800' : 'text-text-primary',
+                      ].join(' ')}
+                    >
+                      {t(everywhere ? 'item.branches.all' : 'item.branches.chosen')}
+                    </span>
+                    <span className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">
+                      {t(everywhere ? 'item.branches.allNote' : 'item.branches.chosenNote')}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {branchRead.read.status === 'loading' ? (
+              <p className="mt-4 text-sm font-medium text-text-quaternary">
+                {t('appAccess.loading')}
+              </p>
+            ) : branchRead.branches.length === 0 ? (
+              <p className="mt-4 text-sm font-medium text-text-quaternary">
+                {t(
+                  branchRead.read.status === 'failed'
+                    ? 'invoiceDraft.branchesFailed'
+                    : 'workingBranch.none',
+                )}
+              </p>
+            ) : (
+              <ul className="mt-4 flex flex-col gap-2.5">
+                {branchRead.branches.map((branch) => {
+                  const on = allBranches || soldIn[branch.id] === true
+                  return (
+                    <li
+                      key={branch.id}
+                      className="flex flex-wrap items-center gap-3 rounded-sm border border-border-subtle px-3 py-2.5"
+                    >
+                      {allBranches ? null : (
+                        <TableCheckbox
+                          checked={on}
+                          onChange={() =>
+                            setSoldIn((current) => ({ ...current, [branch.id]: !on }))
+                          }
+                          ariaLabel={t('item.branches.soldHere', { branch: branch.name })}
+                        />
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <bdi className="block truncate text-sm font-semibold text-text-primary">
+                          {branch.name}
+                        </bdi>
+                        <span className="text-xs font-medium text-text-quaternary">
+                          {on ? t('item.branches.sold') : t('item.branches.notSold')}
+                        </span>
+                      </span>
+                      <label className="flex h-[42px] w-[160px] items-center gap-2 rounded-sm border border-border-default bg-white px-3 focus-within:border-border-brand">
+                        <span className="text-sm font-medium text-text-primary">
+                          <Rial />
+                        </span>
+                        <input
+                          value={branchPrices[branch.id] ?? ''}
+                          disabled={!on}
+                          placeholder={base.toFixed(3)}
+                          inputMode="decimal"
+                          onFocus={selectAllOnFocus}
+                          onChange={(event) =>
+                            setBranchPrices((current) => ({
+                              ...current,
+                              [branch.id]: event.target.value.replace(/[^\d.]/g, ''),
+                            }))
+                          }
+                          onBlur={() =>
+                            setBranchPrices((current) => {
+                              const typed = current[branch.id] ?? ''
+                              return {
+                                ...current,
+                                [branch.id]: Number(typed) > 0 ? Number(typed).toFixed(3) : '',
+                              }
+                            })
+                          }
+                          aria-label={t('item.branches.priceHere', { branch: branch.name })}
+                          className="w-full min-w-0 bg-transparent text-end text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder disabled:text-text-quaternary"
+                          dir="ltr"
+                        />
+                      </label>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+            <p className="mt-3 text-xs font-medium leading-[1.5] text-text-quaternary">
+              {t('item.branches.note')}
+            </p>
           </Step>
         </div>
 
