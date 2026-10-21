@@ -16159,7 +16159,7 @@
       "status": {
         "OPEN": "Open",
         "REFUNDED": "Refunded",
-        "WITHDRAWN": "Closed, not refunded",
+        "WITHDRAWN": "Withdrawn: the company came back or withdrew the cancellation",
         "UNDER_REVIEW": "Under review",
         "DECLINED": "Not refunded",
         "WAIVED": "Given up by the customer"
@@ -16190,7 +16190,7 @@
         "title": "Record the refund",
         "body": "Record how the money went back to the company. Recording the refund approves it today: only the months not yet started today are refunded, and access ends with the last month not refunded. The money goes back today or on a later day, never before. The case is then closed and can no longer be changed.",
         "amount": "Amount",
-        "method": "Refunded",
+        "method": "How it was paid back",
         "methodPlaceholder": "Choose how",
         "reference": "Reference",
         "referenceHint": "The card refund, transfer or receipt reference. Optional.",
@@ -16207,7 +16207,8 @@
         "title": "Close without a refund",
         "body": "The company keeps its access to the end of the period it paid for and nothing is refunded. Say why.",
         "confirm": "Close without refund",
-        "done": "The case is closed without a refund."
+        "done": "The case is closed without a refund.",
+        "bodyLeft": "The company has left Fawtir. Its subscription runs to the end of the period it paid for and then ends without renewing. Closing without a refund means the remaining whole months are not paid back, and nothing else is owed for unused days. Say why."
       },
       "waivedBecause": "Given up in writing: {{evidence}}",
       "waive": {

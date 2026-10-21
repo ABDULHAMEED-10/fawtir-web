@@ -268,6 +268,8 @@ describe('CompanyRefundCases', () => {
     expect(await screen.findAllByText(R('status.UNDER_REVIEW'))).toHaveLength(1)
     await userEvent.click(screen.getByRole('button', { name: R('decline.open') }))
     const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(R('decline.bodyLeft'))).toBeTruthy()
+    expect(within(dialog).queryByText(R('decline.body'))).toBeNull()
     await userEvent.type(
       within(dialog).getByLabelText(new RegExp(i18n.t('console.operators.reason.label'))),
       'Contract excludes refunds',
@@ -411,6 +413,14 @@ describe('CompanyRefundCases', () => {
       expect(block.status.WAIVED).toBeTruthy()
       expect(block.waive.open).toBeTruthy()
       expect(block.approvedOn).toBeTruthy()
+      expect(block.decline.bodyLeft).toBeTruthy()
     }
+  })
+
+  it('words a withdrawn case and how the money went back as agreed', () => {
+    expect(en.console.refundCases.status.WITHDRAWN).toBe(
+      'Withdrawn: the company came back or withdrew the cancellation',
+    )
+    expect(en.console.refundCases.refund.method).toBe('How it was paid back')
   })
 })
