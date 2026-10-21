@@ -1,6 +1,9 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { DiscountField } from '../../components/invoice'
 import {
   LULL,
+  NO_SALE_DISCOUNT,
   SALE_STARTED,
   itemById,
   lullApplies,
@@ -8,6 +11,7 @@ import {
   omrSigned,
   totalsFor,
   unitPrice,
+  type SaleDiscount,
   type SaleLine,
 } from '../../lib/pos'
 
@@ -18,6 +22,10 @@ import {
  * costs, and the price rule that fired says so in words rather than just making the number
  * smaller. Everything is worked out from the lines, so changing a quantity moves the discount,
  * the VAT and the total together.
+ *
+ * The figures come from the invoice's own engine over the lines the sale files (`totalsFor`), so
+ * the till and the invoice cannot disagree. "% Discount" is a discount on the whole sale, the
+ * invoice's document discount, taken after the price rule and before VAT (owner, 21 Oct 2026).
  */
 export function PosSalePanel({
   lines,
@@ -34,7 +42,9 @@ export function PosSalePanel({
   company?: { name: string }
 }) {
   const { t } = useTranslation()
-  const totals = totalsFor(lines)
+  const [discountOpen, setDiscountOpen] = useState(false)
+  const [saleDiscount, setSaleDiscount] = useState<SaleDiscount>(NO_SALE_DISCOUNT)
+  const totals = totalsFor(lines, saleDiscount)
   const items = lines.reduce((sum, line) => sum + line.qty, 0)
   const discounted = lines.some(lullApplies) && totals.discount > 0
 
@@ -195,7 +205,17 @@ export function PosSalePanel({
             value={omrSigned(-totals.discount)}
           />
         ) : null}
-        <Row label={t('pos.totals.vat')} value={omr(totals.vat)} />
+        {totals.saleDiscount > 0 ? (
+          <Row label={t('pos.totals.saleDiscount')} value={omrSigned(-totals.saleDiscount)} />
+        ) : null}
+        <Row
+          label={
+            totals.vatRates.length === 1
+              ? t('pos.totals.vatAt', { rate: totals.vatRates[0] })
+              : t('pos.totals.vatMixed')
+          }
+          value={omr(totals.vat)}
+        />
         <div className="mt-1 flex items-center justify-between gap-3 border-t border-border-subtle pt-3">
           <span className="text-lg font-medium text-text-primary">{t('pos.totals.toPay')}</span>
           <span className="text-[26px] font-semibold leading-none text-text-primary">
@@ -214,12 +234,38 @@ export function PosSalePanel({
           {t('pos.takePayment')}
         </button>
         {!company ? (
-          <button
-            type="button"
-            className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-sm border border-border-subtle bg-white text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-          >
-            % {t('pos.discount')}
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => setDiscountOpen((open) => !open)}
+              aria-expanded={discountOpen}
+              className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-sm border border-border-subtle bg-white text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+            >
+              % {t('pos.discount')}
+            </button>
+            {discountOpen ? (
+              <div className="mt-3">
+                <p className="mb-1.5 text-xs font-medium text-text-secondary">
+                  {t('pos.saleDiscountLabel')}
+                </p>
+                <DiscountField
+                  type={saleDiscount.type}
+                  value={saleDiscount.value}
+                  onTypeChange={(type) => setSaleDiscount((current) => ({ ...current, type }))}
+                  onValueChange={(value) =>
+                    setSaleDiscount((current) => ({
+                      ...current,
+                      value: value.replace(/[^\d.]/g, ''),
+                    }))
+                  }
+                  resolved={BigInt(totals.saleDiscount)}
+                />
+                <p className="mt-1.5 text-xs font-medium leading-[1.5] text-text-quaternary">
+                  {t('pos.saleDiscountNote')}
+                </p>
+              </div>
+            ) : null}
+          </>
         ) : (
           <p className="mt-3 text-xs font-medium leading-[1.5] text-text-quaternary">
             {t('pos.company.tippingOff')}

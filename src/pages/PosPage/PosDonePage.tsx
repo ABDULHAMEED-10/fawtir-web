@@ -34,6 +34,11 @@ function ReceiptQr({ value }: { value: string }) {
   return <canvas ref={canvas} className="size-[132px]" aria-hidden="true" />
 }
 
+/*
+ * TODO(backend): this screen shows the sample's filing steps. The invoice the sale files is built
+ * by `posInvoiceRequest` (src/lib/posInvoice.ts) and is sent once the till sells from the real
+ * catalogue and the backend takes a till sale in one call (INCOME.md row P.12).
+ */
 export function PosDonePage() {
   const { t } = useTranslation()
   // The till's branch is the one picked on the sale screen; the sample's until branches load.

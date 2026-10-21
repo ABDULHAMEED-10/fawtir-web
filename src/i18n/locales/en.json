@@ -4312,7 +4312,10 @@
       "lull": "Afternoon lull · {{percent}}% off drinks",
       "lullShort": "Afternoon lull · {{percent}}%",
       "vat": "VAT 5%",
-      "toPay": "To pay"
+      "toPay": "To pay",
+      "vatAt": "VAT {{rate}}%",
+      "vatMixed": "VAT",
+      "saleDiscount": "Discount on the sale"
     },
     "pay": {
       "toPay": "To pay",
@@ -4595,7 +4598,9 @@
       "standsAt": "Stands at",
       "refundAmount": "Refund {{amount}}",
       "filedNote": "The credit note is filed with the Tax Authority like any invoice, and uses one of your monthly 500. It will show on tonight’s cash-up as a payout from the drawer."
-    }
+    },
+    "saleDiscountLabel": "Discount on the whole sale",
+    "saleDiscountNote": "Taken after the price rule and before VAT. It shows on the invoice as a document discount."
   },
   "orderDetail": {
     "breadcrumbParent": "Trade documents",

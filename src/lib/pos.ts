@@ -10,6 +10,9 @@
  * `SHIFT.vatWithin` in `posClose.ts`.
  */
 
+import { calculateInvoice, projectInvoice, type DiscountType } from './invoiceMath'
+import type { DraftLine, ItemType } from './invoiceDraft'
+
 /** A thousandth of a rial. All money below is an integer number of these. */
 export const BAISA = 1000
 
@@ -45,6 +48,17 @@ export type AddOn = { id: string; labelKey: string; delta: number }
 export type PosItem = {
   id: string
   name: string
+  /*
+   * What an invoice line needs from the item (owner, 21 Oct 2026: the till sells from the
+   * catalogue, so its lines follow the invoice's rules). Absent means goods, each, standard rate.
+   */
+  itemType?: ItemType
+  /** UN/ECE Rec 20. */
+  unit?: string
+  /** Oman VAT category code (S5, Z0, E0, O0) and its VATZR-OM / VATEX-OM reason. */
+  taxCode?: string
+  exemptionReasonCode?: string
+  hsCode?: string
   group: ItemGroup
   art: ItemArt
   /** The shelf price of the default size, in baisa. */
@@ -332,6 +346,10 @@ export type SaleTotals = {
   items: number
   /** What the rule took off. */
   discount: number
+  /** What the discount on the whole sale took off, after the rule. */
+  saleDiscount: number
+  /** The VAT rates on the sale's lines, for the VAT row's label. */
+  vatRates: number[]
   /** What VAT is worked out on. */
   beforeVat: number
   vat: number
@@ -339,14 +357,99 @@ export type SaleTotals = {
   sale: number
 }
 
-/** Every figure in the sale panel, from the lines. */
-export function totalsFor(lines: SaleLine[]): SaleTotals {
-  const items = lines.reduce((sum, line) => sum + lineTotal(line), 0)
-  const discountable = lines.filter(lullApplies).reduce((sum, line) => sum + lineTotal(line), 0)
-  const discount = Math.round((discountable * LULL.percent) / 100)
-  const beforeVat = items - discount
-  const vat = Math.round(beforeVat * VAT_RATE)
-  return { items, discount, beforeVat, vat, sale: beforeVat + vat }
+/* ------------------------------------------------------ as invoice lines */
+
+/** A discount on the whole sale: the invoice's document discount (IBT-092). */
+export type SaleDiscount = { type: DiscountType; value: string }
+
+export const NO_SALE_DISCOUNT: SaleDiscount = { type: 'PERCENTAGE', value: '0' }
+
+/** One line of the invoice the sale files, as the invoice composer holds a line. */
+export type PosInvoiceLine = Omit<DraftLine, 'id'> & { id: string; saleLineId: string }
+
+const VAT_OF: Record<string, string> = { S5: '5', Z0: '0', E0: '0', O0: '0' }
+const rial = (baisa: number) => (baisa / BAISA).toFixed(3)
+
+/**
+ * The sale as invoice lines (owner, 21 Oct 2026). The item and its size are one line ("Flat
+ * White · Large"); every add-on with a price is a line of its own, with the item's VAT category
+ * and classification; a free add-on is named on the item's line. The price rule is each caught
+ * line's own discount, so the invoice shows what it took and from which line. `label` names a
+ * size or add-on in the language the invoice is written in.
+ */
+export function invoiceLinesFor(
+  lines: SaleLine[],
+  label: (key: string) => string = (key) => key,
+): PosInvoiceLine[] {
+  return lines.flatMap((line) => {
+    const item = itemById(line.itemId)
+    const size = item.sizes?.find((s) => s.id === line.sizeId)
+    const addOns = (item.addOns ?? []).filter((a) => line.addOnIds.includes(a.id))
+    const free = addOns.filter((a) => a.delta === 0)
+    const taxCode = item.taxCode ?? 'S5'
+    const common = {
+      saleLineId: line.id,
+      productId: null,
+      productCode: null,
+      itemType: item.itemType ?? ('goods' as ItemType),
+      hsCode: item.hsCode,
+      unit: item.unit ?? 'EA',
+      vatRate: VAT_OF[taxCode] ?? '5',
+      taxCode,
+      exemptionReason: '',
+      exemptionReasonCode: item.exemptionReasonCode,
+      quantity: String(line.qty),
+      discountType: 'PERCENTAGE' as DiscountType,
+      discountValue: lullApplies(line) ? String(LULL.percent) : '0',
+    }
+    const name = [
+      item.name,
+      size ? ` · ${label(size.labelKey)}` : '',
+      free.length ? ` (${free.map((a) => label(a.labelKey)).join(', ')})` : '',
+    ].join('')
+    return [
+      {
+        ...common,
+        id: `${line.id}`,
+        description: name,
+        unitPrice: rial(item.price + (size?.delta ?? 0)),
+      },
+      ...addOns
+        .filter((a) => a.delta !== 0)
+        .map((a) => ({
+          ...common,
+          id: `${line.id}-${a.id}`,
+          description: `${item.name}: + ${label(a.labelKey)}`,
+          unitPrice: rial(a.delta),
+        })),
+    ]
+  })
+}
+
+/**
+ * Every figure in the sale panel, from the lines, by the invoice's own engine (the same
+ * arithmetic the server uses), so what the till shows is what the invoice will say.
+ */
+export function totalsFor(lines: SaleLine[], saleDiscount = NO_SALE_DISCOUNT): SaleTotals {
+  const invoiceLines = invoiceLinesFor(lines)
+  const projected = projectInvoice(
+    calculateInvoice(
+      invoiceLines.map((line, index) => ({ ...line, lineNumber: index + 1 })),
+      saleDiscount.type,
+      saleDiscount.value || '0',
+    ),
+  )
+  const baisa = (value: bigint) => Number(value)
+  const vatRates = [...new Set(invoiceLines.map((line) => Number(line.vatRate)))]
+  return {
+    items: baisa(projected.subtotal),
+    discount: baisa(projected.itemDiscount),
+    saleDiscount: baisa(projected.headerDiscount),
+    beforeVat: baisa(projected.taxable),
+    vat: baisa(projected.vat),
+    vatRates,
+    sale: baisa(projected.total),
+  }
 }
 
 /* ---------------------------------------------------------------- money */
