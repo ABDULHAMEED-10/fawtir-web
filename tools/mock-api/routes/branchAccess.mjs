@@ -27,6 +27,10 @@ const person = (id, username, firstName, lastName, roles, branchIds, extra = {})
   ...extra,
 })
 
+const SWITCHED_OFF = [
+  person('u-salma', 'salma', 'Salma', 'Al Rawahi', [], [], { enabled: false }),
+]
+
 const PEOPLE = [
   person('u-nasser', 'nasser.alhabsi', 'Nasser', 'Al Habsi', ['ADMIN'], ['b-main', 'b-nizwa'], {
     owner: true,
@@ -123,13 +127,11 @@ const refusal = (status, type, detail) => ({
 export default [
   {
     match: '/api/v1/users',
-    reply: () => ({
-      content: PEOPLE,
-      totalElements: PEOPLE.length,
-      totalPages: 1,
-      number: 0,
-      size: 100,
-    }),
+    reply: ({ query }) => {
+      // The people switched off (scheduledRemovals.mjs): listed only when asked for.
+      const content = query.get('status') === 'DEACTIVATED' ? SWITCHED_OFF : PEOPLE
+      return { content, totalElements: content.length, totalPages: 1, number: 0, size: 100 }
+    },
   },
   {
     match: /^\/api\/v1\/users\/(u-[^/]+)$/,

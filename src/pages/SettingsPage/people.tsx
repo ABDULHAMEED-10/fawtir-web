@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { displayName, type CompanyUser } from '../../api/settings/people'
+import { formatDate } from '../../lib/format'
 import { TD, TH, personStatus, seesEveryBranch } from './peopleView'
 
 export function PeopleTable({
@@ -10,6 +12,8 @@ export function PeopleTable({
   branchName,
   personLink,
   markOwner = false,
+  leavingOn,
+  actions,
 }: {
   people: CompanyUser[]
   roleNames: (code: string) => string
@@ -27,6 +31,10 @@ export function PeopleTable({
   personLink?: (person: CompanyUser) => string
   /** Marks the company's Owner (OW-1). */
   markOwner?: boolean
+  /** The day a person removed at the renewal leaves (US-2); their status says so until then. */
+  leavingOn?: (id: string) => string | null
+  /** A last column with what can be done to the person (switch off, LG-2); absent, not drawn. */
+  actions?: (person: CompanyUser) => ReactNode
 }) {
   const { t } = useTranslation()
   return (
@@ -40,6 +48,11 @@ export function PeopleTable({
             <th className={TH}>{t('people.col.status')}</th>
             {lastSignedIn ? <th className={TH}>{t('team.col.lastSignedIn')}</th> : null}
             <th className={TH}>{t('people.col.authenticator')}</th>
+            {actions ? (
+              <th className={TH}>
+                <span className="sr-only">{t('removal.actionsColumn')}</span>
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -69,7 +82,9 @@ export function PeopleTable({
                   <BranchesCell person={person} branchName={branchName} />
                 </td>
               ) : null}
-              <td className={TD}>{t(`people.status.${personStatus(person)}`)}</td>
+              <td className={TD}>
+                <StatusText person={person} leavingOn={leavingOn} />
+              </td>
               {lastSignedIn ? (
                 <td className={TD}>
                   <span className="text-text-quaternary">{t('team.notAvailableYet')}</span>
@@ -78,11 +93,30 @@ export function PeopleTable({
               <td className={TD}>
                 {t(person.mfaEnabled ? 'people.authenticator.on' : 'people.authenticator.off')}
               </td>
+              {actions ? <td className={`${TD} text-end`}>{actions(person)}</td> : null}
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+  )
+}
+
+function StatusText({
+  person,
+  leavingOn,
+}: {
+  person: CompanyUser
+  leavingOn?: (id: string) => string | null
+}) {
+  const { t, i18n } = useTranslation()
+  const leaving = person.enabled ? (leavingOn?.(person.id) ?? null) : null
+  return (
+    <>
+      {leaving
+        ? t('removal.user.leaves', { date: formatDate(leaving, i18n.language) })
+        : t(`people.status.${personStatus(person)}`)}
+    </>
   )
 }
 

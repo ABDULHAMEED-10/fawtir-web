@@ -189,14 +189,17 @@ describe('Team members', () => {
     // Sign-in history is drawn as a column, one "not available yet" per person.
     expect(screen.getByRole('columnheader', { name: 'Last signed in' })).toBeTruthy()
     expect(within(screen.getByText('Mona Rashid').closest('tr')!).getByText(NOT_AVAILABLE)).toBeTruthy()
-    // The tabs the lists cannot answer are drawn, and cannot be chosen.
+    // The tab the lists cannot answer is drawn, and cannot be chosen; "Removed" is the people
+    // switched off, read only when it is opened (teamRemoval.test.tsx).
     expect((screen.getByRole('button', { name: /Not signed in lately/ }) as HTMLButtonElement).disabled).toBe(true)
-    expect((screen.getByRole('button', { name: /Removed/ }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: /Removed/ }) as HTMLButtonElement).disabled).toBe(false)
     // "Without two-step" leaves only the person with no authenticator app.
     fireEvent.click(screen.getByRole('button', { name: /Without two-step/ }))
     expect(screen.queryByText('Mona Rashid')).toBeNull()
     expect(screen.getByText('clerk@real.example')).toBeTruthy()
-    expect(new Set(pageRequests())).toEqual(new Set([`GET ${PEOPLE}`, `GET ${INVITED}`, `GET ${ROLES}`]))
+    expect(new Set(pageRequests())).toEqual(
+      new Set([`GET ${PEOPLE}`, `GET ${INVITED}`, `GET ${ROLES}`, 'GET /api/v1/settings/scheduled-removals']),
+    )
   })
 
   it('says no access without admin.users.manage, and asks for nobody', async () => {

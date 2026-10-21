@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
-import { ActionMenu, Rial } from '../../components/ui'
+import { ActionMenu, Button, Modal, Rial } from '../../components/ui'
+import { Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import { formatAmount, formatDate } from '../../lib/format'
 import {
@@ -11,6 +13,16 @@ import {
   type BranchOverviewRow,
 } from '../../api/settings/branches'
 import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
+import {
+  SCHEDULED_REMOVALS_PATH,
+  loadScheduledRemovals,
+  scheduleBranchClosure,
+  setBranchOpen,
+  waitingFor,
+  withdrawBranchClosure,
+  type ScheduledRemovalsDto,
+} from '../../api/settings/removals'
+import { useRemovalFailureText } from '../../lib/removalRefusals'
 import plusIcon from '../../assets/settings/plus-white.svg'
 import plusBrandIcon from '../../assets/settings/plus-brand.svg'
 import lockIcon from '../../assets/settings/menu-key.svg'
@@ -34,9 +46,18 @@ import closeIcon from '../../assets/settings/menu-close.svg'
  */
 export function BranchesPage() {
   const { t } = useTranslation()
-  const overview = useApiRead<BranchOverviewDto>(BRANCHES_OVERVIEW_PATH, () =>
+  const overviewRead = useApiRead<BranchOverviewDto>(BRANCHES_OVERVIEW_PATH, () =>
     loadBranchOverview(),
-  ).read
+  )
+  const overview = overviewRead.read
+  // Branch closures waiting for the renewal (BR-4); this page is branch.manage's, as the read is.
+  const removals = useApiRead<ScheduledRemovalsDto>(SCHEDULED_REMOVALS_PATH, loadScheduledRemovals)
+  const [done, setDone] = useState<string | null>(null)
+  const afterChange = (message: string) => {
+    setDone(message)
+    overviewRead.retry()
+    removals.retry()
+  }
 
   return (
     <SettingsShell group="company">
@@ -54,7 +75,17 @@ export function BranchesPage() {
         }
       />
 
-      {overview.status === 'ready' ? <Content overview={overview.data} /> : null}
+      {done ? (
+        <Notice body={done} action={{ label: t('common.close'), onClick: () => setDone(null) }} />
+      ) : null}
+
+      {overview.status === 'ready' ? (
+        <Content
+          overview={overview.data}
+          removals={removals.read.status === 'ready' ? removals.read.data : null}
+          onDone={afterChange}
+        />
+      ) : null}
 
       <Link
         to="/settings/branches/new"
@@ -92,7 +123,15 @@ function IncludedKpi() {
   )
 }
 
-function Content({ overview }: { overview: BranchOverviewDto }) {
+function Content({
+  overview,
+  removals,
+  onDone,
+}: {
+  overview: BranchOverviewDto
+  removals: ScheduledRemovalsDto | null
+  onDone: (message: string) => void
+}) {
   const { t } = useTranslation()
 
   if (overview.branches.length === 0) {
@@ -129,7 +168,7 @@ function Content({ overview }: { overview: BranchOverviewDto }) {
       </div>
 
       {overview.branches.map((branch) => (
-        <BranchCard key={branch.id} branch={branch} />
+        <BranchCard key={branch.id} branch={branch} removals={removals} onDone={onDone} />
       ))}
     </>
   )
@@ -162,9 +201,56 @@ function Kpi({
   )
 }
 
-function BranchCard({ branch }: { branch: BranchOverviewRow }) {
+function BranchCard({
+  branch,
+  removals,
+  onDone,
+}: {
+  branch: BranchOverviewRow
+  removals: ScheduledRemovalsDto | null
+  onDone: (message: string) => void
+}) {
   const { t, i18n } = useTranslation()
   const closed = !branch.active
+  const failureText = useRemovalFailureText()
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
+  // BR-4: closing takes effect at the renewal once the server has opened it; until then, and on an
+  // older server, "Close" closes now as it always has.
+  const atRenewal = removals?.open === true
+  const closing = branch.active ? waitingFor(removals, branch.id) : null
+  const renewsOn = removals?.renewsOn ?? null
+  const name = branch.name
+
+  const run = async (work: () => Promise<string>) => {
+    setBusy(true)
+    setFailure(null)
+    try {
+      const message = await work()
+      setConfirming(false)
+      onDone(message)
+    } catch (error) {
+      setFailure(failureText(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const close = () =>
+    run(async () => {
+      if (!atRenewal) {
+        await setBranchOpen(branch.id, false)
+        return t('removal.branch.closed', { name })
+      }
+      const removal = await scheduleBranchClosure(branch.id)
+      return removal.status === 'SCHEDULED'
+        ? t('removal.branch.scheduled', {
+            name,
+            date: formatDate(removal.effectiveOn, i18n.language),
+          })
+        : t('removal.branch.closed', { name })
+    })
 
   return (
     <section
@@ -267,12 +353,20 @@ function BranchCard({ branch }: { branch: BranchOverviewRow }) {
                 icon: copySettingsIcon,
                 to: '/settings/branches/new',
               },
-              {
-                id: 'close',
-                labelKey: 'branches.menu.closeBranch',
-                icon: closeIcon,
-                danger: true,
-              },
+              ...(branch.active && !closing
+                ? [
+                    {
+                      id: 'close',
+                      labelKey: 'branches.menu.closeBranch',
+                      icon: closeIcon,
+                      danger: true,
+                      onSelect: () => {
+                        setFailure(null)
+                        setConfirming(true)
+                      },
+                    },
+                  ]
+                : []),
             ]}
           />
         </div>
@@ -292,75 +386,164 @@ function BranchCard({ branch }: { branch: BranchOverviewRow }) {
           </p>
           <button
             type="button"
+            disabled={busy}
+            onClick={() =>
+              void run(async () => {
+                await setBranchOpen(branch.id, true)
+                return t('removal.branch.reopened', { name })
+              })
+            }
             className="inline-flex h-[38px] shrink-0 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
           >
-            {t('branches.reopenIt')}
+            {busy ? t('removal.saving') : t('branches.reopenIt')}
           </button>
+          {failure && !confirming ? (
+            <p role="alert" className="basis-full text-sm font-medium text-danger-700">
+              {failure}
+            </p>
+          ) : null}
         </div>
       ) : (
-        <dl className="grid border-t border-surface-background sm:grid-cols-2 xl:grid-cols-4">
-          <Cell label={t('branches.col.numbering')}>
-            <p dir="ltr" className="text-left font-mono text-sm font-semibold text-text-primary">
-              {branch.invoicePrefix ? `${branch.invoicePrefix}-INV-####` : 'INV-####'}
-            </p>
-            <p className="mt-1 text-xs font-medium text-text-quaternary">
-              {t(branch.invoicePrefix ? 'branches.ownSeries' : 'branches.noPrefix')}
-              {branch.nextNumber != null
-                ? ` · ${t('branches.atNumber', { number: branch.nextNumber })}`
-                : ''}
-            </p>
-          </Cell>
-
-          <Cell label={t('branches.col.thisMonth')}>
-            <p className="flex items-baseline gap-1.5">
-              <span className="text-lg font-semibold text-text-primary tabular-nums">
-                {branch.invoicesThisMonth}
-              </span>
-              <span className="text-xs font-medium text-text-quaternary">
-                {t('branches.invoicesUnit')}
-              </span>
-            </p>
-            <p className="mt-1 text-xs font-medium text-text-quaternary">
-              <Rial /> {formatAmount(branch.invoicedThisMonth, 'OMR', i18n.language)}
-            </p>
-          </Cell>
-
-          <Cell label={t('branches.col.whoWorksHere')}>
-            <p className="flex items-baseline gap-1.5">
-              {branch.people === 0 ? (
-                <span className="text-lg font-semibold text-text-primary">
-                  {t('branches.none')}
+        <>
+          {closing ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-surface-background bg-surface-background/50 px-5 py-4">
+              <p className="flex min-w-0 flex-1 basis-[320px] items-start gap-2 text-sm font-medium leading-[1.5] text-text-tertiary">
+                <img src={lockIcon} alt="" className="mt-0.5 size-4 shrink-0 opacity-60" />
+                <span>
+                  {t('removal.branch.closes', {
+                    date: formatDate(closing.effectiveOn, i18n.language),
+                  })}
                 </span>
-              ) : (
+              </p>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() =>
+                  void run(async () => {
+                    await withdrawBranchClosure(branch.id)
+                    return t('removal.branch.keptOpen', { name })
+                  })
+                }
+                className="inline-flex h-[38px] shrink-0 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+              >
+                {busy ? t('removal.saving') : t('removal.branch.keepOpen')}
+              </button>
+            </div>
+          ) : null}
+          {failure && !confirming ? (
+            <p
+              role="alert"
+              className="border-t border-surface-background px-5 py-3 text-sm font-medium text-danger-700"
+            >
+              {failure}
+            </p>
+          ) : null}
+          <dl className="grid border-t border-surface-background sm:grid-cols-2 xl:grid-cols-4">
+            <Cell label={t('branches.col.numbering')}>
+              <p dir="ltr" className="text-left font-mono text-sm font-semibold text-text-primary">
+                {branch.invoicePrefix ? `${branch.invoicePrefix}-INV-####` : 'INV-####'}
+              </p>
+              <p className="mt-1 text-xs font-medium text-text-quaternary">
+                {t(branch.invoicePrefix ? 'branches.ownSeries' : 'branches.noPrefix')}
+                {branch.nextNumber != null
+                  ? ` · ${t('branches.atNumber', { number: branch.nextNumber })}`
+                  : ''}
+              </p>
+            </Cell>
+
+            <Cell label={t('branches.col.thisMonth')}>
+              <p className="flex items-baseline gap-1.5">
                 <span className="text-lg font-semibold text-text-primary tabular-nums">
-                  {t('branches.peopleCount', { count: branch.people })}
+                  {branch.invoicesThisMonth}
                 </span>
-              )}
-            </p>
-          </Cell>
+                <span className="text-xs font-medium text-text-quaternary">
+                  {t('branches.invoicesUnit')}
+                </span>
+              </p>
+              <p className="mt-1 text-xs font-medium text-text-quaternary">
+                <Rial /> {formatAmount(branch.invoicedThisMonth, 'OMR', i18n.language)}
+              </p>
+            </Cell>
 
-          <Cell label={t('branches.col.till')}>
-            <p className="flex items-baseline gap-1.5">
-              {branch.devices === 0 ? (
-                <span className="text-lg font-semibold text-text-primary">
-                  {t('branches.none')}
-                </span>
-              ) : (
-                <>
+            <Cell label={t('branches.col.whoWorksHere')}>
+              <p className="flex items-baseline gap-1.5">
+                {branch.people === 0 ? (
+                  <span className="text-lg font-semibold text-text-primary">
+                    {t('branches.none')}
+                  </span>
+                ) : (
                   <span className="text-lg font-semibold text-text-primary tabular-nums">
-                    {branch.devices}
+                    {t('branches.peopleCount', { count: branch.people })}
                   </span>
-                  <span className="text-xs font-medium text-text-quaternary">
-                    {t('branches.devices', { count: branch.devices })
-                      .replace(String(branch.devices), '')
-                      .trim()}
+                )}
+              </p>
+            </Cell>
+
+            <Cell label={t('branches.col.till')}>
+              <p className="flex items-baseline gap-1.5">
+                {branch.devices === 0 ? (
+                  <span className="text-lg font-semibold text-text-primary">
+                    {t('branches.none')}
                   </span>
-                </>
-              )}
-            </p>
-          </Cell>
-        </dl>
+                ) : (
+                  <>
+                    <span className="text-lg font-semibold text-text-primary tabular-nums">
+                      {branch.devices}
+                    </span>
+                    <span className="text-xs font-medium text-text-quaternary">
+                      {t('branches.devices', { count: branch.devices })
+                        .replace(String(branch.devices), '')
+                        .trim()}
+                    </span>
+                  </>
+                )}
+              </p>
+            </Cell>
+          </dl>
+        </>
       )}
+
+      <Modal
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        title={
+          atRenewal
+            ? t('removal.branch.atRenewalTitle', { name })
+            : t('removal.branch.nowTitle', { name })
+        }
+        footer={
+          <div className="flex flex-wrap justify-end gap-3">
+            <Button variant="secondary" size="md" onClick={() => setConfirming(false)}>
+              {t('removal.cancel')}
+            </Button>
+            <Button size="md" disabled={busy} onClick={() => void close()}>
+              {busy
+                ? t('removal.saving')
+                : atRenewal && renewsOn
+                  ? t('removal.branch.atRenewalConfirm')
+                  : t('removal.branch.nowConfirm')}
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm font-medium leading-[1.6] text-text-secondary">
+            {!atRenewal
+              ? t('removal.branch.nowBody', { name })
+              : renewsOn
+                ? t('removal.branch.atRenewalBody', {
+                    name,
+                    date: formatDate(renewsOn, i18n.language),
+                  })
+                : t('removal.branch.atOnceBody', { name })}
+          </p>
+          {failure ? (
+            <p role="alert" className="text-sm font-medium text-danger-700">
+              {failure}
+            </p>
+          ) : null}
+        </div>
+      </Modal>
     </section>
   )
 }
