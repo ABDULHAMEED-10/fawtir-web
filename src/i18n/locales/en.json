@@ -12234,7 +12234,8 @@
     "eachAt": "{{amount}} each",
     "orderNow": "Order now",
     "movements": "Movements",
-    "showing": "Showing {{shown}} of {{total}} counted"
+    "showing": "Showing {{shown}} of {{total}} counted",
+    "atBranch": "At"
   },
   "stockItem": {
     "runningLow": "Running low",

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { CatalogShell, Kpi, TabStrip } from './CatalogShell'
+import { CatalogShell, Kpi, Pill, TabStrip } from './CatalogShell'
+import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
 import { FilterMenu, Rial, RowsView, SortMenu, TableCheckbox } from '../../components/ui'
 import { omr, groupName, kindName } from '../../lib/catalog'
 import {
@@ -49,6 +50,7 @@ const rowIcon = (id: string) => {
  */
 export function StockPage() {
   const { t, i18n } = useTranslation()
+  const branchName = useWorkingBranch().branch?.name
   const [tab, setTab] = useState<StockTab>('all')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('lowestFirst')
@@ -88,6 +90,17 @@ export function StockPage() {
       crumbs={[]}
       title={t('stock.title')}
       subtitle={t('stock.subtitle')}
+      // The counts are the branch chosen in the sidebar, the platform's one branch toggle (owner,
+      // 21 Oct 2026). TODO(backend): stock is not kept per branch yet, so every branch shows the
+      // same counts; a sale lowers and a received purchase order raises that branch's count once
+      // it is (docs/backend-guides/INCOME.md, row P.10).
+      pills={
+        branchName ? (
+          <Pill tone="brand">
+            {t('stock.atBranch')} <bdi>{branchName}</bdi>
+          </Pill>
+        ) : undefined
+      }
       actions={
         <>
           <button

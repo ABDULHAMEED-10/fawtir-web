@@ -12926,7 +12926,8 @@
     "eachAt": "{{amount}} للواحدة",
     "orderNow": "اطلب الآن",
     "movements": "الحركات",
-    "showing": "تُعرض {{shown}} من {{total}} معدودة"
+    "showing": "تُعرض {{shown}} من {{total}} معدودة",
+    "atBranch": "في"
   },
   "stockItem": {
     "runningLow": "على وشك النفاد",
