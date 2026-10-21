@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Input, Select, Switch, type SelectOption } from '../../../components/ui'
+import { selectAllOnFocus } from '../../../components/invoice/numericInput'
 import lockIcon from '../../../assets/settings/menu-key.svg'
 import infoIcon from '../../../assets/settings/info.svg'
 import crossIcon from '../../../assets/settings/cross-muted.svg'
@@ -250,6 +251,7 @@ export function NumberField({
       leadingIcon={leadingIcon}
       trailingIcon={trailingIcon}
       value={value}
+      onFocus={selectAllOnFocus}
       onChange={(event) => onChange(event.target.value)}
     />
   )
