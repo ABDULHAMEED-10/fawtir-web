@@ -126,6 +126,19 @@ describe('CompanyRefundCases', () => {
     expect(screen.getAllByRole('button', { name: R('amount.open') })).toHaveLength(2)
   })
 
+  it('shows a withdrawn case closed, with no actions', async () => {
+    answers[PAYMENTS] = () =>
+      json(200, {
+        items: [],
+        refundCases: [leaveCase({ status: 'WITHDRAWN', withdrawnAt: '2026-10-22T08:00:00Z' })],
+        nextCursor: null,
+      })
+    renderCases()
+    expect(await screen.findByText(R('status.WITHDRAWN'))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: R('refund.open') })).toBeNull()
+    expect(screen.queryByRole('button', { name: R('amount.open') })).toBeNull()
+  })
+
   it('shows no actions without platform.billing.manage', async () => {
     renderCases(false)
     expect(await screen.findByText(R('reason.LEFT_FAWTIR_ANNUAL'))).toBeTruthy()
@@ -223,6 +236,7 @@ describe('CompanyRefundCases', () => {
       for (const method of [...REFUND_METHODS, 'OTHER']) expect(block.method[method]).toBeTruthy()
       expect(block.status.OPEN).toBeTruthy()
       expect(block.status.REFUNDED).toBeTruthy()
+      expect(block.status.WITHDRAWN).toBeTruthy()
     }
   })
 })

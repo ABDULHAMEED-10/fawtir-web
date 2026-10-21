@@ -44,7 +44,7 @@ export type RefundCaseDto = {
   /** How the money came in. */
   method: string
   reason: string
-  status: 'OPEN' | 'REFUNDED' | (string & {})
+  status: 'OPEN' | 'REFUNDED' | 'WITHDRAWN' | (string & {})
   openedAt: string
   /** The fields below are console cases only; absent from a server before V412. */
   disconnectionId?: string | null
@@ -55,6 +55,8 @@ export type RefundCaseDto = {
   refundMethod?: RefundMethod | (string & {}) | null
   refundedAt?: string | null
   refundReference?: string | null
+  /** Set when WITHDRAWN: the cancellation was withdrawn or the company came back first. */
+  withdrawnAt?: string | null
 }
 
 export type CompanyRefundCasesDto = { refundCases?: RefundCaseDto[] }

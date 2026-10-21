@@ -69,6 +69,7 @@ export function CompanyRefundCases({
         {cases.map((entry) => {
           const reason = known(entry.reason, REFUND_REASONS)
           const refunded = entry.status === 'REFUNDED'
+          const withdrawn = entry.status === 'WITHDRAWN'
           const method = entry.refundMethod ? known(entry.refundMethod, REFUND_METHODS) : null
           return (
             <li
@@ -79,8 +80,10 @@ export function CompanyRefundCases({
                 <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-text-primary">
                   {t(`${K}reason.${reason}`)}
                   <ConsoleStatusPill
-                    tone={refunded ? 'success' : 'pending'}
-                    label={t(`${K}status.${refunded ? 'REFUNDED' : 'OPEN'}`)}
+                    tone={refunded ? 'success' : withdrawn ? 'neutral' : 'pending'}
+                    label={t(
+                      `${K}status.${refunded ? 'REFUNDED' : withdrawn ? 'WITHDRAWN' : 'OPEN'}`,
+                    )}
                   />
                 </span>
                 <OmAmount amount={entry.amount} amountClassName="text-sm font-semibold" />

@@ -16157,7 +16157,8 @@
       },
       "status": {
         "OPEN": "Open",
-        "REFUNDED": "Refunded"
+        "REFUNDED": "Refunded",
+        "WITHDRAWN": "Closed, not refunded"
       },
       "opened": "Opened {{date}}",
       "suggested_one": "Suggested {{amount}} for {{count}} whole month",
@@ -16174,7 +16175,7 @@
       "amount": {
         "open": "Change amount",
         "title": "Change the refund amount",
-        "body": "The suggested amount is what was paid for the period, divided by its months, times the whole months left. Enter the amount to refund and say why it differs.",
+        "body": "The suggestion is each item paid for the period (plan, ERP add-on, extra users and branches) divided by 12, times the whole months left, added up and never more than was paid. A month paid in advance that had not started is suggested in full. Enter the amount to refund and say why it differs.",
         "label": "Amount to refund",
         "invalid": "Enter an amount above zero with at most three decimals.",
         "confirm": "Save amount",
