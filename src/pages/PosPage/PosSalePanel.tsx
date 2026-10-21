@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { DiscountField } from '../../components/invoice'
 import { setSaleDiscount, useOpenSale } from '../../lib/posSale'
 import { Rial } from '../../components/ui'
+import { PosFootNote } from './PosFootNote'
 import {
   LULL,
   SALE_STARTED,
@@ -151,10 +152,7 @@ export function PosSalePanel({
           const size = item.sizes?.find((s) => s.id === line.sizeId)
           const addOns = (item.addOns ?? []).filter((a) => line.addOnIds.includes(a.id))
           return (
-            <li
-              key={line.id}
-              className="flex items-start gap-3 border-b border-border-subtle py-3 last:border-b-0"
-            >
+            <li key={line.id} className="flex items-start gap-3 py-3">
               <div className="flex shrink-0 items-center gap-1 rounded-sm border border-border-subtle">
                 <button
                   type="button"
@@ -262,7 +260,8 @@ export function PosSalePanel({
               aria-expanded={discountOpen}
               className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-sm border border-border-subtle bg-white text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
             >
-              % {t('pos.discount')}
+              <PercentIcon />
+              {t('pos.discount')}
             </button>
             {discountOpen ? (
               <div className="mt-3">
@@ -284,12 +283,9 @@ export function PosSalePanel({
               </div>
             ) : null}
           </>
-        ) : (
-          <p className="mt-3 text-xs font-medium leading-[1.5] text-text-quaternary">
-            {t('pos.company.tippingOff')}
-          </p>
-        )}
+        ) : null}
       </div>
+      {company ? <PosFootNote>{t('pos.company.tippingOff')}</PosFootNote> : null}
     </aside>
   )
 }
@@ -298,7 +294,20 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="text-sm font-medium text-text-tertiary">{label}</span>
-      <span className="text-sm font-semibold text-text-primary tabular-nums">{value}</span>
+      {/* LTR so a taken-off "−1.120" keeps its minus on the left in Arabic too. */}
+      <span dir="ltr" className="text-sm font-semibold text-text-primary tabular-nums">
+        {value}
+      </span>
     </div>
+  )
+}
+
+function PercentIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M15 5 5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="6" cy="6" r="1.75" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="14" cy="14" r="1.75" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
   )
 }

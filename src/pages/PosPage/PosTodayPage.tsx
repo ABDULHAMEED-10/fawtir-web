@@ -3,7 +3,7 @@ import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu } from '../../components/ui'
+import { ActionMenu, Rial } from '../../components/ui'
 import { posSaleRowActions } from '../../lib/rowActions'
 import { TILL, omr } from '../../lib/pos'
 import {
@@ -20,7 +20,7 @@ import {
 
 const STATE_TONE = {
   filed: 'bg-success-100 text-success-700',
-  peppol: 'bg-primary-50 text-primary-800',
+  peppol: 'bg-neutral-25 text-text-tertiary',
   credited: 'bg-pending-100 text-pending-700',
 } as const
 
@@ -84,34 +84,38 @@ export function PosTodayPage() {
           </div>
         </div>
 
-        <label className="flex h-[58px] w-full items-center gap-3 rounded-md border-2 border-primary-700 bg-surface-card px-4">
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            className="shrink-0 text-primary-700"
-          >
-            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
-            <path
-              d="m20 20-3.5-3.5"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
+        {/* The search sits inside a white card, as the frame draws it. */}
+        <div className="rounded-md bg-surface-card p-4">
+          <label className="flex h-[50px] w-full items-center gap-3 rounded-sm border border-primary-700 bg-surface-card px-4">
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              className="shrink-0 text-primary-700"
+            >
+              <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
+              <path
+                d="m20 20-3.5-3.5"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t('pos.today.searchPlaceholder')}
+              className="h-full w-full min-w-0 border-0 bg-transparent text-base font-medium text-text-primary outline-none placeholder:text-text-placeholder"
             />
-          </svg>
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t('pos.today.searchPlaceholder')}
-            className="h-full w-full border-0 bg-transparent text-base font-medium text-text-primary outline-none placeholder:text-text-placeholder"
-          />
-        </label>
+          </label>
+        </div>
 
         <div className="flex flex-wrap gap-4">
           <Kpi
             title={t('pos.today.soldSoFar')}
             value={omr(TODAY_KPI.sold)}
+            money
             note={t('pos.today.soldNote', {
               sales: TODAY_KPI.sales,
               average: omr(TODAY_KPI.average),
@@ -125,6 +129,7 @@ export function PosTodayPage() {
           <Kpi
             title={t('pos.today.refunded')}
             value={omr(TODAY_KPI.refunded)}
+            money
             note={t('pos.today.refundNote', { count: TODAY_KPI.refundCount })}
           />
           <Kpi
@@ -190,7 +195,9 @@ export function PosTodayPage() {
                   {sales.map((sale) => (
                     <li
                       key={sale.id}
-                      className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border-subtle px-6 py-3.5 last:border-b-0"
+                      // Fixed columns from xl up, so payment, amount, badge and action line up on
+                      // every row; a phone lets them wrap.
+                      className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border-subtle px-6 py-3.5 last:border-b-0 xl:grid xl:grid-cols-[48px_96px_minmax(0,1fr)_132px_112px_104px_148px]"
                     >
                       <span className="w-12 shrink-0 text-sm font-medium text-text-quaternary">
                         {sale.time}
@@ -206,7 +213,7 @@ export function PosTodayPage() {
                           {sale.cashier}
                         </span>
                       </span>
-                      <span className="min-w-[180px] flex-1">
+                      <span className="min-w-[180px] flex-1 xl:min-w-0">
                         <span className="block text-sm font-medium text-text-primary">
                           {sale.what}
                         </span>
@@ -225,7 +232,8 @@ export function PosTodayPage() {
                         ) : null}
                       </span>
                       <span className="w-[112px] shrink-0 text-end">
-                        <span className="block text-base font-semibold text-text-primary">
+                        <span className="inline-flex items-baseline gap-1 text-base font-semibold text-text-primary">
+                          <Rial />
                           {omr(sale.total)}
                         </span>
                         {sale.amountNoteKey ? (
@@ -234,20 +242,28 @@ export function PosTodayPage() {
                           </span>
                         ) : null}
                       </span>
-                      <span
-                        className={`inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold uppercase tracking-[0.04em] ${STATE_TONE[sale.state]}`}
-                      >
-                        <span className="size-1.5 rounded-full bg-current" />
-                        {t(`pos.today.state.${sale.state}`)}
+                      <span className="flex shrink-0">
+                        <span
+                          className={`inline-flex h-[26px] items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold uppercase tracking-[0.04em] ${STATE_TONE[sale.state]}`}
+                        >
+                          <span className="size-1.5 rounded-full bg-current" />
+                          {t(`pos.today.state.${sale.state}`)}
+                        </span>
                       </span>
-                      <span className="flex shrink-0 items-center gap-1.5">
+                      <span className="flex shrink-0 items-center justify-end gap-1.5">
                         <Link
                           to={sale.refundable ? '/pos/refund' : '/pos/today'}
-                          className="inline-flex h-9 items-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+                          className="inline-flex h-9 whitespace-nowrap items-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
                         >
                           {sale.refundable ? t('pos.today.refund') : t('pos.today.seeNote')}
                         </Link>
-                        <ActionMenu items={posSaleRowActions(sale.id)} label={t('pos.today.rowMenu')} />
+                        {/* The ⋮ as a bordered square the height of the button beside it. */}
+                        <span className="[&>div>button]:size-9 [&>div>button]:border [&>div>button]:border-border-subtle [&>div>button]:bg-white [&>div>button>img]:size-5">
+                          <ActionMenu
+                            items={posSaleRowActions(sale.id)}
+                            label={t('pos.today.rowMenu')}
+                          />
+                        </span>
                       </span>
                     </li>
                   ))}
@@ -266,11 +282,14 @@ function Kpi({
   value,
   note,
   small,
+  money,
 }: {
   title: string
   value: string
   note: string
   small?: boolean
+  /** An amount of money: the rial sign goes before it. */
+  money?: boolean
 }) {
   return (
     <article className="flex min-w-[240px] flex-1 flex-col gap-2 rounded-md bg-surface-card p-5">
@@ -279,10 +298,11 @@ function Kpi({
       </p>
       <p
         className={[
-          'font-semibold leading-[1.2] text-text-primary',
+          'inline-flex items-baseline gap-1.5 font-semibold leading-[1.2] text-text-primary',
           small ? 'text-2xl' : 'text-[30px]',
         ].join(' ')}
       >
+        {money ? <Rial /> : null}
         {value}
       </p>
       <p className="text-xs font-medium leading-[1.4] text-text-quaternary">{note}</p>

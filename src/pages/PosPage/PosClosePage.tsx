@@ -3,6 +3,10 @@ import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
+import { Rial, withRial } from '../../components/ui'
+import { PosFootNote } from './PosFootNote'
+import { CashIcon, CheckIcon, ClockIcon } from './posIcons'
+import type { ReactNode } from 'react'
 import { TILL, omr, omrSigned } from '../../lib/pos'
 import {
   AVERAGE_SALE,
@@ -34,10 +38,16 @@ function Line({
   note?: string
   value: string
   tone?: 'add' | 'take' | 'sum'
-  icon?: string
+  icon?: ReactNode
 }) {
   return (
-    <div className="flex items-center gap-3 border-b border-border-subtle px-5 py-3.5 last:border-b-0">
+    <div
+      className={[
+        'flex items-center gap-3 border-b border-border-subtle px-5 last:border-b-0',
+        // The total sits on a grey band, a step larger, as the frame draws it.
+        tone === 'sum' ? 'rounded-b-md bg-surface-tab-bar py-4' : 'py-3.5',
+      ].join(' ')}
+    >
       <span
         className={[
           'flex size-8 shrink-0 items-center justify-center rounded-sm text-sm',
@@ -45,21 +55,36 @@ function Line({
             ? 'bg-danger-100 text-danger-700'
             : tone === 'add'
               ? 'bg-success-100 text-success-700'
-              : 'bg-surface-background text-text-tertiary',
+              : tone === 'sum'
+                ? 'bg-white text-text-tertiary'
+                : 'bg-surface-background text-text-tertiary',
         ].join(' ')}
       >
         {icon ?? (tone === 'take' ? '−' : tone === 'add' ? '+' : '=')}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium text-text-primary">{label}</span>
+        <span
+          className={[
+            'block font-medium text-text-primary',
+            tone === 'sum' ? 'text-base' : 'text-sm',
+          ].join(' ')}
+        >
+          {label}
+        </span>
         {note ? (
           <span className="mt-0.5 block text-xs font-medium text-text-quaternary">{note}</span>
         ) : null}
       </span>
       <span
+        dir="ltr"
         className={[
-          'shrink-0 text-base font-semibold tabular-nums',
-          tone === 'take' ? 'text-danger-700' : 'text-text-primary',
+          'shrink-0 font-semibold tabular-nums',
+          tone === 'sum' ? 'text-lg' : 'text-base',
+          tone === 'take'
+            ? 'text-danger-700'
+            : tone === 'add'
+              ? 'text-success-700'
+              : 'text-text-primary',
         ].join(' ')}
       >
         {value}
@@ -208,7 +233,8 @@ export function PosClosePage() {
                         ? t('pos.close.shortBy')
                         : t('pos.close.overBy')}
                   </p>
-                  <p className="mt-1 text-[30px] font-semibold leading-none text-pending-700">
+                  <p className="mt-1 inline-flex items-baseline gap-1.5 text-[30px] font-semibold leading-none text-pending-700">
+                    <Rial />
                     {omr(Math.abs(gap))}
                   </p>
                   {gap !== 0 ? (
@@ -228,7 +254,7 @@ export function PosClosePage() {
                   label={t('pos.close.float')}
                   note={t('pos.close.floatNote', { time: DRAWER.floatSetAt })}
                   value={omr(DRAWER.float)}
-                  icon="▣"
+                  icon={<CashIcon className="size-4" />}
                 />
                 <Line
                   label={t('pos.close.cashTaken')}
@@ -309,7 +335,7 @@ export function PosClosePage() {
                   <textarea
                     rows={3}
                     placeholder={t('pos.close.anythingToAdd')}
-                    className="w-full rounded-sm border border-border-subtle bg-white px-4 py-3 text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder focus:border-border-brand"
+                    className="w-full resize-none rounded-sm border border-border-subtle bg-white px-4 py-3 text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder focus:border-border-brand"
                   />
                 </div>
               </section>
@@ -338,14 +364,18 @@ export function PosClosePage() {
                           : 'bg-pending-100 text-pending-700',
                       ].join(' ')}
                     >
-                      {end.state === 'done' ? '✓' : '◔'}
+                      {end.state === 'done' ? (
+                        <CheckIcon className="size-4" />
+                      ) : (
+                        <ClockIcon className="size-4" />
+                      )}
                     </span>
                     <span className="min-w-[200px] flex-1">
                       <span className="block text-sm font-semibold text-text-primary">
                         {t(end.titleKey, end.titleValues)}
                       </span>
                       <span className="mt-0.5 block text-xs font-medium leading-[1.5] text-text-quaternary">
-                        {t(end.noteKey, end.noteValues)}
+                        {withRial(t(end.noteKey, end.noteValues))}
                       </span>
                     </span>
                     {end.actionKey ? (
@@ -373,10 +403,10 @@ export function PosClosePage() {
             </div>
             <div className="px-5">
               <Sum label={t('pos.close.sales')} value={String(SALES_TODAY)} />
-              <Sum label={t('pos.close.taken')} value={omr(TAKEN_TODAY)} />
-              <Sum label={t('pos.close.vatWithin')} value={omr(VAT_WITHIN)} />
-              <Sum label={t('pos.close.discountsGiven')} value={omr(DISCOUNTS_TODAY)} />
-              <Sum label={t('pos.close.tips')} value={omr(TIPS_TODAY)} />
+              <Sum label={t('pos.close.taken')} value={omr(TAKEN_TODAY)} money />
+              <Sum label={t('pos.close.vatWithin')} value={omr(VAT_WITHIN)} money />
+              <Sum label={t('pos.close.discountsGiven')} value={omr(DISCOUNTS_TODAY)} money />
+              <Sum label={t('pos.close.tips')} value={omr(TIPS_TODAY)} money />
               <Sum
                 label={t('pos.close.refunds')}
                 value={`${REFUNDS_TODAY.count} · ${omr(REFUNDS_TODAY.amount)}`}
@@ -390,20 +420,20 @@ export function PosClosePage() {
                 }
                 tone={gap === 0 ? undefined : 'watch'}
               />
-              <Sum label={t('pos.close.toBank')} value={omr(counted - DRAWER.float)} />
-              <Sum label={t('pos.close.floatTomorrow')} value={omr(DRAWER.float)} />
+              <Sum label={t('pos.close.toBank')} value={omr(counted - DRAWER.float)} money />
+              <Sum label={t('pos.close.floatTomorrow')} value={omr(DRAWER.float)} money />
             </div>
-            <div className="px-5 py-5">
+            <div className="border-t border-border-subtle px-5 py-5">
               <button
                 type="button"
                 className="inline-flex h-[52px] w-full items-center justify-center rounded-sm bg-primary-700 text-base font-semibold text-white transition-colors hover:bg-primary-800"
               >
                 {t('pos.close.closeTill')}
               </button>
-              <p className="mt-3 text-xs font-medium leading-[1.6] text-text-quaternary">
-                {t('pos.close.onceClosed', { owner: SHIFT.ownerName, float: omr(DRAWER.float) })}
-              </p>
             </div>
+            <PosFootNote icon="lock">
+              {t('pos.close.onceClosed', { owner: SHIFT.ownerName, float: omr(DRAWER.float) })}
+            </PosFootNote>
           </aside>
         </div>
       </div>
@@ -417,22 +447,37 @@ function Kpi({ title, value, note }: { title: string; value: string; note: strin
       <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-quaternary">
         {title}
       </p>
-      <p className="text-[30px] font-semibold leading-[1.2] text-text-primary">{value}</p>
+      <p className="inline-flex items-baseline gap-1.5 text-[30px] font-semibold leading-[1.2] text-text-primary">
+        <Rial />
+        {value}
+      </p>
       <p className="text-xs font-medium leading-[1.4] text-text-quaternary">{note}</p>
     </article>
   )
 }
 
-function Sum({ label, value, tone }: { label: string; value: string; tone?: 'watch' }) {
+function Sum({
+  label,
+  value,
+  tone,
+  money,
+}: {
+  label: string
+  value: string
+  tone?: 'watch'
+  /** An amount of money: the rial sign goes before it. */
+  money?: boolean
+}) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-border-subtle py-3 last:border-b-0">
+    <div className="flex min-h-[35px] items-center justify-between gap-3 border-b border-border-subtle py-2 last:border-b-0">
       <span className="text-sm font-medium text-text-tertiary">{label}</span>
       <span
         className={[
-          'text-sm font-semibold tabular-nums',
+          'inline-flex items-baseline gap-1 text-sm font-semibold tabular-nums',
           tone === 'watch' ? 'text-pending-700' : 'text-text-primary',
         ].join(' ')}
       >
+        {money ? <Rial /> : null}
         {value}
       </span>
     </div>

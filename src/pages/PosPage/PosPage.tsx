@@ -57,7 +57,16 @@ function ScanField({ value, onChange }: { value: string; onChange: (v: string) =
   )
 }
 
-function Tile({ item, onAdd }: { item: PosItem; onAdd: (item: PosItem) => void }) {
+function Tile({
+  item,
+  inSale,
+  onAdd,
+}: {
+  item: PosItem
+  /** Already on the open sale: the frame rings these tiles in blue. */
+  inSale: boolean
+  onAdd: (item: PosItem) => void
+}) {
   const { t } = useTranslation()
   const available = onSale(item)
 
@@ -68,12 +77,15 @@ function Tile({ item, onAdd }: { item: PosItem; onAdd: (item: PosItem) => void }
       onClick={() => onAdd(item)}
       className={[
         'flex flex-col overflow-hidden rounded-md border bg-surface-card text-start transition-colors',
-        available
-          ? 'border-border-subtle hover:border-primary-300 hover:bg-primary-25'
-          : 'cursor-not-allowed border-border-subtle opacity-55',
+        !available
+          ? 'cursor-not-allowed border-border-subtle opacity-55'
+          : inSale
+            ? 'border-primary-700 hover:bg-primary-25'
+            : 'border-border-subtle hover:border-primary-300 hover:bg-primary-25',
       ].join(' ')}
     >
-      <span className="relative block">
+      {/* The photo sits inset in the tile with its own rounded corners, as the frame draws it. */}
+      <span className="relative mx-1.5 mt-1.5 block overflow-hidden rounded-sm">
         <PosArt itemId={item.id} art={item.art} className="block h-[104px] w-full object-cover" />
         {item.sizes ? (
           <span className="absolute end-2 top-2 rounded-sm bg-white/85 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-text-tertiary">
@@ -96,7 +108,8 @@ function Tile({ item, onAdd }: { item: PosItem; onAdd: (item: PosItem) => void }
         <span className="text-xs font-medium leading-[1.4] text-text-quaternary">
           {t(item.noteKey, item.noteValues)}
         </span>
-        <span className="mt-1.5 inline-flex items-center gap-1 text-base font-semibold text-text-primary">
+        {/* Pinned to the foot, so the prices line up across a row when a name wraps. */}
+        <span className="mt-auto inline-flex items-center gap-1 pt-1.5 text-base font-semibold text-text-primary">
           <Rial />
           {omr(item.price)}
         </span>
@@ -117,6 +130,7 @@ export function PosPage() {
   const [cashier, setCashier] = useState<CashierId>(CASHIERS[0].id)
 
   const counts = useMemo(() => activeCounts(), [])
+  const inSale = new Set(lines.map((line) => line.itemId))
   const shown = itemsFor(group, filter, query)
 
   /** Adding from the shelf takes the default size and no add-ons. */
@@ -168,6 +182,15 @@ export function PosPage() {
                         : 'font-medium text-text-quaternary hover:text-text-secondary',
                     ].join(' ')}
                   >
+                    {option !== 'both' ? (
+                      <span
+                        aria-hidden="true"
+                        className={[
+                          'size-1.5 shrink-0 rounded-full',
+                          option === 'active' ? 'bg-success-700' : 'bg-neutral-300',
+                        ].join(' ')}
+                      />
+                    ) : null}
                     {t(`pos.filter.${option}`)}
                     <span className="text-xs font-semibold text-text-quaternary">
                       {option === 'active'
@@ -229,7 +252,7 @@ export function PosPage() {
             ) : (
               <div className="grid grid-cols-4 gap-4 max-lg:grid-cols-3 max-md:grid-cols-2">
                 {shown.map((item) => (
-                  <Tile key={item.id} item={item} onAdd={add} />
+                  <Tile key={item.id} item={item} inSale={inSale.has(item.id)} onAdd={add} />
                 ))}
               </div>
             )}

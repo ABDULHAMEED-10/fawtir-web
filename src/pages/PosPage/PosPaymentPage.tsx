@@ -4,6 +4,16 @@ import { useOpenSale } from '../../lib/posSale'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
+import { PosFootNote } from './PosFootNote'
+import {
+  BuildingIcon,
+  CardIcon,
+  CashIcon,
+  CheckIcon,
+  DocumentIcon,
+  PencilIcon,
+  ShieldIcon,
+} from './posIcons'
 import { VAT_RATE, itemById, omr, omrSigned, totalsFor, unitPrice, LULL } from '../../lib/pos'
 import {
   METHODS,
@@ -18,6 +28,14 @@ import {
   type Taken,
   type TipChoice,
 } from '../../lib/posPayment'
+
+/** One picture per way of paying, on the tiles and on the payments already taken. */
+function MethodIcon({ id, className }: { id: MethodId; className?: string }) {
+  if (id === 'cash') return <CashIcon className={className} />
+  if (id === 'card') return <CardIcon className={className} />
+  if (id === 'transfer') return <DocumentIcon className={className} />
+  return <BuildingIcon className={className} />
+}
 
 function MethodTile({
   id,
@@ -38,7 +56,7 @@ function MethodTile({
       onClick={() => onPick(id)}
       aria-pressed={chosen}
       className={[
-        'flex min-w-[150px] flex-1 flex-col items-center gap-2 rounded-md border py-6 transition-colors',
+        'flex min-w-0 flex-col items-center gap-2 rounded-md border px-2 py-6 text-center transition-colors',
         chosen
           ? 'border-primary-700 bg-primary-25'
           : 'border-border-subtle bg-surface-card hover:border-primary-300',
@@ -50,18 +68,7 @@ function MethodTile({
           chosen ? 'bg-primary-700 text-white' : 'bg-surface-background text-text-tertiary',
         ].join(' ')}
       >
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <rect
-            x="2.5"
-            y="5"
-            width="15"
-            height="10"
-            rx="2"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          />
-          <path d="M2.5 8.5h15" stroke="currentColor" strokeWidth="1.5" />
-        </svg>
+        <MethodIcon id={id} className="size-5" />
       </span>
       <span
         className={[
@@ -110,7 +117,8 @@ export function PosPaymentPage() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-quaternary">
                 {t('pos.pay.toPay')}
               </p>
-              <p className="mt-1 text-[34px] font-semibold leading-none text-text-primary">
+              <p className="mt-1 inline-flex items-baseline gap-2 text-[34px] font-semibold leading-none text-text-primary">
+                <Rial />
                 {omr(owed)}
               </p>
             </div>
@@ -129,16 +137,18 @@ export function PosPaymentPage() {
               </div>
             </div>
           </div>
-          <div className="text-end">
+          {/* On a phone a plain row across the card, label then figure, so neither drifts in. */}
+          <div className="text-end max-md:flex max-md:w-full max-md:items-baseline max-md:justify-between max-md:gap-3">
             <p className="text-sm font-medium text-text-quaternary">
               {t('pos.pay.stillToCollect')}
             </p>
             <p
               className={[
-                'mt-1 text-2xl font-semibold',
+                'mt-1 inline-flex items-baseline gap-1.5 text-2xl font-semibold',
                 covered ? 'text-success-700' : 'text-text-primary',
               ].join(' ')}
             >
+              <Rial />
               {omr(left)}
             </p>
           </div>
@@ -156,7 +166,7 @@ export function PosPaymentPage() {
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-3 px-6 py-4">
+              <div className="grid grid-cols-2 gap-3 px-6 py-4 sm:grid-cols-4">
                 {METHODS.map((entry) => (
                   <MethodTile
                     key={entry.id}
@@ -242,20 +252,10 @@ export function PosPaymentPage() {
                 {taken.map((payment) => (
                   <li
                     key={payment.id}
-                    className="flex min-w-[260px] flex-1 items-center gap-3 border-b border-border-subtle pb-3 last:border-b-0 max-md:border-b"
+                    className="flex min-w-[260px] flex-1 items-center gap-3 border-b border-border-subtle pb-3 max-md:min-w-0 max-md:basis-full max-md:last:border-b-0"
                   >
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-surface-background text-text-tertiary">
-                      <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-                        <rect
-                          x="2.5"
-                          y="5"
-                          width="15"
-                          height="10"
-                          rx="2"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                        />
-                      </svg>
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-primary-25 text-primary-700">
+                      <MethodIcon id={payment.method} className="size-[18px]" />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-semibold text-text-primary">
@@ -287,9 +287,10 @@ export function PosPaymentPage() {
 
               <div className="flex flex-wrap items-center gap-3 border-t border-border-subtle px-6 py-4">
                 {covered ? (
-                  <p className="flex flex-1 items-center gap-2 rounded-sm bg-success-100 px-3 py-2.5 text-sm font-medium text-text-tertiary">
-                    <span className="text-success-700">✓</span>
-                    {t('pos.pay.allCovered', { amount: omr(owed) })}
+                  // A compact green box on the right half, as the frame draws it; full width on a phone.
+                  <p className="flex w-full items-center gap-2 rounded-sm bg-success-100 px-3 py-2.5 text-sm sm:justify-end sm:text-end font-medium text-success-700 sm:ms-auto sm:w-1/2">
+                    <CheckIcon className="size-4 shrink-0" />
+                    <span>{t('pos.pay.allCovered', { amount: omr(owed) })}</span>
                   </p>
                 ) : (
                   <p className="flex-1 text-sm font-medium text-text-tertiary">
@@ -324,7 +325,7 @@ export function PosPaymentPage() {
                       onClick={() => setTipChoice(choice)}
                       aria-pressed={chosen}
                       className={[
-                        'flex min-w-[110px] flex-1 flex-col items-center gap-1 rounded-md border py-4 transition-colors',
+                        'flex min-h-[76px] min-w-[110px] flex-1 flex-col items-center justify-center gap-1 rounded-md border py-4 transition-colors',
                         chosen
                           ? 'border-primary-700 bg-primary-25'
                           : 'border-border-subtle bg-white hover:border-primary-300',
@@ -349,24 +350,37 @@ export function PosPaymentPage() {
                   )
                 })}
               </div>
-              <p className="border-t border-border-subtle px-6 py-4 text-xs font-medium leading-[1.6] text-text-tertiary">
-                {t('pos.pay.tipExplained', {
-                  base: omr(totals.beforeVat),
-                  tip: omr(tip),
-                  rate: VAT_RATE * 100,
-                })}
-              </p>
+              <div className="mx-6 mb-6 flex items-start gap-2 rounded-sm bg-surface-background px-4 py-3 text-xs font-medium leading-[1.6] text-text-tertiary">
+                <ShieldIcon className="mt-0.5 size-4 shrink-0 text-text-quaternary" />
+                <p className="min-w-0 flex-1">
+                  {t('pos.pay.tipExplained', {
+                    base: omr(totals.beforeVat),
+                    tip: omr(tip),
+                    rate: VAT_RATE * 100,
+                  })}
+                </p>
+              </div>
             </section>
           </div>
 
           <aside className="flex w-full flex-col rounded-md bg-surface-card xl:w-[392px] xl:shrink-0">
-            <div className="border-b border-border-subtle px-5 py-4">
-              <h2 className="text-base font-medium leading-[1.2] text-text-primary">
-                {t('pos.pay.walkInCustomer')}
-              </h2>
-              <p className="mt-1 text-xs font-medium text-text-quaternary">
-                {t('pos.pay.receiptWithQr', { count: lines.length })}
-              </p>
+            <div className="flex items-start justify-between gap-3 border-b border-border-subtle px-5 py-4">
+              <div className="min-w-0">
+                <h2 className="text-base font-medium leading-[1.2] text-text-primary">
+                  {t('pos.pay.walkInCustomer')}
+                </h2>
+                <p className="mt-1 text-xs font-medium text-text-quaternary">
+                  {t('pos.pay.receiptWithQr', { count: lines.length })}
+                </p>
+              </div>
+              {/* The sale panel's edit button: back to the sale to change it. */}
+              <Link
+                to="/pos"
+                aria-label={t('pos.editSale')}
+                className="inline-flex size-9 shrink-0 items-center justify-center rounded-sm border border-border-subtle text-text-tertiary transition-colors hover:bg-primary-25"
+              >
+                <PencilIcon className="size-4" />
+              </Link>
             </div>
             <ul className="flex flex-col px-5">
               {lines.map((line) => {
@@ -437,10 +451,8 @@ export function PosPaymentPage() {
               >
                 {t('pos.pay.finish')}
               </button>
-              <p className="mt-3 text-xs font-medium leading-[1.6] text-text-quaternary">
-                {t('pos.pay.finishNote', { change: omr(change) })}
-              </p>
             </div>
+            <PosFootNote>{t('pos.pay.finishNote', { change: omr(change) })}</PosFootNote>
           </aside>
         </div>
       </div>
@@ -452,7 +464,9 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="text-sm font-medium text-text-tertiary">{label}</span>
-      <span className="text-sm font-semibold tabular-nums text-text-primary">{value}</span>
+      <span dir="ltr" className="text-sm font-semibold tabular-nums text-text-primary">
+        {value}
+      </span>
     </div>
   )
 }
