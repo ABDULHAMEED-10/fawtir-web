@@ -8,6 +8,9 @@
  * subscription with 7 whole months left, had an earlier yearly cancellation refunded by bank transfer,
  * and has a case Finance pays outside Fawtir.
  *
+ * The console's refund queue (`/console/billing/refunds`, backend V423) lists those cases with a
+ * final rejection from another company, filtered by `reason` and `status` as the server does.
+ *
  * Writes answer as the server would; nothing is kept between requests.
  */
 const BILLED = '7a1c0b52-4f0e-4b8e-9d3a-2f6c1e0a9b11'
@@ -53,6 +56,7 @@ const CANCELLED_YEAR = {
   refundedAt: '2026-03-03T09:00:00Z',
   refundedBy: '00000000-0000-0000-0000-0000000000e7',
   refundReference: 'TRF-2026-0311',
+  refundedOn: '2026-03-03',
 }
 
 const PAID_AHEAD = {
@@ -77,7 +81,40 @@ const PAID_AHEAD = {
   refundReference: null,
 }
 
+const REJECTED = {
+  ...PAID_AHEAD,
+  id: 'rc000000-0000-4000-8000-000000000289',
+  tenantId: '3b9e2c41-8d7a-4f60-a1e2-5c4d3b2a1f00',
+  paymentId: 'pa000000-0000-4000-8000-000000000289',
+  amount: '420.000',
+  method: 'CARD',
+  reason: 'FINAL_REJECTION',
+  openedAt: '2026-10-19T07:15:00Z',
+}
+
+const QUEUE = [
+  { refundCase: CANCELLED_YEAR, tenantName: 'Sur Marine Services LLC' },
+  { refundCase: PAID_AHEAD, tenantName: 'Sur Marine Services LLC' },
+  { refundCase: REJECTED, tenantName: 'Nizwa Date Traders SPC' },
+  { refundCase: LEAVE, tenantName: 'Sur Marine Services LLC' },
+]
+
 export default [
+  {
+    match: '/api/v1/platform/billing/refund-cases',
+    reply: ({ query }) => {
+      const reasons = query.getAll('reason')
+      const statuses = query.getAll('status').length ? query.getAll('status') : ['OPEN']
+      return {
+        items: QUEUE.filter(
+          ({ refundCase }) =>
+            (reasons.length === 0 || reasons.includes(refundCase.reason)) &&
+            statuses.includes(refundCase.status),
+        ),
+        nextCursor: null,
+      }
+    },
+  },
   {
     match: `${company(BILLED)}/payments`,
     reply: () => ({
@@ -107,6 +144,7 @@ export default [
       refundedAt: '2026-10-21T10:05:00Z',
       refundedBy: '00000000-0000-0000-0000-0000000000e7',
       refundReference: body?.reference ?? null,
+      refundedOn: body?.refundedOn ?? '2026-10-21',
     }),
   },
   {

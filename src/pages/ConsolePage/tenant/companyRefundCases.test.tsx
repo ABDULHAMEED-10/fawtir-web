@@ -7,6 +7,7 @@ import en from '../../../i18n/locales/en.json'
 import ar from '../../../i18n/locales/ar.json'
 import { resetSharedRequests } from '../../../api'
 import { REFUND_METHODS, REFUND_REASONS } from '../../../lib/console/refundCases'
+import { muscatToday } from '../../../lib/invoiceIssue'
 import { CompanyRefundCases } from './CompanyRefundCases'
 
 const TENANT = '11111111-1111-4111-8111-111111111111'
@@ -54,9 +55,7 @@ const financeCase = {
 function json(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
     status,
-    headers: {
-      'Content-Type': status >= 400 ? 'application/problem+json' : 'application/json',
-    },
+    headers: { 'Content-Type': status >= 400 ? 'application/problem+json' : 'application/json' },
   })
 }
 
@@ -68,11 +67,7 @@ beforeEach(async () => {
   await i18n.changeLanguage('en')
   answers = {
     [PAYMENTS]: () =>
-      json(200, {
-        items: [],
-        refundCases: [leaveCase(), financeCase],
-        nextCursor: null,
-      }),
+      json(200, { items: [], refundCases: [leaveCase(), financeCase], nextCursor: null }),
   }
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const key = init?.method && init.method !== 'GET' ? `${init.method} ${url}` : url
@@ -98,20 +93,67 @@ function renderCases(canManage = true, onMessage = vi.fn()) {
   return onMessage
 }
 
+/** The "Refunded" method picker, not the "Refunded on" day beside it. */
+function methodPicker(dialog: HTMLElement) {
+  const [picker] = within(dialog)
+    .getAllByRole('button', { name: new RegExp(R('refund.method')) })
+    .filter((button) => !button.getAttribute('aria-label')?.startsWith(R('refund.on')))
+  return picker
+}
+
 function sent(method: string, path: string) {
   const call = fetchMock.mock.calls.find(([url, init]) => url === path && init?.method === method)
   return call ? JSON.parse(String(call[1]?.body)) : null
 }
 
 describe('CompanyRefundCases', () => {
-  it('lists the cases with the leaving company reason, the suggestion and actions only on the open annual case', async () => {
+  it('lists the cases; both open cases can be marked refunded, only the console case changes its amount', async () => {
     renderCases()
     expect(await screen.findByText(R('reason.LEFT_FAWTIR_ANNUAL'))).toBeTruthy()
     expect(screen.getByText(R('reason.CANCELLED_BY_CUSTOMER'))).toBeTruthy()
     expect(screen.getByText(/7 whole months/)).toBeTruthy()
-    // One case is settled here; the other is Finance's, so only one pair of buttons.
-    expect(screen.getAllByRole('button', { name: R('refund.open') })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: R('refund.open') })).toHaveLength(2)
     expect(screen.getAllByRole('button', { name: R('amount.open') })).toHaveLength(1)
+    // Only the yearly remaining months may be declined; the Finance case is always refunded.
+    expect(screen.getAllByRole('button', { name: R('decline.open') })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: R('waive.open') })).toHaveLength(1)
+  })
+
+  it('RF-2: marks a Finance case refunded at its amount, with the day it went back', async () => {
+    const FINANCE_REFUND = `${COMPANY}/subscription/refund-cases/c-2/refund`
+    answers[PAYMENTS] = () =>
+      json(200, {
+        items: [],
+        refundCases: [{ ...financeCase, reason: 'FINAL_REJECTION' }],
+        nextCursor: null,
+      })
+    answers[`POST ${FINANCE_REFUND}`] = () =>
+      json(200, {
+        ...financeCase,
+        reason: 'FINAL_REJECTION',
+        status: 'REFUNDED',
+        refundMethod: 'CARD',
+        refundedAt: '2026-10-22T10:00:00Z',
+        refundedOn: '2026-10-21',
+      })
+    const onMessage = renderCases()
+    await userEvent.click(await screen.findByRole('button', { name: R('refund.open') }))
+    expect(screen.queryByRole('button', { name: R('amount.open') })).toBeNull()
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(R('refund.bodyFinance'))).toBeTruthy()
+    await userEvent.click(methodPicker(dialog))
+    await userEvent.click(await screen.findByRole('option', { name: R('method.CARD') }))
+    await userEvent.type(
+      within(dialog).getByLabelText(new RegExp(R('refund.reference'))),
+      'PAYMOB-RF-9',
+    )
+    await userEvent.click(within(dialog).getByRole('button', { name: R('refund.confirm') }))
+    await waitFor(() => expect(onMessage).toHaveBeenCalled())
+    expect(sent('POST', FINANCE_REFUND)).toEqual({
+      method: 'CARD',
+      reference: 'PAYMOB-RF-9',
+      refundedOn: muscatToday(),
+    })
   })
 
   it('settles the monthly leaving case and the yearly cancellation case here too', async () => {
@@ -119,16 +161,8 @@ describe('CompanyRefundCases', () => {
       json(200, {
         items: [],
         refundCases: [
-          leaveCase({
-            reason: 'LEFT_FAWTIR_MONTHLY',
-            monthsRefunded: 1,
-            amount: '105.000',
-          }),
-          leaveCase({
-            id: 'c-3',
-            reason: 'CANCELLED_ANNUAL_REMAINING',
-            disconnectionId: null,
-          }),
+          leaveCase({ reason: 'LEFT_FAWTIR_MONTHLY', monthsRefunded: 1, amount: '105.000' }),
+          leaveCase({ id: 'c-3', reason: 'CANCELLED_ANNUAL_REMAINING', disconnectionId: null }),
         ],
         nextCursor: null,
       })
@@ -145,17 +179,11 @@ describe('CompanyRefundCases', () => {
   })
 
   it('records that the customer gave up an always-refunded refund, with written evidence and a reference', async () => {
-    const WAIVE = `${COMPANY}/subscription/refund-cases/${CASE_ID}/waive`
-    answers[PAYMENTS] = () =>
-      json(200, {
-        items: [],
-        refundCases: [leaveCase({ reason: 'LEFT_FAWTIR_MONTHLY', monthsRefunded: 1 })],
-        nextCursor: null,
-      })
-    answers[`POST ${WAIVE}`] = () =>
-      json(200, leaveCase({ reason: 'LEFT_FAWTIR_MONTHLY', status: 'WAIVED' }))
+    const WAIVE = `${COMPANY}/subscription/refund-cases/c-2/waive`
+    answers[PAYMENTS] = () => json(200, { items: [], refundCases: [financeCase], nextCursor: null })
+    answers[`POST ${WAIVE}`] = () => json(200, { ...financeCase, status: 'WAIVED' })
     const onMessage = renderCases()
-    expect(await screen.findByText(R('reason.LEFT_FAWTIR_MONTHLY'))).toBeTruthy()
+    expect(await screen.findByText(R('reason.CANCELLED_BY_CUSTOMER'))).toBeTruthy()
     expect(screen.queryByRole('button', { name: R('decline.open') })).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: R('waive.open') }))
     const dialog = await screen.findByRole('dialog')
@@ -164,7 +192,7 @@ describe('CompanyRefundCases', () => {
 
     await userEvent.type(
       within(dialog).getByLabelText(new RegExp(R('waive.evidence'))),
-      'I do not want the month back',
+      'Keep it, we do not want it back',
     )
     await userEvent.click(within(dialog).getByRole('button', { name: R('waive.confirm') }))
     expect(sent('POST', WAIVE)).toBeNull()
@@ -172,7 +200,7 @@ describe('CompanyRefundCases', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: R('waive.confirm') }))
     await waitFor(() => expect(onMessage).toHaveBeenCalled())
     expect(sent('POST', WAIVE)).toEqual({
-      evidence: 'I do not want the month back',
+      evidence: 'Keep it, we do not want it back',
       reference: 'MAIL-7',
     })
   })
@@ -200,7 +228,7 @@ describe('CompanyRefundCases', () => {
     expect(screen.queryByRole('button', { name: R('refund.open') })).toBeNull()
   })
 
-  it('shows days in Muscat, never raw timestamps', async () => {
+  it('shows the approval day and the refund day as days, never raw timestamps', async () => {
     answers[PAYMENTS] = () =>
       json(200, {
         items: [],
@@ -210,6 +238,8 @@ describe('CompanyRefundCases', () => {
             refundMethod: 'CASH',
             openedAt: '2026-10-20T21:30:00Z',
             refundedAt: '2026-10-21T10:00:00Z',
+            approvedOn: '2026-10-21',
+            refundedOn: '2026-10-23',
           }),
         ],
         nextCursor: null,
@@ -217,20 +247,23 @@ describe('CompanyRefundCases', () => {
     renderCases()
     // 21:30 UTC on 20 Oct is already 21 Oct in Muscat.
     expect(await screen.findByText(/Opened 21 Oct 2026/)).toBeTruthy()
-    expect(screen.getByText(/in cash on 21 Oct 2026/)).toBeTruthy()
+    expect(screen.getByText(/Approved on 21 Oct 2026/)).toBeTruthy()
+    expect(screen.getByText(/in cash on 23 Oct 2026/)).toBeTruthy()
     expect(screen.queryByText(/T\d{2}:\d{2}/)).toBeNull()
+  })
+
+  it('a console refund is approved today: its body no longer speaks of working the amount out again', async () => {
+    renderCases()
+    await userEvent.click((await screen.findAllByRole('button', { name: R('refund.open') }))[0])
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(R('refund.body'))).toBeTruthy()
+    expect(R('refund.body')).not.toMatch(/worked out again/)
   })
 
   it('closes a case without a refund, with a reason, and shows it read-only', async () => {
     const DECLINE = `${COMPANY}/subscription/refund-cases/${CASE_ID}/decline`
     answers[`POST ${DECLINE}`] = () =>
-      json(
-        200,
-        leaveCase({
-          status: 'DECLINED',
-          declineReason: 'Contract excludes refunds',
-        }),
-      )
+      json(200, leaveCase({ status: 'DECLINED', declineReason: 'Contract excludes refunds' }))
     const onMessage = renderCases()
     expect(await screen.findAllByText(R('status.UNDER_REVIEW'))).toHaveLength(1)
     await userEvent.click(screen.getByRole('button', { name: R('decline.open') }))
@@ -241,9 +274,7 @@ describe('CompanyRefundCases', () => {
     )
     await userEvent.click(within(dialog).getByRole('button', { name: R('decline.confirm') }))
     await waitFor(() => expect(onMessage).toHaveBeenCalled())
-    expect(sent('POST', DECLINE)).toEqual({
-      reason: 'Contract excludes refunds',
-    })
+    expect(sent('POST', DECLINE)).toEqual({ reason: 'Contract excludes refunds' })
   })
 
   it('shows a declined case with its reason', async () => {
@@ -251,10 +282,7 @@ describe('CompanyRefundCases', () => {
       json(200, {
         items: [],
         refundCases: [
-          leaveCase({
-            status: 'DECLINED',
-            declineReason: 'Contract excludes refunds',
-          }),
+          leaveCase({ status: 'DECLINED', declineReason: 'Contract excludes refunds' }),
         ],
         nextCursor: null,
       })
@@ -268,12 +296,7 @@ describe('CompanyRefundCases', () => {
     answers[PAYMENTS] = () =>
       json(200, {
         items: [],
-        refundCases: [
-          leaveCase({
-            status: 'WITHDRAWN',
-            withdrawnAt: '2026-10-22T08:00:00Z',
-          }),
-        ],
+        refundCases: [leaveCase({ status: 'WITHDRAWN', withdrawnAt: '2026-10-22T08:00:00Z' })],
         nextCursor: null,
       })
     renderCases()
@@ -321,10 +344,7 @@ describe('CompanyRefundCases', () => {
     )
     await userEvent.click(within(dialog).getByRole('button', { name: R('amount.confirm') }))
     await waitFor(() => expect(onMessage).toHaveBeenCalled())
-    expect(sent('POST', AMOUNT)).toEqual({
-      amount: 650.5,
-      reason: 'Agreed by phone',
-    })
+    expect(sent('POST', AMOUNT)).toEqual({ amount: 650.5, reason: 'Agreed by phone' })
   })
 
   it('records the refund with the method chosen and the reference', async () => {
@@ -338,16 +358,13 @@ describe('CompanyRefundCases', () => {
         }),
       )
     const onMessage = renderCases()
-    await userEvent.click(await screen.findByRole('button', { name: R('refund.open') }))
+    // The leaving case is listed first; the Finance case below it has its own button.
+    await userEvent.click((await screen.findAllByRole('button', { name: R('refund.open') }))[0])
     const dialog = await screen.findByRole('dialog')
     await userEvent.click(within(dialog).getByRole('button', { name: R('refund.confirm') }))
     expect(sent('POST', REFUND)).toBeNull()
 
-    await userEvent.click(
-      within(dialog).getByRole('button', {
-        name: new RegExp(R('refund.method')),
-      }),
-    )
+    await userEvent.click(methodPicker(dialog))
     await userEvent.click(await screen.findByRole('option', { name: R('method.BANK_TRANSFER') }))
     await userEvent.type(within(dialog).getByLabelText(new RegExp(R('refund.reference'))), 'TRF-88')
     await userEvent.click(within(dialog).getByRole('button', { name: R('refund.confirm') }))
@@ -355,6 +372,7 @@ describe('CompanyRefundCases', () => {
     expect(sent('POST', REFUND)).toEqual({
       method: 'BANK_TRANSFER',
       reference: 'TRF-88',
+      refundedOn: muscatToday(),
     })
   })
 
@@ -391,6 +409,8 @@ describe('CompanyRefundCases', () => {
       expect(block.status.DECLINED).toBeTruthy()
       expect(block.status.UNDER_REVIEW).toBeTruthy()
       expect(block.status.WAIVED).toBeTruthy()
+      expect(block.waive.open).toBeTruthy()
+      expect(block.approvedOn).toBeTruthy()
     }
   })
 })

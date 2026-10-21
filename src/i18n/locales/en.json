@@ -12638,7 +12638,8 @@
       "seller": "Seller",
       "disconnections": "Disconnections",
       "enterprise": "Enterprise",
-      "companyContact": "Contact details"
+      "companyContact": "Contact details",
+      "refunds": "Refund cases"
     },
     "user": {
       "team": "Fawtir team",
@@ -16287,14 +16288,18 @@
       "refund": {
         "open": "Record refund",
         "title": "Record the refund",
-        "body": "Record how the money went back to the company. The suggestion is worked out again for today, counting only months not yet started, and access ends with the last month not refunded. The case is then closed and can no longer be changed.",
+        "body": "Record how the money went back to the company. Recording the refund approves it today: only the months not yet started today are refunded, and access ends with the last month not refunded. The money goes back today or on a later day, never before. The case is then closed and can no longer be changed.",
         "amount": "Amount",
         "method": "Refunded",
         "methodPlaceholder": "Choose how",
         "reference": "Reference",
         "referenceHint": "The card refund, transfer or receipt reference. Optional.",
         "confirm": "Record refund",
-        "done": "{{amount}} recorded as refunded {{method}}."
+        "done": "{{amount}} recorded as refunded {{method}}.",
+        "bodyFinance": "Record that the money went back to the company. The amount is what the company paid and cannot be changed. The case is then closed and can no longer be changed.",
+        "on": "Refunded on",
+        "onInvalid": "Choose a day from when the case opened up to today.",
+        "onInvalidApproved": "Choose today or a later day: the money can't go back before the refund is approved."
       },
       "declinedBecause": "Not refunded: {{reason}}",
       "decline": {
@@ -16315,6 +16320,29 @@
         "referenceHint": "The e-mail, ticket or letter reference.",
         "confirm": "Record as given up",
         "done": "The refund is recorded as given up by the customer."
+      },
+      "approvedOn": "Approved on {{date}}"
+    },
+    "refundQueue": {
+      "title": "Refund cases",
+      "subtitle": "Money Fawtir owes back, for every company: applications closed with a final rejection, periods paid in advance that never started, and the refunds decided for companies that left Fawtir or cancelled a yearly subscription. Oldest first.",
+      "loading": "Loading refund cases",
+      "emptyOpen": "No refund case is waiting.",
+      "empty": "No refund case matches these filters.",
+      "loadMore": "Load more",
+      "moreFailed": "More cases could not be loaded. Try again.",
+      "view": {
+        "OPEN": "Waiting",
+        "REFUNDED": "Refunded",
+        "ALL": "All"
+      },
+      "kind": {
+        "label": "Kind of refund",
+        "ALL": "All kinds",
+        "SIGNUP_REJECTION": "Closed applications",
+        "PAID_AHEAD": "Paid in advance, not started",
+        "LEFT_FAWTIR": "Left Fawtir",
+        "YEARLY_CANCELLATION": "Yearly cancellations"
       }
     }
   },
