@@ -77,7 +77,6 @@ export function TextField({
   maxLength,
   autoComplete,
   dir,
-  prefix,
 }: {
   id: string
   name: string
@@ -98,50 +97,8 @@ export function TextField({
   autoComplete?: string
   /** `ltr` for a code typed in an Arabic page (a path, a parameter): `/id` must not read `id/`. */
   dir?: 'ltr' | 'rtl'
-  /**
-   * A fixed text drawn before the typed value and not part of it, as the phone field draws +968
-   * (for example `OM` before a customer's VAT digits).
-   */
-  prefix?: string
 }) {
   const filled = value !== undefined ? value !== '' : Boolean(defaultValue)
-  if (prefix) {
-    return (
-      <div className="flex flex-col gap-1">
-        <FieldLabel label={label} required={required} htmlFor={id} />
-        <div
-          dir={dir}
-          className={[
-            'flex h-[50px] w-full items-center gap-2 rounded-sm border bg-surface-tab-bar px-4 transition-colors focus-within:border-primary-700',
-            error ? 'border-border-danger' : filled ? 'border-primary-300' : 'border-border-default',
-          ].join(' ')}
-        >
-          <span className="shrink-0 text-sm font-medium text-text-secondary">{prefix}</span>
-          <input
-            id={id}
-            name={name}
-            type={type}
-            required={required}
-            placeholder={placeholder}
-            inputMode={inputMode}
-            maxLength={maxLength}
-            autoComplete={autoComplete}
-            {...(value !== undefined ? { value, onChange: (event) => onChange?.(event.target.value) } : { defaultValue })}
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
-            className="h-full w-full min-w-0 border-0 bg-transparent text-sm font-medium text-text-secondary outline-none placeholder:text-text-placeholder"
-          />
-        </div>
-        {error ? (
-          <p id={`${id}-error`} className="text-xs font-medium leading-[1.2] text-text-danger" role="alert">
-            {error}
-          </p>
-        ) : hint ? (
-          <p id={`${id}-hint`} className="text-xs font-medium leading-[1.2] text-text-quaternary">{hint}</p>
-        ) : null}
-      </div>
-    )
-  }
   return (
     <div className="flex flex-col gap-1">
       <FieldLabel label={label} required={required} htmlFor={id} />

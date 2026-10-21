@@ -193,37 +193,22 @@ describe('a new customer', () => {
     expect('expectedVersion' in body).toBe(false)
   })
 
-  it('draws OM before the VAT digits and fills the Peppol ID from them (owner, 21 Oct 2026)', async () => {
+  it('fills the Peppol ID from the VAT number and keeps one typed by hand (owner, 21 Oct 2026)', async () => {
     renderAt('/customers/new')
     await screen.findByRole('heading', { name: 'New customer' })
-    const vat = screen.getByLabelText(/VAT registration number/) as HTMLInputElement
     const peppol = () => (screen.getByLabelText(/Peppol participant ID/) as HTMLInputElement).value
-    expect(vat.closest('div')?.textContent).toContain('OM')
 
-    typeInto(/VAT registration number/, '1100337812')
-    expect(vat.value).toBe('1100337812')
+    typeInto(/VAT registration number/, 'OM1100337812')
     expect(peppol()).toBe('0248:OM1100337812')
 
     // It keeps following the VAT number while it still reads what was filled in.
-    typeInto(/VAT registration number/, '1100337813')
+    typeInto(/VAT registration number/, 'OM1100337813')
     expect(peppol()).toBe('0248:OM1100337813')
 
-    // A Peppol ID typed by hand is kept when the VAT number changes again.
-    typeInto(/Peppol participant ID/, '0248:OM1199999001')
-    typeInto(/VAT registration number/, '1100337814')
-    expect(peppol()).toBe('0248:OM1199999001')
-  })
-
-  it('takes a pasted OM number and drops anything that is not a digit', async () => {
-    renderAt('/customers/new')
-    await screen.findByRole('heading', { name: 'New customer' })
-    typeInto(/VAT registration number/, 'om 1100-337812')
-    expect((screen.getByLabelText(/VAT registration number/) as HTMLInputElement).value).toBe(
-      '1100337812',
-    )
-    expect((screen.getByLabelText(/Peppol participant ID/) as HTMLInputElement).value).toBe(
-      '0248:OM1100337812',
-    )
+    // A test receiver outside the Omani VAT scheme is kept when the VAT number changes again.
+    typeInto(/Peppol participant ID/, '9922:OPTBCNTRLP1007')
+    typeInto(/VAT registration number/, 'OM1100337814')
+    expect(peppol()).toBe('9922:OPTBCNTRLP1007')
   })
 
   it('sends a consumer with no organisation fields at all, not as false', async () => {

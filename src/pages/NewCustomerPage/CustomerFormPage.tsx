@@ -24,12 +24,7 @@ import {
 } from '../../components/form'
 import { useApiRead } from '../../hooks'
 import { ApiError } from '../../api'
-import {
-  OMAN_VAT_PREFIX,
-  omanVatDigits,
-  omanVatFromDigits,
-  peppolIdFor,
-} from '../../lib/validation'
+import { peppolIdFor } from '../../lib/validation'
 import {
   CUSTOMERS_PATH,
   createCustomer,
@@ -539,24 +534,23 @@ function CustomerFormPage({ customerId }: { customerId: string | null }) {
                     </FieldGrid>
                   ) : null}
                   <div className="grid items-end gap-4 sm:grid-cols-[1fr_auto]">
-                    {/* `OM` is fixed and only the digits are typed; the value keeps `OM` + digits.
-                        TODO(go-live): maxLength={10} once the VAT length is capped (see
-                        omanVatFromDigits). */}
+                    {/* TODO(go-live): show `OM` as a fixed prefix and take only the digits, capped
+                        at 10 (owner, 21 Oct 2026). Held back for now: Peppol testing uses
+                        receivers outside the Omani VAT scheme (9922:OPTBCNTRLP1007), so the VAT
+                        stays free text and the Peppol ID below can be typed over. */}
                     <TextField
                       id={inputId('vatNumber')}
                       name="vatNumber"
                       label={t('newCustomer.details.vatNumber')}
-                      prefix={OMAN_VAT_PREFIX}
                       dir="ltr"
-                      inputMode="numeric"
-                      placeholder="1100000000"
+                      placeholder="OM1100000000"
                       hint={
                         values.registeredForVat ? undefined : t('supplierForm.notVatRegistered')
                       }
                       required={values.registeredForVat}
                       maxLength={64}
-                      value={values.registeredForVat ? omanVatDigits(values.vatNumber) : ''}
-                      onChange={(next) => changeVat(omanVatFromDigits(next))}
+                      value={values.registeredForVat ? values.vatNumber : ''}
+                      onChange={(next) => changeVat(next.toUpperCase())}
                       error={errorText('vatNumber')}
                     />
                     <CheckboxRow
