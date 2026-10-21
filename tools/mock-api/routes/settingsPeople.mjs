@@ -189,6 +189,88 @@ const ROLES = [
   },
 ]
 
+ROLES.push(
+  {
+    id: 'r-finance',
+    code: 'FINANCE_MANAGER',
+    name: 'Finance manager',
+    description: 'Approves, cancels and settles; looks after suppliers and bills.',
+    enabled: true,
+    systemRole: true,
+    catalogueKind: 'ROLE',
+    permissionCodes: ['invoice.read', 'invoice.approve', 'invoice.cancel', 'bill.settle', 'supplier.read', 'supplier.manage', 'reports.read'],
+  },
+  {
+    id: 'r-collections',
+    code: 'collections_k3p9xa',
+    name: 'Collections',
+    description: 'Follows up what customers owe and records their payments.',
+    enabled: true,
+    systemRole: false,
+    catalogueKind: 'CUSTOM',
+    permissionCodes: ['invoice.read', 'customer.read', 'invoice.payment.manage', 'creditnote.create'],
+    permissions: [{ code: 'creditnote.create', qualifier: 'OWN', value: null }],
+  },
+)
+
+/**
+ * The grantable catalogue `GET /v1/roles/matrix` returns (`DefaultPermissionCatalogue`, platform
+ * codes left out by the server). Administrator-only codes are in it, as on the server: the role
+ * maker hides them itself.
+ */
+const PERMISSION_CATALOGUE = [
+  ['admin.users.manage', 'IDENTITY'], ['admin.roles.manage', 'IDENTITY'], ['role.read', 'IDENTITY'],
+  ['role.list', 'IDENTITY'], ['admin.settings.manage', 'TENANT'], ['branch.read', 'TENANT'],
+  ['branch.manage', 'TENANT'], ['branch.users.manage', 'TENANT'], ['tenant.plan.read', 'TENANT'],
+  ['tenant.plan.manage', 'TENANT'], ['customer.read', 'CUSTOMER'], ['customer.manage', 'CUSTOMER'],
+  ['customer.archive', 'CUSTOMER'], ['customer.export', 'CUSTOMER'], ['supplier.read', 'CUSTOMER'],
+  ['supplier.manage', 'CUSTOMER'], ['product.read', 'INVOICE'], ['product.manage', 'INVOICE'],
+  ['invoice.read', 'INVOICE'], ['invoice.draft', 'INVOICE', ['MAX_PERCENT']], ['invoice.submit', 'INVOICE'],
+  ['invoice.issue', 'INVOICE'], ['invoice.approve', 'INVOICE'], ['invoice.cancel', 'INVOICE'],
+  ['invoice.payment.manage', 'INVOICE'], ['invoice.export', 'INVOICE'],
+  ['creditnote.create', 'INVOICE', ['OWN']], ['creditnote.submit', 'INVOICE'], ['debitnote.create', 'INVOICE'],
+  ['bill.settle', 'INVOICE'], ['bill.export', 'INVOICE'], ['selfbilling.create', 'INVOICE'],
+  ['reports.read', 'REPORT'], ['reports.sales.read', 'REPORT'], ['erp.connection.read', 'INTEGRATION'],
+  ['erp.connection.manage', 'INTEGRATION'], ['webhooks.manage', 'INTEGRATION'],
+].map(([code, module, qualifiers = []]) => ({ code, module, description: code, qualifiers }))
+
+const RESERVED = new Set(['admin.users.manage', 'admin.roles.manage', 'admin.settings.manage', 'branch.manage', 'tenant.plan.manage'])
+const isReserved = (code) => RESERVED.has(code) || (code.startsWith('erp.') && !['erp.connection.read', 'erp.audit.read'].includes(code))
+/** Who holds which role, as the users list (paymentsRecurring.mjs) has it. */
+const HELD = new Set(['ADMIN', 'ACCOUNTANT'])
+
+const problem = (status, type, detail) => ({
+  status,
+  body: { type: `https://api.fawtir.om/problems/${type}`, title: 'Refused', status, detail },
+})
+
+function cellsOf(role) {
+  const limited = Object.fromEntries((role.permissions ?? []).filter((p) => p.qualifier).map((p) => [p.code, p]))
+  return Object.fromEntries(
+    role.permissionCodes.map((code) => [
+      code,
+      limited[code]
+        ? { state: 'LIMITED', qualifier: limited[code].qualifier, value: limited[code].value ?? null }
+        : { state: 'FULL', qualifier: null, value: null },
+    ]),
+  )
+}
+
+/** Applies a create or update body's two grant lists, refusing as the server does. */
+function grantsFrom(body) {
+  const full = body?.permissionCodes ?? []
+  const limited = body?.qualifiedPermissions ?? []
+  const codes = [...full, ...limited.map((g) => g.code)]
+  const reserved = codes.find(isReserved)
+  if (reserved) return problem(403, 'reserved-permission', `${reserved} is only for Administrators.`)
+  const known = new Set(PERMISSION_CATALOGUE.map((p) => p.code))
+  if (codes.some((code) => !known.has(code))) return problem(400, 'validation-failed', 'Unknown permission code.')
+  return {
+    permissionCodes: [...new Set(codes)].sort(),
+    permissions: limited.map((g) => ({ code: g.code, qualifier: g.qualifier, value: g.value ?? null })),
+  }
+}
+
 const INVITATIONS = [
   {
     id: 'inv-1',
@@ -345,6 +427,69 @@ const NO_DOWNGRADE = {
 
 export default [
   { match: '/api/v1/roles', reply: () => ROLES },
+  {
+    match: '/api/v1/roles/matrix',
+    reply: () => ({
+      permissions: PERMISSION_CATALOGUE,
+      roles: ROLES.map((role) => ({
+        id: role.id,
+        code: role.code,
+        name: role.name,
+        systemRole: role.systemRole,
+        enabled: role.enabled,
+        cells: cellsOf(role),
+      })),
+    }),
+  },
+  {
+    method: 'POST',
+    match: '/api/v1/roles',
+    reply: ({ body }) => {
+      if (!body?.name?.trim()) return problem(400, 'validation-failed', 'Name is required')
+      if (ROLES.some((role) => role.code === body.code)) return problem(409, 'resource-conflict', 'Role code already exists')
+      const grants = grantsFrom(body)
+      if (grants.status) return grants
+      const role = {
+        id: `r-${body.code}`,
+        code: body.code,
+        name: body.name,
+        description: body.description ?? null,
+        enabled: true,
+        systemRole: false,
+        catalogueKind: 'CUSTOM',
+        ...grants,
+      }
+      ROLES.push(role)
+      return { status: 201, body: role }
+    },
+  },
+  {
+    method: 'PATCH',
+    match: /^\/api\/v1\/roles\/([^/]+)$/,
+    reply: ({ params, body }) => {
+      const role = ROLES.find((r) => r.id === params[0])
+      if (!role) return problem(404, 'resource-not-found', 'No such role')
+      if (role.systemRole) return problem(403, 'insufficient-permission', 'System role cannot be modified')
+      const grants = grantsFrom(body)
+      if (grants.status) return grants
+      Object.assign(role, grants)
+      if (body.name != null) role.name = body.name
+      if (body.description != null) role.description = body.description || null
+      return role
+    },
+  },
+  {
+    method: 'DELETE',
+    match: /^\/api\/v1\/roles\/([^/]+)$/,
+    reply: ({ params }) => {
+      const at = ROLES.findIndex((r) => r.id === params[0])
+      if (at === -1) return problem(404, 'resource-not-found', 'No such role')
+      if (ROLES[at].systemRole) return problem(403, 'insufficient-permission', 'System role cannot be deleted')
+      if (HELD.has(ROLES[at].code)) return problem(409, 'resource-conflict', 'Users are still assigned')
+      ROLES.splice(at, 1)
+      return { status: 204 }
+    },
+  },
   { match: '/api/v1/users/invitations', reply: () => INVITATIONS },
   { match: '/api/v1/public/plans', reply: () => CATALOGUE },
   {
