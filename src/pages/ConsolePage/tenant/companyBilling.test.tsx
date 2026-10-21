@@ -830,3 +830,11 @@ describe('Console › payment link refusals', () => {
     expect(typeof lookup(ar, message.key)).toBe('string')
   })
 })
+
+describe('Console › Arabic names the subscription bill «مطالبة» on the billing card', () => {
+  it.each(['title', 'titleBills', 'loading', 'noBills', 'bill.number'])('%s', (key) => {
+    const text = i18n.t(`console.payLinks.${key}`, { lng: 'ar', number: 'FWT-SUB-2026-000001' })
+    expect(text).not.toMatch(/فاتور|فواتير/)
+    expect(text).toMatch(/مطالب/)
+  })
+})
