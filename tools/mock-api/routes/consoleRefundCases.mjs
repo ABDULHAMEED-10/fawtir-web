@@ -4,9 +4,10 @@
  *
  * The refund cases under the console's "Bills and payment links" card (backend V412). Shapes follow
  * `src/lib/console/refundCases.ts`. Run the mock with `MOCK_CONSOLE_BILLING=1` so the session holds
- * `platform.billing.*`. Sur Marine (`/console/tenants/7a1c0b52-…`) left Fawtir on an annual
- * subscription with 7 whole months left, had an earlier yearly cancellation refunded by bank transfer,
- * and has a case Finance pays outside Fawtir.
+ * `platform.billing.*`. Sur Marine Supplies LLC (`/console/tenants/7a1c0b52-…`, the same company and
+ * name as consoleCompanySubscription.mjs) left Fawtir on an annual subscription with 7 whole months
+ * left, had an earlier yearly cancellation refunded by bank transfer, and has a case Finance pays
+ * outside Fawtir. Every case below belongs to it; use that one name wherever a fixture names it.
  *
  * Writes answer as the server would; nothing is kept between requests.
  */
