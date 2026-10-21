@@ -1,6 +1,6 @@
 import { baisaOf, type SignupCataloguePlan } from '../../lib/identity/signupPlans'
 import { FEATURES, FEATURE_GROUPS, type Feature } from '../../lib/plans'
-import { DEFAULT_SETTINGS, PLATFORM_SETTINGS } from '../../lib/platformSettings'
+import { PLATFORM_SETTINGS } from '../../lib/platformSettings'
 import { launchCopy, trialSummary } from './catalogueView'
 
 /*
@@ -171,20 +171,17 @@ export function subscriptionVatPercent(plans: readonly SignupCataloguePlan[] | n
 export type FaqParams = ReturnType<typeof faqParams>
 
 /**
- * The figures the answers quote: the trial from the catalogue, the rest from the platform
- * defaults. Without a catalogue (not read yet, or unreadable) there is no trial figure to quote.
+ * The figures the answers quote, all from the published catalogue: the trial and the VAT rate.
+ * Without a catalogue (not read yet, or unreadable) there is no trial figure to quote. Grace days
+ * and notice thresholds are console settings the public catalogue does not publish (GEN-2, PL-3),
+ * so the answers describe them without a figure rather than quote a default.
  */
 export function faqParams(plans: readonly SignupCataloguePlan[] | null) {
-  const { notices, lifecycle } = DEFAULT_SETTINGS
   const trial = plans ? trialSummary(plans) : null
   const uniform = trial?.kind === 'uniform' && trial.documents !== null ? trial : null
   return {
     days: uniform?.days,
     documents: uniform?.documents,
-    thresholds: notices.thresholds.join(', '),
-    grace: lifecycle.graceDays,
-    // The grace answer counts days, and Arabic words a count by its plural form.
-    count: lifecycle.graceDays,
     rate: subscriptionVatPercent(plans),
   }
 }

@@ -161,12 +161,10 @@ export function retireBeneficiary(id: string, version: number): Promise<Benefici
 }
 
 /**
- * The i18n key of a payment's status pill. Cash above the threshold is two people, not three
- * (owner, 14 Oct 2026): the verifier confirms it again, so it reads "Needs confirming again"
- * rather than "Needs 2nd approval", which stays for a bank transfer's different second approver.
+ * The i18n key of a payment's status pill. Above the threshold a payment is two people, not
+ * three, for a bank transfer (BT-2, backend #672) as for cash (CS-2): the verifier confirms it
+ * again, so "awaiting second approval" reads "Needs confirming again" whatever the method.
  */
-export function paymentStatusKey(status: string, method: string): string {
-  return status === 'AWAITING_SECOND_APPROVAL' && method === 'CASH'
-    ? 'console.billing.status.AWAITING_SECOND_APPROVAL_CASH'
-    : `console.billing.status.${status}`
+export function paymentStatusKey(status: string): string {
+  return `console.billing.status.${status}`
 }

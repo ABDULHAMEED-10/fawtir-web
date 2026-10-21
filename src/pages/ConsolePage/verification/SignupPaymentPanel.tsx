@@ -46,7 +46,7 @@ export function SignupPaymentPanel({
           />
           <ReviewLine
             label={t('console.verification.payment.status')}
-            value={t(paymentStatusKey(read.data.payment.status, read.data.payment.method))}
+            value={t(paymentStatusKey(read.data.payment.status))}
           />
           {read.data.payment.reference ? (
             <ReviewLine label={t('console.verification.payment.reference')} value={read.data.payment.reference} />

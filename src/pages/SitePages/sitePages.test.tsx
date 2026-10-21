@@ -147,13 +147,12 @@ describe('Pricing page', () => {
     expect(screen.getByText(i18n.t('plans.faq.a1', faqParams(CATALOGUE)))).toBeTruthy()
   })
 
-  it('counts the grace days in Arabic by their plural form', () => {
+  it('quotes no grace-day figure: grace is a console setting the catalogue does not publish (GEN-2)', () => {
     const params = faqParams(CATALOGUE)
-    expect(params.count).toBe(7)
-    const arabic = i18n.t('plans.faq.a5', { ...params, lng: 'ar' })
-    expect(arabic).toContain('على 7 أيام من المهلة')
-    expect(i18n.t('plans.faq.a5', { ...params, count: 14, lng: 'ar' })).toContain('على 14 يومًا من المهلة')
-    expect(i18n.t('plans.faq.a5', { ...params, lng: 'en' })).toContain('7 days of grace')
+    expect(params).not.toHaveProperty('grace')
+    expect(i18n.t('plans.faq.a5', { ...params, lng: 'en' })).toContain('you keep a grace period before')
+    expect(i18n.t('plans.faq.a5', { ...params, lng: 'en' })).not.toMatch(/\d+ days of grace/)
+    expect(i18n.t('plans.faq.a5', { ...params, lng: 'ar' })).toContain('تحصل على مهلة قبل')
   })
 
   it('says a bigger plan paid for in the trial ends the trial at once, from the payment date, with no carry-over (R1)', () => {
@@ -162,28 +161,27 @@ describe('Pricing page', () => {
     expect(english).toContain('during your free trial, the trial ends at once')
     expect(english).toContain('your paid period starts on the day you pay')
     expect(english).toContain('unused trial days are not carried over')
-    for (const count of [0, 1, 2, 7, 14, 100]) {
-      const arabic = i18n.t('plans.faq.a5', { ...params, count, lng: 'ar' })
-      expect(arabic).toContain('تنتهي الفترة التجريبية فورًا')
-      expect(arabic).toContain('تبدأ فترتك المدفوعة من يوم الدفع')
-      expect(arabic).toContain('لا تُرحَّل أيام التجربة غير المستخدمة')
-    }
+    const arabic = i18n.t('plans.faq.a5', { ...params, lng: 'ar' })
+    expect(arabic).toContain('تنتهي الفترة التجريبية فورًا')
+    expect(arabic).toContain('تبدأ فترتك المدفوعة من يوم الدفع')
+    expect(arabic).toContain('لا تُرحَّل أيام التجربة غير المستخدمة')
   })
 
-  it('answers the allowance questions as the server counts it: 80, 90 and 100 percent, received documents, extras bought ahead (F2)', () => {
+  it('answers the allowance questions as the server counts it: notices with no fixed thresholds, received documents, extras bought ahead (F2)', () => {
     const params = faqParams(CATALOGUE)
-    expect(params.thresholds).toBe('80, 90, 100')
+    expect(params).not.toHaveProperty('thresholds')
     const counts = i18n.t('plans.faq.a3', { ...params, lng: 'en' })
     expect(counts).toContain('Supplier invoices, credit notes and debit notes you receive count too')
     expect(counts).toContain('sending it again is free')
     const over = i18n.t('plans.faq.a4', { ...params, lng: 'en' })
-    expect(over).toContain('80, 90, 100 percent')
+    expect(over).toContain('as you get close to your allowance')
+    expect(over).not.toMatch(/\d+ percent/)
     expect(over).toContain('held')
     expect(over).toContain('by card they are added at once')
     expect(over).toContain('no carry-over and no refund')
     expect(over).toContain('resets each month on your subscription date')
     expect(over).not.toMatch(/overage|per document|next period/)
-    expect(i18n.t('plans.faq.a4', { ...params, lng: 'ar' })).toContain('80, 90, 100 بالمئة')
+    expect(i18n.t('plans.faq.a4', { ...params, lng: 'ar' })).not.toContain('بالمئة')
   })
 
   it('quotes the VAT rate the server sends with the plans, and says no VAT is added at zero', () => {
