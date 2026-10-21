@@ -838,6 +838,20 @@ describe('Console › Tenant › Give back documents (AL-F4, CON-10)', () => {
       (within(dialog).getByRole('checkbox', { name: 'CN-0031' }) as HTMLInputElement).disabled,
     ).toBe(true)
     expect(within(dialog).getByText(new RegExp(G('alreadyGivenBack')))).toBeTruthy()
+    // ...and reads as disabled: the whole row is muted, the number too.
+    const givenBackRow = within(dialog).getByText('CN-0031').closest('li') as HTMLElement
+    expect(givenBackRow.dataset.givenBack).toBe('true')
+    expect(givenBackRow.className).toContain('opacity-60')
+    expect(within(dialog).getByText('INV-0412').closest('li')?.dataset.givenBack).toBeUndefined()
+    // The hint sits under the row, so Find lines up with the field, and still describes it.
+    const numberField = within(dialog).getByRole('textbox', { name: new RegExp(G('number')) })
+    expect(numberField.getAttribute('aria-describedby')).toBeTruthy()
+    expect(
+      document.getElementById(numberField.getAttribute('aria-describedby') as string)?.textContent,
+    ).toBe(G('numberHint'))
+    expect(within(dialog).getByRole('button', { name: G('search') }).className).toContain(
+      'h-[50px]',
+    )
     await user.click(first)
 
     // Enter in the number field looks it up; it does not send.
