@@ -10,7 +10,8 @@ import { withQuery } from '../query'
  */
 export const SUBSCRIPTION_PATH = '/v1/settings/subscription'
 
-export type SubscriptionAccess = 'NOT_TRACKED' | 'TRIAL' | 'ACTIVE' | 'GRACE' | 'PAYMENT_REQUIRED' | 'CANCELLED'
+export type SubscriptionAccess =
+  'NOT_TRACKED' | 'TRIAL' | 'ACTIVE' | 'GRACE' | 'PAYMENT_REQUIRED' | 'CANCELLED'
 
 export type ScheduledChangeDto = {
   planCode: string
@@ -95,8 +96,7 @@ export type SubscriptionStatusDto = {
   cancellationEndsOn?: string | null
   /**
    * CA-1, LV-6, RF-1: true while Fawtir is reviewing a refund of a yearly subscription's remaining
-   * months. Absent from a server before the refund lane; shown only when sent.
-   * TODO(backend): field name not final until the refund lane's PR lands; rename here if it differs.
+   * months. Absent from a server before backend #671; shown only when sent (SETTINGS.md row 5.12).
    */
   refundUnderReview?: boolean | null
 }
@@ -153,11 +153,17 @@ export type SubscriptionDisplay = SubscriptionAccess | 'NOT_STARTED'
  */
 export function subscriptionNotStarted(status: SubscriptionStatusDto): boolean {
   if (status.restriction === 'SUBSCRIPTION_NOT_STARTED') return true
-  return status.access === 'PAYMENT_REQUIRED' && status.paidThrough === null && status.trialEndsOn === null
+  return (
+    status.access === 'PAYMENT_REQUIRED' &&
+    status.paidThrough === null &&
+    status.trialEndsOn === null
+  )
 }
 
 export function subscriptionDisplay(status: SubscriptionStatusDto): SubscriptionDisplay {
-  return subscriptionNotStarted(status) && status.access === 'PAYMENT_REQUIRED' ? 'NOT_STARTED' : status.access
+  return subscriptionNotStarted(status) && status.access === 'PAYMENT_REQUIRED'
+    ? 'NOT_STARTED'
+    : status.access
 }
 
 export type WaitingWording = 'enterprise' | 'toMonthly' | 'plan'
@@ -222,12 +228,16 @@ export function scheduleCancellation(): Promise<SubscriptionStatusDto> {
 }
 
 export function withdrawCancellation(): Promise<SubscriptionStatusDto> {
-  return apiRequest<SubscriptionStatusDto>(`${SUBSCRIPTION_PATH}/cancellation`, { method: 'DELETE' })
+  return apiRequest<SubscriptionStatusDto>(`${SUBSCRIPTION_PATH}/cancellation`, {
+    method: 'DELETE',
+  })
 }
 
 /** Withdraws a downgrade waiting for the next renewal. Idempotent. */
 export function withdrawScheduledChange(): Promise<SubscriptionStatusDto> {
-  return apiRequest<SubscriptionStatusDto>(`${SUBSCRIPTION_PATH}/scheduled-change`, { method: 'DELETE' })
+  return apiRequest<SubscriptionStatusDto>(`${SUBSCRIPTION_PATH}/scheduled-change`, {
+    method: 'DELETE',
+  })
 }
 
 /**
@@ -342,6 +352,12 @@ export function loadSwitchOff(): Promise<DowngradeSwitchOffDto> {
 }
 
 /** Replaces any earlier choice. Two empty lists mean "use the default". */
-export function saveSwitchOffChoice(userIds: string[], branchIds: string[]): Promise<DowngradeSwitchOffDto> {
-  return apiRequest<DowngradeSwitchOffDto>(SWITCH_OFF_PATH, { method: 'PUT', body: { userIds, branchIds } })
+export function saveSwitchOffChoice(
+  userIds: string[],
+  branchIds: string[],
+): Promise<DowngradeSwitchOffDto> {
+  return apiRequest<DowngradeSwitchOffDto>(SWITCH_OFF_PATH, {
+    method: 'PUT',
+    body: { userIds, branchIds },
+  })
 }
