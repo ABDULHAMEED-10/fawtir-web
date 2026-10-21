@@ -407,3 +407,87 @@ describe('Console › Seller', () => {
     expect(await screen.findByText(L('refusal.conflict'))).toBeTruthy()
   })
 })
+
+describe('Console › Billing settings › annual months of paid extras (V406)', () => {
+  const A = (field: string) => S(`annualMonths.${field}`)
+  const box = (field: string) => screen.findByRole('textbox', { name: A(field) })
+  const valueOf = async (field: string) => ((await box(field)) as HTMLInputElement).value
+
+  it('shows the three settings as stored, and a null as the server reads it (12, 10, 10)', async () => {
+    answers[SETTINGS] = () =>
+      json(200, settings({ erpAddonAnnualMonths: null, extraUserAnnualMonths: 9, extraBranchAnnualMonths: null }))
+    renderAt('/console/billing/settings')
+    expect(await valueOf('erpAddonAnnualMonths')).toBe('12')
+    expect(await valueOf('extraUserAnnualMonths')).toBe('9')
+    expect(await valueOf('extraBranchAnnualMonths')).toBe('10')
+  })
+
+  it('sends only the one changed, so the others stay as they are', async () => {
+    answers[SETTINGS] = () =>
+      json(200, settings({ erpAddonAnnualMonths: 12, extraUserAnnualMonths: 10, extraBranchAnnualMonths: 10 }))
+    answers[`PUT ${SETTINGS}`] = () => json(200, settings({ version: 4, extraBranchAnnualMonths: 11 }))
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/settings')
+
+    const branch = await box('extraBranchAnnualMonths')
+    await user.clear(branch)
+    await user.type(branch, '11')
+    await user.type((await billingCard()).getByRole('textbox', { name: S('reason') }), 'Owner, 19 Oct')
+    await user.click((await billingCard()).getByRole('button', { name: i18n.t('console.settings.save') }))
+
+    await waitFor(() => expect(sent('PUT', SETTINGS)).not.toBeNull())
+    expect(sent('PUT', SETTINGS)!.body).toEqual({
+      graceDays: 7, dualApprovalThreshold: '50.000', vatRate: '0', renewalBillLeadDays: 7,
+      extraBranchAnnualMonths: 11, reason: 'Owner, 19 Oct',
+    })
+  })
+
+  it('refuses 0 and 13 before sending', async () => {
+    answers[SETTINGS] = () =>
+      json(200, settings({ erpAddonAnnualMonths: 12, extraUserAnnualMonths: 10, extraBranchAnnualMonths: 10 }))
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/settings')
+
+    const erp = await box('erpAddonAnnualMonths')
+    await user.clear(erp)
+    await user.type(erp, '13')
+    const people = await box('extraUserAnnualMonths')
+    await user.clear(people)
+    await user.type(people, '0')
+    await user.type((await billingCard()).getByRole('textbox', { name: S('reason') }), 'Try')
+    await user.click((await billingCard()).getByRole('button', { name: i18n.t('console.settings.save') }))
+
+    const message = i18n.t('console.settings.error.wholeBetween', { min: 1, max: 12 })
+    expect(await screen.findAllByText(message)).toHaveLength(2)
+    expect(sent('PUT', SETTINGS)).toBeNull()
+  })
+
+  it('shows none of them, and sends none, when the server does not report them', async () => {
+    answers[SETTINGS] = () => json(200, settings())
+    answers[`PUT ${SETTINGS}`] = () => json(200, settings({ version: 4, graceDays: 8 }))
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/settings')
+
+    const grace = await screen.findByRole('textbox', { name: S('graceDays') })
+    for (const field of ['erpAddonAnnualMonths', 'extraUserAnnualMonths', 'extraBranchAnnualMonths']) {
+      expect(screen.queryByRole('textbox', { name: A(field) })).toBeNull()
+    }
+    await user.clear(grace)
+    await user.type(grace, '8')
+    await user.type((await billingCard()).getByRole('textbox', { name: S('reason') }), 'Longer grace')
+    await user.click((await billingCard()).getByRole('button', { name: i18n.t('console.settings.save') }))
+    await waitFor(() => expect(sent('PUT', SETTINGS)).not.toBeNull())
+    expect(Object.keys(sent('PUT', SETTINGS)!.body).sort()).toEqual(
+      ['dualApprovalThreshold', 'graceDays', 'reason', 'renewalBillLeadDays', 'vatRate'],
+    )
+  })
+
+  it('speaks Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    answers[SETTINGS] = () =>
+      json(200, settings({ erpAddonAnnualMonths: 12, extraUserAnnualMonths: 10, extraBranchAnnualMonths: 10 }))
+    renderAt('/console/billing/settings')
+    expect(await valueOf('erpAddonAnnualMonths')).toBe('12')
+    expect(A('extraBranchAnnualMonths')).toBe('الفرع الإضافي، الأشهر المحتسبة في السنة')
+  })
+})

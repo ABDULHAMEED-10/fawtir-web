@@ -112,7 +112,7 @@ export type CompanyDetail = {
   updatedAt: string
   /** As on `CompanySummary`. */
   correctableUntil?: string | null
-  /** As on `CompanySummary`. While true, a final rejection closes the application. */
+  /** As on `CompanySummary`. */
   correctionOverdue?: boolean
 }
 
@@ -153,6 +153,17 @@ export function isCorrectionOverdue(
   company: Pick<CompanySummary, 'correctionOverdue' | 'correctableUntil'>,
 ): boolean {
   return company.correctionOverdue === true && typeof company.correctableUntil === 'string'
+}
+
+/**
+ * Sent back for a correction and not resubmitted yet, overdue or not: a final rejection closes
+ * the application at any time, inside the 30-day correction window too (D11, SU-7, SU-8), with the
+ * RF-2 refund. Only the server's own date counts; a missing field means no.
+ */
+export function isAwaitingCorrection(
+  company: Pick<CompanySummary, 'verificationStatus' | 'correctableUntil'>,
+): boolean {
+  return company.verificationStatus === 'REJECTED' && typeof company.correctableUntil === 'string'
 }
 
 /** The first overdue day: the day after the last day to correct, as `YYYY-MM-DD`. */
@@ -335,7 +346,27 @@ export type SignupPaymentReview = {
     /** The cash receipt Finance recorded; absent from an older server. */
     receiptNumber?: string | null
   } | null
-  refundCase: { reason: 'FINAL_REJECTION' | 'CORRECTION_WINDOW_EXPIRED'; amount: string; status: string } | null
+  refundCase: { reason: RefundReason | (string & {}); amount: string; status: string } | null
+}
+
+/**
+ * `SubscriptionRefundCase.reason` (RF-2): a final rejection; a correction window that expired
+ * (no longer opened, older cases stay readable); a period paid ahead that never starts because
+ * Fawtir cancelled at once (CA-9) or the customer's cancellation ended the subscription (CA-1).
+ */
+export const REFUND_REASONS = [
+  'FINAL_REJECTION',
+  'CORRECTION_WINDOW_EXPIRED',
+  'CANCELLED_BY_FAWTIR',
+  'CANCELLED_BY_CUSTOMER',
+] as const
+export type RefundReason = (typeof REFUND_REASONS)[number]
+
+/** The label key of a refund reason; a reason this build does not know reads as a plain open case. */
+export function refundReasonKey(reason: string): string {
+  return (REFUND_REASONS as readonly string[]).includes(reason)
+    ? `console.verification.payment.refundReason.${reason}`
+    : 'console.verification.payment.refundReason.other'
 }
 
 export function signupPaymentPath(tenantId: string): string {

@@ -4,8 +4,9 @@
  *
  * `MOCK_CORRECTION_OVERDUE=1` fills the verification queue with one company sent back for a
  * correction that is now overdue and one still inside its 30 days, and answers the overdue one's
- * detail, history and signup payment (decision D11). Off by default, so the queue other screens
- * expect stays empty.
+ * detail, history and signup payment (decision D11), and the on-time one's detail, which can be
+ * closed before day 30 too (backend #657). Off by default, so the queue other screens expect
+ * stays empty.
  */
 const OVERDUE = '5b8e2f10-6c3d-4a7e-9f21-0d4c8b7a6e31'
 const ON_TIME = '9c1d7e42-3a5b-4f68-8e90-1b2c3d4e5f60'
@@ -60,6 +61,11 @@ const DETAIL = {
   updatedAt: '2026-09-11T06:00:00Z',
 }
 
+const ON_TIME_DETAIL = {
+  ...DETAIL,
+  ...ROWS[1],
+}
+
 const enabled = process.env.MOCK_CORRECTION_OVERDUE === '1'
 
 export default enabled
@@ -74,6 +80,7 @@ export default enabled
           ),
       },
       { match: `${BASE}/${OVERDUE}`, reply: () => DETAIL },
+      { match: `${BASE}/${ON_TIME}`, reply: () => ON_TIME_DETAIL },
       {
         match: `${BASE}/${OVERDUE}/verification-history`,
         reply: () => [

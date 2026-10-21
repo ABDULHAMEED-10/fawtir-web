@@ -41,7 +41,10 @@ export type PlanVersion = {
   branchesIncluded: number | null
   extraBranchPrice: string | null
   overagePricePerInvoice: string | null
-  /** ER-1 (V341): the ERP and API add-on a month; null or absent = not offered as a paid add-on. */
+  /**
+   * ER-1 (V341, PL-3): the ERP and API add-on a month; null = not offered as a paid add-on. The
+   * catalogue reads fill it (backend #656); an older server sends null or nothing.
+   */
   erpAddonMonthlyPrice?: string | null
   apiAccess: boolean
   prioritySupport: boolean
@@ -127,6 +130,11 @@ export type PlanRequest = {
   branchesIncluded: number | null
   extraBranchPrice: string | null
   overagePricePerInvoice: string | null
+  /**
+   * The ERP and API add-on a month, above zero, only on a plan whose `erpMapping` feature is on.
+   * Omitted keeps the price in force; a change publishes a new version, so it needs a reason.
+   */
+  erpAddonMonthlyPrice?: string
   apiAccess: boolean
   prioritySupport: boolean
   features: PlanFeatureEntry[]
@@ -147,6 +155,7 @@ export type PlanFormValues = {
   branchesIncluded: string
   extraBranchPrice: string
   overagePricePerInvoice: string
+  erpAddonMonthlyPrice: string
   annualFreeMonths: string
   /** The 14-day trial is offered on this plan ({@link TRIAL_DAYS}). */
   trial: boolean
@@ -177,6 +186,7 @@ export const PLAN_FIELD_ORDER: readonly PlanField[] = [
   'branchesIncluded',
   'extraBranchPrice',
   'overagePricePerInvoice',
+  'erpAddonMonthlyPrice',
   'annualFreeMonths',
   'trialDocuments',
   'sortOrder',
@@ -214,6 +224,7 @@ export function emptyPlanForm(): PlanFormValues {
     branchesIncluded: '',
     extraBranchPrice: '',
     overagePricePerInvoice: '',
+    erpAddonMonthlyPrice: '',
     // The column's own default (V265): two months free unless the operator says otherwise.
     annualFreeMonths: '2',
     trial: false,
@@ -251,6 +262,7 @@ export function planFormFrom(plan: CatalogueAdminPlan): PlanFormValues {
     branchesIncluded: optionalCount(terms.branchesIncluded),
     extraBranchPrice: decimal(terms.extraBranchPrice),
     overagePricePerInvoice: decimal(terms.overagePricePerInvoice),
+    erpAddonMonthlyPrice: decimal(terms.erpAddonMonthlyPrice ?? null),
     annualFreeMonths: String(plan.annualFreeMonths),
     // Any stored length reads as "on": a save then sends the fixed 14 days (TR-1).
     trial: plan.trialDays !== null,
@@ -288,8 +300,45 @@ export function changesTerms(plan: CatalogueAdminPlan, values: PlanFormValues): 
       (field) => whole(before[field]) !== whole(values[field]),
     ) ||
     before.apiAccess !== values.apiAccess ||
-    before.prioritySupport !== values.prioritySupport
+    before.prioritySupport !== values.prioritySupport ||
+    erpAddonPriceToSend(values, plan) !== undefined
   )
+}
+
+/**
+ * The add-on price a save sends: only a typed price that differs from the one in force, so an
+ * untouched field is omitted and the server keeps its price (and an older server never sees it).
+ */
+export function erpAddonPriceToSend(
+  values: PlanFormValues,
+  original: CatalogueAdminPlan | null,
+): string | undefined {
+  const trimmed = values.erpAddonMonthlyPrice.trim()
+  if (!trimmed) return undefined
+  const stored = original?.currentVersion.erpAddonMonthlyPrice ?? null
+  const baisa = baisaOf(trimmed)
+  if (stored !== null && baisa !== null && baisa === baisaOf(stored)) return undefined
+  return baisa === null ? trimmed : formatBaisa(baisa)
+}
+
+/**
+ * ER-1, PL-3: above zero (ERP included for free is an operator's ERP grant, never 0.000) and only
+ * with ERP field mapping on, as the server checks. A price in force cannot be removed: the add-on
+ * stops being offered when ERP field mapping is switched off.
+ */
+function erpAddonPrice(values: PlanFormValues, original: CatalogueAdminPlan | null) {
+  const trimmed = values.erpAddonMonthlyPrice.trim()
+  const stored = original?.currentVersion.erpAddonMonthlyPrice ?? null
+  if (!trimmed) {
+    return stored !== null && values.features.erpMapping
+      ? 'console.plans.validation.erpAddonKeep'
+      : undefined
+  }
+  const invalid = money(trimmed, false)
+  if (invalid) return invalid
+  if ((baisaOf(trimmed) ?? 0) <= 0) return 'console.plans.validation.erpAddonAboveZero'
+  if (erpAddonPriceToSend(values, original) === undefined) return undefined
+  return values.features.erpMapping ? undefined : 'console.plans.validation.erpAddonNeedsMapping'
 }
 
 // The backend's own bounds: the request's Bean Validation, `CataloguePlan` and `PlanVersion`,
@@ -375,6 +424,7 @@ export function validatePlanForm(
     branchesIncluded: whole(values.branchesIncluded, { required: false, min: 1 }),
     extraBranchPrice: money(values.extraBranchPrice, false),
     overagePricePerInvoice: money(values.overagePricePerInvoice, false),
+    erpAddonMonthlyPrice: erpAddonPrice(values, original),
     annualFreeMonths: whole(values.annualFreeMonths, {
       required: true,
       min: 0,
@@ -426,6 +476,7 @@ export function toPlanRequest(
       .map((entry) => ({ key: entry.key, enabled: locked.has(entry.key) || entry.enabled })) ?? []),
   ]
   const reason = values.reason.trim()
+  const erpAddonMonthlyPrice = erpAddonPriceToSend(values, original)
   return {
     ...(mode === 'add' ? { code: values.code.trim() } : {}),
     nameEn: values.nameEn.trim(),
@@ -446,6 +497,7 @@ export function toPlanRequest(
     branchesIncluded: count(values.branchesIncluded),
     extraBranchPrice: amount(values.extraBranchPrice),
     overagePricePerInvoice: amount(values.overagePricePerInvoice),
+    ...(erpAddonMonthlyPrice !== undefined ? { erpAddonMonthlyPrice } : {}),
     apiAccess: values.apiAccess,
     prioritySupport: values.prioritySupport,
     features,
@@ -522,6 +574,14 @@ export function formatAmount(value: string | null): string {
 const grouped = (value: number) => value.toLocaleString('en-US')
 
 /**
+ * ER-1, PL-3: the ERP add-on is offered only while the plan's ERP field mapping is on, so its
+ * price is shown only then; a price kept on a plan with mapping off is not an offer.
+ */
+export function offersErpAddon(plan: CatalogueAdminPlan): boolean {
+  return plan.features.some((entry) => entry.key === 'erpMapping' && entry.enabled)
+}
+
+/**
  * What a plan includes, as the lines its card lists: derived only from the current version's
  * fields and their null meanings, never from a plan's name or code.
  */
@@ -546,6 +606,14 @@ export function planCardLines(plan: CatalogueAdminPlan): FormMessage[] {
           key: 'plan.feature.overage',
           values: { amount: formatAmount(terms.overagePricePerInvoice) },
         },
+    ...(terms.erpAddonMonthlyPrice && offersErpAddon(plan)
+      ? [
+          {
+            key: 'console.plans.erpAddonLine',
+            values: { amount: formatAmount(terms.erpAddonMonthlyPrice) },
+          },
+        ]
+      : []),
   ]
 }
 
@@ -560,6 +628,7 @@ const SERVER_FIELDS: ReadonlyMap<string, PlanField> = new Map<string, PlanField>
   ['invoicesPerMonth', 'invoicesPerMonth'],
   ['peopleIncluded', 'peopleIncluded'],
   ['branchesIncluded', 'branchesIncluded'],
+  ['erpAddonMonthlyPrice', 'erpAddonMonthlyPrice'],
   ['annualFreeMonths', 'annualFreeMonths'],
   ['trialDocuments', 'trialDocuments'],
   ['sortOrder', 'sortOrder'],

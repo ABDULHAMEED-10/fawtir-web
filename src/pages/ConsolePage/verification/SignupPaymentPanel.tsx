@@ -3,7 +3,10 @@ import { OmAmount } from '../../../components/ui'
 import { formatAmount, formatInstant } from '../../../lib/format'
 import type { ConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
 import { ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
-import type { SignupPaymentReview } from '../../../lib/console/companyVerification'
+import {
+  refundReasonKey,
+  type SignupPaymentReview,
+} from '../../../lib/console/companyVerification'
 import { ReviewCard, ReviewLine } from './ReviewCard'
 import { paymentStatusKey } from '../../../lib/console/billingPayments'
 
@@ -73,7 +76,7 @@ export function SignupPaymentPanel({
           {read.data.refundCase ? (
             <ReviewLine
               label={t('console.verification.payment.refund')}
-              value={t(`console.verification.payment.refundReason.${read.data.refundCase.reason}`)}
+              value={t(refundReasonKey(read.data.refundCase.reason))}
             />
           ) : null}
         </>
