@@ -13,6 +13,7 @@ import {
   REFUND_REASONS,
   adjustRefundAmount,
   companyRefundCasesPath,
+  declineRefund,
   recordRefund,
   settlesHere,
   type CompanyRefundCasesDto,
@@ -31,7 +32,7 @@ const AMOUNT = /^\d{1,9}(\.\d{1,3})?$/
 
 const known = (value: string, set: readonly string[]) => (set.includes(value) ? value : 'OTHER')
 
-type Dialog = { kind: 'amount' | 'refund'; refund: RefundCaseDto }
+type Dialog = { kind: 'amount' | 'refund' | 'decline'; refund: RefundCaseDto }
 
 /**
  * The company's refund cases, under its bills (backend V412). Read-only except the ones the Business
@@ -70,6 +71,17 @@ export function CompanyRefundCases({
           const reason = known(entry.reason, REFUND_REASONS)
           const refunded = entry.status === 'REFUNDED'
           const withdrawn = entry.status === 'WITHDRAWN'
+          const declined = entry.status === 'DECLINED'
+          // A console case still waiting for the super admin reads as under review, as the customer sees it.
+          const statusKey = refunded
+            ? 'REFUNDED'
+            : withdrawn
+              ? 'WITHDRAWN'
+              : declined
+                ? 'DECLINED'
+                : settlesHere(entry)
+                  ? 'UNDER_REVIEW'
+                  : 'OPEN'
           const method = entry.refundMethod ? known(entry.refundMethod, REFUND_METHODS) : null
           return (
             <li
@@ -80,10 +92,8 @@ export function CompanyRefundCases({
                 <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-text-primary">
                   {t(`${K}reason.${reason}`)}
                   <ConsoleStatusPill
-                    tone={refunded ? 'success' : withdrawn ? 'neutral' : 'pending'}
-                    label={t(
-                      `${K}status.${refunded ? 'REFUNDED' : withdrawn ? 'WITHDRAWN' : 'OPEN'}`,
-                    )}
+                    tone={refunded ? 'success' : withdrawn || declined ? 'neutral' : 'pending'}
+                    label={t(`${K}status.${statusKey}`)}
                   />
                 </span>
                 <OmAmount amount={entry.amount} amountClassName="text-sm font-semibold" />
@@ -130,6 +140,11 @@ export function CompanyRefundCases({
                     ))}
                 </span>
               ) : null}
+              {declined && entry.declineReason ? (
+                <span className="text-xs font-medium text-text-tertiary">
+                  {t(`${K}declinedBecause`, { reason: entry.declineReason })}
+                </span>
+              ) : null}
               {canManage && settlesHere(entry) ? (
                 <div className="flex flex-wrap gap-2.5">
                   <ConsoleButton
@@ -144,6 +159,12 @@ export function CompanyRefundCases({
                   >
                     {t(`${K}amount.open`)}
                   </ConsoleButton>
+                  <ConsoleButton
+                    variant="small"
+                    onClick={() => setDialog({ kind: 'decline', refund: entry })}
+                  >
+                    {t(`${K}decline.open`)}
+                  </ConsoleButton>
                 </div>
               ) : null}
             </li>
@@ -157,6 +178,19 @@ export function CompanyRefundCases({
           refund={dialog.refund}
           onClose={() => setDialog(null)}
           onDone={(changed) => finish(t(`${K}amount.done`, { amount: `OMR ${changed.amount}` }))}
+        />
+      ) : null}
+      {dialog?.kind === 'decline' ? (
+        <OperatorReasonDialog<RefundCaseDto>
+          formId="refund-case-decline"
+          title={t(`${K}decline.title`)}
+          body={t(`${K}decline.body`)}
+          confirmLabel={t(`${K}decline.confirm`)}
+          confirmingLabel={t(`${K}sending`)}
+          send={(reason) => declineRefund(tenantId, dialog.refund.id, reason)}
+          describeFailure={describePayLinkFailure}
+          onDone={() => finish(t(`${K}decline.done`))}
+          onClose={() => setDialog(null)}
         />
       ) : null}
       {dialog?.kind === 'refund' ? (

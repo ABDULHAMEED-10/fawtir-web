@@ -126,6 +126,38 @@ describe('CompanyRefundCases', () => {
     expect(screen.getAllByRole('button', { name: R('amount.open') })).toHaveLength(2)
   })
 
+  it('closes a case without a refund, with a reason, and shows it read-only', async () => {
+    const DECLINE = `${COMPANY}/subscription/refund-cases/${CASE_ID}/decline`
+    answers[`POST ${DECLINE}`] = () =>
+      json(200, leaveCase({ status: 'DECLINED', declineReason: 'Contract excludes refunds' }))
+    const onMessage = renderCases()
+    expect(await screen.findAllByText(R('status.UNDER_REVIEW'))).toHaveLength(1)
+    await userEvent.click(screen.getByRole('button', { name: R('decline.open') }))
+    const dialog = await screen.findByRole('dialog')
+    await userEvent.type(
+      within(dialog).getByLabelText(new RegExp(i18n.t('console.operators.reason.label'))),
+      'Contract excludes refunds',
+    )
+    await userEvent.click(within(dialog).getByRole('button', { name: R('decline.confirm') }))
+    await waitFor(() => expect(onMessage).toHaveBeenCalled())
+    expect(sent('POST', DECLINE)).toEqual({ reason: 'Contract excludes refunds' })
+  })
+
+  it('shows a declined case with its reason', async () => {
+    answers[PAYMENTS] = () =>
+      json(200, {
+        items: [],
+        refundCases: [
+          leaveCase({ status: 'DECLINED', declineReason: 'Contract excludes refunds' }),
+        ],
+        nextCursor: null,
+      })
+    renderCases()
+    expect(await screen.findByText(R('status.DECLINED'))).toBeTruthy()
+    expect(screen.getByText(/Contract excludes refunds/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: R('decline.open') })).toBeNull()
+  })
+
   it('shows a withdrawn case closed, with no actions', async () => {
     answers[PAYMENTS] = () =>
       json(200, {
@@ -237,6 +269,8 @@ describe('CompanyRefundCases', () => {
       expect(block.status.OPEN).toBeTruthy()
       expect(block.status.REFUNDED).toBeTruthy()
       expect(block.status.WITHDRAWN).toBeTruthy()
+      expect(block.status.DECLINED).toBeTruthy()
+      expect(block.status.UNDER_REVIEW).toBeTruthy()
     }
   })
 })

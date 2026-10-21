@@ -16158,7 +16158,9 @@
       "status": {
         "OPEN": "Open",
         "REFUNDED": "Refunded",
-        "WITHDRAWN": "Closed, not refunded"
+        "WITHDRAWN": "Closed, not refunded",
+        "UNDER_REVIEW": "Under review",
+        "DECLINED": "Not refunded"
       },
       "opened": "Opened {{date}}",
       "suggested_one": "Suggested {{amount}} for {{count}} whole month",
@@ -16184,7 +16186,7 @@
       "refund": {
         "open": "Record refund",
         "title": "Record the refund",
-        "body": "Record how the money went back to the company. The case is then closed and can no longer be changed.",
+        "body": "Record how the money went back to the company. The suggestion is worked out again for today, counting only months not yet started, and access ends with the last month not refunded. The case is then closed and can no longer be changed.",
         "amount": "Amount",
         "method": "Refunded",
         "methodPlaceholder": "Choose how",
@@ -16192,6 +16194,14 @@
         "referenceHint": "The card refund, transfer or receipt reference. Optional.",
         "confirm": "Record refund",
         "done": "{{amount}} recorded as refunded {{method}}."
+      },
+      "declinedBecause": "Not refunded: {{reason}}",
+      "decline": {
+        "open": "Close without refund",
+        "title": "Close without a refund",
+        "body": "The company keeps its access to the end of the period it paid for and nothing is refunded. Say why.",
+        "confirm": "Close without refund",
+        "done": "The case is closed without a refund."
       }
     }
   },

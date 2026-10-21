@@ -10,7 +10,9 @@ import { apiRequest } from '../../api'
  *
  * - `POST .../subscription/refund-cases/{caseId}/amount` changes the suggested amount, with a reason;
  * - `POST .../subscription/refund-cases/{caseId}/refund` records how the money went back (to the
- *   card, in cash or by bank transfer), after which the case is REFUNDED and read-only.
+ *   card, in cash or by bank transfer), after which the case is REFUNDED and read-only. The server
+ *   works the suggestion out again for that day and ends access with the last month not refunded;
+ * - `POST .../subscription/refund-cases/{caseId}/decline` closes it without a refund, with a reason.
  */
 const company = (tenantId: string) => `/v1/platform/companies/${encodeURIComponent(tenantId)}`
 const refundCase = (tenantId: string, caseId: string) =>
@@ -44,7 +46,7 @@ export type RefundCaseDto = {
   /** How the money came in. */
   method: string
   reason: string
-  status: 'OPEN' | 'REFUNDED' | 'WITHDRAWN' | (string & {})
+  status: 'OPEN' | 'REFUNDED' | 'WITHDRAWN' | 'DECLINED' | (string & {})
   openedAt: string
   /** The fields below are console cases only; absent from a server before V412. */
   disconnectionId?: string | null
@@ -57,6 +59,8 @@ export type RefundCaseDto = {
   refundReference?: string | null
   /** Set when WITHDRAWN: the cancellation was withdrawn or the company came back first. */
   withdrawnAt?: string | null
+  /** Set when DECLINED: why the super admin closed it without a refund. */
+  declineReason?: string | null
 }
 
 export type CompanyRefundCasesDto = { refundCases?: RefundCaseDto[] }
@@ -86,5 +90,16 @@ export function recordRefund(
   return apiRequest(`${refundCase(tenantId, caseId)}/refund`, {
     method: 'POST',
     body: { method, reference },
+  })
+}
+
+export function declineRefund(
+  tenantId: string,
+  caseId: string,
+  reason: string,
+): Promise<RefundCaseDto> {
+  return apiRequest(`${refundCase(tenantId, caseId)}/decline`, {
+    method: 'POST',
+    body: { reason },
   })
 }
