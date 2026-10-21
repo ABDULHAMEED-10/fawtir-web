@@ -136,7 +136,10 @@ describe('Console › Companies without an Owner (OW-5)', () => {
     expect(screen.getByText(i18n.t('console.owners.classification.NO_ORIGIN_USER'))).toBeTruthy()
     expect(screen.queryByText('NO_ORIGIN_USER')).toBeNull()
 
-    await user.click(screen.getByRole('button', { name: i18n.t('console.owners.choose') }))
+    const choose = screen.getByRole('button', { name: i18n.t('console.owners.choose') })
+    // "Choose Owner" never wraps onto two lines in the narrow action column.
+    expect(choose.className).toContain('whitespace-nowrap')
+    await user.click(choose)
     const dialog = await screen.findByRole('dialog')
     const submit = within(dialog).getByRole('button', {
       name: i18n.t('console.owners.dialog.submit'),
@@ -199,6 +202,19 @@ describe('Console › Companies without an Owner (OW-5)', () => {
 })
 
 describe('Console › Owner handover through support (OW-4)', () => {
+  it('names the action one way, Hand over ownership, in English and Arabic', () => {
+    const words = (node: unknown): string[] =>
+      typeof node === 'string' ? [node] : Object.values(node as object).flatMap(words)
+    const owners = (lng: string) =>
+      words(i18n.getResourceBundle(lng, 'translation').console.owners).join(' | ')
+    expect(i18n.t('console.owners.handover.start', { lng: 'en' })).toBe('Hand over ownership')
+    expect(i18n.t('console.owners.handover.start', { lng: 'ar' })).toBe(
+      i18n.t('branchAccess.handover.open', { lng: 'ar' }),
+    )
+    expect(owners('en')).not.toMatch(/transfer|handover|hand over the owner/i)
+    expect(owners('ar')).not.toMatch(/نقل/)
+  })
+
   it("lets a second operator confirm another operator's request", async () => {
     let confirmed = false
     answers[HANDOVER] = () =>

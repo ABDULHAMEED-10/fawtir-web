@@ -103,7 +103,7 @@ function CompaniesWithoutOwner() {
                   {row.activeAdministrators > 0 ? (
                     <button
                       type="button"
-                      className={CONSOLE_SMALL_PRIMARY}
+                      className={`${CONSOLE_SMALL_PRIMARY} whitespace-nowrap`}
                       onClick={() => {
                         setDone(null)
                         setChoosing(row)
