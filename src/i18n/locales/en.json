@@ -22180,8 +22180,25 @@
       "notStandardNote": "Zero-rated, exempt or out of scope",
       "attention": "Wanting attention",
       "attentionNote": "No price, or a VAT category Oman does not use",
-      "attentionNone": "Every product has a price and an Oman VAT category"
-    }
+      "attentionNone": "Every product has a price and an Oman VAT category",
+      "thingsPagedNote": "{{goods}} products · {{services}} services on this page",
+      "onThisPage": "Counted on this page of the list"
+    },
+    "tab": {
+      "all": "All",
+      "goods": "Products",
+      "services": "Services",
+      "attention": "Wanting attention",
+      "notStandard": "Not at the standard rate"
+    },
+    "sort": {
+      "name": "Name",
+      "code": "Code",
+      "priceLow": "Price, low to high",
+      "priceHigh": "Price, high to low"
+    },
+    "showingOf": "Showing {{shown}} of {{total}} products",
+    "noneInTab": "Nothing on this page fits this tab."
   },
   "signupResume": {
     "cta": "Continue your registration",
@@ -23359,5 +23376,71 @@
   "workingBranch": {
     "label": "Branch",
     "none": "No branches yet"
+  },
+  "itemOptions": {
+    "openLink": "Sizes and options",
+    "crumb": "Sizes and options",
+    "title": "{{name}} sizes and options",
+    "subtitle": "Two things a customer chooses: <b>how much</b> and <b>how it's ground</b>. Every combination below is a separate thing you sell, with its own price and code.",
+    "backToItem": "Back to the item",
+    "chooses": {
+      "title": "What the customer chooses",
+      "downSide": "Shown down the side",
+      "acrossTop": "Shown across the top",
+      "optionCount_one": "{{count}} option",
+      "optionCount_other": "{{count}} options",
+      "addA": "Add a {{noun}}",
+      "newPlaceholder": "Type a name, then Enter",
+      "remove": "Remove {{name}}",
+      "orderNote": "This is the order they appear in at the till.",
+      "changeNote": "{{name}} changes the price by {{amount}}.",
+      "sameNote": "Every choice here sells at the same price.",
+      "addThird": "Add a third thing customers choose",
+      "thirdNote": "Two choices are the most an item takes for now. For a third, such as roast, add it to the item as an add-on."
+    },
+    "prices": {
+      "title": "Price for each combination",
+      "tickEverything": "Tick everything",
+      "rebuild": "Rebuild prices from the base",
+      "round": "Round all to 0.050",
+      "codes": "Generate the codes",
+      "count": "{{sold}} of {{total}} on sale",
+      "byHand_one": "{{count}} price set by hand",
+      "byHand_other": "{{count}} prices set by hand"
+    },
+    "grid": {
+      "base": "base {{amount}}",
+      "noChange": "No change",
+      "priceChangeFor": "Price change for {{name}}",
+      "priceOf": "Price of {{name}}",
+      "sell": "Sell {{name}}",
+      "notSold": "Not sold",
+      "setByHand": "Set by hand",
+      "noCode": "No code yet"
+    },
+    "figures": {
+      "title": "What this adds up to",
+      "canSell": "Things you can sell",
+      "canSellNote": "Each appears separately at the till",
+      "range": "Price range",
+      "rangeNote": "{{from}} up to {{to}}",
+      "nothingSold": "Tick a combination to sell it",
+      "none": "None",
+      "codesReady": "Codes ready",
+      "codesOf": "{{ready}} of {{total}}",
+      "codesNote": "Built from the item code and the options",
+      "stock": "Needs stock counts",
+      "stockNote": "Counted per combination, not per item"
+    },
+    "footer": {
+      "toSell_one": "{{count}} thing to sell",
+      "toSell_other": "{{count}} things to sell",
+      "unticked_one": "{{count}} unticked",
+      "unticked_other": "{{count}} unticked",
+      "prices": "prices from OMR {{min}} to OMR {{max}}",
+      "saved": "Saved in this sample. Nothing is sent yet.",
+      "cancel": "Cancel",
+      "save": "Save these {{count}}"
+    }
   }
 }

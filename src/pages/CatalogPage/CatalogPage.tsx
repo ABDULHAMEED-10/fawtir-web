@@ -1,15 +1,25 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CatalogShell, Kpi } from './CatalogShell'
+import { CatalogShell, Kpi, TabStrip } from './CatalogShell'
 import { useApiRead } from '../../hooks'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
-import { Rial } from '../../components/ui'
+import { FilterMenu, Pager, Rial, SortMenu } from '../../components/ui'
 import { productSearchPath, searchProducts, type ProductDto } from '../../api/catalog/products'
-import type { Page } from '../../api'
+import { pageCountOf, type Page } from '../../api'
 import { Link } from 'react-router-dom'
 import { CatalogEmptyState } from './CatalogEmptyState'
 import { demoModulesEnabled } from '../../lib/demoModules'
-import { itemTypeOfUnit, OMAN_VAT_CATEGORIES } from '../../lib/invoiceDraft'
+import { OMAN_VAT_CATEGORIES } from '../../lib/invoiceDraft'
+import {
+  CATALOG_SORTS,
+  CATALOG_TABS,
+  catalogRows,
+  kindOf,
+  matchesCatalogTab,
+  needsAttention,
+  type CatalogSort,
+  type CatalogTab,
+} from './catalogList'
 import plusIcon from '../../assets/catalog/plus-white.svg'
 import uploadIcon from '../../assets/catalog/upload-ink.svg'
 import searchIcon from '../../assets/invoices/search.svg'
@@ -20,29 +30,18 @@ import kpiGroupsIcon from '../../assets/catalog/kpi-groups.svg'
 import kpiEarningIcon from '../../assets/catalog/kpi-earning.svg'
 import kpiAttentionIcon from '../../assets/catalog/kpi-attention.svg'
 
-/** One page large enough to see a small catalogue whole; the footer says when there are more. */
-const CATALOG_PAGE_SIZE = 100
+/** Rows to a page, as the frame's pager pages them; the server pages, this screen asks. */
+const CATALOG_PAGE_SIZE = 20
 /** How long typing pauses before the search goes to the server. */
 const SEARCH_DELAY_MS = 250
-
-/** Goods or service: the product's own flag once the API carries it (P.1), else its unit. */
-const kindOf = (product: ProductDto) =>
-  product.itemType
-    ? product.itemType === 'SERVICE'
-      ? 'service'
-      : 'goods'
-    : itemTypeOfUnit(product.defaultUnitCode)
-
-/** No price, or a VAT category Oman does not use (CL-04-OM): the product needs a look. */
-const needsAttention = (product: ProductDto) =>
-  !(product.defaultUnitPrice > 0) || !OMAN_VAT_CATEGORIES.has(product.defaultTaxCategory)
 
 /**
  * Catalog: the company's own products from `GET /v1/products`, the same records an invoice line
  * is raised from.
  *
- * Styled as the Catalog frame (Figma "Catalog -> Main Screen"): figure cards, a search, the dark
- * table head and item rows with their kind, price and VAT in words. Every figure is worked out
+ * Styled as the Catalog frame (Figma "Catalog -> Main Screen"): figure cards, the tab strip, a
+ * search with Filters and Sort, the dark table head, item rows with their kind, price and VAT in
+ * words, and the page numbers the server's paging answers. Every figure is worked out
  * from the products the server returned; the frame's groups, stock and sales columns have no
  * field on the product yet (docs/backend-guides/INCOME.md, rows P.1 to P.10), so they are not
  * drawn rather than invented.
@@ -50,16 +49,34 @@ const needsAttention = (product: ProductDto) =>
 export function CatalogPage() {
   const { t, i18n } = useTranslation()
   const [query, setQuery] = useState('')
-  const [search, setSearch] = useState('')
+  // The search and its page move together: a new search starts again from its first page.
+  const [{ search, page }, setPaging] = useState({ search: '', page: 0 })
+  const setPage = (next: number) => setPaging((current) => ({ ...current, page: next }))
+  const [tab, setTab] = useState<CatalogTab>('all')
+  const [sort, setSort] = useState<CatalogSort>('name')
   useEffect(() => {
-    const id = window.setTimeout(() => setSearch(query.trim()), SEARCH_DELAY_MS)
+    const id = window.setTimeout(() => {
+      const next = query.trim()
+      setPaging((current) => (current.search === next ? current : { search: next, page: 0 }))
+    }, SEARCH_DELAY_MS)
     return () => window.clearTimeout(id)
   }, [query])
 
-  const path = productSearchPath(search, CATALOG_PAGE_SIZE)
+  const path = productSearchPath(search, CATALOG_PAGE_SIZE, page)
   const products = useApiRead<Page<ProductDto>>(path, () => searchProducts(path))
-  const items = products.read.status === 'ready' ? products.read.data.items : []
-  const total = products.read.status === 'ready' ? (products.read.data.total ?? items.length) : null
+  const loaded = products.read.status === 'ready' ? products.read.data : null
+  const items = useMemo(() => loaded?.items ?? [], [loaded])
+  const total = loaded ? (loaded.total ?? items.length) : null
+  const pageCount = loaded ? pageCountOf(loaded) : 1
+  const paged = pageCount > 1
+  // Tabs and sorting work over the page the server sent: the product list has no server-side
+  // filter for kind or VAT category, and no sort parameter this screen relies on.
+  const rows = useMemo(
+    () => catalogRows(items, tab, sort, i18n.language),
+    [items, tab, sort, i18n.language],
+  )
+  const tabCount = (id: CatalogTab) =>
+    items.filter((product) => matchesCatalogTab(product, id)).length
   const services = items.filter((product) => kindOf(product) === 'service').length
   const attention = items.filter(needsAttention).length
   const notStandard = items.filter((product) => product.defaultTaxCategory !== 'S').length
@@ -77,7 +94,7 @@ export function CatalogPage() {
 
   // A company with no products yet, and nothing being searched, gets the Figma "Empty State":
   // the ways to start a catalogue instead of an empty table.
-  if (products.read.status === 'ready' && !search && !query.trim() && items.length === 0) {
+  if (loaded && page === 0 && !search && !query.trim() && items.length === 0) {
     return <CatalogEmptyState notice={unavailable} />
   }
 
@@ -117,22 +134,31 @@ export function CatalogPage() {
             icon={kpiItemsIcon}
             label={t('catalogReal.kpi.things')}
             value={String(total ?? 0)}
-            note={t('catalogReal.kpi.thingsNote', {
-              goods: items.length - services,
-              services,
-            })}
+            // TODO(backend): the list counts only what is on the page it returns, so across
+            // several pages the split of goods and services is this page's (INCOME.md P.1).
+            note={
+              paged
+                ? t('catalogReal.kpi.thingsPagedNote', {
+                    goods: items.length - services,
+                    services,
+                  })
+                : t('catalogReal.kpi.thingsNote', {
+                    goods: items.length - services,
+                    services,
+                  })
+            }
           />
           <Kpi
             icon={kpiGroupsIcon}
             label={t('catalogReal.kpi.services')}
             value={String(services)}
-            note={t('catalogReal.kpi.servicesNote')}
+            note={paged ? t('catalogReal.kpi.onThisPage') : t('catalogReal.kpi.servicesNote')}
           />
           <Kpi
             icon={kpiEarningIcon}
             label={t('catalogReal.kpi.notStandard')}
             value={String(notStandard)}
-            note={t('catalogReal.kpi.notStandardNote')}
+            note={paged ? t('catalogReal.kpi.onThisPage') : t('catalogReal.kpi.notStandardNote')}
           />
           <Kpi
             icon={kpiAttentionIcon}
@@ -141,9 +167,11 @@ export function CatalogPage() {
             label={t('catalogReal.kpi.attention')}
             value={String(attention)}
             note={
-              attention > 0
-                ? t('catalogReal.kpi.attentionNote')
-                : t('catalogReal.kpi.attentionNone')
+              paged
+                ? t('catalogReal.kpi.onThisPage')
+                : attention > 0
+                  ? t('catalogReal.kpi.attentionNote')
+                  : t('catalogReal.kpi.attentionNone')
             }
           />
         </div>
@@ -156,8 +184,12 @@ export function CatalogPage() {
         <h2 id="catalog-products" className="sr-only">
           {t('catalogReal.products')}
         </h2>
-        <div className="p-5">
-          <label className="flex h-[46px] w-full max-w-[420px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-3">
+        {loaded && items.length > 0 ? (
+          <TabStrip tabs={CATALOG_TABS} value={tab} onChange={setTab} count={tabCount} />
+        ) : null}
+
+        <div className="flex flex-wrap items-center justify-between gap-3 p-5">
+          <label className="flex h-[46px] w-[345px] max-w-full items-center gap-2 rounded-sm border border-border-subtle bg-white px-3 max-md:w-full">
             <img src={searchIcon} alt="" className="size-[18px] opacity-60" />
             <input
               value={query}
@@ -167,6 +199,29 @@ export function CatalogPage() {
               className="w-full min-w-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
             />
           </label>
+          <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
+            <FilterMenu
+              funnel
+              label={t('catalog.filters')}
+              value={tab}
+              defaultValue="all"
+              options={CATALOG_TABS.map((entry) => ({
+                value: entry.id,
+                label: t(entry.labelKey),
+                count: tabCount(entry.id),
+              }))}
+              onChange={setTab}
+            />
+            <SortMenu
+              value={sort}
+              onChange={setSort}
+              options={CATALOG_SORTS.map((entry) => ({
+                value: entry.value,
+                labelKey: entry.labelKey,
+              }))}
+              width={220}
+            />
+          </div>
         </div>
 
         {products.read.status === 'loading' ? (
@@ -177,9 +232,13 @@ export function CatalogPage() {
           <div className="px-5 pb-5">
             <ApiReadFailure error={products.read.error} retry={products.retry} />
           </div>
-        ) : items.length === 0 ? (
+        ) : rows.length === 0 ? (
           <p className="px-5 pb-10 pt-5 text-center text-sm font-medium text-text-quaternary">
-            {search ? t('catalogReal.noMatch') : t('catalogReal.empty')}
+            {items.length > 0
+              ? t('catalogReal.noneInTab')
+              : search
+                ? t('catalogReal.noMatch')
+                : t('catalogReal.empty')}
           </p>
         ) : (
           <>
@@ -202,7 +261,7 @@ export function CatalogPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((product) => {
+                  {rows.map((product) => {
                     const service = kindOf(product) === 'service'
                     const odd = needsAttention(product)
                     return (
@@ -302,11 +361,25 @@ export function CatalogPage() {
                 </tbody>
               </table>
             </div>
-            <p className="border-t border-surface-background px-5 py-4 text-sm font-medium text-text-quaternary">
-              {total !== null && total > items.length
-                ? t('catalogReal.more', { shown: items.length, total })
-                : t('catalogReal.showingAll', { count: items.length })}
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-surface-background px-5 py-4">
+              <p className="text-sm font-medium text-text-quaternary">
+                {total !== null && total > rows.length
+                  ? t('catalogReal.showingOf', { shown: rows.length, total })
+                  : t('catalogReal.showingAll', { count: rows.length })}
+              </p>
+              {paged ? (
+                <Pager
+                  page={page + 1}
+                  pageCount={pageCount}
+                  onChange={(next) => setPage(Math.min(Math.max(next, 1), pageCount) - 1)}
+                  labels={{
+                    nav: t('appList.pager.label'),
+                    previous: t('appList.pager.previous'),
+                    next: t('appList.pager.next'),
+                  }}
+                />
+              ) : null}
+            </div>
           </>
         )}
       </section>

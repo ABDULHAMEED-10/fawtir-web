@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CatalogShell, Kpi, TabStrip } from './CatalogShell'
-import { FilterMenu, Rial, RowsView, SortMenu } from '../../components/ui'
+import { FilterMenu, Pager, Rial, RowsView, SortMenu } from '../../components/ui'
 import { omr } from '../../lib/catalog'
 import {
   BUNDLES,
@@ -190,9 +190,25 @@ export function BundlesPage() {
           </table>
         </RowsView>
 
-        <p className="px-5 py-4 text-sm font-medium text-text-quaternary">
-          {t('bundles.showing', { shown: rows.length, total: BUNDLES.length })}
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+          <p className="text-sm font-medium text-text-quaternary">
+            {t('bundles.showing', { shown: rows.length, total: BUNDLES.length })}
+          </p>
+          {/* Every sample bundle fits on the one page drawn, so the pager has a single page.
+              TODO(backend): bundles have no server yet, so paging waits for one; the pager is
+              drawn switched off. */}
+          <Pager
+            page={1}
+            pageCount={1}
+            onChange={() => {}}
+            disabled
+            labels={{
+              nav: t('appList.pager.label'),
+              previous: t('appList.pager.previous'),
+              next: t('appList.pager.next'),
+            }}
+          />
+        </div>
       </section>
     </CatalogShell>
   )

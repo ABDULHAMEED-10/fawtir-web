@@ -53,9 +53,14 @@ export type NewProduct = {
   defaultTaxRate: number | null
 }
 
-/** Active products whose code or name contains `q`. Also the request's identity. */
-export function productSearchPath(q: string, size = PRODUCT_PICKER_SIZE): string {
-  return withQuery(PRODUCTS_PATH, { q: q.trim(), size })
+/**
+ * Active products whose code or name contains `q`. Also the request's identity.
+ *
+ * `page` is Spring's zero-based page. The first page leaves it out, so the path of every caller
+ * that never pages stays what it was.
+ */
+export function productSearchPath(q: string, size = PRODUCT_PICKER_SIZE, page = 0): string {
+  return withQuery(PRODUCTS_PATH, { q: q.trim(), size, page: page > 0 ? page : undefined })
 }
 
 export async function searchProducts(path: string): Promise<Page<ProductDto>> {

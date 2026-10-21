@@ -23387,8 +23387,25 @@
       "notStandardNote": "نسبة صفر أو معفاة أو خارج النطاق",
       "attention": "تحتاج إلى انتباه",
       "attentionNote": "بلا سعر، أو بفئة ضريبية لا تستخدمها عُمان",
-      "attentionNone": "لكل منتج سعر وفئة ضريبية عُمانية"
-    }
+      "attentionNone": "لكل منتج سعر وفئة ضريبية عُمانية",
+      "thingsPagedNote": "{{goods}} منتجات · {{services}} خدمات في هذه الصفحة",
+      "onThisPage": "محسوبة من هذه الصفحة من القائمة"
+    },
+    "tab": {
+      "all": "الكل",
+      "goods": "المنتجات",
+      "services": "الخدمات",
+      "attention": "تحتاج إلى انتباه",
+      "notStandard": "ليست بالنسبة الأساسية"
+    },
+    "sort": {
+      "name": "الاسم",
+      "code": "الرمز",
+      "priceLow": "السعر، من الأقل إلى الأعلى",
+      "priceHigh": "السعر، من الأعلى إلى الأقل"
+    },
+    "showingOf": "يُعرض {{shown}} من {{total}} منتج",
+    "noneInTab": "لا شيء في هذه الصفحة يناسب هذا التبويب."
   },
   "signupResume": {
     "cta": "تابع تسجيلك",
@@ -24636,5 +24653,87 @@
   "workingBranch": {
     "label": "الفرع",
     "none": "لا توجد فروع بعد"
+  },
+  "itemOptions": {
+    "openLink": "الأحجام والخيارات",
+    "crumb": "الأحجام والخيارات",
+    "title": "أحجام وخيارات {{name}}",
+    "subtitle": "يختار العميل شيئين: <b>الكمية</b> و<b>طريقة الطحن</b>. كل تركيبة أدناه منتج مستقل تبيعه، بسعره ورمزه الخاصين.",
+    "backToItem": "العودة إلى الصنف",
+    "chooses": {
+      "title": "ما يختاره العميل",
+      "downSide": "يظهر على الجانب",
+      "acrossTop": "يظهر في الأعلى",
+      "optionCount_zero": "لا خيارات",
+      "optionCount_one": "خيار واحد",
+      "optionCount_two": "خياران",
+      "optionCount_few": "{{count}} خيارات",
+      "optionCount_many": "{{count}} خيارًا",
+      "optionCount_other": "{{count}} خيار",
+      "addA": "أضف {{noun}}",
+      "newPlaceholder": "اكتب اسمًا ثم اضغط Enter",
+      "remove": "إزالة {{name}}",
+      "orderNote": "هذا هو ترتيب ظهورها عند نقطة البيع.",
+      "changeNote": "{{name}} يغيّر السعر بمقدار {{amount}}.",
+      "sameNote": "كل خيار هنا يُباع بالسعر نفسه.",
+      "addThird": "أضف شيئًا ثالثًا يختاره العملاء",
+      "thirdNote": "يقبل الصنف خيارين على الأكثر حاليًا. لإضافة ثالث، مثل درجة التحميص، أضفه إلى الصنف كإضافة."
+    },
+    "prices": {
+      "title": "سعر كل تركيبة",
+      "tickEverything": "تحديد الكل",
+      "rebuild": "إعادة بناء الأسعار من السعر الأساسي",
+      "round": "تقريب الكل إلى 0.050",
+      "codes": "إنشاء الرموز",
+      "count": "{{sold}} من {{total}} معروضة للبيع",
+      "byHand_zero": "لا أسعار محددة يدويًا",
+      "byHand_one": "سعر واحد محدد يدويًا",
+      "byHand_two": "سعران محددان يدويًا",
+      "byHand_few": "{{count}} أسعار محددة يدويًا",
+      "byHand_many": "{{count}} سعرًا محددًا يدويًا",
+      "byHand_other": "{{count}} سعر محدد يدويًا"
+    },
+    "grid": {
+      "base": "الأساسي {{amount}}",
+      "noChange": "دون تغيير",
+      "priceChangeFor": "تغيير السعر لـ {{name}}",
+      "priceOf": "سعر {{name}}",
+      "sell": "بيع {{name}}",
+      "notSold": "غير معروض للبيع",
+      "setByHand": "محدد يدويًا",
+      "noCode": "لا رمز بعد"
+    },
+    "figures": {
+      "title": "المجموع",
+      "canSell": "ما يمكنك بيعه",
+      "canSellNote": "يظهر كل منها منفصلًا عند نقطة البيع",
+      "range": "نطاق الأسعار",
+      "rangeNote": "من {{from}} إلى {{to}}",
+      "nothingSold": "حدد تركيبة لعرضها للبيع",
+      "none": "لا شيء",
+      "codesReady": "الرموز الجاهزة",
+      "codesOf": "{{ready}} من {{total}}",
+      "codesNote": "مبنية من رمز الصنف والخيارات",
+      "stock": "تحتاج إلى عدّ المخزون",
+      "stockNote": "يُعد لكل تركيبة، لا لكل صنف"
+    },
+    "footer": {
+      "toSell_zero": "لا شيء للبيع",
+      "toSell_one": "منتج واحد للبيع",
+      "toSell_two": "منتجان للبيع",
+      "toSell_few": "{{count}} منتجات للبيع",
+      "toSell_many": "{{count}} منتجًا للبيع",
+      "toSell_other": "{{count}} منتج للبيع",
+      "unticked_zero": "لا شيء غير محدد",
+      "unticked_one": "واحد غير محدد",
+      "unticked_two": "اثنان غير محددين",
+      "unticked_few": "{{count}} غير محددة",
+      "unticked_many": "{{count}} غير محدد",
+      "unticked_other": "{{count}} غير محدد",
+      "prices": "الأسعار من {{min}} ر.ع. إلى {{max}} ر.ع.",
+      "saved": "حُفظ في هذا المثال. لم يُرسل شيء بعد.",
+      "cancel": "إلغاء",
+      "save": "احفظ هذه الـ {{count}}"
+    }
   }
 }

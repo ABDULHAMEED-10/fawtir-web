@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CatalogShell, Kpi, Pill, TabStrip } from './CatalogShell'
 import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
-import { FilterMenu, Rial, RowsView, SortMenu, TableCheckbox } from '../../components/ui'
+import { FilterMenu, Pager, Rial, RowsView, SortMenu, TableCheckbox } from '../../components/ui'
 import { omr, groupName, kindName } from '../../lib/catalog'
 import {
   STOCK_ROWS,
@@ -271,9 +271,26 @@ export function StockPage() {
           </table>
         </RowsView>
 
-        <p className="px-5 py-4 text-sm font-medium text-text-quaternary">
-          {t('stock.showing', { shown: rows.length, total: STOCK_BOOK.counted })}
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+          <p className="text-sm font-medium text-text-quaternary">
+            {t('stock.showing', { shown: rows.length, total: STOCK_BOOK.counted })}
+          </p>
+          {/* The sample draws one page of the counted items, so the pages are worked out from the
+              count and the rows a page draws. TODO(backend): stock has no server yet, so the other
+              pages cannot be fetched and are drawn switched off (docs/backend-guides/INCOME.md,
+              row P.10). */}
+          <Pager
+            page={1}
+            pageCount={Math.max(1, Math.ceil(STOCK_BOOK.counted / STOCK_ROWS.length))}
+            onChange={() => {}}
+            disabled
+            labels={{
+              nav: t('appList.pager.label'),
+              previous: t('appList.pager.previous'),
+              next: t('appList.pager.next'),
+            }}
+          />
+        </div>
       </section>
     </CatalogShell>
   )
