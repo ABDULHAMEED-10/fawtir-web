@@ -215,6 +215,68 @@ describe('Console › Billing settings', () => {
     )
   })
 
+  it('shows the console numbers from the server and sends only the ones changed', async () => {
+    answers[SETTINGS] = () => json(200, settings({
+      maxExtraUsersPerOrder: 50, maxExtraBranchesPerOrder: 20, trialReminderLeadDays: 3,
+      graceReminderDays: [1, 4, 7], renewalReminderDays: [7, 1], correctionWindowDays: 30,
+      cardPaymentsEnabled: true,
+    }))
+    answers[`PUT ${SETTINGS}`] = () => json(200, settings({ version: 4 }))
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/settings')
+
+    const maxUsers = (await screen.findByRole('textbox', { name: S('maxUsers') })) as HTMLInputElement
+    expect(maxUsers.value).toBe('50')
+    expect((screen.getByRole('textbox', { name: S('maxBranches') }) as HTMLInputElement).value).toBe('20')
+    expect((screen.getByRole('textbox', { name: S('trialLead') }) as HTMLInputElement).value).toBe('3')
+    expect((screen.getByRole('textbox', { name: S('correctionDays') }) as HTMLInputElement).value).toBe('30')
+    expect(screen.getByText(i18n.t('console.settings.dayList.day', { day: 4 }))).toBeTruthy()
+    const card = screen.getByRole('switch', { name: S('cardPayments') })
+    expect(card.getAttribute('aria-checked')).toBe('true')
+
+    await user.clear(maxUsers)
+    await user.type(maxUsers, '40')
+    await user.click(card)
+    await user.click(screen.getByRole('button', { name: i18n.t('console.settings.dayList.remove', { value: '7' }) }))
+    await user.type((await billingCard()).getByRole('textbox', { name: S('reason') }), 'Smaller orders, card off')
+    await user.click((await billingCard()).getByRole('button', { name: i18n.t('console.settings.save') }))
+
+    await waitFor(() => expect(sent('PUT', SETTINGS)).not.toBeNull())
+    expect(sent('PUT', SETTINGS)!.body).toEqual({
+      graceDays: 7, dualApprovalThreshold: '50.000', vatRate: '0', renewalBillLeadDays: 7,
+      maxExtraUsersPerOrder: 40, renewalReminderDays: [1], cardPaymentsEnabled: false,
+      reason: 'Smaller orders, card off',
+    })
+  })
+
+  it('refuses a trial reminder of 14 days or more before sending: the trial is 14 days', async () => {
+    answers[SETTINGS] = () => json(200, settings({
+      maxExtraUsersPerOrder: 50, maxExtraBranchesPerOrder: 20, trialReminderLeadDays: 3,
+      graceReminderDays: [1, 4, 7], renewalReminderDays: [7, 1], correctionWindowDays: 30,
+      cardPaymentsEnabled: true,
+    }))
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/settings')
+
+    const lead = await screen.findByRole('textbox', { name: S('trialLead') })
+    await user.clear(lead)
+    await user.type(lead, '14')
+    await user.type((await billingCard()).getByRole('textbox', { name: S('reason') }), 'Earlier reminder')
+    await user.click((await billingCard()).getByRole('button', { name: i18n.t('console.settings.save') }))
+
+    expect(await screen.findByText(i18n.t('console.settings.error.wholeBetween', { min: 1, max: 13 }))).toBeTruthy()
+    expect(sent('PUT', SETTINGS)).toBeNull()
+  })
+
+  it('shows no console numbers when the server sends none', async () => {
+    answers[SETTINGS] = () => json(200, settings())
+    renderAt('/console/billing/settings')
+
+    await screen.findByRole('textbox', { name: S('graceDays') })
+    expect(screen.queryByRole('textbox', { name: S('maxUsers') })).toBeNull()
+    expect(screen.queryByRole('switch', { name: S('cardPayments') })).toBeNull()
+  })
+
   it('shows support the values but offers no save', async () => {
     who = SUPPORT
     answers[SETTINGS] = () => json(200, settings())

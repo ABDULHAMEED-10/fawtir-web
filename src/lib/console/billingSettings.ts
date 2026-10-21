@@ -31,6 +31,20 @@ export type BillingSettingsDto = {
   erpAddonAnnualMonths?: number | null
   extraUserAnnualMonths?: number | null
   extraBranchAnnualMonths?: number | null
+  /**
+   * The numbers the business rules make console settings (backend V415). The current settings
+   * always carry them, from the deployment until an operator sets one; an older server sends none.
+   */
+  maxExtraUsersPerOrder?: number | null
+  maxExtraBranchesPerOrder?: number | null
+  trialReminderLeadDays?: number | null
+  /** Ascending, e.g. [1, 4, 7]. */
+  graceReminderDays?: number[] | null
+  /** Latest first, e.g. [7, 1]. */
+  renewalReminderDays?: number[] | null
+  correctionWindowDays?: number | null
+  /** Card on or off in the console; card is offered only while the deployment has it on too. */
+  cardPaymentsEnabled?: boolean | null
 }
 
 export const ANNUAL_MONTHS_FIELDS = [
@@ -49,6 +63,7 @@ export const ANNUAL_MONTHS_DEFAULTS: Readonly<Record<AnnualMonthsField, number>>
 export const ANNUAL_MONTHS_MIN = 1
 export const ANNUAL_MONTHS_MAX = 12
 
+/** Each console number is sent only when changed: omitted keeps the value in force. */
 export type BillingSettingsRequest = {
   graceDays: number
   dualApprovalThreshold: string
@@ -59,8 +74,22 @@ export type BillingSettingsRequest = {
   erpAddonAnnualMonths?: number
   extraUserAnnualMonths?: number
   extraBranchAnnualMonths?: number
+  maxExtraUsersPerOrder?: number
+  maxExtraBranchesPerOrder?: number
+  trialReminderLeadDays?: number
+  graceReminderDays?: number[]
+  renewalReminderDays?: number[]
+  correctionWindowDays?: number
+  cardPaymentsEnabled?: boolean
   reason: string
 }
+
+/** The server's ranges for the console numbers (V415). */
+export const MAX_PER_ORDER = 1000
+export const MAX_TRIAL_REMINDER_LEAD_DAYS = 13
+export const MAX_GRACE_REMINDER_DAY = 60
+export const MAX_RENEWAL_REMINDER_DAY = 28
+export const MAX_CORRECTION_WINDOW_DAYS = 180
 
 export type BillingSellerDto = {
   version: number
