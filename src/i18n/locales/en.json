@@ -22738,7 +22738,8 @@
       "autoRenewUnavailable": "Needs a saved card, which cannot be added yet",
       "cancellation": "Cancellation",
       "endsOn": "Ends on {{date}}",
-      "notScheduled": "None"
+      "notScheduled": "None",
+      "refundUnderReview": "Refund under review"
     },
     "scheduledChange": "You move to {{plan}} on {{date}}, when your current paid period ends.",
     "withdrawChange": "Stay on my plan",
@@ -22751,7 +22752,7 @@
       "back": "Go back",
       "confirm": "Confirm cancellation",
       "bodyPaidAhead": "Your subscription stays active until {{date}}. After that it will not renew, and your issued invoices and reports stay available to read and export. The period you paid in advance will be refunded.",
-      "bodyAnnual": "Your subscription stays active until {{date}}. After that it will not renew, and your issued invoices and reports stay available to read and export. Fawtir will review a refund of the remaining months."
+      "bodyAnnual": "Your subscription stays active until {{date}}. Fawtir will review a refund of the remaining months; if one is approved, access ends at the end of the last month you keep."
     },
     "blockedByPayment": "A payment for your next period is being checked by Fawtir. You can change your plan or cancel once it is confirmed or rejected.",
     "switchOff": {

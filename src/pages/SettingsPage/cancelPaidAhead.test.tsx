@@ -272,7 +272,9 @@ describe('Settings › Plan: cancelling a yearly subscription (CA-1, RF-1)', () 
       ),
     ).toBeTruthy()
     expect(dialog.textContent).toContain('Your subscription stays active until 22 Nov 2027.')
-    expect(dialog.textContent).toContain('Fawtir will review a refund of the remaining months.')
+    expect(dialog.textContent).toContain(
+      'Fawtir will review a refund of the remaining months; if one is approved, access ends at the end of the last month you keep.',
+    )
     expect(dialog.textContent).not.toContain('Payments already made are not refunded')
   })
 
@@ -282,7 +284,44 @@ describe('Settings › Plan: cancelling a yearly subscription (CA-1, RF-1)', () 
     const { dialog } = await openDialog()
     const date = formatDate('2027-11-22', 'ar')
     expect(dialog.textContent).toContain(`يبقى اشتراكك فعّالًا حتى ${date}.`)
-    expect(dialog.textContent).toContain('سيراجع فوتر استرداد مبلغ الأشهر المتبقية.')
+    expect(dialog.textContent).toContain(
+      'سيراجع فوتر استرداد مبلغ الأشهر المتبقية، وإذا وافق عليه ينتهي الوصول في نهاية آخر شهر تحتفظ به.',
+    )
     expect(dialog.textContent).not.toContain('لا تُستردّ المبالغ المدفوعة مسبقًا')
+  })
+})
+
+describe('Settings › Plan: a refund under review (CA-1, RF-1)', () => {
+  const CANCELLED_ANNUAL = {
+    ...ANNUAL,
+    cancelAtPeriodEnd: true,
+    accessEndsOn: '2027-11-22',
+    renewsOn: null,
+    cancellationEndsOn: null,
+  }
+
+  it('says so only when the server sends the field', async () => {
+    answers[SUBSCRIPTION] = () => json(200, { ...CANCELLED_ANNUAL, refundUnderReview: true })
+    renderPlan()
+    expect(await screen.findByText(i18n.t('subscription.fact.refundUnderReview'))).toBeTruthy()
+    expect(section().textContent).toContain('Refund under review')
+  })
+
+  it('says nothing without the field, or when it is false', async () => {
+    for (const body of [CANCELLED_ANNUAL, { ...CANCELLED_ANNUAL, refundUnderReview: false }]) {
+      answers[SUBSCRIPTION] = () => json(200, body)
+      const { unmount } = renderPlan()
+      await screen.findByText(i18n.t('subscription.fact.endsOn', { date: '22 Nov 2027' }))
+      expect(section().textContent).not.toContain('Refund under review')
+      unmount()
+      resetSharedRequests()
+    }
+  })
+
+  it('says it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    answers[SUBSCRIPTION] = () => json(200, { ...CANCELLED_ANNUAL, refundUnderReview: true })
+    renderPlan()
+    expect(await screen.findByText('الاسترداد قيد المراجعة')).toBeTruthy()
   })
 })

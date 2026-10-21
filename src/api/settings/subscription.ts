@@ -93,6 +93,12 @@ export type SubscriptionStatusDto = {
    * Absent from a server before it.
    */
   cancellationEndsOn?: string | null
+  /**
+   * CA-1, LV-6, RF-1: true while Fawtir is reviewing a refund of a yearly subscription's remaining
+   * months. Absent from a server before the refund lane; shown only when sent.
+   * TODO(backend): field name not final until the refund lane's PR lands; rename here if it differs.
+   */
+  refundUnderReview?: boolean | null
 }
 
 /**

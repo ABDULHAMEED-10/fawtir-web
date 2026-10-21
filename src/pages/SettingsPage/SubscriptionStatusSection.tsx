@@ -383,6 +383,7 @@ function Facts({ status }: { status: SubscriptionStatusDto }) {
             ? t('subscription.fact.endsOn', { date: date(status.accessEndsOn) })
             : t('subscription.fact.notScheduled')
         }
+        note={status.refundUnderReview ? t('subscription.fact.refundUnderReview') : undefined}
       />
     </dl>
   )
