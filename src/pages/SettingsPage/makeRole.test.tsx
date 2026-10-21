@@ -325,7 +325,10 @@ describe('Roles list', () => {
   it('deletes a role and reads the list again', async () => {
     renderAt('/settings/roles')
     fireEvent.click(await screen.findByRole('button', { name: 'Delete Collections' }))
-    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete the role' }))
+    const confirm = within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete the role' })
+    // A delete is drawn as the danger button, not the primary one.
+    expect(confirm.className).toContain('bg-danger-700')
+    fireEvent.click(confirm)
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(fetchMock.mock.calls.filter(([url, init]) => url === ROLES && (init?.method ?? 'GET') === 'GET').length).toBeGreaterThan(1)
   })

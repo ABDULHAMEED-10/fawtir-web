@@ -22159,10 +22159,6 @@
     "otaCallLog": {
       "title": "Calls to the tax authority",
       "body": "A log of each call Fawtir makes to the tax authority is not available yet. Each document's own status is on its activity page."
-    },
-    "makeRole": {
-      "title": "Make a role",
-      "body": "Making your own role is not available in the app yet. The roles your company has, and what each allows, are listed under Roles."
     }
   },
   "people": {

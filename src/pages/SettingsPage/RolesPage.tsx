@@ -403,7 +403,7 @@ function DeleteRoleDialog({
           <Button variant="secondary" size="md" onClick={close}>
             {t('makeRole.cancel')}
           </Button>
-          <Button size="md" disabled={busy} onClick={confirm}>
+          <Button variant="danger" size="md" disabled={busy} onClick={confirm}>
             {busy ? t('roles.deleting') : t('roles.deleteConfirm')}
           </Button>
         </div>
