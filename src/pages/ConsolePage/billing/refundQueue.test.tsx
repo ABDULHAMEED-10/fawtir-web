@@ -59,7 +59,7 @@ function refundCase(over: Record<string, unknown> = {}) {
   }
 }
 
-const REJECTED = { refundCase: refundCase(), tenantName: 'Nizwa Date Traders SPC' }
+const REJECTED = { refundCase: refundCase(), tenantName: 'Nizwa Date Traders SAOC' }
 const LEFT = {
   refundCase: refundCase({
     id: 'rc-2',
@@ -71,7 +71,7 @@ const LEFT = {
     disconnectionId: 'd-1',
     openedAt: '2026-10-21T09:30:00Z',
   }),
-  tenantName: 'Sur Marine Services LLC',
+  tenantName: 'Sur Marine Supplies LLC',
 }
 
 function json(status: number, body?: unknown) {
@@ -135,7 +135,7 @@ function sent(method: string, path: string) {
 describe('Console › Refund cases', () => {
   it('lists every kind of open case across companies, with the company linked', async () => {
     renderQueue()
-    const company = await screen.findByRole('link', { name: 'Nizwa Date Traders SPC' })
+    const company = await screen.findByRole('link', { name: 'Nizwa Date Traders SAOC' })
     expect(company.getAttribute('href')).toBe('/console/tenants/t-1')
     expect(screen.getByText(R('reason.FINAL_REJECTION'))).toBeTruthy()
     expect(screen.getByText(R('reason.LEFT_FAWTIR_ANNUAL'))).toBeTruthy()
@@ -143,6 +143,13 @@ describe('Console › Refund cases', () => {
     expect(screen.getAllByRole('button', { name: R('refund.open') })).toHaveLength(2)
     expect(screen.getAllByRole('button', { name: R('amount.open') })).toHaveLength(1)
     expect(screen.getAllByRole('button', { name: R('decline.open') })).toHaveLength(1)
+  })
+
+  it('explains declining a refund for a company that left Fawtir in its own words', async () => {
+    renderQueue()
+    await userEvent.click(await screen.findByRole('button', { name: R('decline.open') }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(R('decline.bodyLeft'))).toBeTruthy()
   })
 
   it('filters by state and by kind', async () => {
