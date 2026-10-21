@@ -7,6 +7,7 @@ import { Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import { formatAmount, formatDate } from '../../lib/format'
 import {
+  branchDisplayName,
   BRANCHES_OVERVIEW_PATH,
   loadBranchOverview,
   type BranchOverviewDto,
@@ -260,8 +261,13 @@ function BranchCard({
                 closed ? 'text-text-quaternary' : 'text-text-primary',
               ].join(' ')}
             >
-              {branch.name}
+              {branchDisplayName(branch, i18n.language)}
             </span>
+            {branch.headBranch ? (
+              <span className="inline-flex h-[22px] items-center rounded-[3px] bg-primary-50 px-2 text-[10px] font-semibold uppercase tracking-[0.4px] text-primary-800">
+                {t('branches.headBranch')}
+              </span>
+            ) : null}
             {branch.headOffice ? (
               <span className="inline-flex h-[22px] items-center rounded-[3px] bg-primary-50 px-2 text-[10px] font-semibold uppercase tracking-[0.4px] text-primary-800">
                 {t('branches.headOffice')}
@@ -333,8 +339,8 @@ function BranchCard({
                 icon: copySettingsIcon,
                 to: '/settings/branches/new',
               },
-              // The Head Branch is never closed (BR-5), so it is not offered.
-              ...(branch.active && !branch.headOffice
+              // The Head Branch is never closed (BR-2, BR-5), so it is not offered.
+              ...(branch.active && !branch.headOffice && !branch.headBranch
                 ? [
                     {
                       id: 'close',

@@ -34,6 +34,8 @@ let overview: {
   branches: unknown[]
 }
 let fetchMock: ReturnType<typeof vi.fn>
+/** What GET /branches/b-1 says about the Head Branch; a test sets it. */
+let b1Extra: Record<string, unknown> = {}
 /** Per-test answers for the side cards' reads (company profile, standing, plan), by URL. */
 let reads: Record<string, () => Response>
 
@@ -72,6 +74,7 @@ beforeEach(async () => {
   await i18n.changeLanguage('en')
   resetSharedRequests()
   overview = EMPTY_OVERVIEW
+  b1Extra = {}
   reads = {}
   forgetEntitlements()
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
@@ -97,6 +100,7 @@ beforeEach(async () => {
         closureReason: null,
         headOffice: true,
         version: 1,
+        ...b1Extra,
       })
     }
     if (url === '/api/v1/branches' && method === 'POST') {
@@ -358,6 +362,66 @@ describe('Add a branch, for real', () => {
     expect(await screen.findByText(i18n.t('addBranch.chooseGovernorate'))).toBeTruthy()
     expect(i18n.t('addBranch.chooseGovernorate')).not.toBe('Choose a governorate')
     expect(document.body.textContent).not.toContain('صور')
+  })
+
+  it('marks the Head Branch, shows its Arabic name in Arabic, and offers no way to close it (BR-1, BR-2)', async () => {
+    overview = {
+      ...ONE_BRANCH_OVERVIEW,
+      branches: [
+        { ...ONE_BRANCH_OVERVIEW.branches[0], name: 'Nizwa Co Head Branch', headBranch: true, nameAr: 'نزوى - الفرع الرئيسي' },
+      ],
+    }
+    render(
+      <MemoryRouter>
+        <BranchesPage />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('Nizwa Co Head Branch')).toBeTruthy()
+    expect(screen.getByText('Head Branch')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'This branch' }))
+    expect(await screen.findByRole('menuitem', { name: /Change its details/ })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: /Close this branch/ })).toBeNull()
+
+    await i18n.changeLanguage('ar')
+    expect(await screen.findByText('نزوى - الفرع الرئيسي')).toBeTruthy()
+    expect(screen.getByText(i18n.t('branches.headBranch'))).toBeTruthy()
+  })
+
+  it('an ordinary branch carries no Head Branch mark', async () => {
+    overview = ONE_BRANCH_OVERVIEW
+    render(
+      <MemoryRouter>
+        <BranchesPage />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('Nizwa')).toBeTruthy()
+    expect(screen.queryByText('Head Branch')).toBeNull()
+  })
+
+  it('fills the Arabic name from the branch and sends a changed one with the update', async () => {
+    overview = ONE_BRANCH_OVERVIEW
+    b1Extra = { headBranch: true, nameAr: 'نزوى' }
+    render(
+      <MemoryRouter initialEntries={['/settings/branches/b-1']}>
+        <Routes>
+          <Route path="/settings/branches/:id" element={<AddBranchPage />} />
+          <Route path="/settings/branches" element={<p>list</p>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await waitFor(() =>
+      expect((screen.getByLabelText(/Arabic name/) as HTMLInputElement).value).toBe('نزوى'),
+    )
+    fireEvent.change(screen.getByLabelText(/Arabic name/), { target: { value: ' نزوى الجديدة ' } })
+    fireEvent.click(screen.getByRole('button', { name: /Save the changes/ }))
+
+    await waitFor(() => expect(calls('PUT', '/api/v1/branches/b-1')).toHaveLength(1))
+    expect(JSON.parse(calls('PUT', '/api/v1/branches/b-1')[0][1].body as string)).toMatchObject({
+      name: 'Nizwa',
+      nameAr: 'نزوى الجديدة',
+      active: true,
+      expectedVersion: 1,
+    })
   })
 
   it('reopens an existing branch filled with its real data, not a mock one', async () => {

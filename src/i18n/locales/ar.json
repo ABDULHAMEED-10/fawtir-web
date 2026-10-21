@@ -11012,7 +11012,8 @@
     "peopleCount_zero": "{{count}} أشخاص",
     "peopleCount_two": "{{count}} أشخاص",
     "peopleCount_few": "{{count}} أشخاص",
-    "peopleCount_many": "{{count}} أشخاص"
+    "peopleCount_many": "{{count}} أشخاص",
+    "headBranch": "الفرع الرئيسي"
   },
   "addBranch": {
     "title": "أضف فرعًا",

@@ -27,6 +27,13 @@ export type BranchOverviewRow = {
   invoicedThisMonth: number
   people: number
   devices: number
+  /**
+   * The company's Head Branch (BR-1): created at approval, never switched off or deleted, and
+   * renameable (BR-2). Optional until the backend that sends it is deployed.
+   */
+  headBranch?: boolean
+  /** The Arabic name; set for a Head Branch Fawtir created, null until an Administrator gives one. */
+  nameAr?: string | null
 }
 
 export type BranchOverviewDto = {
@@ -54,6 +61,8 @@ export type BranchDetailDto = {
   closureReason: string | null
   headOffice: boolean
   version: number
+  headBranch?: boolean
+  nameAr?: string | null
 }
 
 export type BranchAttributesPayload = {
@@ -82,16 +91,30 @@ export function createBranch(payload: BranchAttributesPayload): Promise<BranchDe
   return apiRequest<BranchDetailDto>('/v1/branches', { method: 'POST', body: payload })
 }
 
+/**
+ * `nameAr` is sent only when it holds text: the server leaves the Arabic name as it is when the
+ * field is absent, and refuses nothing for it.
+ */
 export function updateBranch(
   id: string,
   payload: BranchAttributesPayload,
   active: boolean,
   expectedVersion: number,
+  nameAr?: string,
 ): Promise<BranchDetailDto> {
+  const arabic = nameAr?.trim()
   return apiRequest<BranchDetailDto>(branchPath(id), {
     method: 'PUT',
-    body: { ...payload, active, expectedVersion },
+    body: { ...payload, active, expectedVersion, ...(arabic ? { nameAr: arabic } : {}) },
   })
+}
+
+/** The name to show: the Arabic one in Arabic when the branch has one, else the name. */
+export function branchDisplayName(
+  branch: { name: string; nameAr?: string | null },
+  language: string,
+): string {
+  return language.startsWith('ar') && branch.nameAr?.trim() ? branch.nameAr : branch.name
 }
 
 export function designateHeadOffice(id: string): Promise<BranchDetailDto> {

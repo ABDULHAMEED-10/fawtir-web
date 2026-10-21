@@ -10396,7 +10396,8 @@
       "title": "Add your first branch",
       "body": "You'll need at least one branch, where you trade from, before you can create an invoice."
     },
-    "closedNoteNoCount": "Closed, not deleted. Its invoices stay reachable and still count toward the ten-year retention. The {{prefix}} series is frozen and won't be reused."
+    "closedNoteNoCount": "Closed, not deleted. Its invoices stay reachable and still count toward the ten-year retention. The {{prefix}} series is frozen and won't be reused.",
+    "headBranch": "Head Branch"
   },
   "addBranch": {
     "title": "Add a branch",

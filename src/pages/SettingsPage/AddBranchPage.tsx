@@ -44,8 +44,9 @@ import tickWhiteIcon from '../../assets/settings/check-white.svg'
  * The prefix drives the first invoice number and the footer restates it, from one piece of state,
  * so the screen cannot promise one number while the field says another.
  *
- * `BranchAttributes` (`BranchManagementController`) has no field for the Arabic name or the
- * "behaviour" switches below; they are not sent. See docs/backend-guides/INCOME.md, "Update
+ * The Arabic name is the branch's `nameAr` (V303): the update takes it, the create does not, so a
+ * new branch with one is created and then renamed in Arabic in a second call. `BranchAttributes`
+ * has no field for the "behaviour" switches below; they are not sent. See docs/backend-guides/INCOME.md, "Update
  * 2026-09-27 (branches)". A new branch starts empty: the form used to open pre-filled with the
  * design's worked example (Sur, 411, Ash Sharqiyah South, prefix SR), which a hurried save would
  * have created for real. The opening-date picker and the "who works there" roster went for the
@@ -106,6 +107,7 @@ export function AddBranchPage() {
   useEffect(() => {
     if (!existing || existing.id === filledFrom) return
     setName(existing.name)
+    setArabicName(existing.nameAr ?? '')
     setStreet(existing.address ?? '')
     setTown(existing.city ?? '')
     setPostalCode(existing.postalCode ?? '')
@@ -153,9 +155,15 @@ export function AddBranchPage() {
         phone: phone || null,
         email: existing?.email ?? null,
       }
-      const saved = existing
-        ? await updateBranch(existing.id, attributes, true, existing.version)
-        : await createBranch(attributes)
+      let saved: BranchDetailDto
+      if (existing) {
+        saved = await updateBranch(existing.id, attributes, true, existing.version, arabicName)
+      } else {
+        saved = await createBranch(attributes)
+        if (arabicName.trim()) {
+          saved = await updateBranch(saved.id, attributes, true, saved.version, arabicName)
+        }
+      }
       if (numbering === 'own' && prefix.trim()) {
         await assignInvoicePrefix(saved.id, prefix.trim())
       }
