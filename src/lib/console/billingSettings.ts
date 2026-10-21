@@ -86,10 +86,19 @@ export type BillingSettingsRequest = {
 
 /** The server's ranges for the console numbers (V415). */
 export const MAX_PER_ORDER = 1000
-export const MAX_TRIAL_REMINDER_LEAD_DAYS = 13
+/** The trial length (TR-1); a trial reminder can come at most the day after it starts. */
+export const TRIAL_DAYS = 14
+export const MAX_TRIAL_REMINDER_LEAD_DAYS = TRIAL_DAYS - 1
 export const MAX_GRACE_REMINDER_DAY = 60
 export const MAX_RENEWAL_REMINDER_DAY = 28
 export const MAX_CORRECTION_WINDOW_DAYS = 180
+/**
+ * How long a payment link stays valid (business rules, console settings: "payment link validity,
+ * 7 days today").
+ * TODO(backend): the billing settings carry no validity yet, so the console shows this fixed value
+ * read-only (docs/backend-guides/CONSOLE.md 4.1).
+ */
+export const PAYMENT_LINK_VALIDITY_DAYS = 7
 
 export type BillingSellerDto = {
   version: number

@@ -74,3 +74,9 @@ Plan and usage reads `enterprise.termsSet` on `/v1/settings/plan` and `/v1/setti
 | 3.2 | Who saved each set of terms, by name | Done: `createdByName` on each `history` entry; the screen shows "you" for the reader's own saves, the name otherwise, and the id only when the server has no name |
 | 3.3 | The Enterprise view on the customer's Plan and usage for every company on Enterprise terms | Done: `enterprise` is set for a company that chose Enterprise at sign-up or holds its own Enterprise plan. One still on a public plan reads `termsSet: false` (TERMS_NOT_SET): "terms being prepared" for the customer, "Terms not set" in the console |
 | 3.4 | New Enterprise terms waiting for the renewal, with no withdraw button | Done: `DELETE /settings/subscription/scheduled-change` refuses with 409 `enterprise-terms-scheduled-by-fawtir` |
+
+## 4. Billing settings (`/console/billing/settings`)
+
+| # | The screen wants | Ask |
+|---|---|---|
+| 4.1 | **Payment link validity** in days, beside card on or off (business rules, console settings: "payment link validity (7 days today)"); greyed while card is off | `paymentLinkValidityDays` on `GET/PUT /v1/platform/billing/settings` (sent only when changed, like the V415 numbers), with its range, and the payment link expiry read from it. Today the console shows 7 read-only (`PAYMENT_LINK_VALIDITY_DAYS`) |

@@ -27,8 +27,10 @@ import {
   MAX_PER_ORDER,
   MAX_RENEWAL_REMINDER_DAY,
   MAX_TRIAL_REMINDER_LEAD_DAYS,
+  PAYMENT_LINK_VALIDITY_DAYS,
   percentToFraction,
   saveBillingSettings,
+  TRIAL_DAYS,
   type BillingSettingsDto,
   type BillingSettingsRequest,
   type AnnualMonthsField,
@@ -357,6 +359,7 @@ function SettingsForm({
               disabled={!canManage || busy}
               onChange={(checked) => set('cardOn', checked)}
             />
+            <PaymentLinks cardOn={form.cardOn} />
             <GroupLabel>{t(`${K}limitsGroup`)}</GroupLabel>
             <FieldGrid>
               <NumberField
@@ -381,7 +384,10 @@ function SettingsForm({
               <NumberField
                 name="trialLead"
                 label={t(`${K}trialLead`)}
-                hint={t(`${K}trialLeadHint`)}
+                hint={t(`${K}trialLeadHint`, {
+                  days: TRIAL_DAYS,
+                  max: MAX_TRIAL_REMINDER_LEAD_DAYS,
+                })}
                 value={form.trialLead}
                 onChange={(value) => set('trialLead', value)}
                 error={err('trialLead')}
@@ -400,7 +406,7 @@ function SettingsForm({
                 hint={t(`${K}renewalRemindersHint`)}
                 values={form.renewalReminders}
                 onChange={(values) => set('renewalReminders', values)}
-                format={(day) => String(day)}
+                format={(day) => t(`${K}renewalChip`, { count: day })}
                 max={MAX_RENEWAL_REMINDER_DAY}
                 error={err('renewalReminders')}
               />
@@ -434,6 +440,36 @@ function SettingsForm({
         ) : null}
       </fieldset>
     </SettingsSectionCard>
+  )
+}
+
+/**
+ * The payment-link group beside the card switch. A link is a card payment, so the group greys out
+ * while card is off. The validity is shown, not edited: the settings do not carry it yet.
+ */
+function PaymentLinks({ cardOn }: { cardOn: boolean }) {
+  const { t } = useTranslation()
+  return (
+    <div data-testid="payment-links" aria-disabled={!cardOn} className={cardOn ? '' : 'opacity-50'}>
+      <GroupLabel>{t(`${K}paymentLinksGroup`)}</GroupLabel>
+      <FieldGrid>
+        <Input
+          bordered
+          readOnlyAppearance
+          readOnly
+          disabled={!cardOn}
+          name="paymentLinkDays"
+          label={t(`${K}paymentLinkDays`)}
+          hint={
+            cardOn
+              ? t(`${K}paymentLinkDaysHint`, { days: PAYMENT_LINK_VALIDITY_DAYS })
+              : t(`${K}paymentLinkDaysOff`)
+          }
+          dir="ltr"
+          value={String(PAYMENT_LINK_VALIDITY_DAYS)}
+        />
+      </FieldGrid>
+    </div>
   )
 }
 

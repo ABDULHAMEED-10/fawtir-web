@@ -15309,7 +15309,7 @@
     },
     "billingSettings": {
       "title": "Billing settings",
-      "subtitle": "Grace, second approval, VAT, renewal timing and the months charged a year for the ERP add-on, extra people and extra branches on subscription bills. Every change is kept with its reason.",
+      "subtitle": "Grace, second approval, VAT and renewal timing for subscription bills, the months charged a year for the ERP add-on, extra people and extra branches, the most extra users and branches per order, reminder days, the days to correct a sent-back application, card payment on or off and how long a payment link stays valid. Every change is kept with its reason.",
       "loading": "Loading settings",
       "card": "Subscription billing",
       "cardNote": "Applies to bills issued from now on. Bills already issued keep their figures.",
@@ -15371,7 +15371,7 @@
       "maxBranchesHint": "The most extra branches a company can buy in one order, 1 to 1,000.",
       "remindersGroup": "Reminders",
       "trialLead": "Trial reminder, days before it ends",
-      "trialLeadHint": "The trial is always 14 days, so 1 to 13.",
+      "trialLeadHint": "The trial is always {{days}} days, so 1 to {{max}}.",
       "graceReminders": "Grace reminders",
       "graceRemindersHint": "Days of grace on which an unpaid renewal is reminded, 1 to 60.",
       "renewalReminders": "Renewal reminders, days before",
@@ -15380,7 +15380,13 @@
       "correctionDays": "Days to correct a sent-back application",
       "correctionDaysHint": "After this the application shows as correction overdue, 1 to 180. Nothing happens on its own.",
       "cardPayments": "Card payment",
-      "cardPaymentsNote": "Off: no new card payment can start and no payment link can be created. Payments already started still complete. Card is offered only while it is also switched on for this deployment."
+      "cardPaymentsNote": "Off: no new card payment can start and no payment link can be created. Payments already started still complete. Card is offered only while it is also switched on for this deployment.",
+      "renewalChip_one": "{{count}} day before",
+      "renewalChip_other": "{{count}} days before",
+      "paymentLinksGroup": "Payment links",
+      "paymentLinkDays": "Payment link valid for, days",
+      "paymentLinkDaysHint": "A payment link stops working {{days}} days after it is sent. Fixed by Fawtir for now.",
+      "paymentLinkDaysOff": "Card payment is off, so no payment link can be created."
     },
     "seller": {
       "title": "Seller",
