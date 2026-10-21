@@ -12,7 +12,10 @@ import { apiRequest } from '../../api'
  * - `POST .../subscription/refund-cases/{caseId}/refund` records how the money went back (to the
  *   card, in cash or by bank transfer), after which the case is REFUNDED and read-only. The server
  *   works the suggestion out again for that day and ends access with the last month not refunded;
- * - `POST .../subscription/refund-cases/{caseId}/decline` closes it without a refund, with a reason.
+ * - `POST .../subscription/refund-cases/{caseId}/decline` closes it without a refund, with a reason:
+ *   only a yearly subscription's remaining months (`LEFT_FAWTIR_ANNUAL`, `CANCELLED_ANNUAL_REMAINING`);
+ * - `POST .../subscription/refund-cases/{caseId}/waive` records that the customer gave the refund up in
+ *   writing, with that evidence and its reference: every other case, which is always refunded (V427).
  */
 const company = (tenantId: string) => `/v1/platform/companies/${encodeURIComponent(tenantId)}`
 const refundCase = (tenantId: string, caseId: string) =>
@@ -35,6 +38,15 @@ export const CONSOLE_REASONS: readonly string[] = [
   'LEFT_FAWTIR_MONTHLY',
   'CANCELLED_ANNUAL_REMAINING',
 ]
+/**
+ * A yearly subscription's remaining months: the only refund the super admin may decide against. Every
+ * other case is always refunded, and closes without money going back only when the customer gives it up
+ * in writing (backend V427).
+ */
+export const DECLINABLE_REASONS: readonly string[] = [
+  'LEFT_FAWTIR_ANNUAL',
+  'CANCELLED_ANNUAL_REMAINING',
+]
 export const REFUND_METHODS = ['CARD', 'CASH', 'BANK_TRANSFER'] as const
 export type RefundMethod = (typeof REFUND_METHODS)[number]
 
@@ -46,7 +58,7 @@ export type RefundCaseDto = {
   /** How the money came in. */
   method: string
   reason: string
-  status: 'OPEN' | 'REFUNDED' | 'WITHDRAWN' | 'DECLINED' | (string & {})
+  status: 'OPEN' | 'REFUNDED' | 'WITHDRAWN' | 'DECLINED' | 'WAIVED' | (string & {})
   openedAt: string
   /** The fields below are console cases only; absent from a server before V412. */
   disconnectionId?: string | null
@@ -61,6 +73,10 @@ export type RefundCaseDto = {
   withdrawnAt?: string | null
   /** Set when DECLINED: why the super admin closed it without a refund. */
   declineReason?: string | null
+  /** Set when WAIVED (V427): the customer's written words giving the refund up, and where they are kept. */
+  waivedAt?: string | null
+  waiveEvidence?: string | null
+  waiveReference?: string | null
 }
 
 export type CompanyRefundCasesDto = { refundCases?: RefundCaseDto[] }
@@ -68,6 +84,14 @@ export type CompanyRefundCasesDto = { refundCases?: RefundCaseDto[] }
 /** Only these are settled in Fawtir, and only while open. */
 export const settlesHere = (c: RefundCaseDto) =>
   CONSOLE_REASONS.includes(c.reason) && c.status === 'OPEN'
+
+/** Open and a yearly subscription's remaining months: may be closed without a refund. */
+export const declinableHere = (c: RefundCaseDto) =>
+  DECLINABLE_REASONS.includes(c.reason) && c.status === 'OPEN'
+
+/** Open and always refunded: closes without a refund only when the customer gave it up in writing. */
+export const waivableHere = (c: RefundCaseDto) =>
+  !DECLINABLE_REASONS.includes(c.reason) && c.status === 'OPEN'
 
 export function adjustRefundAmount(
   tenantId: string,
@@ -101,5 +125,17 @@ export function declineRefund(
   return apiRequest(`${refundCase(tenantId, caseId)}/decline`, {
     method: 'POST',
     body: { reason },
+  })
+}
+
+export function waiveRefund(
+  tenantId: string,
+  caseId: string,
+  evidence: string,
+  reference: string,
+): Promise<RefundCaseDto> {
+  return apiRequest(`${refundCase(tenantId, caseId)}/waive`, {
+    method: 'POST',
+    body: { evidence, reference },
   })
 }

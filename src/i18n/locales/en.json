@@ -16160,7 +16160,8 @@
         "REFUNDED": "Refunded",
         "WITHDRAWN": "Closed, not refunded",
         "UNDER_REVIEW": "Under review",
-        "DECLINED": "Not refunded"
+        "DECLINED": "Not refunded",
+        "WAIVED": "Given up by the customer"
       },
       "opened": "Opened {{date}}",
       "suggested_one": "Suggested {{amount}} for {{count}} whole month",
@@ -16202,6 +16203,18 @@
         "body": "The company keeps its access to the end of the period it paid for and nothing is refunded. Say why.",
         "confirm": "Close without refund",
         "done": "The case is closed without a refund."
+      },
+      "waivedBecause": "Given up in writing: {{evidence}}",
+      "waive": {
+        "open": "Customer gave up the refund",
+        "title": "The customer gave up the refund",
+        "body": "This refund is always paid back. Record it as given up only when the customer has said so in writing. Nothing is refunded and the case is closed.",
+        "evidence": "What the customer wrote",
+        "evidenceHint": "Their words giving the refund up.",
+        "reference": "Where it is kept",
+        "referenceHint": "The e-mail, ticket or letter reference.",
+        "confirm": "Record as given up",
+        "done": "The refund is recorded as given up by the customer."
       }
     }
   },

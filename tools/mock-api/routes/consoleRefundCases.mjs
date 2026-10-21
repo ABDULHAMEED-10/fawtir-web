@@ -109,4 +109,17 @@ export default [
       refundReference: body?.reference ?? null,
     }),
   },
+  {
+    method: 'POST',
+    match: /^\/api\/v1\/platform\/companies\/[^/]+\/subscription\/refund-cases\/[^/]+\/waive$/,
+    reply: ({ body }) => ({
+      ...LEAVE,
+      reason: 'LEFT_FAWTIR_MONTHLY',
+      status: 'WAIVED',
+      waivedAt: '2026-10-21T10:10:00Z',
+      waivedBy: '00000000-0000-0000-0000-0000000000e7',
+      waiveEvidence: body?.evidence ?? null,
+      waiveReference: body?.reference ?? null,
+    }),
+  },
 ]

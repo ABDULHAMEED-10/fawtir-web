@@ -13,9 +13,12 @@ import {
   REFUND_REASONS,
   adjustRefundAmount,
   companyRefundCasesPath,
+  declinableHere,
   declineRefund,
   recordRefund,
   settlesHere,
+  waivableHere,
+  waiveRefund,
   type CompanyRefundCasesDto,
   type RefundCaseDto,
   type RefundMethod,
@@ -23,7 +26,7 @@ import {
 import { forgetEntitlements } from '../../../lib/identity/entitlements'
 import type { FormMessage } from '../../../lib/identity/errors'
 import { LOGIN_ROUTE } from '../../../lib/identity/login'
-import { formatDate } from '../../../lib/format'
+import { formatInstantDay } from '../../../lib/format'
 import { OperatorReasonDialog } from '../operators/OperatorReasonDialog'
 import { Field } from '../subscriptions/modalFields'
 
@@ -32,14 +35,19 @@ const AMOUNT = /^\d{1,9}(\.\d{1,3})?$/
 
 const known = (value: string, set: readonly string[]) => (set.includes(value) ? value : 'OTHER')
 
-type Dialog = { kind: 'amount' | 'refund' | 'decline'; refund: RefundCaseDto }
+type Dialog = {
+  kind: 'amount' | 'refund' | 'decline' | 'waive'
+  refund: RefundCaseDto
+}
 
 /**
  * The company's refund cases, under its bills (backend V412). Read-only except the ones the Business
  * Rules leave to the super admin (CA-1, LV-6, RF-1): a company that left Fawtir (yearly, or monthly with
  * a period paid ahead) and a customer's cancellation of a yearly subscription. For those: the suggested
- * amount, a change to it with a reason, and how the money went back. Draws nothing while the company has
- * no case, or on a server that does not list them.
+ * amount, a change to it with a reason, and how the money went back. Only a yearly subscription's remaining
+ * months may be closed without a refund; a monthly period paid ahead is always refunded, unless the
+ * customer gave it up in writing (V427). Draws nothing while the company has no case, or on a server that
+ * does not list them.
  */
 export function CompanyRefundCases({
   tenantId,
@@ -56,7 +64,9 @@ export function CompanyRefundCases({
   if (read.status !== 'ready') return null
   const cases = read.data.refundCases ?? []
   if (cases.length === 0) return null
-  const day = (iso: string | null | undefined) => (iso ? formatDate(iso, i18n.language) : null)
+  // openedAt and refundedAt are instants: shown as the day in Muscat, never as a raw timestamp.
+  const day = (iso: string | null | undefined) =>
+    iso ? formatInstantDay(iso, i18n.language) : null
   const finish = (message: string) => {
     setDialog(null)
     onMessage(message)
@@ -72,6 +82,7 @@ export function CompanyRefundCases({
           const refunded = entry.status === 'REFUNDED'
           const withdrawn = entry.status === 'WITHDRAWN'
           const declined = entry.status === 'DECLINED'
+          const waived = entry.status === 'WAIVED'
           // A console case still waiting for the super admin reads as under review, as the customer sees it.
           const statusKey = refunded
             ? 'REFUNDED'
@@ -79,9 +90,11 @@ export function CompanyRefundCases({
               ? 'WITHDRAWN'
               : declined
                 ? 'DECLINED'
-                : settlesHere(entry)
-                  ? 'UNDER_REVIEW'
-                  : 'OPEN'
+                : waived
+                  ? 'WAIVED'
+                  : settlesHere(entry)
+                    ? 'UNDER_REVIEW'
+                    : 'OPEN'
           const method = entry.refundMethod ? known(entry.refundMethod, REFUND_METHODS) : null
           return (
             <li
@@ -92,7 +105,9 @@ export function CompanyRefundCases({
                 <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-text-primary">
                   {t(`${K}reason.${reason}`)}
                   <ConsoleStatusPill
-                    tone={refunded ? 'success' : withdrawn || declined ? 'neutral' : 'pending'}
+                    tone={
+                      refunded ? 'success' : withdrawn || declined || waived ? 'neutral' : 'pending'
+                    }
                     label={t(`${K}status.${statusKey}`)}
                   />
                 </span>
@@ -145,6 +160,17 @@ export function CompanyRefundCases({
                   {t(`${K}declinedBecause`, { reason: entry.declineReason })}
                 </span>
               ) : null}
+              {waived && entry.waiveEvidence ? (
+                <span className="text-xs font-medium text-text-tertiary">
+                  {t(`${K}waivedBecause`, { evidence: entry.waiveEvidence })}
+                  {entry.waiveReference ? (
+                    <>
+                      {' · '}
+                      <bdi dir="ltr">{entry.waiveReference}</bdi>
+                    </>
+                  ) : null}
+                </span>
+              ) : null}
               {canManage && settlesHere(entry) ? (
                 <div className="flex flex-wrap gap-2.5">
                   <ConsoleButton
@@ -159,12 +185,22 @@ export function CompanyRefundCases({
                   >
                     {t(`${K}amount.open`)}
                   </ConsoleButton>
-                  <ConsoleButton
-                    variant="small"
-                    onClick={() => setDialog({ kind: 'decline', refund: entry })}
-                  >
-                    {t(`${K}decline.open`)}
-                  </ConsoleButton>
+                  {declinableHere(entry) ? (
+                    <ConsoleButton
+                      variant="small"
+                      onClick={() => setDialog({ kind: 'decline', refund: entry })}
+                    >
+                      {t(`${K}decline.open`)}
+                    </ConsoleButton>
+                  ) : null}
+                  {waivableHere(entry) ? (
+                    <ConsoleButton
+                      variant="small"
+                      onClick={() => setDialog({ kind: 'waive', refund: entry })}
+                    >
+                      {t(`${K}waive.open`)}
+                    </ConsoleButton>
+                  ) : null}
                 </div>
               ) : null}
             </li>
@@ -191,6 +227,17 @@ export function CompanyRefundCases({
           describeFailure={describePayLinkFailure}
           onDone={() => finish(t(`${K}decline.done`))}
           onClose={() => setDialog(null)}
+        />
+      ) : null}
+      {dialog?.kind === 'waive' ? (
+        <WaiveRefundDialog
+          tenantId={tenantId}
+          refund={dialog.refund}
+          onClose={() => {
+            setDialog(null)
+            retry()
+          }}
+          onDone={() => finish(t(`${K}waive.done`))}
         />
       ) : null}
       {dialog?.kind === 'refund' ? (
@@ -353,7 +400,10 @@ function RecordRefundDialog({
               setMethod(value as RefundMethod)
               setMethodError(undefined)
             }}
-            options={REFUND_METHODS.map((value) => ({ value, label: t(`${K}method.${value}`) }))}
+            options={REFUND_METHODS.map((value) => ({
+              value,
+              label: t(`${K}method.${value}`),
+            }))}
           />
         </Field>
         <Input
@@ -365,6 +415,126 @@ function RecordRefundDialog({
           value={reference}
           onChange={(event) => setReference(event.target.value)}
           hint={t(`${K}refund.referenceHint`)}
+        />
+        {failure ? (
+          <p role="alert" className="text-sm font-medium text-danger-700">
+            {t(failure.key, failure.values)}
+          </p>
+        ) : null}
+      </div>
+    </Modal>
+  )
+}
+
+/**
+ * The customer gave up a refund that is always paid back (V427): their written words and where that
+ * writing is kept, both required; one request per confirmation.
+ */
+function WaiveRefundDialog({
+  tenantId,
+  refund,
+  onClose,
+  onDone,
+}: {
+  tenantId: string
+  refund: RefundCaseDto
+  onClose: () => void
+  onDone: (done: RefundCaseDto) => void
+}) {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const [evidence, setEvidence] = useState('')
+  const [reference, setReference] = useState('')
+  const [evidenceError, setEvidenceError] = useState<string | undefined>()
+  const [referenceError, setReferenceError] = useState<string | undefined>()
+  const [failure, setFailure] = useState<FormMessage | null>(null)
+  const [sending, setSending] = useState(false)
+  const inFlight = useRef(false)
+  const send = async () => {
+    if (inFlight.current) return
+    const noEvidence = !evidence.trim()
+    const noReference = !reference.trim()
+    if (noEvidence) setEvidenceError(t('validation.required'))
+    if (noReference) setReferenceError(t('validation.required'))
+    if (noEvidence || noReference) return
+    inFlight.current = true
+    setSending(true)
+    setFailure(null)
+    try {
+      onDone(await waiveRefund(tenantId, refund.id, evidence.trim(), reference.trim()))
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        forgetEntitlements()
+        navigate(LOGIN_ROUTE, { replace: true })
+        return
+      }
+      setFailure(describePayLinkFailure(error))
+    } finally {
+      inFlight.current = false
+      setSending(false)
+    }
+  }
+  return (
+    <Modal
+      open
+      onClose={() => {
+        if (!sending) onClose()
+      }}
+      title={t(`${K}waive.title`)}
+      footer={
+        <div className="flex flex-wrap justify-end gap-2.5">
+          <ConsoleButton
+            type="button"
+            size="md"
+            variant="secondary"
+            disabled={sending}
+            onClick={onClose}
+          >
+            {t('common.cancel')}
+          </ConsoleButton>
+          <ConsoleButton type="button" size="md" disabled={sending} onClick={() => void send()}>
+            {sending ? t(`${K}sending`) : t(`${K}waive.confirm`)}
+          </ConsoleButton>
+        </div>
+      }
+    >
+      <div className="flex flex-col gap-5">
+        <p className="text-sm font-medium leading-[1.6] text-text-tertiary">
+          {t(`${K}waive.body`)}
+        </p>
+        <div className="flex items-center justify-between gap-3 text-sm">
+          <span className="font-medium text-text-tertiary">{t(`${K}refund.amount`)}</span>
+          <OmAmount amount={refund.amount} amountClassName="text-sm font-semibold" />
+        </div>
+        <Input
+          bordered
+          name="evidence"
+          label={t(`${K}waive.evidence`)}
+          requiredMark
+          autoComplete="off"
+          maxLength={1000}
+          value={evidence}
+          onChange={(event) => {
+            setEvidence(event.target.value)
+            setEvidenceError(undefined)
+          }}
+          hint={t(`${K}waive.evidenceHint`)}
+          error={evidenceError}
+        />
+        <Input
+          bordered
+          name="waiveReference"
+          label={t(`${K}waive.reference`)}
+          requiredMark
+          autoComplete="off"
+          maxLength={200}
+          value={reference}
+          onChange={(event) => {
+            setReference(event.target.value)
+            setReferenceError(undefined)
+          }}
+          hint={t(`${K}waive.referenceHint`)}
+          error={referenceError}
         />
         {failure ? (
           <p role="alert" className="text-sm font-medium text-danger-700">
