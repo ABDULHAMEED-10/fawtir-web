@@ -89,8 +89,8 @@ function DiscountTypeToggle({
   )
 }
 
-/** Line discount cell: type, value, and — when a percentage — the OMR it resolves to, live. */
-function DiscountField({
+/** Line discount cell: type, value, and, when a percentage, the rial it resolves to, live. */
+export function DiscountField({
   type,
   value,
   onTypeChange,

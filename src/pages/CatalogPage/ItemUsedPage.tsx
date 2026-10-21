@@ -66,7 +66,7 @@ export function ItemUsedPage() {
     <CatalogShell
       crumbs={[{ labelKey: 'catalog.title', to: '/catalog' }, { label: ITEM.name }]}
       title={ITEM.name}
-      subtitle={t('itemUsed.meta', { group: ITEM.group, kind: ITEM.kind, code: ITEM.code })}
+      subtitle={t('itemUsed.meta', { group: ITEM.group, kind: ITEM.itemKind, code: ITEM.code })}
       pills={
         <>
           <Pill tone="success">{t('item.onSale')}</Pill>

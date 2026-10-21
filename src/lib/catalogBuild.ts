@@ -275,7 +275,8 @@ export type SuggestedGroup = {
 // (src/lib/subBusinessTypes.ts), seeded from the Lulu reference sheet the owner shared on
 // 21 Oct 2026 (item group, sub group, item name, brand, unit, pack size, barcode, price; food and
 // beverage adds sizes and modifiers). A template is a starting copy: every item stays editable
-// (price, unit, photo, quantity) and the user can also build a catalogue of their own.
+// (price, unit, photo, quantity) and the user can also build a catalogue of their own. See
+// docs/backend-guides/INCOME.md, row P.6.
 export const SUGGESTED: SuggestedGroup[] = [
   {
     id: 'greenBeans',

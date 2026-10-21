@@ -65,7 +65,7 @@ export function ItemSellsPage() {
       title={ITEM.name}
       subtitle={t('itemSells.meta', {
         group: ITEM.group,
-        kind: ITEM.kind,
+        kind: ITEM.itemKind,
         code: ITEM.code,
         sizes: SIZES.length,
         addOns: ADD_ONS.length,

@@ -11883,13 +11883,15 @@
       "namedAndPriced": "Name and price filled in",
       "namedAndPricedOff": "Still needs a name and a price",
       "taxAgrees": "Tax category agrees with the rate",
-      "taxAgreesOff": "No tax category chosen",
+      "taxAgreesOff": "Choose a tax category, and its reason when it needs one",
       "inAGroup": "Sits in a group and a kind",
       "inAGroupOff": "Not filed anywhere yet",
       "barcode": "Barcode added",
-      "barcodeOff": "No barcode — fine unless you scan at the till",
+      "barcodeOff": "No barcode. Fine unless you scan at the till",
       "photo": "Photo added",
-      "photoOff": "No photo — the till shows the name instead"
+      "photoOff": "No photo. The till shows the name instead",
+      "classified": "HS code or service type chosen",
+      "classifiedOff": "No HS code or service type yet"
     },
     "stock": "Stock",
     "keepCount": "Keep count of this",
@@ -11902,7 +11904,10 @@
     "none": "N \\ A",
     "footer": "{{sizes}} sizes · {{addOns}} add-ons · price change takes effect on the next sale",
     "footerNoSizes": "One size · {{addOns}} add-ons",
-    "saveAndAddAnother": "Save & add another"
+    "saveAndAddAnother": "Save & add another",
+    "classificationHint": "Shown on invoices to businesses and government. Choose Other if nothing fits.",
+    "discount": "Discount",
+    "discountHint": "An invoice line picked from this item starts with this discount."
   },
   "itemSells": {
     "export": "Export",

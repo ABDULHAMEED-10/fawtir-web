@@ -767,3 +767,22 @@ Owner decision of 6 Oct 2026: self-billing is a purchase and now sits under Expe
 `/expenditure/self-billing/...` (the old `/income/self-billing/...` addresses redirect). The rows
 of section 7 stay here unchanged; new self-billing asks are in `EXPENDITURE.md`, section S
 (S.1 links, S.2 the seller stored as a customer record, S.3 the seller and buyer roles in the 389).
+
+## Update 2026-10-21 (catalogue items follow the invoice line)
+
+Owner decision of 21 Oct 2026: a catalogue item holds everything a manual invoice line needs, so
+a line picked from the catalogue (and later a POS sale) is complete. The item screen keeps its
+four kinds and maps them: *Something hand over* and *Several things* are goods, *Something you
+do* and *Charged by time* are services. "Price includes VAT", "Let staff change the price",
+sizes, add-ons and the Arabic name all stay. The web now draws these fields on the item form
+(`ItemFormPage.tsx`) and reads them, when present, onto the invoice line (`productLine.ts`);
+Save on the item form still calls no API.
+
+| #   | What the screen needs | Backend |
+| --- | --- | --- |
+| P.1 | Goods or service on the product | `itemType: GOODS \| SERVICE` on `ProductResponse` and the create/update request; the unit must belong to it (service units: HUR, DAY, WEE, MON, ANN, E48, C62, LS, KMT; `ZZ` on both) |
+| P.2 | Classification on the product | `hsCode` (12-digit Oman HS, `000000000000` = Other) for goods and `serviceTypeCode` (CL-12-OM) for services; refuse the other kind's field. Stored for every product, whoever buys: a consumer invoice prints neither, but Z.12 and Z.15 check the product's stored HS code |
+| P.3 | The reason a product carries no VAT | `exemptionReasonCode` (VATZR-OM for Z, VATEX-OM for E, never mixed) and `exemptionReason` (text, O); categories limited to S, Z, E, O as on invoices (V.4). Export and transport reasons are refused as a product default (Z.7) |
+| P.4 | The catalogue discount | `defaultDiscount: { type: PERCENTAGE \| FIXED_AMOUNT, value }` on the product; the invoice line starts with it as its line discount, and the user can change it there |
+| P.5 | Save the item form | `POST /v1/products` and `PUT /v1/products/{id}` accepting P.1 to P.4 plus the fields the form already has (Arabic name, description, barcode, group and kind, "price includes VAT" as an entry preference only: the price is stored before VAT, "staff can change price", "keep count", sizes and add-ons). Each size and add-on is sold as its own invoice line with the item's category and classification |
+| P.6 | System catalogue templates | per business type and sub-business type (`src/lib/subBusinessTypes.ts`), seeded from the owner's Lulu reference sheet of 21 Oct 2026: item group, sub group, item name, brand, unit, pack size, barcode, price; food and beverage also sizes and modifiers. A template is copied into the company's catalogue and every item stays editable. Zero-rating of template items follows Z.15 |
