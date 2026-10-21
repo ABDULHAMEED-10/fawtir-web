@@ -4,6 +4,7 @@ import { refusalMessageKey, refusalMessageValues } from './expenditureRefusals'
 import { selfBillingMessageKey } from './selfBillingRefusals'
 import { subscriptionRestrictedMessageKey } from './subscriptionRestricted'
 import { salesApprovalMessageKey } from './salesApproval'
+import { taxReasonRefusalKey } from './taxReasonRefusals'
 
 /**
  * The localized sentence for a failed customer-app request, and the reference support needs.
@@ -26,6 +27,9 @@ export function describeApiFailure(error: unknown): FormMessage & { reference: s
       const values = refusalMessageValues(error)
       return values ? { key: refusal, values, reference } : { key: refusal, reference }
     }
+    // A line's no-VAT reason: answered 400 by code, which would otherwise read "check the form".
+    const taxReason = taxReasonRefusalKey(error)
+    if (taxReason !== null) return { key: taxReason, reference }
     // Before the 409 branch on purpose: seven self-billing refusals answer Conflict, and telling
     // someone with no agreement to "reload to see the latest version" is false, not merely vague.
     const selfBilling = selfBillingMessageKey(error)
@@ -35,7 +39,10 @@ export function describeApiFailure(error: unknown): FormMessage & { reference: s
     const salesApproval = salesApprovalMessageKey(error)
     if (salesApproval !== null) return { key: salesApproval, reference }
     if (error.status === 403) {
-      return { key: error.problemType === 'csrf-rejected' ? 'apiErrors.csrf' : 'apiErrors.forbidden', reference }
+      return {
+        key: error.problemType === 'csrf-rejected' ? 'apiErrors.csrf' : 'apiErrors.forbidden',
+        reference,
+      }
     }
     if (error.status === 404) return { key: 'apiErrors.notFound', reference }
     if (error.status === 409) return { key: 'apiErrors.conflict', reference }

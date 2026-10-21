@@ -23,6 +23,20 @@ export type ImportErrorDto = {
   message: string
 }
 
+/**
+ * Something in the file the import went ahead with but the user should check: never blocks the
+ * file. A blank TAX_CATEGORY cell, for one, is read as standard rate (5%).
+ */
+export type ImportWarningDto = {
+  /** Every row the warning applies to, so it is listed once. */
+  rowNumbers: number[]
+  column: string
+  /** The warning's name, e.g. `TAX_CATEGORY_DEFAULTED`; worded by the dialog when it knows it. */
+  code: string
+  /** The server's own sentence, in the user's language, for a code the dialog does not know. */
+  message: string
+}
+
 /** A value the server resolved by inference, for the user to check in the preview. */
 export type ImportInferenceDto = {
   rowNumbers: number[]
@@ -62,6 +76,8 @@ export type InvoiceImportBatchDto = {
   processedRows: number
   /** Empty when the file can be imported; any entry blocks the whole file. */
   errors: ImportErrorDto[]
+  /** Non-blocking; absent from a server that sends none. */
+  warnings?: ImportWarningDto[]
   summary: {
     invoices: number
     lines: number

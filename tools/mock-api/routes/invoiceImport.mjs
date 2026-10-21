@@ -21,6 +21,7 @@ const BASE = {
   summary: null,
   inferred: [],
   unresolved: [],
+  warnings: [],
   created: [],
 }
 
@@ -62,6 +63,16 @@ const INFERRED = [
     matchedTo: 'Arabica coffee beans, 1 kg (catalogue)',
   },
   { rowNumbers: [9], column: 'Customer', value: 'Nizwa Souq Cafe', matchedTo: 'Nizwa Souq Café' },
+]
+
+/** Non-blocking: a blank TAX_CATEGORY cell read as standard rate. */
+const WARNINGS = [
+  {
+    rowNumbers: [6, 7],
+    column: 'TAX_CATEGORY',
+    code: 'TAX_CATEGORY_DEFAULTED',
+    message: 'No VAT category was given, so this line was set to standard rate (5%).',
+  },
 ]
 
 const UNRESOLVED = [
@@ -114,6 +125,7 @@ function check() {
           summary: SUMMARY,
           inferred: INFERRED,
           unresolved: UNRESOLVED,
+          warnings: WARNINGS,
         }
   batches.set(id, batch)
   return batch

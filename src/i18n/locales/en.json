@@ -21777,7 +21777,13 @@
     "createdTitle_other": "{{count}} drafts created",
     "createdNote": "Review the drafts, then select and issue them from the Invoices list.",
     "openDraft": "Open draft",
-    "unavailable": "Invoice import is not available yet: the server does not offer it."
+    "unavailable": "Invoice import is not available yet: the server does not offer it.",
+    "warningsTitle_one": "1 thing to check. The file can still be imported.",
+    "warningsTitle_other": "{{count}} things to check. The file can still be imported.",
+    "warningsNote": "Nothing here stops the import. Check each row, and if it is wrong, fix the file and upload it again.",
+    "warning": {
+      "taxCategoryDefaulted": "No VAT category was given, so these lines were set to standard rate (5%). If a line is zero-rated or exempt, give its category and reason in the file."
+    }
   },
   "site": {
     "faq": {
@@ -23481,5 +23487,11 @@
       "cancel": "Cancel",
       "save": "Save these {{count}}"
     }
+  },
+  "taxReasonRefusal": {
+    "reasonRequired": "A zero-rated or exempt line needs its reason for no VAT. Choose the reason on each such line, then try again.",
+    "reasonInvalid": "A line's reason for no VAT is not on the official list for its VAT category. Choose the reason again from the list.",
+    "reasonNotApplicable": "A line gives a reason code that its VAT category does not take. Clear the reason, or change the line's category.",
+    "bulkReasonRequired": "A zero-rated or exempt line in the file has no reason code. Give the reason code in its row, then upload again."
   }
 }
