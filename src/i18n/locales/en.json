@@ -21783,6 +21783,9 @@
     "warningsNote": "Nothing here stops the import. Check each row, and if it is wrong, fix the file and upload it again.",
     "warning": {
       "taxCategoryDefaulted": "No VAT category was given, so these lines were set to standard rate (5%). If a line is zero-rated or exempt, give its category and reason in the file."
+    },
+    "warningColumn": {
+      "taxCategory": "Tax category"
     }
   },
   "site": {

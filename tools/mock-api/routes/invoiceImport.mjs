@@ -69,7 +69,7 @@ const INFERRED = [
 const WARNINGS = [
   {
     rowNumbers: [6, 7],
-    column: 'TAX_CATEGORY',
+    column: 'Tax category',
     code: 'TAX_CATEGORY_DEFAULTED',
     message: 'No VAT category was given, so this line was set to standard rate (5%).',
   },

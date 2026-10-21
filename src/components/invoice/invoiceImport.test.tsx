@@ -197,6 +197,16 @@ describe('Invoice import dialog', () => {
     expect(screen.getByText(/so these lines were set to standard rate \(5%\)/)).toBeTruthy()
     expect(screen.queryByText('server sentence')).toBeNull()
     expect(screen.getByText('A sentence from the server.')).toBeTruthy()
+    // The column reads as words, the template's own header, never the code the server may send.
+    expect(screen.getByText('Tax category')).toBeTruthy()
+    expect(screen.queryByText('TAX_CATEGORY')).toBeNull()
+    expect(screen.getByText('Unit')).toBeTruthy()
+    // Amber, not the errors' red.
+    const table = screen.getByText('Tax category').closest('[data-tone="warning"]') as HTMLElement
+    expect(table.className).toContain('border-pending-200')
+    const sentence = screen.getByText(/so these lines were set to standard rate \(5%\)/)
+    expect(sentence.className).toContain('text-pending-700')
+    expect(sentence.className).not.toMatch(/danger|warning-700/)
     // The import still goes ahead.
     const create = screen.getByRole('button', { name: 'Create 2 drafts' }) as HTMLButtonElement
     expect(create.disabled).toBe(false)
@@ -214,6 +224,8 @@ describe('Invoice import dialog', () => {
     renderModal()
     await upload()
     expect(await screen.findByText(/بالنسبة الأساسية \(5%\)/)).toBeTruthy()
+    expect(screen.getByText('الفئة الضريبية')).toBeTruthy()
+    expect(screen.queryByText('TAX_CATEGORY')).toBeNull()
   })
 
   it('creates the drafts and shows each one with a link to the Drafts tab', async () => {
