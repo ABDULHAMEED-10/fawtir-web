@@ -1,7 +1,7 @@
 import { baisaOf, type SignupCataloguePlan } from '../../lib/identity/signupPlans'
 import { FEATURES, FEATURE_GROUPS, type Feature } from '../../lib/plans'
 import { DEFAULT_SETTINGS, PLATFORM_SETTINGS } from '../../lib/platformSettings'
-import { launchCopy, trialSummary } from './catalogueView'
+import { trialSummary } from './catalogueView'
 
 /*
  * The full comparison behind the cards: the limits, then every feature the published catalogue
@@ -81,13 +81,14 @@ const enabled = (plan: SignupCataloguePlan, feature: string) =>
   plan.features.some((entry) => entry.key === feature && entry.enabled)
 
 /**
- * The extraction add-on is a console setting per launch plan, not a catalogue feature; a plan the
- * setting does not name is shown as not offering it rather than guessed.
+ * The extraction add-on as the published catalogue offers it (ER-1, PL-6): a plan whose `erpAddon`
+ * carries a price sells it, any other plan does not (paid extras off, no add-on price, or ERP
+ * mapping off). Enterprise is not in the catalogue; its column keeps the console default, since
+ * ERP on Enterprise is agreed per contract.
  */
 function extraction(plan: Column): Cell {
-  const availability = PLATFORM_SETTINGS.addons.erpExtraction.availability
-  const id = plan ? launchCopy(plan.code)?.audience : 'enterprise'
-  return text(`plan.extraction.${id ? availability[id] : 'notOffered'}`)
+  if (plan) return text(`plan.extraction.${plan.erpAddon ? 'priced' : 'notOffered'}`)
+  return text(`plan.extraction.${PLATFORM_SETTINGS.addons.erpExtraction.availability.enterprise}`)
 }
 
 /**

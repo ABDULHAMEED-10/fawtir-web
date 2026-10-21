@@ -22247,7 +22247,9 @@
       "api": "يتحدث نظامك مع فوتر مباشرة.",
       "webhooks": "يُخبر فوتر أنظمتك لحظة حدوث أي تغيير."
     },
-    "perMonthNoVat": "شهريًا"
+    "perMonthNoVat": "شهريًا",
+    "priceLoading": "جارٍ تحميل السعر…",
+    "priceUnavailable": "تعذّر تحميل السعر الآن."
   },
   "lineComposer": {
     "exclVat": "قبل الضريبة",

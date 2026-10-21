@@ -21073,7 +21073,9 @@
       "api": "Your own system talks to Fawtir directly.",
       "webhooks": "Fawtir tells your systems the moment something changes."
     },
-    "perMonthNoVat": "a month"
+    "perMonthNoVat": "a month",
+    "priceLoading": "Loading the price…",
+    "priceUnavailable": "We couldn't load the price right now."
   },
   "lineComposer": {
     "exclVat": "Excl. VAT",

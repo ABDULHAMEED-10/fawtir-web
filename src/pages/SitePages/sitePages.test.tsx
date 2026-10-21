@@ -186,6 +186,21 @@ describe('Pricing page', () => {
     expect(i18n.t('plans.faq.a4', { ...params, lng: 'ar' })).toContain('80, 90, 100 بالمئة')
   })
 
+  it('marks the ERP extraction add-on from the catalogue\'s erpAddon, not a web list (ER-1, PL-6)', () => {
+    const plans: SignupCataloguePlan[] = [
+      { ...CATALOGUE[0], erpAddon: { currency: 'OMR', monthlyPrice: '9.500', annualPrice: '114.000' } },
+      { ...CATALOGUE[1], erpAddon: null },
+    ]
+    const row = comparisonGroups(plans)
+      .flatMap((group) => group.rows)
+      .find((entry) => entry.key === 'erpExtraction')!
+    expect(row.cell(plans[0])).toMatchObject({ key: 'plan.extraction.priced' })
+    expect(row.cell(plans[1])).toMatchObject({ key: 'plan.extraction.notOffered' })
+    expect(row.cell({ ...plans[1], erpAddon: undefined })).toMatchObject({
+      key: 'plan.extraction.notOffered',
+    })
+  })
+
   it('quotes the VAT rate the server sends with the plans, and says no VAT is added at zero', () => {
     const vatCell = (plans: readonly SignupCataloguePlan[]) =>
       comparisonGroups(plans).flatMap((group) => group.rows).find((row) => row.key === 'vat')!.cell(null)

@@ -5,10 +5,12 @@ import { AppShell } from '../../layouts/AppShell'
 import { SettingsShell } from '../../pages/SettingsPage/SettingsShell'
 import { LockIcon, Rial } from '../ui'
 import { FEATURE_LIST, PLAN, hasFeature, type AnyPlanId, type Feature } from '../../lib/plans'
+import { formatBaisa } from '../../lib/pricing'
 import { planAccessStore, useFeature, useTenantPlan } from '../../lib/planAccess'
 import { useApiRead } from '../../hooks/useApiRead'
 import {
   PUBLIC_PLANS_PATH,
+  baisaOf,
   readPublicPlans,
   type SignupCataloguePlan,
 } from '../../lib/identity/signupPlans'
@@ -56,25 +58,39 @@ function alsoAdds(current: AnyPlanId, needed: AnyPlanId, feature: Feature): Feat
 }
 
 /**
- * Whether subscription prices carry VAT, from the rate the published catalogue sends with every
- * plan. With VAT off a price has no "before VAT" wording; until the server has said a rate above
- * 0 applies (still loading, unreadable, or a server older than the field), no VAT is claimed.
+ * The needed plan's price as the published catalogue states it (GEN-1, PL-3: every price is a
+ * console setting), never the launch figures in `lib/plans.ts`. VAT wording follows the rate the
+ * catalogue sends with every plan: until the server has said a rate above 0 applies (still
+ * loading, unreadable, or a server older than the field), no VAT is claimed. A plan the catalogue
+ * does not list, or lists with an amount that is not a price, shows no figure.
  */
-function useSubscriptionVatCharged(): boolean {
+type GatePrice =
+  | { status: 'loading' }
+  | { status: 'failed'; retry: () => void }
+  | { status: 'ready'; monthlyBaisa: number | null; vatCharged: boolean }
+
+function useGatePrice(neededPlan: AnyPlanId): GatePrice {
   const catalogue = useApiRead<SignupCataloguePlan[]>(PUBLIC_PLANS_PATH, () => readPublicPlans())
-  if (catalogue.read.status !== 'ready') return false
-  const sent = catalogue.read.data.find((plan) => plan.vatRate != null)?.vatRate
-  return sent != null && Number(sent) > 0
+  if (catalogue.read.status === 'loading') return { status: 'loading' }
+  if (catalogue.read.status === 'failed') return { status: 'failed', retry: catalogue.retry }
+  const plans = catalogue.read.data
+  const sent = plans.find((plan) => plan.vatRate != null)?.vatRate
+  const code = neededPlan === 'enterprise' ? null : PLAN[neededPlan].code
+  const listed = code ? plans.find((plan) => plan.code === code) : undefined
+  return {
+    status: 'ready',
+    monthlyBaisa: baisaOf(listed?.monthlyPrice),
+    vatCharged: sent != null && Number(sent) > 0,
+  }
 }
 
 export function UpsellPanel({ feature, neededPlan }: { feature: Feature; neededPlan: AnyPlanId }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const current = useTenantPlan()
-  const vatCharged = useSubscriptionVatCharged()
+  const price = useGatePrice(neededPlan)
   const planName = t(`plan.planName.${neededPlan}`)
   const more = alsoAdds(current, neededPlan, feature)
-  const price = neededPlan === 'enterprise' ? null : PLAN[neededPlan].monthly
 
   const back = () => {
     if (window.history.length > 1) navigate(-1)
@@ -120,23 +136,38 @@ export function UpsellPanel({ feature, neededPlan }: { feature: Feature; neededP
       ) : null}
 
       <p className="mt-6 flex flex-wrap items-baseline justify-center gap-x-1.5 gap-y-0.5">
-        {price !== null ? (
+        {neededPlan === 'enterprise' ? (
+          <span className="text-base font-semibold text-text-secondary">
+            {t('planGate.enterprisePrice')}
+          </span>
+        ) : price.status === 'loading' ? (
+          <span className="text-sm font-medium text-text-tertiary">{t('planGate.priceLoading')}</span>
+        ) : price.status === 'failed' ? (
+          <span role="alert" className="flex flex-col items-center gap-1">
+            <span className="text-sm font-medium text-text-danger">
+              {t('planGate.priceUnavailable')}
+            </span>
+            <button
+              type="button"
+              onClick={price.retry}
+              className="rounded-sm text-sm font-semibold text-primary-700 hover:text-primary-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary-500"
+            >
+              {t('plans.retry')}
+            </button>
+          </span>
+        ) : price.monthlyBaisa !== null ? (
           <>
             <span className="text-[28px] font-semibold leading-[1.1] text-text-primary">
               <Rial />
             </span>
             <span className="text-[28px] font-semibold leading-[1.1] text-text-primary tabular-nums">
-              {price.toFixed(3)}
+              {formatBaisa(price.monthlyBaisa)}
             </span>
             <span className="text-sm font-medium text-text-quaternary">
-              {t(vatCharged ? 'planGate.perMonth' : 'planGate.perMonthNoVat')}
+              {t(price.vatCharged ? 'planGate.perMonth' : 'planGate.perMonthNoVat')}
             </span>
           </>
-        ) : (
-          <span className="text-base font-semibold text-text-secondary">
-            {t('planGate.enterprisePrice')}
-          </span>
-        )}
+        ) : null}
       </p>
 
       <div className="mt-6 flex w-full flex-wrap justify-center gap-3">

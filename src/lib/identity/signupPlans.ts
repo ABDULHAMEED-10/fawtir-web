@@ -3,6 +3,9 @@ import { apiRequest } from '../../api'
 /** One `features` entry: a `Feature` key from `lib/plans.ts`, switched on or off (contract §3). */
 export type CatalogueFeature = { key: string; enabled: boolean }
 
+/** The ERP and API add-on's amounts on one plan version, three-decimal OMR strings. */
+export type CatalogueErpAddon = { currency: string; monthlyPrice: string; annualPrice: string }
+
 /**
  * One plan of the published catalogue, as `GET /v1/auth/signup/plans` and its public alias
  * `GET /v1/public/plans` return it (catalogue contract §9): active and publicly visible plans
@@ -45,11 +48,11 @@ export type SignupCataloguePlan = {
    */
   vatRate?: string | null
   /**
-   * The ERP and API add-on, one month, as a three-decimal OMR string; `null` when the plan does not
-   * sell it. Not sent by the server yet (the public read leaves it out); while absent the sign-up
-   * add-on shows no figure rather than a price nobody published.
+   * The ERP and API add-on's price on this plan's current version, before VAT like the plan
+   * prices; `null` wherever it cannot be bought now (paid extras off, no add-on price, or the
+   * plan's ERP mapping off). Absent from a server older than the field, read as not offered.
    */
-  erpAddonMonthlyPrice?: string | null
+  erpAddon?: CatalogueErpAddon | null
 }
 
 export const SIGNUP_PLANS_PATH = '/v1/auth/signup/plans'
