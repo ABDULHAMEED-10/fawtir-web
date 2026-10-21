@@ -251,6 +251,12 @@ export type SuggestedSize = {
   nearbyFrom?: number
   nearbyTo?: number
   noteKey?: string
+  /** From a template: what the till can scan, and the maker. */
+  barcode?: string
+  brand?: string
+  /** The Oman VAT category it starts on, and the VATZR-OM / VATEX-OM reason when Z or E. */
+  taxCode?: string
+  reasonCode?: string
   picked: boolean
 }
 
@@ -270,299 +276,14 @@ export type SuggestedGroup = {
   picked: boolean
 }
 
-// TODO(backend): system catalogue templates. This coffee-roastery list is a placeholder. The real
-// templates come from the backend, one per business type and sub-business type picked at signup
-// (src/lib/subBusinessTypes.ts), seeded from the Lulu reference sheet the owner shared on
-// 21 Oct 2026 (item group, sub group, item name, brand, unit, pack size, barcode, price; food and
-// beverage adds sizes and modifiers). A template is a starting copy: every item stays editable
-// (price, unit, photo, quantity) and the user can also build a catalogue of their own. See
-// docs/backend-guides/INCOME.md, row P.6.
-export const SUGGESTED: SuggestedGroup[] = [
-  {
-    id: 'greenBeans',
-    name: 'Green beans',
-    picked: true,
-    kinds: [
-      {
-        id: 'houseBlend',
-        name: 'House Blend',
-        picked: true,
-        sizes: [
-          {
-            id: 'hb-1kg',
-            name: 'House Blend - 1 kg bag',
-            price: 9.5,
-            soldAs: 'BG',
-            nearbyFrom: 8.9,
-            nearbyTo: 10.4,
-            picked: true,
-          },
-          {
-            id: 'hb-500g',
-            name: 'House Blend - 500 g bag',
-            price: 5.1,
-            soldAs: 'BG',
-            nearbyFrom: 4.7,
-            nearbyTo: 5.6,
-            picked: true,
-          },
-          {
-            id: 'hb-250g',
-            name: 'House Blend - 250 g bag',
-            price: 2.7,
-            soldAs: 'BG',
-            nearbyFrom: 2.4,
-            nearbyTo: 3.1,
-            picked: true,
-          },
-          {
-            id: 'hb-100g',
-            name: 'House Blend - 100 g sample',
-            price: 1.3,
-            soldAs: 'BG',
-            nearbyFrom: 1.1,
-            nearbyTo: 1.5,
-            picked: false,
-          },
-          {
-            id: 'hb-loose',
-            name: 'House Blend - sold loose, per kg',
-            price: 9.2,
-            soldAs: 'KGM',
-            noteKey: 'buildCatalog.pricedByWeight',
-            picked: false,
-          },
-          {
-            id: 'hb-sack',
-            name: 'House Blend - 5 kg wholesale sack',
-            price: 44,
-            soldAs: 'SA',
-            nearbyFrom: 41,
-            nearbyTo: 47,
-            picked: false,
-          },
-        ],
-      },
-      {
-        id: 'yirgacheffe',
-        name: 'Yirgacheffe',
-        picked: true,
-        sizes: [
-          {
-            id: 'yg-1kg',
-            name: 'Yirgacheffe - 1 kg bag',
-            price: 11.4,
-            soldAs: 'BG',
-            nearbyFrom: 10.8,
-            nearbyTo: 12.6,
-            picked: true,
-          },
-          {
-            id: 'yg-250g',
-            name: 'Yirgacheffe - 250 g bag',
-            price: 3.2,
-            soldAs: 'BG',
-            nearbyFrom: 2.9,
-            nearbyTo: 3.6,
-            picked: true,
-          },
-          {
-            id: 'yg-500g',
-            name: 'Yirgacheffe - 500 g bag',
-            price: 6.1,
-            soldAs: 'BG',
-            nearbyFrom: 5.6,
-            nearbyTo: 6.7,
-            picked: true,
-          },
-        ],
-      },
-      { id: 'sidamo', name: 'Sidamo', picked: false, sizes: [] },
-      { id: 'colombian', name: 'Colombian Supremo', picked: false, sizes: [] },
-      { id: 'brazilian', name: 'Brazilian Santos', picked: false, sizes: [] },
-      { id: 'decaf', name: 'Decaf', picked: false, sizes: [] },
-      {
-        id: 'omaniHojari',
-        name: 'Omani Hojari roast',
-        picked: true,
-        yours: true,
-        sizes: [
-          {
-            id: 'oh-500g',
-            name: 'Omani Hojari - 500 g bag',
-            price: 4.2,
-            soldAs: 'BG',
-            picked: true,
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'brewedDrinks',
-    name: 'Brewed drinks',
-    picked: true,
-    kinds: [
-      {
-        id: 'milkCoffee',
-        name: 'Milk coffee',
-        picked: true,
-        sizes: [
-          {
-            id: 'fw',
-            name: 'Flat White',
-            price: 1.4,
-            soldAs: 'EA',
-            nearbyFrom: 1.2,
-            nearbyTo: 1.6,
-            picked: true,
-          },
-          {
-            id: 'cap',
-            name: 'Cappuccino',
-            price: 1.4,
-            soldAs: 'EA',
-            nearbyFrom: 1.2,
-            nearbyTo: 1.6,
-            picked: true,
-          },
-          {
-            id: 'latte',
-            name: 'Latte',
-            price: 1.5,
-            soldAs: 'EA',
-            nearbyFrom: 1.3,
-            nearbyTo: 1.7,
-            picked: true,
-          },
-        ],
-      },
-      {
-        id: 'blackCoffee',
-        name: 'Black coffee',
-        picked: true,
-        sizes: [
-          {
-            id: 'esp',
-            name: 'Espresso',
-            price: 0.8,
-            soldAs: 'EA',
-            nearbyFrom: 0.7,
-            nearbyTo: 0.9,
-            picked: true,
-          },
-          {
-            id: 'dbl',
-            name: 'Double Espresso',
-            price: 1.1,
-            soldAs: 'EA',
-            nearbyFrom: 1,
-            nearbyTo: 1.3,
-            picked: true,
-          },
-        ],
-      },
-      {
-        id: 'coldDrinks',
-        name: 'Cold drinks',
-        picked: true,
-        sizes: [
-          {
-            id: 'cb',
-            name: 'Cold Brew',
-            price: 1.6,
-            soldAs: 'EA',
-            nearbyFrom: 1.4,
-            nearbyTo: 1.9,
-            picked: true,
-          },
-          {
-            id: 'iced-latte',
-            name: 'Iced Latte',
-            price: 1.7,
-            soldAs: 'EA',
-            nearbyFrom: 1.5,
-            nearbyTo: 2,
-            picked: true,
-          },
-        ],
-      },
-      {
-        id: 'tea',
-        name: 'Tea',
-        picked: false,
-        sizes: [
-          {
-            id: 'karak',
-            name: 'Karak tea',
-            price: 0.6,
-            soldAs: 'EA',
-            nearbyFrom: 0.4,
-            nearbyTo: 0.8,
-            picked: false,
-          },
-        ],
-      },
-      { id: 'seasonal', name: 'Seasonal', picked: false, sizes: [] },
-    ],
-  },
-  {
-    id: 'roastingServices',
-    name: 'Roasting services',
-    picked: true,
-    kinds: [
-      {
-        id: 'contractRoasting',
-        name: 'Contract roasting',
-        picked: true,
-        sizes: [
-          {
-            id: 'batch',
-            name: 'Roasting - per batch',
-            price: 4.2,
-            soldAs: 'BX',
-            nearbyFrom: 3.8,
-            nearbyTo: 4.8,
-            picked: true,
-          },
-          {
-            id: 'batch-half',
-            name: 'Roasting - half batch',
-            price: 2.4,
-            soldAs: 'BX',
-            nearbyFrom: 2.1,
-            nearbyTo: 2.8,
-            picked: true,
-          },
-          {
-            id: 'batch-bulk',
-            name: 'Roasting - 10 batch block',
-            price: 38,
-            soldAs: 'BX',
-            nearbyFrom: 34,
-            nearbyTo: 42,
-            picked: true,
-          },
-        ],
-      },
-      { id: 'training', name: 'Training', picked: false, sizes: [] },
-      { id: 'consulting', name: 'Consulting', picked: false, sizes: [] },
-    ],
-  },
-  { id: 'pastries', name: 'Pastries and food', picked: false, kinds: [] },
-  { id: 'packaging', name: 'Packaging', picked: false, kinds: [] },
-  { id: 'brewingEquipment', name: 'Brewing equipment', picked: false, kinds: [] },
-  { id: 'subscriptions', name: 'Subscriptions', picked: false, kinds: [] },
-  { id: 'merchandise', name: 'Merchandise', picked: false, kinds: [] },
-  { id: 'trainingEvents', name: 'Training and events', picked: false, kinds: [] },
-]
+// The suggestions are a system template per sub-business type: src/lib/catalogTemplates.
 
 /** Everything that would actually be created — the leaves, not the branches. */
-export function readyToAdd(picks: Set<string>) {
+export function readyToAdd(suggested: SuggestedGroup[], picks: Set<string>) {
   let count = 0
   let kinds = 0
   let groups = 0
-  for (const group of SUGGESTED) {
+  for (const group of suggested) {
     if (!picks.has(group.id)) continue
     let groupHasAny = false
     for (const kind of group.kinds) {
@@ -580,12 +301,15 @@ export function readyToAdd(picks: Set<string>) {
 }
 
 /** What is ticked when the screen opens. */
-export const DEFAULT_PICKS = new Set<string>([
-  ...SUGGESTED.filter((group) => group.picked).map((group) => group.id),
-  ...SUGGESTED.flatMap((group) => group.kinds.filter((kind) => kind.picked).map((kind) => kind.id)),
-  ...SUGGESTED.flatMap((group) =>
-    group.kinds.flatMap((kind) => kind.sizes.filter((size) => size.picked).map((size) => size.id)),
-  ),
-])
-
-export const BUSINESS_KIND = { titleKey: 'buildCatalog.coffeeRoastery', vatPercent: 5 }
+export const defaultPicks = (suggested: SuggestedGroup[]) =>
+  new Set<string>([
+    ...suggested.filter((group) => group.picked).map((group) => group.id),
+    ...suggested.flatMap((group) =>
+      group.kinds.filter((kind) => kind.picked).map((kind) => kind.id),
+    ),
+    ...suggested.flatMap((group) =>
+      group.kinds.flatMap((kind) =>
+        kind.sizes.filter((size) => size.picked).map((size) => size.id),
+      ),
+    ),
+  ])
