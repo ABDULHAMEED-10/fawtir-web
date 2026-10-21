@@ -234,7 +234,8 @@ const PERMISSION_CATALOGUE = [
   ['erp.connection.manage', 'INTEGRATION'], ['webhooks.manage', 'INTEGRATION'],
 ].map(([code, module, qualifiers = []]) => ({ code, module, description: code, qualifiers }))
 
-const RESERVED = new Set(['admin.users.manage', 'admin.roles.manage', 'admin.settings.manage', 'branch.manage', 'tenant.plan.manage'])
+const RESERVED = new Set(['admin.users.manage', 'admin.roles.manage', 'admin.settings.manage', 'branch.manage', 'tenant.plan.manage',
+  'smp.participant.manage', 'mapping.manage', 'mapping.certify', 'webhooks.manage'])
 const isReserved = (code) => RESERVED.has(code) || (code.startsWith('erp.') && !['erp.connection.read', 'erp.audit.read'].includes(code))
 /** Who holds which role, as the users list (paymentsRecurring.mjs) has it. */
 const HELD = new Set(['ADMIN', 'ACCOUNTANT'])
@@ -430,7 +431,8 @@ export default [
   {
     match: '/api/v1/roles/matrix',
     reply: () => ({
-      permissions: PERMISSION_CATALOGUE,
+      // `reserved` as the server's ReservedPermissions marks it (RL-5).
+      permissions: PERMISSION_CATALOGUE.map((permission) => ({ ...permission, reserved: isReserved(permission.code) })),
       roles: ROLES.map((role) => ({
         id: role.id,
         code: role.code,
