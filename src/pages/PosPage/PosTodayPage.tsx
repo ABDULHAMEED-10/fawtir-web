@@ -196,8 +196,9 @@ export function PosTodayPage() {
                     <li
                       key={sale.id}
                       // Fixed columns from xl up, so payment, amount, badge and action line up on
-                      // every row; a phone lets them wrap.
-                      className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border-subtle px-6 py-3.5 last:border-b-0 xl:grid xl:grid-cols-[48px_96px_minmax(0,1fr)_132px_112px_104px_148px]"
+                      // every row. From md the badge and action take a second row under the items
+                      // and the amount; a phone lets them wrap.
+                      className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border-subtle px-6 py-3.5 last:border-b-0 md:grid md:grid-cols-[48px_96px_minmax(0,1fr)_132px_112px] xl:grid-cols-[48px_96px_minmax(0,1fr)_132px_112px_104px_148px]"
                     >
                       <span className="w-12 shrink-0 text-sm font-medium text-text-quaternary">
                         {sale.time}
@@ -213,7 +214,7 @@ export function PosTodayPage() {
                           {sale.cashier}
                         </span>
                       </span>
-                      <span className="min-w-[180px] flex-1 xl:min-w-0">
+                      <span className="min-w-[180px] flex-1 md:min-w-0">
                         <span className="block text-sm font-medium text-text-primary">
                           {sale.what}
                         </span>
@@ -242,7 +243,7 @@ export function PosTodayPage() {
                           </span>
                         ) : null}
                       </span>
-                      <span className="flex shrink-0">
+                      <span className="flex shrink-0 md:col-start-3 md:row-start-2 xl:col-start-auto xl:row-start-auto">
                         <span
                           className={`inline-flex h-[26px] items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold uppercase tracking-[0.04em] ${STATE_TONE[sale.state]}`}
                         >
@@ -250,7 +251,7 @@ export function PosTodayPage() {
                           {t(`pos.today.state.${sale.state}`)}
                         </span>
                       </span>
-                      <span className="flex shrink-0 items-center justify-end gap-1.5">
+                      <span className="flex shrink-0 items-center justify-end gap-1.5 md:col-span-2 md:col-start-4 md:row-start-2 xl:col-span-1 xl:col-start-auto xl:row-start-auto">
                         <Link
                           to={sale.refundable ? '/pos/refund' : '/pos/today'}
                           className="inline-flex h-9 whitespace-nowrap items-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"

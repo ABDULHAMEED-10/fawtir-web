@@ -39,7 +39,9 @@ export function ItemOptionsPage() {
   const { id } = useParams()
   const arabic = i18n.language.startsWith('ar')
 
-  /** The item record gives the name and code; the choices are the House Blend example. */
+  /** The item record gives the name and code; the choices are the House Blend example.
+   * TODO(backend): read the item by its id (INCOME.md P.13) so the real name, code and
+   * sizes show here instead of the sample. */
   const item = { id: id ?? ITEM.id, name: ITEM.name, code: ITEM.code }
   const [state, setState] = useState<OptionsState>(() => sampleOptions(ITEM.code))
   const [thirdAsked, setThirdAsked] = useState(false)

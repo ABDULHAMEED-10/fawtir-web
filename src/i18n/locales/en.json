@@ -4487,7 +4487,15 @@
         "refunded": "Refunded",
         "mineOnly": "Mine only"
       },
-      "rowMenu": "More for this sale"
+      "rowMenu": "More for this sale",
+      "itemCount_one": "{{count}} item",
+      "itemCount_other": "{{count}} items",
+      "refundNote_one": "{{count}} credit note",
+      "refundNote_other": "{{count}} credit notes",
+      "groupTotal_one": "{{count}} sale · {{amount}}",
+      "groupTotal_other": "{{count}} sales · {{amount}}",
+      "salesCount_one": "{{count}} sale",
+      "salesCount_other": "{{count}} sales"
     },
     "close": {
       "title": "Closing it",
@@ -8028,7 +8036,7 @@
         "NONE": "Total"
       },
       "byPeriod": "Issued by period",
-      "byPeriodNote": "Net of corrections — a credit note subtracts from the period it falls in.",
+      "byPeriodNote": "Net of corrections: a credit note subtracts from the period it falls in.",
       "byGroupNote": "Largest first, over the range above.",
       "invoiced": "Invoiced",
       "ungrouped": "Not grouped",
@@ -8042,7 +8050,7 @@
       "subtitle": "Bills received over Peppol, uploaded and scanned are all counted together.",
       "kpi": {
         "vat": "VAT you were charged",
-        "vatNote": "One total per bill — received bills carry no rate breakdown",
+        "vatNote": "One total per bill; received bills carry no rate breakdown",
         "spend": "Spent",
         "spendNote": "Including VAT, net of supplier credit notes",
         "net": "Before VAT",
@@ -8081,7 +8089,7 @@
       },
       "spend": "Spent",
       "byPeriod": "Spend by period",
-      "byPeriodNote": "Net of corrections — a credit note subtracts from the period it falls in.",
+      "byPeriodNote": "Net of corrections: a credit note subtracts from the period it falls in.",
       "byGroupNote": "Largest first, within the range above.",
       "topShare": "{{name}} is <b>{{percent}}%</b> of spend",
       "uncategorised": "Uncategorised",
@@ -8123,7 +8131,7 @@
       "moneyIn": "Money in",
       "moneyOut": "Money out",
       "surplus": "Surplus,",
-      "whatThisIs": "This is cash movement recorded in Fawtir — payments somebody entered against an invoice or a bill. It is not your bank balance and not a forecast: money that moved without a document, or that nobody recorded, is not here.",
+      "whatThisIs": "This is cash movement recorded in Fawtir: payments somebody entered against an invoice or a bill. It is not your bank balance and not a forecast: money that moved without a document, or that nobody recorded, is not here.",
       "monthlyInOutNote": "Bucketed on the payment date, not the invoice date.",
       "whatYouKeptNote": "In less out per period. A reversal counts in the period it was recorded.",
       "reversalHeavy": "Reversals outweighed payments in {{periods}}, so those bars are not to scale. Read the figures.",
@@ -8200,7 +8208,7 @@
       "byPeriodNote": "Output is VAT you charged; input is VAT you were charged.",
       "netByPeriod": "Net position by period",
       "netByPeriodNote": "Above zero is owed; below zero is reclaimable.",
-      "byTreatmentNote": "Share of taxable amount, not of VAT — zero-rated and exempt supplies carry none.",
+      "byTreatmentNote": "Share of taxable amount, not of VAT. Zero-rated and exempt supplies carry none.",
       "taxableAmount": "Taxable amount",
       "category": {
         "S": "Standard rated",
@@ -9643,7 +9651,7 @@
     "openInvoice": "Open invoice",
     "rejection": {
       "headline": "The Tax Authority couldn't tell who the buyer was",
-      "body": "Every report has to name the buyer with a Peppol participant identifier, and <b>{{customer}} has none on their record</b>. Without it the OTA has no way to tie the sale to a registered business, so it won't take the report. Nothing is wrong with the invoice itself — the customer received it and the figures are fine.",
+      "body": "Every report has to name the buyer with a Peppol participant identifier, and <b>{{customer}} has none on their record</b>. Without it the OTA has no way to tie the sale to a registered business, so it won't take the report. Nothing is wrong with the invoice itself: the customer received it and the figures are fine.",
       "turnedDown": "Turned down",
       "attemptsSoFar": "Attempts so far",
       "undeclaredFor": "Undeclared for",
@@ -11568,7 +11576,7 @@
   "signingIn": {
     "title": "Signing in",
     "subtitle": "How people prove it is them, and how long a session lasts",
-    "note": "This screen was not drawn in the design set. It is built from what the Settings hub card promises so the card is not a dead end — tell me if you want it changed.",
+    "note": "This screen was not drawn in the design set. It is built from what the Settings hub card promises so the card is not a dead end. Tell me if you want it changed.",
     "twoStep": "Two-step sign-in",
     "twoStepNote": "a code from an app, on top of the password",
     "requireEveryone": "Require it of everyone",
@@ -11639,7 +11647,7 @@
       "neverSold": "Never sold",
       "switchedOff": "Switched off"
     },
-    "search": "Search anything — name, code, barcode...",
+    "search": "Search anything: name, code, barcode...",
     "groups": "Groups",
     "filters": "Filters",
     "sort": {
@@ -11765,7 +11773,7 @@
     },
     "regularSold": "Regular · sold {{count}} times",
     "sold": "sold {{count}} times",
-    "handSet": "Price was set by hand in June — left alone",
+    "handSet": "Price was set by hand in June, left alone",
     "noChange": "no change",
     "changing": "Changing",
     "changingOf": "{{changing}} of {{total}}",
@@ -16252,7 +16260,7 @@
       "signOut": "Sign out",
       "signingOut": "Signing out…",
       "signOutFailed": "Couldn't sign out. Retry",
-      "signOutFailedStatus": "Couldn't sign out. Your session is still active — try again.",
+      "signOutFailedStatus": "Couldn't sign out. Your session is still active. Try again.",
       "loading": "Loading…",
       "previewNoSession": "Not signed in"
     }
@@ -16277,7 +16285,7 @@
     },
     "certificate": {
       "title": "Your Peppol certificate expires in {{days}} days",
-      "body": "Renews <b>{{date}}</b>. When it lapses, invoicing stops the same morning — renewal takes about a week.",
+      "body": "Renews <b>{{date}}</b>. When it lapses, invoicing stops the same morning, and renewal takes about a week.",
       "renew": "Start the renewal"
     },
     "quota": {
@@ -19388,7 +19396,7 @@
     "csrf": "Your session needs refreshing. Reload the page and try again.",
     "reference": "Reference: {{id}}",
     "refused": {
-      "generic": "The server refused this. Nothing was changed, and repeating it will not help — the reference below tells support exactly which rule stopped it.",
+      "generic": "The server refused this. Nothing was changed, and repeating it will not help. The reference below tells support exactly which rule stopped it.",
       "creditNoteSupplierMismatch": "This credit note is from a different supplier than that bill. A credit can only reduce a bill from the supplier who issued it.",
       "creditNoteCurrencyMismatch": "The credit note and the bill are in different currencies, so one cannot reduce the other.",
       "creditNoteAlreadyApplied": "This credit note has already been used against that bill. Applying it again would reduce the bill twice.",
@@ -19566,7 +19574,7 @@
       "HEADER_DISCOUNT_PERCENTAGE_INVALID": "the document discount is over 100%",
       "EXEMPTION_REASON_REQUIRED": "a line with no VAT needs a reason",
       "TAX_CATEGORY_METADATA_CONFLICT": "two lines at the same rate have different tax categories",
-      "TAX_CATEGORY_REASON_CONFLICT": "two lines at the same VAT category and rate have different reasons — give them the same reason, or change one line's category or rate"
+      "TAX_CATEGORY_REASON_CONFLICT": "two lines at the same VAT category and rate have different reasons: give them the same reason, or change one line's category or rate"
     },
     "datesAtIssue": "Set when the invoice is issued; not stored on the draft.",
     "notEditable": "This invoice is {{state}}. Only drafts can be edited.",
@@ -21211,7 +21219,7 @@
     "csv": "Export CSV",
     "xlsx": "Export Excel",
     "working": "Preparing…",
-    "failed": "That download did not start. The ledger above is unaffected — try again.",
+    "failed": "That download did not start. The ledger above is unaffected. Try again.",
     "truncated": "This file stopped at the 10,000-row limit and is not the whole ledger. Narrow the filters and export again."
   },
   "reference": {
