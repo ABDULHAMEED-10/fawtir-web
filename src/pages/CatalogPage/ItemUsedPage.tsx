@@ -130,7 +130,7 @@ export function ItemUsedPage() {
         <TabStrip tabs={USED_TABS} value={tab} onChange={setTab} count={countUsedTab} />
 
         <div className="flex flex-wrap items-center justify-between gap-3 p-5">
-          <label className="flex h-[46px] min-w-[280px] flex-1 items-center gap-2 rounded-sm border border-border-subtle bg-white px-3">
+          <label className="flex h-[46px] w-full items-center gap-2 rounded-sm border border-border-subtle bg-white px-3 sm:w-[345px]">
             <img src={searchIcon} alt="" className="size-[18px] opacity-60" />
             <input
               value={query}
@@ -189,7 +189,7 @@ export function ItemUsedPage() {
           </table>
         </RowsView>
 
-        <p className="px-5 py-4 text-sm font-medium text-text-quaternary">
+        <p className="border-t border-border-subtle px-5 py-4 text-sm font-medium text-text-quaternary">
           {t('itemUsed.showing', { shown: rows.length, total: USED_TOTAL })}
         </p>
       </section>
@@ -231,7 +231,7 @@ function UsedRow({ row }: { row: UsedDocument }) {
           {t(`itemUsed.kind.${row.kind}`)}
         </span>
         <p className="mt-1.5 text-xs font-medium text-text-quaternary">
-          {t(row.stateKey, { date: '12 Aug' })}
+          {t(row.stateKey, row.stateValues)}
         </p>
       </td>
 
@@ -246,7 +246,7 @@ function UsedRow({ row }: { row: UsedDocument }) {
 
       <td className="px-4 py-4 align-top">
         <p className="whitespace-nowrap text-sm font-medium text-text-primary">
-          {row.when.includes('.') ? t(row.when) : row.when}
+          {row.when.includes('.') ? t(row.when, row.whenValues) : row.when}
         </p>
         <p className="mt-1 whitespace-nowrap text-xs font-medium text-text-quaternary">
           {t(row.agoKey, row.agoValues)}
@@ -287,7 +287,7 @@ function UsedRow({ row }: { row: UsedDocument }) {
         </p>
       </td>
 
-      <td className="px-4 py-4 align-top text-end">
+      <td className="px-4 py-4 align-middle text-end">
         <img
           src={chevronIcon}
           alt=""

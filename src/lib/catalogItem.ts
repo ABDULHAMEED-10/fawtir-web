@@ -255,6 +255,10 @@ export type UsedDocument = {
   customer: string
   purposeKey: string
   when: string
+  /** Values for `when` when it is a key, such as the date in "Since {{date}}". */
+  whenValues?: Record<string, string | number>
+  /** Values for `stateKey`, such as the date in "Open until {{date}}". */
+  stateValues?: Record<string, string | number>
   agoKey: string
   agoValues?: Record<string, string | number>
   quantity: number
@@ -272,6 +276,7 @@ export const USED_DOCUMENTS: UsedDocument[] = [
     noteKey: 'itemUsed.weeklyOfficeOrder',
     kind: 'quotation',
     stateKey: 'itemUsed.openUntil',
+    stateValues: { date: '12 Aug' },
     customer: 'Muscat Grand Hotel',
     purposeKey: 'itemUsed.sentNotAnswered',
     when: '28 Jul 2026',
@@ -290,6 +295,7 @@ export const USED_DOCUMENTS: UsedDocument[] = [
     noteKey: 'itemUsed.conferenceCatering',
     kind: 'quotation',
     stateKey: 'itemUsed.openUntil',
+    stateValues: { date: '5 Aug' },
     customer: 'Al Mouj Marina',
     purposeKey: 'itemUsed.sentNotAnswered',
     when: '21 Jul 2026',
@@ -312,6 +318,7 @@ export const USED_DOCUMENTS: UsedDocument[] = [
     customer: 'itemUsed.anyoneAtTheTill',
     purposeKey: 'itemUsed.morningDealWindow',
     when: 'itemUsed.since',
+    whenValues: { date: '4 Feb 2026' },
     agoKey: 'itemUsed.soldTimes',
     agoValues: { count: 68 },
     quantity: 1,

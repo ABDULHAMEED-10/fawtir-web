@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { CatalogShell, Pill } from './CatalogShell'
 import { ItemTabs } from './ItemTabs'
 import { PlainBars, HorizontalBars } from '../../components/reports/charts'
 import { SERIES } from '../../components/reports/scale'
-import { Rial, RialText, Select } from '../../components/ui'
+import { Popover, Rial, RialText } from '../../components/ui'
 import { omr } from '../../lib/catalog'
 import {
   ITEM,
@@ -31,6 +31,7 @@ import {
 } from '../../lib/catalogItem'
 import downloadIcon from '../../assets/catalog/download-ink.svg'
 import expandIcon from '../../assets/catalog/expand.svg'
+import chevronWhiteIcon from '../../assets/create-invoice/chevron.svg'
 import upIcon from '../../assets/catalog/arrow-up.svg'
 import changeUpIcon from '../../assets/catalog/arrow-up.svg'
 import changeAddIcon from '../../assets/catalog/plus-brand.svg'
@@ -87,18 +88,15 @@ export function ItemSellsPage() {
             <img src={downloadIcon} alt="" className="size-[18px]" />
             {t('itemSells.export')}
           </button>
-          <span className="w-[150px]">
-            <Select
-              ariaLabel={t('itemSells.yearly')}
-              value={window}
-              onChange={setWindow}
-              options={[
-                { value: 'yearly', label: t('itemSells.yearly') },
-                { value: 'quarterly', label: t('itemSells.quarterly') },
-                { value: 'monthly', label: t('itemSells.monthly') },
-              ]}
-            />
-          </span>
+          <PeriodPicker
+            value={window}
+            onChange={setWindow}
+            options={[
+              { value: 'yearly', label: t('itemSells.yearly') },
+              { value: 'quarterly', label: t('itemSells.quarterly') },
+              { value: 'monthly', label: t('itemSells.monthly') },
+            ]}
+          />
         </>
       }
       tabs={<ItemTabs id={id ?? ITEM.id} active="sells" />}
@@ -171,6 +169,7 @@ export function ItemSellsPage() {
 
         <Panel
           title={t('itemSells.bySize')}
+          spread
           note={
             <Trans
               i18nKey="itemSells.sizeNote"
@@ -190,6 +189,7 @@ export function ItemSellsPage() {
 
         <Panel
           title={t('itemSells.addOnsTaken')}
+          spread
           note={
             <Trans
               i18nKey="itemSells.addOnNote"
@@ -319,16 +319,19 @@ function Stat({
 function Panel({
   title,
   note,
+  spread,
   children,
 }: {
   title: string
   note: React.ReactNode
+  /** Rows spread evenly down the card's height, as the frame's By size and Add-ons cards. */
+  spread?: boolean
   children: React.ReactNode
 }) {
   const { t } = useTranslation()
   return (
     <section className="flex flex-col overflow-hidden rounded-md bg-surface-card">
-      <div className="flex items-center justify-between gap-3 p-5">
+      <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-5 py-4">
         <h2 className="text-[11px] font-semibold uppercase tracking-[0.6px] text-primary-800">
           {title}
         </h2>
@@ -340,8 +343,16 @@ function Panel({
           <img src={expandIcon} alt="" className="size-4" />
         </button>
       </div>
-      <div className="min-h-[240px] flex-1 px-5">{children}</div>
-      <p className="border-t border-surface-background px-5 py-3.5 text-sm font-medium leading-[1.5] text-text-tertiary">
+      <div
+        className={[
+          'min-h-[240px] flex-1 px-5 py-4',
+          // The shared bar list keeps its own gap; spread lets its rows share the card's height.
+          spread ? 'flex [&>ul]:justify-evenly' : '',
+        ].join(' ')}
+      >
+        {children}
+      </div>
+      <p className="border-t border-border-subtle bg-surface-tab-bar px-5 py-3.5 text-sm font-medium leading-[1.5] text-text-tertiary">
         {note}
       </p>
     </section>
@@ -359,5 +370,77 @@ function Row({ label, value, last }: { label: string; value: string; last?: bool
       <dt className="text-sm font-medium text-text-tertiary">{label}</dt>
       <dd className="shrink-0 text-sm font-semibold text-text-primary tabular-nums">{value}</dd>
     </div>
+  )
+}
+
+/**
+ * The period of the figures, drawn as the frame's solid blue button with a menu. Local because
+ * the shared `Select` has no primary-button look.
+ */
+function PeriodPicker({
+  value,
+  onChange,
+  options,
+}: {
+  value: string
+  onChange: (value: string) => void
+  options: { value: string; label: string }[]
+}) {
+  const [open, setOpen] = useState(false)
+  const anchor = useRef<HTMLButtonElement>(null)
+  const current = options.find((option) => option.value === value)
+  return (
+    <>
+      <button
+        ref={anchor}
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+      >
+        {current?.label}
+        <img
+          src={chevronWhiteIcon}
+          alt=""
+          aria-hidden="true"
+          className={[
+            'size-5 brightness-0 invert transition-transform',
+            open ? '-rotate-90' : 'rotate-90',
+          ].join(' ')}
+        />
+      </button>
+      <Popover
+        open={open}
+        anchorRef={anchor}
+        onClose={() => setOpen(false)}
+        width={160}
+        align="end"
+      >
+        <ul role="listbox" className="py-1">
+          {options.map((option) => (
+            <li key={option.value}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={option.value === value}
+                onClick={() => {
+                  onChange(option.value)
+                  setOpen(false)
+                }}
+                className={[
+                  'flex w-full px-4 py-2.5 text-start text-sm transition-colors hover:bg-primary-25',
+                  option.value === value
+                    ? 'bg-primary-25 font-semibold text-primary-800'
+                    : 'font-medium text-text-secondary',
+                ].join(' ')}
+              >
+                {option.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Popover>
+    </>
   )
 }

@@ -7,6 +7,7 @@ import { Rial } from '../../components/ui'
 import { productSearchPath, searchProducts, type ProductDto } from '../../api/catalog/products'
 import type { Page } from '../../api'
 import { Link } from 'react-router-dom'
+import { CatalogEmptyState } from './CatalogEmptyState'
 import { demoModulesEnabled } from '../../lib/demoModules'
 import { itemTypeOfUnit, OMAN_VAT_CATEGORIES } from '../../lib/invoiceDraft'
 import plusIcon from '../../assets/catalog/plus-white.svg'
@@ -70,6 +71,16 @@ export function CatalogPage() {
       defaultValue: t(`reference.unitShort.${code}`, { defaultValue: code }),
     })
 
+  const unavailable = demoModulesEnabled() ? null : (
+    <Notice badge={t('moduleUnavailable.badge')} body={t('catalogReal.toolsUnavailable')} />
+  )
+
+  // A company with no products yet, and nothing being searched, gets the Figma "Empty State":
+  // the ways to start a catalogue instead of an empty table.
+  if (products.read.status === 'ready' && !search && !query.trim() && items.length === 0) {
+    return <CatalogEmptyState notice={unavailable} />
+  }
+
   return (
     <CatalogShell
       crumbs={[]}
@@ -98,9 +109,7 @@ export function CatalogPage() {
         ) : undefined
       }
     >
-      {demoModulesEnabled() ? null : (
-        <Notice badge={t('moduleUnavailable.badge')} body={t('catalogReal.toolsUnavailable')} />
-      )}
+      {unavailable}
 
       {products.read.status === 'ready' && !search ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -175,19 +184,19 @@ export function CatalogPage() {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] border-collapse">
+              <table className="w-full border-collapse md:min-w-[720px]">
                 <thead>
                   <tr className="bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
-                    <th className="h-[46px] px-5 text-start font-semibold">
+                    <th className="h-[46px] px-4 text-start font-semibold md:px-5">
                       {t('catalogReal.col.item')}
                     </th>
-                    <th className="h-[46px] px-4 text-start font-semibold">
+                    <th className="hidden h-[46px] px-4 text-start font-semibold md:table-cell">
                       {t('catalogReal.col.kind')}
                     </th>
                     <th className="h-[46px] px-4 text-end font-semibold">
                       {t('catalogReal.col.price')}
                     </th>
-                    <th className="h-[46px] px-5 text-start font-semibold">
+                    <th className="hidden h-[46px] px-5 text-start font-semibold md:table-cell">
                       {t('catalogReal.col.tax')}
                     </th>
                   </tr>
@@ -204,7 +213,7 @@ export function CatalogPage() {
                           odd ? 'bg-pending-100/30' : '',
                         ].join(' ')}
                       >
-                        <td className="px-5 py-4 align-top">
+                        <td className="px-4 py-4 align-top md:px-5">
                           <div className="flex items-start gap-3">
                             <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-surface-background">
                               <img
@@ -215,7 +224,7 @@ export function CatalogPage() {
                             </span>
                             <div className="min-w-0">
                               <p className="text-sm font-semibold text-text-primary">
-                                {product.name}
+                                <bdi>{product.name}</bdi>
                               </p>
                               <p
                                 className="mt-1 text-xs font-medium text-text-quaternary"
@@ -223,10 +232,22 @@ export function CatalogPage() {
                               >
                                 {product.code}
                               </p>
+                              {/* Below md the Kind and Tax columns fold in here, so the price
+                                  stays on screen at 390 px. */}
+                              <p className="mt-1 text-xs font-medium text-text-quaternary md:hidden">
+                                {t(service ? 'catalogReal.kind.service' : 'catalogReal.kind.goods')}
+                                {' · '}
+                                <span className="tabular-nums">
+                                  {product.defaultTaxRate === null ? '0' : product.defaultTaxRate}%
+                                </span>{' '}
+                                {t(`catalogReal.category.${product.defaultTaxCategory}`, {
+                                  defaultValue: t('catalogReal.category.other'),
+                                })}
+                              </p>
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-4 align-top">
+                        <td className="hidden px-4 py-4 align-top md:table-cell">
                           <span
                             className={[
                               'inline-flex h-[22px] items-center rounded-[3px] px-2 text-[10px] font-semibold uppercase tracking-[0.5px]',
@@ -241,7 +262,7 @@ export function CatalogPage() {
                             {t('catalogReal.soldBy', { unit: unitWord(product.defaultUnitCode) })}
                           </p>
                         </td>
-                        <td className="px-4 py-4 align-top text-end">
+                        <td className="whitespace-nowrap px-4 py-4 align-top text-end">
                           {product.defaultUnitPrice > 0 ? (
                             <p className="text-sm font-semibold text-text-primary tabular-nums">
                               <span className="me-1">
@@ -258,7 +279,7 @@ export function CatalogPage() {
                             {t('catalogReal.beforeVat')}
                           </p>
                         </td>
-                        <td className="px-5 py-4 align-top">
+                        <td className="hidden px-5 py-4 align-top md:table-cell">
                           <p className="text-sm font-semibold text-text-primary tabular-nums">
                             {product.defaultTaxRate === null ? '0' : product.defaultTaxRate}%
                           </p>

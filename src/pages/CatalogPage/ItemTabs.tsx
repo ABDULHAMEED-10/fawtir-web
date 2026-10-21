@@ -35,8 +35,9 @@ export function ItemTabs({ id, active }: { id: string; active: string }) {
             {count !== undefined ? (
               <span
                 className={[
-                  'inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-semibold',
-                  on ? 'bg-primary-700 text-white' : 'bg-surface-background text-text-tertiary',
+                  // A small grey chip on the page's grey ground; light blue on the open tab.
+                  'inline-flex h-[20px] min-w-[22px] items-center justify-center rounded-[4px] px-1.5 text-[11px] font-medium tabular-nums',
+                  on ? 'bg-primary-50 text-primary-800' : 'bg-border-subtle text-text-tertiary',
                 ].join(' ')}
               >
                 {count}

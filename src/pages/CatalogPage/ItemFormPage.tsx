@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState, type InputHTMLAttributes, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useReferenceData } from '../../lib/reference/referenceData'
@@ -212,8 +212,8 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
           </>
         ) : (
           <>
-            <Pill tone="neutral">{t('item.notLive')}</Pill>
-            <Pill tone="neutral">{t('item.soldNone')}</Pill>
+            <Chip>{t('item.notLive')}</Chip>
+            <Chip>{t('item.soldNone')}</Chip>
           </>
         )
       }
@@ -250,7 +250,7 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                     onClick={() => pickKind(entry.id)}
                     aria-pressed={picked}
                     className={[
-                      'flex flex-col rounded-sm border p-4 text-start transition-colors',
+                      'flex min-w-0 flex-col rounded-sm border p-3.5 text-start transition-colors',
                       picked
                         ? 'border-primary-700 bg-primary-25'
                         : 'border-border-subtle bg-white hover:bg-primary-25',
@@ -259,15 +259,21 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                     <span className="flex size-8 items-center justify-center rounded-md bg-surface-background">
                       <img src={entry.icon} alt="" className="size-4" />
                     </span>
+                    {/* One line each, as the frame draws the cards; the full words stay in the
+                        tooltip and the accessible name. */}
                     <span
+                      title={t(`item.kind.${entry.id}`)}
                       className={[
-                        'mt-2.5 text-sm font-semibold',
+                        'mt-2.5 w-full truncate text-[13px] font-medium leading-[1.3]',
                         picked ? 'text-primary-800' : 'text-text-primary',
                       ].join(' ')}
                     >
                       {t(`item.kind.${entry.id}`)}
                     </span>
-                    <span className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">
+                    <span
+                      title={t(`item.kind.${entry.id}Note`)}
+                      className="mt-1 w-full truncate text-[11px] font-medium leading-[1.4] text-text-quaternary"
+                    >
                       {t(`item.kind.${entry.id}Note`)}
                     </span>
                   </button>
@@ -279,29 +285,29 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
           {/* 2 — the basics */}
           <Step n={2} title={t('item.step.basics')}>
             <div className="grid gap-4">
-              <Input
-                bordered
+              <Field
+                filled
                 label={t('item.name')}
-                requiredMark
+                required
                 value={name}
                 onChange={(event) => setName(event.target.value)}
               />
-              <Input
-                bordered
+              <Field
+                filled
                 dir="rtl"
                 label={t('item.arabicName')}
                 value={arabicName}
                 onChange={(event) => setArabicName(event.target.value)}
               />
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-text-secondary">
+              <label className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-text-primary">
                   {t('item.description')}
                 </span>
                 <textarea
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                   rows={3}
-                  className="w-full resize-none rounded-sm border border-border-default bg-white px-3 py-2.5 text-sm font-medium text-text-primary outline-none transition-colors focus:border-border-brand"
+                  className="w-full resize-none rounded-sm border border-transparent bg-surface-background px-4 py-3 text-sm font-medium text-text-primary outline-none transition-colors focus:border-border-brand"
                 />
               </label>
 
@@ -317,6 +323,7 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                     </span>
                     <Select
                       compact
+                      quiet
                       ariaLabel={t('item.group')}
                       value={group}
                       onChange={(value) => {
@@ -339,6 +346,7 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                     </span>
                     <Select
                       compact
+                      quiet
                       ariaLabel={t('item.kindLabel')}
                       value={itemKind}
                       onChange={setItemKind}
@@ -362,7 +370,7 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                 <Input
                   bordered
                   label={t('item.barcode')}
-                  hint={t('item.barcodeHint')}
+                  labelNote={t('item.barcodeHint')}
                   placeholder={t('item.barcodePlaceholder')}
                   value={barcode}
                   onChange={(event) => setBarcode(event.target.value)}
@@ -373,6 +381,7 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                     <span className="text-danger-700">*</span>
                   </span>
                   <Select
+                    quiet
                     ariaLabel={t('item.soldAs')}
                     value={soldAs}
                     onChange={setSoldAs}
@@ -407,11 +416,10 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
           {/* 3 — price and tax */}
           <Step n={3} title={t('item.step.price')}>
             <div className="grid gap-4 sm:grid-cols-3">
-              <Input
-                bordered
+              <Field
                 label={t('item.basePrice')}
-                requiredMark={!includesVat}
-                hint={t('item.beforeVat')}
+                required={!includesVat}
+                note={t('item.beforeVat')}
                 value={includesVat ? omr(base) : priceText}
                 readOnly={includesVat}
                 inputMode="decimal"
@@ -419,7 +427,7 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                 onFocus={selectAllOnFocus}
                 onChange={(event) => setPriceText(event.target.value.replace(/[^\d.]/g, ''))}
                 onBlur={() => setPriceText((text) => threeDecimals(text))}
-                leadingIcon={
+                leading={
                   <span className="text-sm font-medium text-text-primary">
                     <Rial />
                   </span>
@@ -436,6 +444,7 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                   <span className="text-danger-700">*</span>
                 </span>
                 <Select
+                  quiet
                   ariaLabel={t('item.taxCategory')}
                   value={tax?.code ?? taxCategory}
                   onChange={pickTaxCategory}
@@ -446,11 +455,10 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                   }))}
                 />
               </label>
-              <Input
-                bordered
+              <Field
                 label={t('item.priceOnTheShelf')}
-                requiredMark={includesVat}
-                hint={t('item.whatCustomerPays')}
+                required={includesVat}
+                note={t('item.whatCustomerPays')}
                 value={includesVat ? priceText : omr(shelf)}
                 readOnly={!includesVat}
                 inputMode="decimal"
@@ -458,7 +466,7 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                 onFocus={selectAllOnFocus}
                 onChange={(event) => setPriceText(event.target.value.replace(/[^\d.]/g, ''))}
                 onBlur={() => setPriceText((text) => threeDecimals(text))}
-                leadingIcon={
+                leading={
                   <span className="text-sm font-medium text-text-primary">
                     <Rial />
                   </span>
@@ -477,6 +485,7 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                       <span className="text-danger-700">*</span>
                     </span>
                     <Select
+                      quiet
                       value={reasonCode}
                       onChange={setReasonCode}
                       options={reasons.map((reason) => ({
@@ -489,10 +498,9 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                     />
                   </label>
                 ) : (
-                  <Input
-                    bordered
+                  <Field
                     label={t('invoiceDraft.exemptionReason')}
-                    requiredMark={reasonRequired(category)}
+                    required={reasonRequired(category)}
                     value={reasonText}
                     maxLength={500}
                     placeholder={t('invoiceDraft.exemptionReasonType')}
@@ -539,22 +547,22 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
           {/* 4 — sizes */}
           <Step n={4} title={t('item.step.sizes')}>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[620px] border-collapse">
+              <table className="w-full min-w-[640px] border-collapse">
                 <thead>
                   <tr className="bg-[#151c2d] text-[10px] font-semibold uppercase tracking-[0.5px] text-white">
-                    <th className="h-[38px] px-3 text-start font-semibold">
+                    <th className="h-[38px] min-w-[150px] px-3 text-start font-semibold">
                       {t('item.sizesCol.size')}
                     </th>
                     <th className="h-[38px] px-3 text-start font-semibold">
                       {t('item.sizesCol.priceChange')}
                     </th>
-                    <th className="h-[38px] px-3 text-end font-semibold">
+                    <th className="h-[38px] w-[110px] whitespace-nowrap px-3 text-end font-semibold">
                       {t('item.sizesCol.sellsFor')}
                     </th>
                     <th className="h-[38px] px-3 text-start font-semibold">
                       {t('item.sizesCol.code')}
                     </th>
-                    <th className="h-[38px] px-3 text-start font-semibold">
+                    <th className="h-[38px] whitespace-nowrap px-3 text-start font-semibold">
                       {t('item.sizesCol.onSale')}
                     </th>
                     <th className="h-[38px] px-3" />
@@ -573,7 +581,10 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                       </td>
                       <td className="px-3 py-2.5">
                         <input
-                          value={size.delta === 0 ? '—' : `+${size.delta.toFixed(3)}`}
+                          value={size.delta === 0 ? '0.000' : `+${size.delta.toFixed(3)}`}
+                          onFocus={selectAllOnFocus}
+                          inputMode="decimal"
+                          dir="ltr"
                           onChange={(event) =>
                             setSize(index, {
                               delta: Number(event.target.value.replace(/[^\d.]/g, '')) || 0,
@@ -584,7 +595,7 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                         />
                       </td>
                       <td className="px-3 py-2.5">
-                        <span className="flex h-[42px] items-center justify-end rounded-sm border border-border-default bg-surface-background px-3 text-sm font-semibold text-text-primary tabular-nums">
+                        <span className="flex h-[42px] items-center justify-end rounded-sm border border-border-default bg-white px-3 text-sm font-normal text-text-primary tabular-nums">
                           {omr(sizePrice(base, size, rate))}
                         </span>
                       </td>
@@ -593,7 +604,8 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                           value={size.code}
                           onChange={(event) => setSize(index, { code: event.target.value })}
                           aria-label={t('item.sizesCol.code')}
-                          className="h-[42px] w-full rounded-sm border border-border-default bg-white px-3 font-mono text-xs text-text-primary outline-none focus:border-border-brand"
+                          dir="ltr"
+                          className="h-[42px] w-full rounded-sm border border-border-default bg-white px-3 text-sm font-normal text-text-primary outline-none focus:border-border-brand"
                         />
                       </td>
                       <td className="px-3 py-2.5">
@@ -877,6 +889,72 @@ function Row({ label, value, last }: { label: string; value: string; last?: bool
     >
       <dt className="text-sm font-medium text-text-tertiary">{label}</dt>
       <dd className="shrink-0 text-sm font-semibold text-text-primary">{withRial(value)}</dd>
+    </div>
+  )
+}
+
+/** A grey state chip for an item not yet saved ("Not live", "Sold 0 times"), as the New Item frame draws it. */
+function Chip({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-border-subtle px-3 text-xs font-medium text-text-tertiary">
+      <span className="size-1.5 rounded-full bg-[#a8abb2]" />
+      {children}
+    </span>
+  )
+}
+
+/**
+ * A labelled text field drawn here rather than with the shared `Input`: its required mark is red
+ * as on every other label of this form, its note ("before VAT") sits beside the label as the
+ * frame draws it, and `filled` gives the grey box of the frame's Name and Arabic name.
+ */
+function Field({
+  label,
+  required,
+  note,
+  filled,
+  leading,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement> & {
+  label: string
+  required?: boolean
+  note?: string
+  filled?: boolean
+  leading?: ReactNode
+}) {
+  const id = useId()
+  return (
+    <div className="flex w-full flex-col gap-1">
+      <label
+        htmlFor={id}
+        className="flex min-w-0 items-baseline gap-0.5 whitespace-nowrap text-sm font-medium text-text-primary"
+      >
+        {label}
+        {required ? (
+          <span aria-hidden="true" className="text-danger-700">
+            *
+          </span>
+        ) : null}
+        {note ? (
+          <span className="ms-1.5 min-w-0 truncate text-xs font-normal text-text-quaternary">
+            {note}
+          </span>
+        ) : null}
+      </label>
+      <div
+        className={[
+          'flex h-[50px] items-center gap-2 rounded-sm border px-4 transition-colors focus-within:border-border-brand',
+          filled ? 'border-transparent bg-surface-background' : 'border-border-default bg-white',
+        ].join(' ')}
+      >
+        {leading ? <span className="inline-flex shrink-0">{leading}</span> : null}
+        <input
+          id={id}
+          aria-required={required || undefined}
+          className="h-full w-full min-w-0 border-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
+          {...props}
+        />
+      </div>
     </div>
   )
 }

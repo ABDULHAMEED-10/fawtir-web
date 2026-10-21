@@ -23,6 +23,9 @@ const OWN = 'own'
  */
 const FIRST_TEMPLATE = TEMPLATE_SUB_TYPES[0]?.id ?? OWN
 
+/** First-strong isolate: an English name inside an Arabic sentence keeps its own order. */
+const isolate = (text: string) => `\u2068${text}\u2069`
+
 /** A price as the catalogue keeps it: three decimals, or empty while there is none. */
 const threeDecimals = (raw: string) => {
   const value = Number(raw.replace(/,/g, ''))
@@ -240,7 +243,7 @@ export function BuildCatalogPage() {
                               : 'font-medium text-text-primary',
                           ].join(' ')}
                         >
-                          {entry.name}
+                          <bdi>{entry.name}</bdi>
                         </span>
                         {kinds > 0 ? (
                           <span className="text-xs font-medium text-text-quaternary">
@@ -266,7 +269,7 @@ export function BuildCatalogPage() {
 
         <Pane
           n={2}
-          title={t('buildCatalog.insideGroup', { group: activeGroup?.name ?? '' })}
+          title={t('buildCatalog.insideGroup', { group: isolate(activeGroup?.name ?? '') })}
           note={t('buildCatalog.insideGroupNote')}
           count={t('buildCatalog.ofTotal', {
             picked: pickedKinds(group),
@@ -322,7 +325,7 @@ export function BuildCatalogPage() {
                                 : 'font-medium text-text-primary',
                             ].join(' ')}
                           >
-                            {entry.name}
+                            <bdi>{entry.name}</bdi>
                           </span>
                           {sizes > 0 ? (
                             <span className="text-xs font-medium text-text-quaternary">
@@ -355,7 +358,7 @@ export function BuildCatalogPage() {
       {/* Pane three */}
       <Pane
         n={3}
-        title={t('buildCatalog.whatYouSell', { kind: activeKind?.name ?? '' })}
+        title={t('buildCatalog.whatYouSell', { kind: isolate(activeKind?.name ?? '') })}
         note={t('buildCatalog.whatYouSellNote')}
         count={t('buildCatalog.ofTotal', {
           picked: pickedSizes(kind),
@@ -375,20 +378,21 @@ export function BuildCatalogPage() {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse">
+            <table className="w-full min-w-[640px] border-collapse">
               <thead>
                 <tr className="border-b border-surface-background text-[10px] font-semibold uppercase tracking-[0.5px] text-text-quaternary">
                   <th className="h-[38px] w-[46px] px-4" />
-                  <th className="h-[38px] px-3 text-start font-semibold">
+                  <th className="h-[38px] w-full px-3 text-start font-semibold">
                     {t('buildCatalog.col.whatYoudSell')}
                   </th>
-                  <th className="h-[38px] px-3 text-end font-semibold">
+                  {/* Price, sold as and tax hug the right edge, each heading over its field. */}
+                  <th className="h-[38px] whitespace-nowrap px-1.5 text-end font-semibold">
                     {t('buildCatalog.col.price')}
                   </th>
-                  <th className="h-[38px] px-3 text-start font-semibold">
+                  <th className="h-[38px] whitespace-nowrap px-1.5 text-start font-semibold">
                     {t('buildCatalog.col.soldAs')}
                   </th>
-                  <th className="h-[38px] px-3 text-start font-semibold">
+                  <th className="h-[38px] whitespace-nowrap pe-4 ps-1.5 text-start font-semibold">
                     {t('buildCatalog.col.tax')}
                   </th>
                 </tr>
@@ -419,9 +423,11 @@ export function BuildCatalogPage() {
                           />
                         </td>
                         <td className="px-3 py-3">
-                          <p className="text-sm font-medium text-text-primary">{size.name}</p>
+                          <p className="text-sm font-medium text-text-primary">
+                            <bdi>{size.name}</bdi>
+                          </p>
                           <p className="mt-0.5 text-xs font-medium text-text-quaternary">
-                            {size.brand}
+                            {size.brand ? <bdi>{size.brand}</bdi> : null}
                             {size.brand && size.barcode ? ' · ' : ''}
                             {size.barcode ? <span dir="ltr">{size.barcode}</span> : null}
                           </p>
@@ -432,7 +438,7 @@ export function BuildCatalogPage() {
                             </p>
                           ) : null}
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-1.5 py-3">
                           <input
                             value={price}
                             placeholder={t('buildCatalog.setPrice')}
@@ -452,13 +458,16 @@ export function BuildCatalogPage() {
                             }
                             disabled={!on}
                             aria-label={t('buildCatalog.col.price')}
-                            className="h-[42px] w-[120px] rounded-sm border border-border-default bg-white px-3 text-end text-sm font-semibold text-text-primary outline-none placeholder:font-medium placeholder:text-text-placeholder focus:border-border-brand disabled:bg-surface-background disabled:text-text-quaternary"
+                            dir="ltr"
+                            className="h-[42px] w-[120px] rounded-sm border border-transparent bg-surface-background px-3 text-end text-sm font-normal text-text-primary tabular-nums outline-none placeholder:text-text-placeholder focus:border-border-brand focus:bg-white disabled:bg-[#ececec] disabled:text-text-quaternary"
                           />
                         </td>
-                        <td className="px-3 py-3">
-                          <span className="block w-[110px]">
+                        <td className="px-1.5 py-3">
+                          <span className="block w-[132px]">
                             <Select
                               compact
+                              quiet
+                              tight
                               disabled={!on}
                               ariaLabel={t('buildCatalog.col.soldAs')}
                               value={unit}
@@ -469,10 +478,12 @@ export function BuildCatalogPage() {
                             />
                           </span>
                         </td>
-                        <td className="px-3 py-3">
-                          <span className="block w-[130px]">
+                        <td className="py-3 pe-4 ps-1.5">
+                          <span className="block w-[112px]">
                             <Select
                               compact
+                              quiet
+                              tight
                               disabled={!on}
                               ariaLabel={t('buildCatalog.col.tax')}
                               value={tax}
@@ -555,23 +566,22 @@ function Pane({
   return (
     <section className={['overflow-hidden rounded-md bg-surface-card', wide ? '' : ''].join(' ')}>
       <div className="flex flex-wrap items-start justify-between gap-3 p-5">
-        <p className="flex items-center gap-2.5">
-          <span className="flex size-6 items-center justify-center rounded-[4px] bg-primary-50 text-[11px] font-semibold text-primary-800">
+        <p className="flex min-w-0 items-start gap-2.5">
+          {/* The badge is the title's line height, so the number sits on the heading line. */}
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-[4px] bg-primary-50 text-[11px] font-semibold text-primary-800">
             {n}
           </span>
-          <span>
-            <span className="block text-lg font-semibold leading-[1.2] text-text-primary">
-              {title}
-            </span>
+          <span className="min-w-0">
+            <span className="block text-lg font-semibold leading-6 text-text-primary">{title}</span>
             <span className="mt-0.5 block text-xs font-medium text-text-quaternary">{note}</span>
           </span>
         </p>
-        <span className="shrink-0 text-xs font-medium text-text-quaternary">{count}</span>
+        <span className="shrink-0 text-xs font-medium leading-6 text-text-quaternary">{count}</span>
       </div>
 
       {search ? (
         <div className="px-5 pb-4">
-          <label className="flex h-[42px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-3">
+          <label className="flex h-[42px] items-center gap-2 rounded-sm bg-surface-background px-3 focus-within:ring-1 focus-within:ring-border-brand">
             <img src={searchIcon} alt="" className="size-4 opacity-60" />
             <input
               value={search.value}

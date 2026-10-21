@@ -233,7 +233,7 @@ export const MENU_PAGE: {
     {
       heading: 'SERVICES',
       lines: [
-        { name: 'Roasting — per batch', price: '4.200' },
+        { name: 'Roasting - per batch', price: '4.200' },
         { name: 'Barista training', price: 'on request', check: true },
       ],
     },

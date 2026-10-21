@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { unitOptions, useReferenceData } from '../../lib/reference/referenceData'
+import { useReferenceData } from '../../lib/reference/referenceData'
+import { selectAllOnFocus, unitOptions } from '../../components/invoice'
+import { itemTypeOfUnit } from '../../lib/invoiceDraft'
 import { CatalogShell, Kpi } from './CatalogShell'
 import { Select, TableCheckbox, withRial } from '../../components/ui'
 import { omr } from '../../lib/catalog'
@@ -26,6 +28,16 @@ import zoomOutIcon from '../../assets/catalog/zoom-out.svg'
 import expandIcon from '../../assets/catalog/expand.svg'
 
 const VAT_PERCENT = 5
+
+/** Column widths shared by the dark column head and every read line, so each heading sits over its field. */
+const COL = {
+  check: 'w-[15px] shrink-0',
+  price: 'w-[112px] shrink-0',
+  soldAs: 'w-[104px] shrink-0',
+  tax: 'w-[84px] shrink-0',
+  read: 'w-7 shrink-0',
+  remove: 'w-8 shrink-0',
+}
 
 /**
  * Catalog › Upload a menu (Figma 135:43158).
@@ -89,7 +101,15 @@ export function UploadMenuPage() {
           const done = index < 2
           const current = index === 2
           return (
-            <li key={step} className="flex min-w-[180px] flex-1 items-center gap-2.5">
+            <li
+              key={step}
+              className={[
+                'flex items-center gap-2.5',
+                // The last step has no connector after it, so it takes only its own width and
+                // the row ends at the card's edge.
+                index < UPLOAD_STEPS.length - 1 ? 'min-w-[180px] flex-1' : 'flex-none',
+              ].join(' ')}
+            >
               <span
                 className={[
                   'flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
@@ -115,7 +135,7 @@ export function UploadMenuPage() {
                 {t(`uploadMenu.step.${step}`)}
               </span>
               {index < UPLOAD_STEPS.length - 1 ? (
-                <span className="ms-2 hidden h-px flex-1 bg-border-subtle sm:block" />
+                <span className="mx-2 hidden h-px flex-1 bg-border-subtle sm:block" />
               ) : null}
             </li>
           )
@@ -148,7 +168,7 @@ export function UploadMenuPage() {
 
       <div className="flex flex-col gap-4 lg:flex-row">
         {/* The paper */}
-        <section className="w-full shrink-0 overflow-hidden rounded-md bg-surface-card lg:w-[380px]">
+        <section className="w-full shrink-0 self-start overflow-hidden rounded-md bg-surface-card lg:w-[380px]">
           <div className="flex items-center justify-between gap-3 p-4">
             <h2 className="text-sm font-semibold text-text-primary">
               {t('uploadMenu.yourMenu', { page: 1 })}
@@ -185,23 +205,26 @@ export function UploadMenuPage() {
                   <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
                     {section.heading}
                   </p>
-                  <ul className="mt-1.5">
+                  <ul className="mt-1.5 flex flex-col gap-1">
                     {section.lines.map((line) => (
                       <li key={line.name}>
                         <button
                           type="button"
                           onClick={() => setFocus(line.name)}
-                          dir={line.rtl ? 'rtl' : undefined}
                           className={[
-                            'flex w-full items-baseline justify-between gap-3 border-b border-dotted border-border-subtle px-1 py-1 text-start text-[10px] transition-colors',
+                            'flex w-full items-baseline justify-between gap-3 rounded-[2px] px-2 py-1.5 text-start text-[10px] font-medium transition-colors',
                             line.check
-                              ? 'bg-pending-100/60 text-pending-700'
-                              : 'text-text-secondary hover:bg-primary-25',
+                              ? 'bg-pending-100/70 text-pending-700'
+                              : 'bg-primary-25 text-text-secondary hover:bg-primary-50',
                             focus === line.name ? 'ring-1 ring-primary-700' : '',
                           ].join(' ')}
                         >
-                          <span>{line.name}</span>
-                          <span className="shrink-0 tabular-nums">{line.price}</span>
+                          {/* The paper keeps name left and price right; an Arabic name only
+                              runs right to left inside its own span. */}
+                          <span dir={line.rtl ? 'rtl' : 'auto'}>{line.name}</span>
+                          <span className="shrink-0 tabular-nums" dir="ltr">
+                            {line.price}
+                          </span>
                         </button>
                       </li>
                     ))}
@@ -211,10 +234,10 @@ export function UploadMenuPage() {
             </div>
           </div>
 
-          <p className="flex flex-wrap items-center justify-between gap-3 border-t border-surface-background px-4 py-3">
-            <span className="flex flex-wrap items-center gap-3 text-xs font-medium text-text-quaternary">
+          <p className="flex items-center justify-between gap-2 border-t border-border-subtle px-4 py-3 text-[11px] font-medium whitespace-nowrap text-text-quaternary">
+            <span className="flex items-center gap-3">
               <span className="flex items-center gap-1.5">
-                <span className="size-2 rounded-[2px] bg-primary-300" />
+                <span className="size-2 rounded-[2px] bg-primary-200" />
                 {t('uploadMenu.readClearly')}
               </span>
               <span className="flex items-center gap-1.5">
@@ -222,20 +245,37 @@ export function UploadMenuPage() {
                 {t('uploadMenu.needsChecking')}
               </span>
             </span>
-            <span className="text-xs font-medium text-text-quaternary">
-              {t('uploadMenu.tapLineToJump')}
-            </span>
+            <span className="truncate">{t('uploadMenu.tapLineToJump')}</span>
           </p>
         </section>
 
         {/* The reading */}
         <div className="flex min-w-0 flex-1 flex-col gap-4">
-          {rows.map((group) => {
+          {rows.map((group, groupIndex) => {
             const groupTicked = group.rows.filter((row) => ticked.has(row.id)).length
             const allOn = groupTicked === group.rows.length
             return (
               <section key={group.id} className="overflow-hidden rounded-md bg-surface-card">
-                <div className="flex flex-wrap items-center gap-3 bg-[#151c2d] px-4 py-3">
+                {groupIndex === 0 ? (
+                  // One dark column head for the whole reading, over the first group.
+                  <div
+                    aria-hidden="true"
+                    className="hidden h-[34px] items-center gap-3 bg-[#151c2d] px-4 text-[11px] font-semibold uppercase tracking-[0.6px] text-white md:flex"
+                  >
+                    <span className={COL.check} />
+                    <span className="min-w-0 flex-1">{t('uploadMenu.col.item')}</span>
+                    <span className={[COL.price, 'text-end'].join(' ')}>
+                      {t('uploadMenu.col.price')}
+                    </span>
+                    <span className={COL.soldAs}>{t('uploadMenu.col.soldAs')}</span>
+                    <span className={COL.tax}>{t('uploadMenu.col.tax')}</span>
+                    <span className={[COL.read, 'text-center'].join(' ')}>
+                      {t('uploadMenu.col.read')}
+                    </span>
+                    <span className={COL.remove} />
+                  </div>
+                ) : null}
+                <div className="flex flex-wrap items-center gap-3 border-b border-border-subtle bg-primary-25/70 px-4 py-3">
                   <TableCheckbox
                     checked={allOn}
                     indeterminate={groupTicked > 0 && !allOn}
@@ -250,12 +290,14 @@ export function UploadMenuPage() {
                     ariaLabel={group.heading}
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-white">{group.heading}</span>
-                    <span className="mt-0.5 block text-[11px] font-medium text-white/60">
+                    <span className="block text-sm font-semibold text-text-primary">
+                      {group.heading}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] font-medium text-text-quaternary">
                       {t('uploadMenu.headingOnYourMenu')}
                     </span>
                   </span>
-                  <span className="shrink-0 text-xs font-medium text-white/70">
+                  <span className="shrink-0 text-xs font-medium text-text-tertiary">
                     {allOn
                       ? t('uploadMenu.itemsInGroup', { count: group.rows.length })
                       : t('uploadMenu.tickedOf', {
@@ -263,8 +305,8 @@ export function UploadMenuPage() {
                           total: group.rows.length,
                         })}
                   </span>
-                  <span className="inline-flex h-[28px] shrink-0 items-center gap-1.5 rounded-[3px] bg-white/10 px-2 text-xs font-medium text-white">
-                    <img src={groupsIcon} alt="" className="size-3.5 brightness-0 invert" />
+                  <span className="inline-flex h-[30px] shrink-0 items-center gap-1.5 rounded-[3px] border border-primary-100 bg-primary-50/60 px-2.5 text-xs font-medium text-primary-800">
+                    <img src={groupsIcon} alt="" className="size-3.5" />
                     {t('uploadMenu.groupBecomes', { name: group.becomes })}
                   </span>
                 </div>
@@ -277,8 +319,12 @@ export function UploadMenuPage() {
                       <li
                         key={row.id}
                         className={[
-                          'flex flex-wrap items-center gap-3 border-b border-surface-background px-4 py-3 last:border-0',
-                          needsCheck ? 'border-s-4 border-s-pending-500 bg-pending-100/30' : '',
+                          // last:border-b-0, not last:border-0: the latter also wiped the amber
+                          // bar off a flagged line that closed its group.
+                          'flex flex-wrap items-center gap-3 border-b border-surface-background px-4 py-3 last:border-b-0',
+                          needsCheck
+                            ? 'border-s-[3px] border-s-pending-500 bg-pending-100/30 ps-[13px]'
+                            : '',
                         ].join(' ')}
                       >
                         <TableCheckbox
@@ -288,11 +334,8 @@ export function UploadMenuPage() {
                         />
 
                         <div className="min-w-[180px] flex-1">
-                          <p
-                            dir={/[؀-ۿ]/.test(row.name) ? 'rtl' : undefined}
-                            className="text-sm font-medium text-text-primary"
-                          >
-                            {row.name}
+                          <p className="text-sm font-medium text-text-primary">
+                            <bdi>{row.name}</bdi>
                           </p>
                           {needsCheck && row.concernKey ? (
                             <p className="mt-1 max-w-[220px] text-xs font-medium leading-[1.5] text-pending-700">
@@ -303,6 +346,9 @@ export function UploadMenuPage() {
 
                         <input
                           value={row.price === null ? '' : omr(row.price)}
+                          onFocus={selectAllOnFocus}
+                          inputMode="decimal"
+                          dir="ltr"
                           placeholder={t('uploadMenu.noPrice')}
                           onChange={(event) =>
                             setRow(group.id, row.id, {
@@ -311,26 +357,40 @@ export function UploadMenuPage() {
                           }
                           aria-label={t('uploadMenu.col.price')}
                           className={[
-                            'h-[38px] w-[110px] shrink-0 rounded-sm border px-3 text-end text-sm font-semibold outline-none',
+                            'h-[42px] rounded-sm border border-transparent px-3 text-end text-sm font-normal tabular-nums outline-none placeholder:text-pending-700/70 focus:border-border-brand',
+                            COL.price,
                             needsCheck
-                              ? 'border-pending-200 bg-pending-100/60 text-pending-700'
-                              : 'border-border-default bg-white text-text-primary focus:border-border-brand',
+                              ? 'bg-pending-100/70 text-pending-700'
+                              : 'bg-surface-background text-text-primary',
                           ].join(' ')}
                         />
 
-                        <span className="w-[110px] shrink-0">
+                        <span className={COL.soldAs}>
+                          {/* The read line carries a unit code (EA, BG, HUR); the options are
+                              built from the same codes and always include the line's own, so
+                              the closed select shows it even before the code lists load. */}
                           <Select
                             compact
+                            quiet
+                            tight
                             ariaLabel={t('uploadMenu.col.soldAs')}
                             value={row.soldAs}
                             onChange={(value) => setRow(group.id, row.id, { soldAs: value })}
-                            options={unitOptions(reference, t)}
+                            options={unitOptions(
+                              itemTypeOfUnit(row.soldAs),
+                              t,
+                              row.soldAs,
+                              reference,
+                            )}
+                            panelWidth={180}
                           />
                         </span>
 
-                        <span className="w-[90px] shrink-0">
+                        <span className={COL.tax}>
                           <Select
                             compact
+                            quiet
+                            tight
                             ariaLabel={t('uploadMenu.col.tax')}
                             value={String(row.taxPercent)}
                             onChange={(value) =>
@@ -345,7 +405,8 @@ export function UploadMenuPage() {
 
                         <span
                           className={[
-                            'flex size-7 shrink-0 items-center justify-center rounded-full',
+                            'flex size-7 items-center justify-center rounded-full',
+                            COL.read,
                             needsCheck ? 'bg-pending-100' : 'bg-success-100',
                           ].join(' ')}
                           title={
@@ -376,13 +437,15 @@ export function UploadMenuPage() {
                   })}
                 </ul>
 
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 border-t border-surface-background px-4 py-3 text-start text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-                >
-                  <img src={plusIcon} alt="" className="size-4" />
-                  {t('uploadMenu.addSomethingMissed')}
-                </button>
+                <div className="border-t border-surface-background px-4 py-3">
+                  <button
+                    type="button"
+                    className="inline-flex h-9 items-center gap-2 rounded-sm border border-dashed border-border-default px-3 text-sm font-medium text-text-secondary transition-colors hover:bg-primary-25"
+                  >
+                    <img src={plusIcon} alt="" className="size-4" />
+                    {t('uploadMenu.addSomethingMissed')}
+                  </button>
+                </div>
               </section>
             )
           })}

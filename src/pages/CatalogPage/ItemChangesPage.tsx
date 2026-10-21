@@ -40,14 +40,15 @@ const KIND_TINT: Record<string, string> = {
 }
 
 const CHIP_TONE = {
-  was: 'bg-danger-100 text-danger-700 line-through',
+  // The old value in red, not struck through: the frame reads "was 1.238", not a deletion.
+  was: 'bg-danger-100 text-danger-700',
   now: 'bg-success-100 text-[#3d5648]',
   plain: 'bg-surface-background text-text-tertiary',
 }
 
 const BADGE_TONE: Record<string, string> = {
   'itemChanges.byHand': 'bg-surface-background text-text-tertiary',
-  'itemChanges.bulkChange': 'bg-pending-100 text-pending-700',
+  'itemChanges.bulkChange': 'bg-surface-background text-text-tertiary',
   'itemChanges.catalogBuilder': 'bg-primary-50 text-primary-800',
 }
 
@@ -117,7 +118,7 @@ export function ItemChangesPage() {
         <TabStrip tabs={CHANGE_TABS} value={tab} onChange={setTab} count={countChangeTab} />
 
         <div className="flex flex-wrap items-center justify-between gap-3 p-5">
-          <label className="flex h-[46px] min-w-[280px] flex-1 items-center gap-2 rounded-sm border border-border-subtle bg-white px-3">
+          <label className="flex h-[46px] w-full items-center gap-2 rounded-sm border border-border-subtle bg-white px-3 sm:w-[345px]">
             <img src={searchIcon} alt="" className="size-[18px] opacity-60" />
             <input
               value={query}
@@ -155,7 +156,7 @@ export function ItemChangesPage() {
           </ul>
         )}
 
-        <p className="border-t border-surface-background px-5 py-4 text-sm font-medium text-text-quaternary">
+        <p className="border-t border-border-subtle px-5 py-4 text-sm font-medium text-text-quaternary">
           {t('itemChanges.showing', { shown: rows.length, total: CHANGE_BOOK.total })}
         </p>
       </section>
@@ -173,13 +174,17 @@ function ChangeRow({ change }: { change: Change }) {
         <p className="mt-0.5 text-xs font-medium text-text-quaternary tabular-nums">{change.at}</p>
       </div>
 
-      <span
-        className={[
-          'flex size-8 shrink-0 items-center justify-center rounded-full',
-          KIND_TINT[change.kind],
-        ].join(' ')}
-      >
-        <img src={KIND_ICON[change.kind]} alt="" className="size-4" />
+      {/* The timeline: each entry's icon, with a line running down to the next entry. */}
+      <span className="flex shrink-0 flex-col items-center self-stretch">
+        <span
+          className={[
+            'flex size-8 shrink-0 items-center justify-center rounded-full',
+            KIND_TINT[change.kind],
+          ].join(' ')}
+        >
+          <img src={KIND_ICON[change.kind]} alt="" className="size-4" />
+        </span>
+        <span aria-hidden="true" className="-mb-5 mt-1 w-px flex-1 bg-border-subtle" />
       </span>
 
       <div className="min-w-[280px] flex-1">
@@ -208,7 +213,7 @@ function ChangeRow({ change }: { change: Change }) {
               ) : null}
               <span
                 className={[
-                  'inline-flex h-[26px] items-center rounded-[3px] px-2.5 text-xs font-medium',
+                  'inline-flex h-9 items-center rounded-[3px] px-3 text-sm font-medium',
                   CHIP_TONE[chip.tone],
                 ].join(' ')}
               >
