@@ -1,7 +1,7 @@
 import { baisaOf, type SignupCataloguePlan } from '../../lib/identity/signupPlans'
 import { FEATURES, FEATURE_GROUPS, type Feature } from '../../lib/plans'
 import { DEFAULT_SETTINGS, PLATFORM_SETTINGS } from '../../lib/platformSettings'
-import { trialSummary } from './catalogueView'
+import { launchCopy, trialSummary } from './catalogueView'
 
 /*
  * The full comparison behind the cards: the limits, then every feature the published catalogue
@@ -82,13 +82,18 @@ const enabled = (plan: SignupCataloguePlan, feature: string) =>
 
 /**
  * The extraction add-on as the published catalogue offers it (ER-1, PL-6): a plan whose `erpAddon`
- * carries a price sells it, any other plan does not (paid extras off, no add-on price, or ERP
- * mapping off). Enterprise is not in the catalogue; its column keeps the console default, since
- * ERP on Enterprise is agreed per contract.
+ * carries a price sells it. "Not supported" is said only of a plan that never offers it (Starter
+ * and Business, ER-1); a plan that does offer it but carries no price now (paid extras off, no
+ * add-on price, or ERP mapping off) shows a dash rather than a claim it is not supported.
+ * Enterprise is not in the catalogue; its column keeps the console default ("Included"), since the
+ * add-on is in every Enterprise quote and switched off per company by the operator (PL-7).
  */
 function extraction(plan: Column): Cell {
-  if (plan) return text(`plan.extraction.${plan.erpAddon ? 'priced' : 'notOffered'}`)
-  return text(`plan.extraction.${PLATFORM_SETTINGS.addons.erpExtraction.availability.enterprise}`)
+  const availability = PLATFORM_SETTINGS.addons.erpExtraction.availability
+  if (!plan) return text(`plan.extraction.${availability.enterprise}`)
+  if (plan.erpAddon) return text('plan.extraction.priced')
+  const id = launchCopy(plan.code)?.audience
+  return id && availability[id] === 'notOffered' ? text('plan.extraction.notOffered') : dash
 }
 
 /**
