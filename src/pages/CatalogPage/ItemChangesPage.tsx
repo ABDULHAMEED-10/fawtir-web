@@ -130,6 +130,7 @@ export function ItemChangesPage() {
           </label>
           <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
             <FilterMenu
+              funnel
               label={t('catalog.filters')}
               value={tab}
               defaultValue="all"

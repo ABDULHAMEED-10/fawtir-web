@@ -18,6 +18,7 @@ import {
   type Bundle,
   type BundleTab,
 } from '../../lib/catalogBundles'
+import { weekdayName } from '../../lib/catalogStock'
 import plusIcon from '../../assets/catalog/plus-white.svg'
 import searchIcon from '../../assets/invoices/search.svg'
 import kpiBundleIcon from '../../assets/catalog/kind-bundle.svg'
@@ -120,7 +121,7 @@ export function BundlesPage() {
         <TabStrip tabs={BUNDLE_TABS} value={tab} onChange={setTab} count={countBundleTab} />
 
         <div className="flex flex-wrap items-center justify-between gap-3 p-5">
-          <label className="flex h-[46px] min-w-[280px] flex-1 items-center gap-2 rounded-sm border border-border-subtle bg-white px-3">
+          <label className="flex h-[46px] w-[345px] max-w-full items-center gap-2 rounded-sm border border-border-subtle bg-white px-3 max-md:w-full">
             <img src={searchIcon} alt="" className="size-[18px] opacity-60" />
             <input
               value={query}
@@ -132,6 +133,7 @@ export function BundlesPage() {
           </label>
           <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
             <FilterMenu
+              funnel
               label={t('catalog.filters')}
               value={tab}
               defaultValue="all"
@@ -156,19 +158,19 @@ export function BundlesPage() {
         <RowsView>
           <table className="w-full min-w-[1020px] border-collapse">
             <thead>
-              <tr className="bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
-                <th className="h-[46px] px-4 text-start font-semibold">
+              <tr className="whitespace-nowrap bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
+                <th className="h-[46px] w-[290px] min-w-[290px] ps-5 pe-3 text-start font-semibold">
                   {t('bundles.col.bundle')}
                 </th>
-                <th className="h-[46px] px-4 text-start font-semibold">
+                <th className="h-[46px] w-[180px] px-3 text-start font-semibold">
                   {t('bundles.col.inside')}
                 </th>
-                <th className="h-[46px] px-4 text-end font-semibold">{t('bundles.col.price')}</th>
-                <th className="h-[46px] px-4 text-start font-semibold">
+                <th className="h-[46px] px-3 text-end font-semibold">{t('bundles.col.price')}</th>
+                <th className="h-[46px] px-3 text-start font-semibold">
                   {t('bundles.col.canMake')}
                 </th>
-                <th className="h-[46px] px-4 text-end font-semibold">{t('bundles.col.sold')}</th>
-                <th className="h-[46px] px-4" />
+                <th className="h-[46px] px-3 text-end font-semibold">{t('bundles.col.sold')}</th>
+                <th className="h-[46px] ps-3 pe-5" />
               </tr>
             </thead>
             <tbody>
@@ -197,11 +199,14 @@ export function BundlesPage() {
 }
 
 function BundleRow({ bundle }: { bundle: Bundle }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const make = canMake(bundle)
   const save = saving(bundle)
   const off = !bundle.onSale
   const stuck = bundle.onSale && make.count === 0
+  const where = bundle.offSince
+    ? `${t('catalog.offSince', { date: bundle.offSince })} · ${t('bundles.duringRamadan')}`
+    : `${bundle.group} › ${bundle.kind} · ${bundle.code}`
 
   return (
     <tr
@@ -211,39 +216,38 @@ function BundleRow({ bundle }: { bundle: Bundle }) {
         off ? 'opacity-60' : '',
       ].join(' ')}
     >
-      <td className="px-4 py-4 align-top">
-        <div className="flex items-start gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-surface-background">
+      <td className="ps-5 pe-3 py-4 align-middle">
+        <div className="flex items-center gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary-50">
             <img src={kpiBundleIcon} alt="" className="size-[18px]" />
           </span>
-          <div className="min-w-0">
+          <div className="min-w-0 max-w-[236px]">
             <Link
               to={`/catalog/bundles/${bundle.id}`}
-              className="text-sm font-semibold text-text-primary transition-colors hover:text-primary-700"
+              title={bundle.name}
+              className="block truncate text-sm font-semibold text-text-primary transition-colors hover:text-primary-700"
             >
               {bundle.name}
             </Link>
-            <p className="mt-1 text-xs font-medium text-text-quaternary">
-              {bundle.offSince
-                ? `${t('catalog.offSince', { date: bundle.offSince })} · ${t('bundles.duringRamadan')}`
-                : `${bundle.group} › ${bundle.kind} · ${bundle.code}`}
+            <p className="mt-1 truncate text-xs font-medium text-text-quaternary" title={where}>
+              {where}
             </p>
           </div>
         </div>
       </td>
 
-      <td className="px-4 py-4 align-top">
+      <td className="px-3 py-4 align-middle">
         <span className="flex items-center gap-1">
           {bundle.parts.slice(0, 3).map((part) => (
             <span
               key={part.itemId}
-              className="flex size-7 items-center justify-center rounded-[4px] bg-primary-50"
+              className="flex size-7 items-center justify-center rounded-[4px] border border-primary-100 bg-primary-50"
             >
               <img src={partIcon(part.itemId)} alt="" className="size-3.5" />
             </span>
           ))}
           {bundle.parts.length > 3 ? (
-            <span className="flex h-7 items-center rounded-[4px] bg-surface-background px-1.5 text-[10px] font-semibold text-text-tertiary">
+            <span className="flex h-7 items-center rounded-[4px] border border-primary-100 bg-primary-50 px-1.5 text-[10px] font-semibold text-primary-800">
               +{bundle.parts.length - 3}
             </span>
           ) : null}
@@ -255,7 +259,7 @@ function BundleRow({ bundle }: { bundle: Bundle }) {
         </p>
       </td>
 
-      <td className="px-4 py-4 align-top text-end">
+      <td className="px-3 py-4 align-middle text-end">
         <p className="flex items-baseline justify-end gap-1">
           <span className="text-sm font-semibold text-text-primary">
             <Rial />
@@ -266,20 +270,28 @@ function BundleRow({ bundle }: { bundle: Bundle }) {
         </p>
         <p
           className={[
-            'mt-1 text-xs font-medium',
-            bundle.noSaving ? 'text-text-quaternary' : 'text-primary-700',
+            'ms-auto mt-1 max-w-[160px] text-xs font-medium leading-[1.4]',
+            bundle.noSaving || save.amount === 0
+              ? 'text-text-quaternary'
+              : save.amount < 0
+                ? 'text-danger-700'
+                : 'text-[#3d5648]',
           ].join(' ')}
         >
           {bundle.noSaving
             ? t('bundles.noSaving')
-            : t('bundles.saves', { amount: omr(save.amount) })}
+            : save.amount === 0
+              ? t('bundles.savesNothing')
+              : save.amount < 0
+                ? t('bundles.costsMore', { amount: omr(Math.abs(save.amount)) })
+                : t('bundles.saves', { amount: omr(save.amount) })}
         </p>
       </td>
 
-      <td className="px-4 py-4 align-top">
+      <td className="px-3 py-4 align-middle">
         {off ? (
           <>
-            <p className="text-lg font-semibold text-text-quaternary">—</p>
+            <p className="text-lg font-semibold text-text-quaternary">–</p>
             <p className="mt-1 text-xs font-medium text-text-quaternary">
               {t('bundles.notOnSale')}
             </p>
@@ -308,16 +320,19 @@ function BundleRow({ bundle }: { bundle: Bundle }) {
               ].join(' ')}
             >
               {make.count === 0
-                ? t('bundles.ranOutOn', { name: make.limitedBy, day: 'Monday' })
+                ? t('bundles.ranOutOn', {
+                    name: make.limitedBy,
+                    day: weekdayName(1, i18n.language),
+                  })
                 : t('bundles.heldBackBy', { name: make.limitedBy })}
             </p>
           </>
         )}
       </td>
 
-      <td className="px-4 py-4 align-top text-end">
+      <td className="px-3 py-4 align-middle text-end">
         <p className="text-sm font-semibold text-text-primary tabular-nums">{bundle.sold90}</p>
-        <p className="mt-1 text-xs font-medium text-text-quaternary">
+        <p className="ms-auto mt-1 max-w-[130px] text-xs font-medium leading-[1.4] text-text-quaternary">
           {bundle.seasonal
             ? t('bundles.duringRamadan')
             : bundle.sold90 === 0
@@ -326,14 +341,14 @@ function BundleRow({ bundle }: { bundle: Bundle }) {
         </p>
       </td>
 
-      <td className="px-4 py-4 align-top text-end">
+      <td className="ps-3 pe-5 py-4 align-middle text-end">
         <Link
           to={`/catalog/bundles/${bundle.id}`}
           className={[
-            'inline-flex h-[38px] items-center rounded-sm px-4 text-sm font-semibold transition-colors',
+            'inline-flex h-[38px] items-center whitespace-nowrap rounded-sm border px-4 text-sm font-semibold transition-colors',
             stuck
-              ? 'bg-pending-100 text-pending-700 hover:bg-pending-200/60'
-              : 'border border-border-subtle bg-white text-text-secondary hover:bg-primary-25',
+              ? 'border-pending-500/50 bg-pending-100 text-pending-700 hover:bg-pending-200/60'
+              : 'border-border-subtle bg-white text-text-secondary hover:bg-primary-25',
           ].join(' ')}
         >
           {stuck ? t('bundles.fixTheParts') : off ? t('bundles.bringItBack') : t('bundles.open')}

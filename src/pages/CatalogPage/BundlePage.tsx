@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { CatalogShell, Pill } from './CatalogShell'
 import { Input, Select, Switch, Rial, withRial } from '../../components/ui'
+import { selectAllOnFocus } from '../../components/invoice'
 import { GROUPS, omr } from '../../lib/catalog'
 import {
   BUNDLES,
@@ -54,7 +55,7 @@ export function BundlePage() {
   const [description, setDescription] = useState('')
   const [parts, setParts] = useState<Part[]>(source.parts)
   const [pricing, setPricing] = useState('onePrice')
-  const [price, setPrice] = useState(String(beforeVat(source.price)))
+  const [price, setPrice] = useState(beforeVat(source.price).toFixed(3))
   const [behaviour, setBehaviour] = useState(
     () => new Set(BUNDLE_BEHAVIOUR.filter((row) => row.on).map((row) => row.id)),
   )
@@ -154,6 +155,7 @@ export function BundlePage() {
                     <span className="text-danger-700">*</span>
                   </span>
                   <Select
+                    quiet
                     ariaLabel={t('bundle.whereItLives')}
                     value={group}
                     onChange={setGroup}
@@ -181,9 +183,9 @@ export function BundlePage() {
 
           <Step n={2} title={t('bundle.step.inside')}>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[620px] border-collapse">
+              <table className="w-full min-w-[620px] border-separate border-spacing-y-2">
                 <thead>
-                  <tr className="border-b border-surface-background text-[10px] font-semibold uppercase tracking-[0.5px] text-text-quaternary">
+                  <tr className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.5px] text-text-quaternary">
                     <th className="h-[36px] px-3 text-start font-semibold">
                       {t('bundle.col.item')}
                     </th>
@@ -203,22 +205,23 @@ export function BundlePage() {
                   {parts.map((part, index) => {
                     const info = partOf(part.itemId)
                     const scarcest = working.make.limitedBy === info.name
+                    /** Each part is its own bordered card, drawn on the cells of a separated row. */
+                    const cell = [
+                      'border-y px-3 py-3 first:rounded-s-md first:border-s last:rounded-e-md last:border-e',
+                      scarcest
+                        ? 'border-pending-500/40 bg-pending-100/40'
+                        : 'border-border-subtle bg-white',
+                    ].join(' ')
                     return (
-                      <tr
-                        key={part.itemId}
-                        className={[
-                          'border-b border-surface-background last:border-0',
-                          scarcest ? 'bg-pending-100/40' : '',
-                        ].join(' ')}
-                      >
-                        <td className="px-3 py-3">
-                          <div className="flex items-start gap-2.5">
+                      <tr key={part.itemId}>
+                        <td className={cell}>
+                          <div className="flex items-center gap-2.5">
                             <img
                               src={dragIcon}
                               alt=""
-                              className="mt-2 size-4 shrink-0 cursor-grab opacity-50"
+                              className="size-4 shrink-0 cursor-grab opacity-50"
                             />
-                            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-background">
+                            <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary-50">
                               <img src={partIcon(part.itemId)} alt="" className="size-4" />
                             </span>
                             <span className="min-w-0">
@@ -233,17 +236,19 @@ export function BundlePage() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-3 py-3">
+                        <td className={cell}>
                           <input
                             value={part.quantity}
+                            onFocus={selectAllOnFocus}
+                            inputMode="numeric"
                             onChange={(event) =>
                               setQuantity(index, Number(event.target.value.replace(/\D/g, '')) || 1)
                             }
                             aria-label={t('bundle.col.howMany')}
-                            className="h-[38px] w-[70px] rounded-sm border border-border-default bg-white px-3 text-center text-sm font-medium text-text-primary outline-none focus:border-border-brand"
+                            className="h-[40px] w-[84px] rounded-sm border border-border-subtle bg-surface-background px-3 text-center text-sm font-medium text-text-primary outline-none focus:border-border-brand focus:bg-white"
                           />
                         </td>
-                        <td className="px-3 py-3 text-end">
+                        <td className={`${cell} text-end`}>
                           {part.free ? (
                             <>
                               <p className="text-sm font-semibold text-text-primary tabular-nums">
@@ -266,7 +271,7 @@ export function BundlePage() {
                             </>
                           )}
                         </td>
-                        <td className="px-3 py-3 text-end">
+                        <td className={`${cell} text-end`}>
                           {info.onHand === null || info.onHand === undefined ? (
                             <p className="text-sm font-medium text-text-quaternary">
                               {t('bundle.notStocked')}
@@ -294,7 +299,7 @@ export function BundlePage() {
                             </>
                           )}
                         </td>
-                        <td className="px-3 py-3 text-end">
+                        <td className={`${cell} text-end`}>
                           <button
                             type="button"
                             onClick={() => setParts((list) => list.filter((_, i) => i !== index))}
@@ -368,10 +373,14 @@ export function BundlePage() {
                 bordered
                 label={t('bundle.bundlePrice')}
                 requiredMark
-                hint={t('bundle.beforeVat')}
+                labelNote={t('bundle.beforeVat')}
                 value={price}
                 inputMode="decimal"
+                dir="ltr"
+                style={{ textAlign: 'right' }}
+                onFocus={selectAllOnFocus}
                 onChange={(event) => setPrice(event.target.value.replace(/[^\d.]/g, ''))}
+                onBlur={() => setPrice((Number(price) || 0).toFixed(3))}
                 leadingIcon={
                   <span className="text-sm font-medium text-text-primary">
                     <Rial />
@@ -398,10 +407,7 @@ export function BundlePage() {
           <Step n={4} title={t('bundle.step.behaves')} flush>
             <ul>
               {BUNDLE_BEHAVIOUR.map((row) => (
-                <li
-                  key={row.id}
-                  className="flex items-center justify-between gap-4 border-t border-surface-background px-5 py-4"
-                >
+                <li key={row.id} className="flex items-center justify-between gap-4 px-5 py-4">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold leading-[1.3] text-text-primary">
                       {t(`bundle.behave.${row.id}`)}
@@ -445,7 +451,7 @@ export function BundlePage() {
                       {partOf(part.itemId).name} × {part.quantity}
                     </span>
                     <span className="shrink-0 text-text-quaternary">
-                      {part.free ? t('bundle.thrownInFree') : '—'}
+                      {part.free ? t('bundle.thrownInFree') : '–'}
                     </span>
                   </p>
                 ))}
@@ -499,9 +505,12 @@ export function BundlePage() {
             {working.make.limitedBy ? (
               <button
                 type="button"
-                className="mt-3 inline-flex h-[40px] w-full items-center justify-center rounded-sm border border-border-subtle bg-white text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+                title={t('bundle.orderMore', { name: working.make.limitedBy.toLowerCase() })}
+                className="mt-3 inline-flex h-[40px] w-full items-center justify-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
               >
-                {t('bundle.orderMore', { name: working.make.limitedBy.toLowerCase() })}
+                <span className="truncate">
+                  {t('bundle.orderMore', { name: working.make.limitedBy.toLowerCase() })}
+                </span>
               </button>
             ) : null}
           </section>
@@ -588,7 +597,7 @@ function Step({
         </span>
         <span className="text-lg font-semibold leading-[1.2] text-text-primary">{title}</span>
       </p>
-      <div className={flush ? '' : 'border-t border-surface-background p-5'}>{children}</div>
+      <div className={flush ? 'pb-1' : 'p-5 pt-0'}>{children}</div>
     </section>
   )
 }
@@ -638,24 +647,19 @@ function Row({
   label,
   value,
   tone,
-  last,
 }: {
   label: string
   value: string
   tone?: 'pending'
+  /** Kept for the callers; the side cards no longer draw row dividers. */
   last?: boolean
 }) {
   return (
-    <div
-      className={[
-        'flex items-center justify-between gap-3 py-2.5',
-        last ? '' : 'border-b border-surface-background',
-      ].join(' ')}
-    >
-      <dt className="text-sm font-medium text-text-tertiary">{label}</dt>
+    <div className="flex items-center justify-between gap-3 py-2">
+      <dt className="shrink-0 whitespace-nowrap text-sm font-medium text-text-tertiary">{label}</dt>
       <dd
         className={[
-          'shrink-0 text-sm font-semibold',
+          'min-w-0 text-end text-sm font-semibold',
           tone === 'pending' ? 'text-pending-700' : 'text-text-primary',
         ].join(' ')}
       >

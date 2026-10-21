@@ -15,6 +15,7 @@ import {
   breakSaving,
   type Rule,
 } from '../../lib/catalogRules'
+import { weekdayName } from '../../lib/catalogStock'
 import plusIcon from '../../assets/catalog/plus-white.svg'
 import plusBrandIcon from '../../assets/catalog/plus-brand.svg'
 import kpiPercentIcon from '../../assets/catalog/kpi-percent.svg'
@@ -49,9 +50,12 @@ const HOURS = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6]
  * the card at the top can never disagree about what a customer would be charged this minute.
  */
 export function PriceRulesPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [on, setOn] = useState(() => new Set(RULES.filter((rule) => rule.on).map((r) => r.id)))
   const summary = RULES_SUMMARY()
+  const lastFamily = [...RULE_FAMILIES]
+    .reverse()
+    .find((family) => RULES.some((rule) => rule.family === family.id))?.id
 
   const toggle = (id: string) =>
     setOn((current) => {
@@ -66,6 +70,7 @@ export function PriceRulesPage() {
       crumbs={[{ labelKey: 'catalog.title', to: '/catalog' }, { labelKey: 'priceRules.title' }]}
       title={t('priceRules.title')}
       subtitle={t('priceRules.subtitle')}
+      wideHeading
       actions={
         <Link
           to="/catalog/rules/new"
@@ -102,13 +107,13 @@ export function PriceRulesPage() {
         />
         <Kpi
           icon={kpiClockIcon}
-          tint="bg-pending-100"
+          solidIcon
           tone="pending"
           label={t('priceRules.kpi.runningNow')}
           value={String(summary.runningNow)}
           note={t('priceRules.kpi.runningNowNote', {
             time: `${String(NOW.hour).padStart(2, '0')}:${String(NOW.minute).padStart(2, '0')}`,
-            day: 'Thursday',
+            day: weekdayName(NOW.weekday, i18n.language),
           })}
         />
       </div>
@@ -116,6 +121,8 @@ export function PriceRulesPage() {
       {RULE_FAMILIES.map((family) => {
         const inFamily = RULES.filter((rule) => rule.family === family.id)
         if (inFamily.length === 0) return null
+        /** "Add a rule" closes the last card on the page, as the design draws it. */
+        const last = family.id === lastFamily
         return (
           <section key={family.id} className="rounded-md bg-surface-card p-5">
             <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">
@@ -130,25 +137,30 @@ export function PriceRulesPage() {
                   onToggle={() => toggle(rule.id)}
                 />
               ))}
+              {last ? (
+                <Link
+                  to="/catalog/rules/new"
+                  className="inline-flex h-[54px] w-full items-center justify-center gap-2 rounded-sm border border-dashed border-border-default bg-white text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-25"
+                >
+                  <img src={plusBrandIcon} alt="" className="size-4" />
+                  {t('priceRules.addARule')}
+                </Link>
+              ) : null}
             </div>
           </section>
         )
       })}
-
-      <Link
-        to="/catalog/rules/new"
-        className="inline-flex h-[62px] w-full items-center justify-center gap-2 rounded-md border border-dashed border-border-default bg-white/50 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-25"
-      >
-        <img src={plusBrandIcon} alt="" className="size-4" />
-        {t('priceRules.addARule')}
-      </Link>
     </CatalogShell>
   )
 }
 
 function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: () => void }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const live = on && isInWindowNow(rule)
+  const timed = rule.family === 'time'
+  /** Two-letter days in English as drawn; other languages get their own short names. */
+  const dayLabel = (index: number) =>
+    i18n.language.startsWith('en') ? WEEKDAYS[index] : weekdayName(index, i18n.language, 'short')
 
   return (
     <article
@@ -161,14 +173,18 @@ function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: (
         <span
           className={[
             'flex size-9 shrink-0 items-center justify-center rounded-md',
-            on ? 'bg-primary-50' : 'bg-surface-background',
+            !on ? 'bg-surface-background' : timed ? 'bg-pending-100' : 'bg-primary-50',
           ].join(' ')}
         >
-          <img
-            src={FAMILY_ICON[rule.family]}
-            alt=""
-            className={on ? 'size-[18px]' : 'size-[18px] opacity-50'}
-          />
+          {timed ? (
+            <AmberClock className={on ? 'size-[18px]' : 'size-[18px] opacity-50'} />
+          ) : (
+            <img
+              src={FAMILY_ICON[rule.family]}
+              alt=""
+              className={on ? 'size-[18px]' : 'size-[18px] opacity-50'}
+            />
+          )}
         </span>
 
         <div className="min-w-[240px] flex-1">
@@ -277,8 +293,13 @@ function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: (
                       <span className="w-[48px] shrink-0 text-end text-xs font-semibold text-text-primary tabular-nums">
                         {omr(entry.price)}
                       </span>
-                      <span className="w-[38px] shrink-0 text-end text-xs font-medium text-text-quaternary tabular-nums">
-                        {index === 0 ? '—' : `${save.percent}%`}
+                      <span
+                        className={[
+                          'w-[38px] shrink-0 text-end text-xs font-medium tabular-nums',
+                          index === 0 ? 'text-text-quaternary' : 'text-[#3d5648]',
+                        ].join(' ')}
+                      >
+                        {index === 0 ? '–' : `${save.percent}%`}
                       </span>
                     </li>
                   )
@@ -286,7 +307,7 @@ function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: (
               </ul>
             ) : rule.window ? (
               <div className="mt-3">
-                <span className="flex flex-wrap gap-1">
+                <span className="grid w-max grid-cols-6 gap-1 sm:grid-cols-12">
                   {HOURS.map((hour, index) => {
                     const hour24 = index < 6 ? hour : hour + 12
                     const inWindow = hour24 >= rule.window!.fromHour && hour24 < rule.window!.toHour
@@ -312,13 +333,13 @@ function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: (
                       <span
                         key={day}
                         className={[
-                          'flex size-6 items-center justify-center rounded-[3px] text-[10px] font-medium',
+                          'flex h-6 min-w-6 items-center justify-center whitespace-nowrap rounded-[3px] px-1 text-[10px] font-medium',
                           inWindow
                             ? 'bg-primary-50 text-primary-800'
                             : 'bg-surface-background text-text-quaternary',
                         ].join(' ')}
                       >
-                        {day}
+                        {dayLabel(index)}
                       </span>
                     )
                   })}
@@ -356,7 +377,11 @@ function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: (
                 label={t('priceRules.used')}
                 value={t('priceRules.usedTimes', { count: rule.used.toLocaleString('en-US') })}
               />
-              <Row label={t('priceRules.givenAway')} value={`OMR ${omr(rule.givenAway)}`} />
+              <Row
+                label={t('priceRules.givenAway')}
+                value={`OMR ${omr(rule.givenAway)}`}
+                tone="pending"
+              />
               {rule.broughtIn > 0 ? (
                 <Row label={t('priceRules.broughtIn')} value={`OMR ${omr(rule.broughtIn)}`} />
               ) : null}
@@ -377,8 +402,8 @@ function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: (
           </div>
         </div>
       ) : rule.offNoteKey ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-surface-background bg-pending-100/50 px-4 py-3.5">
-          <p className="flex items-start gap-2 text-sm font-medium leading-[1.5] text-pending-700">
+        <div className="flex flex-col gap-3 border-t border-surface-background bg-pending-100/50 px-4 py-3.5 md:flex-row md:items-center md:justify-between">
+          <p className="flex min-w-0 items-start gap-2 text-sm font-medium leading-[1.5] text-pending-700">
             <img src={warnIcon} alt="" className="mt-0.5 size-4 shrink-0" />
             <span>
               <Trans
@@ -390,7 +415,7 @@ function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: (
           </p>
           <Link
             to="/trade-documents/quotations"
-            className="inline-flex h-[36px] shrink-0 items-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/70"
+            className="inline-flex h-[36px] shrink-0 items-center self-start whitespace-nowrap rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/70 md:self-auto"
           >
             {t('priceRules.seeTheQuotes')}
           </Link>
@@ -400,18 +425,44 @@ function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: (
   )
 }
 
-function Row({ label, value, last }: { label: string; value: string; last?: boolean }) {
+function Row({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: string
+  tone?: 'pending'
+  /** Kept for the callers; "How it's gone" no longer draws row dividers. */
+  last?: boolean
+}) {
   return (
-    <div
-      className={[
-        'flex items-center justify-between gap-3 py-2',
-        last ? '' : 'border-b border-surface-background',
-      ].join(' ')}
-    >
+    <div className="flex items-center justify-between gap-3 py-1.5">
       <dt className="text-xs font-medium text-text-tertiary">{label}</dt>
-      <dd className="shrink-0 text-xs font-semibold text-text-primary tabular-nums">
+      <dd
+        className={[
+          'shrink-0 text-xs font-semibold tabular-nums',
+          tone === 'pending' ? 'text-pending-700' : 'text-text-primary',
+        ].join(' ')}
+      >
         {withRial(value)}
       </dd>
     </div>
+  )
+}
+
+/** The clock the time rules wear, drawn in the amber of their tile. */
+function AmberClock({ className }: { className: string }) {
+  return (
+    <svg viewBox="0 0 18 18" fill="none" aria-hidden="true" className={className}>
+      <circle cx="9" cy="9" r="6.4" stroke="#887147" strokeWidth="1.4" />
+      <path
+        d="M9 5.4V9l2.5 1.6"
+        stroke="#887147"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   )
 }

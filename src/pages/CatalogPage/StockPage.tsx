@@ -20,6 +20,7 @@ import {
   isRunningLow,
   isOut,
   itemOf,
+  weekdayName,
   type StockRow,
   type StockTab,
 } from '../../lib/catalogStock'
@@ -47,7 +48,7 @@ const rowIcon = (id: string) => {
  * fast it goes, so a row cannot look calm while its own numbers say it will run out on Monday.
  */
 export function StockPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [tab, setTab] = useState<StockTab>('all')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('lowestFirst')
@@ -131,7 +132,7 @@ export function StockPage() {
             out
               ? t('stock.kpi.nothingLeftNote', {
                   name: itemOf(out.id).name,
-                  day: out.ranOutOn ?? '',
+                  day: out.ranOutOn === undefined ? '' : weekdayName(out.ranOutOn, i18n.language),
                 })
               : t('stock.kpi.nothingOut')
           }
@@ -148,7 +149,7 @@ export function StockPage() {
         <TabStrip tabs={STOCK_TABS} value={tab} onChange={setTab} count={countStockTab} />
 
         <div className="flex flex-wrap items-center justify-between gap-3 p-5">
-          <label className="flex h-[46px] min-w-[280px] flex-1 items-center gap-2 rounded-sm border border-border-subtle bg-white px-3">
+          <label className="flex h-[46px] w-[345px] max-w-full items-center gap-2 rounded-sm border border-border-subtle bg-white px-3 max-md:w-full">
             <img src={searchIcon} alt="" className="size-[18px] opacity-60" />
             <input
               value={query}
@@ -160,6 +161,7 @@ export function StockPage() {
           </label>
           <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
             <FilterMenu
+              funnel
               label={t('catalog.filters')}
               value={tab}
               defaultValue="all"
@@ -196,29 +198,16 @@ export function StockPage() {
               </span>
             </span>
             <span className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                className="inline-flex h-[38px] items-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/70"
-              >
+              <button type="button" className={SELECTION_BUTTON}>
                 {t('stock.addToPo', { reference: 'PO-0034' })}
               </button>
-              <button
-                type="button"
-                className="inline-flex h-[38px] items-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/70"
-              >
+              <button type="button" className={SELECTION_BUTTON}>
                 {t('stock.changeReorder')}
               </button>
-              <button
-                type="button"
-                className="inline-flex h-[38px] items-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/70"
-              >
+              <button type="button" className={SELECTION_BUTTON}>
                 {t('stock.writeStockOff')}
               </button>
-              <button
-                type="button"
-                onClick={() => setSelected([])}
-                className="inline-flex h-[38px] items-center rounded-sm px-3 text-sm font-semibold text-primary-700 transition-colors hover:bg-white/70"
-              >
+              <button type="button" onClick={() => setSelected([])} className={SELECTION_BUTTON}>
                 {t('stock.clear')}
               </button>
             </span>
@@ -228,15 +217,15 @@ export function StockPage() {
         <RowsView>
           <table className="w-full min-w-[1060px] border-collapse">
             <thead>
-              <tr className="bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
-                <th className="h-[46px] w-[46px] px-4" />
-                <th className="h-[46px] px-4 text-start font-semibold">{t('stock.col.item')}</th>
-                <th className="h-[46px] px-4 text-end font-semibold">{t('stock.col.onHand')}</th>
-                <th className="h-[46px] px-4 text-start font-semibold">{t('stock.col.lasts')}</th>
-                <th className="h-[46px] px-4 text-end font-semibold">{t('stock.col.orderAt')}</th>
-                <th className="h-[46px] px-4 text-start font-semibold">{t('stock.col.onOrder')}</th>
-                <th className="h-[46px] px-4 text-end font-semibold">{t('stock.col.worth')}</th>
-                <th className="h-[46px] px-4" />
+              <tr className="whitespace-nowrap bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
+                <th className="h-[46px] w-[46px] ps-5 pe-2" />
+                <th className="h-[46px] px-3 text-start font-semibold">{t('stock.col.item')}</th>
+                <th className="h-[46px] px-3 text-end font-semibold">{t('stock.col.onHand')}</th>
+                <th className="h-[46px] px-3 text-start font-semibold">{t('stock.col.lasts')}</th>
+                <th className="h-[46px] px-3 text-end font-semibold">{t('stock.col.orderAt')}</th>
+                <th className="h-[46px] px-3 text-start font-semibold">{t('stock.col.onOrder')}</th>
+                <th className="h-[46px] px-3 text-end font-semibold">{t('stock.col.worth')}</th>
+                <th className="h-[46px] ps-3 pe-5" />
               </tr>
             </thead>
             <tbody>
@@ -286,44 +275,55 @@ function Row({
   checked: boolean
   onToggle: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const item = itemOf(row.id)
   const days = daysLeft(row)
   const low = isRunningLow(row)
   const out = isOut(row)
   const cover = coverShare(row)
+  const category = `${groupName(item.group)} › ${kindName(item.group, item.kind)} · ${item.code}`
+  const note = row.lastsNoteKey
+    ? t(row.lastsNoteKey, {
+        ...row.lastsNoteValues,
+        ...(row.lastsNoteKey === 'stock.sellingAbout'
+          ? { rate: t('stockItem.aDay', { count: Number(row.lastsNoteValues?.rate ?? 0) }) }
+          : {}),
+      })
+    : ''
 
   return (
     <tr
       className={[
         'border-b border-surface-background last:border-0',
-        out ? 'border-s-4 border-s-danger-700 bg-[#fdf4f2]' : low ? 'bg-pending-100/30' : '',
+        out ? 'border-s-4 border-s-danger-700 bg-[#fdf4f2]' : '',
       ].join(' ')}
     >
-      <td className="px-4 py-4 align-top">
+      <td className="ps-5 pe-2 py-4 align-middle">
         <TableCheckbox checked={checked} onChange={onToggle} ariaLabel={item.name} />
       </td>
 
-      <td className="px-4 py-4 align-top">
-        <div className="flex items-start gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-surface-background">
+      <td className="px-3 py-4 align-middle">
+        <div className="flex items-center gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary-50">
             <img src={rowIcon(row.id)} alt="" className="size-[18px]" />
           </span>
-          <div className="min-w-0">
+          <div className="min-w-0 max-w-[260px]">
             <Link
               to={`/stock/${row.id}`}
-              className="text-sm font-semibold text-text-primary transition-colors hover:text-primary-700"
+              title={item.name}
+              className="block truncate text-sm font-semibold text-text-primary transition-colors hover:text-primary-700"
             >
               {item.name}
             </Link>
-            <p className="mt-1 text-xs font-medium text-text-quaternary">
-              {groupName(item.group)} › {kindName(item.group, item.kind)} · {item.code}
+            <p className="mt-1 truncate text-xs font-medium text-text-quaternary" title={category}>
+              {groupName(item.group)} › {kindName(item.group, item.kind)} ·{' '}
+              <span dir="ltr">{item.code}</span>
             </p>
           </div>
         </div>
       </td>
 
-      <td className="px-4 py-4 align-top text-end">
+      <td className="px-3 py-4 align-middle text-end">
         <p
           className={[
             'text-lg font-semibold tabular-nums',
@@ -335,7 +335,7 @@ function Row({
         <p className="mt-1 text-xs font-medium text-text-quaternary">{t(row.unitKey)}</p>
       </td>
 
-      <td className="px-4 py-4 align-top">
+      <td className="px-3 py-4 align-middle">
         <span className="flex h-1.5 w-[140px] overflow-hidden rounded-full bg-surface-background">
           <span
             className={out ? 'bg-danger-700' : low ? 'bg-pending-500' : 'bg-[#4c6c5a]'}
@@ -344,46 +344,54 @@ function Row({
         </span>
         <p
           className={[
-            'mt-1.5 text-sm font-semibold',
+            'mt-1.5 whitespace-nowrap text-sm font-semibold',
             out ? 'text-danger-700' : low ? 'text-pending-700' : 'text-text-primary',
           ].join(' ')}
         >
           {out
-            ? t('stock.ranOut', { day: row.ranOutOn })
+            ? t('stock.ranOut', {
+                day: row.ranOutOn === undefined ? '' : weekdayName(row.ranOutOn, i18n.language),
+              })
             : days !== null && days <= 7
-              ? t('stock.goneBy', { day: dayName(days) })
+              ? t('stock.goneBy', { day: dayName(days, i18n.language) })
               : days !== null && days <= 28
                 ? t('stock.aboutWeeks', { count: Math.round(days / 7) })
                 : t('stock.aboutWeeks', { count: Math.round((days ?? 0) / 7) })}
         </p>
-        <p className="mt-1 max-w-[200px] text-xs font-medium leading-[1.4] text-text-quaternary">
-          {days !== null && !out ? `${days} days · ` : ''}
-          {row.lastsNoteKey ? t(row.lastsNoteKey, row.lastsNoteValues) : ''}
+        <p className="mt-1 max-w-[190px] text-xs font-medium leading-[1.4] text-text-quaternary">
+          {days !== null && !out
+            ? note
+              ? t('stock.daysAt', { days, note })
+              : t('stockItem.days', { count: days })
+            : note}
         </p>
       </td>
 
-      <td className="px-4 py-4 align-top text-end">
+      <td className="px-3 py-4 align-middle text-end">
         <p className="text-sm font-semibold text-text-primary tabular-nums">{row.reorderAt}</p>
         <p className="mt-1 text-xs font-medium text-text-quaternary">{t(row.unitKey)}</p>
       </td>
 
-      <td className="px-4 py-4 align-top">
+      <td className="px-3 py-4 align-middle">
         {row.onOrder ? (
           <>
             <p className="text-sm font-semibold text-text-primary tabular-nums">
               {row.onOrder.quantity}
             </p>
-            <p className="mt-1 text-xs font-medium text-text-quaternary">
-              {row.onOrder.reference} · {t('stock.dueOn', { date: row.onOrder.dueOn })}
+            <p className="mt-1 whitespace-nowrap text-xs font-medium text-text-quaternary">
+              <span dir="ltr">{row.onOrder.reference}</span> ·{' '}
+              {t('stock.dueOn', { date: row.onOrder.dueOn })}
             </p>
           </>
         ) : (
-          <p className="text-sm font-medium text-text-quaternary">{t('stock.nothingOrdered')}</p>
+          <p className="whitespace-nowrap text-sm font-medium text-text-quaternary">
+            {t('stock.nothingOrdered')}
+          </p>
         )}
       </td>
 
-      <td className="px-4 py-4 align-top text-end">
-        <p className="flex items-baseline justify-end gap-1">
+      <td className="px-3 py-4 align-middle text-end">
+        <p className="inline-flex items-baseline gap-1 whitespace-nowrap">
           <span className="text-sm font-semibold text-text-primary">
             <Rial />
           </span>
@@ -391,19 +399,19 @@ function Row({
             {omr(rowWorth(row))}
           </span>
         </p>
-        <p className="mt-1 text-xs font-medium text-text-quaternary">
+        <p className="mt-1 whitespace-nowrap text-xs font-medium text-text-quaternary">
           {t('stock.eachAt', { amount: omr(row.cost) })}
         </p>
       </td>
 
-      <td className="px-4 py-4 align-top text-end">
+      <td className="ps-3 pe-5 py-4 align-middle text-end">
         <Link
           to={`/stock/${row.id}`}
           className={[
-            'inline-flex h-[38px] items-center rounded-sm px-4 text-sm font-semibold transition-colors',
+            'inline-flex h-[38px] items-center whitespace-nowrap rounded-sm border px-4 text-sm font-semibold transition-colors',
             low || out
-              ? 'bg-pending-100 text-pending-700 hover:bg-pending-200/60'
-              : 'border border-border-subtle bg-white text-text-secondary hover:bg-primary-25',
+              ? 'border-pending-500/50 bg-pending-100 text-pending-700 hover:bg-pending-200/60'
+              : 'border-border-subtle bg-white text-text-secondary hover:bg-primary-25',
           ].join(' ')}
         >
           {low || out ? t('stock.orderNow') : t('stock.movements')}
@@ -413,8 +421,14 @@ function Row({
   )
 }
 
-/** A cover of a few days reads better as the day it runs out than as a number. */
-function dayName(days: number) {
-  const names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-  return names[Math.max(0, Math.min(6, days))]
+/** The selection bar's actions: outlined in the brand blue, Clear included. */
+const SELECTION_BUTTON =
+  'inline-flex h-[38px] items-center whitespace-nowrap rounded-sm border border-primary-300 bg-white px-3 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-25'
+
+/**
+ * A cover of a few days reads better as the day it runs out than as a number. Counted from a
+ * Monday as the design does, and named in the interface language.
+ */
+function dayName(days: number, language: string) {
+  return weekdayName(Math.max(0, Math.min(6, days)) + 1, language)
 }
