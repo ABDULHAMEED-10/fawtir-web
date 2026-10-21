@@ -9,6 +9,7 @@ import { PricingPage } from './PricingPage'
 import { resetSharedRequests } from '../../api'
 import type { SignupCataloguePlan } from '../../lib/identity/signupPlans'
 import { comparisonGroups, faqAnswerKey, faqParams } from '../PlansPage/comparison'
+import { launchFeatures } from '../PlansPage/catalogueView'
 import { DEFAULT_SETTINGS, settingsStore } from '../../lib/platformSettings'
 
 let fetchMock: ReturnType<typeof vi.fn>
@@ -206,6 +207,31 @@ describe('Pricing page', () => {
     expect(row.cell({ ...GROWTH, erpAddon: null })).toEqual({ kind: 'dash' })
     // Enterprise: in every quote (PL-7).
     expect(row.cell(null)).toMatchObject({ key: 'plan.extraction.included' })
+  })
+
+  it('names the ERP add-on on the Business Plus card only when the catalogue prices it (ER-1, PL-7)', () => {
+    const plus: SignupCataloguePlan = {
+      ...GROWTH,
+      code: 'BUSINESS_PLUS',
+      erpAddon: { currency: 'OMR', monthlyPrice: '20.000', annualPrice: '240.000' },
+    }
+    for (const lng of ['en', 'ar']) {
+      const t = i18n.getFixedT(lng)
+      const priced = launchFeatures(plus, t)!
+      expect(priced).toHaveLength(5)
+      expect(priced[4]).toContain('20.000')
+      expect(priced[4]).not.toMatch(/\{\{|—/)
+      for (const erpAddon of [null, undefined]) {
+        const lines = launchFeatures({ ...plus, erpAddon }, t)!
+        expect(lines).toHaveLength(4)
+        expect(lines.join(' ')).not.toMatch(lng === 'en' ? /add-on/ : /كإضافة/)
+      }
+    }
+    expect(launchFeatures(plus, i18n.getFixedT('en'))![4]).toBe(
+      'Automatic ERP extraction as an add-on, OMR 20.000 a month',
+    )
+    // A plan the app has no card copy for falls back to its catalogue features.
+    expect(launchFeatures({ ...GROWTH, code: 'CUSTOM' }, i18n.getFixedT('en'))).toBeNull()
   })
 
   it('quotes the VAT rate the server sends with the plans, and says no VAT is added at zero', () => {

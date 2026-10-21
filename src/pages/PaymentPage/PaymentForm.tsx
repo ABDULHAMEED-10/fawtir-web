@@ -481,7 +481,8 @@ function MethodAvailabilityNote({
  * The add-on offer beside the order (handbook section 6). The tick is saved with the payment
  * preference; the add-on is never part of the sign-up payment but gets a bill of its own for the
  * first paid period (backend #611), so the words say that and promise nothing the product does
- * not do, such as writing back to the ERP. The price is the server's; without one, none is shown.
+ * not do, such as writing back to the ERP. The price is the server's; it is drawn only when the
+ * catalogue prices the add-on for the plan.
  */
 function AddonOffer({
   checked,
@@ -492,7 +493,7 @@ function AddonOffer({
   checked: boolean
   onChange: (next: boolean) => void
   months: number
-  monthlyBaisa: number | null
+  monthlyBaisa: number
 }) {
   const { t } = useTranslation()
   return (
@@ -510,20 +511,14 @@ function AddonOffer({
       <p className="mt-1.5 text-xs font-medium leading-[1.5] text-text-tertiary">
         {t('payment.addon.body')}
       </p>
-      {monthlyBaisa !== null ? (
-        <p className="mt-2 flex items-baseline gap-1 text-sm font-semibold text-text-primary">
-          <OmAmount size="xs" amount={formatBaisa(monthlyBaisa)} amountClassName="font-semibold" />
-          <span className="text-xs font-medium text-text-quaternary">
-            {months > 1
-              ? t('payment.addon.perMonthTimes', { count: months })
-              : t('payment.addon.perMonth')}
-          </span>
-        </p>
-      ) : (
-        <p className="mt-2 text-xs font-medium leading-[1.5] text-text-tertiary">
-          {t('payment.addon.priceLater')}
-        </p>
-      )}
+      <p className="mt-2 flex items-baseline gap-1 text-sm font-semibold text-text-primary">
+        <OmAmount size="xs" amount={formatBaisa(monthlyBaisa)} amountClassName="font-semibold" />
+        <span className="text-xs font-medium text-text-quaternary">
+          {months > 1
+            ? t('payment.addon.perMonthTimes', { count: months })
+            : t('payment.addon.perMonth')}
+        </span>
+      </p>
     </div>
   )
 }

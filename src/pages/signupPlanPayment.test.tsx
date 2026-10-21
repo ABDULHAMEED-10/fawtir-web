@@ -1046,7 +1046,6 @@ describe("How you'll pay", () => {
     renderAt('/payment', { ...AFTER_ADDRESS, plan: 'businessPlus', billing: 'monthly' })
     expect(await screen.findByText('17.250')).toBeTruthy()
     expect(screen.queryByText('20.000')).toBeNull()
-    expect(screen.queryByText(i18n.t('payment.addon.priceLater'))).toBeNull()
   })
 
   it('offers no add-on where the catalogue does not price it for the plan (ER-1, PL-6)', async () => {
@@ -1084,7 +1083,6 @@ describe("How you'll pay", () => {
       const words = [
         i18n.t('payment.addon.body', { lng }),
         i18n.t('signupReview.addonValue', { lng }),
-        i18n.t('payment.addon.priceLater', { lng }),
       ].join(' ')
       expect(words).not.toMatch(/confirms|يؤكد/)
       expect(words).not.toMatch(/—/)

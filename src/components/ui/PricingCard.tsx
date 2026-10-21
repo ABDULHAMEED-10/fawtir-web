@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { withRial } from './Rial'
 
 type PlanStat = {
   value: string
@@ -138,7 +139,7 @@ export function PricingCard({
                     isDark ? 'font-semibold text-white' : 'font-medium text-text-secondary',
                   ].join(' ')}
                 >
-                  {feature}
+                  {withRial(feature)}
                 </span>
               </li>
             ))}

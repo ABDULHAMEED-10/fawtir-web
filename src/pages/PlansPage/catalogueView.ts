@@ -61,6 +61,28 @@ const LAUNCH_COPY: Record<string, { key: string; audience: AnyPlanId; lines: num
 }
 export const launchCopy = (code: string) => LAUNCH_COPY[code]
 
+/** The card line, by number, that names the ERP add-on on a launch plan that sells it (ER-1). */
+const ADDON_LINE: Record<string, number> = { BUSINESS_PLUS: 5 }
+
+/**
+ * A launch plan's card lines in words, or `null` for a plan the app has no card copy for. The ERP
+ * add-on line follows the catalogue's `erpAddon` (ER-1, PL-7): with the published monthly price
+ * when the plan sells it now, and left out when `erpAddon` is null or absent, so a card never
+ * claims an add-on that cannot be bought or prices it with a figure the console did not set.
+ */
+export function launchFeatures(plan: SignupCataloguePlan, t: TFunction): string[] | null {
+  const copy = launchCopy(plan.code)
+  if (!copy) return null
+  const addonLine = ADDON_LINE[plan.code]
+  const addonBaisa = baisaOf(plan.erpAddon?.monthlyPrice)
+  return Array.from({ length: copy.lines }, (_, i) => i + 1).flatMap((line) => {
+    if (line !== addonLine) return [t(`plans.${copy.key}.features.f${line}`)]
+    return addonBaisa === null
+      ? []
+      : [t(`plans.${copy.key}.features.f${line}`, { price: fullRial(addonBaisa) })]
+  })
+}
+
 /**
  * The price of one full period of the chosen cycle, in baisa: the month, or the published year.
  * Owner, 9 Oct 2026: an annual plan shows what the year actually costs, not a monthly equivalent.
