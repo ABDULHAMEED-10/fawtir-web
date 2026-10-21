@@ -2,6 +2,7 @@ import type {
   ClassificationAnswer,
   ImportKind,
   ImportUnresolvedDto,
+  ImportWarningDto,
   InvoiceImportBatchDto,
 } from '../api/invoices/import'
 
@@ -24,6 +25,16 @@ export function importStepOf(batch: InvoiceImportBatchDto | null): ImportStep {
 /** A batch still working in the background, to be read again until it settles. */
 export function isImportWorking(batch: InvoiceImportBatchDto | null): boolean {
   return batch?.state === 'CHECKING' || batch?.state === 'CREATING'
+}
+
+/** Warnings the dialog words itself (`invoiceImport.warning.<key>`); others show the server's sentence. */
+const WARNING_KEYS: Record<string, string> = {
+  TAX_CATEGORY_DEFAULTED: 'invoiceImport.warning.taxCategoryDefaulted',
+}
+
+/** The i18n key for a warning the dialog knows, or null to show the server's own message. */
+export function importWarningKey(warning: ImportWarningDto): string | null {
+  return WARNING_KEYS[warning.code] ?? null
 }
 
 /** 0 to 100, from rows processed against rows total; never a spinner. */

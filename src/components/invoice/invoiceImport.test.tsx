@@ -168,6 +168,54 @@ describe('Invoice import dialog', () => {
     expect(calls('POST', '/commit')).toHaveLength(0)
   })
 
+  it('warns, without blocking, when a blank VAT category was read as standard rate', async () => {
+    checked = {
+      ...CLEAN,
+      unresolved: [],
+      warnings: [
+        {
+          rowNumbers: [6, 7],
+          column: 'TAX_CATEGORY',
+          code: 'TAX_CATEGORY_DEFAULTED',
+          message: 'server sentence',
+        },
+        {
+          rowNumbers: [9],
+          column: 'Unit',
+          code: 'SOMETHING_NEW',
+          message: 'A sentence from the server.',
+        },
+      ],
+    }
+    renderModal()
+    await upload()
+
+    expect(
+      await screen.findByText('2 things to check. The file can still be imported.'),
+    ).toBeTruthy()
+    // A warning the dialog knows is worded by it; another shows the server's own sentence.
+    expect(screen.getByText(/so these lines were set to standard rate \(5%\)/)).toBeTruthy()
+    expect(screen.queryByText('server sentence')).toBeNull()
+    expect(screen.getByText('A sentence from the server.')).toBeTruthy()
+    // The import still goes ahead.
+    const create = screen.getByRole('button', { name: 'Create 2 drafts' }) as HTMLButtonElement
+    expect(create.disabled).toBe(false)
+  })
+
+  it('words the defaulted-category warning in Arabic too', async () => {
+    await i18n.changeLanguage('ar')
+    checked = {
+      ...CLEAN,
+      unresolved: [],
+      warnings: [
+        { rowNumbers: [6], column: 'TAX_CATEGORY', code: 'TAX_CATEGORY_DEFAULTED', message: 'x' },
+      ],
+    }
+    renderModal()
+    await upload()
+    expect(await screen.findByText(/بالنسبة الأساسية \(5%\)/)).toBeTruthy()
+  })
+
   it('creates the drafts and shows each one with a link to the Drafts tab', async () => {
     checked = { ...CLEAN, unresolved: [] }
     const onCreated = renderModal()
