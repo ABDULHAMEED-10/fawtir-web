@@ -40,6 +40,7 @@ import type { PaidExtraPlaceDto, PlaceKindOverviewDto } from '../../../api/setti
 import { hasPermission } from '../../../lib/identity/entitlements'
 import { OperatorReasonDialog } from '../operators/OperatorReasonDialog'
 import { Field } from '../subscriptions/modalFields'
+import { GiveBackDialog } from './GiveBackDialog'
 import { FawtirCancellationBlock, ProposeCancellationDialog, UpgradeDialog } from './StaffActions'
 
 const K = 'console.companySubscription.'
@@ -51,15 +52,15 @@ const K = 'console.companySubscription.'
  * 1. Subscription: state, plan, trial, paid time, grace and renewal; the trial exception, the
  *    upgrade at no charge (PC-5) and cancel at once for abuse or fraud with a second operator's
  *    confirmation (CA-7, CA-9).
- * 2. Allowance: this month's documents and the extra-document credits; the temporary grant.
+ * 2. Allowance: this month's documents and the extra-document credits; the temporary grant, and
+ *    giving back documents a platform fault cost the customer (AL-F4, CON-10).
  * 3. Paid extras: users and branches against included plus paid places, the ERP add-on and
  *    whether it granted ERP, and the places (read only; nothing is granted from here).
  * 4. Received-document counting, for Enterprise companies only; the override.
  * 5. History: the lifecycle events the subscription read carries, newest first.
  *
  * TODO(backend): CONSOLE.md 2.1–2.4: bills and payments for one company, a history that names the
- * operator and covers grants and plan changes, "would be read-only" while restrictions are off, and a
- * document lookup for giving documents back. Not drawn
+ * operator and covers grants and plan changes, and "would be read-only" while restrictions are off. Not drawn
  * until the reads exist; the sample-data tab this replaces never reached the server.
  */
 export function CompanySubscriptionCards({
@@ -83,7 +84,11 @@ export function CompanySubscriptionCards({
         />
       ) : null}
       {may(BILLING_READ) ? (
-        <AllowanceCard tenantId={tenantId} canManage={may(BILLING_MANAGE)} />
+        <AllowanceCard
+          tenantId={tenantId}
+          canManage={may(BILLING_MANAGE)}
+          canGiveBack={may(TENANTS_MANAGE)}
+        />
       ) : null}
       {may(BILLING_READ) ? <PaidExtrasCard tenantId={tenantId} /> : null}
       {may(PLANS_READ) ? <CountingCard tenantId={tenantId} canManage={may(PLANS_MANAGE)} /> : null}
@@ -399,13 +404,23 @@ function HistoryCard({ events }: { events: LifecycleEventDto[] }) {
   )
 }
 
-function AllowanceCard({ tenantId, canManage }: { tenantId: string; canManage: boolean }) {
+function AllowanceCard({
+  tenantId,
+  canManage,
+  canGiveBack,
+}: {
+  tenantId: string
+  canManage: boolean
+  /** `platform.tenants.manage`: the give-back's own permission, Platform tenant admins only. */
+  canGiveBack: boolean
+}) {
   const { t, i18n } = useTranslation()
   const { read, retry } = useConsoleRead<CompanyExtraDocumentsDto>(
     companyExtraDocumentsPath(tenantId),
   )
   const [changed, setChanged] = useState<CompanyExtraDocumentsDto | null>(null)
   const [dialog, setDialog] = useState(false)
+  const [giveBack, setGiveBack] = useState(false)
   const [documents, setDocuments] = useState('')
   const [expiresOn, setExpiresOn] = useState('')
   const [errors, setErrors] = useState<{ documents?: string; expiresOn?: string }>({})
@@ -526,11 +541,18 @@ function AllowanceCard({ tenantId, canManage }: { tenantId: string; canManage: b
         )}
       </div>
 
-      {canManage ? (
-        <div>
-          <ConsoleButton variant="secondary" onClick={open}>
-            {t(`${K}grant.open`)}
-          </ConsoleButton>
+      {canManage || canGiveBack ? (
+        <div className="flex flex-wrap gap-2.5">
+          {canManage ? (
+            <ConsoleButton variant="secondary" onClick={open}>
+              {t(`${K}grant.open`)}
+            </ConsoleButton>
+          ) : null}
+          {canGiveBack ? (
+            <ConsoleButton variant="secondary" onClick={() => setGiveBack(true)}>
+              {t(`${K}giveBack.open`)}
+            </ConsoleButton>
+          ) : null}
         </div>
       ) : null}
 
@@ -603,7 +625,17 @@ function AllowanceCard({ tenantId, canManage }: { tenantId: string; canManage: b
           onClose={closeDialog}
         />
       ) : null}
-      {/* TODO(backend): CONSOLE.md 2.4, "Give back documents" needs a document lookup by number. */}
+      {giveBack ? (
+        <GiveBackDialog
+          tenantId={tenantId}
+          periodEnd={allowance.periodEnd}
+          onDone={(answer) => {
+            setChanged(answer)
+            setGiveBack(false)
+          }}
+          onClose={() => setGiveBack(false)}
+        />
+      ) : null}
     </Card>
   )
 }

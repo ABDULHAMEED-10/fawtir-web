@@ -625,6 +625,90 @@ describe('Console › Tenant › Documents this month', () => {
   })
 })
 
+const ISSUED = `/api/v1/platform/companies/${TENANT}/issued-documents`
+const G = (key: string, options?: Record<string, unknown>) => C(`giveBack.${key}`, options)
+
+function issued(id: string, number: string, alreadyGivenBack = false, type = 'INVOICE') {
+  return { id, number, type, issuedOn: '2026-10-14', status: 'ISSUED', alreadyGivenBack }
+}
+
+describe('Console › Tenant › Give back documents (AL-F4, CON-10)', () => {
+  it('finds documents by number, gives back the ticked ones with the reason, and shows the credit', async () => {
+    answers[`${ISSUED}?limit=50`] = () =>
+      json(200, [issued('d-2', 'INV-0412'), issued('d-1', 'CN-0031', true, 'CREDIT_NOTE')])
+    answers[`${ISSUED}?limit=50&number=0411`] = () => json(200, [issued('d-3', 'INV-0411')])
+    answers[`POST ${EXTRA}/give-backs`] = () =>
+      json(200, extras([
+        { id: 'c-9', source: 'GIVE_BACK', status: 'ACTIVE', documents: 2, netAmount: null, startsOn: '2026-10-21', expiresOn: '2026-11-09', reason: 'Signing outage on 20 Oct', createdBy: 'u-admin', createdAt: '2026-10-21T09:00:00Z' },
+      ], { extraDocuments: 52, totalAllowance: 1052 }))
+    const user = userEvent.setup({ delay: null })
+    renderCards()
+
+    await user.click((await card(C('allowance.title'))).getByRole('button', { name: G('open') }))
+    const dialog = await screen.findByRole('dialog')
+    const first = await within(dialog).findByRole('checkbox', { name: 'INV-0412' })
+    // A document already given back cannot be ticked.
+    expect((within(dialog).getByRole('checkbox', { name: 'CN-0031' }) as HTMLInputElement).disabled).toBe(true)
+    expect(within(dialog).getByText(new RegExp(G('alreadyGivenBack')))).toBeTruthy()
+    await user.click(first)
+
+    // Enter in the number field looks it up; it does not send.
+    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(G('number')) }), '0411{Enter}')
+    await user.click(await within(dialog).findByRole('checkbox', { name: 'INV-0411' }))
+    expect(sent('POST', `${EXTRA}/give-backs`)).toBeNull()
+    expect(within(dialog).getByText(G('chosen', { count: 2, n: '2' }))).toBeTruthy()
+
+    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(i18n.t('console.operators.reason.label')) }), 'Signing outage on 20 Oct')
+    await user.click(within(dialog).getByRole('button', { name: G('confirm') }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(sent('POST', `${EXTRA}/give-backs`)!.body).toEqual({ documentIds: ['d-2', 'd-3'], reason: 'Signing outage on 20 Oct' })
+    const docs = await card(C('allowance.title'))
+    expect(docs.getByText(C('allowance.creditLine', { source: C('allowance.source.GIVE_BACK'), documents: '2' }))).toBeTruthy()
+    expect(docs.getByText(/Signing outage on 20 Oct/)).toBeTruthy()
+  })
+
+  it('refuses to send with no document chosen', async () => {
+    answers[`${ISSUED}?limit=50`] = () => json(200, [issued('d-2', 'INV-0412')])
+    const user = userEvent.setup({ delay: null })
+    renderCards()
+
+    await user.click((await card(C('allowance.title'))).getByRole('button', { name: G('open') }))
+    const dialog = await screen.findByRole('dialog')
+    await within(dialog).findByRole('checkbox', { name: 'INV-0412' })
+    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(i18n.t('console.operators.reason.label')) }), 'Outage')
+    await user.click(within(dialog).getByRole('button', { name: G('confirm') }))
+
+    expect(await within(dialog).findByText(G('chooseOne'))).toBeTruthy()
+    expect(sent('POST', `${EXTRA}/give-backs`)).toBeNull()
+  })
+
+  it('says in words when a document was already given back', async () => {
+    answers[`${ISSUED}?limit=50`] = () => json(200, [issued('d-2', 'INV-0412')])
+    answers[`POST ${EXTRA}/give-backs`] = () =>
+      json(409, { type: 'https://fawtir.om/problems/give-back-document-already-given-back', status: 409 })
+    const user = userEvent.setup({ delay: null })
+    renderCards()
+
+    await user.click((await card(C('allowance.title'))).getByRole('button', { name: G('open') }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(await within(dialog).findByRole('checkbox', { name: 'INV-0412' }))
+    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(i18n.t('console.operators.reason.label')) }), 'Outage')
+    await user.click(within(dialog).getByRole('button', { name: G('confirm') }))
+
+    expect(await within(dialog).findByText(C('refusal.giveBackAlready'))).toBeTruthy()
+  })
+
+  it('is offered only with platform.tenants.manage', async () => {
+    who = { ...ADMIN, permissions: ['platform.billing.read', 'platform.billing.manage', 'platform.plans.read'] }
+    renderCards()
+
+    const docs = await card(C('allowance.title'))
+    expect(docs.getByRole('button', { name: C('grant.open') })).toBeTruthy()
+    expect(docs.queryByRole('button', { name: G('open') })).toBeNull()
+  })
+})
+
 describe('Console › Tenant › Count received documents', () => {
   it('is not shown for a company that follows its plan', async () => {
     renderCards()

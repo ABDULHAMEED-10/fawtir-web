@@ -15518,7 +15518,9 @@
         "sameOperator": "You proposed this cancellation, so another operator must confirm it.",
         "cancellationNotTracked": "This company has no subscription lifecycle, so it cannot be cancelled at once.",
         "alreadyEnded": "This subscription has already ended.",
-        "enterprisePlan": "That plan belongs to a company's Enterprise terms. Set Enterprise terms instead."
+        "enterprisePlan": "That plan belongs to a company's Enterprise terms. Set Enterprise terms instead.",
+        "giveBackUnknown": "One of these is not an issued document of this company. Find the documents again and choose from the list.",
+        "giveBackAlready": "One of these documents was already given back. Find the documents again to see which."
       },
       "upgrade": {
         "open": "Upgrade at no charge",
@@ -15592,6 +15594,32 @@
         "outstandingValue": "Bill {{number}}",
         "places": "Paid places",
         "noPlaces": "No paid places yet."
+      },
+      "giveBack": {
+        "open": "Give back documents",
+        "title": "Give back documents",
+        "body": "Only for documents the company had to cancel and reissue because of a Fawtir platform fault. Exactly as many documents as you choose are added to this month's allowance at no charge and end with it on {{date}}. Each document can be given back once. The reason is kept in the company's history.",
+        "number": "Document number",
+        "numberHint": "Part of the number is enough. Leave empty for the newest issued documents.",
+        "search": "Find",
+        "loading": "Finding the documents",
+        "failed": "The documents could not be read. Try again.",
+        "none": "No issued document matches this number.",
+        "issuedOn": "issued {{date}}",
+        "alreadyGivenBack": "already given back",
+        "chosen_one": "{{n}} document chosen",
+        "chosen_other": "{{n}} documents chosen",
+        "chooseOne": "Choose at least one document",
+        "tooMany": "No more than {{max}} documents at once",
+        "confirm": "Give back the documents",
+        "type": {
+          "INVOICE": "Invoice",
+          "CREDIT_NOTE": "Credit note",
+          "DEBIT_NOTE": "Debit note",
+          "SELF_BILLED_INVOICE": "Self-billed invoice",
+          "SELF_BILLED_CREDIT_NOTE": "Self-billed credit note",
+          "OTHER": "Document"
+        }
       }
     },
     "disconnections": {
