@@ -27,14 +27,12 @@ import { PeopleTable } from './people'
 import { TH, TD, useBranchNames, useManagesPeople, useRoleNames } from './peopleView'
 import { useBranchAccessOn } from '../../lib/identity/branchAccessSwitch'
 import { useSession } from '../../lib/session/session'
+import { SWITCHED_OFF_PEOPLE_PATH, loadSwitchedOffPeople } from '../../api/settings/removals'
 import {
-  SCHEDULED_REMOVALS_PATH,
-  SWITCHED_OFF_PEOPLE_PATH,
-  loadScheduledRemovals,
-  loadSwitchedOffPeople,
-  waitingFor,
-  type ScheduledRemovalsDto,
-} from '../../api/settings/removals'
+  SUBSCRIPTION_PATH,
+  loadSubscription,
+  type SubscriptionStatusDto,
+} from '../../api/settings/subscription'
 import { PersonActions, SwitchedOffTable } from './teamRemoval'
 import plusIcon from '../../assets/settings/plus-white.svg'
 import searchIcon from '../../assets/invoices/search.svg'
@@ -128,9 +126,10 @@ function TeamLists() {
   const session = useSession()
   // Switching someone off, or back on, is the Administrator's (DELETE /users/{id} needs
   // admin.users.manage); a branch administrator's list carries no actions.
-  const removals = useApiRead<ScheduledRemovalsDto>(
-    isAdministrator ? SCHEDULED_REMOVALS_PATH : null,
-    loadScheduledRemovals,
+  // When the paid place of someone switched off ends (the next renewal); undated if unreadable.
+  const subscription = useApiRead<SubscriptionStatusDto>(
+    isAdministrator ? SUBSCRIPTION_PATH : null,
+    loadSubscription,
   )
   // Read when the tab is opened: most visits never look at who is switched off.
   const switchedOff = useApiRead<UserPage>(
@@ -138,20 +137,19 @@ function TeamLists() {
     loadSwitchedOffPeople,
   )
   const [done, setDone] = useState<string | null>(null)
-  const removalsData = removals.read.status === 'ready' ? removals.read.data : null
+  const renewsOn =
+    subscription.read.status === 'ready' ? (subscription.read.data.renewsOn ?? null) : null
   const afterChange = (message: string) => {
     setDone(message)
     people.retry()
-    removals.retry()
     switchedOff.retry()
     // A person switched off loses the invitations they sent (IdentityUserDeactivated).
     invitations.retry()
   }
-  const leavingOn = (id: string) => waitingFor(removalsData, id)?.effectiveOn ?? null
   const actions = isAdministrator
     ? (person: CompanyUser) =>
         person.owner || person.id === session?.userId ? null : (
-          <PersonActions person={person} removals={removalsData} onDone={afterChange} />
+          <PersonActions person={person} renewsOn={renewsOn} onDone={afterChange} />
         )
     : undefined
 
@@ -319,7 +317,6 @@ function TeamLists() {
                   branchName={branchAccessOn ? branchName : undefined}
                   personLink={(person) => `/settings/team/${encodeURIComponent(person.id)}`}
                   markOwner
-                  leavingOn={leavingOn}
                   actions={actions}
                 />
                 {people.read.data.totalElements > people.read.data.content.length ? (

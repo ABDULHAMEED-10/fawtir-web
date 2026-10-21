@@ -1,59 +1,46 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActionMenu, Button, Modal } from '../../components/ui'
-import { formatDate } from '../../lib/format'
-import { useRemovalFailureText } from '../../lib/removalRefusals'
+import { placeSentence, useRemovalFailureText } from '../../lib/removalRefusals'
 import { displayName, type CompanyUser } from '../../api/settings/people'
-import {
-  scheduleUserRemoval,
-  switchOffUserNow,
-  switchUserBackOn,
-  waitingFor,
-  withdrawUserRemoval,
-  type ScheduledRemovalsDto,
-} from '../../api/settings/removals'
+import { switchOffUserNow, switchUserBackOn } from '../../api/settings/removals'
 import { SMALL_BUTTON } from '../ErpPage/overview/idiom'
 import { TD, TH } from './peopleView'
-import removeIcon from '../../assets/settings/menu-remove.svg'
 import closeIcon from '../../assets/settings/menu-close.svg'
-import peopleIcon from '../../assets/settings/menu-people.svg'
-
-type Mode = 'atRenewal' | 'now'
 
 /**
- * One person's switch-off actions on Team members (Business Rules US-2, US-3, LG-2): remove at
- * the renewal (or keep them, while that waits) and switch off now. Never offered on the Owner or
- * on the caller's own row; the server refuses both anyway (OW-1, own-account-refused).
+ * One person's switch-off on Team members (Business Rules US-2, US-3, LG-2): access ends now, the
+ * name stays on their records, and the paid place stays until the renewal. Never offered on the
+ * Owner or on the caller's own row; the server refuses both anyway (OW-1, own-account-refused).
  */
 export function PersonActions({
   person,
-  removals,
+  renewsOn,
   onDone,
 }: {
   person: CompanyUser
-  removals: ScheduledRemovalsDto | null
+  renewsOn: string | null
   onDone: (message: string) => void
 }) {
   const { t, i18n } = useTranslation()
   const failureText = useRemovalFailureText()
-  const [mode, setMode] = useState<Mode | null>(null)
+  const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
-  const waiting = waitingFor(removals, person.id)
   const name = displayName(person)
 
   const close = () => {
-    setMode(null)
+    setConfirming(false)
     setFailure(null)
   }
 
-  const run = async (work: () => Promise<string>) => {
+  const confirm = async () => {
     setBusy(true)
     setFailure(null)
     try {
-      const message = await work()
-      setMode(null)
-      onDone(message)
+      await switchOffUserNow(person.id)
+      setConfirming(false)
+      onDone(placeSentence(t, 'removal.user', 'done', renewsOn, i18n.language, name))
     } catch (error) {
       setFailure(failureText(error))
     } finally {
@@ -61,92 +48,42 @@ export function PersonActions({
     }
   }
 
-  const confirm = () =>
-    run(async () => {
-      if (mode === 'now') {
-        await switchOffUserNow(person.id)
-        return t('removal.user.switchedOff', { name })
-      }
-      const removal = await scheduleUserRemoval(person.id)
-      return removal.status === 'SCHEDULED'
-        ? t('removal.user.scheduled', {
-            name,
-            date: formatDate(removal.effectiveOn, i18n.language),
-          })
-        : t('removal.user.switchedOff', { name })
-    })
-
-  const items = [
-    waiting
-      ? {
-          id: 'keep',
-          labelKey: 'removal.menu.keep',
-          icon: peopleIcon,
-          onSelect: () =>
-            void run(async () => {
-              await withdrawUserRemoval(person.id)
-              return t('removal.user.kept', { name })
-            }),
-        }
-      : removals?.open
-        ? {
-            id: 'atRenewal',
-            labelKey: 'removal.menu.atRenewal',
-            icon: removeIcon,
-            onSelect: () => setMode('atRenewal'),
-          }
-        : null,
-    {
-      id: 'now',
-      labelKey: 'removal.menu.now',
-      icon: closeIcon,
-      danger: true,
-      onSelect: () => setMode('now'),
-    },
-  ].filter((item) => item !== null)
-
-  const renewsOn = removals?.renewsOn ?? null
   return (
     <>
-      <ActionMenu label={t('removal.actionsFor', { name })} items={items} floating />
-      {failure && mode === null ? (
-        <p role="alert" className="mt-1 text-start text-xs font-medium text-danger-700">
-          {failure}
-        </p>
-      ) : null}
+      <ActionMenu
+        label={t('removal.actionsFor', { name })}
+        floating
+        items={[
+          {
+            id: 'switchOff',
+            labelKey: 'removal.menu.switchOff',
+            icon: closeIcon,
+            danger: true,
+            onSelect: () => setConfirming(true),
+          },
+        ]}
+      />
       <Modal
-        open={mode !== null}
+        open={confirming}
         onClose={close}
-        title={
-          mode === 'now'
-            ? t('removal.user.nowTitle', { name })
-            : t('removal.user.atRenewalTitle', { name })
-        }
+        title={t('removal.user.title', { name })}
         footer={
           <div className="flex flex-wrap justify-end gap-3">
             <Button variant="secondary" size="md" onClick={close}>
               {t('removal.cancel')}
             </Button>
             <Button size="md" disabled={busy} onClick={() => void confirm()}>
-              {busy
-                ? t('removal.saving')
-                : mode === 'now'
-                  ? t('removal.user.nowConfirm')
-                  : t('removal.user.atRenewalConfirm')}
+              {busy ? t('removal.saving') : t('removal.user.confirm')}
             </Button>
           </div>
         }
       >
         <div className="flex flex-col gap-3">
           <p className="text-sm font-medium leading-[1.6] text-text-secondary">
-            {mode === 'now'
-              ? t('removal.user.nowBody', { name })
-              : renewsOn
-                ? t('removal.user.atRenewalBody', {
-                    name,
-                    date: formatDate(renewsOn, i18n.language),
-                  })
-                : t('removal.user.atOnceBody', { name })}
+            {t('removal.user.body', { name })}
+          </p>
+          <p className="text-sm font-medium leading-[1.6] text-text-secondary">
+            {placeSentence(t, 'removal.user', 'place', renewsOn, i18n.language, name)}
           </p>
           {failure ? (
             <p role="alert" className="text-sm font-medium text-danger-700">

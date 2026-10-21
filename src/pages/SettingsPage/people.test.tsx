@@ -197,9 +197,7 @@ describe('Team members', () => {
     fireEvent.click(screen.getByRole('button', { name: /Without two-step/ }))
     expect(screen.queryByText('Mona Rashid')).toBeNull()
     expect(screen.getByText('clerk@real.example')).toBeTruthy()
-    expect(new Set(pageRequests())).toEqual(
-      new Set([`GET ${PEOPLE}`, `GET ${INVITED}`, `GET ${ROLES}`, 'GET /api/v1/settings/scheduled-removals']),
-    )
+    expect(new Set(pageRequests())).toEqual(new Set([`GET ${PEOPLE}`, `GET ${INVITED}`, `GET ${ROLES}`]))
   })
 
   it('says no access without admin.users.manage, and asks for nobody', async () => {

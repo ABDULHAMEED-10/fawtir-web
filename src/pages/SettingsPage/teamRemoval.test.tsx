@@ -8,9 +8,9 @@ import { forgetSubscriptionStanding } from '../../lib/subscriptionReadOnly'
 import { TeamPage } from './TeamPage'
 
 /**
- * Team members: switching a person off now, removing them at the renewal, keeping them, and
- * switching them back on (Business Rules US-2, US-3, LG-2). The server decides; the screen asks
- * it and says what it answered.
+ * Team members: switching a person off and back on (Business Rules US-2, US-3, LG-2; option (a),
+ * 21 Oct 2026). Access stops at once; the paid place stays until the renewal and can be given to
+ * someone else. The server decides; the screen asks it and says what it answered.
  */
 const ADMIN = {
   userId: 'u-1',
@@ -23,7 +23,7 @@ const ADMIN = {
 } as Entitlements
 
 const PEOPLE = '/api/v1/users?page=0&size=100&sort=createdAt,asc'
-const REMOVALS = '/api/v1/settings/scheduled-removals'
+const SUBSCRIPTION = '/api/v1/settings/subscription'
 const SWITCHED_OFF = '/api/v1/users?status=DEACTIVATED&page=0&size=100'
 
 const person = (id: string, firstName: string, extra: Record<string, unknown> = {}) => ({
@@ -74,7 +74,7 @@ beforeEach(async () => {
           person('p-2', 'Salim'),
         ]),
       ),
-    [`GET ${REMOVALS}`]: () => json(200, { open: true, renewsOn: '2026-11-05', removals: [] }),
+    [`GET ${SUBSCRIPTION}`]: () => json(200, { renewsOn: '2026-11-05' }),
     'GET /api/v1/roles': () => json(200, []),
   }
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
@@ -117,76 +117,43 @@ describe('Team members, switching a person off', () => {
     expect(screen.queryByRole('button', { name: 'Actions for Admin Test' })).toBeNull()
   })
 
-  it('switches a person off now only after saying what happens, and sends the DELETE', async () => {
+  it('switches a person off only after saying access stops and the paid place stays, then says so', async () => {
     answers['DELETE /api/v1/users/p-2'] = () => json(204)
     renderTeam()
+    await waitFor(() => expect(sent('GET', SUBSCRIPTION).length).toBeGreaterThan(0))
     await openMenuOf('Salim Test')
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Switch off now' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Switch off' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(/cannot sign in from now on/)).toBeTruthy()
     expect(within(dialog).getByText(/Their name stays on everything they made/)).toBeTruthy()
+    expect(
+      within(dialog).getByText(
+        /paid place stays until the renewal on .*2026, with no refund, and can be given to someone else/,
+      ),
+    ).toBeTruthy()
     expect(sent('DELETE', '/api/v1/users/p-2')).toHaveLength(0)
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Switch off now' }))
-    expect(await screen.findByText('Salim Test is switched off.')).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Switch off' }))
+    expect(
+      await screen.findByText(
+        /^Access stopped for Salim Test\. The paid place stays until .*2026 and can be given to someone else\.$/,
+      ),
+    ).toBeTruthy()
     expect(sent('DELETE', '/api/v1/users/p-2')).toHaveLength(1)
   })
 
-  it('removes a person at the renewal, shows the day they leave, and keeps them on request', async () => {
-    answers['POST /api/v1/users/p-2/scheduled-removal'] = () => {
-      answers[`GET ${REMOVALS}`] = () =>
-        json(200, {
-          open: true,
-          renewsOn: '2026-11-05',
-          removals: [
-            {
-              id: 'r-1',
-              kind: 'USER',
-              subjectId: 'p-2',
-              effectiveOn: '2026-11-05',
-              status: 'SCHEDULED',
-              scheduledBy: 'u-1',
-              scheduledAt: '2026-10-21T08:00:00Z',
-            },
-          ],
-        })
-      return json(200, {
-        id: 'r-1',
-        kind: 'USER',
-        subjectId: 'p-2',
-        effectiveOn: '2026-11-05',
-        status: 'SCHEDULED',
-        scheduledBy: 'u-1',
-        scheduledAt: '2026-10-21T08:00:00Z',
-      })
-    }
-    answers['DELETE /api/v1/users/p-2/scheduled-removal'] = () => json(204)
+  it('says "until the next renewal" when the subscription date cannot be read', async () => {
+    answers[`GET ${SUBSCRIPTION}`] = () => json(403, { type: 'about:blank' })
+    answers['DELETE /api/v1/users/p-2'] = () => json(204)
     renderTeam()
     await openMenuOf('Salim Test')
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove at the renewal' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Switch off' }))
     const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByText(/can sign in until the renewal on/)).toBeTruthy()
-    expect(within(dialog).getByText(/nothing is refunded/)).toBeTruthy()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove at the renewal' }))
-
-    expect(await screen.findByText(/Salim Test leaves at the renewal on/)).toBeTruthy()
-    const row = (await screen.findByText('salim@real.example')).closest('tr')!
-    await waitFor(() => expect(within(row).getByText(/^Leaves /)).toBeTruthy())
-
-    await openMenuOf('Salim Test')
-    expect(screen.queryByRole('menuitem', { name: 'Remove at the renewal' })).toBeNull()
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Keep them' }))
-    expect(await screen.findByText('Salim Test stays.')).toBeTruthy()
-    expect(sent('DELETE', '/api/v1/users/p-2/scheduled-removal')).toHaveLength(1)
-  })
-
-  it('offers only "Switch off now" while removal at the renewal is not open', async () => {
-    answers[`GET ${REMOVALS}`] = () => json(200, { open: false, renewsOn: null, removals: [] })
-    renderTeam()
-    await screen.findByText('Salim Test')
-    await waitFor(() => expect(sent('GET', REMOVALS)).toHaveLength(1))
-    await openMenuOf('Salim Test')
-    expect(screen.getByRole('menuitem', { name: 'Switch off now' })).toBeTruthy()
-    expect(screen.queryByRole('menuitem', { name: 'Remove at the renewal' })).toBeNull()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Switch off' }))
+    expect(
+      await screen.findByText(
+        'Access stopped for Salim Test. The paid place stays until the next renewal and can be given to someone else.',
+      ),
+    ).toBeTruthy()
   })
 
   it('says why the server refused, in our words', async () => {
@@ -194,9 +161,9 @@ describe('Team members, switching a person off', () => {
       json(409, { type: 'https://api.fawtir.om/problems/last-administrator', status: 409 })
     renderTeam()
     await openMenuOf('Salim Test')
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Switch off now' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Switch off' }))
     const dialog = await screen.findByRole('dialog')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Switch off now' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Switch off' }))
     expect(
       await within(dialog).findByText('The company must keep at least one administrator.'),
     ).toBeTruthy()

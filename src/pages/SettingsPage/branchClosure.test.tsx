@@ -7,8 +7,9 @@ import { resetSharedRequests } from '../../api'
 import { BranchesPage } from './BranchesPage'
 
 /**
- * Settings › Branches: closing a branch at the renewal or now, keeping it open, and reopening it
- * (Business Rules BR-2, BR-4). The server decides; the screen asks it and says what it answered.
+ * Settings › Branches: closing and reopening a branch (Business Rules BR-2, BR-4; option (a),
+ * 21 Oct 2026). It closes now; its paid place stays until the renewal and can be given to a new
+ * branch. The server decides; the screen asks it and says what it answered.
  */
 const ADMIN = {
   userId: 'u-1',
@@ -21,7 +22,7 @@ const ADMIN = {
 } as Entitlements
 
 const OVERVIEW = '/api/v1/branches/overview'
-const REMOVALS = '/api/v1/settings/scheduled-removals'
+const SUBSCRIPTION = '/api/v1/settings/subscription'
 
 const row = (id: string, name: string, active: boolean) => ({
   id,
@@ -65,16 +66,6 @@ const overview = (branches: unknown[]) => ({
   branches,
 })
 
-const waiting = {
-  id: 'r-1',
-  kind: 'BRANCH',
-  subjectId: 'b-1',
-  effectiveOn: '2026-11-05',
-  status: 'SCHEDULED',
-  scheduledBy: 'u-1',
-  scheduledAt: '2026-10-21T08:00:00Z',
-}
-
 function json(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
     status,
@@ -91,7 +82,7 @@ beforeEach(async () => {
   forgetEntitlements()
   answers = {
     [`GET ${OVERVIEW}`]: () => json(200, overview([row('b-1', 'Sohar', true)])),
-    [`GET ${REMOVALS}`]: () => json(200, { open: true, renewsOn: '2026-11-05', removals: [] }),
+    [`GET ${SUBSCRIPTION}`]: () => json(200, { renewsOn: '2026-11-05' }),
     'GET /api/v1/branches/b-1': () => json(200, detail('b-1', 'Sohar', true)),
   }
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
@@ -127,57 +118,41 @@ async function chooseClose() {
 }
 
 describe('Settings › Branches, closing a branch', () => {
-  it('closes at the renewal after saying so, then shows the date and keeps it open on request', async () => {
-    answers['POST /api/v1/branches/b-1/scheduled-closure'] = () => {
-      answers[`GET ${REMOVALS}`] = () =>
-        json(200, { open: true, renewsOn: '2026-11-05', removals: [waiting] })
-      return json(200, waiting)
-    }
-    answers['DELETE /api/v1/branches/b-1/scheduled-closure'] = () => {
-      answers[`GET ${REMOVALS}`] = () =>
-        json(200, { open: true, renewsOn: '2026-11-05', removals: [] })
-      return json(204)
-    }
-    renderBranches()
-    const dialog = await chooseClose()
-    expect(within(dialog).getByText(/stays open until the renewal on/)).toBeTruthy()
-    expect(within(dialog).getByText(/nothing is refunded/)).toBeTruthy()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Close at the renewal' }))
-
-    expect(await screen.findByText(/Sohar closes at the renewal on/)).toBeTruthy()
-    expect(
-      await screen.findByText(/Closes at the renewal on .*It stays open until then\./),
-    ).toBeTruthy()
-    expect(sent('PUT', '/api/v1/branches/b-1')).toHaveLength(0)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Keep it open' }))
-    expect(await screen.findByText('Sohar stays open.')).toBeTruthy()
-    expect(sent('DELETE', '/api/v1/branches/b-1/scheduled-closure')).toHaveLength(1)
-  })
-
-  it('closes now, saving the branch as it stands, while removal at the renewal is not open', async () => {
-    answers[`GET ${REMOVALS}`] = () => json(200, { open: false, renewsOn: null, removals: [] })
+  it('closes now, saving the branch as it stands, after saying its paid place stays until the renewal', async () => {
     answers['PUT /api/v1/branches/b-1'] = () => json(200, detail('b-1', 'Sohar', false))
     renderBranches()
     await screen.findByText('Sohar')
-    await vi.waitFor(() => expect(sent('GET', REMOVALS)).toHaveLength(1))
+    await vi.waitFor(() => expect(sent('GET', SUBSCRIPTION).length).toBeGreaterThan(0))
     const dialog = await chooseClose()
-    expect(within(dialog).getByText(/closes now\. Its invoices stay/)).toBeTruthy()
+    expect(
+      within(dialog).getByText(
+        /closes now: nobody can work in it and no new document can be issued/,
+      ),
+    ).toBeTruthy()
+    expect(within(dialog).getByText(/Its invoices stay in your reports/)).toBeTruthy()
+    expect(
+      within(dialog).getByText(
+        /paid place stays until the renewal on .*2026, with no refund, and can be given to a new branch/,
+      ),
+    ).toBeTruthy()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Close now' }))
 
-    expect(await screen.findByText('Sohar is closed.')).toBeTruthy()
+    expect(
+      await screen.findByText(
+        /^Sohar is closed\. The paid place stays until .*2026 and can be given to a new branch\.$/,
+      ),
+    ).toBeTruthy()
     const [, init] = sent('PUT', '/api/v1/branches/b-1')[0]
     const body = JSON.parse((init as RequestInit).body as string)
     expect(body).toMatchObject({ active: false, expectedVersion: 3, name: 'Sohar', city: 'Sohar' })
-    expect(sent('POST', '/api/v1/branches/b-1/scheduled-closure')).toHaveLength(0)
   })
 
   it('says the Head Branch is never closed when the server refuses it', async () => {
-    answers['POST /api/v1/branches/b-1/scheduled-closure'] = () =>
+    answers['PUT /api/v1/branches/b-1'] = () =>
       json(409, { type: 'https://api.fawtir.om/problems/head-branch-always-on', status: 409 })
     renderBranches()
     const dialog = await chooseClose()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Close at the renewal' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close now' }))
     expect(
       await within(dialog).findByText('The Head Branch is never closed. You can rename it.'),
     ).toBeTruthy()

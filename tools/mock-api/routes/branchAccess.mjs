@@ -128,7 +128,7 @@ export default [
   {
     match: '/api/v1/users',
     reply: ({ query }) => {
-      // The people switched off (scheduledRemovals.mjs): listed only when asked for.
+      // The people switched off (switchingOff.mjs): listed only when asked for.
       const content = query.get('status') === 'DEACTIVATED' ? SWITCHED_OFF : PEOPLE
       return { content, totalElements: content.length, totalPages: 1, number: 0, size: 100 }
     },

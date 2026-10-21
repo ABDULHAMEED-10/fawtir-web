@@ -13,16 +13,13 @@ import {
   type BranchOverviewRow,
 } from '../../api/settings/branches'
 import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
+import { setBranchOpen } from '../../api/settings/removals'
 import {
-  SCHEDULED_REMOVALS_PATH,
-  loadScheduledRemovals,
-  scheduleBranchClosure,
-  setBranchOpen,
-  waitingFor,
-  withdrawBranchClosure,
-  type ScheduledRemovalsDto,
-} from '../../api/settings/removals'
-import { useRemovalFailureText } from '../../lib/removalRefusals'
+  SUBSCRIPTION_PATH,
+  loadSubscription,
+  type SubscriptionStatusDto,
+} from '../../api/settings/subscription'
+import { placeSentence, useRemovalFailureText } from '../../lib/removalRefusals'
 import plusIcon from '../../assets/settings/plus-white.svg'
 import plusBrandIcon from '../../assets/settings/plus-brand.svg'
 import lockIcon from '../../assets/settings/menu-key.svg'
@@ -50,13 +47,13 @@ export function BranchesPage() {
     loadBranchOverview(),
   )
   const overview = overviewRead.read
-  // Branch closures waiting for the renewal (BR-4); this page is branch.manage's, as the read is.
-  const removals = useApiRead<ScheduledRemovalsDto>(SCHEDULED_REMOVALS_PATH, loadScheduledRemovals)
+  // When a closed branch's paid place ends (the next renewal, BR-4); undated if unreadable.
+  const subscription = useApiRead<SubscriptionStatusDto>(SUBSCRIPTION_PATH, loadSubscription).read
+  const renewsOn = subscription.status === 'ready' ? (subscription.data.renewsOn ?? null) : null
   const [done, setDone] = useState<string | null>(null)
   const afterChange = (message: string) => {
     setDone(message)
     overviewRead.retry()
-    removals.retry()
   }
 
   return (
@@ -80,11 +77,7 @@ export function BranchesPage() {
       ) : null}
 
       {overview.status === 'ready' ? (
-        <Content
-          overview={overview.data}
-          removals={removals.read.status === 'ready' ? removals.read.data : null}
-          onDone={afterChange}
-        />
+        <Content overview={overview.data} renewsOn={renewsOn} onDone={afterChange} />
       ) : null}
 
       <Link
@@ -125,11 +118,11 @@ function IncludedKpi() {
 
 function Content({
   overview,
-  removals,
+  renewsOn,
   onDone,
 }: {
   overview: BranchOverviewDto
-  removals: ScheduledRemovalsDto | null
+  renewsOn: string | null
   onDone: (message: string) => void
 }) {
   const { t } = useTranslation()
@@ -168,7 +161,7 @@ function Content({
       </div>
 
       {overview.branches.map((branch) => (
-        <BranchCard key={branch.id} branch={branch} removals={removals} onDone={onDone} />
+        <BranchCard key={branch.id} branch={branch} renewsOn={renewsOn} onDone={onDone} />
       ))}
     </>
   )
@@ -203,11 +196,11 @@ function Kpi({
 
 function BranchCard({
   branch,
-  removals,
+  renewsOn,
   onDone,
 }: {
   branch: BranchOverviewRow
-  removals: ScheduledRemovalsDto | null
+  renewsOn: string | null
   onDone: (message: string) => void
 }) {
   const { t, i18n } = useTranslation()
@@ -216,11 +209,6 @@ function BranchCard({
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
-  // BR-4: closing takes effect at the renewal once the server has opened it; until then, and on an
-  // older server, "Close" closes now as it always has.
-  const atRenewal = removals?.open === true
-  const closing = branch.active ? waitingFor(removals, branch.id) : null
-  const renewsOn = removals?.renewsOn ?? null
   const name = branch.name
 
   const run = async (work: () => Promise<string>) => {
@@ -237,19 +225,11 @@ function BranchCard({
     }
   }
 
+  // Option (a), 21 Oct 2026: the branch closes now; its paid place stays until the renewal.
   const close = () =>
     run(async () => {
-      if (!atRenewal) {
-        await setBranchOpen(branch.id, false)
-        return t('removal.branch.closed', { name })
-      }
-      const removal = await scheduleBranchClosure(branch.id)
-      return removal.status === 'SCHEDULED'
-        ? t('removal.branch.scheduled', {
-            name,
-            date: formatDate(removal.effectiveOn, i18n.language),
-          })
-        : t('removal.branch.closed', { name })
+      await setBranchOpen(branch.id, false)
+      return placeSentence(t, 'removal.branch', 'done', renewsOn, i18n.language, name)
     })
 
   return (
@@ -353,7 +333,7 @@ function BranchCard({
                 icon: copySettingsIcon,
                 to: '/settings/branches/new',
               },
-              ...(branch.active && !closing
+              ...(branch.active
                 ? [
                     {
                       id: 'close',
@@ -405,31 +385,6 @@ function BranchCard({
         </div>
       ) : (
         <>
-          {closing ? (
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-surface-background bg-surface-background/50 px-5 py-4">
-              <p className="flex min-w-0 flex-1 basis-[320px] items-start gap-2 text-sm font-medium leading-[1.5] text-text-tertiary">
-                <img src={lockIcon} alt="" className="mt-0.5 size-4 shrink-0 opacity-60" />
-                <span>
-                  {t('removal.branch.closes', {
-                    date: formatDate(closing.effectiveOn, i18n.language),
-                  })}
-                </span>
-              </p>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    await withdrawBranchClosure(branch.id)
-                    return t('removal.branch.keptOpen', { name })
-                  })
-                }
-                className="inline-flex h-[38px] shrink-0 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-              >
-                {busy ? t('removal.saving') : t('removal.branch.keepOpen')}
-              </button>
-            </div>
-          ) : null}
           {failure && !confirming ? (
             <p
               role="alert"
@@ -506,36 +461,24 @@ function BranchCard({
       <Modal
         open={confirming}
         onClose={() => setConfirming(false)}
-        title={
-          atRenewal
-            ? t('removal.branch.atRenewalTitle', { name })
-            : t('removal.branch.nowTitle', { name })
-        }
+        title={t('removal.branch.title', { name })}
         footer={
           <div className="flex flex-wrap justify-end gap-3">
             <Button variant="secondary" size="md" onClick={() => setConfirming(false)}>
               {t('removal.cancel')}
             </Button>
             <Button size="md" disabled={busy} onClick={() => void close()}>
-              {busy
-                ? t('removal.saving')
-                : atRenewal && renewsOn
-                  ? t('removal.branch.atRenewalConfirm')
-                  : t('removal.branch.nowConfirm')}
+              {busy ? t('removal.saving') : t('removal.branch.confirm')}
             </Button>
           </div>
         }
       >
         <div className="flex flex-col gap-3">
           <p className="text-sm font-medium leading-[1.6] text-text-secondary">
-            {!atRenewal
-              ? t('removal.branch.nowBody', { name })
-              : renewsOn
-                ? t('removal.branch.atRenewalBody', {
-                    name,
-                    date: formatDate(renewsOn, i18n.language),
-                  })
-                : t('removal.branch.atOnceBody', { name })}
+            {t('removal.branch.body', { name })}
+          </p>
+          <p className="text-sm font-medium leading-[1.6] text-text-secondary">
+            {placeSentence(t, 'removal.branch', 'place', renewsOn, i18n.language, name)}
           </p>
           {failure ? (
             <p role="alert" className="text-sm font-medium text-danger-700">

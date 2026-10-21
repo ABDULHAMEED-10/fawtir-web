@@ -1,6 +1,8 @@
+import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../api'
 import { describeApiFailure } from './apiFailure'
+import { formatDate } from './format'
 
 /**
  * Our own sentence for each refusal switching a person or a branch off or back on can meet
@@ -9,15 +11,12 @@ import { describeApiFailure } from './apiFailure'
  * `describeApiFailure`.
  */
 const KEYS: Record<string, string> = {
-  'scheduled-removal-not-open': 'removal.refusal.notOpen',
-  'scheduled-removal-state-conflict': 'removal.refusal.stateConflict',
   'head-branch-always-on': 'removal.refusal.headBranch',
   'last-administrator': 'removal.refusal.lastAdministrator',
   'owner-protected': 'removal.refusal.ownerProtected',
   'own-account-refused': 'removal.refusal.ownAccount',
   'extra-place-required': 'removal.refusal.noPlace',
   'plan-limit-reached': 'removal.refusal.planLimit',
-  'subscription-change-blocked-by-payment': 'removal.refusal.paymentBeingChecked',
   'account-already-active': 'removal.refusal.alreadyActive',
 }
 
@@ -35,4 +34,22 @@ export function useRemovalFailureText(): (error: unknown) => string {
     const message = describeApiFailure(error)
     return t(message.key, message.values)
   }
+}
+
+/**
+ * The sentence about the paid place (decided 21 Oct 2026, option (a)): it stays until the next
+ * renewal with no refund, and can be given to someone else until then. Dated when the subscription
+ * says when it renews.
+ */
+export function placeSentence(
+  t: TFunction,
+  key: 'removal.user' | 'removal.branch',
+  kind: 'place' | 'done',
+  renewsOn: string | null,
+  language: string,
+  name: string,
+): string {
+  return renewsOn
+    ? t(`${key}.${kind}Dated`, { name, date: formatDate(renewsOn, language) })
+    : t(`${key}.${kind}Undated`, { name })
 }
