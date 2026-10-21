@@ -125,7 +125,8 @@ export function SubscriptionBillingSection() {
           bill={outstanding.bill}
           payments={outstanding.payments}
           card={outstanding.card ?? null}
-          overview={overview}
+          // CF-2: a bill is paid into the account it was issued with, not one confirmed since.
+          overview={outstanding.beneficiary ? { ...overview, beneficiary: outstanding.beneficiary } : overview}
           canPay={canPay}
           reportedCards={reportedCards}
           onChanged={changed}

@@ -120,6 +120,11 @@ export type BillWithPaymentsDto = {
   payments: SubscriptionPaymentDto[]
   card?: CardOptionDto | null
   kind?: 'SUBSCRIPTION' | 'EXTRA_DOCUMENTS' | 'PAID_EXTRAS' | 'PLAN_CHANGE' | (string & {})
+  /**
+   * The account this bill is paid into: the one active when it was issued (CF-2), or the current
+   * one for an older bill. Absent from a server that does not send it yet.
+   */
+  beneficiary?: BeneficiaryDto | null
 }
 
 /** Why bank transfer is or is not open; STORAGE_UNAVAILABLE recovers by itself. */
