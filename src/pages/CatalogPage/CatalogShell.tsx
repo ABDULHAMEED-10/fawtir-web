@@ -12,8 +12,8 @@ export type Crumb = { labelKey?: string; label?: string; to?: string }
  * The frame the Catalog screens share — a breadcrumb back to the list, a title with its state
  * pills, and the row of actions (Figma 135:44255 and its siblings).
  *
- * The branch picker leads the actions on every Catalogue and Stock screen: each branch keeps its
- * own catalogue and stock (owner, 21 Oct 2026; no Figma frame, house standard). TODO(backend):
+ * The list screens (items, stock, bundles, price rules) lead their actions with the branch picker:
+ * each branch keeps its own catalogue and stock (owner, 21 Oct 2026; no Figma frame, house standard). TODO(backend):
  * products and stock are not per branch yet, so every branch shows the same rows
  * (docs/backend-guides/INCOME.md, rows P.9 and P.10).
  */
@@ -24,6 +24,7 @@ export function CatalogShell({
   pills,
   actions,
   tabs,
+  branch,
   children,
 }: {
   crumbs: Crumb[]
@@ -34,6 +35,8 @@ export function CatalogShell({
   actions?: ReactNode
   /** The four tabs an item carries; absent on the list screens. */
   tabs?: ReactNode
+  /** A list screen: the branch picker leads the actions. */
+  branch?: boolean
   children: ReactNode
 }) {
   const { t } = useTranslation()
@@ -80,7 +83,7 @@ export function CatalogShell({
         ) : null}
 
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-[760px]">
+          <div className="min-w-0 max-w-[760px] flex-1 basis-[420px]">
             <h1 className="flex flex-wrap items-center gap-2.5">
               <span className="text-[32px] font-medium leading-[1.2] text-text-primary">
                 {title}
@@ -91,10 +94,12 @@ export function CatalogShell({
               <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">{subtitle}</p>
             ) : null}
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:shrink">
-            <BranchPicker />
-            {actions}
-          </div>
+          {actions || branch ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:shrink">
+              {branch ? <BranchPicker tall /> : null}
+              {actions}
+            </div>
+          ) : null}
         </div>
 
         {tabs}

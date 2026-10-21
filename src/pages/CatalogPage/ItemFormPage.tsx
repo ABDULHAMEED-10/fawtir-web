@@ -271,9 +271,6 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                     <span className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">
                       {t(`item.kind.${entry.id}Note`)}
                     </span>
-                    <span className="mt-2 text-[11px] font-semibold text-text-tertiary">
-                      {t(`createInvoice.items.${ITEM_TYPE_OF_KIND[entry.id]}`)}
-                    </span>
                   </button>
                 )
               })}

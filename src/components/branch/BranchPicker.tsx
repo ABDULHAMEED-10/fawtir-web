@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useApiRead } from '../../hooks'
 import { BRANCHES_PATH, loadBranches, type BranchDto } from '../../api/invoices/drafts'
 import { storeBranchId, storedBranchId, workingBranch } from '../../lib/workingBranch'
-import { Select } from '../ui'
+import { OptionPicker } from '../ui'
 
 /** The company's branches and the one being worked in; choosing one remembers it. */
 export function useWorkingBranch() {
@@ -23,25 +23,24 @@ export function useWorkingBranch() {
  * branch. The branches are the company's own (`GET /v1/branches`), the same list the invoice
  * offers.
  */
-export function BranchPicker({ className }: { className?: string }) {
+export function BranchPicker({ tall, narrow }: { tall?: boolean; narrow?: boolean }) {
   const { t } = useTranslation()
   const { read, branches, branch, choose } = useWorkingBranch()
   return (
-    <span className={['block w-[240px] max-w-full', className ?? ''].join(' ')}>
-      <Select
-        compact
-        ariaLabel={t('workingBranch.label')}
-        value={branch?.id ?? ''}
-        onChange={choose}
-        options={branches.map((entry) => ({ value: entry.id, label: entry.name }))}
-        placeholder={
-          read.status === 'failed'
-            ? t('invoiceDraft.branchesFailed')
-            : read.status === 'ready'
-              ? t('workingBranch.none')
-              : t('appAccess.loading')
-        }
-      />
-    </span>
+    <OptionPicker
+      tall={tall}
+      narrow={narrow}
+      ariaLabel={t('workingBranch.label')}
+      value={branch?.id ?? ''}
+      onChange={choose}
+      options={branches.map((entry) => ({ value: entry.id, label: entry.name }))}
+      placeholder={
+        read.status === 'failed'
+          ? t('invoiceDraft.branchesFailed')
+          : read.status === 'ready'
+            ? t('workingBranch.none')
+            : t('appAccess.loading')
+      }
+    />
   )
 }

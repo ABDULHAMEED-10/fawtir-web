@@ -13276,7 +13276,12 @@
     "stillNeedPrice_zero": "{{count}} ما زالت تحتاج أسعارًا",
     "stillNeedPrice_two": "{{count}} ما زالت تحتاج أسعارًا",
     "stillNeedPrice_few": "{{count}} ما زالت تحتاج أسعارًا",
-    "stillNeedPrice_many": "{{count}} ما زالت تحتاج أسعارًا"
+    "stillNeedPrice_many": "{{count}} ما زالت تحتاج أسعارًا",
+    "taxShort": {
+      "Z": "نسبة صفر",
+      "E": "معفى",
+      "O": "خارج النطاق"
+    }
   },
   "rowsView": {
     "label": "طريقة عرض القائمة",

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useReferenceData } from '../../lib/reference/referenceData'
 import { CatalogShell } from './CatalogShell'
-import { Select, TableCheckbox } from '../../components/ui'
+import { OptionPicker, Select, TableCheckbox } from '../../components/ui'
 import { selectAllOnFocus, unitOptions } from '../../components/invoice'
 import { DESIGN_REFERENCE, omanTaxCategories } from '../../lib/invoiceDraft'
 import { defaultPicks, readyToAdd, type SuggestedGroup } from '../../lib/catalogBuild'
@@ -82,7 +82,11 @@ export function BuildCatalogPage() {
   const taxOptions = categories.map((row) => ({
     value: row.code,
     label: t(`createInvoice.taxCategories.${row.code}`, { defaultValue: row.code }),
-    shortLabel: `${Number(row.rate)}% ${row.en16931Category}`,
+    // Words, not the category letter: 5%, or what the 0% is (zero-rated, exempt, out of scope).
+    shortLabel:
+      row.en16931Category === 'S'
+        ? `${Number(row.rate)}%`
+        : t(`buildCatalog.taxShort.${row.en16931Category}`),
   }))
   const subTypeOptions = [
     ...TEMPLATE_SUB_TYPES.map((option) => ({ value: option.id, label: t(option.labelKey) })),
@@ -125,12 +129,23 @@ export function BuildCatalogPage() {
       title={t('buildCatalog.title')}
       subtitle={t('buildCatalog.subtitle')}
       actions={
-        <Link
-          to="/catalog/upload"
-          className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-        >
-          {t('buildCatalog.uploadInstead')}
-        </Link>
+        <>
+          {/* Which template: a header choice beside the other way in, so the banner keeps the
+              frame's one line (owner's Figma review, 21 Oct 2026). */}
+          <OptionPicker
+            tall
+            ariaLabel={t('buildCatalog.businessType')}
+            value={subType}
+            onChange={setSubType}
+            options={subTypeOptions}
+          />
+          <Link
+            to="/catalog/upload"
+            className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+          >
+            {t('buildCatalog.uploadInstead')}
+          </Link>
+        </>
       }
     >
       {/* What Fawtir is going on */}
@@ -144,17 +159,6 @@ export function BuildCatalogPage() {
             {t(subType === OWN ? 'buildCatalog.ownCatalogueNote' : 'buildCatalog.suggestionsNote')}
           </p>
         </div>
-        <label className="w-full sm:w-[240px] sm:shrink-0">
-          <span className="mb-1.5 block text-xs font-medium text-text-secondary">
-            {t('buildCatalog.businessType')}
-          </span>
-          <Select
-            ariaLabel={t('buildCatalog.businessType')}
-            value={subType}
-            onChange={setSubType}
-            options={subTypeOptions}
-          />
-        </label>
         <div className="flex shrink-0 items-center gap-4">
           <span className="text-end">
             <span className="block text-[28px] font-semibold leading-[1.1] text-primary-800 tabular-nums">
@@ -466,7 +470,7 @@ export function BuildCatalogPage() {
                           </span>
                         </td>
                         <td className="px-3 py-3">
-                          <span className="block w-[110px]">
+                          <span className="block w-[130px]">
                             <Select
                               compact
                               disabled={!on}

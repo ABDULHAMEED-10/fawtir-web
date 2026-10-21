@@ -84,6 +84,7 @@ export function StockPage() {
 
   return (
     <CatalogShell
+      branch
       crumbs={[]}
       title={t('stock.title')}
       subtitle={t('stock.subtitle')}

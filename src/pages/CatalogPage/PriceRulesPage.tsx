@@ -63,6 +63,7 @@ export function PriceRulesPage() {
 
   return (
     <CatalogShell
+      branch
       crumbs={[{ labelKey: 'catalog.title', to: '/catalog' }, { labelKey: 'priceRules.title' }]}
       title={t('priceRules.title')}
       subtitle={t('priceRules.subtitle')}

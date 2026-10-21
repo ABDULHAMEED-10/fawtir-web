@@ -5,6 +5,7 @@ import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { suggestedFrom } from '../../lib/catalogTemplates'
 import { BuildCatalogPage } from './BuildCatalogPage'
+import { BranchPicker } from '../../components/branch/BranchPicker'
 
 const OWNER: Entitlements = {
   userId: 'u-1',
@@ -105,7 +106,11 @@ describe('building a catalog from a template', () => {
   })
 
   it('works in the head office first and remembers the branch picked (owner, 21 Oct 2026)', async () => {
-    await renderBuild()
+    render(
+      <MemoryRouter>
+        <BranchPicker />
+      </MemoryRouter>,
+    )
     const picker = await screen.findByRole('button', { name: 'Branch' })
     await waitFor(() => expect(picker.textContent).toContain('Head office'))
     fireEvent.click(picker)

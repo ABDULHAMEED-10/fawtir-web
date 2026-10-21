@@ -139,7 +139,7 @@ export function PosPage() {
     <AppShell>
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
+          <div className="min-w-0 flex-1 basis-[320px]">
             <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
               {t('pos.title')}
             </h1>
@@ -183,7 +183,7 @@ export function PosPage() {
 
             {/* The till belongs to the branch picked here (owner, 21 Oct 2026). TODO(backend):
                 tills, sales and stock per branch, INCOME.md row P.11. */}
-            <BranchPicker />
+            <BranchPicker narrow />
             <CashierPicker value={cashier} onChange={setCashier} />
           </div>
         </div>
