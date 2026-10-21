@@ -793,3 +793,13 @@ Save on the item form still calls no API.
 | P.11 | The POS till belongs to a branch | a till (device) registered to one branch; its sales issue invoices with that `branchId`, sell from that branch's catalogue and lower that branch's stock |
 | P.12 | The till files a real invoice | the web now builds a till sale's invoice with the invoice composer's own request builder (`src/lib/posInvoice.ts`): a walk-in is a consumer's simplified invoice, a sale on a company a full tax invoice; each item and size is a line, each priced add-on its own line, the price rule is each caught line's discount, a discount on the whole sale is the document discount, terms NET0, the till's branch. Needed: one call that creates and issues it with the payments taken (`POST /v1/pos/sales` with the draft request, the payments and a till-generated idempotency key, so a sale queued while offline is filed once), returning the invoice number and QR for the receipt. Lines must accept the catalogue `productId` (P.9) once the till sells from it |
 | P.13 | Read one product | `GET /v1/products/{id}` returning the product with P.1 to P.5 and its P.9 branch settings, plus its sizes and add-ons, so the item form's edit page and the "Sizes and options" page (`/catalog/:id/options`) open the real item instead of the House Blend sample |
+
+## Update 2026-10-22 (branches): the Arabic branch name is sent
+
+This corrects the 2026-09-27 note above, which listed the Arabic name among the Add a branch
+fields that are not sent. Settings › Branches now reads and sends it as `nameAr` (BR-1, BR-2):
+
+| #   | What the screen does | Backend |
+| --- | --- | --- |
+| B.1 | `GET /v1/branches/overview` and `GET /v1/branches/{id}`: the Head Branch is marked from `headBranch`, and in Arabic a branch shows `nameAr` when it has one, else `name` | `headBranch` and `nameAr` on the overview rows and the branch detail; the web reads both as optional |
+| B.2 | Add a branch / Change its details sends `nameAr` on `PUT /v1/branches/{id}`: text sets it, an empty string asks for it to be removed, and the field is left out when the name was never given or not changed | the update takes `nameAr`; absent or null leaves it as it is. The create (`POST /v1/branches`) does not take it, so a new branch with an Arabic name is created and then renamed in a second call; if that call fails the screen says so and the next save retries the rename on the branch already created |

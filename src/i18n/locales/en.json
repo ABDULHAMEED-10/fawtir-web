@@ -14134,7 +14134,7 @@
         "trialAutoConvertsNote": "On, the trial becomes a paid subscription when it ends. Off, the tenant chooses a plan.",
         "trialNeedsPaymentDetails": "Payment details required for the trial",
         "trialNeedsPaymentDetailsNote": "Off, a tenant starts the trial with nothing but an account.",
-        "renewalGroup": "Renewal and cancellation",
+        "renewalGroup": "Renewal and grace",
         "autoRenewal": "Auto-renewal",
         "autoRenewalNote": "A subscription renews for another period unless it has been cancelled.",
         "graceDays": "Grace after a failed payment (days)",
