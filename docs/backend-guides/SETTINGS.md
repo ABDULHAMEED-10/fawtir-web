@@ -175,3 +175,15 @@ administrator, `branchAdministrator` true or `allBranches` false. A server witho
 | # | Element on the screen | What the backend needs to add |
 |---|---|---|
 | 7.6 | Every branch access screen above, for the Owner and Administrators. Their session reads the same whether branch access is on or off (`allBranches` true, `branchAdministrator` false, `featureFlags` empty), so for them the screens stay as they were even once it is on | **Closed by backend PR #616** (Rixon-agency/fawtir-backend): `GET /v1/me/entitlements` carries `branchAccessEnforced: boolean`, true exactly when `FAWTIR_IDENTITY_BRANCH_ACCESS_ENFORCED` is, for every caller. The screens read it; a server before #616 omits it, which reads off |
+
+## Update 22 Oct 2026: switching a person back on (Team members, "Switched off" tab)
+
+"Switch back on" now asks for the person's role, with their old role preselected, and each
+switched-off row says when and by whom. The free paid user places on Team members are counted
+from `GET /v1/settings/plan/extras` `users` (`paidPlacesNow` less the paid places `inUse` needs
+above `included`), so they need nothing new.
+
+| # | Element on the screen | What the backend needs to add |
+|---|---|---|
+| 6.4 | "Switch back on" dialog: the role picker (job roles from `GET /v1/roles`). The web sends `POST /v1/users/{id}/reactivate` with an optional body `{ "roleId": "<RoleDto.id>" }` (no body when no role can be listed) | Read the optional `roleId` on the reactivate request and give the person that one job role (RL-1) in the same step, under the same checks as `PUT /v1/users/{id}/role` (last administrator, branch access `branchIds` when it is on). Without it the person keeps coming back with no role, and the screen says "back on, with no role yet" from the answer's empty `roles` |
+| 6.5 | "Switched off on {date} by {name}" under each switched-off person, and the old role preselected in "Switch back on". Neither is drawn while absent | On `RecordUserResponse` for `GET /v1/users?status=DEACTIVATED`: `deactivatedAt` (instant), `deactivatedByName` (the display name of who switched them off; `User.deactivate(actorId, now)` already records the actor) and `previousRoles` (the role codes retired at switch-off, since the list reports `roles` empty) |

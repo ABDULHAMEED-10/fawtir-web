@@ -11,8 +11,8 @@ import { PEOPLE_PAGE_SIZE, type CompanyUser, type UserPage } from './people'
  *   works in it and nothing new is issued from it; its records stay in reports.
  * - **The paid place stays** until the next renewal, with no refund, and until then the server lets
  *   a new person or branch take it at no extra charge. The renewal bills only what is in use.
- * - **Back on**: `POST /v1/users/{id}/reactivate` (the person comes back with no role), or the
- *   branch saved open. Either takes a place on the plan like a new one.
+ * - **Back on**: `POST /v1/users/{id}/reactivate` with the role the Administrator picks (their old
+ *   role preselected), or the branch saved open. Either takes a place on the plan like a new one.
  */
 const userPath = (id: string) => `/v1/users/${encodeURIComponent(id)}`
 
@@ -20,8 +20,16 @@ export function switchOffUserNow(userId: string): Promise<void> {
   return apiRequest<void>(userPath(userId), { method: 'DELETE' })
 }
 
-export function switchUserBackOn(userId: string): Promise<CompanyUser> {
-  return apiRequest<CompanyUser>(`${userPath(userId)}/reactivate`, { method: 'POST' })
+/**
+ * Back on, with the role picked (a `RoleDto` id), or none for the server's default.
+ * TODO(backend): SETTINGS.md row 6.4. `roleId` on the reactivate request is not read by the server
+ * yet; until it is, the person comes back with no role and the screen says so from the answer.
+ */
+export function switchUserBackOn(userId: string, roleId?: string): Promise<CompanyUser> {
+  return apiRequest<CompanyUser>(`${userPath(userId)}/reactivate`, {
+    method: 'POST',
+    ...(roleId ? { body: { roleId } } : {}),
+  })
 }
 
 /** The people switched off, listed only when asked for (`status=DEACTIVATED`, the Administrator's). */

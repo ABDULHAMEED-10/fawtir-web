@@ -28,7 +28,13 @@ const person = (id, username, firstName, lastName, roles, branchIds, extra = {})
 })
 
 const SWITCHED_OFF = [
-  person('u-salma', 'salma', 'Salma', 'Al Rawahi', [], [], { enabled: false }),
+  // When and by whom, and the role held, are not on the server's response yet (SETTINGS.md row 6.5).
+  person('u-salma', 'salma', 'Salma', 'Al Rawahi', [], [], {
+    enabled: false,
+    deactivatedAt: '2026-10-20T09:30:00Z',
+    deactivatedByName: 'Nasser Al Habsi',
+    previousRoles: ['ACCOUNTANT'],
+  }),
 ]
 
 const PEOPLE = [

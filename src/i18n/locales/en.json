@@ -10500,14 +10500,16 @@
       "cost": "Extra people cost",
       "costNote": "Nothing beyond the plan yet",
       "costNoteOver": "{{count}} beyond the five included",
-      "twoStepNoteReal": "Counts authenticator apps. A code by email needs nothing set up."
+      "twoStepNoteReal": "Counts authenticator apps. A code by email needs nothing set up.",
+      "freePaidPlaces_one": "{{count}} paid place free, for someone new at no extra charge",
+      "freePaidPlaces_other": "{{count}} paid places free, for someone new at no extra charge"
     },
     "tab": {
       "all": "All",
       "waiting": "Waiting to accept",
       "quiet": "Not signed in lately",
       "withoutTwoStep": "Without two-step",
-      "removed": "Removed"
+      "removed": "Switched off"
     },
     "search": "Search by name or email...",
     "filters": "Filters",
@@ -23633,25 +23635,34 @@
     },
     "user": {
       "title": "Switch {{name}} off?",
-      "body": "{{name}} cannot sign in from now on, and every session they have ends. Their name stays on everything they made.",
-      "placeDated": "Their paid place stays until the renewal on {{date}}, with no refund, and can be given to someone else until then.",
-      "placeUndated": "Their paid place stays until the next renewal, with no refund, and can be given to someone else until then.",
+      "body": "Access stops now: {{name}} cannot sign in, and every session they have ends.",
+      "placeDated": "Their place is paid until {{date}}, with no refund. Until then you can give it to someone new at no extra charge.",
+      "placeUndated": "Their place is paid until the next renewal, with no refund. Until then you can give it to someone new at no extra charge.",
       "confirm": "Switch off",
-      "doneDated": "Access stopped for {{name}}. The paid place stays until {{date}} and can be given to someone else.",
-      "doneUndated": "Access stopped for {{name}}. The paid place stays until the next renewal and can be given to someone else.",
+      "doneDated": "Access stopped for {{name}}. The place is paid until {{date}} and can go to someone new at no extra charge.",
+      "doneUndated": "Access stopped for {{name}}. The place is paid until the next renewal and can go to someone new at no extra charge.",
       "backOn": "{{name}} is back on, with no role yet.",
       "noneOff": "Nobody is switched off.",
-      "backOnColumn": "Switch back on"
+      "backOnColumn": "Switch back on",
+      "records": "Their name stays on every record they made.",
+      "backOnTitle": "Switch {{name}} back on?",
+      "backOnBody": "{{name}} can sign in again with the role you choose. They take a place on your plan like someone new.",
+      "backOnRole": "Role",
+      "backOnNoRoles": "You cannot list this company's roles, so {{name}} comes back with the default role.",
+      "backOnAs": "{{name}} is back on as {{role}}.",
+      "offOn": "Switched off on {{date}}",
+      "offOnBy": "Switched off on {{date}} by {{name}}"
     },
     "branch": {
       "title": "Close {{name}}?",
-      "body": "{{name}} closes now: nobody can work in it and no new document can be issued from it. Its invoices stay in your reports.",
-      "placeDated": "Its paid place stays until the renewal on {{date}}, with no refund, and can be given to a new branch until then.",
-      "placeUndated": "Its paid place stays until the next renewal, with no refund, and can be given to a new branch until then.",
+      "body": "Access stops now: nobody can work in {{name}} and no new document can be issued from it.",
+      "placeDated": "Its place is paid until {{date}}, with no refund. Until then you can use it for a new branch at no extra charge.",
+      "placeUndated": "Its place is paid until the next renewal, with no refund. Until then you can use it for a new branch at no extra charge.",
       "confirm": "Close now",
-      "doneDated": "{{name}} is closed. The paid place stays until {{date}} and can be given to a new branch.",
-      "doneUndated": "{{name}} is closed. The paid place stays until the next renewal and can be given to a new branch.",
-      "reopened": "{{name}} is open again."
+      "doneDated": "{{name}} is closed. The place is paid until {{date}} and can go to a new branch at no extra charge.",
+      "doneUndated": "{{name}} is closed. The place is paid until the next renewal and can go to a new branch at no extra charge.",
+      "reopened": "{{name}} is open again.",
+      "records": "Its name stays on every record made there, and its invoices stay in your reports."
     },
     "refusal": {
       "headBranch": "The Head Branch is never closed. You can rename it.",

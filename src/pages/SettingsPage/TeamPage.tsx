@@ -33,14 +33,21 @@ import {
   loadSubscription,
   type SubscriptionStatusDto,
 } from '../../api/settings/subscription'
+import {
+  PAID_EXTRAS_PATH,
+  freePaidUserPlaces,
+  loadPaidExtras,
+  type PaidExtrasOverviewDto,
+} from '../../api/settings/paidExtras'
 import { PersonActions, SwitchedOffTable } from './teamRemoval'
 import plusIcon from '../../assets/settings/plus-white.svg'
 import searchIcon from '../../assets/invoices/search.svg'
 
 /**
  * The design's tabs (Figma 135:38461). "Not signed in lately" needs a sign-in time the API does
- * not have, so it is drawn and cannot be opened (TODO(backend): SETTINGS.md row 6.1). "Removed" is
- * the people switched off (`status=DEACTIVATED`), the Administrator's list only (US-3, LG-2).
+ * not have, so it is drawn and cannot be opened (TODO(backend): SETTINGS.md row 6.1). "Switched
+ * off" (id `removed`) is the people switched off (`status=DEACTIVATED`), the Administrator's list
+ * only (US-3, LG-2).
  */
 type TeamTab = 'all' | 'waiting' | 'quiet' | 'withoutTwoStep' | 'removed'
 const TABS: { id: TeamTab; available: boolean }[] = [
@@ -136,6 +143,16 @@ function TeamLists() {
     isAdministrator && tab === 'removed' ? SWITCHED_OFF_PEOPLE_PATH : null,
     loadSwitchedOffPeople,
   )
+  // Paid user places not in use (option (a), 21 Oct 2026): a switched-off person's place stays paid
+  // until the renewal and can go to someone new at no extra charge. Counted from the server's own
+  // figures on `GET /v1/settings/plan/extras` (`tenant.plan.read`).
+  const mayReadPlan = useCan('tenant.plan.read')
+  const extras = useApiRead<PaidExtrasOverviewDto>(
+    mayReadPlan ? PAID_EXTRAS_PATH : null,
+    loadPaidExtras,
+  )
+  const freePaidPlaces =
+    extras.read.status === 'ready' ? freePaidUserPlaces(extras.read.data.users) : null
   const [done, setDone] = useState<string | null>(null)
   const renewsOn =
     subscription.read.status === 'ready' ? (subscription.read.data.renewsOn ?? null) : null
@@ -145,6 +162,7 @@ function TeamLists() {
     switchedOff.retry()
     // A person switched off loses the invitations they sent (IdentityUserDeactivated).
     invitations.retry()
+    extras.retry()
   }
   const actions = isAdministrator
     ? (person: CompanyUser) =>
@@ -190,6 +208,7 @@ function TeamLists() {
         people={people.read.status === 'ready' ? people.read.data : null}
         waiting={waiting}
         withoutTwoStep={withoutTwoStep.length}
+        freePaidPlaces={freePaidPlaces}
       />
 
       <section aria-labelledby="team-people" className="overflow-hidden rounded-md bg-surface-card">
@@ -341,10 +360,12 @@ function Kpis({
   people,
   waiting,
   withoutTwoStep,
+  freePaidPlaces,
 }: {
   people: UserPage | null
   waiting: InvitationDto[] | null
   withoutTwoStep: number
+  freePaidPlaces: number | null
 }) {
   const { t } = useTranslation()
   const complete = people !== null && people.totalElements === people.content.length
@@ -355,6 +376,11 @@ function Kpis({
         value={people ? String(people.totalElements) : null}
         unit={t('team.kpi.withLoginUnit')}
         note={waiting ? t('team.kpi.withLoginNote', { count: waiting.length }) : undefined}
+        extraNote={
+          freePaidPlaces !== null
+            ? t('team.kpi.freePaidPlaces', { count: freePaidPlaces })
+            : undefined
+        }
       />
       {/* TODO(backend): SETTINGS.md row 6.1. No sign-in time on the user record. */}
       <Kpi label={t('team.kpi.signedIn')} unavailable />
@@ -376,6 +402,7 @@ function Kpi({
   value = null,
   unit,
   note,
+  extraNote,
   tone,
   unavailable,
 }: {
@@ -383,6 +410,7 @@ function Kpi({
   value?: string | null
   unit?: string
   note?: string
+  extraNote?: string
   tone?: 'pending'
   unavailable?: boolean
 }) {
@@ -411,6 +439,9 @@ function Kpi({
       )}
       {note ? (
         <p className="mt-2 text-xs font-medium leading-[1.4] text-text-quaternary">{note}</p>
+      ) : null}
+      {extraNote ? (
+        <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">{extraNote}</p>
       ) : null}
     </article>
   )

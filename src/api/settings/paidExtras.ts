@@ -34,6 +34,16 @@ export type PlaceKindOverviewDto = {
   offered: boolean
 }
 
+/**
+ * Paid user places nobody uses: the paid places covering today less those the people in use need
+ * above what the plan includes. Null when the plan's included number is unknown.
+ */
+export function freePaidUserPlaces(users: PlaceKindOverviewDto): number | null {
+  if (users.included === null) return null
+  const needed = Math.max(0, users.inUse - users.included)
+  return Math.min(users.paidPlacesNow, Math.max(0, users.paidPlacesNow - needed))
+}
+
 export type ErpAddonStatus = 'PENDING_PAYMENT' | 'ACTIVE' | 'ENDING' | 'ENDED'
 
 export type ErpAddonOverviewDto = {
