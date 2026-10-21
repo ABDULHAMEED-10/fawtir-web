@@ -532,7 +532,7 @@ describe('Console › SMP step, option C (API first, recorded override)', () => 
     ).toBeTruthy()
   })
 
-  it('records a removal made elsewhere: date, channel, required reason; never calls the SMP; one request', async () => {
+  it('records a removal done by hand: date, channel, required reason and evidence; never calls the SMP; one request', async () => {
     answers[DISCONNECTION] = () => json(200, disconnection())
     let recorded = false
     answers[REMOVAL_STATUS] = () =>
@@ -585,8 +585,12 @@ describe('Console › SMP step, option C (API first, recorded override)', () => 
     await user.click(confirm)
     expect(posts).toBe(0)
     await user.type(dialog.getByRole('textbox', { name: /Reason/ }), 'OTA removed it, ticket 4471')
+    // No evidence reference: nothing is sent.
+    await user.click(confirm)
+    expect(dialog.getByText(i18n.t('console.smpCall.record.referenceRequired'))).toBeTruthy()
+    expect(posts).toBe(0)
     await user.type(
-      dialog.getByRole('textbox', { name: i18n.t('console.smpCall.record.reference') }),
+      dialog.getByRole('textbox', { name: new RegExp(i18n.t('console.smpCall.record.reference')) }),
       'OTA-4471',
     )
     await user.dblClick(confirm)
@@ -721,6 +725,10 @@ describe('Console › SMP step, option C (API first, recorded override)', () => 
       }),
     )
     await user.type(dialog.getByRole('textbox', { name: /Reason/ }), 'Still listed on the portal')
+    await user.type(
+      dialog.getByRole('textbox', { name: new RegExp(i18n.t('console.smpCall.record.reference')) }),
+      'EVID-portal-1',
+    )
     await user.click(
       dialog.getByRole('button', { name: i18n.t('console.smpCall.record.CONFIRMED.action') }),
     )
@@ -729,7 +737,36 @@ describe('Console › SMP step, option C (API first, recorded override)', () => 
       kind: 'CONFIRMED',
       reconnectionId: 'r-1',
       channel: 'FAWTARA_PORTAL',
+      reference: 'EVID-portal-1',
     })
+  })
+
+  it('a failed or unknown call offers Try again and Record it done by hand, never the problem-operations screen', async () => {
+    for (const outcome of ['FAILED', 'RECONCILIATION_REQUIRED'] as const) {
+      answers[DISCONNECTION] = () => json(200, disconnection())
+      answers[REMOVAL_STATUS] = () =>
+        json(
+          200,
+          optionC({
+            latest: call({ outcome }),
+            actions: outcome === 'FAILED' ? ['REMOVE', 'RECORD_REMOVAL'] : ['RECORD_REMOVAL'],
+          }),
+        )
+      const { unmount } = renderAt('/console/disconnections?open=d-1')
+
+      const panel = await removalPanel()
+      expect(await panel.findByText(i18n.t(`console.smpCall.outcome.${outcome}`))).toBeTruthy()
+      expect(i18n.t(`console.smpCall.outcome.${outcome}`)).toContain('do it by hand and record it')
+      expect(i18n.t(`console.smpCall.outcome.${outcome}`)).not.toMatch(/problem/i)
+      expect(
+        panel.getByRole('button', { name: i18n.t('console.smpCall.record.REMOVED.action') }),
+      ).toBeTruthy()
+      expect(i18n.t('console.smpCall.record.REMOVED.action')).toBe('Record it done by hand')
+      expect(Boolean(panel.queryByRole('button', { name: i18n.t('console.smpCall.tryAgain') }))).toBe(
+        outcome === 'FAILED',
+      )
+      unmount()
+    }
   })
 
   it('defect 3: a removed company is offered Add back, which makes the call', async () => {

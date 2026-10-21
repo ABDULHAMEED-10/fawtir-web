@@ -15,7 +15,7 @@ export type SmpCallKind = 'REMOVAL' | 'ADDITION'
 
 /**
  * `FAILED`: the SMP refused it for good; asking again makes a new attempt. `RECONCILIATION_REQUIRED`:
- * the outcome is unknown; it is resolved from the SMP problem operations, never by asking again.
+ * the outcome is unknown; support tries again, or does it by hand and records it (with evidence).
  */
 export type SmpCallOutcome = 'PENDING' | 'DONE' | 'FAILED' | 'RECONCILIATION_REQUIRED'
 
@@ -87,7 +87,8 @@ export type SmpOverrideBody = {
   occurredOn: string
   channel: SmpOverrideChannel
   reason: string
-  reference: string | null
+  /** Required evidence, such as an OTA ticket number. */
+  reference: string
 }
 
 export type SmpCallAcceptedDto = {

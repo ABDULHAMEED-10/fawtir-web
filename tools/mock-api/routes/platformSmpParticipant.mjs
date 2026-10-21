@@ -180,7 +180,7 @@ export default [
       }
       const removal = body?.kind === 'REMOVED'
       const linkId = removal ? body?.disconnectionId : body?.reconnectionId
-      if (!linkId || !body?.occurredOn || !body?.channel || !body?.reason?.trim()) {
+      if (!linkId || !body?.occurredOn || !body?.channel || !body?.reason?.trim() || !body?.reference?.trim()) {
         return { status: 400, body: { status: 400 } }
       }
       const at = new Date(`${body.occurredOn}T08:00:00+04:00`).toISOString()
@@ -188,7 +188,7 @@ export default [
         kind: body.kind,
         channel: body.channel,
         reason: body.reason.trim(),
-        reference: body.reference ?? null,
+        reference: body.reference.trim(),
         actorName: STAFF,
       }
       const done = removal

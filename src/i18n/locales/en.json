@@ -16231,8 +16231,8 @@
       "outcome": {
         "PENDING": "Sent. Waiting for the Oman SMP to confirm.",
         "DONE": "The Oman SMP confirmed it, and the step is recorded.",
-        "FAILED": "The Oman SMP refused it. Check the company's SMP set-up, then try again.",
-        "RECONCILIATION_REQUIRED": "The Oman SMP's answer is not known. It must be checked in the SMP problem operations before anything is tried again."
+        "FAILED": "The Oman SMP refused it. Try again, or do it by hand and record it.",
+        "RECONCILIATION_REQUIRED": "The Oman SMP's answer is not known. Try again, or do it by hand and record it."
       },
       "asked": "Asked on {{date}}, attempt {{attempt}}",
       "tryAgain": "Try again",
@@ -16247,7 +16247,7 @@
         "invalid": "The SMP checks refused the call: the Participant ID policy or the publication set-up is not ready for this company.",
         "conflict": "The company's SMP registration is not ready for this call, or another SMP call for it is still running.",
         "platform-smp-override-not-open": "Recording SMP changes made elsewhere is switched off on this server. Record the step by hand instead.",
-        "invalidRecord": "Check the date (not in the future, and not before the step it answers), the channel and the reason.",
+        "invalidRecord": "Check the date (not in the future, and not before the step it answers), the channel, the reason and the evidence reference.",
         "recordConflict": "This record is not what the company needs now, it is already recorded, or another SMP change for it is still running. Close this and look again."
       },
       "confirm": {
@@ -16271,14 +16271,14 @@
       },
       "record": {
         "REMOVED": {
-          "title": "Record a removal made elsewhere",
-          "body": "Use this when the console could not remove the company from the Oman SMP, or it was removed another way. Nothing is sent to the SMP. The removal is recorded with your name, and the company's SMP registration is marked as removed.",
-          "action": "Record removal made elsewhere"
+          "title": "Record the removal done by hand",
+          "body": "Use this when the SMP call failed, its outcome is unknown, or the Oman SMP can't be reached, and the company was removed another way. Nothing is sent to the SMP. The removal is recorded with your name, and the company's SMP registration is marked as removed.",
+          "action": "Record it done by hand"
         },
         "ADDED": {
-          "title": "Record an addition made elsewhere",
-          "body": "Use this when the console could not add the company back to the Oman SMP, or it was added another way. Nothing is sent to the SMP. The addition is recorded with your name, and the company's SMP registration is marked as active.",
-          "action": "Record addition made elsewhere"
+          "title": "Record the addition done by hand",
+          "body": "Use this when the SMP call failed, its outcome is unknown, or the Oman SMP can't be reached, and the company was added back another way. Nothing is sent to the SMP. The addition is recorded with your name, and the company's SMP registration is marked as active.",
+          "action": "Record it done by hand"
         },
         "CONFIRMED": {
           "title": "Confirm the Oman SMP registration",
@@ -16295,13 +16295,14 @@
           "OTA_SUPPORT": "OTA support",
           "OTHER": "Other"
         },
-        "reference": "Reference (optional)",
-        "referenceHint": "For example an OTA ticket number",
-        "sending": "Recording…"
+        "reference": "Evidence reference",
+        "referenceHint": "For example an OTA ticket number or the ID of a saved portal screenshot",
+        "sending": "Recording…",
+        "referenceRequired": "Enter the evidence reference."
       },
       "history": {
-        "REMOVED": "Recorded instead of the console's SMP call, via {{channel}}",
-        "ADDED": "Recorded instead of the console's SMP call, via {{channel}}",
+        "REMOVED": "Recorded by hand instead of the console's SMP call, via {{channel}}",
+        "ADDED": "Recorded by hand instead of the console's SMP call, via {{channel}}",
         "CONFIRMED": "Confirmed as still registered, via {{channel}}"
       }
     }

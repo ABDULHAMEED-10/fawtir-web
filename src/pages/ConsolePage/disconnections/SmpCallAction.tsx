@@ -51,11 +51,13 @@ export function smpPanelOn(read: ConsoleRead<SmpCallStatusDto>): boolean {
 const CALLS: SmpAction[] = ['REMOVE', 'ADD_BACK']
 
 /**
- * Whether support may still record the bare SMP step by hand. Never while support's record is on:
- * the record moves the SMP registration with the step, the bare step does not. Otherwise yes
- * whenever the call cannot be made or did not settle it: switched off, not offered, refused
- * before it was queued (`callRefused`), failed, done but not marked, or unknown. Staff are never
- * left with nothing to press while the deadline runs.
+ * Whether the step form keeps the bare SMP step. While support's record is on, the hand-recorded
+ * fallback is the panel's "Record it done by hand" (date, channel, reason, evidence and the staff
+ * member's name; it also moves the SMP registration), which the server offers when the call failed,
+ * its outcome is unknown, or the SMP can't be reached; the server refuses the bare step then. With
+ * the record off, the bare step stays whenever the call cannot be made or did not settle it:
+ * switched off, not offered, refused before it was queued (`callRefused`), failed, done but not
+ * marked, or unknown. Staff are never left with nothing to press while the deadline runs.
  */
 export function smpStepByHand(read: ConsoleRead<SmpCallStatusDto>, callRefused = false): boolean {
   if (read.status !== 'ready') return true
@@ -281,7 +283,8 @@ export function SmpCallAction({
 
 /**
  * Support's record of an SMP change the console's call did not make: the Oman date it happened
- * on, how support knows, a required reason and optional evidence. Never calls the SMP. One request
+ * on, how support knows, a required reason and a required evidence reference; the server adds the
+ * staff member's name. Never calls the SMP. One request
  * per confirmation (the dialog's own guard).
  */
 function SmpRecordDialog({
@@ -306,16 +309,17 @@ function SmpRecordDialog({
   const [day, setDay] = useState(today)
   const [channel, setChannel] = useState<SmpOverrideChannel | ''>('')
   const [reference, setReference] = useState('')
-  const [errors, setErrors] = useState<{ day?: string; channel?: string }>({})
+  const [errors, setErrors] = useState<{ day?: string; channel?: string; reference?: string }>({})
 
   const validate = () => {
-    const next: { day?: string; channel?: string } = {}
+    const next: { day?: string; channel?: string; reference?: string } = {}
     if (day === '' || day > today || (minDay !== undefined && day < minDay)) {
       next.day = 'console.smpCall.record.dateInvalid'
     }
     if (channel === '') next.channel = 'console.smpCall.record.channelRequired'
+    if (reference.trim() === '') next.reference = 'console.smpCall.record.referenceRequired'
     setErrors(next)
-    return next.day ? 'day' : next.channel ? 'channel' : undefined
+    return next.day ? 'day' : next.channel ? 'channel' : next.reference ? 'reference' : undefined
   }
 
   return (
@@ -371,10 +375,17 @@ function SmpRecordDialog({
               bordered
               label={t('console.smpCall.record.reference')}
               hint={t('console.smpCall.record.referenceHint')}
+              error={errors.reference ? t(errors.reference) : undefined}
+              requiredMark
+              name="reference"
+              aria-invalid={Boolean(errors.reference)}
               value={reference}
               maxLength={SMP_OVERRIDE_REFERENCE_MAX}
               dir="ltr"
-              onChange={(event) => setReference(event.target.value)}
+              onChange={(event) => {
+                setReference(event.target.value)
+                setErrors((e) => ({ ...e, reference: undefined }))
+              }}
             />
           </div>
         </div>
@@ -386,7 +397,7 @@ function SmpRecordDialog({
           occurredOn: day,
           channel: channel as SmpOverrideChannel,
           reason,
-          reference: reference.trim() || null,
+          reference: reference.trim(),
         })
       }
       describeFailure={(error) => ({ key: smpCallRefusalKey(error, 'record') })}
