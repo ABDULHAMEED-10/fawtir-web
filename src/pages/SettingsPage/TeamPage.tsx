@@ -108,8 +108,8 @@ function TeamLists() {
     loadPendingInvitations,
   )
   const roleNames = useRoleNames()
-  // The Branches column, the Owner mark and each person's page wait for branch access (BA-1):
-  // while it is off the list is drawn as before and no branch is read.
+  // The Branches column waits for branch access (BA-1): while it is off no branch is read. The
+  // Owner mark (OW-1) and each person's page (role, permissions RL-3, handover OW-4) do not.
   const branchAccessOn = useBranchAccessOn()
   const { name: branchName } = useBranchNames(branchAccessOn)
   const [tab, setTab] = useState<TeamTab>('all')
@@ -250,18 +250,14 @@ function TeamLists() {
               </p>
             ) : (
               <>
-                {branchAccessOn ? (
-                  <PeopleTable
-                    people={rows}
-                    roleNames={roleNames}
-                    lastSignedIn
-                    branchName={branchName}
-                    personLink={(person) => `/settings/team/${encodeURIComponent(person.id)}`}
-                    markOwner
-                  />
-                ) : (
-                  <PeopleTable people={rows} roleNames={roleNames} lastSignedIn />
-                )}
+                <PeopleTable
+                  people={rows}
+                  roleNames={roleNames}
+                  lastSignedIn
+                  branchName={branchAccessOn ? branchName : undefined}
+                  personLink={(person) => `/settings/team/${encodeURIComponent(person.id)}`}
+                  markOwner
+                />
                 {people.read.data.totalElements > people.read.data.content.length ? (
                   <p className="text-sm font-medium text-text-tertiary">
                     {t('people.team.more', {

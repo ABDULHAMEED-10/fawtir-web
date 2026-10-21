@@ -25,7 +25,7 @@ export function PeopleTable({
   branchName?: (id: string) => string | null
   /** Where the person's name leads (their own page); absent, the name is plain text. */
   personLink?: (person: CompanyUser) => string
-  /** Marks the company's Owner (OW-1); a branch access screen, so only once it is on. */
+  /** Marks the company's Owner (OW-1). */
   markOwner?: boolean
 }) {
   const { t } = useTranslation()

@@ -22888,7 +22888,8 @@
         "title": "Change your own role?",
         "body": "You will be {{role}} and no longer an Administrator. You can't change it back yourself: another Administrator would have to.",
         "confirm": "Change my role"
-      }
+      },
+      "subtitleNoBranches": "Their role and permissions."
     },
     "handover": {
       "open": "Hand over ownership",
