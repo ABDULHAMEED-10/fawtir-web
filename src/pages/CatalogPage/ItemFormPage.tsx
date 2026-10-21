@@ -631,25 +631,33 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
               </table>
             </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                setSizes((list) => [
-                  ...list,
-                  {
-                    id: `size-${list.length + 1}`,
-                    name: '',
-                    delta: 0,
-                    code: `${code}-${list.length + 1}`,
-                    onSale: true,
-                  },
-                ])
-              }
-              className="mt-3 inline-flex h-[38px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-            >
-              <img src={plusIcon} alt="" className="size-4" />
-              {t('item.addASize')}
-            </button>
+            <div className="mt-3 flex flex-wrap gap-2.5">
+              <button
+                type="button"
+                onClick={() =>
+                  setSizes((list) => [
+                    ...list,
+                    {
+                      id: `size-${list.length + 1}`,
+                      name: '',
+                      delta: 0,
+                      code: `${code}-${list.length + 1}`,
+                      onSale: true,
+                    },
+                  ])
+                }
+                className="inline-flex h-[38px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+              >
+                <img src={plusIcon} alt="" className="size-4" />
+                {t('item.addASize')}
+              </button>
+              <Link
+                to={`/catalog/${id ?? ITEM.id}/options`}
+                className="inline-flex h-[38px] items-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-25"
+              >
+                {t('itemOptions.openLink')}
+              </Link>
+            </div>
           </Step>
 
           {/* 5 — add-ons */}

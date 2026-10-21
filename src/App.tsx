@@ -66,6 +66,7 @@ import {
   ItemSellsPage,
   ItemUsedPage,
   ItemChangesPage,
+  ItemOptionsPage,
   BundlesPage,
   BundlePage,
   StockPage,
@@ -351,6 +352,7 @@ function App() {
           <Route path="/catalog/:id/sells" element={<DemoModule module="catalog"><ItemSellsPage /></DemoModule>} />
           <Route path="/catalog/:id/used" element={<DemoModule module="catalog"><ItemUsedPage /></DemoModule>} />
           <Route path="/catalog/:id/changes" element={<DemoModule module="catalog"><ItemChangesPage /></DemoModule>} />
+          <Route path="/catalog/:id/options" element={<DemoModule module="catalog"><ItemOptionsPage /></DemoModule>} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/peppol" element={<PeppolTaxPage />} />
           <Route path="/settings/branches" element={<BranchesPage />} />
