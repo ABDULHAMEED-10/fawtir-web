@@ -141,6 +141,21 @@ describe('Team members, switching a person off', () => {
     expect(sent('DELETE', '/api/v1/users/p-2')).toHaveLength(1)
   })
 
+  it('reads the switch-off dialog from the start, not from the end-aligned menu cell', async () => {
+    renderTeam()
+    await waitFor(() => expect(sent('GET', SUBSCRIPTION).length).toBeGreaterThan(0))
+    await openMenuOf('Salim Test')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Switch off' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog.closest('.text-start, .text-end')?.classList.contains('text-start')).toBe(true)
+  })
+
+  it('keeps the hidden column headings inside the scrolling table, so the page does not scroll sideways', async () => {
+    renderTeam()
+    const heading = await screen.findByText('Actions', { selector: '.sr-only' })
+    expect(heading.closest('.overflow-x-auto')?.classList.contains('relative')).toBe(true)
+  })
+
   it('says "until the next renewal" when the subscription date cannot be read', async () => {
     answers[`GET ${SUBSCRIPTION}`] = () => json(403, { type: 'about:blank' })
     answers['DELETE /api/v1/users/p-2'] = () => json(204)

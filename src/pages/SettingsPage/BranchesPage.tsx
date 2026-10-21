@@ -333,7 +333,8 @@ function BranchCard({
                 icon: copySettingsIcon,
                 to: '/settings/branches/new',
               },
-              ...(branch.active
+              // The Head Branch is never closed (BR-5), so it is not offered.
+              ...(branch.active && !branch.headOffice
                 ? [
                     {
                       id: 'close',

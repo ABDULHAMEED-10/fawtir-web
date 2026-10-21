@@ -147,6 +147,14 @@ describe('Settings › Branches, closing a branch', () => {
     expect(body).toMatchObject({ active: false, expectedVersion: 3, name: 'Sohar', city: 'Sohar' })
   })
 
+  it('does not offer "Close this branch" on the Head Branch', async () => {
+    answers[`GET ${OVERVIEW}`] = () =>
+      json(200, overview([{ ...row('b-1', 'Sohar', true), headOffice: true }]))
+    renderBranches()
+    fireEvent.click(await screen.findByRole('button', { name: 'This branch' }))
+    expect(screen.queryByRole('menuitem', { name: 'Close this branch' })).toBeNull()
+  })
+
   it('says the Head Branch is never closed when the server refuses it', async () => {
     answers['PUT /api/v1/branches/b-1'] = () =>
       json(409, { type: 'https://api.fawtir.om/problems/head-branch-always-on', status: 409 })

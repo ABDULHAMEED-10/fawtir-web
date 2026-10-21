@@ -63,35 +63,38 @@ export function PersonActions({
           },
         ]}
       />
-      <Modal
-        open={confirming}
-        onClose={close}
-        title={t('removal.user.title', { name })}
-        footer={
-          <div className="flex flex-wrap justify-end gap-3">
-            <Button variant="secondary" size="md" onClick={close}>
-              {t('removal.cancel')}
-            </Button>
-            <Button size="md" disabled={busy} onClick={() => void confirm()}>
-              {busy ? t('removal.saving') : t('removal.user.confirm')}
-            </Button>
-          </div>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          <p className="text-sm font-medium leading-[1.6] text-text-secondary">
-            {t('removal.user.body', { name })}
-          </p>
-          <p className="text-sm font-medium leading-[1.6] text-text-secondary">
-            {placeSentence(t, 'removal.user', 'place', renewsOn, i18n.language, name)}
-          </p>
-          {failure ? (
-            <p role="alert" className="text-sm font-medium text-danger-700">
-              {failure}
+      {/* The menu's cell is end-aligned; the dialog's text reads from the start (EN left, AR right). */}
+      <div className="text-start">
+        <Modal
+          open={confirming}
+          onClose={close}
+          title={t('removal.user.title', { name })}
+          footer={
+            <div className="flex flex-wrap justify-end gap-3">
+              <Button variant="secondary" size="md" onClick={close}>
+                {t('removal.cancel')}
+              </Button>
+              <Button size="md" disabled={busy} onClick={() => void confirm()}>
+                {busy ? t('removal.saving') : t('removal.user.confirm')}
+              </Button>
+            </div>
+          }
+        >
+          <div className="flex flex-col gap-3">
+            <p className="text-sm font-medium leading-[1.6] text-text-secondary">
+              {t('removal.user.body', { name })}
             </p>
-          ) : null}
-        </div>
-      </Modal>
+            <p className="text-sm font-medium leading-[1.6] text-text-secondary">
+              {placeSentence(t, 'removal.user', 'place', renewsOn, i18n.language, name)}
+            </p>
+            {failure ? (
+              <p role="alert" className="text-sm font-medium text-danger-700">
+                {failure}
+              </p>
+            ) : null}
+          </div>
+        </Modal>
+      </div>
     </>
   )
 }
@@ -127,7 +130,7 @@ export function SwitchedOffTable({
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full min-w-[480px]">
         <thead className="border-b border-border-subtle">
           <tr>
