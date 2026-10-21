@@ -108,6 +108,24 @@ describe('CompanyRefundCases', () => {
     expect(screen.getAllByRole('button', { name: R('amount.open') })).toHaveLength(1)
   })
 
+  it('settles the monthly leaving case and the yearly cancellation case here too', async () => {
+    answers[PAYMENTS] = () =>
+      json(200, {
+        items: [],
+        refundCases: [
+          leaveCase({ reason: 'LEFT_FAWTIR_MONTHLY', monthsRefunded: 1, amount: '105.000' }),
+          leaveCase({ id: 'c-3', reason: 'CANCELLED_ANNUAL_REMAINING', disconnectionId: null }),
+        ],
+        nextCursor: null,
+      })
+    renderCases()
+    expect(await screen.findByText(R('reason.LEFT_FAWTIR_MONTHLY'))).toBeTruthy()
+    expect(screen.getByText(R('reason.CANCELLED_ANNUAL_REMAINING'))).toBeTruthy()
+    expect(screen.getByText(/1 whole month(?!s)/)).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: R('refund.open') })).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: R('amount.open') })).toHaveLength(2)
+  })
+
   it('shows no actions without platform.billing.manage', async () => {
     renderCases(false)
     expect(await screen.findByText(R('reason.LEFT_FAWTIR_ANNUAL'))).toBeTruthy()

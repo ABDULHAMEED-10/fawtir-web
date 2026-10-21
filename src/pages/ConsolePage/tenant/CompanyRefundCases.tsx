@@ -34,10 +34,11 @@ const known = (value: string, set: readonly string[]) => (set.includes(value) ? 
 type Dialog = { kind: 'amount' | 'refund'; refund: RefundCaseDto }
 
 /**
- * The company's refund cases, under its bills (backend V412). Read-only except a case opened when a
- * company on an annual subscription left Fawtir, which the super admin settles here: change the
- * suggested amount, with a reason, and record how the money went back. Draws nothing while the
- * company has no case, or on a server that does not list them.
+ * The company's refund cases, under its bills (backend V412). Read-only except the ones the Business
+ * Rules leave to the super admin (CA-1, LV-6, RF-1): a company that left Fawtir (yearly, or monthly with
+ * a period paid ahead) and a customer's cancellation of a yearly subscription. For those: the suggested
+ * amount, a change to it with a reason, and how the money went back. Draws nothing while the company has
+ * no case, or on a server that does not list them.
  */
 export function CompanyRefundCases({
   tenantId,

@@ -5,7 +5,8 @@
  * The refund cases under the console's "Bills and payment links" card (backend V412). Shapes follow
  * `src/lib/console/refundCases.ts`. Run the mock with `MOCK_CONSOLE_BILLING=1` so the session holds
  * `platform.billing.*`. Sur Marine (`/console/tenants/7a1c0b52-…`) left Fawtir on an annual
- * subscription with 7 whole months left, and has an older case Finance pays outside Fawtir.
+ * subscription with 7 whole months left, had an earlier yearly cancellation refunded by bank transfer,
+ * and has a case Finance pays outside Fawtir.
  *
  * Writes answer as the server would; nothing is kept between requests.
  */
@@ -34,6 +35,26 @@ const LEAVE = {
   refundReference: null,
 }
 
+const CANCELLED_YEAR = {
+  ...LEAVE,
+  id: 'rc000000-0000-4000-8000-000000000413',
+  paymentId: 'pa000000-0000-4000-8000-000000000031',
+  amount: '450.000',
+  reason: 'CANCELLED_ANNUAL_REMAINING',
+  status: 'REFUNDED',
+  openedAt: '2026-03-01T20:25:00Z',
+  disconnectionId: null,
+  suggestedAmount: '500.000',
+  monthsRefunded: 5,
+  amountReason: 'Agreed with the owner: one month of extras kept',
+  amountAdjustedAt: '2026-03-02T08:00:00Z',
+  amountAdjustedBy: '00000000-0000-0000-0000-0000000000e7',
+  refundMethod: 'BANK_TRANSFER',
+  refundedAt: '2026-03-03T09:00:00Z',
+  refundedBy: '00000000-0000-0000-0000-0000000000e7',
+  refundReference: 'TRF-2026-0311',
+}
+
 const PAID_AHEAD = {
   id: 'rc000000-0000-4000-8000-000000000407',
   tenantId: BILLED,
@@ -59,7 +80,11 @@ const PAID_AHEAD = {
 export default [
   {
     match: `${company(BILLED)}/payments`,
-    reply: () => ({ items: [], refundCases: [LEAVE, PAID_AHEAD], nextCursor: null }),
+    reply: () => ({
+      items: [],
+      refundCases: [LEAVE, CANCELLED_YEAR, PAID_AHEAD],
+      nextCursor: null,
+    }),
   },
   {
     method: 'POST',
