@@ -303,12 +303,12 @@ describe('Branch access off (production today)', () => {
     who = OWNER_OFF
   })
 
-  it('draws Team members as before: no Branches column, no Owner mark, no link', async () => {
+  it('draws Team members with no Branches column, but marks the Owner and links each person', async () => {
     renderAt('/settings/team')
-    expect(await screen.findByText('Mona')).toBeTruthy()
-    expect(screen.queryByRole('link', { name: 'Mona' })).toBeNull()
+    const link = await screen.findByRole('link', { name: 'Laila' })
+    expect(link.getAttribute('href')).toBe('/settings/team/p-clerk')
     expect(screen.queryByRole('columnheader', { name: 'Branches' })).toBeNull()
-    expect(screen.queryByText('Owner')).toBeNull()
+    expect(screen.getByText('Owner')).toBeTruthy()
     expect(screen.queryByText('Every branch')).toBeNull()
     expect(screen.queryByText('No branch yet')).toBeNull()
     expect(fetchMock.mock.calls.some(([url]) => url === INVITED)).toBe(true)
@@ -344,11 +344,61 @@ describe('Branch access off (production today)', () => {
     ])
   })
 
-  it("sends a person's page back to Team members", async () => {
+  it("opens a person's page with their role and permissions (RL-3), and no branch", async () => {
+    answers['PUT /api/v1/users/p-clerk/permissions'] = () =>
+      json(200, {
+        userId: 'p-clerk',
+        role: 'ACCOUNTANT',
+        roleCodes: ['ACCOUNTANT'],
+        grants: [],
+        denials: [],
+        effective: ['bill.read', 'invoice.read'],
+      })
     renderAt('/settings/team/p-clerk')
-    expect(await screen.findByText('Mona')).toBeTruthy()
-    expect(screen.queryByRole('heading', { name: 'Laila' })).toBeNull()
-    expect(fetchMock.mock.calls.some(([url]) => url === '/api/v1/users/p-clerk')).toBe(false)
+    expect(await screen.findByRole('heading', { name: 'Laila' })).toBeTruthy()
+    await screen.findByText('Given to them')
+    expect(screen.queryByText(i18n.t('branchAccess.person.branchesTitle'))).toBeNull()
+    expect(screen.queryByText(i18n.t('branchAccess.person.branchAdminTitle'))).toBeNull()
+    const settle = screen
+      .getAllByRole('checkbox')
+      .find((box) => box.closest('label')?.textContent?.includes('Settle')) as HTMLInputElement
+    fireEvent.click(settle)
+    fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }))
+    await screen.findByText('Permissions saved. They apply from their next action.')
+    expect(sent('PUT', '/api/v1/users/p-clerk/permissions')).toEqual([
+      { grants: [{ code: 'invoice.approve' }, { code: 'bill.settle' }], denials: ['bill.read'] },
+    ])
+  })
+
+  it('changes an Administrator to a job role without asking for branches', async () => {
+    answers['PUT /api/v1/users/p-admin/role'] = () => json(200, ['ACCOUNTANT'])
+    renderAt('/settings/team/p-admin')
+    await screen.findByRole('heading', { name: 'Sami' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Role' }))
+    fireEvent.click(await screen.findByRole('option', { name: /Accountant/ }))
+    expect(screen.queryByText('Branches for the new role')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Change role' }))
+    await screen.findByText('Role changed.')
+    expect(sent('PUT', '/api/v1/users/p-admin/role')).toEqual([{ roleCode: 'ACCOUNTANT' }])
+  })
+
+  it('lets the Owner hand ownership over (OW-4)', async () => {
+    answers['POST /api/v1/settings/owner/handover'] = () =>
+      json(200, { userId: 'p-admin', name: 'Sami' })
+    renderAt('/settings/team/p-owner')
+    expect(await screen.findByText("The Owner has full access. It can't be reduced.")).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Hand over ownership' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'New Owner' }))
+    fireEvent.click(await screen.findByRole('option', { name: /Sami/ }))
+    fireEvent.change(within(dialog).getByLabelText(/Type Real Trading LLC to confirm/), {
+      target: { value: 'Real Trading LLC' },
+    })
+    fireEvent.change(within(dialog).getByLabelText('Your password'), {
+      target: { value: 'secret-1' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hand over' }))
+    await waitFor(() => expect(sent('POST', '/api/v1/settings/owner/handover')).toHaveLength(1))
   })
 
   it('keeps "Who works there" on a branch as not available yet', async () => {

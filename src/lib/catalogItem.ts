@@ -6,8 +6,34 @@
  */
 
 import { omr } from './catalog'
+import type { ItemType } from './invoiceDraft'
+import type { DiscountType } from './invoiceMath'
 
 export const VAT_RATE = 0.05
+
+/**
+ * The four kinds the item screen offers, as the invoice line reads them (owner, 21 Oct 2026: keep
+ * the cards, map them to Goods or Service). A bundle is goods: it is sold as one thing handed over.
+ */
+export type ItemKind = 'handOver' | 'youDo' | 'byTime' | 'several'
+
+export const ITEM_TYPE_OF_KIND: Record<ItemKind, ItemType> = {
+  handOver: 'goods',
+  youDo: 'service',
+  byTime: 'service',
+  several: 'goods',
+}
+
+/** "Charged by time" offers only the time units, with "Other" last as everywhere. */
+export const TIME_UNITS: readonly string[] = ['HUR', 'DAY', 'WEE', 'MON', 'ANN', 'ZZ']
+
+/** The unit a kind starts on when the current one does not belong to it. */
+export const FIRST_UNIT_OF_KIND: Record<ItemKind, string> = {
+  handOver: 'EA',
+  youDo: 'E48',
+  byTime: 'HUR',
+  several: 'SET',
+}
 
 /** A size is a price change against the base, not a price of its own. */
 export type Size = { id: string; name: string; delta: number; code: string; onSale: boolean }
@@ -20,14 +46,24 @@ export const ITEM = {
   arabicName: 'فلات وايت',
   code: 'CAT-0208',
   group: 'Brewed drinks',
-  kind: 'Milk coffee',
+  itemKind: 'Milk coffee',
   addedOn: '14 Mar 2026',
   description: '',
   barcode: '',
+  kind: 'handOver' as ItemKind,
   soldAs: 'EA',
+  /** HS code (goods) or CL-12-OM service type (services), the line's classification. */
+  hsCode: '',
+  serviceType: '',
   /** Before VAT. The shelf price is worked out from it, not stored beside it. */
   basePrice: 1.333,
   taxCategory: 'S5',
+  /** VATZR-OM / VATEX-OM code for Z and E; written reason for O. */
+  exemptionReasonCode: '',
+  exemptionReason: '',
+  /** The catalogue discount, carried onto the invoice line as its line discount. */
+  discountType: 'PERCENTAGE' as DiscountType,
+  discountValue: '0',
   priceIncludesVat: false,
   staffCanChangePrice: false,
   keepCountOfThis: false,
@@ -38,6 +74,10 @@ export const ITEM = {
 /** The shelf price a customer pays, from the base and the rate. */
 export const shelfPrice = (base: number, rate = VAT_RATE) =>
   Math.round(base * (1 + rate) * 1000) / 1000
+
+/** The base before VAT, from a shelf price typed with VAT in it ("Price includes VAT"). */
+export const baseFromShelf = (shelf: number, rate = VAT_RATE) =>
+  Math.round((shelf / (1 + rate)) * 1000) / 1000
 
 export const SIZES: Size[] = [
   { id: 'regular', name: 'Regular', delta: 0, code: 'CAT-0208-R', onSale: true },
@@ -53,14 +93,14 @@ export const ADD_ONS: AddOn[] = [
 ]
 
 /** What a size sells for — the shelf price plus the size's own change. */
-export const sizePrice = (base: number, size: Size) =>
-  Math.round((shelfPrice(base) + size.delta) * 1000) / 1000
+export const sizePrice = (base: number, size: Size, rate = VAT_RATE) =>
+  Math.round((shelfPrice(base, rate) + size.delta) * 1000) / 1000
 
 /** The receipt the till would print, for the size and add-ons the preview shows. */
-export function tillPreview(base: number, sizeId: string, addOnIds: string[]) {
+export function tillPreview(base: number, sizeId: string, addOnIds: string[], rate = VAT_RATE) {
   const size = SIZES.find((entry) => entry.id === sizeId) ?? SIZES[0]
   const lines = [
-    { name: `${ITEM.name} · ${size.name}`, amount: sizePrice(base, size) },
+    { name: `${ITEM.name} · ${size.name}`, amount: sizePrice(base, size, rate) },
     ...addOnIds
       .map((id) => ADD_ONS.find((entry) => entry.id === id))
       .filter((entry): entry is AddOn => Boolean(entry))
@@ -78,10 +118,17 @@ export function readiness(record: {
   group: string
   kind: string
   barcode: string
+  /** False while the category needs a reason (Z, E) that has not been given. */
+  reasonGiven?: boolean
+  classified?: boolean
 }) {
   return [
     { id: 'namedAndPriced', done: record.name.trim().length > 0 && record.basePrice > 0 },
-    { id: 'taxAgrees', done: record.taxCategory.length > 0 },
+    {
+      id: 'taxAgrees',
+      done: record.taxCategory.length > 0 && record.reasonGiven !== false,
+    },
+    { id: 'classified', done: record.classified !== false },
     { id: 'inAGroup', done: record.group.length > 0 && record.kind.length > 0 },
     { id: 'barcode', done: record.barcode.trim().length > 0 },
     { id: 'photo', done: false },
@@ -208,6 +255,10 @@ export type UsedDocument = {
   customer: string
   purposeKey: string
   when: string
+  /** Values for `when` when it is a key, such as the date in "Since {{date}}". */
+  whenValues?: Record<string, string | number>
+  /** Values for `stateKey`, such as the date in "Open until {{date}}". */
+  stateValues?: Record<string, string | number>
   agoKey: string
   agoValues?: Record<string, string | number>
   quantity: number
@@ -225,6 +276,7 @@ export const USED_DOCUMENTS: UsedDocument[] = [
     noteKey: 'itemUsed.weeklyOfficeOrder',
     kind: 'quotation',
     stateKey: 'itemUsed.openUntil',
+    stateValues: { date: '12 Aug' },
     customer: 'Muscat Grand Hotel',
     purposeKey: 'itemUsed.sentNotAnswered',
     when: '28 Jul 2026',
@@ -243,6 +295,7 @@ export const USED_DOCUMENTS: UsedDocument[] = [
     noteKey: 'itemUsed.conferenceCatering',
     kind: 'quotation',
     stateKey: 'itemUsed.openUntil',
+    stateValues: { date: '5 Aug' },
     customer: 'Al Mouj Marina',
     purposeKey: 'itemUsed.sentNotAnswered',
     when: '21 Jul 2026',
@@ -265,6 +318,7 @@ export const USED_DOCUMENTS: UsedDocument[] = [
     customer: 'itemUsed.anyoneAtTheTill',
     purposeKey: 'itemUsed.morningDealWindow',
     when: 'itemUsed.since',
+    whenValues: { date: '4 Feb 2026' },
     agoKey: 'itemUsed.soldTimes',
     agoValues: { count: 68 },
     quantity: 1,

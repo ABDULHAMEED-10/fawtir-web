@@ -193,6 +193,24 @@ describe('a new customer', () => {
     expect('expectedVersion' in body).toBe(false)
   })
 
+  it('fills the Peppol ID from the VAT number and keeps one typed by hand (owner, 21 Oct 2026)', async () => {
+    renderAt('/customers/new')
+    await screen.findByRole('heading', { name: 'New customer' })
+    const peppol = () => (screen.getByLabelText(/Peppol participant ID/) as HTMLInputElement).value
+
+    typeInto(/VAT registration number/, 'OM1100337812')
+    expect(peppol()).toBe('0248:OM1100337812')
+
+    // It keeps following the VAT number while it still reads what was filled in.
+    typeInto(/VAT registration number/, 'OM1100337813')
+    expect(peppol()).toBe('0248:OM1100337813')
+
+    // A test receiver outside the Omani VAT scheme is kept when the VAT number changes again.
+    typeInto(/Peppol participant ID/, '9922:OPTBCNTRLP1007')
+    typeInto(/VAT registration number/, 'OM1100337814')
+    expect(peppol()).toBe('9922:OPTBCNTRLP1007')
+  })
+
   it('sends a consumer with no organisation fields at all, not as false', async () => {
     renderAt('/customers/new')
     await screen.findByRole('heading', { name: 'New customer' })

@@ -217,7 +217,10 @@ function NoOutstandingBill({
   const held = usePayingHeldUntilReconnected()
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
+  const inFlight = useRef(false)
   const prepare = async () => {
+    if (inFlight.current) return
+    inFlight.current = true
     setBusy(true)
     setFailure(null)
     try {
@@ -226,6 +229,7 @@ function NoOutstandingBill({
     } catch (error) {
       setFailure(refusalMessage(t, error))
     } finally {
+      inFlight.current = false
       setBusy(false)
     }
   }
@@ -358,7 +362,10 @@ function LivePayment({
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
+  const inFlight = useRef(false)
   const withdraw = async () => {
+    if (inFlight.current) return
+    inFlight.current = true
     setBusy(true)
     setFailure(null)
     try {
@@ -367,6 +374,8 @@ function LivePayment({
     } catch (error) {
       setFailure(refusalMessage(t, error))
       setBusy(false)
+    } finally {
+      inFlight.current = false
     }
   }
   return (
@@ -430,6 +439,7 @@ function PayForm({
   // Set synchronously, before any re-render can disable the button: two clicks in the same tick
   // must still make one request.
   const cardInFlight = useRef(false)
+  const submitInFlight = useRef(false)
   const [cardFailure, setCardFailure] = useState<ReactNode>(null)
 
   // Why bank transfer is missing, from the server's own reason. NOT_OFFERED (switched off for this
@@ -453,6 +463,8 @@ function PayForm({
   }
 
   const submit = async () => {
+    if (submitInFlight.current) return
+    submitInFlight.current = true
     setBusy(true)
     setFailure(null)
     try {
@@ -469,6 +481,8 @@ function PayForm({
       }
       setFailure(refusalMessage(t, error))
       setBusy(false)
+    } finally {
+      submitInFlight.current = false
     }
   }
   const payByCard = async () => {

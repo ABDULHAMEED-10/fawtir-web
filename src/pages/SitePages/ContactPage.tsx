@@ -14,8 +14,8 @@ import { useFaqItems } from './faq'
  */
 
 // The email, number and address are the console's company contact setting (CS-1). Until the
-// server returns one, the page keeps the frame's own email and address (`LEGACY_CONTACT`); the
-// phone line shows only when the setting names a number.
+// server returns one, the page shows the support email (`LEGACY_CONTACT`) and the frame's own
+// address; the phone line shows only when the setting names a number.
 
 export function ContactPage() {
   const { t } = useTranslation()
@@ -60,8 +60,8 @@ function Touch() {
     {
       icon: mailIcon,
       title: t('site.contact.info.emailTitle'),
-      value: contact.contactPageEmail,
-      href: mailto(contact.contactPageEmail),
+      value: contact.supportEmail,
+      href: mailto(contact.supportEmail),
     },
     {
       icon: pinIcon,
@@ -109,7 +109,7 @@ function Touch() {
 
 function MessageForm() {
   const { t, i18n } = useTranslation()
-  const email = useCompanyContact(i18n.language).contactPageEmail
+  const email = useCompanyContact(i18n.language).supportEmail
   const [fields, setFields] = useState({ name: '', email: '', phone: '', message: '' })
   const [sent, setSent] = useState(false)
   const set = (key: keyof typeof fields) => (value: string) =>

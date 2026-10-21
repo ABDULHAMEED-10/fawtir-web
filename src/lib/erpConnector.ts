@@ -379,7 +379,7 @@ function odooPayload(
     invoice_line_ids: [
       {
         id: id * 10 + 1,
-        name: 'Arabica beans 1 kg — Dhofar roast',
+        name: 'Arabica beans 1 kg, Dhofar roast',
         quantity: 24,
         price_unit: Math.round((net / 24) * 1000) / 1000,
         tax_ids: [[5, 'VAT 5%']],
@@ -414,7 +414,7 @@ function erpnextPayload(
     items: [
       {
         item_code: 'BEAN-AR-1KG',
-        item_name: 'Arabica beans 1 kg — Dhofar roast',
+        item_name: 'Arabica beans 1 kg, Dhofar roast',
         qty: 18,
         rate: Math.round((net / 18) * 1000) / 1000,
         amount: net,
@@ -652,7 +652,7 @@ function initialState(): ConnectorState {
           attempts: 3,
           lastAttemptAt: minutesAgo(9),
           nextAttemptAt: new Date(NOW.getTime() + 21 * MINUTE),
-          lastError: 'HTTP 409 — the Odoo record is locked by another user (uid 14).',
+          lastError: 'HTTP 409: the Odoo record is locked by another user (uid 14).',
           fields: {
             fawtirStatus: 'ACCEPTED',
             invoiceNumber: no,
@@ -797,7 +797,7 @@ function initialState(): ConnectorState {
   const connections: Connection[] = [
     {
       id: HO,
-      label: 'Head office — Odoo 17',
+      label: 'Head office (Odoo 17)',
       product: 'ODOO',
       erpVersion: '17.0+e',
       baseUrl: 'https://erp.albahja.om',
@@ -867,7 +867,7 @@ function initialState(): ConnectorState {
     },
     {
       id: SALALAH,
-      label: 'Salalah branch — ERPNext',
+      label: 'Salalah branch (ERPNext)',
       product: 'ERPNEXT',
       erpVersion: '15.28',
       baseUrl: 'https://salalah.albahja.om',
@@ -942,7 +942,7 @@ function initialState(): ConnectorState {
     },
     {
       id: SOHAR,
-      label: 'Sohar warehouse — Odoo 16',
+      label: 'Sohar warehouse (Odoo 16)',
       product: 'ODOO',
       erpVersion: '16.0',
       baseUrl: 'https://sohar-erp.albahja.om',
@@ -972,7 +972,7 @@ function initialState(): ConnectorState {
         at: new Date(2026, 8, 12, 14, 8),
         ok: true,
         erpVersion: '16.0',
-        company: `${COMPANY.legalName} — Sohar`,
+        company: `${COMPANY.legalName}, Sohar`,
         grantedScopes: ['READ'],
         latencyMs: 655,
       },

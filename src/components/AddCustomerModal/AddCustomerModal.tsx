@@ -470,6 +470,9 @@ export function AddCustomerModal({
             {company ? (
               <>
                 <div className="grid gap-4 sm:grid-cols-2">
+                  {/* TODO(go-live): show `OM` as a fixed prefix and take only the 10 digits (owner,
+                      21 Oct 2026). Held back for now: Peppol testing uses receivers outside the
+                      Omani VAT scheme (9922:OPTBCNTRLP1007), so the VAT is still free text. */}
                   <TextField
                     label={t('addCustomer.fields.vat')}
                     required

@@ -243,6 +243,42 @@ describe('product line mapping', () => {
     })
   })
 
+  it("carries the product's kind, classification, reason and discount onto the line (owner, 21 Oct 2026)", () => {
+    expect(
+      lineFromProduct(
+        SEEDED_TAX_CATEGORIES,
+        product({
+          itemType: 'GOODS',
+          hsCode: '040110000000',
+          serviceTypeCode: '00000000',
+          defaultTaxCategory: 'Z',
+          defaultTaxRate: 0,
+          exemptionReasonCode: 'VATZR-OM-01',
+          defaultDiscount: { type: 'PERCENTAGE', value: 10 },
+        }),
+        true,
+      ),
+    ).toMatchObject({
+      itemType: 'goods',
+      hsCode: '040110000000',
+      exemptionReasonCode: 'VATZR-OM-01',
+      discountType: 'PERCENTAGE',
+      discountValue: '10',
+    })
+    // A goods product's stray service type is not carried; a product without extras adds none.
+    const plain = lineFromProduct(SEEDED_TAX_CATEGORIES, product(), true)
+    expect(plain).not.toHaveProperty('itemType')
+    expect(plain).not.toHaveProperty('hsCode')
+    expect(plain).not.toHaveProperty('discountType')
+    expect(
+      lineFromProduct(
+        SEEDED_TAX_CATEGORIES,
+        product({ itemType: 'SERVICE', serviceTypeCode: '00000000', hsCode: '040110000000' }),
+        true,
+      ),
+    ).toMatchObject({ itemType: 'service', serviceType: '00000000' })
+  })
+
   it('stores exempt and out-of-scope products without a rate', () => {
     expect(
       newProductFrom(SEEDED_TAX_CATEGORIES, {

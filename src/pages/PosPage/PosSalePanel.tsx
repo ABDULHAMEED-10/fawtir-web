@@ -1,4 +1,9 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { DiscountField } from '../../components/invoice'
+import { setSaleDiscount, useOpenSale } from '../../lib/posSale'
+import { Rial } from '../../components/ui'
+import { PosFootNote } from './PosFootNote'
 import {
   LULL,
   SALE_STARTED,
@@ -18,6 +23,10 @@ import {
  * costs, and the price rule that fired says so in words rather than just making the number
  * smaller. Everything is worked out from the lines, so changing a quantity moves the discount,
  * the VAT and the total together.
+ *
+ * The figures come from the invoice's own engine over the lines the sale files (`totalsFor`), so
+ * the till and the invoice cannot disagree. "% Discount" is a discount on the whole sale, the
+ * invoice's document discount, taken after the price rule and before VAT (owner, 21 Oct 2026).
  */
 export function PosSalePanel({
   lines,
@@ -34,7 +43,9 @@ export function PosSalePanel({
   company?: { name: string }
 }) {
   const { t } = useTranslation()
-  const totals = totalsFor(lines)
+  const [discountOpen, setDiscountOpen] = useState(false)
+  const { saleDiscount } = useOpenSale()
+  const totals = totalsFor(lines, saleDiscount)
   const items = lines.reduce((sum, line) => sum + line.qty, 0)
   const discounted = lines.some(lullApplies) && totals.discount > 0
 
@@ -94,18 +105,38 @@ export function PosSalePanel({
 
       {!company ? (
         <div className="px-5 pt-4">
-          <div className="grid grid-cols-2 gap-2">
+          {/* One grey bar with the chosen side raised in white, as the frame draws it. */}
+          <div className="grid grid-cols-2 gap-1 rounded-sm bg-surface-background p-1">
             <button
               type="button"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-sm border border-primary-700 bg-primary-25 text-sm font-semibold text-primary-800"
+              aria-pressed="true"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-[3px] bg-surface-card text-sm font-semibold text-text-primary shadow-sm"
             >
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <circle cx="10" cy="6.5" r="3" stroke="currentColor" strokeWidth="1.5" />
+                <path
+                  d="M4 16.5c.8-3 3.2-4.5 6-4.5s5.2 1.5 6 4.5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
               {t('pos.walkIn')}
             </button>
             <button
               type="button"
+              aria-pressed="false"
               onClick={onCompany}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar text-sm font-semibold text-text-tertiary transition-colors hover:border-primary-300"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-[3px] text-sm font-medium text-text-tertiary transition-colors hover:text-text-secondary"
             >
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path
+                  d="M3.5 17V8.5L10 4l6.5 4.5V17M8 17v-4.5h4V17"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinejoin="round"
+                />
+              </svg>
               {t('pos.onTheCompany')}
             </button>
           </div>
@@ -121,10 +152,7 @@ export function PosSalePanel({
           const size = item.sizes?.find((s) => s.id === line.sizeId)
           const addOns = (item.addOns ?? []).filter((a) => line.addOnIds.includes(a.id))
           return (
-            <li
-              key={line.id}
-              className="flex items-start gap-3 border-b border-border-subtle py-3 last:border-b-0"
-            >
+            <li key={line.id} className="flex items-start gap-3 py-3">
               <div className="flex shrink-0 items-center gap-1 rounded-sm border border-border-subtle">
                 <button
                   type="button"
@@ -195,10 +223,21 @@ export function PosSalePanel({
             value={omrSigned(-totals.discount)}
           />
         ) : null}
-        <Row label={t('pos.totals.vat')} value={omr(totals.vat)} />
+        {totals.saleDiscount > 0 ? (
+          <Row label={t('pos.totals.saleDiscount')} value={omrSigned(-totals.saleDiscount)} />
+        ) : null}
+        <Row
+          label={
+            totals.vatRates.length === 1
+              ? t('pos.totals.vatAt', { rate: totals.vatRates[0] })
+              : t('pos.totals.vatMixed')
+          }
+          value={omr(totals.vat)}
+        />
         <div className="mt-1 flex items-center justify-between gap-3 border-t border-border-subtle pt-3">
           <span className="text-lg font-medium text-text-primary">{t('pos.totals.toPay')}</span>
-          <span className="text-[26px] font-semibold leading-none text-text-primary">
+          <span className="inline-flex items-baseline gap-1.5 text-[26px] font-semibold leading-none text-text-primary">
+            <Rial />
             {omr(totals.sale)}
           </span>
         </div>
@@ -214,18 +253,39 @@ export function PosSalePanel({
           {t('pos.takePayment')}
         </button>
         {!company ? (
-          <button
-            type="button"
-            className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-sm border border-border-subtle bg-white text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-          >
-            % {t('pos.discount')}
-          </button>
-        ) : (
-          <p className="mt-3 text-xs font-medium leading-[1.5] text-text-quaternary">
-            {t('pos.company.tippingOff')}
-          </p>
-        )}
+          <>
+            <button
+              type="button"
+              onClick={() => setDiscountOpen((open) => !open)}
+              aria-expanded={discountOpen}
+              className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-sm border border-border-subtle bg-white text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+            >
+              <PercentIcon />
+              {t('pos.discount')}
+            </button>
+            {discountOpen ? (
+              <div className="mt-3">
+                <p className="mb-1.5 text-xs font-medium text-text-secondary">
+                  {t('pos.saleDiscountLabel')}
+                </p>
+                <DiscountField
+                  type={saleDiscount.type}
+                  value={saleDiscount.value}
+                  onTypeChange={(type) => setSaleDiscount({ ...saleDiscount, type })}
+                  onValueChange={(value) =>
+                    setSaleDiscount({ ...saleDiscount, value: value.replace(/[^\d.]/g, '') })
+                  }
+                  resolved={BigInt(totals.saleDiscount)}
+                />
+                <p className="mt-1.5 text-xs font-medium leading-[1.5] text-text-quaternary">
+                  {t('pos.saleDiscountNote')}
+                </p>
+              </div>
+            ) : null}
+          </>
+        ) : null}
       </div>
+      {company ? <PosFootNote>{t('pos.company.tippingOff')}</PosFootNote> : null}
     </aside>
   )
 }
@@ -234,7 +294,20 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="text-sm font-medium text-text-tertiary">{label}</span>
-      <span className="text-sm font-semibold text-text-primary tabular-nums">{value}</span>
+      {/* LTR so a taken-off "−1.120" keeps its minus on the left in Arabic too. */}
+      <span dir="ltr" className="text-sm font-semibold text-text-primary tabular-nums">
+        {value}
+      </span>
     </div>
+  )
+}
+
+function PercentIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M15 5 5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="6" cy="6" r="1.75" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="14" cy="14" r="1.75" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
   )
 }

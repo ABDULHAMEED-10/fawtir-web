@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Popover } from './Popover'
 import chevronIcon from '../../assets/invoices/chevron.svg'
+import funnelIcon from '../../assets/bills/filter.svg'
 
 export type FilterMenuOption<T extends string> = {
   value: T
@@ -25,6 +26,7 @@ export function FilterMenu<T extends string>({
   onChange,
   width = 220,
   icon,
+  funnel,
 }: {
   label: string
   value: T
@@ -34,6 +36,11 @@ export function FilterMenu<T extends string>({
   width?: number
   /** Leading glyph on the trigger. */
   icon?: string
+  /**
+   * The toolbar button as the Catalog and Stock frames draw it: a funnel and no chevron, the
+   * same shape as the Sort button beside it.
+   */
+  funnel?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -49,23 +56,32 @@ export function FilterMenu<T extends string>({
         aria-haspopup="listbox"
         aria-expanded={open}
         className={[
-          'inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border px-4 text-sm font-semibold transition-colors',
+          'inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border px-4 text-sm transition-colors',
+          funnel ? 'h-[46px] font-medium' : 'h-11 font-semibold',
           active
             ? 'border-primary-700 bg-primary-25 text-primary-800'
-            : 'border-border-subtle bg-surface-tab-bar text-text-tertiary hover:border-primary-300',
+            : funnel
+              ? 'border-border-subtle bg-white text-text-secondary hover:bg-primary-25'
+              : 'border-border-subtle bg-surface-tab-bar text-text-tertiary hover:border-primary-300',
         ].join(' ')}
       >
-        {icon ? <img src={icon} alt="" aria-hidden="true" className="size-5 shrink-0" /> : null}
+        {funnel ? (
+          <img src={funnelIcon} alt="" aria-hidden="true" className="size-5 shrink-0" />
+        ) : icon ? (
+          <img src={icon} alt="" aria-hidden="true" className="size-5 shrink-0" />
+        ) : null}
         {active ? (selected?.label ?? label) : label}
-        <img
-          src={chevronIcon}
-          alt=""
-          aria-hidden="true"
-          className={[
-            'size-5 opacity-70 transition-transform',
-            open ? '-rotate-90' : 'rotate-90',
-          ].join(' ')}
-        />
+        {funnel ? null : (
+          <img
+            src={chevronIcon}
+            alt=""
+            aria-hidden="true"
+            className={[
+              'size-5 opacity-70 transition-transform',
+              open ? '-rotate-90' : 'rotate-90',
+            ].join(' ')}
+          />
+        )}
       </button>
 
       <Popover open={open} anchorRef={triggerRef} onClose={() => setOpen(false)} width={width}>

@@ -111,6 +111,13 @@ function isPathActive(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(`${to}/`)
 }
 
+/** Of a group's entries, the one the route belongs to: the longest destination that matches. */
+function activeChildTo(pathname: string, children: readonly NavChild[]): string | undefined {
+  return children
+    .filter((child) => isPathActive(pathname, child.to))
+    .sort((a, b) => b.to.length - a.to.length)[0]?.to
+}
+
 /**
  * The navigation this reader may use: an entry whose destination needs a permission they lack is
  * left out, and so is a group left with nothing in it. Without a session (the guard is off, as in
@@ -211,7 +218,9 @@ function ExpandableNavItem({ item, plan }: { item: NavItem; plan: AnyPlanId }) {
         <div className="ms-6 flex flex-col py-2">
           {item.children.map((child: NavChild) => {
             const lock = groupLock ?? lockFor(plan, child.feature)
-            const childActive = isPathActive(location.pathname, child.to) && !lock
+            // Only the most specific match is lit: on /catalog/bundles, "All items" (/catalog)
+            // also matches by prefix, but Bundles is the page.
+            const childActive = child.to === activeChildTo(location.pathname, item.children!) && !lock
             const count = child.count === 'billReminders' && !lock ? unreadReminders : 0
             return (
               <Link

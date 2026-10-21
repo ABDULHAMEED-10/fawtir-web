@@ -1,6 +1,7 @@
 import type { NewProduct, ProductDto } from '../api/catalog/products'
 import type { TaxCategoryDto } from '../api/reference/referenceData'
-import { formatAmount, parseAmount } from './invoiceMath'
+import type { ItemType } from './invoiceDraft'
+import { formatAmount, parseAmount, type DiscountType } from './invoiceMath'
 
 /**
  * Between a catalogue product and an invoice line: what picking a product puts on the line, and
@@ -38,6 +39,14 @@ export type ProductLinePatch = {
   unit: string
   vatRate: string
   taxCode: string | null
+  /** Present only when the product says; otherwise the unit decides (`itemTypeOfUnit`). */
+  itemType?: ItemType
+  hsCode?: string
+  serviceType?: string
+  exemptionReasonCode?: string
+  exemptionReason?: string
+  discountType?: DiscountType
+  discountValue?: string
 }
 
 /**
@@ -63,7 +72,29 @@ export function lineFromProduct(
     unit: product.defaultUnitCode,
     vatRate,
     taxCode: tax?.code ?? null,
+    ...productExtras(product),
   }
+}
+
+/**
+ * The rest of what the product knows: goods or service, its classification, the reason it
+ * carries no VAT and its discount, so a line filled from the catalogue is complete. Only what
+ * the product holds is returned; the line keeps its own value for the rest.
+ */
+function productExtras(product: ProductDto): Partial<ProductLinePatch> {
+  const extras: Partial<ProductLinePatch> = {}
+  if (product.itemType) extras.itemType = product.itemType === 'SERVICE' ? 'service' : 'goods'
+  if (extras.itemType === 'goods' && product.hsCode) extras.hsCode = product.hsCode
+  if (extras.itemType === 'service' && product.serviceTypeCode) {
+    extras.serviceType = product.serviceTypeCode
+  }
+  if (product.exemptionReasonCode) extras.exemptionReasonCode = product.exemptionReasonCode
+  if (product.exemptionReason) extras.exemptionReason = product.exemptionReason
+  if (product.defaultDiscount && product.defaultDiscount.value > 0) {
+    extras.discountType = product.defaultDiscount.type
+    extras.discountValue = String(product.defaultDiscount.value)
+  }
+  return extras
 }
 
 /** A quick-created product from the form's fields; the tax option supplies category and rate. */

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { setSaleLines, useOpenSale } from '../../lib/posSale'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
@@ -9,7 +10,6 @@ import { Rial } from '../../components/ui'
 import {
   ACTIVE_FILTERS,
   GROUP_TABS,
-  OPEN_SALE,
   POS_ITEMS,
   SHELF_COUNTS,
   activeCounts,
@@ -19,7 +19,6 @@ import {
   type ActiveFilter,
   type GroupTabId,
   type PosItem,
-  type SaleLine,
 } from '../../lib/pos'
 import { CASHIERS, type CashierId } from '../../lib/pos'
 
@@ -58,7 +57,16 @@ function ScanField({ value, onChange }: { value: string; onChange: (v: string) =
   )
 }
 
-function Tile({ item, onAdd }: { item: PosItem; onAdd: (item: PosItem) => void }) {
+function Tile({
+  item,
+  inSale,
+  onAdd,
+}: {
+  item: PosItem
+  /** Already on the open sale: the frame rings these tiles in blue. */
+  inSale: boolean
+  onAdd: (item: PosItem) => void
+}) {
   const { t } = useTranslation()
   const available = onSale(item)
 
@@ -69,12 +77,15 @@ function Tile({ item, onAdd }: { item: PosItem; onAdd: (item: PosItem) => void }
       onClick={() => onAdd(item)}
       className={[
         'flex flex-col overflow-hidden rounded-md border bg-surface-card text-start transition-colors',
-        available
-          ? 'border-border-subtle hover:border-primary-300 hover:bg-primary-25'
-          : 'cursor-not-allowed border-border-subtle opacity-55',
+        !available
+          ? 'cursor-not-allowed border-border-subtle opacity-55'
+          : inSale
+            ? 'border-primary-700 hover:bg-primary-25'
+            : 'border-border-subtle hover:border-primary-300 hover:bg-primary-25',
       ].join(' ')}
     >
-      <span className="relative block">
+      {/* The photo sits inset in the tile with its own rounded corners, as the frame draws it. */}
+      <span className="relative mx-1.5 mt-1.5 block overflow-hidden rounded-sm">
         <PosArt itemId={item.id} art={item.art} className="block h-[104px] w-full object-cover" />
         {item.sizes ? (
           <span className="absolute end-2 top-2 rounded-sm bg-white/85 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-text-tertiary">
@@ -97,7 +108,8 @@ function Tile({ item, onAdd }: { item: PosItem; onAdd: (item: PosItem) => void }
         <span className="text-xs font-medium leading-[1.4] text-text-quaternary">
           {t(item.noteKey, item.noteValues)}
         </span>
-        <span className="mt-1.5 inline-flex items-center gap-1 text-base font-semibold text-text-primary">
+        {/* Pinned to the foot, so the prices line up across a row when a name wraps. */}
+        <span className="mt-auto inline-flex items-center gap-1 pt-1.5 text-base font-semibold text-text-primary">
           <Rial />
           {omr(item.price)}
         </span>
@@ -112,10 +124,13 @@ export function PosPage() {
   const [group, setGroup] = useState<GroupTabId>('all')
   const [filter, setFilter] = useState<ActiveFilter>('active')
   const [query, setQuery] = useState('')
-  const [lines, setLines] = useState<SaleLine[]>(OPEN_SALE)
+  // The open sale is shared with the payment and receipt screens (src/lib/posSale.ts).
+  const { lines } = useOpenSale()
+  const setLines = setSaleLines
   const [cashier, setCashier] = useState<CashierId>(CASHIERS[0].id)
 
   const counts = useMemo(() => activeCounts(), [])
+  const inSale = new Set(lines.map((line) => line.itemId))
   const shown = itemsFor(group, filter, query)
 
   /** Adding from the shelf takes the default size and no add-ons. */
@@ -138,7 +153,7 @@ export function PosPage() {
     <AppShell>
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
+          <div className="min-w-0 flex-1 basis-[320px]">
             <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
               {t('pos.title')}
             </h1>
@@ -167,6 +182,15 @@ export function PosPage() {
                         : 'font-medium text-text-quaternary hover:text-text-secondary',
                     ].join(' ')}
                   >
+                    {option !== 'both' ? (
+                      <span
+                        aria-hidden="true"
+                        className={[
+                          'size-1.5 shrink-0 rounded-full',
+                          option === 'active' ? 'bg-success-700' : 'bg-neutral-300',
+                        ].join(' ')}
+                      />
+                    ) : null}
                     {t(`pos.filter.${option}`)}
                     <span className="text-xs font-semibold text-text-quaternary">
                       {option === 'active'
@@ -180,6 +204,9 @@ export function PosPage() {
               })}
             </div>
 
+            {/* The till belongs to the branch chosen in the sidebar's company card, the
+                platform's one branch toggle (owner, 21 Oct 2026). TODO(backend): tills, sales
+                and stock per branch, INCOME.md row P.11. */}
             <CashierPicker value={cashier} onChange={setCashier} />
           </div>
         </div>
@@ -225,7 +252,7 @@ export function PosPage() {
             ) : (
               <div className="grid grid-cols-4 gap-4 max-lg:grid-cols-3 max-md:grid-cols-2">
                 {shown.map((item) => (
-                  <Tile key={item.id} item={item} onAdd={add} />
+                  <Tile key={item.id} item={item} inSale={inSale.has(item.id)} onAdd={add} />
                 ))}
               </div>
             )}

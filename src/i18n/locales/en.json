@@ -1520,7 +1520,8 @@
       "website": "Website",
       "peppolSection": "Peppol / e-invoicing",
       "registeredOnPeppol": "Registered on Peppol",
-      "peppolId": "Peppol participant ID"
+      "peppolId": "Peppol participant ID",
+      "peppolIdHint": "Filled in from the VAT number. Change it only if the customer's Peppol ID is different."
     },
     "government": {
       "title": "Public procurement references",
@@ -4248,7 +4249,7 @@
     "showing": "Which items are shown",
     "whoIsOnTill": "Who is on the till",
     "nothingMatches": "Nothing on the shelf matches that.",
-    "shelfNote": "Showing {{shown}} of {{total}} on this screen — search or pick a group for the rest.",
+    "shelfNote": "Showing {{shown}} of {{total}} on this screen. Search or pick a group for the rest.",
     "backToSale": "Back to the sale",
     "backToTill": "Back to the till",
     "thisSale": "This sale",
@@ -4257,7 +4258,7 @@
     "editSale": "Edit the sale",
     "walkIn": "Walk-in",
     "onTheCompany": "On the company",
-    "walkInNote": "A receipt with a QR code. Tap On the company if they want it invoiced — you would enter their VAT number and it goes over Peppol instead.",
+    "walkInNote": "A receipt with a QR code. Tap On the company if they want it invoiced. You would enter their VAT number and it goes over Peppol instead.",
     "oneSizeOnly": "One size",
     "oneMore": "One more {{name}}",
     "oneFewer": "One fewer {{name}}",
@@ -4311,7 +4312,10 @@
       "lull": "Afternoon lull · {{percent}}% off drinks",
       "lullShort": "Afternoon lull · {{percent}}%",
       "vat": "VAT 5%",
-      "toPay": "To pay"
+      "toPay": "To pay",
+      "vatAt": "VAT {{rate}}%",
+      "vatMixed": "VAT",
+      "saleDiscount": "Discount on the sale"
     },
     "pay": {
       "toPay": "To pay",
@@ -4334,16 +4338,16 @@
       "approved": "Approved · {{card}} · {{time}}",
       "cashGiven": "{{given}} handed over, {{change}} change",
       "remove": "Take this payment off",
-      "allCovered": "All {{amount}} covered — nothing left to collect",
+      "allCovered": "All {{amount}} covered. Nothing left to collect",
       "stillOwed": "{{amount}} still to collect",
       "tipTitle": "Tip",
       "tipNote": "goes to the staff, not counted as a sale",
       "whoGetsIt": "Who gets it",
-      "tipExplained": "The tip sits on top of the sale, never inside it. VAT is worked out on {{base}} as it always would be — the {{tip}} carries no tax and does not count toward your monthly turnover. It appears on the receipt as its own line.",
+      "tipExplained": "The tip sits on top of the sale, never inside it. VAT is worked out on {{base}} as it always would be. The {{tip}} carries no tax and does not count toward your monthly turnover. It appears on the receipt as its own line.",
       "walkInCustomer": "Walk-in customer",
       "receiptWithQr": "{{count}} items · receipt with a QR code",
       "finish": "Finish the sale",
-      "finishNote": "Finishing raises the invoice, files it with the Tax Authority and opens the drawer. Takes about a second — the QR code comes up for the customer straight after. {{change}} change to hand back.",
+      "finishNote": "Finishing raises the invoice, files it with the Tax Authority and opens the drawer. Takes about a second. The QR code comes up for the customer straight after. {{change}} change to hand back.",
       "tipRow": {
         "none": "Tip",
         "p5": "Tip · 5%",
@@ -4383,10 +4387,10 @@
       "textNote": "To an Omani mobile number",
       "qr": "Show the QR bigger",
       "qrNote": "If they are scanning",
-      "rungUpWrong": "Rung it up wrong? This invoice has already been filed, so it cannot be edited — a credit note is raised instead, which the Tax Authority also sees.",
+      "rungUpWrong": "Rung it up wrong? This invoice has already been filed, so it cannot be edited. A credit note is raised instead, which the Tax Authority also sees.",
       "refundOrVoid": "Refund or void",
       "readyNext": "Ready for the next customer",
-      "clearsItself": "Or press Enter — this screen clears itself after 20 seconds",
+      "clearsItself": "Or press Enter. This screen clears itself after 20 seconds",
       "startNew": "Start a new sale",
       "theirReceipt": "Their receipt",
       "printAgain": "Print again",
@@ -4422,7 +4426,7 @@
       "willNowBe": "Will now be",
       "tillReceipt": "A till receipt",
       "fullInvoice": "A full invoice over Peppol",
-      "tippingOff": "Tipping is off for company sales — it cannot be claimed back and complicates their bookkeeping. Add one on the next screen if they insist.",
+      "tippingOff": "Tipping is off for company sales. It cannot be claimed back and complicates their bookkeeping. Add one on the next screen if they insist.",
       "walkIn": {
         "simplified": "Simplified invoice, no customer named",
         "printed": "Printed, with a QR code",
@@ -4483,7 +4487,15 @@
         "refunded": "Refunded",
         "mineOnly": "Mine only"
       },
-      "rowMenu": "More for this sale"
+      "rowMenu": "More for this sale",
+      "itemCount_one": "{{count}} item",
+      "itemCount_other": "{{count}} items",
+      "refundNote_one": "{{count}} credit note",
+      "refundNote_other": "{{count}} credit notes",
+      "groupTotal_one": "{{count}} sale · {{amount}}",
+      "groupTotal_other": "{{count}} sales · {{amount}}",
+      "salesCount_one": "{{count}} sale",
+      "salesCount_other": "{{count}} sales"
     },
     "close": {
       "title": "Closing it",
@@ -4498,14 +4510,14 @@
       "onCompany": "On the company",
       "companyNote": "{{count}} invoices over Peppol",
       "countDrawer": "Count the drawer",
-      "cashOnly": "Cash only — card and transfers reconcile themselves",
+      "cashOnly": "Cash only. Card and transfers reconcile themselves",
       "byDenomination": "Count by denomination",
       "enterTotal": "Enter a total instead",
       "actuallyIn": "What is actually in the drawer",
       "shortBy": "Short by",
       "overBy": "Over by",
       "balances": "It balances",
-      "shortStory": "Expected {{expected}}, counted {{counted}}. That is {{percent}}% of the cash — small enough to be a mis-counted change, big enough to write down.",
+      "shortStory": "Expected {{expected}}, counted {{counted}}. That is {{percent}}% of the cash. Small enough to be a mis-counted change, big enough to write down.",
       "float": "Float you started with",
       "floatNote": "Set at {{time}}",
       "cashTaken": "Cash taken",
@@ -4516,7 +4528,7 @@
       "paidOutNote": "Milk delivery, receipt in the drawer · {{who}}",
       "shouldHold": "So the drawer should hold",
       "whyShort": "Why is it short?",
-      "guessIsFine": "a guess is fine — the point is that somebody looked",
+      "guessIsFine": "a guess is fine. The point is that somebody looked",
       "changeWrong": "Change given wrong",
       "changeWrongNote": "The commonest reason, and usually the right one under 2 rials",
       "payoutMissed": "A payout was not recorded",
@@ -4594,7 +4606,9 @@
       "standsAt": "Stands at",
       "refundAmount": "Refund {{amount}}",
       "filedNote": "The credit note is filed with the Tax Authority like any invoice, and uses one of your monthly 500. It will show on tonight’s cash-up as a payout from the drawer."
-    }
+    },
+    "saleDiscountLabel": "Discount on the whole sale",
+    "saleDiscountNote": "Taken after the price rule and before VAT. It shows on the invoice as a document discount."
   },
   "orderDetail": {
     "breadcrumbParent": "Trade documents",
@@ -8022,7 +8036,7 @@
         "NONE": "Total"
       },
       "byPeriod": "Issued by period",
-      "byPeriodNote": "Net of corrections — a credit note subtracts from the period it falls in.",
+      "byPeriodNote": "Net of corrections: a credit note subtracts from the period it falls in.",
       "byGroupNote": "Largest first, over the range above.",
       "invoiced": "Invoiced",
       "ungrouped": "Not grouped",
@@ -8036,7 +8050,7 @@
       "subtitle": "Bills received over Peppol, uploaded and scanned are all counted together.",
       "kpi": {
         "vat": "VAT you were charged",
-        "vatNote": "One total per bill — received bills carry no rate breakdown",
+        "vatNote": "One total per bill; received bills carry no rate breakdown",
         "spend": "Spent",
         "spendNote": "Including VAT, net of supplier credit notes",
         "net": "Before VAT",
@@ -8075,7 +8089,7 @@
       },
       "spend": "Spent",
       "byPeriod": "Spend by period",
-      "byPeriodNote": "Net of corrections — a credit note subtracts from the period it falls in.",
+      "byPeriodNote": "Net of corrections: a credit note subtracts from the period it falls in.",
       "byGroupNote": "Largest first, within the range above.",
       "topShare": "{{name}} is <b>{{percent}}%</b> of spend",
       "uncategorised": "Uncategorised",
@@ -8117,7 +8131,7 @@
       "moneyIn": "Money in",
       "moneyOut": "Money out",
       "surplus": "Surplus,",
-      "whatThisIs": "This is cash movement recorded in Fawtir — payments somebody entered against an invoice or a bill. It is not your bank balance and not a forecast: money that moved without a document, or that nobody recorded, is not here.",
+      "whatThisIs": "This is cash movement recorded in Fawtir: payments somebody entered against an invoice or a bill. It is not your bank balance and not a forecast: money that moved without a document, or that nobody recorded, is not here.",
       "monthlyInOutNote": "Bucketed on the payment date, not the invoice date.",
       "whatYouKeptNote": "In less out per period. A reversal counts in the period it was recorded.",
       "reversalHeavy": "Reversals outweighed payments in {{periods}}, so those bars are not to scale. Read the figures.",
@@ -8194,7 +8208,7 @@
       "byPeriodNote": "Output is VAT you charged; input is VAT you were charged.",
       "netByPeriod": "Net position by period",
       "netByPeriodNote": "Above zero is owed; below zero is reclaimable.",
-      "byTreatmentNote": "Share of taxable amount, not of VAT — zero-rated and exempt supplies carry none.",
+      "byTreatmentNote": "Share of taxable amount, not of VAT. Zero-rated and exempt supplies carry none.",
       "taxableAmount": "Taxable amount",
       "category": {
         "S": "Standard rated",
@@ -9637,7 +9651,7 @@
     "openInvoice": "Open invoice",
     "rejection": {
       "headline": "The Tax Authority couldn't tell who the buyer was",
-      "body": "Every report has to name the buyer with a Peppol participant identifier, and <b>{{customer}} has none on their record</b>. Without it the OTA has no way to tie the sale to a registered business, so it won't take the report. Nothing is wrong with the invoice itself — the customer received it and the figures are fine.",
+      "body": "Every report has to name the buyer with a Peppol participant identifier, and <b>{{customer}} has none on their record</b>. Without it the OTA has no way to tie the sale to a registered business, so it won't take the report. Nothing is wrong with the invoice itself: the customer received it and the figures are fine.",
       "turnedDown": "Turned down",
       "attemptsSoFar": "Attempts so far",
       "undeclaredFor": "Undeclared for",
@@ -11562,7 +11576,7 @@
   "signingIn": {
     "title": "Signing in",
     "subtitle": "How people prove it is them, and how long a session lasts",
-    "note": "This screen was not drawn in the design set. It is built from what the Settings hub card promises so the card is not a dead end — tell me if you want it changed.",
+    "note": "This screen was not drawn in the design set. It is built from what the Settings hub card promises so the card is not a dead end. Tell me if you want it changed.",
     "twoStep": "Two-step sign-in",
     "twoStepNote": "a code from an app, on top of the password",
     "requireEveryone": "Require it of everyone",
@@ -11633,7 +11647,7 @@
       "neverSold": "Never sold",
       "switchedOff": "Switched off"
     },
-    "search": "Search anything — name, code, barcode...",
+    "search": "Search anything: name, code, barcode...",
     "groups": "Groups",
     "filters": "Filters",
     "sort": {
@@ -11759,7 +11773,7 @@
     },
     "regularSold": "Regular · sold {{count}} times",
     "sold": "sold {{count}} times",
-    "handSet": "Price was set by hand in June — left alone",
+    "handSet": "Price was set by hand in June, left alone",
     "noChange": "no change",
     "changing": "Changing",
     "changingOf": "{{changing}} of {{total}}",
@@ -11783,7 +11797,7 @@
     "subtitle": "Everything you sell, stored once and reused on every invoice, quotation and sale. Prices, tax categories and descriptions stay the same.",
     "importFromExcel": "Import from Excel",
     "coffeeRoastery": "Coffee roastery and café",
-    "weAlreadyKnow": "Fawtir already knows <b>what a roastery usually has</b> — beans, brewed drinks, roasting, equipment — so you start from something rather than nothing.",
+    "weAlreadyKnow": "Fawtir already knows <b>what a roastery usually has</b>: beans, brewed drinks, roasting and equipment, so you start from something rather than nothing.",
     "letFawtirSuggest": "Let Fawtir suggest",
     "ifYouHaveAMenu": "If you have a menu",
     "fullControl": "Full control",
@@ -11829,7 +11843,8 @@
       "basics": "The basics",
       "price": "Price and tax",
       "sizes": "Sizes",
-      "addOns": "Add-ons"
+      "addOns": "Add-ons",
+      "branches": "Branches"
     },
     "kind": {
       "handOver": "Something hand over",
@@ -11882,13 +11897,15 @@
       "namedAndPriced": "Name and price filled in",
       "namedAndPricedOff": "Still needs a name and a price",
       "taxAgrees": "Tax category agrees with the rate",
-      "taxAgreesOff": "No tax category chosen",
+      "taxAgreesOff": "Choose a tax category, and its reason when it needs one",
       "inAGroup": "Sits in a group and a kind",
       "inAGroupOff": "Not filed anywhere yet",
       "barcode": "Barcode added",
-      "barcodeOff": "No barcode — fine unless you scan at the till",
+      "barcodeOff": "No barcode. Fine unless you scan at the till",
       "photo": "Photo added",
-      "photoOff": "No photo — the till shows the name instead"
+      "photoOff": "No photo. The till shows the name instead",
+      "classified": "HS code or service type chosen",
+      "classifiedOff": "No HS code or service type yet"
     },
     "stock": "Stock",
     "keepCount": "Keep count of this",
@@ -11901,7 +11918,21 @@
     "none": "N \\ A",
     "footer": "{{sizes}} sizes · {{addOns}} add-ons · price change takes effect on the next sale",
     "footerNoSizes": "One size · {{addOns}} add-ons",
-    "saveAndAddAnother": "Save & add another"
+    "saveAndAddAnother": "Save & add another",
+    "classificationHint": "Shown on invoices to businesses and government. Choose Other if nothing fits.",
+    "discount": "Discount",
+    "discountHint": "An invoice line picked from this item starts with this discount.",
+    "branches": {
+      "all": "Every branch",
+      "allNote": "Sold everywhere. You can still give a branch its own price.",
+      "chosen": "Chosen branches only",
+      "chosenNote": "Tick where it is sold. The others never show it at the till.",
+      "sold": "Sold here",
+      "notSold": "Not sold here",
+      "soldHere": "Sold at {{branch}}",
+      "priceHere": "Price before VAT at {{branch}}",
+      "note": "Leave a price empty to use the base price. The VAT category, its reason and the HS code are the same in every branch; stock is counted per branch."
+    }
   },
   "itemSells": {
     "export": "Export",
@@ -11924,9 +11955,9 @@
     "bySize": "By size",
     "addOnsTaken": "Add-ons taken",
     "expand": "Open it larger",
-    "bestMonth": "{{month}} was the best month yet — <b>{{count}} sold</b>",
-    "peakHour": "Nearly a fifth of the day's {{name}} — <b>{{hour}} is the peak</b>",
-    "sizeNote": "<b>{{size}} is {{percent}}%</b> of everything sold — the takeaway cup barely moves",
+    "bestMonth": "{{month}} was the best month yet: <b>{{count}} sold</b>",
+    "peakHour": "Nearly a fifth of the day's {{name}}: <b>{{hour}} is the peak</b>",
+    "sizeNote": "<b>{{size}} is {{percent}}%</b> of everything sold; the takeaway cup barely moves",
     "addOnNote": "One in {{n}} gets an extra shot · <b>OMR {{amount}}</b> from {{name}} alone",
     "whereItGoes": "Where it goes",
     "overTheCounter": "Over the counter",
@@ -11943,7 +11974,7 @@
     "meta": "{{group}} › {{kind}} · {{code}} · every document this item appears on",
     "kpi": {
       "tillReceipts": "Till receipts",
-      "tillReceiptsNote": "Sold over the counter · not itemised here",
+      "tillReceiptsNote": "Over the counter · not itemised here",
       "onInvoices": "On invoices",
       "onInvoicesNote": "{{units}} units · all reported to the OTA",
       "onQuotations": "On quotations",
@@ -12016,10 +12047,10 @@
     "bulkChange": "Bulk change",
     "catalogBuilder": "Catalog builder",
     "basePriceRaised": "Base price raised",
-    "addOnAdded": "Add-on added — {{name}}",
+    "addOnAdded": "Add-on added: {{name}}",
     "taxCorrected": "Tax category corrected",
     "priceRaisedInBulk": "Price raised as part of a bulk change",
-    "sizeAdded": "Size added — {{name}}",
+    "sizeAdded": "Size added: {{name}}",
     "itemCreated": "Item created",
     "fromTheItemScreen": "from the item screen",
     "afterAReportWasRefused": "after a report was refused",
@@ -12032,7 +12063,7 @@
     "takenOnSales": "Taken on <b>{{count}} sales</b> since · <b>OMR {{amount}}</b> in add-on revenue.",
     "invoicesBeforeKeep": "Invoices sent before this date keep the category they were sent with. <b>{{count}} were resubmitted.</b>",
     "partOfAChange": "Part of a change that touched <b>{{count}} items</b>. Undoing this one leaves the other {{others}} alone.",
-    "soldTimesInMonths": "Sold <b>{{count}} times</b> in {{months}} months — the least popular of the three sizes.",
+    "soldTimesInMonths": "Sold <b>{{count}} times</b> in {{months}} months, the least popular of the three sizes.",
     "showing": "Showing {{shown}} of {{total}} changes",
     "empty": "Nothing matches that."
   },
@@ -12075,7 +12106,7 @@
     "forWholesaleCustomers": "for wholesale customers",
     "timeWindow": "{{from}} to {{to}} only",
     "saves": "saves {{amount}}",
-    "noSaving": "no saving — convenience only",
+    "noSaving": "no saving, convenience only",
     "notOnSale": "Not on sale",
     "unlimited": "Unlimited",
     "nothingCounted": "Nothing in it is counted",
@@ -12092,7 +12123,9 @@
       "name": "Name",
       "bestSelling": "Best selling",
       "saving": "Biggest saving"
-    }
+    },
+    "savesNothing": "saves nothing",
+    "costsMore": "costs {{amount}} more than the parts"
   },
   "bundle": {
     "savesTheCustomer": "Saves the customer OMR {{amount}}",
@@ -12210,7 +12243,7 @@
     "aboutWeeks": "About {{count}} weeks",
     "aboutDays": "About {{count}} days",
     "daysAt": "{{days}} days · {{note}}",
-    "usingBiggerInstead": "Using 500 g bags instead — costing {{amount}} more each",
+    "usingBiggerInstead": "Using 500 g bags instead, costing {{amount}} more each",
     "sellingAbout": "selling about {{rate}}",
     "theDayTheyDeliver": "the day they deliver",
     "heldForTheBundle": "{{count}} are held for the starter bundle",
@@ -12221,7 +12254,8 @@
     "eachAt": "{{amount}} each",
     "orderNow": "Order now",
     "movements": "Movements",
-    "showing": "Showing {{shown}} of {{total}} counted"
+    "showing": "Showing {{shown}} of {{total}} counted",
+    "atBranch": "At"
   },
   "stockItem": {
     "runningLow": "Running low",
@@ -12246,7 +12280,7 @@
     "bagsOnHand": "bags on hand, day by day",
     "delivered": "+{{count}} delivered",
     "orderAt": "order at {{count}}",
-    "chartNote": "The {{count}} bags delivered on {{date}} lasted <b>{{days}} days</b> before dropping back. On this rate, <b>{{count}} isn't enough per delivery</b> — {{better}} would hold the level.",
+    "chartNote": "The {{count}} bags delivered on {{date}} lasted <b>{{days}} days</b> before dropping back. On this rate, <b>{{count}} isn't enough per delivery</b>; {{better}} would hold the level.",
     "everyMovement": "Every movement",
     "everyMovementNote": "newest first · nothing here can be edited",
     "export": "Export",
@@ -12296,11 +12330,12 @@
     "cappedAt": "capped at {{count}}",
     "openQuotations": "Open quotations",
     "recurringOrders": "Recurring orders",
-    "none": "None"
+    "none": "None",
+    "days_one": "{{count}} day"
   },
   "priceRules": {
     "title": "Price rules",
-    "subtitle": "When something should cost less than its normal price — buying a lot of it, buying at a quiet hour, or being a regular.",
+    "subtitle": "When something should cost less than its normal price: buying a lot of it, buying at a quiet hour, or being a regular.",
     "newRule": "New rule",
     "kpi": {
       "rules": "Rules",
@@ -12346,14 +12381,14 @@
     },
     "who": {
       "anyoneBuyingThatMany": "<b>Anyone</b> buying that many on one invoice. Counts <b>across the whole group</b>, so four bags of House Blend and six of Yirgacheffe reach the 10 break together.",
-      "cheaperAppliesToExtras": "<b>Anyone.</b> The cheaper price applies only to the extra batches, not back to the first — the machine is already hot, so each one after that costs you less.",
+      "cheaperAppliesToExtras": "<b>Anyone.</b> The cheaper price applies only to the extra batches, not back to the first, as the machine is already hot, so each one after that costs you less.",
       "twentyOffBrewed": "<b>20% off</b> every brewed drink. Not on beans, not on bundles, and it doesn't stack with the Morning deal.",
       "thePairFor": "The pair for <b>OMR {{price}}</b> instead of {{instead}}. This one is set up as a bundle, so it also shows on the till as a single button.",
       "namedCustomers": "{{count}} named customers, agreed in their terms."
     },
     "twoToFive": "Two to five, Sunday to Thursday",
     "sixToTen": "Six to ten, every day",
-    "switchedOffNote": "Switched off in July while terms were renegotiated. <b>{{open}} of the {{total}} have open quotations</b> that were priced with this rule still running — those quotes stand.",
+    "switchedOffNote": "Switched off in July while terms were renegotiated. <b>{{open}} of the {{total}} have open quotations</b> that were priced with this rule still running, and those quotes stand.",
     "seeTheQuotes": "See the quotes",
     "addARule": "Add a rule",
     "menu": {
@@ -12426,7 +12461,7 @@
     "showOnInvoice": "Show the saving on the invoice",
     "showOnInvoiceNote": "Adds a line naming this rule and what came off",
     "atTheTill": "Apply it at the till too",
-    "atTheTillNote": "Off keeps it to invoices only — useful for trade prices you don't want walk-ins getting",
+    "atTheTillNote": "Off keeps it to invoices only, useful for trade prices you don't want walk-ins getting",
     "tryItOut": "Try it out",
     "ifSomeoneBought": "If someone bought",
     "packsOf": "packs of {{name}}",
@@ -12443,7 +12478,7 @@
       "breaksOverlap": "Two breaks overlap",
       "belowCost": "One break sells below cost",
       "aboveCost": "Every break keeps a margin",
-      "noEndDate": "No end date — runs until you stop it",
+      "noEndDate": "No end date, runs until you stop it",
       "hasEndDate": "Ends {{date}}"
     },
     "clashes": "Rules it might clash with",
@@ -12455,12 +12490,13 @@
     "cancel": "Cancel",
     "saveWithoutSwitchingOn": "Save without switching on",
     "switchItOn": "Switch it on",
-    "switchedOn": "Switched on"
+    "switchedOn": "Switched on",
+    "filtersWord": "filters"
   },
   "uploadMenu": {
     "breadcrumb": "Upload A Menu",
     "title": "Check what we read off your menu",
-    "subtitle": "Nothing is in your catalog yet. Correct anything that came out wrong, then add the ones you want. The rest are discarded.",
+    "subtitle": "Nothing is in your catalog yet. Fix what came out wrong, add the ones you want; the rest are discarded.",
     "replaceWithOther": "Replace with other",
     "step": {
       "uploaded": "Menu uploaded",
@@ -12513,14 +12549,14 @@
     "subtitle": "Work left to right. Pick the groups you have, then what's inside them, then the exact things you sell with their prices.",
     "uploadInstead": "Upload a menu instead",
     "coffeeRoastery": "Coffee roastery and café",
-    "suggestionsNote": "Suggestions are based on what roasteries in Oman usually sell. Prices come from what similar businesses charge — change any of them.",
+    "suggestionsNote": "Suggestions are what this kind of business usually sells. Tick what you have, then set your own prices, units and tax.",
     "readyToAdd": "Ready to add",
     "seeTheList": "See the list",
     "groups": "Groups",
-    "groupsNote": "What a roastery usually organises its catalog by.",
+    "groupsNote": "How this kind of business usually organises its catalog.",
     "insideGroup": "Inside {{group}}",
     "insideGroupNote": "Tick the kinds you actually stock.",
-    "whatYouSell": "{{kind}} — what you sell",
+    "whatYouSell": "{{kind}}: what you sell",
     "whatYouSellNote": "These become the lines on an invoice or at the till. Only this level has a price.",
     "pickAGroupFirst": "Pick a group on the left to see what goes inside it.",
     "pickAKindFirst": "Pick a kind to see the exact things you would sell.",
@@ -12543,12 +12579,30 @@
     },
     "nearbyCharge": "Roasteries nearby charge {{from}} – {{to}}",
     "pricedByWeight": "Priced by weight at the till rather than in bags",
-    "footer": "{{count}} things to sell · across {{groups}} groups and {{kinds}} kinds · all at {{rate}}% VAT",
+    "footer": "{{count}} things to sell · across {{groups}} and {{kinds}}",
     "footerEmpty": "Nothing ticked yet",
     "cancel": "Cancel",
     "saveForLater": "Save and finish later",
     "addToCatalog": "Add {{count}} to the catalog",
-    "added": "Added"
+    "added": "Added",
+    "businessType": "Business type",
+    "ownCatalogue": "Start my own catalog",
+    "ownCatalogueNote": "No suggestions. Add your items one by one, or upload a menu.",
+    "ownEmpty": "Your own catalog starts empty.",
+    "addFirstItem": "Add your first item",
+    "setPrice": "Set price",
+    "startsZeroRated": "Starts as zero-rated:",
+    "stillNeedPrice_one": "{{count}} still needs a price",
+    "stillNeedPrice_other": "{{count}} still need a price",
+    "taxShort": {
+      "Z": "Zero-rated",
+      "E": "Exempt",
+      "O": "Out of scope"
+    },
+    "groupCount_one": "{{count}} group",
+    "groupCount_other": "{{count}} groups",
+    "kindCount_one": "{{count}} kind",
+    "kindCount_other": "{{count}} kinds"
   },
   "rowsView": {
     "label": "How this list is shown",
@@ -13075,7 +13129,10 @@
         "refund": "Refund case",
         "refundReason": {
           "FINAL_REJECTION": "Open: final rejection",
-          "CORRECTION_WINDOW_EXPIRED": "Open: not corrected within 30 days"
+          "CORRECTION_WINDOW_EXPIRED": "Open: not corrected within 30 days",
+          "CANCELLED_BY_FAWTIR": "Open: cancelled by Fawtir (period paid in advance)",
+          "CANCELLED_BY_CUSTOMER": "Open: cancelled by the customer (period paid in advance)",
+          "other": "Open"
         }
       },
       "correctionOverdue": {
@@ -13083,7 +13140,8 @@
         "since": "Correction overdue since {{date}}.",
         "closeIntro": "The customer did not resubmit within 30 days. Chase them, or close the application with a final rejection.",
         "refund": "Any payment Finance has confirmed will be refunded.",
-        "close": "Close with final rejection"
+        "close": "Close with final rejection",
+        "closeIntroOnTime": "The application was sent back for a correction and the customer has until {{date}} to resubmit. You can close it now with a final rejection."
       }
     },
     "plans": {
@@ -13140,7 +13198,9 @@
         "reasonHintAdd": "Required for a new plan: it is recorded with the plan's first price version.",
         "trial": "{{days}}-day trial",
         "trialHint": "The trial is always {{days}} days. Switched off, the customer pays with the application, and the paid period starts on activation, after approval and confirmed payment.",
-        "trialDocumentsSwitchHint": "How many documents the trial allows. Needs the trial switched on."
+        "trialDocumentsSwitchHint": "How many documents the trial allows. Needs the trial switched on.",
+        "erpAddonPrice": "ERP and API add-on, a month",
+        "erpAddonHint": "For plans with ERP field mapping on. A change publishes a new version. To stop offering the add-on, switch ERP field mapping off."
       },
       "validation": {
         "money": "Enter an amount in rials with up to 3 decimals",
@@ -13157,7 +13217,10 @@
         "reasonRequired": "Give a reason for this price or limit change",
         "reasonLength": "Use 500 characters or fewer",
         "trialDocumentsNeedTrial": "Switch the trial on too, or leave this empty",
-        "trialFixed": "The trial is always 14 days. Switch it on or off; another length is not accepted."
+        "trialFixed": "The trial is always 14 days. Switch it on or off; another length is not accepted.",
+        "erpAddonAboveZero": "Enter an amount above zero, or leave this empty",
+        "erpAddonNeedsMapping": "Switch on ERP field mapping under Features to offer the add-on",
+        "erpAddonKeep": "The price cannot be removed. To stop offering the add-on, switch ERP field mapping off."
       },
       "readOnly": "You can view the catalogue. Changing plans is for platform tenant administrators.",
       "readOnlyNote": "View only. Changing plans is for platform tenant administrators.",
@@ -13205,7 +13268,8 @@
           "VISIBILITY_CHANGED": "Visibility changed",
           "FEATURES_CHANGED": "Features changed",
           "other": "Other change"
-        }
+        },
+        "erpAddon": "ERP and API add-on: {{amount}} a month"
       },
       "counting": {
         "open": "Count received documents",
@@ -13234,7 +13298,8 @@
           "gone": "This plan no longer exists. Close this and reload the plans.",
           "invalid": "Fawtir did not accept this change. Check the reason and try again."
         }
-      }
+      },
+      "erpAddonLine": "ERP and API add-on: OMR {{amount}} a month"
     },
     "operators": {
       "title": "Operators",
@@ -15243,7 +15308,7 @@
     },
     "billingSettings": {
       "title": "Billing settings",
-      "subtitle": "Grace, second approval, VAT and renewal timing for subscription bills. Every change is kept with its reason.",
+      "subtitle": "Grace, second approval, VAT, renewal timing and the months charged a year for the ERP add-on, extra people and extra branches on subscription bills. Every change is kept with its reason.",
       "loading": "Loading settings",
       "card": "Subscription billing",
       "cardNote": "Applies to bills issued from now on. Bills already issued keep their figures.",
@@ -15290,6 +15355,12 @@
         "history": "Earlier purchase limits",
         "historyEntry": "Version {{version}} · {{min}} to {{max}} documents",
         "historyFailed": "The earlier purchase limits could not be loaded."
+      },
+      "annualMonths": {
+        "erpAddonAnnualMonths": "ERP and API add-on, months charged a year",
+        "extraUserAnnualMonths": "Extra person, months charged a year",
+        "extraBranchAnnualMonths": "Extra branch, months charged a year",
+        "hint": "How many months of the monthly price one annual period charges, 1 to 12. The default is {{months}}."
       }
     },
     "seller": {
@@ -15887,7 +15958,8 @@
         "forbidden": "You can't do this. Confirm your sign-in code again, or ask an operator with this permission.",
         "gone": "This company or bill could not be found.",
         "invalid": "The server did not accept these values. Check them and try again."
-      }
+      },
+      "titleBills": "Bills"
     },
     "enterprise": {
       "title": "Enterprise companies",
@@ -16296,7 +16368,7 @@
       "signOut": "Sign out",
       "signingOut": "Signing out…",
       "signOutFailed": "Couldn't sign out. Retry",
-      "signOutFailedStatus": "Couldn't sign out. Your session is still active — try again.",
+      "signOutFailedStatus": "Couldn't sign out. Your session is still active. Try again.",
       "loading": "Loading…",
       "previewNoSession": "Not signed in"
     }
@@ -16321,7 +16393,7 @@
     },
     "certificate": {
       "title": "Your Peppol certificate expires in {{days}} days",
-      "body": "Renews <b>{{date}}</b>. When it lapses, invoicing stops the same morning — renewal takes about a week.",
+      "body": "Renews <b>{{date}}</b>. When it lapses, invoicing stops the same morning, and renewal takes about a week.",
       "renew": "Start the renewal"
     },
     "quota": {
@@ -19432,7 +19504,7 @@
     "csrf": "Your session needs refreshing. Reload the page and try again.",
     "reference": "Reference: {{id}}",
     "refused": {
-      "generic": "The server refused this. Nothing was changed, and repeating it will not help — the reference below tells support exactly which rule stopped it.",
+      "generic": "The server refused this. Nothing was changed, and repeating it will not help. The reference below tells support exactly which rule stopped it.",
       "creditNoteSupplierMismatch": "This credit note is from a different supplier than that bill. A credit can only reduce a bill from the supplier who issued it.",
       "creditNoteCurrencyMismatch": "The credit note and the bill are in different currencies, so one cannot reduce the other.",
       "creditNoteAlreadyApplied": "This credit note has already been used against that bill. Applying it again would reduce the bill twice.",
@@ -19610,7 +19682,7 @@
       "HEADER_DISCOUNT_PERCENTAGE_INVALID": "the document discount is over 100%",
       "EXEMPTION_REASON_REQUIRED": "a line with no VAT needs a reason",
       "TAX_CATEGORY_METADATA_CONFLICT": "two lines at the same rate have different tax categories",
-      "TAX_CATEGORY_REASON_CONFLICT": "two lines at the same VAT category and rate have different reasons — give them the same reason, or change one line's category or rate"
+      "TAX_CATEGORY_REASON_CONFLICT": "two lines at the same VAT category and rate have different reasons: give them the same reason, or change one line's category or rate"
     },
     "datesAtIssue": "Set when the invoice is issued; not stored on the draft.",
     "notEditable": "This invoice is {{state}}. Only drafts can be edited.",
@@ -21255,7 +21327,7 @@
     "csv": "Export CSV",
     "xlsx": "Export Excel",
     "working": "Preparing…",
-    "failed": "That download did not start. The ledger above is unaffected — try again.",
+    "failed": "That download did not start. The ledger above is unaffected. Try again.",
     "truncated": "This file stopped at the 10,000-row limit and is not the whole ledger. Narrow the filters and export again."
   },
   "reference": {
@@ -22194,7 +22266,7 @@
   },
   "catalogReal": {
     "title": "Catalog",
-    "subtitle": "The products your invoice lines are raised from",
+    "subtitle": "Everything you sell, stored once and reused on every invoice and sale.",
     "toolsUnavailable": "Menu upload, suggested items, price rules, bundles, stock and per-item sales history are not connected to Fawtir's servers yet.",
     "products": "Products",
     "empty": "No products yet. A product is added when you pick it on an invoice line.",
@@ -22204,9 +22276,57 @@
       "code": "Code",
       "name": "Name",
       "unit": "Unit",
-      "price": "Unit price",
-      "tax": "VAT"
-    }
+      "price": "Price",
+      "tax": "Tax",
+      "item": "Item",
+      "kind": "Kind"
+    },
+    "search": "Search by name or code...",
+    "noMatch": "No product matches that search.",
+    "showingAll_one": "Showing {{count}} product",
+    "showingAll_other": "Showing all {{count}} products",
+    "beforeVat": "before VAT",
+    "noPrice": "No price",
+    "soldBy": "Sold by: {{unit}}",
+    "kind": {
+      "goods": "Product",
+      "service": "Service"
+    },
+    "category": {
+      "S": "Standard",
+      "Z": "Zero-rated",
+      "E": "Exempt",
+      "O": "Out of scope",
+      "other": "Not used in Oman"
+    },
+    "kpi": {
+      "things": "Things you sell",
+      "thingsNote": "{{goods}} products · {{services}} services",
+      "services": "Services",
+      "servicesNote": "Sold by the hour, day or job",
+      "notStandard": "Other VAT rates",
+      "notStandardNote": "Zero-rated, exempt or out of scope",
+      "attention": "Wanting attention",
+      "attentionNote": "No price, or a VAT category Oman does not use",
+      "attentionNone": "Every product has a price and an Oman VAT category",
+      "thingsPagedNote": "{{goods}} products · {{services}} services on this page",
+      "onThisPage": "Counted on this page of the list"
+    },
+    "tab": {
+      "all": "All",
+      "goods": "Products",
+      "services": "Services",
+      "attention": "Wanting attention",
+      "notStandard": "Not at the standard rate"
+    },
+    "sort": {
+      "name": "Name",
+      "code": "Code",
+      "priceLow": "Price, low to high",
+      "priceHigh": "Price, high to low"
+    },
+    "showingOf": "Showing {{shown}} of {{total}} products",
+    "noneInTab": "Nothing on this page fits this tab."
   },
   "signupResume": {
     "cta": "Continue your registration",
@@ -22876,7 +22996,8 @@
         "title": "Change your own role?",
         "body": "You will be {{role}} and no longer an Administrator. You can't change it back yourself: another Administrator would have to.",
         "confirm": "Change my role"
-      }
+      },
+      "subtitleNoBranches": "Their role and permissions."
     },
     "handover": {
       "open": "Hand over ownership",
@@ -23380,5 +23501,75 @@
       "back": "Back to the bill"
     },
     "payByCard": "Pay by card"
+  },
+  "workingBranch": {
+    "label": "Branch",
+    "none": "No branches yet"
+  },
+  "itemOptions": {
+    "openLink": "Sizes and options",
+    "crumb": "Sizes and options",
+    "title": "{{name}} sizes and options",
+    "subtitle": "Two things a customer chooses: <b>how much</b> and <b>how it's ground</b>. Every combination below is a separate thing you sell, with its own price and code.",
+    "backToItem": "Back to the item",
+    "chooses": {
+      "title": "What the customer chooses",
+      "downSide": "Shown down the side",
+      "acrossTop": "Shown across the top",
+      "optionCount_one": "{{count}} option",
+      "optionCount_other": "{{count}} options",
+      "addA": "Add a {{noun}}",
+      "newPlaceholder": "Type a name, then Enter",
+      "remove": "Remove {{name}}",
+      "orderNote": "This is the order they appear in at the till.",
+      "changeNote": "{{name}} changes the price by {{amount}}.",
+      "sameNote": "Every choice here sells at the same price.",
+      "addThird": "Add a third thing customers choose",
+      "thirdNote": "Two choices are the most an item takes for now. For a third, such as roast, add it to the item as an add-on."
+    },
+    "prices": {
+      "title": "Price for each combination",
+      "tickEverything": "Tick everything",
+      "rebuild": "Rebuild prices from the base",
+      "round": "Round all to 0.050",
+      "codes": "Generate the codes",
+      "count": "{{sold}} of {{total}} on sale",
+      "byHand_one": "{{count}} price set by hand",
+      "byHand_other": "{{count}} prices set by hand"
+    },
+    "grid": {
+      "base": "base {{amount}}",
+      "noChange": "No change",
+      "priceChangeFor": "Price change for {{name}}",
+      "priceOf": "Price of {{name}}",
+      "sell": "Sell {{name}}",
+      "notSold": "Not sold",
+      "setByHand": "Set by hand",
+      "noCode": "No code yet"
+    },
+    "figures": {
+      "title": "What this adds up to",
+      "canSell": "Things you can sell",
+      "canSellNote": "Each appears separately at the till",
+      "range": "Price range",
+      "rangeNote": "{{from}} up to {{to}}",
+      "nothingSold": "Tick a combination to sell it",
+      "none": "None",
+      "codesReady": "Codes ready",
+      "codesOf": "{{ready}} of {{total}}",
+      "codesNote": "Built from the item code and the options",
+      "stock": "Needs stock counts",
+      "stockNote": "Counted per combination, not per item"
+    },
+    "footer": {
+      "toSell_one": "{{count}} thing to sell",
+      "toSell_other": "{{count}} things to sell",
+      "unticked_one": "{{count}} unticked",
+      "unticked_other": "{{count}} unticked",
+      "prices": "prices from OMR {{min}} to OMR {{max}}",
+      "saved": "Saved in this sample. Nothing is sent yet.",
+      "cancel": "Cancel",
+      "save": "Save these {{count}}"
+    }
   }
 }

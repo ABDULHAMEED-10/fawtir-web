@@ -66,14 +66,18 @@ export function StockDetailPage() {
   const lastedDays = deliveryLasts(DELIVERY_SIZE, row.perDay)
   const better = deliveryThatHolds(row.perDay, 13)
 
+  /* The plot runs from y 24 (the busiest day) down to the axis at y 250. */
   const max = Math.max(...THIRTY_DAYS)
-  const points = THIRTY_DAYS.map((value, index) => {
-    const x = 40 + (index / (THIRTY_DAYS.length - 1)) * 660
-    const y = 190 - (value / max) * 160
-    return `${x},${y}`
-  }).join(' ')
-  const reorderY = 190 - (row.reorderAt / max) * 160
-  const deliveryX = 40 + (DELIVERY_AT / (THIRTY_DAYS.length - 1)) * 660
+  const axisY = 250
+  const plotH = 226
+  const xAt = (index: number) => 20 + (index / (THIRTY_DAYS.length - 1)) * 680
+  const yAt = (value: number) => axisY - (value / max) * plotH
+  const points = THIRTY_DAYS.map((value, index) => `${xAt(index)},${yAt(value)}`).join(' ')
+  const area = `${xAt(0)},${axisY} ${points} ${xAt(THIRTY_DAYS.length - 1)},${axisY}`
+  /** The reorder line is only drawn when the level sits inside the month's range. */
+  const reorderInRange = row.reorderAt > 0 && row.reorderAt <= max
+  const reorderY = yAt(row.reorderAt)
+  const deliveryX = xAt(DELIVERY_AT)
 
   return (
     <CatalogShell
@@ -146,6 +150,7 @@ export function StockDetailPage() {
         <Kpi
           icon={kpiOutIcon}
           tint="bg-danger-100"
+          tone="muted"
           label={t('stockItem.kpi.onOrder')}
           value={t('stockItem.kpi.nothingYet')}
           note={t('stockItem.kpi.onOrderNote', { reference: 'PO-0034' })}
@@ -184,52 +189,75 @@ export function StockDetailPage() {
             </div>
 
             <div className="px-5">
-              <svg viewBox="0 0 720 230" className="w-full" role="presentation">
+              <svg viewBox="0 0 720 290" className="w-full" role="presentation">
+                {/* the stock on hand, shaded down to the axis */}
+                <polygon points={area} fill="#2c4eb7" fillOpacity="0.06" />
+
+                {/* the axis */}
+                <line x1="20" x2="700" y1={axisY} y2={axisY} stroke="#e4e6ea" strokeWidth="1" />
+
                 {/* the level a person set */}
-                <line
-                  x1="40"
-                  x2="700"
-                  y1={reorderY}
-                  y2={reorderY}
-                  stroke="#887147"
-                  strokeWidth="1"
-                  strokeDasharray="4 4"
-                />
-                <text x="700" y={reorderY - 6} textAnchor="end" fontSize="11" fill="#887147">
-                  {t('stockItem.orderAt', { count: row.reorderAt })}
-                </text>
+                {reorderInRange ? (
+                  <>
+                    <line
+                      x1="20"
+                      x2="700"
+                      y1={reorderY}
+                      y2={reorderY}
+                      stroke="#887147"
+                      strokeWidth="1.5"
+                      strokeDasharray="6 5"
+                    />
+                    <text
+                      x="700"
+                      y={reorderY - 7}
+                      textAnchor="end"
+                      fontSize="12"
+                      fontWeight="600"
+                      fill="#887147"
+                    >
+                      {t('stockItem.orderAt', { count: row.reorderAt })}
+                    </text>
+                  </>
+                ) : null}
 
                 {/* the day a delivery landed */}
                 <line
                   x1={deliveryX}
                   x2={deliveryX}
-                  y1="20"
-                  y2="190"
+                  y1="10"
+                  y2={axisY}
                   stroke="#2c3342"
-                  strokeWidth="1"
-                  strokeDasharray="3 3"
+                  strokeWidth="1.5"
+                  strokeDasharray="3 4"
                 />
-                <text x={deliveryX + 6} y="30" fontSize="11" fill="#3d5648" fontWeight="600">
+                <text x={deliveryX + 8} y="22" fontSize="12" fill="#3d5648" fontWeight="600">
                   {t('stockItem.delivered', { count: DELIVERY_SIZE })}
                 </text>
 
-                <polyline points={points} fill="none" stroke="#2c4eb7" strokeWidth="2" />
+                <polyline
+                  points={points}
+                  fill="none"
+                  stroke="#2c4eb7"
+                  strokeWidth="2.5"
+                  strokeLinejoin="round"
+                />
                 <circle
-                  cx={40 + 660}
-                  cy={190 - (THIRTY_DAYS[THIRTY_DAYS.length - 1] / max) * 160}
-                  r="4"
+                  cx={xAt(THIRTY_DAYS.length - 1)}
+                  cy={yAt(THIRTY_DAYS[THIRTY_DAYS.length - 1])}
+                  r="5"
                   fill="#fff"
                   stroke="#887147"
-                  strokeWidth="2"
+                  strokeWidth="2.5"
                 />
 
                 {['1 Jul', '10 Jul', '20 Jul', '30 Jul'].map((label, index) => (
                   <text
                     key={label}
-                    x={40 + (index / 3) * 660}
-                    y="214"
+                    x={20 + (index / 3) * 680}
+                    y="278"
                     textAnchor={index === 3 ? 'end' : index === 0 ? 'start' : 'middle'}
-                    fontSize="11"
+                    fontSize="13"
                     fill={index === 3 ? '#2c4eb7' : '#737781'}
                     fontWeight={index === 3 ? '600' : '400'}
                   >
@@ -457,8 +485,8 @@ function MovementRow({ movement, level }: { movement: Movement; level: number })
             movement.change > 0 ? 'text-[#3d5648]' : 'text-danger-700',
           ].join(' ')}
         >
-          {movement.change > 0 ? '+' : ''}
-          {movement.change}
+          {movement.change > 0 ? '+' : '\u2212'}
+          {Math.abs(movement.change)}
         </span>
       </td>
 
@@ -485,24 +513,19 @@ function Row({
   label,
   value,
   tone,
-  last,
 }: {
   label: string
   value: string
   tone?: 'pending'
+  /** Kept for the callers; the rows no longer draw dividers, so nothing hangs on it. */
   last?: boolean
 }) {
   return (
-    <div
-      className={[
-        'flex items-center justify-between gap-3 py-2.5',
-        last ? '' : 'border-b border-surface-background',
-      ].join(' ')}
-    >
-      <dt className="text-sm font-medium text-text-tertiary">{label}</dt>
+    <div className="flex items-center justify-between gap-3 py-2">
+      <dt className="shrink-0 whitespace-nowrap text-sm font-medium text-text-tertiary">{label}</dt>
       <dd
         className={[
-          'shrink-0 text-sm font-semibold',
+          'min-w-0 text-end text-sm font-semibold',
           tone === 'pending' ? 'text-pending-700' : 'text-text-primary',
         ].join(' ')}
       >

@@ -233,7 +233,7 @@ describe('Sign out', () => {
     fireEvent.click(signOutItem())
 
     await waitFor(() => expect(signOutItem().textContent).toBe('تعذّر الخروج. أعد المحاولة'))
-    expect(status().textContent).toBe('تعذّر تسجيل الخروج. ما زالت جلستك نشطة — حاول مرة أخرى.')
+    expect(status().textContent).toBe('تعذّر تسجيل الخروج. ما زالت جلستك نشطة. حاول مرة أخرى.')
     expect(signOutItem().textContent).not.toMatch(/[A-Za-z]/)
   })
 })

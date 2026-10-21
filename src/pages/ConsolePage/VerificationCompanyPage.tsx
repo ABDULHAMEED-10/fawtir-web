@@ -13,6 +13,7 @@ import {
   correctionOverdueSince,
   historyPath,
   isCompanyId,
+  isAwaitingCorrection,
   isCorrectionOverdue,
   isSubmitted,
   queueReturnOf,
@@ -145,6 +146,7 @@ function CompanyView({
   const submitted = isSubmitted(company)
   const heldPayment = payment.status === 'ready' ? payment.data : null
   const overdue = submitted && isCorrectionOverdue(company)
+  const sentBack = submitted && isAwaitingCorrection(company)
 
   return (
     <>
@@ -291,14 +293,14 @@ function CompanyView({
               onDecided={onDecided}
             />
           ) : null}
-          {overdue ? (
+          {sentBack || overdue ? (
             <DecisionPanel
-              key={`${company.tenantId}:${company.expectedRevision}:overdue`}
+              key={`${company.tenantId}:${company.expectedRevision}:sent-back`}
               company={company}
               operatorId={peekEntitlements()?.userId ?? null}
               paymentStatus={heldPayment?.payment?.status ?? null}
               onDecided={onDecided}
-              closeOverdue
+              closeSentBack={overdue ? 'overdue' : 'onTime'}
             />
           ) : null}
           {submitted ? <SignupPaymentPanel read={payment} retry={retryPayment} /> : null}

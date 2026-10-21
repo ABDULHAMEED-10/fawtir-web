@@ -1,34 +1,101 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { unitOptions, useReferenceData } from '../../lib/reference/referenceData'
+import { useReferenceData } from '../../lib/reference/referenceData'
 import { CatalogShell } from './CatalogShell'
-import { Select, TableCheckbox } from '../../components/ui'
-import { omr } from '../../lib/catalog'
-import { SUGGESTED, DEFAULT_PICKS, readyToAdd, BUSINESS_KIND } from '../../lib/catalogBuild'
+import { OptionPicker, Select, TableCheckbox } from '../../components/ui'
+import { selectAllOnFocus, unitOptions } from '../../components/invoice'
+import { DESIGN_REFERENCE, omanTaxCategories } from '../../lib/invoiceDraft'
+import { defaultPicks, readyToAdd, type SuggestedGroup } from '../../lib/catalogBuild'
+import { loadTemplate, suggestedFrom, TEMPLATE_SUB_TYPES } from '../../lib/catalogTemplates'
 import searchIcon from '../../assets/invoices/search.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import bagIcon from '../../assets/catalog/kind-bag.svg'
 import plusIcon from '../../assets/catalog/plus-muted.svg'
 import tickWhiteIcon from '../../assets/catalog/check-white.svg'
 
+/** The choice that starts a catalogue with no template. */
+const OWN = 'own'
+
+/**
+ * TODO(backend): the company's own sub-business type, chosen at signup, is not readable after
+ * signup yet; the screen opens on the first template and the person picks theirs (INCOME.md P.6).
+ */
+const FIRST_TEMPLATE = TEMPLATE_SUB_TYPES[0]?.id ?? OWN
+
+/** First-strong isolate: an English name inside an Arabic sentence keeps its own order. */
+const isolate = (text: string) => `\u2068${text}\u2069`
+
+/** A price as the catalogue keeps it: three decimals, or empty while there is none. */
+const threeDecimals = (raw: string) => {
+  const value = Number(raw.replace(/,/g, ''))
+  return Number.isFinite(value) && value > 0 ? value.toFixed(3) : ''
+}
+
 /**
  * Catalog › Build your catalog (Figma 135:43755).
  *
  * Three panes that narrow left to right — group, kind, then the exact things that carry a price.
  * The counter is the number of leaves ticked, so it can never promise to create a branch.
+ *
+ * The suggestions are the system template for a sub-business type (owner, 21 Oct 2026; the
+ * Figma frame's coffee roastery was a sample). Every suggested item is editable here: price
+ * (three decimals, none until typed), unit and VAT category; the rest is edited on the item
+ * once added. "Start my own catalogue" uses no template. Adding still calls no API (P.5).
  */
 export function BuildCatalogPage() {
   const { t } = useTranslation()
   const reference = useReferenceData()
   const navigate = useNavigate()
 
-  const [picks, setPicks] = useState<Set<string>>(new Set(DEFAULT_PICKS))
-  const [group, setGroup] = useState('greenBeans')
-  const [kind, setKind] = useState('houseBlend')
+  const [subType, setSubType] = useState(FIRST_TEMPLATE)
+  const [suggested, setSuggested] = useState<SuggestedGroup[]>([])
+  const [picks, setPicks] = useState<Set<string>>(new Set())
+  const [group, setGroup] = useState('')
+  const [kind, setKind] = useState('')
   const [kindQuery, setKindQuery] = useState('')
   const [sizeQuery, setSizeQuery] = useState('')
-  const [prices, setPrices] = useState<Record<string, number>>({})
+  const [prices, setPrices] = useState<Record<string, string>>({})
+  const [units, setUnits] = useState<Record<string, string>>({})
+  const [taxes, setTaxes] = useState<Record<string, string>>({})
+
+  // A new template replaces everything picked and typed for the old one.
+  useEffect(() => {
+    let live = true
+    const apply = (next: SuggestedGroup[]) => {
+      if (!live) return
+      setSuggested(next)
+      setPicks(defaultPicks(next))
+      setGroup(next[0]?.id ?? '')
+      setKind(next[0]?.kinds[0]?.id ?? '')
+      setPrices({})
+      setUnits({})
+      setTaxes({})
+    }
+    if (subType === OWN) apply([])
+    else loadTemplate(subType).then((groups) => apply(suggestedFrom(groups)))
+    return () => {
+      live = false
+    }
+  }, [subType])
+
+  const categories = omanTaxCategories(
+    reference?.taxCategories?.length ? reference.taxCategories : DESIGN_REFERENCE.taxCategories,
+  )
+  const taxOptions = categories.map((row) => ({
+    value: row.code,
+    label: t(`createInvoice.taxCategories.${row.code}`, { defaultValue: row.code }),
+    // Words, not the category letter: 5%, or what the 0% is (zero-rated, exempt, out of scope).
+    shortLabel:
+      row.en16931Category === 'S'
+        ? `${Number(row.rate)}%`
+        : t(`buildCatalog.taxShort.${row.en16931Category}`),
+  }))
+  const subTypeOptions = [
+    ...TEMPLATE_SUB_TYPES.map((option) => ({ value: option.id, label: t(option.labelKey) })),
+    { value: OWN, label: t('buildCatalog.ownCatalogue') },
+  ]
+  const subTypeLabel = subTypeOptions.find((option) => option.value === subType)?.label ?? ''
 
   const toggle = (id: string) =>
     setPicks((current) => {
@@ -38,13 +105,18 @@ export function BuildCatalogPage() {
       return next
     })
 
-  const activeGroup = SUGGESTED.find((entry) => entry.id === group)
+  const activeGroup = suggested.find((entry) => entry.id === group)
   const activeKind = activeGroup?.kinds.find((entry) => entry.id === kind)
 
-  const ready = useMemo(() => readyToAdd(picks), [picks])
+  const ready = useMemo(() => readyToAdd(suggested, picks), [suggested, picks])
+  // Ticked things still without a price: they are added, and priced on the item later.
+  const unpriced = suggested
+    .flatMap((entry) => entry.kinds.filter((k) => picks.has(entry.id) && picks.has(k.id)))
+    .flatMap((entry) => entry.sizes)
+    .filter((size) => picks.has(size.id) && !(Number(prices[size.id]) > 0)).length
 
   const pickedKinds = (groupId: string) =>
-    SUGGESTED.find((entry) => entry.id === groupId)?.kinds.filter((k) => picks.has(k.id)).length ??
+    suggested.find((entry) => entry.id === groupId)?.kinds.filter((k) => picks.has(k.id)).length ??
     0
 
   const pickedSizes = (kindId: string) =>
@@ -60,12 +132,23 @@ export function BuildCatalogPage() {
       title={t('buildCatalog.title')}
       subtitle={t('buildCatalog.subtitle')}
       actions={
-        <Link
-          to="/catalog/upload"
-          className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-        >
-          {t('buildCatalog.uploadInstead')}
-        </Link>
+        <>
+          {/* Which template: a header choice beside the other way in, so the banner keeps the
+              frame's one line (owner's Figma review, 21 Oct 2026). */}
+          <OptionPicker
+            tall
+            ariaLabel={t('buildCatalog.businessType')}
+            value={subType}
+            onChange={setSubType}
+            options={subTypeOptions}
+          />
+          <Link
+            to="/catalog/upload"
+            className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+          >
+            {t('buildCatalog.uploadInstead')}
+          </Link>
+        </>
       }
     >
       {/* What Fawtir is going on */}
@@ -74,11 +157,9 @@ export function BuildCatalogPage() {
           <img src={bagIcon} alt="" className="size-5" />
         </span>
         <div className="min-w-[280px] flex-1">
-          <p className="text-base font-semibold text-text-primary">
-            {t('buildCatalog.coffeeRoastery')}
-          </p>
+          <p className="text-base font-semibold text-text-primary">{subTypeLabel}</p>
           <p className="mt-1 text-sm font-medium leading-[1.5] text-text-tertiary">
-            {t('buildCatalog.suggestionsNote')}
+            {t(subType === OWN ? 'buildCatalog.ownCatalogueNote' : 'buildCatalog.suggestionsNote')}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-4">
@@ -105,73 +186,95 @@ export function BuildCatalogPage() {
           n={1}
           title={t('buildCatalog.groups')}
           note={t('buildCatalog.groupsNote')}
-          count={`${SUGGESTED.filter((entry) => picks.has(entry.id)).length} of ${SUGGESTED.length}`}
+          count={t('buildCatalog.ofTotal', {
+            picked: suggested.filter((entry) => picks.has(entry.id)).length,
+            total: suggested.length,
+          })}
           footer={t('buildCatalog.addAGroup')}
         >
-          <ul>
-            {SUGGESTED.map((entry) => {
-              const on = picks.has(entry.id)
-              const open = entry.id === group
-              const kinds = pickedKinds(entry.id)
-              return (
-                <li key={entry.id}>
-                  <div
-                    className={[
-                      'flex items-center gap-3 px-4 py-3 transition-colors',
-                      open
-                        ? 'border-s-[3px] border-s-primary-700 bg-primary-25'
-                        : 'hover:bg-primary-25',
-                    ].join(' ')}
-                  >
-                    <TableCheckbox
-                      checked={on}
-                      indeterminate={!on && kinds > 0}
-                      onChange={() => toggle(entry.id)}
-                      ariaLabel={entry.name}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setGroup(entry.id)
-                        const first = entry.kinds.find((k) => picks.has(k.id)) ?? entry.kinds[0]
-                        if (first) setKind(first.id)
-                      }}
-                      className="flex min-w-0 flex-1 items-center gap-2 text-start"
+          {suggested.length === 0 ? (
+            <div className="px-4 py-10 text-center">
+              <p className="text-sm font-medium text-text-quaternary">
+                {t('buildCatalog.ownEmpty')}
+              </p>
+              <Link
+                to="/catalog/new"
+                className="mt-3 inline-flex h-[38px] items-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+              >
+                {t('buildCatalog.addFirstItem')}
+              </Link>
+            </div>
+          ) : (
+            <ul>
+              {suggested.map((entry) => {
+                const on = picks.has(entry.id)
+                const open = entry.id === group
+                const kinds = pickedKinds(entry.id)
+                return (
+                  <li key={entry.id}>
+                    <div
+                      className={[
+                        'flex items-center gap-3 px-4 py-3 transition-colors',
+                        open
+                          ? 'border-s-[3px] border-s-primary-700 bg-primary-25'
+                          : 'hover:bg-primary-25',
+                      ].join(' ')}
                     >
-                      <span
-                        className={[
-                          'text-sm',
-                          open ? 'font-semibold text-primary-800' : 'font-medium text-text-primary',
-                        ].join(' ')}
-                      >
-                        {entry.name}
-                      </span>
-                      {kinds > 0 ? (
-                        <span className="text-xs font-medium text-text-quaternary">
-                          {t('buildCatalog.kindsPicked', { count: kinds })}
-                        </span>
-                      ) : null}
-                    </button>
-                    {entry.kinds.length > 0 ? (
-                      <img
-                        src={chevronIcon}
-                        alt=""
-                        aria-hidden="true"
-                        className="size-4 shrink-0 opacity-40 rtl:rotate-180"
+                      <TableCheckbox
+                        checked={on}
+                        indeterminate={!on && kinds > 0}
+                        onChange={() => toggle(entry.id)}
+                        ariaLabel={entry.name}
                       />
-                    ) : null}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGroup(entry.id)
+                          const first = entry.kinds.find((k) => picks.has(k.id)) ?? entry.kinds[0]
+                          if (first) setKind(first.id)
+                        }}
+                        className="flex min-w-0 flex-1 items-center gap-2 text-start"
+                      >
+                        <span
+                          className={[
+                            'text-sm',
+                            open
+                              ? 'font-semibold text-primary-800'
+                              : 'font-medium text-text-primary',
+                          ].join(' ')}
+                        >
+                          <bdi>{entry.name}</bdi>
+                        </span>
+                        {kinds > 0 ? (
+                          <span className="text-xs font-medium text-text-quaternary">
+                            {t('buildCatalog.kindsPicked', { count: kinds })}
+                          </span>
+                        ) : null}
+                      </button>
+                      {entry.kinds.length > 0 ? (
+                        <img
+                          src={chevronIcon}
+                          alt=""
+                          aria-hidden="true"
+                          className="size-4 shrink-0 opacity-40 rtl:rotate-180"
+                        />
+                      ) : null}
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </Pane>
 
         <Pane
           n={2}
-          title={t('buildCatalog.insideGroup', { group: activeGroup?.name ?? '' })}
+          title={t('buildCatalog.insideGroup', { group: isolate(activeGroup?.name ?? '') })}
           note={t('buildCatalog.insideGroupNote')}
-          count={`${pickedKinds(group)} of ${activeGroup?.kinds.length ?? 0}`}
+          count={t('buildCatalog.ofTotal', {
+            picked: pickedKinds(group),
+            total: activeGroup?.kinds.length ?? 0,
+          })}
           search={{
             value: kindQuery,
             onChange: setKindQuery,
@@ -222,7 +325,7 @@ export function BuildCatalogPage() {
                                 : 'font-medium text-text-primary',
                             ].join(' ')}
                           >
-                            {entry.name}
+                            <bdi>{entry.name}</bdi>
                           </span>
                           {sizes > 0 ? (
                             <span className="text-xs font-medium text-text-quaternary">
@@ -255,9 +358,12 @@ export function BuildCatalogPage() {
       {/* Pane three */}
       <Pane
         n={3}
-        title={t('buildCatalog.whatYouSell', { kind: activeKind?.name ?? '' })}
+        title={t('buildCatalog.whatYouSell', { kind: isolate(activeKind?.name ?? '') })}
         note={t('buildCatalog.whatYouSellNote')}
-        count={`${pickedSizes(kind)} of ${activeKind?.sizes.length ?? 0}`}
+        count={t('buildCatalog.ofTotal', {
+          picked: pickedSizes(kind),
+          total: activeKind?.sizes.length ?? 0,
+        })}
         search={{
           value: sizeQuery,
           onChange: setSizeQuery,
@@ -272,20 +378,21 @@ export function BuildCatalogPage() {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse">
+            <table className="w-full min-w-[640px] border-collapse">
               <thead>
                 <tr className="border-b border-surface-background text-[10px] font-semibold uppercase tracking-[0.5px] text-text-quaternary">
                   <th className="h-[38px] w-[46px] px-4" />
-                  <th className="h-[38px] px-3 text-start font-semibold">
+                  <th className="h-[38px] w-full px-3 text-start font-semibold">
                     {t('buildCatalog.col.whatYoudSell')}
                   </th>
-                  <th className="h-[38px] px-3 text-end font-semibold">
+                  {/* Price, sold as and tax hug the right edge, each heading over its field. */}
+                  <th className="h-[38px] whitespace-nowrap px-1.5 text-end font-semibold">
                     {t('buildCatalog.col.price')}
                   </th>
-                  <th className="h-[38px] px-3 text-start font-semibold">
+                  <th className="h-[38px] whitespace-nowrap px-1.5 text-start font-semibold">
                     {t('buildCatalog.col.soldAs')}
                   </th>
-                  <th className="h-[38px] px-3 text-start font-semibold">
+                  <th className="h-[38px] whitespace-nowrap pe-4 ps-1.5 text-start font-semibold">
                     {t('buildCatalog.col.tax')}
                   </th>
                 </tr>
@@ -297,7 +404,9 @@ export function BuildCatalogPage() {
                   )
                   .map((size) => {
                     const on = picks.has(size.id)
-                    const price = prices[size.id] ?? size.price
+                    const price = prices[size.id] ?? ''
+                    const unit = units[size.id] ?? size.soldAs
+                    const tax = taxes[size.id] ?? size.taxCode ?? 'S5'
                     return (
                       <tr
                         key={size.id}
@@ -314,56 +423,74 @@ export function BuildCatalogPage() {
                           />
                         </td>
                         <td className="px-3 py-3">
-                          <p className="text-sm font-medium text-text-primary">{size.name}</p>
-                          <p className="mt-0.5 text-xs font-medium text-text-quaternary">
-                            {size.noteKey
-                              ? t(size.noteKey)
-                              : size.nearbyFrom
-                                ? t('buildCatalog.nearbyCharge', {
-                                    from: omr(size.nearbyFrom),
-                                    to: omr(size.nearbyTo ?? size.nearbyFrom),
-                                  })
-                                : ''}
+                          <p className="text-sm font-medium text-text-primary">
+                            <bdi>{size.name}</bdi>
                           </p>
+                          <p className="mt-0.5 text-xs font-medium text-text-quaternary">
+                            {size.brand ? <bdi>{size.brand}</bdi> : null}
+                            {size.brand && size.barcode ? ' · ' : ''}
+                            {size.barcode ? <span dir="ltr">{size.barcode}</span> : null}
+                          </p>
+                          {tax === size.taxCode && size.reasonCode ? (
+                            <p className="mt-0.5 text-xs font-medium text-text-tertiary">
+                              {t('buildCatalog.startsZeroRated')}{' '}
+                              <span dir="ltr">{size.reasonCode}</span>
+                            </p>
+                          ) : null}
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-1.5 py-3">
                           <input
-                            value={omr(price)}
+                            value={price}
+                            placeholder={t('buildCatalog.setPrice')}
+                            inputMode="decimal"
+                            onFocus={selectAllOnFocus}
                             onChange={(event) =>
                               setPrices((current) => ({
                                 ...current,
-                                [size.id]: Number(event.target.value.replace(/[^\d.]/g, '')) || 0,
+                                [size.id]: event.target.value.replace(/[^\d.]/g, ''),
+                              }))
+                            }
+                            onBlur={() =>
+                              setPrices((current) => ({
+                                ...current,
+                                [size.id]: threeDecimals(current[size.id] ?? ''),
                               }))
                             }
                             disabled={!on}
                             aria-label={t('buildCatalog.col.price')}
-                            className="h-[42px] w-[120px] rounded-sm border border-border-default bg-white px-3 text-end text-sm font-semibold text-text-primary outline-none focus:border-border-brand disabled:bg-surface-background disabled:text-text-quaternary"
+                            dir="ltr"
+                            className="h-[42px] w-[120px] rounded-sm border border-transparent bg-surface-background px-3 text-end text-sm font-normal text-text-primary tabular-nums outline-none placeholder:text-text-placeholder focus:border-border-brand focus:bg-white disabled:bg-[#ececec] disabled:text-text-quaternary"
                           />
                         </td>
-                        <td className="px-3 py-3">
-                          <span className="block w-[110px]">
+                        <td className="px-1.5 py-3">
+                          <span className="block w-[132px]">
                             <Select
                               compact
+                              quiet
+                              tight
                               disabled={!on}
                               ariaLabel={t('buildCatalog.col.soldAs')}
-                              value={size.soldAs}
-                              onChange={() => undefined}
-                              options={unitOptions(reference, t)}
+                              value={unit}
+                              onChange={(next) =>
+                                setUnits((current) => ({ ...current, [size.id]: next }))
+                              }
+                              options={unitOptions('goods', t, unit, reference)}
                             />
                           </span>
                         </td>
-                        <td className="px-3 py-3">
-                          <span className="block w-[90px]">
+                        <td className="py-3 pe-4 ps-1.5">
+                          <span className="block w-[112px]">
                             <Select
                               compact
+                              quiet
+                              tight
                               disabled={!on}
                               ariaLabel={t('buildCatalog.col.tax')}
-                              value="5"
-                              onChange={() => undefined}
-                              options={[
-                                { value: '5', label: '5%' },
-                                { value: '0', label: '0%' },
-                              ]}
+                              value={tax}
+                              onChange={(next) =>
+                                setTaxes((current) => ({ ...current, [size.id]: next }))
+                              }
+                              options={taxOptions}
                             />
                           </span>
                         </td>
@@ -382,10 +509,12 @@ export function BuildCatalogPage() {
             ? t('buildCatalog.footerEmpty')
             : t('buildCatalog.footer', {
                 count: ready.count,
-                groups: ready.groups,
-                kinds: ready.kinds,
-                rate: BUSINESS_KIND.vatPercent,
+                groups: t('buildCatalog.groupCount', { count: ready.groups }),
+                kinds: t('buildCatalog.kindCount', { count: ready.kinds }),
               })}
+          {ready.count > 0 && unpriced > 0
+            ? ` · ${t('buildCatalog.stillNeedPrice', { count: unpriced })}`
+            : ''}
         </p>
         <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
           <Link
@@ -437,23 +566,22 @@ function Pane({
   return (
     <section className={['overflow-hidden rounded-md bg-surface-card', wide ? '' : ''].join(' ')}>
       <div className="flex flex-wrap items-start justify-between gap-3 p-5">
-        <p className="flex items-center gap-2.5">
-          <span className="flex size-6 items-center justify-center rounded-[4px] bg-primary-50 text-[11px] font-semibold text-primary-800">
+        <p className="flex min-w-0 items-start gap-2.5">
+          {/* The badge is the title's line height, so the number sits on the heading line. */}
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-[4px] bg-primary-50 text-[11px] font-semibold text-primary-800">
             {n}
           </span>
-          <span>
-            <span className="block text-lg font-semibold leading-[1.2] text-text-primary">
-              {title}
-            </span>
+          <span className="min-w-0">
+            <span className="block text-lg font-semibold leading-6 text-text-primary">{title}</span>
             <span className="mt-0.5 block text-xs font-medium text-text-quaternary">{note}</span>
           </span>
         </p>
-        <span className="shrink-0 text-xs font-medium text-text-quaternary">{count}</span>
+        <span className="shrink-0 text-xs font-medium leading-6 text-text-quaternary">{count}</span>
       </div>
 
       {search ? (
         <div className="px-5 pb-4">
-          <label className="flex h-[42px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-3">
+          <label className="flex h-[42px] items-center gap-2 rounded-sm bg-surface-background px-3 focus-within:ring-1 focus-within:ring-border-brand">
             <img src={searchIcon} alt="" className="size-4 opacity-60" />
             <input
               value={search.value}

@@ -105,9 +105,12 @@ const PAY_URL = QUICKLINK
   : 'https://app.fawtir.om/pay#n3wT0kenForScreenshotsOnly000000000000000'
 
 // Read only since D9: a link is valid 7 days, fixed, and there is no PUT.
+// `MOCK_PAY_LINKS_OFF=1`: the server reports payment links switched off.
+const LINKS_OFF = process.env.MOCK_PAY_LINKS_OFF === '1'
+
 const PAY_LINK_SETTINGS = {
-  enabled: true,
-  cardEnabled: true,
+  enabled: !LINKS_OFF,
+  cardEnabled: !LINKS_OFF,
   validityDays: 7,
   maxValidityDays: 7,
   settingsVersion: 3,

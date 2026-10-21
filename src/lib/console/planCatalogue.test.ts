@@ -4,6 +4,7 @@ import {
   changesTerms,
   describePlanSaveFailure,
   emptyPlanForm,
+  offersErpAddon,
   planCardLines,
   planFormFrom,
   sortCatalogue,
@@ -262,5 +263,102 @@ describe('withSavedPlans / sortCatalogue / planCardLines', () => {
       { key: 'plan.feature.prioritySupport' },
       { key: 'plan.feature.noOverage' },
     ])
+  })
+})
+
+describe('ERP and API add-on price (ER-1, PL-3)', () => {
+  const WITH_ADDON: CatalogueAdminPlan = {
+    ...PLAN,
+    currentVersion: { ...PLAN.currentVersion, erpAddonMonthlyPrice: '20.000' },
+    features: [...PLAN.features, { key: 'erpMapping', enabled: true }],
+  }
+  const withValues = (plan: CatalogueAdminPlan, change: Partial<ReturnType<typeof planFormFrom>>) => ({
+    ...planFormFrom(plan),
+    ...change,
+  })
+
+  it('reads the stored price into the form, and an older server (no field) as empty', () => {
+    expect(planFormFrom(WITH_ADDON).erpAddonMonthlyPrice).toBe('20.000')
+    expect(planFormFrom(PLAN).erpAddonMonthlyPrice).toBe('')
+    expect(emptyPlanForm().erpAddonMonthlyPrice).toBe('')
+  })
+
+  it('omits an untouched or equal price, so the server keeps the one in force', () => {
+    expect(toPlanRequest(planFormFrom(WITH_ADDON), 'edit', WITH_ADDON)).not.toHaveProperty(
+      'erpAddonMonthlyPrice',
+    )
+    const same = withValues(WITH_ADDON, { erpAddonMonthlyPrice: '20' })
+    expect(toPlanRequest(same, 'edit', WITH_ADDON)).not.toHaveProperty('erpAddonMonthlyPrice')
+    expect(changesTerms(WITH_ADDON, same)).toBe(false)
+    expect(toPlanRequest(planFormFrom(PLAN), 'edit', PLAN)).not.toHaveProperty(
+      'erpAddonMonthlyPrice',
+    )
+  })
+
+  it('sends a changed price at three decimals, as a term change that needs a reason', () => {
+    const changed = withValues(WITH_ADDON, { erpAddonMonthlyPrice: '22.5' })
+    expect(changesTerms(WITH_ADDON, changed)).toBe(true)
+    expect(validatePlanForm(changed, 'edit', [], WITH_ADDON).reason).toBe(
+      'console.plans.validation.reasonRequired',
+    )
+    expect(toPlanRequest({ ...changed, reason: 'Owner decision' }, 'edit', WITH_ADDON)).toMatchObject(
+      { erpAddonMonthlyPrice: '22.500', reason: 'Owner decision' },
+    )
+  })
+
+  it('refuses zero, a malformed amount, and a price without ERP field mapping', () => {
+    const errorFor = (plan: CatalogueAdminPlan, value: string, mapping = true) =>
+      validatePlanForm(
+        withValues(plan, {
+          erpAddonMonthlyPrice: value,
+          features: { ...planFormFrom(plan).features, erpMapping: mapping },
+        }),
+        'edit',
+        [],
+        plan,
+      ).erpAddonMonthlyPrice
+    expect(errorFor(WITH_ADDON, '0')).toBe('console.plans.validation.erpAddonAboveZero')
+    expect(errorFor(WITH_ADDON, '1.2345')).toBe('console.plans.validation.money')
+    expect(errorFor(PLAN, '20', false)).toBe('console.plans.validation.erpAddonNeedsMapping')
+    expect(errorFor(PLAN, '20', true)).toBeUndefined()
+    // The price in force stays when mapping is switched off: nothing is sent, nothing refused.
+    expect(errorFor(WITH_ADDON, '20.000', false)).toBeUndefined()
+    // A price in force cannot be removed while the add-on is offered.
+    expect(errorFor(WITH_ADDON, '', true)).toBe('console.plans.validation.erpAddonKeep')
+    expect(errorFor(WITH_ADDON, '', false)).toBeUndefined()
+    expect(errorFor(PLAN, '', true)).toBeUndefined()
+  })
+
+  it('lists the stored price on the card, and nothing without one', () => {
+    expect(planCardLines(WITH_ADDON)).toContainEqual({
+      key: 'console.plans.erpAddonLine',
+      values: { amount: '20.000' },
+    })
+    expect(planCardLines(PLAN).map((line) => line.key)).not.toContain('console.plans.erpAddonLine')
+  })
+
+  it('shows no add-on price while ERP field mapping is off, even with one stored', () => {
+    const mappingOff: CatalogueAdminPlan = {
+      ...WITH_ADDON,
+      features: [...PLAN.features, { key: 'erpMapping', enabled: false }],
+    }
+    const noSwitch: CatalogueAdminPlan = { ...WITH_ADDON, features: PLAN.features }
+    expect(offersErpAddon(WITH_ADDON)).toBe(true)
+    expect(offersErpAddon(mappingOff)).toBe(false)
+    expect(offersErpAddon(noSwitch)).toBe(false)
+    for (const plan of [mappingOff, noSwitch]) {
+      expect(planCardLines(plan).map((line) => line.key)).not.toContain('console.plans.erpAddonLine')
+    }
+  })
+
+  it('marks the field when the server names it', () => {
+    const error = new ApiError({
+      status: 400,
+      problemType: 'validation-failed',
+      fieldErrors: [{ field: 'erpAddonMonthlyPrice', message: 'must match' }],
+    })
+    expect(describePlanSaveFailure(error, 'edit').fieldErrors).toEqual({
+      erpAddonMonthlyPrice: 'console.plans.validation.server',
+    })
   })
 })

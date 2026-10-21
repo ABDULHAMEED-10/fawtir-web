@@ -225,7 +225,7 @@ describe('subscription reminders in the bell', () => {
     notices = [CANCELLED]
     renderBell()
     const panel = await openPanel('الإشعارات')
-    const line = (await within(panel).findByText(/^ألغت فوتر اشتراكك في 17 /)).closest('li')!
+    const line = (await within(panel).findByText(/^ألغى فوتر اشتراكك في 17 /)).closest('li')!
     expect(line.textContent).toContain('حسابك الآن للقراءة فقط.')
     expect(within(line).getByRole('button', { name: 'اعرض خطتك' })).toBeTruthy()
     expect(line.textContent).not.toMatch(/Fawtir|فوتير|notes\./)

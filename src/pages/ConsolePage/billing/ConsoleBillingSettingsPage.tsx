@@ -14,6 +14,10 @@ import {
   BILLING_READ_PERMISSION,
 } from '../../../lib/console/billingPayments'
 import {
+  ANNUAL_MONTHS_DEFAULTS,
+  ANNUAL_MONTHS_FIELDS,
+  ANNUAL_MONTHS_MAX,
+  ANNUAL_MONTHS_MIN,
   BILLING_SETTINGS_PATH,
   chargesVat,
   fractionToPercent,
@@ -22,6 +26,7 @@ import {
   saveBillingSettings,
   type BillingSettingsDto,
   type BillingSettingsRequest,
+  type AnnualMonthsField,
 } from '../../../lib/console/billingSettings'
 import {
   FieldGrid,
@@ -42,10 +47,22 @@ type Form = {
   threshold: string
   vatOn: boolean
   vatPercent: string
+  /** V406; empty and not shown while the server does not report the setting. */
+  erpAddonAnnualMonths: string
+  extraUserAnnualMonths: string
+  extraBranchAnnualMonths: string
   reason: string
 }
 
 type Errors = Partial<Record<keyof Form, string>>
+
+/** The server reports the setting at all: an older one sends no such field, and gets none back. */
+const reports = (settings: BillingSettingsDto, field: AnnualMonthsField) =>
+  settings[field] !== undefined
+
+/** The value in force: a null (a version before V406) reads as the server's default. */
+const annualMonths = (settings: BillingSettingsDto, field: AnnualMonthsField) =>
+  reports(settings, field) ? String(settings[field] ?? ANNUAL_MONTHS_DEFAULTS[field]) : ''
 
 /**
  * The platform billing settings (backend V270, V271), the real record bills are issued from; the
@@ -113,6 +130,9 @@ function toForm(settings: BillingSettingsDto): Form {
     vatOn: chargesVat(settings.vatRate),
     vatPercent:
       chargesVat(settings.vatRate) && settings.vatRate ? fractionToPercent(settings.vatRate) : '',
+    erpAddonAnnualMonths: annualMonths(settings, 'erpAddonAnnualMonths'),
+    extraUserAnnualMonths: annualMonths(settings, 'extraUserAnnualMonths'),
+    extraBranchAnnualMonths: annualMonths(settings, 'extraBranchAnnualMonths'),
     reason: '',
   }
 }
@@ -133,10 +153,14 @@ function SettingsForm({
   const [form, setForm] = useState<Form>(stored)
   const [attempted, setAttempted] = useState(false)
   const [busy, setBusy] = useState(false)
-  const errors = attempted ? validate(form) : {}
+  const shown = ANNUAL_MONTHS_FIELDS.filter((field) => reports(settings, field))
+  const errors = attempted ? validate(form, shown) : {}
   const err = (field: keyof Form) => {
     const key = errors[field]
-    return key ? t(key, { min: 0, max: MAX_DAYS }) : undefined
+    const bounds = (ANNUAL_MONTHS_FIELDS as readonly string[]).includes(field)
+      ? { min: ANNUAL_MONTHS_MIN, max: ANNUAL_MONTHS_MAX }
+      : { min: 0, max: MAX_DAYS }
+    return key ? t(key, bounds) : undefined
   }
   const dirty = JSON.stringify({ ...form, reason: '' }) !== JSON.stringify(stored)
   const set = <F extends keyof Form>(field: F, value: Form[F]) =>
@@ -144,7 +168,7 @@ function SettingsForm({
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (Object.keys(validate(form)).length > 0) {
+    if (Object.keys(validate(form, shown)).length > 0) {
       setAttempted(true)
       return
     }
@@ -159,6 +183,10 @@ function SettingsForm({
       request.vatRate = form.vatOn ? percentToFraction(form.vatPercent) : '0'
     }
     if (form.leadDays.trim() !== '') request.renewalBillLeadDays = Number(form.leadDays)
+    // Sent only when changed, so a save of anything else never decides these as a side effect.
+    for (const field of shown) {
+      if (form[field].trim() !== stored[field]) request[field] = Number(form[field])
+    }
     setBusy(true)
     try {
       await saveBillingSettings(settings.version, request)
@@ -218,6 +246,21 @@ function SettingsForm({
             error={err('threshold')}
           />
         </FieldGrid>
+        {shown.length > 0 ? (
+          <FieldGrid>
+            {shown.map((field) => (
+              <NumberField
+                key={field}
+                name={field}
+                label={t(`${K}annualMonths.${field}`)}
+                hint={t(`${K}annualMonths.hint`, { months: ANNUAL_MONTHS_DEFAULTS[field] })}
+                value={form[field]}
+                onChange={(value) => set(field, value)}
+                error={err(field)}
+              />
+            ))}
+          </FieldGrid>
+        ) : null}
         <SwitchRow
           title={t(`${K}vat`)}
           note={t(`${K}vatNote`)}
@@ -259,8 +302,17 @@ function SettingsForm({
 }
 
 /** Error keys by field, checked before sending so the server's 400 is the exception. */
-function validate(form: Form): Errors {
+function validate(form: Form, annual: readonly AnnualMonthsField[]): Errors {
   const errors: Errors = {}
+  for (const field of annual) {
+    const value = form[field].trim()
+    if (
+      !/^\d{1,2}$/.test(value) ||
+      Number(value) < ANNUAL_MONTHS_MIN ||
+      Number(value) > ANNUAL_MONTHS_MAX
+    )
+      errors[field] = 'console.settings.error.wholeBetween'
+  }
   const whole = (value: string) => /^\d{1,2}$/.test(value.trim()) && Number(value) <= MAX_DAYS
   if (!whole(form.graceDays)) errors.graceDays = 'console.settings.error.wholeBetween'
   if (form.leadDays.trim() !== '' && !whole(form.leadDays))

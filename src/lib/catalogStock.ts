@@ -23,7 +23,8 @@ export type StockRow = {
   /** A note the row prints instead of a plain "days left". */
   lastsNoteKey?: string
   lastsNoteValues?: Record<string, string | number>
-  ranOutOn?: string
+  /** The weekday it ran out, 0 for Sunday; named in the reader's language by `weekdayName`. */
+  ranOutOn?: number
 }
 
 export const STOCK_ROWS: StockRow[] = [
@@ -37,7 +38,7 @@ export const STOCK_ROWS: StockRow[] = [
     supplier: 'Muscat Roastery',
     lastsNoteKey: 'stock.usingBiggerInstead',
     lastsNoteValues: { amount: '0.090' },
-    ranOutOn: 'Monday',
+    ranOutOn: 1,
   },
   {
     id: 'yirgacheffe-1kg',
@@ -48,7 +49,7 @@ export const STOCK_ROWS: StockRow[] = [
     perDay: 3.1,
     supplier: 'Muscat Roastery',
     lastsNoteKey: 'stock.sellingAbout',
-    lastsNoteValues: { rate: '3 a day' },
+    lastsNoteValues: { rate: 3 },
   },
   {
     id: 'sidamo-1kg',
@@ -94,6 +95,19 @@ export const STOCK_ROWS: StockRow[] = [
     lastsNoteKey: 'stock.yourSteadiestSeller',
   },
 ]
+
+/**
+ * A weekday (0 for Sunday) in the interface language, so an Arabic screen says الاثنين rather
+ * than Monday. 18 October 2026 is a Sunday; any week would do.
+ */
+export function weekdayName(
+  sundayIndex: number,
+  language: string,
+  width: 'long' | 'short' = 'long',
+) {
+  const day = new Date(2026, 9, 18 + (((sundayIndex % 7) + 7) % 7))
+  return day.toLocaleDateString(language, { weekday: width })
+}
 
 export const itemOf = (id: string) => ITEMS.find((item) => item.id === id) as Item
 

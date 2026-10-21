@@ -25,6 +25,23 @@ export type ProductDto = {
   defaultTaxRate: number | null
   active: boolean
   version: number
+  /*
+   * TODO(backend): what an invoice line also needs from its product (owner, 21 Oct 2026); the
+   * product record does not carry these yet (docs/backend-guides/INCOME.md, rows P.1 to P.4).
+   * Each is optional, so a product without them fills a line as before.
+   */
+  /** Goods or service; the unit decides when it is absent. */
+  itemType?: 'GOODS' | 'SERVICE'
+  /** 12-digit Oman HS code of goods (IBR-079-OM). */
+  hsCode?: string | null
+  /** CL-12-OM service type of a service (IBR-155-OM). */
+  serviceTypeCode?: string | null
+  /** VATZR-OM (Z) or VATEX-OM (E) code. */
+  exemptionReasonCode?: string | null
+  /** Written reason, for O. */
+  exemptionReason?: string | null
+  /** The catalogue discount, the line's starting discount. */
+  defaultDiscount?: { type: 'PERCENTAGE' | 'FIXED_AMOUNT'; value: number } | null
 }
 
 export type NewProduct = {
@@ -36,9 +53,14 @@ export type NewProduct = {
   defaultTaxRate: number | null
 }
 
-/** Active products whose code or name contains `q`. Also the request's identity. */
-export function productSearchPath(q: string, size = PRODUCT_PICKER_SIZE): string {
-  return withQuery(PRODUCTS_PATH, { q: q.trim(), size })
+/**
+ * Active products whose code or name contains `q`. Also the request's identity.
+ *
+ * `page` is Spring's zero-based page. The first page leaves it out, so the path of every caller
+ * that never pages stays what it was.
+ */
+export function productSearchPath(q: string, size = PRODUCT_PICKER_SIZE, page = 0): string {
+  return withQuery(PRODUCTS_PATH, { q: q.trim(), size, page: page > 0 ? page : undefined })
 }
 
 export async function searchProducts(path: string): Promise<Page<ProductDto>> {

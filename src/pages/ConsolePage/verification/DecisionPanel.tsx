@@ -19,6 +19,7 @@ import {
   type VerificationStatus,
 } from '../../../lib/console/companyVerification'
 import { localeFor } from '../../../lib/console/format'
+import { formatDate } from '../../../lib/format'
 import { forgetEntitlements } from '../../../lib/identity/entitlements'
 import type { FormMessage } from '../../../lib/identity/errors'
 import { LOGIN_ROUTE } from '../../../lib/identity/login'
@@ -40,10 +41,11 @@ type DecisionPanelProps = {
    */
   onDecided: (outcome: VerificationStatus | null, final?: boolean) => void
   /**
-   * The application was sent back and its correction is overdue (D11): the only decision left is
-   * to close it with a final rejection, so the panel offers that alone.
+   * The application was sent back for a correction and not resubmitted (D11, SU-7, SU-8): the only
+   * decision left is to close it with a final rejection, at any time, so the panel offers that
+   * alone. `overdue` once the correction window has passed, `onTime` while it is still open.
    */
-  closeOverdue?: boolean
+  closeSentBack?: 'overdue' | 'onTime' | null
 }
 
 /**
@@ -59,8 +61,9 @@ export function DecisionPanel({
   operatorId,
   paymentStatus,
   onDecided,
-  closeOverdue = false,
+  closeSentBack = null,
 }: DecisionPanelProps) {
+  const closeOnly = closeSentBack !== null
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const [evidence, setEvidence] = useState<EvidenceUpload | null>(null)
@@ -75,7 +78,7 @@ export function DecisionPanel({
   // CORRECTABLE unless the reviewer says otherwise: a final refusal closes the application and
   // opens a refund for confirmed money, so it is never the default (owner, 12 Oct 2026).
   const [classification, setClassification] = useState<RejectionClassification>(
-    closeOverdue ? 'FINAL' : 'CORRECTABLE',
+    closeOnly ? 'FINAL' : 'CORRECTABLE',
   )
   const [finalReason, setFinalReason] = useState('')
   const [deciding, setDeciding] = useState(false)
@@ -166,7 +169,7 @@ export function DecisionPanel({
   const openDialog = (next: Exclude<Dialog, null>) => {
     setDecisionError(null)
     setReasonTouched(false)
-    setClassification(closeOverdue ? 'FINAL' : 'CORRECTABLE')
+    setClassification(closeOnly ? 'FINAL' : 'CORRECTABLE')
     setFinalReason('')
     setDialog(next)
   }
@@ -183,10 +186,14 @@ export function DecisionPanel({
 
   return (
     <ReviewCard title={t('console.verification.decision.title')}>
-      {closeOverdue ? (
+      {closeOnly ? (
         <>
           <p className="pb-3 text-sm font-medium leading-[1.6] text-text-tertiary">
-            {t('console.verification.correctionOverdue.closeIntro')}{' '}
+            {closeSentBack === 'onTime' && company.correctableUntil
+              ? t('console.verification.correctionOverdue.closeIntroOnTime', {
+                  date: formatDate(company.correctableUntil, i18n.language),
+                })
+              : t('console.verification.correctionOverdue.closeIntro')}{' '}
             {t('console.verification.correctionOverdue.refund')}
           </p>
           <ConsoleButton
@@ -387,7 +394,7 @@ export function DecisionPanel({
                   {t('console.verification.decision.reasonRequired')}
                 </p>
               ) : null}
-              {closeOverdue ? null : (
+              {closeOnly ? null : (
                 <fieldset className="mt-2 flex flex-col gap-2">
                   <legend className="text-sm font-medium text-text-secondary">
                     {t('console.verification.decision.classification')}

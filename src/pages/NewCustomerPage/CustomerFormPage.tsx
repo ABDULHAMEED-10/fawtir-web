@@ -24,6 +24,7 @@ import {
 } from '../../components/form'
 import { useApiRead } from '../../hooks'
 import { ApiError } from '../../api'
+import { peppolIdFor } from '../../lib/validation'
 import {
   CUSTOMERS_PATH,
   createCustomer,
@@ -190,6 +191,38 @@ function CustomerFormPage({ customerId }: { customerId: string | null }) {
     setErrors((current) =>
       current[field as CustomerField] ? { ...current, [field]: undefined } : current,
     )
+  }
+  /**
+   * The Peppol ID is `0248:` + the VAT number, so it follows the VAT number while it still reads
+   * what was filled in for the old one (or is empty). Once someone types a different ID it is
+   * theirs and the VAT number no longer moves it.
+   */
+  const followsVat = (current: CustomerFormValues) => {
+    const id = current.peppolId.trim().toUpperCase()
+    return id === '' || id === peppolIdFor(current.vatNumber)
+  }
+  const changeVat = (vatNumber: string) => {
+    setValues((current) => ({
+      ...current,
+      vatNumber,
+      peppolId: followsVat(current) ? peppolIdFor(vatNumber) : current.peppolId,
+    }))
+    setErrors((current) =>
+      current.vatNumber || current.peppolId
+        ? { ...current, vatNumber: undefined, peppolId: undefined }
+        : current,
+    )
+  }
+  const changeRegisteredOnPeppol = (registeredOnPeppol: boolean) => {
+    setValues((current) => ({
+      ...current,
+      registeredOnPeppol,
+      peppolId:
+        registeredOnPeppol && current.peppolId.trim() === ''
+          ? peppolIdFor(current.vatNumber)
+          : current.peppolId,
+    }))
+    setErrors((current) => (current.peppolId ? { ...current, peppolId: undefined } : current))
   }
   const changeAddress = (which: 'invoice' | 'delivery', field: AddressField, value: string) => {
     setValues((current) => ({ ...current, [which]: { ...current[which], [field]: value } }))
@@ -501,10 +534,15 @@ function CustomerFormPage({ customerId }: { customerId: string | null }) {
                     </FieldGrid>
                   ) : null}
                   <div className="grid items-end gap-4 sm:grid-cols-[1fr_auto]">
+                    {/* TODO(go-live): show `OM` as a fixed prefix and take only the digits, capped
+                        at 10 (owner, 21 Oct 2026). Held back for now: Peppol testing uses
+                        receivers outside the Omani VAT scheme (9922:OPTBCNTRLP1007), so the VAT
+                        stays free text and the Peppol ID below can be typed over. */}
                     <TextField
                       id={inputId('vatNumber')}
                       name="vatNumber"
                       label={t('newCustomer.details.vatNumber')}
+                      dir="ltr"
                       placeholder="OM1100000000"
                       hint={
                         values.registeredForVat ? undefined : t('supplierForm.notVatRegistered')
@@ -512,7 +550,7 @@ function CustomerFormPage({ customerId }: { customerId: string | null }) {
                       required={values.registeredForVat}
                       maxLength={64}
                       value={values.registeredForVat ? values.vatNumber : ''}
-                      onChange={(next) => change('vatNumber', next.toUpperCase())}
+                      onChange={(next) => changeVat(next.toUpperCase())}
                       error={errorText('vatNumber')}
                     />
                     <CheckboxRow
@@ -589,7 +627,7 @@ function CustomerFormPage({ customerId }: { customerId: string | null }) {
                       </span>
                       <Toggle
                         checked={values.registeredOnPeppol}
-                        onChange={(next) => change('registeredOnPeppol', next)}
+                        onChange={changeRegisteredOnPeppol}
                         label={t('newCustomer.details.registeredOnPeppol')}
                         name="registeredOnPeppol"
                       />
@@ -601,6 +639,8 @@ function CustomerFormPage({ customerId }: { customerId: string | null }) {
                       name="peppolId"
                       label={t('newCustomer.details.peppolId')}
                       placeholder="0248:OM1100000000"
+                      hint={t('newCustomer.details.peppolIdHint')}
+                      dir="ltr"
                       required
                       value={values.peppolId}
                       onChange={(next) => change('peppolId', next)}

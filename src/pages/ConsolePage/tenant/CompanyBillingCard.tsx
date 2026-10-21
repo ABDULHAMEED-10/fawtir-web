@@ -75,8 +75,9 @@ const known = (value: string, set: Record<string, unknown>) => (value in set ? v
  *
  * Gated on what the server reports, not only on permissions: the card is drawn only once
  * `GET /platform/billing/pay-link-settings` answers (a server without N8 answers 404, and the card
- * then stays away, so the tenant page is as it was). Sending a link and the link lists need
- * `enabled` (`FAWTIR_BILLING_PAY_LINKS_ENABLED`) as well.
+ * then stays away, so the tenant page is as it was). Every payment-link part (the title's "payment
+ * links", sending a link, the link lists) needs `enabled` (`FAWTIR_BILLING_PAY_LINKS_ENABLED`) to be
+ * true as well; a missing field reads as off. Start billing and the bills have no switch of their own.
  */
 export function CompanyBillingCard({
   overview,
@@ -140,7 +141,9 @@ function BillingCard({
   const [done, setDone] = useState<string | null>(null)
   // Bumped after a link changes, so the open list reads it again.
   const [linksRead, setLinksRead] = useState(0)
-  const title = t(`${K}title`)
+  // Payment links are staff-only and switched at the server: anything but `true` is off.
+  const linksOn = payLinks.enabled === true
+  const title = t(linksOn ? `${K}title` : `${K}titleBills`)
 
   if (subscription.read.status === 'loading' || bills.read.status === 'loading') {
     return (
@@ -165,7 +168,6 @@ function BillingCard({
   )
   const verified = overview.verification.status === 'VERIFIED'
   const day = (iso: string | null) => (iso ? formatDate(iso, i18n.language) : null)
-  const linksOn = payLinks.enabled
 
   const close = () => setDialog(null)
   const finish = (message: string) => {

@@ -10,6 +10,11 @@ export type Crumb = { labelKey?: string; label?: string; to?: string }
 /**
  * The frame the Catalog screens share — a breadcrumb back to the list, a title with its state
  * pills, and the row of actions (Figma 135:44255 and its siblings).
+ *
+ * Each branch keeps its own catalogue and stock (owner, 21 Oct 2026). The branch is the one
+ * chosen in the sidebar's company card for the whole platform; these screens have no picker of
+ * their own. TODO(backend): products and stock are not per branch yet, so every branch shows the
+ * same rows (docs/backend-guides/INCOME.md, rows P.9 and P.10).
  */
 export function CatalogShell({
   crumbs,
@@ -18,6 +23,7 @@ export function CatalogShell({
   pills,
   actions,
   tabs,
+  wideHeading,
   children,
 }: {
   crumbs: Crumb[]
@@ -28,6 +34,8 @@ export function CatalogShell({
   actions?: ReactNode
   /** The four tabs an item carries; absent on the list screens. */
   tabs?: ReactNode
+  /** Lets a long subtitle run the full width beside the actions instead of wrapping at 760 px. */
+  wideHeading?: boolean
   children: ReactNode
 }) {
   const { t } = useTranslation()
@@ -74,7 +82,12 @@ export function CatalogShell({
         ) : null}
 
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-[760px]">
+          <div
+            className={[
+              'min-w-0 flex-1 basis-[420px]',
+              wideHeading ? 'max-w-none' : 'max-w-[760px]',
+            ].join(' ')}
+          >
             <h1 className="flex flex-wrap items-center gap-2.5">
               <span className="text-[32px] font-medium leading-[1.2] text-text-primary">
                 {title}
@@ -108,11 +121,11 @@ export function Pill({
   children: ReactNode
 }) {
   const tones = {
-    success: 'bg-success-100 text-[#3d5648]',
-    brand: 'bg-primary-50 text-primary-800',
-    neutral: 'bg-surface-background text-text-tertiary',
-    pending: 'bg-pending-100 text-pending-700',
-    danger: 'bg-danger-100 text-danger-700',
+    success: 'border-[#4c6c5a]/30 bg-success-100 text-[#3d5648]',
+    brand: 'border-primary-200 bg-primary-50 text-primary-800',
+    neutral: 'border-border-subtle bg-surface-background text-text-tertiary',
+    pending: 'border-pending-500/40 bg-pending-100 text-pending-700',
+    danger: 'border-danger-700/25 bg-danger-100 text-danger-700',
   }
   const dots = {
     success: 'bg-[#4c6c5a]',
@@ -124,7 +137,7 @@ export function Pill({
   return (
     <span
       className={[
-        'inline-flex h-[26px] items-center gap-1.5 rounded-[3px] px-2.5 text-xs font-medium',
+        'inline-flex h-[26px] items-center gap-1.5 whitespace-nowrap rounded-[3px] border px-2.5 text-xs font-medium',
         tones[tone],
       ].join(' ')}
     >
@@ -145,6 +158,7 @@ export function Kpi({
   note,
   tone,
   highlight,
+  solidIcon,
 }: {
   icon: string
   tint?: string
@@ -154,34 +168,52 @@ export function Kpi({
   /** An amount of money — the rial sign stands before it, in the figure's size and colour. */
   currency?: boolean
   note: string
-  tone?: 'pending' | 'danger'
+  /** `muted` is for a figure that is really a word, such as "Nothing yet". */
+  tone?: 'pending' | 'danger' | 'muted'
   /** The card the design paints in sand because it is the one asking for something. */
   highlight?: boolean
+  /** The icon in a filled dark-amber circle, as the highlight card draws it, on a plain card. */
+  solidIcon?: boolean
 }) {
+  const solid = highlight || solidIcon
   return (
     <article
-      className={['rounded-md p-5', highlight ? 'bg-pending-100/70' : 'bg-surface-card'].join(' ')}
+      className={[
+        'rounded-md border p-5',
+        highlight
+          ? 'border-pending-500/60 bg-pending-100/70'
+          : 'border-transparent bg-surface-card',
+      ].join(' ')}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         <span
           className={[
             'flex size-9 shrink-0 items-center justify-center rounded-full',
-            highlight ? 'bg-pending-200/60' : tint,
+            solid ? 'bg-pending-700' : tint,
           ].join(' ')}
         >
-          <img src={icon} alt="" className="size-[18px]" />
+          <img
+            src={icon}
+            alt=""
+            className={['size-[18px]', solid ? 'brightness-0 invert' : ''].join(' ')}
+          />
         </span>
-        <h3 className="text-base font-medium leading-[1.2] text-text-secondary">{label}</h3>
+        <h3 className="min-w-0 text-[15px] font-medium leading-[1.2] text-text-secondary">
+          {label}
+        </h3>
       </div>
       <p className="mt-3 flex items-baseline gap-2">
         <span
           className={[
-            'text-[28px] font-semibold leading-[1.2] tabular-nums',
-            tone === 'pending'
-              ? 'text-pending-700'
-              : tone === 'danger'
-                ? 'text-danger-700'
-                : 'text-text-primary',
+            'text-[28px] leading-[1.2] tabular-nums',
+            tone === 'muted' ? 'font-normal' : 'font-semibold',
+            tone === 'muted'
+              ? 'text-text-quaternary'
+              : tone === 'pending'
+                ? 'text-pending-700'
+                : tone === 'danger'
+                  ? 'text-danger-700'
+                  : 'text-text-primary',
           ].join(' ')}
         >
           {currency ? (
@@ -213,7 +245,7 @@ export function TabStrip<T extends string>({
 }) {
   const { t } = useTranslation()
   return (
-    <nav className="flex flex-wrap items-center gap-1 border-b border-surface-background px-5 pt-4">
+    <nav className="flex items-center gap-1 overflow-x-auto border-b border-surface-background px-5 pt-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {tabs.map((tab) => {
         const active = tab.id === value
         return (
@@ -223,7 +255,7 @@ export function TabStrip<T extends string>({
             onClick={() => onChange(tab.id)}
             aria-pressed={active}
             className={[
-              'inline-flex h-[42px] items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors',
+              'inline-flex h-[42px] shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 text-sm font-medium transition-colors',
               active
                 ? 'border-primary-700 text-primary-800'
                 : 'border-transparent text-text-quaternary hover:text-text-secondary',
@@ -232,8 +264,8 @@ export function TabStrip<T extends string>({
             {t(tab.labelKey)}
             <span
               className={[
-                'inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-semibold',
-                active ? 'bg-primary-700 text-white' : 'bg-surface-background text-text-tertiary',
+                'inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-surface-background px-1.5 text-[10px] font-semibold',
+                active ? 'text-primary-700' : 'text-text-tertiary',
               ].join(' ')}
             >
               {count(tab.id)}

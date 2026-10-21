@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
-import { TableCheckbox, withRial } from '../../components/ui'
+import { Rial, TableCheckbox, withRial } from '../../components/ui'
+import { PosFootNote } from './PosFootNote'
+import { DocumentIcon } from './posIcons'
 import { LULL, OPEN_SALE, itemById, omr, omrSigned, unitPrice } from '../../lib/pos'
 import {
   CREDITED_INVOICE,
@@ -83,16 +85,10 @@ export function PosRefundPage() {
                 </button>
               </div>
 
-              <div className="mx-5 mt-4 flex flex-wrap items-center gap-3 rounded-sm bg-surface-tab-bar px-4 py-3">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-white text-text-tertiary">
-                  <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-                    <path
-                      d="M5 3h7l3 3v11H5V3Z"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+              {/* The invoice and its lines run the full width of the card, divided like rows. */}
+              <div className="flex flex-wrap items-center gap-3 border-b border-border-subtle px-5 py-4">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-primary-25 text-primary-700">
+                  <DocumentIcon className="size-5" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-semibold text-text-primary">
@@ -109,7 +105,7 @@ export function PosRefundPage() {
                 </span>
               </div>
 
-              <ul className="px-5 py-2">
+              <ul>
                 {OPEN_SALE.map((line) => {
                   const item = itemById(line.itemId)
                   const entry = returning.find((r) => r.lineId === line.id)
@@ -119,7 +115,7 @@ export function PosRefundPage() {
                     <li
                       key={line.id}
                       className={[
-                        'flex flex-wrap items-center gap-3 rounded-sm border-b border-border-subtle px-2 py-3.5 last:border-b-0',
+                        'flex flex-wrap items-center gap-3 border-b border-border-subtle px-5 py-3.5 last:border-b-0',
                         qty > 0 ? 'bg-primary-25' : '',
                       ].join(' ')}
                     >
@@ -259,7 +255,7 @@ export function PosRefundPage() {
                   {t('pos.refund.whyNote')}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2.5 px-5 py-4">
+              <div className="flex flex-wrap gap-2 px-5 py-4">
                 {WHY_OPTIONS.map((option) => {
                   const chosen = option === why
                   return (
@@ -269,7 +265,7 @@ export function PosRefundPage() {
                       onClick={() => setWhy(option)}
                       aria-pressed={chosen}
                       className={[
-                        'inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-sm border px-4 text-sm transition-colors',
+                        'inline-flex h-10 shrink-0 items-center whitespace-nowrap rounded-sm border px-3 text-sm transition-colors',
                         chosen
                           ? 'border-primary-700 bg-primary-25 font-semibold text-primary-800'
                           : 'border-border-subtle bg-white font-medium text-text-secondary hover:border-primary-300',
@@ -284,7 +280,7 @@ export function PosRefundPage() {
                 <textarea
                   rows={3}
                   placeholder={t('pos.refund.anythingToAdd')}
-                  className="w-full rounded-sm border border-border-subtle bg-white px-4 py-3 text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder focus:border-border-brand"
+                  className="w-full resize-none rounded-sm border border-border-subtle bg-white px-4 py-3 text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder focus:border-border-brand"
                 />
               </div>
             </section>
@@ -340,7 +336,8 @@ export function PosRefundPage() {
               <span className="text-lg font-medium text-text-primary">
                 {t('pos.refund.backToThem')}
               </span>
-              <span className="text-[26px] font-semibold leading-none text-danger-700">
+              <span className="inline-flex items-baseline gap-1.5 text-[26px] font-semibold leading-none text-danger-700">
+                <Rial />
                 {omr(credit.back)}
               </span>
             </div>
@@ -363,7 +360,7 @@ export function PosRefundPage() {
               </div>
             </div>
 
-            <div className="px-5 py-5">
+            <div className="mt-5 border-t border-border-subtle px-5 py-5">
               <button
                 type="button"
                 disabled={!anything}
@@ -371,10 +368,8 @@ export function PosRefundPage() {
               >
                 {t('pos.refund.refundAmount', { amount: omr(credit.back) })}
               </button>
-              <p className="mt-3 text-xs font-medium leading-[1.6] text-text-quaternary">
-                {t('pos.refund.filedNote')}
-              </p>
             </div>
+            <PosFootNote>{t('pos.refund.filedNote')}</PosFootNote>
           </aside>
         </div>
       </div>
@@ -386,7 +381,9 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="text-sm font-medium text-text-tertiary">{label}</span>
-      <span className="text-sm font-semibold tabular-nums text-text-primary">{value}</span>
+      <span dir="ltr" className="text-sm font-semibold tabular-nums text-text-primary">
+        {value}
+      </span>
     </div>
   )
 }

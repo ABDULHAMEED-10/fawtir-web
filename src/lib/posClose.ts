@@ -112,7 +112,8 @@ export const LOOSE_ENDS = [
     titleKey: 'pos.close.tabsOpen',
     titleValues: { count: 3 },
     noteKey: 'pos.close.tabsNote',
-    noteValues: { amount: '59.588' },
+    // Written with its currency so the screen can set the rial sign beside it (withRial).
+    noteValues: { amount: 'OMR 59.588' },
     actionKey: 'pos.close.dealWithThem',
   },
   {

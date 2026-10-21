@@ -892,7 +892,20 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   }
   const fillFromProduct = (line: DraftLine, product: ProductDto) => {
     const patch = lineFromProduct(reference?.taxCategories ?? [], product, exclVat)
-    updateLine(line.id, { ...patch, itemType: itemTypeOfUnit(patch.unit) })
+    const itemType = patch.itemType ?? itemTypeOfUnit(patch.unit)
+    updateLine(line.id, {
+      ...patch,
+      itemType,
+      // What the product does not say, the line keeps: its classification while the kind stays,
+      // its reason while the category stays (a reason belongs to its category).
+      hsCode: itemType === 'goods' ? (patch.hsCode ?? line.hsCode) : undefined,
+      serviceType: itemType === 'service' ? (patch.serviceType ?? line.serviceType) : undefined,
+      exemptionReasonCode:
+        patch.exemptionReasonCode ??
+        (patch.taxCode === line.taxCode ? line.exemptionReasonCode : ''),
+      exemptionReason:
+        patch.exemptionReason ?? (patch.taxCode === line.taxCode ? line.exemptionReason : ''),
+    })
   }
   /** The header's default category goes onto every line still at the previous default. */
   const setDefaultTaxCategory = (code: string) => {

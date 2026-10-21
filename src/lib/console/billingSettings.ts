@@ -23,7 +23,31 @@ export type BillingSettingsDto = {
   vatRate: string | null
   /** Null only on version 1. */
   renewalBillLeadDays: number | null
+  /**
+   * V406 (backend #656): how many months of the monthly price one annual period of a paid extra
+   * charges, 1 to 12. Null on versions before V406, read as the defaults
+   * ({@link ANNUAL_MONTHS_DEFAULTS}); absent from an older server, which has no such setting.
+   */
+  erpAddonAnnualMonths?: number | null
+  extraUserAnnualMonths?: number | null
+  extraBranchAnnualMonths?: number | null
 }
+
+export const ANNUAL_MONTHS_FIELDS = [
+  'erpAddonAnnualMonths',
+  'extraUserAnnualMonths',
+  'extraBranchAnnualMonths',
+] as const
+export type AnnualMonthsField = (typeof ANNUAL_MONTHS_FIELDS)[number]
+
+/** What the server reads a null as: the add-on a full year, an extra user or branch ten months. */
+export const ANNUAL_MONTHS_DEFAULTS: Readonly<Record<AnnualMonthsField, number>> = {
+  erpAddonAnnualMonths: 12,
+  extraUserAnnualMonths: 10,
+  extraBranchAnnualMonths: 10,
+}
+export const ANNUAL_MONTHS_MIN = 1
+export const ANNUAL_MONTHS_MAX = 12
 
 export type BillingSettingsRequest = {
   graceDays: number
@@ -31,6 +55,10 @@ export type BillingSettingsRequest = {
   /** Omitted keeps the rate in force. */
   vatRate?: string
   renewalBillLeadDays?: number
+  /** Omitted keeps the value in force (V406). */
+  erpAddonAnnualMonths?: number
+  extraUserAnnualMonths?: number
+  extraBranchAnnualMonths?: number
   reason: string
 }
 

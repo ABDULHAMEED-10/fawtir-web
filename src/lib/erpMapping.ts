@@ -249,7 +249,7 @@ const ODOO_INVOICE = {
     lines: [
       {
         id: 9001,
-        name: 'Catering — coffee service, September',
+        name: 'Catering, coffee service, September',
         quantity: 40,
         uom: 'Hours',
         price_unit: 6.25,
@@ -310,7 +310,7 @@ const ODOO_CREDIT_NOTE = {
     lines: [
       {
         id: 9120,
-        name: 'Yirgacheffe — 1 kg bag (returned)',
+        name: 'Yirgacheffe, 1 kg bag (returned)',
         quantity: 4,
         uom: 'kg',
         price_unit: 11.4,
@@ -964,10 +964,10 @@ const nextId = (prefix: string) => `${prefix}-${++idSeq}`
 
 function initialState(): MappingState {
   const samples = [
-    sample('s-invoice', 'Odoo — catering invoice INV/2026/0117', ODOO_INVOICE, 23),
+    sample('s-invoice', 'Odoo: catering invoice INV/2026/0117', ODOO_INVOICE, 23),
     sample(
       's-credit',
-      'Odoo — credit note RINV/2026/0031',
+      'Odoo: credit note RINV/2026/0031',
       ODOO_CREDIT_NOTE,
       8,
       'Rashid Al Wahaibi',

@@ -60,6 +60,7 @@ export const BUNDLES: Bundle[] = [
     onSale: true,
     sold90: 14,
     noteKey: 'bundles.hasRunOut',
+    noteValues: { count: 1 },
   },
   {
     id: 'starter-bundle',
@@ -98,7 +99,7 @@ export const BUNDLES: Bundle[] = [
   },
   {
     id: 'taste-of-ethiopia',
-    name: 'Taste of Ethiopia — three bags',
+    name: 'Taste of Ethiopia - three bags',
     code: 'PKG-0002',
     group: 'Green beans',
     kind: 'Bundles',
@@ -115,7 +116,7 @@ export const BUNDLES: Bundle[] = [
   },
   {
     id: 'office-refill',
-    name: 'Office refill — 5 kg and filters',
+    name: 'Office refill - 5 kg and filters',
     code: 'PKG-0006',
     group: 'Green beans',
     kind: 'Bundles',

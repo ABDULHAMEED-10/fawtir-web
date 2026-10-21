@@ -39,6 +39,7 @@ export function Select({
   panelWidth,
   small,
   tight,
+  quiet,
 }: {
   value: string
   onChange: (value: string) => void
@@ -54,6 +55,12 @@ export function Select({
   unsure?: boolean
   /** 42px instead of 50px — used inside dense table rows. */
   compact?: boolean
+  /**
+   * The grey border of the Catalog, Stock and POS forms' inputs (their Figma frames), so a
+   * closed select does not look focused beside a text field. The invoice composers keep the
+   * blue shell their own frames draw.
+   */
+  quiet?: boolean
   /** Rendered under the list, e.g. an "Add new…" action. */
   footer?: ReactNode
   /** The list's width in px when the trigger is too narrow for what it lists. */
@@ -121,9 +128,15 @@ export function Select({
         className={[
           'flex w-full items-center justify-between rounded-sm border text-start transition-colors',
           small ? 'h-9 gap-1 px-2' : tight ? 'gap-1 ps-3 pe-1.5' : 'gap-2 px-4',
-          unsure ? 'border-[#d8c9a8]' : 'border-primary-300',
+          unsure ? 'border-[#d8c9a8]' : quiet ? 'border-border-default' : 'border-primary-300',
           small ? '' : compact ? 'h-[42px]' : 'h-[50px]',
-          unsure ? 'bg-[#faf5ea]' : highlighted ? 'bg-primary-25' : 'bg-surface-tab-bar',
+          unsure
+            ? 'bg-[#faf5ea]'
+            : highlighted
+              ? 'bg-primary-25'
+              : quiet
+                ? 'bg-white'
+                : 'bg-surface-tab-bar',
           disabled ? 'cursor-not-allowed opacity-60' : 'hover:border-primary-500',
         ].join(' ')}
       >

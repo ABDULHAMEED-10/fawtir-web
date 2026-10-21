@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CatalogShell } from './CatalogShell'
 import { Input, Rial, Select, Switch } from '../../components/ui'
+import { selectAllOnFocus } from '../../components/invoice'
 import { omr } from '../../lib/catalog'
 import {
   RULE_KINDS,
@@ -21,7 +22,6 @@ import clockIcon from '../../assets/catalog/kind-hour.svg'
 import usersIcon from '../../assets/catalog/kpi-customers.svg'
 import giftIcon from '../../assets/catalog/kind-bundle.svg'
 import tickIcon from '../../assets/catalog/check-green.svg'
-import circleIcon from '../../assets/catalog/minus-amber.svg'
 import crossIcon from '../../assets/catalog/cross-danger.svg'
 import plusIcon from '../../assets/catalog/plus-muted.svg'
 import trashIcon from '../../assets/catalog/trash-danger.svg'
@@ -179,6 +179,7 @@ export function NewRulePage() {
                     {t('newRule.counted')}
                   </span>
                   <Select
+                    quiet
                     ariaLabel={t('newRule.counted')}
                     value={counted}
                     onChange={setCounted}
@@ -193,6 +194,7 @@ export function NewRulePage() {
                     {t('newRule.per')}
                   </span>
                   <Select
+                    quiet
                     ariaLabel={t('newRule.per')}
                     value={per}
                     onChange={setPer}
@@ -210,7 +212,7 @@ export function NewRulePage() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[600px] border-collapse">
                 <thead>
-                  <tr className="bg-[#151c2d] text-[10px] font-semibold uppercase tracking-[0.5px] text-white">
+                  <tr className="whitespace-nowrap bg-[#151c2d] text-[10px] font-semibold uppercase tracking-[0.5px] text-white">
                     <th className="h-[38px] px-3 text-start font-semibold">
                       {t('newRule.col.from')}
                     </th>
@@ -245,6 +247,8 @@ export function NewRulePage() {
                                 from: Number(event.target.value.replace(/\D/g, '')) || 0,
                               })
                             }
+                            onFocus={selectAllOnFocus}
+                            inputMode="numeric"
                             aria-label={t('newRule.col.from')}
                             className="h-[42px] w-full rounded-sm border border-border-default bg-white px-3 text-sm font-medium text-text-primary outline-none focus:border-border-brand"
                           />
@@ -257,6 +261,8 @@ export function NewRulePage() {
                               const raw = event.target.value.replace(/\D/g, '')
                               setBreak(index, { to: raw === '' ? null : Number(raw) })
                             }}
+                            onFocus={selectAllOnFocus}
+                            inputMode="numeric"
                             aria-label={t('newRule.col.upTo')}
                             className="h-[42px] w-full rounded-sm border border-border-default bg-white px-3 text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder focus:border-border-brand"
                           />
@@ -269,6 +275,8 @@ export function NewRulePage() {
                                 price: Number(event.target.value.replace(/[^\d.]/g, '')) || 0,
                               })
                             }
+                            onFocus={selectAllOnFocus}
+                            inputMode="decimal"
                             aria-label={t('newRule.col.priceEach')}
                             className={[
                               'h-[42px] w-full rounded-sm border px-3 text-end text-sm font-semibold outline-none',
@@ -278,25 +286,28 @@ export function NewRulePage() {
                             ].join(' ')}
                           />
                         </td>
-                        <td className="px-3 py-2.5 text-end">
-                          <p
-                            className={[
-                              'text-xs font-medium',
-                              keep.losing ? 'text-danger-700' : 'text-text-quaternary',
-                            ].join(' ')}
-                          >
-                            {keep.losing
-                              ? t('newRule.losingMoney')
-                              : t('newRule.margin', { percent: keep.marginPercent })}
-                          </p>
-                          <p
-                            className={[
-                              'mt-0.5 text-sm font-semibold tabular-nums',
-                              keep.losing ? 'text-danger-700' : 'text-text-primary',
-                            ].join(' ')}
-                          >
-                            {keep.keep < 0 ? '−' : ''}
-                            {omr(Math.abs(keep.keep))}
+                        <td className="px-3 py-2.5">
+                          <p className="flex items-baseline justify-end gap-3 whitespace-nowrap">
+                            <span
+                              className={[
+                                'text-xs font-medium',
+                                keep.losing ? 'text-danger-700' : 'text-text-quaternary',
+                              ].join(' ')}
+                            >
+                              {keep.losing
+                                ? t('newRule.losingMoney')
+                                : t('newRule.margin', { percent: keep.marginPercent })}
+                            </span>
+                            <span
+                              dir="ltr"
+                              className={[
+                                'w-[52px] text-end text-sm font-semibold tabular-nums',
+                                keep.losing ? 'text-danger-700' : 'text-text-primary',
+                              ].join(' ')}
+                            >
+                              {keep.keep < 0 ? '−' : ''}
+                              {omr(Math.abs(keep.keep))}
+                            </span>
                           </p>
                         </td>
                         <td className="px-3 py-2.5 text-end">
@@ -352,12 +363,13 @@ export function NewRulePage() {
           </Step>
 
           <Step n={4} title={t('newRule.step.when')} flush>
-            <div className="grid gap-4 border-t border-surface-background p-5 sm:grid-cols-2">
+            <div className="grid gap-4 p-5 pt-0 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1.5 block text-xs font-medium text-text-secondary">
                   {t('newRule.starts')}
                 </span>
                 <Select
+                  quiet
                   ariaLabel={t('newRule.starts')}
                   value={starts}
                   onChange={setStarts}
@@ -374,6 +386,7 @@ export function NewRulePage() {
                   <span className="font-normal text-text-quaternary">{t('newRule.endsHint')}</span>
                 </span>
                 <Select
+                  quiet
                   ariaLabel={t('newRule.ends')}
                   value={ends}
                   onChange={setEnds}
@@ -423,11 +436,13 @@ export function NewRulePage() {
                   <input
                     value={quantity}
                     onChange={(event) => setQuantity(event.target.value.replace(/\D/g, ''))}
+                    onFocus={selectAllOnFocus}
+                    inputMode="numeric"
                     aria-label={t('newRule.ifSomeoneBought')}
                     className="h-[38px] w-[64px] rounded-sm border border-border-default bg-white px-2 text-center text-sm font-semibold text-text-primary outline-none focus:border-border-brand"
                   />
                   <span className="text-sm font-medium text-text-tertiary">
-                    {t('newRule.packsOf', { name: 'filters' })}
+                    {t('newRule.packsOf', { name: t('newRule.filtersWord') })}
                   </span>
                 </p>
 
@@ -574,7 +589,7 @@ function Step({
         </span>
         <span className="text-lg font-semibold leading-[1.2] text-text-primary">{title}</span>
       </p>
-      <div className={flush ? '' : 'border-t border-surface-background p-5'}>{children}</div>
+      <div className={flush ? 'pb-1' : 'p-5 pt-0'}>{children}</div>
     </section>
   )
 }
@@ -609,15 +624,16 @@ function Line({ label, value, tone }: { label: string; value: string; tone?: 'go
       <dt
         className={[
           'text-xs',
-          tone === 'good' ? 'font-medium text-[#3d5648]' : 'font-medium text-text-tertiary',
+          tone === 'good' ? 'font-medium text-success-700' : 'font-medium text-text-tertiary',
         ].join(' ')}
       >
         {label}
       </dt>
       <dd
+        dir="ltr"
         className={[
           'shrink-0 text-xs font-semibold tabular-nums',
-          tone === 'good' ? 'text-[#3d5648]' : 'text-text-primary',
+          tone === 'good' ? 'text-success-700' : 'text-text-primary',
         ].join(' ')}
       >
         {value}
@@ -627,13 +643,22 @@ function Line({ label, value, tone }: { label: string; value: string; tone?: 'go
 }
 
 function Check({ state, label }: { state: 'yes' | 'no' | 'bad'; label: string }) {
-  const icon = state === 'yes' ? tickIcon : state === 'bad' ? crossIcon : circleIcon
   return (
     <li className="flex items-start gap-2">
-      <img src={icon} alt="" className="mt-0.5 size-4 shrink-0" />
+      {state === 'no' ? (
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true" className="mt-px size-4 shrink-0">
+          <circle cx="8" cy="8" r="5.6" stroke="#887147" strokeWidth="1.5" />
+        </svg>
+      ) : (
+        <img
+          src={state === 'yes' ? tickIcon : crossIcon}
+          alt=""
+          className="mt-px size-4 shrink-0"
+        />
+      )}
       <span
         className={[
-          'text-sm font-medium leading-[1.4]',
+          'text-[13px] font-medium leading-[1.4]',
           state === 'bad'
             ? 'text-danger-700'
             : state === 'yes'

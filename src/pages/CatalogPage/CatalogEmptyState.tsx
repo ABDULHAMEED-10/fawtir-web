@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -14,9 +15,10 @@ import clockIcon from '../../assets/catalog/clock.svg'
  * Catalog with nothing in it yet (Figma 135:42928).
  *
  * Two ways in, each honest about what it costs in time, plus the shortcut for a business whose
- * shape Fawtir already recognises.
+ * shape Fawtir already recognises. The Catalog page shows it when the company has no products
+ * and nothing is being searched; `notice` carries that page's "not connected yet" banner.
  */
-export function CatalogEmptyState() {
+export function CatalogEmptyState({ notice }: { notice?: ReactNode } = {}) {
   const { t } = useTranslation()
 
   return (
@@ -38,6 +40,8 @@ export function CatalogEmptyState() {
             {t('catalogEmpty.importFromExcel')}
           </Link>
         </div>
+
+        {notice}
 
         {/* What Fawtir already knows about this trade */}
         <section className="flex flex-wrap items-center gap-4 rounded-md border border-primary-100 bg-primary-25 p-5">

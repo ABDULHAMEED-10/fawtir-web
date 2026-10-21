@@ -1,15 +1,36 @@
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState, type InputHTMLAttributes, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { taxCategoryOptions, unitOptions, useReferenceData } from '../../lib/reference/referenceData'
+import { useReferenceData } from '../../lib/reference/referenceData'
+import {
+  CODED_REASON,
+  DESIGN_REFERENCE,
+  NEEDS_EXEMPTION_REASON,
+  omanTaxCategories,
+  reasonRequired,
+} from '../../lib/invoiceDraft'
+import { taxReasonsFor } from '../../lib/codeLists/taxReasons'
+import { nameOf } from '../../lib/codeLists/codeList'
+import {
+  ClassificationField,
+  DiscountField,
+  selectAllOnFocus,
+  unitOptions,
+} from '../../components/invoice'
+import type { DiscountType } from '../../lib/invoiceMath'
 import { CatalogShell, Pill } from './CatalogShell'
 import { ItemTabs } from './ItemTabs'
+import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
 import { Input, Rial, Select, Switch, TableCheckbox, withRial } from '../../components/ui'
 import { GROUPS, omr } from '../../lib/catalog'
 import {
   ITEM,
   SIZES,
   ADD_ONS,
+  FIRST_UNIT_OF_KIND,
+  ITEM_TYPE_OF_KIND,
+  TIME_UNITS,
+  baseFromShelf,
   shelfPrice,
   sizePrice,
   tillPreview,
@@ -20,39 +41,52 @@ import {
   USED_SUMMARY,
   type Size,
   type AddOn,
+  type ItemKind,
 } from '../../lib/catalogItem'
 import handOverIcon from '../../assets/catalog/kind-bag.svg'
 import youDoIcon from '../../assets/catalog/kind-service.svg'
 import byTimeIcon from '../../assets/catalog/kind-hour.svg'
 import severalIcon from '../../assets/catalog/kind-bundle.svg'
 import tickIcon from '../../assets/catalog/check-green.svg'
-import circleIcon from '../../assets/catalog/minus-amber.svg'
 import plusIcon from '../../assets/catalog/plus-muted.svg'
 import trashIcon from '../../assets/catalog/trash-danger.svg'
 import tickWhiteIcon from '../../assets/catalog/check-white.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 
-const KINDS = [
+const KINDS: { id: ItemKind; icon: string }[] = [
   { id: 'handOver', icon: handOverIcon },
   { id: 'youDo', icon: youDoIcon },
   { id: 'byTime', icon: byTimeIcon },
   { id: 'several', icon: severalIcon },
 ]
 
+/** A price as the item keeps it: three decimals, `0.000` for nothing. */
+const threeDecimals = (raw: string) => {
+  const value = Number(raw.replace(/,/g, ''))
+  return Number.isFinite(value) && value > 0 ? value.toFixed(3) : '0.000'
+}
+
 /**
  * One item's own screen — new (Figma 135:44866) and existing (135:45974).
  *
  * The same form serves both; only the heading and the tabs differ. The receipt on the right is
  * built from the fields, so a size typed at +0.300 shows up as 1.700 before anything is saved.
+ *
+ * An item holds what an invoice line needs, so a line filled from it is complete (owner,
+ * 21 Oct 2026): goods or service (the four kinds map to one), a unit of that kind with "Other",
+ * the price before VAT at three decimals, an Oman VAT category with its reason, the
+ * classification (HS code or service type) and a discount. TODO(backend): the product record
+ * carries none of these beyond unit, price and category yet, and Save does not call the API;
+ * see docs/backend-guides/INCOME.md, rows P.1 to P.5.
  */
 export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const reference = useReferenceData()
   const navigate = useNavigate()
   const { id } = useParams()
   const existing = mode === 'edit'
 
-  const [kind, setKind] = useState('handOver')
+  const [kind, setKind] = useState<ItemKind>(existing ? ITEM.kind : 'handOver')
   const [name, setName] = useState(existing ? ITEM.name : '')
   const [arabicName, setArabicName] = useState(existing ? ITEM.arabicName : '')
   const [description, setDescription] = useState(ITEM.description)
@@ -61,23 +95,54 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const [code] = useState(ITEM.code)
   const [barcode, setBarcode] = useState(ITEM.barcode)
   const [soldAs, setSoldAs] = useState(ITEM.soldAs)
-  const [basePrice, setBasePrice] = useState(String(ITEM.basePrice))
+  const [hsCode, setHsCode] = useState(ITEM.hsCode)
+  const [serviceType, setServiceType] = useState(ITEM.serviceType)
+  // What was typed: the price before VAT, or with VAT in it while "Price includes VAT" is on.
+  const [priceText, setPriceText] = useState(
+    (ITEM.priceIncludesVat ? shelfPrice(ITEM.basePrice) : ITEM.basePrice).toFixed(3),
+  )
   const [taxCategory, setTaxCategory] = useState(ITEM.taxCategory)
+  const [reasonCode, setReasonCode] = useState(ITEM.exemptionReasonCode)
+  const [reasonText, setReasonText] = useState(ITEM.exemptionReason)
+  const [discountType, setDiscountType] = useState<DiscountType>(ITEM.discountType)
+  const [discountValue, setDiscountValue] = useState(ITEM.discountValue)
   const [includesVat, setIncludesVat] = useState(ITEM.priceIncludesVat)
   const [staffCanChange, setStaffCanChange] = useState(ITEM.staffCanChangePrice)
   const [keepCount, setKeepCount] = useState(ITEM.keepCountOfThis)
   const [sizes, setSizes] = useState<Size[]>(SIZES)
   const [addOns, setAddOns] = useState<AddOn[]>(ADD_ONS)
+  // Branches (owner, 21 Oct 2026; Business Rules BA-3): one company product, sold in every branch
+  // or only in chosen ones, with an optional price per branch. Its VAT and HS code never differ
+  // by branch. TODO(backend): the product does not carry branch settings yet (INCOME.md P.9).
+  const branchRead = useWorkingBranch()
+  const [allBranches, setAllBranches] = useState(true)
+  const [soldIn, setSoldIn] = useState<Record<string, boolean>>({})
+  const [branchPrices, setBranchPrices] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
 
-  const base = Number(basePrice) || 0
-  const shelf = shelfPrice(base)
+  const itemType = ITEM_TYPE_OF_KIND[kind]
+  // Oman's four categories from the platform's list, the design's until it answers (as the invoice).
+  const categories = omanTaxCategories(
+    reference?.taxCategories?.length ? reference.taxCategories : DESIGN_REFERENCE.taxCategories,
+  )
+  const tax = categories.find((row) => row.code === taxCategory) ?? categories[0] ?? null
+  const category = tax?.en16931Category ?? 'S'
+  const rate = Number(tax?.rate ?? 0) / 100
+  const typed = Number(priceText) || 0
+  const base = includesVat ? baseFromShelf(typed, rate) : typed
+  const shelf = includesVat ? typed : shelfPrice(base, rate)
+  const discountAmount =
+    discountType === 'PERCENTAGE'
+      ? Math.round(base * (Number(discountValue) || 0) * 10) / 1000
+      : Number(discountValue) || 0
 
   const preview = useMemo(
-    () => tillPreview(base, sizes[1]?.id ?? sizes[0]?.id ?? 'regular', ['extraShot', 'oatMilk']),
-    [base, sizes],
+    () =>
+      tillPreview(base, sizes[1]?.id ?? sizes[0]?.id ?? 'regular', ['extraShot', 'oatMilk'], rate),
+    [base, sizes, rate],
   )
 
+  const classification = itemType === 'goods' ? hsCode : serviceType
   const checks = readiness({
     name,
     basePrice: base,
@@ -85,7 +150,42 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
     group,
     kind: itemKind,
     barcode,
+    reasonGiven:
+      !reasonRequired(category) ||
+      (CODED_REASON.has(category) ? reasonCode !== '' : reasonText.trim() !== ''),
+    classified: classification !== '',
   })
+
+  const units = unitOptions(itemType, t, soldAs, reference).filter(
+    (option) => kind !== 'byTime' || TIME_UNITS.includes(option.value) || option.value === soldAs,
+  )
+  /** The unit and classification follow the kind, as they follow the invoice's toggle. */
+  const pickKind = (next: ItemKind) => {
+    setKind(next)
+    const allowed = unitOptions(ITEM_TYPE_OF_KIND[next], t, undefined, reference)
+      .map((option) => option.value)
+      .filter((code) => next !== 'byTime' || TIME_UNITS.includes(code))
+    if (!allowed.includes(soldAs)) setSoldAs(FIRST_UNIT_OF_KIND[next])
+  }
+  /** A new category's reason belongs to the old one, so it is cleared (as on the invoice line). */
+  const pickTaxCategory = (code: string) => {
+    if (code === taxCategory) return
+    const next = categories.find((row) => row.code === code)
+    const nextRate = Number(next?.rate ?? 0) / 100
+    // With VAT included, the shelf price stays what was typed and the base moves.
+    if (!includesVat) setPriceText(base.toFixed(3))
+    else setPriceText(shelfPrice(baseFromShelf(typed, rate), nextRate).toFixed(3))
+    setTaxCategory(code)
+    setReasonCode('')
+    setReasonText('')
+  }
+  /** Flipping "Price includes VAT" keeps the price and converts what is typed. */
+  const pickIncludesVat = (next: boolean) => {
+    if (next === includesVat) return
+    setPriceText((next ? shelf : base).toFixed(3))
+    setIncludesVat(next)
+  }
+  const reasons = taxReasonsFor(category) ?? []
 
   const groupOptions = GROUPS.map((entry) => ({ value: entry.id, label: entry.name }))
   const kindOptions =
@@ -120,8 +220,8 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
           </>
         ) : (
           <>
-            <Pill tone="neutral">{t('item.notLive')}</Pill>
-            <Pill tone="neutral">{t('item.soldNone')}</Pill>
+            <Chip>{t('item.notLive')}</Chip>
+            <Chip>{t('item.soldNone')}</Chip>
           </>
         )
       }
@@ -155,10 +255,10 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                   <button
                     key={entry.id}
                     type="button"
-                    onClick={() => setKind(entry.id)}
+                    onClick={() => pickKind(entry.id)}
                     aria-pressed={picked}
                     className={[
-                      'flex flex-col rounded-sm border p-4 text-start transition-colors',
+                      'flex min-w-0 flex-col rounded-sm border p-3.5 text-start transition-colors',
                       picked
                         ? 'border-primary-700 bg-primary-25'
                         : 'border-border-subtle bg-white hover:bg-primary-25',
@@ -167,15 +267,21 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                     <span className="flex size-8 items-center justify-center rounded-md bg-surface-background">
                       <img src={entry.icon} alt="" className="size-4" />
                     </span>
+                    {/* One line each, as the frame draws the cards; the full words stay in the
+                        tooltip and the accessible name. */}
                     <span
+                      title={t(`item.kind.${entry.id}`)}
                       className={[
-                        'mt-2.5 text-sm font-semibold',
+                        'mt-2.5 w-full truncate text-[13px] font-medium leading-[1.3]',
                         picked ? 'text-primary-800' : 'text-text-primary',
                       ].join(' ')}
                     >
                       {t(`item.kind.${entry.id}`)}
                     </span>
-                    <span className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">
+                    <span
+                      title={t(`item.kind.${entry.id}Note`)}
+                      className="mt-1 w-full truncate text-[11px] font-medium leading-[1.4] text-text-quaternary"
+                    >
                       {t(`item.kind.${entry.id}Note`)}
                     </span>
                   </button>
@@ -187,29 +293,29 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
           {/* 2 — the basics */}
           <Step n={2} title={t('item.step.basics')}>
             <div className="grid gap-4">
-              <Input
-                bordered
+              <Field
+                filled
                 label={t('item.name')}
-                requiredMark
+                required
                 value={name}
                 onChange={(event) => setName(event.target.value)}
               />
-              <Input
-                bordered
+              <Field
+                filled
                 dir="rtl"
                 label={t('item.arabicName')}
                 value={arabicName}
                 onChange={(event) => setArabicName(event.target.value)}
               />
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-text-secondary">
+              <label className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-text-primary">
                   {t('item.description')}
                 </span>
                 <textarea
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                   rows={3}
-                  className="w-full resize-none rounded-sm border border-border-default bg-white px-3 py-2.5 text-sm font-medium text-text-primary outline-none transition-colors focus:border-border-brand"
+                  className="w-full resize-none rounded-sm border border-transparent bg-surface-background px-4 py-3 text-sm font-medium text-text-primary outline-none transition-colors focus:border-border-brand"
                 />
               </label>
 
@@ -225,6 +331,7 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                     </span>
                     <Select
                       compact
+                      quiet
                       ariaLabel={t('item.group')}
                       value={group}
                       onChange={(value) => {
@@ -247,6 +354,7 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                     </span>
                     <Select
                       compact
+                      quiet
                       ariaLabel={t('item.kindLabel')}
                       value={itemKind}
                       onChange={setItemKind}
@@ -270,7 +378,7 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                 <Input
                   bordered
                   label={t('item.barcode')}
-                  hint={t('item.barcodeHint')}
+                  labelNote={t('item.barcodeHint')}
                   placeholder={t('item.barcodePlaceholder')}
                   value={barcode}
                   onChange={(event) => setBarcode(event.target.value)}
@@ -281,12 +389,34 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                     <span className="text-danger-700">*</span>
                   </span>
                   <Select
+                    quiet
                     ariaLabel={t('item.soldAs')}
                     value={soldAs}
                     onChange={setSoldAs}
-                    options={unitOptions(reference, t)}
+                    options={units}
                   />
                 </label>
+              </div>
+
+              {/* PINT-OM classification: the 12-digit HS code of goods (IBR-079-OM) or the
+                  CL-12-OM service type of a service (IBR-155-OM). Stored on every item; the
+                  invoice prints it for business and government buyers only. */}
+              <div className="block">
+                <span className="mb-1.5 flex items-center gap-1 text-xs font-medium text-text-secondary">
+                  {t(itemType === 'goods' ? 'classification.hsCode' : 'classification.serviceType')}
+                  <span className="text-danger-700">*</span>
+                </span>
+                <ClassificationField
+                  kind={itemType}
+                  value={classification}
+                  onChange={itemType === 'goods' ? setHsCode : setServiceType}
+                  ariaLabel={t(
+                    itemType === 'goods' ? 'classification.hsCode' : 'classification.serviceType',
+                  )}
+                />
+                <p className="mt-1.5 text-xs font-medium leading-[1.4] text-text-quaternary">
+                  {t('item.classificationHint')}
+                </p>
               </div>
             </div>
           </Step>
@@ -294,40 +424,57 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
           {/* 3 — price and tax */}
           <Step n={3} title={t('item.step.price')}>
             <div className="grid gap-4 sm:grid-cols-3">
-              <Input
-                bordered
+              <Field
                 label={t('item.basePrice')}
-                requiredMark
-                hint={t('item.beforeVat')}
-                value={basePrice}
+                required={!includesVat}
+                note={t('item.beforeVat')}
+                value={includesVat ? omr(base) : priceText}
+                readOnly={includesVat}
                 inputMode="decimal"
-                onChange={(event) => setBasePrice(event.target.value.replace(/[^\d.]/g, ''))}
-                leadingIcon={
+                style={{ textAlign: 'end' }}
+                onFocus={selectAllOnFocus}
+                onChange={(event) => setPriceText(event.target.value.replace(/[^\d.]/g, ''))}
+                onBlur={() => setPriceText((text) => threeDecimals(text))}
+                leading={
                   <span className="text-sm font-medium text-text-primary">
                     <Rial />
                   </span>
                 }
               />
+              {/* TODO(backend): zero-rated goods are recognised by HS code. The backend matches the
+                  item's 12-digit HS code against Oman's zero-rated lists (807 grocery items, MD
+                  65/2021; 677 medicines and medical equipment; 62 veterinary medicines and
+                  equipment), then sets category Z with its VATZR-OM reason code. The user can
+                  still change it; this picker only shows the suggestion. */}
               <label className="block">
                 <span className="mb-1.5 flex items-center gap-1 text-xs font-medium text-text-secondary">
                   {t('item.taxCategory')}
                   <span className="text-danger-700">*</span>
                 </span>
                 <Select
+                  quiet
                   ariaLabel={t('item.taxCategory')}
-                  value={taxCategory}
-                  onChange={setTaxCategory}
-                  options={taxCategoryOptions(reference, t)}
+                  value={tax?.code ?? taxCategory}
+                  onChange={pickTaxCategory}
+                  options={categories.map((row) => ({
+                    value: row.code,
+                    label: t(`createInvoice.taxCategories.${row.code}`, { defaultValue: row.code }),
+                    hint: `EN 16931 · ${row.en16931Category}`,
+                  }))}
                 />
               </label>
-              <Input
-                bordered
+              <Field
                 label={t('item.priceOnTheShelf')}
-                hint={t('item.whatCustomerPays')}
-                value={omr(shelf)}
-                readOnly
-                readOnlyAppearance
-                leadingIcon={
+                required={includesVat}
+                note={t('item.whatCustomerPays')}
+                value={includesVat ? priceText : omr(shelf)}
+                readOnly={!includesVat}
+                inputMode="decimal"
+                style={{ textAlign: 'end' }}
+                onFocus={selectAllOnFocus}
+                onChange={(event) => setPriceText(event.target.value.replace(/[^\d.]/g, ''))}
+                onBlur={() => setPriceText((text) => threeDecimals(text))}
+                leading={
                   <span className="text-sm font-medium text-text-primary">
                     <Rial />
                   </span>
@@ -335,12 +482,65 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
               />
             </div>
 
+            {/* The reason a zero-rated or exempt item carries no VAT (IBT-121): a VATZR-OM code
+                for Z, a VATEX-OM code for E (CL-05-OM, CL-10-OM), written text for O. */}
+            {CODED_REASON.has(category) || NEEDS_EXEMPTION_REASON.has(category) ? (
+              <div className="mt-5">
+                {CODED_REASON.has(category) ? (
+                  <label className="block">
+                    <span className="mb-1.5 flex items-center gap-1 text-xs font-medium text-text-secondary">
+                      {t('invoiceDraft.exemptionReason')}
+                      <span className="text-danger-700">*</span>
+                    </span>
+                    <Select
+                      quiet
+                      value={reasonCode}
+                      onChange={setReasonCode}
+                      options={reasons.map((reason) => ({
+                        value: reason.code,
+                        label: nameOf(reason, i18n.language),
+                        hint: reason.code,
+                      }))}
+                      placeholder={t('invoiceDraft.exemptionReasonChoose')}
+                      ariaLabel={t('invoiceDraft.exemptionReason')}
+                    />
+                  </label>
+                ) : (
+                  <Field
+                    label={t('invoiceDraft.exemptionReason')}
+                    required={reasonRequired(category)}
+                    value={reasonText}
+                    maxLength={500}
+                    placeholder={t('invoiceDraft.exemptionReasonType')}
+                    onChange={(event) => setReasonText(event.target.value)}
+                  />
+                )}
+              </div>
+            ) : null}
+
+            {/* The catalogue discount: the invoice line picked from this item starts with it. */}
+            <div className="mt-5 max-w-[320px]">
+              <span className="mb-1.5 block text-xs font-medium text-text-secondary">
+                {t('item.discount')}
+              </span>
+              <DiscountField
+                type={discountType}
+                value={discountValue}
+                onTypeChange={setDiscountType}
+                onValueChange={(next) => setDiscountValue(next.replace(/[^\d.]/g, ''))}
+                resolved={BigInt(Math.round(discountAmount * 1000))}
+              />
+              <p className="mt-1.5 text-xs font-medium leading-[1.4] text-text-quaternary">
+                {t('item.discountHint')}
+              </p>
+            </div>
+
             <ul className="mt-4">
               <ToggleRow
                 title={t('item.priceIncludesVat')}
                 note={t('item.priceIncludesVatNote')}
                 checked={includesVat}
-                onChange={setIncludesVat}
+                onChange={pickIncludesVat}
               />
               <ToggleRow
                 title={t('item.staffCanChange')}
@@ -355,22 +555,22 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
           {/* 4 — sizes */}
           <Step n={4} title={t('item.step.sizes')}>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[620px] border-collapse">
+              <table className="w-full min-w-[640px] border-collapse">
                 <thead>
                   <tr className="bg-[#151c2d] text-[10px] font-semibold uppercase tracking-[0.5px] text-white">
-                    <th className="h-[38px] px-3 text-start font-semibold">
+                    <th className="h-[38px] min-w-[150px] px-3 text-start font-semibold">
                       {t('item.sizesCol.size')}
                     </th>
                     <th className="h-[38px] px-3 text-start font-semibold">
                       {t('item.sizesCol.priceChange')}
                     </th>
-                    <th className="h-[38px] px-3 text-end font-semibold">
+                    <th className="h-[38px] w-[110px] whitespace-nowrap px-3 text-end font-semibold">
                       {t('item.sizesCol.sellsFor')}
                     </th>
                     <th className="h-[38px] px-3 text-start font-semibold">
                       {t('item.sizesCol.code')}
                     </th>
-                    <th className="h-[38px] px-3 text-start font-semibold">
+                    <th className="h-[38px] whitespace-nowrap px-3 text-start font-semibold">
                       {t('item.sizesCol.onSale')}
                     </th>
                     <th className="h-[38px] px-3" />
@@ -389,7 +589,10 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                       </td>
                       <td className="px-3 py-2.5">
                         <input
-                          value={size.delta === 0 ? '—' : `+${size.delta.toFixed(3)}`}
+                          value={size.delta === 0 ? '0.000' : `+${size.delta.toFixed(3)}`}
+                          onFocus={selectAllOnFocus}
+                          inputMode="decimal"
+                          dir="ltr"
                           onChange={(event) =>
                             setSize(index, {
                               delta: Number(event.target.value.replace(/[^\d.]/g, '')) || 0,
@@ -400,8 +603,8 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                         />
                       </td>
                       <td className="px-3 py-2.5">
-                        <span className="flex h-[42px] items-center justify-end rounded-sm border border-border-default bg-surface-background px-3 text-sm font-semibold text-text-primary tabular-nums">
-                          {omr(sizePrice(base, size))}
+                        <span className="flex h-[42px] items-center justify-end rounded-sm border border-border-default bg-white px-3 text-sm font-normal text-text-primary tabular-nums">
+                          {omr(sizePrice(base, size, rate))}
                         </span>
                       </td>
                       <td className="px-3 py-2.5">
@@ -409,7 +612,8 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                           value={size.code}
                           onChange={(event) => setSize(index, { code: event.target.value })}
                           aria-label={t('item.sizesCol.code')}
-                          className="h-[42px] w-full rounded-sm border border-border-default bg-white px-3 font-mono text-xs text-text-primary outline-none focus:border-border-brand"
+                          dir="ltr"
+                          className="h-[42px] w-full rounded-sm border border-border-default bg-white px-3 text-sm font-normal text-text-primary outline-none focus:border-border-brand"
                         />
                       </td>
                       <td className="px-3 py-2.5">
@@ -435,25 +639,33 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
               </table>
             </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                setSizes((list) => [
-                  ...list,
-                  {
-                    id: `size-${list.length + 1}`,
-                    name: '',
-                    delta: 0,
-                    code: `${code}-${list.length + 1}`,
-                    onSale: true,
-                  },
-                ])
-              }
-              className="mt-3 inline-flex h-[38px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-            >
-              <img src={plusIcon} alt="" className="size-4" />
-              {t('item.addASize')}
-            </button>
+            <div className="mt-3 flex flex-wrap gap-2.5">
+              <button
+                type="button"
+                onClick={() =>
+                  setSizes((list) => [
+                    ...list,
+                    {
+                      id: `size-${list.length + 1}`,
+                      name: '',
+                      delta: 0,
+                      code: `${code}-${list.length + 1}`,
+                      onSale: true,
+                    },
+                  ])
+                }
+                className="inline-flex h-[38px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+              >
+                <img src={plusIcon} alt="" className="size-4" />
+                {t('item.addASize')}
+              </button>
+              <Link
+                to={`/catalog/${id ?? ITEM.id}/options`}
+                className="inline-flex h-[38px] items-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-25"
+              >
+                {t('itemOptions.openLink')}
+              </Link>
+            </div>
           </Step>
 
           {/* 5 — add-ons */}
@@ -492,6 +704,123 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                 {t('item.addOne')}
               </button>
             </div>
+          </Step>
+
+          {/* 6 — branches */}
+          <Step n={6} title={t('item.step.branches')}>
+            <div
+              role="radiogroup"
+              aria-label={t('item.step.branches')}
+              className="grid gap-3 sm:grid-cols-2"
+            >
+              {[true, false].map((everywhere) => {
+                const picked = allBranches === everywhere
+                return (
+                  <button
+                    key={String(everywhere)}
+                    type="button"
+                    role="radio"
+                    aria-checked={picked}
+                    onClick={() => setAllBranches(everywhere)}
+                    className={[
+                      'flex flex-col rounded-sm border p-4 text-start transition-colors',
+                      picked
+                        ? 'border-primary-700 bg-primary-25'
+                        : 'border-border-subtle bg-white hover:bg-primary-25',
+                    ].join(' ')}
+                  >
+                    <span
+                      className={[
+                        'text-sm font-semibold',
+                        picked ? 'text-primary-800' : 'text-text-primary',
+                      ].join(' ')}
+                    >
+                      {t(everywhere ? 'item.branches.all' : 'item.branches.chosen')}
+                    </span>
+                    <span className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">
+                      {t(everywhere ? 'item.branches.allNote' : 'item.branches.chosenNote')}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {branchRead.read.status === 'loading' ? (
+              <p className="mt-4 text-sm font-medium text-text-quaternary">
+                {t('appAccess.loading')}
+              </p>
+            ) : branchRead.branches.length === 0 ? (
+              <p className="mt-4 text-sm font-medium text-text-quaternary">
+                {t(
+                  branchRead.read.status === 'failed'
+                    ? 'invoiceDraft.branchesFailed'
+                    : 'workingBranch.none',
+                )}
+              </p>
+            ) : (
+              <ul className="mt-4 flex flex-col gap-2.5">
+                {branchRead.branches.map((branch) => {
+                  const on = allBranches || soldIn[branch.id] === true
+                  return (
+                    <li
+                      key={branch.id}
+                      className="flex flex-wrap items-center gap-3 rounded-sm border border-border-subtle px-3 py-2.5"
+                    >
+                      {allBranches ? null : (
+                        <TableCheckbox
+                          checked={on}
+                          onChange={() =>
+                            setSoldIn((current) => ({ ...current, [branch.id]: !on }))
+                          }
+                          ariaLabel={t('item.branches.soldHere', { branch: branch.name })}
+                        />
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <bdi className="block truncate text-sm font-semibold text-text-primary">
+                          {branch.name}
+                        </bdi>
+                        <span className="text-xs font-medium text-text-quaternary">
+                          {on ? t('item.branches.sold') : t('item.branches.notSold')}
+                        </span>
+                      </span>
+                      <label className="flex h-[42px] w-[160px] items-center gap-2 rounded-sm border border-border-default bg-white px-3 focus-within:border-border-brand">
+                        <span className="text-sm font-medium text-text-primary">
+                          <Rial />
+                        </span>
+                        <input
+                          value={branchPrices[branch.id] ?? ''}
+                          disabled={!on}
+                          placeholder={base.toFixed(3)}
+                          inputMode="decimal"
+                          onFocus={selectAllOnFocus}
+                          onChange={(event) =>
+                            setBranchPrices((current) => ({
+                              ...current,
+                              [branch.id]: event.target.value.replace(/[^\d.]/g, ''),
+                            }))
+                          }
+                          onBlur={() =>
+                            setBranchPrices((current) => {
+                              const typed = current[branch.id] ?? ''
+                              return {
+                                ...current,
+                                [branch.id]: Number(typed) > 0 ? Number(typed).toFixed(3) : '',
+                              }
+                            })
+                          }
+                          aria-label={t('item.branches.priceHere', { branch: branch.name })}
+                          className="w-full min-w-0 bg-transparent text-end text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder disabled:text-text-quaternary"
+                          dir="ltr"
+                        />
+                      </label>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+            <p className="mt-3 text-xs font-medium leading-[1.5] text-text-quaternary">
+              {t('item.branches.note')}
+            </p>
           </Step>
         </div>
 
@@ -538,11 +867,15 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
             <ul className="mt-3 flex flex-col gap-2.5">
               {checks.map((check) => (
                 <li key={check.id} className="flex items-start gap-2">
-                  <img
-                    src={check.done ? tickIcon : circleIcon}
-                    alt=""
-                    className="mt-0.5 size-4 shrink-0"
-                  />
+                  {check.done ? (
+                    <img src={tickIcon} alt="" className="mt-0.5 size-4 shrink-0" />
+                  ) : (
+                    // Still to do: an empty circle, as the frame draws it.
+                    <span
+                      aria-hidden="true"
+                      className="mt-0.5 size-4 shrink-0 rounded-full border-[1.5px] border-text-quaternary"
+                    />
+                  )}
                   <span
                     className={[
                       'text-sm font-medium leading-[1.4]',
@@ -689,6 +1022,72 @@ function Row({ label, value, last }: { label: string; value: string; last?: bool
     >
       <dt className="text-sm font-medium text-text-tertiary">{label}</dt>
       <dd className="shrink-0 text-sm font-semibold text-text-primary">{withRial(value)}</dd>
+    </div>
+  )
+}
+
+/** A grey state chip for an item not yet saved ("Not live", "Sold 0 times"), as the New Item frame draws it. */
+function Chip({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-border-subtle px-3 text-xs font-medium text-text-tertiary">
+      <span className="size-1.5 rounded-full bg-[#a8abb2]" />
+      {children}
+    </span>
+  )
+}
+
+/**
+ * A labelled text field drawn here rather than with the shared `Input`: its required mark is red
+ * as on every other label of this form, its note ("before VAT") sits beside the label as the
+ * frame draws it, and `filled` gives the grey box of the frame's Name and Arabic name.
+ */
+function Field({
+  label,
+  required,
+  note,
+  filled,
+  leading,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement> & {
+  label: string
+  required?: boolean
+  note?: string
+  filled?: boolean
+  leading?: ReactNode
+}) {
+  const id = useId()
+  return (
+    <div className="flex w-full flex-col gap-1">
+      <label
+        htmlFor={id}
+        className="flex min-w-0 items-baseline gap-0.5 whitespace-nowrap text-sm font-medium text-text-primary"
+      >
+        {label}
+        {required ? (
+          <span aria-hidden="true" className="text-danger-700">
+            *
+          </span>
+        ) : null}
+        {note ? (
+          <span className="ms-1.5 min-w-0 truncate text-xs font-normal text-text-quaternary">
+            {note}
+          </span>
+        ) : null}
+      </label>
+      <div
+        className={[
+          'flex h-[50px] items-center gap-2 rounded-sm border px-4 transition-colors focus-within:border-border-brand',
+          filled ? 'border-transparent bg-surface-background' : 'border-border-default bg-white',
+        ].join(' ')}
+      >
+        {leading ? <span className="inline-flex shrink-0">{leading}</span> : null}
+        <input
+          id={id}
+          aria-required={required || undefined}
+          className="h-full w-full min-w-0 border-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
+          {...props}
+        />
+      </div>
     </div>
   )
 }

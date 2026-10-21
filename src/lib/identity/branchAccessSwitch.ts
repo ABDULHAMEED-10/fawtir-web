@@ -4,7 +4,7 @@ import type { Entitlements } from './entitlements'
 /**
  * Whether branch access (Business Rules BA-1) is switched on for this server, as far as the
  * session can tell. Every new branch screen (the branch question on the invitation, the Branches
- * column, the Owner mark, each person's page, who works in a branch) waits for it; while it is off
+ * column, a person's branches, who works in a branch) waits for it; while it is off
  * the screens stay exactly as they were, because nothing is limited by branch yet and an invitation
  * that names no branch is given every branch (BA-6, `BranchAssignmentService.checkNewPerson`).
  *

@@ -270,7 +270,7 @@ describe('Settings › Plan: the subscription', () => {
       await screen.findByRole('region', { name: i18n.t('subscription.title') }),
     ).findByRole('status')
     expect(notice.textContent).toMatch(
-      /^ألغته فوتر في 18 .+ 2026: استُخدم حسابك لإرسال فواتير احتيالية\. تبقى سجلاتك/,
+      /^ألغاه فوتر في 18 .+ 2026: استُخدم حسابك لإرسال فواتير احتيالية\. تبقى سجلاتك/,
     )
     expect(notice.textContent).toContain('للمتابعة، جدّد اشتراكك أو تواصل مع الدعم.')
     expect(notice.textContent).not.toMatch(/Fawtir|فوتير|[٠-٩]/)

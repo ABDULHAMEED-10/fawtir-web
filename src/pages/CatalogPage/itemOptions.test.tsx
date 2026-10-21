@@ -1,0 +1,122 @@
+import { describe, expect, it } from 'vitest'
+import {
+  addValue,
+  cellKey,
+  codeFor,
+  generateCodes,
+  rebuildFromBase,
+  removeValue,
+  roundAll,
+  roundTo050,
+  sampleOptions,
+  setDelta,
+  setPrice,
+  shortCodeFor,
+  summarise,
+  tickEverything,
+  toggleCell,
+  workedOutPrice,
+} from '../../lib/catalogOptions'
+
+const CODE = 'HB'
+
+/** Sizes and options for an item (Figma "Catalog -> Detail Edit Variants"). */
+describe('sizes and options', () => {
+  it('starts on the House Blend example: 10 of 12 sold, one price set by hand', () => {
+    const state = sampleOptions(CODE)
+    const figures = summarise(state)
+    expect(figures).toMatchObject({
+      total: 12,
+      onSale: 10,
+      unticked: 2,
+      byHand: 1,
+      codesReady: 10,
+      needsStockCounts: 10,
+      min: 2.7,
+      max: 9.8,
+    })
+    expect(state.cells[cellKey('w500', 'tk')].price).toBe(5.3)
+    expect(state.cells[cellKey('w1kg', 'wb')].price).toBe(9.5)
+    expect(state.cells[cellKey('w1kg', 'es')]).toMatchObject({ price: 9.8, byHand: true })
+    expect(state.cells[cellKey('w250', 'tk')].on).toBe(false)
+  })
+
+  it('builds codes from the item code and the short codes of both values', () => {
+    const state = sampleOptions(CODE)
+    expect(state.cells[cellKey('w250', 'wb')].code).toBe('HB-250-WB')
+    expect(state.cells[cellKey('w1kg', 'fl')].code).toBe('HB-1KG-FL')
+    expect(codeFor('CAT-0208', state.side.values[1], state.top.values[3])).toBe('CAT-0208-500-TK')
+    // A combination not sold gets no code until it is ticked and the codes are generated.
+    expect(state.cells[cellKey('w250', 'tk')].code).toBe('')
+    const ticked = generateCodes(toggleCell(state, cellKey('w250', 'tk')), CODE)
+    expect(ticked.cells[cellKey('w250', 'tk')].code).toBe('HB-250-TK')
+  })
+
+  it('makes short codes for new values', () => {
+    expect(shortCodeFor('250 g', [], 1)).toBe('250')
+    expect(shortCodeFor('2 kg', [], 1)).toBe('2KG')
+    expect(shortCodeFor('Cold brew', [], 1)).toBe('CB')
+    expect(shortCodeFor('Coarse', ['CO'], 1)).toBe('CO2')
+    expect(shortCodeFor('خشن', [], 5)).toBe('O5')
+  })
+
+  it('ticks and unticks a combination, and ticks everything', () => {
+    let state = sampleOptions(CODE)
+    state = toggleCell(state, cellKey('w250', 'wb'))
+    expect(summarise(state).onSale).toBe(9)
+    state = tickEverything(state)
+    expect(summarise(state)).toMatchObject({ onSale: 12, unticked: 0 })
+  })
+
+  it('marks a typed price set by hand only when it differs from the worked-out one', () => {
+    let state = sampleOptions(CODE)
+    state = setPrice(state, cellKey('w500', 'wb'), 5.25)
+    expect(state.cells[cellKey('w500', 'wb')]).toMatchObject({ price: 5.25, byHand: true })
+    expect(summarise(state).byHand).toBe(2)
+    state = setPrice(state, cellKey('w500', 'wb'), 5.1)
+    expect(state.cells[cellKey('w500', 'wb')].byHand).toBe(false)
+  })
+
+  it('moves prices with a price change but leaves those set by hand', () => {
+    const state = setDelta(sampleOptions(CODE), 'side', 'w1kg', 7)
+    expect(state.cells[cellKey('w1kg', 'wb')].price).toBe(9.7)
+    expect(state.cells[cellKey('w1kg', 'es')].price).toBe(9.8)
+    expect(workedOutPrice(state, 'w1kg', 'tk')).toBe(9.9)
+  })
+
+  it('rebuilds every price from the base', () => {
+    const state = rebuildFromBase(sampleOptions(CODE))
+    expect(state.cells[cellKey('w1kg', 'es')]).toMatchObject({ price: 9.5, byHand: false })
+    expect(summarise(state).byHand).toBe(0)
+  })
+
+  it('rounds every price to the nearest 0.050', () => {
+    expect(roundTo050(2.724)).toBe(2.7)
+    expect(roundTo050(2.725)).toBe(2.75)
+    expect(roundTo050(5.333)).toBe(5.35)
+    const state = roundAll(setPrice(sampleOptions(CODE), cellKey('w250', 'fl'), 2.737))
+    expect(state.cells[cellKey('w250', 'fl')]).toMatchObject({ price: 2.75, byHand: true })
+    expect(state.cells[cellKey('w250', 'wb')]).toMatchObject({ price: 2.7, byHand: false })
+  })
+
+  it('adds and removes values with their combinations', () => {
+    let state = addValue(sampleOptions(CODE), 'side', '2 kg')
+    expect(state.side.values).toHaveLength(4)
+    let figures = summarise(state)
+    expect(figures).toMatchObject({ total: 16, onSale: 14, codesReady: 10 })
+    state = generateCodes(state, CODE)
+    expect(summarise(state).codesReady).toBe(14)
+    state = removeValue(state, 'top', 'tk')
+    figures = summarise(state)
+    expect(figures).toMatchObject({ total: 12, onSale: 12, unticked: 0 })
+    expect(Object.keys(state.cells)).toHaveLength(12)
+  })
+
+  it('keeps at least one value in each choice', () => {
+    let state = sampleOptions(CODE)
+    state = removeValue(state, 'side', 'w250')
+    state = removeValue(state, 'side', 'w500')
+    state = removeValue(state, 'side', 'w1kg')
+    expect(state.side.values).toHaveLength(1)
+  })
+})

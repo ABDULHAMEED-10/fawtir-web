@@ -124,7 +124,9 @@ describe('the catalog', () => {
     at('/catalog', <CatalogPage />)
     const row = (await screen.findByText('Real Widget')).closest('tr')!
     expect(within(row).getByText('SKU-1')).toBeTruthy()
-    expect(within(row).getByText('OMR 2.500')).toBeTruthy()
+    // The price carries the drawn rial sign (read aloud as OMR), never "OMR" written beside it.
+    expect(row.querySelector('svg[aria-hidden="true"]')).toBeTruthy()
+    expect(row.textContent).toContain('2.500')
     expect(screen.getByText(i18n.t('catalogReal.toolsUnavailable'))).toBeTruthy()
     expect(document.body.textContent).not.toMatch(/Flat White|Muscat Roastery/)
   })
