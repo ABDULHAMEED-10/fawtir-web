@@ -4,16 +4,19 @@
  *
  * The refund cases under the console's "Bills and payment links" card (backend V412). Shapes follow
  * `src/lib/console/refundCases.ts`. Run the mock with `MOCK_CONSOLE_BILLING=1` so the session holds
- * `platform.billing.*`. Sur Marine (`/console/tenants/7a1c0b52-…`) left Fawtir on an annual
- * subscription with 7 whole months left, had an earlier yearly cancellation refunded by bank transfer,
- * and has a case Finance pays outside Fawtir.
+ * `platform.billing.*`. Sur Marine Supplies LLC (`/console/tenants/7a1c0b52-…`, the same company and
+ * name as consoleCompanySubscription.mjs) left Fawtir on an annual subscription with 7 whole months
+ * left, had an earlier yearly cancellation refunded by bank transfer, and has a case Finance pays
+ * outside Fawtir. Its cases use that one name wherever a fixture names the company.
  *
  * The console's refund queue (`/console/billing/refunds`, backend V423) lists those cases with a
- * final rejection from another company, filtered by `reason` and `status` as the server does.
+ * final rejection from another company, Nizwa Date Traders SAOC (the same id and name as
+ * consoleEnterpriseTerms.mjs), filtered by `reason` and `status` as the server does.
  *
  * Writes answer as the server would; nothing is kept between requests.
  */
 const BILLED = '7a1c0b52-4f0e-4b8e-9d3a-2f6c1e0a9b11'
+const BILLED_NAME = 'Sur Marine Supplies LLC'
 const company = (id) => `/api/v1/platform/companies/${id}`
 
 const LEAVE = {
@@ -84,7 +87,7 @@ const PAID_AHEAD = {
 const REJECTED = {
   ...PAID_AHEAD,
   id: 'rc000000-0000-4000-8000-000000000289',
-  tenantId: '3b9e2c41-8d7a-4f60-a1e2-5c4d3b2a1f00',
+  tenantId: '3e9d2c41-8b7a-4f10-a2c5-6d1e0f9b8a22',
   paymentId: 'pa000000-0000-4000-8000-000000000289',
   amount: '420.000',
   method: 'CARD',
@@ -93,10 +96,10 @@ const REJECTED = {
 }
 
 const QUEUE = [
-  { refundCase: CANCELLED_YEAR, tenantName: 'Sur Marine Services LLC' },
-  { refundCase: PAID_AHEAD, tenantName: 'Sur Marine Services LLC' },
-  { refundCase: REJECTED, tenantName: 'Nizwa Date Traders SPC' },
-  { refundCase: LEAVE, tenantName: 'Sur Marine Services LLC' },
+  { refundCase: CANCELLED_YEAR, tenantName: BILLED_NAME },
+  { refundCase: PAID_AHEAD, tenantName: BILLED_NAME },
+  { refundCase: REJECTED, tenantName: 'Nizwa Date Traders SAOC' },
+  { refundCase: LEAVE, tenantName: BILLED_NAME },
 ]
 
 export default [

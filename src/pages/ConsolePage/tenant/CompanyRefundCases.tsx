@@ -266,7 +266,11 @@ export function RefundCaseDialogs({
       <OperatorReasonDialog<RefundCaseDto>
         formId="refund-case-decline"
         title={t(`${K}decline.title`)}
-        body={t(`${K}decline.body`)}
+        body={t(
+          dialog.refund.reason === 'LEFT_FAWTIR_ANNUAL'
+            ? `${K}decline.bodyLeft`
+            : `${K}decline.body`,
+        )}
         confirmLabel={t(`${K}decline.confirm`)}
         confirmingLabel={t(`${K}sending`)}
         send={(reason) => declineRefund(tenantId, dialog.refund.id, reason)}
