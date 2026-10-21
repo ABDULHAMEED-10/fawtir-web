@@ -584,10 +584,13 @@ export function PendingPlanChangeCard({
   const [reportedCards, setReportedCards] = useState<ReadonlySet<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
+  // Set synchronously, before any re-render can disable the button: a double click withdraws once.
+  const inFlight = useRef(false)
   const date = (iso: string | null) => (iso ? formatDate(iso, i18n.language) : '')
 
   const withdraw = async () => {
-    if (!change.id) return
+    if (!change.id || inFlight.current) return
+    inFlight.current = true
     setBusy(true)
     setFailure(null)
     try {
@@ -596,6 +599,8 @@ export function PendingPlanChangeCard({
     } catch (error) {
       setFailure(refusalOf(t, error))
       setBusy(false)
+    } finally {
+      inFlight.current = false
     }
   }
 
