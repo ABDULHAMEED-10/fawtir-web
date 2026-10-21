@@ -375,6 +375,7 @@ function DisconnectionPanel({
           open={view.nextAction === 'REMOVE_FROM_SMP'}
           canManage={canManage}
           minDay={request.disconnectedAt ? muscatToday(new Date(request.disconnectedAt)) : undefined}
+          callRefused={callRefused}
           onRefused={() => setCallRefused(true)}
           refresh={smp.retry}
           onChanged={() => {

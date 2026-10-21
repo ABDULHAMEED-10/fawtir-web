@@ -56,6 +56,12 @@ export type SmpCallStatusDto = {
   actions?: SmpAction[]
   registrationState?: string | null
   notice?: SmpNotice | null
+  /**
+   * When the server last refused the console's call before queueing it, if that is newer than
+   * `latest`. A refused call is a failed call: support's record is offered too, even while
+   * `callable` is true.
+   */
+  lastRefusedAt?: string | null
 }
 
 /** The server's offered actions, or `null` from a server that does not say (before option C). */

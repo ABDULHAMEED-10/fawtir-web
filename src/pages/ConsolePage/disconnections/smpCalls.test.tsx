@@ -532,6 +532,40 @@ describe('Console › SMP step, option C (API first, recorded override)', () => 
     ).toBeTruthy()
   })
 
+  it('a call refused while the SMP still reads as callable offers Record it done by hand (a refused call is a failed call)', async () => {
+    answers[DISCONNECTION] = () => json(200, disconnection())
+    answers[REMOVAL_STATUS] = () => json(200, optionC({ actions: ['REMOVE'] }))
+    answers[`POST ${SMP}/removal`] = () =>
+      json(409, { type: '/problems/conflict', status: 409, detail: 'refused' })
+    const user = userEvent.setup({ delay: null })
+    const { unmount } = renderAt('/console/disconnections?open=d-1')
+
+    let panel = await removalPanel()
+    const remove = await panel.findByRole('button', { name: i18n.t('console.smpCall.remove.action') })
+    expect(
+      panel.queryByRole('button', { name: i18n.t('console.smpCall.record.REMOVED.action') }),
+    ).toBeNull()
+    await user.click(remove)
+    const dialog = within(await screen.findByRole('dialog'))
+    await user.type(dialog.getByRole('textbox', { name: /Reason/ }), 'notice')
+    await user.click(dialog.getByRole('button', { name: i18n.t('console.smpCall.remove.action') }))
+    expect(await dialog.findByText(i18n.t('console.smpCall.refusal.conflict'))).toBeTruthy()
+    await user.click(dialog.getByRole('button', { name: i18n.t('common.cancel') }))
+    expect(
+      await panel.findByRole('button', { name: i18n.t('console.smpCall.record.REMOVED.action') }),
+    ).toBeTruthy()
+    unmount()
+
+    // The server's read says so too, after a reload.
+    answers[REMOVAL_STATUS] = () =>
+      json(200, optionC({ actions: ['REMOVE', 'RECORD_REMOVAL'], lastRefusedAt: '2026-10-22T05:00:00Z' }))
+    renderAt('/console/disconnections?open=d-1')
+    panel = await removalPanel()
+    expect(
+      await panel.findByRole('button', { name: i18n.t('console.smpCall.record.REMOVED.action') }),
+    ).toBeTruthy()
+  })
+
   it('records a removal done by hand: date, channel, required reason and evidence; never calls the SMP; one request', async () => {
     answers[DISCONNECTION] = () => json(200, disconnection())
     let recorded = false

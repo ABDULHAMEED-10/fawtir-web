@@ -289,6 +289,7 @@ function ReconnectionPanel({
           open={view.nextAction === 'ADD_TO_SMP'}
           canManage={canManage}
           minDay={request.acceptedAt ? muscatToday(new Date(request.acceptedAt)) : undefined}
+          callRefused={callRefused}
           onRefused={() => setCallRefused(true)}
           refresh={smp.retry}
           onChanged={() => {

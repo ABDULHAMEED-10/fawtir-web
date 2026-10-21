@@ -99,6 +99,7 @@ export function SmpCallAction({
   minDay,
   onChanged,
   onRefused,
+  callRefused = false,
   refresh,
 }: {
   tenantId: string
@@ -114,6 +115,8 @@ export function SmpCallAction({
   onChanged: () => void
   /** The call was refused before it was queued: the panel offers recording the step instead. */
   onRefused?: () => void
+  /** The call was refused in this session, before the server's read may say so. */
+  callRefused?: boolean
   /** Reads the latest call again. */
   refresh: () => void
 }) {
@@ -127,7 +130,16 @@ export function SmpCallAction({
   const actions = offeredActions(status)
   const callAction = actions?.find((action) => CALLS.includes(action)) ?? null
   const legacyCall = actions === null && open && (outcome === null || outcome === 'FAILED')
-  const records = (actions ?? []).filter((action) => OVERRIDE_KIND[action] !== undefined)
+  const offeredRecords = (actions ?? []).filter((action) => OVERRIDE_KIND[action] !== undefined)
+  // A call the server refused is a failed call (owner, 21 Oct): "Record it done by hand" is offered
+  // even if the SMP still reads as callable. The server accepts that record once it has the refusal.
+  const fallback: SmpAction = kind === 'REMOVAL' ? 'RECORD_REMOVAL' : 'RECORD_ADDITION'
+  const refused = Boolean(status.lastRefusedAt) || callRefused
+  const records =
+    open && refused && status.overrideEnabled === true && callAction !== null &&
+    !offeredRecords.includes(fallback)
+      ? [...offeredRecords, fallback]
+      : offeredRecords
   const confirmOnly =
     kind === 'ADDITION' && records.length === 1 && records[0] === 'CONFIRM_REGISTRATION'
 
