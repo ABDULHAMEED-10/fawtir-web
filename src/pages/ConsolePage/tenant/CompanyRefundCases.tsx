@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
 import { selectAllOnFocus } from '../../../components/invoice/numericInput'
-import { Input, Modal, OmAmount, Select, withRial } from '../../../components/ui'
+import { DateField, Input, Modal, OmAmount, Select, withRial } from '../../../components/ui'
 import { ConsoleStatusPill } from '../../../layouts/ConsoleShell/ConsoleStatusPill'
 import { CONSOLE_CARD, ConsoleButton } from '../../../layouts/ConsoleShell/consoleStyle'
 import { useConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
@@ -16,6 +16,7 @@ import {
   declinableHere,
   declineRefund,
   recordRefund,
+  refundableHere,
   settlesHere,
   waivableHere,
   waiveRefund,
@@ -26,7 +27,8 @@ import {
 import { forgetEntitlements } from '../../../lib/identity/entitlements'
 import type { FormMessage } from '../../../lib/identity/errors'
 import { LOGIN_ROUTE } from '../../../lib/identity/login'
-import { formatInstantDay } from '../../../lib/format'
+import { formatDate, formatInstantDay } from '../../../lib/format'
+import { muscatToday } from '../../../lib/invoiceIssue'
 import { OperatorReasonDialog } from '../operators/OperatorReasonDialog'
 import { Field } from '../subscriptions/modalFields'
 
@@ -35,19 +37,18 @@ const AMOUNT = /^\d{1,9}(\.\d{1,3})?$/
 
 const known = (value: string, set: readonly string[]) => (set.includes(value) ? value : 'OTHER')
 
-type Dialog = {
+export type RefundDialog = {
   kind: 'amount' | 'refund' | 'decline' | 'waive'
   refund: RefundCaseDto
 }
 
 /**
- * The company's refund cases, under its bills (backend V412). Read-only except the ones the Business
- * Rules leave to the super admin (CA-1, LV-6, RF-1): a company that left Fawtir (yearly, or monthly with
- * a period paid ahead) and a customer's cancellation of a yearly subscription. For those: the suggested
- * amount, a change to it with a reason, and how the money went back. Only a yearly subscription's remaining
- * months may be closed without a refund; a monthly period paid ahead is always refunded, unless the
- * customer gave it up in writing (V427). Draws nothing while the company has no case, or on a server that
- * does not list them.
+ * The company's refund cases, under its bills (backend V412, V423). Every open case can be marked
+ * refunded: a Finance case (RF-2) at the amount received, a console case (CA-1, LV-6, RF-1: a company
+ * that left Fawtir, or a customer's cancellation of a yearly subscription) after the super admin may
+ * change its suggested amount. Only a yearly subscription's remaining months may instead be closed
+ * without a refund; every other case is always refunded, unless the customer gave it up in writing (V427).
+ * Draws nothing while the company has no case, or on a server that does not list them.
  */
 export function CompanyRefundCases({
   tenantId,
@@ -58,208 +59,253 @@ export function CompanyRefundCases({
   canManage: boolean
   onMessage: (message: string) => void
 }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { read, retry } = useConsoleRead<CompanyRefundCasesDto>(companyRefundCasesPath(tenantId))
-  const [dialog, setDialog] = useState<Dialog | null>(null)
+  const [dialog, setDialog] = useState<RefundDialog | null>(null)
   if (read.status !== 'ready') return null
   const cases = read.data.refundCases ?? []
   if (cases.length === 0) return null
-  // openedAt and refundedAt are instants: shown as the day in Muscat, never as a raw timestamp.
-  const day = (iso: string | null | undefined) =>
-    iso ? formatInstantDay(iso, i18n.language) : null
-  const finish = (message: string) => {
-    setDialog(null)
-    onMessage(message)
-    retry()
-  }
 
   return (
     <div className="flex flex-col gap-3">
       <h3 className="text-[15px] font-semibold text-text-primary">{t(`${K}title`)}</h3>
       <ul className="flex flex-col gap-3">
-        {cases.map((entry) => {
-          const reason = known(entry.reason, REFUND_REASONS)
-          const refunded = entry.status === 'REFUNDED'
-          const withdrawn = entry.status === 'WITHDRAWN'
-          const declined = entry.status === 'DECLINED'
-          const waived = entry.status === 'WAIVED'
-          // A console case still waiting for the super admin reads as under review, as the customer sees it.
-          const statusKey = refunded
-            ? 'REFUNDED'
-            : withdrawn
-              ? 'WITHDRAWN'
-              : declined
-                ? 'DECLINED'
-                : waived
-                  ? 'WAIVED'
-                  : settlesHere(entry)
-                    ? 'UNDER_REVIEW'
-                    : 'OPEN'
-          const method = entry.refundMethod ? known(entry.refundMethod, REFUND_METHODS) : null
-          return (
-            <li
-              key={entry.id}
-              className={`${CONSOLE_CARD} flex flex-col gap-2 border border-border-subtle p-4`}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-text-primary">
-                  {t(`${K}reason.${reason}`)}
-                  <ConsoleStatusPill
-                    tone={
-                      refunded ? 'success' : withdrawn || declined || waived ? 'neutral' : 'pending'
-                    }
-                    label={t(`${K}status.${statusKey}`)}
-                  />
-                </span>
-                <OmAmount amount={entry.amount} amountClassName="text-sm font-semibold" />
-              </div>
-              <span className="text-xs font-medium text-text-tertiary">
-                {withRial(
-                  [
-                    t(`${K}opened`, { date: day(entry.openedAt) }),
-                    entry.suggestedAmount != null && entry.monthsRefunded != null
-                      ? t(`${K}suggested`, {
-                          amount: `OMR ${entry.suggestedAmount}`,
-                          count: entry.monthsRefunded,
-                        })
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · '),
-                )}
-              </span>
-              {entry.amountReason ? (
-                <span className="text-xs font-medium text-text-tertiary">
-                  {t(`${K}changedBecause`, { reason: entry.amountReason })}
-                </span>
-              ) : null}
-              {refunded && method ? (
-                <span className="text-xs font-medium text-text-tertiary">
-                  {[
-                    t(`${K}refundedVia`, {
-                      method: t(`${K}method.${method}`),
-                      date: day(entry.refundedAt),
-                    }),
-                    entry.refundReference ? (
-                      <bdi key="ref" dir="ltr">
-                        {entry.refundReference}
-                      </bdi>
-                    ) : null,
-                  ]
-                    .filter(Boolean)
-                    .map((part, index) => (
-                      <span key={index}>
-                        {index > 0 ? ' · ' : null}
-                        {part}
-                      </span>
-                    ))}
-                </span>
-              ) : null}
-              {declined && entry.declineReason ? (
-                <span className="text-xs font-medium text-text-tertiary">
-                  {t(`${K}declinedBecause`, { reason: entry.declineReason })}
-                </span>
-              ) : null}
-              {waived && entry.waiveEvidence ? (
-                <span className="text-xs font-medium text-text-tertiary">
-                  {t(`${K}waivedBecause`, { evidence: entry.waiveEvidence })}
-                  {entry.waiveReference ? (
-                    <>
-                      {' · '}
-                      <bdi dir="ltr">{entry.waiveReference}</bdi>
-                    </>
-                  ) : null}
-                </span>
-              ) : null}
-              {canManage && settlesHere(entry) ? (
-                <div className="flex flex-wrap gap-2.5">
-                  <ConsoleButton
-                    variant="smallPrimary"
-                    onClick={() => setDialog({ kind: 'refund', refund: entry })}
-                  >
-                    {t(`${K}refund.open`)}
-                  </ConsoleButton>
-                  <ConsoleButton
-                    variant="small"
-                    onClick={() => setDialog({ kind: 'amount', refund: entry })}
-                  >
-                    {t(`${K}amount.open`)}
-                  </ConsoleButton>
-                  {declinableHere(entry) ? (
-                    <ConsoleButton
-                      variant="small"
-                      onClick={() => setDialog({ kind: 'decline', refund: entry })}
-                    >
-                      {t(`${K}decline.open`)}
-                    </ConsoleButton>
-                  ) : null}
-                  {waivableHere(entry) ? (
-                    <ConsoleButton
-                      variant="small"
-                      onClick={() => setDialog({ kind: 'waive', refund: entry })}
-                    >
-                      {t(`${K}waive.open`)}
-                    </ConsoleButton>
-                  ) : null}
-                </div>
-              ) : null}
-            </li>
-          )
-        })}
+        {cases.map((entry) => (
+          <RefundCaseItem key={entry.id} entry={entry} canManage={canManage} onAction={setDialog} />
+        ))}
       </ul>
-
-      {dialog?.kind === 'amount' ? (
-        <AdjustAmountDialog
-          tenantId={tenantId}
-          refund={dialog.refund}
-          onClose={() => setDialog(null)}
-          onDone={(changed) => finish(t(`${K}amount.done`, { amount: `OMR ${changed.amount}` }))}
-        />
-      ) : null}
-      {dialog?.kind === 'decline' ? (
-        <OperatorReasonDialog<RefundCaseDto>
-          formId="refund-case-decline"
-          title={t(`${K}decline.title`)}
-          body={t(`${K}decline.body`)}
-          confirmLabel={t(`${K}decline.confirm`)}
-          confirmingLabel={t(`${K}sending`)}
-          send={(reason) => declineRefund(tenantId, dialog.refund.id, reason)}
-          describeFailure={describePayLinkFailure}
-          onDone={() => finish(t(`${K}decline.done`))}
-          onClose={() => setDialog(null)}
-        />
-      ) : null}
-      {dialog?.kind === 'waive' ? (
-        <WaiveRefundDialog
-          tenantId={tenantId}
-          refund={dialog.refund}
-          onClose={() => {
-            setDialog(null)
-            retry()
-          }}
-          onDone={() => finish(t(`${K}waive.done`))}
-        />
-      ) : null}
-      {dialog?.kind === 'refund' ? (
-        <RecordRefundDialog
-          tenantId={tenantId}
-          refund={dialog.refund}
-          onClose={() => {
-            setDialog(null)
-            // A refused change may mean another operator settled it meanwhile: read it again.
-            retry()
-          }}
-          onDone={(done) =>
-            finish(
-              t(`${K}refund.done`, {
-                amount: `OMR ${done.amount}`,
-                method: t(`${K}method.${known(done.refundMethod ?? '', REFUND_METHODS)}`),
-              }),
-            )
-          }
-        />
-      ) : null}
+      <RefundCaseDialogs
+        tenantId={tenantId}
+        dialog={dialog}
+        onClose={() => setDialog(null)}
+        onSettled={(message) => {
+          setDialog(null)
+          onMessage(message)
+          retry()
+        }}
+        onRefused={retry}
+      />
     </div>
+  )
+}
+
+/** One case: what it is, its amount and state, how it was settled, and the acts still open on it. */
+export function RefundCaseItem({
+  entry,
+  canManage,
+  onAction,
+  heading,
+}: {
+  entry: RefundCaseDto
+  canManage: boolean
+  onAction: (dialog: RefundDialog) => void
+  /** Above the reason, such as the company on the cross-company queue. */
+  heading?: ReactNode
+}) {
+  const { t, i18n } = useTranslation()
+  // openedAt and refundedAt are instants, shown as the day in Muscat; approvedOn and refundedOn are days.
+  const instantDay = (iso: string | null | undefined) =>
+    iso ? formatInstantDay(iso, i18n.language) : null
+  const day = (date: string | null | undefined) => (date ? formatDate(date, i18n.language) : null)
+  const reason = known(entry.reason, REFUND_REASONS)
+  const refunded = entry.status === 'REFUNDED'
+  const withdrawn = entry.status === 'WITHDRAWN'
+  const declined = entry.status === 'DECLINED'
+  const waived = entry.status === 'WAIVED'
+  // A console case still waiting for the super admin reads as under review, as the customer sees it.
+  const statusKey = refunded
+    ? 'REFUNDED'
+    : withdrawn
+      ? 'WITHDRAWN'
+      : declined
+        ? 'DECLINED'
+        : waived
+          ? 'WAIVED'
+          : settlesHere(entry)
+            ? 'UNDER_REVIEW'
+            : 'OPEN'
+  const method = entry.refundMethod ? known(entry.refundMethod, REFUND_METHODS) : null
+  return (
+    <li className={`${CONSOLE_CARD} flex flex-col gap-2 border border-border-subtle p-4`}>
+      {heading}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-text-primary">
+          {t(`${K}reason.${reason}`)}
+          <ConsoleStatusPill
+            tone={refunded ? 'success' : withdrawn || declined || waived ? 'neutral' : 'pending'}
+            label={t(`${K}status.${statusKey}`)}
+          />
+        </span>
+        <OmAmount amount={entry.amount} amountClassName="text-sm font-semibold" />
+      </div>
+      <span className="text-xs font-medium text-text-tertiary">
+        {withRial(
+          [
+            t(`${K}opened`, { date: instantDay(entry.openedAt) }),
+            entry.suggestedAmount != null && entry.monthsRefunded != null
+              ? t(`${K}suggested`, {
+                  amount: `OMR ${entry.suggestedAmount}`,
+                  count: entry.monthsRefunded,
+                })
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' · '),
+        )}
+      </span>
+      {entry.amountReason ? (
+        <span className="text-xs font-medium text-text-tertiary">
+          {t(`${K}changedBecause`, { reason: entry.amountReason })}
+        </span>
+      ) : null}
+      {refunded && method ? (
+        <span className="text-xs font-medium text-text-tertiary">
+          {[
+            entry.approvedOn ? t(`${K}approvedOn`, { date: day(entry.approvedOn) }) : null,
+            t(`${K}refundedVia`, {
+              method: t(`${K}method.${method}`),
+              date: entry.refundedOn ? day(entry.refundedOn) : instantDay(entry.refundedAt),
+            }),
+            entry.refundReference ? (
+              <bdi key="ref" dir="ltr">
+                {entry.refundReference}
+              </bdi>
+            ) : null,
+          ]
+            .filter(Boolean)
+            .map((part, index) => (
+              <span key={index}>
+                {index > 0 ? ' · ' : null}
+                {part}
+              </span>
+            ))}
+        </span>
+      ) : null}
+      {declined && entry.declineReason ? (
+        <span className="text-xs font-medium text-text-tertiary">
+          {t(`${K}declinedBecause`, { reason: entry.declineReason })}
+        </span>
+      ) : null}
+      {waived && entry.waiveEvidence ? (
+        <span className="text-xs font-medium text-text-tertiary">
+          {t(`${K}waivedBecause`, { evidence: entry.waiveEvidence })}
+          {entry.waiveReference ? (
+            <>
+              {' · '}
+              <bdi dir="ltr">{entry.waiveReference}</bdi>
+            </>
+          ) : null}
+        </span>
+      ) : null}
+      {canManage && refundableHere(entry) ? (
+        <div className="flex flex-wrap gap-2.5">
+          <ConsoleButton
+            variant="smallPrimary"
+            onClick={() => onAction({ kind: 'refund', refund: entry })}
+          >
+            {t(`${K}refund.open`)}
+          </ConsoleButton>
+          {settlesHere(entry) ? (
+            <ConsoleButton
+              variant="small"
+              onClick={() => onAction({ kind: 'amount', refund: entry })}
+            >
+              {t(`${K}amount.open`)}
+            </ConsoleButton>
+          ) : null}
+          {declinableHere(entry) ? (
+            <ConsoleButton
+              variant="small"
+              onClick={() => onAction({ kind: 'decline', refund: entry })}
+            >
+              {t(`${K}decline.open`)}
+            </ConsoleButton>
+          ) : null}
+          {waivableHere(entry) ? (
+            <ConsoleButton
+              variant="small"
+              onClick={() => onAction({ kind: 'waive', refund: entry })}
+            >
+              {t(`${K}waive.open`)}
+            </ConsoleButton>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
+  )
+}
+
+/** The dialog an act opened, if any. `onRefused`: a refusal may mean another operator acted first. */
+export function RefundCaseDialogs({
+  tenantId,
+  dialog,
+  onClose,
+  onSettled,
+  onRefused,
+}: {
+  tenantId: string
+  dialog: RefundDialog | null
+  onClose: () => void
+  onSettled: (message: string) => void
+  onRefused: () => void
+}) {
+  const { t } = useTranslation()
+  if (!dialog) return null
+  if (dialog.kind === 'amount') {
+    return (
+      <AdjustAmountDialog
+        tenantId={tenantId}
+        refund={dialog.refund}
+        onClose={onClose}
+        onDone={(changed) => onSettled(t(`${K}amount.done`, { amount: `OMR ${changed.amount}` }))}
+      />
+    )
+  }
+  if (dialog.kind === 'decline') {
+    return (
+      <OperatorReasonDialog<RefundCaseDto>
+        formId="refund-case-decline"
+        title={t(`${K}decline.title`)}
+        body={t(`${K}decline.body`)}
+        confirmLabel={t(`${K}decline.confirm`)}
+        confirmingLabel={t(`${K}sending`)}
+        send={(reason) => declineRefund(tenantId, dialog.refund.id, reason)}
+        describeFailure={describePayLinkFailure}
+        onDone={() => onSettled(t(`${K}decline.done`))}
+        onClose={onClose}
+      />
+    )
+  }
+  if (dialog.kind === 'waive') {
+    return (
+      <WaiveRefundDialog
+        tenantId={tenantId}
+        refund={dialog.refund}
+        onClose={() => {
+          onClose()
+          onRefused()
+        }}
+        onDone={() => onSettled(t(`${K}waive.done`))}
+      />
+    )
+  }
+  return (
+    <RecordRefundDialog
+      tenantId={tenantId}
+      refund={dialog.refund}
+      onClose={() => {
+        onClose()
+        onRefused()
+      }}
+      onDone={(done) =>
+        onSettled(
+          t(`${K}refund.done`, {
+            amount: `OMR ${done.amount}`,
+            method: t(`${K}method.${known(done.refundMethod ?? '', REFUND_METHODS)}`),
+          }),
+        )
+      }
+    />
   )
 }
 
@@ -316,7 +362,7 @@ function AdjustAmountDialog({
   )
 }
 
-/** How the money went back, and its reference; one request per confirmation. */
+/** How the money went back, its reference and the day; one request per confirmation. */
 function RecordRefundDialog({
   tenantId,
   refund,
@@ -332,21 +378,30 @@ function RecordRefundDialog({
   const navigate = useNavigate()
   const [method, setMethod] = useState<RefundMethod | ''>('')
   const [reference, setReference] = useState('')
+  const today = muscatToday()
+  const [refundedOn, setRefundedOn] = useState(today)
   const [methodError, setMethodError] = useState<string | undefined>()
+  const [dayError, setDayError] = useState<string | undefined>()
+  const opened = muscatToday(new Date(refund.openedAt))
+  // Recording a console case approves it today: the money goes out today or later, never before (V427).
+  // A Finance case was paid outside Fawtir: some day from when it opened up to today.
+  const approving = settlesHere(refund)
+  const earliest = approving ? today : opened
   const [failure, setFailure] = useState<FormMessage | null>(null)
   const [sending, setSending] = useState(false)
   const inFlight = useRef(false)
   const send = async () => {
     if (inFlight.current) return
-    if (!method) {
-      setMethodError(t('validation.required'))
-      return
-    }
+    const dayWrong = !refundedOn || refundedOn < earliest || (!approving && refundedOn > today)
+    if (dayWrong)
+      setDayError(t(approving ? `${K}refund.onInvalidApproved` : `${K}refund.onInvalid`))
+    if (!method) setMethodError(t('validation.required'))
+    if (!method || dayWrong) return
     inFlight.current = true
     setSending(true)
     setFailure(null)
     try {
-      onDone(await recordRefund(tenantId, refund.id, method, reference.trim() || null))
+      onDone(await recordRefund(tenantId, refund.id, method, reference.trim() || null, refundedOn))
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         forgetEntitlements()
@@ -385,7 +440,7 @@ function RecordRefundDialog({
     >
       <div className="flex flex-col gap-5">
         <p className="text-sm font-medium leading-[1.6] text-text-tertiary">
-          {t(`${K}refund.body`)}
+          {t(settlesHere(refund) ? `${K}refund.body` : `${K}refund.bodyFinance`)}
         </p>
         <div className="flex items-center justify-between gap-3 text-sm">
           <span className="font-medium text-text-tertiary">{t(`${K}refund.amount`)}</span>
@@ -400,10 +455,19 @@ function RecordRefundDialog({
               setMethod(value as RefundMethod)
               setMethodError(undefined)
             }}
-            options={REFUND_METHODS.map((value) => ({
-              value,
-              label: t(`${K}method.${value}`),
-            }))}
+            options={REFUND_METHODS.map((value) => ({ value, label: t(`${K}method.${value}`) }))}
+          />
+        </Field>
+        <Field name="refundedOn" label={t(`${K}refund.on`)} required error={dayError}>
+          <DateField
+            value={refundedOn}
+            onChange={(value) => {
+              setRefundedOn(value)
+              setDayError(undefined)
+            }}
+            min={earliest}
+            max={approving ? undefined : today}
+            ariaLabel={t(`${K}refund.on`)}
           />
         </Field>
         <Input

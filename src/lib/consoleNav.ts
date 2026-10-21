@@ -121,6 +121,14 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         requires: 'platform.billing.read',
       },
       {
+        id: 'refunds',
+        labelKey: 'console.nav.refunds',
+        to: '/console/billing/refunds',
+        Icon: ConsoleQueueIcon,
+        // Every company's refund cases, Finance's and the super admin's (V423).
+        requires: 'platform.billing.read',
+      },
+      {
         id: 'bankAccounts',
         labelKey: 'console.nav.bankAccounts',
         to: '/console/billing/accounts',

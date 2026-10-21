@@ -175,6 +175,7 @@ import { SubBusinessTypePage } from './pages/SubBusinessTypePage'
 import {
   ConsolePlansPage,
   ConsoleBillingPaymentsPage,
+  ConsoleRefundCasesPage,
   ConsoleBankAccountsPage,
   ConsoleBillingSettingsPage,
   ConsoleSellerPage,
@@ -837,6 +838,7 @@ function App() {
           <Route path="/console/onboarding/:companyId" element={<VerificationCompanyPage />} />
           <Route path="/console/plans" element={<ConsolePlansPage />} />
           <Route path="/console/billing/payments" element={<ConsoleBillingPaymentsPage />} />
+          <Route path="/console/billing/refunds" element={<ConsoleRefundCasesPage />} />
           <Route path="/console/billing/accounts" element={<ConsoleBankAccountsPage />} />
           <Route path="/console/billing/settings" element={<ConsoleBillingSettingsPage />} />
           <Route path="/console/billing/seller" element={<ConsoleSellerPage />} />
