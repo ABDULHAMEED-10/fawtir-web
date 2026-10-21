@@ -1,13 +1,13 @@
 import type { ProductDto } from '../../api/catalog/products'
 import { itemTypeOfUnit, OMAN_VAT_CATEGORIES } from '../../lib/invoiceDraft'
 
-/** Goods or service: the product's own flag once the API carries it (P.1), else its unit. */
+/** Goods or service: the product's own flag (`classificationGoodsOrService`), else its unit. */
 export const kindOf = (product: ProductDto) =>
-  product.itemType
-    ? product.itemType === 'SERVICE'
-      ? 'service'
-      : 'goods'
-    : itemTypeOfUnit(product.defaultUnitCode)
+  product.classificationGoodsOrService === 'S'
+    ? 'service'
+    : product.classificationGoodsOrService === 'G'
+      ? 'goods'
+      : itemTypeOfUnit(product.defaultUnitCode)
 
 /** No price, or a VAT category Oman does not use (CL-04-OM): the product needs a look. */
 export const needsAttention = (product: ProductDto) =>

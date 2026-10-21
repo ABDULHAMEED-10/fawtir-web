@@ -248,9 +248,9 @@ describe('product line mapping', () => {
       lineFromProduct(
         SEEDED_TAX_CATEGORIES,
         product({
-          itemType: 'GOODS',
-          hsCode: '040110000000',
-          serviceTypeCode: '00000000',
+          classificationGoodsOrService: 'G',
+          classificationHsCode: '040110000000',
+          classificationServiceTypeCode: '00000000',
           defaultTaxCategory: 'Z',
           defaultTaxRate: 0,
           exemptionReasonCode: 'VATZR-OM-01',
@@ -273,7 +273,11 @@ describe('product line mapping', () => {
     expect(
       lineFromProduct(
         SEEDED_TAX_CATEGORIES,
-        product({ itemType: 'SERVICE', serviceTypeCode: '00000000', hsCode: '040110000000' }),
+        product({
+          classificationGoodsOrService: 'S',
+          classificationServiceTypeCode: '00000000',
+          classificationHsCode: '040110000000',
+        }),
         true,
       ),
     ).toMatchObject({ itemType: 'service', serviceType: '00000000' })

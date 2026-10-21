@@ -4,7 +4,10 @@ import { Trans, useTranslation } from 'react-i18next'
 import { CatalogShell } from './CatalogShell'
 import { Rial, TableCheckbox, withRial } from '../../components/ui'
 import { selectAllOnFocus } from '../../components/invoice'
-import { ITEM, omr } from '../../lib/catalogItem'
+import { omr } from '../../lib/catalogItem'
+import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
+import { useApiRead } from '../../hooks'
+import { getProduct, productPath, type ProductDto } from '../../api/catalog/products'
 import {
   addValue,
   cellKey,
@@ -32,18 +35,40 @@ const signed = (delta: number) => `${delta < 0 ? '-' : '+'}${omr(Math.abs(delta)
  * Sizes and options for one item (Figma "Catalog -> Detail Edit Variants", 154:125539).
  *
  * The customer's two choices make a grid; every ticked cell is a separate thing the till sells,
- * with its own price and code. A sample, like the item form: saving sends nothing yet.
+ * with its own price and code. The item itself is read with `GET /v1/products/{id}` (INCOME.md
+ * P.13): its name, code and base price. TODO(backend): the product carries no sizes or options
+ * yet (P.13), so the choices are still the House Blend example and saving sends nothing.
  */
 export function ItemOptionsPage() {
+  const { t } = useTranslation()
+  const { id = '' } = useParams()
+  const read = useApiRead<ProductDto>(productPath(id), () => getProduct(id))
+  if (read.read.status === 'ready') {
+    return <ItemOptions key={read.read.data.id} product={read.read.data} />
+  }
+  return (
+    <CatalogShell
+      crumbs={[{ labelKey: 'catalog.title', to: '/catalog' }, { labelKey: 'itemOptions.crumb' }]}
+      title={t('itemOptions.crumb')}
+    >
+      {read.read.status === 'loading' ? (
+        <LoadingNotice />
+      ) : (
+        <ApiReadFailure error={read.read.error} retry={read.retry} />
+      )}
+    </CatalogShell>
+  )
+}
+
+function ItemOptions({ product }: { product: ProductDto }) {
   const { t, i18n } = useTranslation()
-  const { id } = useParams()
   const arabic = i18n.language.startsWith('ar')
 
-  /** The item record gives the name and code; the choices are the House Blend example.
-   * TODO(backend): read the item by its id (INCOME.md P.13) so the real name, code and
-   * sizes show here instead of the sample. */
-  const item = { id: id ?? ITEM.id, name: ITEM.name, code: ITEM.code }
-  const [state, setState] = useState<OptionsState>(() => sampleOptions(ITEM.code))
+  const item = { id: encodeURIComponent(product.id), name: product.name, code: product.code }
+  // The sample choices, priced from the item's own base price before VAT.
+  const [state, setState] = useState<OptionsState>(() =>
+    rebuildFromBase({ ...sampleOptions(product.code), base: product.defaultUnitPrice }),
+  )
   const [thirdAsked, setThirdAsked] = useState(false)
   const [saved, setSaved] = useState(false)
 

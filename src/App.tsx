@@ -342,13 +342,13 @@ function App() {
           <Route path="/catalog" element={<CatalogPage />} />
           <Route path="/catalog/upload" element={<DemoModule module="catalog"><UploadMenuPage /></DemoModule>} />
           <Route path="/catalog/build" element={<DemoModule module="catalog"><BuildCatalogPage /></DemoModule>} />
-          <Route path="/catalog/new" element={<DemoModule module="catalog"><ItemFormPage mode="new" /></DemoModule>} />
+          <Route path="/catalog/new" element={<ItemFormPage mode="new" />} />
           <Route path="/catalog/rules" element={<DemoModule module="catalog"><PriceRulesPage /></DemoModule>} />
           <Route path="/catalog/rules/new" element={<DemoModule module="catalog"><NewRulePage /></DemoModule>} />
           <Route path="/catalog/bundles" element={<DemoModule module="catalog"><BundlesPage /></DemoModule>} />
           <Route path="/catalog/bundles/new" element={<DemoModule module="catalog"><BundlePage /></DemoModule>} />
           <Route path="/catalog/bundles/:id" element={<DemoModule module="catalog"><BundlePage /></DemoModule>} />
-          <Route path="/catalog/:id" element={<DemoModule module="catalog"><ItemFormPage mode="edit" /></DemoModule>} />
+          <Route path="/catalog/:id" element={<ItemFormPage mode="edit" />} />
           <Route path="/catalog/:id/sells" element={<DemoModule module="catalog"><ItemSellsPage /></DemoModule>} />
           <Route path="/catalog/:id/used" element={<DemoModule module="catalog"><ItemUsedPage /></DemoModule>} />
           <Route path="/catalog/:id/changes" element={<DemoModule module="catalog"><ItemChangesPage /></DemoModule>} />

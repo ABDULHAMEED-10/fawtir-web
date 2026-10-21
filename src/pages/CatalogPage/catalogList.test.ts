@@ -50,7 +50,7 @@ const codes = (rows: ProductDto[]) => rows.map((row) => row.code)
 describe('the catalogue list tabs', () => {
   it('splits goods from services by the product flag or, without it, the unit', () => {
     expect(codes(ALL.filter((p) => matchesCatalogTab(p, 'services')))).toEqual(['SRV-1'])
-    expect(matchesCatalogTab(product({ itemType: 'SERVICE' }), 'services')).toBe(true)
+    expect(matchesCatalogTab(product({ classificationGoodsOrService: 'S' }), 'services')).toBe(true)
     expect(matchesCatalogTab(TRAINING, 'goods')).toBe(false)
   })
 
