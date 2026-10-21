@@ -1,5 +1,5 @@
 import {
-  isAdministratorOnly,
+  isReservedInMatrix,
   type MatrixPermission,
   type MatrixRole,
   type RoleGrants,
@@ -35,7 +35,7 @@ export function editorGroupOf(code: string): EditorGroup {
  * (RL-5), which is hidden entirely rather than shown switched off.
  */
 export function offeredPermissions(catalogue: MatrixPermission[]): MatrixPermission[] {
-  return catalogue.filter((permission) => !isAdministratorOnly(permission.code))
+  return catalogue.filter((permission) => !isReservedInMatrix(permission))
 }
 
 /** A role's column as switches, leaving out anything the picker does not offer. */

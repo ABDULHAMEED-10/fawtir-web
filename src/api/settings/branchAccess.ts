@@ -150,6 +150,10 @@ const RESERVED = new Set([
   'admin.settings.manage',
   'branch.manage',
   'tenant.plan.manage',
+  'smp.participant.manage',
+  'mapping.manage',
+  'mapping.certify',
+  'webhooks.manage',
 ])
 const ERP_READS = new Set(['erp.connection.read', 'erp.audit.read'])
 

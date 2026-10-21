@@ -21,6 +21,11 @@ export type MatrixPermission = {
   description: string | null
   /** The limits it may be granted with; empty means on or off only. */
   qualifiers: RoleQualifier[]
+  /**
+   * What only the Administrator does (Business Rules RL-5), from the server's `ReservedPermissions`.
+   * A server older than the field omits it; `isReservedInMatrix` then falls back to the list below.
+   */
+  reserved?: boolean
 }
 
 export type MatrixCell = {
@@ -72,11 +77,10 @@ export function deleteRole(id: string): Promise<void> {
 /**
  * What only the Administrator does (Business Rules RL-5): never part of a company-built role.
  *
- * TODO(backend): SETTINGS.md row 8.4. Neither `GET /v1/permissions` (its `assignable` covers
- * platform permissions only) nor the matrix says which codes are Administrator-only, so this
- * mirrors the server's `ReservedPermissions`: five codes, and every `erp.*` code except the two
- * reads. A code the server reserves beyond these is still refused on save (403
- * reserved-permission), and the screen says so.
+ * The matrix marks these `reserved`, and `isReservedInMatrix` reads that first. This list is the
+ * fallback for a server older than the field, mirroring the server's `ReservedPermissions`: the
+ * codes below, and every `erp.*` code except the two reads. A code the server reserves beyond
+ * these is still refused on save (403 reserved-permission), and the screen says so.
  */
 const ADMINISTRATOR_ONLY = new Set([
   'admin.users.manage',
@@ -84,6 +88,11 @@ const ADMINISTRATOR_ONLY = new Set([
   'admin.settings.manage',
   'branch.manage',
   'tenant.plan.manage',
+  // The company's outside connections: its Peppol listing, ERP field mapping and webhooks.
+  'smp.participant.manage',
+  'mapping.manage',
+  'mapping.certify',
+  'webhooks.manage',
 ])
 const ERP_READS = new Set(['erp.connection.read', 'erp.audit.read'])
 
@@ -93,6 +102,11 @@ export function isAdministratorOnly(code: string): boolean {
     ADMINISTRATOR_ONLY.has(normalized) ||
     (normalized.startsWith('erp.') && !ERP_READS.has(normalized))
   )
+}
+
+/** The server's `reserved` flag when it sends one, otherwise the list above. */
+export function isReservedInMatrix(permission: Pick<MatrixPermission, 'code' | 'reserved'>): boolean {
+  return typeof permission.reserved === 'boolean' ? permission.reserved : isAdministratorOnly(permission.code)
 }
 
 /**
