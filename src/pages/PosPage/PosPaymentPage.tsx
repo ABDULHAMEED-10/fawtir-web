@@ -1,17 +1,10 @@
 import { useState } from 'react'
+import { Rial } from '../../components/ui'
+import { useOpenSale } from '../../lib/posSale'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
-import {
-  OPEN_SALE,
-  VAT_RATE,
-  itemById,
-  omr,
-  omrSigned,
-  totalsFor,
-  unitPrice,
-  LULL,
-} from '../../lib/pos'
+import { VAT_RATE, itemById, omr, omrSigned, totalsFor, unitPrice, LULL } from '../../lib/pos'
 import {
   METHODS,
   TAKEN,
@@ -86,7 +79,9 @@ function MethodTile({
 export function PosPaymentPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const totals = totalsFor(OPEN_SALE)
+  // The sale and its discount as the sale screen left them.
+  const { lines, saleDiscount } = useOpenSale()
+  const totals = totalsFor(lines, saleDiscount)
 
   const [tipChoice, setTipChoice] = useState<TipChoice>('roundUp')
   const [taken, setTaken] = useState<Taken[]>(TAKEN)
@@ -370,11 +365,11 @@ export function PosPaymentPage() {
                 {t('pos.pay.walkInCustomer')}
               </h2>
               <p className="mt-1 text-xs font-medium text-text-quaternary">
-                {t('pos.pay.receiptWithQr', { count: OPEN_SALE.length })}
+                {t('pos.pay.receiptWithQr', { count: lines.length })}
               </p>
             </div>
             <ul className="flex flex-col px-5">
-              {OPEN_SALE.map((line) => {
+              {lines.map((line) => {
                 const item = itemById(line.itemId)
                 const size = item.sizes?.find((s) => s.id === line.sizeId)
                 const addOns = (item.addOns ?? []).filter((a) => line.addOnIds.includes(a.id))
@@ -406,16 +401,29 @@ export function PosPaymentPage() {
             </ul>
             <div className="flex flex-col gap-2.5 border-t border-border-subtle px-5 py-4">
               <Row label={t('pos.totals.items')} value={omr(totals.items)} />
+              {totals.discount > 0 ? (
+                <Row
+                  label={t('pos.totals.lull', { percent: LULL.percent })}
+                  value={omrSigned(-totals.discount)}
+                />
+              ) : null}
+              {totals.saleDiscount > 0 ? (
+                <Row label={t('pos.totals.saleDiscount')} value={omrSigned(-totals.saleDiscount)} />
+              ) : null}
               <Row
-                label={t('pos.totals.lull', { percent: LULL.percent })}
-                value={omrSigned(-totals.discount)}
+                label={
+                  totals.vatRates.length === 1
+                    ? t('pos.totals.vatAt', { rate: totals.vatRates[0] })
+                    : t('pos.totals.vatMixed')
+                }
+                value={omr(totals.vat)}
               />
-              <Row label={t('pos.totals.vat')} value={omr(totals.vat)} />
               <Row label={t('pos.pay.sale')} value={omr(totals.sale)} />
               <Row label={t(`pos.pay.tipRow.${tipChoice}`)} value={omr(tip)} />
               <div className="mt-1 flex items-center justify-between gap-3 border-t border-border-subtle pt-3">
                 <span className="text-lg font-medium text-text-primary">{t('pos.pay.total')}</span>
-                <span className="text-[26px] font-semibold leading-none text-text-primary">
+                <span className="inline-flex items-baseline gap-1.5 text-[26px] font-semibold leading-none text-text-primary">
+                  <Rial />
                   {omr(owed)}
                 </span>
               </div>

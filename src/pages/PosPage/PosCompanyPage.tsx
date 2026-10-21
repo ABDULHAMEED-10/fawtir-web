@@ -1,9 +1,9 @@
 import { useState } from 'react'
+import { setSaleLines, useOpenSale } from '../../lib/posSale'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
 import { PosSalePanel } from './PosSalePanel'
-import { OPEN_SALE, type SaleLine } from '../../lib/pos'
 import { COMPANIES, COMPANY_IS, WALK_IN_IS, type Company } from '../../lib/posPayment'
 import searchIcon from '../../assets/dashboard/search.svg'
 
@@ -57,7 +57,9 @@ function ChangeColumn({
 export function PosCompanyPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [lines, setLines] = useState<SaleLine[]>(OPEN_SALE)
+  // The open sale is shared with the payment and receipt screens (src/lib/posSale.ts).
+  const { lines } = useOpenSale()
+  const setLines = setSaleLines
   const [vat, setVat] = useState(COMPANIES[0].vat)
   const [chosen, setChosen] = useState<Company | null>(COMPANIES[0])
 

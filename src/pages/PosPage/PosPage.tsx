@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { setSaleLines, useOpenSale } from '../../lib/posSale'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
@@ -9,7 +10,6 @@ import { Rial } from '../../components/ui'
 import {
   ACTIVE_FILTERS,
   GROUP_TABS,
-  OPEN_SALE,
   POS_ITEMS,
   SHELF_COUNTS,
   activeCounts,
@@ -19,7 +19,6 @@ import {
   type ActiveFilter,
   type GroupTabId,
   type PosItem,
-  type SaleLine,
 } from '../../lib/pos'
 import { CASHIERS, type CashierId } from '../../lib/pos'
 import { BranchPicker } from '../../components/branch/BranchPicker'
@@ -113,7 +112,9 @@ export function PosPage() {
   const [group, setGroup] = useState<GroupTabId>('all')
   const [filter, setFilter] = useState<ActiveFilter>('active')
   const [query, setQuery] = useState('')
-  const [lines, setLines] = useState<SaleLine[]>(OPEN_SALE)
+  // The open sale is shared with the payment and receipt screens (src/lib/posSale.ts).
+  const { lines } = useOpenSale()
+  const setLines = setSaleLines
   const [cashier, setCashier] = useState<CashierId>(CASHIERS[0].id)
 
   const counts = useMemo(() => activeCounts(), [])

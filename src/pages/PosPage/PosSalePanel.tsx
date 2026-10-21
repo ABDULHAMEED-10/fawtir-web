@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DiscountField } from '../../components/invoice'
+import { setSaleDiscount, useOpenSale } from '../../lib/posSale'
 import { Rial } from '../../components/ui'
 import {
   LULL,
-  NO_SALE_DISCOUNT,
   SALE_STARTED,
   itemById,
   lullApplies,
@@ -12,7 +12,6 @@ import {
   omrSigned,
   totalsFor,
   unitPrice,
-  type SaleDiscount,
   type SaleLine,
 } from '../../lib/pos'
 
@@ -44,7 +43,7 @@ export function PosSalePanel({
 }) {
   const { t } = useTranslation()
   const [discountOpen, setDiscountOpen] = useState(false)
-  const [saleDiscount, setSaleDiscount] = useState<SaleDiscount>(NO_SALE_DISCOUNT)
+  const { saleDiscount } = useOpenSale()
   const totals = totalsFor(lines, saleDiscount)
   const items = lines.reduce((sum, line) => sum + line.qty, 0)
   const discounted = lines.some(lullApplies) && totals.discount > 0
@@ -273,12 +272,9 @@ export function PosSalePanel({
                 <DiscountField
                   type={saleDiscount.type}
                   value={saleDiscount.value}
-                  onTypeChange={(type) => setSaleDiscount((current) => ({ ...current, type }))}
+                  onTypeChange={(type) => setSaleDiscount({ ...saleDiscount, type })}
                   onValueChange={(value) =>
-                    setSaleDiscount((current) => ({
-                      ...current,
-                      value: value.replace(/[^\d.]/g, ''),
-                    }))
+                    setSaleDiscount({ ...saleDiscount, value: value.replace(/[^\d.]/g, '') })
                   }
                   resolved={BigInt(totals.saleDiscount)}
                 />

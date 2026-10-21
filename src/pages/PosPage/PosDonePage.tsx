@@ -1,20 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
+import { startNewSale, useOpenSale } from '../../lib/posSale'
 import { useWorkingBranch } from '../../components/branch/BranchPicker'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import QRCode from 'qrcode'
 import { AppShell } from '../../layouts/AppShell'
 import { withRial } from '../../components/ui'
-import {
-  LULL,
-  OPEN_SALE,
-  TILL,
-  itemById,
-  omr,
-  omrSigned,
-  totalsFor,
-  unitPrice,
-} from '../../lib/pos'
+import { LULL, TILL, itemById, omr, omrSigned, totalsFor, unitPrice } from '../../lib/pos'
 import {
   FILING_STEPS,
   RECEIPT,
@@ -46,7 +38,8 @@ export function PosDonePage() {
   const navigate = useNavigate()
   const [way, setWay] = useState('print')
 
-  const totals = totalsFor(OPEN_SALE)
+  const { lines, saleDiscount } = useOpenSale()
+  const totals = totalsFor(lines, saleDiscount)
   const tip = roundUpTip(totals.sale)
   const total = toPay(totals.sale, tip)
   const change = changeDue(TAKEN)
@@ -203,7 +196,10 @@ export function PosDonePage() {
               </div>
               <button
                 type="button"
-                onClick={() => navigate('/pos')}
+                onClick={() => {
+                  startNewSale()
+                  navigate('/pos')
+                }}
                 className="inline-flex h-[52px] shrink-0 items-center rounded-sm bg-primary-700 px-6 text-base font-semibold text-white transition-colors hover:bg-primary-800"
               >
                 {t('pos.done.startNew')}
@@ -247,7 +243,7 @@ export function PosDonePage() {
               </div>
 
               <div className="mt-3 border-t border-dashed border-border-subtle pt-3 text-start">
-                {OPEN_SALE.map((line) => {
+                {lines.map((line) => {
                   const item = itemById(line.itemId)
                   const size = item.sizes?.find((s) => s.id === line.sizeId)
                   return (
@@ -262,12 +258,27 @@ export function PosDonePage() {
 
               <div className="mt-3 border-t border-dashed border-border-subtle pt-3 text-start">
                 <ReceiptRow label={t('pos.totals.items')} value={omr(totals.items)} />
-                <ReceiptRow
-                  label={t('pos.totals.lullShort', { percent: LULL.percent })}
-                  value={omrSigned(-totals.discount)}
-                />
+                {totals.discount > 0 ? (
+                  <ReceiptRow
+                    label={t('pos.totals.lullShort', { percent: LULL.percent })}
+                    value={omrSigned(-totals.discount)}
+                  />
+                ) : null}
+                {totals.saleDiscount > 0 ? (
+                  <ReceiptRow
+                    label={t('pos.totals.saleDiscount')}
+                    value={omrSigned(-totals.saleDiscount)}
+                  />
+                ) : null}
                 <ReceiptRow label={t('pos.done.beforeVat')} value={omr(totals.beforeVat)} />
-                <ReceiptRow label={t('pos.totals.vat')} value={omr(totals.vat)} />
+                <ReceiptRow
+                  label={
+                    totals.vatRates.length === 1
+                      ? t('pos.totals.vatAt', { rate: totals.vatRates[0] })
+                      : t('pos.totals.vatMixed')
+                  }
+                  value={omr(totals.vat)}
+                />
                 <ReceiptRow label={t('pos.pay.sale')} value={omr(totals.sale)} />
                 <ReceiptRow label={t('pos.done.tipNoVat')} value={omr(tip)} />
               </div>
