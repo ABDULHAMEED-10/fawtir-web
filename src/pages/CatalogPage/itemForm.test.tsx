@@ -35,7 +35,7 @@ describe('the catalogue item form', () => {
                 { id: 'b-2', code: 'SHR', name: 'Sohar', type: 'STORE', city: 'Sohar' },
               ])
             : String(input).includes('/code-lists/hs')
-              ? json({ content: [], totalElements: 0, number: 0, size: 20 })
+              ? json({ items: [], total: 0 })
               : new Response('', { status: 404 }),
       ),
     )
