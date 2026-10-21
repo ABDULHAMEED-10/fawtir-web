@@ -6,7 +6,7 @@ import { FileDropzone, Input, Modal, Select } from '../../../components/ui'
 import {
   EVIDENCE_ACCEPT,
   EVIDENCE_MAX_BYTES,
-  REJECTION_REASONS,
+  PICKABLE_REJECTION_REASONS,
   attestCompany,
   attestationReferenceError,
   describeDecisionFailure,
@@ -384,7 +384,7 @@ export function DecisionPanel({
                   setReason(value as RejectionReason)
                   setReasonTouched(false)
                 }}
-                options={REJECTION_REASONS.map((code) => ({
+                options={PICKABLE_REJECTION_REASONS.map((code) => ({
                   value: code,
                   label: t(`console.verification.detail.reason.${code}`),
                 }))}

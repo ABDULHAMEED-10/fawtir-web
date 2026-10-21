@@ -44,6 +44,9 @@ export function commonFailureMessage(error: unknown): FormMessage {
         ? { key: 'identityErrors.rateLimited' }
         : { key: 'identityErrors.rateLimitedFor', values: { seconds: error.retryAfterSeconds } }
     }
+    // UP-1: every upload is virus-scanned before it is stored. Both answers say nothing was kept.
+    if (error.problemType === 'upload-infected') return { key: 'identityErrors.uploadInfected' }
+    if (error.problemType === 'upload-scan-unavailable') return { key: 'identityErrors.uploadScanUnavailable' }
     if (error.status >= 500) return { key: 'identityErrors.service' }
     if (error.problemType === 'validation-failed') return { key: 'identityErrors.validation' }
   }

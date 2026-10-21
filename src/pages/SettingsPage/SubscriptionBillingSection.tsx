@@ -1014,6 +1014,9 @@ const KNOWN_REFUSALS = [
   'billing-not-configured',
   'subscription-not-tracked',
   'idempotency-key-reused',
+  // UP-1: the receipt is virus-scanned before it is stored.
+  'upload-infected',
+  'upload-scan-unavailable',
 ]
 
 function refusalMessage(t: (key: string) => string, error: unknown): string {

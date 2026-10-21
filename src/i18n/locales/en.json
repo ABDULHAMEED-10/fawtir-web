@@ -5470,7 +5470,9 @@
     "rateLimited": "Too many attempts. Please wait a moment and try again.",
     "rateLimitedFor": "Too many attempts. Please try again in {{seconds}} seconds.",
     "service": "Fawtir is temporarily unavailable. Please try again shortly.",
-    "unexpected": "Something went wrong. Please try again."
+    "unexpected": "Something went wrong. Please try again.",
+    "uploadInfected": "The virus check found something harmful in this file, so it was not saved. Choose a different file.",
+    "uploadScanUnavailable": "We couldn't check this file for viruses just now, so it was not saved. Try again in a few minutes."
   },
   "invoiceReminder": {
     "title": "Reminder {{current}} of {{total}}",
@@ -6128,15 +6130,6 @@
     "payFrom": "Pay from",
     "runReference": "Run reference",
     "shownOnStatements": "for your records",
-    "howToSend": "How to send it to the bank",
-    "format": {
-      "csv": "Bank Muscat CSV",
-      "csvNote": "Upload straight into their bulk transfer screen",
-      "iso": "ISO 20022 pain.001",
-      "isoNote": "The standard format most banks accept",
-      "printed": "Printed list",
-      "printedNote": "Take it to the branch, or pay by hand"
-    },
     "thisRun": "This run",
     "billsSelected": "Bills selected",
     "ofTotal": "{{selected}} of {{total}}",
@@ -20102,7 +20095,6 @@
     },
     "dateNote": "Changing the date re-works any early-payment discount.",
     "noAccount": "Not chosen",
-    "painNeedsAccount": "An ISO 20022 file needs the account you pay from.",
     "account": {
       "add": "+ Add a bank account",
       "askAdmin": "An administrator adds the accounts you pay from.",
@@ -20151,7 +20143,6 @@
       "settledDebitNote": "{{bill}} is already paid in full. Take it out of the run.",
       "bankDetailsUnconfirmed": "{{supplier}}'s new bank details are not confirmed yet. Confirm them, or take their bills out of the run.",
       "payerAccountInactive": "The account you pay from, {{account}}, is switched off. Choose an active account.",
-      "payerNameNotLatin": "The bank file needs the company's legal name in English letters. Update it in Company settings, then try again.",
       "onHoldMarkPaid": "A bill in this run is on hold. Release it, or take it out of the run and mark the others paid.",
       "rejectedMarkPaid": "{{bill}} was rejected after it joined this run. Mark the others paid and take {{bill}} out of the run.",
       "onHoldMarkPaidNamed": "{{bill}} is on hold. Release it, or take it out of the run and mark the others paid.",
@@ -22566,7 +22557,9 @@
       "idempotency-key-reused": "Reload the page and try again.",
       "other": "That did not go through. Reload the page and try again.",
       "bill-stale": "Your plan changed, so that bill was replaced. Pay the current bill below.",
-      "disconnected-from-fawtir": "Your company has left Fawtir, so nothing more can be paid. An owner or administrator can reconnect the company to Fawtir from the company profile."
+      "disconnected-from-fawtir": "Your company has left Fawtir, so nothing more can be paid. An owner or administrator can reconnect the company to Fawtir from the company profile.",
+      "upload-infected": "The virus check found something harmful in this receipt, so it was not saved. Choose a different file.",
+      "upload-scan-unavailable": "We couldn't check this receipt for viruses just now, so it was not saved. Try again in a few minutes."
     },
     "bankUnavailable": "Bank transfer is temporarily unavailable because proof can't be stored safely right now. Try again in a few minutes.",
     "bankNoAccount": "Bank transfer is temporarily unavailable because Fawtir has not configured a verified bank account.",

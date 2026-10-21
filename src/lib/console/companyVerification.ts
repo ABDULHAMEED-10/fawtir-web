@@ -229,6 +229,15 @@ export const REJECTION_REASONS: readonly RejectionReason[] = [
 ]
 
 /**
+ * The reasons a reviewer may give today. The customer uploads no documents at sign-up; the
+ * Fawtara Portal record is the check (Business Rules VR-2), so "evidence missing" asks for
+ * something nobody is asked to send. Those reasons stay readable on a company rejected with one.
+ */
+export const PICKABLE_REJECTION_REASONS: readonly RejectionReason[] = REJECTION_REASONS.filter(
+  (code) => !code.endsWith('_EVIDENCE_MISSING'),
+)
+
+/**
  * What a reviewer may pick. The backend stores any content type; the picker offers the documents a
  * company's registration evidence actually comes as. The size is core's
  * `fawtir.tenant.company-evidence.maximum-bytes` default — a deployment's gateway may cap uploads

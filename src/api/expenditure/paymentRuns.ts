@@ -12,6 +12,7 @@ export const PAYMENT_RUNS_PATH = '/v1/payment-runs'
 export const PAYER_ACCOUNTS_PATH = '/v1/payer-bank-accounts'
 
 export type PaymentRunState = 'DRAFT' | 'SCHEDULED' | 'EXPORTED' | 'PAID' | 'CANCELLED'
+/** `PAIN_001` is retired (no pain.001 file is made); a run stored with it still reads. */
 export type PaymentRunFormat = 'BANK_MUSCAT_CSV' | 'PAIN_001' | 'PRINTED_LIST'
 
 export type PaymentRunDto = {
