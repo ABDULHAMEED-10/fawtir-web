@@ -196,6 +196,34 @@ const EXTRA = {
   givenBack: [],
 }
 
+/** The give-back picker: issued documents, one already given back (cannot be ticked). */
+const ISSUED = [
+  {
+    id: 'd-3',
+    number: 'INV-2026-0412',
+    type: 'INVOICE',
+    issuedOn: '2026-10-14',
+    status: 'ISSUED',
+    alreadyGivenBack: false,
+  },
+  {
+    id: 'd-2',
+    number: 'INV-2026-0411',
+    type: 'INVOICE',
+    issuedOn: '2026-10-13',
+    status: 'ISSUED',
+    alreadyGivenBack: false,
+  },
+  {
+    id: 'd-1',
+    number: 'CN-2026-0031',
+    type: 'CREDIT_NOTE',
+    issuedOn: '2026-10-12',
+    status: 'ISSUED',
+    alreadyGivenBack: true,
+  },
+]
+
 const COUNTING = {
   tenantId: ID,
   enterprise: true,
@@ -235,6 +263,52 @@ export default [
   { method: 'PUT', match: `${BASE}/plan`, reply: () => OVERVIEW.subscription },
   { match: `${BASE}/extra-documents`, reply: () => EXTRA },
   { method: 'POST', match: `${BASE}/extra-documents/grants`, reply: () => EXTRA },
+  {
+    match: `${BASE}/issued-documents`,
+    reply: ({ query }) => {
+      const part = (query.get('number') ?? '').toLowerCase()
+      return ISSUED.filter((row) => row.number.toLowerCase().includes(part))
+    },
+  },
+  {
+    method: 'POST',
+    match: `${BASE}/extra-documents/give-backs`,
+    reply: ({ body }) => {
+      const ids = body?.documentIds ?? []
+      const credit = {
+        id: 'c-3',
+        source: 'GIVE_BACK',
+        status: 'ACTIVE',
+        documents: ids.length,
+        netAmount: null,
+        startsOn: '2026-10-21',
+        expiresOn: '2026-11-09',
+        reason: body?.reason ?? null,
+        createdBy: 'b7f3e1c2-0d4a-4c55-8e21-6a9f0c3d2e10',
+        createdAt: '2026-10-21T09:00:00Z',
+      }
+      return {
+        ...EXTRA,
+        allowance: {
+          ...EXTRA.allowance,
+          extraDocuments: EXTRA.allowance.extraDocuments + ids.length,
+          totalAllowance: EXTRA.allowance.totalAllowance + ids.length,
+          left: EXTRA.allowance.left + ids.length,
+        },
+        credits: [credit, ...EXTRA.credits],
+        givenBack: ids.map((documentId) => {
+          const doc = ISSUED.find((row) => row.id === documentId)
+          return {
+            creditId: 'c-3',
+            documentId,
+            createdAt: credit.createdAt,
+            documentNumber: doc?.number ?? null,
+            issuedOn: doc?.issuedOn ?? null,
+          }
+        }),
+      }
+    },
+  },
   { match: `${BASE}/received-document-counting`, reply: () => COUNTING },
   { method: 'PUT', match: `${BASE}/received-document-counting`, reply: () => COUNTING },
 ]

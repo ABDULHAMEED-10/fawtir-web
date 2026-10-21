@@ -14,7 +14,8 @@ import { sortCatalogue, type CatalogueAdminPlan } from './planCatalogue'
  * Reads: the lifecycle and its events (`platform.billing.read`), the allowance and extra-document
  * credits (`platform.billing.read`), and the received-document counting override
  * (`platform.plans.read`). Writes: a trial exception and a temporary grant
- * (`platform.billing.manage`), and the counting override (`platform.plans.manage`, `If-Match`).
+ * (`platform.billing.manage`), the counting override (`platform.plans.manage`, `If-Match`), and
+ * the give-back of documents a platform fault cost the customer (`platform.tenants.manage`).
  */
 export const BILLING_READ = 'platform.billing.read'
 export const BILLING_MANAGE = 'platform.billing.manage'
@@ -158,11 +159,23 @@ export type ExtraDocumentCreditDto = {
   createdAt: string
 }
 
+export type GivenBackDocumentDto = {
+  creditId: string
+  documentId: string
+  createdAt: string
+  /** The document's number as the picker shows it; null when it cannot be read, absent from an older server. */
+  documentNumber?: string | null
+  /** The document's issue date; null or absent likewise. */
+  issuedOn?: string | null
+}
+
 export type CompanyExtraDocumentsDto = {
   tenantId: string
   allowance: AllowanceUsageDto
   /** Newest first. */
   credits: ExtraDocumentCreditDto[]
+  /** The documents each GIVE_BACK credit covers, newest first; absent from an older server. */
+  givenBack?: GivenBackDocumentDto[]
 }
 
 export type CountingOverrideDto = {
@@ -219,6 +232,58 @@ export function grantExtraDocuments(
   return apiRequest(`${companyExtraDocumentsPath(tenantId)}/grants`, {
     method: 'POST',
     body: { documents, expiresOn, reason },
+  })
+}
+
+/** The server's bounds for a give-back: documents per call, and rows per lookup. */
+export const GIVE_BACK_MAX_DOCUMENTS = 1000
+export const ISSUED_LOOKUP_LIMIT = 50
+
+export type IssuedDocumentType =
+  'INVOICE' | 'CREDIT_NOTE' | 'DEBIT_NOTE' | 'SELF_BILLED_INVOICE' | 'SELF_BILLED_CREDIT_NOTE'
+
+/** One row of the give-back picker (`GET /platform/companies/{id}/issued-documents`). */
+export type IssuedDocumentDto = {
+  id: string
+  number: string
+  type: IssuedDocumentType | (string & {})
+  issuedOn: string
+  status: string
+  /** A give-back already covers it; the server refuses it a second time. */
+  alreadyGivenBack: boolean
+}
+
+export function issuedDocumentsPath(tenantId: string, number: string): string {
+  const query = new URLSearchParams({ limit: String(ISSUED_LOOKUP_LIMIT) })
+  const part = number.trim()
+  if (part) query.set('number', part)
+  return `${company(tenantId)}/issued-documents?${query.toString()}`
+}
+
+/**
+ * The issued documents a give-back accepts, newest first (`platform.tenants.manage`, the
+ * give-back's own permission). A part of the number narrows them.
+ */
+export function findIssuedDocuments(
+  tenantId: string,
+  number: string,
+): Promise<IssuedDocumentDto[]> {
+  return apiRequest(issuedDocumentsPath(tenantId, number))
+}
+
+/**
+ * Plan v4 §6, AL-F4: documents a Fawtir platform fault cost the customer, given back by a Platform
+ * tenant admin with a reason. Exactly that many are added to the current allowance month and end
+ * with it; each document once. Never automatic.
+ */
+export function giveBackDocuments(
+  tenantId: string,
+  documentIds: string[],
+  reason: string,
+): Promise<CompanyExtraDocumentsDto> {
+  return apiRequest(`${companyExtraDocumentsPath(tenantId)}/give-backs`, {
+    method: 'POST',
+    body: { documentIds, reason },
   })
 }
 
@@ -322,6 +387,10 @@ export function describeCompanySubscriptionFailure(error: unknown): FormMessage 
         return { key: `${K}realm` }
       case 'impersonation-not-allowed':
         return { key: `${K}impersonation` }
+      case 'give-back-document-unknown':
+        return { key: `${K}giveBackUnknown` }
+      case 'give-back-document-already-given-back':
+        return { key: `${K}giveBackAlready` }
     }
     if (error.status === 403) return { key: `${K}forbidden` }
     if (error.status === 404) return { key: `${K}gone` }

@@ -42,11 +42,29 @@ const SUPPORT: Entitlements = {
 
 function status(over: Record<string, unknown> = {}) {
   return {
-    tracked: true, access: 'TRIAL', restrictionsEnforced: false, today: '2026-10-16', planCode: 'BUSINESS',
-    planName: 'Business', billingCycle: 'MONTHLY', periodPrice: '80.000', trialStartsOn: '2026-10-10',
-    trialEndsOn: '2026-10-23', trialDay: 7, trialDaysLeft: 8, paidThrough: null, renewsOn: null, graceDays: 7,
-    graceUntil: null, autoRenew: false, autoRenewAvailable: false, autoRenewChangedAt: null,
-    cancelAtPeriodEnd: false, accessEndsOn: null, scheduledChange: null, ...over,
+    tracked: true,
+    access: 'TRIAL',
+    restrictionsEnforced: false,
+    today: '2026-10-16',
+    planCode: 'BUSINESS',
+    planName: 'Business',
+    billingCycle: 'MONTHLY',
+    periodPrice: '80.000',
+    trialStartsOn: '2026-10-10',
+    trialEndsOn: '2026-10-23',
+    trialDay: 7,
+    trialDaysLeft: 8,
+    paidThrough: null,
+    renewsOn: null,
+    graceDays: 7,
+    graceUntil: null,
+    autoRenew: false,
+    autoRenewAvailable: false,
+    autoRenewChangedAt: null,
+    cancelAtPeriodEnd: false,
+    accessEndsOn: null,
+    scheduledChange: null,
+    ...over,
   }
 }
 
@@ -95,10 +113,24 @@ function plan(code: string, sortOrder: number, active = true) {
 
 function allowance(over: Record<string, unknown> = {}) {
   return {
-    periodStart: '2026-10-10', periodEnd: '2026-11-09', resetsOn: '2026-11-10', planDocuments: 1000,
-    extraDocuments: 50, totalAllowance: 1050, issued: 300, resubmissions: 0, received: 20, receivedHidden: 0,
-    used: 320, planUsed: 320, extraUsed: 0, left: 730, warningPercent: null, issuingAllowed: true,
-    extrasExpireOn: '2026-11-09', ...over,
+    periodStart: '2026-10-10',
+    periodEnd: '2026-11-09',
+    resetsOn: '2026-11-10',
+    planDocuments: 1000,
+    extraDocuments: 50,
+    totalAllowance: 1050,
+    issued: 300,
+    resubmissions: 0,
+    received: 20,
+    receivedHidden: 0,
+    used: 320,
+    planUsed: 320,
+    extraUsed: 0,
+    left: 730,
+    warningPercent: null,
+    issuingAllowed: true,
+    extrasExpireOn: '2026-11-09',
+    ...over,
   }
 }
 
@@ -108,27 +140,58 @@ function extras(credits: unknown[] = [], over: Record<string, unknown> = {}) {
 
 function counting(over: Record<string, unknown> = {}) {
   return {
-    tenantId: TENANT, enterprise: true, planCode: 'ENTERPRISE', version: 0, monthStartedOn: '2026-10-10',
-    countsReceivedNow: true, nextSubscriptionOn: '2026-11-10', countsReceivedFromNext: true, history: [], ...over,
+    tenantId: TENANT,
+    enterprise: true,
+    planCode: 'ENTERPRISE',
+    version: 0,
+    monthStartedOn: '2026-10-10',
+    countsReceivedNow: true,
+    nextSubscriptionOn: '2026-11-10',
+    countsReceivedFromNext: true,
+    history: [],
+    ...over,
   }
 }
 
 function paidExtras(over: Record<string, unknown> = {}, erpAddon: unknown = null) {
   const kind = (included: number, inUse: number, paid: number) => ({
-    included, inUse, paidPlacesNow: paid, capacity: included + paid, unitMonthlyPrice: '2.500', offered: true,
+    included,
+    inUse,
+    paidPlacesNow: paid,
+    capacity: included + paid,
+    unitMonthlyPrice: '2.500',
+    offered: true,
   })
   return {
     tenantId: TENANT,
     extras: {
-      open: true, users: kind(10, 11, 1), branches: kind(5, 3, 0),
+      open: true,
+      users: kind(10, 11, 1),
+      branches: kind(5, 3, 0),
       erpAddon: { offered: true, monthlyPrice: '20.000', status: null, endsOn: null },
-      maxUsersPerOrder: 50, maxBranchesPerOrder: 20, outstanding: null,
-      places: [{
-        id: 'pl-1', kind: 'USER', quantity: 1, source: 'PURCHASE', status: 'ACTIVE', unitPeriodPrice: '2.500',
-        netAmount: '1.694', planCode: 'BUSINESS_PLUS', billingCycle: 'MONTHLY', coversFrom: '2026-10-11',
-        coversTo: '2026-10-31', billId: 'b-1', reason: null, createdAt: '2026-10-11T08:00:00Z',
-        activatedAt: '2026-10-11T08:10:00Z', cancelledAt: null,
-      }],
+      maxUsersPerOrder: 50,
+      maxBranchesPerOrder: 20,
+      outstanding: null,
+      places: [
+        {
+          id: 'pl-1',
+          kind: 'USER',
+          quantity: 1,
+          source: 'PURCHASE',
+          status: 'ACTIVE',
+          unitPeriodPrice: '2.500',
+          netAmount: '1.694',
+          planCode: 'BUSINESS_PLUS',
+          billingCycle: 'MONTHLY',
+          coversFrom: '2026-10-11',
+          coversTo: '2026-10-31',
+          billId: 'b-1',
+          reason: null,
+          createdAt: '2026-10-11T08:00:00Z',
+          activatedAt: '2026-10-11T08:10:00Z',
+          cancelledAt: null,
+        },
+      ],
       ...over,
     },
     erpAddon,
@@ -202,7 +265,9 @@ describe('Console › Tenant › Subscription', () => {
     const sub = await card(C('title'))
 
     expect(sub.getByText(C('access.TRIAL'))).toBeTruthy()
-    expect(sub.getByText(C('planWithCycle', { plan: 'Business', cycle: C('cycle.MONTHLY') }))).toBeTruthy()
+    expect(
+      sub.getByText(C('planWithCycle', { plan: 'Business', cycle: C('cycle.MONTHLY') })),
+    ).toBeTruthy()
     expect(sub.getByText('80.000')).toBeTruthy()
     // 10 to 23 October inclusive is a 14-day trial.
     expect(sub.getByText(C('trialDay', { day: 7, length: 14 }))).toBeTruthy()
@@ -210,24 +275,50 @@ describe('Console › Tenant › Subscription', () => {
 
   it('grants trial days with the reason, and shows the answer and its history row', async () => {
     answers[`POST ${SUBSCRIPTION}/trial-exception`] = () =>
-      json(200, subscription({ trialEndsOn: '2026-10-30', trialDaysLeft: 15 }, [
-        { id: 'e-1', tenantId: TENANT, kind: 'TRIAL_EXTENDED', details: {}, reason: 'Onboarding delay', actorId: 'u-admin', occurredAt: '2026-10-16T08:00:00Z' },
-      ]))
+      json(
+        200,
+        subscription({ trialEndsOn: '2026-10-30', trialDaysLeft: 15 }, [
+          {
+            id: 'e-1',
+            tenantId: TENANT,
+            kind: 'TRIAL_EXTENDED',
+            details: {},
+            reason: 'Onboarding delay',
+            actorId: 'u-admin',
+            occurredAt: '2026-10-16T08:00:00Z',
+          },
+        ]),
+      )
     const user = userEvent.setup({ delay: null })
     renderCards()
 
-    await user.click((await card(C('title'))).getByRole('button', { name: C('trialException.open') }))
+    await user.click(
+      (await card(C('title'))).getByRole('button', { name: C('trialException.open') }),
+    )
     const dialog = await screen.findByRole('dialog')
-    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(C('trialException.days')) }), '7')
-    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(i18n.t('console.operators.reason.label')) }), 'Onboarding delay')
+    await user.type(
+      within(dialog).getByRole('textbox', { name: new RegExp(C('trialException.days')) }),
+      '7',
+    )
+    await user.type(
+      within(dialog).getByRole('textbox', {
+        name: new RegExp(i18n.t('console.operators.reason.label')),
+      }),
+      'Onboarding delay',
+    )
     await user.click(within(dialog).getByRole('button', { name: C('trialException.confirm') }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    expect(sent('POST', `${SUBSCRIPTION}/trial-exception`)!.body).toEqual({ days: 7, reason: 'Onboarding delay' })
+    expect(sent('POST', `${SUBSCRIPTION}/trial-exception`)!.body).toEqual({
+      days: 7,
+      reason: 'Onboarding delay',
+    })
     const history = await card(C('history.title'))
     expect(history.getByText(C('history.kind.TRIAL_EXTENDED'))).toBeTruthy()
     expect(
-      history.getByText(`${i18n.t('console.plans.history.by')} ${i18n.t('console.plans.history.you')}`),
+      history.getByText(
+        `${i18n.t('console.plans.history.by')} ${i18n.t('console.plans.history.you')}`,
+      ),
     ).toBeTruthy()
   })
 
@@ -235,13 +326,25 @@ describe('Console › Tenant › Subscription', () => {
     const user = userEvent.setup({ delay: null })
     renderCards()
 
-    await user.click((await card(C('title'))).getByRole('button', { name: C('trialException.open') }))
+    await user.click(
+      (await card(C('title'))).getByRole('button', { name: C('trialException.open') }),
+    )
     const dialog = await screen.findByRole('dialog')
-    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(C('trialException.days')) }), '91')
-    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(i18n.t('console.operators.reason.label')) }), 'Too long')
+    await user.type(
+      within(dialog).getByRole('textbox', { name: new RegExp(C('trialException.days')) }),
+      '91',
+    )
+    await user.type(
+      within(dialog).getByRole('textbox', {
+        name: new RegExp(i18n.t('console.operators.reason.label')),
+      }),
+      'Too long',
+    )
     await user.click(within(dialog).getByRole('button', { name: C('trialException.confirm') }))
 
-    expect(await within(dialog).findByText(C('error.wholeBetween', { min: 1, max: 90 }))).toBeTruthy()
+    expect(
+      await within(dialog).findByText(C('error.wholeBetween', { min: 1, max: 90 })),
+    ).toBeTruthy()
     expect(sent('POST', `${SUBSCRIPTION}/trial-exception`)).toBeNull()
   })
 
@@ -251,17 +354,28 @@ describe('Console › Tenant › Subscription', () => {
     const user = userEvent.setup({ delay: null })
     renderCards()
 
-    await user.click((await card(C('title'))).getByRole('button', { name: C('trialException.open') }))
+    await user.click(
+      (await card(C('title'))).getByRole('button', { name: C('trialException.open') }),
+    )
     const dialog = await screen.findByRole('dialog')
-    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(C('trialException.days')) }), '7')
-    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(i18n.t('console.operators.reason.label')) }), 'Late')
+    await user.type(
+      within(dialog).getByRole('textbox', { name: new RegExp(C('trialException.days')) }),
+      '7',
+    )
+    await user.type(
+      within(dialog).getByRole('textbox', {
+        name: new RegExp(i18n.t('console.operators.reason.label')),
+      }),
+      'Late',
+    )
     await user.click(within(dialog).getByRole('button', { name: C('trialException.confirm') }))
 
     expect(await within(dialog).findByText(C('refusal.alreadyPaid'))).toBeTruthy()
   })
 
   it('offers no trial exception for a company without a lifecycle', async () => {
-    answers[SUBSCRIPTION] = () => json(200, subscription({ tracked: false, access: 'NOT_TRACKED', trialDay: null }))
+    answers[SUBSCRIPTION] = () =>
+      json(200, subscription({ tracked: false, access: 'NOT_TRACKED', trialDay: null }))
     renderCards()
 
     const sub = await card(C('title'))
@@ -275,8 +389,12 @@ describe('Console › Tenant › Subscription', () => {
     renderCards()
 
     expect((await card(C('title'))).queryByRole('button')).toBeNull()
-    expect((await card(C('allowance.title'))).queryByRole('button', { name: C('grant.open') })).toBeNull()
-    expect((await card(C('counting.title'))).queryByRole('button', { name: C('counting.open') })).toBeNull()
+    expect(
+      (await card(C('allowance.title'))).queryByRole('button', { name: C('grant.open') }),
+    ).toBeNull()
+    expect(
+      (await card(C('counting.title'))).queryByRole('button', { name: C('counting.open') }),
+    ).toBeNull()
   })
 
   it('requests nothing without platform.billing.read or platform.plans.read', async () => {
@@ -585,28 +703,65 @@ describe('Console › Tenant › Cancel at once', () => {
 describe('Console › Tenant › Documents this month', () => {
   it('shows the allowance and the credits, and grants documents ending with the month', async () => {
     answers[EXTRA] = () =>
-      json(200, extras([
-        { id: 'c-1', source: 'PURCHASE', status: 'ACTIVE', documents: 50, netAmount: '5.000', startsOn: '2026-10-12', expiresOn: '2026-11-09', reason: null, createdBy: 'u-customer', createdAt: '2026-10-12T06:00:00Z' },
-      ]))
-    answers[`POST ${EXTRA}/grants`] = () => json(200, extras([], { extraDocuments: 150, totalAllowance: 1150 }))
+      json(
+        200,
+        extras([
+          {
+            id: 'c-1',
+            source: 'PURCHASE',
+            status: 'ACTIVE',
+            documents: 50,
+            netAmount: '5.000',
+            startsOn: '2026-10-12',
+            expiresOn: '2026-11-09',
+            reason: null,
+            createdBy: 'u-customer',
+            createdAt: '2026-10-12T06:00:00Z',
+          },
+        ]),
+      )
+    answers[`POST ${EXTRA}/grants`] = () =>
+      json(200, extras([], { extraDocuments: 150, totalAllowance: 1150 }))
     const user = userEvent.setup({ delay: null })
     renderCards()
 
     const docs = await card(C('allowance.title'))
-    expect(docs.getByText(C('allowance.usedValue', { used: '320', total: '1,050', plan: '1,000', extra: '50' }))).toBeTruthy()
-    expect(docs.getByText(C('allowance.creditLine', { source: C('allowance.source.PURCHASE'), documents: '50' }))).toBeTruthy()
+    expect(
+      docs.getByText(
+        C('allowance.usedValue', { used: '320', total: '1,050', plan: '1,000', extra: '50' }),
+      ),
+    ).toBeTruthy()
+    expect(
+      docs.getByText(
+        C('allowance.creditLine', { source: C('allowance.source.PURCHASE'), documents: '50' }),
+      ),
+    ).toBeTruthy()
 
     await user.click(docs.getByRole('button', { name: C('grant.open') }))
     const dialog = await screen.findByRole('dialog')
-    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(C('grant.documents')) }), '100')
-    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(i18n.t('console.operators.reason.label')) }), 'Platform outage')
+    await user.type(
+      within(dialog).getByRole('textbox', { name: new RegExp(C('grant.documents')) }),
+      '100',
+    )
+    await user.type(
+      within(dialog).getByRole('textbox', {
+        name: new RegExp(i18n.t('console.operators.reason.label')),
+      }),
+      'Platform outage',
+    )
     await user.click(within(dialog).getByRole('button', { name: C('grant.confirm') }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     // The server's default and latest expiry is the end of the allowance month.
-    expect(sent('POST', `${EXTRA}/grants`)!.body).toEqual({ documents: 100, expiresOn: '2026-11-09', reason: 'Platform outage' })
+    expect(sent('POST', `${EXTRA}/grants`)!.body).toEqual({
+      documents: 100,
+      expiresOn: '2026-11-09',
+      reason: 'Platform outage',
+    })
     expect(
-      (await card(C('allowance.title'))).getByText(C('allowance.usedValue', { used: '320', total: '1,150', plan: '1,000', extra: '150' })),
+      (await card(C('allowance.title'))).getByText(
+        C('allowance.usedValue', { used: '320', total: '1,150', plan: '1,000', extra: '150' }),
+      ),
     ).toBeTruthy()
   })
 
@@ -614,14 +769,162 @@ describe('Console › Tenant › Documents this month', () => {
     const user = userEvent.setup({ delay: null })
     renderCards()
 
-    await user.click((await card(C('allowance.title'))).getByRole('button', { name: C('grant.open') }))
+    await user.click(
+      (await card(C('allowance.title'))).getByRole('button', { name: C('grant.open') }),
+    )
     const dialog = await screen.findByRole('dialog')
-    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(C('grant.documents')) }), '0')
-    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(i18n.t('console.operators.reason.label')) }), 'Nothing')
+    await user.type(
+      within(dialog).getByRole('textbox', { name: new RegExp(C('grant.documents')) }),
+      '0',
+    )
+    await user.type(
+      within(dialog).getByRole('textbox', {
+        name: new RegExp(i18n.t('console.operators.reason.label')),
+      }),
+      'Nothing',
+    )
     await user.click(within(dialog).getByRole('button', { name: C('grant.confirm') }))
 
-    expect(await within(dialog).findByText(C('error.wholeBetween', { min: 1, max: '100,000' }))).toBeTruthy()
+    expect(
+      await within(dialog).findByText(C('error.wholeBetween', { min: 1, max: '100,000' })),
+    ).toBeTruthy()
     expect(sent('POST', `${EXTRA}/grants`)).toBeNull()
+  })
+})
+
+const ISSUED = `/api/v1/platform/companies/${TENANT}/issued-documents`
+const G = (key: string, options?: Record<string, unknown>) => C(`giveBack.${key}`, options)
+
+function issued(id: string, number: string, alreadyGivenBack = false, type = 'INVOICE') {
+  return { id, number, type, issuedOn: '2026-10-14', status: 'ISSUED', alreadyGivenBack }
+}
+
+describe('Console › Tenant › Give back documents (AL-F4, CON-10)', () => {
+  it('finds documents by number, gives back the ticked ones with the reason, and shows the credit', async () => {
+    answers[`${ISSUED}?limit=50`] = () =>
+      json(200, [issued('d-2', 'INV-0412'), issued('d-1', 'CN-0031', true, 'CREDIT_NOTE')])
+    answers[`${ISSUED}?limit=50&number=0411`] = () => json(200, [issued('d-3', 'INV-0411')])
+    answers[`POST ${EXTRA}/give-backs`] = () =>
+      json(
+        200,
+        extras(
+          [
+            {
+              id: 'c-9',
+              source: 'GIVE_BACK',
+              status: 'ACTIVE',
+              documents: 2,
+              netAmount: null,
+              startsOn: '2026-10-21',
+              expiresOn: '2026-11-09',
+              reason: 'Signing outage on 20 Oct',
+              createdBy: 'u-admin',
+              createdAt: '2026-10-21T09:00:00Z',
+            },
+          ],
+          { extraDocuments: 52, totalAllowance: 1052 },
+        ),
+      )
+    const user = userEvent.setup({ delay: null })
+    renderCards()
+
+    await user.click((await card(C('allowance.title'))).getByRole('button', { name: G('open') }))
+    const dialog = await screen.findByRole('dialog')
+    const first = await within(dialog).findByRole('checkbox', { name: 'INV-0412' })
+    // A document number reads left to right in Arabic too.
+    expect(within(dialog).getByText('INV-0412').getAttribute('dir')).toBe('ltr')
+    // A document already given back cannot be ticked.
+    expect(
+      (within(dialog).getByRole('checkbox', { name: 'CN-0031' }) as HTMLInputElement).disabled,
+    ).toBe(true)
+    expect(within(dialog).getByText(new RegExp(G('alreadyGivenBack')))).toBeTruthy()
+    await user.click(first)
+
+    // Enter in the number field looks it up; it does not send.
+    await user.type(
+      within(dialog).getByRole('textbox', { name: new RegExp(G('number')) }),
+      '0411{Enter}',
+    )
+    await user.click(await within(dialog).findByRole('checkbox', { name: 'INV-0411' }))
+    expect(sent('POST', `${EXTRA}/give-backs`)).toBeNull()
+    expect(within(dialog).getByText(G('chosen', { count: 2, n: '2' }))).toBeTruthy()
+
+    await user.type(
+      within(dialog).getByRole('textbox', {
+        name: new RegExp(i18n.t('console.operators.reason.label')),
+      }),
+      'Signing outage on 20 Oct',
+    )
+    await user.click(within(dialog).getByRole('button', { name: G('confirm') }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(sent('POST', `${EXTRA}/give-backs`)!.body).toEqual({
+      documentIds: ['d-2', 'd-3'],
+      reason: 'Signing outage on 20 Oct',
+    })
+    const docs = await card(C('allowance.title'))
+    expect(
+      docs.getByText(
+        C('allowance.creditLine', { source: C('allowance.source.GIVE_BACK'), documents: '2' }),
+      ),
+    ).toBeTruthy()
+    expect(docs.getByText(/Signing outage on 20 Oct/)).toBeTruthy()
+  })
+
+  it('refuses to send with no document chosen', async () => {
+    answers[`${ISSUED}?limit=50`] = () => json(200, [issued('d-2', 'INV-0412')])
+    const user = userEvent.setup({ delay: null })
+    renderCards()
+
+    await user.click((await card(C('allowance.title'))).getByRole('button', { name: G('open') }))
+    const dialog = await screen.findByRole('dialog')
+    await within(dialog).findByRole('checkbox', { name: 'INV-0412' })
+    await user.type(
+      within(dialog).getByRole('textbox', {
+        name: new RegExp(i18n.t('console.operators.reason.label')),
+      }),
+      'Outage',
+    )
+    await user.click(within(dialog).getByRole('button', { name: G('confirm') }))
+
+    expect(await within(dialog).findByText(G('chooseOne'))).toBeTruthy()
+    expect(sent('POST', `${EXTRA}/give-backs`)).toBeNull()
+  })
+
+  it('says in words when a document was already given back', async () => {
+    answers[`${ISSUED}?limit=50`] = () => json(200, [issued('d-2', 'INV-0412')])
+    answers[`POST ${EXTRA}/give-backs`] = () =>
+      json(409, {
+        type: 'https://fawtir.om/problems/give-back-document-already-given-back',
+        status: 409,
+      })
+    const user = userEvent.setup({ delay: null })
+    renderCards()
+
+    await user.click((await card(C('allowance.title'))).getByRole('button', { name: G('open') }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(await within(dialog).findByRole('checkbox', { name: 'INV-0412' }))
+    await user.type(
+      within(dialog).getByRole('textbox', {
+        name: new RegExp(i18n.t('console.operators.reason.label')),
+      }),
+      'Outage',
+    )
+    await user.click(within(dialog).getByRole('button', { name: G('confirm') }))
+
+    expect(await within(dialog).findByText(C('refusal.giveBackAlready'))).toBeTruthy()
+  })
+
+  it('is offered only with platform.tenants.manage', async () => {
+    who = {
+      ...ADMIN,
+      permissions: ['platform.billing.read', 'platform.billing.manage', 'platform.plans.read'],
+    }
+    renderCards()
+
+    const docs = await card(C('allowance.title'))
+    expect(docs.getByRole('button', { name: C('grant.open') })).toBeTruthy()
+    expect(docs.queryByRole('button', { name: G('open') })).toBeNull()
   })
 })
 
@@ -635,12 +938,45 @@ describe('Console › Tenant › Count received documents', () => {
   })
 
   it('switches it off for an Enterprise company with If-Match and the reason', async () => {
-    answers[COUNTING] = () => json(200, counting({ version: 2, history: [
-      { id: 'o-2', tenantId: TENANT, version: 2, countsReceived: true, effectiveFrom: '2026-10-10', reason: 'Contract', createdBy: 'u-other', createdAt: '2026-10-01T00:00:00Z' },
-    ] }))
-    answers[`PUT ${COUNTING}`] = () => json(200, counting({ version: 3, countsReceivedFromNext: false, history: [
-      { id: 'o-3', tenantId: TENANT, version: 3, countsReceived: false, effectiveFrom: '2026-11-10', reason: 'New contract', createdBy: 'u-admin', createdAt: '2026-10-16T08:00:00Z' },
-    ] }))
+    answers[COUNTING] = () =>
+      json(
+        200,
+        counting({
+          version: 2,
+          history: [
+            {
+              id: 'o-2',
+              tenantId: TENANT,
+              version: 2,
+              countsReceived: true,
+              effectiveFrom: '2026-10-10',
+              reason: 'Contract',
+              createdBy: 'u-other',
+              createdAt: '2026-10-01T00:00:00Z',
+            },
+          ],
+        }),
+      )
+    answers[`PUT ${COUNTING}`] = () =>
+      json(
+        200,
+        counting({
+          version: 3,
+          countsReceivedFromNext: false,
+          history: [
+            {
+              id: 'o-3',
+              tenantId: TENANT,
+              version: 3,
+              countsReceived: false,
+              effectiveFrom: '2026-11-10',
+              reason: 'New contract',
+              createdBy: 'u-admin',
+              createdAt: '2026-10-16T08:00:00Z',
+            },
+          ],
+        }),
+      )
     const user = userEvent.setup({ delay: null })
     renderCards()
 
@@ -651,7 +987,12 @@ describe('Console › Tenant › Count received documents', () => {
     const dialog = await screen.findByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: C('counting.setting') }))
     await user.click(await screen.findByRole('option', { name: C('counting.choice.off') }))
-    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(i18n.t('console.operators.reason.label')) }), 'New contract')
+    await user.type(
+      within(dialog).getByRole('textbox', {
+        name: new RegExp(i18n.t('console.operators.reason.label')),
+      }),
+      'New contract',
+    )
     await user.click(within(dialog).getByRole('button', { name: C('counting.confirm') }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
@@ -667,9 +1008,16 @@ describe('Console › Tenant › Count received documents', () => {
     const user = userEvent.setup({ delay: null })
     renderCards()
 
-    await user.click((await card(C('counting.title'))).getByRole('button', { name: C('counting.open') }))
+    await user.click(
+      (await card(C('counting.title'))).getByRole('button', { name: C('counting.open') }),
+    )
     const dialog = await screen.findByRole('dialog')
-    await user.type(within(dialog).getByRole('textbox', { name: new RegExp(i18n.t('console.operators.reason.label')) }), 'Retry')
+    await user.type(
+      within(dialog).getByRole('textbox', {
+        name: new RegExp(i18n.t('console.operators.reason.label')),
+      }),
+      'Retry',
+    )
     await user.click(within(dialog).getByRole('button', { name: C('counting.confirm') }))
 
     expect(await within(dialog).findByText(C('refusal.countingConflict'))).toBeTruthy()
@@ -689,7 +1037,9 @@ describe('Console › company › paid extras (P2-1 §3.14, read only)', () => {
     renderCards()
     const card = await screen.findByRole('region', { name: C('paidExtras.title') })
     expect(
-      await within(card).findByText(C('paidExtras.kindValue', { inUse: '11', capacity: '11', included: '10', paid: '1' })),
+      await within(card).findByText(
+        C('paidExtras.kindValue', { inUse: '11', capacity: '11', included: '10', paid: '1' }),
+      ),
     ).toBeTruthy()
     expect(within(card).getByText(C('paidExtras.addonNone'))).toBeTruthy()
     expect(within(card).getByText('1.694')).toBeTruthy()
@@ -698,10 +1048,30 @@ describe('Console › company › paid extras (P2-1 §3.14, read only)', () => {
 
   it('says whether the add-on granted ERP, and why it ended', async () => {
     answers[PAID] = () =>
-      json(200, paidExtras({ erpAddon: { offered: true, monthlyPrice: '20.000', status: 'ENDING', endsOn: '2026-10-31' } }, {
-        tenantId: TENANT, status: 'ENDING', startedOn: '2026-10-02', endsOn: '2026-10-31', endReason: 'PLAN_DOWNGRADE',
-        grantedEntitlement: true, changedBy: 'u-1', changedAt: '2026-10-12T08:00:00Z', version: 2,
-      }))
+      json(
+        200,
+        paidExtras(
+          {
+            erpAddon: {
+              offered: true,
+              monthlyPrice: '20.000',
+              status: 'ENDING',
+              endsOn: '2026-10-31',
+            },
+          },
+          {
+            tenantId: TENANT,
+            status: 'ENDING',
+            startedOn: '2026-10-02',
+            endsOn: '2026-10-31',
+            endReason: 'PLAN_DOWNGRADE',
+            grantedEntitlement: true,
+            changedBy: 'u-1',
+            changedAt: '2026-10-12T08:00:00Z',
+            version: 2,
+          },
+        ),
+      )
     renderCards()
     const card = await screen.findByRole('region', { name: C('paidExtras.title') })
     expect(await within(card).findByText(C('paidExtras.grantedByAddon'))).toBeTruthy()
