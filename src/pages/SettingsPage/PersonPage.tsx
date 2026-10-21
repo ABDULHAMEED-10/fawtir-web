@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { useApiRead } from '../../hooks'
@@ -66,6 +66,11 @@ import { seesEveryBranch, useBranchNames, useManagesPeople, useRoleNames } from 
  *   never offered (RL-5); a branch administrator can give only what they hold themselves (LG-3).
  * - **Owner:** read-only. Only the Owner sees "Hand over ownership" (OW-4).
  *
+ * The role, the permissions and the handover are not branch access: the server serves them with
+ * the switch off too (`UserPermissionsController`, `CompanyOwnerController`), so the page is
+ * always reachable. Only what names branches waits for it (`useBranchAccessOn`): the Branches card,
+ * the branches asked for when someone leaves Administrator, and the branch administrator grant.
+ *
  * Every refusal is the server's decision, shown in our own words.
  */
 export function PersonPage() {
@@ -80,17 +85,11 @@ export function PersonPage() {
 function Gate() {
   const { t } = useTranslation()
   const mayManage = useManagesPeople()
-  // A branch access screen (BA-1, RL-1): while it is off, Team members links to no one's page and
-  // an old link goes back to the list.
-  const branchAccessOn = useBranchAccessOn()
-  if (!branchAccessOn) return <Navigate to="/settings/team" replace />
+  const subtitle = useSubtitle()
   if (!mayManage) {
     return (
       <>
-        <SettingsHeader
-          title={t('branchAccess.person.title')}
-          subtitle={t('branchAccess.person.subtitle')}
-        />
+        <SettingsHeader title={t('branchAccess.person.title')} subtitle={subtitle} />
         <PermissionDeniedNotice />
       </>
     )
@@ -98,8 +97,18 @@ function Gate() {
   return <Person />
 }
 
+/** "Their role, branches and permissions", without branches while branch access is off. */
+function useSubtitle(): string {
+  const { t } = useTranslation()
+  return useBranchAccessOn()
+    ? t('branchAccess.person.subtitle')
+    : t('branchAccess.person.subtitleNoBranches')
+}
+
 function Person() {
   const { t } = useTranslation()
+  const subtitle = useSubtitle()
+  const branchAccessOn = useBranchAccessOn()
   const { userId = '' } = useParams()
   const person = useApiRead<CompanyUser>(personPath(userId), () => loadPerson(userId))
   const [saved, setSaved] = useState<string | null>(null)
@@ -107,10 +116,7 @@ function Person() {
   if (person.read.status === 'loading') {
     return (
       <>
-        <SettingsHeader
-          title={t('branchAccess.person.title')}
-          subtitle={t('branchAccess.person.subtitle')}
-        />
+        <SettingsHeader title={t('branchAccess.person.title')} subtitle={subtitle} />
         <LoadingNotice />
       </>
     )
@@ -118,10 +124,7 @@ function Person() {
   if (person.read.status === 'failed') {
     return (
       <>
-        <SettingsHeader
-          title={t('branchAccess.person.title')}
-          subtitle={t('branchAccess.person.subtitle')}
-        />
+        <SettingsHeader title={t('branchAccess.person.title')} subtitle={subtitle} />
         <ApiReadFailure error={person.read.error} retry={person.retry} />
       </>
     )
@@ -138,7 +141,9 @@ function Person() {
         <Notice body={saved} action={{ label: t('common.close'), onClick: () => setSaved(null) }} />
       ) : null}
       <RoleCard person={who} onSaved={() => done(t('branchAccess.person.roleSaved'))} />
-      <BranchesCard person={who} onSaved={() => done(t('branchAccess.person.branchesSaved'))} />
+      {branchAccessOn ? (
+        <BranchesCard person={who} onSaved={() => done(t('branchAccess.person.branchesSaved'))} />
+      ) : null}
       <PermissionsCard key={`${who.id}:${who.roles.join(',')}`} person={who} />
     </>
   )
@@ -180,7 +185,10 @@ function RoleCard({ person, onSaved }: { person: CompanyUser; onSaved: () => voi
   // Only the Administrator changes roles (RL-5); the Owner always stays an Administrator (OW-1).
   const mayChange = useCan('admin.roles.manage') && !person.owner
   const roles = useApiRead<RoleDto[]>(mayListRoles ? ROLES_PATH : null, loadRoles).read
-  const branchNames = useBranchNames(mayChange)
+  // Branches are asked for only once branch access is on: before that the server needs none
+  // (`BranchAssignmentService.roleChanged`) and no branch is read.
+  const branchAccessOn = useBranchAccessOn()
+  const branchNames = useBranchNames(mayChange && branchAccessOn)
   const failureText = useFailureText()
   const roleList = roles.status === 'ready' ? roles.data : []
   const roleOf = (code: string) => roleList.find((entry) => entry.code === code)
@@ -216,20 +224,21 @@ function RoleCard({ person, onSaved }: { person: CompanyUser; onSaved: () => voi
   // Off Administrator, the person works only in branches (BA-1): name them in the same step, since
   // the server refuses a person with none (409 branch-required). One branch is ticked for them.
   const leavingAdministrator = current === ADMIN_ROLE && choice !== '' && choice !== ADMIN_ROLE
+  const asksBranches = leavingAdministrator && branchAccessOn
   const branchChoices = branchNames.branches.filter((branch) => branch.active)
   const onlyBranch = branchChoices.length === 1 ? branchChoices[0].id : null
   const pickedBranchIds = onlyBranch ? [onlyBranch] : branchIds
 
   const save = async () => {
     if (!choice || choice === current) return
-    if (leavingAdministrator && pickedBranchIds.length === 0) {
+    if (asksBranches && pickedBranchIds.length === 0) {
       setFailure(t('branchAccess.refusal.branchRequired'))
       return
     }
     setSaving(true)
     setFailure(null)
     try {
-      await replaceRole(person.id, choice, leavingAdministrator ? pickedBranchIds : undefined)
+      await replaceRole(person.id, choice, asksBranches ? pickedBranchIds : undefined)
       setConfirmingSelf(false)
       onSaved()
     } catch (error) {
@@ -303,7 +312,7 @@ function RoleCard({ person, onSaved }: { person: CompanyUser; onSaved: () => voi
             </button>
           </div>
         ) : null}
-        {leavingAdministrator ? (
+        {asksBranches ? (
           <fieldset className="flex flex-col gap-2.5">
             <legend className="mb-1 text-sm font-semibold text-text-primary">
               {t('branchAccess.person.roleBranches')}
@@ -493,6 +502,8 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
   const session = useSession()
   const failureText = useFailureText()
   const isAdministrator = useCan(USERS_PERMISSION)
+  // A branch administrator manages people in their branches: nothing to give while it is off.
+  const branchAccessOn = useBranchAccessOn()
   const mayReadCatalogue = useCan('role.read')
   const mayListRoles = useCan(ROLES_PERMISSION)
   const fixed = person.owner === true || person.roles.includes(ADMIN_ROLE)
@@ -620,7 +631,7 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
 
   return (
     <>
-      {isAdministrator ? (
+      {isAdministrator && branchAccessOn ? (
         <SectionCard
           title={t('branchAccess.person.branchAdminTitle')}
           note={t('branchAccess.person.branchAdminNote')}
