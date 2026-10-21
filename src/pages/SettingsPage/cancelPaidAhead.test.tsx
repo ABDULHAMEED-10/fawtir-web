@@ -6,7 +6,11 @@ import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { resetSharedRequests } from '../../api'
 import { formatDate } from '../../lib/format'
-import { cancellationPreview, type SubscriptionStatusDto } from '../../api/settings/subscription'
+import {
+  cancelConfirmBodyKey,
+  cancellationPreview,
+  type SubscriptionStatusDto,
+} from '../../api/settings/subscription'
 import { PlanPage } from './PlanPage'
 
 /**
@@ -85,6 +89,15 @@ const NOT_AHEAD = {
 const OLD_SERVER: Record<string, unknown> = { ...PAID_AHEAD }
 delete OLD_SERVER.cancellationEndsOn
 delete OLD_SERVER.paidAheadRefundedFrom
+/** Yearly, paid to 22 Nov 2027, nothing paid beyond the year in progress. */
+const ANNUAL = {
+  ...PAID_AHEAD,
+  billingCycle: 'ANNUAL',
+  periodPrice: '880.000',
+  paidThrough: '2027-11-22',
+  renewsOn: '2027-11-23',
+  cancellationEndsOn: '2027-11-22',
+}
 const CANCELLED_AHEAD = {
   ...PAID_AHEAD,
   cancelAtPeriodEnd: true,
@@ -227,6 +240,49 @@ describe('Settings › Plan: cancelling with a period paid in advance (CA-1)', (
     const date = formatDate('2026-11-22', 'ar')
     expect(dialog.textContent).toContain(`يبقى اشتراكك فعّالًا حتى ${date}.`)
     expect(dialog.textContent).toContain('سيُسترد مبلغ الفترة التي دفعتها مسبقًا.')
+    expect(dialog.textContent).not.toContain('لا تُستردّ المبالغ المدفوعة مسبقًا')
+  })
+})
+
+describe('Settings › Plan: cancelling a yearly subscription (CA-1, RF-1)', () => {
+  it('picks the dialog body by paid-ahead, then cycle', () => {
+    const key = (over: Record<string, unknown>) => {
+      const status = { ...ANNUAL, ...over } as SubscriptionStatusDto
+      return cancelConfirmBodyKey(status, cancellationPreview(status))
+    }
+    expect(key({})).toBe('subscription.cancelConfirm.bodyAnnual')
+    expect(key({ billingCycle: 'MONTHLY' })).toBe('subscription.cancelConfirm.body')
+    expect(key({ billingCycle: null })).toBe('subscription.cancelConfirm.body')
+    // A period paid in advance keeps its own sentence, yearly or not.
+    expect(key({ cancellationEndsOn: '2026-11-22' })).toBe(
+      'subscription.cancelConfirm.bodyPaidAhead',
+    )
+    // Nothing is paid during a trial, so there are no months to refund.
+    expect(
+      key({ access: 'TRIAL', paidThrough: null, trialEndsOn: '2026-10-22', cancellationEndsOn: '2026-10-22' }),
+    ).toBe('subscription.cancelConfirm.body')
+  })
+
+  it('says Fawtir will review a refund of the remaining months, not that nothing is refunded', async () => {
+    answers[SUBSCRIPTION] = () => json(200, ANNUAL)
+    const { dialog } = await openDialog()
+    expect(
+      within(dialog).getByText(
+        i18n.t('subscription.cancelConfirm.bodyAnnual', { date: '22 Nov 2027' }),
+      ),
+    ).toBeTruthy()
+    expect(dialog.textContent).toContain('Your subscription stays active until 22 Nov 2027.')
+    expect(dialog.textContent).toContain('Fawtir will review a refund of the remaining months.')
+    expect(dialog.textContent).not.toContain('Payments already made are not refunded')
+  })
+
+  it('says it in Arabic, with «فوتر» masculine', async () => {
+    await i18n.changeLanguage('ar')
+    answers[SUBSCRIPTION] = () => json(200, ANNUAL)
+    const { dialog } = await openDialog()
+    const date = formatDate('2027-11-22', 'ar')
+    expect(dialog.textContent).toContain(`يبقى اشتراكك فعّالًا حتى ${date}.`)
+    expect(dialog.textContent).toContain('سيراجع فوتر استرداد مبلغ الأشهر المتبقية.')
     expect(dialog.textContent).not.toContain('لا تُستردّ المبالغ المدفوعة مسبقًا')
   })
 })

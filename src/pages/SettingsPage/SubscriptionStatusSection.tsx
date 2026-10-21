@@ -18,6 +18,7 @@ import {
   withdrawScheduledChange,
   waitingWording,
   withdrawalOf,
+  cancelConfirmBodyKey,
   cancellationPreview,
   type SubscriptionDisplay,
   type SubscriptionStatusDto,
@@ -259,12 +260,7 @@ export function SubscriptionStatusSection({
         }
       >
         <p className="text-sm font-medium leading-[1.6] text-text-secondary">
-          {t(
-            cancelPreview.refundsPaidAhead
-              ? 'subscription.cancelConfirm.bodyPaidAhead'
-              : 'subscription.cancelConfirm.body',
-            { date: day(cancelPreview.endsOn) },
-          )}
+          {t(cancelConfirmBodyKey(status, cancelPreview), { date: day(cancelPreview.endsOn) })}
         </p>
       </Modal>
     </section>

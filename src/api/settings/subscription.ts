@@ -116,6 +116,25 @@ export function cancellationPreview(status: SubscriptionStatusDto): {
   }
 }
 
+/**
+ * Which body the cancel dialog shows (CA-1, RF-1): a period paid in advance is refunded; on a
+ * paid yearly subscription Fawtir reviews a refund of the remaining months; otherwise (monthly,
+ * or a trial, where nothing has been paid) payments already made are not refunded.
+ */
+export function cancelConfirmBodyKey(
+  status: SubscriptionStatusDto,
+  preview: { refundsPaidAhead: boolean },
+):
+  | 'subscription.cancelConfirm.bodyPaidAhead'
+  | 'subscription.cancelConfirm.bodyAnnual'
+  | 'subscription.cancelConfirm.body' {
+  if (preview.refundsPaidAhead) return 'subscription.cancelConfirm.bodyPaidAhead'
+  if (status.billingCycle === 'ANNUAL' && status.access !== 'TRIAL') {
+    return 'subscription.cancelConfirm.bodyAnnual'
+  }
+  return 'subscription.cancelConfirm.body'
+}
+
 /** What the status pill and the Settings card say: the server's access, or that nothing has started. */
 export type SubscriptionDisplay = SubscriptionAccess | 'NOT_STARTED'
 
