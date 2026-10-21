@@ -13250,7 +13250,7 @@
     },
     "nearbyCharge": "المحامص القريبة تتقاضى {{from}} – {{to}}",
     "pricedByWeight": "يُسعّر بالوزن على الكاشير لا بالأكياس",
-    "footer": "{{count}} شيئًا للبيع · عبر {{groups}} مجموعات و{{kinds}} أنواع",
+    "footer": "{{count}} شيئًا للبيع · عبر {{groups}} و{{kinds}}",
     "footerEmpty": "لم يُحدد شيء بعد",
     "cancel": "إلغاء",
     "saveForLater": "احفظ وأكمل لاحقًا",
@@ -13281,7 +13281,19 @@
       "Z": "نسبة صفر",
       "E": "معفى",
       "O": "خارج النطاق"
-    }
+    },
+    "groupCount_zero": "{{count}} مجموعات",
+    "groupCount_one": "مجموعة واحدة",
+    "groupCount_two": "مجموعتين",
+    "groupCount_few": "{{count}} مجموعات",
+    "groupCount_many": "{{count}} مجموعة",
+    "groupCount_other": "{{count}} مجموعة",
+    "kindCount_zero": "{{count}} أنواع",
+    "kindCount_one": "نوع واحد",
+    "kindCount_two": "نوعين",
+    "kindCount_few": "{{count}} أنواع",
+    "kindCount_many": "{{count}} نوعًا",
+    "kindCount_other": "{{count}} نوع"
   },
   "rowsView": {
     "label": "طريقة عرض القائمة",
@@ -23324,7 +23336,7 @@
   },
   "catalogReal": {
     "title": "الكتالوج",
-    "subtitle": "المنتجات التي تُنشأ منها بنود فواتيرك",
+    "subtitle": "كل ما تبيعه، يُحفظ مرة واحدة ويُستخدم في كل فاتورة وعملية بيع.",
     "toolsUnavailable": "رفع القائمة، والأصناف المقترحة، وقواعد الأسعار، والحزم، والمخزون، وسجل مبيعات كل صنف غير مرتبطة بخوادم فوتر بعد.",
     "products": "المنتجات",
     "empty": "لا توجد منتجات بعد. يُضاف المنتج عند اختياره في بند فاتورة.",
@@ -23334,8 +23346,43 @@
       "code": "الرمز",
       "name": "الاسم",
       "unit": "الوحدة",
-      "price": "سعر الوحدة",
-      "tax": "الضريبة"
+      "price": "السعر",
+      "tax": "الضريبة",
+      "item": "الصنف",
+      "kind": "النوع"
+    },
+    "search": "ابحث بالاسم أو الرمز...",
+    "noMatch": "لا يوجد منتج يطابق البحث.",
+    "showingAll_zero": "يُعرض {{count}} منتج",
+    "showingAll_one": "يُعرض منتج واحد",
+    "showingAll_two": "يُعرض المنتجان",
+    "showingAll_few": "تُعرض كل المنتجات وعددها {{count}}",
+    "showingAll_many": "تُعرض كل المنتجات وعددها {{count}}",
+    "showingAll_other": "تُعرض كل المنتجات وعددها {{count}}",
+    "beforeVat": "قبل الضريبة",
+    "noPrice": "بلا سعر",
+    "soldBy": "يُباع بـ: {{unit}}",
+    "kind": {
+      "goods": "منتج",
+      "service": "خدمة"
+    },
+    "category": {
+      "S": "أساسية",
+      "Z": "نسبة صفر",
+      "E": "معفى",
+      "O": "خارج النطاق",
+      "other": "غير مستخدمة في عُمان"
+    },
+    "kpi": {
+      "things": "ما تبيعه",
+      "thingsNote": "{{goods}} منتجات · {{services}} خدمات",
+      "services": "الخدمات",
+      "servicesNote": "تُباع بالساعة أو اليوم أو العمل",
+      "notStandard": "ليست بالنسبة الأساسية",
+      "notStandardNote": "نسبة صفر أو معفاة أو خارج النطاق",
+      "attention": "تحتاج إلى انتباه",
+      "attentionNote": "بلا سعر، أو بفئة ضريبية لا تستخدمها عُمان",
+      "attentionNone": "لكل منتج سعر وفئة ضريبية عُمانية"
     }
   },
   "signupResume": {

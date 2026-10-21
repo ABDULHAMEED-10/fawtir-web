@@ -12554,7 +12554,7 @@
     },
     "nearbyCharge": "Roasteries nearby charge {{from}} – {{to}}",
     "pricedByWeight": "Priced by weight at the till rather than in bags",
-    "footer": "{{count}} things to sell · across {{groups}} groups and {{kinds}} kinds",
+    "footer": "{{count}} things to sell · across {{groups}} and {{kinds}}",
     "footerEmpty": "Nothing ticked yet",
     "cancel": "Cancel",
     "saveForLater": "Save and finish later",
@@ -12573,7 +12573,11 @@
       "Z": "Zero-rated",
       "E": "Exempt",
       "O": "Out of scope"
-    }
+    },
+    "groupCount_one": "{{count}} group",
+    "groupCount_other": "{{count}} groups",
+    "kindCount_one": "{{count}} kind",
+    "kindCount_other": "{{count}} kinds"
   },
   "rowsView": {
     "label": "How this list is shown",
@@ -22129,7 +22133,7 @@
   },
   "catalogReal": {
     "title": "Catalog",
-    "subtitle": "The products your invoice lines are raised from",
+    "subtitle": "Everything you sell, stored once and reused on every invoice and sale.",
     "toolsUnavailable": "Menu upload, suggested items, price rules, bundles, stock and per-item sales history are not connected to Fawtir's servers yet.",
     "products": "Products",
     "empty": "No products yet. A product is added when you pick it on an invoice line.",
@@ -22139,8 +22143,39 @@
       "code": "Code",
       "name": "Name",
       "unit": "Unit",
-      "price": "Unit price",
-      "tax": "VAT"
+      "price": "Price",
+      "tax": "Tax",
+      "item": "Item",
+      "kind": "Kind"
+    },
+    "search": "Search by name or code...",
+    "noMatch": "No product matches that search.",
+    "showingAll_one": "Showing {{count}} product",
+    "showingAll_other": "Showing all {{count}} products",
+    "beforeVat": "before VAT",
+    "noPrice": "No price",
+    "soldBy": "Sold by: {{unit}}",
+    "kind": {
+      "goods": "Product",
+      "service": "Service"
+    },
+    "category": {
+      "S": "Standard",
+      "Z": "Zero-rated",
+      "E": "Exempt",
+      "O": "Out of scope",
+      "other": "Not used in Oman"
+    },
+    "kpi": {
+      "things": "Things you sell",
+      "thingsNote": "{{goods}} products · {{services}} services",
+      "services": "Services",
+      "servicesNote": "Sold by the hour, day or job",
+      "notStandard": "Not at the standard rate",
+      "notStandardNote": "Zero-rated, exempt or out of scope",
+      "attention": "Wanting attention",
+      "attentionNote": "No price, or a VAT category Oman does not use",
+      "attentionNone": "Every product has a price and an Oman VAT category"
     }
   },
   "signupResume": {

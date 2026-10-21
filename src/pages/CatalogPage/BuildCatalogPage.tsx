@@ -452,7 +452,7 @@ export function BuildCatalogPage() {
                             }
                             disabled={!on}
                             aria-label={t('buildCatalog.col.price')}
-                            className="h-[42px] w-[120px] rounded-sm border border-border-default bg-white px-3 text-end text-sm font-semibold text-text-primary outline-none focus:border-border-brand disabled:bg-surface-background disabled:text-text-quaternary"
+                            className="h-[42px] w-[120px] rounded-sm border border-border-default bg-white px-3 text-end text-sm font-semibold text-text-primary outline-none placeholder:font-medium placeholder:text-text-placeholder focus:border-border-brand disabled:bg-surface-background disabled:text-text-quaternary"
                           />
                         </td>
                         <td className="px-3 py-3">
@@ -498,8 +498,8 @@ export function BuildCatalogPage() {
             ? t('buildCatalog.footerEmpty')
             : t('buildCatalog.footer', {
                 count: ready.count,
-                groups: ready.groups,
-                kinds: ready.kinds,
+                groups: t('buildCatalog.groupCount', { count: ready.groups }),
+                kinds: t('buildCatalog.kindCount', { count: ready.kinds }),
               })}
           {ready.count > 0 && unpriced > 0
             ? ` · ${t('buildCatalog.stillNeedPrice', { count: unpriced })}`

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DiscountField } from '../../components/invoice'
+import { Rial } from '../../components/ui'
 import {
   LULL,
   NO_SALE_DISCOUNT,
@@ -104,18 +105,38 @@ export function PosSalePanel({
 
       {!company ? (
         <div className="px-5 pt-4">
-          <div className="grid grid-cols-2 gap-2">
+          {/* One grey bar with the chosen side raised in white, as the frame draws it. */}
+          <div className="grid grid-cols-2 gap-1 rounded-sm bg-surface-background p-1">
             <button
               type="button"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-sm border border-primary-700 bg-primary-25 text-sm font-semibold text-primary-800"
+              aria-pressed="true"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-[3px] bg-surface-card text-sm font-semibold text-text-primary shadow-sm"
             >
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <circle cx="10" cy="6.5" r="3" stroke="currentColor" strokeWidth="1.5" />
+                <path
+                  d="M4 16.5c.8-3 3.2-4.5 6-4.5s5.2 1.5 6 4.5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
               {t('pos.walkIn')}
             </button>
             <button
               type="button"
+              aria-pressed="false"
               onClick={onCompany}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar text-sm font-semibold text-text-tertiary transition-colors hover:border-primary-300"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-[3px] text-sm font-medium text-text-tertiary transition-colors hover:text-text-secondary"
             >
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path
+                  d="M3.5 17V8.5L10 4l6.5 4.5V17M8 17v-4.5h4V17"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinejoin="round"
+                />
+              </svg>
               {t('pos.onTheCompany')}
             </button>
           </div>
@@ -218,7 +239,8 @@ export function PosSalePanel({
         />
         <div className="mt-1 flex items-center justify-between gap-3 border-t border-border-subtle pt-3">
           <span className="text-lg font-medium text-text-primary">{t('pos.totals.toPay')}</span>
-          <span className="text-[26px] font-semibold leading-none text-text-primary">
+          <span className="inline-flex items-baseline gap-1.5 text-[26px] font-semibold leading-none text-text-primary">
+            <Rial />
             {omr(totals.sale)}
           </span>
         </div>

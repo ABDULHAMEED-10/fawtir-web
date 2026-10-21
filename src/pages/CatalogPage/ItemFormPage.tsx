@@ -47,7 +47,6 @@ import youDoIcon from '../../assets/catalog/kind-service.svg'
 import byTimeIcon from '../../assets/catalog/kind-hour.svg'
 import severalIcon from '../../assets/catalog/kind-bundle.svg'
 import tickIcon from '../../assets/catalog/check-green.svg'
-import circleIcon from '../../assets/catalog/minus-amber.svg'
 import plusIcon from '../../assets/catalog/plus-muted.svg'
 import trashIcon from '../../assets/catalog/trash-danger.svg'
 import tickWhiteIcon from '../../assets/catalog/check-white.svg'
@@ -415,8 +414,8 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                 hint={t('item.beforeVat')}
                 value={includesVat ? omr(base) : priceText}
                 readOnly={includesVat}
-                readOnlyAppearance={includesVat}
                 inputMode="decimal"
+                style={{ textAlign: 'end' }}
                 onFocus={selectAllOnFocus}
                 onChange={(event) => setPriceText(event.target.value.replace(/[^\d.]/g, ''))}
                 onBlur={() => setPriceText((text) => threeDecimals(text))}
@@ -454,8 +453,8 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                 hint={t('item.whatCustomerPays')}
                 value={includesVat ? priceText : omr(shelf)}
                 readOnly={!includesVat}
-                readOnlyAppearance={!includesVat}
                 inputMode="decimal"
+                style={{ textAlign: 'end' }}
                 onFocus={selectAllOnFocus}
                 onChange={(event) => setPriceText(event.target.value.replace(/[^\d.]/g, ''))}
                 onBlur={() => setPriceText((text) => threeDecimals(text))}
@@ -723,11 +722,15 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
             <ul className="mt-3 flex flex-col gap-2.5">
               {checks.map((check) => (
                 <li key={check.id} className="flex items-start gap-2">
-                  <img
-                    src={check.done ? tickIcon : circleIcon}
-                    alt=""
-                    className="mt-0.5 size-4 shrink-0"
-                  />
+                  {check.done ? (
+                    <img src={tickIcon} alt="" className="mt-0.5 size-4 shrink-0" />
+                  ) : (
+                    // Still to do: an empty circle, as the frame draws it.
+                    <span
+                      aria-hidden="true"
+                      className="mt-0.5 size-4 shrink-0 rounded-full border-[1.5px] border-text-quaternary"
+                    />
+                  )}
                   <span
                     className={[
                       'text-sm font-medium leading-[1.4]',
