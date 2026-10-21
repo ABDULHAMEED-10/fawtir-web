@@ -15254,7 +15254,7 @@
     },
     "billingSettings": {
       "title": "Billing settings",
-      "subtitle": "Grace, second approval, VAT and renewal timing for subscription bills. Every change is kept with its reason.",
+      "subtitle": "Grace, second approval, VAT, renewal timing and the months charged a year for the ERP add-on, extra people and extra branches on subscription bills. Every change is kept with its reason.",
       "loading": "Loading settings",
       "card": "Subscription billing",
       "cardNote": "Applies to bills issued from now on. Bills already issued keep their figures.",

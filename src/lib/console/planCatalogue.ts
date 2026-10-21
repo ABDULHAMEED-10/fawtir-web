@@ -574,6 +574,14 @@ export function formatAmount(value: string | null): string {
 const grouped = (value: number) => value.toLocaleString('en-US')
 
 /**
+ * ER-1, PL-3: the ERP add-on is offered only while the plan's ERP field mapping is on, so its
+ * price is shown only then; a price kept on a plan with mapping off is not an offer.
+ */
+export function offersErpAddon(plan: CatalogueAdminPlan): boolean {
+  return plan.features.some((entry) => entry.key === 'erpMapping' && entry.enabled)
+}
+
+/**
  * What a plan includes, as the lines its card lists: derived only from the current version's
  * fields and their null meanings, never from a plan's name or code.
  */
@@ -598,7 +606,7 @@ export function planCardLines(plan: CatalogueAdminPlan): FormMessage[] {
           key: 'plan.feature.overage',
           values: { amount: formatAmount(terms.overagePricePerInvoice) },
         },
-    ...(terms.erpAddonMonthlyPrice
+    ...(terms.erpAddonMonthlyPrice && offersErpAddon(plan)
       ? [
           {
             key: 'console.plans.erpAddonLine',

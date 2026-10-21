@@ -970,4 +970,26 @@ describe('ERP and API add-on price (ER-1, PL-3)', () => {
     // Version 1 has no add-on price: one add-on line only, for version 2.
     expect(panel.textContent!.split('ERP and API add-on: ').length - 1).toBe(1)
   })
+
+  it('shows no add-on price on the card or in the history while ERP field mapping is off', async () => {
+    const mappingOff: CatalogueAdminPlan = {
+      ...ADDON,
+      features: [...GROWTH.features, { key: 'erpMapping', enabled: false }],
+    }
+    const history: PlanHistory = {
+      code: 'GROWTH',
+      versions: [version('GROWTH', 1, { erpAddonMonthlyPrice: '20.000' })],
+      events: [],
+    }
+    await openCatalogue({ [`GET ${historyUrl('GROWTH')}`]: () => json(200, history) }, () =>
+      json(200, [STARTER, mappingOff, LEGACY]),
+    )
+    expect(card('Growth').textContent).not.toContain('ERP and API add-on')
+    fireEvent.click(
+      screen.getByRole('button', { name: i18n.t('console.plans.historyOf', { name: 'Growth' }) }),
+    )
+    const panel = await screen.findByRole('dialog')
+    await within(panel).findByText(i18n.t('console.plans.history.version', { version: 1 }))
+    expect(panel.textContent).not.toContain('ERP and API add-on')
+  })
 })

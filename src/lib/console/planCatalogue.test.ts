@@ -4,6 +4,7 @@ import {
   changesTerms,
   describePlanSaveFailure,
   emptyPlanForm,
+  offersErpAddon,
   planCardLines,
   planFormFrom,
   sortCatalogue,
@@ -334,6 +335,20 @@ describe('ERP and API add-on price (ER-1, PL-3)', () => {
       values: { amount: '20.000' },
     })
     expect(planCardLines(PLAN).map((line) => line.key)).not.toContain('console.plans.erpAddonLine')
+  })
+
+  it('shows no add-on price while ERP field mapping is off, even with one stored', () => {
+    const mappingOff: CatalogueAdminPlan = {
+      ...WITH_ADDON,
+      features: [...PLAN.features, { key: 'erpMapping', enabled: false }],
+    }
+    const noSwitch: CatalogueAdminPlan = { ...WITH_ADDON, features: PLAN.features }
+    expect(offersErpAddon(WITH_ADDON)).toBe(true)
+    expect(offersErpAddon(mappingOff)).toBe(false)
+    expect(offersErpAddon(noSwitch)).toBe(false)
+    for (const plan of [mappingOff, noSwitch]) {
+      expect(planCardLines(plan).map((line) => line.key)).not.toContain('console.plans.erpAddonLine')
+    }
   })
 
   it('marks the field when the server names it', () => {

@@ -58,3 +58,26 @@ describe('The plan-gate price says "before VAT" only when VAT is charged', () =>
     expect(ar('planGate.perMonthNoVat')).not.toMatch(/الضريبة/)
   })
 })
+
+describe('«فوتر» is masculine in Arabic', () => {
+  const keys: [string, Record<string, unknown>?][] = [
+    ['console.companySubscription.history.kind.OPERATOR_PLAN_CHANGED'],
+    ['notes.subscription.cancelledByFawtir.title', { date: '17 Nov 2026' }],
+    ['subscription.cancelledByFawtirRefusal'],
+    ['fawtaraStatus.declined.title'],
+  ]
+  for (const [key, values] of keys) {
+    it(key, () => {
+      expect(ar(key, values)).not.toMatch(/(غيّرت|ألغت|رفضت) فوتر/)
+      expect(ar(key, values)).toMatch(/(غيّر|ألغى|رفض) فوتر/)
+    })
+  }
+})
+
+describe('The billing settings subtitle names the months charged a year', () => {
+  it('in English and Arabic', () => {
+    expect(en('console.billingSettings.subtitle')).toContain('months charged a year')
+    expect(ar('console.billingSettings.subtitle')).toContain('الأشهر المحتسبة في السنة')
+    expect(ar('console.billingSettings.subtitle')).not.toMatch(/فاتور|فواتير/)
+  })
+})

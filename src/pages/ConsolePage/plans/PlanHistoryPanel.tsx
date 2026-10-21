@@ -6,6 +6,7 @@ import { ConsoleButton } from '../../../layouts/ConsoleShell/consoleStyle'
 import { useConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
 import {
   formatAmount,
+  offersErpAddon,
   planHistoryPath,
   type CatalogueAdminPlan,
   type PlanEvent,
@@ -103,6 +104,7 @@ export function PlanHistoryPanel({
                   key={version.id}
                   version={version}
                   current={version.id === plan.currentVersion.id}
+                  erpAddonOffered={offersErpAddon(plan)}
                 />
               ))}
             </ol>
@@ -168,7 +170,15 @@ function useActor() {
     )
 }
 
-function VersionEntry({ version, current }: { version: PlanVersion; current: boolean }) {
+function VersionEntry({
+  version,
+  current,
+  erpAddonOffered,
+}: {
+  version: PlanVersion
+  current: boolean
+  erpAddonOffered: boolean
+}) {
   const { t, i18n } = useTranslation()
   const actor = useActor()
   return (
@@ -196,7 +206,7 @@ function VersionEntry({ version, current }: { version: PlanVersion; current: boo
           }),
         )}
       </p>
-      {version.erpAddonMonthlyPrice ? (
+      {erpAddonOffered && version.erpAddonMonthlyPrice ? (
         <p className="mt-1 text-sm font-medium text-text-tertiary">
           {withRial(
             t('console.plans.history.erpAddon', {
