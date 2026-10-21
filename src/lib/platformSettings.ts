@@ -93,8 +93,6 @@ export type PlatformSettings = {
     autoRenewal: boolean
     graceDays: number
     graceNoticeDays: number[]
-    cancellationNoticeDays: number
-    refundMidPeriod: boolean
     upgrade: 'immediateProRata' | 'periodEnd'
     downgrade: 'periodEnd' | 'immediate'
     whileSuspended: 'readOnly' | 'locked'
@@ -189,8 +187,6 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
     autoRenewal: true,
     graceDays: 7,
     graceNoticeDays: [1, 7],
-    cancellationNoticeDays: 0,
-    refundMidPeriod: false,
     upgrade: 'immediateProRata',
     downgrade: 'periodEnd',
     whileSuspended: 'readOnly',

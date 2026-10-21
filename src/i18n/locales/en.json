@@ -13684,11 +13684,7 @@
         "activate": "Activate",
         "changePlan": "Change plan",
         "suspend": "Suspend",
-        "resume": "Resume",
-        "cancel": "Cancel the subscription",
-        "grantQuota": "Grant temporary quota",
-        "waiveOverage": "Waive overage on a bill",
-        "more": "More actions"
+        "resume": "Resume"
       },
       "tabs": {
         "subscription": "Subscription",
@@ -13806,10 +13802,7 @@
         "planChanged": "{{tenant}} is now on {{plan}}, {{term}}",
         "planScheduled": "{{tenant}} moves to {{plan}}, {{term}} on {{date}}",
         "suspended": "{{tenant}} is suspended: read-only until it is resumed",
-        "resumed": "{{tenant}} is active again",
-        "cancelled": "{{tenant}}'s subscription is cancelled. Paid features run to {{date}}",
-        "quotaGranted": "{{documents}} extra documents granted to {{tenant}} until {{date}}",
-        "overageWaived": "OMR {{amount}} waived on {{invoice}}"
+        "resumed": "{{tenant}} is active again"
       },
       "loading": "Loading this tenant…",
       "noCompanyDetails": "No company details submitted yet",
@@ -13974,25 +13967,6 @@
         "title": "Resume the subscription",
         "body": "The account comes back to Active for the rest of its period, with the same plan and terms.",
         "submit": "Resume"
-      },
-      "cancel": {
-        "title": "Cancel the subscription",
-        "body": "Paid features run to the end of the period, then the account goes read-only. The compliance record stays open. This is not reversible from here.",
-        "submit": "Cancel the subscription"
-      },
-      "grantQuota": {
-        "title": "Grant temporary quota",
-        "subtitle": "Extra documents on top of the plan's allowance, until a date you choose",
-        "documents": "Extra documents",
-        "expires": "Expires",
-        "submit": "Grant"
-      },
-      "waiveOverage": {
-        "title": "Waive overage on a bill",
-        "subtitle": "Takes the amount off the invoice before VAT; the reason goes on the record",
-        "amount": "Amount to waive",
-        "onInvoice": "Invoice amount before VAT: OMR {{amount}}",
-        "submit": "Waive"
       }
     },
     "settings": {
@@ -14171,10 +14145,6 @@
         "graceDaysHint": "The account stays live this long after a payment fails.",
         "graceNotices": "Notices within the grace period",
         "graceNoticesHint": "The days on which the tenant is reminded, counted from the failed payment.",
-        "cancellationNotice": "Cancellation notice period (days)",
-        "cancellationNoticeHint": "0 means none: a cancellation takes effect at the end of the period.",
-        "refund": "Refund on mid-period cancellation",
-        "refundNote": "Off, the period runs to its end and nothing is returned.",
         "changesGroup": "Changes of plan",
         "upgrade": "Upgrade",
         "upgradeOption": {

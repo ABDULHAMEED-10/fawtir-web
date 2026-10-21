@@ -366,10 +366,21 @@ describe('Tenant detail — deep-link regression', () => {
     'changePlan',
     'suspend',
     'resume',
-    'cancel',
-    'grantQuota',
-    'waiveOverage',
   ]
+
+  // Fawtir cancels only for abuse or fraud with two operators (CA-7, CA-9), operator grants carry a
+  // reason and an expiry (AL-11), and nothing is billed after the fact: the sample-data dialogs
+  // that cancelled, granted or waived on a local ledger are gone, and their old links open nothing.
+  it.each(['cancel', 'grantQuota', 'waiveOverage'])(
+    'prototype link ?action=%s opens no dialog',
+    async (action) => {
+      answer({ [ENTITLEMENTS_URL]: () => json(200, OPERATOR) })
+      renderAt(`/console/tenants/${PROTOTYPE_ID}?action=${action}`)
+
+      await screen.findByRole('button', { name: 'Subscription' })
+      expect(screen.queryByRole('dialog')).toBeNull()
+    },
+  )
 
   it.each(ACTIONS)('prototype link ?action=%s opens its dialog', async (action) => {
     answer({ [ENTITLEMENTS_URL]: () => json(200, OPERATOR) })

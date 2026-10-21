@@ -20,7 +20,6 @@ describe('Arabic counts read for any figure', () => {
         ar('plan.runOutBodyPeriod', { perDay: 3, days: n, short: 4 }),
         ar('plan.comfortableBodyPeriod', { perDay: 3, days: n, spare: 4 }),
         ar('console.tenantDetail.period.trialAllowance', { documents: n }),
-        ar('console.tenantDetail.done.quotaGranted', { tenant: 'T', documents: n, date: 'D' }),
         ar('console.subscriptions.event.trialStarted', { days: n }),
         ar('console.subscriptions.event.quotaGranted', { documents: n, expires: 'D', reason: 'R' }),
         ar('console.subscriptions.queue.kpi.graceNote', { days: n }),

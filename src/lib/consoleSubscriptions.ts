@@ -1327,63 +1327,6 @@ export const subscriptionsStore = {
     })
   },
 
-  cancel(tenantId: string, reason: string) {
-    const current = state.subscriptions.find((s) => s.tenantId === tenantId)
-    const next = patchSubscription(state, tenantId, {
-      state: 'cancelled',
-      stateSince: NOW,
-      scheduledChange: undefined,
-    })
-    set({
-      ...next,
-      events: [
-        event(tenantId, NOW, OPERATOR, 'cancelled', {
-          reason,
-          until: current?.periodEnd.getTime() ?? NOW.getTime(),
-        }),
-        ...next.events,
-      ],
-    })
-  },
-
-  grantQuota(tenantId: string, documents: number, expires: Date, reason: string) {
-    set({
-      ...state,
-      grants: [
-        { id: nextId('grant'), tenantId, documents, expires, reason, by: OPERATOR, at: NOW },
-        ...state.grants,
-      ],
-      events: [
-        event(tenantId, NOW, OPERATOR, 'quotaGranted', {
-          documents,
-          reason,
-          expires: expires.getTime(),
-        }),
-        ...state.events,
-      ],
-    })
-  },
-
-  waiveOverage(tenantId: string, invoiceId: string, amount: number, reason: string) {
-    set({
-      ...state,
-      invoices: state.invoices.map((i) =>
-        i.id === invoiceId
-          ? {
-              ...i,
-              amount: i.amount - amount,
-              vat: vatOn(i.amount - amount),
-              total: withVat(i.amount - amount),
-            }
-          : i,
-      ),
-      events: [
-        event(tenantId, NOW, OPERATOR, 'overageWaived', { amount, reason }),
-        ...state.events,
-      ],
-    })
-  },
-
   /**
    * A business that never signed up online (§9.3 "Onboard a business"). The identity is
    * registered so every screen can name it, the first period's invoice is issued today, and the
