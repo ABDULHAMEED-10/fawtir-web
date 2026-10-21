@@ -45,7 +45,9 @@ import tickWhiteIcon from '../../assets/settings/check-white.svg'
  * so the screen cannot promise one number while the field says another.
  *
  * The Arabic name is the branch's `nameAr` (V303): the update takes it, the create does not, so a
- * new branch with one is created and then renamed in Arabic in a second call. `BranchAttributes`
+ * new branch with one is created and then renamed in Arabic in a second call. If that second call
+ * fails, the screen says the branch was created without its Arabic name and the next save retries
+ * the rename on the branch already created; it never creates a second one. `BranchAttributes`
  * has no field for the "behaviour" switches below; they are not sent. See docs/backend-guides/INCOME.md, "Update
  * 2026-09-27 (branches)". A new branch starts empty: the form used to open pre-filled with the
  * design's worked example (Sur, 411, Ash Sharqiyah South, prefix SR), which a hurried save would
@@ -95,6 +97,10 @@ export function AddBranchPage() {
   )
   const [saving, setSaving] = useState(false)
   const [saveFailed, setSaveFailed] = useState(false)
+  // The branch this form already created: a later save updates it rather than creating another.
+  const [created, setCreated] = useState<BranchDetailDto | null>(null)
+  // 'save': created, but the Arabic name was not saved. 'clear': saved, but the Arabic name stayed.
+  const [arabicProblem, setArabicProblem] = useState<'save' | 'clear' | null>(null)
   // BR-3: at the plan's branch capacity the server asks for a paid place first.
   const [needsPlace, setNeedsPlace] = useState(false)
   const mayBuyPlaces = useCan('tenant.plan.manage')
@@ -141,6 +147,7 @@ export function AddBranchPage() {
 
   const submit = async () => {
     setSaveFailed(false)
+    setArabicProblem(null)
     setSaving(true)
     try {
       const attributes = {
@@ -155,13 +162,33 @@ export function AddBranchPage() {
         phone: phone || null,
         email: existing?.email ?? null,
       }
+      const arabic = arabicName.trim()
+      const base = existing ?? created
       let saved: BranchDetailDto
-      if (existing) {
-        saved = await updateBranch(existing.id, attributes, true, existing.version, arabicName)
+      let clearAsked = false
+      if (base) {
+        // Text sets the Arabic name; an emptied one asks for it to be removed; else it is left.
+        clearAsked = !arabic && Boolean(base.nameAr?.trim())
+        saved = await updateBranch(
+          base.id,
+          attributes,
+          true,
+          base.version,
+          arabic ? arabic : clearAsked ? '' : undefined,
+        )
+        if (!existing) setCreated(saved)
       } else {
         saved = await createBranch(attributes)
-        if (arabicName.trim()) {
-          saved = await updateBranch(saved.id, attributes, true, saved.version, arabicName)
+        setCreated(saved)
+        if (arabic) {
+          try {
+            saved = await updateBranch(saved.id, attributes, true, saved.version, arabic)
+            setCreated(saved)
+          } catch {
+            // The branch exists; only its Arabic name is missing. The next save retries that.
+            setArabicProblem('save')
+            return
+          }
         }
       }
       if (numbering === 'own' && prefix.trim()) {
@@ -171,6 +198,11 @@ export function AddBranchPage() {
       // moved the head office to whatever branch was added next.
       if (!existing && overview.status === 'ready' && everCount === 0) {
         await designateHeadOffice(saved.id)
+      }
+      if (clearAsked && saved.nameAr?.trim()) {
+        // Everything else is saved; say so rather than leave as if the Arabic name were gone.
+        setArabicProblem('clear')
+        return
       }
       navigate('/settings/branches')
     } catch (error) {
@@ -469,6 +501,14 @@ export function AddBranchPage() {
           ) : saveFailed ? (
             <span role="alert" className="text-danger-700">
               {t('addBranch.saveFailed')}
+            </span>
+          ) : arabicProblem ? (
+            <span role="alert" className="text-danger-700">
+              {t(
+                arabicProblem === 'save'
+                  ? 'addBranch.arabicNameNotSaved'
+                  : 'addBranch.arabicNameNotRemoved',
+              )}
             </span>
           ) : canAdd ? (
             firstInvoice ? (

@@ -10461,6 +10461,8 @@
     "closeThisBranch": "Close this branch",
     "saving": "Saving…",
     "saveFailed": "Could not save the branch. Try again.",
+    "arabicNameNotSaved": "The branch was created, but its Arabic name was not saved. Save again to retry; the branch will not be created twice.",
+    "arabicNameNotRemoved": "Your other changes were saved, but the Arabic name could not be removed.",
     "chooseGovernorate": "Choose a governorate",
     "continuesCompanySeries": "The company's next number",
     "thisBranch": "this branch",

@@ -92,8 +92,10 @@ export function createBranch(payload: BranchAttributesPayload): Promise<BranchDe
 }
 
 /**
- * `nameAr` is sent only when it holds text: the server leaves the Arabic name as it is when the
- * field is absent, and refuses nothing for it.
+ * `nameAr`: `undefined` leaves the Arabic name as it is (the field is not sent); text sets it; an
+ * empty string asks the server to remove it. The server takes absent and null as "leave it", so
+ * only the empty string can mean "remove"; the caller checks the answer's `nameAr` to know whether
+ * it was removed.
  */
 export function updateBranch(
   id: string,
@@ -102,10 +104,14 @@ export function updateBranch(
   expectedVersion: number,
   nameAr?: string,
 ): Promise<BranchDetailDto> {
-  const arabic = nameAr?.trim()
   return apiRequest<BranchDetailDto>(branchPath(id), {
     method: 'PUT',
-    body: { ...payload, active, expectedVersion, ...(arabic ? { nameAr: arabic } : {}) },
+    body: {
+      ...payload,
+      active,
+      expectedVersion,
+      ...(nameAr === undefined ? {} : { nameAr: nameAr.trim() }),
+    },
   })
 }
 
