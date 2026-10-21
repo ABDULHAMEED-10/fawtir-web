@@ -141,7 +141,7 @@ export function GiveBackDialog({
                 {lookup.rows.map((row) => (
                   <li key={row.id} className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                     <Checkbox
-                      label={row.number}
+                      label={<span dir="ltr">{row.number}</span>}
                       className="!text-sm !font-semibold !text-text-primary"
                       checked={chosen.has(row.id)}
                       disabled={row.alreadyGivenBack}

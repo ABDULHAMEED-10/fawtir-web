@@ -800,11 +800,21 @@ function PaidExtrasCard({ tenantId }: { tenantId: string }) {
   ) : (
     <span className="flex flex-wrap items-center gap-2">
       <ConsoleStatusPill
-        tone={erpAddon.status === 'ACTIVE' ? 'success' : erpAddon.status === 'ENDED' ? 'neutral' : 'pending'}
-        label={t(`${P}addonStatus.${erpAddon.status}`, { date: erpAddon.endsOn ? day(erpAddon.endsOn) : '' })}
+        tone={
+          erpAddon.status === 'ACTIVE'
+            ? 'success'
+            : erpAddon.status === 'ENDED'
+              ? 'neutral'
+              : 'pending'
+        }
+        label={t(`${P}addonStatus.${erpAddon.status}`, {
+          date: erpAddon.endsOn ? day(erpAddon.endsOn) : '',
+        })}
       />
       {erpAddon.endReason ? (
-        <span className="text-xs text-text-tertiary">{t(`${P}endReason.${erpAddon.endReason}`)}</span>
+        <span className="text-xs text-text-tertiary">
+          {t(`${P}endReason.${erpAddon.endReason}`)}
+        </span>
       ) : null}
     </span>
   )
@@ -822,10 +832,16 @@ function PaidExtrasCard({ tenantId }: { tenantId: string }) {
           [t(`${P}branches`), kind(extras.branches)],
           [t(`${P}addon`), addonValue],
           erpAddon
-            ? [t(`${P}entitlement`), erpAddon.grantedEntitlement ? t(`${P}grantedByAddon`) : t(`${P}notByAddon`)]
+            ? [
+                t(`${P}entitlement`),
+                erpAddon.grantedEntitlement ? t(`${P}grantedByAddon`) : t(`${P}notByAddon`),
+              ]
             : null,
           extras.outstanding
-            ? [t(`${P}outstanding`), t(`${P}outstandingValue`, { number: extras.outstanding.bill.number })]
+            ? [
+                t(`${P}outstanding`),
+                t(`${P}outstandingValue`, { number: extras.outstanding.bill.number }),
+              ]
             : null,
         ]}
       />
@@ -836,9 +852,15 @@ function PaidExtrasCard({ tenantId }: { tenantId: string }) {
         ) : (
           <ul className="flex flex-col gap-3">
             {extras.places.map((place) => (
-              <li key={place.id} className={`${CONSOLE_CARD} flex flex-col gap-1 border border-border-subtle p-4`}>
+              <li
+                key={place.id}
+                className={`${CONSOLE_CARD} flex flex-col gap-1 border border-border-subtle p-4`}
+              >
                 <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-text-primary">
-                  {t(`paidExtras.history.kind.${place.kind}`, { count: place.quantity, n: n(place.quantity) })}
+                  {t(`paidExtras.history.kind.${place.kind}`, {
+                    count: place.quantity,
+                    n: n(place.quantity),
+                  })}
                   <ConsoleStatusPill
                     tone={PLACE_TONE[place.status]}
                     label={t(`paidExtras.history.status.${place.status}`)}
@@ -847,13 +869,19 @@ function PaidExtrasCard({ tenantId }: { tenantId: string }) {
                 <span className="flex flex-wrap items-center gap-1 text-xs font-medium text-text-tertiary">
                   {[
                     t(`paidExtras.history.source.${place.source}`),
-                    t('paidExtras.history.covers', { from: day(place.coversFrom), to: day(place.coversTo) }),
+                    t('paidExtras.history.covers', {
+                      from: day(place.coversFrom),
+                      to: day(place.coversTo),
+                    }),
                     formatInstant(place.createdAt, i18n.language),
                   ].join(' · ')}
                   {place.netAmount ? (
                     <>
                       {' · '}
-                      <OmAmount amount={formatAmount(place.netAmount, 'OMR', i18n.language)} size="xs" />
+                      <OmAmount
+                        amount={formatAmount(place.netAmount, 'OMR', i18n.language)}
+                        size="xs"
+                      />
                     </>
                   ) : null}
                 </span>

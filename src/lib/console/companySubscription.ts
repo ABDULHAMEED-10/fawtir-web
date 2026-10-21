@@ -159,7 +159,15 @@ export type ExtraDocumentCreditDto = {
   createdAt: string
 }
 
-export type GivenBackDocumentDto = { creditId: string; documentId: string; createdAt: string }
+export type GivenBackDocumentDto = {
+  creditId: string
+  documentId: string
+  createdAt: string
+  /** The document's number as the picker shows it; null when it cannot be read, absent from an older server. */
+  documentNumber?: string | null
+  /** The document's issue date; null or absent likewise. */
+  issuedOn?: string | null
+}
 
 export type CompanyExtraDocumentsDto = {
   tenantId: string
@@ -232,11 +240,7 @@ export const GIVE_BACK_MAX_DOCUMENTS = 1000
 export const ISSUED_LOOKUP_LIMIT = 50
 
 export type IssuedDocumentType =
-  | 'INVOICE'
-  | 'CREDIT_NOTE'
-  | 'DEBIT_NOTE'
-  | 'SELF_BILLED_INVOICE'
-  | 'SELF_BILLED_CREDIT_NOTE'
+  'INVOICE' | 'CREDIT_NOTE' | 'DEBIT_NOTE' | 'SELF_BILLED_INVOICE' | 'SELF_BILLED_CREDIT_NOTE'
 
 /** One row of the give-back picker (`GET /platform/companies/{id}/issued-documents`). */
 export type IssuedDocumentDto = {
@@ -260,7 +264,10 @@ export function issuedDocumentsPath(tenantId: string, number: string): string {
  * The issued documents a give-back accepts, newest first (`platform.tenants.manage`, the
  * give-back's own permission). A part of the number narrows them.
  */
-export function findIssuedDocuments(tenantId: string, number: string): Promise<IssuedDocumentDto[]> {
+export function findIssuedDocuments(
+  tenantId: string,
+  number: string,
+): Promise<IssuedDocumentDto[]> {
   return apiRequest(issuedDocumentsPath(tenantId, number))
 }
 
