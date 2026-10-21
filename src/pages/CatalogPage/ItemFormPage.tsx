@@ -308,6 +308,11 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                   </span>
                 }
               />
+              {/* TODO(backend): zero-rated goods are recognised by HS code. The backend matches the
+                  item's 12-digit HS code against Oman's zero-rated lists (807 grocery items, MD
+                  65/2021; 677 medicines and medical equipment; 62 veterinary medicines and
+                  equipment), then sets category Z with its VATZR-OM reason code. The user can
+                  still change it; this picker only shows the suggestion. */}
               <label className="block">
                 <span className="mb-1.5 flex items-center gap-1 text-xs font-medium text-text-secondary">
                   {t('item.taxCategory')}

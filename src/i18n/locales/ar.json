@@ -1594,7 +1594,8 @@
       "website": "الموقع الإلكتروني",
       "peppolSection": "Peppol / الفوترة الإلكترونية",
       "registeredOnPeppol": "مسجّل على Peppol",
-      "peppolId": "معرّف المشارك في Peppol"
+      "peppolId": "معرّف المشارك في Peppol",
+      "peppolIdHint": "يُملأ تلقائيًا من رقم التسجيل الضريبي. غيّره فقط إذا كان معرّف Peppol للعميل مختلفًا."
     },
     "government": {
       "title": "مراجع المشتريات الحكومية",

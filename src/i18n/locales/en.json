@@ -1520,7 +1520,8 @@
       "website": "Website",
       "peppolSection": "Peppol / e-invoicing",
       "registeredOnPeppol": "Registered on Peppol",
-      "peppolId": "Peppol participant ID"
+      "peppolId": "Peppol participant ID",
+      "peppolIdHint": "Filled in from the VAT number. Change it only if the customer's Peppol ID is different."
     },
     "government": {
       "title": "Public procurement references",

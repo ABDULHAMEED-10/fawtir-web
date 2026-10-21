@@ -17,6 +17,7 @@ import {
   type PlacedCustomerError,
 } from '../../lib/customerForm'
 import { emailList } from '../../lib/supplierForm'
+import { OMAN_VAT_PREFIX, omanVatDigits, omanVatFromDigits } from '../../lib/validation'
 import { Select } from '../ui'
 import closeIcon from '../../assets/add-customer/close.svg'
 import tickIcon from '../../assets/add-customer/tick.svg'
@@ -55,6 +56,7 @@ function TextField({
   onChange,
   error,
   maxLength,
+  prefix,
 }: {
   label: string
   required?: boolean
@@ -64,6 +66,8 @@ function TextField({
   /** Already-translated message. */
   error?: string
   maxLength?: number
+  /** Fixed text before the typed value, not part of it (`OM` before the VAT digits). */
+  prefix?: string
 }) {
   const id = useId()
   return (
@@ -72,12 +76,20 @@ function TextField({
         <FieldLabel label={label} required={required} />
       </label>
       <div
+        dir={prefix ? 'ltr' : undefined}
         className={[
-          'flex h-[50px] w-full items-center justify-between rounded-sm border bg-surface-tab-bar px-4',
+          'flex h-[50px] w-full items-center rounded-sm border bg-surface-tab-bar px-4',
+          prefix ? 'gap-2' : 'justify-between',
           error ? 'border-border-danger' : 'border-primary-300',
         ].join(' ')}
       >
+        {prefix ? (
+          <span className="shrink-0 text-sm font-medium tracking-[0.14px] text-text-secondary">
+            {prefix}
+          </span>
+        ) : null}
         <input
+          inputMode={prefix ? 'numeric' : undefined}
           id={id}
           value={value}
           onChange={(event) => onChange(event.target.value)}
@@ -470,13 +482,16 @@ export function AddCustomerModal({
             {company ? (
               <>
                 <div className="grid gap-4 sm:grid-cols-2">
+                  {/* `OM` is fixed; the Peppol ID is built from it as 0248:OM + digits (below).
+                      TODO(go-live): maxLength={10} once the VAT length is capped. */}
                   <TextField
                     label={t('addCustomer.fields.vat')}
                     required
-                    placeholder="OM1100000000"
+                    prefix={OMAN_VAT_PREFIX}
+                    placeholder="1100000000"
                     maxLength={64}
-                    value={values.vatNumber}
-                    onChange={(next) => set('vatNumber', next.toUpperCase())}
+                    value={omanVatDigits(values.vatNumber)}
+                    onChange={(next) => set('vatNumber', omanVatFromDigits(next))}
                     error={errorText('vatNumber')}
                   />
                   <TextField

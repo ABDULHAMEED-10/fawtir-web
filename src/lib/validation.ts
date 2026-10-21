@@ -172,6 +172,31 @@ export function peppolIdFor(vat: string): string {
   return trimmed ? `0248:${trimmed}` : ''
 }
 
+/**
+ * Every customer VAT number is Omani (`OM` + 10 digits, {@link vatin}), so the customer forms draw
+ * `OM` as a fixed prefix and the person types only the digits (owner, 21 Oct 2026). The form value
+ * keeps the whole number (`OM1100000000`), so the request, the validation and the server are
+ * unchanged.
+ */
+export const OMAN_VAT_PREFIX = 'OM'
+
+/** The digits a customer form shows after its fixed `OM`: `OM1100000000` → `1100000000`. */
+export function omanVatDigits(vat: string): string {
+  return vat.trim().toUpperCase().replace(/^OM/, '')
+}
+
+/**
+ * The whole VAT number from what was typed after the fixed `OM`. A pasted `OM1100000000` keeps
+ * working, and anything that is not a digit is dropped.
+ *
+ * TODO(go-live): cap the digits at 10 (`.slice(0, 10)` here and `maxLength={10}` on the fields)
+ * once the OTA's VAT format is final; until then the length is left to {@link vatin}.
+ */
+export function omanVatFromDigits(typed: string): string {
+  const digits = typed.trim().toUpperCase().replace(/^OM/, '').replace(/\D/g, '')
+  return digits ? `${OMAN_VAT_PREFIX}${digits}` : ''
+}
+
 /** True when no rule produced an error. */
 export function isClean(errors: Record<string, FieldError>): boolean {
   return Object.values(errors).every((error) => !error)

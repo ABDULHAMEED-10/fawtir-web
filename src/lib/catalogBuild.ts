@@ -270,6 +270,12 @@ export type SuggestedGroup = {
   picked: boolean
 }
 
+// TODO(backend): system catalogue templates. This coffee-roastery list is a placeholder. The real
+// templates come from the backend, one per business type and sub-business type picked at signup
+// (src/lib/subBusinessTypes.ts), seeded from the Lulu reference sheet the owner shared on
+// 21 Oct 2026 (item group, sub group, item name, brand, unit, pack size, barcode, price; food and
+// beverage adds sizes and modifiers). A template is a starting copy: every item stays editable
+// (price, unit, photo, quantity) and the user can also build a catalogue of their own.
 export const SUGGESTED: SuggestedGroup[] = [
   {
     id: 'greenBeans',
