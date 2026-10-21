@@ -12639,7 +12639,9 @@
       "disconnections": "Disconnections",
       "enterprise": "Enterprise",
       "companyContact": "Contact details",
-      "refunds": "Refund cases"
+      "refunds": "Refund cases",
+      "owners": "Companies without an Owner",
+      "branchAccess": "Branch access check"
     },
     "user": {
       "team": "Fawtir team",
@@ -16344,6 +16346,134 @@
         "PAID_AHEAD": "Paid in advance, not started",
         "LEFT_FAWTIR": "Left Fawtir",
         "YEARLY_CANCELLATION": "Yearly cancellations"
+      }
+    },
+    "owners": {
+      "title": "Companies without an Owner",
+      "subtitle": "Nobody is made Owner automatically. Choose an enabled Administrator of the company as its Owner and say why.",
+      "loading": "Reading the companies without an Owner...",
+      "empty": "Every company has an Owner.",
+      "col": {
+        "company": "Company",
+        "why": "Why it has no Owner",
+        "people": "People"
+      },
+      "origin": {
+        "SELF_SERVICE": "Signed up online",
+        "CONSOLE": "Added from the console"
+      },
+      "createdOn": "Created {{date}}",
+      "classification": {
+        "NO_ORIGIN_USER": "Nobody signed it up or accepted its first administrator invitation",
+        "CONFLICTING_ORIGIN": "More than one person signed it up",
+        "ORIGIN_SWITCHED_OFF": "The person who signed it up is switched off",
+        "ORIGIN_NOT_ADMINISTRATOR": "The person who signed it up is no longer an Administrator",
+        "CLEAR": "The person who signed it up is an Administrator, but was never recorded as Owner"
+      },
+      "administrators_one": "{{count}} Administrator",
+      "administrators_other": "{{count}} Administrators",
+      "enabledUsers_one": "{{count}} person switched on",
+      "enabledUsers_other": "{{count}} people switched on",
+      "choose": "Choose Owner",
+      "noAdministrator": "No enabled Administrator to choose",
+      "previous": "Previous page",
+      "next": "Next page",
+      "chosen": "{{name}} is now the Owner of {{company}}.",
+      "dialog": {
+        "title": "Choose the Owner of {{company}}",
+        "body": "Only an enabled Administrator can be chosen. Nobody is given a new role, and your reason is kept with the change.",
+        "person": "Administrator",
+        "choosePerson": "Choose a person",
+        "origin": "signed the company up",
+        "candidatesLoading": "Reading the company's Administrators...",
+        "candidatesFailed": "The company's Administrators could not be read. Close this and try again.",
+        "reason": "Reason",
+        "reasonHint": "Why this person, in up to {{max}} characters.",
+        "submit": "Make Owner"
+      },
+      "handover": {
+        "title": "Owner",
+        "loading": "Reading the Owner and handover requests...",
+        "owner": "The Owner is {{name}}.",
+        "noOwner": "This company has no Owner. Choose one from Companies without an Owner.",
+        "to": "to",
+        "askedOn": "Asked {{date}}",
+        "byYou": "by you",
+        "expiresOn": "ends unconfirmed {{date}}",
+        "reasonIs": "Reason: {{reason}}",
+        "evidenceIs": "Proof: {{evidence}}",
+        "status": {
+          "REQUESTED": "Waiting for a second operator",
+          "CONFIRMED": "Done",
+          "CANCELLED": "Cancelled",
+          "EXPIRED": "Ended unconfirmed"
+        },
+        "secondOperator": "Another operator must confirm this.",
+        "confirm": "Confirm handover",
+        "cancel": "Cancel request",
+        "confirmed": "The handover is confirmed. The former Owner stays an Administrator.",
+        "cancelled": "The request is cancelled.",
+        "asked": "The request is recorded. The Owner and the Administrators are told by email, and another operator must confirm it.",
+        "start": "Hand over the Owner",
+        "noTarget": "There is no other enabled Administrator to hand the company to.",
+        "form": {
+          "title": "Hand over the Owner through Fawtir support",
+          "note": "Only when the Owner cannot be reached. Nothing changes until a second operator confirms; a request nobody confirms ends by itself.",
+          "to": "New Owner (an enabled Administrator)",
+          "choose": "Choose a person",
+          "reason": "Reason",
+          "evidence": "Proof",
+          "evidenceHint": "Where the proof is kept, for example a ticket or document reference.",
+          "submit": "Ask for the handover"
+        }
+      },
+      "refusal": {
+        "owner-already-set": "This company already has an Owner. Change it through a handover.",
+        "owner-pick-not-administrator": "This person is no longer an enabled Administrator. Choose again.",
+        "owner-not-set": "This company has no Owner to hand over. Choose one from Companies without an Owner.",
+        "handover-target-self": "This person is already the Owner.",
+        "handover-target-not-administrator": "This person is no longer an enabled Administrator. Choose again.",
+        "handover-already-open": "A handover request is already waiting for this company.",
+        "handover-not-open": "This request is no longer waiting. The list has been read again.",
+        "handover-expired": "This request ended unconfirmed. Ask again if it is still needed.",
+        "same-operator": "You asked for this handover, so another operator must confirm it.",
+        "production-platform-realm-required": "This can only be done from the Fawtir production console.",
+        "impersonation-not-allowed": "This cannot be done while acting as someone else.",
+        "invalid": "Some details are missing or too long. Check them and try again.",
+        "forbidden": "You do not have access to do this, or you need to sign in again with two-step sign-in.",
+        "notFound": "This company or person was not found.",
+        "other": "This could not be done. Try again."
+      }
+    },
+    "branchAccess": {
+      "title": "Branch access check",
+      "subtitle": "What changes for each company when branch access is switched on. Read only; nothing here changes a company.",
+      "loading": "Checking every company...",
+      "empty": "Nothing to check: every company is ready for branch access.",
+      "switch": {
+        "on": "Switched on",
+        "off": "Switched off",
+        "onNote": "Branch access is on for this server. People see only their branches; the Owner and Administrators see every branch.",
+        "offNote": "Branch access is off for this server. Everyone sees every branch until it is switched on."
+      },
+      "withoutBranch": {
+        "title_one": "{{count}} person works in no branch",
+        "title_other": "{{count}} people work in no branch",
+        "note": "They are neither Owner nor Administrator. With branch access on they see no documents until they are given a branch."
+      },
+      "severalRoles": {
+        "title_one": "{{count}} person holds more than one role",
+        "title_other": "{{count}} people hold more than one role",
+        "note": "Each person should have one role. They keep what they hold until someone changes their role; nobody can be given a second one once branch access is on."
+      },
+      "reserved": {
+        "title_one": "The role {{role}} ({{count}} person) holds Administrator-only permissions",
+        "title_other": "The role {{role}} ({{count}} people) holds Administrator-only permissions",
+        "note": "Only the Administrator changes the company. These keep working until someone changes the role; no new role can be given them."
+      },
+      "invitation": {
+        "title": "An open invitation names more than one role (ends {{date}})",
+        "note": "If it is accepted after branch access is on, the person gets one role and the others become their own permissions."
       }
     }
   },

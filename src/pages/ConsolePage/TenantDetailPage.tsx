@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next'
 import { ApiError } from '../../api'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
 import { TenantDisconnectionCard } from './disconnections/TenantDisconnectionCard'
+import { TenantOwnerHandoverCard } from './owners/TenantOwnerHandoverCard'
 import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { ConsoleNotice, ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
 import { ConsoleStatusPill } from '../../layouts/ConsoleShell/ConsoleStatusPill'
@@ -470,6 +471,7 @@ function TenantDetail({
         <TenantErpEntitlementCard tenantId={tenantId} tenantCode={overview.identity.tenantCode} />
       )}
 
+      {prototype ? null : <TenantOwnerHandoverCard tenantId={tenantId} />}
       {prototype ? null : <TenantDisconnectionCard tenantId={tenantId} />}
 
       {/*

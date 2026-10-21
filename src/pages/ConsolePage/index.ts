@@ -24,5 +24,7 @@ export { ConsoleBillingSettingsPage } from './billing/ConsoleBillingSettingsPage
 export { ConsoleSellerPage } from './billing/ConsoleSellerPage'
 export { ConsoleCompanyContactPage } from './billing/ConsoleCompanyContactPage'
 export { ConsoleDisconnectionsPage } from './disconnections/ConsoleDisconnectionsPage'
+export { ConsoleCompaniesWithoutOwnerPage } from './owners/ConsoleCompaniesWithoutOwnerPage'
+export { ConsoleBranchAccessReadinessPage } from './branchAccess/ConsoleBranchAccessReadinessPage'
 export { ConsoleEnterprisePage } from './enterprise/ConsoleEnterprisePage'
 export { ConsoleEnterpriseTermsPage } from './enterprise/ConsoleEnterpriseTermsPage'

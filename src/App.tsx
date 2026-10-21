@@ -182,6 +182,8 @@ import {
   ConsoleSellerPage,
   ConsoleCompanyContactPage,
   ConsoleDisconnectionsPage,
+  ConsoleCompaniesWithoutOwnerPage,
+  ConsoleBranchAccessReadinessPage,
   ConsoleEnterprisePage,
   ConsoleEnterpriseTermsPage,
   ConsoleQueuePage,
@@ -846,6 +848,8 @@ function App() {
           <Route path="/console/billing/seller" element={<ConsoleSellerPage />} />
           <Route path="/console/company-contact" element={<ConsoleCompanyContactPage />} />
           <Route path="/console/disconnections" element={<ConsoleDisconnectionsPage />} />
+          <Route path="/console/owners" element={<ConsoleCompaniesWithoutOwnerPage />} />
+          <Route path="/console/branch-access" element={<ConsoleBranchAccessReadinessPage />} />
           <Route path="/console/operators" element={<OperatorsPage />} />
           <Route path="/console/policies" element={<ValidationPoliciesPage />} />
           <Route path="/console/policies/:type" element={<ValidationPolicyPage />} />
