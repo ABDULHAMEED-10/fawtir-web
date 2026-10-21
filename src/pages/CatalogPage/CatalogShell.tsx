@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { Rial } from '../../components/ui'
-import { BranchPicker } from '../../components/branch/BranchPicker'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 
 export type Crumb = { labelKey?: string; label?: string; to?: string }
@@ -12,10 +11,10 @@ export type Crumb = { labelKey?: string; label?: string; to?: string }
  * The frame the Catalog screens share — a breadcrumb back to the list, a title with its state
  * pills, and the row of actions (Figma 135:44255 and its siblings).
  *
- * The list screens (items, stock, bundles, price rules) lead their actions with the branch picker:
- * each branch keeps its own catalogue and stock (owner, 21 Oct 2026; no Figma frame, house standard). TODO(backend):
- * products and stock are not per branch yet, so every branch shows the same rows
- * (docs/backend-guides/INCOME.md, rows P.9 and P.10).
+ * Each branch keeps its own catalogue and stock (owner, 21 Oct 2026). The branch is the one
+ * chosen in the sidebar's company card for the whole platform; these screens have no picker of
+ * their own. TODO(backend): products and stock are not per branch yet, so every branch shows the
+ * same rows (docs/backend-guides/INCOME.md, rows P.9 and P.10).
  */
 export function CatalogShell({
   crumbs,
@@ -24,7 +23,6 @@ export function CatalogShell({
   pills,
   actions,
   tabs,
-  branch,
   children,
 }: {
   crumbs: Crumb[]
@@ -35,8 +33,6 @@ export function CatalogShell({
   actions?: ReactNode
   /** The four tabs an item carries; absent on the list screens. */
   tabs?: ReactNode
-  /** A list screen: the branch picker leads the actions. */
-  branch?: boolean
   children: ReactNode
 }) {
   const { t } = useTranslation()
@@ -94,9 +90,8 @@ export function CatalogShell({
               <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">{subtitle}</p>
             ) : null}
           </div>
-          {actions || branch ? (
+          {actions ? (
             <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:shrink">
-              {branch ? <BranchPicker tall /> : null}
               {actions}
             </div>
           ) : null}

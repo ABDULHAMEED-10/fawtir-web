@@ -21,7 +21,6 @@ import {
   type PosItem,
 } from '../../lib/pos'
 import { CASHIERS, type CashierId } from '../../lib/pos'
-import { BranchPicker } from '../../components/branch/BranchPicker'
 
 /** A barcode is the fastest way in; typing is the fallback. */
 function ScanField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -182,9 +181,9 @@ export function PosPage() {
               })}
             </div>
 
-            {/* The till belongs to the branch picked here (owner, 21 Oct 2026). TODO(backend):
-                tills, sales and stock per branch, INCOME.md row P.11. */}
-            <BranchPicker narrow />
+            {/* The till belongs to the branch chosen in the sidebar's company card, the
+                platform's one branch toggle (owner, 21 Oct 2026). TODO(backend): tills, sales
+                and stock per branch, INCOME.md row P.11. */}
             <CashierPicker value={cashier} onChange={setCashier} />
           </div>
         </div>

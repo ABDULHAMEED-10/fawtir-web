@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { suggestedFrom } from '../../lib/catalogTemplates'
 import { BuildCatalogPage } from './BuildCatalogPage'
-import { BranchPicker } from '../../components/branch/BranchPicker'
 
 const OWNER: Entitlements = {
   userId: 'u-1',
@@ -103,19 +102,5 @@ describe('building a catalog from a template', () => {
       ['Z0', 'VATZR-OM-01'],
       ['S5', undefined],
     ])
-  })
-
-  it('works in the head office first and remembers the branch picked (owner, 21 Oct 2026)', async () => {
-    render(
-      <MemoryRouter>
-        <BranchPicker />
-      </MemoryRouter>,
-    )
-    const picker = await screen.findByRole('button', { name: 'Branch' })
-    await waitFor(() => expect(picker.textContent).toContain('Head office'))
-    fireEvent.click(picker)
-    fireEvent.click(within(screen.getByRole('listbox')).getByRole('option', { name: 'Nizwa' }))
-    expect(picker.textContent).toContain('Nizwa')
-    expect(window.localStorage.getItem('fawtir.workingBranch')).toBe('b-3')
   })
 })

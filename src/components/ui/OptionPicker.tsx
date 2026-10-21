@@ -14,7 +14,6 @@ export function OptionPicker({
   ariaLabel,
   placeholder,
   tall,
-  narrow,
 }: {
   value: string
   options: { value: string; label: string }[]
@@ -24,8 +23,6 @@ export function OptionPicker({
   placeholder?: string
   /** The 46 px of the Catalogue header's buttons; otherwise the till's 44 px. */
   tall?: boolean
-  /** Beside the till's other controls: a long name is cut short. */
-  narrow?: boolean
 }) {
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
@@ -44,7 +41,7 @@ export function OptionPicker({
         className={[
           'inline-flex shrink-0 items-center gap-2 rounded-sm border border-border-subtle bg-white px-3 transition-colors hover:border-primary-300 disabled:cursor-default disabled:hover:border-border-subtle',
           tall ? 'h-[46px]' : 'h-11',
-          narrow ? 'max-w-[170px]' : 'max-w-[220px]',
+          'max-w-[220px]',
         ].join(' ')}
       >
         <span className="min-w-0 truncate text-sm font-semibold text-text-primary">

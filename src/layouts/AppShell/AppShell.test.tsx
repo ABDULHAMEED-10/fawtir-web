@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { resetSharedRequests } from '../../api'
@@ -7,6 +7,7 @@ import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitl
 import { requireSession, useCan, useSession } from '../../lib/session/session'
 import { signOut } from '../../lib/identity/logout'
 import { AppShell } from './AppShell'
+import { forgetWorkingBranch } from '../../lib/workingBranch'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 
@@ -111,6 +112,30 @@ describe('AppShell session guard', () => {
     await screen.findByText(/screen for/)
     expect(screen.getByText('Nizwa Dates Trading')).toBeTruthy()
     expect(screen.queryByText('Al Bahja Coffee')).toBeNull()
+  })
+
+  it('makes the branch picked in the card the whole platform\'s branch (owner, 21 Oct 2026)', async () => {
+    forgetWorkingBranch()
+    fetchMock.mockImplementation(async (url: string) =>
+      url.endsWith('/v1/branches/overview')
+        ? json(200, {
+            openCount: 2,
+            everCount: 2,
+            peopleAcross: 3,
+            invoicesThisMonth: 0,
+            branches: [
+              { id: 'b-main', code: 'MAIN', name: 'Nizwa Dates (Main)', headOffice: true },
+              { id: 'b-seeb', code: 'SEEB', name: 'Nizwa Dates (Seeb)', headOffice: false },
+            ],
+          })
+        : json(200, ACCOUNTANT),
+    )
+    renderAt('/suppliers')
+    await screen.findByText(/screen for/)
+    fireEvent.click(screen.getByRole('button', { name: /Nizwa Dates Trading/ }))
+    fireEvent.click(await screen.findByRole('option', { name: /Nizwa Dates \(Seeb\)/ }))
+    expect(window.localStorage.getItem('fawtir.workingBranch')).toBe('b-seeb')
+    expect(screen.getByRole('button', { name: /Nizwa Dates \(Seeb\)/ })).toBeTruthy()
   })
 
   it('keeps the card readable when the server sends no workspace name', async () => {

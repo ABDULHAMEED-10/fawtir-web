@@ -72,7 +72,6 @@ export function CatalogPage() {
 
   return (
     <CatalogShell
-      branch
       crumbs={[]}
       title={t('catalogReal.title')}
       subtitle={t('catalogReal.subtitle')}

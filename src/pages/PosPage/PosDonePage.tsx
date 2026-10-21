@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { startNewSale, useOpenSale } from '../../lib/posSale'
-import { useWorkingBranch } from '../../components/branch/BranchPicker'
+import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import QRCode from 'qrcode'
@@ -33,7 +33,7 @@ function ReceiptQr({ value }: { value: string }) {
  */
 export function PosDonePage() {
   const { t } = useTranslation()
-  // The till's branch is the one picked on the sale screen; the sample's until branches load.
+  // The till's branch is the one chosen in the sidebar; the sample's until branches load.
   const branchName = useWorkingBranch().branch?.name ?? TILL.branch
   const navigate = useNavigate()
   const [way, setWay] = useState('print')

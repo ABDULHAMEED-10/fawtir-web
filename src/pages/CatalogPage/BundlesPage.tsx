@@ -72,7 +72,6 @@ export function BundlesPage() {
 
   return (
     <CatalogShell
-      branch
       crumbs={[{ labelKey: 'catalog.title', to: '/catalog' }, { labelKey: 'bundles.title' }]}
       title={t('bundles.title')}
       subtitle={t('bundles.subtitle')}

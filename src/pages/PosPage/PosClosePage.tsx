@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useWorkingBranch } from '../../components/branch/BranchPicker'
+import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
@@ -70,7 +70,7 @@ function Line({
 
 export function PosClosePage() {
   const { t, i18n } = useTranslation()
-  // The till's branch is the one picked on the sale screen; the sample's until branches load.
+  // The till's branch is the one chosen in the sidebar; the sample's until branches load.
   const branchName = useWorkingBranch().branch?.name ?? TILL.branch
   const [counted, setCounted] = useState(COUNTED)
   const [reason, setReason] = useState(SHORT_REASONS[0].id)

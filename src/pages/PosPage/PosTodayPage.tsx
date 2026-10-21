@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useWorkingBranch } from '../../components/branch/BranchPicker'
+import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
@@ -26,7 +26,7 @@ const STATE_TONE = {
 
 export function PosTodayPage() {
   const { t, i18n } = useTranslation()
-  // The till's branch is the one picked on the sale screen; the sample's until branches load.
+  // The till's branch is the one chosen in the sidebar; the sample's until branches load.
   const branchName = useWorkingBranch().branch?.name ?? TILL.branch
   const [tab, setTab] = useState<TodayTabId>('all')
   const [query, setQuery] = useState('')

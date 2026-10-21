@@ -10,13 +10,17 @@ import { useApiRead } from '../../hooks/useApiRead'
 import { REQUIRE_SESSION, useSession } from '../../lib/session/session'
 import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
 import { CompanyAvatar } from './CompanyAvatar'
+import { chooseWorkingBranch, useWorkingBranchId } from '../../lib/workingBranch'
 import chevron from '../../assets/dashboard/chevron.svg'
 
 /**
  * The card at the top of the sidebar (Figma 143:18015).
  *
  * One account can trade from several branches, and the till, the catalogue and the reports all
- * follow whichever is chosen. The plan belongs to the account, so it does not change with the
+ * follow whichever is chosen. The choice is the platform's one branch toggle
+ * (`src/lib/workingBranch.ts`): Catalogue, Stock and POS have no picker of their own (owner,
+ * 21 Oct 2026). TODO(backend): products, stock and tills are not per branch yet, so those screens
+ * show the same rows whichever branch is chosen (docs/backend-guides/INCOME.md, P.9 to P.11). The plan belongs to the account, so it does not change with the
  * branch — which is why it is stated once at the foot of the list rather than on every row.
  *
  * <p>The name and logo are the signed-in company's own (name from `/me/entitlements`, logo from
@@ -36,8 +40,15 @@ export function AccountSwitcher() {
   const planLabel = planName ? t('shell.plan.named', { plan: planName }) : null
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
-  const [branch, setBranch] = useState<BranchOverviewRow | null>(null)
   const session = useSession()
+  const chosenId = useWorkingBranchId()
+  // Loads once the popover is worth opening; failing silently (wrong role, or none yet) shows the
+  // signed-in company alone rather than an error on chrome every screen renders.
+  const { read } = useApiRead<BranchOverviewDto>(BRANCHES_OVERVIEW_PATH)
+  const branches =
+    read.status === 'ready' && Array.isArray(read.data.branches) ? read.data.branches : []
+  // Only a branch someone chose names the card; until then it names the company, as before.
+  const branch = chosenId ? (branches.find((row) => row.id === chosenId) ?? null) : null
   // `tenantName` is null when RLS hides the tenant row; a blank card is worse than a generic
   // label, and a fabricated company name (this card's old fallback) is worse than either. Before
   // the session has answered there is no company to name yet, and "Your company" would read as
@@ -47,11 +58,6 @@ export function AccountSwitcher() {
     (session
       ? (session.tenantName ?? t('shell.account.unnamed'))
       : t(REQUIRE_SESSION ? 'shell.account.loading' : 'shell.account.unnamed'))
-  // Loads once the popover is worth opening; failing silently (wrong role, or none yet) shows the
-  // signed-in company alone rather than an error on chrome every screen renders.
-  const { read } = useApiRead<BranchOverviewDto>(BRANCHES_OVERVIEW_PATH)
-  const branches =
-    read.status === 'ready' && Array.isArray(read.data.branches) ? read.data.branches : []
 
   return (
     <>
@@ -97,7 +103,7 @@ export function AccountSwitcher() {
                   role="option"
                   aria-selected={chosen}
                   onClick={() => {
-                    if (row.id) setBranch(row)
+                    if (row.id) chooseWorkingBranch(row.id)
                     setOpen(false)
                   }}
                   className="flex w-full items-center gap-2.5 px-3 py-2.5 text-start transition-colors hover:bg-primary-25"
