@@ -146,6 +146,8 @@ export type OnboardingState = {
   planTerms?: SignupStatusPlan
   /** The automatic ERP extraction add-on, ticked on /payment. */
   addon?: boolean
+  /** The server kept the tick as interest only (`erpAddonInterestOnly`): never billed. */
+  addonInterestOnly?: boolean
   /**
    * Who the registrant pays, as /payment read it from `/signup/payment-options`, so review names
    * the same seller without asking again (F36). Absent on a resumed draft that has not passed

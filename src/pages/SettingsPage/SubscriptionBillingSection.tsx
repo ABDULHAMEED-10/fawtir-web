@@ -39,6 +39,7 @@ import {
   type ExtraDocumentsOverviewDto,
 } from '../../api/settings/extraDocuments'
 import { usePayingHeldUntilReconnected } from '../../hooks/usePayingHeldUntilReconnected'
+import { usePayAvailable } from '../../hooks/usePayAvailable'
 import { noteLeftFawtirRefusal } from '../../lib/leftFawtirRefusal'
 import { LeftFawtirRefusal } from '../../components/billing/LeftFawtirRefusal'
 
@@ -216,6 +217,8 @@ function NoOutstandingBill({
   const { t } = useTranslation()
   // LV-6: no new bill is prepared once the company has left Fawtir (A3.8).
   const held = usePayingHeldUntilReconnected()
+  // payAvailable false on the entitlements: the server would refuse to prepare a bill to pay.
+  const payOpen = usePayAvailable()
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
   const inFlight = useRef(false)
@@ -237,7 +240,7 @@ function NoOutstandingBill({
   return (
     <div className="flex flex-col gap-3">
       {afterRejection ? null : <p className="text-sm font-medium text-text-secondary">{t('billing.nothingDue')}</p>}
-      {canPay && !held ? (
+      {canPay && !held && payOpen ? (
         <div>
           <Button variant="secondary" size="md" disabled={busy} onClick={prepare}>
             {t('billing.prepare')}
@@ -286,6 +289,8 @@ export function OutstandingBill({
   // LV-6: no card, bank transfer or cash payment starts once the company has left Fawtir (A3.8).
   // A payment already sent stays as it is, and can still be withdrawn.
   const held = usePayingHeldUntilReconnected()
+  // payAvailable false on the entitlements: no way to pay is offered, as for a user who cannot pay.
+  const payOpen = usePayAvailable()
 
   return (
     <div className="flex flex-col gap-4">
@@ -342,7 +347,7 @@ export function OutstandingBill({
           ) : null}
           {canPay && held ? (
             <LeftFawtirRefusal />
-          ) : canPay ? (
+          ) : canPay && payOpen ? (
             <PayForm bill={bill} card={card} overview={overview} onSubmitted={onChanged} />
           ) : null}
         </>
@@ -743,6 +748,8 @@ function CardPaymentStatus({
   const { t } = useTranslation()
   // A3.8: the checkout already opened is not continued once the company has left Fawtir (LV-6).
   const held = usePayingHeldUntilReconnected()
+  // Nor when the entitlements say this user cannot pay (payAvailable false).
+  const payOpen = usePayAvailable()
   const [checkout, setCheckout] = useState<CardCheckoutDto | null>(null)
   const [unreachable, setUnreachable] = useState(false)
   const [nudge, setNudge] = useState(0)
@@ -818,7 +825,7 @@ function CardPaymentStatus({
       >
         {t(`billing.card.status.${status}`)}
       </p>
-      {status === 'READY' && trustedUrl && !held ? (
+      {status === 'READY' && trustedUrl && !held && payOpen ? (
         <div>
           <Button size="md" onClick={() => hostedCheckout.open(trustedUrl)}>
             {t('billing.card.continue')}

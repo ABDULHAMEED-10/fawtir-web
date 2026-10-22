@@ -503,10 +503,14 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     when an operator confirms. They are kept as a **separate allowance** ("Extra this month"),
     used only after the plan's own documents. An upgrade is suggested when extras would cost more
     than the next plan. This replaces "usage over the limit is charged, not blocked".
-  - **Cancelling.** **No refunds**, for unused days or unused extra documents, with one exception:
-    a period paid in advance that has not started is refunded, **whoever cancels** (the customer
-    or Fawtir; owner, 18 and 19 Oct 2026; RF-1 and CA-1 to say so). The subscription
-    stays active to the end of the paid period, then the company is **read-only**: it can sign in,
+  - **Cancelling.** **No refunds** for unused days or unused extra documents, with two exceptions
+    (CA-1, owner, 18, 19 and 21 Oct 2026): a period paid in advance that has not started is
+    refunded, **whoever cancels** (the customer or Fawtir); and on a yearly subscription the
+    remaining whole months may be refunded, as the super admin decides in the console, paid back
+    by card, cash or bank transfer (LV-6). A monthly subscription stays active to the end of the
+    month paid for. A yearly subscription whose remaining months are refunded stays active to the
+    end of the last month not refunded; with no refund, or a refund refused, it stays active to
+    the end of the year (owner, 21 Oct 2026). Then the company is **read-only**: it can sign in,
     read, search, download and export everything, but cannot issue documents, add users or use
     the ERP or API (those actions are hidden, not greyed). Documents already in flight still
     receive their Tax Authority and Peppol replies.
@@ -527,8 +531,9 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     ("Insight Technology LLC" in the payment settings and cheque wording is to go). Open: the tax
     invoice Insight gives in production, and from when it must be a Peppol e-invoice.
   - **Cancelling at once for abuse or fraud** needs two operators (one proposes, another
-    confirms); only a period paid ahead and not started is refunded; the customer gets a short
-    email, the internal reason stays private (16 Oct 2026).
+    confirms); refunds follow CA-1 (a period paid ahead and not started is refunded; a yearly
+    subscription's remaining whole months only as the super admin decides in the console); the
+    customer gets a short email, the internal reason stays private (16 Oct 2026; refunds 21 Oct).
   - **Other answers of 14 Oct 2026:** every allowance, rate, limit and price is configurable in the
     super admin console; the ERP add-on is offered on Business Plus and Enterprise only; saved
     cards and automatic renewal wait on what Paymob supports.
@@ -551,6 +556,11 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     taxpayer to the SMP within 3 business days (7.5.1). The SMP API accepts add, amend or remove
     only for a confirmed connection (11.2). The portal sends these events by email, SMS and portal
     notice only. Cancelling never disconnects; records stay for the legal period in every case.
+    Once disconnected, the subscription runs to the end of the period already paid, then ends
+    without renewing (LV-6, owner, 21 Oct 2026). The current month is never refunded; a monthly
+    period paid ahead that has not started, and a yearly subscription's remaining whole months,
+    are refunded as the super admin decides in the console, paid back by card, cash or bank
+    transfer.
   - **Upgrade and downgrade** (default, standard practice). An upgrade applies at once, charged pro
     rata for the days left; a downgrade applies at the next renewal, with no refund. Over the new
     plan's users or branches, the customer picks who stays; the others are switched off, never

@@ -10,7 +10,8 @@ import { withQuery } from '../query'
  */
 export const SUBSCRIPTION_PATH = '/v1/settings/subscription'
 
-export type SubscriptionAccess = 'NOT_TRACKED' | 'TRIAL' | 'ACTIVE' | 'GRACE' | 'PAYMENT_REQUIRED' | 'CANCELLED'
+export type SubscriptionAccess =
+  'NOT_TRACKED' | 'TRIAL' | 'ACTIVE' | 'GRACE' | 'PAYMENT_REQUIRED' | 'CANCELLED'
 
 export type ScheduledChangeDto = {
   planCode: string
@@ -80,6 +81,64 @@ export type SubscriptionStatusDto = {
    * (`subscription-cancelled-by-fawtir`); renewing clears it. Absent from a server before it.
    */
   cancelledByFawtir?: { on: string; message: string } | null
+  /**
+   * Set when the customer cancelled with a period paid in advance (CA-1, RF-2): the subscription
+   * ends on `accessEndsOn`, the end of the period in progress, and what was paid from this day is
+   * refunded. Null otherwise, and once the cancellation is withdrawn. Absent from older servers.
+   */
+  paidAheadRefundedFrom?: string | null
+  /**
+   * Before any cancellation: the last day a cancellation made now would keep, the end of the trial
+   * or paid period in progress (CA-1). Earlier than `paidThrough` when a period is paid in advance,
+   * which would then be refunded. Null when nothing can be cancelled now or one is scheduled.
+   * Absent from a server before it.
+   */
+  cancellationEndsOn?: string | null
+  /**
+   * CA-1, LV-6, RF-1: true while Fawtir is reviewing a refund of a yearly subscription's remaining
+   * months. Absent from a server before backend #671; shown only when sent (SETTINGS.md row 5.12).
+   */
+  refundUnderReview?: boolean | null
+}
+
+/**
+ * What the cancel dialog says: the day the subscription would stay active until, and whether a
+ * period paid in advance would be refunded (CA-1). `cancellationEndsOn` when the server sends it;
+ * otherwise, as before, the paid-through day while paid or the trial's last day.
+ */
+export function cancellationPreview(status: SubscriptionStatusDto): {
+  endsOn: string | null
+  refundsPaidAhead: boolean
+} {
+  const endsOn = status.cancellationEndsOn
+  if (endsOn) {
+    const refundsPaidAhead = status.paidThrough !== null && endsOn < status.paidThrough
+    return { endsOn, refundsPaidAhead }
+  }
+  return {
+    endsOn:
+      status.paidThrough && status.access === 'ACTIVE' ? status.paidThrough : status.trialEndsOn,
+    refundsPaidAhead: false,
+  }
+}
+
+/**
+ * Which body the cancel dialog shows (CA-1, RF-1): a period paid in advance is refunded; on a
+ * paid yearly subscription Fawtir reviews a refund of the remaining months; otherwise (monthly,
+ * or a trial, where nothing has been paid) payments already made are not refunded.
+ */
+export function cancelConfirmBodyKey(
+  status: SubscriptionStatusDto,
+  preview: { refundsPaidAhead: boolean },
+):
+  | 'subscription.cancelConfirm.bodyPaidAhead'
+  | 'subscription.cancelConfirm.bodyAnnual'
+  | 'subscription.cancelConfirm.body' {
+  if (preview.refundsPaidAhead) return 'subscription.cancelConfirm.bodyPaidAhead'
+  if (status.billingCycle === 'ANNUAL' && status.access !== 'TRIAL') {
+    return 'subscription.cancelConfirm.bodyAnnual'
+  }
+  return 'subscription.cancelConfirm.body'
 }
 
 /** What the status pill and the Settings card say: the server's access, or that nothing has started. */
@@ -94,11 +153,17 @@ export type SubscriptionDisplay = SubscriptionAccess | 'NOT_STARTED'
  */
 export function subscriptionNotStarted(status: SubscriptionStatusDto): boolean {
   if (status.restriction === 'SUBSCRIPTION_NOT_STARTED') return true
-  return status.access === 'PAYMENT_REQUIRED' && status.paidThrough === null && status.trialEndsOn === null
+  return (
+    status.access === 'PAYMENT_REQUIRED' &&
+    status.paidThrough === null &&
+    status.trialEndsOn === null
+  )
 }
 
 export function subscriptionDisplay(status: SubscriptionStatusDto): SubscriptionDisplay {
-  return subscriptionNotStarted(status) && status.access === 'PAYMENT_REQUIRED' ? 'NOT_STARTED' : status.access
+  return subscriptionNotStarted(status) && status.access === 'PAYMENT_REQUIRED'
+    ? 'NOT_STARTED'
+    : status.access
 }
 
 export type WaitingWording = 'enterprise' | 'toMonthly' | 'plan'
@@ -163,12 +228,16 @@ export function scheduleCancellation(): Promise<SubscriptionStatusDto> {
 }
 
 export function withdrawCancellation(): Promise<SubscriptionStatusDto> {
-  return apiRequest<SubscriptionStatusDto>(`${SUBSCRIPTION_PATH}/cancellation`, { method: 'DELETE' })
+  return apiRequest<SubscriptionStatusDto>(`${SUBSCRIPTION_PATH}/cancellation`, {
+    method: 'DELETE',
+  })
 }
 
 /** Withdraws a downgrade waiting for the next renewal. Idempotent. */
 export function withdrawScheduledChange(): Promise<SubscriptionStatusDto> {
-  return apiRequest<SubscriptionStatusDto>(`${SUBSCRIPTION_PATH}/scheduled-change`, { method: 'DELETE' })
+  return apiRequest<SubscriptionStatusDto>(`${SUBSCRIPTION_PATH}/scheduled-change`, {
+    method: 'DELETE',
+  })
 }
 
 /**
@@ -283,6 +352,12 @@ export function loadSwitchOff(): Promise<DowngradeSwitchOffDto> {
 }
 
 /** Replaces any earlier choice. Two empty lists mean "use the default". */
-export function saveSwitchOffChoice(userIds: string[], branchIds: string[]): Promise<DowngradeSwitchOffDto> {
-  return apiRequest<DowngradeSwitchOffDto>(SWITCH_OFF_PATH, { method: 'PUT', body: { userIds, branchIds } })
+export function saveSwitchOffChoice(
+  userIds: string[],
+  branchIds: string[],
+): Promise<DowngradeSwitchOffDto> {
+  return apiRequest<DowngradeSwitchOffDto>(SWITCH_OFF_PATH, {
+    method: 'PUT',
+    body: { userIds, branchIds },
+  })
 }

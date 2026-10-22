@@ -220,6 +220,14 @@ describe('restoring the draft from the status read (contract §4)', () => {
     expect(restored.paymentMethod).toBeUndefined()
   })
 
+  it('carries erpAddonInterestOnly from the saved preference, and nothing from an older server', () => {
+    const preference = { enrollment: 'TRIAL' as const, method: null, linkChannel: null, erpExtractionAddon: true }
+    expect(
+      onboardingStateFromStatus({ ...base, paymentPreference: { ...preference, erpAddonInterestOnly: true } }),
+    ).toMatchObject({ addon: true, addonInterestOnly: true })
+    expect(onboardingStateFromStatus({ ...base, paymentPreference: preference }).addonInterestOnly).toBeUndefined()
+  })
+
   it('keeps the cached answers an older server does not return', () => {
     const restored = onboardingStateFromStatus(base, { businessSize: '2-10', accountEmail: 'a@b.om' })
     expect(restored).toEqual({ businessSize: '2-10', accountEmail: 'a@b.om', restored: true })

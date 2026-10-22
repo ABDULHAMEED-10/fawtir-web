@@ -173,6 +173,19 @@ describe('Review and submit', () => {
     }
   })
 
+  it('says a tick kept as interest only is noted and not billed (erpAddonInterestOnly)', async () => {
+    renderAt('/signup-review', { ...COMPLETE, addon: true, addonInterestOnly: true })
+    expect(valueOf('payment.addon.title')).toBe(i18n.t('signupReview.addonInterestValue'))
+    expect(i18n.t('signupReview.addonInterestValue')).toBe('Interest in the ERP add-on noted, no charge.')
+    for (const lng of ['en', 'ar']) {
+      expect(i18n.t('signupReview.addonInterestValue', { lng }).length).toBeLessThanOrEqual(45)
+      expect(i18n.t('signupReview.addonInterestValue', { lng })).not.toMatch(/—/)
+    }
+    await act(() => i18n.changeLanguage('ar'))
+    expect(valueOf('payment.addon.title')).toBe('سُجّل اهتمامك بإضافة تكامل ERP، دون أي رسوم.')
+    await act(() => i18n.changeLanguage('en'))
+  })
+
   it('offers each section for editing with the answers carried along', async () => {
     renderAt('/signup-review', COMPLETE)
     const edits = screen.getAllByRole('link', { name: i18n.t('signupReview.edit') })

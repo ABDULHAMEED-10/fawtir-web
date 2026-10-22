@@ -121,6 +121,10 @@ export function onboardingStateFromStatus(
         ? undefined
         : reverse<SignupPaymentMethod, string>(PAYMENT_METHOD_CODE, preference?.method),
     addon: typeof preference?.erpExtractionAddon === 'boolean' ? preference.erpExtractionAddon : undefined,
+    addonInterestOnly:
+      typeof preference?.erpAddonInterestOnly === 'boolean'
+        ? preference.erpAddonInterestOnly
+        : undefined,
   })
   const merged: OnboardingState = { ...cached, ...fromServer, restored: true }
   // Only the server says whether the draft is back for correction; a tab's older answer is dropped.
@@ -145,6 +149,7 @@ export function onboardingStateFromStatus(
     delete merged.enrollment
     delete merged.paymentMethod
     delete merged.addon
+    delete merged.addonInterestOnly
   }
   // A trial carries no method; one cached from an earlier visit must not ride along with it.
   if (merged.enrollment === 'trial') delete merged.paymentMethod

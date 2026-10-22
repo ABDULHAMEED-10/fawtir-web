@@ -229,6 +229,9 @@ export function PaymentForm() {
       plan,
       billing,
       addon: withAddon,
+      // Saved while it is offered, so billed: interest only is the server's word for a tick kept
+      // while paid extras were off, read back from the status on a resumed draft.
+      addonInterestOnly: false,
       enrollment: choice.enrollment,
       paymentMethod: choice.enrollment === 'payNow' ? choice.method : undefined,
       // Review shows the same server figures without asking for them again.
