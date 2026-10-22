@@ -32,7 +32,6 @@ import {
   type BillingCycle,
   type PlanId,
   type SignupPaymentMethod,
-  extractionOffer,
 } from '../../lib/pricing'
 import { baisaOf, readSignupPlans } from '../../lib/identity/signupPlans'
 import { usePlanCatalogue } from '../PlansPage/catalogueView'
@@ -87,18 +86,28 @@ export function PaymentForm() {
   // `undefined`: not known (still reading, or a server that sends no trial); `null`: no trial.
   const trialDays = terms ? terms.trialDays : undefined
   const trialOffered = typeof trialDays === 'number' && trialDays > 0
-  // Automatic ERP extraction: offered as a priced add-on only where the console says so (handbook
-  // section 6).
-  const offer = extractionOffer(plan)
-  // N1: the add-on's monthly price is the server's (the plan's `erpAddonMonthlyPrice`); with none
-  // sent, no figure is shown rather than the console's default.
+  // Automatic ERP extraction: offered as a priced add-on only where the published catalogue
+  // prices it for the plan (`erpAddon`, ER-1, PL-6). Null there means it cannot be bought now
+  // (paid extras off, no add-on price, or the plan's ERP mapping off), so no tick is offered;
+  // nothing is offered while the catalogue is still loading or could not be read.
   const catalogue = usePlanCatalogue('signup-plans', readSignupPlans).read
-  const addonMonthlyBaisa =
+  const addonPrice =
     catalogue.status === 'ready'
-      ? baisaOf(
-          catalogue.plans.find((entry) => entry.code === planCodeFor(plan))?.erpAddonMonthlyPrice,
-        )
+      ? (catalogue.plans.find((entry) => entry.code === planCodeFor(plan))?.erpAddon ?? null)
       : null
+  const addonMonthlyBaisa = baisaOf(addonPrice?.monthlyPrice)
+  // One period of the add-on as its bill charges it: the published annual price for a year,
+  // never the monthly price times a count the web assumes.
+  const addonPeriodBaisa = baisaOf(
+    billing === 'annual' ? addonPrice?.annualPrice : addonPrice?.monthlyPrice,
+  )
+  const addonOffered = addonPrice !== null && addonMonthlyBaisa !== null
+  // The months one period of the add-on charges, read off the published prices (the console's
+  // annual-months setting); a year that is not whole months of the monthly price names none.
+  const addonMonths =
+    addonMonthlyBaisa && addonPeriodBaisa && addonPeriodBaisa % addonMonthlyBaisa === 0
+      ? addonPeriodBaisa / addonMonthlyBaisa
+      : 1
   const [addon, setAddon] = useState(Boolean(state.addon))
   const months = billing === 'annual' ? 12 : 1
 
@@ -190,7 +199,7 @@ export function PaymentForm() {
       setEvidenceProblem('reference')
       return
     }
-    const withAddon = addon && offer === 'priced'
+    const withAddon = addon && addonOffered
     const choice: EnrollmentChoice = trialChosen
       ? { enrollment: 'trial' }
       : { enrollment: 'payNow', method: method as SignupPaymentMethod }
@@ -320,7 +329,7 @@ export function PaymentForm() {
             ) : method === 'cardLink' && chosenAvailable ? (
               <SignupCardPayment
                 save={save}
-                addon={addon && offer === 'priced'}
+                addon={addon && addonOffered}
                 held={held}
                 onStatus={(next) => {
                   setCardStatus(next)
@@ -352,14 +361,14 @@ export function PaymentForm() {
           </div>
 
           <div className="flex w-full max-w-[332px] flex-col gap-4 @min-[700px]:shrink-0">
-            {offer === 'priced' ? (
+            {addonOffered ? (
               <AddonOffer
                 checked={addon}
                 onChange={(checked) => {
                   touched.current = true
                   setAddon(checked)
                 }}
-                months={months}
+                months={addonMonths}
                 monthlyBaisa={addonMonthlyBaisa}
               />
             ) : null}
@@ -370,9 +379,7 @@ export function PaymentForm() {
               termsRead={termsRead}
               seller={sellerName(options?.seller, i18n.language)}
               addonBaisa={
-                addon && offer === 'priced' && addonMonthlyBaisa !== null
-                  ? addonMonthlyBaisa * months
-                  : null
+                addon && addonOffered && addonPeriodBaisa !== null ? addonPeriodBaisa : null
               }
               when={when}
               payNow={!trialChosen}

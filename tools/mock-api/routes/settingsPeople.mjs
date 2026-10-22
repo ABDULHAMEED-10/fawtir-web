@@ -235,6 +235,13 @@ const catalogued = (
   trialDocuments: null,
   features: [],
   sortOrder,
+  // ER-1: the add-on is sold on Business Plus only (Enterprise is quoted). Production sends null
+  // for every plan while paid extras is switched off; this is the switched-on shape. The annual
+  // price is 12 months, not 10 (ER-4).
+  erpAddon:
+    code === 'BUSINESS_PLUS'
+      ? { currency: 'OMR', monthlyPrice: '20.000', annualPrice: '240.000' }
+      : null,
 })
 
 const CATALOGUE = [
@@ -347,6 +354,8 @@ export default [
   { match: '/api/v1/roles', reply: () => ROLES },
   { match: '/api/v1/users/invitations', reply: () => INVITATIONS },
   { match: '/api/v1/public/plans', reply: () => CATALOGUE },
+  // The sign-up read, the public read's alias (catalogue contract §9).
+  { match: '/api/v1/auth/signup/plans', reply: () => CATALOGUE },
   {
     match: '/api/v1/settings/plan',
     reply: () => ({

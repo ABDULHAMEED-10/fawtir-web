@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../i18n'
@@ -108,7 +108,7 @@ const BUSINESS: SignupCataloguePlan = {
   sortOrder: 20,
 }
 const CATALOGUE = [STARTER, BUSINESS]
-/** Business Plus with the ERP add-on priced by the server (17.250, unlike the console's 20). */
+/** Business Plus with the ERP add-on priced by the server (17.250 a month, 207.000 a year). */
 const PLUS_WITH_ADDON: SignupCataloguePlan = {
   ...BUSINESS,
   code: 'BUSINESS_PLUS',
@@ -117,7 +117,7 @@ const PLUS_WITH_ADDON: SignupCataloguePlan = {
   priceVersionId: 'pv-plus-2',
   recommended: false,
   sortOrder: 30,
-  erpAddonMonthlyPrice: '17.250',
+  erpAddon: { currency: 'OMR', monthlyPrice: '17.250', annualPrice: '207.000' },
 }
 
 type Handler = (init: RequestInit) => Response | Promise<Response>
@@ -1029,7 +1029,7 @@ describe("How you'll pay", () => {
     })
     await userEvent
       .setup({ delay: null })
-      .click(screen.getByLabelText(i18n.t('payment.addon.label')))
+      .click(await screen.findByLabelText(i18n.t('payment.addon.label')))
 
     expect(screen.getByText('1575.000')).toBeTruthy()
     expect(
@@ -1037,7 +1037,7 @@ describe("How you'll pay", () => {
         i18n.t('payment.summary.addonOnTop', { cycle: i18n.t('payment.summary.annual') }),
       ),
     ).toBeTruthy()
-    // 17.250 a month for 12 months, from the server's price, never the console default of 20.
+    // The year as the server prices it (annualPrice), never a figure the web works out.
     expect(screen.getByText('207.000')).toBeTruthy()
   })
 
@@ -1049,18 +1049,34 @@ describe("How you'll pay", () => {
     expect(screen.queryByText(i18n.t('payment.addon.priceLater'))).toBeNull()
   })
 
-  it('shows no add-on figure when the server sends none, and says where it is priced (N1)', async () => {
+  it('offers no add-on where the catalogue does not price it for the plan (ER-1, PL-6)', async () => {
+    answer({ [PLANS_URL]: () => json(200, [...CATALOGUE, { ...PLUS_WITH_ADDON, erpAddon: null }]) })
     renderAt('/payment', { ...AFTER_ADDRESS, plan: 'businessPlus', billing: 'monthly' })
-    expect(await screen.findByText(i18n.t('payment.addon.priceLater'))).toBeTruthy()
+    await waitFor(() => expect(callsTo(PLANS_URL).length).toBeGreaterThan(0))
+    await act(async () => {})
+    expect(screen.queryByLabelText(i18n.t('payment.addon.label'))).toBeNull()
     expect(screen.queryByText('20.000')).toBeNull()
-    await userEvent
-      .setup({ delay: null })
-      .click(screen.getByLabelText(i18n.t('payment.addon.label')))
-    expect(
-      screen.queryByText(
-        i18n.t('payment.summary.addonOnTop', { cycle: i18n.t('payment.summary.monthly') }),
-      ),
-    ).toBeNull()
+  })
+
+  it('offers the add-on on any plan the catalogue prices it for, not a list the web keeps', async () => {
+    answer({
+      [PLANS_URL]: () =>
+        json(200, [
+          STARTER,
+          { ...BUSINESS, erpAddon: { currency: 'OMR', monthlyPrice: '9.500', annualPrice: '114.000' } },
+        ]),
+    })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'monthly' })
+    expect(await screen.findByLabelText(i18n.t('payment.addon.label'))).toBeTruthy()
+    expect(screen.getByText('9.500')).toBeTruthy()
+  })
+
+  it('offers no add-on while the catalogue cannot be read', async () => {
+    answer({ [PLANS_URL]: () => json(503, {}) })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'businessPlus', billing: 'monthly' })
+    await waitFor(() => expect(callsTo(PLANS_URL).length).toBeGreaterThan(0))
+    await act(async () => {})
+    expect(screen.queryByLabelText(i18n.t('payment.addon.label'))).toBeNull()
   })
 
   it('says the add-on is billed with the first paid period, not confirmed by the Fawtir team (N1, #611)', () => {
@@ -1110,7 +1126,8 @@ describe("How you'll pay", () => {
     expect(writes()).toHaveLength(1)
   })
 
-  it('offers the ERP extraction add-on where the console prices it, and carries the tick to review', async () => {
+  it('offers the ERP extraction add-on where the catalogue prices it, and carries the tick to review', async () => {
+    answer({ [PLANS_URL]: () => json(200, [...CATALOGUE, PLUS_WITH_ADDON]) })
     renderAt('/payment', {
       ...AFTER_ADDRESS,
       plan: 'businessPlus',
@@ -1122,7 +1139,7 @@ describe("How you'll pay", () => {
     expect(document.body.textContent).not.toMatch(/write.{0,10}back/i)
     const user = userEvent.setup({ delay: null })
     await waitFor(() => expect((methodButton('cash') as HTMLButtonElement).disabled).toBe(false))
-    await user.click(screen.getByRole('checkbox', { name: i18n.t('payment.addon.label') }))
+    await user.click(await screen.findByRole('checkbox', { name: i18n.t('payment.addon.label') }))
     await user.click(screen.getByRole('button', { name: i18n.t('payment.continueCta') }))
     expect((await screen.findByTestId('location')).textContent).toBe('/signup-review')
     expect(stateNow().addon).toBe(true)

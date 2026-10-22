@@ -186,6 +186,28 @@ describe('Pricing page', () => {
     expect(i18n.t('plans.faq.a4', { ...params, lng: 'ar' })).toContain('80, 90, 100 بالمئة')
   })
 
+  it('marks the ERP extraction add-on from the catalogue\'s erpAddon, not a web list (ER-1, PL-6)', () => {
+    const addon = { currency: 'OMR', monthlyPrice: '20.000', annualPrice: '240.000' }
+    const starter: SignupCataloguePlan = { ...STARTER, erpAddon: null }
+    const business: SignupCataloguePlan = { ...STARTER, code: 'BUSINESS', erpAddon: null }
+    const plus: SignupCataloguePlan = { ...GROWTH, code: 'BUSINESS_PLUS', erpAddon: addon }
+    const row = comparisonGroups([starter, business, plus])
+      .flatMap((group) => group.rows)
+      .find((entry) => entry.key === 'erpExtraction')!
+    expect(row.cell(plus)).toMatchObject({ key: 'plan.extraction.priced' })
+    // Starter and Business never offer it (ER-1).
+    expect(row.cell(starter)).toMatchObject({ key: 'plan.extraction.notOffered' })
+    expect(row.cell(business)).toMatchObject({ key: 'plan.extraction.notOffered' })
+    // Business Plus offers it; with no price published now (paid extras off) it is a dash, never
+    // "Not supported".
+    expect(row.cell({ ...plus, erpAddon: null })).toEqual({ kind: 'dash' })
+    expect(row.cell({ ...plus, erpAddon: undefined })).toEqual({ kind: 'dash' })
+    // A plan the web has no launch copy for is not called unsupported either.
+    expect(row.cell({ ...GROWTH, erpAddon: null })).toEqual({ kind: 'dash' })
+    // Enterprise: in every quote (PL-7).
+    expect(row.cell(null)).toMatchObject({ key: 'plan.extraction.included' })
+  })
+
   it('quotes the VAT rate the server sends with the plans, and says no VAT is added at zero', () => {
     const vatCell = (plans: readonly SignupCataloguePlan[]) =>
       comparisonGroups(plans).flatMap((group) => group.rows).find((row) => row.key === 'vat')!.cell(null)

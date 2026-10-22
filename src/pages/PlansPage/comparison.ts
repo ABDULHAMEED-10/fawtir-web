@@ -81,13 +81,19 @@ const enabled = (plan: SignupCataloguePlan, feature: string) =>
   plan.features.some((entry) => entry.key === feature && entry.enabled)
 
 /**
- * The extraction add-on is a console setting per launch plan, not a catalogue feature; a plan the
- * setting does not name is shown as not offering it rather than guessed.
+ * The extraction add-on as the published catalogue offers it (ER-1, PL-6): a plan whose `erpAddon`
+ * carries a price sells it. "Not supported" is said only of a plan that never offers it (Starter
+ * and Business, ER-1); a plan that does offer it but carries no price now (paid extras off, no
+ * add-on price, or ERP mapping off) shows a dash rather than a claim it is not supported.
+ * Enterprise is not in the catalogue; its column keeps the console default ("Included"), since the
+ * add-on is in every Enterprise quote and switched off per company by the operator (PL-7).
  */
 function extraction(plan: Column): Cell {
   const availability = PLATFORM_SETTINGS.addons.erpExtraction.availability
-  const id = plan ? launchCopy(plan.code)?.audience : 'enterprise'
-  return text(`plan.extraction.${id ? availability[id] : 'notOffered'}`)
+  if (!plan) return text(`plan.extraction.${availability.enterprise}`)
+  if (plan.erpAddon) return text('plan.extraction.priced')
+  const id = launchCopy(plan.code)?.audience
+  return id && availability[id] === 'notOffered' ? text('plan.extraction.notOffered') : dash
 }
 
 /**
