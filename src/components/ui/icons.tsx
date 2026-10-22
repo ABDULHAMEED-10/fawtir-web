@@ -207,6 +207,26 @@ export function CloseIcon({ className = '', size = 16 }: IconProps) {
   )
 }
 
+export function HomeIcon({ className = '', size = 16 }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 20 20"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M3 8.6 10 3l7 5.6V16a1 1 0 0 1-1 1h-3.5v-4.5h-5V17H4a1 1 0 0 1-1-1V8.6Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export function ChevronLeftIcon({ className = '', size = 16 }: IconProps) {
   return (
     <svg
