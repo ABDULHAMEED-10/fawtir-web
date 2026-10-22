@@ -22546,7 +22546,18 @@
       "invitedTitle": "Waiting to accept",
       "empty": "Nobody has a login yet.",
       "more": "Showing the first {{shown}} of {{total}} people.",
-      "noInvitations": "No invitations are waiting."
+      "noInvitations": "No invitations are waiting.",
+      "invitation": {
+        "actionsFor": "Actions for the invitation to {{email}}",
+        "resend": "Resend",
+        "revoke": "Revoke",
+        "resent": "Invitation to {{email}} sent again. The previous link no longer works.",
+        "revoked": "Invitation to {{email}} revoked. Its link no longer works.",
+        "revokeTitle": "Revoke the invitation to {{email}}?",
+        "revokeBody": "The link in the email to {{email}} stops working now. You can invite this address again later.",
+        "revokeConfirm": "Revoke",
+        "closed": "This invitation is no longer waiting: it was accepted, revoked or has expired. The list has been read again."
+      }
     },
     "col": {
       "status": "Status",
@@ -22585,7 +22596,9 @@
       "defaultRoleOnly": "You cannot list this company's roles, so the invitation gives the default role.",
       "noRoleMeansDefault": "Choose none and the invitation gives the default role.",
       "send": "Send the invitation",
-      "sending": "Sending..."
+      "sending": "Sending...",
+      "alreadyOpen": "An invitation to this address is already waiting to be accepted. Resend it or revoke it under Waiting to accept on Team members.",
+      "alreadyOpenLink": "Open Waiting to accept"
     },
     "plan": {
       "subtitle": "Your plan and how much of this period's allowance you have used",

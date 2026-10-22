@@ -1,4 +1,5 @@
 import { apiRequest } from '../client'
+import { ApiError } from '../errors'
 
 /**
  * The company's own people, invitations and roles (`UserController`, `UserInvitationController`,
@@ -103,6 +104,31 @@ export function inviteUser(
     body: branchIds && branchIds.length ? { email, roleCodes, branchIds } : { email, roleCodes },
   })
 }
+
+const invitationPath = (id: string) => `/v1/users/invitations/${encodeURIComponent(id)}`
+
+/** Mails a fresh link (`POST /v1/users/invitations/{id}/resend`); the previous one stops working. */
+export function resendInvitation(invitationId: string): Promise<InvitationDto> {
+  return apiRequest<InvitationDto>(`${invitationPath(invitationId)}/resend`, { method: 'POST' })
+}
+
+/** Takes the invitation back (`POST /v1/users/invitations/{id}/revoke`); its link stops working. */
+export function revokeInvitation(invitationId: string): Promise<InvitationDto> {
+  return apiRequest<InvitationDto>(`${invitationPath(invitationId)}/revoke`, { method: 'POST' })
+}
+
+/** 409 `invitation-already-open`: the address already has an invitation waiting. */
+export function invitationAlreadyOpen(error: unknown): boolean {
+  return error instanceof ApiError && error.problemType === 'invitation-already-open'
+}
+
+/** 409 `invitation-closed`: the invitation was accepted, revoked or expired before the action. */
+export function invitationClosed(error: unknown): boolean {
+  return error instanceof ApiError && error.problemType === 'invitation-closed'
+}
+
+/** Where the waiting invitations are listed, with their Resend and Revoke actions. */
+export const WAITING_INVITATIONS_ROUTE = '/settings/team?tab=waiting'
 
 export type RoleDto = {
   id: string

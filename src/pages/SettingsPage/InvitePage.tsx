@@ -16,6 +16,8 @@ import {
   ROLES_PATH,
   ROLES_PERMISSION,
   USERS_PERMISSION,
+  WAITING_INVITATIONS_ROUTE,
+  invitationAlreadyOpen,
   inviteUser,
   loadRoles,
   type RoleDto,
@@ -90,6 +92,8 @@ function InviteForm() {
     event.preventDefault()
     if (sending || email.trim() === '') return
     setSending(true)
+    // A new attempt replaces the last answer: an earlier "sent" must not sit above a refusal.
+    setSent(null)
     setFailure(null)
     setFailureLink(null)
     try {
@@ -98,6 +102,12 @@ function InviteForm() {
       setEmail('')
       setChosen([])
     } catch (error) {
+      // The address already has an invitation waiting: it is resent or revoked on Team members.
+      if (invitationAlreadyOpen(error)) {
+        setFailure(t('people.invite.alreadyOpen'))
+        setFailureLink({ to: WAITING_INVITATIONS_ROUTE, labelKey: 'people.invite.alreadyOpenLink' })
+        return
+      }
       // US-1: at the plan's capacity a paid place comes first; whoever manages the plan buys it.
       const place = extraPlaceRequired(error)
       if (place !== null) {
