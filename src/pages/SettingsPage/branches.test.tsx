@@ -109,6 +109,7 @@ beforeEach(async () => {
         id: 'b-2',
         code: JSON.parse(init?.body as string).code,
         name: JSON.parse(init?.body as string).name,
+        nameAr: JSON.parse(init?.body as string).nameAr ?? null,
         type: 'STORE',
         address: null,
         city: null,
@@ -469,7 +470,7 @@ describe('Add a branch, for real', () => {
   it('lets the Arabic name be removed: an emptied one is sent as an empty string', async () => {
     overview = ONE_BRANCH_OVERVIEW
     b1Extra = { nameAr: 'نزوى' }
-    // Today's server takes an empty nameAr as "leave it" and answers with the name still set.
+    // A server older than backend #682 takes an empty nameAr as "leave it" and answers with it set.
     const base = fetchMock.getMockImplementation()!
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
       url === '/api/v1/branches/b-1' && init?.method === 'PUT'
@@ -520,13 +521,39 @@ describe('Add a branch, for real', () => {
     expect(await screen.findByText('list')).toBeTruthy()
   })
 
-  it('says a new branch was created without its Arabic name, and retries the name without creating it again', async () => {
-    let renames = 0
+  it('creates a new branch with its Arabic name in one call', async () => {
+    render(
+      <MemoryRouter initialEntries={['/settings/branches/new']}>
+        <Routes>
+          <Route path="/settings/branches/new" element={<AddBranchPage />} />
+          <Route path="/settings/branches" element={<p>list</p>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    fireEvent.change(await screen.findByLabelText(/Branch name/), { target: { value: 'Sur' } })
+    fireEvent.change(screen.getByLabelText(/Arabic name/), { target: { value: ' صور ' } })
+    fireEvent.change(screen.getByLabelText(/Town or city/), { target: { value: 'Sur' } })
+    fireEvent.change(screen.getByLabelText(/Prefix/), { target: { value: 'sr' } })
+    fireEvent.click(screen.getByRole('button', { name: /Add the branch/ }))
+
+    expect(await screen.findByText('list')).toBeTruthy()
+    expect(calls('POST', '/api/v1/branches')).toHaveLength(1)
+    expect(JSON.parse(calls('POST', '/api/v1/branches')[0][1].body as string)).toMatchObject({
+      name: 'Sur',
+      nameAr: 'صور',
+    })
+    expect(calls('PUT', '/api/v1/branches/b-2')).toHaveLength(0)
+  })
+
+  it('says a new branch was created without its Arabic name when the server did not keep it, and sends it again without creating the branch twice', async () => {
     const base = fetchMock.getMockImplementation()!
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      // A server older than backend #682 ignores nameAr on the create.
+      if (url === '/api/v1/branches' && init?.method === 'POST') {
+        const body = JSON.parse(init.body as string)
+        return json(201, { id: 'b-2', code: body.code, name: body.name, nameAr: null, version: 0 })
+      }
       if (url === '/api/v1/branches/b-2' && init?.method === 'PUT') {
-        renames += 1
-        if (renames === 1) return json(503, { type: 'about:blank', status: 503 })
         const body = JSON.parse(init.body as string)
         return json(200, {
           id: 'b-2',
@@ -554,7 +581,8 @@ describe('Add a branch, for real', () => {
 
     expect(await screen.findByText(i18n.t('addBranch.arabicNameNotSaved'))).toBeTruthy()
     expect(calls('POST', '/api/v1/branches')).toHaveLength(1)
-    // Nothing after the rename ran: no numbering or head office for a half-saved branch yet.
+    expect(calls('PUT', '/api/v1/branches/b-2')).toHaveLength(0)
+    // Nothing after the create ran: no numbering or head office for a half-saved branch yet.
     expect(calls('PUT', '/api/v1/branches/b-2/invoice-prefix')).toHaveLength(0)
 
     fireEvent.click(screen.getByRole('button', { name: /Add the branch/ }))
@@ -562,8 +590,8 @@ describe('Add a branch, for real', () => {
     expect(calls('POST', '/api/v1/branches')).toHaveLength(1)
     expect(calls('PUT', '/api/v1/branches/b-2/invoice-prefix')).toHaveLength(1)
     const retried = calls('PUT', '/api/v1/branches/b-2')
-    expect(retried).toHaveLength(2)
-    expect(JSON.parse(retried[1][1].body as string)).toMatchObject({
+    expect(retried).toHaveLength(1)
+    expect(JSON.parse(retried[0][1].body as string)).toMatchObject({
       nameAr: 'صور',
       expectedVersion: 0,
     })

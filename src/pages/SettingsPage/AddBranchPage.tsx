@@ -44,10 +44,10 @@ import tickWhiteIcon from '../../assets/settings/check-white.svg'
  * The prefix drives the first invoice number and the footer restates it, from one piece of state,
  * so the screen cannot promise one number while the field says another.
  *
- * The Arabic name is the branch's `nameAr` (V303): the update takes it, the create does not, so a
- * new branch with one is created and then renamed in Arabic in a second call. If that second call
- * fails, the screen says the branch was created without its Arabic name and the next save retries
- * the rename on the branch already created; it never creates a second one. `BranchAttributes`
+ * The Arabic name is the branch's `nameAr` (V303), sent with the create and the update in the same
+ * call (backend #682); an emptied one is sent as "" to remove it. If the answer shows it was not
+ * kept, the screen says so and the next save sends it again on the branch already created; it
+ * never creates a second one. `BranchAttributes`
  * has no field for the "behaviour" switches below; they are not sent. See docs/backend-guides/INCOME.md, "Update
  * 2026-09-27 (branches)". A new branch starts empty: the form used to open pre-filled with the
  * design's worked example (Sur, 411, Ash Sharqiyah South, prefix SR), which a hurried save would
@@ -72,7 +72,8 @@ export function AddBranchPage() {
     loadBranchOverview(),
   ).read
   const everCount = overview.status === 'ready' ? overview.data.everCount : 0
-  const takenCodes = overview.status === 'ready' ? overview.data.branches.map((row) => row.code) : []
+  const takenCodes =
+    overview.status === 'ready' ? overview.data.branches.map((row) => row.code) : []
   // The prefix is the overview's own figure (BranchDetail carries no invoicePrefix field).
   const existingPrefix =
     overview.status === 'ready'
@@ -178,17 +179,12 @@ export function AddBranchPage() {
         )
         if (!existing) setCreated(saved)
       } else {
-        saved = await createBranch(attributes)
+        saved = await createBranch(attributes, arabic)
         setCreated(saved)
-        if (arabic) {
-          try {
-            saved = await updateBranch(saved.id, attributes, true, saved.version, arabic)
-            setCreated(saved)
-          } catch {
-            // The branch exists; only its Arabic name is missing. The next save retries that.
-            setArabicProblem('save')
-            return
-          }
+        if (arabic && !saved.nameAr?.trim()) {
+          // The branch exists without its Arabic name. The next save sends it on this branch.
+          setArabicProblem('save')
+          return
         }
       }
       if (numbering === 'own' && prefix.trim()) {
@@ -436,7 +432,9 @@ export function AddBranchPage() {
                       {t(`addBranch.behave.${row.id}`)}
                     </p>
                     <p className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">
-                      {t(`addBranch.behave.${row.id}Note`, { name: name || t('addBranch.thisBranch') })}
+                      {t(`addBranch.behave.${row.id}Note`, {
+                        name: name || t('addBranch.thisBranch'),
+                      })}
                     </p>
                   </div>
                   <Switch
@@ -459,10 +457,7 @@ export function AddBranchPage() {
               {t('addBranch.ready')}
             </h3>
             <ul className="mt-3 flex flex-col gap-2.5">
-              <Check
-                done={named}
-                label={t('addBranch.check.named')}
-              />
+              <Check done={named} label={t('addBranch.check.named')} />
               <Check
                 done={prefixOk}
                 label={
@@ -714,10 +709,14 @@ function WhoWorksThere({ branchId }: { branchId: string | null }) {
   const { t } = useTranslation()
   const branchAccessOn = useBranchAccessOn()
   if (!branchAccessOn) {
-    return <p className="text-sm font-medium text-text-quaternary">{t('addBranch.notAvailableYet')}</p>
+    return (
+      <p className="text-sm font-medium text-text-quaternary">{t('addBranch.notAvailableYet')}</p>
+    )
   }
   if (branchId) return <BranchRoster branchId={branchId} />
   return (
-    <p className="text-sm font-medium text-text-quaternary">{t('branchAccess.roster.afterAdding')}</p>
+    <p className="text-sm font-medium text-text-quaternary">
+      {t('branchAccess.roster.afterAdding')}
+    </p>
   )
 }
