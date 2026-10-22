@@ -1265,7 +1265,8 @@
     "quota": {
       "title": "Documents this period",
       "used": "used",
-      "periodEnds": "Period ends {{date}}"
+      "periodEnds": "Period ends {{date}}",
+      "readOnly": "No documents can be issued while your subscription is read-only."
     },
     "vat": {
       "title": "VAT Position",

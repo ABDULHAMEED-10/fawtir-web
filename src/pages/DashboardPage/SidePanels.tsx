@@ -5,6 +5,7 @@ import { formatAmount, formatDate, formatCount } from '../../lib/format'
 import type { AlertDto, ComplianceDto, VatPositionDto } from '../../api/reports/dashboard'
 import type { PlanOverviewDto } from '../../api/settings/plan'
 import { DashboardCard } from './DashboardCard'
+import { useReadOnlyReason } from '../../lib/subscriptionReadOnly'
 import { omrRow, toNumber, type TileView } from './dashboardData'
 
 function Unavailable({ view }: { view: TileView<unknown> }) {
@@ -156,10 +157,15 @@ function Line({ tone, label, value }: { tone: string; label: string; value: stri
 export function InvoiceQuota({ plan }: { plan: TileView<PlanOverviewDto> }) {
   const { t, i18n } = useTranslation()
   const usage = plan.kind === 'ok' ? plan.data.usage : undefined
+  // While the server says the subscription is read-only (trial ended unpaid, suspended, cancelled,
+  // not started) nothing can be issued, so a count "of 1,000" and a period end would mislead (E24).
+  const readOnly = useReadOnlyReason() !== null
 
   return (
     <DashboardCard title={t('dashboard.quota.title')}>
-      {!usage || !usage.quota ? (
+      {readOnly ? (
+        <p className="text-sm font-medium text-text-quaternary">{t('dashboard.quota.readOnly')}</p>
+      ) : !usage || !usage.quota ? (
         <Unavailable view={plan.kind === 'ok' ? { kind: 'unavailable' } : plan} />
       ) : (
         <QuotaFigures
