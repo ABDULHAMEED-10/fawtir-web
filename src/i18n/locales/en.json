@@ -23648,7 +23648,7 @@
       "backOnTitle": "Switch {{name}} back on?",
       "backOnBody": "{{name}} can sign in again with the role you choose. They take a place on your plan like someone new.",
       "backOnRole": "Role",
-      "backOnNoRoles": "You cannot list this company's roles, so {{name}} comes back with the default role.",
+      "backOnNoRoles": "You cannot list this company's roles, so {{name}} comes back with the role they held.",
       "backOnAs": "{{name}} is back on as {{role}}.",
       "offOn": "Switched off on {{date}}",
       "offOnBy": "Switched off on {{date}} by {{name}}"

@@ -37,9 +37,10 @@ export type CompanyUser = {
    */
   branchIds?: string[]
   /**
-   * Switched-off people only (`status=DEACTIVATED`): when, by whom, and the role they held, so
-   * "Switch back on" can preselect it. TODO(backend): SETTINGS.md row 6.5. Not on the server's
-   * response yet (the list reports a switched-off person's roles empty); absent reads as unknown.
+   * Switched-off people only (`status=DEACTIVATED`, backend #683): when, by whom (null when
+   * unknown), and the role codes they held, so "Switch back on" can preselect it (the list reports
+   * a switched-off person's `roles` empty). Null on every other read; absent from an older server,
+   * which reads as unknown.
    */
   deactivatedAt?: string | null
   deactivatedByName?: string | null

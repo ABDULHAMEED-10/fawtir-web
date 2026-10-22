@@ -278,7 +278,7 @@ describe('Team members, Switched off', () => {
     const dialog = await screen.findByRole('dialog')
     expect(await within(dialog).findByText('Accountant')).toBeTruthy()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Switch back on' }))
-    // A server that does not take the role yet answers no role; the screen says so.
+    // Worded from the answer: one that brings them back with no role says so.
     expect(await screen.findByText('Huda Test is back on, with no role yet.')).toBeTruthy()
     const [, init] = sent('POST', '/api/v1/users/p-9/reactivate')[0]
     expect(JSON.parse((init as RequestInit).body as string)).toEqual({ roleId: 'r-accountant' })
@@ -290,6 +290,91 @@ describe('Team members, Switched off', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Switched off/ }))
     const row = (await screen.findByText('huda@real.example')).closest('tr')!
     expect(within(row).queryByText(/Switched off on/)).toBeNull()
+  })
+
+  describe('once branch access is on', () => {
+    const BRANCHES = '/api/v1/branches'
+    beforeEach(() => {
+      fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+        if (url === '/api/v1/me/entitlements')
+          return json(200, { ...ADMIN, branchAccessEnforced: true })
+        const answer = answers[`${init?.method ?? 'GET'} ${url}`]
+        return answer ? answer() : json(404, { type: 'about:blank' })
+      })
+      answers[`GET ${BRANCHES}`] = () =>
+        json(200, [
+          { id: 'b-1', code: 'HQ', name: 'Head office' },
+          { id: 'b-2', code: 'SOH', name: 'Sohar' },
+        ])
+      answers['POST /api/v1/users/p-9/reactivate'] = () =>
+        json(200, person('p-9', 'Huda', { roles: ['ACCOUNTANT'], branchIds: ['b-2'] }))
+    })
+
+    async function openBackOn() {
+      renderTeam()
+      fireEvent.click(await screen.findByRole('button', { name: /Switched off/ }))
+      const row = (await screen.findByText('huda@real.example')).closest('tr')!
+      fireEvent.click(within(row).getByRole('button', { name: 'Switch back on' }))
+      const dialog = await screen.findByRole('dialog')
+      await within(dialog).findByText('Accountant')
+      return dialog
+    }
+
+    it('asks for at least one branch and sends the branches with the role', async () => {
+      answers[`GET ${SWITCHED_OFF}`] = () =>
+        json(200, page([huda({ previousRoles: ['ACCOUNTANT'] })]))
+      const dialog = await openBackOn()
+      const sohar = await within(dialog).findByRole('checkbox', { name: 'Sohar' })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Switch back on' }))
+      expect(await within(dialog).findByText('Choose at least one branch.')).toBeTruthy()
+      expect(sent('POST', '/api/v1/users/p-9/reactivate')).toHaveLength(0)
+
+      fireEvent.click(sohar)
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Switch back on' }))
+      expect(await screen.findByText('Huda Test is back on as Accountant.')).toBeTruthy()
+      const [, init] = sent('POST', '/api/v1/users/p-9/reactivate')[0]
+      expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+        roleId: 'r-accountant',
+        branchIds: ['b-2'],
+      })
+    })
+
+    it('starts from the branches they had, and sends none for an Administrator', async () => {
+      answers[`GET ${SWITCHED_OFF}`] = () =>
+        json(200, page([huda({ previousRoles: ['ADMIN'], branchIds: ['b-1'] })]))
+      answers['POST /api/v1/users/p-9/reactivate'] = () =>
+        json(200, person('p-9', 'Huda', { roles: ['ADMIN'] }))
+      renderTeam()
+      fireEvent.click(await screen.findByRole('button', { name: /Switched off/ }))
+      const row = (await screen.findByText('huda@real.example')).closest('tr')!
+      fireEvent.click(within(row).getByRole('button', { name: 'Switch back on' }))
+      const dialog = await screen.findByRole('dialog')
+      expect(await within(dialog).findByText(/Administrators see every branch/)).toBeTruthy()
+      expect(within(dialog).queryByRole('checkbox')).toBeNull()
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Role' }))
+      fireEvent.click(await screen.findByRole('option', { name: 'Cashier' }))
+      const head = await within(dialog).findByRole('checkbox', { name: 'Head office' })
+      expect((head as HTMLInputElement).checked).toBe(true)
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Role' }))
+      fireEvent.click(await screen.findByRole('option', { name: 'Administrator' }))
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Switch back on' }))
+      await waitFor(() => expect(sent('POST', '/api/v1/users/p-9/reactivate')).toHaveLength(1))
+      const [, init] = sent('POST', '/api/v1/users/p-9/reactivate')[0]
+      expect(JSON.parse((init as RequestInit).body as string)).toEqual({ roleId: 'r-admin' })
+    })
+
+    it("words the server's branch refusals", async () => {
+      answers[`GET ${SWITCHED_OFF}`] = () =>
+        json(200, page([huda({ previousRoles: ['ACCOUNTANT'], branchIds: ['b-1'] })]))
+      answers['POST /api/v1/users/p-9/reactivate'] = () =>
+        json(409, { type: 'https://api.fawtir.om/problems/branch-required', status: 409 })
+      const dialog = await openBackOn()
+      await within(dialog).findByRole('checkbox', { name: 'Head office' })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Switch back on' }))
+      expect(await within(dialog).findByText('Choose at least one branch.')).toBeTruthy()
+    })
   })
 
   it('says the plan is full when switching back on needs a place', async () => {

@@ -21,6 +21,7 @@ import { subscriptionRestrictedAction } from '../../lib/subscriptionRestricted'
 import { PAID_EXTRAS_ROUTE, extraPlaceRequired } from '../../api/settings/paidExtras'
 import { permissionWords } from '../../lib/permissionLabels'
 import { Check, Panel, Row } from './invitePieces'
+import { BranchChecklist } from './BranchChecklist'
 import { useBranchNames } from './peopleView'
 import chipYesIcon from '../../assets/settings/check-green.svg'
 import sendIcon from '../../assets/settings/check-white.svg'
@@ -279,36 +280,19 @@ export function BranchInviteForm() {
                 {t('branchAccess.invite.noBranches')}
               </p>
             ) : (
-              <fieldset className="flex flex-col gap-2.5">
-                <legend className="sr-only">{t('invite.branchesTitle')}</legend>
-                {branchChoices.map((branch) => (
-                  <label
-                    key={branch.id}
-                    className="flex cursor-pointer items-center gap-3 rounded-sm border border-border-subtle bg-white px-4 py-3 text-sm font-semibold text-text-primary transition-colors hover:bg-primary-25"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={pickedBranchIds.includes(branch.id)}
-                      disabled={onlyBranch !== null}
-                      onChange={(event) => {
-                        setBranchMissing(false)
-                        setBranchIds((current) =>
-                          event.target.checked
-                            ? [...current, branch.id]
-                            : current.filter((id) => id !== branch.id),
-                        )
-                      }}
-                      className="size-[18px] shrink-0 accent-[#2c4eb7]"
-                    />
-                    {branch.name}
-                  </label>
-                ))}
-                {branchMissing ? (
-                  <p role="alert" className="text-sm font-medium text-danger-700">
-                    {t('branchAccess.refusal.branchRequired')}
-                  </p>
-                ) : null}
-              </fieldset>
+              <BranchChecklist
+                legend={t('invite.branchesTitle')}
+                choices={branchChoices}
+                picked={pickedBranchIds}
+                onlyBranch={onlyBranch}
+                missing={branchMissing}
+                onChange={(branchId, checked) => {
+                  setBranchMissing(false)
+                  setBranchIds((current) =>
+                    checked ? [...current, branchId] : current.filter((id) => id !== branchId),
+                  )
+                }}
+              />
             )}
             <div className="mt-5 flex items-center justify-between gap-4 rounded-sm border border-border-subtle px-4 py-3.5">
               <div className="min-w-0">

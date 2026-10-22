@@ -21,14 +21,20 @@ export function switchOffUserNow(userId: string): Promise<void> {
 }
 
 /**
- * Back on, with the role picked (a `RoleDto` id), or none for the server's default.
- * TODO(backend): SETTINGS.md row 6.4. `roleId` on the reactivate request is not read by the server
- * yet; until it is, the person comes back with no role and the screen says so from the answer.
+ * Back on (`POST /v1/users/{id}/reactivate`, backend #683), with the role picked (a `RoleDto` id),
+ * or none to keep the role they held. `branchIds` are sent with a role only once branch access is
+ * on: required for anyone but an Administrator (409 `branch-required`), never for an Administrator
+ * (409 `admin-has-all-branches`); absent, the person keeps the branches they had.
  */
-export function switchUserBackOn(userId: string, roleId?: string): Promise<CompanyUser> {
+export function switchUserBackOn(
+  userId: string,
+  roleId?: string,
+  branchIds?: string[],
+): Promise<CompanyUser> {
+  const body = roleId ? { roleId, ...(branchIds ? { branchIds } : {}) } : null
   return apiRequest<CompanyUser>(`${userPath(userId)}/reactivate`, {
     method: 'POST',
-    ...(roleId ? { body: { roleId } } : {}),
+    ...(body ? { body } : {}),
   })
 }
 

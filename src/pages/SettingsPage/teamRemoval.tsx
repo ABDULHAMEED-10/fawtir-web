@@ -18,7 +18,9 @@ import {
 } from '../../api/settings/people'
 import { switchOffUserNow, switchUserBackOn } from '../../api/settings/removals'
 import { SMALL_BUTTON } from '../ErpPage/overview/idiom'
-import { TD, TH } from './peopleView'
+import { TD, TH, useBranchNames } from './peopleView'
+import { BranchChecklist } from './BranchChecklist'
+import { useBranchAccessOn } from '../../lib/identity/branchAccessSwitch'
 import closeIcon from '../../assets/settings/menu-close.svg'
 
 /**
@@ -131,7 +133,7 @@ export function SwitchedOffTable({
   const [choosing, setChoosing] = useState<CompanyUser | null>(null)
 
   const switchedOffLine = (person: CompanyUser): string | null => {
-    // TODO(backend): SETTINGS.md row 6.5. Drawn only once the server says when, and by whom.
+    // Absent from a server older than backend #683: the line is then not drawn.
     if (!person.deactivatedAt) return null
     const date = formatInstantDay(person.deactivatedAt, i18n.language)
     return person.deactivatedByName
@@ -193,7 +195,9 @@ export function SwitchedOffTable({
 
 /**
  * "Switch back on" asks for the role (RL-1: one job role), with the person's old role preselected.
- * The roles are read with `role.list`; without it the person comes back with the server's default.
+ * The roles are read with `role.list`; without it the person comes back with the role they held.
+ * Once branch access is on (BA-1) it also asks for the branches, as the invitation does: required
+ * for anyone but an Administrator, who sees every branch (BA-2), and sent with the role.
  */
 function BackOnDialog({
   person,
@@ -210,7 +214,7 @@ function BackOnDialog({
   const roles = useApiRead<RoleDto[]>(mayListRoles ? ROLES_PATH : null, loadRoles).read
   const jobRoles =
     roles.status === 'ready' ? roles.data.filter((role) => role.enabled && isJobRole(role)) : []
-  // The role they held when switched off (TODO(backend): SETTINGS.md row 6.5), else any they still show.
+  // The role codes they held when switched off (`previousRoles`), else any they still show.
   const held = (person.previousRoles?.length ? person.previousRoles : person.roles).filter((code) =>
     jobRoles.some((role) => role.code === code),
   )
@@ -221,12 +225,35 @@ function BackOnDialog({
   const [failure, setFailure] = useState<string | null>(null)
   const name = displayName(person)
   const chosenRole = jobRoles.find((role) => role.code === choice)
+  const branchAccess = useBranchAccessOn()
+  const branchNames = useBranchNames(branchAccess)
+  const branchChoices = branchNames.branches.filter((branch) => branch.active)
+  // With one branch to give there is nothing to choose: it is ticked and fixed.
+  const onlyBranch = branchChoices.length === 1 ? branchChoices[0].id : null
+  // Their old branches, where still open, are ticked to start with.
+  const [branchIds, setBranchIds] = useState<string[] | null>(null)
+  const startingBranchIds = (person.branchIds ?? []).filter((id) =>
+    branchChoices.some((branch) => branch.id === id),
+  )
+  const pickedBranchIds = onlyBranch ? [onlyBranch] : (branchIds ?? startingBranchIds)
+  const [branchMissing, setBranchMissing] = useState(false)
+  const administratorChosen = chosenRole?.code === ADMIN_ROLE
+  const asksBranches = branchAccess && chosenRole !== undefined && !administratorChosen
+  const needsBranch = asksBranches && branchChoices.length > 0
 
   const confirm = async () => {
+    if (needsBranch && pickedBranchIds.length === 0) {
+      setBranchMissing(true)
+      return
+    }
     setBusy(true)
     setFailure(null)
     try {
-      const back = await switchUserBackOn(person.id, chosenRole?.id)
+      const back = await switchUserBackOn(
+        person.id,
+        chosenRole?.id,
+        asksBranches ? pickedBranchIds : undefined,
+      )
       // Worded from the answer: a server that does not take the role yet brings them back without one.
       const role = back.roles?.length
         ? (jobRoles.find((entry) => back.roles.includes(entry.code))?.name ?? null)
@@ -251,7 +278,9 @@ function BackOnDialog({
           </Button>
           <Button
             size="md"
-            disabled={busy || (jobRoles.length > 0 && !chosenRole)}
+            disabled={
+              busy || (jobRoles.length > 0 && !chosenRole) || (asksBranches && !branchNames.ready)
+            }
             onClick={() => void confirm()}
           >
             {busy ? t('removal.saving') : t('removal.menu.backOn')}
@@ -284,6 +313,41 @@ function BackOnDialog({
           <p className="text-sm font-medium leading-[1.6] text-text-tertiary">
             {t('removal.user.backOnNoRoles', { name })}
           </p>
+        ) : null}
+        {branchAccess && chosenRole ? (
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-semibold text-text-primary">
+              {t('invite.branchesTitle')}
+            </span>
+            {administratorChosen ? (
+              <p className="rounded-sm bg-surface-background px-4 py-3 text-sm font-medium text-text-tertiary">
+                {t('branchAccess.invite.administratorSeesAll')}
+              </p>
+            ) : !branchNames.ready ? (
+              <LoadingNotice />
+            ) : branchChoices.length === 0 ? (
+              <p className="rounded-sm bg-surface-background px-4 py-3 text-sm font-medium text-text-tertiary">
+                {t('branchAccess.invite.noBranches')}
+              </p>
+            ) : (
+              <BranchChecklist
+                legend={t('invite.branchesTitle')}
+                choices={branchChoices}
+                picked={pickedBranchIds}
+                onlyBranch={onlyBranch}
+                missing={branchMissing}
+                onChange={(branchId, checked) => {
+                  setBranchMissing(false)
+                  setFailure(null)
+                  setBranchIds(
+                    checked
+                      ? [...pickedBranchIds, branchId]
+                      : pickedBranchIds.filter((id) => id !== branchId),
+                  )
+                }}
+              />
+            )}
+          </div>
         ) : null}
         {failure ? (
           <p role="alert" className="text-sm font-medium text-danger-700">
