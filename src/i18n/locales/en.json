@@ -10912,7 +10912,9 @@
       "lastMonth": "Last month",
       "lastMonthOf": "of {{allowance}}",
       "lastMonthNote": "Close then too",
-      "lastMonthRoom": "Room to spare then"
+      "lastMonthRoom": "Room to spare then",
+      "raisedTodayBranch": "{{name}} {{count}}",
+      "lastMonthPlanOf": "Plan allowance then: {{allowance}}"
     },
     "smaller": "Smaller",
     "yourPlan": "Your plan",

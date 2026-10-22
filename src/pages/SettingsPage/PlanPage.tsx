@@ -1,6 +1,7 @@
 import { Fragment, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { useApiRead } from '../../hooks'
 import { usePlanName } from '../../hooks/usePlanName'
@@ -414,8 +415,8 @@ function PlanFigures({
           <Stat
             label={t('plan.stat.raisedToday')}
             value={number(usage.raisedToday)}
-            // TODO(backend): SETTINGS.md row 5.5. The design splits the figure by branch.
-            note={t('plan.byBranchUnavailable')}
+            // SETTINGS.md row 5.5: the design splits the figure by branch ("Muscat 3 · Nizwa 2").
+            note={raisedTodayNote(usage, t, number)}
           />
           <Stat
             label={t('plan.stat.resubmissions')}
@@ -429,8 +430,20 @@ function PlanFigures({
           />
           {/* TODO(backend): SETTINGS.md row 5.3. */}
           <Stat label={t('plan.stat.busiest')} unavailable />
-          {/* TODO(backend): SETTINGS.md row 5.4. */}
-          <Stat label={t('plan.stat.lastMonth')} unavailable />
+          {/* SETTINGS.md row 5.4: the previous allowance period, issued and received. */}
+          {usage.lastMonthUsed != null ? (
+            <Stat
+              label={t('plan.stat.lastMonth')}
+              value={number(usage.lastMonthUsed)}
+              note={
+                usage.lastMonthQuota != null
+                  ? t('plan.stat.lastMonthPlanOf', { allowance: number(usage.lastMonthQuota) })
+                  : undefined
+              }
+            />
+          ) : (
+            <Stat label={t('plan.stat.lastMonth')} unavailable />
+          )}
         </dl>
 
         {allowance ? <AllowanceSplit allowance={allowance} /> : null}
@@ -633,6 +646,31 @@ function BranchUsage({ allowance }: { allowance: AllowanceUsageDto }) {
       </RowsView>
     </section>
   )
+}
+
+/**
+ * The "Raised today" note: today's figure per branch, as the server splits it. An older server
+ * without the split keeps the "not available yet" note; a day with nothing raised has no note.
+ */
+function raisedTodayNote(
+  usage: PlanOverviewDto['usage'],
+  t: TFunction,
+  number: (value: number) => string,
+): string | undefined {
+  const rows = usage.raisedTodayByBranch
+  if (!rows) return t('plan.byBranchUnavailable')
+  if (rows.length === 0) return undefined
+  return rows
+    .map((row) =>
+      t('plan.stat.raisedTodayBranch', {
+        name:
+          row.branchId === null
+            ? t('plan.byBranch.noBranch')
+            : row.branchName || t('plan.byBranch.unnamed'),
+        count: number(row.count),
+      }),
+    )
+    .join(' · ')
 }
 
 function Stat({
