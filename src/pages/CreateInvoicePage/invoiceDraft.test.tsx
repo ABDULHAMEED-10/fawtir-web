@@ -779,6 +779,50 @@ describe('issuing from the composer', () => {
     expect(screen.queryByText(/invoice page for/)).toBeNull()
   })
 
+  it('links an issue that needs approval to the draft, where it is sent for approval', async () => {
+    who = ISSUER
+    for (const code of ['SALES_APPROVAL_REQUIRED', 'SALES_APPROVAL_REJECTED']) {
+      issueResponse = () =>
+        json(409, {
+          type: `https://api.fawtir.om/problems/${code.toLowerCase().replace(/_/g, '-')}`,
+          status: 409,
+          code,
+        })
+      const view = renderAt('/invoices/d-1/edit')
+      expect(await screen.findByText('Figures from the saved draft.')).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Issue this invoice?' })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Issue invoice' }))
+
+      const link = await within(dialog).findByRole('link', { name: 'Open the draft' })
+      expect(link.getAttribute('href')).toBe('/invoices/d-1')
+      expect(screen.queryByText(/invoice page for/)).toBeNull()
+      view.unmount()
+    }
+  })
+
+  it('offers no draft link for a refusal approval cannot answer', async () => {
+    who = ISSUER
+    issueResponse = () =>
+      json(409, {
+        type: 'https://api.fawtir.om/problems/sales-approval-pending',
+        status: 409,
+        code: 'SALES_APPROVAL_PENDING',
+      })
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByText('Figures from the saved draft.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Issue this invoice?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Issue invoice' }))
+
+    expect(
+      await within(dialog).findByText(
+        'This document is waiting for approval and cannot be issued yet.',
+      ),
+    ).toBeTruthy()
+    expect(within(dialog).queryByRole('link', { name: 'Open the draft' })).toBeNull()
+  })
+
   it('tells a company with no business activity where to set it, and keeps the confirmation open', async () => {
     who = ISSUER
     issueResponse = () =>
