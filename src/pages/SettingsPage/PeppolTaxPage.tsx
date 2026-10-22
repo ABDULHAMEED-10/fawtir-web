@@ -19,7 +19,11 @@ import {
   loadCompanyProfile,
   type CompanyProfileDto,
 } from '../../api/company/companyProfile'
-import { BRANCHES_OVERVIEW_PATH, type BranchOverviewDto } from '../../api/settings/branches'
+import {
+  BRANCHES_OVERVIEW_PATH,
+  branchDisplayName,
+  type BranchOverviewDto,
+} from '../../api/settings/branches'
 import { formatInstantDay } from '../../lib/format'
 import { Switch } from '../../components/ui'
 import shieldIcon from '../../assets/settings/tile-peppol.svg'
@@ -326,7 +330,7 @@ function Fact({
 }
 
 function BranchesCard() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   // Same key as the account switcher, so the shell and this card share one GET.
   const overview = useApiRead<BranchOverviewDto>(BRANCHES_OVERVIEW_PATH).read
   const open =
@@ -362,7 +366,7 @@ function BranchesCard() {
               ].join(' ')}
             >
               <span className="text-sm font-medium text-text-tertiary">
-                {branch.name}
+                {branchDisplayName(branch, i18n.language)}
                 {branch.headOffice ? ` · ${t('peppolTax.headOffice')}` : ''}
               </span>
               <span className="shrink-0 text-sm font-semibold text-text-primary">

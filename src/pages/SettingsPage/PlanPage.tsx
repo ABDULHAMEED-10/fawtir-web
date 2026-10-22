@@ -55,6 +55,7 @@ import {
   type SubscriptionStatusDto,
 } from '../../api/settings/subscription'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
+import { useBranchName } from '../../components/branch/useBranchName'
 import tickIcon from '../../assets/settings/check-ink.svg'
 import tickGreenIcon from '../../assets/settings/check-green.svg'
 import infoIcon from '../../assets/settings/info.svg'
@@ -558,6 +559,7 @@ function AllowanceSplit({ allowance }: { allowance: AllowanceUsageDto }) {
  */
 function BranchUsage({ allowance }: { allowance: AllowanceUsageDto }) {
   const { t, i18n } = useTranslation()
+  const branchName = useBranchName()
   const number = (value: number) => formatCount(value, i18n.language)
   const cell = 'px-2 py-3 text-end text-sm font-medium tabular-nums text-text-secondary'
   const head = 'px-2 py-2.5 text-end font-semibold'
@@ -599,7 +601,7 @@ function BranchUsage({ allowance }: { allowance: AllowanceUsageDto }) {
                       </span>
                     </>
                   ) : (
-                    row.branchName || t('plan.byBranch.unnamed')
+                    branchName.byId(row.branchId, row.branchName) || t('plan.byBranch.unnamed')
                   )}
                 </td>
                 <td className={cell}>{number(row.issued)}</td>

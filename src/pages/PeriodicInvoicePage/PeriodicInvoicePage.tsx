@@ -47,6 +47,7 @@ import {
   type InvoiceDetailDto,
 } from '../../api/invoices/detail'
 import { BRANCHES_PATH, loadBranches, type BranchDto } from '../../api/invoices/drafts'
+import { useBranchName } from '../../components/branch/useBranchName'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatDate } from '../../lib/format'
 import { FALLBACK_TAX_CATEGORIES as TAX_CATEGORIES } from '../../lib/selfBillCreate'
@@ -239,11 +240,12 @@ function ScheduleComposer({ id }: { id: string | null }) {
     loadCustomerPage(customersPath),
   )
   const branches = useApiRead<BranchDto[]>(BRANCHES_PATH, loadBranches)
+  const branchName = useBranchName()
   const branchOptions: SelectOption[] =
     branches.read.status === 'ready'
       ? branches.read.data.map((branch) => ({
           value: branch.id,
-          label: branch.name,
+          label: branchName.label(branch),
           hint: branch.city ?? undefined,
         }))
       : []

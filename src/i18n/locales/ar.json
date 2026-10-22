@@ -21064,7 +21064,8 @@
     "VIEWER": "مشاهد",
     "MOBILE_USER": "مستخدم الجوال",
     "INTEGRATION": "تكامل",
-    "member": "عضو"
+    "member": "عضو",
+    "SALES_MANAGER": "مدير المبيعات"
   },
   "appList": {
     "pager": {

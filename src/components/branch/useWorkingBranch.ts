@@ -1,6 +1,7 @@
 import { useApiRead } from '../../hooks'
 import { BRANCHES_PATH, loadBranches, type BranchDto } from '../../api/invoices/drafts'
 import { useWorkingBranchId, workingBranch } from '../../lib/workingBranch'
+import { useBranchName } from './useBranchName'
 
 /**
  * The branch chosen in the sidebar's company card, as a screen that keeps something per branch
@@ -10,6 +11,10 @@ import { useWorkingBranchId, workingBranch } from '../../lib/workingBranch'
 export function useWorkingBranch() {
   const branches = useApiRead<BranchDto[]>(BRANCHES_PATH, loadBranches)
   const chosen = useWorkingBranchId()
+  const { label } = useBranchName()
   const list = branches.read.status === 'ready' ? branches.read.data : []
-  return { read: branches.read, branches: list, branch: workingBranch(list, chosen) }
+  const branch = workingBranch(list, chosen)
+  /** The working branch's name as the reader sees it (Arabic in Arabic, when it has one). */
+  const name = branch ? label(branch) : null
+  return { read: branches.read, branches: list, branch, name }
 }

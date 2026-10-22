@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Popover } from '../ui'
 import {
   BRANCHES_OVERVIEW_PATH,
+  branchDisplayName,
   type BranchOverviewDto,
   type BranchOverviewRow,
 } from '../../api/settings/branches'
@@ -30,7 +31,7 @@ import chevron from '../../assets/dashboard/chevron.svg'
  * same fixed three-row sample, "Al Bahja Coffee").
  */
 export function AccountSwitcher() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   // GET /v1/settings/plan now exists, so the card names the tenant's real plan. It used to state
   // "Business plan" for every tenant; without an answer (loading, no tenant.plan.read, a failure)
   // it names no plan rather than a placeholder one.
@@ -54,7 +55,7 @@ export function AccountSwitcher() {
   // the session has answered there is no company to name yet, and "Your company" would read as
   // an answer, so the card says it is loading instead.
   const accountName =
-    branch?.name ??
+    (branch ? branchDisplayName(branch, i18n.language) : null) ??
     (session
       ? (session.tenantName ?? t('shell.account.unnamed'))
       : t(REQUIRE_SESSION ? 'shell.account.loading' : 'shell.account.unnamed'))
@@ -111,7 +112,7 @@ export function AccountSwitcher() {
                   <CompanyAvatar name={row.name} size={28} />
                   <span className="min-w-0 flex-1">
                     <span dir="auto" className="block truncate text-sm font-medium text-text-primary rtl:text-right">
-                      {row.name}
+                      {row.id ? branchDisplayName(row, i18n.language) : row.name}
                     </span>
                   </span>
                   {chosen ? <span className="shrink-0 text-primary-700">✓</span> : null}

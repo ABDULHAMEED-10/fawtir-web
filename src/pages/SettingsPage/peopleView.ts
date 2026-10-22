@@ -1,4 +1,7 @@
+import { useTranslation } from 'react-i18next'
 import { useApiRead } from '../../hooks'
+import { builtInRoleKey, roleLabel } from '../../lib/roleLabels'
+import { useBranchName } from '../../components/branch/useBranchName'
 import { useCan, useSession } from '../../lib/session/session'
 import {
   ADMIN_ROLE,
@@ -17,14 +20,22 @@ import {
 import { BRANCHES_PATH, loadBranches, type BranchDto } from '../../api/invoices/drafts'
 
 /**
- * Role names for the codes a person holds, when the reader may list roles. Without that, or while
- * it loads, the code itself is shown: still the truth, just less friendly.
+ * Role names for the codes a person holds. A built-in role reads by its translated label
+ * (`sessionRoles`), the same for the Administrator and for a branch administrator who may not list
+ * roles; a company's own role reads by the name it was given, when the reader may list roles.
+ * Otherwise, or while the list loads, the code itself is shown: still the truth, just less friendly.
  */
 export function useRoleNames(): (code: string) => string {
+  const { t } = useTranslation()
   const mayListRoles = useCan(ROLES_PERMISSION)
   const read = useApiRead<RoleDto[]>(mayListRoles ? ROLES_PATH : null, loadRoles).read
-  const names = new Map(read.status === 'ready' ? read.data.map((role) => [role.code, role.name]) : [])
-  return (code) => names.get(code) ?? code
+  const roles = new Map(read.status === 'ready' ? read.data.map((role) => [role.code, role]) : [])
+  return (code) => {
+    const role = roles.get(code)
+    if (role) return roleLabel(role, t)
+    const builtIn = builtInRoleKey(code)
+    return builtIn ? t(builtIn) : code
+  }
 }
 
 export const TH = 'px-3 py-2 text-start text-xs font-semibold uppercase tracking-[0.4px] text-text-quaternary'
@@ -56,12 +67,13 @@ export function useBranchNames(
     enabled && !mayManageBranches ? BRANCHES_PATH : null,
     loadBranches,
   ).read
+  const { label } = useBranchName()
   const branches: NamedBranch[] = mayManageBranches
     ? overview.status === 'ready' && Array.isArray(overview.data.branches)
-      ? overview.data.branches.map((row) => ({ id: row.id, name: row.name, active: row.active }))
+      ? overview.data.branches.map((row) => ({ id: row.id, name: label(row), active: row.active }))
       : []
     : directory.status === 'ready'
-      ? directory.data.map((row) => ({ id: row.id, name: row.name, active: true }))
+      ? directory.data.map((row) => ({ id: row.id, name: label(row), active: true }))
       : []
   // Settled either way: a failed read offers no branches rather than loading for ever.
   const ready = mayManageBranches ? overview.status !== 'loading' : directory.status !== 'loading'

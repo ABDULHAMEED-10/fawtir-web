@@ -49,6 +49,7 @@ import {
 import { describeApiFailure } from '../../lib/apiFailure'
 import { branchAccessRefusalKey } from '../../lib/branchAccessRefusals'
 import { permissionWords } from '../../lib/permissionLabels'
+import { roleLabel } from '../../lib/roleLabels'
 import { OwnerPill } from './people'
 import { seesEveryBranch, useBranchNames, useManagesPeople, useRoleNames } from './peopleView'
 
@@ -210,7 +211,7 @@ function RoleCard({ person, onSaved }: { person: CompanyUser; onSaved: () => voi
 
   const options = roleList
     .filter((role) => role.enabled && isJobRole(role))
-    .map((role) => ({ value: role.code, label: role.name }))
+    .map((role) => ({ value: role.code, label: roleLabel(role, t) }))
 
   // Approval and view only read as what the person may do, never as roles (RL-2).
   const heldName = (code: string) => {

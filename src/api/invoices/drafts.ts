@@ -162,6 +162,8 @@ export type BranchDto = {
   name: string
   type: string
   city: string | null
+  /** The Arabic name, when the server sends it; `useBranchName` falls back to the overview's. */
+  nameAr?: string | null
 }
 
 const draftPath = (id: string) => `${INVOICE_DRAFTS_PATH}/${encodeURIComponent(id)}`

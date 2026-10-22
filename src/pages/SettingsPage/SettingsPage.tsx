@@ -61,7 +61,11 @@ import {
   PARTICIPANT_STANDING_PATH,
   type ParticipantIdStanding,
 } from '../../api/peppol/participantStanding'
-import { BRANCHES_OVERVIEW_PATH, type BranchOverviewDto } from '../../api/settings/branches'
+import {
+  BRANCHES_OVERVIEW_PATH,
+  branchDisplayName,
+  type BranchOverviewDto,
+} from '../../api/settings/branches'
 
 type Tone = 'danger' | 'success' | 'neutral' | 'pending'
 
@@ -287,7 +291,7 @@ export function SettingsPage() {
         pillValues: { count: openBranches?.length ?? 0 },
         pillTone: 'neutral',
         footKey: openBranches && openBranches.length > 0 ? 'settings.card.branchesFoot' : undefined,
-        footValues: { names: openBranches?.map((branch) => branch.name).join(' · ') ?? '' },
+        footValues: { names: openBranches?.map((branch) => branchDisplayName(branch, i18n.language)).join(' · ') ?? '' },
       },
       {
         id: 'team',

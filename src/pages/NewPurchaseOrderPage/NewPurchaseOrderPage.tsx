@@ -30,6 +30,7 @@ import {
   type SupplierOverviewDto,
 } from '../../api/expenditure/supplierRecord'
 import { BRANCHES_PATH, loadBranches, type BranchDto } from '../../api/invoices/drafts'
+import { useBranchName } from '../../components/branch/useBranchName'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { DESIGN_REFERENCE } from '../../lib/invoiceDraft'
 import { supplierTaxCategory } from '../../lib/billIntake'
@@ -99,6 +100,7 @@ function NewPurchaseOrder({ id }: { id: string }) {
     loadSupplierContacts(id),
   )
   const branches = useApiRead<BranchDto[]>(BRANCHES_PATH, loadBranches)
+  const { label: branchLabel } = useBranchName()
   const lastPath = purchaseOrderListPath({ supplierId: id, pageSize: 1 })
   const previous = useApiRead<Page<PurchaseOrderDto>>(lastPath, () =>
     loadPurchaseOrderPage(lastPath),
@@ -348,7 +350,7 @@ function NewPurchaseOrder({ id }: { id: string }) {
                     onChange={setDeliverTo}
                     options={branchList.map((entry) => ({
                       value: entry.id,
-                      label: [entry.name, entry.city].filter(Boolean).join(', '),
+                      label: [branchLabel(entry), entry.city].filter(Boolean).join(', '),
                     }))}
                     ariaLabel={t('purchaseOrder.deliverTo')}
                   />

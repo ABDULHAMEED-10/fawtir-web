@@ -19947,7 +19947,8 @@
     "VIEWER": "Viewer",
     "MOBILE_USER": "Mobile user",
     "INTEGRATION": "Integration",
-    "member": "Member"
+    "member": "Member",
+    "SALES_MANAGER": "Sales manager"
   },
   "appList": {
     "pager": {

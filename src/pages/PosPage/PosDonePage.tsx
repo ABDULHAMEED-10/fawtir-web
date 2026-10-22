@@ -43,7 +43,7 @@ function ReceiptQr({ value }: { value: string }) {
 export function PosDonePage() {
   const { t } = useTranslation()
   // The till's branch is the one chosen in the sidebar; the sample's until branches load.
-  const branchName = useWorkingBranch().branch?.name ?? TILL.branch
+  const branchName = useWorkingBranch().name ?? TILL.branch
   const navigate = useNavigate()
   const [way, setWay] = useState('print')
 

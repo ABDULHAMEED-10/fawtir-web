@@ -23,6 +23,7 @@ import {
 import { loadCustomer, type CustomerDto } from '../../api/customers/customers'
 import { recordBillPayment } from '../../api/expenditure/bills'
 import { BRANCHES_PATH, loadBranches, type BranchDto } from '../../api/invoices/drafts'
+import { useBranchName } from '../../components/branch/useBranchName'
 import {
   AGREEMENTS_PATH,
   loadAgreements,
@@ -294,6 +295,7 @@ function SelfBillScreen() {
     () => loadCustomer(document!.customerId),
   )
   const branches = useApiRead<BranchDto[]>(document ? BRANCHES_PATH : null, loadBranches)
+  const { label: branchLabel } = useBranchName()
   // A self-billed credit note names the invoice it corrects (IBR-032-OM); read it for its number.
   const originalId = document?.correctionOfInvoiceId ?? null
   const original = useApiRead<InvoiceDetailDto>(originalId ? invoicePath(originalId) : null, () =>
@@ -352,10 +354,11 @@ function SelfBillScreen() {
         ) ?? null)
       : null
   const agreementLeft = agreementNote(agreement, today)
-  const branchName =
+  const receivingBranch =
     branches.read.status === 'ready'
-      ? (branches.read.data.find((branch) => branch.id === data.branchId)?.name ?? data.branchId)
-      : data.branchId
+      ? branches.read.data.find((branch) => branch.id === data.branchId)
+      : undefined
+  const branchName = receivingBranch ? branchLabel(receivingBranch) : data.branchId
   const day = (value: string | null) => (value ? formatDate(value, language) : '—')
   const items = selfBillItems(data)
   const totals = data.totals

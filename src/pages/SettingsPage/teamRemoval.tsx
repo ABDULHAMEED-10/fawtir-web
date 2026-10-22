@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { roleLabel } from '../../lib/roleLabels'
 import { ActionMenu, Button, Modal, Select } from '../../components/ui'
 import { LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
@@ -304,7 +305,7 @@ function BackOnDialog({
                 setPicked(value)
                 setFailure(null)
               }}
-              options={jobRoles.map((role) => ({ value: role.code, label: role.name }))}
+              options={jobRoles.map((role) => ({ value: role.code, label: roleLabel(role, t) }))}
               placeholder={t('branchAccess.person.pickRole')}
               ariaLabel={t('removal.user.backOnRole')}
             />

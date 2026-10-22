@@ -210,7 +210,7 @@ function BranchCard({
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
-  const name = branch.name
+  const name = branchDisplayName(branch, i18n.language)
 
   const run = async (work: () => Promise<string>) => {
     setBusy(true)

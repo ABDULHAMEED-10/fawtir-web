@@ -20,6 +20,7 @@ import { describeApiFailure } from '../../lib/apiFailure'
 import { subscriptionRestrictedAction } from '../../lib/subscriptionRestricted'
 import { PAID_EXTRAS_ROUTE, extraPlaceRequired } from '../../api/settings/paidExtras'
 import { permissionWords } from '../../lib/permissionLabels'
+import { roleLabel } from '../../lib/roleLabels'
 import { Check, Panel, Row } from './invitePieces'
 import { BranchChecklist } from './BranchChecklist'
 import { useBranchNames } from './peopleView'
@@ -461,7 +462,7 @@ function RoleChoice({
             picked ? 'text-primary-800' : 'text-text-primary',
           ].join(' ')}
         >
-          {role.name}
+          {roleLabel(role, t)}
         </span>
         {role.description ? (
           <span className="mt-1.5 block max-w-[620px] text-sm font-medium leading-[1.6] text-text-tertiary">
@@ -557,7 +558,7 @@ function ExtraChoice({
       ? t('branchAccess.invite.canApprove')
       : kind === 'PERMISSION_SET' && role.code === 'VIEWER'
         ? t('branchAccess.invite.viewOnly')
-        : role.name
+        : roleLabel(role, t)
   const note =
     kind === 'PERMISSION_SET' && role.code === 'APPROVER'
       ? t('branchAccess.invite.canApproveNote')

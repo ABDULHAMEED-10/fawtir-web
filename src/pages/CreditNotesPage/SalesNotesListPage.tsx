@@ -35,6 +35,7 @@ import {
   type BranchDto,
   type NoteKind,
 } from '../../api/invoices/drafts'
+import { useBranchName } from '../../components/branch/useBranchName'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
 import { muscatToday } from '../../lib/invoiceIssue'
@@ -223,10 +224,14 @@ function NotesList({ kind }: { kind: NoteKind }) {
     [credit, figures.read],
   )
   const branches = useApiRead<BranchDto[]>('/v1/branches', loadBranches)
-  const branchName = (id: string | null | undefined) =>
-    id && branches.read.status === 'ready'
-      ? branches.read.data.find((branch) => branch.id === id)?.name
-      : undefined
+  const { label: branchLabel } = useBranchName()
+  const branchName = (id: string | null | undefined) => {
+    const branch =
+      id && branches.read.status === 'ready'
+        ? branches.read.data.find((entry) => entry.id === id)
+        : undefined
+    return branch ? branchLabel(branch) : undefined
+  }
 
   const [notice, setNotice] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)

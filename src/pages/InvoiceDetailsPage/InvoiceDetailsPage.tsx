@@ -41,6 +41,7 @@ import {
   type InvoiceSendResultDto,
 } from '../../api/invoices/detail'
 import { loadBranches, type BranchDto } from '../../api/invoices/drafts'
+import { useBranchName } from '../../components/branch/useBranchName'
 import { invoiceListPath, loadInvoicePage, type InvoiceRowDto } from '../../api/invoices/list'
 import {
   REMINDER_SCHEDULE_PATH,
@@ -245,6 +246,7 @@ function InvoiceScreen() {
     () => loadCustomer(document!.customerId),
   )
   const branches = useApiRead<BranchDto[]>(document ? '/v1/branches' : null, loadBranches)
+  const branchLabel = useBranchName()
   // The live profile stands in for the seller only where the document carries no issued snapshot
   // (a draft, or a server older than the snapshot), and only for a reader the profile admits.
   const companyProfile = useApiRead<CompanyProfileDto>(
@@ -392,10 +394,11 @@ function InvoiceScreen() {
   const money = (value: number | null | undefined) =>
     value === null || value === undefined ? '—' : formatAmount(value, data.currency, language)
   const day = (value: string | null) => (value ? formatDate(value, language) : '—')
-  const branchName =
+  const issuingBranch =
     branches.read.status === 'ready'
-      ? branches.read.data.find((branch) => branch.id === data.branchId)?.name
+      ? branches.read.data.find((branch) => branch.id === data.branchId)
       : undefined
+  const branchName = issuingBranch ? branchLabel.label(issuingBranch) : undefined
   const customerName =
     customer.read.status === 'ready' ? customer.read.data.displayName : t(party.unknown)
   const onPeppol =
