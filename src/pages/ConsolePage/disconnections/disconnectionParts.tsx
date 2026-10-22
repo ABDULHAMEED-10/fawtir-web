@@ -43,3 +43,32 @@ export function Fact({
     </div>
   )
 }
+
+/**
+ * Who recorded a step: the actor type, and the staff member's name when the server kept it
+ * (Business Rules OP-3: who did it, when and why). Older steps carry no name.
+ */
+export function stepActor(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  step: { actorType: 'CUSTOMER' | 'OPERATOR' | 'SYSTEM'; actorName?: string | null },
+): string {
+  const type = t(`console.disconnections.actor.${step.actorType}`)
+  return step.actorName ? `${type} · ${step.actorName}` : type
+}
+
+/** On an SMP step support recorded instead of the console's call: what kind, and how they knew. */
+export function SmpRecordLine({
+  step,
+}: {
+  step: { smpChannel?: string | null; smpRecordKind?: string | null }
+}) {
+  const { t } = useTranslation()
+  if (!step.smpChannel || !step.smpRecordKind) return null
+  return (
+    <span className="text-xs text-text-secondary">
+      {t(`console.smpCall.history.${step.smpRecordKind}`, {
+        channel: t(`console.smpCall.record.channelOption.${step.smpChannel}`),
+      })}
+    </span>
+  )
+}

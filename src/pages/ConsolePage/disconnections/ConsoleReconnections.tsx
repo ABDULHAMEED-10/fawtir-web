@@ -30,8 +30,9 @@ import {
   type RecordReconnectionStep,
 } from '../../../lib/console/fawtirReconnections'
 import { RECONNECTION_STATUS_TONE } from './disconnectionTones'
-import { Due, Fact } from './disconnectionParts'
+import { Due, Fact, SmpRecordLine, stepActor } from './disconnectionParts'
 import { MomentField } from './MomentField'
+import { SmpCallAction, smpPanelOn, smpStepByHand, useSmpCallStatus } from './SmpCallAction'
 
 /**
  * Console › Disconnections, Reconnections view (plan v4 §10; FC-1): companies coming back to
@@ -164,6 +165,12 @@ function ReconnectionPanel({
   const { read, retry } = useConsoleRead<PlatformReconnectionDto>(reconnectionPath(reconnectionId))
   const [done, setDone] = useState<string | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
+  const smp = useSmpCallStatus(
+    read.status === 'ready' ? read.data.request.tenantId : null,
+    'ADDITION',
+    reconnectionId,
+  )
+  const [callRefused, setCallRefused] = useState(false)
 
   if (read.status === 'loading')
     return <ConsoleNotice busy body={t('console.disconnections.loading')} />
@@ -171,7 +178,12 @@ function ReconnectionPanel({
   const view = read.data
   const { request } = view
   const at = (iso: string | null) => (iso ? formatInstant(iso, i18n.language) : null)
-  const offered = reconnectionStepsOffered(view)
+  // With the console's SMP call or support's record on, the add is made or recorded in the SMP box;
+  // the bare step by hand only as the fallback (smpStepByHand).
+  const smpShown = smpPanelOn(smp.read)
+  const offered = reconnectionStepsOffered(view).filter(
+    (step) => step !== 'SMP_ADDED' || smpStepByHand(smp.read, callRefused),
+  )
 
   return (
     <section
@@ -208,7 +220,7 @@ function ReconnectionPanel({
             )}
           </p>
         ) : null}
-        {view.nextAction === 'ADD_TO_SMP' ? (
+        {view.nextAction === 'ADD_TO_SMP' && !smpShown ? (
           <p className="text-sm font-medium text-text-secondary">
             {t('console.reconnections.smpOutside')}
           </p>
@@ -268,6 +280,25 @@ function ReconnectionPanel({
         ) : null}
       </dl>
 
+      {smpShown && smp.read.status === 'ready' ? (
+        <SmpCallAction
+          tenantId={request.tenantId}
+          kind="ADDITION"
+          linkId={request.id}
+          status={smp.read.data}
+          open={view.nextAction === 'ADD_TO_SMP'}
+          canManage={canManage}
+          minDay={request.acceptedAt ? muscatToday(new Date(request.acceptedAt)) : undefined}
+          callRefused={callRefused}
+          onRefused={() => setCallRefused(true)}
+          refresh={smp.retry}
+          onChanged={() => {
+            onRecorded()
+            retry()
+          }}
+        />
+      ) : null}
+
       {canManage && offered.length > 0 ? (
         <ReconnectionStepForm
           key={`${request.status}-${request.version}`}
@@ -323,7 +354,7 @@ function ReconnectionPanel({
                 <span className="text-sm text-text-secondary">{at(step.occurredAt)}</span>
               </span>
               <span className="text-xs text-text-tertiary">
-                {t(`console.disconnections.actor.${step.actorType}`)}
+                {stepActor(t, step)}
                 {step.recordedAt !== step.occurredAt
                   ? ` · ${t('console.disconnections.recordedOn', { date: at(step.recordedAt) })}`
                   : ''}
@@ -333,6 +364,7 @@ function ReconnectionPanel({
                   {t('console.disconnections.reference')}: <span dir="ltr">{step.reference}</span>
                 </span>
               ) : null}
+              <SmpRecordLine step={step} />
               {step.note ? <span className="text-xs text-text-secondary">{step.note}</span> : null}
             </li>
           ))}

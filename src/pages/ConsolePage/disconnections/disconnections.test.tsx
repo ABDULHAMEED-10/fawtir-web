@@ -479,7 +479,12 @@ describe('stepsOffered', () => {
       'CUSTOMER_REJECTED',
       'WITHDRAWN',
     ])
-    expect(stepsOffered(view({ status: 'DISCONNECTED' }))).toEqual(['SMP_REMOVED'])
+    expect(
+      stepsOffered(view({ status: 'DISCONNECTED' }, { nextAction: 'REMOVE_FROM_SMP' })),
+    ).toEqual(['SMP_REMOVED'])
+    // Defect 2 (option C): once Fawtir has accepted the company back the server's next action is no
+    // longer the removal, and the removal is not offered by hand either.
+    expect(stepsOffered(view({ status: 'DISCONNECTED' }, { nextAction: 'NONE' }))).toEqual([])
     expect(
       stepsOffered(view({ status: 'DISCONNECTED', smpRemovedAt: '2026-10-15T06:00:00Z' })),
     ).toEqual([])

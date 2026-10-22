@@ -178,6 +178,40 @@ const STATUS_AFTER = {
 
 let nextId = 100
 
+/**
+ * What the server does when the Oman SMP confirms a console removal (`platformSmpParticipant.mjs`):
+ * SMP_REMOVED recorded by the system. False when there is no such request or it is already done.
+ */
+export function markSmpRemoved(id, at, operationId, record = null) {
+  const entry = REQUESTS.find((e) => e.request.id === id)
+  if (!entry || entry.request.smpRemovedAt) return false
+  entry.request = { ...entry.request, smpRemovedAt: at, version: entry.request.version + 1 }
+  entry.steps = [
+    ...entry.steps,
+    record
+      ? {
+          ...step(`s-${nextId++}`, 'SMP_REMOVED', entry.request.status, at, 'OPERATOR'),
+          reference: record.reference,
+          note: record.reason,
+          actorName: record.actorName,
+          smpChannel: record.channel,
+          smpRecordKind: 'REMOVED',
+        }
+      : { ...step(`s-${nextId++}`, 'SMP_REMOVED', entry.request.status, at, 'SYSTEM'), reference: `SMP operation ${operationId}`, note: 'Recorded when the Oman SMP confirmed the removal' },
+  ]
+  return true
+}
+
+/** Whether the company's removal from the SMP was recorded, or it left for another provider. */
+export function smpRemovedOrMoved(id) {
+  const entry = REQUESTS.find((e) => e.request.id === id)
+  return Boolean(entry && (entry.request.smpRemovedAt || entry.request.path === 'MOVED_TO_ANOTHER_PROVIDER'))
+}
+
+export function disconnectedAtOf(id) {
+  return REQUESTS.find((e) => e.request.id === id)?.request.disconnectedAt ?? null
+}
+
 export default [
   {
     match: BASE,
