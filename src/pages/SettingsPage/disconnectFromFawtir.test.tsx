@@ -180,14 +180,34 @@ describe('Settings › Company profile: Disconnect from Fawtir', () => {
     expect(writes()).toHaveLength(0)
   })
 
+  it('keeps the button off until the whole company name is typed, in any case (E30)', async () => {
+    const user = userEvent.setup()
+    renderSection()
+    await user.click(await screen.findByRole('button', { name: i18n.t('fawtirDisconnection.start') }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByLabelText(new RegExp(i18n.t('fawtirDisconnection.answer.ASK_FAWTIR.title').replace(/[.?]/g, '\\$&'))))
+    const confirm = within(dialog).getByRole('button', { name: i18n.t('fawtirDisconnection.dialog.confirm.ASK_FAWTIR') }) as HTMLButtonElement
+    const field = within(dialog).getByRole('textbox')
+    await user.type(field, 'Real Trading')
+    expect(confirm.disabled).toBe(true)
+    await user.clear(field)
+    await user.type(field, 'Someone Else LLC')
+    expect(confirm.disabled).toBe(true)
+    await user.clear(field)
+    await user.type(field, 'real  trading llc')
+    expect(confirm.disabled).toBe(false)
+    expect(writes()).toHaveLength(0)
+  })
+
   it('shows a refused name in the field and keeps the dialog open', async () => {
     const user = userEvent.setup()
+    // The name changed elsewhere meanwhile: the server's own check refuses it.
     answers[`POST ${PATH}`] = () => json(400, { type: 'about:blank', status: 400, detail: 'The name typed is not this company\'s name' })
     renderSection()
     await user.click(await screen.findByRole('button', { name: i18n.t('fawtirDisconnection.start') }))
     const dialog = await screen.findByRole('dialog')
     await user.click(within(dialog).getByLabelText(/already disconnected/))
-    await user.type(within(dialog).getByRole('textbox'), 'Someone Else')
+    await user.type(within(dialog).getByRole('textbox'), 'Real Trading LLC')
     await user.click(within(dialog).getByRole('button', { name: i18n.t('fawtirDisconnection.dialog.confirm.ALREADY_DISCONNECTED') }))
     expect(await within(dialog).findByText(i18n.t('fawtirDisconnection.error.nameMismatch'))).toBeTruthy()
     expect(dialog.textContent).not.toMatch(/The name typed/)

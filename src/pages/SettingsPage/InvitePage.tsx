@@ -27,6 +27,7 @@ import { permissionWords } from '../../lib/permissionLabels'
 import { useBranchAccessOn } from '../../lib/identity/branchAccessSwitch'
 import { BranchInviteForm } from './BranchInviteForm'
 import { Check, Panel, Row } from './invitePieces'
+import { invitationLinkDays } from '../../lib/invitationLinkDays'
 import { useManagesPeople } from './peopleView'
 import chipYesIcon from '../../assets/settings/check-green.svg'
 import sendIcon from '../../assets/settings/check-white.svg'
@@ -83,6 +84,8 @@ function InviteForm() {
   const [chosen, setChosen] = useState<string[]>([])
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState<Sent | null>(null)
+  // From the server's answer to the last invitation sent: the same for every invitation.
+  const [linkDays, setLinkDays] = useState<number | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const [failureLink, setFailureLink] = useState<{ to: string; labelKey: string } | null>(null)
 
@@ -95,6 +98,7 @@ function InviteForm() {
     try {
       const invitation = await inviteUser(email.trim(), chosen)
       setSent({ email: invitation.email })
+      setLinkDays((before) => invitationLinkDays(invitation) ?? before)
       setEmail('')
       setChosen([])
     } catch (error) {
@@ -291,8 +295,18 @@ function InviteForm() {
             </h3>
             <dl className="mt-2">
               <Row label={t('invite.emailSent')} value={t('invite.straightAway')} />
-              <Row label={t('invite.linkWorksFor')} value={t('invite.notAvailableYet')} muted />
-              <Row label={t('invite.placeTaken')} value={t('invite.notAvailableYet')} muted />
+              <Row
+                label={t('invite.linkWorksFor')}
+                value={
+                  linkDays === null
+                    ? t('invite.notAvailableYet')
+                    : t('invite.days', { count: linkDays })
+                }
+                muted={linkDays === null}
+              />
+              {/* An open invitation counts against the plan's people from the moment it is sent
+                  (SubscriptionEnforcementService.assertCanAddPerson). */}
+              <Row label={t('invite.placeTaken')} value={t('invite.immediately')} />
               <Row
                 label={t('invite.chargedFrom')}
                 value={t('invite.notAvailableYet')}

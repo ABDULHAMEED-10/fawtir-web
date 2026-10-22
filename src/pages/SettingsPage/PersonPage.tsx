@@ -51,6 +51,7 @@ import { branchAccessRefusalKey } from '../../lib/branchAccessRefusals'
 import { permissionWords } from '../../lib/permissionLabels'
 import { OwnerPill } from './people'
 import { seesEveryBranch, useBranchNames, useManagesPeople, useRoleNames } from './peopleView'
+import { sameCompanyName } from '../../lib/typedCompanyName'
 
 /**
  * Settings › Team members › one person (Business Rules BA-1, OW-1, OW-4, RL-1, RL-2, RL-3, LG-3).
@@ -593,6 +594,10 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
   for (const row of rows) groups.set(row.group, [...(groups.get(row.group) ?? []), row])
 
   const isBranchAdministrator = current.has(BRANCH_ADMINISTRATOR_GRANT)
+  // The tick is part of this card's permissions: it waits for "Save permissions" like every other
+  // tick, and says so while it differs from what is saved (E15).
+  const branchAdministratorPending =
+    isBranchAdministrator !== effective.has(BRANCH_ADMINISTRATOR_GRANT)
   const changed =
     current.size !== effective.size || [...current].some((code) => !effective.has(code))
 
@@ -649,6 +654,9 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
               </span>
               <span className="mt-1 block text-xs font-medium leading-[1.5] text-text-tertiary">
                 {t('branchAccess.person.branchAdminHint')}
+                {branchAdministratorPending
+                  ? ` ${t('branchAccess.person.branchAdminPending')}`
+                  : null}
               </span>
             </span>
           </label>
@@ -754,7 +762,7 @@ function HandoverDialog({
       : []
   const targetName = candidates.find((person) => person.id === target)
   // The name typed must be the company's, as the server checks it (spaces and case aside).
-  const nameMatches = company === '' ? typed.trim() !== '' : sameName(typed, company)
+  const nameMatches = company === '' ? typed.trim() !== '' : sameCompanyName(typed, company)
   const ready = target !== '' && nameMatches && password !== '' && !busy
 
   const close = () => {
@@ -851,11 +859,4 @@ function HandoverDialog({
       </div>
     </Modal>
   )
-}
-
-/** As the server compares a typed company name: NFKC, trimmed, runs of space as one, any case. */
-function sameName(typed: string, name: string): boolean {
-  const normalise = (value: string) =>
-    value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase()
-  return normalise(typed) !== '' && normalise(typed) === normalise(name)
 }

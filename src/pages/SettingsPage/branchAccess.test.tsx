@@ -613,15 +613,25 @@ describe('One person', () => {
         effective: [],
       })
     renderAt('/settings/team/p-clerk')
-    fireEvent.click(
-      await screen.findByRole('checkbox', { name: /Make them a branch administrator/ }),
-    )
+    const pending = i18n.t('branchAccess.person.branchAdminPending')
+    const tick = await screen.findByRole('checkbox', { name: /Make them a branch administrator/ })
+    expect(document.body.textContent).not.toContain(pending)
+    fireEvent.click(tick)
+    // E15: the tick says it waits for "Save permissions", which it has switched on.
+    expect(tick.closest('label')!.textContent).toContain(pending)
+    expect((screen.getByRole('button', { name: 'Save permissions' }) as HTMLButtonElement).disabled).toBe(false)
+    // Unticked again, nothing is waiting.
+    fireEvent.click(tick)
+    expect(document.body.textContent).not.toContain(pending)
+    expect((screen.getByRole('button', { name: 'Save permissions' }) as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(tick)
     fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }))
     await waitFor(() => expect(sent('PUT', '/api/v1/users/p-clerk/permissions')).toHaveLength(1))
     expect(sent('PUT', '/api/v1/users/p-clerk/permissions')[0]).toEqual({
       grants: [{ code: 'invoice.approve' }, { code: 'branch.users.manage' }],
       denials: ['bill.read'],
     })
+    await screen.findByText('Permissions saved. They apply from their next action.')
   })
 
   it('saves branches, and says the server refusal in our words', async () => {

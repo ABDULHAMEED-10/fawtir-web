@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useApiRead } from '../../hooks'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { formatDate, formatInstantDay } from '../../lib/format'
+import { sameCompanyName } from '../../lib/typedCompanyName'
 import { Button, Input, Modal } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { ApiError } from '../../api'
@@ -475,6 +476,10 @@ function DisconnectDialog({
   // Moving to another provider needs no request in Fawtir (LV-4, manual 3.8.1): the screen says
   // so and sends nothing, as the server would record nothing.
   const needsRequest = answer === 'ALREADY_DISCONNECTED' || answer === 'ASK_FAWTIR'
+  // LV-1: the button waits for the name the field asks for, compared as the server compares it
+  // (spaces and case aside). Without a name to compare, any text opens it and the server decides.
+  const nameTyped =
+    companyName.trim() === '' ? typed.trim() !== '' : sameCompanyName(typed, companyName)
 
   const confirm = async () => {
     if (!needsRequest) return
@@ -514,7 +519,7 @@ function DisconnectDialog({
           {needsRequest ? (
             <button
               type="button"
-              disabled={busy || typed.trim().length === 0}
+              disabled={busy || !nameTyped}
               onClick={confirm}
               className="inline-flex h-11 items-center rounded-sm bg-danger-700 px-4 text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >

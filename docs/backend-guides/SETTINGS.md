@@ -193,3 +193,18 @@ above `included`), so they need nothing new.
 |---|---|---|
 | 6.4 | "Switch back on" dialog: the role picker (job roles from `GET /v1/roles`) and, once branch access is on, the branch picker shared with the invitation. The web sends `POST /v1/users/{id}/reactivate` with `{ "roleId": "<RoleDto.id>", "branchIds": [...] }` (`branchIds` only while branch access is on and the role is not Administrator; no body when no role can be listed) | **Done (backend #683):** the request takes `{roleId?, branchIds?}`. Without `roleId` the role they held is kept; with it, the person comes back holding that one job role under the checks of `PUT /v1/users/{id}/role`. Once branch access is on, `branchIds` replace their branches (absent: kept), at least one is needed (409 `branch-required`) and none for an Administrator (409 `admin-has-all-branches`); both refusals are worded by the screen in English and Arabic (`src/lib/removalRefusals.ts`) |
 | 6.5 | "Switched off on {date} by {name}" under each switched-off person, and the old role preselected in "Switch back on". Neither is drawn while absent | **Done (backend #683):** on `GET /v1/users?status=DEACTIVATED` each person carries `deactivatedAt` (instant), `deactivatedByName` (null when unknown) and `previousRoles` (role codes, the same shape as `roles`: what they held when switched off, or the role last retired for an older row; empty when none). Null on every other read. The screen preselects the first held job role by code (Administrator first) |
+
+## Update 22 Oct 2026: Invite someone, "What happens next" (row 7.5, in part)
+
+Two of the three rows are now filled from what the server already does. "Place taken" reads
+"Immediately": an open invitation counts against the plan's people from when it is sent until it
+is accepted, revoked or expires (`SubscriptionEnforcementService.assertCanAddPerson`, active people
+plus open invitations). "Link works for" reads "{n} days" once an invitation has been sent in this
+visit, from the answer's `expiresAt` less `lastSentAt` (`fawtir.identity.invitations.ttl`, 7 days
+by default); before the first one it still reads "Not available yet". Rows 7.1, 7.3, 7.4 and the
+email preview are unchanged.
+
+| # | Element on the screen | What the backend needs to add |
+|---|---|---|
+| 7.7 | "Link works for" before anything is sent | The invitation lifetime before sending, for example `invitationValidityDays` on a read the inviter can make (the setting is `fawtir.identity.invitations.ttl`) |
+| 7.8 | "Charged from". Still "Not available yet" | Not drawn from the design's "The day they accept": US-1 says an extra user is paid and confirmed before they become active, and the server refuses an invitation past the plan's people until an extra place is bought (`extra-place-required`), so nothing is charged when they accept. Needs the owner's wording for what this row should say |
