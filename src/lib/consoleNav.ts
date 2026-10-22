@@ -88,6 +88,22 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         Icon: NavTddIcon,
       },
       {
+        id: 'owners',
+        labelKey: 'console.nav.owners',
+        to: '/console/owners',
+        // Companies with no clear Owner, and the Fawtir member's pick (OW-5).
+        requires: 'platform.tenants.manage',
+        Icon: NavCustomersIcon,
+      },
+      {
+        id: 'branchAccess',
+        labelKey: 'console.nav.branchAccess',
+        to: '/console/branch-access',
+        // What to check before branch access is switched on (BA-1, BA-6, RL-1, RL-5); read-only.
+        requires: 'platform.tenants.manage',
+        Icon: NavReportsIcon,
+      },
+      {
         id: 'plans',
         labelKey: 'console.nav.plans',
         to: '/console/plans',
