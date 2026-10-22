@@ -12017,7 +12017,8 @@
       "soldHere": "Sold at {{branch}}",
       "priceHere": "Price before VAT at {{branch}}",
       "note": "Leave a price empty to use the base price. The VAT category, its reason and the HS code are the same in every branch; stock is counted per branch."
-    }
+    },
+    "metaNoDate": "{{group}} › {{kind}} · {{code}}"
   },
   "itemSells": {
     "export": "Export",
@@ -22611,7 +22612,7 @@
     "subtitle": "Everything you sell, stored once and reused on every invoice and sale.",
     "toolsUnavailable": "Menu upload, suggested items, price rules, bundles, stock and per-item sales history are not connected to Fawtir's servers yet.",
     "products": "Products",
-    "empty": "No products yet. A product is added when you pick it on an invoice line.",
+    "empty": "No products yet. Add one with New item, or from an invoice line.",
     "more": "Showing the first {{shown}} of {{total}} products.",
     "omr": "OMR {{amount}}",
     "col": {
@@ -23992,5 +23993,38 @@
     "reasonInvalid": "A line's reason for no VAT is not on the official list for its VAT category. Choose the reason again from the list.",
     "reasonNotApplicable": "A line gives a reason code that its VAT category does not take. Clear the reason, or change the line's category.",
     "bulkReasonRequired": "A zero-rated or exempt line in the file has no reason code. Give the reason code in its row, then upload again."
+  },
+  "itemForm": {
+    "item": "Item",
+    "codeHint": "Your own short code. Another item on sale cannot use it.",
+    "fixFirst": "Check the fields marked in red.",
+    "savedNamed": "{{name}} is saved. Add the next item.",
+    "offSale": "Off sale",
+    "offSaleDone": "Taken off sale. New invoice lines can no longer pick it; invoices already issued are not changed.",
+    "offSaleTitle": "Take this item off sale?",
+    "offSaleBody": "{{name}} will no longer be offered on new invoice lines. Invoices already issued are not changed. Putting an item back on sale is not available yet.",
+    "archivedNote": "This item is off sale, so it cannot be changed. Invoices already issued keep it as it was.",
+    "reload": "Reload",
+    "footer": "Changes apply to invoice lines added from now on. Invoices already issued are not changed.",
+    "problem": {
+      "name": "Enter the item's name.",
+      "code": "Enter a code for the item.",
+      "unit": "Choose how it is sold.",
+      "price": "Enter a price of 0 or more, with up to three decimals.",
+      "tax": "Choose a tax category.",
+      "hsCode": "Choose the item's HS code. If none fits, choose Other."
+    },
+    "refused": {
+      "taxRate": "This tax category's rate cannot be used on an item. Choose another category.",
+      "codeTaken": "Another item on sale already uses this code. Choose another one.",
+      "changed": "Someone else changed this item after you opened it. Reload to see their changes, then make yours again.",
+      "archived": "This item has been taken off sale, so it cannot be changed.",
+      "notFound": "This item no longer exists.",
+      "hsUnknown": "This HS code is not on Oman's list. Choose another one, or Other.",
+      "hsOnService": "A service cannot carry an HS code. Remove it, or mark the item as something you hand over.",
+      "kind": "Choose whether it is something you hand over or something you do.",
+      "serviceType": "This service type is not on Oman's list. Choose another one.",
+      "isic": "The business activity stored on this item is not valid. Contact Fawtir support."
+    }
   }
 }

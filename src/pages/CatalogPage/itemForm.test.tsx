@@ -10,7 +10,8 @@ const OWNER: Entitlements = {
   username: 'demo_admin',
   tenantId: 't-1',
   roles: [],
-  permissions: [],
+  // New item needs product.manage: the form saves to /v1/products.
+  permissions: ['product.read', 'product.manage'],
   scopes: [],
   featureFlags: {},
 }

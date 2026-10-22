@@ -83,10 +83,13 @@ export function lineFromProduct(
  */
 function productExtras(product: ProductDto): Partial<ProductLinePatch> {
   const extras: Partial<ProductLinePatch> = {}
-  if (product.itemType) extras.itemType = product.itemType === 'SERVICE' ? 'service' : 'goods'
-  if (extras.itemType === 'goods' && product.hsCode) extras.hsCode = product.hsCode
-  if (extras.itemType === 'service' && product.serviceTypeCode) {
-    extras.serviceType = product.serviceTypeCode
+  const kind = product.classificationGoodsOrService
+  if (kind === 'G' || kind === 'S') extras.itemType = kind === 'S' ? 'service' : 'goods'
+  if (extras.itemType === 'goods' && product.classificationHsCode) {
+    extras.hsCode = product.classificationHsCode
+  }
+  if (extras.itemType === 'service' && product.classificationServiceTypeCode) {
+    extras.serviceType = product.classificationServiceTypeCode
   }
   if (product.exemptionReasonCode) extras.exemptionReasonCode = product.exemptionReasonCode
   if (product.exemptionReason) extras.exemptionReason = product.exemptionReason

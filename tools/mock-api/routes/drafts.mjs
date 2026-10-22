@@ -1,8 +1,9 @@
 /**
  * Invoice drafts (the composer at /invoices/new and /invoices/:id/edit) — branches, the customer
- * search and records it picks from, the product catalogue, and a draft store that is created,
- * saved, priced, discarded and issued in memory. Shapes follow `src/api/invoices/drafts.ts`,
- * `customers.ts` and `catalog/products.ts`. Al Bahja Coffee, September 2026, rial amounts.
+ * search and records it picks from, and a draft store that is created, saved, priced, discarded
+ * and issued in memory. The product catalogue the composer picks from is `products.mjs`. Shapes
+ * follow `src/api/invoices/drafts.ts` and `customers.ts`. Al Bahja Coffee, September 2026, rial
+ * amounts.
  */
 
 const NOW = '2026-09-25T09:30:00Z'
@@ -203,33 +204,6 @@ function record(summary, version = 1) {
     },
   }
 }
-
-function product(id, code, name, unit, price, tax = 'S', rate = 5) {
-  return {
-    id,
-    code,
-    name,
-    description: null,
-    defaultUnitCode: unit,
-    defaultUnitPrice: price,
-    defaultTaxCategory: tax,
-    defaultTaxRate: rate,
-    active: true,
-    version: 0,
-  }
-}
-
-const PRODUCTS = [
-  product('p-cap', 'CAP-L', 'Cappuccino - Large', 'EA', 1.8),
-  product('p-flat', 'FLT-1', 'Flat White', 'EA', 1.6),
-  product('p-beans', 'BEAN-HB', 'Coffee Beans 1kg - House Blend', 'KGM', 9.5),
-  product('p-green', 'BEAN-YG', 'Green Beans - Yirgacheffe', 'KGM', 10.25),
-  product('p-roast', 'SRV-ROAST', 'Roasting service - per batch', 'E48', 4.2),
-  product('p-cups', 'CUP-500', 'Takeaway cups - 500 pack', 'PK', 22.8),
-  product('p-train', 'SRV-TRAIN', 'Barista training', 'HUR', 15),
-  product('p-deliv', 'SRV-DELIV', 'Delivery charge', 'EA', 2.5),
-  product('p-export', 'BEAN-EXP', 'Export beans - Salalah lot', 'KGM', 11, 'G', 0),
-]
 
 const page = (items, size = 20) => ({
   content: items,
@@ -475,18 +449,6 @@ export default [
     reply: ({ params }) => {
       const found = CUSTOMERS.find((c) => c.id === params[0])
       return found ? record(found) : { status: 404 }
-    },
-  },
-
-  {
-    match: '/api/v1/products',
-    reply: ({ query }) => {
-      const q = (query.get('q') ?? '').toLowerCase()
-      return page(
-        PRODUCTS.filter(
-          (p) => !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q),
-        ),
-      )
     },
   },
 

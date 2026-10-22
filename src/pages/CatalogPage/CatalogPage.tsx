@@ -8,6 +8,7 @@ import { productSearchPath, searchProducts, type ProductDto } from '../../api/ca
 import { pageCountOf, type Page } from '../../api'
 import { Link } from 'react-router-dom'
 import { CatalogEmptyState } from './CatalogEmptyState'
+import { useCanManageProducts } from './ItemFormPage'
 import { demoModulesEnabled } from '../../lib/demoModules'
 import { OMAN_VAT_CATEGORIES } from '../../lib/invoiceDraft'
 import {
@@ -54,6 +55,8 @@ export function CatalogPage() {
   const setPage = (next: number) => setPaging((current) => ({ ...current, page: next }))
   const [tab, setTab] = useState<CatalogTab>('all')
   const [sort, setSort] = useState<CatalogSort>('name')
+  // New item writes to /v1/products, so it follows product.manage rather than the prototype switch.
+  const canManage = useCanManageProducts() === true
   useEffect(() => {
     const id = window.setTimeout(() => {
       const next = query.trim()
@@ -104,24 +107,28 @@ export function CatalogPage() {
       title={t('catalogReal.title')}
       subtitle={t('catalogReal.subtitle')}
       actions={
-        // The product list is the integrated part; menu upload and the item editor have no server
-        // yet, so they open their prototypes (under the sample-data ribbon) while prototypes are on.
-        demoModulesEnabled() ? (
+        // The list and the item form are on the server; menu upload has none yet, so it opens its
+        // prototype (under the sample-data ribbon) while prototypes are on.
+        demoModulesEnabled() || canManage ? (
           <>
-            <Link
-              to="/catalog/upload"
-              className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-            >
-              <img src={uploadIcon} alt="" className="size-[18px]" />
-              {t('catalog.uploadAMenu')}
-            </Link>
-            <Link
-              to="/catalog/new"
-              className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-            >
-              <img src={plusIcon} alt="" className="size-4" />
-              {t('catalog.newItem')}
-            </Link>
+            {demoModulesEnabled() ? (
+              <Link
+                to="/catalog/upload"
+                className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+              >
+                <img src={uploadIcon} alt="" className="size-[18px]" />
+                {t('catalog.uploadAMenu')}
+              </Link>
+            ) : null}
+            {canManage ? (
+              <Link
+                to="/catalog/new"
+                className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+              >
+                <img src={plusIcon} alt="" className="size-4" />
+                {t('catalog.newItem')}
+              </Link>
+            ) : null}
           </>
         ) : undefined
       }
@@ -283,7 +290,12 @@ export function CatalogPage() {
                             </span>
                             <div className="min-w-0">
                               <p className="text-sm font-semibold text-text-primary">
-                                <bdi>{product.name}</bdi>
+                                <Link
+                                  to={`/catalog/${encodeURIComponent(product.id)}`}
+                                  className="hover:underline"
+                                >
+                                  <bdi>{product.name}</bdi>
+                                </Link>
                               </p>
                               <p
                                 className="mt-1 text-xs font-medium text-text-quaternary"

@@ -778,6 +778,13 @@ sizes, add-ons and the Arabic name all stay. The web now draws these fields on t
 (`ItemFormPage.tsx`) and reads them, when present, onto the invoice line (`productLine.ts`);
 Save on the item form still calls no API.
 
+Update 2026-10-22: the item form now reads, creates, updates and archives on `/v1/products`
+(`GET /v1/products/{id}`, `POST`, `PUT ?expectedVersion=`, `DELETE ?expectedVersion=`), gated on
+`product.manage`; an archived product opens read-only. Field names are the backend's own. The
+openapi (`openapi.yaml`, `/products`) types the request and response bodies only as `object`; the
+names below are `ProductRequest` / `ProductResponse` in `ProductController`, and the request's
+`classification` is the openapi's `ItemClassificationRequest`.
+
 | #   | What the screen needs | Backend |
 | --- | --- | --- |
 | P.1 | Goods or service on the product | `itemType: GOODS \| SERVICE` on `ProductResponse` and the create/update request; the unit must belong to it (service units: HUR, DAY, WEE, MON, ANN, E48, C62, LS, KMT; `ZZ` on both) |
@@ -803,3 +810,17 @@ fields that are not sent. Settings › Branches now reads and sends it as `nameA
 | --- | --- | --- |
 | B.1 | `GET /v1/branches/overview` and `GET /v1/branches/{id}`: the Head Branch is marked from `headBranch`, and in Arabic a branch shows `nameAr` when it has one, else `name` | `headBranch` and `nameAr` on the overview rows and the branch detail; the web reads both as optional |
 | B.2 | Add a branch sends `nameAr` with `POST /v1/branches` in the same call; Change its details sends it on `PUT /v1/branches/{id}`: text sets it, an empty string removes it, and the field is left out when the name was never given or not changed | **Done (backend #682):** the create takes `nameAr` (blank or null leaves it unset) and the update takes "" or null as "remove" (absent leaves it). The second rename call is gone. If an answer shows the name was not kept (a server older than #682), the screen says so and the next save sends it again on the branch already created |
+
+## Update 2026-10-22 (catalogue on /v1/products, web #254)
+
+The catalogue now reads and saves on `/v1/products` under the backend's own field names. These notes
+update rows P.1, P.2 and P.13 above (their original text stays as asked), and P.14 to P.16 are new.
+
+| #   | What the screen does | Backend |
+| --- | --- | --- |
+| P.1 (update) | Goods or service on the product | **Built**, under the backend's names: `classification.goodsOrService` (`G` / `S`) on the create/update request, `classificationGoodsOrService` on `ProductResponse` (not `itemType`). Still asked: the unit must belong to it (service units: HUR, DAY, WEE, MON, ANN, E48, C62, LS, KMT; `ZZ` on both) |
+| P.2 (update) | Classification on the product | **Built**, under the backend's names: `classification.hsCode` (12-digit Oman HS on CL-08-OM-HS, IBR-080-OM; `000000000000` = Other) for goods and `classification.serviceTypeCode` (CL-12-OM) for services on the request, `classificationHsCode` / `classificationServiceTypeCode` (and `classificationIsicCode`) on `ProductResponse` (not `hsCode` / `serviceTypeCode`); a service with an HS code is refused (`HS_CODE_ON_SERVICES_LINE`). Stored for every product, whoever buys: a consumer invoice prints neither, but Z.12 and Z.15 check the product's stored HS code |
+| P.13 (update) | Read one product | The read itself is **built** and wired (2026-10-22): the item form's edit page and "Sizes and options" open the real product's name, code, price, VAT and classification. Still asked: `GET /v1/products/{id}` returning the product with P.1 to P.5 and its P.9 branch settings, plus its sizes and add-ons, so the item form's edit page and the "Sizes and options" page (`/catalog/:id/options`) open the real item instead of the House Blend sample |
+| P.14 | Put an archived product back on sale | there is no route to reactivate a product: `DELETE /v1/products/{id}` archives it and `PUT` refuses an archived one (`PRODUCT_ARCHIVED`), so the item form opens it read-only and offers nothing to undo the archive. Needed: `POST /v1/products/{id}/reactivate?expectedVersion=` (refused while another active product holds its code) |
+| P.15 | List archived products on their own | `GET /v1/products` has only `activeOnly` (default true; false lists active and archived together); there is no filter for archived products only, so the catalogue list cannot draw an "Archived" tab with a server count. Needed: `status=ACTIVE \| ARCHIVED \| ALL` (or `archivedOnly=true`) with `totalElements` for each |
+| P.16 | The product bodies in the openapi | `openapi.yaml` types the `/products` request and response as `{type: object}`; document `ProductRequest` (code, name, description, defaultUnitCode, defaultUnitPrice, defaultTaxCategory, defaultTaxRate, classification: `ItemClassificationRequest`), `ProductResponse` (the above flattened as `classification*`, plus active, archivedAt, version) and `ProductPageResponse`, and the refusal codes (`PRODUCT_CODE_DUPLICATE`, `PRODUCT_VERSION_CONFLICT`, `PRODUCT_ARCHIVED`, `PRODUCT_NOT_FOUND`, `HS_CODE_*`, `SERVICE_TYPE_CODE_INVALID`) |
