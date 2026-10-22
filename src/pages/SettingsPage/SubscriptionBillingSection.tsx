@@ -125,7 +125,8 @@ export function SubscriptionBillingSection() {
           bill={outstanding.bill}
           payments={outstanding.payments}
           card={outstanding.card ?? null}
-          overview={overview}
+          // CF-2: a bill is paid into the account it was issued with, not one confirmed since.
+          overview={outstanding.beneficiary ? { ...overview, beneficiary: outstanding.beneficiary } : overview}
           canPay={canPay}
           reportedCards={reportedCards}
           onChanged={changed}
@@ -1014,6 +1015,9 @@ const KNOWN_REFUSALS = [
   'billing-not-configured',
   'subscription-not-tracked',
   'idempotency-key-reused',
+  // UP-1: the receipt is virus-scanned before it is stored.
+  'upload-infected',
+  'upload-scan-unavailable',
 ]
 
 function refusalMessage(t: (key: string) => string, error: unknown): string {

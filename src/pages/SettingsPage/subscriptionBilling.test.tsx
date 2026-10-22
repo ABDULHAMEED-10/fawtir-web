@@ -235,6 +235,19 @@ describe('Settings › Billing: the charge', () => {
     expect(within(region).getByRole('radio', { name: new RegExp(i18n.t('billing.method.CASH.title')) })).toBeTruthy()
   })
 
+  it('pays a bill into the account it was issued with, not one confirmed since (CF-2)', async () => {
+    const ISSUED_WITH = { legalName: 'Fawtir LLC', bankName: 'Bank Dhofar', iban: 'OM020300000012345678901', swiftCode: null }
+    answers[BILLING] = () => json(200, overview({ bills: [{ bill: BILL, payments: [], beneficiary: ISSUED_WITH }] }))
+    const user = userEvent.setup({ delay: null })
+    renderBilling()
+
+    await user.click(await screen.findByRole('radio', { name: new RegExp(i18n.t('billing.method.BANK_TRANSFER.title')) }))
+    const region = charges()
+    expect(within(region).getByText('OM020300000012345678901')).toBeTruthy()
+    expect(within(region).getByText('Bank Dhofar')).toBeTruthy()
+    expect(within(region).queryByText('OM810180000001299123456')).toBeNull()
+  })
+
   it('says bank transfer is unavailable when Fawtir has no confirmed account, shows no account, and still offers cash', async () => {
     answers[BILLING] = () =>
       json(200, overview({ beneficiary: null, methods: { bankTransfer: false, bankTransferStatus: 'NO_ACCOUNT', cash: true } }))

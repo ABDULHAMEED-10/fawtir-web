@@ -19,7 +19,7 @@ import {
   type OverviewInvoicing,
   type TenantOverview,
 } from '../../lib/console/tenantOverview'
-import { ActionMenu, Rial, withRial, type ActionMenuItem } from '../../components/ui'
+import { Rial, withRial } from '../../components/ui'
 import {
   TENANT_IDENTITIES,
   documentsAllowance,
@@ -37,23 +37,18 @@ import { PLANS, TENANTS, count, omr, type FilingDay } from '../../lib/superAdmin
 import {
   ActivateModal,
   ChangePlanModal,
-  GrantQuotaModal,
   RecordPaymentModal,
   SUBSCRIPTION_ACTIONS,
   SendLinkModal,
   StateChangeModal,
   SubscriptionStatePill,
   SubscriptionTab,
-  WaiveOverageModal,
   type SubscriptionAction,
 } from './subscriptions'
 import { CompanySubscriptionCards } from './tenant/CompanySubscriptionCards'
 import { CompanyBillingCard } from './tenant/CompanyBillingCard'
 import { TenantErpEntitlementCard } from './erp/TenantErpEntitlementCard'
 import { EnterpriseTermsLink } from './enterprise/EnterpriseTermsLink'
-import invoiceIcon from '../../assets/actions/invoice.svg'
-import creditNoteIcon from '../../assets/actions/credit-note.svg'
-import deleteIcon from '../../assets/actions/delete.svg'
 import { CONSOLE_H1, CONSOLE_PAGE, CONSOLE_PRIMARY, CONSOLE_SECONDARY, CONSOLE_SUBTITLE, CONSOLE_TAB_LINE } from '../../layouts/ConsoleShell/consoleStyle'
 import { consoleTab } from '../../layouts/ConsoleShell/consoleTones'
 import { demoModulesEnabled } from '../../lib/demoModules'
@@ -102,13 +97,12 @@ function Chip({ label, tone }: { label: string; tone: 'bad' | 'watch' | 'calm' }
 
 /**
  * The buttons that fit a state: the first is the next sensible thing and is drawn as primary; the
- * rest sit beside it; the last three live in the "More" menu. Recording a payment and sending a
- * link need an open invoice, and a link needs the card method to be on.
+ * rest sit beside it. Recording a payment and sending a link need an open invoice, and a link needs
+ * the card method to be on. Granting documents and cancelling are not here: both are real actions
+ * on the company's subscription card (a reason and an expiry; abuse or fraud, two operators), and
+ * waiving an overage does not exist, since extra documents are bought ahead.
  */
-function actionsFor(
-  state: SubscriptionState,
-  hasOpenInvoice: boolean,
-): { bar: SubscriptionAction[]; menu: SubscriptionAction[] } {
+function actionsFor(state: SubscriptionState, hasOpenInvoice: boolean): SubscriptionAction[] {
   const money: SubscriptionAction[] = hasOpenInvoice
     ? PLATFORM_SETTINGS.payments.methods.cardLink
       ? ['recordPayment', 'sendLink']
@@ -116,32 +110,17 @@ function actionsFor(
     : []
   switch (state) {
     case 'trial':
-      return { bar: ['activate', 'changePlan'], menu: ['grantQuota', 'waiveOverage', 'cancel'] }
+      return ['activate', 'changePlan']
     case 'awaitingPayment':
     case 'grace':
-      return {
-        bar: [...money, 'activate', 'changePlan', 'suspend'],
-        menu: ['grantQuota', 'waiveOverage', 'cancel'],
-      }
+      return [...money, 'activate', 'changePlan', 'suspend']
     case 'active':
-      return {
-        bar: ['changePlan', ...money, 'suspend'],
-        menu: ['grantQuota', 'waiveOverage', 'cancel'],
-      }
+      return ['changePlan', ...money, 'suspend']
     case 'suspended':
-      return {
-        bar: ['resume', ...money, 'changePlan'],
-        menu: ['grantQuota', 'waiveOverage', 'cancel'],
-      }
+      return ['resume', ...money, 'changePlan']
     default:
-      return { bar: ['activate', 'changePlan'], menu: ['grantQuota', 'waiveOverage'] }
+      return ['activate', 'changePlan']
   }
-}
-
-const MENU_ICON: Partial<Record<SubscriptionAction, string>> = {
-  grantQuota: invoiceIcon,
-  waiveOverage: creditNoteIcon,
-  cancel: deleteIcon,
 }
 
 function isAction(value: string | null): value is SubscriptionAction {
@@ -154,7 +133,7 @@ function isAction(value: string | null): value is SubscriptionAction {
  * is built in full; Filing reuses the Tenants screen's week strip for the tenants it knows; ERP is
  * not built yet and says so.
  *
- * `?action=recordPayment|sendLink|activate|changePlan|suspend|resume|cancel|grantQuota|waiveOverage`
+ * `?action=recordPayment|sendLink|activate|changePlan|suspend|resume`
  * (with an optional `&invoice=`) opens that modal on arrival, so the queue can deep-link to it.
  *
  * A real tenant id is a UUID and is always read from the platform overview. A slug is one of the
@@ -321,14 +300,7 @@ function TenantDetail({
   )
 
   const state = subscription?.state ?? 'cancelled'
-  const { bar, menu } = actionsFor(state, Boolean(openInvoice))
-  const menuItems: ActionMenuItem[] = menu.map((action) => ({
-    id: action,
-    labelKey: `console.tenantDetail.actions.${action}`,
-    icon: MENU_ICON[action] ?? invoiceIcon,
-    danger: action === 'cancel',
-    onSelect: () => open(action),
-  }))
+  const bar = actionsFor(state, Boolean(openInvoice))
 
   const modalProps = {
     tenantId,
@@ -426,12 +398,6 @@ function TenantDetail({
                 {t(`console.tenantDetail.actions.${action}`)}
               </button>
             ))}
-            <ActionMenu
-              items={menuItems}
-              label={t('console.tenantDetail.actions.more')}
-              variant="bordered"
-              size="md"
-            />
           </div>
         ) : (
           <EnterpriseTermsLink tenantId={tenantId} />
@@ -579,13 +545,9 @@ function TenantDetail({
           {request?.action === 'sendLink' ? <SendLinkModal {...modalProps} /> : null}
           {request?.action === 'activate' ? <ActivateModal {...modalProps} /> : null}
           {request?.action === 'changePlan' ? <ChangePlanModal {...modalProps} /> : null}
-          {request?.action === 'suspend' ||
-          request?.action === 'resume' ||
-          request?.action === 'cancel' ? (
+          {request?.action === 'suspend' || request?.action === 'resume' ? (
             <StateChangeModal mode={request.action} {...modalProps} />
           ) : null}
-          {request?.action === 'grantQuota' ? <GrantQuotaModal {...modalProps} /> : null}
-          {request?.action === 'waiveOverage' ? <WaiveOverageModal {...modalProps} /> : null}
         </>
       ) : null}
     </div>

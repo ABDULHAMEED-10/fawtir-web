@@ -394,7 +394,7 @@ describe('Reject', () => {
   it('needs a reason, then rejects once with the exact backend body and re-reads the company', async () => {
     await openPending({
       [REJECT_URL]: () => json(200, { tenantId: ID, verificationStatus: 'REJECTED', verificationMethod: null, tenantStatus: 'PENDING', decidedAt: '2026-09-12T06:00:00Z' }),
-      [DETAIL_URL]: [() => json(200, PENDING), () => json(200, { ...PENDING, verificationStatus: 'REJECTED', rejectionReason: 'TAX_IDENTITY_EVIDENCE_MISSING' })],
+      [DETAIL_URL]: [() => json(200, PENDING), () => json(200, { ...PENDING, verificationStatus: 'REJECTED', rejectionReason: 'COMPANY_PROFILE_MISMATCH' })],
     })
 
     fireEvent.click(button('console.verification.decision.reject'))
@@ -405,14 +405,14 @@ describe('Reject', () => {
     expect(callsTo(REJECT_URL)).toHaveLength(0)
 
     fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('console.verification.decision.reason') }))
-    fireEvent.click(screen.getByRole('option', { name: i18n.t('console.verification.detail.reason.TAX_IDENTITY_EVIDENCE_MISSING') }))
+    fireEvent.click(screen.getByRole('option', { name: i18n.t('console.verification.detail.reason.COMPANY_PROFILE_MISMATCH') }))
     fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('console.verification.decision.rejectConfirm') }))
 
     expect(await screen.findByText(i18n.t('console.verification.decision.rejected'))).toBeTruthy()
     expect(callsTo(REJECT_URL)).toHaveLength(1)
     expect(JSON.parse(initOf(REJECT_URL).body as string)).toEqual({
       expectedRevision: 2,
-      reason: 'TAX_IDENTITY_EVIDENCE_MISSING',
+      reason: 'COMPANY_PROFILE_MISMATCH',
       // Correctable unless the reviewer chooses otherwise.
       classification: 'CORRECTABLE',
       finalReason: null,
@@ -420,16 +420,32 @@ describe('Reject', () => {
     await waitFor(() => expect(callsTo(DETAIL_URL)).toHaveLength(2))
   })
 
+  it('offers no "evidence missing" reason: no documents are asked for at sign-up (VR-2)', async () => {
+    await openPending({ [DETAIL_URL]: [() => json(200, PENDING)] })
+
+    fireEvent.click(button('console.verification.decision.reject'))
+    const dialog = screen.getByRole('dialog', { name: i18n.t('console.verification.decision.rejectTitle') })
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('console.verification.decision.reason') }))
+    expect(screen.getByRole('option', { name: i18n.t('console.verification.detail.reason.COMPANY_PROFILE_MISMATCH') })).toBeTruthy()
+    for (const code of [
+      'TAX_IDENTITY_EVIDENCE_MISSING',
+      'COMMERCIAL_REGISTRATION_EVIDENCE_MISSING',
+      'REGISTERED_ADDRESS_EVIDENCE_MISSING',
+    ]) {
+      expect(screen.queryByRole('option', { name: i18n.t(`console.verification.detail.reason.${code}`) }), code).toBeNull()
+    }
+  })
+
   it('a final rejection needs its own reason, and sends it with the classification', async () => {
     await openPending({
       [REJECT_URL]: () => json(200, { tenantId: ID, verificationStatus: 'REJECTED', verificationMethod: null, tenantStatus: 'PENDING', decidedAt: '2026-09-12T06:00:00Z' }),
-      [DETAIL_URL]: [() => json(200, PENDING), () => json(200, { ...PENDING, verificationStatus: 'REJECTED', rejectionReason: 'TAX_IDENTITY_EVIDENCE_MISSING' })],
+      [DETAIL_URL]: [() => json(200, PENDING), () => json(200, { ...PENDING, verificationStatus: 'REJECTED', rejectionReason: 'COMPANY_PROFILE_MISMATCH' })],
     })
 
     fireEvent.click(button('console.verification.decision.reject'))
     const dialog = screen.getByRole('dialog', { name: i18n.t('console.verification.decision.rejectTitle') })
     fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('console.verification.decision.reason') }))
-    fireEvent.click(screen.getByRole('option', { name: i18n.t('console.verification.detail.reason.TAX_IDENTITY_EVIDENCE_MISSING') }))
+    fireEvent.click(screen.getByRole('option', { name: i18n.t('console.verification.detail.reason.COMPANY_PROFILE_MISMATCH') }))
     fireEvent.click(
       within(dialog).getByRole('radio', {
         name: new RegExp(i18n.t('console.verification.decision.classificationOption.FINAL.title')),
@@ -452,7 +468,7 @@ describe('Reject', () => {
     expect(screen.queryByText(i18n.t('console.verification.decision.refundOpened'), { exact: false })).toBeNull()
     expect(JSON.parse(initOf(REJECT_URL).body as string)).toEqual({
       expectedRevision: 2,
-      reason: 'TAX_IDENTITY_EVIDENCE_MISSING',
+      reason: 'COMPANY_PROFILE_MISMATCH',
       classification: 'FINAL',
       finalReason: 'Forged registration certificate',
     })
@@ -461,7 +477,7 @@ describe('Reject', () => {
   it('after a final rejection with confirmed money, says the refund case was opened', async () => {
     await openPending({
       [REJECT_URL]: () => json(200, { tenantId: ID, verificationStatus: 'REJECTED', verificationMethod: null, tenantStatus: 'PENDING', decidedAt: '2026-09-12T06:00:00Z' }),
-      [DETAIL_URL]: [() => json(200, PENDING), () => json(200, { ...PENDING, verificationStatus: 'REJECTED', rejectionReason: 'TAX_IDENTITY_EVIDENCE_MISSING' })],
+      [DETAIL_URL]: [() => json(200, PENDING), () => json(200, { ...PENDING, verificationStatus: 'REJECTED', rejectionReason: 'COMPANY_PROFILE_MISMATCH' })],
       [PAYMENT_URL]: [
         () => json(200, { payment: HELD('FUNDS_VERIFIED'), refundCase: null }),
         () => json(200, { payment: HELD('FUNDS_VERIFIED'), refundCase: { reason: 'FINAL_REJECTION', amount: '84.000', status: 'OPEN' } }),
@@ -470,7 +486,7 @@ describe('Reject', () => {
     fireEvent.click(button('console.verification.decision.reject'))
     const dialog = screen.getByRole('dialog', { name: i18n.t('console.verification.decision.rejectTitle') })
     fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('console.verification.decision.reason') }))
-    fireEvent.click(screen.getByRole('option', { name: i18n.t('console.verification.detail.reason.TAX_IDENTITY_EVIDENCE_MISSING') }))
+    fireEvent.click(screen.getByRole('option', { name: i18n.t('console.verification.detail.reason.COMPANY_PROFILE_MISMATCH') }))
     fireEvent.click(
       within(dialog).getByRole('radio', {
         name: new RegExp(i18n.t('console.verification.decision.classificationOption.FINAL.title')),

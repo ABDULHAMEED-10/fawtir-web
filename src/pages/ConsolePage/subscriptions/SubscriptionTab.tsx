@@ -41,9 +41,6 @@ export type SubscriptionAction =
   | 'changePlan'
   | 'suspend'
   | 'resume'
-  | 'cancel'
-  | 'grantQuota'
-  | 'waiveOverage'
 
 export const SUBSCRIPTION_ACTIONS: SubscriptionAction[] = [
   'recordPayment',
@@ -52,9 +49,6 @@ export const SUBSCRIPTION_ACTIONS: SubscriptionAction[] = [
   'changePlan',
   'suspend',
   'resume',
-  'cancel',
-  'grantQuota',
-  'waiveOverage',
 ]
 
 type Props = {

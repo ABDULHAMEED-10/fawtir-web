@@ -55,7 +55,6 @@ export function validateLifecycle(form: Forms['lifecycle']): FieldErrors {
       form.trialOfferedOn.length === 0 ? 'console.settings.error.noTrialPlan' : undefined,
     graceDays: numberError(form.graceDays, { min: 1, integer: true }),
     graceNoticeDays: noticeBeyondGrace ? 'console.settings.error.noticeBeyondGrace' : undefined,
-    cancellationNoticeDays: numberError(form.cancellationNoticeDays, { min: 0, integer: true }),
   })
 }
 

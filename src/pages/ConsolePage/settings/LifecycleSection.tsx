@@ -19,11 +19,11 @@ export function LifecycleSection({ form, set, errors }: SectionProps<'lifecycle'
   const err = (field: string) => (errors[field] ? t(errors[field]) : undefined)
   const planOptions = CATALOGUE.map((plan) => ({ value: plan.id, label: t(plan.labelKey) }))
   const number =
-    (field: 'trialDays' | 'trialDocuments' | 'graceDays' | 'cancellationNoticeDays') =>
+    (field: 'trialDays' | 'trialDocuments' | 'graceDays') =>
     (value: string) =>
       set((current) => ({ ...current, [field]: value }))
   const flag =
-    (field: 'trialAutoConverts' | 'trialNeedsPaymentDetails' | 'autoRenewal' | 'refundMidPeriod') =>
+    (field: 'trialAutoConverts' | 'trialNeedsPaymentDetails' | 'autoRenewal') =>
     (checked: boolean) =>
       set((current) => ({ ...current, [field]: checked }))
   /** Kept in catalogue order so the saved list reads Starter · Business · Business Plus. */
@@ -138,21 +138,12 @@ export function LifecycleSection({ form, set, errors }: SectionProps<'lifecycle'
           format={(day) => t('console.settings.dayList.day', { day })}
           error={err('graceNoticeDays')}
         />
-        <NumberField
-          name="cancellationNoticeDays"
-          label={t(`${K}cancellationNotice`)}
-          hint={t(`${K}cancellationNoticeHint`)}
-          value={form.cancellationNoticeDays}
-          onChange={number('cancellationNoticeDays')}
-          error={err('cancellationNoticeDays')}
-        />
       </FieldGrid>
-      <SwitchRow
-        title={t(`${K}refund`)}
-        note={t(`${K}refundNote`)}
-        checked={form.refundMidPeriod}
-        onChange={flag('refundMidPeriod')}
-      />
+      {/*
+        No notice period and no mid-period refund switch: a cancellation always runs to the end
+        of the current period, unused days are never refunded, and only a period paid ahead that
+        has not started is (Business Rules CA-1, CA-2).
+      */}
 
       <GroupLabel>{t(`${K}changesGroup`)}</GroupLabel>
       <FieldGrid>

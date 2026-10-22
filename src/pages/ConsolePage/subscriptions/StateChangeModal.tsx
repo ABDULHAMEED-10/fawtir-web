@@ -1,39 +1,33 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Modal } from '../../../components/ui'
-import {
-  subscriptionOf,
-  subscriptionsStore,
-  tenantIdentity,
-} from '../../../lib/consoleSubscriptions'
+import { subscriptionsStore, tenantIdentity } from '../../../lib/consoleSubscriptions'
 import {
   ModalFooter,
   TextArea,
-  dayLabel,
   focusFirstInvalidField,
   type ActionModalProps,
   type Errors,
 } from './modalFields'
 
-export type StateChangeMode = 'suspend' | 'resume' | 'cancel'
+export type StateChangeMode = 'suspend' | 'resume'
 
 const FORM_ID = 'state-change'
 
 /**
- * Suspend, resume or cancel — one shape, since each is a reason and a state change. Suspending
- * makes the account read-only with the compliance record still open; cancelling lets paid features
- * run to the period's end first. Both are drawn in red; resuming is not.
+ * Suspend or resume — one shape, since each is a reason and a state change. Suspending makes the
+ * account read-only with the compliance record still open, and is drawn in red; resuming is not.
+ * There is no cancel here: Fawtir cancels only for abuse or fraud, proposed by one operator and
+ * confirmed by another, on the company's subscription card.
  */
 export function StateChangeModal({
   mode,
   tenantId,
-  ledger,
   onClose,
   onDone,
 }: ActionModalProps & { mode: StateChangeMode }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const tenant = tenantIdentity(tenantId)
-  const subscription = subscriptionOf(ledger, tenantId)
   const [reason, setReason] = useState('')
   const [errors, setErrors] = useState<Errors<'reason'>>({})
 
@@ -50,17 +44,9 @@ export function StateChangeModal({
     if (mode === 'suspend') {
       subscriptionsStore.suspend(tenantId, trimmed)
       onDone(t('console.tenantDetail.done.suspended', { tenant: tenant.name }))
-    } else if (mode === 'resume') {
+    } else {
       subscriptionsStore.resume(tenantId, trimmed)
       onDone(t('console.tenantDetail.done.resumed', { tenant: tenant.name }))
-    } else {
-      subscriptionsStore.cancel(tenantId, trimmed)
-      onDone(
-        t('console.tenantDetail.done.cancelled', {
-          tenant: tenant.name,
-          date: subscription ? dayLabel(subscription.periodEnd, i18n.language) : '',
-        }),
-      )
     }
   }
 
