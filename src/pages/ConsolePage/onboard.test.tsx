@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, renderHook, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { ConsoleOnboardPage } from './ConsoleOnboardPage'
+import { useFirstInvoiceTotal } from './useFirstInvoiceTotal'
 import { subscriptionsStore } from '../../lib/consoleSubscriptions'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
@@ -275,5 +276,41 @@ describe('Platform company onboarding', () => {
 
     expect(await screen.findByText(/uppercase letters, digits/i)).toBeTruthy()
     expect(createCalls()).toHaveLength(0)
+  })
+
+  it('prices the first invoice from the console catalogue and VAT setting, never a launch price (GEN-2, PL-3)', async () => {
+    const version = (monthlyPrice: string, annualPrice: string) => ({ monthlyPrice, annualPrice })
+    answer({
+      '/api/v1/platform/plans': () =>
+        json(200, [
+          { code: 'STARTER', currentVersion: version('11.000', '110.000') },
+          { code: 'BUSINESS', currentVersion: version('40.000', '400.000') },
+        ]),
+      '/api/v1/platform/billing/settings': () => json(200, { vatRate: '0.05000' }),
+    })
+    const { result } = renderHook(() => useFirstInvoiceTotal(), {
+      wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter>,
+    })
+    // Nothing is quoted until both reads answer.
+    expect(result.current('business', 'monthly')).toBeNull()
+    await waitFor(() => expect(result.current('business', 'monthly')).toBe(42))
+    expect(result.current('business', 'quarterly')).toBe(126)
+    expect(result.current('starter', 'annual')).toBe(115.5)
+    // A plan the catalogue does not list, and Enterprise, have no figure.
+    expect(result.current('businessPlus', 'monthly')).toBeNull()
+    expect(result.current('enterprise', 'monthly')).toBeNull()
+  })
+
+  it('quotes no first-invoice figure when the catalogue cannot be read', async () => {
+    answer({
+      '/api/v1/platform/plans': () => json(403, {}),
+      '/api/v1/platform/billing/settings': () => json(200, { vatRate: '0.05000' }),
+    })
+    const { result } = renderHook(() => useFirstInvoiceTotal(), {
+      wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter>,
+    })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(result.current('business', 'monthly')).toBeNull()
   })
 })

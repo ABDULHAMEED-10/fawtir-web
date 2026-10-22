@@ -137,7 +137,7 @@ function PaymentQueue() {
                   <OmAmount amount={formatAmount(payment.amount, 'OMR', i18n.language)} size="xs" />
                 </td>
                 <td className="px-4 py-3">
-                  <ConsoleStatusPill tone={STATUS_TONE[payment.status]} label={t(paymentStatusKey(payment.status, payment.method))} />
+                  <ConsoleStatusPill tone={STATUS_TONE[payment.status]} label={t(paymentStatusKey(payment.status))} />
                 </td>
                 <td className="px-4 py-3 text-end">
                   <button type="button" className={CONSOLE_SMALL} onClick={() => setSelected(payment.id)}>
@@ -226,15 +226,16 @@ function PaymentPanel({
     payment.method === 'BANK_TRANSFER' ? payment.status === 'SUBMITTED' : payment.status === 'RECEIPT_RECORDED'
   const live = ['SUBMITTED', 'RECEIPT_RECORDED', 'AWAITING_SECOND_APPROVAL'].includes(payment.status)
   const money = (value: string) => <OmAmount amount={formatAmount(value, 'OMR', i18n.language)} size="xs" />
-  // Cash above the threshold is two people (owner, 14 Oct 2026): the verifier confirms again, and
-  // only a bank transfer still needs a different second approver. The server enforces both.
-  const cashConfirmsAgain = payment.method === 'CASH' && payment.requiresSecondApproval === true
-  // Only that verifier may confirm again; anyone else, the recorder included, would be refused.
+  // Above the threshold a payment is two people, not three: the verifier confirms it again, for a
+  // bank transfer (BT-2, backend #672) as for cash (CS-2). The server enforces it.
+  const confirmsAgain = payment.requiresSecondApproval === true
+  // Only that verifier may confirm again; anyone else, the submitter or recorder included, would be refused.
   const verifiedByMe = entitlements !== null && payment.verifiedBy === entitlements.userId
   const offerSecondStep =
     payment.status === 'AWAITING_SECOND_APPROVAL' &&
     can(BILLING_VERIFY_PERMISSION) &&
-    (!cashConfirmsAgain || verifiedByMe)
+    confirmsAgain &&
+    verifiedByMe
 
   return (
     <section aria-labelledby="payment-panel" className={`${CONSOLE_CARD} flex flex-col gap-4 p-5`}>
@@ -243,7 +244,7 @@ function PaymentPanel({
           {tenantName ?? payment.tenantId} · {bill ? bill.number : t('console.billing.signupPayment')}
         </h2>
         <div className="flex items-center gap-3">
-          <ConsoleStatusPill tone={STATUS_TONE[payment.status]} label={t(paymentStatusKey(payment.status, payment.method))} />
+          <ConsoleStatusPill tone={STATUS_TONE[payment.status]} label={t(paymentStatusKey(payment.status))} />
           <button type="button" className={CONSOLE_SMALL} onClick={onClose}>
             {t('common.close')}
           </button>
@@ -285,13 +286,7 @@ function PaymentPanel({
           <Fact
             label={t('console.billing.threshold')}
             value={payment.thresholdApplied ? money(payment.thresholdApplied) : t('subscription.none')}
-            note={t(
-              !payment.requiresSecondApproval
-                ? 'console.billing.secondNotNeeded'
-                : cashConfirmsAgain
-                  ? 'console.billing.secondNeededCash'
-                  : 'console.billing.secondNeeded',
-            )}
+            note={t(confirmsAgain ? 'console.billing.secondNeeded' : 'console.billing.secondNotNeeded')}
           />
         ) : null}
         {payment.rejectionReason ? <Fact label={t('console.billing.rejection')} value={payment.rejectionReason} /> : null}
@@ -326,18 +321,15 @@ function PaymentPanel({
             className={CONSOLE_PRIMARY}
             disabled={busy}
             onClick={() =>
-              act(
-                () => approvePaymentSecond(payment.id, payment.version),
-                cashConfirmsAgain ? 'console.billing.done.confirmedAgain' : 'console.billing.done.approved',
-              )
+              act(() => approvePaymentSecond(payment.id, payment.version), 'console.billing.done.confirmedAgain')
             }
           >
-            {t(cashConfirmsAgain ? 'console.billing.confirmAgain' : 'console.billing.approveSecond')}
+            {t('console.billing.confirmAgain')}
           </button>
         ) : null}
       </div>
 
-      {cashConfirmsAgain && offerSecondStep ? (
+      {offerSecondStep ? (
         <p className="text-xs font-medium text-text-tertiary">
           {withRial(
             t('console.billing.confirmAgainNote', {
@@ -382,12 +374,7 @@ function PaymentPanel({
           {history.map((event) => (
             <li key={event.id}>
               <span dir="ltr">{formatInstant(event.occurredAt, i18n.language)}</span> ·{' '}
-              {t(
-                // For cash the same event is the verifier's own second confirmation, not another person's.
-                event.kind === 'PAYMENT_SECOND_APPROVED' && payment.method === 'CASH'
-                  ? 'console.billing.event.PAYMENT_CONFIRMED_AGAIN'
-                  : `console.billing.event.${event.kind}`,
-              )}
+              {t(`console.billing.event.${event.kind}`)}
             </li>
           ))}
         </ol>

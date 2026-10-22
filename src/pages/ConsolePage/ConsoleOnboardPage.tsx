@@ -25,13 +25,12 @@ import {
 import {
   METHODS,
   MONTHS_OF,
-  periodAmount,
   planLabelKey,
-  withVat,
   type PaymentMethod,
   type SubscriptionPlanId,
   type Term,
 } from '../../lib/consoleSubscriptions'
+import { useFirstInvoiceTotal, type FirstInvoiceTotal } from './useFirstInvoiceTotal'
 import { PLATFORM_SETTINGS } from '../../lib/platformSettings'
 import { omr } from '../../lib/superAdmin'
 import { omanPhone } from '../../lib/validation'
@@ -150,10 +149,6 @@ const TEXT_BUTTON =
 
 const enabledMethods = METHODS.filter((method) => PLATFORM_SETTINGS.payments.methods[method])
 
-/** What the first period bills, VAT included — the amount the payment field starts with. */
-const firstInvoiceTotal = (plan: SubscriptionPlanId, term: Term) =>
-  withVat(periodAmount(plan, term))
-
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /* ------------------------------------------------------------- validation */
@@ -240,6 +235,7 @@ function describeCreateFailure(error: unknown, t: TFunction): string {
 export function ConsoleOnboardPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const firstInvoiceTotal = useFirstInvoiceTotal()
   const [step, setStep] = useState<Step>('company')
   const [draft, setDraft] = useState<Draft>({
     tenantCode: '',
@@ -260,7 +256,8 @@ export function ConsoleOnboardPage() {
     term: 'monthly',
     method: enabledMethods[0] ?? 'cash',
     paidNow: false,
-    amount: firstInvoiceTotal('business', 'monthly').toFixed(3),
+    // Empty until the operator types what was received: no launch price is filled in.
+    amount: '',
     receivedOn: TODAY_KEY,
     reference: '',
     note: '',
@@ -375,9 +372,9 @@ export function ConsoleOnboardPage() {
             ) : step === 'owner' ? (
               <OwnerStep draft={draft} errors={errors} patch={patch} />
             ) : step === 'plan' ? (
-              <PlanStep draft={draft} errors={errors} patch={patch} />
+              <PlanStep draft={draft} errors={errors} patch={patch} firstInvoiceTotal={firstInvoiceTotal} />
             ) : (
-              <ReviewStep draft={draft} onEdit={goTo} />
+              <ReviewStep draft={draft} onEdit={goTo} firstInvoiceTotal={firstInvoiceTotal} />
             )}
           </form>
 
@@ -621,7 +618,12 @@ function OwnerStep({ draft, errors, patch }: StepProps) {
   )
 }
 
-function PlanStep({ draft, errors, patch }: StepProps) {
+function PlanStep({
+  draft,
+  errors,
+  patch,
+  firstInvoiceTotal,
+}: StepProps & { firstInvoiceTotal: FirstInvoiceTotal }) {
   const { t, i18n } = useTranslation()
   const k = (name: string) => t(`console.onboard.plan.${name}`)
   const planOptions = usePlanOptions()
@@ -636,8 +638,10 @@ function PlanStep({ draft, errors, patch }: StepProps) {
   const enterprise = draft.plan === 'enterprise'
 
   // A plan or term change re-prices the payment; what the operator then types stays.
-  const reprice = (plan: SubscriptionPlanId, term: Term) =>
-    patch({ plan, term, amount: firstInvoiceTotal(plan, term).toFixed(3) })
+  const reprice = (plan: SubscriptionPlanId, term: Term) => {
+    const next = firstInvoiceTotal(plan, term)
+    patch({ plan, term, amount: next === null ? '' : next.toFixed(3) })
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -680,7 +684,7 @@ function PlanStep({ draft, errors, patch }: StepProps) {
         <SummaryLine
           label={k('firstInvoice')}
           value={
-            enterprise ? (
+            total === null ? (
               '—'
             ) : (
               <span className="inline-flex items-baseline gap-1">
@@ -802,7 +806,15 @@ function ReviewCard({
   )
 }
 
-function ReviewStep({ draft, onEdit }: { draft: Draft; onEdit: (step: Step) => void }) {
+function ReviewStep({
+  draft,
+  onEdit,
+  firstInvoiceTotal,
+}: {
+  draft: Draft
+  onEdit: (step: Step) => void
+  firstInvoiceTotal: FirstInvoiceTotal
+}) {
   const { t, i18n } = useTranslation()
   const k = (name: string) => t(`console.onboard.review.${name}`)
   const c = (name: string) => t(`console.onboard.company.${name}`)
@@ -821,7 +833,9 @@ function ReviewStep({ draft, onEdit }: { draft: Draft; onEdit: (step: Step) => v
       ? t('console.onboard.review.resultActive', { name, date: day(periodEnd) })
       : draft.paidNow
         ? t('console.onboard.review.resultPaid', { name })
-        : t('console.onboard.review.resultAwaiting', { name, amount: omr(total) })
+        : total === null
+          ? t('console.onboard.review.resultAwaitingNoAmount', { name })
+          : t('console.onboard.review.resultAwaiting', { name, amount: omr(total) })
 
   return (
     <div className="flex flex-col gap-5">
@@ -866,7 +880,7 @@ function ReviewStep({ draft, onEdit }: { draft: Draft; onEdit: (step: Step) => v
           <SummaryLine
             label={p('firstInvoice')}
             value={
-              draft.plan === 'enterprise' ? (
+              total === null ? (
                 '—'
               ) : (
                 <span className="inline-flex items-baseline gap-1">

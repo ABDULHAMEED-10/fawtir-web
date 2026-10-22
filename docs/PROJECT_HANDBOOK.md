@@ -531,8 +531,12 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     email, the internal reason stays private (16 Oct 2026).
   - **Other answers of 14 Oct 2026:** every allowance, rate, limit and price is configurable in the
     super admin console; the ERP add-on is offered on Business Plus and Enterprise only; saved
-    cards and automatic renewal wait on what Paymob supports; cash keeps its second approval as
-    implemented.
+    cards and automatic renewal wait on what Paymob supports.
+  - **Bank transfers and cash above the approval limit (BT-2, CS-2).** A Fawtir member checks each
+    receipt against the bank account (amount, reference and date) before confirming it. Nobody
+    approves a payment they submitted or recorded. Above the approval limit (a console setting), a
+    bank transfer or cash payment is confirmed once more by its own verifier; no third person is
+    needed.
   - **Data is kept, always.** Retention is mandatory: there is no deletion and no "close
     company" for the customer. Records are kept for the full legal period (section 7, question 6)
     in every subscription state, and reading and export always work.

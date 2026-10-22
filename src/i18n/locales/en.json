@@ -868,18 +868,18 @@
       "q3": "What counts as a document?",
       "a3": "Every document your company issues: invoices, including simplified invoices from the point of sale, credit notes, debit notes and self-billed invoices. A document still counts if you cancel it later, and sending it again is free. Supplier invoices, credit notes and debit notes you receive count too, once each when they arrive, unless your plan does not count received documents. Drafts are not counted.",
       "q4": "What happens when I pass my allowance?",
-      "a4": "We email you when you reach {{thresholds}} percent of the allowance. When none is left, you cannot issue documents, and supplier invoices you receive are held: you see that they are waiting, but cannot open them until you buy extra documents. Extra documents are bought ahead: by card they are added at once, by bank transfer or cash once Fawtir confirms the payment. They are used after your plan's own documents and end with your subscription month, with no carry-over and no refund. Your allowance resets each month on your subscription date. To move to a bigger plan, contact the Fawtir team and they will change it for you.",
+      "a4": "We email you as you get close to your allowance, and again when it runs out. When none is left, you cannot issue documents, and supplier invoices you receive are held: you see that they are waiting, but cannot open them until you buy extra documents. Extra documents are bought ahead: by card they are added at once, by bank transfer or cash once Fawtir confirms the payment. They are used after your plan's own documents and end with your subscription month, with no carry-over and no refund. Your allowance resets each month on your subscription date. To move to a bigger plan, contact the Fawtir team and they will change it for you.",
       "q5": "Can I change or cancel my plan?",
-      "a5": "You can cancel any time, and your plan runs to the end of the period you paid for. To change your plan, contact the Fawtir team; a smaller plan starts from your next renewal. If you pay for a bigger plan during your free trial, the trial ends at once: your paid period starts on the day you pay, and unused trial days are not carried over. There are no setup fees and no minimum term. If a renewal is not paid, you keep {{grace}} days of grace before the account goes read-only, and your records stay readable and exportable for the 10 years the law requires.",
+      "a5": "You can cancel any time, and your plan runs to the end of the period you paid for. To change your plan, contact the Fawtir team; a smaller plan starts from your next renewal. If you pay for a bigger plan during your free trial, the trial ends at once: your paid period starts on the day you pay, and unused trial days are not carried over. There are no setup fees and no minimum term. If a renewal is not paid, you keep a grace period before the account goes read-only, and your records stay readable and exportable for the 10 years the law requires.",
       "q6": "Is point of sale extra?",
       "a6": "No. Point of sale and thermal receipts are on every plan with no terminal charge. A POS receipt counts as one document against your allowance.",
       "q7": "Do prices include VAT?",
       "a7": "No. Prices are shown exclusive of {{rate}}% VAT, which is added to your subscription bill.",
       "a7NoVat": "No VAT is added to Fawtir subscriptions, so the price shown is the amount on your subscription bill.",
       "q8": "What is different about Enterprise?",
-      "a8": "Enterprise is Business Plus with limits agreed on a call: documents, people, branches and price are set for your contract, automatic ERP extraction is included, and an account manager looks after you. Talk to our team and we will put a proposal together.",
+      "a8": "Enterprise is Business Plus with limits agreed on a call: documents, people, branches, price and automatic ERP extraction are set for your contract, and an account manager looks after you. Talk to our team and we will put a proposal together.",
       "q9": "Which plan can connect my ERP?",
-      "a9": "Business Plus. It carries the REST API, webhooks and ERP field mapping, so your own system can send and receive documents through Fawtir. Automatic ERP extraction, where Fawtir reads the documents out of your ERP for you, is a priced add-on on Business Plus and included on Enterprise.",
+      "a9": "A plan with the REST API, webhooks and ERP field mapping, so your own system can send and receive documents through Fawtir; the plan comparison shows which plans carry them. Automatic ERP extraction, where Fawtir reads the documents out of your ERP for you, is an add-on: which plans offer it, and its price, are as shown on the Plans page.",
       "a1Varies": "No. With a free trial nothing is charged: it starts when your account is approved and never turns into a paid plan by itself. If you pay with your application instead, your paid subscription starts only after your company is approved and your payment is confirmed."
     },
     "priceChanged": "The prices changed while this page was open. The new prices are shown now: please review them and choose your plan again.",
@@ -14673,7 +14673,8 @@
         "invitation": "{{email}} receives an invitation to set a password; the company then goes through verification.",
         "paidLine": "{{amount}} · {{method}} · {{date}}",
         "notPaid": "Not yet. The invoice stays open",
-        "edit": "Edit"
+        "edit": "Edit",
+        "resultAwaitingNoAmount": "{{name}} is created Awaiting payment, with its first invoice open and due today. Record the payment from its page."
       },
       "creating": "Creating…",
       "error": {
@@ -15188,7 +15189,7 @@
     },
     "billing": {
       "title": "Subscription payments",
-      "subtitle": "Bank transfers and cash waiting for a decision. Nobody approves a payment they submitted or recorded. Above the threshold a bank transfer needs a second person, and cash is confirmed again by the person who verified it.",
+      "subtitle": "Bank transfers and cash waiting for a decision. Nobody approves a payment they submitted or recorded. Above the threshold the person who verified the payment confirms it once more; no third person is needed.",
       "loading": "Loading payments",
       "empty": "No payments are waiting.",
       "open": "Open",
@@ -15202,8 +15203,7 @@
       "status": {
         "SUBMITTED": "Submitted",
         "RECEIPT_RECORDED": "Receipt recorded",
-        "AWAITING_SECOND_APPROVAL": "Needs 2nd approval",
-        "AWAITING_SECOND_APPROVAL_CASH": "Needs confirming again",
+        "AWAITING_SECOND_APPROVAL": "Needs confirming again",
         "CONFIRMED": "Confirmed",
         "REJECTED": "Rejected",
         "WITHDRAWN": "Withdrawn",
@@ -15211,13 +15211,11 @@
       },
       "receipt": "Cash receipt",
       "threshold": "Approval threshold",
-      "secondNeeded": "Above the threshold: a second approver is required",
-      "secondNeededCash": "Above the threshold: the verifier confirms it a second time",
+      "secondNeeded": "Above the threshold: the verifier confirms it a second time",
       "secondNotNeeded": "At or below the threshold: one verifier",
       "rejection": "Rejected because",
       "proof": "Download receipt",
       "verify": "Verify payment",
-      "approveSecond": "Give second approval",
       "confirmAgain": "Confirm again",
       "confirmAgainNote": "This payment is above {{amount}} OMR. Confirm again.",
       "reject": "Reject payment",
@@ -15241,7 +15239,6 @@
         "proof": "The receipt was downloaded. The download is recorded.",
         "confirmedAgain": "Confirmed again.",
         "verified": "Payment verified.",
-        "approved": "Second approval given. The bill is paid.",
         "recorded": "Cash receipt recorded. Another person must now verify it.",
         "rejected": "Payment rejected. The bill is open again."
       },
@@ -15253,8 +15250,7 @@
         "PAYMENT_WITHDRAWN": "Payment withdrawn",
         "CASH_RECEIPT_RECORDED": "Cash receipt recorded",
         "PAYMENT_VERIFIED": "Payment verified",
-        "PAYMENT_SECOND_APPROVED": "Second approval given",
-        "PAYMENT_CONFIRMED_AGAIN": "Confirmed again",
+        "PAYMENT_SECOND_APPROVED": "Confirmed again",
         "PAYMENT_CONFIRMED": "Payment confirmed",
         "PAYMENT_REJECTED": "Payment rejected",
         "PROOF_READ": "Receipt downloaded",
@@ -15308,7 +15304,7 @@
     },
     "billingSettings": {
       "title": "Billing settings",
-      "subtitle": "Grace, second approval, VAT and renewal timing for subscription bills, the months charged a year for the ERP add-on, extra people and extra branches, the most extra users and branches per order, reminder days, the days to correct a sent-back application, card payment on or off and how long a payment link stays valid. Every change is kept with its reason.",
+      "subtitle": "Grace, second confirmation, VAT and renewal timing for subscription bills, the months charged a year for the ERP add-on, extra people and extra branches, the most extra users and branches per order, reminder days, the days to correct a sent-back application, card payment on or off and how long a payment link stays valid. Every change is kept with its reason.",
       "loading": "Loading settings",
       "card": "Subscription billing",
       "cardNote": "Applies to bills issued from now on. Bills already issued keep their figures.",
@@ -15316,8 +15312,8 @@
       "graceDaysHint": "Days a bill can stay unpaid after its due date, 0 to 60.",
       "leadDays": "Renewal bill, days ahead",
       "leadDaysHint": "How many days before paid time runs out the renewal bill is prepared, 0 to 60.",
-      "threshold": "Second approver above",
-      "thresholdHint": "Above this amount, a bank transfer needs a second operator to approve it, and cash is confirmed again by the operator who verified it.",
+      "threshold": "Confirm again above",
+      "thresholdHint": "Above this amount, a bank transfer or cash payment is confirmed once more by the operator who verified it. No third person is needed.",
       "vat": "Charge VAT on subscription bills",
       "vatNote": "Off: bills carry no VAT and show no VAT line. On: the rate below is added to every new bill.",
       "vatRate": "VAT rate",
@@ -22599,7 +22595,7 @@
       "BANK_TRANSFER": {
         "SUBMITTED": "Pending verification by Fawtir. We have your transfer receipt; the bill is paid once Fawtir has checked it against our bank account.",
         "RECEIPT_RECORDED": "Pending verification by Fawtir. We have your transfer receipt and are checking it.",
-        "AWAITING_SECOND_APPROVAL": "Pending verification by Fawtir. Your transfer has been checked and is waiting for a second approval."
+        "AWAITING_SECOND_APPROVAL": "Pending verification by Fawtir. Your transfer has been checked and is waiting for a final confirmation at Fawtir."
       },
       "CASH": {
         "SUBMITTED": "Your cash payment is with Fawtir and is being confirmed. The bill is paid once it is confirmed. Please do not pay again.",
