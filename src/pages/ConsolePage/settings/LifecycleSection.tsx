@@ -18,10 +18,8 @@ export function LifecycleSection({ form, set, errors }: SectionProps<'lifecycle'
   const { t } = useTranslation()
   const err = (field: string) => (errors[field] ? t(errors[field]) : undefined)
   const planOptions = CATALOGUE.map((plan) => ({ value: plan.id, label: t(plan.labelKey) }))
-  const number =
-    (field: 'trialDays' | 'trialDocuments' | 'graceDays') =>
-    (value: string) =>
-      set((current) => ({ ...current, [field]: value }))
+  const number = (field: 'trialDays' | 'trialDocuments' | 'graceDays') => (value: string) =>
+    set((current) => ({ ...current, [field]: value }))
   const flag =
     (field: 'trialAutoConverts' | 'trialNeedsPaymentDetails' | 'autoRenewal') =>
     (checked: boolean) =>

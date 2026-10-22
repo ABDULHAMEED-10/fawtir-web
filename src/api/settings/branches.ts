@@ -87,15 +87,26 @@ export function loadBranch(id: string): Promise<BranchDetailDto> {
   return apiRequest<BranchDetailDto>(branchPath(id))
 }
 
-export function createBranch(payload: BranchAttributesPayload): Promise<BranchDetailDto> {
-  return apiRequest<BranchDetailDto>('/v1/branches', { method: 'POST', body: payload })
+/**
+ * Creates the branch, with its Arabic name in the same call (`nameAr`, backend #682) when one is
+ * given; blank is not sent. A server older than #682 ignores the field, so the caller checks the
+ * answer's `nameAr`.
+ */
+export function createBranch(
+  payload: BranchAttributesPayload,
+  nameAr?: string,
+): Promise<BranchDetailDto> {
+  const arabic = nameAr?.trim()
+  return apiRequest<BranchDetailDto>('/v1/branches', {
+    method: 'POST',
+    body: arabic ? { ...payload, nameAr: arabic } : payload,
+  })
 }
 
 /**
  * `nameAr`: `undefined` leaves the Arabic name as it is (the field is not sent); text sets it; an
- * empty string asks the server to remove it. The server takes absent and null as "leave it", so
- * only the empty string can mean "remove"; the caller checks the answer's `nameAr` to know whether
- * it was removed.
+ * empty string removes it (backend #682 takes "" or null as "remove"; absent leaves it). The caller
+ * still checks the answer's `nameAr`, so a server that kept it is said so.
  */
 export function updateBranch(
   id: string,
