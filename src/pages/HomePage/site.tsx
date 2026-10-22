@@ -230,6 +230,13 @@ export function Nav({ active }: { active: SitePage }) {
           </div>
         </div>
         <div className="landing-shadow flex h-[59px] items-center gap-2 rounded-lg border border-[#e8e8ea] bg-white px-2 py-4">
+          {/* Not in the frame: existing customers sign in from here, as a quiet link beside the buttons. */}
+          <Link
+            to="/login"
+            className={`inline-flex items-center rounded-lg px-4 py-3 text-base leading-[normal] whitespace-nowrap hover:bg-[#f3f3f3] ${INK}`}
+          >
+            {t('landing.nav.logIn')}
+          </Link>
           <Cta to="/signup" tone="light" arrow={false}>
             {t('landing.nav.signUp')}
           </Cta>
@@ -308,6 +315,13 @@ export function Nav({ active }: { active: SitePage }) {
               >
                 {t('landing.nav.partners')}
               </a>
+              <Link
+                to="/login"
+                onClick={() => setMenuOpen(false)}
+                className={`rounded-lg px-3 py-3 text-base leading-[normal] ${INK}`}
+              >
+                {t('landing.nav.logIn')}
+              </Link>
               <div className="mt-2 flex items-center gap-2 border-t border-[#e8e8ea] pt-3">
                 <Cta to="/signup" tone="light" arrow={false} className="flex-1">
                   {t('landing.nav.signUp')}

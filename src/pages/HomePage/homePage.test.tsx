@@ -66,6 +66,9 @@ describe('Landing page', () => {
     renderHome()
 
     expect(
+      screen.getAllByRole('link', { name: i18n.t('landing.nav.logIn') })[0].getAttribute('href'),
+    ).toBe('/login')
+    expect(
       screen.getAllByRole('link', { name: i18n.t('landing.nav.signUp') })[0].getAttribute('href'),
     ).toBe('/signup')
     expect(

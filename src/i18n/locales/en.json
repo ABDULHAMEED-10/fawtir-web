@@ -21978,7 +21978,8 @@
       "contact": "Contact Us",
       "menu": "Menu",
       "closeMenu": "Close menu",
-      "mobileLabel": "Main menu"
+      "mobileLabel": "Main menu",
+      "logIn": "Log In"
     },
     "cta": {
       "demo": "Request For Demo"
