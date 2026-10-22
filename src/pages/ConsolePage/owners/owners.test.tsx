@@ -236,6 +236,21 @@ describe('Console › Owner handover through support (OW-4)', () => {
     expect(screen.queryByText(/u-gone/)).toBeNull()
   })
 
+  it('says nothing about the Owner when no listed Administrator is marked as the Owner', async () => {
+    // The Owner may be switched off or no longer an Administrator, so absent from the candidates;
+    // that is not "this company has no Owner".
+    answers[HANDOVER] = () => json(200, [])
+    answers[CANDIDATES] = () => json(200, [KHALID])
+    renderAt('/console/tenants/t-1', <TenantOwnerHandoverCard tenantId="t-1" />)
+
+    await waitFor(() =>
+      expect(screen.queryByText(i18n.t('console.owners.handover.loading'))).toBeNull(),
+    )
+    expect(screen.getByText(i18n.t('console.owners.handover.title'))).toBeTruthy()
+    expect(screen.queryByText(/has no Owner/)).toBeNull()
+    expect(screen.queryByText(/The Owner is/)).toBeNull()
+  })
+
   it('never offers the operator who asked the confirmation', async () => {
     answers[HANDOVER] = () => json(200, [handover({ requestedBy: 'u-me' })])
     answers[CANDIDATES] = () => json(200, [AISHA, KHALID])

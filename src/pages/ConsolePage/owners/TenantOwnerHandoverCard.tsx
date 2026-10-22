@@ -121,9 +121,14 @@ export function TenantOwnerHandoverCard({ tenantId }: { tenantId: string }) {
 
   return frame(
     <>
-      <p className="text-sm leading-[1.6] text-text-secondary">
-        {owner ? t(`${K}owner`, { name: candidateLabel(owner) }) : t(`${K}noOwner`)}
-      </p>
+      {/* The candidates are enabled Administrators only, so an Owner who is not one (switched off,
+          or no longer an Administrator) is simply absent here. That is not "no Owner": the server
+          gives no per-company "no Owner" answer on this read, so say nothing rather than guess. */}
+      {owner ? (
+        <p className="text-sm leading-[1.6] text-text-secondary">
+          {t(`${K}owner`, { name: candidateLabel(owner) })}
+        </p>
+      ) : null}
 
       {requests.length > 0 ? (
         <ul className="flex flex-col divide-y divide-border-subtle">

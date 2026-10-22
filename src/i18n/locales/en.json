@@ -16395,7 +16395,6 @@
         "title": "Owner",
         "loading": "Reading the Owner and handover requests...",
         "owner": "The Owner is {{name}}.",
-        "noOwner": "This company has no Owner. Choose one from Companies without an Owner.",
         "formerUser": "a former user",
         "to": "to",
         "askedOn": "Asked {{date}}",
