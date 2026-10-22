@@ -507,8 +507,10 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     (CA-1, owner, 18, 19 and 21 Oct 2026): a period paid in advance that has not started is
     refunded, **whoever cancels** (the customer or Fawtir); and on a yearly subscription the
     remaining whole months may be refunded, as the super admin decides in the console, paid back
-    by card, cash or bank transfer (LV-6). The subscription
-    stays active to the end of the paid period, then the company is **read-only**: it can sign in,
+    by card, cash or bank transfer (LV-6). A monthly subscription stays active to the end of the
+    month paid for. A yearly subscription whose remaining months are refunded stays active to the
+    end of the last month not refunded; with no refund, or a refund refused, it stays active to
+    the end of the year (owner, 21 Oct 2026). Then the company is **read-only**: it can sign in,
     read, search, download and export everything, but cannot issue documents, add users or use
     the ERP or API (those actions are hidden, not greyed). Documents already in flight still
     receive their Tax Authority and Peppol replies.
