@@ -3,7 +3,7 @@ import { SignupForm } from './SignupForm'
 
 export function SignupPage() {
   return (
-    <AuthLayout>
+    <AuthLayout showHome>
       <SignupForm />
     </AuthLayout>
   )

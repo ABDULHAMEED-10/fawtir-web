@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { LanguageSwitcher } from '../LanguageSwitcher'
 import { BackButton } from '../ui/BackButton'
+import { HomeButton } from '../ui/HomeButton'
 import { LoginHero } from '../../pages/LoginPage/LoginHero'
 
 type AuthLayoutProps = {
@@ -8,6 +9,8 @@ type AuthLayoutProps = {
   showLanguageSwitcher?: boolean
   backTo?: string
   backState?: unknown
+  /** A house at the top start that leads to the public site, for pages with no Back (owner, 22 Oct). */
+  showHome?: boolean
   hero?: ReactNode
   /**
    * `start` sits the content at the top, its start edge in line with Back (the Fawtara status
@@ -21,6 +24,7 @@ export function AuthLayout({
   showLanguageSwitcher = true,
   backTo,
   backState,
+  showHome = false,
   hero,
   align = 'center',
 }: AuthLayoutProps) {
@@ -35,7 +39,13 @@ export function AuthLayout({
         />
 
         <div className="relative z-10 flex shrink-0 items-center justify-between gap-3">
-          {backTo ? <BackButton to={backTo} state={backState} /> : <span />}
+          {backTo ? (
+            <BackButton to={backTo} state={backState} />
+          ) : showHome ? (
+            <HomeButton />
+          ) : (
+            <span />
+          )}
           {showLanguageSwitcher ? <LanguageSwitcher /> : <span />}
         </div>
 

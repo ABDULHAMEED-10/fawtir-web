@@ -19,7 +19,8 @@
       "previousMonth": "Previous month",
       "nextMonth": "Next month",
       "today": "Today"
-    }
+    },
+    "home": "Home"
   },
   "language": {
     "label": "Language",
