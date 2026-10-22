@@ -11,8 +11,8 @@ import { PEOPLE_PAGE_SIZE, type CompanyUser, type UserPage } from './people'
  *   works in it and nothing new is issued from it; its records stay in reports.
  * - **The paid place stays** until the next renewal, with no refund, and until then the server lets
  *   a new person or branch take it at no extra charge. The renewal bills only what is in use.
- * - **Back on**: `POST /v1/users/{id}/reactivate` (the person comes back with no role), or the
- *   branch saved open. Either takes a place on the plan like a new one.
+ * - **Back on**: `POST /v1/users/{id}/reactivate` with the role the Administrator picks (their old
+ *   role preselected), or the branch saved open. Either takes a place on the plan like a new one.
  */
 const userPath = (id: string) => `/v1/users/${encodeURIComponent(id)}`
 
@@ -20,8 +20,22 @@ export function switchOffUserNow(userId: string): Promise<void> {
   return apiRequest<void>(userPath(userId), { method: 'DELETE' })
 }
 
-export function switchUserBackOn(userId: string): Promise<CompanyUser> {
-  return apiRequest<CompanyUser>(`${userPath(userId)}/reactivate`, { method: 'POST' })
+/**
+ * Back on (`POST /v1/users/{id}/reactivate`, backend #683), with the role picked (a `RoleDto` id),
+ * or none to keep the role they held. `branchIds` are sent with a role only once branch access is
+ * on: required for anyone but an Administrator (409 `branch-required`), never for an Administrator
+ * (409 `admin-has-all-branches`); absent, the person keeps the branches they had.
+ */
+export function switchUserBackOn(
+  userId: string,
+  roleId?: string,
+  branchIds?: string[],
+): Promise<CompanyUser> {
+  const body = roleId ? { roleId, ...(branchIds ? { branchIds } : {}) } : null
+  return apiRequest<CompanyUser>(`${userPath(userId)}/reactivate`, {
+    method: 'POST',
+    ...(body ? { body } : {}),
+  })
 }
 
 /** The people switched off, listed only when asked for (`status=DEACTIVATED`, the Administrator's). */

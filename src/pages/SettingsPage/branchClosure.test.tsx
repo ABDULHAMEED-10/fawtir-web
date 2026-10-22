@@ -126,20 +126,24 @@ describe('Settings › Branches, closing a branch', () => {
     const dialog = await chooseClose()
     expect(
       within(dialog).getByText(
-        /closes now: nobody can work in it and no new document can be issued/,
+        /^Access stops now: nobody can work in Sohar and no new document can be issued from it\.$/,
       ),
     ).toBeTruthy()
-    expect(within(dialog).getByText(/Its invoices stay in your reports/)).toBeTruthy()
     expect(
       within(dialog).getByText(
-        /paid place stays until the renewal on .*2026, with no refund, and can be given to a new branch/,
+        /^Its place is paid until .*2026, with no refund\. Until then you can use it for a new branch at no extra charge\.$/,
+      ),
+    ).toBeTruthy()
+    expect(
+      within(dialog).getByText(
+        'Its name stays on every record made there, and its invoices stay in your reports.',
       ),
     ).toBeTruthy()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Close now' }))
 
     expect(
       await screen.findByText(
-        /^Sohar is closed\. The paid place stays until .*2026 and can be given to a new branch\.$/,
+        /^Sohar is closed\. The place is paid until .*2026 and can go to a new branch at no extra charge\.$/,
       ),
     ).toBeTruthy()
     const [, init] = sent('PUT', '/api/v1/branches/b-1')[0]

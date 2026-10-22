@@ -18,6 +18,9 @@ const KEYS: Record<string, string> = {
   'extra-place-required': 'removal.refusal.noPlace',
   'plan-limit-reached': 'removal.refusal.planLimit',
   'account-already-active': 'removal.refusal.alreadyActive',
+  // Back on with a role, once branch access is on (backend #683): the same sentences as the invitation.
+  'branch-required': 'branchAccess.refusal.branchRequired',
+  'admin-has-all-branches': 'branchAccess.refusal.adminHasAllBranches',
 }
 
 export function removalRefusalKey(error: unknown): string | null {

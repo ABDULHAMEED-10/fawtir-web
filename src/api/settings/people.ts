@@ -36,9 +36,24 @@ export type CompanyUser = {
    * whatever is assigned (BA-2), so a screen shows "every branch" for them instead.
    */
   branchIds?: string[]
+  /**
+   * Switched-off people only (`status=DEACTIVATED`, backend #683): when, by whom (null when
+   * unknown), and the role codes they held, so "Switch back on" can preselect it (the list reports
+   * a switched-off person's `roles` empty). Null on every other read; absent from an older server,
+   * which reads as unknown.
+   */
+  deactivatedAt?: string | null
+  deactivatedByName?: string | null
+  previousRoles?: string[]
 }
 
-export type UserPage = { content: CompanyUser[]; totalElements: number; totalPages: number; number: number; size: number }
+export type UserPage = {
+  content: CompanyUser[]
+  totalElements: number
+  totalPages: number
+  number: number
+  size: number
+}
 
 /** One page large enough for a company's team; the footer says when there are more. */
 export const PEOPLE_PAGE_SIZE = 100
@@ -48,7 +63,9 @@ export function loadPeople(): Promise<UserPage> {
   return apiRequest<UserPage>(PEOPLE_PATH)
 }
 
-export function displayName(user: Pick<CompanyUser, 'firstName' | 'lastName' | 'username'>): string {
+export function displayName(
+  user: Pick<CompanyUser, 'firstName' | 'lastName' | 'username'>,
+): string {
   return [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username
 }
 
@@ -76,7 +93,11 @@ export function loadPendingInvitations(): Promise<InvitationDto[]> {
  * branches the person will work in (BA-1, LG-1); sent only when chosen, so an Administrator
  * invitation, which sees every branch, carries none.
  */
-export function inviteUser(email: string, roleCodes: string[], branchIds?: string[]): Promise<InvitationDto> {
+export function inviteUser(
+  email: string,
+  roleCodes: string[],
+  branchIds?: string[],
+): Promise<InvitationDto> {
   return apiRequest<InvitationDto>('/v1/users/invitations', {
     method: 'POST',
     body: branchIds && branchIds.length ? { email, roleCodes, branchIds } : { email, roleCodes },
@@ -99,11 +120,18 @@ export type RoleDto = {
 }
 
 /** The role's kind, from the server, or worked out the way the server works it out. */
-export function roleKind(role: Pick<RoleDto, 'code' | 'systemRole' | 'catalogueKind'>): NonNullable<RoleDto['catalogueKind']> {
+export function roleKind(
+  role: Pick<RoleDto, 'code' | 'systemRole' | 'catalogueKind'>,
+): NonNullable<RoleDto['catalogueKind']> {
   if (role.catalogueKind) return role.catalogueKind
   if (!role.systemRole) return 'CUSTOM'
   if (role.code === 'APPROVER' || role.code === 'VIEWER') return 'PERMISSION_SET'
-  if (role.code === 'MOBILE_USER' || role.code === 'INTEGRATION' || role.code === 'PLATFORM_OPERATOR') return 'TECHNICAL'
+  if (
+    role.code === 'MOBILE_USER' ||
+    role.code === 'INTEGRATION' ||
+    role.code === 'PLATFORM_OPERATOR'
+  )
+    return 'TECHNICAL'
   return 'ROLE'
 }
 

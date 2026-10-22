@@ -487,6 +487,9 @@ function BranchCard({
           <p className="text-sm font-medium leading-[1.6] text-text-secondary">
             {placeSentence(t, 'removal.branch', 'place', renewsOn, i18n.language, name)}
           </p>
+          <p className="text-sm font-medium leading-[1.6] text-text-secondary">
+            {t('removal.branch.records')}
+          </p>
           {failure ? (
             <p role="alert" className="text-sm font-medium text-danger-700">
               {failure}

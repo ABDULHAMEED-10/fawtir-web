@@ -62,6 +62,24 @@ export default [
   {
     method: 'POST',
     match: /^\/api\/v1\/users\/([^/]+)\/reactivate$/,
-    reply: () => refusal(409, 'extra-place-required', 'Every place is in use.'),
+    // Switching back on succeeds (a freed paid place is reused). The role picked comes back as
+    // `roleId` (a role's id, `r-accountant`); the mock answers it as the role's code.
+    reply: ({ params, body }) => ({
+      id: params[0],
+      username: 'salma',
+      email: 'salma@albahja.example',
+      firstName: 'Salma',
+      lastName: 'Al Rawahi',
+      phone: null,
+      enabled: true,
+      emailVerified: true,
+      mfaEnabled: true,
+      roles: body && body.roleId ? [String(body.roleId).replace(/^r-/, '').toUpperCase()] : [],
+      createdAt: '2026-09-01T08:00:00Z',
+      locked: false,
+      lockedUntil: null,
+      owner: false,
+      branchIds: [],
+    }),
   },
 ]
