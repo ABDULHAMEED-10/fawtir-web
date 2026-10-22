@@ -364,7 +364,8 @@ function App() {
           <Route path="/settings/team/invite" element={<InvitePage />} />
           <Route path="/settings/team/:userId" element={<PersonPage />} />
           <Route path="/settings/roles" element={<RolesPage />} />
-          <Route path="/settings/roles/new" element={<DemoModule module="makeRole"><MakeRolePage /></DemoModule>} />
+          <Route path="/settings/roles/new" element={<MakeRolePage />} />
+          <Route path="/settings/roles/:roleId/edit" element={<MakeRolePage />} />
           <Route path="/settings/plan" element={<PlanPage />} />
           <Route path="/settings/plan/switch-off" element={<DowngradeSwitchOffPage />} />
           <Route path="/settings/plan/extra-documents" element={<ExtraDocumentsPage />} />

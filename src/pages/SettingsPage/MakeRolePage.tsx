@@ -1,18 +1,54 @@
-import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useMemo, useState, type ReactNode } from 'react'
+import type { TFunction } from 'i18next'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { Input, Switch, Select } from '../../components/ui'
+import { useApiRead } from '../../hooks'
+import { useCan } from '../../lib/session/session'
 import {
-  PERMISSIONS,
-  PERMISSION_GROUPS,
-  ROLE_TEMPLATES,
-  LIMIT_CHOICES,
-  templateGrants,
-  MEMBERS,
-  SEATS,
-  type RoleId,
-} from '../../lib/settingsPeople'
+  ApiReadFailure,
+  LoadingNotice,
+  Notice,
+  PermissionDeniedNotice,
+} from '../../components/feedback/ApiNotice'
+import {
+  PEOPLE_PATH,
+  ROLES_PATH,
+  ROLES_PERMISSION,
+  USERS_PERMISSION,
+  loadPeople,
+  loadRoles,
+  type RoleDto,
+  type UserPage,
+} from '../../api/settings/people'
+import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
+import {
+  ROLES_MANAGE_PERMISSION,
+  ROLE_MATRIX_PATH,
+  createRole,
+  loadRoleMatrix,
+  roleCodeFor,
+  updateRole,
+  type MatrixPermission,
+  type MatrixRole,
+  type RoleMatrixDto,
+} from '../../api/settings/roles'
+import {
+  EDITOR_GROUPS,
+  PERCENT_CHOICES,
+  editorGroupOf,
+  grantOfLimitValue,
+  grantsOf,
+  hiddenHeld,
+  limitValueOf,
+  offeredPermissions,
+  templateRoles,
+  toRoleGrants,
+  type Grants,
+} from '../../lib/roleEditor'
+import { roleSaveRefusal } from '../../lib/roleRefusals'
+import { permissionWords } from '../../lib/permissionLabels'
 import tickIcon from '../../assets/settings/check-green.svg'
 import circleIcon from '../../assets/settings/minus-amber.svg'
 import lockIcon from '../../assets/settings/menu-key.svg'
@@ -22,137 +58,329 @@ import accountantIcon from '../../assets/settings/menu-invoice.svg'
 import tillIcon from '../../assets/settings/menu-device.svg'
 import nothingIcon from '../../assets/settings/cross-muted.svg'
 
+/** The design's tiles, matched to the built-in roles by what they are for. */
 const TEMPLATE_ICON: Record<string, string> = {
-  till: tillIcon,
-  manager: managerIcon,
-  accountant: accountantIcon,
-  nothing: nothingIcon,
+  SALES_MANAGER: tillIcon,
+  FINANCE_MANAGER: managerIcon,
+  ACCOUNTANT: accountantIcon,
 }
 
+const NOTHING = 'nothing'
+
 /**
- * Settings › Make a role (Figma 135:40069).
+ * Settings › Make a role (Figma 135:40069), and the same screen changing a role the company made
+ * (`/settings/roles/:roleId/edit`).
  *
- * Sixteen switches with a running count. Everything on the right — the chip summary, the
- * sanity checks, the footer — is derived from those switches, so the screen describes the role
- * being built rather than a fixed example.
+ * The switches are the server's grantable catalogue (`GET /v1/roles/matrix`) under the design's
+ * four headings, less what only the Administrator does (Business Rules RL-5), which is not shown
+ * at all. "Start from" copies a built-in job role's column. Saving is `POST /v1/roles` or
+ * `PATCH /v1/roles/{id}`, both `admin.roles.manage`; the people a role reaches are counted from
+ * `GET /v1/users` and the places left from the plan, each only when the reader may see them.
  */
 export function MakeRolePage() {
+  const { roleId } = useParams()
+  return (
+    <SettingsShell group="people">
+      <Gate roleId={roleId} />
+    </SettingsShell>
+  )
+}
+
+/** Inside the shell, which is what provides the session the permissions are read from. */
+function Gate({ roleId }: { roleId?: string }) {
   const { t } = useTranslation()
+  const mayManage = useCan(ROLES_MANAGE_PERMISSION)
+  const mayList = useCan(ROLES_PERMISSION)
+  if (mayManage && mayList) return <Loader key={roleId ?? 'new'} roleId={roleId} />
+  return (
+    <>
+      <SettingsHeader
+        title={t(roleId ? 'makeRole.editTitle' : 'makeRole.title')}
+        subtitle={t(roleId ? 'makeRole.editSubtitle' : 'makeRole.subtitle')}
+        actions={<CancelLink />}
+      />
+      <PermissionDeniedNotice />
+    </>
+  )
+}
+
+function CancelLink() {
+  const { t } = useTranslation()
+  return (
+    <Link
+      to="/settings/roles"
+      className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+    >
+      {t('makeRole.cancel')}
+    </Link>
+  )
+}
+
+function Loader({ roleId }: { roleId?: string }) {
+  const { t } = useTranslation()
+  const matrix = useApiRead<RoleMatrixDto>(ROLE_MATRIX_PATH, loadRoleMatrix)
+  const roles = useApiRead<RoleDto[]>(ROLES_PATH, loadRoles)
+  const title = t(roleId ? 'makeRole.editTitle' : 'makeRole.title')
+  const header = (
+    <SettingsHeader
+      title={title}
+      subtitle={t(roleId ? 'makeRole.editSubtitle' : 'makeRole.subtitle')}
+      actions={<CancelLink />}
+    />
+  )
+
+  if (matrix.read.status === 'loading' || roles.read.status === 'loading') {
+    return (
+      <>
+        {header}
+        <LoadingNotice />
+      </>
+    )
+  }
+  if (matrix.read.status === 'failed' || roles.read.status === 'failed') {
+    const failed = matrix.read.status === 'failed' ? matrix : roles
+    return (
+      <>
+        {header}
+        <ApiReadFailure
+          error={failed.read.status === 'failed' ? failed.read.error : null}
+          retry={failed.retry}
+        />
+      </>
+    )
+  }
+
+  const editing = roleId
+    ? {
+        column: matrix.read.data.roles.find((role) => role.id === roleId),
+        role: roles.read.data.find((role) => role.id === roleId),
+      }
+    : null
+  if (editing && (!editing.column || !editing.role)) {
+    return (
+      <>
+        {header}
+        <Notice badge={t('appAccess.notFound')} body={t('roles.refusal.gone')} />
+      </>
+    )
+  }
+  if (editing?.role?.systemRole) {
+    return (
+      <>
+        {header}
+        <Notice body={t('makeRole.builtInCantChange')} />
+      </>
+    )
+  }
+
+  return (
+    <Editor
+      header={header}
+      matrix={matrix.read.data}
+      roles={roles.read.data}
+      editing={editing ? { column: editing.column!, role: editing.role! } : null}
+    />
+  )
+}
+
+function Editor({
+  header,
+  matrix,
+  roles,
+  editing,
+}: {
+  header: ReactNode
+  matrix: RoleMatrixDto
+  roles: RoleDto[]
+  editing: { column: MatrixRole; role: RoleDto } | null
+}) {
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
 
-  const [template, setTemplate] = useState<RoleId | 'nothing'>('till')
-  const [name, setName] = useState('Delivery driver')
-  const [purpose, setPurpose] = useState('Drops orders and takes payment on the doorstep')
-  const [grants, setGrants] = useState<Record<string, boolean>>(() => templateGrants('till'))
-  const [limits, setLimits] = useState<Record<string, string>>({})
+  const offered = useMemo(() => offeredPermissions(matrix.permissions), [matrix.permissions])
+  const templates = useMemo(() => templateRoles(matrix.roles, roles), [matrix.roles, roles])
+  const total = offered.length
+  const words = (code: string) => permissionWords(code, t, i18n)
 
-  const pickTemplate = (id: RoleId | 'nothing') => {
+  const savedGrants = useMemo(
+    () => (editing ? grantsOf(editing.column, offered) : null),
+    [editing, offered],
+  )
+  const dropped = useMemo(
+    () => (editing ? hiddenHeld(editing.column, offered) : []),
+    [editing, offered],
+  )
+
+  const [template, setTemplate] = useState<string>(editing ? NOTHING : (templates[0]?.id ?? NOTHING))
+  const [name, setName] = useState(editing?.role.name ?? '')
+  const [purpose, setPurpose] = useState(editing?.role.description ?? '')
+  const [grants, setGrants] = useState<Grants>(
+    () => savedGrants ?? grantsOf(templates[0], offered),
+  )
+  const [saving, setSaving] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
+
+  const mayListPeople = useCan(USERS_PERMISSION)
+  const people = useApiRead<UserPage>(
+    editing && mayListPeople ? PEOPLE_PATH : null,
+    loadPeople,
+  ).read
+  const mayReadPlan = useCan('tenant.plan.read')
+  const plan = useApiRead<PlanOverviewDto>(mayReadPlan ? PLAN_OVERVIEW_PATH : null, loadPlanOverview).read
+
+  /** How many people hold the role, or null when that cannot be told. */
+  const holders: number | null = !editing
+    ? 0
+    : people.status === 'ready' && people.data.totalElements === people.data.content.length
+      ? people.data.content.filter((person) => person.roles.includes(editing.role.code)).length
+      : null
+
+  const placesFree =
+    plan.status === 'ready'
+      ? Math.max(0, plan.data.plan.peopleIncluded - plan.data.activePeople - plan.data.openInvitations)
+      : null
+
+  const templateName = (id: string) =>
+    id === NOTHING
+      ? t('makeRole.template.nothing')
+      : (templates.find((role) => role.id === id)?.name ?? t('makeRole.template.nothing'))
+
+  const pickTemplate = (id: string) => {
     setTemplate(id)
-    setGrants(templateGrants(id))
-    setLimits({})
+    setGrants(grantsOf(templates.find((role) => role.id === id), offered))
   }
 
-  const toggle = (id: string) => {
-    const permission = PERMISSIONS.find((entry) => entry.id === id)!
-    if (permission.ownerOnly) return
-    setGrants((current) => ({ ...current, [id]: !current[id] }))
+  const reset = () => {
+    if (savedGrants) setGrants(savedGrants)
+    else pickTemplate(template)
   }
 
-  const on = useMemo(() => Object.values(grants).filter(Boolean).length, [grants])
+  const toggle = (code: string) =>
+    setGrants((current) => {
+      const next = { ...current }
+      if (next[code]) delete next[code]
+      else next[code] = { qualifier: null }
+      return next
+    })
 
-  const groupCount = (group: string) => {
-    const inGroup = PERMISSIONS.filter((permission) => permission.group === group)
-    return {
-      on: inGroup.filter((permission) => grants[permission.id]).length,
-      total: inGroup.length,
+  const on = Object.keys(grants).length
+  const named = name.trim().length > 0
+  const explained = named && purpose.trim().length > 0
+
+  const groups = EDITOR_GROUPS.map((group) => ({
+    group,
+    permissions: offered
+      .filter((permission) => editorGroupOf(permission.code) === group)
+      .map((permission) => ({ permission, label: words(permission.code).label }))
+      .sort((a, b) => a.label.localeCompare(b.label, i18n.language)),
+  })).filter((entry) => entry.permissions.length > 0)
+
+  const save = async () => {
+    if (!named || saving) return
+    setSaving(true)
+    setFailure(null)
+    try {
+      const body = toRoleGrants(grants)
+      if (editing) {
+        await updateRole(editing.role.id, { name: name.trim(), description: purpose.trim(), ...body })
+      } else {
+        const description = purpose.trim()
+        await createRole({
+          code: roleCodeFor(name),
+          name: name.trim(),
+          ...(description ? { description } : {}),
+          ...body,
+        })
+      }
+      navigate('/settings/roles')
+    } catch (error) {
+      const message = roleSaveRefusal(error, Boolean(editing))
+      setFailure(t(message.key, message.values))
+    } finally {
+      setSaving(false)
     }
   }
 
-  const named = name.trim().length > 0 && purpose.trim().length > 0
-  const reachesBilling = PERMISSIONS.some(
-    (permission) => permission.ownerOnly && grants[permission.id],
-  )
-  /** Approving supplier bills without being able to see the figures is odd, though not wrong. */
-  const billsWithoutFigures = Boolean(grants.handleBills) && !grants.seeEarnings
-  /** Till work needs a branch; without one the switch would do nothing. */
-  const tillWithoutBranch = Boolean(grants.takePayment) && template === 'nothing'
-
-  const placesFree = Math.max(0, SEATS.included - MEMBERS.length)
+  const footerText = !named
+    ? t('makeRole.footerUnnamed')
+    : editing
+      ? t('makeRole.footerEdit', { name: name.trim(), on, total })
+      : t('makeRole.footer', { name: name.trim(), on, total })
 
   return (
-    <SettingsShell group="people">
-      <SettingsHeader
-        title={t('makeRole.title')}
-        subtitle={t('makeRole.subtitle')}
-        actions={
-          <Link
-            to="/settings/roles"
-            className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-          >
-            {t('makeRole.cancel')}
-          </Link>
-        }
-      />
+    <>
+      {header}
 
-      {/* Start from */}
+      {/* Start from, and the name */}
       <section className="rounded-md bg-surface-card p-5">
-        <h3 className="text-lg font-semibold leading-[1.2] text-text-primary">
-          {t('makeRole.startFrom')}
-        </h3>
-        <p className="mt-0.5 text-xs font-medium text-text-quaternary">
-          {t('makeRole.startFromNote')}
-        </p>
+        {editing ? null : (
+          <>
+            <h3 className="text-lg font-semibold leading-[1.2] text-text-primary">
+              {t('makeRole.startFrom')}
+            </h3>
+            <p className="mt-0.5 text-xs font-medium text-text-quaternary">
+              {t('makeRole.startFromNote')}
+            </p>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {ROLE_TEMPLATES.map((entry) => {
-            const picked = entry.id === template
-            const count = Object.values(templateGrants(entry.id)).filter(Boolean).length
-            return (
-              <button
-                key={entry.id}
-                type="button"
-                onClick={() => pickTemplate(entry.id)}
-                aria-pressed={picked}
-                className={[
-                  'flex flex-col rounded-sm border p-4 text-start transition-colors',
-                  picked
-                    ? 'border-primary-700 bg-primary-25'
-                    : 'border-border-subtle bg-white hover:bg-primary-25',
-                ].join(' ')}
-              >
-                <span
-                  className={[
-                    'flex size-8 items-center justify-center rounded-md',
-                    picked ? 'bg-primary-700' : 'bg-surface-background',
-                  ].join(' ')}
-                >
-                  <img
-                    src={TEMPLATE_ICON[entry.id]}
-                    alt=""
-                    className={picked ? 'size-4 brightness-0 invert' : 'size-4'}
-                  />
-                </span>
-                <span className="mt-2.5 text-sm font-semibold text-text-primary">
-                  {t(`makeRole.template.${entry.id}`)}
-                </span>
-                <span className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">
-                  {t(`makeRole.template.${entry.id}Note`)}
-                </span>
-                <span className="mt-2 text-xs font-medium text-text-quaternary">
-                  {t('makeRole.onOf', { on: count, total: PERMISSIONS.length })}
-                </span>
-              </button>
-            )
-          })}
-        </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {[...templates.map((role) => role.id), NOTHING].map((id) => {
+                const picked = id === template
+                const role = templates.find((entry) => entry.id === id)
+                const count = Object.keys(grantsOf(role, offered)).length
+                const note = role
+                  ? roles.find((entry) => entry.id === id)?.description
+                  : t('makeRole.template.nothingNote')
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => pickTemplate(id)}
+                    aria-pressed={picked}
+                    className={[
+                      'flex flex-col rounded-sm border p-4 text-start transition-colors',
+                      picked
+                        ? 'border-primary-700 bg-primary-25'
+                        : 'border-border-subtle bg-white hover:bg-primary-25',
+                    ].join(' ')}
+                  >
+                    <span
+                      className={[
+                        'flex size-8 items-center justify-center rounded-md',
+                        picked ? 'bg-primary-700' : 'bg-surface-background',
+                      ].join(' ')}
+                    >
+                      <img
+                        src={role ? (TEMPLATE_ICON[role.code] ?? managerIcon) : nothingIcon}
+                        alt=""
+                        className={picked ? 'size-4 brightness-0 invert' : 'size-4'}
+                      />
+                    </span>
+                    <span className="mt-2.5 text-sm font-semibold text-text-primary">
+                      {templateName(id)}
+                    </span>
+                    {note ? (
+                      <span className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">
+                        {note}
+                      </span>
+                    ) : null}
+                    <span className="mt-2 text-xs font-medium text-text-quaternary">
+                      {t('makeRole.onOf', { on: count, total })}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        )}
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className={['grid gap-4 sm:grid-cols-2', editing ? '' : 'mt-4'].join(' ')}>
           <Input
             bordered
             label={t('makeRole.nameThisRole')}
             requiredMark
             labelNote={t('makeRole.nameHint')}
             value={name}
+            maxLength={100}
             onChange={(event) => setName(event.target.value)}
           />
           <Input
@@ -160,6 +388,7 @@ export function MakeRolePage() {
             label={t('makeRole.whatItsFor')}
             labelNote={t('makeRole.whatItsForHint')}
             value={purpose}
+            maxLength={2000}
             onChange={(event) => setPurpose(event.target.value)}
           />
         </div>
@@ -174,114 +403,72 @@ export function MakeRolePage() {
                 {t('makeRole.whatTheyCanDo')}
               </h3>
               <p className="mt-0.5 text-xs font-medium text-text-quaternary">
-                {template === 'nothing'
-                  ? t('makeRole.fromScratch', { on, total: PERMISSIONS.length })
-                  : t('makeRole.changedFrom', {
-                      on,
-                      total: PERMISSIONS.length,
-                      template: t(`makeRole.template.${template}`),
-                    })}
+                {editing
+                  ? t('makeRole.turnedOn', { on, total })
+                  : template === NOTHING
+                    ? t('makeRole.fromScratch', { on, total })
+                    : t('makeRole.changedFrom', { on, total, template: templateName(template) })}
               </p>
             </div>
             <button
               type="button"
-              onClick={() => pickTemplate(template)}
+              onClick={reset}
               className="text-sm font-semibold text-primary-700 transition-colors hover:text-primary-800"
             >
-              {t('makeRole.resetTo', { template: t(`makeRole.template.${template}`) })}
+              {editing
+                ? t('makeRole.resetToSaved')
+                : t('makeRole.resetTo', { template: templateName(template) })}
             </button>
           </div>
 
-          {PERMISSION_GROUPS.map((group) => {
-            const inGroup = PERMISSIONS.filter((permission) => permission.group === group)
-            const counts = groupCount(group)
-            const ownerOnly = inGroup.every((permission) => permission.ownerOnly)
+          {groups.map(({ group, permissions }) => {
+            const groupOn = permissions.filter(({ permission }) => grants[permission.code]).length
             return (
               <div key={group}>
                 <p className="flex flex-wrap items-center justify-between gap-3 border-y border-surface-background bg-primary-25 px-5 py-2">
                   <span className="text-[10px] font-semibold uppercase tracking-[0.6px] text-primary-800">
                     {t(`roles.group.${group}`)}
                   </span>
-                  {ownerOnly ? (
+                  <span className="flex items-center gap-3">
                     <span className="text-xs font-medium text-text-quaternary">
-                      {t('makeRole.ownerOnly')}
+                      {t('makeRole.groupCount', { on: groupOn, total: permissions.length })}
                     </span>
-                  ) : (
-                    <span className="flex items-center gap-3">
-                      <span className="text-xs font-medium text-text-quaternary">
-                        {t('makeRole.groupCount', { on: counts.on, total: counts.total })}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setGrants((current) => {
-                            const next = { ...current }
-                            const turnOn = counts.on < counts.total
-                            for (const permission of inGroup) next[permission.id] = turnOn
-                            return next
-                          })
-                        }
-                        className="text-xs font-semibold text-primary-700 transition-colors hover:text-primary-800"
-                      >
-                        {counts.on < counts.total
-                          ? t('makeRole.turnAllOn')
-                          : t('makeRole.turnAllOff')}
-                      </button>
-                    </span>
-                  )}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setGrants((current) => {
+                          const next = { ...current }
+                          const turnOn = groupOn < permissions.length
+                          for (const { permission } of permissions) {
+                            if (!turnOn) delete next[permission.code]
+                            else if (!next[permission.code]) next[permission.code] = { qualifier: null }
+                          }
+                          return next
+                        })
+                      }
+                      className="text-xs font-semibold text-primary-700 transition-colors hover:text-primary-800"
+                    >
+                      {groupOn < permissions.length ? t('makeRole.turnAllOn') : t('makeRole.turnAllOff')}
+                    </button>
+                  </span>
                 </p>
 
                 <ul>
-                  {inGroup.map((permission) => {
-                    const isOn = Boolean(grants[permission.id])
-                    const choices = LIMIT_CHOICES[permission.id]
-                    const blocked = permission.ownerOnly
-                    const tillNote = permission.id === 'takePayment' && tillWithoutBranch
-                    return (
-                      <li
-                        key={permission.id}
-                        className={[
-                          'flex items-center gap-4 border-b border-surface-background px-5 py-3.5 last:border-0',
-                          blocked ? 'opacity-50' : '',
-                        ].join(' ')}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium leading-[1.3] text-text-primary">
-                            {t(`roles.perm.${permission.id}`)}
-                          </p>
-                          <p className="mt-0.5 text-xs font-medium leading-[1.4] text-text-quaternary">
-                            {t(`roles.perm.${permission.id}Note`)}
-                          </p>
-                          {tillNote ? (
-                            <p className="mt-1 text-xs font-medium text-pending-700">
-                              {t('makeRole.offBecauseNoBranch')}
-                            </p>
-                          ) : null}
-                        </div>
-
-                        {isOn && choices ? (
-                          <span className="w-[150px] shrink-0">
-                            <Select
-                              compact
-                              ariaLabel={t(`roles.perm.${permission.id}`)}
-                              value={limits[permission.id] ?? choices[0]}
-                              onChange={(value) =>
-                                setLimits((current) => ({ ...current, [permission.id]: value }))
-                              }
-                              options={choices.map((key) => ({ value: key, label: t(key) }))}
-                            />
-                          </span>
-                        ) : null}
-
-                        <Switch
-                          checked={isOn}
-                          disabled={blocked}
-                          onChange={() => toggle(permission.id)}
-                          label={t(`roles.perm.${permission.id}`)}
-                        />
-                      </li>
-                    )
-                  })}
+                  {permissions.map(({ permission, label }) => (
+                    <PermissionRow
+                      key={permission.code}
+                      permission={permission}
+                      label={label}
+                      grant={grants[permission.code]}
+                      onToggle={() => toggle(permission.code)}
+                      onLimit={(value) =>
+                        setGrants((current) => ({
+                          ...current,
+                          [permission.code]: grantOfLimitValue(value),
+                        }))
+                      }
+                    />
+                  ))}
                 </ul>
               </div>
             )
@@ -291,7 +478,7 @@ export function MakeRolePage() {
             <img src={lockIcon} alt="" className="mt-0.5 size-4 shrink-0 opacity-60" />
             <span>
               <Trans
-                i18nKey="makeRole.ownerOnlyNote"
+                i18nKey="makeRole.adminOnlyNote"
                 components={{ b: <b className="font-semibold text-text-primary" /> }}
               />
             </span>
@@ -310,14 +497,17 @@ export function MakeRolePage() {
               </p>
             ) : (
               <span className="mt-3 flex flex-wrap gap-2">
-                {PERMISSIONS.filter((permission) => grants[permission.id]).map((permission) => (
-                  <span
-                    key={permission.id}
-                    className="inline-flex h-[24px] items-center rounded-[3px] bg-success-100 px-2 text-[11px] font-medium text-[#3d5648]"
-                  >
-                    {t(`roles.perm.${permission.id}`)}
-                  </span>
-                ))}
+                {groups
+                  .flatMap((entry) => entry.permissions)
+                  .filter(({ permission }) => grants[permission.code])
+                  .map(({ permission, label }) => (
+                    <span
+                      key={permission.code}
+                      className="inline-flex min-h-[24px] items-center rounded-[3px] bg-success-100 px-2 py-0.5 text-[11px] font-medium text-[#3d5648]"
+                    >
+                      {label}
+                    </span>
+                  ))}
               </span>
             )}
           </section>
@@ -328,19 +518,21 @@ export function MakeRolePage() {
             </h3>
             <ul className="mt-3 flex flex-col gap-2.5">
               <Check
-                done={named}
-                label={named ? t('makeRole.think.named') : t('makeRole.think.unnamed')}
+                done={explained}
+                label={explained ? t('makeRole.think.named') : t('makeRole.think.unnamed')}
               />
-              <Check
-                done={!reachesBilling}
-                label={
-                  reachesBilling ? t('makeRole.think.hasBilling') : t('makeRole.think.noBilling')
-                }
-              />
-              {billsWithoutFigures ? (
-                <Check done={false} label={t('makeRole.think.billsNoFigures')} />
+              <Check done label={t('makeRole.think.noAdminOnly')} />
+              {dropped.length > 0 ? (
+                <Check
+                  done={false}
+                  label={t('makeRole.think.dropsAdminOnly', { count: dropped.length })}
+                />
               ) : null}
-              <Check done={false} label={t('makeRole.think.nobodyHasIt')} muted />
+              {holders === 0 ? (
+                <Check done={false} label={t('makeRole.think.nobodyHasIt')} muted />
+              ) : holders !== null ? (
+                <Check done={false} label={t('makeRole.think.heldBy', { count: holders })} />
+              ) : null}
             </ul>
           </section>
 
@@ -349,16 +541,24 @@ export function MakeRolePage() {
               {t('makeRole.giveItToSomeone')}
             </h3>
             <dl className="mt-2">
-              <Row label={t('makeRole.rightNow')} value={t('makeRole.nobody')} />
-              <Row
-                label={t('makeRole.placesLeft')}
-                value={
-                  placesFree === 0
-                    ? t('makeRole.noneFree')
-                    : t('makeRole.placesFree', { count: placesFree })
-                }
-                last
-              />
+              {holders !== null ? (
+                <Row
+                  label={t('makeRole.rightNow')}
+                  value={holders === 0 ? t('makeRole.nobody') : t('roles.people', { count: holders })}
+                  last={placesFree === null}
+                />
+              ) : null}
+              {placesFree !== null ? (
+                <Row
+                  label={t('makeRole.placesLeft')}
+                  value={
+                    placesFree === 0
+                      ? t('makeRole.noneFree')
+                      : t('makeRole.placesFree', { count: placesFree })
+                  }
+                  last
+                />
+              ) : null}
             </dl>
             <Link
               to="/settings/team"
@@ -370,33 +570,101 @@ export function MakeRolePage() {
         </aside>
       </div>
 
+      {failure ? <Notice body={failure} /> : null}
+
       {/* Footer */}
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle bg-white px-4 py-3">
-        <p className="text-sm font-medium text-text-tertiary">
-          {named
-            ? t('makeRole.footer', { name, on, total: PERMISSIONS.length })
-            : t('makeRole.footerUnnamed')}
+        <p className="min-w-0 text-sm font-medium text-text-tertiary [overflow-wrap:anywhere]">
+          {footerText}
         </p>
         <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
-          <Link
-            to="/settings/roles"
-            className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-          >
-            {t('makeRole.cancel')}
-          </Link>
+          <CancelLink />
           <button
             type="button"
-            disabled={!named}
-            onClick={() => navigate('/settings/roles')}
+            disabled={!named || saving}
+            onClick={save}
             className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-40"
           >
             <img src={tickWhiteIcon} alt="" className="size-4" />
-            {t('makeRole.make')}
+            {saving
+              ? t('makeRole.saving')
+              : editing
+                ? t('makeRole.saveChanges')
+                : t('makeRole.make')}
           </button>
         </div>
       </div>
-    </SettingsShell>
+    </>
   )
+}
+
+function PermissionRow({
+  permission,
+  label,
+  grant,
+  onToggle,
+  onLimit,
+}: {
+  permission: MatrixPermission
+  label: string
+  grant: Grants[string] | undefined
+  onToggle: () => void
+  onLimit: (value: string) => void
+}) {
+  const { t, i18n } = useTranslation()
+  const noteKey = `roles.permNote.${permission.code.replace(/\./g, '_')}`
+  const choices = grant ? limitChoices(permission, grant, t) : []
+  return (
+    <li className="flex items-center gap-4 border-b border-surface-background px-5 py-3.5 last:border-0 max-sm:flex-wrap">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium leading-[1.3] text-text-primary">{label}</p>
+        {i18n.exists(noteKey) ? (
+          <p className="mt-0.5 text-xs font-medium leading-[1.4] text-text-quaternary">
+            {t(noteKey)}
+          </p>
+        ) : null}
+      </div>
+
+      {grant && choices.length > 0 ? (
+        <span className="w-[170px] shrink-0">
+          <Select
+            compact
+            ariaLabel={t('makeRole.limitFor', { permission: label })}
+            value={limitValueOf(grant)}
+            onChange={onLimit}
+            options={choices}
+          />
+        </span>
+      ) : null}
+
+      <Switch checked={Boolean(grant)} onChange={onToggle} label={label} />
+    </li>
+  )
+}
+
+/** The limits a permission offers, in words, with "no limit" first. */
+function limitChoices(
+  permission: MatrixPermission,
+  grant: Grants[string],
+  t: TFunction,
+): { value: string; label: string }[] {
+  const choices: { value: string; label: string }[] = []
+  if (permission.qualifiers.includes('OWN')) {
+    choices.push({ value: 'FULL', label: t('roles.limit.anyInvoice') })
+    choices.push({ value: 'OWN', label: t('roles.limit.ownOnly') })
+  }
+  if (permission.qualifiers.includes('MAX_PERCENT')) {
+    if (!choices.length) choices.push({ value: 'FULL', label: t('roles.limit.anyDiscount') })
+    const percents: number[] = [...PERCENT_CHOICES]
+    if (grant.qualifier === 'MAX_PERCENT' && grant.value !== undefined && !percents.includes(grant.value)) {
+      percents.push(grant.value)
+      percents.sort((a, b) => a - b)
+    }
+    for (const value of percents) {
+      choices.push({ value: `MAX_PERCENT:${value}`, label: t('roles.limit.discountUpTo', { value }) })
+    }
+  }
+  return choices
 }
 
 function Check({ done, label, muted }: { done: boolean; label: string; muted?: boolean }) {

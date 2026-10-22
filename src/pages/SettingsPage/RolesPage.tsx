@@ -1,4 +1,4 @@
-import { Fragment } from 'react'
+import { Fragment, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
@@ -10,17 +10,20 @@ import {
   Notice,
   PermissionDeniedNotice,
 } from '../../components/feedback/ApiNotice'
-import { RowsView } from '../../components/ui'
+import { Button, Modal, RowsView } from '../../components/ui'
 import {
   PEOPLE_PATH,
   ROLES_PATH,
   ROLES_PERMISSION,
   USERS_PERMISSION,
+  isJobRole,
   loadPeople,
   loadRoles,
   type RoleDto,
   type UserPage,
 } from '../../api/settings/people'
+import { ROLES_MANAGE_PERMISSION, deleteRole } from '../../api/settings/roles'
+import { roleDeleteRefusal } from '../../lib/roleRefusals'
 import { permissionWords, type PermissionWords } from '../../lib/permissionLabels'
 import plusIcon from '../../assets/settings/plus-white.svg'
 import printIcon from '../../assets/settings/print.svg'
@@ -29,7 +32,7 @@ import noIcon from '../../assets/settings/cross-muted.svg'
 import limitIcon from '../../assets/settings/minus-amber.svg'
 
 /** Making or changing a role is `admin.roles.manage` on the server (`RoleController`). */
-const ROLES_MANAGE = 'admin.roles.manage'
+const ROLES_MANAGE = ROLES_MANAGE_PERMISSION
 
 /**
  * Settings › What each role can do (Figma 135:39357): the company's roles from `GET /v1/roles`,
@@ -40,6 +43,10 @@ const ROLES_MANAGE = 'admin.roles.manage'
  * matrix is back, filled from each role's `permissionCodes` (every code any role holds is a row,
  * grouped by what it concerns, named in words by `permissionWords`), read-only: changing a mark
  * is not available yet. "Make a role" opens the role maker for those who may manage roles.
+ *
+ * Only job roles are listed (RL-1): approve and view only are permissions a person is given, not
+ * roles (RL-2), and technical roles are nobody's job. A role the company made can be changed
+ * ("Change it", the role maker) or deleted (`DELETE /v1/roles/{id}`) by those who may manage roles.
  */
 export function RolesPage() {
   return (
@@ -97,6 +104,8 @@ function RoleList() {
   const { t, i18n } = useTranslation()
   const roles = useApiRead<RoleDto[]>(ROLES_PATH, loadRoles)
   const mayListPeople = useCan(USERS_PERMISSION)
+  const mayManage = useCan(ROLES_MANAGE)
+  const [deleting, setDeleting] = useState<RoleDto | null>(null)
   const people = useApiRead<UserPage>(mayListPeople ? PEOPLE_PATH : null, loadPeople).read
 
   if (roles.read.status === 'loading') return <LoadingNotice />
@@ -104,7 +113,7 @@ function RoleList() {
     return <ApiReadFailure error={roles.read.error} retry={roles.retry} />
   if (roles.read.data.length === 0) return <Notice body={t('people.roles.empty')} />
 
-  const list = roles.read.data
+  const list = roles.read.data.filter(isJobRole)
   const holders = (code: string): number | null =>
     people.status === 'ready' && people.data.totalElements === people.data.content.length
       ? people.data.content.filter((person) => person.roles.includes(code)).length
@@ -151,6 +160,24 @@ function RoleList() {
                 )}
                 {role.systemRole ? (
                   <span className="text-xs text-text-quaternary">{t('roles.cantBeChanged')}</span>
+                ) : mayManage ? (
+                  <span className="flex items-center gap-4">
+                    <Link
+                      to={`/settings/roles/${encodeURIComponent(role.id)}/edit`}
+                      aria-label={t('roles.changeRole', { name: role.name })}
+                      className="text-sm font-semibold text-primary-700 transition-colors hover:text-primary-800"
+                    >
+                      {t('roles.changeIt')}
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setDeleting(role)}
+                      aria-label={t('roles.deleteRole', { name: role.name })}
+                      className="text-sm font-semibold text-danger-700 transition-colors hover:text-danger-800"
+                    >
+                      {t('roles.delete')}
+                    </button>
+                  </span>
                 ) : null}
               </p>
               <details>
@@ -174,6 +201,16 @@ function RoleList() {
       </div>
 
       <Matrix roles={list} rows={rows} groups={groups} holders={holders} />
+
+      <DeleteRoleDialog
+        role={deleting}
+        held={deleting ? holders(deleting.code) : null}
+        onClose={() => setDeleting(null)}
+        onDeleted={() => {
+          setDeleting(null)
+          roles.retry()
+        }}
+      />
     </>
   )
 }
@@ -314,5 +351,74 @@ function Legend({ icon, tint, label }: { icon: string; tint: string; label: stri
       </span>
       <span className="text-xs font-medium text-text-tertiary">{label}</span>
     </span>
+  )
+}
+
+/** Asks before deleting a role the company made, and says why the server refused if it did. */
+function DeleteRoleDialog({
+  role,
+  held,
+  onClose,
+  onDeleted,
+}: {
+  role: RoleDto | null
+  held: number | null
+  onClose: () => void
+  onDeleted: () => void
+}) {
+  const { t } = useTranslation()
+  const [busy, setBusy] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
+  const [shownFor, setShownFor] = useState<string | null>(null)
+  if ((role?.id ?? null) !== shownFor) {
+    setShownFor(role?.id ?? null)
+    setFailure(null)
+  }
+
+  const close = () => {
+    if (!busy) onClose()
+  }
+  const confirm = async () => {
+    if (!role || busy) return
+    setBusy(true)
+    setFailure(null)
+    try {
+      await deleteRole(role.id)
+      onDeleted()
+    } catch (error) {
+      const message = roleDeleteRefusal(error)
+      setFailure(t(message.key, message.values))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal
+      open={role !== null}
+      onClose={close}
+      title={t('roles.deleteTitle', { name: role?.name ?? '' })}
+      footer={
+        <div className="flex flex-wrap justify-end gap-3">
+          <Button variant="secondary" size="md" onClick={close}>
+            {t('makeRole.cancel')}
+          </Button>
+          <Button size="md" disabled={busy} onClick={confirm}>
+            {busy ? t('roles.deleting') : t('roles.deleteConfirm')}
+          </Button>
+        </div>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <p className="text-sm font-medium leading-[1.6] text-text-secondary">
+          {held ? t('roles.deleteHeld', { count: held }) : t('roles.deleteExplain')}
+        </p>
+        {failure ? (
+          <p role="alert" className="text-sm font-medium text-danger-700">
+            {failure}
+          </p>
+        ) : null}
+      </div>
+    </Modal>
   )
 }
