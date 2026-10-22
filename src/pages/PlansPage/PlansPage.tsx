@@ -175,9 +175,17 @@ function PlansContent() {
     const check = dark ? checkWhiteIcon : checkIcon
     const iconSize = dark ? 'size-[18px]' : 'size-4'
     const copy = launchCopy(plan.code)
-    const features =
-      launchFeatures(plan, t) ??
-      derivedFeatureKeys(plan).map((feature) => t(`plan.featureName.${feature}`))
+    // The branches the plan includes, as the console set them (Plan v4 §2); none printed for a
+    // plan that does not cap them (`null`), as the catalogue contract reads it.
+    const branches =
+      plan.branchesIncluded === null || plan.branchesIncluded === undefined
+        ? []
+        : [t('plans.branchesIncluded', { count: plan.branchesIncluded })]
+    const features = [
+      ...branches,
+      ...(launchFeatures(plan, t) ??
+        derivedFeatureKeys(plan).map((feature) => t(`plan.featureName.${feature}`))),
+    ]
     return (
       <PricingCard
         key={plan.code}

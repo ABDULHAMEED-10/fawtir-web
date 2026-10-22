@@ -23159,7 +23159,8 @@
       "line_other": "{{documents}} extra documents",
       "expires": "Added to this subscription month. They end on {{date}}.",
       "loading": "Getting the price…",
-      "upgrade": "This month's extra documents would cost more than moving up to the {{plan}} plan. Contact Fawtir to move to a bigger plan."
+      "upgrade": "This month's extra documents would cost more than moving up to the {{plan}} plan. Contact Fawtir to move to a bigger plan.",
+      "upgradeSelfService": "This month's extra documents would cost more than moving up to the {{plan}} plan. You can move up yourself in Plan and usage: a bigger plan applies as soon as it is paid, and you pay only the difference for the days left."
     },
     "order": {
       "title": "Your order",

@@ -98,6 +98,16 @@ export function fullRial(baisa: number | null): string {
   return `${Number(whole).toLocaleString('en-US')}.${fraction}`
 }
 
+/**
+ * A server amount (a three-decimal OMR string) printed as {@link fullRial} prints it, so sign-up
+ * shows `1,500.000` wherever the plans page does. Anything that is not such a figure is shown as
+ * sent, never guessed at.
+ */
+export function fullRialOf(amount: string): string {
+  const baisa = baisaOf(amount)
+  return baisa === null ? amount : fullRial(baisa)
+}
+
 export type TrialSummary =
   { kind: 'uniform'; days: number; documents: number | null } | { kind: 'none' } | { kind: 'mixed' }
 

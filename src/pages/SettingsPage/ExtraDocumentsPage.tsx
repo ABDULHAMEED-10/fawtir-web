@@ -8,7 +8,9 @@ import { usePayingHeldUntilReconnected } from '../../hooks/usePayingHeldUntilRec
 import { noteLeftFawtirRefusal } from '../../lib/leftFawtirRefusal'
 import { LeftFawtirRefusal } from '../../components/billing/LeftFawtirRefusal'
 import { useApiRead, type ApiRead } from '../../hooks'
-import { usePlanName } from '../../hooks/usePlanName'
+import { PUBLIC_PLANS_PATH, readPublicPlans, type SignupCataloguePlan } from '../../lib/identity/signupPlans'
+import { PLAN_CHANGES_PATH, loadPlanChanges, type PlanChangesDto } from '../../api/settings/planChanges'
+import { launchCopy, planName as catalogueEntryName } from '../PlansPage/catalogueView'
 import { useCan } from '../../lib/session/session'
 import { ApiError } from '../../api'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
@@ -223,7 +225,6 @@ function BuyForm({
   const [failure, setFailure] = useState<ReactNode>(null)
   // Set before any re-render can disable the button: two clicks in one tick still order once.
   const inFlight = useRef(false)
-  const planName = usePlanName()
 
   useEffect(() => {
     setQuoteFailure(null)
@@ -254,6 +255,21 @@ function BuyForm({
   }
   const priced = quote !== null && quote.documents === parsed ? quote : null
   const money = (value: string) => <OmAmount amount={formatAmount(value, 'OMR', i18n.language)} size="xs" />
+  // EX-6: the plan up is named as the catalogue publishes it, in the reader's language, and the
+  // way there follows the server's self-service plan-change switch (Plan v4 §10).
+  const upgradeTo = priced?.upgradeSuggested && priced.nextPlanCode ? priced.nextPlanCode : null
+  const catalogue = useApiRead<SignupCataloguePlan[]>(upgradeTo ? PUBLIC_PLANS_PATH : null, () =>
+    readPublicPlans(),
+  ).read
+  const changes = useApiRead<PlanChangesDto>(upgradeTo ? PLAN_CHANGES_PATH : null, loadPlanChanges).read
+  const selfServiceOpen = changes.status === 'ready' && changes.data.available === true
+  const upgradeName = (code: string) => {
+    const listed =
+      catalogue.status === 'ready' ? catalogue.data.find((plan) => plan.code === code) : undefined
+    if (listed) return catalogueEntryName(listed, i18n.language)
+    const launch = launchCopy(code)
+    return launch ? t(`plan.planName.${launch.audience}`) : code
+  }
 
   const order = async () => {
     if (inFlight.current || !priced) return
@@ -364,7 +380,9 @@ function BuyForm({
           </p>
           {priced.upgradeSuggested && priced.nextPlanCode ? (
             <Callout>
-              {t('extraDocuments.quote.upgrade', { plan: planName(priced.nextPlanCode, priced.nextPlanCode) })}
+              {t(selfServiceOpen ? 'extraDocuments.quote.upgradeSelfService' : 'extraDocuments.quote.upgrade', {
+                plan: upgradeName(priced.nextPlanCode),
+              })}
             </Callout>
           ) : null}
         </div>
