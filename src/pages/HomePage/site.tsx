@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { BrandLogo } from '../../components/BrandLogo'
+import { withRial } from '../../components/ui/Rial'
 import navLogo from '../../assets/home/nav-logo.svg'
 import arrowIcon from '../../assets/home/arrow.svg'
 import checkIcon from '../../assets/home/check.svg'
@@ -145,7 +146,7 @@ export function CheckList({
           <span
             className={`landing-cap text-base leading-[normal] ${tone === 'soft' ? SOFT : INK}`}
           >
-            {item}
+            {withRial(item)}
           </span>
         </li>
       ))}

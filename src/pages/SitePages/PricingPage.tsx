@@ -8,6 +8,7 @@ import {
   freeMonthsSummary,
   fullRial,
   launchCopy,
+  launchFeatures,
   periodPriceBaisa,
   planDescription,
   planName,
@@ -203,15 +204,12 @@ function PlanCard({ plan, yearly }: { plan?: SignupCataloguePlan; yearly: boolea
           : t('site.pricing.limits.branches', { count: plan.branchesIncluded }),
       ]
     : [t('plans.enterprise.features.f2')]
-  const lines = !plan
+  const features = !plan
     ? Array.from({ length: ENTERPRISE_LINES }, (_, i) => `plans.enterprise.features.f${i + 1}`)
-    : copy
-      ? Array.from({ length: copy.lines }, (_, i) => `plans.${copy.key}.features.f${i + 1}`)
-      : derivedLines(plan)
-  const features = lines
-    // Enterprise's second line is its limits, already listed first.
-    .filter((line) => line !== 'plans.enterprise.features.f2')
-    .map((line) => t(line))
+        // Enterprise's second line is its limits, already listed first.
+        .filter((line) => line !== 'plans.enterprise.features.f2')
+        .map((line) => t(line))
+    : (launchFeatures(plan, t) ?? derivedLines(plan).map((line) => t(line)))
 
   return (
     <article

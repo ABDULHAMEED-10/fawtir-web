@@ -24,6 +24,7 @@ import {
   annualSavingNote,
   fullRial,
   launchCopy,
+  launchFeatures,
   periodPriceBaisa,
   planDescription,
   planName,
@@ -174,9 +175,9 @@ function PlansContent() {
     const check = dark ? checkWhiteIcon : checkIcon
     const iconSize = dark ? 'size-[18px]' : 'size-4'
     const copy = launchCopy(plan.code)
-    const features = copy
-      ? Array.from({ length: copy.lines }, (_, i) => t(`plans.${copy.key}.features.f${i + 1}`))
-      : derivedFeatureKeys(plan).map((feature) => t(`plan.featureName.${feature}`))
+    const features =
+      launchFeatures(plan, t) ??
+      derivedFeatureKeys(plan).map((feature) => t(`plan.featureName.${feature}`))
     return (
       <PricingCard
         key={plan.code}

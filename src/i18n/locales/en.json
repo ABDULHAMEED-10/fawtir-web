@@ -792,7 +792,7 @@
         "f2": "REST API and sandbox",
         "f3": "Webhooks and file transfer",
         "f4": "ERP field mapping",
-        "f5": "Automatic ERP extraction as an add-on"
+        "f5": "Automatic ERP extraction as an add-on, OMR {{price}} a month"
       }
     },
     "branchesIncluded_one": "{{count}} branch",
@@ -1012,8 +1012,7 @@
       "label": "Add automatic ERP extraction",
       "body": "Fawtir collects invoices from your ERP on a schedule and runs them through your field mapping. The add-on is billed with your first paid period, on a bill of its own.",
       "perMonth": "a month",
-      "perMonthTimes": "a month, for {{count}} months",
-      "priceLater": "Its price is on that bill, for the whole first paid period."
+      "perMonthTimes": "a month, for {{count}} months"
     },
     "descriptionTrial_one": "Nothing is charged today. Your free trial starts when your account is approved, and your first bill comes after {{count}} day, by the method you choose here.",
     "descriptionTrial_other": "Nothing is charged today. Your {{count}}-day free trial starts when your account is approved, and your first bill comes when it ends, by the method you choose here.",
