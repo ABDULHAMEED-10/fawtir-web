@@ -1,6 +1,7 @@
 import { ApiError } from '../api'
 import type { ReferenceDataDto } from '../api/reference/referenceData'
 import { netDaysFor } from './reference/referenceData'
+import { TAX_REASON_REFUSALS } from './taxReasonRefusals'
 
 /**
  * Issuing a draft: the dates it is issued with, what the server would refuse about them, and the
@@ -86,6 +87,11 @@ export const ISSUE_REFUSALS: Record<string, { field: IssueField | null; key: str
   CORRECTED_INVOICE_NOT_ISSUED: { field: null, key: 'salesNote.refused.invoiceNotIssued' },
   CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT: { field: null, key: 'salesNote.refused.exceeds' },
   CREDIT_NOTE_NOTHING_CORRECTABLE: { field: null, key: 'salesNote.refused.nothingLeft' },
+
+  // A zero-rated or exempt line with no reason, or the wrong list's reason: fixed on the draft.
+  ...Object.fromEntries(
+    Object.entries(TAX_REASON_REFUSALS).map(([code, key]) => [code, { field: null, key }]),
+  ),
 }
 
 /** A readiness 409 whose reason this build has no sentence for still says what kind of refusal it is. */

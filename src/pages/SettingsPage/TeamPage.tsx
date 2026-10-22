@@ -26,13 +26,21 @@ import {
 import { PeopleTable } from './people'
 import { TH, TD, useBranchNames, useManagesPeople, useRoleNames } from './peopleView'
 import { useBranchAccessOn } from '../../lib/identity/branchAccessSwitch'
+import { useSession } from '../../lib/session/session'
+import { SWITCHED_OFF_PEOPLE_PATH, loadSwitchedOffPeople } from '../../api/settings/removals'
+import {
+  SUBSCRIPTION_PATH,
+  loadSubscription,
+  type SubscriptionStatusDto,
+} from '../../api/settings/subscription'
+import { PersonActions, SwitchedOffTable } from './teamRemoval'
 import plusIcon from '../../assets/settings/plus-white.svg'
 import searchIcon from '../../assets/invoices/search.svg'
 
 /**
- * The design's tabs (Figma 135:38461). "Not signed in lately" needs a sign-in time and "Removed"
- * a list of removed people; the API has neither, so those two are drawn and cannot be opened
- * (TODO(backend): SETTINGS.md rows 6.1 and 6.3).
+ * The design's tabs (Figma 135:38461). "Not signed in lately" needs a sign-in time the API does
+ * not have, so it is drawn and cannot be opened (TODO(backend): SETTINGS.md row 6.1). "Removed" is
+ * the people switched off (`status=DEACTIVATED`), the Administrator's list only (US-3, LG-2).
  */
 type TeamTab = 'all' | 'waiting' | 'quiet' | 'withoutTwoStep' | 'removed'
 const TABS: { id: TeamTab; available: boolean }[] = [
@@ -40,7 +48,7 @@ const TABS: { id: TeamTab; available: boolean }[] = [
   { id: 'waiting', available: true },
   { id: 'quiet', available: false },
   { id: 'withoutTwoStep', available: true },
-  { id: 'removed', available: false },
+  { id: 'removed', available: true },
 ]
 
 /** "Signed in most recently" needs a sign-in time too, so only these two sorts are offered. */
@@ -115,6 +123,35 @@ function TeamLists() {
   const [tab, setTab] = useState<TeamTab>('all')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('name')
+  const session = useSession()
+  // Switching someone off, or back on, is the Administrator's (DELETE /users/{id} needs
+  // admin.users.manage); a branch administrator's list carries no actions.
+  // When the paid place of someone switched off ends (the next renewal); undated if unreadable.
+  const subscription = useApiRead<SubscriptionStatusDto>(
+    isAdministrator ? SUBSCRIPTION_PATH : null,
+    loadSubscription,
+  )
+  // Read when the tab is opened: most visits never look at who is switched off.
+  const switchedOff = useApiRead<UserPage>(
+    isAdministrator && tab === 'removed' ? SWITCHED_OFF_PEOPLE_PATH : null,
+    loadSwitchedOffPeople,
+  )
+  const [done, setDone] = useState<string | null>(null)
+  const renewsOn =
+    subscription.read.status === 'ready' ? (subscription.read.data.renewsOn ?? null) : null
+  const afterChange = (message: string) => {
+    setDone(message)
+    people.retry()
+    switchedOff.retry()
+    // A person switched off loses the invitations they sent (IdentityUserDeactivated).
+    invitations.retry()
+  }
+  const actions = isAdministrator
+    ? (person: CompanyUser) =>
+        person.owner || person.id === session?.userId ? null : (
+          <PersonActions person={person} renewsOn={renewsOn} onDone={afterChange} />
+        )
+    : undefined
 
   const everyone = useMemo(
     () => (people.read.status === 'ready' ? people.read.data.content : []),
@@ -130,7 +167,9 @@ function TeamLists() {
         ? withoutTwoStep.length
         : id === 'waiting'
           ? (waiting?.length ?? null)
-          : null
+          : id === 'removed' && switchedOff.read.status === 'ready'
+            ? switchedOff.read.data.content.length
+            : null
 
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -162,9 +201,9 @@ function TeamLists() {
           className="flex flex-wrap items-center gap-1 border-b border-surface-background px-5 pt-4"
         >
           {TABS.map((tabEntry) => {
-            // Waiting invitations are the Administrator's list only.
+            // Waiting invitations and switched-off people are the Administrator's lists only.
             const entry =
-              tabEntry.id === 'waiting' && !isAdministrator
+              (tabEntry.id === 'waiting' || tabEntry.id === 'removed') && !isAdministrator
                 ? { ...tabEntry, available: false }
                 : tabEntry
             const active = entry.id === tab
@@ -206,7 +245,28 @@ function TeamLists() {
           })}
         </nav>
 
-        {tab === 'waiting' ? (
+        {done ? (
+          <div className="px-5 pt-4">
+            <Notice
+              body={done}
+              action={{ label: t('common.close'), onClick: () => setDone(null) }}
+            />
+          </div>
+        ) : null}
+
+        {tab === 'removed' ? (
+          <div className="flex flex-col gap-3 p-5">
+            {switchedOff.read.status === 'loading' ? (
+              <LoadingNotice />
+            ) : switchedOff.read.status === 'failed' ? (
+              <ApiReadFailure error={switchedOff.read.error} retry={switchedOff.retry} />
+            ) : switchedOff.read.data.content.length === 0 ? (
+              <p className="text-sm font-medium text-text-tertiary">{t('removal.user.noneOff')}</p>
+            ) : (
+              <SwitchedOffTable people={switchedOff.read.data.content} onDone={afterChange} />
+            )}
+          </div>
+        ) : tab === 'waiting' ? (
           <div className="flex flex-col gap-3 p-5">
             <h4 className="text-base font-semibold text-text-primary">
               {t('people.team.invitedTitle')}
@@ -257,6 +317,7 @@ function TeamLists() {
                   branchName={branchAccessOn ? branchName : undefined}
                   personLink={(person) => `/settings/team/${encodeURIComponent(person.id)}`}
                   markOwner
+                  actions={actions}
                 />
                 {people.read.data.totalElements > people.read.data.content.length ? (
                   <p className="text-sm font-medium text-text-tertiary">

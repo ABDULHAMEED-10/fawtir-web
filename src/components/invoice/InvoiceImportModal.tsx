@@ -15,6 +15,7 @@ import {
   downloadInvoiceTemplate,
   loadInvoiceImport,
   type ImportKind,
+  type ImportWarningDto,
   type InvoiceImportBatchDto,
 } from '../../api/invoices/import'
 import {
@@ -25,6 +26,8 @@ import {
   classificationKey,
   importProgress,
   importStepOf,
+  importWarningColumnKey,
+  importWarningKey,
   isImportWorking,
   missingImportPermission,
 } from '../../lib/invoiceImport'
@@ -485,6 +488,10 @@ export function InvoiceImportModal({
           </section>
         ) : null}
 
+        {batch && (step === 'validate' || step === 'preview') && !working ? (
+          <ImportWarnings warnings={batch.warnings ?? []} />
+        ) : null}
+
         {batch && step === 'preview' && !working && batch.summary ? (
           <section className="flex flex-col gap-4">
             <div className="grid gap-2.5 sm:grid-cols-3">
@@ -672,6 +679,61 @@ export function InvoiceImportModal({
         ) : null}
       </div>
     </Modal>
+  )
+}
+
+/**
+ * What the file was imported with but the user should check, in the errors' table but in amber
+ * (the `pending` tokens), never the errors' red: it never blocks the import.
+ */
+function ImportWarnings({ warnings }: { warnings: ImportWarningDto[] }) {
+  const { t, i18n } = useTranslation()
+  if (warnings.length === 0) return null
+  return (
+    <section className="flex flex-col gap-3">
+      <p className="text-sm font-semibold text-pending-700">
+        {t('invoiceImport.warningsTitle', { count: warnings.length })}
+      </p>
+      <p className="text-sm font-medium text-text-tertiary">{t('invoiceImport.warningsNote')}</p>
+      <div data-tone="warning" className="overflow-x-auto rounded-sm border border-pending-200">
+        <table className="w-full sm:min-w-[480px] text-sm">
+          <thead className="bg-pending-100 text-start text-xs font-semibold text-pending-700">
+            <tr>
+              <th scope="col" className="w-10 px-2 sm:w-16 sm:px-3 py-2 text-start">
+                {t('invoiceImport.col.row')}
+              </th>
+              <th scope="col" className="w-24 px-2 sm:w-36 sm:px-3 py-2 text-start">
+                {t('invoiceImport.col.column')}
+              </th>
+              <th scope="col" className="px-2 py-2 sm:px-3 text-start">
+                {t('invoiceImport.col.message')}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {warnings.map((warning, index) => {
+              const key = importWarningKey(warning)
+              const columnKey = importWarningColumnKey(warning)
+              return (
+                <tr key={index} className="border-t border-pending-200 align-top">
+                  <td className="px-2 py-2 sm:px-3 font-medium tabular-nums text-text-secondary">
+                    {warning.rowNumbers
+                      .map((row) => formatCount(row, i18n.language))
+                      .join(i18n.language.startsWith('ar') ? '، ' : ', ')}
+                  </td>
+                  <td className="px-2 py-2 sm:px-3 font-medium text-text-secondary">
+                    {columnKey ? t(columnKey) : warning.column}
+                  </td>
+                  <td className="px-2 py-2 sm:px-3 font-medium break-words text-pending-700">
+                    {key ? t(key) : warning.message}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
   )
 }
 

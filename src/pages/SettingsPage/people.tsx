@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { displayName, type CompanyUser } from '../../api/settings/people'
@@ -10,6 +11,7 @@ export function PeopleTable({
   branchName,
   personLink,
   markOwner = false,
+  actions,
 }: {
   people: CompanyUser[]
   roleNames: (code: string) => string
@@ -27,10 +29,12 @@ export function PeopleTable({
   personLink?: (person: CompanyUser) => string
   /** Marks the company's Owner (OW-1). */
   markOwner?: boolean
+  /** A last column with what can be done to the person (switch off, LG-2); absent, not drawn. */
+  actions?: (person: CompanyUser) => ReactNode
 }) {
   const { t } = useTranslation()
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full min-w-[640px]">
         <thead className="border-b border-border-subtle">
           <tr>
@@ -40,6 +44,11 @@ export function PeopleTable({
             <th className={TH}>{t('people.col.status')}</th>
             {lastSignedIn ? <th className={TH}>{t('team.col.lastSignedIn')}</th> : null}
             <th className={TH}>{t('people.col.authenticator')}</th>
+            {actions ? (
+              <th className={TH}>
+                <span className="sr-only">{t('removal.actionsColumn')}</span>
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -78,6 +87,7 @@ export function PeopleTable({
               <td className={TD}>
                 {t(person.mfaEnabled ? 'people.authenticator.on' : 'people.authenticator.off')}
               </td>
+              {actions ? <td className={`${TD} text-end`}>{actions(person)}</td> : null}
             </tr>
           ))}
         </tbody>

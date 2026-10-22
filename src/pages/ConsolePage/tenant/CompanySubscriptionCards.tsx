@@ -40,6 +40,7 @@ import type { PaidExtraPlaceDto, PlaceKindOverviewDto } from '../../../api/setti
 import { hasPermission } from '../../../lib/identity/entitlements'
 import { OperatorReasonDialog } from '../operators/OperatorReasonDialog'
 import { Field } from '../subscriptions/modalFields'
+import { GiveBackDialog } from './GiveBackDialog'
 import { FawtirCancellationBlock, ProposeCancellationDialog, UpgradeDialog } from './StaffActions'
 
 const K = 'console.companySubscription.'
@@ -51,15 +52,15 @@ const K = 'console.companySubscription.'
  * 1. Subscription: state, plan, trial, paid time, grace and renewal; the trial exception, the
  *    upgrade at no charge (PC-5) and cancel at once for abuse or fraud with a second operator's
  *    confirmation (CA-7, CA-9).
- * 2. Allowance: this month's documents and the extra-document credits; the temporary grant.
+ * 2. Allowance: this month's documents and the extra-document credits; the temporary grant, and
+ *    giving back documents a platform fault cost the customer (AL-F4, CON-10).
  * 3. Paid extras: users and branches against included plus paid places, the ERP add-on and
  *    whether it granted ERP, and the places (read only; nothing is granted from here).
  * 4. Received-document counting, for Enterprise companies only; the override.
  * 5. History: the lifecycle events the subscription read carries, newest first.
  *
- * TODO(backend): CONSOLE.md 2.1–2.4: bills and payments for one company, a history that names the
- * operator and covers grants and plan changes, "would be read-only" while restrictions are off, and a
- * document lookup for giving documents back. Not drawn
+ * TODO(backend): CONSOLE.md 2.1–2.3: bills and payments for one company, a history that names the
+ * operator and covers grants and plan changes, and "would be read-only" while restrictions are off. Not drawn
  * until the reads exist; the sample-data tab this replaces never reached the server.
  */
 export function CompanySubscriptionCards({
@@ -83,7 +84,11 @@ export function CompanySubscriptionCards({
         />
       ) : null}
       {may(BILLING_READ) ? (
-        <AllowanceCard tenantId={tenantId} canManage={may(BILLING_MANAGE)} />
+        <AllowanceCard
+          tenantId={tenantId}
+          canManage={may(BILLING_MANAGE)}
+          canGiveBack={may(TENANTS_MANAGE)}
+        />
       ) : null}
       {may(BILLING_READ) ? <PaidExtrasCard tenantId={tenantId} /> : null}
       {may(PLANS_READ) ? <CountingCard tenantId={tenantId} canManage={may(PLANS_MANAGE)} /> : null}
@@ -399,13 +404,23 @@ function HistoryCard({ events }: { events: LifecycleEventDto[] }) {
   )
 }
 
-function AllowanceCard({ tenantId, canManage }: { tenantId: string; canManage: boolean }) {
+function AllowanceCard({
+  tenantId,
+  canManage,
+  canGiveBack,
+}: {
+  tenantId: string
+  canManage: boolean
+  /** `platform.tenants.manage`: the give-back's own permission, Platform tenant admins only. */
+  canGiveBack: boolean
+}) {
   const { t, i18n } = useTranslation()
   const { read, retry } = useConsoleRead<CompanyExtraDocumentsDto>(
     companyExtraDocumentsPath(tenantId),
   )
   const [changed, setChanged] = useState<CompanyExtraDocumentsDto | null>(null)
   const [dialog, setDialog] = useState(false)
+  const [giveBack, setGiveBack] = useState(false)
   const [documents, setDocuments] = useState('')
   const [expiresOn, setExpiresOn] = useState('')
   const [errors, setErrors] = useState<{ documents?: string; expiresOn?: string }>({})
@@ -526,11 +541,18 @@ function AllowanceCard({ tenantId, canManage }: { tenantId: string; canManage: b
         )}
       </div>
 
-      {canManage ? (
-        <div>
-          <ConsoleButton variant="secondary" onClick={open}>
-            {t(`${K}grant.open`)}
-          </ConsoleButton>
+      {canManage || canGiveBack ? (
+        <div className="flex flex-wrap gap-2.5">
+          {canManage ? (
+            <ConsoleButton variant="secondary" onClick={open}>
+              {t(`${K}grant.open`)}
+            </ConsoleButton>
+          ) : null}
+          {canGiveBack ? (
+            <ConsoleButton variant="secondary" onClick={() => setGiveBack(true)}>
+              {t(`${K}giveBack.open`)}
+            </ConsoleButton>
+          ) : null}
         </div>
       ) : null}
 
@@ -603,7 +625,17 @@ function AllowanceCard({ tenantId, canManage }: { tenantId: string; canManage: b
           onClose={closeDialog}
         />
       ) : null}
-      {/* TODO(backend): CONSOLE.md 2.4, "Give back documents" needs a document lookup by number. */}
+      {giveBack ? (
+        <GiveBackDialog
+          tenantId={tenantId}
+          periodEnd={allowance.periodEnd}
+          onDone={(answer) => {
+            setChanged(answer)
+            setGiveBack(false)
+          }}
+          onClose={() => setGiveBack(false)}
+        />
+      ) : null}
     </Card>
   )
 }
@@ -768,11 +800,21 @@ function PaidExtrasCard({ tenantId }: { tenantId: string }) {
   ) : (
     <span className="flex flex-wrap items-center gap-2">
       <ConsoleStatusPill
-        tone={erpAddon.status === 'ACTIVE' ? 'success' : erpAddon.status === 'ENDED' ? 'neutral' : 'pending'}
-        label={t(`${P}addonStatus.${erpAddon.status}`, { date: erpAddon.endsOn ? day(erpAddon.endsOn) : '' })}
+        tone={
+          erpAddon.status === 'ACTIVE'
+            ? 'success'
+            : erpAddon.status === 'ENDED'
+              ? 'neutral'
+              : 'pending'
+        }
+        label={t(`${P}addonStatus.${erpAddon.status}`, {
+          date: erpAddon.endsOn ? day(erpAddon.endsOn) : '',
+        })}
       />
       {erpAddon.endReason ? (
-        <span className="text-xs text-text-tertiary">{t(`${P}endReason.${erpAddon.endReason}`)}</span>
+        <span className="text-xs text-text-tertiary">
+          {t(`${P}endReason.${erpAddon.endReason}`)}
+        </span>
       ) : null}
     </span>
   )
@@ -790,10 +832,16 @@ function PaidExtrasCard({ tenantId }: { tenantId: string }) {
           [t(`${P}branches`), kind(extras.branches)],
           [t(`${P}addon`), addonValue],
           erpAddon
-            ? [t(`${P}entitlement`), erpAddon.grantedEntitlement ? t(`${P}grantedByAddon`) : t(`${P}notByAddon`)]
+            ? [
+                t(`${P}entitlement`),
+                erpAddon.grantedEntitlement ? t(`${P}grantedByAddon`) : t(`${P}notByAddon`),
+              ]
             : null,
           extras.outstanding
-            ? [t(`${P}outstanding`), t(`${P}outstandingValue`, { number: extras.outstanding.bill.number })]
+            ? [
+                t(`${P}outstanding`),
+                t(`${P}outstandingValue`, { number: extras.outstanding.bill.number }),
+              ]
             : null,
         ]}
       />
@@ -804,9 +852,15 @@ function PaidExtrasCard({ tenantId }: { tenantId: string }) {
         ) : (
           <ul className="flex flex-col gap-3">
             {extras.places.map((place) => (
-              <li key={place.id} className={`${CONSOLE_CARD} flex flex-col gap-1 border border-border-subtle p-4`}>
+              <li
+                key={place.id}
+                className={`${CONSOLE_CARD} flex flex-col gap-1 border border-border-subtle p-4`}
+              >
                 <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-text-primary">
-                  {t(`paidExtras.history.kind.${place.kind}`, { count: place.quantity, n: n(place.quantity) })}
+                  {t(`paidExtras.history.kind.${place.kind}`, {
+                    count: place.quantity,
+                    n: n(place.quantity),
+                  })}
                   <ConsoleStatusPill
                     tone={PLACE_TONE[place.status]}
                     label={t(`paidExtras.history.status.${place.status}`)}
@@ -815,13 +869,19 @@ function PaidExtrasCard({ tenantId }: { tenantId: string }) {
                 <span className="flex flex-wrap items-center gap-1 text-xs font-medium text-text-tertiary">
                   {[
                     t(`paidExtras.history.source.${place.source}`),
-                    t('paidExtras.history.covers', { from: day(place.coversFrom), to: day(place.coversTo) }),
+                    t('paidExtras.history.covers', {
+                      from: day(place.coversFrom),
+                      to: day(place.coversTo),
+                    }),
                     formatInstant(place.createdAt, i18n.language),
                   ].join(' · ')}
                   {place.netAmount ? (
                     <>
                       {' · '}
-                      <OmAmount amount={formatAmount(place.netAmount, 'OMR', i18n.language)} size="xs" />
+                      <OmAmount
+                        amount={formatAmount(place.netAmount, 'OMR', i18n.language)}
+                        size="xs"
+                      />
                     </>
                   ) : null}
                 </span>

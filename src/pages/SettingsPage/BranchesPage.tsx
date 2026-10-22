@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
-import { ActionMenu, Rial } from '../../components/ui'
+import { ActionMenu, Button, Modal, Rial } from '../../components/ui'
+import { Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import { formatAmount, formatDate } from '../../lib/format'
 import {
@@ -11,6 +13,13 @@ import {
   type BranchOverviewRow,
 } from '../../api/settings/branches'
 import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
+import { setBranchOpen } from '../../api/settings/removals'
+import {
+  SUBSCRIPTION_PATH,
+  loadSubscription,
+  type SubscriptionStatusDto,
+} from '../../api/settings/subscription'
+import { placeSentence, useRemovalFailureText } from '../../lib/removalRefusals'
 import plusIcon from '../../assets/settings/plus-white.svg'
 import plusBrandIcon from '../../assets/settings/plus-brand.svg'
 import lockIcon from '../../assets/settings/menu-key.svg'
@@ -34,9 +43,18 @@ import closeIcon from '../../assets/settings/menu-close.svg'
  */
 export function BranchesPage() {
   const { t } = useTranslation()
-  const overview = useApiRead<BranchOverviewDto>(BRANCHES_OVERVIEW_PATH, () =>
+  const overviewRead = useApiRead<BranchOverviewDto>(BRANCHES_OVERVIEW_PATH, () =>
     loadBranchOverview(),
-  ).read
+  )
+  const overview = overviewRead.read
+  // When a closed branch's paid place ends (the next renewal, BR-4); undated if unreadable.
+  const subscription = useApiRead<SubscriptionStatusDto>(SUBSCRIPTION_PATH, loadSubscription).read
+  const renewsOn = subscription.status === 'ready' ? (subscription.data.renewsOn ?? null) : null
+  const [done, setDone] = useState<string | null>(null)
+  const afterChange = (message: string) => {
+    setDone(message)
+    overviewRead.retry()
+  }
 
   return (
     <SettingsShell group="company">
@@ -54,7 +72,13 @@ export function BranchesPage() {
         }
       />
 
-      {overview.status === 'ready' ? <Content overview={overview.data} /> : null}
+      {done ? (
+        <Notice body={done} action={{ label: t('common.close'), onClick: () => setDone(null) }} />
+      ) : null}
+
+      {overview.status === 'ready' ? (
+        <Content overview={overview.data} renewsOn={renewsOn} onDone={afterChange} />
+      ) : null}
 
       <Link
         to="/settings/branches/new"
@@ -92,7 +116,15 @@ function IncludedKpi() {
   )
 }
 
-function Content({ overview }: { overview: BranchOverviewDto }) {
+function Content({
+  overview,
+  renewsOn,
+  onDone,
+}: {
+  overview: BranchOverviewDto
+  renewsOn: string | null
+  onDone: (message: string) => void
+}) {
   const { t } = useTranslation()
 
   if (overview.branches.length === 0) {
@@ -129,7 +161,7 @@ function Content({ overview }: { overview: BranchOverviewDto }) {
       </div>
 
       {overview.branches.map((branch) => (
-        <BranchCard key={branch.id} branch={branch} />
+        <BranchCard key={branch.id} branch={branch} renewsOn={renewsOn} onDone={onDone} />
       ))}
     </>
   )
@@ -162,9 +194,43 @@ function Kpi({
   )
 }
 
-function BranchCard({ branch }: { branch: BranchOverviewRow }) {
+function BranchCard({
+  branch,
+  renewsOn,
+  onDone,
+}: {
+  branch: BranchOverviewRow
+  renewsOn: string | null
+  onDone: (message: string) => void
+}) {
   const { t, i18n } = useTranslation()
   const closed = !branch.active
+  const failureText = useRemovalFailureText()
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
+  const name = branch.name
+
+  const run = async (work: () => Promise<string>) => {
+    setBusy(true)
+    setFailure(null)
+    try {
+      const message = await work()
+      setConfirming(false)
+      onDone(message)
+    } catch (error) {
+      setFailure(failureText(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Option (a), 21 Oct 2026: the branch closes now; its paid place stays until the renewal.
+  const close = () =>
+    run(async () => {
+      await setBranchOpen(branch.id, false)
+      return placeSentence(t, 'removal.branch', 'done', renewsOn, i18n.language, name)
+    })
 
   return (
     <section
@@ -267,12 +333,21 @@ function BranchCard({ branch }: { branch: BranchOverviewRow }) {
                 icon: copySettingsIcon,
                 to: '/settings/branches/new',
               },
-              {
-                id: 'close',
-                labelKey: 'branches.menu.closeBranch',
-                icon: closeIcon,
-                danger: true,
-              },
+              // The Head Branch is never closed (BR-5), so it is not offered.
+              ...(branch.active && !branch.headOffice
+                ? [
+                    {
+                      id: 'close',
+                      labelKey: 'branches.menu.closeBranch',
+                      icon: closeIcon,
+                      danger: true,
+                      onSelect: () => {
+                        setFailure(null)
+                        setConfirming(true)
+                      },
+                    },
+                  ]
+                : []),
             ]}
           />
         </div>
@@ -292,75 +367,127 @@ function BranchCard({ branch }: { branch: BranchOverviewRow }) {
           </p>
           <button
             type="button"
+            disabled={busy}
+            onClick={() =>
+              void run(async () => {
+                await setBranchOpen(branch.id, true)
+                return t('removal.branch.reopened', { name })
+              })
+            }
             className="inline-flex h-[38px] shrink-0 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
           >
-            {t('branches.reopenIt')}
+            {busy ? t('removal.saving') : t('branches.reopenIt')}
           </button>
+          {failure && !confirming ? (
+            <p role="alert" className="basis-full text-sm font-medium text-danger-700">
+              {failure}
+            </p>
+          ) : null}
         </div>
       ) : (
-        <dl className="grid border-t border-surface-background sm:grid-cols-2 xl:grid-cols-4">
-          <Cell label={t('branches.col.numbering')}>
-            <p dir="ltr" className="text-left font-mono text-sm font-semibold text-text-primary">
-              {branch.invoicePrefix ? `${branch.invoicePrefix}-INV-####` : 'INV-####'}
+        <>
+          {failure && !confirming ? (
+            <p
+              role="alert"
+              className="border-t border-surface-background px-5 py-3 text-sm font-medium text-danger-700"
+            >
+              {failure}
             </p>
-            <p className="mt-1 text-xs font-medium text-text-quaternary">
-              {t(branch.invoicePrefix ? 'branches.ownSeries' : 'branches.noPrefix')}
-              {branch.nextNumber != null
-                ? ` · ${t('branches.atNumber', { number: branch.nextNumber })}`
-                : ''}
-            </p>
-          </Cell>
+          ) : null}
+          <dl className="grid border-t border-surface-background sm:grid-cols-2 xl:grid-cols-4">
+            <Cell label={t('branches.col.numbering')}>
+              <p dir="ltr" className="text-left font-mono text-sm font-semibold text-text-primary">
+                {branch.invoicePrefix ? `${branch.invoicePrefix}-INV-####` : 'INV-####'}
+              </p>
+              <p className="mt-1 text-xs font-medium text-text-quaternary">
+                {t(branch.invoicePrefix ? 'branches.ownSeries' : 'branches.noPrefix')}
+                {branch.nextNumber != null
+                  ? ` · ${t('branches.atNumber', { number: branch.nextNumber })}`
+                  : ''}
+              </p>
+            </Cell>
 
-          <Cell label={t('branches.col.thisMonth')}>
-            <p className="flex items-baseline gap-1.5">
-              <span className="text-lg font-semibold text-text-primary tabular-nums">
-                {branch.invoicesThisMonth}
-              </span>
-              <span className="text-xs font-medium text-text-quaternary">
-                {t('branches.invoicesUnit')}
-              </span>
-            </p>
-            <p className="mt-1 text-xs font-medium text-text-quaternary">
-              <Rial /> {formatAmount(branch.invoicedThisMonth, 'OMR', i18n.language)}
-            </p>
-          </Cell>
-
-          <Cell label={t('branches.col.whoWorksHere')}>
-            <p className="flex items-baseline gap-1.5">
-              {branch.people === 0 ? (
-                <span className="text-lg font-semibold text-text-primary">
-                  {t('branches.none')}
-                </span>
-              ) : (
+            <Cell label={t('branches.col.thisMonth')}>
+              <p className="flex items-baseline gap-1.5">
                 <span className="text-lg font-semibold text-text-primary tabular-nums">
-                  {t('branches.peopleCount', { count: branch.people })}
+                  {branch.invoicesThisMonth}
                 </span>
-              )}
-            </p>
-          </Cell>
+                <span className="text-xs font-medium text-text-quaternary">
+                  {t('branches.invoicesUnit')}
+                </span>
+              </p>
+              <p className="mt-1 text-xs font-medium text-text-quaternary">
+                <Rial /> {formatAmount(branch.invoicedThisMonth, 'OMR', i18n.language)}
+              </p>
+            </Cell>
 
-          <Cell label={t('branches.col.till')}>
-            <p className="flex items-baseline gap-1.5">
-              {branch.devices === 0 ? (
-                <span className="text-lg font-semibold text-text-primary">
-                  {t('branches.none')}
-                </span>
-              ) : (
-                <>
+            <Cell label={t('branches.col.whoWorksHere')}>
+              <p className="flex items-baseline gap-1.5">
+                {branch.people === 0 ? (
+                  <span className="text-lg font-semibold text-text-primary">
+                    {t('branches.none')}
+                  </span>
+                ) : (
                   <span className="text-lg font-semibold text-text-primary tabular-nums">
-                    {branch.devices}
+                    {t('branches.peopleCount', { count: branch.people })}
                   </span>
-                  <span className="text-xs font-medium text-text-quaternary">
-                    {t('branches.devices', { count: branch.devices })
-                      .replace(String(branch.devices), '')
-                      .trim()}
+                )}
+              </p>
+            </Cell>
+
+            <Cell label={t('branches.col.till')}>
+              <p className="flex items-baseline gap-1.5">
+                {branch.devices === 0 ? (
+                  <span className="text-lg font-semibold text-text-primary">
+                    {t('branches.none')}
                   </span>
-                </>
-              )}
-            </p>
-          </Cell>
-        </dl>
+                ) : (
+                  <>
+                    <span className="text-lg font-semibold text-text-primary tabular-nums">
+                      {branch.devices}
+                    </span>
+                    <span className="text-xs font-medium text-text-quaternary">
+                      {t('branches.devices', { count: branch.devices })
+                        .replace(String(branch.devices), '')
+                        .trim()}
+                    </span>
+                  </>
+                )}
+              </p>
+            </Cell>
+          </dl>
+        </>
       )}
+
+      <Modal
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        title={t('removal.branch.title', { name })}
+        footer={
+          <div className="flex flex-wrap justify-end gap-3">
+            <Button variant="secondary" size="md" onClick={() => setConfirming(false)}>
+              {t('removal.cancel')}
+            </Button>
+            <Button size="md" disabled={busy} onClick={() => void close()}>
+              {busy ? t('removal.saving') : t('removal.branch.confirm')}
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm font-medium leading-[1.6] text-text-secondary">
+            {t('removal.branch.body', { name })}
+          </p>
+          <p className="text-sm font-medium leading-[1.6] text-text-secondary">
+            {placeSentence(t, 'removal.branch', 'place', renewsOn, i18n.language, name)}
+          </p>
+          {failure ? (
+            <p role="alert" className="text-sm font-medium text-danger-700">
+              {failure}
+            </p>
+          ) : null}
+        </div>
+      </Modal>
     </section>
   )
 }

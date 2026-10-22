@@ -12638,7 +12638,8 @@
       "seller": "Seller",
       "disconnections": "Disconnections",
       "enterprise": "Enterprise",
-      "companyContact": "Contact details"
+      "companyContact": "Contact details",
+      "refunds": "Refund cases"
     },
     "user": {
       "team": "Fawtir team",
@@ -15535,7 +15536,9 @@
         "sameOperator": "You proposed this cancellation, so another operator must confirm it.",
         "cancellationNotTracked": "This company has no subscription lifecycle, so it cannot be cancelled at once.",
         "alreadyEnded": "This subscription has already ended.",
-        "enterprisePlan": "That plan belongs to a company's Enterprise terms. Set Enterprise terms instead."
+        "enterprisePlan": "That plan belongs to a company's Enterprise terms. Set Enterprise terms instead.",
+        "giveBackUnknown": "One of these is not an issued document of this company. Find the documents again and choose from the list.",
+        "giveBackAlready": "One of these documents was already given back. Find the documents again to see which."
       },
       "upgrade": {
         "open": "Upgrade at no charge",
@@ -15609,6 +15612,32 @@
         "outstandingValue": "Bill {{number}}",
         "places": "Paid places",
         "noPlaces": "No paid places yet."
+      },
+      "giveBack": {
+        "open": "Give back documents",
+        "title": "Give back documents",
+        "body": "Only for documents the company had to cancel and reissue because of a Fawtir platform fault. Exactly as many documents as you choose are added to this month's allowance at no charge and end with it on {{date}}. Each document can be given back once. The reason is kept in the company's history.",
+        "number": "Document number",
+        "numberHint": "Part of the number is enough. Leave empty for the newest issued documents.",
+        "search": "Find",
+        "loading": "Finding the documents",
+        "failed": "The documents could not be read. Try again.",
+        "none": "No issued document matches this number.",
+        "issuedOn": "issued {{date}}",
+        "alreadyGivenBack": "already given back",
+        "chosen_one": "{{n}} document chosen",
+        "chosen_other": "{{n}} documents chosen",
+        "chooseOne": "Choose at least one document",
+        "tooMany": "No more than {{max}} documents at once",
+        "confirm": "Give back the documents",
+        "type": {
+          "INVOICE": "Invoice",
+          "CREDIT_NOTE": "Credit note",
+          "DEBIT_NOTE": "Debit note",
+          "SELF_BILLED_INVOICE": "Self-billed invoice",
+          "SELF_BILLED_CREDIT_NOTE": "Self-billed credit note",
+          "OTHER": "Document"
+        }
       }
     },
     "disconnections": {
@@ -16213,6 +16242,108 @@
         "production-platform-realm-required": "Reconnections are handled only from the production Fawtir console.",
         "impersonation-not-allowed": "This can't be done while signed in as a company.",
         "invalid": "Check the details: a date can't be later than now, the effective date can't be before it, a decline needs a reason, and who asked is needed unless it was seen on the portal."
+      }
+    },
+    "refundCases": {
+      "title": "Refund cases",
+      "reason": {
+        "FINAL_REJECTION": "Final rejection",
+        "CORRECTION_WINDOW_EXPIRED": "Not corrected within 30 days",
+        "CANCELLED_BY_FAWTIR": "Cancelled by Fawtir (period paid in advance)",
+        "CANCELLED_BY_CUSTOMER": "Cancelled by the customer (period paid in advance)",
+        "LEFT_FAWTIR_ANNUAL": "Left Fawtir (yearly: remaining whole months)",
+        "OTHER": "Refund",
+        "LEFT_FAWTIR_MONTHLY": "Left Fawtir (monthly: period paid in advance)",
+        "CANCELLED_ANNUAL_REMAINING": "Cancelled by the customer (yearly: remaining whole months)"
+      },
+      "status": {
+        "OPEN": "Open",
+        "REFUNDED": "Refunded",
+        "WITHDRAWN": "Withdrawn: the company came back or withdrew the cancellation",
+        "UNDER_REVIEW": "Under review",
+        "DECLINED": "Not refunded",
+        "WAIVED": "Given up by the customer"
+      },
+      "opened": "Opened {{date}}",
+      "suggested_one": "Suggested {{amount}} for {{count}} whole month",
+      "suggested_other": "Suggested {{amount}} for {{count}} whole months",
+      "changedBecause": "Amount changed: {{reason}}",
+      "refundedVia": "Refunded {{method}} on {{date}}",
+      "method": {
+        "CARD": "to the card",
+        "CASH": "in cash",
+        "BANK_TRANSFER": "by bank transfer",
+        "OTHER": "another way"
+      },
+      "sending": "Saving…",
+      "amount": {
+        "open": "Change amount",
+        "title": "Change the refund amount",
+        "body": "The suggestion is each item paid for the period (plan, ERP add-on, extra users and branches) divided by 12, times the whole months left, added up and never more than was paid. A month paid in advance that had not started is suggested in full. Enter the amount to refund and say why it differs.",
+        "label": "Amount to refund",
+        "invalid": "Enter an amount above zero with at most three decimals.",
+        "confirm": "Save amount",
+        "done": "The refund amount is now {{amount}}."
+      },
+      "refund": {
+        "open": "Record refund",
+        "title": "Record the refund",
+        "body": "Record how the money went back to the company. Recording the refund approves it today: only the months not yet started today are refunded, and access ends with the last month not refunded. The money goes back today or on a later day, never before. The case is then closed and can no longer be changed.",
+        "amount": "Amount",
+        "method": "How it was paid back",
+        "methodPlaceholder": "Choose how",
+        "reference": "Reference",
+        "referenceHint": "The card refund, transfer or receipt reference. Optional.",
+        "confirm": "Record refund",
+        "done": "{{amount}} recorded as refunded {{method}}.",
+        "bodyFinance": "Record that the money went back to the company. The amount is what the company paid and cannot be changed. The case is then closed and can no longer be changed.",
+        "on": "Refunded on",
+        "onInvalid": "Choose a day from when the case opened up to today.",
+        "onInvalidApproved": "Choose today or a later day: the money can't go back before the refund is approved."
+      },
+      "declinedBecause": "Not refunded: {{reason}}",
+      "decline": {
+        "open": "Close without refund",
+        "title": "Close without a refund",
+        "body": "The company keeps its access to the end of the period it paid for and nothing is refunded. Say why.",
+        "confirm": "Close without refund",
+        "done": "The case is closed without a refund.",
+        "bodyLeft": "The company has left Fawtir. Its subscription runs to the end of the period it paid for and then ends without renewing. Closing without a refund means the remaining whole months are not paid back, and nothing else is owed for unused days. Say why."
+      },
+      "waivedBecause": "Given up in writing: {{evidence}}",
+      "waive": {
+        "open": "Customer gave up the refund",
+        "title": "The customer gave up the refund",
+        "body": "This refund is always paid back. Record it as given up only when the customer has said so in writing. Nothing is refunded and the case is closed.",
+        "evidence": "What the customer wrote",
+        "evidenceHint": "Their words giving the refund up.",
+        "reference": "Where it is kept",
+        "referenceHint": "The e-mail, ticket or letter reference.",
+        "confirm": "Record as given up",
+        "done": "The refund is recorded as given up by the customer."
+      },
+      "approvedOn": "Approved on {{date}}"
+    },
+    "refundQueue": {
+      "title": "Refund cases",
+      "subtitle": "Money Fawtir owes back, for every company: applications closed with a final rejection, periods paid in advance that never started, and the refunds decided for companies that left Fawtir or cancelled a yearly subscription. Oldest first.",
+      "loading": "Loading refund cases",
+      "emptyOpen": "No refund case is waiting.",
+      "empty": "No refund case matches these filters.",
+      "loadMore": "Load more",
+      "moreFailed": "More cases could not be loaded. Try again.",
+      "view": {
+        "OPEN": "Waiting",
+        "REFUNDED": "Refunded",
+        "ALL": "All"
+      },
+      "kind": {
+        "label": "Kind of refund",
+        "ALL": "All kinds",
+        "SIGNUP_REJECTION": "Closed applications",
+        "PAID_AHEAD": "Paid in advance, not started",
+        "LEFT_FAWTIR": "Left Fawtir",
+        "YEARLY_CANCELLATION": "Yearly cancellations"
       }
     },
     "smpCall": {
@@ -21868,7 +21999,16 @@
     "createdTitle_other": "{{count}} drafts created",
     "createdNote": "Review the drafts, then select and issue them from the Invoices list.",
     "openDraft": "Open draft",
-    "unavailable": "Invoice import is not available yet: the server does not offer it."
+    "unavailable": "Invoice import is not available yet: the server does not offer it.",
+    "warningsTitle_one": "1 thing to check. The file can still be imported.",
+    "warningsTitle_other": "{{count}} things to check. The file can still be imported.",
+    "warningsNote": "Nothing here stops the import. Check each row, and if it is wrong, fix the file and upload it again.",
+    "warning": {
+      "taxCategoryDefaulted": "No VAT category was given, so these lines were set to standard rate (5%). If a line is zero-rated or exempt, give its category and reason in the file."
+    },
+    "warningColumn": {
+      "taxCategory": "Tax category"
+    }
   },
   "site": {
     "faq": {
@@ -23572,5 +23712,52 @@
       "cancel": "Cancel",
       "save": "Save these {{count}}"
     }
+  },
+  "removal": {
+    "actionsFor": "Actions for {{name}}",
+    "actionsColumn": "Actions",
+    "cancel": "Cancel",
+    "saving": "Saving…",
+    "menu": {
+      "switchOff": "Switch off",
+      "backOn": "Switch back on"
+    },
+    "user": {
+      "title": "Switch {{name}} off?",
+      "body": "{{name}} cannot sign in from now on, and every session they have ends. Their name stays on everything they made.",
+      "placeDated": "Their paid place stays until the renewal on {{date}}, with no refund, and can be given to someone else until then.",
+      "placeUndated": "Their paid place stays until the next renewal, with no refund, and can be given to someone else until then.",
+      "confirm": "Switch off",
+      "doneDated": "Access stopped for {{name}}. The paid place stays until {{date}} and can be given to someone else.",
+      "doneUndated": "Access stopped for {{name}}. The paid place stays until the next renewal and can be given to someone else.",
+      "backOn": "{{name}} is back on, with no role yet.",
+      "noneOff": "Nobody is switched off.",
+      "backOnColumn": "Switch back on"
+    },
+    "branch": {
+      "title": "Close {{name}}?",
+      "body": "{{name}} closes now: nobody can work in it and no new document can be issued from it. Its invoices stay in your reports.",
+      "placeDated": "Its paid place stays until the renewal on {{date}}, with no refund, and can be given to a new branch until then.",
+      "placeUndated": "Its paid place stays until the next renewal, with no refund, and can be given to a new branch until then.",
+      "confirm": "Close now",
+      "doneDated": "{{name}} is closed. The paid place stays until {{date}} and can be given to a new branch.",
+      "doneUndated": "{{name}} is closed. The paid place stays until the next renewal and can be given to a new branch.",
+      "reopened": "{{name}} is open again."
+    },
+    "refusal": {
+      "headBranch": "The Head Branch is never closed. You can rename it.",
+      "lastAdministrator": "The company must keep at least one administrator.",
+      "ownerProtected": "The Owner is never switched off.",
+      "ownAccount": "You cannot switch yourself off. Ask another administrator.",
+      "noPlace": "Every place on your plan is in use. Add a place, or switch someone else off first.",
+      "planLimit": "Your plan has no room for another one.",
+      "alreadyActive": "This person is already on."
+    }
+  },
+  "taxReasonRefusal": {
+    "reasonRequired": "A zero-rated or exempt line needs its reason for no VAT. Choose the reason on each such line, then try again.",
+    "reasonInvalid": "A line's reason for no VAT is not on the official list for its VAT category. Choose the reason again from the list.",
+    "reasonNotApplicable": "A line gives a reason code that its VAT category does not take. Clear the reason, or change the line's category.",
+    "bulkReasonRequired": "A zero-rated or exempt line in the file has no reason code. Give the reason code in its row, then upload again."
   }
 }
