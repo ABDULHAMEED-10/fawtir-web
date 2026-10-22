@@ -10,7 +10,6 @@ export type UnavailableModule =
   | 'closing'
   | 'export'
   | 'otaCallLog'
-  | 'makeRole'
 
 /**
  * A screen whose module has no server behind it yet. It used to draw a sample company's records

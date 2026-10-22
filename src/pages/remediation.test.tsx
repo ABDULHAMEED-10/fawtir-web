@@ -151,7 +151,7 @@ describe('prototypes shown by default (owner decision 2026-10-08)', () => {
 })
 
 describe('modules with no server yet', () => {
-  it.each(['pos', 'stock', 'tradeDocuments', 'billing', 'closing', 'export', 'otaCallLog', 'makeRole'] as const)(
+  it.each(['pos', 'stock', 'tradeDocuments', 'billing', 'closing', 'export', 'otaCallLog'] as const)(
     '%s says it is not available, in English and Arabic, with no sample records',
     async (module) => {
       const view = at('/x', <ModuleUnavailablePage module={module} />)
