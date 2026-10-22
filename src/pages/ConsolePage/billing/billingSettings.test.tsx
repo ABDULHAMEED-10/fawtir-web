@@ -237,7 +237,9 @@ describe('Console › Billing settings', () => {
     await user.clear(maxUsers)
     await user.type(maxUsers, '40')
     await user.click(card)
-    await user.click(screen.getByRole('button', { name: i18n.t('console.settings.dayList.remove', { value: '7' }) }))
+    await user.click(
+      screen.getByRole('button', { name: i18n.t('console.settings.dayList.remove', { value: S('renewalChip', { count: 7 }) }) }),
+    )
     await user.type((await billingCard()).getByRole('textbox', { name: S('reason') }), 'Smaller orders, card off')
     await user.click((await billingCard()).getByRole('button', { name: i18n.t('console.settings.save') }))
 
@@ -247,6 +249,33 @@ describe('Console › Billing settings', () => {
       maxExtraUsersPerOrder: 40, renewalReminderDays: [1], cardPaymentsEnabled: false,
       reason: 'Smaller orders, card off',
     })
+  })
+
+  it('reads renewal chips as days before, names the trial length and greys payment links with card off', async () => {
+    answers[SETTINGS] = () => json(200, settings({
+      maxExtraUsersPerOrder: 50, maxExtraBranchesPerOrder: 20, trialReminderLeadDays: 3,
+      graceReminderDays: [1, 4, 7], renewalReminderDays: [7, 1], correctionWindowDays: 30,
+      cardPaymentsEnabled: true,
+    }))
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/settings')
+
+    const days = (await screen.findByRole('textbox', { name: S('paymentLinkDays') })) as HTMLInputElement
+    expect(screen.getByText(S('renewalChip', { count: 7 }))).toBeTruthy()
+    expect(screen.getByText(S('renewalChip', { count: 1 }))).toBeTruthy()
+    expect(S('renewalChip', { count: 7 })).toBe('7 days before')
+    expect(screen.getByText(S('trialLeadHint', { days: 14, max: 13 }))).toBeTruthy()
+    expect(days.value).toBe('7')
+    expect(days.readOnly).toBe(true)
+    expect(days.disabled).toBe(false)
+    expect(screen.getByTestId('payment-links').getAttribute('aria-disabled')).toBe('false')
+
+    await user.click(screen.getByRole('switch', { name: S('cardPayments') }))
+
+    expect(days.disabled).toBe(true)
+    expect(screen.getByTestId('payment-links').getAttribute('aria-disabled')).toBe('true')
+    expect(screen.getByTestId('payment-links').className).toContain('opacity-50')
+    expect(screen.getByText(S('paymentLinkDaysOff'))).toBeTruthy()
   })
 
   it('refuses a trial reminder of 14 days or more before sending: the trial is 14 days', async () => {
