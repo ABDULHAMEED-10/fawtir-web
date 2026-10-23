@@ -9,13 +9,74 @@ import type { RefusalCause, RefusalKind } from './activityLedger'
  * raised. On backends before #538 the `resubmit` link does not account for a hold, so pressing it
  * again is held again, and the sentence says so. With #538 the link goes once a hold exists, and
  * this still covers the race where a hold appears between reading the row and pressing.
+ *
+ * The sender-standing codes (backend #640, TddSenderStandingHeldException) are 409s too, with
+ * nothing recorded and the obligation still owed. HISTORICAL_ELIGIBLE is held for a Fawtir decision
+ * rather than refused (#640 review M1), so it counts with TDD_CORRECTION_HELD as a hold.
  */
 const RESUBMIT_REFUSALS: Readonly<Record<string, string>> = {
   TDD_CORRECTION_HELD: 'tddResubmit.refused.held',
+  SENDER_NOT_REGISTERED_HISTORICAL_ELIGIBLE: 'tddResubmit.refused.historicalEligible',
+  SENDER_PARTICIPANT_NOT_REGISTERED: 'tddResubmit.refused.senderNotRegistered',
+  SENDER_PARTICIPANT_CLAIM_CONFLICT: 'tddResubmit.refused.senderClaimConflict',
+  SENDER_STANDING_UNKNOWN: 'tddResubmit.refused.senderStandingUnknown',
 }
+
+const HOLD_KEYS: ReadonlySet<string> = new Set([
+  RESUBMIT_REFUSALS.TDD_CORRECTION_HELD,
+  RESUBMIT_REFUSALS.SENDER_NOT_REGISTERED_HISTORICAL_ELIGIBLE,
+])
 
 export function tddResubmitRefusalKey(error: unknown): string | null {
   return error instanceof ApiError && error.code ? (RESUBMIT_REFUSALS[error.code] ?? null) : null
+}
+
+export type ResubmitSentence = { key: string; values?: Record<string, string> }
+
+/**
+ * What a group resubmit says. `refusals` holds the sentence key of each row that was refused, in
+ * order; `stopped` is true when a failure that is not a refusal ended the group early, and the
+ * caller appends that failure's own sentence after these. Each distinct standing sentence is said
+ * once: standing is the tenant's, so it normally refuses every row for the same reason.
+ */
+export function groupResubmitOutcome(
+  sent: number,
+  refusals: readonly string[],
+  stopped: boolean,
+): ResubmitSentence[] {
+  const standing = refusals.filter((key) => !HOLD_KEYS.has(key))
+  const held = String(refusals.length - standing.length)
+  const counts = { sent: String(sent), held }
+  if (stopped) {
+    if (sent === 0 && refusals.length === 0) return []
+    return standing.length === 0
+      ? [{ key: 'tddResubmit.refused.partlySent', values: counts }]
+      : [...refusedSentences(counts, standing), { key: 'tddResubmit.refused.restNotSent' }]
+  }
+  if (refusals.length === 0) return []
+  if (sent === 0 && refusals.length === 1) return [{ key: refusals[0] }]
+  if (standing.length === 0) {
+    return sent === 0
+      ? [{ key: 'tddResubmit.refused.allHeld', values: { held } }]
+      : [{ key: 'tddResubmit.refused.partlyHeld', values: counts }]
+  }
+  return refusedSentences(counts, standing)
+}
+
+function refusedSentences(
+  counts: { sent: string; held: string },
+  standing: readonly string[],
+): ResubmitSentence[] {
+  const refused = String(standing.length)
+  return [
+    // Rows after a standing refusal are still posted: HISTORICAL_ELIGIBLE is decided per correction,
+    // so one row's refusal does not say how the next is answered. When none went and none was held,
+    // the zero counts are noise.
+    counts.sent === '0' && counts.held === '0'
+      ? { key: 'tddResubmit.refused.allRefused', values: { refused } }
+      : { key: 'tddResubmit.refused.partlyRefused', values: { ...counts, refused } },
+    ...[...new Set(standing)].map((key) => ({ key })),
+  ]
 }
 
 /**

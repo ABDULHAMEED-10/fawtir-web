@@ -195,6 +195,92 @@ describe('invoice dispatch sentences', () => {
     expect(lookup(en, 'invoiceDispatch.refused.windowReserved')).toMatch(/Nothing was sent/)
     expect(lookup(ar, 'invoiceDispatch.refused.windowReserved')).not.toMatch(/[A-Za-z]/)
   })
+
+  // Backend 69c878d73, AuthoredInvoiceSendService: the tenant's standing refuses Send before the
+  // claim with a 409 and one of exactly these two codes (SmpSenderParticipantAuthorityAdapter).
+  it('words a sender-standing refusal of Send by its code, never as "reload"', () => {
+    const refusal = (code: string) =>
+      new ApiError({
+        status: 409,
+        problemType: 'resource-conflict',
+        code,
+        problem: { detail: 'Your company has no verified Peppol participant yet' },
+      })
+    expect(sendRefusalKey(refusal('SENDER_PARTICIPANT_NOT_REGISTERED'))).toBe(
+      'invoiceDispatch.refused.senderNotRegistered',
+    )
+    expect(sendRefusalKey(refusal('SENDER_PARTICIPANT_CLAIM_CONFLICT'))).toBe(
+      'invoiceDispatch.refused.senderClaimConflict',
+    )
+    for (const key of ['senderNotRegistered', 'senderClaimConflict']) {
+      const sentence = lookup(en, `invoiceDispatch.refused.${key}`) as string
+      expect(sentence).toMatch(/Nothing was sent/)
+      expect(sentence).toMatch(/support/)
+      expect(sentence).not.toMatch(/reload|try again/i)
+      const arabic = lookup(ar, `invoiceDispatch.refused.${key}`) as string
+      expect(arabic.replace(/Peppol/g, '')).not.toMatch(/[A-Za-z]/)
+    }
+  })
+
+  it('maps no standing code Send cannot answer', () => {
+    for (const code of ['SENDER_PARTICIPANT_NOT_AUTHORIZED', 'SENDER_STANDING_UNKNOWN']) {
+      expect(sendRefusalKey(new ApiError({ status: 409, problemType: 'x', code })), code).toBeNull()
+    }
+  })
+})
+
+describe('sender standing on the dispatch', () => {
+  const retry = (reasonCode: string) => dispatchNotes(dispatch('RETRY_SCHEDULED', reasonCode))
+
+  // AuthoredInvoiceDispatchAdapter defers these without charging an attempt; the worker skips the
+  // tenant until the standing is resolved, so the obligation resumes by itself.
+  it('says a deferred standing hold is on hold and resumes, not that sending failed or stopped', () => {
+    for (const [code, key] of [
+      ['SENDER_PARTICIPANT_NOT_REGISTERED', 'senderNotRegistered'],
+      ['SENDER_PARTICIPANT_CLAIM_CONFLICT', 'senderClaimConflict'],
+    ]) {
+      const notes = retry(code)
+      expect(notes.state, code).toEqual({ key: 'invoiceDispatch.state.heldSenderStanding' })
+      expect(notes.reason, code).toEqual({ key: `invoiceDispatch.reason.${key}` })
+      const said = `${lookup(en, notes.state!.key)} ${lookup(en, notes.reason!.key)}`
+      expect(said).toMatch(/resumes by itself/)
+      expect(said).not.toMatch(/stopped|failed/i)
+      expect(said).not.toContain(code)
+    }
+  })
+
+  it('keeps "will be retried" for a retry that really was an attempt', () => {
+    expect(retry('AUTHORED_INVOICE_DISPATCH_ERROR').state).toEqual({
+      key: 'invoiceDispatch.state.retryScheduled',
+    })
+  })
+
+  it('words the permanent and infrastructure reasons without the raw code', () => {
+    expect(dispatchNotes(dispatch('DEAD_LETTERED', 'SENDER_PARTICIPANT_NOT_AUTHORIZED'))).toEqual({
+      state: { key: 'invoiceDispatch.state.deadLettered' },
+      reason: { key: 'invoiceDispatch.reason.senderNotAuthorized' },
+    })
+    expect(retry('OUTBOUND_TRANSPORT_UNAVAILABLE')).toEqual({
+      state: { key: 'invoiceDispatch.state.retryScheduled' },
+      reason: { key: 'invoiceDispatch.reason.transportUnavailable' },
+    })
+    // The same reason rides a dead-lettered row, which waits on an operator, not on time.
+    expect(dispatchNotes(dispatch('DEAD_LETTERED', 'OUTBOUND_TRANSPORT_UNAVAILABLE')).reason).toEqual({
+      key: 'invoiceDispatch.reason.transportUnavailable',
+    })
+    expect(en.invoiceDispatch.reason.transportUnavailable).not.toMatch(/at the moment|right now|retried/)
+    expect(
+      ar.invoiceDispatch.reason.transportUnavailable.replace(/Peppol/g, ''),
+    ).not.toMatch(/[A-Za-z]|حاليًا/)
+    expect(
+      dispatchNotes(dispatch('DEAD_LETTERED', 'AUTHORED_INVOICE_DISPATCH_NO_OUTCOME')).reason,
+    ).toEqual({ key: 'invoiceDispatch.reason.noOutcome' })
+  })
+
+  it('has the hold headline in English and Arabic', () => {
+    expect(typeof lookup(en, 'invoiceDispatch.state.heldSenderStanding')).toBe('string')
+    expect(lookup(ar, 'invoiceDispatch.state.heldSenderStanding')).not.toMatch(/[A-Za-z]/)
+  })
 })
 
 describe('transport progress', () => {

@@ -185,9 +185,15 @@ const ICON_BUTTON =
   'flex size-8 shrink-0 items-center justify-center rounded-sm border border-border-subtle transition-colors hover:bg-neutral-25 disabled:cursor-not-allowed disabled:opacity-40'
 
 export function InvoiceDetailsPage() {
+  const { id = '' } = useParams()
+  // Keyed by id: `/invoices/:id` keeps this page mounted when the reader opens another invoice (the
+  // header search links straight to one), and the screen's own state (the last dispatch answer and
+  // its `sendable`, the notice, an open Send confirmation with its Idempotency-Key) was carried onto
+  // the next invoice (audit A4, D3; review of #249). A fresh screen per id starts clean, and an
+  // answer that lands for the one left behind goes to an unmounted screen and is dropped.
   return (
     <AppShell>
-      <InvoiceScreen />
+      <InvoiceScreen key={id} />
     </AppShell>
   )
 }
