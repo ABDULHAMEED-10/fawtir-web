@@ -46,7 +46,23 @@ const PLAN_MANAGE = 'tenant.plan.manage'
 const LIVE_PAYMENT = ['SUBMITTED', 'RECEIPT_RECORDED', 'AWAITING_SECOND_APPROVAL']
 
 /** The kinds that issue a PLAN_CHANGE bill and apply once it is paid. */
-const CHARGED: PlanChangeKind[] = ['UPGRADE', 'CYCLE_TO_ANNUAL', 'KEEP_PLAN', 'TRIAL_UPGRADE']
+const CHARGED: PlanChangeKind[] = [
+  'UPGRADE',
+  'CYCLE_TO_ANNUAL',
+  'KEEP_PLAN',
+  'TRIAL_UPGRADE',
+  'READ_ONLY_UPGRADE',
+  'GRACE_UPGRADE',
+]
+
+/**
+ * The kinds bought as one whole period of the new terms, never pro-rated or credited: the trial
+ * upgrade (TR-5) and an upgrade or cycle change while unpaid (PC-7).
+ */
+const WHOLE_PERIOD: PlanChangeKind[] = ['TRIAL_UPGRADE', 'READ_ONLY_UPGRADE', 'GRACE_UPGRADE']
+
+/** PC-7: bought while read-only or in the grace days. */
+const UNPAID_KINDS: PlanChangeKind[] = ['READ_ONLY_UPGRADE', 'GRACE_UPGRADE']
 
 /** Every refusal the plan-change routes give that has its own sentence (OpenAPI, P2-2). */
 const KNOWN_REFUSALS = [
@@ -297,15 +313,26 @@ function PreviewBody({ preview, inTrial }: { preview: PlanChangePreviewDto; inTr
   const charge = preview.charge
   const charged = CHARGED.includes(preview.kind)
   const atOnce = preview.applies === 'AT_ONCE' || preview.applies === 'AT_ONCE_WHEN_PAID'
-  // R1: only once the server offers the charged change; while it is refused, the blocker says why.
-  const endsTrial = inTrial && charged && preview.blockers.length === 0
   // TR-5: a whole first period of the new plan from the payment day; nothing pro-rated or credited.
   const trialUpgrade = preview.kind === 'TRIAL_UPGRADE'
+  // PC-7: the same whole period while unpaid, from the payment day (read-only) or from the
+  // original renewal date (grace).
+  const wholePeriod = WHOLE_PERIOD.includes(preview.kind)
+  const unpaid = UNPAID_KINDS.includes(preview.kind)
+  const readOnlyUpgrade = preview.kind === 'READ_ONLY_UPGRADE'
+  const graceUpgrade = preview.kind === 'GRACE_UPGRADE'
+  // A cycle change on the same plan says so rather than "Business to Business".
+  const summaryKey =
+    unpaid && preview.from.planCode === preview.to.planCode
+      ? `planChange.kindCycle.${preview.kind}.${preview.to.cycle}`
+      : `planChange.kind.${preview.kind}`
+  // R1: only once the server offers the charged change; while it is refused, the blocker says why.
+  const endsTrial = inTrial && charged && !unpaid && preview.blockers.length === 0
 
   return (
     <div className="flex flex-col gap-4">
       <p className="text-base font-semibold leading-[1.4] text-text-primary">
-        {t(`planChange.kind.${preview.kind}`, { from, to, date: date(preview.effectiveOn) })}
+        {t(summaryKey, { from, to, date: date(preview.effectiveOn) })}
       </p>
 
       {charge ? (
@@ -315,7 +342,7 @@ function PreviewBody({ preview, inTrial }: { preview: PlanChangePreviewDto; inTr
               <Line
                 key={period.startsOn}
                 label={
-                  trialUpgrade
+                  wholePeriod
                     ? t(`planChange.charge.wholePeriod.${preview.to.cycle}`, {
                         start: date(period.startsOn),
                         end: date(period.endsOn),
@@ -346,7 +373,7 @@ function PreviewBody({ preview, inTrial }: { preview: PlanChangePreviewDto; inTr
               <Line
                 key={extra.type}
                 label={withRial(
-                  t(`planChange.charge.${trialUpgrade ? 'extraTrial' : 'extra'}.${extra.type}`, {
+                  t(`planChange.charge.${wholePeriod ? 'extraTrial' : 'extra'}.${extra.type}`, {
                     n: n(extra.count),
                     unit: amount(extra.annualUnitPrice),
                     credit: amount(extra.credit),
@@ -366,7 +393,7 @@ function PreviewBody({ preview, inTrial }: { preview: PlanChangePreviewDto; inTr
           </dl>
           <p className="text-sm font-medium leading-[1.6] text-text-secondary">
             {withRial(
-              trialUpgrade
+              wholePeriod
                 ? t(`planChange.charge.payNowTrial.${preview.to.cycle}`, {
                     total: amount(charge.total),
                     plan: to,
@@ -410,7 +437,7 @@ function PreviewBody({ preview, inTrial }: { preview: PlanChangePreviewDto; inTr
       <ul className="flex list-disc flex-col gap-2 ps-5 text-sm font-medium leading-[1.6] text-text-secondary">
         {preview.kind !== 'NONE' && preview.allowance.afterChange !== preview.allowance.now ? (
           <li>
-            {trialUpgrade
+            {trialUpgrade || readOnlyUpgrade
               ? t('planChange.fact.allowanceTrial', { after: n(preview.allowance.afterChange) })
               : atOnce
                 ? t('planChange.fact.allowanceAtOnce', {
@@ -426,10 +453,21 @@ function PreviewBody({ preview, inTrial }: { preview: PlanChangePreviewDto; inTr
         {endsTrial || (trialUpgrade && preview.blockers.length === 0) ? (
           <li>{t('planChange.fact.endsTrial')}</li>
         ) : null}
+        {preview.endsReadOnly === true || readOnlyUpgrade ? (
+          <li>{t('planChange.fact.endsReadOnly')}</li>
+        ) : null}
+        {graceUpgrade && preview.periodStartsOn ? (
+          <li>{t('planChange.fact.gracePeriodStarts', { date: date(preview.periodStartsOn) })}</li>
+        ) : null}
+        {preview.replacesRenewalBill ? (
+          <li>{t('planChange.fact.replacesRenewalBill', { number: preview.replacesRenewalBill })}</li>
+        ) : null}
         {preview.kind !== 'NONE' &&
         preview.subscriptionDate !== null &&
         !inTrial &&
-        !trialUpgrade ? (
+        !trialUpgrade &&
+        !readOnlyUpgrade &&
+        !(graceUpgrade && preview.periodStartsOn) ? (
           <li>{t('planChange.fact.subscriptionDate', { day: n(preview.subscriptionDate) })}</li>
         ) : null}
         {preview.cycleChangeOn ? (
@@ -666,6 +704,11 @@ export function PendingPlanChangeCard({
         {change.cycleChangeOn ? (
           <p className="text-sm font-medium text-text-secondary">
             {t('planChange.fact.cycleChangeOn', { date: date(change.cycleChangeOn) })}
+          </p>
+        ) : null}
+        {change.lastDayToPay && change.status === 'PENDING_PAYMENT' ? (
+          <p className="text-sm font-medium text-text-secondary">
+            {t('planChange.pending.payBy', { date: date(change.lastDayToPay) })}
           </p>
         ) : null}
         {change.bill && mayManage ? <ReconnectBeforePayingNote /> : null}

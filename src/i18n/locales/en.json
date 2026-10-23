@@ -23645,7 +23645,9 @@
         "CYCLE_TO_MONTHLY": "Schedule the change",
         "CHANGE_AT_ONCE": "Change now",
         "NONE": "Confirm",
-        "TRIAL_UPGRADE": "Confirm and pay"
+        "TRIAL_UPGRADE": "Confirm and pay",
+        "READ_ONLY_UPGRADE": "Confirm and pay",
+        "GRACE_UPGRADE": "Confirm and pay"
       },
       "priceChanged": "The price changed; check the new amount."
     },
@@ -23657,7 +23659,9 @@
       "CYCLE_TO_MONTHLY": "Monthly billing on {{to}} from {{date}}, when your paid year ends.",
       "CHANGE_AT_ONCE": "{{from}} to {{to}}: applies at once, with nothing to pay.",
       "NONE": "This is already your plan and billing.",
-      "TRIAL_UPGRADE": "{{from}} to {{to}}: applies as soon as it is paid, and ends your free trial."
+      "TRIAL_UPGRADE": "{{from}} to {{to}}: applies as soon as it is paid, and ends your free trial.",
+      "READ_ONLY_UPGRADE": "{{from}} to {{to}}: applies as soon as it is paid, and ends read-only.",
+      "GRACE_UPGRADE": "{{from}} to {{to}}: applies as soon as it is paid, in place of your unpaid renewal."
     },
     "charge": {
       "period": "{{start}} to {{end}}: {{remaining}} of {{total}} days left",
@@ -23696,7 +23700,10 @@
       "withdrawUntilPaid": "Once paid, it cannot be withdrawn. Until then you can withdraw it.",
       "withdrawBefore": "You can withdraw it any time before {{date}}.",
       "endsTrial": "Paying ends your free trial at once: your paid period starts on the day you pay, and unused trial days are not carried over.",
-      "allowanceTrial": "Your allowance becomes {{after}} documents a month from the day you pay."
+      "allowanceTrial": "Your allowance becomes {{after}} documents a month from the day you pay.",
+      "endsReadOnly": "Paying ends read-only at once: your new period starts on the day you pay, and that day becomes your subscription date.",
+      "gracePeriodStarts": "Your new plan's period starts on {{date}}, your original renewal date; your subscription date stays.",
+      "replacesRenewalBill": "Your unpaid renewal bill {{number}} is cancelled and replaced by this one."
     },
     "loss": {
       "features": "{{plan}} does not have these, so they stop on {{date}}:",
@@ -23737,20 +23744,25 @@
         "UPGRADE": "Move to {{plan}}. It applies as soon as the payment is confirmed: your allowance rises at once and your subscription date stays the same.",
         "CYCLE_TO_ANNUAL": "Yearly billing on {{plan}}, paid until {{date}}. It applies as soon as the payment is confirmed.",
         "KEEP_PLAN": "Keep {{plan}} instead of the smaller plan. It applies as soon as the payment is confirmed.",
-        "TRIAL_UPGRADE": "Move to {{plan}}. It applies as soon as the payment is confirmed: your free trial then ends, your paid period starts on the day you paid, and unused trial days are not carried over."
+        "TRIAL_UPGRADE": "Move to {{plan}}. It applies as soon as the payment is confirmed: your free trial then ends, your paid period starts on the day you paid, and unused trial days are not carried over.",
+        "READ_ONLY_UPGRADE": "A whole new period on {{plan}}. It applies as soon as the payment is confirmed: read-only ends at once, the period starts on the day you paid, and that day becomes your subscription date.",
+        "GRACE_UPGRADE": "A whole period on {{plan}}, in place of your unpaid renewal. It applies as soon as the payment is confirmed: the period starts on your original renewal date, and your subscription date stays the same."
       },
       "line": {
         "UPGRADE": "Upgrade to {{plan}}",
         "CYCLE_TO_ANNUAL": "Yearly billing on {{plan}}",
         "KEEP_PLAN": "Keep {{plan}}",
-        "TRIAL_UPGRADE": "First paid period on {{plan}}"
+        "TRIAL_UPGRADE": "First paid period on {{plan}}",
+        "READ_ONLY_UPGRADE": "New paid period on {{plan}}",
+        "GRACE_UPGRADE": "Next paid period on {{plan}}"
       },
       "withdraw": "Withdraw the change",
       "withdrawn": "The change was withdrawn. Nothing is owed for it.",
       "noteTrial": {
         "UPGRADE": "Move to {{plan}}. It applies as soon as the payment is confirmed: your free trial then ends, your paid period starts on the day you paid, and unused trial days are not carried over.",
         "CYCLE_TO_ANNUAL": "Yearly billing on {{plan}}. It applies as soon as the payment is confirmed: your free trial then ends, your paid year starts on the day you paid, and unused trial days are not carried over."
-      }
+      },
+      "payBy": "Pay by {{date}}. Unpaid after that day, the change expires."
     },
     "waiting": {
       "toMonthly": "Monthly billing starts on {{date}}, when your paid year ends."
@@ -23765,7 +23777,17 @@
     "bill": {
       "line": "Plan change"
     },
-    "ruleTrial": "During your free trial, paying for a bigger plan ends the trial at once: your paid period starts on the day you pay, and unused trial days are not carried over."
+    "ruleTrial": "During your free trial, paying for a bigger plan ends the trial at once: your paid period starts on the day you pay, and unused trial days are not carried over.",
+    "kindCycle": {
+      "READ_ONLY_UPGRADE": {
+        "ANNUAL": "Yearly billing on {{to}}: applies as soon as it is paid, and ends read-only.",
+        "MONTHLY": "Monthly billing on {{to}}: applies as soon as it is paid, and ends read-only."
+      },
+      "GRACE_UPGRADE": {
+        "ANNUAL": "Yearly billing on {{to}}: applies as soon as it is paid, in place of your unpaid renewal.",
+        "MONTHLY": "Monthly billing on {{to}}: applies as soon as it is paid, in place of your unpaid renewal."
+      }
+    }
   },
   "fawtirReconnection": {
     "title": "Coming back to Fawtir",
