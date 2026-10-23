@@ -2,17 +2,18 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ConsoleSoonPage } from '../../pages/ConsolePage/ConsoleSoonPage'
 import { ModuleUnavailablePage, type UnavailableModule } from './ModuleUnavailable'
-import { demoModulesEnabled } from '../../lib/demoModules'
+import { prototypeShown } from '../../lib/demoModules'
 
 /**
  * A prototype route: the prototype under a ribbon that cannot be dismissed, so a sample record
  * is never read as the company's own, or the honest "not available yet" page when a build hides
  * prototypes. Prototypes call no write API, and the invoice composer refuses their records
  * regardless of this switch (TRADE_DOCUMENTS_CONNECTED in CreateInvoicePage), so nothing sampled
- * can reach a real workflow.
+ * can reach a real workflow. A module hidden outright (R6: trade documents) always gets the
+ * "not available yet" page, whatever the build says (`prototypeHidden`).
  */
 export function DemoModule({ module, children }: { module: UnavailableModule | 'console'; children: ReactNode }) {
-  if (!demoModulesEnabled()) {
+  if (!prototypeShown(module)) {
     return module === 'console' ? <ConsoleSoonPage /> : <ModuleUnavailablePage module={module} />
   }
   return (
