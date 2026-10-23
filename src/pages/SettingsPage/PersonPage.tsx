@@ -537,17 +537,25 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
       </SectionCard>
     )
   }
-  if (permissions.read.status !== 'ready') {
+  // The rows and what a save sends both depend on the catalogue and the role list as well as the
+  // person's permissions: drawn before those settle, a row could move between "From their role"
+  // and "Given to them" under the reader's hand, and a tick saved meanwhile would be sent against
+  // a guessed role. So the card waits for every read it asked for (a failed one falls back).
+  const settling =
+    permissions.read.status === 'loading' ||
+    (mayReadCatalogue && catalogue.status === 'loading') ||
+    (mayListRoles && roles.status === 'loading')
+  if (settling || permissions.read.status !== 'ready') {
     return (
       <SectionCard
         title={t('branchAccess.person.permissionsTitle')}
         note={t('branchAccess.person.permissionsNote')}
       >
         <div className="p-5 pt-0">
-          {permissions.read.status === 'loading' ? (
-            <LoadingNotice />
-          ) : (
+          {permissions.read.status === 'failed' ? (
             <ApiReadFailure error={permissions.read.error} retry={permissions.retry} />
+          ) : (
+            <LoadingNotice />
           )}
         </div>
       </SectionCard>

@@ -434,7 +434,8 @@ describe('Team members', () => {
     const samiRow = screen.getByRole('link', { name: 'Sami' }).closest('tr') as HTMLElement
     expect(within(samiRow).getByText('Every branch')).toBeTruthy()
     const lailaRow = screen.getByRole('link', { name: 'Laila' }).closest('tr') as HTMLElement
-    expect(within(lailaRow).getByText('Muscat, Sohar +1')).toBeTruthy()
+    // Branch names come from their own read, which can land after the people list.
+    expect(await within(lailaRow).findByText('Muscat, Sohar +1')).toBeTruthy()
   })
 
   it('lets a branch administrator see their people, without asking for the invitation list', async () => {
@@ -734,8 +735,9 @@ describe('One person', () => {
       })
     renderAt('/settings/team/p-old')
     expect(await screen.findByText('Accountant, Can approve')).toBeTruthy()
-    // The Select shows the job role, not Approver, which is not one of its options.
-    expect(screen.getByRole('button', { name: 'Role' }).textContent).toMatch(/Accountant/)
+    // The Select shows the job role, not Approver, which is not one of its options. It is drawn
+    // once the role list has come back, which can be after the person's own roles are named.
+    expect((await screen.findByRole('button', { name: 'Role' })).textContent).toMatch(/Accountant/)
     await screen.findAllByText('From their role')
     expect(screen.queryByText('Given to them')).toBeNull()
     const bills = screen

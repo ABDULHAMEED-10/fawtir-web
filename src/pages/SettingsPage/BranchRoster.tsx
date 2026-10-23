@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useApiRead } from '../../hooks'
 import { useCan } from '../../lib/session/session'
@@ -26,11 +26,15 @@ export function BranchRoster({ branchId }: { branchId: string }) {
   const roster = useApiRead<RosterEntryDto[]>(mayManage ? branchPeoplePath(branchId) : null, () =>
     loadBranchPeople(branchId),
   )
-  const [chosen, setChosen] = useState<string[] | null>(null)
+  // The ticks belong to the list they were made on: a fresh read (after a save) starts again from
+  // the server's. Kept with the read rather than cleared by an effect, which could run after a
+  // tick made right after the list appeared and silently undo it.
+  const [choice, setChoice] = useState<{ read: unknown; ids: string[] } | null>(null)
+  const chosen = choice !== null && choice.read === roster.read ? choice.ids : null
+  const setChosen = (ids: string[]) => setChoice({ read: roster.read, ids })
   const [saving, setSaving] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
-  useEffect(() => setChosen(null), [roster.read])
 
   if (!mayManage) {
     return (
