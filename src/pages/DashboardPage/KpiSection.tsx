@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { OmAmount } from '../../components/ui'
-import { useSession } from '../../lib/session/session'
+import { can, useSession } from '../../lib/session/session'
+import { loadPerson } from '../../api/settings/branchAccess'
 import { BUSINESS_TIME_ZONE, formatAmount } from '../../lib/format'
 import type { CashDto, ReceivableRowDto } from '../../api/reports/dashboard'
 import type { BillSummaryDto } from '../../api/expenditure/bills'
@@ -10,10 +11,55 @@ import salesIcon from '../../assets/dashboard/kpi-sales.svg'
 import receivablesIcon from '../../assets/dashboard/kpi-receivables.svg'
 import payablesIcon from '../../assets/dashboard/kpi-payables.svg'
 
+/** Either one reads a person's record (`GET /v1/users/{id}`), their own included. */
+const READS_PEOPLE = ['admin.users.manage', 'branch.users.manage'] as const
+
+/**
+ * The signed-in person's name for the greeting (E9). `/me/entitlements` carries only the username,
+ * so the name comes from their own record when the caller may read it; otherwise, or when that
+ * read fails or holds no name, the username. `undefined` while the record is being read, so the
+ * greeting does not show the username and then change.
+ */
+function useOwnName(): string | undefined {
+  const session = useSession()
+  const userId = session?.userId
+  const mayRead = session !== null && READS_PEOPLE.some((code) => can(session, code))
+  const [found, setFound] = useState<{ userId: string; name: string | null } | null>(null)
+
+  useEffect(() => {
+    if (!userId || !mayRead) return
+    let active = true
+    loadPerson(userId).then(
+      (person) => {
+        if (active) setFound({ userId, name: fullName(person) })
+      },
+      () => {
+        if (active) setFound({ userId, name: null })
+      },
+    )
+    return () => {
+      active = false
+    }
+  }, [userId, mayRead])
+
+  if (!session) return undefined
+  if (!mayRead) return session.username
+  if (found?.userId !== session.userId) return undefined
+  return found.name ?? session.username
+}
+
+function fullName(person: { firstName: string | null; lastName: string | null }): string | null {
+  return (
+    [person.firstName, person.lastName]
+      .map((part) => part?.trim())
+      .filter(Boolean)
+      .join(' ') || null
+  )
+}
+
 export function DashboardHeader({ now = new Date() }: { now?: Date }) {
   const { t, i18n } = useTranslation()
-  // The username is the only name the session carries (`/me/entitlements` has no display name).
-  const name = useSession()?.username
+  const name = useOwnName()
   // The part of the day where the business is, not where the browser is: the greeting said "Good
   // morning" at every hour, which the local browser run caught in the evening.
   const part = partOfDay(now)

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -320,6 +320,36 @@ describe('Invite someone', () => {
     expect(await screen.findByText('Invitation sent to y@real.example.')).toBeTruthy()
     expect(sent).toEqual({ email: 'y@real.example', roleCodes: [] })
     expect(pageRequests()).toEqual([`GET ${ROLES}`, 'POST /api/v1/users/invitations'])
+  })
+
+  it("fills 'Place taken' and, once sent, 'Link works for' from the server; 'Charged from' stays not available (E11)", async () => {
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === '/api/v1/me/entitlements') return json(200, who)
+      if (url === '/api/v1/users/invitations' && init?.method === 'POST') {
+        return json(201, { id: 'i-9', email: 'z@real.example', roleCodes: [], status: 'PENDING',
+          expiresAt: '2026-10-15T09:00:00Z', sentCount: 1, lastSentAt: '2026-10-08T09:00:00Z', createdAt: '2026-10-08T09:00:00Z' })
+      }
+      const answer = answers[url]
+      return answer ? answer() : json(404, { type: 'about:blank' })
+    })
+    renderAt('/settings/team/invite')
+    const row = (label: string) => screen.getByText(label).closest('div')!.querySelector('dd')!.textContent
+    await screen.findByRole('textbox', { name: /Email/ })
+    expect(row(i18n.t('invite.placeTaken'))).toBe('Immediately')
+    // The server says how long a link works only once it has sent one.
+    expect(row(i18n.t('invite.linkWorksFor'))).toBe(NOT_AVAILABLE)
+    expect(row(i18n.t('invite.chargedFrom'))).toBe(NOT_AVAILABLE)
+    fireEvent.change(screen.getByRole('textbox', { name: /Email/ }), { target: { value: 'z@real.example' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('people.invite.send') }))
+    await screen.findByText('Invitation sent to z@real.example.')
+    expect(row(i18n.t('invite.linkWorksFor'))).toBe('7 days')
+    expect(row(i18n.t('invite.chargedFrom'))).toBe(NOT_AVAILABLE)
+
+    await act(async () => {
+      await i18n.changeLanguage('ar')
+    })
+    expect(row(i18n.t('invite.linkWorksFor'))).toBe('7 أيام')
+    expect(row(i18n.t('invite.placeTaken'))).toBe('فورًا')
   })
 
   it('says why an invitation was refused and claims no success', async () => {

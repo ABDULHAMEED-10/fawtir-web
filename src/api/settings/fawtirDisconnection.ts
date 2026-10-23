@@ -106,8 +106,13 @@ export type CompanyReconnectionDto = {
 }
 
 export type CompanyDisconnectionDto = {
-  /** What the customer types to confirm. */
+  /** What the customer types to confirm: the English legal name (else the company's name). */
   companyName: string
+  /**
+   * The Arabic legal name, which the server accepts as well. Asked for in Arabic when there is one.
+   * Absent from an older server, or null when the company has none: the English name alone then.
+   */
+  companyNameAr?: string | null
   /** False once a disconnection has completed; true again once a reconnection takes effect. */
   connected: boolean
   /** No live request and not disconnected (true again after a reconnection). */

@@ -10665,7 +10665,9 @@
     "someone": "Someone",
     "yourCompany": "your company",
     "moreAreas": "+{{count}} more",
-    "footerEmailNeeded": "Fill in an email to send it"
+    "footerEmailNeeded": "Fill in an email to send it",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days"
   },
   "roles": {
     "title": "What each role can do",
@@ -23394,7 +23396,8 @@
         "body": "You will be {{role}} and no longer an Administrator. You can't change it back yourself: another Administrator would have to.",
         "confirm": "Change my role"
       },
-      "subtitleNoBranches": "Their role and permissions."
+      "subtitleNoBranches": "Their role and permissions.",
+      "branchAdminPending": "Not saved yet: press Save permissions to apply it."
     },
     "handover": {
       "open": "Hand over ownership",

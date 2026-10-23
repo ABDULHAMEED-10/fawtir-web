@@ -11312,7 +11312,13 @@
     "someone": "شخص ما",
     "yourCompany": "شركتك",
     "moreAreas": "+{{count}} أخرى",
-    "footerEmailNeeded": "أدخل بريدًا إلكترونيًا لإرسال الدعوة"
+    "footerEmailNeeded": "أدخل بريدًا إلكترونيًا لإرسال الدعوة",
+    "days_zero": "{{count}} يوم",
+    "days_one": "يوم واحد",
+    "days_two": "يومان",
+    "days_few": "{{count}} أيام",
+    "days_many": "{{count}} يومًا",
+    "days_other": "{{count}} يوم"
   },
   "roles": {
     "title": "ما يستطيعه كل دور",
@@ -24708,7 +24714,8 @@
         "body": "ستصبح {{role}} ولن تبقى مسؤولًا. لا يمكنك إعادته بنفسك: يجب أن يعيده مسؤول آخر.",
         "confirm": "غيّر دوري"
       },
-      "subtitleNoBranches": "دوره وصلاحياته."
+      "subtitleNoBranches": "دوره وصلاحياته.",
+      "branchAdminPending": "لم يُحفظ بعد: اضغط «حفظ الصلاحيات» لتطبيقه."
     },
     "handover": {
       "open": "تسليم الملكية",
