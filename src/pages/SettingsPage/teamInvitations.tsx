@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActionMenu, Button, Modal } from '../../components/ui'
 import { describeApiFailure } from '../../lib/apiFailure'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import {
   invitationClosed,
   resendInvitation,
@@ -26,6 +27,9 @@ function useInvitationFailureText(): (error: unknown) => string {
  * again (`POST /v1/users/invitations/{id}/resend`), or take the invitation back
  * (`POST /v1/users/invitations/{id}/revoke`), which asks first. The server decides whether either
  * is still possible; a refusal is said in its own words and the list is read again.
+ *
+ * While the subscription is read-only (ST-2) Resend is not offered, as Invite is not: nothing is
+ * sent. Revoke stays, since it sends nothing and only closes a link.
  */
 export function InvitationActions({
   invitation,
@@ -40,6 +44,7 @@ export function InvitationActions({
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
   const email = invitation.email
+  const maySend = useSubscriptionAllows('ADD_PEOPLE')
 
   const resend = async () => {
     if (busy) return
@@ -79,12 +84,16 @@ export function InvitationActions({
         label={t('people.team.invitation.actionsFor', { email })}
         floating
         items={[
-          {
-            id: 'resend',
-            labelKey: 'people.team.invitation.resend',
-            icon: mailIcon,
-            onSelect: () => void resend(),
-          },
+          ...(maySend
+            ? [
+                {
+                  id: 'resend',
+                  labelKey: 'people.team.invitation.resend',
+                  icon: mailIcon,
+                  onSelect: () => void resend(),
+                },
+              ]
+            : []),
           {
             id: 'revoke',
             labelKey: 'people.team.invitation.revoke',

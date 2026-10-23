@@ -225,3 +225,58 @@ describe('Invite someone, refusals', () => {
     expect(screen.queryByText('Invitation sent to x@real.example.')).toBeNull()
   })
 })
+
+describe('Waiting invitations while the subscription is read-only (ST-2)', () => {
+  const SUBSCRIPTION = '/api/v1/settings/subscription'
+  const BASE = {
+    tracked: true, access: 'PAYMENT_REQUIRED', restrictionsEnforced: true, today: '2026-10-23',
+    planCode: 'STARTER', planName: 'Starter', billingCycle: 'MONTHLY', periodPrice: '35.000',
+    trialStartsOn: null, trialEndsOn: null, trialDay: null, trialDaysLeft: null,
+    paidThrough: '2026-09-30', renewsOn: '2026-10-01', graceDays: 7, graceUntil: '2026-10-07',
+    autoRenew: false, autoRenewAvailable: false, autoRenewChangedAt: null, cancelAtPeriodEnd: false,
+    accessEndsOn: null, scheduledChange: null, enterprise: null,
+  }
+
+  beforeEach(() => {
+    const reader = { ...ADMIN, permissions: [...ADMIN.permissions, 'tenant.plan.read'] }
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === '/api/v1/me/entitlements') return json(200, reader)
+      const answer = answers[`${init?.method ?? 'GET'} ${url}`]
+      return answer ? answer() : json(404, { type: 'about:blank' })
+    })
+  })
+
+  async function menuItems() {
+    await openWaiting()
+    await waitFor(() => expect(sent('GET', SUBSCRIPTION).length).toBeGreaterThan(0))
+    await openMenu()
+    return screen.findAllByRole('menuitem')
+  }
+
+  it('offers Resend and Revoke while the subscription is usable', async () => {
+    answers[`GET ${SUBSCRIPTION}`] = () =>
+      json(200, { ...BASE, access: 'ACTIVE', restrictionsEnforced: true, restriction: null })
+    const items = await menuItems()
+    expect(items.map((i) => i.textContent)).toEqual(['Resend', 'Revoke'])
+  })
+
+  it.each(['SUBSCRIPTION_SUSPENDED', 'SUBSCRIPTION_CANCELLED', 'SUBSCRIPTION_NOT_STARTED'])(
+    'hides Resend but keeps Revoke while %s',
+    async (restriction) => {
+      answers[`GET ${SUBSCRIPTION}`] = () => json(200, { ...BASE, restriction })
+      await openWaiting()
+      await waitFor(() => expect(sent('GET', SUBSCRIPTION).length).toBeGreaterThan(0))
+      await openMenu()
+      await waitFor(() => expect(screen.queryByRole('menuitem', { name: 'Resend' })).toBeNull())
+      expect(screen.getByRole('menuitem', { name: 'Revoke' })).toBeTruthy()
+      expect(sent('POST', RESEND)).toHaveLength(0)
+    },
+  )
+
+  it('hides nothing with the backend switch off', async () => {
+    answers[`GET ${SUBSCRIPTION}`] = () =>
+      json(200, { ...BASE, restrictionsEnforced: false, restriction: null })
+    const items = await menuItems()
+    expect(items.map((i) => i.textContent)).toEqual(['Resend', 'Revoke'])
+  })
+})
