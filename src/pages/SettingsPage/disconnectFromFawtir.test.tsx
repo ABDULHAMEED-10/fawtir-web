@@ -168,6 +168,43 @@ describe('Settings › Company profile: Disconnect from Fawtir', () => {
     expect(within(zone()).getByRole('button', { name: i18n.t('fawtirDisconnection.withdraw') })).toBeTruthy()
   })
 
+  it('tells a yearly customer the whole months left go for a refund review, in English and Arabic (LV-6, E31)', async () => {
+    const user = userEvent.setup()
+    answers[PATH] = () => json(200, { ...NONE, yearlyRefundReview: true })
+    renderSection()
+    await user.click(await screen.findByRole('button', { name: i18n.t('fawtirDisconnection.start') }))
+    let dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByLabelText(new RegExp(i18n.t('fawtirDisconnection.answer.ASK_FAWTIR.title').replace(/[.?]/g, '\\$&'))))
+    expect(
+      within(dialog).getByText(
+        'You pay yearly, so Fawtir will review a refund of the whole months left after the month the disconnection takes effect in. Until the refund is decided, your subscription runs to the end of the period already paid. Once it is refunded, access ends at the end of the last month not refunded.',
+      ),
+    ).toBeTruthy()
+    expect(dialog.textContent).not.toContain('The remaining days are not refunded')
+
+    await user.click(within(dialog).getByRole('button', { name: i18n.t('fawtirDisconnection.dialog.back') }))
+    await i18n.changeLanguage('ar')
+    await user.click(await screen.findByRole('button', { name: i18n.t('fawtirDisconnection.start') }))
+    dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByLabelText(new RegExp(i18n.t('fawtirDisconnection.answer.ASK_FAWTIR.title').replace(/[.?؟]/g, '\\$&'))))
+    expect(
+      within(dialog).getByText(
+        'اشتراكك سنوي، لذا سيراجع فوتر استرداد الأشهر الكاملة المتبقية بعد الشهر الذي يتم فيه الفصل. حتى يُبتّ في الاسترداد يستمر اشتراكك حتى نهاية الفترة المدفوعة، وعند الاسترداد ينتهي الوصول بنهاية آخر شهر لم يُسترد.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('keeps the no-refund line for a monthly customer or a server older than the field', async () => {
+    const user = userEvent.setup()
+    answers[PATH] = () => json(200, { ...NONE, yearlyRefundReview: false })
+    renderSection()
+    await user.click(await screen.findByRole('button', { name: i18n.t('fawtirDisconnection.start') }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByLabelText(new RegExp(i18n.t('fawtirDisconnection.answer.ASK_FAWTIR.title').replace(/[.?]/g, '\\$&'))))
+    expect(dialog.textContent).toContain('The remaining days are not refunded')
+    expect(dialog.textContent).not.toContain('refund of the whole months left')
+  })
+
   it('says a move to another provider needs nothing in Fawtir, and sends nothing (LV-4)', async () => {
     const user = userEvent.setup()
     renderSection()

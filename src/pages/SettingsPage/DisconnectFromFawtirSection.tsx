@@ -238,6 +238,7 @@ function DangerZone() {
         <DisconnectDialog
           open={asking}
           companyName={view.companyName}
+          yearlyRefundReview={view.yearlyRefundReview === true}
           onClose={() => setAsking(false)}
           onDone={(next, why) => {
             setLatest(next)
@@ -450,11 +451,14 @@ async function reload(set: (view: CompanyDisconnectionDto) => void) {
 function DisconnectDialog({
   open,
   companyName,
+  yearlyRefundReview,
   onClose,
   onDone,
 }: {
   open: boolean
   companyName: string
+  /** A yearly subscription's whole months left go for a refund review (LV-6, E31). */
+  yearlyRefundReview: boolean
   onClose: () => void
   /** `why` is the sentence to show when the request had changed elsewhere meanwhile. */
   onDone: (view: CompanyDisconnectionDto, why?: string) => void
@@ -574,7 +578,13 @@ function DisconnectDialog({
                 <li>{t('fawtirDisconnection.dialog.warning.nothingSent')}</li>
                 <li>{t('fawtirDisconnection.dialog.warning.legalDuty')}</li>
                 <li>{t('fawtirDisconnection.dialog.warning.records')}</li>
-                <li>{t('fawtirDisconnection.dialog.warning.subscription')}</li>
+                <li>
+                  {t(
+                    yearlyRefundReview
+                      ? 'fawtirDisconnection.dialog.warning.subscriptionYearly'
+                      : 'fawtirDisconnection.dialog.warning.subscription',
+                  )}
+                </li>
                 <li>{t('fawtirDisconnection.dialog.warning.withdraw')}</li>
               </ul>
             </div>

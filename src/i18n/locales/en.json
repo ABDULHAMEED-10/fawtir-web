@@ -780,7 +780,8 @@
     "footer": {
       "f1": "Change or cancel anytime",
       "f2": "Upgrades through the Fawtir team, downgrades at renewal",
-      "f3": "No setup fees"
+      "f3": "No setup fees",
+      "f2SelfService": "Upgrades apply as soon as paid, pro rata; downgrades at renewal"
     },
     "payNote": "Next you choose how you'll pay: start with the free trial, or pay with your application.",
     "trialNote_one": "You can start any plan except Enterprise with a {{count}}-day free trial of that plan, from the day your account is approved: {{documents}} documents, and nothing to pay until it ends.",
@@ -19936,7 +19937,8 @@
       "action": {
         "bills": "Go to Bills and payment",
         "plan": "Choose a plan"
-      }
+      },
+      "trialEnded": "Your free trial has ended and your subscription is read-only until you choose a plan and pay."
     }
   },
   "appAccess": {
@@ -23284,7 +23286,8 @@
         "legalDuty": "Issuing e-invoices is your own legal duty, so have another service provider ready.",
         "records": "Every record stays readable and exportable for the legal retention period.",
         "subscription": "Your subscription runs to the end of the period already paid, then ends without renewing. The remaining days are not refunded.",
-        "withdraw": "You can withdraw the request until it completes."
+        "withdraw": "You can withdraw the request until it completes.",
+        "subscriptionYearly": "You pay yearly, so Fawtir will review a refund of the whole months left after the month the disconnection takes effect in. Until the refund is decided, your subscription runs to the end of the period already paid. Once it is refunded, access ends at the end of the last month not refunded."
       },
       "typeName": "Type {{name}} to confirm",
       "back": "Keep my connection",

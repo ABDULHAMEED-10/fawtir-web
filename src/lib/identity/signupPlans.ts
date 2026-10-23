@@ -53,6 +53,12 @@ export type SignupCataloguePlan = {
    * plan's ERP mapping off). Absent from a server older than the field, read as not offered.
    */
   erpAddon?: CatalogueErpAddon | null
+  /**
+   * Whether a company can change plan itself on this deployment, the same on every plan: true, an
+   * upgrade is bought from the plan page and applies at once, pro rata (Plan v4 §10); false, upgrades
+   * go through the Fawtir team. Absent from a server older than the field, read as false.
+   */
+  selfServicePlanChange?: boolean
 }
 
 export const SIGNUP_PLANS_PATH = '/v1/auth/signup/plans'
