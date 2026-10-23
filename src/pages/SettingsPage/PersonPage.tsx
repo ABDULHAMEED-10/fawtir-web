@@ -51,7 +51,7 @@ import { branchAccessRefusalKey } from '../../lib/branchAccessRefusals'
 import { permissionWords } from '../../lib/permissionLabels'
 import { OwnerPill } from './people'
 import { seesEveryBranch, useBranchNames, useManagesPeople, useRoleNames } from './peopleView'
-import { sameCompanyName } from '../../lib/typedCompanyName'
+import { typedOneOfCompanyNames } from '../../lib/typedCompanyName'
 
 /**
  * Settings › Team members › one person (Business Rules BA-1, OW-1, OW-4, RL-1, RL-2, RL-3, LG-3).
@@ -762,7 +762,7 @@ function HandoverDialog({
       : []
   const targetName = candidates.find((person) => person.id === target)
   // The name typed must be the company's, as the server checks it (spaces and case aside).
-  const nameMatches = company === '' ? typed.trim() !== '' : sameCompanyName(typed, company)
+  const nameMatches = typedOneOfCompanyNames(typed, [company])
   const ready = target !== '' && nameMatches && password !== '' && !busy
 
   const close = () => {

@@ -208,3 +208,15 @@ email preview are unchanged.
 |---|---|---|
 | 7.7 | "Link works for" before anything is sent | The invitation lifetime before sending, for example `invitationValidityDays` on a read the inviter can make (the setting is `fawtir.identity.invitations.ttl`) |
 | 7.8 | "Charged from". Still "Not available yet" | Not drawn from the design's "The day they accept": US-1 says an extra user is paid and confirmed before they become active, and the server refuses an invitation past the plan's people until an extra place is bought (`extra-place-required`), so nothing is charged when they accept. Needs the owner's wording for what this row should say |
+
+## Update 23 Oct 2026: Disconnect from Fawtir, the Arabic legal name (row 1.7, Company profile)
+
+The confirmation accepts the English or the Arabic legal name, as the server does
+(`FawtirDisconnectionService.requireCompanyName` takes the legal name, the trading name and the
+Arabic legal name). The screen reads an optional `companyNameAr` on `GET /v1/settings/fawtir-disconnection`
+and asks for it in Arabic. Until the server sends it, the screen asks for and accepts the English name
+only, and the server still accepts any of the three.
+
+| # | Element on the screen | What the backend needs to add |
+|---|---|---|
+| 1.7 | "Type {name} to confirm" in Arabic, and the button opening for the Arabic name | `companyNameAr` (the tenant's `legal_name_ar`, null when none) on the company disconnection view |

@@ -118,6 +118,7 @@ function view() {
   const disconnected = request?.status === 'DISCONNECTED' && !back()
   return {
     companyName: COMPANY.legalName,
+    companyNameAr: COMPANY.legalNameAr,
     connected: !disconnected,
     canRequest: !live() && !disconnected,
     canWithdraw: live(),

@@ -4,7 +4,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useApiRead } from '../../hooks'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { formatDate, formatInstantDay } from '../../lib/format'
-import { sameCompanyName } from '../../lib/typedCompanyName'
+import { typedOneOfCompanyNames } from '../../lib/typedCompanyName'
 import { Button, Input, Modal } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { ApiError } from '../../api'
@@ -239,6 +239,7 @@ function DangerZone() {
         <DisconnectDialog
           open={asking}
           companyName={view.companyName}
+          companyNameAr={view.companyNameAr ?? null}
           onClose={() => setAsking(false)}
           onDone={(next, why) => {
             setLatest(next)
@@ -451,16 +452,23 @@ async function reload(set: (view: CompanyDisconnectionDto) => void) {
 function DisconnectDialog({
   open,
   companyName,
+  companyNameAr,
   onClose,
   onDone,
 }: {
   open: boolean
   companyName: string
+  /** The Arabic legal name, when the server sends one. */
+  companyNameAr: string | null
   onClose: () => void
   /** `why` is the sentence to show when the request had changed elsewhere meanwhile. */
   onDone: (view: CompanyDisconnectionDto, why?: string) => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  // The field asks for the name in the reader's language: the Arabic legal name in Arabic when the
+  // company has one, else the English one. Either is accepted, as the server accepts either.
+  const askedName =
+    (i18n.language ?? 'en').startsWith('ar') && companyNameAr?.trim() ? companyNameAr : companyName
   const [answer, setAnswer] = useState<DisconnectionAnswer | null>(null)
   const [typed, setTyped] = useState('')
   const [busy, setBusy] = useState(false)
@@ -476,10 +484,10 @@ function DisconnectDialog({
   // Moving to another provider needs no request in Fawtir (LV-4, manual 3.8.1): the screen says
   // so and sends nothing, as the server would record nothing.
   const needsRequest = answer === 'ALREADY_DISCONNECTED' || answer === 'ASK_FAWTIR'
-  // LV-1: the button waits for the name the field asks for, compared as the server compares it
-  // (spaces and case aside). Without a name to compare, any text opens it and the server decides.
-  const nameTyped =
-    companyName.trim() === '' ? typed.trim() !== '' : sameCompanyName(typed, companyName)
+  // LV-1: the button waits for the company's English or Arabic legal name, compared as the server
+  // compares it (spaces and case aside). Without a name to compare, any text opens it and the
+  // server decides.
+  const nameTyped = typedOneOfCompanyNames(typed, [companyName, companyNameAr])
 
   const confirm = async () => {
     if (!needsRequest) return
@@ -584,7 +592,7 @@ function DisconnectDialog({
               </ul>
             </div>
             <Input
-              label={t('fawtirDisconnection.dialog.typeName', { name: companyName })}
+              label={t('fawtirDisconnection.dialog.typeName', { name: askedName })}
               value={typed}
               maxLength={255}
               autoComplete="off"
