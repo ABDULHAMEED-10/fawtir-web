@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { resetSharedRequests } from '../../api'
 import { BranchesPage } from './BranchesPage'
+import { AddBranchPage } from './AddBranchPage'
 
 /**
  * Settings › Branches: closing and reopening a branch (Business Rules BR-2, BR-4; option (a),
@@ -186,5 +187,155 @@ describe('Settings › Branches, reopening', () => {
     expect(await screen.findByText('Sohar is open again.')).toBeTruthy()
     const [, init] = sent('PUT', '/api/v1/branches/b-1')[1]
     expect(JSON.parse((init as RequestInit).body as string)).toMatchObject({ active: true })
+  })
+})
+
+/** The branch's own page (/settings/branches/:id), with the list behind it to come back to. */
+function renderBranchPage(id = 'b-1') {
+  return render(
+    <MemoryRouter initialEntries={[`/settings/branches/${id}`]}>
+      <Routes>
+        <Route path="/settings/branches/:id" element={<AddBranchPage />} />
+        <Route path="/settings/branches" element={<BranchesPage />} />
+      </Routes>
+    </MemoryRouter>,
+  )
+}
+
+// The name and the town are both "Sohar"; either shows the branch has filled the form.
+const branchPageReady = () =>
+  vi.waitFor(() => expect(screen.getAllByDisplayValue('Sohar').length).toBeGreaterThan(0))
+
+describe("A branch's own page, closing it (E38)", () => {
+  it('asks first, in plain words, then saves the branch closed and goes back to the list', async () => {
+    answers['PUT /api/v1/branches/b-1'] = () => {
+      answers[`GET ${OVERVIEW}`] = () => json(200, overview([row('b-1', 'Sohar', false)]))
+      return json(200, detail('b-1', 'Sohar', false))
+    }
+    renderBranchPage()
+    await branchPageReady()
+    await vi.waitFor(() => expect(sent('GET', SUBSCRIPTION).length).toBeGreaterThan(0))
+    fireEvent.click(screen.getByRole('button', { name: 'Close this branch' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Close Sohar?')).toBeTruthy()
+    expect(
+      within(dialog).getByText(
+        /^Its place is paid until .*2026, with no refund\. Until then you can use it for a new branch at no extra charge\.$/,
+      ),
+    ).toBeTruthy()
+    expect(
+      within(dialog).getByText(
+        'Its name stays on every record made there, and its invoices stay in your reports.',
+      ),
+    ).toBeTruthy()
+    // Nothing is sent until it is confirmed.
+    expect(sent('PUT', '/api/v1/branches/b-1')).toHaveLength(0)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close now' }))
+
+    expect(
+      await screen.findByText(
+        /^Sohar is closed\. The place is paid until .*2026 and can go to a new branch at no extra charge\.$/,
+      ),
+    ).toBeTruthy()
+    const [, init] = sent('PUT', '/api/v1/branches/b-1')[0]
+    expect(JSON.parse((init as RequestInit).body as string)).toMatchObject({
+      code: 'B-1',
+      name: 'Sohar',
+      type: 'STORE',
+      city: 'Sohar',
+      country: 'OM',
+      active: false,
+      expectedVersion: 3,
+    })
+    expect(await screen.findByRole('button', { name: 'Reopen it' })).toBeTruthy()
+  })
+
+  it('cancelling the dialog sends nothing', async () => {
+    renderBranchPage()
+    await branchPageReady()
+    fireEvent.click(screen.getByRole('button', { name: 'Close this branch' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(sent('PUT', '/api/v1/branches/b-1')).toHaveLength(0)
+  })
+
+  it.each([
+    ['the Head Branch', { headBranch: true }],
+    ['the head office', { headOffice: true }],
+    ['a branch already closed', { active: false }],
+  ])('does not show "Close this branch" on %s', async (_label, extra) => {
+    answers['GET /api/v1/branches/b-1'] = () =>
+      json(200, { ...detail('b-1', 'Sohar', true), ...extra })
+    renderBranchPage()
+    await branchPageReady()
+    expect(screen.getByRole('button', { name: 'Save the changes' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Close this branch' })).toBeNull()
+  })
+
+  it('says the Head Branch is never closed when the server refuses it, and stays on the page', async () => {
+    answers['PUT /api/v1/branches/b-1'] = () =>
+      json(409, {
+        type: 'https://api.fawtir.om/problems/head-branch-always-on',
+        status: 409,
+        detail: 'The Head Branch cannot be switched off; it can be renamed.',
+      })
+    renderBranchPage()
+    await branchPageReady()
+    fireEvent.click(screen.getByRole('button', { name: 'Close this branch' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close now' }))
+    expect(
+      await within(dialog).findByText('The Head Branch is never closed. You can rename it.'),
+    ).toBeTruthy()
+    expect(screen.getByLabelText(/Branch name/)).toBeTruthy()
+  })
+
+  it('reads in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    renderBranchPage()
+    await branchPageReady()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('addBranch.closeThisBranch') }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(i18n.t('removal.branch.title', { name: 'Sohar' }))).toBeTruthy()
+    expect(within(dialog).getByText(i18n.t('removal.branch.records'))).toBeTruthy()
+    await i18n.changeLanguage('en')
+  })
+
+  it('keeps a closed branch closed when its details are saved', async () => {
+    answers['GET /api/v1/branches/b-1'] = () => json(200, detail('b-1', 'Sohar', false))
+    answers['PUT /api/v1/branches/b-1'] = () => json(200, detail('b-1', 'Sohar', false))
+    renderBranchPage()
+    await branchPageReady()
+    fireEvent.click(screen.getByRole('button', { name: 'Save the changes' }))
+    await vi.waitFor(() => expect(sent('PUT', '/api/v1/branches/b-1')).toHaveLength(1))
+    const [, init] = sent('PUT', '/api/v1/branches/b-1')[0]
+    expect(JSON.parse((init as RequestInit).body as string)).toMatchObject({ active: false })
+  })
+})
+
+describe("A branch's own page, its numbering", () => {
+  it('shows a branch with its own series as such even when the overview answers after the branch', async () => {
+    let release: () => void = () => {}
+    const overviewLate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    answers[`GET ${OVERVIEW}`] = () =>
+      json(200, overview([{ ...row('b-1', 'Sohar', true), invoicePrefix: 'SOH' }]))
+    const answer = answers[`GET ${OVERVIEW}`]
+    const inner = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === OVERVIEW) {
+        await overviewLate
+        return answer(init)
+      }
+      return inner(url, init)
+    })
+    renderBranchPage()
+    await branchPageReady()
+    expect(screen.queryByText('Sohar · carries on the company series')).toBeNull()
+    release()
+    expect(await screen.findByText('Sohar · first invoice SOH-INV-0001')).toBeTruthy()
+    expect(screen.queryByText('Sohar · carries on the company series')).toBeNull()
   })
 })

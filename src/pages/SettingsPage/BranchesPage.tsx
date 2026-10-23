@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
-import { ActionMenu, Button, Modal, Rial } from '../../components/ui'
+import { CloseBranchDialog } from './CloseBranchDialog'
+import { ActionMenu, Rial } from '../../components/ui'
 import { Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import { formatAmount, formatDate } from '../../lib/format'
@@ -51,7 +52,11 @@ export function BranchesPage() {
   // When a closed branch's paid place ends (the next renewal, BR-4); undated if unreadable.
   const subscription = useApiRead<SubscriptionStatusDto>(SUBSCRIPTION_PATH, loadSubscription).read
   const renewsOn = subscription.status === 'ready' ? (subscription.data.renewsOn ?? null) : null
-  const [done, setDone] = useState<string | null>(null)
+  // A branch closed from its own page comes back here with the sentence to show.
+  const arrived = useLocation().state as { done?: unknown } | null
+  const [done, setDone] = useState<string | null>(
+    typeof arrived?.done === 'string' ? arrived.done : null,
+  )
   const afterChange = (message: string) => {
     setDone(message)
     overviewRead.retry()
@@ -465,38 +470,15 @@ function BranchCard({
         </>
       )}
 
-      <Modal
+      <CloseBranchDialog
         open={confirming}
-        onClose={() => setConfirming(false)}
-        title={t('removal.branch.title', { name })}
-        footer={
-          <div className="flex flex-wrap justify-end gap-3">
-            <Button variant="secondary" size="md" onClick={() => setConfirming(false)}>
-              {t('removal.cancel')}
-            </Button>
-            <Button size="md" disabled={busy} onClick={() => void close()}>
-              {busy ? t('removal.saving') : t('removal.branch.confirm')}
-            </Button>
-          </div>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          <p className="text-sm font-medium leading-[1.6] text-text-secondary">
-            {t('removal.branch.body', { name })}
-          </p>
-          <p className="text-sm font-medium leading-[1.6] text-text-secondary">
-            {placeSentence(t, 'removal.branch', 'place', renewsOn, i18n.language, name)}
-          </p>
-          <p className="text-sm font-medium leading-[1.6] text-text-secondary">
-            {t('removal.branch.records')}
-          </p>
-          {failure ? (
-            <p role="alert" className="text-sm font-medium text-danger-700">
-              {failure}
-            </p>
-          ) : null}
-        </div>
-      </Modal>
+        name={name}
+        renewsOn={renewsOn}
+        busy={busy}
+        failure={failure}
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => void close()}
+      />
     </section>
   )
 }
