@@ -322,6 +322,28 @@ describe("A branch's own page, closing it (E38)", () => {
     }
   })
 
+  it('titles the page "Edit" with the Arabic name in Arabic and the English name in English', async () => {
+    answers['GET /api/v1/branches/b-1'] = () =>
+      json(200, { ...detail('b-1', 'Sohar', true), nameAr: 'صحار' })
+    await i18n.changeLanguage('ar')
+    try {
+      renderBranchPage()
+      await branchPageReady()
+      expect(
+        screen.getByRole('heading', { name: i18n.t('addBranch.editTitle', { name: 'صحار' }) }),
+      ).toBeTruthy()
+      expect(
+        screen.queryByRole('heading', { name: i18n.t('addBranch.editTitle', { name: 'Sohar' }) }),
+      ).toBeNull()
+      await i18n.changeLanguage('en')
+      expect(
+        await screen.findByRole('heading', { name: 'Sohar: what it is and how it invoices' }),
+      ).toBeTruthy()
+    } finally {
+      await i18n.changeLanguage('en')
+    }
+  })
+
   it('keeps a closed branch closed when its details are saved', async () => {
     answers['GET /api/v1/branches/b-1'] = () => json(200, detail('b-1', 'Sohar', false))
     answers['PUT /api/v1/branches/b-1'] = () => json(200, detail('b-1', 'Sohar', false))

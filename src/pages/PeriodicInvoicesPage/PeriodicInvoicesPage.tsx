@@ -71,6 +71,7 @@ import pauseIcon from '../../assets/actions/pause.svg'
 import resumeIcon from '../../assets/actions/periodic.svg'
 import duplicateIcon from '../../assets/actions/duplicate.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 /** The customers list refuses a page over 100, so names are read a hundred at a time. */
 const CUSTOMER_PAGE_SIZE = 100
@@ -119,6 +120,9 @@ function PeriodicInvoicesContent() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const session = useSession()
+  // No new drafts while the subscription is read-only (ST-2, CA-3). Pause stays offered; Resume
+  // waits until they pay (owner, 23 Oct).
+  const mayDraft = useSubscriptionAllows('CREATE_DRAFTS')
   const canManage = can(session, 'invoice.draft')
   const today = muscatToday()
   const [tab, setTab] = useState<PeriodicTabId>('all')
@@ -373,12 +377,17 @@ function PeriodicInvoicesContent() {
         ? [
             ...(status === 'active'
               ? [
-                  {
-                    id: 'generate',
-                    labelKey: 'periodicList.menu.generate',
-                    icon: generateIcon,
-                    onSelect: () => setGenerating(schedule),
-                  },
+                  // Generate makes a new draft now, so it waits until they pay too.
+                  ...(mayDraft
+                    ? [
+                        {
+                          id: 'generate',
+                          labelKey: 'periodicList.menu.generate',
+                          icon: generateIcon,
+                          onSelect: () => setGenerating(schedule),
+                        },
+                      ]
+                    : []),
                   {
                     id: 'pause',
                     labelKey: 'periodicList.menu.pause',
@@ -386,7 +395,7 @@ function PeriodicInvoicesContent() {
                     onSelect: () => void toggle(schedule),
                   },
                 ]
-              : status === 'paused'
+              : status === 'paused' && mayDraft
                 ? [
                     {
                       id: 'resume',
@@ -396,12 +405,16 @@ function PeriodicInvoicesContent() {
                     },
                   ]
                 : []),
-            {
-              id: 'duplicate',
-              labelKey: 'periodicList.menu.duplicate',
-              icon: duplicateIcon,
-              to: `/income/periodic/new?copy=${schedule.id}`,
-            },
+            ...(mayDraft
+              ? [
+                  {
+                    id: 'duplicate',
+                    labelKey: 'periodicList.menu.duplicate',
+                    icon: duplicateIcon,
+                    to: `/income/periodic/new?copy=${schedule.id}`,
+                  },
+                ]
+              : []),
             {
               id: 'delete',
               labelKey: 'periodicList.menu.delete',
@@ -486,7 +499,7 @@ function PeriodicInvoicesContent() {
               <img src={exportIcon} alt="" className="size-6 rotate-180" />
               {t('periodicList.export')}
             </button>
-            {canManage ? (
+            {canManage && mayDraft ? (
               <Link
                 to="/income/periodic/new"
                 className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-primary-700 py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"

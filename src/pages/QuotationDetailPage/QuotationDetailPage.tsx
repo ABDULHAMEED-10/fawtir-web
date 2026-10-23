@@ -26,6 +26,7 @@ import timelineOpenIcon from '../../assets/quotation-detail/timeline-open.svg'
 import timelineDoneIcon from '../../assets/quotation-detail/timeline-done.svg'
 import quotationPreview from '../../assets/quotation-detail/quotation-preview.png'
 import omrIcon from '../../assets/quotations/omr-row.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 const STAT_TONE = {
   normal: 'text-[#151c2d] font-medium',
@@ -108,8 +109,21 @@ export function QuotationDetailPage() {
   return <QuotationDetailView doc={doc} />
 }
 
+/** The shell first, so the read-only check below runs inside the signed-in session. */
 function QuotationDetailView({ doc }: { doc: QuotationDetail }) {
+  return (
+    <AppShell>
+      <QuotationDetailBody doc={doc} />
+    </AppShell>
+  )
+}
+
+function QuotationDetailBody({ doc }: { doc: QuotationDetail }) {
   const { t } = useTranslation()
+  // Nothing new is made while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
+  const mayCreate = useSubscriptionAllows('CREATE_DRAFTS')
+  // Nor sent: Send gives the document its number (ST-2, owner 23 Oct, third message).
+  const maySend = useSubscriptionAllows('SEND_DOCUMENTS')
   const navigate = useNavigate()
   const notice = useTradeNotice()
   const unavailable = notice.unavailable
@@ -121,7 +135,7 @@ function QuotationDetailView({ doc }: { doc: QuotationDetail }) {
     doc.status === 'sent' ? 'quotationDetail.status.sent' : `quotations.status.${doc.status}`
 
   return (
-    <AppShell>
+    <>
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
         {/* Trade documents › Quotations — then the number, status and one-line summary. */}
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -157,7 +171,7 @@ function QuotationDetailView({ doc }: { doc: QuotationDetail }) {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <ActionMenu
-              items={quotationRowActions(doc.id, onAction)}
+              items={quotationRowActions(doc.id, onAction, mayCreate)}
               label={t('quotationDetail.moreActions')}
               variant="bordered"
             />
@@ -169,13 +183,15 @@ function QuotationDetailView({ doc }: { doc: QuotationDetail }) {
               <img src={downloadIcon} alt="" className="size-6" />
               {t('quotationDetail.download')}
             </button>
-            <button
-              type="button"
-              onClick={unavailable}
-              className="inline-flex h-[46px] items-center rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a]"
-            >
-              {t('quotationDetail.sendReminder')}
-            </button>
+            {maySend ? (
+              <button
+                type="button"
+                onClick={unavailable}
+                className="inline-flex h-[46px] items-center rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a]"
+              >
+                {t('quotationDetail.sendReminder')}
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -221,13 +237,15 @@ function QuotationDetailView({ doc }: { doc: QuotationDetail }) {
                 >
                   {t('quotationDetail.extendValidity')}
                 </button>
-                <button
-                  type="button"
-                  onClick={unavailable}
-                  className="inline-flex h-[41px] items-center rounded-sm border border-black/[0.06] bg-surface-tab-bar px-4 text-sm font-semibold text-[#3a3a3a]"
-                >
-                  {t('quotationDetail.reviseResend')}
-                </button>
+                {maySend ? (
+                  <button
+                    type="button"
+                    onClick={unavailable}
+                    className="inline-flex h-[41px] items-center rounded-sm border border-black/[0.06] bg-surface-tab-bar px-4 text-sm font-semibold text-[#3a3a3a]"
+                  >
+                    {t('quotationDetail.reviseResend')}
+                  </button>
+                ) : null}
               </div>
               <div className="mt-6 grid gap-4 sm:grid-cols-4">
                 {doc.decision.stats.map((stat) => (
@@ -528,6 +546,6 @@ function QuotationDetailView({ doc }: { doc: QuotationDetail }) {
           </div>
         </Card>
       </div>
-    </AppShell>
+    </>
   )
 }

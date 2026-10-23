@@ -8,6 +8,8 @@ import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitl
 import type { DraftResponse } from '../../api/invoices/drafts'
 import { CreateInvoicePage } from './CreateInvoicePage'
 import { muscatToday, plusDays } from '../../lib/invoiceIssue'
+import { resetSharedRequests } from '../../api/inflight'
+import { forgetSubscriptionStanding } from '../../lib/subscriptionReadOnly'
 
 const WRITER: Entitlements = {
   userId: 'u-1',
@@ -1016,5 +1018,73 @@ describe('a self-billed draft opened from an Income address', () => {
     renderAt('/invoices/d-1/edit')
     expect(await screen.findByText(landing)).toBeTruthy()
     expect(calls('PUT', '/api/v1/invoice-drafts/d-1')).toHaveLength(0)
+  })
+})
+
+describe('the allowance meter in the header', () => {
+  // A Business trial that ended unpaid: the server counts a new period from the day after the
+  // trial at the paid plan's 1,000, although nothing can be issued (R8, 23 Oct re-test).
+  const PLAN = { usage: { used: 1, quota: 1000 }, allowance: { used: 1, totalAllowance: 1000 } }
+  const TRIAL_ENDED = {
+    tracked: true,
+    access: 'PAYMENT_REQUIRED',
+    restrictionsEnforced: true,
+    today: '2026-10-23',
+    planCode: 'BUSINESS',
+    planName: 'Business',
+    billingCycle: 'MONTHLY',
+    periodPrice: '80.000',
+    trialStartsOn: '2026-10-08',
+    trialEndsOn: '2026-10-22',
+    trialDay: null,
+    trialDaysLeft: null,
+    paidThrough: null,
+    renewsOn: null,
+    graceDays: 7,
+    graceUntil: null,
+    autoRenew: false,
+    autoRenewAvailable: false,
+    autoRenewChangedAt: null,
+    cancelAtPeriodEnd: false,
+    accessEndsOn: null,
+    scheduledChange: null,
+    enterprise: null,
+    restriction: 'SUBSCRIPTION_SUSPENDED',
+  }
+  const ACTIVE = { ...TRIAL_ENDED, access: 'ACTIVE', paidThrough: '2026-11-22', restriction: null }
+
+  function serve(subscription: unknown) {
+    resetSharedRequests()
+    forgetSubscriptionStanding()
+    who = { ...WRITER, permissions: [...WRITER.permissions, 'tenant.plan.read'] }
+    const served = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === '/api/v1/settings/plan') return json(200, PLAN)
+      if (url === '/api/v1/settings/subscription') return json(200, subscription)
+      return served(url, init)
+    })
+  }
+
+  afterEach(() => forgetSubscriptionStanding())
+
+  it('shows the documents used against the allowance while the subscription is active', async () => {
+    serve(ACTIVE)
+    renderAt('/invoices/new')
+    expect(await screen.findByText('/ 1,000 used')).toBeTruthy()
+  })
+
+  it('draws no meter once a trial has ended unpaid: nothing can be issued, so "of 1,000" misleads', async () => {
+    serve(TRIAL_ENDED)
+    renderAt('/invoices/new')
+    await screen.findByRole('button', { name: 'Select customer' })
+    await waitFor(() =>
+      expect(calls('GET', '/api/v1/settings/subscription').length).toBeGreaterThan(0),
+    )
+    await waitFor(() => expect(calls('GET', '/api/v1/settings/plan').length).toBeGreaterThan(0))
+    // Let both reads settle before asserting the meter is absent.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    })
+    expect(screen.queryByText('/ 1,000 used')).toBeNull()
   })
 })

@@ -7,6 +7,7 @@ import { CloseIcon, MenuIcon } from '../../components/ui/icons'
 import type { NoteScope } from '../../lib/notifications'
 import searchIcon from '../../assets/dashboard/search.svg'
 import plusIcon from '../../assets/dashboard/plus.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 /** Below this the bar cannot hold a search field as well as everything else. */
 const SEARCH_FITS = '(min-width: 48rem)'
@@ -25,8 +26,11 @@ export function Topbar({
   const { t } = useTranslation()
   const location = useLocation()
   const [searchOpen, setSearchOpen] = useState(false)
+  // No new drafts while the subscription is read-only (ST-2, CA-3).
+  const mayDraft = useSubscriptionAllows('CREATE_DRAFTS')
   const showCreateInvoice =
     allowCreateInvoice &&
+    mayDraft &&
     !location.pathname.startsWith('/invoices') &&
     !location.pathname.startsWith('/income') &&
     // Self-billing moved to Expenditure (6 Oct 2026) but keeps the bar its frames draw.

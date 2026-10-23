@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import i18n from '../../i18n'
 import { resetSharedRequests } from '../../api'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
+import { forgetSubscriptionStanding } from '../../lib/subscriptionReadOnly'
 import { DashboardPage } from './DashboardPage'
 import { DashboardHeader } from './KpiSection'
 
@@ -23,6 +24,7 @@ const URL = {
   bills: '/api/v1/bills/summary',
   plan: '/api/v1/settings/plan',
   readiness: '/api/v1/invoicing/readiness',
+  subscription: '/api/v1/settings/subscription',
 }
 
 const ok = <T,>(data: T) => ({ status: 'OK', data })
@@ -111,6 +113,7 @@ function answer(answers: Answers = {}) {
     bills: () => json(200, BILLS),
     plan: () => json(200, PLAN),
     readiness: () => json(404, { type: 'about:blank' }),
+    subscription: () => json(404, { type: 'about:blank' }),
     ...answers,
   }
   fetchMock.mockImplementation(async (url: string) => {
@@ -135,6 +138,7 @@ const card = (title: string) => within(screen.getByText(title).closest('article,
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   forgetEntitlements()
+  forgetSubscriptionStanding()
   resetSharedRequests()
   fetchMock = vi.fn()
   vi.stubGlobal('fetch', fetchMock)
@@ -280,6 +284,61 @@ describe('Dashboard, from the server', () => {
     expect(await screen.findByText(t('dashboard.kpi.sales'))).toBeTruthy()
     expect(t('dashboard.kpi.sales')).not.toBe(i18n.getFixedT('en')('dashboard.kpi.sales'))
     expect(document.body.textContent).not.toContain('Al Bahja')
+  })
+})
+
+describe('E24: the allowance card while the subscription is read-only', () => {
+  const standing = (restriction: string | null, extra: Record<string, unknown> = {}) => ({
+    tracked: true,
+    access: restriction ? 'PAYMENT_REQUIRED' : 'TRIAL',
+    restrictionsEnforced: true,
+    restriction,
+    today: '2026-10-22',
+    planCode: 'BUSINESS',
+    planName: 'Business',
+    billingCycle: 'MONTHLY',
+    periodPrice: '80.000',
+    trialStartsOn: '2026-10-08',
+    trialEndsOn: '2026-10-21',
+    trialDay: null,
+    trialDaysLeft: null,
+    paidThrough: null,
+    renewsOn: null,
+    graceDays: 7,
+    graceUntil: null,
+    autoRenew: false,
+    autoRenewAvailable: false,
+    autoRenewChangedAt: null,
+    cancelAtPeriodEnd: false,
+    accessEndsOn: null,
+    scheduledChange: null,
+    enterprise: null,
+    ...extra,
+  })
+  const periodEnds = () => t('dashboard.quota.periodEnds', { date: '31 Oct 2026' })
+
+  it('shows the count and the period end while the subscription is usable', async () => {
+    answer({ subscription: () => json(200, standing(null)) })
+    renderPage()
+    await screen.findByText('RT-0007')
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some(([url]) => url === URL.subscription)).toBe(true),
+    )
+    expect(card(t('dashboard.quota.title')).getByText('7')).toBeTruthy()
+    expect(card(t('dashboard.quota.title')).getByText(periodEnds())).toBeTruthy()
+    expect(screen.queryByText(t('dashboard.quota.readOnly'))).toBeNull()
+  })
+
+  it.each([
+    ['trial ended unpaid', standing('SUBSCRIPTION_SUSPENDED')],
+    ['suspended', standing('SUBSCRIPTION_SUSPENDED', { paidThrough: '2026-10-14', trialEndsOn: null })],
+    ['cancelled', standing('SUBSCRIPTION_CANCELLED', { access: 'CANCELLED' })],
+  ])('says nothing can be issued instead of a count and period while %s', async (_, status) => {
+    answer({ subscription: () => json(200, status) })
+    renderPage()
+    expect(await screen.findByText(t('dashboard.quota.readOnly'))).toBeTruthy()
+    expect(card(t('dashboard.quota.title')).queryByText(periodEnds())).toBeNull()
+    expect(card(t('dashboard.quota.title')).queryByText('7')).toBeNull()
   })
 })
 

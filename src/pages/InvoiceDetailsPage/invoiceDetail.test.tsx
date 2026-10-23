@@ -5,6 +5,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
+import { forgetSubscriptionStanding } from '../../lib/subscriptionReadOnly'
 import type {
   InvoiceDetailDto,
   InvoiceDispatchDto,
@@ -240,6 +241,8 @@ let who: Entitlements
 /** The compliance ledger, asked by number once the dispatch names a transport row. */
 let activityListResponse: () => Response
 let activityDetails: Record<string, () => Response>
+/** `GET /settings/subscription`, asked only for a reader with `tenant.plan.read`. */
+let subscriptionResponse: () => Response
 
 const calls = () =>
   fetchMock.mock.calls.map(
@@ -249,10 +252,12 @@ const calls = () =>
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   forgetEntitlements()
+  forgetSubscriptionStanding()
   who = ADMIN
   // No record found unless a test says otherwise: the bar then says the report is not available.
   activityListResponse = () => json(200, { items: [], page: 0, page_size: 5, has_more: false })
   activityDetails = {}
+  subscriptionResponse = () => json(404, { status: 404 })
   invoiceResponse = () => json(200, invoice())
   receivableResponse = () => json(200, RECEIVABLE)
   cancelResponse = () => json(200, invoice({ authoringState: 'CANCELLED', version: 5 }))
@@ -336,6 +341,7 @@ beforeEach(async () => {
         { id: 'b-1', code: 'MAIN', name: 'Head office', type: 'HEAD_OFFICE', city: 'Muscat' },
       ])
     if (url === URL_BASE) return invoiceResponse()
+    if (url === '/api/v1/settings/subscription') return subscriptionResponse()
     if (url === '/api/v1/payment-reminders/schedule')
       return json(200, { offsets: [-3, 0, 7, 14], enabled: true })
     // The notes that correct the invoice; none in these fixtures.
@@ -1526,6 +1532,88 @@ describe('Send', () => {
   })
 })
 
+describe('E28: a read-only subscription hides new documents and sending (plan v4 §8)', () => {
+  const OWNER: Entitlements = {
+    ...SENDER,
+    permissions: [...SENDER.permissions, 'tenant.plan.read', 'debitnote.create'],
+  }
+  const standing = (restriction: string | null, extra: Record<string, unknown> = {}) => ({
+    tracked: true,
+    access: restriction ? 'PAYMENT_REQUIRED' : 'ACTIVE',
+    restrictionsEnforced: true,
+    restriction,
+    today: '2026-10-22',
+    planCode: 'BUSINESS',
+    planName: 'Business',
+    billingCycle: 'MONTHLY',
+    periodPrice: '80.000',
+    trialStartsOn: null,
+    trialEndsOn: null,
+    trialDay: null,
+    trialDaysLeft: null,
+    paidThrough: '2026-10-14',
+    renewsOn: '2026-10-15',
+    graceDays: 7,
+    graceUntil: '2026-10-21',
+    autoRenew: false,
+    autoRenewAvailable: false,
+    autoRenewChangedAt: null,
+    cancelAtPeriodEnd: false,
+    accessEndsOn: null,
+    scheduledChange: null,
+    enterprise: null,
+    ...extra,
+  })
+  const subscriptionReads = () =>
+    calls().filter((call) => call === 'GET /api/v1/settings/subscription')
+
+  it('offers Credit note and Send while the subscription is usable', async () => {
+    who = OWNER
+    subscriptionResponse = () => json(200, standing(null))
+    renderInvoice()
+    expect(await screen.findByRole('button', { name: 'Send' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Credit note' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(
+      await screen.findByRole('menuitem', { name: i18n.t('salesNote.debit.action') }),
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('link', { name: i18n.t('invoiceDetails.actions.duplicate') }),
+    ).toBeTruthy()
+    expect(screen.getByRole('link', { name: i18n.t('invoiceDetails.actions.periodic') })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Send by email' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Share on WhatsApp' })).toBeTruthy()
+  })
+
+  it.each([
+    ['suspended', standing('SUBSCRIPTION_SUSPENDED')],
+    ['trial ended unpaid', standing('SUBSCRIPTION_SUSPENDED', { paidThrough: null, trialEndsOn: '2026-10-21' })],
+    ['cancelled', standing('SUBSCRIPTION_CANCELLED', { access: 'CANCELLED' })],
+    ['not started', standing('SUBSCRIPTION_NOT_STARTED', { paidThrough: null })],
+  ])('hides Credit note, Debit note, Send, Duplicate and periodic while %s; reading stays', async (_, status) => {
+    who = OWNER
+    subscriptionResponse = () => json(200, status)
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
+    await waitFor(() => expect(subscriptionReads().length).toBeGreaterThan(0))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Send' })).toBeNull())
+    expect(screen.queryByRole('button', { name: 'Credit note' })).toBeNull()
+    // The overflow menu keeps cancelling but no longer offers a debit note.
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(await screen.findByRole('menuitem', { name: 'Cancel invoice' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: i18n.t('salesNote.debit.action') })).toBeNull()
+    // No new drafts while read-only (owner, 23 Oct 2026): no Duplicate, no periodic invoice.
+    expect(
+      screen.queryByRole('link', { name: i18n.t('invoiceDetails.actions.duplicate') }),
+    ).toBeNull()
+    expect(screen.queryByRole('link', { name: i18n.t('invoiceDetails.actions.periodic') })).toBeNull()
+    // Nothing is shared while read-only (owner, 23 Oct 2026); Download and Print stay.
+    expect(screen.queryByRole('button', { name: 'Send by email' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Share on WhatsApp' })).toBeNull()
+    expect(screen.getByRole('button', { name: i18n.t('invoiceDetails.print') })).toBeTruthy()
+  })
+})
+
 describe('Transport progress', () => {
   // TEST, 7 October 2026: the ledger said SENDING the moment a transport record existed, and the
   // page said "Sending" while nothing had been attempted.
@@ -2073,5 +2161,53 @@ describe('the invoice in Arabic', () => {
     // A NETn term is still worded from its days; an unknown means keeps what was stored.
     expect(screen.getAllByText('صافي 90 يومًا').length).toBeGreaterThan(0)
     expect(screen.getByText('Clearing between partners')).toBeTruthy()
+  })
+})
+
+describe('Sales approval on a draft', () => {
+  it('keeps the refusal on screen when nobody else can approve (409 SALES_APPROVAL_NO_APPROVER)', async () => {
+    who = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.draft'] }
+    invoiceResponse = () =>
+      json(200, invoice({ authoringState: 'DRAFT', invoiceNumber: null, totals: null }))
+    const approvalPath = `/api/v1/invoice-drafts/${ID}/approval`
+    const served = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === approvalPath)
+        return json(200, {
+          status: 'NOT_REQUESTED',
+          requiredApprovals: 1,
+          distinctApprovals: 0,
+          draftVersion: 2,
+          payableAmount: 56.7,
+          currency: 'OMR',
+          requestedBy: null,
+          requestedAt: null,
+          lastDecision: null,
+          callerMayRequest: true,
+          callerMayDecide: false,
+        })
+      if (url === `${approvalPath}/request`)
+        return json(409, {
+          status: 409,
+          code: 'SALES_APPROVAL_NO_APPROVER',
+          detail: 'Not enough people other than those who prepared this document can approve it',
+        })
+      return served(url, init)
+    })
+    renderInvoice()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Send for approval' }))
+
+    // The page re-reads after the refusal; the refusal must survive that re-read.
+    await waitFor(() =>
+      expect(calls().filter((call) => call === `GET ${approvalPath}`).length).toBe(2),
+    )
+    expect(
+      await screen.findByText(
+        'Nobody else can approve this yet. Ask your administrator to give someone the Approve permission.',
+      ),
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Send for approval' })).toBeTruthy()
+    expect(screen.queryByText(/Not enough people/)).toBeNull()
   })
 })

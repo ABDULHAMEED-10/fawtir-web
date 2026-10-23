@@ -150,16 +150,33 @@ export function selfBillRowActions(documentId: string): ActionMenuItem[] {
  */
 export type TradeRowAction = (itemId: string, documentId: string) => void
 
-function withHandler(items: ActionMenuItem[], documentId: string, onAction?: TradeRowAction) {
-  if (!onAction) return items
-  return items.map((item) =>
+function withHandler(
+  items: ActionMenuItem[],
+  documentId: string,
+  onAction?: TradeRowAction,
+  mayCreate = true,
+) {
+  // While the subscription is read-only nothing new is made or sent (owner, 23 Oct 2026; ST-2,
+  // CA-3), so the items that open a composer, copy the document or send it are left out.
+  const offered = mayCreate ? items : items.filter((item) => !OFF_WHILE_READ_ONLY.has(item.id))
+  if (!onAction) return offered
+  return offered.map((item) =>
     item.to ? item : { ...item, onSelect: () => onAction(item.id, documentId) },
   )
 }
 
+/**
+ * Trade-document menu items left out while the subscription is read-only (ST-2, owner 23 Oct
+ * 2026): those that make a new document (an invoice, a delivery note or a copy), and Send, which
+ * gives the document its number.
+ */
+const OFF_WHILE_READ_ONLY = new Set(['convert', 'delivery', 'invoice', 'duplicate', 'send'])
+
 export function quotationRowActions(
   documentId: string,
   onAction?: TradeRowAction,
+  /** False while the subscription is read-only: no item that makes or sends a document. */
+  mayCreate = true,
 ): ActionMenuItem[] {
   return withHandler(
     [
@@ -177,12 +194,15 @@ export function quotationRowActions(
     ],
     documentId,
     onAction,
+    mayCreate,
   )
 }
 
 export function orderFormRowActions(
   documentId: string,
   onAction?: TradeRowAction,
+  /** False while the subscription is read-only: no item that makes or sends a document. */
+  mayCreate = true,
 ): ActionMenuItem[] {
   return withHandler(
     [
@@ -200,12 +220,15 @@ export function orderFormRowActions(
     ],
     documentId,
     onAction,
+    mayCreate,
   )
 }
 
 export function deliveryNoteRowActions(
   documentId: string,
   onAction?: TradeRowAction,
+  /** False while the subscription is read-only: no item that makes or sends a document. */
+  mayCreate = true,
 ): ActionMenuItem[] {
   return withHandler(
     [
@@ -223,6 +246,7 @@ export function deliveryNoteRowActions(
     ],
     documentId,
     onAction,
+    mayCreate,
   )
 }
 

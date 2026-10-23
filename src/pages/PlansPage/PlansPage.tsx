@@ -109,6 +109,9 @@ function PlansContent() {
   const [compare, setCompare] = useState(() => location.hash === '#compare')
   const { read, reload } = usePlanCatalogue('signup-plans', readSignupPlans)
   const plans = read.status === 'ready' ? read.plans : null
+  // Self-service plan change on (E3): an upgrade applies at once, pro rata, so the footer must not
+  // send the customer to the Fawtir team. Absent on an older server: the team wording stays.
+  const selfServicePlanChange = plans?.some((plan) => plan.selfServicePlanChange === true) ?? false
 
   // Opens in place under the button; no scrolling, so the cards stay where the reader left them.
   const toggleCompare = () => setCompare((open) => !open)
@@ -175,12 +178,14 @@ function PlansContent() {
     const check = dark ? checkWhiteIcon : checkIcon
     const iconSize = dark ? 'size-[18px]' : 'size-4'
     const copy = launchCopy(plan.code)
-    // The branches the plan includes, as the console set them (Plan v4 §2); none printed for a
-    // plan that does not cap them (`null`), as the catalogue contract reads it.
+    // The branches the plan includes, as the console set them (Plan v4 §2); a plan that does not
+    // cap them (`null`) says so, as the plan page and the pricing page do.
     const branches =
-      plan.branchesIncluded === null || plan.branchesIncluded === undefined
+      plan.branchesIncluded === undefined
         ? []
-        : [t('plans.branchesIncluded', { count: plan.branchesIncluded })]
+        : plan.branchesIncluded === null
+          ? [t('plan.feature.unlimitedBranches')]
+          : [t('plans.branchesIncluded', { count: plan.branchesIncluded })]
     const features = [
       ...branches,
       ...(launchFeatures(plan, t) ??
@@ -365,7 +370,11 @@ function PlansContent() {
           )}
 
           <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:gap-[34px]">
-            {[t('plans.footer.f1'), t('plans.footer.f2'), t('plans.footer.f3')].map((item) => (
+            {[
+              t('plans.footer.f1'),
+              t(selfServicePlanChange ? 'plans.footer.f2SelfService' : 'plans.footer.f2'),
+              t('plans.footer.f3'),
+            ].map((item) => (
               <div key={item} className="flex items-center gap-2.5">
                 <img src={checkFooterIcon} alt="" className="size-[17px] shrink-0" />
                 <span className="whitespace-nowrap text-[13px] font-medium text-text-tertiary">

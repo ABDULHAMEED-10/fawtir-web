@@ -322,7 +322,19 @@ describe('Invite someone', () => {
     expect(pageRequests()).toEqual([`GET ${ROLES}`, 'POST /api/v1/users/invitations'])
   })
 
-  it("fills 'Place taken' and, once sent, 'Link works for' from the server; 'Charged from' stays not available (E11)", async () => {
+  it('says an extra person is charged from the day the payment is confirmed (US-1)', async () => {
+    renderAt('/settings/team/invite')
+    const label = await screen.findByText('Charged from')
+    const row = label.parentElement as HTMLElement
+    expect(within(row).getByText('The day the payment is confirmed')).toBeTruthy()
+    expect(within(row).queryByText(NOT_AVAILABLE)).toBeNull()
+
+    await i18n.changeLanguage('ar')
+    const arabic = (await screen.findByText('الاحتساب من')).parentElement as HTMLElement
+    expect(within(arabic).getByText('يوم تأكيد الدفع')).toBeTruthy()
+  })
+
+  it("fills 'Place taken' and, once sent, 'Link works for' from the server; 'Charged from' says the payment day (E11, US-1)", async () => {
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
       if (url === '/api/v1/me/entitlements') return json(200, who)
       if (url === '/api/v1/users/invitations' && init?.method === 'POST') {
@@ -338,12 +350,12 @@ describe('Invite someone', () => {
     expect(row(i18n.t('invite.placeTaken'))).toBe('Immediately')
     // The server says how long a link works only once it has sent one.
     expect(row(i18n.t('invite.linkWorksFor'))).toBe(NOT_AVAILABLE)
-    expect(row(i18n.t('invite.chargedFrom'))).toBe(NOT_AVAILABLE)
+    expect(row(i18n.t('invite.chargedFrom'))).toBe('The day the payment is confirmed')
     fireEvent.change(screen.getByRole('textbox', { name: /Email/ }), { target: { value: 'z@real.example' } })
     fireEvent.click(screen.getByRole('button', { name: i18n.t('people.invite.send') }))
     await screen.findByText('Invitation sent to z@real.example.')
     expect(row(i18n.t('invite.linkWorksFor'))).toBe('7 days')
-    expect(row(i18n.t('invite.chargedFrom'))).toBe(NOT_AVAILABLE)
+    expect(row(i18n.t('invite.chargedFrom'))).toBe('The day the payment is confirmed')
 
     await act(async () => {
       await i18n.changeLanguage('ar')

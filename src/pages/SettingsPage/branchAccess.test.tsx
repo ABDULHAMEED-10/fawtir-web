@@ -434,7 +434,8 @@ describe('Team members', () => {
     const samiRow = screen.getByRole('link', { name: 'Sami' }).closest('tr') as HTMLElement
     expect(within(samiRow).getByText('Every branch')).toBeTruthy()
     const lailaRow = screen.getByRole('link', { name: 'Laila' }).closest('tr') as HTMLElement
-    expect(within(lailaRow).getByText('Muscat, Sohar +1')).toBeTruthy()
+    // Branch names come from their own read, which can land after the people list.
+    expect(await within(lailaRow).findByText('Muscat, Sohar +1')).toBeTruthy()
   })
 
   it('lets a branch administrator see their people, without asking for the invitation list', async () => {
@@ -608,6 +609,17 @@ describe('Invite someone', () => {
     ])
   })
 
+  it('says an extra person is charged from the day the payment is confirmed (US-1), in English and Arabic', async () => {
+    renderAt('/settings/team/invite')
+    await screen.findByRole('checkbox', { name: 'Sohar' })
+    const row = (label: string) =>
+      screen.getByText(label).closest('div')!.querySelector('dd')!.textContent
+    expect(row(i18n.t('invite.chargedFrom'))).toBe('The day the payment is confirmed')
+    await i18n.changeLanguage('ar')
+    expect(await screen.findByText('يوم تأكيد الدفع')).toBeTruthy()
+    await i18n.changeLanguage('en')
+  })
+
   it('says a refused escalation in our words, never the server detail', async () => {
     answers['POST /api/v1/users/invitations'] = () => refusal(403, 'permission-escalation')
     renderAt('/settings/team/invite')
@@ -734,8 +746,9 @@ describe('One person', () => {
       })
     renderAt('/settings/team/p-old')
     expect(await screen.findByText('Accountant, Can approve')).toBeTruthy()
-    // The Select shows the job role, not Approver, which is not one of its options.
-    expect(screen.getByRole('button', { name: 'Role' }).textContent).toMatch(/Accountant/)
+    // The Select shows the job role, not Approver, which is not one of its options. It is drawn
+    // once the role list has come back, which can be after the person's own roles are named.
+    expect((await screen.findByRole('button', { name: 'Role' })).textContent).toMatch(/Accountant/)
     await screen.findAllByText('From their role')
     expect(screen.queryByText('Given to them')).toBeNull()
     const bills = screen

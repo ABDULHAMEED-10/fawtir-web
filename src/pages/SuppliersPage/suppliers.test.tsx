@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
+import { answerStanding, settle, standingRead } from '../../testing/subscriptionStanding'
 import type { SupplierListRowDto, SupplierSummaryDto } from '../../api/expenditure/suppliers'
 import { toSupplierListItem } from '../../lib/supplierList'
 import { SuppliersPage } from './SuppliersPage'
@@ -682,4 +683,34 @@ describe('toSupplierListItem', () => {
       text: 'End of month',
     })
   })
+})
+
+describe('New purchase order while the subscription is read-only (owner, 23 Oct 2026)', () => {
+  // Nothing new is made while read-only: no purchase order. Recording a bill and paying stay.
+  const OWNER: Entitlements = { ...ADMIN, permissions: [...ADMIN.permissions, 'tenant.plan.read'] }
+
+  it('offers New purchase order in the row menu while the subscription is usable', async () => {
+    who = OWNER
+    answerStanding(fetchMock, null)
+    renderSuppliers()
+    await screen.findByText('Qalhat Marine Supplies')
+    await waitFor(() => expect(standingRead(fetchMock)).toBe(true))
+    fireEvent.click(screen.getByRole('button', { name: 'Row actions' }))
+    expect(await screen.findByText('New purchase order')).toBeTruthy()
+  })
+
+  it.each(['SUBSCRIPTION_SUSPENDED', 'SUBSCRIPTION_CANCELLED'])(
+    'hides New purchase order in the row menu while %s',
+    async (restriction) => {
+      who = OWNER
+      answerStanding(fetchMock, restriction)
+      renderSuppliers()
+      await screen.findByText('Qalhat Marine Supplies')
+      await waitFor(() => expect(standingRead(fetchMock)).toBe(true))
+      await settle()
+      fireEvent.click(screen.getByRole('button', { name: 'Row actions' }))
+      expect(await screen.findByText('Record a bill')).toBeTruthy()
+      expect(screen.queryByText('New purchase order')).toBeNull()
+    },
+  )
 })
