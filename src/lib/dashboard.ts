@@ -45,6 +45,11 @@ export type NavItem = {
   requires?: string
   /** As on `NavChild`; a group's feature locks each of its children. */
   feature?: Feature
+  /**
+   * The prototype module the entry opens (`DemoModule`). While that module is hidden outright
+   * (`prototypeHidden`, R6) the entry, children and all, is left out of the navigation.
+   */
+  prototype?: string
 }
 
 export type NavGroup = {
@@ -180,6 +185,7 @@ export const DASHBOARD_NAV: NavGroup[] = [
         Icon: NavDocumentsIcon,
         to: '/trade-documents/quotations',
         feature: 'tradeDocuments',
+        prototype: 'tradeDocuments',
         children: [
           {
             id: 'quotations',

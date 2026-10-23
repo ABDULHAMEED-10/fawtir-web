@@ -24,6 +24,7 @@ import { defaultReportRange } from '../../api/reports/reports'
 import type { Entitlements } from '../../lib/identity/entitlements'
 import type { AnyPlanId, Feature } from '../../lib/plans'
 import { usePlanAccess, type FeatureAccess } from '../../lib/planAccess'
+import { prototypeHidden } from '../../lib/demoModules'
 import { BrandLogo } from '../../components/BrandLogo'
 import { AccountSwitcher, UserMenu } from '../../components/shell'
 import chevron from '../../assets/dashboard/chevron.svg'
@@ -125,12 +126,14 @@ function activeChildTo(pathname: string, children: readonly NavChild[]): string 
 /**
  * The navigation this reader may use: an entry whose destination needs a permission they lack is
  * left out, and so is a group left with nothing in it. Without a session (the guard is off, as in
- * the prototype build) everything shows, as it always has.
+ * the prototype build) everything shows, as it always has. A prototype hidden outright (R6: trade
+ * documents) is left out for everyone, with or without a session.
  */
 function visibleNav(session: Entitlements | null): NavGroup[] {
   return DASHBOARD_NAV.map((group) => ({
     ...group,
     items: group.items.flatMap((item) => {
+      if (item.prototype && prototypeHidden(item.prototype)) return []
       if (!can(session, item.requires)) return []
       if (!item.children) return [item]
       const children = item.children.filter((child) => can(session, child.requires))

@@ -4,6 +4,7 @@ import { useTranslation, Trans } from 'react-i18next'
 import { CatalogShell, Kpi } from './CatalogShell'
 import { ActionMenu, RialText, Switch, withRial } from '../../components/ui'
 import { omr } from '../../lib/catalog'
+import { prototypeHidden } from '../../lib/demoModules'
 import {
   RULES,
   RULE_FAMILIES,
@@ -413,12 +414,15 @@ function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: (
               />
             </span>
           </p>
-          <Link
-            to="/trade-documents/quotations"
-            className="inline-flex h-[36px] shrink-0 items-center self-start whitespace-nowrap rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/70 md:self-auto"
-          >
-            {t('priceRules.seeTheQuotes')}
-          </Link>
+          {/* Quotations are hidden until connected (R6). */}
+          {prototypeHidden('tradeDocuments') ? null : (
+            <Link
+              to="/trade-documents/quotations"
+              className="inline-flex h-[36px] shrink-0 items-center self-start whitespace-nowrap rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/70 md:self-auto"
+            >
+              {t('priceRules.seeTheQuotes')}
+            </Link>
+          )}
         </div>
       ) : null}
     </article>

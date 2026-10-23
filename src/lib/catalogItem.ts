@@ -6,6 +6,7 @@
  */
 
 import { omr } from './catalog'
+import { prototypeHidden } from './demoModules'
 import type { ItemType } from './invoiceDraft'
 import type { DiscountType } from './invoiceMath'
 
@@ -269,6 +270,11 @@ export type UsedDocument = {
   to?: string
 }
 
+/** Quotations are hidden until connected (R6), so a quotation row links nowhere. */
+const QUOTATIONS_LINK = prototypeHidden('tradeDocuments')
+  ? undefined
+  : '/trade-documents/quotations'
+
 export const USED_DOCUMENTS: UsedDocument[] = [
   {
     id: 'QT-0121',
@@ -287,7 +293,7 @@ export const USED_DOCUMENTS: UsedDocument[] = [
     lineValue: 52,
     atPrice: '1.300',
     atPriceOld: true,
-    to: '/trade-documents/quotations',
+    to: QUOTATIONS_LINK,
   },
   {
     id: 'QT-0119',
@@ -306,7 +312,7 @@ export const USED_DOCUMENTS: UsedDocument[] = [
     lineValue: 216,
     atPrice: '1.800',
     atPriceOld: true,
-    to: '/trade-documents/quotations',
+    to: QUOTATIONS_LINK,
   },
   {
     id: 'PKG-0007',
