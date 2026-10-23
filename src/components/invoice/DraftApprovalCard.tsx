@@ -68,6 +68,7 @@ export function DraftApprovalCard({
   type,
   approval,
   onChanged,
+  onRefused,
   onApproveAndIssue,
 }: {
   invoiceId: string
@@ -75,6 +76,12 @@ export function DraftApprovalCard({
   approval: SalesApprovalDto | null
   /** After any step: re-read the approval, the document and its timeline. */
   onChanged: () => void
+  /**
+   * After a refusal: re-read the approval only. The host's full re-read shows its loading notice in
+   * place of the page, which unmounts this card and loses the refusal with it, so the button
+   * looked as if it did nothing. Without it, `onChanged` is used.
+   */
+  onRefused?: () => void
   /** Offered beside Approve to someone who may also issue; opens the issue dialog after approving. */
   onApproveAndIssue?: () => void
 }) {
@@ -117,7 +124,8 @@ export function DraftApprovalCard({
         message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body,
       )
       // A retried approval is already counted; the fresh state says so.
-      onChanged()
+      const reread = onRefused ?? onChanged
+      reread()
     } finally {
       setBusy(false)
     }

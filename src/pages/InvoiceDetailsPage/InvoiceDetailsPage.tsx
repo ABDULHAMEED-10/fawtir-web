@@ -807,6 +807,7 @@ function InvoiceScreen() {
           invoiceId={data.id}
           type={data.type}
           approval={salesApproval.approval}
+          onRefused={salesApproval.retry}
           onChanged={() => {
             salesApproval.retry()
             invoice.retry()
