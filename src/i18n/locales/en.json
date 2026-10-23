@@ -2194,7 +2194,8 @@
       "sent": "Received by the receiver's access point, awaiting its delivery status",
       "delivered": "Delivered",
       "undeliverable": "Could not be delivered",
-      "heldSenderStanding": "On hold, not sent yet"
+      "heldSenderStanding": "On hold, not sent yet",
+      "unknown": "Sending status not recognised by this screen. Reload, or contact support if it stays"
     },
     "reason": {
       "sellerAddress": "Your company address on this invoice is incomplete. It was fixed when the invoice was issued, so this invoice cannot be sent: cancel it and issue a new one after completing the address.",
@@ -2216,11 +2217,12 @@
       "senderClaimConflict": "Your company's Peppol participant is under ownership review at Fawtir because another company also claims it, so nothing was sent. Sending resumes by itself once the review is resolved; contact Fawtir support for details.",
       "senderNotAuthorized": "The seller on this invoice is not your company's Peppol participant. It was fixed when the invoice was issued, so this invoice cannot be sent. Contact support with the invoice number.",
       "transportUnavailable": "Sending over Peppol was not available on this service, so nothing was sent.",
-      "noOutcome": "The sending service gave no answer for this invoice, so it was not sent. Contact support with the invoice number."
+      "noOutcome": "The sending service gave no answer for this invoice, so it was not sent. Contact support with the invoice number.",
+      "retriesSpent": "Sending failed repeatedly and has stopped. It will not be retried by itself: contact support with the invoice number."
     },
     "sent": {
       "dispatched": "The invoice was validated and queued for sending.",
-      "already": "This invoice has already been sent.",
+      "already": "This invoice was already handed over for sending.",
       "superseded": "This invoice is already being sent.",
       "notSent": "The invoice was not sent."
     },
@@ -2243,7 +2245,8 @@
       "sentManually": "Delivered to the buyer by hand",
       "printedReceipt": "Hand the buyer the printed receipt with its QR code",
       "manualRequired": "Deliver this invoice to the buyer by hand, then mark it as sent manually",
-      "selfBilling": "Self-billing: delivered as agreed with the supplier"
+      "selfBilling": "Self-billing: delivered as agreed with the supplier",
+      "unknown": "How the buyer is reached is not recognised by this screen"
     },
     "release": {
       "action": "Send held e-mail to buyer",
@@ -2276,8 +2279,26 @@
         "retryScheduled": "failed, next attempt {{when}}",
         "transmitted": "transmitted, receipt received",
         "failed": "transmission failed",
-        "retryUntimed": "failed, will be retried"
+        "retryUntimed": "failed, will be retried",
+        "unknown": "status not recognised"
       }
+    },
+    "taxReport": {
+      "notRaised": "Tax Authority report: not raised yet",
+      "notDelivered": "Tax Authority report: not delivered to the Tax Authority yet",
+      "awaiting": "Tax Authority report: delivered, awaiting the Tax Authority's answer",
+      "accepted": "Tax Authority report: accepted",
+      "deliveredUnconfirmed": "Tax Authority report: delivered without confirmation, not counted as accepted",
+      "rejected": "Tax Authority report: turned down. The reason is on its record in Compliance › Activity",
+      "resubmitInActivity": "It can be resubmitted from that record",
+      "correctionHeld": "A corrected report is held for a decision at Fawtir",
+      "stopped": "Tax Authority report: stopped at Fawtir. Contact Fawtir support with the invoice number",
+      "withdrawing": "Tax Authority report: being withdrawn with a Disregard report, not answered yet",
+      "withdrawn": "Tax Authority report: withdrawn with a Disregard report",
+      "withdrawalRejected": "Tax Authority report: the Disregard report withdrawing it was turned down. The reason is on its record in Compliance › Activity",
+      "deadlinePassed": "Its reporting deadline has passed",
+      "deliveredLate": "It was delivered after its reporting deadline",
+      "unavailable": "Tax Authority report: status not available on this page"
     }
   },
   "invoiceDetails": {
@@ -5858,16 +5879,35 @@
       "receipt": {
         "accepted": "Receipt reported to the Tax Authority · {{date}}",
         "acceptedUndated": "Receipt reported to the Tax Authority",
-        "submitted": "Receipt report waiting for the Tax Authority",
+        "submitted": "Receipt report delivered, waiting for the Tax Authority's answer",
         "rejected": "Receipt report turned down",
         "notSubmitted": "Receipt not reported yet",
-        "unavailable": "Receipt report status not available yet"
+        "unavailable": "Receipt report status not available",
+        "notRaised": "Receipt report not raised yet",
+        "notSubmittedLate": "Receipt not reported yet, and its reporting deadline has passed",
+        "deliveredUnconfirmed": "Receipt report delivered to the Tax Authority without confirmation, not counted as accepted",
+        "rejectedResubmit": "Receipt report turned down. Open its record to see why and resubmit it",
+        "rejectedHeld": "Receipt report turned down. A corrected report is held for a decision at Fawtir",
+        "stopped": "Receipt report stopped at Fawtir. Contact Fawtir support"
       },
       "selfBilled": {
         "issuedByYou": "Issued by you through Fawtir on the supplier's behalf",
         "agreement": "Self-billing agreement {{reference}}",
         "agreementNoReference": "Self-billing agreement",
         "validTaxInvoice": "Valid tax invoice: VAT is reclaimable"
+      },
+      "failedOnArrival": "Did not pass validation when it arrived",
+      "reply": {
+        "none": "No reply to the supplier's access point recorded yet",
+        "notQueued": "A reply to the supplier's access point was decided, but no sending of it is recorded",
+        "AP": "Reply delivered to the supplier's access point: received and confirmed",
+        "AB": "Reply delivered to the supplier's access point: received, not confirmed",
+        "RE": "Reply delivered to the supplier's access point: turned down",
+        "retrying": "Reply to the supplier's access point failed and will be retried",
+        "failed": "Reply to the supplier's access point could not be delivered",
+        "unknown": "Reply to the supplier's access point: status not recognised",
+        "unavailable": "Reply to the supplier's access point: status not available",
+        "notDeliveredYet": "Reply to the supplier's access point: not delivered yet"
       }
     },
     "supplier": {
@@ -23113,7 +23153,7 @@
     "subtitle": "Documents your suppliers sent that you can't open yet",
     "countTitle_one": "{{n}} supplier document is waiting",
     "countTitle_other": "{{n}} supplier documents are waiting",
-    "reported": "They have arrived, the Tax Authority has been told you received them, and your suppliers have had their reply. You can see who sent each one and when, but you can't open it or record it as a bill until the reason below is put right. They open oldest first.",
+    "reported": "They have arrived. Fawtir handles the Tax Authority report and the reply to your supplier, and this page cannot show their status. You can see who sent each one and when, but you can't open it or record it as a bill until the reason below is put right. They open oldest first.",
     "noneTitle": "Nothing is waiting",
     "noneBody": "Every supplier document you have received is in your bills.",
     "reason": {
@@ -23153,7 +23193,7 @@
     "banner": {
       "title_one": "{{n}} supplier document is waiting.",
       "title_other": "{{n}} supplier documents are waiting.",
-      "body": "They have arrived and been reported to the Tax Authority, but can't be opened yet.",
+      "body": "They have arrived but can't be opened yet.",
       "open": "See what's waiting"
     }
   },

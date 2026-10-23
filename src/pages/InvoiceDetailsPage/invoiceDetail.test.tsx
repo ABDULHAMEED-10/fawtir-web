@@ -13,6 +13,7 @@ import type {
   InvoiceReceivableDto,
   InvoiceSendResultDto,
 } from '../../api/invoices/detail'
+import type { ActivityDetailDto, ActivityItemDto } from '../../api/compliance/activity'
 import { paymentProblems, paymentRows, statusOf, timelineOf } from '../../lib/invoiceDetail'
 import { InvoiceDetailsPage } from './InvoiceDetailsPage'
 import { ApiError } from '../../api'
@@ -236,6 +237,9 @@ let attachmentFiles: Array<{
   attachedByName?: string | null
 }>
 let who: Entitlements
+/** The compliance ledger, asked by number once the dispatch names a transport row. */
+let activityListResponse: () => Response
+let activityDetails: Record<string, () => Response>
 
 const calls = () =>
   fetchMock.mock.calls.map(
@@ -246,6 +250,9 @@ beforeEach(async () => {
   await i18n.changeLanguage('en')
   forgetEntitlements()
   who = ADMIN
+  // No record found unless a test says otherwise: the bar then says the report is not available.
+  activityListResponse = () => json(200, { items: [], page: 0, page_size: 5, has_more: false })
+  activityDetails = {}
   invoiceResponse = () => json(200, invoice())
   receivableResponse = () => json(200, RECEIVABLE)
   cancelResponse = () => json(200, invoice({ authoringState: 'CANCELLED', version: 5 }))
@@ -334,6 +341,12 @@ beforeEach(async () => {
     // The notes that correct the invoice; none in these fixtures.
     if (url.startsWith('/api/v1/authored-invoices?'))
       return json(200, { content: [], page: 0, size: 50, totalElements: 0 })
+    if (url.startsWith('/api/v1/compliance/activity?') && method === 'GET')
+      return activityListResponse()
+    if (url.startsWith('/api/v1/compliance/activity/') && method === 'GET') {
+      const answer = activityDetails[url.slice('/api/v1/compliance/activity/'.length)]
+      if (answer) return answer()
+    }
     throw new Error(`unexpected request to ${method} ${url}`)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -1534,13 +1547,16 @@ describe('Transport progress', () => {
     dispatchResponse = () => json(200, SENDING_UNATTEMPTED)
     renderInvoice()
     expect(await screen.findByText('Queued for transmission, not yet sent')).toBeTruthy()
+    // The ledger in this harness holds no record for the number, so the report is said to be
+    // unavailable rather than left unsaid.
     expect(
-      screen.getByText(
+      await screen.findByText(
         [
           'Queued for transmission, not yet sent',
           'The buyer receives it over Peppol',
           'To the buyer: queued for transmission, not yet sent',
           'To the Tax Authority: queued for transmission, not yet sent',
+          'Tax Authority report: status not available on this page',
         ].join(' · '),
       ),
     ).toBeTruthy()
@@ -1581,6 +1597,271 @@ describe('Transport progress', () => {
     expect(await screen.findByText('في قائمة الإرسال، لم تُرسل بعد')).toBeTruthy()
     expect(screen.getByText(/إلى جهاز الضرائب: في قائمة الإرسال، لم تُرسل بعد/)).toBeTruthy()
     expect(screen.queryByText('جارٍ الإرسال')).toBeNull()
+  })
+})
+
+// Audit A1 F-10: the dispatch's Tax Authority leg ends at the AS4 receipt, so C5's answer to the
+// TDD was never on the invoice. It is read from the compliance record proven to be this invoice's.
+describe('the Tax Authority report on the invoice', () => {
+  const UUID = '0f9e8d7c-0000-5000-8000-000000000042'
+  const LIST_URL =
+    '/api/v1/compliance/activity?direction=ISSUED&invoice_number=INV-2026-0042&page=0&page_size=5'
+  const DETAIL_URL = `/api/v1/compliance/activity/${UUID}`
+  const transmittedLeg = (messageId: string) => ({
+    messageId,
+    state: 'TRANSMITTED' as const,
+    attempts: 1,
+    lastAttemptAt: '2026-10-19T08:00:00Z',
+    nextAttemptAt: null,
+  })
+  const DELIVERED_BOTH: InvoiceDispatchDto = {
+    ...QUEUED,
+    state: 'DELIVERED',
+    buyerDelivery: 'PEPPOL',
+    transport: { buyer: transmittedLeg('m-1'), taxAuthority: transmittedLeg('m-2') },
+  }
+  type Leg = NonNullable<ActivityItemDto['tdd_leg']>
+  const tddLeg = (overrides: Partial<Leg> = {}): Leg => ({
+    variant: 'SUBMIT',
+    status: 'SUBMITTED',
+    validated_at: '2026-10-19T08:00:00Z',
+    sla_deadline: '2026-10-19T08:15:00Z',
+    submitted_at: '2026-10-19T08:00:30Z',
+    sla_met: true,
+    ack: 'NONE',
+    ack_at: null,
+    reason: null,
+    delivered_at: '2026-10-19T08:01:00Z',
+    transport_state: 'DELIVERED',
+    correction_held: false,
+    ...overrides,
+  })
+  const row = (uuid: string, leg: Leg | null, links: Partial<ActivityItemDto['links']> = {}): ActivityItemDto => ({
+    invoice_uuid: uuid,
+    direction: 'ISSUED',
+    document_kind: 'STANDARD_INVOICE',
+    document_type_code: null,
+    invoice_number: 'INV-2026-0042',
+    counterparty: '0248:OM1100999001',
+    occurred_at: '2026-10-19T08:00:00Z',
+    validated_at: '2026-10-19T08:00:00Z',
+    b2c: false,
+    transport_state: 'DELIVERED',
+    invoice_leg: { ack: 'AP', ack_at: '2026-10-19T08:00:40Z', reason: null },
+    tdd_leg: leg,
+    attention: false,
+    links: { document: '/api/v1/invoices/s-1', tdd_xml: '/api/v1/invoices/s-1/tdd', resubmit: null, ...links },
+  })
+  const detailOf = (summary: ActivityItemDto, transmissionIds: string[]): ActivityDetailDto => ({
+    invoice_uuid: summary.invoice_uuid,
+    summary,
+    tdd_lineage: [],
+    mls: [],
+    transmissions: transmissionIds.map((id) => ({
+      id,
+      channel: 'TDD',
+      direction: 'OUTBOUND',
+      state: 'DELIVERED',
+      attempts: 1,
+      last_attempt_at: null,
+      last_failure_reason: null,
+      sbdh_instance_identifier: null,
+      last_mls_code: null,
+      created_at: '2026-10-19T08:00:00Z',
+    })),
+  })
+  /** One proven record for this invoice, answering `legs` in turn on each read. */
+  const serve = (legs: (Leg | null)[], links: Partial<ActivityItemDto['links']> = {}) => {
+    let reads = 0
+    activityListResponse = () =>
+      json(200, { items: [row(UUID, legs[0], links)], page: 0, page_size: 5, has_more: false })
+    activityDetails[UUID] = () =>
+      json(200, detailOf(row(UUID, legs[Math.min(reads++, legs.length - 1)], links), ['m-1', 'm-2']))
+  }
+  /** An hour after the fixtures' validation: inside the window in which a record is re-read. */
+  const TODAY = new Date('2026-10-19T09:00:00Z')
+  const listReads = () => calls().filter((call) => call === `GET ${LIST_URL}`)
+  const detailReads = () => calls().filter((call) => call === `GET ${DETAIL_URL}`)
+
+  // Review of #250, L1: an old document whose report never settles (the TEST transport hold, or
+  // a C5 that never answered) is read once, not re-read on every visit.
+  it('reads the record of an old invoice once and does not keep re-reading it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date('2026-10-21T09:00:00Z'))
+    try {
+      dispatchResponse = () => json(200, DELIVERED_BOTH)
+      serve([tddLeg({ delivered_at: null, transport_state: 'PENDING' })])
+      renderInvoice()
+      expect(
+        await screen.findByText(/Tax Authority report: not delivered to the Tax Authority yet/),
+      ).toBeTruthy()
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+      expect(detailReads()).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // Review of #250, L2: a record that lands just after the first lookup is found on one retry.
+  it('asks an unproven lookup once more and shows a record that landed late', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(TODAY)
+    try {
+      dispatchResponse = () => json(200, DELIVERED_BOTH)
+      serve([tddLeg({ ack: 'AP', status: 'ACCEPTED', ack_at: '2026-10-19T08:02:00Z' })])
+      const landed = activityListResponse
+      let lists = 0
+      activityListResponse = () =>
+        lists++ === 0
+          ? json(200, { items: [], page: 0, page_size: 5, has_more: false })
+          : landed()
+      renderInvoice()
+      expect(
+        await screen.findByText(/Tax Authority report: status not available on this page/),
+      ).toBeTruthy()
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(await screen.findByText(/Tax Authority report: accepted/)).toBeTruthy()
+      expect(listReads()).toHaveLength(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('retries an unproven lookup only once', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(TODAY)
+    try {
+      dispatchResponse = () => json(200, DELIVERED_BOTH)
+      renderInvoice()
+      expect(
+        await screen.findByText(/Tax Authority report: status not available on this page/),
+      ).toBeTruthy()
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+      expect(listReads()).toHaveLength(2)
+      expect(screen.getByText(/Tax Authority report: status not available on this page/)).toBeTruthy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("shows C5's acceptance once the record is proven, from one list and one detail read", async () => {
+    dispatchResponse = () => json(200, DELIVERED_BOTH)
+    serve([tddLeg({ ack: 'AP', status: 'ACCEPTED', ack_at: '2026-10-19T08:02:00Z' })])
+    renderInvoice()
+    expect(await screen.findByText(/Tax Authority report: accepted/)).toBeTruthy()
+    expect(listReads()).toHaveLength(1)
+    expect(detailReads()).toHaveLength(1)
+    expect(calls().filter((call) => !call.startsWith('GET '))).toEqual([])
+  })
+
+  it('keeps reading past the AS4 receipt until C5 answers, then stops', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(TODAY)
+    try {
+      dispatchResponse = () => json(200, DELIVERED_BOTH)
+      serve([
+        tddLeg({ delivered_at: null, transport_state: 'SENDING' }),
+        tddLeg(),
+        tddLeg({ ack: 'AP', status: 'ACCEPTED', ack_at: '2026-10-19T08:02:00Z' }),
+      ])
+      renderInvoice()
+      expect(
+        await screen.findByText(/Tax Authority report: not delivered to the Tax Authority yet/),
+      ).toBeTruthy()
+      // The pending report never ticks anything nor reads as delivered.
+      expect(screen.queryByText(/Tax Authority report: accepted/)).toBeNull()
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(
+        await screen.findByText(/Tax Authority report: delivered, awaiting the Tax Authority's answer/),
+      ).toBeTruthy()
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(await screen.findByText(/Tax Authority report: accepted/)).toBeTruthy()
+      const reads = detailReads().length
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+      expect(detailReads()).toHaveLength(reads)
+      // Found once; only the proven record is re-read.
+      expect(listReads()).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('says not available when no record holds this invoice\'s transport rows', async () => {
+    dispatchResponse = () => json(200, DELIVERED_BOTH)
+    activityListResponse = () =>
+      json(200, { items: [row(UUID, tddLeg({ ack: 'AP' }))], page: 0, page_size: 5, has_more: false })
+    activityDetails[UUID] = () => json(200, detailOf(row(UUID, tddLeg({ ack: 'AP' })), ['m-other']))
+    renderInvoice()
+    expect(await screen.findByText(/Tax Authority report: status not available on this page/)).toBeTruthy()
+    expect(screen.queryByText(/Tax Authority report: accepted/)).toBeNull()
+  })
+
+  it('says not available to a person the ledger refuses, and reads no record', async () => {
+    dispatchResponse = () => json(200, DELIVERED_BOTH)
+    activityListResponse = () =>
+      json(403, { type: 'https://api.fawtir.om/problems/branch-scope-company-report' })
+    renderInvoice()
+    expect(await screen.findByText(/Tax Authority report: status not available on this page/)).toBeTruthy()
+    expect(detailReads()).toHaveLength(0)
+  })
+
+  it('asks nothing of the ledger before a transport row exists', async () => {
+    dispatchResponse = () => json(200, { ...QUEUED, state: 'SENDING' } satisfies InvoiceDispatchDto)
+    renderInvoice()
+    expect(await screen.findAllByText('Sending')).toHaveLength(2)
+    // The sidebar's own badge reads /compliance/activity/summary; nothing else may.
+    expect(
+      calls().filter(
+        (call) => call.includes('/compliance/activity') && !call.includes('/compliance/activity/summary'),
+      ),
+    ).toEqual([])
+    expect(screen.queryByText(/Tax Authority report/)).toBeNull()
+  })
+
+  it('words a refusal and points at the record, offering no resubmit here', async () => {
+    who = { ...SENDER, permissions: [...SENDER.permissions, 'invoice.submit'] }
+    dispatchResponse = () => json(200, DELIVERED_BOTH)
+    serve([tddLeg({ ack: 'RE', status: 'REJECTED', reason: 'IBR-TDD-57 failed' })], {
+      resubmit: '/api/v1/invoices/s-1/tdd/resubmit',
+    })
+    renderInvoice()
+    expect(
+      await screen.findByText(
+        /Tax Authority report: turned down\. The reason is on its record in Compliance › Activity · It can be resubmitted from that record/,
+      ),
+    ).toBeTruthy()
+    // C5's own English reason stays on the record, and no button posts anything from this page.
+    expect(screen.queryByText(/IBR-TDD-57/)).toBeNull()
+    expect(screen.queryByRole('button', { name: /resubmit/i })).toBeNull()
+    expect(calls().filter((call) => call.startsWith('POST '))).toEqual([])
+  })
+
+  it('says a report past its deadline that has not reached C5', async () => {
+    dispatchResponse = () => json(200, DELIVERED_BOTH)
+    // Dead-lettered by the SLA watchdog while the transport still retries: not stopped.
+    serve([
+      tddLeg({
+        status: 'DEAD_LETTERED',
+        transport_state: 'RETRY_SCHEDULED',
+        delivered_at: null,
+        sla_met: false,
+      }),
+    ])
+    renderInvoice()
+    expect(
+      await screen.findByText(
+        /Tax Authority report: not delivered to the Tax Authority yet · Its reporting deadline has passed/,
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText(/stopped at Fawtir/)).toBeNull()
+  })
+
+  it('reads in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    dispatchResponse = () => json(200, DELIVERED_BOTH)
+    serve([tddLeg({ ack: 'AB', status: 'DELIVERED_UNCONFIRMED' })])
+    renderInvoice()
+    expect(await screen.findByText(/إبلاغ جهاز الضرائب: سُلّم دون تأكيد، ولا يُحتسب مقبولًا/)).toBeTruthy()
   })
 })
 

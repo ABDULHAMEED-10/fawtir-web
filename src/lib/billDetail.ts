@@ -4,6 +4,10 @@ import type {
   BillRowDto,
   ReceiptReportDto,
 } from '../api/expenditure/bills'
+import type { ActivityItemDto } from '../api/compliance/activity'
+import type { InboundInvoiceDto } from '../api/expenditure/inboundInvoice'
+import { canResubmit, correctionHeld } from './activityLedger'
+import { tddReportStateOf } from './taxAuthorityReport'
 
 /**
  * One supplier bill, opened (Figma 86:16520), written only from what `GET /bills/{id}` carries.
@@ -332,10 +336,123 @@ export function selfBillPath(issuedInvoiceId: string): string {
 }
 
 /**
+ * What the delivery record and the compliance record say about a bill received over Peppol, read
+ * beside the bill because `GET /bills/{id}` carries neither (G3, and EXPENDITURE.md R.1 still
+ * open). `unavailable` covers a person limited to some branches (the inbound routes answer 404
+ * and the ledger 403 for them) and any failed read: the lines then say "not available", never
+ * a filing or a reply nobody can see. `record` is null when the compliance record could not be
+ * read or could not be proven to be this delivery's (provesReceived).
+ */
+export type ReceivedFacts =
+  | { kind: 'loading' }
+  | { kind: 'unavailable' }
+  | { kind: 'ready'; inbound: InboundInvoiceDto; record: ActivityItemDto | null }
+
+/** The compliance record of one document (Compliance › Activity). */
+export function activityRecordPath(invoiceUuid: string): string {
+  return `/compliance/activity/${encodeURIComponent(invoiceUuid)}`
+}
+
+/**
+ * Our own receipt report as the compliance record has it, by the same report state the issued
+ * side reads (tddReportStateOf). The line leads to the record, where C5's reason and any
+ * resubmission the server offers are.
+ */
+export function receiptLegNote(
+  record: ActivityItemDto,
+  instantDay: (iso: string) => string,
+): ComplianceNote {
+  const leg = record.tdd_leg
+  const link = activityRecordPath(record.invoice_uuid)
+  const note = (key: string, ok: boolean, values?: Record<string, string>): ComplianceNote => ({
+    key: `billDetail.compliance.receipt.${key}`,
+    ok,
+    link,
+    ...(values ? { values } : {}),
+  })
+  switch (tddReportStateOf(leg)) {
+    case 'NOT_RAISED':
+      return note('notRaised', false)
+    case 'NEVER_SUBMITTED':
+      return note(leg?.sla_met === false ? 'notSubmittedLate' : 'notSubmitted', false)
+    case 'AWAITING_RESPONSE':
+      return note('submitted', false)
+    case 'ANSWERED':
+      // AB is final but unconfirmed, and the ledger never counts it as accepted: no tick.
+      if (leg?.ack !== 'AP') return note('deliveredUnconfirmed', false)
+      return leg.ack_at
+        ? note('accepted', true, { date: instantDay(leg.ack_at) })
+        : note('acceptedUndated', true)
+    case 'AUTHORITY_REJECTED':
+      if (canResubmit(record)) return note('rejectedResubmit', false)
+      return note(correctionHeld(record) ? 'rejectedHeld' : 'rejected', false)
+    case 'INTERNALLY_STOPPED':
+      return note('stopped', false)
+  }
+}
+
+/**
+ * Transport states of our MLS row short of delivery that are not failures (MessageState). Worded
+ * "not delivered yet", not "on its way": behind an outbound hold a PENDING row does not move
+ * (review of #250, N1).
+ */
+const REPLY_UNDELIVERED: ReadonlySet<string> = new Set(['PENDING', 'SENDING', 'SENT_AWAITING_MDN'])
+const REPLY_RETRYING: ReadonlySet<string> = new Set(['RETRY_SCHEDULED'])
+/**
+ * MDN_FAILED is terminal in practice: the backend's claims select only PENDING and RETRY_SCHEDULED,
+ * so nothing sends that row again (backend MessageState; BC-6). Saying "will be retried" there
+ * would promise a retry that never comes.
+ */
+const REPLY_FAILED: ReadonlySet<string> = new Set(['MDN_FAILED', 'DEAD_LETTERED'])
+
+/**
+ * The MLS our access point answered the supplier's with. `ack` is the status decided, which is
+ * not proof it left: only a DELIVERED transport row says the supplier's access point has it
+ * (InboundDetailResponse, inbound audit 2026-10-13 F3). No status recorded is not a failure.
+ */
+export function replyNote(
+  ack: 'AP' | 'AB' | 'RE' | 'NONE' | null,
+  transportState: string | null,
+): ComplianceNote {
+  const note = (key: string, ok: boolean): ComplianceNote => ({
+    key: `billDetail.compliance.reply.${key}`,
+    ok,
+  })
+  if (ack === null || ack === 'NONE') return note('none', false)
+  if (transportState === null) return note('notQueued', false)
+  if (transportState === 'DELIVERED') return note(ack, ack !== 'RE')
+  if (REPLY_UNDELIVERED.has(transportState)) return note('notDeliveredYet', false)
+  if (REPLY_RETRYING.has(transportState)) return note('retrying', false)
+  if (REPLY_FAILED.has(transportState)) return note('failed', false)
+  return note('unknown', false)
+}
+
+/** The record's own leg when the record was proven, else the delivery record's columns. */
+function replyOf(received: Extract<ReceivedFacts, { kind: 'ready' }>): ComplianceNote {
+  const leg = received.record?.invoice_leg
+  return leg
+    ? replyNote(leg.ack, leg.transport_state ?? null)
+    : replyNote(received.inbound.mlsCode, received.inbound.mlsTransportState)
+}
+
+/** Whether the server may still move the reply on its own, so the page keeps re-reading. */
+export function replyIsPending(ack: string | null, transportState: string | null): boolean {
+  if (ack === null || ack === 'NONE') return false
+  return (
+    transportState !== null &&
+    (REPLY_UNDELIVERED.has(transportState) || REPLY_RETRYING.has(transportState))
+  )
+}
+
+/**
  * The compliance card's four lines (Figma 163:23284: validity, PINT-OM, tax reporting, the
  * archive), each written from a fact the platform holds. A line whose fact is missing says so
  * rather than claiming it. For a bill received over Peppol the reporting line is our own receipt
  * report (om-tdd, reporter role 02), not the supplier's.
+ *
+ * With `received`, a bill that came over Peppol also says how we answered the supplier's access
+ * point (a fifth line, in the card's own list), and the reporting line is read from the compliance
+ * record. A delivery record that says validation failed outranks `networkVerified`.
  *
  * A self-billed bill is this company's own document, issued through Fawtir on the supplier's
  * behalf: it did not "arrive" and has no supplier's file, so the three lines that said "not
@@ -347,6 +464,7 @@ export function selfBillPath(issuedInvoiceId: string): string {
 export function complianceOf(
   detail: BillDetailDto,
   instantDay: (iso: string) => string = (iso) => iso.slice(0, 10),
+  received?: ReceivedFacts,
 ): ComplianceNote[] {
   const { compliance, intake, bill } = detail
   if (compliance.source === 'SELF_BILLED') {
@@ -367,23 +485,35 @@ export function complianceOf(
       { key: 'billDetail.compliance.selfBilled.validTaxInvoice', ok: true },
     ]
   }
-  const verified = compliance.source === 'PEPPOL' && compliance.networkVerified
-  const reporting: Note & { ok: boolean } =
-    compliance.source === 'PEPPOL'
-      ? receiptReportNote(compliance.receiptReport, instantDay)
-      : compliance.obligation === 'REPORTED_BY_SENDER'
-        ? { key: 'billDetail.compliance.reportedBySender', ok: true }
-        : compliance.obligation === 'PENDING_COMPLIANCE_INPUT'
-          ? { key: 'billDetail.compliance.pendingInput', ok: false }
-          : { key: 'billDetail.compliance.notApplicable', ok: true }
+  const peppol = compliance.source === 'PEPPOL'
+  const facts = peppol && received?.kind === 'ready' ? received : null
+  const verified = peppol && compliance.networkVerified
+  const failedOnArrival = facts !== null && !facts.inbound.validationPassed
+  const reporting: ComplianceNote =
+    facts?.record
+      ? receiptLegNote(facts.record, instantDay)
+      : peppol
+        ? receiptReportNote(compliance.receiptReport, instantDay)
+        : compliance.obligation === 'REPORTED_BY_SENDER'
+          ? { key: 'billDetail.compliance.reportedBySender', ok: true }
+          : compliance.obligation === 'PENDING_COMPLIANCE_INPUT'
+            ? { key: 'billDetail.compliance.pendingInput', ok: false }
+            : { key: 'billDetail.compliance.notApplicable', ok: true }
   const kept = intake !== null || bill.inboundDeliveryId !== null
   const lines: ComplianceNote[] = [
     verified
       ? { key: 'billDetail.compliance.overPeppol', ok: true }
       : { key: 'billDetail.compliance.notValidated', ok: false },
-    verified
-      ? { key: 'billDetail.compliance.passedPintOm', ok: true }
-      : { key: 'billDetail.compliance.noPintOm', ok: false },
+    failedOnArrival
+      ? { key: 'billDetail.compliance.failedOnArrival', ok: false }
+      : verified
+        ? { key: 'billDetail.compliance.passedPintOm', ok: true }
+        : { key: 'billDetail.compliance.noPintOm', ok: false },
+    ...(facts
+      ? [replyOf(facts)]
+      : peppol && received?.kind === 'unavailable'
+        ? [{ key: 'billDetail.compliance.reply.unavailable', ok: false }]
+        : []),
     reporting,
     kept
       ? { key: 'billDetail.compliance.originalKept', ok: true }

@@ -259,3 +259,30 @@ describe('AL-7: the count on the Bills list', () => {
     expect(screen.queryByRole('link', { name: i18n.t('waitingDocuments.banner.open') })).toBeNull()
   })
 })
+
+// Audit A2 F-07: `/inbound-invoices/waiting` carries neither TDD nor MLS state, and a received
+// document's report and reply can fail (F-01 to F-03), so nothing here may say they happened.
+describe('the waiting copy claims no report or reply it cannot see', () => {
+  const said = (bundle: { waitingDocuments: { reported: string; banner: { body: string } } }) => [
+    bundle.waitingDocuments.reported,
+    bundle.waitingDocuments.banner.body,
+  ]
+
+  it('says how it works, not that it was done', async () => {
+    const en = (await import('../../i18n/locales/en.json')).default
+    for (const sentence of said(en)) {
+      expect(sentence).not.toMatch(/has been told|have had their reply|been reported/)
+    }
+    expect(en.waitingDocuments.reported).toMatch(/cannot show their status/)
+    // With the positive-MLS cutover blank no automatic reply goes out (A2 F-02): no "on its own".
+    expect(en.waitingDocuments.reported).not.toMatch(/on its own|replies to your supplier/)
+  })
+
+  it('says the same in Arabic', async () => {
+    const ar = (await import('../../i18n/locales/ar.json')).default
+    for (const sentence of said(ar)) {
+      expect(sentence).not.toMatch(/أُبلغ جهاز الضرائب باستلامك|تلقى مورّدوك الرد|وأُبلغ بها/)
+      expect(sentence).not.toMatch(/[A-Za-z]/)
+    }
+  })
+})

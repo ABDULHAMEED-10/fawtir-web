@@ -34,7 +34,18 @@ export type MlsAckDto =
 
 export type ActivityDirectionDto = 'ISSUED' | 'RECEIVED'
 
-export type LegDto = { ack: MlsAckDto; ack_at: string | null; reason: string | null }
+export type LegDto = {
+  ack: MlsAckDto
+  ack_at: string | null
+  reason: string | null
+  /**
+   * RECEIVED only: the transport state of the MLS our access point queued back to the sender, and
+   * the start of the attempt the sender's access point acknowledged. `ack` is the status we
+   * decided, which does not prove it left. Null on an ISSUED row.
+   */
+  transport_state?: string | null
+  delivered_at?: string | null
+}
 
 export type TddLegDto = {
   variant: string
@@ -48,6 +59,13 @@ export type TddLegDto = {
   ack: MlsAckDto
   ack_at: string | null
   reason: string | null
+  /**
+   * When the TDD transport row reached DELIVERED (C5's AS4 receipt), and that row's state.
+   * `submitted_at` is only when the TDD was queued, so these, not it, say whether C5 holds the
+   * report (backend TddReportState). Optional: the ledger screens do not read them yet.
+   */
+  delivered_at?: string | null
+  transport_state?: string | null
   /**
    * TODO(backend): ACTIVITY.md 2.30. Which kind of error the refusal is: INVOICE when the invoice's
    * own content was refused (its totals, the buyer's Peppol ID, a tax category), REPORT when only

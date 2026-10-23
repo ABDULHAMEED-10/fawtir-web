@@ -79,8 +79,20 @@ const DEFERRED_REASONS: ReadonlySet<string> = new Set([
   'SENDER_PARTICIPANT_CLAIM_CONFLICT',
 ])
 
-function reasonNote(code: string | null): DispatchNote | null {
+/**
+ * Reasons whose sentence promises another attempt. The processor dead-letters a retryable failure
+ * too once `fawtir.invoice.dispatch.maximum-attempts` is spent (AuthoredInvoiceDispatchProcessor),
+ * and on a dead-lettered row "it will be retried" is false: nothing tries again until support
+ * acts.
+ */
+const RETRY_PROMISED: ReadonlySet<string> = new Set([
+  'AUTHORED_INVOICE_DISPATCH_ERROR',
+  'PRECEDING_INVOICE_UNAVAILABLE',
+])
+
+function reasonNote(code: string | null, deadLettered = false): DispatchNote | null {
   if (!code) return null
+  if (deadLettered && RETRY_PROMISED.has(code)) return { key: 'invoiceDispatch.reason.retriesSpent' }
   const key = DISPATCH_REASONS[code]
   return key ? { key } : { key: 'invoiceDispatch.reason.unknown', values: { code } }
 }
@@ -96,15 +108,28 @@ export function dispatchNotes(dispatch: InvoiceDispatchDto): { state: DispatchNo
   // "sending failed" would be false.
   const key =
     leg && LEDGER_BEFORE_TRANSPORT.has(dispatch.state)
-      ? LEG_HEADLINES[leg.state]
+      ? (LEG_HEADLINES[leg.state] ?? UNKNOWN_STATE)
       : dispatch.state === 'RETRY_SCHEDULED' &&
           dispatch.reasonCode !== null &&
           DEFERRED_REASONS.has(dispatch.reasonCode)
         ? 'invoiceDispatch.state.heldSenderStanding'
-        : STATE_KEYS[dispatch.state]
+        : stateKeyOf(dispatch.state)
   const failed =
     dispatch.state === 'RETRY_SCHEDULED' || dispatch.state === 'DEAD_LETTERED'
-  return { state: key ? { key } : null, reason: failed ? reasonNote(dispatch.reasonCode) : null }
+  return {
+    state: key ? { key } : null,
+    reason: failed ? reasonNote(dispatch.reasonCode, dispatch.state === 'DEAD_LETTERED') : null,
+  }
+}
+
+/**
+ * A state this build has no sentence for (a newer server's) is said to be unknown. Falling through
+ * to nothing let the title read "Not sent yet" over a document that may well have gone.
+ */
+const UNKNOWN_STATE = 'invoiceDispatch.state.unknown'
+
+function stateKeyOf(state: InvoiceDispatchStateDto): string | null {
+  return state in STATE_KEYS ? STATE_KEYS[state] : UNKNOWN_STATE
 }
 
 const LEDGER_BEFORE_TRANSPORT: ReadonlySet<InvoiceDispatchStateDto> = new Set([
@@ -156,9 +181,11 @@ export function transportNotes(
       ? [
           {
             legKey,
-            state: leg.nextAttemptAt
-              ? { key: LEG_STATES[leg.state], values: { when: formatWhen(leg.nextAttemptAt) } }
-              : { key: leg.state === 'RETRY_SCHEDULED' ? RETRY_UNTIMED : LEG_STATES[leg.state] },
+            state: !(leg.state in LEG_STATES)
+              ? { key: 'invoiceDispatch.transport.state.unknown' }
+              : leg.nextAttemptAt
+                ? { key: LEG_STATES[leg.state], values: { when: formatWhen(leg.nextAttemptAt) } }
+                : { key: leg.state === 'RETRY_SCHEDULED' ? RETRY_UNTIMED : LEG_STATES[leg.state] },
           },
         ]
       : [],
@@ -221,9 +248,10 @@ export function sendResultNote(result: InvoiceSendResultDto): DispatchNote {
       return { key: 'invoiceDispatch.sent.already' }
     case 'SUPERSEDED':
       return { key: 'invoiceDispatch.sent.superseded' }
+    case 'DEAD_LETTERED':
+      return reasonNote(result.reasonCode, true) ?? { key: 'invoiceDispatch.sent.notSent' }
     case 'RETRY_SCHEDULED':
     case 'REFUSED':
-    case 'DEAD_LETTERED':
     default:
       return reasonNote(result.reasonCode) ?? { key: 'invoiceDispatch.sent.notSent' }
   }
@@ -269,7 +297,8 @@ const BUYER_KEYS: Record<InvoiceBuyerDeliveryDto, string> = {
  * "Peppol" whatever the customer preferred: the route is the network's, not the preference's.
  */
 export function buyerDeliveryNote(dispatch: InvoiceDispatchDto | null): DispatchNote | null {
-  return dispatch?.buyerDelivery ? { key: BUYER_KEYS[dispatch.buyerDelivery] } : null
+  if (!dispatch?.buyerDelivery) return null
+  return { key: BUYER_KEYS[dispatch.buyerDelivery] ?? 'invoiceDispatch.buyer.unknown' }
 }
 
 /** Refusals of a held-e-mail release, by `code`. */

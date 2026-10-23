@@ -76,7 +76,20 @@ import {
   dispatchSucceeded,
   transportNotes,
   sendResultNote,
+  type DispatchNote,
 } from '../../lib/invoiceDispatch'
+import { activityListPath } from '../../api/compliance/activity'
+import {
+  REPORT_CANDIDATES,
+  REPORT_UNAVAILABLE,
+  findIssuedReport,
+  issuedReportNotes,
+  recentEnoughToWatch,
+  refreshIssuedReport,
+  tddReportIsPending,
+  transportMessageIds,
+  type ReportLookup,
+} from '../../lib/taxAuthorityReport'
 import { dueDateFor, muscatToday } from '../../lib/invoiceIssue'
 import {
   PAYMENT_REFUSALS,
@@ -288,6 +301,62 @@ function InvoiceScreen() {
       if (live() && epoch === dispatchEpoch.current) setDispatchLatest(next)
     })
   })
+  // C5's answer to the TDD is on the compliance record only, not on the dispatch, whose Tax
+  // Authority leg ends at the AS4 receipt (audit A1, F-10). Looked up once a transport row exists,
+  // since that row is what proves which record is this invoice's (findIssuedReport).
+  // Read only where the delivery bar says it (a receivable that applies, not a manual delivery),
+  // so a document whose bar is not drawn spends no requests on it.
+  const messageIds = transportMessageIds(dispatch)
+  const deliveryBarShown =
+    receivable.read.status === 'ready' &&
+    receivable.read.data.paymentState !== 'NOT_APPLICABLE' &&
+    document?.deliveryState !== 'SENT_MANUALLY'
+  const reportNumber =
+    document && !isDraft(document) && deliveryBarShown ? document.invoiceNumber : null
+  const reportRead = useApiRead<ReportLookup>(
+    reportNumber && messageIds.length > 0
+      ? activityListPath({ direction: 'ISSUED', invoiceNumber: reportNumber }, 0, REPORT_CANDIDATES)
+      : null,
+    () => findIssuedReport(reportNumber!, messageIds),
+  )
+  const [reportLatest, setReportLatest] = useState<ReportLookup | null>(null)
+  const report = reportLatest ?? (reportRead.read.status === 'ready' ? reportRead.read.data : null)
+  // An unproven lookup is asked once more, a few seconds on: the read is keyed by the number, so a
+  // transport row the dispatch poll reports later, or a ledger row that lands just after the first
+  // read, would otherwise leave "not available" until a reload (review of #250, L2). Once only, and
+  // after the read settles, so a number that genuinely matches nothing costs one extra round.
+  // The ref makes it one request whatever the timing: the spell's next timer can fire before the
+  // re-render that ends the spell has happened.
+  const [lookupRetried, setLookupRetried] = useState(false)
+  const lookupSpent = useRef(false)
+  usePendingRefresh(
+    reportNumber ? `${id}:report-lookup` : null,
+    report?.kind === 'unproven' && !lookupRetried,
+    (live) => {
+      if (lookupSpent.current) return Promise.resolve()
+      lookupSpent.current = true
+      return findIssuedReport(reportNumber!, messageIds)
+        .then((next) => {
+          if (live()) setReportLatest(next)
+        })
+        .finally(() => setLookupRetried(true))
+    },
+  )
+  // Watched until C5 answers or Fawtir stops the report; the dispatch poll above ends at the AS4
+  // receipt, which said nothing of C5's answer. Only the proven record is re-read, and only for a
+  // document recent enough that an answer may still arrive while the page is open.
+  usePendingRefresh(
+    report?.kind === 'found' ? report.invoiceUuid : null,
+    report?.kind === 'found' &&
+      tddReportIsPending(report.item.tdd_leg) &&
+      recentEnoughToWatch(report.item),
+    (live) =>
+      report?.kind === 'found'
+        ? refreshIssuedReport(report.invoiceUuid, messageIds).then((next) => {
+            if (live()) setReportLatest(next)
+          })
+        : Promise.resolve(),
+  )
   const [sending, setSending] = useState(false)
   // The credit and debit notes that correct this invoice (I-10/I-11), listed on the invoice so a
   // reader sees why its balance moved and can open each note.
@@ -554,6 +623,14 @@ function InvoiceScreen() {
   const dispatchLine = dispatch ? dispatchNotes(dispatch) : null
   const buyerLine = buyerDeliveryNote(dispatch)
   const transportLines = transportNotes(dispatch, (instant) => formatInstant(instant, language))
+  // A record that cannot be read or tied to this invoice is said to be unavailable, never left
+  // out: a silent gap after "transmitted, receipt received" read as a finished report.
+  const reportLines: DispatchNote[] =
+    report?.kind === 'found'
+      ? issuedReportNotes(report.item)
+      : report?.kind === 'unproven' || reportRead.read.status === 'failed'
+        ? [REPORT_UNAVAILABLE]
+        : []
   const canManageAttachments = attachmentsEditable(data, (permission) => can(session, permission))
 
   const download = async (file: InvoiceAttachmentDto) => {
@@ -996,6 +1073,7 @@ function InvoiceScreen() {
                           ...transportLines.map((line) =>
                             t(line.legKey, { state: t(line.state.key, line.state.values) }),
                           ),
+                          ...reportLines.map((line) => t(line.key, line.values)),
                         ]
                           .filter(Boolean)
                           .join(' · ')
