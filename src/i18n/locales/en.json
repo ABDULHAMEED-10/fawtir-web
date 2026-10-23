@@ -23750,12 +23750,14 @@
       "pending": "Waiting for approval · {{given}} of {{required}}",
       "APPROVED": "Approved. It can now be issued.",
       "REJECTED": "Not approved. Edit the draft and send it for approval again.",
-      "amount": "Sent for approval at {{amount}}",
+      "amount": "Sent for approval for {{amount}}",
+      "amountAt": "Sent for approval on {{when}} for {{amount}}",
       "reason": "Reason: {{reason}}",
       "editClears": "Editing the draft clears the approval."
     },
     "actions": {
       "request": "Send for approval",
+      "openDraft": "Open the draft",
       "withdraw": "Withdraw request",
       "approve": "Approve",
       "approveAndIssue": "Approve and issue",

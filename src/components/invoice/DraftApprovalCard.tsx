@@ -13,7 +13,7 @@ import {
 } from '../../api/invoices/salesApproval'
 import type { InvoiceTypeDto } from '../../api/invoices/list'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { formatAmount } from '../../lib/format'
+import { formatAmount, formatInstant } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 
 const PRIMARY_BUTTON =
@@ -142,7 +142,14 @@ export function DraftApprovalCard({
         </p>
         {amount && status !== 'NOT_REQUESTED' ? (
           <p className="text-sm font-medium leading-[1.5] text-text-quaternary">
-            {withRial(t('salesApproval.card.amount', { amount }))}
+            {withRial(
+              approval.requestedAt
+                ? t('salesApproval.card.amountAt', {
+                    amount,
+                    when: formatInstant(approval.requestedAt, i18n.language),
+                  })
+                : t('salesApproval.card.amount', { amount }),
+            )}
           </p>
         ) : null}
         {status === 'REJECTED' && approval.lastDecision?.reason ? (

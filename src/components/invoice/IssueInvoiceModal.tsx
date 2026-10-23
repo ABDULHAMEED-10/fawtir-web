@@ -18,6 +18,7 @@ import {
   isSupplierIsicMissing,
 } from '../../lib/selfBillingRefusals'
 import { formatAmount } from '../../lib/format'
+import { sendsForApprovalFromDraft } from '../../lib/salesApproval'
 import { issueProblems, issueRefusalOf, muscatToday, type IssueField, type IssueForm } from '../../lib/invoiceIssue'
 
 const FORM_ID = 'issue-invoice'
@@ -37,6 +38,7 @@ export function IssueInvoiceModal({
   initialDueDate,
   kind = 'INVOICE',
   selfBilled = false,
+  approvalPage,
   onClose,
   onIssued,
 }: {
@@ -55,6 +57,11 @@ export function IssueInvoiceModal({
    * is the supplier's, set on its agreement, not the company's.
    */
   selfBilled?: boolean
+  /**
+   * The draft's own page, where it is sent for approval. Given only where this opens away from
+   * that page (the composer), so a refusal to issue before approval can link to it.
+   */
+  approvalPage?: string
   onClose: () => void
   onIssued: (invoice: InvoiceDetailDto) => void
 }) {
@@ -133,6 +140,9 @@ export function IssueInvoiceModal({
         const body = t(message.key, message.values)
         setFailure(message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body)
         setFailureLink(subscriptionRestrictedAction(error))
+      }
+      if (approvalPage && sendsForApprovalFromDraft(error)) {
+        setFailureLink({ to: approvalPage, labelKey: 'salesApproval.actions.openDraft' })
       }
     } finally {
       inFlight.current = false

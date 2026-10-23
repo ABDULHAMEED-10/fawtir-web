@@ -2457,6 +2457,9 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
           version={issuing.version}
           initialIssueDate={issueDate}
           initialDueDate={dueDate}
+          // A sales draft is sent for approval from its own page; the self-billed page has no
+          // approval card, so it gets no link.
+          approvalPage={selfBilled ? undefined : `/invoices/${encodeURIComponent(issuing.id)}`}
           onClose={() => setIssuing(null)}
           onIssued={(issued) => void afterIssue(issued)}
         />

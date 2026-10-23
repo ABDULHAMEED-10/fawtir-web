@@ -46,6 +46,17 @@ export function salesApprovalMessageKey(error: unknown): string | null {
   return REFUSALS[error.code] ?? null
 }
 
+/**
+ * Issue refusals whose way on is the draft's approval card: not yet sent, or sent and not
+ * approved. The composer has no approval actions, so from there the refusal links to the draft.
+ */
+export function sendsForApprovalFromDraft(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.code === 'SALES_APPROVAL_REQUIRED' || error.code === 'SALES_APPROVAL_REJECTED')
+  )
+}
+
 /** The codes this build has a sentence for. Exported so a test can pin the set. */
 export const MAPPED_SALES_APPROVAL_CODES = Object.freeze(Object.keys(REFUSALS))
 
