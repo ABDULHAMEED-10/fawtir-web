@@ -1,5 +1,6 @@
 import { ApiError, apiRequest } from '../../api'
 import { commonFailureMessage, type FormMessage } from '../identity/errors'
+import { JAVA_SPACE_CHAR, hasIsoControl } from './evidenceReference'
 import { PLATFORM_SMP_PATH } from './pidSubmission'
 import { problemReference } from './problemReference'
 
@@ -719,6 +720,32 @@ const WHOLE = /^\d{1,4}$/
 const LENGTH_MAX = 300
 const EVIDENCE_MAX = 500
 
+/**
+ * Characters `java.net.URI` accepts in no component, so the server's `URI.create` refuses any
+ * value holding one: the ASCII ones below, and every space or control character.
+ */
+const NEVER_IN_A_URI = /["<>\\^`{|}]/
+/** An authority (`scheme://` or a bare `//`) that carries a user name, the server's `getUserInfo`. */
+const AUTHORITY_WITH_USER = /^(?:[A-Za-z][A-Za-z0-9+.-]*:)?\/\/[^/?#]*@/
+
+/**
+ * The draft's evidence reference, as `SmpBlockerPolicyEngine.validateEvidenceReference` reads it:
+ * at most 500 characters, no control characters, a value `URI.create` parses, and no user name or
+ * password in it. Only refusals the server would make too are made here (an `@` in a `//`
+ * authority is the one agreed exception, as in `evidenceReference.ts`); anything subtler, such as
+ * a broken `%` escape, is left to the server. Empty is allowed: it is required only on activation.
+ */
+export function draftEvidenceError(value: string): string | undefined {
+  const sent = value.trim()
+  if (!sent) return undefined
+  if (sent.length > EVIDENCE_MAX) return 'console.policies.validation.evidence'
+  if (AUTHORITY_WITH_USER.test(sent)) return 'console.policies.validation.evidenceCredentials'
+  if (hasIsoControl(sent) || JAVA_SPACE_CHAR.test(sent) || NEVER_IN_A_URI.test(sent)) {
+    return 'console.policies.validation.evidenceFormat'
+  }
+  return undefined
+}
+
 const requiredText = (value: string) => (value.trim() ? undefined : 'validation.required')
 
 function length(value: string): string | undefined {
@@ -767,10 +794,7 @@ export function validatePidForm(values: PidPolicyForm): PidPolicyErrors {
     negativeFixtures: fixturesFromText(values.negativeFixtures).length
       ? undefined
       : 'console.policies.validation.fixtures',
-    evidenceReference:
-      values.evidenceReference.trim().length > EVIDENCE_MAX
-        ? 'console.policies.validation.evidence'
-        : undefined,
+    evidenceReference: draftEvidenceError(values.evidenceReference),
     effectiveFrom: dayToInstant(values.effectiveFrom) ? undefined : 'validation.required',
     effectiveTo:
       values.effectiveTo && values.effectiveFrom && values.effectiveTo <= values.effectiveFrom

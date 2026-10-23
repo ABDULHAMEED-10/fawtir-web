@@ -2195,6 +2195,24 @@ describe('Authoring the Participant ID policy', () => {
     expect(callsTo(versionUrl(V3))).toHaveLength(1)
   })
 
+  it('E7: names the evidence reference and what is wrong with it before sending, and its hint gives the format', async () => {
+    const draft = version({ allowedActions: actions({ editDraft: allow }) })
+    await openPolicy([draft], {})
+
+    fireEvent.click(button('console.policies.action.edit'))
+    type('evidenceReference', 'Policy review 22 Oct')
+    save()
+
+    expect(await screen.findByText(t('console.policies.validation.evidenceFormat'))).toBeTruthy()
+    expect(document.activeElement).toBe(field('evidenceReference'))
+    expect(screen.queryByText(t('console.policies.error.rejectedContent'))).toBeNull()
+    expect(callsTo(versionUrl(V3))).toHaveLength(0)
+
+    type('evidenceReference', 'https://tickets.example.om/SUP-1200')
+    expect(screen.getByText(t('console.policies.pid.hint.evidence'))).toBeTruthy()
+    expect(t('console.policies.pid.hint.evidence')).toContain('No spaces')
+  })
+
   it('marks the field a refused draft names, without the server’s sentence', async () => {
     const draft = version({ allowedActions: actions({ editDraft: allow }) })
     await openPolicy([draft], {

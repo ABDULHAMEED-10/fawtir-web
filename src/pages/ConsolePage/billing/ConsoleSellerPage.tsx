@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
 import { Input } from '../../../components/ui'
@@ -16,7 +16,10 @@ import { BILLING_MANAGE_PERMISSION } from '../../../lib/console/billingPayments'
 import {
   BILLING_SELLER_HISTORY_PATH,
   BILLING_SELLER_PATH,
+  BILLING_SETTINGS_PATH,
+  chargesVat,
   saveBillingSeller,
+  type BillingSettingsDto,
   type BillingSellerDto,
   type BillingSellerRequest,
 } from '../../../lib/console/billingSettings'
@@ -69,7 +72,18 @@ function Seller() {
   // 204 parses as no body: undefined means no seller has been entered yet.
   const { read, retry } = useConsoleRead<BillingSellerDto | undefined>(BILLING_SELLER_PATH)
   const history = useConsoleRead<BillingSellerDto[]>(BILLING_SELLER_HISTORY_PATH)
+  // The server refuses a seller without a VAT number while VAT is on (one rule across the two
+  // records), so the form checks the same pair before sending. Unread or unreadable settings check
+  // nothing here: the server still decides.
+  const settings = useConsoleRead<BillingSettingsDto>(BILLING_SETTINGS_PATH)
+  const vatOn = settings.read.status === 'ready' && chargesVat(settings.read.data?.vatRate)
   const [failure, setFailure] = useState<string | null>(null)
+  const failureRef = useRef<HTMLParagraphElement>(null)
+
+  // The message sits above the form; Save is at its foot. Bring a refusal into view so it is seen.
+  useEffect(() => {
+    if (failure) failureRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [failure])
 
   const reload = () => {
     retry()
@@ -85,6 +99,7 @@ function Seller() {
         // A new version read starts a fresh form, so nothing typed against the old one lingers.
         key={read.data?.version ?? 0}
         seller={read.data ?? null}
+        vatOn={vatOn}
         onSaved={() => {
           setFailure(null)
           reload()
@@ -92,6 +107,8 @@ function Seller() {
         onRefused={(error) => {
           setFailure(refusal(t, error))
           if (isConflict(error)) reload()
+          // VAT may have been switched on since the settings were read: read them again.
+          else settings.retry()
         }}
       />
     )
@@ -103,6 +120,7 @@ function Seller() {
       <ConsolePageHeader title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
       {failure ? (
         <p
+          ref={failureRef}
           role="alert"
           className="rounded-sm bg-danger-100 px-4 py-3 text-sm font-medium text-danger-700"
         >
@@ -131,10 +149,12 @@ function toForm(seller: BillingSellerDto | null): Form {
 
 function SellerForm({
   seller,
+  vatOn,
   onSaved,
   onRefused,
 }: {
   seller: BillingSellerDto | null
+  vatOn: boolean
   onSaved: () => void
   onRefused: (error: unknown) => void
 }) {
@@ -143,12 +163,12 @@ function SellerForm({
   const [form, setForm] = useState<Form>(stored)
   const [attempted, setAttempted] = useState(false)
   const [busy, setBusy] = useState(false)
-  const errors = attempted ? validate(form) : {}
+  const errors = attempted ? validate(form, vatOn) : {}
   const dirty = JSON.stringify({ ...form, reason: '' }) !== JSON.stringify(stored)
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (Object.keys(validate(form)).length > 0) {
+    if (Object.keys(validate(form, vatOn)).length > 0) {
       setAttempted(true)
       return
     }
@@ -235,7 +255,7 @@ function SellerForm({
 }
 
 /** Error keys by field, checked before sending so the server's 400 is the exception. */
-function validate(form: Form): Errors {
+function validate(form: Form, vatOn: boolean): Errors {
   const errors: Errors = {}
   const value = (field: Field) => form[field].trim()
   for (const required of ['legalNameEn', 'crNumber', 'addressEn', 'reason'] as const) {
@@ -248,6 +268,8 @@ function validate(form: Form): Errors {
   }
   if (value('vatNumber') && !/^OM\d{10}$/i.test(value('vatNumber')))
     errors.vatNumber = `${K}error.vatNumber`
+  // The server's rule (PlatformSubscriptionService.requireVatRegisteredSeller), in its words.
+  if (vatOn && !value('vatNumber')) errors.vatNumber = `${K}error.vatNumberWhileVatOn`
   return errors
 }
 

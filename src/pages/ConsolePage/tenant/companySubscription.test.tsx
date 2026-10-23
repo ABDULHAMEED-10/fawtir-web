@@ -905,6 +905,25 @@ describe('Console › Tenant › Give back documents (AL-F4, CON-10)', () => {
     expect(sent('POST', `${EXTRA}/give-backs`)).toBeNull()
   })
 
+  it('says the reason is required when documents are chosen but no reason is given', async () => {
+    answers[`${ISSUED}?limit=50`] = () => json(200, [issued('d-2', 'INV-0412')])
+    const user = userEvent.setup({ delay: null })
+    renderCards()
+
+    await user.click((await card(C('allowance.title'))).getByRole('button', { name: G('open') }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(await within(dialog).findByRole('checkbox', { name: 'INV-0412' }))
+    await user.click(within(dialog).getByRole('button', { name: G('confirm') }))
+
+    const reason = within(dialog).getByRole('textbox', {
+      name: new RegExp(i18n.t('console.operators.reason.label')),
+    })
+    expect(await within(dialog).findByText(i18n.t('validation.required'))).toBeTruthy()
+    expect(reason.getAttribute('aria-invalid')).toBe('true')
+    expect(document.activeElement).toBe(reason)
+    expect(sent('POST', `${EXTRA}/give-backs`)).toBeNull()
+  })
+
   it('says in words when a document was already given back', async () => {
     answers[`${ISSUED}?limit=50`] = () => json(200, [issued('d-2', 'INV-0412')])
     answers[`POST ${EXTRA}/give-backs`] = () =>

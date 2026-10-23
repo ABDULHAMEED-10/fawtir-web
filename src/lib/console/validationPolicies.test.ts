@@ -438,6 +438,53 @@ describe('validatePidForm', () => {
     expect(errorsOf({ effectiveTo: '2026-11-02' }).effectiveTo).toBeUndefined()
   })
 
+  // E7 (22 Oct E2E): the server's URI check (SmpBlockerPolicyEngine.validateEvidenceReference)
+  // refused these with a bare 400 the screen could only call "contents not accepted".
+  it('refuses an evidence reference the server cannot read as a URI, naming the field', () => {
+    for (const refused of [
+      'Policy review 22 Oct',
+      'SUP-1200\u00a0x',
+      'https://tickets.example.om/a b',
+      'https://tickets.example.om/<1200>',
+      'ref"1200"',
+      'a\\b',
+      'x{1}',
+      'a|b',
+      'a^b',
+      'a`b',
+      'line\tbreak',
+    ]) {
+      expect(errorsOf({ evidenceReference: refused }).evidenceReference).toBe(
+        'console.policies.validation.evidenceFormat',
+      )
+    }
+  })
+
+  it('refuses a user name or password in an evidence link', () => {
+    for (const refused of ['https://ops:secret@tickets.example.om/SUP-1200', '//ops@tickets.example.om/x']) {
+      expect(errorsOf({ evidenceReference: refused }).evidenceReference).toBe(
+        'console.policies.validation.evidenceCredentials',
+      )
+    }
+  })
+
+  it('lets through every evidence reference the server accepts as a URI', () => {
+    for (const accepted of [
+      '',
+      'SUP-1200',
+      'OKOK',
+      'https://tickets.example.om/SUP-1200',
+      'evidence://drive/pid/2026-10-22',
+      'urn:fawtir:evidence:42',
+      'mailto:ops@fawtir.om',
+      'policy/review-2026-10-22?ticket=SUP-1200#notes',
+      '  SUP-1200  ',
+      'مرجع-1200',
+    ]) {
+      expect(errorsOf({ evidenceReference: accepted }).evidenceReference).toBeUndefined()
+    }
+  })
+
   it('does not judge a pattern by JavaScript’s dialect', () => {
     // Valid in Java, a syntax error in JavaScript: the server is the judge.
     expect(errorsOf({ validationPattern: '^\\p{Alnum}++$' }).validationPattern).toBeUndefined()

@@ -63,7 +63,7 @@ const JAVA_WHITESPACE = /[ \u1680\u2000-\u2006\u2008-\u200a\u2028\u2029\u205f\u3
 const JAVA_BLANK = /^[ \u1680\u2000-\u2006\u2008-\u200a\u2028\u2029\u205f\u3000]+$/
 
 /** `Character.isSpaceChar`: every space, line or paragraph separator, no-break spaces included. */
-const JAVA_SPACE_CHAR = /[ \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]/
+export const JAVA_SPACE_CHAR = /[ \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]/
 
 function isPlaceholder(value: string): boolean {
   return PLACEHOLDERS.has(value.toLowerCase().replace(/[^a-z0-9]/g, ''))
