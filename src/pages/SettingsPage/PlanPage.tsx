@@ -159,6 +159,10 @@ function PlanBody({ onPlanChanged }: { onPlanChanged: (why?: string) => void }) 
   // The move buttons (plan-change table, PC-2): only with the server's switch on and the permission,
   // never for Enterprise (D4) or an untracked subscription, not while it is ending (Q6: keep it
   // first) and not while a charged change waits for payment (pay or withdraw it first).
+  // PC-7 (owner, 23 Oct 2026): once the customer's own cancellation has taken effect (Cancelled),
+  // the plan and cycle can be chosen again, and paying for them is the renewal; it is no longer
+  // "ending". A subscription Fawtir cancelled (CA-7) is never changed online: staff decide.
+  const ending = status !== null && status.cancelAtPeriodEnd && status.access !== 'CANCELLED'
   const selfService: SelfService | null =
     changesRead?.available === true &&
     mayManage &&
@@ -167,9 +171,14 @@ function PlanBody({ onPlanChanged }: { onPlanChanged: (why?: string) => void }) 
     status.tracked &&
     status.access !== 'NOT_TRACKED' &&
     status.enterprise == null &&
-    !status.cancelAtPeriodEnd &&
+    !status.cancelledByFawtir &&
+    !ending &&
     pending === null
-      ? { cycle: status.billingCycle ?? 'MONTHLY' }
+      ? {
+          cycle: status.billingCycle ?? 'MONTHLY',
+          // A trial that ended unpaid: no paid period ever, and no trial running any more.
+          neverPaid: status.paidThrough == null && status.access !== 'TRIAL',
+        }
       : null
   // R1 (D6): in the free trial a paid bigger plan ends the trial, so the paid-time rule is not said.
   const inTrial = status?.access === 'TRIAL'
@@ -735,7 +744,11 @@ function Figure({ label, value, note }: { label: string; value: string; note?: s
  * TODO: show the Enterprise card only to companies on Business Plus, the one plan it is the next
  * step from (owner, 7 Oct 2026: agreed, to be done later).
  */
-type SelfService = { cycle: BillingCycle }
+type SelfService = {
+  cycle: BillingCycle
+  /** No paid period yet (PC-7): a refusal of the move says the first payment decides the plan. */
+  neverPaid: boolean
+}
 
 function PlanCards({
   current,
@@ -792,7 +805,15 @@ function PlanCards({
             myPrice={myPrice}
             cycle={selfService?.cycle ?? null}
             onChoose={
-              selfService ? (cycle) => setTarget({ planCode: plan.code, cycle, inTrial }) : null
+              selfService
+                ? (cycle) =>
+                    setTarget({
+                      planCode: plan.code,
+                      cycle,
+                      inTrial,
+                      neverPaid: selfService.neverPaid,
+                    })
+                : null
             }
           />
         ))}

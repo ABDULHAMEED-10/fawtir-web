@@ -88,6 +88,11 @@ const CANCELLED = {
   cancelAtPeriodEnd: true,
   accessEndsOn: '2026-10-14',
 }
+/** Fawtir cancelled it at once (CA-7): no plan change online (PC-7, owner, 23 Oct 2026). */
+const CANCELLED_BY_FAWTIR = {
+  ...CANCELLED,
+  cancelledByFawtir: { on: '2026-10-15', message: 'Repeated misuse' },
+}
 /** Suspended by its dates, but the server's restriction switch is off: nothing is hidden. */
 const SWITCH_OFF = { ...SUSPENDED, restrictionsEnforced: false, restriction: null }
 
@@ -267,13 +272,13 @@ describe('E28: Settings › Plan while the subscription is usable', () => {
   })
 })
 
-// A cancelled subscription is still "ending" (`cancelAtPeriodEnd`), and moving plan while ending
-// was never offered (Q6: keep it first; the server refuses with plan-change-while-ending). That
-// rule is older than read-only and unchanged here, so for it only the extras are checked.
+// PC-7 (owner, 23 Oct 2026): a company that cancelled itself may choose its plan and cycle again
+// once the cancellation has taken effect (the server quotes READ_ONLY_UPGRADE). Before that, while
+// it is only "ending", Q6 still holds (keep it first).
 describe.each([
   ['suspended', SUSPENDED, true],
   ['trial ended unpaid', TRIAL_ENDED, true],
-  ['cancelled', CANCELLED, false],
+  ['cancelled by the customer', CANCELLED, true],
 ])('E28: Settings › Plan while %s', (_, status, moves) => {
   it('hides nothing: buying extras, adding places, switching cycle and moving plan stay (ST-2)', async () => {
     subscription = status
@@ -319,26 +324,64 @@ describe('Buying extras while the subscription is usable', () => {
   })
 })
 
+const CONTACT_FAWTIR = {
+  en: "Your subscription can't be changed online. Please contact Fawtir.",
+  ar: 'لا يمكن تغيير اشتراكك عبر الإنترنت. يرجى التواصل مع فوتر.',
+}
+const FIRST_PAYMENT = {
+  en: 'Complete your first payment to choose your plan.',
+  ar: 'أكمل دفعتك الأولى لاختيار باقتك.',
+}
+
+const refused = (code: string) => () =>
+  json(409, {
+    type: `https://api.fawtir.om/problems/${code}`,
+    title: code,
+    status: 409,
+    detail: 'English detail',
+  })
+
+// PC-7 (owner, 23 Oct 2026, message D): the single "Pay your subscription first, then move up" is
+// split in two. A server before its own codes sends plan-upgrade-requires-platform for both.
 describe.each([
-  ['suspended', SUSPENDED],
-  ['trial ended unpaid', TRIAL_ENDED],
-])('Moving plan while %s', (_, status) => {
-  it("shows the server's refusal when it refuses the move, in English and Arabic", async () => {
+  ['suspended, refused with the older code', SUSPENDED, 'plan-upgrade-requires-platform', CONTACT_FAWTIR],
+  ['never paid, refused with the older code', TRIAL_ENDED, 'plan-upgrade-requires-platform', FIRST_PAYMENT],
+  ['never paid', TRIAL_ENDED, 'plan-change-first-payment-required', FIRST_PAYMENT],
+  ['cancelled by Fawtir', SUSPENDED, 'plan-change-cancelled-by-fawtir', CONTACT_FAWTIR],
+  ['cancelled by Fawtir (subscription code)', SUSPENDED, 'subscription-cancelled-by-fawtir', CONTACT_FAWTIR],
+  ['cancelled by the customer, refused anyway', CANCELLED, 'plan-upgrade-requires-platform', CONTACT_FAWTIR],
+])('Moving plan while %s', (_, status, code, wording) => {
+  it("words the server's refusal in English and Arabic, never its detail", async () => {
     subscription = status
-    answers[PREVIEW] = () =>
-      json(409, {
-        type: 'https://api.fawtir.om/problems/plan-upgrade-requires-platform',
-        title: 'plan-upgrade-requires-platform',
-        status: 409,
-        detail: 'English detail',
-      })
+    answers[PREVIEW] = refused(code)
     renderPage()
     await screen.findByRole('heading', { name: 'Business Plus' })
     await userEvent.click(screen.getAllByRole('button', { name: /Move to/ })[0])
     const dialog = await screen.findByRole('dialog')
-    expect(
-      await within(dialog).findByText(i18n.t('planChange.refusal.plan-upgrade-requires-platform')),
-    ).toBeTruthy()
+    expect(await within(dialog).findByText(wording.en)).toBeTruthy()
     expect(within(dialog).queryByText('English detail')).toBeNull()
+    expect(within(dialog).queryByText(/then move up/)).toBeNull()
+    await i18n.changeLanguage('ar')
+    expect(await within(dialog).findByText(wording.ar)).toBeTruthy()
+  })
+})
+
+describe('Settings › Plan for a subscription Fawtir cancelled (PC-7)', () => {
+  it('offers no plan or cycle change online', async () => {
+    subscription = CANCELLED_BY_FAWTIR
+    renderPage()
+    await screen.findByRole('heading', { name: 'Business Plus' })
+    const shown = actions()
+    expect(shown.toAnnual).toBeNull()
+    expect(shown.moveTo).toHaveLength(0)
+  })
+})
+
+describe('Settings › Plan for a subscription the customer cancelled (PC-7)', () => {
+  it('still offers no move while it is only ending (Q6: keep it first)', async () => {
+    subscription = { ...ACTIVE, cancelAtPeriodEnd: true, accessEndsOn: '2026-10-31' }
+    renderPage()
+    await screen.findByRole('heading', { name: 'Business Plus' })
+    expect(actions().moveTo).toHaveLength(0)
   })
 })

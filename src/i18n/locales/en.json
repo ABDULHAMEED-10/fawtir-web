@@ -23734,7 +23734,7 @@
       "plan-change-already-paid": "A payment for this change has been sent, so it cannot be withdrawn now.",
       "plan-change-while-ending": "Your subscription is ending. Keep your subscription first, then change the plan.",
       "enterprise-terms-scheduled-by-fawtir": "Fawtir has set your Enterprise terms for the next renewal, so the plan cannot be changed here. Talk to the Fawtir team.",
-      "plan-upgrade-requires-platform": "A bigger plan applies to paid time, and none is left. Pay your subscription first, then move up.",
+      "plan-upgrade-requires-platform": "Your subscription can't be changed online. Please contact Fawtir.",
       "subscription-change-blocked-by-payment": "A payment for your subscription is being checked by Fawtir. You can change your plan once it is confirmed or rejected.",
       "subscription-state-conflict": "Your next period is already paid at the lower price, so this change cannot replace it.",
       "billing-not-configured": "Fawtir has not finished setting up billing, so a change that needs paying cannot be made yet.",
@@ -23742,7 +23742,8 @@
       "disconnected-from-fawtir": "Your company is disconnected from Fawtir, so the plan cannot be changed.",
       "idempotency-key-reused": "That request was already used for another change. Close this and try again.",
       "not-found": "This plan cannot be chosen.",
-      "plan-change-via-fawtir": "Your company is on its own Enterprise terms, so plan changes go through Fawtir. Contact us to change your plan."
+      "plan-change-via-fawtir": "Your company is on its own Enterprise terms, so plan changes go through Fawtir. Contact us to change your plan.",
+      "firstPaymentFirst": "Complete your first payment to choose your plan."
     },
     "pending": {
       "title": "Plan change waiting for payment",
