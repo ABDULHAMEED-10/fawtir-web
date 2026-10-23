@@ -122,6 +122,8 @@ function QuotationDetailBody({ doc }: { doc: QuotationDetail }) {
   const { t } = useTranslation()
   // Nothing new is made while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
   const mayCreate = useSubscriptionAllows('CREATE_DRAFTS')
+  // Nor sent: Send gives the document its number (ST-2, owner 23 Oct, third message).
+  const maySend = useSubscriptionAllows('SEND_DOCUMENTS')
   const navigate = useNavigate()
   const notice = useTradeNotice()
   const unavailable = notice.unavailable
@@ -181,13 +183,15 @@ function QuotationDetailBody({ doc }: { doc: QuotationDetail }) {
               <img src={downloadIcon} alt="" className="size-6" />
               {t('quotationDetail.download')}
             </button>
-            <button
-              type="button"
-              onClick={unavailable}
-              className="inline-flex h-[46px] items-center rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a]"
-            >
-              {t('quotationDetail.sendReminder')}
-            </button>
+            {maySend ? (
+              <button
+                type="button"
+                onClick={unavailable}
+                className="inline-flex h-[46px] items-center rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a]"
+              >
+                {t('quotationDetail.sendReminder')}
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -233,13 +237,15 @@ function QuotationDetailBody({ doc }: { doc: QuotationDetail }) {
                 >
                   {t('quotationDetail.extendValidity')}
                 </button>
-                <button
-                  type="button"
-                  onClick={unavailable}
-                  className="inline-flex h-[41px] items-center rounded-sm border border-black/[0.06] bg-surface-tab-bar px-4 text-sm font-semibold text-[#3a3a3a]"
-                >
-                  {t('quotationDetail.reviseResend')}
-                </button>
+                {maySend ? (
+                  <button
+                    type="button"
+                    onClick={unavailable}
+                    className="inline-flex h-[41px] items-center rounded-sm border border-black/[0.06] bg-surface-tab-bar px-4 text-sm font-semibold text-[#3a3a3a]"
+                  >
+                    {t('quotationDetail.reviseResend')}
+                  </button>
+                ) : null}
               </div>
               <div className="mt-6 grid gap-4 sm:grid-cols-4">
                 {doc.decision.stats.map((stat) => (

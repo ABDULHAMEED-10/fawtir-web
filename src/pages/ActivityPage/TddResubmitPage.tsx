@@ -73,6 +73,9 @@ function ResubmitScreen() {
   const session = useSession()
   // A credit note is a new draft: not started while the subscription is read-only (ST-2, CA-3).
   const mayDraft = useSubscriptionAllows('CREATE_DRAFTS')
+  // Resubmitting a rejected document to the Tax Authority is sending (it uses credits): not offered
+  // while the subscription is read-only (ST-2, owner 23 Oct 2026); it works again once paid.
+  const maySend = useSubscriptionAllows('SEND_DOCUMENTS')
   const { id = '' } = useParams()
   const detail = useApiRead<ActivityDetailDto>(activityDetailPath(id), () => loadActivityDetail(id))
   const rejectedPath = activityListPath({ tddAck: 'RE' }, 0, 100)
@@ -160,7 +163,7 @@ function ResubmitScreen() {
   // The invoice total VAT (IBT-110) where the item carries it (asks row 2.34).
   const undeclaredVat = Math.round(group.reduce((sum, row) => sum + vatOf(row), 0) * 1000) / 1000
   const maySubmit = can(session, 'invoice.submit')
-  const mayResubmit = maySubmit && canResubmit(item)
+  const mayResubmit = maySubmit && maySend && canResubmit(item)
   const peppolCause = cause === 'buyerPeppolId'
   const valid = TDD_RESUBMIT.fix.pattern.test(peppolId.trim())
   // TODO(backend): ACTIVITY.md 2.16. There is no route to save a typed fix, so nothing that

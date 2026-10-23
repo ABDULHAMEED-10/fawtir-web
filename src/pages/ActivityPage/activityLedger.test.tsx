@@ -32,6 +32,7 @@ import { ActivityPage } from './ActivityPage'
 import { ActivityEventPage } from './ActivityEventPage'
 import { TddResubmitPage } from './TddResubmitPage'
 import { ReportsCompliancePage } from '../ReportsCompliancePage'
+import { answerStanding as answerStandingOn, settle } from '../../testing/subscriptionStanding'
 
 const UUID_A = 'a0000000-0000-0000-0000-000000000001'
 const UUID_B = 'a0000000-0000-0000-0000-000000000002'
@@ -1722,6 +1723,85 @@ describe('fixing an invoice the Tax Authority refused, while the subscription is
       await screen.findByText(i18n.t('tddResubmit.saveOnly'))
       await waitFor(() => expect(calls('/settings/subscription').length).toBeGreaterThan(0))
       await waitFor(() => expect(creditNoteLink()).toBeUndefined())
+    },
+  )
+})
+
+describe('resubmitting to the Tax Authority while the subscription is read-only (ST-2, owner 23 Oct, third message)', () => {
+  const RESUBMIT = '/api/v1/invoices/inv-1/tdd/resubmit'
+  const reason = 'The report signature could not be verified.'
+  const renderAt = (path: string) =>
+    render(
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/activity" element={<ActivityPage />} />
+          <Route path="/compliance/activity/:id" element={<ActivityEventPage />} />
+          <Route path="/compliance/activity/:id/resubmit" element={<TddResubmitPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+  const standingAsked = () => waitFor(() => expect(calls('/settings/subscription').length).toBeGreaterThan(0))
+
+  beforeEach(() => {
+    who = { ...SUBMITTER, permissions: [...SUBMITTER.permissions, 'tenant.plan.read'] }
+    items = [item({ links: { ...item().links, resubmit: RESUBMIT } })]
+    detailReply = {
+      ...DETAIL,
+      tdd_lineage: [{ ...DETAIL.tdd_lineage[1], status: 'REJECTED', failure_reason: reason }],
+      summary: {
+        ...DETAIL.summary,
+        tdd_leg: { ...DETAIL.summary.tdd_leg!, ack: 'RE', reason },
+        links: { ...DETAIL.summary.links, resubmit: RESUBMIT },
+      },
+    }
+  })
+
+  it('offers it everywhere while the subscription is usable', async () => {
+    answerStandingOn(fetchMock, null)
+    const ledger = renderAt('/activity')
+    await screen.findByText('INV-0001')
+    await standingAsked()
+    await settle()
+    openRowMenu('INV-0001')
+    expect(screen.getByRole('menuitem', { name: /Put it right/ })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: /Send the report again/ })).toBeTruthy()
+    ledger.unmount()
+
+    const record = renderAt(`/compliance/activity/${UUID_A}`)
+    expect((await screen.findAllByRole('link', { name: /^Put it right/ })).length).toBe(2)
+    record.unmount()
+
+    renderAt(`/compliance/activity/${UUID_A}/resubmit`)
+    expect(await screen.findByRole('button', { name: /^Fix and send/ })).toBeTruthy()
+  })
+
+  it.each(['SUBSCRIPTION_SUSPENDED', 'SUBSCRIPTION_CANCELLED'])(
+    'hides it on the ledger menu, the record and the resubmit screen while %s',
+    async (restriction) => {
+      answerStandingOn(fetchMock, restriction)
+      const ledger = renderAt('/activity')
+      await screen.findByText('INV-0001')
+      await standingAsked()
+      await settle()
+      openRowMenu('INV-0001')
+      expect(screen.getByRole('menuitem', { name: /Open the record/ })).toBeTruthy()
+      expect(screen.queryByRole('menuitem', { name: /Put it right/ })).toBeNull()
+      expect(screen.queryByRole('menuitem', { name: /Send the report again/ })).toBeNull()
+      ledger.unmount()
+
+      const record = renderAt(`/compliance/activity/${UUID_A}`)
+      await screen.findByRole('heading', { level: 1, name: 'INV-1993' })
+      await settle()
+      expect(screen.queryAllByRole('link', { name: /^Put it right/ })).toHaveLength(0)
+      // Hidden, not greyed: no "Nothing to resend" in its place either.
+      expect(screen.queryByRole('button', { name: 'Nothing to resend' })).toBeNull()
+      record.unmount()
+
+      renderAt(`/compliance/activity/${UUID_A}/resubmit`)
+      await screen.findByText(i18n.t('tddResubmit.saveOnly'))
+      await settle()
+      expect(screen.queryByRole('button', { name: /^Fix and send/ })).toBeNull()
+      expect(resubmitted).toEqual([])
     },
   )
 })

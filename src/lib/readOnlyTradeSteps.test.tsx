@@ -30,7 +30,8 @@ const OWNER = {
   featureFlags: {},
 } as Entitlements
 
-const CREATES = ['convert', 'delivery', 'invoice', 'duplicate']
+// What makes a new document, and Send, which gives one its number (ST-2, third message).
+const CREATES = ['convert', 'delivery', 'invoice', 'duplicate', 'send']
 const ids = (items: { id: string }[]) => items.map((item) => item.id)
 
 describe('trade-document row menus', () => {
@@ -38,7 +39,7 @@ describe('trade-document row menus', () => {
     ['quotation', quotationRowActions],
     ['order form', orderFormRowActions],
     ['delivery note', deliveryNoteRowActions],
-  ])('the %s menu drops every item that makes a document while read-only', (_, menu) => {
+  ])('the %s menu drops every item that makes or sends a document while read-only', (_, menu) => {
     const usable = ids(menu('X-1', undefined, true))
     const readOnly = ids(menu('X-1', undefined, false))
     expect(usable.some((id) => CREATES.includes(id))).toBe(true)
@@ -166,6 +167,7 @@ describe.each([
     await openMenu()
     expect(screen.getByRole('menuitem', { name: 'Convert to order form' })).toBeTruthy()
     expect(screen.getByRole('menuitem', { name: 'Duplicate' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Send to customer' })).toBeTruthy()
   })
 
   it.each(['SUBSCRIPTION_SUSPENDED', 'SUBSCRIPTION_CANCELLED'])(
@@ -178,6 +180,32 @@ describe.each([
       await openMenu()
       expect(screen.queryByRole('menuitem', { name: 'Convert to order form' })).toBeNull()
       expect(screen.queryByRole('menuitem', { name: 'Duplicate' })).toBeNull()
+      expect(screen.queryByRole('menuitem', { name: 'Send to customer' })).toBeNull()
+    },
+  )
+})
+
+describe('the Send buttons on a quotation (ST-2, owner 23 Oct, third message)', () => {
+  const path = '/trade-documents/quotations/QUO-0118'
+  const route = '/trade-documents/quotations/:id'
+  const SENDS = ['Send reminder', 'Revise & resend']
+
+  it('offers them while the subscription is usable', async () => {
+    answerStanding(fetchMock, null)
+    renderAt(path, route, () => <QuotationDetailPage />)
+    await waitFor(() => expect(standingRead(fetchMock)).toBe(true))
+    for (const name of SENDS) await waitFor(() => expect(buttons(name).length).toBeGreaterThan(0))
+  })
+
+  it.each(['SUBSCRIPTION_SUSPENDED', 'SUBSCRIPTION_CANCELLED'])(
+    'offers neither while %s',
+    async (restriction) => {
+      answerStanding(fetchMock, restriction)
+      renderAt(path, route, () => <QuotationDetailPage />)
+      await waitFor(() => expect(standingRead(fetchMock)).toBe(true))
+      await settle()
+      await screen.findAllByRole('button', { name: 'More actions' })
+      for (const name of SENDS) expect(buttons(name)).toHaveLength(0)
     },
   )
 })

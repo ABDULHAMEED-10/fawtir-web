@@ -17,6 +17,7 @@ import {
 } from '../../lib/purchaseOrders'
 import { PurchaseOrderDetailPage } from './PurchaseOrderDetailPage'
 import { NewPurchaseOrderPage } from '../NewPurchaseOrderPage'
+import { answerStanding, settle, standingRead } from '../../testing/subscriptionStanding'
 
 // The pages render slowly on a loaded machine; the default second is not enough for a find.
 configure({ asyncUtilTimeout: 15000 })
@@ -421,6 +422,39 @@ describe('one purchase order', () => {
       screen.queryByRole('button', { name: /Approve|Mark as sent|Send for approval/ }),
     ).toBeNull()
   })
+})
+
+describe('Mark as sent while the subscription is read-only (ST-2, owner 23 Oct, third message)', () => {
+  const PLAN_READER: Entitlements = {
+    ...APPROVER,
+    permissions: [...APPROVER.permissions, 'tenant.plan.read'],
+  }
+
+  it('offers it while the subscription is usable', async () => {
+    who = PLAN_READER
+    current = order({ state: 'APPROVED' })
+    answerStanding(fetchMock, null)
+    renderDetail()
+    await screen.findByText('PO-0001')
+    await waitFor(() => expect(standingRead(fetchMock)).toBe(true))
+    await settle()
+    expect(screen.getByRole('button', { name: 'Mark as sent' })).toBeTruthy()
+  })
+
+  it.each(['SUBSCRIPTION_SUSPENDED', 'SUBSCRIPTION_CANCELLED'])(
+    'hides it while %s, and keeps Cancel',
+    async (restriction) => {
+      who = PLAN_READER
+      current = order({ state: 'APPROVED' })
+      answerStanding(fetchMock, restriction)
+      renderDetail()
+      await screen.findByText('PO-0001')
+      await waitFor(() => expect(standingRead(fetchMock)).toBe(true))
+      await settle()
+      await waitFor(() => expect(screen.queryByRole('button', { name: 'Mark as sent' })).toBeNull())
+      expect(screen.getByRole('button', { name: 'Cancel the order' })).toBeTruthy()
+    },
+  )
 })
 
 describe('a purchase order opened by someone who may only read it', () => {
