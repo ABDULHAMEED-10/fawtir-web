@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
@@ -1130,6 +1130,25 @@ describe('One credit note', () => {
     await waitFor(() => expect(applyBody).toEqual({ billId: BILL_ID, amount: null }))
   })
 
+  /**
+   * Flake log 24 Oct: between 00:00 and 01:00 in Pakistan the browser's date is already a day ahead
+   * of Muscat's. The calendar's "Today" picked the browser's day, which the refund date's "no day
+   * after today" limit (Muscat's day) refused. Pinned there, so these tests hold at any hour and
+   * on any machine: 2026-10-23T19:30Z is 00:30 on the 24th in Karachi, 23:30 on the 23rd in Muscat.
+   */
+  const MUSCAT_DAY = '2026-10-23'
+  const atKarachiPastMidnight = () => {
+    const zone = process.env.TZ
+    process.env.TZ = 'Asia/Karachi'
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-23T19:30:00Z'))
+    return () => {
+      vi.useRealTimers()
+      if (zone === undefined) delete process.env.TZ
+      else process.env.TZ = zone
+    }
+  }
+
   it('refuses to send more than the note has left, and never asks the server', async () => {
     renderDetail()
     await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
@@ -1150,6 +1169,7 @@ describe('One credit note', () => {
   })
 
   it('records a refund with its date and reference', async () => {
+    onTestFinished(atKarachiPastMidnight())
     renderDetail()
     await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
     fireEvent.click(screen.getByRole('button', { name: 'Ask for a refund' }))
@@ -1163,10 +1183,9 @@ describe('One credit note', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Record the refund' }))
 
-    const today = new Date()
-    const paidOn = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    // Muscat's day, not the browser's.
     await waitFor(() =>
-      expect(refundBody).toEqual({ amount: 200, paidOn, paymentReference: 'TRF-9' }),
+      expect(refundBody).toEqual({ amount: 200, paidOn: MUSCAT_DAY, paymentReference: 'TRF-9' }),
     )
   })
 
@@ -1196,6 +1215,7 @@ describe('One credit note', () => {
   ])(
     'says why a refund date was refused (%s), in both languages',
     async (code, english, arabic) => {
+      onTestFinished(atKarachiPastMidnight())
       refundRefusal = { error: code, trace_id: 'trace-5' }
       renderDetail()
       await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })

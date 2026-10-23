@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Popover } from './Popover'
 import { useFieldDescription } from './fieldDescription'
 import { formatDisplayDate, parseDateKey, toDateKey } from '../../lib/dates'
+import { muscatToday } from '../../lib/invoiceIssue'
 import calendarIcon from '../../assets/create-invoice/calendar.svg'
 import chevronIcon from '../../assets/create-invoice/chevron.svg'
 
@@ -13,6 +14,10 @@ import chevronIcon from '../../assets/create-invoice/chevron.svg'
  * its own month grid instead. Dates are handled as local `yyyy-mm-dd` strings throughout —
  * `toISOString()` converts to UTC and silently loses a day east of Greenwich, which is exactly
  * wrong for Muscat.
+ *
+ * "Today" is the business day in Asia/Muscat, the day every "no day after today" limit and the
+ * server use — not the browser's. Elsewhere (Pakistan after midnight, say) the two differ, and a
+ * browser-day "Today" was refused by the field's own `max` (flake log, 24 Oct).
  */
 
 export function DateField({
@@ -47,7 +52,7 @@ export function DateField({
   const triggerRef = useRef<HTMLButtonElement>(null)
   const description = useFieldDescription(ariaDescribedBy, ariaInvalid)
   const selected = parseDateKey(value)
-  const [cursor, setCursor] = useState(() => selected ?? new Date())
+  const [cursor, setCursor] = useState(() => selected ?? parseDateKey(muscatToday()) ?? new Date())
   const { t, i18n } = useTranslation()
   // Latin digits in Arabic too (decision D15), matching the closed field and `lib/format`.
   const locale = i18n.language.startsWith('ar') ? 'ar-u-nu-latn' : 'en-GB'
@@ -91,7 +96,7 @@ export function DateField({
     })
   }, [cursor])
 
-  const todayKey = toDateKey(new Date())
+  const todayKey = muscatToday()
   const outOfRange = (key: string) => (min && key < min) || (max && key > max)
 
   return (
@@ -101,7 +106,7 @@ export function DateField({
         type="button"
         disabled={disabled}
         onClick={() => {
-          setCursor(selected ?? new Date())
+          setCursor(selected ?? parseDateKey(muscatToday()) ?? new Date())
           setOpen((v) => !v)
         }}
         aria-label={ariaLabel}
