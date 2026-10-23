@@ -22895,7 +22895,7 @@
       "MONTHLY": "a month",
       "ANNUAL": "a year"
     },
-    "staysReadOnlyUntilPaid": "Your subscription stays read-only until it is paid."
+    "payFirstForExtras": "Pay your subscription first to buy extras."
   },
   "billing": {
     "title": "Charges and payment",

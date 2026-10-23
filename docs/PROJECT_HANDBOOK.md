@@ -522,9 +522,11 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     issued while the subscription was paid still goes out on its own, to the Tax Authority and
     the buyer. Drafts made before stay readable and can be issued once the subscription is paid.
     Users cannot be added and the ERP and API cannot be used. Those actions are hidden, not
-    greyed. The Plan page stays fully open (choose a plan, upgrade, change the billing cycle, buy
-    extras); buying extras says the subscription stays read-only until it is paid. Replies to
-    documents already sent (Tax Authority and Peppol) still come in.
+    greyed. On the Plan page choosing a plan, upgrading, changing the billing cycle and paying
+    stay (PC-7); every Buy extras action (extra documents, extra users and branches, the ERP
+    add-on) is hidden until the subscription is paid, and one line says "Pay your subscription
+    first to buy extras." Replies to documents already sent (Tax Authority and Peppol) still come
+    in.
   - **Nothing from onboarding is touched** by cancelling, suspension or expiry: company profile,
     VAT and CR numbers, Peppol registration and participant ID, signing certificate, branches,
     users and permissions, customers, suppliers, products, number series, templates, settings and

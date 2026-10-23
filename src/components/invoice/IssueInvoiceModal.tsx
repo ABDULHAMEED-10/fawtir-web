@@ -11,6 +11,7 @@ import { subscriptionRestrictedAction } from '../../lib/subscriptionRestricted'
 import { useCan } from '../../lib/session/session'
 import { ApiError } from '../../api'
 import { EXTRA_DOCUMENTS_ROUTE } from '../../api/settings/extraDocuments'
+import { useExtrasHeldUntilPaid } from '../../lib/subscriptionReadOnly'
 import { loadPlanChanges } from '../../api/settings/planChanges'
 import {
   SELF_BILLED_SUPPLIER_SWITCHED_OFF_KEY,
@@ -85,7 +86,9 @@ export function IssueInvoiceModal({
   // the Fawtir team and there is nothing to open here).
   const [offerUpgrade, setOfferUpgrade] = useState(false)
   const [busy, setBusy] = useState(false)
-  const mayBuyExtras = useCan('tenant.plan.manage')
+  // ST-2: no extra documents are bought while the subscription is read-only.
+  const extrasHeld = useExtrasHeldUntilPaid()
+  const mayManagePlan = useCan('tenant.plan.manage')
   // Two clicks in one tick both run before `busy` renders the button disabled; the second would be
   // refused by the key (409, request in progress) and flash an error over a successful issue.
   const inFlight = useRef(false)
@@ -141,8 +144,9 @@ export function IssueInvoiceModal({
       } else if (refusal) {
         setFailure(t(refusal.key, refusal.values))
         // At 0 left the way on is to buy extra documents ahead, for those who may (EX-1).
-        if (error instanceof ApiError && error.code === 'QUOTA_EXCEEDED' && mayBuyExtras) {
-          setFailureLink({ to: EXTRA_DOCUMENTS_ROUTE, labelKey: 'extraDocuments.entry' })
+        // Read-only, the upgrade is still offered but no extras are bought until it is paid (ST-2).
+        if (error instanceof ApiError && error.code === 'QUOTA_EXCEEDED' && mayManagePlan) {
+          if (!extrasHeld) setFailureLink({ to: EXTRA_DOCUMENTS_ROUTE, labelKey: 'extraDocuments.entry' })
           loadPlanChanges().then(
             (changes) => setOfferUpgrade(changes.available),
             () => setOfferUpgrade(false),

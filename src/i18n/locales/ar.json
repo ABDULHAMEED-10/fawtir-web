@@ -24181,7 +24181,7 @@
       "MONTHLY": "شهريًا",
       "ANNUAL": "سنويًا"
     },
-    "staysReadOnlyUntilPaid": "يبقى اشتراكك للقراءة فقط حتى يُدفع."
+    "payFirstForExtras": "ادفع اشتراكك أولاً لشراء الإضافات."
   },
   "billing": {
     "title": "الرسوم والدفع",

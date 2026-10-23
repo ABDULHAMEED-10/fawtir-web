@@ -6,6 +6,8 @@ import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitl
 import { resetSharedRequests } from '../../api'
 import { BranchesPage } from './BranchesPage'
 import { AddBranchPage } from './AddBranchPage'
+import { forgetSubscriptionStanding } from '../../lib/subscriptionReadOnly'
+import { standingWith } from '../../testing/subscriptionStanding'
 
 /**
  * Settings › Branches: closing and reopening a branch (Business Rules BR-2, BR-4; option (a),
@@ -379,5 +381,81 @@ describe("A branch's own page, its numbering", () => {
     release()
     expect(await screen.findByText('Sohar · first invoice SOH-INV-0001')).toBeTruthy()
     expect(screen.queryByText('Sohar · carries on the company series')).toBeNull()
+  })
+})
+
+describe('A branch save refused for want of a place, by whoever manages the plan (US-1, ST-2)', () => {
+  const MANAGER = {
+    ...ADMIN,
+    permissions: [...ADMIN.permissions, 'tenant.plan.read', 'tenant.plan.manage'],
+  } as Entitlements
+  const refuseForPlace = (restriction: string | null) => {
+    forgetSubscriptionStanding()
+    answers[`GET ${SUBSCRIPTION}`] = () => json(200, standingWith(restriction))
+    answers['PUT /api/v1/branches/b-1'] = () =>
+      json(409, {
+        type: 'https://api.fawtir.om/problems/extra-place-required',
+        status: 409,
+        kind: 'BRANCH',
+      })
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === '/api/v1/me/entitlements' ? json(200, MANAGER) : base(url, init),
+    )
+  }
+  const saveAndRefuse = async () => {
+    renderBranchPage()
+    await branchPageReady()
+    await vi.waitFor(() => expect(sent('GET', SUBSCRIPTION).length).toBeGreaterThan(0))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    fireEvent.click(screen.getByRole('button', { name: 'Save the changes' }))
+    expect(await screen.findByText(/Your plan's branches are all taken/)).toBeTruthy()
+  }
+
+  it('leads to buying a place while the subscription is usable', async () => {
+    refuseForPlace(null)
+    await saveAndRefuse()
+    expect(
+      screen.getByRole('link', { name: i18n.t('paidExtras.refusal.extraPlaceLink') }),
+    ).toBeTruthy()
+  })
+
+  it('says to pay first, with no way to buy, while the subscription is read-only', async () => {
+    refuseForPlace('SUBSCRIPTION_SUSPENDED')
+    await saveAndRefuse()
+    expect(screen.getByText(/Pay your subscription first to buy extras\./)).toBeTruthy()
+    expect(
+      screen.queryByRole('link', { name: i18n.t('paidExtras.refusal.extraPlaceLink') }),
+    ).toBeNull()
+  })
+})
+
+describe('"Invite someone new" on a branch page (ST-2)', () => {
+  const PEOPLE_ADMIN = {
+    ...ADMIN,
+    permissions: [...ADMIN.permissions, 'admin.users.manage', 'tenant.plan.read'],
+  } as Entitlements
+  const openWith = async (restriction: string | null) => {
+    forgetSubscriptionStanding()
+    answers[`GET ${SUBSCRIPTION}`] = () => json(200, standingWith(restriction))
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === '/api/v1/me/entitlements' ? json(200, PEOPLE_ADMIN) : base(url, init),
+    )
+    renderBranchPage()
+    await branchPageReady()
+    await vi.waitFor(() => expect(sent('GET', SUBSCRIPTION).length).toBeGreaterThan(0))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
+  const invite = () => screen.queryByRole('link', { name: i18n.t('addBranch.inviteSomeoneNew') })
+
+  it('is offered while the subscription is usable', async () => {
+    await openWith(null)
+    await vi.waitFor(() => expect(invite()).toBeTruthy())
+  })
+
+  it('is not offered while the subscription is read-only', async () => {
+    await openWith('SUBSCRIPTION_SUSPENDED')
+    expect(invite()).toBeNull()
   })
 })

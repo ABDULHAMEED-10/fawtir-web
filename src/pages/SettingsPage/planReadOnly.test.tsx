@@ -12,11 +12,10 @@ import { PaidExtrasPage } from './PaidExtrasPage'
 
 /**
  * Settings › Plan while the server says the subscription is read-only (suspended, cancelled, trial
- * ended unpaid). ST-2 (owner, 23 Oct 2026, third message; reverses E28's hiding here): the Plan page
- * stays fully open -- choosing a plan, upgrading, switching cycle and buying extras are all offered,
- * and the server decides; a refusal comes back in its own sentence. Buying extras says the
- * subscription stays read-only until it is paid. "In grace until" is no longer said once grace has
- * ended (E28). The state is the server's `restriction`.
+ * ended unpaid). ST-2 (owner, 23 Oct 2026, updated): choosing a plan, upgrading and switching cycle
+ * stay (PC-7) and the server decides, a refusal coming back in its own sentence. Every Buy extras
+ * action is hidden, with one line: "Pay your subscription first to buy extras." "In grace until"
+ * is no longer said once grace has ended (E28). The state is the server's `restriction`.
  */
 const MANAGER: Entitlements = {
   userId: 'u-1',
@@ -237,7 +236,7 @@ function renderPage(at = '/settings/plan') {
   )
 }
 
-const STAYS_READ_ONLY = 'Your subscription stays read-only until it is paid.'
+const PAY_FIRST = 'Pay your subscription first to buy extras.'
 
 const actions = () => ({
   buyDocuments: screen.queryByRole('link', { name: i18n.t('extraDocuments.entry') }),
@@ -280,32 +279,39 @@ describe.each([
   ['trial ended unpaid', TRIAL_ENDED, true],
   ['cancelled by the customer', CANCELLED, true],
 ])('E28: Settings › Plan while %s', (_, status, moves) => {
-  it('hides nothing: buying extras, adding places, switching cycle and moving plan stay (ST-2)', async () => {
+  it('hides every Buy extras action and says to pay first, once; plan moves stay (ST-2)', async () => {
     subscription = status
     renderPage()
-    await screen.findByRole('link', { name: i18n.t('extraDocuments.entry') })
     await screen.findByRole('heading', { name: 'Business Plus' })
+    expect(await screen.findAllByText(PAY_FIRST)).toHaveLength(1)
+    // The places card stays, as a view of what is in use.
+    expect(
+      await screen.findByRole('link', { name: i18n.t('paidExtras.planCard.view') }),
+    ).toBeTruthy()
     const shown = actions()
-    expect(shown.buyDocuments).toBeTruthy()
-    expect(shown.addPlaces).toBeTruthy()
+    expect(shown.buyDocuments).toBeNull()
+    expect(shown.addPlaces).toBeNull()
     if (moves) {
       expect(shown.toAnnual).toBeTruthy()
       expect(shown.moveTo.length).toBeGreaterThan(0)
     }
   })
 
-  it('says on Buy extra documents that the subscription stays read-only until paid, in Arabic too', async () => {
+  it('offers no extra documents to buy, and says to pay first, in Arabic too', async () => {
     subscription = status
     renderPage('/settings/plan/extra-documents')
-    expect(await screen.findByText(STAYS_READ_ONLY)).toBeTruthy()
+    expect(await screen.findByText(PAY_FIRST)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('extraDocuments.buy.submit') })).toBeNull()
+    expect(screen.queryByRole('button', { name: i18n.t('extraDocuments.buy.more') })).toBeNull()
     await i18n.changeLanguage('ar')
-    expect(await screen.findByText('يبقى اشتراكك للقراءة فقط حتى يُدفع.')).toBeTruthy()
+    expect(await screen.findByText('ادفع اشتراكك أولاً لشراء الإضافات.')).toBeTruthy()
   })
 
-  it('says the same on buying extra users and branches', async () => {
+  it('offers no extra users or branches to buy, and says to pay first', async () => {
     subscription = status
     renderPage('/settings/plan/extras')
-    expect(await screen.findByText(STAYS_READ_ONLY)).toBeTruthy()
+    expect(await screen.findByText(PAY_FIRST)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('paidExtras.buy.submit') })).toBeNull()
   })
 
   it('no longer says "In grace until" once grace has ended', async () => {
@@ -317,10 +323,18 @@ describe.each([
 })
 
 describe('Buying extras while the subscription is usable', () => {
-  it('says nothing about read-only', async () => {
+  it('offers the purchase and says nothing about paying first', async () => {
     renderPage('/settings/plan/extra-documents')
-    await screen.findByText(i18n.t('extraDocuments.buy.title'))
-    expect(screen.queryByText(STAYS_READ_ONLY)).toBeNull()
+    expect(
+      await screen.findByRole('button', { name: i18n.t('extraDocuments.buy.submit') }),
+    ).toBeTruthy()
+    expect(screen.queryByText(PAY_FIRST)).toBeNull()
+  })
+
+  it('says nothing about paying first on the Plan page', async () => {
+    renderPage()
+    await screen.findByRole('link', { name: i18n.t('extraDocuments.entry') })
+    expect(screen.queryByText(PAY_FIRST)).toBeNull()
   })
 })
 
