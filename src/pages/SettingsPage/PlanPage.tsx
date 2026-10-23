@@ -57,6 +57,8 @@ import {
 } from '../../api/settings/subscription'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
 import { useBranchName } from '../../components/branch/useBranchName'
+import { PayFirstForExtrasNote } from './PayFirstForExtras'
+import { useExtrasHeldUntilPaid } from '../../lib/subscriptionReadOnly'
 import tickIcon from '../../assets/settings/check-ink.svg'
 import tickGreenIcon from '../../assets/settings/check-green.svg'
 import infoIcon from '../../assets/settings/info.svg'
@@ -127,6 +129,10 @@ function PlanBody({ onPlanChanged }: { onPlanChanged: (why?: string) => void }) 
   const subscription = useApiRead<SubscriptionStatusDto>(SUBSCRIPTION_PATH, loadSubscription).read
   const notStarted = subscription.status === 'ready' && subscriptionNotStarted(subscription.data)
   const mayManage = useCan(PLAN_MANAGE)
+  // ST-2 (owner, 23 Oct 2026): while read-only every Buy extras action is hidden and one line says
+  // to pay first; choosing a plan, upgrading, the billing cycle and paying stay (PC-7).
+  const extrasHeld = useExtrasHeldUntilPaid()
+  const mayBuyExtras = mayManage && !extrasHeld
   // US-1, BR-3, ER-1: the paid places and the add-on, shared by the two cards that show them.
   const extras = useApiRead<PaidExtrasOverviewDto>(PAID_EXTRAS_PATH, loadPaidExtras)
   // P2-2: whether self-service changes are open, and the change waiting for payment. Unreadable or
@@ -159,6 +165,10 @@ function PlanBody({ onPlanChanged }: { onPlanChanged: (why?: string) => void }) 
   // The move buttons (plan-change table, PC-2): only with the server's switch on and the permission,
   // never for Enterprise (D4) or an untracked subscription, not while it is ending (Q6: keep it
   // first) and not while a charged change waits for payment (pay or withdraw it first).
+  // PC-7 (owner, 23 Oct 2026): once the customer's own cancellation has taken effect (Cancelled),
+  // the plan and cycle can be chosen again, and paying for them is the renewal; it is no longer
+  // "ending". A subscription Fawtir cancelled (CA-7) is never changed online: staff decide.
+  const ending = status !== null && status.cancelAtPeriodEnd && status.access !== 'CANCELLED'
   const selfService: SelfService | null =
     changesRead?.available === true &&
     mayManage &&
@@ -167,17 +177,23 @@ function PlanBody({ onPlanChanged }: { onPlanChanged: (why?: string) => void }) 
     status.tracked &&
     status.access !== 'NOT_TRACKED' &&
     status.enterprise == null &&
-    !status.cancelAtPeriodEnd &&
+    !status.cancelledByFawtir &&
+    !ending &&
     pending === null
-      ? { cycle: status.billingCycle ?? 'MONTHLY' }
+      ? {
+          cycle: status.billingCycle ?? 'MONTHLY',
+          // A trial that ended unpaid: no paid period ever, and no trial running any more.
+          neverPaid: status.paidThrough == null && status.access !== 'TRIAL',
+        }
       : null
   // R1 (D6): in the free trial a paid bigger plan ends the trial, so the paid-time rule is not said.
   const inTrial = status?.access === 'TRIAL'
   return (
     <>
-      <PlanFigures data={plan.read.data} notStarted={notStarted} mayManage={mayManage} />
+      <PayFirstForExtrasNote />
+      <PlanFigures data={plan.read.data} notStarted={notStarted} mayManage={mayBuyExtras} />
       {extras.read.status === 'ready' ? (
-        <PaidExtrasSummary data={extras.read.data} mayManage={mayManage} />
+        <PaidExtrasSummary data={extras.read.data} mayManage={mayBuyExtras} />
       ) : null}
       {pending ? (
         <PendingPlanChangeCard change={pending} onChanged={onPlanChanged} inTrial={inTrial} />
@@ -197,7 +213,10 @@ function PlanBody({ onPlanChanged }: { onPlanChanged: (why?: string) => void }) 
       )}
       {/* ER-1: Starter and Business never show the add-on; a server that cannot say keeps the old card. */}
       {extras.read.status === 'ready' && !extras.read.data.erpAddon.offered ? null : (
-        <AddonsSection extras={extras.read.status === 'ready' ? extras.read.data : null} />
+        <AddonsSection
+          extras={extras.read.status === 'ready' ? extras.read.data : null}
+          mayOrder={!extrasHeld}
+        />
       )}
     </>
   )
@@ -735,7 +754,11 @@ function Figure({ label, value, note }: { label: string; value: string; note?: s
  * TODO: show the Enterprise card only to companies on Business Plus, the one plan it is the next
  * step from (owner, 7 Oct 2026: agreed, to be done later).
  */
-type SelfService = { cycle: BillingCycle }
+type SelfService = {
+  cycle: BillingCycle
+  /** No paid period yet (PC-7): a refusal of the move says the first payment decides the plan. */
+  neverPaid: boolean
+}
 
 function PlanCards({
   current,
@@ -792,7 +815,15 @@ function PlanCards({
             myPrice={myPrice}
             cycle={selfService?.cycle ?? null}
             onChoose={
-              selfService ? (cycle) => setTarget({ planCode: plan.code, cycle, inTrial }) : null
+              selfService
+                ? (cycle) =>
+                    setTarget({
+                      planCode: plan.code,
+                      cycle,
+                      inTrial,
+                      neverPaid: selfService.neverPaid,
+                    })
+                : null
             }
           />
         ))}
@@ -1065,7 +1096,14 @@ const ADDON_TONE = {
  * stopped (ER-2). Without that read it keeps the earlier wording: enabled per organisation by
  * Fawtir, with the real state on ERP integration.
  */
-function AddonsSection({ extras }: { extras: PaidExtrasOverviewDto | null }) {
+function AddonsSection({
+  extras,
+  mayOrder = true,
+}: {
+  extras: PaidExtrasOverviewDto | null
+  /** False while the subscription is read-only: the add-on is not ordered from here (ST-2). */
+  mayOrder?: boolean
+}) {
   const { t, i18n } = useTranslation()
   const addon = extras?.erpAddon.offered ? extras.erpAddon : null
   const state = addon?.status ?? 'NONE'
@@ -1113,7 +1151,7 @@ function AddonsSection({ extras }: { extras: PaidExtrasOverviewDto | null }) {
           )}
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2.5">
-          {addon ? (
+          {addon && mayOrder ? (
             <Link
               to={PAID_EXTRAS_ROUTE}
               className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"

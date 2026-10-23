@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { OutstandingBill, formatRate } from './SubscriptionBillingSection'
 import { ReconnectBeforePayingNote } from './ReconnectBeforePayingNote'
-import { StaysReadOnlyUntilPaidNote } from './StaysReadOnlyUntilPaidNote'
+import { useExtrasHeldUntilPaid } from '../../lib/subscriptionReadOnly'
 import { usePayingHeldUntilReconnected } from '../../hooks/usePayingHeldUntilReconnected'
 import { noteLeftFawtirRefusal } from '../../lib/leftFawtirRefusal'
 import { LeftFawtirRefusal } from '../../components/billing/LeftFawtirRefusal'
@@ -72,6 +72,9 @@ function ExtraDocumentsBody() {
   const mayManage = useCan(PLAN_MANAGE)
   // LV-6: no extra documents are ordered once the company has left Fawtir (A3.8).
   const held = usePayingHeldUntilReconnected()
+  // ST-2: no extras are bought while the subscription is read-only; paying an order already
+  // raised is still offered, as paying always is.
+  const payFirst = useExtrasHeldUntilPaid()
   const outstanding = extras.read.status === 'ready' ? extras.read.data.outstanding : null
   // The bill's payments and the ways to pay come from Bills and payment, read only once there is
   // a bill to pay.
@@ -100,7 +103,6 @@ function ExtraDocumentsBody() {
   return (
     <>
       <AllowanceCard data={data} />
-      <StaysReadOnlyUntilPaidNote />
       {added ? (
         <p role="status" className="rounded-sm bg-success-100 px-4 py-3 text-sm font-medium leading-[1.6] text-success-700">
           {t('extraDocuments.result.added', {
@@ -137,6 +139,12 @@ function ExtraDocumentsBody() {
         />
       ) : held ? (
         <LeftFawtirRefusal />
+      ) : payFirst ? (
+        <SectionCard title={t('extraDocuments.buy.title')}>
+          <div className="p-5 pt-0">
+            <Callout>{t('subscription.payFirstForExtras')}</Callout>
+          </div>
+        </SectionCard>
       ) : mayManage ? (
         <SectionCard title={t('extraDocuments.buy.title')} note={t('extraDocuments.buy.note')}>
           <div className="p-5 pt-0">

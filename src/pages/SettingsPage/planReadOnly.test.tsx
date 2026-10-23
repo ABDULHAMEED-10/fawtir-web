@@ -12,11 +12,10 @@ import { PaidExtrasPage } from './PaidExtrasPage'
 
 /**
  * Settings › Plan while the server says the subscription is read-only (suspended, cancelled, trial
- * ended unpaid). ST-2 (owner, 23 Oct 2026, third message; reverses E28's hiding here): the Plan page
- * stays fully open -- choosing a plan, upgrading, switching cycle and buying extras are all offered,
- * and the server decides; a refusal comes back in its own sentence. Buying extras says the
- * subscription stays read-only until it is paid. "In grace until" is no longer said once grace has
- * ended (E28). The state is the server's `restriction`.
+ * ended unpaid). ST-2 (owner, 23 Oct 2026, updated): choosing a plan, upgrading and switching cycle
+ * stay (PC-7) and the server decides, a refusal coming back in its own sentence. Every Buy extras
+ * action is hidden, with one line: "Pay your subscription first to buy extras." "In grace until"
+ * is no longer said once grace has ended (E28). The state is the server's `restriction`.
  */
 const MANAGER: Entitlements = {
   userId: 'u-1',
@@ -87,6 +86,11 @@ const CANCELLED = {
   restriction: 'SUBSCRIPTION_CANCELLED',
   cancelAtPeriodEnd: true,
   accessEndsOn: '2026-10-14',
+}
+/** Fawtir cancelled it at once (CA-7): no plan change online (PC-7, owner, 23 Oct 2026). */
+const CANCELLED_BY_FAWTIR = {
+  ...CANCELLED,
+  cancelledByFawtir: { on: '2026-10-15', message: 'Repeated misuse' },
 }
 /** Suspended by its dates, but the server's restriction switch is off: nothing is hidden. */
 const SWITCH_OFF = { ...SUSPENDED, restrictionsEnforced: false, restriction: null }
@@ -232,7 +236,7 @@ function renderPage(at = '/settings/plan') {
   )
 }
 
-const STAYS_READ_ONLY = 'Your subscription stays read-only until it is paid.'
+const PAY_FIRST = 'Pay your subscription first to buy extras.'
 
 const actions = () => ({
   buyDocuments: screen.queryByRole('link', { name: i18n.t('extraDocuments.entry') }),
@@ -267,40 +271,47 @@ describe('E28: Settings › Plan while the subscription is usable', () => {
   })
 })
 
-// A cancelled subscription is still "ending" (`cancelAtPeriodEnd`), and moving plan while ending
-// was never offered (Q6: keep it first; the server refuses with plan-change-while-ending). That
-// rule is older than read-only and unchanged here, so for it only the extras are checked.
+// PC-7 (owner, 23 Oct 2026): a company that cancelled itself may choose its plan and cycle again
+// once the cancellation has taken effect (the server quotes READ_ONLY_UPGRADE). Before that, while
+// it is only "ending", Q6 still holds (keep it first).
 describe.each([
   ['suspended', SUSPENDED, true],
   ['trial ended unpaid', TRIAL_ENDED, true],
-  ['cancelled', CANCELLED, false],
+  ['cancelled by the customer', CANCELLED, true],
 ])('E28: Settings › Plan while %s', (_, status, moves) => {
-  it('hides nothing: buying extras, adding places, switching cycle and moving plan stay (ST-2)', async () => {
+  it('hides every Buy extras action and says to pay first, once; plan moves stay (ST-2)', async () => {
     subscription = status
     renderPage()
-    await screen.findByRole('link', { name: i18n.t('extraDocuments.entry') })
     await screen.findByRole('heading', { name: 'Business Plus' })
+    expect(await screen.findAllByText(PAY_FIRST)).toHaveLength(1)
+    // The places card stays, as a view of what is in use.
+    expect(
+      await screen.findByRole('link', { name: i18n.t('paidExtras.planCard.view') }),
+    ).toBeTruthy()
     const shown = actions()
-    expect(shown.buyDocuments).toBeTruthy()
-    expect(shown.addPlaces).toBeTruthy()
+    expect(shown.buyDocuments).toBeNull()
+    expect(shown.addPlaces).toBeNull()
     if (moves) {
       expect(shown.toAnnual).toBeTruthy()
       expect(shown.moveTo.length).toBeGreaterThan(0)
     }
   })
 
-  it('says on Buy extra documents that the subscription stays read-only until paid, in Arabic too', async () => {
+  it('offers no extra documents to buy, and says to pay first, in Arabic too', async () => {
     subscription = status
     renderPage('/settings/plan/extra-documents')
-    expect(await screen.findByText(STAYS_READ_ONLY)).toBeTruthy()
+    expect(await screen.findByText(PAY_FIRST)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('extraDocuments.buy.submit') })).toBeNull()
+    expect(screen.queryByRole('button', { name: i18n.t('extraDocuments.buy.more') })).toBeNull()
     await i18n.changeLanguage('ar')
-    expect(await screen.findByText('يبقى اشتراكك للقراءة فقط حتى يُدفع.')).toBeTruthy()
+    expect(await screen.findByText('ادفع اشتراكك أولاً لشراء الإضافات.')).toBeTruthy()
   })
 
-  it('says the same on buying extra users and branches', async () => {
+  it('offers no extra users or branches to buy, and says to pay first', async () => {
     subscription = status
     renderPage('/settings/plan/extras')
-    expect(await screen.findByText(STAYS_READ_ONLY)).toBeTruthy()
+    expect(await screen.findByText(PAY_FIRST)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('paidExtras.buy.submit') })).toBeNull()
   })
 
   it('no longer says "In grace until" once grace has ended', async () => {
@@ -312,33 +323,79 @@ describe.each([
 })
 
 describe('Buying extras while the subscription is usable', () => {
-  it('says nothing about read-only', async () => {
+  it('offers the purchase and says nothing about paying first', async () => {
     renderPage('/settings/plan/extra-documents')
-    await screen.findByText(i18n.t('extraDocuments.buy.title'))
-    expect(screen.queryByText(STAYS_READ_ONLY)).toBeNull()
+    expect(
+      await screen.findByRole('button', { name: i18n.t('extraDocuments.buy.submit') }),
+    ).toBeTruthy()
+    expect(screen.queryByText(PAY_FIRST)).toBeNull()
+  })
+
+  it('says nothing about paying first on the Plan page', async () => {
+    renderPage()
+    await screen.findByRole('link', { name: i18n.t('extraDocuments.entry') })
+    expect(screen.queryByText(PAY_FIRST)).toBeNull()
   })
 })
 
+const CONTACT_FAWTIR = {
+  en: "Your subscription can't be changed online. Please contact Fawtir.",
+  ar: 'لا يمكن تغيير اشتراكك عبر الإنترنت. يرجى التواصل مع فوتر.',
+}
+const FIRST_PAYMENT = {
+  en: 'Complete your first payment to choose your plan.',
+  ar: 'أكمل دفعتك الأولى لاختيار باقتك.',
+}
+
+const refused = (code: string) => () =>
+  json(409, {
+    type: `https://api.fawtir.om/problems/${code}`,
+    title: code,
+    status: 409,
+    detail: 'English detail',
+  })
+
+// PC-7 (owner, 23 Oct 2026, message D): the single "Pay your subscription first, then move up" is
+// split in two. A server before its own codes sends plan-upgrade-requires-platform for both.
 describe.each([
-  ['suspended', SUSPENDED],
-  ['trial ended unpaid', TRIAL_ENDED],
-])('Moving plan while %s', (_, status) => {
-  it("shows the server's refusal when it refuses the move, in English and Arabic", async () => {
+  ['suspended, refused with the older code', SUSPENDED, 'plan-upgrade-requires-platform', CONTACT_FAWTIR],
+  ['never paid, refused with the older code', TRIAL_ENDED, 'plan-upgrade-requires-platform', FIRST_PAYMENT],
+  ['never paid', TRIAL_ENDED, 'plan-change-first-payment-required', FIRST_PAYMENT],
+  ['cancelled by Fawtir', SUSPENDED, 'plan-change-cancelled-by-fawtir', CONTACT_FAWTIR],
+  ['cancelled by Fawtir (subscription code)', SUSPENDED, 'subscription-cancelled-by-fawtir', CONTACT_FAWTIR],
+  ['cancelled by the customer, refused anyway', CANCELLED, 'plan-upgrade-requires-platform', CONTACT_FAWTIR],
+])('Moving plan while %s', (_, status, code, wording) => {
+  it("words the server's refusal in English and Arabic, never its detail", async () => {
     subscription = status
-    answers[PREVIEW] = () =>
-      json(409, {
-        type: 'https://api.fawtir.om/problems/plan-upgrade-requires-platform',
-        title: 'plan-upgrade-requires-platform',
-        status: 409,
-        detail: 'English detail',
-      })
+    answers[PREVIEW] = refused(code)
     renderPage()
     await screen.findByRole('heading', { name: 'Business Plus' })
     await userEvent.click(screen.getAllByRole('button', { name: /Move to/ })[0])
     const dialog = await screen.findByRole('dialog')
-    expect(
-      await within(dialog).findByText(i18n.t('planChange.refusal.plan-upgrade-requires-platform')),
-    ).toBeTruthy()
+    expect(await within(dialog).findByText(wording.en)).toBeTruthy()
     expect(within(dialog).queryByText('English detail')).toBeNull()
+    expect(within(dialog).queryByText(/then move up/)).toBeNull()
+    await i18n.changeLanguage('ar')
+    expect(await within(dialog).findByText(wording.ar)).toBeTruthy()
+  })
+})
+
+describe('Settings › Plan for a subscription Fawtir cancelled (PC-7)', () => {
+  it('offers no plan or cycle change online', async () => {
+    subscription = CANCELLED_BY_FAWTIR
+    renderPage()
+    await screen.findByRole('heading', { name: 'Business Plus' })
+    const shown = actions()
+    expect(shown.toAnnual).toBeNull()
+    expect(shown.moveTo).toHaveLength(0)
+  })
+})
+
+describe('Settings › Plan for a subscription the customer cancelled (PC-7)', () => {
+  it('still offers no move while it is only ending (Q6: keep it first)', async () => {
+    subscription = { ...ACTIVE, cancelAtPeriodEnd: true, accessEndsOn: '2026-10-31' }
+    renderPage()
+    await screen.findByRole('heading', { name: 'Business Plus' })
+    expect(actions().moveTo).toHaveLength(0)
   })
 })

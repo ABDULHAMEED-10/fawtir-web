@@ -8,6 +8,7 @@ import { SessionContext } from '../../lib/session/session'
 import type { Entitlements } from '../../lib/identity/entitlements'
 import { muscatToday } from '../../lib/invoiceIssue'
 import { IssueInvoiceModal } from './IssueInvoiceModal'
+import { answerStanding, settle, standingRead } from '../../testing/subscriptionStanding'
 
 const OWNER: Entitlements = {
   userId: 'u-1',
@@ -64,7 +65,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-async function refuseAtZeroLeft(session: Entitlements) {
+async function refuseAtZeroLeft(session: Entitlements, waitForStanding = false) {
   const user = userEvent.setup({ delay: null })
   const today = muscatToday()
   render(
@@ -81,6 +82,10 @@ async function refuseAtZeroLeft(session: Entitlements) {
       </SessionContext.Provider>
     </MemoryRouter>,
   )
+  if (waitForStanding) {
+    await waitFor(() => expect(standingRead(fetchMock)).toBe(true))
+    await settle()
+  }
   await user.click(screen.getByRole('button', { name: i18n.t('invoiceIssue.submit') }))
   expect(await screen.findByText(i18n.t('invoiceIssue.refused.quota'))).toBeTruthy()
 }
@@ -109,5 +114,14 @@ describe('Issue refused at 0 documents left (Plan v4 §7.1)', () => {
     expect(screen.queryByRole('link', { name: i18n.t('extraDocuments.entry') })).toBeNull()
     expect(screen.queryByRole('link', { name: i18n.t('planGate.seePlans') })).toBeNull()
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/plan/changes'))).toBe(false)
+  })
+})
+
+describe('Issue refused at 0 left while the subscription is read-only (ST-2, owner 23 Oct)', () => {
+  it('offers the upgrade but not "Buy extra documents"', async () => {
+    answerStanding(fetchMock, 'SUBSCRIPTION_SUSPENDED')
+    await refuseAtZeroLeft(OWNER, true)
+    expect(await screen.findByRole('link', { name: i18n.t('planGate.seePlans') })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: i18n.t('extraDocuments.entry') })).toBeNull()
   })
 })

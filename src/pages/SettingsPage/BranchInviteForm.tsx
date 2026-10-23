@@ -21,6 +21,7 @@ import { branchAccessRefusalKey } from '../../lib/branchAccessRefusals'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { subscriptionRestrictedAction } from '../../lib/subscriptionRestricted'
 import { PAID_EXTRAS_ROUTE, extraPlaceRequired } from '../../api/settings/paidExtras'
+import { useExtrasHeldUntilPaid } from '../../lib/subscriptionReadOnly'
 import { permissionWords } from '../../lib/permissionLabels'
 import { roleLabel } from '../../lib/roleLabels'
 import { Check, Panel, Row } from './invitePieces'
@@ -49,7 +50,9 @@ export function BranchInviteForm() {
   const { t } = useTranslation()
   const session = useSession()
   const mayListRoles = useCan(ROLES_PERMISSION)
-  const mayBuyPlaces = useCan('tenant.plan.manage')
+  // ST-2: no paid places are bought while the subscription is read-only: it says to pay first.
+  const extrasHeld = useExtrasHeldUntilPaid()
+  const mayBuyPlaces = useCan('tenant.plan.manage') && !extrasHeld
   const roles = useApiRead<RoleDto[]>(mayListRoles ? ROLES_PATH : null, loadRoles)
   const [email, setEmail] = useState('')
   /** The one job role (RL-1); empty means the server's default. */
@@ -115,7 +118,9 @@ export function BranchInviteForm() {
         setFailure(
           mayBuyPlaces
             ? t(`paidExtras.refusal.extraPlace.${place}`)
-            : `${t(`paidExtras.refusal.extraPlace.${place}`)} ${t('paidExtras.refusal.extraPlaceAsk')}`,
+            : `${t(`paidExtras.refusal.extraPlace.${place}`)} ${t(
+                extrasHeld ? 'subscription.payFirstForExtras' : 'paidExtras.refusal.extraPlaceAsk',
+              )}`,
         )
         setFailureLink(
           mayBuyPlaces

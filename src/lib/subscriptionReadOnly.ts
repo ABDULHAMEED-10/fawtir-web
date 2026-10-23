@@ -23,8 +23,9 @@ import { REQUIRE_SESSION, useSession } from './session/session'
  * while the subscription was paid still goes out on its own, to the Tax Authority and the buyer.
  * Drafts made before stay readable and can be issued once the subscription is paid. Adding people,
  * creating or rotating API keys and ERP work stop too. Replies to documents already sent (Tax
- * Authority and Peppol) still come in. The Plan page stays fully open: choosing a plan, upgrading,
- * changing the billing cycle and buying extras are offered, and the server decides.
+ * Authority and Peppol) still come in. On the Plan page choosing a plan, upgrading, changing the
+ * billing cycle and paying stay (PC-7); every Buy extras action (extra documents, extra users and
+ * branches, the ERP add-on) is hidden until the subscription is paid, with one line saying so.
  */
 export type RestrictedAction =
   | 'ISSUE_DOCUMENTS'
@@ -152,4 +153,16 @@ export function useReadOnlyReason(): ReadOnlyReason | null {
 export function useSubscriptionAllows(action: RestrictedAction): boolean {
   void action
   return useReadOnlyReason() === null
+}
+
+/**
+ * Whether buying extras waits for the subscription to be paid (ST-2, owner 23 Oct 2026): while it
+ * is read-only (trial ended, Suspended, Cancelled) every Buy extras action is hidden -- extra
+ * documents, extra users and branches, the ERP add-on -- and comes back once it is paid. Choosing
+ * a plan, upgrading, the billing cycle and paying stay. The server's own refusal
+ * (`subscription-state-conflict`) is unchanged; this only decides what is offered.
+ */
+export function useExtrasHeldUntilPaid(): boolean {
+  const reason = useReadOnlyReason()
+  return reason !== null && readOnlyOffersPay(reason)
 }

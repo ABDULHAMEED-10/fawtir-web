@@ -5,7 +5,7 @@ import type { TFunction } from 'i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { OutstandingBill, formatRate } from './SubscriptionBillingSection'
 import { ReconnectBeforePayingNote } from './ReconnectBeforePayingNote'
-import { StaysReadOnlyUntilPaidNote } from './StaysReadOnlyUntilPaidNote'
+import { useExtrasHeldUntilPaid } from '../../lib/subscriptionReadOnly'
 import { usePayingHeldUntilReconnected } from '../../hooks/usePayingHeldUntilReconnected'
 import { noteLeftFawtirRefusal } from '../../lib/leftFawtirRefusal'
 import { LeftFawtirRefusal } from '../../components/billing/LeftFawtirRefusal'
@@ -90,6 +90,8 @@ function PaidExtrasBody() {
   const mayManage = useCan(PLAN_MANAGE)
   // LV-6: no users, branches or add-on are ordered once the company has left Fawtir (A3.8).
   const held = usePayingHeldUntilReconnected()
+  // ST-2: no users, branches or add-on are bought while the subscription is read-only.
+  const extrasHeld = useExtrasHeldUntilPaid()
   const outstanding = extras.read.status === 'ready' ? extras.read.data.outstanding : null
   const billing = useApiRead<BillingOverviewDto>(
     outstanding ? BILLING_PATH : null,
@@ -133,6 +135,7 @@ function PaidExtrasBody() {
     !held &&
     !blocked &&
     !payFirst &&
+    !extrasHeld &&
     !outstanding &&
     data.erpAddon.offered &&
     (data.erpAddon.status === null || data.erpAddon.status === 'ENDED')
@@ -140,7 +143,6 @@ function PaidExtrasBody() {
   return (
     <>
       <PlacesCard data={data} />
-      <StaysReadOnlyUntilPaidNote />
       {data.erpAddon.offered ? (
         <ErpAddonCard
           addon={data.erpAddon}
@@ -187,6 +189,8 @@ function PaidExtrasBody() {
           <div className="p-5 pt-0">
             {blocked ? (
               <Callout>{blocked}</Callout>
+            ) : extrasHeld ? (
+              <Callout>{t('subscription.payFirstForExtras')}</Callout>
             ) : payFirst ? (
               <Callout>
                 {t('paidExtras.refusal.subscription-state-conflict')}{' '}
