@@ -27,14 +27,13 @@ import {
 } from '../../lib/identity/onboarding'
 import { onboardingStateFrom, planDisplayName, type OnboardingState } from '../../lib/onboarding'
 import {
-  formatBaisa,
   toBaisa,
   type BillingCycle,
   type PlanId,
   type SignupPaymentMethod,
 } from '../../lib/pricing'
 import { baisaOf, readSignupPlans } from '../../lib/identity/signupPlans'
-import { usePlanCatalogue } from '../PlansPage/catalogueView'
+import { fullRial, fullRialOf, usePlanCatalogue } from '../PlansPage/catalogueView'
 import { PLATFORM_SETTINGS } from '../../lib/platformSettings'
 import { isConfirmedPayment } from '../../lib/identity/signupRejection'
 import { sellerName } from '../../api/settings/billing'
@@ -515,7 +514,7 @@ function AddonOffer({
         {t('payment.addon.body')}
       </p>
       <p className="mt-2 flex items-baseline gap-1 text-sm font-semibold text-text-primary">
-        <OmAmount size="xs" amount={formatBaisa(monthlyBaisa)} amountClassName="font-semibold" />
+        <OmAmount size="xs" amount={fullRial(monthlyBaisa)} amountClassName="font-semibold" />
         <span className="text-xs font-medium text-text-quaternary">
           {months > 1
             ? t('payment.addon.perMonthTimes', { count: months })
@@ -732,7 +731,7 @@ function OrderSummaryCard({
 
   const figure = (amount: string | null | undefined, className: string, size: 'xs' | 'sm') =>
     amount ? (
-      <OmAmount size={size} amount={amount} amountClassName={className} />
+      <OmAmount size={size} amount={fullRialOf(amount)} amountClassName={className} />
     ) : (
       <span className="font-semibold text-text-primary/60">{missing}</span>
     )
@@ -772,7 +771,7 @@ function OrderSummaryCard({
         {billing === 'annual' && terms?.monthlyPrice ? (
           <div className="flex items-center justify-between gap-2 text-sm">
             <span className="font-medium text-text-primary/50">
-              {t('payment.summary.monthlyPrice', { rate: terms.monthlyPrice })}
+              {t('payment.summary.monthlyPrice', { rate: fullRialOf(terms.monthlyPrice) })}
             </span>
             <span className="font-semibold text-text-primary/60">
               {freeMonths(terms.monthlyPrice, terms.annualPrice, months) > 0
@@ -813,7 +812,7 @@ function OrderSummaryCard({
           </span>
           <OmAmount
             size="xs"
-            amount={formatBaisa(addonBaisa)}
+            amount={fullRial(addonBaisa)}
             amountClassName="font-semibold text-text-primary/80"
           />
         </div>
