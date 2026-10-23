@@ -318,12 +318,8 @@ function InviteForm() {
               {/* An open invitation counts against the plan's people from the moment it is sent
                   (SubscriptionEnforcementService.assertCanAddPerson). */}
               <Row label={t('invite.placeTaken')} value={t('invite.immediately')} />
-              <Row
-                label={t('invite.chargedFrom')}
-                value={t('invite.notAvailableYet')}
-                muted
-                last
-              />
+              {/* US-1: an extra person is charged from the day their payment is confirmed. */}
+              <Row label={t('invite.chargedFrom')} value={t('invite.chargedFromValue')} last />
             </dl>
           </section>
 

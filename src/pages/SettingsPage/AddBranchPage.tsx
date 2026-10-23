@@ -313,7 +313,11 @@ export function AddBranchPage() {
   return (
     <SettingsShell group="company">
       <SettingsHeader
-        title={existing ? t('addBranch.editTitle', { name: existing.name }) : t('addBranch.title')}
+        title={
+          existing
+            ? t('addBranch.editTitle', { name: branchDisplayName(existing, i18n.language) })
+            : t('addBranch.title')
+        }
         subtitle={existing ? t('addBranch.editSubtitle') : t('addBranch.subtitle')}
         actions={
           <Link

@@ -10,6 +10,7 @@ import { forgetSubscriptionStanding } from '../../lib/subscriptionReadOnly'
 import { resetSharedRequests } from '../../api'
 import { resetLeftFawtirRefusal } from '../../lib/leftFawtirRefusal'
 import { PlanPage } from './PlanPage'
+import { formatDate } from '../../lib/format'
 
 /**
  * Settings › Plan: self-service plan and billing-cycle changes (backend P2-2). The Business Rules
@@ -1525,5 +1526,179 @@ describe('Plan changes: a fast double click sends one request', () => {
     doubleClick(keep)
     await reply.release()
     expect(calls(`DELETE ${SUBSCRIPTION}/cancellation`)).toHaveLength(1)
+  })
+})
+
+/**
+ * PC-7 (owner, 23 Oct 2026; backend #704): an upgrade or a billing-cycle change while the
+ * subscription is not fully paid. Read-only buys a whole period from the payment day, which ends
+ * read-only and becomes the subscription date; grace buys a whole period from the original renewal
+ * date, the subscription date staying. Both cancel the unpaid renewal bill, never charged as well.
+ */
+function readOnlyUpgrade(over: Record<string, unknown> = {}) {
+  return trialUpgrade({
+    kind: 'READ_ONLY_UPGRADE',
+    periodStartsOn: '2026-10-11',
+    endsReadOnly: true,
+    replacesRenewalBill: 'FWT-SUB-2026-000050',
+    ...over,
+  })
+}
+
+function graceUpgrade(over: Record<string, unknown> = {}) {
+  return trialUpgrade({
+    kind: 'GRACE_UPGRADE',
+    charge: {
+      ...trialUpgrade().charge,
+      windowStartsOn: '2026-10-01',
+      windowEndsOn: '2026-10-31',
+      includesToday: false,
+      periods: [
+        {
+          startsOn: '2026-10-01',
+          endsOn: '2026-10-31',
+          totalDays: 31,
+          remainingDays: 31,
+          fromPrice: '0.000',
+          toPrice: '150.000',
+          amount: '150.000',
+        },
+      ],
+      newPaidThrough: '2026-10-31',
+    },
+    subscriptionDate: 1,
+    periodStartsOn: '2026-10-01',
+    endsReadOnly: false,
+    replacesRenewalBill: 'FWT-SUB-2026-000050',
+    ...over,
+  })
+}
+
+describe('Plan changes: an upgrade while unpaid (PC-7)', () => {
+  for (const language of ['en', 'ar']) {
+    it(`words a read-only upgrade as a whole period that ends read-only, with no raw key (${language})`, async () => {
+      const user = userEvent.setup({ delay: null })
+      await i18n.changeLanguage(language)
+      answers[PREVIEW] = () => json(200, readOnlyUpgrade())
+      renderPage()
+      await user.click(
+        await screen.findByRole('button', {
+          name: i18n.t('planChange.moveTo', { plan: 'Business Plus' }),
+        }),
+      )
+      const box = within(await dialog())
+      expect((await box.findAllByText('157.500')).length).toBeGreaterThan(0)
+      noRawKey()
+      expect(
+        box.getByRole('button', { name: i18n.t('planChange.dialog.confirm.READ_ONLY_UPGRADE') }),
+      ).toBeTruthy()
+      expect(box.getByText(i18n.t('planChange.fact.endsReadOnly'))).toBeTruthy()
+      expect(
+        box.getByText(
+          i18n.t('planChange.fact.replacesRenewalBill', { number: 'FWT-SUB-2026-000050' }),
+        ),
+      ).toBeTruthy()
+      // The subscription date moves to the payment day, so "does not change" would be false.
+      expect(
+        box.queryByText(i18n.t('planChange.fact.subscriptionDate', { day: '11' })),
+      ).toBeNull()
+      expect(box.queryByText(i18n.t('planChange.fact.endsTrial'))).toBeNull()
+    })
+  }
+
+  it('says the period of a grace upgrade starts on the original renewal date, and the date stays', async () => {
+    const user = userEvent.setup({ delay: null })
+    answers[PREVIEW] = () => json(200, graceUpgrade())
+    renderPage()
+    await user.click(await moveTo('Business Plus'))
+    const box = within(await dialog())
+    expect(
+      await box.findByText(i18n.t('planChange.fact.gracePeriodStarts', { date: '1 Oct 2026' })),
+    ).toBeTruthy()
+    expect(
+      box.getByText(
+        i18n.t('planChange.fact.replacesRenewalBill', { number: 'FWT-SUB-2026-000050' }),
+      ),
+    ).toBeTruthy()
+    expect(
+      box.getByText(sentence(/one whole month of Business Plus: 1 Oct 2026 to 31 Oct 2026\.$/)),
+    ).toBeTruthy()
+    expect(box.queryByText(i18n.t('planChange.fact.endsReadOnly'))).toBeNull()
+    expect(
+      box.getByRole('button', { name: i18n.t('planChange.dialog.confirm.GRACE_UPGRADE') }),
+    ).toBeTruthy()
+    noRawKey()
+  })
+
+  it('names a cycle change on the same plan as billing, not "Business to Business"', async () => {
+    const user = userEvent.setup({ delay: null })
+    answers[PREVIEW] = () =>
+      json(
+        200,
+        readOnlyUpgrade({
+          from: side('BUSINESS', 'Business', 'MONTHLY', '80.000'),
+          to: side('BUSINESS', 'Business', 'ANNUAL', '800.000'),
+        }),
+      )
+    renderPage()
+    await user.click(await moveTo('Business Plus'))
+    const box = within(await dialog())
+    expect(
+      await box.findByText(
+        i18n.t('planChange.kindCycle.READ_ONLY_UPGRADE.ANNUAL', { to: 'Business' }),
+      ),
+    ).toBeTruthy()
+  })
+
+  it('confirms and pays it like any charged change', async () => {
+    const user = userEvent.setup({ delay: null })
+    answers[PREVIEW] = () => json(200, readOnlyUpgrade())
+    renderPage()
+    await user.click(await moveTo('Business Plus'))
+    const box = within(await dialog())
+    await user.click(
+      await box.findByRole('button', {
+        name: i18n.t('planChange.dialog.confirm.READ_ONLY_UPGRADE'),
+      }),
+    )
+    await waitFor(() => expect(calls(REQUEST)).toHaveLength(1))
+    expect(JSON.parse(String((calls(REQUEST)[0][1] as RequestInit).body))).toMatchObject({
+      planCode: 'BUSINESS_PLUS',
+      expectedTotal: '157.500',
+    })
+  })
+
+  for (const language of ['en', 'ar']) {
+    it(`words the change waiting for payment, with the last day to pay (${language})`, async () => {
+      await i18n.changeLanguage(language)
+      answers[CHANGES] = () =>
+        json(200, {
+          available: true,
+          pending: { ...PENDING, kind: 'READ_ONLY_UPGRADE', lastDayToPay: '2026-10-11' },
+          history: [],
+        })
+      renderPage()
+      expect(
+        await screen.findByText(
+          i18n.t('planChange.pending.note.READ_ONLY_UPGRADE', { plan: 'Business Plus' }),
+        ),
+      ).toBeTruthy()
+      expect(
+        screen.getByText(
+          i18n.t('planChange.pending.payBy', {
+            date: language === 'en' ? '11 Oct 2026' : formatDate('2026-10-11', 'ar'),
+          }),
+        ),
+      ).toBeTruthy()
+      await waitFor(() => expect(screen.queryByText(/FWT-SUB-2026-000061/)).toBeTruthy())
+      noRawKey()
+    })
+  }
+
+  it('says nothing about a last day to pay when an older server does not send it', async () => {
+    answers[CHANGES] = () => json(200, { available: true, pending: PENDING, history: [] })
+    renderPage()
+    await waitFor(() => expect(screen.queryByText(/FWT-SUB-2026-000061/)).toBeTruthy())
+    expect(screen.queryByText(/Unpaid after that day/)).toBeNull()
   })
 })

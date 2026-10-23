@@ -71,6 +71,7 @@ import viewIcon from '../../assets/actions/view.svg'
 import invoiceIcon from '../../assets/actions/invoice.svg'
 import editIcon from '../../assets/actions/edit.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 type Chip = { bg: string; text: string }
 
@@ -143,6 +144,8 @@ function NotesList({ kind }: { kind: NoteKind }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const session = useSession()
+  // No new drafts while the subscription is read-only (ST-2, CA-3).
+  const mayDraft = useSubscriptionAllows('CREATE_DRAFTS')
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const credit = kind === 'CREDIT_NOTE'
@@ -360,7 +363,7 @@ function NotesList({ kind }: { kind: NoteKind }) {
             {exporting ? t('salesNote.list.exporting') : t('salesNote.list.export')}
           </button>
         ) : null}
-        {can(session, credit ? 'creditnote.create' : 'debitnote.create') ? (
+        {mayDraft && can(session, credit ? 'creditnote.create' : 'debitnote.create') ? (
           <Link
             to={`${base}/new`}
             className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-primary-700 py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"

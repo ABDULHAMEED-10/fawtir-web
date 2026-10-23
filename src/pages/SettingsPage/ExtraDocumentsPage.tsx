@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { OutstandingBill, formatRate } from './SubscriptionBillingSection'
 import { ReconnectBeforePayingNote } from './ReconnectBeforePayingNote'
+import { StaysReadOnlyUntilPaidNote } from './StaysReadOnlyUntilPaidNote'
 import { usePayingHeldUntilReconnected } from '../../hooks/usePayingHeldUntilReconnected'
 import { noteLeftFawtirRefusal } from '../../lib/leftFawtirRefusal'
 import { LeftFawtirRefusal } from '../../components/billing/LeftFawtirRefusal'
@@ -99,6 +100,7 @@ function ExtraDocumentsBody() {
   return (
     <>
       <AllowanceCard data={data} />
+      <StaysReadOnlyUntilPaidNote />
       {added ? (
         <p role="status" className="rounded-sm bg-success-100 px-4 py-3 text-sm font-medium leading-[1.6] text-success-700">
           {t('extraDocuments.result.added', {

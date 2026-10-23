@@ -81,6 +81,7 @@ import duplicateIcon from '../../assets/actions/duplicate.svg'
 import creditNoteIcon from '../../assets/actions/credit-note.svg'
 import periodicIcon from '../../assets/actions/periodic.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 type Chip = { bg: string; dot: string; text: string }
 
@@ -192,6 +193,7 @@ export function InvoicesPage() {
 function InvoicesScreen() {
   const { t, i18n } = useTranslation()
   const session = useSession()
+  const mayDraft = useSubscriptionAllows('CREATE_DRAFTS')
   const language = i18n.language
   const [params, setParams] = useSearchParams()
 
@@ -404,8 +406,9 @@ function InvoicesScreen() {
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        {can(session, 'invoice.draft') && bulkUploadIncluded ? (
+        {can(session, 'invoice.draft') && mayDraft && bulkUploadIncluded ? (
           // The design's button opens the invoice import (drafts only); its routes are TODO(backend).
+          // Read-only makes no new drafts (ST-2, CA-3), so neither this nor Create invoice shows.
           <button type="button" onClick={() => setImporting(true)} className={OUTLINE_BUTTON}>
             <img src={bulkUploadIcon} alt="" className="size-6" />
             {t('invoicesPage.bulkUpload')}
@@ -422,7 +425,7 @@ function InvoicesScreen() {
             {exporting ? t('invoicesPage.exporting') : t('invoicesPage.export')}
           </button>
         ) : null}
-        {can(session, 'invoice.draft') ? (
+        {can(session, 'invoice.draft') && mayDraft ? (
           <Link
             to="/invoices/new"
             className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-primary-700 py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"
@@ -930,8 +933,12 @@ function InvoiceTable({
   const [selected, setSelected] = useState<string[]>([])
   const allOnPageSelected = rows.length > 0 && rows.every((row) => selected.includes(row.id))
   const someOnPageSelected = !allOnPageSelected && rows.some((row) => selected.includes(row.id))
+  // While read-only (ST-2, CA-3) nothing is sent and no new draft or note is started from a row;
+  // a draft made before still opens and can be discarded.
+  const mayDraft = useSubscriptionAllows('CREATE_DRAFTS')
+  const maySend = useSubscriptionAllows('SEND_DOCUMENTS')
   const canDraft = can(session, 'invoice.draft')
-  const canSend = can(session, 'invoice.issue')
+  const canSend = can(session, 'invoice.issue') && maySend
   // Making a periodic series from an invoice needs a plan with periodic invoices (PL-8).
   const periodicIncluded = usePlanIncludes('recurringInvoices')
 
@@ -962,21 +969,28 @@ function InvoiceTable({
             },
           ]
         : []),
-      row.type === 'INVOICE' && canDraft
-        ? {
-            id: 'duplicate',
-            labelKey: 'rowActions.invoice.duplicate',
-            icon: duplicateIcon,
-            to: `/invoices/new?duplicate=${row.id}`,
-          }
-        : {
-            id: 'duplicate',
-            labelKey: 'rowActions.invoice.duplicate',
-            icon: duplicateIcon,
-            onSelect: () => onUnavailable('invoicesPage.duplicateUnavailable'),
-          },
+      // Duplicate starts a new draft: not offered while read-only.
+      ...(!mayDraft
+        ? []
+        : row.type === 'INVOICE' && canDraft
+          ? [
+              {
+                id: 'duplicate',
+                labelKey: 'rowActions.invoice.duplicate',
+                icon: duplicateIcon,
+                to: `/invoices/new?duplicate=${row.id}`,
+              },
+            ]
+          : [
+              {
+                id: 'duplicate',
+                labelKey: 'rowActions.invoice.duplicate',
+                icon: duplicateIcon,
+                onSelect: () => onUnavailable('invoicesPage.duplicateUnavailable'),
+              },
+            ]),
     ]
-    if (issuedInvoice && can(session, 'creditnote.create')) {
+    if (issuedInvoice && mayDraft && can(session, 'creditnote.create')) {
       items.push({
         id: 'creditNote',
         labelKey: 'rowActions.invoice.creditNote',
@@ -984,7 +998,7 @@ function InvoiceTable({
         to: `/income/credit-notes/new?invoice=${row.id}`,
       })
     }
-    if (issuedInvoice && can(session, 'invoice.draft') && periodicIncluded) {
+    if (issuedInvoice && mayDraft && can(session, 'invoice.draft') && periodicIncluded) {
       // The periodic composer reads the template from `?template=` (PeriodicInvoicePage).
       items.push({
         id: 'periodic',

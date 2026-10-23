@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
+import { forgetSubscriptionStanding } from '../../lib/subscriptionReadOnly'
 import type { InvoiceRowDto, InvoiceSummaryDto } from '../../api/invoices/list'
 import { periodRange, toInvoiceListItem } from '../../lib/invoiceList'
 import { InvoicesPage } from './InvoicesPage'
@@ -123,6 +124,8 @@ let exportResponse: () => Response
 let discardResponse: () => Response
 let ruleResponse: () => Response
 let who: Entitlements
+/** `GET /settings/subscription`, asked only for a reader with `tenant.plan.read`. */
+let subscriptionResponse: () => Response
 
 /** The sales approval rule as a server reads it with its switch off: never set, off, not available. */
 const RULE_OFF = {
@@ -153,7 +156,9 @@ const listCalls = () => calls('/api/v1/authored-invoices?')
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   forgetEntitlements()
+  forgetSubscriptionStanding()
   who = ADMIN
+  subscriptionResponse = () => json(404, { status: 404 })
   summaryResponse = () => json(200, SUMMARY)
   salesSummaryResponse = () => json(200, { ...SUMMARY, awaiting: 6, overdue: 4, paid: 17 })
   listResponses = [() => json(200, springPage([issued(), draft()], 2))]
@@ -170,6 +175,7 @@ beforeEach(async () => {
   fetchMock = vi.fn(async (url: string) => {
     if (url === ENTITLEMENTS_URL) return json(200, who)
     if (url === SUMMARY_URL) return summaryResponse()
+    if (url === '/api/v1/settings/subscription') return subscriptionResponse()
     if (url === SALES_SUMMARY_URL) return salesSummaryResponse()
     if (url === '/api/v1/settings/sales-approval-rule') return ruleResponse()
     if (url.startsWith('/api/v1/authored-invoices/export.csv')) return exportResponse()
@@ -537,6 +543,137 @@ describe('Invoices list, wired to the API', () => {
     expect(within(row).getByText('متأخر')).toBeTruthy()
     expect(screen.getByText('845.125')).toBeTruthy()
     expect(screen.getByText('عبر 12 فاتورة غير مدفوعة')).toBeTruthy()
+  })
+})
+
+describe('Read-only subscription: no new drafts and nothing sent (ST-2, CA-3; owner, 23 Oct 2026)', () => {
+  const OWNER: Entitlements = {
+    ...ADMIN,
+    permissions: [...ADMIN.permissions, 'invoice.issue', 'creditnote.create', 'tenant.plan.read'],
+  }
+  const standing = (restriction: string | null, extra: Record<string, unknown> = {}) => ({
+    tracked: true,
+    access: restriction ? 'PAYMENT_REQUIRED' : 'ACTIVE',
+    restrictionsEnforced: true,
+    restriction,
+    today: '2026-10-23',
+    planCode: 'BUSINESS',
+    planName: 'Business',
+    billingCycle: 'MONTHLY',
+    periodPrice: '80.000',
+    trialStartsOn: null,
+    trialEndsOn: null,
+    trialDay: null,
+    trialDaysLeft: null,
+    paidThrough: '2026-10-14',
+    renewsOn: '2026-10-15',
+    graceDays: 7,
+    graceUntil: '2026-10-21',
+    autoRenew: false,
+    autoRenewAvailable: false,
+    autoRenewChangedAt: null,
+    cancelAtPeriodEnd: false,
+    accessEndsOn: null,
+    scheduledChange: null,
+    enterprise: null,
+    ...extra,
+  })
+  const subscriptionRead = () => calls('/api/v1/settings/subscription').length > 0
+  const issuedRowMenu = async () => {
+    const row = screen.getByText('INV-2026-0042').closest('tr')!
+    fireEvent.click(within(row).getByRole('button', { name: 'Invoice actions' }))
+    await screen.findByRole('menuitem', { name: 'View invoice' })
+  }
+
+  it('offers Create invoice, Bulk upload, Send, Duplicate, credit note and periodic while usable', async () => {
+    who = OWNER
+    subscriptionResponse = () => json(200, standing(null))
+    renderInvoices()
+    await screen.findByText('Sohar Port Logistics')
+    await waitFor(() => expect(subscriptionRead()).toBe(true))
+    expect(screen.getByRole('link', { name: /Create Invoice/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Bulk upload/ })).toBeTruthy()
+    await issuedRowMenu()
+    expect(screen.getByRole('menuitem', { name: 'Send' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: i18n.t('rowActions.invoice.duplicate') })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Issue credit note' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Periodic invoice' })).toBeTruthy()
+  })
+
+  it.each([
+    ['suspended', standing('SUBSCRIPTION_SUSPENDED')],
+    ['trial ended unpaid', standing('SUBSCRIPTION_SUSPENDED', { paidThrough: null, trialEndsOn: '2026-10-21' })],
+    ['cancelled', standing('SUBSCRIPTION_CANCELLED', { access: 'CANCELLED' })],
+  ])('hides them while %s; viewing and discarding an old draft stay', async (_, status) => {
+    who = OWNER
+    subscriptionResponse = () => json(200, status)
+    renderInvoices()
+    await screen.findByText('Sohar Port Logistics')
+    await waitFor(() => expect(screen.queryByRole('link', { name: /Create Invoice/ })).toBeNull())
+    expect(screen.queryByRole('button', { name: /Bulk upload/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /Export/ })).toBeTruthy()
+    await issuedRowMenu()
+    expect(screen.queryByRole('menuitem', { name: 'Send' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: i18n.t('rowActions.invoice.duplicate') })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Issue credit note' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Periodic invoice' })).toBeNull()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    const draftRow = screen.getByText('Nizwa Dates Co').closest('tr')!
+    fireEvent.click(within(draftRow).getByRole('button', { name: 'Invoice actions' }))
+    expect(await screen.findByRole('menuitem', { name: 'Delete' })).toBeTruthy()
+  })
+
+  it('hides nothing with the backend switch off', async () => {
+    who = OWNER
+    subscriptionResponse = () =>
+      json(200, standing(null, { restrictionsEnforced: false, access: 'PAYMENT_REQUIRED' }))
+    renderInvoices()
+    await screen.findByText('Sohar Port Logistics')
+    await waitFor(() => expect(subscriptionRead()).toBe(true))
+    expect(screen.getByRole('link', { name: /Create Invoice/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Bulk upload/ })).toBeTruthy()
+  })
+
+  // Both checks hold together: read-only (ST-2) and the plan's switch (PL-8). A door shows only
+  // when both allow it.
+  const withPlan = (on: boolean): Entitlements => ({
+    ...OWNER,
+    planFeaturesEnforced: true,
+    planFeatures: { bulkUpload: on, recurringInvoices: on },
+  })
+
+  it('shows Bulk upload and Periodic invoice when usable and the plan has them', async () => {
+    who = withPlan(true)
+    subscriptionResponse = () => json(200, standing(null))
+    renderInvoices()
+    await screen.findByText('Sohar Port Logistics')
+    await waitFor(() => expect(subscriptionRead()).toBe(true))
+    expect(await screen.findByRole('button', { name: /Bulk upload/ })).toBeTruthy()
+    await issuedRowMenu()
+    expect(screen.getByRole('menuitem', { name: 'Periodic invoice' })).toBeTruthy()
+  })
+
+  it('hides them when usable but the plan lacks them', async () => {
+    who = withPlan(false)
+    subscriptionResponse = () => json(200, standing(null))
+    renderInvoices()
+    await screen.findByText('Sohar Port Logistics')
+    await waitFor(() => expect(subscriptionRead()).toBe(true))
+    expect(screen.getByRole('link', { name: /Create Invoice/ })).toBeTruthy()
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Bulk upload/ })).toBeNull())
+    await issuedRowMenu()
+    expect(screen.queryByRole('menuitem', { name: 'Periodic invoice' })).toBeNull()
+  })
+
+  it('hides them when the plan has them but the subscription is read-only', async () => {
+    who = withPlan(true)
+    subscriptionResponse = () => json(200, standing('SUBSCRIPTION_SUSPENDED'))
+    renderInvoices()
+    await screen.findByText('Sohar Port Logistics')
+    await waitFor(() => expect(screen.queryByRole('link', { name: /Create Invoice/ })).toBeNull())
+    expect(screen.queryByRole('button', { name: /Bulk upload/ })).toBeNull()
+    await issuedRowMenu()
+    expect(screen.queryByRole('menuitem', { name: 'Periodic invoice' })).toBeNull()
   })
 })
 

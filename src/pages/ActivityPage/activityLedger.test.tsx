@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
+import { forgetSubscriptionStanding } from '../../lib/subscriptionReadOnly'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type {
   ActivityDetailDto,
@@ -31,6 +32,7 @@ import { ActivityPage } from './ActivityPage'
 import { ActivityEventPage } from './ActivityEventPage'
 import { TddResubmitPage } from './TddResubmitPage'
 import { ReportsCompliancePage } from '../ReportsCompliancePage'
+import { answerStanding as answerStandingOn, settle } from '../../testing/subscriptionStanding'
 
 const UUID_A = 'a0000000-0000-0000-0000-000000000001'
 const UUID_B = 'a0000000-0000-0000-0000-000000000002'
@@ -1749,4 +1751,159 @@ describe('the compliance report figures', () => {
     })
     expect(numberingOf([])).toBeNull()
   })
+})
+
+describe('fixing an invoice the Tax Authority refused, while the subscription is read-only (ST-2, CA-3)', () => {
+  const standing = (restriction: string | null) => ({
+    tracked: true,
+    access: restriction ? 'PAYMENT_REQUIRED' : 'ACTIVE',
+    restrictionsEnforced: true,
+    restriction,
+    today: '2026-10-23',
+    planCode: 'BUSINESS',
+    planName: 'Business',
+    billingCycle: 'MONTHLY',
+    periodPrice: '80.000',
+    trialStartsOn: null,
+    trialEndsOn: null,
+    trialDay: null,
+    trialDaysLeft: null,
+    paidThrough: '2026-10-14',
+    renewsOn: '2026-10-15',
+    graceDays: 7,
+    graceUntil: '2026-10-21',
+    autoRenew: false,
+    autoRenewAvailable: false,
+    autoRenewChangedAt: null,
+    cancelAtPeriodEnd: false,
+    accessEndsOn: null,
+    scheduledChange: null,
+    enterprise: null,
+  })
+  const answerStanding = (restriction: string | null) => {
+    forgetSubscriptionStanding()
+    const before = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) =>
+      String(input) === '/api/v1/settings/subscription'
+        ? json(200, standing(restriction))
+        : before(input, init),
+    )
+  }
+  const creditNoteLink = () =>
+    screen
+      .queryAllByRole('link')
+      .find((link) => link.getAttribute('href')?.startsWith('/income/credit-notes/new'))
+  const renderResubmit = () =>
+    render(
+      <MemoryRouter initialEntries={[`/compliance/activity/${UUID_A}/resubmit`]}>
+        <Routes>
+          <Route path="/compliance/activity/:id/resubmit" element={<TddResubmitPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+  beforeEach(() => {
+    who = { ...SUBMITTER, permissions: [...SUBMITTER.permissions, 'tenant.plan.read'] }
+    const refused = item({
+      tdd_leg: { ...item().tdd_leg!, ack: 'RE', error_kind: 'INVOICE' },
+    })
+    detailReply = { ...DETAIL, summary: refused }
+    items = [refused]
+  })
+
+  it('offers the credit note while the subscription is usable', async () => {
+    answerStanding(null)
+    renderResubmit()
+    await waitFor(() => expect(creditNoteLink()).toBeTruthy())
+  })
+
+  it.each(['SUBSCRIPTION_SUSPENDED', 'SUBSCRIPTION_CANCELLED'])(
+    'starts no credit note draft while %s',
+    async (restriction) => {
+      answerStanding(restriction)
+      renderResubmit()
+      await screen.findByText(i18n.t('tddResubmit.saveOnly'))
+      await waitFor(() => expect(calls('/settings/subscription').length).toBeGreaterThan(0))
+      await waitFor(() => expect(creditNoteLink()).toBeUndefined())
+    },
+  )
+})
+
+describe('resubmitting to the Tax Authority while the subscription is read-only (ST-2, owner 23 Oct, third message)', () => {
+  const RESUBMIT = '/api/v1/invoices/inv-1/tdd/resubmit'
+  const reason = 'The report signature could not be verified.'
+  const renderAt = (path: string) =>
+    render(
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/activity" element={<ActivityPage />} />
+          <Route path="/compliance/activity/:id" element={<ActivityEventPage />} />
+          <Route path="/compliance/activity/:id/resubmit" element={<TddResubmitPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+  const standingAsked = () => waitFor(() => expect(calls('/settings/subscription').length).toBeGreaterThan(0))
+
+  beforeEach(() => {
+    who = { ...SUBMITTER, permissions: [...SUBMITTER.permissions, 'tenant.plan.read'] }
+    items = [item({ links: { ...item().links, resubmit: RESUBMIT } })]
+    detailReply = {
+      ...DETAIL,
+      tdd_lineage: [{ ...DETAIL.tdd_lineage[1], status: 'REJECTED', failure_reason: reason }],
+      summary: {
+        ...DETAIL.summary,
+        tdd_leg: { ...DETAIL.summary.tdd_leg!, ack: 'RE', reason },
+        links: { ...DETAIL.summary.links, resubmit: RESUBMIT },
+      },
+    }
+  })
+
+  it('offers it everywhere while the subscription is usable', async () => {
+    answerStandingOn(fetchMock, null)
+    const ledger = renderAt('/activity')
+    await screen.findByText('INV-0001')
+    await standingAsked()
+    await settle()
+    openRowMenu('INV-0001')
+    expect(screen.getByRole('menuitem', { name: /Put it right/ })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: /Send the report again/ })).toBeTruthy()
+    ledger.unmount()
+
+    const record = renderAt(`/compliance/activity/${UUID_A}`)
+    expect((await screen.findAllByRole('link', { name: /^Put it right/ })).length).toBe(2)
+    record.unmount()
+
+    renderAt(`/compliance/activity/${UUID_A}/resubmit`)
+    expect(await screen.findByRole('button', { name: /^Fix and send/ })).toBeTruthy()
+  })
+
+  it.each(['SUBSCRIPTION_SUSPENDED', 'SUBSCRIPTION_CANCELLED'])(
+    'hides it on the ledger menu, the record and the resubmit screen while %s',
+    async (restriction) => {
+      answerStandingOn(fetchMock, restriction)
+      const ledger = renderAt('/activity')
+      await screen.findByText('INV-0001')
+      await standingAsked()
+      await settle()
+      openRowMenu('INV-0001')
+      expect(screen.getByRole('menuitem', { name: /Open the record/ })).toBeTruthy()
+      expect(screen.queryByRole('menuitem', { name: /Put it right/ })).toBeNull()
+      expect(screen.queryByRole('menuitem', { name: /Send the report again/ })).toBeNull()
+      ledger.unmount()
+
+      const record = renderAt(`/compliance/activity/${UUID_A}`)
+      await screen.findByRole('heading', { level: 1, name: 'INV-1993' })
+      await settle()
+      expect(screen.queryAllByRole('link', { name: /^Put it right/ })).toHaveLength(0)
+      // Hidden, not greyed: no "Nothing to resend" in its place either.
+      expect(screen.queryByRole('button', { name: 'Nothing to resend' })).toBeNull()
+      record.unmount()
+
+      renderAt(`/compliance/activity/${UUID_A}/resubmit`)
+      await screen.findByText(i18n.t('tddResubmit.saveOnly'))
+      await settle()
+      expect(screen.queryByRole('button', { name: /^Fix and send/ })).toBeNull()
+      expect(resubmitted).toEqual([])
+    },
+  )
 })

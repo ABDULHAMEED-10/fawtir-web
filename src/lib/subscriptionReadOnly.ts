@@ -12,12 +12,27 @@ import { REQUIRE_SESSION, useSession } from './session/session'
  * refused, so nothing is hidden and no read-only line is shown, whatever `access` says. The
  * screen never works a restriction out from the dates.
  *
- * What a read-only subscription stops is the server's `RestrictedAction`: issuing a new document,
- * adding people, creating or rotating API keys, and ERP work that creates capability or contacts
- * the ERP. Reading, downloading, exporting, paying, drafting, sending a document already issued and
- * every Tax Authority reply never stop, so nothing else is hidden.
+ * Read-only (trial ended, Suspended, Cancelled; owner rule of 23 Oct 2026, ST-2 and CA-3) means
+ * sign in, view, search, download, export and pay, nothing else. Nothing new goes out: no draft is
+ * issued, and nothing is sent, resent or shared (Send, resend, sharing links, releasing a held
+ * e-mail to the buyer, invitations). No new draft is made (invoice, credit or debit note,
+ * self-billed document, periodic invoice, quotation, order form, delivery note, purchase order,
+ * bulk upload, duplicate). Also stopped: Send on an existing quotation, order form, delivery note
+ * or purchase order (it gives the number), resubmitting a rejected document to the Tax Authority
+ * (it uses credits) and resuming a periodic invoice; pausing one still works. A document issued
+ * while the subscription was paid still goes out on its own, to the Tax Authority and the buyer.
+ * Drafts made before stay readable and can be issued once the subscription is paid. Adding people,
+ * creating or rotating API keys and ERP work stop too. Replies to documents already sent (Tax
+ * Authority and Peppol) still come in. The Plan page stays fully open: choosing a plan, upgrading,
+ * changing the billing cycle and buying extras are offered, and the server decides.
  */
-export type RestrictedAction = 'ISSUE_DOCUMENTS' | 'ADD_PEOPLE' | 'CREATE_API_KEY' | 'ERP'
+export type RestrictedAction =
+  | 'ISSUE_DOCUMENTS'
+  | 'SEND_DOCUMENTS'
+  | 'CREATE_DRAFTS'
+  | 'ADD_PEOPLE'
+  | 'CREATE_API_KEY'
+  | 'ERP'
 
 /** Which sentence the read-only line says. */
 export type ReadOnlyReason =
@@ -68,10 +83,23 @@ export function readOnlyOffersPay(reason: ReadOnlyReason): boolean {
  */
 const FRESH_FOR_MS = 30_000
 const settled = new Map<string, { status: SubscriptionStatusDto; at: number }>()
+/** The company the screens last asked about, so a refusal's wording reads that company's answer. */
+let currentKey: string | null = null
 
 /** Forgets every remembered answer. For tests, and for a session that changes hands. */
 export function forgetSubscriptionStanding(): void {
   settled.clear()
+  currentKey = null
+}
+
+/**
+ * Why the current company's subscription is read-only, from the answer the screens already hold,
+ * or `null` when none is held (still loading, no permission to read it, or nothing restricted).
+ * For wording a refusal outside React: never reads anything itself.
+ */
+export function rememberedReadOnlyReason(): ReadOnlyReason | null {
+  const known = currentKey === null ? undefined : settled.get(currentKey)
+  return known ? readOnlyReason(known.status) : null
 }
 
 /**
@@ -88,6 +116,7 @@ export function useSubscriptionStanding(): SubscriptionStatusDto | null {
   const [, setVersion] = useState(0)
 
   useEffect(() => {
+    currentKey = key
     if (key === null) return
     const known = settled.get(key)
     if (known && Date.now() - known.at < FRESH_FOR_MS) return
@@ -117,7 +146,7 @@ export function useReadOnlyReason(): ReadOnlyReason | null {
 
 /**
  * Whether to offer an action the server refuses while the subscription is read-only. Display only,
- * like `useCan`: every request is still decided by the server. Every restriction stops all four
+ * like `useCan`: every request is still decided by the server. Every restriction stops all these
  * actions, so the action names what is asked rather than changing the answer.
  */
 export function useSubscriptionAllows(action: RestrictedAction): boolean {

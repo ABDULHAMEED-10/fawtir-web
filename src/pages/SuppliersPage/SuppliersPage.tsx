@@ -71,6 +71,7 @@ import importIcon from '../../assets/bills/upload.svg'
 import plusIcon from '../../assets/bill-capture/plus.svg'
 import searchIcon from '../../assets/invoices/search.svg'
 import filterIcon from '../../assets/bills/filter.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 /**
  * A supplier whose channel was never recorded gets the neutral chip. The API calls it MANUAL, which
@@ -599,6 +600,8 @@ function SupplierTableRow({
   const chip = supplier.active ? CHANNEL_CHIP[supplier.channel] : CHANNEL_CHIP.manual
   const detail = `/suppliers/${supplier.id}`
   const tradeDocumentsIncluded = usePlanIncludes('tradeDocuments')
+  // No new purchase order while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
+  const mayCreate = useSubscriptionAllows('CREATE_DRAFTS')
 
   /** The row menu (Figma 163:28984): two titled groups, then the destructive item. */
   const menu: (ActionMenuItem & { requires: string })[] = [
@@ -676,8 +679,8 @@ function SupplierTableRow({
   const offered = menu.filter(
     (item) =>
       can(session, item.requires) &&
-      // A new purchase order needs a plan with trade documents (PL-8).
-      (item.id !== 'newPurchaseOrder' || tradeDocumentsIncluded) &&
+      // A new purchase order needs a plan with trade documents (PL-8), and none while read-only.
+      ((mayCreate && tradeDocumentsIncluded) || item.id !== 'newPurchaseOrder') &&
       (supplier.active ||
         (item.id !== 'newPurchaseOrder' && item.id !== 'recordBill' && item.id !== 'payNow')),
   )

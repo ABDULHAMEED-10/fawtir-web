@@ -36,6 +36,7 @@ import { earlySettlementNote, termsNote } from '../../lib/supplierRecord'
 import { formatAmount, formatDate, formatInstant, initialsOf } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import { usePlanIncludes } from '../../lib/planAccess'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import { LinesTotals } from '../NewPurchaseOrderPage/OrderLinesTable'
 import {
   ComposerHeader,
@@ -92,6 +93,9 @@ function PurchaseOrderDetail({ id }: { id: string }) {
   // cancelled or closed; submitting, approving, sending and booking goods in wait for a plan
   // that has them.
   const tradeDocumentsIncluded = usePlanIncludes('tradeDocuments')
+  // "Mark as sent" gives the order to the supplier: not offered while the subscription is read-only
+  // (ST-2, owner 23 Oct 2026, third message). Cancelling and booking goods in stay.
+  const maySend = useSubscriptionAllows('SEND_DOCUMENTS')
 
   const order = useApiRead<PurchaseOrderDto>(id ? purchaseOrderPath(id) : null, () =>
     loadPurchaseOrder(id),
@@ -243,7 +247,7 @@ function PurchaseOrderDetail({ id }: { id: string }) {
                   {t(busy === 'cancel' ? 'common.saving' : 'purchaseOrder.action.cancel')}
                 </button>
               ) : null}
-              {action ? (
+              {action && (action !== 'send' || maySend) ? (
                 <button
                   type="button"
                   disabled={!mayAct || busy !== null}

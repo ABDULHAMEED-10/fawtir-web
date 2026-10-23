@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
+import { answerStanding as answer, settle } from '../../testing/subscriptionStanding'
 import type { PeriodicRunDto, PeriodicScheduleDto } from '../../api/invoices/periodic'
 import {
   blankPeriodicForm,
@@ -673,6 +674,122 @@ describe('Periodic invoices, wired to the API', () => {
     renderAt('/income/periodic')
     expect(await screen.findByRole('heading', { level: 1, name: 'الفواتير الدورية' })).toBeTruthy()
     expect((await screen.findAllByText('فاتورة ملخّصة')).length).toBeGreaterThan(0)
+  })
+})
+
+describe('Pause, Resume and Generate while the subscription is read-only (owner, 23 Oct 2026)', () => {
+  // A read-only subscription skips the runs; Pause stays, Resume and Generate wait until they pay.
+  const answerStanding = (restriction: string | null) => {
+    who = { ...DRAFTER, permissions: [...DRAFTER.permissions, 'tenant.plan.read'] }
+    answer(fetchMock, restriction)
+  }
+  const subscriptionRead = () => calls('GET', '/api/v1/settings/subscription').length > 0
+
+  async function openMenu(customer: string) {
+    fireEvent.click(screen.getByRole('tab', { name: /^All/ }))
+    const row = (await screen.findByRole('link', { name: customer })).closest('tr') as HTMLElement
+    fireEvent.click(within(row).getByRole('button', { name: 'Schedule actions' }))
+  }
+
+  it('offers Resume on a paused series while the subscription is usable', async () => {
+    answerStanding(null)
+    renderAt('/income/periodic')
+    await screen.findByRole('link', { name: 'Muscat Grand Hotel' })
+    await waitFor(() => expect(subscriptionRead()).toBe(true))
+    await openMenu('Nizwa Cafe')
+    expect(await screen.findByRole('menuitem', { name: 'Resume series' })).toBeTruthy()
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
+    await openMenu('Muscat Grand Hotel')
+    expect(await screen.findByRole('menuitem', { name: 'Generate invoice' })).toBeTruthy()
+  })
+
+  it.each(['SUBSCRIPTION_SUSPENDED', 'SUBSCRIPTION_CANCELLED'])(
+    'hides Resume but keeps Pause in the list while %s',
+    async (restriction) => {
+      answerStanding(restriction)
+      renderAt('/income/periodic')
+      await screen.findByRole('link', { name: 'Muscat Grand Hotel' })
+      await waitFor(() => expect(subscriptionRead()).toBe(true))
+      await settle()
+      await openMenu('Nizwa Cafe')
+      expect(await screen.findByRole('menuitem', { name: 'View schedule' })).toBeTruthy()
+      expect(screen.queryByRole('menuitem', { name: 'Resume series' })).toBeNull()
+      fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
+      await openMenu('Muscat Grand Hotel')
+      expect(await screen.findByRole('menuitem', { name: 'Pause series' })).toBeTruthy()
+      // Generate makes a new draft now, so it is not offered either.
+      expect(screen.queryByRole('menuitem', { name: 'Generate invoice' })).toBeNull()
+    },
+  )
+
+  it('offers Resume on the paused series page while the subscription is usable', async () => {
+    answerStanding(null)
+    scheduleDetail = { ...MONTHLY, active: false }
+    renderAt('/income/periodic/sch-1')
+    await waitFor(() => expect(subscriptionRead()).toBe(true))
+    expect(await screen.findByRole('button', { name: 'Resume series' })).toBeTruthy()
+  })
+
+  it.each(['SUBSCRIPTION_SUSPENDED', 'SUBSCRIPTION_CANCELLED'])(
+    'hides Resume on the paused series page while %s, and keeps Pause on an active one',
+    async (restriction) => {
+      answerStanding(restriction)
+      scheduleDetail = { ...MONTHLY, active: false }
+      const view = renderAt('/income/periodic/sch-1')
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Monthly coffee supply, Muscat Grand Hotel',
+      })
+      await waitFor(() => expect(subscriptionRead()).toBe(true))
+      await settle()
+      expect(screen.queryByRole('button', { name: 'Resume series' })).toBeNull()
+      view.unmount()
+
+      scheduleDetail = MONTHLY
+      renderAt('/income/periodic/sch-1')
+      expect(await screen.findByRole('button', { name: 'Pause series' })).toBeTruthy()
+    },
+  )
+})
+
+// Both checks hold together: read-only (ST-2) and the plan's switch (PL-8). Resume and Generate
+// show only when both allow them; Pause stays under either.
+describe('read-only and the plan together (ST-2 and PL-8)', () => {
+  const withPlan = (on: boolean, restriction: string | null) => {
+    who = {
+      ...DRAFTER,
+      permissions: [...DRAFTER.permissions, 'tenant.plan.read'],
+      planFeaturesEnforced: true,
+      planFeatures: { recurringInvoices: on },
+    }
+    answer(fetchMock, restriction)
+  }
+  const subscriptionRead = () => calls('GET', '/api/v1/settings/subscription').length > 0
+
+  async function menuOf(customer: string) {
+    fireEvent.click(screen.getByRole('tab', { name: /^All/ }))
+    const row = (await screen.findByRole('link', { name: customer })).closest('tr') as HTMLElement
+    fireEvent.click(within(row).getByRole('button', { name: 'Schedule actions' }))
+  }
+
+  it.each([
+    ['usable, plan has it', true, null, true],
+    ['usable, plan lacks it', false, null, false],
+    ['read-only, plan has it', true, 'SUBSCRIPTION_SUSPENDED', false],
+  ] as const)('%s', async (_, on, restriction, offered) => {
+    withPlan(on, restriction)
+    renderAt('/income/periodic')
+    await screen.findByRole('link', { name: 'Muscat Grand Hotel' })
+    await waitFor(() => expect(subscriptionRead()).toBe(true))
+    await settle()
+    await menuOf('Muscat Grand Hotel')
+    expect(await screen.findByRole('menuitem', { name: 'Pause series' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Generate invoice' }) !== null).toBe(offered)
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
+    await menuOf('Nizwa Cafe')
+    await screen.findByRole('menuitem', { name: 'View schedule' })
+    expect(screen.queryByRole('menuitem', { name: 'Resume series' }) !== null).toBe(offered)
+    expect(screen.queryByRole('link', { name: 'New recurring invoice' }) !== null).toBe(offered)
   })
 })
 

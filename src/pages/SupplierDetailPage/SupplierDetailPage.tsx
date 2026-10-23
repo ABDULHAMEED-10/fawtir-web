@@ -84,6 +84,7 @@ import paperIcon from '../../assets/bill-capture/file.svg'
 import shieldIcon from '../../assets/bill-detail/compliance.svg'
 import menuStatementIcon from '../../assets/suppliers/menu-statement.svg'
 import chevronDownIcon from '../../assets/create-invoice/chevron.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 const BAND_TONE: Record<string, string> = {
   notDue: 'bg-[#4c6c5a]',
@@ -132,9 +133,11 @@ function SupplierRecord({ id }: { id: string }) {
   const session = useSession()
   const canManage = can(session, 'supplier.manage')
   const canPay = can(session, 'invoice.payment.manage')
-  // A new purchase order needs a plan with trade documents (PL-8).
+  // A new purchase order needs a plan with trade documents (PL-8), and none while the
+  // subscription is read-only (owner, 23 Oct; ST-2, CA-3).
   const tradeDocumentsIncluded = usePlanIncludes('tradeDocuments')
-  const canOrder = can(session, 'purchase-order.manage') && tradeDocumentsIncluded
+  const mayCreate = useSubscriptionAllows('CREATE_DRAFTS')
+  const canOrder = can(session, 'purchase-order.manage') && mayCreate && tradeDocumentsIncluded
   // The Orders tab is the supplier's purchase orders (`purchase-order.read`), each a link to its
   // order. A Viewer or an Approver reads suppliers without that permission, so the tab, whose
   // only content the server would refuse them, is not drawn for them.

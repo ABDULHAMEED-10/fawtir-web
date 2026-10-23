@@ -57,6 +57,7 @@ import customerIcon from '../../assets/create-invoice/doc-order.svg'
 import deliveryIcon from '../../assets/create-invoice/doc-delivery.svg'
 import infoIcon from '../../assets/expenditure-reminders/info.svg'
 import plusIcon from '../../assets/bill-capture/plus.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 const muscatToday = () =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
@@ -119,6 +120,8 @@ function ArchivedDocument({ invoiceUuid }: { invoiceUuid: string }) {
   const [params, setParams] = useSearchParams()
   const [notice, setNotice] = useState<string | null>(null)
   const [sharing, setSharing] = useState(false)
+  // Nothing is shared while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
+  const mayShare = useSubscriptionAllows('SEND_DOCUMENTS')
   const read = useApiRead<ArchiveItemDto>(archiveItemPath(invoiceUuid), () =>
     loadArchiveItem(invoiceUuid),
   )
@@ -261,14 +264,16 @@ function ArchivedDocument({ invoiceUuid }: { invoiceUuid: string }) {
             <img src={downloadIcon} alt="" className="size-5" />
             {t('documents.detail.zip', { count: held.length })}
           </button>
-          <button
-            type="button"
-            onClick={() => setSharing(true)}
-            className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-5 text-base font-medium text-white transition-colors hover:bg-primary-800"
-          >
-            <img src={shareIcon} alt="" className="size-5 brightness-0 invert" />
-            {t('documents.detail.share')}
-          </button>
+          {mayShare ? (
+            <button
+              type="button"
+              onClick={() => setSharing(true)}
+              className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-5 text-base font-medium text-white transition-colors hover:bg-primary-800"
+            >
+              <img src={shareIcon} alt="" className="size-5 brightness-0 invert" />
+              {t('documents.detail.share')}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -365,7 +370,7 @@ function ArchivedDocument({ invoiceUuid }: { invoiceUuid: string }) {
       </div>
 
       <ShareDocumentModal
-        open={sharing}
+        open={sharing && mayShare}
         onClose={() => setSharing(false)}
         number={number}
         files={shareable}
