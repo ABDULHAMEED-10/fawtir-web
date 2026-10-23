@@ -14,7 +14,8 @@ import type { SubscriptionBillDto } from './billing'
  * included (PC-4), the annual price less what was paid (PC-2), the extras at monthly × 10 (PL-4),
  * VAT and the total. The screen never computes a price.
  *
- * A charged change (`UPGRADE`, `CYCLE_TO_ANNUAL`, `KEEP_PLAN`) issues a `PLAN_CHANGE` bill, paid
+ * A charged change (`UPGRADE`, `CYCLE_TO_ANNUAL`, `KEEP_PLAN`, `TRIAL_UPGRADE`, and PC-7's
+ * `READ_ONLY_UPGRADE` and `GRACE_UPGRADE`) issues a `PLAN_CHANGE` bill, paid
  * through `/v1/settings/billing` like every other bill. A downgrade or a move to monthly billing
  * waits on the subscription (`GET /v1/settings/subscription`, `scheduledChange`).
  */
@@ -31,6 +32,17 @@ export type PlanChangeKind =
   | 'KEEP_PLAN'
   /** A dearer plan bought in the free trial: a whole first period from the payment day (TR-5). */
   | 'TRIAL_UPGRADE'
+  /**
+   * A dearer plan, or another billing cycle, while read-only (trial ended unpaid, Suspended,
+   * Cancelled by the customer): a whole period from the payment day, which becomes the
+   * subscription date; paying ends read-only at once (PC-7).
+   */
+  | 'READ_ONLY_UPGRADE'
+  /**
+   * The same in the grace days: a whole period from the original renewal date, in place of the
+   * unpaid renewal bill; the subscription date stays (PC-7).
+   */
+  | 'GRACE_UPGRADE'
   | 'NONE'
 
 export type PlanChangeApplies = 'AT_ONCE_WHEN_PAID' | 'AT_ONCE' | 'ON_DATE' | 'NOTHING'
@@ -113,6 +125,16 @@ export type PlanChangePreviewDto = {
   branches: PlanChangePlacesDto | null
   /** Refusal types the request would meet now; empty when it can be made. */
   blockers: string[]
+  /**
+   * The first day of the whole period: the payment day for `TRIAL_UPGRADE` and
+   * `READ_ONLY_UPGRADE`, the original renewal date for `GRACE_UPGRADE`; null otherwise (PC-7).
+   * Absent from a server older than PC-7.
+   */
+  periodStartsOn?: string | null
+  /** Paying ends read-only at once, and the payment day becomes the subscription date (PC-7). */
+  endsReadOnly?: boolean
+  /** The number of the unpaid renewal bill that requesting this change cancels (PC-7). */
+  replacesRenewalBill?: string | null
 }
 
 export type PlanChangeStatus =
@@ -142,6 +164,11 @@ export type PlanChangeViewDto = {
   requestedAt: string | null
   closedAt: string | null
   closeReason: string | null
+  /**
+   * A charged change: the last day its bill can be paid for it to apply; unpaid after it, it
+   * expires. Absent from a server older than PC-7.
+   */
+  lastDayToPay?: string | null
 }
 
 export type PlanChangesDto = {

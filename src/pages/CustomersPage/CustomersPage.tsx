@@ -61,6 +61,7 @@ import filterIcon from '../../assets/bills/filter.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import invoiceIcon from '../../assets/actions/invoice.svg'
 import editIcon from '../../assets/actions/edit.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 /** 34px rounded square, tinted by customer kind. */
 const AVATAR_STYLES: Record<CustomerKind, string> = {
@@ -540,6 +541,8 @@ function CustomerTable({
 }) {
   const { t } = useTranslation()
   const session = useSession()
+  // No new drafts while the subscription is read-only (ST-2, CA-3).
+  const mayDraft = useSubscriptionAllows('CREATE_DRAFTS')
   const rows = useMemo(
     () =>
       (page ? page.items.map(toCustomerListItem) : []).filter(
@@ -554,7 +557,7 @@ function CustomerTable({
   // Only what works today. The design's View, Statement and Delete need the customer detail
   // screen, which is not designed yet; an entry that goes nowhere is worse than none.
   const menuFor = (id: string): ActionMenuItem[] => [
-    ...(can(session, 'invoice.draft')
+    ...(can(session, 'invoice.draft') && mayDraft
       ? [
           {
             id: 'newInvoice',

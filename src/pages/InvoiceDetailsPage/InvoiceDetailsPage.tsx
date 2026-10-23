@@ -221,6 +221,8 @@ function InvoiceScreen() {
   const mayIssue = useSubscriptionAllows('ISSUE_DOCUMENTS')
   // Making a periodic series from this invoice needs a plan with periodic invoices (PL-8).
   const periodicIncluded = usePlanIncludes('recurringInvoices')
+  // Nothing is shared while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
+  const mayShare = useSubscriptionAllows('SEND_DOCUMENTS')
   const navigate = useNavigate()
   const location = useLocation()
   const { id = '' } = useParams()
@@ -619,9 +621,11 @@ function InvoiceScreen() {
   // The design draws Send on every issued invoice. When the dispatch could not be read, it stays
   // and the server answers the press (the modal shows its refusal); only a dispatch the server
   // reports as not sendable takes it away.
+  // Sending stops with issuing while the subscription is read-only (plan v4 §8): hidden, not greyed.
   const canSend =
     data.authoringState === 'ISSUED' &&
     can(session, 'invoice.issue') &&
+    mayIssue &&
     (dispatch ? dispatch.sendable : dispatchRead.read.status === 'failed')
   const dispatchLine = dispatch ? dispatchNotes(dispatch) : null
   const buyerLine = buyerDeliveryNote(dispatch)
@@ -681,7 +685,8 @@ function InvoiceScreen() {
 
   // The header's overflow menu (the design's "⋮"): what is not one of the four named buttons.
   const moreActions: ActionMenuItem[] = []
-  if (issuedInvoice && can(session, 'debitnote.create')) {
+  // A credit or debit note is a new document: not offered while the subscription is read-only.
+  if (issuedInvoice && mayIssue && can(session, 'debitnote.create')) {
     moreActions.push({
       id: 'debitNote',
       labelKey: 'salesNote.debit.action',
@@ -691,7 +696,7 @@ function InvoiceScreen() {
   }
   // Only offered when the server says a held buyer e-mail may go now; turning delivery on never
   // sends it by itself (Q4).
-  if (dispatch?.buyerEmailReleasable && can(session, 'invoice.issue')) {
+  if (dispatch?.buyerEmailReleasable && mayIssue && can(session, 'invoice.issue')) {
     moreActions.push({
       id: 'releaseBuyerEmail',
       labelKey: 'invoiceDispatch.release.action',
@@ -789,7 +794,11 @@ function InvoiceScreen() {
                 )}
               </button>
             ) : null}
-            {!draft && data.authoringState === 'ISSUED' && can(session, 'invoice.draft') ? (
+            {/* Duplicate and periodic start new drafts: not while read-only (ST-2, CA-3). */}
+            {!draft &&
+            data.authoringState === 'ISSUED' &&
+            mayIssue &&
+            can(session, 'invoice.draft') ? (
               // An invoice opens the composer filled from it (nothing is saved until the reader
               // saves); the notes and self-billed documents have their own composers.
               data.type === 'INVOICE' ? (
@@ -808,13 +817,13 @@ function InvoiceScreen() {
                 </button>
               )
             ) : null}
-            {issuedInvoice && can(session, 'invoice.draft') && periodicIncluded ? (
+            {issuedInvoice && mayIssue && can(session, 'invoice.draft') && periodicIncluded ? (
               <Link to={`/income/periodic/new?template=${data.id}`} className={GHOST_BUTTON}>
                 <img src={periodicIcon} alt="" className="h-3 w-[26px]" />
                 {t('invoiceDetails.actions.periodic')}
               </Link>
             ) : null}
-            {issuedInvoice && can(session, 'creditnote.create') ? (
+            {issuedInvoice && mayIssue && can(session, 'creditnote.create') ? (
               <button
                 type="button"
                 onClick={() => navigate(`/income/credit-notes/new?invoice=${data.id}`)}
@@ -893,6 +902,7 @@ function InvoiceScreen() {
           invoiceId={data.id}
           type={data.type}
           approval={salesApproval.approval}
+          onRefused={salesApproval.retry}
           onChanged={() => {
             salesApproval.retry()
             invoice.retry()
@@ -1223,26 +1233,30 @@ function InvoiceScreen() {
                   <img src={printIcon} alt="" className="size-5" />
                 </button>
                 {/* TODO(backend): sharing a copy of the invoice waits for the rendered PDF and the
-                    share calls (INCOME.md rows SH.1 to SH.3). When live, hide both while the
-                    subscription is read-only (ST-2) and on a deemed supply (no buyer copy). */}
-                <button
-                  type="button"
-                  disabled
-                  title={t('invoiceDetails.share.unavailable')}
-                  aria-label={t('invoiceDetails.share.email')}
-                  className="rounded-sm p-0.5 text-text-tertiary disabled:opacity-40"
-                >
-                  <MailIcon />
-                </button>
-                <button
-                  type="button"
-                  disabled
-                  title={t('invoiceDetails.share.unavailable')}
-                  aria-label={t('invoiceDetails.share.whatsapp')}
-                  className="rounded-sm p-0.5 text-text-tertiary disabled:opacity-40"
-                >
-                  <ChatBubbleIcon />
-                </button>
+                    share calls (INCOME.md rows SH.1 to SH.3). When live, hide both on a deemed
+                    supply too (no buyer copy). Hidden while read-only (owner, 23 Oct). */}
+                {mayShare ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled
+                      title={t('invoiceDetails.share.unavailable')}
+                      aria-label={t('invoiceDetails.share.email')}
+                      className="rounded-sm p-0.5 text-text-tertiary disabled:opacity-40"
+                    >
+                      <MailIcon />
+                    </button>
+                    <button
+                      type="button"
+                      disabled
+                      title={t('invoiceDetails.share.unavailable')}
+                      aria-label={t('invoiceDetails.share.whatsapp')}
+                      className="rounded-sm p-0.5 text-text-tertiary disabled:opacity-40"
+                    >
+                      <ChatBubbleIcon />
+                    </button>
+                  </>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => setFullscreen(true)}

@@ -622,6 +622,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
           invoiceId={data.id}
           type={data.type}
           approval={salesApproval.approval}
+          onRefused={salesApproval.retry}
           onChanged={() => {
             salesApproval.retry()
             note.retry()

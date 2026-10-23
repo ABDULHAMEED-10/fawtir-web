@@ -72,6 +72,7 @@ import pauseIcon from '../../assets/actions/pause.svg'
 import resumeIcon from '../../assets/actions/periodic.svg'
 import duplicateIcon from '../../assets/actions/duplicate.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 /** The customers list refuses a page over 100, so names are read a hundred at a time. */
 const CUSTOMER_PAGE_SIZE = 100
@@ -120,6 +121,9 @@ function PeriodicInvoicesContent() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const session = useSession()
+  // No new drafts while the subscription is read-only (ST-2, CA-3). Pause stays offered; Resume
+  // waits until they pay (owner, 23 Oct).
+  const mayDraft = useSubscriptionAllows('CREATE_DRAFTS')
   const canManage = can(session, 'invoice.draft')
   // A plan without periodic invoices (PL-8): reading, pausing and deleting stay; making,
   // generating, resuming and copying wait for a plan that has them.
@@ -377,7 +381,8 @@ function PeriodicInvoicesContent() {
         ? [
             ...(status === 'active'
               ? [
-                  ...(planIncludes
+                  // Generate makes a new draft now, so it waits until they pay too.
+                  ...(mayDraft && planIncludes
                     ? [
                         {
                           id: 'generate',
@@ -394,7 +399,7 @@ function PeriodicInvoicesContent() {
                     onSelect: () => void toggle(schedule),
                   },
                 ]
-              : status === 'paused' && planIncludes
+              : status === 'paused' && mayDraft && planIncludes
                 ? [
                     {
                       id: 'resume',
@@ -404,7 +409,7 @@ function PeriodicInvoicesContent() {
                     },
                   ]
                 : []),
-            ...(planIncludes
+            ...(mayDraft && planIncludes
               ? [
                   {
                     id: 'duplicate',
@@ -498,7 +503,7 @@ function PeriodicInvoicesContent() {
               <img src={exportIcon} alt="" className="size-6 rotate-180" />
               {t('periodicList.export')}
             </button>
-            {canManage && planIncludes ? (
+            {canManage && mayDraft && planIncludes ? (
               <Link
                 to="/income/periodic/new"
                 className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-primary-700 py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"

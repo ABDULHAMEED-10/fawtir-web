@@ -60,6 +60,7 @@ import { defaultReportRange, downloadReport } from '../../api/reports/reports'
 import { saveDownload } from '../../lib/supplierRecord'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { tddResubmitRefusalKey } from '../../lib/tddResubmit'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import { BUSINESS_TIME_ZONE, formatAmount, formatCount } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import { ActivityEmptyState } from './ActivityEmptyState'
@@ -176,7 +177,10 @@ function ActivityLedger() {
   const language = i18n.language
   const navigate = useNavigate()
   const session = useSession()
-  const mayResubmit = can(session, 'invoice.submit')
+  // Resubmitting a rejected document to the Tax Authority is sending (it uses credits): not offered
+  // while the subscription is read-only (ST-2, owner 23 Oct 2026); it works again once paid.
+  const maySend = useSubscriptionAllows('SEND_DOCUMENTS')
+  const mayResubmit = can(session, 'invoice.submit') && maySend
   const [params, setParams] = useSearchParams()
 
   const tab: ActivityTabId = isActivityTab(params.get('tab'))

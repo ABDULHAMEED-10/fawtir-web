@@ -27,6 +27,7 @@ import timelineDoneIcon from '../../assets/quotation-detail/timeline-done.svg'
 import timelineOpenIcon from '../../assets/quotation-detail/timeline-open.svg'
 import proofClockIcon from '../../assets/delivery-notes-v2/proof-clock.svg'
 import omrIcon from '../../assets/order-forms-v2/omr.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 const LIFECYCLE_GLYPHS = {
   tick: lifeTickIcon,
@@ -129,6 +130,8 @@ function Timeline({ events }: { events: TimelineEvent[] }) {
 
 function DeliveryNoteDetail({ doc }: { doc: DeliveryDetail }) {
   const { t } = useTranslation()
+  // Nothing new is made while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
+  const mayCreate = useSubscriptionAllows('CREATE_DRAFTS')
   const navigate = useNavigate()
   const notice = useTradeNotice()
   const sales = doc.direction === 'sales'
@@ -192,7 +195,7 @@ function DeliveryNoteDetail({ doc }: { doc: DeliveryDetail }) {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <ActionMenu
-            items={deliveryNoteRowActions(doc.id, onAction)}
+            items={deliveryNoteRowActions(doc.id, onAction, mayCreate)}
             label={t('orderDetail.moreActions')}
             variant="bordered"
           />
@@ -212,14 +215,16 @@ function DeliveryNoteDetail({ doc }: { doc: DeliveryDetail }) {
             <img src={downloadIcon} alt="" className="size-6" />
             {t('orderDetail.download')}
           </button>
-          <button
-            type="button"
-            onClick={convert}
-            className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-[#2c4eb7] px-4 text-sm font-semibold text-white"
-          >
-            <img src={issueInvoiceIcon} alt="" className="size-6" />
-            {t(doc.action.buttonKey)}
-          </button>
+          {mayCreate ? (
+            <button
+              type="button"
+              onClick={convert}
+              className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-[#2c4eb7] px-4 text-sm font-semibold text-white"
+            >
+              <img src={issueInvoiceIcon} alt="" className="size-6" />
+              {t(doc.action.buttonKey)}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -394,14 +399,16 @@ function DeliveryNoteDetail({ doc }: { doc: DeliveryDetail }) {
             <p className="mt-2 text-sm font-medium leading-[1.3] text-[#444957]">
               {withRial(t(doc.action.noteKey ?? 'tradeDocs.notRecorded'))}
             </p>
-            <button
-              type="button"
-              onClick={convert}
-              className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-sm bg-[#2c4eb7] px-3 text-sm font-semibold text-white"
-            >
-              <img src={issueInvoiceIcon} alt="" className="size-5" />
-              {t(doc.action.buttonKey)}
-            </button>
+            {mayCreate ? (
+              <button
+                type="button"
+                onClick={convert}
+                className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-sm bg-[#2c4eb7] px-3 text-sm font-semibold text-white"
+              >
+                <img src={issueInvoiceIcon} alt="" className="size-5" />
+                {t(doc.action.buttonKey)}
+              </button>
+            ) : null}
           </Card>
 
           <Card className="border border-[#f3f3f3]">

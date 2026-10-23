@@ -99,6 +99,7 @@ import peppolIcon from '../../assets/periodic/peppol.svg'
 import customerLogo from '../../assets/periodic/customer-logo.svg'
 import viewIcon from '../../assets/actions/view.svg'
 import invoiceActionIcon from '../../assets/actions/invoice.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 /** The customers list refuses a page over 100, so names are read a hundred at a time. */
 const CUSTOMER_PAGE_SIZE = 100
@@ -160,6 +161,8 @@ function ScheduleComposer({ id }: { id: string | null }) {
   // A plan without periodic invoices (PL-8): a series made before stays readable and can be
   // paused; changing, resuming and saving wait for a plan that has them.
   const planIncludes = usePlanIncludes('recurringInvoices')
+  // Pause stays while the subscription is read-only; Resume waits until they pay (owner, 23 Oct).
+  const mayResume = useSubscriptionAllows('CREATE_DRAFTS')
   const locked = !canManage || !planIncludes
   const today = muscatToday()
   const [form, setForm] = useState<PeriodicForm>(() => blankPeriodicForm(today))
@@ -570,7 +573,7 @@ function ScheduleComposer({ id }: { id: string | null }) {
                     variant="bordered"
                   />
                 ) : null}
-                {status === 'finished' || !(schedule?.active || planIncludes) ? null : (
+                {status === 'finished' || (!schedule?.active && !(mayResume && planIncludes)) ? null : (
                   <button
                     type="button"
                     onClick={() => void toggle()}

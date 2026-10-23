@@ -51,6 +51,7 @@ import actTickIcon from '../../assets/order-forms-v2/act-tick.svg'
 import chevronDownIcon from '../../assets/order-forms-v2/chevron-down.svg'
 import chevronLeftIcon from '../../assets/order-forms-v2/chevron-left.svg'
 import omrIcon from '../../assets/order-forms-v2/omr.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 const MODE_ICONS: Record<OrderMode, string> = {
   all: modeAllIcon,
@@ -146,6 +147,8 @@ function Amount({
 }
 
 function OrderFormsHeader({ onUnavailable }: { onUnavailable: () => void }) {
+  // Nothing new is made while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
+  const mayCreate = useSubscriptionAllows('CREATE_DRAFTS')
   const { t } = useTranslation()
   // Making one needs a plan with trade documents (PL-8).
   const tradeDocumentsIncluded = usePlanIncludes('tradeDocuments')
@@ -178,7 +181,7 @@ function OrderFormsHeader({ onUnavailable }: { onUnavailable: () => void }) {
           <img src={exportIcon} alt="" className="size-6" />
           {t('orderForms.export')}
         </button>
-        {tradeDocumentsIncluded ? (
+        {mayCreate && tradeDocumentsIncluded ? (
           <Link
             to="/trade-documents/order-forms/new"
             className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-[#2c4eb7] py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"
@@ -352,6 +355,8 @@ function NextStepButton({
   blocked: boolean
 }) {
   const { t } = useTranslation()
+  // Nothing new is made while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
+  const mayCreate = useSubscriptionAllows('CREATE_DRAFTS')
   const action = row.action
 
   if (action.kind === 'link') {
@@ -371,6 +376,9 @@ function NextStepButton({
       </Link>
     )
   }
+
+  // Every other step opens a composer: none while read-only.
+  if (!mayCreate) return null
 
   const filled =
     action.kind === 'invoice'
@@ -559,6 +567,8 @@ function OrderFormsTable({
   isBlocked: (row: OrderRow) => boolean
 }) {
   const { t } = useTranslation()
+  // Nothing new is made while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
+  const mayCreate = useSubscriptionAllows('CREATE_DRAFTS')
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<string[]>([])
@@ -712,7 +722,7 @@ function OrderFormsTable({
                 <OrderRowCells row={row} onStep={onStep} blocked={isBlocked(row)} />
                 <td className="px-2 py-3.5 align-top" onClick={(e) => e.stopPropagation()}>
                   <ActionMenu
-                    items={orderFormRowActions(row.id, onAction)}
+                    items={orderFormRowActions(row.id, onAction, mayCreate)}
                     label={t('orderForms.rowMenu')}
                   />
                 </td>
