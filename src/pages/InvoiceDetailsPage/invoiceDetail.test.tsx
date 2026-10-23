@@ -1427,6 +1427,10 @@ describe('E28: a read-only subscription hides new documents and sending (plan v4
     expect(
       await screen.findByRole('menuitem', { name: i18n.t('salesNote.debit.action') }),
     ).toBeTruthy()
+    expect(
+      screen.getByRole('link', { name: i18n.t('invoiceDetails.actions.duplicate') }),
+    ).toBeTruthy()
+    expect(screen.getByRole('link', { name: i18n.t('invoiceDetails.actions.periodic') })).toBeTruthy()
   })
 
   it.each([
@@ -1434,7 +1438,7 @@ describe('E28: a read-only subscription hides new documents and sending (plan v4
     ['trial ended unpaid', standing('SUBSCRIPTION_SUSPENDED', { paidThrough: null, trialEndsOn: '2026-10-21' })],
     ['cancelled', standing('SUBSCRIPTION_CANCELLED', { access: 'CANCELLED' })],
     ['not started', standing('SUBSCRIPTION_NOT_STARTED', { paidThrough: null })],
-  ])('hides Credit note, Debit note and Send while %s; reading stays', async (_, status) => {
+  ])('hides Credit note, Debit note, Send, Duplicate and periodic while %s; reading stays', async (_, status) => {
     who = OWNER
     subscriptionResponse = () => json(200, status)
     renderInvoice()
@@ -1446,8 +1450,11 @@ describe('E28: a read-only subscription hides new documents and sending (plan v4
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
     expect(await screen.findByRole('menuitem', { name: 'Cancel invoice' })).toBeTruthy()
     expect(screen.queryByRole('menuitem', { name: i18n.t('salesNote.debit.action') })).toBeNull()
-    // Copying into a new draft is still allowed: drafts can be saved in every state.
-    expect(screen.getByRole('link', { name: i18n.t('invoiceDetails.actions.duplicate') })).toBeTruthy()
+    // No new drafts while read-only (owner, 23 Oct 2026): no Duplicate, no periodic invoice.
+    expect(
+      screen.queryByRole('link', { name: i18n.t('invoiceDetails.actions.duplicate') }),
+    ).toBeNull()
+    expect(screen.queryByRole('link', { name: i18n.t('invoiceDetails.actions.periodic') })).toBeNull()
   })
 })
 

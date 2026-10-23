@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { InvoicingReadinessCard } from '../../components/readiness/InvoicingReadinessCard'
 import emptyIcon from '../../assets/activity/empty.svg'
 import plusIcon from '../../assets/bill-capture/plus.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 /**
  * Activity before the first invoice (Figma 154:110456), drawn under the page's own header when
@@ -15,6 +16,8 @@ import plusIcon from '../../assets/bill-capture/plus.svg'
  */
 export function ActivityEmptyState() {
   const { t } = useTranslation()
+  // No new drafts while the subscription is read-only (ST-2, CA-3).
+  const mayDraft = useSubscriptionAllows('CREATE_DRAFTS')
 
   return (
     <>
@@ -28,13 +31,15 @@ export function ActivityEmptyState() {
         <p className="mt-4 max-w-[640px] text-sm font-medium leading-[1.7] text-text-secondary">
           {t('activity.emptyState.body')}
         </p>
-        <Link
-          to="/invoices/new"
-          className="mt-8 inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-5 text-sm font-medium text-white transition-colors hover:bg-primary-800"
-        >
-          <img src={plusIcon} alt="" className="size-4 brightness-0 invert" />
-          {t('activity.emptyState.action')}
-        </Link>
+        {mayDraft ? (
+          <Link
+            to="/invoices/new"
+            className="mt-8 inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-5 text-sm font-medium text-white transition-colors hover:bg-primary-800"
+          >
+            <img src={plusIcon} alt="" className="size-4 brightness-0 invert" />
+            {t('activity.emptyState.action')}
+          </Link>
+        ) : null}
       </section>
     </>
   )

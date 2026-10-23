@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
+import { forgetSubscriptionStanding } from '../../lib/subscriptionReadOnly'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type {
   ActivityDetailDto,
@@ -1647,4 +1648,80 @@ describe('the compliance report figures', () => {
     })
     expect(numberingOf([])).toBeNull()
   })
+})
+
+describe('fixing an invoice the Tax Authority refused, while the subscription is read-only (ST-2, CA-3)', () => {
+  const standing = (restriction: string | null) => ({
+    tracked: true,
+    access: restriction ? 'PAYMENT_REQUIRED' : 'ACTIVE',
+    restrictionsEnforced: true,
+    restriction,
+    today: '2026-10-23',
+    planCode: 'BUSINESS',
+    planName: 'Business',
+    billingCycle: 'MONTHLY',
+    periodPrice: '80.000',
+    trialStartsOn: null,
+    trialEndsOn: null,
+    trialDay: null,
+    trialDaysLeft: null,
+    paidThrough: '2026-10-14',
+    renewsOn: '2026-10-15',
+    graceDays: 7,
+    graceUntil: '2026-10-21',
+    autoRenew: false,
+    autoRenewAvailable: false,
+    autoRenewChangedAt: null,
+    cancelAtPeriodEnd: false,
+    accessEndsOn: null,
+    scheduledChange: null,
+    enterprise: null,
+  })
+  const answerStanding = (restriction: string | null) => {
+    forgetSubscriptionStanding()
+    const before = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) =>
+      String(input) === '/api/v1/settings/subscription'
+        ? json(200, standing(restriction))
+        : before(input, init),
+    )
+  }
+  const creditNoteLink = () =>
+    screen
+      .queryAllByRole('link')
+      .find((link) => link.getAttribute('href')?.startsWith('/income/credit-notes/new'))
+  const renderResubmit = () =>
+    render(
+      <MemoryRouter initialEntries={[`/compliance/activity/${UUID_A}/resubmit`]}>
+        <Routes>
+          <Route path="/compliance/activity/:id/resubmit" element={<TddResubmitPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+  beforeEach(() => {
+    who = { ...SUBMITTER, permissions: [...SUBMITTER.permissions, 'tenant.plan.read'] }
+    const refused = item({
+      tdd_leg: { ...item().tdd_leg!, ack: 'RE', error_kind: 'INVOICE' },
+    })
+    detailReply = { ...DETAIL, summary: refused }
+    items = [refused]
+  })
+
+  it('offers the credit note while the subscription is usable', async () => {
+    answerStanding(null)
+    renderResubmit()
+    await waitFor(() => expect(creditNoteLink()).toBeTruthy())
+  })
+
+  it.each(['SUBSCRIPTION_SUSPENDED', 'SUBSCRIPTION_CANCELLED'])(
+    'starts no credit note draft while %s',
+    async (restriction) => {
+      answerStanding(restriction)
+      renderResubmit()
+      await screen.findByText(i18n.t('tddResubmit.saveOnly'))
+      await waitFor(() => expect(calls('/settings/subscription').length).toBeGreaterThan(0))
+      await waitFor(() => expect(creditNoteLink()).toBeUndefined())
+    },
+  )
 })

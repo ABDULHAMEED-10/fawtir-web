@@ -41,6 +41,7 @@ import quotaWarnIcon from '../../assets/activity/warn-amber.svg'
 import tickIcon from '../../assets/activity/check-filled.svg'
 import crossIcon from '../../assets/suppliers/consequence-stop.svg'
 import sendIcon from '../../assets/activity/ch-peppol.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 /**
  * Put a turned-down report right (Figma 154:108616), for the document at
@@ -70,6 +71,8 @@ function ResubmitScreen() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const session = useSession()
+  // A credit note is a new draft: not started while the subscription is read-only (ST-2, CA-3).
+  const mayDraft = useSubscriptionAllows('CREATE_DRAFTS')
   const { id = '' } = useParams()
   const detail = useApiRead<ActivityDetailDto>(activityDetailPath(id), () => loadActivityDetail(id))
   const rejectedPath = activityListPath({ tddAck: 'RE' }, 0, 100)
@@ -608,7 +611,7 @@ function ResubmitScreen() {
             </button>
             {kind === 'invoice' ? (
               // An error in the invoice itself: a credit note, then a new invoice. Nothing is resent.
-              maySubmit ? (
+              maySubmit && mayDraft ? (
                 <Link
                   to={`/income/credit-notes/new?invoice=${dto.invoice_uuid}`}
                   className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800"

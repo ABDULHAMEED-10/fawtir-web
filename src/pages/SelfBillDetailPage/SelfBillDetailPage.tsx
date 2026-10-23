@@ -63,6 +63,7 @@ import fileDeleteIcon from '../../assets/self-bill-detail/file-delete.svg'
 import backIcon from '../../assets/invoice-details/back.svg'
 import creditNoteIcon from '../../assets/invoice-details/credit-note.svg'
 import uploadIcon from '../../assets/create-invoice/upload.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 /** What the attachment route takes: the invoice composer's list and limit. */
 const ATTACHMENT_TYPES = '.pdf,.jpg,.jpeg,.png,.xlsx'
@@ -265,6 +266,8 @@ function SelfBillScreen() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const session = useSession()
+  // No new drafts while the subscription is read-only (ST-2, CA-3).
+  const mayDraft = useSubscriptionAllows('CREATE_DRAFTS')
   const { id = '' } = useParams()
   const today = muscatToday()
 
@@ -390,6 +393,7 @@ function SelfBillScreen() {
   const canCredit =
     data.type === 'SELF_BILLED_INVOICE' &&
     data.authoringState === 'ISSUED' &&
+    mayDraft &&
     can(session, 'selfbilling.create')
 
   const failureText = (error: unknown) => {

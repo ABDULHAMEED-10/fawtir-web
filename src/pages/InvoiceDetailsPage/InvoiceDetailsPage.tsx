@@ -702,7 +702,11 @@ function InvoiceScreen() {
                 )}
               </button>
             ) : null}
-            {!draft && data.authoringState === 'ISSUED' && can(session, 'invoice.draft') ? (
+            {/* Duplicate and periodic start new drafts: not while read-only (ST-2, CA-3). */}
+            {!draft &&
+            data.authoringState === 'ISSUED' &&
+            mayIssue &&
+            can(session, 'invoice.draft') ? (
               // An invoice opens the composer filled from it (nothing is saved until the reader
               // saves); the notes and self-billed documents have their own composers.
               data.type === 'INVOICE' ? (
@@ -721,7 +725,7 @@ function InvoiceScreen() {
                 </button>
               )
             ) : null}
-            {issuedInvoice && can(session, 'invoice.draft') ? (
+            {issuedInvoice && mayIssue && can(session, 'invoice.draft') ? (
               <Link to={`/income/periodic/new?template=${data.id}`} className={GHOST_BUTTON}>
                 <img src={periodicIcon} alt="" className="h-3 w-[26px]" />
                 {t('invoiceDetails.actions.periodic')}

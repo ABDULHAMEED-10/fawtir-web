@@ -75,6 +75,7 @@ import viewIcon from '../../assets/actions/view.svg'
 import editIcon from '../../assets/actions/edit.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
 import { LIST_PAGE_SIZES as PAGE_SIZES, ListPager } from './ListPager'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 const DEFAULT_PAGE_SIZE = 6
 
@@ -258,6 +259,8 @@ function SelfBilled() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const session = useSession()
+  // No new drafts while the subscription is read-only (ST-2, CA-3).
+  const mayDraft = useSubscriptionAllows('CREATE_DRAFTS')
   const mayRead = can(session, 'invoice.read')
   const [params, setParams] = useSearchParams()
   // The Oman calendar day, as the composer and the agreements screen count it.
@@ -435,7 +438,7 @@ function SelfBilled() {
               {exporting ? t('invoicesPage.exporting') : t('selfBilling.export')}
             </button>
           ) : null}
-          {can(session, 'selfbilling.create') ? (
+          {mayDraft && can(session, 'selfbilling.create') ? (
             <Link
               to="/expenditure/self-billing/new"
               className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-primary-700 py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"

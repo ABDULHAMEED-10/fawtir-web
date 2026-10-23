@@ -510,10 +510,15 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     by card, cash or bank transfer (LV-6). A monthly subscription stays active to the end of the
     month paid for. A yearly subscription whose remaining months are refunded stays active to the
     end of the last month not refunded; with no refund, or a refund refused, it stays active to
-    the end of the year (owner, 21 Oct 2026). Then the company is **read-only**: it can sign in,
-    read, search, download and export everything, but cannot issue documents, add users or use
-    the ERP or API (those actions are hidden, not greyed). Documents already in flight still
-    receive their Tax Authority and Peppol replies.
+    the end of the year (owner, 21 Oct 2026). Then the company is **read-only** (ST-2, CA-3;
+    owner, 23 Oct 2026; also after a trial ends unpaid and while Suspended): it can sign in, view,
+    search, download, export and pay, **nothing else**. Nothing goes out: no document is issued
+    or sent, not even one issued before, and no invitation is sent or resent. No new drafts are
+    made (Create invoice, Bulk upload, Duplicate, new credit, debit and self-billed notes,
+    periodic invoices). Drafts made before stay readable and can be issued once the subscription
+    is paid. Users cannot be added and the ERP and API cannot be used. Those actions are hidden,
+    not greyed. Replies to invoices sent before read-only (Tax Authority and Peppol) still come
+    in.
   - **Nothing from onboarding is touched** by cancelling, suspension or expiry: company profile,
     VAT and CR numbers, Peppol registration and participant ID, signing certificate, branches,
     users and permissions, customers, suppliers, products, number series, templates, settings and

@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
+import { forgetSubscriptionStanding } from '../../lib/subscriptionReadOnly'
 import type {
   InvoiceDetailDto,
   InvoiceHistoryDto,
@@ -702,6 +703,72 @@ describe('the self-billed credit note entry (SW3, D6)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })).toBeTruthy()
     expect(creditLink()).toBeNull()
   })
+})
+
+describe('the self-billed credit note entry while the subscription is read-only (ST-2, CA-3)', () => {
+  const readOnlyStanding = (restriction: string | null) => ({
+    tracked: true,
+    access: restriction ? 'PAYMENT_REQUIRED' : 'ACTIVE',
+    restrictionsEnforced: true,
+    restriction,
+    today: '2026-10-23',
+    planCode: 'BUSINESS',
+    planName: 'Business',
+    billingCycle: 'MONTHLY',
+    periodPrice: '80.000',
+    trialStartsOn: null,
+    trialEndsOn: null,
+    trialDay: null,
+    trialDaysLeft: null,
+    paidThrough: '2026-10-14',
+    renewsOn: '2026-10-15',
+    graceDays: 7,
+    graceUntil: '2026-10-21',
+    autoRenew: false,
+    autoRenewAvailable: false,
+    autoRenewChangedAt: null,
+    cancelAtPeriodEnd: false,
+    accessEndsOn: null,
+    scheduledChange: null,
+    enterprise: null,
+  })
+  /** Answers `GET /settings/subscription` with this standing, every other request as before. */
+  const answerStanding = (restriction: string | null) => {
+    forgetSubscriptionStanding()
+    const before = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === '/api/v1/settings/subscription'
+        ? json(200, readOnlyStanding(restriction))
+        : before(url, init),
+    )
+  }
+  const SELF_BILLER: Entitlements = {
+    ...BUYER,
+    permissions: [...BUYER.permissions, 'selfbilling.create', 'tenant.plan.read'],
+  }
+  const creditLink = () => screen.queryByRole('link', { name: 'Credit note' })
+  const subscriptionRead = () => calls().includes('GET /api/v1/settings/subscription')
+
+  it('offers Credit note while the subscription is usable', async () => {
+    who = SELF_BILLER
+    answerStanding(null)
+    renderPage()
+    expect(await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })).toBeTruthy()
+    await waitFor(() => expect(subscriptionRead()).toBe(true))
+    expect(creditLink()).toBeTruthy()
+  })
+
+  it.each(['SUBSCRIPTION_SUSPENDED', 'SUBSCRIPTION_CANCELLED'])(
+    'starts no new credit note while %s',
+    async (restriction) => {
+      who = SELF_BILLER
+      answerStanding(restriction)
+      renderPage()
+      expect(await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })).toBeTruthy()
+      await waitFor(() => expect(subscriptionRead()).toBe(true))
+      await waitFor(() => expect(creditLink()).toBeNull())
+    },
+  )
 })
 
 describe('self-bill detail mapping', () => {
