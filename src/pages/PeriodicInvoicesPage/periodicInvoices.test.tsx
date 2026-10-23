@@ -677,8 +677,8 @@ describe('Periodic invoices, wired to the API', () => {
   })
 })
 
-describe('Pause and Resume while the subscription is read-only (owner, 23 Oct 2026)', () => {
-  // A read-only subscription skips the runs; Pause stays, Resume waits until they pay.
+describe('Pause, Resume and Generate while the subscription is read-only (owner, 23 Oct 2026)', () => {
+  // A read-only subscription skips the runs; Pause stays, Resume and Generate wait until they pay.
   const answerStanding = (restriction: string | null) => {
     who = { ...DRAFTER, permissions: [...DRAFTER.permissions, 'tenant.plan.read'] }
     answer(fetchMock, restriction)
@@ -698,6 +698,9 @@ describe('Pause and Resume while the subscription is read-only (owner, 23 Oct 20
     await waitFor(() => expect(subscriptionRead()).toBe(true))
     await openMenu('Nizwa Cafe')
     expect(await screen.findByRole('menuitem', { name: 'Resume series' })).toBeTruthy()
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
+    await openMenu('Muscat Grand Hotel')
+    expect(await screen.findByRole('menuitem', { name: 'Generate invoice' })).toBeTruthy()
   })
 
   it.each(['SUBSCRIPTION_SUSPENDED', 'SUBSCRIPTION_CANCELLED'])(
@@ -714,6 +717,8 @@ describe('Pause and Resume while the subscription is read-only (owner, 23 Oct 20
       fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
       await openMenu('Muscat Grand Hotel')
       expect(await screen.findByRole('menuitem', { name: 'Pause series' })).toBeTruthy()
+      // Generate makes a new draft now, so it is not offered either.
+      expect(screen.queryByRole('menuitem', { name: 'Generate invoice' })).toBeNull()
     },
   )
 

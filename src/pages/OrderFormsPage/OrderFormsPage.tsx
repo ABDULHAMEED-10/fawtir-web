@@ -352,6 +352,8 @@ function NextStepButton({
   blocked: boolean
 }) {
   const { t } = useTranslation()
+  // Nothing new is made while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
+  const mayCreate = useSubscriptionAllows('CREATE_DRAFTS')
   const action = row.action
 
   if (action.kind === 'link') {
@@ -371,6 +373,9 @@ function NextStepButton({
       </Link>
     )
   }
+
+  // Every other step opens a composer: none while read-only.
+  if (!mayCreate) return null
 
   const filled =
     action.kind === 'invoice'
@@ -559,6 +564,8 @@ function OrderFormsTable({
   isBlocked: (row: OrderRow) => boolean
 }) {
   const { t } = useTranslation()
+  // Nothing new is made while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
+  const mayCreate = useSubscriptionAllows('CREATE_DRAFTS')
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<string[]>([])
@@ -712,7 +719,7 @@ function OrderFormsTable({
                 <OrderRowCells row={row} onStep={onStep} blocked={isBlocked(row)} />
                 <td className="px-2 py-3.5 align-top" onClick={(e) => e.stopPropagation()}>
                   <ActionMenu
-                    items={orderFormRowActions(row.id, onAction)}
+                    items={orderFormRowActions(row.id, onAction, mayCreate)}
                     label={t('orderForms.rowMenu')}
                   />
                 </td>

@@ -377,12 +377,17 @@ function PeriodicInvoicesContent() {
         ? [
             ...(status === 'active'
               ? [
-                  {
-                    id: 'generate',
-                    labelKey: 'periodicList.menu.generate',
-                    icon: generateIcon,
-                    onSelect: () => setGenerating(schedule),
-                  },
+                  // Generate makes a new draft now, so it waits until they pay too.
+                  ...(mayDraft
+                    ? [
+                        {
+                          id: 'generate',
+                          labelKey: 'periodicList.menu.generate',
+                          icon: generateIcon,
+                          onSelect: () => setGenerating(schedule),
+                        },
+                      ]
+                    : []),
                   {
                     id: 'pause',
                     labelKey: 'periodicList.menu.pause',

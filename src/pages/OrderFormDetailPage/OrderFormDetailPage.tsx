@@ -30,6 +30,7 @@ import timelineDoneIcon from '../../assets/quotation-detail/timeline-done.svg'
 import timelineOpenIcon from '../../assets/quotation-detail/timeline-open.svg'
 import proofClockIcon from '../../assets/delivery-notes-v2/proof-clock.svg'
 import omrIcon from '../../assets/order-forms-v2/omr.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 const TONE_FILL = {
   invoiced: 'bg-[#2c4eb7]',
@@ -272,6 +273,8 @@ function NotRecorded() {
 
 function SaleDetail({ doc }: { doc: SaleOrderDetail }) {
   const { t } = useTranslation()
+  // Nothing new is made while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
+  const mayCreate = useSubscriptionAllows('CREATE_DRAFTS')
   const navigate = useNavigate()
   const notice = useTradeNotice()
   const f = doc.fulfilment
@@ -294,7 +297,7 @@ function SaleDetail({ doc }: { doc: SaleOrderDetail }) {
         actions={
           <>
             <ActionMenu
-              items={orderFormRowActions(doc.id, onAction)}
+              items={orderFormRowActions(doc.id, onAction, mayCreate)}
               label={t('orderDetail.moreActions')}
               variant="bordered"
             />
@@ -306,22 +309,26 @@ function SaleDetail({ doc }: { doc: SaleOrderDetail }) {
               <img src={downloadIcon} alt="" className="size-6" />
               {t('orderDetail.download')}
             </button>
-            <button
-              type="button"
-              onClick={deliver}
-              className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a]"
-            >
-              <img src={logDeliveryIcon} alt="" className="size-6" />
-              {t('orderForms.action.logDelivery')}
-            </button>
-            <button
-              type="button"
-              onClick={invoice}
-              className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-[#2c4eb7] px-4 text-sm font-semibold text-white"
-            >
-              <img src={issueInvoiceIcon} alt="" className="size-6" />
-              {t('orderForms.action.issueInvoice')}
-            </button>
+            {mayCreate ? (
+              <>
+                <button
+                  type="button"
+                  onClick={deliver}
+                  className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a]"
+                >
+                  <img src={logDeliveryIcon} alt="" className="size-6" />
+                  {t('orderForms.action.logDelivery')}
+                </button>
+                <button
+                  type="button"
+                  onClick={invoice}
+                  className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-[#2c4eb7] px-4 text-sm font-semibold text-white"
+                >
+                  <img src={issueInvoiceIcon} alt="" className="size-6" />
+                  {t('orderForms.action.issueInvoice')}
+                </button>
+              </>
+            ) : null}
           </>
         }
       />
@@ -362,7 +369,7 @@ function SaleDetail({ doc }: { doc: SaleOrderDetail }) {
                 <p className="mt-2 text-sm font-medium leading-[1.2] text-[#5b606c]">
                   {stat.note ? t(stat.note.key, stat.note.values) : t('tradeDocs.notRecorded')}
                 </p>
-                {stat.actionKey ? (
+                {stat.actionKey && mayCreate ? (
                   <button
                     type="button"
                     onClick={invoice}
@@ -554,6 +561,8 @@ function SaleDetail({ doc }: { doc: SaleOrderDetail }) {
 
 function PurchaseDetail({ doc }: { doc: PurchaseOrderDetail }) {
   const { t } = useTranslation()
+  // Nothing new is made while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
+  const mayCreate = useSubscriptionAllows('CREATE_DRAFTS')
   const notice = useTradeNotice()
   const unavailable = notice.unavailable
   const onAction = () => unavailable()
@@ -571,7 +580,7 @@ function PurchaseDetail({ doc }: { doc: PurchaseOrderDetail }) {
         actions={
           <>
             <ActionMenu
-              items={orderFormRowActions(doc.id, onAction)}
+              items={orderFormRowActions(doc.id, onAction, mayCreate)}
               label={t('orderDetail.moreActions')}
               variant="bordered"
             />

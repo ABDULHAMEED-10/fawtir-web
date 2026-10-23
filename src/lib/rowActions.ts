@@ -150,16 +150,29 @@ export function selfBillRowActions(documentId: string): ActionMenuItem[] {
  */
 export type TradeRowAction = (itemId: string, documentId: string) => void
 
-function withHandler(items: ActionMenuItem[], documentId: string, onAction?: TradeRowAction) {
-  if (!onAction) return items
-  return items.map((item) =>
+function withHandler(
+  items: ActionMenuItem[],
+  documentId: string,
+  onAction?: TradeRowAction,
+  mayCreate = true,
+) {
+  // While the subscription is read-only nothing new is made (owner, 23 Oct 2026; ST-2, CA-3), so
+  // the items that open a composer or copy the document are left out.
+  const offered = mayCreate ? items : items.filter((item) => !CREATES.has(item.id))
+  if (!onAction) return offered
+  return offered.map((item) =>
     item.to ? item : { ...item, onSelect: () => onAction(item.id, documentId) },
   )
 }
 
+/** Trade-document menu items that make a new document: an invoice, a delivery note or a copy. */
+const CREATES = new Set(['convert', 'delivery', 'invoice', 'duplicate'])
+
 export function quotationRowActions(
   documentId: string,
   onAction?: TradeRowAction,
+  /** False while the subscription is read-only: no item that makes a new document. */
+  mayCreate = true,
 ): ActionMenuItem[] {
   return withHandler(
     [
@@ -177,12 +190,15 @@ export function quotationRowActions(
     ],
     documentId,
     onAction,
+    mayCreate,
   )
 }
 
 export function orderFormRowActions(
   documentId: string,
   onAction?: TradeRowAction,
+  /** False while the subscription is read-only: no item that makes a new document. */
+  mayCreate = true,
 ): ActionMenuItem[] {
   return withHandler(
     [
@@ -200,12 +216,15 @@ export function orderFormRowActions(
     ],
     documentId,
     onAction,
+    mayCreate,
   )
 }
 
 export function deliveryNoteRowActions(
   documentId: string,
   onAction?: TradeRowAction,
+  /** False while the subscription is read-only: no item that makes a new document. */
+  mayCreate = true,
 ): ActionMenuItem[] {
   return withHandler(
     [
@@ -223,6 +242,7 @@ export function deliveryNoteRowActions(
     ],
     documentId,
     onAction,
+    mayCreate,
   )
 }
 

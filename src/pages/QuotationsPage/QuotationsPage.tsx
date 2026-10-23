@@ -209,6 +209,8 @@ function QuotationsTable({
   onAction: TradeRowAction
 }) {
   const { t } = useTranslation()
+  // Nothing new is made while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
+  const mayCreate = useSubscriptionAllows('CREATE_DRAFTS')
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<QuotationTabId>('all')
   const [selected, setSelected] = useState<string[]>([])
@@ -355,7 +357,7 @@ function QuotationsTable({
                 <QuotationRowCells row={row} />
                 <td className="px-2 py-2.5" onClick={(e) => e.stopPropagation()}>
                   <ActionMenu
-                    items={quotationRowActions(row.id, onAction)}
+                    items={quotationRowActions(row.id, onAction, mayCreate)}
                     label={t('quotations.rowMenu')}
                   />
                 </td>
