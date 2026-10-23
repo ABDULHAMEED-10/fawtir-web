@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
 import { resetSharedRequests } from '../../api'
 import { formatMoment, formatUtcMoment } from '../../lib/console/format'
-import { toDateKey } from '../../lib/dates'
+import { muscatToday } from '../../lib/invoiceIssue'
 import {
   forgetEntitlements,
   peekEntitlements,
@@ -1882,7 +1882,8 @@ describe('Authoring the Participant ID policy', () => {
     fireEvent.click(screen.getByRole('button', { name: labelOf(name) }))
     fireEvent.click(screen.getByRole('option', { name: t(optionKey) }))
   }
-  const today = () => `${toDateKey(new Date())}T00:00:00Z`
+  // The calendar's "Today" is Muscat's day, whatever the browser's zone.
+  const today = () => `${muscatToday()}T00:00:00Z`
 
   it('offers Create draft only when the overview says the operator may author', async () => {
     await openPolicy([version({ status: 'ACTIVE', forceState: 'IN_FORCE' })])
