@@ -40,6 +40,7 @@ import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
 import { saveDownload } from '../../lib/supplierRecord'
 import { can, useSession } from '../../lib/session/session'
+import { usePlanIncludes } from '../../lib/planAccess'
 import kpiEyeIcon from '../../assets/supplier-debit-notes/kpi-eye.svg'
 import kpiPlusIcon from '../../assets/supplier-debit-notes/kpi-plus.svg'
 import kpiAlertIcon from '../../assets/supplier-debit-notes/kpi-alert.svg'
@@ -84,7 +85,10 @@ export function SupplierDebitNotesPage() {
 function DebitNotesScreen() {
   const { t, i18n } = useTranslation()
   // The upload page itself needs the right to record what is owed, as the credit note one does.
-  const canUpload = can(useSession(), 'invoice.payment.manage')
+  const mayRecord = can(useSession(), 'invoice.payment.manage')
+  // Recording one needs a plan with supplier notes (PL-8); the notes made before stay listed.
+  const planIncludes = usePlanIncludes('supplierNotes')
+  const canUpload = mayRecord && planIncludes
   const language = i18n.language
   const [params, setParams] = useSearchParams()
 

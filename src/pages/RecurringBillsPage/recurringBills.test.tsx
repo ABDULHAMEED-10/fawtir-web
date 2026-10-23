@@ -565,3 +565,44 @@ describe('recurring bill helpers', () => {
     expect(hasMore({ count: 3, pageSize: 50 })).toBe(false)
   })
 })
+
+// Business Rules PL-8: the console switches each feature per plan; the server refuses, and the
+// screens hide, a feature switched off. What was made before stays readable.
+describe('a plan without recurring bills (PL-8)', () => {
+  const offPlan = (on: boolean): Entitlements => ({
+    ...MANAGER,
+    planFeaturesEnforced: true,
+    planFeatures: { recurringBills: on },
+  })
+
+  it('keeps the list and Pause, and hides Add, Chase and Edit', async () => {
+    who = offPlan(false)
+    renderAt('/expenditure/recurring-bills')
+    const lateRow = (await screen.findByRole('link', { name: 'Shop rent' })).closest(
+      'article',
+    ) as HTMLElement
+    await waitFor(() =>
+      expect(within(lateRow).queryByRole('button', { name: 'Chase the supplier' })).toBeNull(),
+    )
+    expect(screen.queryByRole('link', { name: 'Add a recurring bill' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Water cooler' })).toBeTruthy()
+  })
+
+  it('offers everything when the plan has them', async () => {
+    who = offPlan(true)
+    renderAt('/expenditure/recurring-bills')
+    const lateRow = (await screen.findByRole('link', { name: 'Shop rent' })).closest(
+      'article',
+    ) as HTMLElement
+    expect(within(lateRow).getByRole('button', { name: 'Chase the supplier' })).toBeTruthy()
+    expect(await screen.findByRole('link', { name: 'Add a recurring bill' })).toBeTruthy()
+  })
+
+  it('on the bill page keeps Pause, and hides Edit and Chase', async () => {
+    who = offPlan(false)
+    renderAt('/expenditure/recurring-bills/rb-1')
+    expect(await screen.findByRole('button', { name: /Pause/ })).toBeTruthy()
+    await waitFor(() => expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull())
+    expect(screen.queryByRole('button', { name: 'Chase the supplier' })).toBeNull()
+  })
+})

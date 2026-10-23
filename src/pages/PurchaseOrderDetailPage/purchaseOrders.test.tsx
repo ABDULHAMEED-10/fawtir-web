@@ -536,3 +536,40 @@ describe('New purchase order (Figma 163:27317)', () => {
     expect(await screen.findByText('order page')).toBeTruthy()
   })
 })
+
+// Business Rules PL-8: purchase orders are trade documents. A plan without them keeps an order
+// made before readable, cancellable and closable; submitting, approving, sending and booking goods
+// in wait for a plan that has them.
+describe('a plan without trade documents (PL-8)', () => {
+  const offPlan = (base: Entitlements): Entitlements => ({
+    ...base,
+    planFeaturesEnforced: true,
+    planFeatures: { tradeDocuments: false },
+  })
+
+  it('hides Send for approval on a draft and keeps Cancel', async () => {
+    who = offPlan(APPROVER)
+    renderDetail()
+    await screen.findByText('PO-0001')
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Send for approval' })).toBeNull(),
+    )
+    expect(screen.getByRole('button', { name: 'Cancel the order' })).toBeTruthy()
+  })
+
+  it('hides booking goods in on a sent order', async () => {
+    who = offPlan(APPROVER)
+    current = order({ state: 'SENT' })
+    renderDetail()
+    await screen.findByText('PO-0001')
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Book these in' })).toBeNull())
+  })
+
+  it('still closes a received order', async () => {
+    who = offPlan(APPROVER)
+    current = order({ state: 'RECEIVED' })
+    renderDetail()
+    await screen.findByText('PO-0001')
+    expect(await screen.findByRole('button', { name: 'Close the order' })).toBeTruthy()
+  })
+})

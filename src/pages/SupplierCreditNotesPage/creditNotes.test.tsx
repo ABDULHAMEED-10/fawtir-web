@@ -1702,3 +1702,25 @@ describe("the credit notes' VAT notes in Arabic", () => {
     }
   })
 })
+
+// Business Rules PL-8: recording a supplier's note needs a plan with supplier notes; the notes
+// recorded before stay listed and readable.
+describe('a plan without supplier notes (PL-8)', () => {
+  it('keeps the list and hides Upload', async () => {
+    who = { ...ADMIN, planFeaturesEnforced: true, planFeatures: { supplierNotes: false } }
+    notes = [note({})]
+    renderList()
+    await screen.findByText('QMS-CN-1')
+    await waitFor(() =>
+      expect(screen.queryByRole('link', { name: 'Upload a credit note' })).toBeNull(),
+    )
+  })
+
+  it('offers Upload when the plan has supplier notes', async () => {
+    who = { ...ADMIN, planFeaturesEnforced: true, planFeatures: { supplierNotes: true } }
+    notes = [note({})]
+    renderList()
+    await screen.findByText('QMS-CN-1')
+    expect(screen.getByRole('link', { name: 'Upload a credit note' })).toBeTruthy()
+  })
+})

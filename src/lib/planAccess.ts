@@ -1,95 +1,124 @@
-import { useSyncExternalStore } from 'react'
-import { ANY_PLAN_IDS, hasFeature, lowestPlanWith, type AnyPlanId, type Feature } from './plans'
-import { CURRENT_PLAN } from './settingsBilling'
+import { useCallback } from 'react'
+import { lowestPlanWith, type AnyPlanId, type Feature, type PlanId } from './plans'
+import type { Entitlements } from './identity/entitlements'
+import { useEntitlements } from '../hooks/useEntitlements'
+import { useApiRead } from '../hooks/useApiRead'
+import {
+  PUBLIC_PLANS_PATH,
+  readPublicPlans,
+  type SignupCataloguePlan,
+} from './identity/signupPlans'
 
 /**
- * What the signed-in tenant may open, by plan (the client's ruling of 20 Sep 2026).
+ * What the company's plan lets it make or use (Business Rules PL-8, owner, 23 Oct 2026): the super
+ * admin switches each feature on or off per plan in Console › Plans; the server refuses, and the
+ * screens hide, a feature switched off for the company's plan. Never fixed in the code.
  *
- * A module the plan lacks is never hidden: the route still resolves, the sidebar still lists it,
- * and what the reader meets is a greyed entry and an upgrade nudge naming the plan that carries
- * it. Compliance — invoices, credit notes, debit notes, Peppol — is on every plan and no route
- * here gates it.
+ * The server says both halves in `GET /v1/me/entitlements`: `planFeaturesEnforced` (whether it
+ * refuses anything at all, `FAWTIR_BILLING_PLAN_FEATURES_ENABLED`) and `planFeatures` (the plan's
+ * switches, key to on or off; a key absent is off). A feature is offered when the server does not
+ * enforce, or when its switch is on. A server older than the fields omits them, which reads as not
+ * enforced: every screen stays as it was.
  *
- * The tenant's plan is the one Settings › Plan shows (`CURRENT_PLAN`, Al Bahja on Business). An
- * override lets the harness and a demo look at the app as another plan would see it: `?plan=`
- * on any URL, remembered for the tab so it survives navigation.
+ * Only what the server refuses is hidden ({@link GATED_FEATURES}, the backend's `GatedFeature`).
+ * Compliance is on every plan (PL-5), the ERP and API add-on is refused by its own entitlement
+ * (`erp-entitlement-required`), and the other switches only describe the plan, so none of those
+ * is ever hidden here.
+ *
+ * Hiding covers making and using, never reading: what the company made before stays listed,
+ * viewable, downloadable and exportable, which is what the server allows.
  */
+export const GATED_FEATURES: readonly Feature[] = [
+  'tradeDocuments',
+  'recurringInvoices',
+  'selfBilling',
+  'supplierNotes',
+  'recurringBills',
+  'approvals',
+  'bulkUpload',
+]
+
+export const isGatedFeature = (feature: string): feature is Feature =>
+  (GATED_FEATURES as readonly string[]).includes(feature)
+
+/** Whether to offer making or using `feature`. Display only: the server still decides. */
+export function planIncludes(entitlements: Entitlements | null, feature: Feature): boolean {
+  if (!isGatedFeature(feature)) return true
+  if (entitlements?.planFeaturesEnforced !== true) return true
+  return entitlements.planFeatures?.[feature] === true
+}
+
+const PLAN_ID_BY_CODE: Record<string, PlanId> = {
+  STARTER: 'starter',
+  BUSINESS: 'business',
+  BUSINESS_PLUS: 'businessPlus',
+}
 
 /**
- * The client's call of 20 Sep 2026: the gating is built but not switched on yet — every module
- * opens on every plan until this is true. The plans page, Settings › Plan and the console already
- * describe the plan model; only the greying and the upgrade nudge wait.
+ * The cheapest published plan whose switch for `feature` is on, as Console › Plans sets it today,
+ * so the nudge never names a plan from launch figures. Enterprise when no published plan has it;
+ * the launch matrix only while the catalogue has not been read.
  */
-export const PLAN_GATING_ENABLED = false
-
-const STORAGE_KEY = 'fawtir.planOverride'
-
-const isPlanId = (value: unknown): value is AnyPlanId =>
-  typeof value === 'string' && (ANY_PLAN_IDS as string[]).includes(value)
-
-function readStored(): AnyPlanId | null {
-  try {
-    const stored = sessionStorage.getItem(STORAGE_KEY)
-    return isPlanId(stored) ? stored : null
-  } catch {
-    return null
-  }
+export function neededPlanFrom(
+  catalogue: SignupCataloguePlan[] | null,
+  feature: Feature,
+): AnyPlanId {
+  if (!catalogue) return lowestPlanWith(feature)
+  const carrying = [...catalogue]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .find(
+      (plan) =>
+        PLAN_ID_BY_CODE[plan.code] !== undefined &&
+        plan.features.some((f) => f.key === feature && f.enabled),
+    )
+  return carrying ? PLAN_ID_BY_CODE[carrying.code] : 'enterprise'
 }
 
-function writeStored(plan: AnyPlanId | null) {
-  try {
-    if (plan) sessionStorage.setItem(STORAGE_KEY, plan)
-    else sessionStorage.removeItem(STORAGE_KEY)
-  } catch {
-    // Storage can be off (private window, blocked site data); the override then lasts a render.
-  }
-}
-
-let override: AnyPlanId | null = readStored()
-const listeners = new Set<() => void>()
-
-function subscribe(listener: () => void) {
-  listeners.add(listener)
-  return () => listeners.delete(listener)
-}
-
-export const planAccessStore = {
-  /** Look at the app as another plan; `null` goes back to the tenant's own. */
-  override(plan: AnyPlanId | null) {
-    if (plan === override) return
-    override = plan
-    writeStored(plan)
-    listeners.forEach((listener) => listener())
-  },
-  /**
-   * Reads `?plan=` off a URL and keeps it if it names a plan. Anything else leaves the current
-   * override alone, so following a plain link does not drop the plan the harness chose.
-   */
-  applySearch(search: string) {
-    const wanted = new URLSearchParams(search).get('plan')
-    if (isPlanId(wanted)) this.override(wanted)
-  },
-  current: (): AnyPlanId => override ?? CURRENT_PLAN.id,
-}
-
-/** The plan the tenant is on — the override when the harness set one, else the billing plan. */
-export function useTenantPlan(): AnyPlanId {
-  return useSyncExternalStore(subscribe, planAccessStore.current, planAccessStore.current)
-}
+/** Whether any gated feature is switched off for this company while the server enforces. */
+const anyOff = (entitlements: Entitlements | null) =>
+  GATED_FEATURES.some((feature) => !planIncludes(entitlements, feature))
 
 export type FeatureAccess = {
   available: boolean
-  /** The lowest plan that carries the feature — what the nudge names. */
+  /** The cheapest plan that carries the feature — what the nudge names. */
   neededPlan: AnyPlanId
 }
 
-export const featureAccess = (plan: AnyPlanId, feature: Feature): FeatureAccess => ({
-  available: !PLAN_GATING_ENABLED || hasFeature(plan, feature),
-  neededPlan: lowestPlanWith(feature),
-})
+/**
+ * Every feature's access at once, for a screen that asks about several (the sidebar). The
+ * published catalogue is read only when something is switched off, to name the plan that has it.
+ */
+export function usePlanAccess(): {
+  access: (feature: Feature) => FeatureAccess
+  /** The company's own switches, `null` while the server does not enforce or has not answered. */
+  companyFeatures: Record<string, boolean> | null
+  catalogue: SignupCataloguePlan[] | null
+} {
+  const { entitlements } = useEntitlements()
+  const needCatalogue = anyOff(entitlements)
+  const read = useApiRead<SignupCataloguePlan[]>(needCatalogue ? PUBLIC_PLANS_PATH : null, () =>
+    readPublicPlans(),
+  ).read
+  const catalogue = read.status === 'ready' ? read.data : null
+  const access = useCallback(
+    (feature: Feature): FeatureAccess => ({
+      available: planIncludes(entitlements, feature),
+      neededPlan: neededPlanFrom(catalogue, feature),
+    }),
+    [entitlements, catalogue],
+  )
+  const companyFeatures =
+    entitlements?.planFeaturesEnforced === true ? (entitlements.planFeatures ?? {}) : null
+  return { access, companyFeatures, catalogue }
+}
 
 export function useFeature(feature: Feature): FeatureAccess {
-  return featureAccess(useTenantPlan(), feature)
+  return usePlanAccess().access(feature)
+}
+
+/** Whether to offer making or using `feature`, without the plan the nudge would name. */
+export function usePlanIncludes(feature: Feature): boolean {
+  return planIncludes(useEntitlements().entitlements, feature)
 }
 
 /**

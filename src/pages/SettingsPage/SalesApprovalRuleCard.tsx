@@ -29,6 +29,7 @@ import { formatAmount } from '../../lib/format'
 import { ApiReadFailure } from '../../components/feedback/ApiNotice'
 import { selectAllOnFocus } from '../../components/invoice'
 import { ApiError } from '../../api'
+import { usePlanIncludes } from '../../lib/planAccess'
 
 /**
  * A read that says this reader gets no card: a server that predates the rule (404) or a reader
@@ -60,6 +61,9 @@ export function SalesApprovalRuleCard({ canManage }: { canManage: boolean }) {
   const [notice, setNotice] = useState<string | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  // A plan without approvals (PL-8): a rule can only be switched off, so a rule that is off has
+  // nothing to offer here, and one that is on offers its switch and nothing else.
+  const approvalsIncluded = usePlanIncludes('approvals')
 
   useEffect(() => {
     if (saved) setForm(ruleFormOf(saved))
@@ -73,6 +77,7 @@ export function SalesApprovalRuleCard({ canManage }: { canManage: boolean }) {
   if (saved === null || form === null) return null
   // Switched off on this deployment: no rule can be turned on here, so the page looks as before.
   if (!salesApprovalAvailable(saved)) return null
+  if (!approvalsIncluded && !saved.enabled) return null
 
   const set = (changes: Partial<SalesApprovalRuleForm>) => setForm({ ...form, ...changes })
   const approvers = approversProblem(form.requiredApprovals)
@@ -84,6 +89,7 @@ export function SalesApprovalRuleCard({ canManage }: { canManage: boolean }) {
   const required = approvers === null ? Number(form.requiredApprovals) : saved.requiredApprovals
   const money = (value: number) => `OMR ${formatAmount(value, 'OMR', i18n.language)}`
   const disabled = !canManage || saving
+  const fieldsDisabled = disabled || !approvalsIncluded
 
   const save = async () => {
     if (next === null) return
@@ -144,7 +150,7 @@ export function SalesApprovalRuleCard({ canManage }: { canManage: boolean }) {
               <input
                 type="checkbox"
                 checked={form.covers[key]}
-                disabled={disabled}
+                disabled={fieldsDisabled}
                 onChange={(event) =>
                   set({ covers: { ...form.covers, [key]: event.target.checked } })
                 }
@@ -172,7 +178,7 @@ export function SalesApprovalRuleCard({ canManage }: { canManage: boolean }) {
               inputMode="numeric"
               min={MIN_REQUIRED_APPROVALS}
               max={MAX_REQUIRED_APPROVALS}
-              disabled={disabled}
+              disabled={fieldsDisabled}
               value={form.requiredApprovals}
               onFocus={selectAllOnFocus}
               onChange={(event) => set({ requiredApprovals: event.target.value })}
@@ -210,7 +216,7 @@ export function SalesApprovalRuleCard({ canManage }: { canManage: boolean }) {
                   name="sales-threshold-mode"
                   value={mode}
                   checked={form.mode === mode}
-                  disabled={disabled}
+                  disabled={fieldsDisabled}
                   onChange={() => set({ mode })}
                   className="mt-1 size-4 accent-primary-700"
                 />
@@ -228,7 +234,7 @@ export function SalesApprovalRuleCard({ canManage }: { canManage: boolean }) {
               <input
                 type="text"
                 inputMode="decimal"
-                disabled={disabled}
+                disabled={fieldsDisabled}
                 value={form.threshold}
                 onFocus={selectAllOnFocus}
                 onChange={(event) => set({ threshold: event.target.value })}

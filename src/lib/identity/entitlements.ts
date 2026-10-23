@@ -52,6 +52,17 @@ export type Entitlements = {
    * card checkout's Continue are hidden. Absent from older servers: the screens stay as before.
    */
   payAvailable?: boolean
+  /**
+   * The server refuses what the company's plan has switched off (Business Rules PL-8,
+   * `FAWTIR_BILLING_PLAN_FEATURES_ENABLED`), the same for every caller. Absent from older servers,
+   * which means nothing is refused and nothing is hidden.
+   */
+  planFeaturesEnforced?: boolean
+  /**
+   * The company's plan's switches as Console › Plans sets them, feature key to on or off; a key
+   * absent is off. Display only, read through `planIncludes` (lib/planAccess).
+   */
+  planFeatures?: Record<string, boolean>
 }
 
 /**

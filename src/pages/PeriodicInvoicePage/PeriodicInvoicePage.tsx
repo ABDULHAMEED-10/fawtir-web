@@ -55,6 +55,7 @@ import { PAYMENT_TERMS } from '../../lib/invoiceDraft'
 import { formatAtScale } from '../../lib/invoiceMath'
 import { muscatToday } from '../../lib/invoiceIssue'
 import { can, useSession } from '../../lib/session/session'
+import { usePlanIncludes } from '../../lib/planAccess'
 import {
   PERIODIC_INTERVALS,
   PERIODIC_REFUSALS,
@@ -157,9 +158,12 @@ function ScheduleComposer({ id }: { id: string | null }) {
   const [params] = useSearchParams()
   const session = useSession()
   const canManage = can(session, 'invoice.draft')
+  // A plan without periodic invoices (PL-8): a series made before stays readable and can be
+  // paused; changing, resuming and saving wait for a plan that has them.
+  const planIncludes = usePlanIncludes('recurringInvoices')
   // Pause stays while the subscription is read-only; Resume waits until they pay (owner, 23 Oct).
   const mayResume = useSubscriptionAllows('CREATE_DRAFTS')
-  const locked = !canManage
+  const locked = !canManage || !planIncludes
   const today = muscatToday()
   const [form, setForm] = useState<PeriodicForm>(() => blankPeriodicForm(today))
   const [lines, setLines] = useState<PeriodicLine[]>(() => [blankPeriodicLine('1', '5')])
@@ -569,7 +573,7 @@ function ScheduleComposer({ id }: { id: string | null }) {
                     variant="bordered"
                   />
                 ) : null}
-                {status === 'finished' || (!schedule?.active && !mayResume) ? null : (
+                {status === 'finished' || (!schedule?.active && !(mayResume && planIncludes)) ? null : (
                   <button
                     type="button"
                     onClick={() => void toggle()}
@@ -597,17 +601,19 @@ function ScheduleComposer({ id }: { id: string | null }) {
                 {t('common.cancel')}
               </Link>
             )}
-            <button
-              type="button"
-              onClick={() => void save()}
-              disabled={busy}
-              className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60"
-            >
-              <img src={saveIcon} alt="" className="size-5 brightness-0 invert" />
-              {busy
-                ? t('periodicInvoice.saving')
-                : t(id ? 'periodicInvoice.saveChanges' : 'periodicInvoice.start')}
-            </button>
+            {planIncludes ? (
+              <button
+                type="button"
+                onClick={() => void save()}
+                disabled={busy}
+                className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60"
+              >
+                <img src={saveIcon} alt="" className="size-5 brightness-0 invert" />
+                {busy
+                  ? t('periodicInvoice.saving')
+                  : t(id ? 'periodicInvoice.saveChanges' : 'periodicInvoice.start')}
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>

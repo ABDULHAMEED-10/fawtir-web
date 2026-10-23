@@ -30,6 +30,7 @@ import { ApiError, type Page } from '../../api'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
+import { usePlanIncludes } from '../../lib/planAccess'
 import {
   PERIODIC_INTERVALS,
   PERIODIC_REFUSALS,
@@ -124,6 +125,9 @@ function PeriodicInvoicesContent() {
   // waits until they pay (owner, 23 Oct).
   const mayDraft = useSubscriptionAllows('CREATE_DRAFTS')
   const canManage = can(session, 'invoice.draft')
+  // A plan without periodic invoices (PL-8): reading, pausing and deleting stay; making,
+  // generating, resuming and copying wait for a plan that has them.
+  const planIncludes = usePlanIncludes('recurringInvoices')
   const today = muscatToday()
   const [tab, setTab] = useState<PeriodicTabId>('all')
   const [search, setSearch] = useState('')
@@ -378,7 +382,7 @@ function PeriodicInvoicesContent() {
             ...(status === 'active'
               ? [
                   // Generate makes a new draft now, so it waits until they pay too.
-                  ...(mayDraft
+                  ...(mayDraft && planIncludes
                     ? [
                         {
                           id: 'generate',
@@ -395,7 +399,7 @@ function PeriodicInvoicesContent() {
                     onSelect: () => void toggle(schedule),
                   },
                 ]
-              : status === 'paused' && mayDraft
+              : status === 'paused' && mayDraft && planIncludes
                 ? [
                     {
                       id: 'resume',
@@ -405,7 +409,7 @@ function PeriodicInvoicesContent() {
                     },
                   ]
                 : []),
-            ...(mayDraft
+            ...(mayDraft && planIncludes
               ? [
                   {
                     id: 'duplicate',
@@ -499,7 +503,7 @@ function PeriodicInvoicesContent() {
               <img src={exportIcon} alt="" className="size-6 rotate-180" />
               {t('periodicList.export')}
             </button>
-            {canManage && mayDraft ? (
+            {canManage && mayDraft && planIncludes ? (
               <Link
                 to="/income/periodic/new"
                 className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-primary-700 py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"

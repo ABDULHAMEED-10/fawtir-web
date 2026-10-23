@@ -3,6 +3,7 @@ import { commonFailureMessage, type FormMessage } from './identity/errors'
 import { refusalMessageKey, refusalMessageValues } from './expenditureRefusals'
 import { selfBillingMessageKey } from './selfBillingRefusals'
 import { subscriptionRestrictedMessageKey } from './subscriptionRestricted'
+import { PLAN_FEATURE_NOT_INCLUDED, planFeatureMessageKey } from './planFeatureRefusal'
 import { salesApprovalMessageKey } from './salesApproval'
 import { taxReasonRefusalKey } from './taxReasonRefusals'
 
@@ -20,6 +21,10 @@ export function describeApiFailure(error: unknown): FormMessage & { reference: s
     // again" can never work for it; paying or choosing a plan is the way forward.
     const subscription = subscriptionRestrictedMessageKey(error)
     if (subscription !== null) return { key: subscription, reference }
+    // A plan without the feature answers 403 (PL-8): the plan is the way forward, never an
+    // administrator, so it is worded before the permission sentence.
+    const plan = planFeatureMessageKey(error)
+    if (plan !== null) return { key: plan, reference }
     // Before any status branch: a refusal is a decision the server made by name, and saying
     // "try again" about one is wrong advice, not merely a vague message.
     const refusal = refusalMessageKey(error)
@@ -52,7 +57,12 @@ export function describeApiFailure(error: unknown): FormMessage & { reference: s
 
 /** A refusal the server makes on permission grounds, as opposed to a CSRF or gateway 403. */
 export function isPermissionDenied(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 403 && error.problemType !== 'csrf-rejected'
+  return (
+    error instanceof ApiError &&
+    error.status === 403 &&
+    error.problemType !== 'csrf-rejected' &&
+    error.problemType !== PLAN_FEATURE_NOT_INCLUDED
+  )
 }
 
 export function isNotFound(error: unknown): boolean {
