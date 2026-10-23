@@ -239,6 +239,7 @@ function DangerZone() {
         <DisconnectDialog
           open={asking}
           companyName={view.companyName}
+          yearlyRefundReview={view.yearlyRefundReview === true}
           companyNameAr={view.companyNameAr ?? null}
           onClose={() => setAsking(false)}
           onDone={(next, why) => {
@@ -452,12 +453,15 @@ async function reload(set: (view: CompanyDisconnectionDto) => void) {
 function DisconnectDialog({
   open,
   companyName,
+  yearlyRefundReview,
   companyNameAr,
   onClose,
   onDone,
 }: {
   open: boolean
   companyName: string
+  /** A yearly subscription's whole months left go for a refund review (LV-6, E31). */
+  yearlyRefundReview: boolean
   /** The Arabic legal name, when the server sends one. */
   companyNameAr: string | null
   onClose: () => void
@@ -587,7 +591,13 @@ function DisconnectDialog({
                 <li>{t('fawtirDisconnection.dialog.warning.nothingSent')}</li>
                 <li>{t('fawtirDisconnection.dialog.warning.legalDuty')}</li>
                 <li>{t('fawtirDisconnection.dialog.warning.records')}</li>
-                <li>{t('fawtirDisconnection.dialog.warning.subscription')}</li>
+                <li>
+                  {t(
+                    yearlyRefundReview
+                      ? 'fawtirDisconnection.dialog.warning.subscriptionYearly'
+                      : 'fawtirDisconnection.dialog.warning.subscription',
+                  )}
+                </li>
                 <li>{t('fawtirDisconnection.dialog.warning.withdraw')}</li>
               </ul>
             </div>

@@ -246,6 +246,27 @@ describe('Choose a plan: the published catalogue', () => {
     // A customer cannot upgrade alone: the footer says the Fawtir team does it, as the FAQ does (G1).
     expect(text()).toContain('Upgrades through the Fawtir team, downgrades at renewal')
     expect(text()).not.toContain('Upgrades apply instantly')
+    expect(text()).not.toContain(i18n.t('plans.footer.f2SelfService'))
+  })
+
+  it('says an upgrade applies at once, pro rata, when the server has self-service plan change on (E3)', async () => {
+    answer({
+      [PLANS_URL]: () =>
+        json(200, CATALOGUE.map((plan) => ({ ...plan, selfServicePlanChange: true }))),
+    })
+    await openPlans()
+    expect(text()).toContain('Upgrades apply as soon as paid, pro rata; downgrades at renewal')
+    expect(text()).not.toContain('Upgrades through the Fawtir team')
+  })
+
+  it('keeps the Fawtir-team footer when the server says self-service plan change is off', async () => {
+    answer({
+      [PLANS_URL]: () =>
+        json(200, CATALOGUE.map((plan) => ({ ...plan, selfServicePlanChange: false }))),
+    })
+    await openPlans()
+    expect(text()).toContain('Upgrades through the Fawtir team, downgrades at renewal')
+    expect(text()).not.toContain(i18n.t('plans.footer.f2SelfService'))
   })
 
   it('marks the plan the server recommends as the popular one', async () => {

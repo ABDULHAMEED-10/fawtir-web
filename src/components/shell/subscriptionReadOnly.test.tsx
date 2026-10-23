@@ -2,10 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
-import { resetSharedRequests } from '../../api'
+import { ApiError, resetSharedRequests } from '../../api'
 import type { SubscriptionStatusDto } from '../../api/settings/subscription'
 import type { Entitlements } from '../../lib/identity/entitlements'
 import { SessionContext } from '../../lib/session/session'
+import { describeApiFailure } from '../../lib/apiFailure'
 import {
   forgetSubscriptionStanding,
   readOnlyReason,
@@ -281,5 +282,44 @@ describe('the read-only line', () => {
       'اشتراكك للقراءة فقط حتى تُدفع مطالبة التجديد.',
     )
     expect(screen.getByRole('link', { name: 'ادفع' })).toBeTruthy()
+  })
+})
+
+describe('a SUBSCRIPTION_SUSPENDED refusal after the free trial ended (E26)', () => {
+  const refused = () =>
+    new ApiError({
+      status: 409,
+      problemType: 'subscription-restricted',
+      code: 'SUBSCRIPTION_SUSPENDED',
+      correlationId: 'corr-1',
+      problem: { code: 'SUBSCRIPTION_SUSPENDED', action: 'ISSUE_DOCUMENTS' },
+    })
+  const sentence = () => i18n.t(describeApiFailure(refused()).key)
+
+  it('says the trial ended, not that a renewal is unpaid, in English and Arabic', async () => {
+    answer = () => json(200, TRIAL_ENDED)
+    renderLine()
+    await screen.findByRole('status')
+    expect(sentence()).toBe(
+      'Your free trial has ended and your subscription is read-only until you choose a plan and pay.',
+    )
+    await i18n.changeLanguage('ar')
+    expect(sentence()).toBe(
+      'انتهت الفترة التجريبية المجانية، واشتراكك الآن للقراءة فقط إلى أن تختار باقة وتدفع.',
+    )
+  })
+
+  it('keeps the unpaid-bill sentence for a suspended paid subscription', async () => {
+    answer = () => json(200, SUSPENDED)
+    renderLine()
+    await screen.findByRole('status')
+    expect(describeApiFailure(refused()).key).toBe('apiErrors.subscriptionRestricted.suspended')
+  })
+
+  it('keeps the unpaid-bill sentence when the screen does not hold the subscription', async () => {
+    answer = () => json(200, TRIAL_ENDED)
+    renderLine(CLERK)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(describeApiFailure(refused()).key).toBe('apiErrors.subscriptionRestricted.suspended')
   })
 })

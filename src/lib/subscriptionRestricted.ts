@@ -1,4 +1,5 @@
 import { ApiError } from '../api'
+import { rememberedReadOnlyReason } from './subscriptionReadOnly'
 
 /**
  * The refusal a read-only subscription gives (plan v4 §8): issuing documents, adding people,
@@ -22,12 +23,20 @@ const MESSAGE_BY_CODE: Record<string, string> = {
 /** For a code a later backend adds: still the subscription, never the conflict sentence. */
 const GENERIC_KEY = 'apiErrors.subscriptionRestricted.generic'
 
+const TRIAL_ENDED_KEY = 'apiErrors.subscriptionRestricted.trialEnded'
+
 export function isSubscriptionRestricted(error: unknown): boolean {
   return error instanceof ApiError && error.problemType === SUBSCRIPTION_RESTRICTED
 }
 
 export function subscriptionRestrictedMessageKey(error: unknown): string | null {
   if (!(error instanceof ApiError) || !isSubscriptionRestricted(error)) return null
+  // The server's SUSPENDED also covers a free trial that ended unpaid (TR-3), with the same code:
+  // there is no renewal or open bill to pay then, so where the screen already holds the
+  // subscription and it says the trial ended, the sentence says so (E26). Unknown: as before.
+  if (error.code === 'SUBSCRIPTION_SUSPENDED' && rememberedReadOnlyReason() === 'trialEnded') {
+    return TRIAL_ENDED_KEY
+  }
   return (error.code !== null && MESSAGE_BY_CODE[error.code]) || GENERIC_KEY
 }
 

@@ -126,6 +126,12 @@ export type CompanyDisconnectionDto = {
   canReconnect?: boolean
   /** The latest reconnection, or null (or absent) when there has never been one. */
   reconnection?: CompanyReconnectionDto | null
+  /**
+   * The company has not left, pays yearly, and leaving today would put its whole months left up
+   * for a refund review (Business Rules LV-6): access then runs to the paid end only until the
+   * refund is decided. Absent from a server older than the field, which reads as false.
+   */
+  yearlyRefundReview?: boolean
   request: CompanyDisconnectionRequestDto | null
 }
 

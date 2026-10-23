@@ -83,10 +83,23 @@ export function readOnlyOffersPay(reason: ReadOnlyReason): boolean {
  */
 const FRESH_FOR_MS = 30_000
 const settled = new Map<string, { status: SubscriptionStatusDto; at: number }>()
+/** The company the screens last asked about, so a refusal's wording reads that company's answer. */
+let currentKey: string | null = null
 
 /** Forgets every remembered answer. For tests, and for a session that changes hands. */
 export function forgetSubscriptionStanding(): void {
   settled.clear()
+  currentKey = null
+}
+
+/**
+ * Why the current company's subscription is read-only, from the answer the screens already hold,
+ * or `null` when none is held (still loading, no permission to read it, or nothing restricted).
+ * For wording a refusal outside React: never reads anything itself.
+ */
+export function rememberedReadOnlyReason(): ReadOnlyReason | null {
+  const known = currentKey === null ? undefined : settled.get(currentKey)
+  return known ? readOnlyReason(known.status) : null
 }
 
 /**
@@ -103,6 +116,7 @@ export function useSubscriptionStanding(): SubscriptionStatusDto | null {
   const [, setVersion] = useState(0)
 
   useEffect(() => {
+    currentKey = key
     if (key === null) return
     const known = settled.get(key)
     if (known && Date.now() - known.at < FRESH_FOR_MS) return

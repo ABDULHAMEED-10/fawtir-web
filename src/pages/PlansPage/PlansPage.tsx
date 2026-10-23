@@ -109,6 +109,9 @@ function PlansContent() {
   const [compare, setCompare] = useState(() => location.hash === '#compare')
   const { read, reload } = usePlanCatalogue('signup-plans', readSignupPlans)
   const plans = read.status === 'ready' ? read.plans : null
+  // Self-service plan change on (E3): an upgrade applies at once, pro rata, so the footer must not
+  // send the customer to the Fawtir team. Absent on an older server: the team wording stays.
+  const selfServicePlanChange = plans?.some((plan) => plan.selfServicePlanChange === true) ?? false
 
   // Opens in place under the button; no scrolling, so the cards stay where the reader left them.
   const toggleCompare = () => setCompare((open) => !open)
@@ -367,7 +370,11 @@ function PlansContent() {
           )}
 
           <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:gap-[34px]">
-            {[t('plans.footer.f1'), t('plans.footer.f2'), t('plans.footer.f3')].map((item) => (
+            {[
+              t('plans.footer.f1'),
+              t(selfServicePlanChange ? 'plans.footer.f2SelfService' : 'plans.footer.f2'),
+              t('plans.footer.f3'),
+            ].map((item) => (
               <div key={item} className="flex items-center gap-2.5">
                 <img src={checkFooterIcon} alt="" className="size-[17px] shrink-0" />
                 <span className="whitespace-nowrap text-[13px] font-medium text-text-tertiary">
