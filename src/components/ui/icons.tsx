@@ -207,6 +207,27 @@ export function CloseIcon({ className = '', size = 16 }: IconProps) {
   )
 }
 
+/** A chat bubble: sharing to a messaging app such as WhatsApp. */
+export function ChatBubbleIcon({ className = '', size = 20 }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 20 20"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M10 3.25c3.87 0 7 2.7 7 6.05s-3.13 6.05-7 6.05c-.86 0-1.69-.13-2.45-.38L3.75 16.5l1.1-3.1A5.7 5.7 0 0 1 3 9.3c0-3.35 3.13-6.05 7-6.05Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export function HomeIcon({ className = '', size = 16 }: IconProps) {
   return (
     <svg

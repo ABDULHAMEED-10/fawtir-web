@@ -2675,7 +2675,12 @@
     "billedBy": "مفوتَرة من",
     "from": "من",
     "viewSeller": "عرض المورّد",
-    "sellerUnknown": "المورّد غير معروض"
+    "sellerUnknown": "المورّد غير معروض",
+    "share": {
+      "email": "إرسال بالبريد الإلكتروني",
+      "whatsapp": "مشاركة عبر واتساب",
+      "unavailable": "تحتاج المشاركة إلى ملف PDF للفاتورة، ولا ينشئه الخادم بعد."
+    }
   },
   "createInvoice": {
     "breadcrumb": "الفواتير",

@@ -11,6 +11,7 @@ import {
   RowsView,
   type ActionMenuItem,
 } from '../../components/ui'
+import { ChatBubbleIcon, MailIcon } from '../../components/ui/icons'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead, usePendingRefresh } from '../../hooks'
 import { useReferenceData } from '../../lib/reference/referenceData'
@@ -1133,6 +1134,27 @@ function InvoiceScreen() {
                   className="rounded-sm p-0.5 disabled:opacity-40"
                 >
                   <img src={printIcon} alt="" className="size-5" />
+                </button>
+                {/* TODO(backend): sharing a copy of the invoice waits for the rendered PDF and the
+                    share calls (INCOME.md rows SH.1 to SH.3). When live, hide both while the
+                    subscription is read-only (ST-2) and on a deemed supply (no buyer copy). */}
+                <button
+                  type="button"
+                  disabled
+                  title={t('invoiceDetails.share.unavailable')}
+                  aria-label={t('invoiceDetails.share.email')}
+                  className="rounded-sm p-0.5 text-text-tertiary disabled:opacity-40"
+                >
+                  <MailIcon />
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  title={t('invoiceDetails.share.unavailable')}
+                  aria-label={t('invoiceDetails.share.whatsapp')}
+                  className="rounded-sm p-0.5 text-text-tertiary disabled:opacity-40"
+                >
+                  <ChatBubbleIcon />
                 </button>
                 <button
                   type="button"

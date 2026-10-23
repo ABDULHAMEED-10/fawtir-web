@@ -2520,7 +2520,12 @@
     "billedBy": "Billed by",
     "from": "From",
     "viewSeller": "View supplier",
-    "sellerUnknown": "Supplier not shown"
+    "sellerUnknown": "Supplier not shown",
+    "share": {
+      "email": "Send by email",
+      "whatsapp": "Share on WhatsApp",
+      "unavailable": "Sharing needs the invoice PDF, which the server does not produce yet."
+    }
   },
   "createInvoice": {
     "breadcrumb": "Invoices",
