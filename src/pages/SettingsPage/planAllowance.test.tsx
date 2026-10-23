@@ -247,3 +247,84 @@ describe('US-1, BR-3, ER-1: paid places and the add-on on Plan and usage', () =>
     expect(screen.queryByText(i18n.t('paidExtras.planCard.title'))).toBeNull()
   })
 })
+
+describe('Plan and usage: today by branch and last month (SETTINGS.md rows 5.4, 5.5)', () => {
+  const withUsage = (extra: Record<string, unknown>) => () =>
+    json(200, { ...OVERVIEW, usage: { ...OVERVIEW.usage, ...extra } })
+
+  it('splits "Raised today" by branch and shows last month against the plan then', async () => {
+    answers[PLAN] = withUsage({
+      raisedTodayByBranch: [
+        { branchId: 'b-1', branchName: 'Muscat', count: 3 },
+        { branchId: 'b-2', branchName: 'Nizwa', count: 1 },
+        { branchId: null, branchName: null, count: 1 },
+      ],
+      lastMonthUsed: 16,
+      lastMonthQuota: 10,
+    })
+    renderPlan()
+    await screen.findByText('Your plan: Starter')
+    expect(within(stat('Raised today')).getByText('Muscat 3 · Nizwa 1 · No branch 1')).toBeTruthy()
+    expect(within(stat('Raised today')).queryByText('By branch: not available yet')).toBeNull()
+    expect(within(stat('Last month')).getByText('16')).toBeTruthy()
+    expect(within(stat('Last month')).getByText('Plan allowance then: 10')).toBeTruthy()
+    expect(within(stat('Last month')).queryByText('Not available yet')).toBeNull()
+  })
+
+  it('shows a quiet day with no branch note, and a first month as 0', async () => {
+    answers[PLAN] = withUsage({ raisedToday: 0, raisedTodayByBranch: [], lastMonthUsed: 0, lastMonthQuota: 200 })
+    renderPlan()
+    await screen.findByText('Your plan: Starter')
+    expect(within(stat('Raised today')).queryByText('By branch: not available yet')).toBeNull()
+    expect(within(stat('Last month')).getByText('0')).toBeTruthy()
+  })
+
+  it('names each branch in Arabic for an Arabic reader, as every other screen does (BR-1)', async () => {
+    await i18n.changeLanguage('ar')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url === '/api/v1/me/entitlements') {
+          return json(200, { ...READER, permissions: ['tenant.plan.read', 'branch.manage'] })
+        }
+        if (url === '/api/v1/branches/overview') {
+          return json(200, {
+            openCount: 2,
+            everCount: 2,
+            branches: [
+              { id: 'b-1', code: 'MCT', name: 'Muscat', nameAr: 'مسقط', active: true },
+              { id: 'b-2', code: 'NZW', name: 'Nizwa', nameAr: 'نزوى', active: true },
+            ],
+          })
+        }
+        const answer = answers[url]
+        return answer ? answer() : json(404, { type: 'about:blank' })
+      }),
+    )
+    answers[PLAN] = withUsage({
+      raisedTodayByBranch: [
+        { branchId: 'b-1', branchName: 'Muscat', count: 3 },
+        { branchId: 'b-2', branchName: 'Nizwa', count: 1 },
+        { branchId: null, branchName: null, count: 1 },
+      ],
+    })
+    try {
+      renderPlan()
+      const raisedToday = await screen.findByText(i18n.t('plan.stat.raisedToday'), { selector: 'dt' })
+      const note = `مسقط 3 · نزوى 1 · ${i18n.t('plan.byBranch.noBranch')} 1`
+      await vi.waitFor(() =>
+        expect(within(raisedToday.closest('div')!).getByText(note)).toBeTruthy(),
+      )
+      expect(within(raisedToday.closest('div')!).queryByText(/Muscat|Nizwa/)).toBeNull()
+    } finally {
+      await i18n.changeLanguage('en')
+    }
+  })
+
+  it('keeps "not available yet" for a server without the figures', async () => {
+    renderPlan()
+    await screen.findByText('Your plan: Starter')
+    expect(within(stat('Raised today')).getByText('By branch: not available yet')).toBeTruthy()
+    expect(within(stat('Last month')).getByText('Not available yet')).toBeTruthy()
+  })
+})

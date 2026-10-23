@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import i18n from '../../i18n'
@@ -180,14 +180,92 @@ describe('Settings › Company profile: Disconnect from Fawtir', () => {
     expect(writes()).toHaveLength(0)
   })
 
+  it('keeps the button off until the whole company name is typed, in any case (E30)', async () => {
+    const user = userEvent.setup()
+    renderSection()
+    await user.click(await screen.findByRole('button', { name: i18n.t('fawtirDisconnection.start') }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByLabelText(new RegExp(i18n.t('fawtirDisconnection.answer.ASK_FAWTIR.title').replace(/[.?]/g, '\\$&'))))
+    const confirm = within(dialog).getByRole('button', { name: i18n.t('fawtirDisconnection.dialog.confirm.ASK_FAWTIR') }) as HTMLButtonElement
+    const field = within(dialog).getByRole('textbox')
+    await user.type(field, 'Real Trading')
+    expect(confirm.disabled).toBe(true)
+    await user.clear(field)
+    await user.type(field, 'Someone Else LLC')
+    expect(confirm.disabled).toBe(true)
+    await user.clear(field)
+    await user.type(field, 'real  trading llc')
+    expect(confirm.disabled).toBe(false)
+    expect(writes()).toHaveLength(0)
+  })
+
+  describe('with the Arabic legal name on the view (owner, 23 Oct)', () => {
+    const AR_NAME = 'شركة التجارة الحقيقية'
+    const openAskDialog = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.click(await screen.findByRole('button', { name: i18n.t('fawtirDisconnection.start') }))
+      const dialog = await screen.findByRole('dialog')
+      await user.click(within(dialog).getByLabelText(new RegExp(i18n.t('fawtirDisconnection.answer.ASK_FAWTIR.title').replace(/[.?]/g, '\\$&'))))
+      const confirm = within(dialog).getByRole('button', { name: i18n.t('fawtirDisconnection.dialog.confirm.ASK_FAWTIR') }) as HTMLButtonElement
+      return { dialog, confirm, field: within(dialog).getByRole('textbox') }
+    }
+
+    it('opens the button for the Arabic name as well as the English one, and sends what was typed', async () => {
+      const user = userEvent.setup()
+      answers[PATH] = () => json(200, { ...NONE, companyNameAr: AR_NAME })
+      answers[`POST ${PATH}`] = () => json(200, { requestNeeded: true, disconnection: NONE })
+      renderSection()
+      const { confirm, field } = await openAskDialog(user)
+      await user.type(field, 'Real Trading LLC')
+      expect(confirm.disabled).toBe(false)
+      await user.clear(field)
+      await user.type(field, 'شركة')
+      expect(confirm.disabled).toBe(true)
+      await user.clear(field)
+      await user.type(field, ` ${AR_NAME} `)
+      expect(confirm.disabled).toBe(false)
+      await user.click(confirm)
+      await vi.waitFor(() => expect(writes()).toHaveLength(1))
+      const [, init] = writes()[0]
+      expect(JSON.parse((init as RequestInit).body as string).companyNameConfirmation).toBe(AR_NAME)
+    })
+
+    it('asks for the English name in English and the Arabic name in Arabic', async () => {
+      const user = userEvent.setup()
+      answers[PATH] = () => json(200, { ...NONE, companyNameAr: AR_NAME })
+      renderSection()
+      let { dialog } = await openAskDialog(user)
+      expect(within(dialog).getByLabelText(i18n.t('fawtirDisconnection.dialog.typeName', { name: 'Real Trading LLC' }))).toBeTruthy()
+      cleanup()
+      await i18n.changeLanguage('ar')
+      renderSection()
+      ;({ dialog } = await openAskDialog(user))
+      expect(within(dialog).getByLabelText(i18n.t('fawtirDisconnection.dialog.typeName', { name: AR_NAME }))).toBeTruthy()
+      expect(within(dialog).queryByLabelText(i18n.t('fawtirDisconnection.dialog.typeName', { name: 'Real Trading LLC' }))).toBeNull()
+    })
+
+    it('asks for the English name in Arabic, and takes only it, when the server sends no Arabic name', async () => {
+      const user = userEvent.setup()
+      await i18n.changeLanguage('ar')
+      renderSection()
+      const { dialog, confirm, field } = await openAskDialog(user)
+      expect(within(dialog).getByLabelText(i18n.t('fawtirDisconnection.dialog.typeName', { name: 'Real Trading LLC' }))).toBeTruthy()
+      await user.type(field, AR_NAME)
+      expect(confirm.disabled).toBe(true)
+      await user.clear(field)
+      await user.type(field, 'Real Trading LLC')
+      expect(confirm.disabled).toBe(false)
+    })
+  })
+
   it('shows a refused name in the field and keeps the dialog open', async () => {
     const user = userEvent.setup()
+    // The name changed elsewhere meanwhile: the server's own check refuses it.
     answers[`POST ${PATH}`] = () => json(400, { type: 'about:blank', status: 400, detail: 'The name typed is not this company\'s name' })
     renderSection()
     await user.click(await screen.findByRole('button', { name: i18n.t('fawtirDisconnection.start') }))
     const dialog = await screen.findByRole('dialog')
     await user.click(within(dialog).getByLabelText(/already disconnected/))
-    await user.type(within(dialog).getByRole('textbox'), 'Someone Else')
+    await user.type(within(dialog).getByRole('textbox'), 'Real Trading LLC')
     await user.click(within(dialog).getByRole('button', { name: i18n.t('fawtirDisconnection.dialog.confirm.ALREADY_DISCONNECTED') }))
     expect(await within(dialog).findByText(i18n.t('fawtirDisconnection.error.nameMismatch'))).toBeTruthy()
     expect(dialog.textContent).not.toMatch(/The name typed/)

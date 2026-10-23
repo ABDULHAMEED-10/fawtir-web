@@ -17,6 +17,8 @@ import {
   ROLES_PATH,
   ROLES_PERMISSION,
   USERS_PERMISSION,
+  WAITING_INVITATIONS_ROUTE,
+  invitationAlreadyOpen,
   inviteUser,
   loadRoles,
   type RoleDto,
@@ -28,6 +30,7 @@ import { permissionWords } from '../../lib/permissionLabels'
 import { useBranchAccessOn } from '../../lib/identity/branchAccessSwitch'
 import { BranchInviteForm } from './BranchInviteForm'
 import { Check, Panel, Row } from './invitePieces'
+import { invitationLinkDays } from '../../lib/invitationLinkDays'
 import { useManagesPeople } from './peopleView'
 import chipYesIcon from '../../assets/settings/check-green.svg'
 import sendIcon from '../../assets/settings/check-white.svg'
@@ -84,6 +87,8 @@ function InviteForm() {
   const [chosen, setChosen] = useState<string[]>([])
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState<Sent | null>(null)
+  // From the server's answer to the last invitation sent: the same for every invitation.
+  const [linkDays, setLinkDays] = useState<number | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const [failureLink, setFailureLink] = useState<{ to: string; labelKey: string } | null>(null)
 
@@ -91,14 +96,23 @@ function InviteForm() {
     event.preventDefault()
     if (sending || email.trim() === '') return
     setSending(true)
+    // A new attempt replaces the last answer: an earlier "sent" must not sit above a refusal.
+    setSent(null)
     setFailure(null)
     setFailureLink(null)
     try {
       const invitation = await inviteUser(email.trim(), chosen)
       setSent({ email: invitation.email })
+      setLinkDays((before) => invitationLinkDays(invitation) ?? before)
       setEmail('')
       setChosen([])
     } catch (error) {
+      // The address already has an invitation waiting: it is resent or revoked on Team members.
+      if (invitationAlreadyOpen(error)) {
+        setFailure(t('people.invite.alreadyOpen'))
+        setFailureLink({ to: WAITING_INVITATIONS_ROUTE, labelKey: 'people.invite.alreadyOpenLink' })
+        return
+      }
       // US-1: at the plan's capacity a paid place comes first; whoever manages the plan buys it.
       const place = extraPlaceRequired(error)
       if (place !== null) {
@@ -292,8 +306,18 @@ function InviteForm() {
             </h3>
             <dl className="mt-2">
               <Row label={t('invite.emailSent')} value={t('invite.straightAway')} />
-              <Row label={t('invite.linkWorksFor')} value={t('invite.notAvailableYet')} muted />
-              <Row label={t('invite.placeTaken')} value={t('invite.notAvailableYet')} muted />
+              <Row
+                label={t('invite.linkWorksFor')}
+                value={
+                  linkDays === null
+                    ? t('invite.notAvailableYet')
+                    : t('invite.days', { count: linkDays })
+                }
+                muted={linkDays === null}
+              />
+              {/* An open invitation counts against the plan's people from the moment it is sent
+                  (SubscriptionEnforcementService.assertCanAddPerson). */}
+              <Row label={t('invite.placeTaken')} value={t('invite.immediately')} />
               {/* US-1: an extra person is charged from the day their payment is confirmed. */}
               <Row label={t('invite.chargedFrom')} value={t('invite.chargedFromValue')} last />
             </dl>
