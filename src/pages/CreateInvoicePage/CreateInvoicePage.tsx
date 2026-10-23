@@ -48,6 +48,7 @@ import {
   type BranchDto,
   type DraftPreview,
 } from '../../api/invoices/drafts'
+import { useBranchName } from '../../components/branch/useBranchName'
 import {
   loadAttachments,
   loadReceivable,
@@ -614,6 +615,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   const justCreated = useRef<string | null>(null)
 
   const branches = useApiRead<BranchDto[]>(BRANCHES_PATH, loadBranches)
+  const branchName = useBranchName()
   const branchList = useMemo(
     () => (branches.read.status === 'ready' ? branches.read.data : []),
     [branches.read],
@@ -1347,7 +1349,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     ]
   const branchOptions: SelectOption[] = branchList.map((branch) => ({
     value: branch.id,
-    label: branch.name,
+    label: branchName.label(branch),
     hint: branch.code,
   }))
   const termOptions: SelectOption[] = PAYMENT_TERMS.map((term) => ({
@@ -2455,6 +2457,9 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
           version={issuing.version}
           initialIssueDate={issueDate}
           initialDueDate={dueDate}
+          // A sales draft is sent for approval from its own page; the self-billed page has no
+          // approval card, so it gets no link.
+          approvalPage={selfBilled ? undefined : `/invoices/${encodeURIComponent(issuing.id)}`}
           onClose={() => setIssuing(null)}
           onIssued={(issued) => void afterIssue(issued)}
         />

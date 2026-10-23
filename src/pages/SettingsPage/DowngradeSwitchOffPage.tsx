@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useBranchName } from '../../components/branch/useBranchName'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { useApiRead } from '../../hooks'
 import { useCan } from '../../lib/session/session'
@@ -350,6 +351,7 @@ function BranchesCard({
   date: (iso: string) => string
 }) {
   const { t } = useTranslation()
+  const branchName = useBranchName()
   return (
     <SectionCard
       title={t('subscription.switchOff.branchesTitle')}
@@ -375,6 +377,7 @@ function BranchesCard({
             {view.branches.map((row) => {
               const ticked = chosen.includes(row.branchId)
               const full = !ticked && chosen.length >= excess
+              const name = branchName.label({ id: row.branchId, name: row.name })
               return (
                 <tr key={row.branchId} className={TBODY_ROW}>
                   <Td first>
@@ -382,13 +385,13 @@ function BranchesCard({
                       <TableCheckbox
                         checked={ticked}
                         disabled={full}
-                        ariaLabel={t('subscription.switchOff.chooseBranch', { name: row.name })}
+                        ariaLabel={t('subscription.switchOff.chooseBranch', { name })}
                         onChange={() => setChosen(toggle(chosen, row.branchId))}
                       />
                     ) : null}
                   </Td>
                   <Td>
-                    <p className="text-sm font-semibold text-text-primary">{row.name}</p>
+                    <p className="text-sm font-semibold text-text-primary">{name}</p>
                   </Td>
                   <Td>
                     <span className="text-sm font-medium text-text-secondary">

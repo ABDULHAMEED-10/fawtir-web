@@ -96,7 +96,7 @@ function Line({
 export function PosClosePage() {
   const { t, i18n } = useTranslation()
   // The till's branch is the one chosen in the sidebar; the sample's until branches load.
-  const branchName = useWorkingBranch().branch?.name ?? TILL.branch
+  const branchName = useWorkingBranch().name ?? TILL.branch
   const [counted, setCounted] = useState(COUNTED)
   const [reason, setReason] = useState(SHORT_REASONS[0].id)
   const [byNote, setByNote] = useState(false)

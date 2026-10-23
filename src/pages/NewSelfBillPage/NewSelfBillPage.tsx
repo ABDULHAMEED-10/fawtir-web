@@ -17,6 +17,7 @@ import {
   type DraftPreview,
   type DraftResponse,
 } from '../../api/invoices/drafts'
+import { useBranchName } from '../../components/branch/useBranchName'
 import {
   AGREEMENTS_PATH,
   loadAgreements,
@@ -386,6 +387,7 @@ function SelfBillComposer() {
     loadCustomerPage(customersPath),
   )
   const branches = useApiRead<BranchDto[]>(BRANCHES_PATH, loadBranches)
+  const { label: branchLabel } = useBranchName()
   const draftPath = routeId ? `/v1/invoice-drafts/${routeId}` : null
   const draft = useApiRead<DraftResponse>(draftPath, () => loadDraft(routeId!))
 
@@ -629,7 +631,7 @@ function SelfBillComposer() {
 
   const branchOptions: SelectOption[] =
     branches.read.status === 'ready'
-      ? branches.read.data.map((branch) => ({ value: branch.id, label: branch.name }))
+      ? branches.read.data.map((branch) => ({ value: branch.id, label: branchLabel(branch) }))
       : form.branchId
         ? [{ value: form.branchId, label: form.branchId }]
         : []

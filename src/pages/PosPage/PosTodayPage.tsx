@@ -27,7 +27,7 @@ const STATE_TONE = {
 export function PosTodayPage() {
   const { t, i18n } = useTranslation()
   // The till's branch is the one chosen in the sidebar; the sample's until branches load.
-  const branchName = useWorkingBranch().branch?.name ?? TILL.branch
+  const branchName = useWorkingBranch().name ?? TILL.branch
   const [tab, setTab] = useState<TodayTabId>('all')
   const [query, setQuery] = useState('')
 

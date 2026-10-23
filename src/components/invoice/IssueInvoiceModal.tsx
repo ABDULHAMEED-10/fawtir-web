@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { DateField, Modal } from '../ui'
 import { Notice } from '../feedback/ApiNotice'
@@ -10,6 +11,7 @@ import { subscriptionRestrictedAction } from '../../lib/subscriptionRestricted'
 import { useCan } from '../../lib/session/session'
 import { ApiError } from '../../api'
 import { EXTRA_DOCUMENTS_ROUTE } from '../../api/settings/extraDocuments'
+import { loadPlanChanges } from '../../api/settings/planChanges'
 import {
   SELF_BILLED_SUPPLIER_SWITCHED_OFF_KEY,
   SELF_BILLING_AGREEMENTS_ROUTE,
@@ -18,9 +20,12 @@ import {
   isSupplierIsicMissing,
 } from '../../lib/selfBillingRefusals'
 import { formatAmount } from '../../lib/format'
+import { sendsForApprovalFromDraft } from '../../lib/salesApproval'
 import { issueProblems, issueRefusalOf, muscatToday, type IssueField, type IssueForm } from '../../lib/invoiceIssue'
 
 const FORM_ID = 'issue-invoice'
+/** Settings › Plan and usage, where a self-service upgrade is chosen and paid. */
+const PLAN_ROUTE = '/settings/plan'
 const ORDER: IssueField[] = ['issueDate', 'dueDate']
 
 /**
@@ -37,6 +42,7 @@ export function IssueInvoiceModal({
   initialDueDate,
   kind = 'INVOICE',
   selfBilled = false,
+  approvalPage,
   onClose,
   onIssued,
 }: {
@@ -55,6 +61,11 @@ export function IssueInvoiceModal({
    * is the supplier's, set on its agreement, not the company's.
    */
   selfBilled?: boolean
+  /**
+   * The draft's own page, where it is sent for approval. Given only where this opens away from
+   * that page (the composer), so a refusal to issue before approval can link to it.
+   */
+  approvalPage?: string
   onClose: () => void
   onIssued: (invoice: InvoiceDetailDto) => void
 }) {
@@ -69,6 +80,10 @@ export function IssueInvoiceModal({
   // A way out where there is one: the page where the supplier's business activity is set, or, at
   // 0 documents left, buying extra documents.
   const [failureLink, setFailureLink] = useState<{ to: string; labelKey: string } | null>(null)
+  // Plan v4 §7.1: at 0 left the way to buy extras comes with an upgrade option beside it, offered
+  // only while the server's self-service plan-change switch is on (otherwise upgrades go through
+  // the Fawtir team and there is nothing to open here).
+  const [offerUpgrade, setOfferUpgrade] = useState(false)
   const [busy, setBusy] = useState(false)
   const mayBuyExtras = useCan('tenant.plan.manage')
   // Two clicks in one tick both run before `busy` renders the button disabled; the second would be
@@ -103,6 +118,7 @@ export function IssueInvoiceModal({
     setErrors(problems)
     setFailure(null)
     setFailureLink(null)
+    setOfferUpgrade(false)
     if (Object.values(problems).some(Boolean)) {
       focusFirstInvalidField(target, ORDER, problems)
       return
@@ -127,12 +143,19 @@ export function IssueInvoiceModal({
         // At 0 left the way on is to buy extra documents ahead, for those who may (EX-1).
         if (error instanceof ApiError && error.code === 'QUOTA_EXCEEDED' && mayBuyExtras) {
           setFailureLink({ to: EXTRA_DOCUMENTS_ROUTE, labelKey: 'extraDocuments.entry' })
+          loadPlanChanges().then(
+            (changes) => setOfferUpgrade(changes.available),
+            () => setOfferUpgrade(false),
+          )
         }
       } else {
         const message = describeApiFailure(error)
         const body = t(message.key, message.values)
         setFailure(message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body)
         setFailureLink(subscriptionRestrictedAction(error))
+      }
+      if (approvalPage && sendsForApprovalFromDraft(error)) {
+        setFailureLink({ to: approvalPage, labelKey: 'salesApproval.actions.openDraft' })
       }
     } finally {
       inFlight.current = false
@@ -162,6 +185,14 @@ export function IssueInvoiceModal({
             body={failure}
             action={failureLink ? { label: t(failureLink.labelKey), to: failureLink.to } : undefined}
           />
+        ) : null}
+        {failure && offerUpgrade ? (
+          <Link
+            to={PLAN_ROUTE}
+            className="self-start rounded-sm text-sm font-semibold text-primary-700 hover:text-primary-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary-500"
+          >
+            {t('planGate.seePlans')}
+          </Link>
         ) : null}
 
         <div className="flex items-baseline justify-between gap-3 rounded-sm bg-surface-tab-bar px-4 py-3">

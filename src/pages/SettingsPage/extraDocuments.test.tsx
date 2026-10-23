@@ -25,6 +25,17 @@ const EXTRAS = '/api/v1/settings/plan/extra-documents'
 const QUOTE = `${EXTRAS}/quote`
 const ORDER = `POST ${EXTRAS}/purchases`
 const BILLING = '/api/v1/settings/billing'
+const PUBLIC_PLANS = '/api/v1/public/plans'
+const PLAN_CHANGES = '/api/v1/settings/plan/changes'
+
+/** A published name unlike the launch one, so a name on screen can only be the catalogue's. */
+const CATALOGUE_BUSINESS = {
+  code: 'BUSINESS', nameEn: 'Business Growth', nameAr: 'الأعمال للنمو', descriptionEn: null, descriptionAr: null,
+  currency: 'OMR', priceVersionId: 'pv-b', monthlyPrice: '80.000', annualPrice: '800.000', annualFreeMonths: 2,
+  invoicesPerMonth: 1000, peopleIncluded: 5, extraPersonPrice: null, branchesIncluded: 2, extraBranchPrice: null,
+  overagePricePerInvoice: null, apiAccess: false, prioritySupport: false, recommended: false, trialDays: null,
+  trialDocuments: null, features: [], sortOrder: 20,
+}
 
 const ALLOWANCE = {
   periodStart: '2026-10-01', periodEnd: '2026-10-31', resetsOn: '2026-11-01', planDocuments: 200,
@@ -173,6 +184,54 @@ describe('Settings › Buy extra documents: the price (EX-1, EX-2)', () => {
     answers[QUOTE] = () => json(200, quote(10, { upgradeSuggested: true }))
     renderPage()
     expect(await screen.findByText(/would cost more than moving up/)).toBeTruthy()
+  })
+
+  it('names the plan up as the catalogue publishes it, never by its code', async () => {
+    answers[QUOTE] = () => json(200, quote(10, { upgradeSuggested: true }))
+    answers[PUBLIC_PLANS] = () => json(200, [CATALOGUE_BUSINESS])
+    renderPage()
+    expect(await screen.findByText(/moving up to the Business Growth plan/)).toBeTruthy()
+    expect(screen.queryByText(/BUSINESS/)).toBeNull()
+  })
+
+  it('names a launch plan in words while the catalogue cannot be read', async () => {
+    answers[QUOTE] = () => json(200, quote(10, { upgradeSuggested: true }))
+    renderPage()
+    expect(await screen.findByText(/moving up to the Business plan/)).toBeTruthy()
+    expect(screen.queryByText(/BUSINESS/)).toBeNull()
+  })
+
+  it('says the customer can move up themselves while self-service upgrades are on (Plan v4 §10)', async () => {
+    answers[QUOTE] = () => json(200, quote(10, { upgradeSuggested: true }))
+    answers[PUBLIC_PLANS] = () => json(200, [CATALOGUE_BUSINESS])
+    answers[PLAN_CHANGES] = () => json(200, { available: true, pending: null, history: [] })
+    renderPage()
+    expect(
+      await screen.findByText(
+        i18n.t('extraDocuments.quote.upgradeSelfService', { plan: 'Business Growth' }),
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText(/Contact Fawtir/)).toBeNull()
+  })
+
+  it('keeps "Contact Fawtir" while self-service upgrades are off', async () => {
+    answers[QUOTE] = () => json(200, quote(10, { upgradeSuggested: true }))
+    answers[PUBLIC_PLANS] = () => json(200, [CATALOGUE_BUSINESS])
+    answers[PLAN_CHANGES] = () => json(200, { available: false, pending: null, history: [] })
+    renderPage()
+    expect(
+      await screen.findByText(i18n.t('extraDocuments.quote.upgrade', { plan: 'Business Growth' })),
+    ).toBeTruthy()
+  })
+
+  it('names the plan up in Arabic from the catalogue', async () => {
+    await i18n.changeLanguage('ar')
+    answers[QUOTE] = () => json(200, quote(10, { upgradeSuggested: true }))
+    answers[PUBLIC_PLANS] = () => json(200, [CATALOGUE_BUSINESS])
+    renderPage()
+    expect(
+      await screen.findByText(i18n.t('extraDocuments.quote.upgrade', { plan: 'الأعمال للنمو' })),
+    ).toBeTruthy()
   })
 })
 

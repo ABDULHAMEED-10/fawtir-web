@@ -353,6 +353,35 @@ describe('Choose a plan: the published catalogue', () => {
   })
 })
 
+describe('Choose a plan: branches on the cards (Plan v4 §2)', () => {
+  it('prints the branches each plan includes, from the catalogue, as a card line', async () => {
+    answer({
+      [PLANS_URL]: () =>
+        json(200, [
+          { ...STARTER, branchesIncluded: 1 },
+          { ...BUSINESS, branchesIncluded: 3 },
+        ]),
+    })
+    await openPlans()
+    expect(screen.getAllByText('1 branch')).toHaveLength(1)
+    // 3 is not a launch figure (1 / 2 / 5): it can only have come from the console.
+    expect(screen.getAllByText('3 branches')).toHaveLength(1)
+  })
+
+  it('prints no branch line for a plan that does not cap them', async () => {
+    answer({ [PLANS_URL]: () => json(200, [{ ...STARTER, branchesIncluded: null }]) })
+    await openPlans()
+    expect(text()).not.toMatch(/\d+ branch(es)?\b/)
+  })
+
+  it('reads the branch line in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    answer({ [PLANS_URL]: () => json(200, [{ ...STARTER, branchesIncluded: 2 }]) })
+    renderAt('/plans', AFTER_ADDRESS)
+    expect(await screen.findByText('فرعان')).toBeTruthy()
+  })
+})
+
 describe('Choose a plan: saving the choice', () => {
   it('reopens on the saved cycle when the history entry carries none (browser Back)', async () => {
     answer({
@@ -951,6 +980,24 @@ describe("How you'll pay", () => {
     expect(errors.mock.calls.filter((call) => String(call[0]).includes('same key'))).toEqual([])
   })
 
+  it('groups thousands in the summary as the plans page does (12,500.000, not 12500.000)', async () => {
+    const big: SignupStatusPlan = {
+      ...BUSINESS_ANNUAL,
+      monthlyPrice: '1250.000',
+      annualPrice: '12500.000',
+      amountExclVat: '12500.000',
+      vatAmount: '625.000',
+      amountInclVat: '13125.000',
+    }
+    answer({ [STATUS_URL]: () => json(200, { stage: 'PAYMENT', plan: big }) })
+    renderAt('/payment', { ...AFTER_ADDRESS, plan: 'premium', billing: 'annual' })
+
+    expect(await screen.findByText('13,125.000')).toBeTruthy()
+    expect(screen.getByText('12,500.000')).toBeTruthy()
+    expect(text()).toContain(i18n.t('payment.summary.monthlyPrice', { rate: '1,250.000' }))
+    expect(text()).not.toMatch(/12500\.000|13125\.000|1250\.000/)
+  })
+
   it('shows the amounts as unavailable for an older server, and works out none itself', async () => {
     answer({
       [STATUS_URL]: () =>
@@ -1031,7 +1078,8 @@ describe("How you'll pay", () => {
       .setup({ delay: null })
       .click(await screen.findByLabelText(i18n.t('payment.addon.label')))
 
-    expect(screen.getByText('1575.000')).toBeTruthy()
+    // Grouped as the plans page prints it (E6, 22 Oct E2E).
+    expect(screen.getByText('1,575.000')).toBeTruthy()
     expect(
       await screen.findByText(
         i18n.t('payment.summary.addonOnTop', { cycle: i18n.t('payment.summary.annual') }),

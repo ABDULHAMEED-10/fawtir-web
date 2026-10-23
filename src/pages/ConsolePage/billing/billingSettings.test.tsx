@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -481,6 +481,76 @@ describe('Console › Seller', () => {
 
     expect(await screen.findByText(L('error.vatNumber'))).toBeTruthy()
     expect(sent('PUT', SELLER)).toBeNull()
+  })
+
+  it('E1: with VAT on, refuses a seller without a VAT number on the VAT number field, in the server\'s words', async () => {
+    answers[SETTINGS] = () => json(200, settings({ vatRate: '0.05000' }))
+    answers[SELLER] = () => new Response(null, { status: 204 })
+    answers[SELLER_HISTORY] = () => json(200, [])
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/seller')
+
+    await screen.findByText(L('none'))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url === SETTINGS)).toBe(true))
+    await user.type(screen.getByRole('textbox', { name: L('legalNameEn') }), 'Thumb International SPC')
+    await user.type(screen.getByRole('textbox', { name: L('crNumber') }), '1383315')
+    await user.type(screen.getByRole('textbox', { name: L('addressEn') }), 'Muscat')
+    await user.type(screen.getByRole('textbox', { name: L('reason') }), 'First seller')
+    await user.click(screen.getByRole('button', { name: i18n.t('console.settings.save') }))
+
+    expect(await screen.findByText(L('error.vatNumberWhileVatOn'))).toBeTruthy()
+    expect(L('error.vatNumberWhileVatOn')).toBe(
+      "VAT is on, but the seller has no VAT number. Switch VAT off in the billing settings, or enter the seller's VAT number.",
+    )
+    expect(screen.getByRole('textbox', { name: L('vatNumber') }).getAttribute('aria-invalid')).toBe('true')
+    expect(sent('PUT', SELLER)).toBeNull()
+  })
+
+  it('E1: sends a seller without a VAT number while VAT is off', async () => {
+    answers[SETTINGS] = () => json(200, settings({ vatRate: '0.00000' }))
+    answers[SELLER] = () => new Response(null, { status: 204 })
+    answers[SELLER_HISTORY] = () => json(200, [])
+    answers[`PUT ${SELLER}`] = () => json(200, seller({ version: 1, vatNumber: null }))
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/seller')
+
+    await screen.findByText(L('none'))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url === SETTINGS)).toBe(true))
+    await user.type(screen.getByRole('textbox', { name: L('legalNameEn') }), 'Thumb International SPC')
+    await user.type(screen.getByRole('textbox', { name: L('crNumber') }), '1383315')
+    await user.type(screen.getByRole('textbox', { name: L('addressEn') }), 'Muscat')
+    await user.type(screen.getByRole('textbox', { name: L('reason') }), 'First seller')
+    await user.click(screen.getByRole('button', { name: i18n.t('console.settings.save') }))
+
+    await waitFor(() => expect(sent('PUT', SELLER)).not.toBeNull())
+    expect(screen.queryByText(L('error.vatNumberWhileVatOn'))).toBeNull()
+  })
+
+  it('E1: brings a refusal the server sends into view, since it sits above the form', async () => {
+    const scrolled = vi.fn()
+    const original = Element.prototype.scrollIntoView
+    Element.prototype.scrollIntoView = scrolled
+    onTestFinished(() => {
+      Element.prototype.scrollIntoView = original
+    })
+    answers[SELLER] = () => new Response(null, { status: 204 })
+    answers[SELLER_HISTORY] = () => json(200, [])
+    answers[`PUT ${SELLER}`] = () =>
+      json(400, { type: 'https://api.fawtir.om/problems/validation-error', status: 400 })
+    const user = userEvent.setup({ delay: null })
+    renderAt('/console/billing/seller')
+
+    await screen.findByText(L('none'))
+    await user.type(screen.getByRole('textbox', { name: L('legalNameEn') }), 'Thumb International SPC')
+    await user.type(screen.getByRole('textbox', { name: L('crNumber') }), '1383315')
+    await user.type(screen.getByRole('textbox', { name: L('addressEn') }), 'Muscat')
+    await user.type(screen.getByRole('textbox', { name: L('reason') }), 'First seller')
+    await user.click(screen.getByRole('button', { name: i18n.t('console.settings.save') }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toBe(L('refusal.invalid'))
+    await waitFor(() => expect(scrolled).toHaveBeenCalled())
+    expect(scrolled.mock.contexts.at(-1)).toBe(alert)
   })
 
   it('says someone else changed the seller on a version conflict', async () => {

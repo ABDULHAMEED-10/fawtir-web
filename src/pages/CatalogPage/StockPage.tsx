@@ -50,7 +50,7 @@ const rowIcon = (id: string) => {
  */
 export function StockPage() {
   const { t, i18n } = useTranslation()
-  const branchName = useWorkingBranch().branch?.name
+  const branchName = useWorkingBranch().name
   const [tab, setTab] = useState<StockTab>('all')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('lowestFirst')

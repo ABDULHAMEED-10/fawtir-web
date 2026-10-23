@@ -23,6 +23,7 @@ import {
 } from '../../api/expenditure/purchaseOrders'
 import { loadSupplier, supplierPath, type SupplierDetailDto } from '../../api/expenditure/suppliers'
 import { BRANCHES_PATH, loadBranches, type BranchDto } from '../../api/invoices/drafts'
+import { useBranchName } from '../../components/branch/useBranchName'
 import { describeApiFailure } from '../../lib/apiFailure'
 import {
   acceptsReceipts,
@@ -103,6 +104,7 @@ function PurchaseOrderDetail({ id }: { id: string }) {
     row?.deliverToBranchId ? BRANCHES_PATH : null,
     loadBranches,
   )
+  const { label: branchLabel } = useBranchName()
   const branch =
     branches.read.status === 'ready'
       ? (branches.read.data.find((entry) => entry.id === row?.deliverToBranchId) ?? null)
@@ -365,7 +367,7 @@ function PurchaseOrderDetail({ id }: { id: string }) {
                 label={t('purchaseOrder.deliverTo')}
                 value={
                   branch
-                    ? [branch.name, branch.city].filter(Boolean).join(', ')
+                    ? [branchLabel(branch), branch.city].filter(Boolean).join(', ')
                     : (row.deliverToBranchId ?? '—')
                 }
               />

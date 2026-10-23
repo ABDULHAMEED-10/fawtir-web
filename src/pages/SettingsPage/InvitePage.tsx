@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { roleLabel } from '../../lib/roleLabels'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { useApiRead } from '../../hooks'
 import { useCan, useSession } from '../../lib/session/session'
@@ -122,7 +123,7 @@ function InviteForm() {
   const roleList = roles.read.status === 'ready' ? roles.read.data : []
   const chosenNames = roleList
     .filter((role) => chosen.includes(role.code))
-    .map((role) => role.name)
+    .map((role) => roleLabel(role, t))
   const filledIn = email.trim().includes('@')
 
   return (
@@ -389,7 +390,7 @@ function RoleChoice({
             picked ? 'text-primary-800' : 'text-text-primary',
           ].join(' ')}
         >
-          {role.name}
+          {roleLabel(role, t)}
         </span>
         {role.description ? (
           <span className="mt-1.5 block max-w-[620px] text-sm font-medium leading-[1.6] text-text-tertiary">

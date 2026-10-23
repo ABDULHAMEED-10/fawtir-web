@@ -28,6 +28,7 @@ import type { DiscountType } from '../../lib/invoiceMath'
 import { CatalogShell, Pill } from './CatalogShell'
 import { ItemTabs } from './ItemTabs'
 import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
+import { useBranchName } from '../../components/branch/useBranchName'
 import { Input, Modal, Rial, Select, Switch, TableCheckbox, withRial } from '../../components/ui'
 import {
   ApiReadFailure,
@@ -228,6 +229,7 @@ function ItemEditor({
   // or only in chosen ones, with an optional price per branch. Its VAT and HS code never differ
   // by branch. TODO(backend): the product does not carry branch settings yet (INCOME.md P.9).
   const branchRead = useWorkingBranch()
+  const { label: branchLabel } = useBranchName()
   const [allBranches, setAllBranches] = useState(true)
   const [soldIn, setSoldIn] = useState<Record<string, boolean>>({})
   const [branchPrices, setBranchPrices] = useState<Record<string, string>>({})
@@ -1031,12 +1033,12 @@ function ItemEditor({
                             onChange={() =>
                               setSoldIn((current) => ({ ...current, [branch.id]: !on }))
                             }
-                            ariaLabel={t('item.branches.soldHere', { branch: branch.name })}
+                            ariaLabel={t('item.branches.soldHere', { branch: branchLabel(branch) })}
                           />
                         )}
                         <span className="min-w-0 flex-1">
                           <bdi className="block truncate text-sm font-semibold text-text-primary">
-                            {branch.name}
+                            {branchLabel(branch)}
                           </bdi>
                           <span className="text-xs font-medium text-text-quaternary">
                             {on ? t('item.branches.sold') : t('item.branches.notSold')}
@@ -1067,7 +1069,7 @@ function ItemEditor({
                                 }
                               })
                             }
-                            aria-label={t('item.branches.priceHere', { branch: branch.name })}
+                            aria-label={t('item.branches.priceHere', { branch: branchLabel(branch) })}
                             className="w-full min-w-0 bg-transparent text-end text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder disabled:text-text-quaternary"
                             dir="ltr"
                           />

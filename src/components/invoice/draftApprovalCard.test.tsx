@@ -138,7 +138,7 @@ describe('the draft approval card', () => {
 
   it("shows the amount in the draft's own currency", () => {
     show({ ...base, status: 'PENDING', currency: 'USD', payableAmount: 250 }, PREPARER)
-    const line = screen.getByText(/Sent for approval at/)
+    const line = screen.getByText(/Sent for approval/)
     expect(line.textContent).toMatch(/USD/)
     expect(line.textContent).not.toMatch(/OMR/)
     // No rial sign for a dollar draft.
@@ -147,10 +147,25 @@ describe('the draft approval card', () => {
 
   it('shows the rial sign, not the word OMR, for a draft in rials', () => {
     show({ ...base, status: 'PENDING' }, PREPARER)
-    const line = screen.getByText(/Sent for approval at/)
+    const line = screen.getByText(/Sent for approval/)
     // The sign carries "OMR" for screen readers only; no visible "OMR" text node.
     expect(line.querySelector('.sr-only')?.textContent).toBe('OMR')
     expect(line.firstChild?.textContent).not.toMatch(/OMR/)
+  })
+
+  it('says when the draft was sent for approval, in Muscat time', () => {
+    show({ ...base, status: 'PENDING', requestedAt: '2026-10-22T06:30:00Z' }, PREPARER)
+    const line = screen.getByText(/Sent for approval/)
+    // 06:30 UTC is 10:30 in Muscat.
+    expect(line.textContent).toMatch(/^Sent for approval on 22 Oct 2026.*10:30.* for /)
+    expect(line.textContent).toMatch(/1,050\.500/)
+  })
+
+  it('leaves out the time, not the sentence, when the server gives none', () => {
+    show({ ...base, status: 'PENDING', requestedAt: null }, PREPARER)
+    const line = screen.getByText(/Sent for approval/)
+    expect(line.textContent).toMatch(/^Sent for approval for /)
+    expect(line.textContent).not.toMatch(/ at /)
   })
 
   it('shows the reason a draft was not approved', () => {

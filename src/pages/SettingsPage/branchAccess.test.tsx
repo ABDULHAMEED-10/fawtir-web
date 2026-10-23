@@ -447,6 +447,57 @@ describe('Team members', () => {
   })
 })
 
+describe('Names in the reader\'s language (E16, E25)', () => {
+  it('names a built-in role by its label for a branch administrator who may not list roles', async () => {
+    who = { ...BRANCH_ADMIN, permissions: ['branch.users.manage', 'invoice.read'] }
+    const FARAH = user('p-fin', 'Farah', ['FINANCE_MANAGER'], ['b-sohar'])
+    answers[PEOPLE_URL] = () =>
+      json(200, { content: [FARAH], totalElements: 1, totalPages: 1, number: 0, size: 100 })
+    answers['/api/v1/users/p-fin'] = () => json(200, FARAH)
+    renderAt('/settings/team')
+    const row = (await screen.findByRole('link', { name: 'Farah' })).closest('tr') as HTMLElement
+    expect(within(row).getByText('Finance manager')).toBeTruthy()
+    expect(within(row).queryByText('FINANCE_MANAGER')).toBeNull()
+    expect(fetchMock.mock.calls.some(([url]) => url === '/api/v1/roles')).toBe(false)
+  })
+
+  it('names a built-in role the same for the Owner, and a custom role by its own name', async () => {
+    const FARAH = user('p-fin', 'Farah', ['FINANCE_MANAGER'], ['b-sohar'])
+    const HADI = user('p-cus', 'Hadi', ['NIGHT_SHIFT'], ['b-sohar'])
+    answers[PEOPLE_URL] = () =>
+      json(200, { content: [FARAH, HADI], totalElements: 2, totalPages: 1, number: 0, size: 100 })
+    answers['/api/v1/roles'] = () =>
+      json(200, [
+        ...ROLE_LIST,
+        { ...ROLE_LIST[1], id: 'r-6', code: 'FINANCE_MANAGER', name: 'Finance Manager' },
+        { ...ROLE_LIST[1], id: 'r-7', code: 'NIGHT_SHIFT', name: 'Night shift', systemRole: false, catalogueKind: 'CUSTOM' },
+      ])
+    renderAt('/settings/team')
+    const farah = (await screen.findByRole('link', { name: 'Farah' })).closest('tr') as HTMLElement
+    await waitFor(() => expect(within(farah).getByText('Finance manager')).toBeTruthy())
+    const hadi = screen.getByRole('link', { name: 'Hadi' }).closest('tr') as HTMLElement
+    expect(within(hadi).getByText('Night shift')).toBeTruthy()
+  })
+
+  it('names roles and branches in Arabic, the branch by its Arabic name when it has one', async () => {
+    await i18n.changeLanguage('ar')
+    answers[OVERVIEW] = () =>
+      json(200, {
+        ...OVERVIEW_BODY,
+        branches: [
+          { ...branchRow('b-muscat', 'Muscat'), nameAr: 'مسقط' },
+          { ...branchRow('b-sohar', 'Sohar'), nameAr: 'فرع صحار' },
+          branchRow('b-sur', 'Sur'),
+          branchRow('b-old', 'Old souq', false),
+        ],
+      })
+    renderAt('/settings/team')
+    const laila = (await screen.findByRole('link', { name: 'Laila' })).closest('tr') as HTMLElement
+    await waitFor(() => expect(within(laila).getByText(/مسقط، فرع صحار|مسقط, فرع صحار/)).toBeTruthy())
+    expect(within(laila).getByText('محاسب')).toBeTruthy()
+  })
+})
+
 describe('Invite someone', () => {
   it('sends one role, approval as a set on top, and the branches chosen', async () => {
     answers['POST /api/v1/users/invitations'] = () =>

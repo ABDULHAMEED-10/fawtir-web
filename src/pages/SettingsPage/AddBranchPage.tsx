@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { BranchRoster } from './BranchRoster'
+import { CloseBranchDialog } from './CloseBranchDialog'
 import { DateField, Input, Select, Switch } from '../../components/ui'
 import { useCan } from '../../lib/session/session'
 import { useBranchAccessOn } from '../../lib/identity/branchAccessSwitch'
@@ -21,6 +22,13 @@ import {
 } from '../../api/peppol/participantStanding'
 import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
 import { PAID_EXTRAS_ROUTE, extraPlaceRequired } from '../../api/settings/paidExtras'
+import { setBranchOpen } from '../../api/settings/removals'
+import {
+  SUBSCRIPTION_PATH,
+  loadSubscription,
+  type SubscriptionStatusDto,
+} from '../../api/settings/subscription'
+import { placeSentence, useRemovalFailureText } from '../../lib/removalRefusals'
 import {
   assignInvoicePrefix,
   codeFromName,
@@ -55,7 +63,7 @@ import tickWhiteIcon from '../../assets/settings/check-white.svg'
  * same reason: neither was sent, and the roster listed sample people.
  */
 export function AddBranchPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   // Inviting is a user-management action; the link is offered only to those who may.
   // Nobody new is added while the subscription is read-only (ST-2).
@@ -75,10 +83,10 @@ export function AddBranchPage() {
   const takenCodes =
     overview.status === 'ready' ? overview.data.branches.map((row) => row.code) : []
   // The prefix is the overview's own figure (BranchDetail carries no invoicePrefix field).
-  const existingPrefix =
-    overview.status === 'ready'
-      ? (overview.data.branches.find((row) => row.id === id)?.invoicePrefix ?? null)
-      : null
+  const overviewReady = overview.status === 'ready'
+  const existingPrefix = overviewReady
+    ? (overview.data.branches.find((row) => row.id === id)?.invoicePrefix ?? null)
+    : null
 
   const [name, setName] = useState(existing?.name ?? '')
   const [arabicName, setArabicName] = useState('')
@@ -120,11 +128,45 @@ export function AddBranchPage() {
     setPostalCode(existing.postalCode ?? '')
     setGovernorate(governorateIdFor(existing.state) ?? '')
     setPhone(existing.phone ?? '')
-    setNumbering(existingPrefix ? 'own' : 'shared')
-    setPrefix(existingPrefix ?? '')
     setFilledFrom(existing.id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [existing, existingPrefix])
+  }, [existing])
+
+  // The prefix comes from the overview, which can answer after the branch itself. Filling the
+  // numbering with the branch read a branch with its own series as "carries on the company
+  // series" whenever the overview was still in flight; it is filled once the overview has answered.
+  const [numberingFrom, setNumberingFrom] = useState<string | undefined>(undefined)
+  useEffect(() => {
+    if (!existing || !overviewReady || existing.id === numberingFrom) return
+    setNumbering(existingPrefix ? 'own' : 'shared')
+    setPrefix(existingPrefix ?? '')
+    setNumberingFrom(existing.id)
+  }, [existing, overviewReady, existingPrefix, numberingFrom])
+
+  // Closing the branch from its own page (BR-2, BR-4): the same dialog as the list's menu. The Head
+  // Branch is never closed, and a closed one is reopened from the list, so neither is offered it.
+  const subscription = useApiRead<SubscriptionStatusDto>(SUBSCRIPTION_PATH, loadSubscription).read
+  const renewsOn = subscription.status === 'ready' ? (subscription.data.renewsOn ?? null) : null
+  const failureText = useRemovalFailureText()
+  const [closing, setClosing] = useState(false)
+  const [closeBusy, setCloseBusy] = useState(false)
+  const [closeFailure, setCloseFailure] = useState<string | null>(null)
+  const mayClose = Boolean(
+    existing && existing.active && !existing.headOffice && !existing.headBranch,
+  )
+  const closeNow = async () => {
+    if (!existing) return
+    setCloseBusy(true)
+    setCloseFailure(null)
+    try {
+      await setBranchOpen(existing.id, false)
+      const done = placeSentence(t, 'removal.branch', 'done', renewsOn, i18n.language, existing.name)
+      navigate('/settings/branches', { state: { done } })
+    } catch (error) {
+      setCloseFailure(failureText(error))
+      setCloseBusy(false)
+    }
+  }
 
   // A shared series continues the company's own numbering, whose next number this screen cannot
   // read, so it promises none.
@@ -170,10 +212,11 @@ export function AddBranchPage() {
       if (base) {
         // Text sets the Arabic name; an emptied one asks for it to be removed; else it is left.
         clearAsked = !arabic && Boolean(base.nameAr?.trim())
+        // A closed branch stays closed when its details are saved; reopening is its own action.
         saved = await updateBranch(
           base.id,
           attributes,
-          true,
+          base.active,
           base.version,
           arabic ? arabic : clearAsked ? '' : undefined,
         )
@@ -522,12 +565,27 @@ export function AddBranchPage() {
           >
             {t('addBranch.cancel')}
           </Link>
-          <button
-            type="button"
-            className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-          >
-            {existing ? t('addBranch.closeThisBranch') : t('addBranch.saveDraft')}
-          </button>
+          {existing ? (
+            mayClose ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setCloseFailure(null)
+                  setClosing(true)
+                }}
+                className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+              >
+                {t('addBranch.closeThisBranch')}
+              </button>
+            ) : null
+          ) : (
+            <button
+              type="button"
+              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+            >
+              {t('addBranch.saveDraft')}
+            </button>
+          )}
           <button
             type="button"
             disabled={!canAdd}
@@ -543,6 +601,18 @@ export function AddBranchPage() {
           </button>
         </div>
       </div>
+
+      {existing ? (
+        <CloseBranchDialog
+          open={closing}
+          name={existing.name}
+          renewsOn={renewsOn}
+          busy={closeBusy}
+          failure={closeFailure}
+          onCancel={() => setClosing(false)}
+          onConfirm={() => void closeNow()}
+        />
+      ) : null}
     </SettingsShell>
   )
 }

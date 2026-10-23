@@ -29,6 +29,7 @@ import {
   type InvoiceTypeDto,
 } from '../../api/invoices/list'
 import { discardDraft, loadBranches, type BranchDto } from '../../api/invoices/drafts'
+import { useBranchName } from '../../components/branch/useBranchName'
 import {
   SALES_APPROVAL_RULE_PATH,
   loadSalesApprovalRule,
@@ -302,13 +303,14 @@ function InvoicesScreen() {
   const list = useApiRead<Page<InvoiceRowDto>>(listPath, () => loadInvoicePage(listPath!))
   // The design names the issuing branch under the customer; the row carries only its id.
   const branches = useApiRead<BranchDto[]>('/v1/branches', loadBranches)
+  const { label: branchLabel } = useBranchName()
   const branchNames = useMemo(() => {
     const names = new Map<string, string>()
     if (branches.read.status === 'ready') {
-      for (const branch of branches.read.data) names.set(branch.id, branch.name)
+      for (const branch of branches.read.data) names.set(branch.id, branchLabel(branch))
     }
     return names
-  }, [branches.read])
+  }, [branches.read, branchLabel])
 
   const [notice, setNotice] = useState<{ body: string } | null>(null)
   const [exporting, setExporting] = useState(false)

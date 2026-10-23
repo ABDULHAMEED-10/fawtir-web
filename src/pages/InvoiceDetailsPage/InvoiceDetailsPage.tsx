@@ -11,6 +11,7 @@ import {
   RowsView,
   type ActionMenuItem,
 } from '../../components/ui'
+import { ChatBubbleIcon, MailIcon } from '../../components/ui/icons'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead, usePendingRefresh } from '../../hooks'
 import { useReferenceData } from '../../lib/reference/referenceData'
@@ -41,6 +42,7 @@ import {
   type InvoiceSendResultDto,
 } from '../../api/invoices/detail'
 import { loadBranches, type BranchDto } from '../../api/invoices/drafts'
+import { useBranchName } from '../../components/branch/useBranchName'
 import { invoiceListPath, loadInvoicePage, type InvoiceRowDto } from '../../api/invoices/list'
 import {
   REMINDER_SCHEDULE_PATH,
@@ -245,6 +247,7 @@ function InvoiceScreen() {
     () => loadCustomer(document!.customerId),
   )
   const branches = useApiRead<BranchDto[]>(document ? '/v1/branches' : null, loadBranches)
+  const branchLabel = useBranchName()
   // The live profile stands in for the seller only where the document carries no issued snapshot
   // (a draft, or a server older than the snapshot), and only for a reader the profile admits.
   const companyProfile = useApiRead<CompanyProfileDto>(
@@ -392,10 +395,11 @@ function InvoiceScreen() {
   const money = (value: number | null | undefined) =>
     value === null || value === undefined ? '—' : formatAmount(value, data.currency, language)
   const day = (value: string | null) => (value ? formatDate(value, language) : '—')
-  const branchName =
+  const issuingBranch =
     branches.read.status === 'ready'
-      ? branches.read.data.find((branch) => branch.id === data.branchId)?.name
+      ? branches.read.data.find((branch) => branch.id === data.branchId)
       : undefined
+  const branchName = issuingBranch ? branchLabel.label(issuingBranch) : undefined
   const customerName =
     customer.read.status === 'ready' ? customer.read.data.displayName : t(party.unknown)
   const onPeppol =
@@ -1137,6 +1141,27 @@ function InvoiceScreen() {
                   className="rounded-sm p-0.5 disabled:opacity-40"
                 >
                   <img src={printIcon} alt="" className="size-5" />
+                </button>
+                {/* TODO(backend): sharing a copy of the invoice waits for the rendered PDF and the
+                    share calls (INCOME.md rows SH.1 to SH.3). When live, hide both while the
+                    subscription is read-only (ST-2) and on a deemed supply (no buyer copy). */}
+                <button
+                  type="button"
+                  disabled
+                  title={t('invoiceDetails.share.unavailable')}
+                  aria-label={t('invoiceDetails.share.email')}
+                  className="rounded-sm p-0.5 text-text-tertiary disabled:opacity-40"
+                >
+                  <MailIcon />
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  title={t('invoiceDetails.share.unavailable')}
+                  aria-label={t('invoiceDetails.share.whatsapp')}
+                  className="rounded-sm p-0.5 text-text-tertiary disabled:opacity-40"
+                >
+                  <ChatBubbleIcon />
                 </button>
                 <button
                   type="button"

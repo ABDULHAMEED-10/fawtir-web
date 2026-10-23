@@ -2521,7 +2521,12 @@
     "billedBy": "Billed by",
     "from": "From",
     "viewSeller": "View supplier",
-    "sellerUnknown": "Supplier not shown"
+    "sellerUnknown": "Supplier not shown",
+    "share": {
+      "email": "Send by email",
+      "whatsapp": "Share on WhatsApp",
+      "unavailable": "Sharing needs the invoice PDF, which the server does not produce yet."
+    }
   },
   "createInvoice": {
     "breadcrumb": "Invoices",
@@ -15176,7 +15181,7 @@
           "canonicalRepresentation": "How the value is written once normalised. Nothing is filled in for you.",
           "uniquenessRule": "What the value must be unique across. Nothing is filled in for you.",
           "fixtures": "One value per line. Each line is kept exactly as typed.",
-          "evidence": "Up to 500 characters. Required before activation. Never include a password or a key.",
+          "evidence": "A link or reference to the record you relied on, such as https://tickets.example.om/SUP-1200 or SUP-1200. No spaces, none of \" < > \\ ^ ` { | }, up to 500 characters. Required before activation. Never include a user name, password or key.",
           "effectiveFrom": "Starts at 00:00 UTC on this day.",
           "effectiveTo": "Optional. Ends at 00:00 UTC on this day."
         },
@@ -15206,7 +15211,9 @@
         "fixtures": "Enter at least one value, one per line.",
         "evidence": "Keep the evidence reference to 500 characters or fewer.",
         "effectiveTo": "The end day must be after the start day.",
-        "server": "Fawtir did not accept this value."
+        "server": "Fawtir did not accept this value.",
+        "evidenceFormat": "Fawtir did not accept this evidence reference. Use a link or reference with no spaces and none of \" < > \\ ^ ` { | }, such as https://tickets.example.om/SUP-1200 or SUP-1200.",
+        "evidenceCredentials": "Remove the user name or password from the link. The evidence reference is kept in the audit trail."
       },
       "reason": {
         "POLICY_SUBMITTED": "Submitted for review",
@@ -15468,7 +15475,8 @@
       "historyFailed": "The earlier versions could not be loaded.",
       "error": {
         "digits": "Digits only, up to 20",
-        "vatNumber": "OM followed by 10 digits"
+        "vatNumber": "OM followed by 10 digits",
+        "vatNumberWhileVatOn": "VAT is on, but the seller has no VAT number. Switch VAT off in the billing settings, or enter the seller's VAT number."
       },
       "refusal": {
         "conflict": "Someone else changed the seller while you were editing. It has been reloaded: check it and save again.",
@@ -19948,7 +19956,8 @@
     "VIEWER": "Viewer",
     "MOBILE_USER": "Mobile user",
     "INTEGRATION": "Integration",
-    "member": "Member"
+    "member": "Member",
+    "SALES_MANAGER": "Sales manager"
   },
   "appList": {
     "pager": {
@@ -23160,7 +23169,8 @@
       "line_other": "{{documents}} extra documents",
       "expires": "Added to this subscription month. They end on {{date}}.",
       "loading": "Getting the price…",
-      "upgrade": "This month's extra documents would cost more than moving up to the {{plan}} plan. Contact Fawtir to move to a bigger plan."
+      "upgrade": "This month's extra documents would cost more than moving up to the {{plan}} plan. Contact Fawtir to move to a bigger plan.",
+      "upgradeSelfService": "This month's extra documents would cost more than moving up to the {{plan}} plan. You can move up yourself in Plan and usage: a bigger plan applies as soon as it is paid, and you pay only the difference for the days left."
     },
     "order": {
       "title": "Your order",
@@ -23747,12 +23757,14 @@
       "pending": "Waiting for approval · {{given}} of {{required}}",
       "APPROVED": "Approved. It can now be issued.",
       "REJECTED": "Not approved. Edit the draft and send it for approval again.",
-      "amount": "Sent for approval at {{amount}}",
+      "amount": "Sent for approval for {{amount}}",
+      "amountAt": "Sent for approval on {{when}} for {{amount}}",
       "reason": "Reason: {{reason}}",
       "editClears": "Editing the draft clears the approval."
     },
     "actions": {
       "request": "Send for approval",
+      "openDraft": "Open the draft",
       "withdraw": "Withdraw request",
       "approve": "Approve",
       "approveAndIssue": "Approve and issue",

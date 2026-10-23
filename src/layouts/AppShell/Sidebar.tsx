@@ -13,6 +13,7 @@ import {
 import { useUnreadReminders } from '../../lib/notifications'
 import { REQUIRE_SESSION, can, useSession } from '../../lib/session/session'
 import { initialsOf } from '../../lib/format'
+import { builtInRoleKey } from '../../lib/roleLabels'
 import { useApiRead } from '../../hooks/useApiRead'
 import {
   activitySummaryPath,
@@ -136,18 +137,9 @@ function visibleNav(session: Entitlements | null): NavGroup[] {
 }
 
 /** The first role the server assigned, by its code, as a translated label; anything else reads as a member. */
-const KNOWN_ROLES = [
-  'ADMIN',
-  'FINANCE_MANAGER',
-  'ACCOUNTANT',
-  'APPROVER',
-  'VIEWER',
-  'MOBILE_USER',
-  'INTEGRATION',
-]
 function roleKeyOf(session: Entitlements): string {
   const code = session.roles[0]?.code
-  return code && KNOWN_ROLES.includes(code) ? `sessionRoles.${code}` : 'sessionRoles.member'
+  return (code && builtInRoleKey(code)) || 'sessionRoles.member'
 }
 
 /** A group is open when the route matches any of its own child paths. */

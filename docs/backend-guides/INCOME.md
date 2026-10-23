@@ -824,3 +824,17 @@ update rows P.1, P.2 and P.13 above (their original text stays as asked), and P.
 | P.14 | Put an archived product back on sale | there is no route to reactivate a product: `DELETE /v1/products/{id}` archives it and `PUT` refuses an archived one (`PRODUCT_ARCHIVED`), so the item form opens it read-only and offers nothing to undo the archive. Needed: `POST /v1/products/{id}/reactivate?expectedVersion=` (refused while another active product holds its code) |
 | P.15 | List archived products on their own | `GET /v1/products` has only `activeOnly` (default true; false lists active and archived together); there is no filter for archived products only, so the catalogue list cannot draw an "Archived" tab with a server count. Needed: `status=ACTIVE \| ARCHIVED \| ALL` (or `archivedOnly=true`) with `totalElements` for each |
 | P.16 | The product bodies in the openapi | `openapi.yaml` types the `/products` request and response as `{type: object}`; document `ProductRequest` (code, name, description, defaultUnitCode, defaultUnitPrice, defaultTaxCategory, defaultTaxRate, classification: `ItemClassificationRequest`), `ProductResponse` (the above flattened as `classification*`, plus active, archivedAt, version) and `ProductPageResponse`, and the refusal codes (`PRODUCT_CODE_DUPLICATE`, `PRODUCT_VERSION_CONFLICT`, `PRODUCT_ARCHIVED`, `PRODUCT_NOT_FOUND`, `HS_CODE_*`, `SERVICE_TYPE_CODE_INVALID`) |
+
+## Update 2026-10-23 (share an invoice by email and WhatsApp)
+
+Owner decision of 23 Oct 2026: a person can send a copy of an issued invoice to anyone by email
+or WhatsApp, on the web and on mobile. The invoice page draws "Send by email" and "Share on
+WhatsApp" beside Download and Print (`InvoiceDetailsPage.tsx`), switched off until these rows are
+live. Sharing is a copy for convenience; the legal delivery is still Peppol or the buyer e-mail
+copy, and it never changes the invoice's delivery state.
+
+| #    | What the screen needs | Backend |
+| ---- | --- | --- |
+| SH.1 | The rendered invoice PDF (row 2.2) | `GET /v1/invoices/{id}/pdf`, the same artefact the documents archive already links (`artefacts.pdf`, DOCUMENTS.md 3.20): the signed, rendered, bilingual PDF, one file for download, print and sharing |
+| SH.2 | Send by email | `POST /v1/invoices/{id}/share/email` with `{to: [email], cc?: [email], message?, language}`; sends from Fawtir's mail with the PDF attached and the invoice number in the subject; prefill `to` from the customer's email. Refused while the subscription is read-only (ST-2: nothing is sent) and for a deemed supply (no buyer copy); answer the refusal with a problem type the screen can word |
+| SH.3 | Share on WhatsApp | `POST /v1/invoices/{id}/share-link` returning a time-limited public URL to the PDF (`url`, `expiresAt`); the web opens `https://wa.me/?text=` with a short message and the link, mobile uses the phone's share sheet with the PDF file or the link. Same refusals as SH.2. Revoking or letting the link expire never affects the invoice |
