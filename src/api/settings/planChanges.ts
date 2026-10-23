@@ -135,7 +135,27 @@ export type PlanChangePreviewDto = {
   endsReadOnly?: boolean
   /** The number of the unpaid renewal bill that requesting this change cancels (PC-7). */
   replacesRenewalBill?: string | null
+  /**
+   * A whole period of a cheaper plan with a billing-cycle change bought while unpaid, with more
+   * users or branches than it includes (US-4, BR-5 under PC-7): before confirming, the customer
+   * chooses per user and branch to keep it as a paid extra (billed with the period, in
+   * `charge.extras`) or to switch it off as the period starts ({@link SwitchOffChoice}). `users`
+   * and `branches` then give the number above the plan (`overBy`) and who is switched off on the
+   * choice sent, or by default (`defaultSwitchOff`). Absent from an older server: no choice.
+   */
+  choosesSwitchOff?: boolean
 }
+
+/**
+ * The customer's switch-off choice for a preview with `choosesSwitchOff`, per kind. Null: no
+ * choice, the US-4 / BR-5 default (owner and administrators stay, the most recently added users go
+ * first; the Head Branch never, the most recently added branches go first; nobody kept as a paid
+ * extra). A list, empty included: exactly these switch off, the rest above the plan kept as paid
+ * extras.
+ */
+export type SwitchOffChoice = { userIds: string[] | null; branchIds: string[] | null }
+
+export const NO_SWITCH_OFF_CHOICE: SwitchOffChoice = { userIds: null, branchIds: null }
 
 export type PlanChangeStatus =
   'PENDING_PAYMENT' | 'APPLIED' | 'WITHDRAWN' | 'EXPIRED' | 'SUPERSEDED'
@@ -210,8 +230,13 @@ export function previewPlanChange(
   planCode: string,
   billingCycle: BillingCycle,
   signal?: AbortSignal,
+  choice: SwitchOffChoice = NO_SWITCH_OFF_CHOICE,
 ): Promise<PlanChangePreviewDto> {
   const query = new URLSearchParams({ planCode, billingCycle })
+  // A list is sent comma-separated, an empty one as an empty value ("keep all as paid extras");
+  // no choice sends nothing, so the server applies the default.
+  if (choice.userIds !== null) query.set('switchOffUserIds', choice.userIds.join(','))
+  if (choice.branchIds !== null) query.set('switchOffBranchIds', choice.branchIds.join(','))
   return apiRequest<PlanChangePreviewDto>(`${PLAN_CHANGES_PATH}/preview?${query}`, { signal })
 }
 
@@ -231,6 +256,9 @@ export function requestPlanChange(
     billingCycle: BillingCycle
     expectedTotal: string | null
     expectedPlanVersionId: string
+    /** What the preview was made with (US-4, BR-5 under PC-7); null or absent sends nothing. */
+    switchOffUserIds?: string[] | null
+    switchOffBranchIds?: string[] | null
   },
   idempotencyKey: string,
 ): Promise<PlanChangeViewDto> {
@@ -241,6 +269,8 @@ export function requestPlanChange(
       billingCycle: request.billingCycle,
       ...(request.expectedTotal !== null ? { expectedTotal: request.expectedTotal } : {}),
       expectedPlanVersionId: request.expectedPlanVersionId,
+      ...(request.switchOffUserIds ? { switchOffUserIds: request.switchOffUserIds } : {}),
+      ...(request.switchOffBranchIds ? { switchOffBranchIds: request.switchOffBranchIds } : {}),
     },
     headers: { 'Idempotency-Key': idempotencyKey },
   })
