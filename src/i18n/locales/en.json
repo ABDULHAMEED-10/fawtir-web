@@ -10480,7 +10480,8 @@
     "whoWorksThere": "Who works there",
     "whoWorksThereNote": "you can change this later, nobody has to be assigned now",
     "inviteSomeoneNew": "Invite someone new",
-    "notAvailableYet": "Not available yet"
+    "notAvailableYet": "Not available yet",
+    "draftSaved": "Draft saved in this browser. Open Add a branch again to carry on; nothing is added or counted until you add the branch."
   },
   "team": {
     "title": "Team members",

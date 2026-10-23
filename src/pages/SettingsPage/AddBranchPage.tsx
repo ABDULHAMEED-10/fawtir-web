@@ -5,7 +5,7 @@ import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { BranchRoster } from './BranchRoster'
 import { CloseBranchDialog } from './CloseBranchDialog'
 import { DateField, Input, Select, Switch } from '../../components/ui'
-import { useCan } from '../../lib/session/session'
+import { useCan, useSession } from '../../lib/session/session'
 import { useBranchAccessOn } from '../../lib/identity/branchAccessSwitch'
 import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import { useApiRead } from '../../hooks'
@@ -42,6 +42,12 @@ import {
   type BranchDetailDto,
   type BranchOverviewDto,
 } from '../../api/settings/branches'
+import {
+  branchDraftKey,
+  forgetBranchDraft,
+  readBranchDraft,
+  saveBranchDraft,
+} from '../../lib/branchDraft'
 import tickIcon from '../../assets/settings/check-green.svg'
 import circleIcon from '../../assets/settings/minus-amber.svg'
 import tickWhiteIcon from '../../assets/settings/check-white.svg'
@@ -61,6 +67,10 @@ import tickWhiteIcon from '../../assets/settings/check-white.svg'
  * design's worked example (Sur, 411, Ash Sharqiyah South, prefix SR), which a hurried save would
  * have created for real. The opening-date picker and the "who works there" roster went for the
  * same reason: neither was sent, and the roster listed sample people.
+ *
+ * "Save as a draft" keeps the unfinished new branch in this browser and fills the form from it
+ * the next time Add a branch is opened; nothing reaches the server, so nothing is counted toward
+ * the plan (`lib/branchDraft.ts`, E39). Adding the branch forgets the draft.
  */
 export function AddBranchPage() {
   const { t, i18n } = useTranslation()
@@ -88,21 +98,29 @@ export function AddBranchPage() {
     ? (overview.data.branches.find((row) => row.id === id)?.invoicePrefix ?? null)
     : null
 
-  const [name, setName] = useState(existing?.name ?? '')
-  const [arabicName, setArabicName] = useState('')
-  const [street, setStreet] = useState(existing?.address ?? '')
-  const [town, setTown] = useState(existing?.city ?? '')
-  const [postalCode, setPostalCode] = useState(existing?.postalCode ?? '')
+  // A new branch picks up where its saved draft left off; a reopened branch never reads one.
+  const session = useSession()
+  const draftKey = branchDraftKey(session?.tenantId, session?.userId)
+  const [draft] = useState(() => (id ? null : readBranchDraft(draftKey)))
+
+  const [name, setName] = useState(existing?.name ?? draft?.name ?? '')
+  const [arabicName, setArabicName] = useState(draft?.arabicName ?? '')
+  const [street, setStreet] = useState(existing?.address ?? draft?.street ?? '')
+  const [town, setTown] = useState(existing?.city ?? draft?.town ?? '')
+  const [postalCode, setPostalCode] = useState(existing?.postalCode ?? draft?.postalCode ?? '')
   const [governorate, setGovernorate] = useState<GovernorateId | string>(
-    governorateIdFor(existing?.state) ?? '',
+    governorateIdFor(existing?.state) ?? draft?.governorate ?? '',
   )
-  const [phone, setPhone] = useState(existing?.phone ?? '')
+  const [phone, setPhone] = useState(existing?.phone ?? draft?.phone ?? '')
   const [numbering, setNumbering] = useState<'own' | 'shared'>(
-    existing ? (existingPrefix ? 'own' : 'shared') : 'own',
+    existing ? (existingPrefix ? 'own' : 'shared') : (draft?.numbering ?? 'own'),
   )
-  const [prefix, setPrefix] = useState(existing ? (existingPrefix ?? '') : '')
+  const [prefix, setPrefix] = useState(existing ? (existingPrefix ?? '') : (draft?.prefix ?? ''))
   const [behaviour, setBehaviour] = useState(
-    () => new Set(BRANCH_BEHAVIOUR.filter((row) => row.on).map((row) => row.id)),
+    () =>
+      new Set(
+        draft ? draft.behaviour : BRANCH_BEHAVIOUR.filter((row) => row.on).map((row) => row.id),
+      ),
   )
   const [saving, setSaving] = useState(false)
   const [saveFailed, setSaveFailed] = useState(false)
@@ -188,6 +206,22 @@ export function AddBranchPage() {
   const hasPhone = phone.trim().length > 0
   const canAdd = named && prefixOk && !saving
 
+  const saveDraft = () => {
+    saveBranchDraft(draftKey, {
+      name,
+      arabicName,
+      street,
+      town,
+      postalCode,
+      governorate,
+      phone,
+      numbering,
+      prefix,
+      behaviour: [...behaviour],
+    })
+    navigate('/settings/branches', { state: { done: t('addBranch.draftSaved') } })
+  }
+
   const submit = async () => {
     setSaveFailed(false)
     setArabicProblem(null)
@@ -224,6 +258,8 @@ export function AddBranchPage() {
       } else {
         saved = await createBranch(attributes, arabic)
         setCreated(saved)
+        // The branch exists now; its draft would only offer to add it a second time.
+        forgetBranchDraft(draftKey)
         if (arabic && !saved.nameAr?.trim()) {
           // The branch exists without its Arabic name. The next save sends it on this branch.
           setArabicProblem('save')
@@ -581,6 +617,8 @@ export function AddBranchPage() {
           ) : (
             <button
               type="button"
+              onClick={saveDraft}
+              disabled={saving || Boolean(created)}
               className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
             >
               {t('addBranch.saveDraft')}
