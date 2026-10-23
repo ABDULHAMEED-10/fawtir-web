@@ -78,6 +78,7 @@ beforeEach(async () => {
   b1Extra = {}
   reads = {}
   forgetEntitlements()
+  window.localStorage.clear()
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, ADMIN)
@@ -340,6 +341,35 @@ describe('Add a branch, for real', () => {
     expect(screen.getByText('0248:OM1199999999')).toBeTruthy()
     expect(await screen.findByText('3 of 2')).toBeTruthy()
     expect(screen.getByText(i18n.t('addBranch.beyondPlan'))).toBeTruthy()
+  })
+
+  it('counts a paid branch place in the allowance (BR-3): 3 of 3, within the plan', async () => {
+    reads = {
+      '/api/v1/settings/plan': () =>
+        json(200, { plan: { branchesIncluded: 2 }, activeBranches: 2, usage: {} }),
+      '/api/v1/settings/plan/extras': () =>
+        json(200, {
+          open: true,
+          branches: {
+            included: 2,
+            inUse: 2,
+            paidPlacesNow: 1,
+            capacity: 3,
+            unitMonthlyPrice: '1.000',
+            offered: true,
+          },
+        }),
+    }
+    render(
+      <MemoryRouter initialEntries={['/settings/branches/new']}>
+        <Routes>
+          <Route path="/settings/branches/new" element={<AddBranchPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('3 of 3')).toBeTruthy()
+    expect(screen.getByText(i18n.t('addBranch.withinPlan'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('addBranch.beyondPlan'))).toBeNull()
   })
 
   it('leaves out what it cannot read: no VAT, no ID, no plan card', async () => {
@@ -612,5 +642,58 @@ describe('Add a branch, for real', () => {
     })
     expect(screen.getByDisplayValue('Building 42')).toBeTruthy()
     expect(screen.getByDisplayValue('611')).toBeTruthy()
+  })
+})
+
+describe('Add a branch, Save as a draft (E39)', () => {
+  const renderNew = () =>
+    render(
+      <MemoryRouter initialEntries={['/settings/branches/new']}>
+        <Routes>
+          <Route path="/settings/branches/new" element={<AddBranchPage />} />
+          <Route path="/settings/branches" element={<BranchesPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+  it('keeps the unfinished form without creating a branch, and puts it back next time', async () => {
+    const first = renderNew()
+    fireEvent.change(await screen.findByLabelText(/Branch name/), { target: { value: 'Sur' } })
+    fireEvent.change(screen.getByLabelText(/Postal code/), { target: { value: '411' } })
+    fireEvent.change(screen.getByLabelText(/Prefix/), { target: { value: 'sr' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('addBranch.saveDraft') }))
+
+    // Back on the list, saying where the draft is kept; nothing reached the server.
+    expect(await screen.findByText(i18n.t('addBranch.draftSaved'))).toBeTruthy()
+    expect(calls('POST', '/api/v1/branches')).toHaveLength(0)
+    expect(
+      fetchMock.mock.calls.filter(([, init]) => (init as RequestInit)?.method === 'PUT'),
+    ).toHaveLength(0)
+    first.unmount()
+
+    renderNew()
+    expect(((await screen.findByLabelText(/Branch name/)) as HTMLInputElement).value).toBe('Sur')
+    expect((screen.getByLabelText(/Postal code/) as HTMLInputElement).value).toBe('411')
+    expect((screen.getByLabelText(/Prefix/) as HTMLInputElement).value).toBe('SR')
+  })
+
+  it('forgets the draft once the branch is added', async () => {
+    const first = renderNew()
+    fireEvent.change(await screen.findByLabelText(/Branch name/), { target: { value: 'Sur' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('addBranch.saveDraft') }))
+    await screen.findByText(i18n.t('addBranch.draftSaved'))
+    first.unmount()
+
+    const second = renderNew()
+    expect(((await screen.findByLabelText(/Branch name/)) as HTMLInputElement).value).toBe('Sur')
+    fireEvent.change(screen.getByLabelText(/Town or city/), { target: { value: 'Sur' } })
+    fireEvent.change(screen.getByLabelText(/Prefix/), { target: { value: 'sr' } })
+    fireEvent.click(screen.getByRole('button', { name: /Add the branch/ }))
+    await waitFor(() => expect(calls('POST', '/api/v1/branches')).toHaveLength(1))
+    await waitFor(() => expect(calls('PUT', '/api/v1/branches/b-2/invoice-prefix')).toHaveLength(1))
+    second.unmount()
+
+    renderNew()
+    expect(((await screen.findByLabelText(/Branch name/)) as HTMLInputElement).value).toBe('')
   })
 })

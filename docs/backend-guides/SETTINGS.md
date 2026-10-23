@@ -97,8 +97,8 @@ larger plan applies straight away; a move to a smaller plan applies from the nex
 | 5.1 | "Move up a plan" beside the usage, and "Move to {plan}" on each plan card (dearer and cheaper). Drawn disabled with "Not available yet", shown only to `tenant.plan.manage` | A plan change: `POST /v1/settings/subscription/plan-change` with `{planCode, billingCycle, priceVersionId}` (the catalogue's price version, so a repricing is caught), permission `tenant.plan.manage`, idempotent. An upgrade applies at once (pro rata, as `platformSettings` `upgrade: immediateProRata` describes) and answers the new `SubscriptionStatusDto`; a downgrade is stored as the `scheduledChange` the status already returns (and `DELETE /scheduled-change` already withdraws), effective on `renewsOn`. Refusals as problem types the screen can name (plan not offered, payment being checked, people or branches above the smaller plan's ceiling) |
 | 5.2 | "Switch overage on or off" beside the usage. Drawn disabled, "Not available yet" | Whether overage is on for the tenant, readable on `GET /v1/settings/plan` (`overageEnabled`), and a way to switch it (`PUT /v1/settings/plan/overage {enabled}`, `tenant.plan.manage`). The plan's `overagePricePerInvoice` already says whether the plan offers it at all |
 | 5.3 | "Busiest day so far" (the count and the date). Reads "Not available yet" | On the usage: `busiestDay: {date, count}` for the current period |
-| 5.4 | "Last month" (documents used of the allowance then). Reads "Not available yet" | On the usage: `previousPeriod: {start, end, used, quota}` |
-| 5.5 | "Raised today" split by branch (the design's note, "Muscat 3 · Nizwa 2"). The figure is shown; the note reads "By branch: not available yet" | On the usage: `raisedTodayByBranch: [{branchId, name, count}]` |
+| 5.4 | "Last month" (documents used of the allowance then). Reads "Not available yet" | On the usage: `previousPeriod: {start, end, used, quota}`. **Answered by the server already** (since 6.2a): `usage.lastMonthUsed` (the previous allowance period's documents, issued and received) and `usage.lastMonthQuota` (the plan allowance of the terms that period closed on); no `start`/`end`. The screen reads those two names and keeps "Not available yet" only when `lastMonthUsed` is absent |
+| 5.5 | "Raised today" split by branch (the design's note, "Muscat 3 · Nizwa 2"). The figure is shown; the note reads "By branch: not available yet" | On the usage: `raisedTodayByBranch: [{branchId, name, count}]`. **Answered by the server already** (since 6.2a), with the branch name as `branchName`, not `name`: `usage.raisedTodayByBranch: [{branchId, branchName, count}]` (`branchName` nullable; a null `branchId` holds documents issued without a branch). The screen names each branch as every other screen does (its Arabic name in Arabic, by `branchId`) and keeps "By branch: not available yet" only when the list is absent |
 | 5.6 | "Add-ons": the ERP integration card (state, price, documents collected, reset date). Shows "Enabled by Fawtir" and links to ERP integration | A read of the tenant's add-ons, for example `GET /v1/settings/addons`: for ERP extraction, its availability on the plan (not offered, priced, included), whether it is active, its monthly price and allowance, and this period's collected count |
 | 5.7 | The plan cards mark "Your plan" by matching `plan.code` against the public catalogue | A company on a retired or private plan finds no card marked as its own, and the price difference on the other cards falls back to `plan.monthlyPrice`. A list of the plans this tenant may move to, with the difference in price for its billing cycle (`GET /v1/settings/plan/options`), would answer it exactly |
 | 5.8 | The allowance warning at 80%, 90% and 100% (AL-8) in the bell and on Plan and usage. Built from `allowance.warningPercent` on `GET /v1/settings/plan`; the bell's "read" mark is kept in the browser only | A server-side in-app allowance notice, listed and acknowledged like the subscription reminders (`GET /v1/settings/subscription/notices` with a quota kind, or its own route), raised once per period and threshold and raised again after extras are bought and run out |
@@ -193,3 +193,30 @@ above `included`), so they need nothing new.
 |---|---|---|
 | 6.4 | "Switch back on" dialog: the role picker (job roles from `GET /v1/roles`) and, once branch access is on, the branch picker shared with the invitation. The web sends `POST /v1/users/{id}/reactivate` with `{ "roleId": "<RoleDto.id>", "branchIds": [...] }` (`branchIds` only while branch access is on and the role is not Administrator; no body when no role can be listed) | **Done (backend #683):** the request takes `{roleId?, branchIds?}`. Without `roleId` the role they held is kept; with it, the person comes back holding that one job role under the checks of `PUT /v1/users/{id}/role`. Once branch access is on, `branchIds` replace their branches (absent: kept), at least one is needed (409 `branch-required`) and none for an Administrator (409 `admin-has-all-branches`); both refusals are worded by the screen in English and Arabic (`src/lib/removalRefusals.ts`) |
 | 6.5 | "Switched off on {date} by {name}" under each switched-off person, and the old role preselected in "Switch back on". Neither is drawn while absent | **Done (backend #683):** on `GET /v1/users?status=DEACTIVATED` each person carries `deactivatedAt` (instant), `deactivatedByName` (null when unknown) and `previousRoles` (role codes, the same shape as `roles`: what they held when switched off, or the role last retired for an older row; empty when none). Null on every other read. The screen preselects the first held job role by code (Administrator first) |
+
+## Update 22 Oct 2026: Invite someone, "What happens next" (row 7.5, in part)
+
+Two of the three rows are now filled from what the server already does. "Place taken" reads
+"Immediately": an open invitation counts against the plan's people from when it is sent until it
+is accepted, revoked or expires (`SubscriptionEnforcementService.assertCanAddPerson`, active people
+plus open invitations). "Link works for" reads "{n} days" once an invitation has been sent in this
+visit, from the answer's `expiresAt` less `lastSentAt` (`fawtir.identity.invitations.ttl`, 7 days
+by default); before the first one it still reads "Not available yet". Rows 7.1, 7.3, 7.4 and the
+email preview are unchanged.
+
+| # | Element on the screen | What the backend needs to add |
+|---|---|---|
+| 7.7 | "Link works for" before anything is sent | The invitation lifetime before sending, for example `invitationValidityDays` on a read the inviter can make (the setting is `fawtir.identity.invitations.ttl`) |
+| 7.8 | "Charged from". Still "Not available yet" | Not drawn from the design's "The day they accept": US-1 says an extra user is paid and confirmed before they become active, and the server refuses an invitation past the plan's people until an extra place is bought (`extra-place-required`), so nothing is charged when they accept. Needs the owner's wording for what this row should say |
+
+## Update 23 Oct 2026: Disconnect from Fawtir, the Arabic legal name (row 1.7, Company profile)
+
+The confirmation accepts the English or the Arabic legal name, as the server does
+(`FawtirDisconnectionService.requireCompanyName` takes the legal name, the trading name and the
+Arabic legal name). The screen reads an optional `companyNameAr` on `GET /v1/settings/fawtir-disconnection`
+and asks for it in Arabic. Until the server sends it, the screen asks for and accepts the English name
+only, and the server still accepts any of the three.
+
+| # | Element on the screen | What the backend needs to add |
+|---|---|---|
+| 1.7 | "Type {name} to confirm" in Arabic, and the button opening for the Arabic name | `companyNameAr` (the tenant's `legal_name_ar`, null when none) on the company disconnection view |

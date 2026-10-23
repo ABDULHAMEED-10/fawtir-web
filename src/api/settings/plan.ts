@@ -34,6 +34,18 @@ export type PlanUsageDto = {
   resubmissions: number
   quota: number
   raisedToday: number
+  /**
+   * Today's issued documents per branch, adding up to `raisedToday`; a null branch holds those
+   * issued without one. Absent from an older server.
+   */
+  raisedTodayByBranch?: { branchId: string | null; branchName: string | null; count: number }[]
+  /**
+   * The previous allowance period's documents, issued and received, and the plan allowance of the
+   * terms that period closed on (the plan's own documents, without that period's extras). Absent
+   * from an older server.
+   */
+  lastMonthUsed?: number
+  lastMonthQuota?: number
 }
 
 /** One branch's share of the month. The row with a null branch holds what belongs to no branch. */

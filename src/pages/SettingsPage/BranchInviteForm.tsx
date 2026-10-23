@@ -9,6 +9,8 @@ import {
   ADMIN_ROLE,
   ROLES_PATH,
   ROLES_PERMISSION,
+  WAITING_INVITATIONS_ROUTE,
+  invitationAlreadyOpen,
   inviteUser,
   isJobRole,
   loadRoles,
@@ -22,6 +24,7 @@ import { PAID_EXTRAS_ROUTE, extraPlaceRequired } from '../../api/settings/paidEx
 import { permissionWords } from '../../lib/permissionLabels'
 import { roleLabel } from '../../lib/roleLabels'
 import { Check, Panel, Row } from './invitePieces'
+import { invitationLinkDays } from '../../lib/invitationLinkDays'
 import { BranchChecklist } from './BranchChecklist'
 import { useBranchNames } from './peopleView'
 import chipYesIcon from '../../assets/settings/check-green.svg'
@@ -69,6 +72,8 @@ export function BranchInviteForm() {
   const needsBranch = !administratorChosen && branchChoices.length > 0
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState<Sent | null>(null)
+  // From the server's answer to the last invitation sent: the same for every invitation.
+  const [linkDays, setLinkDays] = useState<number | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const [failureLink, setFailureLink] = useState<{ to: string; labelKey: string } | null>(null)
 
@@ -80,6 +85,8 @@ export function BranchInviteForm() {
       return
     }
     setSending(true)
+    // A new attempt replaces the last answer: an earlier "sent" must not sit above a refusal.
+    setSent(null)
     setFailure(null)
     setFailureLink(null)
     try {
@@ -89,11 +96,18 @@ export function BranchInviteForm() {
         administratorChosen ? [] : pickedBranchIds,
       )
       setSent({ email: invitation.email })
+      setLinkDays((before) => invitationLinkDays(invitation) ?? before)
       setEmail('')
       setRole('')
       setExtras([])
       setBranchIds([])
     } catch (error) {
+      // The address already has an invitation waiting: it is resent or revoked on Team members.
+      if (invitationAlreadyOpen(error)) {
+        setFailure(t('people.invite.alreadyOpen'))
+        setFailureLink({ to: WAITING_INVITATIONS_ROUTE, labelKey: 'people.invite.alreadyOpenLink' })
+        return
+      }
       // US-1: at the plan's capacity a paid place comes first; whoever manages the plan buys it.
       const place = extraPlaceRequired(error)
       const refusal = branchAccessRefusalKey(error)
@@ -356,8 +370,18 @@ export function BranchInviteForm() {
             </h3>
             <dl className="mt-2">
               <Row label={t('invite.emailSent')} value={t('invite.straightAway')} />
-              <Row label={t('invite.linkWorksFor')} value={t('invite.notAvailableYet')} muted />
-              <Row label={t('invite.placeTaken')} value={t('invite.notAvailableYet')} muted />
+              <Row
+                label={t('invite.linkWorksFor')}
+                value={
+                  linkDays === null
+                    ? t('invite.notAvailableYet')
+                    : t('invite.days', { count: linkDays })
+                }
+                muted={linkDays === null}
+              />
+              {/* An open invitation counts against the plan's people from the moment it is sent
+                  (SubscriptionEnforcementService.assertCanAddPerson). */}
+              <Row label={t('invite.placeTaken')} value={t('invite.immediately')} />
               <Row label={t('invite.chargedFrom')} value={t('invite.notAvailableYet')} muted last />
             </dl>
           </section>

@@ -302,6 +302,26 @@ describe("A branch's own page, closing it (E38)", () => {
     await i18n.changeLanguage('en')
   })
 
+  it('names the branch in Arabic, in the dialog and after closing, when it has an Arabic name', async () => {
+    await i18n.changeLanguage('ar')
+    answers['GET /api/v1/branches/b-1'] = () =>
+      json(200, { ...detail('b-1', 'Sohar', true), nameAr: 'صحار' })
+    answers['PUT /api/v1/branches/b-1'] = () =>
+      json(200, { ...detail('b-1', 'Sohar', false), nameAr: 'صحار' })
+    try {
+      renderBranchPage()
+      await branchPageReady()
+      fireEvent.click(screen.getByRole('button', { name: i18n.t('addBranch.closeThisBranch') }))
+      const dialog = await screen.findByRole('dialog')
+      expect(within(dialog).getByText(i18n.t('removal.branch.title', { name: 'صحار' }))).toBeTruthy()
+      expect(within(dialog).queryByText(i18n.t('removal.branch.title', { name: 'Sohar' }))).toBeNull()
+      fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('removal.branch.confirm') }))
+      expect(await screen.findByText(/صحار/)).toBeTruthy()
+    } finally {
+      await i18n.changeLanguage('en')
+    }
+  })
+
   it('keeps a closed branch closed when its details are saved', async () => {
     answers['GET /api/v1/branches/b-1'] = () => json(200, detail('b-1', 'Sohar', false))
     answers['PUT /api/v1/branches/b-1'] = () => json(200, detail('b-1', 'Sohar', false))
