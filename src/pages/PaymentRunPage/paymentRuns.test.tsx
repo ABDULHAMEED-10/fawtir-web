@@ -1708,13 +1708,20 @@ describe("the owner's answers of 10 Oct 2026", () => {
   })
 
   it('offers no day after today in the dialog’s calendar', async () => {
-    renderAt(`/expenditure/payments/${RUN_ID}`)
-    const dialog = within(await openMarkPaid())
-    fireEvent.click(dialog.getByRole('button', { name: 'Paid on' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Next month' }))
-    const fifteenth = screen.getAllByRole('button', { name: '15' })
-    expect(fifteenth.length).toBeGreaterThan(0)
-    for (const day of fifteenth) expect((day as HTMLButtonElement).disabled).toBe(true)
+    // Pinned so the month after the run's date is always in the future, whatever day the suite runs.
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date('2026-09-25T09:00:00Z'))
+    try {
+      renderAt(`/expenditure/payments/${RUN_ID}`)
+      const dialog = within(await openMarkPaid())
+      fireEvent.click(dialog.getByRole('button', { name: 'Paid on' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Next month' }))
+      const fifteenth = screen.getAllByRole('button', { name: '15' })
+      expect(fifteenth.length).toBeGreaterThan(0)
+      for (const day of fifteenth) expect((day as HTMLButtonElement).disabled).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('sends the date beside the bills taken out', async () => {
