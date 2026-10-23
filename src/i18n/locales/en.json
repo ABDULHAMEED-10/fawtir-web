@@ -13457,7 +13457,8 @@
           "invalid": "Fawtir did not accept this change. Check the reason and try again."
         }
       },
-      "erpAddonLine": "ERP and API add-on: OMR {{amount}} a month"
+      "erpAddonLine": "ERP and API add-on: OMR {{amount}} a month",
+      "notEnforced": "Not enforced yet"
     },
     "operators": {
       "title": "Operators",

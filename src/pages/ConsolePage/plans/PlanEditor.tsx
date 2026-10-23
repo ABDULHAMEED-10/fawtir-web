@@ -12,6 +12,7 @@ import {
   describePlanSaveFailure,
   emptyPlanForm,
   lockedFeatures,
+  notEnforcedFeatures,
   planFormFrom,
   toPlanRequest,
   updatePlan,
@@ -93,6 +94,7 @@ export function PlanEditor({
   // A double click, or Enter pressed twice, must not become two writes to a price.
   const inFlight = useRef(false)
   const locked = lockedFeatures(plan)
+  const notEnforced = notEnforcedFeatures(plan)
   const frozen = readOnly || saving
   const publishes = mode === 'add' || (plan !== null && changesTerms(plan, values))
 
@@ -330,6 +332,8 @@ export function PlanEditor({
               </p>
               {group.features.map((feature) => {
                 const compliance = locked.has(feature)
+                // PL-8: a switch the server does not act on yet is locked at its stored value.
+                const unenforced = notEnforced.has(feature)
                 const label = t(`plan.featureName.${feature}`)
                 return (
                   <div
@@ -342,6 +346,10 @@ export function PlanEditor({
                         <span className="ms-2 text-xs text-text-quaternary">
                           {t('console.plans.alwaysOn')}
                         </span>
+                      ) : unenforced ? (
+                        <span className="ms-2 text-xs text-text-quaternary">
+                          {t('console.plans.notEnforced')}
+                        </span>
                       ) : null}
                     </span>
                     <Switch
@@ -350,7 +358,7 @@ export function PlanEditor({
                       checked={compliance || Boolean(values.features[feature])}
                       onChange={(on) => setFeature(feature, on)}
                       label={label}
-                      disabled={frozen || compliance}
+                      disabled={frozen || compliance || unenforced}
                     />
                   </div>
                 )

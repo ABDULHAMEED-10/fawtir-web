@@ -379,7 +379,7 @@ describe('Editing a plan', () => {
     await editPlan('Starter')
     type('nameAr', 'البداية')
     fireEvent.click(toggle(i18n.t('console.plans.field.publicVisible')))
-    fireEvent.click(toggle(i18n.t('plan.featureName.webhooks')))
+    fireEvent.click(toggle(i18n.t('plan.featureName.tradeDocuments')))
     expect(input('reason')).toBeNull()
     await save()
 
@@ -407,7 +407,8 @@ describe('Editing a plan', () => {
     expect(body).not.toHaveProperty('code')
     expect(body).not.toHaveProperty('reason')
     const features = body.features as Array<{ key: string; enabled: boolean }>
-    expect(features).toContainEqual({ key: 'webhooks', enabled: true })
+    expect(features).toContainEqual({ key: 'tradeDocuments', enabled: true })
+    expect(features).toContainEqual({ key: 'webhooks', enabled: false })
     expect(features).toContainEqual({ key: 'peppol', enabled: true })
     // A key this app has no switch for goes back as it was read.
     expect(features).toContainEqual({ key: 'futureThing', enabled: true })
@@ -720,6 +721,74 @@ describe('Trial switch (TR-1: always 14 days)', () => {
     expect(
       within(dialog()).getByText(i18n.t('console.plans.validation.trialDocumentsNeedTrial')),
     ).toBeTruthy()
+  })
+})
+
+describe('Switches with nothing behind them (PL-8, owner, 23 Oct 2026)', () => {
+  const row = (feature: string) =>
+    toggle(i18n.t(`plan.featureName.${feature}`)).parentElement as HTMLElement
+  const notEnforced = () => i18n.t('console.plans.notEnforced')
+
+  it('shows them "Not enforced yet" and locked, keeping what is stored', async () => {
+    await openCatalogue()
+    await editPlan('Starter')
+    for (const feature of ['pos', 'webhooks', 'catalogue', 'reports']) {
+      const sw = toggle(i18n.t(`plan.featureName.${feature}`)) as HTMLButtonElement
+      expect(sw.disabled).toBe(true)
+      expect(within(row(feature)).getByText(notEnforced())).toBeTruthy()
+    }
+    expect(toggle(i18n.t('plan.featureName.pos')).getAttribute('aria-checked')).toBe('true')
+    expect(toggle(i18n.t('plan.featureName.webhooks')).getAttribute('aria-checked')).toBe('false')
+  })
+
+  it('keeps the enforced switches, and ERP field mapping, switchable and unlabelled', async () => {
+    await openCatalogue()
+    await editPlan('Starter')
+    for (const feature of [
+      'tradeDocuments',
+      'recurringInvoices',
+      'selfBilling',
+      'supplierNotes',
+      'recurringBills',
+      'approvals',
+      'bulkUpload',
+      'erpMapping',
+    ]) {
+      const sw = toggle(i18n.t(`plan.featureName.${feature}`)) as HTMLButtonElement
+      expect(sw.disabled).toBe(false)
+      expect(within(row(feature)).queryByText(notEnforced())).toBeNull()
+    }
+    // Compliance stays "Always on", never "Not enforced yet".
+    expect(within(row('peppol')).queryByText(notEnforced())).toBeNull()
+  })
+
+  it("follows the server's enforced flag where it sends one", async () => {
+    const told: CatalogueAdminPlan = {
+      ...STARTER,
+      features: [
+        ...STARTER.features,
+        { key: 'stock', enabled: false, enforced: true },
+        { key: 'tradeDocuments', enabled: true, enforced: false },
+        { key: 'erpMapping', enabled: false, enforced: false },
+      ],
+    }
+    await openCatalogue({}, () => json(200, [told, GROWTH]))
+    await editPlan('Starter')
+    expect((toggle(i18n.t('plan.featureName.stock')) as HTMLButtonElement).disabled).toBe(false)
+    expect(within(row('stock')).queryByText(notEnforced())).toBeNull()
+    expect(
+      (toggle(i18n.t('plan.featureName.tradeDocuments')) as HTMLButtonElement).disabled,
+    ).toBe(true)
+    expect(within(row('tradeDocuments')).getByText(notEnforced())).toBeTruthy()
+    // ERP field mapping offers the ERP add-on (ER-1), so it stays switchable.
+    expect((toggle(i18n.t('plan.featureName.erpMapping')) as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('reads in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    expect(i18n.t('console.plans.notEnforced')).toBe('غير مطبّقة بعد')
+    await i18n.changeLanguage('en')
+    expect(i18n.t('console.plans.notEnforced')).toBe('Not enforced yet')
   })
 })
 
