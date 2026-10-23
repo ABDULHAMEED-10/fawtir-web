@@ -44,6 +44,7 @@ import {
   loadBranchOverview,
   updateBranch,
   branchPath,
+  branchDisplayName,
   BRANCHES_OVERVIEW_PATH,
   type BranchDetailDto,
   type BranchOverviewDto,
@@ -166,7 +167,14 @@ export function AddBranchPage() {
     setCloseFailure(null)
     try {
       await setBranchOpen(existing.id, false)
-      const done = placeSentence(t, 'removal.branch', 'done', renewsOn, i18n.language, existing.name)
+      const done = placeSentence(
+        t,
+        'removal.branch',
+        'done',
+        renewsOn,
+        i18n.language,
+        branchDisplayName(existing, i18n.language),
+      )
       navigate('/settings/branches', { state: { done } })
     } catch (error) {
       setCloseFailure(failureText(error))
@@ -611,7 +619,7 @@ export function AddBranchPage() {
       {existing ? (
         <CloseBranchDialog
           open={closing}
-          name={existing.name}
+          name={branchDisplayName(existing, i18n.language)}
           renewsOn={renewsOn}
           busy={closeBusy}
           failure={closeFailure}
