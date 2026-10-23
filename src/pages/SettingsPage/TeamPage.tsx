@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { useApiRead } from '../../hooks'
@@ -40,6 +40,8 @@ import {
   type PaidExtrasOverviewDto,
 } from '../../api/settings/paidExtras'
 import { PersonActions, SwitchedOffTable } from './teamRemoval'
+import { InvitationActions } from './teamInvitations'
+import { formatInstantDay } from '../../lib/format'
 import plusIcon from '../../assets/settings/plus-white.svg'
 import searchIcon from '../../assets/invoices/search.svg'
 
@@ -127,7 +129,11 @@ function TeamLists() {
   // Owner mark (OW-1) and each person's page (role, permissions RL-3, handover OW-4) do not.
   const branchAccessOn = useBranchAccessOn()
   const { name: branchName } = useBranchNames(branchAccessOn)
-  const [tab, setTab] = useState<TeamTab>('all')
+  // `?tab=waiting` opens the invitations (the invite form links here when an address already has one).
+  const [params] = useSearchParams()
+  const [tab, setTab] = useState<TeamTab>(
+    isAdministrator && params.get('tab') === 'waiting' ? 'waiting' : 'all',
+  )
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('name')
   const session = useSession()
@@ -161,6 +167,13 @@ function TeamLists() {
     people.retry()
     switchedOff.retry()
     // A person switched off loses the invitations they sent (IdentityUserDeactivated).
+    invitations.retry()
+    extras.retry()
+  }
+  // A resent or revoked invitation, or a refusal of either: the list is read again either way,
+  // since a refusal means it changed (accepted, revoked or expired) while it was on screen.
+  const afterInvitationChange = (message: string) => {
+    setDone(message)
     invitations.retry()
     extras.retry()
   }
@@ -299,7 +312,11 @@ function TeamLists() {
                 {t('people.team.noInvitations')}
               </p>
             ) : (
-              <InvitationsTable invitations={invitations.read.data} roleNames={roleNames} />
+              <InvitationsTable
+                invitations={invitations.read.data}
+                roleNames={roleNames}
+                onDone={afterInvitationChange}
+              />
             )}
           </div>
         ) : (
@@ -450,19 +467,24 @@ function Kpi({
 function InvitationsTable({
   invitations,
   roleNames,
+  onDone,
 }: {
   invitations: InvitationDto[]
   roleNames: (code: string) => string
+  onDone: (message: string) => void
 }) {
   const { t, i18n } = useTranslation()
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full min-w-[560px]">
         <thead className="border-b border-border-subtle">
           <tr>
             <th className={TH}>{t('people.col.email')}</th>
             <th className={TH}>{t('team.col.role')}</th>
             <th className={TH}>{t('people.col.expires')}</th>
+            <th className={TH}>
+              <span className="sr-only">{t('removal.actionsColumn')}</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -474,8 +496,9 @@ function InvitationsTable({
                   ? invitation.roleCodes.map(roleNames).join(', ')
                   : t('people.defaultRole')}
               </td>
-              <td className={TD}>
-                {new Date(invitation.expiresAt).toLocaleDateString(i18n.language)}
+              <td className={TD}>{formatInstantDay(invitation.expiresAt, i18n.language)}</td>
+              <td className={`${TD} text-end`}>
+                <InvitationActions invitation={invitation} onDone={onDone} />
               </td>
             </tr>
           ))}
