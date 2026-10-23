@@ -64,6 +64,8 @@ import fileDeleteIcon from '../../assets/self-bill-detail/file-delete.svg'
 import backIcon from '../../assets/invoice-details/back.svg'
 import creditNoteIcon from '../../assets/invoice-details/credit-note.svg'
 import uploadIcon from '../../assets/create-invoice/upload.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
+import { DraftApprovalCard, useSalesApproval } from '../../components/invoice/DraftApprovalCard'
 
 /** What the attachment route takes: the invoice composer's list and limit. */
 const ATTACHMENT_TYPES = '.pdf,.jpg,.jpeg,.png,.xlsx'
@@ -266,6 +268,8 @@ function SelfBillScreen() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const session = useSession()
+  // No new drafts while the subscription is read-only (ST-2, CA-3).
+  const mayDraft = useSubscriptionAllows('CREATE_DRAFTS')
   const { id = '' } = useParams()
   const today = muscatToday()
 
@@ -295,6 +299,9 @@ function SelfBillScreen() {
     () => loadCustomer(document!.customerId),
   )
   const branches = useApiRead<BranchDto[]>(document ? BRANCHES_PATH : null, loadBranches)
+  // The sales approval rule can cover self-billed documents (RL-6, "covers.selfBilled"): the same
+  // card as the invoice draft, read only while this is a draft.
+  const salesApproval = useSalesApproval(id, document !== null && isDraft(document))
   const { label: branchLabel } = useBranchName()
   // A self-billed credit note names the invoice it corrects (IBR-032-OM); read it for its number.
   const originalId = document?.correctionOfInvoiceId ?? null
@@ -393,6 +400,7 @@ function SelfBillScreen() {
   const canCredit =
     data.type === 'SELF_BILLED_INVOICE' &&
     data.authoringState === 'ISSUED' &&
+    mayDraft &&
     can(session, 'selfbilling.create')
 
   const failureText = (error: unknown) => {
@@ -527,6 +535,18 @@ function SelfBillScreen() {
         <Notice
           body={notice}
           action={{ label: t('common.close'), onClick: () => setNotice(null) }}
+        />
+      ) : null}
+      {draft ? (
+        <DraftApprovalCard
+          invoiceId={data.id}
+          type={data.type}
+          approval={salesApproval.approval}
+          onChanged={() => {
+            salesApproval.retry()
+            invoice.retry()
+            history.retry()
+          }}
         />
       ) : null}
 

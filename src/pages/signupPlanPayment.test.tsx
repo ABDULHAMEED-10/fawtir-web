@@ -368,10 +368,18 @@ describe('Choose a plan: branches on the cards (Plan v4 §2)', () => {
     expect(screen.getAllByText('3 branches')).toHaveLength(1)
   })
 
-  it('prints no branch line for a plan that does not cap them', async () => {
+  it('says "Unlimited branches" for a plan that does not cap them (owner, 23 Oct)', async () => {
     answer({ [PLANS_URL]: () => json(200, [{ ...STARTER, branchesIncluded: null }]) })
     await openPlans()
+    expect(screen.getAllByText('Unlimited branches')).toHaveLength(1)
     expect(text()).not.toMatch(/\d+ branch(es)?\b/)
+  })
+
+  it('says "Unlimited branches" in Arabic too', async () => {
+    await i18n.changeLanguage('ar')
+    answer({ [PLANS_URL]: () => json(200, [{ ...STARTER, branchesIncluded: null }]) })
+    renderAt('/plans', AFTER_ADDRESS)
+    expect(await screen.findByText('فروع بلا حد')).toBeTruthy()
   })
 
   it('reads the branch line in Arabic', async () => {

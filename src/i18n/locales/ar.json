@@ -1316,7 +1316,8 @@
     "quota": {
       "title": "مستندات هذه الفترة",
       "used": "مستخدم",
-      "periodEnds": "تنتهي الفترة في {{date}}"
+      "periodEnds": "تنتهي الفترة في {{date}}",
+      "readOnly": "لا يمكن إصدار مستندات ما دام اشتراكك للقراءة فقط."
     },
     "vat": {
       "title": "وضع ضريبة القيمة المضافة",
@@ -11369,6 +11370,7 @@
     "yourCompany": "شركتك",
     "moreAreas": "+{{count}} أخرى",
     "footerEmailNeeded": "أدخل بريدًا إلكترونيًا لإرسال الدعوة",
+    "chargedFromValue": "يوم تأكيد الدفع",
     "days_zero": "{{count}} يوم",
     "days_one": "يوم واحد",
     "days_two": "يومان",
@@ -24176,7 +24178,8 @@
     "enterpriseCycle": {
       "MONTHLY": "شهريًا",
       "ANNUAL": "سنويًا"
-    }
+    },
+    "staysReadOnlyUntilPaid": "يبقى اشتراكك للقراءة فقط حتى يُدفع."
   },
   "billing": {
     "title": "الرسوم والدفع",

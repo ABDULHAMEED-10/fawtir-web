@@ -609,6 +609,17 @@ describe('Invite someone', () => {
     ])
   })
 
+  it('says an extra person is charged from the day the payment is confirmed (US-1), in English and Arabic', async () => {
+    renderAt('/settings/team/invite')
+    await screen.findByRole('checkbox', { name: 'Sohar' })
+    const row = (label: string) =>
+      screen.getByText(label).closest('div')!.querySelector('dd')!.textContent
+    expect(row(i18n.t('invite.chargedFrom'))).toBe('The day the payment is confirmed')
+    await i18n.changeLanguage('ar')
+    expect(await screen.findByText('يوم تأكيد الدفع')).toBeTruthy()
+    await i18n.changeLanguage('en')
+  })
+
   it('says a refused escalation in our words, never the server detail', async () => {
     answers['POST /api/v1/users/invitations'] = () => refusal(403, 'permission-escalation')
     renderAt('/settings/team/invite')

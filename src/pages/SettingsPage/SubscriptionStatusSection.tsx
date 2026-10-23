@@ -369,7 +369,13 @@ function Facts({ status }: { status: SubscriptionStatusDto }) {
       <Fact
         label={t('subscription.fact.grace')}
         value={t('subscription.fact.graceDays', { count: status.graceDays })}
-        note={status.graceUntil ? t('subscription.fact.graceUntil', { date: date(status.graceUntil) }) : undefined}
+        // "In grace until" only while the server says the subscription is in grace: once grace has
+        // ended (suspended) the date is past and the line would say something untrue (E28).
+        note={
+          status.access === 'GRACE' && status.graceUntil
+            ? t('subscription.fact.graceUntil', { date: date(status.graceUntil) })
+            : undefined
+        }
       />
       <Fact
         label={t('subscription.fact.autoRenew')}

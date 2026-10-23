@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
+import { answerStanding, settle, standingRead } from '../../testing/subscriptionStanding'
 import type { ArchiveItemDto, ArchiveListDto } from '../../api/compliance/archive'
 import {
   artefactRows,
@@ -590,4 +591,32 @@ describe('the design reading of an archive row', () => {
       received: false,
     })
   })
+})
+
+describe('Share securely while the subscription is read-only (owner, 23 Oct 2026)', () => {
+  // Nothing is shared while read-only; downloading stays.
+  const OWNER: Entitlements = { ...READER, permissions: ['invoice.read', 'tenant.plan.read'] }
+  const share = () => screen.queryByRole('button', { name: 'Share securely' })
+
+  it('offers Share securely while the subscription is usable', async () => {
+    who = OWNER
+    answerStanding(fetchMock, null)
+    renderArchive(`/compliance/documents/${ISSUED.invoice_uuid}`)
+    await screen.findByRole('heading', { level: 1, name: 'INV-2026-000004' })
+    await waitFor(() => expect(standingRead(fetchMock)).toBe(true))
+    await waitFor(() => expect(share()).toBeTruthy())
+  })
+
+  it.each(['SUBSCRIPTION_SUSPENDED', 'SUBSCRIPTION_CANCELLED'])(
+    'hides Share securely while %s',
+    async (restriction) => {
+      who = OWNER
+      answerStanding(fetchMock, restriction)
+      renderArchive(`/compliance/documents/${ISSUED.invoice_uuid}`)
+      await screen.findByRole('heading', { level: 1, name: 'INV-2026-000004' })
+      await waitFor(() => expect(standingRead(fetchMock)).toBe(true))
+      await settle()
+      expect(share()).toBeNull()
+    },
+  )
 })

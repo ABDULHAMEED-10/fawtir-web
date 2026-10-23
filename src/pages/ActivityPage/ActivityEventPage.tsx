@@ -31,6 +31,7 @@ import warnIcon from '../../assets/activity/warn-danger.svg'
 import fileIcon from '../../assets/bill-capture/file.svg'
 import sendIcon from '../../assets/activity/ch-peppol.svg'
 import cardIcon from '../../assets/suppliers/kpi-owe.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 const JOURNEY_ICON: Record<Journey['id'], string> = { ota: otaIcon, peppol: peppolIcon }
 
@@ -123,7 +124,10 @@ function Record({
 }) {
   const { t, i18n } = useTranslation()
   const session = useSession()
-  const mayResubmit = can(session, 'invoice.submit')
+  // Resubmitting a rejected document to the Tax Authority is sending (it uses credits): not offered
+  // while the subscription is read-only (ST-2, owner 23 Oct 2026); it works again once paid.
+  const maySend = useSubscriptionAllows('SEND_DOCUMENTS')
+  const mayResubmit = can(session, 'invoice.submit') && maySend
   const [copied, setCopied] = useState(false)
   const number = record.invoice ?? t('activity.unnumbered')
   const status = STATUS_BADGE[record.outcome]
@@ -469,7 +473,7 @@ function Record({
               >
                 {t('activity.menu.resubmit')}
               </Link>
-            ) : (
+            ) : (record.resend === 'possible' || record.resend === 'possibleInvoice') && !maySend ? null : (
               <button
                 type="button"
                 disabled

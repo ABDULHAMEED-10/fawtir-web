@@ -175,12 +175,14 @@ function PlansContent() {
     const check = dark ? checkWhiteIcon : checkIcon
     const iconSize = dark ? 'size-[18px]' : 'size-4'
     const copy = launchCopy(plan.code)
-    // The branches the plan includes, as the console set them (Plan v4 §2); none printed for a
-    // plan that does not cap them (`null`), as the catalogue contract reads it.
+    // The branches the plan includes, as the console set them (Plan v4 §2); a plan that does not
+    // cap them (`null`) says so, as the plan page and the pricing page do.
     const branches =
-      plan.branchesIncluded === null || plan.branchesIncluded === undefined
+      plan.branchesIncluded === undefined
         ? []
-        : [t('plans.branchesIncluded', { count: plan.branchesIncluded })]
+        : plan.branchesIncluded === null
+          ? [t('plan.feature.unlimitedBranches')]
+          : [t('plans.branchesIncluded', { count: plan.branchesIncluded })]
     const features = [
       ...branches,
       ...(launchFeatures(plan, t) ??

@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { OutstandingBill, formatRate } from './SubscriptionBillingSection'
 import { ReconnectBeforePayingNote } from './ReconnectBeforePayingNote'
+import { StaysReadOnlyUntilPaidNote } from './StaysReadOnlyUntilPaidNote'
 import { usePayingHeldUntilReconnected } from '../../hooks/usePayingHeldUntilReconnected'
 import { noteLeftFawtirRefusal } from '../../lib/leftFawtirRefusal'
 import { LeftFawtirRefusal } from '../../components/billing/LeftFawtirRefusal'
@@ -139,6 +140,7 @@ function PaidExtrasBody() {
   return (
     <>
       <PlacesCard data={data} />
+      <StaysReadOnlyUntilPaidNote />
       {data.erpAddon.offered ? (
         <ErpAddonCard
           addon={data.erpAddon}

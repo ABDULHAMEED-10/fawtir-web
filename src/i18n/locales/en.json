@@ -1265,7 +1265,8 @@
     "quota": {
       "title": "Documents this period",
       "used": "used",
-      "periodEnds": "Period ends {{date}}"
+      "periodEnds": "Period ends {{date}}",
+      "readOnly": "No documents can be issued while your subscription is read-only."
     },
     "vat": {
       "title": "VAT Position",
@@ -10722,6 +10723,7 @@
     "yourCompany": "your company",
     "moreAreas": "+{{count}} more",
     "footerEmailNeeded": "Fill in an email to send it",
+    "chargedFromValue": "The day the payment is confirmed",
     "days_one": "{{count}} day",
     "days_other": "{{count}} days"
   },
@@ -22890,7 +22892,8 @@
     "enterpriseCycle": {
       "MONTHLY": "a month",
       "ANNUAL": "a year"
-    }
+    },
+    "staysReadOnlyUntilPaid": "Your subscription stays read-only until it is paid."
   },
   "billing": {
     "title": "Charges and payment",

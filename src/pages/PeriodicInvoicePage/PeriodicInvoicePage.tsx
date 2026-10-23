@@ -98,6 +98,7 @@ import peppolIcon from '../../assets/periodic/peppol.svg'
 import customerLogo from '../../assets/periodic/customer-logo.svg'
 import viewIcon from '../../assets/actions/view.svg'
 import invoiceActionIcon from '../../assets/actions/invoice.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 /** The customers list refuses a page over 100, so names are read a hundred at a time. */
 const CUSTOMER_PAGE_SIZE = 100
@@ -156,6 +157,8 @@ function ScheduleComposer({ id }: { id: string | null }) {
   const [params] = useSearchParams()
   const session = useSession()
   const canManage = can(session, 'invoice.draft')
+  // Pause stays while the subscription is read-only; Resume waits until they pay (owner, 23 Oct).
+  const mayResume = useSubscriptionAllows('CREATE_DRAFTS')
   const locked = !canManage
   const today = muscatToday()
   const [form, setForm] = useState<PeriodicForm>(() => blankPeriodicForm(today))
@@ -566,7 +569,7 @@ function ScheduleComposer({ id }: { id: string | null }) {
                     variant="bordered"
                   />
                 ) : null}
-                {status === 'finished' ? null : (
+                {status === 'finished' || (!schedule?.active && !mayResume) ? null : (
                   <button
                     type="button"
                     onClick={() => void toggle()}

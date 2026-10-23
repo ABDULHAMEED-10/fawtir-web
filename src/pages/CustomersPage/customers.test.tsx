@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
+import { forgetSubscriptionStanding } from '../../lib/subscriptionReadOnly'
 import type {
   CustomerDto,
   CustomerReceivableDto,
@@ -436,4 +437,71 @@ describe('customer list mapping', () => {
       note: null,
     })
   })
+})
+
+describe("a customer's New invoice while the subscription is read-only (ST-2, CA-3)", () => {
+  const readOnlyStanding = (restriction: string | null) => ({
+    tracked: true,
+    access: restriction ? 'PAYMENT_REQUIRED' : 'ACTIVE',
+    restrictionsEnforced: true,
+    restriction,
+    today: '2026-10-23',
+    planCode: 'BUSINESS',
+    planName: 'Business',
+    billingCycle: 'MONTHLY',
+    periodPrice: '80.000',
+    trialStartsOn: null,
+    trialEndsOn: null,
+    trialDay: null,
+    trialDaysLeft: null,
+    paidThrough: '2026-10-14',
+    renewsOn: '2026-10-15',
+    graceDays: 7,
+    graceUntil: '2026-10-21',
+    autoRenew: false,
+    autoRenewAvailable: false,
+    autoRenewChangedAt: null,
+    cancelAtPeriodEnd: false,
+    accessEndsOn: null,
+    scheduledChange: null,
+    enterprise: null,
+  })
+  /** Answers `GET /settings/subscription` with this standing, every other request as before. */
+  const answerStanding = (restriction: string | null) => {
+    forgetSubscriptionStanding()
+    const before = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === '/api/v1/settings/subscription'
+        ? json(200, readOnlyStanding(restriction))
+        : before(url, init),
+    )
+  }
+  const OWNER: Entitlements = { ...ADMIN, permissions: [...ADMIN.permissions, 'tenant.plan.read'] }
+  const subscriptionRead = () => calls('/api/v1/settings/subscription').length > 0
+  const openRowMenu = async () => {
+    await screen.findAllByRole('button', { name: i18n.t('customersPage.rowMenu') })
+    await waitFor(() => expect(subscriptionRead()).toBe(true))
+    fireEvent.click(screen.getAllByRole('button', { name: i18n.t('customersPage.rowMenu') })[0])
+    await screen.findAllByRole('menuitem')
+  }
+
+  it('offers New invoice while the subscription is usable', async () => {
+    who = OWNER
+    answerStanding(null)
+    renderCustomers()
+    await openRowMenu()
+    expect(screen.getByRole('menuitem', { name: 'New invoice' })).toBeTruthy()
+  })
+
+  it.each(['SUBSCRIPTION_SUSPENDED', 'SUBSCRIPTION_CANCELLED'])(
+    'offers no New invoice while %s, and editing the customer stays',
+    async (restriction) => {
+      who = OWNER
+      answerStanding(restriction)
+      renderCustomers()
+      await openRowMenu()
+      expect(screen.queryByRole('menuitem', { name: 'New invoice' })).toBeNull()
+      expect(screen.getAllByRole('menuitem').length).toBeGreaterThan(0)
+    },
+  )
 })
