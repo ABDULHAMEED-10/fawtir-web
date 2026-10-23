@@ -55,7 +55,6 @@ import {
   subscriptionNotStarted,
   type SubscriptionStatusDto,
 } from '../../api/settings/subscription'
-import { readOnlyReason } from '../../lib/subscriptionReadOnly'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
 import { useBranchName } from '../../components/branch/useBranchName'
 import tickIcon from '../../assets/settings/check-ink.svg'
@@ -157,11 +156,6 @@ function PlanBody({ onPlanChanged }: { onPlanChanged: (why?: string) => void }) 
       ? changesRead.pending
       : null
   const status = subscription.status === 'ready' ? subscription.data : null
-  // Plan v4 §8/§11: while the server says the subscription is read-only (suspended, cancelled,
-  // trial ended unpaid, not started), buying extra documents or places and moving plan or cycle
-  // are hidden, not greyed. Paying the open bill and renewing stay on Bills and payment.
-  const readOnly = status !== null && readOnlyReason(status) !== null
-  const mayChange = mayManage && !readOnly
   // The move buttons (plan-change table, PC-2): only with the server's switch on and the permission,
   // never for Enterprise (D4) or an untracked subscription, not while it is ending (Q6: keep it
   // first) and not while a charged change waits for payment (pay or withdraw it first).
@@ -174,7 +168,6 @@ function PlanBody({ onPlanChanged }: { onPlanChanged: (why?: string) => void }) 
     status.access !== 'NOT_TRACKED' &&
     status.enterprise == null &&
     !status.cancelAtPeriodEnd &&
-    !readOnly &&
     pending === null
       ? { cycle: status.billingCycle ?? 'MONTHLY' }
       : null
@@ -182,9 +175,9 @@ function PlanBody({ onPlanChanged }: { onPlanChanged: (why?: string) => void }) 
   const inTrial = status?.access === 'TRIAL'
   return (
     <>
-      <PlanFigures data={plan.read.data} notStarted={notStarted} mayManage={mayChange} />
+      <PlanFigures data={plan.read.data} notStarted={notStarted} mayManage={mayManage} />
       {extras.read.status === 'ready' ? (
-        <PaidExtrasSummary data={extras.read.data} mayManage={mayChange} />
+        <PaidExtrasSummary data={extras.read.data} mayManage={mayManage} />
       ) : null}
       {pending ? (
         <PendingPlanChangeCard change={pending} onChanged={onPlanChanged} inTrial={inTrial} />
@@ -195,7 +188,7 @@ function PlanBody({ onPlanChanged }: { onPlanChanged: (why?: string) => void }) 
       ) : (
         <PlanCards
           current={plan.read.data}
-          mayManage={mayChange}
+          mayManage={mayManage}
           selfService={selfService}
           selfServiceOpen={changesRead?.available === true}
           inTrial={inTrial}

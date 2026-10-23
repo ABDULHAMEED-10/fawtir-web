@@ -13,12 +13,18 @@ import { REQUIRE_SESSION, useSession } from './session/session'
  * screen never works a restriction out from the dates.
  *
  * Read-only (trial ended, Suspended, Cancelled; owner rule of 23 Oct 2026, ST-2 and CA-3) means
- * sign in, view, search, download, export and pay, nothing else. Nothing goes out: no document is
- * issued or sent, not even one issued before, and no invitation is sent. No new draft is made
- * (invoice, credit or debit note, self-billed document, periodic invoice, bulk upload, duplicate).
+ * sign in, view, search, download, export and pay, nothing else. Nothing new goes out: no draft is
+ * issued, and nothing is sent, resent or shared (Send, resend, sharing links, releasing a held
+ * e-mail to the buyer, invitations). No new draft is made (invoice, credit or debit note,
+ * self-billed document, periodic invoice, quotation, order form, delivery note, purchase order,
+ * bulk upload, duplicate). Also stopped: Send on an existing quotation, order form, delivery note
+ * or purchase order (it gives the number), resubmitting a rejected document to the Tax Authority
+ * (it uses credits) and resuming a periodic invoice; pausing one still works. A document issued
+ * while the subscription was paid still goes out on its own, to the Tax Authority and the buyer.
  * Drafts made before stay readable and can be issued once the subscription is paid. Adding people,
- * creating or rotating API keys and ERP work stop too. Replies to invoices sent before read-only
- * (Tax Authority and Peppol) still come in.
+ * creating or rotating API keys and ERP work stop too. Replies to documents already sent (Tax
+ * Authority and Peppol) still come in. The Plan page stays fully open: choosing a plan, upgrading,
+ * changing the billing cycle and buying extras are offered, and the server decides.
  */
 export type RestrictedAction =
   | 'ISSUE_DOCUMENTS'

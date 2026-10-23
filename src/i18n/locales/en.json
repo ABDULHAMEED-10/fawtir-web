@@ -22837,7 +22837,8 @@
     "enterpriseCycle": {
       "MONTHLY": "a month",
       "ANNUAL": "a year"
-    }
+    },
+    "staysReadOnlyUntilPaid": "Your subscription stays read-only until it is paid."
   },
   "billing": {
     "title": "Charges and payment",

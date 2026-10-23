@@ -1,17 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { forgetSubscriptionStanding } from '../../lib/subscriptionReadOnly'
 import { resetSharedRequests } from '../../api'
 import { PlanPage } from './PlanPage'
+import { ExtraDocumentsPage } from './ExtraDocumentsPage'
+import { PaidExtrasPage } from './PaidExtrasPage'
 
 /**
- * E28 (22 Oct 2026), plan v4 §8 and §11: while the server says the subscription is read-only
- * (suspended, cancelled, trial ended unpaid, not started), Settings › Plan hides what cannot be
- * done -- buying extra documents, adding users or branches, switching cycle, moving plan -- and
- * no longer says "In grace until" once grace has ended. The state is the server's `restriction`.
+ * Settings › Plan while the server says the subscription is read-only (suspended, cancelled, trial
+ * ended unpaid). ST-2 (owner, 23 Oct 2026, third message; reverses E28's hiding here): the Plan page
+ * stays fully open -- choosing a plan, upgrading, switching cycle and buying extras are all offered,
+ * and the server decides; a refusal comes back in its own sentence. Buying extras says the
+ * subscription stays read-only until it is paid. "In grace until" is no longer said once grace has
+ * ended (E28). The state is the server's `restriction`.
  */
 const MANAGER: Entitlements = {
   userId: 'u-1',
@@ -29,6 +34,8 @@ const SUBSCRIPTION = '/api/v1/settings/subscription'
 const PUBLIC_PLANS = '/api/v1/public/plans'
 const CHANGES = '/api/v1/settings/plan/changes'
 const EXTRAS = '/api/v1/settings/plan/extras'
+const EXTRA_DOCUMENTS = '/api/v1/settings/plan/extra-documents'
+const PREVIEW = '/api/v1/settings/plan/changes/preview'
 
 const ACTIVE = {
   tracked: true,
@@ -164,7 +171,25 @@ function json(status: number, body?: unknown) {
   })
 }
 
+const EXTRA_DOCUMENTS_OVERVIEW = {
+  planCode: 'BUSINESS',
+  offered: true,
+  unitPrice: '0.150',
+  minPerPurchase: 10,
+  maxPerPurchase: 5000,
+  expiresOn: '2026-10-31',
+  allowance: {
+    periodStart: '2026-10-01', periodEnd: '2026-10-31', resetsOn: '2026-11-01', planDocuments: 1000,
+    extraDocuments: 0, totalAllowance: 1000, issued: 412, resubmissions: 0, received: 0,
+    receivedHidden: 0, used: 412, planUsed: 412, extraUsed: 0, left: 588, warningPercent: null,
+    issuingAllowed: true, extrasExpireOn: '2026-10-31', byBranch: [],
+  },
+  outstanding: null,
+  credits: [],
+}
+
 let subscription: unknown
+let answers: Record<string, () => Response>
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
@@ -172,12 +197,13 @@ beforeEach(async () => {
   forgetEntitlements()
   forgetSubscriptionStanding()
   subscription = ACTIVE
-  const answers: Record<string, () => Response> = {
+  answers = {
     [PLAN]: () => json(200, OVERVIEW),
     [SUBSCRIPTION]: () => json(200, subscription),
     [PUBLIC_PLANS]: () => json(200, CATALOGUE),
     [CHANGES]: () => json(200, { available: true, pending: null, history: [] }),
     [EXTRAS]: () => json(200, EXTRAS_OVERVIEW),
+    [EXTRA_DOCUMENTS]: () => json(200, EXTRA_DOCUMENTS_OVERVIEW),
   }
   vi.stubGlobal(
     'fetch',
@@ -194,15 +220,19 @@ afterEach(() => {
   forgetSubscriptionStanding()
 })
 
-function renderPage() {
+function renderPage(at = '/settings/plan') {
   return render(
-    <MemoryRouter initialEntries={['/settings/plan']}>
+    <MemoryRouter initialEntries={[at]}>
       <Routes>
         <Route path="/settings/plan" element={<PlanPage />} />
+        <Route path="/settings/plan/extra-documents" element={<ExtraDocumentsPage />} />
+        <Route path="/settings/plan/extras" element={<PaidExtrasPage />} />
       </Routes>
     </MemoryRouter>,
   )
 }
+
+const STAYS_READ_ONLY = 'Your subscription stays read-only until it is paid.'
 
 const actions = () => ({
   buyDocuments: screen.queryByRole('link', { name: i18n.t('extraDocuments.entry') }),
@@ -237,24 +267,40 @@ describe('E28: Settings › Plan while the subscription is usable', () => {
   })
 })
 
+// A cancelled subscription is still "ending" (`cancelAtPeriodEnd`), and moving plan while ending
+// was never offered (Q6: keep it first; the server refuses with plan-change-while-ending). That
+// rule is older than read-only and unchanged here, so for it only the extras are checked.
 describe.each([
-  ['suspended', SUSPENDED],
-  ['trial ended unpaid', TRIAL_ENDED],
-  ['cancelled', CANCELLED],
-])('E28: Settings › Plan while %s', (_, status) => {
-  it('hides buying extras, adding places, switching cycle and moving plan', async () => {
+  ['suspended', SUSPENDED, true],
+  ['trial ended unpaid', TRIAL_ENDED, true],
+  ['cancelled', CANCELLED, false],
+])('E28: Settings › Plan while %s', (_, status, moves) => {
+  it('hides nothing: buying extras, adding places, switching cycle and moving plan stay (ST-2)', async () => {
     subscription = status
     renderPage()
-    // The places card stays, as a view of what is in use.
-    expect(
-      await screen.findByRole('link', { name: i18n.t('paidExtras.planCard.view') }),
-    ).toBeTruthy()
+    await screen.findByRole('link', { name: i18n.t('extraDocuments.entry') })
     await screen.findByRole('heading', { name: 'Business Plus' })
     const shown = actions()
-    expect(shown.buyDocuments).toBeNull()
-    expect(shown.addPlaces).toBeNull()
-    expect(shown.toAnnual).toBeNull()
-    expect(shown.moveTo).toHaveLength(0)
+    expect(shown.buyDocuments).toBeTruthy()
+    expect(shown.addPlaces).toBeTruthy()
+    if (moves) {
+      expect(shown.toAnnual).toBeTruthy()
+      expect(shown.moveTo.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('says on Buy extra documents that the subscription stays read-only until paid, in Arabic too', async () => {
+    subscription = status
+    renderPage('/settings/plan/extra-documents')
+    expect(await screen.findByText(STAYS_READ_ONLY)).toBeTruthy()
+    await i18n.changeLanguage('ar')
+    expect(await screen.findByText('يبقى اشتراكك للقراءة فقط حتى يُدفع.')).toBeTruthy()
+  })
+
+  it('says the same on buying extra users and branches', async () => {
+    subscription = status
+    renderPage('/settings/plan/extras')
+    expect(await screen.findByText(STAYS_READ_ONLY)).toBeTruthy()
   })
 
   it('no longer says "In grace until" once grace has ended', async () => {
@@ -262,5 +308,37 @@ describe.each([
     renderPage()
     await screen.findByRole('heading', { name: 'Business Plus' })
     expect(screen.queryByText(/In grace until/)).toBeNull()
+  })
+})
+
+describe('Buying extras while the subscription is usable', () => {
+  it('says nothing about read-only', async () => {
+    renderPage('/settings/plan/extra-documents')
+    await screen.findByText(i18n.t('extraDocuments.buy.title'))
+    expect(screen.queryByText(STAYS_READ_ONLY)).toBeNull()
+  })
+})
+
+describe.each([
+  ['suspended', SUSPENDED],
+  ['trial ended unpaid', TRIAL_ENDED],
+])('Moving plan while %s', (_, status) => {
+  it("shows the server's refusal when it refuses the move, in English and Arabic", async () => {
+    subscription = status
+    answers[PREVIEW] = () =>
+      json(409, {
+        type: 'https://api.fawtir.om/problems/plan-upgrade-requires-platform',
+        title: 'plan-upgrade-requires-platform',
+        status: 409,
+        detail: 'English detail',
+      })
+    renderPage()
+    await screen.findByRole('heading', { name: 'Business Plus' })
+    await userEvent.click(screen.getAllByRole('button', { name: /Move to/ })[0])
+    const dialog = await screen.findByRole('dialog')
+    expect(
+      await within(dialog).findByText(i18n.t('planChange.refusal.plan-upgrade-requires-platform')),
+    ).toBeTruthy()
+    expect(within(dialog).queryByText('English detail')).toBeNull()
   })
 })

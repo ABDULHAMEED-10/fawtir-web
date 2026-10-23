@@ -24123,7 +24123,8 @@
     "enterpriseCycle": {
       "MONTHLY": "شهريًا",
       "ANNUAL": "سنويًا"
-    }
+    },
+    "staysReadOnlyUntilPaid": "يبقى اشتراكك للقراءة فقط حتى يُدفع."
   },
   "billing": {
     "title": "الرسوم والدفع",

@@ -512,13 +512,19 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     end of the last month not refunded; with no refund, or a refund refused, it stays active to
     the end of the year (owner, 21 Oct 2026). Then the company is **read-only** (ST-2, CA-3;
     owner, 23 Oct 2026; also after a trial ends unpaid and while Suspended): it can sign in, view,
-    search, download, export and pay, **nothing else**. Nothing goes out: no document is issued
-    or sent, not even one issued before, and no invitation is sent or resent. No new drafts are
-    made (Create invoice, Bulk upload, Duplicate, new credit, debit and self-billed notes,
-    periodic invoices). Drafts made before stay readable and can be issued once the subscription
-    is paid. Users cannot be added and the ERP and API cannot be used. Those actions are hidden,
-    not greyed. Replies to invoices sent before read-only (Tax Authority and Peppol) still come
-    in.
+    search, download, export and pay, **nothing else**. Nothing new goes out: no draft is issued,
+    and nothing is sent, resent or shared (Send, resend, sharing links, releasing a held e-mail to
+    the buyer, invitations). No new drafts are made (Create invoice, Bulk upload, Duplicate, new
+    credit, debit and self-billed notes, periodic invoices, quotations, order forms, delivery
+    notes, purchase orders). Also blocked: Send on an existing quotation, order form, delivery
+    note or purchase order (it gives the number), resubmitting a rejected document to the Tax
+    Authority (it uses credits) and resuming a periodic invoice; Pause still works. A document
+    issued while the subscription was paid still goes out on its own, to the Tax Authority and
+    the buyer. Drafts made before stay readable and can be issued once the subscription is paid.
+    Users cannot be added and the ERP and API cannot be used. Those actions are hidden, not
+    greyed. The Plan page stays fully open (choose a plan, upgrade, change the billing cycle, buy
+    extras); buying extras says the subscription stays read-only until it is paid. Replies to
+    documents already sent (Tax Authority and Peppol) still come in.
   - **Nothing from onboarding is touched** by cancelling, suspension or expiry: company profile,
     VAT and CR numbers, Peppol registration and participant ID, signing certificate, branches,
     users and permissions, customers, suppliers, products, number series, templates, settings and
