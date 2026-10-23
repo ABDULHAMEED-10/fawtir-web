@@ -35,6 +35,7 @@ import { formatAmount, formatDate, formatInstantDay, initialsOf } from '../../li
 import { muscatToday } from '../../lib/invoiceIssue'
 import { addDays } from '../../lib/dates'
 import { can, useSession } from '../../lib/session/session'
+import { usePlanIncludes } from '../../lib/planAccess'
 import {
   DETAIL_TABS,
   addressLine,
@@ -131,7 +132,9 @@ function SupplierRecord({ id }: { id: string }) {
   const session = useSession()
   const canManage = can(session, 'supplier.manage')
   const canPay = can(session, 'invoice.payment.manage')
-  const canOrder = can(session, 'purchase-order.manage')
+  // A new purchase order needs a plan with trade documents (PL-8).
+  const tradeDocumentsIncluded = usePlanIncludes('tradeDocuments')
+  const canOrder = can(session, 'purchase-order.manage') && tradeDocumentsIncluded
   // The Orders tab is the supplier's purchase orders (`purchase-order.read`), each a link to its
   // order. A Viewer or an Approver reads suppliers without that permission, so the tab, whose
   // only content the server would refuse them, is not drawn for them.

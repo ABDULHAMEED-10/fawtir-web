@@ -441,9 +441,12 @@ Checked on 2026-09-28 against PDK 1.4.4. Findings from that check are in
   8 OMR on every plan; annual billing gives free months. Enterprise is Business Plus with
   negotiated limits. A **14-day trial** of the chosen plan (not on Enterprise), off by default
   (owner, 13 Oct 2026). **Compliance
-  features are never gated.** Plan gating is built but switched off (`PLAN_GATING_ENABLED =
-false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an upgrade nudge,
-  never hidden.
+  features are never gated.** Plan features follow the console's switches per plan (PL-8, owner,
+  23 Oct 2026): `GET /me/entitlements` sends `planFeaturesEnforced` and `planFeatures`, and while
+  enforced, making or using a switched-off feature is hidden (`src/lib/planAccess.ts`; screens
+  that make one show the upgrade panel, `PlanGated`). What was made before stays listed, viewable,
+  downloadable and exportable. The server's 403 `plan-feature-not-included` is worded by its
+  `feature` key (`src/lib/planFeatureRefusal.ts`).
 - **ERP extraction** is a separate add-on with per-plan availability (not offered, priced,
   included), offered at payment and managed in Settings, Plan. White label was removed. On an
   annual plan the ERP add-on is its monthly price × 12: the annual free months apply to the plan

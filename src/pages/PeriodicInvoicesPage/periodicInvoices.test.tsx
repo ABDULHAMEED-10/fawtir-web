@@ -826,3 +826,44 @@ describe('periodic schedule helpers', () => {
     expect(dateForRepeat('WEEKLY', 'w1', '2026-09-25', '2026-09-25')).toBe('2026-09-28')
   })
 })
+
+// Business Rules PL-8: a plan without periodic invoices keeps every series made before readable
+// and pausable; making, generating, copying, resuming and saving wait for a plan that has them.
+describe('a plan without periodic invoices (PL-8)', () => {
+  const plan = (on: boolean): Entitlements => ({
+    ...DRAFTER,
+    planFeaturesEnforced: true,
+    planFeatures: { recurringInvoices: on },
+  })
+
+  it('keeps the list, View, Pause and Delete, and hides New, Generate and Duplicate', async () => {
+    who = plan(false)
+    renderAt('/income/periodic')
+    const row = (await screen.findByRole('link', { name: 'Muscat Grand Hotel' })).closest(
+      'tr',
+    ) as HTMLElement
+    await waitFor(() =>
+      expect(screen.queryByRole('link', { name: 'New recurring invoice' })).toBeNull(),
+    )
+    fireEvent.click(within(row).getByRole('button', { name: 'Schedule actions' }))
+    expect(await screen.findByRole('menuitem', { name: 'View schedule' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Pause series' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Generate invoice' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Duplicate' })).toBeNull()
+  })
+
+  it('offers New when the plan has periodic invoices', async () => {
+    who = plan(true)
+    renderAt('/income/periodic')
+    await screen.findByRole('link', { name: 'Muscat Grand Hotel' })
+    expect(await screen.findByRole('link', { name: 'New recurring invoice' })).toBeTruthy()
+  })
+
+  it('opens a series read-only, with Pause and no Save', async () => {
+    who = plan(false)
+    renderAt('/income/periodic/sch-1')
+    expect(await screen.findByRole('button', { name: 'Pause series' })).toBeTruthy()
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Save changes' })).toBeNull())
+  })
+})

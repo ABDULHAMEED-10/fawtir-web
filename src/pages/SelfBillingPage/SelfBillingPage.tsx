@@ -61,6 +61,7 @@ import { describeApiFailure } from '../../lib/apiFailure'
 import { muscatToday } from '../../lib/invoiceIssue'
 import { formatAmount, formatCount, formatDate, minorUnitsOf } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
+import { usePlanIncludes } from '../../lib/planAccess'
 import raisedIcon from '../../assets/self-billing/kpi-raised.svg'
 import inputVatIcon from '../../assets/self-billing/kpi-input-vat.svg'
 import awaitingIcon from '../../assets/self-billing/kpi-awaiting.svg'
@@ -330,6 +331,9 @@ function SelfBilled() {
   // Read to answer "can I actually issue one of these", which is the question this page raises
   // and the agreements screen answers; the row note under each supplier is drawn from it.
   const canManageAgreements = can(session, 'selfbilling.agreement.manage')
+  // A new self-billed draft needs a plan with self-billing (PL-8); drafts made before stay
+  // editable and issuable, and everything made before stays listed.
+  const selfBillingIncluded = usePlanIncludes('selfBilling')
   const agreements = useApiRead<AgreementDto[]>(
     canManageAgreements ? AGREEMENTS_PATH : null,
     loadAgreements,
@@ -435,7 +439,7 @@ function SelfBilled() {
               {exporting ? t('invoicesPage.exporting') : t('selfBilling.export')}
             </button>
           ) : null}
-          {can(session, 'selfbilling.create') ? (
+          {can(session, 'selfbilling.create') && selfBillingIncluded ? (
             <Link
               to="/expenditure/self-billing/new"
               className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-primary-700 py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"

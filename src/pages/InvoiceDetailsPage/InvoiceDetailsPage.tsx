@@ -116,6 +116,7 @@ import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatDate, formatInstant, initialsOf } from '../../lib/format'
 import { formatFileSize } from '../../lib/files'
 import { can, useSession } from '../../lib/session/session'
+import { usePlanIncludes } from '../../lib/planAccess'
 import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import backIcon from '../../assets/invoice-details/back.svg'
 import creditNoteIcon from '../../assets/invoice-details/credit-note.svg'
@@ -218,6 +219,8 @@ function InvoiceScreen() {
   const session = useSession()
   // Issuing stops while the subscription is read-only (ST-2): the action is hidden, not greyed.
   const mayIssue = useSubscriptionAllows('ISSUE_DOCUMENTS')
+  // Making a periodic series from this invoice needs a plan with periodic invoices (PL-8).
+  const periodicIncluded = usePlanIncludes('recurringInvoices')
   const navigate = useNavigate()
   const location = useLocation()
   const { id = '' } = useParams()
@@ -805,7 +808,7 @@ function InvoiceScreen() {
                 </button>
               )
             ) : null}
-            {issuedInvoice && can(session, 'invoice.draft') ? (
+            {issuedInvoice && can(session, 'invoice.draft') && periodicIncluded ? (
               <Link to={`/income/periodic/new?template=${data.id}`} className={GHOST_BUTTON}>
                 <img src={periodicIcon} alt="" className="h-3 w-[26px]" />
                 {t('invoiceDetails.actions.periodic')}

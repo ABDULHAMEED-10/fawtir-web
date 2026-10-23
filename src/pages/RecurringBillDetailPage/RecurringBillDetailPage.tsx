@@ -26,6 +26,7 @@ import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatDate } from '../../lib/format'
 import { muscatToday } from '../../lib/invoiceIssue'
 import { can, useSession } from '../../lib/session/session'
+import { usePlanIncludes } from '../../lib/planAccess'
 import { saveDownload } from '../../lib/supplierRecord'
 import {
   RECURRING_REFUSALS,
@@ -146,6 +147,9 @@ function RecurringBill({ id }: { id: string }) {
   const language = i18n.language
   const session = useSession()
   const canManage = can(session, 'invoice.payment.manage')
+  // A plan without recurring bills (PL-8): reading, pausing and marking one received stay;
+  // editing, resuming and chasing wait for a plan that has them.
+  const planIncludes = usePlanIncludes('recurringBills')
   const canExport = can(session, 'invoice.export')
   const today = muscatToday()
   const [notice, setNotice] = useState<
@@ -199,7 +203,7 @@ function RecurringBill({ id }: { id: string }) {
   const supplierProfile = supplier.read.status === 'ready' ? supplier.read.data.profile : null
   // Resume is offered only where it can be taken. Paused with its supplier: not until the
   // supplier's record says it is back on; a record that cannot be read leaves the server to say.
-  const resumable = canResume(
+  const resumable = planIncludes && canResume(
     bill,
     !bill.supplierId
       ? false
@@ -396,12 +400,14 @@ function RecurringBill({ id }: { id: string }) {
           </div>
           {canManage ? (
             <div className="flex flex-wrap items-center gap-3">
-              <Link
-                to={`/expenditure/recurring-bills/${bill.id}/edit`}
-                className="inline-flex h-[46px] items-center rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white"
-              >
-                {t('recurringBills.menu.edit')}
-              </Link>
+              {planIncludes ? (
+                <Link
+                  to={`/expenditure/recurring-bills/${bill.id}/edit`}
+                  className="inline-flex h-[46px] items-center rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white"
+                >
+                  {t('recurringBills.menu.edit')}
+                </Link>
+              ) : null}
               {bill.active || resumable ? (
                 <button
                   type="button"
@@ -417,7 +423,7 @@ function RecurringBill({ id }: { id: string }) {
                 </button>
               ) : null}
               {/* Only once the bill is late, by the list row's own rule: hidden, not disabled. */}
-              {!ended && offersChase(bill) ? (
+              {planIncludes && !ended && offersChase(bill) ? (
                 <button
                   type="button"
                   onClick={() => void act('chase')}

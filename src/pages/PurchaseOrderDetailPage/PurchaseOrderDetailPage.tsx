@@ -35,6 +35,7 @@ import {
 import { earlySettlementNote, termsNote } from '../../lib/supplierRecord'
 import { formatAmount, formatDate, formatInstant, initialsOf } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
+import { usePlanIncludes } from '../../lib/planAccess'
 import { LinesTotals } from '../NewPurchaseOrderPage/OrderLinesTable'
 import {
   ComposerHeader,
@@ -87,6 +88,10 @@ function PurchaseOrderDetail({ id }: { id: string }) {
   const session = useSession()
   const canManage = can(session, 'purchase-order.manage')
   const canApprove = can(session, 'purchase-order.approve')
+  // A plan without trade documents (PL-8): an order made before stays readable and can be
+  // cancelled or closed; submitting, approving, sending and booking goods in wait for a plan
+  // that has them.
+  const tradeDocumentsIncluded = usePlanIncludes('tradeDocuments')
 
   const order = useApiRead<PurchaseOrderDto>(id ? purchaseOrderPath(id) : null, () =>
     loadPurchaseOrder(id),
@@ -158,7 +163,9 @@ function PurchaseOrderDetail({ id }: { id: string }) {
   }
   if (!row) return null
 
-  const action = nextAction(row.state)
+  // Closing a received order is winding down, which a plan never refuses (PL-8).
+  const offered = nextAction(row.state)
+  const action = tradeDocumentsIncluded || offered === 'close' ? offered : null
   // Approving is its own permission: the person who raises an order is not necessarily the one
   // who may approve it, which is the point of the step.
   const mayAct = action === 'approve' ? canApprove : canManage
@@ -405,7 +412,7 @@ function PurchaseOrderDetail({ id }: { id: string }) {
             ) : null}
           </SectionCard>
 
-          {acceptsReceipts(row.state) && canManage ? (
+          {acceptsReceipts(row.state) && canManage && tradeDocumentsIncluded ? (
             <BookIn
               order={row}
               received={received}
@@ -418,7 +425,7 @@ function PurchaseOrderDetail({ id }: { id: string }) {
           ) : null}
 
           <SectionCard
-            step={acceptsReceipts(row.state) && canManage ? 5 : 4}
+            step={acceptsReceipts(row.state) && canManage && tradeDocumentsIncluded ? 5 : 4}
             title={t('purchaseOrder.receiptsTitle')}
           >
             {receipts.read.status === 'loading' ? <LoadingNotice /> : null}

@@ -683,3 +683,25 @@ describe("the supplier's business activity in the agreement dialog (BTOM-033)", 
     })
   })
 })
+
+// Business Rules PL-8: opening, renewing and activating an agreement need a plan with
+// self-billing; the agreements made before stay listed.
+describe('a plan without self-billing (PL-8)', () => {
+  it('keeps the agreements and hides New agreement and Renew agreement', async () => {
+    who = { ...MANAGER, planFeaturesEnforced: true, planFeatures: { selfBilling: false } }
+    rows = [agreement({ effectiveTo: '2026-09-20' })]
+    renderPage()
+    // The lapsed agreement is still read and named; only the ways to make one are gone.
+    expect(await screen.findByText(/agreement expired on/)).toBeTruthy()
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'New agreement' })).toBeNull())
+    expect(screen.queryByRole('button', { name: 'Renew agreement' })).toBeNull()
+  })
+
+  it('offers both when the plan has self-billing', async () => {
+    who = { ...MANAGER, planFeaturesEnforced: true, planFeatures: { selfBilling: true } }
+    rows = [agreement({ effectiveTo: '2026-09-20' })]
+    renderPage()
+    expect(await screen.findByRole('button', { name: 'New agreement' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Renew agreement' })).toBeTruthy()
+  })
+})

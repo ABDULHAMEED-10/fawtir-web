@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { usePlanIncludes } from '../../lib/planAccess'
 import { AppShell } from '../../layouts/AppShell'
 import { ActionMenu, RowsView, StepTracker, TableCheckbox, withRial } from '../../components/ui'
 import { quotationRowActions, type TradeRowAction } from '../../lib/rowActions'
@@ -62,6 +63,8 @@ const VALID_NOTE_TONE = {
 
 function QuotationsHeader({ onUnavailable }: { onUnavailable: () => void }) {
   const { t } = useTranslation()
+  // Making one needs a plan with trade documents (PL-8).
+  const tradeDocumentsIncluded = usePlanIncludes('tradeDocuments')
   const summary = quotationSummary(QUOTATION_ROWS)
 
   return (
@@ -95,13 +98,15 @@ function QuotationsHeader({ onUnavailable }: { onUnavailable: () => void }) {
           <img src={exportIcon} alt="" className="size-6" />
           {t('quotations.export')}
         </button>
-        <Link
-          to="/trade-documents/quotations/new"
-          className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-primary-700 py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"
-        >
-          <img src={plusIcon} alt="" className="size-6" />
-          {t('quotations.newQuotation')}
-        </Link>
+        {tradeDocumentsIncluded ? (
+          <Link
+            to="/trade-documents/quotations/new"
+            className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-primary-700 py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"
+          >
+            <img src={plusIcon} alt="" className="size-6" />
+            {t('quotations.newQuotation')}
+          </Link>
+        ) : null}
       </div>
     </div>
   )

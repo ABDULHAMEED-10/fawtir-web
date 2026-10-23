@@ -49,6 +49,7 @@ import {
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatInstantDay } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
+import { usePlanIncludes } from '../../lib/planAccess'
 import { copySupplierPath } from '../../lib/supplierForm'
 import { SuppliersEmptyState } from './SuppliersEmptyState'
 import { SwitchSupplierOffModal, type SwitchOffTarget } from './SwitchSupplierOffModal'
@@ -597,6 +598,7 @@ function SupplierTableRow({
   // A switched-off row is drawn greyed out (Figma, Muttrah Roasters): name, chip and terms muted.
   const chip = supplier.active ? CHANNEL_CHIP[supplier.channel] : CHANNEL_CHIP.manual
   const detail = `/suppliers/${supplier.id}`
+  const tradeDocumentsIncluded = usePlanIncludes('tradeDocuments')
 
   /** The row menu (Figma 163:28984): two titled groups, then the destructive item. */
   const menu: (ActionMenuItem & { requires: string })[] = [
@@ -674,6 +676,8 @@ function SupplierTableRow({
   const offered = menu.filter(
     (item) =>
       can(session, item.requires) &&
+      // A new purchase order needs a plan with trade documents (PL-8).
+      (item.id !== 'newPurchaseOrder' || tradeDocumentsIncluded) &&
       (supplier.active ||
         (item.id !== 'newPurchaseOrder' && item.id !== 'recordBill' && item.id !== 'payNow')),
   )

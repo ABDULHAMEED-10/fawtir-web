@@ -203,7 +203,7 @@ import {
   ValidationPolicyPage,
 } from './pages/ConsolePage'
 import { VerifyCodePage } from './pages/VerifyCodePage'
-import { PlanFromQuery, PlanGated } from './components/plan'
+import { PlanGated } from './components/plan'
 import { DemoModule } from './components/feedback/DemoModule'
 
 function App() {
@@ -213,8 +213,6 @@ function App() {
   return (
     <div dir={isRtl ? 'rtl' : 'ltr'} className="min-h-dvh font-sans text-text-primary">
       <BrowserRouter>
-        {/* Lets any screen be opened as another plan sees it: `?plan=starter`. */}
-        <PlanFromQuery />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/pricing" element={<PricingPage />} />
@@ -255,9 +253,7 @@ function App() {
           <Route
             path="/expenditure/recurring-bills"
             element={
-              <PlanGated feature="recurringBills">
-                <RecurringBillsPage />
-              </PlanGated>
+              <RecurringBillsPage />
             }
           />
           <Route
@@ -279,17 +275,13 @@ function App() {
           <Route
             path="/expenditure/recurring-bills/:id"
             element={
-              <PlanGated feature="recurringBills">
-                <RecurringBillDetailPage />
-              </PlanGated>
+              <RecurringBillDetailPage />
             }
           />
           <Route
             path="/expenditure/credit-notes"
             element={
-              <PlanGated feature="supplierNotes">
-                <SupplierCreditNotesPage />
-              </PlanGated>
+              <SupplierCreditNotesPage />
             }
           />
           <Route
@@ -303,17 +295,13 @@ function App() {
           <Route
             path="/expenditure/credit-notes/:id"
             element={
-              <PlanGated feature="supplierNotes">
-                <SupplierCreditNoteDetailPage />
-              </PlanGated>
+              <SupplierCreditNoteDetailPage />
             }
           />
           <Route
             path="/expenditure/debit-notes"
             element={
-              <PlanGated feature="supplierNotes">
-                <SupplierDebitNotesPage />
-              </PlanGated>
+              <SupplierDebitNotesPage />
             }
           />
           <Route path="/reports" element={<Navigate to="/reports/income" replace />} />
@@ -334,9 +322,7 @@ function App() {
           <Route
             path="/expenditure/debit-notes/:id"
             element={
-              <PlanGated feature="supplierNotes">
-                <SupplierDebitNoteDetailPage />
-              </PlanGated>
+              <SupplierDebitNoteDetailPage />
             }
           />
           <Route path="/expenditure/reminders" element={<ExpenditureRemindersPage />} />
@@ -407,9 +393,7 @@ function App() {
           <Route
             path="/trade-documents/quotations"
             element={
-              <PlanGated feature="tradeDocuments">
-                <DemoModule module="tradeDocuments"><QuotationsPage /></DemoModule>
-              </PlanGated>
+              <DemoModule module="tradeDocuments"><QuotationsPage /></DemoModule>
             }
           />
           <Route
@@ -423,17 +407,13 @@ function App() {
           <Route
             path="/trade-documents/quotations/:id"
             element={
-              <PlanGated feature="tradeDocuments">
-                <DemoModule module="tradeDocuments"><QuotationDetailPage /></DemoModule>
-              </PlanGated>
+              <DemoModule module="tradeDocuments"><QuotationDetailPage /></DemoModule>
             }
           />
           <Route
             path="/trade-documents/order-forms"
             element={
-              <PlanGated feature="tradeDocuments">
-                <DemoModule module="tradeDocuments"><OrderFormsPage /></DemoModule>
-              </PlanGated>
+              <DemoModule module="tradeDocuments"><OrderFormsPage /></DemoModule>
             }
           />
           <Route
@@ -447,17 +427,13 @@ function App() {
           <Route
             path="/trade-documents/order-forms/:id"
             element={
-              <PlanGated feature="tradeDocuments">
-                <DemoModule module="tradeDocuments"><OrderFormDetailPage /></DemoModule>
-              </PlanGated>
+              <DemoModule module="tradeDocuments"><OrderFormDetailPage /></DemoModule>
             }
           />
           <Route
             path="/trade-documents/delivery-notes"
             element={
-              <PlanGated feature="tradeDocuments">
-                <DemoModule module="tradeDocuments"><DeliveryNotesPage /></DemoModule>
-              </PlanGated>
+              <DemoModule module="tradeDocuments"><DeliveryNotesPage /></DemoModule>
             }
           />
           <Route
@@ -471,9 +447,7 @@ function App() {
           <Route
             path="/trade-documents/delivery-notes/:id"
             element={
-              <PlanGated feature="tradeDocuments">
-                <DemoModule module="tradeDocuments"><DeliveryNoteDetailPage /></DemoModule>
-              </PlanGated>
+              <DemoModule module="tradeDocuments"><DeliveryNoteDetailPage /></DemoModule>
             }
           />
           <Route path="/income/debit-notes/new" element={<NewDebitNotePage />} />
@@ -482,17 +456,13 @@ function App() {
           <Route
             path="/expenditure/self-billing"
             element={
-              <PlanGated feature="selfBilling">
-                <SelfBillingPage />
-              </PlanGated>
+              <SelfBillingPage />
             }
           />
           <Route
             path="/expenditure/self-billing/agreements"
             element={
-              <PlanGated feature="selfBilling">
-                <AgreementsPage />
-              </PlanGated>
+              <AgreementsPage />
             }
           />
           {/* The design's dedicated composer (Figma 154:161180), writing a self-billed draft. */}
@@ -516,25 +486,19 @@ function App() {
           <Route
             path="/expenditure/self-billing/credit-notes/:id/edit"
             element={
-              <PlanGated feature="selfBilling">
-                <NewSelfBilledCreditNotePage />
-              </PlanGated>
+              <NewSelfBilledCreditNotePage />
             }
           />
           <Route
             path="/expenditure/self-billing/:id/edit"
             element={
-              <PlanGated feature="selfBilling">
-                <NewSelfBillPage />
-              </PlanGated>
+              <NewSelfBillPage />
             }
           />
           <Route
             path="/expenditure/self-billing/:id"
             element={
-              <PlanGated feature="selfBilling">
-                <SelfBillDetailPage />
-              </PlanGated>
+              <SelfBillDetailPage />
             }
           />
           {/* Self-billing moved from Income to Expenditure (owner decision, 6 Oct 2026). The old
@@ -781,9 +745,7 @@ function App() {
           <Route
             path="/income/periodic"
             element={
-              <PlanGated feature="recurringInvoices">
-                <PeriodicInvoicesPage />
-              </PlanGated>
+              <PeriodicInvoicesPage />
             }
           />
           <Route
@@ -797,9 +759,7 @@ function App() {
           <Route
             path="/income/periodic/:id"
             element={
-              <PlanGated feature="recurringInvoices">
-                <PeriodicInvoicePage mode="view" />
-              </PlanGated>
+              <PeriodicInvoicePage mode="view" />
             }
           />
           <Route
@@ -822,7 +782,14 @@ function App() {
           <Route path="/suppliers/import" element={<ImportSuppliersPage />} />
           <Route path="/customers/import" element={<ImportCustomersPage />} />
           <Route path="/suppliers/:slug/edit" element={<EditSupplierPage />} />
-          <Route path="/suppliers/:slug/purchase-order" element={<NewPurchaseOrderPage />} />
+          <Route
+            path="/suppliers/:slug/purchase-order"
+            element={
+              <PlanGated feature="tradeDocuments">
+                <NewPurchaseOrderPage />
+              </PlanGated>
+            }
+          />
           <Route path="/expenditure/purchase-orders/:id" element={<PurchaseOrderDetailPage />} />
           <Route path="/suppliers/:slug/record-bill" element={<RecordSupplierBillPage />} />
           <Route path="/suppliers/:slug/statement" element={<SupplierStatementPage />} />

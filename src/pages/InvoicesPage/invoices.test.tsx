@@ -695,3 +695,32 @@ describe('the approvers\' queue (RL-6)', () => {
     expect(toInvoiceListItem(issued({ approvalState: 'APPROVED' })).approval).toBeNull()
   })
 })
+
+// Business Rules PL-8: bulk upload and periodic invoices are plan features; a plan that has them
+// switched off keeps the list and hides the doors to them.
+describe('a plan without bulk upload or periodic invoices (PL-8)', () => {
+  it('hides Bulk upload and the row menu\'s Periodic invoice', async () => {
+    who = {
+      ...ADMIN,
+      planFeaturesEnforced: true,
+      planFeatures: { bulkUpload: false, recurringInvoices: false },
+    }
+    renderInvoices()
+    const issuedRow = (await screen.findByText('INV-2026-0042')).closest('tr')!
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Bulk upload' })).toBeNull())
+    fireEvent.click(within(issuedRow).getByRole('button', { name: 'Invoice actions' }))
+    expect(await screen.findByRole('menuitem', { name: 'View invoice' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Periodic invoice' })).toBeNull()
+  })
+
+  it('offers both when the plan has them', async () => {
+    who = {
+      ...ADMIN,
+      planFeaturesEnforced: true,
+      planFeatures: { bulkUpload: true, recurringInvoices: true },
+    }
+    renderInvoices()
+    await screen.findByText('INV-2026-0042')
+    expect(await screen.findByRole('button', { name: 'Bulk upload' })).toBeTruthy()
+  })
+})

@@ -13,6 +13,7 @@ import {
   type AgreementDto,
 } from '../../api/selfBilling/agreements'
 import { can, useSession } from '../../lib/session/session'
+import { usePlanIncludes } from '../../lib/planAccess'
 import { muscatToday } from '../../lib/invoiceIssue'
 import {
   BAR_TRACK,
@@ -146,6 +147,8 @@ function Amount({
 
 function OrderFormsHeader({ onUnavailable }: { onUnavailable: () => void }) {
   const { t } = useTranslation()
+  // Making one needs a plan with trade documents (PL-8).
+  const tradeDocumentsIncluded = usePlanIncludes('tradeDocuments')
 
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
@@ -175,13 +178,15 @@ function OrderFormsHeader({ onUnavailable }: { onUnavailable: () => void }) {
           <img src={exportIcon} alt="" className="size-6" />
           {t('orderForms.export')}
         </button>
-        <Link
-          to="/trade-documents/order-forms/new"
-          className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-[#2c4eb7] py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"
-        >
-          <img src={plusIcon} alt="" className="size-6" />
-          {t('orderForms.newOrderForm')}
-        </Link>
+        {tradeDocumentsIncluded ? (
+          <Link
+            to="/trade-documents/order-forms/new"
+            className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-[#2c4eb7] py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"
+          >
+            <img src={plusIcon} alt="" className="size-6" />
+            {t('orderForms.newOrderForm')}
+          </Link>
+        ) : null}
       </div>
     </div>
   )
