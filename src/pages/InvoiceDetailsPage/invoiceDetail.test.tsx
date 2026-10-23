@@ -1431,6 +1431,8 @@ describe('E28: a read-only subscription hides new documents and sending (plan v4
       screen.getByRole('link', { name: i18n.t('invoiceDetails.actions.duplicate') }),
     ).toBeTruthy()
     expect(screen.getByRole('link', { name: i18n.t('invoiceDetails.actions.periodic') })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Send by email' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Share on WhatsApp' })).toBeTruthy()
   })
 
   it.each([
@@ -1455,6 +1457,10 @@ describe('E28: a read-only subscription hides new documents and sending (plan v4
       screen.queryByRole('link', { name: i18n.t('invoiceDetails.actions.duplicate') }),
     ).toBeNull()
     expect(screen.queryByRole('link', { name: i18n.t('invoiceDetails.actions.periodic') })).toBeNull()
+    // Nothing is shared while read-only (owner, 23 Oct 2026); Download and Print stay.
+    expect(screen.queryByRole('button', { name: 'Send by email' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Share on WhatsApp' })).toBeNull()
+    expect(screen.getByRole('button', { name: i18n.t('invoiceDetails.print') })).toBeTruthy()
   })
 })
 

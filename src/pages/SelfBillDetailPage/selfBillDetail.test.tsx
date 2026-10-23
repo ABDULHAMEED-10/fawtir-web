@@ -11,6 +11,7 @@ import type {
   SelfBilledPayableDto,
 } from '../../api/invoices/detail'
 import type { AgreementDto } from '../../api/selfBilling/agreements'
+import type { SalesApprovalDto } from '../../api/invoices/salesApproval'
 import { selfBillStatus, selfBillTimeline, selfBillTracks } from '../../lib/selfBillDetail'
 import { SelfBillDetailPage } from './SelfBillDetailPage'
 
@@ -20,6 +21,24 @@ const URL_BASE = `/api/v1/authored-invoices/${ID}`
 const TODAY = '2026-09-25'
 // The invoice a self-billed credit note corrects.
 const ORIGINAL_ID = '22222222-2222-2222-2222-222222222222'
+const APPROVAL_URL = `/api/v1/invoice-drafts/${ID}/approval`
+
+/** `SalesApprovalResponse` for the self-billed draft. */
+function approval(status: SalesApprovalDto['status'], callerMayRequest: boolean): SalesApprovalDto {
+  return {
+    status,
+    requiredApprovals: 1,
+    distinctApprovals: 0,
+    draftVersion: 4,
+    payableAmount: 58.59,
+    currency: 'OMR',
+    requestedBy: null,
+    requestedAt: null,
+    lastDecision: null,
+    callerMayRequest,
+    callerMayDecide: false,
+  }
+}
 
 const BUYER: Entitlements = {
   userId: 'u-1',
@@ -194,6 +213,8 @@ function json(status: number, body?: unknown) {
 let fetchMock: ReturnType<typeof vi.fn>
 let invoiceResponse: () => Response
 let billPaymentResponse: () => Response
+/** `GET /invoice-drafts/{id}/approval`: with no rule covering self-billed documents, NOT_REQUIRED. */
+let approvalResponse: () => Response
 let who: Entitlements
 
 const calls = () =>
@@ -208,6 +229,7 @@ beforeEach(async () => {
   vi.setSystemTime(new Date(`${TODAY}T09:00:00Z`))
   who = BUYER
   invoiceResponse = () => json(200, invoice())
+  approvalResponse = () => json(200, approval('NOT_REQUIRED', false))
   billPaymentResponse = () =>
     json(201, { id: 'p-1', entryType: 'PAYMENT', amount: 38.59, currency: 'OMR' })
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
@@ -238,6 +260,9 @@ beforeEach(async () => {
       ])
     if (url === `${URL_BASE}/history`) return json(200, HISTORY)
     if (url === URL_BASE) return invoiceResponse()
+    if (url === APPROVAL_URL) return approvalResponse()
+    if (url === `${APPROVAL_URL}/request` && method === 'POST')
+      return json(200, { ...approval('PENDING', false), requestedBy: 'u-1' })
     if (url === `/api/v1/authored-invoices/${ORIGINAL_ID}`)
       return json(200, invoice({ id: ORIGINAL_ID, invoiceNumber: 'SBI-2026-0001' }))
     if (url === BILL_PAYMENTS_URL && method === 'POST') return billPaymentResponse()
@@ -769,6 +794,43 @@ describe('the self-billed credit note entry while the subscription is read-only 
       await waitFor(() => expect(creditLink()).toBeNull())
     },
   )
+})
+
+describe('Send for approval on a self-billed draft (RL-6, rule covers self-billed)', () => {
+  const SELF_BILLER: Entitlements = {
+    ...BUYER,
+    permissions: [...BUYER.permissions, 'selfbilling.create'],
+  }
+  const DRAFT = () =>
+    json(200, invoice({ authoringState: 'DRAFT', invoiceNumber: null, issueDate: null, totals: null }))
+
+  it('offers Send for approval when the rule covers the draft, and asks the server', async () => {
+    who = SELF_BILLER
+    invoiceResponse = DRAFT
+    approvalResponse = () => json(200, approval('NOT_REQUESTED', true))
+    renderPage()
+    const send = await screen.findByRole('button', { name: 'Send for approval' })
+    fireEvent.click(send)
+    await waitFor(() => expect(calls()).toContain(`POST ${APPROVAL_URL}/request`))
+    const [, init] = fetchMock.mock.calls.find(([url]) => url === `${APPROVAL_URL}/request`)!
+    expect(JSON.parse(String((init as RequestInit).body))).toMatchObject({ expectedVersion: 4 })
+  })
+
+  it('draws no approval card when no rule covers self-billed documents', async () => {
+    who = SELF_BILLER
+    invoiceResponse = DRAFT
+    renderPage()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Not numbered yet' })).toBeTruthy()
+    await waitFor(() => expect(calls()).toContain(`GET ${APPROVAL_URL}`))
+    expect(screen.queryByRole('button', { name: 'Send for approval' })).toBeNull()
+  })
+
+  it('does not ask about approval on an issued document', async () => {
+    who = SELF_BILLER
+    renderPage()
+    expect(await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })).toBeTruthy()
+    expect(calls()).not.toContain(`GET ${APPROVAL_URL}`)
+  })
 })
 
 describe('self-bill detail mapping', () => {

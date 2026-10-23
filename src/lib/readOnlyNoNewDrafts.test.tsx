@@ -13,6 +13,9 @@ import { CreditNotesPage } from '../pages/CreditNotesPage/CreditNotesPage'
 import { DebitNotesPage } from '../pages/DebitNotesPage/DebitNotesPage'
 import { SelfBillingPage } from '../pages/SelfBillingPage/SelfBillingPage'
 import { PeriodicInvoicesPage } from '../pages/PeriodicInvoicesPage/PeriodicInvoicesPage'
+import { QuotationsPage } from '../pages/QuotationsPage/QuotationsPage'
+import { OrderFormsPage } from '../pages/OrderFormsPage/OrderFormsPage'
+import { DeliveryNotesPage } from '../pages/DeliveryNotesPage/DeliveryNotesPage'
 
 /**
  * Owner rule, 23 Oct 2026 (ST-2, CA-3): a read-only subscription makes no new drafts. Every link
@@ -132,6 +135,25 @@ const entryPoints: Array<[string, () => ReactElement, string, string]> = [
     '/expenditure/self-billing/new',
   ],
   ['Periodic invoices', () => <PeriodicInvoicesPage />, '/income/periodic', '/income/periodic/new'],
+  // Owner, 23 Oct 2026: no new quotation, order form or delivery note while read-only either.
+  [
+    'Quotations',
+    () => <QuotationsPage />,
+    '/trade-documents/quotations',
+    '/trade-documents/quotations/new',
+  ],
+  [
+    'Order forms',
+    () => <OrderFormsPage />,
+    '/trade-documents/order-forms',
+    '/trade-documents/order-forms/new',
+  ],
+  [
+    'Delivery notes',
+    () => <DeliveryNotesPage />,
+    '/trade-documents/delivery-notes',
+    '/trade-documents/delivery-notes/new',
+  ],
 ]
 
 function renderAt(page: () => ReactElement, path: string) {

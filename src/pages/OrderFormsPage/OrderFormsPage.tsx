@@ -50,6 +50,7 @@ import actTickIcon from '../../assets/order-forms-v2/act-tick.svg'
 import chevronDownIcon from '../../assets/order-forms-v2/chevron-down.svg'
 import chevronLeftIcon from '../../assets/order-forms-v2/chevron-left.svg'
 import omrIcon from '../../assets/order-forms-v2/omr.svg'
+import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 const MODE_ICONS: Record<OrderMode, string> = {
   all: modeAllIcon,
@@ -145,6 +146,8 @@ function Amount({
 }
 
 function OrderFormsHeader({ onUnavailable }: { onUnavailable: () => void }) {
+  // Nothing new is made while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
+  const mayCreate = useSubscriptionAllows('CREATE_DRAFTS')
   const { t } = useTranslation()
 
   return (
@@ -175,13 +178,15 @@ function OrderFormsHeader({ onUnavailable }: { onUnavailable: () => void }) {
           <img src={exportIcon} alt="" className="size-6" />
           {t('orderForms.export')}
         </button>
-        <Link
-          to="/trade-documents/order-forms/new"
-          className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-[#2c4eb7] py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"
-        >
-          <img src={plusIcon} alt="" className="size-6" />
-          {t('orderForms.newOrderForm')}
-        </Link>
+        {mayCreate ? (
+          <Link
+            to="/trade-documents/order-forms/new"
+            className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-[#2c4eb7] py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"
+          >
+            <img src={plusIcon} alt="" className="size-6" />
+            {t('orderForms.newOrderForm')}
+          </Link>
+        ) : null}
       </div>
     </div>
   )

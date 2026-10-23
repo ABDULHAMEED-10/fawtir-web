@@ -11313,7 +11313,8 @@
     "someone": "شخص ما",
     "yourCompany": "شركتك",
     "moreAreas": "+{{count}} أخرى",
-    "footerEmailNeeded": "أدخل بريدًا إلكترونيًا لإرسال الدعوة"
+    "footerEmailNeeded": "أدخل بريدًا إلكترونيًا لإرسال الدعوة",
+    "chargedFromValue": "يوم تأكيد الدفع"
   },
   "roles": {
     "title": "ما يستطيعه كل دور",

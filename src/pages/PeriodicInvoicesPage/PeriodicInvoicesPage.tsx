@@ -120,7 +120,8 @@ function PeriodicInvoicesContent() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const session = useSession()
-  // No new drafts while the subscription is read-only (ST-2, CA-3).
+  // No new drafts while the subscription is read-only (ST-2, CA-3). Pause stays offered; Resume
+  // waits until they pay (owner, 23 Oct).
   const mayDraft = useSubscriptionAllows('CREATE_DRAFTS')
   const canManage = can(session, 'invoice.draft')
   const today = muscatToday()
@@ -389,7 +390,7 @@ function PeriodicInvoicesContent() {
                     onSelect: () => void toggle(schedule),
                   },
                 ]
-              : status === 'paused'
+              : status === 'paused' && mayDraft
                 ? [
                     {
                       id: 'resume',

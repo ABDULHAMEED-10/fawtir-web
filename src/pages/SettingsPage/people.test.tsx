@@ -322,6 +322,18 @@ describe('Invite someone', () => {
     expect(pageRequests()).toEqual([`GET ${ROLES}`, 'POST /api/v1/users/invitations'])
   })
 
+  it('says an extra person is charged from the day the payment is confirmed (US-1)', async () => {
+    renderAt('/settings/team/invite')
+    const label = await screen.findByText('Charged from')
+    const row = label.parentElement as HTMLElement
+    expect(within(row).getByText('The day the payment is confirmed')).toBeTruthy()
+    expect(within(row).queryByText(NOT_AVAILABLE)).toBeNull()
+
+    await i18n.changeLanguage('ar')
+    const arabic = (await screen.findByText('الاحتساب من')).parentElement as HTMLElement
+    expect(within(arabic).getByText('يوم تأكيد الدفع')).toBeTruthy()
+  })
+
   it('says why an invitation was refused and claims no success', async () => {
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
       if (url === '/api/v1/me/entitlements') return json(200, who)

@@ -3,6 +3,7 @@ import { configure, fireEvent, render, screen, waitFor, within } from '@testing-
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
+import { answerStanding, settle, standingRead } from '../../testing/subscriptionStanding'
 import type { SupplierDetailDto } from '../../api/expenditure/suppliers'
 import type { SupplierContactDto, SupplierOverviewDto } from '../../api/expenditure/supplierRecord'
 import { SupplierDetailPage } from './SupplierDetailPage'
@@ -1455,4 +1456,39 @@ describe('the day a paper was uploaded (E2E 10 Oct, F-8)', () => {
     expect(muscatDayOf('2026-10-09T23:54:00Z')).toBe('2026-10-10')
     expect(muscatDayOf('2026-10-09T19:59:00Z')).toBe('2026-10-09')
   })
+})
+
+describe('New purchase order while the subscription is read-only (owner, 23 Oct 2026)', () => {
+  const OWNER: Entitlements = {
+    ...MANAGER,
+    permissions: [
+      ...MANAGER.permissions,
+      'purchase-order.manage',
+      'invoice.payment.manage',
+      'tenant.plan.read',
+    ],
+  }
+
+  it('offers New purchase order while the subscription is usable', async () => {
+    who = OWNER
+    answerStanding(fetchMock, null)
+    renderSupplier()
+    await screen.findByRole('heading', { level: 1, name: 'Qalhat Marine Supplies LLC' })
+    await waitFor(() => expect(standingRead(fetchMock)).toBe(true))
+    expect(await screen.findByRole('link', { name: 'New purchase order' })).toBeTruthy()
+  })
+
+  it.each(['SUBSCRIPTION_SUSPENDED', 'SUBSCRIPTION_CANCELLED'])(
+    'hides New purchase order while %s; recording a bill stays',
+    async (restriction) => {
+      who = OWNER
+      answerStanding(fetchMock, restriction)
+      renderSupplier()
+      await screen.findByRole('heading', { level: 1, name: 'Qalhat Marine Supplies LLC' })
+      await waitFor(() => expect(standingRead(fetchMock)).toBe(true))
+      await settle()
+      expect(screen.getByRole('link', { name: /Record a bill/ })).toBeTruthy()
+      expect(screen.queryByRole('link', { name: 'New purchase order' })).toBeNull()
+    },
+  )
 })

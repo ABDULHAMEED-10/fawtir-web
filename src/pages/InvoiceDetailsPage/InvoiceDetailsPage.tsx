@@ -199,6 +199,8 @@ function InvoiceScreen() {
   const session = useSession()
   // Issuing stops while the subscription is read-only (ST-2): the action is hidden, not greyed.
   const mayIssue = useSubscriptionAllows('ISSUE_DOCUMENTS')
+  // Nothing is shared while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
+  const mayShare = useSubscriptionAllows('SEND_DOCUMENTS')
   const navigate = useNavigate()
   const location = useLocation()
   const { id = '' } = useParams()
@@ -1143,26 +1145,30 @@ function InvoiceScreen() {
                   <img src={printIcon} alt="" className="size-5" />
                 </button>
                 {/* TODO(backend): sharing a copy of the invoice waits for the rendered PDF and the
-                    share calls (INCOME.md rows SH.1 to SH.3). When live, hide both while the
-                    subscription is read-only (ST-2) and on a deemed supply (no buyer copy). */}
-                <button
-                  type="button"
-                  disabled
-                  title={t('invoiceDetails.share.unavailable')}
-                  aria-label={t('invoiceDetails.share.email')}
-                  className="rounded-sm p-0.5 text-text-tertiary disabled:opacity-40"
-                >
-                  <MailIcon />
-                </button>
-                <button
-                  type="button"
-                  disabled
-                  title={t('invoiceDetails.share.unavailable')}
-                  aria-label={t('invoiceDetails.share.whatsapp')}
-                  className="rounded-sm p-0.5 text-text-tertiary disabled:opacity-40"
-                >
-                  <ChatBubbleIcon />
-                </button>
+                    share calls (INCOME.md rows SH.1 to SH.3). When live, hide both on a deemed
+                    supply too (no buyer copy). Hidden while read-only (owner, 23 Oct). */}
+                {mayShare ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled
+                      title={t('invoiceDetails.share.unavailable')}
+                      aria-label={t('invoiceDetails.share.email')}
+                      className="rounded-sm p-0.5 text-text-tertiary disabled:opacity-40"
+                    >
+                      <MailIcon />
+                    </button>
+                    <button
+                      type="button"
+                      disabled
+                      title={t('invoiceDetails.share.unavailable')}
+                      aria-label={t('invoiceDetails.share.whatsapp')}
+                      className="rounded-sm p-0.5 text-text-tertiary disabled:opacity-40"
+                    >
+                      <ChatBubbleIcon />
+                    </button>
+                  </>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => setFullscreen(true)}

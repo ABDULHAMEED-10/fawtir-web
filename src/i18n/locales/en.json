@@ -10666,7 +10666,8 @@
     "someone": "Someone",
     "yourCompany": "your company",
     "moreAreas": "+{{count}} more",
-    "footerEmailNeeded": "Fill in an email to send it"
+    "footerEmailNeeded": "Fill in an email to send it",
+    "chargedFromValue": "The day the payment is confirmed"
   },
   "roles": {
     "title": "What each role can do",
