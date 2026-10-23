@@ -290,6 +290,8 @@ function PlanFigures({
   // Arabic name by the plan's code, as Bills and payment does (F37/G11). The plan cards below read
   // the same catalogue, so this is not a second request.
   const planName = usePlanName()(plan.code, plan.name)
+  // Branch names in the reader's language (BR-1), as the by-branch table below names them.
+  const branchName = useBranchName()
   // AL-9: the server's allowance counts issued and received documents against the plan's
   // documents and the extras together, so the headline figure, the bar and the forecast read it
   // when it is there. A server without it is shown its issued-only `usage`, as before.
@@ -416,7 +418,7 @@ function PlanFigures({
             label={t('plan.stat.raisedToday')}
             value={number(usage.raisedToday)}
             // SETTINGS.md row 5.5: the design splits the figure by branch ("Muscat 3 · Nizwa 2").
-            note={raisedTodayNote(usage, t, number)}
+            note={raisedTodayNote(usage, t, number, branchName.byId)}
           />
           <Stat
             label={t('plan.stat.resubmissions')}
@@ -656,6 +658,7 @@ function raisedTodayNote(
   usage: PlanOverviewDto['usage'],
   t: TFunction,
   number: (value: number) => string,
+  nameOf: (id: string | null | undefined, name: string | null | undefined) => string | null,
 ): string | undefined {
   const rows = usage.raisedTodayByBranch
   if (!rows) return t('plan.byBranchUnavailable')
@@ -666,7 +669,7 @@ function raisedTodayNote(
         name:
           row.branchId === null
             ? t('plan.byBranch.noBranch')
-            : row.branchName || t('plan.byBranch.unnamed'),
+            : nameOf(row.branchId, row.branchName) || t('plan.byBranch.unnamed'),
         count: number(row.count),
       }),
     )
