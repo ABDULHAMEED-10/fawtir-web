@@ -397,8 +397,13 @@ export function receiptLegNote(
  * (review of #250, N1).
  */
 const REPLY_UNDELIVERED: ReadonlySet<string> = new Set(['PENDING', 'SENDING', 'SENT_AWAITING_MDN'])
-/** MDN_FAILED feeds the retry loop like RETRY_SCHEDULED; neither is final. */
-const REPLY_RETRYING: ReadonlySet<string> = new Set(['MDN_FAILED', 'RETRY_SCHEDULED'])
+const REPLY_RETRYING: ReadonlySet<string> = new Set(['RETRY_SCHEDULED'])
+/**
+ * MDN_FAILED is terminal in practice: the backend's claims select only PENDING and RETRY_SCHEDULED,
+ * so nothing sends that row again (backend MessageState; BC-6). Saying "will be retried" there
+ * would promise a retry that never comes.
+ */
+const REPLY_FAILED: ReadonlySet<string> = new Set(['MDN_FAILED', 'DEAD_LETTERED'])
 
 /**
  * The MLS our access point answered the supplier's with. `ack` is the status decided, which is
@@ -418,7 +423,7 @@ export function replyNote(
   if (transportState === 'DELIVERED') return note(ack, ack !== 'RE')
   if (REPLY_UNDELIVERED.has(transportState)) return note('notDeliveredYet', false)
   if (REPLY_RETRYING.has(transportState)) return note('retrying', false)
-  if (transportState === 'DEAD_LETTERED') return note('failed', false)
+  if (REPLY_FAILED.has(transportState)) return note('failed', false)
   return note('unknown', false)
 }
 
