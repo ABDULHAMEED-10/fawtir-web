@@ -2163,3 +2163,51 @@ describe('the invoice in Arabic', () => {
     expect(screen.getByText('Clearing between partners')).toBeTruthy()
   })
 })
+
+describe('Sales approval on a draft', () => {
+  it('keeps the refusal on screen when nobody else can approve (409 SALES_APPROVAL_NO_APPROVER)', async () => {
+    who = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.draft'] }
+    invoiceResponse = () =>
+      json(200, invoice({ authoringState: 'DRAFT', invoiceNumber: null, totals: null }))
+    const approvalPath = `/api/v1/invoice-drafts/${ID}/approval`
+    const served = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === approvalPath)
+        return json(200, {
+          status: 'NOT_REQUESTED',
+          requiredApprovals: 1,
+          distinctApprovals: 0,
+          draftVersion: 2,
+          payableAmount: 56.7,
+          currency: 'OMR',
+          requestedBy: null,
+          requestedAt: null,
+          lastDecision: null,
+          callerMayRequest: true,
+          callerMayDecide: false,
+        })
+      if (url === `${approvalPath}/request`)
+        return json(409, {
+          status: 409,
+          code: 'SALES_APPROVAL_NO_APPROVER',
+          detail: 'Not enough people other than those who prepared this document can approve it',
+        })
+      return served(url, init)
+    })
+    renderInvoice()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Send for approval' }))
+
+    // The page re-reads after the refusal; the refusal must survive that re-read.
+    await waitFor(() =>
+      expect(calls().filter((call) => call === `GET ${approvalPath}`).length).toBe(2),
+    )
+    expect(
+      await screen.findByText(
+        'Nobody else can approve this yet. Ask your administrator to give someone the Approve permission.',
+      ),
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Send for approval' })).toBeTruthy()
+    expect(screen.queryByText(/Not enough people/)).toBeNull()
+  })
+})
