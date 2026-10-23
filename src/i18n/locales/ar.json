@@ -11567,7 +11567,9 @@
       "lastMonth": "الشهر الماضي",
       "lastMonthOf": "من {{allowance}}",
       "lastMonthNote": "كان قريبًا أيضًا",
-      "lastMonthRoom": "كان هناك متسع حينها"
+      "lastMonthRoom": "كان هناك متسع حينها",
+      "raisedTodayBranch": "{{name}} {{count}}",
+      "lastMonthPlanOf": "حصة الخطة حينها: {{allowance}}"
     },
     "smaller": "أصغر",
     "yourPlan": "خطتك",

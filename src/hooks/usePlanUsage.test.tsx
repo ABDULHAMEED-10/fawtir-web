@@ -31,6 +31,18 @@ describe('usePlanUsage, the composers’ quota meter', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/settings/plan')
   })
 
+  it('counts the extra documents in the allowance (AL-9, EX-4): 10 of 15, not 10 of 10', async () => {
+    fetchMock.mockResolvedValue(
+      json(200, {
+        plan: {},
+        usage: { used: 10, quota: 10 },
+        allowance: { planDocuments: 10, extraDocuments: 5, totalAllowance: 15, used: 10 },
+      }),
+    )
+    const { result } = renderHook(() => usePlanUsage(), { wrapper })
+    await waitFor(() => expect(result.current).toEqual({ used: 10, allowance: 15, percent: 66.7 }))
+  })
+
   it('draws no meter when the plan cannot be read, rather than a sample one', async () => {
     fetchMock.mockResolvedValue(
       json(403, { type: 'https://api.fawtir.om/problems/insufficient-permission' }),

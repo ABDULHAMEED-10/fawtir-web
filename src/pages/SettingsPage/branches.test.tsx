@@ -342,6 +342,35 @@ describe('Add a branch, for real', () => {
     expect(screen.getByText(i18n.t('addBranch.beyondPlan'))).toBeTruthy()
   })
 
+  it('counts a paid branch place in the allowance (BR-3): 3 of 3, within the plan', async () => {
+    reads = {
+      '/api/v1/settings/plan': () =>
+        json(200, { plan: { branchesIncluded: 2 }, activeBranches: 2, usage: {} }),
+      '/api/v1/settings/plan/extras': () =>
+        json(200, {
+          open: true,
+          branches: {
+            included: 2,
+            inUse: 2,
+            paidPlacesNow: 1,
+            capacity: 3,
+            unitMonthlyPrice: '1.000',
+            offered: true,
+          },
+        }),
+    }
+    render(
+      <MemoryRouter initialEntries={['/settings/branches/new']}>
+        <Routes>
+          <Route path="/settings/branches/new" element={<AddBranchPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('3 of 3')).toBeTruthy()
+    expect(screen.getByText(i18n.t('addBranch.withinPlan'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('addBranch.beyondPlan'))).toBeNull()
+  })
+
   it('leaves out what it cannot read: no VAT, no ID, no plan card', async () => {
     const forbidden = () =>
       json(403, { type: 'https://api.fawtir.om/problems/insufficient-permission' })

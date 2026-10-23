@@ -21,7 +21,13 @@ import {
   type ParticipantIdStanding,
 } from '../../api/peppol/participantStanding'
 import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
-import { PAID_EXTRAS_ROUTE, extraPlaceRequired } from '../../api/settings/paidExtras'
+import {
+  PAID_EXTRAS_PATH,
+  PAID_EXTRAS_ROUTE,
+  extraPlaceRequired,
+  loadPaidExtras,
+  type PaidExtrasOverviewDto,
+} from '../../api/settings/paidExtras'
 import { setBranchOpen } from '../../api/settings/removals'
 import {
   SUBSCRIPTION_PATH,
@@ -707,13 +713,26 @@ function InheritsCard() {
 /**
  * The plan's branch allowance, from `GET /v1/settings/plan`. Hidden when it cannot be read: the
  * card used to quote a sample plan's allowance and a per-branch price no plan carries.
+ *
+ * BR-3: a paid branch place counts like an included one, so the allowance is the server's
+ * `capacity` from `GET /v1/settings/plan/extras` (included plus the paid places covering today).
+ * When that cannot be read the card falls back to what the plan includes.
  */
 function PlanCard({ adding }: { adding: boolean }) {
   const { t } = useTranslation()
   const plan = useApiRead<PlanOverviewDto>(PLAN_OVERVIEW_PATH, loadPlanOverview).read
+  const extras = useApiRead<PaidExtrasOverviewDto>(PAID_EXTRAS_PATH, loadPaidExtras).read
   // `plan` is always present on a real answer; an answer without it says nothing about branches.
   if (plan.status !== 'ready' || !plan.data.plan) return null
-  const included = plan.data.plan.branchesIncluded
+  // Wait for the paid places too, so the card never flips from "beyond" to "within" on load.
+  if (extras.status === 'loading') return null
+  const branchPlaces = extras.status === 'ready' ? extras.data.branches : undefined
+  const included =
+    plan.data.plan.branchesIncluded === null
+      ? null
+      : branchPlaces && branchPlaces.capacity != null
+        ? branchPlaces.capacity
+        : plan.data.plan.branchesIncluded
   const used = plan.data.activeBranches + (adding ? 1 : 0)
   const within = included === null || used <= included
 
