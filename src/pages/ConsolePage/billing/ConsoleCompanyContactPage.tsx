@@ -2,7 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Input } from '../../../components/ui'
 import { ConsoleShell } from '../../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../../layouts/ConsoleShell/ConsoleBreadcrumbs'
+import { ConsoleSettingsFrame } from '../../../layouts/ConsoleShell/ConsoleSettingsFrame'
 import { ConsoleNotice, ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
 import { useConsoleRead, type ConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
 import { CONSOLE_PAGE, ConsolePageHeader } from '../../../layouts/ConsoleShell/consoleStyle'
@@ -101,8 +101,8 @@ function CompanyContact() {
 
   return (
     <div className={CONSOLE_PAGE}>
-      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.companyContact' }]} />
-      <ConsolePageHeader title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
+      <ConsoleSettingsFrame tab="company" />
+      <ConsolePageHeader level="section" title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
       {failure ? (
         <p
           role="alert"

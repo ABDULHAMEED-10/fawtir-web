@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
 import { Input, Rial } from '../../../components/ui'
 import { ConsoleShell } from '../../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../../layouts/ConsoleShell/ConsoleBreadcrumbs'
+import { ConsoleSettingsFrame } from '../../../layouts/ConsoleShell/ConsoleSettingsFrame'
 import { ConsoleNotice, ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
 import { useConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
 import { CONSOLE_PAGE, ConsolePageHeader } from '../../../layouts/ConsoleShell/consoleStyle'
@@ -116,8 +116,8 @@ function BillingSettings() {
 
   return (
     <div className={CONSOLE_PAGE}>
-      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.billingSettings' }]} />
-      <ConsolePageHeader title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
+      <ConsoleSettingsFrame tab="billing" />
+      <ConsolePageHeader level="section" title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
       {failure ? (
         <p
           role="alert"

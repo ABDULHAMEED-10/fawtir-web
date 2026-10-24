@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
 import { Input } from '../../../components/ui'
 import { ConsoleShell } from '../../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../../layouts/ConsoleShell/ConsoleBreadcrumbs'
+import { ConsoleSettingsFrame } from '../../../layouts/ConsoleShell/ConsoleSettingsFrame'
 import { ConsoleNotice, ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
 import { useConsoleRead, type ConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
 import {
@@ -116,8 +116,8 @@ function Seller() {
 
   return (
     <div className={CONSOLE_PAGE}>
-      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.seller' }]} />
-      <ConsolePageHeader title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
+      <ConsoleSettingsFrame tab="company" />
+      <ConsolePageHeader level="section" title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
       {failure ? (
         <p
           ref={failureRef}

@@ -2,7 +2,7 @@ import { useId, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
 import { ConsoleShell } from '../../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../../layouts/ConsoleShell/ConsoleBreadcrumbs'
+import { ConsoleSettingsFrame } from '../../../layouts/ConsoleShell/ConsoleSettingsFrame'
 import { ConsoleNotice, ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
 import { ConsoleStatusPill, type ConsolePillTone } from '../../../layouts/ConsoleShell/ConsoleStatusPill'
 import { useConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
@@ -163,8 +163,8 @@ function BankAccounts() {
 
   return (
     <div className={CONSOLE_PAGE}>
-      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.bankAccounts' }]} />
-      <ConsolePageHeader title={t('console.bankAccounts.title')} subtitle={t('console.bankAccounts.subtitle')} />
+      <ConsoleSettingsFrame tab="company" />
+      <ConsolePageHeader level="section" title={t('console.bankAccounts.title')} subtitle={t('console.bankAccounts.subtitle')} />
       {failure ? (
         <p role="alert" className="rounded-sm bg-danger-100 px-4 py-3 text-sm font-medium text-danger-700">
           {failure}

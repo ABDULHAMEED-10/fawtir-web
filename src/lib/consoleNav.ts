@@ -1,16 +1,17 @@
 import type { ComponentType } from 'react'
 import {
   NavCustomersIcon,
+  NavDashboardIcon,
   NavDocumentsIcon,
-  NavInvoicesIcon,
-  NavReportsIcon,
-  NavSettingsIcon,
+  NavExpenditureIcon,
+  NavSuppliersIcon,
   NavTddIcon,
 } from '../layouts/AppShell/navIcons'
 import {
   ConsoleIncidentIcon,
-  ConsolePlansIcon,
   ConsoleQueueIcon,
+  ConsoleSubscriptionIcon,
+  ConsoleUnlinkIcon,
 } from '../layouts/ConsoleShell/consoleIcons'
 
 type IconProps = { className?: string; active?: boolean }
@@ -52,7 +53,7 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         id: 'operations',
         labelKey: 'console.nav.operations',
         to: '/console',
-        Icon: NavReportsIcon,
+        Icon: NavDashboardIcon,
       },
       {
         id: 'queue',
@@ -77,7 +78,7 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         labelKey: 'console.nav.tenants',
         to: '/console/tenants',
         requires: 'platform.tenants.manage',
-        Icon: NavCustomersIcon,
+        Icon: NavSuppliersIcon,
       },
       {
         id: 'verification',
@@ -96,27 +97,10 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         Icon: NavCustomersIcon,
       },
       {
-        id: 'branchAccess',
-        labelKey: 'console.nav.branchAccess',
-        to: '/console/branch-access',
-        // What to check before branch access is switched on (BA-1, BA-6, RL-1, RL-5); read-only.
-        requires: 'platform.tenants.manage',
-        Icon: NavReportsIcon,
-      },
-      {
-        id: 'plans',
-        labelKey: 'console.nav.plans',
-        to: '/console/plans',
-        Icon: ConsolePlansIcon,
-        // Plans and rates are the platform's own prices: never shown to a tenant, and only to an
-        // operator the catalogue's read permission covers.
-        requires: 'platform.plans.read',
-      },
-      {
         id: 'enterprise',
         labelKey: 'console.nav.enterprise',
         to: '/console/enterprise',
-        Icon: ConsolePlansIcon,
+        Icon: NavDocumentsIcon,
         // Companies on negotiated Enterprise terms (V348), read under the billing permission.
         requires: 'platform.billing.read',
       },
@@ -124,7 +108,7 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         id: 'disconnections',
         labelKey: 'console.nav.disconnections',
         to: '/console/disconnections',
-        Icon: ConsoleQueueIcon,
+        Icon: ConsoleUnlinkIcon,
         // "Disconnect from Fawtir" requests, worked by Platform support (V302).
         requires: 'platform.smp.operations.review',
       },
@@ -132,7 +116,7 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         id: 'payments',
         labelKey: 'console.nav.payments',
         to: '/console/billing/payments',
-        Icon: ConsoleQueueIcon,
+        Icon: NavExpenditureIcon,
         // Subscription payments waiting for Platform Finance (V271).
         requires: 'platform.billing.read',
       },
@@ -140,39 +124,8 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         id: 'refunds',
         labelKey: 'console.nav.refunds',
         to: '/console/billing/refunds',
-        Icon: ConsoleQueueIcon,
+        Icon: ConsoleSubscriptionIcon,
         // Every company's refund cases, Finance's and the super admin's (V423).
-        requires: 'platform.billing.read',
-      },
-      {
-        id: 'bankAccounts',
-        labelKey: 'console.nav.bankAccounts',
-        to: '/console/billing/accounts',
-        Icon: ConsolePlansIcon,
-        requires: 'platform.billing.read',
-      },
-      {
-        id: 'billingSettings',
-        labelKey: 'console.nav.billingSettings',
-        to: '/console/billing/settings',
-        Icon: NavSettingsIcon,
-        requires: 'platform.billing.read',
-      },
-      {
-        id: 'seller',
-        labelKey: 'console.nav.seller',
-        to: '/console/billing/seller',
-        Icon: NavDocumentsIcon,
-        // The seller routes are read and changed under the manage permission alone (contract).
-        requires: 'platform.billing.manage',
-      },
-      {
-        id: 'companyContact',
-        labelKey: 'console.nav.companyContact',
-        to: '/console/company-contact',
-        Icon: NavSettingsIcon,
-        // Fawtir's own contact details (CS-1), read under the billing read permission like the
-        // billing settings; changing them needs the manage one.
         requires: 'platform.billing.read',
       },
     ],
@@ -180,38 +133,8 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
   // No ERP group. Its two screens, add-on requests and templates, drew a story fixture, and the
   // approval there changed nothing real. A tenant's ERP access is granted and revoked from the
   // tenant's own page, against the platform entitlement API.
-  {
-    id: 'platform',
-    labelKey: 'console.nav.group.platform',
-    items: [
-      {
-        id: 'operators',
-        labelKey: 'console.nav.operators',
-        to: '/console/operators',
-        requires: ['admin.users.manage', 'platform.operators.manage'],
-        Icon: NavCustomersIcon,
-      },
-      {
-        id: 'policies',
-        labelKey: 'console.nav.policies',
-        to: '/console/policies',
-        requires: 'platform.support',
-        Icon: NavInvoicesIcon,
-      },
-      {
-        id: 'audit',
-        labelKey: 'console.nav.audit',
-        to: '/console/audit',
-        Icon: NavDocumentsIcon,
-      },
-      {
-        id: 'consoleSettings',
-        labelKey: 'console.nav.settings',
-        to: '/console/settings',
-        Icon: NavSettingsIcon,
-      },
-    ],
-  },
+  // Operators, validation policies, the audit log, plans and rates and every billing value now
+  // live in Console › Settings (owner, 24 Oct 2026); the bottom Settings link opens it.
 ]
 
 /** Every console route, for the router and for the "not built yet" pages. */

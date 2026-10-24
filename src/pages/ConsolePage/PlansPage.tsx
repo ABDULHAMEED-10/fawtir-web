@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Rial, withRial } from '../../components/ui'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
+import { ConsoleSettingsFrame } from '../../layouts/ConsoleShell/ConsoleSettingsFrame'
 import { ConsoleNotice, ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
 import { ConsoleStatusPill } from '../../layouts/ConsoleShell/ConsoleStatusPill'
 import { useConsoleRead } from '../../layouts/ConsoleShell/useConsoleRead'
@@ -105,8 +105,8 @@ function PlanCatalogue() {
 
   return (
     <div className={CONSOLE_PAGE}>
-      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.plans' }]} />
-      <ConsolePageHeader
+      <ConsoleSettingsFrame tab="plans" />
+      <ConsolePageHeader level="section"
         title={t('console.plans.title')}
         subtitle={t('console.plans.subtitle')}
         actions={

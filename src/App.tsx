@@ -199,6 +199,7 @@ import {
   VerificationPage,
   TenantDetailPage,
   ConsoleSettingsPage,
+  ConsoleSettingsHubPage,
   ValidationPoliciesPage,
   ValidationPolicyPage,
 } from './pages/ConsolePage'
@@ -829,7 +830,10 @@ function App() {
           <Route path="/console/erp/templates/:id" element={<ConsoleErpPage />} />
           <Route path="/console/erp/add-on-requests" element={<ConsoleErpPage />} />
           <Route path="/console/tenants/new" element={<ConsoleOnboardPage />} />
-          <Route path="/console/settings" element={<DemoModule module="console"><ConsoleSettingsPage /></DemoModule>} />
+          {/* One place for every console setting (owner, 24 Oct 2026); the platform values that are
+              not prices moved one level down, each section opened from its card. */}
+          <Route path="/console/settings" element={<ConsoleSettingsHubPage />} />
+          <Route path="/console/settings/values" element={<DemoModule module="console"><ConsoleSettingsPage /></DemoModule>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

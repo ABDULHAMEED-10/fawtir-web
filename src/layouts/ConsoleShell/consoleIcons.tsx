@@ -163,3 +163,30 @@ export function ConsoleBuildingIcon({ className = '' }: IconProps) {
     </svg>
   )
 }
+
+/** A link taken apart — a company leaving Fawtir. */
+export function ConsoleUnlinkIcon({ className = '' }: IconProps) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M8.2 6.4 9.6 5a3.2 3.2 0 0 1 4.5 4.5l-1.4 1.4M11.8 13.6 10.4 15a3.2 3.2 0 0 1-4.5-4.5l1.4-1.4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M4 4l1.6 1.6M16 16l-1.6-1.6M3 8h1.8M17 12h-1.8"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}

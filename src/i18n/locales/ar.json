@@ -17598,6 +17598,72 @@
         "ADDED": "سُجّلت يدويًا بدلًا من طلب SMP من اللوحة، عبر {{channel}}",
         "CONFIRMED": "أُكّد أنها ما زالت مسجلة، عبر {{channel}}"
       }
+    },
+    "settingsHub": {
+      "title": "الإعدادات",
+      "tabsLabel": "مجموعات الإعدادات",
+      "back": "كل الإعدادات",
+      "showEverything": "اعرض كل شيء",
+      "tab": {
+        "all": "الكل",
+        "plans": "الخطط",
+        "billing": "الفوترة",
+        "company": "شركة فوتر",
+        "platform": "المنصة",
+        "records": "السجلات"
+      },
+      "group": {
+        "plans": "الخطط",
+        "billing": "الفوترة",
+        "company": "شركة فوتر",
+        "platform": "المنصة",
+        "records": "السجلات"
+      },
+      "pill": {
+        "manage": "إدارة",
+        "viewOnly": "للعرض فقط",
+        "soon": "قريبًا"
+      },
+      "card": {
+        "plansTitle": "الخطط والأسعار",
+        "plansBody": "الأسعار والحدود والميزات التي تشملها كل خطة.",
+        "addonsTitle": "الإضافات",
+        "addonsBody": "إضافة ERP وواجهة API وطريقة احتسابها.",
+        "promotionalTitle": "العروض",
+        "promotionalBody": "العروض المقدّمة للشركات الجديدة.",
+        "billingRulesTitle": "قواعد الفوترة",
+        "billingRulesBody": "المهلة وفواتير التجديد والتذكيرات وضريبة القيمة المضافة والدفع بالبطاقة وروابط الدفع.",
+        "billingValuesTitle": "فواتير الاشتراك",
+        "billingValuesBody": "طريقة إصدار فواتير الاشتراك وترقيمها.",
+        "countingTitle": "قواعد الاحتساب",
+        "countingBody": "المستندات التي تُحتسب من رصيد الشركة.",
+        "overageTitle": "التجاوز",
+        "overageBody": "ما يحدث عندما تستنفد الشركة كل مستنداتها.",
+        "paymentsTitle": "المدفوعات",
+        "paymentsBody": "طرق دفع الشركات لاشتراكها.",
+        "sellerTitle": "البائع",
+        "sellerBody": "الشركة المذكورة بائعًا على كل فاتورة اشتراك.",
+        "bankAccountTitle": "الحساب البنكي",
+        "bankAccountBody": "الحساب الذي يدفع فيه العملاء إلى فوتر.",
+        "contactTitle": "بيانات التواصل",
+        "contactBody": "كيف يتواصل العملاء والزوار مع فوتر.",
+        "operatorsTitle": "المشغّلون",
+        "operatorsBody": "فريق فوتر وما يحق لكل شخص فعله.",
+        "policiesTitle": "سياسات التحقق",
+        "policiesBody": "القواعد التي تُفحص بها بيانات الشركات.",
+        "branchAccessTitle": "فحص صلاحيات الفروع",
+        "branchAccessBody": "ما يتغيّر لكل شركة عند تشغيل صلاحيات الفروع.",
+        "lifecycleTitle": "التجربة ودورة الاشتراك",
+        "lifecycleBody": "الفترة التجريبية وما يحدث عند انتهاء الاشتراك.",
+        "noticesTitle": "التنبيهات",
+        "noticesBody": "رسائل البريد والتنبيهات داخل التطبيق التي ترسلها المنصة.",
+        "operationsTitle": "العمليات",
+        "operationsBody": "القيم التي يدير بها فريق العمليات المنصة.",
+        "fixedTitle": "ثابت بالتصميم",
+        "fixedBody": "قيم لا تتغيّر إلا بإصدار جديد.",
+        "auditTitle": "سجل التدقيق",
+        "auditBody": "كل إجراء قام به مشغّل على المنصة."
+      }
     }
   },
   "shell": {

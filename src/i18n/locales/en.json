@@ -16717,6 +16717,72 @@
         "ADDED": "Recorded by hand instead of the console's SMP call, via {{channel}}",
         "CONFIRMED": "Confirmed as still registered, via {{channel}}"
       }
+    },
+    "settingsHub": {
+      "title": "Settings",
+      "tabsLabel": "Settings groups",
+      "back": "All settings",
+      "showEverything": "Show everything",
+      "tab": {
+        "all": "All",
+        "plans": "Plans",
+        "billing": "Billing",
+        "company": "Fawtir company",
+        "platform": "Platform",
+        "records": "Records"
+      },
+      "group": {
+        "plans": "Plans",
+        "billing": "Billing",
+        "company": "Fawtir company",
+        "platform": "Platform",
+        "records": "Records"
+      },
+      "pill": {
+        "manage": "Manage",
+        "viewOnly": "View only",
+        "soon": "Coming soon"
+      },
+      "card": {
+        "plansTitle": "Plans and rates",
+        "plansBody": "Prices, limits and the features each plan includes.",
+        "addonsTitle": "Add-ons",
+        "addonsBody": "The ERP and API add-on and how it is charged.",
+        "promotionalTitle": "Promotions",
+        "promotionalBody": "Offers for new companies.",
+        "billingRulesTitle": "Billing rules",
+        "billingRulesBody": "Grace, renewal bills, reminders, VAT, card payment and payment links.",
+        "billingValuesTitle": "Subscription bills",
+        "billingValuesBody": "How subscription bills are raised and numbered.",
+        "countingTitle": "Counting rules",
+        "countingBody": "Which documents count against a company's allowance.",
+        "overageTitle": "Overage",
+        "overageBody": "What happens when a company uses all its documents.",
+        "paymentsTitle": "Payments",
+        "paymentsBody": "How companies can pay their subscription.",
+        "sellerTitle": "Seller",
+        "sellerBody": "The company named as seller on every subscription bill.",
+        "bankAccountTitle": "Bank account",
+        "bankAccountBody": "The account customers pay Fawtir into.",
+        "contactTitle": "Contact details",
+        "contactBody": "How customers and visitors reach Fawtir.",
+        "operatorsTitle": "Operators",
+        "operatorsBody": "The Fawtir team and what each person may do.",
+        "policiesTitle": "Validation policies",
+        "policiesBody": "The rules company data is checked against.",
+        "branchAccessTitle": "Branch access check",
+        "branchAccessBody": "What changes for each company when branch access is switched on.",
+        "lifecycleTitle": "Trial and lifecycle",
+        "lifecycleBody": "The trial and what happens when a subscription ends.",
+        "noticesTitle": "Notices",
+        "noticesBody": "The emails and in-app notices the platform sends.",
+        "operationsTitle": "Operations",
+        "operationsBody": "Values the operations team runs the platform on.",
+        "fixedTitle": "Fixed by design",
+        "fixedBody": "Values that change only with a new release.",
+        "auditTitle": "Audit log",
+        "auditBody": "Every action an operator took on the platform."
+      }
     }
   },
   "shell": {

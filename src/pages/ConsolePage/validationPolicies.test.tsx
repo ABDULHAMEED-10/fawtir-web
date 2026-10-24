@@ -374,7 +374,7 @@ describe('Overview', () => {
       [OVERVIEW_URL]: () => json(200, entries),
     })
     renderAt(path)
-    await screen.findByRole('heading', { level: 1, name: t('console.policies.title') })
+    await screen.findByRole('heading', { level: 2, name: t('console.policies.title') })
   }
   const policyLink = (type: BlockerType) =>
     screen.getByRole('link', { name: t(`console.policies.type.${type}`) })
@@ -2254,7 +2254,7 @@ describe('Language and privacy', () => {
     renderAt('/console/policies')
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'سياسات التحقق من الصحة' }),
+      await screen.findByRole('heading', { level: 2, name: 'سياسات التحقق من الصحة' }),
     ).toBeTruthy()
     expect(await screen.findByText('بانتظار اعتمادك')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'تنتظر إجرائي' })).toBeTruthy()
@@ -2371,7 +2371,7 @@ describe('Language and privacy', () => {
 
       expect(document.documentElement.dir).toBe('rtl')
       expect(document.documentElement.lang).toBe('ar')
-      const heading = screen.getByRole('heading', { level: 1, name: 'سياسات التحقق من الصحة' })
+      const heading = screen.getByRole('heading', { level: 2, name: 'سياسات التحقق من الصحة' })
       expect(directionOf(heading)).toBe('rtl')
       expect(screen.getByText('بانتظار اعتمادك')).toBeTruthy()
       expect(screen.getAllByText('مرفوض')).toHaveLength(2)

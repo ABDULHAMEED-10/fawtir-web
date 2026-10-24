@@ -245,22 +245,18 @@ describe('Console access', () => {
     expect(screen.queryByRole('link', { name: i18n.t('console.nav.bottomSettings') })).toBeNull()
   })
 
-  it('shows Plans and rates only to an operator the catalogue read permission covers', async () => {
-    answer(QUEUE_READY)
-    const view = renderAt('/console/onboarding')
-    expect(await screen.findByRole('link', { name: i18n.t('console.nav.tenants') })).toBeTruthy()
-    expect(screen.queryByRole('link', { name: i18n.t('console.nav.plans') })).toBeNull()
-    view.unmount()
-
-    resetSharedRequests()
-    forgetEntitlements()
+  it('keeps Plans and rates out of the sidebar, in Settings for whoever may read it', async () => {
+    // Owner, 24 Oct 2026: the settings screens moved into Console › Settings; which card an
+    // operator sees there is covered in consoleSettingsHub.test.tsx.
     answer({
       ...QUEUE_READY,
       [ENTITLEMENTS_URL]: () =>
         json(200, { ...OPERATOR, permissions: [...OPERATOR.permissions, 'platform.plans.read'] }),
     })
     renderAt('/console/onboarding')
-    expect(await screen.findByRole('link', { name: i18n.t('console.nav.plans') })).toBeTruthy()
+    expect(await screen.findByRole('link', { name: i18n.t('console.nav.tenants') })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: i18n.t('console.nav.plans') })).toBeNull()
+    expect(screen.getByRole('link', { name: i18n.t('console.nav.bottomSettings') })).toBeTruthy()
   })
 
   it("lists for a Support operator only the screens that operator's permissions open", async () => {
@@ -269,9 +265,8 @@ describe('Console access', () => {
         json(200, { ...OPERATOR, permissions: ['platform.support', 'platform.plans.read'] }),
     })
     renderAt('/console/onboarding')
-    expect(await screen.findByRole('link', { name: i18n.t('console.nav.plans') })).toBeTruthy()
-    expect(screen.getByRole('link', { name: i18n.t('console.nav.policies') })).toBeTruthy()
-    for (const hidden of ['console.nav.tenants', 'console.nav.verification', 'console.nav.operators']) {
+    expect(await screen.findByRole('link', { name: i18n.t('console.nav.bottomSettings') })).toBeTruthy()
+    for (const hidden of ['console.nav.tenants', 'console.nav.verification', 'console.nav.payments']) {
       expect(screen.queryByRole('link', { name: i18n.t(hidden) })).toBeNull()
     }
   })
