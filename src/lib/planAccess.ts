@@ -34,9 +34,17 @@ export const GATED_FEATURES: readonly Feature[] = [
   'selfBilling',
   'supplierNotes',
   'recurringBills',
+  'purchaseOrders',
   'approvals',
   'bulkUpload',
 ]
+
+/**
+ * Purchase orders have their own switch (PL-8, owner change, 24 Oct 2026); before it, the server
+ * gated them with trade documents. A server that does not yet send the `purchaseOrders` switch is
+ * still refusing them by `tradeDocuments`, so that switch decides until the new one is there.
+ */
+const FALLBACK_SWITCH: Partial<Record<Feature, Feature>> = { purchaseOrders: 'tradeDocuments' }
 
 export const isGatedFeature = (feature: string): feature is Feature =>
   (GATED_FEATURES as readonly string[]).includes(feature)
@@ -45,7 +53,14 @@ export const isGatedFeature = (feature: string): feature is Feature =>
 export function planIncludes(entitlements: Entitlements | null, feature: Feature): boolean {
   if (!isGatedFeature(feature)) return true
   if (entitlements?.planFeaturesEnforced !== true) return true
-  return entitlements.planFeatures?.[feature] === true
+  return switchOn(entitlements.planFeatures ?? {}, feature)
+}
+
+/** Whether the company's switches, as the server sent them, have `feature` on. */
+export function switchOn(switches: Record<string, boolean>, feature: Feature): boolean {
+  const fallback = FALLBACK_SWITCH[feature]
+  const key = fallback && !(feature in switches) ? fallback : feature
+  return switches[key] === true
 }
 
 const PLAN_ID_BY_CODE: Record<string, PlanId> = {

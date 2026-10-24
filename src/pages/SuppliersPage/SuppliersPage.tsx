@@ -599,7 +599,7 @@ function SupplierTableRow({
   // A switched-off row is drawn greyed out (Figma, Muttrah Roasters): name, chip and terms muted.
   const chip = supplier.active ? CHANNEL_CHIP[supplier.channel] : CHANNEL_CHIP.manual
   const detail = `/suppliers/${supplier.id}`
-  const tradeDocumentsIncluded = usePlanIncludes('tradeDocuments')
+  const purchaseOrdersIncluded = usePlanIncludes('purchaseOrders')
   // No new purchase order while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
   const mayCreate = useSubscriptionAllows('CREATE_DRAFTS')
 
@@ -679,8 +679,8 @@ function SupplierTableRow({
   const offered = menu.filter(
     (item) =>
       can(session, item.requires) &&
-      // A new purchase order needs a plan with trade documents (PL-8), and none while read-only.
-      ((mayCreate && tradeDocumentsIncluded) || item.id !== 'newPurchaseOrder') &&
+      // A new purchase order needs a plan with purchase orders (PL-8), and none while read-only.
+      ((mayCreate && purchaseOrdersIncluded) || item.id !== 'newPurchaseOrder') &&
       (supplier.active ||
         (item.id !== 'newPurchaseOrder' && item.id !== 'recordBill' && item.id !== 'payNow')),
   )

@@ -732,7 +732,7 @@ describe('Switches with nothing behind them (PL-8, owner, 23 Oct 2026)', () => {
   it('shows them "Not enforced yet" and locked, keeping what is stored', async () => {
     await openCatalogue()
     await editPlan('Starter')
-    for (const feature of ['pos', 'webhooks', 'catalogue', 'reports']) {
+    for (const feature of ['pos', 'catalogue', 'reports']) {
       const sw = toggle(i18n.t(`plan.featureName.${feature}`)) as HTMLButtonElement
       expect(sw.disabled).toBe(true)
       expect(within(row(feature)).getByText(notEnforced())).toBeTruthy()
@@ -752,6 +752,9 @@ describe('Switches with nothing behind them (PL-8, owner, 23 Oct 2026)', () => {
       'recurringBills',
       'approvals',
       'bulkUpload',
+      'purchaseOrders',
+      'api',
+      'webhooks',
       'erpMapping',
     ]) {
       const sw = toggle(i18n.t(`plan.featureName.${feature}`)) as HTMLButtonElement
@@ -782,6 +785,28 @@ describe('Switches with nothing behind them (PL-8, owner, 23 Oct 2026)', () => {
     expect(within(row('tradeDocuments')).getByText(notEnforced())).toBeTruthy()
     // ERP field mapping offers the ERP add-on (ER-1), so it stays switchable.
     expect((toggle(i18n.t('plan.featureName.erpMapping')) as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  // Owner, 24 Oct 2026: a server older than the `enforced` flag (production today) must not show
+  // the REST API or webhooks as "Not enforced yet"; the add-on refuses them.
+  it('never shows the REST API or webhooks "Not enforced yet" on a server without the flag', async () => {
+    await openCatalogue()
+    await editPlan('Starter')
+    for (const name of ['REST API and sandbox', 'Webhooks and file transfer']) {
+      expect((toggle(name) as HTMLButtonElement).disabled).toBe(false)
+      expect(within(toggle(name).parentElement as HTMLElement).queryByText(notEnforced())).toBeNull()
+    }
+  })
+
+  it('still follows the server where it says the REST API is not enforced', async () => {
+    const told: CatalogueAdminPlan = {
+      ...STARTER,
+      features: [...STARTER.features, { key: 'api', enabled: false, enforced: false }],
+    }
+    await openCatalogue({}, () => json(200, [told, GROWTH]))
+    await editPlan('Starter')
+    expect((toggle(i18n.t('plan.featureName.api')) as HTMLButtonElement).disabled).toBe(true)
+    expect(within(row('api')).getByText(notEnforced())).toBeTruthy()
   })
 
   it('reads in Arabic', async () => {
@@ -1060,5 +1085,64 @@ describe('ERP and API add-on price (ER-1, PL-3)', () => {
     const panel = await screen.findByRole('dialog')
     await within(panel).findByText(i18n.t('console.plans.history.version', { version: 1 }))
     expect(panel.textContent).not.toContain('ERP and API add-on')
+  })
+})
+
+// Owner change to PL-8, 24 Oct 2026: purchase orders are buying, so they get their own switch in
+// the Expenditure group; two switch names follow the app.
+describe('Purchase orders switch and switch names (PL-8, owner, 24 Oct 2026)', () => {
+  const group = (id: string) =>
+    within(dialog()).getByText(i18n.t(`plan.featureGroup.${id}`), { selector: 'p' })
+      .parentElement as HTMLElement
+
+  it('lists "Purchase orders" in the Expenditure group, switchable, and saves it', async () => {
+    await openCatalogue()
+    await editPlan('Starter')
+    const sw = within(group('expenditure')).getByRole('switch', {
+      name: 'Purchase orders',
+    }) as HTMLButtonElement
+    expect(sw.disabled).toBe(false)
+    expect(within(group('income')).queryByRole('switch', { name: 'Purchase orders' })).toBeNull()
+  })
+
+  it('shows a plan read without the switch as trade documents had it', async () => {
+    const before: CatalogueAdminPlan = {
+      ...STARTER,
+      features: [...STARTER.features, { key: 'tradeDocuments', enabled: true }],
+    }
+    await openCatalogue({}, () => json(200, [before, GROWTH]))
+    await editPlan('Starter')
+    expect(toggle('Purchase orders').getAttribute('aria-checked')).toBe('true')
+  })
+
+  it('keeps a stored purchase-orders switch as stored', async () => {
+    const stored: CatalogueAdminPlan = {
+      ...STARTER,
+      features: [
+        ...STARTER.features,
+        { key: 'tradeDocuments', enabled: true },
+        { key: 'purchaseOrders', enabled: false },
+      ],
+    }
+    await openCatalogue({}, () => json(200, [stored, GROWTH]))
+    await editPlan('Starter')
+    expect(toggle('Purchase orders').getAttribute('aria-checked')).toBe('false')
+  })
+
+  it('names the switches as the app does, in English and Arabic', async () => {
+    await openCatalogue()
+    await editPlan('Starter')
+    expect(toggle('Periodic invoices')).toBeTruthy()
+    expect(toggle('Sales approvals')).toBeTruthy()
+    expect(toggle('Recurring bills')).toBeTruthy()
+    await i18n.changeLanguage('ar')
+    try {
+      expect(i18n.t('plan.featureName.purchaseOrders')).toBe('أوامر الشراء')
+      expect(i18n.t('plan.featureName.recurringInvoices')).toBe('الفواتير الدورية')
+      expect(i18n.t('plan.featureName.approvals')).toBe('موافقات المبيعات')
+      expect(i18n.t('plan.featureName.recurringBills')).toBe('الفواتير الواردة المتكررة')
+    } finally {
+      await i18n.changeLanguage('en')
+    }
   })
 })

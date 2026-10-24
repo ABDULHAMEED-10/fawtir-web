@@ -785,7 +785,7 @@ function App() {
           <Route
             path="/suppliers/:slug/purchase-order"
             element={
-              <PlanGated feature="tradeDocuments">
+              <PlanGated feature="purchaseOrders">
                 <NewPurchaseOrderPage />
               </PlanGated>
             }
