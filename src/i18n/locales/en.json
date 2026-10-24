@@ -12801,7 +12801,8 @@
       "owners": "Companies without an Owner",
       "branchAccess": "Branch access check",
       "billing": "Billing",
-      "soon": "Soon"
+      "soon": "Soon",
+      "erpExtraction": "ERP extraction"
     },
     "user": {
       "team": "Fawtir team",

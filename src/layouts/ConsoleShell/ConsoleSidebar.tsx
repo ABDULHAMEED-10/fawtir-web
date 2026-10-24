@@ -58,9 +58,20 @@ const SETTINGS_ROUTES = [
 /** A page that has a sidebar link of its own lights that link, not Settings. */
 const OWN_LINKS = CONSOLE_NAV.flatMap((group) => group.items.flatMap(linkRoutes))
 
-/** The console's routes are flat, so a match is exact or a child path of it. */
-function isActive(pathname: string, to: string) {
+/**
+ * The console's routes are flat, so a match is exact or a child path of it. A link with a query
+ * (one section of a page) is lit only when the address carries that query too.
+ */
+function isActive(pathname: string, to: string, search = '') {
   if (to === '/console') return pathname === '/console'
+  const [path, query] = to.split('?')
+  if (query !== undefined) {
+    const here = new URLSearchParams(search)
+    return (
+      pathname === path &&
+      [...new URLSearchParams(query)].every(([key, value]) => here.get(key) === value)
+    )
+  }
   return pathname === to || pathname.startsWith(`${to}/`)
 }
 
@@ -93,7 +104,7 @@ export function ConsoleSidebar({
   useDrawer(open, onClose, panelRef)
   const settingsActive =
     SETTINGS_ROUTES.some((to) => isActive(location.pathname, to)) &&
-    !OWN_LINKS.some((to) => isActive(location.pathname, to))
+    !OWN_LINKS.some((to) => isActive(location.pathname, to, location.search))
 
   return (
     <aside
@@ -127,7 +138,9 @@ export function ConsoleSidebar({
             </p>
             <div className="flex flex-col">
               {group.items.map((item) => {
-                const active = linkRoutes(item).some((to) => isActive(location.pathname, to))
+                const active = linkRoutes(item).some((to) =>
+                  isActive(location.pathname, to, location.search),
+                )
                 return (
                   <Link
                     key={item.id}

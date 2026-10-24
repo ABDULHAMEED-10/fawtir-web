@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import {
+  NavCatalogIcon,
   NavDashboardIcon,
   NavDocumentsIcon,
   NavExpenditureIcon,
@@ -136,6 +137,14 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         // Also a Settings card; here because it is opened often (owner, 24 Oct 2026).
         requires: 'platform.plans.read',
         Icon: ConsolePlansIcon,
+      },
+      {
+        id: 'erpExtraction',
+        labelKey: 'console.nav.erpExtraction',
+        // The Add-ons section of the platform values page: ERP extraction price and which plans
+        // offer it (owner, 24 Oct 2026: one click from the sidebar).
+        to: '/console/settings/values?section=addons',
+        Icon: NavCatalogIcon,
       },
     ],
   },
