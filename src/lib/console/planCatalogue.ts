@@ -214,8 +214,9 @@ export function lockedFeatures(plan: CatalogueAdminPlan | null): Set<string> {
 }
 
 /**
- * The switches the server enforces (PL-8, owner, 23 Oct 2026), for servers that do not yet say so
- * per feature (`PlanFeatureEntry.enforced`).
+ * The switches the server enforces (PL-8, owner, 23 Oct and 24 Oct 2026), for servers that do not
+ * yet say so per feature (`PlanFeatureEntry.enforced`). The REST API, webhooks and ERP mapping are
+ * refused by the ERP and API add-on, so they are never "not enforced yet" either.
  */
 export const KNOWN_ENFORCED_FEATURES: ReadonlySet<string> = new Set<Feature>([
   'tradeDocuments',
@@ -223,8 +224,12 @@ export const KNOWN_ENFORCED_FEATURES: ReadonlySet<string> = new Set<Feature>([
   'selfBilling',
   'supplierNotes',
   'recurringBills',
+  'purchaseOrders',
   'approvals',
   'bulkUpload',
+  'api',
+  'webhooks',
+  'erpMapping',
 ])
 
 /**
@@ -332,6 +337,15 @@ export function planFormFrom(plan: CatalogueAdminPlan): PlanFormValues {
     recommended: plan.recommended,
     features: {
       ...startingFeatures(),
+      // Purchase orders were gated with trade documents until they had their own switch (PL-8,
+      // 24 Oct 2026): a plan read without the switch shows what the server applies to them.
+      ...(plan.features.some((entry) => entry.key === 'purchaseOrders')
+        ? {}
+        : {
+            purchaseOrders: plan.features.some(
+              (entry) => entry.key === 'tradeDocuments' && entry.enabled,
+            ),
+          }),
       ...Object.fromEntries(plan.features.map((entry) => [entry.key, entry.enabled])),
       // Compliance is never gated (contract §3); a stored "off" would be refused on save anyway.
       ...Object.fromEntries([...lockedFeatures(plan)].map((feature) => [feature, true])),

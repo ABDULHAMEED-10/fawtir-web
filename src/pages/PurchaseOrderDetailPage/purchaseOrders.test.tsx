@@ -573,3 +573,38 @@ describe('a plan without trade documents (PL-8)', () => {
     expect(await screen.findByRole('button', { name: 'Close the order' })).toBeTruthy()
   })
 })
+
+// Owner change to PL-8, 24 Oct 2026: purchase orders have their own switch, apart from the selling
+// documents (quotations, order forms, delivery notes).
+describe('the purchase-orders switch (PL-8, owner, 24 Oct 2026)', () => {
+  const withSwitches = (base: Entitlements, planFeatures: Record<string, boolean>): Entitlements => ({
+    ...base,
+    planFeaturesEnforced: true,
+    planFeatures,
+  })
+
+  it('hides Send for approval when purchase orders are off, whatever trade documents say', async () => {
+    who = withSwitches(APPROVER, { tradeDocuments: true, purchaseOrders: false })
+    renderDetail()
+    await screen.findByText('PO-0001')
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Send for approval' })).toBeNull(),
+    )
+    expect(screen.getByRole('button', { name: 'Cancel the order' })).toBeTruthy()
+  })
+
+  it('hides booking goods in when purchase orders are off', async () => {
+    who = withSwitches(APPROVER, { tradeDocuments: true, purchaseOrders: false })
+    current = order({ state: 'SENT' })
+    renderDetail()
+    await screen.findByText('PO-0001')
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Book these in' })).toBeNull())
+  })
+
+  it('offers the order actions when purchase orders are on and trade documents off', async () => {
+    who = withSwitches(APPROVER, { tradeDocuments: false, purchaseOrders: true })
+    renderDetail()
+    await screen.findByText('PO-0001')
+    expect(await screen.findByRole('button', { name: 'Send for approval' })).toBeTruthy()
+  })
+})

@@ -133,11 +133,11 @@ function SupplierRecord({ id }: { id: string }) {
   const session = useSession()
   const canManage = can(session, 'supplier.manage')
   const canPay = can(session, 'invoice.payment.manage')
-  // A new purchase order needs a plan with trade documents (PL-8), and none while the
-  // subscription is read-only (owner, 23 Oct; ST-2, CA-3).
-  const tradeDocumentsIncluded = usePlanIncludes('tradeDocuments')
+  // A new purchase order needs a plan with purchase orders (PL-8, own switch since 24 Oct), and
+  // none while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
+  const purchaseOrdersIncluded = usePlanIncludes('purchaseOrders')
   const mayCreate = useSubscriptionAllows('CREATE_DRAFTS')
-  const canOrder = can(session, 'purchase-order.manage') && mayCreate && tradeDocumentsIncluded
+  const canOrder = can(session, 'purchase-order.manage') && mayCreate && purchaseOrdersIncluded
   // The Orders tab is the supplier's purchase orders (`purchase-order.read`), each a link to its
   // order. A Viewer or an Approver reads suppliers without that permission, so the tab, whose
   // only content the server would refuse them, is not drawn for them.

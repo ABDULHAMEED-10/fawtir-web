@@ -55,8 +55,26 @@ describe('what the company may make or use, from GET /me/entitlements (PL-8)', (
         'selfBilling',
         'supplierNotes',
         'tradeDocuments',
+        'purchaseOrders',
       ].sort(),
     )
+  })
+
+  // Owner change to PL-8, 24 Oct 2026: purchase orders have their own switch. A server that does
+  // not send it yet still gates them with trade documents, so that switch decides until then.
+  it('follows the purchase-orders switch, and trade documents only while it is absent', () => {
+    const enforced = (planFeatures: Record<string, boolean>): Entitlements => ({
+      ...BASE,
+      planFeaturesEnforced: true,
+      planFeatures,
+    })
+    expect(planIncludes(enforced({ tradeDocuments: true, purchaseOrders: false }), 'purchaseOrders')).toBe(false)
+    expect(planIncludes(enforced({ tradeDocuments: false, purchaseOrders: true }), 'purchaseOrders')).toBe(true)
+    expect(planIncludes(enforced({ tradeDocuments: true }), 'purchaseOrders')).toBe(true)
+    expect(planIncludes(enforced({ tradeDocuments: false }), 'purchaseOrders')).toBe(false)
+    expect(planIncludes(enforced({}), 'purchaseOrders')).toBe(false)
+    // The trade-documents switch no longer depends on purchase orders.
+    expect(planIncludes(enforced({ tradeDocuments: true, purchaseOrders: false }), 'tradeDocuments')).toBe(true)
   })
 })
 

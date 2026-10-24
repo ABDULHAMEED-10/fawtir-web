@@ -6,7 +6,7 @@ import { SettingsShell } from '../../pages/SettingsPage/SettingsShell'
 import { LockIcon, Rial } from '../ui'
 import { FEATURE_LIST, PLAN, hasFeature, type AnyPlanId, type Feature } from '../../lib/plans'
 import { formatBaisa } from '../../lib/pricing'
-import { isGatedFeature, neededPlanFrom, usePlanAccess } from '../../lib/planAccess'
+import { isGatedFeature, neededPlanFrom, switchOn, usePlanAccess } from '../../lib/planAccess'
 import { useApiRead } from '../../hooks/useApiRead'
 import {
   PUBLIC_PLANS_PATH,
@@ -58,7 +58,7 @@ function alsoAdds(
   const on = (f: Feature) =>
     plan ? plan.features.some((x) => x.key === f && x.enabled) : hasFeature(needed, f)
   return FEATURE_LIST.filter(
-    (f) => f !== feature && isGatedFeature(f) && on(f) && company[f] !== true,
+    (f) => f !== feature && isGatedFeature(f) && on(f) && !switchOn(company, f),
   ).slice(0, 3)
 }
 
