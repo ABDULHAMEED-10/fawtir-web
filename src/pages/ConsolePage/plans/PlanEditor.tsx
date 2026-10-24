@@ -41,9 +41,17 @@ type PlanEditorProps = {
   onSaved: (plan: CatalogueAdminPlan) => void
   /** Someone else saved this plan since it was read; the page reads the catalogue again. */
   onConflict: () => void
+  /**
+   * `page`: a full page inside Console › Settings, its sections as cards and Save in a bar at the
+   * foot (owner, 24 Oct 2026: never a pop-up for a plan's prices and switches). `modal` keeps
+   * the pop-up.
+   */
+  presentation?: 'modal' | 'page'
 }
 
 const FORM_ID = 'plan-editor'
+/** A section of the full-page editor: a white card, as the tenant Settings screens draw them. */
+const PAGE_CARD = 'rounded-sm bg-surface-card p-5'
 
 type SwitchField =
   'publicVisible' | 'recommended' | 'active' | 'apiAccess' | 'prioritySupport' | 'trial'
@@ -80,6 +88,7 @@ export function PlanEditor({
   onClose,
   onSaved,
   onConflict,
+  presentation = 'modal',
 }: PlanEditorProps) {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
@@ -208,6 +217,205 @@ export function PlanEditor({
       ? t('console.plans.viewPlan', { name })
       : t('console.plans.editPlan', { name })
 
+  const subtitle = readOnly
+    ? t('console.plans.readOnlyNote')
+    : plan
+      ? t('console.plans.editNote')
+      : t('console.plans.addNote')
+
+  const actions = (
+    <div className="flex flex-wrap justify-end gap-2.5">
+      <ConsoleButton
+        type="button"
+        size="md"
+        variant="secondary"
+        disabled={saving}
+        onClick={onClose}
+      >
+        {readOnly ? t('common.close') : t('common.cancel')}
+      </ConsoleButton>
+      {readOnly ? null : (
+        <ConsoleButton type="submit" form={FORM_ID} size="md" disabled={saving || conflict}>
+          {saving ? t('console.plans.saving') : t('console.plans.save')}
+        </ConsoleButton>
+      )}
+    </div>
+  )
+
+  const page = presentation === 'page'
+  const form = (
+        <form
+          id={FORM_ID}
+          noValidate
+          onSubmit={(event) => void submit(event)}
+          className="flex flex-col gap-5"
+        >
+          <div className={['grid grid-cols-1 gap-4 md:grid-cols-2', page ? PAGE_CARD : ''].join(' ')}>
+            {field('code', t('console.plans.field.code'), {
+              required: mode === 'add',
+              hint: mode === 'add' ? t('console.plans.field.codeHint') : undefined,
+              fixed: mode === 'edit',
+            })}
+            {field('sortOrder', t('console.plans.field.sortOrder'), {
+              required: true,
+              hint: t('console.plans.field.sortOrderHint'),
+            })}
+            {field('nameEn', t('console.plans.field.nameEn'), { required: true, dir: 'ltr' })}
+            {field('nameAr', t('console.plans.field.nameAr'), {
+              dir: 'rtl',
+              hint: t('console.plans.field.nameArHint'),
+            })}
+            {field('descriptionEn', t('console.plans.field.descriptionEn'), { dir: 'ltr' })}
+            {field('descriptionAr', t('console.plans.field.descriptionAr'), { dir: 'rtl' })}
+          </div>
+
+          <div className={['flex flex-col gap-3', page ? PAGE_CARD : ''].join(' ')}>
+            {sectionTitle(t('console.plans.section.terms'))}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {field('monthlyPrice', t('console.plans.field.monthlyPrice'), { required: true })}
+              {field('annualFreeMonths', t('console.plans.field.annualFreeMonths'), {
+                required: true,
+                hint: t('console.plans.field.annualFreeMonthsHint'),
+              })}
+              {field('invoicesPerMonth', t('console.plans.field.invoicesPerMonth'), {
+                required: true,
+              })}
+              {field('overagePricePerInvoice', t('console.plans.field.overagePrice'), {
+                hint: t('console.plans.field.overageHint'),
+              })}
+              {field('peopleIncluded', t('console.plans.field.peopleIncluded'), { required: true })}
+              {field('extraPersonPrice', t('console.plans.field.extraPersonPrice'), {
+                hint: t('console.plans.field.extraPersonHint'),
+              })}
+              {field('branchesIncluded', t('console.plans.field.branchesIncluded'), {
+                hint: t('console.plans.field.branchesHint'),
+              })}
+              {field('extraBranchPrice', t('console.plans.field.extraBranchPrice'), {
+                hint: t('console.plans.field.extraBranchHint'),
+              })}
+              {/* ER-1, PL-3: the ERP and API add-on as a paid extra; needs ERP field mapping on. */}
+              {field('erpAddonMonthlyPrice', t('console.plans.field.erpAddonPrice'), {
+                hint: t('console.plans.field.erpAddonHint'),
+              })}
+            </div>
+            <div className="flex flex-col">
+              {toggle('apiAccess', t('console.plans.field.apiAccess'))}
+              {toggle('prioritySupport', t('console.plans.field.prioritySupport'))}
+            </div>
+          </div>
+
+          <div className={['flex flex-col gap-3', page ? PAGE_CARD : ''].join(' ')}>
+            {sectionTitle(t('console.plans.section.offer'))}
+            {/* TR-1: the trial is always 14 days, so the plan only switches it on or off. */}
+            <div className="flex flex-col">
+              {toggle('trial', t('console.plans.field.trial', { days: TRIAL_DAYS }))}
+              <p className="pb-1 text-xs font-medium leading-[1.5] text-text-quaternary">
+                {t('console.plans.field.trialHint', { days: TRIAL_DAYS })}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {field('trialDocuments', t('console.plans.field.trialDocuments'), {
+                hint: t('console.plans.field.trialDocumentsSwitchHint'),
+              })}
+            </div>
+            <div className="flex flex-col">
+              {toggle('active', t('console.plans.field.active'))}
+              {toggle('publicVisible', t('console.plans.field.publicVisible'))}
+              {toggle('recommended', t('console.plans.field.recommended'))}
+            </div>
+          </div>
+
+          <div className={['flex flex-col gap-3', page ? PAGE_CARD : ''].join(' ')}>
+            {sectionTitle(t('console.plans.section.features'))}
+            {FEATURE_GROUPS.map((group) => (
+              <div key={group.id} className="flex flex-col">
+                <p className="pb-1 text-sm font-semibold text-text-secondary">
+                  {t(`plan.featureGroup.${group.id}`)}
+                </p>
+                {group.features.map((feature) => {
+                  const compliance = locked.has(feature)
+                  // PL-8: a switch the server does not act on yet is locked at its stored value.
+                  const unenforced = notEnforced.has(feature)
+                  const label = t(`plan.featureName.${feature}`)
+                  return (
+                    <div
+                      key={feature}
+                      className="flex items-center justify-between gap-4 border-b border-border-subtle py-2 last:border-b-0"
+                    >
+                      <span className="text-sm font-medium text-text-tertiary">
+                        {label}
+                        {compliance ? (
+                          <span className="ms-2 text-xs text-text-quaternary">
+                            {t('console.plans.alwaysOn')}
+                          </span>
+                        ) : unenforced ? (
+                          <span className="ms-2 text-xs text-text-quaternary">
+                            {t('console.plans.notEnforced')}
+                          </span>
+                        ) : null}
+                      </span>
+                      <Switch
+                        size="sm"
+                        // Compliance is never gated (contract §3): shown on and locked, and sent on.
+                        checked={compliance || Boolean(values.features[feature])}
+                        onChange={(on) => setFeature(feature, on)}
+                        label={label}
+                        disabled={frozen || compliance || unenforced}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+
+          {!readOnly && publishes ? (
+            <div className={['flex flex-col gap-2', page ? PAGE_CARD : ''].join(' ')}>
+              {field('reason', t('console.plans.field.reason'), {
+                required: true,
+                hint:
+                  mode === 'add'
+                    ? t('console.plans.field.reasonHintAdd')
+                    : t('console.plans.field.reasonHint'),
+              })}
+            </div>
+          ) : null}
+
+          {formError ? (
+            <div role="alert" className="flex flex-col items-start gap-2">
+              <p className="text-sm font-medium text-danger-700">
+                {t(formError.key, formError.values)}
+              </p>
+              {conflict ? (
+                <ConsoleButton type="button" size="md" variant="secondary" onClick={onConflict}>
+                  {t('console.plans.reload')}
+                </ConsoleButton>
+              ) : null}
+            </div>
+          ) : null}
+        </form>
+  )
+
+  if (page) {
+    return (
+      <section aria-labelledby="plan-editor-title" className="flex flex-col gap-5">
+        <div className="max-w-[720px]">
+          <h2
+            id="plan-editor-title"
+            className="text-2xl font-medium leading-[1.2] text-text-primary"
+          >
+            {title}
+          </h2>
+          <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">{subtitle}</p>
+        </div>
+        {form}
+        <div className="sticky bottom-0 z-10 -mx-4 border-t border-border-subtle bg-surface-background/95 px-4 py-3 backdrop-blur lg:mx-0 lg:rounded-sm lg:border lg:bg-surface-card lg:px-5">
+          {actions}
+        </div>
+      </section>
+    )
+  }
+
   return (
     <Modal
       open
@@ -216,182 +424,10 @@ export function PlanEditor({
         if (!saving) onClose()
       }}
       title={title}
-      subtitle={
-        readOnly
-          ? t('console.plans.readOnlyNote')
-          : plan
-            ? t('console.plans.editNote')
-            : t('console.plans.addNote')
-      }
-      footer={
-        <div className="flex flex-wrap justify-end gap-2.5">
-          <ConsoleButton
-            type="button"
-            size="md"
-            variant="secondary"
-            disabled={saving}
-            onClick={onClose}
-          >
-            {readOnly ? t('common.close') : t('common.cancel')}
-          </ConsoleButton>
-          {readOnly ? null : (
-            <ConsoleButton type="submit" form={FORM_ID} size="md" disabled={saving || conflict}>
-              {saving ? t('console.plans.saving') : t('console.plans.save')}
-            </ConsoleButton>
-          )}
-        </div>
-      }
+      subtitle={subtitle}
+      footer={actions}
     >
-      <form
-        id={FORM_ID}
-        noValidate
-        onSubmit={(event) => void submit(event)}
-        className="flex flex-col gap-5"
-      >
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {field('code', t('console.plans.field.code'), {
-            required: mode === 'add',
-            hint: mode === 'add' ? t('console.plans.field.codeHint') : undefined,
-            fixed: mode === 'edit',
-          })}
-          {field('sortOrder', t('console.plans.field.sortOrder'), {
-            required: true,
-            hint: t('console.plans.field.sortOrderHint'),
-          })}
-          {field('nameEn', t('console.plans.field.nameEn'), { required: true, dir: 'ltr' })}
-          {field('nameAr', t('console.plans.field.nameAr'), {
-            dir: 'rtl',
-            hint: t('console.plans.field.nameArHint'),
-          })}
-          {field('descriptionEn', t('console.plans.field.descriptionEn'), { dir: 'ltr' })}
-          {field('descriptionAr', t('console.plans.field.descriptionAr'), { dir: 'rtl' })}
-        </div>
-
-        <div className="flex flex-col gap-3">
-          {sectionTitle(t('console.plans.section.terms'))}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {field('monthlyPrice', t('console.plans.field.monthlyPrice'), { required: true })}
-            {field('annualFreeMonths', t('console.plans.field.annualFreeMonths'), {
-              required: true,
-              hint: t('console.plans.field.annualFreeMonthsHint'),
-            })}
-            {field('invoicesPerMonth', t('console.plans.field.invoicesPerMonth'), {
-              required: true,
-            })}
-            {field('overagePricePerInvoice', t('console.plans.field.overagePrice'), {
-              hint: t('console.plans.field.overageHint'),
-            })}
-            {field('peopleIncluded', t('console.plans.field.peopleIncluded'), { required: true })}
-            {field('extraPersonPrice', t('console.plans.field.extraPersonPrice'), {
-              hint: t('console.plans.field.extraPersonHint'),
-            })}
-            {field('branchesIncluded', t('console.plans.field.branchesIncluded'), {
-              hint: t('console.plans.field.branchesHint'),
-            })}
-            {field('extraBranchPrice', t('console.plans.field.extraBranchPrice'), {
-              hint: t('console.plans.field.extraBranchHint'),
-            })}
-            {/* ER-1, PL-3: the ERP and API add-on as a paid extra; needs ERP field mapping on. */}
-            {field('erpAddonMonthlyPrice', t('console.plans.field.erpAddonPrice'), {
-              hint: t('console.plans.field.erpAddonHint'),
-            })}
-          </div>
-          <div className="flex flex-col">
-            {toggle('apiAccess', t('console.plans.field.apiAccess'))}
-            {toggle('prioritySupport', t('console.plans.field.prioritySupport'))}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          {sectionTitle(t('console.plans.section.offer'))}
-          {/* TR-1: the trial is always 14 days, so the plan only switches it on or off. */}
-          <div className="flex flex-col">
-            {toggle('trial', t('console.plans.field.trial', { days: TRIAL_DAYS }))}
-            <p className="pb-1 text-xs font-medium leading-[1.5] text-text-quaternary">
-              {t('console.plans.field.trialHint', { days: TRIAL_DAYS })}
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {field('trialDocuments', t('console.plans.field.trialDocuments'), {
-              hint: t('console.plans.field.trialDocumentsSwitchHint'),
-            })}
-          </div>
-          <div className="flex flex-col">
-            {toggle('active', t('console.plans.field.active'))}
-            {toggle('publicVisible', t('console.plans.field.publicVisible'))}
-            {toggle('recommended', t('console.plans.field.recommended'))}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          {sectionTitle(t('console.plans.section.features'))}
-          {FEATURE_GROUPS.map((group) => (
-            <div key={group.id} className="flex flex-col">
-              <p className="pb-1 text-sm font-semibold text-text-secondary">
-                {t(`plan.featureGroup.${group.id}`)}
-              </p>
-              {group.features.map((feature) => {
-                const compliance = locked.has(feature)
-                // PL-8: a switch the server does not act on yet is locked at its stored value.
-                const unenforced = notEnforced.has(feature)
-                const label = t(`plan.featureName.${feature}`)
-                return (
-                  <div
-                    key={feature}
-                    className="flex items-center justify-between gap-4 border-b border-border-subtle py-2 last:border-b-0"
-                  >
-                    <span className="text-sm font-medium text-text-tertiary">
-                      {label}
-                      {compliance ? (
-                        <span className="ms-2 text-xs text-text-quaternary">
-                          {t('console.plans.alwaysOn')}
-                        </span>
-                      ) : unenforced ? (
-                        <span className="ms-2 text-xs text-text-quaternary">
-                          {t('console.plans.notEnforced')}
-                        </span>
-                      ) : null}
-                    </span>
-                    <Switch
-                      size="sm"
-                      // Compliance is never gated (contract §3): shown on and locked, and sent on.
-                      checked={compliance || Boolean(values.features[feature])}
-                      onChange={(on) => setFeature(feature, on)}
-                      label={label}
-                      disabled={frozen || compliance || unenforced}
-                    />
-                  </div>
-                )
-              })}
-            </div>
-          ))}
-        </div>
-
-        {!readOnly && publishes ? (
-          <div className="flex flex-col gap-2">
-            {field('reason', t('console.plans.field.reason'), {
-              required: true,
-              hint:
-                mode === 'add'
-                  ? t('console.plans.field.reasonHintAdd')
-                  : t('console.plans.field.reasonHint'),
-            })}
-          </div>
-        ) : null}
-
-        {formError ? (
-          <div role="alert" className="flex flex-col items-start gap-2">
-            <p className="text-sm font-medium text-danger-700">
-              {t(formError.key, formError.values)}
-            </p>
-            {conflict ? (
-              <ConsoleButton type="button" size="md" variant="secondary" onClick={onConflict}>
-                {t('console.plans.reload')}
-              </ConsoleButton>
-            ) : null}
-          </div>
-        ) : null}
-      </form>
+      {form}
     </Modal>
   )
 }

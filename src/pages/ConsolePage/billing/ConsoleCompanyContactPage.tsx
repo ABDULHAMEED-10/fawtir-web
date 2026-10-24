@@ -59,7 +59,11 @@ export function ConsoleCompanyContactPage() {
   )
 }
 
-function CompanyContact() {
+/**
+ * The screen's body. `embedded`: one section of Console › Settings › Fawtir company details,
+ * under that page's frame, so it draws no frame or page column of its own.
+ */
+export function CompanyContact({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation()
   // 204 (before the backend's migration has seeded version 1) parses as no body.
   const { read, retry } = useConsoleRead<CompanyContactDto | undefined>(COMPANY_CONTACT_PATH)
@@ -100,9 +104,9 @@ function CompanyContact() {
   }
 
   return (
-    <div className={CONSOLE_PAGE}>
-      <ConsoleSettingsFrame tab="company" />
-      <ConsolePageHeader level="section" title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
+    <div className={embedded ? 'flex flex-col gap-5' : CONSOLE_PAGE}>
+      {embedded ? null : <ConsoleSettingsFrame tab="company" />}
+      <ConsolePageHeader level={embedded ? 'subsection' : 'section'} title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
       {failure ? (
         <p
           role="alert"

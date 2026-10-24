@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { Input, Modal, Select } from '../../../components/ui'
 import { ConsoleShell } from '../../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../../layouts/ConsoleShell/ConsoleBreadcrumbs'
+import { ConsoleSectionFrame } from '../../../layouts/ConsoleShell/ConsoleSectionFrame'
 import { ConsoleNotice, ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
 import { useConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
 import {
@@ -129,8 +129,8 @@ function CompaniesWithoutOwner() {
 
   return (
     <div className={CONSOLE_PAGE}>
-      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.owners' }]} />
-      <ConsolePageHeader title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
+      <ConsoleSectionFrame section="tenants" tab="owners" />
+      <ConsolePageHeader level="section" title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
       {done ? (
         <p
           role="status"

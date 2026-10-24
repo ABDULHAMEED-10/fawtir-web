@@ -67,7 +67,11 @@ export function ConsoleSellerPage() {
   )
 }
 
-function Seller() {
+/**
+ * The screen's body. `embedded`: one section of Console › Settings › Fawtir company details,
+ * under that page's frame, so it draws no frame or page column of its own.
+ */
+export function Seller({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation()
   // 204 parses as no body: undefined means no seller has been entered yet.
   const { read, retry } = useConsoleRead<BillingSellerDto | undefined>(BILLING_SELLER_PATH)
@@ -115,9 +119,9 @@ function Seller() {
   }
 
   return (
-    <div className={CONSOLE_PAGE}>
-      <ConsoleSettingsFrame tab="company" />
-      <ConsolePageHeader level="section" title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
+    <div className={embedded ? 'flex flex-col gap-5' : CONSOLE_PAGE}>
+      {embedded ? null : <ConsoleSettingsFrame tab="company" />}
+      <ConsolePageHeader level={embedded ? 'subsection' : 'section'} title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
       {failure ? (
         <p
           ref={failureRef}

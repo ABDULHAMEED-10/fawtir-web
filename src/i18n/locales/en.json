@@ -12798,7 +12798,9 @@
       "companyContact": "Contact details",
       "refunds": "Refund cases",
       "owners": "Companies without an Owner",
-      "branchAccess": "Branch access check"
+      "branchAccess": "Branch access check",
+      "billing": "Billing",
+      "soon": "Soon"
     },
     "user": {
       "team": "Fawtir team",
@@ -16760,12 +16762,6 @@
         "overageBody": "What happens when a company uses all its documents.",
         "paymentsTitle": "Payments",
         "paymentsBody": "How companies can pay their subscription.",
-        "sellerTitle": "Seller",
-        "sellerBody": "The company named as seller on every subscription bill.",
-        "bankAccountTitle": "Bank account",
-        "bankAccountBody": "The account customers pay Fawtir into.",
-        "contactTitle": "Contact details",
-        "contactBody": "How customers and visitors reach Fawtir.",
         "operatorsTitle": "Operators",
         "operatorsBody": "The Fawtir team and what each person may do.",
         "policiesTitle": "Validation policies",
@@ -16781,7 +16777,23 @@
         "fixedTitle": "Fixed by design",
         "fixedBody": "Values that change only with a new release.",
         "auditTitle": "Audit log",
-        "auditBody": "Every action an operator took on the platform."
+        "auditBody": "Every action an operator took on the platform.",
+        "companyTitle": "Fawtir company details",
+        "companyBody": "The seller on every bill, the bank account customers pay into, and how customers reach Fawtir."
+      }
+    },
+    "sections": {
+      "tenants": {
+        "title": "Tenants",
+        "all": "All companies",
+        "enterprise": "Enterprise",
+        "owners": "Without an Owner",
+        "leaving": "Leaving"
+      },
+      "billing": {
+        "title": "Billing",
+        "payments": "Payments",
+        "refunds": "Refunds"
       }
     }
   },

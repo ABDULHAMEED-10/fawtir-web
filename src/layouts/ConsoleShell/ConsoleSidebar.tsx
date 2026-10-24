@@ -6,9 +6,18 @@ import { UserMenu } from '../../components/shell'
 import { NavSettingsIcon } from '../AppShell/navIcons'
 import { CloseIcon } from '../../components/ui/icons'
 import { useDrawer } from '../../hooks/useDrawer'
-import { CONSOLE_NAV } from '../../lib/consoleNav'
-import { CONSOLE_SETTINGS_CARDS, CONSOLE_SETTINGS_PATH } from '../../lib/console/consoleSettingsHub'
-import { hasPermission, isPlatformOperator, type Entitlements } from '../../lib/identity/entitlements'
+import { CONSOLE_NAV, type ConsoleNavItem } from '../../lib/consoleNav'
+import { CONSOLE_SECTIONS } from '../../lib/console/consoleSections'
+import {
+  CONSOLE_SETTINGS_CARDS,
+  CONSOLE_SETTINGS_PATH,
+  SETTINGS_ONLY_ROUTES,
+} from '../../lib/console/consoleSettingsHub'
+import {
+  hasPermission,
+  isPlatformOperator,
+  type Entitlements,
+} from '../../lib/identity/entitlements'
 import { ACCOUNT_EMAIL_CONFIRM_ROUTE } from '../../lib/identity/accountEmail'
 import { initialsOf } from '../../lib/format'
 
@@ -27,18 +36,32 @@ function visibleConsoleNav(entitlements: Entitlements | null) {
   if (entitlements === null || !isPlatformOperator(entitlements)) return []
   return CONSOLE_NAV.map((group) => ({
     ...group,
-    items: group.items.filter((item) =>
-      (typeof item.requires === 'string' ? [item.requires] : (item.requires ?? [])).every((code) =>
-        hasPermission(entitlements, code),
-      ),
-    ),
+    items: group.items.flatMap((item): ConsoleNavItem[] => {
+      if (item.section) {
+        // A section link: shown when any tab would open, and leading to the first that does.
+        const open = CONSOLE_SECTIONS[item.section].tabs.filter((tab) =>
+          hasPermission(entitlements, tab.requires),
+        )
+        return open.length > 0 ? [{ ...item, to: open[0].to }] : []
+      }
+      const allowed = (
+        typeof item.requires === 'string' ? [item.requires] : (item.requires ?? [])
+      ).every((code) => hasPermission(entitlements, code))
+      return allowed ? [item] : []
+    }),
   })).filter((group) => group.items.length > 0)
+}
+
+/** Every address a link stands for: a section link is lit on each of its tabs. */
+function linkRoutes(item: ConsoleNavItem): string[] {
+  return item.section ? CONSOLE_SECTIONS[item.section].tabs.map((tab) => tab.to) : [item.to]
 }
 
 /** Settings and every screen a Settings card opens: the bottom Settings link is lit on them. */
 const SETTINGS_ROUTES = [
   CONSOLE_SETTINGS_PATH,
   ...CONSOLE_SETTINGS_CARDS.map((card) => card.to.split('?')[0]),
+  ...SETTINGS_ONLY_ROUTES,
 ]
 
 /** The console's routes are flat, so a match is exact or a child path of it. */
@@ -108,7 +131,7 @@ export function ConsoleSidebar({
             </p>
             <div className="flex flex-col">
               {group.items.map((item) => {
-                const active = isActive(location.pathname, item.to)
+                const active = linkRoutes(item).some((to) => isActive(location.pathname, to))
                 return (
                   <Link
                     key={item.id}
@@ -131,6 +154,11 @@ export function ConsoleSidebar({
                     >
                       {t(item.labelKey)}
                     </span>
+                    {item.soon ? (
+                      <span className="ms-auto shrink-0 rounded-[3px] bg-pending-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.4px] text-pending-700">
+                        {t('console.nav.soon')}
+                      </span>
+                    ) : null}
                   </Link>
                 )
               })}
@@ -165,7 +193,12 @@ export function ConsoleSidebar({
 
         {/* No role title: the backend's role names are English-only, and ranking an operator's
             several roles into one title would be a claim of our own. */}
-        <UserMenu name={userName} roleKey="console.user.team" initials={initialsOf(userName) || null} extraItems={CONSOLE_USER_ITEMS} />
+        <UserMenu
+          name={userName}
+          roleKey="console.user.team"
+          initials={initialsOf(userName) || null}
+          extraItems={CONSOLE_USER_ITEMS}
+        />
       </div>
     </aside>
   )

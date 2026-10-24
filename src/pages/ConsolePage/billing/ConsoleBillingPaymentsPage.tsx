@@ -4,7 +4,7 @@ import { DateField, OmAmount, Rial, withRial } from '../../../components/ui'
 import { selectAllOnFocus } from '../../../components/invoice/numericInput'
 import { ApiError } from '../../../api'
 import { ConsoleShell } from '../../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../../layouts/ConsoleShell/ConsoleBreadcrumbs'
+import { ConsoleSectionFrame } from '../../../layouts/ConsoleShell/ConsoleSectionFrame'
 import { ConsoleNotice, ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
 import { ConsoleStatusPill, type ConsolePillTone } from '../../../layouts/ConsoleShell/ConsoleStatusPill'
 import { useConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
@@ -166,8 +166,8 @@ function PaymentQueue() {
 
   return (
     <div className={CONSOLE_PAGE}>
-      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.payments' }]} />
-      <ConsolePageHeader title={t('console.billing.title')} subtitle={t('console.billing.subtitle')} />
+      <ConsoleSectionFrame section="billing" tab="payments" />
+      <ConsolePageHeader level="section" title={t('console.billing.title')} subtitle={t('console.billing.subtitle')} />
       {body}
       {selected ? (
         <PaymentPanel

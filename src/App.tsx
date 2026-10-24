@@ -200,6 +200,7 @@ import {
   TenantDetailPage,
   ConsoleSettingsPage,
   ConsoleSettingsHubPage,
+  ConsoleFawtirCompanyPage,
   ValidationPoliciesPage,
   ValidationPolicyPage,
 } from './pages/ConsolePage'
@@ -833,6 +834,7 @@ function App() {
           {/* One place for every console setting (owner, 24 Oct 2026); the platform values that are
               not prices moved one level down, each section opened from its card. */}
           <Route path="/console/settings" element={<ConsoleSettingsHubPage />} />
+          <Route path="/console/settings/company" element={<ConsoleFawtirCompanyPage />} />
           <Route path="/console/settings/values" element={<DemoModule module="console"><ConsoleSettingsPage /></DemoModule>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

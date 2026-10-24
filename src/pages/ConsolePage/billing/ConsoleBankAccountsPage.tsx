@@ -45,7 +45,11 @@ export function ConsoleBankAccountsPage() {
   )
 }
 
-function BankAccounts() {
+/**
+ * The screen's body. `embedded`: one section of Console › Settings › Fawtir company details,
+ * under that page's frame, so it draws no frame or page column of its own.
+ */
+export function BankAccounts({ embedded = false }: { embedded?: boolean } = {}) {
   const { t, i18n } = useTranslation()
   const { read, retry } = useConsoleRead<BeneficiaryRecordDto[]>(BENEFICIARIES_PATH)
   const [busy, setBusy] = useState(false)
@@ -162,9 +166,9 @@ function BankAccounts() {
   }
 
   return (
-    <div className={CONSOLE_PAGE}>
-      <ConsoleSettingsFrame tab="company" />
-      <ConsolePageHeader level="section" title={t('console.bankAccounts.title')} subtitle={t('console.bankAccounts.subtitle')} />
+    <div className={embedded ? 'flex flex-col gap-5' : CONSOLE_PAGE}>
+      {embedded ? null : <ConsoleSettingsFrame tab="company" />}
+      <ConsolePageHeader level={embedded ? 'subsection' : 'section'} title={t('console.bankAccounts.title')} subtitle={t('console.bankAccounts.subtitle')} />
       {failure ? (
         <p role="alert" className="rounded-sm bg-danger-100 px-4 py-3 text-sm font-medium text-danger-700">
           {failure}

@@ -82,9 +82,7 @@ describe('Console › Settings', () => {
     }
     expect(card('Plans and rates')?.getAttribute('href')).toBe('/console/plans')
     expect(card('Billing rules')?.getAttribute('href')).toBe('/console/billing/settings')
-    expect(card('Seller')?.getAttribute('href')).toBe('/console/billing/seller')
-    expect(card('Bank account')?.getAttribute('href')).toBe('/console/billing/accounts')
-    expect(card('Contact details')?.getAttribute('href')).toBe('/console/company-contact')
+    expect(card('Fawtir company details')?.getAttribute('href')).toBe('/console/settings/company')
     expect(card('Operators')?.getAttribute('href')).toBe('/console/operators')
     expect(card('Validation policies')?.getAttribute('href')).toBe('/console/policies')
     expect(card('Branch access check')?.getAttribute('href')).toBe('/console/branch-access')
@@ -112,14 +110,14 @@ describe('Console › Settings', () => {
     expect(await screen.findByRole('link', { name: /^Validation policies/ })).toBeTruthy()
     expect(card('Plans and rates')).toBeNull()
     expect(card('Billing rules')).toBeNull()
-    expect(card('Bank account')).toBeNull()
+    expect(card('Fawtir company details')).toBeNull()
     expect(card('Operators')).toBeNull()
     expect(screen.queryByRole('heading', { level: 2, name: 'Fawtir company' })).toBeNull()
   })
 
   it('narrows to one group from its tab', async () => {
     renderAt('/console/settings?tab=company')
-    expect(await screen.findByRole('link', { name: /^Seller/ })).toBeTruthy()
+    expect(await screen.findByRole('link', { name: /^Fawtir company details/ })).toBeTruthy()
     expect(card('Plans and rates')).toBeNull()
     expect(screen.getByRole('link', { name: 'Fawtir company' }).getAttribute('aria-current')).toBe(
       'page',

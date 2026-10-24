@@ -6,6 +6,7 @@ import i18n from '../../../i18n'
 import { resetSharedRequests } from '../../../api'
 import { forgetEntitlements, type Entitlements } from '../../../lib/identity/entitlements'
 import { CONSOLE_ITEMS } from '../../../lib/consoleNav'
+import { CONSOLE_SECTIONS } from '../../../lib/console/consoleSections'
 import { ConsoleEnterpriseTermsPage } from './ConsoleEnterpriseTermsPage'
 import { ConsoleEnterprisePage } from './ConsoleEnterprisePage'
 import { EnterpriseTermsLink } from './EnterpriseTermsLink'
@@ -381,10 +382,12 @@ describe('Console › Enterprise companies', () => {
     expect(await screen.findByText(i18n.t('console.enterprise.empty.ALL'))).toBeTruthy()
   })
 
-  it('is in the console menu for billing readers only', () => {
-    expect(CONSOLE_ITEMS.find((item) => item.to === '/console/enterprise')?.requires).toBe(
-      'platform.billing.read',
-    )
+  it('is a Tenants tab for billing readers only', () => {
+    // Owner, 24 Oct 2026: Enterprise is a tab of Tenants, not a link of its own.
+    expect(CONSOLE_ITEMS.map((item) => item.to)).not.toContain('/console/enterprise')
+    expect(
+      CONSOLE_SECTIONS.tenants.tabs.find((tab) => tab.to === '/console/enterprise')?.requires,
+    ).toBe('platform.billing.read')
   })
 
   it('links the tenant page to the terms only for billing readers', async () => {

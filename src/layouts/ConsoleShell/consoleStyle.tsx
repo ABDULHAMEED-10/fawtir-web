@@ -17,6 +17,8 @@ export const CONSOLE_H1 =
 export const CONSOLE_SUBTITLE = 'mt-2 text-sm font-medium leading-[1.4] text-text-placeholder'
 /** A screen inside Settings: its title and subtitle as the tenant Settings screens draw them. */
 export const CONSOLE_SECTION_H2 = 'break-words text-2xl font-medium leading-[1.2] text-text-primary'
+/** One part of a Settings screen that holds several (Fawtir company details). */
+export const CONSOLE_SUBSECTION_H3 = 'break-words text-lg font-semibold leading-[1.3] text-text-primary'
 export const CONSOLE_SECTION_SUBTITLE = 'mt-1 max-w-[720px] text-sm font-medium leading-[1.4] text-[#8f8f8f]'
 /** Two or more cards side by side or stacked: 20 px between columns. */
 export const CONSOLE_ROW = 'flex flex-wrap items-start gap-5'
@@ -53,10 +55,12 @@ export function ConsolePageHeader({
    * `section`: a screen inside Settings, under the frame's "Settings" title — an h2 at the tenant
    * Settings screens' size (`SettingsHeader`) rather than the page's own 27 px title.
    */
-  level?: 'page' | 'section'
+  level?: 'page' | 'section' | 'subsection'
 }) {
   const heading =
-    level === 'section' ? (
+    level === 'subsection' ? (
+      <h3 className={[CONSOLE_SUBSECTION_H3, titleClassName].join(' ')}>{title}</h3>
+    ) : level === 'section' ? (
       <h2 className={[CONSOLE_SECTION_H2, titleClassName].join(' ')}>{title}</h2>
     ) : (
       <h1 className={[CONSOLE_H1, titleClassName].join(' ')}>{title}</h1>
@@ -77,7 +81,7 @@ export function ConsolePageHeader({
           {subtitle ? (
             <p
               className={[
-                level === 'section' ? CONSOLE_SECTION_SUBTITLE : CONSOLE_SUBTITLE,
+                level === 'page' ? CONSOLE_SUBTITLE : CONSOLE_SECTION_SUBTITLE,
                 subtitleClassName,
               ].join(' ')}
             >

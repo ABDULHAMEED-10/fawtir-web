@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Select, withRial } from '../../../components/ui'
 import { useEntitlements } from '../../../hooks/useEntitlements'
 import { ConsoleShell } from '../../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../../layouts/ConsoleShell/ConsoleBreadcrumbs'
+import { ConsoleSectionFrame } from '../../../layouts/ConsoleShell/ConsoleSectionFrame'
 import { ConsoleNotice, ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
 import { useConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
 import {
@@ -150,8 +150,8 @@ function RefundQueue() {
 
   return (
     <div className={CONSOLE_PAGE}>
-      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.refunds' }]} />
-      <ConsolePageHeader title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
+      <ConsoleSectionFrame section="billing" tab="refunds" />
+      <ConsolePageHeader level="section" title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-sm bg-surface-card px-5">
         <div className="flex flex-wrap gap-x-6">
           {VIEWS.map((value) => {

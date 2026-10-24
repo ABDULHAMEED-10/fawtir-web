@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ActionMenu, FilterMenu, Pager, RowsView, SortMenu, type ActionMenuItem } from '../../components/ui'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
+import { ConsoleSectionFrame } from '../../layouts/ConsoleShell/ConsoleSectionFrame'
 import { ConsoleNotice, ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
 import { ConsoleStatusPill, type ConsolePillTone } from '../../layouts/ConsoleShell/ConsoleStatusPill'
 import {
@@ -175,9 +175,10 @@ function TenantsRegister() {
 
   return (
     <div className={CONSOLE_PAGE}>
-      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.tenants' }]} />
-      <ConsolePageHeader
-        title={t('console.tenants.title')}
+      <ConsoleSectionFrame section="tenants" tab="all" />
+      <ConsolePageHeader level="section"
+        // Under the "Tenants" section title, this tab's own name, not the same word again.
+        title={t('console.sections.tenants.all')}
         subtitle={
           data
             ? complete

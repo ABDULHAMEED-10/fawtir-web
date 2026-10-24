@@ -29,3 +29,4 @@ export { ConsoleCompaniesWithoutOwnerPage } from './owners/ConsoleCompaniesWitho
 export { ConsoleBranchAccessReadinessPage } from './branchAccess/ConsoleBranchAccessReadinessPage'
 export { ConsoleEnterprisePage } from './enterprise/ConsoleEnterprisePage'
 export { ConsoleEnterpriseTermsPage } from './enterprise/ConsoleEnterpriseTermsPage'
+export { ConsoleFawtirCompanyPage } from './billing/ConsoleFawtirCompanyPage'

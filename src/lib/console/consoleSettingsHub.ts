@@ -1,6 +1,5 @@
 import { USERS_PERMISSION, OPERATORS_PERMISSION } from './platformOperators'
 import { BILLING_MANAGE_PERMISSION, BILLING_READ_PERMISSION } from './billingPayments'
-import { COMPANY_CONTACT_READ_PERMISSION } from './companyContact'
 import { POLICY_CONSOLE_PERMISSION } from './validationPolicies'
 import { READINESS_PERMISSION } from './branchAccessReadiness'
 import { PLANS_READ_PERMISSION, PLANS_MANAGE_PERMISSION } from './planCatalogue'
@@ -25,6 +24,17 @@ export const CONSOLE_SETTINGS_TABS = [
 export type ConsoleSettingsTab = (typeof CONSOLE_SETTINGS_TABS)[number]['id']
 
 export const CONSOLE_SETTINGS_PATH = '/console/settings'
+/** Seller, bank account and contact details, one page. */
+export const FAWTIR_COMPANY_PATH = '/console/settings/company'
+/**
+ * Screens a card no longer opens directly but that still answer at their own address (old links,
+ * e-mails): the sidebar's Settings link lights up on them too.
+ */
+export const SETTINGS_ONLY_ROUTES: readonly string[] = [
+  '/console/billing/seller',
+  '/console/billing/accounts',
+  '/console/company-contact',
+]
 /** The platform values that are not prices (the old Console settings page), now one card each. */
 export const PLATFORM_VALUES_PATH = '/console/settings/values'
 
@@ -77,27 +87,12 @@ export const CONSOLE_SETTINGS_CARDS: readonly ConsoleSettingsCard[] = [
   { id: 'overage', tab: 'billing', icon: 'bills', to: values('overage'), soon: true },
   { id: 'payments', tab: 'billing', icon: 'bills', to: values('payments'), soon: true },
   {
-    id: 'seller',
+    // Seller, bank account and contact details on one page (owner, 24 Oct 2026).
+    id: 'company',
     tab: 'company',
     icon: 'company',
-    to: '/console/billing/seller',
-    requires: BILLING_MANAGE_PERMISSION,
-    manage: BILLING_MANAGE_PERMISSION,
-  },
-  {
-    id: 'bankAccount',
-    tab: 'company',
-    icon: 'bills',
-    to: '/console/billing/accounts',
+    to: FAWTIR_COMPANY_PATH,
     requires: BILLING_READ_PERMISSION,
-    manage: BILLING_MANAGE_PERMISSION,
-  },
-  {
-    id: 'contact',
-    tab: 'company',
-    icon: 'company',
-    to: '/console/company-contact',
-    requires: COMPANY_CONTACT_READ_PERMISSION,
     manage: BILLING_MANAGE_PERMISSION,
   },
   {

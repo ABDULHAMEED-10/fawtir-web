@@ -17,11 +17,14 @@ import {
 export function ConsoleSettingsFrame({
   tab,
   hub = false,
+  back,
 }: {
   /** Which tab is lit. */
   tab: ConsoleSettingsTab
   /** The hub itself: no back link. */
   hub?: boolean
+  /** Where the back link goes from a screen nested under another one; All settings otherwise. */
+  back?: { to: string; label: string }
 }) {
   const { t } = useTranslation()
   return (
@@ -68,7 +71,7 @@ export function ConsoleSettingsFrame({
 
       {!hub ? (
         <Link
-          to={CONSOLE_SETTINGS_PATH}
+          to={back?.to ?? CONSOLE_SETTINGS_PATH}
           className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-text-quaternary transition-colors hover:text-primary-700"
         >
           <img
@@ -77,7 +80,7 @@ export function ConsoleSettingsFrame({
             aria-hidden="true"
             className="size-4 rotate-180 rtl:rotate-0"
           />
-          {t('console.settingsHub.back')}
+          {back?.label ?? t('console.settingsHub.back')}
         </Link>
       ) : null}
     </div>
