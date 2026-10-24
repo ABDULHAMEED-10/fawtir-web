@@ -2,17 +2,13 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
 import { Input } from '../../../components/ui'
-import { ConsoleShell } from '../../../layouts/ConsoleShell'
-import { ConsoleSettingsFrame } from '../../../layouts/ConsoleShell/ConsoleSettingsFrame'
 import { ConsoleNotice, ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
 import { useConsoleRead, type ConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
 import {
   CONSOLE_CARD,
-  CONSOLE_PAGE,
   ConsolePageHeader,
 } from '../../../layouts/ConsoleShell/consoleStyle'
 import { formatInstant } from '../../../lib/format'
-import { BILLING_MANAGE_PERMISSION } from '../../../lib/console/billingPayments'
 import {
   BILLING_SELLER_HISTORY_PATH,
   BILLING_SELLER_PATH,
@@ -53,25 +49,10 @@ const OPTIONAL: readonly Field[] = [
 ]
 
 /**
- * The legal seller named on every subscription bill. Its own versioned record: a bill keeps the
- * version in force when it was issued, so changing it here never rewrites a bill already sent.
- * The server answers 204 while no seller exists; the first save then sends `If-Match: "0"`.
- * Reading needs the same permission as changing (contract), so the shell asks for it up front and
- * there is no read-only view.
+ * One section of Console › Settings › Fawtir company details, under that page's frame. Its old
+ * address of its own forwards to that page (owner, 24 Oct 2026).
  */
-export function ConsoleSellerPage() {
-  return (
-    <ConsoleShell requires={BILLING_MANAGE_PERMISSION}>
-      <Seller />
-    </ConsoleShell>
-  )
-}
-
-/**
- * The screen's body. `embedded`: one section of Console › Settings › Fawtir company details,
- * under that page's frame, so it draws no frame or page column of its own.
- */
-export function Seller({ embedded = false }: { embedded?: boolean } = {}) {
+export function Seller() {
   const { t } = useTranslation()
   // 204 parses as no body: undefined means no seller has been entered yet.
   const { read, retry } = useConsoleRead<BillingSellerDto | undefined>(BILLING_SELLER_PATH)
@@ -119,9 +100,8 @@ export function Seller({ embedded = false }: { embedded?: boolean } = {}) {
   }
 
   return (
-    <div className={embedded ? 'flex flex-col gap-5' : CONSOLE_PAGE}>
-      {embedded ? null : <ConsoleSettingsFrame tab="company" />}
-      <ConsolePageHeader level={embedded ? 'subsection' : 'section'} title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
+    <div className="flex flex-col gap-5">
+      <ConsolePageHeader level="subsection" title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
       {failure ? (
         <p
           ref={failureRef}

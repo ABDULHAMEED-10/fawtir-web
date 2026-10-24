@@ -177,10 +177,7 @@ import {
   ConsolePlansPage,
   ConsoleBillingPaymentsPage,
   ConsoleRefundCasesPage,
-  ConsoleBankAccountsPage,
   ConsoleBillingSettingsPage,
-  ConsoleSellerPage,
-  ConsoleCompanyContactPage,
   ConsoleDisconnectionsPage,
   ConsoleCompaniesWithoutOwnerPage,
   ConsoleBranchAccessReadinessPage,
@@ -189,8 +186,6 @@ import {
   ConsoleQueuePage,
   ConsoleIncidentsPage,
   ConsoleAuditPage,
-  ConsoleErpPage,
-  ConsoleErpConnectionPage,
   ConsoleOnboardPage,
   OperationsPage,
   OperatorsPage,
@@ -813,10 +808,10 @@ function App() {
           <Route path="/console/plans" element={<ConsolePlansPage />} />
           <Route path="/console/billing/payments" element={<ConsoleBillingPaymentsPage />} />
           <Route path="/console/billing/refunds" element={<ConsoleRefundCasesPage />} />
-          <Route path="/console/billing/accounts" element={<ConsoleBankAccountsPage />} />
+          <Route path="/console/billing/accounts" element={<Navigate to="/console/settings/company" replace />} />
           <Route path="/console/billing/settings" element={<ConsoleBillingSettingsPage />} />
-          <Route path="/console/billing/seller" element={<ConsoleSellerPage />} />
-          <Route path="/console/company-contact" element={<ConsoleCompanyContactPage />} />
+          <Route path="/console/billing/seller" element={<Navigate to="/console/settings/company" replace />} />
+          <Route path="/console/company-contact" element={<Navigate to="/console/settings/company" replace />} />
           <Route path="/console/disconnections" element={<ConsoleDisconnectionsPage />} />
           <Route path="/console/owners" element={<ConsoleCompaniesWithoutOwnerPage />} />
           <Route path="/console/branch-access" element={<ConsoleBranchAccessReadinessPage />} />
@@ -824,12 +819,9 @@ function App() {
           <Route path="/console/policies" element={<ValidationPoliciesPage />} />
           <Route path="/console/policies/:type" element={<ValidationPolicyPage />} />
           <Route path="/console/audit" element={<DemoModule module="console"><ConsoleAuditPage /></DemoModule>} />
-          <Route path="/console/erp" element={<ConsoleErpPage />} />
-          <Route path="/console/erp/connections/:id" element={<ConsoleErpConnectionPage />} />
-          {/* Kept so a bookmark does not 404; each says where ERP access is really changed. */}
-          <Route path="/console/erp/templates" element={<ConsoleErpPage />} />
-          <Route path="/console/erp/templates/:id" element={<ConsoleErpPage />} />
-          <Route path="/console/erp/add-on-requests" element={<ConsoleErpPage />} />
+          {/* The console's ERP screens drew a story fixture and were retired; a tenant's ERP access is
+              changed on that tenant's page, so an old link lands on Tenants (owner, 24 Oct 2026). */}
+          <Route path="/console/erp/*" element={<Navigate to="/console/tenants" replace />} />
           <Route path="/console/tenants/new" element={<ConsoleOnboardPage />} />
           {/* One place for every console setting (owner, 24 Oct 2026); the platform values that are
               not prices moved one level down, each section opened from its card. */}

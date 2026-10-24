@@ -12771,8 +12771,6 @@
       "group": {
         "running": "RUNNING IT",
         "customers": "CUSTOMERS",
-        "platform": "THE PLATFORM",
-        "erp": "ERP",
         "billing": "BILLING"
       },
       "operations": "Operations",
@@ -12781,27 +12779,13 @@
       "tenants": "Tenants",
       "verification": "Verification",
       "plans": "Plans and rates",
-      "audit": "Audit log",
-      "settings": "Console settings",
       "bottomSettings": "Settings",
-      "operators": "Operators",
       "subscriptions": "Subscriptions",
-      "erpConnections": "Connections",
-      "erpTemplates": "Mapping templates",
-      "erpRequests": "Add-on requests",
       "policies": "Validation policies",
       "payments": "Payments",
-      "bankAccounts": "Bank account",
-      "billingSettings": "Billing settings",
-      "seller": "Seller",
       "disconnections": "Disconnections",
       "enterprise": "Enterprise",
-      "companyContact": "Contact details",
       "refunds": "Refund cases",
-      "owners": "Companies without an Owner",
-      "branchAccess": "Branch access check",
-      "billing": "Billing",
-      "soon": "Soon",
       "erpExtraction": "ERP extraction"
     },
     "user": {
@@ -14480,183 +14464,6 @@
         "templateDraftSaved": "Template draft saved · {{template}} v{{version}}",
         "templatePublished": "Template published · {{template}} v{{version}}",
         "templateDraftDiscarded": "Template draft discarded · {{template}} v{{version}}"
-      },
-      "connections": {
-        "title": "ERP connections",
-        "subtitle": "{{connections}} connections across {{tenants}} tenants · {{attention}} need attention",
-        "kpi": {
-          "tenants": "Tenants on the add-on",
-          "tenantsNote": "{{paying}} paying · {{included}} included or on trial",
-          "connections": "Connections",
-          "connectionsNote": "{{paused}} paused · {{rejections}} pending rejections",
-          "inError": "In error",
-          "inErrorNote": "Credentials refused or ERP unreachable. The tenant must act.",
-          "stale": "Stale",
-          "staleNote": "Connected, but nothing new for {{days}} days or more",
-          "collected": "Collected this month",
-          "collectedNote": "OMR {{amount}} a month from {{paying}} purchased add-ons",
-          "requests": "Add-on requests",
-          "requestsNote": "Waiting for a decision. Open the queue.",
-          "requestsOpen": "Open the add-on requests"
-        },
-        "attention": {
-          "title": "Needs attention",
-          "subtitle": "Errors first, then connections that have gone quiet",
-          "none": "Every connection is healthy. Nothing is in error or stale."
-        },
-        "reason": {
-          "credentials": "ERP refused credentials",
-          "unreachable": "ERP unreachable",
-          "threeFailures": "Three runs failed in a row",
-          "stale_one": "No new invoice for {{count}} day",
-          "stale_other": "No new invoice for {{count}} days"
-        },
-        "lastRunShort": "last run {{when}}",
-        "searchPlaceholder": "Search by tenant or connection",
-        "filter": {
-          "state": "State",
-          "stateAll": "Any state",
-          "product": "Product",
-          "productAll": "Any product"
-        },
-        "sort": {
-          "lastRun": "Last run, newest first",
-          "tenant": "Tenant, A to Z"
-        },
-        "col": {
-          "tenant": "Tenant",
-          "connection": "Connection",
-          "state": "State",
-          "mapping": "Mapping",
-          "template": "Template",
-          "lastRun": "Last run",
-          "nextRun": "Next run",
-          "collected": "Collected",
-          "rejections": "Rejections"
-        },
-        "template": {
-          "version": "{{name}} v{{version}}",
-          "handWritten": "Hand-written"
-        },
-        "notScheduled": "Not scheduled",
-        "rowMenu": "Row actions",
-        "row": {
-          "open": "Open the connection",
-          "openTenant": "Open the tenant"
-        },
-        "noResults": "No connection matches these filters.",
-        "showing": "Showing {{shown}} of {{total}} connections"
-      },
-      "connection": {
-        "notFound": "There is no connection with this id. The tenant may have deleted it.",
-        "notFoundBack": "Back to connections",
-        "meta": "{{product}} {{version}} · {{schedule}}",
-        "readOnly": "Support view, read-only. Credentials are never shown or entered here.",
-        "banner": {
-          "credentials": "The ERP refused this connection's credentials: {{failures}} runs failed in a row. Only the tenant can replace credentials: send them to Settings › Integration › Connected systems.",
-          "unreachable": "The ERP is unreachable: {{failures}} runs failed in a row. Only the tenant can change the address or credentials: send them to Settings › Integration › Connected systems.",
-          "threeFailures": "Three runs failed in a row, so the connection stopped. Only the tenant can restart it from Settings › Integration › Connected systems.",
-          "stale_one": "Connected and running, but the newest invoice collected is {{count}} day old. Ask the tenant whether their ERP is still posting invoices.",
-          "stale_other": "Connected and running, but the newest invoice collected is {{count}} days old. Ask the tenant whether their ERP is still posting invoices."
-        },
-        "figure": {
-          "watermark": "Newest invoice collected",
-          "today": "Today",
-          "daysOld_one": "day old",
-          "daysOld_other": "days old",
-          "watermarkNote": "Issued {{moment}}",
-          "nothingYet": "Nothing collected yet",
-          "lastRun": "Last run",
-          "never": "Never",
-          "lastRunNote": "{{state}} · {{fetched}} fetched, {{created}} created, {{errors}} errors",
-          "nextRun": "Next run",
-          "nextRunError": "Not scheduled: the connection is in error",
-          "nextRunPaused": "Not scheduled: the connection is paused",
-          "collected": "Collected this month",
-          "collectedOf": "of {{allowance}}",
-          "collectedNote": "{{used}} across the tenant's connections · {{percent}} of the allowance",
-          "collectedNoAddon": "The tenant has no active add-on"
-        },
-        "setup": {
-          "title": "How it is set up",
-          "product": "Product",
-          "schedule": "Schedule",
-          "writeBack": "Write-back",
-          "writeBackOn": "On: status, number and QR written to the ERP",
-          "writeBackOff": "Off",
-          "template": "Mapping template",
-          "templateVersion": "{{name}} v{{version}} · published {{date}}",
-          "handWritten": "Hand-written by the tenant",
-          "mapping": "Mapping",
-          "created": "Connected",
-          "id": "Connection id"
-        },
-        "runs": {
-          "title": "Recent runs",
-          "none": "No runs yet",
-          "col": {
-            "when": "When",
-            "state": "State",
-            "fetched": "Fetched",
-            "created": "Created",
-            "errors": "Errors"
-          }
-        },
-        "addon": {
-          "title": "Automatic extraction add-on",
-          "none": "No add-on. The tenant has not asked for automatic extraction.",
-          "pendingRequest": "They have a request waiting. Open the add-on requests.",
-          "source": "Source",
-          "sourceValue": {
-            "PURCHASED": "Purchased",
-            "PLAN_INCLUDED": "Included in the plan",
-            "TRIAL": "On trial"
-          },
-          "since": "Since",
-          "trialEnds": "Trial ends",
-          "suspendedFor": "Suspended for",
-          "pendingPayment": "Starts once the add-on line on the next invoice is paid.",
-          "limits": "Limits",
-          "limitsValue": "{{connections}} connections · {{documents}} documents a month",
-          "connectionsUsed": "Connected systems",
-          "of": "{{used}} of {{allowance}}",
-          "collected": "Collected this month",
-          "grants": "Quota grants",
-          "noGrants": "None. The allowance is the plan's own.",
-          "grantLine": "+{{documents}} documents until {{date}} · {{by}}",
-          "grant": "Grant extraction quota",
-          "suspend": "Suspend add-on",
-          "resume": "Resume add-on"
-        },
-        "grant": {
-          "title": "Grant extraction quota",
-          "subtitle": "Extra documents for {{tenant}} on top of the add-on's allowance, until a date you choose",
-          "documents": "Extra documents",
-          "expires": "Expires",
-          "submit": "Grant",
-          "done": "{{documents}} extra extraction documents granted to {{tenant}} until {{date}}"
-        },
-        "suspend": {
-          "title": "Suspend the add-on",
-          "subtitle": "Scheduled runs stop for {{tenant}} until it is resumed; connections and mappings are kept",
-          "submit": "Suspend",
-          "done": "{{tenant}}'s add-on is suspended. Runs stop until it is resumed."
-        },
-        "resume": {
-          "title": "Resume the add-on",
-          "subtitle": "Runs for {{tenant}} pick up again on the next schedule",
-          "body": "It was suspended for: {{reason}}",
-          "submit": "Resume",
-          "done": "{{tenant}}'s add-on is active again"
-        }
-      },
-      "unavailable": {
-        "crumb": "ERP integration",
-        "title": "ERP integration across tenants",
-        "subtitle": "Where the platform manages tenants' ERP integration.",
-        "badge": "Not here",
-        "body": "ERP integration is enabled or disabled for each tenant from that tenant's page in Tenants. Each tenant's connections are managed inside that tenant.",
-        "action": "Open tenants"
       }
     },
     "ops": {

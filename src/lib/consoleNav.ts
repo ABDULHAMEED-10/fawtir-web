@@ -21,8 +21,6 @@ export type ConsoleNavItem = {
   labelKey: string
   to: string
   Icon: ComponentType<IconProps>
-  /** Screens the design has not reached yet still appear, so the shape of the console is honest. */
-  soon?: boolean
   /**
    * Shown only to an operator holding every listed code: the same requirement the screen's own
    * ConsoleShell enforces, so the menu never offers a page that answers "no access". The server

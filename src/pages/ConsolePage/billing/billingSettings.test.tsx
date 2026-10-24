@@ -7,7 +7,7 @@ import { resetSharedRequests } from '../../../api'
 import { forgetEntitlements, type Entitlements } from '../../../lib/identity/entitlements'
 import { fractionToPercent, percentToFraction } from '../../../lib/console/billingSettings'
 import { ConsoleBillingSettingsPage } from './ConsoleBillingSettingsPage'
-import { ConsoleSellerPage } from './ConsoleSellerPage'
+import { ConsoleFawtirCompanyPage } from './ConsoleFawtirCompanyPage'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const SETTINGS = '/api/v1/platform/billing/settings'
@@ -85,7 +85,7 @@ function renderAt(path: string) {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/console/billing/settings" element={<ConsoleBillingSettingsPage />} />
-        <Route path="/console/billing/seller" element={<ConsoleSellerPage />} />
+        <Route path="/console/settings/company" element={<ConsoleFawtirCompanyPage />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -428,7 +428,7 @@ describe('Console › Seller', () => {
     answers[SELLER_HISTORY] = () => json(200, [])
     answers[`PUT ${SELLER}`] = () => json(200, seller({ version: 1 }))
     const user = userEvent.setup({ delay: null })
-    renderAt('/console/billing/seller')
+    renderAt('/console/settings/company')
 
     expect(await screen.findByText(L('none'))).toBeTruthy()
     await user.type(screen.getByRole('textbox', { name: L('legalNameEn') }), 'Thumb International SPC')
@@ -453,7 +453,7 @@ describe('Console › Seller', () => {
     answers[SELLER_HISTORY] = () => json(200, [seller(), seller({ version: 1, legalNameEn: 'Old Name LLC', legalNameAr: null })])
     answers[`PUT ${SELLER}`] = () => json(200, seller({ version: 3 }))
     const user = userEvent.setup({ delay: null })
-    renderAt('/console/billing/seller')
+    renderAt('/console/settings/company')
 
     expect(await screen.findByText(new RegExp(`${L('version', { version: 1 })} · Old Name LLC`))).toBeTruthy()
     // The version in force is the form above; the earlier list starts after it.
@@ -473,7 +473,7 @@ describe('Console › Seller', () => {
     answers[SELLER] = () => json(200, seller())
     answers[SELLER_HISTORY] = () => json(200, [seller()])
     const user = userEvent.setup({ delay: null })
-    renderAt('/console/billing/seller')
+    renderAt('/console/settings/company')
 
     await user.type(await screen.findByRole('textbox', { name: L('vatNumber') }), '12345')
     await user.type(screen.getByRole('textbox', { name: L('reason') }), 'VAT')
@@ -488,7 +488,7 @@ describe('Console › Seller', () => {
     answers[SELLER] = () => new Response(null, { status: 204 })
     answers[SELLER_HISTORY] = () => json(200, [])
     const user = userEvent.setup({ delay: null })
-    renderAt('/console/billing/seller')
+    renderAt('/console/settings/company')
 
     await screen.findByText(L('none'))
     await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url === SETTINGS)).toBe(true))
@@ -512,7 +512,7 @@ describe('Console › Seller', () => {
     answers[SELLER_HISTORY] = () => json(200, [])
     answers[`PUT ${SELLER}`] = () => json(200, seller({ version: 1, vatNumber: null }))
     const user = userEvent.setup({ delay: null })
-    renderAt('/console/billing/seller')
+    renderAt('/console/settings/company')
 
     await screen.findByText(L('none'))
     await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url === SETTINGS)).toBe(true))
@@ -538,7 +538,7 @@ describe('Console › Seller', () => {
     answers[`PUT ${SELLER}`] = () =>
       json(400, { type: 'https://api.fawtir.om/problems/validation-error', status: 400 })
     const user = userEvent.setup({ delay: null })
-    renderAt('/console/billing/seller')
+    renderAt('/console/settings/company')
 
     await screen.findByText(L('none'))
     await user.type(screen.getByRole('textbox', { name: L('legalNameEn') }), 'Thumb International SPC')
@@ -547,8 +547,7 @@ describe('Console › Seller', () => {
     await user.type(screen.getByRole('textbox', { name: L('reason') }), 'First seller')
     await user.click(screen.getByRole('button', { name: i18n.t('console.settings.save') }))
 
-    const alert = await screen.findByRole('alert')
-    expect(alert.textContent).toBe(L('refusal.invalid'))
+    const alert = await screen.findByText(L('refusal.invalid'), { selector: '[role="alert"]' })
     await waitFor(() => expect(scrolled).toHaveBeenCalled())
     expect(scrolled.mock.contexts.at(-1)).toBe(alert)
   })
@@ -558,7 +557,7 @@ describe('Console › Seller', () => {
     answers[SELLER_HISTORY] = () => json(200, [seller()])
     answers[`PUT ${SELLER}`] = () => json(409, { type: 'https://api.fawtir.om/problems/billing-seller-version-conflict' })
     const user = userEvent.setup({ delay: null })
-    renderAt('/console/billing/seller')
+    renderAt('/console/settings/company')
 
     const legalType = await screen.findByRole('textbox', { name: L('legalType') })
     await user.clear(legalType)

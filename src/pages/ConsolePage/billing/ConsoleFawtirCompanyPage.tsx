@@ -42,14 +42,14 @@ function FawtirCompany() {
       />
       {mayManage ? (
         <section className="flex flex-col gap-5 border-t border-border-subtle pt-5">
-          <Seller embedded />
+          <Seller />
         </section>
       ) : null}
       <section className="flex flex-col gap-5 border-t border-border-subtle pt-5">
-        <BankAccounts embedded />
+        <BankAccounts />
       </section>
       <section className="flex flex-col gap-5 border-t border-border-subtle pt-5">
-        <CompanyContact embedded />
+        <CompanyContact />
       </section>
     </div>
   )

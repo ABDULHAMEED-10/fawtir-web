@@ -10,7 +10,6 @@ import { CONSOLE_NAV, type ConsoleNavItem } from '../../lib/consoleNav'
 import {
   CONSOLE_SETTINGS_CARDS,
   CONSOLE_SETTINGS_PATH,
-  SETTINGS_ONLY_ROUTES,
 } from '../../lib/console/consoleSettingsHub'
 import {
   hasPermission,
@@ -52,7 +51,6 @@ function linkRoutes(item: ConsoleNavItem): readonly string[] {
 const SETTINGS_ROUTES = [
   CONSOLE_SETTINGS_PATH,
   ...CONSOLE_SETTINGS_CARDS.map((card) => card.to.split('?')[0]),
-  ...SETTINGS_ONLY_ROUTES,
 ]
 
 /** A page that has a sidebar link of its own lights that link, not Settings. */

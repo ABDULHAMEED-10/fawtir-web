@@ -27,15 +27,6 @@ export const CONSOLE_SETTINGS_PATH = '/console/settings'
 /** Seller, bank account and contact details, one page. */
 export const FAWTIR_COMPANY_PATH = '/console/settings/company'
 /**
- * Screens a card no longer opens directly but that still answer at their own address (old links,
- * e-mails): the sidebar's Settings link lights up on them too.
- */
-export const SETTINGS_ONLY_ROUTES: readonly string[] = [
-  '/console/billing/seller',
-  '/console/billing/accounts',
-  '/console/company-contact',
-]
-/**
  * The old "Console settings" prototype. It keeps its values in the browser only, so a card leads
  * here only for what has no API yet (promotions, the fixed positions); every value the platform
  * really has is set on Plans and rates, Billing rules or Fawtir company details, and its card
@@ -192,11 +183,6 @@ export const CONSOLE_SETTINGS_CARDS: readonly ConsoleSettingsCard[] = [
   { id: 'fixed', tab: 'platform', icon: 'peppol', to: values('fixed') },
   { id: 'audit', tab: 'records', icon: 'log', to: '/console/audit' },
 ]
-
-/** The tab a settings page belongs to, so its tab lights up while it is open. */
-export function settingsTabOf(cardId: string): Exclude<ConsoleSettingsTab, 'all'> | undefined {
-  return CONSOLE_SETTINGS_CARDS.find((card) => card.id === cardId)?.tab
-}
 
 export const asList = (codes: string | readonly string[] | undefined): readonly string[] =>
   codes === undefined ? [] : typeof codes === 'string' ? [codes] : codes
