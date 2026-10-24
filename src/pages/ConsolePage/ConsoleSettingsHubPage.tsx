@@ -118,25 +118,12 @@ function ConsoleSettingsHub() {
   )
 }
 
-/** The pill under a card: not connected yet, changeable here, or read only. */
+/** The pill under a card: whether this operator can change things there or only read them. */
 function pillOf(card: ConsoleSettingsCard, canManage: boolean) {
-  if (card.soon)
-    return {
-      key: 'console.settingsHub.pill.soon',
-      tone: 'bg-pending-100 text-pending-700',
-      dot: 'bg-pending-500',
-    }
+  const neutral = { tone: 'bg-surface-background text-text-tertiary', dot: 'bg-[#a8abb2]' }
   if (card.manage === undefined || canManage)
-    return {
-      key: 'console.settingsHub.pill.manage',
-      tone: 'bg-surface-background text-text-tertiary',
-      dot: 'bg-[#a8abb2]',
-    }
-  return {
-    key: 'console.settingsHub.pill.viewOnly',
-    tone: 'bg-surface-background text-text-tertiary',
-    dot: 'bg-[#a8abb2]',
-  }
+    return { key: 'console.settingsHub.pill.manage', ...neutral }
+  return { key: 'console.settingsHub.pill.viewOnly', ...neutral }
 }
 
 function HubCard({ card, canManage }: { card: ConsoleSettingsCard; canManage: boolean }) {
@@ -151,7 +138,7 @@ function HubCard({ card, canManage }: { card: ConsoleSettingsCard; canManage: bo
         <span
           className={[
             'flex size-9 shrink-0 items-center justify-center rounded-md',
-            card.soon ? 'bg-surface-background' : 'bg-primary-50',
+            'bg-primary-50',
           ].join(' ')}
         >
           <img src={ICONS[card.icon]} alt="" className="size-[18px]" />

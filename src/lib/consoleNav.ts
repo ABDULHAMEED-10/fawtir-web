@@ -52,24 +52,18 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
     items: [
       {
         id: 'operations',
-        // Sample data until connected to the server (owner, 24 Oct 2026).
-        soon: true,
         labelKey: 'console.nav.operations',
         to: '/console',
         Icon: NavDashboardIcon,
       },
       {
         id: 'queue',
-        // Sample data until connected to the server (owner, 24 Oct 2026).
-        soon: true,
         labelKey: 'console.nav.queue',
         to: '/console/queue',
         Icon: ConsoleQueueIcon,
       },
       {
         id: 'incidents',
-        // Sample data until connected to the server (owner, 24 Oct 2026).
-        soon: true,
         labelKey: 'console.nav.incidents',
         to: '/console/incidents',
         Icon: ConsoleIncidentIcon,

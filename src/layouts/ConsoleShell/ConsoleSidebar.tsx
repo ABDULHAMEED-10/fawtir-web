@@ -150,11 +150,6 @@ export function ConsoleSidebar({
                     >
                       {t(item.labelKey)}
                     </span>
-                    {item.soon ? (
-                      <span className="ms-auto shrink-0 rounded-[3px] bg-pending-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.4px] text-pending-700">
-                        {t('console.nav.soon')}
-                      </span>
-                    ) : null}
                   </Link>
                 )
               })}

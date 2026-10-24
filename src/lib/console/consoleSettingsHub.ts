@@ -62,8 +62,6 @@ export type ConsoleSettingsCard = {
   requires?: string | readonly string[]
   /** With this too the page can change things; without it, it is read only. */
   manage?: string | readonly string[]
-  /** Still a sample screen: the card says "Coming soon" and nothing on it is saved. */
-  soon?: boolean
 }
 
 const values = (section: string) => `${PLATFORM_VALUES_PATH}?section=${section}`
@@ -106,7 +104,7 @@ export const CONSOLE_SETTINGS_CARDS: readonly ConsoleSettingsCard[] = [
     manage: PLANS_MANAGE_PERMISSION,
   },
   // Not built: none at launch (Business Rules).
-  { id: 'promotional', tab: 'plans', icon: 'plan', to: values('promotional'), soon: true },
+  { id: 'promotional', tab: 'plans', icon: 'plan', to: values('promotional') },
   {
     id: 'billingRules',
     tab: 'billing',
@@ -191,8 +189,8 @@ export const CONSOLE_SETTINGS_CARDS: readonly ConsoleSettingsCard[] = [
     manage: BILLING_MANAGE_PERMISSION,
   },
   // Read-only positions the platform takes; shown on the prototype page for now.
-  { id: 'fixed', tab: 'platform', icon: 'peppol', to: values('fixed'), soon: true },
-  { id: 'audit', tab: 'records', icon: 'log', to: '/console/audit', soon: true },
+  { id: 'fixed', tab: 'platform', icon: 'peppol', to: values('fixed') },
+  { id: 'audit', tab: 'records', icon: 'log', to: '/console/audit' },
 ]
 
 /** The tab a settings page belongs to, so its tab lights up while it is open. */

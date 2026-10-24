@@ -99,7 +99,7 @@ describe('Console › Settings', () => {
     )
   })
 
-  it('says which cards change things here, which only read, and which are not connected yet', async () => {
+  it('says which cards change things here and which only read', async () => {
     who = {
       ...ADMIN,
       permissions: ADMIN.permissions.filter((code) => code !== 'platform.plans.manage'),
@@ -110,7 +110,8 @@ describe('Console › Settings', () => {
     })
     expect(within(plans).getByText('View only')).toBeTruthy()
     expect(within(card('Billing rules')!).getByText('Manage')).toBeTruthy()
-    expect(within(card('Audit log')!).getByText('Coming soon')).toBeTruthy()
+    // Owner, 24 Oct 2026: no card carries a "Coming soon" tag.
+    expect(screen.queryByText('Coming soon')).toBeNull()
     // A value the API sets is never "Coming soon".
     expect(within(card('Trial and lifecycle')!).getByText('Manage')).toBeTruthy()
   })

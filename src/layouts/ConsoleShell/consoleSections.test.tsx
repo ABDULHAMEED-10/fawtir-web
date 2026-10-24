@@ -53,9 +53,10 @@ describe('Console sidebar (owner, 24 Oct 2026)', () => {
     }
   })
 
-  it('marks the screens that still show sample data', () => {
+  it('carries no "Soon" tags', () => {
     renderSidebar(['platform.tenants.manage'])
-    expect(screen.getByRole('link', { name: /^Submission queue/ }).textContent).toContain('Soon')
+    expect(screen.getByRole('link', { name: 'Submission queue' })).toBeTruthy()
+    expect(screen.queryByText('Soon')).toBeNull()
   })
 
   it('lights Tenants on its Without an Owner tab, and the page own link rather than Settings', () => {
