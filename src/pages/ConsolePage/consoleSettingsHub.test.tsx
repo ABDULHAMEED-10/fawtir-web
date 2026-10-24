@@ -94,9 +94,6 @@ describe('Console › Settings', () => {
     expect(card('Add-ons')?.getAttribute('href')).toBe('/console/plans')
     expect(card('Payments')?.getAttribute('href')).toBe('/console/billing/settings')
     expect(card('Notices')?.getAttribute('href')).toBe('/console/billing/settings')
-    expect(card('ERP extraction')?.getAttribute('href')).toBe(
-      '/console/settings/values?section=addons',
-    )
     expect(card('Promotions')?.getAttribute('href')).toBe(
       '/console/settings/values?section=promotional',
     )

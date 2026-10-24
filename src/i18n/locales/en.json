@@ -16780,9 +16780,7 @@
         "auditTitle": "Audit log",
         "auditBody": "Every action an operator took on the platform.",
         "companyTitle": "Fawtir company details",
-        "companyBody": "The seller on every bill, the bank account customers pay into, and how customers reach Fawtir.",
-        "erpTitle": "ERP extraction",
-        "erpBody": "Automatic ERP extraction: its monthly price, documents included, price per extra document and which plans offer it."
+        "companyBody": "The seller on every bill, the bank account customers pay into, and how customers reach Fawtir."
       }
     },
     "sections": {

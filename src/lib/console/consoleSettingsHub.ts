@@ -85,8 +85,6 @@ export const CONSOLE_SETTINGS_CARDS: readonly ConsoleSettingsCard[] = [
     requires: PLANS_READ_PERMISSION,
     manage: PLANS_MANAGE_PERMISSION,
   },
-  // Owner, 24 Oct 2026: ERP extraction one click from Settings.
-  { id: 'erp', tab: 'plans', icon: 'integration', to: values('addons') },
   {
     id: 'counting',
     tab: 'plans',
