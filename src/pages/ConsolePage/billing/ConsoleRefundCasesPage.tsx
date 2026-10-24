@@ -118,7 +118,7 @@ function RefundQueue() {
                 heading={
                   <Link
                     to={`/console/tenants/${encodeURIComponent(tenantId)}`}
-                    className="text-sm font-semibold text-primary-700 hover:underline"
+                    className="w-fit text-base font-semibold text-text-primary transition-colors hover:text-primary-700 hover:underline"
                   >
                     {tenantName ?? tenantId}
                   </Link>
@@ -170,7 +170,7 @@ function RefundQueue() {
             )
           })}
         </div>
-        <div className="w-full py-2 sm:w-64">
+        <div className="w-full py-2 sm:w-56">
           <Select
             value={kind ?? 'ALL'}
             ariaLabel={t(`${K}kind.label`)}
