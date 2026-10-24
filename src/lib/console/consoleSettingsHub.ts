@@ -35,7 +35,12 @@ export const SETTINGS_ONLY_ROUTES: readonly string[] = [
   '/console/billing/accounts',
   '/console/company-contact',
 ]
-/** The platform values that are not prices (the old Console settings page), now one card each. */
+/**
+ * The old "Console settings" prototype. It keeps its values in the browser only, so a card leads
+ * here only for what has no API yet (promotions, the fixed positions); every value the platform
+ * really has is set on Plans and rates, Billing rules or Fawtir company details, and its card
+ * leads there (owner, 24 Oct 2026).
+ */
 export const PLATFORM_VALUES_PATH = '/console/settings/values'
 
 export type ConsoleSettingsCard = {
@@ -72,7 +77,35 @@ export const CONSOLE_SETTINGS_CARDS: readonly ConsoleSettingsCard[] = [
     requires: PLANS_READ_PERMISSION,
     manage: PLANS_MANAGE_PERMISSION,
   },
-  { id: 'addons', tab: 'plans', icon: 'integration', to: values('addons'), soon: true },
+  // Owner, 24 Oct 2026: each value lives where the API sets it; the card leads there.
+  {
+    id: 'addons',
+    tab: 'plans',
+    icon: 'integration',
+    // The ERP and API add-on price is a field of each plan.
+    to: '/console/plans',
+    requires: PLANS_READ_PERMISSION,
+    manage: PLANS_MANAGE_PERMISSION,
+  },
+  {
+    id: 'counting',
+    tab: 'plans',
+    icon: 'log',
+    // "Count received documents", per plan.
+    to: '/console/plans',
+    requires: PLANS_READ_PERMISSION,
+    manage: PLANS_MANAGE_PERMISSION,
+  },
+  {
+    id: 'overage',
+    tab: 'plans',
+    icon: 'bills',
+    // The price per extra document, per plan.
+    to: '/console/plans',
+    requires: PLANS_READ_PERMISSION,
+    manage: PLANS_MANAGE_PERMISSION,
+  },
+  // Not built: none at launch (Business Rules).
   { id: 'promotional', tab: 'plans', icon: 'plan', to: values('promotional'), soon: true },
   {
     id: 'billingRules',
@@ -82,10 +115,42 @@ export const CONSOLE_SETTINGS_CARDS: readonly ConsoleSettingsCard[] = [
     requires: BILLING_READ_PERMISSION,
     manage: BILLING_MANAGE_PERMISSION,
   },
-  { id: 'billingValues', tab: 'billing', icon: 'bills', to: values('billing'), soon: true },
-  { id: 'counting', tab: 'billing', icon: 'log', to: values('counting'), soon: true },
-  { id: 'overage', tab: 'billing', icon: 'bills', to: values('overage'), soon: true },
-  { id: 'payments', tab: 'billing', icon: 'bills', to: values('payments'), soon: true },
+  {
+    id: 'billingValues',
+    tab: 'billing',
+    icon: 'bills',
+    // VAT on subscription bills is a Billing rules value.
+    to: '/console/billing/settings',
+    requires: BILLING_READ_PERMISSION,
+    manage: BILLING_MANAGE_PERMISSION,
+  },
+  {
+    id: 'payments',
+    tab: 'billing',
+    icon: 'bills',
+    // Card payment on or off, and how long a payment link stays valid.
+    to: '/console/billing/settings',
+    requires: BILLING_READ_PERMISSION,
+    manage: BILLING_MANAGE_PERMISSION,
+  },
+  {
+    id: 'lifecycle',
+    tab: 'billing',
+    icon: 'signing',
+    // Grace days and the trial reminder; the trial itself is switched per plan.
+    to: '/console/billing/settings',
+    requires: BILLING_READ_PERMISSION,
+    manage: BILLING_MANAGE_PERMISSION,
+  },
+  {
+    id: 'notices',
+    tab: 'billing',
+    icon: 'roles',
+    // Renewal and grace reminder days.
+    to: '/console/billing/settings',
+    requires: BILLING_READ_PERMISSION,
+    manage: BILLING_MANAGE_PERMISSION,
+  },
   {
     // Seller, bank account and contact details on one page (owner, 24 Oct 2026).
     id: 'company',
@@ -116,9 +181,16 @@ export const CONSOLE_SETTINGS_CARDS: readonly ConsoleSettingsCard[] = [
     to: '/console/branch-access',
     requires: READINESS_PERMISSION,
   },
-  { id: 'lifecycle', tab: 'platform', icon: 'signing', to: values('lifecycle'), soon: true },
-  { id: 'notices', tab: 'platform', icon: 'roles', to: values('notices'), soon: true },
-  { id: 'operations', tab: 'platform', icon: 'roles', to: values('operations'), soon: true },
+  {
+    id: 'operations',
+    tab: 'platform',
+    icon: 'roles',
+    // A temporary grant or a trial exception is given from the company's own page.
+    to: '/console/tenants',
+    requires: READINESS_PERMISSION,
+    manage: BILLING_MANAGE_PERMISSION,
+  },
+  // Read-only positions the platform takes; shown on the prototype page for now.
   { id: 'fixed', tab: 'platform', icon: 'peppol', to: values('fixed'), soon: true },
   { id: 'audit', tab: 'records', icon: 'log', to: '/console/audit', soon: true },
 ]

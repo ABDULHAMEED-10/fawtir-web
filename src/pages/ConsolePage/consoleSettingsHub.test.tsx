@@ -71,7 +71,9 @@ function renderAt(path: string) {
   )
 }
 
-const card = (title: string) => screen.queryByRole('link', { name: new RegExp(`^${title}`) })
+/** A hub card, looked for in the page itself (the sidebar has a Plans and rates link too). */
+const card = (title: string) =>
+  within(screen.getByRole('main')).queryByRole('link', { name: new RegExp(`^${title}`) })
 
 describe('Console › Settings', () => {
   it('groups every setting under its tab, each card leading to its page', async () => {
@@ -87,8 +89,13 @@ describe('Console › Settings', () => {
     expect(card('Validation policies')?.getAttribute('href')).toBe('/console/policies')
     expect(card('Branch access check')?.getAttribute('href')).toBe('/console/branch-access')
     expect(card('Audit log')?.getAttribute('href')).toBe('/console/audit')
-    expect(card('Counting rules')?.getAttribute('href')).toBe(
-      '/console/settings/values?section=counting',
+    // Owner, 24 Oct 2026: a value the API already sets leads to the page that sets it.
+    expect(card('Counting rules')?.getAttribute('href')).toBe('/console/plans')
+    expect(card('Add-ons')?.getAttribute('href')).toBe('/console/plans')
+    expect(card('Payments')?.getAttribute('href')).toBe('/console/billing/settings')
+    expect(card('Notices')?.getAttribute('href')).toBe('/console/billing/settings')
+    expect(card('Promotions')?.getAttribute('href')).toBe(
+      '/console/settings/values?section=promotional',
     )
   })
 
@@ -98,10 +105,14 @@ describe('Console › Settings', () => {
       permissions: ADMIN.permissions.filter((code) => code !== 'platform.plans.manage'),
     }
     renderAt('/console/settings')
-    const plans = await screen.findByRole('link', { name: /^Plans and rates/ })
+    const plans = await within(await screen.findByRole('main')).findByRole('link', {
+      name: /^Plans and rates/,
+    })
     expect(within(plans).getByText('View only')).toBeTruthy()
     expect(within(card('Billing rules')!).getByText('Manage')).toBeTruthy()
-    expect(within(card('Trial and lifecycle')!).getByText('Coming soon')).toBeTruthy()
+    expect(within(card('Audit log')!).getByText('Coming soon')).toBeTruthy()
+    // A value the API sets is never "Coming soon".
+    expect(within(card('Trial and lifecycle')!).getByText('Manage')).toBeTruthy()
   })
 
   it('shows a card only when its page would open for this operator', async () => {
@@ -139,7 +150,6 @@ describe('Console › Settings', () => {
   it('leaves the settings screens out of the sidebar, which opens them from Settings', () => {
     const inSidebar = CONSOLE_ITEMS.map((item) => item.to)
     for (const to of [
-      '/console/plans',
       '/console/billing/settings',
       '/console/billing/accounts',
       '/console/billing/seller',

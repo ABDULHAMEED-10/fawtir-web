@@ -7,7 +7,6 @@ import { NavSettingsIcon } from '../AppShell/navIcons'
 import { CloseIcon } from '../../components/ui/icons'
 import { useDrawer } from '../../hooks/useDrawer'
 import { CONSOLE_NAV, type ConsoleNavItem } from '../../lib/consoleNav'
-import { CONSOLE_SECTIONS } from '../../lib/console/consoleSections'
 import {
   CONSOLE_SETTINGS_CARDS,
   CONSOLE_SETTINGS_PATH,
@@ -36,25 +35,17 @@ function visibleConsoleNav(entitlements: Entitlements | null) {
   if (entitlements === null || !isPlatformOperator(entitlements)) return []
   return CONSOLE_NAV.map((group) => ({
     ...group,
-    items: group.items.flatMap((item): ConsoleNavItem[] => {
-      if (item.section) {
-        // A section link: shown when any tab would open, and leading to the first that does.
-        const open = CONSOLE_SECTIONS[item.section].tabs.filter((tab) =>
-          hasPermission(entitlements, tab.requires),
-        )
-        return open.length > 0 ? [{ ...item, to: open[0].to }] : []
-      }
-      const allowed = (
-        typeof item.requires === 'string' ? [item.requires] : (item.requires ?? [])
-      ).every((code) => hasPermission(entitlements, code))
-      return allowed ? [item] : []
-    }),
+    items: group.items.filter((item) =>
+      (typeof item.requires === 'string' ? [item.requires] : (item.requires ?? [])).every((code) =>
+        hasPermission(entitlements, code),
+      ),
+    ),
   })).filter((group) => group.items.length > 0)
 }
 
-/** Every address a link stands for: a section link is lit on each of its tabs. */
-function linkRoutes(item: ConsoleNavItem): string[] {
-  return item.section ? CONSOLE_SECTIONS[item.section].tabs.map((tab) => tab.to) : [item.to]
+/** Every address a link is lit on: its own and the tabs that have no link of their own. */
+function linkRoutes(item: ConsoleNavItem): readonly string[] {
+  return [item.to, ...(item.alsoActiveOn ?? [])]
 }
 
 /** Settings and every screen a Settings card opens: the bottom Settings link is lit on them. */
@@ -63,6 +54,9 @@ const SETTINGS_ROUTES = [
   ...CONSOLE_SETTINGS_CARDS.map((card) => card.to.split('?')[0]),
   ...SETTINGS_ONLY_ROUTES,
 ]
+
+/** A page that has a sidebar link of its own lights that link, not Settings. */
+const OWN_LINKS = CONSOLE_NAV.flatMap((group) => group.items.flatMap(linkRoutes))
 
 /** The console's routes are flat, so a match is exact or a child path of it. */
 function isActive(pathname: string, to: string) {
@@ -97,7 +91,9 @@ export function ConsoleSidebar({
   const location = useLocation()
   const panelRef = useRef<HTMLElement>(null)
   useDrawer(open, onClose, panelRef)
-  const settingsActive = SETTINGS_ROUTES.some((to) => isActive(location.pathname, to))
+  const settingsActive =
+    SETTINGS_ROUTES.some((to) => isActive(location.pathname, to)) &&
+    !OWN_LINKS.some((to) => isActive(location.pathname, to))
 
   return (
     <aside

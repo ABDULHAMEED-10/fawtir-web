@@ -1,13 +1,17 @@
 import type { ComponentType } from 'react'
 import {
   NavDashboardIcon,
+  NavDocumentsIcon,
   NavExpenditureIcon,
   NavSuppliersIcon,
   NavTddIcon,
 } from '../layouts/AppShell/navIcons'
-import { ConsoleIncidentIcon, ConsoleQueueIcon } from '../layouts/ConsoleShell/consoleIcons'
-
-import type { ConsoleSectionId } from './console/consoleSections'
+import {
+  ConsoleIncidentIcon,
+  ConsolePlansIcon,
+  ConsoleQueueIcon,
+  ConsoleSubscriptionIcon,
+} from '../layouts/ConsoleShell/consoleIcons'
 
 type IconProps = { className?: string; active?: boolean }
 
@@ -24,11 +28,8 @@ export type ConsoleNavItem = {
    * enforces it on every call regardless.
    */
   requires?: string | readonly string[]
-  /**
-   * A link that stands for a section of tabbed pages (Tenants, Billing; owner, 24 Oct 2026): shown
-   * when any of its tabs would open, it leads to the first such tab and is lit on all of them.
-   */
-  section?: ConsoleSectionId
+  /** Pages with no link of their own that light this one up (a tab of this page). */
+  alsoActiveOn?: readonly string[]
 }
 
 export type ConsoleNavGroup = {
@@ -83,8 +84,9 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         id: 'tenants',
         labelKey: 'console.nav.tenants',
         to: '/console/tenants',
-        // All companies, Enterprise, Without an Owner and Leaving, as tabs.
-        section: 'tenants',
+        requires: 'platform.tenants.manage',
+        // Companies without an Owner is a Tenants tab with no link of its own.
+        alsoActiveOn: ['/console/owners'],
         Icon: NavSuppliersIcon,
       },
       {
@@ -96,20 +98,58 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         Icon: NavTddIcon,
       },
       {
-        id: 'billing',
-        labelKey: 'console.nav.billing',
+        id: 'enterprise',
+        labelKey: 'console.nav.enterprise',
+        to: '/console/enterprise',
+        // Companies on negotiated Enterprise terms (V348), read under the billing permission.
+        requires: 'platform.billing.read',
+        Icon: NavDocumentsIcon,
+      },
+      {
+        id: 'disconnections',
+        labelKey: 'console.nav.disconnections',
+        to: '/console/disconnections',
+        // "Disconnect from Fawtir" requests, worked by Platform support (V302).
+        requires: 'platform.smp.operations.review',
+        Icon: ConsoleQueueIcon,
+      },
+    ],
+  },
+  {
+    id: 'billing',
+    labelKey: 'console.nav.group.billing',
+    items: [
+      {
+        id: 'payments',
+        labelKey: 'console.nav.payments',
         to: '/console/billing/payments',
+        // Subscription payments waiting for Platform Finance (V271).
+        requires: 'platform.billing.read',
         Icon: NavExpenditureIcon,
-        // Subscription payments and refund cases, as tabs.
-        section: 'billing',
+      },
+      {
+        id: 'refunds',
+        labelKey: 'console.nav.refunds',
+        to: '/console/billing/refunds',
+        // Every company's refund cases, Finance's and the super admin's (V423).
+        requires: 'platform.billing.read',
+        Icon: ConsoleSubscriptionIcon,
+      },
+      {
+        id: 'plans',
+        labelKey: 'console.nav.plans',
+        to: '/console/plans',
+        // Also a Settings card; here because it is opened often (owner, 24 Oct 2026).
+        requires: 'platform.plans.read',
+        Icon: ConsolePlansIcon,
       },
     ],
   },
   // No ERP group. Its two screens, add-on requests and templates, drew a story fixture, and the
   // approval there changed nothing real. A tenant's ERP access is granted and revoked from the
   // tenant's own page, against the platform entitlement API.
-  // Operators, validation policies, the audit log, plans and rates and every billing value now
-  // live in Console › Settings (owner, 24 Oct 2026); the bottom Settings link opens it.
+  // Operators, validation policies, the audit log, billing rules and Fawtir's own details live in
+  // Console › Settings (owner, 24 Oct 2026); the bottom Settings link opens it.
 ]
 
 /** Every console route, for the router and for the "not built yet" pages. */

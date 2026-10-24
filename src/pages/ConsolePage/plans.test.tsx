@@ -1162,7 +1162,9 @@ describe('The plan editor is a page', () => {
       i18n.t('console.plans.editPlan', { name: 'Starter' }),
     )
     expect(screen.queryByRole('heading', { level: 3, name: 'Growth' })).toBeNull()
-    fireEvent.click(screen.getByRole('link', { name: i18n.t('console.plans.title') }))
+    fireEvent.click(
+      within(screen.getByRole('main')).getByRole('link', { name: i18n.t('console.plans.title') }),
+    )
     expect(await screen.findByRole('heading', { level: 3, name: 'Growth' })).toBeTruthy()
     expect(screen.queryByRole('region')).toBeNull()
   })
