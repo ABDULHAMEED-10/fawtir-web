@@ -1,11 +1,21 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ActionMenu, FilterMenu, Pager, RowsView, SortMenu, type ActionMenuItem } from '../../components/ui'
+import {
+  ActionMenu,
+  FilterMenu,
+  Pager,
+  RowsView,
+  SortMenu,
+  type ActionMenuItem,
+} from '../../components/ui'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
 import { ConsoleSectionFrame } from '../../layouts/ConsoleShell/ConsoleSectionFrame'
 import { ConsoleNotice, ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
-import { ConsoleStatusPill, type ConsolePillTone } from '../../layouts/ConsoleShell/ConsoleStatusPill'
+import {
+  ConsoleStatusPill,
+  type ConsolePillTone,
+} from '../../layouts/ConsoleShell/ConsoleStatusPill'
 import {
   ConsoleBuildingIcon,
   ConsoleClockIcon,
@@ -37,7 +47,12 @@ import {
   ConsoleKpi,
   ConsolePageHeader,
 } from '../../layouts/ConsoleShell/consoleStyle'
-import { CONSOLE_TONE_TEXT, CONSOLE_TONE_TINT, consoleTab, type ConsoleTone } from '../../layouts/ConsoleShell/consoleTones'
+import {
+  CONSOLE_TONE_TEXT,
+  CONSOLE_TONE_TINT,
+  consoleTab,
+  type ConsoleTone,
+} from '../../layouts/ConsoleShell/consoleTones'
 import {
   STATUS_FILTERS,
   TENANT_TABS,
@@ -99,13 +114,17 @@ function TenantsRegister() {
   const { read, retry } = useConsoleRead<CompanySummaryPage>(queuePath('all', page - 1))
   const number = new Intl.NumberFormat(localeFor(i18n.language))
   const [tab, setTab] = useState<TenantTab>('all')
-  const [query, setQuery] = useState('')
+  // The topbar's console search lands here with its words (`?q=`).
+  const searched = params.get('q') ?? ''
+  const [query, setQuery] = useState(searched)
+  useEffect(() => setQuery(searched), [searched])
   const [status, setStatus] = useState<StatusFilter>('all')
   const [sort, setSort] = useState<TenantSort>('newest')
 
   const goTo = (next: number) => {
     const params = new URLSearchParams()
     if (next > 1) params.set('page', String(next))
+    if (searched) params.set('q', searched)
     setParams(params)
   }
 
@@ -176,7 +195,8 @@ function TenantsRegister() {
   return (
     <div className={CONSOLE_PAGE}>
       <ConsoleSectionFrame section="tenants" tab="all" />
-      <ConsolePageHeader level="section"
+      <ConsolePageHeader
+        level="section"
         // Under the "Tenants" section title, this tab's own name, not the same word again.
         title={t('console.sections.tenants.all')}
         subtitle={
@@ -500,7 +520,9 @@ function TenantsTable({ rows }: { rows: CompanySummary[] }) {
                   {/* TODO(backend): CONSOLE.md row 1.8, the month's billed amount. */}
                   <span className="block text-sm font-semibold text-text-quaternary">{none}</span>
                   <span className="mt-[5px] block whitespace-nowrap text-[11.5px] font-medium text-text-muted">
-                    {tenure ? t(`console.tenants.tenure.${tenure.unit}`, { count: tenure.count }) : none}
+                    {tenure
+                      ? t(`console.tenants.tenure.${tenure.unit}`, { count: tenure.count })
+                      : none}
                   </span>
                 </td>
                 <td className="px-2 py-4">

@@ -663,7 +663,8 @@ describe('Policy detail reads', () => {
     noButton('console.policies.action.newFrom')
     expect(button('console.policies.action.submit')).toBeTruthy()
     expect(callsTo(OVERVIEW_URL)).toHaveLength(0)
-    expect(document.querySelector('form')).toBeNull()
+    // No editing form; the topbar's console search is a form of its own.
+    expect(document.querySelector('form:not([role="search"])')).toBeNull()
   })
 })
 

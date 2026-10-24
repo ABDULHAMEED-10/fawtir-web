@@ -2,7 +2,7 @@ import { useSearchParams, Link, Navigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
 import { ConsoleSettingsFrame } from '../../layouts/ConsoleShell/ConsoleSettingsFrame'
-import { CONSOLE_PAGE } from '../../layouts/ConsoleShell/consoleStyle'
+import { CONSOLE_PAGE, CONSOLE_SECONDARY } from '../../layouts/ConsoleShell/consoleStyle'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { hasPermission, type Entitlements } from '../../lib/identity/entitlements'
 import {
@@ -109,7 +109,7 @@ function ConsoleSettingsHub() {
       {tab !== 'all' ? (
         <Link
           to={CONSOLE_SETTINGS_PATH}
-          className="mx-auto mt-2 inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+          className={`${CONSOLE_SECONDARY} mx-auto mt-2`}
         >
           {t('console.settingsHub.showEverything')}
         </Link>

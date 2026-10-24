@@ -113,7 +113,7 @@ function ConsoleSettings() {
       <ConsoleSettingsFrame tab={TAB_OF[active]} />
       <ConsolePageHeader
         level="section"
-        title={t('console.settings.title')}
+        title={t('console.settings.valuesTitle')}
         subtitle={t('console.settings.subtitle')}
         subtitleClassName="max-w-[720px]"
         actions={

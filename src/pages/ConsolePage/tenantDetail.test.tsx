@@ -398,12 +398,13 @@ describe('Tenant detail — deep-link regression', () => {
 
   it.each([
     ['subscriptions', 'Subscriptions'],
-    ['invoices', 'Subscriptions'],
-  ])('prototype link ?from=%s leads the breadcrumb back to %s', async (from, crumb) => {
+    // The back link goes to the page the reader came from (owner, 24 Oct 2026).
+    ['invoices', 'Subscription invoices'],
+  ])('prototype link ?from=%s leads back to %s', async (from, crumb) => {
     answer({ [ENTITLEMENTS_URL]: () => json(200, OPERATOR) })
     renderAt(`/console/tenants/${PROTOTYPE_ID}?from=${from}`)
 
-    // The operator's sidebar carries a link of the same name; the breadcrumb is the one outside it.
+    // The operator's sidebar may carry a link of the same name; the back link is the one outside it.
     const links = await screen.findAllByRole('link', { name: crumb })
     expect(links.filter((link) => link.closest('aside') === null)).toHaveLength(1)
   })

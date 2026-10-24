@@ -10,7 +10,9 @@ import {
   CONSOLE_CARD,
   CONSOLE_PAGE,
   CONSOLE_SMALL,
+  CONSOLE_TABLE,
   CONSOLE_TAB_LINE,
+  CONSOLE_THEAD,
   ConsolePageHeader,
 } from '../../../layouts/ConsoleShell/consoleStyle'
 import { consoleTab } from '../../../layouts/ConsoleShell/consoleTones'
@@ -60,9 +62,9 @@ function EnterpriseList() {
   } else {
     body = (
       <div className={`${CONSOLE_CARD} overflow-x-auto`}>
-        <table className="w-full min-w-[560px] text-start text-sm">
+        <table className={`${CONSOLE_TABLE} min-w-[560px] text-sm`}>
           <thead>
-            <tr className="text-xs font-semibold uppercase tracking-[0.6px] text-text-muted">
+            <tr className={CONSOLE_THEAD}>
               <th className="px-4 py-3 text-start">{t(`${K}col.company`)}</th>
               <th className="px-4 py-3 text-start">{t(`${K}col.state`)}</th>
               <th className="px-4 py-3 text-start">{t(`${K}col.since`)}</th>

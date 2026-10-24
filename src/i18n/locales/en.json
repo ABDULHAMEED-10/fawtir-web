@@ -12790,7 +12790,7 @@
       "erpTemplates": "Mapping templates",
       "erpRequests": "Add-on requests",
       "policies": "Validation policies",
-      "payments": "Subscription payments",
+      "payments": "Payments",
       "bankAccounts": "Bank account",
       "billingSettings": "Billing settings",
       "seller": "Seller",
@@ -14462,7 +14462,8 @@
           "livePlanChange": "Applies to new subscriptions only. Tenants on the old terms keep them."
         },
         "why": "These are legal obligations, not choices. A setting would let a plan be sold that cannot meet the mandate, so they are listed here, and nowhere else."
-      }
+      },
+      "valuesTitle": "Platform values"
     },
     "crumb": {
       "root": "Console",
@@ -16797,6 +16798,10 @@
         "payments": "Payments",
         "refunds": "Refunds"
       }
+    },
+    "search": {
+      "label": "Search companies",
+      "placeholder": "Search companies by name or code"
     }
   },
   "shell": {

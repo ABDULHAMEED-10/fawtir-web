@@ -8,6 +8,8 @@ import {
   CONSOLE_CARD,
   CONSOLE_PRIMARY,
   CONSOLE_SMALL,
+  CONSOLE_TABLE,
+  CONSOLE_THEAD,
 } from '../../../layouts/ConsoleShell/consoleStyle'
 import { useEntitlements } from '../../../hooks/useEntitlements'
 import { hasPermission } from '../../../lib/identity/entitlements'
@@ -69,9 +71,9 @@ export function ReconnectionQueueBody({
   } else {
     list = (
       <div className={`${CONSOLE_CARD} overflow-x-auto`}>
-        <table className="w-full min-w-[760px] text-start text-sm">
+        <table className={`${CONSOLE_TABLE} min-w-[760px] text-sm`}>
           <thead>
-            <tr className="text-xs font-semibold uppercase tracking-[0.6px] text-text-muted">
+            <tr className={CONSOLE_THEAD}>
               <th className="px-4 py-3 text-start">{t('console.disconnections.col.company')}</th>
               <th className="px-4 py-3 text-start">{t('console.reconnections.col.origin')}</th>
               <th className="px-4 py-3 text-start">{t('console.disconnections.col.status')}</th>

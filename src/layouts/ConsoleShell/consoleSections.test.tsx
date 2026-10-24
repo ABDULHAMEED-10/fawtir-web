@@ -41,7 +41,7 @@ describe('Console sidebar (owner, 24 Oct 2026)', () => {
       ['Verification', '/console/onboarding'],
       ['Enterprise', '/console/enterprise'],
       ['Disconnections', '/console/disconnections'],
-      ['Subscription payments', '/console/billing/payments'],
+      ['Payments', '/console/billing/payments'],
       ['Refund cases', '/console/billing/refunds'],
       ['Plans and rates', '/console/plans'],
       ['Settings', '/console/settings'],

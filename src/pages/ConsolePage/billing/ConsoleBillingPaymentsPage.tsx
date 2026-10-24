@@ -15,6 +15,8 @@ import {
   CONSOLE_PRIMARY,
   CONSOLE_SECONDARY,
   CONSOLE_SMALL,
+  CONSOLE_TABLE,
+  CONSOLE_THEAD,
   ConsolePageHeader,
 } from '../../../layouts/ConsoleShell/consoleStyle'
 import { hasPermission, peekEntitlements } from '../../../lib/identity/entitlements'
@@ -111,9 +113,9 @@ function PaymentQueue() {
   } else {
     body = (
       <div className={`${CONSOLE_CARD} overflow-x-auto`}>
-        <table className="w-full min-w-[720px] text-start text-sm">
+        <table className={`${CONSOLE_TABLE} min-w-[720px] text-sm`}>
           <thead>
-            <tr className="text-xs font-semibold uppercase tracking-[0.6px] text-text-muted">
+            <tr className={CONSOLE_THEAD}>
               <th className="px-4 py-3 text-start">{t('console.billing.col.company')}</th>
               <th className="px-4 py-3 text-start">{t('console.billing.col.bill')}</th>
               <th className="px-4 py-3 text-start">{t('console.billing.col.method')}</th>
