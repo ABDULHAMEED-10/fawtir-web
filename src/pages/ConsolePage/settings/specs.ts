@@ -44,18 +44,12 @@ export function validateOverage(form: Forms['overage']): FieldErrors {
 
 export const overageSpec = spec('overage', validateOverage)
 
-export function validateLifecycle(form: Forms['lifecycle']): FieldErrors {
-  const graceDays = Number(form.graceDays)
-  const noticeBeyondGrace =
-    Number.isFinite(graceDays) && form.graceNoticeDays.some((day) => day > graceDays)
-  return compact({
-    trialDays: numberError(form.trialDays, { min: 1, integer: true }),
-    trialDocuments: numberError(form.trialDocuments, { min: 0, integer: true }),
-    trialOfferedOn:
-      form.trialOfferedOn.length === 0 ? 'console.settings.error.noTrialPlan' : undefined,
-    graceDays: numberError(form.graceDays, { min: 1, integer: true }),
-    graceNoticeDays: noticeBeyondGrace ? 'console.settings.error.noticeBeyondGrace' : undefined,
-  })
+/**
+ * Nothing left to check: the trial per plan and the grace days are set on Plans and rates and
+ * Billing rules, and their copies here were removed (owner, 24 Oct 2026).
+ */
+export function validateLifecycle(): FieldErrors {
+  return {}
 }
 
 export const lifecycleSpec = spec('lifecycle', validateLifecycle)
@@ -73,7 +67,6 @@ export const noticesSpec = spec('notices', validateNotices)
 export function validateAddons(form: Forms['addons']): FieldErrors {
   const { erpExtraction } = form
   return compact({
-    'erpExtraction.monthly': numberError(erpExtraction.monthly, { min: 0 }),
     'erpExtraction.documents': numberError(erpExtraction.documents, { min: 0, integer: true }),
     'erpExtraction.overage': numberError(erpExtraction.overage, { min: 0 }),
   })
@@ -95,12 +88,9 @@ export const addonsSpec = spec('addons', validateAddons, {
 })
 
 export function validatePayments(form: Forms['payments']): FieldErrors {
-  const bankRequired = form.methods.bankTransfer
+  // The bank account is kept on Fawtir company details, so it is not asked for here.
   return compact({
     linkExpiryDays: numberError(form.linkExpiryDays, { min: 1, integer: true }),
-    'bank.accountName': bankRequired ? requiredError(form.bank.accountName) : undefined,
-    'bank.bank': bankRequired ? requiredError(form.bank.bank) : undefined,
-    'bank.iban': bankRequired ? requiredError(form.bank.iban) : undefined,
     'whatsappTemplate.en': requiredError(form.whatsappTemplate.en),
     'whatsappTemplate.ar': requiredError(form.whatsappTemplate.ar),
   })

@@ -73,20 +73,21 @@ describe('Console sidebar (owner, 24 Oct 2026)', () => {
     expect(screen.getByRole('link', { name: 'Settings' }).getAttribute('aria-current')).toBeNull()
   })
 
-  it('opens ERP extraction in one click, lit only on that section', () => {
-    const view = renderSidebar(
-      ['platform.tenants.manage'],
-      '/console/settings/values?section=addons',
-    )
+  it('opens ERP extraction on Plans and rates, where its price saves, lit on its own', () => {
+    const view = renderSidebar(['platform.plans.read'], '/console/plans?addon=erp')
     const erp = screen.getByRole('link', { name: 'ERP extraction' })
-    expect(erp.getAttribute('href')).toBe('/console/settings/values?section=addons')
+    expect(erp.getAttribute('href')).toBe('/console/plans?addon=erp')
     expect(erp.getAttribute('aria-current')).toBe('page')
-    expect(screen.getByRole('link', { name: 'Settings' }).getAttribute('aria-current')).toBeNull()
+    expect(
+      screen.getByRole('link', { name: 'Plans and rates' }).getAttribute('aria-current'),
+    ).toBeNull()
     view.unmount()
-    renderSidebar(['platform.tenants.manage'], '/console/settings/values?section=notices')
+    renderSidebar(['platform.plans.read'], '/console/plans')
     expect(
       screen.getByRole('link', { name: 'ERP extraction' }).getAttribute('aria-current'),
     ).toBeNull()
-    expect(screen.getByRole('link', { name: 'Settings' }).getAttribute('aria-current')).toBe('page')
+    expect(screen.getByRole('link', { name: 'Plans and rates' }).getAttribute('aria-current')).toBe(
+      'page',
+    )
   })
 })

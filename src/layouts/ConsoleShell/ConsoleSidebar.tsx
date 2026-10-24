@@ -7,10 +7,7 @@ import { NavSettingsIcon } from '../AppShell/navIcons'
 import { CloseIcon } from '../../components/ui/icons'
 import { useDrawer } from '../../hooks/useDrawer'
 import { CONSOLE_NAV, type ConsoleNavItem } from '../../lib/consoleNav'
-import {
-  CONSOLE_SETTINGS_CARDS,
-  CONSOLE_SETTINGS_PATH,
-} from '../../lib/console/consoleSettingsHub'
+import { CONSOLE_SETTINGS_CARDS, CONSOLE_SETTINGS_PATH } from '../../lib/console/consoleSettingsHub'
 import {
   hasPermission,
   isPlatformOperator,
@@ -100,6 +97,10 @@ export function ConsoleSidebar({
   const location = useLocation()
   const panelRef = useRef<HTMLElement>(null)
   useDrawer(open, onClose, panelRef)
+  // On an address one link names with its query, only that link is lit, not the page's own.
+  const onQueryLink = OWN_LINKS.some(
+    (to) => to.includes('?') && isActive(location.pathname, to, location.search),
+  )
   const settingsActive =
     SETTINGS_ROUTES.some((to) => isActive(location.pathname, to)) &&
     !OWN_LINKS.some((to) => isActive(location.pathname, to, location.search))
@@ -136,8 +137,10 @@ export function ConsoleSidebar({
             </p>
             <div className="flex flex-col">
               {group.items.map((item) => {
-                const active = linkRoutes(item).some((to) =>
-                  isActive(location.pathname, to, location.search),
+                const active = linkRoutes(item).some(
+                  (to) =>
+                    isActive(location.pathname, to, location.search) &&
+                    (!onQueryLink || to.includes('?')),
                 )
                 return (
                   <Link

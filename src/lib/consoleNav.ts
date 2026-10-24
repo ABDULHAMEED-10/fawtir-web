@@ -139,9 +139,10 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
       {
         id: 'erpExtraction',
         labelKey: 'console.nav.erpExtraction',
-        // The Add-ons section of the platform values page: ERP extraction price and which plans
-        // offer it (owner, 24 Oct 2026: one click from the sidebar).
-        to: '/console/settings/values?section=addons',
+        // The ERP add-on's price and which plans offer it are set per plan in Plans and rates, the
+        // only place they save (owner, 24 Oct 2026). The query only tells the two links apart.
+        to: '/console/plans?addon=erp',
+        requires: 'platform.plans.read',
         Icon: NavCatalogIcon,
       },
     ],

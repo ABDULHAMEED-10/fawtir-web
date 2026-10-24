@@ -14187,10 +14187,8 @@
         "wholeBetween": "A whole number from {{min}} to {{max}}",
         "wholeFrom": "A whole number from {{min}}",
         "duplicate": "Already in the list",
-        "noticeBeyondGrace": "A notice day is later than the grace period",
         "noThreshold": "Add at least one threshold",
-        "noChannel": "Keep at least one channel on",
-        "noTrialPlan": "Pick at least one plan, or the trial cannot be offered"
+        "noChannel": "Keep at least one channel on"
       },
       "dayList": {
         "none": "None",
@@ -14217,10 +14215,7 @@
         "invoiceSeries": "Subscription invoice series prefix",
         "invoiceSeriesHint": "Its own series, separate from tenant documents: {{prefix}}-000123.",
         "pricesExclusive": "Prices shown exclusive of VAT",
-        "pricesExclusiveNote": "Plan prices are shown without VAT; the tax is added on the subscription invoice.",
-        "vatMoved": "VAT on subscription bills",
-        "vatMovedNote": "Switched on or off, with its rate, on Console › Billing settings. Bills use that setting.",
-        "vatMovedValue": "Billing settings"
+        "pricesExclusiveNote": "Plan prices are shown without VAT; the tax is added on the subscription invoice."
       },
       "counting": {
         "kind": "Document kind",
@@ -14279,9 +14274,6 @@
         "theTrial": "The trial",
         "trialMirrors": "Trial mirrors",
         "trialMirrorsHint": "The plan whose features the trial carries.",
-        "trialDays": "Trial length (days)",
-        "trialDocuments": "Trial allowance (documents)",
-        "trialDocumentsHint": "Documents the trial may transmit in total.",
         "trialAutoConverts": "Trial auto-converts",
         "trialAutoConvertsNote": "On, the trial becomes a paid subscription when it ends. Off, the tenant chooses a plan.",
         "trialNeedsPaymentDetails": "Payment details required for the trial",
@@ -14289,10 +14281,6 @@
         "renewalGroup": "Renewal and grace",
         "autoRenewal": "Auto-renewal",
         "autoRenewalNote": "A subscription renews for another period unless it has been cancelled.",
-        "graceDays": "Grace after a failed payment (days)",
-        "graceDaysHint": "The account stays live this long after a payment fails.",
-        "graceNotices": "Notices within the grace period",
-        "graceNoticesHint": "The days on which the tenant is reminded, counted from the failed payment.",
         "changesGroup": "Changes of plan",
         "upgrade": "Upgrade",
         "upgradeOption": {
@@ -14313,8 +14301,8 @@
         "trialPlan": "Trial plan",
         "trialPlanHint": "Whose features the trial carries: the plan the tenant picks at sign-up, or one fixed plan for everyone.",
         "trialPlanChosen": "The plan the tenant picks",
-        "trialOfferedOn": "Trial offered on",
-        "trialOfferedOnHint": "The plans a new tenant may start on trial. Enterprise starts from a contract, never a trial."
+        "trialMovedNote": "Which plans offer the 14-day trial, and its documents, are set per plan in Plans and rates.",
+        "graceMovedNote": "Grace days and the grace reminders are set in Settings › Billing rules."
       },
       "notices": {
         "thresholds": "Thresholds",
@@ -14345,8 +14333,6 @@
         "erpMappingNote": "Business Plus and Enterprise at launch. Which plans carry mapping is a feature switch in Plans and rates, not a setting here; on those plans it is part of onboarding, not an extra.",
         "includedEveryPlan": "Included on every plan",
         "extractionGroup": "Automatic ERP extraction",
-        "extractionPrice": "Price per month",
-        "extractionPriceHint": "Excluding VAT.",
         "extractionDocuments": "Documents included per month",
         "extractionDocumentsHint": "Extracted documents, not the plan allowance.",
         "extractionOverage": "Overage per document",
@@ -14359,9 +14345,7 @@
         "posNote": "No separate plan and no terminal charge. POS simplified invoices count against the plan allowance (settled 15 Sep 2026).",
         "posValue": "No separate plan",
         "erpMappingValue": "Follows the plan's feature switch",
-        "availabilityGroup": "Availability per plan",
-        "availabilityNote": "Not supported hides the add-on from that plan's Connected systems screen. Included switches it on without the add-on price when the tenant asks.",
-        "availabilityLabel": "Automatic extraction on {{plan}}"
+        "priceMovedNote": "The ERP add-on's monthly price, and which plans offer it, are set per plan in Plans and rates."
       },
       "payments": {
         "provider": {
@@ -14410,7 +14394,9 @@
           "en": "English",
           "ar": "Arabic"
         },
-        "insertPlaceholder": "Insert placeholder"
+        "insertPlaceholder": "Insert placeholder",
+        "cardMovedNote": "Card payment is switched on or off in Settings › Billing rules.",
+        "bankMovedNote": "The bank account customers pay into is kept in Settings › Fawtir company details."
       },
       "promotional": {
         "discountCodes": "Discount codes",
@@ -14428,7 +14414,8 @@
         "overageWaiverNote": "Permitted and recorded. The overage line on one subscription invoice is written off, with a reason.",
         "grandfathering": "Grandfathering",
         "grandfatheringNote": "Existing customers keep their price until they change plan.",
-        "recordedNote": "Each of these is done from the tenant's detail page, and every action lands on its record with the operator's name and reason."
+        "recordedNote": "Each of these is done from the tenant's detail page, and every action lands on its record with the operator's name and reason.",
+        "grantMovedNote": "Extra documents for one company are given from that company's page in Tenants."
       },
       "fixed": {
         "title": "Fixed by design",
