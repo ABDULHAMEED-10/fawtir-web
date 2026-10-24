@@ -8,6 +8,8 @@ import {
   type Entitlements,
 } from './entitlements'
 import { signOut } from './logout'
+import { handWritten } from '../erp/draft'
+import { sessionSamples } from '../erp/sample'
 
 const ENTITLEMENTS: Entitlements = {
   userId: 'u-1',
@@ -80,6 +82,20 @@ describe('loadEntitlements', () => {
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
     await signOut()
     expect(peekEntitlements()).toBeNull()
+  })
+
+  it('takes the ERP samples and the hand-written expression with the session', async () => {
+    sessionSamples.add('tenant A invoice', { id: 'A-1' })
+    handWritten.write('$tenantA')
+
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ type: 'x/internal-error' }), { status: 503 }))
+    await expect(signOut()).rejects.toThrow()
+    expect(sessionSamples.snapshot()).toHaveLength(1)
+
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
+    await signOut()
+    expect(sessionSamples.snapshot()).toEqual([])
+    expect(handWritten.read()).toBe('')
   })
 })
 

@@ -26,20 +26,24 @@ export const ERP_READ = 'erp.connection.read'
 export const ERP_MANAGE = 'erp.connection.manage'
 export const ERP_CREDENTIAL = 'erp.credential.replace'
 export const ERP_TEST = 'erp.connection.test'
+// The sample fetch is its own code (V249), not `erp.connection.test`: the server checks it on
+// POST …/extraction/sample, so gating the button on test offered it to the wrong people.
+export const ERP_SAMPLE = 'erp.connection.sample'
 
 /**
- * The four capabilities, resolved from the real entitlements.
+ * The five capabilities, resolved from the real entitlements.
  *
- * Four separate booleans rather than a single "canAdminister", because the backend draws them
+ * Separate booleans rather than a single "canAdminister", because the backend draws them
  * separately and a UI that collapsed them would show a credential form to someone holding only
  * `erp.connection.manage`. Manage does not imply credential replacement and neither implies
- * testing — the server is explicit about that, and so is this.
+ * testing or sampling — the server is explicit about that, and so is this.
  */
 export type ErpConnectionAccess = {
   read: boolean
   manage: boolean
   credential: boolean
   test: boolean
+  sample: boolean
 }
 
 export function erpConnectionAccess(entitlements: Entitlements | null): ErpConnectionAccess {
@@ -47,13 +51,14 @@ export function erpConnectionAccess(entitlements: Entitlements | null): ErpConne
     // Fail closed while the snapshot is still loading or could not be fetched. Showing controls
     // optimistically would mean a screen that flickers from enabled to disabled, and a user who
     // clicked in between gets a 403 for a button we should not have drawn.
-    return { read: false, manage: false, credential: false, test: false }
+    return { read: false, manage: false, credential: false, test: false, sample: false }
   }
   return {
     read: hasPermission(entitlements, ERP_READ),
     manage: hasPermission(entitlements, ERP_MANAGE),
     credential: hasPermission(entitlements, ERP_CREDENTIAL),
     test: hasPermission(entitlements, ERP_TEST),
+    sample: hasPermission(entitlements, ERP_SAMPLE),
   }
 }
 

@@ -134,6 +134,10 @@ export function ErpAdvancedPage() {
       setConfirming(false)
       setOutcome({ kind: 'deactivated' })
       reload()
+    } catch (error: unknown) {
+      // Closing the dialog is what lets the refusal be read; left open it hid the only answer.
+      setConfirming(false)
+      setOutcome({ kind: 'refused', message: messageOf(error, t) })
     } finally {
       setBusy(false)
     }

@@ -1,4 +1,6 @@
 import { apiRequest } from '../../api'
+import { handWritten } from '../erp/draft'
+import { sessionSamples } from '../erp/sample'
 
 export const ENTITLEMENTS_PATH = '/v1/me/entitlements'
 
@@ -102,6 +104,11 @@ export function peekEntitlements(): Entitlements | null {
 export function forgetEntitlements(): void {
   cached = null
   settled = null
+  // The ERP samples and the hand-written expression are module memory, and sign-out and sign-in
+  // are SPA navigations with no reload. Without this the next user in the tab — possibly another
+  // tenant — saw the previous tenant's ERP payloads, and Advanced pre-filled its expression.
+  sessionSamples.clear()
+  handWritten.clear()
 }
 
 /** False only when the server says so; an older server without `payAvailable` changes nothing. */

@@ -373,6 +373,32 @@ describe('Overview', () => {
 
     expect(screen.queryByText(i18n.t('erp.overview.activity.title'))).toBeNull()
   })
+
+  it('says why Start over failed, and re-reads after the archive half went through', async () => {
+    answer(reads())
+    const readsOnly = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'DELETE' && url === GUIDED_URL) return json(204)
+      if (init?.method === 'DELETE' && url === `${BASE}/JSON`)
+        return problem(403, 'insufficient-permission', 'Missing required permission: mapping.manage')
+      return readsOnly(url, init)
+    })
+    renderScreen('/settings/erp-mapping', <ErpOverviewPage />)
+    await screen.findByRole('heading', { name: i18n.t('erp.overview.title') })
+    const guidedReads = callsTo(GUIDED_URL).filter(([, init]) => !(init as RequestInit)?.method || (init as RequestInit).method === 'GET').length
+
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('erp.overview.actions.startOver') }))
+    const dialog = await screen.findByRole('dialog')
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('erp.overview.startOver.confirm') }))
+    })
+
+    expect(await within(screen.getByRole('dialog')).findByRole('alert')).toBeTruthy()
+    await waitFor(() => {
+      const after = callsTo(GUIDED_URL).filter(([, init]) => !(init as RequestInit)?.method || (init as RequestInit).method === 'GET').length
+      expect(after).toBeGreaterThan(guidedReads)
+    })
+  })
 })
 
 /* -------------------------------------------------------------------- fields */
@@ -771,5 +797,26 @@ describe('Advanced', () => {
     })
 
     expect(await screen.findByText(/not a valid JSONata expression/)).toBeTruthy()
+  })
+
+  it('shows a refused deactivation instead of leaving the click unanswered', async () => {
+    answer(reads())
+    const readsOnly = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'DELETE' && url === `${BASE}/JSON`)
+        return problem(403, 'insufficient-permission', 'Missing required permission: mapping.manage')
+      return readsOnly(url, init)
+    })
+    renderScreen('/settings/erp-mapping/advanced', <ErpAdvancedPage />)
+    await screen.findByRole('heading', { name: i18n.t('erp.advanced.title') })
+
+    fireEvent.click(screen.getByText(i18n.t('erp.advanced.deactivate')).closest('button')!)
+    const dialog = await screen.findByRole('dialog')
+    await act(async () => {
+      fireEvent.click(within(dialog).getByText(i18n.t('erp.advanced.confirmSubmit')))
+    })
+
+    expect(await screen.findByText(/Missing required permission: mapping.manage/)).toBeTruthy()
+    expect(screen.queryByText(i18n.t('erp.advanced.deactivated'))).toBeNull()
   })
 })
