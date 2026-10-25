@@ -5,6 +5,7 @@ import {
   addInterval,
   blankPeriodicForm,
   isLastRun,
+  pauseReasonKey,
   periodicCounts,
   periodicProblems,
   runsDueSoon,
@@ -183,5 +184,42 @@ describe('what a finished series is, and what falls due', () => {
     expect(isLastRun(schedule({ remainingOccurrences: 2 }))).toBe(false)
     expect(isLastRun(schedule({ endDate: '2026-02-15' }))).toBe(true)
     expect(isLastRun(schedule({}))).toBe(false)
+  })
+})
+
+type Reason = PeriodicScheduleDto['pauseReason']
+
+describe('why Fawtir paused a series', () => {
+  it('names the plan beside Paused when a plan change paused it', () => {
+    expect(
+      pauseReasonKey(schedule({ active: false, pauseReason: 'PLAN_FEATURE_NOT_INCLUDED' })),
+    ).toBe('periodicList.pauseReason.planFeatureNotIncluded')
+  })
+
+  it('adds nothing when paused by hand, for a reason it does not know, or when not paused', () => {
+    expect(pauseReasonKey(schedule({ active: false, pauseReason: null }))).toBeNull()
+    expect(pauseReasonKey(schedule({ active: false }))).toBeNull()
+    expect(
+      pauseReasonKey(
+        schedule({ active: false, pauseReason: 'SOMETHING_NEW' as unknown as Reason }),
+      ),
+    ).toBeNull()
+    expect(
+      pauseReasonKey(
+        schedule({ active: false, pauseReason: 'toString' as unknown as Reason }),
+      ),
+    ).toBeNull()
+    expect(
+      pauseReasonKey(schedule({ active: true, pauseReason: 'PLAN_FEATURE_NOT_INCLUDED' })),
+    ).toBeNull()
+    expect(
+      pauseReasonKey(
+        schedule({
+          active: false,
+          remainingOccurrences: 0,
+          pauseReason: 'PLAN_FEATURE_NOT_INCLUDED',
+        }),
+      ),
+    ).toBeNull()
   })
 })

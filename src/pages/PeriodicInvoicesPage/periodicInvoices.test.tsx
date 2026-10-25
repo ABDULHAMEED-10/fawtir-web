@@ -983,4 +983,39 @@ describe('a plan without periodic invoices (PL-8)', () => {
     expect(await screen.findByRole('button', { name: 'Pause series' })).toBeTruthy()
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Save changes' })).toBeNull())
   })
+
+  it('says beside Paused when a plan change paused a series, on the list and its page', async () => {
+    const REASON = 'Your plan does not include periodic invoices'
+    who = plan(false)
+    schedules = [MONTHLY, { ...PAUSED, pauseReason: 'PLAN_FEATURE_NOT_INCLUDED' }]
+    const view = renderAt('/income/periodic')
+    const row = (await screen.findByRole('link', { name: 'Nizwa Cafe' })).closest(
+      'tr',
+    ) as HTMLElement
+    expect(within(row).getByText(REASON)).toBeTruthy()
+    const active = screen.getByRole('link', { name: 'Muscat Grand Hotel' }).closest(
+      'tr',
+    ) as HTMLElement
+    expect(within(active).queryByText(REASON)).toBeNull()
+    view.unmount()
+
+    scheduleDetail = { ...MONTHLY, active: false, pauseReason: 'PLAN_FEATURE_NOT_INCLUDED' }
+    renderAt('/income/periodic/sch-1')
+    expect(await screen.findByText(REASON)).toBeTruthy()
+  })
+
+  it('adds nothing beside Paused for a pause by hand or a reason it does not know', async () => {
+    who = plan(true)
+    schedules = [
+      { ...PAUSED, pauseReason: null },
+      {
+        ...PAUSED,
+        id: 'sch-4',
+        pauseReason: 'SOMETHING_NEW' as unknown as 'PLAN_FEATURE_NOT_INCLUDED',
+      },
+    ]
+    renderAt('/income/periodic')
+    expect((await screen.findAllByRole('link', { name: 'Nizwa Cafe' })).length).toBe(2)
+    expect(screen.queryByText('Your plan does not include periodic invoices')).toBeNull()
+  })
 })

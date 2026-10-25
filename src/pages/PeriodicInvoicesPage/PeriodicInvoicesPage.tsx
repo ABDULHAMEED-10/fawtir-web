@@ -47,6 +47,7 @@ import {
   runsDueSoon,
   scheduleName,
   scheduleNote,
+  pauseReasonKey,
   scheduleStatus,
   scheduleTone,
   sortSchedules,
@@ -708,6 +709,7 @@ function PeriodicInvoicesContent() {
                     shown.map((schedule) => {
                       const template = templateOf(schedule)
                       const status = scheduleStatus(schedule)
+                      const pauseReason = pauseReasonKey(schedule)
                       const note = scheduleNote(schedule, today)
                       const cadence = cadenceNote(schedule)
                       const menu = menuFor(schedule)
@@ -858,6 +860,11 @@ function PeriodicInvoicesContent() {
                               <span className="size-1.5 shrink-0 rounded-full bg-current" />
                               {t(`periodicList.status.${status}`)}
                             </span>
+                            {pauseReason ? (
+                              <p className="mt-1 text-xs font-medium leading-[1.2] text-text-tertiary">
+                                {t(pauseReason)}
+                              </p>
+                            ) : null}
                           </td>
                           <td className="px-2 py-2.5">
                             <span

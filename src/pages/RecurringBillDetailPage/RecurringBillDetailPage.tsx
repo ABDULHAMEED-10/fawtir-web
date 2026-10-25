@@ -39,6 +39,7 @@ import {
   daysBetween,
   formatVariance,
   isEnded,
+  pauseReasonKey,
   offersChase,
   monthName,
   monthYear,
@@ -198,6 +199,7 @@ function RecurringBill({ id }: { id: string }) {
       ? toleranceBand(bill.totalIncludingVat, bill.tolerancePercent)
       : null
   const ended = isEnded(bill)
+  const pauseReason = pauseReasonKey(bill)
   const late = bill.active && bill.expectation?.state === 'LATE' ? bill.expectation : null
   const whoName = bill.notifyUserName?.trim() || null
   const supplierProfile = supplier.read.status === 'ready' ? supplier.read.data.profile : null
@@ -372,6 +374,9 @@ function RecurringBill({ id }: { id: string }) {
                 <img src={calSmallIcon} alt="" className="size-4" />
                 {cadenceText}
               </span>
+              {pauseReason ? (
+                <span className="text-sm font-medium text-text-tertiary">{t(pauseReason)}</span>
+              ) : null}
             </div>
 
             <p className="flex flex-wrap items-center gap-1.5 text-base leading-[1.2]">

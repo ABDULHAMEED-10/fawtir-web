@@ -37,6 +37,7 @@ import {
   formatVariance,
   hasMore,
   isEnded,
+  pauseReasonKey,
   monthYear,
   narrow,
   sortRows,
@@ -493,7 +494,7 @@ function Row({
       ? {
           heading: 'recurringBills.timing.paused',
           date: t('recurringBills.rows.nothingWatched'),
-          note: { key: 'recurringBills.rows.resumeToWatch' },
+          note: { key: pauseReasonKey(bill) ?? 'recurringBills.rows.resumeToWatch' },
           tone: 'muted' as const,
         }
       : bill.mode === 'RAISE'
