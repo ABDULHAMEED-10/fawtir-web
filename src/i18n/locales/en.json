@@ -19795,6 +19795,7 @@
     "notFound": "We couldn't find this record. It may have been removed, or the link may be wrong.",
     "conflict": "Someone changed this while you were working on it. Reload to see the latest version, then try again.",
     "csrf": "Your session needs refreshing. Reload the page and try again.",
+    "erpNotEnabled": "ERP is not enabled for your company, so this cannot be done. Ask Fawtir to enable ERP.",
     "reference": "Reference: {{id}}",
     "refused": {
       "generic": "The server refused this. Nothing was changed, and repeating it will not help. The reference below tells support exactly which rule stopped it.",

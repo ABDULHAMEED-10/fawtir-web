@@ -28,6 +28,7 @@ import {
   deactivateMappingProfile,
 } from '../../api/erp/mapping'
 import { describeApiFailure } from '../../lib/apiFailure'
+import { useMappingAccess } from '../../hooks/useErpAccess'
 import { TARGET_BY_ID } from '../../lib/erpCatalogue'
 import { sourceSystemName } from '../../lib/erp/sourceSystem'
 import { shortDate } from '../../lib/settings'
@@ -66,6 +67,7 @@ export function ErpOverviewPage() {
   const { t, i18n } = useTranslation()
   const view = useErpMapping()
   const reload = useErpMappingReload()
+  const access = useMappingAccess()
   const progress = readinessProgress(view.readiness)
   const [startingOver, setStartingOver] = useState(false)
   const [clearing, setClearing] = useState(false)
@@ -172,7 +174,7 @@ export function ErpOverviewPage() {
       actions={
         <>
           <CallToAction status={view.status} missing={progress.missing} />
-          {notSetUp ? null : (
+          {notSetUp || !access.manage ? null : (
             <button
               type="button"
               onClick={() => setStartingOver(true)}

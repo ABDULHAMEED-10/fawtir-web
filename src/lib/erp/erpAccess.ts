@@ -1,3 +1,5 @@
+import { hasPermission, type Entitlements } from '../identity/entitlements'
+
 /** Opens the ERP-scoped audit history (R22); the server confines what it returns. */
 export const ERP_AUDIT_PERMISSION = 'erp.audit.read'
 
@@ -21,6 +23,31 @@ export const ERP_CAPABILITIES = [
   { id: 'manageApiKeys', anyOf: ['admin.settings.manage'] },
   { id: 'readHistory', anyOf: [ERP_AUDIT_PERMISSION] },
 ] as const
+
+export type ErpCapabilityId = (typeof ERP_CAPABILITIES)[number]['id']
+
+export function holdsCapability(entitlements: Entitlements | null, id: ErpCapabilityId): boolean {
+  if (entitlements === null) return false
+  const capability = ERP_CAPABILITIES.find((entry) => entry.id === id)
+  return capability?.anyOf.some((code) => hasPermission(entitlements, code)) ?? false
+}
+
+/**
+ * Whether the mapping screens may offer their writes.
+ *
+ * The gate's reads accept `mapping.read`, but every write (save, validate, dry-run, deactivate,
+ * archive) needs `mapping.manage` and a certification run needs `mapping.certify` — either one or
+ * `admin.settings.manage` (MappingProfileController, MappingCertificationController). A read-only
+ * holder was offered all of them and got a 403 for each. Fails closed while the snapshot is unknown.
+ */
+export type MappingAccess = { manage: boolean; certify: boolean }
+
+export function mappingAccess(entitlements: Entitlements | null): MappingAccess {
+  return {
+    manage: holdsCapability(entitlements, 'manageMapping'),
+    certify: holdsCapability(entitlements, 'certifyMapping'),
+  }
+}
 
 /**
  * The personas of the ERP plan (Phase 3 persona matrix), as the permissions a role would need for

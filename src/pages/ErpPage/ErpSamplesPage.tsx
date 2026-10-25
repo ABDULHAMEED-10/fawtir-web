@@ -18,6 +18,7 @@ import {
 import { downloadJson, kilobytes, readJsonFile, yyyymmdd } from './overview/files'
 import { GUIDED_MAPPING_FORMAT, useErpMapping, useErpMappingReload } from './ErpMappingGate'
 import { saveGuidedMapping, type GuidedMappingValidationDto } from '../../api/erp/mapping'
+import { useMappingAccess } from '../../hooks/useErpAccess'
 import { ApiError } from '../../api'
 import { withOrdinals, type DraftEntry } from '../../lib/erp/draft'
 import {
@@ -393,6 +394,7 @@ function ImportExport() {
   const { t } = useTranslation()
   const view = useErpMapping()
   const reload = useErpMappingReload()
+  const access = useMappingAccess()
   const [exportedAs, setExportedAs] = useState<string | null>(null)
   const [outcome, setOutcome] = useState<ImportOutcome | null>(null)
 
@@ -566,48 +568,51 @@ function ImportExport() {
           ) : null}
         </div>
 
-        <div className="flex flex-col gap-3 p-5">
-          <h4 className="text-sm font-semibold text-text-primary">
-            {t('erp.samples.file.importTitle')}
-          </h4>
-          <p className="text-sm font-medium leading-[1.6] text-text-tertiary">
-            {t('erp.samples.file.importBody')}
-          </p>
-          <FileDropzone
-            accept=".json"
-            maxBytes={IMPORT_MAX}
-            onFiles={(files) => void importFile(files[0])}
-            onReject={() => setOutcome({ kind: 'unreadable' })}
-          >
-            {({ dragging }) => (
-              <span
+        {/* Importing saves the guided mapping, a mapping.manage write; export is a local file. */}
+        {access.manage ? (
+          <div className="flex flex-col gap-3 p-5">
+            <h4 className="text-sm font-semibold text-text-primary">
+              {t('erp.samples.file.importTitle')}
+            </h4>
+            <p className="text-sm font-medium leading-[1.6] text-text-tertiary">
+              {t('erp.samples.file.importBody')}
+            </p>
+            <FileDropzone
+              accept=".json"
+              maxBytes={IMPORT_MAX}
+              onFiles={(files) => void importFile(files[0])}
+              onReject={() => setOutcome({ kind: 'unreadable' })}
+            >
+              {({ dragging }) => (
+                <span
+                  className={[
+                    'flex flex-col items-center gap-1 rounded-sm border border-dashed px-4 py-5 text-center transition-colors',
+                    dragging
+                      ? 'border-primary-700 bg-primary-25'
+                      : 'border-border-default bg-surface-background hover:bg-primary-25',
+                  ].join(' ')}
+                >
+                  <span className="text-sm font-semibold text-text-primary">
+                    {t('erp.samples.file.importDrop')}
+                  </span>
+                  <span className="text-xs font-medium text-text-quaternary">
+                    {t('erp.samples.file.importNote')}
+                  </span>
+                </span>
+              )}
+            </FileDropzone>
+            {line ? (
+              <p
                 className={[
-                  'flex flex-col items-center gap-1 rounded-sm border border-dashed px-4 py-5 text-center transition-colors',
-                  dragging
-                    ? 'border-primary-700 bg-primary-25'
-                    : 'border-border-default bg-surface-background hover:bg-primary-25',
+                  'rounded-sm px-3 py-2.5 text-xs font-medium leading-[1.6]',
+                  TONE[line.tone],
                 ].join(' ')}
               >
-                <span className="text-sm font-semibold text-text-primary">
-                  {t('erp.samples.file.importDrop')}
-                </span>
-                <span className="text-xs font-medium text-text-quaternary">
-                  {t('erp.samples.file.importNote')}
-                </span>
-              </span>
-            )}
-          </FileDropzone>
-          {line ? (
-            <p
-              className={[
-                'rounded-sm px-3 py-2.5 text-xs font-medium leading-[1.6]',
-                TONE[line.tone],
-              ].join(' ')}
-            >
-              {line.text}
-            </p>
-          ) : null}
-        </div>
+                {line.text}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </SectionCard>
   )

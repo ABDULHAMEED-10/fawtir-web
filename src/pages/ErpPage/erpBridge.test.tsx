@@ -191,6 +191,13 @@ describe('mapping readiness', () => {
     expect(await screen.findByText(/Your administrator manages the ERP mapping/)).toBeTruthy()
     expect(calls.some((call) => call.url.startsWith(CERTIFICATION_URL))).toBe(false)
   })
+
+  it('reads it for an uploader holding mapping.read, which the status route accepts', async () => {
+    who = { ...ADMIN_UPLOADER, permissions: ['invoice.submit', 'mapping.read'] }
+    renderPage()
+    expect(await screen.findByText('Ready')).toBeTruthy()
+    expect(calls.some((call) => call.url.startsWith(CERTIFICATION_URL))).toBe(true)
+  })
 })
 
 describe('the request', () => {
