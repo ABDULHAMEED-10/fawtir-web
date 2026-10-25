@@ -15,6 +15,11 @@ export const CONSOLE_PAGE = 'mx-auto flex w-full max-w-[1144px] flex-col gap-5 p
 export const CONSOLE_H1 =
   'break-words text-[27px] font-semibold leading-[1.2] tracking-[-0.49px] text-text-primary'
 export const CONSOLE_SUBTITLE = 'mt-2 text-sm font-medium leading-[1.4] text-text-placeholder'
+/** A screen inside Settings: its title and subtitle as the tenant Settings screens draw them. */
+export const CONSOLE_SECTION_H2 = 'break-words text-2xl font-medium leading-[1.2] text-text-primary'
+/** One part of a Settings screen that holds several (Fawtir company details). */
+export const CONSOLE_SUBSECTION_H3 = 'break-words text-lg font-semibold leading-[1.3] text-text-primary'
+export const CONSOLE_SECTION_SUBTITLE = 'mt-1 max-w-[720px] text-sm font-medium leading-[1.4] text-[#8f8f8f]'
 /** Two or more cards side by side or stacked: 20 px between columns. */
 export const CONSOLE_ROW = 'flex flex-wrap items-start gap-5'
 
@@ -32,6 +37,7 @@ export function ConsolePageHeader({
   titleClassName = '',
   subtitleClassName = '',
   actionsClassName = '',
+  level = 'page',
 }: {
   title: ReactNode
   subtitle?: ReactNode
@@ -45,8 +51,20 @@ export function ConsolePageHeader({
   titleClassName?: string
   subtitleClassName?: string
   actionsClassName?: string
+  /**
+   * `section`: a screen inside Settings, under the frame's "Settings" title — an h2 at the tenant
+   * Settings screens' size (`SettingsHeader`) rather than the page's own 27 px title.
+   */
+  level?: 'page' | 'section' | 'subsection'
 }) {
-  const heading = <h1 className={[CONSOLE_H1, titleClassName].join(' ')}>{title}</h1>
+  const heading =
+    level === 'subsection' ? (
+      <h3 className={[CONSOLE_SUBSECTION_H3, titleClassName].join(' ')}>{title}</h3>
+    ) : level === 'section' ? (
+      <h2 className={[CONSOLE_SECTION_H2, titleClassName].join(' ')}>{title}</h2>
+    ) : (
+      <h1 className={[CONSOLE_H1, titleClassName].join(' ')}>{title}</h1>
+    )
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="flex min-w-0 items-start gap-4">
@@ -61,7 +79,14 @@ export function ConsolePageHeader({
             heading
           )}
           {subtitle ? (
-            <p className={[CONSOLE_SUBTITLE, subtitleClassName].join(' ')}>{subtitle}</p>
+            <p
+              className={[
+                level === 'page' ? CONSOLE_SUBTITLE : CONSOLE_SECTION_SUBTITLE,
+                subtitleClassName,
+              ].join(' ')}
+            >
+              {subtitle}
+            </p>
           ) : null}
           {below}
         </div>

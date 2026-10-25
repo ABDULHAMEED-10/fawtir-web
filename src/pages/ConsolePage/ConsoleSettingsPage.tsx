@@ -8,7 +8,7 @@ import {
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
+import { ConsoleSettingsFrame } from '../../layouts/ConsoleShell/ConsoleSettingsFrame'
 import {
   SECTIONS,
   settingsStore,
@@ -51,6 +51,20 @@ const BODIES: { [S in Section]: ComponentType<SectionProps<S>> } = {
   payments: PaymentsSection,
   promotional: PromotionalSection,
   operations: OperationsSection,
+}
+
+/** The Settings tab each section sits under, so the right tab lights up (owner, 24 Oct 2026). */
+const TAB_OF: Record<NavId, 'plans' | 'billing' | 'platform'> = {
+  billing: 'billing',
+  counting: 'billing',
+  overage: 'billing',
+  payments: 'billing',
+  addons: 'plans',
+  promotional: 'plans',
+  lifecycle: 'platform',
+  notices: 'platform',
+  operations: 'platform',
+  fixed: 'platform',
 }
 
 /** Each section's draft, kept while the operator moves between sections; absent means untouched. */
@@ -96,9 +110,10 @@ function ConsoleSettings() {
 
   return (
     <div className={CONSOLE_PAGE}>
-      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.settings' }]} />
+      <ConsoleSettingsFrame tab={TAB_OF[active]} />
       <ConsolePageHeader
-        title={t('console.settings.title')}
+        level="section"
+        title={t('console.settings.valuesTitle')}
         subtitle={t('console.settings.subtitle')}
         subtitleClassName="max-w-[720px]"
         actions={
@@ -119,7 +134,7 @@ function ConsoleSettings() {
             return (
               <Link
                 key={id}
-                to={`/console/settings?section=${id}`}
+                to={`/console/settings/values?section=${id}`}
                 aria-current={current ? 'page' : undefined}
                 className={[
                   'flex items-center justify-between gap-2 rounded-sm px-3 py-2.5 text-sm transition-colors max-lg:shrink-0 max-lg:whitespace-nowrap',

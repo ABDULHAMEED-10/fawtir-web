@@ -3,7 +3,7 @@ import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
+import { ConsoleSettingsFrame } from '../../layouts/ConsoleShell/ConsoleSettingsFrame'
 import {
   ConsoleStatusPill,
   type ConsolePillTone,
@@ -228,8 +228,8 @@ export function ConsoleAuditPage() {
   return (
     <ConsoleShell>
       <div className={CONSOLE_PAGE}>
-        <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.audit' }]} />
-        <ConsolePageHeader
+        <ConsoleSettingsFrame tab="records" />
+        <ConsolePageHeader level="section"
           title={t('console.audit.title')}
           subtitle={t('console.audit.subtitle')}
           subtitleClassName="max-w-[720px]"

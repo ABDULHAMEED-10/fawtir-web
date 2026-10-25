@@ -274,7 +274,6 @@ function IncidentsList() {
 
   return (
     <div className={CONSOLE_PAGE}>
-      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.incidents' }]} />
       <ConsolePageHeader
         title={t('console.incidents.title')}
         subtitle={t('console.incidents.subtitle', { count: open.length })}

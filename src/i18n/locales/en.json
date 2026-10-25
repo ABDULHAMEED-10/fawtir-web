@@ -12771,8 +12771,7 @@
       "group": {
         "running": "RUNNING IT",
         "customers": "CUSTOMERS",
-        "platform": "THE PLATFORM",
-        "erp": "ERP"
+        "billing": "BILLING"
       },
       "operations": "Operations",
       "queue": "Submission queue",
@@ -12780,25 +12779,14 @@
       "tenants": "Tenants",
       "verification": "Verification",
       "plans": "Plans and rates",
-      "audit": "Audit log",
-      "settings": "Console settings",
       "bottomSettings": "Settings",
-      "operators": "Operators",
       "subscriptions": "Subscriptions",
-      "erpConnections": "Connections",
-      "erpTemplates": "Mapping templates",
-      "erpRequests": "Add-on requests",
       "policies": "Validation policies",
-      "payments": "Subscription payments",
-      "bankAccounts": "Bank account",
-      "billingSettings": "Billing settings",
-      "seller": "Seller",
+      "payments": "Payments",
       "disconnections": "Disconnections",
       "enterprise": "Enterprise",
-      "companyContact": "Contact details",
       "refunds": "Refund cases",
-      "owners": "Companies without an Owner",
-      "branchAccess": "Branch access check"
+      "erpExtraction": "ERP extraction"
     },
     "user": {
       "team": "Fawtir team",
@@ -14199,10 +14187,8 @@
         "wholeBetween": "A whole number from {{min}} to {{max}}",
         "wholeFrom": "A whole number from {{min}}",
         "duplicate": "Already in the list",
-        "noticeBeyondGrace": "A notice day is later than the grace period",
         "noThreshold": "Add at least one threshold",
-        "noChannel": "Keep at least one channel on",
-        "noTrialPlan": "Pick at least one plan, or the trial cannot be offered"
+        "noChannel": "Keep at least one channel on"
       },
       "dayList": {
         "none": "None",
@@ -14229,10 +14215,7 @@
         "invoiceSeries": "Subscription invoice series prefix",
         "invoiceSeriesHint": "Its own series, separate from tenant documents: {{prefix}}-000123.",
         "pricesExclusive": "Prices shown exclusive of VAT",
-        "pricesExclusiveNote": "Plan prices are shown without VAT; the tax is added on the subscription invoice.",
-        "vatMoved": "VAT on subscription bills",
-        "vatMovedNote": "Switched on or off, with its rate, on Console › Billing settings. Bills use that setting.",
-        "vatMovedValue": "Billing settings"
+        "pricesExclusiveNote": "Plan prices are shown without VAT; the tax is added on the subscription invoice."
       },
       "counting": {
         "kind": "Document kind",
@@ -14291,9 +14274,6 @@
         "theTrial": "The trial",
         "trialMirrors": "Trial mirrors",
         "trialMirrorsHint": "The plan whose features the trial carries.",
-        "trialDays": "Trial length (days)",
-        "trialDocuments": "Trial allowance (documents)",
-        "trialDocumentsHint": "Documents the trial may transmit in total.",
         "trialAutoConverts": "Trial auto-converts",
         "trialAutoConvertsNote": "On, the trial becomes a paid subscription when it ends. Off, the tenant chooses a plan.",
         "trialNeedsPaymentDetails": "Payment details required for the trial",
@@ -14301,10 +14281,6 @@
         "renewalGroup": "Renewal and grace",
         "autoRenewal": "Auto-renewal",
         "autoRenewalNote": "A subscription renews for another period unless it has been cancelled.",
-        "graceDays": "Grace after a failed payment (days)",
-        "graceDaysHint": "The account stays live this long after a payment fails.",
-        "graceNotices": "Notices within the grace period",
-        "graceNoticesHint": "The days on which the tenant is reminded, counted from the failed payment.",
         "changesGroup": "Changes of plan",
         "upgrade": "Upgrade",
         "upgradeOption": {
@@ -14325,8 +14301,8 @@
         "trialPlan": "Trial plan",
         "trialPlanHint": "Whose features the trial carries: the plan the tenant picks at sign-up, or one fixed plan for everyone.",
         "trialPlanChosen": "The plan the tenant picks",
-        "trialOfferedOn": "Trial offered on",
-        "trialOfferedOnHint": "The plans a new tenant may start on trial. Enterprise starts from a contract, never a trial."
+        "trialMovedNote": "Which plans offer the 14-day trial, and its documents, are set per plan in Plans and rates.",
+        "graceMovedNote": "Grace days and the grace reminders are set in Settings › Billing rules."
       },
       "notices": {
         "thresholds": "Thresholds",
@@ -14357,8 +14333,6 @@
         "erpMappingNote": "Business Plus and Enterprise at launch. Which plans carry mapping is a feature switch in Plans and rates, not a setting here; on those plans it is part of onboarding, not an extra.",
         "includedEveryPlan": "Included on every plan",
         "extractionGroup": "Automatic ERP extraction",
-        "extractionPrice": "Price per month",
-        "extractionPriceHint": "Excluding VAT.",
         "extractionDocuments": "Documents included per month",
         "extractionDocumentsHint": "Extracted documents, not the plan allowance.",
         "extractionOverage": "Overage per document",
@@ -14371,9 +14345,7 @@
         "posNote": "No separate plan and no terminal charge. POS simplified invoices count against the plan allowance (settled 15 Sep 2026).",
         "posValue": "No separate plan",
         "erpMappingValue": "Follows the plan's feature switch",
-        "availabilityGroup": "Availability per plan",
-        "availabilityNote": "Not supported hides the add-on from that plan's Connected systems screen. Included switches it on without the add-on price when the tenant asks.",
-        "availabilityLabel": "Automatic extraction on {{plan}}"
+        "priceMovedNote": "The ERP add-on's monthly price, and which plans offer it, are set per plan in Plans and rates."
       },
       "payments": {
         "provider": {
@@ -14422,7 +14394,9 @@
           "en": "English",
           "ar": "Arabic"
         },
-        "insertPlaceholder": "Insert placeholder"
+        "insertPlaceholder": "Insert placeholder",
+        "cardMovedNote": "Card payment is switched on or off in Settings › Billing rules.",
+        "bankMovedNote": "The bank account customers pay into is kept in Settings › Fawtir company details."
       },
       "promotional": {
         "discountCodes": "Discount codes",
@@ -14440,7 +14414,8 @@
         "overageWaiverNote": "Permitted and recorded. The overage line on one subscription invoice is written off, with a reason.",
         "grandfathering": "Grandfathering",
         "grandfatheringNote": "Existing customers keep their price until they change plan.",
-        "recordedNote": "Each of these is done from the tenant's detail page, and every action lands on its record with the operator's name and reason."
+        "recordedNote": "Each of these is done from the tenant's detail page, and every action lands on its record with the operator's name and reason.",
+        "grantMovedNote": "Extra documents for one company are given from that company's page in Tenants."
       },
       "fixed": {
         "title": "Fixed by design",
@@ -14458,7 +14433,8 @@
           "livePlanChange": "Applies to new subscriptions only. Tenants on the old terms keep them."
         },
         "why": "These are legal obligations, not choices. A setting would let a plan be sold that cannot meet the mandate, so they are listed here, and nowhere else."
-      }
+      },
+      "valuesTitle": "Platform values"
     },
     "crumb": {
       "root": "Console",
@@ -14475,183 +14451,6 @@
         "templateDraftSaved": "Template draft saved · {{template}} v{{version}}",
         "templatePublished": "Template published · {{template}} v{{version}}",
         "templateDraftDiscarded": "Template draft discarded · {{template}} v{{version}}"
-      },
-      "connections": {
-        "title": "ERP connections",
-        "subtitle": "{{connections}} connections across {{tenants}} tenants · {{attention}} need attention",
-        "kpi": {
-          "tenants": "Tenants on the add-on",
-          "tenantsNote": "{{paying}} paying · {{included}} included or on trial",
-          "connections": "Connections",
-          "connectionsNote": "{{paused}} paused · {{rejections}} pending rejections",
-          "inError": "In error",
-          "inErrorNote": "Credentials refused or ERP unreachable. The tenant must act.",
-          "stale": "Stale",
-          "staleNote": "Connected, but nothing new for {{days}} days or more",
-          "collected": "Collected this month",
-          "collectedNote": "OMR {{amount}} a month from {{paying}} purchased add-ons",
-          "requests": "Add-on requests",
-          "requestsNote": "Waiting for a decision. Open the queue.",
-          "requestsOpen": "Open the add-on requests"
-        },
-        "attention": {
-          "title": "Needs attention",
-          "subtitle": "Errors first, then connections that have gone quiet",
-          "none": "Every connection is healthy. Nothing is in error or stale."
-        },
-        "reason": {
-          "credentials": "ERP refused credentials",
-          "unreachable": "ERP unreachable",
-          "threeFailures": "Three runs failed in a row",
-          "stale_one": "No new invoice for {{count}} day",
-          "stale_other": "No new invoice for {{count}} days"
-        },
-        "lastRunShort": "last run {{when}}",
-        "searchPlaceholder": "Search by tenant or connection",
-        "filter": {
-          "state": "State",
-          "stateAll": "Any state",
-          "product": "Product",
-          "productAll": "Any product"
-        },
-        "sort": {
-          "lastRun": "Last run, newest first",
-          "tenant": "Tenant, A to Z"
-        },
-        "col": {
-          "tenant": "Tenant",
-          "connection": "Connection",
-          "state": "State",
-          "mapping": "Mapping",
-          "template": "Template",
-          "lastRun": "Last run",
-          "nextRun": "Next run",
-          "collected": "Collected",
-          "rejections": "Rejections"
-        },
-        "template": {
-          "version": "{{name}} v{{version}}",
-          "handWritten": "Hand-written"
-        },
-        "notScheduled": "Not scheduled",
-        "rowMenu": "Row actions",
-        "row": {
-          "open": "Open the connection",
-          "openTenant": "Open the tenant"
-        },
-        "noResults": "No connection matches these filters.",
-        "showing": "Showing {{shown}} of {{total}} connections"
-      },
-      "connection": {
-        "notFound": "There is no connection with this id. The tenant may have deleted it.",
-        "notFoundBack": "Back to connections",
-        "meta": "{{product}} {{version}} · {{schedule}}",
-        "readOnly": "Support view, read-only. Credentials are never shown or entered here.",
-        "banner": {
-          "credentials": "The ERP refused this connection's credentials: {{failures}} runs failed in a row. Only the tenant can replace credentials: send them to Settings › Integration › Connected systems.",
-          "unreachable": "The ERP is unreachable: {{failures}} runs failed in a row. Only the tenant can change the address or credentials: send them to Settings › Integration › Connected systems.",
-          "threeFailures": "Three runs failed in a row, so the connection stopped. Only the tenant can restart it from Settings › Integration › Connected systems.",
-          "stale_one": "Connected and running, but the newest invoice collected is {{count}} day old. Ask the tenant whether their ERP is still posting invoices.",
-          "stale_other": "Connected and running, but the newest invoice collected is {{count}} days old. Ask the tenant whether their ERP is still posting invoices."
-        },
-        "figure": {
-          "watermark": "Newest invoice collected",
-          "today": "Today",
-          "daysOld_one": "day old",
-          "daysOld_other": "days old",
-          "watermarkNote": "Issued {{moment}}",
-          "nothingYet": "Nothing collected yet",
-          "lastRun": "Last run",
-          "never": "Never",
-          "lastRunNote": "{{state}} · {{fetched}} fetched, {{created}} created, {{errors}} errors",
-          "nextRun": "Next run",
-          "nextRunError": "Not scheduled: the connection is in error",
-          "nextRunPaused": "Not scheduled: the connection is paused",
-          "collected": "Collected this month",
-          "collectedOf": "of {{allowance}}",
-          "collectedNote": "{{used}} across the tenant's connections · {{percent}} of the allowance",
-          "collectedNoAddon": "The tenant has no active add-on"
-        },
-        "setup": {
-          "title": "How it is set up",
-          "product": "Product",
-          "schedule": "Schedule",
-          "writeBack": "Write-back",
-          "writeBackOn": "On: status, number and QR written to the ERP",
-          "writeBackOff": "Off",
-          "template": "Mapping template",
-          "templateVersion": "{{name}} v{{version}} · published {{date}}",
-          "handWritten": "Hand-written by the tenant",
-          "mapping": "Mapping",
-          "created": "Connected",
-          "id": "Connection id"
-        },
-        "runs": {
-          "title": "Recent runs",
-          "none": "No runs yet",
-          "col": {
-            "when": "When",
-            "state": "State",
-            "fetched": "Fetched",
-            "created": "Created",
-            "errors": "Errors"
-          }
-        },
-        "addon": {
-          "title": "Automatic extraction add-on",
-          "none": "No add-on. The tenant has not asked for automatic extraction.",
-          "pendingRequest": "They have a request waiting. Open the add-on requests.",
-          "source": "Source",
-          "sourceValue": {
-            "PURCHASED": "Purchased",
-            "PLAN_INCLUDED": "Included in the plan",
-            "TRIAL": "On trial"
-          },
-          "since": "Since",
-          "trialEnds": "Trial ends",
-          "suspendedFor": "Suspended for",
-          "pendingPayment": "Starts once the add-on line on the next invoice is paid.",
-          "limits": "Limits",
-          "limitsValue": "{{connections}} connections · {{documents}} documents a month",
-          "connectionsUsed": "Connected systems",
-          "of": "{{used}} of {{allowance}}",
-          "collected": "Collected this month",
-          "grants": "Quota grants",
-          "noGrants": "None. The allowance is the plan's own.",
-          "grantLine": "+{{documents}} documents until {{date}} · {{by}}",
-          "grant": "Grant extraction quota",
-          "suspend": "Suspend add-on",
-          "resume": "Resume add-on"
-        },
-        "grant": {
-          "title": "Grant extraction quota",
-          "subtitle": "Extra documents for {{tenant}} on top of the add-on's allowance, until a date you choose",
-          "documents": "Extra documents",
-          "expires": "Expires",
-          "submit": "Grant",
-          "done": "{{documents}} extra extraction documents granted to {{tenant}} until {{date}}"
-        },
-        "suspend": {
-          "title": "Suspend the add-on",
-          "subtitle": "Scheduled runs stop for {{tenant}} until it is resumed; connections and mappings are kept",
-          "submit": "Suspend",
-          "done": "{{tenant}}'s add-on is suspended. Runs stop until it is resumed."
-        },
-        "resume": {
-          "title": "Resume the add-on",
-          "subtitle": "Runs for {{tenant}} pick up again on the next schedule",
-          "body": "It was suspended for: {{reason}}",
-          "submit": "Resume",
-          "done": "{{tenant}}'s add-on is active again"
-        }
-      },
-      "unavailable": {
-        "crumb": "ERP integration",
-        "title": "ERP integration across tenants",
-        "subtitle": "Where the platform manages tenants' ERP integration.",
-        "badge": "Not here",
-        "body": "ERP integration is enabled or disabled for each tenant from that tenant's page in Tenants. Each tenant's connections are managed inside that tenant.",
-        "action": "Open tenants"
       }
     },
     "ops": {
@@ -16717,6 +16516,86 @@
         "ADDED": "Recorded by hand instead of the console's SMP call, via {{channel}}",
         "CONFIRMED": "Confirmed as still registered, via {{channel}}"
       }
+    },
+    "settingsHub": {
+      "title": "Settings",
+      "tabsLabel": "Settings groups",
+      "back": "All settings",
+      "showEverything": "Show everything",
+      "tab": {
+        "all": "All",
+        "plans": "Plans",
+        "billing": "Billing",
+        "company": "Fawtir company",
+        "platform": "Platform",
+        "records": "Records"
+      },
+      "group": {
+        "plans": "Plans",
+        "billing": "Billing",
+        "company": "Fawtir company",
+        "platform": "Platform",
+        "records": "Records"
+      },
+      "pill": {
+        "manage": "Manage",
+        "viewOnly": "View only",
+        "soon": "Coming soon"
+      },
+      "card": {
+        "plansTitle": "Plans and rates",
+        "plansBody": "Prices, limits and the features each plan includes.",
+        "addonsTitle": "Add-ons",
+        "addonsBody": "The ERP and API add-on price, set on each plan in Plans and rates.",
+        "promotionalTitle": "Promotions",
+        "promotionalBody": "Offers for new companies.",
+        "billingRulesTitle": "Billing rules",
+        "billingRulesBody": "Grace, renewal bills, reminders, VAT, card payment and payment links.",
+        "billingValuesTitle": "Subscription bills",
+        "billingValuesBody": "VAT on subscription bills, in Billing rules.",
+        "countingTitle": "Counting rules",
+        "countingBody": "Whether received documents count against the allowance, set per plan in Plans and rates.",
+        "overageTitle": "Overage",
+        "overageBody": "The price of each extra document, set per plan in Plans and rates.",
+        "paymentsTitle": "Payments",
+        "paymentsBody": "Card payment on or off, and how long a payment link stays valid, in Billing rules.",
+        "operatorsTitle": "Operators",
+        "operatorsBody": "The Fawtir team and what each person may do.",
+        "policiesTitle": "Validation policies",
+        "policiesBody": "The rules company data is checked against.",
+        "branchAccessTitle": "Branch access check",
+        "branchAccessBody": "What changes for each company when branch access is switched on.",
+        "lifecycleTitle": "Trial and lifecycle",
+        "lifecycleBody": "Grace days and the trial reminder, in Billing rules. The trial itself is switched per plan.",
+        "noticesTitle": "Notices",
+        "noticesBody": "Renewal and grace reminder days, in Billing rules.",
+        "operationsTitle": "Operations",
+        "operationsBody": "Extra documents or a trial exception for one company, given from its page in Tenants.",
+        "fixedTitle": "Fixed by design",
+        "fixedBody": "Values that change only with a new release.",
+        "auditTitle": "Audit log",
+        "auditBody": "Every action an operator took on the platform.",
+        "companyTitle": "Fawtir company details",
+        "companyBody": "The seller on every bill, the bank account customers pay into, and how customers reach Fawtir."
+      }
+    },
+    "sections": {
+      "tenants": {
+        "title": "Tenants",
+        "all": "All companies",
+        "enterprise": "Enterprise",
+        "owners": "Without an Owner",
+        "leaving": "Leaving"
+      },
+      "billing": {
+        "title": "Billing",
+        "payments": "Payments",
+        "refunds": "Refunds"
+      }
+    },
+    "search": {
+      "label": "Search companies",
+      "placeholder": "Search companies by name or code"
     }
   },
   "shell": {

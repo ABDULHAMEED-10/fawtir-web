@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -130,7 +130,14 @@ describe('Tenants register', () => {
     await screen.findByText('Al Noor Bakery')
 
     const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent)
-    expect(headers).toEqual(['Business', 'Plan', 'Quota this month', 'Filing health · 7 days', 'Monthly', ''])
+    expect(headers).toEqual([
+      'Business',
+      'Plan',
+      'Quota this month',
+      'Filing health · 7 days',
+      'Monthly',
+      '',
+    ])
     // The cells the summary cannot fill read as empty, never as a figure.
     const cells = screen.getAllByRole('cell').map((cell) => cell.textContent)
     expect(cells[1]).toBe('—')
@@ -201,6 +208,26 @@ describe('Tenants register', () => {
     expect(screen.getByText(/^Not reported yet\. This tab fills/)).toBeTruthy()
   })
 
+  it('takes the words of the topbar search, and the topbar search lands here', async () => {
+    answer({
+      [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+      [LIST_URL]: () => json(200, pageOf([TENANT, PENDING])),
+    })
+    renderAt('/console/tenants?q=ftkhf')
+    expect(await screen.findByText('Sadam Company')).toBeTruthy()
+    expect(screen.queryByText('Al Noor Bakery')).toBeNull()
+    expect((screen.getByPlaceholderText('Name or tenant code…') as HTMLInputElement).value).toBe(
+      'ftkhf',
+    )
+
+    const topbar = screen.getByPlaceholderText('Search companies by name or code')
+    // Both rows share a legal name here, so ask for the code.
+    fireEvent.change(topbar, { target: { value: 'FT3GDWM54D' } })
+    fireEvent.submit(topbar.closest('form')!)
+    expect(await screen.findByText('Al Noor Bakery')).toBeTruthy()
+    await waitFor(() => expect(screen.queryByText('Sadam Company')).toBeNull())
+  })
+
   it('searches the loaded rows without asking the backend again', async () => {
     answer({
       [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
@@ -209,11 +236,16 @@ describe('Tenants register', () => {
     renderAt('/console/tenants')
     await screen.findByText('Al Noor Bakery')
 
-    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'ftkhf' } })
+    // The register's own box; the topbar's console search is the other one.
+    fireEvent.change(screen.getByPlaceholderText('Name or tenant code…'), {
+      target: { value: 'ftkhf' },
+    })
     expect(screen.getByText('Sadam Company')).toBeTruthy()
     expect(screen.queryByText('Al Noor Bakery')).toBeNull()
 
-    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'nothing like it' } })
+    fireEvent.change(screen.getByPlaceholderText('Name or tenant code…'), {
+      target: { value: 'nothing like it' },
+    })
     expect(screen.getByText('No tenant matches that.')).toBeTruthy()
 
     // The list request is the one the register always made: same URL, same params, once.

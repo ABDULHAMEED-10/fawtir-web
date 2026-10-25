@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { withRial } from '../../components/ui'
 import {
   ConsoleBuildingIcon,
@@ -176,7 +175,6 @@ export function OperationsPage() {
   return (
     <ConsoleShell>
       <div className={CONSOLE_PAGE}>
-        <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.operations' }]} />
         <ConsolePageHeader
           title={t('console.operations.title')}
           subtitle={t('console.operations.subtitle', { when, tenants: count(PLATFORM.live) })}

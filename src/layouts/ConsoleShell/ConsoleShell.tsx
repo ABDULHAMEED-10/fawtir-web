@@ -65,7 +65,7 @@ export function ConsoleShell({ children, requires }: ConsoleShellProps) {
       ) : null}
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <Topbar onOpenNav={() => setNavOpen(true)} showCreateInvoice={false} notes="console" />
+        <Topbar onOpenNav={() => setNavOpen(true)} showCreateInvoice={false} notes="console" search="console" />
         <main className="min-h-0 flex-1 overflow-y-auto px-4 py-3 lg:px-4 lg:pb-6">
           <ConsoleAccessRefreshContext.Provider value={refreshAccess}>
             <AccessGate access={access} retry={retry} requires={requires}>

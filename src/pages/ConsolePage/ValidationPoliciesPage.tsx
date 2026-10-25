@@ -2,7 +2,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { RowsView } from '../../components/ui'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
+import { ConsoleSettingsFrame } from '../../layouts/ConsoleShell/ConsoleSettingsFrame'
 import { ConsoleNotice, ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
 import { useConsoleRead } from '../../layouts/ConsoleShell/useConsoleRead'
 import { localeFor } from '../../lib/console/format'
@@ -83,8 +83,8 @@ function PolicyOverview() {
 
   return (
     <div className={CONSOLE_PAGE}>
-      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.policies' }]} />
-      <ConsolePageHeader
+      <ConsoleSettingsFrame tab="platform" />
+      <ConsolePageHeader level="section"
         title={t('console.policies.title')}
         subtitle={t('console.policies.subtitle')}
       />

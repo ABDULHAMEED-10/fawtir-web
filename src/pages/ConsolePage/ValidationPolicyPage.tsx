@@ -78,6 +78,8 @@ function PolicyDetail() {
     <div className={CONSOLE_PAGE}>
       <ConsoleBreadcrumbs
         items={[
+          // Validation policies live in Console › Settings (owner, 24 Oct 2026).
+          { labelKey: 'console.settingsHub.title', to: '/console/settings' },
           { labelKey: 'console.nav.policies', to: POLICIES_ROUTE },
           ...(isBlockerType(type) ? [{ labelKey: `console.policies.type.${type}` }] : []),
         ]}

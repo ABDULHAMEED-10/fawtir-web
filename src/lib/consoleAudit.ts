@@ -119,7 +119,7 @@ const SEEDED: AuditEntry[] = [
     area: 'settings',
     actionKey: 'console.audit.seeded.settingsSaved',
     values: { section: 'Payments' },
-    to: '/console/settings?section=payments',
+    to: '/console/settings/values?section=payments',
   },
   {
     id: 'a-8',
@@ -147,7 +147,7 @@ const SEEDED: AuditEntry[] = [
     area: 'settings',
     actionKey: 'console.audit.seeded.settingsSaved',
     values: { section: 'Trial and lifecycle' },
-    to: '/console/settings?section=lifecycle',
+    to: '/console/settings/values?section=lifecycle',
   },
   {
     id: 'a-11',
@@ -174,7 +174,7 @@ const SEEDED: AuditEntry[] = [
     area: 'settings',
     actionKey: 'console.audit.seeded.settingsSaved',
     values: { section: 'Notices' },
-    to: '/console/settings?section=notices',
+    to: '/console/settings/values?section=notices',
   },
 ]
 
@@ -228,7 +228,7 @@ export function useConsoleAudit(): AuditEntry[] {
     area: 'settings',
     actionKey: 'console.audit.seeded.settingsSaved',
     values: { section: mark.section },
-    to: `/console/settings?section=${mark.section}`,
+    to: `/console/settings/values?section=${mark.section}`,
   }))
 
   return [...SEEDED, ...subscriptions, ...erpEntries, ...opsEntries, ...settingsEntries].sort(

@@ -6,8 +6,13 @@ import { UserMenu } from '../../components/shell'
 import { NavSettingsIcon } from '../AppShell/navIcons'
 import { CloseIcon } from '../../components/ui/icons'
 import { useDrawer } from '../../hooks/useDrawer'
-import { CONSOLE_NAV } from '../../lib/consoleNav'
-import { hasPermission, isPlatformOperator, type Entitlements } from '../../lib/identity/entitlements'
+import { CONSOLE_NAV, type ConsoleNavItem } from '../../lib/consoleNav'
+import { CONSOLE_SETTINGS_CARDS, CONSOLE_SETTINGS_PATH } from '../../lib/console/consoleSettingsHub'
+import {
+  hasPermission,
+  isPlatformOperator,
+  type Entitlements,
+} from '../../lib/identity/entitlements'
 import { ACCOUNT_EMAIL_CONFIRM_ROUTE } from '../../lib/identity/accountEmail'
 import { initialsOf } from '../../lib/format'
 
@@ -34,9 +39,34 @@ function visibleConsoleNav(entitlements: Entitlements | null) {
   })).filter((group) => group.items.length > 0)
 }
 
-/** The console's routes are flat, so a match is exact or a child path of it. */
-function isActive(pathname: string, to: string) {
+/** Every address a link is lit on: its own and the tabs that have no link of their own. */
+function linkRoutes(item: ConsoleNavItem): readonly string[] {
+  return [item.to, ...(item.alsoActiveOn ?? [])]
+}
+
+/** Settings and every screen a Settings card opens: the bottom Settings link is lit on them. */
+const SETTINGS_ROUTES = [
+  CONSOLE_SETTINGS_PATH,
+  ...CONSOLE_SETTINGS_CARDS.map((card) => card.to.split('?')[0]),
+]
+
+/** A page that has a sidebar link of its own lights that link, not Settings. */
+const OWN_LINKS = CONSOLE_NAV.flatMap((group) => group.items.flatMap(linkRoutes))
+
+/**
+ * The console's routes are flat, so a match is exact or a child path of it. A link with a query
+ * (one section of a page) is lit only when the address carries that query too.
+ */
+function isActive(pathname: string, to: string, search = '') {
   if (to === '/console') return pathname === '/console'
+  const [path, query] = to.split('?')
+  if (query !== undefined) {
+    const here = new URLSearchParams(search)
+    return (
+      pathname === path &&
+      [...new URLSearchParams(query)].every(([key, value]) => here.get(key) === value)
+    )
+  }
   return pathname === to || pathname.startsWith(`${to}/`)
 }
 
@@ -67,6 +97,13 @@ export function ConsoleSidebar({
   const location = useLocation()
   const panelRef = useRef<HTMLElement>(null)
   useDrawer(open, onClose, panelRef)
+  // On an address one link names with its query, only that link is lit, not the page's own.
+  const onQueryLink = OWN_LINKS.some(
+    (to) => to.includes('?') && isActive(location.pathname, to, location.search),
+  )
+  const settingsActive =
+    SETTINGS_ROUTES.some((to) => isActive(location.pathname, to)) &&
+    !OWN_LINKS.some((to) => isActive(location.pathname, to, location.search))
 
   return (
     <aside
@@ -100,7 +137,11 @@ export function ConsoleSidebar({
             </p>
             <div className="flex flex-col">
               {group.items.map((item) => {
-                const active = isActive(location.pathname, item.to)
+                const active = linkRoutes(item).some(
+                  (to) =>
+                    isActive(location.pathname, to, location.search) &&
+                    (!onQueryLink || to.includes('?')),
+                )
                 return (
                   <Link
                     key={item.id}
@@ -134,11 +175,22 @@ export function ConsoleSidebar({
       <div className="mt-auto px-[21px] pb-4">
         {entitlements !== null && isPlatformOperator(entitlements) ? (
           <Link
-            to="/console/settings"
-            className="flex min-h-11 w-full items-center gap-1.5 rounded-md px-3 py-2 text-text-tertiary transition-colors hover:bg-primary-25 hover:text-text-secondary"
+            to={CONSOLE_SETTINGS_PATH}
+            aria-current={settingsActive ? 'page' : undefined}
+            className={[
+              'flex min-h-11 w-full items-center gap-1.5 rounded-md px-3 py-2 transition-colors',
+              settingsActive
+                ? 'bg-primary-50 text-primary-900'
+                : 'text-text-tertiary hover:bg-primary-25 hover:text-text-secondary',
+            ].join(' ')}
           >
-            <NavSettingsIcon className="size-5 shrink-0" />
-            <span className="min-w-0 break-words text-base font-medium leading-[1.2]">
+            <NavSettingsIcon active={settingsActive} className="size-5 shrink-0" />
+            <span
+              className={[
+                'min-w-0 break-words text-base leading-[1.2]',
+                settingsActive ? 'font-semibold text-primary-900' : 'font-medium',
+              ].join(' ')}
+            >
               {t('console.nav.bottomSettings')}
             </span>
           </Link>
@@ -146,7 +198,12 @@ export function ConsoleSidebar({
 
         {/* No role title: the backend's role names are English-only, and ranking an operator's
             several roles into one title would be a claim of our own. */}
-        <UserMenu name={userName} roleKey="console.user.team" initials={initialsOf(userName) || null} extraItems={CONSOLE_USER_ITEMS} />
+        <UserMenu
+          name={userName}
+          roleKey="console.user.team"
+          initials={initialsOf(userName) || null}
+          extraItems={CONSOLE_USER_ITEMS}
+        />
       </div>
     </aside>
   )

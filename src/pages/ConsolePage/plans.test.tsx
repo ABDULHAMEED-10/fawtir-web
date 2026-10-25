@@ -163,9 +163,9 @@ function Probe() {
   return <p data-testid="location">{useLocation().pathname}</p>
 }
 
-function renderPlans() {
+function renderPlans(path = '/console/plans') {
   return render(
-    <MemoryRouter initialEntries={['/console/plans']}>
+    <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/console/plans" element={<ConsolePlansPage />} />
         <Route path="*" element={<Probe />} />
@@ -195,17 +195,21 @@ async function openCatalogue(
 const card = (name: string) =>
   screen.getByRole('heading', { level: 3, name }).closest('article') as HTMLElement
 const dialog = () => screen.getByRole('dialog')
-const input = (name: string) => dialog().querySelector<HTMLInputElement>(`input[name="${name}"]`)
+/** The plan editor: a page of its own inside Console › Settings, not a pop-up (owner, 24 Oct 2026). */
+const editor = () => screen.getByRole('region')
+/** A field by name, in the plan editor page or an open pop-up (history, counting). */
+const input = (name: string) =>
+  (screen.queryByRole('dialog') ?? editor()).querySelector<HTMLInputElement>(`input[name="${name}"]`)
 const type = (name: string, value: string) => fireEvent.change(input(name)!, { target: { value } })
-const toggle = (label: string) => within(dialog()).getByRole('switch', { name: label })
+const toggle = (label: string) => within(editor()).getByRole('switch', { name: label })
 const saveButton = () =>
-  within(dialog()).queryByRole('button', {
+  within(editor()).queryByRole('button', {
     name: i18n.t('console.plans.save'),
   }) as HTMLButtonElement | null
 
 async function editPlan(name: string) {
   fireEvent.click(screen.getByRole('button', { name: i18n.t('console.plans.editPlan', { name }) }))
-  await screen.findByRole('dialog')
+  await screen.findByRole('region')
 }
 
 async function save() {
@@ -336,7 +340,7 @@ describe('Read-only operators', () => {
     fireEvent.click(
       screen.getByRole('button', { name: i18n.t('console.plans.viewPlan', { name: 'Starter' }) }),
     )
-    await screen.findByRole('dialog')
+    await screen.findByRole('region')
     expect(saveButton()).toBeNull()
     expect(input('monthlyPrice')!.readOnly).toBe(true)
     expect(input('nameAr')!.readOnly).toBe(true)
@@ -413,7 +417,7 @@ describe('Editing a plan', () => {
     // A key this app has no switch for goes back as it was read.
     expect(features).toContainEqual({ key: 'futureThing', enabled: true })
 
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('region')).toBeNull())
     expect(
       screen.getByText(i18n.t('console.plans.saved', { name: 'Starter' })).getAttribute('role'),
     ).toBe('status')
@@ -434,7 +438,7 @@ describe('Editing a plan', () => {
     await save()
 
     expect(
-      within(dialog()).getByText(i18n.t('console.plans.validation.reasonRequired')),
+      within(editor()).getByText(i18n.t('console.plans.validation.reasonRequired')),
     ).toBeTruthy()
     expect(callsTo(planUrl('STARTER'), 'PUT')).toHaveLength(0)
 
@@ -444,7 +448,7 @@ describe('Editing a plan', () => {
       monthlyPrice: '25.000',
       reason: 'Costs rose',
     })
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('region')).toBeNull())
     expect(card('Starter').textContent).toContain('25.000')
     expect(card('Starter').textContent).toContain(
       i18n.t('console.plans.versionLine', { version: 3 }),
@@ -458,7 +462,7 @@ describe('Editing a plan', () => {
     expect(input('reason')).toBeTruthy()
     type('annualFreeMonths', '12')
     await save()
-    expect(within(dialog()).getByText(i18n.t('console.plans.validation.freeMonths'))).toBeTruthy()
+    expect(within(editor()).getByText(i18n.t('console.plans.validation.freeMonths'))).toBeTruthy()
   })
 
   it('offers a reload instead of overwriting a plan someone else saved meanwhile', async () => {
@@ -473,7 +477,7 @@ describe('Editing a plan', () => {
     type('nameEn', 'Starter mine')
     await save()
 
-    const alert = within(dialog()).getByRole('alert')
+    const alert = within(editor()).getByRole('alert')
     expect(alert.textContent).toContain(i18n.t('console.plans.conflict'))
     expect(document.body.textContent).not.toContain('Server prose')
     expect(saveButton()!.disabled).toBe(true)
@@ -492,7 +496,7 @@ describe('Editing a plan', () => {
     await editPlan('Starter')
     type('nameEn', 'Starter mine')
     await save()
-    expect(within(dialog()).getByText(i18n.t('console.plans.conflict'))).toBeTruthy()
+    expect(within(editor()).getByText(i18n.t('console.plans.conflict'))).toBeTruthy()
   })
 
   it('sends one request however often save is pressed while it runs', async () => {
@@ -503,8 +507,8 @@ describe('Editing a plan', () => {
     await editPlan('Starter')
     type('nameEn', 'Starter two')
     await save()
-    fireEvent.submit(dialog().querySelector('form')!)
-    fireEvent.submit(dialog().querySelector('form')!)
+    fireEvent.submit(editor().querySelector('form')!)
+    fireEvent.submit(editor().querySelector('form')!)
     expect(callsTo(planUrl('STARTER'), 'PUT')).toHaveLength(1)
     await act(async () => release(json(200, { ...STARTER, nameEn: 'Starter two', version: 5 })))
   })
@@ -514,7 +518,7 @@ describe('Adding a plan', () => {
   async function openAdd(extra: Record<string, Handler | Handler[]> = {}) {
     await openCatalogue(extra)
     fireEvent.click(screen.getByRole('button', { name: i18n.t('console.plans.add') }))
-    await screen.findByRole('dialog')
+    await screen.findByRole('region')
   }
 
   function fillNew() {
@@ -539,7 +543,7 @@ describe('Adding a plan', () => {
     fillNew()
     await save()
     expect(
-      within(dialog()).getByText(i18n.t('console.plans.validation.reasonRequired')),
+      within(editor()).getByText(i18n.t('console.plans.validation.reasonRequired')),
     ).toBeTruthy()
 
     type('reason', 'New tier for groups')
@@ -568,7 +572,7 @@ describe('Adding a plan', () => {
     expect(body.features).toContainEqual({ key: 'api', enabled: false })
     expect(initOf(PLANS_URL, 'POST').headers).toBeTruthy()
     expect(headerOf(initOf(PLANS_URL, 'POST'), 'If-Match')).toBeNull()
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('region')).toBeNull())
     expect(screen.getByRole('heading', { level: 3, name: 'Pro' })).toBeTruthy()
   })
 
@@ -577,7 +581,7 @@ describe('Adding a plan', () => {
     fillNew()
     type('reason', 'New tier')
     await save()
-    expect(within(dialog()).getByText(i18n.t('console.plans.validation.codeTaken'))).toBeTruthy()
+    expect(within(editor()).getByText(i18n.t('console.plans.validation.codeTaken'))).toBeTruthy()
   })
 
   it('refuses a code already in the catalogue before sending anything', async () => {
@@ -586,7 +590,7 @@ describe('Adding a plan', () => {
     type('code', 'GROWTH')
     type('reason', 'x')
     await save()
-    expect(within(dialog()).getByText(i18n.t('console.plans.validation.codeTaken'))).toBeTruthy()
+    expect(within(editor()).getByText(i18n.t('console.plans.validation.codeTaken'))).toBeTruthy()
     expect(callsTo(PLANS_URL, 'POST')).toHaveLength(0)
   })
 })
@@ -719,7 +723,7 @@ describe('Trial switch (TR-1: always 14 days)', () => {
     await save()
     expect(callsTo(planUrl('STARTER'), 'PUT')).toHaveLength(0)
     expect(
-      within(dialog()).getByText(i18n.t('console.plans.validation.trialDocumentsNeedTrial')),
+      within(editor()).getByText(i18n.t('console.plans.validation.trialDocumentsNeedTrial')),
     ).toBeTruthy()
   })
 })
@@ -970,7 +974,7 @@ describe('ERP and API add-on price (ER-1, PL-3)', () => {
     type('erpAddonMonthlyPrice', '22.5')
     await save()
     expect(
-      within(dialog()).getByText(i18n.t('console.plans.validation.reasonRequired')),
+      within(editor()).getByText(i18n.t('console.plans.validation.reasonRequired')),
     ).toBeTruthy()
     expect(callsTo(planUrl('GROWTH'), 'PUT')).toHaveLength(0)
 
@@ -980,7 +984,7 @@ describe('ERP and API add-on price (ER-1, PL-3)', () => {
       erpAddonMonthlyPrice: '22.500',
       reason: 'ER-1',
     })
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('region')).toBeNull())
     expect(card('Growth').textContent).toContain('22.500')
   })
 
@@ -991,12 +995,12 @@ describe('ERP and API add-on price (ER-1, PL-3)', () => {
     type('reason', 'Offer the add-on')
     await save()
     expect(
-      within(dialog()).getByText(i18n.t('console.plans.validation.erpAddonNeedsMapping')),
+      within(editor()).getByText(i18n.t('console.plans.validation.erpAddonNeedsMapping')),
     ).toBeTruthy()
     type('erpAddonMonthlyPrice', '0')
     await save()
     expect(
-      within(dialog()).getByText(i18n.t('console.plans.validation.erpAddonAboveZero')),
+      within(editor()).getByText(i18n.t('console.plans.validation.erpAddonAboveZero')),
     ).toBeTruthy()
     expect(callsTo(planUrl('STARTER'), 'PUT')).toHaveLength(0)
 
@@ -1030,7 +1034,7 @@ describe('ERP and API add-on price (ER-1, PL-3)', () => {
     type('erpAddonMonthlyPrice', '30')
     type('reason', 'ER-1')
     await save()
-    expect(within(dialog()).getByText(i18n.t('console.plans.validation.server'))).toBeTruthy()
+    expect(within(editor()).getByText(i18n.t('console.plans.validation.server'))).toBeTruthy()
     expect(screen.queryByText('Server prose that must not be shown.')).toBeNull()
   })
 
@@ -1092,7 +1096,7 @@ describe('ERP and API add-on price (ER-1, PL-3)', () => {
 // the Expenditure group; two switch names follow the app.
 describe('Purchase orders switch and switch names (PL-8, owner, 24 Oct 2026)', () => {
   const group = (id: string) =>
-    within(dialog()).getByText(i18n.t(`plan.featureGroup.${id}`), { selector: 'p' })
+    within(editor()).getByText(i18n.t(`plan.featureGroup.${id}`), { selector: 'p' })
       .parentElement as HTMLElement
 
   it('lists "Purchase orders" in the Expenditure group, switchable, and saves it', async () => {
@@ -1144,5 +1148,32 @@ describe('Purchase orders switch and switch names (PL-8, owner, 24 Oct 2026)', (
     } finally {
       await i18n.changeLanguage('en')
     }
+  })
+})
+
+// Owner, 24 Oct 2026: a plan's prices and switches are edited on a page of their own inside
+// Console › Settings, never in a pop-up; the page has an address, and the save is unchanged.
+describe('The plan editor is a page', () => {
+  it('opens as a page with its own address, and leads back to the plans', async () => {
+    await openCatalogue()
+    await editPlan('Starter')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(within(editor()).getByRole('heading', { level: 2 }).textContent).toBe(
+      i18n.t('console.plans.editPlan', { name: 'Starter' }),
+    )
+    expect(screen.queryByRole('heading', { level: 3, name: 'Growth' })).toBeNull()
+    fireEvent.click(
+      within(screen.getByRole('main')).getByRole('link', { name: i18n.t('console.plans.title') }),
+    )
+    expect(await screen.findByRole('heading', { level: 3, name: 'Growth' })).toBeTruthy()
+    expect(screen.queryByRole('region')).toBeNull()
+  })
+
+  it('opens straight from its address, reading the catalogue once', async () => {
+    answer(reads())
+    renderPlans('/console/plans?edit=STARTER')
+    await screen.findByRole('region')
+    expect(input('code')!.value).toBe('STARTER')
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith(PLANS_URL))).toHaveLength(1)
   })
 })
