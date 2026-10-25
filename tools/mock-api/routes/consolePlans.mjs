@@ -90,9 +90,71 @@ const counting = new Map(
 )
 
 const COUNTING = /^\/api\/v1\/platform\/plans\/([^/]+)\/received-document-counting$/
+const QUOTE = /^\/api\/v1\/platform\/plans\/([^/]+)\/quote$/
+
+/** The mock's VAT on Fawtir's own bills, as a percent; the real figure is the billing setting. */
+const QUOTE_VAT_PERCENT = 5
+
+/** Rial strings to baisa and back, so the mock's figures carry no float drift. */
+const baisa = (rial) => Math.round(Number(rial) * 1000)
+const rial = (value) => (value / 1000).toFixed(3)
+
+/**
+ * `GET /v1/platform/plans/{code}/quote?billingCycle=MONTHLY|ANNUAL[&erpAddon=true]`: the first
+ * invoice the console's onboarding shows. The web prints these figures as they come; the server
+ * works them out from the plan's current version, so the mock does the same here.
+ */
+function quoteOf(plan, billingCycle, erpAddon) {
+  const version = plan.currentVersion
+  const months = billingCycle === 'ANNUAL' ? 12 : 1
+  const lines = [
+    {
+      kind: 'PLAN',
+      description: `${plan.nameEn}, ${billingCycle === 'ANNUAL' ? '12 months' : '1 month'}`,
+      net: billingCycle === 'ANNUAL' ? version.annualPrice : version.monthlyPrice,
+    },
+  ]
+  if (erpAddon && version.erpAddonMonthlyPrice) {
+    lines.push({
+      kind: 'ERP_ADDON',
+      description: `ERP add-on, ${months === 12 ? '12 months' : '1 month'}`,
+      net: rial(baisa(version.erpAddonMonthlyPrice) * months),
+    })
+  }
+  const net = lines.reduce((sum, line) => sum + baisa(line.net), 0)
+  const vat = Math.floor((net * QUOTE_VAT_PERCENT + 50) / 100)
+  return {
+    planCode: plan.code,
+    planVersion: version.versionNumber,
+    billingCycle,
+    currency: plan.currency,
+    months,
+    lines,
+    net: rial(net),
+    vatRate: QUOTE_VAT_PERCENT.toFixed(2),
+    vat: rial(vat),
+    total: rial(net + vat),
+  }
+}
 
 export default [
   { match: '/api/v1/platform/plans', reply: () => PLANS },
+  {
+    match: QUOTE,
+    reply: ({ params, query }) => {
+      const plan = PLANS.find((entry) => entry.code === decodeURIComponent(params[0]))
+      if (!plan) return { status: 404, body: { code: 'PLAN_NOT_FOUND' } }
+      const billingCycle = query.get('billingCycle')
+      if (billingCycle !== 'MONTHLY' && billingCycle !== 'ANNUAL') {
+        return { status: 400, body: { code: 'BILLING_CYCLE_INVALID' } }
+      }
+      const erpAddon = query.get('erpAddon') === 'true'
+      if (erpAddon && !plan.currentVersion.erpAddonMonthlyPrice) {
+        return { status: 400, body: { code: 'ERP_ADDON_NOT_OFFERED' } }
+      }
+      return quoteOf(plan, billingCycle, erpAddon)
+    },
+  },
   {
     match: COUNTING,
     reply: ({ params }) => {

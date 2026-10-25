@@ -30,7 +30,8 @@ import {
   type SubscriptionPlanId,
   type Term,
 } from '../../lib/consoleSubscriptions'
-import { useFirstInvoiceTotal, type FirstInvoiceTotal } from './useFirstInvoiceTotal'
+import { useFirstInvoiceQuote, type FirstInvoiceQuote } from './useFirstInvoiceQuote'
+import { ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
 import { PLATFORM_SETTINGS } from '../../lib/platformSettings'
 import { omr } from '../../lib/superAdmin'
 import { omanPhone } from '../../lib/validation'
@@ -235,7 +236,6 @@ function describeCreateFailure(error: unknown, t: TFunction): string {
 export function ConsoleOnboardPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const firstInvoiceTotal = useFirstInvoiceTotal()
   const [step, setStep] = useState<Step>('company')
   const [draft, setDraft] = useState<Draft>({
     tenantCode: '',
@@ -270,6 +270,18 @@ export function ConsoleOnboardPage() {
   // the first one did, so the backend answers with the company it already created rather than
   // creating a second one.
   const [idempotencyKey] = useState(newPlatformCompanyKey)
+  const quote = useFirstInvoiceQuote(draft.plan, draft.term, step === 'plan' || step === 'review')
+  // A plan or term change re-prices the payment once the server's quote answers; what the
+  // operator then types stays. Adjusted while rendering, so the figure lands with the quote.
+  const quoteKey = `${draft.plan}:${draft.term}`
+  const [repriceFor, setRepriceFor] = useState<string | null>(null)
+  if (repriceFor === quoteKey && quote.read?.status !== 'loading') {
+    setRepriceFor(null)
+    if (quote.read?.status === 'ready') {
+      const total = quote.read.data.total
+      setDraft((current) => ({ ...current, amount: total }))
+    }
+  }
 
   const stepIndex = STEPS.indexOf(step)
   const patch = (change: Partial<Draft>) => {
@@ -281,6 +293,11 @@ export function ConsoleOnboardPage() {
       cleared.forEach((field) => delete next[field])
       return next
     })
+  }
+
+  const reprice = (plan: SubscriptionPlanId, term: Term) => {
+    patch({ plan, term, amount: '' })
+    setRepriceFor(`${plan}:${term}`)
   }
 
   const goTo = (target: Step) => {
@@ -372,9 +389,15 @@ export function ConsoleOnboardPage() {
             ) : step === 'owner' ? (
               <OwnerStep draft={draft} errors={errors} patch={patch} />
             ) : step === 'plan' ? (
-              <PlanStep draft={draft} errors={errors} patch={patch} firstInvoiceTotal={firstInvoiceTotal} />
+              <PlanStep
+                draft={draft}
+                errors={errors}
+                patch={patch}
+                quote={quote}
+                reprice={reprice}
+              />
             ) : (
-              <ReviewStep draft={draft} onEdit={goTo} firstInvoiceTotal={firstInvoiceTotal} />
+              <ReviewStep draft={draft} onEdit={goTo} quote={quote} />
             )}
           </form>
 
@@ -622,8 +645,12 @@ function PlanStep({
   draft,
   errors,
   patch,
-  firstInvoiceTotal,
-}: StepProps & { firstInvoiceTotal: FirstInvoiceTotal }) {
+  quote,
+  reprice,
+}: StepProps & {
+  quote: FirstInvoiceQuote
+  reprice: (plan: SubscriptionPlanId, term: Term) => void
+}) {
   const { t, i18n } = useTranslation()
   const k = (name: string) => t(`console.onboard.plan.${name}`)
   const planOptions = usePlanOptions()
@@ -634,14 +661,8 @@ function PlanStep({
   }))
   const today = dateOf(TODAY_KEY)!
   const periodEnd = addMonths(today, MONTHS_OF[draft.term])
-  const total = firstInvoiceTotal(draft.plan, draft.term)
+  const quoted = quote.read?.status === 'ready' ? quote.read.data : null
   const enterprise = draft.plan === 'enterprise'
-
-  // A plan or term change re-prices the payment; what the operator then types stays.
-  const reprice = (plan: SubscriptionPlanId, term: Term) => {
-    const next = firstInvoiceTotal(plan, term)
-    patch({ plan, term, amount: next === null ? '' : next.toFixed(3) })
-  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -682,22 +703,52 @@ function PlanStep({
       <div className="rounded-sm bg-surface-background px-4 py-1">
         <SummaryLine label={k('periodEnd')} value={dayLabel(periodEnd, i18n.language)} />
         <SummaryLine
-          label={k('firstInvoice')}
+          label={k('net')}
           value={
-            total === null ? (
-              '—'
-            ) : (
+            quoted ? (
               <span className="inline-flex items-baseline gap-1">
                 <Rial />
-                {omr(total)}
+                {quoted.net}
+              </span>
+            ) : (
+              '—'
+            )
+          }
+        />
+        <SummaryLine
+          label={quoted ? t('console.onboard.plan.vatAt', { rate: quoted.vatRate }) : k('vat')}
+          value={
+            quoted ? (
+              <span className="inline-flex items-baseline gap-1">
+                <Rial />
+                {quoted.vat}
+              </span>
+            ) : (
+              '—'
+            )
+          }
+        />
+        <SummaryLine
+          label={k('firstInvoice')}
+          value={
+            quoted ? (
+              <span className="inline-flex items-baseline gap-1">
+                <Rial />
+                {quoted.total}
                 <span className="text-xs font-medium text-text-quaternary">
                   {t('console.subscriptionActions.common.includingVat')}
                 </span>
               </span>
+            ) : (
+              '—'
             )
           }
         />
       </div>
+
+      {quote.read?.status === 'failed' ? (
+        <ConsoleReadFailure error={quote.read.error} retry={quote.retry} />
+      ) : null}
 
       <div className="flex flex-col gap-4 rounded-sm border border-border-subtle p-4">
         <div className="flex items-start justify-between gap-4">
@@ -809,11 +860,11 @@ function ReviewCard({
 function ReviewStep({
   draft,
   onEdit,
-  firstInvoiceTotal,
+  quote,
 }: {
   draft: Draft
   onEdit: (step: Step) => void
-  firstInvoiceTotal: FirstInvoiceTotal
+  quote: FirstInvoiceQuote
 }) {
   const { t, i18n } = useTranslation()
   const k = (name: string) => t(`console.onboard.review.${name}`)
@@ -823,7 +874,7 @@ function ReviewStep({
   const day = (date: Date) => dayLabel(date, i18n.language)
   const today = dateOf(TODAY_KEY)!
   const periodEnd = addMonths(today, MONTHS_OF[draft.term])
-  const total = firstInvoiceTotal(draft.plan, draft.term)
+  const total = quote.read?.status === 'ready' ? quote.read.data.total : null
   const received = dateOf(draft.receivedOn)
   const digits = draft.ownerPhone.replace(/\D/g, '')
   const name = draft.tradingName.trim()
@@ -835,7 +886,7 @@ function ReviewStep({
         ? t('console.onboard.review.resultPaid', { name })
         : total === null
           ? t('console.onboard.review.resultAwaitingNoAmount', { name })
-          : t('console.onboard.review.resultAwaiting', { name, amount: omr(total) })
+          : t('console.onboard.review.resultAwaiting', { name, amount: total })
 
   return (
     <div className="flex flex-col gap-5">
@@ -885,7 +936,7 @@ function ReviewStep({
               ) : (
                 <span className="inline-flex items-baseline gap-1">
                   <Rial />
-                  {omr(total)}
+                  {total}
                 </span>
               )
             }

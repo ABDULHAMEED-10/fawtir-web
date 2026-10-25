@@ -29,6 +29,7 @@ import {
   openInvoiceOf,
   planLabelKey,
   queueKpis,
+  sampleOmr,
   subscriptionsForTab,
   suspendsOn,
   tenantIdentity,
@@ -158,7 +159,8 @@ export function SubscriptionsPage() {
     )
   if (sort === 'periodEnd')
     rows.sort((a, b) => a.subscription.periodEnd.getTime() - b.subscription.periodEnd.getTime())
-  if (sort === 'amountDue') rows.sort((a, b) => b.subscription.amountDue - a.subscription.amountDue)
+  if (sort === 'amountDue')
+    rows.sort((a, b) => (b.subscription.amountDue ?? -1) - (a.subscription.amountDue ?? -1))
   if (sort === 'name') rows.sort((a, b) => a.tenant.name.localeCompare(b.tenant.name))
 
   const tabEntry = SUBSCRIPTION_TABS.find((entry) => entry.id === tab) ?? SUBSCRIPTION_TABS[0]
@@ -219,7 +221,7 @@ export function SubscriptionsPage() {
             title={t('console.subscriptions.queue.kpi.awaiting')}
             value={String(kpis.awaitingCount)}
             note={t('console.subscriptions.queue.kpi.awaitingNote', {
-              amount: omr(kpis.awaitingTotal),
+              amount: sampleOmr(kpis.awaitingTotal),
             })}
             tone="watch"
           />
@@ -399,7 +401,7 @@ export function SubscriptionsPage() {
                         </span>
                       </td>
                       <td className="px-2 py-4 text-end">
-                        {subscription.amountDue > 0 ? (
+                        {subscription.amountDue !== null && subscription.amountDue > 0 ? (
                           <span className="block whitespace-nowrap text-sm font-semibold text-text-primary">
                             <span className="me-1">
                               <Rial />

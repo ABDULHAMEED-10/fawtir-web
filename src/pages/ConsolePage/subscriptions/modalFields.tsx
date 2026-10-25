@@ -8,6 +8,7 @@ import {
   SUBSCRIPTIONS_NOW,
   TERMS,
   planLabelKey,
+  sampleOmr,
   useSubscriptions,
   type SubscriptionInvoice,
 } from '../../../lib/consoleSubscriptions'
@@ -302,7 +303,7 @@ export function useInvoiceOptions(invoices: SubscriptionInvoice[]) {
     label: invoice.number,
     hint: t('console.subscriptionActions.common.invoiceHint', {
       period: `${dayLabel(invoice.periodStart, i18n.language)} → ${dayLabel(invoice.periodEnd, i18n.language)}`,
-      total: omr(invoice.total),
+      total: sampleOmr(invoice.total),
     }),
   }))
 }

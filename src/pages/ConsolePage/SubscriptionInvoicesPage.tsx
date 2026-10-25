@@ -11,12 +11,14 @@ import {
 } from '../../layouts/ConsoleShell/consoleIcons'
 import { ActionMenu, Rial, RowsView, SortMenu, withRial } from '../../components/ui'
 import { subscriptionInvoiceRowActions } from '../../lib/rowActions'
-import { count, omr } from '../../lib/superAdmin'
+import { count } from '../../lib/superAdmin'
 import { formatDay, localeFor } from '../../lib/console/format'
 import {
   SUBSCRIPTIONS_NOW,
   daysUntil,
   planLabelKey,
+  sampleOmr,
+  sumOf,
   tenantIdentity,
   useSubscriptions,
   type InvoiceStatus,
@@ -76,7 +78,7 @@ export function SubscriptionInvoicesPage() {
   if (sort === 'issued')
     rows.sort((a, b) => b.invoice.issued.getTime() - a.invoice.issued.getTime())
   if (sort === 'due') rows.sort((a, b) => a.invoice.due.getTime() - b.invoice.due.getTime())
-  if (sort === 'total') rows.sort((a, b) => b.invoice.total - a.invoice.total)
+  if (sort === 'total') rows.sort((a, b) => (b.invoice.total ?? -1) - (a.invoice.total ?? -1))
 
   /** What the last column says: when it was paid and how, or when it falls due. */
   const settlement = (invoice: SubscriptionInvoice) => {
@@ -145,7 +147,7 @@ export function SubscriptionInvoicesPage() {
             title={t('console.subscriptions.invoices.kpi.unpaid')}
             value={String(unpaid.length)}
             note={t('console.subscriptions.invoices.kpi.unpaidNote', {
-              amount: omr(unpaid.reduce((sum, invoice) => sum + invoice.total, 0)),
+              amount: sampleOmr(sumOf(unpaid.map((invoice) => invoice.total))),
             })}
             tone="watch"
           />
@@ -154,7 +156,7 @@ export function SubscriptionInvoicesPage() {
             title={t('console.subscriptions.invoices.kpi.overdue')}
             value={String(overdue.length)}
             note={t('console.subscriptions.invoices.kpi.overdueNote', {
-              amount: omr(overdue.reduce((sum, invoice) => sum + invoice.total, 0)),
+              amount: sampleOmr(sumOf(overdue.map((invoice) => invoice.total))),
             })}
             tone={overdue.length > 0 ? 'bad' : 'calm'}
           />
@@ -162,7 +164,7 @@ export function SubscriptionInvoicesPage() {
             icon={<ConsoleTickIcon className="size-4 text-success-700" />}
             tone="good"
             title={t('console.subscriptions.invoices.kpi.paid')}
-            value={<RialFigure amount={paidThisMonth.reduce((sum, invoice) => sum + invoice.total, 0)} />}
+            value={<RialFigure amount={sumOf(paidThisMonth.map((invoice) => invoice.total))} />}
             note={t('console.subscriptions.invoices.kpi.paidNote', {
               count: paidThisMonth.length,
               month,
@@ -281,10 +283,12 @@ export function SubscriptionInvoicesPage() {
                       </td>
                       <td className="px-2 py-4 text-end">
                         <span className="block whitespace-nowrap text-sm font-medium text-text-primary">
-                          <span className="me-1">
-                            <Rial />
-                          </span>
-                          {omr(invoice.amount)}
+                          {invoice.amount === null ? null : (
+                            <span className="me-1">
+                              <Rial />
+                            </span>
+                          )}
+                          {sampleOmr(invoice.amount)}
                         </span>
                         <span className="mt-1 block text-xs font-medium text-text-quaternary">
                           {t('console.subscriptions.invoices.exVat')}
@@ -292,15 +296,21 @@ export function SubscriptionInvoicesPage() {
                       </td>
                       <td className="px-2 py-4 text-end">
                         <span className="block whitespace-nowrap text-sm font-semibold text-text-primary">
-                          <span className="me-1">
-                            <Rial />
-                          </span>
-                          {omr(invoice.total)}
+                          {invoice.total === null ? null : (
+                            <span className="me-1">
+                              <Rial />
+                            </span>
+                          )}
+                          {sampleOmr(invoice.total)}
                         </span>
                         <span className="mt-1 block whitespace-nowrap text-xs font-medium text-text-quaternary">
-                          {withRial(
-                            t('console.subscriptions.invoices.plusVat', { vat: omr(invoice.vat) }),
-                          )}
+                          {invoice.vat === null
+                            ? null
+                            : withRial(
+                                t('console.subscriptions.invoices.plusVat', {
+                                  vat: sampleOmr(invoice.vat),
+                                }),
+                              )}
                         </span>
                       </td>
                       <td className="px-2 py-4">

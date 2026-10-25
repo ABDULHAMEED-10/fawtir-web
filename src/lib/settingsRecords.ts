@@ -5,10 +5,9 @@
  * account).
  */
 
-import { BOOK, COMPANY, TODAY, isoDate, longDate, monthsBetween } from './settings'
+import { BOOK, COMPANY, RESETS_ON, TODAY, isoDate, longDate, monthsBetween } from './settings'
 import { CERT_EXPIRES } from './settingsCompany'
 import { MEMBERS } from './settingsPeople'
-import { nextBill } from './settingsBilling'
 import { prototypeHidden } from './demoModules'
 
 /* ------------------------------------------------------------- activity log */
@@ -352,7 +351,8 @@ export const CLOSING_BLOCKERS: Blocker[] = [
     blocking: true,
     tone: 'money',
     actionKey: 'closing.settleItNow',
-    values: { amount: nextBill().total.toFixed(3), date: longDate(nextBill().dueOn) },
+    // The sample holds no prices (PY-2): the bill's amount is the server's to state.
+    values: { amount: '—', date: longDate(RESETS_ON) },
   },
   {
     id: 'openQuotations',

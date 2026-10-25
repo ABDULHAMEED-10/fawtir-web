@@ -1,16 +1,33 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, renderHook, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { ConsoleOnboardPage } from './ConsoleOnboardPage'
-import { useFirstInvoiceTotal } from './useFirstInvoiceTotal'
 import { subscriptionsStore } from '../../lib/consoleSubscriptions'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const CREATE_URL = '/api/v1/platform/companies'
 const TENANT_ID = '9f1c7e2a-51b4-4a60-9a1e-3c7b2d5e8f04'
+const QUOTE_URL = '/api/v1/platform/plans/BUSINESS/quote?billingCycle=MONTHLY'
+const ANNUAL_QUOTE_URL = '/api/v1/platform/plans/BUSINESS/quote?billingCycle=ANNUAL'
+
+/** Figures no web arithmetic would produce from each other, so only the server's can show. */
+const quote = (billingCycle: 'MONTHLY' | 'ANNUAL', net: string, vat: string, total: string) => ({
+  planCode: 'BUSINESS',
+  planVersion: 3,
+  billingCycle,
+  currency: 'OMR',
+  months: billingCycle === 'ANNUAL' ? 12 : 1,
+  lines: [{ kind: 'PLAN', description: 'Business', net }],
+  net,
+  vatRate: '5.00',
+  vat,
+  total,
+})
+const MONTHLY_QUOTE = quote('MONTHLY', '41.111', '2.056', '43.167')
+const ANNUAL_QUOTE = quote('ANNUAL', '411.110', '20.556', '431.666')
 
 const OPERATOR: Entitlements = {
   userId: 'u-1',
@@ -84,6 +101,15 @@ async function pick(user: ReturnType<typeof userEvent.setup>, name: RegExp) {
  * per assertion starved the rest of the suite of workers until unrelated files timed out.
  */
 async function onboardThroughTheForm(user: ReturnType<typeof userEvent.setup>) {
+  await reachPlanStep(user)
+  await user.click(await screen.findByRole('button', { name: /continue/i }))
+  const create = await screen.findByRole('button', { name: /create tenant/i })
+  await user.click(create)
+  return create
+}
+
+/** The company and owner steps, filled in, leaving the wizard on Plan and payment. */
+async function reachPlanStep(user: ReturnType<typeof userEvent.setup>) {
   await user.type(await screen.findByLabelText(/legal name/i), 'Wadi Shab Provisions LLC')
   await user.type(screen.getByLabelText(/trading name/i), 'Wadi Shab Provisions')
   await user.type(screen.getByLabelText(/tenant code/i), 'wadishab')
@@ -99,11 +125,12 @@ async function onboardThroughTheForm(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText(/mobile/i), '91234567')
   await user.type(screen.getByLabelText(/email/i), 'first.admin@example.test')
   await user.click(screen.getByRole('button', { name: /continue/i }))
+}
 
-  await user.click(await screen.findByRole('button', { name: /continue/i }))
-  const create = await screen.findByRole('button', { name: /create tenant/i })
-  await user.click(create)
-  return create
+/** The summary line's value beside a label, on the Plan and payment step. */
+const summaryValue = (label: RegExp) => {
+  const row = screen.getByText(label).parentElement as HTMLElement
+  return row.textContent ?? ''
 }
 
 /** The walk above is slow in jsdom, and the request under test only happens at the end of it. */
@@ -129,6 +156,7 @@ describe('Platform company onboarding', () => {
     async () => {
       answer({
         [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+        [QUOTE_URL]: () => json(200, MONTHLY_QUOTE),
         [CREATE_URL]: () => json(201, CREATED),
       })
       const onboard = vi.spyOn(subscriptionsStore, 'onboard')
@@ -177,6 +205,7 @@ describe('Platform company onboarding', () => {
     async () => {
       answer({
         [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+        [QUOTE_URL]: () => json(200, MONTHLY_QUOTE),
         [CREATE_URL]: () => json(200, { ...CREATED, replayed: true }),
       })
       const user = userEvent.setup({ delay: null })
@@ -203,6 +232,7 @@ describe('Platform company onboarding', () => {
       })
       answer({
         [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+        [QUOTE_URL]: () => json(200, MONTHLY_QUOTE),
         [CREATE_URL]: async () => {
           await held
           return json(201, CREATED)
@@ -230,6 +260,7 @@ describe('Platform company onboarding', () => {
     async () => {
       answer({
         [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+        [QUOTE_URL]: () => json(200, MONTHLY_QUOTE),
         [CREATE_URL]: () => json(409, { type: 'conflict', title: 'Already used' }),
       })
       const user = userEvent.setup({ delay: null })
@@ -249,6 +280,7 @@ describe('Platform company onboarding', () => {
     async () => {
       answer({
         [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+        [QUOTE_URL]: () => json(200, MONTHLY_QUOTE),
         [CREATE_URL]: () => json(403, { type: 'forbidden', title: 'Denied' }),
       })
       const user = userEvent.setup({ delay: null })
@@ -278,39 +310,64 @@ describe('Platform company onboarding', () => {
     expect(createCalls()).toHaveLength(0)
   })
 
-  it('prices the first invoice from the console catalogue and VAT setting, never a launch price (GEN-2, PL-3)', async () => {
-    const version = (monthlyPrice: string, annualPrice: string) => ({ monthlyPrice, annualPrice })
-    answer({
-      '/api/v1/platform/plans': () =>
-        json(200, [
-          { code: 'STARTER', currentVersion: version('11.000', '110.000') },
-          { code: 'BUSINESS', currentVersion: version('40.000', '400.000') },
-        ]),
-      '/api/v1/platform/billing/settings': () => json(200, { vatRate: '0.05000' }),
-    })
-    const { result } = renderHook(() => useFirstInvoiceTotal(), {
-      wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter>,
-    })
-    // Nothing is quoted until both reads answer.
-    expect(result.current('business', 'monthly')).toBeNull()
-    await waitFor(() => expect(result.current('business', 'monthly')).toBe(42))
-    expect(result.current('business', 'quarterly')).toBe(126)
-    expect(result.current('starter', 'annual')).toBe(115.5)
-    // A plan the catalogue does not list, and Enterprise, have no figure.
-    expect(result.current('businessPlus', 'monthly')).toBeNull()
-    expect(result.current('enterprise', 'monthly')).toBeNull()
-  })
+  it(
+    'shows the first invoice exactly as the server quotes it, and asks again when the term changes (PY-2)',
+    async () => {
+      answer({
+        [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+        [QUOTE_URL]: () => json(200, MONTHLY_QUOTE),
+        [ANNUAL_QUOTE_URL]: () => json(200, ANNUAL_QUOTE),
+      })
+      const user = userEvent.setup({ delay: null })
+      renderPage()
+      await reachPlanStep(user)
 
-  it('quotes no first-invoice figure when the catalogue cannot be read', async () => {
-    answer({
-      '/api/v1/platform/plans': () => json(403, {}),
-      '/api/v1/platform/billing/settings': () => json(200, { vatRate: '0.05000' }),
-    })
-    const { result } = renderHook(() => useFirstInvoiceTotal(), {
-      wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter>,
-    })
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
-    await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(result.current('business', 'monthly')).toBeNull()
-  })
+      await waitFor(() => expect(summaryValue(/^first invoice$/i)).toContain('43.167'))
+      expect(summaryValue(/^before vat$/i)).toContain('41.111')
+      expect(summaryValue(/^vat \(5\.00%\)$/i)).toContain('2.056')
+
+      // Only Monthly and Annual are sold.
+      await user.click(screen.getByRole('button', { name: /billing term/i }))
+      const options = await screen.findAllByRole('option')
+      expect(options.map((option) => option.textContent)).toEqual(['Monthly', 'Annual'])
+      await user.click(options[1])
+
+      await waitFor(() => expect(summaryValue(/^first invoice$/i)).toContain('431.666'))
+      expect(summaryValue(/^before vat$/i)).toContain('411.110')
+      expect(summaryValue(/^vat \(5\.00%\)$/i)).toContain('20.556')
+      const asked = fetchMock.mock.calls.map(([url]) => url)
+      expect(asked).toContain(QUOTE_URL)
+      expect(asked).toContain(ANNUAL_QUOTE_URL)
+      // No ERP add-on choice on this screen, so the add-on is never asked for.
+      expect(asked.some((url) => String(url).includes('erpAddon'))).toBe(false)
+
+      // A term change fills the payment with the new quote's total once it answers.
+      await user.click(screen.getByRole('switch', { name: /payment received now/i }))
+      expect((screen.getByLabelText(/amount received/i) as HTMLInputElement).value).toBe('431.666')
+    },
+    WIZARD_TIMEOUT,
+  )
+
+  it(
+    'shows no first-invoice figure when the quote cannot be read, and offers a retry',
+    async () => {
+      let quoteAnswer = () => json(500, { code: 'INTERNAL' })
+      answer({
+        [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+        [QUOTE_URL]: () => quoteAnswer(),
+      })
+      const user = userEvent.setup({ delay: null })
+      renderPage()
+      await reachPlanStep(user)
+
+      const retry = await screen.findByRole('button', { name: /try again|retry/i })
+      expect(summaryValue(/^first invoice$/i)).toContain('—')
+      expect(summaryValue(/^before vat$/i)).toContain('—')
+
+      quoteAnswer = () => json(200, MONTHLY_QUOTE)
+      await user.click(retry)
+      await waitFor(() => expect(summaryValue(/^first invoice$/i)).toContain('43.167'))
+    },
+    WIZARD_TIMEOUT,
+  )
 })

@@ -65,7 +65,7 @@ export function RecordPaymentModal({
     const preferred = subscription?.preferredMethod
     return preferred && enabledMethods.includes(preferred) ? preferred : (enabledMethods[0] ?? '')
   })
-  const [amount, setAmount] = useState(initialInvoice ? initialInvoice.total.toFixed(3) : '')
+  const [amount, setAmount] = useState(initialInvoice?.total != null ? initialInvoice.total.toFixed(3) : '')
   const [receivedOn, setReceivedOn] = useState(TODAY_KEY)
   const [reference, setReference] = useState('')
   const [note, setNote] = useState('')
@@ -160,7 +160,7 @@ export function RecordPaymentModal({
                   onChange={(value) => {
                     setInvoice(value)
                     const picked = open.find((entry) => entry.id === value)
-                    if (picked) setAmount(picked.total.toFixed(3))
+                    if (picked) setAmount(picked.total === null ? '' : picked.total.toFixed(3))
                     clear('invoice')
                   }}
                   options={invoiceOptions}

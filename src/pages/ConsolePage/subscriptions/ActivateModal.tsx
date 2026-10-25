@@ -1,17 +1,14 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { DateField, Modal, Rial, Select } from '../../../components/ui'
+import { DateField, Modal, Select } from '../../../components/ui'
 import {
   MONTHS_OF,
-  periodAmount,
   subscriptionOf,
   subscriptionsStore,
   tenantIdentity,
-  withVat,
   type SubscriptionPlanId,
   type Term,
 } from '../../../lib/consoleSubscriptions'
-import { omr } from '../../../lib/superAdmin'
 import {
   Field,
   ModalFooter,
@@ -57,7 +54,6 @@ export function ActivateModal({ tenantId, ledger, onClose, onDone }: ActionModal
   const termOptions = useTermOptions()
   const startDate = dateOf(start)
   const periodEnd = startDate ? addMonths(startDate, MONTHS_OF[term]) : null
-  const wouldBill = withVat(periodAmount(plan, term, subscription?.enterprise))
 
   const quick = (['pilot', 'planIncluded', 'trialExtension'] as const).map((id) => ({
     id,
@@ -156,18 +152,8 @@ export function ActivateModal({ tenantId, ledger, onClose, onDone }: ActionModal
             label={t('console.subscriptionActions.activate.periodEnd')}
             value={periodEnd ? dayLabel(periodEnd, i18n.language) : '—'}
           />
-          <SummaryLine
-            label={t('console.subscriptionActions.activate.wouldBill')}
-            value={
-              <span className="inline-flex items-baseline gap-1">
-                <Rial />
-                {omr(wouldBill)}
-                <span className="text-xs font-medium text-text-quaternary">
-                  {t('console.subscriptionActions.common.includingVat')}
-                </span>
-              </span>
-            }
-          />
+          {/* The sample holds no prices (PY-2): what the period bills is the server's to quote. */}
+          <SummaryLine label={t('console.subscriptionActions.activate.wouldBill')} value="—" />
         </div>
 
         <div className="flex flex-col gap-2">
