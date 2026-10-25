@@ -41,15 +41,25 @@ const ALL: Entitlements = {
     'erp.connection.manage',
     'erp.credential.replace',
     'erp.connection.test',
+    'erp.connection.sample',
   ],
   scopes: [],
   featureFlags: {},
 }
 const READER: Entitlements = { ...ALL, permissions: ['erp.connection.read'] }
-/** Manage without test: may configure and activate, may not make Fawtir call the tenant's ERP. */
+/** Manage without sample: may configure and activate, may not make Fawtir call the tenant's ERP. */
 const NO_TEST: Entitlements = {
   ...ALL,
   permissions: ['erp.connection.read', 'erp.connection.manage'],
+}
+/** The server gates the sample on erp.connection.sample alone; test is a different call. */
+const TEST_NOT_SAMPLE: Entitlements = {
+  ...ALL,
+  permissions: ['erp.connection.read', 'erp.connection.manage', 'erp.connection.test'],
+}
+const SAMPLE_NOT_TEST: Entitlements = {
+  ...ALL,
+  permissions: ['erp.connection.read', 'erp.connection.manage', 'erp.connection.sample'],
 }
 const NOBODY: Entitlements = { ...ALL, permissions: ['invoice.read'] }
 
@@ -780,15 +790,29 @@ describe('permissions', () => {
     expect((enableButton() as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('manage without erp.connection.test cannot fetch a sample', async () => {
+  it('manage without erp.connection.sample cannot fetch a sample', async () => {
     who = NO_TEST
     renderPage()
     await screen.findByLabelText('Documents pointer')
 
     expect((sampleButton() as HTMLButtonElement).disabled).toBe(true)
     expect(screen.getByText('You do not have permission to fetch a sample.')).toBeTruthy()
-    // Can still configure and activate: the three permissions are genuinely separate.
+    // Can still configure and activate: the permissions are genuinely separate.
     expect((saveButton() as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('erp.connection.test alone does not offer the sample', async () => {
+    who = TEST_NOT_SAMPLE
+    renderPage()
+    await screen.findByLabelText('Documents pointer')
+    expect((sampleButton() as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('erp.connection.sample without test offers the sample', async () => {
+    who = SAMPLE_NOT_TEST
+    renderPage()
+    await screen.findByLabelText('Documents pointer')
+    expect((sampleButton() as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('shows nothing of the screen without erp.connection.read', async () => {

@@ -1,4 +1,4 @@
-import { hasPermission, type Entitlements } from '../identity/entitlements'
+import { erpSwitchedOff, hasPermission, type Entitlements } from '../identity/entitlements'
 
 /**
  * The places of Settings › Integration and who may open each (Phase 9). Decides what the strip
@@ -71,8 +71,13 @@ export const INTEGRATION_AREAS: IntegrationArea[] = [
   },
 ]
 
-/** The areas this snapshot may open. A snapshot that could not be read offers Access only. */
+/**
+ * The areas this snapshot may open. A snapshot that could not be read offers Access only. A
+ * company whose ERP is switched off is offered none: every area, Access included, would only
+ * answer "not enabled" (ErpGated).
+ */
 export function openAreas(entitlements: Entitlements | null): IntegrationArea[] {
+  if (erpSwitchedOff(entitlements)) return []
   return INTEGRATION_AREAS.filter(
     (area) => area.allowed === null || (entitlements !== null && area.allowed(entitlements)),
   )

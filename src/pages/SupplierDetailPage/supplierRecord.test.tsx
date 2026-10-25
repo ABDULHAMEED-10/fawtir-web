@@ -1492,3 +1492,42 @@ describe('New purchase order while the subscription is read-only (owner, 23 Oct 
     },
   )
 })
+
+// Owner change to PL-8, 24 Oct 2026: New purchase order follows the purchase-orders switch, not
+// the selling documents' one; recording and paying a bill never depend on it.
+describe('New purchase order and the purchase-orders switch (PL-8, owner, 24 Oct 2026)', () => {
+  const OWNER: Entitlements = {
+    ...MANAGER,
+    permissions: [
+      ...MANAGER.permissions,
+      'purchase-order.manage',
+      'invoice.payment.manage',
+      'tenant.plan.read',
+    ],
+  }
+  const onPlan = (planFeatures: Record<string, boolean>): Entitlements => ({
+    ...OWNER,
+    planFeaturesEnforced: true,
+    planFeatures,
+  })
+
+  it('hides New purchase order when purchase orders are off; recording a bill stays', async () => {
+    who = onPlan({ tradeDocuments: true, purchaseOrders: false })
+    answerStanding(fetchMock, null)
+    renderSupplier()
+    await screen.findByRole('heading', { level: 1, name: 'Qalhat Marine Supplies LLC' })
+    await waitFor(() => expect(standingRead(fetchMock)).toBe(true))
+    await settle()
+    expect(screen.getByRole('link', { name: /Record a bill/ })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'New purchase order' })).toBeNull()
+  })
+
+  it('offers New purchase order when purchase orders are on and trade documents off', async () => {
+    who = onPlan({ tradeDocuments: false, purchaseOrders: true })
+    answerStanding(fetchMock, null)
+    renderSupplier()
+    await screen.findByRole('heading', { level: 1, name: 'Qalhat Marine Supplies LLC' })
+    await waitFor(() => expect(standingRead(fetchMock)).toBe(true))
+    expect(await screen.findByRole('link', { name: 'New purchase order' })).toBeTruthy()
+  })
+})

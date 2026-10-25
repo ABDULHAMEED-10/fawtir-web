@@ -15,6 +15,7 @@ import { Pill } from './ErpShell'
 import { useApiRead } from '../../hooks/useApiRead'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { hasPermission } from '../../lib/identity/entitlements'
+import { holdsCapability } from '../../lib/erp/erpAccess'
 import { describeApiFailure } from '../../lib/apiFailure'
 import {
   DEFAULT_TRANSACTION_TYPE,
@@ -46,8 +47,6 @@ import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 
 const FORMATS: BridgeFormat[] = ['JSON', 'XML']
 const UPLOAD_PERMISSION = 'invoice.submit'
-/** The mapping endpoints, the certification status among them, are administration. */
-const MAPPING_PERMISSION = 'admin.settings.manage'
 
 const clockOf = (date: Date) =>
   `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
@@ -89,7 +88,8 @@ export function ErpBridgePage() {
     )
   }
   const canUpload = entitlements !== null && hasPermission(entitlements, UPLOAD_PERMISSION)
-  const canReadMapping = entitlements !== null && hasPermission(entitlements, MAPPING_PERMISSION)
+  // The certification status read accepts mapping.read as well as admin.settings.manage.
+  const canReadMapping = holdsCapability(entitlements, 'readMapping')
 
   return (
     <SettingsShell group="integration">

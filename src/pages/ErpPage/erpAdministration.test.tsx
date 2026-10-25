@@ -9,6 +9,7 @@ import { ErpAccessPage } from './ErpAccessPage'
 import { ErpConnectionsPage } from './ErpConnectionsPage'
 import { ActivityLogPage } from '../SettingsPage/ActivityLogPage'
 import { SettingsPage } from '../SettingsPage/SettingsPage'
+import { ErpGated } from '../../components/plan'
 
 const CONNECTION_ID = '9a8b7c6d-5e4f-4a3b-9c2d-1e0f9a8b7c6d'
 
@@ -446,5 +447,107 @@ describe('the Settings mapping card', () => {
     const card = await mappingCard()
     await waitFor(() => expect(within(card).getByText('No access')).toBeTruthy())
     expect(within(card).queryByText('Not set up')).toBeNull()
+  })
+})
+
+describe('F3: the company switch (erpEntitled)', () => {
+  const NOT_ENABLED = 'ERP integration is not enabled'
+
+  function renderGated(entry: string) {
+    return render(
+      <MemoryRouter initialEntries={[entry]}>
+        <Routes>
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings/erp" element={<ErpGated><ErpHomePage /></ErpGated>} />
+          <Route path="/settings/erp/access" element={<ErpGated><ErpAccessPage /></ErpGated>} />
+          <Route
+            path="/settings/erp/connections"
+            element={<ErpGated><ErpConnectionsPage /></ErpGated>}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+  }
+
+  it('ERP off wins over every ERP permission: a direct URL says not enabled and reads nothing ERP', async () => {
+    who = { ...ADMIN, erpEntitled: false }
+    const first = renderGated('/settings/erp')
+    expect(await screen.findByText(NOT_ENABLED)).toBeTruthy()
+    expect(screen.queryByText('Head office Odoo')).toBeNull()
+    // Not the permission sentence: the role is fine, the company switch is off.
+    expect(screen.queryByText(/needs permission/)).toBeNull()
+    expect(screen.queryByRole('navigation', { name: 'ERP integration areas' })).toBeNull()
+    first.unmount()
+
+    for (const entry of ['/settings/erp/connections', '/settings/erp/access']) {
+      const view = renderGated(entry)
+      expect(await screen.findByText(NOT_ENABLED)).toBeTruthy()
+      view.unmount()
+    }
+    expect(requested('/erp/')).toEqual([])
+  })
+
+  it('ERP on keeps the permission guard: a reader without the permissions gets the permission state', async () => {
+    who = { ...SUBMITTER, erpEntitled: true }
+    renderGated('/settings/erp')
+    expect(
+      await screen.findByText(/needs permission to read ERP connections and invoices/),
+    ).toBeTruthy()
+    expect(screen.queryByText(NOT_ENABLED)).toBeNull()
+  })
+
+  it('ERP on with the permissions renders the overview as before', async () => {
+    who = { ...ADMIN, erpEntitled: true }
+    renderGated('/settings/erp')
+    expect(await screen.findByText('Head office Odoo')).toBeTruthy()
+  })
+
+  it('follows a revoke and a re-enable on the next entitlements read', async () => {
+    who = { ...ADMIN, erpEntitled: true }
+    const on = renderGated('/settings/erp')
+    expect(await screen.findByText('Head office Odoo')).toBeTruthy()
+    on.unmount()
+
+    forgetEntitlements()
+    who = { ...ADMIN, erpEntitled: false }
+    const off = renderGated('/settings/erp')
+    expect(await screen.findByText(NOT_ENABLED)).toBeTruthy()
+    off.unmount()
+
+    forgetEntitlements()
+    resetSharedRequests()
+    who = { ...ADMIN, erpEntitled: true }
+    renderGated('/settings/erp')
+    expect(await screen.findByText('Head office Odoo')).toBeTruthy()
+  })
+
+  it('a server without the field (before backend #713) gates nothing, so ERP is not hidden from everyone', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    who = { ...ADMIN }
+    expect('erpEntitled' in who).toBe(false)
+    renderGated('/settings/erp')
+    expect(await screen.findByText('Head office Odoo')).toBeTruthy()
+    expect(screen.queryByText(NOT_ENABLED)).toBeNull()
+    warn.mockRestore()
+  })
+
+  it('locks the ERP cards on the Settings hub while ERP is off, and leaves the rest of Settings alone', async () => {
+    who = { ...ADMIN, erpEntitled: false }
+    const integration = renderGated('/settings?group=integration')
+    const card = (await screen.findByText(i18n.t('settings.card.erpOverviewTitle'))).closest('a')!
+    expect(within(card).getByText(i18n.t('settings.card.erpNotEnabledPill'))).toBeTruthy()
+    integration.unmount()
+
+    renderGated('/settings')
+    const team = (await screen.findByText(i18n.t('settings.card.teamTitle'))).closest('a')!
+    expect(within(team).queryByText(i18n.t('settings.card.erpNotEnabledPill'))).toBeNull()
+    expect(team.getAttribute('href')).toBe('/settings/team')
+  })
+
+  it('leaves the ERP cards unlocked while ERP is on', async () => {
+    who = { ...ADMIN, erpEntitled: true }
+    renderGated('/settings?group=integration')
+    const card = (await screen.findByText(i18n.t('settings.card.erpOverviewTitle'))).closest('a')!
+    expect(within(card).queryByText(i18n.t('settings.card.erpNotEnabledPill'))).toBeNull()
   })
 })

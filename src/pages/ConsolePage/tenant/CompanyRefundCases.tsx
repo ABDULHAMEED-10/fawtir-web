@@ -126,17 +126,21 @@ export function RefundCaseItem({
             : 'OPEN'
   const method = entry.refundMethod ? known(entry.refundMethod, REFUND_METHODS) : null
   return (
-    <li className={`${CONSOLE_CARD} flex flex-col gap-2 border border-border-subtle p-4`}>
-      {heading}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-text-primary">
-          {t(`${K}reason.${reason}`)}
-          <ConsoleStatusPill
-            tone={refunded ? 'success' : withdrawn || declined || waived ? 'neutral' : 'pending'}
-            label={t(`${K}status.${statusKey}`)}
-          />
-        </span>
-        <OmAmount amount={entry.amount} amountClassName="text-sm font-semibold" />
+    <li className={`${CONSOLE_CARD} flex flex-col gap-3 p-5`}>
+      {/* The company (on the cross-company queue) and the amount lead; the reason and its state
+          under them; the facts next; the acts in a row of their own at the foot. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          {heading}
+          <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-text-secondary">
+            {t(`${K}reason.${reason}`)}
+            <ConsoleStatusPill
+              tone={refunded ? 'success' : withdrawn || declined || waived ? 'neutral' : 'pending'}
+              label={t(`${K}status.${statusKey}`)}
+            />
+          </span>
+        </div>
+        <OmAmount amount={entry.amount} amountClassName="text-lg font-semibold tabular-nums" />
       </div>
       <span className="text-xs font-medium text-text-tertiary">
         {withRial(
@@ -198,7 +202,7 @@ export function RefundCaseItem({
         </span>
       ) : null}
       {canManage && refundableHere(entry) ? (
-        <div className="flex flex-wrap gap-2.5">
+        <div className="mt-1 flex flex-wrap justify-end gap-2.5 border-t border-border-subtle pt-3">
           <ConsoleButton
             variant="smallPrimary"
             onClick={() => onAction({ kind: 'refund', refund: entry })}

@@ -43,6 +43,11 @@ export function describeApiFailure(error: unknown): FormMessage & { reference: s
     // from any screen (composer, bulk upload, detail) says why, not "reload".
     const salesApproval = salesApprovalMessageKey(error)
     if (salesApproval !== null) return { key: salesApproval, reference }
+    // ERP switched off for the company is a platform decision, not a missing role: "ask an
+    // administrator in your company" sent people to someone who cannot change it.
+    if (error.status === 403 && error.problemType === 'erp-entitlement-required') {
+      return { key: 'apiErrors.erpNotEnabled', reference }
+    }
     if (error.status === 403) {
       return {
         key: error.problemType === 'csrf-rejected' ? 'apiErrors.csrf' : 'apiErrors.forbidden',

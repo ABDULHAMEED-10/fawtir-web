@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
 import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { CONSOLE_ITEMS } from '../../lib/consoleNav'
+import { CONSOLE_SETTINGS_CARDS } from '../../lib/console/consoleSettingsHub'
 import { CONSOLE_PAGE, ConsolePageHeader } from '../../layouts/ConsoleShell/consoleStyle'
 
 /**
@@ -14,7 +15,11 @@ import { CONSOLE_PAGE, ConsolePageHeader } from '../../layouts/ConsoleShell/cons
 export function ConsoleSoonPage() {
   const { t } = useTranslation()
   const { pathname } = useLocation()
-  const item = CONSOLE_ITEMS.find((entry) => entry.to === pathname)
+  // A screen opened from a Settings card is named by its card.
+  const card = CONSOLE_SETTINGS_CARDS.find((entry) => entry.to.split('?')[0] === pathname)
+  const item =
+    CONSOLE_ITEMS.find((entry) => entry.to === pathname) ??
+    (card ? { labelKey: `console.settingsHub.card.${card.id}Title` } : undefined)
 
   return (
     <ConsoleShell>

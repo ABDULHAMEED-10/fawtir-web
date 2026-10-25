@@ -8,6 +8,7 @@ import type { NoteScope } from '../../lib/notifications'
 import searchIcon from '../../assets/dashboard/search.svg'
 import plusIcon from '../../assets/dashboard/plus.svg'
 import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
+import { ConsoleSearch } from '../ConsoleShell/ConsoleSearch'
 
 /** Below this the bar cannot hold a search field as well as everything else. */
 const SEARCH_FITS = '(min-width: 48rem)'
@@ -16,12 +17,15 @@ export function Topbar({
   onOpenNav = () => {},
   showCreateInvoice: allowCreateInvoice = true,
   notes = 'tenant',
+  search = 'tenant',
 }: {
   onOpenNav?: () => void
   /** The Fawtir console has no Create Invoice — nobody invoices from inside the platform. */
   showCreateInvoice?: boolean
   /** Whose notifications the bell shows — the console's are not a shop's. */
   notes?: NoteScope
+  /** Which search the bar carries: a shop's documents, or the console's companies. */
+  search?: 'tenant' | 'console'
 }) {
   const { t } = useTranslation()
   const location = useLocation()
@@ -51,7 +55,19 @@ export function Topbar({
 
   return (
     <header className="flex h-[74px] shrink-0 items-center justify-between gap-4 border-b border-black/10 bg-surface-tab-bar px-5 max-md:gap-2 max-md:px-3">
-      {searchOpen ? (
+      {searchOpen && search === 'console' ? (
+        <div className="flex w-full items-center gap-2 md:hidden">
+          <button
+            type="button"
+            onClick={() => setSearchOpen(false)}
+            aria-label={t('common.close')}
+            className="inline-flex size-10 shrink-0 items-center justify-center rounded-sm text-text-tertiary transition-colors hover:bg-primary-25"
+          >
+            <CloseIcon size={18} />
+          </button>
+          <ConsoleSearch autoFocus className="max-w-none flex-1" />
+        </div>
+      ) : searchOpen ? (
         <div className="flex w-full items-center gap-2 md:hidden">
           <button
             type="button"
@@ -82,12 +98,18 @@ export function Topbar({
             <MenuIcon size={22} />
           </button>
 
-          <GlobalSearch className="max-md:hidden" />
+          {search === 'console' ? (
+            <ConsoleSearch className="max-md:hidden" />
+          ) : (
+            <GlobalSearch className="max-md:hidden" />
+          )}
 
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
-            aria-label={t('dashboard.searchPlaceholder')}
+            aria-label={
+              search === 'console' ? t('console.search.label') : t('dashboard.searchPlaceholder')
+            }
             className="inline-flex size-10 shrink-0 items-center justify-center rounded-sm text-text-secondary transition-colors hover:bg-primary-25 md:hidden"
           >
             <img src={searchIcon} alt="" className="size-5" />

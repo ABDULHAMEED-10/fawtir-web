@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Rial, withRial } from '../../components/ui'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
+import { ConsoleSettingsFrame } from '../../layouts/ConsoleShell/ConsoleSettingsFrame'
 import { ConsoleNotice, ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
 import { ConsoleStatusPill } from '../../layouts/ConsoleShell/ConsoleStatusPill'
 import { useConsoleRead } from '../../layouts/ConsoleShell/useConsoleRead'
@@ -29,8 +30,9 @@ import {
   ConsolePageHeader,
 } from '../../layouts/ConsoleShell/consoleStyle'
 
-/** `{ plan: null }` is adding a plan. */
-type Editing = { plan: CatalogueAdminPlan | null } | null
+/** The address of the plan being edited (`?edit=<code>`), or of a new one (`?edit=new`). */
+const EDIT_PARAM = 'edit'
+const NEW_PLAN = 'new'
 
 /**
  * The platform's plan catalogue, every plan including the ones no longer offered — one read,
@@ -49,7 +51,9 @@ function PlanCatalogue() {
   const { read, retry } = useConsoleRead<CatalogueAdminPlan[]>(PLANS_PATH)
   const [saved, setSaved] = useState<ReadonlyMap<string, CatalogueAdminPlan>>(() => new Map())
   const [lastSaved, setLastSaved] = useState<string | null>(null)
-  const [editing, setEditing] = useState<Editing>(null)
+  // The editor is a page of its own (owner, 24 Oct 2026), with an address: `?edit=<code>`.
+  const [params, setParams] = useSearchParams()
+  const editCode = params.get(EDIT_PARAM)
   const [history, setHistory] = useState<CatalogueAdminPlan | null>(null)
   const [counting, setCounting] = useState<CatalogueAdminPlan | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -62,13 +66,24 @@ function PlanCatalogue() {
 
   const edit = (plan: CatalogueAdminPlan | null) => {
     setNotice(null)
-    setEditing({ plan })
+    setParams({ [EDIT_PARAM]: plan ? plan.code : NEW_PLAN })
+    window.scrollTo?.({ top: 0 })
   }
+  const closeEditor = () => setParams({})
+  const editing =
+    editCode === null || !plans
+      ? null
+      : editCode === NEW_PLAN
+        ? { plan: null }
+        : (() => {
+            const plan = plans.find((entry) => entry.code === editCode)
+            return plan ? { plan } : null
+          })()
 
   // Another operator changed the plan meanwhile: what this page holds is stale, so the whole
   // catalogue is read again and nothing kept from earlier saves overrides it.
   const reload = () => {
-    setEditing(null)
+    closeEditor()
     setSaved(new Map())
     setLastSaved(null)
     setNotice(t('console.plans.reloaded'))
@@ -103,10 +118,35 @@ function PlanCatalogue() {
     )
   }
 
+  if (editing && plans) {
+    return (
+      <div className={CONSOLE_PAGE}>
+        <ConsoleSettingsFrame
+          tab="plans"
+          back={{ to: '/console/plans', label: t('console.plans.title') }}
+        />
+        <PlanEditor
+          presentation="page"
+          plan={editing.plan}
+          readOnly={!canManage}
+          takenCodes={plans.map((plan) => plan.code)}
+          onClose={closeEditor}
+          onConflict={reload}
+          onSaved={(plan) => {
+            setSaved((current) => new Map(current).set(plan.code, plan))
+            setLastSaved(plan.code)
+            closeEditor()
+            setNotice(t('console.plans.saved', { name: displayPlanName(plan, i18n.language) }))
+          }}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className={CONSOLE_PAGE}>
-      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.plans' }]} />
-      <ConsolePageHeader
+      <ConsoleSettingsFrame tab="plans" />
+      <ConsolePageHeader level="section"
         title={t('console.plans.title')}
         subtitle={t('console.plans.subtitle')}
         actions={
@@ -135,21 +175,6 @@ function PlanCatalogue() {
 
       {body}
 
-      {editing && plans ? (
-        <PlanEditor
-          plan={editing.plan}
-          readOnly={!canManage}
-          takenCodes={plans.map((plan) => plan.code)}
-          onClose={() => setEditing(null)}
-          onConflict={reload}
-          onSaved={(plan) => {
-            setSaved((current) => new Map(current).set(plan.code, plan))
-            setLastSaved(plan.code)
-            setEditing(null)
-            setNotice(t('console.plans.saved', { name: displayPlanName(plan, i18n.language) }))
-          }}
-        />
-      ) : null}
 
       {history ? <PlanHistoryPanel plan={history} onClose={() => setHistory(null)} /> : null}
 

@@ -37,6 +37,7 @@ import { FieldRow, ReadOnlyRow } from './fields/FieldRow'
 import { SectionCard } from './fields/SectionCard'
 import { ReadinessChecklist } from './fields/ReadinessChecklist'
 import { errorsFor, jumpTo, rowId, sectionId } from './fields/model'
+import { useMappingAccess } from '../../hooks/useErpAccess'
 
 /**
  * How long after the last keystroke the draft is sent for validation.
@@ -66,6 +67,7 @@ export function ErpFieldsPage() {
   const { t } = useTranslation()
   const view = useErpMapping()
   const reloadView = useErpMappingReload()
+  const access = useMappingAccess()
   const [params] = useSearchParams()
   const samples = useSyncExternalStore(sessionSamples.subscribe, sessionSamples.snapshot)
 
@@ -108,6 +110,8 @@ export function ErpFieldsPage() {
       skipValidate.current = false
       return
     }
+    // Validate is a mapping.manage route; a reader's edit would only earn a 403 every 2 s.
+    if (!access.manage) return
     setChecking(true)
     const controller = new AbortController()
     const timer = window.setTimeout(() => {
@@ -434,7 +438,7 @@ export function ErpFieldsPage() {
             result={result}
             version={baseline.version}
             saving={saving}
-            onSave={save}
+            onSave={access.manage ? save : undefined}
             onJump={jumpToRow}
           />
         </aside>

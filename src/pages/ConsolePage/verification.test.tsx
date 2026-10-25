@@ -270,8 +270,9 @@ describe('Console access', () => {
     })
     renderAt('/console/onboarding')
     expect(await screen.findByRole('link', { name: i18n.t('console.nav.plans') })).toBeTruthy()
-    expect(screen.getByRole('link', { name: i18n.t('console.nav.policies') })).toBeTruthy()
-    for (const hidden of ['console.nav.tenants', 'console.nav.verification', 'console.nav.operators']) {
+    // Validation policies are opened from Console › Settings (owner, 24 Oct 2026).
+    expect(screen.getByRole('link', { name: i18n.t('console.nav.bottomSettings') })).toBeTruthy()
+    for (const hidden of ['console.nav.tenants', 'console.nav.verification', 'console.settingsHub.card.operatorsTitle']) {
       expect(screen.queryByRole('link', { name: i18n.t(hidden) })).toBeNull()
     }
   })

@@ -1,5 +1,6 @@
 import { useEntitlements } from './useEntitlements'
 import { erpConnectionAccess, type ErpConnectionAccess } from '../lib/erp/connectionPolicy'
+import { mappingAccess, type MappingAccess } from '../lib/erp/erpAccess'
 
 /**
  * The four ERP connection permissions for the signed-in user.
@@ -12,4 +13,10 @@ import { erpConnectionAccess, type ErpConnectionAccess } from '../lib/erp/connec
 export function useErpAccess(): { access: ErpConnectionAccess; ready: boolean } {
   const { entitlements, ready } = useEntitlements()
   return { access: erpConnectionAccess(entitlements), ready }
+}
+
+/** The mapping writes the signed-in user holds; all-false until the snapshot arrives. */
+export function useMappingAccess(): MappingAccess {
+  const { entitlements } = useEntitlements()
+  return mappingAccess(entitlements)
 }

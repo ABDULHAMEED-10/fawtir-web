@@ -6,7 +6,7 @@ import i18n from '../../../i18n'
 import { resetSharedRequests } from '../../../api'
 import { forgetEntitlements, type Entitlements } from '../../../lib/identity/entitlements'
 import { ConsoleBillingPaymentsPage } from './ConsoleBillingPaymentsPage'
-import { ConsoleBankAccountsPage } from './ConsoleBankAccountsPage'
+import { ConsoleFawtirCompanyPage } from './ConsoleFawtirCompanyPage'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const QUEUE = '/api/v1/platform/billing/payments'
@@ -97,7 +97,7 @@ function renderAt(path: string) {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/console/billing/payments" element={<ConsoleBillingPaymentsPage />} />
-        <Route path="/console/billing/accounts" element={<ConsoleBankAccountsPage />} />
+        <Route path="/console/settings/company" element={<ConsoleFawtirCompanyPage />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -318,7 +318,7 @@ describe('Console › Bank account', () => {
     }])
     answers[`POST ${BENEFICIARIES}/a-1/confirmation`] = () => json(200, {})
     const user = userEvent.setup({ delay: null })
-    renderAt('/console/billing/accounts')
+    renderAt('/console/settings/company')
 
     expect(await screen.findByText(i18n.t('console.bankAccounts.status.PENDING_CONFIRMATION'))).toBeTruthy()
     await user.click(screen.getByRole('button', { name: i18n.t('console.bankAccounts.confirm') }))
@@ -337,7 +337,7 @@ describe('Console › Bank account', () => {
     answers[`POST ${BENEFICIARIES}/a-1/confirmation`] = () =>
       json(403, { type: 'https://api.fawtir.om/problems/payment-approver-not-independent' })
     const user = userEvent.setup({ delay: null })
-    renderAt('/console/billing/accounts')
+    renderAt('/console/settings/company')
 
     await user.click(await screen.findByRole('button', { name: i18n.t('console.bankAccounts.confirm') }))
     expect(await screen.findByText(i18n.t('console.bankAccounts.refusal.sameOperator'))).toBeTruthy()
@@ -352,7 +352,7 @@ describe('Console › Bank account, retiring the live account', () => {
       confirmedBy: 'u-third', version: 2,
     }])
     const user = userEvent.setup({ delay: null })
-    renderAt('/console/billing/accounts')
+    renderAt('/console/settings/company')
 
     await user.click(await screen.findByRole('button', { name: i18n.t('console.bankAccounts.retire') }))
     expect(screen.getByText(i18n.t('console.bankAccounts.retireConfirm'))).toBeTruthy()
@@ -374,10 +374,10 @@ describe('Console › Bank account, refusals and labels (retest 15 Oct 2026)', (
     answers[`POST ${BENEFICIARIES}/a-1/confirmation`] = () =>
       json(403, { type: 'https://api.fawtir.om/problems/csrf-rejected' })
     const user = userEvent.setup({ delay: null })
-    renderAt('/console/billing/accounts')
+    renderAt('/console/settings/company')
 
     await user.click(await screen.findByRole('button', { name: i18n.t('console.bankAccounts.confirm') }))
-    expect((await screen.findByRole('alert')).textContent).toBe(i18n.t('apiErrors.csrf'))
+    expect(await screen.findByText(i18n.t('apiErrors.csrf'), { selector: '[role="alert"]' })).toBeTruthy()
     expect(screen.queryByText(i18n.t('console.billing.refusal.other'))).toBeNull()
   })
 
@@ -386,15 +386,17 @@ describe('Console › Bank account, refusals and labels (retest 15 Oct 2026)', (
     answers[`POST ${BENEFICIARIES}/a-1/confirmation`] = () =>
       json(403, { type: 'https://api.fawtir.om/problems/forbidden' })
     const user = userEvent.setup({ delay: null })
-    renderAt('/console/billing/accounts')
+    renderAt('/console/settings/company')
 
     await user.click(await screen.findByRole('button', { name: i18n.t('console.bankAccounts.confirm') }))
-    expect((await screen.findByRole('alert')).textContent).toBe(i18n.t('console.billing.refusal.forbidden'))
+    expect(
+      await screen.findByText(i18n.t('console.billing.refusal.forbidden'), { selector: '[role="alert"]' }),
+    ).toBeTruthy()
   })
 
   it('ties every field of the new-account form to its label (K-UI-b)', async () => {
     answers[BENEFICIARIES] = () => json(200, [])
-    renderAt('/console/billing/accounts')
+    renderAt('/console/settings/company')
     await screen.findByText(i18n.t('console.bankAccounts.empty'))
 
     for (const key of ['billing.bank.holder', 'billing.bank.bank', 'billing.bank.iban', 'billing.bank.swift', 'console.bankAccounts.reason']) {

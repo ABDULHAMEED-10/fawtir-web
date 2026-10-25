@@ -4,13 +4,16 @@ import { NoteLine, SwitchRow } from './shared'
 
 const K = 'console.settings.operations.'
 
-const FLAGS = ['temporaryQuotaGrant', 'overageWaiver', 'grandfathering'] as const
+// A temporary quota grant is given from the company's own page in Tenants, against the platform
+// API; the switch here never saved (owner, 24 Oct 2026).
+const FLAGS = ['overageWaiver', 'grandfathering'] as const
 
 /** What an operator may do for one tenant — each action lands on the tenant's record with a reason. */
 export function OperationsSection({ form, set }: SectionProps<'operations'>) {
   const { t } = useTranslation()
   return (
     <>
+      <NoteLine>{t(`${K}grantMovedNote`)}</NoteLine>
       {FLAGS.map((flag) => (
         <SwitchRow
           key={flag}

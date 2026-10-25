@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ConsoleShell } from '../../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../../layouts/ConsoleShell/ConsoleBreadcrumbs'
+import { ConsoleSectionFrame } from '../../../layouts/ConsoleShell/ConsoleSectionFrame'
 import { ConsoleNotice, ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
 import { ConsoleStatusPill } from '../../../layouts/ConsoleShell/ConsoleStatusPill'
 import { useConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
@@ -10,7 +10,9 @@ import {
   CONSOLE_CARD,
   CONSOLE_PAGE,
   CONSOLE_SMALL,
+  CONSOLE_TABLE,
   CONSOLE_TAB_LINE,
+  CONSOLE_THEAD,
   ConsolePageHeader,
 } from '../../../layouts/ConsoleShell/consoleStyle'
 import { consoleTab } from '../../../layouts/ConsoleShell/consoleTones'
@@ -60,9 +62,9 @@ function EnterpriseList() {
   } else {
     body = (
       <div className={`${CONSOLE_CARD} overflow-x-auto`}>
-        <table className="w-full min-w-[560px] text-start text-sm">
+        <table className={`${CONSOLE_TABLE} min-w-[560px] text-sm`}>
           <thead>
-            <tr className="text-xs font-semibold uppercase tracking-[0.6px] text-text-muted">
+            <tr className={CONSOLE_THEAD}>
               <th className="px-4 py-3 text-start">{t(`${K}col.company`)}</th>
               <th className="px-4 py-3 text-start">{t(`${K}col.state`)}</th>
               <th className="px-4 py-3 text-start">{t(`${K}col.since`)}</th>
@@ -99,8 +101,8 @@ function EnterpriseList() {
 
   return (
     <div className={CONSOLE_PAGE}>
-      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.enterprise' }]} />
-      <ConsolePageHeader title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
+      <ConsoleSectionFrame section="tenants" tab="enterprise" />
+      <ConsolePageHeader level="section" title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
       <div className="flex flex-wrap gap-x-6 rounded-sm bg-surface-card px-5">
         {TABS.map((tab) => {
           const active = tab === state
