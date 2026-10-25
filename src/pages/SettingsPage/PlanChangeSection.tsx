@@ -29,12 +29,15 @@ import {
   previewPlanChange,
   requestPlanChange,
   withdrawPlanChange,
+  NO_SWITCH_OFF_CHOICE,
   type BillingCycle,
   type PlanChangeKind,
   type PlanChangePlacesDto,
   type PlanChangePreviewDto,
   type PlanChangeViewDto,
+  type SwitchOffChoice,
 } from '../../api/settings/planChanges'
+import { SwitchOffPicker, type SwitchOffPick } from './PlanChangeSwitchOff'
 import { usePayingHeldUntilReconnected } from '../../hooks/usePayingHeldUntilReconnected'
 import { noteLeftFawtirRefusal } from '../../lib/leftFawtirRefusal'
 import { LeftFawtirRefusal } from '../../components/billing/LeftFawtirRefusal'
@@ -80,6 +83,7 @@ const KNOWN_REFUSALS = [
   'subscription-not-tracked',
   'disconnected-from-fawtir',
   'idempotency-key-reused',
+  'downgrade-choice-not-allowed',
 ]
 
 /**
@@ -209,25 +213,55 @@ function DialogBody({
   // One key per confirmation of one set of figures: a retry after a timeout lands on the same change.
   const key = useRef(newPlanChangeKey())
   const inFlight = useRef(false)
+  // US-4, BR-5 under PC-7 (`choosesSwitchOff`): who switches off as the new period starts. The
+  // preview is asked for again with every choice, so the total shown and confirmed is the server's;
+  // `shownChoice` is the one the preview on screen was made with, and the one sent on confirming.
+  const [choice, setChoice] = useState<SwitchOffChoice>(NO_SWITCH_OFF_CHOICE)
+  const [shownChoice, setShownChoice] = useState<SwitchOffChoice>(NO_SWITCH_OFF_CHOICE)
+  const [rechecking, setRechecking] = useState(false)
+  // Set when only the choice changed: the preview on screen stays while the new one is read.
+  const keepShown = useRef(false)
 
   useEffect(() => {
     const request = new AbortController()
-    setRead({ status: 'loading' })
-    previewPlanChange(target.planCode, cycle, request.signal).then(
-      (data) => setRead({ status: 'ready', data }),
+    const keep = keepShown.current
+    keepShown.current = false
+    if (keep) setRechecking(true)
+    else setRead({ status: 'loading' })
+    previewPlanChange(target.planCode, cycle, request.signal, choice).then(
+      (data) => {
+        setRead({ status: 'ready', data })
+        setShownChoice(choice)
+        setRechecking(false)
+      },
       (error: unknown) => {
-        if (!request.signal.aborted) setRead({ status: 'failed', error })
+        if (request.signal.aborted) return
+        setRechecking(false)
+        // A refused choice keeps the figures it was refused against, with the reason; confirming
+        // waits until the server has quoted a choice again.
+        if (keep) setFailure(refusalOf(t, error))
+        else setRead({ status: 'failed', error })
       },
     )
     return () => request.abort()
-  }, [target.planCode, cycle, attempt])
+  }, [target.planCode, cycle, attempt, choice, t])
 
   const chooseCycle = (next: BillingCycle) => {
     if (next === cycle || busy) return
     key.current = newPlanChangeKey()
     setPriceMoved(false)
     setFailure(null)
+    setChoice(NO_SWITCH_OFF_CHOICE)
     setCycle(next)
+  }
+
+  const chooseSwitchOff = (next: SwitchOffChoice) => {
+    if (busy || rechecking) return
+    key.current = newPlanChangeKey()
+    keepShown.current = true
+    setPriceMoved(false)
+    setFailure(null)
+    setChoice(next)
   }
 
   const preview = read.status === 'ready' ? read.data : null
@@ -243,9 +277,12 @@ function DialogBody({
     preview !== null &&
     preview.kind !== 'NONE' &&
     preview.blockers.length === 0
+  // The figures on screen are the server's for the choice made: not while a new preview is read,
+  // nor after the server refused the last choice.
+  const quoted = !rechecking && sameChoice(choice, shownChoice)
 
   const confirm = async () => {
-    if (!preview || !canConfirm || inFlight.current) return
+    if (!preview || !canConfirm || !quoted || inFlight.current) return
     inFlight.current = true
     setBusy(true)
     setFailure(null)
@@ -256,6 +293,12 @@ function DialogBody({
           billingCycle: preview.to.cycle,
           expectedTotal: preview.charge?.total ?? null,
           expectedPlanVersionId: preview.to.planVersionId,
+          ...(preview.choosesSwitchOff === true
+            ? {
+                switchOffUserIds: shownChoice.userIds,
+                switchOffBranchIds: shownChoice.branchIds,
+              }
+            : {}),
         },
         key.current,
       )
@@ -292,6 +335,7 @@ function DialogBody({
       <PreviewBody
         preview={read.data}
         inTrial={target.inTrial === true}
+        pick={{ choice: shownChoice, onChoose: chooseSwitchOff, busy: busy || rechecking }}
         neverPaid={target.neverPaid === true}
       />
     )
@@ -329,7 +373,7 @@ function DialogBody({
           {t('planChange.dialog.back')}
         </Button>
         {preview && canConfirm ? (
-          <Button size="md" disabled={busy} aria-busy={busy} onClick={confirm}>
+          <Button size="md" disabled={busy || !quoted} aria-busy={busy} onClick={confirm}>
             {t(`planChange.dialog.confirm.${preview.kind}`)}
           </Button>
         ) : null}
@@ -342,10 +386,12 @@ function DialogBody({
 function PreviewBody({
   preview,
   inTrial,
+  pick,
   neverPaid,
 }: {
   preview: PlanChangePreviewDto
   inTrial: boolean
+  pick: SwitchOffPick
   neverPaid: boolean
 }) {
   const { t, i18n } = useTranslation()
@@ -527,7 +573,7 @@ function PreviewBody({
         ) : null}
       </ul>
 
-      <Losses preview={preview} />
+      <Losses preview={preview} pick={pick} />
 
       {preview.blockers.length > 0 ? (
         <div
@@ -548,7 +594,7 @@ function PreviewBody({
  * PC-1: what a smaller plan takes away, before confirming: the features the new plan lacks, the
  * ERP add-on stopping, and the users and branches above it with who would go by default.
  */
-function Losses({ preview }: { preview: PlanChangePreviewDto }) {
+function Losses({ preview, pick }: { preview: PlanChangePreviewDto; pick: SwitchOffPick }) {
   const { t, i18n } = useTranslation()
   const date = formatDate(preview.effectiveOn ?? '', i18n.language)
   const atOnce = preview.applies !== 'ON_DATE'
@@ -559,6 +605,11 @@ function Losses({ preview }: { preview: PlanChangePreviewDto }) {
   const unknown = preview.lostFeatures.length - known.length
   const usersOver = (preview.users?.overBy ?? 0) > 0
   const branchesOver = (preview.branches?.overBy ?? 0) > 0
+  // US-4, BR-5 under PC-7: chosen here, before confirming, rather than once it is scheduled.
+  const chooses = preview.choosesSwitchOff === true && (usersOver || branchesOver)
+  // The whole period starts on this day, which is when those chosen switch off.
+  const switchOffOn =
+    preview.periodStartsOn ?? preview.charge?.windowStartsOn ?? preview.effectiveOn ?? ''
   if (preview.lostFeatures.length === 0 && !preview.erpAddonStops && !usersOver && !branchesOver)
     return null
 
@@ -583,13 +634,21 @@ function Losses({ preview }: { preview: PlanChangePreviewDto }) {
       {preview.erpAddonStops ? (
         <p>{atOnce ? t('planChange.loss.erpAtOnce') : t('planChange.loss.erp', { date })}</p>
       ) : null}
-      {usersOver && preview.users ? (
+      {chooses ? (
+        <SwitchOffPicker
+          preview={preview}
+          plan={plan}
+          date={formatDate(switchOffOn, i18n.language)}
+          pick={pick}
+        />
+      ) : null}
+      {usersOver && preview.users && !chooses ? (
         <PlacesOver kind="users" places={preview.users} plan={plan} date={date} />
       ) : null}
-      {branchesOver && preview.branches ? (
+      {branchesOver && preview.branches && !chooses ? (
         <PlacesOver kind="branches" places={preview.branches} plan={plan} date={date} />
       ) : null}
-      {usersOver || branchesOver ? (
+      {(usersOver || branchesOver) && !chooses ? (
         <p className="text-xs text-text-tertiary">{t('planChange.loss.chooseLater')}</p>
       ) : null}
     </div>
@@ -765,6 +824,12 @@ export function PendingPlanChangeCard({
       </div>
     </SectionCard>
   )
+}
+
+function sameChoice(a: SwitchOffChoice, b: SwitchOffChoice): boolean {
+  const same = (x: string[] | null, y: string[] | null) =>
+    x === null || y === null ? x === y : x.length === y.length && x.every((id) => y.includes(id))
+  return same(a.userIds, b.userIds) && same(a.branchIds, b.branchIds)
 }
 
 /** The sentence the Plan page shows once a change went through. */

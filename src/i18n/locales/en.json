@@ -23645,6 +23645,7 @@
       "idempotency-key-reused": "That request was already used for another change. Close this and try again.",
       "not-found": "This plan cannot be chosen.",
       "plan-change-via-fawtir": "Your company is on its own Enterprise terms, so plan changes go through Fawtir. Contact us to change your plan.",
+      "downgrade-choice-not-allowed": "This choice cannot be used. The owner, an administrator or the Head Branch always stays, and someone or a branch on it may already be switched off. Choose again.",
       "firstPaymentFirst": "Complete your first payment to choose your plan."
     },
     "pending": {
@@ -23696,6 +23697,13 @@
         "ANNUAL": "Yearly billing on {{to}}: applies as soon as it is paid, in place of your unpaid renewal.",
         "MONTHLY": "Monthly billing on {{to}}: applies as soon as it is paid, in place of your unpaid renewal."
       }
+    },
+    "switchOff": {
+      "users_one": "Users: {{plan}} includes {{included}} and you have {{inUse}}, {{n}} more. Keep each one as a paid extra, billed with this period, or switch them off on {{date}}. Nobody is deleted.",
+      "users_other": "Users: {{plan}} includes {{included}} and you have {{inUse}}, {{n}} more. Keep each one as a paid extra, billed with this period, or switch them off on {{date}}. Nobody is deleted.",
+      "branches_one": "Branches: {{plan}} includes {{included}} and you have {{inUse}} open, {{n}} more. Keep each one as a paid extra, billed with this period, or close it on {{date}}. Nothing is deleted.",
+      "branches_other": "Branches: {{plan}} includes {{included}} and you have {{inUse}} open, {{n}} more. Keep each one as a paid extra, billed with this period, or close it on {{date}}. Nothing is deleted.",
+      "defaultApplies": "If you do not choose, the default applies: the owner and administrators stay and the most recently added users are switched off first; the Head Branch stays and the most recently added branches are closed first. Nobody is kept as a paid extra."
     }
   },
   "fawtirReconnection": {
