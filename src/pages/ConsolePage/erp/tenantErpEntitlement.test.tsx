@@ -183,4 +183,13 @@ describe('describeErpEntitlementFailure', () => {
     expect(describeErpEntitlementFailure(refusal(404)).key).toBe('console.erpEntitlement.error.gone')
     expect(describeErpEntitlementFailure(refusal(400)).key).toBe('console.erpEntitlement.error.invalid')
   })
+
+  it('names a plan without the ERP add-on instead of "try again" (found in the local browser run)', () => {
+    expect(describeErpEntitlementFailure(refusal(409, 'erp-addon-not-offered')).key).toBe(
+      'console.erpEntitlement.error.addonNotOffered',
+    )
+    expect(describeErpEntitlementFailure(refusal(409, 'resource-conflict')).key).not.toBe(
+      'console.erpEntitlement.error.addonNotOffered',
+    )
+  })
 })

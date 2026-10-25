@@ -62,6 +62,11 @@ export function describeErpEntitlementFailure(error: unknown): FormMessage {
     if (error.status === 403) return { key: 'console.erpEntitlement.error.refused' }
     if (error.status === 404) return { key: 'console.erpEntitlement.error.gone' }
     if (error.status === 400) return { key: 'console.erpEntitlement.error.invalid' }
+    // A grant on a plan without the ERP and API add-on: a decision by name, so "try again" (the
+    // generic 409 wording) was wrong advice — only a plan change or Enterprise terms can help.
+    if (error.status === 409 && error.problemType === 'erp-addon-not-offered') {
+      return { key: 'console.erpEntitlement.error.addonNotOffered' }
+    }
   }
   return commonFailureMessage(error)
 }

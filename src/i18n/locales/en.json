@@ -15123,7 +15123,8 @@
         "impersonation": "This cannot be changed while acting as another user.",
         "refused": "You cannot change ERP access, or your sign-in needs to be verified again. Sign in again with two-step verification and retry.",
         "gone": "This tenant was not found, or is not a customer tenant.",
-        "invalid": "Fawtir could not accept this change. Check the reason and try again."
+        "invalid": "Fawtir could not accept this change. Check the reason and try again.",
+        "addonNotOffered": "The ERP and API add-on is not offered on this company's plan, so ERP cannot be enabled. Move the company to a plan that offers it, or set Enterprise terms, then try again."
       }
     },
     "billing": {
