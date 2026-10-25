@@ -1814,6 +1814,9 @@
       "onRequest": "عند الطلب",
       "draft": "مسودة"
     },
+    "pauseReason": {
+      "planFeatureNotIncluded": "خطتك لا تشمل الفواتير الدورية"
+    },
     "cadence": {
       "weekly": "يوم {{weekday}}",
       "monthly_ordinal_other": "في اليوم {{count}}",
@@ -6658,6 +6661,9 @@
       "noNextRun": "لا تاريخ قادم",
       "dueToArrive": "متوقع وصولها",
       "ended": "منتهية"
+    },
+    "pauseReason": {
+      "planFeatureNotIncluded": "خطتك لا تشمل الفواتير المتكررة"
     },
     "menu": {
       "edit": "تعديل",

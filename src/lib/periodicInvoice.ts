@@ -73,6 +73,21 @@ export function scheduleStatus(schedule: PeriodicScheduleDto): PeriodicStatus {
   return 'active'
 }
 
+const PAUSE_REASON_KEYS: Record<string, string> = {
+  PLAN_FEATURE_NOT_INCLUDED: 'periodicList.pauseReason.planFeatureNotIncluded',
+}
+
+/**
+ * The short reason shown beside Paused, when Fawtir paused the schedule. Null on a schedule that
+ * is not paused, one paused by hand, and a reason this screen does not know.
+ */
+export function pauseReasonKey(schedule: PeriodicScheduleDto): string | null {
+  if (scheduleStatus(schedule) !== 'paused' || !schedule.pauseReason) return null
+  return Object.hasOwn(PAUSE_REASON_KEYS, schedule.pauseReason)
+    ? PAUSE_REASON_KEYS[schedule.pauseReason]
+    : null
+}
+
 export function inTab(schedule: PeriodicScheduleDto, tab: PeriodicTabId): boolean {
   if (tab === 'all') return true
   const status = scheduleStatus(schedule)

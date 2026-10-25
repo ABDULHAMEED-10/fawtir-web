@@ -416,9 +416,11 @@ let schedules = [
     runCount: 5,
     lastRunDate: '2026-08-20',
   }),
+  // Paused by Fawtir when the company moved to a plan without periodic invoices.
   schedule('sch-5', 'c-nizwa', 'inv-t5', 'MONTHLY', '2027-02-20', '2027-04-20', 3, false, {
     runCount: 4,
     lastRunDate: '2026-03-20',
+    pauseReason: 'PLAN_FEATURE_NOT_INCLUDED',
   }),
   schedule('sch-6', 'c-mouj', 'inv-t6', 'ANNUALLY', '2027-01-15', '2029-01-15', null, true, {
     runCount: 0,
@@ -460,6 +462,7 @@ function schedule(
     autoIssue: false,
     notifyOnRun: false,
     createdAt: '2026-06-01T06:00:00Z',
+    pauseReason: null,
     ...extra,
   }
 }
@@ -672,6 +675,8 @@ export default [
       const found = schedules.find((s) => s.id === params[0])
       if (!found) return { status: 404 }
       found.active = params[1] === 'resume'
+      // Pausing or resuming by hand leaves no reason behind.
+      found.pauseReason = null
       if (found.active && found.nextRunDate < TODAY) found.nextRunDate = TODAY
       return found
     },

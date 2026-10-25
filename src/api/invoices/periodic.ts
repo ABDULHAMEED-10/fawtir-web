@@ -106,7 +106,15 @@ export type PeriodicScheduleDto = {
    * the last day of a shorter month. Null or absent on a weekly series and on older servers.
    */
   dayOfMonth?: number | null
+  /**
+   * Why Fawtir paused the schedule: `PLAN_FEATURE_NOT_INCLUDED` when the company moved to a plan
+   * without periodic invoices; it is resumed by hand once the plan includes them. Null when active,
+   * paused by hand, on the answer to a write, and absent on older servers.
+   */
+  pauseReason?: PeriodicPauseReason | null
 }
+
+export type PeriodicPauseReason = 'PLAN_FEATURE_NOT_INCLUDED'
 
 export type PeriodicRunDto = {
   runDate: string

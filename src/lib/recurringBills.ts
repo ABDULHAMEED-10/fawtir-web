@@ -91,6 +91,24 @@ export function canResume(
   return true
 }
 
+const PAUSE_REASON_KEYS: Record<string, string> = {
+  PLAN_FEATURE_NOT_INCLUDED: 'recurringBills.pauseReason.planFeatureNotIncluded',
+}
+
+/**
+ * The short reason shown beside Paused, when the plan is why it is paused. Null on an active or
+ * ended instruction, one paused by hand or with its supplier, and a reason this screen does not
+ * know.
+ */
+export function pauseReasonKey(
+  bill: Pick<RecurringBillDto, 'active' | 'status' | 'ended' | 'pauseReason'>,
+): string | null {
+  if (bill.active || isEnded(bill) || !bill.pauseReason) return null
+  return Object.hasOwn(PAUSE_REASON_KEYS, bill.pauseReason)
+    ? PAUSE_REASON_KEYS[bill.pauseReason]
+    : null
+}
+
 /**
  * What a chase answered: who was told, or that nobody was. A server that does not say (`told`
  * absent) and a person with no name on file both read as the sentence without a name.

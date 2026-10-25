@@ -73,6 +73,7 @@ import {
   periodicProblems,
   repeatOptions,
   repeatValue,
+  pauseReasonKey,
   scheduleStatus,
   periodicLineTax,
   taxRateOf,
@@ -405,6 +406,7 @@ function ScheduleComposer({ id }: { id: string | null }) {
   }
 
   const status = id && schedule ? scheduleStatus(schedule) : null
+  const pauseReason = id && schedule ? pauseReasonKey(schedule) : null
   const title =
     [form.subject.trim(), customerName].filter(Boolean).join(', ') ||
     t(id ? 'periodicInvoice.title' : 'periodicInvoice.newTitle')
@@ -545,6 +547,9 @@ function ScheduleComposer({ id }: { id: string | null }) {
                 <span className="size-1.5 shrink-0 rounded-full bg-current" />
                 {t(`periodicList.status.${status}`)}
               </span>
+            ) : null}
+            {pauseReason ? (
+              <span className="text-sm font-medium text-text-tertiary">{t(pauseReason)}</span>
             ) : null}
           </div>
           <p className="mt-1 flex flex-wrap items-center gap-1.5 text-base leading-[1.2] text-text-tertiary">

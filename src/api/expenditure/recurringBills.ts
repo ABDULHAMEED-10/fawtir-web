@@ -14,7 +14,11 @@ export type RecurringMode = 'RAISE' | 'EXPECT'
 export type RecurringListState = 'ACTIVE' | 'LATE' | 'PAUSED' | 'ALL'
 /** `ENDED` is a finished instruction: its count ran out or its end date passed. It cannot be resumed. */
 export type RecurringStatus = 'ACTIVE' | 'PAUSED' | 'ENDED'
-export type PauseReason = 'MANUAL' | 'SUPPLIER_SWITCHED_OFF'
+/**
+ * Why an instruction is paused. `PLAN_FEATURE_NOT_INCLUDED`: Fawtir paused it when the company
+ * moved to a plan without recurring bills; it is resumed by hand once the plan includes them.
+ */
+export type PauseReason = 'MANUAL' | 'SUPPLIER_SWITCHED_OFF' | 'PLAN_FEATURE_NOT_INCLUDED'
 export type ExpectationState = 'DUE_TO_ARRIVE' | 'ARRIVED' | 'ARRIVED_OUT_OF_RANGE' | 'LATE'
 export type RunOutcome =
   | 'RAISED'

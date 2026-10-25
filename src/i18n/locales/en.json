@@ -1717,6 +1717,9 @@
       "onRequest": "On request",
       "draft": "Draft"
     },
+    "pauseReason": {
+      "planFeatureNotIncluded": "Your plan does not include periodic invoices"
+    },
     "cadence": {
       "weekly": "on a {{weekday}}",
       "monthly_ordinal_one": "on the {{count}}st",
@@ -6334,6 +6337,9 @@
       "noNextRun": "No next date",
       "dueToArrive": "Due to arrive",
       "ended": "Ended"
+    },
+    "pauseReason": {
+      "planFeatureNotIncluded": "Your plan does not include recurring bills"
     },
     "menu": {
       "edit": "Edit",
