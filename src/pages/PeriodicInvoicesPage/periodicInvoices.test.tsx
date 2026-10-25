@@ -611,7 +611,7 @@ describe('Periodic invoices, wired to the API', () => {
     const row = (await screen.findByRole('link', { name: 'Muscat Grand Hotel' })).closest(
       'tr',
     ) as HTMLElement
-    expect(screen.queryByRole('link', { name: /New recurring invoice/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /New periodic invoice/ })).toBeNull()
     fireEvent.click(within(row).getByRole('button', { name: 'Schedule actions' }))
     expect(await screen.findByRole('menuitem', { name: 'View schedule' })).toBeTruthy()
     for (const name of ['Generate invoice', 'Pause series', 'Delete', 'Duplicate'])
@@ -789,7 +789,7 @@ describe('read-only and the plan together (ST-2 and PL-8)', () => {
     await menuOf('Nizwa Cafe')
     await screen.findByRole('menuitem', { name: 'View schedule' })
     expect(screen.queryByRole('menuitem', { name: 'Resume series' }) !== null).toBe(offered)
-    expect(screen.queryByRole('link', { name: 'New recurring invoice' }) !== null).toBe(offered)
+    expect(screen.queryByRole('link', { name: 'New periodic invoice' }) !== null).toBe(offered)
   })
 })
 
@@ -960,7 +960,7 @@ describe('a plan without periodic invoices (PL-8)', () => {
       'tr',
     ) as HTMLElement
     await waitFor(() =>
-      expect(screen.queryByRole('link', { name: 'New recurring invoice' })).toBeNull(),
+      expect(screen.queryByRole('link', { name: 'New periodic invoice' })).toBeNull(),
     )
     fireEvent.click(within(row).getByRole('button', { name: 'Schedule actions' }))
     expect(await screen.findByRole('menuitem', { name: 'View schedule' })).toBeTruthy()
@@ -974,7 +974,7 @@ describe('a plan without periodic invoices (PL-8)', () => {
     who = plan(true)
     renderAt('/income/periodic')
     await screen.findByRole('link', { name: 'Muscat Grand Hotel' })
-    expect(await screen.findByRole('link', { name: 'New recurring invoice' })).toBeTruthy()
+    expect(await screen.findByRole('link', { name: 'New periodic invoice' })).toBeTruthy()
   })
 
   it('opens a series read-only, with Pause and no Save', async () => {
