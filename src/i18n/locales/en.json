@@ -1604,7 +1604,7 @@
   "periodicList": {
     "title": "Periodic invoices",
     "subtitle": "Invoices that go out on a schedule. Each run copies one invoice you already have and leaves a draft for you to check and issue.",
-    "add": "New recurring invoice",
+    "add": "New periodic invoice",
     "searchPlaceholder": "Search by name, customer, reference…",
     "narrowsThisList": "Searching narrows the schedules on this page.",
     "empty": "Nothing here.",
@@ -2879,7 +2879,7 @@
       "hasOpenRun": "This schedule has a run in progress or waiting to be retried. Use Generate invoice to try that run again, or pause the schedule instead.",
       "finished": "This schedule has finished: it has no runs left, so it can't be resumed. Use Duplicate to start a new one."
     },
-    "kind": "Recurring invoice",
+    "kind": "Periodic invoice",
     "nextShort": "Next",
     "moreActions": "More actions",
     "pauseSeries": "Pause series",
@@ -21483,7 +21483,7 @@
       "supplierNotes": "Credit and debit notes your suppliers send you, matched to their bills.",
       "recurringBills": "Bills that arrive on a schedule, expected before they land and chased when they don't.",
       "purchaseOrders": "Orders you send your suppliers, approved before they go, with the goods booked in against them.",
-      "approvals": "Bills wait for the sign-offs you set before anything is paid.",
+      "approvals": "Sales documents wait for the sign-offs you set before they are issued.",
       "erpMapping": "Map the fields of your ERP's invoices so Fawtir reads, checks and reports them.",
       "api": "Your own system talks to Fawtir directly.",
       "webhooks": "Fawtir tells your systems the moment something changes."
