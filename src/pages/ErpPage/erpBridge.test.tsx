@@ -5,6 +5,7 @@ import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { resetSharedRequests } from '../../api'
 import { ErpBridgePage } from './ErpBridgePage'
+import { ErpGated } from '../../components/plan'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const BRIDGE_URL = '/api/v1/invoices/bridge'
@@ -425,5 +426,39 @@ describe('Arabic', () => {
       (node) => node.textContent === '1XXXXXXXXXXXXXXXXXXX',
     )
     expect(bitmap).toBeTruthy()
+  })
+})
+
+describe('F3: behind the company switch', () => {
+  const renderGated = () =>
+    render(
+      <MemoryRouter initialEntries={['/settings/erp/bridge']}>
+        <Routes>
+          <Route path="/settings/erp/bridge" element={<ErpGated><ErpBridgePage /></ErpGated>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+  it('ERP on: an uploader holding only invoice.submit gets the form, with no ERP connection', async () => {
+    who = { ...UPLOADER, erpEntitled: true }
+    renderGated()
+    expect(await screen.findByRole('button', { name: 'Upload' })).toBeTruthy()
+    expect(calls.some((call) => call.url.includes('/erp/connections'))).toBe(false)
+  })
+
+  it('ERP off: not enabled and no upload, though the role may upload', async () => {
+    who = { ...ADMIN_UPLOADER, erpEntitled: false }
+    renderGated()
+    expect(await screen.findByText('ERP integration is not enabled')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Upload' })).toBeNull()
+    expect(uploads()).toHaveLength(0)
+  })
+
+  it('ERP on without invoice.submit keeps the permission state, not "not enabled"', async () => {
+    who = { ...READER, erpEntitled: true }
+    renderGated()
+    expect(await screen.findByText('How documents reach Fawtir')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Upload' })).toBeNull()
+    expect(screen.queryByText('ERP integration is not enabled')).toBeNull()
   })
 })

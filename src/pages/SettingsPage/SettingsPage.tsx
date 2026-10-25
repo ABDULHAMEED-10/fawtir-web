@@ -52,7 +52,7 @@ import { sourceSystemName } from '../../lib/erp/sourceSystem'
 import { listErpConnections } from '../../api/erp/connections'
 import { useErpAccess } from '../../hooks/useErpAccess'
 import { useEntitlements } from '../../hooks/useEntitlements'
-import { hasPermission } from '../../lib/identity/entitlements'
+import { erpSwitchedOff, hasPermission } from '../../lib/identity/entitlements'
 import { isPermissionDenied } from '../../lib/apiFailure'
 import { useFeature } from '../../lib/planAccess'
 import type { Feature } from '../../lib/plans'
@@ -585,7 +585,12 @@ function HubCard({ card }: { card: Card }) {
   const { t } = useTranslation()
   // A card with no feature is on every plan; the hook still runs so the hook count is constant.
   const access = useFeature(card.feature ?? 'invoices')
-  const locked = card.feature ? !access.available : false
+  const planLocked = card.feature ? !access.available : false
+  // The ERP cards also wear the lock when the platform has switched ERP off for the company: the
+  // card still opens its screen, which says so, but it no longer reads as ready to use.
+  const { entitlements } = useEntitlements()
+  const erpOff = card.feature === 'erpMapping' && erpSwitchedOff(entitlements)
+  const locked = planLocked || erpOff
 
   return (
     <Link
@@ -665,7 +670,9 @@ function HubCard({ card }: { card: Card }) {
         {locked ? (
           <span className="inline-flex h-[24px] items-center gap-1.5 rounded-[3px] bg-surface-background px-2 text-[10px] font-semibold uppercase tracking-[0.4px] text-text-tertiary">
             <LockIcon size={12} />
-            {t('settings.card.lockedPill', { plan: t(`plan.planName.${access.neededPlan}`) })}
+            {planLocked
+              ? t('settings.card.lockedPill', { plan: t(`plan.planName.${access.neededPlan}`) })
+              : t('settings.card.erpNotEnabledPill')}
           </span>
         ) : (
           <span

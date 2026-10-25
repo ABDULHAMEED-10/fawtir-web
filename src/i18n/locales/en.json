@@ -10139,6 +10139,7 @@
       "connectionsPillError_other": "{{count}} need attention",
       "connectionsFootActive": "Automatic extraction · {{collected}} of {{limit}} this month",
       "lockedPill": "Available on {{plan}}",
+      "erpNotEnabledPill": "Not enabled",
       "connectionsPillUnknown": "Connections",
       "approvalsTitle": "Bill approvals",
       "approvalsBody": "How many people must approve a supplier's bill before it can be paid, and the amount below which none need to.",

@@ -10722,6 +10722,7 @@
       "connectionsPillError_other": "{{count}} تحتاج انتباهًا",
       "connectionsFootActive": "الاستخراج التلقائي · {{collected}} من {{limit}} هذا الشهر",
       "lockedPill": "متاح في باقة {{plan}}",
+      "erpNotEnabledPill": "غير مُفعَّل",
       "connectionsPillUnknown": "الاتصالات",
       "approvalsTitle": "اعتماد الفواتير",
       "approvalsBody": "كم شخصًا يجب أن يعتمد فاتورة المورّد قبل سدادها، والمبلغ الذي لا يحتاج ما دونه إلى اعتماد.",
