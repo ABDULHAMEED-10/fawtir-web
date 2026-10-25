@@ -633,6 +633,48 @@ describe('Read-only subscription: no new drafts and nothing sent (ST-2, CA-3; ow
     expect(screen.getByRole('link', { name: /Create Invoice/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Bulk upload/ })).toBeTruthy()
   })
+
+  // Both checks hold together: read-only (ST-2) and the plan's switch (PL-8). A door shows only
+  // when both allow it.
+  const withPlan = (on: boolean): Entitlements => ({
+    ...OWNER,
+    planFeaturesEnforced: true,
+    planFeatures: { bulkUpload: on, recurringInvoices: on },
+  })
+
+  it('shows Bulk upload and Periodic invoice when usable and the plan has them', async () => {
+    who = withPlan(true)
+    subscriptionResponse = () => json(200, standing(null))
+    renderInvoices()
+    await screen.findByText('Sohar Port Logistics')
+    await waitFor(() => expect(subscriptionRead()).toBe(true))
+    expect(await screen.findByRole('button', { name: /Bulk upload/ })).toBeTruthy()
+    await issuedRowMenu()
+    expect(screen.getByRole('menuitem', { name: 'Periodic invoice' })).toBeTruthy()
+  })
+
+  it('hides them when usable but the plan lacks them', async () => {
+    who = withPlan(false)
+    subscriptionResponse = () => json(200, standing(null))
+    renderInvoices()
+    await screen.findByText('Sohar Port Logistics')
+    await waitFor(() => expect(subscriptionRead()).toBe(true))
+    expect(screen.getByRole('link', { name: /Create Invoice/ })).toBeTruthy()
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Bulk upload/ })).toBeNull())
+    await issuedRowMenu()
+    expect(screen.queryByRole('menuitem', { name: 'Periodic invoice' })).toBeNull()
+  })
+
+  it('hides them when the plan has them but the subscription is read-only', async () => {
+    who = withPlan(true)
+    subscriptionResponse = () => json(200, standing('SUBSCRIPTION_SUSPENDED'))
+    renderInvoices()
+    await screen.findByText('Sohar Port Logistics')
+    await waitFor(() => expect(screen.queryByRole('link', { name: /Create Invoice/ })).toBeNull())
+    expect(screen.queryByRole('button', { name: /Bulk upload/ })).toBeNull()
+    await issuedRowMenu()
+    expect(screen.queryByRole('menuitem', { name: 'Periodic invoice' })).toBeNull()
+  })
 })
 
 describe('invoice list mapping', () => {
@@ -788,5 +830,34 @@ describe('the approvers\' queue (RL-6)', () => {
     expect(toInvoiceListItem(draft({ approvalState: 'REJECTED' })).approval).toBe('REJECTED')
     // An issued row never carries one, whatever arrives.
     expect(toInvoiceListItem(issued({ approvalState: 'APPROVED' })).approval).toBeNull()
+  })
+})
+
+// Business Rules PL-8: bulk upload and periodic invoices are plan features; a plan that has them
+// switched off keeps the list and hides the doors to them.
+describe('a plan without bulk upload or periodic invoices (PL-8)', () => {
+  it('hides Bulk upload and the row menu\'s Periodic invoice', async () => {
+    who = {
+      ...ADMIN,
+      planFeaturesEnforced: true,
+      planFeatures: { bulkUpload: false, recurringInvoices: false },
+    }
+    renderInvoices()
+    const issuedRow = (await screen.findByText('INV-2026-0042')).closest('tr')!
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Bulk upload' })).toBeNull())
+    fireEvent.click(within(issuedRow).getByRole('button', { name: 'Invoice actions' }))
+    expect(await screen.findByRole('menuitem', { name: 'View invoice' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Periodic invoice' })).toBeNull()
+  })
+
+  it('offers both when the plan has them', async () => {
+    who = {
+      ...ADMIN,
+      planFeaturesEnforced: true,
+      planFeatures: { bulkUpload: true, recurringInvoices: true },
+    }
+    renderInvoices()
+    await screen.findByText('INV-2026-0042')
+    expect(await screen.findByRole('button', { name: 'Bulk upload' })).toBeTruthy()
   })
 })

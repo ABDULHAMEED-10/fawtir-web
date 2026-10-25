@@ -60,6 +60,7 @@ import chevronIcon from '../../assets/invoices/chevron.svg'
 import viewIcon from '../../assets/actions/view.svg'
 import editIcon from '../../assets/actions/edit.svg'
 import pauseIcon from '../../assets/actions/pause.svg'
+import { usePlanIncludes } from '../../lib/planAccess'
 
 const GLYPH: Record<CategoryGlyph, { icon: string; tile: string }> = {
   premises: { icon: catShopIcon, tile: 'bg-primary-50' },
@@ -107,6 +108,9 @@ function RecurringBills() {
   const language = i18n.language
   const session = useSession()
   const canManage = can(session, 'invoice.payment.manage')
+  // A plan without recurring bills (PL-8) keeps reading and pausing; making, editing, resuming
+  // and chasing wait for a plan that has them.
+  const planIncludes = usePlanIncludes('recurringBills')
   const today = muscatToday()
   const [tab, setTab] = useState<RecurringListState>('ACTIVE')
   const [page, setPage] = useState(0)
@@ -188,7 +192,7 @@ function RecurringBills() {
               {t('recurringBills.subtitle')}
             </p>
           </div>
-          {canManage ? (
+          {canManage && planIncludes ? (
             <Link
               to="/expenditure/recurring-bills/new"
               className="inline-flex h-[46px] shrink-0 items-center gap-2 rounded-sm bg-primary-700 px-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"
@@ -441,6 +445,7 @@ function Row({
 }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
+  const planIncludes = usePlanIncludes('recurringBills')
   const glyph = GLYPH[categoryGlyph(bill.category)]
   const cadence = cadenceNote(bill, language)
   const note = stateNote(bill)
@@ -465,7 +470,7 @@ function Row({
     heldBySupplier && canManage ? supplierPath(heldBySupplier) : null,
     () => loadSupplier(heldBySupplier!),
   )
-  const resumable = canResume(
+  const resumable = planIncludes && canResume(
     bill,
     !heldBySupplier
       ? false
@@ -553,7 +558,7 @@ function Row({
     ? resumable
       ? { key: 'recurringBills.actions.resume', onClick: onToggle, filled: false }
       : null
-    : offersChase(bill)
+    : planIncludes && offersChase(bill)
       ? { key: 'recurringBills.actions.chase', onClick: onChase, filled: true }
       : null
 
@@ -680,12 +685,16 @@ function Row({
           },
           ...(canManage
             ? [
-                {
-                  id: 'edit',
-                  labelKey: 'recurringBills.menu.edit',
-                  icon: editIcon,
-                  to: `/expenditure/recurring-bills/${bill.id}/edit`,
-                },
+                ...(planIncludes
+                  ? [
+                      {
+                        id: 'edit',
+                        labelKey: 'recurringBills.menu.edit',
+                        icon: editIcon,
+                        to: `/expenditure/recurring-bills/${bill.id}/edit`,
+                      },
+                    ]
+                  : []),
                 ...(bill.active || resumable
                   ? [
                       {

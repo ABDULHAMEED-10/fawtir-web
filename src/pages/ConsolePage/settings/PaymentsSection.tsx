@@ -6,6 +6,7 @@ import {
   DayListField,
   FieldGrid,
   GroupLabel,
+  NoteLine,
   NumberField,
   PlaceholderChips,
   SwitchRow,
@@ -17,8 +18,10 @@ const K = 'console.settings.payments.'
 /** What a WhatsApp template may carry; the backend fills them when the message is sent. */
 const TEMPLATE_TOKENS = ['contact', 'plan', 'period', 'amount', 'link', 'days'] as const
 
-const METHODS = ['cardLink', 'bankTransfer', 'cash', 'cheque'] as const
-const BANK_FIELDS = ['accountName', 'bank', 'iban', 'referenceFormat'] as const
+// Card payment is switched on Billing rules and the bank account is kept on Fawtir company details,
+// both against the platform API; the copies here never saved (owner, 24 Oct 2026).
+const METHODS = ['bankTransfer', 'cash', 'cheque'] as const
+const BANK_FIELDS = ['referenceFormat'] as const
 
 export function PaymentsSection({ form, set, errors }: SectionProps<'payments'>) {
   const { t } = useTranslation()
@@ -72,6 +75,7 @@ export function PaymentsSection({ form, set, errors }: SectionProps<'payments'>)
       </div>
 
       <GroupLabel>{t(`${K}methodsGroup`)}</GroupLabel>
+      <NoteLine>{t(`${K}cardMovedNote`)}</NoteLine>
       {METHODS.map((method) => (
         <SwitchRow
           key={method}
@@ -85,6 +89,7 @@ export function PaymentsSection({ form, set, errors }: SectionProps<'payments'>)
       ))}
 
       <GroupLabel>{t(`${K}bankGroup`)}</GroupLabel>
+      <NoteLine>{t(`${K}bankMovedNote`)}</NoteLine>
       <FieldGrid>
         {BANK_FIELDS.map((field) => (
           <Input
@@ -92,8 +97,8 @@ export function PaymentsSection({ form, set, errors }: SectionProps<'payments'>)
             bordered
             name={`bank.${field}`}
             label={t(`${K}bank.${field}`)}
-            hint={field === 'referenceFormat' ? t(`${K}bank.referenceFormatHint`) : undefined}
-            dir={field === 'iban' || field === 'referenceFormat' ? 'ltr' : undefined}
+            hint={t(`${K}bank.referenceFormatHint`)}
+            dir="ltr"
             autoComplete="off"
             spellCheck={false}
             value={form.bank[field]}

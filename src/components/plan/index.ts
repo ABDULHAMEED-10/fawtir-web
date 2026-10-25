@@ -1,1 +1,2 @@
-export { PlanGated, PlanFromQuery } from './PlanGated'
+export { PlanGated } from './PlanGated'
+export { ErpGated } from './ErpGated'

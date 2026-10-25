@@ -56,6 +56,7 @@ export type Feature =
   | 'billReminders'
   | 'supplierNotes'
   | 'recurringBills'
+  | 'purchaseOrders'
   | 'approvals'
   | 'pos'
   | 'catalogue'
@@ -97,7 +98,14 @@ export const FEATURE_GROUPS: { id: string; features: Feature[] }[] = [
   },
   {
     id: 'expenditure',
-    features: ['billTracking', 'billReminders', 'supplierNotes', 'recurringBills', 'approvals'],
+    features: [
+      'billTracking',
+      'billReminders',
+      'supplierNotes',
+      'recurringBills',
+      'purchaseOrders',
+      'approvals',
+    ],
   },
   { id: 'operations', features: ['pos', 'catalogue', 'stock'] },
   {

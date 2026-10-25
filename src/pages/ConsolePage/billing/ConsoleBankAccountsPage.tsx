@@ -1,14 +1,11 @@
 import { useId, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
-import { ConsoleShell } from '../../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { ConsoleNotice, ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
 import { ConsoleStatusPill, type ConsolePillTone } from '../../../layouts/ConsoleShell/ConsoleStatusPill'
 import { useConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
 import {
   CONSOLE_CARD,
-  CONSOLE_PAGE,
   CONSOLE_PRIMARY,
   CONSOLE_SMALL,
   CONSOLE_SMALL_DANGER,
@@ -19,7 +16,6 @@ import { formatInstant } from '../../../lib/format'
 import {
   BENEFICIARIES_PATH,
   BILLING_MANAGE_PERMISSION,
-  BILLING_READ_PERMISSION,
   confirmBeneficiary,
   proposeBeneficiary,
   retireBeneficiary,
@@ -33,19 +29,10 @@ const TONE: Record<BeneficiaryRecordDto['status'], ConsolePillTone> = {
 }
 
 /**
- * The account customers pay Fawtir into (backend V271). Customers see an account only after a
- * second operator confirms it, so the person who typed an IBAN can never make it live alone; the
- * server refuses the same person and checks the Omani IBAN itself.
+ * One section of Console › Settings › Fawtir company details, under that page's frame. Its old
+ * address of its own forwards to that page (owner, 24 Oct 2026).
  */
-export function ConsoleBankAccountsPage() {
-  return (
-    <ConsoleShell requires={BILLING_READ_PERMISSION}>
-      <BankAccounts />
-    </ConsoleShell>
-  )
-}
-
-function BankAccounts() {
+export function BankAccounts() {
   const { t, i18n } = useTranslation()
   const { read, retry } = useConsoleRead<BeneficiaryRecordDto[]>(BENEFICIARIES_PATH)
   const [busy, setBusy] = useState(false)
@@ -162,9 +149,8 @@ function BankAccounts() {
   }
 
   return (
-    <div className={CONSOLE_PAGE}>
-      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.bankAccounts' }]} />
-      <ConsolePageHeader title={t('console.bankAccounts.title')} subtitle={t('console.bankAccounts.subtitle')} />
+    <div className="flex flex-col gap-5">
+      <ConsolePageHeader level="subsection" title={t('console.bankAccounts.title')} subtitle={t('console.bankAccounts.subtitle')} />
       {failure ? (
         <p role="alert" className="rounded-sm bg-danger-100 px-4 py-3 text-sm font-medium text-danger-700">
           {failure}

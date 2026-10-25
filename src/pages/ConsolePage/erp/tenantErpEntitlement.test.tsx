@@ -122,6 +122,47 @@ describe('the ERP entitlement card', () => {
     expect(writes()).toEqual([{ url: ENTITLEMENT_URL, method: 'DELETE', body: { reason: 'Contract ended' } }])
   })
 
+  it('re-reads the subscription cards after a grant, whose add-on card says who granted ERP', async () => {
+    const SUBSCRIPTION_URL = `/api/v1/platform/companies/${TENANT_ID}/subscription`
+    const extrasReads = () => calls.filter((call) => call.url === SUBSCRIPTION_URL && call.method === 'GET').length
+    who = { ...OPERATOR, permissions: [...OPERATOR.permissions, 'platform.billing.read'] }
+    renderDetail()
+    const card = (await screen.findByRole('heading', { name: 'ERP integration' })).closest('section')!
+    await within(card).findByText('Not enabled')
+    await waitFor(() => expect(extrasReads()).toBeGreaterThan(0))
+    const before = extrasReads()
+
+    fireEvent.click(within(card).getByRole('button', { name: 'Enable ERP integration' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Contract signed' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Enable' }))
+
+    await waitFor(() => expect(within(card).getByText('Enabled')).toBeTruthy())
+    await waitFor(() => expect(extrasReads()).toBeGreaterThan(before))
+  })
+
+  it('keeps the state and says so when the grant is refused', async () => {
+    const fetchMock = vi.mocked(fetch)
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === ENTITLEMENT_URL && init?.method === 'PUT') {
+        calls.push({ url: ENTITLEMENT_URL, method: 'PUT', body: JSON.parse(String(init.body)) })
+        return json(500, { type: 'https://api.fawtir.om/problems/internal-error' })
+      }
+      return base(input, init)
+    })
+    renderDetail()
+    const card = (await screen.findByRole('heading', { name: 'ERP integration' })).closest('section')!
+    fireEvent.click(await within(card).findByRole('button', { name: 'Enable ERP integration' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Contract signed' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Enable' }))
+
+    expect(await within(dialog).findByRole('alert')).toBeTruthy()
+    expect(within(card).getByText('Not enabled')).toBeTruthy()
+    expect(writes()).toHaveLength(1)
+  })
+
   it('is not shown, and the entitlement is never read, without platform.tenants.manage', async () => {
     who = { ...OPERATOR, permissions: ['platform.support'], scopes: ['platform.support'] }
     renderDetail()

@@ -13,6 +13,7 @@ import {
   type AgreementDto,
 } from '../../api/selfBilling/agreements'
 import { can, useSession } from '../../lib/session/session'
+import { usePlanIncludes } from '../../lib/planAccess'
 import { muscatToday } from '../../lib/invoiceIssue'
 import {
   BAR_TRACK,
@@ -149,6 +150,8 @@ function OrderFormsHeader({ onUnavailable }: { onUnavailable: () => void }) {
   // Nothing new is made while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
   const mayCreate = useSubscriptionAllows('CREATE_DRAFTS')
   const { t } = useTranslation()
+  // Making one needs a plan with trade documents (PL-8).
+  const tradeDocumentsIncluded = usePlanIncludes('tradeDocuments')
 
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
@@ -178,7 +181,7 @@ function OrderFormsHeader({ onUnavailable }: { onUnavailable: () => void }) {
           <img src={exportIcon} alt="" className="size-6" />
           {t('orderForms.export')}
         </button>
-        {mayCreate ? (
+        {mayCreate && tradeDocumentsIncluded ? (
           <Link
             to="/trade-documents/order-forms/new"
             className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-[#2c4eb7] py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"

@@ -8,7 +8,7 @@ import removeIcon from '../../assets/settings/menu-remove.svg'
 import sparkleIcon from '../../assets/settings/menu-sparkle.svg'
 import mailIcon from '../../assets/settings/menu-mail.svg'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
+import { ConsoleSettingsFrame } from '../../layouts/ConsoleShell/ConsoleSettingsFrame'
 import { useRefreshConsoleAccess } from '../../layouts/ConsoleShell/consoleAccessRefresh'
 import { ConsoleNotice, ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
 import { ConsoleStatusPill } from '../../layouts/ConsoleShell/ConsoleStatusPill'
@@ -212,8 +212,8 @@ function OperatorsList() {
 
   return (
     <div className={CONSOLE_PAGE}>
-      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.operators' }]} />
-      <ConsolePageHeader
+      <ConsoleSettingsFrame tab="platform" />
+      <ConsolePageHeader level="section"
         title={t('console.operators.title')}
         subtitle={t('console.operators.subtitle')}
         actions={

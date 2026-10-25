@@ -45,6 +45,7 @@ import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatDate, formatInstantDay } from '../../lib/format'
 import { saveDownload } from '../../lib/supplierRecord'
 import { can, useSession } from '../../lib/session/session'
+import { usePlanIncludes } from '../../lib/planAccess'
 import kpiMinusIcon from '../../assets/supplier-credit-notes/kpi-minus.svg'
 import kpiCheckIcon from '../../assets/supplier-credit-notes/kpi-check.svg'
 import kpiHomeIcon from '../../assets/supplier-credit-notes/kpi-home.svg'
@@ -104,7 +105,10 @@ function CreditNotesScreen() {
   const session = useSession()
   // Recording a credit note is capture (`invoice.payment.manage`); setting it against a bill
   // settles it (`bill.settle`), which the Accountant does not hold (RL-4).
-  const canUpload = can(session, 'invoice.payment.manage')
+  const mayRecord = can(session, 'invoice.payment.manage')
+  // Recording one needs a plan with supplier notes (PL-8); the notes made before stay listed.
+  const planIncludes = usePlanIncludes('supplierNotes')
+  const canUpload = mayRecord && planIncludes
   const canSettle = can(session, 'bill.settle')
 
   const tab: CreditTabId = isCreditTab(params.get('tab'))

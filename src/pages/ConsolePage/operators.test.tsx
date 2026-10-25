@@ -319,7 +319,7 @@ describe('Team', () => {
     await i18n.changeLanguage('ar')
     await openTeam()
 
-    expect(screen.getByRole('heading', { level: 1, name: t('console.operators.title') })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 2, name: t('console.operators.title') })).toBeTruthy()
     expect(within(row('Noor')).getByText(roleName('PLATFORM_SUPPORT'))).toBeTruthy()
     expect(t('console.operators.title')).not.toBe('Operators')
     expect(document.querySelector('main')?.textContent ?? '').not.toMatch(/Support|Tenant administration|Active/)

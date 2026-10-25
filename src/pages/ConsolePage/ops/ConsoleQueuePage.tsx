@@ -3,7 +3,6 @@ import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ConsoleShell } from '../../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { ConsoleNotice } from '../../../layouts/ConsoleShell/ConsoleNotice'
 import {
   ConsoleStatusPill,
@@ -153,7 +152,6 @@ export function ConsoleQueuePage() {
   return (
     <ConsoleShell>
       <div className={CONSOLE_PAGE}>
-        <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.queue' }]} />
         <ConsolePageHeader
           title={t('console.queue.title')}
           subtitle={t('console.queue.subtitle', {

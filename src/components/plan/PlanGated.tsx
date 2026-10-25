@@ -1,12 +1,12 @@
-import { useEffect, type ReactNode } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { type ReactNode } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { SettingsShell } from '../../pages/SettingsPage/SettingsShell'
 import { LockIcon, Rial } from '../ui'
 import { FEATURE_LIST, PLAN, hasFeature, type AnyPlanId, type Feature } from '../../lib/plans'
 import { formatBaisa } from '../../lib/pricing'
-import { planAccessStore, useFeature, useTenantPlan } from '../../lib/planAccess'
+import { isGatedFeature, neededPlanFrom, switchOn, usePlanAccess } from '../../lib/planAccess'
 import { useApiRead } from '../../hooks/useApiRead'
 import {
   PUBLIC_PLANS_PATH,
@@ -14,16 +14,6 @@ import {
   readPublicPlans,
   type SignupCataloguePlan,
 } from '../../lib/identity/signupPlans'
-
-/**
- * Reads `?plan=` once per URL change so the harness can open any screen as another plan would
- * see it (`/trade-documents/quotations?plan=starter`). Rendered once, inside the router.
- */
-export function PlanFromQuery() {
-  const { search } = useLocation()
-  useEffect(() => planAccessStore.applySearch(search), [search])
-  return null
-}
 
 type PlanGatedProps = {
   feature: Feature
@@ -33,12 +23,13 @@ type PlanGatedProps = {
 }
 
 /**
- * Gates a screen by plan. On a plan that carries the feature the page renders as it always has;
- * on one that does not, the page's own frame stays and the content gives way to an upsell panel
- * naming the plan that carries it — greyed with a nudge, never hidden (the client's ruling).
+ * Gates a screen that makes or uses a feature by plan (Business Rules PL-8). On a plan that
+ * carries the feature, or while the server does not enforce plan features, the page renders as it
+ * always has; otherwise the page's own frame stays and the content gives way to an upsell panel
+ * naming the plan that carries it. Screens that only read what was made before are not gated.
  */
 export function PlanGated({ feature, shell = 'app', children }: PlanGatedProps) {
-  const { available, neededPlan } = useFeature(feature)
+  const { available, neededPlan } = usePlanAccess().access(feature)
   if (available) return children
   const panel = <UpsellPanel feature={feature} neededPlan={neededPlan} />
   return shell === 'settings' ? (
@@ -50,10 +41,24 @@ export function PlanGated({ feature, shell = 'app', children }: PlanGatedProps) 
   )
 }
 
-/** Up to three things the needed plan adds beyond the tenant's own plan, besides the feature asked for. */
-function alsoAdds(current: AnyPlanId, needed: AnyPlanId, feature: Feature): Feature[] {
+/**
+ * Up to three gated features the needed plan adds beyond the company's own plan, besides the one
+ * asked for, both as Console › Plans sets them. Without the company's switches or the catalogue
+ * there is nothing true to list, so nothing is listed.
+ */
+function alsoAdds(
+  company: Record<string, boolean> | null,
+  catalogue: SignupCataloguePlan[] | null,
+  needed: AnyPlanId,
+  feature: Feature,
+): Feature[] {
+  if (!company) return []
+  const code = needed === 'enterprise' ? null : PLAN[needed].code
+  const plan = catalogue && code ? catalogue.find((p) => p.code === code) : undefined
+  const on = (f: Feature) =>
+    plan ? plan.features.some((x) => x.key === f && x.enabled) : hasFeature(needed, f)
   return FEATURE_LIST.filter(
-    (f) => f !== feature && hasFeature(needed, f) && !hasFeature(current, f),
+    (f) => f !== feature && isGatedFeature(f) && on(f) && !switchOn(company, f),
   ).slice(0, 3)
 }
 
@@ -84,13 +89,21 @@ function useGatePrice(neededPlan: AnyPlanId): GatePrice {
   }
 }
 
-export function UpsellPanel({ feature, neededPlan }: { feature: Feature; neededPlan: AnyPlanId }) {
+export function UpsellPanel({
+  feature,
+  neededPlan: fallbackPlan,
+}: {
+  feature: Feature
+  neededPlan: AnyPlanId
+}) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const current = useTenantPlan()
+  const { companyFeatures, catalogue } = usePlanAccess()
+  // The plan the console has switched the feature on for, once the catalogue is read.
+  const neededPlan = catalogue ? neededPlanFrom(catalogue, feature) : fallbackPlan
   const price = useGatePrice(neededPlan)
   const planName = t(`plan.planName.${neededPlan}`)
-  const more = alsoAdds(current, neededPlan, feature)
+  const more = alsoAdds(companyFeatures, catalogue, neededPlan, feature)
 
   const back = () => {
     if (window.history.length > 1) navigate(-1)

@@ -70,6 +70,7 @@ import { muscatToday } from '../../lib/invoiceIssue'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
 import { saveDownload } from '../../lib/supplierRecord'
 import { can, useSession } from '../../lib/session/session'
+import { usePlanIncludes } from '../../lib/planAccess'
 import activeIcon from '../../assets/agreements/kpi-active.svg'
 import expiringIcon from '../../assets/agreements/kpi-expiring-soon.svg'
 import awaitingIcon from '../../assets/agreements/kpi-awaiting.svg'
@@ -145,6 +146,9 @@ function Agreements() {
   const session = useSession()
   // Needed to READ as well as write: the list route carries it too.
   const canManage = can(session, 'selfbilling.agreement.manage')
+  // Opening, renewing and activating an agreement need a plan with self-billing (PL-8);
+  // reading, suspending and withdrawing the ones made before stay.
+  const selfBillingIncluded = usePlanIncludes('selfBilling')
   const [params, setParams] = useSearchParams()
 
   const tab = (AGREEMENT_TABS as readonly string[]).includes(params.get('tab') ?? '')
@@ -301,7 +305,7 @@ function Agreements() {
   const menuFor = (row: AgreementDto): ActionMenuItem[] => {
     const actions = allowedActions(row.status)
     const items: ActionMenuItem[] = []
-    if (actions.activate) {
+    if (actions.activate && selfBillingIncluded) {
       items.push({
         id: 'activate',
         labelKey: 'agreements.action.activate',
@@ -431,14 +435,16 @@ function Agreements() {
             <img src={exportIcon} alt="" className="size-6 rotate-180" />
             {exporting ? t('invoicesPage.exporting') : t('agreements.export')}
           </button>
-          <button
-            type="button"
-            onClick={() => setOpening(true)}
-            className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-primary-700 py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"
-          >
-            <img src={plusIcon} alt="" className="size-6" />
-            {t('agreements.newAgreement')}
-          </button>
+          {selfBillingIncluded ? (
+            <button
+              type="button"
+              onClick={() => setOpening(true)}
+              className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-primary-700 py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"
+            >
+              <img src={plusIcon} alt="" className="size-6" />
+              {t('agreements.newAgreement')}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -487,16 +493,18 @@ function Agreements() {
                     : t('agreements.alert.body', { count: lapsedCount })}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setRenewing(lapsedRows[0])
-                  setOpening(true)
-                }}
-                className="inline-flex h-[38px] shrink-0 items-center justify-center rounded-sm border border-danger-700 bg-white px-4 text-sm font-semibold text-danger-700 transition-colors hover:bg-danger-100 max-md:w-full"
-              >
-                {t('agreements.alert.action')}
-              </button>
+              {selfBillingIncluded ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRenewing(lapsedRows[0])
+                    setOpening(true)
+                  }}
+                  className="inline-flex h-[38px] shrink-0 items-center justify-center rounded-sm border border-danger-700 bg-white px-4 text-sm font-semibold text-danger-700 transition-colors hover:bg-danger-100 max-md:w-full"
+                >
+                  {t('agreements.alert.action')}
+                </button>
+              ) : null}
             </div>
           ) : null}
 

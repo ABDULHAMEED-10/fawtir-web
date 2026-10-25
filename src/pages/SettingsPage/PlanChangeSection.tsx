@@ -86,18 +86,45 @@ const KNOWN_REFUSALS = [
   'downgrade-choice-not-allowed',
 ]
 
+/**
+ * PC-7 (owner, 23 Oct 2026): the two companies that cannot change plan online get their own
+ * sentence. Fawtir cancelled it (CA-7): "contact Fawtir". It never paid: "the first payment
+ * decides the plan". The server's own codes for the two say which; a server before them sends
+ * `plan-upgrade-requires-platform` for both, worded "contact Fawtir" unless the subscription
+ * shows it never had a paid period (`neverPaid`).
+ */
+const UNCHANGEABLE_ONLINE: Record<string, 'cancelledByFawtir' | 'neverPaid' | 'either'> = {
+  'plan-change-cancelled-by-fawtir': 'cancelledByFawtir',
+  'subscription-cancelled-by-fawtir': 'cancelledByFawtir',
+  'plan-change-first-payment-required': 'neverPaid',
+  'plan-upgrade-requires-platform': 'either',
+}
+
 /** Our own sentence for a refusal code; the server's English `detail` is never shown. */
-export function planChangeRefusal(t: TFunction, code: string | null | undefined): string {
+export function planChangeRefusal(
+  t: TFunction,
+  code: string | null | undefined,
+  neverPaid = false,
+): string {
+  const unchangeable = code ? UNCHANGEABLE_ONLINE[code] : undefined
+  if (unchangeable) {
+    const first = unchangeable === 'neverPaid' || (unchangeable === 'either' && neverPaid)
+    return t(
+      first
+        ? 'planChange.refusal.firstPaymentFirst'
+        : 'planChange.refusal.plan-upgrade-requires-platform',
+    )
+  }
   if (code && KNOWN_REFUSALS.includes(code)) return t(`planChange.refusal.${code}`)
   return t('billing.refusal.other')
 }
 
-function refusalOf(t: TFunction, error: unknown): string {
+function refusalOf(t: TFunction, error: unknown, neverPaid = false): string {
   // Records a `disconnected-from-fawtir` refusal, so every way to pay is held back from then on.
   noteLeftFawtirRefusal(error)
   if (error instanceof ApiError) {
     if (error.status === 404) return t('planChange.refusal.not-found')
-    return planChangeRefusal(t, error.problemType)
+    return planChangeRefusal(t, error.problemType, neverPaid)
   }
   return t('billing.refusal.other')
 }
@@ -122,6 +149,12 @@ export type PlanChangeTarget = {
    * payment date and no trial days carried over, so the paid-time facts are not promised.
    */
   inTrial?: boolean
+  /**
+   * The subscription never had a paid period (`paidThrough` null on `GET /settings/subscription`).
+   * PC-7: the first payment decides the plan, so a server that refuses with the older shared code
+   * is worded for it rather than "contact Fawtir".
+   */
+  neverPaid?: boolean
 }
 
 /**
@@ -279,7 +312,7 @@ function DialogBody({
         setPriceMoved(true)
       } else {
         setRefusedViaFawtir(isViaFawtir(error))
-        setFailure(refusalOf(t, error))
+        setFailure(refusalOf(t, error, target.neverPaid === true))
       }
       setBusy(false)
     } finally {
@@ -293,7 +326,7 @@ function DialogBody({
   else if (read.status === 'failed')
     body =
       read.error instanceof ApiError && read.error.status !== 401 && read.error.status < 500 ? (
-        <Alert>{refusalOf(t, read.error)}</Alert>
+        <Alert>{refusalOf(t, read.error, target.neverPaid === true)}</Alert>
       ) : (
         <ApiReadFailure error={read.error} retry={() => setAttempt((value) => value + 1)} />
       )
@@ -303,6 +336,7 @@ function DialogBody({
         preview={read.data}
         inTrial={target.inTrial === true}
         pick={{ choice: shownChoice, onChoose: chooseSwitchOff, busy: busy || rechecking }}
+        neverPaid={target.neverPaid === true}
       />
     )
 
@@ -353,10 +387,12 @@ function PreviewBody({
   preview,
   inTrial,
   pick,
+  neverPaid,
 }: {
   preview: PlanChangePreviewDto
   inTrial: boolean
   pick: SwitchOffPick
+  neverPaid: boolean
 }) {
   const { t, i18n } = useTranslation()
   const planName = usePlanName()
@@ -546,7 +582,7 @@ function PreviewBody({
         >
           <p className="font-semibold">{t('planChange.blockers')}</p>
           {preview.blockers.map((code) => (
-            <p key={code}>{planChangeRefusal(t, code)}</p>
+            <p key={code}>{planChangeRefusal(t, code, neverPaid)}</p>
           ))}
         </div>
       ) : null}

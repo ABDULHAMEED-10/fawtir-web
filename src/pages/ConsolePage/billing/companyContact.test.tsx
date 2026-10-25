@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../../i18n'
 import { resetSharedRequests } from '../../../api'
 import { forgetEntitlements, type Entitlements } from '../../../lib/identity/entitlements'
-import { ConsoleCompanyContactPage } from './ConsoleCompanyContactPage'
+import { ConsoleFawtirCompanyPage } from './ConsoleFawtirCompanyPage'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const CONTACT = '/api/v1/platform/company-contact'
@@ -94,9 +94,9 @@ afterEach(() => {
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={['/console/company-contact']}>
+    <MemoryRouter initialEntries={['/console/settings/company']}>
       <Routes>
-        <Route path="/console/company-contact" element={<ConsoleCompanyContactPage />} />
+        <Route path="/console/settings/company" element={<ConsoleFawtirCompanyPage />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -194,7 +194,8 @@ describe('Console › Contact details (CS-1)', () => {
     await user.type(await screen.findByRole('textbox', { name: C('reason') }), 'Change')
     await user.clear(box('websiteUrl'))
     await user.click(save())
-    expect((await screen.findByRole('alert')).textContent).toBe(C('refusal.forbidden'))
+    // The other sections of Fawtir company details may raise their own alerts.
+    expect(await screen.findByText(C('refusal.forbidden'), { selector: '[role="alert"]' })).toBeTruthy()
   })
 
   it('is read-only without the manage permission', async () => {

@@ -15,6 +15,7 @@ import { ApiError } from '../../api'
 import { handWritten } from '../../lib/erp/draft'
 import { shortHash } from '../../lib/erp/mappingState'
 import { sessionSamples } from '../../lib/erp/sample'
+import { useMappingAccess } from '../../hooks/useErpAccess'
 import infoIcon from '../../assets/settings/info.svg'
 import downloadIcon from '../../assets/settings/download-ink.svg'
 
@@ -49,6 +50,7 @@ export function ErpAdvancedPage() {
   const { t } = useTranslation()
   const view = useErpMapping()
   const reload = useErpMappingReload()
+  const access = useMappingAccess()
   const samples = useSyncExternalStore(sessionSamples.subscribe, sessionSamples.snapshot)
 
   const active = view.activeProfile
@@ -134,6 +136,10 @@ export function ErpAdvancedPage() {
       setConfirming(false)
       setOutcome({ kind: 'deactivated' })
       reload()
+    } catch (error: unknown) {
+      // Closing the dialog is what lets the refusal be read; left open it hid the only answer.
+      setConfirming(false)
+      setOutcome({ kind: 'refused', message: messageOf(error, t) })
     } finally {
       setBusy(false)
     }
@@ -280,7 +286,7 @@ export function ErpAdvancedPage() {
             <button
               type="button"
               onClick={dryRun}
-              disabled={!text.trim() || !sample || busy}
+              disabled={!text.trim() || !sample || busy || !access.manage}
               className="inline-flex h-[46px] items-center justify-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {t('erp.advanced.dryRun')}
@@ -294,22 +300,26 @@ export function ErpAdvancedPage() {
               <img src={downloadIcon} alt="" className="size-[18px]" />
               {t('erp.advanced.download')}
             </button>
-            <button
-              type="button"
-              onClick={save}
-              disabled={!text.trim() || busy}
-              className="inline-flex h-[46px] items-center justify-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:cursor-not-allowed disabled:bg-primary-200"
-            >
-              {busy ? t('erp.shared.working') : t('erp.advanced.save')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirming(true)}
-              disabled={!active || busy}
-              className="ms-auto inline-flex h-[46px] items-center justify-center rounded-sm bg-danger-700 px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 max-md:ms-0"
-            >
-              {t('erp.advanced.deactivate')}
-            </button>
+            {access.manage ? (
+              <>
+                <button
+                  type="button"
+                  onClick={save}
+                  disabled={!text.trim() || busy}
+                  className="inline-flex h-[46px] items-center justify-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:cursor-not-allowed disabled:bg-primary-200"
+                >
+                  {busy ? t('erp.shared.working') : t('erp.advanced.save')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirming(true)}
+                  disabled={!active || busy}
+                  className="ms-auto inline-flex h-[46px] items-center justify-center rounded-sm bg-danger-700 px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 max-md:ms-0"
+                >
+                  {t('erp.advanced.deactivate')}
+                </button>
+              </>
+            ) : null}
           </div>
         </div>
       </section>

@@ -28,6 +28,12 @@ real business workflow.
   sample data, not the company's, nothing is saved.
 - A failed request never shows sample data. There is no "fall back to sample data" path on an
   integrated screen.
+- **Hidden outright** (owner, 23 Oct 2026, R6): quotations, order forms and delivery notes showed
+  another company's sample records inside a real session, so `tradeDocuments` is in
+  `HIDDEN_PROTOTYPES` (`src/lib/demoModules.ts`). Whatever the build says, its routes show *Not
+  available yet*, the sidebar leaves the Trade documents group out, and no other screen links to it.
+  Take it out of that list in the change that connects the module. Purchase orders are integrated
+  (`/v1/purchase-orders`) and stay.
 
 ### Pages that are partly integrated
 

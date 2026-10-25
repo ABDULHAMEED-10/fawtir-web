@@ -1,38 +1,17 @@
 import { useTranslation } from 'react-i18next'
-import { Checkbox } from '../../../components/ui'
-import { CATALOGUE, type PlanId } from '../../../lib/plans'
+import { CATALOGUE } from '../../../lib/plans'
 import type { Forms, SectionProps } from './draft'
-import {
-  DayListField,
-  FieldGrid,
-  GroupLabel,
-  NumberField,
-  OptionGroup,
-  SelectField,
-  SwitchRow,
-} from './shared'
+import { FieldGrid, GroupLabel, NoteLine, SelectField, SwitchRow } from './shared'
 
 const K = 'console.settings.lifecycle.'
 
-export function LifecycleSection({ form, set, errors }: SectionProps<'lifecycle'>) {
+export function LifecycleSection({ form, set }: SectionProps<'lifecycle'>) {
   const { t } = useTranslation()
-  const err = (field: string) => (errors[field] ? t(errors[field]) : undefined)
   const planOptions = CATALOGUE.map((plan) => ({ value: plan.id, label: t(plan.labelKey) }))
-  const number = (field: 'trialDays' | 'trialDocuments' | 'graceDays') => (value: string) =>
-    set((current) => ({ ...current, [field]: value }))
   const flag =
     (field: 'trialAutoConverts' | 'trialNeedsPaymentDetails' | 'autoRenewal') =>
     (checked: boolean) =>
       set((current) => ({ ...current, [field]: checked }))
-  /** Kept in catalogue order so the saved list reads Starter · Business · Business Plus. */
-  const offerOn = (plan: PlanId, checked: boolean) =>
-    set((current) => ({
-      ...current,
-      trialOfferedOn: CATALOGUE.map((entry) => entry.id).filter((id) =>
-        id === plan ? checked : current.trialOfferedOn.includes(id),
-      ),
-    }))
-
   return (
     <>
       <GroupLabel>{t(`${K}trialGroup`)}</GroupLabel>
@@ -61,44 +40,10 @@ export function LifecycleSection({ form, set, errors }: SectionProps<'lifecycle'
           }
           options={[{ value: 'chosen', label: t(`${K}trialPlanChosen`) }, ...planOptions]}
         />
-        <OptionGroup
-          label={t(`${K}trialOfferedOn`)}
-          hint={t(`${K}trialOfferedOnHint`)}
-          error={err('trialOfferedOn')}
-        >
-          {CATALOGUE.map((plan) => (
-            <Checkbox
-              key={plan.id}
-              label={t(plan.labelKey)}
-              checked={form.trialOfferedOn.includes(plan.id)}
-              onChange={(event) => offerOn(plan.id, event.target.checked)}
-            />
-          ))}
-          {/* Enterprise starts from a contract: shown so the row is complete, never switchable. */}
-          <Checkbox
-            label={t('plan.planName.enterprise')}
-            checked={false}
-            disabled
-            readOnly
-            className="cursor-not-allowed opacity-50"
-          />
-        </OptionGroup>
-        <NumberField
-          name="trialDays"
-          label={t(`${K}trialDays`)}
-          value={form.trialDays}
-          onChange={number('trialDays')}
-          error={err('trialDays')}
-        />
-        <NumberField
-          name="trialDocuments"
-          label={t(`${K}trialDocuments`)}
-          hint={t(`${K}trialDocumentsHint`)}
-          value={form.trialDocuments}
-          onChange={number('trialDocuments')}
-          error={err('trialDocuments')}
-        />
       </FieldGrid>
+      {/* Which plans offer the trial and its documents are set per plan; it always runs 14 days
+          (TR-1). The copies here never saved and were removed (owner, 24 Oct 2026). */}
+      <NoteLine>{t(`${K}trialMovedNote`)}</NoteLine>
       <SwitchRow
         title={t(`${K}trialAutoConverts`)}
         note={t(`${K}trialAutoConvertsNote`)}
@@ -119,24 +64,8 @@ export function LifecycleSection({ form, set, errors }: SectionProps<'lifecycle'
         checked={form.autoRenewal}
         onChange={flag('autoRenewal')}
       />
-      <FieldGrid>
-        <NumberField
-          name="graceDays"
-          label={t(`${K}graceDays`)}
-          hint={t(`${K}graceDaysHint`)}
-          value={form.graceDays}
-          onChange={number('graceDays')}
-          error={err('graceDays')}
-        />
-        <DayListField
-          label={t(`${K}graceNotices`)}
-          hint={t(`${K}graceNoticesHint`)}
-          values={form.graceNoticeDays}
-          onChange={(values) => set((current) => ({ ...current, graceNoticeDays: values }))}
-          format={(day) => t('console.settings.dayList.day', { day })}
-          error={err('graceNoticeDays')}
-        />
-      </FieldGrid>
+      {/* Grace days and the grace reminders are set on Billing rules (owner, 24 Oct 2026). */}
+      <NoteLine>{t(`${K}graceMovedNote`)}</NoteLine>
       {/*
         No notice period and no mid-period refund switch: a cancellation always runs to the end
         of the current period, unused days are never refunded, and only a period paid ahead that

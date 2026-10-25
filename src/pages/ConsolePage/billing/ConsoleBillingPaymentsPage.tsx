@@ -4,7 +4,7 @@ import { DateField, OmAmount, Rial, withRial } from '../../../components/ui'
 import { selectAllOnFocus } from '../../../components/invoice/numericInput'
 import { ApiError } from '../../../api'
 import { ConsoleShell } from '../../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../../layouts/ConsoleShell/ConsoleBreadcrumbs'
+import { ConsoleSectionFrame } from '../../../layouts/ConsoleShell/ConsoleSectionFrame'
 import { ConsoleNotice, ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
 import { ConsoleStatusPill, type ConsolePillTone } from '../../../layouts/ConsoleShell/ConsoleStatusPill'
 import { useConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
@@ -15,6 +15,8 @@ import {
   CONSOLE_PRIMARY,
   CONSOLE_SECONDARY,
   CONSOLE_SMALL,
+  CONSOLE_TABLE,
+  CONSOLE_THEAD,
   ConsolePageHeader,
 } from '../../../layouts/ConsoleShell/consoleStyle'
 import { hasPermission, peekEntitlements } from '../../../lib/identity/entitlements'
@@ -111,9 +113,9 @@ function PaymentQueue() {
   } else {
     body = (
       <div className={`${CONSOLE_CARD} overflow-x-auto`}>
-        <table className="w-full min-w-[720px] text-start text-sm">
+        <table className={`${CONSOLE_TABLE} min-w-[720px] text-sm`}>
           <thead>
-            <tr className="text-xs font-semibold uppercase tracking-[0.6px] text-text-muted">
+            <tr className={CONSOLE_THEAD}>
               <th className="px-4 py-3 text-start">{t('console.billing.col.company')}</th>
               <th className="px-4 py-3 text-start">{t('console.billing.col.bill')}</th>
               <th className="px-4 py-3 text-start">{t('console.billing.col.method')}</th>
@@ -166,8 +168,8 @@ function PaymentQueue() {
 
   return (
     <div className={CONSOLE_PAGE}>
-      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.payments' }]} />
-      <ConsolePageHeader title={t('console.billing.title')} subtitle={t('console.billing.subtitle')} />
+      <ConsoleSectionFrame section="billing" tab="payments" />
+      <ConsolePageHeader level="section" title={t('console.billing.title')} subtitle={t('console.billing.subtitle')} />
       {body}
       {selected ? (
         <PaymentPanel

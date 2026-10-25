@@ -752,6 +752,47 @@ describe('Pause, Resume and Generate while the subscription is read-only (owner,
   )
 })
 
+// Both checks hold together: read-only (ST-2) and the plan's switch (PL-8). Resume and Generate
+// show only when both allow them; Pause stays under either.
+describe('read-only and the plan together (ST-2 and PL-8)', () => {
+  const withPlan = (on: boolean, restriction: string | null) => {
+    who = {
+      ...DRAFTER,
+      permissions: [...DRAFTER.permissions, 'tenant.plan.read'],
+      planFeaturesEnforced: true,
+      planFeatures: { recurringInvoices: on },
+    }
+    answer(fetchMock, restriction)
+  }
+  const subscriptionRead = () => calls('GET', '/api/v1/settings/subscription').length > 0
+
+  async function menuOf(customer: string) {
+    fireEvent.click(screen.getByRole('tab', { name: /^All/ }))
+    const row = (await screen.findByRole('link', { name: customer })).closest('tr') as HTMLElement
+    fireEvent.click(within(row).getByRole('button', { name: 'Schedule actions' }))
+  }
+
+  it.each([
+    ['usable, plan has it', true, null, true],
+    ['usable, plan lacks it', false, null, false],
+    ['read-only, plan has it', true, 'SUBSCRIPTION_SUSPENDED', false],
+  ] as const)('%s', async (_, on, restriction, offered) => {
+    withPlan(on, restriction)
+    renderAt('/income/periodic')
+    await screen.findByRole('link', { name: 'Muscat Grand Hotel' })
+    await waitFor(() => expect(subscriptionRead()).toBe(true))
+    await settle()
+    await menuOf('Muscat Grand Hotel')
+    expect(await screen.findByRole('menuitem', { name: 'Pause series' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Generate invoice' }) !== null).toBe(offered)
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
+    await menuOf('Nizwa Cafe')
+    await screen.findByRole('menuitem', { name: 'View schedule' })
+    expect(screen.queryByRole('menuitem', { name: 'Resume series' }) !== null).toBe(offered)
+    expect(screen.queryByRole('link', { name: 'New recurring invoice' }) !== null).toBe(offered)
+  })
+})
+
 describe('periodic schedule helpers', () => {
   it('says where a schedule stands, paused and finished before any date', () => {
     expect(scheduleNote(PAUSED, TODAY)).toEqual({ key: 'periodicList.state.paused' })
@@ -900,5 +941,46 @@ describe('periodic schedule helpers', () => {
     expect(dateForRepeat('MONTHLY', 'd31', '2026-09-25', '2026-09-25')).toBe('2026-09-30')
     // The next Monday on or after today.
     expect(dateForRepeat('WEEKLY', 'w1', '2026-09-25', '2026-09-25')).toBe('2026-09-28')
+  })
+})
+
+// Business Rules PL-8: a plan without periodic invoices keeps every series made before readable
+// and pausable; making, generating, copying, resuming and saving wait for a plan that has them.
+describe('a plan without periodic invoices (PL-8)', () => {
+  const plan = (on: boolean): Entitlements => ({
+    ...DRAFTER,
+    planFeaturesEnforced: true,
+    planFeatures: { recurringInvoices: on },
+  })
+
+  it('keeps the list, View, Pause and Delete, and hides New, Generate and Duplicate', async () => {
+    who = plan(false)
+    renderAt('/income/periodic')
+    const row = (await screen.findByRole('link', { name: 'Muscat Grand Hotel' })).closest(
+      'tr',
+    ) as HTMLElement
+    await waitFor(() =>
+      expect(screen.queryByRole('link', { name: 'New recurring invoice' })).toBeNull(),
+    )
+    fireEvent.click(within(row).getByRole('button', { name: 'Schedule actions' }))
+    expect(await screen.findByRole('menuitem', { name: 'View schedule' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Pause series' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Generate invoice' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Duplicate' })).toBeNull()
+  })
+
+  it('offers New when the plan has periodic invoices', async () => {
+    who = plan(true)
+    renderAt('/income/periodic')
+    await screen.findByRole('link', { name: 'Muscat Grand Hotel' })
+    expect(await screen.findByRole('link', { name: 'New recurring invoice' })).toBeTruthy()
+  })
+
+  it('opens a series read-only, with Pause and no Save', async () => {
+    who = plan(false)
+    renderAt('/income/periodic/sch-1')
+    expect(await screen.findByRole('button', { name: 'Pause series' })).toBeTruthy()
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Save changes' })).toBeNull())
   })
 })

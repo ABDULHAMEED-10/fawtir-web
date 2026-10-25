@@ -25,7 +25,16 @@ import { OperatorReasonDialog } from '../operators/OperatorReasonDialog'
  * fixture data. Here every state shown is the backend's answer — the row read on load, or the row
  * the grant or revoke returned — and nothing is assumed before the backend has answered.
  */
-export function TenantErpEntitlementCard({ tenantId, tenantCode }: { tenantId: string; tenantCode: string }) {
+export function TenantErpEntitlementCard({
+  tenantId,
+  tenantCode,
+  onChanged,
+}: {
+  tenantId: string
+  tenantCode: string
+  /** The add-on card on the same page says whether the add-on granted ERP; it re-reads on this. */
+  onChanged?: () => void
+}) {
   const { t, i18n } = useTranslation()
   const { entitlements } = useEntitlements()
   const allowed = entitlements !== null && hasPermission(entitlements, ERP_ENTITLEMENT_PERMISSION)
@@ -93,6 +102,7 @@ export function TenantErpEntitlementCard({ tenantId, tenantCode }: { tenantId: s
           describeFailure={describeErpEntitlementFailure}
           onDone={(answer) => {
             setChanged(answer)
+            onChanged?.()
             setDialog(null)
           }}
           onClose={() => setDialog(null)}
@@ -132,6 +142,7 @@ export function TenantErpEntitlementCard({ tenantId, tenantCode }: { tenantId: s
           describeFailure={describeErpEntitlementFailure}
           onDone={(answer) => {
             setChanged(answer)
+            onChanged?.()
             setConfirmCode('')
             setDialog(null)
           }}

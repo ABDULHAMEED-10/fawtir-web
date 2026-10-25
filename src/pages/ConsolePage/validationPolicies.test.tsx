@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
 import { resetSharedRequests } from '../../api'
 import { formatMoment, formatUtcMoment } from '../../lib/console/format'
-import { toDateKey } from '../../lib/dates'
+import { muscatToday } from '../../lib/invoiceIssue'
 import {
   forgetEntitlements,
   peekEntitlements,
@@ -374,7 +374,7 @@ describe('Overview', () => {
       [OVERVIEW_URL]: () => json(200, entries),
     })
     renderAt(path)
-    await screen.findByRole('heading', { level: 1, name: t('console.policies.title') })
+    await screen.findByRole('heading', { level: 2, name: t('console.policies.title') })
   }
   const policyLink = (type: BlockerType) =>
     screen.getByRole('link', { name: t(`console.policies.type.${type}`) })
@@ -663,7 +663,8 @@ describe('Policy detail reads', () => {
     noButton('console.policies.action.newFrom')
     expect(button('console.policies.action.submit')).toBeTruthy()
     expect(callsTo(OVERVIEW_URL)).toHaveLength(0)
-    expect(document.querySelector('form')).toBeNull()
+    // No editing form; the topbar's console search is a form of its own.
+    expect(document.querySelector('form:not([role="search"])')).toBeNull()
   })
 })
 
@@ -1882,7 +1883,8 @@ describe('Authoring the Participant ID policy', () => {
     fireEvent.click(screen.getByRole('button', { name: labelOf(name) }))
     fireEvent.click(screen.getByRole('option', { name: t(optionKey) }))
   }
-  const today = () => `${toDateKey(new Date())}T00:00:00Z`
+  // The calendar's "Today" is Muscat's day, whatever the browser's zone.
+  const today = () => `${muscatToday()}T00:00:00Z`
 
   it('offers Create draft only when the overview says the operator may author', async () => {
     await openPolicy([version({ status: 'ACTIVE', forceState: 'IN_FORCE' })])
@@ -2253,7 +2255,7 @@ describe('Language and privacy', () => {
     renderAt('/console/policies')
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'سياسات التحقق من الصحة' }),
+      await screen.findByRole('heading', { level: 2, name: 'سياسات التحقق من الصحة' }),
     ).toBeTruthy()
     expect(await screen.findByText('بانتظار اعتمادك')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'تنتظر إجرائي' })).toBeTruthy()
@@ -2370,7 +2372,7 @@ describe('Language and privacy', () => {
 
       expect(document.documentElement.dir).toBe('rtl')
       expect(document.documentElement.lang).toBe('ar')
-      const heading = screen.getByRole('heading', { level: 1, name: 'سياسات التحقق من الصحة' })
+      const heading = screen.getByRole('heading', { level: 2, name: 'سياسات التحقق من الصحة' })
       expect(directionOf(heading)).toBe('rtl')
       expect(screen.getByText('بانتظار اعتمادك')).toBeTruthy()
       expect(screen.getAllByText('مرفوض')).toHaveLength(2)

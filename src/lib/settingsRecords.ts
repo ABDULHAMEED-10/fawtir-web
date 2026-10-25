@@ -9,6 +9,7 @@ import { BOOK, COMPANY, TODAY, isoDate, longDate, monthsBetween } from './settin
 import { CERT_EXPIRES } from './settingsCompany'
 import { MEMBERS } from './settingsPeople'
 import { nextBill } from './settingsBilling'
+import { prototypeHidden } from './demoModules'
 
 /* ------------------------------------------------------------- activity log */
 
@@ -357,8 +358,10 @@ export const CLOSING_BLOCKERS: Blocker[] = [
     id: 'openQuotations',
     blocking: false,
     tone: 'pending',
-    actionKey: 'closing.seeThem',
-    to: '/trade-documents/quotations',
+    // Quotations are hidden until connected (R6): no "See them" leading to them.
+    ...(prototypeHidden('tradeDocuments')
+      ? {}
+      : { actionKey: 'closing.seeThem', to: '/trade-documents/quotations' }),
     values: { count: BOOK.openQuotations },
   },
   { id: 'nothingOwed', blocking: false, tone: 'clear' },

@@ -63,6 +63,7 @@ import {
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
+import { usePlanIncludes } from '../../lib/planAccess'
 import outstandingIcon from '../../assets/invoices/kpi-outstanding.svg'
 import paidIcon from '../../assets/invoices/kpi-paid.svg'
 import awaitingIcon from '../../assets/invoices/kpi-awaiting.svg'
@@ -315,6 +316,8 @@ function InvoicesScreen() {
   const [notice, setNotice] = useState<{ body: string } | null>(null)
   const [exporting, setExporting] = useState(false)
   const [importing, setImporting] = useState(false)
+  // Bulk upload needs a plan that includes it (PL-8).
+  const bulkUploadIncluded = usePlanIncludes('bulkUpload')
   const onExport = async () => {
     if (!filter) return
     setExporting(true)
@@ -403,7 +406,7 @@ function InvoicesScreen() {
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        {can(session, 'invoice.draft') && mayDraft ? (
+        {can(session, 'invoice.draft') && mayDraft && bulkUploadIncluded ? (
           // The design's button opens the invoice import (drafts only); its routes are TODO(backend).
           // Read-only makes no new drafts (ST-2, CA-3), so neither this nor Create invoice shows.
           <button type="button" onClick={() => setImporting(true)} className={OUTLINE_BUTTON}>
@@ -936,6 +939,8 @@ function InvoiceTable({
   const maySend = useSubscriptionAllows('SEND_DOCUMENTS')
   const canDraft = can(session, 'invoice.draft')
   const canSend = can(session, 'invoice.issue') && maySend
+  // Making a periodic series from an invoice needs a plan with periodic invoices (PL-8).
+  const periodicIncluded = usePlanIncludes('recurringInvoices')
 
   /**
    * The design's row menu (Figma "Actions" 154:173140): view, send, duplicate, credit note,
@@ -993,7 +998,7 @@ function InvoiceTable({
         to: `/income/credit-notes/new?invoice=${row.id}`,
       })
     }
-    if (issuedInvoice && mayDraft && can(session, 'invoice.draft')) {
+    if (issuedInvoice && mayDraft && can(session, 'invoice.draft') && periodicIncluded) {
       // The periodic composer reads the template from `?template=` (PeriodicInvoicePage).
       items.push({
         id: 'periodic',

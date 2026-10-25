@@ -54,15 +54,21 @@ function refusal(status: number, code: string | null) {
 }
 
 describe('permissions', () => {
-  it('reads the four codes separately, because the backend draws them separately', () => {
+  it('reads the five codes separately, because the backend draws them separately', () => {
     expect(erpConnectionAccess(who('erp.connection.read'))).toEqual({
       read: true,
       manage: false,
       credential: false,
       test: false,
+      sample: false,
     })
     expect(erpConnectionAccess(who('erp.connection.manage')).credential).toBe(false)
     expect(erpConnectionAccess(who('erp.connection.manage')).test).toBe(false)
+    expect(erpConnectionAccess(who('erp.connection.test')).sample).toBe(false)
+    expect(erpConnectionAccess(who('erp.connection.sample'))).toMatchObject({
+      test: false,
+      sample: true,
+    })
   })
 
   it('fails closed while the snapshot is unknown', () => {
@@ -73,6 +79,7 @@ describe('permissions', () => {
       manage: false,
       credential: false,
       test: false,
+      sample: false,
     })
   })
 })

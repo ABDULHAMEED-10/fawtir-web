@@ -49,6 +49,7 @@ import {
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatInstantDay } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
+import { usePlanIncludes } from '../../lib/planAccess'
 import { copySupplierPath } from '../../lib/supplierForm'
 import { SuppliersEmptyState } from './SuppliersEmptyState'
 import { SwitchSupplierOffModal, type SwitchOffTarget } from './SwitchSupplierOffModal'
@@ -598,6 +599,7 @@ function SupplierTableRow({
   // A switched-off row is drawn greyed out (Figma, Muttrah Roasters): name, chip and terms muted.
   const chip = supplier.active ? CHANNEL_CHIP[supplier.channel] : CHANNEL_CHIP.manual
   const detail = `/suppliers/${supplier.id}`
+  const purchaseOrdersIncluded = usePlanIncludes('purchaseOrders')
   // No new purchase order while the subscription is read-only (owner, 23 Oct; ST-2, CA-3).
   const mayCreate = useSubscriptionAllows('CREATE_DRAFTS')
 
@@ -677,7 +679,8 @@ function SupplierTableRow({
   const offered = menu.filter(
     (item) =>
       can(session, item.requires) &&
-      (mayCreate || item.id !== 'newPurchaseOrder') &&
+      // A new purchase order needs a plan with purchase orders (PL-8), and none while read-only.
+      ((mayCreate && purchaseOrdersIncluded) || item.id !== 'newPurchaseOrder') &&
       (supplier.active ||
         (item.id !== 'newPurchaseOrder' && item.id !== 'recordBill' && item.id !== 'payNow')),
   )

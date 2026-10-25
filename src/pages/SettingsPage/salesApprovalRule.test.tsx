@@ -188,3 +188,46 @@ describe('the sales approval rule card', () => {
     expect(select).toHaveBeenCalled()
   })
 })
+
+// Business Rules PL-8: a plan without approvals cannot switch the sales rule on; switching a rule
+// already on off is always allowed, so a company is never left behind a rule it cannot change.
+describe('a plan without approvals (PL-8)', () => {
+  const noApprovals: Entitlements = {
+    ...ADMIN,
+    planFeaturesEnforced: true,
+    planFeatures: { approvals: false },
+  }
+
+  it('offers nothing when the rule is off', async () => {
+    who = noApprovals
+    renderPage()
+    await ruleRead()
+    await waitFor(() =>
+      expect(screen.queryByRole('region', { name: 'Sales invoices' })).toBeNull(),
+    )
+  })
+
+  it('lets a rule that is on be switched off, and nothing else changed', async () => {
+    who = noApprovals
+    ruleResponse = () => json(200, { ...RULE, enabled: true })
+    renderPage()
+    const region = await card()
+    await waitFor(() =>
+      expect(
+        within(region).getByRole('spinbutton').hasAttribute('disabled'),
+      ).toBe(true),
+    )
+    fireEvent.click(within(region).getByRole('switch', { name: 'Require approval before issuing' }))
+    fireEvent.click(within(region).getByRole('button', { name: 'Save the sales rule' }))
+    await waitFor(() => expect((sent as { enabled: boolean } | null)?.enabled).toBe(false))
+  })
+
+  it('shows the card to switch on when the plan has approvals', async () => {
+    who = { ...noApprovals, planFeatures: { approvals: true } }
+    renderPage()
+    const region = await card()
+    expect(
+      within(region).getByRole('switch', { name: 'Require approval before issuing' }),
+    ).toBeTruthy()
+  })
+})

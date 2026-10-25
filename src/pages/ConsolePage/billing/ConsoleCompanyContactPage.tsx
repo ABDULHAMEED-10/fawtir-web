@@ -1,18 +1,15 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Input } from '../../../components/ui'
-import { ConsoleShell } from '../../../layouts/ConsoleShell'
-import { ConsoleBreadcrumbs } from '../../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { ConsoleNotice, ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
 import { useConsoleRead, type ConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
-import { CONSOLE_PAGE, ConsolePageHeader } from '../../../layouts/ConsoleShell/consoleStyle'
+import { ConsolePageHeader } from '../../../layouts/ConsoleShell/consoleStyle'
 import { forgetCompanyContact } from '../../../lib/companyContact'
 import {
   COMPANY_CONTACT_HISTORY_PATH,
   COMPANY_CONTACT_MANAGE_PERMISSION,
   COMPANY_CONTACT_MAX,
   COMPANY_CONTACT_PATH,
-  COMPANY_CONTACT_READ_PERMISSION,
   contactAuthor,
   contactRefusalKey,
   isContactConflict,
@@ -44,22 +41,10 @@ const OPTIONAL: readonly Field[] = [
 const URLS: readonly Field[] = ['websiteUrl', 'linkedinUrl', 'instagramUrl']
 
 /**
- * Fawtir's own contact details (CS-1, decision D1): what the app, Fawtir's mails and the public
- * site show when they tell someone how to reach Fawtir. A versioned record like the seller: a save
- * sends `If-Match` with the version read and a reason, and publishes the next version; the
- * earlier ones stay listed below. The server adds MFA, no impersonation and the production
- * PLATFORM realm. Read with the billing read permission; an operator without the manage one sees
- * it read-only.
+ * One section of Console › Settings › Fawtir company details, under that page's frame. Its old
+ * address of its own forwards to that page (owner, 24 Oct 2026).
  */
-export function ConsoleCompanyContactPage() {
-  return (
-    <ConsoleShell requires={COMPANY_CONTACT_READ_PERMISSION}>
-      <CompanyContact />
-    </ConsoleShell>
-  )
-}
-
-function CompanyContact() {
+export function CompanyContact() {
   const { t } = useTranslation()
   // 204 (before the backend's migration has seeded version 1) parses as no body.
   const { read, retry } = useConsoleRead<CompanyContactDto | undefined>(COMPANY_CONTACT_PATH)
@@ -100,9 +85,8 @@ function CompanyContact() {
   }
 
   return (
-    <div className={CONSOLE_PAGE}>
-      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.companyContact' }]} />
-      <ConsolePageHeader title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
+    <div className="flex flex-col gap-5">
+      <ConsolePageHeader level="subsection" title={t(`${K}title`)} subtitle={t(`${K}subtitle`)} />
       {failure ? (
         <p
           role="alert"

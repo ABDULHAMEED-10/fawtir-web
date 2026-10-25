@@ -29,6 +29,34 @@ export function ConsoleQueueIcon({ className = '', active = false }: IconProps) 
   )
 }
 
+/** A broken chain: a company leaving Fawtir (owner, 25 Oct 2026). */
+export function ConsoleUnlinkIcon({ className = '' }: IconProps) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="m18.8 12.3 1.7-1.7a5 5 0 0 0-7.1-7.1l-1.7 1.7M5.2 11.7l-1.7 1.7a5 5 0 0 0 7.1 7.1l1.7-1.7"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 2.5V5M2.5 8H5M16 19v2.5M19 16h2.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
 /** Something is wrong and a person is needed. */
 export function ConsoleIncidentIcon({ className = '' }: IconProps) {
   return (

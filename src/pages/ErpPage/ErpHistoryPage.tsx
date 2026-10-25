@@ -15,6 +15,8 @@ import {
   Th,
 } from './overview/idiom'
 import { deactivateMappingProfile } from '../../api/erp/mapping'
+import { describeApiFailure } from '../../lib/apiFailure'
+import { useMappingAccess } from '../../hooks/useErpAccess'
 import { shortHash } from '../../lib/erp/mappingState'
 import { shortDate } from '../../lib/settings'
 import { sourceSystemName } from '../../lib/erp/sourceSystem'
@@ -81,13 +83,25 @@ function Profiles() {
   const reload = useErpMappingReload()
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
+  const access = useMappingAccess()
 
   const deactivate = async () => {
+    if (busy) return
     setBusy(true)
+    setFailure(null)
     try {
       await deactivateMappingProfile(GUIDED_MAPPING_FORMAT)
       setConfirming(false)
       reload()
+    } catch (error: unknown) {
+      // Without this a refusal left the dialog open with no answer and an unhandled rejection.
+      const described = describeApiFailure(error)
+      setFailure(
+        described.reference
+          ? `${t(described.key, described.values)} ${t('apiErrors.reference', { id: described.reference })}`
+          : t(described.key, described.values),
+      )
     } finally {
       setBusy(false)
     }
@@ -143,7 +157,7 @@ function Profiles() {
                       </span>
                     </Td>
                     <Td align="end">
-                      {profile.active ? (
+                      {profile.active && access.manage ? (
                         <button
                           type="button"
                           onClick={() => setConfirming(true)}
@@ -164,10 +178,22 @@ function Profiles() {
       <ConfirmModal
         open={confirming}
         title={t('erp.history.profiles.deactivateTitle')}
-        body={t('erp.history.profiles.deactivateBody')}
+        body={
+          <>
+            {t('erp.history.profiles.deactivateBody')}
+            {failure ? (
+              <p role="alert" className="mt-3 text-sm font-medium leading-[1.5] text-danger-700">
+                {failure}
+              </p>
+            ) : null}
+          </>
+        }
         confirmLabel={busy ? t('erp.shared.working') : t('erp.history.profiles.deactivate')}
         danger
-        onClose={() => setConfirming(false)}
+        onClose={() => {
+          setConfirming(false)
+          setFailure(null)
+        }}
         onConfirm={deactivate}
       />
     </>

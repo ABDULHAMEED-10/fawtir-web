@@ -23,7 +23,8 @@ import {
 import { defaultReportRange } from '../../api/reports/reports'
 import type { Entitlements } from '../../lib/identity/entitlements'
 import type { AnyPlanId, Feature } from '../../lib/plans'
-import { featureAccess, useTenantPlan } from '../../lib/planAccess'
+import { usePlanAccess, type FeatureAccess } from '../../lib/planAccess'
+import { prototypeHidden } from '../../lib/demoModules'
 import { BrandLogo } from '../../components/BrandLogo'
 import { AccountSwitcher, UserMenu } from '../../components/shell'
 import chevron from '../../assets/dashboard/chevron.svg'
@@ -51,9 +52,12 @@ type Lock = { plan: AnyPlanId }
  * children; an entry with no feature is on every plan. Locked entries still navigate — the route
  * shows the upgrade nudge — so the reader can always see what a plan would give them.
  */
-function lockFor(plan: AnyPlanId, feature: Feature | undefined): Lock | undefined {
+function lockFor(
+  accessOf: (feature: Feature) => FeatureAccess,
+  feature: Feature | undefined,
+): Lock | undefined {
   if (!feature) return undefined
-  const access = featureAccess(plan, feature)
+  const access = accessOf(feature)
   return access.available ? undefined : { plan: access.neededPlan }
 }
 
@@ -122,12 +126,14 @@ function activeChildTo(pathname: string, children: readonly NavChild[]): string 
 /**
  * The navigation this reader may use: an entry whose destination needs a permission they lack is
  * left out, and so is a group left with nothing in it. Without a session (the guard is off, as in
- * the prototype build) everything shows, as it always has.
+ * the prototype build) everything shows, as it always has. A prototype hidden outright (R6: trade
+ * documents) is left out for everyone, with or without a session.
  */
 function visibleNav(session: Entitlements | null): NavGroup[] {
   return DASHBOARD_NAV.map((group) => ({
     ...group,
     items: group.items.flatMap((item) => {
+      if (item.prototype && prototypeHidden(item.prototype)) return []
       if (!can(session, item.requires)) return []
       if (!item.children) return [item]
       const children = item.children.filter((child) => can(session, child.requires))
@@ -147,7 +153,13 @@ function isGroupActive(pathname: string, item: NavItem) {
   return (item.children ?? []).some((c) => pathname === c.to || pathname.startsWith(`${c.to}/`))
 }
 
-function ExpandableNavItem({ item, plan }: { item: NavItem; plan: AnyPlanId }) {
+function ExpandableNavItem({
+  item,
+  plan,
+}: {
+  item: NavItem
+  plan: (feature: Feature) => FeatureAccess
+}) {
   const { t } = useTranslation()
   const location = useLocation()
   const groupLock = lockFor(plan, item.feature)
@@ -312,7 +324,7 @@ export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
   const navRef = useKeptScroll()
   const panelRef = useRef<HTMLElement>(null)
   const session = useSession()
-  const plan = useTenantPlan()
+  const plan = usePlanAccess().access
   const attention = useAttentionCount(session !== null)
   useDrawer(open, onClose, panelRef)
 

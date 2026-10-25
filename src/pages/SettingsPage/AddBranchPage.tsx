@@ -7,7 +7,7 @@ import { CloseBranchDialog } from './CloseBranchDialog'
 import { DateField, Input, Select, Switch } from '../../components/ui'
 import { useCan, useSession } from '../../lib/session/session'
 import { useBranchAccessOn } from '../../lib/identity/branchAccessSwitch'
-import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
+import { useExtrasHeldUntilPaid, useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import { useApiRead } from '../../hooks'
 import { GOVERNORATES, BRANCH_BEHAVIOUR, firstInvoiceFor } from '../../lib/settingsCompany'
 import { governorateIdFor, GOVERNORATE_NAMES, type GovernorateId } from '../../lib/governorates'
@@ -82,10 +82,6 @@ import tickWhiteIcon from '../../assets/settings/check-white.svg'
 export function AddBranchPage() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
-  // Inviting is a user-management action; the link is offered only to those who may.
-  // Nobody new is added while the subscription is read-only (ST-2).
-  const mayAddPeople = useSubscriptionAllows('ADD_PEOPLE')
-  const canInvite = useCan('admin.users.manage') && mayAddPeople
   const { id } = useParams()
 
   /** Opening an existing branch fills the same form from what it already holds. */
@@ -137,7 +133,6 @@ export function AddBranchPage() {
   const [arabicProblem, setArabicProblem] = useState<'save' | 'clear' | null>(null)
   // BR-3: at the plan's branch capacity the server asks for a paid place first.
   const [needsPlace, setNeedsPlace] = useState(false)
-  const mayBuyPlaces = useCan('tenant.plan.manage')
 
   // A reopened branch fills once its real data arrives, not on every keystroke after. The loading
   // gate below hides the form while the fetch is in flight; for one render after it resolves, a
@@ -503,16 +498,7 @@ export function AddBranchPage() {
           <Panel
             title={t('addBranch.whoWorksThere')}
             note={t('addBranch.whoWorksThereNote')}
-            action={
-              canInvite ? (
-                <Link
-                  to="/settings/team/invite"
-                  className="text-sm font-semibold text-primary-700 transition-colors hover:text-primary-800"
-                >
-                  {t('addBranch.inviteSomeoneNew')}
-                </Link>
-              ) : undefined
-            }
+            action={<InviteSomeoneNewLink />}
           >
             <WhoWorksThere branchId={existing?.id ?? null} />
           </Panel>
@@ -580,16 +566,7 @@ export function AddBranchPage() {
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle bg-white px-4 py-3">
         <p className="text-sm font-medium text-text-tertiary">
           {saveFailed && needsPlace ? (
-            <span role="alert" className="text-danger-700">
-              {t('paidExtras.refusal.extraPlace.BRANCH')}{' '}
-              {mayBuyPlaces ? (
-                <Link to={PAID_EXTRAS_ROUTE} className="font-semibold underline">
-                  {t('paidExtras.refusal.extraPlaceLink')}
-                </Link>
-              ) : (
-                t('paidExtras.refusal.extraPlaceAsk')
-              )}
-            </span>
+            <NoPlaceForBranch />
           ) : saveFailed ? (
             <span role="alert" className="text-danger-700">
               {t('addBranch.saveFailed')}
@@ -670,6 +647,48 @@ export function AddBranchPage() {
         />
       ) : null}
     </SettingsShell>
+  )
+}
+
+/**
+ * "Invite someone new" beside Who works there: offered to those who manage people, and not while
+ * the subscription is read-only (ST-2). Inside the shell, which provides the session both are
+ * read from.
+ */
+function InviteSomeoneNewLink() {
+  const { t } = useTranslation()
+  const mayAddPeople = useSubscriptionAllows('ADD_PEOPLE')
+  if (!useCan('admin.users.manage') || !mayAddPeople) return null
+  return (
+    <Link
+      to="/settings/team/invite"
+      className="text-sm font-semibold text-primary-700 transition-colors hover:text-primary-800"
+    >
+      {t('addBranch.inviteSomeoneNew')}
+    </Link>
+  )
+}
+
+/**
+ * A save refused for want of a branch place (US-1): whoever manages the plan is led to buy one,
+ * anyone else is told to ask; while the subscription is read-only no place is bought, so it says
+ * to pay first (ST-2). Inside the shell, which provides the session these are read from.
+ */
+function NoPlaceForBranch() {
+  const { t } = useTranslation()
+  const extrasHeld = useExtrasHeldUntilPaid()
+  const mayBuyPlaces = useCan('tenant.plan.manage') && !extrasHeld
+  return (
+    <span role="alert" className="text-danger-700">
+      {t('paidExtras.refusal.extraPlace.BRANCH')}{' '}
+      {mayBuyPlaces ? (
+        <Link to={PAID_EXTRAS_ROUTE} className="font-semibold underline">
+          {t('paidExtras.refusal.extraPlaceLink')}
+        </Link>
+      ) : (
+        t(extrasHeld ? 'subscription.payFirstForExtras' : 'paidExtras.refusal.extraPlaceAsk')
+      )}
+    </span>
   )
 }
 

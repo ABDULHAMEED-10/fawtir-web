@@ -46,6 +46,7 @@ import { formatAmount, formatDate, formatInstant } from '../../lib/format'
 import { fileSize } from '../../lib/supplierRecord'
 import { muscatToday } from '../../lib/invoiceIssue'
 import { can, useSession } from '../../lib/session/session'
+import { usePlanIncludes } from '../../lib/planAccess'
 import { FileDropzone, OmAmount, RowsView } from '../../components/ui'
 import { RecordPaymentModal } from '../InvoiceDetailsPage/RecordPaymentModal'
 import peppolTrackIcon from '../../assets/self-bill-detail/track-peppol.svg'
@@ -268,6 +269,8 @@ function SelfBillScreen() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const session = useSession()
+  // A new self-billed credit note needs a plan with self-billing (PL-8).
+  const selfBillingIncluded = usePlanIncludes('selfBilling')
   // No new drafts while the subscription is read-only (ST-2, CA-3).
   const mayDraft = useSubscriptionAllows('CREATE_DRAFTS')
   const { id = '' } = useParams()
@@ -401,7 +404,8 @@ function SelfBillScreen() {
     data.type === 'SELF_BILLED_INVOICE' &&
     data.authoringState === 'ISSUED' &&
     mayDraft &&
-    can(session, 'selfbilling.create')
+    can(session, 'selfbilling.create') &&
+    selfBillingIncluded
 
   const failureText = (error: unknown) => {
     const message = describeApiFailure(error)

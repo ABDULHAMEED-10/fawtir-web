@@ -53,8 +53,17 @@ export type PlanVersion = {
   createdAt: string
 }
 
-/** `compliance` (admin read only): the backend locks the feature on; it cannot be switched off. */
-export type PlanFeatureEntry = { key: string; enabled: boolean; compliance?: boolean }
+/**
+ * `compliance` (admin read only): the backend locks the feature on; it cannot be switched off.
+ * `enforced` (admin read only, PL-8): whether the server acts on the switch at all, refusing the
+ * feature on a plan that has it off. Absent from servers older than the PL-8 follow-up.
+ */
+export type PlanFeatureEntry = {
+  key: string
+  enabled: boolean
+  compliance?: boolean
+  enforced?: boolean
+}
 
 /**
  * A plan as `GET /platform/plans` returns it: what changes in place (names, visibility, policy),
@@ -204,6 +213,59 @@ export function lockedFeatures(plan: CatalogueAdminPlan | null): Set<string> {
   ])
 }
 
+/**
+ * The switches the server enforces (PL-8, owner, 23 Oct and 24 Oct 2026), for servers that do not
+ * yet say so per feature (`PlanFeatureEntry.enforced`). The REST API, webhooks and ERP mapping are
+ * refused by the ERP and API add-on, so they are never "not enforced yet" either.
+ */
+export const KNOWN_ENFORCED_FEATURES: ReadonlySet<string> = new Set<Feature>([
+  'tradeDocuments',
+  'recurringInvoices',
+  'selfBilling',
+  'supplierNotes',
+  'recurringBills',
+  'purchaseOrders',
+  'approvals',
+  'bulkUpload',
+  'api',
+  'webhooks',
+  'erpMapping',
+])
+
+/**
+ * Switches never locked as "not enforced yet", whatever the server says: `erpMapping` is not a
+ * PL-8 gate, but it decides whether the plan offers the ERP and API add-on (ER-1), and the add-on
+ * price cannot be set on a plan without it.
+ */
+const ALWAYS_SWITCHABLE: ReadonlySet<string> = new Set<Feature>(['erpMapping'])
+
+/**
+ * The switches with nothing behind them yet: the console shows them "Not enforced yet" and locked
+ * (PL-8, owner, 23 Oct 2026), so nobody believes switching one off takes anything away. The
+ * server's own `enforced` flag decides where it sends one; otherwise the known enforced list does.
+ * Compliance features are always on and locked anyway, so they are never listed here.
+ */
+export function notEnforcedFeatures(plan: CatalogueAdminPlan | null): Set<string> {
+  const locked = lockedFeatures(plan)
+  const fromServer = new Map<string, boolean>(
+    (plan?.features ?? [])
+      .filter((entry) => typeof entry.enforced === 'boolean')
+      .map((entry) => [entry.key, entry.enforced as boolean]),
+  )
+  const keys = new Set<string>([
+    ...FEATURE_LIST,
+    ...(plan?.features.map((entry) => entry.key) ?? []),
+  ])
+  return new Set(
+    [...keys].filter(
+      (key) =>
+        !locked.has(key) &&
+        !ALWAYS_SWITCHABLE.has(key) &&
+        !(fromServer.get(key) ?? KNOWN_ENFORCED_FEATURES.has(key)),
+    ),
+  )
+}
+
 /** A new plan starts with compliance on, as every plan must have it, and nothing else. */
 const startingFeatures = () =>
   Object.fromEntries(
@@ -275,6 +337,15 @@ export function planFormFrom(plan: CatalogueAdminPlan): PlanFormValues {
     recommended: plan.recommended,
     features: {
       ...startingFeatures(),
+      // Purchase orders were gated with trade documents until they had their own switch (PL-8,
+      // 24 Oct 2026): a plan read without the switch shows what the server applies to them.
+      ...(plan.features.some((entry) => entry.key === 'purchaseOrders')
+        ? {}
+        : {
+            purchaseOrders: plan.features.some(
+              (entry) => entry.key === 'tradeDocuments' && entry.enabled,
+            ),
+          }),
       ...Object.fromEntries(plan.features.map((entry) => [entry.key, entry.enabled])),
       // Compliance is never gated (contract §3); a stored "off" would be refused on save anyway.
       ...Object.fromEntries([...lockedFeatures(plan)].map((feature) => [feature, true])),

@@ -5,7 +5,7 @@ import { roleLabel } from '../../lib/roleLabels'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { useApiRead } from '../../hooks'
 import { useCan, useSession } from '../../lib/session/session'
-import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
+import { useExtrasHeldUntilPaid, useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import {
   ApiReadFailure,
   LoadingNotice,
@@ -81,7 +81,9 @@ function InviteForm() {
   const { t } = useTranslation()
   const session = useSession()
   const mayListRoles = useCan(ROLES_PERMISSION)
-  const mayBuyPlaces = useCan('tenant.plan.manage')
+  // ST-2: no paid places are bought while the subscription is read-only: it says to pay first.
+  const extrasHeld = useExtrasHeldUntilPaid()
+  const mayBuyPlaces = useCan('tenant.plan.manage') && !extrasHeld
   const roles = useApiRead<RoleDto[]>(mayListRoles ? ROLES_PATH : null, loadRoles)
   const [email, setEmail] = useState('')
   const [chosen, setChosen] = useState<string[]>([])
@@ -119,7 +121,9 @@ function InviteForm() {
         setFailure(
           mayBuyPlaces
             ? t(`paidExtras.refusal.extraPlace.${place}`)
-            : `${t(`paidExtras.refusal.extraPlace.${place}`)} ${t('paidExtras.refusal.extraPlaceAsk')}`,
+            : `${t(`paidExtras.refusal.extraPlace.${place}`)} ${t(
+                extrasHeld ? 'subscription.payFirstForExtras' : 'paidExtras.refusal.extraPlaceAsk',
+              )}`,
         )
         setFailureLink(
           mayBuyPlaces ? { to: PAID_EXTRAS_ROUTE, labelKey: 'paidExtras.refusal.extraPlaceLink' } : null,

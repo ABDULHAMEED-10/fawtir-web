@@ -80,3 +80,10 @@ Plan and usage reads `enterprise.termsSet` on `/v1/settings/plan` and `/v1/setti
 | # | The screen wants | Ask |
 |---|---|---|
 | 4.1 | **Payment link validity** in days, beside card on or off (business rules, console settings: "payment link validity (7 days today)"); greyed while card is off | `paymentLinkValidityDays` on `GET/PUT /v1/platform/billing/settings` (sent only when changed, like the V415 numbers), with its range, and the payment link expiry read from it. Today the console shows 7 read-only (`PAYMENT_LINK_VALIDITY_DAYS`) |
+
+## 5. Console sidebar and topbar (every console screen)
+
+| # | The screen wants | Ask |
+|---|---|---|
+| 5.1 | **A count beside the sidebar links** that hold work waiting: Verification (companies waiting for a decision), Subscription payments (payments waiting for Finance), Refund cases (cases still open), Incidents (open). Not drawn yet: the queues are cursor-paged without totals, so the sidebar would have to load whole lists on every console page to count them (owner, 24 Oct 2026) | One small read, e.g. `GET /v1/platform/console/counts` answering `{ verificationPending, paymentsAwaitingFinance, refundCasesOpen, incidentsOpen }`, each present only when the caller holds that screen's permission |
+| 5.2 | **The topbar search finds a company anywhere in the register.** Today Enter opens Tenants with the words in its search box, which narrows only the page it loaded (row 1.10) | The `q` parameter of row 1.10 on `GET /v1/platform/companies`; with it the topbar can list matches as you type |

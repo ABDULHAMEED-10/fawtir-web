@@ -27,6 +27,8 @@ import {
   archiveGuidedMapping,
   deactivateMappingProfile,
 } from '../../api/erp/mapping'
+import { describeApiFailure } from '../../lib/apiFailure'
+import { useMappingAccess } from '../../hooks/useErpAccess'
 import { TARGET_BY_ID } from '../../lib/erpCatalogue'
 import { sourceSystemName } from '../../lib/erp/sourceSystem'
 import { shortDate } from '../../lib/settings'
@@ -65,9 +67,11 @@ export function ErpOverviewPage() {
   const { t, i18n } = useTranslation()
   const view = useErpMapping()
   const reload = useErpMappingReload()
+  const access = useMappingAccess()
   const progress = readinessProgress(view.readiness)
   const [startingOver, setStartingOver] = useState(false)
   const [clearing, setClearing] = useState(false)
+  const [startOverError, setStartOverError] = useState<string | null>(null)
 
   const certified = MAPPING_CERTIFICATION_ROUTES.filter(
     (route) => view.certification[route].state === 'CERTIFIED',
@@ -141,14 +145,25 @@ export function ErpOverviewPage() {
    * enough to confirm, because it retires every certification along with the expression.
    */
   const startOver = async () => {
+    if (clearing) return
     setClearing(true)
+    setStartOverError(null)
     try {
       if (view.guided) await archiveGuidedMapping(GUIDED_MAPPING_FORMAT)
       if (view.activeProfile) await deactivateMappingProfile(GUIDED_MAPPING_FORMAT)
       setStartingOver(false)
-      reload()
+    } catch (error: unknown) {
+      const failure = describeApiFailure(error)
+      setStartOverError(
+        failure.reference
+          ? `${t(failure.key, failure.values)} ${t('apiErrors.reference', { id: failure.reference })}`
+          : t(failure.key, failure.values),
+      )
     } finally {
       setClearing(false)
+      // Always, not only on success: the archive can succeed and the deactivate fail, and the
+      // page must then show the guided mapping gone rather than the state before the click.
+      reload()
     }
   }
 
@@ -159,7 +174,7 @@ export function ErpOverviewPage() {
       actions={
         <>
           <CallToAction status={view.status} missing={progress.missing} />
-          {notSetUp ? null : (
+          {notSetUp || !access.manage ? null : (
             <button
               type="button"
               onClick={() => setStartingOver(true)}
@@ -248,10 +263,22 @@ export function ErpOverviewPage() {
       <ConfirmModal
         open={startingOver}
         title={t('erp.overview.startOver.title')}
-        body={t('erp.overview.startOver.body')}
+        body={
+          <>
+            {t('erp.overview.startOver.body')}
+            {startOverError ? (
+              <p role="alert" className="mt-3 text-sm font-medium leading-[1.5] text-danger-700">
+                {startOverError}
+              </p>
+            ) : null}
+          </>
+        }
         confirmLabel={clearing ? t('erp.shared.working') : t('erp.overview.startOver.confirm')}
         danger
-        onClose={() => setStartingOver(false)}
+        onClose={() => {
+          setStartingOver(false)
+          setStartOverError(null)
+        }}
         onConfirm={startOver}
       />
     </ErpShell>
