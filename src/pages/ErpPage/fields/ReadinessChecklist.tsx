@@ -33,7 +33,8 @@ export function ReadinessChecklist({
   /** Null before the mapping has ever been saved. */
   version: number | null
   saving: boolean
-  onSave: () => void
+  /** Absent for a reader without mapping.manage: the server would refuse the save. */
+  onSave?: () => void
   onJump: (businessTermId: string) => void
 }) {
   const { t } = useTranslation()
@@ -179,22 +180,24 @@ export function ReadinessChecklist({
         more than one sitting, and only a structurally invalid entry is refused. Disabling Save
         until everything was mapped would strand exactly the reader this screen is for.
       */}
-      <button
-        type="button"
-        onClick={onSave}
-        disabled={saving}
-        className="mt-4 inline-flex h-[46px] w-full items-center justify-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        <img src={tickIcon} alt="" className="size-4" />
-        {saving ? t('erp.shared.working') : t('erp.fields.save')}
-        {dirty && !saving ? (
-          <span
-            aria-label={t('erp.fields.unsaved')}
-            title={t('erp.fields.unsaved')}
-            className="size-2 rounded-full bg-pending-500"
-          />
-        ) : null}
-      </button>
+      {onSave ? (
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving}
+          className="mt-4 inline-flex h-[46px] w-full items-center justify-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <img src={tickIcon} alt="" className="size-4" />
+          {saving ? t('erp.shared.working') : t('erp.fields.save')}
+          {dirty && !saving ? (
+            <span
+              aria-label={t('erp.fields.unsaved')}
+              title={t('erp.fields.unsaved')}
+              className="size-2 rounded-full bg-pending-500"
+            />
+          ) : null}
+        </button>
+      ) : null}
 
       {result ? (
         <p

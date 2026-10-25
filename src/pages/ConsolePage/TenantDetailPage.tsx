@@ -434,7 +434,11 @@ function TenantDetail({
       )}
 
       {prototype ? null : (
-        <TenantErpEntitlementCard tenantId={tenantId} tenantCode={overview.identity.tenantCode} />
+        <TenantErpEntitlementCard
+          tenantId={tenantId}
+          tenantCode={overview.identity.tenantCode}
+          onChanged={() => setSubscriptionRead((n) => n + 1)}
+        />
       )}
 
       {prototype ? null : <TenantOwnerHandoverCard tenantId={tenantId} />}

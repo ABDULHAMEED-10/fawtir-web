@@ -1,4 +1,6 @@
 import { apiRequest } from '../../api'
+import { handWritten } from '../erp/draft'
+import { sessionSamples } from '../erp/sample'
 
 export const ENTITLEMENTS_PATH = '/v1/me/entitlements'
 
@@ -63,6 +65,13 @@ export type Entitlements = {
    * absent is off. Display only, read through `planIncludes` (lib/planAccess).
    */
   planFeatures?: Record<string, boolean>
+  /**
+   * ERP is enabled for the caller's company right now (backend #713: the same
+   * `erp.tenant_entitlements` row every ERP route checks). A company fact, not a permission: every
+   * signed-in user gets it, and the ERP actions still follow `permissions`. Optional only because
+   * a server older than #713 omits it — see {@link erpSwitchedOff}.
+   */
+  erpEntitled?: boolean
 }
 
 /**
@@ -102,11 +111,42 @@ export function peekEntitlements(): Entitlements | null {
 export function forgetEntitlements(): void {
   cached = null
   settled = null
+  // The ERP samples and the hand-written expression are module memory, and sign-out and sign-in
+  // are SPA navigations with no reload. Without this the next user in the tab — possibly another
+  // tenant — saw the previous tenant's ERP payloads, and Advanced pre-filled its expression.
+  sessionSamples.clear()
+  handWritten.clear()
 }
 
 /** False only when the server says so; an older server without `payAvailable` changes nothing. */
 export function payAvailable(entitlements: Entitlements | null): boolean {
   return entitlements?.payAvailable !== false
+}
+
+let warnedMissingErpEntitled = false
+
+/**
+ * True only when the server says ERP is off for the company (`erpEntitled: false`).
+ *
+ * A missing field is **not** read as off: a server older than backend #713 omits it, and reading
+ * that as false would hide ERP from every company at once. Such a server keeps the screens as they
+ * were before F3, where the ERP routes themselves refuse new work (403 erp-entitlement-required),
+ * and a development build says so in the console, because #713 must be deployed before this. A
+ * snapshot that could not be read (`null`) is not "off" either: the ERP screens already offer
+ * nothing on it.
+ */
+export function erpSwitchedOff(entitlements: Entitlements | null): boolean {
+  if (entitlements === null) return false
+  if (entitlements.erpEntitled === undefined) {
+    if (import.meta.env.DEV && !warnedMissingErpEntitled) {
+      warnedMissingErpEntitled = true
+      console.warn(
+        '/me/entitlements has no erpEntitled: the backend predates #713, so ERP screens are not gated on the company switch.',
+      )
+    }
+    return false
+  }
+  return entitlements.erpEntitled === false
 }
 
 export function hasPermission(entitlements: Entitlements, code: string): boolean {

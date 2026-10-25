@@ -9,6 +9,7 @@ import { dryRunGuidedMapping, dryRunMappingProfile, type MappingDryRunDto } from
 import { ApiError } from '../../api'
 import { shortHash } from '../../lib/erp/mappingState'
 import { sessionSamples } from '../../lib/erp/sample'
+import { useMappingAccess } from '../../hooks/useErpAccess'
 import infoIcon from '../../assets/settings/info.svg'
 
 /**
@@ -34,6 +35,7 @@ import infoIcon from '../../assets/settings/info.svg'
 export function ErpPreviewPage() {
   const { t } = useTranslation()
   const view = useErpMapping()
+  const access = useMappingAccess()
   const [params, setParams] = useSearchParams()
   const samples = useSyncExternalStore(sessionSamples.subscribe, sessionSamples.snapshot)
 
@@ -49,7 +51,9 @@ export function ErpPreviewPage() {
   const guided = view.route === 'GUIDED' && view.guided !== null
   // A hand-written profile can be dry-run too, against the stored expression. Only a tenant with
   // neither a guided mapping nor an active profile has nothing to run.
-  const canRun = Boolean(chosen) && (guided || view.activeProfile !== null)
+  // Both dry-run routes need mapping.manage on the server, although nothing is stored.
+  const canRun =
+    access.manage && Boolean(chosen) && (guided || view.activeProfile !== null)
 
   const choose = (id: string) => {
     setParams({ sample: id }, { replace: true })

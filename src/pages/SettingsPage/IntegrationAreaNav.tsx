@@ -24,6 +24,8 @@ export function IntegrationAreaNav() {
   // Nothing until the snapshot is in, rather than a strip that changes under the reader.
   if (!ready) return null
   const areas = openAreas(entitlements)
+  // ERP switched off for the company: an empty strip would only draw a rule above the notice.
+  if (areas.length === 0) return null
 
   return (
     <nav

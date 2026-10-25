@@ -373,6 +373,32 @@ describe('Overview', () => {
 
     expect(screen.queryByText(i18n.t('erp.overview.activity.title'))).toBeNull()
   })
+
+  it('says why Start over failed, and re-reads after the archive half went through', async () => {
+    answer(reads())
+    const readsOnly = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'DELETE' && url === GUIDED_URL) return json(204)
+      if (init?.method === 'DELETE' && url === `${BASE}/JSON`)
+        return problem(403, 'insufficient-permission', 'Missing required permission: mapping.manage')
+      return readsOnly(url, init)
+    })
+    renderScreen('/settings/erp-mapping', <ErpOverviewPage />)
+    await screen.findByRole('heading', { name: i18n.t('erp.overview.title') })
+    const guidedReads = callsTo(GUIDED_URL).filter(([, init]) => !(init as RequestInit)?.method || (init as RequestInit).method === 'GET').length
+
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('erp.overview.actions.startOver') }))
+    const dialog = await screen.findByRole('dialog')
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('erp.overview.startOver.confirm') }))
+    })
+
+    expect(await within(screen.getByRole('dialog')).findByRole('alert')).toBeTruthy()
+    await waitFor(() => {
+      const after = callsTo(GUIDED_URL).filter(([, init]) => !(init as RequestInit)?.method || (init as RequestInit).method === 'GET').length
+      expect(after).toBeGreaterThan(guidedReads)
+    })
+  })
 })
 
 /* -------------------------------------------------------------------- fields */
@@ -771,5 +797,136 @@ describe('Advanced', () => {
     })
 
     expect(await screen.findByText(/not a valid JSONata expression/)).toBeTruthy()
+  })
+
+  it('shows a refused deactivation instead of leaving the click unanswered', async () => {
+    answer(reads())
+    const readsOnly = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'DELETE' && url === `${BASE}/JSON`)
+        return problem(403, 'insufficient-permission', 'Missing required permission: mapping.manage')
+      return readsOnly(url, init)
+    })
+    renderScreen('/settings/erp-mapping/advanced', <ErpAdvancedPage />)
+    await screen.findByRole('heading', { name: i18n.t('erp.advanced.title') })
+
+    fireEvent.click(screen.getByText(i18n.t('erp.advanced.deactivate')).closest('button')!)
+    const dialog = await screen.findByRole('dialog')
+    await act(async () => {
+      fireEvent.click(within(dialog).getByText(i18n.t('erp.advanced.confirmSubmit')))
+    })
+
+    expect(await screen.findByText(/Missing required permission: mapping.manage/)).toBeTruthy()
+    expect(screen.queryByText(i18n.t('erp.advanced.deactivated'))).toBeNull()
+  })
+})
+
+/* --------------------------------------------------------- mapping writes */
+
+describe('who is offered the mapping writes', () => {
+  const as = (...permissions: string[]) => ({ ...TENANT_ADMIN, permissions: [...permissions, 'invoice.read'] })
+
+  /** The writes hang on the entitlement snapshot, which lands after the gate's reads. */
+  async function settle() {
+    await waitFor(() => expect(callsTo('/api/v1/me/entitlements').length).toBeGreaterThan(0))
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+  }
+
+  const writes = () =>
+    fetchMock.mock.calls.filter(([, init]) => {
+      const method = (init as RequestInit | undefined)?.method
+      return method === 'PUT' || method === 'POST' || method === 'DELETE'
+    })
+
+  it('a mapping.read holder sees no write on Overview, Advanced or History', async () => {
+    answer(reads({ '/api/v1/me/entitlements': () => json(200, as('mapping.read')) }))
+    const overview = renderScreen('/settings/erp-mapping', <ErpOverviewPage />)
+    await screen.findByRole('heading', { name: i18n.t('erp.overview.title') })
+    await settle()
+    expect(screen.queryByRole('button', { name: i18n.t('erp.overview.actions.startOver') })).toBeNull()
+    overview.unmount()
+
+    const advanced = renderScreen('/settings/erp-mapping/advanced', <ErpAdvancedPage />)
+    await screen.findByRole('heading', { name: i18n.t('erp.advanced.title') })
+    await settle()
+    expect(screen.queryByText(i18n.t('erp.advanced.save'))).toBeNull()
+    expect(screen.queryByText(i18n.t('erp.advanced.deactivate'))).toBeNull()
+    expect(
+      (screen.getByText(i18n.t('erp.advanced.dryRun')).closest('button') as HTMLButtonElement).disabled,
+    ).toBe(true)
+    advanced.unmount()
+
+    renderScreen('/settings/erp-mapping/history', <ErpHistoryPage />)
+    await screen.findByRole('heading', { name: i18n.t('erp.history.title') })
+    await settle()
+    expect(screen.queryByRole('button', { name: i18n.t('erp.history.profiles.deactivate') })).toBeNull()
+    // Still a reader: the ledger itself is shown.
+    expect(screen.getByText('abcdef01')).toBeTruthy()
+    expect(writes()).toEqual([])
+  })
+
+  it('a mapping.read holder cannot run Preview or open a certification run, even by URL', async () => {
+    sessionSamples.add('ERPNext sales invoice', { name: 'SINV-7' })
+    answer(reads({ '/api/v1/me/entitlements': () => json(200, as('mapping.read')) }))
+    const preview = renderScreen('/settings/erp-mapping/preview', <ErpPreviewPage />)
+    await screen.findByRole('heading', { name: i18n.t('erp.preview.title') })
+    await settle()
+    expect(
+      (screen.getByText(i18n.t('erp.preview.run')).closest('button') as HTMLButtonElement).disabled,
+    ).toBe(true)
+    preview.unmount()
+
+    renderScreen('/settings/erp-mapping/certification?route=INVOICE', <ErpCertificationPage />)
+    await screen.findByRole('heading', { name: i18n.t('erp.certification.title') })
+    await settle()
+    expect(screen.queryAllByRole('button', { name: i18n.t('erp.certification.run') })).toEqual([])
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(writes()).toEqual([])
+  })
+
+  it('a mapping.read holder gets no Save on Fields and no validate request', async () => {
+    answer(reads({ '/api/v1/me/entitlements': () => json(200, as('mapping.read')) }))
+    renderScreen('/settings/erp-mapping/fields', <ErpFieldsPage />)
+    await screen.findByRole('heading', { name: i18n.t('erp.fields.title') })
+    await settle()
+    expect(screen.queryByText(i18n.t('erp.fields.save'))).toBeNull()
+    expect(callsTo(VALIDATE_URL)).toEqual([])
+  })
+
+  it('mapping.manage offers the writes but not certification; mapping.certify the reverse', async () => {
+    answer(reads({ '/api/v1/me/entitlements': () => json(200, as('mapping.read', 'mapping.manage')) }))
+    const manager = renderScreen('/settings/erp-mapping/certification', <ErpCertificationPage />)
+    await screen.findByRole('heading', { name: i18n.t('erp.certification.title') })
+    await settle()
+    expect(screen.queryAllByRole('button', { name: i18n.t('erp.certification.run') })).toEqual([])
+    manager.unmount()
+    const managerAdvanced = renderScreen('/settings/erp-mapping/advanced', <ErpAdvancedPage />)
+    await screen.findByRole('heading', { name: i18n.t('erp.advanced.title') })
+    await settle()
+    expect(screen.getByText(i18n.t('erp.advanced.save'))).toBeTruthy()
+    managerAdvanced.unmount()
+
+    forgetEntitlements()
+    resetSharedRequests()
+    answer(reads({ '/api/v1/me/entitlements': () => json(200, as('mapping.read', 'mapping.certify')) }))
+    const certifier = renderScreen('/settings/erp-mapping/certification', <ErpCertificationPage />)
+    await screen.findByRole('heading', { name: i18n.t('erp.certification.title') })
+    await settle()
+    expect(screen.getAllByRole('button', { name: i18n.t('erp.certification.run') })).toHaveLength(4)
+    certifier.unmount()
+    renderScreen('/settings/erp-mapping/advanced', <ErpAdvancedPage />)
+    await screen.findByRole('heading', { name: i18n.t('erp.advanced.title') })
+    await settle()
+    expect(screen.queryByText(i18n.t('erp.advanced.save'))).toBeNull()
+  })
+
+  it('admin.settings.manage alone still offers every write, as the server allows', async () => {
+    answer(reads())
+    renderScreen('/settings/erp-mapping/certification', <ErpCertificationPage />)
+    await screen.findByRole('heading', { name: i18n.t('erp.certification.title') })
+    await settle()
+    expect(screen.getAllByRole('button', { name: i18n.t('erp.certification.run') })).toHaveLength(4)
   })
 })

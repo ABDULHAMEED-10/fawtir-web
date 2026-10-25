@@ -22,6 +22,8 @@ import {
   shortHash,
 } from '../../lib/erp/mappingState'
 import { sessionSamples } from '../../lib/erp/sample'
+import { describeApiFailure } from '../../lib/apiFailure'
+import { useMappingAccess } from '../../hooks/useErpAccess'
 import { formatInstant, formatInstantDay } from '../../lib/format'
 import { documentKindName } from './shared/documentKind'
 import { RuleFindingsTable } from './shared/RuleFindingsTable'
@@ -50,6 +52,7 @@ const CORRECTION_ROUTES: MappingCertificationRoute[] = ['CREDIT_NOTE']
 export function ErpCertificationPage() {
   const { t, i18n } = useTranslation()
   const view = useErpMapping()
+  const access = useMappingAccess()
   const [params, setParams] = useSearchParams()
 
   const anyStale = MAPPING_CERTIFICATION_ROUTES.some(
@@ -174,13 +177,15 @@ export function ErpCertificationPage() {
                 </p>
               ) : null}
 
-              <button
-                type="button"
-                onClick={() => openRun(route)}
-                className="mt-auto inline-flex h-[40px] w-full items-center justify-center rounded-sm border border-border-subtle bg-white text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-              >
-                {t('erp.certification.run')}
-              </button>
+              {access.certify ? (
+                <button
+                  type="button"
+                  onClick={() => openRun(route)}
+                  className="mt-auto inline-flex h-[40px] w-full items-center justify-center rounded-sm border border-border-subtle bg-white text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+                >
+                  {t('erp.certification.run')}
+                </button>
+              ) : null}
             </article>
           )
         })}
@@ -207,7 +212,8 @@ export function ErpCertificationPage() {
         )}
       </section>
 
-      {open ? <RunModal route={open} onClose={closeRun} /> : null}
+      {/* The URL can name a route too, so the run dialog is gated here and not only on its button. */}
+      {open && access.certify ? <RunModal route={open} onClose={closeRun} /> : null}
     </ErpShell>
   )
 }
@@ -361,12 +367,18 @@ function RunModal({
       // A pass changes what the gate will admit, so the roll-up above is now behind.
       reload()
     } catch (error: unknown) {
-      // Only a malformed *request* is an error here; a failing test invoice is a 200 report.
-      setFailure(
-        error instanceof ApiError && typeof error.problem.detail === 'string'
-          ? error.problem.detail
-          : t('erp.certification.requestFailed'),
-      )
+      // Only a malformed *request* is an error here; a failing test invoice is a 200 report. The
+      // shared formatter, because `detail` is English and reached the Arabic screen as it was.
+      if (error instanceof ApiError) {
+        const described = describeApiFailure(error)
+        setFailure(
+          described.reference
+            ? `${t(described.key, described.values)} ${t('apiErrors.reference', { id: described.reference })}`
+            : t(described.key, described.values),
+        )
+      } else {
+        setFailure(t('erp.certification.requestFailed'))
+      }
     } finally {
       setRunning(false)
     }

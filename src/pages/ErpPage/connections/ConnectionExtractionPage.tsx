@@ -195,7 +195,7 @@ export function ConnectionExtractionPage() {
 
   const version = connection.version
   const canManage = access.manage && erpAllowed
-  const canSample = access.test
+  const canSample = access.sample
   const missingIssueTime = isMissingIssueTime(settings)
   // The refusal belongs next to the field it names as well as in the banner, because the banner
   // sits above the form and the field may be off screen when Enable is pressed.

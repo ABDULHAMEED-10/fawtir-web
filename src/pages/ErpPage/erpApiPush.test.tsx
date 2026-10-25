@@ -5,6 +5,7 @@ import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { resetSharedRequests } from '../../api'
 import { ErpApiPushPage } from './ErpApiPushPage'
+import { ErpGated } from '../../components/plan'
 import type { ApiKeySummaryDto } from '../../api/settings/apiKeys'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
@@ -391,5 +392,31 @@ describe('Arabic', () => {
     expect(await screen.findByText('مفاتيح استقبال ERP')).toBeTruthy()
     const masked = screen.getAllByText('abcdefghijkl••••9Zx1')[0]
     expect(masked.closest('[dir="ltr"]')).not.toBeNull()
+  })
+})
+
+describe('F3: behind the company switch', () => {
+  const renderGated = () =>
+    render(
+      <MemoryRouter initialEntries={['/settings/erp/api-push']}>
+        <Routes>
+          <Route path="/settings/erp/api-push" element={<ErpGated><ErpApiPushPage /></ErpGated>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+  it('ERP on: the keys are listed with no ERP connection asked for', async () => {
+    who = { ...ADMIN, erpEntitled: true }
+    renderGated()
+    expect(await screen.findByRole('table')).toBeTruthy()
+    expect(calls.some((call) => call.url.includes('/erp/connections'))).toBe(false)
+  })
+
+  it('ERP off: not enabled, no key read and no Create key', async () => {
+    who = { ...ADMIN, erpEntitled: false }
+    renderGated()
+    expect(await screen.findByText('ERP integration is not enabled')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Create key' })).toBeNull()
+    expect(keyReads()).toHaveLength(0)
   })
 })

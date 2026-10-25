@@ -200,7 +200,7 @@ import {
   ValidationPolicyPage,
 } from './pages/ConsolePage'
 import { VerifyCodePage } from './pages/VerifyCodePage'
-import { PlanGated } from './components/plan'
+import { ErpGated, PlanGated } from './components/plan'
 import { DemoModule } from './components/feedback/DemoModule'
 
 function App() {
@@ -510,231 +510,231 @@ function App() {
           <Route
             path="/settings/erp-mapping"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ErpMappingGate>
                   <ErpOverviewPage />
                 </ErpMappingGate>
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp-mapping/fields"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ErpMappingGate>
                   <ErpFieldsPage />
                 </ErpMappingGate>
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp-mapping/preview"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ErpMappingGate>
                   <ErpPreviewPage />
                 </ErpMappingGate>
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp-mapping/certification"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ErpMappingGate>
                   <ErpCertificationPage />
                 </ErpMappingGate>
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp-mapping/advanced"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ErpMappingGate>
                   <ErpAdvancedPage />
                 </ErpMappingGate>
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp-mapping/history"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ErpMappingGate>
                   <ErpHistoryPage />
                 </ErpMappingGate>
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp-mapping/samples"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ErpMappingGate>
                   <ErpSamplesPage />
                 </ErpMappingGate>
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp/connections"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ErpConnectionsPage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp/bridge"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ErpBridgePage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ErpHomePage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp/access"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ErpAccessPage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp/api-push"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ErpApiPushPage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp/documents"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ErpDocumentsPage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp/documents/:recordId"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ErpDocumentDetailPage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp/attention"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ErpAttentionPage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp/runs"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ErpRunsPage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp/runs/:runId"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ErpRunDetailPage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp/connections/new"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ErpConnectPage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp/connections/:id"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ConnectionOverviewPage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp/connections/:id/mapping"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ConnectionMappingPage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp/connections/:id/runs"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ConnectionRunsPage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp/connections/:id/runs/:runId"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ConnectionRunsPage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp/connections/:id/records"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ConnectionRecordsPage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp/connections/:id/records/:recordId"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ConnectionRecordsPage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp/connections/:id/write-back"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ConnectionWriteBackPage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp/connections/:id/settings"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ConnectionSettingsPage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route
             path="/settings/erp/connections/:id/extraction"
             element={
-              <PlanGated feature="erpMapping" shell="settings">
+              <ErpGated>
                 <ConnectionExtractionPage />
-              </PlanGated>
+              </ErpGated>
             }
           />
           <Route path="/income/reminders" element={<RemindersPage />} />
