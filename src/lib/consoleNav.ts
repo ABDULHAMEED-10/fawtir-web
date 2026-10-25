@@ -12,6 +12,7 @@ import {
   ConsolePlansIcon,
   ConsoleQueueIcon,
   ConsoleSubscriptionIcon,
+  ConsoleUnlinkIcon,
 } from '../layouts/ConsoleShell/consoleIcons'
 
 type IconProps = { className?: string; active?: boolean }
@@ -104,7 +105,7 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         to: '/console/disconnections',
         // "Disconnect from Fawtir" requests, worked by Platform support (V302).
         requires: 'platform.smp.operations.review',
-        Icon: ConsoleQueueIcon,
+        Icon: ConsoleUnlinkIcon,
       },
     ],
   },
