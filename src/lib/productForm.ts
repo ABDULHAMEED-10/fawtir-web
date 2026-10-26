@@ -9,13 +9,7 @@ import type { TaxCategoryDto } from '../api/reference/referenceData'
 import { CODED_REASON, itemTypeOfUnit, type ItemType } from './invoiceDraft'
 import { formatAmount, parseAmount, type DiscountType } from './invoiceMath'
 import { taxCategoryOf } from './productLine'
-import {
-  ITEM_TYPE_OF_KIND,
-  TIME_UNITS,
-  type AddOn,
-  type ItemKind,
-  type Size,
-} from './catalogItem'
+import { ITEM_TYPE_OF_KIND, TIME_UNITS, type AddOn, type ItemKind, type Size } from './catalogItem'
 
 /**
  * The catalogue item form against `/v1/products`: what a stored product fills the form with, what
@@ -275,6 +269,7 @@ export type ProductField =
   | 'discount'
   | 'sizes'
   | 'addOns'
+  | 'branches'
 
 export type ProductProblem = { field: ProductField | null; key: string }
 
@@ -315,6 +310,9 @@ export function productFormProblems(fields: ProductFields): ProductProblem[] {
 
 /** The version-conflict refusal: the form offers to reload the product. */
 export const PRODUCT_VERSION_CONFLICT = 'PRODUCT_VERSION_CONFLICT'
+
+/** Someone else changed the branch settings first: the form offers to reload too. */
+export const PRODUCT_BRANCH_SETTINGS_VERSION_CONFLICT = 'PRODUCT_BRANCH_SETTINGS_VERSION_CONFLICT'
 
 /**
  * The product routes' refusals (`InvoiceRestExceptionHandler`: 400, or 409 for the version,
@@ -372,6 +370,14 @@ export const PRODUCT_REFUSALS: Record<string, ProductProblem> = {
   },
   PRODUCT_ADDON_FREE_WITH_PRICE: { field: 'addOns', key: 'itemForm.refused.addOnFreeWithPrice' },
   PRODUCT_VARIANT_LIMIT: { field: 'sizes', key: 'itemForm.refused.variantLimit' },
+  // The Branches step (P.9).
+  PRODUCT_BRANCHES_REQUIRED: { field: 'branches', key: 'itemForm.refused.branchesRequired' },
+  PRODUCT_BRANCHES_NOT_ALLOWED: { field: 'branches', key: 'itemForm.refused.branchesRequired' },
+  PRODUCT_BRANCH_DUPLICATE: { field: 'branches', key: 'itemForm.refused.branchesRequired' },
+  PRODUCT_BRANCH_PRICE_INVALID: { field: 'branches', key: 'itemForm.refused.branchPrice' },
+  BRANCH_NOT_ACTIVE: { field: 'branches', key: 'itemForm.refused.branchClosed' },
+  BRANCH_NOT_FOUND: { field: 'branches', key: 'itemForm.refused.branchGone' },
+  [PRODUCT_BRANCH_SETTINGS_VERSION_CONFLICT]: { field: null, key: 'itemForm.refused.changed' },
 }
 
 /** The sentence for a refused save, or null when it is not a product refusal the form knows. */

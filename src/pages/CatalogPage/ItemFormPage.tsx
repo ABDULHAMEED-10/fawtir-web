@@ -55,6 +55,15 @@ import {
   type CatalogGroupsDto,
 } from '../../api/catalog/groups'
 import {
+  branchSettingsPath,
+  getBranchSettings,
+  saveBranchSettings,
+  type ProductBranchSettingsDto,
+  type ProductBranchSettingsRequest,
+} from '../../api/catalog/branchSettings'
+import { branchAccessRefusalKey } from '../../lib/branchAccessRefusals'
+import {
+  PRODUCT_BRANCH_SETTINGS_VERSION_CONFLICT,
   PRODUCT_VERSION_CONFLICT,
   addOnsFrom,
   sizesFrom,
@@ -115,7 +124,8 @@ const threeDecimals = (raw: string) => {
  * carries the Arabic name, barcode, group and kind (`/v1/catalog/groups`), the four cards
  * (`itemKind`), the no-VAT reason (`defaultTaxReasonCode` / `Text`, P.3), the catalogue discount
  * (P.4), the till switches, "keep count", and its sizes and add-ons (P.5).
- * TODO(backend): branches (P.9) and stock (P.10) are not sent yet.
+ * The Branches step reads and saves `/v1/products/{id}/branch-settings` (P.9).
+ * TODO(backend): stock (P.10) is not sent yet.
  */
 export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const { id } = useParams()
@@ -235,13 +245,63 @@ function ItemEditor({
   const [addOns, setAddOns] = useState<AddOn[]>(stored?.addOns ?? [])
   const hasOptions = stored?.hasOptions ?? false
   // Branches (owner, 21 Oct 2026; Business Rules BA-3): one company product, sold in every branch
-  // or only in chosen ones, with an optional price per branch. Its VAT and HS code never differ
-  // by branch. TODO(backend): the product does not carry branch settings yet (INCOME.md P.9).
+  // or only in chosen ones, with an optional price before VAT and an on/off per branch. Its VAT,
+  // reason, HS code and unit never differ by branch. Read and saved on
+  // `/v1/products/{id}/branch-settings` (INCOME.md P.9); a new item's are saved after it is created.
   const branchRead = useWorkingBranch()
   const { label: branchLabel } = useBranchName()
+  const settingsRead = useApiRead<ProductBranchSettingsDto>(
+    loaded ? branchSettingsPath(loaded.id) : null,
+    () => getBranchSettings(loaded!.id),
+  )
+  const [settings, setSettings] = useState<ProductBranchSettingsDto | null>(null)
   const [allBranches, setAllBranches] = useState(true)
   const [soldIn, setSoldIn] = useState<Record<string, boolean>>({})
   const [branchPrices, setBranchPrices] = useState<Record<string, string>>({})
+  const [onSaleIn, setOnSaleIn] = useState<Record<string, boolean>>({})
+  // Only changed settings are sent, so saving the item never touches them otherwise.
+  const [branchesChanged, setBranchesChanged] = useState(false)
+  const settingsLoaded = settingsRead.read.status === 'ready' ? settingsRead.read.data : null
+  /** The settings as the server holds them, onto the step's fields. */
+  const showSettings = (next: ProductBranchSettingsDto) => {
+    setSettings(next)
+    setAllBranches(next.availability === 'ALL_BRANCHES')
+    setSoldIn(Object.fromEntries(next.branches.map((row) => [row.branchId, row.soldHere])))
+    setBranchPrices(
+      Object.fromEntries(
+        next.branches.map((row) => [
+          row.branchId,
+          row.branchPrice === null ? '' : row.branchPrice.toFixed(3),
+        ]),
+      ),
+    )
+    setOnSaleIn(Object.fromEntries(next.branches.map((row) => [row.branchId, row.onSale])))
+    setBranchesChanged(false)
+  }
+  useEffect(() => {
+    if (settingsLoaded) showSettings(settingsLoaded)
+    // Once, when the server answers; what is changed since is not overwritten.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsLoaded])
+  /** The branches the step lists: the server's (closed ones flagged), else the sidebar's list. */
+  const branchRows = settings
+    ? settings.branches.map((row) => {
+        const known = branchRead.branches.find((branch) => branch.id === row.branchId)
+        return {
+          id: row.branchId,
+          label: known ? branchLabel(known) : row.branchName,
+          active: row.branchActive,
+        }
+      })
+    : branchRead.branches.map((branch) => ({
+        id: branch.id,
+        label: branchLabel(branch),
+        active: true,
+      }))
+  const touchBranches = () => {
+    setSaved(false)
+    setBranchesChanged(true)
+  }
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [banner, setBanner] = useState<Banner | null>(null)
@@ -348,24 +408,68 @@ function ItemEditor({
     addOns,
   })
 
-  const refused = (error: unknown) => {
+  /** The sentence for a refusal: a product refusal, a branch the reader may not touch, or else. */
+  const refusalLine = (error: unknown): { line: string; reload: boolean } => {
     const refusal = productRefusal(error)
     if (refusal) {
-      setBanner({
-        tone: 'error',
-        lines: [t(refusal.key)],
-        reload: refusal.code === PRODUCT_VERSION_CONFLICT && Boolean(reload),
-      })
-      return
+      return {
+        line: t(refusal.key),
+        reload:
+          (refusal.code === PRODUCT_VERSION_CONFLICT ||
+            refusal.code === PRODUCT_BRANCH_SETTINGS_VERSION_CONFLICT) &&
+          Boolean(reload),
+      }
     }
+    // 403 branch-not-in-scope: a branch the reader is not assigned to (BA-1).
+    const branchKey = branchAccessRefusalKey(error)
+    if (branchKey) return { line: t(branchKey), reload: false }
     const message = describeApiFailure(error)
     const body = t(message.key, message.values)
-    setBanner({
-      tone: 'error',
-      lines: [
-        message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body,
-      ],
-    })
+    return {
+      line: message.reference
+        ? `${body} ${t('apiErrors.reference', { id: message.reference })}`
+        : body,
+      reload: false,
+    }
+  }
+
+  const refused = (error: unknown) => {
+    const { line, reload: offerReload } = refusalLine(error)
+    setBanner({ tone: 'error', lines: [line], reload: offerReload })
+  }
+
+  /** The branch step as `PUT .../branch-settings` takes it; open branches only. */
+  const branchSettingsRequest = (): ProductBranchSettingsRequest => {
+    const open = branchRows.filter((row) => row.active)
+    const sold = open.filter((row) => allBranches || soldIn[row.id] === true)
+    return {
+      availability: allBranches ? 'ALL_BRANCHES' : 'CHOSEN_BRANCHES',
+      ...(allBranches ? {} : { branchIds: sold.map((row) => row.id) }),
+      branches: sold.map((row) => {
+        const typedPrice = branchPrices[row.id] ?? ''
+        return {
+          branchId: row.id,
+          branchPrice: typedPrice.trim() === '' ? null : Number(Number(typedPrice).toFixed(3)),
+          onSale: onSaleIn[row.id] ?? true,
+        }
+      }),
+    }
+  }
+
+  /**
+   * Saves the branch step when it was changed, after the item itself. Null when nothing needed
+   * saving or it was saved; the error otherwise.
+   */
+  const saveBranches = async (productId: string): Promise<unknown> => {
+    if (!branchesChanged) return null
+    try {
+      showSettings(
+        await saveBranchSettings(productId, settings?.version ?? 0, branchSettingsRequest()),
+      )
+      return null
+    } catch (error) {
+      return error
+    }
   }
 
   /** `POST` a new item, `PUT` an existing one with the version that was read. */
@@ -374,6 +478,14 @@ function ItemEditor({
     setBanner(null)
     const current = fields()
     const problems = productFormProblems(current)
+    // Chosen branches only, with none ticked, is refused (PRODUCT_BRANCHES_REQUIRED).
+    if (
+      branchesChanged &&
+      !allBranches &&
+      !branchRows.some((row) => row.active && soldIn[row.id] === true)
+    ) {
+      problems.push({ field: 'branches', key: 'itemForm.refused.branchesRequired' })
+    }
     if (problems.length > 0) {
       setBanner({ tone: 'error', lines: problems.map((problem) => t(problem.key)) })
       return
@@ -384,6 +496,20 @@ function ItemEditor({
       const result = product
         ? await updateProduct(product.id, product.version, body)
         : await createProduct(body)
+      const branchError = await saveBranches(result.id)
+      if (branchError) {
+        // The item is saved; only its branch settings are not. It stays open so they can be fixed.
+        setProduct(result)
+        setSizes(sizesFrom(result))
+        setAddOns(addOnsFrom(result))
+        const { line, reload: offerReload } = refusalLine(branchError)
+        setBanner({
+          tone: 'error',
+          lines: [t('itemForm.branchesNotSaved'), line],
+          reload: offerReload,
+        })
+        return
+      }
       if (another) {
         navigate('/catalog/new', { replace: true })
         setName('')
@@ -393,6 +519,12 @@ function ItemEditor({
         setPriceText('')
         setSizes([])
         setAddOns([])
+        setSettings(null)
+        setAllBranches(true)
+        setSoldIn({})
+        setBranchPrices({})
+        setOnSaleIn({})
+        setBranchesChanged(false)
         setBanner({ tone: 'success', lines: [t('itemForm.savedNamed', { name: result.name })] })
       } else if (!product) {
         navigate(`/catalog/${encodeURIComponent(result.id)}`, { replace: true })
@@ -1074,7 +1206,10 @@ function ItemEditor({
                       type="button"
                       role="radio"
                       aria-checked={picked}
-                      onClick={() => setAllBranches(everywhere)}
+                      onClick={() => {
+                        setAllBranches(everywhere)
+                        touchBranches()
+                      }}
                       className={[
                         'flex flex-col rounded-sm border p-4 text-start transition-colors',
                         picked
@@ -1098,11 +1233,17 @@ function ItemEditor({
                 })}
               </div>
 
-              {branchRead.read.status === 'loading' ? (
+              {settingsRead.read.status === 'failed' ? (
+                // 403 reads as no access, never as an empty list.
+                <div className="mt-4">
+                  <ApiReadFailure error={settingsRead.read.error} retry={settingsRead.retry} />
+                </div>
+              ) : branchRead.read.status === 'loading' ||
+                (loaded && settingsRead.read.status === 'loading') ? (
                 <p className="mt-4 text-sm font-medium text-text-quaternary">
                   {t('appAccess.loading')}
                 </p>
-              ) : branchRead.branches.length === 0 ? (
+              ) : branchRows.length === 0 ? (
                 <p className="mt-4 text-sm font-medium text-text-quaternary">
                   {t(
                     branchRead.read.status === 'failed'
@@ -1112,8 +1253,10 @@ function ItemEditor({
                 </p>
               ) : (
                 <ul className="mt-4 flex flex-col gap-2.5">
-                  {branchRead.branches.map((branch) => {
-                    const on = allBranches || soldIn[branch.id] === true
+                  {branchRows.map((branch) => {
+                    // A closed branch cannot be chosen or priced (BRANCH_NOT_ACTIVE).
+                    const on = branch.active && (allBranches || soldIn[branch.id] === true)
+                    const onSale = onSaleIn[branch.id] ?? true
                     return (
                       <li
                         key={branch.id}
@@ -1122,20 +1265,39 @@ function ItemEditor({
                         {allBranches ? null : (
                           <TableCheckbox
                             checked={on}
-                            onChange={() =>
+                            disabled={!branch.active}
+                            onChange={() => {
                               setSoldIn((current) => ({ ...current, [branch.id]: !on }))
-                            }
-                            ariaLabel={t('item.branches.soldHere', { branch: branchLabel(branch) })}
+                              touchBranches()
+                            }}
+                            ariaLabel={t('item.branches.soldHere', { branch: branch.label })}
                           />
                         )}
                         <span className="min-w-0 flex-1">
                           <bdi className="block truncate text-sm font-semibold text-text-primary">
-                            {branchLabel(branch)}
+                            {branch.label}
                           </bdi>
                           <span className="text-xs font-medium text-text-quaternary">
-                            {on ? t('item.branches.sold') : t('item.branches.notSold')}
+                            {!branch.active
+                              ? t('item.branches.closed')
+                              : !on
+                                ? t('item.branches.notSold')
+                                : onSale
+                                  ? t('item.branches.sold')
+                                  : t('item.branches.switchedOff')}
                           </span>
                         </span>
+                        {/* On sale here, or switched off in this branch only. */}
+                        <Switch
+                          size="sm"
+                          checked={on && onSale}
+                          disabled={!on}
+                          onChange={(next) => {
+                            setOnSaleIn((current) => ({ ...current, [branch.id]: next }))
+                            touchBranches()
+                          }}
+                          label={t('item.branches.onSaleHere', { branch: branch.label })}
+                        />
                         <label className="flex h-[42px] w-[160px] items-center gap-2 rounded-sm border border-border-default bg-white px-3 focus-within:border-border-brand">
                           <span className="text-sm font-medium text-text-primary">
                             <Rial />
@@ -1146,24 +1308,26 @@ function ItemEditor({
                             placeholder={base.toFixed(3)}
                             inputMode="decimal"
                             onFocus={selectAllOnFocus}
-                            onChange={(event) =>
+                            onChange={(event) => {
                               setBranchPrices((current) => ({
                                 ...current,
                                 [branch.id]: event.target.value.replace(/[^\d.]/g, ''),
                               }))
-                            }
+                              touchBranches()
+                            }}
                             onBlur={() =>
                               setBranchPrices((current) => {
                                 const typed = current[branch.id] ?? ''
                                 return {
                                   ...current,
-                                  [branch.id]: Number(typed) > 0 ? Number(typed).toFixed(3) : '',
+                                  [branch.id]:
+                                    typed.trim() !== '' && Number(typed) >= 0
+                                      ? Number(typed).toFixed(3)
+                                      : '',
                                 }
                               })
                             }
-                            aria-label={t('item.branches.priceHere', {
-                              branch: branchLabel(branch),
-                            })}
+                            aria-label={t('item.branches.priceHere', { branch: branch.label })}
                             className="w-full min-w-0 bg-transparent text-end text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder disabled:text-text-quaternary"
                             dir="ltr"
                           />

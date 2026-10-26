@@ -80,6 +80,67 @@ const addOn = (name, nameAr, price, sortOrder) => ({
   sortOrder,
 })
 
+/** The branches `/v1/branches` answers in the mock (drafts.mjs), for the per-branch settings. */
+const BRANCHES = [
+  { id: 'b-nizwa', code: 'NIZWA', name: 'Al Bahja Coffee (Nizwa)', active: true },
+  { id: 'b-main', code: 'MAIN', name: 'Al Bahja Coffee (Main)', active: true },
+  { id: 'b-seeb', code: 'SEEB', name: 'Al Bahja Coffee (Seeb)', active: true },
+  { id: 'b-sohar', code: 'SOHAR', name: 'Al Bahja Roastery (Sohar)', active: true },
+]
+
+/** Per-branch settings (P.9), by product id; a product without an entry is sold everywhere. */
+const BRANCH_SETTINGS = {
+  'p-flat': {
+    availability: 'CHOSEN_BRANCHES',
+    branchIds: ['b-main', 'b-seeb'],
+    version: 1,
+    rows: { 'b-seeb': { branchPrice: 1.4, onSale: true } },
+  },
+  'p-beans': {
+    availability: 'ALL_BRANCHES',
+    branchIds: [],
+    version: 1,
+    rows: { 'b-nizwa': { branchPrice: null, onSale: false } },
+  },
+}
+
+const settingsOf = (id) =>
+  BRANCH_SETTINGS[id] ?? { availability: 'ALL_BRANCHES', branchIds: [], version: 0, rows: {} }
+
+/** `ProductBranchSettingsResponse`. */
+function settingsView(p) {
+  const st = settingsOf(p.id)
+  return {
+    productId: p.id,
+    availability: st.availability,
+    branchIds: st.branchIds,
+    version: st.version,
+    basePrice: p.defaultUnitPrice,
+    branches: BRANCHES.map((b) => {
+      const row = st.rows[b.id] ?? { branchPrice: null, onSale: true }
+      return {
+        branchId: b.id,
+        branchCode: b.code,
+        branchName: b.name,
+        branchActive: b.active,
+        soldHere: st.availability === 'ALL_BRANCHES' || st.branchIds.includes(b.id),
+        branchPrice: row.branchPrice,
+        onSale: row.onSale,
+        effectivePrice: row.branchPrice ?? p.defaultUnitPrice,
+      }
+    }),
+  }
+}
+
+/** Sold and on sale in a branch: the price there, else null. */
+function priceIn(p, branchId) {
+  const st = settingsOf(p.id)
+  if (st.availability === 'CHOSEN_BRANCHES' && !st.branchIds.includes(branchId)) return null
+  const row = st.rows[branchId] ?? { branchPrice: null, onSale: true }
+  if (!row.onSale) return null
+  return row.branchPrice ?? p.defaultUnitPrice
+}
+
 const PRODUCTS = [
   product('p-cap', 'CAP-L', 'Cappuccino - Large', 'EA', 1.8, {
     ...goods('210111000000'),
@@ -475,6 +536,10 @@ export default [
       ) {
         return problem(400, 'VALIDATION_FAILED')
       }
+      const branchId = query.get('branchId')
+      if (branchId && !BRANCHES.some((b) => b.id === branchId)) {
+        return problem(404, 'BRANCH_NOT_FOUND', 'not-found')
+      }
       const kindId = query.get('kindId')
       const groupId = query.get('groupId')
       const barcode = query.get('barcode')
@@ -482,7 +547,10 @@ export default [
       const size = Number(query.get('size') ?? 50)
       const found = PRODUCTS.filter(
         (p) =>
-          (status === 'ALL' || (status === 'ACTIVE') === p.active) &&
+          // With a branch: active products sold and on sale there, whatever the status.
+          (branchId
+            ? p.active && priceIn(p, branchId) !== null
+            : status === 'ALL' || (status === 'ACTIVE') === p.active) &&
           (!barcode || p.barcode === barcode) &&
           (!kindId || p.kindId === kindId) &&
           (!groupId || p.groupId === groupId) &&
@@ -496,7 +564,10 @@ export default [
             )),
       ).sort((a, b) => (direction === 'DESC' ? -1 : 1) * SORTS[sort](a, b))
       return {
-        content: found.slice(page * size, page * size + size).map((p) => view(p, { list: true })),
+        content: found.slice(page * size, page * size + size).map((p) => ({
+          ...view(p, { list: true }),
+          effectivePrice: branchId ? priceIn(p, branchId) : null,
+        })),
         page,
         size,
         totalElements: found.length,
@@ -558,6 +629,63 @@ export default [
           updatedAt: new Date().toISOString(),
         }),
       )
+    },
+  },
+  {
+    match: /^\/api\/v1\/products\/([^/]+)\/branch-settings$/,
+    reply: ({ params }) => {
+      const found = find(params[0])
+      return found ? settingsView(found) : problem(404, 'PRODUCT_NOT_FOUND', 'not-found')
+    },
+  },
+  {
+    method: 'PUT',
+    match: /^\/api\/v1\/products\/([^/]+)\/branch-settings$/,
+    reply: ({ params, query, body }) => {
+      const found = find(params[0])
+      if (!found) return problem(404, 'PRODUCT_NOT_FOUND', 'not-found')
+      if (!found.active) return problem(409, 'PRODUCT_ARCHIVED')
+      const st = settingsOf(found.id)
+      if (Number(query.get('expectedVersion')) !== st.version) {
+        return problem(409, 'PRODUCT_BRANCH_SETTINGS_VERSION_CONFLICT')
+      }
+      const availability = body?.availability
+      if (!['ALL_BRANCHES', 'CHOSEN_BRANCHES'].includes(availability)) {
+        return problem(400, 'VALIDATION_FAILED')
+      }
+      const ids = body.branchIds ?? []
+      if (availability === 'CHOSEN_BRANCHES' && ids.length === 0) {
+        return problem(400, 'PRODUCT_BRANCHES_REQUIRED')
+      }
+      if (availability === 'ALL_BRANCHES' && ids.length > 0) {
+        return problem(400, 'PRODUCT_BRANCHES_NOT_ALLOWED')
+      }
+      const entries = body.branches ?? []
+      const named = [...ids, ...entries.map((e) => e.branchId)]
+      if (named.some((id) => !BRANCHES.some((b) => b.id === id))) {
+        return problem(404, 'BRANCH_NOT_FOUND', 'not-found')
+      }
+      if (named.some((id) => !BRANCHES.find((b) => b.id === id).active)) {
+        return problem(400, 'BRANCH_NOT_ACTIVE')
+      }
+      if (new Set(entries.map((e) => e.branchId)).size !== entries.length) {
+        return problem(400, 'PRODUCT_BRANCH_DUPLICATE')
+      }
+      for (const e of entries) {
+        if (
+          e.branchPrice !== null &&
+          e.branchPrice !== undefined &&
+          (e.branchPrice < 0 || tooPrecise(e.branchPrice))
+        ) {
+          return problem(400, 'PRODUCT_BRANCH_PRICE_INVALID')
+        }
+      }
+      const rows = { ...st.rows }
+      for (const e of entries) {
+        rows[e.branchId] = { branchPrice: e.branchPrice ?? null, onSale: e.onSale ?? true }
+      }
+      BRANCH_SETTINGS[found.id] = { availability, branchIds: ids, version: st.version + 1, rows }
+      return settingsView(found)
     },
   },
   {

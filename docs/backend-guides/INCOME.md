@@ -841,6 +841,13 @@ those rows (their original text stays as asked).
 | P.15 (update) | List archived products on their own | **Done**: the catalogue's Off sale tab reads `status=ARCHIVED`, and its count is `totalElements` of `status=ARCHIVED&size=1`. The list also sends `sort` / `direction` for its Sort menu; the search is `q`, which now matches the Arabic name, barcode and variant codes |
 | P.17 | Sales and usage figures on a saved item | the item form's "Where it's used" card (sold in 90 days, revenue, most popular size, open invoices) and the "sold N times" pill are drawn for a new item only; a saved item needs these figures on the product or a route of its own |
 
+## Update 2026-10-26 (catalogue per branch)
+
+| #   | What the screen does | Backend |
+| --- | --- | --- |
+| P.9 (update) | Where an item is sold, its price and on/off per branch | **Done**: the item form's Branches step reads `GET /v1/products/{id}/branch-settings` and, when the step was changed, saves `PUT .../branch-settings?expectedVersion=` after the item (a new item's right after it is created): `availability`, `branchIds`, and per branch `branchPrice` (before VAT, empty = base) and `onSale`. A closed branch is shown and cannot be chosen. The catalogue list and both invoice item pickers read `GET /v1/products?branchId=` with the sidebar's working branch and show `effectivePrice`; a picked product starts the line at it. 403 `branch-not-in-scope` is worded on the form, and reads as "no access" |
+| P.18 | Manage the items not sold in the working branch | with `branchId` the list returns only the items on sale in that branch, so an item switched off there, or sold only in other branches, is found by changing the sidebar's branch. Asked: a list parameter (or `status`) that returns every active item with its settings for the branch, so the catalogue can show them greyed, and the On sale and Switched off tabs can be drawn |
+
 ## Update 2026-10-23 (share an invoice by email and WhatsApp)
 
 Owner decision of 23 Oct 2026: a person can send a copy of an issued invoice to anyone by email

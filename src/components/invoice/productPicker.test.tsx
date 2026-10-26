@@ -224,6 +224,15 @@ describe('product line mapping', () => {
     expect(taxCategoryOf(SEEDED_TAX_CATEGORIES, 'S', 10)).toBeNull()
   })
 
+  it("starts the line at the working branch's price when the list was read for a branch (P.9)", () => {
+    const priced = product({ defaultUnitPrice: 10, effectivePrice: 12 })
+    expect(lineFromProduct(SEEDED_TAX_CATEGORIES, priced, true).unitPrice).toBe('12.000')
+    expect(lineFromProduct(SEEDED_TAX_CATEGORIES, priced, false).unitPrice).toBe('12.600')
+    expect(
+      lineFromProduct(SEEDED_TAX_CATEGORIES, product({ effectivePrice: null }), true).unitPrice,
+    ).toBe('1.600')
+  })
+
   it('prices the line inclusive of VAT when the line is being entered that way', () => {
     expect(
       lineFromProduct(SEEDED_TAX_CATEGORIES, product({ defaultUnitPrice: 10 }), true).unitPrice,

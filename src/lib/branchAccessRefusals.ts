@@ -18,6 +18,8 @@ const KEYS: Record<string, string> = {
   'not-owner': 'branchAccess.refusal.notOwner',
   'handover-target-not-administrator': 'branchAccess.refusal.handoverTargetNotAdministrator',
   'handover-target-self': 'branchAccess.refusal.handoverTargetSelf',
+  // A branch the person is not assigned to, or a staff member changing where an item is sold.
+  'branch-not-in-scope': 'branchAccess.refusal.branchNotInScope',
 }
 
 export function branchAccessRefusalKey(error: unknown): string | null {

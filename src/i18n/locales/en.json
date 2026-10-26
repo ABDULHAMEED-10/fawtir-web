@@ -12094,7 +12094,10 @@
       "notSold": "Not sold here",
       "soldHere": "Sold at {{branch}}",
       "priceHere": "Price before VAT at {{branch}}",
-      "note": "Leave a price empty to use the base price. The VAT category, its reason and the HS code are the same in every branch; stock is counted per branch."
+      "note": "Leave a price empty to use the base price. The VAT category, its reason and the HS code are the same in every branch; stock is counted per branch.",
+      "closed": "Closed branch",
+      "switchedOff": "Switched off here",
+      "onSaleHere": "On sale at {{branch}}"
     },
     "metaNoDate": "{{group}} › {{kind}} · {{code}}",
     "groupChoose": "Choose a group",
@@ -23312,7 +23315,8 @@
       "oneRoleOnly": "A person has one role. Change their role instead of adding another.",
       "notOwner": "Only the Owner can hand over ownership.",
       "handoverTargetNotAdministrator": "Ownership can only go to an Administrator who can sign in.",
-      "handoverTargetSelf": "You are already the Owner. Choose another Administrator."
+      "handoverTargetSelf": "You are already the Owner. Choose another Administrator.",
+      "branchNotInScope": "You can only change the branches you work in. Ask an administrator to change where this item is sold."
     },
     "invite": {
       "oneRole": "One role per person. No role means the default role.",
@@ -24091,8 +24095,13 @@
       "variantCodeTaken": "One of these codes is already used by this item or another item on sale.",
       "variantPriceNegative": "A combination's price cannot be below 0. Check the price changes.",
       "addOnFreeWithPrice": "A free add-on cannot have a price.",
-      "variantLimit": "An item takes up to 20 sizes, 20 options and 50 add-ons."
+      "variantLimit": "An item takes up to 20 sizes, 20 options and 50 add-ons.",
+      "branchesRequired": "Tick at least one branch where it is sold, or choose Every branch.",
+      "branchPrice": "Enter a branch price of 0 or more, with up to three decimals.",
+      "branchClosed": "A closed branch cannot sell this item. Untick it.",
+      "branchGone": "One of these branches no longer exists. Reload and try again."
     },
-    "backOnSaleDone": "Back on sale. New invoice lines can pick it again."
+    "backOnSaleDone": "Back on sale. New invoice lines can pick it again.",
+    "branchesNotSaved": "The item is saved, but not where it is sold."
   }
 }
