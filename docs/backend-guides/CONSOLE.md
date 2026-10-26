@@ -87,3 +87,14 @@ Plan and usage reads `enterprise.termsSet` on `/v1/settings/plan` and `/v1/setti
 |---|---|---|
 | 5.1 | **A count beside the sidebar links** that hold work waiting: Verification (companies waiting for a decision), Subscription payments (payments waiting for Finance), Refund cases (cases still open), Incidents (open). Not drawn yet: the queues are cursor-paged without totals, so the sidebar would have to load whole lists on every console page to count them (owner, 24 Oct 2026) | One small read, e.g. `GET /v1/platform/console/counts` answering `{ verificationPending, paymentsAwaitingFinance, refundCasesOpen, incidentsOpen }`, each present only when the caller holds that screen's permission |
 | 5.2 | **The topbar search finds a company anywhere in the register.** Today Enter opens Tenants with the words in its search box, which narrows only the page it loaded (row 1.10) | The `q` parameter of row 1.10 on `GET /v1/platform/companies`; with it the topbar can list matches as you type |
+
+## 6. Business types and catalogue templates (`/console/settings/business-types`)
+
+The Business types page reads `GET /v1/platform/business-types` and changes the lists through the
+`/v1/platform/business-types` and `/v1/platform/sub-business-types` endpoints; the template editor
+reads and writes `/v1/platform/sub-business-types/{code}/template` (draft, import, publish,
+versions). All need `platform.catalogue.manage`.
+
+| # | The screen wants | Ask |
+|---|---|---|
+| 6.1 | **Row errors in the operator's language.** A refused draft or spreadsheet lists every row with the field in words ("Row 12 · HS code"), then the server's own sentence, because the error carries no code | A `code` on each entry of `errors` on `catalogue-template-invalid` (for example `HS_CODE_NOT_LISTED`, `UNIT_NOT_FOR_GOODS`, `REASON_REQUIRED`, `EXPORT_REASON_NOT_ALLOWED`, `NAME_REQUIRED`, `TOO_LONG`, `LIMIT_EXCEEDED`), with its parameters, so the console can word it in English and Arabic and stop showing the English `message` |
