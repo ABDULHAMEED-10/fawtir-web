@@ -65,6 +65,18 @@ describe('the catalogue list tabs', () => {
     ])
     expect(ALL.every((p) => matchesCatalogTab(p, 'all'))).toBe(true)
   })
+
+  it('puts items switched off in the working branch on their own tab, out of every other', () => {
+    const off = { ...EXPORT, code: 'OFF-1', availableHere: false }
+    const here = { ...LATTE, availableHere: true }
+    const tabs = ['all', 'goods', 'services', 'attention', 'notStandard'] as const
+    for (const tab of tabs) expect(matchesCatalogTab(off, tab)).toBe(false)
+    expect(matchesCatalogTab(here, 'all')).toBe(true)
+    expect(codes([off, here, BEANS].filter((p) => matchesCatalogTab(p, 'switchedOff')))).toEqual([
+      'OFF-1',
+    ])
+    expect(matchesCatalogTab(off, 'archived')).toBe(false)
+  })
 })
 
 describe('the catalogue list sort', () => {

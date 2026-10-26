@@ -107,7 +107,7 @@ const BRANCH_SETTINGS = {
     availability: 'ALL_BRANCHES',
     branchIds: [],
     version: 1,
-    rows: { 'b-main': { branchPrice: null, onSale: false } },
+    rows: { 'b-main': { branchPrice: 9.9, onSale: false } },
   },
 }
 
@@ -146,6 +146,12 @@ function priceIn(p, branchId) {
   const row = st.rows[branchId] ?? { branchPrice: null, onSale: true }
   if (!row.onSale) return null
   return row.branchPrice ?? p.defaultUnitPrice
+}
+
+/** The price in a branch, sold there or not: its own price if set, else the base price. */
+function priceHere(p, branchId) {
+  const row = settingsOf(p.id).rows[branchId]
+  return row?.branchPrice ?? p.defaultUnitPrice
 }
 
 const PRODUCTS = [
@@ -576,7 +582,8 @@ export default [
       return {
         content: found.slice(page * size, page * size + size).map((p) => ({
           ...view(p, { list: true }),
-          effectivePrice: branchId ? priceIn(p, branchId) : null,
+          // Greyed rows too: the branch's own price if set, else the base price.
+          effectivePrice: branchId ? priceHere(p, branchId) : null,
           // Only on a branch read: false for a product switched off or not sold there.
           ...(branchId ? { availableHere: priceIn(p, branchId) !== null } : {}),
         })),

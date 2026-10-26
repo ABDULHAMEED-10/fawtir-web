@@ -27,6 +27,7 @@ import {
   kindOf,
   matchesCatalogTab,
   needsAttention,
+  onSaleHere,
   type CatalogSort,
   type CatalogTab,
 } from './catalogList'
@@ -137,14 +138,22 @@ export function CatalogPage() {
     () => catalogRows(items, tab, sort, i18n.language),
     [items, tab, sort, i18n.language],
   )
-  // The tabs other than Archived count the page of products on sale.
+  // The tabs other than Archived count the page of products: Switched off those greyed in the
+  // working branch, the others only what is on sale there.
   const tabCount = (id: CatalogTab) =>
     id === 'archived'
       ? archivedTotal
       : activeItems.filter((product) => matchesCatalogTab(product, id)).length
-  const services = items.filter((product) => kindOf(product) === 'service').length
-  const attention = items.filter(needsAttention).length
-  const notStandard = items.filter((product) => product.defaultTaxCategory !== 'S').length
+  // The cards count only what is on sale in the working branch.
+  const onSale = items.filter(onSaleHere)
+  const switchedOff = items.length - onSale.length
+  const services = onSale.filter((product) => kindOf(product) === 'service').length
+  const attention = onSale.filter(needsAttention).length
+  const notStandard = onSale.filter((product) => product.defaultTaxCategory !== 'S').length
+  // Switched off appears only while something is, or while it is the open tab.
+  const tabs = CATALOG_TABS.filter(
+    (entry) => entry.id !== 'switchedOff' || tab === 'switchedOff' || tabCount(entry.id) > 0,
+  )
 
   /** Puts an archived item back on sale (P.14), then reads both lists again. */
   const reactivate = async (product: ProductDto) => {
@@ -238,17 +247,18 @@ export function CatalogPage() {
           <Kpi
             icon={kpiItemsIcon}
             label={t('catalogReal.kpi.things')}
-            value={String(total ?? 0)}
+            // The server's total less the greyed rows; exact on one page (INCOME.md P.1).
+            value={String(Math.max(0, (total ?? 0) - switchedOff))}
             // TODO(backend): the list counts only what is on the page it returns, so across
             // several pages the split of goods and services is this page's (INCOME.md P.1).
             note={
               paged
                 ? t('catalogReal.kpi.thingsPagedNote', {
-                    goods: items.length - services,
+                    goods: onSale.length - services,
                     services,
                   })
                 : t('catalogReal.kpi.thingsNote', {
-                    goods: items.length - services,
+                    goods: onSale.length - services,
                     services,
                   })
             }
@@ -290,7 +300,7 @@ export function CatalogPage() {
           {t('catalogReal.products')}
         </h2>
         {(loaded && items.length > 0) || archivedTab || archivedTotal > 0 ? (
-          <TabStrip tabs={CATALOG_TABS} value={tab} onChange={setTab} count={tabCount} />
+          <TabStrip tabs={tabs} value={tab} onChange={setTab} count={tabCount} />
         ) : null}
 
         <div className="flex flex-wrap items-center justify-between gap-3 p-5">
@@ -310,7 +320,7 @@ export function CatalogPage() {
               label={t('catalog.filters')}
               value={tab}
               defaultValue="all"
-              options={CATALOG_TABS.map((entry) => ({
+              options={tabs.map((entry) => ({
                 value: entry.id,
                 label: t(entry.labelKey),
                 count: tabCount(entry.id),

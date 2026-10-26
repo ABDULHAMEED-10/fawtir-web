@@ -22661,7 +22661,8 @@
       "services": "Services",
       "attention": "Wanting attention",
       "notStandard": "Not at the standard rate",
-      "archived": "Off sale"
+      "archived": "Off sale",
+      "switchedOff": "Switched off"
     },
     "sort": {
       "name": "Name",

@@ -23911,7 +23911,8 @@
       "services": "الخدمات",
       "attention": "تحتاج إلى انتباه",
       "notStandard": "ليست بالنسبة الأساسية",
-      "archived": "موقوف"
+      "archived": "موقوف",
+      "switchedOff": "متوقفة في الفرع"
     },
     "sort": {
       "name": "الاسم",
