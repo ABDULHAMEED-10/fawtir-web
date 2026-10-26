@@ -140,6 +140,8 @@ const json = (body: unknown, status = 200) =>
   })
 
 let permissions: string[]
+/** What the zero-rating suggestion answers (Z.15); nothing listed unless a test says so. */
+let suggestion: Record<string, unknown>
 let stored: Record<string, unknown> & typeof DATES
 let onWrite: (url: string, init: RequestInit) => Response
 
@@ -148,6 +150,14 @@ beforeEach(async () => {
   resetSharedRequests()
   forgetEntitlements()
   permissions = ['product.read', 'product.manage']
+  suggestion = {
+    hsCode: '080410000000',
+    judgedOn: '2026-10-26',
+    suggestedTaxCategory: null,
+    suggestedReasonCode: null,
+    suggestedReasonCodes: [],
+    matches: [],
+  }
   stored = { ...DATES }
   onWrite = (_url, init) =>
     json({ ...stored, ...JSON.parse(String(init.body ?? '{}')), version: 4 })
@@ -159,6 +169,7 @@ beforeEach(async () => {
       if (url === '/api/v1/branches') return json([])
       if (url.includes('/code-lists/hs')) return json({ items: [], total: 0 })
       if (url === '/api/v1/catalog/groups') return json(GROUPS)
+      if (url.startsWith('/api/v1/zero-rating/hs-suggestion')) return json(suggestion)
       if (url.startsWith('/api/v1/products') && init.method && init.method !== 'GET') {
         return onWrite(url, init)
       }
@@ -432,6 +443,85 @@ describe('the item form on /v1/products', () => {
     fireEvent.click(screen.getAllByRole('button', { name: i18n.t('item.save') })[0])
     expect(await screen.findByText(i18n.t('branchAccess.refusal.branchNotInScope'))).toBeTruthy()
     expect(screen.getByText(i18n.t('itemForm.branchesNotSaved'))).toBeTruthy()
+  })
+
+  it('suggests zero-rated for a listed HS code, and the person may take it (Z.15)', async () => {
+    suggestion = {
+      hsCode: '080410000000',
+      judgedOn: '2026-10-26',
+      suggestedTaxCategory: 'Z',
+      suggestedReasonCode: 'VATZR-OM-01',
+      suggestedReasonCodes: ['VATZR-OM-01'],
+      matches: [
+        {
+          listKey: 'FOOD',
+          reasonCode: 'VATZR-OM-01',
+          listId: 'l-1',
+          effectiveFrom: '2026-10-01',
+          effectiveTo: null,
+          decisionRef: null,
+          matchedCode: '080410000000',
+          matchedBy: 'EXACT',
+        },
+      ],
+    }
+    await openItem()
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('zeroRating.useSuggestion') }))
+    // Taken: the suggestion goes away and the save carries Z with its reason.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: i18n.t('zeroRating.useSuggestion') })).toBeNull(),
+    )
+    fireEvent.click(screen.getAllByRole('button', { name: i18n.t('item.save') })[0])
+    await waitFor(() => expect(writes()).toHaveLength(1))
+    expect(JSON.parse(String(writes()[0].body))).toMatchObject({
+      defaultTaxCategory: 'Z',
+      defaultTaxRate: 0,
+      defaultTaxReasonCode: 'VATZR-OM-01',
+    })
+    expect(
+      vi
+        .mocked(fetch)
+        .mock.calls.some(
+          ([url]) => String(url) === '/api/v1/zero-rating/hs-suggestion?hsCode=080410000000',
+        ),
+    ).toBe(true)
+  })
+
+  it("shows the save's zero-rating warnings without blocking, and words the HS mismatch refusal", async () => {
+    onWrite = (_url, init) =>
+      json({
+        ...stored,
+        ...JSON.parse(String(init.body ?? '{}')),
+        version: 4,
+        zeroRatingWarnings: [
+          {
+            code: 'ZR_FOOD_CHARGED_STANDARD',
+            severity: 'warning',
+            hsCode: '080410000000',
+            reasonCode: null,
+            listKey: 'FOOD',
+            suggestedReasonCode: 'VATZR-OM-01',
+            effectiveFrom: '2026-10-01',
+            judgedOn: '2026-10-26',
+            message: 'fallback',
+          },
+        ],
+      })
+    await openItem()
+    await screen.findByLabelText(/^Name/)
+    fireEvent.click(screen.getAllByRole('button', { name: i18n.t('item.save') })[0])
+    expect(
+      await screen.findByText(
+        i18n.t('zeroRating.warning.ZR_FOOD_CHARGED_STANDARD', {
+          hsCode: '080410000000',
+          date: '26 Oct 2026',
+        }),
+      ),
+    ).toBeTruthy()
+
+    onWrite = () => json({ status: 400, code: 'PRODUCT_ZERO_RATING_HS_MISMATCH' }, 400)
+    fireEvent.click(screen.getAllByRole('button', { name: i18n.t('item.save') })[0])
+    expect(await screen.findByText(i18n.t('itemForm.refused.zeroRatingMismatch'))).toBeTruthy()
   })
 
   it('says New item is not allowed without product.manage', async () => {

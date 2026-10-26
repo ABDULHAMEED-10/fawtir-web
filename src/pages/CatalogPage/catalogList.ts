@@ -9,9 +9,15 @@ export const kindOf = (product: ProductDto) =>
       ? 'goods'
       : itemTypeOfUnit(product.defaultUnitCode)
 
-/** No price, or a VAT category Oman does not use (CL-04-OM): the product needs a look. */
-export const needsAttention = (product: ProductDto) =>
-  !(product.defaultUnitPrice > 0) || !OMAN_VAT_CATEGORIES.has(product.defaultTaxCategory)
+/**
+ * No price, a VAT category Oman does not use (CL-04-OM), or a rate the zero-rating re-check
+ * flagged against Oman's lists (Z.15, on the product or in `flagged`): the product needs a look.
+ */
+export const needsAttention = (product: ProductDto, flagged?: ReadonlySet<string>) =>
+  !(product.defaultUnitPrice > 0) ||
+  !OMAN_VAT_CATEGORIES.has(product.defaultTaxCategory) ||
+  Boolean(product.zeroRatingAttention) ||
+  Boolean(flagged?.has(product.id))
 
 /**
  * The catalogue list's tabs: only the ones a product record can answer.
@@ -32,14 +38,18 @@ export const CATALOG_TABS = [
 
 export type CatalogTab = (typeof CATALOG_TABS)[number]['id']
 
-export function matchesCatalogTab(product: ProductDto, tab: CatalogTab): boolean {
+export function matchesCatalogTab(
+  product: ProductDto,
+  tab: CatalogTab,
+  flagged?: ReadonlySet<string>,
+): boolean {
   switch (tab) {
     case 'goods':
       return kindOf(product) === 'goods'
     case 'services':
       return kindOf(product) === 'service'
     case 'attention':
-      return needsAttention(product)
+      return needsAttention(product, flagged)
     case 'notStandard':
       return product.defaultTaxCategory !== 'S'
     case 'archived':
@@ -72,10 +82,11 @@ export function catalogRows(
   tab: CatalogTab,
   sort: CatalogSort,
   locale?: string,
+  flagged?: ReadonlySet<string>,
 ): ProductDto[] {
   const text = (a: string, b: string) => a.localeCompare(b, locale, { sensitivity: 'base' })
   return products
-    .filter((product) => matchesCatalogTab(product, tab))
+    .filter((product) => matchesCatalogTab(product, tab, flagged))
     .sort((a, b) => {
       if (sort === 'code') return text(a.code, b.code)
       if (sort === 'priceLow')

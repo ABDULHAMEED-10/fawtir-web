@@ -6,6 +6,8 @@
  * amounts.
  */
 
+import { lineWarnings } from '../lib/zeroRating.mjs'
+
 const NOW = '2026-09-25T09:30:00Z'
 
 /**
@@ -524,7 +526,8 @@ export default [
           },
         }
       }
-      return price(found.draft)
+      // Zero-rating by HS code (Z.11): non-blocking warnings beside the figures.
+      return { ...price(found.draft), warnings: lineWarnings(found.draft.lines) }
     },
   },
   {

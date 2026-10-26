@@ -482,6 +482,45 @@ describe('the VAT summary label, now that the category is picked per line', () =
 })
 
 describe('an existing draft', () => {
+  it("shows the saved draft's zero-rating warnings by line, without blocking (Z.11, Z.13)", async () => {
+    const original = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) =>
+      String(input) === '/api/v1/invoice-drafts/d-1/preview'
+        ? json(200, {
+            ...PREVIEW,
+            warnings: [
+              {
+                line: 1,
+                code: 'ZR_FOOD_CHARGED_STANDARD',
+                severity: 'warning',
+                hsCode: '090121000000',
+                hsCodeSource: 'LINE',
+                reasonCode: null,
+                listKey: 'FOOD',
+                effectiveFrom: '2026-10-01',
+                judgedOn: '2026-10-26',
+                message: 'fallback',
+              },
+            ],
+          })
+        : original(input, init),
+    )
+    renderAt('/invoices/d-1/edit')
+    const text = i18n.t('zeroRating.line', {
+      line: 1,
+      text: i18n.t('zeroRating.warning.ZR_FOOD_CHARGED_STANDARD', {
+        hsCode: '090121000000',
+        date: '26 Oct 2026',
+      }),
+    })
+    expect(await screen.findByText(text)).toBeTruthy()
+    expect(screen.queryByText('fallback')).toBeNull()
+    // Nothing is blocked: the draft can still be saved.
+    expect((screen.getByRole('button', { name: 'Save draft' }) as HTMLButtonElement).disabled).toBe(
+      false,
+    )
+  })
+
   it('opens with its saved content and figures, and saves back without the note it cannot see', async () => {
     renderAt('/invoices/d-1/edit')
     expect(await screen.findByDisplayValue('September supply')).toBeTruthy()

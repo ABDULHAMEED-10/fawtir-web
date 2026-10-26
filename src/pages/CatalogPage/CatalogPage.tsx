@@ -12,6 +12,12 @@ import {
 } from '../../api/catalog/products'
 import { productRefusal } from '../../lib/productForm'
 import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
+import {
+  getZeroRatingAttention,
+  zeroRatingAttentionPath,
+  type ZeroRatingAttentionPage,
+} from '../../api/catalog/zeroRating'
+import { formatDisplayDate } from '../../lib/dates'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { pageCountOf, type Page } from '../../api'
 import { Link } from 'react-router-dom'
@@ -40,6 +46,8 @@ import kpiGroupsIcon from '../../assets/catalog/kpi-groups.svg'
 import kpiEarningIcon from '../../assets/catalog/kpi-earning.svg'
 import kpiAttentionIcon from '../../assets/catalog/kpi-attention.svg'
 
+/** The zero-rating flags read for Wanting attention; the re-check flags few items. */
+const ATTENTION_PAGE_SIZE = 200
 /** Rows to a page, as the frame's pager pages them; the server pages, this screen asks. */
 const CATALOG_PAGE_SIZE = 20
 /** How long typing pauses before the search goes to the server. */
@@ -130,17 +138,39 @@ export function CatalogPage() {
   const paged = pageCount > 1
   // Tabs and sorting work over the page the server sent: the product list has no server-side
   // filter for kind or VAT category, and no sort parameter this screen relies on.
+  // The zero-rating re-check's flags (Z.15), merged into Wanting attention. A failed read leaves
+  // the tab as it was: the flags are an addition, not what the tab depends on.
+  const attentionPath = zeroRatingAttentionPath(ATTENTION_PAGE_SIZE)
+  const flaggedRead = useApiRead<ZeroRatingAttentionPage>(attentionPath, () =>
+    getZeroRatingAttention(attentionPath),
+  )
+  const flaggedRows = useMemo(
+    () => (flaggedRead.read.status === 'ready' ? (flaggedRead.read.data.items ?? []) : []),
+    [flaggedRead.read],
+  )
+  const flagged = useMemo(() => new Set(flaggedRows.map((row) => row.productId)), [flaggedRows])
+  const flagOf = (id: string) => flaggedRows.find((row) => row.productId === id) ?? null
+  /** The date a flag was judged on: the re-check list's, else when the product was flagged. */
+  const flagDate = (product: ProductDto): string =>
+    flagOf(product.id)?.judgedOn ?? product.zeroRatingAttention?.flaggedAt.slice(0, 10) ?? ''
+  /** Flagged items that are not on the page in view, listed under the Wanting attention tab. */
+  const flaggedElsewhere = flaggedRows.filter(
+    (row) => !activeItems.some((product) => product.id === row.productId),
+  )
   const rows = useMemo(
-    () => catalogRows(items, tab, sort, i18n.language),
-    [items, tab, sort, i18n.language],
+    () => catalogRows(items, tab, sort, i18n.language, flagged),
+    [items, tab, sort, i18n.language, flagged],
   )
   // The tabs other than Archived count the page of products on sale.
   const tabCount = (id: CatalogTab) =>
     id === 'archived'
       ? archivedTotal
-      : activeItems.filter((product) => matchesCatalogTab(product, id)).length
+      : activeItems.filter((product) => matchesCatalogTab(product, id, flagged)).length +
+        (id === 'attention' ? flaggedElsewhere.length : 0)
   const services = items.filter((product) => kindOf(product) === 'service').length
-  const attention = items.filter(needsAttention).length
+  const attention =
+    items.filter((product) => needsAttention(product, flagged)).length +
+    (archivedTab ? 0 : flaggedElsewhere.length)
   const notStandard = items.filter((product) => product.defaultTaxCategory !== 'S').length
 
   /** Puts an archived item back on sale (P.14), then reads both lists again. */
@@ -334,7 +364,7 @@ export function CatalogPage() {
           <div className="px-5 pb-5">
             <ApiReadFailure error={products.read.error} retry={products.retry} />
           </div>
-        ) : rows.length === 0 ? (
+        ) : rows.length === 0 && !(tab === 'attention' && flaggedElsewhere.length > 0) ? (
           <p className="px-5 pb-10 pt-5 text-center text-sm font-medium text-text-quaternary">
             {items.length > 0
               ? t('catalogReal.noneInTab')
@@ -365,7 +395,8 @@ export function CatalogPage() {
                 <tbody>
                   {rows.map((product) => {
                     const service = kindOf(product) === 'service'
-                    const odd = needsAttention(product)
+                    const odd = needsAttention(product, flagged)
+                    const flag = product.zeroRatingAttention ?? flagOf(product.id)
                     return (
                       <tr
                         key={product.id}
@@ -398,6 +429,14 @@ export function CatalogPage() {
                               >
                                 {product.code}
                               </p>
+                              {flag ? (
+                                <p className="mt-1 max-w-[420px] text-xs font-medium leading-[1.4] text-pending-700">
+                                  {t(`zeroRating.warning.${flag.code}`, {
+                                    hsCode: flag.hsCode ?? t('zeroRating.noHsCode'),
+                                    date: formatDisplayDate(flagDate(product), i18n.language),
+                                  })}
+                                </p>
+                              ) : null}
                               {!product.active && canManage ? (
                                 <button
                                   type="button"
@@ -477,6 +516,34 @@ export function CatalogPage() {
                 </tbody>
               </table>
             </div>
+            {tab === 'attention' && flaggedElsewhere.length > 0 ? (
+              <div className="border-t border-surface-background px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
+                  {t('zeroRating.flagged')}
+                </p>
+                <ul className="mt-2 flex flex-col gap-2">
+                  {flaggedElsewhere.map((row) => (
+                    <li key={row.productId} className="text-sm font-medium text-text-primary">
+                      <Link
+                        to={`/catalog/${encodeURIComponent(row.productId)}`}
+                        className="hover:underline"
+                      >
+                        <bdi>{row.productName}</bdi>
+                      </Link>{' '}
+                      <span className="text-xs text-text-quaternary" dir="ltr">
+                        {row.productCode}
+                      </span>
+                      <p className="text-xs leading-[1.4] text-pending-700">
+                        {t(`zeroRating.warning.${row.code}`, {
+                          hsCode: row.hsCode ?? t('zeroRating.noHsCode'),
+                          date: formatDisplayDate(row.judgedOn, i18n.language),
+                        })}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-surface-background px-5 py-4">
               <p className="text-sm font-medium text-text-quaternary">
                 {total !== null && total > rows.length

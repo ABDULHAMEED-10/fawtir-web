@@ -848,6 +848,18 @@ those rows (their original text stays as asked).
 | P.9 (update) | Where an item is sold, its price and on/off per branch | **Done**: the item form's Branches step reads `GET /v1/products/{id}/branch-settings` and, when the step was changed, saves `PUT .../branch-settings?expectedVersion=` after the item (a new item's right after it is created): `availability`, `branchIds`, and per branch `branchPrice` (before VAT, empty = base) and `onSale`. A closed branch is shown and cannot be chosen. The catalogue list and both invoice item pickers read `GET /v1/products?branchId=` with the sidebar's working branch and show `effectivePrice`; a picked product starts the line at it. 403 `branch-not-in-scope` is worded on the form, and reads as "no access" |
 | P.18 | Manage the items not sold in the working branch | with `branchId` the list returns only the items on sale in that branch, so an item switched off there, or sold only in other branches, is found by changing the sidebar's branch. Asked: a list parameter (or `status`) that returns every active item with its settings for the branch, so the catalogue can show them greyed, and the On sale and Switched off tabs can be drawn |
 
+## Update 2026-10-26 (zero-rating by HS code on the screens)
+
+The screens now read the backend's zero-rating routes. These notes update rows Z.7, Z.11, Z.13 and
+Z.15 (their original text stays as written; Z.7 and Z.15 were "future plan" and are now built).
+
+| #   | What the screen does | Backend |
+| --- | --- | --- |
+| Z.7 (update) | The item form words the two product refusals | **Done**: `PRODUCT_ZERO_RATING_HS_MISMATCH` (on the HS code) and `PRODUCT_TAX_REASON_NOT_A_PRODUCT_DEFAULT` (on the reason) |
+| Z.11 (update) | The composer shows each line's warning | **Done**: `warnings[]` of the draft preview (`InvoicePreviewResponse.warnings`), worded by `code` with the line, `hsCode` and `judgedOn`, in the pending colour above the form; never blocking, and hidden while the form has unsaved changes. Credit and debit note screens do not draw them yet |
+| Z.13 (update) | The warning shape | **Done**, as `{line, code, severity, hsCode, hsCodeSource, reasonCode, listKey, effectiveFrom, judgedOn, message}`; `message` is not shown |
+| Z.15 (update) | The item form and the catalogue | **Done**: a listed 12-digit goods HS code reads `GET /v1/zero-rating/hs-suggestion` and offers "Use zero-rated" with the suggested reason (the category stays the person's choice); a save's `zeroRatingWarnings[]` and a stored item's `zeroRatingAttention` are shown on the form; `GET /v1/products/zero-rating-attention` joins the catalogue's Wanting attention tab, with the flagged items not on the page listed under it |
+
 ## Update 2026-10-23 (share an invoice by email and WhatsApp)
 
 Owner decision of 23 Oct 2026: a person can send a copy of an issued invoice to anyone by email

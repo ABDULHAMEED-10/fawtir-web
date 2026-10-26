@@ -24099,9 +24099,30 @@
       "branchesRequired": "Tick at least one branch where it is sold, or choose Every branch.",
       "branchPrice": "Enter a branch price of 0 or more, with up to three decimals.",
       "branchClosed": "A closed branch cannot sell this item. Untick it.",
-      "branchGone": "One of these branches no longer exists. Reload and try again."
+      "branchGone": "One of these branches no longer exists. Reload and try again.",
+      "zeroRatingMismatch": "Zero-rated as food needs an HS code on Oman's zero-rated food list in force today. Choose a listed HS code, or another VAT category.",
+      "reasonNotDefault": "Export and international transport reasons depend on the sale, so an item cannot carry them. Choose the reason on the invoice line instead."
     },
     "backOnSaleDone": "Back on sale. New invoice lines can pick it again.",
     "branchesNotSaved": "The item is saved, but not where it is sold."
+  },
+  "zeroRating": {
+    "title": "Check the VAT",
+    "noHsCode": "(none)",
+    "line": "Line {{line}}: {{text}}",
+    "warning": {
+      "ZR_FOOD_NOT_LISTED": "HS code {{hsCode}} is zero-rated as food, but it is not on Oman's zero-rated food list on {{date}}. Check the VAT category or the HS code.",
+      "ZR_FOOD_CHARGED_STANDARD": "HS code {{hsCode}} is on Oman's zero-rated food list on {{date}}, but it is charged 5% VAT. It may be zero-rated.",
+      "ZR_MEDICAL_NOT_LISTED": "HS code {{hsCode}} is zero-rated as medical, but it is not on Oman's zero-rated medicines and medical equipment lists on {{date}}. Check the VAT category or the HS code.",
+      "ZR_MEDICAL_CHARGED_STANDARD": "HS code {{hsCode}} is on Oman's zero-rated medicines and medical equipment lists on {{date}}, but it is charged 5% VAT. It may be zero-rated."
+    },
+    "list": {
+      "FOOD": "food",
+      "MEDICAL": "medicines and medical equipment",
+      "VETERINARY": "veterinary medicines and equipment"
+    },
+    "suggest": "This HS code is on Oman's zero-rated {{list}} list on {{date}}. Zero-rated is suggested ({{reason}}). You can still choose another category.",
+    "useSuggestion": "Use zero-rated",
+    "flagged": "Flagged by the zero-rating check"
   }
 }

@@ -8,6 +8,7 @@
  */
 
 import { KINDS } from './catalogGroups.mjs'
+import { matchesFor, today, warningFor } from '../lib/zeroRating.mjs'
 
 const NOW = '2026-10-21T09:00:00Z'
 
@@ -101,6 +102,20 @@ const BRANCH_SETTINGS = {
     branchIds: [],
     version: 1,
     rows: { 'b-nizwa': { branchPrice: null, onSale: false } },
+  },
+}
+
+/**
+ * The zero-rating re-check's flags (Z.15), by product id: the beans are on the food list from
+ * 1 October but still charged 5%.
+ */
+const ATTENTION = {
+  'p-beans': {
+    code: 'ZR_FOOD_CHARGED_STANDARD',
+    hsCode: '090121000000',
+    listKey: 'FOOD',
+    listEffectiveFrom: '2026-10-01',
+    flaggedAt: '2026-10-02T03:00:00Z',
   },
 }
 
@@ -224,6 +239,8 @@ function combos(p) {
 function view(p, { list = false } = {}) {
   const { variantSettings, updatedAt, ...rest } = p
   void updatedAt
+  rest.zeroRatingWarnings = []
+  rest.zeroRatingAttention = ATTENTION[p.id] ?? null
   if (list) return { ...rest, sizes: null, options: null, variants: null, addOns: null }
   const variants = combos(p).map(({ s, o }, index) => {
     const key = `${s?.id ?? '-'}:${o?.id ?? '-'}`
@@ -431,6 +448,18 @@ function refusal(body, id) {
   }
   if (body.defaultTaxReasonText && category === 'S')
     return problem(400, 'PRODUCT_TAX_REASON_NOT_APPLICABLE')
+  // Z.7: export and international transport reasons belong to the sale, not the product.
+  if (/^VATZR-OM-(04|05|09|10|11|12)$/.test(body.defaultTaxReasonCode ?? '')) {
+    return problem(400, 'PRODUCT_TAX_REASON_NOT_A_PRODUCT_DEFAULT')
+  }
+  // Z.15: zero-rated as food needs an HS code on the food list in force today.
+  if (
+    category === 'Z' &&
+    body.defaultTaxReasonCode === 'VATZR-OM-01' &&
+    !matchesFor(c?.hsCode).some((m) => m.listKey === 'FOOD')
+  ) {
+    return problem(400, 'PRODUCT_ZERO_RATING_HS_MISMATCH')
+  }
   if (body.keepCount && kind === 'S') return problem(400, 'PRODUCT_KEEP_COUNT_ON_SERVICE')
   const d = body.defaultDiscount
   if (
@@ -501,7 +530,31 @@ function save(found, body) {
   const base = apply(found ?? product(newId('p-new'), '', '', 'EA', 0), body)
   const setup = applySetup(base, body)
   if (setup.refused) return setup
+  // A save re-judges the item: a fixed one drops off Wanting attention.
+  delete ATTENTION[setup.product.id]
   return { product: setup.product }
+}
+
+/** A save's answer: the item, with the warnings the save found (non-blocking, Z.15). */
+function savedView(p) {
+  const warning =
+    p.classificationGoodsOrService === 'S'
+      ? null
+      : warningFor({
+          hsCode: p.classificationHsCode,
+          category: p.defaultTaxCategory,
+          reasonCode: p.defaultTaxReasonCode,
+        })
+  const answer = view(p)
+  answer.zeroRatingWarnings = warning
+    ? [
+        {
+          ...warning,
+          suggestedReasonCode: warning.code.endsWith('STANDARD') ? 'VATZR-OM-01' : null,
+        },
+      ]
+    : []
+  return answer
 }
 
 const ONE = /^\/api\/v1\/products\/([^/]+)$/
@@ -580,7 +633,40 @@ export default [
     reply: ({ body }) => {
       const saved = save(null, body ?? {})
       if (saved.refused) return saved.refused
-      return { status: 201, body: view(replace(saved.product)) }
+      return { status: 201, body: savedView(replace(saved.product)) }
+    },
+  },
+  {
+    // Before the one-product route, which would read this as a product id.
+    match: '/api/v1/products/zero-rating-attention',
+    reply: ({ query }) => {
+      const page = Number(query.get('page') ?? 0)
+      const size = Number(query.get('size') ?? 50)
+      const items = Object.entries(ATTENTION).flatMap(([id, flag]) => {
+        const p = find(id)
+        if (!p || !p.active) return []
+        return [
+          {
+            productId: p.id,
+            productCode: p.code,
+            productName: p.name,
+            code: flag.code,
+            hsCode: flag.hsCode,
+            taxCategory: p.defaultTaxCategory,
+            reasonCode: p.defaultTaxReasonCode,
+            listKey: flag.listKey,
+            listEffectiveFrom: flag.listEffectiveFrom,
+            judgedOn: today(),
+            flaggedAt: flag.flaggedAt,
+          },
+        ]
+      })
+      return {
+        items: items.slice(page * size, page * size + size),
+        page,
+        size,
+        total: items.length,
+      }
     },
   },
   {
@@ -602,7 +688,7 @@ export default [
       if (!found.active) return problem(409, 'PRODUCT_ARCHIVED')
       const saved = save(found, body ?? {})
       if (saved.refused) return saved.refused
-      return view(replace({ ...saved.product, version: found.version + 1 }))
+      return savedView(replace({ ...saved.product, version: found.version + 1 }))
     },
   },
   {

@@ -56,6 +56,21 @@ describe('the catalogue list tabs', () => {
 
   it('wants attention for no price or a VAT category Oman does not use', () => {
     expect(codes(ALL.filter((p) => matchesCatalogTab(p, 'attention')))).toEqual(['EXP-1', 'FREE-1'])
+    // The zero-rating re-check's flags join them (Z.15), on the product or from the attention list.
+    const flaggedOnProduct = product({
+      code: 'BEAN-1',
+      zeroRatingAttention: {
+        code: 'ZR_FOOD_CHARGED_STANDARD',
+        hsCode: '090121000000',
+        listKey: 'FOOD',
+        listEffectiveFrom: '2026-10-01',
+        flaggedAt: '2026-10-02T03:00:00Z',
+      },
+    })
+    expect(matchesCatalogTab(flaggedOnProduct, 'attention')).toBe(true)
+    const plain = product({ id: 'p-plain', code: 'PLAIN-1' })
+    expect(matchesCatalogTab(plain, 'attention')).toBe(false)
+    expect(matchesCatalogTab(plain, 'attention', new Set(['p-plain']))).toBe(true)
   })
 
   it('lists everything not at the standard rate', () => {
