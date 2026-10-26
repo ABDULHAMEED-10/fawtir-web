@@ -1114,7 +1114,7 @@ export default [
           active: true,
         },
       ],
-      units: ['EA', 'KGM', 'LTR', 'BG', 'BX', 'SA', 'PK', 'HUR', 'DAY', 'MTR'].map((code) => ({
+      units: ['EA', 'KGM', 'LTR', 'XBG', 'XBX', 'XSA', 'XPK', 'HUR', 'DAY', 'MTR'].map((code) => ({
         code,
         active: true,
       })),

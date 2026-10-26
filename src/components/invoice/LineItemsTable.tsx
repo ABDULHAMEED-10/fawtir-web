@@ -274,7 +274,7 @@ export function LineItemsTable({
                   <Select
                     value={row.unit}
                     onChange={(unit) => update(row.id, { unit })}
-                    options={unitOptions(reference, t)}
+                    options={unitOptions(reference, t, row.unit)}
                     ariaLabel={t('createInvoice.items.unit')}
                   />
                   <DiscountField

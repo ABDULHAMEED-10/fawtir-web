@@ -1,5 +1,6 @@
 import { SUB_TYPES_BY_BUSINESS } from '../subBusinessTypes'
 import type { SuggestedGroup } from '../catalogBuild'
+import { offeredUnitCode } from '../invoiceDraft'
 
 /**
  * System catalogue templates: what a business of one sub-business type usually sells, as a
@@ -81,7 +82,8 @@ export function suggestedFrom(groups: TemplateGroup[]): SuggestedGroup[] {
         id: `g${g}k${k}i${i}`,
         name: item.name,
         price: 0,
-        soldAs: item.unit,
+        // A bare Rec 21 package code becomes its X form: PINT-OM takes no other (ibr-cl-23).
+        soldAs: offeredUnitCode(item.unit),
         barcode: item.barcode,
         brand: item.brand,
         taxCode: item.zeroRated ? 'Z0' : 'S5',

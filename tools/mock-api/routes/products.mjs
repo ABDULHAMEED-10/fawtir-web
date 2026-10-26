@@ -46,6 +46,8 @@ const PRODUCTS = [
   product('p-beans', 'BEAN-HB', 'Coffee Beans 1kg - House Blend', 'KGM', 9.5, goods('090121000000')),
   product('p-green', 'BEAN-YG', 'Green Beans - Yirgacheffe', 'KGM', 10.25, goods('090111000000')),
   product('p-roast', 'SRV-ROAST', 'Roasting service - per batch', 'E48', 4.2, service()),
+  // Kept in the bare Rec 21 code on purpose: a product saved before the X prefix (ibr-cl-23)
+  // must still open and show its unit.
   product('p-cups', 'CUP-500', 'Takeaway cups - 500 pack', 'PK', 22.8),
   product('p-train', 'SRV-TRAIN', 'Barista training', 'HUR', 15, service()),
   product('p-deliv', 'SRV-DELIV', 'Delivery charge', 'EA', 2.5, service()),
