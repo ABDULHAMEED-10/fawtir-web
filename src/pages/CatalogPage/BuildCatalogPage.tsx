@@ -7,7 +7,15 @@ import { OptionPicker, Select, TableCheckbox } from '../../components/ui'
 import { selectAllOnFocus, unitOptions } from '../../components/invoice'
 import { DESIGN_REFERENCE, omanTaxCategories } from '../../lib/invoiceDraft'
 import { defaultPicks, readyToAdd, type SuggestedGroup } from '../../lib/catalogBuild'
-import { loadTemplate, suggestedFrom, TEMPLATE_SUB_TYPES } from '../../lib/catalogTemplates'
+import { suggestedFrom } from '../../lib/catalogTemplates'
+import { ApiError } from '../../api'
+import {
+  catalogTemplatePath,
+  readCatalogTemplate,
+  type CatalogTemplateDto,
+} from '../../api/catalog/templates'
+import { useApiRead } from '../../hooks/useApiRead'
+import { findSubBusinessType, localName, useSignupBusinessTypes } from '../../lib/businessTypes'
 import searchIcon from '../../assets/invoices/search.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import bagIcon from '../../assets/catalog/kind-bag.svg'
@@ -16,12 +24,8 @@ import tickWhiteIcon from '../../assets/catalog/check-white.svg'
 
 /** The choice that starts a catalogue with no template. */
 const OWN = 'own'
-
-/**
- * TODO(backend): the company's own sub-business type, chosen at signup, is not readable after
- * signup yet; the screen opens on the first template and the person picks theirs (INCOME.md P.6).
- */
-const FIRST_TEMPLATE = TEMPLATE_SUB_TYPES[0]?.id ?? OWN
+/** The choice that starts from the company's own template. */
+const TEMPLATE = 'template'
 
 /** First-strong isolate: an English name inside an Arabic sentence keeps its own order. */
 const isolate = (text: string) => `\u2068${text}\u2069`
@@ -44,11 +48,33 @@ const threeDecimals = (raw: string) => {
  * once added. "Start my own catalogue" uses no template. Adding still calls no API (P.5).
  */
 export function BuildCatalogPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const reference = useReferenceData()
   const navigate = useNavigate()
 
-  const [subType, setSubType] = useState(FIRST_TEMPLATE)
+  // The published template of the company's own sub business type (chosen at sign-up, changed in
+  // Settings › Company). A 404 means it has none, or the company has not chosen a type.
+  const { read: templateRead, retry: retryTemplate } = useApiRead<CatalogTemplateDto>(
+    catalogTemplatePath(),
+    () => readCatalogTemplate(),
+  )
+  const template = templateRead.status === 'ready' ? templateRead.data : null
+  const noTemplate =
+    templateRead.status === 'failed' &&
+    templateRead.error instanceof ApiError &&
+    templateRead.error.status === 404
+  const templateFailed = templateRead.status === 'failed' && !noTemplate
+  // The sub type's name, from the server's lists; a type not open for sign-up is not listed there.
+  const businessTypes = useSignupBusinessTypes().read
+  const ownSubType = template
+    ? findSubBusinessType(
+        businessTypes.status === 'ready' ? businessTypes.data : undefined,
+        template.subBusinessTypeCode,
+      )
+    : undefined
+
+  const [choice, setChoice] = useState(TEMPLATE)
+  const subType = template && choice === TEMPLATE ? TEMPLATE : OWN
   const [suggested, setSuggested] = useState<SuggestedGroup[]>([])
   const [picks, setPicks] = useState<Set<string>>(new Set())
   const [group, setGroup] = useState('')
@@ -61,23 +87,16 @@ export function BuildCatalogPage() {
 
   // A new template replaces everything picked and typed for the old one.
   useEffect(() => {
-    let live = true
-    const apply = (next: SuggestedGroup[]) => {
-      if (!live) return
-      setSuggested(next)
-      setPicks(defaultPicks(next))
-      setGroup(next[0]?.id ?? '')
-      setKind(next[0]?.kinds[0]?.id ?? '')
-      setPrices({})
-      setUnits({})
-      setTaxes({})
-    }
-    if (subType === OWN) apply([])
-    else loadTemplate(subType).then((groups) => apply(suggestedFrom(groups)))
-    return () => {
-      live = false
-    }
-  }, [subType])
+    const next =
+      subType === TEMPLATE && template ? suggestedFrom(template.groups, i18n.language) : []
+    setSuggested(next)
+    setPicks(defaultPicks(next))
+    setGroup(next[0]?.id ?? '')
+    setKind(next[0]?.kinds[0]?.id ?? '')
+    setPrices({})
+    setUnits({})
+    setTaxes({})
+  }, [subType, template, i18n.language])
 
   const categories = omanTaxCategories(
     reference?.taxCategories?.length ? reference.taxCategories : DESIGN_REFERENCE.taxCategories,
@@ -91,11 +110,25 @@ export function BuildCatalogPage() {
         ? `${Number(row.rate)}%`
         : t(`buildCatalog.taxShort.${row.en16931Category}`),
   }))
+  const templateLabel = ownSubType
+    ? localName(ownSubType, i18n.language)
+    : t('buildCatalog.yourTemplate')
   const subTypeOptions = [
-    ...TEMPLATE_SUB_TYPES.map((option) => ({ value: option.id, label: t(option.labelKey) })),
+    ...(template ? [{ value: TEMPLATE, label: templateLabel }] : []),
     { value: OWN, label: t('buildCatalog.ownCatalogue') },
   ]
-  const subTypeLabel = subTypeOptions.find((option) => option.value === subType)?.label ?? ''
+  const subTypeLabel =
+    templateRead.status === 'loading'
+      ? t('buildCatalog.loadingTemplate')
+      : (subTypeOptions.find((option) => option.value === subType)?.label ?? '')
+  const bannerNote =
+    subType === TEMPLATE
+      ? 'buildCatalog.suggestionsNote'
+      : noTemplate
+        ? 'buildCatalog.noTemplateNote'
+        : templateFailed
+          ? 'buildCatalog.templateFailedNote'
+          : 'buildCatalog.ownCatalogueNote'
 
   const toggle = (id: string) =>
     setPicks((current) => {
@@ -139,7 +172,7 @@ export function BuildCatalogPage() {
             tall
             ariaLabel={t('buildCatalog.businessType')}
             value={subType}
-            onChange={setSubType}
+            onChange={setChoice}
             options={subTypeOptions}
           />
           <Link
@@ -159,8 +192,25 @@ export function BuildCatalogPage() {
         <div className="min-w-[280px] flex-1">
           <p className="text-base font-semibold text-text-primary">{subTypeLabel}</p>
           <p className="mt-1 text-sm font-medium leading-[1.5] text-text-tertiary">
-            {t(subType === OWN ? 'buildCatalog.ownCatalogueNote' : 'buildCatalog.suggestionsNote')}
+            {templateRead.status === 'loading' ? null : t(bannerNote)}
           </p>
+          {noTemplate ? (
+            <Link
+              to="/settings/company"
+              className="mt-1 inline-block text-sm font-semibold text-primary-700 hover:text-primary-800"
+            >
+              {t('buildCatalog.chooseBusinessType')}
+            </Link>
+          ) : null}
+          {templateFailed ? (
+            <button
+              type="button"
+              onClick={retryTemplate}
+              className="mt-1 text-sm font-semibold text-primary-700 hover:text-primary-800"
+            >
+              {t('buildCatalog.tryAgain')}
+            </button>
+          ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-4">
           <span className="text-end">
@@ -433,7 +483,11 @@ export function BuildCatalogPage() {
                           </p>
                           {tax === size.taxCode && size.reasonCode ? (
                             <p className="mt-0.5 text-xs font-medium text-text-tertiary">
-                              {t('buildCatalog.startsZeroRated')}{' '}
+                              {t(
+                                size.taxCode === 'E0'
+                                  ? 'buildCatalog.startsExempt'
+                                  : 'buildCatalog.startsZeroRated',
+                              )}{' '}
                               <span dir="ltr">{size.reasonCode}</span>
                             </p>
                           ) : null}

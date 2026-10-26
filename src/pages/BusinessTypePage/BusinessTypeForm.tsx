@@ -4,47 +4,37 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { BusinessTypeChip, Button, ChevronRightIcon } from '../../components/ui'
 import { useOnboardingStep } from '../../hooks/useOnboardingStep'
-import { backendCategoryFor, recordBusinessCategory } from '../../lib/identity/onboarding'
-import { CATEGORY_LABEL_KEYS, onboardingStateFrom, type OnboardingState } from '../../lib/onboarding'
-import type { BusinessTypeId } from '../../lib/subBusinessTypes'
-import foodBeverageIcon from '../../assets/business-types/food-beverage.svg'
-import automotiveIcon from '../../assets/business-types/automotive.svg'
-import retailIcon from '../../assets/business-types/retail.svg'
-import beautyWellnessIcon from '../../assets/business-types/beauty-wellness.svg'
-import healthcareIcon from '../../assets/business-types/healthcare.svg'
-import hospitalityIcon from '../../assets/business-types/hospitality.svg'
-import educationIcon from '../../assets/business-types/education.svg'
-import professionalIcon from '../../assets/business-types/professional.svg'
+import { BUSINESS_TYPE_NOT_AVAILABLE } from '../../api/catalog/businessTypes'
+import { recordBusinessCategory } from '../../lib/identity/onboarding'
+import { onboardingStateFrom, type OnboardingState } from '../../lib/onboarding'
+import { businessTypeIcon, localName, useSignupBusinessTypes } from '../../lib/businessTypes'
+import { SignupListState } from './SignupListState'
 
-const OPTIONS: Array<{ id: BusinessTypeId; icon: string }> = [
-  { id: 'food-beverage', icon: foodBeverageIcon },
-  { id: 'automotive', icon: automotiveIcon },
-  { id: 'retail', icon: retailIcon },
-  { id: 'beauty-wellness', icon: beautyWellnessIcon },
-  { id: 'healthcare', icon: healthcareIcon },
-  { id: 'hospitality', icon: hospitalityIcon },
-  { id: 'education', icon: educationIcon },
-  { id: 'professional', icon: professionalIcon },
-]
-
+/**
+ * Sign-up › Business type. The types are the ones the console has opened for sign-up
+ * (`GET /v1/auth/signup/business-types`), in its order; nothing else is offered.
+ */
 export function BusinessTypeForm() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const state = onboardingStateFrom(useLocation().state)
-  const [selected, setSelected] = useState<BusinessTypeId>(state.businessType ?? 'food-beverage')
+  const { read, retry } = useSignupBusinessTypes()
+  const types = read.status === 'ready' ? read.data : []
+  const [chosen, setChosen] = useState<string | undefined>(state.businessType)
+  // A saved type the console has since closed is not on the list: the first one is offered instead.
+  const selected = types.some((type) => type.code === chosen) ? chosen : types[0]?.code
   const { save, submitting, formError, setFormError } = useOnboardingStep()
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const category = backendCategoryFor(selected)
-    if (!category) {
-      setFormError({ key: 'businessType.unavailable' })
+    if (!selected) return
+    const result = await save((token, signal) => recordBusinessCategory(token, selected, signal))
+    if (!result.saved) {
+      if (result.conflict === BUSINESS_TYPE_NOT_AVAILABLE) retry()
       return
     }
-    const result = await save((token, signal) => recordBusinessCategory(token, category, signal))
-    if (!result.saved) return
-    // A different category invalidates the trade chosen under the old one; the backend clears
-    // it in the same statement, so the form must not carry it forward either.
+    // A different type invalidates the sub type chosen under the old one; the backend clears it
+    // in the same statement, so the form must not carry it forward either.
     const { subBusinessType, ...rest } = state
     const next: OnboardingState = {
       ...rest,
@@ -66,25 +56,29 @@ export function BusinessTypeForm() {
           </p>
         </div>
 
-        <div className="flex flex-wrap content-start items-start gap-3">
-          {OPTIONS.map((option) => (
-            <BusinessTypeChip
-              key={option.id}
-              label={t(CATEGORY_LABEL_KEYS[option.id])}
-              iconSrc={option.icon}
-              selected={selected === option.id}
-              onSelect={() => {
-                setSelected(option.id)
-                setFormError(null)
-              }}
-            />
-          ))}
-        </div>
+        {read.status !== 'ready' || types.length === 0 ? (
+          <SignupListState read={read} retry={retry} />
+        ) : (
+          <div className="flex flex-wrap content-start items-start gap-3">
+            {types.map((type) => (
+              <BusinessTypeChip
+                key={type.code}
+                label={localName(type, i18n.language)}
+                iconSrc={businessTypeIcon(type)}
+                selected={selected === type.code}
+                onSelect={() => {
+                  setChosen(type.code)
+                  setFormError(null)
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <OnboardingFormError error={formError} />
 
-      <Button type="submit" fullWidth disabled={submitting} className="gap-1.5">
+      <Button type="submit" fullWidth disabled={submitting || !selected} className="gap-1.5">
         {t('businessType.submit')}
         <ChevronRightIcon size={18} className="rtl:rotate-180" />
       </Button>

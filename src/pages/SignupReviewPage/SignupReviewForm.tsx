@@ -14,12 +14,16 @@ import {
 import { markOnboardingSubmitted } from '../../lib/identity/onboardingSession'
 import {
   BUSINESS_SIZE_LABEL_KEYS,
-  CATEGORY_LABEL_KEYS,
   INVOICING_METHOD_LABEL_KEYS,
   onboardingStateFrom,
   planDisplayName,
 } from '../../lib/onboarding'
-import { SUB_TYPES_BY_BUSINESS } from '../../lib/subBusinessTypes'
+import {
+  findBusinessType,
+  findSubBusinessType,
+  localName,
+  useSignupBusinessTypes,
+} from '../../lib/businessTypes'
 import { toOmanE164 } from '../../lib/validation'
 import { findCode, nameOf } from '../../lib/codeLists/codeList'
 import { asSentence, rejectionReasonLabel } from '../../lib/identity/signupRejection'
@@ -83,15 +87,15 @@ export function SignupReviewForm() {
   const shown = (key: string | undefined) => (key ? t(key) : saved)
   const optional = (value: string | undefined) => (address ? value || '—' : saved)
 
-  const trade = state.businessType
-    ? SUB_TYPES_BY_BUSINESS[state.businessType].find(
-        (option) => option.id === state.subBusinessType,
-      )
-    : undefined
+  // Named from the server's lists; a type closed since it was saved is not listed, and then
+  // reads "saved earlier" like any other answer the screen cannot show.
+  const businessTypes = useSignupBusinessTypes().read
+  const typeList = businessTypes.status === 'ready' ? businessTypes.data : undefined
+  const category = findBusinessType(typeList, state.businessType)
+  const trade = findSubBusinessType(typeList, state.subBusinessType)
   const { identity, address } = state
   const sizeKey = state.businessSize && BUSINESS_SIZE_LABEL_KEYS[state.businessSize]
   const invoicingKey = state.invoicingMethod && INVOICING_METHOD_LABEL_KEYS[state.invoicingMethod]
-  const categoryKey = state.businessType && CATEGORY_LABEL_KEYS[state.businessType]
   const accentKey = identity && `businessIdentity.accents.${identity.accent}`
   const governorateKey = address && `governorate.${address.governorate}`
 
@@ -149,8 +153,14 @@ export function SignupReviewForm() {
         ...(state.usesPos === false
           ? []
           : [
-              { label: t('signupReview.fields.category'), value: shown(categoryKey) },
-              { label: t('signupReview.fields.trade'), value: shown(trade?.labelKey) },
+              {
+                label: t('signupReview.fields.category'),
+                value: category ? localName(category, i18n.language) : saved,
+              },
+              {
+                label: t('signupReview.fields.trade'),
+                value: trade ? localName(trade, i18n.language) : saved,
+              },
             ]),
       ],
     },

@@ -13,14 +13,15 @@ import type { OnboardingState } from '../lib/onboarding'
 import { SignupPendingPage } from './SignupPendingPage'
 import { SignupReviewPage } from './SignupReviewPage'
 import { withoutContactRead } from '../test/companyContact'
+import { withBusinessTypes } from '../test/businessTypes'
 
 const TOKEN = 'so.onboarding-token'
 
 const COMPLETE: OnboardingState = {
   businessSize: '11-50',
   invoicingMethod: 'erp',
-  businessType: 'food-beverage',
-  subBusinessType: 'bakery',
+  businessType: 'FOOD_AND_BEVERAGE',
+  subBusinessType: 'BAKERY',
   identity: {
     companyName: 'Al Noor Bakery LLC',
     crNumber: 'CR-99',
@@ -127,7 +128,7 @@ beforeEach(async () => {
   })
   fetchMock = vi.fn().mockResolvedValue(noContent())
   // The waiting screen's support link reads Fawtir's contact details; kept out of these counts.
-  vi.stubGlobal('fetch', withoutContactRead(fetchMock))
+  vi.stubGlobal('fetch', withBusinessTypes(withoutContactRead(fetchMock)))
 })
 
 afterEach(() => {
@@ -135,15 +136,15 @@ afterEach(() => {
 })
 
 describe('Review and submit', () => {
-  it('shows every saved answer, read-only, without a request', () => {
+  it('shows every saved answer, read-only, without a request', async () => {
     renderAt('/signup-review', COMPLETE)
+    // The type names are the server's, from the sign-up list.
+    await screen.findByDisplayValue('Food & Beverage')
 
     expect(valueOf('signupReview.fields.size')).toBe(i18n.t('aboutBusiness.size.elevenToFifty'))
     expect(valueOf('signupReview.fields.invoicing')).toBe(i18n.t('aboutBusiness.invoicing.erp'))
-    expect(valueOf('signupReview.fields.category')).toBe(
-      i18n.t('businessType.options.foodBeverage'),
-    )
-    expect(valueOf('signupReview.fields.trade')).toBe(i18n.t('subBusinessType.options.bakery'))
+    expect(valueOf('signupReview.fields.category')).toBe('Food & Beverage')
+    expect(valueOf('signupReview.fields.trade')).toBe('Bakery')
     expect(valueOf('businessIdentity.companyNameLabel')).toBe('Al Noor Bakery LLC')
     expect(valueOf('signupReview.fields.activity')).toBe('561001 · Restaurants')
     expect(valueOf('businessIdentity.vatinLabel')).toBe('OM1200000001')
@@ -497,9 +498,10 @@ describe('Review and submit', () => {
     renderAt('/signup-review')
 
     expect(await screen.findByText(i18n.t('signupReview.title'))).toBeTruthy()
+    await screen.findByDisplayValue('Bakery')
     expect(document.body.textContent).not.toContain(i18n.t('signupReview.savedEarlier'))
     expect(valueOf('signupReview.fields.size')).toBe(i18n.t('aboutBusiness.size.elevenToFifty'))
-    expect(valueOf('signupReview.fields.trade')).toBe(i18n.t('subBusinessType.options.bakery'))
+    expect(valueOf('signupReview.fields.trade')).toBe('Bakery')
     expect(valueOf('businessIdentity.vatinLabel')).toBe('OM1200000001')
     expect(valueOf('addressContact.governorate')).toBe(i18n.t('governorate.northBatinah'))
     expect(valueOf('addressContact.phone')).toBe('+96891234567')

@@ -206,7 +206,7 @@ describe('restoring the draft from the status read (contract §4)', () => {
         plan: { planCode: 'ENTERPRISE', billingCycle: null },
         draft: { businessProfile: { businessSize: 'JUST_ME', invoicingMethod: 'SPREADSHEETS', usesPos: false } },
       },
-      { businessType: 'food-beverage', subBusinessType: 'bakery', paymentMethod: 'cash' },
+      { businessType: 'FOOD_AND_BEVERAGE', subBusinessType: 'BAKERY', paymentMethod: 'cash' },
     )
     expect(restored).toMatchObject({
       businessSize: 'just-me',
@@ -218,6 +218,18 @@ describe('restoring the draft from the status read (contract §4)', () => {
     expect(restored.businessType).toBeUndefined()
     expect(restored.subBusinessType).toBeUndefined()
     expect(restored.paymentMethod).toBeUndefined()
+  })
+
+  it('keeps the saved type and sub type codes as the server returns them, any open code', () => {
+    const restored = onboardingStateFromStatus({
+      ...base,
+      draft: {
+        businessProfile: { businessSize: 'JUST_ME', invoicingMethod: 'SPREADSHEETS', usesPos: true },
+        businessCategory: 'RETAIL',
+        businessType: 'PERFUME_SHOP',
+      },
+    })
+    expect(restored).toMatchObject({ businessType: 'RETAIL', subBusinessType: 'PERFUME_SHOP' })
   })
 
   it('carries erpAddonInterestOnly from the saved preference, and nothing from an older server', () => {

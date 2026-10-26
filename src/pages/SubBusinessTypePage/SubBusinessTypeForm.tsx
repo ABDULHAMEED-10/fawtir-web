@@ -4,35 +4,38 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button, ChevronRightIcon, Chip } from '../../components/ui'
 import { useOnboardingStep } from '../../hooks/useOnboardingStep'
-import { backendTypeFor, recordBusinessType, registrableCategory } from '../../lib/identity/onboarding'
+import { BUSINESS_TYPE_NOT_AVAILABLE } from '../../api/catalog/businessTypes'
+import { recordBusinessType } from '../../lib/identity/onboarding'
 import { onboardingStateFrom, type OnboardingState } from '../../lib/onboarding'
-import { SUB_TYPES_BY_BUSINESS } from '../../lib/subBusinessTypes'
+import { findBusinessType, localName, useSignupBusinessTypes } from '../../lib/businessTypes'
+import { SignupListState } from '../BusinessTypePage/SignupListState'
 
+/**
+ * Sign-up › Sub business type: the active sub types of the type saved on the step before, as the
+ * server lists them (`GET /v1/auth/signup/business-types`).
+ */
 export function SubBusinessTypeForm() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const state = onboardingStateFrom(useLocation().state)
-  const category = registrableCategory(state.businessType)
-  const options = SUB_TYPES_BY_BUSINESS[category]
-  // Restores the saved trade on Back; a trade from another category never matches this list,
-  // so a stale one falls back to the first option instead of surviving the change.
-  const [selected, setSelected] = useState(
-    options.some((option) => option.id === state.subBusinessType)
-      ? (state.subBusinessType as string)
-      : options[0].id,
-  )
+  const { read, retry } = useSignupBusinessTypes()
+  const options =
+    read.status === 'ready' ? (findBusinessType(read.data, state.businessType)?.subTypes ?? []) : []
+  // Restores the saved sub type on Back; one from another type, or one since retired, never
+  // matches this list, so the first option is offered instead.
+  const [chosen, setChosen] = useState<string | undefined>(state.subBusinessType)
+  const selected = options.some((option) => option.code === chosen) ? chosen : options[0]?.code
   const { save, submitting, formError, setFormError } = useOnboardingStep()
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const businessType = backendTypeFor(selected)
-    if (!businessType) {
-      setFormError({ key: 'businessType.unavailable' })
+    if (!selected) return
+    const result = await save((token, signal) => recordBusinessType(token, selected, signal))
+    if (!result.saved) {
+      if (result.conflict === BUSINESS_TYPE_NOT_AVAILABLE) retry()
       return
     }
-    const result = await save((token, signal) => recordBusinessType(token, businessType, signal))
-    if (!result.saved) return
-    const next: OnboardingState = { ...state, businessType: category, subBusinessType: selected }
+    const next: OnboardingState = { ...state, subBusinessType: selected }
     navigate('/business-identity', { state: next })
   }
 
@@ -48,24 +51,31 @@ export function SubBusinessTypeForm() {
           </p>
         </div>
 
-        <div className="flex flex-wrap content-start items-start gap-3">
-          {options.map((option) => (
-            <Chip
-              key={option.id}
-              label={t(option.labelKey)}
-              selected={selected === option.id}
-              onSelect={() => {
-                setSelected(option.id)
-                setFormError(null)
-              }}
-            />
-          ))}
-        </div>
+        {read.status !== 'ready' || options.length === 0 ? (
+          <SignupListState
+            read={read.status === 'ready' ? { ...read, data: options } : read}
+            retry={retry}
+          />
+        ) : (
+          <div className="flex flex-wrap content-start items-start gap-3">
+            {options.map((option) => (
+              <Chip
+                key={option.code}
+                label={localName(option, i18n.language)}
+                selected={selected === option.code}
+                onSelect={() => {
+                  setChosen(option.code)
+                  setFormError(null)
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <OnboardingFormError error={formError} />
 
-      <Button type="submit" fullWidth disabled={submitting} className="gap-1.5">
+      <Button type="submit" fullWidth disabled={submitting || !selected} className="gap-1.5">
         {t('subBusinessType.submit')}
         <ChevronRightIcon size={18} className="rtl:rotate-180" />
       </Button>

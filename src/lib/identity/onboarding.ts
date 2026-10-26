@@ -10,7 +10,6 @@ import {
   type PlanId,
   type SignupPaymentMethod,
 } from '../pricing'
-import type { BusinessTypeId } from '../subBusinessTypes'
 import {
   email,
   omanPhone,
@@ -28,15 +27,13 @@ export type SignupInvoicingMethod =
   | 'SPREADSHEETS'
   | 'ACCOUNTING_SOFTWARE'
   | 'FULL_ERP_SYSTEM'
-export type SignupBusinessCategory = 'FOOD_AND_BEVERAGE'
-export type SignupBusinessType =
-  | 'COFFEE_SHOP'
-  | 'RESTAURANT'
-  | 'BAKERY'
-  | 'FAST_FOOD'
-  | 'JUICE_BAR'
-  | 'DESSERT_SHOP'
-  | 'CATERING'
+/**
+ * A business type code and a sub business type code, from `GET /v1/auth/signup/business-types`
+ * (the console keeps the lists). The backend's old names stay on the wire: `businessCategory` is
+ * the business type, `businessType` the sub type.
+ */
+export type SignupBusinessCategory = string
+export type SignupBusinessType = string
 
 export const BUSINESS_SIZE: Record<BusinessSize, SignupBusinessSize> = {
   'just-me': 'JUST_ME',
@@ -50,55 +47,6 @@ export const INVOICING_METHOD: Record<InvoicingMethod, SignupInvoicingMethod> = 
   spreadsheets: 'SPREADSHEETS',
   accounting: 'ACCOUNTING_SOFTWARE',
   erp: 'FULL_ERP_SYSTEM',
-}
-
-/**
- * Only Food & Beverage can be registered. `SignupBusinessCategory` defines exactly that one
- * member, deliberately — its Javadoc: inventing siblings would put unapproved options in front of
- * a tenant. The design's other seven categories stay on screen and are refused on Continue
- * rather than mapped onto the wrong category or sent as a name the enum would reject.
- */
-const BUSINESS_CATEGORY = new Map<BusinessTypeId, SignupBusinessCategory>([
-  ['food-beverage', 'FOOD_AND_BEVERAGE'],
-])
-
-/** The category → type matrix is the backend's; these are the seven types it permits for F&B. */
-const BUSINESS_TYPE = new Map<string, SignupBusinessType>([
-  ['coffee-shop', 'COFFEE_SHOP'],
-  ['restaurant', 'RESTAURANT'],
-  ['bakery', 'BAKERY'],
-  ['fast-food', 'FAST_FOOD'],
-  ['juice-bar', 'JUICE_BAR'],
-  ['dessert-shop', 'DESSERT_SHOP'],
-  ['catering', 'CATERING'],
-])
-
-export function backendCategoryFor(category: BusinessTypeId): SignupBusinessCategory | undefined {
-  return BUSINESS_CATEGORY.get(category)
-}
-
-export function backendTypeFor(subBusinessType: string): SignupBusinessType | undefined {
-  return BUSINESS_TYPE.get(subBusinessType)
-}
-
-const keyFor = <K, V>(map: ReadonlyMap<K, V>, value: V | null | undefined): K | undefined =>
-  [...map].find(([, mapped]) => mapped === value)?.[0]
-
-/** The screen ids for a saved category and type, for a page restored from the status read. */
-export const categoryIdFor = (category: SignupBusinessCategory | null | undefined) =>
-  keyFor(BUSINESS_CATEGORY, category)
-export const subTypeIdFor = (type: SignupBusinessType | null | undefined) =>
-  keyFor(BUSINESS_TYPE, type)
-
-/**
- * The category whose trades the sub-type screen lists: the chosen one when it can be registered,
- * otherwise the one that can. A registrant reaches that screen only after a category was saved,
- * and only a registrable category can be.
- */
-export function registrableCategory(chosen: BusinessTypeId | undefined): BusinessTypeId {
-  if (chosen && BUSINESS_CATEGORY.has(chosen)) return chosen
-  const [first] = BUSINESS_CATEGORY.keys()
-  return first
 }
 
 /** `SelfServiceSignupService.toStatus` — the server, not the client, orders the steps. */

@@ -183,7 +183,12 @@
       "professional": "الخدمات المهنية والمنزلية"
     },
     "submit": "متابعة",
-    "unavailable": "التسجيل الذاتي متاح حاليًا لأنشطة الأغذية والمشروبات فقط. ستتوفر أنواع الأنشطة الأخرى قريبًا."
+    "unavailable": "التسجيل الذاتي متاح حاليًا لأنشطة الأغذية والمشروبات فقط. ستتوفر أنواع الأنشطة الأخرى قريبًا.",
+    "loading": "جارٍ تحميل أنواع الأنشطة…",
+    "loadFailed": "تعذّر تحميل أنواع الأنشطة الآن.",
+    "retry": "حاول مرة أخرى",
+    "noneOpen": "لا يوجد نوع نشاط متاح للتسجيل الآن. ارجع واختر عدم استخدام نقاط البيع من فوتر، أو حاول لاحقًا.",
+    "notAvailable": "نوع النشاط هذا لم يعد متاحًا للتسجيل. حُدّثت القائمة: اختر مرة أخرى."
   },
   "subBusinessType": {
     "title": "أيها يناسبك أكثر؟",
@@ -10983,7 +10988,16 @@
       "none": "لا تضعه على الإيصالات"
     },
     "vatRegisteredSince": "مسجّل ضريبيًا منذ",
-    "notAvailableYet": "غير متاح بعد"
+    "notAvailableYet": "غير متاح بعد",
+    "subBusinessType": "نوع النشاط",
+    "subBusinessTypeHint": "يحدد قالب الكتالوج الذي يقترحه فوتر عليك",
+    "subBusinessTypeNone": "غير محدد (لا أستخدم نقاط البيع من فوتر)",
+    "subBusinessTypeRetired": "{{name}} (لم يعد متاحًا)",
+    "subBusinessTypePlaceholder": "اختر نوع نشاطك",
+    "subBusinessTypeSearch": "ابحث في أنواع الأنشطة",
+    "subBusinessTypeNoMatch": "لا يوجد نوع نشاط مطابق",
+    "subBusinessTypeNotAvailable": "نوع النشاط هذا لم يعد متاحًا. اختر نوعًا آخر.",
+    "subBusinessTypeFailed": "لم يُحفظ نوع النشاط. حاول مرة أخرى."
   },
   "branches": {
     "title": "الفروع",
@@ -13501,7 +13515,14 @@
     "kindCount_two": "نوعين",
     "kindCount_few": "{{count}} أنواع",
     "kindCount_many": "{{count}} نوعًا",
-    "kindCount_other": "{{count}} نوع"
+    "kindCount_other": "{{count}} نوع",
+    "yourTemplate": "قالب نوع نشاطك",
+    "loadingTemplate": "جارٍ تحميل قالبك…",
+    "noTemplateNote": "لا يوجد قالب لنوع نشاطك بعد. ابدأ كتالوجك الخاص، أو تحقّق من نوع نشاطك في الإعدادات.",
+    "templateFailedNote": "تعذّر تحميل قالبك. ابدأ كتالوجك الخاص، أو حاول مرة أخرى.",
+    "chooseBusinessType": "تحقّق من نوع نشاطك",
+    "tryAgain": "حاول مرة أخرى",
+    "startsExempt": "يبدأ معفى:"
   },
   "rowsView": {
     "label": "طريقة عرض القائمة",
@@ -25402,5 +25423,8 @@
       "serviceType": "نوع الخدمة هذا غير موجود في قائمة عُمان. اختر نوعًا آخر.",
       "isic": "النشاط التجاري المحفوظ على هذا الصنف غير صالح. تواصل مع دعم فوتر."
     }
+  },
+  "isicSuggestion": {
+    "text": "المقترح لـ {{subType}}: {{code}}، {{label}}"
   }
 }

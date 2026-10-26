@@ -12,9 +12,7 @@ import {
   BUSINESS_SIZE,
   INVOICING_METHOD,
   PAYMENT_METHOD_CODE,
-  categoryIdFor,
   planIdFor,
-  subTypeIdFor,
   type SignupStatusResponse,
 } from './onboarding'
 import type { AddressContactValues } from './onboarding'
@@ -101,8 +99,9 @@ export function onboardingStateFromStatus(
     businessSize: reverse<BusinessSize, string>(BUSINESS_SIZE, profile?.businessSize),
     invoicingMethod: reverse<InvoicingMethod, string>(INVOICING_METHOD, profile?.invoicingMethod),
     usesPos: typeof profile?.usesPos === 'boolean' ? profile.usesPos : undefined,
-    businessType: categoryIdFor(status.draft?.businessCategory),
-    subBusinessType: subTypeIdFor(status.draft?.businessType),
+    // Codes as the server keeps them; a retired or closed one still reads back as it was saved.
+    businessType: status.draft?.businessCategory ?? undefined,
+    subBusinessType: status.draft?.businessType ?? undefined,
     identity: identityFrom(status, cached),
     address: addressFrom(status),
     plan,

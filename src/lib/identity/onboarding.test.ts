@@ -1,14 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { SUB_TYPES_BY_BUSINESS, type BusinessTypeId } from '../subBusinessTypes'
 import {
   BUSINESS_SIZE,
   INVOICING_METHOD,
   allowedRoute,
-  backendCategoryFor,
-  backendTypeFor,
   buildAddressContactRequest,
   buildBusinessIdentityRequest,
-  registrableCategory,
   validateAddressContact,
   validateBusinessIdentity,
   type AddressContactValues,
@@ -28,34 +24,6 @@ describe('backend vocabulary', () => {
       accounting: 'ACCOUNTING_SOFTWARE',
       erp: 'FULL_ERP_SYSTEM',
     })
-  })
-
-  it('registers Food & Beverage only, never another category under its name', () => {
-    expect(backendCategoryFor('food-beverage')).toBe('FOOD_AND_BEVERAGE')
-    const others = Object.keys(SUB_TYPES_BY_BUSINESS).filter((id) => id !== 'food-beverage')
-    expect(others).toHaveLength(7)
-    for (const id of others) expect(backendCategoryFor(id as BusinessTypeId)).toBeUndefined()
-  })
-
-  it('maps each Food & Beverage trade to the backend type it names', () => {
-    const mapped = SUB_TYPES_BY_BUSINESS['food-beverage'].map((option) => backendTypeFor(option.id))
-    expect(mapped).toEqual([
-      'COFFEE_SHOP',
-      'RESTAURANT',
-      'BAKERY',
-      'FAST_FOOD',
-      'JUICE_BAR',
-      'DESSERT_SHOP',
-      'CATERING',
-    ])
-    expect(backendTypeFor('garage')).toBeUndefined()
-    expect(backendTypeFor('constructor')).toBeUndefined()
-  })
-
-  it('lists trades for the chosen category only when it can be registered', () => {
-    expect(registrableCategory('food-beverage')).toBe('food-beverage')
-    expect(registrableCategory('retail')).toBe('food-beverage')
-    expect(registrableCategory(undefined)).toBe('food-beverage')
   })
 })
 

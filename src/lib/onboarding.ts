@@ -6,7 +6,6 @@ import {
   type PlanId,
   type SignupPaymentMethod,
 } from './pricing'
-import type { BusinessTypeId } from './subBusinessTypes'
 import type { SellerOnBillDto } from '../api/settings/billing'
 
 export type BusinessSize = 'just-me' | '2-10' | '11-50' | '50-plus'
@@ -24,17 +23,6 @@ export const INVOICING_METHOD_LABEL_KEYS: Record<InvoicingMethod, string> = {
   spreadsheets: 'aboutBusiness.invoicing.spreadsheets',
   accounting: 'aboutBusiness.invoicing.accounting',
   erp: 'aboutBusiness.invoicing.erp',
-}
-
-export const CATEGORY_LABEL_KEYS: Record<BusinessTypeId, string> = {
-  'food-beverage': 'businessType.options.foodBeverage',
-  automotive: 'businessType.options.automotive',
-  retail: 'businessType.options.retail',
-  'beauty-wellness': 'businessType.options.beautyWellness',
-  healthcare: 'businessType.options.healthcare',
-  hospitality: 'businessType.options.hospitality',
-  education: 'businessType.options.education',
-  professional: 'businessType.options.professional',
 }
 
 /**
@@ -111,7 +99,8 @@ export type IdentityPreview = {
  * anything kept in the browser. Nothing here is a credential.
  *
  * `businessType` / `subBusinessType` keep the screen names: the "Business Type" screen answers the
- * backend's business *category*, and "Sub Business Type" answers its business *type*.
+ * backend's business *category*, and "Sub Business Type" answers its business *type*. Both hold
+ * the server's codes (`FOOD_AND_BEVERAGE`, `COFFEE_SHOP`), read from the console's lists.
  *
  * `address` holds the contact's phone and email, so it travels only as far as the review screen,
  * which exists to show them; submission sends none of the answers onward.
@@ -124,7 +113,7 @@ export type OnboardingState = {
    * sub-type; `false` skips both screens and the backend stores no category or type.
    */
   usesPos?: boolean
-  businessType?: BusinessTypeId
+  businessType?: string
   subBusinessType?: string
   identity?: IdentityPreview
   address?: AddressContactValues

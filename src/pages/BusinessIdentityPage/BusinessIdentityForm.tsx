@@ -16,19 +16,24 @@ import {
 import { useOnboardingStep } from '../../hooks/useOnboardingStep'
 import { nameOf } from '../../lib/codeLists/codeList'
 import { ISIC_ACTIVITIES } from '../../lib/codeLists/isic'
-import { isicForSubType } from '../../lib/codeLists/isicBySubType'
+import {
+  findBusinessType,
+  findSubBusinessType,
+  localName,
+  suggestedIsicLabel,
+  useSignupBusinessTypes,
+} from '../../lib/businessTypes'
+import { IsicSuggestion } from '../../components/form/IsicSuggestion'
 import { focusFirstInvalid } from '../../lib/forms'
 import {
   BUSINESS_IDENTITY_FIELD_ORDER,
   BUSINESS_IDENTITY_SERVER_FIELDS,
   buildBusinessIdentityRequest,
   recordBusinessIdentity,
-  registrableCategory,
   validateBusinessIdentity,
   type BusinessIdentityField,
 } from '../../lib/identity/onboarding'
 import {
-  CATEGORY_LABEL_KEYS,
   INVOICE_ACCENTS,
   accentColor,
   initialsOf,
@@ -60,9 +65,10 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
   const [companyName, setCompanyName] = useState(state.identity?.companyName ?? '')
   const [crNumber, setCrNumber] = useState(state.identity?.crNumber ?? '')
   const [vatin, setVatin] = useState(state.identity?.vatin ?? '')
-  // The specialty chosen two steps back suggests the activity; the registrant confirms or changes it.
+  // The sub type chosen two steps back only suggests an activity, shown as a hint under the
+  // field; it is never filled in (Catalogue guide 1A).
   const [industrialClassification, setIndustrialClassification] = useState(
-    state.identity?.industrialClassification ?? isicForSubType(state.subBusinessType)?.code ?? '',
+    state.identity?.industrialClassification ?? '',
   )
   const [accent, setAccent] = useState<InvoiceAccent>(
     state.identity?.accent ?? INVOICE_ACCENTS[0].id,
@@ -95,7 +101,11 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
   // Fawtir reviews with the registration, where an OM12 group VATIN (Fawtara SP#6) or an ID
   // registered elsewhere is corrected by the reviewer, not here.
   const peppolPending = candidateParticipantId(vatin) ?? t('businessIdentity.peppolPending')
-  const category = registrableCategory(state.businessType)
+  const businessTypes = useSignupBusinessTypes().read
+  const typeList = businessTypes.status === 'ready' ? businessTypes.data : undefined
+  const category = findBusinessType(typeList, state.businessType)
+  const subType = findSubBusinessType(typeList, state.subBusinessType)
+  const suggestion = state.usesPos === false ? null : (subType?.suggestedIsic ?? null)
 
   // Searched by activity name; the code is the hint so a known code finds it too.
   // TODO(backend): `GET /v1/code-lists/isic?q=` replaces the placeholder list.
@@ -195,9 +205,9 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
       <div className="flex w-full flex-col gap-6">
         <div className="flex flex-col gap-3">
           {/* The trade chip only for a POS registrant: the others never chose one. */}
-          {state.usesPos === false ? null : (
+          {state.usesPos === false || !category ? null : (
             <span className="inline-flex h-[29px] w-fit items-center justify-center rounded-sm border border-primary-150 px-2.5 text-base font-medium text-primary-700">
-              {t(CATEGORY_LABEL_KEYS[category])}
+              {localName(category, i18n.language)}
             </span>
           )}
           <h2 className="text-[32px] font-medium leading-[1.2] text-text-primary">
@@ -326,13 +336,16 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
                 </p>
               ) : (
                 <p className="text-xs font-medium leading-[1.2] text-text-tertiary">
-                  {t(
-                    state.usesPos === false
-                      ? 'businessIdentity.isicHintNoPos'
-                      : 'businessIdentity.isicHint',
-                  )}
+                  {t('businessIdentity.isicHintNoPos')}
                 </p>
               )}
+              {suggestion && subType ? (
+                <IsicSuggestion
+                  subType={localName(subType, i18n.language)}
+                  code={suggestion.code}
+                  label={suggestedIsicLabel(suggestion, i18n.language)}
+                />
+              ) : null}
             </div>
 
             <Input
