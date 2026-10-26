@@ -7,23 +7,36 @@ import { selectAllOnFocus } from '../../components/invoice'
 import { omr } from '../../lib/catalogItem'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
-import { getProduct, productPath, type ProductDto } from '../../api/catalog/products'
 import {
+  getProduct,
+  productPath,
+  saveProductVariants,
+  type ProductDto,
+} from '../../api/catalog/products'
+import {
+  NONE,
   addValue,
   cellKey,
+  combinations,
   generateCodes,
+  productVariantsState,
   rebuildFromBase,
   removeValue,
   roundAll,
-  sampleOptions,
   setDelta,
   setPrice,
   summarise,
   tickEverything,
   toggleCell,
+  valuesOf,
+  variantsRequest,
+  type ChoiceWords,
   type OptionSet,
   type OptionsState,
 } from '../../lib/catalogOptions'
+import { PRODUCT_VERSION_CONFLICT, productRefusal } from '../../lib/productForm'
+import { describeApiFailure } from '../../lib/apiFailure'
+import { useCanManageProducts } from './ItemFormPage'
 import infoIcon from '../../assets/catalog/info.svg'
 import tickWhiteIcon from '../../assets/catalog/check-white.svg'
 
@@ -35,16 +48,23 @@ const signed = (delta: number) => `${delta < 0 ? '-' : '+'}${omr(Math.abs(delta)
  * Sizes and options for one item (Figma "Catalog -> Detail Edit Variants", 154:125539).
  *
  * The customer's two choices make a grid; every ticked cell is a separate thing the till sells,
- * with its own price and code. The item itself is read with `GET /v1/products/{id}` (INCOME.md
- * P.13): its name, code and base price. TODO(backend): the product carries no sizes or options
- * yet (P.13), so the choices are still the House Blend example and saving sends nothing.
+ * with its own price and code. The item is read with `GET /v1/products/{id}` (INCOME.md P.13):
+ * its sizes down the side, its options across the top, and each combination's code, on/off and
+ * the price the server works out. Saved with `PUT /v1/products/{id}/variants` and the version
+ * that was read (P.5); the item's add-ons are sent back unchanged.
  */
 export function ItemOptionsPage() {
   const { t } = useTranslation()
   const { id = '' } = useParams()
   const read = useApiRead<ProductDto>(productPath(id), () => getProduct(id))
   if (read.read.status === 'ready') {
-    return <ItemOptions key={read.read.data.id} product={read.read.data} />
+    return (
+      <ItemOptions
+        key={`${read.read.data.id}@${read.read.data.version}`}
+        product={read.read.data}
+        reload={read.retry}
+      />
+    )
   }
   return (
     <CatalogShell
@@ -60,17 +80,70 @@ export function ItemOptionsPage() {
   )
 }
 
-function ItemOptions({ product }: { product: ProductDto }) {
+/** What the two choices are called, in both languages (the Arabic shows when the screen is). */
+function useChoiceWords(): ChoiceWords {
+  const { t } = useTranslation()
+  const both = (key: string) => ({
+    en: t(key, { lng: 'en' }),
+    ar: t(key, { lng: 'ar' }),
+  })
+  const words = (which: 'size' | 'option') => {
+    const name = both(`itemOptions.choice.${which}`)
+    const noun = both(`itemOptions.choice.${which}Noun`)
+    return { name: name.en, nameAr: name.ar, noun: noun.en, nounAr: noun.ar }
+  }
+  return { sizes: words('size'), options: words('option') }
+}
+
+function ItemOptions({ product: loaded, reload }: { product: ProductDto; reload: () => void }) {
   const { t, i18n } = useTranslation()
   const arabic = i18n.language.startsWith('ar')
+  const words = useChoiceWords()
+  // Saving needs product.manage; an archived item cannot be changed (PRODUCT_ARCHIVED).
+  const canManage = useCanManageProducts() === true
+  const [product, setProduct] = useState(loaded)
+  const readOnly = !canManage || !product.active
 
   const item = { id: encodeURIComponent(product.id), name: product.name, code: product.code }
-  // The sample choices, priced from the item's own base price before VAT.
-  const [state, setState] = useState<OptionsState>(() =>
-    rebuildFromBase({ ...sampleOptions(product.code), base: product.defaultUnitPrice }),
-  )
+  // The item's own sizes and options, at the prices the server worked out.
+  const [state, setState] = useState<OptionsState>(() => productVariantsState(loaded, words))
   const [thirdAsked, setThirdAsked] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [problem, setProblem] = useState<{ line: string; reload: boolean } | null>(null)
+
+  /** `PUT .../variants` with the version read; the answer is the item as now stored. */
+  const save = async () => {
+    if (readOnly || saving) return
+    setProblem(null)
+    setSaving(true)
+    try {
+      const result = await saveProductVariants(
+        product.id,
+        product.version,
+        variantsRequest(state, product.addOns),
+      )
+      setProduct(result)
+      setState(productVariantsState(result, words))
+      setSaved(true)
+    } catch (error) {
+      const refusal = productRefusal(error)
+      if (refusal) {
+        setProblem({ line: t(refusal.key), reload: refusal.code === PRODUCT_VERSION_CONFLICT })
+      } else {
+        const message = describeApiFailure(error)
+        const body = t(message.key, message.values)
+        setProblem({
+          line: message.reference
+            ? `${body} ${t('apiErrors.reference', { id: message.reference })}`
+            : body,
+          reload: false,
+        })
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const update = (fn: (current: OptionsState) => OptionsState) => {
     setSaved(false)
@@ -79,6 +152,14 @@ function ItemOptions({ product }: { product: ProductDto }) {
 
   const figures = useMemo(() => summarise(state), [state])
   const nameOf = (entry: { name: string; nameAr: string }) => (arabic ? entry.nameAr : entry.name)
+  /** A value's name; the stand-in for an empty choice reads "No size" or "No option". */
+  const valueName = (value: { name: string; nameAr: string }, which: Side) =>
+    value === NONE
+      ? t(which === 'side' ? 'itemOptions.grid.noSize' : 'itemOptions.grid.noOption')
+      : nameOf(value)
+  const sides = valuesOf(state.side)
+  const tops = valuesOf(state.top)
+  const nothing = combinations(state).length === 0
 
   const deltaLabel = (delta: number, which: Side) =>
     delta === 0
@@ -97,8 +178,12 @@ function ItemOptions({ product }: { product: ProductDto }) {
   const rangeNote =
     figures.lowest && figures.highest
       ? t('itemOptions.figures.rangeNote', {
-          from: `${nameOf(figures.lowest.side)} ${nameOf(figures.lowest.top).toLocaleLowerCase()}`,
-          to: `${nameOf(figures.highest.side)} ${nameOf(figures.highest.top).toLocaleLowerCase()}`,
+          from: [nameOf(figures.lowest.side), nameOf(figures.lowest.top).toLocaleLowerCase()]
+            .filter(Boolean)
+            .join(' '),
+          to: [nameOf(figures.highest.side), nameOf(figures.highest.top).toLocaleLowerCase()]
+            .filter(Boolean)
+            .join(' '),
         })
       : t('itemOptions.figures.nothingSold')
 
@@ -127,194 +212,232 @@ function ItemOptions({ product }: { product: ProductDto }) {
         />
       </p>
 
-      {/* What the customer chooses */}
-      <Card title={t('itemOptions.chooses.title')}>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <OptionPanel
-            set={state.side}
-            which="side"
-            nameOf={nameOf}
-            arabic={arabic}
-            note={t('itemOptions.chooses.orderNote')}
-            onAdd={(name) => update((current) => addValue(current, 'side', name))}
-            onRemove={(valueId) => update((current) => removeValue(current, 'side', valueId))}
-          />
-          <OptionPanel
-            set={state.top}
-            which="top"
-            nameOf={nameOf}
-            arabic={arabic}
-            note={topNote(state.top, nameOf, t)}
-            onAdd={(name) => update((current) => addValue(current, 'top', name))}
-            onRemove={(valueId) => update((current) => removeValue(current, 'top', valueId))}
-          />
-        </div>
-        <button
-          type="button"
-          onClick={() => setThirdAsked((asked) => !asked)}
-          aria-expanded={thirdAsked}
-          className="mt-4 inline-flex min-h-[40px] items-center gap-2 rounded-sm border border-dashed border-border-default bg-white px-4 py-2 text-start text-sm font-medium text-text-tertiary transition-colors hover:bg-primary-25"
+      {problem ? (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-danger-100 px-5 py-3 text-sm font-medium text-danger-700"
         >
-          <PlusIcon />
-          {t('itemOptions.chooses.addThird')}
-        </button>
-        {thirdAsked ? (
-          <p className="mt-3 flex items-start gap-2 rounded-sm bg-surface-background px-3 py-2.5 text-xs font-medium leading-[1.5] text-text-tertiary">
-            <img src={infoIcon} alt="" className="mt-px size-4 shrink-0" />
-            {t('itemOptions.chooses.thirdNote')}
-          </p>
-        ) : null}
-      </Card>
-
-      {/* Price for each combination */}
-      <Card title={t('itemOptions.prices.title')}>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-2">
-            {toolbar.map((tool) => (
-              <button
-                key={tool.key}
-                type="button"
-                onClick={tool.run}
-                className="inline-flex h-[38px] items-center rounded-sm border border-border-subtle bg-white px-3 text-[13px] font-medium text-text-secondary transition-colors hover:bg-primary-25"
-              >
-                {t(`itemOptions.prices.${tool.key}`)}
-              </button>
-            ))}
-          </div>
-          <p className="text-[13px] font-medium text-text-secondary">
-            {t('itemOptions.prices.count', { sold: figures.onSale, total: figures.total })}
-            {' · '}
-            {t('itemOptions.prices.byHand', { count: figures.byHand })}
-          </p>
+          <span>{problem.line}</span>
+          {problem.reload ? (
+            <button
+              type="button"
+              onClick={reload}
+              className="inline-flex h-[38px] items-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary"
+            >
+              {t('itemForm.reload')}
+            </button>
+          ) : null}
         </div>
+      ) : null}
+      {product.active ? null : (
+        <p className="rounded-md bg-surface-card px-5 py-3 text-sm font-medium text-text-tertiary">
+          {t('itemForm.archivedNote')}
+        </p>
+      )}
 
-        <div className="overflow-x-auto rounded-md border border-border-subtle">
-          <table
-            className="w-full table-fixed border-collapse"
-            style={{ minWidth: 150 + state.top.values.length * 200 }}
+      {/* Read-only for an archived item and for a reader without product.manage. */}
+      <fieldset disabled={readOnly} className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0">
+        {/* What the customer chooses */}
+        <Card title={t('itemOptions.chooses.title')}>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <OptionPanel
+              set={state.side}
+              which="side"
+              nameOf={nameOf}
+              arabic={arabic}
+              note={t('itemOptions.chooses.orderNote')}
+              onAdd={(name) => update((current) => addValue(current, 'side', name))}
+              onRemove={(valueId) => update((current) => removeValue(current, 'side', valueId))}
+            />
+            <OptionPanel
+              set={state.top}
+              which="top"
+              nameOf={nameOf}
+              arabic={arabic}
+              note={topNote(state.top, nameOf, t)}
+              onAdd={(name) => update((current) => addValue(current, 'top', name))}
+              onRemove={(valueId) => update((current) => removeValue(current, 'top', valueId))}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setThirdAsked((asked) => !asked)}
+            aria-expanded={thirdAsked}
+            className="mt-4 inline-flex min-h-[40px] items-center gap-2 rounded-sm border border-dashed border-border-default bg-white px-4 py-2 text-start text-sm font-medium text-text-tertiary transition-colors hover:bg-primary-25"
           >
-            <colgroup>
-              <col className="w-[150px]" />
-              {state.top.values.map((top) => (
-                <col key={top.id} />
-              ))}
-            </colgroup>
-            <thead>
-              <tr className="border-b border-border-subtle">
-                <th
-                  scope="col"
-                  className="bg-surface-background px-4 py-4 text-start text-[10px] font-semibold uppercase tracking-[0.5px] text-text-tertiary"
+            <PlusIcon />
+            {t('itemOptions.chooses.addThird')}
+          </button>
+          {thirdAsked ? (
+            <p className="mt-3 flex items-start gap-2 rounded-sm bg-surface-background px-3 py-2.5 text-xs font-medium leading-[1.5] text-text-tertiary">
+              <img src={infoIcon} alt="" className="mt-px size-4 shrink-0" />
+              {t('itemOptions.chooses.thirdNote')}
+            </p>
+          ) : null}
+        </Card>
+
+        {/* Price for each combination */}
+        <Card title={t('itemOptions.prices.title')}>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              {toolbar.map((tool) => (
+                <button
+                  key={tool.key}
+                  type="button"
+                  onClick={tool.run}
+                  className="inline-flex h-[38px] items-center rounded-sm border border-border-subtle bg-white px-3 text-[13px] font-medium text-text-secondary transition-colors hover:bg-primary-25"
                 >
-                  <span className="inline-flex flex-wrap items-center gap-1">
-                    {nameOf(state.side)} <ArrowIcon dir="down" />
-                    <span className="px-1 text-text-quaternary">/</span>
-                    {nameOf(state.top)} <ArrowIcon dir="across" />
-                  </span>
-                </th>
-                {state.top.values.map((top) => (
-                  <th
-                    key={top.id}
-                    scope="col"
-                    className="border-s border-border-subtle px-4 py-4 text-start align-top"
-                  >
-                    <span className="block text-[13px] font-semibold uppercase tracking-[0.5px] text-text-primary">
-                      {nameOf(top)}
-                    </span>
-                    <DeltaEdit
-                      value={top.delta}
-                      label={deltaLabel(top.delta, 'top')}
-                      ariaLabel={t('itemOptions.grid.priceChangeFor', { name: nameOf(top) })}
-                      className="mt-1 text-[11px] uppercase tracking-[0.5px] text-text-quaternary"
-                      onCommit={(delta) =>
-                        update((current) => setDelta(current, 'top', top.id, delta))
-                      }
-                    />
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {state.side.values.map((side) => (
-                <tr key={side.id} className="border-b border-border-subtle last:border-b-0">
-                  <th
-                    scope="row"
-                    className="bg-surface-background px-4 py-5 text-start align-middle font-normal"
-                  >
-                    <span className="block text-sm font-medium text-text-primary">
-                      {nameOf(side)}
-                    </span>
-                    <DeltaEdit
-                      value={side.delta}
-                      label={deltaLabel(side.delta, 'side')}
-                      ariaLabel={t('itemOptions.grid.priceChangeFor', { name: nameOf(side) })}
-                      className="mt-1 text-[11px] text-primary-700"
-                      onCommit={(delta) =>
-                        update((current) => setDelta(current, 'side', side.id, delta))
-                      }
-                    />
-                  </th>
-                  {state.top.values.map((top) => {
-                    const key = cellKey(side.id, top.id)
-                    const cell = state.cells[key]
-                    if (!cell) return <td key={key} />
-                    const label = `${nameOf(side)} ${nameOf(top)}`
-                    return (
-                      <td
-                        key={key}
-                        className={[
-                          'border-s border-border-subtle px-4 py-5 align-top',
-                          cell.on ? 'bg-white' : 'bg-surface-background',
-                        ].join(' ')}
+                  {t(`itemOptions.prices.${tool.key}`)}
+                </button>
+              ))}
+            </div>
+            <p className="text-[13px] font-medium text-text-secondary">
+              {t('itemOptions.prices.count', { sold: figures.onSale, total: figures.total })}
+              {' · '}
+              {t('itemOptions.prices.byHand', { count: figures.byHand })}
+            </p>
+          </div>
+
+          <div className="overflow-x-auto rounded-md border border-border-subtle">
+            {nothing ? (
+              <p className="px-4 py-6 text-center text-sm font-medium text-text-quaternary">
+                {t('itemOptions.prices.none')}
+              </p>
+            ) : (
+              <table
+                className="w-full table-fixed border-collapse"
+                style={{ minWidth: 150 + tops.length * 200 }}
+              >
+                <colgroup>
+                  <col className="w-[150px]" />
+                  {tops.map((top) => (
+                    <col key={top.id} />
+                  ))}
+                </colgroup>
+                <thead>
+                  <tr className="border-b border-border-subtle">
+                    <th
+                      scope="col"
+                      className="bg-surface-background px-4 py-4 text-start text-[10px] font-semibold uppercase tracking-[0.5px] text-text-tertiary"
+                    >
+                      <span className="inline-flex flex-wrap items-center gap-1">
+                        {nameOf(state.side)} <ArrowIcon dir="down" />
+                        <span className="px-1 text-text-quaternary">/</span>
+                        {nameOf(state.top)} <ArrowIcon dir="across" />
+                      </span>
+                    </th>
+                    {tops.map((top) => (
+                      <th
+                        key={top.id}
+                        scope="col"
+                        className="border-s border-border-subtle px-4 py-4 text-start align-top"
                       >
-                        <div className="flex items-center gap-3">
-                          <TableCheckbox
-                            checked={cell.on}
-                            onChange={() => update((current) => toggleCell(current, key))}
-                            ariaLabel={t('itemOptions.grid.sell', { name: label })}
+                        <span className="block text-[13px] font-semibold uppercase tracking-[0.5px] text-text-primary">
+                          {valueName(top, 'top')}
+                        </span>
+                        {top === NONE ? null : (
+                          <DeltaEdit
+                            value={top.delta}
+                            label={deltaLabel(top.delta, 'top')}
+                            ariaLabel={t('itemOptions.grid.priceChangeFor', { name: nameOf(top) })}
+                            className="mt-1 text-[11px] uppercase tracking-[0.5px] text-text-quaternary"
+                            onCommit={(delta) =>
+                              update((current) => setDelta(current, 'top', top.id, delta))
+                            }
                           />
-                          <PriceInput
-                            value={cell.price}
-                            ariaLabel={t('itemOptions.grid.priceOf', { name: label })}
-                            tone={!cell.on ? 'off' : cell.byHand ? 'byHand' : 'normal'}
-                            onChange={(price) => update((current) => setPrice(current, key, price))}
+                        )}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sides.map((side) => (
+                    <tr key={side.id} className="border-b border-border-subtle last:border-b-0">
+                      <th
+                        scope="row"
+                        className="bg-surface-background px-4 py-5 text-start align-middle font-normal"
+                      >
+                        <span className="block text-sm font-medium text-text-primary">
+                          {valueName(side, 'side')}
+                        </span>
+                        {side === NONE ? null : (
+                          <DeltaEdit
+                            value={side.delta}
+                            label={deltaLabel(side.delta, 'side')}
+                            ariaLabel={t('itemOptions.grid.priceChangeFor', { name: nameOf(side) })}
+                            className="mt-1 text-[11px] text-primary-700"
+                            onCommit={(delta) =>
+                              update((current) => setDelta(current, 'side', side.id, delta))
+                            }
                           />
-                        </div>
-                        <p className="mt-2 flex min-h-4 flex-wrap items-center gap-x-2 ps-[27px] text-[11px] font-medium">
-                          {!cell.on ? (
-                            <span className="text-pending-700">
-                              {t('itemOptions.grid.notSold')}
-                            </span>
-                          ) : (
-                            <>
-                              {cell.code ? (
-                                <span
-                                  dir="ltr"
-                                  className="whitespace-nowrap font-mono text-[10px] tracking-[0.5px] text-text-quaternary"
-                                >
-                                  {cell.code}
+                        )}
+                      </th>
+                      {tops.map((top) => {
+                        const key = cellKey(side.id, top.id)
+                        const cell = state.cells[key]
+                        if (!cell) return <td key={key} />
+                        const label = [nameOf(side), nameOf(top)].filter(Boolean).join(' ')
+                        return (
+                          <td
+                            key={key}
+                            className={[
+                              'border-s border-border-subtle px-4 py-5 align-top',
+                              cell.on ? 'bg-white' : 'bg-surface-background',
+                            ].join(' ')}
+                          >
+                            <div className="flex items-center gap-3">
+                              <TableCheckbox
+                                checked={cell.on}
+                                onChange={() => update((current) => toggleCell(current, key))}
+                                ariaLabel={t('itemOptions.grid.sell', { name: label })}
+                              />
+                              <PriceInput
+                                value={cell.price}
+                                ariaLabel={t('itemOptions.grid.priceOf', { name: label })}
+                                tone={!cell.on ? 'off' : cell.byHand ? 'byHand' : 'normal'}
+                                onChange={(price) =>
+                                  update((current) => setPrice(current, key, price))
+                                }
+                              />
+                            </div>
+                            <p className="mt-2 flex min-h-4 flex-wrap items-center gap-x-2 ps-[27px] text-[11px] font-medium">
+                              {!cell.on ? (
+                                <span className="text-pending-700">
+                                  {t('itemOptions.grid.notSold')}
                                 </span>
                               ) : (
-                                <span className="text-text-quaternary">
-                                  {t('itemOptions.grid.noCode')}
-                                </span>
+                                <>
+                                  {cell.code ? (
+                                    <span
+                                      dir="ltr"
+                                      className="whitespace-nowrap font-mono text-[10px] tracking-[0.5px] text-text-quaternary"
+                                    >
+                                      {cell.code}
+                                    </span>
+                                  ) : (
+                                    <span className="text-text-quaternary">
+                                      {t('itemOptions.grid.noCode')}
+                                    </span>
+                                  )}
+                                  {cell.byHand ? (
+                                    <span className="text-pending-700">
+                                      {t('itemOptions.grid.setByHand')}
+                                    </span>
+                                  ) : null}
+                                </>
                               )}
-                              {cell.byHand ? (
-                                <span className="text-pending-700">
-                                  {t('itemOptions.grid.setByHand')}
-                                </span>
-                              ) : null}
-                            </>
-                          )}
-                        </p>
-                      </td>
-                    )
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+                            </p>
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </Card>
+      </fieldset>
 
       {/* What this adds up to */}
       <Card title={t('itemOptions.figures.title')}>
@@ -389,15 +512,20 @@ function ItemOptions({ product }: { product: ProductDto }) {
           >
             {t('itemOptions.footer.cancel')}
           </Link>
-          <button
-            type="button"
-            onClick={() => setSaved(true)}
-            disabled={figures.onSale === 0}
-            className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-50"
-          >
-            <img src={tickWhiteIcon} alt="" className="size-4" />
-            {t('itemOptions.footer.save', { count: figures.onSale })}
-          </button>
+          {readOnly ? null : (
+            <button
+              type="button"
+              onClick={() => void save()}
+              // Nothing ticked is refused; an item with no sizes or options at all can be saved.
+              disabled={saving || (figures.total > 0 && figures.onSale === 0)}
+              className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-50"
+            >
+              <img src={tickWhiteIcon} alt="" className="size-4" />
+              {saving
+                ? t('common.saving')
+                : t('itemOptions.footer.save', { count: figures.onSale })}
+            </button>
+          )}
         </div>
       </div>
     </CatalogShell>
@@ -490,7 +618,6 @@ function OptionPanel({
             <button
               type="button"
               onClick={() => onRemove(value.id)}
-              disabled={set.values.length <= 1}
               aria-label={t('itemOptions.chooses.remove', { name: nameOf(value) })}
               className="flex size-6 items-center justify-center rounded-[3px] text-primary-700 transition-colors hover:bg-white disabled:opacity-30"
             >

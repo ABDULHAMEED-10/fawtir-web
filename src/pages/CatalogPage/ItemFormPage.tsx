@@ -44,21 +44,28 @@ import {
   createProduct,
   getProduct,
   productPath,
+  reactivateProduct,
   updateProduct,
   type ProductDto,
 } from '../../api/catalog/products'
 import {
+  CATALOG_GROUPS_PATH,
+  catalogNameOf,
+  getCatalogGroups,
+  type CatalogGroupsDto,
+} from '../../api/catalog/groups'
+import {
   PRODUCT_VERSION_CONFLICT,
+  addOnsFrom,
+  sizesFrom,
   productFieldsFrom,
   productFormProblems,
   productRefusal,
   productRequestFrom,
 } from '../../lib/productForm'
-import { GROUPS, omr } from '../../lib/catalog'
+import { omr } from '../../lib/catalog'
 import {
   ITEM,
-  SIZES,
-  ADD_ONS,
   FIRST_UNIT_OF_KIND,
   ITEM_TYPE_OF_KIND,
   TIME_UNITS,
@@ -71,7 +78,6 @@ import {
   type AddOn,
   type ItemKind,
 } from '../../lib/catalogItem'
-import type { ItemType } from '../../lib/invoiceDraft'
 import handOverIcon from '../../assets/catalog/kind-bag.svg'
 import youDoIcon from '../../assets/catalog/kind-service.svg'
 import byTimeIcon from '../../assets/catalog/kind-hour.svg'
@@ -105,9 +111,11 @@ const threeDecimals = (raw: string) => {
  * 21 Oct 2026). Saved on `/v1/products`: goods or service, name, description, code, unit, the
  * price before VAT, the VAT category and rate, and the classification (HS code or service type):
  * `POST` for a new item, `PUT` with the version that was read for an existing one, `DELETE` to
- * archive it. TODO(backend): the rest of the form (Arabic name, group, barcode, the no-VAT reason,
- * discount, till options, sizes, add-ons, branches, stock) has no field on the product yet and is
- * not sent; see docs/backend-guides/INCOME.md, rows P.3 to P.10.
+ * archive it, `POST .../reactivate` to put it back on sale (INCOME.md P.14). The product also
+ * carries the Arabic name, barcode, group and kind (`/v1/catalog/groups`), the four cards
+ * (`itemKind`), the no-VAT reason (`defaultTaxReasonCode` / `Text`, P.3), the catalogue discount
+ * (P.4), the till switches, "keep count", and its sizes and add-ons (P.5).
+ * TODO(backend): branches (P.9) and stock (P.10) are not sent yet.
  */
 export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const { id } = useParams()
@@ -162,14 +170,6 @@ function ExistingItem({ id }: { id: string }) {
   )
 }
 
-/** The design's kind for a stored goods-or-service flag: services sold by time are "by time". */
-const kindFor = (itemType: ItemType, unit: string): ItemKind =>
-  itemType === 'goods'
-    ? 'handOver'
-    : TIME_UNITS.includes(unit) && unit !== 'ZZ'
-      ? 'byTime'
-      : 'youDo'
-
 type Banner = { tone: 'error' | 'success'; lines: string[]; reload?: boolean }
 
 function ItemEditor({
@@ -196,35 +196,44 @@ function ItemEditor({
   )
   const stored = loaded ? productFieldsFrom(categories, loaded) : null
 
-  const [kind, setKind] = useState<ItemKind>(
-    stored ? kindFor(stored.itemType, stored.unit) : 'handOver',
-  )
+  const [kind, setKind] = useState<ItemKind>(stored?.kind ?? 'handOver')
   const [name, setName] = useState(stored?.name ?? '')
-  const [arabicName, setArabicName] = useState('')
+  const [arabicName, setArabicName] = useState(stored?.nameAr ?? '')
   const [description, setDescription] = useState(stored?.description ?? ITEM.description)
-  const [group, setGroup] = useState('brewedDrinks')
-  const [itemKind, setItemKind] = useState('milkCoffee')
+  // The catalogue's own groups and kinds (`/v1/catalog/groups`); the item names a kind.
+  const groupsRead = useApiRead<CatalogGroupsDto>(CATALOG_GROUPS_PATH, getCatalogGroups)
+  const groups = groupsRead.read.status === 'ready' ? groupsRead.read.data.groups : []
+  const [kindId, setKindId] = useState(stored?.kindId ?? '')
+  const [pickedGroup, setGroup] = useState(loaded?.groupId ?? '')
+  // The group follows the kind once the groups have answered.
+  const group = groups.find((entry) => entry.kinds.some((k) => k.id === kindId))?.id ?? pickedGroup
   const [code, setCode] = useState(stored?.code ?? '')
-  const [barcode, setBarcode] = useState(ITEM.barcode)
+  const [barcode, setBarcode] = useState(stored?.barcode ?? '')
   const [soldAs, setSoldAs] = useState(stored?.unit ?? ITEM.soldAs)
   const [hsCode, setHsCode] = useState(stored?.hsCode ?? ITEM.hsCode)
   const [serviceType, setServiceType] = useState(stored?.serviceType ?? ITEM.serviceType)
-  // What was typed: the price before VAT, or with VAT in it while "Price includes VAT" is on.
-  const [priceText, setPriceText] = useState(
-    stored
-      ? stored.basePrice
-      : (ITEM.priceIncludesVat ? shelfPrice(ITEM.basePrice) : ITEM.basePrice).toFixed(3),
-  )
+  // What was typed: the price before VAT, or with VAT in it while "Price includes VAT" is on. A
+  // new item starts empty, never at a sample price.
   const [taxCategory, setTaxCategory] = useState(stored?.taxCode || ITEM.taxCategory)
-  const [reasonCode, setReasonCode] = useState(ITEM.exemptionReasonCode)
-  const [reasonText, setReasonText] = useState(ITEM.exemptionReason)
-  const [discountType, setDiscountType] = useState<DiscountType>(ITEM.discountType)
-  const [discountValue, setDiscountValue] = useState(ITEM.discountValue)
-  const [includesVat, setIncludesVat] = useState(ITEM.priceIncludesVat)
-  const [staffCanChange, setStaffCanChange] = useState(ITEM.staffCanChangePrice)
-  const [keepCount, setKeepCount] = useState(ITEM.keepCountOfThis)
-  const [sizes, setSizes] = useState<Size[]>(SIZES)
-  const [addOns, setAddOns] = useState<AddOn[]>(ADD_ONS)
+  const [includesVat, setIncludesVat] = useState(stored?.includesVat ?? false)
+  const [priceText, setPriceText] = useState(() => {
+    if (!stored) return ''
+    if (!stored.includesVat) return stored.basePrice
+    const option = categories.find((row) => row.code === stored.taxCode)
+    return shelfPrice(Number(stored.basePrice), Number(option?.rate ?? 0) / 100).toFixed(3)
+  })
+  const [reasonCode, setReasonCode] = useState(stored?.reasonCode ?? '')
+  const [reasonText, setReasonText] = useState(stored?.reasonText ?? '')
+  const [discountType, setDiscountType] = useState<DiscountType>(
+    stored?.discountType ?? ITEM.discountType,
+  )
+  const [discountValue, setDiscountValue] = useState(stored?.discountValue ?? '')
+  const [staffCanChange, setStaffCanChange] = useState(stored?.staffCanChange ?? false)
+  const [keepCount, setKeepCount] = useState(stored?.keepCount ?? false)
+  // A new item has no sizes or add-ons until they are added; a saved one has its own.
+  const [sizes, setSizes] = useState<Size[]>(stored?.sizes ?? [])
+  const [addOns, setAddOns] = useState<AddOn[]>(stored?.addOns ?? [])
+  const hasOptions = stored?.hasOptions ?? false
   // Branches (owner, 21 Oct 2026; Business Rules BA-3): one company product, sold in every branch
   // or only in chosen ones, with an optional price per branch. Its VAT and HS code never differ
   // by branch. TODO(backend): the product does not carry branch settings yet (INCOME.md P.9).
@@ -260,9 +269,8 @@ function ItemEditor({
       : Number(discountValue) || 0
 
   const preview = useMemo(
-    () =>
-      tillPreview(base, sizes[1]?.id ?? sizes[0]?.id ?? 'regular', ['extraShot', 'oatMilk'], rate),
-    [base, sizes, rate],
+    () => tillPreview(name || t('item.newItem'), base, sizes, addOns, rate),
+    [name, t, base, sizes, addOns, rate],
   )
 
   const classification = itemType === 'goods' ? hsCode : serviceType
@@ -271,7 +279,7 @@ function ItemEditor({
     basePrice: base,
     taxCategory,
     group,
-    kind: itemKind,
+    kind: kindId,
     barcode,
     reasonGiven:
       !reasonRequired(category) ||
@@ -305,7 +313,7 @@ function ItemEditor({
   /** Flipping "Price includes VAT" keeps the price and converts what is typed. */
   const pickIncludesVat = (next: boolean) => {
     if (next === includesVat) return
-    setPriceText((next ? shelf : base).toFixed(3))
+    if (priceText.trim()) setPriceText((next ? shelf : base).toFixed(3))
     setIncludesVat(next)
   }
   const reasons = taxReasonsFor(category) ?? []
@@ -317,11 +325,27 @@ function ItemEditor({
     description,
     code,
     unit: soldAs,
-    basePrice: base.toFixed(3),
+    // Empty stays empty, so a new item cannot be saved without a price.
+    basePrice: priceText.trim() === '' ? '' : base.toFixed(3),
     taxCode: tax?.code ?? '',
     hsCode,
     serviceType,
     isicCode: stored?.isicCode ?? null,
+    hasOptions,
+    kind,
+    nameAr: arabicName,
+    barcode,
+    kindId,
+    reasonCode,
+    reasonText,
+    reasonMissing: CODED_REASON.has(category) && reasonCode === '',
+    discountType,
+    discountValue,
+    includesVat,
+    staffCanChange,
+    keepCount,
+    sizes,
+    addOns,
   })
 
   const refused = (error: unknown) => {
@@ -363,18 +387,38 @@ function ItemEditor({
       if (another) {
         navigate('/catalog/new', { replace: true })
         setName('')
+        setArabicName('')
         setCode('')
+        setBarcode('')
+        setPriceText('')
+        setSizes([])
+        setAddOns([])
         setBanner({ tone: 'success', lines: [t('itemForm.savedNamed', { name: result.name })] })
       } else if (!product) {
         navigate(`/catalog/${encodeURIComponent(result.id)}`, { replace: true })
       } else {
         setProduct(result)
+        // The server's ids and worked-out prices, so the next save keeps them.
+        setSizes(sizesFrom(result))
+        setAddOns(addOnsFrom(result))
         setSaved(true)
       }
     } catch (error) {
       refused(error)
     } finally {
       setSaving(false)
+    }
+  }
+
+  /** Puts an archived item back on sale (P.14), under the version that was read. */
+  const reactivate = async () => {
+    if (!product) return
+    setBanner(null)
+    try {
+      setProduct(await reactivateProduct(product.id, product.version))
+      setBanner({ tone: 'success', lines: [t('itemForm.backOnSaleDone')] })
+    } catch (error) {
+      refused(error)
     }
   }
 
@@ -391,12 +435,17 @@ function ItemEditor({
     }
   }
 
-  const groupOptions = GROUPS.map((entry) => ({ value: entry.id, label: entry.name }))
+  const groupOptions = groups.map((entry) => ({
+    value: entry.id,
+    label: catalogNameOf(entry, i18n.language),
+  }))
   const kindOptions =
-    GROUPS.find((entry) => entry.id === group)?.kinds.map((entry) => ({
-      value: entry.id,
-      label: entry.name,
-    })) ?? []
+    groups
+      .find((entry) => entry.id === group)
+      ?.kinds.map((entry) => ({ value: entry.id, label: catalogNameOf(entry, i18n.language) })) ??
+    []
+  const groupLabel = groupOptions.find((entry) => entry.value === group)?.label ?? ''
+  const kindLabel = kindOptions.find((entry) => entry.value === kindId)?.label ?? ''
 
   const setSize = (index: number, patch: Partial<Size>) =>
     setSizes((list) => list.map((size, i) => (i === index ? { ...size, ...patch } : size)))
@@ -409,16 +458,17 @@ function ItemEditor({
       ]}
       title={product ? name || product.name : t('item.newItem')}
       // The product records no date it was added, so the subtitle names none.
-      subtitle={t('item.metaNoDate', {
-        group: GROUPS.find((entry) => entry.id === group)?.name ?? '',
-        kind: kindOptions.find((entry) => entry.value === itemKind)?.label ?? '',
-        code,
-      })}
+      subtitle={
+        groupLabel || code
+          ? t('item.metaNoDate', { group: groupLabel, kind: kindLabel, code })
+          : undefined
+      }
       pills={
         archived ? (
           <Pill tone="neutral">{t('itemForm.offSale')}</Pill>
         ) : existing ? (
-          // TODO(backend): the product carries no sales figures, so the sold-times pill is not drawn.
+          // TODO(backend): the product carries no sales figures (INCOME.md P.17), so the sold-times
+          // pill is not drawn.
           <Pill tone="success">{t('item.onSale')}</Pill>
         ) : (
           <>
@@ -429,6 +479,15 @@ function ItemEditor({
       }
       actions={
         <>
+          {archived && canManage ? (
+            <button
+              type="button"
+              onClick={() => void reactivate()}
+              className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+            >
+              {t('catalog.rowMenu.switchOn')}
+            </button>
+          ) : null}
           {existing && !archived && canManage ? (
             <button
               type="button"
@@ -581,10 +640,11 @@ function ItemEditor({
                         quiet
                         ariaLabel={t('item.group')}
                         value={group}
+                        placeholder={t('item.groupChoose')}
                         onChange={(value) => {
                           setGroup(value)
-                          const first = GROUPS.find((entry) => entry.id === value)?.kinds[0]
-                          if (first) setItemKind(first.id)
+                          const first = groups.find((entry) => entry.id === value)?.kinds[0]
+                          setKindId(first?.id ?? '')
                         }}
                         options={groupOptions}
                       />
@@ -603,8 +663,9 @@ function ItemEditor({
                         compact
                         quiet
                         ariaLabel={t('item.kindLabel')}
-                        value={itemKind}
-                        onChange={setItemKind}
+                        value={kindId}
+                        placeholder={t('item.kindChoose')}
+                        onChange={setKindId}
                         options={kindOptions}
                       />
                     </label>
@@ -635,6 +696,7 @@ function ItemEditor({
                     placeholder={t('item.barcodePlaceholder')}
                     value={barcode}
                     onChange={(event) => setBarcode(event.target.value)}
+                    dir="ltr"
                   />
                   <label className="block">
                     <span className="mb-1.5 flex items-center gap-1 text-xs font-medium text-text-secondary">
@@ -684,13 +746,13 @@ function ItemEditor({
                   label={t('item.basePrice')}
                   required={!includesVat}
                   note={t('item.beforeVat')}
-                  value={includesVat ? omr(base) : priceText}
+                  value={includesVat ? (priceText ? omr(base) : '') : priceText}
                   readOnly={includesVat}
                   inputMode="decimal"
                   style={{ textAlign: 'end' }}
                   onFocus={selectAllOnFocus}
                   onChange={(event) => setPriceText(event.target.value.replace(/[^\d.]/g, ''))}
-                  onBlur={() => setPriceText((text) => threeDecimals(text))}
+                  onBlur={() => setPriceText((text) => (text.trim() ? threeDecimals(text) : ''))}
                   leading={
                     <span className="text-sm font-medium text-text-primary">
                       <Rial />
@@ -725,13 +787,13 @@ function ItemEditor({
                   label={t('item.priceOnTheShelf')}
                   required={includesVat}
                   note={t('item.whatCustomerPays')}
-                  value={includesVat ? priceText : omr(shelf)}
+                  value={includesVat ? priceText : priceText ? omr(shelf) : ''}
                   readOnly={!includesVat}
                   inputMode="decimal"
                   style={{ textAlign: 'end' }}
                   onFocus={selectAllOnFocus}
                   onChange={(event) => setPriceText(event.target.value.replace(/[^\d.]/g, ''))}
-                  onBlur={() => setPriceText((text) => threeDecimals(text))}
+                  onBlur={() => setPriceText((text) => (text.trim() ? threeDecimals(text) : ''))}
                   leading={
                     <span className="text-sm font-medium text-text-primary">
                       <Rial />
@@ -869,20 +931,26 @@ function ItemEditor({
                           </span>
                         </td>
                         <td className="px-3 py-2.5">
+                          {/* With options, each size has a code per option: set on the Sizes
+                            and options page. */}
                           <input
-                            value={size.code}
+                            value={hasOptions ? '' : size.code}
+                            disabled={hasOptions}
+                            placeholder={hasOptions ? t('item.perOption') : undefined}
                             onChange={(event) => setSize(index, { code: event.target.value })}
                             aria-label={t('item.sizesCol.code')}
                             dir="ltr"
-                            className="h-[42px] w-full rounded-sm border border-border-default bg-white px-3 text-sm font-normal text-text-primary outline-none focus:border-border-brand"
+                            className="h-[42px] w-full rounded-sm border border-border-default bg-white px-3 text-sm font-normal text-text-primary outline-none placeholder:text-text-placeholder focus:border-border-brand disabled:bg-surface-background"
                           />
                         </td>
                         <td className="px-3 py-2.5">
-                          <TableCheckbox
-                            checked={size.onSale}
-                            onChange={() => setSize(index, { onSale: !size.onSale })}
-                            ariaLabel={t('item.sizesCol.onSale')}
-                          />
+                          {hasOptions ? null : (
+                            <TableCheckbox
+                              checked={size.onSale}
+                              onChange={() => setSize(index, { onSale: !size.onSale })}
+                              ariaLabel={t('item.sizesCol.onSale')}
+                            />
+                          )}
                         </td>
                         <td className="px-3 py-2.5 text-end">
                           <button
@@ -907,10 +975,11 @@ function ItemEditor({
                     setSizes((list) => [
                       ...list,
                       {
-                        id: `size-${list.length + 1}`,
+                        id: `size-new-${Date.now()}`,
                         name: '',
                         delta: 0,
-                        code: `${code}-${list.length + 1}`,
+                        // Blank: the server gives it the item code and a number.
+                        code: '',
                         onSale: true,
                       },
                     ])
@@ -937,10 +1006,33 @@ function ItemEditor({
                     key={addOn.id}
                     className="inline-flex h-[36px] items-center gap-2 rounded-sm border border-primary-100 bg-primary-25 px-3"
                   >
-                    <span className="text-sm font-medium text-primary-800">{addOn.name}</span>
-                    <span className="text-xs font-medium text-text-quaternary tabular-nums">
-                      {addOn.delta === 0 ? t('item.free') : `+${addOn.delta.toFixed(3)}`}
-                    </span>
+                    <AddOnText
+                      value={addOn.name}
+                      ariaLabel={t('item.addOnName')}
+                      placeholder={t('item.addOnName')}
+                      className="w-[120px] text-sm font-medium text-primary-800"
+                      onCommit={(next) =>
+                        setAddOns((list) =>
+                          list.map((x) => (x.id === addOn.id ? { ...x, name: next } : x)),
+                        )
+                      }
+                    />
+                    <AddOnText
+                      value={addOn.delta === 0 ? '' : addOn.delta.toFixed(3)}
+                      ariaLabel={t('item.addOnPrice', { name: addOn.name })}
+                      placeholder={t('item.free')}
+                      decimal
+                      className="w-[64px] text-end text-xs font-medium text-text-quaternary tabular-nums"
+                      onCommit={(next) =>
+                        setAddOns((list) =>
+                          list.map((x) =>
+                            x.id === addOn.id
+                              ? { ...x, delta: Math.round((Number(next) || 0) * 1000) / 1000 }
+                              : x,
+                          ),
+                        )
+                      }
+                    />
                     <button
                       type="button"
                       onClick={() => setAddOns((list) => list.filter((x) => x.id !== addOn.id))}
@@ -956,7 +1048,7 @@ function ItemEditor({
                   onClick={() =>
                     setAddOns((list) => [
                       ...list,
-                      { id: `addon-${list.length + 1}`, name: '', delta: 0 },
+                      { id: `addon-new-${Date.now()}`, name: '', delta: 0 },
                     ])
                   }
                   className="inline-flex h-[36px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
@@ -1069,7 +1161,9 @@ function ItemEditor({
                                 }
                               })
                             }
-                            aria-label={t('item.branches.priceHere', { branch: branchLabel(branch) })}
+                            aria-label={t('item.branches.priceHere', {
+                              branch: branchLabel(branch),
+                            })}
                             className="w-full min-w-0 bg-transparent text-end text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder disabled:text-text-quaternary"
                             dir="ltr"
                           />
@@ -1161,21 +1255,32 @@ function ItemEditor({
                     {t('item.keepCountNote')}
                   </p>
                 </div>
-                <Switch checked={keepCount} onChange={setKeepCount} label={t('item.keepCount')} />
+                {/* Goods only: a service is never counted on a shelf. */}
+                <Switch
+                  checked={itemType === 'goods' && keepCount}
+                  onChange={setKeepCount}
+                  disabled={itemType !== 'goods'}
+                  label={t('item.keepCount')}
+                />
               </div>
             </section>
 
-            <section className="rounded-md bg-surface-card p-5">
-              <h3 className="text-base font-semibold leading-[1.2] text-text-primary">
-                {t('item.whereItsUsed')}
-              </h3>
-              <dl className="mt-2">
-                <Row label={t('item.soldIn90')} value={'0'} />
-                <Row label={t('item.revenue')} value={'OMR 0.000'} />
-                <Row label={t('item.mostPopularSize')} value={t('item.none')} />
-                <Row label={t('item.onOpenInvoices')} value={'0'} last />
-              </dl>
-            </section>
+            {/* TODO(backend): a saved item's sales and usage figures are not on the product
+              (INCOME.md P.17), so the card is drawn for a new item only, where nothing has been
+              sold yet. */}
+            {existing ? null : (
+              <section className="rounded-md bg-surface-card p-5">
+                <h3 className="text-base font-semibold leading-[1.2] text-text-primary">
+                  {t('item.whereItsUsed')}
+                </h3>
+                <dl className="mt-2">
+                  <Row label={t('item.soldIn90')} value={'0'} />
+                  <Row label={t('item.revenue')} value={'OMR 0.000'} />
+                  <Row label={t('item.mostPopularSize')} value={t('item.none')} />
+                  <Row label={t('item.onOpenInvoices')} value={'0'} last />
+                </dl>
+              </section>
+            )}
           </aside>
         </div>
       </fieldset>
@@ -1244,6 +1349,59 @@ function ItemEditor({
         </p>
       </Modal>
     </CatalogShell>
+  )
+}
+
+/**
+ * An add-on's name or price, typed in place in its chip. Commits on blur or Enter; a price keeps
+ * digits and one point.
+ */
+function AddOnText({
+  value,
+  ariaLabel,
+  placeholder,
+  className,
+  decimal,
+  onCommit,
+}: {
+  value: string
+  ariaLabel: string
+  placeholder: string
+  className: string
+  decimal?: boolean
+  onCommit: (value: string) => void
+}) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const finish = () => {
+    if (draft !== null) onCommit(draft.trim())
+    setDraft(null)
+  }
+  return (
+    <input
+      value={draft ?? value}
+      aria-label={ariaLabel}
+      placeholder={placeholder}
+      inputMode={decimal ? 'decimal' : undefined}
+      dir={decimal ? 'ltr' : undefined}
+      onFocus={(event) => {
+        setDraft(value)
+        if (decimal) selectAllOnFocus(event)
+      }}
+      onChange={(event) =>
+        setDraft(decimal ? event.target.value.replace(/[^\d.]/g, '') : event.target.value)
+      }
+      onBlur={finish}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          finish()
+        }
+      }}
+      className={[
+        'min-w-0 bg-transparent outline-none placeholder:text-text-quaternary',
+        className,
+      ].join(' ')}
+    />
   )
 }
 

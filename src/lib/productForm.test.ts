@@ -57,6 +57,20 @@ describe('the catalogue item form against /v1/products', () => {
         hsCode: '080410000000',
         serviceTypeCode: null,
       },
+      // The fields added for P.3 to P.5, under the backend's names.
+      defaultTaxReasonCode: null,
+      defaultTaxReasonText: null,
+      nameAr: null,
+      barcode: null,
+      kindId: null,
+      itemKind: 'HAND_OVER',
+      priceEntryIncludesVat: false,
+      staffCanChangePrice: false,
+      keepCount: false,
+      defaultDiscount: null,
+      sizes: [],
+      variants: [],
+      addOns: [],
     })
   })
 

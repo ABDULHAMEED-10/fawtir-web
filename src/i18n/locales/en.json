@@ -12096,7 +12096,12 @@
       "priceHere": "Price before VAT at {{branch}}",
       "note": "Leave a price empty to use the base price. The VAT category, its reason and the HS code are the same in every branch; stock is counted per branch."
     },
-    "metaNoDate": "{{group}} › {{kind}} · {{code}}"
+    "metaNoDate": "{{group}} › {{kind}} · {{code}}",
+    "groupChoose": "Choose a group",
+    "kindChoose": "Choose a kind",
+    "perOption": "Set per option",
+    "addOnName": "Add-on name",
+    "addOnPrice": "Price of {{name}}"
   },
   "itemSells": {
     "export": "Export",
@@ -22652,7 +22657,8 @@
       "goods": "Products",
       "services": "Services",
       "attention": "Wanting attention",
-      "notStandard": "Not at the standard rate"
+      "notStandard": "Not at the standard rate",
+      "archived": "Off sale"
     },
     "sort": {
       "name": "Name",
@@ -23908,7 +23914,7 @@
     "openLink": "Sizes and options",
     "crumb": "Sizes and options",
     "title": "{{name}} sizes and options",
-    "subtitle": "Two things a customer chooses: <b>how much</b> and <b>how it's ground</b>. Every combination below is a separate thing you sell, with its own price and code.",
+    "subtitle": "Two things a customer chooses: <b>a size</b> and <b>an option</b>. Every combination below is a separate thing you sell, with its own price and code.",
     "backToItem": "Back to the item",
     "chooses": {
       "title": "What the customer chooses",
@@ -23933,7 +23939,8 @@
       "codes": "Generate the codes",
       "count": "{{sold}} of {{total}} on sale",
       "byHand_one": "{{count}} price set by hand",
-      "byHand_other": "{{count}} prices set by hand"
+      "byHand_other": "{{count}} prices set by hand",
+      "none": "Add a size or an option to price its combinations."
     },
     "grid": {
       "base": "base {{amount}}",
@@ -23943,7 +23950,9 @@
       "sell": "Sell {{name}}",
       "notSold": "Not sold",
       "setByHand": "Set by hand",
-      "noCode": "No code yet"
+      "noCode": "No code yet",
+      "noSize": "No size",
+      "noOption": "No option"
     },
     "figures": {
       "title": "What this adds up to",
@@ -23965,9 +23974,15 @@
       "unticked_one": "{{count}} unticked",
       "unticked_other": "{{count}} unticked",
       "prices": "prices from OMR {{min}} to OMR {{max}}",
-      "saved": "Saved in this sample. Nothing is sent yet.",
+      "saved": "Saved.",
       "cancel": "Cancel",
       "save": "Save these {{count}}"
+    },
+    "choice": {
+      "size": "Size",
+      "sizeNoun": "size",
+      "option": "Option",
+      "optionNoun": "option"
     }
   },
   "removal": {
@@ -24034,7 +24049,7 @@
     "offSale": "Off sale",
     "offSaleDone": "Taken off sale. New invoice lines can no longer pick it; invoices already issued are not changed.",
     "offSaleTitle": "Take this item off sale?",
-    "offSaleBody": "{{name}} will no longer be offered on new invoice lines. Invoices already issued are not changed. Putting an item back on sale is not available yet.",
+    "offSaleBody": "{{name}} will no longer be offered on new invoice lines. Invoices already issued are not changed. You can put it back on sale later.",
     "archivedNote": "This item is off sale, so it cannot be changed. Invoices already issued keep it as it was.",
     "reload": "Reload",
     "footer": "Changes apply to invoice lines added from now on. Invoices already issued are not changed.",
@@ -24044,7 +24059,8 @@
       "unit": "Choose how it is sold.",
       "price": "Enter a price of 0 or more, with up to three decimals.",
       "tax": "Choose a tax category.",
-      "hsCode": "Choose the item's HS code. If none fits, choose Other."
+      "hsCode": "Choose the item's HS code. If none fits, choose Other.",
+      "reason": "Choose the reason this item carries no VAT."
     },
     "refused": {
       "taxRate": "This tax category's rate cannot be used on an item. Choose another category.",
@@ -24056,7 +24072,27 @@
       "hsOnService": "A service cannot carry an HS code. Remove it, or mark the item as something you hand over.",
       "kind": "Choose whether it is something you hand over or something you do.",
       "serviceType": "This service type is not on Oman's list. Choose another one.",
-      "isic": "The business activity stored on this item is not valid. Contact Fawtir support."
-    }
+      "isic": "The business activity stored on this item is not valid. Contact Fawtir support.",
+      "barcodeInvalid": "A barcode uses letters, digits and symbols only, with no spaces, up to 64 characters.",
+      "barcodeTaken": "Another item on sale already uses this barcode.",
+      "groupGone": "This kind no longer exists. Choose another group and kind.",
+      "keepCountService": "Only things you hand over can be counted on the shelf. Switch off Keep count for a service.",
+      "discountInvalid": "Enter a discount of 0 or more with up to three decimals. A percentage cannot be more than 100.",
+      "unitKind": "This unit does not fit the kind of item. Choose another unit.",
+      "unitTime": "An item charged by time is sold by the hour, day, week, month or year.",
+      "serviceTypeOnGoods": "Something you hand over has no service type. Remove it, or mark the item as a service.",
+      "reasonNotHere": "This tax category takes no reason, or not this one. Check the category and the reason.",
+      "reasonInvalid": "This reason is not on Oman's list for the tax category. Choose another one.",
+      "sizeTwice": "Two sizes have the same name. Give each its own name.",
+      "optionTwice": "Two options have the same name. Give each its own name.",
+      "addOnTwice": "Two add-ons have the same name. Give each its own name.",
+      "variantUnknown": "A combination names a size or option that is not on the item. Reload and try again.",
+      "variantCodeInvalid": "A code uses letters, digits and symbols only, up to 100 characters.",
+      "variantCodeTaken": "One of these codes is already used by this item or another item on sale.",
+      "variantPriceNegative": "A combination's price cannot be below 0. Check the price changes.",
+      "addOnFreeWithPrice": "A free add-on cannot have a price.",
+      "variantLimit": "An item takes up to 20 sizes, 20 options and 50 add-ons."
+    },
+    "backOnSaleDone": "Back on sale. New invoice lines can pick it again."
   }
 }

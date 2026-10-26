@@ -31,8 +31,65 @@ const DATES = {
   classificationHsCode: '080410000000',
   classificationServiceTypeCode: '00000000',
   active: true,
-  archivedAt: null,
+  archivedAt: null as string | null,
   version: 3,
+}
+
+/** The same dates, zero-rated, with the fields the catalogue now stores (P.3 to P.5). */
+const ZERO_RATED = {
+  ...DATES,
+  defaultTaxCategory: 'Z',
+  defaultTaxRate: 0,
+  defaultTaxReasonCode: 'VATZR-OM-01',
+  defaultTaxReasonText: null,
+  nameAr: 'تمر خلاص',
+  barcode: '6291234567890',
+  kindId: 'k-dates',
+  groupId: 'g-food',
+  itemKind: 'HAND_OVER',
+  priceEntryIncludesVat: false,
+  staffCanChangePrice: true,
+  keepCount: true,
+  defaultDiscount: { type: 'PERCENTAGE', value: 5 },
+  sizes: [{ id: 's-1', name: 'Box', nameAr: null, priceDelta: 0.5, sortOrder: 0 }],
+  options: [],
+  variants: [
+    {
+      id: 'v-1',
+      sizeId: 's-1',
+      size: 'Box',
+      optionId: null,
+      option: null,
+      name: 'Khalas dates 1kg · Box',
+      code: 'DATES-KH-1',
+      priceOverride: null,
+      price: 3.7,
+      onSale: true,
+    },
+  ],
+  addOns: [{ id: 'a-1', name: 'Gift wrap', nameAr: null, price: 0.2, free: false, sortOrder: 0 }],
+}
+
+const GROUPS = {
+  groups: [
+    {
+      id: 'g-food',
+      name: 'Food',
+      nameAr: 'أغذية',
+      sortOrder: 0,
+      version: 0,
+      kinds: [
+        {
+          id: 'k-dates',
+          groupId: 'g-food',
+          name: 'Dates',
+          nameAr: 'تمور',
+          sortOrder: 0,
+          version: 0,
+        },
+      ],
+    },
+  ],
 }
 
 const json = (body: unknown, status = 200) =>
@@ -42,7 +99,7 @@ const json = (body: unknown, status = 200) =>
   })
 
 let permissions: string[]
-let stored: typeof DATES
+let stored: Record<string, unknown> & typeof DATES
 let onWrite: (url: string, init: RequestInit) => Response
 
 beforeEach(async () => {
@@ -60,6 +117,7 @@ beforeEach(async () => {
       if (url === '/api/v1/me/entitlements') return json(reader(permissions))
       if (url === '/api/v1/branches') return json([])
       if (url.includes('/code-lists/hs')) return json({ items: [], total: 0 })
+      if (url === '/api/v1/catalog/groups') return json(GROUPS)
       if (url.startsWith('/api/v1/products') && init.method && init.method !== 'GET') {
         return onWrite(url, init)
       }
@@ -170,6 +228,12 @@ describe('the item form on /v1/products', () => {
     fireEvent.change(screen.getAllByLabelText(i18n.t('item.itemCode'))[0], {
       target: { value: 'CARD-1' },
     })
+    // A new item starts with no price, no sizes and no add-ons, never the sample's.
+    const price = screen.getByLabelText(/Base price/) as HTMLInputElement
+    expect(price.value).toBe('')
+    expect(screen.queryByDisplayValue('Regular')).toBeNull()
+    expect(screen.queryByText('Extra shot')).toBeNull()
+    fireEvent.change(price, { target: { value: '1.250' } })
     fireEvent.click(screen.getAllByRole('button', { name: i18n.t('item.save') })[0])
     expect(await screen.findByText(i18n.t('itemForm.problem.hsCode'))).toBeTruthy()
     expect(writes()).toEqual([])
@@ -184,6 +248,96 @@ describe('the item form on /v1/products', () => {
       name: 'Cardamom',
       classification: { goodsOrService: 'S', hsCode: null },
     })
+  })
+
+  it('reads and sends every catalogue field, the no-VAT reason under the backend names (P.3 to P.5)', async () => {
+    stored = { ...ZERO_RATED }
+    await openItem()
+    expect(((await screen.findByLabelText(/Arabic name/)) as HTMLInputElement).value).toBe(
+      'تمر خلاص',
+    )
+    expect(screen.getByDisplayValue('6291234567890')).toBeTruthy()
+    expect(screen.getByDisplayValue('Box')).toBeTruthy()
+    expect(screen.getByDisplayValue('Gift wrap')).toBeTruthy()
+    // A saved item shows no invented sales figures.
+    expect(screen.queryByText(i18n.t('item.whereItsUsed'))).toBeNull()
+    fireEvent.click(screen.getAllByRole('button', { name: i18n.t('item.save') })[0])
+    await waitFor(() => expect(writes()).toHaveLength(1))
+    const body = JSON.parse(String(writes()[0].body))
+    expect(body).toMatchObject({
+      defaultTaxCategory: 'Z',
+      defaultTaxReasonCode: 'VATZR-OM-01',
+      defaultTaxReasonText: null,
+      nameAr: 'تمر خلاص',
+      barcode: '6291234567890',
+      kindId: 'k-dates',
+      itemKind: 'HAND_OVER',
+      priceEntryIncludesVat: false,
+      staffCanChangePrice: true,
+      keepCount: true,
+      defaultDiscount: { type: 'PERCENTAGE', value: 5 },
+      sizes: [{ id: 's-1', name: 'Box', priceDelta: 0.5 }],
+      variants: [{ size: 'Box', option: null, code: 'DATES-KH-1', price: null, onSale: true }],
+      addOns: [{ id: 'a-1', name: 'Gift wrap', price: 0.2, free: false }],
+    })
+    expect(body).not.toHaveProperty('exemptionReasonCode')
+  })
+
+  it('words a refused barcode', async () => {
+    onWrite = () => json({ status: 409, code: 'PRODUCT_BARCODE_DUPLICATE' }, 409)
+    await openItem()
+    await screen.findByLabelText(/^Name/)
+    fireEvent.click(screen.getAllByRole('button', { name: i18n.t('item.save') })[0])
+    expect(await screen.findByText(i18n.t('itemForm.refused.barcodeTaken'))).toBeTruthy()
+  })
+
+  it('puts an archived item back on sale with the version it read (P.14)', async () => {
+    stored = { ...DATES, active: false, archivedAt: '2026-10-21T09:00:00Z', version: 5 }
+    onWrite = () => json({ ...stored, active: true, archivedAt: null, version: 6 })
+    await openItem()
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('catalog.rowMenu.switchOn') }))
+    expect(await screen.findByText(i18n.t('itemForm.backOnSaleDone'))).toBeTruthy()
+    expect(writes()).toEqual([
+      {
+        url: '/api/v1/products/p-dates/reactivate?expectedVersion=5',
+        method: 'POST',
+        body: undefined,
+      },
+    ])
+  })
+
+  it('saves Sizes and options with PUT .../variants and the version it read', async () => {
+    stored = { ...ZERO_RATED }
+    onWrite = (_url, init) => {
+      const sent = JSON.parse(String(init.body))
+      return json({
+        ...ZERO_RATED,
+        version: 4,
+        sizes: sent.sizes.map((s: object, i: number) => ({
+          id: `s-${i + 1}`,
+          nameAr: null,
+          sortOrder: i,
+          ...s,
+        })),
+      })
+    }
+    await openItem('/catalog/p-dates/options')
+    // The server's price for the combination, not one worked out here.
+    expect(await screen.findByDisplayValue('3.700')).toBeTruthy()
+    fireEvent.click(
+      screen.getByRole('button', { name: i18n.t('itemOptions.footer.save', { count: 1 }) }),
+    )
+    await waitFor(() => expect(writes()).toHaveLength(1))
+    const [put] = writes()
+    expect(put.url).toBe('/api/v1/products/p-dates/variants?expectedVersion=3')
+    expect(put.method).toBe('PUT')
+    expect(JSON.parse(String(put.body))).toEqual({
+      sizes: [{ id: 's-1', name: 'Box', nameAr: null, priceDelta: 0.5 }],
+      options: [],
+      variants: [{ size: 'Box', option: null, code: 'DATES-KH-1', price: null, onSale: true }],
+      addOns: [{ id: 'a-1', name: 'Gift wrap', nameAr: null, price: 0.2, free: false }],
+    })
+    expect(await screen.findByText(i18n.t('itemOptions.footer.saved'))).toBeTruthy()
   })
 
   it('says New item is not allowed without product.manage', async () => {

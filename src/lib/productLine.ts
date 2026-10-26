@@ -91,8 +91,9 @@ function productExtras(product: ProductDto): Partial<ProductLinePatch> {
   if (extras.itemType === 'service' && product.classificationServiceTypeCode) {
     extras.serviceType = product.classificationServiceTypeCode
   }
-  if (product.exemptionReasonCode) extras.exemptionReasonCode = product.exemptionReasonCode
-  if (product.exemptionReason) extras.exemptionReason = product.exemptionReason
+  // The product's no-VAT reason (`defaultTaxReasonCode` / `Text`) is the line's IBT-121 / IBT-120.
+  if (product.defaultTaxReasonCode) extras.exemptionReasonCode = product.defaultTaxReasonCode
+  if (product.defaultTaxReasonText) extras.exemptionReason = product.defaultTaxReasonText
   if (product.defaultDiscount && product.defaultDiscount.value > 0) {
     extras.discountType = product.defaultDiscount.type
     extras.discountValue = String(product.defaultDiscount.value)

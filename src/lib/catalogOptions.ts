@@ -9,8 +9,17 @@
  * price is the base plus both changes. A price typed into the grid that differs from that is
  * "set by hand" and survives everything except "Rebuild prices from the base".
  *
- * A sample, like the item form: nothing here is saved to the server yet.
+ * On a saved item the two choices are its sizes (down the side) and its options (across the top),
+ * read from the product and saved with `PUT /v1/products/{id}/variants` (`productVariantsState`
+ * and `variantsRequest` below). The House Blend example (`sampleOptions`) stays for the prototype.
  */
+
+import type {
+  ProductAddOn,
+  ProductDto,
+  ProductVariantsRequest,
+  SizeRequest,
+} from '../api/catalog/products'
 
 export type OptionValue = {
   id: string
@@ -21,6 +30,8 @@ export type OptionValue = {
   short: string
   /** The price change against the base, before VAT. */
   delta: number
+  /** Read from the server: its id is sent back so a rename keeps its combinations. */
+  saved?: boolean
 }
 
 export type OptionSet = {
@@ -47,6 +58,18 @@ export type OptionsState = {
 
 export const cellKey = (sideId: string, topId: string) => `${sideId}:${topId}`
 
+/**
+ * Stands in for a choice with no values: an item with sizes and no options sells each size on its
+ * own, and the other way round. With neither, the item has no combinations at all.
+ */
+export const NONE: OptionValue = { id: '-', name: '', nameAr: '', short: '', delta: 0 }
+
+/** A choice's values as the grid lays them out: the placeholder when it has none. */
+export const valuesOf = (set: OptionSet) => (set.values.length ? set.values : [NONE])
+
+const bothEmpty = (state: OptionsState) =>
+  state.side.values.length === 0 && state.top.values.length === 0
+
 const round3 = (value: number) => Math.round(value * 1000) / 1000
 
 /** The price a combination works out to from the base and the two price changes. */
@@ -62,8 +85,9 @@ export const codeFor = (itemCode: string, side: OptionValue, top: OptionValue) =
 
 /** Every combination, in grid order (row by row). */
 export function combinations(state: OptionsState) {
-  return state.side.values.flatMap((side) =>
-    state.top.values.map((top) => ({
+  if (bothEmpty(state)) return []
+  return valuesOf(state.side).flatMap((side) =>
+    valuesOf(state.top).map((top) => ({
       side,
       top,
       key: cellKey(side.id, top.id),
@@ -82,11 +106,8 @@ const blankCell = (state: OptionsState, sideId: string, topId: string): Cell => 
 /** Fills in a cell for every combination that has none and drops cells nobody can reach. */
 export function reconcile(state: OptionsState): OptionsState {
   const cells: Record<string, Cell> = {}
-  for (const side of state.side.values) {
-    for (const top of state.top.values) {
-      const key = cellKey(side.id, top.id)
-      cells[key] = state.cells[key] ?? blankCell(state, side.id, top.id)
-    }
+  for (const { key, side, top } of combinations(state)) {
+    cells[key] = state.cells[key] ?? blankCell(state, side.id, top.id)
   }
   return { ...state, cells }
 }
@@ -141,10 +162,12 @@ export function addValue(state: OptionsState, which: 'side' | 'top', name: strin
   return reconcile({ ...state, [which]: { ...set, values: [...set.values, value] } })
 }
 
-/** Takes a value away, and every combination it was part of. A choice keeps at least one value. */
+/**
+ * Takes a value away, and every combination it was part of. A choice may be left with none: the
+ * other choice's values are then sold on their own.
+ */
 export function removeValue(state: OptionsState, which: 'side' | 'top', id: string): OptionsState {
   const set = state[which]
-  if (set.values.length <= 1) return state
   return reconcile({ ...state, [which]: { ...set, values: set.values.filter((v) => v.id !== id) } })
 }
 
@@ -286,4 +309,82 @@ export function sampleOptions(itemCode: string): OptionsState {
   state = toggleCell(state, cellKey('w1kg', 'tk'))
   state = setPrice(state, cellKey('w1kg', 'es'), 9.8)
   return generateCodes(state, itemCode)
+}
+
+/* ------------------------------------------------------- on the server (P.5) */
+
+/** The words the two choices are called by, in each language. */
+export type ChoiceWords = {
+  sizes: { name: string; nameAr: string; noun: string; nounAr: string }
+  options: { name: string; nameAr: string; noun: string; nounAr: string }
+}
+
+/**
+ * A saved product's sizes and options as the grid. Each combination shows what the server says it
+ * sells for (`variant.price`); one priced by hand (`priceOverride`) is marked so.
+ */
+export function productVariantsState(product: ProductDto, words: ChoiceWords): OptionsState {
+  const values = (rows: ProductDto['sizes']): OptionValue[] => {
+    const shorts: string[] = []
+    return (rows ?? []).map((row, index) => {
+      const short = shortCodeFor(row.name, shorts, index + 1)
+      shorts.push(short)
+      return {
+        id: row.id,
+        name: row.name,
+        nameAr: row.nameAr || row.name,
+        short,
+        delta: row.priceDelta,
+        saved: true,
+      }
+    })
+  }
+  const side: OptionSet = { id: 'sizes', ...words.sizes, values: values(product.sizes) }
+  const top: OptionSet = { id: 'options', ...words.options, values: values(product.options) }
+  const cells: Record<string, Cell> = {}
+  for (const variant of product.variants ?? []) {
+    cells[cellKey(variant.sizeId ?? NONE.id, variant.optionId ?? NONE.id)] = {
+      on: variant.onSale,
+      price: variant.price,
+      byHand: variant.priceOverride !== null,
+      code: variant.code ?? '',
+    }
+  }
+  return reconcile({ base: product.defaultUnitPrice, side, top, cells })
+}
+
+const valueRequest = (value: OptionValue): SizeRequest => ({
+  ...(value.saved ? { id: value.id } : {}),
+  name: value.name.trim(),
+  nameAr: value.nameAr && value.nameAr !== value.name ? value.nameAr : null,
+  priceDelta: value.delta,
+})
+
+/**
+ * What `PUT /v1/products/{id}/variants` is sent: the sizes and options in their order, every
+ * combination with its code, on/off and a hand-set price (null follows the base), and the item's
+ * add-ons unchanged, since the four arrays replace the whole setup.
+ */
+export function variantsRequest(
+  state: OptionsState,
+  addOns: readonly ProductAddOn[] | null | undefined,
+): ProductVariantsRequest {
+  return {
+    sizes: state.side.values.map(valueRequest),
+    options: state.top.values.map(valueRequest),
+    variants: combinations(state).map(({ side, top, cell }) => ({
+      size: side === NONE ? null : side.name.trim(),
+      option: top === NONE ? null : top.name.trim(),
+      code: cell.code.trim() || null,
+      price: cell.byHand ? cell.price : null,
+      onSale: cell.on,
+    })),
+    addOns: (addOns ?? []).map((addOn) => ({
+      id: addOn.id,
+      name: addOn.name,
+      nameAr: addOn.nameAr,
+      price: addOn.price,
+      free: addOn.free,
+    })),
+  }
 }

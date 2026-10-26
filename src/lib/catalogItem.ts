@@ -36,10 +36,31 @@ export const FIRST_UNIT_OF_KIND: Record<ItemKind, string> = {
   several: 'SET',
 }
 
-/** A size is a price change against the base, not a price of its own. */
-export type Size = { id: string; name: string; delta: number; code: string; onSale: boolean }
+/**
+ * A size is a price change against the base, not a price of its own. On a saved item, `saved`
+ * keeps the server's id, and `price` / `priceOverride` are what the server worked out and what
+ * was set by hand on the Sizes and options page.
+ */
+export type Size = {
+  id: string
+  name: string
+  nameAr?: string | null
+  delta: number
+  code: string
+  onSale: boolean
+  price?: number
+  priceOverride?: number | null
+  saved?: boolean
+}
 
-export type AddOn = { id: string; name: string; delta: number }
+/** An add-on at its own price; 0 is free. */
+export type AddOn = {
+  id: string
+  name: string
+  nameAr?: string | null
+  delta: number
+  saved?: boolean
+}
 
 export const ITEM = {
   id: 'flat-white',
@@ -97,15 +118,23 @@ export const ADD_ONS: AddOn[] = [
 export const sizePrice = (base: number, size: Size, rate = VAT_RATE) =>
   Math.round((shelfPrice(base, rate) + size.delta) * 1000) / 1000
 
-/** The receipt the till would print, for the size and add-ons the preview shows. */
-export function tillPreview(base: number, sizeId: string, addOnIds: string[], rate = VAT_RATE) {
-  const size = SIZES.find((entry) => entry.id === sizeId) ?? SIZES[0]
+/**
+ * The receipt the till would print for one item: its second size (the first when it has one), and
+ * its first two add-ons. An item without sizes prints its own name at its shelf price.
+ */
+export function tillPreview(
+  name: string,
+  base: number,
+  sizes: readonly Size[],
+  addOns: readonly AddOn[],
+  rate = VAT_RATE,
+) {
+  const size = sizes[1] ?? sizes[0]
   const lines = [
-    { name: `${ITEM.name} · ${size.name}`, amount: sizePrice(base, size, rate) },
-    ...addOnIds
-      .map((id) => ADD_ONS.find((entry) => entry.id === id))
-      .filter((entry): entry is AddOn => Boolean(entry))
-      .map((entry) => ({ name: `+ ${entry.name}`, amount: entry.delta })),
+    size
+      ? { name: `${name} · ${size.name}`, amount: sizePrice(base, size, rate) }
+      : { name, amount: shelfPrice(base, rate) },
+    ...addOns.slice(0, 2).map((entry) => ({ name: `+ ${entry.name}`, amount: entry.delta })),
   ]
   const total = Math.round(lines.reduce((sum, line) => sum + line.amount, 0) * 1000) / 1000
   return { lines, total }

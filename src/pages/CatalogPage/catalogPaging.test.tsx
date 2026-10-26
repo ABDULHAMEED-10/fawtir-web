@@ -32,6 +32,15 @@ const productAt = (n: number) => ({
   version: 0,
 })
 
+/** One item taken off sale, for the Off sale tab. */
+const ARCHIVED = {
+  ...productAt(99),
+  name: 'Old syrup',
+  active: false,
+  archivedAt: '2026-08-14T10:12:00Z',
+  version: 2,
+}
+
 const json = (body: unknown) =>
   new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } })
 
@@ -46,10 +55,16 @@ beforeEach(() => {
   forgetEntitlements()
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (url: string) => {
+    vi.fn(async (url: string, init: RequestInit = {}) => {
       if (url === '/api/v1/me/entitlements') return json(READER)
+      if (url.includes('/reactivate') && init.method === 'POST') {
+        return json({ ...ARCHIVED, active: true, archivedAt: null, version: 3 })
+      }
       if (url.startsWith('/api/v1/products')) {
         const query = new URL(url, 'http://x').searchParams
+        if (query.get('status') === 'ARCHIVED') {
+          return json({ content: [ARCHIVED], page: 0, size: 20, totalElements: 1 })
+        }
         const page = Number(query.get('page') ?? 0)
         const size = Number(query.get('size'))
         const from = page * size + 1
@@ -77,7 +92,7 @@ describe('the catalogue list', () => {
       </MemoryRouter>,
     )
     expect(await screen.findByText('Item 01')).toBeTruthy()
-    expect(productCalls()[0]).toBe('/api/v1/products?size=20')
+    expect(productCalls()[0]).toBe('/api/v1/products?sort=NAME&direction=ASC&size=20')
     const pager = screen.getByRole('navigation', { name: i18n.t('appList.pager.label') })
     expect(within(pager).getByRole('button', { name: '3' })).toBeTruthy()
     expect(within(pager).getByRole('button', { name: '1' }).getAttribute('aria-current')).toBe(
@@ -86,7 +101,7 @@ describe('the catalogue list', () => {
 
     fireEvent.click(within(pager).getByRole('button', { name: '2' }))
     expect(await screen.findByText('Item 21')).toBeTruthy()
-    expect(productCalls().at(-1)).toBe('/api/v1/products?size=20&page=1')
+    expect(productCalls().at(-1)).toBe('/api/v1/products?sort=NAME&direction=ASC&size=20&page=1')
     expect(screen.queryByText('Item 01')).toBeNull()
   })
 
@@ -109,6 +124,44 @@ describe('the catalogue list', () => {
 
     fireEvent.click(screen.getByRole('button', { name: i18n.t('common.sort') }))
     fireEvent.click(screen.getByRole('option', { name: i18n.t('catalogReal.sort.priceHigh') }))
-    expect(names()).toEqual(['Item 20', 'Item 15', 'Item 10', 'Item 05'])
+    await vi.waitFor(() => expect(names()).toEqual(['Item 20', 'Item 15', 'Item 10', 'Item 05']))
+    // The order is the server's, so it holds across pages.
+    expect(productCalls()).toContain('/api/v1/products?sort=PRICE&direction=DESC&size=20')
+  })
+
+  it('lists the items off sale on their own tab, counted by the server, and puts one back (P.14, P.15)', async () => {
+    READER.permissions = ['product.read', 'product.manage']
+    try {
+      render(
+        <MemoryRouter>
+          <CatalogPage />
+        </MemoryRouter>,
+      )
+      await screen.findByText('Item 01')
+      expect(productCalls()).toContain('/api/v1/products?status=ARCHIVED&size=1')
+      const tab = screen.getByRole('button', {
+        name: new RegExp(i18n.t('catalogReal.tab.archived')),
+      })
+      expect(tab.textContent).toContain('1')
+      fireEvent.click(tab)
+      expect(await screen.findByText('Old syrup')).toBeTruthy()
+      expect(productCalls()).toContain(
+        '/api/v1/products?status=ARCHIVED&sort=NAME&direction=ASC&size=20',
+      )
+      fireEvent.click(screen.getByRole('button', { name: i18n.t('catalog.rowMenu.switchOn') }))
+      await vi.waitFor(() =>
+        expect(
+          vi
+            .mocked(fetch)
+            .mock.calls.some(
+              ([url, init]) =>
+                String(url) === '/api/v1/products/p-99/reactivate?expectedVersion=2' &&
+                init?.method === 'POST',
+            ),
+        ).toBe(true),
+      )
+    } finally {
+      READER.permissions = ['product.read']
+    }
   })
 })

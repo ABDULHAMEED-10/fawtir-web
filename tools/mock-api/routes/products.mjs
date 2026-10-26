@@ -1,11 +1,20 @@
 /**
- * The product catalogue (`/v1/products`): the catalogue list and item form, and the composer's
- * product picker. Shapes follow `src/api/catalog/products.ts` (`ProductResponse`); refusals follow
- * `InvoiceRestExceptionHandler` (409 for a stale version, a code already on sale and an archived
- * product, 404 for a missing one). In memory, so a restart puts the catalogue back.
+ * The product catalogue (`/v1/products`): the catalogue list and item form, the Sizes and options
+ * page and the composer's product picker. Shapes follow `src/api/catalog/products.ts`
+ * (`ProductResponse`); refusals follow `InvoiceRestExceptionHandler` (409 for a stale version, a
+ * code or barcode already on sale and an archived product, 404 for a missing one, 400 for the
+ * rest). In memory, so a restart puts the catalogue back. Groups and kinds are in
+ * `catalogGroups.mjs`; this file reads them to check a product's kind.
  */
 
+import { KINDS } from './catalogGroups.mjs'
+
 const NOW = '2026-10-21T09:00:00Z'
+
+let nextId = 1
+const newId = (prefix) => `${prefix}-${nextId++}`
+
+const round3 = (value) => Math.round(Number(value) * 1000) / 1000
 
 function product(id, code, name, unit, price, extra = {}) {
   return {
@@ -21,9 +30,25 @@ function product(id, code, name, unit, price, extra = {}) {
     classificationIsicCode: null,
     classificationHsCode: null,
     classificationServiceTypeCode: null,
+    defaultTaxReasonCode: null,
+    defaultTaxReasonText: null,
+    nameAr: null,
+    barcode: null,
+    kindId: null,
+    groupId: null,
+    itemKind: null,
+    priceEntryIncludesVat: false,
+    staffCanChangePrice: false,
+    keepCount: false,
+    defaultDiscount: null,
+    sizes: [],
+    options: [],
+    variantSettings: [],
+    addOns: [],
     active: true,
     archivedAt: null,
     version: 0,
+    updatedAt: NOW,
     ...extra,
   }
 }
@@ -32,22 +57,63 @@ const goods = (hs) => ({
   classificationGoodsOrService: 'G',
   classificationHsCode: hs,
   classificationServiceTypeCode: '00000000',
+  itemKind: 'HAND_OVER',
 })
-const service = (type = '00000000') => ({
+const service = (type = '00000000', itemKind = 'DO') => ({
   classificationGoodsOrService: 'S',
   classificationServiceTypeCode: type,
+  itemKind,
+})
+const size = (name, nameAr, priceDelta, sortOrder) => ({
+  id: newId('size'),
+  name,
+  nameAr,
+  priceDelta,
+  sortOrder,
+})
+const addOn = (name, nameAr, price, sortOrder) => ({
+  id: newId('addon'),
+  name,
+  nameAr,
+  price,
+  free: price === 0,
+  sortOrder,
 })
 
-let nextProduct = 1
-
 const PRODUCTS = [
-  product('p-cap', 'CAP-L', 'Cappuccino - Large', 'EA', 1.8, goods('210111000000')),
-  product('p-flat', 'FLT-1', 'Flat White', 'EA', 1.6, goods('210111000000')),
-  product('p-beans', 'BEAN-HB', 'Coffee Beans 1kg - House Blend', 'KGM', 9.5, goods('090121000000')),
+  product('p-cap', 'CAP-L', 'Cappuccino - Large', 'EA', 1.8, {
+    ...goods('210111000000'),
+    nameAr: 'كابتشينو كبير',
+    kindId: 'k-milk',
+    groupId: 'g-drinks',
+  }),
+  product('p-flat', 'FLT-1', 'Flat White', 'EA', 1.333, {
+    ...goods('210111000000'),
+    nameAr: 'فلات وايت',
+    barcode: '6281183000221',
+    kindId: 'k-milk',
+    groupId: 'g-drinks',
+    staffCanChangePrice: true,
+    defaultDiscount: { type: 'PERCENTAGE', value: 10 },
+    sizes: [size('Regular', 'عادي', 0, 0), size('Large', 'كبير', 0.3, 1)],
+    options: [size('Full milk', 'حليب كامل', 0, 0), size('Oat milk', 'حليب الشوفان', 0.2, 1)],
+    addOns: [addOn('Extra shot', 'جرعة إضافية', 0.3, 0), addOn('Decaf', 'منزوع الكافيين', 0, 1)],
+  }),
+  product('p-beans', 'BEAN-HB', 'Coffee Beans 1kg - House Blend', 'KGM', 9.5, {
+    ...goods('090121000000'),
+    keepCount: true,
+    kindId: 'k-beans',
+    groupId: 'g-beans',
+    sizes: [
+      size('250 g', '250 غ', 0, 0),
+      size('500 g', '500 غ', 2.4, 1),
+      size('1 kg', '1 كغ', 6.8, 2),
+    ],
+  }),
   product('p-green', 'BEAN-YG', 'Green Beans - Yirgacheffe', 'KGM', 10.25, goods('090111000000')),
   product('p-roast', 'SRV-ROAST', 'Roasting service - per batch', 'E48', 4.2, service()),
   product('p-cups', 'CUP-500', 'Takeaway cups - 500 pack', 'PK', 22.8),
-  product('p-train', 'SRV-TRAIN', 'Barista training', 'HUR', 15, service()),
+  product('p-train', 'SRV-TRAIN', 'Barista training', 'HUR', 15, service('00000000', 'BY_TIME')),
   product('p-deliv', 'SRV-DELIV', 'Delivery charge', 'EA', 2.5, service()),
   product('p-export', 'BEAN-EXP', 'Export beans - Salalah lot', 'KGM', 11, {
     defaultTaxCategory: 'G',
@@ -57,6 +123,7 @@ const PRODUCTS = [
   product('p-dates', 'DATES-KH', 'Khalas dates 1kg', 'KGM', 3.2, {
     defaultTaxCategory: 'Z',
     defaultTaxRate: 0,
+    defaultTaxReasonCode: 'VATZR-OM-01',
     ...goods('080410000000'),
   }),
   product('p-syrup', 'SYR-VAN', 'Vanilla syrup 750ml', 'EA', 4.75, {
@@ -67,15 +134,279 @@ const PRODUCTS = [
   }),
 ]
 
-const problem = (status, code, slug = 'resource-conflict') => ({
+const problem = (
+  status,
+  code,
+  slug = status === 409 ? 'resource-conflict' : 'validation-failed',
+) => ({
   status,
   body: { type: `https://api.fawtir.om/problems/${slug}`, status, code },
 })
 
-/** `ProductRequest` onto a stored product. */
+const same = (a, b) =>
+  String(a ?? '')
+    .trim()
+    .toLowerCase() ===
+  String(b ?? '')
+    .trim()
+    .toLowerCase()
+
+/** Every size x option combination, as the server lays them out. */
+function combos(p) {
+  const sizes = p.sizes.length ? p.sizes : [null]
+  const options = p.options.length ? p.options : [null]
+  if (!p.sizes.length && !p.options.length) return []
+  return sizes.flatMap((s) => options.map((o) => ({ s, o })))
+}
+
+/** `ProductResponse`: the variants are worked out on every read from the current base price. */
+function view(p, { list = false } = {}) {
+  const { variantSettings, updatedAt, ...rest } = p
+  void updatedAt
+  if (list) return { ...rest, sizes: null, options: null, variants: null, addOns: null }
+  const variants = combos(p).map(({ s, o }, index) => {
+    const key = `${s?.id ?? '-'}:${o?.id ?? '-'}`
+    const stored = variantSettings.find((v) => v.key === key) ?? {
+      key,
+      id: newId('var'),
+      code: `${p.code}-${index + 1}`,
+      priceOverride: null,
+      onSale: true,
+    }
+    if (!variantSettings.includes(stored)) variantSettings.push(stored)
+    return {
+      id: stored.id,
+      sizeId: s?.id ?? null,
+      size: s?.name ?? null,
+      optionId: o?.id ?? null,
+      option: o?.name ?? null,
+      name: [p.name, s?.name, o?.name].filter(Boolean).join(' · '),
+      code: stored.code,
+      priceOverride: stored.priceOverride,
+      price:
+        stored.priceOverride ??
+        round3(p.defaultUnitPrice + (s?.priceDelta ?? 0) + (o?.priceDelta ?? 0)),
+      onSale: stored.onSale,
+    }
+  })
+  return { ...rest, variants }
+}
+
+const tooPrecise = (value) =>
+  value !== null && value !== undefined && round3(value) !== Number(value)
+
+/** The four arrays onto a product (copy), or a refusal. `undefined` leaves one as it is. */
+function applySetup(p, body) {
+  const next = { ...p }
+  const rows = (incoming, current, dupCode) => {
+    if (incoming === undefined || incoming === null) return { rows: current }
+    const names = new Set()
+    const out = []
+    for (const [index, row] of incoming.entries()) {
+      const key = String(row.name ?? '')
+        .trim()
+        .toLowerCase()
+      if (!key || names.has(key)) return { refused: problem(400, dupCode) }
+      names.add(key)
+      const known =
+        current.find((c) => row.id && c.id === row.id) ??
+        current.find((c) => same(c.name, row.name))
+      out.push({
+        id: known?.id ?? newId('size'),
+        name: String(row.name).trim(),
+        nameAr: row.nameAr ?? null,
+        priceDelta: round3(row.priceDelta ?? 0),
+        sortOrder: index,
+        _raw: row,
+      })
+    }
+    return { rows: out }
+  }
+  const sizes = rows(body.sizes, p.sizes, 'PRODUCT_SIZE_DUPLICATE')
+  if (sizes.refused) return sizes
+  const options = rows(body.options, p.options, 'PRODUCT_OPTION_DUPLICATE')
+  if (options.refused) return options
+  if (sizes.rows.length > 20 || options.rows.length > 20)
+    return { refused: problem(400, 'PRODUCT_VARIANT_LIMIT') }
+  for (const row of [...sizes.rows, ...options.rows]) {
+    if (tooPrecise(row._raw?.priceDelta))
+      return { refused: problem(400, 'PRODUCT_PRICE_TOO_PRECISE') }
+    delete row._raw
+  }
+  next.sizes = sizes.rows
+  next.options = options.rows
+
+  if (body.addOns !== undefined && body.addOns !== null) {
+    if (body.addOns.length > 50) return { refused: problem(400, 'PRODUCT_VARIANT_LIMIT') }
+    const names = new Set()
+    const out = []
+    for (const [index, row] of body.addOns.entries()) {
+      const key = String(row.name ?? '')
+        .trim()
+        .toLowerCase()
+      if (!key || names.has(key)) return { refused: problem(400, 'PRODUCT_ADDON_DUPLICATE') }
+      names.add(key)
+      if (row.free && Number(row.price) > 0)
+        return { refused: problem(400, 'PRODUCT_ADDON_FREE_WITH_PRICE') }
+      if (tooPrecise(row.price)) return { refused: problem(400, 'PRODUCT_PRICE_TOO_PRECISE') }
+      const known =
+        p.addOns.find((c) => row.id && c.id === row.id) ??
+        p.addOns.find((c) => same(c.name, row.name))
+      out.push({
+        id: known?.id ?? newId('addon'),
+        name: String(row.name).trim(),
+        nameAr: row.nameAr ?? null,
+        price: row.free ? 0 : round3(row.price ?? 0),
+        free: Boolean(row.free),
+        sortOrder: index,
+      })
+    }
+    next.addOns = out
+  }
+
+  // Combinations: keep what was stored for each, then apply the ones the request names.
+  const settings = []
+  for (const { s, o } of combos(next)) {
+    const key = `${s?.id ?? '-'}:${o?.id ?? '-'}`
+    const kept = p.variantSettings.find((v) => v.key === key)
+    if (kept) settings.push({ ...kept })
+  }
+  next.variantSettings = settings
+  view(next) // fills the defaults for combinations not stored yet
+  if (body.variants !== undefined && body.variants !== null) {
+    const seen = new Set()
+    for (const row of body.variants) {
+      const s = row.size ? next.sizes.find((x) => same(x.name, row.size)) : null
+      const o = row.option ? next.options.find((x) => same(x.name, row.option)) : null
+      if ((row.size && !s) || (row.option && !o))
+        return { refused: problem(400, 'PRODUCT_VARIANT_UNKNOWN_COMBINATION') }
+      if (
+        Boolean(next.sizes.length) !== Boolean(s) ||
+        Boolean(next.options.length) !== Boolean(o)
+      ) {
+        return { refused: problem(400, 'PRODUCT_VARIANT_UNKNOWN_COMBINATION') }
+      }
+      const key = `${s?.id ?? '-'}:${o?.id ?? '-'}`
+      if (seen.has(key)) return { refused: problem(400, 'PRODUCT_VARIANT_DUPLICATE') }
+      seen.add(key)
+      const setting = next.variantSettings.find((v) => v.key === key)
+      if (row.code !== undefined && row.code !== null && String(row.code).trim() !== '') {
+        if (!/^[\x20-\x7e]{1,100}$/.test(row.code))
+          return { refused: problem(400, 'PRODUCT_VARIANT_CODE_INVALID') }
+        setting.code = String(row.code).trim()
+      }
+      if (row.price !== undefined) {
+        if (tooPrecise(row.price)) return { refused: problem(400, 'PRODUCT_PRICE_TOO_PRECISE') }
+        if (row.price !== null && row.price < 0)
+          return { refused: problem(400, 'PRODUCT_VARIANT_PRICE_NEGATIVE') }
+        setting.priceOverride = row.price === null ? null : round3(row.price)
+      }
+      if (row.onSale !== undefined) setting.onSale = Boolean(row.onSale)
+    }
+  }
+  for (const v of view(next).variants) {
+    if (v.price < 0) return { refused: problem(400, 'PRODUCT_VARIANT_PRICE_NEGATIVE') }
+  }
+  // Codes: unique within the item, against its own code and every other active product's codes.
+  const codes = next.variantSettings.map((v) => v.code.toUpperCase())
+  if (new Set(codes).size !== codes.length || codes.includes(next.code.toUpperCase())) {
+    return { refused: problem(409, 'PRODUCT_VARIANT_CODE_DUPLICATE') }
+  }
+  const taken = PRODUCTS.filter((o) => o.active && o.id !== p.id).flatMap((o) => [
+    o.code.toUpperCase(),
+    ...o.variantSettings.map((v) => v.code.toUpperCase()),
+  ])
+  if (codes.some((code) => taken.includes(code)))
+    return { refused: problem(409, 'PRODUCT_VARIANT_CODE_DUPLICATE') }
+  return { product: next }
+}
+
+const GOODS_UNITS =
+  'EA H87 C62 KGM GRM TNE LTR MLT MTR CMT MTK MTQ BX CT PK BG BO CA DZN SET PR RO ZZ'.split(' ')
+const SERVICE_UNITS = 'HUR DAY WEE MON ANN E48 C62 LS KMT ZZ'.split(' ')
+const TIME_UNITS = 'HUR DAY WEE MON ANN ZZ'.split(' ')
+const KIND_IS = { HAND_OVER: 'G', BUNDLE: 'G', DO: 'S', BY_TIME: 'S' }
+
+/** The refusals a save meets before it is stored, in the server's order. */
+function refusal(body, id) {
+  const c = body.classification ?? null
+  if (body.defaultUnitPrice < 0) return problem(400, 'PRODUCT_UNIT_PRICE_NEGATIVE')
+  if (tooPrecise(body.defaultUnitPrice)) return problem(400, 'PRODUCT_PRICE_TOO_PRECISE')
+  if (body.itemKind && !KIND_IS[body.itemKind]) return problem(400, 'VALIDATION_FAILED')
+  const kind = c?.goodsOrService ?? (body.itemKind ? KIND_IS[body.itemKind] : null)
+  if (body.itemKind && c?.goodsOrService && c.goodsOrService !== KIND_IS[body.itemKind]) {
+    return problem(400, 'PRODUCT_ITEM_KIND_MISMATCH')
+  }
+  if (
+    kind === 'G' &&
+    !GOODS_UNITS.includes(body.defaultUnitCode) &&
+    SERVICE_UNITS.includes(body.defaultUnitCode)
+  ) {
+    return problem(400, 'PRODUCT_UNIT_KIND_MISMATCH')
+  }
+  if (
+    kind === 'S' &&
+    !SERVICE_UNITS.includes(body.defaultUnitCode) &&
+    GOODS_UNITS.includes(body.defaultUnitCode)
+  ) {
+    return problem(400, 'PRODUCT_UNIT_KIND_MISMATCH')
+  }
+  if (body.itemKind === 'BY_TIME' && !TIME_UNITS.includes(body.defaultUnitCode)) {
+    return problem(400, 'PRODUCT_UNIT_NOT_TIME_BASED')
+  }
+  if (kind === 'S' && c?.hsCode) return problem(400, 'HS_CODE_ON_SERVICES_LINE')
+  if (kind === 'G' && c?.serviceTypeCode && c.serviceTypeCode !== '00000000') {
+    return problem(400, 'PRODUCT_SERVICE_TYPE_ON_GOODS')
+  }
+  if (body.itemKind && kind === 'G' && !c?.hsCode) return problem(400, 'PRODUCT_HS_CODE_REQUIRED')
+  if (c?.hsCode && !/^\d{12}$/.test(c.hsCode)) return problem(400, 'HS_CODE_MALFORMED')
+  const category = body.defaultTaxCategory
+  if (body.defaultTaxReasonCode) {
+    if (!['Z', 'E'].includes(category))
+      return problem(400, 'PRODUCT_TAX_REASON_CODE_NOT_APPLICABLE')
+    const prefix = category === 'Z' ? 'VATZR-OM-' : 'VATEX-OM-'
+    if (!body.defaultTaxReasonCode.startsWith(prefix))
+      return problem(400, 'PRODUCT_TAX_REASON_CODE_INVALID')
+  }
+  if (body.defaultTaxReasonText && category === 'S')
+    return problem(400, 'PRODUCT_TAX_REASON_NOT_APPLICABLE')
+  if (body.keepCount && kind === 'S') return problem(400, 'PRODUCT_KEEP_COUNT_ON_SERVICE')
+  const d = body.defaultDiscount
+  if (
+    d &&
+    (!['PERCENTAGE', 'FIXED_AMOUNT'].includes(d.type) ||
+      !(d.value >= 0) ||
+      tooPrecise(d.value) ||
+      (d.type === 'PERCENTAGE' && d.value > 100))
+  ) {
+    return problem(400, 'PRODUCT_DEFAULT_DISCOUNT_INVALID')
+  }
+  if (body.barcode && !/^[\x21-\x7e]{1,64}$/.test(body.barcode))
+    return problem(400, 'PRODUCT_BARCODE_INVALID')
+  if (body.kindId && !KINDS().some((k) => k.id === body.kindId))
+    return problem(400, 'CATALOGUE_KIND_NOT_FOUND')
+  const code = String(body.code ?? '')
+    .trim()
+    .toUpperCase()
+  if (PRODUCTS.some((p) => p.active && p.id !== id && p.code.toUpperCase() === code)) {
+    return problem(409, 'PRODUCT_CODE_DUPLICATE')
+  }
+  if (
+    body.barcode &&
+    PRODUCTS.some((p) => p.active && p.id !== id && p.barcode === body.barcode.trim())
+  ) {
+    return problem(409, 'PRODUCT_BARCODE_DUPLICATE')
+  }
+  return null
+}
+
+/** `ProductRequest` onto a copy of a product. */
 function apply(target, body) {
   const c = body.classification ?? null
-  Object.assign(target, {
+  const kind = c?.goodsOrService ?? (body.itemKind ? KIND_IS[body.itemKind] : null)
+  const kindRow = body.kindId ? KINDS().find((k) => k.id === body.kindId) : null
+  return {
+    ...target,
     code: String(body.code ?? '').trim(),
     name: String(body.name ?? '').trim(),
     description: body.description ?? null,
@@ -83,43 +414,89 @@ function apply(target, body) {
     defaultUnitPrice: body.defaultUnitPrice,
     defaultTaxCategory: body.defaultTaxCategory,
     defaultTaxRate: body.defaultTaxRate ?? null,
-    classificationGoodsOrService: c?.goodsOrService ?? null,
+    classificationGoodsOrService: kind,
     classificationIsicCode: c?.industrialClassificationCode ?? null,
     classificationHsCode: c?.hsCode ?? null,
-    classificationServiceTypeCode: c?.goodsOrService ? (c.serviceTypeCode ?? '00000000') : null,
-  })
-  return target
+    classificationServiceTypeCode: kind ? (c?.serviceTypeCode ?? '00000000') : null,
+    defaultTaxReasonCode: body.defaultTaxReasonCode ?? null,
+    defaultTaxReasonText: body.defaultTaxReasonText ?? null,
+    nameAr: body.nameAr?.trim() || null,
+    barcode: body.barcode?.trim() || null,
+    kindId: kindRow?.id ?? null,
+    groupId: kindRow?.groupId ?? null,
+    itemKind: body.itemKind ?? target.itemKind ?? null,
+    priceEntryIncludesVat: Boolean(body.priceEntryIncludesVat),
+    staffCanChangePrice: Boolean(body.staffCanChangePrice),
+    keepCount: Boolean(body.keepCount),
+    defaultDiscount: body.defaultDiscount ?? null,
+    updatedAt: new Date().toISOString(),
+  }
 }
 
-/** The refusals a save can meet before it is stored, in the server's order. */
-function refusal(body, id) {
-  if (body.classification?.goodsOrService === 'S' && body.classification?.hsCode) {
-    return problem(400, 'HS_CODE_ON_SERVICES_LINE', 'validation-failed')
-  }
-  const code = String(body.code ?? '').trim().toUpperCase()
-  if (PRODUCTS.some((p) => p.active && p.id !== id && p.code.toUpperCase() === code)) {
-    return problem(409, 'PRODUCT_CODE_DUPLICATE')
-  }
-  return null
+/** Saves `body` onto `found` (or a new product), returning the stored product or a refusal. */
+function save(found, body) {
+  const refused = refusal(body, found?.id ?? null)
+  if (refused) return { refused }
+  const base = apply(found ?? product(newId('p-new'), '', '', 'EA', 0), body)
+  const setup = applySetup(base, body)
+  if (setup.refused) return setup
+  return { product: setup.product }
 }
 
 const ONE = /^\/api\/v1\/products\/([^/]+)$/
+const find = (id) => PRODUCTS.find((p) => p.id === id)
+const replace = (next) => {
+  const index = PRODUCTS.findIndex((p) => p.id === next.id)
+  if (index >= 0) PRODUCTS[index] = next
+  else PRODUCTS.push(next)
+  return next
+}
+
+const SORTS = {
+  NAME: (a, b) => a.name.localeCompare(b.name),
+  CODE: (a, b) => a.code.localeCompare(b.code),
+  PRICE: (a, b) => a.defaultUnitPrice - b.defaultUnitPrice,
+  UPDATED: (a, b) => a.updatedAt.localeCompare(b.updatedAt),
+}
 
 export default [
   {
     match: '/api/v1/products',
     reply: ({ query }) => {
       const q = (query.get('q') ?? '').toLowerCase()
-      const activeOnly = query.get('activeOnly') !== 'false'
+      const status = query.get('status') ?? (query.get('activeOnly') === 'false' ? 'ALL' : 'ACTIVE')
+      const sort = query.get('sort') ?? 'UPDATED'
+      const direction = query.get('direction') ?? (sort === 'UPDATED' ? 'DESC' : 'ASC')
+      const itemKind = query.get('itemKind')
+      if (
+        !['ACTIVE', 'ARCHIVED', 'ALL'].includes(status) ||
+        !SORTS[sort] ||
+        (itemKind && !KIND_IS[itemKind])
+      ) {
+        return problem(400, 'VALIDATION_FAILED')
+      }
+      const kindId = query.get('kindId')
+      const groupId = query.get('groupId')
+      const barcode = query.get('barcode')
       const page = Number(query.get('page') ?? 0)
       const size = Number(query.get('size') ?? 50)
       const found = PRODUCTS.filter(
         (p) =>
-          (!activeOnly || p.active) &&
-          (!q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q)),
-      )
+          (status === 'ALL' || (status === 'ACTIVE') === p.active) &&
+          (!barcode || p.barcode === barcode) &&
+          (!kindId || p.kindId === kindId) &&
+          (!groupId || p.groupId === groupId) &&
+          (!itemKind || p.itemKind === itemKind) &&
+          (!q ||
+            [p.name, p.code, p.nameAr, p.barcode, ...p.variantSettings.map((v) => v.code)].some(
+              (text) =>
+                String(text ?? '')
+                  .toLowerCase()
+                  .includes(q),
+            )),
+      ).sort((a, b) => (direction === 'DESC' ? -1 : 1) * SORTS[sort](a, b))
       return {
-        content: found.slice(page * size, page * size + size),
+        content: found.slice(page * size, page * size + size).map((p) => view(p, { list: true })),
         page,
         size,
         totalElements: found.length,
@@ -130,51 +507,98 @@ export default [
     method: 'POST',
     match: '/api/v1/products',
     reply: ({ body }) => {
-      const refused = refusal(body, null)
-      if (refused) return refused
-      const created = apply(product(`p-new-${nextProduct++}`, '', '', 'EA', 0), body)
-      PRODUCTS.push(created)
-      return { status: 201, body: created }
+      const saved = save(null, body ?? {})
+      if (saved.refused) return saved.refused
+      return { status: 201, body: view(replace(saved.product)) }
     },
   },
   {
     match: ONE,
     reply: ({ params }) => {
-      const found = PRODUCTS.find((p) => p.id === params[0])
-      return found ?? problem(404, 'PRODUCT_NOT_FOUND', 'not-found')
+      const found = find(params[0])
+      return found ? view(found) : problem(404, 'PRODUCT_NOT_FOUND', 'not-found')
     },
   },
   {
     method: 'PUT',
     match: ONE,
     reply: ({ params, query, body }) => {
-      const found = PRODUCTS.find((p) => p.id === params[0])
+      const found = find(params[0])
       if (!found) return problem(404, 'PRODUCT_NOT_FOUND', 'not-found')
       if (Number(query.get('expectedVersion')) !== found.version) {
         return problem(409, 'PRODUCT_VERSION_CONFLICT')
       }
       if (!found.active) return problem(409, 'PRODUCT_ARCHIVED')
-      const refused = refusal(body, found.id)
-      if (refused) return refused
-      apply(found, body)
-      found.version += 1
-      return found
+      const saved = save(found, body ?? {})
+      if (saved.refused) return saved.refused
+      return view(replace({ ...saved.product, version: found.version + 1 }))
+    },
+  },
+  {
+    method: 'PUT',
+    match: /^\/api\/v1\/products\/([^/]+)\/variants$/,
+    reply: ({ params, query, body }) => {
+      const found = find(params[0])
+      if (!found) return problem(404, 'PRODUCT_NOT_FOUND', 'not-found')
+      if (Number(query.get('expectedVersion')) !== found.version) {
+        return problem(409, 'PRODUCT_VERSION_CONFLICT')
+      }
+      if (!found.active) return problem(409, 'PRODUCT_ARCHIVED')
+      const setup = applySetup(found, {
+        sizes: body?.sizes ?? [],
+        options: body?.options ?? [],
+        variants: body?.variants ?? [],
+        addOns: body?.addOns ?? [],
+      })
+      if (setup.refused) return setup.refused
+      return view(
+        replace({
+          ...setup.product,
+          version: found.version + 1,
+          updatedAt: new Date().toISOString(),
+        }),
+      )
+    },
+  },
+  {
+    method: 'POST',
+    match: /^\/api\/v1\/products\/([^/]+)\/reactivate$/,
+    reply: ({ params, query }) => {
+      const found = find(params[0])
+      if (!found) return problem(404, 'PRODUCT_NOT_FOUND', 'not-found')
+      if (found.active) return view(found)
+      if (Number(query.get('expectedVersion')) !== found.version) {
+        return problem(409, 'PRODUCT_VERSION_CONFLICT')
+      }
+      const others = PRODUCTS.filter((p) => p.active && p.id !== found.id)
+      if (others.some((p) => same(p.code, found.code)))
+        return problem(409, 'PRODUCT_CODE_DUPLICATE')
+      if (found.barcode && others.some((p) => p.barcode === found.barcode)) {
+        return problem(409, 'PRODUCT_BARCODE_DUPLICATE')
+      }
+      const taken = others.flatMap((p) =>
+        [p.code, ...p.variantSettings.map((v) => v.code)].map((c) => c.toUpperCase()),
+      )
+      if (found.variantSettings.some((v) => taken.includes(v.code.toUpperCase()))) {
+        return problem(409, 'PRODUCT_VARIANT_CODE_DUPLICATE')
+      }
+      return view(replace({ ...found, active: true, archivedAt: null, version: found.version + 1 }))
     },
   },
   {
     method: 'DELETE',
     match: ONE,
     reply: ({ params, query }) => {
-      const found = PRODUCTS.find((p) => p.id === params[0])
+      const found = find(params[0])
       if (!found) return problem(404, 'PRODUCT_NOT_FOUND', 'not-found')
-      if (!found.active) return found
+      if (!found.active) return view(found)
       if (Number(query.get('expectedVersion')) !== found.version) {
         return problem(409, 'PRODUCT_VERSION_CONFLICT')
       }
-      found.active = false
-      found.archivedAt = NOW
-      found.version += 1
-      return found
+      return view(replace({ ...found, active: false, archivedAt: NOW, version: found.version + 1 }))
     },
   },
 ]
+
+/** For the other catalogue routes (a kind in use, branch settings): the live products. */
+export const PRODUCTS_FOR_ROUTES = () => PRODUCTS
