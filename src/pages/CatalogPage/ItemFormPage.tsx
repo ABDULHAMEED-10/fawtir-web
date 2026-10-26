@@ -281,7 +281,6 @@ function ItemEditor({
   useEffect(() => {
     if (settingsLoaded) showSettings(settingsLoaded)
     // Once, when the server answers; what is changed since is not overwritten.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settingsLoaded])
   /** The branches the step lists: the server's (closed ones flagged), else the sidebar's list. */
   const branchRows = settings
