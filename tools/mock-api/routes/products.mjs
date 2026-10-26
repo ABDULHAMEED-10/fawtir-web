@@ -102,6 +102,13 @@ const BRANCH_SETTINGS = {
     version: 1,
     rows: { 'b-nizwa': { branchPrice: null, onSale: false } },
   },
+  // Switched off at the head office, so the catalogue list there shows a greyed row.
+  'p-green': {
+    availability: 'ALL_BRANCHES',
+    branchIds: [],
+    version: 1,
+    rows: { 'b-main': { branchPrice: null, onSale: false } },
+  },
 }
 
 const settingsOf = (id) =>
@@ -537,6 +544,8 @@ export default [
         return problem(400, 'VALIDATION_FAILED')
       }
       const branchId = query.get('branchId')
+      // The catalogue management list also wants what is switched off or not sold there (greyed).
+      const includeUnavailable = query.get('includeUnavailable') === 'true'
       if (branchId && !BRANCHES.some((b) => b.id === branchId)) {
         return problem(404, 'BRANCH_NOT_FOUND', 'not-found')
       }
@@ -547,9 +556,10 @@ export default [
       const size = Number(query.get('size') ?? 50)
       const found = PRODUCTS.filter(
         (p) =>
-          // With a branch: active products sold and on sale there, whatever the status.
+          // With a branch: active products sold and on sale there, whatever the status; with
+          // includeUnavailable, every active product.
           (branchId
-            ? p.active && priceIn(p, branchId) !== null
+            ? p.active && (includeUnavailable || priceIn(p, branchId) !== null)
             : status === 'ALL' || (status === 'ACTIVE') === p.active) &&
           (!barcode || p.barcode === barcode) &&
           (!kindId || p.kindId === kindId) &&
@@ -567,6 +577,8 @@ export default [
         content: found.slice(page * size, page * size + size).map((p) => ({
           ...view(p, { list: true }),
           effectivePrice: branchId ? priceIn(p, branchId) : null,
+          // Only on a branch read: false for a product switched off or not sold there.
+          ...(branchId ? { availableHere: priceIn(p, branchId) !== null } : {}),
         })),
         page,
         size,

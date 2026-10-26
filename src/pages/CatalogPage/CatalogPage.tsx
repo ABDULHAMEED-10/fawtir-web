@@ -91,6 +91,9 @@ export function CatalogPage() {
   const path = productListPath({
     q: search,
     branchId,
+    // The management list also shows what is switched off or not sold in the branch, greyed,
+    // so a manager can open it and switch it back on. The till and the item pickers do not ask.
+    includeUnavailable: true,
     size: CATALOG_PAGE_SIZE,
     page: archivedTab ? 0 : page,
     ...order,
@@ -366,12 +369,14 @@ export function CatalogPage() {
                   {rows.map((product) => {
                     const service = kindOf(product) === 'service'
                     const odd = needsAttention(product)
+                    const offHere = product.availableHere === false
                     return (
                       <tr
                         key={product.id}
                         className={[
                           'border-b border-surface-background last:border-0',
                           odd ? 'bg-pending-100/30' : '',
+                          offHere ? 'opacity-60' : '',
                         ].join(' ')}
                       >
                         <td className="px-4 py-4 align-top md:px-5">
@@ -398,6 +403,11 @@ export function CatalogPage() {
                               >
                                 {product.code}
                               </p>
+                              {offHere ? (
+                                <span className="mt-1.5 inline-flex h-[22px] items-center rounded-[3px] bg-surface-background px-2 text-[10px] font-semibold uppercase tracking-[0.5px] text-text-tertiary">
+                                  {t('catalogReal.notOnSaleHere')}
+                                </span>
+                              ) : null}
                               {!product.active && canManage ? (
                                 <button
                                   type="button"
