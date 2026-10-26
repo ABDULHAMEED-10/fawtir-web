@@ -11,6 +11,8 @@ import {
 } from '../../lib/invoiceDraft'
 import { unitOptions as referenceUnitOptions } from '../../lib/reference/referenceData'
 import { suggestedFrom } from '../../lib/catalogTemplates'
+import { lineFromProduct } from '../../lib/productLine'
+import type { ProductDto } from '../../api/catalog/products'
 import { unitOptions } from './unitOptions'
 
 const en = i18n.getFixedT('en') as unknown as TFunction
@@ -112,5 +114,35 @@ describe('a catalogue template', () => {
       { name: 'Cleaning', kinds: [{ name: 'Wipes', items: [{ name: 'Wipes', unit: 'PK' }] }] },
     ])
     expect(group.kinds[0].sizes[0].soldAs).toBe('XPK')
+  })
+})
+
+describe('a line filled from a saved product', () => {
+  const cups: ProductDto = {
+    id: 'p-cups',
+    code: 'CUP-500',
+    name: 'Takeaway cups',
+    description: null,
+    defaultUnitCode: 'PK',
+    defaultUnitPrice: 22.8,
+    defaultTaxCategory: 'S',
+    defaultTaxRate: 5,
+    active: true,
+    version: 0,
+  }
+
+  it('takes the X form of a bare package unit and leaves the product as it was', () => {
+    const line = lineFromProduct(SEEDED_REFERENCE.taxCategories, cups, true)
+    expect(line.unit).toBe('XPK')
+    expect(cups.defaultUnitCode).toBe('PK')
+  })
+
+  it('keeps any other unit as the product holds it', () => {
+    const line = lineFromProduct(
+      SEEDED_REFERENCE.taxCategories,
+      { ...cups, defaultUnitCode: 'KGM' },
+      true,
+    )
+    expect(line.unit).toBe('KGM')
   })
 })

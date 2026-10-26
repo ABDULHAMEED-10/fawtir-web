@@ -1,6 +1,7 @@
 import type { NewProduct, ProductDto } from '../api/catalog/products'
 import type { TaxCategoryDto } from '../api/reference/referenceData'
 import type { ItemType } from './invoiceDraft'
+import { offeredUnitCode } from './unitCodes'
 import { formatAmount, parseAmount, type DiscountType } from './invoiceMath'
 
 /**
@@ -69,7 +70,8 @@ export function lineFromProduct(
     productCode: product.code,
     description: product.name,
     unitPrice: formatAmount(unitPrice, 3).replace(/,/g, ''),
-    unit: product.defaultUnitCode,
+    // A bare Rec 21 code takes its X form on the line (ibr-cl-23); the product is not changed.
+    unit: offeredUnitCode(product.defaultUnitCode),
     vatRate,
     taxCode: tax?.code ?? null,
     ...productExtras(product),
