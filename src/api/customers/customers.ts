@@ -12,6 +12,9 @@ export const CUSTOMER_SUMMARY_PATH = `${CUSTOMERS_PATH}/summary`
 export type CustomerTypeDto = 'BUSINESS' | 'GOVERNMENT' | 'CONSUMER'
 export type CustomerStatusDto = 'ACTIVE' | 'ARCHIVED'
 export type CustomerSendingMethod = 'EMAIL_PDF' | 'PEPPOL' | 'QR_RECEIPT'
+/** The CL-06-OM codes a customer may state (`BuyerIdentifierScheme`); CID and PASNUM are personal. */
+export const BUYER_IDENTIFIER_SCHEMES = ['CR', 'TIN', 'CID', 'PASNUM', 'OTHID'] as const
+export type BuyerIdentifierScheme = (typeof BUYER_IDENTIFIER_SCHEMES)[number]
 /** Derived on the server from the sending method and Discovery's verification; never stored. */
 export type CustomerPeppolDelivery =
   'NOT_APPLICABLE' | 'PENDING_VERIFICATION' | 'ACTIVE' | 'REJECTED'
@@ -202,7 +205,19 @@ export type CustomerDetailsDto = {
   defaultContractTenderReference: string | null
   peppolParticipantId: { scheme: string; value: string } | null
   registeredOnPeppol: boolean | null
+  /** IBT-046 under schemeName SZLN: a buyer in a special zone (IBR-152-OM). */
   specialZoneLicenceNumber?: string | null
+  /**
+   * The buyer identifier IBR-016-OM asks of a full invoice to a buyer with no Omani VAT number
+   * (backend V480). Sent as a pair; the server refuses one half without the other.
+   */
+  identifierScheme?: BuyerIdentifierScheme | null
+  identifierValue?: string | null
+  /**
+   * Response only: `identifierValue` is the masked form (`•••• 1234`) of a civil ID or passport
+   * number, shown to a reader without `customer.manage`. Never sent back.
+   */
+  identifierValueMasked?: boolean
   /**
    * The customer's business activity: one ISIC Rev. 4 code at Oman's six-digit level (BTOM-033,
    * CL-08-OM-ISIC). Read only where the customer is the **seller**, i.e. a self-billing supplier:

@@ -20183,7 +20183,27 @@
       "consumerPeppol": "A private customer can't be sent invoices over Peppol.",
       "peppolNotRegistered": "Turn on \"Registered on Peppol\" and enter their Peppol ID to send over Peppol.",
       "emailNeeded": "Enter at least one email address to send PDFs or reminders.",
-      "deliveryRequired": "Enter the delivery address, or turn on \"Same as invoicing address\"."
+      "deliveryRequired": "Enter the delivery address, or turn on \"Same as invoicing address\".",
+      "identifierScheme": "Choose one of the listed identifier types.",
+      "identifierCharacters": "Use only letters, digits, spaces and - . /, starting with a letter or digit.",
+      "licenceCharacters": "The licence number contains characters that are not allowed."
+    },
+    "identifier": {
+      "scheme": "Buyer identifier type",
+      "none": "None",
+      "value": "Buyer identifier",
+      "hint": "Needed on a full invoice when the customer has neither an Omani VAT number nor a special zone licence.",
+      "schemes": {
+        "CR": "Commercial registration (CR)",
+        "TIN": "Tax identification number (TIN)",
+        "CID": "Civil ID",
+        "PASNUM": "Passport number",
+        "OTHID": "Other identifier"
+      }
+    },
+    "specialZoneLicence": {
+      "label": "Special zone licence number",
+      "hint": "Only for a customer licensed in a free or special economic zone."
     }
   },
   "supplierRecord": {

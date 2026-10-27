@@ -26,6 +26,7 @@ import { useApiRead } from '../../hooks'
 import { ApiError } from '../../api'
 import { peppolIdFor } from '../../lib/validation'
 import {
+  BUYER_IDENTIFIER_SCHEMES,
   CUSTOMERS_PATH,
   createCustomer,
   loadCustomerRecord,
@@ -84,6 +85,9 @@ const ORDER: CustomerField[] = [
   'lastName',
   'legalName',
   'vatNumber',
+  'identifierScheme',
+  'identifierValue',
+  'specialZoneLicenceNumber',
   'defaultBuyerReference',
   'peppolId',
   'contactPerson',
@@ -185,6 +189,15 @@ function CustomerFormPage({ customerId }: { customerId: string | null }) {
 
   const consumer = values.type === 'CONSUMER'
   const government = values.type === 'GOVERNMENT'
+  // IBR-016-OM asks for the identifier only where there is no Omani VAT number, so a VAT-registered
+  // organisation is not shown it unless one is already stored.
+  const showIdentifier =
+    consumer ||
+    !values.registeredForVat ||
+    values.identifierScheme !== '' ||
+    values.identifierValue.trim() !== ''
+  // A special-zone buyer is the exception (IBR-152-OM), so the licence waits behind advanced fields.
+  const showLicence = advanced || values.specialZoneLicenceNumber.trim() !== ''
 
   const change = <F extends keyof CustomerFormValues>(field: F, value: CustomerFormValues[F]) => {
     setValues((current) => ({ ...current, [field]: value }))
@@ -563,6 +576,53 @@ function CustomerFormPage({ customerId }: { customerId: string | null }) {
                   </div>
                 </>
               )}
+
+              {showIdentifier ? (
+                <FieldGrid>
+                  <SelectRow
+                    id={inputId('identifierScheme')}
+                    label={t('customerForm.identifier.scheme')}
+                    options={[
+                      { value: '', label: t('customerForm.identifier.none') },
+                      ...BUYER_IDENTIFIER_SCHEMES.map((scheme) => ({
+                        value: scheme,
+                        label: t(`customerForm.identifier.schemes.${scheme}`),
+                      })),
+                    ]}
+                    value={values.identifierScheme}
+                    onChange={(next) =>
+                      change('identifierScheme', next as CustomerFormValues['identifierScheme'])
+                    }
+                    error={errorText('identifierScheme')}
+                  />
+                  <TextField
+                    id={inputId('identifierValue')}
+                    name="identifierValue"
+                    label={t('customerForm.identifier.value')}
+                    hint={t('customerForm.identifier.hint')}
+                    dir="ltr"
+                    required={values.identifierScheme !== ''}
+                    maxLength={50}
+                    value={values.identifierValue}
+                    onChange={(next) => change('identifierValue', next)}
+                    error={errorText('identifierValue')}
+                  />
+                </FieldGrid>
+              ) : null}
+
+              {showLicence ? (
+                <TextField
+                  id={inputId('specialZoneLicenceNumber')}
+                  name="specialZoneLicenceNumber"
+                  label={t('customerForm.specialZoneLicence.label')}
+                  hint={t('customerForm.specialZoneLicence.hint')}
+                  dir="ltr"
+                  maxLength={50}
+                  value={values.specialZoneLicenceNumber}
+                  onChange={(next) => change('specialZoneLicenceNumber', next)}
+                  error={errorText('specialZoneLicenceNumber')}
+                />
+              ) : null}
 
               {government ? (
                 <FieldGrid>
