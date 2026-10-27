@@ -315,7 +315,8 @@ describe('an existing customer', () => {
     const body = bodyOf(calls('PUT', ONE)[0])
     expect(body.expectedVersion).toBe(5)
     expect(body.contact.contactPerson).toBe('Hamed Al Kindi')
-    // A PUT replaces the record: the logo, the licence and the address parts it does not draw go back.
+    // A PUT replaces the record: the logo and the address parts it does not draw go back, and so
+    // does the licence it draws but this edit did not touch.
     expect(body.logo).toEqual(record().profile.logo)
     expect(body.details.specialZoneLicenceNumber).toBe('SEZAD-7')
     expect(body.invoiceAddress).toMatchObject({ countrySubentity: 'Dhofar', buildingNumber: '9' })
@@ -498,5 +499,94 @@ describe('address lines 2 and 3 of the invoice address (PINT-OM IBR-019-OM)', ()
     renderAt('/customers/new')
     expect(await screen.findByLabelText(/الشارع الإضافي أو المنطقة/)).toBeTruthy()
     expect(screen.getByLabelText(/المبنى أو سطر العنوان 3/)).toBeTruthy()
+  })
+})
+
+describe('buyer identifier and special-zone licence (PINT-OM IBR-016-OM, IBR-152-OM)', () => {
+  it('sends neither when nothing is stated, as nulls the server reads as none', () => {
+    const body = toCustomerRequest(blankCustomerForm('BUSINESS'))
+    expect(body.details).toMatchObject({
+      identifierScheme: null,
+      identifierValue: null,
+      specialZoneLicenceNumber: null,
+    })
+  })
+
+  it('holds the pair together and the value to the characters the server accepts', () => {
+    const base = { ...blankCustomerForm('CONSUMER'), firstName: 'Aisha', lastName: 'Al Balushi' }
+    expect(customerProblems({ ...base, identifierScheme: 'CID' }).identifierValue).toBe('validation.required')
+    expect(customerProblems({ ...base, identifierValue: '12345678' }).identifierScheme).toBe('validation.required')
+    expect(customerProblems({ ...base, identifierScheme: 'CR', identifierValue: '#1301234' }).identifierValue).toBe(
+      'customerForm.error.identifierCharacters',
+    )
+    expect(customerProblems({ ...base, identifierScheme: 'OTHID', identifierValue: 'A'.repeat(51) }).identifierValue).toBe(
+      'validation.tooLong',
+    )
+    expect(customerProblems({ ...base, specialZoneLicenceNumber: 'L'.repeat(51) }).specialZoneLicenceNumber).toBe(
+      'validation.tooLong',
+    )
+    const fine = customerProblems({ ...base, identifierScheme: 'PASNUM', identifierValue: ' K-1234.5/6 ' })
+    expect(fine.identifierScheme).toBeUndefined()
+    expect(fine.identifierValue).toBeUndefined()
+    expect(toCustomerRequest({ ...base, identifierScheme: 'PASNUM', identifierValue: ' K-1234.5/6 ' }).details)
+      .toMatchObject({ identifierScheme: 'PASNUM', identifierValue: 'K-1234.5/6' })
+  })
+
+  it('puts the server refusals of the pair and the licence on their inputs', () => {
+    const placed = placeCustomerErrors([
+      { field: 'details.identifierScheme', code: 'INVALID_FORMAT', message: 'scheme' },
+      { field: 'details.identifierValue', code: 'INVALID_CHARACTERS', message: 'value' },
+      { field: 'details.specialZoneLicenceNumber', code: 'TOO_LONG', message: 'licence' },
+    ])
+    expect(placed.fields.identifierScheme).toEqual({ key: 'customerForm.error.identifierScheme' })
+    expect(placed.fields.identifierValue).toEqual({ key: 'customerForm.error.identifierCharacters' })
+    expect(placed.fields.specialZoneLicenceNumber).toEqual({ key: 'validation.tooLong' })
+    expect(placed.other).toEqual([])
+  })
+
+  it('offers the identifier once the business is not VAT registered and refuses a type with no value before sending', async () => {
+    renderAt('/customers/new')
+    await screen.findByRole('heading', { name: 'New customer' })
+    expect(screen.queryByRole('button', { name: 'Buyer identifier type' })).toBeNull()
+
+    fireEvent.click(screen.getByLabelText('Registered for VAT'))
+    fireEvent.click(screen.getByRole('button', { name: 'Buyer identifier type' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Civil ID' }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save customer' })[0])
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/^Buyer identifier/, { selector: 'input' }).getAttribute('aria-invalid')).toBe('true'),
+    )
+    expect(calls('POST', '/api/v1/customers')).toHaveLength(0)
+  })
+
+  it('opens a customer with its stored identifier and licence and saves a changed licence with the pair kept', async () => {
+    const stored = record()
+    stored.profile.details = { ...stored.profile.details, identifierScheme: 'CR', identifierValue: '1301234' }
+    const original = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === ONE && (init?.method ?? 'GET') === 'GET' ? json(200, stored) : original(url, init),
+    )
+    renderAt(`/customers/${ID}/edit`)
+    await screen.findByRole('heading', { name: 'Edit Salalah Beach Resort' })
+    expect((screen.getByLabelText(/^Buyer identifier/, { selector: 'input' }) as HTMLInputElement).value).toBe('1301234')
+    expect((screen.getByLabelText(/Special zone licence number/) as HTMLInputElement).value).toBe('SEZAD-7')
+
+    typeInto(/Special zone licence number/, 'SEZAD-8')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save changes' })[0])
+
+    expect(await screen.findByText('Changes saved.')).toBeTruthy()
+    expect(calls('PUT', ONE)).toHaveLength(1)
+    expect(bodyOf(calls('PUT', ONE)[0]).details).toMatchObject({
+      identifierScheme: 'CR',
+      identifierValue: '1301234',
+      specialZoneLicenceNumber: 'SEZAD-8',
+    })
+  })
+
+  it('labels the identifier and the licence in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    renderAt(`/customers/${ID}/edit`)
+    expect(await screen.findByLabelText(/رقم ترخيص المنطقة الخاصة/)).toBeTruthy()
   })
 })

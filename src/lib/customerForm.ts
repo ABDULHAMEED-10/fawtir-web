@@ -1,4 +1,5 @@
 import type {
+  BuyerIdentifierScheme,
   CustomerLogoDto,
   CustomerRecordDto,
   CustomerRequestDto,
@@ -15,8 +16,8 @@ import * as validate from './validation'
  *
  * It holds what `CreateCustomerRequest` carries. The mock's commercial name, CR, IBAN, BIC, website
  * and logo upload have no customer field and are not here. An edit is a PUT that replaces the
- * record, so what the form does not draw — the logo, a special-zone licence, address parts — is
- * carried through from what was loaded rather than dropped.
+ * record, so what the form does not draw — the logo, address parts — is carried through from what
+ * was loaded rather than dropped.
  */
 
 export type CustomerFormValues = {
@@ -34,6 +35,11 @@ export type CustomerFormValues = {
   defaultBuyerReference: string
   defaultPurchaseOrderNumber: string
   defaultContractTenderReference: string
+  /** IBR-016-OM: how a buyer with no Omani VAT number is identified; '' when none is stated. */
+  identifierScheme: '' | BuyerIdentifierScheme
+  identifierValue: string
+  /** IBR-152-OM: the licence a buyer in a special zone is identified by (SZLN). */
+  specialZoneLicenceNumber: string
   contactPerson: string
   roleTitle: string
   emails: string
@@ -52,7 +58,7 @@ export type CustomerFormValues = {
   delivery: AddressValues
   note: string
   /** Loaded and sent back untouched: the form does not draw them. */
-  kept: { logo: CustomerLogoDto | null; specialZoneLicenceNumber: string | null }
+  kept: { logo: CustomerLogoDto | null }
 }
 
 export type CustomerField =
@@ -78,6 +84,9 @@ export function blankCustomerForm(type: CustomerTypeDto = 'BUSINESS'): CustomerF
     defaultBuyerReference: '',
     defaultPurchaseOrderNumber: '',
     defaultContractTenderReference: '',
+    identifierScheme: '',
+    identifierValue: '',
+    specialZoneLicenceNumber: '',
     contactPerson: '',
     roleTitle: '',
     emails: '',
@@ -95,7 +104,7 @@ export function blankCustomerForm(type: CustomerTypeDto = 'BUSINESS'): CustomerF
     sameAsInvoicing: true,
     delivery: blankAddress(),
     note: '',
-    kept: { logo: null, specialZoneLicenceNumber: null },
+    kept: { logo: null },
   }
 }
 
@@ -140,6 +149,9 @@ export function fromCustomerRecord(record: CustomerRecordDto): CustomerFormValue
     defaultBuyerReference: text(d.defaultBuyerReference),
     defaultPurchaseOrderNumber: text(d.defaultPurchaseOrderNumber),
     defaultContractTenderReference: text(d.defaultContractTenderReference),
+    identifierScheme: d.identifierScheme ?? '',
+    identifierValue: text(d.identifierValue),
+    specialZoneLicenceNumber: text(d.specialZoneLicenceNumber),
     contactPerson: text(p.contact.contactPerson),
     roleTitle: text(p.contact.roleTitle),
     emails: p.contact.emailRecipients.join('\n'),
@@ -157,7 +169,7 @@ export function fromCustomerRecord(record: CustomerRecordDto): CustomerFormValue
     sameAsInvoicing: p.sameAsInvoicingAddress,
     delivery: addressValues(p.deliveryAddress),
     note: text(p.customerVisibleNote),
-    kept: { logo: p.logo, specialZoneLicenceNumber: d.specialZoneLicenceNumber ?? null },
+    kept: { logo: p.logo },
   }
 }
 
@@ -193,7 +205,9 @@ export function toCustomerRequest(values: CustomerFormValues, expectedVersion?: 
       defaultContractTenderReference: gov(values.defaultContractTenderReference),
       peppolParticipantId: participant,
       registeredOnPeppol: consumer ? null : values.registeredOnPeppol,
-      specialZoneLicenceNumber: values.kept.specialZoneLicenceNumber,
+      specialZoneLicenceNumber: orNull(values.specialZoneLicenceNumber),
+      identifierScheme: values.identifierScheme || null,
+      identifierValue: orNull(values.identifierValue),
     },
     contact: {
       contactPerson: org(values.contactPerson),
@@ -248,6 +262,15 @@ export function customerProblems(values: CustomerFormValues): CustomerProblems {
       if (peppol) problems.peppolId = peppol
     }
   }
+  // The pair rules of CustomerService.requireValidIdentifier. No scheme-specific grammar: PINT-OM
+  // 1.0.1 checks only presence and the code (IBR-016-OM, CL-06-OM), and the server applies none.
+  const identifierValue = values.identifierValue.trim()
+  if (values.identifierScheme && !identifierValue) problems.identifierValue = 'validation.required'
+  else if (!values.identifierScheme && identifierValue) problems.identifierScheme = 'validation.required'
+  else if (identifierValue.length > 50) problems.identifierValue = 'validation.tooLong'
+  else if (identifierValue && !IDENTIFIER_VALUE.test(identifierValue)) problems.identifierValue = 'customerForm.error.identifierCharacters'
+  if (values.specialZoneLicenceNumber.trim().length > 50) problems.specialZoneLicenceNumber = 'validation.tooLong'
+
   // The B2G form asks for it (directive of 2026-08-13); the API does not require it.
   if (values.type === 'GOVERNMENT' && !values.defaultBuyerReference.trim()) problems.defaultBuyerReference = 'validation.required'
 
@@ -277,6 +300,8 @@ export function customerProblems(values: CustomerFormValues): CustomerProblems {
   return problems
 }
 
+const IDENTIFIER_VALUE = /^[A-Za-z0-9][A-Za-z0-9 ./-]*$/
+
 /** The model's field paths, as a customer refusal names them, and the input each belongs to. */
 const MODEL_TO_FORM: Record<string, CustomerField> = {
   type: 'type',
@@ -294,6 +319,9 @@ const MODEL_TO_FORM: Record<string, CustomerField> = {
   'details.defaultBuyerReference': 'defaultBuyerReference',
   'details.defaultPurchaseOrderNumber': 'defaultPurchaseOrderNumber',
   'details.defaultContractTenderReference': 'defaultContractTenderReference',
+  'details.identifierScheme': 'identifierScheme',
+  'details.identifierValue': 'identifierValue',
+  'details.specialZoneLicenceNumber': 'specialZoneLicenceNumber',
   'contact.contactPerson': 'contactPerson',
   'contact.roleTitle': 'roleTitle',
   'contact.emailRecipients': 'emails',
@@ -311,6 +339,9 @@ const RULE_KEYS: Partial<Record<CustomerField, Record<string, string>>> = {
   vatNumber: { INVALID_FORMAT: 'validation.vatin', INVALID_CHARACTERS: 'validation.vatin' },
   peppolId: { INVALID_FORMAT: 'supplierForm.error.peppolShape', VAT_GROUP_NOT_A_PARTICIPANT: 'supplierForm.error.vatGroup' },
   emails: { INVALID_FORMAT: 'validation.email', DUPLICATE: 'supplierForm.error.duplicateEmail', TOO_MANY: 'supplierForm.error.tooManyEmails' },
+  identifierScheme: { INVALID_FORMAT: 'customerForm.error.identifierScheme' },
+  identifierValue: { INVALID_CHARACTERS: 'customerForm.error.identifierCharacters' },
+  specialZoneLicenceNumber: { INVALID_CHARACTERS: 'customerForm.error.licenceCharacters' },
   telephone: { INVALID_FORMAT: 'supplierForm.error.phone' },
   mobilePhone: { INVALID_FORMAT: 'supplierForm.error.phone' },
   'delivery.cityName': { REQUIRED: 'customerForm.error.deliveryRequired' },
