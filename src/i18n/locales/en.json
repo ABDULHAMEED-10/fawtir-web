@@ -20192,7 +20192,7 @@
       "scheme": "Buyer identifier type",
       "none": "None",
       "value": "Buyer identifier",
-      "hint": "Needed on a full invoice when the customer has no Omani VAT number.",
+      "hint": "Needed on a full invoice when the customer has neither an Omani VAT number nor a special zone licence.",
       "schemes": {
         "CR": "Commercial registration (CR)",
         "TIN": "Tax identification number (TIN)",

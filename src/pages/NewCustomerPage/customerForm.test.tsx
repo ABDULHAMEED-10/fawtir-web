@@ -532,6 +532,20 @@ describe('buyer identifier and special-zone licence (PINT-OM IBR-016-OM, IBR-152
       .toMatchObject({ identifierScheme: 'PASNUM', identifierValue: 'K-1234.5/6' })
   })
 
+  it('does not check again a stored pair sent back unchanged, as the server does not', () => {
+    const base = { ...blankCustomerForm('CONSUMER'), firstName: 'Aisha', lastName: 'Al Balushi' }
+    const loaded = {
+      ...base,
+      identifierScheme: 'OTHID' as const,
+      identifierValue: '#LEGACY-7',
+      kept: { logo: null, identifier: { scheme: 'OTHID', value: '#LEGACY-7' } },
+    }
+    expect(customerProblems(loaded).identifierValue).toBeUndefined()
+    expect(customerProblems({ ...loaded, identifierValue: '#LEGACY-8' }).identifierValue).toBe(
+      'customerForm.error.identifierCharacters',
+    )
+  })
+
   it('puts the server refusals of the pair and the licence on their inputs', () => {
     const placed = placeCustomerErrors([
       { field: 'details.identifierScheme', code: 'INVALID_FORMAT', message: 'scheme' },

@@ -57,8 +57,11 @@ export type CustomerFormValues = {
   sameAsInvoicing: boolean
   delivery: AddressValues
   note: string
-  /** Loaded and sent back untouched: the form does not draw them. */
-  kept: { logo: CustomerLogoDto | null }
+  /**
+   * What was loaded and is not edited here: the logo, sent back untouched, and the stored
+   * identifier pair, which the checks below compare against.
+   */
+  kept: { logo: CustomerLogoDto | null; identifier: { scheme: string; value: string } | null }
 }
 
 export type CustomerField =
@@ -104,7 +107,7 @@ export function blankCustomerForm(type: CustomerTypeDto = 'BUSINESS'): CustomerF
     sameAsInvoicing: true,
     delivery: blankAddress(),
     note: '',
-    kept: { logo: null },
+    kept: { logo: null, identifier: null },
   }
 }
 
@@ -169,7 +172,13 @@ export function fromCustomerRecord(record: CustomerRecordDto): CustomerFormValue
     sameAsInvoicing: p.sameAsInvoicingAddress,
     delivery: addressValues(p.deliveryAddress),
     note: text(p.customerVisibleNote),
-    kept: { logo: p.logo },
+    kept: {
+      logo: p.logo,
+      identifier:
+        d.identifierScheme && d.identifierValue
+          ? { scheme: d.identifierScheme, value: d.identifierValue }
+          : null,
+    },
   }
 }
 
@@ -264,11 +273,19 @@ export function customerProblems(values: CustomerFormValues): CustomerProblems {
   }
   // The pair rules of CustomerService.requireValidIdentifier. No scheme-specific grammar: PINT-OM
   // 1.0.1 checks only presence and the code (IBR-016-OM, CL-06-OM), and the server applies none.
+  // Like the server, a stored pair sent back unchanged is not checked again, so a value admitted
+  // under an older rule never blocks an unrelated edit.
   const identifierValue = values.identifierValue.trim()
-  if (values.identifierScheme && !identifierValue) problems.identifierValue = 'validation.required'
-  else if (!values.identifierScheme && identifierValue) problems.identifierScheme = 'validation.required'
-  else if (identifierValue.length > 50) problems.identifierValue = 'validation.tooLong'
-  else if (identifierValue && !IDENTIFIER_VALUE.test(identifierValue)) problems.identifierValue = 'customerForm.error.identifierCharacters'
+  const storedPair =
+    values.kept.identifier !== null &&
+    values.identifierScheme === values.kept.identifier.scheme &&
+    identifierValue === values.kept.identifier.value
+  if (!storedPair) {
+    if (values.identifierScheme && !identifierValue) problems.identifierValue = 'validation.required'
+    else if (!values.identifierScheme && identifierValue) problems.identifierScheme = 'validation.required'
+    else if (identifierValue.length > 50) problems.identifierValue = 'validation.tooLong'
+    else if (identifierValue && !IDENTIFIER_VALUE.test(identifierValue)) problems.identifierValue = 'customerForm.error.identifierCharacters'
+  }
   if (values.specialZoneLicenceNumber.trim().length > 50) problems.specialZoneLicenceNumber = 'validation.tooLong'
 
   // The B2G form asks for it (directive of 2026-08-13); the API does not require it.
