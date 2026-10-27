@@ -406,10 +406,27 @@ describe('customer form rules', () => {
     expect(customerProblems({ ...business, peppolId: 'OM1199999001' }).peppolId).toBe(
       'supplierForm.error.peppolShape',
     )
-    // What is sent is unchanged: the scheme, and the id upper-cased as before.
+    // An Omani VAT participant is still sent upper-cased, the spelling of its VAT number.
     expect(
       toCustomerRequest({ ...business, peppolId: '0248:om1199999001' }).details.peppolParticipantId,
     ).toEqual({ scheme: '0248', value: 'OM1199999001' })
+  })
+
+  it('sends a non-Omani participant in the case it was typed, 9915:helger as published', () => {
+    const business = {
+      ...blankCustomerForm('BUSINESS'),
+      legalName: 'X',
+      contactPerson: 'Y',
+      vatNumber: 'OM1110309032',
+      registeredOnPeppol: true,
+    }
+    const sent = (peppolId: string) => toCustomerRequest({ ...business, peppolId }).details.peppolParticipantId
+    expect(sent('9915:helger')).toEqual({ scheme: '9915', value: 'helger' })
+    expect(sent(' 9915 : helger ')).toEqual({ scheme: '9915', value: 'helger' })
+    expect(sent('0242:001090-taxauthority.om')).toEqual({ scheme: '0242', value: '001090-taxauthority.om' })
+    expect(sent('9922:OPTBCNTRLP1007')).toEqual({ scheme: '9922', value: 'OPTBCNTRLP1007' })
+    expect(sent('0248:om1100000099')).toEqual({ scheme: '0248', value: 'OM1100000099' })
+    expect(sent('0248:OM1100000099')).toEqual({ scheme: '0248', value: 'OM1100000099' })
   })
 
   it('places refusals by model path and keeps unknown ones for a notice', () => {

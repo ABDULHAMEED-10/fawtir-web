@@ -185,6 +185,18 @@ export function fromCustomerRecord(record: CustomerRecordDto): CustomerFormValue
 const orNull = (value: string) => (value.trim() === '' ? null : value.trim())
 
 /**
+ * Only an Omani VAT participant (0248) is upper-cased, so it keeps the spelling of the VAT number it
+ * follows. Every other scheme is sent as typed: Peppol compares values case-insensitively
+ * ([Peppol_PFUOI] POLICY 2), but the backend stores what it is sent and the SBDH carries it, and an
+ * upper-cased `9915:helger` no longer matched how its owner publishes it in the SMP.
+ */
+const OMANI_VAT_SCHEME = '0248'
+
+function participantValue(scheme: string, value: string): string {
+  return scheme === OMANI_VAT_SCHEME ? value.toUpperCase() : value
+}
+
+/**
  * The request for the values. Fields a type forbids are sent as null, never as `false` or `""`:
  * a consumer's `registeredForVat: false` is refused as an organisation field.
  */
@@ -193,7 +205,7 @@ export function toCustomerRequest(values: CustomerFormValues, expectedVersion?: 
   const government = values.type === 'GOVERNMENT'
   const [scheme, ...rest] = values.peppolId.trim().split(':')
   const participant = !consumer && values.registeredOnPeppol && values.peppolId.trim()
-    ? { scheme: scheme.trim(), value: rest.join(':').trim().toUpperCase() }
+    ? { scheme: scheme.trim(), value: participantValue(scheme.trim(), rest.join(':').trim()) }
     : null
   const delivery = values.sameAsInvoicing ? null : addressRequest(values.delivery)
   const org = (value: string) => (consumer ? null : orNull(value))
