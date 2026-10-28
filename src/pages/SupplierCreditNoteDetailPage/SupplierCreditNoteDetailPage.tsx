@@ -751,31 +751,36 @@ function CreditNoteDetail() {
             ) : null}
           </section>
 
-          <NoteCard title={t('supplierCreditNotes.detail.vatEffect')}>
-            <FactRows
-              divided
-              rows={[
-                {
-                  label: t('supplierCreditNotes.detail.vatClaimed'),
-                  value: vat.claimed === null ? '—' : <SignedAmount value={money(vat.claimed)} />,
-                },
-                {
-                  label: t('supplierCreditNotes.detail.vatReduced'),
-                  value: <SignedAmount sign={'−'} value={money(vat.reduced)} />,
-                },
-                {
-                  label: t('supplierCreditNotes.detail.vatReclaimable'),
-                  value:
-                    vat.reclaimable === null ? (
-                      '—'
-                    ) : (
-                      <SignedAmount value={money(vat.reclaimable)} />
-                    ),
-                },
-              ]}
-            />
-            <InfoNote>{t('supplierCreditNotes.detail.vatNote')}</InfoNote>
-          </NoteCard>
+          {/* A held copy is left out of input VAT (PEPPOL_DUPLICATE_HELD) whatever its corrected bill
+              counts, so "Reduced by this note" and "Fawtir adjusts this in your VAT return" would be
+              untrue; no existing sentence says it is not counted, so the card is not shown. */}
+          {item.heldAsDuplicate ? null : (
+            <NoteCard title={t('supplierCreditNotes.detail.vatEffect')}>
+              <FactRows
+                divided
+                rows={[
+                  {
+                    label: t('supplierCreditNotes.detail.vatClaimed'),
+                    value: vat.claimed === null ? '—' : <SignedAmount value={money(vat.claimed)} />,
+                  },
+                  {
+                    label: t('supplierCreditNotes.detail.vatReduced'),
+                    value: <SignedAmount sign={'−'} value={money(vat.reduced)} />,
+                  },
+                  {
+                    label: t('supplierCreditNotes.detail.vatReclaimable'),
+                    value:
+                      vat.reclaimable === null ? (
+                        '—'
+                      ) : (
+                        <SignedAmount value={money(vat.reclaimable)} />
+                      ),
+                  },
+                ]}
+              />
+              <InfoNote>{t('supplierCreditNotes.detail.vatNote')}</InfoNote>
+            </NoteCard>
+          )}
 
           <NoteCard title={t('supplierCreditNotes.detail.complianceTitle')}>
             <ComplianceList

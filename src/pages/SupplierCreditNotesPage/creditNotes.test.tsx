@@ -2018,6 +2018,34 @@ describe("A held duplicate's wording", () => {
     },
   )
 
+  // A held copy is left out of input VAT (PEPPOL_DUPLICATE_HELD) even when the bill it corrects
+  // is counted, so no reduction may be claimed for it.
+  it.each([
+    [false, true],
+    [true, false],
+  ])(
+    'claims a VAT reduction only for a note not held (held: %s)',
+    async (heldAsDuplicate, shown) => {
+      notes = [note({ heldAsDuplicate, credits: namedBill })]
+      billDetail = {
+        bill: {
+          ...OURS,
+          id: BILL_ID,
+          supplierBillNumber: 'QMS-7781',
+          inputVat: { counted: true, countedOn: '2026-09-01', reason: 'COUNTED', vatAmountOmr: 15 },
+        },
+        lines: [],
+      }
+      renderDetail()
+      await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+      await waitFor(() => expect(calls(`/api/v1/bills/${BILL_ID}`).length).toBeGreaterThan(0))
+      if (shown) await screen.findByText('Reduced by this note')
+      expect(screen.queryByText('Effect on your VAT') !== null).toBe(shown)
+      expect(screen.queryByText('Reduced by this note') !== null).toBe(shown)
+      expect(screen.queryByText(/Fawtir adjusts this in your VAT return/) !== null).toBe(shown)
+    },
+  )
+
   it('says nothing of waiting for its bill when a held note waits for one', async () => {
     notes = [note({ heldAsDuplicate: true, status: 'WAITING_FOR_BILL' })]
     renderDetail()
