@@ -1957,19 +1957,40 @@ describe("A held duplicate's wording", () => {
     expect(screen.getByRole('button', { name: 'Keep as credit' })).toBeTruthy()
   })
 
-  it('links the bill the server names on a held note, and nothing when it names none', async () => {
-    notes = [note({ heldAsDuplicate: true, credits: namedBill })]
-    const named = renderDetail()
-    const decision = (await screen.findByText(HELD_DECISION)).closest('p')!
-    const link = within(decision).getByRole('link', { name: 'View the bill' })
-    expect(link.getAttribute('href')).toBe(`/expenditure/bills/${BILL_ID}`)
-    named.unmount()
+  // As the server sends a held copy: the supplier's stated bill, resolved to none (it absorbs
+  // nothing), so `credits.billId` is null.
+  const heldCopy = () =>
+    note({ heldAsDuplicate: true, credits: { ...namedBill, billId: null } })
 
-    // The supplier states a bill number, but the server resolved it to no bill on file.
-    notes = [note({ heldAsDuplicate: true, credits: { ...namedBill, billId: null } })]
+  it("links a held note to its own bill record, where the duplicate check is decided", async () => {
+    notes = [heldCopy()]
+    // `GET /bills/{noteId}`: the note's own record, which carries its hold.
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(
+        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+      )
+      if (url.endsWith(`/bills/${NOTE_ID}`)) {
+        return json(200, {
+          bill: { ...OURS, id: NOTE_ID, documentTypeCode: '381', supplierBillNumber: 'QMS-CN-1' },
+          lines: [],
+        })
+      }
+      return base(input, init)
+    })
     renderDetail()
-    const unnamed = (await screen.findByText(HELD_DECISION)).closest('p')!
-    expect(within(unnamed).queryByRole('link')).toBeNull()
+    const decision = (await screen.findByText(HELD_DECISION)).closest('p')!
+    const link = await within(decision).findByRole('link', { name: 'View the bill' })
+    expect(link.getAttribute('href')).toBe(`/expenditure/bills/${NOTE_ID}`)
+    expect(within(decision).queryByRole('link', { name: /QMS-7781/ })).toBeNull()
+  })
+
+  it('offers no link while the note has no bill record to open', async () => {
+    notes = [heldCopy()]
+    renderDetail()
+    const decision = (await screen.findByText(HELD_DECISION)).closest('p')!
+    await waitFor(() => expect(calls(`/api/v1/bills/${NOTE_ID}`).length).toBeGreaterThan(0))
+    expect(within(decision).queryByRole('link')).toBeNull()
   })
 
   it.each([

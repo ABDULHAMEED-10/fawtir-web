@@ -286,9 +286,10 @@ function CreditNoteDetail() {
   // CREDIT_NOTE_HELD_AS_DUPLICATE) until the hold is decided, so neither is offered.
   const settleable = canSettle && remaining > 0 && !item.heldAsDuplicate
   const chip = creditChipOf(item)
-  // Only the bill the server names on the row: the one found by searching its number is a guess,
-  // and a held note's own row names none today (it credits nothing), so usually there is no link.
-  const heldBillTo = row.credits.billId ? `/expenditure/bills/${row.credits.billId}` : null
+  // "Its bill" is the note's own bill record, not the bill it corrects: a credit note is a row of
+  // the bills, and its duplicate hold is read and decided at /bills/{noteId} (backend V493). Linked
+  // only once that record has loaded, so the link never leads to a page that cannot open.
+  const heldBillTo = own ? `/expenditure/bills/${row.id}` : null
 
   // Once the note has reduced its bill, what is left can only go against another one.
   const setAgainstKey = usedOnBill

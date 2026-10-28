@@ -152,7 +152,8 @@ function conflictRefusalKey(error: unknown): string | null {
   ) {
     return null
   }
-  return CONFLICT_REFUSALS[error.code] ?? null
+  // Own keys only: a code such as "constructor" must not resolve a prototype member.
+  return Object.hasOwn(CONFLICT_REFUSALS, error.code) ? CONFLICT_REFUSALS[error.code] : null
 }
 
 /**

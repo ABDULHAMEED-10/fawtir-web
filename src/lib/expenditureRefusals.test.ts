@@ -400,6 +400,9 @@ describe('a 409 the Expenditure module answers by name', () => {
   it('leaves any other 409 to the conflict sentence', () => {
     expect(refusalMessageKey(conflict('SOME_OTHER_CONFLICT'))).toBeNull()
     expect(describeApiFailure(conflict('SOME_OTHER_CONFLICT')).key).toBe('apiErrors.conflict')
+    // A code naming a prototype member is not a mapped code.
+    expect(refusalMessageKey(conflict('constructor'))).toBeNull()
+    expect(refusalMessageKey(conflict('toString'))).toBeNull()
     // The same code on another status is not this refusal.
     const notConflict = new ApiError({
       status: 400,
