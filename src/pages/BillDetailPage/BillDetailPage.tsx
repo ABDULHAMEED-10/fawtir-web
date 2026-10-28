@@ -99,7 +99,7 @@ import fileIcon from '../../assets/bill-capture/file.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import { Card, OUTLINE_BUTTON, PRIMARY_BUTTON, QUIET_BUTTON } from './parts'
 import { DuplicateCheckCard } from './DuplicateCheckCard'
-import { duplicateCheckOf } from '../../lib/billDuplicate'
+import { duplicateCheckOf, refusalMeansStale } from '../../lib/billDuplicate'
 
 /** Step circles: completed is a filled grey disc, the one you are on is brand blue. */
 const STEP_CIRCLE: Record<BillStepState, string> = {
@@ -411,11 +411,19 @@ function BillScreen() {
   const confirmReason = async () => {
     const text = reason.trim()
     if (text === '') return
+    let failure: unknown = null
     const ok = await act(
-      () => (asking === 'reject' ? rejectBill(id, text) : holdBill(id, text)),
+      () =>
+        (asking === 'reject' ? rejectBill(id, text) : holdBill(id, text)).catch((error) => {
+          failure = error
+          throw error
+        }),
       asking === 'reject' ? 'billDetail.done.rejected' : 'billDetail.done.held',
     )
-    if (ok) {
+    // A refusal because the bill moved on (a 409, such as a copy held as a duplicate since the
+    // page loaded) is said on the page, which reads the bill again: left open, the dialog hid
+    // the sentence behind its overlay. A refused reason stays with the dialog to be corrected.
+    if (ok || refusalMeansStale(failure)) {
       setAsking(null)
       setReason('')
     }

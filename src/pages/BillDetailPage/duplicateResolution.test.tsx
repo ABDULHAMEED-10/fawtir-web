@@ -229,6 +229,7 @@ describe('a bill held as a possible duplicate', () => {
     )
     expect(within(section).getAllByText('QMS-7781')).toHaveLength(2)
     expect(within(section).getByText('Not on hold')).toBeTruthy()
+    expect(within(section).getAllByText('Hold')).toHaveLength(2)
     expect(screen.queryByText(new RegExp(ORIGINAL + ':'))).toBeNull()
     expect(screen.getByText(/Held as a possible duplicate\. Decide whether it is one/)).toBeTruthy()
   })
@@ -462,11 +463,34 @@ describe('a bill held as a possible duplicate', () => {
         "This bill is held as a possible duplicate, so it can't be rejected. Decide the duplicate check first.",
       ),
     ).toBeTruthy()
+    // The dialog closes, so the sentence is not hidden behind its overlay.
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(screen.queryByText('English detail never shown')).toBeNull()
     await waitFor(() => expect(calls().filter((call) => call === `GET ${COPY_URL}`)).toHaveLength(2))
     // Read again, the page shows the hold and offers no rejection.
     await card()
     expect(screen.queryByRole('button', { name: 'Reject' })).toBeNull()
+  })
+
+  it('keeps the reject dialog open on a refused reason, to correct it there', async () => {
+    copyResponses = [() => json(200, bill(COPY, 'd-copy'))]
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === `${COPY_URL}/approval/reject` && init?.method === 'POST')
+        return json(400, {
+          type: 'https://api.fawtir.om/problems/approval-failed',
+          error: 'APPROVAL_REASON_TOO_LONG',
+        })
+      return base(url, init)
+    })
+    renderCopy()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Reject' })[0])
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Wrong amount' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Reject the bill' }))
+    expect(await screen.findByText(/That reason is too long/)).toBeTruthy()
+    expect(screen.getByRole('dialog')).toBeTruthy()
   })
 
   it('withholds "Not a duplicate" when both copies share a document UUID, and says why', async () => {
@@ -583,10 +607,14 @@ describe('a bill held as a possible duplicate', () => {
     expect(await within(section).findByText('Not found')).toBeTruthy()
   })
 
-  it('reads in Arabic', async () => {
+  it('reads in Arabic, with the hold row in the duplicate wording', async () => {
     await i18n.changeLanguage('ar')
     renderCopy()
     await screen.findByRole('heading', { level: 2, name: 'فاتورة مكررة محتملة' })
+    const section = document.getElementById('duplicate-check') as HTMLElement
+    expect(await within(section).findByText('غير محجوزة')).toBeTruthy()
+    expect(within(section).getAllByText('الحجز')).toHaveLength(2)
+    expect(within(section).queryByText(/الانتظار/)).toBeNull()
     expect(screen.getByRole('button', { name: 'تأكيد التكرار' })).toBeTruthy()
     expect(screen.getAllByRole('button', { name: 'ليست مكررة' }).length).toBeGreaterThan(0)
   })

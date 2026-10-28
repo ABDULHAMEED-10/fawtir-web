@@ -172,6 +172,33 @@ describe('held duplicates on the Bills list', () => {
     }
   })
 
+  it('closes the reject dialog when the row became a held duplicate, says why and reads the list again', async () => {
+    rows = [{ ...heldCopy('1', null), workflowState: 'NEW', hold: null, duplicateHold: null }]
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === '/api/v1/bills/1/approval/reject' && init?.method === 'POST')
+        return json(409, {
+          type: 'https://api.fawtir.om/problems/resource-conflict',
+          error: 'BILL_REJECTION_HELD_AS_DUPLICATE',
+        })
+      return base(url, init)
+    })
+    renderBills('/expenditure/bills?tab=all')
+    fireEvent.click(await screen.findByRole('button', { name: 'Bill actions' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Reject' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Wrong amount' } })
+    const listReads = listCalls().length
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Reject the bill' }))
+    expect(
+      await screen.findByText(
+        "This bill is held as a possible duplicate, so it can't be rejected. Decide the duplicate check first.",
+      ),
+    ).toBeTruthy()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(listCalls().length).toBeGreaterThan(listReads))
+  })
+
   it('reads in Arabic', async () => {
     await i18n.changeLanguage('ar')
     renderBills('/expenditure/bills?tab=heldDuplicate')

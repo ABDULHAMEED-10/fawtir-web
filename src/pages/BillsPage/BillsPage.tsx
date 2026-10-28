@@ -66,6 +66,7 @@ import {
   type Note,
 } from '../../lib/billList'
 import { describeApiFailure } from '../../lib/apiFailure'
+import { refusalMeansStale } from '../../lib/billDuplicate'
 import {
   WAITING_COUNT_PATH,
   loadWaitingCount,
@@ -366,13 +367,24 @@ function BillsScreen() {
   const confirmReason = async () => {
     const text = reason.trim()
     if (!asking || text === '') return
+    let failure: unknown = null
     const ok = await act(asking.billId, () =>
-      asking.kind === 'reject' ? rejectBill(asking.billId, text) : holdBill(asking.billId, text),
+      (asking.kind === 'reject'
+        ? rejectBill(asking.billId, text)
+        : holdBill(asking.billId, text)
+      ).catch((error) => {
+        failure = error
+        throw error
+      }),
     )
-    if (ok) {
+    // As on the bill's page: a refusal because the bill moved on closes the dialog, so its
+    // sentence is not hidden behind the overlay, and the list is read again.
+    const stale = !ok && refusalMeansStale(failure)
+    if (ok || stale) {
       setAsking(null)
       setReason('')
     }
+    if (stale) refresh()
   }
 
   const count = (value: number) => formatCount(value, language)
