@@ -236,6 +236,7 @@ describe('the refusals of the duplicate route', () => {
     expect(refusalMessageKey(conflict('BILL_DUPLICATE_SAME_DOCUMENT_UUID'))).toBe('billDetail.duplicate.refused.sameDocumentUuid')
     expect(refusalMessageKey(conflict('BILL_HOLD_DUPLICATE_RELEASE_REFUSED'))).toBe('billDetail.duplicate.refused.releaseRefused')
     expect(refusalMessageKey(conflict('BILL_APPROVAL_HELD_AS_DUPLICATE'))).toBe('billDetail.duplicate.refused.approvalHeld')
+    expect(refusalMessageKey(conflict('BILL_REJECTION_HELD_AS_DUPLICATE'))).toBe('billDetail.duplicate.refused.rejectionHeld')
     expect(refusalMessageKey(refused('BILL_DUPLICATE_RESOLUTION_NOTE_REQUIRED'))).toBe('billDetail.duplicate.refused.noteRequired')
     expect(refusalMessageKey(refused('BILL_DUPLICATE_RESOLUTION_NOTE_TOO_LONG'))).toBe('billDetail.duplicate.refused.noteTooLong')
     // Not reachable from the screen, which always sends a known decision.
