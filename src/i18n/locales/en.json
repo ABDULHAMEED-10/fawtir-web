@@ -6976,7 +6976,12 @@
     },
     "excluded": "{{count}} not counted above: a different currency",
     "pageOnly": "Page {{page}}",
-    "pageOf": "Page {{page}} of {{pages}}"
+    "pageOf": "Page {{page}} of {{pages}}",
+    "held": {
+      "status": "Held as duplicate",
+      "decision": "This looks like a copy of a credit note already on file, so it can't be used until the duplicate check is resolved on its bill.",
+      "refused": "This credit note is held as a possible duplicate, so it can't be used yet. Check its bill first."
+    }
   },
   "supplierDebitNotes": {
     "title": "Debit Notes",

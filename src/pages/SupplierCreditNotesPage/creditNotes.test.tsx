@@ -1846,3 +1846,194 @@ describe('A credit note held as a duplicate', () => {
     expect(screen.queryByText(/clears the mismatch/)).toBeNull()
   })
 })
+
+// Owner's copy, 28 Oct 2026: a held note is named as held, says why it cannot be used, and makes
+// no promise that its credit will reduce a bill.
+describe("A held duplicate's wording", () => {
+  const HELD_ID = '70000000-0000-0000-0000-000000000009'
+  const namedBill = {
+    billNumber: 'QMS-7781',
+    issueDate: '2026-09-01',
+    documentUuid: null,
+    billId: BILL_ID,
+    applied: false,
+  }
+  const HELD_DECISION =
+    "This looks like a copy of a credit note already on file, so it can't be used until the duplicate check is resolved on its bill."
+  const HELD_DECISION_AR =
+    'يبدو أن هذا الإشعار نسخة من إشعار دائن مسجّل مسبقًا، لذا لا يمكن استخدامه حتى يُحسم فحص التكرار على فاتورته.'
+  const HELD_REFUSED =
+    "This credit note is held as a possible duplicate, so it can't be used yet. Check its bill first."
+  const HELD_REFUSED_AR =
+    'هذا الإشعار الدائن محجوز لاحتمال كونه نسخة مكررة، لذا لا يمكن استخدامه حاليًا. يُرجى مراجعة فاتورته أولًا.'
+
+  /** `POST /apply` answers as the server does when it refuses with this problem. */
+  function answerApplyWith(status: number, body: Record<string, unknown>) {
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(
+        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+      )
+      if (url.includes(`/credit-notes/${NOTE_ID}/apply`)) {
+        return new Response(JSON.stringify({ status, ...body }), {
+          status,
+          headers: { 'Content-Type': 'application/problem+json' },
+        })
+      }
+      return base(input, init)
+    })
+  }
+
+  async function applyFromTheNote() {
+    fireEvent.change(await openApply(), { target: { value: 'test' } })
+    fireEvent.click(await screen.findByRole('button', { name: /QMS-7781/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Use it' }))
+  }
+
+  it.each([
+    ['en', 'Held as duplicate', 'Not yet used', 'Waiting for a bill'],
+    ['ar', 'محجوز كنسخة مكررة', 'لم يُستخدم بعد', 'بانتظار فاتورة'],
+  ] as const)(
+    'names a held row as held (%s), in the amber a pending note is drawn in',
+    async (language, held, notUsed, waiting) => {
+      await i18n.changeLanguage(language)
+      notes = [
+        note(),
+        note({ id: HELD_ID, creditNoteNumber: 'QMS-CN-1-COPY', heldAsDuplicate: true }),
+        note({ id: OTHER_BILL_ID, creditNoteNumber: 'QMS-CN-2', status: 'WAITING_FOR_BILL' }),
+      ]
+      renderList()
+      const normalRow = (await screen.findByRole('link', { name: 'QMS-CN-1' })).closest('tr')!
+      const heldRow = screen.getByRole('link', { name: 'QMS-CN-1-COPY' }).closest('tr')!
+      const waitingRow = screen.getByRole('link', { name: 'QMS-CN-2' }).closest('tr')!
+
+      const heldChip = within(heldRow).getByText(held)
+      expect(within(heldRow).queryByText(notUsed)).toBeNull()
+      expect(within(normalRow).getByText(notUsed)).toBeTruthy()
+      expect(within(normalRow).queryByText(held)).toBeNull()
+      // The existing pending tone: the very classes a note waiting for its bill is drawn in.
+      expect(heldChip.className).toBe(within(waitingRow).getByText(waiting).className)
+      expect(heldChip.className).toContain('bg-pending-100')
+      expect(heldChip.className).toContain('text-pending-700')
+    },
+  )
+
+  it("makes no \"you'd pay less\" promise under a held row's amount, and keeps it on a normal one", async () => {
+    notes = [
+      note(),
+      note({ id: HELD_ID, creditNoteNumber: 'QMS-CN-1-COPY', heldAsDuplicate: true }),
+    ]
+    renderList()
+    const normalRow = (await screen.findByRole('link', { name: 'QMS-CN-1' })).closest('tr')!
+    const heldRow = screen.getByRole('link', { name: 'QMS-CN-1-COPY' }).closest('tr')!
+    expect(within(normalRow).getByText("you'd pay less")).toBeTruthy()
+    expect(within(heldRow).queryByText("you'd pay less")).toBeNull()
+  })
+
+  it.each([
+    ['en', 'Held as duplicate', 'Not yet used', HELD_DECISION],
+    ['ar', 'محجوز كنسخة مكررة', 'لم يُستخدم بعد', HELD_DECISION_AR],
+  ] as const)(
+    'names a held note as held on its own screen and says why (%s)',
+    async (language, held, notUsed, decision) => {
+      await i18n.changeLanguage(language)
+      notes = [note({ heldAsDuplicate: true })]
+      renderDetail()
+      await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+      const chip = screen.getByText(held)
+      expect(chip.className).toContain('bg-pending-100')
+      expect(chip.className).toContain('text-pending-700')
+      expect(screen.queryByText(notUsed)).toBeNull()
+      expect(screen.getByText(decision)).toBeTruthy()
+    },
+  )
+
+  it('keeps a normal note its own chip and decision, with no word of a hold', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.getByText('Not yet used')).toBeTruthy()
+    expect(screen.queryByText('Held as duplicate')).toBeNull()
+    expect(screen.queryByText(HELD_DECISION)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Keep as credit' })).toBeTruthy()
+  })
+
+  it('links the bill the server names on a held note, and nothing when it names none', async () => {
+    notes = [note({ heldAsDuplicate: true, credits: namedBill })]
+    const named = renderDetail()
+    const decision = (await screen.findByText(HELD_DECISION)).closest('p')!
+    const link = within(decision).getByRole('link', { name: 'View the bill' })
+    expect(link.getAttribute('href')).toBe(`/expenditure/bills/${BILL_ID}`)
+    named.unmount()
+
+    // The supplier states a bill number, but the server resolved it to no bill on file.
+    notes = [note({ heldAsDuplicate: true, credits: { ...namedBill, billId: null } })]
+    renderDetail()
+    const unnamed = (await screen.findByText(HELD_DECISION)).closest('p')!
+    expect(within(unnamed).queryByRole('link')).toBeNull()
+  })
+
+  it.each([
+    [false, true],
+    [true, false],
+  ])(
+    'promises "You\'ll pay less" and waits to be set against the bill only when not held (held: %s)',
+    async (heldAsDuplicate, shown) => {
+      notes = [note({ heldAsDuplicate, credits: namedBill })]
+      billDetail = { bill: { ...OURS, id: BILL_ID, supplierBillNumber: 'QMS-7781' }, lines: [] }
+      renderDetail()
+      await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+      // The bill read decides the banner's words, so wait for the bill to be named.
+      await waitFor(() => expect(screen.getAllByText('QMS-7781').length).toBeGreaterThan(0))
+      if (shown) expect(visibleText(await heroSaying(/^You'll pay/))).toBe("You'll pay 200.000 less")
+      const promises = screen
+        .getAllByRole('heading', { level: 2 })
+        .filter((heading) => /You'll pay/.test(visibleText(heading)))
+      expect(promises.length > 0).toBe(shown)
+      expect(screen.queryByText('They billed') !== null).toBe(shown)
+      const activity = screen.getByRole('list', { name: 'Activity' })
+      expect(within(activity).queryByText('Waiting to be set against the bill') !== null).toBe(
+        shown,
+      )
+    },
+  )
+
+  it('says nothing of waiting for its bill when a held note waits for one', async () => {
+    notes = [note({ heldAsDuplicate: true, status: 'WAITING_FOR_BILL' })]
+    renderDetail()
+    const activity = await screen.findByRole('list', { name: 'Activity' })
+    expect(within(activity).queryByText('Waiting for the bill it corrects')).toBeNull()
+    expect(screen.getByText(HELD_DECISION)).toBeTruthy()
+  })
+
+  it('says the note is held when the apply is refused CREDIT_NOTE_HELD_AS_DUPLICATE, in both languages', async () => {
+    // Read before the hold opened: the screen still offers the apply, and the server refuses it.
+    answerApplyWith(409, {
+      type: 'https://api.fawtir.om/problems/resource-conflict',
+      error: 'CREDIT_NOTE_HELD_AS_DUPLICATE',
+      trace_id: 'trace-held',
+    })
+    renderDetail()
+    await applyFromTheNote()
+    expect(await screen.findByText(`${HELD_REFUSED} Reference: trace-held`)).toBeTruthy()
+
+    // The bill stays chosen; the same press in Arabic says the same in Arabic.
+    await i18n.changeLanguage('ar')
+    fireEvent.click(await screen.findByRole('button', { name: 'استخدمه' }))
+    expect(await screen.findByText(new RegExp(`^${HELD_REFUSED_AR}`))).toBeTruthy()
+  })
+
+  it('keeps the conflict sentence for any other 409', async () => {
+    answerApplyWith(409, {
+      type: 'https://api.fawtir.om/problems/resource-conflict',
+      error: 'SOME_OTHER_CONFLICT',
+    })
+    renderDetail()
+    await applyFromTheNote()
+    expect(
+      await screen.findByText(
+        'Someone changed this while you were working on it. Reload to see the latest version, then try again.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText(HELD_REFUSED)).toBeNull()
+  })
+})

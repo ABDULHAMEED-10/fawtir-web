@@ -48,9 +48,8 @@ import {
   type SupplierOverviewDto,
 } from '../../api/expenditure/supplierRecord'
 import {
-  CREDIT_STATUS_CHIP,
-  CREDIT_STATUS_LABEL,
   cl02ReasonOf,
+  creditChipOf,
   reasonLabelKey,
   toCreditNoteItem,
 } from '../../lib/supplierNoteList'
@@ -286,6 +285,10 @@ function CreditNoteDetail() {
   // A note held as a duplicate keeps a balance, but `/apply` and `/refund` refuse it (409
   // CREDIT_NOTE_HELD_AS_DUPLICATE) until the hold is decided, so neither is offered.
   const settleable = canSettle && remaining > 0 && !item.heldAsDuplicate
+  const chip = creditChipOf(item)
+  // Only the bill the server names on the row: the one found by searching its number is a guess,
+  // and a held note's own row names none today (it credits nothing), so usually there is no link.
+  const heldBillTo = row.credits.billId ? `/expenditure/bills/${row.credits.billId}` : null
 
   // Once the note has reduced its bill, what is left can only go against another one.
   const setAgainstKey = usedOnBill
@@ -342,10 +345,7 @@ function CreditNoteDetail() {
             <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
               {item.number ?? t('supplierCreditNotes.rows.unnumbered')}
             </h1>
-            <StatusChip
-              className={CHIP[CREDIT_STATUS_CHIP[item.status]]}
-              label={t(CREDIT_STATUS_LABEL[item.status])}
-            />
+            <StatusChip className={CHIP[chip.tone]} label={t(chip.labelKey)} />
             <KindBadge sign={'−'} label={t(`supplierNotes.kind.credit.${item.source}`)} />
           </div>
           <p className="mt-2 text-sm font-medium leading-[1.4] text-text-tertiary">
@@ -422,46 +422,50 @@ function CreditNoteDetail() {
 
       <div className="flex flex-col gap-[22px] xl:flex-row">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
-          <EffectBanner
-            tone="credit"
-            icon={<span className="h-[2.5px] w-3.5 rounded-full bg-[#3d5648]" />}
-            title={withRial(bannerTitle)}
-            body={withRial(bannerBody)}
-            tiles={[
-              {
-                key: 'theyBilled',
-                label: t('supplierCreditNotes.detail.theyBilled'),
-                value: effect.billed === null ? '—' : <SignedAmount value={money(effect.billed)} />,
-                note: bill
-                  ? `${billNumber ?? ''} · ${bill.issueDate ? fmt.date(bill.issueDate) : ''}`
-                  : t('supplierCreditNotes.detail.noBillTile'),
-              },
-              {
-                key: 'thisCredit',
-                label: t('supplierCreditNotes.detail.thisCredit'),
-                value: <SignedAmount value={money(effect.credit)} />,
-                note: reasonText,
-              },
-              {
-                key: 'youllPay',
-                label: t('supplierCreditNotes.detail.youllPay'),
-                value:
-                  effect.willPay === null ? '—' : <SignedAmount value={money(effect.willPay)} />,
-                note: bill?.dueDate
-                  ? t('supplierCreditNotes.detail.dueOn', { date: fmt.date(bill.dueDate) })
-                  : bill && effect.outstanding !== null && effect.outstanding !== effect.billed
-                    ? withRial(
-                        t('supplierCreditNotes.detail.stillUnpaidOf', {
-                          amount: `${currency} ${money(effect.outstanding)}`,
-                        }),
-                      )
-                    : // A bill is named: never "No bill yet" (C9).
-                      billNumber
-                      ? t('supplierCreditNotes.detail.afterThisNote')
-                      : t('supplierCreditNotes.detail.noBillTile'),
-              },
-            ]}
-          />
+          {/* Every figure here counts the credit against what is owed, which a held note does not
+              reduce until the hold is decided. */}
+          {item.heldAsDuplicate ? null : (
+            <EffectBanner
+              tone="credit"
+              icon={<span className="h-[2.5px] w-3.5 rounded-full bg-[#3d5648]" />}
+              title={withRial(bannerTitle)}
+              body={withRial(bannerBody)}
+              tiles={[
+                {
+                  key: 'theyBilled',
+                  label: t('supplierCreditNotes.detail.theyBilled'),
+                  value: effect.billed === null ? '—' : <SignedAmount value={money(effect.billed)} />,
+                  note: bill
+                    ? `${billNumber ?? ''} · ${bill.issueDate ? fmt.date(bill.issueDate) : ''}`
+                    : t('supplierCreditNotes.detail.noBillTile'),
+                },
+                {
+                  key: 'thisCredit',
+                  label: t('supplierCreditNotes.detail.thisCredit'),
+                  value: <SignedAmount value={money(effect.credit)} />,
+                  note: reasonText,
+                },
+                {
+                  key: 'youllPay',
+                  label: t('supplierCreditNotes.detail.youllPay'),
+                  value:
+                    effect.willPay === null ? '—' : <SignedAmount value={money(effect.willPay)} />,
+                  note: bill?.dueDate
+                    ? t('supplierCreditNotes.detail.dueOn', { date: fmt.date(bill.dueDate) })
+                    : bill && effect.outstanding !== null && effect.outstanding !== effect.billed
+                      ? withRial(
+                          t('supplierCreditNotes.detail.stillUnpaidOf', {
+                            amount: `${currency} ${money(effect.outstanding)}`,
+                          }),
+                        )
+                      : // A bill is named: never "No bill yet" (C9).
+                        billNumber
+                        ? t('supplierCreditNotes.detail.afterThisNote')
+                        : t('supplierCreditNotes.detail.noBillTile'),
+                },
+              ]}
+            />
+          )}
 
           <NoteCard title={t('supplierCreditNotes.detail.whyTitle')}>
             <p className="mt-3 text-sm font-medium leading-[1.6] text-text-secondary">
@@ -647,9 +651,24 @@ function CreditNoteDetail() {
                 ))}
               </dl>
             ) : null}
-            {/* Every sentence below invites a settlement a held note cannot take, and none yet
-                says why it is held, so a held note shows none. */}
-            {item.heldAsDuplicate ? null : (
+            {/* Every other sentence here invites a settlement a held note cannot take, so a held
+                note says only why it is held (owner's copy, 28 Oct 2026). */}
+            {item.heldAsDuplicate ? (
+              <p className="mt-3 text-sm font-medium leading-[1.5] text-text-tertiary">
+                {t('supplierCreditNotes.held.decision')}
+                {heldBillTo ? (
+                  <>
+                    {' '}
+                    <Link
+                      to={heldBillTo}
+                      className="font-semibold text-text-secondary underline decoration-transparent underline-offset-2 transition-colors hover:decoration-current"
+                    >
+                      {t('supplierCreditNotes.actions.viewBill')}
+                    </Link>
+                  </>
+                ) : null}
+              </p>
+            ) : (
               <p className="mt-3 text-sm font-medium leading-[1.5] text-text-tertiary">
                 {kept
                   ? t('supplierCreditNotes.detail.keptDone', { supplier: item.supplier ?? '' })
