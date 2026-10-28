@@ -63,6 +63,11 @@ export type ProductDto = {
   options?: ProductOption[] | null
   variants?: ProductVariant[] | null
   addOns?: ProductAddOn[] | null
+  /**
+   * On a list read with `branchId`: that branch's price before VAT (its own, else the base
+   * price). Null otherwise (INCOME.md P.9).
+   */
+  effectivePrice?: number | null
 }
 
 export type ProductItemKind = 'HAND_OVER' | 'DO' | 'BY_TIME' | 'BUNDLE'
@@ -183,6 +188,11 @@ export type ProductListQuery = {
   /** Any kind in the group. */
   groupId?: string
   itemKind?: ProductItemKind
+  /**
+   * The working branch: only products on sale there, each with its `effectivePrice`. Archived
+   * products are never listed with it.
+   */
+  branchId?: string | null
   sort?: ProductSort
   direction?: 'ASC' | 'DESC'
   size?: number
@@ -198,6 +208,7 @@ export function productListPath(query: ProductListQuery): string {
     kindId: query.kindId,
     groupId: query.groupId,
     itemKind: query.itemKind,
+    branchId: query.branchId,
     sort: query.sort,
     direction: query.direction,
     size: query.size ?? PRODUCT_PICKER_SIZE,
@@ -211,8 +222,19 @@ export function productListPath(query: ProductListQuery): string {
  * `page` is Spring's zero-based page. The first page leaves it out, so the path of every caller
  * that never pages stays what it was.
  */
-export function productSearchPath(q: string, size = PRODUCT_PICKER_SIZE, page = 0): string {
-  return withQuery(PRODUCTS_PATH, { q: q.trim(), size, page: page > 0 ? page : undefined })
+export function productSearchPath(
+  q: string,
+  size = PRODUCT_PICKER_SIZE,
+  page = 0,
+  branchId?: string | null,
+): string {
+  return withQuery(PRODUCTS_PATH, {
+    q: q.trim(),
+    // The working branch (P.9): only what is sold there, at its price. Absent leaves the path as it was.
+    branchId,
+    size,
+    page: page > 0 ? page : undefined,
+  })
 }
 
 export const productPath = (id: string) => `${PRODUCTS_PATH}/${encodeURIComponent(id)}`

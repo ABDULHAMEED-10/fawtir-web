@@ -11,6 +11,7 @@ import {
   type ProductDto,
 } from '../../api/catalog/products'
 import { productRefusal } from '../../lib/productForm'
+import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { pageCountOf, type Page } from '../../api'
 import { Link } from 'react-router-dom'
@@ -83,13 +84,21 @@ export function CatalogPage() {
   }, [query])
 
   const order = SERVER_SORT[sort]
+  // The sidebar's working branch (P.9): the items on sale there, at its price. Read once the
+  // branches have answered, so the list is not asked twice; without branches, the whole company.
+  const branchRead = useWorkingBranch()
+  const branchId = branchRead.branch?.id ?? null
   const path = productListPath({
     q: search,
+    branchId,
     size: CATALOG_PAGE_SIZE,
     page: archivedTab ? 0 : page,
     ...order,
   })
-  const active = useApiRead<Page<ProductDto>>(path, () => searchProducts(path))
+  const active = useApiRead<Page<ProductDto>>(
+    branchRead.read.status === 'loading' ? null : path,
+    () => searchProducts(path),
+  )
   const archivedPath = productListPath({
     q: search,
     status: 'ARCHIVED',
@@ -429,12 +438,12 @@ export function CatalogPage() {
                           </p>
                         </td>
                         <td className="whitespace-nowrap px-4 py-4 align-top text-end">
-                          {product.defaultUnitPrice > 0 ? (
+                          {(product.effectivePrice ?? product.defaultUnitPrice) > 0 ? (
                             <p className="text-sm font-semibold text-text-primary tabular-nums">
                               <span className="me-1">
                                 <Rial />
                               </span>
-                              {price(product.defaultUnitPrice)}
+                              {price(product.effectivePrice ?? product.defaultUnitPrice)}
                             </p>
                           ) : (
                             <p className="text-sm font-semibold text-pending-700">

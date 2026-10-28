@@ -60,7 +60,8 @@ export function lineFromProduct(
 ): ProductLinePatch {
   const tax = taxCategoryOf(categories, product.defaultTaxCategory, product.defaultTaxRate)
   const vatRate = tax?.rate ?? String(product.defaultTaxRate ?? 0)
-  const price = parseAmount(String(product.defaultUnitPrice))
+  // The working branch's own price when the list was read for a branch (P.9), else the base.
+  const price = parseAmount(String(product.effectivePrice ?? product.defaultUnitPrice))
   const rate = parseAmount(vatRate)
   const hundred = parseAmount('100')
   const unitPrice = exclVat || rate === 0n ? price : (price * (hundred + rate)) / hundred

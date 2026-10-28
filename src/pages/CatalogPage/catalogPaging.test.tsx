@@ -92,7 +92,10 @@ describe('the catalogue list', () => {
       </MemoryRouter>,
     )
     expect(await screen.findByText('Item 01')).toBeTruthy()
-    expect(productCalls()[0]).toBe('/api/v1/products?sort=NAME&direction=ASC&size=20')
+    // The list waits for the branches; the Off sale count does not, so it may go first.
+    expect(productCalls().filter((url) => !url.includes('status='))[0]).toBe(
+      '/api/v1/products?sort=NAME&direction=ASC&size=20',
+    )
     const pager = screen.getByRole('navigation', { name: i18n.t('appList.pager.label') })
     expect(within(pager).getByRole('button', { name: '3' })).toBeTruthy()
     expect(within(pager).getByRole('button', { name: '1' }).getAttribute('aria-current')).toBe(
@@ -127,6 +130,31 @@ describe('the catalogue list', () => {
     await vi.waitFor(() => expect(names()).toEqual(['Item 20', 'Item 15', 'Item 10', 'Item 05']))
     // The order is the server's, so it holds across pages.
     expect(productCalls()).toContain('/api/v1/products?sort=PRICE&direction=DESC&size=20')
+  })
+
+  it("reads the list for the sidebar's working branch, at its price (P.9)", async () => {
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === '/api/v1/me/entitlements') return json(READER)
+      if (url === '/api/v1/branches') {
+        return json([{ id: 'b-main', code: 'MAIN', name: 'Main', type: 'HEAD_OFFICE' }])
+      }
+      if (url.startsWith('/api/v1/products')) {
+        const branch = new URL(url, 'http://x').searchParams.get('branchId')
+        const content = branch ? [{ ...productAt(1), effectivePrice: 7.25 }] : []
+        return json({ content, page: 0, size: 20, totalElements: content.length })
+      }
+      return new Response(null, { status: 404 })
+    })
+    render(
+      <MemoryRouter>
+        <CatalogPage />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('7.250')).toBeTruthy()
+    expect(productCalls()).toContain(
+      '/api/v1/products?branchId=b-main&sort=NAME&direction=ASC&size=20',
+    )
   })
 
   it('lists the items off sale on their own tab, counted by the server, and puts one back (P.14, P.15)', async () => {

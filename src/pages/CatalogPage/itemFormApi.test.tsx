@@ -92,6 +92,47 @@ const GROUPS = {
   ],
 }
 
+/** Sold in Main and Seeb only, Seeb at its own price; Sohar is closed (P.9). */
+const BRANCH_SETTINGS = {
+  productId: 'p-dates',
+  availability: 'CHOSEN_BRANCHES',
+  branchIds: ['b-main', 'b-seeb'],
+  version: 2,
+  basePrice: 3.2,
+  branches: [
+    {
+      branchId: 'b-main',
+      branchCode: 'MAIN',
+      branchName: 'Main',
+      branchActive: true,
+      soldHere: true,
+      branchPrice: null,
+      onSale: true,
+      effectivePrice: 3.2,
+    },
+    {
+      branchId: 'b-seeb',
+      branchCode: 'SEEB',
+      branchName: 'Seeb',
+      branchActive: true,
+      soldHere: true,
+      branchPrice: 3.5,
+      onSale: true,
+      effectivePrice: 3.5,
+    },
+    {
+      branchId: 'b-sohar',
+      branchCode: 'SOHAR',
+      branchName: 'Sohar',
+      branchActive: false,
+      soldHere: false,
+      branchPrice: null,
+      onSale: true,
+      effectivePrice: 3.2,
+    },
+  ],
+}
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -122,6 +163,7 @@ beforeEach(async () => {
         return onWrite(url, init)
       }
       if (url === '/api/v1/products/p-dates') return json(stored)
+      if (url === '/api/v1/products/p-dates/branch-settings') return json(BRANCH_SETTINGS)
       return json({ type: 'about:blank' }, 404)
     }),
   )
@@ -295,6 +337,7 @@ describe('the item form on /v1/products', () => {
     stored = { ...DATES, active: false, archivedAt: '2026-10-21T09:00:00Z', version: 5 }
     onWrite = () => json({ ...stored, active: true, archivedAt: null, version: 6 })
     await openItem()
+    await screen.findByLabelText(i18n.t('item.branches.priceHere', { branch: 'Seeb' }))
     fireEvent.click(await screen.findByRole('button', { name: i18n.t('catalog.rowMenu.switchOn') }))
     expect(await screen.findByText(i18n.t('itemForm.backOnSaleDone'))).toBeTruthy()
     expect(writes()).toEqual([
@@ -338,6 +381,57 @@ describe('the item form on /v1/products', () => {
       addOns: [{ id: 'a-1', name: 'Gift wrap', nameAr: null, price: 0.2, free: false }],
     })
     expect(await screen.findByText(i18n.t('itemOptions.footer.saved'))).toBeTruthy()
+  })
+
+  it('reads the branch settings and saves a changed branch price after the item (P.9)', async () => {
+    onWrite = (url, init) =>
+      url.includes('/branch-settings')
+        ? json({ ...BRANCH_SETTINGS, version: 3 })
+        : json({ ...stored, ...JSON.parse(String(init.body ?? '{}')), version: 4 })
+    await openItem()
+    const seeb = (await screen.findByLabelText(
+      i18n.t('item.branches.priceHere', { branch: 'Seeb' }),
+    )) as HTMLInputElement
+    expect(seeb.value).toBe('3.500')
+    expect(screen.getByText(i18n.t('item.branches.closed'))).toBeTruthy()
+    fireEvent.change(seeb, { target: { value: '3.6' } })
+    fireEvent.click(screen.getAllByRole('button', { name: i18n.t('item.save') })[0])
+    await waitFor(() => expect(writes()).toHaveLength(2))
+    const [product, branches] = writes()
+    expect(product.url).toBe('/api/v1/products/p-dates?expectedVersion=3')
+    expect(branches.url).toBe('/api/v1/products/p-dates/branch-settings?expectedVersion=2')
+    expect(branches.method).toBe('PUT')
+    expect(JSON.parse(String(branches.body))).toEqual({
+      availability: 'CHOSEN_BRANCHES',
+      branchIds: ['b-main', 'b-seeb'],
+      branches: [
+        { branchId: 'b-main', branchPrice: null, onSale: true },
+        { branchId: 'b-seeb', branchPrice: 3.6, onSale: true },
+      ],
+    })
+  })
+
+  it('leaves the branch settings alone when the step was not changed', async () => {
+    await openItem()
+    await screen.findByLabelText(i18n.t('item.branches.priceHere', { branch: 'Seeb' }))
+    fireEvent.click(screen.getAllByRole('button', { name: i18n.t('item.save') })[0])
+    await waitFor(() => expect(writes()).toHaveLength(1))
+    expect(writes()[0].url).toBe('/api/v1/products/p-dates?expectedVersion=3')
+  })
+
+  it("says so when a branch is not the reader's to change (403 branch-not-in-scope)", async () => {
+    onWrite = (url, init) =>
+      url.includes('/branch-settings')
+        ? json({ type: 'https://api.fawtir.om/problems/branch-not-in-scope', status: 403 }, 403)
+        : json({ ...stored, ...JSON.parse(String(init.body ?? '{}')), version: 4 })
+    await openItem()
+    await screen.findByLabelText(i18n.t('item.branches.priceHere', { branch: 'Seeb' }))
+    fireEvent.click(
+      await screen.findByRole('radio', { name: new RegExp(i18n.t('item.branches.all')) }),
+    )
+    fireEvent.click(screen.getAllByRole('button', { name: i18n.t('item.save') })[0])
+    expect(await screen.findByText(i18n.t('branchAccess.refusal.branchNotInScope'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('itemForm.branchesNotSaved'))).toBeTruthy()
   })
 
   it('says New item is not allowed without product.manage', async () => {

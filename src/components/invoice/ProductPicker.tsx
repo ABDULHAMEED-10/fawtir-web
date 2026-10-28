@@ -21,6 +21,7 @@ import { formatAmount } from '../../lib/format'
 import { newProductFrom, suggestProductCode, taxCategoryOf } from '../../lib/productLine'
 import { can, useSession } from '../../lib/session/session'
 import { ApiError } from '../../api/errors'
+import { useWorkingBranch } from '../branch/useWorkingBranch'
 import chevronIcon from '../../assets/create-invoice/chevron.svg'
 
 /** How long typing pauses before the catalogue is searched. */
@@ -55,7 +56,9 @@ export function ProductPicker({
     return () => window.clearTimeout(timer)
   }, [typed])
 
-  const path = query === null ? null : productSearchPath(query)
+  // The sidebar's working branch (P.9): only what is sold there, priced as there.
+  const { branch: workingBranch } = useWorkingBranch()
+  const path = query === null ? null : productSearchPath(query, undefined, 0, workingBranch?.id)
   const found = useApiRead<Page<ProductDto>>(path, () => searchProducts(path!))
   const products = found.read.status === 'ready' ? found.read.data.items : []
 
@@ -66,7 +69,7 @@ export function ProductPicker({
     label: product.name,
     hint: t('productPicker.hint', {
       code: product.code,
-      price: formatAmount(product.defaultUnitPrice, 'OMR', i18n.language),
+      price: formatAmount(product.effectivePrice ?? product.defaultUnitPrice, 'OMR', i18n.language),
       unit: product.defaultUnitCode,
       tax:
         taxLabel(

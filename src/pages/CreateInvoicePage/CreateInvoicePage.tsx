@@ -86,6 +86,7 @@ import {
 } from '../../lib/invoiceDraft'
 import { blankCustomerForm, customerProblems, toCustomerRequest } from '../../lib/customerForm'
 import { lineFromProduct, taxCategoryOf } from '../../lib/productLine'
+import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { missingCustomerFields } from '../../lib/customerEligibility'
 import { formatAmount as formatMoney } from '../../lib/format'
@@ -420,7 +421,9 @@ function CataloguePick({ onPick }: { onPick: (product: ProductDto) => void }) {
     const timer = window.setTimeout(() => setQuery(typed), typed === '' ? 0 : SEARCH_DELAY_MS)
     return () => window.clearTimeout(timer)
   }, [typed])
-  const path = query === null ? null : productSearchPath(query)
+  // The sidebar's working branch (P.9): only what is sold there, priced as there.
+  const { branch: workingBranch } = useWorkingBranch()
+  const path = query === null ? null : productSearchPath(query, undefined, 0, workingBranch?.id)
   const found = useApiRead<Page<ProductDto>>(path, () => searchProducts(path!))
   const products = found.read.status === 'ready' ? found.read.data.items : []
   const emptyText =
@@ -441,7 +444,11 @@ function CataloguePick({ onPick }: { onPick: (product: ProductDto) => void }) {
         label: product.name,
         hint: t('productPicker.hint', {
           code: product.code,
-          price: formatMoney(product.defaultUnitPrice, 'OMR', i18n.language),
+          price: formatMoney(
+            product.effectivePrice ?? product.defaultUnitPrice,
+            'OMR',
+            i18n.language,
+          ),
           unit: product.defaultUnitCode,
           tax:
             taxLabel(
