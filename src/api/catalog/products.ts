@@ -35,17 +35,76 @@ export type ProductDto = {
   /** When the product was archived (`DELETE`); null while it is on sale. */
   archivedAt?: string | null
   version: number
-  /*
-   * TODO(backend): what an invoice line also needs from its product (owner, 21 Oct 2026); the
-   * product record does not carry these yet (docs/backend-guides/INCOME.md, rows P.3 and P.4).
-   * Each is optional, so a product without them fills a line as before.
+  /** VATZR-OM (Z) or VATEX-OM (E) code, the line's IBT-121 code. Never on S. */
+  defaultTaxReasonCode?: string | null
+  /** Written reason, for O (and the text of a coded reason). */
+  defaultTaxReasonText?: string | null
+  /** The catalogue discount, the line's starting discount. Null when none. */
+  defaultDiscount?: ProductDiscount | null
+  /** Arabic name; null when none. */
+  nameAr?: string | null
+  /** Printable ASCII, unique among the company's active products. */
+  barcode?: string | null
+  /** The kind (level 2) the item sits in; the group is the kind's parent. */
+  kindId?: string | null
+  groupId?: string | null
+  /** The item form's four cards. */
+  itemKind?: ProductItemKind | null
+  /** Entry preference only: `defaultUnitPrice` is always before VAT. */
+  priceEntryIncludesVat?: boolean
+  staffCanChangePrice?: boolean
+  /** Goods only. */
+  keepCount?: boolean
+  /**
+   * Sizes, options, their combinations and add-ons. Filled on the one-product answers (read,
+   * create, update, reactivate, variants); null on the list, where they are not loaded.
    */
-  /** VATZR-OM (Z) or VATEX-OM (E) code. */
-  exemptionReasonCode?: string | null
-  /** Written reason, for O. */
-  exemptionReason?: string | null
-  /** The catalogue discount, the line's starting discount. */
-  defaultDiscount?: { type: 'PERCENTAGE' | 'FIXED_AMOUNT'; value: number } | null
+  sizes?: ProductSize[] | null
+  options?: ProductOption[] | null
+  variants?: ProductVariant[] | null
+  addOns?: ProductAddOn[] | null
+}
+
+export type ProductItemKind = 'HAND_OVER' | 'DO' | 'BY_TIME' | 'BUNDLE'
+
+/** The invoice engine's own `DiscountType`, so a line copies it unchanged. */
+export type ProductDiscount = { type: 'PERCENTAGE' | 'FIXED_AMOUNT'; value: number }
+
+/** A size: a price change against the base, before VAT. */
+export type ProductSize = {
+  id: string
+  name: string
+  nameAr: string | null
+  priceDelta: number
+  sortOrder: number
+}
+
+export type ProductOption = ProductSize
+
+/** One size x option combination: the thing the till sells, with its own code and price. */
+export type ProductVariant = {
+  id: string
+  sizeId: string | null
+  size: string | null
+  optionId: string | null
+  option: string | null
+  /** The invoice line's item name: product, size and option. */
+  name: string
+  code: string
+  /** A price set by hand; null = base plus the size's and option's changes. */
+  priceOverride: number | null
+  /** What it sells for, before VAT, worked out by the server. */
+  price: number
+  onSale: boolean
+}
+
+export type ProductAddOn = {
+  id: string
+  name: string
+  nameAr: string | null
+  price: number
+  free: boolean
+  sortOrder: number
 }
 
 /** `ItemClassificationRequest` (openapi): the product's goods/services flag and its codes. */
@@ -65,6 +124,85 @@ export type NewProduct = {
   defaultTaxRate: number | null
   description?: string | null
   classification?: ProductClassification | null
+  defaultTaxReasonCode?: string | null
+  defaultTaxReasonText?: string | null
+  nameAr?: string | null
+  barcode?: string | null
+  kindId?: string | null
+  itemKind?: ProductItemKind | null
+  priceEntryIncludesVat?: boolean
+  staffCanChangePrice?: boolean
+  keepCount?: boolean
+  defaultDiscount?: ProductDiscount | null
+  /** Absent leaves the stored setup as it is on `PUT`; `[]` clears it. */
+  sizes?: SizeRequest[]
+  options?: SizeRequest[]
+  variants?: VariantRequest[]
+  addOns?: AddOnRequest[]
+}
+
+/** A size or option to keep (by `id`), rename, or create (no `id`: matched by name, else new). */
+export type SizeRequest = { id?: string; name: string; nameAr?: string | null; priceDelta: number }
+
+/** Picks a combination by its size and option names; `price` null = base plus the changes. */
+export type VariantRequest = {
+  size?: string | null
+  option?: string | null
+  code?: string | null
+  price?: number | null
+  onSale?: boolean
+}
+
+export type AddOnRequest = {
+  id?: string
+  name: string
+  nameAr?: string | null
+  price: number
+  free: boolean
+}
+
+/** `PUT /v1/products/{id}/variants`: the four arrays replace the whole setup, in display order. */
+export type ProductVariantsRequest = {
+  sizes: SizeRequest[]
+  options: SizeRequest[]
+  variants: VariantRequest[]
+  addOns: AddOnRequest[]
+}
+
+export type ProductStatus = 'ACTIVE' | 'ARCHIVED' | 'ALL'
+export type ProductSort = 'NAME' | 'CODE' | 'PRICE' | 'UPDATED'
+
+/** `GET /v1/products` filters. Every one is optional; absent ones are not sent. */
+export type ProductListQuery = {
+  q?: string
+  /** ACTIVE, ARCHIVED or ALL; absent keeps the server's old default (active only). */
+  status?: ProductStatus
+  /** Exact match, for a scanner. */
+  barcode?: string
+  kindId?: string
+  /** Any kind in the group. */
+  groupId?: string
+  itemKind?: ProductItemKind
+  sort?: ProductSort
+  direction?: 'ASC' | 'DESC'
+  size?: number
+  page?: number
+}
+
+/** The list's path, which is also the request's identity. The first page leaves `page` out. */
+export function productListPath(query: ProductListQuery): string {
+  return withQuery(PRODUCTS_PATH, {
+    q: query.q?.trim(),
+    status: query.status,
+    barcode: query.barcode?.trim(),
+    kindId: query.kindId,
+    groupId: query.groupId,
+    itemKind: query.itemKind,
+    sort: query.sort,
+    direction: query.direction,
+    size: query.size ?? PRODUCT_PICKER_SIZE,
+    page: query.page && query.page > 0 ? query.page : undefined,
+  })
 }
 
 /**
@@ -99,10 +237,7 @@ export function updateProduct(
   })
 }
 
-/**
- * Archives a product. `DELETE` never erases: issued invoices keep naming it.
- * TODO(backend): there is no route to put an archived product back on sale (INCOME.md P.14).
- */
+/** Archives a product. `DELETE` never erases: issued invoices keep naming it. */
 export function archiveProduct(id: string, expectedVersion: number): Promise<ProductDto> {
   return apiRequest<ProductDto>(withQuery(productPath(id), { expectedVersion }), {
     method: 'DELETE',
@@ -115,4 +250,29 @@ export async function searchProducts(path: string): Promise<Page<ProductDto>> {
 
 export function createProduct(product: NewProduct): Promise<ProductDto> {
   return apiRequest<ProductDto>(PRODUCTS_PATH, { method: 'POST', body: product })
+}
+
+/**
+ * `POST /v1/products/{id}/reactivate` (INCOME.md P.14): an archived product back on sale. Refused
+ * while another active product holds its code, barcode or a variant code.
+ */
+export function reactivateProduct(id: string, expectedVersion: number): Promise<ProductDto> {
+  return apiRequest<ProductDto>(withQuery(`${productPath(id)}/reactivate`, { expectedVersion }), {
+    method: 'POST',
+  })
+}
+
+/**
+ * `PUT /v1/products/{id}/variants`: sizes, options, their combinations and add-ons in one call,
+ * under the product's version (the item and its setup are one record). Answers the whole product.
+ */
+export function saveProductVariants(
+  id: string,
+  expectedVersion: number,
+  body: ProductVariantsRequest,
+): Promise<ProductDto> {
+  return apiRequest<ProductDto>(withQuery(`${productPath(id)}/variants`, { expectedVersion }), {
+    method: 'PUT',
+    body,
+  })
 }

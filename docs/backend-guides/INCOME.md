@@ -825,6 +825,22 @@ update rows P.1, P.2 and P.13 above (their original text stays as asked), and P.
 | P.15 | List archived products on their own | `GET /v1/products` has only `activeOnly` (default true; false lists active and archived together); there is no filter for archived products only, so the catalogue list cannot draw an "Archived" tab with a server count. Needed: `status=ACTIVE \| ARCHIVED \| ALL` (or `archivedOnly=true`) with `totalElements` for each |
 | P.16 | The product bodies in the openapi | `openapi.yaml` types the `/products` request and response as `{type: object}`; document `ProductRequest` (code, name, description, defaultUnitCode, defaultUnitPrice, defaultTaxCategory, defaultTaxRate, classification: `ItemClassificationRequest`), `ProductResponse` (the above flattened as `classification*`, plus active, archivedAt, version) and `ProductPageResponse`, and the refusal codes (`PRODUCT_CODE_DUPLICATE`, `PRODUCT_VERSION_CONFLICT`, `PRODUCT_ARCHIVED`, `PRODUCT_NOT_FOUND`, `HS_CODE_*`, `SERVICE_TYPE_CODE_INVALID`) |
 
+## Update 2026-10-26 (catalogue fields, sizes and options, archived list)
+
+The item form, the Sizes and options page and the catalogue list now read and send the fields the
+backend added for rows P.3, P.4, P.5, P.14 and P.15, under the backend's names. These notes update
+those rows (their original text stays as asked).
+
+| #   | What the screen does | Backend |
+| --- | --- | --- |
+| P.3 (update) | The item form sends the no-VAT reason it asks for | **Done**, under the backend's names: `defaultTaxReasonCode` (VATZR-OM for Z, VATEX-OM for E) and `defaultTaxReasonText` (O), not `exemptionReasonCode` / `exemptionReason`. The invoice line picked from the product starts with them |
+| P.4 (update) | The catalogue discount | **Done**: `defaultDiscount: {type: PERCENTAGE \| FIXED_AMOUNT, value}`, null for none |
+| P.5 (update) | Save the item form | **Done**: `nameAr`, `barcode`, `kindId` (from `GET /v1/catalog/groups`), `itemKind` (`HAND_OVER`, `DO`, `BY_TIME`, `BUNDLE`, the four cards), `priceEntryIncludesVat`, `staffCanChangePrice`, `keepCount` (goods only), and `sizes` / `addOns` (with each size's code and on/off while the item has no options). The Sizes and options page saves sizes, options, every combination's code, on/off and hand-set price, and the add-ons with `PUT /v1/products/{id}/variants?expectedVersion=`, and shows the server's `variant.price`. A new item starts with no price, sizes or add-ons. Each refusal code in the contract is worded on the form |
+| P.13 (update) | Read one product | **Done** for P.1 to P.5 with sizes, options, variants and add-ons. Still asked: the P.9 branch settings |
+| P.14 (update) | Put an archived product back on sale | **Done**: `POST /v1/products/{id}/reactivate?expectedVersion=`, offered on the item form of an archived item and on its row in the Off sale tab |
+| P.15 (update) | List archived products on their own | **Done**: the catalogue's Off sale tab reads `status=ARCHIVED`, and its count is `totalElements` of `status=ARCHIVED&size=1`. The list also sends `sort` / `direction` for its Sort menu; the search is `q`, which now matches the Arabic name, barcode and variant codes |
+| P.17 | Sales and usage figures on a saved item | the item form's "Where it's used" card (sold in 90 days, revenue, most popular size, open invoices) and the "sold N times" pill are drawn for a new item only; a saved item needs these figures on the product or a route of its own |
+
 ## Update 2026-10-23 (share an invoice by email and WhatsApp)
 
 Owner decision of 23 Oct 2026: a person can send a copy of an issued invoice to anyone by email

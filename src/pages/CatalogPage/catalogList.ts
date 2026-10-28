@@ -1,4 +1,4 @@
-import type { ProductDto } from '../../api/catalog/products'
+import type { ProductDto, ProductListQuery } from '../../api/catalog/products'
 import { itemTypeOfUnit, OMAN_VAT_CATEGORIES } from '../../lib/invoiceDraft'
 
 /** Goods or service: the product's own flag (`classificationGoodsOrService`), else its unit. */
@@ -16,9 +16,9 @@ export const needsAttention = (product: ProductDto) =>
 /**
  * The catalogue list's tabs: only the ones a product record can answer.
  *
- * TODO(backend): the frame's "On sale", "Never sold" and "Switched off" tabs need an on-sale
- * switch and per-item sales figures the product does not carry yet
- * (docs/backend-guides/INCOME.md, rows P.1 to P.5, and the sales figures), so they are not drawn.
+ * Items taken off sale have their own tab, read from the server (`status=ARCHIVED`, P.15).
+ * TODO(backend): the frame's "On sale", "Never sold" and "Switched off" tabs need the per-branch
+ * on/off (P.9) and per-item sales figures (P.17), so they are not drawn.
  */
 export const CATALOG_TABS = [
   { id: 'all', labelKey: 'catalogReal.tab.all' },
@@ -26,6 +26,8 @@ export const CATALOG_TABS = [
   { id: 'services', labelKey: 'catalogReal.tab.services' },
   { id: 'attention', labelKey: 'catalogReal.tab.attention' },
   { id: 'notStandard', labelKey: 'catalogReal.tab.notStandard' },
+  // Off sale: read on its own with `status=ARCHIVED` (INCOME.md P.15), counted by the server.
+  { id: 'archived', labelKey: 'catalogReal.tab.archived' },
 ] as const
 
 export type CatalogTab = (typeof CATALOG_TABS)[number]['id']
@@ -40,6 +42,8 @@ export function matchesCatalogTab(product: ProductDto, tab: CatalogTab): boolean
       return needsAttention(product)
     case 'notStandard':
       return product.defaultTaxCategory !== 'S'
+    case 'archived':
+      return !product.active
     default:
       return true
   }
@@ -53,6 +57,14 @@ export const CATALOG_SORTS = [
 ] as const
 
 export type CatalogSort = (typeof CATALOG_SORTS)[number]['value']
+
+/** The server's order for each choice, so sorting runs across every page, not just this one. */
+export const SERVER_SORT: Record<CatalogSort, Pick<ProductListQuery, 'sort' | 'direction'>> = {
+  name: { sort: 'NAME', direction: 'ASC' },
+  code: { sort: 'CODE', direction: 'ASC' },
+  priceLow: { sort: 'PRICE', direction: 'ASC' },
+  priceHigh: { sort: 'PRICE', direction: 'DESC' },
+}
 
 /** The loaded page, narrowed to a tab and put in the chosen order. Never changes `products`. */
 export function catalogRows(

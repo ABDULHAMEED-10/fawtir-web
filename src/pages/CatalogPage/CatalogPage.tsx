@@ -4,7 +4,14 @@ import { CatalogShell, Kpi, TabStrip } from './CatalogShell'
 import { useApiRead } from '../../hooks'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { FilterMenu, Pager, Rial, SortMenu } from '../../components/ui'
-import { productSearchPath, searchProducts, type ProductDto } from '../../api/catalog/products'
+import {
+  productListPath,
+  reactivateProduct,
+  searchProducts,
+  type ProductDto,
+} from '../../api/catalog/products'
+import { productRefusal } from '../../lib/productForm'
+import { describeApiFailure } from '../../lib/apiFailure'
 import { pageCountOf, type Page } from '../../api'
 import { Link } from 'react-router-dom'
 import { CatalogEmptyState } from './CatalogEmptyState'
@@ -14,6 +21,7 @@ import { OMAN_VAT_CATEGORIES } from '../../lib/invoiceDraft'
 import {
   CATALOG_SORTS,
   CATALOG_TABS,
+  SERVER_SORT,
   catalogRows,
   kindOf,
   matchesCatalogTab,
@@ -43,9 +51,11 @@ const SEARCH_DELAY_MS = 250
  * Styled as the Catalog frame (Figma "Catalog -> Main Screen"): figure cards, the tab strip, a
  * search with Filters and Sort, the dark table head, item rows with their kind, price and VAT in
  * words, and the page numbers the server's paging answers. Every figure is worked out
- * from the products the server returned; the frame's groups, stock and sales columns have no
- * field on the product yet (docs/backend-guides/INCOME.md, rows P.1 to P.10), so they are not
- * drawn rather than invented.
+ * from the products the server returned; the frame's stock and sales columns have no field on
+ * the product yet (docs/backend-guides/INCOME.md, rows P.9 and P.10), so they are not drawn
+ * rather than invented. The search matches code, name, Arabic name, barcode and variant codes on
+ * the server; the sort is the server's (`sort`, `direction`); the Archived tab reads
+ * `status=ARCHIVED` and offers Put back on sale (P.14, P.15).
  */
 export function CatalogPage() {
   const { t, i18n } = useTranslation()
@@ -53,8 +63,15 @@ export function CatalogPage() {
   // The search and its page move together: a new search starts again from its first page.
   const [{ search, page }, setPaging] = useState({ search: '', page: 0 })
   const setPage = (next: number) => setPaging((current) => ({ ...current, page: next }))
-  const [tab, setTab] = useState<CatalogTab>('all')
+  const [tab, setTabState] = useState<CatalogTab>('all')
+  const archivedTab = tab === 'archived'
+  // Moving in or out of Archived reads another list, so it starts from its first page.
+  const setTab = (next: CatalogTab) => {
+    if ((next === 'archived') !== archivedTab) setPage(0)
+    setTabState(next)
+  }
   const [sort, setSort] = useState<CatalogSort>('name')
+  const [actionProblem, setActionProblem] = useState<string | null>(null)
   // New item writes to /v1/products, so it follows product.manage rather than the prototype switch.
   const canManage = useCanManageProducts() === true
   useEffect(() => {
@@ -65,9 +82,39 @@ export function CatalogPage() {
     return () => window.clearTimeout(id)
   }, [query])
 
-  const path = productSearchPath(search, CATALOG_PAGE_SIZE, page)
-  const products = useApiRead<Page<ProductDto>>(path, () => searchProducts(path))
+  const order = SERVER_SORT[sort]
+  const path = productListPath({
+    q: search,
+    size: CATALOG_PAGE_SIZE,
+    page: archivedTab ? 0 : page,
+    ...order,
+  })
+  const active = useApiRead<Page<ProductDto>>(path, () => searchProducts(path))
+  const archivedPath = productListPath({
+    q: search,
+    status: 'ARCHIVED',
+    size: CATALOG_PAGE_SIZE,
+    page,
+    ...order,
+  })
+  const archived = useApiRead<Page<ProductDto>>(archivedTab ? archivedPath : null, () =>
+    searchProducts(archivedPath),
+  )
+  // The Archived tab's count: one row is enough, `totalElements` counts them all.
+  const archivedCountPath = productListPath({ q: search, status: 'ARCHIVED', size: 1 })
+  const archivedCount = useApiRead<Page<ProductDto>>(archivedCountPath, () =>
+    searchProducts(archivedCountPath),
+  )
+  const archivedTotal =
+    archivedCount.read.status === 'ready'
+      ? (archivedCount.read.data.total ?? archivedCount.read.data.items.length)
+      : 0
+  const products = archivedTab ? archived : active
   const loaded = products.read.status === 'ready' ? products.read.data : null
+  const activeItems = useMemo(
+    () => (active.read.status === 'ready' ? active.read.data.items : []),
+    [active.read],
+  )
   const items = useMemo(() => loaded?.items ?? [], [loaded])
   const total = loaded ? (loaded.total ?? items.length) : null
   const pageCount = loaded ? pageCountOf(loaded) : 1
@@ -78,11 +125,33 @@ export function CatalogPage() {
     () => catalogRows(items, tab, sort, i18n.language),
     [items, tab, sort, i18n.language],
   )
+  // The tabs other than Archived count the page of products on sale.
   const tabCount = (id: CatalogTab) =>
-    items.filter((product) => matchesCatalogTab(product, id)).length
+    id === 'archived'
+      ? archivedTotal
+      : activeItems.filter((product) => matchesCatalogTab(product, id)).length
   const services = items.filter((product) => kindOf(product) === 'service').length
   const attention = items.filter(needsAttention).length
   const notStandard = items.filter((product) => product.defaultTaxCategory !== 'S').length
+
+  /** Puts an archived item back on sale (P.14), then reads both lists again. */
+  const reactivate = async (product: ProductDto) => {
+    setActionProblem(null)
+    try {
+      await reactivateProduct(product.id, product.version)
+      archived.retry()
+      archivedCount.retry()
+      active.retry()
+    } catch (error) {
+      const refusal = productRefusal(error)
+      if (refusal) {
+        setActionProblem(t(refusal.key))
+        return
+      }
+      const message = describeApiFailure(error)
+      setActionProblem(t(message.key, message.values))
+    }
+  }
 
   const price = (value: number) =>
     value.toLocaleString(i18n.language, { minimumFractionDigits: 3, maximumFractionDigits: 3 })
@@ -97,7 +166,15 @@ export function CatalogPage() {
 
   // A company with no products yet, and nothing being searched, gets the Figma "Empty State":
   // the ways to start a catalogue instead of an empty table.
-  if (loaded && page === 0 && !search && !query.trim() && items.length === 0) {
+  if (
+    loaded &&
+    !archivedTab &&
+    page === 0 &&
+    !search &&
+    !query.trim() &&
+    items.length === 0 &&
+    archivedTotal === 0
+  ) {
     return <CatalogEmptyState notice={unavailable} />
   }
 
@@ -135,7 +212,16 @@ export function CatalogPage() {
     >
       {unavailable}
 
-      {products.read.status === 'ready' && !search ? (
+      {actionProblem ? (
+        <p
+          role="alert"
+          className="rounded-md bg-danger-100 px-5 py-3 text-sm font-medium text-danger-700"
+        >
+          {actionProblem}
+        </p>
+      ) : null}
+
+      {products.read.status === 'ready' && !search && !archivedTab ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Kpi
             icon={kpiItemsIcon}
@@ -191,7 +277,7 @@ export function CatalogPage() {
         <h2 id="catalog-products" className="sr-only">
           {t('catalogReal.products')}
         </h2>
-        {loaded && items.length > 0 ? (
+        {(loaded && items.length > 0) || archivedTab || archivedTotal > 0 ? (
           <TabStrip tabs={CATALOG_TABS} value={tab} onChange={setTab} count={tabCount} />
         ) : null}
 
@@ -303,6 +389,15 @@ export function CatalogPage() {
                               >
                                 {product.code}
                               </p>
+                              {!product.active && canManage ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void reactivate(product)}
+                                  className="mt-2 inline-flex h-[32px] items-center rounded-sm border border-border-subtle bg-white px-3 text-xs font-semibold text-primary-700 transition-colors hover:bg-primary-25"
+                                >
+                                  {t('catalog.rowMenu.switchOn')}
+                                </button>
+                              ) : null}
                               {/* Below md the Kind and Tax columns fold in here, so the price
                                   stays on screen at 390 px. */}
                               <p className="mt-1 text-xs font-medium text-text-quaternary md:hidden">

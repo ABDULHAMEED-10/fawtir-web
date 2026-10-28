@@ -253,7 +253,7 @@ describe('product line mapping', () => {
           classificationServiceTypeCode: '00000000',
           defaultTaxCategory: 'Z',
           defaultTaxRate: 0,
-          exemptionReasonCode: 'VATZR-OM-01',
+          defaultTaxReasonCode: 'VATZR-OM-01',
           defaultDiscount: { type: 'PERCENTAGE', value: 10 },
         }),
         true,
