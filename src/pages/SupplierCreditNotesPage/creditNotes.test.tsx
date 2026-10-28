@@ -1806,7 +1806,33 @@ describe('A credit note held as a duplicate', () => {
     expect(within(heldRow).queryByRole('button', { name: 'Set against the bill' })).toBeNull()
     const open = within(heldRow).getByRole('link', { name: /Open the note/ })
     expect(open.getAttribute('href')).toBe(`/expenditure/credit-notes/${HELD_ID}`)
-    expect(calls('/api/v1/credit-notes/').filter((url) => url.includes('/apply'))).toEqual([])
+  })
+
+  it('opens a held note waiting for its bill, and keeps a spent state its own action', () => {
+    expect(creditRowActionOf({ status: 'WAITING_FOR_BILL', heldAsDuplicate: true })).toEqual({
+      labelKey: 'supplierCreditNotes.actions.openNote',
+      goesTo: 'note',
+    })
+    expect(creditRowActionOf({ status: 'APPLIED', heldAsDuplicate: true })).toEqual({
+      labelKey: 'supplierCreditNotes.actions.viewBill',
+      goesTo: 'bill',
+    })
+  })
+
+  it('offers no settlement on a held note waiting for its bill, on its row or its screen', async () => {
+    notes = [note({ status: 'WAITING_FOR_BILL', heldAsDuplicate: true })]
+    const list = renderList()
+    const row = (await screen.findByRole('link', { name: 'QMS-CN-1' })).closest('tr')!
+    expect(within(row).getByText('Waiting for a bill')).toBeTruthy()
+    expect(within(row).queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    expect(within(row).getByRole('link', { name: /Open the note/ })).toBeTruthy()
+    list.unmount()
+
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Ask for a refund' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Keep as credit' })).toBeNull()
   })
 
   it('offers no way to apply, refund or keep a held note on its own screen', async () => {

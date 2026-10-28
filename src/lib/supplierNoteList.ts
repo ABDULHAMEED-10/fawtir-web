@@ -167,14 +167,24 @@ export const CREDIT_ROW_ACTION: Record<
   PARTLY_USED: { labelKey: 'supplierCreditNotes.actions.openNote', goesTo: 'note' },
 }
 
+type CreditRowAction = (typeof CREDIT_ROW_ACTION)[CreditState]
+
+const HELD_CREDIT_ROW_ACTION: CreditRowAction = {
+  labelKey: 'supplierCreditNotes.actions.openNote',
+  goesTo: 'note',
+}
+
 /**
- * The row's action. A held duplicate keeps the UNAPPLIED status its balance gives, but the server
- * refuses to apply or refund it, so "Set against the bill" would only fail: the row opens the note.
+ * The row's action. A held duplicate keeps the status its balance gives (UNAPPLIED or
+ * WAITING_FOR_BILL, since it credits nothing), but the server refuses to apply or refund it, so
+ * "Set against the bill" would only fail: the row opens the note, where the hold is decided.
+ * Spent states are left alone, since their actions settle nothing.
  */
 export function creditRowActionOf(
   note: Pick<CreditNoteItem, 'status' | 'heldAsDuplicate'>,
-): (typeof CREDIT_ROW_ACTION)[CreditState] {
-  return note.heldAsDuplicate ? CREDIT_ROW_ACTION.PARTLY_USED : CREDIT_ROW_ACTION[note.status]
+): CreditRowAction {
+  const unspent = note.status === 'UNAPPLIED' || note.status === 'WAITING_FOR_BILL'
+  return note.heldAsDuplicate && unspent ? HELD_CREDIT_ROW_ACTION : CREDIT_ROW_ACTION[note.status]
 }
 
 /** What the figure column says under the amount. */
