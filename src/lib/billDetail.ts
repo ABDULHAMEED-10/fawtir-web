@@ -97,7 +97,10 @@ export function stepsOf(detail: BillDetailDto, format: DateFormat): BillStep[] {
     state: 'upcoming',
     detail: null,
   }
-  if (readiness.state === 'READY') {
+  // A held copy is never "approved" or "not needed", whatever an older server's readiness says:
+  // nothing pays it until the duplicate check is decided.
+  const held = readiness.heldAsDuplicate === true || heldAsDuplicate(detail)
+  if (readiness.state === 'READY' && !held) {
     approved.state = 'done'
     approved.detail = {
       key: readiness.autoApproved ? 'billDetail.steps.notNeeded' : 'billDetail.steps.approvedDone',

@@ -8,7 +8,7 @@ import {
   refusalMeansStale,
   rowDuplicateOf,
 } from './billDuplicate'
-import { activityOf, decisionNoteOf, decisionsOf } from './billDetail'
+import { activityOf, canRecordPayment, decisionNoteOf, decisionsOf, stepsOf } from './billDetail'
 import { REFUSAL_FALLBACK_KEY, refusalMessageKey } from './expenditureRefusals'
 import { BILL_TABS, rowActionOf, toBillListItem, visibleBillTabs } from './billList'
 import { billByNumber } from '../components/debit/noteBill'
@@ -229,6 +229,38 @@ describe('who may decide, and what', () => {
   })
 })
 
+describe('readiness and payment on a held copy', () => {
+  const FORMAT = { day: (iso: string) => iso, instantDay: (iso: string) => iso }
+  const approvedStep = (bill: BillDetailDto) => stepsOf(bill, FORMAT).find((step) => step.id === 'approved')!
+  const ready = { state: 'READY' as const, distinctApprovals: 0, required: 1, autoApproved: true }
+
+  it('never says approved or "not needed" on a held copy, even from a server that reports READY', () => {
+    const open = hold()
+    const held = detail(row({ readiness: ready, hold: { reason: 'x', openedAt: open.openedAt, duplicateOfBillId: ORIGINAL } }), open, [open])
+    held.readiness = ready
+    const step = approvedStep(held)
+    expect(step.state).not.toBe('done')
+    expect(step.detail?.key).not.toBe('billDetail.steps.notNeeded')
+    expect(decisionNoteOf(held).key).toBe('billDetail.duplicate.decision.suspected')
+  })
+
+  it("reads the readiness's own heldAsDuplicate flag", () => {
+    const flagged = detail(row({ workflowState: 'APPROVED', hold: null }), null, [])
+    flagged.readiness = { ...ready, heldAsDuplicate: true }
+    expect(approvedStep(flagged).state).not.toBe('done')
+    // Without the flag the same readiness reads as approved by its amount, as before.
+    flagged.readiness = ready
+    expect(approvedStep(flagged).detail?.key).toBe('billDetail.steps.notNeeded')
+  })
+
+  it('offers no payment on a held copy, whatever its readiness', () => {
+    const open = hold()
+    const held = detail(row({ readiness: ready, hold: { reason: 'x', openedAt: open.openedAt, duplicateOfBillId: ORIGINAL } }), open, [open])
+    held.readiness = ready
+    expect(canRecordPayment(held, () => true)).toBe(false)
+  })
+})
+
 describe('the refusals of the duplicate route', () => {
   it('names each through the shared refusal map: the 409s by code, the 400s as refusals', () => {
     expect(refusalMessageKey(conflict('BILL_DUPLICATE_ALREADY_RESOLVED'))).toBe('billDetail.duplicate.refused.alreadyResolved')
@@ -237,6 +269,7 @@ describe('the refusals of the duplicate route', () => {
     expect(refusalMessageKey(conflict('BILL_HOLD_DUPLICATE_RELEASE_REFUSED'))).toBe('billDetail.duplicate.refused.releaseRefused')
     expect(refusalMessageKey(conflict('BILL_APPROVAL_HELD_AS_DUPLICATE'))).toBe('billDetail.duplicate.refused.approvalHeld')
     expect(refusalMessageKey(conflict('BILL_REJECTION_HELD_AS_DUPLICATE'))).toBe('billDetail.duplicate.refused.rejectionHeld')
+    expect(refusalMessageKey(conflict('DEBIT_NOTE_HELD_AS_DUPLICATE'))).toBe('supplierDebitNotes.held.refused')
     expect(refusalMessageKey(refused('BILL_DUPLICATE_RESOLUTION_NOTE_REQUIRED'))).toBe('billDetail.duplicate.refused.noteRequired')
     expect(refusalMessageKey(refused('BILL_DUPLICATE_RESOLUTION_NOTE_TOO_LONG'))).toBe('billDetail.duplicate.refused.noteTooLong')
     // Not reachable from the screen, which always sends a known decision.

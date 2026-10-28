@@ -63,7 +63,17 @@ export type BillRowDto = {
    * reads `MISMATCH`). Not read by the screens: what is left to approve comes from `readiness`.
    */
   approval?: string
-  readiness: { state: 'PENDING' | 'READY' | 'REJECTED'; distinctApprovals: number; required: number; autoApproved: boolean }
+  readiness: {
+    state: 'PENDING' | 'READY' | 'REJECTED'
+    distinctApprovals: number
+    required: number
+    autoApproved: boolean
+    /**
+     * A copy held as a duplicate: the server then reports PENDING and never auto-approved,
+     * whatever its amount. Absent from an older server.
+     */
+    heldAsDuplicate?: boolean
+  }
   match: {
     verdict: 'MATCHED' | 'MATCHED_BY_HAND' | 'MISMATCH' | 'NO_ORDER'
     purchaseOrderNumber: string | null

@@ -1023,3 +1023,74 @@ describe('the end-to-end check of 10 Oct 2026', () => {
     expect(within(activity).queryAllByText(/^Refused$/)).toHaveLength(0)
   })
 })
+
+// Backend #804: accepting a held copy is refused until its duplicate check is decided; refusing
+// it is a separate decision the server still takes.
+describe('a debit note held as a possible duplicate', () => {
+  it('offers Refuse and not Accept, says why, and leads to its duplicate check', async () => {
+    notes = [note({ heldAsDuplicate: true })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(screen.getAllByText('Held as duplicate').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: 'Accept it' })).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'Refuse it' }).length).toBeGreaterThan(0)
+    expect(screen.getByText(/You can still refuse it\./)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Open the duplicate check' })).toBeTruthy()
+  })
+
+  it('still offers Accept on a note not held, and on one from a server that does not say', async () => {
+    notes = [note({ heldAsDuplicate: false })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(screen.getAllByRole('button', { name: 'Accept it' }).length).toBeGreaterThan(0)
+    expect(screen.queryByText('Held as duplicate')).toBeNull()
+  })
+
+  it('says why accepting is refused when the note became held after it was read, and reads it again', async () => {
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes(`/debit-notes/${NOTE_ID}/accept`)) {
+        acceptCalls += 1
+        // The re-read finds it held.
+        notes = [note({ heldAsDuplicate: true })]
+        return json(409, {
+          type: 'https://api.fawtir.om/problems/resource-conflict',
+          error: 'DEBIT_NOTE_HELD_AS_DUPLICATE',
+          detail: 'English detail never shown',
+        })
+      }
+      return base(input, init)
+    })
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    fireEvent.click(cardButton('Accept it'))
+    expect(
+      await screen.findByText(
+        "This debit note is held as a possible duplicate, so it can't be accepted yet. Decide the duplicate check on its bill first.",
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText('English detail never shown')).toBeNull()
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Accept it' })).toBeNull())
+    expect(acceptCalls).toBe(1)
+    expect(calls(`/api/v1/debit-notes/${NOTE_ID}`).filter((url) => !url.includes('/decisions')).length).toBeGreaterThan(1)
+  })
+
+  it('shows the held chip in the list, with the way to its duplicate check', async () => {
+    notes = [note({ heldAsDuplicate: true })]
+    renderList()
+    await screen.findByText('QMS-DN-1')
+    expect(screen.getByText('Held as duplicate')).toBeTruthy()
+    expect(screen.queryByText('Nobody has checked it')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Open the duplicate check' }).getAttribute('href')).toBe(
+      `/expenditure/bills/${NOTE_ID}`,
+    )
+    expect(screen.queryByRole('link', { name: 'Accept or refuse' })).toBeNull()
+  })
+
+  it('says it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    notes = [note({ heldAsDuplicate: true })]
+    renderDetail()
+    expect((await screen.findAllByText('محجوز كنسخة مكررة')).length).toBeGreaterThan(0)
+  })
+})
