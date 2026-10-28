@@ -36,11 +36,13 @@ import {
   type InvoiceAttachmentDto,
   type InvoiceDetailDto,
   type InvoiceDispatchDto,
+  type InvoiceLineWarningDto,
   type InvoiceHistoryDto,
   type InvoicePaymentDto,
   type InvoiceReceivableDto,
   type InvoiceSendResultDto,
 } from '../../api/invoices/detail'
+import { stockLineWarningTexts } from '../../lib/stockLineWarnings'
 import { loadBranches, type BranchDto } from '../../api/invoices/drafts'
 import { useBranchName } from '../../components/branch/useBranchName'
 import { invoiceListPath, loadInvoicePage, type InvoiceRowDto } from '../../api/invoices/list'
@@ -411,6 +413,7 @@ function InvoiceScreen() {
   const arrival = location.state as {
     issuedNumber?: string | null
     marksFailed?: ('paid' | 'sent')[]
+    stockWarnings?: InvoiceLineWarningDto[]
   } | null
   const issuedNumber = arrival?.issuedNumber
   const [notice, setNotice] = useState<
@@ -421,6 +424,7 @@ function InvoiceScreen() {
           body: [
             t('invoiceIssue.done', { number: issuedNumber }),
             ...(arrival?.marksFailed ?? []).map((mark) => t(`invoiceIssue.markFailed.${mark}`)),
+            ...stockLineWarningTexts(t, arrival?.stockWarnings),
           ].join(' '),
         }
       : null,
@@ -1809,7 +1813,18 @@ function InvoiceScreen() {
           onClose={() => setIssuing(false)}
           onIssued={(issued) => {
             setIssuing(false)
-            setNotice({ key: 'invoiceIssue.done', values: { number: issued.invoiceNumber ?? '' } })
+            // The lines that moved no stock are said with the number (STOCK-CONTRACT section 6).
+            const stock = stockLineWarningTexts(t, issued.warnings)
+            setNotice(
+              stock.length > 0
+                ? {
+                    body: [
+                      t('invoiceIssue.done', { number: issued.invoiceNumber ?? '' }),
+                      ...stock,
+                    ].join(' '),
+                  }
+                : { key: 'invoiceIssue.done', values: { number: issued.invoiceNumber ?? '' } },
+            )
             // Payments load on their own once the reread says the invoice is issued.
             invoice.retry()
             receivable.retry()

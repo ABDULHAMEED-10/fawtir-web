@@ -9,6 +9,7 @@ import type { InvoiceRowDto } from '../../api/invoices/list'
 import {
   NOTE_REFUSALS,
   addedLine,
+  asksBackOnShelf,
   creditEffect,
   debitPaymentOf,
   fromInvoice,
@@ -1652,4 +1653,80 @@ describe("the note's preview paper names the seller and the buyer", () => {
     expect(sheet.getByText('Port Road')).toBeTruthy()
     expect(sheet.queryByText('Your company')).toBeNull()
   }, 30_000)
+})
+
+describe('"Back on the shelf?" on a credit note (V473)', () => {
+  /** p-1 (Green beans) keeps a count; p-2 (Roasting) does not. */
+  const products = (url: string) => {
+    if (url === '/api/v1/products/p-1') return json(200, { id: 'p-1', keepCount: true })
+    if (url === '/api/v1/products/p-2') return json(200, { id: 'p-2', keepCount: false })
+    return undefined
+  }
+
+  it('asks it on a counted line only, and sends the answer on that line alone', async () => {
+    override = products
+    renderAt(`/income/credit-notes/new?invoice=${INVOICE_ID}`)
+    const shelf = await screen.findByRole('switch', { name: 'Back on the shelf? · Green beans' })
+    expect(screen.queryByRole('switch', { name: 'Back on the shelf? · Roasting' })).toBeNull()
+    expect(shelf.getAttribute('aria-checked')).toBe('false')
+    fireEvent.click(shelf)
+    expect(shelf.getAttribute('aria-checked')).toBe('true')
+
+    chooseReason('Returned goods')
+    fireEvent.click(screen.getByRole('button', { name: 'Issue credit note' }))
+    expect(await screen.findByText('credit note page')).toBeTruthy()
+    const [created] = calls('POST', `/api/v1/authored-invoices/${INVOICE_ID}/credit-notes`)
+    const [beans, roasting] = bodyOf(created).lines
+    expect(beans).toMatchObject({ productId: 'p-1', backOnShelf: true })
+    expect(roasting.productId).toBe('p-2')
+    expect(roasting).not.toHaveProperty('backOnShelf')
+  }, 30_000)
+
+  it('never asks or sends it on a debit note, even for a counted product', async () => {
+    override = products
+    await readyDebitNote()
+    expect(screen.queryByRole('switch', { name: /Back on the shelf/ })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    expect(await screen.findByText('debit note page')).toBeTruthy()
+    const body = bodyOf(calls('POST', `/api/v1/authored-invoices/${INVOICE_ID}/debit-notes`)[0])
+    for (const sent of body.lines) expect(sent).not.toHaveProperty('backOnShelf')
+    // The debit composer does not even read the products.
+    expect(calls('GET', '/api/v1/products/')).toHaveLength(0)
+  }, 30_000)
+
+  it('sends it on an ordinary credit note only, never a self-billed one, and reads it back', () => {
+    const counted = new Set(['p-1'])
+    const form = fromInvoice(INVOICE, 'CREDIT_NOTE')
+    form.lines[0].backOnShelf = true
+    const credit = toNoteRequest(
+      { ...form, reason: 'returnedGoods' },
+      INVOICE,
+      'CREDIT_NOTE',
+      counted,
+    )
+    expect(credit.lines[0].backOnShelf).toBe(true)
+    expect(credit.lines[1]).not.toHaveProperty('backOnShelf')
+    const selfBilled = toNoteRequest(form, INVOICE, 'CREDIT_NOTE', counted, true)
+    for (const sent of selfBilled.lines) expect(sent).not.toHaveProperty('backOnShelf')
+    const debit = toNoteRequest(fromInvoice(INVOICE, 'DEBIT_NOTE'), INVOICE, 'DEBIT_NOTE', counted)
+    for (const sent of debit.lines) expect(sent).not.toHaveProperty('backOnShelf')
+    expect(asksBackOnShelf(form.lines[0], 'CREDIT_NOTE', counted, true)).toBe(false)
+
+    const reopened = fromNoteDraft(
+      {
+        ...DRAFT,
+        lines: [{ ...line(1, 'Green beans', 10, 4), backOnShelf: true }],
+      } as unknown as DraftResponse,
+      INVOICE,
+      'CREDIT_NOTE',
+    )
+    expect(reopened.lines[0].backOnShelf).toBe(true)
+  })
+
+  it('words the refusal of it on another document type', () => {
+    expect(NOTE_REFUSALS.BACK_ON_SHELF_ONLY_ON_CREDIT_NOTES).toBe(
+      'salesNote.backOnShelf.onlyOnCreditNotes',
+    )
+    expect(i18n.exists('salesNote.backOnShelf.onlyOnCreditNotes', { lng: 'ar' })).toBe(true)
+  })
 })

@@ -8950,7 +8950,9 @@
       "quantity": "Every line needs a quantity above zero",
       "unitPrice": "Every line needs a unit price",
       "vatRate": "A VAT rate cannot be negative",
-      "overBooked": "More than is still due on {{item}}"
+      "overBooked": "More than is still due on {{item}}",
+      "variant": "Choose the size or option this line buys.",
+      "stockUnits": "Say how many units one ordered unit holds: more than 0, up to three decimals."
     },
     "newCrumb": "New order",
     "detailTitle": "Purchase order {{number}}",
@@ -8992,6 +8994,22 @@
       "approve": "Approve it, and it can be marked as sent.",
       "send": "Once the supplier has the order, mark it as sent so goods can be booked in against it.",
       "close": "Everything ordered has arrived. Close the order to finish it."
+    },
+    "stock": {
+      "fromCatalogue": "From the catalogue",
+      "pick": "Line {{line}}: product from the catalogue",
+      "pickHint": "{{code}} · {{price}} / {{unit}}",
+      "unlink": "Not from the catalogue",
+      "chooseVariant": "Choose a size or option",
+      "variant": "Line {{line}}: size or option",
+      "unitsPerOrderUnit": "{{unit}} in one ordered unit",
+      "unitsPerOrderUnitLine": "Line {{line}}: stock units in one ordered unit",
+      "refused": {
+        "branchRequired": "This order has counted items, so it needs a branch to deliver to before goods can be booked in.",
+        "productNotFound": "A product on this order is no longer in your catalogue. Pick it again or type the line instead.",
+        "variantRequired": "A product on this order has sizes or options. Choose the one each line buys.",
+        "variantNotOnProduct": "A size or option on this order no longer belongs to its product. Choose it again."
+      }
     }
   },
   "recordBill": {
@@ -20344,6 +20362,13 @@
     "markFailed": {
       "paid": "The payment was not recorded. Use Record payment on this invoice.",
       "sent": "It was not marked as sent manually."
+    },
+    "stockWarning": {
+      "line": "Line {{line}}: {{text}}",
+      "STOCK_UNIT_MISMATCH": "it is in a different unit from the one the item is counted in, so no stock moved.",
+      "STOCK_VARIANT_UNKNOWN": "the item is counted by size or option and this line names none of them, so no stock moved.",
+      "STOCK_QUANTITY_NOT_WHOLE": "the item is counted in whole pieces, so a part quantity moved no stock.",
+      "STOCK_QUANTITY_INVALID": "the quantity has more than three decimals, so no stock moved."
     }
   },
   "supplierForm": {
@@ -21485,6 +21510,12 @@
       "latePaymentCharge": "Late payment charge",
       "priceEscalation": "Price escalation",
       "other": "Other"
+    },
+    "backOnShelf": {
+      "label": "Back on the shelf?",
+      "yes": "Yes, it goes back into stock when the note is issued",
+      "no": "No, the stock count stays as it is",
+      "onlyOnCreditNotes": "Only a credit note can put returned items back on the shelf. Remove the answer and save again."
     }
   },
   "stagedImport": {
@@ -24407,5 +24438,43 @@
     "suggest": "This HS code is on Oman's zero-rated {{list}} list on {{date}}. Zero-rated is suggested ({{reason}}). You can still choose another category.",
     "useSuggestion": "Use zero-rated",
     "flagged": "Flagged by the zero-rating check"
+  },
+  "invoiceForm": {
+    "unitLock": {
+      "hint": "Counted in {{unit}}, so the unit is fixed",
+      "unitName": {
+        "EA": "pieces",
+        "H87": "pieces",
+        "C62": "units",
+        "KGM": "kilograms",
+        "GRM": "grams",
+        "TNE": "tonnes",
+        "LTR": "litres",
+        "MLT": "millilitres",
+        "MTR": "metres",
+        "CMT": "centimetres",
+        "MTK": "square metres",
+        "MTQ": "cubic metres",
+        "DZN": "dozens",
+        "SET": "sets",
+        "PR": "pairs",
+        "XBX": "boxes",
+        "XCT": "cartons",
+        "XPK": "packs",
+        "XBG": "bags",
+        "XBO": "bottles",
+        "XCA": "cans",
+        "XRO": "rolls",
+        "XSA": "sacks",
+        "BX": "boxes",
+        "CT": "cartons",
+        "PK": "packs",
+        "BG": "bags",
+        "BO": "bottles",
+        "CA": "cans",
+        "RO": "rolls",
+        "SA": "sacks"
+      }
+    }
   }
 }

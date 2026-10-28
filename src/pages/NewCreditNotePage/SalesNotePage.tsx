@@ -40,6 +40,7 @@ import {
   type NoteKind,
 } from '../../api/invoices/drafts'
 import { invoiceListPath, loadInvoicePage, type InvoiceRowDto } from '../../api/invoices/list'
+import { getProduct } from '../../api/catalog/products'
 import { loadCustomer, type CustomerDto } from '../../api/customers/customers'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { selfBilledIssueMessageKey } from '../../lib/selfBillingRefusals'
@@ -52,6 +53,7 @@ import {
   NOTE_REFUSALS,
   NOTE_ROUTES,
   addedLine,
+  asksBackOnShelf,
   creditEffect,
   fromInvoice,
   fromNoteDraft,
@@ -543,6 +545,12 @@ function NoteEditor({
       ? null
       : Math.max(0, Math.round((documentTotal - credited) * 1000) / 1000)
   const lines = visibleLines(form)
+  // "Back on the shelf?" (V473): asked only on an ordinary credit note, for the lines whose
+  // product the catalogue counts. Self-billed notes and debit notes never ask.
+  const counted = useCountedProducts(
+    credit && !selfBilled ? invoice.lines.map((line) => line.productId) : [],
+  )
+  const asksShelf = (line: NoteLine) => asksBackOnShelf(line, kind, counted, selfBilled)
 
   const setLine = (lineNumber: number, patch: Partial<NoteLine>) =>
     setForm((current) => patchLine(current, kind, lineNumber, patch))
@@ -560,7 +568,7 @@ function NoteEditor({
       setNotice(t('salesNote.fixFirst'))
       return null
     }
-    const request = toNoteRequest(form, invoice, kind)
+    const request = toNoteRequest(form, invoice, kind, counted, selfBilled)
     const next = saved
       ? await saveDraft(saved.id, saved.version, request)
       : await withKey(createAttempt, (key) =>
@@ -873,6 +881,7 @@ function NoteEditor({
                   classified={classified}
                   tone={kindKey}
                   onChange={setLine}
+                  asksBackOnShelf={asksShelf}
                 />
               </div>
             ) : null}
@@ -899,6 +908,7 @@ function NoteEditor({
                 )}
                 tone={kindKey}
                 onChange={setLine}
+                asksBackOnShelf={asksShelf}
                 onAdd={() =>
                   setForm((current) => ({
                     ...current,
@@ -1292,6 +1302,40 @@ type KeyedAttempt = { key: string; refused: boolean }
  * Sends a keyed request: under a new key when the server refused the last one (4xx), under the
  * same key otherwise, so a retry after a timeout, a network error or a 5xx is a replay.
  */
+/**
+ * The ids among `productIds` whose product keeps a count (`keepCount`), read one by one from
+ * `GET /v1/products/{id}`. A product that cannot be read (removed, no access) is taken as not
+ * counted, so its line asks nothing and sends nothing.
+ */
+function useCountedProducts(productIds: (string | null | undefined)[]): ReadonlySet<string> {
+  const ids = [...new Set(productIds.filter((id): id is string => Boolean(id)))].sort()
+  const key = ids.join(',')
+  const [counted, setCounted] = useState<{ key: string; ids: ReadonlySet<string> }>({
+    key: '',
+    ids: new Set(),
+  })
+  useEffect(() => {
+    if (key === '') return
+    let active = true
+    Promise.all(
+      key.split(',').map((id) =>
+        getProduct(id).then(
+          (product) => (product.keepCount === true ? id : null),
+          () => null,
+        ),
+      ),
+    ).then((found) => {
+      if (active) setCounted({ key, ids: new Set(found.filter((id): id is string => id !== null)) })
+    })
+    return () => {
+      active = false
+    }
+  }, [key])
+  return counted.key === key ? counted.ids : EMPTY_SET
+}
+
+const EMPTY_SET: ReadonlySet<string> = new Set()
+
 async function withKey<T>(
   attempt: { current: KeyedAttempt },
   send: (key: string) => Promise<T>,

@@ -258,11 +258,18 @@ afterEach(() => {
 })
 
 function IssuedLanding() {
-  const state = useLocation().state as { issuedNumber?: string; marksFailed?: string[] } | null
+  const state = useLocation().state as {
+    issuedNumber?: string
+    marksFailed?: string[]
+    stockWarnings?: { line: number; code: string }[]
+  } | null
   return (
     <p>
       invoice page for {state?.issuedNumber}
       {state?.marksFailed?.length ? ` (marks refused: ${state.marksFailed.join(', ')})` : ''}
+      {state?.stockWarnings?.length
+        ? ` (stock: ${state.stockWarnings.map((w) => `${w.line} ${w.code}`).join(', ')})`
+        : ''}
     </p>
   )
 }
@@ -701,6 +708,28 @@ describe('issuing from the composer', () => {
       issueDate: today,
       dueDate: plusDays(today, 30),
     })
+  })
+
+  it("carries the issue answer's stock warnings to the invoice page, and only those", async () => {
+    who = ISSUER
+    issueResponse = () =>
+      json(200, {
+        ...draft({ version: 5, authoringState: 'ISSUED' }),
+        invoiceNumber: 'INV-2026-000003',
+        warnings: [
+          { line: 1, code: 'STOCK_UNIT_MISMATCH', severity: 'warning', message: 'x' },
+          { line: 1, code: 'ZR_NOT_ON_LIST', severity: 'warning', message: 'y' },
+        ],
+      })
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByText('Figures from the saved draft.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Issue this invoice?' })
+    expect(await within(dialog).findByText('20.160')).toBeTruthy()
+    fireEvent.submit(dialog.querySelector('form')!)
+    expect(
+      await screen.findByText('invoice page for INV-2026-000003 (stock: 1 STOCK_UNIT_MISMATCH)'),
+    ).toBeTruthy()
   })
 
   it('refuses a business invoice whose goods line has no HS code, naming the rule, until one is chosen', async () => {

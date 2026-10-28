@@ -33,6 +33,12 @@ export type PurchaseOrderLineDto = {
   vatRate: number | null
   lineNet: number
   vatAmount: number
+  /** The catalogue product the line buys (S2); null on a free-text line. Absent from older servers. */
+  productId?: string | null
+  /** Its size or option, when it has them. */
+  variantId?: string | null
+  /** How many of the product's own unit one ordered unit holds; 1 when there is no conversion. */
+  stockUnitsPerOrderUnit?: number
 }
 
 export type PurchaseOrderDto = {
@@ -67,6 +73,16 @@ export type PurchaseOrderLineRequest = {
   unit: string | null
   unitPrice: number
   vatRate: number | null
+  /**
+   * The catalogue product the line buys (S2). Goods received on a line whose product is counted
+   * (`keepCount`) raise its stock in the order's `deliverToBranchId`. Sent only for a picked
+   * product, so a free-text line's body is what it was.
+   */
+  productId?: string | null
+  /** Required exactly when the product has sizes or options (STOCK_VARIANT_REQUIRED). */
+  variantId?: string | null
+  /** How many of the product's own unit one ordered unit holds (a carton of 24 is 24); default 1. */
+  stockUnitsPerOrderUnit?: number
 }
 
 export type PurchaseOrderRequest = {
@@ -81,7 +97,11 @@ export type PurchaseOrderRequest = {
   lines: PurchaseOrderLineRequest[]
 }
 
-export type GoodsReceiptLineDto = { id: string; purchaseOrderLineId: string; quantityReceived: number }
+export type GoodsReceiptLineDto = {
+  id: string
+  purchaseOrderLineId: string
+  quantityReceived: number
+}
 
 export type GoodsReceiptDto = {
   id: string
@@ -130,14 +150,20 @@ export function createPurchaseOrder(body: PurchaseOrderRequest): Promise<Purchas
   return apiRequest<PurchaseOrderDto>(PURCHASE_ORDERS_PATH, { method: 'POST', body })
 }
 
-export function updatePurchaseOrder(id: string, body: PurchaseOrderRequest): Promise<PurchaseOrderDto> {
+export function updatePurchaseOrder(
+  id: string,
+  body: PurchaseOrderRequest,
+): Promise<PurchaseOrderDto> {
   return apiRequest<PurchaseOrderDto>(purchaseOrderPath(id), { method: 'PUT', body })
 }
 
 /** The transitions, each refused by the domain when the order is not in a state that allows it. */
 export type PurchaseOrderAction = 'submit' | 'approve' | 'send' | 'cancel' | 'close'
 
-export function actOnPurchaseOrder(id: string, action: PurchaseOrderAction): Promise<PurchaseOrderDto> {
+export function actOnPurchaseOrder(
+  id: string,
+  action: PurchaseOrderAction,
+): Promise<PurchaseOrderDto> {
   return apiRequest<PurchaseOrderDto>(`${purchaseOrderPath(id)}/${action}`, { method: 'POST' })
 }
 
@@ -146,6 +172,9 @@ export function loadGoodsReceipts(id: string): Promise<GoodsReceiptDto[]> {
 }
 
 /** Books goods in. The order moves itself to PARTIALLY_RECEIVED or RECEIVED as a result. */
-export function recordGoodsReceipt(id: string, body: GoodsReceiptRequest): Promise<GoodsReceiptDto> {
+export function recordGoodsReceipt(
+  id: string,
+  body: GoodsReceiptRequest,
+): Promise<GoodsReceiptDto> {
   return apiRequest<GoodsReceiptDto>(`${purchaseOrderPath(id)}/receipts`, { method: 'POST', body })
 }

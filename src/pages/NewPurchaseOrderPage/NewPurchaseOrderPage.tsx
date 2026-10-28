@@ -44,6 +44,8 @@ import {
   comparedWithLast,
   draftTotals,
   emptyLine,
+  lineProductFields,
+  orderStockRefusalKey,
   lineProblem,
   payableBy,
   type LineDraft,
@@ -172,6 +174,7 @@ function NewPurchaseOrder({ id }: { id: string }) {
         unit: line.unit.trim() || null,
         unitPrice: Number(line.unitPrice),
         vatRate: line.vatRate.trim() === '' ? null : Number(line.vatRate),
+        ...lineProductFields(line),
       })),
     }
     try {
@@ -182,7 +185,8 @@ function NewPurchaseOrder({ id }: { id: string }) {
       navigate(`/expenditure/purchase-orders/${created.id}`)
     } catch (error) {
       const message = describeApiFailure(error)
-      const text = t(message.key, message.values)
+      const stock = orderStockRefusalKey(error)
+      const text = stock ? t(stock) : t(message.key, message.values)
       setFailure(
         message.reference ? `${text} ${t('apiErrors.reference', { id: message.reference })}` : text,
       )
@@ -291,6 +295,8 @@ function NewPurchaseOrder({ id }: { id: string }) {
             <OrderLinesTable
               lines={lines}
               onChange={setLines}
+              catalogue
+              onPickFailure={setFailure}
               currency={currency}
               vatRate={vatRate}
               taxCategory={t(`reference.taxCategory.${category?.code ?? 'S5'}`, {

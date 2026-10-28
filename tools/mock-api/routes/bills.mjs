@@ -1813,7 +1813,9 @@ export default [
   {
     match: '/api/v1/purchase-orders',
     reply: ({ query }) => {
-      const items = ORDER_OPTIONS(query.get('supplierId') ?? '')
+      // `lines` too: this route shadows supplierRecord.mjs's list, and New purchase order reads
+      // the supplier's last order's lines for "Compared with the last one".
+      const items = ORDER_OPTIONS(query.get('supplierId') ?? '').map((o) => ({ lines: [], ...o }))
       return { items, page: 0, pageSize: 100, count: items.length, total: items.length }
     },
   },
