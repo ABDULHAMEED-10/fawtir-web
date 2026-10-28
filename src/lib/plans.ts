@@ -3,14 +3,11 @@
  * `Fawtir_Subscription_Defaults` (Sep 2026) and the client's plan ruling of 19–20 Sep 2026
  * (docs/erp-and-console-plan.md §9.5).
  *
- * NOT A PRICE SOURCE FOR SIGN-UP OR THE SITE. Since the catalogue contract (owner decision,
- * 9 Oct 2026) the database is the catalogue: `/plans` and `/pricing` read
- * `GET /v1/auth/signup/plans` and `GET /v1/public/plans`, payment and review show the amounts
- * `/signup/status` computes from the pinned price version, and the console edits it through
- * `/v1/platform/plans`. Those screens fail closed (retry, never these figures) when the read
- * fails, because a price shown there is the price a registrant chooses. The owner published
- * the figures below as the catalogue's current version, so they match it today, but nothing
- * keeps them in step.
+ * NO PRICES. Since the catalogue contract (owner decision, 9 Oct 2026) the database is the
+ * catalogue: `/plans` and `/pricing` read `GET /v1/auth/signup/plans` and `GET /v1/public/plans`,
+ * payment and review show the amounts `/signup/status` computes from the pinned price version,
+ * the console edits it through `/v1/platform/plans` and quotes a first invoice through
+ * `/v1/platform/plans/{code}/quote`. Every price is the server's (PY-2); this file holds none.
  *
  * What stays here: the `Feature` keys and their groups (the catalogue's `features[].key` values,
  * and the backend copies `COMPLIANCE_FEATURES`), the i18n label keys, fixtures for tests, the
@@ -181,23 +178,11 @@ export type CataloguePlan = {
   /** The backend's plan code — `subscriptions.plan_code`. */
   code: 'STARTER' | 'BUSINESS' | 'BUSINESS_PLUS'
   labelKey: string
-  /** Rial a month, billed monthly. Prices exclude VAT (5 %). */
-  monthly: number
   /** Tax documents a month, sent and received — the band the plan is chosen by. */
   documents: number
   people: number
   /** Null: the plan does not cap branches. */
   branches: number | null
-  /** What one more person costs a month. */
-  extraPerson: number
-  /** What one more branch costs a month — on every plan since 20 Sep 2026; null would mean "move up a plan". */
-  extraBranch: number | null
-  /**
-   * Per extra invoice past the allowance when overage is on — quoted per invoice the way Omani
-   * ASPs do, set a little above the market because the platform is more than an ASP, and always
-   * below the plan's own average price per document so moving up a plan stays the better deal.
-   */
-  overage: number
   features: Record<Feature, boolean>
   /** Kept for the screens drawn against the earlier shape; each mirrors `features`. */
   api: boolean
@@ -232,13 +217,9 @@ export const CATALOGUE: readonly CataloguePlan[] = [
     id: 'starter',
     code: 'STARTER',
     labelKey: 'plan.planName.starter',
-    monthly: 35,
     documents: 200,
     people: 2,
     branches: 1,
-    extraPerson: 3,
-    extraBranch: 8,
-    overage: 0.15,
     prioritySupport: true,
     supportKey: 'plan.support.emailAndChat',
   }),
@@ -246,13 +227,9 @@ export const CATALOGUE: readonly CataloguePlan[] = [
     id: 'business',
     code: 'BUSINESS',
     labelKey: 'plan.planName.business',
-    monthly: 80,
     documents: 1_000,
     people: 5,
     branches: 2,
-    extraPerson: 2.5,
-    extraBranch: 8,
-    overage: 0.06,
     prioritySupport: true,
     supportKey: 'plan.support.emailAndChat',
   }),
@@ -260,13 +237,9 @@ export const CATALOGUE: readonly CataloguePlan[] = [
     id: 'businessPlus',
     code: 'BUSINESS_PLUS',
     labelKey: 'plan.planName.businessPlus',
-    monthly: 150,
     documents: 3_000,
     people: 10,
     branches: 5,
-    extraPerson: 2.5,
-    extraBranch: 8,
-    overage: 0.04,
     prioritySupport: true,
     supportKey: 'plan.support.emailAndChat',
   }),
@@ -276,19 +249,6 @@ export const PLAN = Object.fromEntries(CATALOGUE.map((p) => [p.id, p])) as Recor
   PlanId,
   CataloguePlan
 >
-
-/** Annual billing gives two months free — twelve months for the price of ten. */
-export const ANNUAL_FREE_MONTHS = 2
-
-/** The monthly-equivalent rate when billed annually: 35.000 → 29.167, 80.000 → 66.667. */
-export const annualMonthly = (p: CataloguePlan) =>
-  Math.round(((p.monthly * (12 - ANNUAL_FREE_MONTHS)) / 12) * 1000) / 1000
-
-/** The whole year, paid at once. */
-export const annualTotal = (p: CataloguePlan) => p.monthly * (12 - ANNUAL_FREE_MONTHS)
-
-/** VAT on Fawtir's own subscription invoices; prices are shown exclusive. */
-export const SUBSCRIPTION_VAT = 0.05
 
 /**
  * Enterprise is Business Plus with limits agreed on a call — documents, people, branches, price

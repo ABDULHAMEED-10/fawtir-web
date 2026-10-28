@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Rial, withRial } from '../../../components/ui'
 import { omr } from '../../../lib/superAdmin'
+import type { SampleMoney } from '../../../lib/consoleSubscriptions'
 import { ConsoleKpi } from '../../../layouts/ConsoleShell/consoleStyle'
 import { type ConsoleTone } from '../../../layouts/ConsoleShell/consoleTones'
 
@@ -40,7 +41,8 @@ export function QueueKpiCard({
 }
 
 /** A KPI money figure: the rial sign and the amount at three decimals, kept on one line. */
-export function RialFigure({ amount }: { amount: number }) {
+export function RialFigure({ amount }: { amount: SampleMoney }) {
+  if (amount === null) return <span>—</span>
   return (
     <span className="whitespace-nowrap">
       <Rial />

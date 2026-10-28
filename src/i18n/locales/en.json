@@ -12932,8 +12932,7 @@
       "certificates": "Certificates expiring",
       "within30": "{{count}} within 30 days",
       "revenue": "Monthly revenue",
-      "left": "Left this month",
-      "average": "That is an average of OMR {{amount}} a tenant."
+      "left": "Left this month"
     },
     "tenants": {
       "title": "Tenants",
@@ -13716,7 +13715,6 @@
       },
       "term": {
         "monthly": "Monthly",
-        "quarterly": "Quarterly",
         "annual": "Annual"
       },
       "channel": {
@@ -14632,7 +14630,10 @@
         "amount": "Amount received",
         "receivedOn": "Received on",
         "activateNow": "Activate the subscription now",
-        "activateHint": "Left off, the tenant is created Awaiting payment with the invoice marked paid, and you activate from its page."
+        "activateHint": "Left off, the tenant is created Awaiting payment with the invoice marked paid, and you activate from its page.",
+        "net": "Before VAT",
+        "vat": "VAT",
+        "vatAt": "VAT ({{rate}}%)"
       },
       "review": {
         "heading": "Review",

@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
-import { CATALOGUE, PLAN, SUBSCRIPTION_VAT, TRIAL, annualTotal, type PlanId } from './plans'
-import { PLATFORM, NOW, TENANTS } from './superAdmin'
+import { CATALOGUE, PLAN, TRIAL, type PlanId } from './plans'
+import { PLATFORM, NOW, TENANTS, omr } from './superAdmin'
 import { PLATFORM_SETTINGS } from './platformSettings'
 
 /**
@@ -24,12 +24,18 @@ import { PLATFORM_SETTINGS } from './platformSettings'
 export type SubscriptionState =
   'trial' | 'awaitingPayment' | 'active' | 'grace' | 'suspended' | 'cancelled'
 
-export type Term = 'monthly' | 'quarterly' | 'annual'
+export type Term = 'monthly' | 'annual'
 export type PaymentMethod = 'cardLink' | 'bankTransfer' | 'cash' | 'cheque'
 export type LinkChannel = 'whatsapp' | 'email' | 'copied'
 export type LinkStatus = 'unpaid' | 'paid' | 'expired'
 export type InvoiceStatus = 'unpaid' | 'paid' | 'overdue' | 'waived'
 export type SubscriptionPlanId = PlanId | 'enterprise'
+
+/**
+ * A rial figure, or `null` where the sample has none. The sample ledger carries no prices: a
+ * price is the server's to state (PY-2), so a sample invoice shows a dash, never a made-up sum.
+ */
+export type SampleMoney = number | null
 
 export type TenantIdentity = {
   id: string
@@ -51,9 +57,9 @@ export type SubscriptionInvoice = {
   issued: Date
   due: Date
   /** Excluding VAT. */
-  amount: number
-  vat: number
-  total: number
+  amount: SampleMoney
+  vat: SampleMoney
+  total: SampleMoney
   status: InvoiceStatus
   paidOn?: Date
   method?: PaymentMethod
@@ -67,7 +73,7 @@ export type Payment = {
   tenantId: string
   invoiceId: string
   method: PaymentMethod
-  amount: number
+  amount: SampleMoney
   receivedOn: Date
   /** A transfer reference, a cheque number and bank, a Paymob transaction id. */
   reference?: string
@@ -109,7 +115,6 @@ export type QuotaGrant = {
 }
 
 export type EnterpriseTerms = {
-  monthly: number
   documents: number
   people: number | null
   branches: number | null
@@ -126,10 +131,10 @@ export type Subscription = {
   state: SubscriptionState
   periodStart: Date
   periodEnd: Date
-  /** The open invoice's total, or 0. */
-  amountDue: number
+  /** The open invoice's total, 0 when nothing is open, or `null` when the open one has no price. */
+  amountDue: SampleMoney
   preferredMethod: PaymentMethod
-  lastPayment?: { at: Date; method: PaymentMethod; amount: number }
+  lastPayment?: { at: Date; method: PaymentMethod; amount: SampleMoney }
   /** Trial only. */
   trialEndsAt?: Date
   trialUsed?: number
@@ -157,16 +162,7 @@ const addMonths = (date: Date, months: number) => {
   return next
 }
 
-export const MONTHS_OF: Record<Term, number> = { monthly: 1, quarterly: 3, annual: 12 }
-
-/** What a period costs before VAT, from the catalogue or the tenant's own terms. */
-export function periodAmount(plan: SubscriptionPlanId, term: Term, enterprise?: EnterpriseTerms) {
-  if (plan === 'enterprise') return (enterprise?.monthly ?? 0) * MONTHS_OF[term]
-  return term === 'annual' ? annualTotal(PLAN[plan]) : PLAN[plan].monthly * MONTHS_OF[term]
-}
-
-export const withVat = (amount: number) => Math.round(amount * (1 + SUBSCRIPTION_VAT) * 1000) / 1000
-export const vatOn = (amount: number) => Math.round(amount * SUBSCRIPTION_VAT * 1000) / 1000
+export const MONTHS_OF: Record<Term, number> = { monthly: 1, annual: 12 }
 
 /* ---------------------------------------------------------------- tenants */
 
@@ -498,7 +494,7 @@ const SEEDS: Seed[] = [
   {
     tenantId: 'sohar-steel',
     plan: 'businessPlus',
-    term: 'quarterly',
+    term: 'monthly',
     state: 'awaitingPayment',
     from: d(9, 1),
     method: 'bankTransfer',
@@ -791,7 +787,7 @@ const SEEDS: Seed[] = [
   {
     tenantId: 'oman-marine',
     plan: 'businessPlus',
-    term: 'quarterly',
+    term: 'annual',
     state: 'active',
     from: d(7, 1),
     method: 'bankTransfer',
@@ -810,7 +806,6 @@ const SEEDS: Seed[] = [
     paid: { on: d(1, 5), method: 'bankTransfer', reference: 'BG-2026-0001' },
     usage: { documents: 8_420, people: 46, branches: 19 },
     enterprise: {
-      monthly: 480,
       documents: 15_000,
       people: null,
       branches: null,
@@ -872,14 +867,6 @@ function invoiceNumber(issued: Date) {
   return `FWT-${issued.getFullYear()}-${String(issued.getMonth() + 1).padStart(2, '0')}${String(sequence).padStart(2, '0')}`
 }
 
-function extrasAmount(seed: Seed) {
-  if (seed.plan === 'enterprise') return 0
-  const plan = PLAN[seed.plan]
-  const people = (seed.extras?.people ?? 0) * plan.extraPerson
-  const branches = (seed.extras?.branches ?? 0) * (plan.extraBranch ?? 0)
-  return (people + branches) * MONTHS_OF[seed.term]
-}
-
 function build(): Ledger {
   const ledger: Ledger = {
     subscriptions: [],
@@ -894,7 +881,6 @@ function build(): Ledger {
     const periodEnd = seed.trial
       ? addDays(seed.trial.started, TRIAL.days)
       : addMonths(seed.from, months)
-    const base = periodAmount(seed.plan, seed.term, seed.enterprise) + extrasAmount(seed)
     const usage = { documents: seed.trial?.used ?? 0, people: 1, branches: 1, ...seed.usage }
     const subscription: Subscription = {
       tenantId: seed.tenantId,
@@ -925,9 +911,9 @@ function build(): Ledger {
         periodEnd,
         issued,
         due: seed.open?.due ?? seed.from,
-        amount: base,
-        vat: vatOn(base),
-        total: withVat(base),
+        amount: null,
+        vat: null,
+        total: null,
         status: seed.paid
           ? 'paid'
           : seed.state === 'cancelled'
@@ -986,7 +972,7 @@ function build(): Ledger {
         ledger.events.push(
           event(seed.tenantId, seed.paid.on, by, 'paymentRecorded', {
             method: seed.paid.method,
-            amount: invoice.total,
+            amount: invoice.total ?? '—',
           }),
           event(
             seed.tenantId,
@@ -1353,7 +1339,6 @@ export const subscriptionsStore = {
 
     const periodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const periodEnd = addMonths(periodStart, MONTHS_OF[input.term])
-    const base = periodAmount(input.plan, input.term)
     const paid = input.payment
     const activate = Boolean(paid?.activate)
     const invoice: SubscriptionInvoice = {
@@ -1364,9 +1349,9 @@ export const subscriptionsStore = {
       periodEnd,
       issued: now,
       due: periodStart,
-      amount: base,
-      vat: vatOn(base),
-      total: withVat(base),
+      amount: null,
+      vat: null,
+      total: null,
       status: paid ? 'paid' : 'unpaid',
       paidOn: paid?.receivedOn,
       method: paid ? input.method : undefined,
@@ -1544,7 +1529,7 @@ export function queueKpis(ledger: Ledger) {
   )
   return {
     awaitingCount: awaiting.length,
-    awaitingTotal: awaiting.reduce((sum, s) => sum + s.amountDue, 0),
+    awaitingTotal: sumOf(awaiting.map((s) => s.amountDue)),
     graceCount: ledger.subscriptions.filter((s) => s.state === 'grace').length,
     trialsEnding: trialsEnding.length,
     trialsTotal: SUBSCRIPTIONS_PLATFORM.trial,
@@ -1554,12 +1539,24 @@ export function queueKpis(ledger: Ledger) {
           p.receivedOn.getMonth() === NOW.getMonth() &&
           p.receivedOn.getFullYear() === NOW.getFullYear(),
       )
-      .reduce((sum, p) => sum + p.amount, 0),
+      .map((p) => p.amount)
+      .reduce<SampleMoney>(addSample, 0),
   }
 }
 
+/** A sample figure as printed: three decimals, or a dash where the sample has no price. */
+export const sampleOmr = (amount: SampleMoney) => (amount === null ? '—' : omr(amount))
+
+/** A total of sample figures, or `null` as soon as one of them has no price. */
+export function sumOf(amounts: SampleMoney[]): SampleMoney {
+  return amounts.reduce<SampleMoney>(addSample, 0)
+}
+
+const addSample = (sum: SampleMoney, amount: SampleMoney): SampleMoney =>
+  sum === null || amount === null ? null : sum + amount
+
 export const PLAN_OPTIONS: SubscriptionPlanId[] = [...CATALOGUE.map((p) => p.id), 'enterprise']
-export const TERMS: Term[] = ['monthly', 'quarterly', 'annual']
+export const TERMS: Term[] = ['monthly', 'annual']
 export const METHODS: PaymentMethod[] = ['cardLink', 'bankTransfer', 'cash', 'cheque']
 
 /** A WhatsApp deep link with the message a customer receives; the phone loses everything but digits. */

@@ -14,11 +14,11 @@ import {
   linksOf,
   openInvoiceOf,
   paymentsOf,
-  periodAmount,
   planLabelKey,
   subscriptionOf,
   suspendsOn,
   tenantIdentity,
+  type SampleMoney,
   type Subscription,
   type SubscriptionEvent,
 } from '../../../lib/consoleSubscriptions'
@@ -93,8 +93,9 @@ function Line({ label, value, tone }: { label: string; value: ReactNode; tone?: 
   )
 }
 
-/** An amount with the rial sign in the amount's own colour. */
-function Money({ amount, className = '' }: { amount: number; className?: string }) {
+/** An amount with the rial sign in the amount's own colour, or a dash where the sample has none. */
+function Money({ amount, className = '' }: { amount: SampleMoney; className?: string }) {
+  if (amount === null) return <span className={className}>—</span>
   return (
     <span className={`inline-flex items-baseline gap-1 whitespace-nowrap ${className}`}>
       <Rial />
@@ -167,7 +168,6 @@ export function SubscriptionTab({ tenantId, ledger, onAction }: Props) {
   const allowance = documentsAllowance(subscription) + granted
   const peopleAllowance = catalogue ? catalogue.people : (enterprise?.people ?? null)
   const branchesAllowance = catalogue ? catalogue.branches : (enterprise?.branches ?? null)
-  const price = periodAmount(subscription.plan, subscription.term, enterprise)
   const bank = PLATFORM_SETTINGS.payments.bank
 
   return (
@@ -177,17 +177,8 @@ export function SubscriptionTab({ tenantId, ledger, onAction }: Props) {
         <Card title={t('console.tenantDetail.plan.title')}>
           <Line label={t('console.tenantDetail.plan.plan')} value={planLabel} />
           <Line label={t('console.tenantDetail.plan.term')} value={termLabel} />
-          <Line
-            label={t('console.tenantDetail.plan.price')}
-            value={
-              <span className="inline-flex items-baseline gap-1.5">
-                <Money amount={price} />
-                <span className="text-xs font-medium text-text-quaternary">
-                  {t('console.subscriptionActions.common.excludingVat')}
-                </span>
-              </span>
-            }
-          />
+          {/* The sample holds no prices (PY-2): the plan's price is the server's to state. */}
+          <Line label={t('console.tenantDetail.plan.price')} value="—" />
           <Line
             label={t('console.tenantDetail.plan.documents')}
             value={count(catalogue ? catalogue.documents : (enterprise?.documents ?? 0))}
@@ -209,10 +200,7 @@ export function SubscriptionTab({ tenantId, ledger, onAction }: Props) {
             }
           />
           {catalogue ? (
-            <Line
-              label={t('console.tenantDetail.plan.overageRate')}
-              value={<Money amount={catalogue.overage} />}
-            />
+            <Line label={t('console.tenantDetail.plan.overageRate')} value="—" />
           ) : null}
           {enterprise ? (
             <>
@@ -262,7 +250,7 @@ export function SubscriptionTab({ tenantId, ledger, onAction }: Props) {
               <p className="text-sm font-medium text-text-tertiary">
                 {t('console.tenantDetail.period.amountDue')}
               </p>
-              {subscription.amountDue > 0 ? (
+              {subscription.amountDue === null || subscription.amountDue > 0 ? (
                 <p
                   className={`mt-1 text-[28px] font-semibold leading-[1.1] ${openInvoice?.status === 'overdue' || subscription.state === 'grace' ? 'text-danger-700' : 'text-text-primary'}`}
                 >

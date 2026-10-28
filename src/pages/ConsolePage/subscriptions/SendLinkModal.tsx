@@ -104,7 +104,7 @@ export function SendLinkModal({ tenantId, ledger, invoiceId, onClose, onDone }: 
       )
       // The letters stay in the text that leaves Fawtir (WhatsApp, email have no rial sign);
       // the preview on screen draws the sign through withRial.
-      .replace('{{amount}}', `OMR ${omr(target.total)}`)
+      .replace('{{amount}}', target.total === null ? '—' : `OMR ${omr(target.total)}`)
       .replace('{{link}}', url)
       .replace('{{days}}', String(days))
   }

@@ -15,14 +15,11 @@ import {
   OTA,
   PLATFORM,
   QUIET_TODAY,
-  REVENUE,
-  REVENUE_PER_TENANT,
   WORTH_A_LOOK,
   count,
   percent,
   tenantById,
 } from '../../lib/superAdmin'
-import { formatAmount } from '../../lib/format'
 import { ConsoleStatusPill } from '../../layouts/ConsoleShell/ConsoleStatusPill'
 import { CONSOLE_CARD, CONSOLE_CARD_FOOT, CONSOLE_LINK, CONSOLE_PAGE, CONSOLE_PRIMARY, CONSOLE_ROW, CONSOLE_SECONDARY, CONSOLE_SMALL, ConsoleCardHead, ConsoleKpi, ConsolePageHeader } from '../../layouts/ConsoleShell/consoleStyle'
 import { CONSOLE_TONE_TEXT } from '../../layouts/ConsoleShell/consoleTones'
@@ -387,7 +384,8 @@ export function OperationsPage() {
               />
               <ConnectionLine
                 label={t('console.across.revenue')}
-                value={`OMR ${formatAmount(REVENUE, 'OMR', i18n.language)}`}
+                // The sample holds no prices (PY-2): revenue is the server's to report.
+                value="—"
               />
               <ConnectionLine
                 label={t('console.across.left')}
@@ -395,11 +393,7 @@ export function OperationsPage() {
               />
             </div>
             <p className={CONSOLE_CARD_FOOT}>
-              {withRial(
-                t('console.across.average', {
-                  amount: formatAmount(REVENUE_PER_TENANT, 'OMR', i18n.language),
-                }),
-              )}
+              {t('console.tenants.kpi.revenueEmpty')}
             </p>
           </section>
         </div>

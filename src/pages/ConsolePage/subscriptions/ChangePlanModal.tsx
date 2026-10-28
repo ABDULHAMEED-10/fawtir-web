@@ -1,8 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Modal, Rial, Select, SelectionCard } from '../../../components/ui'
+import { Modal, Select, SelectionCard } from '../../../components/ui'
 import {
-  periodAmount,
   planLabelKey,
   subscriptionOf,
   subscriptionsStore,
@@ -10,7 +9,6 @@ import {
   type SubscriptionPlanId,
   type Term,
 } from '../../../lib/consoleSubscriptions'
-import { omr } from '../../../lib/superAdmin'
 import {
   Field,
   ModalFooter,
@@ -78,8 +76,6 @@ export function ChangePlanModal({ tenantId, ledger, onClose, onDone }: ActionMod
   const planOptions = usePlanOptions()
   const termOptions = useTermOptions()
   const periodEnd = subscription ? dayLabel(subscription.periodEnd, i18n.language) : ''
-  // Excl. VAT, the basis the tenant's subscription card and the plan catalogue show prices on.
-  const newPrice = periodAmount(plan, term, subscription?.enterprise)
   const unchanged = subscription?.plan === plan && subscription?.term === term
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -172,18 +168,8 @@ export function ChangePlanModal({ tenantId, ledger, onClose, onDone }: ActionMod
           </p>
         ) : (
           <div className="rounded-sm bg-surface-background px-4 py-1">
-            <SummaryLine
-              label={t('console.subscriptionActions.changePlan.newPrice')}
-              value={
-                <span className="inline-flex items-baseline gap-1">
-                  <Rial />
-                  {omr(newPrice)}
-                  <span className="text-xs font-medium text-text-quaternary">
-                    {t('console.subscriptionActions.common.excludingVat')}
-                  </span>
-                </span>
-              }
-            />
+            {/* The sample holds no prices (PY-2): the new price is the server's to quote. */}
+            <SummaryLine label={t('console.subscriptionActions.changePlan.newPrice')} value="—" />
           </div>
         )}
 

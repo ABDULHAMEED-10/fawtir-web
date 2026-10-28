@@ -54,8 +54,6 @@ export const isoDate = (date: Date) =>
     date.getDate(),
   ).padStart(2, '0')}`
 
-export const weekdayOf = (date: Date) => format(date, { weekday: 'long' })
-
 /* ------------------------------------------------------------------ the company */
 
 export const COMPANY = {

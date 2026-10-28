@@ -20,12 +20,11 @@ import {
   type OverviewInvoicing,
   type TenantOverview,
 } from '../../lib/console/tenantOverview'
-import { Rial, withRial } from '../../components/ui'
+import { withRial } from '../../components/ui'
 import {
   TENANT_IDENTITIES,
   documentsAllowance,
   openInvoiceOf,
-  periodAmount,
   planLabelKey,
   subscriptionOf,
   useSubscriptions,
@@ -34,7 +33,7 @@ import {
 } from '../../lib/consoleSubscriptions'
 import { formatAmount, formatCount } from '../../lib/format'
 import { PLATFORM_SETTINGS } from '../../lib/platformSettings'
-import { PLANS, TENANTS, count, omr, type FilingDay } from '../../lib/superAdmin'
+import { PLANS, TENANTS, count, type FilingDay } from '../../lib/superAdmin'
 import {
   ActivateModal,
   ChangePlanModal,
@@ -529,12 +528,8 @@ function TenantDetail({
                   <p className="text-xs font-semibold uppercase leading-[1.5] text-text-quaternary">
                     {t('console.tenantDetail.filing.billed')}
                   </p>
-                  <span className="mt-3 block text-sm font-semibold text-text-primary">
-                    <span className="me-1">
-                      <Rial />
-                    </span>
-                    {omr(filing.billed)}
-                  </span>
+                  {/* The sample holds no prices (PY-2): what the month bills is the server's. */}
+                  <span className="mt-3 block text-sm font-semibold text-text-quaternary">—</span>
                   <span className="mt-1 block text-xs font-medium text-text-quaternary">
                     {t(filing.ageKey, filing.ageValues)}
                   </span>
@@ -800,7 +795,8 @@ function withLedger(
       ...overview.subscription,
       planCode: subscription.plan,
       planName: t(planLabelKey(subscription.plan)),
-      monthlyPrice: periodAmount(subscription.plan, 'monthly', subscription.enterprise),
+      // The sample holds no prices (PY-2).
+      monthlyPrice: null,
       invoicesPerMonth: documentsAllowance(subscription),
       overageEnabled: subscription.overageOn,
     },
