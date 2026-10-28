@@ -7422,7 +7422,8 @@
       "chip": "Held as duplicate",
       "body": "Held as a possible duplicate: it can't be accepted until the duplicate check on its bill record is decided. You can still refuse it.",
       "open": "Open the duplicate check",
-      "refused": "This debit note is held as a possible duplicate, so it can't be accepted yet. Decide the duplicate check on its bill first."
+      "refused": "This debit note is held as a possible duplicate, so it can't be accepted yet. Decide the duplicate check on its bill first.",
+      "bodyRefused": "Held as a possible duplicate: it can't be accepted until the duplicate check on its bill record is decided."
     }
   },
   "expenditureReminders": {

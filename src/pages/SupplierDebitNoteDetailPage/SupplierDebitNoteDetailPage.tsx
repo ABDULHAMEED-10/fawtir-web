@@ -242,7 +242,8 @@ function DebitNoteDetail() {
   const canRefuse = row.status !== 'REFUSED'
   // Holding only means something before a decision; once one is taken it is hidden, not greyed
   // (owner, 8 Oct 2026).
-  const canHold = row.status === 'UNCHECKED'
+  // Not on a copy held as a duplicate: it is held already, and the server refuses a second hold.
+  const canHold = row.status === 'UNCHECKED' && !item.heldAsDuplicate
 
   const bannerTitle =
     row.status === 'ACCEPTED'
@@ -326,7 +327,8 @@ function DebitNoteDetail() {
             </h1>
             <StatusChip className={CHIP[item.status]} label={t(STATUS_LABEL[item.status])} />
             {item.heldAsDuplicate ? (
-              <StatusChip className={CHIP.REFUSED} label={t('supplierDebitNotes.held.chip')} />
+              // The waiting tone, as a held credit note's: held is not refused.
+              <StatusChip className={CHIP.UNCHECKED} label={t('supplierDebitNotes.held.chip')} />
             ) : null}
             <KindBadge sign="+" label={t(`supplierNotes.kind.debit.${item.source}`)} />
           </div>
@@ -397,7 +399,12 @@ function DebitNoteDetail() {
 
       {item.heldAsDuplicate ? (
         <Notice
-          body={t('supplierDebitNotes.held.body')}
+          // Once refused, "you can still refuse it" no longer applies.
+          body={t(
+            row.status === 'REFUSED'
+              ? 'supplierDebitNotes.held.bodyRefused'
+              : 'supplierDebitNotes.held.body',
+          )}
           action={{
             label: t('supplierDebitNotes.held.open'),
             onClick: () => navigate(duplicateCheckPath(id)),
@@ -484,7 +491,12 @@ function DebitNoteDetail() {
               summaryBody={
                 worries === 0
                   ? t('supplierDebitNotes.checks.summaryFineBody')
-                  : t('supplierDebitNotes.checks.summaryWorriesBody')
+                  : // A held note cannot be accepted yet, so the advice does not lead to accepting.
+                    t(
+                      item.heldAsDuplicate
+                        ? 'supplierDebitNotes.checks.summaryBeforeAcceptBody'
+                        : 'supplierDebitNotes.checks.summaryWorriesBody',
+                    )
               }
             />
           </NoteCard>

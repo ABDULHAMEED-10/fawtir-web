@@ -1024,6 +1024,8 @@ describe('the end-to-end check of 10 Oct 2026', () => {
   })
 })
 
+const HOLD = i18n.t('supplierDebitNotes.detail.hold', { lng: 'en' })
+
 // Backend #804: accepting a held copy is refused until its duplicate check is decided; refusing
 // it is a separate decision the server still takes.
 describe('a debit note held as a possible duplicate', () => {
@@ -1036,6 +1038,44 @@ describe('a debit note held as a possible duplicate', () => {
     expect(screen.getAllByRole('button', { name: 'Refuse it' }).length).toBeGreaterThan(0)
     expect(screen.getByText(/You can still refuse it\./)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Open the duplicate check' })).toBeTruthy()
+    // Held already: no person hold on top, and the chip wears the waiting tone, not a refusal's.
+    expect(screen.queryByRole('button', { name: HOLD })).toBeNull()
+    const chip = screen.getAllByText('Held as duplicate')[0].closest('span')!
+    expect(chip.className).toContain('bg-pending-100')
+    expect(chip.className).not.toContain('bg-danger-100')
+  })
+
+  it('does not advise looking closer before accepting a held note it cannot accept', async () => {
+    // No bill on file for the number it names: one check to look at.
+    notes = [note({ heldAsDuplicate: true })]
+    billRows = []
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(await screen.findByText('Read the points marked Check, then decide.')).toBeTruthy()
+    expect(screen.queryByText('Read the points marked Check before you accept the charge.')).toBeNull()
+  })
+
+  it('keeps Hold and the advice on a note that is not held', async () => {
+    notes = [note()]
+    billRows = []
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(screen.getAllByRole('button', { name: HOLD }).length).toBeGreaterThan(0)
+    expect(await screen.findByText('Read the points marked Check before you accept the charge.')).toBeTruthy()
+  })
+
+  it('drops "You can still refuse it" once the held note is refused, and keeps the rest', async () => {
+    notes = [note({ heldAsDuplicate: true, status: 'REFUSED', decisionReason: 'Already charged' })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(
+      screen.getByText(
+        "Held as a possible duplicate: it can't be accepted until the duplicate check on its bill record is decided.",
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText(/You can still refuse it/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Open the duplicate check' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Accept it' })).toBeNull()
   })
 
   it('still offers Accept on a note not held, and on one from a server that does not say', async () => {
@@ -1079,7 +1119,8 @@ describe('a debit note held as a possible duplicate', () => {
     notes = [note({ heldAsDuplicate: true })]
     renderList()
     await screen.findByText('QMS-DN-1')
-    expect(screen.getByText('Held as duplicate')).toBeTruthy()
+    const chip = screen.getByText('Held as duplicate').parentElement!
+    expect(chip.className).toContain('bg-pending-100')
     expect(screen.queryByText('Nobody has checked it')).toBeNull()
     expect(screen.getByRole('link', { name: 'Open the duplicate check' }).getAttribute('href')).toBe(
       `/expenditure/bills/${NOTE_ID}`,

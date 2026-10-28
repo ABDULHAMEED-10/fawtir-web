@@ -471,7 +471,7 @@ function DebitRow({
   // A held copy waiting on its duplicate check says so in place of "Not checked": accepting it
   // is refused until the check is decided. A refusal already taken keeps its own chip.
   const heldUnchecked = note.heldAsDuplicate && note.status === 'UNCHECKED'
-  const chip = heldUnchecked ? CHIP.REFUSED : CHIP[note.status]
+  const chip = CHIP[note.status]
   const action = DEBIT_ROW_ACTION[note.status]
   const reason = reasonLabelKey(note.reasonCode, note.reasonDetail ?? null)
   const detailTo = `/expenditure/debit-notes/${note.id}`
