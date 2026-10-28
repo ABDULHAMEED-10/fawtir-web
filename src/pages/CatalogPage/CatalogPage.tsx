@@ -33,6 +33,7 @@ import {
   kindOf,
   matchesCatalogTab,
   needsAttention,
+  onSaleHere,
   type CatalogSort,
   type CatalogTab,
 } from './catalogList'
@@ -99,6 +100,9 @@ export function CatalogPage() {
   const path = productListPath({
     q: search,
     branchId,
+    // The management list also shows what is switched off or not sold in the branch, greyed,
+    // so a manager can open it and switch it back on. The till and the item pickers do not ask.
+    includeUnavailable: true,
     size: CATALOG_PAGE_SIZE,
     page: archivedTab ? 0 : page,
     ...order,
@@ -161,17 +165,25 @@ export function CatalogPage() {
     () => catalogRows(items, tab, sort, i18n.language, flagged),
     [items, tab, sort, i18n.language, flagged],
   )
-  // The tabs other than Archived count the page of products on sale.
+  // The tabs other than Archived count the page of products: Switched off those greyed in the
+  // working branch, the others only what is on sale there.
   const tabCount = (id: CatalogTab) =>
     id === 'archived'
       ? archivedTotal
       : activeItems.filter((product) => matchesCatalogTab(product, id, flagged)).length +
         (id === 'attention' ? flaggedElsewhere.length : 0)
-  const services = items.filter((product) => kindOf(product) === 'service').length
+  // The cards count only what is on sale in the working branch.
+  const onSale = items.filter(onSaleHere)
+  const switchedOff = items.length - onSale.length
+  const services = onSale.filter((product) => kindOf(product) === 'service').length
   const attention =
-    items.filter((product) => needsAttention(product, flagged)).length +
+    onSale.filter((product) => needsAttention(product, flagged)).length +
     (archivedTab ? 0 : flaggedElsewhere.length)
-  const notStandard = items.filter((product) => product.defaultTaxCategory !== 'S').length
+  const notStandard = onSale.filter((product) => product.defaultTaxCategory !== 'S').length
+  // Switched off appears only while something is, or while it is the open tab.
+  const tabs = CATALOG_TABS.filter(
+    (entry) => entry.id !== 'switchedOff' || tab === 'switchedOff' || tabCount(entry.id) > 0,
+  )
 
   /** Puts an archived item back on sale (P.14), then reads both lists again. */
   const reactivate = async (product: ProductDto) => {
@@ -265,17 +277,18 @@ export function CatalogPage() {
           <Kpi
             icon={kpiItemsIcon}
             label={t('catalogReal.kpi.things')}
-            value={String(total ?? 0)}
+            // The server's total less the greyed rows; exact on one page (INCOME.md P.1).
+            value={String(Math.max(0, (total ?? 0) - switchedOff))}
             // TODO(backend): the list counts only what is on the page it returns, so across
             // several pages the split of goods and services is this page's (INCOME.md P.1).
             note={
               paged
                 ? t('catalogReal.kpi.thingsPagedNote', {
-                    goods: items.length - services,
+                    goods: onSale.length - services,
                     services,
                   })
                 : t('catalogReal.kpi.thingsNote', {
-                    goods: items.length - services,
+                    goods: onSale.length - services,
                     services,
                   })
             }
@@ -317,7 +330,7 @@ export function CatalogPage() {
           {t('catalogReal.products')}
         </h2>
         {(loaded && items.length > 0) || archivedTab || archivedTotal > 0 ? (
-          <TabStrip tabs={CATALOG_TABS} value={tab} onChange={setTab} count={tabCount} />
+          <TabStrip tabs={tabs} value={tab} onChange={setTab} count={tabCount} />
         ) : null}
 
         <div className="flex flex-wrap items-center justify-between gap-3 p-5">
@@ -337,7 +350,7 @@ export function CatalogPage() {
               label={t('catalog.filters')}
               value={tab}
               defaultValue="all"
-              options={CATALOG_TABS.map((entry) => ({
+              options={tabs.map((entry) => ({
                 value: entry.id,
                 label: t(entry.labelKey),
                 count: tabCount(entry.id),
@@ -397,12 +410,14 @@ export function CatalogPage() {
                     const service = kindOf(product) === 'service'
                     const odd = needsAttention(product, flagged)
                     const flag = product.zeroRatingAttention ?? flagOf(product.id)
+                    const offHere = product.availableHere === false
                     return (
                       <tr
                         key={product.id}
                         className={[
                           'border-b border-surface-background last:border-0',
                           odd ? 'bg-pending-100/30' : '',
+                          offHere ? 'opacity-60' : '',
                         ].join(' ')}
                       >
                         <td className="px-4 py-4 align-top md:px-5">
@@ -436,6 +451,11 @@ export function CatalogPage() {
                                     date: formatDisplayDate(flagDate(product), i18n.language),
                                   })}
                                 </p>
+                              ) : null}
+                              {offHere ? (
+                                <span className="mt-1.5 inline-flex h-[22px] items-center rounded-[3px] bg-surface-background px-2 text-[10px] font-semibold uppercase tracking-[0.5px] text-text-tertiary">
+                                  {t('catalogReal.notOnSaleHere')}
+                                </span>
                               ) : null}
                               {!product.active && canManage ? (
                                 <button

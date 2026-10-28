@@ -22914,7 +22914,8 @@
       "services": "Services",
       "attention": "Wanting attention",
       "notStandard": "Not at the standard rate",
-      "archived": "Off sale"
+      "archived": "Off sale",
+      "switchedOff": "Switched off"
     },
     "sort": {
       "name": "Name",
@@ -22923,7 +22924,8 @@
       "priceHigh": "Price, high to low"
     },
     "showingOf": "Showing {{shown}} of {{total}} products",
-    "noneInTab": "Nothing on this page fits this tab."
+    "noneInTab": "Nothing on this page fits this tab.",
+    "notOnSaleHere": "Not on sale in this branch"
   },
   "signupResume": {
     "cta": "Continue your registration",

@@ -73,6 +73,11 @@ export type ProductDto = {
   zeroRatingWarnings?: ProductZeroRatingWarning[] | null
   /** Left by the re-check when a new list no longer matches the stored rate; null when none. */
   zeroRatingAttention?: ZeroRatingAttentionDto | null
+  /**
+   * On a list read with `branchId`: false for an active product switched off or not sold in that
+   * branch, which only `includeUnavailable=true` returns. Absent without a branch.
+   */
+  availableHere?: boolean | null
 }
 
 export type ProductItemKind = 'HAND_OVER' | 'DO' | 'BY_TIME' | 'BUNDLE'
@@ -198,6 +203,12 @@ export type ProductListQuery = {
    * products are never listed with it.
    */
   branchId?: string | null
+  /**
+   * With `branchId`: also the active products switched off or not sold there, each with
+   * `availableHere: false`. For the catalogue management list only; the till and the invoice
+   * item pickers never send it, so they keep hiding those.
+   */
+  includeUnavailable?: boolean
   sort?: ProductSort
   direction?: 'ASC' | 'DESC'
   size?: number
@@ -214,6 +225,7 @@ export function productListPath(query: ProductListQuery): string {
     groupId: query.groupId,
     itemKind: query.itemKind,
     branchId: query.branchId,
+    includeUnavailable: query.branchId && query.includeUnavailable ? true : undefined,
     sort: query.sort,
     direction: query.direction,
     size: query.size ?? PRODUCT_PICKER_SIZE,

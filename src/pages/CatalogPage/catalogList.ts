@@ -23,8 +23,10 @@ export const needsAttention = (product: ProductDto, flagged?: ReadonlySet<string
  * The catalogue list's tabs: only the ones a product record can answer.
  *
  * Items taken off sale have their own tab, read from the server (`status=ARCHIVED`, P.15).
- * TODO(backend): the frame's "On sale", "Never sold" and "Switched off" tabs need the per-branch
- * on/off (P.9) and per-item sales figures (P.17), so they are not drawn.
+ * "Switched off" holds the active items switched off or not sold in the working branch
+ * (`availableHere: false`); every other tab counts only what is on sale there.
+ * TODO(backend): the frame's "On sale" and "Never sold" tabs need per-item sales figures (P.17),
+ * so they are not drawn.
  */
 export const CATALOG_TABS = [
   { id: 'all', labelKey: 'catalogReal.tab.all' },
@@ -32,17 +34,25 @@ export const CATALOG_TABS = [
   { id: 'services', labelKey: 'catalogReal.tab.services' },
   { id: 'attention', labelKey: 'catalogReal.tab.attention' },
   { id: 'notStandard', labelKey: 'catalogReal.tab.notStandard' },
+  // Switched off or not sold in the working branch: greyed, still opens to switch it back on.
+  { id: 'switchedOff', labelKey: 'catalogReal.tab.switchedOff' },
   // Off sale: read on its own with `status=ARCHIVED` (INCOME.md P.15), counted by the server.
   { id: 'archived', labelKey: 'catalogReal.tab.archived' },
 ] as const
 
 export type CatalogTab = (typeof CATALOG_TABS)[number]['id']
 
+/** On sale in the working branch: anything the server did not mark `availableHere: false`. */
+export const onSaleHere = (product: ProductDto) => product.availableHere !== false
+
 export function matchesCatalogTab(
   product: ProductDto,
   tab: CatalogTab,
   flagged?: ReadonlySet<string>,
 ): boolean {
+  if (tab === 'archived') return !product.active
+  if (tab === 'switchedOff') return !onSaleHere(product)
+  if (!onSaleHere(product)) return false
   switch (tab) {
     case 'goods':
       return kindOf(product) === 'goods'
@@ -52,8 +62,6 @@ export function matchesCatalogTab(
       return needsAttention(product, flagged)
     case 'notStandard':
       return product.defaultTaxCategory !== 'S'
-    case 'archived':
-      return !product.active
     default:
       return true
   }

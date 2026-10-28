@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { resetSharedRequests } from '../../api'
+import { productListPath, productSearchPath } from '../../api/catalog/products'
 import { CatalogPage } from './CatalogPage'
 
 const READER: Entitlements = {
@@ -153,8 +154,90 @@ describe('the catalogue list', () => {
     )
     expect(await screen.findByText('7.250')).toBeTruthy()
     expect(productCalls()).toContain(
-      '/api/v1/products?branchId=b-main&sort=NAME&direction=ASC&size=20',
+      '/api/v1/products?branchId=b-main&includeUnavailable=true&sort=NAME&direction=ASC&size=20',
     )
+  })
+
+  it('greys an item switched off in the working branch, and it still opens', async () => {
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === '/api/v1/me/entitlements') return json(READER)
+      if (url === '/api/v1/branches') {
+        return json([{ id: 'b-main', code: 'MAIN', name: 'Main', type: 'HEAD_OFFICE' }])
+      }
+      if (url.startsWith('/api/v1/products')) {
+        const query = new URL(url, 'http://x').searchParams
+        const content =
+          query.get('branchId') && query.get('includeUnavailable') === 'true'
+            ? [
+                { ...productAt(1), effectivePrice: 1, availableHere: true },
+                { ...productAt(2), effectivePrice: 6.5, availableHere: false },
+                { ...productAt(5), effectivePrice: 5, availableHere: true },
+              ]
+            : []
+        return json({ content, page: 0, size: 20, totalElements: content.length })
+      }
+      return new Response(null, { status: 404 })
+    })
+    render(
+      <MemoryRouter>
+        <CatalogPage />
+      </MemoryRouter>,
+    )
+    await screen.findByText('Item 01')
+    const tabButton = (key: string) =>
+      screen.getByRole('button', { name: new RegExp(`^${i18n.t(key)}`) })
+    const names = () =>
+      screen
+        .getAllByRole('row')
+        .slice(1)
+        .map((row) => row.querySelector('bdi')?.textContent)
+    // All, the other tabs and the cards count only what is on sale here.
+    expect(names()).toEqual(['Item 01', 'Item 05'])
+    expect(tabButton('catalogReal.tab.all').textContent).toContain('2')
+    expect(tabButton('catalogReal.tab.goods').textContent).toContain('1')
+    expect(tabButton('catalogReal.tab.services').textContent).toContain('1')
+    expect(tabButton('catalogReal.tab.switchedOff').textContent).toContain('1')
+    expect(
+      screen.getByText(i18n.t('catalogReal.kpi.things')).parentElement?.parentElement?.textContent,
+    ).toContain('2')
+    const on = screen.getByText('Item 01').closest('tr') as HTMLElement
+    expect(on.className).not.toContain('opacity-60')
+    expect(within(on).queryByText(i18n.t('catalogReal.notOnSaleHere'))).toBeNull()
+
+    // Switched off holds the greyed row, which still opens and shows its effective price.
+    fireEvent.click(tabButton('catalogReal.tab.switchedOff'))
+    await vi.waitFor(() => expect(names()).toEqual(['Item 02']))
+    const off = screen.getByText('Item 02').closest('tr') as HTMLElement
+    expect(off.className).toContain('opacity-60')
+    expect(within(off).getByText(i18n.t('catalogReal.notOnSaleHere'))).toBeTruthy()
+    expect(within(off).getByRole('link').getAttribute('href')).toBe('/catalog/p-2')
+    expect(within(off).getByText('6.500')).toBeTruthy()
+  })
+
+  it('draws no Switched off tab when nothing is switched off', async () => {
+    render(
+      <MemoryRouter>
+        <CatalogPage />
+      </MemoryRouter>,
+    )
+    await screen.findByText('Item 01')
+    expect(
+      screen.queryByRole('button', {
+        name: new RegExp(`^${i18n.t('catalogReal.tab.switchedOff')}`),
+      }),
+    ).toBeNull()
+  })
+
+  it('asks for unavailable items only with a branch, and only when asked (till and pickers do not)', () => {
+    expect(productListPath({ branchId: 'b-main', includeUnavailable: true, size: 20 })).toBe(
+      '/v1/products?branchId=b-main&includeUnavailable=true&size=20',
+    )
+    expect(productListPath({ includeUnavailable: true, size: 20 })).toBe('/v1/products?size=20')
+    expect(productListPath({ branchId: 'b-main', size: 20 })).toBe(
+      '/v1/products?branchId=b-main&size=20',
+    )
+    expect(productSearchPath('cup', 20, 0, 'b-main')).not.toContain('includeUnavailable')
   })
 
   it('lists the items off sale on their own tab, counted by the server, and puts one back (P.14, P.15)', async () => {
