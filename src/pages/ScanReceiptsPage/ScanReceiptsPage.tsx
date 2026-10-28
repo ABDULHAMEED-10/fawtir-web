@@ -5,7 +5,12 @@ import { AppShell } from '../../layouts/AppShell'
 import { DateField, FileDropzone, Rial, Select, withRial } from '../../components/ui'
 import { FieldLabel, TextField } from '../../components/form'
 import { selectAllOnFocus } from '../../components/invoice'
-import { BillFilePicker, SupplierPicker, type PickedSupplier } from '../../components/bills'
+import {
+  BillFilePicker,
+  SupplierPicker,
+  useElapsedSeconds,
+  type PickedSupplier,
+} from '../../components/bills'
 import {
   ApiReadFailure,
   LoadingNotice,
@@ -28,6 +33,7 @@ import {
 import { describeApiFailure } from '../../lib/apiFailure'
 import {
   BILL_CONFIRM_REFUSALS,
+  CONFIDENT_AT,
   EXPENSE_CATEGORIES,
   RECEIPT_FILE_TYPES,
   UPLOAD_REFUSALS,
@@ -35,10 +41,16 @@ import {
   blankBillForm,
   fileKindOf,
   fromIntake,
+  guessedCategory,
+  notReadReason,
+  readingOf,
   toConfirmation,
+  unsureFields,
   vatIncluded,
+  vatWorkedOut,
   type BillForm,
   type BillProblems,
+  type ReadField,
 } from '../../lib/billIntake'
 import { formatAmount, formatDate } from '../../lib/format'
 import { muscatToday } from '../../lib/invoiceIssue'
@@ -67,9 +79,19 @@ type Receipt = {
   form: BillForm
   vatNumber: string | null
   vatRate: VatRate
-  /** The VAT field follows the rate until someone types in it. */
+  /**
+   * The VAT field follows the rate until someone types in it. A VAT the reader worked out from
+   * the total rather than read (`reading.workedOut` has `vat`) counts as not typed, so it stays
+   * amber (EXPENDITURE.md 1.10).
+   */
   vatTyped: boolean
   category: string
+  /** The category is the reader's guess (`reading.category`), not yet changed by the person. */
+  categoryGuessed: boolean
+  /** That guess scored below 0.9, so the picker is amber until a category is chosen. */
+  categoryUnsure: boolean
+  /** Read fields still amber: unsure on the photo and not typed over since (row 1.10). */
+  unsure: ReadField[]
   /** The design's optional note: sent on confirm and kept on the bill (EXPENDITURE.md 1.8). */
   note: string
   paid: Paid
@@ -91,18 +113,39 @@ const METHOD_CODES: Record<Method, '10' | '48'> = { cash: '10', card: '48', pett
 
 const FIELD =
   'h-[50px] w-full rounded-sm border border-primary-300 bg-surface-tab-bar px-4 text-sm font-medium text-text-secondary outline-none placeholder:text-text-placeholder focus:border-primary-700'
+/** The same box amber: read from the photo but not sure, or worked out, and not yet typed. */
+const AMBER_FIELD = FIELD.replace('border-primary-300', 'border-[#d8c9a8]').replace(
+  'bg-surface-tab-bar',
+  'bg-[#faf5ea]',
+)
+
+/** What a change to the receipt's form settles: the read field it overwrites, so its amber goes. */
+const SETTLES: Partial<Record<keyof BillForm, ReadField[]>> = {
+  supplierId: ['supplierName', 'supplierVatNumber'],
+  supplierName: ['supplierName'],
+  billNumber: ['billNumber'],
+  issueDate: ['issueDate'],
+  total: ['total'],
+}
 
 function receiptOf({ intake, file }: { intake: IntakeDto; file: File }): Receipt {
   const form = fromIntake(intake, { ...blankBillForm(), issueDate: muscatToday() })
+  const reading = readingOf(intake)
+  // Prefilled only when it is one of the categories this screen offers.
+  const guess = guessedCategory(intake)
   return {
     intake,
     file,
     status: intake.confirmedBillId ? 'saved' : 'todo',
     form,
     vatNumber: intake.extracted?.supplierVatNumber ?? null,
-    vatRate: '5',
-    vatTyped: form.vat !== '',
-    category: '',
+    // The printed rate, when the receipt says 0%; otherwise the screen's 5%.
+    vatRate: reading?.vatRate === 0 ? '0' : '5',
+    vatTyped: form.vat !== '' && !vatWorkedOut(intake),
+    category: guess ?? '',
+    categoryGuessed: guess !== null,
+    categoryUnsure: guess !== null && (reading?.categoryConfidence ?? 0) < CONFIDENT_AT,
+    unsure: [...unsureFields(intake)],
     note: intake.note ?? '',
     paid: 'onSpot',
     method: 'cash',
@@ -116,8 +159,10 @@ function formatBytes(bytes: number): string {
 
 /**
  * Bills › Scan receipts (Figma 163:22851). Each photo is stored as its own intake and confirmed
- * one at a time: paid on the spot in cash, by card or from petty cash, or still owing. Nothing
- * is read from a photo, so each receipt is typed from the picture beside it. `?intake=a,b`
+ * one at a time: paid on the spot in cash, by card or from petty cash, or still owing. The
+ * document reader reads each photo while it uploads (EXPENDITURE.md 1.10): its values are
+ * prefilled, unsure ones amber, the category guessed, and a VAT worked out from the total stays
+ * amber until typed. A photo that was not read is typed from the picture beside it. `?intake=a,b`
  * brings receipts stored earlier back into the pile, which is how a draft row on the Bills list
  * is finished.
  */
@@ -167,6 +212,8 @@ function ScanReceipts() {
     ])
   }, [resumed.read, resumeKey])
 
+  const anyRead = receipts.some((item) => readingOf(item.intake) !== null)
+
   const add = (uploaded: { intake: IntakeDto; file: File }[]) => {
     setReceipts((current) => [...current, ...uploaded.map(receiptOf)])
   }
@@ -198,7 +245,9 @@ function ScanReceipts() {
         <p className="mt-1 text-base font-medium leading-[1.3] text-text-quaternary">
           {receipts.length === 0
             ? t('billIntake.scan.subtitleEmpty')
-            : t('billIntake.scan.subtitle', { count: receipts.length })}
+            : anyRead
+              ? t('scanReceipts.subtitle', { count: receipts.length })
+              : t('billIntake.scan.subtitle', { count: receipts.length })}
         </p>
       </div>
     </>
@@ -402,6 +451,8 @@ function AddMore({
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
   const [refusal, setRefusal] = useState<string | null>(null)
+  // Each photo is read while it uploads, which can take a while: the tile counts the seconds.
+  const seconds = useElapsedSeconds(busy)
 
   const take = async (files: File[]) => {
     setBusy(true)
@@ -437,7 +488,7 @@ function AddMore({
         <>
           <img src={plusIcon} alt="" className="size-5" />
           <span className="text-xs font-medium">
-            {busy ? t('billIntake.upload.sending') : t('scanReceipts.addMore')}
+            {busy ? t('billIntake.upload.readingShort', { seconds }) : t('scanReceipts.addMore')}
           </span>
           {refusal ? (
             <span role="alert" className="text-[11px] font-medium text-text-danger">
@@ -476,9 +527,17 @@ function ReceiptEditor({
   const inFlight = useRef(false)
   const saved = receipt.status === 'saved'
   const form = receipt.form
+  const unsure = (field: ReadField) => receipt.unsure.includes(field)
+  const notRead = notReadReason(receipt.intake)
 
   const setForm = (patch: Partial<BillForm>, extra: Partial<Receipt> = {}) => {
-    const next = { ...receipt, ...extra, form: { ...form, ...patch } }
+    const settled = (Object.keys(patch) as (keyof BillForm)[]).flatMap((key) => SETTLES[key] ?? [])
+    const next = {
+      ...receipt,
+      ...extra,
+      form: { ...form, ...patch },
+      unsure: receipt.unsure.filter((field) => !settled.includes(field)),
+    }
     if (!next.vatTyped) next.form.vat = vatIncluded(next.form.total, next.vatRate)
     if ('supplierId' in patch || 'supplierName' in patch || 'billNumber' in patch)
       setDuplicate(null)
@@ -687,6 +746,18 @@ function ReceiptEditor({
                 </div>
               </div>
 
+              {notRead ? (
+                // Not read, and why, when it is something the person can act on (1.10).
+                <p className="mt-3 flex items-start gap-1.5 text-xs font-medium leading-[1.4] text-[#887147]">
+                  <img src={warnIcon} alt="" className="mt-px size-4 shrink-0" />
+                  {t(
+                    notRead === 'dailyLimit'
+                      ? 'billIntake.reading.dailyLimit'
+                      : 'apiErrors.planFeatureNotIncluded.receiptScan',
+                  )}
+                </p>
+              ) : null}
+
               <div className="mt-4 flex flex-col gap-1.5">
                 <FieldLabel
                   label={t('scanReceipts.boughtFrom')}
@@ -707,6 +778,7 @@ function ReceiptEditor({
                     )
                   }
                   error={error('supplier')}
+                  unsure={!form.supplierId && unsure('supplierName')}
                 />
                 {form.supplierId && receipt.vatNumber ? (
                   <p className="flex items-start gap-1.5 text-xs font-medium leading-[1.4] text-text-tertiary">
@@ -723,6 +795,7 @@ function ReceiptEditor({
                     value={form.issueDate}
                     onChange={(issueDate) => setForm({ issueDate })}
                     ariaLabel={t('scanReceipts.date')}
+                    unsure={unsure('issueDate')}
                   />
                   {error('issueDate') ? (
                     <p role="alert" className="text-xs font-medium text-text-danger">
@@ -737,6 +810,7 @@ function ReceiptEditor({
                   maxLength={200}
                   value={form.billNumber}
                   onChange={(billNumber) => setForm({ billNumber })}
+                  unsure={unsure('billNumber')}
                 />
                 <div className="flex flex-col gap-1">
                   <FieldLabel
@@ -758,7 +832,7 @@ function ReceiptEditor({
                       onChange={(event) => setForm({ total: event.target.value })}
                       aria-invalid={error('total') ? true : undefined}
                       className={[
-                        FIELD,
+                        unsure('total') ? AMBER_FIELD : FIELD,
                         'ps-9 tabular-nums',
                         error('total') ? 'ring-1 ring-border-danger' : '',
                       ].join(' ')}
@@ -791,13 +865,13 @@ function ReceiptEditor({
                         ...receipt,
                         vatTyped: true,
                         form: { ...form, vat: event.target.value },
+                        unsure: receipt.unsure.filter((field) => field !== 'vat'),
                       })
                     }
                     aria-invalid={error('vat') ? true : undefined}
                     className={[
-                      FIELD,
+                      receipt.vatTyped && !unsure('vat') ? FIELD : AMBER_FIELD,
                       'tabular-nums',
-                      receipt.vatTyped ? '' : 'border-[#d8c9a8] bg-[#faf5ea]',
                       error('vat') ? 'ring-1 ring-border-danger' : '',
                     ].join(' ')}
                   />
@@ -805,10 +879,16 @@ function ReceiptEditor({
                     <p role="alert" className="text-xs font-medium text-text-danger">
                       {error('vat')}
                     </p>
-                  ) : receipt.vatTyped ? null : (
+                  ) : receipt.vatTyped && !unsure('vat') ? null : (
+                    // TODO(backend): EXPENDITURE.md 1.27. Why it is unsure ("That line is smudged
+                    // on the photo"); the reading gives a score only.
                     <p className="flex items-start gap-1.5 text-xs font-medium leading-[1.4] text-[#887147]">
                       <img src={warnIcon} alt="" className="mt-px size-4 shrink-0" />
-                      {t('billIntake.scan.vatWorkedOut')}
+                      {t(
+                        receipt.vatTyped
+                          ? 'billIntake.reading.unsure'
+                          : 'billIntake.scan.vatWorkedOut',
+                      )}
                     </p>
                   )}
                 </div>
@@ -851,15 +931,38 @@ function ReceiptEditor({
                 <FieldLabel label={t('scanReceipts.category')} required />
                 <Select
                   value={receipt.category}
-                  onChange={(category) => onChange({ ...receipt, category })}
+                  onChange={(category) =>
+                    onChange({
+                      ...receipt,
+                      category,
+                      categoryGuessed: false,
+                      categoryUnsure: false,
+                    })
+                  }
                   options={categoryOptions}
                   ariaLabel={t('scanReceipts.category')}
-                  unsure={receipt.category === ''}
+                  unsure={receipt.category === '' || receipt.categoryUnsure}
                 />
                 {receipt.category === '' ? (
                   <p className="flex items-start gap-1.5 text-xs font-medium leading-[1.4] text-[#887147]">
                     <img src={warnIcon} alt="" className="mt-px size-4 shrink-0" />
                     {t('scanReceipts.pickCategory')}
+                  </p>
+                ) : receipt.categoryGuessed ? (
+                  // TODO(backend): EXPENDITURE.md 1.27. The design names what the guess came from
+                  // ("Guessed from wire brush, sealant, drain cover"); the reading carries no reason.
+                  <p
+                    className={[
+                      'flex items-start gap-1.5 text-xs font-medium leading-[1.4]',
+                      receipt.categoryUnsure ? 'text-[#887147]' : 'text-text-tertiary',
+                    ].join(' ')}
+                  >
+                    <img
+                      src={receipt.categoryUnsure ? warnIcon : infoIcon}
+                      alt=""
+                      className="mt-px size-4 shrink-0"
+                    />
+                    {t('billIntake.reading.categoryGuessed')}
                   </p>
                 ) : null}
               </div>

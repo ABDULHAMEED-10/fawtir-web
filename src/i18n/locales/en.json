@@ -6084,7 +6084,10 @@
     "unlinkedHint": "Leave it unlinked for a counter purchase or a service with no order behind it.",
     "cancel": "Cancel",
     "saveBill": "Save the bill",
-    "titleTyped": "Type in the bill"
+    "titleTyped": "Type in the bill",
+    "subtitleRead": "Fawtir read the file for you. Anything it wasn't sure of is marked amber: check it against the file before you save.",
+    "fileMeta_one": "{{count}} page · {{size}} · read in {{seconds}} seconds · {{read}} of {{fields}} fields confident",
+    "fileMeta_other": "{{count}} pages · {{size}} · read in {{seconds}} seconds · {{read}} of {{fields}} fields confident"
   },
   "scanReceipts": {
     "breadcrumb": "Scan receipts",
@@ -6145,7 +6148,9 @@
       "toCheck_other": "{{count}} fields to check",
       "onThisOne": "on this one"
     },
-    "discardThisOne": "Discard this one"
+    "discardThisOne": "Discard this one",
+    "subtitle_one": "{{count}} photo went in. Fawtir read it. Anything it wasn't sure of is marked amber.",
+    "subtitle_other": "{{count}} photos went in. Fawtir read each one. Confirm them one at a time. Anything it wasn't sure of is marked amber."
   },
   "paymentsPage": {
     "breadcrumb": "Payments",
@@ -20152,7 +20157,8 @@
       "purchaseOrders": "Your plan does not include purchase orders. What you made before can still be viewed, downloaded and exported.",
       "approvals": "Your plan does not include sales approvals. What you made before can still be viewed, downloaded and exported.",
       "bulkUpload": "Your plan does not include bulk upload. What you made before can still be viewed, downloaded and exported.",
-      "generic": "Your plan does not include this. What you made before can still be viewed, downloaded and exported."
+      "generic": "Your plan does not include this. What you made before can still be viewed, downloaded and exported.",
+      "receiptScan": "Your plan does not include scanning bills and receipts. What you made before can still be viewed, downloaded and exported."
     }
   },
   "appAccess": {
@@ -20794,14 +20800,18 @@
     "xmlFilled": "This is an e-invoice file, so there is no picture to show. Its fields are filled in on the right; check them against what the supplier sent.",
     "xmlNotRead": "This XML file could not be read as an e-invoice. Type the bill in on the right.",
     "upload": {
-      "subtitle": "Add the supplier's file, then type the bill in beside it. An e-invoice (XML) file fills its fields in for you; a PDF or photo is not read.",
+      "subtitle": "Add the supplier's file, then check or type the bill beside it. An e-invoice (XML) file fills its fields in, and Fawtir fills in what it can read from a PDF or photo.",
       "choose": "Choose the supplier's bill",
       "hint": "PDF, JPG, PNG or an e-invoice XML file, up to 10 MB. Drop it here or click to choose.",
       "sending": "Uploading…",
       "tooLarge": "That file is larger than 10 MB.",
       "wrongType": "Use a PDF, JPG, PNG or XML file.",
       "empty": "That file is empty.",
-      "fileRequired": "Choose the bill's file first."
+      "fileRequired": "Choose the bill's file first.",
+      "reading": "Reading the file… {{seconds}} s",
+      "readingOf": "Reading file {{current}} of {{total}}… {{seconds}} s",
+      "readingHint": "Fawtir is reading the file so you don't have to type it in. This can take up to a minute; keep this page open.",
+      "readingShort": "Reading… {{seconds}} s"
     },
     "record": {
       "subtitle": "A bill from {{name}}. Add their file first, then type the bill in beside it.",
@@ -20907,6 +20917,14 @@
       "supplierSwitchedOff": "This supplier is switched off. Switch it back on to record a bill for it.",
       "pettyCashNotCash": "Petty cash can only be recorded as cash.",
       "noteTooLong": "That note is too long. Shorten it to 500 characters."
+    },
+    "reading": {
+      "pages_one": "{{count}} page",
+      "pages_other": "{{count}} pages",
+      "confident": "{{read}} of {{fields}} fields confident",
+      "unsure": "Fawtir wasn't sure of this. Check it against the file.",
+      "dailyLimit": "You've reached today's limit for reading bills. Try again tomorrow.",
+      "categoryGuessed": "Guessed from the receipt. Change it if that's wrong."
     }
   },
   "salesNote": {
