@@ -5,6 +5,9 @@ import type { ReferenceDataDto } from '../../api/reference/referenceData'
 import type { ItemType } from '../../lib/invoiceDraft'
 import { emptyLine, lineProblem, type LineDraft, type LineProblem } from '../../lib/purchaseOrders'
 import { formatAmount } from '../../lib/format'
+import { lineFromProduct } from '../../lib/productLine'
+import type { ProductDto } from '../../api/catalog/products'
+import { OrderProductPick } from './OrderProductPick'
 import plusIcon from '../../assets/bill-capture/plus.svg'
 import deleteIcon from '../../assets/invoice-details/delete.svg'
 import omrRowIcon from '../../assets/invoices/omr-row.svg'
@@ -30,6 +33,8 @@ export function OrderLinesTable({
   problems,
   language,
   minLines = 1,
+  catalogue = false,
+  onPickFailure,
 }: {
   lines: LineDraft[]
   onChange: (next: LineDraft[]) => void
@@ -42,6 +47,12 @@ export function OrderLinesTable({
   problems: (LineProblem | null)[]
   language: string
   minLines?: number
+  /**
+   * Offer a catalogue pick on each line (S2, purchase orders only): the line then names the
+   * product it buys, its size or option, and how many of its unit one ordered unit holds.
+   */
+  catalogue?: boolean
+  onPickFailure?: (message: string) => void
 }) {
   const { t } = useTranslation()
 
@@ -52,6 +63,51 @@ export function OrderLinesTable({
     const options = unitOptions(itemType, t, undefined, reference)
     update(line.id, { itemType, unit: options[0]?.value ?? 'EA' })
   }
+
+  // Picking fills the line as the invoice's picker does (name, unit, price before VAT); the
+  // description stays free text and the supplier's rate stays the line's VAT.
+  const pick = (line: LineDraft, product: ProductDto) => {
+    const filled = lineFromProduct(reference?.taxCategories ?? [], product, true)
+    const variants = (product.variants ?? []).map((variant) => ({
+      id: variant.id,
+      name: variant.name,
+      price: variant.price,
+    }))
+    update(line.id, {
+      productId: product.id,
+      productName: product.name,
+      description: filled.description,
+      unit: filled.unit,
+      unitPrice: filled.unitPrice,
+      ...(filled.itemType ? { itemType: filled.itemType } : {}),
+      variants,
+      variantId: null,
+      keepCount: product.keepCount === true,
+      stockUnit: product.defaultUnitCode,
+      stockUnitsPerOrderUnit: '1',
+    })
+  }
+
+  const pickVariant = (line: LineDraft, variantId: string) => {
+    const variant = line.variants?.find((entry) => entry.id === variantId)
+    if (!variant) return
+    update(line.id, {
+      variantId,
+      description: variant.name,
+      unitPrice: variant.price.toFixed(3),
+    })
+  }
+
+  const unlink = (line: LineDraft) =>
+    update(line.id, {
+      productId: null,
+      productName: undefined,
+      variants: undefined,
+      variantId: null,
+      keepCount: undefined,
+      stockUnit: undefined,
+      stockUnitsPerOrderUnit: undefined,
+    })
 
   const lineNet = (line: LineDraft) =>
     lineProblem(line) === null ? Number(line.quantity) * Number(line.unitPrice) : 0
@@ -114,6 +170,66 @@ export function OrderLinesTable({
                         )
                       })}
                     </span>
+                    {catalogue ? (
+                      <span className="ms-1.5 mt-1.5 inline-flex flex-wrap items-center gap-1.5 align-top">
+                        <OrderProductPick
+                          line={index + 1}
+                          productId={line.productId ?? null}
+                          productName={line.productName ?? ''}
+                          onPick={(product) => pick(line, product)}
+                          onFailure={(message) => onPickFailure?.(message)}
+                        />
+                        {line.productId ? (
+                          <button
+                            type="button"
+                            onClick={() => unlink(line)}
+                            className="text-[11px] font-semibold text-text-tertiary transition-colors hover:text-text-secondary"
+                          >
+                            {t('purchaseOrder.stock.unlink')}
+                          </button>
+                        ) : null}
+                      </span>
+                    ) : null}
+                    {catalogue && line.productId && (line.variants?.length ?? 0) > 0 ? (
+                      <div className="mt-1.5 w-full max-w-[260px]">
+                        <Select
+                          compact
+                          quiet
+                          value={line.variantId ?? ''}
+                          onChange={(id) => pickVariant(line, id)}
+                          placeholder={t('purchaseOrder.stock.chooseVariant')}
+                          options={(line.variants ?? []).map((variant) => ({
+                            value: variant.id,
+                            label: variant.name,
+                          }))}
+                          ariaLabel={t('purchaseOrder.stock.variant', { line: index + 1 })}
+                        />
+                      </div>
+                    ) : null}
+                    {catalogue && line.productId && line.keepCount ? (
+                      <label className="mt-1.5 flex items-center gap-2 text-xs font-medium text-text-tertiary">
+                        <input
+                          value={line.stockUnitsPerOrderUnit ?? '1'}
+                          inputMode="decimal"
+                          onFocus={selectAllOnFocus}
+                          onChange={(event) =>
+                            update(line.id, { stockUnitsPerOrderUnit: event.target.value })
+                          }
+                          aria-label={t('purchaseOrder.stock.unitsPerOrderUnitLine', {
+                            line: index + 1,
+                          })}
+                          aria-invalid={problem === 'stockUnits'}
+                          className={[INPUT, SHELL, 'h-9 w-[76px] px-2 text-end'].join(' ')}
+                        />
+                        <span>
+                          {t('purchaseOrder.stock.unitsPerOrderUnit', {
+                            unit: t(`reference.unitShort.${line.stockUnit ?? 'EA'}`, {
+                              defaultValue: line.stockUnit ?? '',
+                            }),
+                          })}
+                        </span>
+                      </label>
+                    ) : null}
                   </td>
                   <td className="px-1 py-2 align-top">
                     <div className="flex items-center gap-1">

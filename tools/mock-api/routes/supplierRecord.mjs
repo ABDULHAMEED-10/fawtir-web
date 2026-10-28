@@ -105,6 +105,9 @@ const line = (id, lineNo, description, quantity, unit, unitPrice, vatRate = 5) =
     vatRate,
     lineNet,
     vatAmount: scale((lineNet * vatRate) / 100),
+    productId: null,
+    variantId: null,
+    stockUnitsPerOrderUnit: 1,
   }
 }
 
@@ -921,8 +924,8 @@ export default [
     match: '/api/v1/purchase-orders',
     reply: ({ body }) => {
       orderSeed += 1
-      const lines = (body?.lines ?? []).map((l, i) =>
-        line(
+      const lines = (body?.lines ?? []).map((l, i) => ({
+        ...line(
           `po-${orderSeed}-${i + 1}`,
           l.lineNo ?? i + 1,
           l.description,
@@ -931,7 +934,11 @@ export default [
           l.unitPrice,
           l.vatRate ?? 0,
         ),
-      )
+        // S2: the catalogue product the line buys, as `PurchaseOrderLine` returns it.
+        productId: l.productId ?? null,
+        variantId: l.variantId ?? null,
+        stockUnitsPerOrderUnit: l.stockUnitsPerOrderUnit ?? 1,
+      }))
       const created = order(
         `po-00${orderSeed}`,
         `PO-00${orderSeed}`,

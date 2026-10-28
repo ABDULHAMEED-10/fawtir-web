@@ -325,8 +325,8 @@ function App() {
             }
           />
           <Route path="/expenditure/reminders" element={<ExpenditureRemindersPage />} />
-          <Route path="/stock" element={<DemoModule module="stock"><StockPage /></DemoModule>} />
-          <Route path="/stock/:id" element={<DemoModule module="stock"><StockDetailPage /></DemoModule>} />
+          <Route path="/stock" element={<StockPage />} />
+          <Route path="/stock/:id" element={<StockDetailPage />} />
           <Route path="/catalog" element={<CatalogPage />} />
           <Route path="/catalog/upload" element={<DemoModule module="catalog"><UploadMenuPage /></DemoModule>} />
           <Route path="/catalog/build" element={<DemoModule module="catalog"><BuildCatalogPage /></DemoModule>} />

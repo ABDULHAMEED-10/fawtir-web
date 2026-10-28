@@ -37,6 +37,7 @@ export const GATED_FEATURES: readonly Feature[] = [
   'purchaseOrders',
   'approvals',
   'bulkUpload',
+  'stock',
 ]
 
 /**

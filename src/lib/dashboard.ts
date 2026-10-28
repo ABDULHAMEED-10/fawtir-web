@@ -250,7 +250,13 @@ export const DASHBOARD_NAV: NavGroup[] = [
           },
         ],
       },
-      { id: 'stock', labelKey: 'dashboard.nav.stock', Icon: NavStockIcon, to: '/stock' },
+      {
+        id: 'stock',
+        labelKey: 'dashboard.nav.stock',
+        Icon: NavStockIcon,
+        to: '/stock',
+        requires: 'stock.read',
+      },
     ],
   },
   {

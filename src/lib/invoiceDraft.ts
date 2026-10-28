@@ -43,6 +43,13 @@ export type DraftLine = {
   exemptionReasonCode?: string
   quantity: string
   unit: string
+  /**
+   * The unit a counted product (`keepCount`) keeps its stock in, set when that product filled the
+   * line. While set the unit is fixed to it: a line in another unit moves no stock and the issue
+   * warns `STOCK_UNIT_MISMATCH` (Abdul, 28 Oct 2026). Client only, never sent; a typed line and an
+   * uncounted product have none.
+   */
+  countedUnit?: string
   discountType: DiscountType
   discountValue: string
 }

@@ -873,3 +873,28 @@ copy, and it never changes the invoice's delivery state.
 | SH.1 | The rendered invoice PDF (row 2.2) | `GET /v1/invoices/{id}/pdf`, the same artefact the documents archive already links (`artefacts.pdf`, DOCUMENTS.md 3.20): the signed, rendered, bilingual PDF, one file for download, print and sharing |
 | SH.2 | Send by email | `POST /v1/invoices/{id}/share/email` with `{to: [email], cc?: [email], message?, language}`; sends from Fawtir's mail with the PDF attached and the invoice number in the subject; prefill `to` from the customer's email. Refused while the subscription is read-only (ST-2: nothing is sent) and for a deemed supply (no buyer copy); answer the refusal with a problem type the screen can word |
 | SH.3 | Share on WhatsApp | `POST /v1/invoices/{id}/share-link` returning a time-limited public URL to the PDF (`url`, `expiresAt`); the web opens `https://wa.me/?text=` with a short message and the link, mobile uses the phone's share sheet with the PDF file or the link. Same refusals as SH.2. Revoking or letting the link expire never affects the invoice |
+
+## Update 2026-10-28 (stock screens on /v1/stock)
+
+The Stock list and one item's shelf now read and write the stock API in the branch chosen in the
+sidebar: `GET /v1/stock` (tab = `status`, search = `q`, Sort = `sort`, server paging) and
+`GET /v1/stock/summary` for the cards and tab counts, `GET /v1/stock/items/{productId}` and its
+`/movements`, `POST /v1/stock/counts`, `/write-offs` and `/deliveries` (each with an
+`Idempotency-Key`), and `PUT .../reorder-level` (with `expectedVersion`) and
+`PUT /v1/stock/reorder-levels`. `stock.read` opens the screens, `stock.adjust` shows Count the
+shelves, Correct the count, Write stock off and Record what came in, `stock.manage` shows the
+reorder level changes; the writes are also hidden when the plan's `stock` switch is off, and stay
+offered while the subscription is read-only (ST-2). Purchase-order lines name a product, its
+variant and `stockUnitsPerOrderUnit`; credit-note lines send `backOnShelf`; the invoice composer
+fixes a counted product's unit and words the issue answer's `STOCK_*` warnings.
+
+| #    | What the screen needs | Backend |
+| ---- | --- | --- |
+| P.10 (update) | Stock per branch | **Done** as above |
+| P.19 | Group and kind on a stock row | the frame prints "group › kind · code" under each item and in the item's subtitle; `StockRow` has neither. Asked: `groupName`/`groupNameAr` and `kindName`/`kindNameAr` (or the ids) on `StockRow` and `StockItemDetail`. Until then the code alone is shown |
+| P.20 | What depends on an item | `StockItemDetail.dependsOnIt` is always null, so the "What else depends on it" card (bundles capped by this item, open quotations, recurring orders) and the On hand card's "promised to a bundle" note show a dash; the On hand note shows the last count instead |
+| P.21 | Stock period and export | the item's chart has a period picker and an export, and the movements an Export; `GET /v1/stock/items/{id}` answers thirty days only and there is no export route. Drawn switched off |
+| P.22 | The supplier's delivery days and price changes | the item's "Who supplies it" card draws "Delivers" (the supplier's usual delivery days) and "Last price change" (from, to, when). Neither has a field; "Last price change" shows the last receipt's cost and date, "Delivers" a dash |
+| P.23 | A counted product on a saved draft line | the invoice composer fixes a counted product's unit when the product is picked; a reopened draft's lines carry `productId` but not the product's `keepCount`, so its unit is not fixed (the server still warns `STOCK_UNIT_MISMATCH` on issue). Asked: `keepCount` (or the counted unit) on draft lines |
+| P.24 | Sizes on the product search | product search rows have `variants: null`, so picking a product with sizes on a purchase-order line costs one more `GET /v1/products/{id}`; variant names come in English only (no `nameAr`), so the size list reads in English on an Arabic screen |
+| P.25 | Counted products on an invoice's lines | the credit note composer reads each invoice line's product (`GET /v1/products/{id}`, one per product) to learn `keepCount` before asking "Back on the shelf?". `keepCount` on the invoice detail line, or a product read by a list of ids, would remove those calls |

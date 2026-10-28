@@ -48,6 +48,11 @@ export type ProductLinePatch = {
   exemptionReason?: string
   discountType?: DiscountType
   discountValue?: string
+  /**
+   * The product's own unit when its stock is counted (`keepCount`), which fixes the line's unit;
+   * always present as a key, undefined for an uncounted product, so picking one unlocks the unit.
+   */
+  countedUnit: string | undefined
 }
 
 /**
@@ -66,13 +71,15 @@ export function lineFromProduct(
   const rate = parseAmount(vatRate)
   const hundred = parseAmount('100')
   const unitPrice = exclVat || rate === 0n ? price : (price * (hundred + rate)) / hundred
+  const unit = offeredUnitCode(product.defaultUnitCode)
   return {
     productId: product.id,
     productCode: product.code,
     description: product.name,
     unitPrice: formatAmount(unitPrice, 3).replace(/,/g, ''),
     // A bare Rec 21 code takes its X form on the line (ibr-cl-23); the product is not changed.
-    unit: offeredUnitCode(product.defaultUnitCode),
+    unit,
+    countedUnit: product.keepCount === true ? unit : undefined,
     vatRate,
     taxCode: tax?.code ?? null,
     ...productExtras(product),

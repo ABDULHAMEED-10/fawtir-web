@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { selectAllOnFocus } from '../../components/invoice/numericInput'
-import { OmAmount, Rial, Select, TableCheckbox } from '../../components/ui'
+import { OmAmount, Rial, Select, Switch, TableCheckbox } from '../../components/ui'
 import { ClassificationField, unitOptions } from '../../components/invoice'
 import {
   CODED_REASON,
@@ -89,6 +89,39 @@ function Stepper({ disabled, onStep }: { disabled: boolean; onStep: (delta: numb
   )
 }
 
+/**
+ * A credit note's "Back on the shelf?" for a returned line of a counted product (V473): on, the
+ * item goes back into the branch's stock when the note is issued; off, the count stays as it is.
+ */
+function BackOnShelf({
+  line,
+  name,
+  onChange,
+}: {
+  line: NoteLine
+  name: string
+  onChange: (lineNumber: number, patch: Partial<NoteLine>) => void
+}) {
+  const { t } = useTranslation()
+  const on = line.backOnShelf === true
+  return (
+    <div className="flex flex-wrap items-center gap-2 ps-1">
+      <span className="shrink-0 text-xs font-medium text-text-tertiary">
+        {t('salesNote.backOnShelf.label')}
+      </span>
+      <Switch
+        size="sm"
+        checked={on}
+        onChange={(backOnShelf) => onChange(line.lineNumber, { backOnShelf })}
+        label={`${t('salesNote.backOnShelf.label')} · ${name}`}
+      />
+      <span className="text-xs font-medium text-text-quaternary">
+        {t(on ? 'salesNote.backOnShelf.yes' : 'salesNote.backOnShelf.no')}
+      </span>
+    </div>
+  )
+}
+
 export function NoteLinesTable({
   lines,
   totals,
@@ -103,6 +136,7 @@ export function NoteLinesTable({
   onAdd,
   onRemove,
   taxCategories,
+  asksBackOnShelf,
 }: {
   lines: NoteLine[]
   totals: NoteTotals
@@ -125,6 +159,8 @@ export function NoteLinesTable({
    * category, as an invoice line does. A line copied from the invoice keeps the invoice's.
    */
   taxCategories?: TaxCategoryDto[]
+  /** Which lines ask "Back on the shelf?": a credit note's returned goods of a counted product. */
+  asksBackOnShelf?: (line: NoteLine) => boolean
 }) {
   const { t, i18n } = useTranslation()
   const money = (value: number | string) => formatAmount(value, currency, i18n.language)
@@ -138,16 +174,21 @@ export function NoteLinesTable({
         {lines.map((line) => (
           <li
             key={line.lineNumber}
-            className="flex items-center justify-between gap-4 rounded-sm border border-border-subtle bg-white px-4 py-3.5"
+            className="flex flex-col gap-2 rounded-sm border border-border-subtle bg-white px-4 py-3.5"
           >
-            <span className="text-base font-medium text-text-primary">{line.description}</span>
-            <OmAmount
-              size="sm"
-              prefix={sign}
-              amount={money(totals.lines.get(line.lineNumber) ?? '0')}
-              amountClassName={`text-lg font-semibold ${colour} tabular-nums`}
-              className="shrink-0"
-            />
+            <span className="flex items-center justify-between gap-4">
+              <span className="text-base font-medium text-text-primary">{line.description}</span>
+              <OmAmount
+                size="sm"
+                prefix={sign}
+                amount={money(totals.lines.get(line.lineNumber) ?? '0')}
+                amountClassName={`text-lg font-semibold ${colour} tabular-nums`}
+                className="shrink-0"
+              />
+            </span>
+            {asksBackOnShelf?.(line) ? (
+              <BackOnShelf line={line} name={name(line)} onChange={onChange} />
+            ) : null}
           </li>
         ))}
       </ul>
@@ -388,6 +429,11 @@ export function NoteLinesTable({
                           ariaLabel={`${classificationLabel} · ${name(line)}`}
                         />
                       </div>
+                    </div>
+                  ) : null}
+                  {!off && asksBackOnShelf?.(line) ? (
+                    <div className="mt-2">
+                      <BackOnShelf line={line} name={name(line)} onChange={onChange} />
                     </div>
                   ) : null}
                   {/* Why an added line carries no VAT: its own row, as on the invoice composer. */}
