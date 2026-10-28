@@ -177,6 +177,8 @@ export const SEED_ROUTES = [
   '/console/tenants/al-bahja?tab=erp',
   '/console/onboarding',
   '/console/operators',
+  '/console/settings/business-types',
+  '/console/settings/business-types/COFFEE_SHOP/template',
 
   // Sub-screens reached by a tab or an action rather than a plain link, so the crawl cannot find
   // them. The ids are real records from the sample data.

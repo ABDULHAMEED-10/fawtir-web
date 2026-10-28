@@ -3,6 +3,7 @@ import { BILLING_MANAGE_PERMISSION, BILLING_READ_PERMISSION } from './billingPay
 import { POLICY_CONSOLE_PERMISSION } from './validationPolicies'
 import { READINESS_PERMISSION } from './branchAccessReadiness'
 import { PLANS_READ_PERMISSION, PLANS_MANAGE_PERMISSION } from './planCatalogue'
+import { CATALOGUE_MANAGE_PERMISSION } from '../../api/platform/businessTypes'
 
 /**
  * The console's Settings page, built like the tenant Settings hub (`/settings`): tabs across the
@@ -162,6 +163,16 @@ export const CONSOLE_SETTINGS_CARDS: readonly ConsoleSettingsCard[] = [
     icon: 'peppol',
     to: '/console/policies',
     requires: POLICY_CONSOLE_PERMISSION,
+  },
+  {
+    // The business types and sub types offered at sign-up, and their catalogue templates
+    // (Catalogue guide 1A).
+    id: 'businessTypes',
+    tab: 'platform',
+    icon: 'branches',
+    to: '/console/settings/business-types',
+    requires: CATALOGUE_MANAGE_PERMISSION,
+    manage: CATALOGUE_MANAGE_PERMISSION,
   },
   {
     id: 'branchAccess',

@@ -25,3 +25,5 @@ export { ConsoleBranchAccessReadinessPage } from './branchAccess/ConsoleBranchAc
 export { ConsoleEnterprisePage } from './enterprise/ConsoleEnterprisePage'
 export { ConsoleEnterpriseTermsPage } from './enterprise/ConsoleEnterpriseTermsPage'
 export { ConsoleFawtirCompanyPage } from './billing/ConsoleFawtirCompanyPage'
+export { ConsoleBusinessTypesPage } from './catalogue/ConsoleBusinessTypesPage'
+export { ConsoleTemplateEditorPage } from './catalogue/ConsoleTemplateEditorPage'

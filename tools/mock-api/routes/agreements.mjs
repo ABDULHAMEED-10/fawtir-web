@@ -24,6 +24,8 @@ const ENTITLEMENTS = {
     'platform.billing.read',
     'platform.billing.manage',
     'platform.plans.read',
+    // Console › Settings › Business types and the template editor (consoleBusinessTypes.mjs).
+    'platform.catalogue.manage',
     'admin.users.manage',
     'admin.roles.manage',
     'admin.settings.manage',

@@ -31,6 +31,7 @@ const ADMIN: Entitlements = {
     'platform.billing.manage',
     'platform.plans.read',
     'platform.plans.manage',
+    'platform.catalogue.manage',
   ],
   scopes: [],
   featureFlags: {},
@@ -88,6 +89,7 @@ describe('Console › Settings', () => {
     expect(card('Operators')?.getAttribute('href')).toBe('/console/operators')
     expect(card('Validation policies')?.getAttribute('href')).toBe('/console/policies')
     expect(card('Branch access check')?.getAttribute('href')).toBe('/console/branch-access')
+    expect(card('Business types')?.getAttribute('href')).toBe('/console/settings/business-types')
     expect(card('Audit log')?.getAttribute('href')).toBe('/console/audit')
     // Owner, 24 Oct 2026: a value the API already sets leads to the page that sets it.
     expect(card('Counting rules')?.getAttribute('href')).toBe('/console/plans')
@@ -124,6 +126,8 @@ describe('Console › Settings', () => {
     expect(card('Billing rules')).toBeNull()
     expect(card('Fawtir company details')).toBeNull()
     expect(card('Operators')).toBeNull()
+    // Business types need the catalogue permission (Catalogue guide 1A).
+    expect(card('Business types')).toBeNull()
     expect(screen.queryByRole('heading', { level: 2, name: 'Fawtir company' })).toBeNull()
   })
 
