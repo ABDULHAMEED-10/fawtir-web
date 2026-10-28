@@ -21,7 +21,6 @@ import { downloadBillOriginal } from '../../api/expenditure/bills'
 import { intakePath } from '../../api/expenditure/billIntake'
 import {
   CREDIT_AMOUNT_NOTE,
-  CREDIT_ROW_ACTION,
   CREDIT_STATUS_CHIP,
   CREDIT_STATUS_LABEL,
   CREDIT_TABS,
@@ -29,6 +28,7 @@ import {
   CREDIT_TAB_STATUS,
   DEFAULT_CREDIT_TAB,
   NOTE_SORTS,
+  creditRowActionOf,
   isCreditTab,
   isNoteSort,
   noteSortOf,
@@ -507,7 +507,7 @@ function CreditRow({
   const { t } = useTranslation()
   const navigate = useNavigate()
   const chip = CHIP[CREDIT_STATUS_CHIP[note.status]]
-  const action = CREDIT_ROW_ACTION[note.status]
+  const action = creditRowActionOf(note)
   const reason = reasonLabelKey(note.reasonCode, note.reasonDetail ?? null)
   const [busy, setBusy] = useState(false)
   const detailTo = `/expenditure/credit-notes/${note.id}`

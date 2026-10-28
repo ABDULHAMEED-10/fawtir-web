@@ -283,6 +283,9 @@ function CreditNoteDetail() {
               : t('supplierCreditNotes.detail.noBillNote')
   // Held, the bill refuses any credit until it is released (C8).
   const billOnHold = bill !== null && (Boolean(bill.hold) || bill.workflowState === 'ON_HOLD')
+  // A note held as a duplicate keeps a balance, but `/apply` and `/refund` refuse it (409
+  // CREDIT_NOTE_HELD_AS_DUPLICATE) until the hold is decided, so neither is offered.
+  const settleable = canSettle && remaining > 0 && !item.heldAsDuplicate
 
   // Once the note has reduced its bill, what is left can only go against another one.
   const setAgainstKey = usedOnBill
@@ -390,7 +393,7 @@ function CreditNoteDetail() {
               {t('supplierCreditNotes.detail.download')}
             </button>
           ) : null}
-          {canSettle && remaining > 0 ? (
+          {settleable ? (
             <button
               type="button"
               onClick={() => setMode('apply')}
@@ -644,21 +647,25 @@ function CreditNoteDetail() {
                 ))}
               </dl>
             ) : null}
-            <p className="mt-3 text-sm font-medium leading-[1.5] text-text-tertiary">
-              {kept
-                ? t('supplierCreditNotes.detail.keptDone', { supplier: item.supplier ?? '' })
-                : remaining <= 0
-                  ? t('supplierCreditNoteDetail.nothingLeft')
-                  : !canSettle
-                    ? t('appAccess.missingPermission')
-                    : billNumber && !usedOnBill
-                      ? billOnHold
-                        ? t('supplierCreditNotes.detail.billOnHold', { bill: billNumber })
-                        : t('supplierCreditNotes.detail.decisionNote', { bill: billNumber })
-                      : t('supplierCreditNotes.detail.decisionNoteNoBill')}
-            </p>
+            {/* Every sentence below invites a settlement a held note cannot take, and none yet
+                says why it is held, so a held note shows none. */}
+            {item.heldAsDuplicate ? null : (
+              <p className="mt-3 text-sm font-medium leading-[1.5] text-text-tertiary">
+                {kept
+                  ? t('supplierCreditNotes.detail.keptDone', { supplier: item.supplier ?? '' })
+                  : remaining <= 0
+                    ? t('supplierCreditNoteDetail.nothingLeft')
+                    : !canSettle
+                      ? t('appAccess.missingPermission')
+                      : billNumber && !usedOnBill
+                        ? billOnHold
+                          ? t('supplierCreditNotes.detail.billOnHold', { bill: billNumber })
+                          : t('supplierCreditNotes.detail.decisionNote', { bill: billNumber })
+                        : t('supplierCreditNotes.detail.decisionNoteNoBill')}
+              </p>
+            )}
 
-            {canSettle && remaining > 0 ? (
+            {settleable ? (
               kept ? (
                 <button
                   type="button"

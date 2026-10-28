@@ -129,6 +129,12 @@ export type CreditNoteRowDto = {
   usage?: CreditNoteUsageDto | null
   balance: CreditNoteBalanceDto
   credits: CreditedBillDto
+  /**
+   * Backend #784: a later Peppol copy of a note already on file, held as a possible or confirmed
+   * duplicate. `status` still reads from the balance, but the note credits nothing and `/apply`
+   * and `/refund` refuse it (409 CREDIT_NOTE_HELD_AS_DUPLICATE). Absent from an older server.
+   */
+  heldAsDuplicate?: boolean
 }
 
 export type CreditNoteSummaryDto = {

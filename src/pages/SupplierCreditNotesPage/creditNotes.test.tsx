@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { CreditNoteRowDto, CreditNoteSummaryDto } from '../../api/expenditure/notes'
-import { toCreditNoteItem } from '../../lib/supplierNoteList'
+import { creditRowActionOf, toCreditNoteItem } from '../../lib/supplierNoteList'
 import { vatEffect } from '../../lib/supplierCreditNotes'
 import { SupplierCreditNotesPage } from './SupplierCreditNotesPage'
 import { SupplierCreditNoteDetailPage } from '../SupplierCreditNoteDetailPage'
@@ -1742,5 +1742,107 @@ describe('a plan without supplier notes (PL-8)', () => {
     renderList()
     await screen.findByText('QMS-CN-1')
     expect(screen.getByRole('link', { name: 'Upload a credit note' })).toBeTruthy()
+  })
+})
+
+// Backend #784: a later Peppol copy held as a duplicate keeps an UNAPPLIED status, but `/apply`
+// and `/refund` refuse it (409 CREDIT_NOTE_HELD_AS_DUPLICATE), so nothing may offer either.
+describe('A credit note held as a duplicate', () => {
+  const HELD_ID = '70000000-0000-0000-0000-000000000009'
+  const namedBill = {
+    billNumber: 'QMS-7781',
+    issueDate: '2026-09-01',
+    documentUuid: null,
+    billId: BILL_ID,
+    applied: false,
+  }
+
+  it('carries the flag, and leaves a held note out of usable credit', () => {
+    const held = toCreditNoteItem(note({ heldAsDuplicate: true }))
+    expect(held.heldAsDuplicate).toBe(true)
+    expect(held.usable).toBe(false)
+    expect(held.status).toBe('UNAPPLIED')
+
+    const normal = toCreditNoteItem(note({ heldAsDuplicate: false }))
+    expect(normal.heldAsDuplicate).toBe(false)
+    expect(normal.usable).toBe(true)
+  })
+
+  it('reads a row from a server that does not send the flag as not held', () => {
+    const row = note()
+    delete row.heldAsDuplicate
+    const item = toCreditNoteItem(row)
+    expect(item.heldAsDuplicate).toBe(false)
+    expect(item.usable).toBe(true)
+  })
+
+  it('opens a held note from its row instead of setting it against the bill', () => {
+    expect(creditRowActionOf({ status: 'UNAPPLIED', heldAsDuplicate: true })).toEqual({
+      labelKey: 'supplierCreditNotes.actions.openNote',
+      goesTo: 'note',
+    })
+    expect(creditRowActionOf({ status: 'UNAPPLIED', heldAsDuplicate: false })).toEqual({
+      labelKey: 'supplierCreditNotes.actions.setAgainst',
+      primary: true,
+      goesTo: 'note',
+    })
+  })
+
+  it('offers Set against on the normal row and only Open the note on the held one', async () => {
+    notes = [
+      note({ credits: namedBill }),
+      note({
+        id: HELD_ID,
+        creditNoteNumber: 'QMS-CN-1-COPY',
+        heldAsDuplicate: true,
+        credits: namedBill,
+      }),
+    ]
+    renderList()
+    const normalRow = (await screen.findByRole('link', { name: 'QMS-CN-1' })).closest('tr')!
+    const heldRow = screen.getByRole('link', { name: 'QMS-CN-1-COPY' }).closest('tr')!
+
+    expect(within(normalRow).getByRole('button', { name: 'Set against the bill' })).toBeTruthy()
+    expect(within(heldRow).queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    const open = within(heldRow).getByRole('link', { name: /Open the note/ })
+    expect(open.getAttribute('href')).toBe(`/expenditure/credit-notes/${HELD_ID}`)
+  })
+
+  it('opens a held note waiting for its bill, and keeps a spent state its own action', () => {
+    expect(creditRowActionOf({ status: 'WAITING_FOR_BILL', heldAsDuplicate: true })).toEqual({
+      labelKey: 'supplierCreditNotes.actions.openNote',
+      goesTo: 'note',
+    })
+    expect(creditRowActionOf({ status: 'APPLIED', heldAsDuplicate: true })).toEqual({
+      labelKey: 'supplierCreditNotes.actions.viewBill',
+      goesTo: 'bill',
+    })
+  })
+
+  it('offers no settlement on a held note waiting for its bill, on its row or its screen', async () => {
+    notes = [note({ status: 'WAITING_FOR_BILL', heldAsDuplicate: true })]
+    const list = renderList()
+    const row = (await screen.findByRole('link', { name: 'QMS-CN-1' })).closest('tr')!
+    expect(within(row).getByText('Waiting for a bill')).toBeTruthy()
+    expect(within(row).queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    expect(within(row).getByRole('link', { name: /Open the note/ })).toBeTruthy()
+    list.unmount()
+
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Ask for a refund' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Keep as credit' })).toBeNull()
+  })
+
+  it('offers no way to apply, refund or keep a held note on its own screen', async () => {
+    notes = [note({ heldAsDuplicate: true, credits: namedBill })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+
+    expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Ask for a refund' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Keep as credit' })).toBeNull()
+    expect(screen.queryByText(/clears the mismatch/)).toBeNull()
   })
 })
