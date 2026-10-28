@@ -333,13 +333,13 @@ function App() {
           <Route path="/catalog/new" element={<ItemFormPage mode="new" />} />
           <Route path="/catalog/rules" element={<DemoModule module="catalog"><PriceRulesPage /></DemoModule>} />
           <Route path="/catalog/rules/new" element={<DemoModule module="catalog"><NewRulePage /></DemoModule>} />
-          <Route path="/catalog/bundles" element={<DemoModule module="catalog"><BundlesPage /></DemoModule>} />
-          <Route path="/catalog/bundles/new" element={<DemoModule module="catalog"><BundlePage /></DemoModule>} />
-          <Route path="/catalog/bundles/:id" element={<DemoModule module="catalog"><BundlePage /></DemoModule>} />
+          <Route path="/catalog/bundles" element={<BundlesPage />} />
+          <Route path="/catalog/bundles/new" element={<BundlePage />} />
+          <Route path="/catalog/bundles/:id" element={<BundlePage />} />
           <Route path="/catalog/:id" element={<ItemFormPage mode="edit" />} />
-          <Route path="/catalog/:id/sells" element={<DemoModule module="catalog"><ItemSellsPage /></DemoModule>} />
-          <Route path="/catalog/:id/used" element={<DemoModule module="catalog"><ItemUsedPage /></DemoModule>} />
-          <Route path="/catalog/:id/changes" element={<DemoModule module="catalog"><ItemChangesPage /></DemoModule>} />
+          <Route path="/catalog/:id/sells" element={<ItemSellsPage />} />
+          <Route path="/catalog/:id/used" element={<ItemUsedPage />} />
+          <Route path="/catalog/:id/changes" element={<ItemChangesPage />} />
           <Route path="/catalog/:id/options" element={<DemoModule module="catalog"><ItemOptionsPage /></DemoModule>} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/peppol" element={<PeppolTaxPage />} />

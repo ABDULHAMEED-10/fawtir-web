@@ -275,4 +275,65 @@ describe('the catalogue list', () => {
       READER.permissions = ['product.read']
     }
   })
+
+  it('reads On sale and Never sold from the server for the working branch, counted by it', async () => {
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === '/api/v1/me/entitlements') return json(READER)
+      if (url === '/api/v1/branches') {
+        return json([{ id: 'b-main', code: 'MAIN', name: 'Main', type: 'HEAD_OFFICE' }])
+      }
+      if (url.startsWith('/api/v1/products')) {
+        const query = new URL(url, 'http://x').searchParams
+        if (query.get('sales') === 'NEVER_SOLD') {
+          return json({ content: [productAt(7)], page: 0, size: 20, totalElements: 4 })
+        }
+        if (query.get('availability') === 'ON_SALE') {
+          return json({ content: [productAt(1)], page: 0, size: 20, totalElements: 9 })
+        }
+        const content = [productAt(1), productAt(7)]
+        return json({ content, page: 0, size: 20, totalElements: content.length })
+      }
+      return new Response(null, { status: 404 })
+    })
+    render(
+      <MemoryRouter>
+        <CatalogPage />
+      </MemoryRouter>,
+    )
+    await screen.findByText('Item 01')
+    const tabButton = (key: string) =>
+      screen.getByRole('button', { name: new RegExp(`^${i18n.t(key)}`) })
+    await vi.waitFor(() =>
+      expect(tabButton('catalogReal.tab.neverSold').textContent).toContain('4'),
+    )
+    expect(tabButton('catalogReal.tab.onSale').textContent).toContain('9')
+    expect(productCalls()).toContain('/api/v1/products?branchId=b-main&availability=ON_SALE&size=1')
+    expect(productCalls()).toContain(
+      '/api/v1/products?branchId=b-main&includeUnavailable=true&sales=NEVER_SOLD&size=1',
+    )
+    fireEvent.click(tabButton('catalogReal.tab.neverSold'))
+    await vi.waitFor(() =>
+      expect(productCalls()).toContain(
+        '/api/v1/products?branchId=b-main&includeUnavailable=true&sales=NEVER_SOLD&sort=NAME&direction=ASC&size=20',
+      ),
+    )
+    expect(await screen.findByText('Item 07')).toBeTruthy()
+    expect(screen.queryByText('Item 01')).toBeNull()
+  })
+
+  it('draws no On sale or Never sold tab without a working branch', async () => {
+    render(
+      <MemoryRouter>
+        <CatalogPage />
+      </MemoryRouter>,
+    )
+    await screen.findByText('Item 01')
+    expect(
+      screen.queryByRole('button', { name: new RegExp(`^${i18n.t('catalogReal.tab.neverSold')}`) }),
+    ).toBeNull()
+    expect(
+      productCalls().some((url) => url.includes('sales=') || url.includes('availability=')),
+    ).toBe(false)
+  })
 })

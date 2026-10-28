@@ -1,34 +1,39 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
-import { CatalogShell, Pill } from './CatalogShell'
+import { CatalogShell } from './CatalogShell'
 import { ItemTabs } from './ItemTabs'
+import { ItemPills, ItemReadState, useItemRecord } from './itemRecord'
+import { ChangeChips, useHistoryWords } from './itemHistory'
 import { PlainBars, HorizontalBars } from '../../components/reports/charts'
 import { SERIES } from '../../components/reports/scale'
 import { Popover, Rial, RialText } from '../../components/ui'
+import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
+import { useApiRead } from '../../hooks'
+import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
 import { omr } from '../../lib/catalog'
 import {
-  ITEM,
-  SIZES,
-  ADD_ONS,
-  SOLD_90,
-  BY_MONTH,
-  BEST_MONTH,
-  BY_HOUR,
-  PEAK_HOUR,
-  BY_SIZE,
-  MOST_POPULAR_SIZE,
-  ADD_ONS_TAKEN,
-  addOnRevenue,
-  TOP_ADD_ON,
-  ONE_IN,
-  YEAR,
-  AVERAGE_SALE,
-  WHERE_IT_GOES,
-  whereItGoesShare,
-  SELLING_FACTS,
-  CHANGES,
-} from '../../lib/catalogItem'
+  getProductHistory,
+  getProductSales,
+  productHistoryPath,
+  productSalesPath,
+  type ProductHistoryEntry,
+  type ProductHistoryPageDto,
+  type ProductSalesDto,
+} from '../../api/catalog/insights'
+import {
+  SALES_WINDOWS,
+  addOnFacts,
+  bestBar,
+  dateLocale,
+  broughtIn,
+  mostPopularVariant,
+  percentOf,
+  rollSeries,
+  salesPeriod,
+  weekdays,
+  type SalesWindow,
+} from '../../lib/catalogInsights'
 import downloadIcon from '../../assets/catalog/download-ink.svg'
 import expandIcon from '../../assets/catalog/expand.svg'
 import chevronWhiteIcon from '../../assets/create-invoice/chevron.svg'
@@ -38,47 +43,98 @@ import changeAddIcon from '../../assets/catalog/plus-brand.svg'
 import changeEditIcon from '../../assets/catalog/pencil-ink.svg'
 import changeTickIcon from '../../assets/catalog/check-green.svg'
 
-const CHANGE_ICON: Record<string, string> = {
-  priceUp: changeUpIcon,
-  bulk: changeUpIcon,
-  added: changeAddIcon,
-  tax: changeEditIcon,
-  created: changeTickIcon,
+/** The hours the By hour of day card draws while the API has no hourly figures. */
+const TRADING_HOURS = ['7', '8', '9', '10', '11', '12', '1', '2']
+
+/** An icon for a history entry, by what it touched first. */
+function changeIcon(entry: Pick<ProductHistoryEntry, 'categories'>) {
+  const first = entry.categories[0]
+  if (first === 'CREATED') return changeTickIcon
+  if (first === 'PRICE') return changeUpIcon
+  if (first === 'SIZES' || first === 'BRANCHES') return changeAddIcon
+  return changeEditIcon
 }
 
 /**
- * Catalog › one item › How it sells (Figma 135:46588).
+ * Catalog › one item › How it sells (Figma 135:46588), from `GET /v1/products/{id}/sales`.
  *
- * Six panels over one item's trade. Every sentence under a chart is worked out from the chart's
- * own numbers, so none of them can drift from what is drawn above it.
+ * The period picker reads the window day by day (the API allows a year by DAY) and the page rolls
+ * the days into months, weeks or days, and into weekdays for the busiest and quietest day. Every
+ * sentence under a chart is worked out from the figures drawn above it. Figures are before VAT
+ * and net of credit notes; a till sale counts as an invoice.
  */
 export function ItemSellsPage() {
-  const { t } = useTranslation()
-  const { id } = useParams()
-  const [window, setWindow] = useState('yearly')
+  const { id = '' } = useParams()
+  const record = useItemRecord(id)
+  return (
+    <ItemReadState read={record.read}>
+      <ItemSells id={id} record={record} />
+    </ItemReadState>
+  )
+}
 
-  const goes = whereItGoesShare()
-  const top = TOP_ADD_ON()
+function ItemSells({ id, record }: { id: string; record: ReturnType<typeof useItemRecord> }) {
+  const { t, i18n } = useTranslation()
+  const product = record.product!
+  const [window, setWindow] = useState<SalesWindow>('yearly')
+  const words = useHistoryWords()
+
+  // The sidebar's working branch (P.9), as every catalogue screen; read once the branches answer.
+  const branchRead = useWorkingBranch()
+  const branchId = branchRead.branch?.id ?? null
+  const period = useMemo(() => salesPeriod(window), [window])
+  const salesPath = productSalesPath(id, { ...period, interval: 'DAY', branchId })
+  const sales = useApiRead<ProductSalesDto>(
+    branchRead.read.status === 'loading' ? null : salesPath,
+    () => getProductSales(salesPath),
+  )
+  const historyPath = productHistoryPath(id, { size: 4 })
+  const history = useApiRead<ProductHistoryPageDto>(historyPath, () =>
+    getProductHistory(historyPath),
+  )
+  const data = sales.read.status === 'ready' ? sales.read.data : null
+
+  const bucket = SALES_WINDOWS[window].bucket
+  const bars = useMemo(() => (data ? rollSeries(data.series, bucket) : []), [data, bucket])
+  const best = bestBar(bars)
+  const barLabel = (start: string) => {
+    const date = new Date(`${start}T00:00:00`)
+    return bucket === 'month'
+      ? date.toLocaleDateString(dateLocale(i18n.language), { month: 'short' })
+      : bucket === 'week'
+        ? date.toLocaleDateString(dateLocale(i18n.language), { day: 'numeric', month: 'short' })
+        : date.toLocaleDateString(dateLocale(i18n.language), { day: 'numeric' })
+  }
+  /** The best bar, named in full for a day (the bar itself shows only the day's number). */
+  const bestLabel = (start: string) =>
+    bucket === 'day'
+      ? new Date(`${start}T00:00:00`).toLocaleDateString(dateLocale(i18n.language), {
+          day: 'numeric',
+          month: 'short',
+        })
+      : barLabel(start)
+  const weekdayName = (day: number) =>
+    // 2023-01-01 was a Sunday, so day 0 is Sunday as Date.getDay() counts.
+    new Date(2023, 0, 1 + day).toLocaleDateString(dateLocale(i18n.language), { weekday: 'long' })
+  const days = data ? weekdays(data.series) : null
+  const popular = data ? mostPopularVariant(data) : null
+  const addOns = data ? addOnFacts(data) : null
+  const units = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 3 })
+  const channelTotal = data ? data.till.units + data.invoice.units : 0
+  const entries = history.read.status === 'ready' ? history.read.data.content : []
 
   return (
     <CatalogShell
-      crumbs={[{ labelKey: 'catalog.title', to: '/catalog' }, { label: ITEM.name }]}
-      title={ITEM.name}
+      crumbs={[{ labelKey: 'catalog.title', to: '/catalog' }, { label: product.name }]}
+      title={product.name}
       subtitle={t('itemSells.meta', {
-        group: ITEM.group,
-        kind: ITEM.itemKind,
-        code: ITEM.code,
-        sizes: SIZES.length,
-        addOns: ADD_ONS.length,
+        group: record.group || '-',
+        kind: record.kind || '-',
+        code: product.code,
+        sizes: product.sizes?.length ?? 0,
+        addOns: product.addOns?.length ?? 0,
       })}
-      pills={
-        <>
-          <Pill tone="success">{t('item.onSale')}</Pill>
-          <Pill tone="brand">
-            {t('item.soldTimes', { count: SOLD_90.toLocaleString('en-US') })}
-          </Pill>
-        </>
-      }
+      pills={<ItemPills product={product} sold={data ? data.total.units : null} />}
       actions={
         <>
           <button
@@ -90,7 +146,7 @@ export function ItemSellsPage() {
           </button>
           <PeriodPicker
             value={window}
-            onChange={setWindow}
+            onChange={(next) => setWindow(next as SalesWindow)}
             options={[
               { value: 'yearly', label: t('itemSells.yearly') },
               { value: 'quarterly', label: t('itemSells.quarterly') },
@@ -99,180 +155,237 @@ export function ItemSellsPage() {
           />
         </>
       }
-      tabs={<ItemTabs id={id ?? ITEM.id} active="sells" />}
+      tabs={<ItemTabs id={id} active="sells" />}
     >
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Stat
-          label={t('itemSells.kpi.sold')}
-          value={YEAR.sold.toLocaleString('en-US')}
-          delta={`${YEAR.soldChangePercent}%`}
-          note={t('itemSells.kpi.soldNote')}
-        />
-        <Stat
-          label={t('itemSells.kpi.broughtIn')}
-          value={omr(YEAR.broughtIn)}
-          currency
-          delta={`${YEAR.broughtInChangePercent}%`}
-          note={t('itemSells.kpi.broughtInNote')}
-        />
-        <Stat
-          label={t('itemSells.kpi.share')}
-          value={`${YEAR.shareOfDrinks}%`}
-          delta={`${YEAR.shareChangePoints}pt`}
-          note={t('itemSells.kpi.shareNote')}
-        />
-        <Stat
-          label={t('itemSells.kpi.average')}
-          value={omr(AVERAGE_SALE)}
-          currency
-          delta={omr(YEAR.averageChange)}
-          note={t('itemSells.kpi.averageNote')}
-        />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Panel
-          title={t('itemSells.soldEachMonth')}
-          note={
-            <Trans
-              i18nKey="itemSells.bestMonth"
-              values={{ month: BEST_MONTH.month, count: BEST_MONTH.sold.toLocaleString('en-US') }}
-              components={{ b: <b className="font-semibold text-text-primary" /> }}
+      {sales.read.status === 'failed' ? (
+        <ApiReadFailure error={sales.read.error} retry={sales.retry} />
+      ) : !data ? (
+        <LoadingNotice />
+      ) : (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {/* TODO(backend): INCOME.md IP.3. No year-on-year figures, so the change chips
+                stay drawn without a figure. */}
+            <Stat
+              label={t('itemSells.kpi.sold')}
+              value={units(data.total.units)}
+              delta={null}
+              note={t('itemSells.kpi.soldNote')}
             />
-          }
-        >
-          <PlainBars
-            values={BY_MONTH.map((row) => row.sold)}
-            labels={BY_MONTH.map((row) => row.month)}
-            highlight={BY_MONTH.findIndex((row) => row.month === BEST_MONTH.month)}
-          />
-        </Panel>
-
-        <Panel
-          title={t('itemSells.byHourOfDay')}
-          note={
-            <Trans
-              i18nKey="itemSells.peakHour"
-              values={{ name: `${ITEM.name}s`, hour: `${PEAK_HOUR.hour}am` }}
-              components={{ b: <b className="font-semibold text-text-primary" /> }}
+            <Stat
+              label={t('itemSells.kpi.broughtIn')}
+              value={omr(broughtIn(data))}
+              currency
+              delta={null}
+              note={t('itemSells.kpi.broughtInNote')}
             />
-          }
-        >
-          <PlainBars
-            values={BY_HOUR.map((row) => row.sold)}
-            labels={BY_HOUR.map((row) => row.hour)}
-            highlight={BY_HOUR.findIndex((row) => row.hour === PEAK_HOUR.hour)}
-            color={SERIES.greenSoft}
-            highlightColor={SERIES.green}
-          />
-        </Panel>
-
-        <Panel
-          title={t('itemSells.bySize')}
-          spread
-          note={
-            <Trans
-              i18nKey="itemSells.sizeNote"
-              values={{ size: MOST_POPULAR_SIZE.name, percent: MOST_POPULAR_SIZE.share }}
-              components={{ b: <b className="font-semibold text-text-primary" /> }}
+            {/* TODO(backend): INCOME.md IP.4. No sales of the item's group to share against. */}
+            <Stat
+              label={
+                record.group
+                  ? t('itemSells.kpi.shareOfGroup', { group: record.group })
+                  : t('itemSells.kpi.shareNoGroup')
+              }
+              value="-"
+              delta={null}
+              note={t('itemSells.notYet')}
             />
-          }
-        >
-          <HorizontalBars
-            rows={BY_SIZE.map((row) => ({
-              label: SIZES.find((size) => size.id === row.id)?.name ?? row.id,
-              value: row.sold,
-              display: row.sold.toLocaleString('en-US'),
-            }))}
-          />
-        </Panel>
-
-        <Panel
-          title={t('itemSells.addOnsTaken')}
-          spread
-          note={
-            <Trans
-              i18nKey="itemSells.addOnNote"
-              values={{ n: ONE_IN(), amount: omr(top.revenue), name: top.name.toLowerCase() }}
-              components={{ b: <RialText as="b" className="font-semibold text-text-primary" /> }}
+            <Stat
+              label={t('itemSells.kpi.average')}
+              value={omr(data.averagePrice ?? 0)}
+              currency
+              delta={null}
+              note={t('itemSells.kpi.averageNote')}
             />
-          }
-        >
-          <HorizontalBars
-            rows={addOnRevenue().map((row) => ({
-              label: row.name,
-              value: row.taken,
-              display: row.taken.toLocaleString('en-US'),
-            }))}
-          />
-        </Panel>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-md bg-surface-card p-5">
-          <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">
-            {t('itemSells.whereItGoes')}
-          </h2>
-          <dl className="mt-3">
-            <Row
-              label={t('itemSells.overTheCounter')}
-              value={`${WHERE_IT_GOES.overTheCounter.toLocaleString('en-US')} · ${goes.counterPercent}%`}
-            />
-            <Row
-              label={t('itemSells.onAnInvoice')}
-              value={`${WHERE_IT_GOES.onAnInvoice} · ${goes.invoicePercent}%`}
-            />
-            <Row label={t('itemSells.biggestBuyer')} value={SELLING_FACTS.biggestInvoicedBuyer} />
-            <Row label={t('itemSells.busiestDay')} value={SELLING_FACTS.busiestDay} />
-            <Row label={t('itemSells.quietestDay')} value={SELLING_FACTS.quietestDay} />
-            <Row
-              label={t('itemSells.neverRefunded')}
-              value={t('itemSells.returns', { count: SELLING_FACTS.returns })}
-              last
-            />
-          </dl>
-        </section>
-
-        <section className="rounded-md bg-surface-card p-5">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">
-              {t('itemSells.whatsChanged')}
-            </h2>
-            <Link
-              to={`/catalog/${id ?? ITEM.id}/changes`}
-              className="text-sm font-semibold text-primary-700 transition-colors hover:text-primary-800"
-            >
-              {t('itemSells.seeAllChanges')}
-            </Link>
           </div>
-          <ul className="mt-3">
-            {CHANGES.slice(0, 4).map((change, index) => (
-              <li
-                key={change.id}
-                className={[
-                  'flex items-start gap-3 py-3',
-                  index < 3 ? 'border-b border-surface-background' : '',
-                ].join(' ')}
-              >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-background">
-                  <img src={CHANGE_ICON[change.kind]} alt="" className="size-4" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold text-text-primary">
-                    {change.kind === 'priceUp'
-                      ? `${t(change.titleKey, change.titleValues)} ${change.chips[0].label.replace('OMR ', '')} → ${change.chips[1].label.replace('OMR ', '')}`
-                      : t(change.titleKey, change.titleValues)}
-                  </span>
-                  <span className="mt-0.5 block text-xs font-medium text-text-quaternary">
-                    {change.date} · {change.who}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
-      <span className="hidden">{ADD_ONS_TAKEN.length}</span>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Panel
+              title={t(`itemSells.soldEach.${bucket}`)}
+              note={
+                best ? (
+                  <Trans
+                    i18nKey={`itemSells.best.${bucket}`}
+                    values={{ when: bestLabel(best.start), count: units(best.units) }}
+                    components={{ b: <b className="font-semibold text-text-primary" /> }}
+                  />
+                ) : (
+                  t('itemSells.nothingSold')
+                )
+              }
+            >
+              <PlainBars
+                values={bars.map((bar) => bar.units)}
+                labels={bars.map((bar) => barLabel(bar.start))}
+                highlight={best ? bars.indexOf(best) : undefined}
+              />
+            </Panel>
+
+            {/* TODO(backend): INCOME.md IP.1. The API has no sales by hour of day, so the card
+                is drawn with empty bars and no peak hour. */}
+            <Panel title={t('itemSells.byHourOfDay')} note={t('itemSells.notYet')}>
+              <PlainBars
+                values={TRADING_HOURS.map(() => null)}
+                labels={TRADING_HOURS}
+                color={SERIES.greenSoft}
+                highlightColor={SERIES.green}
+              />
+            </Panel>
+
+            <Panel
+              title={t('itemSells.bySize')}
+              spread
+              note={
+                popular ? (
+                  <Trans
+                    i18nKey="itemSells.sizeNote"
+                    values={{
+                      size: popular.name ?? t('itemSells.asItself'),
+                      percent: popular.share,
+                    }}
+                    components={{ b: <b className="font-semibold text-text-primary" /> }}
+                  />
+                ) : (
+                  t('itemSells.nothingSold')
+                )
+              }
+            >
+              <HorizontalBars
+                rows={data.variants.map((row) => ({
+                  label: row.name ?? t('itemSells.asItself'),
+                  value: row.units,
+                  display: units(row.units),
+                }))}
+              />
+            </Panel>
+
+            <Panel
+              title={t('itemSells.addOnsTaken')}
+              spread
+              note={
+                addOns ? (
+                  <Trans
+                    i18nKey={addOns.oneIn ? 'itemSells.addOnNote' : 'itemSells.addOnNoteNoShare'}
+                    values={{
+                      n: addOns.oneIn,
+                      taken: (addOns.taken.name ?? '').toLowerCase(),
+                      amount: omr(addOns.earner.revenue),
+                      name: (addOns.earner.name ?? '').toLowerCase(),
+                    }}
+                    components={{
+                      b: <RialText as="b" className="font-semibold text-text-primary" />,
+                    }}
+                  />
+                ) : (
+                  t('itemSells.noAddOns')
+                )
+              }
+            >
+              <HorizontalBars
+                rows={data.addOns.map((row) => ({
+                  label: row.name ?? '-',
+                  value: row.quantity,
+                  display: units(row.quantity),
+                }))}
+              />
+            </Panel>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <section className="rounded-md bg-surface-card p-5">
+              <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">
+                {t('itemSells.whereItGoes')}
+              </h2>
+              <dl className="mt-3">
+                <Row
+                  label={t('itemSells.overTheCounter')}
+                  value={`${units(data.till.units)} · ${percentOf(data.till.units, channelTotal)}%`}
+                />
+                <Row
+                  label={t('itemSells.onAnInvoice')}
+                  value={`${units(data.invoice.units)} · ${percentOf(data.invoice.units, channelTotal)}%`}
+                />
+                {/* TODO(backend): INCOME.md IP.2. No biggest invoiced buyer on the sales read. */}
+                <Row label={t('itemSells.biggestBuyer')} value="-" />
+                <Row
+                  label={t('itemSells.busiestDay')}
+                  value={days ? weekdayName(days.busiest) : '-'}
+                />
+                <Row
+                  label={t('itemSells.quietestDay')}
+                  value={days ? weekdayName(days.quietest) : '-'}
+                />
+                <Row
+                  label={
+                    data.returnedUnits > 0 ? t('itemSells.givenBack') : t('itemSells.neverRefunded')
+                  }
+                  value={t('itemSells.returns', { count: units(data.returnedUnits) })}
+                  last
+                />
+              </dl>
+            </section>
+
+            <section className="rounded-md bg-surface-card p-5">
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">
+                  {t('itemSells.whatsChanged')}
+                </h2>
+                <Link
+                  to={`/catalog/${encodeURIComponent(id)}/changes`}
+                  className="text-sm font-semibold text-primary-700 transition-colors hover:text-primary-800"
+                >
+                  {t('itemSells.seeAllChanges')}
+                </Link>
+              </div>
+              {entries.length === 0 ? (
+                <p className="mt-3 text-sm font-medium text-text-quaternary">
+                  {history.read.status === 'loading'
+                    ? t('itemSells.loadingChanges')
+                    : t('itemChanges.none')}
+                </p>
+              ) : (
+                <ul className="mt-3">
+                  {entries.slice(0, 4).map((entry, index, list) => {
+                    const when = words.when(entry.occurredAt)
+                    return (
+                      <li
+                        key={entry.id}
+                        className={[
+                          'flex items-start gap-3 py-3',
+                          index < list.length - 1 ? 'border-b border-surface-background' : '',
+                        ].join(' ')}
+                      >
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-background">
+                          <img src={changeIcon(entry)} alt="" className="size-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold text-text-primary">
+                            {words.action(entry)}
+                          </span>
+                          {entry.changes[0] && entry.action !== 'ProductCreated' ? (
+                            <span className="mt-1.5 block">
+                              <ChangeChips change={entry.changes[0]} />
+                            </span>
+                          ) : null}
+                          <span className="mt-1 block text-xs font-medium text-text-quaternary">
+                            {when.date}
+                            {entry.actorName ? (
+                              <>
+                                {' · '}
+                                <bdi>{entry.actorName}</bdi>
+                              </>
+                            ) : null}
+                          </span>
+                        </span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </section>
+          </div>
+        </>
+      )}
     </CatalogShell>
   )
 }
@@ -288,7 +401,8 @@ function Stat({
   value: string
   /** An amount of money — the rial sign stands before it, in the figure's size and colour. */
   currency?: boolean
-  delta: string
+  /** Null while the API has no comparison to give (INCOME.md IP.3): the chip shows a dash. */
+  delta: string | null
   note: string
 }) {
   return (
@@ -307,8 +421,8 @@ function Stat({
       </p>
       <p className="mt-2 flex flex-wrap items-center gap-2">
         <span className="inline-flex h-[22px] items-center gap-1 rounded-[3px] bg-success-100 px-1.5 text-[11px] font-semibold text-[#3d5648]">
-          <img src={upIcon} alt="" className="size-3" />
-          {delta}
+          {delta ? <img src={upIcon} alt="" className="size-3" /> : null}
+          {delta ?? '-'}
         </span>
         <span className="text-xs font-medium text-text-quaternary">{note}</span>
       </p>

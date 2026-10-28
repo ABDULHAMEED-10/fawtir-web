@@ -873,3 +873,33 @@ copy, and it never changes the invoice's delivery state.
 | SH.1 | The rendered invoice PDF (row 2.2) | `GET /v1/invoices/{id}/pdf`, the same artefact the documents archive already links (`artefacts.pdf`, DOCUMENTS.md 3.20): the signed, rendered, bilingual PDF, one file for download, print and sharing |
 | SH.2 | Send by email | `POST /v1/invoices/{id}/share/email` with `{to: [email], cc?: [email], message?, language}`; sends from Fawtir's mail with the PDF attached and the invoice number in the subject; prefill `to` from the customer's email. Refused while the subscription is read-only (ST-2: nothing is sent) and for a deemed supply (no buyer copy); answer the refusal with a problem type the screen can word |
 | SH.3 | Share on WhatsApp | `POST /v1/invoices/{id}/share-link` returning a time-limited public URL to the PDF (`url`, `expiresAt`); the web opens `https://wa.me/?text=` with a short message and the link, mobile uses the phone's share sheet with the PDF file or the link. Same refusals as SH.2. Revoking or letting the link expire never affects the invoice |
+
+## Update 2026-10-28 (catalogue item pages and bundles, backend #788 and #790)
+
+The item pages (How it sells, Where it's been used, Changes), the catalogue list's On sale, Never
+sold and Switched off tabs, and the Bundles list and bundle screen are wired. The screens keep
+their own URLs (`/catalog/:id/sells`, `/used`, `/changes`); the API names them
+`GET /v1/products/{id}/sales`, `/usage` and `/history`. How it sells reads the period day by day
+(`interval=DAY`, at most 366 days) and rolls the days into months, weeks or days, and into
+weekdays for the busiest and quietest day. Bundle prices are before VAT everywhere (owner, 28 Oct
+2026). Dropped from the screens (owner, 28 Oct 2026, the product has moved past them): the bundle
+"Take a percentage off" pricing and time windows (price rules now) and the "take the parts out of
+stock" switch (always on).
+
+| # | The design shows | Ask |
+|---|---|---|
+| P.17 (update) | Sales and usage figures on a saved item | **Done** on the item's own tabs: `/sales`, `/usage`, `/history`. The item form's "Where it's used" card is unchanged (its own screen) |
+| P.18 (update) | Manage the items not sold in the working branch | **Done**: the On sale, Never sold and (once opened) Switched off tabs read `availability=ON_SALE \| SWITCHED_OFF` and `sales=NEVER_SOLD` with `branchId`; On sale and Never sold are counted by `totalElements` of a one-row read. `sales=SOLD` is typed but no tab draws it (the frame has none) |
+| IP.1 | How it sells: **By hour of day** and the peak hour | sales by hour of the trading day (company time zone) on `/sales`, e.g. `byHour[] {hour, units}`. The card is drawn with empty bars |
+| IP.2 | How it sells: **Biggest invoiced buyer** | the customer with the largest invoiced revenue for the item in the period, `biggestBuyer {customerId, name, revenue}`. Drawn as a dash |
+| IP.3 | How it sells: the year-on-year change chip on each figure card | the same figures for the period before (or a `previous` block on `/sales`). The chips are drawn without a figure |
+| IP.4 | How it sells: **Share of** the item's group | the group's sales in the period, so the item's share can be worked out. Drawn as a dash |
+| IP.5 | Where it's been used: **Bundles** tab and the **Inside bundles** card | bundles as a usage source (`kind=BUNDLE`, with the bundle's sold count). The tab asks nothing and says so |
+| IP.6 | Where it's been used: **at the old price** on a row and in the quotations card | the line's unit price against the item's current price, or a flag `atOldPrice` per row |
+| IP.7 | The **Changes** tab count | a total on `/history` (it pages by `hasMore`); the tab carries no count until then |
+| IP.8 | Where it's been used: the **till receipts rolled up** line | a till total (units, value, first and last day) on `/usage`; the line sums the latest 100 till rows and says so when there are more |
+| BU.1 | Bundles list: **% of everything sold** under Brought in; **during Ramadan** under Sold | total sales in the period (`SHARE_OF_SALES`) on `/bundles/report`; a `seasonal` flag on the bundle. Both drawn as a dash or left out |
+| BU.2 | Bundles list: **No <part> since <day>** | the day a counted part ran out on the bundle's availability. The line names the part without the day |
+| BU.3 | Bundle lines on the invoice composer | none from the backend: `/bundles/{id}/invoice-lines` is there. The composer has no bundle picker yet; when it does it must build the lines from that call and send each part line back with `bundleId` (a mixed-VAT bundle on one line is refused, `BUNDLE_SPLIT_REQUIRED`). The bundle screen previews the lines from it |
+| BU.4 | Bundle: **Let staff swap a part at the till** | a stored switch and the till's swap. Drawn off and disabled |
+| BU.5 | Bundle: **<part> sold this way** (through the bundle, of all its sales); stock item `dependsOnIt` | a per-part figure on the report, and `dependsOnIt` on `/stock/items/{id}` (STOCK-CONTRACT §3.3). Drawn as a dash |

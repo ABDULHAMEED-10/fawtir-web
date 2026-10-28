@@ -209,6 +209,10 @@ export type ProductListQuery = {
    * item pickers never send it, so they keep hiding those.
    */
   includeUnavailable?: boolean
+  /** With `branchId` only: the On sale or Switched off tab, counted by the server (guide §6). */
+  availability?: 'ON_SALE' | 'SWITCHED_OFF'
+  /** With `branchId` only: sold or never sold on an issued invoice of the branch (a till sale is one). */
+  sales?: 'SOLD' | 'NEVER_SOLD'
   sort?: ProductSort
   direction?: 'ASC' | 'DESC'
   size?: number
@@ -226,6 +230,8 @@ export function productListPath(query: ProductListQuery): string {
     itemKind: query.itemKind,
     branchId: query.branchId,
     includeUnavailable: query.branchId && query.includeUnavailable ? true : undefined,
+    availability: query.branchId ? query.availability : undefined,
+    sales: query.branchId ? query.sales : undefined,
     sort: query.sort,
     direction: query.direction,
     size: query.size ?? PRODUCT_PICKER_SIZE,
