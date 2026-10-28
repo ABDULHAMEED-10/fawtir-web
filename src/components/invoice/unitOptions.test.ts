@@ -13,6 +13,7 @@ import { unitOptions as referenceUnitOptions } from '../../lib/reference/referen
 import { suggestedFrom } from '../../lib/catalogTemplates'
 import { lineFromProduct } from '../../lib/productLine'
 import type { ProductDto } from '../../api/catalog/products'
+import type { TemplateItemDto } from '../../api/catalog/templates'
 import { unitOptions } from './unitOptions'
 
 const en = i18n.getFixedT('en') as unknown as TFunction
@@ -110,8 +111,20 @@ describe('the platform unit list', () => {
 
 describe('a catalogue template', () => {
   it('starts a bare package unit in its X form', () => {
+    const wipes: TemplateItemDto = {
+      name: 'Wipes',
+      nameAr: null,
+      classification: { goodsOrService: 'G', hsCode: null, serviceTypeCode: null },
+      defaultUnitCode: 'PK',
+      defaultTaxCategory: 'S',
+      defaultTaxReasonCode: null,
+      defaultTaxReasonText: null,
+      barcode: null,
+      variants: null,
+      addOns: [],
+    }
     const [group] = suggestedFrom([
-      { name: 'Cleaning', kinds: [{ name: 'Wipes', items: [{ name: 'Wipes', unit: 'PK' }] }] },
+      { name: 'Cleaning', nameAr: null, kinds: [{ name: 'Wipes', nameAr: null, items: [wipes] }] },
     ])
     expect(group.kinds[0].sizes[0].soldAs).toBe('XPK')
   })

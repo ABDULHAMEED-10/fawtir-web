@@ -177,7 +177,8 @@ describe('building a catalog from a template', () => {
       group.kinds[0].sizes.map((size) => [size.taxCode, size.reasonCode, size.soldAs]),
     ).toEqual([
       ['Z0', 'VATZR-OM-01', 'EA'],
-      ['S5', undefined, 'PK'],
+      // A bare Rec 21 package code starts in its X form (ibr-cl-23).
+      ['S5', undefined, 'XPK'],
       ['E0', 'VATEX-OM-01', 'EA'],
     ])
   })
