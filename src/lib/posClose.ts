@@ -1,133 +1,115 @@
-import { VAT_RATE } from './pos'
+import type {
+  OverShortReason,
+  PosClosePreviewDto,
+  PosMethod,
+  PosShiftCloseRequest,
+} from '../api/pos/pos'
+import { toBaisa, toRials } from './pos'
 
 /**
- * Cashing up (Figma 143:20055) and the day behind it (143:20498).
- *
- * The drawer is the only thing anybody counts — card and transfers reconcile themselves — so the
- * shape here is: what the drawer should hold, what it actually holds, and the gap between them
- * with somewhere to say why.
+ * Cashing up (Figma 143:20055): one close per cashier shift (Abdul 17), from the shift's close
+ * preview (`GET /v1/pos/shifts/{id}/close-preview`). The drawer is counted, by denomination or as
+ * a total, against what it should hold; the card total Fawtir took is checked against the bank
+ * machine's end-of-day report, typed by the cashier (owner, 27 Oct 2026: no link to the machine),
+ * with a note when they differ.
  */
 
-/** Everything taken today, split by how it was paid. */
-export const TAKINGS = {
-  cash: 218450,
-  card: 604150,
-  company: 88000,
-  cashSales: 31,
-  cardSales: 61,
-  companyInvoices: 4,
+/** Oman's notes and coins, in baisa, as the close takes them (`POS_DENOMINATION_UNKNOWN`). */
+export const DENOMINATIONS = [50000, 20000, 10000, 5000, 1000, 500, 200, 100, 50, 25, 10, 5]
+
+export type Counted = Record<number, number>
+
+export function countedTotal(counted: Counted): number {
+  return DENOMINATIONS.reduce((sum, value) => sum + value * (counted[value] ?? 0), 0)
 }
 
-export const TAKEN_TODAY = TAKINGS.cash + TAKINGS.card + TAKINGS.company
-
-export const SALES_TODAY = TAKINGS.cashSales + TAKINGS.cardSales + TAKINGS.companyInvoices
-
-/** What the average sale came to. */
-export const AVERAGE_SALE = Math.round(TAKEN_TODAY / SALES_TODAY)
-
-/** The share of takings that came through the drawer, which the design prints as a percentage. */
-export const CASH_SHARE = TAKINGS.cash / TAKEN_TODAY
-
-/* ----------------------------------------------------------- the drawer */
-
-export const DRAWER = {
-  /** What the till started the day with, and starts tomorrow with. */
-  float: 30000,
-  floatSetAt: '07:02',
-  /** Cash refunded to a customer, out of the drawer. */
-  refunded: 4200,
-  refundedNoteKey: 'pos.close.refundedNote',
-  refundedValues: { time: '11:20' },
-  /** Cash paid out for something else, with the receipt left in the drawer. */
-  paidOut: 12000,
-  paidOutNoteKey: 'pos.close.paidOutNote',
-  paidOutValues: { who: 'Maryam' },
+/** A note's face as the drawer reads it: 20, 0.500, 0.005. */
+export function denominationLabel(baisa: number): string {
+  return baisa >= 1000 ? String(baisa / 1000) : (baisa / 1000).toFixed(3)
 }
 
-/** What should be in there if nothing went astray. */
-export const SHOULD_HOLD = DRAWER.float + TAKINGS.cash - DRAWER.refunded - DRAWER.paidOut
-
-/** What was counted, note by note (Figma 143:20055 — "Count by denomination"). */
-export const COUNTED_BY_NOTE = [
-  { value: 20000, count: 8 },
-  { value: 10000, count: 4 },
-  { value: 5000, count: 5 },
-  { value: 1000, count: 4 },
-  { value: 500, count: 3 },
-  { value: 100, count: 4 },
-]
-
-export const COUNTED = COUNTED_BY_NOTE.reduce((sum, note) => sum + note.value * note.count, 0)
-
-/** Negative when the drawer is short, which is the case the design draws. */
-export const OVER_OR_SHORT = COUNTED - SHOULD_HOLD
-
-/** The shortfall measured against the cash taken, which is what makes it small or alarming. */
-export const SHORT_SHARE = Math.abs(OVER_OR_SHORT) / TAKINGS.cash
-
-/** Why the count came up short — a guess is fine, the point is that somebody looked. */
-export const SHORT_REASONS = [
-  { id: 'changeWrong', labelKey: 'pos.close.changeWrong', noteKey: 'pos.close.changeWrongNote' },
-  { id: 'payoutMissed', labelKey: 'pos.close.payoutMissed', noteKey: 'pos.close.payoutMissedNote' },
-  { id: 'miscounted', labelKey: 'pos.close.miscounted', noteKey: 'pos.close.miscountedNote' },
-  { id: 'dontKnow', labelKey: 'pos.close.dontKnow', noteKey: 'pos.close.dontKnowNote' },
-]
-
-/* ------------------------------------------------------- the shift in short */
-
-export const TIPS_TODAY = 9420
-export const DISCOUNTS_TODAY = 62140
-export const REFUNDS_TODAY = { count: 1, amount: 4200 }
-
-/**
- * VAT inside today's takings.
- *
- * The design printed 43.362, which is 5/105 of the whole 910.600 — tips included. A tip carries
- * no VAT, as the payment screen says in as many words ("the 0.351 carries no tax"), so the tax
- * has to come out of the takings *less* the tips. That is 901.180, and 42.913 of VAT. The
- * difference is 0.449, which is exactly 5/105 of the 9.420 of tips.
- */
-export const VATABLE_TODAY = TAKEN_TODAY - TIPS_TODAY
-
-export const VAT_WITHIN = Math.round(VATABLE_TODAY * (VAT_RATE / (1 + VAT_RATE)))
-
-/** What goes to the bank: everything counted, less the float left for tomorrow. */
-export const TO_BANK = COUNTED - DRAWER.float
-
-/** The shift being closed. */
-export const SHIFT = {
-  cashier: 'Maryam',
-  from: '07:00',
-  to: '17:14',
-  /** Who gets the summary once the till is closed. */
-  ownerName: 'Hafidh',
+export type Figures = {
+  float: number
+  cashTaken: number
+  cashSales: number
+  cashTips: number
+  cashRefunded: number
+  paidOut: number
+  paidIn: number
+  expected: number
+  card: number
+  cardSales: number
+  onAccount: number
+  companyInvoices: number
+  taken: number
+  sales: number
+  /** What the bank machine's batch should show: card takings plus card tips. */
+  terminal: number
 }
 
-/* ---------------------------------------------------------- loose ends */
+export function figuresOf(preview: PosClosePreviewDto): Figures {
+  const by = (method: PosMethod) => preview.byMethod.find((entry) => entry.method === method)
+  const cash = by('CASH')
+  const card = by('CARD')
+  const account = by('ON_ACCOUNT')
+  return {
+    float: toBaisa(preview.openingFloat),
+    cashTaken: toBaisa(cash?.taken),
+    cashSales: cash?.sales ?? 0,
+    cashTips: toBaisa(cash?.tips),
+    cashRefunded: toBaisa(preview.cashRefunded),
+    paidOut: toBaisa(preview.paidOut),
+    paidIn: toBaisa(preview.paidIn),
+    expected: toBaisa(preview.expectedCash),
+    card: toBaisa(card?.taken),
+    cardSales: card?.sales ?? 0,
+    onAccount: toBaisa(account?.taken),
+    companyInvoices: preview.companyInvoices,
+    taken: toBaisa(preview.salesAmount),
+    sales: preview.salesCount,
+    terminal: toBaisa(preview.looseEnds.cardSalesForTerminalCheck.amount),
+  }
+}
 
-export const LOOSE_ENDS = [
+/** Why the count came up short or over: a guess is fine, the point is that somebody looked. */
+export const SHORT_REASONS: { id: OverShortReason; labelKey: string; noteKey: string }[] = [
+  { id: 'CHANGE_WRONG', labelKey: 'pos.close.changeWrong', noteKey: 'pos.close.changeWrongNote' },
   {
-    id: 'tabs',
-    state: 'todo' as const,
-    titleKey: 'pos.close.tabsOpen',
-    titleValues: { count: 3 },
-    noteKey: 'pos.close.tabsNote',
-    // Written with its currency so the screen can set the rial sign beside it (withRial).
-    noteValues: { amount: 'OMR 59.588' },
-    actionKey: 'pos.close.dealWithThem',
+    id: 'PAYOUT_MISSED',
+    labelKey: 'pos.close.payoutMissed',
+    noteKey: 'pos.close.payoutMissedNote',
   },
-  {
-    id: 'filed',
-    state: 'done' as const,
-    titleKey: 'pos.close.allFiled',
-    noteKey: 'pos.close.allFiledNote',
-    noteValues: { count: SALES_TODAY },
-  },
-  {
-    id: 'terminal',
-    state: 'done' as const,
-    titleKey: 'pos.close.terminalAgrees',
-    noteKey: 'pos.close.terminalNote',
-    noteValues: { amount: '604.150', payments: TAKINGS.cardSales },
-  },
+  { id: 'MISCOUNTED', labelKey: 'pos.close.miscounted', noteKey: 'pos.close.miscountedNote' },
+  { id: 'DONT_KNOW', labelKey: 'pos.close.dontKnow', noteKey: 'pos.close.dontKnowNote' },
 ]
+
+/** `POST /v1/pos/shifts/{id}/close`; the server works every figure out again. */
+export function closeRequest(input: {
+  byNote: boolean
+  counted: Counted
+  total: number
+  floatLeft: number
+  terminal: number | null
+  terminalExpected: number
+  cardNote: string
+  reason: OverShortReason | null
+  overShort: number
+  note: string
+}): PosShiftCloseRequest {
+  const differs = input.terminal != null && input.terminal !== input.terminalExpected
+  return {
+    counting: input.byNote
+      ? {
+          mode: 'DENOMINATIONS',
+          denominations: DENOMINATIONS.filter((value) => (input.counted[value] ?? 0) > 0).map(
+            (value) => ({ value: toRials(value), count: input.counted[value] }),
+          ),
+        }
+      : { mode: 'TOTAL', total: toRials(input.total) },
+    floatLeft: toRials(input.floatLeft),
+    cardTerminalTotal: input.terminal == null ? null : toRials(input.terminal),
+    cardDifferenceNote: differs && input.cardNote.trim() ? input.cardNote.trim() : null,
+    overShortReason: input.overShort !== 0 ? input.reason : null,
+    note: input.note.trim() || null,
+  }
+}

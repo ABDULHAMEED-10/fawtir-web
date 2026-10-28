@@ -1,40 +1,31 @@
-import { LULL, OPEN_SALE, VAT_RATE, itemById, lullApplies, unitPrice, type SaleLine } from './pos'
+import type {
+  PosRefundLookupDto,
+  PosRefundLookupLine,
+  PosRefundReason,
+  PosRefundRequest,
+} from '../api/pos/pos'
+import { BAISA, toBaisa, toRials } from './pos'
 
 /**
- * Putting something right (Figma 143:20983).
+ * Putting something right (Figma 143:20983), on the sale the refund lookup found
+ * (`GET /v1/pos/refund-lookup?invoiceNumber=`, company-wide: a refund may be made at another
+ * branch's till, Abdul 13).
  *
- * A filed invoice cannot be edited — the Tax Authority has already accepted it — so anything
- * given back is a credit note against it, filed the same way. The customer takes back what they
- * actually paid for the returned lines, which means the discount that was applied comes off
- * again and VAT is worked out on what is left.
+ * A filed invoice cannot be edited, so anything given back is a credit note against it, filed
+ * the same way (`POST /v1/pos/sales/{id}/refunds`). The customer takes back what they actually
+ * paid for the returned lines: their discounts come off again and VAT is worked out on what is
+ * left. A line's priced add-ons come back with it, in the same proportion; a tip never does.
+ * The figures here are the screen's estimate; the server works the credit note out and refuses
+ * money back that does not match it (`POS_REFUND_MONEY_DOES_NOT_MATCH`, with `expected`).
  */
 
-export const CREDITED_INVOICE = {
-  id: 'INV-2048',
-  number: 'CN-0184',
-  whoKey: 'pos.refund.walkIn',
-  when: '4 September 14:32',
-  paidKey: 'pos.refund.cardAndCash',
-  paidValues: { card: '3.000', cash: '3.000', total: '6.000' },
-  /** In baisa — what the sale was worth before any of it came back. */
-  was: 6000,
-  soldMinutesAgo: 6,
-  soldBy: 'Maryam',
-}
+/** How many of each refundable line are going back. */
+export type ReturnLine = { lineNumber: number; qty: number }
 
-/** How many of each line are going back. The design has one of the two flat whites returned. */
-export type ReturnLine = { lineId: string; qty: number }
-
-export const RETURNING: ReturnLine[] = [
-  { lineId: 'l1', qty: 1 },
-  { lineId: 'l2', qty: 0 },
-  { lineId: 'l3', qty: 0 },
-]
-
-/** Whether returned stock goes back on the shelf. A made drink usually does not. */
+/** Whether returned stock goes back on the shelf. */
 export type StockChoice = 'backInStock' | 'thrownAway'
 
-/** Money back now, or the same thing made again with nothing changing hands. */
+/** Money back now, or the same thing again: a swap is a refund and then a new sale. */
 export type PutRightChoice = 'moneyBack' | 'makeAnother'
 
 export const WHY_OPTIONS = [
@@ -48,10 +39,19 @@ export const WHY_OPTIONS = [
 
 export type WhyId = (typeof WHY_OPTIONS)[number]
 
+export const REASON_CODE: Record<WhyId, PosRefundReason> = {
+  madeWrong: 'MADE_WRONG',
+  rungUpWrong: 'RUNG_UP_WRONG',
+  changedMind: 'CHANGED_MIND',
+  somethingOff: 'SOMETHING_OFF',
+  waitedTooLong: 'WAITED_TOO_LONG',
+  other: 'OTHER',
+}
+
 export type CreditTotals = {
-  /** The returned lines at shelf price. */
+  /** The returned lines at their price. */
   items: number
-  /** The share of the original discount that comes off with them. */
+  /** Their discounts, line and whole-sale, that come off with them. */
   discount: number
   beforeVat: number
   vat: number
@@ -59,58 +59,119 @@ export type CreditTotals = {
   back: number
 }
 
-/**
- * What a credit note comes to.
- *
- * Worked out exactly as the sale was: shelf price, less the rule that applied to those lines,
- * then VAT on the remainder. A tip is never refunded — it was never part of the sale.
- */
-export function creditFor(returning: ReturnLine[], lines: SaleLine[] = OPEN_SALE): CreditTotals {
-  let items = 0
-  let discountable = 0
+/** What is left of a line to return. */
+export function remaining(line: PosRefundLookupLine): number {
+  return Math.max(0, line.quantitySold - line.quantityRefunded)
+}
 
+/** The add-on lines that belong to an item line: those after it, up to the next item. */
+export function addOnsOf(lines: PosRefundLookupLine[], lineNumber: number): PosRefundLookupLine[] {
+  const sorted = [...lines].sort((a, b) => a.lineNumber - b.lineNumber)
+  const start = sorted.findIndex((line) => line.lineNumber === lineNumber)
+  const found: PosRefundLookupLine[] = []
+  for (let i = start + 1; i < sorted.length && sorted[i].role === 'ADD_ON'; i++)
+    found.push(sorted[i])
+  return found
+}
+
+function lineFigures(
+  line: PosRefundLookupLine,
+  qty: number,
+  header: PosRefundLookupDto['headerDiscount'],
+  saleNet: number,
+) {
+  const gross = toBaisa(line.unitPrice) * qty
+  let off = 0
+  if (line.discount && line.discount.value > 0) {
+    off =
+      line.discount.type === 'PERCENTAGE'
+        ? Math.round((gross * line.discount.value) / 100)
+        : Math.round((toBaisa(line.discount.value) * qty) / (line.quantitySold || 1))
+  }
+  const net = gross - off
+  let headerOff = 0
+  if (header && header.value > 0) {
+    headerOff =
+      header.type === 'PERCENTAGE'
+        ? Math.round((net * header.value) / 100)
+        : saleNet > 0
+          ? Math.round((toBaisa(header.value) * net) / saleNet)
+          : 0
+  }
+  const beforeVat = net - headerOff
+  const vat = Math.round((beforeVat * (line.vatRate ?? 0)) / 100)
+  return { gross, discount: off + headerOff, beforeVat, vat }
+}
+
+export function creditFor(sale: PosRefundLookupDto, returning: ReturnLine[]): CreditTotals {
+  const saleNet = sale.lines.reduce((sum, line) => {
+    const gross = toBaisa(line.unitPrice) * line.quantitySold
+    const off =
+      line.discount && line.discount.value > 0
+        ? line.discount.type === 'PERCENTAGE'
+          ? Math.round((gross * line.discount.value) / 100)
+          : toBaisa(line.discount.value)
+        : 0
+    return sum + gross - off
+  }, 0)
+  const totals = { items: 0, discount: 0, beforeVat: 0, vat: 0 }
+  const add = (line: PosRefundLookupLine, qty: number) => {
+    const figures = lineFigures(line, qty, sale.headerDiscount, saleNet)
+    totals.items += figures.gross
+    totals.discount += figures.discount
+    totals.beforeVat += figures.beforeVat
+    totals.vat += figures.vat
+  }
   for (const entry of returning) {
     if (entry.qty <= 0) continue
-    const line = lines.find((l) => l.id === entry.lineId)
+    const line = sale.lines.find((l) => l.lineNumber === entry.lineNumber)
     if (!line) continue
-    const value = unitPrice(line) * entry.qty
-    items += value
-    if (lullApplies(line)) discountable += value
+    add(line, entry.qty)
+    const share = line.quantitySold ? entry.qty / line.quantitySold : 0
+    for (const addOn of addOnsOf(sale.lines, line.lineNumber)) {
+      add(addOn, Math.round(addOn.quantitySold * share * BAISA) / BAISA)
+    }
   }
+  return { ...totals, back: totals.beforeVat + totals.vat }
+}
 
-  const discount = Math.round((discountable * LULL.percent) / 100)
-  const beforeVat = items - discount
-  const vat = Math.round(beforeVat * VAT_RATE)
-  return { items, discount, beforeVat, vat, back: beforeVat + vat }
+/** Back the way it was paid: on account lowers what the company owes, else cash, card, transfer. */
+export function moneyBackMethod(
+  sale: PosRefundLookupDto,
+): 'CASH' | 'CARD' | 'TRANSFER' | 'REDUCE_BALANCE' {
+  if (sale.owed > 0 && toBaisa(sale.paid.total) === 0) return 'REDUCE_BALANCE'
+  const paid = sale.paid.byMethod.filter((entry) => entry.amount > 0).map((entry) => entry.method)
+  if (paid.includes('CASH')) return 'CASH'
+  if (paid.includes('CARD')) return 'CARD'
+  if (paid.includes('TRANSFER')) return 'TRANSFER'
+  return 'REDUCE_BALANCE'
+}
+
+export function refundRequest(input: {
+  tillId: string
+  why: WhyId
+  note: string
+  returning: ReturnLine[]
+  backOnShelf: boolean
+  method: 'CASH' | 'CARD' | 'TRANSFER' | 'REDUCE_BALANCE'
+  amount: number
+}): PosRefundRequest {
+  return {
+    tillId: input.tillId,
+    reason: REASON_CODE[input.why],
+    reasonNote: input.note.trim() || null,
+    lines: input.returning
+      .filter((entry) => entry.qty > 0)
+      .map((entry) => ({
+        lineNumber: entry.lineNumber,
+        quantity: entry.qty,
+        backOnShelf: input.backOnShelf,
+      })),
+    moneyBack: [{ method: input.method, amount: toRials(input.amount) }],
+  }
 }
 
 /** What the original invoice is worth once the credit note is filed against it. */
-export function standsAt(was: number, back: number): number {
-  return was - back
-}
-
-/** How a returnable line is described under its name. */
-export function lineNote(lineId: string): {
-  key: string
-  values: Record<string, string | number>
-} {
-  const line = OPEN_SALE.find((l) => l.id === lineId)
-  if (!line) throw new Error(`No line ${lineId}`)
-  const item = itemById(line.itemId)
-  const each = unitPrice(line)
-  if (lullApplies(line)) {
-    return {
-      key: 'pos.refund.eachLessLull',
-      values: { each: (each / 1000).toFixed(3), percent: LULL.percent },
-    }
-  }
-  return {
-    key: 'pos.refund.eachNoDiscount',
-    values: { each: (each / 1000).toFixed(3), group: item.group },
-  }
-}
-
-/** How many of a line were sold, so the stepper knows its ceiling. */
-export function soldQty(lineId: string): number {
-  return OPEN_SALE.find((l) => l.id === lineId)?.qty ?? 0
+export function standsAt(was: number, credited: number, back: number): number {
+  return was - credited - back
 }
