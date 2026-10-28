@@ -165,6 +165,7 @@ describe('held duplicates on the Bills list', () => {
       expect(await screen.findByRole('menuitem', { name: VIEW })).toBeTruthy()
       expect(screen.queryByRole('menuitem', { name: 'Release' })).toBeNull()
       expect(screen.queryByRole('menuitem', { name: 'Put on hold' })).toBeNull()
+      expect(screen.queryByRole('menuitem', { name: 'Reject' })).toBeNull()
       fireEvent.keyDown(document, { key: 'Escape' })
     }
   })
@@ -172,7 +173,7 @@ describe('held duplicates on the Bills list', () => {
   it('reads in Arabic', async () => {
     await i18n.changeLanguage('ar')
     renderBills('/expenditure/bills?tab=heldDuplicate')
-    expect(await screen.findByRole('button', { name: /المكررة/ })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: /الفواتير المكررة/ })).toBeTruthy()
     expect((await screen.findAllByText('مكررة محتملة')).length).toBeGreaterThan(0)
   })
 })

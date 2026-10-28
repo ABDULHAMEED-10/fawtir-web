@@ -6058,7 +6058,10 @@
       "body": {
         "suspected": "The same supplier sent this document number and type again over Peppol. Compare it with the bill already on file and decide. It cannot be paid until then.",
         "confirmed": "Confirmed as a duplicate of the bill already on file. It stays on hold and is never paid.",
-        "notDuplicate": "Decided to be a separate bill, not a duplicate. It is handled as an ordinary bill."
+        "notDuplicate": "Decided to be a separate bill, not a duplicate. It is handled as an ordinary bill.",
+        "suspectedCreditNote": "The same supplier sent this credit note number again over Peppol. Compare it with the credit note already on file and decide. It can't be set against any bill until then.",
+        "confirmedCreditNote": "Confirmed as a duplicate of the credit note already on file. It stays on hold and can't be set against any bill.",
+        "notDuplicateCreditNote": "Decided to be a separate credit note, not a duplicate. It is handled as an ordinary credit note."
       },
       "thisBill": "This bill",
       "original": "Already on file",
@@ -6084,12 +6087,16 @@
         "confirmBody": "It stays on hold for good and is never paid. This cannot be undone.",
         "notTitle": "Mark as not a duplicate",
         "notBody": "The hold is released and it becomes an ordinary bill to approve and pay. This cannot be undone.",
-        "note": "Note (required)"
+        "note": "Note (required)",
+        "confirmBodyCreditNote": "It stays on hold for good and is never set against a bill or refunded. This cannot be undone.",
+        "notBodyCreditNote": "The hold is released and it becomes an ordinary credit note that can be set against a bill. This cannot be undone."
       },
       "decision": {
         "suspected": "Held as a possible duplicate. Decide whether it is one before it can be paid.",
         "confirmed": "A duplicate of a bill already on file. It stays on hold and is never paid.",
-        "review": "Review duplicate"
+        "review": "Review duplicate",
+        "suspectedCreditNote": "Held as a possible duplicate. Decide whether it is one before it can be set against a bill.",
+        "confirmedCreditNote": "A duplicate of a credit note already on file. It stays on hold and can't be set against any bill."
       },
       "done": {
         "confirmed": "Confirmed as a duplicate.",
@@ -6103,7 +6110,8 @@
         "noteRequired": "Add a note saying why.",
         "noteTooLong": "That note is too long. Keep it to 500 characters or fewer."
       },
-      "decided": "Decided {{date}}"
+      "decided": "Decided {{date}}",
+      "sameUuidCreditNote": "Both copies carry the same document UUID, so this one cannot be released as a separate credit note. Confirm it as a duplicate."
     }
   },
   "uploadBill": {

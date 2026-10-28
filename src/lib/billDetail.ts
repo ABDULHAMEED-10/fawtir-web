@@ -168,7 +168,10 @@ export function decisionsOf(
 ): { approve: boolean; reject: boolean; hold: boolean; release: boolean } {
   const settled = detail.settlement.paymentState === 'PAID'
   const decidable = !settled && !isCreditNote(detail)
-  const approver = can('invoice.approve') && decidable
+  // Not while a duplicate hold is open. The server's approval reads no hold, so approving an
+  // undecided copy would leave it payable the moment it is decided not a duplicate, and approving
+  // or rejecting a confirmed one decides nothing (review of #319).
+  const approver = can('invoice.approve') && decidable && !heldAsDuplicate(detail)
   const payer = can('invoice.payment.manage') && decidable
   return {
     approve: approver && detail.readiness.state !== 'READY',
@@ -265,16 +268,19 @@ export function awaitingDiscountCreditNote(detail: BillDetailDto): boolean {
 /** The sentence under the amount in the decision panel. */
 export function decisionNoteOf(detail: BillDetailDto): Note {
   const { readiness, hold, settlement } = detail
+  // First, and for a credit note too: its own sentence would invite a use the server withholds
+  // from a held copy. The hold's reason is the server's English sentence naming a bill id, so the
+  // sentence is worded here.
+  const duplicate = hold ? duplicateCheckOf(detail) : null
+  const kind = isCreditNote(detail) ? 'CreditNote' : ''
+  if (duplicate?.state === 'confirmed') return { key: `billDetail.duplicate.decision.confirmed${kind}` }
+  if (duplicate?.state === 'suspected') return { key: `billDetail.duplicate.decision.suspected${kind}` }
   if (isCreditNote(detail)) return { key: 'billDetail.decision.creditNote' }
   if (settlement.paymentState === 'PAID') return { key: 'billDetail.decision.paid' }
   // A refused debit note says its refusal, as its own page does, whatever approval it went through.
   if (refusedDebitNote(detail)) return { key: 'supplierDebitNotes.detail.refusedBody' }
   // Not payable until accepted (owner, 10 Oct 2026): what to do first, in place of the approval.
   if (undecidedDebitNote(detail)) return { key: 'apiErrors.refused.debitNoteNotAccepted' }
-  // The duplicate hold's reason is the server's English sentence naming a bill id: worded here.
-  const duplicate = hold ? duplicateCheckOf(detail) : null
-  if (duplicate?.state === 'confirmed') return { key: 'billDetail.duplicate.decision.confirmed' }
-  if (duplicate?.state === 'suspected') return { key: 'billDetail.duplicate.decision.suspected' }
   if (hold) return { key: 'billDetail.decision.held', values: { reason: hold.reason ?? '' } }
   if (readiness.state === 'REJECTED') {
     const rejection = detail.approvals.find((entry) => entry.decision === 'REJECTED')

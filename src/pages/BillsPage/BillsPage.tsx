@@ -1128,7 +1128,8 @@ function BillTableRow({
               },
             ]
           : []),
-        ...(canApprove && row.owes && row.status !== 'rejected' && !row.paid
+        // Not on a held copy: see decisionsOf, the same rule on the bill's page.
+        ...(canApprove && row.owes && row.status !== 'rejected' && !row.paid && !row.duplicate
           ? [
               {
                 id: 'reject',

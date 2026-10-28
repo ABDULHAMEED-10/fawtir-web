@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -258,10 +258,14 @@ describe('a bill held as a possible duplicate', () => {
     expect(calls()).not.toContain('GET /api/v1/inbound-invoices/d-original')
   })
 
-  it('offers no plain release, and leads to the decision instead', async () => {
+  it('offers no plain release, approval or rejection, and leads to the decision instead', async () => {
     renderCopy()
     await card()
     expect(screen.queryByRole('button', { name: 'Release' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Approve for payment' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Reject' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Query it' })).toBeNull()
     expect(screen.getByRole('link', { name: 'Review duplicate' }).getAttribute('href')).toBe('#duplicate-check')
   })
 
@@ -294,12 +298,18 @@ describe('a bill held as a possible duplicate', () => {
     fireEvent.change(within(dialog).getByRole('textbox'), {
       target: { value: '  Resent by the supplier  ' },
     })
-    fireEvent.click(confirm)
-    fireEvent.click(confirm)
+    // Both clicks inside one act: no render runs between them, so the button is still enabled
+    // for the second and only the in-flight guard stops a second request.
+    act(() => {
+      fireEvent.click(confirm)
+      fireEvent.click(confirm)
+    })
     expect(await screen.findByText('Confirmed as a duplicate.')).toBeTruthy()
     expect(resolveCalls()).toHaveLength(1)
     expect(resolveBody()).toEqual({ decision: 'CONFIRMED_DUPLICATE', note: 'Resent by the supplier' })
     await waitFor(() => expect(calls().filter((call) => call === `GET ${COPY_URL}`)).toHaveLength(2))
+    // The earlier bill is read once for the page, not again after the decision.
+    expect(calls().filter((call) => call === `GET ${ORIGINAL_URL}`)).toHaveLength(1)
 
     // The final state: no decision left; when, by whom and why it was decided.
     await screen.findByRole('heading', { level: 2, name: 'Duplicate' })
@@ -344,6 +354,61 @@ describe('a bill held as a possible duplicate', () => {
     expect(within(section).getByText(/Second delivery/)).toBeTruthy()
     expect(within(section).queryByText(/by you/)).toBeNull()
     expect(within(section).queryByRole('button', { name: 'Confirm duplicate' })).toBeNull()
+  })
+
+  it('offers no approval or rejection on a confirmed duplicate either', async () => {
+    copyResponses = [
+      () =>
+        json(
+          200,
+          heldCopy(
+            false,
+            duplicateHold({
+              duplicateResolution: 'CONFIRMED_DUPLICATE',
+              duplicateResolvedBy: 'u-2',
+              duplicateResolvedAt: '2026-10-28T09:00:00Z',
+              duplicateResolutionNote: 'Resent',
+            }),
+          ),
+        ),
+    ]
+    renderCopy()
+    await screen.findByRole('heading', { level: 2, name: 'Duplicate' })
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Reject' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Review duplicate' })).toBeNull()
+    expect(screen.getByText('A duplicate of a bill already on file. It stays on hold and is never paid.')).toBeTruthy()
+  })
+
+  it('words a held credit note as a credit note: never paid or approved, set against a bill', async () => {
+    const copy = heldCopy()
+    copyResponses = [() => json(200, { ...copy, bill: { ...copy.bill, documentTypeCode: '381' } })]
+    renderCopy()
+    const section = await card()
+    expect(within(section).getByText(/Compare it with the credit note already on file/)).toBeTruthy()
+    expect(within(section).getByText(/It can't be set against any bill until then\./)).toBeTruthy()
+    expect(within(section).queryByText(/paid/)).toBeNull()
+    expect(
+      screen.getByText('Held as a possible duplicate. Decide whether it is one before it can be set against a bill.'),
+    ).toBeTruthy()
+    fireEvent.click(within(section).getByRole('button', { name: 'Not a duplicate' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(/becomes an ordinary credit note that can be set against a bill/)).toBeTruthy()
+    expect(within(dialog).queryByText(/approve and pay/)).toBeNull()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    fireEvent.click(within(section).getByRole('button', { name: 'Confirm duplicate' }))
+    expect(
+      within(await screen.findByRole('dialog')).getByText(/never set against a bill or refunded/),
+    ).toBeTruthy()
+  })
+
+  it('says a held credit note in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    const copy = heldCopy()
+    copyResponses = [() => json(200, { ...copy, bill: { ...copy.bill, documentTypeCode: '381' } })]
+    renderCopy()
+    await screen.findByRole('heading', { level: 2, name: 'فاتورة مكررة محتملة' })
+    expect(screen.getByText(/قارنه بالإشعار الدائن المسجّل لديكم/)).toBeTruthy()
   })
 
   it('withholds "Not a duplicate" when both copies share a document UUID, and says why', async () => {

@@ -196,6 +196,31 @@ describe('who may decide, and what', () => {
     expect(decisionsOf(detail(row(), ordinary, [ordinary]), () => true).release).toBe(true)
   })
 
+  it('offers no approval or rejection while a duplicate hold is open, decided or not', () => {
+    const open = hold()
+    const row_ = row({ hold: { reason: 'x', openedAt: open.openedAt, duplicateOfBillId: ORIGINAL } })
+    const undecided = decisionsOf(detail(row_, open, [open]), () => true)
+    expect([undecided.approve, undecided.reject]).toEqual([false, false])
+    const confirmedHold = hold({ duplicateResolution: 'CONFIRMED_DUPLICATE' })
+    const confirmed = decisionsOf(detail(row_, confirmedHold, [confirmedHold]), () => true)
+    expect([confirmed.approve, confirmed.reject]).toEqual([false, false])
+    // An ordinary hold keeps both, as before.
+    const ordinary = hold({ duplicateOfBillId: null, reason: 'Disputed' })
+    const plain = decisionsOf(detail(row(), ordinary, [ordinary]), () => true)
+    expect([plain.approve, plain.reject]).toEqual([true, true])
+  })
+
+  it('words a held credit note by what it is withheld from', () => {
+    const open = hold()
+    const note = row({ documentTypeCode: '381', hold: { reason: 'x', openedAt: open.openedAt, duplicateOfBillId: ORIGINAL } })
+    expect(decisionNoteOf(detail(note, open, [open]))).toEqual({ key: 'billDetail.duplicate.decision.suspectedCreditNote' })
+    const confirmedHold = hold({ duplicateResolution: 'CONFIRMED_DUPLICATE' })
+    const confirmedNote = { ...note, hold: { ...note.hold!, duplicateResolution: 'CONFIRMED_DUPLICATE' as const } }
+    expect(decisionNoteOf(detail(confirmedNote, confirmedHold, [confirmedHold]))).toEqual({
+      key: 'billDetail.duplicate.decision.confirmedCreditNote',
+    })
+  })
+
   it("words the decision panel itself instead of the server's English reason", () => {
     const open = hold()
     const held = detail(row({ hold: { reason: open.reason, openedAt: open.openedAt, duplicateOfBillId: ORIGINAL } }), open, [open])
@@ -213,8 +238,10 @@ describe('the refusals of the duplicate route', () => {
     expect(refusalMessageKey(refused('BILL_DUPLICATE_RESOLUTION_NOTE_TOO_LONG'))).toBe('billDetail.duplicate.refused.noteTooLong')
     // Not reachable from the screen, which always sends a known decision.
     expect(refusalMessageKey(refused('BILL_DUPLICATE_DECISION_INVALID'))).toBe(REFUSAL_FALLBACK_KEY)
-    // An unmapped conflict keeps the generic conflict sentence.
+    // An unmapped conflict keeps the generic conflict sentence, inherited names included.
     expect(refusalMessageKey(conflict('SOMETHING_ELSE'))).toBeNull()
+    expect(refusalMessageKey(conflict('constructor'))).toBeNull()
+    expect(refusalMessageKey(conflict('toString'))).toBeNull()
   })
 
   it('treats a conflict as stale and a note refusal as the field', () => {

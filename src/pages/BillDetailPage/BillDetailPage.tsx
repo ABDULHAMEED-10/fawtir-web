@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -234,6 +234,28 @@ function BillScreen() {
   const paidBeyond = bill.read.status === 'ready' && paidBeyondTotal(bill.read.data)
   const overpaymentPath = overpaid > 0 || paidBeyond ? billOverpaymentPath(id) : null
   const overpayment = useApiRead<BillOverpaymentDto>(overpaymentPath, () => loadBillOverpayment(id))
+
+  // The document a held Peppol copy is compared with. Its id is kept while the bill is read
+  // again after a decision, so the page keeps the comparison instead of reading the earlier
+  // document once more on every action.
+  const comparedWith = useRef<string | null>(null)
+  if (bill.read.status === 'ready')
+    comparedWith.current = duplicateCheckOf(bill.read.data)?.originalId ?? null
+  const earlierId = comparedWith.current
+  const earlier = useApiRead<BillDetailDto>(earlierId ? `/v1/bills/${earlierId}` : null, () =>
+    loadBill(earlierId!),
+  )
+  // Only for a server that sends no `documentUuid`: the delivery record holds the UUID then.
+  const earlierDelivery =
+    earlier.read.status === 'ready' &&
+    earlier.read.data.bill.documentUuid === undefined &&
+    earlier.read.data.compliance.source === 'PEPPOL'
+      ? earlier.read.data.bill.inboundDeliveryId
+      : null
+  const earlierInbound = useApiRead<InboundInvoiceDto>(
+    earlierDelivery ? inboundInvoicePath(earlierDelivery) : null,
+    () => loadInboundInvoice(earlierDelivery!),
+  )
 
   // How we answered the supplier and where our receipt report stands are on the delivery record
   // and the compliance record, not on the bill (A4 G3, EXPENDITURE.md R.1). Peppol bills only.
@@ -567,6 +589,13 @@ function BillScreen() {
             <DuplicateCheckCard
               detail={detail}
               check={duplicateCheck}
+              original={earlier.read}
+              retryOriginal={earlier.retry}
+              originalUuid={
+                earlierInbound.read.status === 'ready'
+                  ? earlierInbound.read.data.correlationId
+                  : null
+              }
               thisUuid={inbound.read.status === 'ready' ? inbound.read.data.correlationId : null}
               canApprove={canApproveBills}
               userId={session?.userId ?? null}

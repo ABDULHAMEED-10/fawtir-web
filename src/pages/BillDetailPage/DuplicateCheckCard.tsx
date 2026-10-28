@@ -4,19 +4,14 @@ import { useTranslation } from 'react-i18next'
 import { Modal, Rial } from '../../components/ui'
 import { BillStatusChip } from '../../components/bills'
 import { ApiReadFailure } from '../../components/feedback/ApiNotice'
-import { useApiRead } from '../../hooks'
+import type { ApiRead } from '../../hooks/useApiRead'
 import {
   DUPLICATE_NOTE_MAX_LENGTH,
-  loadBill,
   resolveDuplicateBill,
   type BillDetailDto,
   type DuplicateResolutionDto,
 } from '../../api/expenditure/bills'
-import {
-  inboundInvoicePath,
-  loadInboundInvoice,
-  type InboundInvoiceDto,
-} from '../../api/expenditure/inboundInvoice'
+import { isCreditNote } from '../../lib/billDetail'
 import {
   duplicateActionsOf,
   duplicateCheckOf,
@@ -49,14 +44,21 @@ const DONE: Record<DuplicateResolutionDto, string> = {
 type DialogError = { text: string; field: boolean }
 
 /**
- * A later Peppol copy beside the bill already on file, and the decision on it (V493). The
- * earlier bill is read on its own (`GET /bills/{id}`). The document UUID is the row's
- * `documentUuid`; a server before that field leaves it to the delivery record. The holds and decisions over time are the Activity
- * card's steps, which the server writes from the same hold history.
+ * A later Peppol copy beside the document already on file, and the decision on it (V493). The
+ * page reads the earlier document, so the read outlives the page's own re-read after a decision.
+ * The document UUID is the row's `documentUuid`; a server before that field leaves it to the
+ * delivery record. The holds and decisions over time are the Activity card's steps, which the
+ * server writes from the same hold history.
+ *
+ * A held credit note (381, 261) is decided the same way, but it is never approved or paid: its
+ * sentences say what a credit note is withheld from, being set against a bill.
  */
 export function DuplicateCheckCard({
   detail,
   check,
+  original,
+  retryOriginal,
+  originalUuid,
   thisUuid,
   canApprove,
   userId,
@@ -65,6 +67,11 @@ export function DuplicateCheckCard({
 }: {
   detail: BillDetailDto
   check: DuplicateCheck
+  /** The earlier document, `GET /bills/{duplicateOfBillId}`. */
+  original: ApiRead<BillDetailDto>
+  retryOriginal: () => void
+  /** The earlier document's UUID from its delivery record, for a server before `documentUuid`. */
+  originalUuid: string | null
   /** This copy's document UUID from its delivery record, for a server before `documentUuid`. */
   thisUuid: string | null
   canApprove: boolean
@@ -77,23 +84,7 @@ export function DuplicateCheckCard({
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const billId = detail.bill.id
-
-  const original = useApiRead<BillDetailDto>(`/v1/bills/${check.originalId}`, () =>
-    loadBill(check.originalId),
-  )
-  // Only for a server that does not send `documentUuid` at all: one more read otherwise wasted.
-  const originalDelivery =
-    original.read.status === 'ready' &&
-    original.read.data.bill.documentUuid === undefined &&
-    original.read.data.compliance.source === 'PEPPOL'
-      ? original.read.data.bill.inboundDeliveryId
-      : null
-  const originalInbound = useApiRead<InboundInvoiceDto>(
-    originalDelivery ? inboundInvoicePath(originalDelivery) : null,
-    () => loadInboundInvoice(originalDelivery!),
-  )
-  const originalUuid =
-    originalInbound.read.status === 'ready' ? originalInbound.read.data.correlationId : null
+  const kind = isCreditNote(detail) ? 'CreditNote' : ''
 
   const actions = duplicateActionsOf(check, canApprove)
   const [deciding, setDeciding] = useState<DuplicateResolutionDto | null>(null)
@@ -145,7 +136,7 @@ export function DuplicateCheckCard({
 
   return (
     <Card id="duplicate-check" title={t(TITLE[check.state])}>
-      <p className="text-sm font-medium leading-[1.5] text-text-tertiary">{t(BODY[check.state])}</p>
+      <p className="text-sm font-medium leading-[1.5] text-text-tertiary">{t(`${BODY[check.state]}${kind}`)}</p>
       {decided?.duplicateResolvedAt ? (
         <p className="mt-2 text-sm font-medium leading-[1.5] text-text-tertiary">
           <span className="font-semibold text-text-primary">
@@ -167,11 +158,11 @@ export function DuplicateCheckCard({
           uuid={detail.bill.documentUuid ?? thisUuid}
           language={language}
         />
-        {original.read.status === 'ready' ? (
+        {original.status === 'ready' ? (
           <BillSide
             heading={t('billDetail.duplicate.original')}
-            detail={original.read.data}
-            uuid={original.read.data.bill.documentUuid ?? originalUuid}
+            detail={original.data}
+            uuid={original.data.bill.documentUuid ?? originalUuid}
             language={language}
             link={`/expenditure/bills/${encodeURIComponent(check.originalId)}`}
           />
@@ -179,12 +170,12 @@ export function DuplicateCheckCard({
           <div className="rounded-sm border border-border-subtle bg-white p-3.5">
             <SideHeading text={t('billDetail.duplicate.original')} />
             <div className="mt-3">
-              {original.read.status === 'loading' ? (
+              {original.status === 'loading' ? (
                 <p role="status" className="text-sm font-medium text-text-quaternary">
                   {t('appAccess.loading')}
                 </p>
               ) : (
-                <ApiReadFailure error={original.read.error} retry={original.retry} />
+                <ApiReadFailure error={original.error} retry={retryOriginal} />
               )}
             </div>
           </div>
@@ -193,7 +184,7 @@ export function DuplicateCheckCard({
 
       {check.sameDocumentUuid ? (
         <p className="mt-4 text-sm font-medium leading-[1.5] text-text-tertiary">
-          {t('billDetail.duplicate.sameUuid')}
+          {t(`billDetail.duplicate.sameUuid${kind}`)}
         </p>
       ) : null}
 
@@ -254,9 +245,11 @@ export function DuplicateCheckCard({
       >
         <p className="text-sm font-medium leading-[1.5] text-text-secondary">
           {t(
-            deciding === 'NOT_DUPLICATE'
-              ? 'billDetail.duplicate.dialog.notBody'
-              : 'billDetail.duplicate.dialog.confirmBody',
+            `${
+              deciding === 'NOT_DUPLICATE'
+                ? 'billDetail.duplicate.dialog.notBody'
+                : 'billDetail.duplicate.dialog.confirmBody'
+            }${kind}`,
           )}
         </p>
         <label className="mt-4 block">
