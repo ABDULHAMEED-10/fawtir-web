@@ -1,10 +1,12 @@
-import { useState } from 'react'
-import { Rial } from '../../components/ui'
-import { useOpenSale } from '../../lib/posSale'
+import { useRef, useState, type ReactNode } from 'react'
+import { Rial, Select } from '../../components/ui'
+import { selectAllOnFocus } from '../../components/invoice/numericInput'
+import { setFinishedSale, useOpenSale } from '../../lib/posSale'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
 import { PosFootNote } from './PosFootNote'
+import { PosTillGate } from './PosTillGate'
 import {
   BuildingIcon,
   CardIcon,
@@ -14,12 +16,13 @@ import {
   PencilIcon,
   ShieldIcon,
 } from './posIcons'
-import { VAT_RATE, itemById, omr, omrSigned, totalsFor, unitPrice, LULL } from '../../lib/pos'
+import { VAT_RATE, omr, omrSigned, totalsFor, unitPrice, LULL, toBaisa } from '../../lib/pos'
 import {
   METHODS,
-  TAKEN,
   TIP_CHOICES,
   changeDue,
+  parseBaisa,
+  paymentsRequest,
   quickCash,
   stillToCollect,
   tipFor,
@@ -28,6 +31,18 @@ import {
   type Taken,
   type TipChoice,
 } from '../../lib/posPayment'
+import { posSaleBody, type TillBuyer } from '../../lib/posInvoice'
+import { submitSale } from '../../lib/posQueue'
+import { posRefusalKey, refusalCode, refusalValues } from '../../lib/posRefusals'
+import { shrinkSlip, slipReading, type SlipReading } from '../../lib/posSlip'
+import { useReferenceData } from '../../lib/reference/referenceData'
+import { DESIGN_REFERENCE } from '../../lib/invoiceDraft'
+import { newPosKey, readPosSlip, uploadPosSlip, type PosSaleRequest } from '../../api/pos/pos'
+import { ApiError } from '../../api'
+import { BUYER_IDENTIFIER_SCHEMES } from '../../api/customers/customers'
+import type { TillState } from '../../lib/posTill'
+
+type Ready = Extract<TillState, { status: 'ready' }>
 
 /** One picture per way of paying, on the tiles and on the payments already taken. */
 function MethodIcon({ id, className }: { id: MethodId; className?: string }) {
@@ -42,12 +57,14 @@ function MethodTile({
   label,
   hotkey,
   chosen,
+  disabled,
   onPick,
 }: {
   id: MethodId
   label: string
   hotkey: string
   chosen: boolean
+  disabled?: boolean
   onPick: (id: MethodId) => void
 }) {
   return (
@@ -55,8 +72,9 @@ function MethodTile({
       type="button"
       onClick={() => onPick(id)}
       aria-pressed={chosen}
+      disabled={disabled}
       className={[
-        'flex min-w-0 flex-col items-center gap-2 rounded-md border px-2 py-6 text-center transition-colors',
+        'flex min-w-0 flex-col items-center gap-2 rounded-md border px-2 py-6 text-center transition-colors disabled:cursor-not-allowed disabled:opacity-50',
         chosen
           ? 'border-primary-700 bg-primary-25'
           : 'border-border-subtle bg-surface-card hover:border-primary-300',
@@ -83,223 +101,470 @@ function MethodTile({
   )
 }
 
+/** The till's text field, as the close and refund screens draw theirs. */
+const FIELD =
+  'h-11 w-full rounded-sm border border-border-subtle bg-white px-4 text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder focus:border-border-brand'
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="flex min-w-0 flex-1 basis-[180px] flex-col gap-1.5">
+      <span className="text-xs font-medium text-text-tertiary">{label}</span>
+      {children}
+    </label>
+  )
+}
+
 export function PosPaymentPage() {
+  return (
+    <AppShell>
+      <PosTillGate>{(till) => <Payment till={till} />}</PosTillGate>
+    </AppShell>
+  )
+}
+
+function Payment({ till }: { till: Ready }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const reference = useReferenceData() ?? DESIGN_REFERENCE
   // The sale and its discount as the sale screen left them.
-  const { lines, saleDiscount } = useOpenSale()
+  const { lines, saleDiscount, company } = useOpenSale()
   const totals = totalsFor(lines, saleDiscount)
 
-  const [tipChoice, setTipChoice] = useState<TipChoice>('roundUp')
-  const [taken, setTaken] = useState<Taken[]>(TAKEN)
+  // No tip is added until the customer asks for one.
+  const [tipChoice, setTipChoice] = useState<TipChoice>('none')
+  const [taken, setTaken] = useState<Taken[]>([])
   const [method, setMethod] = useState<MethodId>('cash')
-  const [handedOver, setHandedOver] = useState(5000)
+  const [handedOver, setHandedOver] = useState<number | null>(null)
+  const [amountText, setAmountText] = useState('')
+  const [approval, setApproval] = useState('')
+  const [reference2, setReference2] = useState('')
+  const [slip, setSlip] = useState<{ fileId: string; reading: SlipReading } | null>(null)
+  const [slipState, setSlipState] = useState<'idle' | 'reading' | 'failed'>('idle')
+  const [slipError, setSlipError] = useState<unknown>(null)
+  const slipInput = useRef<HTMLInputElement>(null)
 
-  const tip = tipFor(tipChoice, totals.sale)
+  const [busy, setBusy] = useState(false)
+  const [refusal, setRefusal] = useState<unknown>(null)
+  const [buyerAsked, setBuyerAsked] = useState(false)
+  const [buyer, setBuyer] = useState({ name: '', scheme: 'CID', value: '', contact: '' })
+  /** A retried sale is the same sale: same key, same time, same body (P.12). */
+  const attempt = useRef<{ fingerprint: string; key: string; soldAt: string } | null>(null)
+
+  const tip = company ? 0 : tipFor(tipChoice, totals.sale)
   const owed = toPay(totals.sale, tip)
   const left = stillToCollect(owed, taken)
   const change = changeDue(taken)
-  const covered = left === 0
+  const covered = left === 0 && lines.length > 0
+  const cash = handedOver ?? left
+  const partAmount = amountText ? Math.min(parseBaisa(amountText), left) : left
+
+  const take = (entry: Omit<Taken, 'id'>) => {
+    if (entry.amount <= 0) return
+    setTaken((current) => [...current, { ...entry, id: `p${Date.now()}` }])
+    setAmountText('')
+    setApproval('')
+    setReference2('')
+    setSlip(null)
+    setSlipState('idle')
+    setHandedOver(null)
+  }
+
+  const scanSlip = async (file: File) => {
+    setSlipState('reading')
+    setSlipError(null)
+    try {
+      const { blob, name } = await shrinkSlip(file)
+      const uploaded = await uploadPosSlip(till.till.id, blob, name)
+      let reading: SlipReading = { unread: true, fields: {}, unsure: [] }
+      try {
+        reading = slipReading(await readPosSlip(uploaded.fileId))
+      } catch {
+        // Reading is a help, never a step: the slip is kept and the cashier types what they need.
+      }
+      setSlip({ fileId: uploaded.fileId, reading })
+      if (reading.fields.authCode && !approval) setApproval(reading.fields.authCode)
+      setSlipState('idle')
+    } catch (error) {
+      setSlipError(error)
+      setSlipState('failed')
+    }
+  }
+
+  const buyerOf = (named: boolean): TillBuyer =>
+    company
+      ? { kind: 'company', customerId: company.id, customerKind: company.kind }
+      : named
+        ? {
+            kind: 'named',
+            name: buyer.name.trim(),
+            contact: buyer.contact.trim() || null,
+            identifierScheme: schemes.includes(buyer.scheme) ? buyer.scheme : schemes[0],
+            identifierValue: buyer.value.trim(),
+          }
+        : { kind: 'walkIn' }
+
+  const finish = async (named = false) => {
+    if (busy) return
+    setBusy(true)
+    setRefusal(null)
+    const { payments, tip: tipPart } = paymentsRequest(taken, tip)
+    const body: Omit<PosSaleRequest, 'soldAt'> = {
+      tillId: till.till.id,
+      queuedOffline: false,
+      invoiceNumber: null,
+      ...posSaleBody(reference, {
+        lines,
+        saleDiscount,
+        branchId: till.branchId,
+        buyer: buyerOf(named),
+      }),
+      payments,
+      tip: tipPart,
+    }
+    const fingerprint = JSON.stringify(body)
+    if (!attempt.current || attempt.current.fingerprint !== fingerprint) {
+      attempt.current = { fingerprint, key: newPosKey('sale'), soldAt: new Date().toISOString() }
+    }
+    try {
+      const result = await submitSale(
+        till.till,
+        { ...body, soldAt: attempt.current.soldAt },
+        attempt.current.key,
+      )
+      setFinishedSale({
+        lines,
+        totals,
+        tip,
+        change,
+        company,
+        payments: taken.map((entry) => ({
+          method: entry.method,
+          amount: entry.amount,
+          approvalCode: entry.approvalCode,
+        })),
+        sale: 'sale' in result ? result.sale : null,
+        queuedNumber: 'queued' in result ? result.queued.number : null,
+        finishedAt: attempt.current.soldAt,
+      })
+      attempt.current = null
+      till.retry()
+      navigate('/pos/done')
+    } catch (error) {
+      setRefusal(error)
+      const code = refusalCode(error)
+      if (code === 'SIMPLIFIED_INVOICE_LIMIT' || code === 'BUYER_IDENTIFIER_REQUIRED') {
+        setBuyerAsked(true)
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const schemes =
+    refusal instanceof ApiError && Array.isArray(refusal.problem.buyerIdentifierSchemes)
+      ? (refusal.problem.buyerIdentifierSchemes as string[])
+      : [...BUYER_IDENTIFIER_SCHEMES]
+  const buyerReady = buyer.name.trim() && buyer.value.trim()
 
   return (
-    <AppShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-        <Link
-          to="/pos"
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-text-tertiary hover:text-primary-700"
-        >
-          ‹ {t('pos.backToSale')}
-        </Link>
+    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <Link
+        to="/pos"
+        className="inline-flex items-center gap-1.5 text-sm font-semibold text-text-tertiary hover:text-primary-700"
+      >
+        ‹ {t('pos.backToSale')}
+      </Link>
 
-        <section className="flex flex-wrap items-center justify-between gap-6 rounded-md bg-surface-card px-6 py-5">
-          <div className="flex flex-wrap items-center gap-6">
+      <section className="flex flex-wrap items-center justify-between gap-6 rounded-md bg-surface-card px-6 py-5">
+        <div className="flex flex-wrap items-center gap-6">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-quaternary">
+              {t('pos.pay.toPay')}
+            </p>
+            <p className="mt-1 inline-flex items-baseline gap-2 text-[34px] font-semibold leading-none text-text-primary">
+              <Rial />
+              {omr(owed)}
+            </p>
+          </div>
+          <div className="flex gap-6 border-s border-border-subtle ps-6 max-md:border-s-0 max-md:ps-0">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-quaternary">
-                {t('pos.pay.toPay')}
+                {t('pos.pay.sale')}
               </p>
-              <p className="mt-1 inline-flex items-baseline gap-2 text-[34px] font-semibold leading-none text-text-primary">
-                <Rial />
-                {omr(owed)}
-              </p>
+              <p className="mt-1 text-xl font-medium text-text-secondary">{omr(totals.sale)}</p>
             </div>
-            <div className="flex gap-6 border-s border-border-subtle ps-6 max-md:border-s-0 max-md:ps-0">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-quaternary">
-                  {t('pos.pay.sale')}
-                </p>
-                <p className="mt-1 text-xl font-medium text-text-secondary">{omr(totals.sale)}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-quaternary">
-                  {t('pos.pay.tip')}
-                </p>
-                <p className="mt-1 text-xl font-medium text-text-secondary">{omr(tip)}</p>
-              </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-quaternary">
+                {t('pos.pay.tip')}
+              </p>
+              <p className="mt-1 text-xl font-medium text-text-secondary">{omr(tip)}</p>
             </div>
           </div>
-          {/* On a phone a plain row across the card, label then figure, so neither drifts in. */}
-          <div className="text-end max-md:flex max-md:w-full max-md:items-baseline max-md:justify-between max-md:gap-3">
-            <p className="text-sm font-medium text-text-quaternary">
-              {t('pos.pay.stillToCollect')}
-            </p>
-            <p
-              className={[
-                'mt-1 inline-flex items-baseline gap-1.5 text-2xl font-semibold',
-                covered ? 'text-success-700' : 'text-text-primary',
-              ].join(' ')}
-            >
-              <Rial />
-              {omr(left)}
-            </p>
-          </div>
-        </section>
+        </div>
+        {/* On a phone a plain row across the card, label then figure, so neither drifts in. */}
+        <div className="text-end max-md:flex max-md:w-full max-md:items-baseline max-md:justify-between max-md:gap-3">
+          <p className="text-sm font-medium text-text-quaternary">{t('pos.pay.stillToCollect')}</p>
+          <p
+            className={[
+              'mt-1 inline-flex items-baseline gap-1.5 text-2xl font-semibold',
+              covered ? 'text-success-700' : 'text-text-primary',
+            ].join(' ')}
+          >
+            <Rial />
+            {omr(left)}
+          </p>
+        </div>
+      </section>
 
-        <div className="flex flex-wrap items-start gap-4">
-          <div className="flex min-w-[320px] flex-1 flex-col gap-4">
-            <section className="flex flex-col rounded-md bg-surface-card">
-              <div className="border-b border-border-subtle px-6 py-4">
-                <h2 className="text-base font-medium leading-[1.2] text-text-primary">
-                  {t('pos.pay.howPaying')}
-                </h2>
-                <p className="mt-1 text-xs font-medium text-text-quaternary">
-                  {t('pos.pay.splitIt')}
-                </p>
-              </div>
+      <div className="flex flex-wrap items-start gap-4">
+        <div className="flex min-w-[320px] flex-1 flex-col gap-4">
+          <section className="flex flex-col rounded-md bg-surface-card">
+            <div className="border-b border-border-subtle px-6 py-4">
+              <h2 className="text-base font-medium leading-[1.2] text-text-primary">
+                {t('pos.pay.howPaying')}
+              </h2>
+              <p className="mt-1 text-xs font-medium text-text-quaternary">
+                {t('pos.pay.splitIt')}
+              </p>
+            </div>
 
-              <div className="grid grid-cols-2 gap-3 px-6 py-4 sm:grid-cols-4">
-                {METHODS.map((entry) => (
-                  <MethodTile
-                    key={entry.id}
-                    id={entry.id}
-                    label={t(entry.labelKey)}
-                    hotkey={entry.hotkey}
-                    chosen={
-                      method === entry.id || taken.some((payment) => payment.method === entry.id)
-                    }
-                    onPick={setMethod}
+            <div className="grid grid-cols-2 gap-3 px-6 py-4 sm:grid-cols-4">
+              {METHODS.map((entry) => (
+                <MethodTile
+                  key={entry.id}
+                  id={entry.id}
+                  label={t(entry.labelKey)}
+                  hotkey={entry.hotkey}
+                  // On account is for a company customer only (POS_ON_ACCOUNT_NEEDS_COMPANY).
+                  disabled={entry.id === 'account' && !company}
+                  chosen={
+                    method === entry.id || taken.some((payment) => payment.method === entry.id)
+                  }
+                  onPick={(id) => {
+                    setMethod(id)
+                    setAmountText('')
+                  }}
+                />
+              ))}
+            </div>
+
+            {method === 'cash' && !covered ? (
+              <div className="flex flex-wrap gap-4 px-6 pb-4">
+                <div className="min-w-[260px] flex-1">
+                  <p className="text-xs font-medium text-text-tertiary">
+                    {t('pos.pay.handedOver', { amount: omr(left) })}
+                  </p>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    dir="ltr"
+                    value={(cash / 1000).toFixed(3)}
+                    onFocus={selectAllOnFocus}
+                    onChange={(event) => setHandedOver(parseBaisa(event.target.value))}
+                    aria-label={t('pos.pay.handedOverLabel')}
+                    className="mt-2 h-[60px] w-full rounded-sm border-2 border-primary-700 bg-primary-25 px-4 text-end text-2xl font-semibold text-text-primary outline-none"
                   />
-                ))}
-              </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {quickCash(left).map((amount, index) => (
+                      <button
+                        key={amount}
+                        type="button"
+                        onClick={() => setHandedOver(amount)}
+                        className={[
+                          'inline-flex h-10 items-center rounded-sm border px-3 text-sm font-semibold transition-colors',
+                          cash === amount
+                            ? 'border-primary-700 bg-primary-25 text-primary-800'
+                            : 'border-border-subtle bg-white text-text-secondary hover:border-primary-300',
+                        ].join(' ')}
+                      >
+                        {index === 0 ? t('pos.pay.exact', { amount: omr(amount) }) : omr(amount)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-              {method === 'cash' && !covered ? (
-                <div className="flex flex-wrap gap-4 px-6 pb-4">
-                  <div className="min-w-[260px] flex-1">
-                    <p className="text-xs font-medium text-text-tertiary">
-                      {t('pos.pay.handedOver', { amount: omr(left) })}
-                    </p>
+                <div className="min-w-[240px] flex-1 rounded-sm bg-success-100 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-quaternary">
+                    {t('pos.pay.changeToGive')}
+                  </p>
+                  <p className="mt-1 text-[30px] font-semibold leading-none text-success-700">
+                    {omr(Math.max(0, cash - left))}
+                  </p>
+                  <p className="mt-2 text-xs font-medium leading-[1.5] text-text-tertiary">
+                    {t('pos.pay.drawerOpens')}
+                  </p>
+                  <button
+                    type="button"
+                    disabled={cash <= 0}
+                    onClick={() =>
+                      // Less than owed is part of a split; the rest is taken another way.
+                      take({ method: 'cash', amount: Math.min(cash, left), handedOver: cash })
+                    }
+                    className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-sm bg-success-700 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {t('pos.pay.takeCash', { amount: omr(Math.min(cash, left)) })}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {method !== 'cash' && !covered ? (
+              <div className="flex flex-col gap-4 px-6 pb-4">
+                <div className="flex flex-wrap gap-4">
+                  <Field label={t('pos.pay.amount')}>
                     <input
                       type="text"
                       inputMode="decimal"
-                      value={(handedOver / 1000).toFixed(3)}
-                      onChange={(event) => {
-                        const next = Number(event.target.value.replace(/[^0-9.]/g, '')) * 1000
-                        setHandedOver(Number.isFinite(next) ? Math.round(next) : 0)
-                      }}
-                      aria-label={t('pos.pay.handedOverLabel')}
-                      className="mt-2 h-[60px] w-full rounded-sm border-2 border-primary-700 bg-primary-25 px-4 text-end text-2xl font-semibold text-text-primary outline-none"
+                      dir="ltr"
+                      value={amountText || (left / 1000).toFixed(3)}
+                      onFocus={selectAllOnFocus}
+                      onChange={(event) => setAmountText(event.target.value)}
+                      className={`${FIELD} text-end`}
                     />
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {quickCash(left).map((amount, index) => (
-                        <button
-                          key={amount}
-                          type="button"
-                          onClick={() => setHandedOver(amount)}
-                          className={[
-                            'inline-flex h-10 items-center rounded-sm border px-3 text-sm font-semibold transition-colors',
-                            handedOver === amount
-                              ? 'border-primary-700 bg-primary-25 text-primary-800'
-                              : 'border-border-subtle bg-white text-text-secondary hover:border-primary-300',
-                          ].join(' ')}
-                        >
-                          {index === 0 ? t('pos.pay.exact', { amount: omr(amount) }) : omr(amount)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="min-w-[240px] flex-1 rounded-sm bg-success-100 p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-quaternary">
-                      {t('pos.pay.changeToGive')}
-                    </p>
-                    <p className="mt-1 text-[30px] font-semibold leading-none text-success-700">
-                      {omr(Math.max(0, handedOver - left))}
-                    </p>
-                    <p className="mt-2 text-xs font-medium leading-[1.5] text-text-tertiary">
-                      {t('pos.pay.drawerOpens')}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setTaken((current) => [
-                          ...current,
-                          {
-                            id: `p${Date.now()}`,
-                            method: 'cash',
-                            amount: left,
-                            handedOver,
-                          },
-                        ])
-                      }
-                      className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-sm bg-success-700 text-sm font-semibold text-white"
-                    >
-                      {t('pos.pay.takeCash', { amount: omr(left) })}
-                    </button>
-                  </div>
+                  </Field>
+                  {method === 'card' ? (
+                    <Field label={t('pos.pay.approvalCode')}>
+                      <input
+                        value={approval}
+                        maxLength={40}
+                        dir="ltr"
+                        onChange={(event) => setApproval(event.target.value)}
+                        placeholder={t('pos.pay.optional')}
+                        className={[
+                          FIELD,
+                          slip?.reading.unsure.includes('authCode') ? 'border-pending-700' : '',
+                        ].join(' ')}
+                      />
+                    </Field>
+                  ) : null}
+                  {method === 'transfer' ? (
+                    <Field label={t('pos.pay.transferReference')}>
+                      <input
+                        value={reference2}
+                        maxLength={200}
+                        dir="ltr"
+                        onChange={(event) => setReference2(event.target.value)}
+                        placeholder={t('pos.pay.optional')}
+                        className={FIELD}
+                      />
+                    </Field>
+                  ) : null}
                 </div>
-              ) : null}
 
-              <ul className="flex flex-wrap gap-4 border-t border-border-subtle px-6 py-4">
-                {taken.map((payment) => (
-                  <li
-                    key={payment.id}
-                    className="flex min-w-[260px] flex-1 items-center gap-3 border-b border-border-subtle pb-3 max-md:min-w-0 max-md:basis-full max-md:last:border-b-0"
+                {method === 'card' ? (
+                  <SlipNote slip={slip} state={slipState} error={slipError} amount={partAmount} />
+                ) : null}
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={partAmount <= 0}
+                    onClick={() =>
+                      take({
+                        method,
+                        amount: partAmount,
+                        approvalCode: method === 'card' ? approval : undefined,
+                        reference: method === 'transfer' ? reference2 : undefined,
+                        slipFileId: method === 'card' ? slip?.fileId : undefined,
+                        slipFields:
+                          method === 'card' && slip && !slip.reading.unread
+                            ? slip.reading.fields
+                            : undefined,
+                      })
+                    }
+                    className="inline-flex h-10 items-center rounded-sm bg-success-700 px-4 text-sm font-semibold text-white disabled:opacity-50"
                   >
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-primary-25 text-primary-700">
-                      <MethodIcon id={payment.method} className="size-[18px]" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold text-text-primary">
-                        {t(`pos.pay.${payment.method}`)}
-                      </span>
-                      <span className="mt-0.5 block text-xs font-medium text-text-quaternary">
-                        {payment.approvalKey
-                          ? t(payment.approvalKey, payment.approvalValues)
-                          : t('pos.pay.cashGiven', {
-                              given: omr(payment.handedOver ?? 0),
-                              change: omr((payment.handedOver ?? 0) - payment.amount),
-                            })}
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-sm font-semibold text-text-primary">
-                      {omr(payment.amount)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setTaken((c) => c.filter((p) => p.id !== payment.id))}
-                      aria-label={t('pos.pay.remove')}
-                      className="shrink-0 text-text-quaternary transition-colors hover:text-danger-700"
-                    >
-                      ✕
-                    </button>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="flex flex-wrap items-center gap-3 border-t border-border-subtle px-6 py-4">
-                {covered ? (
-                  // A compact green box on the right half, as the frame draws it; full width on a phone.
-                  <p className="flex w-full items-center gap-2 rounded-sm bg-success-100 px-3 py-2.5 text-sm sm:justify-end sm:text-end font-medium text-success-700 sm:ms-auto sm:w-1/2">
-                    <CheckIcon className="size-4 shrink-0" />
-                    <span>{t('pos.pay.allCovered', { amount: omr(owed) })}</span>
-                  </p>
-                ) : (
-                  <p className="flex-1 text-sm font-medium text-text-tertiary">
-                    {t('pos.pay.stillOwed', { amount: omr(left) })}
-                  </p>
-                )}
+                    {method === 'account'
+                      ? t('pos.pay.putOnAccount', { amount: omr(partAmount) })
+                      : t('pos.pay.paid', { amount: omr(partAmount) })}
+                  </button>
+                  {method === 'card' ? (
+                    <>
+                      <button
+                        type="button"
+                        disabled={slipState === 'reading'}
+                        onClick={() => slipInput.current?.click()}
+                        className="inline-flex h-10 items-center rounded-sm border border-border-subtle bg-white px-3.5 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-60"
+                      >
+                        {slipState === 'reading' ? t('pos.pay.slipReading') : t('pos.pay.scanSlip')}
+                      </button>
+                      {/* Camera on a tablet or phone, a file on a computer. */}
+                      <input
+                        ref={slipInput}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0]
+                          event.target.value = ''
+                          if (file) void scanSlip(file)
+                        }}
+                      />
+                    </>
+                  ) : null}
+                </div>
               </div>
-            </section>
+            ) : null}
 
+            <ul className="flex flex-wrap gap-4 border-t border-border-subtle px-6 py-4">
+              {taken.map((payment) => (
+                <li
+                  key={payment.id}
+                  className="flex min-w-[260px] flex-1 items-center gap-3 border-b border-border-subtle pb-3 max-md:min-w-0 max-md:basis-full max-md:last:border-b-0"
+                >
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-primary-25 text-primary-700">
+                    <MethodIcon id={payment.method} className="size-[18px]" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-text-primary">
+                      {t(`pos.pay.${payment.method}`)}
+                    </span>
+                    <span className="mt-0.5 block text-xs font-medium text-text-quaternary">
+                      {/* Only what was entered: Fawtir has no link to the card machine. */}
+                      {payment.method === 'cash'
+                        ? t('pos.pay.cashGiven', {
+                            given: omr(payment.handedOver ?? payment.amount),
+                            change: omr((payment.handedOver ?? payment.amount) - payment.amount),
+                          })
+                        : payment.method === 'card' && payment.approvalCode?.trim()
+                          ? t('pos.pay.approvalShown', { code: payment.approvalCode.trim() })
+                          : payment.method === 'transfer' && payment.reference?.trim()
+                            ? payment.reference.trim()
+                            : null}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-sm font-semibold text-text-primary">
+                    {omr(payment.amount)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setTaken((c) => c.filter((p) => p.id !== payment.id))}
+                    aria-label={t('pos.pay.remove')}
+                    className="shrink-0 text-text-quaternary transition-colors hover:text-danger-700"
+                  >
+                    ✕
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            <div className="flex flex-wrap items-center gap-3 border-t border-border-subtle px-6 py-4">
+              {covered ? (
+                // A compact green box on the right half, as the frame draws it; full width on a phone.
+                <p className="flex w-full items-center gap-2 rounded-sm bg-success-100 px-3 py-2.5 text-sm sm:justify-end sm:text-end font-medium text-success-700 sm:ms-auto sm:w-1/2">
+                  <CheckIcon className="size-4 shrink-0" />
+                  <span>{t('pos.pay.allCovered', { amount: omr(owed) })}</span>
+                </p>
+              ) : (
+                <p className="flex-1 text-sm font-medium text-text-tertiary">
+                  {t('pos.pay.stillOwed', { amount: omr(left) })}
+                </p>
+              )}
+            </div>
+          </section>
+
+          {!company ? (
             <section className="flex flex-col rounded-md bg-surface-card">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle px-6 py-4">
                 <div>
@@ -310,9 +575,6 @@ export function PosPaymentPage() {
                     {t('pos.pay.tipNote')}
                   </p>
                 </div>
-                <button type="button" className="text-sm font-semibold text-primary-700">
-                  {t('pos.pay.whoGetsIt')}
-                </button>
               </div>
               <div className="flex flex-wrap gap-3 px-6 py-4">
                 {TIP_CHOICES.map((choice) => {
@@ -322,13 +584,15 @@ export function PosPaymentPage() {
                     <button
                       key={choice}
                       type="button"
+                      // A tip is paid in cash or on the card, never by transfer or on account.
+                      disabled={taken.length > 0}
                       onClick={() => setTipChoice(choice)}
                       aria-pressed={chosen}
                       className={[
-                        'flex min-h-[76px] min-w-[110px] flex-1 flex-col items-center justify-center gap-1 rounded-md border py-4 transition-colors',
+                        'flex min-h-[76px] min-w-[110px] flex-1 flex-col items-center justify-center gap-1 rounded-md border py-4 transition-colors disabled:cursor-not-allowed',
                         chosen
                           ? 'border-primary-700 bg-primary-25'
-                          : 'border-border-subtle bg-white hover:border-primary-300',
+                          : 'border-border-subtle bg-white hover:border-primary-300 disabled:opacity-60',
                       ].join(' ')}
                     >
                       <span
@@ -361,102 +625,220 @@ export function PosPaymentPage() {
                 </p>
               </div>
             </section>
-          </div>
+          ) : null}
+        </div>
 
-          <aside className="flex w-full flex-col rounded-md bg-surface-card xl:w-[392px] xl:shrink-0">
-            <div className="flex items-start justify-between gap-3 border-b border-border-subtle px-5 py-4">
-              <div className="min-w-0">
-                <h2 className="text-base font-medium leading-[1.2] text-text-primary">
-                  {t('pos.pay.walkInCustomer')}
-                </h2>
-                <p className="mt-1 text-xs font-medium text-text-quaternary">
-                  {t('pos.pay.receiptWithQr', { count: lines.length })}
-                </p>
-              </div>
-              {/* The sale panel's edit button: back to the sale to change it. */}
-              <Link
-                to="/pos"
-                aria-label={t('pos.editSale')}
-                className="inline-flex size-9 shrink-0 items-center justify-center rounded-sm border border-border-subtle text-text-tertiary transition-colors hover:bg-primary-25"
-              >
-                <PencilIcon className="size-4" />
-              </Link>
+        <aside className="flex w-full flex-col rounded-md bg-surface-card xl:w-[392px] xl:shrink-0">
+          <div className="flex items-start justify-between gap-3 border-b border-border-subtle px-5 py-4">
+            <div className="min-w-0">
+              <h2 className="text-base font-medium leading-[1.2] text-text-primary">
+                {company ? company.name : t('pos.pay.walkInCustomer')}
+              </h2>
+              <p className="mt-1 text-xs font-medium text-text-quaternary">
+                {company
+                  ? t('pos.itemsFullInvoice', { count: lines.length })
+                  : t('pos.pay.receiptWithQr', { count: lines.length })}
+              </p>
             </div>
-            <ul className="flex flex-col px-5">
-              {lines.map((line) => {
-                const item = itemById(line.itemId)
-                const size = item.sizes?.find((s) => s.id === line.sizeId)
-                const addOns = (item.addOns ?? []).filter((a) => line.addOnIds.includes(a.id))
-                return (
-                  <li
-                    key={line.id}
-                    className="flex items-start gap-3 border-b border-border-subtle py-3 last:border-b-0"
-                  >
-                    <span className="flex size-7 shrink-0 items-center justify-center rounded-sm bg-surface-background text-xs font-semibold text-text-tertiary">
-                      {line.qty}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium text-text-primary">
-                        {item.name}
-                      </span>
-                      <span className="mt-0.5 block text-xs font-medium text-text-quaternary">
-                        {size ? t(size.labelKey) : t('pos.oneSizeOnly')}
-                        {addOns.length
-                          ? ` · ${addOns.map((a) => `+ ${t(a.labelKey)}`).join(', ')}`
-                          : ''}
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-sm font-semibold text-text-primary">
-                      {omr(unitPrice(line) * line.qty)}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-            <div className="flex flex-col gap-2.5 border-t border-border-subtle px-5 py-4">
-              <Row label={t('pos.totals.items')} value={omr(totals.items)} />
-              {totals.discount > 0 ? (
-                <Row
-                  label={t('pos.totals.lull', { percent: LULL.percent })}
-                  value={omrSigned(-totals.discount)}
-                />
-              ) : null}
-              {totals.saleDiscount > 0 ? (
-                <Row label={t('pos.totals.saleDiscount')} value={omrSigned(-totals.saleDiscount)} />
-              ) : null}
+            {/* The sale panel's edit button: back to the sale to change it. */}
+            <Link
+              to="/pos"
+              aria-label={t('pos.editSale')}
+              className="inline-flex size-9 shrink-0 items-center justify-center rounded-sm border border-border-subtle text-text-tertiary transition-colors hover:bg-primary-25"
+            >
+              <PencilIcon className="size-4" />
+            </Link>
+          </div>
+          <ul className="flex flex-col px-5">
+            {lines.map((line) => (
+              <li
+                key={line.id}
+                className="flex items-start gap-3 border-b border-border-subtle py-3 last:border-b-0"
+              >
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-sm bg-surface-background text-xs font-semibold text-text-tertiary">
+                  {line.qty}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium text-text-primary">{line.name}</span>
+                  <span className="mt-0.5 block text-xs font-medium text-text-quaternary">
+                    {line.variant ? line.variant.label : t('pos.oneSizeOnly')}
+                    {line.addOns.length
+                      ? ` · ${line.addOns.map((a) => `+ ${a.label}`).join(', ')}`
+                      : ''}
+                  </span>
+                </span>
+                <span className="shrink-0 text-sm font-semibold text-text-primary">
+                  {omr(unitPrice(line) * line.qty)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-col gap-2.5 border-t border-border-subtle px-5 py-4">
+            <Row label={t('pos.totals.items')} value={omr(totals.items)} />
+            {totals.discount > 0 ? (
               <Row
                 label={
-                  totals.vatRates.length === 1
-                    ? t('pos.totals.vatAt', { rate: totals.vatRates[0] })
-                    : t('pos.totals.vatMixed')
+                  lines.some((line) => line.rulePercent)
+                    ? t('pos.totals.lull', { percent: LULL.percent })
+                    : t('pos.totals.lineDiscounts')
                 }
-                value={omr(totals.vat)}
+                value={omrSigned(-totals.discount)}
               />
-              <Row label={t('pos.pay.sale')} value={omr(totals.sale)} />
-              <Row label={t(`pos.pay.tipRow.${tipChoice}`)} value={omr(tip)} />
-              <div className="mt-1 flex items-center justify-between gap-3 border-t border-border-subtle pt-3">
-                <span className="text-lg font-medium text-text-primary">{t('pos.pay.total')}</span>
-                <span className="inline-flex items-baseline gap-1.5 text-[26px] font-semibold leading-none text-text-primary">
-                  <Rial />
-                  {omr(owed)}
-                </span>
+            ) : null}
+            {totals.saleDiscount > 0 ? (
+              <Row label={t('pos.totals.saleDiscount')} value={omrSigned(-totals.saleDiscount)} />
+            ) : null}
+            <Row
+              label={
+                totals.vatRates.length === 1
+                  ? t('pos.totals.vatAt', { rate: totals.vatRates[0] })
+                  : t('pos.totals.vatMixed')
+              }
+              value={omr(totals.vat)}
+            />
+            <Row label={t('pos.pay.sale')} value={omr(totals.sale)} />
+            {!company ? <Row label={t(`pos.pay.tipRow.${tipChoice}`)} value={omr(tip)} /> : null}
+            <div className="mt-1 flex items-center justify-between gap-3 border-t border-border-subtle pt-3">
+              <span className="text-lg font-medium text-text-primary">{t('pos.pay.total')}</span>
+              <span className="inline-flex items-baseline gap-1.5 text-[26px] font-semibold leading-none text-text-primary">
+                <Rial />
+                {omr(owed)}
+              </span>
+            </div>
+          </div>
+
+          {refusal ? (
+            <div role="alert" className="mx-5 mb-4 rounded-sm bg-pending-100 px-4 py-3">
+              <p className="text-sm font-medium leading-[1.5] text-pending-700">
+                {t(posRefusalKey(refusal), refusalValues(refusal))}
+              </p>
+            </div>
+          ) : null}
+
+          {buyerAsked && !company ? (
+            // The full-invoice offer (SIMPLIFIED_INVOICE_LIMIT, BUYER_IDENTIFIER_REQUIRED): the
+            // buyer is named with their ID (IBR-016-OM), or the sale is put on a company.
+            <div className="mx-5 mb-4 flex flex-col gap-3 rounded-sm bg-surface-background p-4">
+              <p className="text-sm font-semibold text-text-primary">{t('pos.buyer.title')}</p>
+              <p className="text-xs font-medium leading-[1.5] text-text-tertiary">
+                {t('pos.buyer.note')}
+              </p>
+              <Field label={t('pos.buyer.name')}>
+                <input
+                  value={buyer.name}
+                  maxLength={200}
+                  onChange={(event) => setBuyer({ ...buyer, name: event.target.value })}
+                  className={FIELD}
+                />
+              </Field>
+              <Field label={t('pos.buyer.scheme')}>
+                <Select
+                  quiet
+                  value={schemes.includes(buyer.scheme) ? buyer.scheme : schemes[0]}
+                  onChange={(scheme) => setBuyer({ ...buyer, scheme })}
+                  options={schemes.map((scheme) => ({
+                    value: scheme,
+                    label: t(`customerForm.identifier.schemes.${scheme}`),
+                  }))}
+                  ariaLabel={t('pos.buyer.scheme')}
+                />
+              </Field>
+              <Field label={t('pos.buyer.value')}>
+                <input
+                  value={buyer.value}
+                  maxLength={50}
+                  dir="ltr"
+                  onChange={(event) => setBuyer({ ...buyer, value: event.target.value })}
+                  className={FIELD}
+                />
+              </Field>
+              <Field label={t('pos.buyer.contact')}>
+                <input
+                  value={buyer.contact}
+                  dir="ltr"
+                  onChange={(event) => setBuyer({ ...buyer, contact: event.target.value })}
+                  placeholder={t('pos.pay.optional')}
+                  className={FIELD}
+                />
+              </Field>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  disabled={!buyerReady || !covered || busy}
+                  onClick={() => void finish(true)}
+                  className="inline-flex h-10 items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {t('pos.buyer.makeFull')}
+                </button>
+                <Link to="/pos/company" className="text-sm font-semibold text-primary-700">
+                  {t('pos.buyer.onCompany')}
+                </Link>
               </div>
             </div>
-            <div className="px-5 pb-5">
-              <button
-                type="button"
-                disabled={!covered}
-                onClick={() => navigate('/pos/done')}
-                className="inline-flex h-[52px] w-full items-center justify-center rounded-sm bg-success-700 text-base font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {t('pos.pay.finish')}
-              </button>
-            </div>
-            <PosFootNote>{t('pos.pay.finishNote', { change: omr(change) })}</PosFootNote>
-          </aside>
-        </div>
+          ) : null}
+
+          <div className="px-5 pb-5">
+            <button
+              type="button"
+              disabled={!covered || busy}
+              onClick={() => void finish(false)}
+              className="inline-flex h-[52px] w-full items-center justify-center rounded-sm bg-success-700 text-base font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t('pos.pay.finish')}
+            </button>
+          </div>
+          <PosFootNote>{t('pos.pay.finishNote', { change: omr(change) })}</PosFootNote>
+        </aside>
       </div>
-    </AppShell>
+    </div>
+  )
+}
+
+/** What Scan slip found, or why it found nothing; never a reason to stop. */
+function SlipNote({
+  slip,
+  state,
+  error,
+  amount,
+}: {
+  slip: { fileId: string; reading: SlipReading } | null
+  state: 'idle' | 'reading' | 'failed'
+  error: unknown
+  amount: number
+}) {
+  const { t } = useTranslation()
+  if (state === 'failed') {
+    return (
+      <p className="rounded-sm bg-pending-100 px-3 py-2.5 text-xs font-medium leading-[1.5] text-pending-700">
+        {t(posRefusalKey(error))} {t('pos.pay.slipSkip')}
+      </p>
+    )
+  }
+  if (!slip) return null
+  const { reading } = slip
+  if (reading.unread) {
+    return (
+      <p className="rounded-sm bg-surface-background px-3 py-2.5 text-xs font-medium leading-[1.5] text-text-tertiary">
+        {t('pos.pay.slipUnread')}
+      </p>
+    )
+  }
+  const slipAmount = reading.fields.amount != null ? toBaisa(reading.fields.amount) : null
+  return (
+    <div className="flex flex-col gap-1.5 rounded-sm bg-surface-background px-3 py-2.5 text-xs font-medium leading-[1.5] text-text-tertiary">
+      <p>
+        {t('pos.pay.slipRead', {
+          card: [reading.fields.cardType, reading.fields.cardLast4].filter(Boolean).join(' ') || '',
+          rrn: reading.fields.rrn ?? '',
+        })}
+      </p>
+      {reading.unsure.length ? <p className="text-pending-700">{t('pos.pay.slipCheck')}</p> : null}
+      {slipAmount != null && slipAmount !== amount ? (
+        <p className="text-pending-700">
+          {t('pos.pay.slipDiffers', { slip: omr(slipAmount), payment: omr(amount) })}
+        </p>
+      ) : null}
+    </div>
   )
 }
 

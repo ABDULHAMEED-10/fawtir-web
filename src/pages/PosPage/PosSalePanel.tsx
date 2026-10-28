@@ -6,11 +6,10 @@ import { Rial } from '../../components/ui'
 import { PosFootNote } from './PosFootNote'
 import {
   LULL,
-  SALE_STARTED,
-  itemById,
   lullApplies,
   omr,
   omrSigned,
+  tillTime,
   totalsFor,
   unitPrice,
   type SaleLine,
@@ -42,9 +41,10 @@ export function PosSalePanel({
   /** Set once the sale has been put on a company account. */
   company?: { name: string }
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [discountOpen, setDiscountOpen] = useState(false)
-  const { saleDiscount } = useOpenSale()
+  const { saleDiscount, startedAt } = useOpenSale()
+  const started = tillTime(startedAt, i18n.language.startsWith('ar') ? 'ar' : 'en-GB')
   const totals = totalsFor(lines, saleDiscount)
   const items = lines.reduce((sum, line) => sum + line.qty, 0)
   const discounted = lines.some(lullApplies) && totals.discount > 0
@@ -66,7 +66,9 @@ export function PosSalePanel({
           <p className="mt-1 text-xs font-medium text-text-quaternary">
             {company
               ? t('pos.itemsFullInvoice', { count: items })
-              : t('pos.itemsStarted', { count: items, time: SALE_STARTED })}
+              : started
+                ? t('pos.itemsStarted', { count: items, time: started })
+                : t('pos.today.itemCount', { count: items })}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -148,16 +150,14 @@ export function PosSalePanel({
 
       <ul className="flex flex-col px-5 pt-4">
         {lines.map((line) => {
-          const item = itemById(line.itemId)
-          const size = item.sizes?.find((s) => s.id === line.sizeId)
-          const addOns = (item.addOns ?? []).filter((a) => line.addOnIds.includes(a.id))
+          const addOns = line.addOns
           return (
             <li key={line.id} className="flex items-start gap-3 py-3">
               <div className="flex shrink-0 items-center gap-1 rounded-sm border border-border-subtle">
                 <button
                   type="button"
                   onClick={() => setQty(line.id, line.qty - 1)}
-                  aria-label={t('pos.oneFewer', { name: item.name })}
+                  aria-label={t('pos.oneFewer', { name: line.name })}
                   className="flex size-7 items-center justify-center text-text-secondary transition-colors hover:text-primary-800"
                 >
                   −
@@ -168,20 +168,20 @@ export function PosSalePanel({
                 <button
                   type="button"
                   onClick={() => setQty(line.id, line.qty + 1)}
-                  aria-label={t('pos.oneMore', { name: item.name })}
+                  aria-label={t('pos.oneMore', { name: line.name })}
                   className="flex size-7 items-center justify-center text-text-secondary transition-colors hover:text-primary-800"
                 >
                   +
                 </button>
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-base font-medium leading-[1.2] text-text-primary">{item.name}</p>
+                <p className="text-base font-medium leading-[1.2] text-text-primary">{line.name}</p>
                 <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
-                  {size ? t(size.labelKey) : t('pos.oneSizeOnly')}
+                  {line.variant ? line.variant.label : t('pos.oneSizeOnly')}
                   {addOns.length ? (
                     <span className="text-primary-700">
                       {' · '}
-                      {addOns.map((a) => `+ ${t(a.labelKey)}`).join(', ')}
+                      {addOns.map((a) => `+ ${a.label}`).join(', ')}
                     </span>
                   ) : null}
                 </p>
@@ -210,7 +210,7 @@ export function PosSalePanel({
         <div className="mx-5 mt-3 flex items-start gap-2 rounded-sm bg-success-100 px-3 py-2.5">
           <span className="mt-0.5 text-success-700">✓</span>
           <p className="text-xs font-medium leading-[1.5] text-text-tertiary">
-            {t('pos.lullApplied', { percent: LULL.percent, time: SALE_STARTED })}
+            {t('pos.lullApplied', { percent: LULL.percent, time: started })}
           </p>
         </div>
       ) : null}
@@ -219,7 +219,11 @@ export function PosSalePanel({
         <Row label={t('pos.totals.items')} value={omr(totals.items)} />
         {totals.discount > 0 ? (
           <Row
-            label={t('pos.totals.lull', { percent: LULL.percent })}
+            label={
+              discounted
+                ? t('pos.totals.lull', { percent: LULL.percent })
+                : t('pos.totals.lineDiscounts')
+            }
             value={omrSigned(-totals.discount)}
           />
         ) : null}

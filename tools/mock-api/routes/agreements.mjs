@@ -43,6 +43,12 @@ const ENTITLEMENTS = {
     'customer.manage',
     'supplier.read',
     'product.read',
+    // The till (POS): sell, close, refund and set up tills.
+    'pos.read',
+    'pos.sell',
+    'pos.close',
+    'pos.refund',
+    'pos.till.manage',
     'product.manage',
     'branch.read',
     'selfbilling.create',

@@ -1,11 +1,64 @@
-import { useState, type ReactNode } from 'react'
-import { setSaleLines, useOpenSale } from '../../lib/posSale'
+import { useEffect, useState, type ReactNode } from 'react'
+import { setSaleCompany, setSaleLines, useOpenSale } from '../../lib/posSale'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
 import { PosSalePanel } from './PosSalePanel'
-import { COMPANIES, COMPANY_IS, WALK_IN_IS, type Company } from '../../lib/posPayment'
+import { PosTillGate } from './PosTillGate'
+import { COMPANY_IS, WALK_IN_IS } from '../../lib/posPayment'
 import { ArrowForwardIcon, CheckIcon, SearchIcon } from './posIcons'
+import { Select } from '../../components/ui'
+import { useApiRead } from '../../hooks'
+import { apiRequest, fromSpringPage, withQuery, type Page, type SpringPage } from '../../api'
+import {
+  BUYER_IDENTIFIER_SCHEMES,
+  CUSTOMERS_PATH,
+  loadCustomerRecord,
+  type CustomerDto,
+  type CustomerRecordDto,
+} from '../../api/customers/customers'
+import { addPosCustomer, newPosKey, posSalesPath, type PosTodaySalesPage } from '../../api/pos/pos'
+import { posRefusalKey } from '../../lib/posRefusals'
+import type { TillState } from '../../lib/posTill'
+
+type Ready = Extract<TillState, { status: 'ready' }>
+
+/** What the screen shows of a company, from the list row or the full record. */
+type Found = {
+  id: string
+  name: string
+  kind: 'BUSINESS' | 'GOVERNMENT'
+  vat: string | null
+  peppol: string | null
+  city: string | null
+  terms: string | null
+}
+
+function foundOf(customer: CustomerDto | CustomerRecordDto): Found | null {
+  if (customer.type === 'CONSUMER') return null
+  const details = customer.profile?.details as
+    | (CustomerDto['profile']['details'] & {
+        peppolParticipantId?: { scheme: string; value: string } | null
+      })
+    | null
+  const participant = details?.peppolParticipantId
+  const billing = (customer.profile as CustomerRecordDto['profile'] | undefined)?.billingDefaults
+  return {
+    id: customer.id,
+    name: customer.displayName,
+    kind: customer.type,
+    vat: details?.vatRegistrationNumber ?? null,
+    peppol: participant ? `${participant.scheme}:${participant.value}` : null,
+    city: customer.profile?.invoiceAddress?.cityName ?? null,
+    terms: billing?.paymentTerms ?? null,
+  }
+}
+
+/** A VAT number is looked up once it could be one: `GET /v1/customers?vatNumber=` is exact. */
+const lookupPath = (vat: string) =>
+  vat.trim().length >= 8
+    ? withQuery(CUSTOMERS_PATH, { vatNumber: vat.trim(), status: 'ACTIVE', size: 10 })
+    : null
 
 /** What the document turns into once a company is named. */
 function ChangeColumn({
@@ -55,114 +108,192 @@ function ChangeColumn({
 }
 
 export function PosCompanyPage() {
+  return (
+    <AppShell>
+      <PosTillGate>{(till) => <OnTheCompany till={till} />}</PosTillGate>
+    </AppShell>
+  )
+}
+
+function OnTheCompany({ till }: { till: Ready }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   // The open sale is shared with the payment and receipt screens (src/lib/posSale.ts).
-  const { lines } = useOpenSale()
-  const setLines = setSaleLines
-  const [vat, setVat] = useState(COMPANIES[0].vat)
-  const [chosen, setChosen] = useState<Company | null>(COMPANIES[0])
+  const { lines, company } = useOpenSale()
+  const [vat, setVat] = useState('')
+  const [picked, setPicked] = useState<Found | null>(
+    company ? { ...company, vat: null, peppol: null, city: null, terms: null } : null,
+  )
+  const [byHand, setByHand] = useState(false)
+  const [error, setError] = useState<unknown>(null)
 
-  const found = COMPANIES.find((company) => company.vat === vat.trim().toUpperCase()) ?? null
+  const path = picked ? null : lookupPath(vat)
+  const lookup = useApiRead<Page<CustomerDto>>(path, async () =>
+    fromSpringPage(await apiRequest<SpringPage<CustomerDto>>(path as string)),
+  )
+  const matched =
+    lookup.read.status === 'ready'
+      ? (lookup.read.data.items.map(foundOf).find((entry) => entry !== null) ?? null)
+      : null
+  const found = picked ?? matched
+
+  // Served recently: the companies on today's till sales (`tab=COMPANY`).
+  const recentPath = posSalesPath({ branchId: till.branchId, tab: 'COMPANY', size: 50 })
+  const recent = useApiRead<PosTodaySalesPage>(recentPath)
+  const served =
+    recent.read.status === 'ready'
+      ? recent.read.data.content.filter(
+          (row, index, rows) =>
+            row.customer.name &&
+            rows.findIndex((other) => other.customer.customerId === row.customer.customerId) ===
+              index,
+        )
+      : []
+
+  const choose = (next: Found | null) => {
+    setPicked(next)
+    setSaleCompany(next ? { id: next.id, name: next.name, kind: next.kind } : null)
+  }
+  // A match by VAT number is the company the sale goes on.
+  const matchedId = matched?.id ?? null
+  useEffect(() => {
+    if (matched && !picked) choose(matched)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchedId])
+
+  const open = async (customerId: string) => {
+    setError(null)
+    try {
+      choose(foundOf(await loadCustomerRecord(customerId)))
+    } catch (cause) {
+      setError(cause)
+    }
+  }
 
   return (
-    <AppShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-        <Link
-          to="/pos"
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-text-tertiary hover:text-primary-700"
-        >
-          ‹ {t('pos.backToSale')}
-        </Link>
+    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <Link
+        to="/pos"
+        className="inline-flex items-center gap-1.5 text-sm font-semibold text-text-tertiary hover:text-primary-700"
+      >
+        ‹ {t('pos.backToSale')}
+      </Link>
 
-        <div className="flex flex-wrap items-start gap-4">
-          <div className="flex min-w-[320px] flex-1 flex-col gap-4">
-            <section className="rounded-md bg-surface-card">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle px-6 py-4">
-                <div>
-                  <h1 className="text-base font-medium leading-[1.2] text-text-primary">
-                    {t('pos.company.whose')}
-                  </h1>
-                  <p className="mt-1 text-xs font-medium text-text-quaternary">
-                    {t('pos.company.vatIsAll')}
-                  </p>
-                </div>
-                <button type="button" className="text-sm font-semibold text-primary-700">
-                  {t('pos.company.byHand')}
-                </button>
+      <div className="flex flex-wrap items-start gap-4">
+        <div className="flex min-w-[320px] flex-1 flex-col gap-4">
+          <section className="rounded-md bg-surface-card">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle px-6 py-4">
+              <div>
+                <h1 className="text-base font-medium leading-[1.2] text-text-primary">
+                  {t('pos.company.whose')}
+                </h1>
+                <p className="mt-1 text-xs font-medium text-text-quaternary">
+                  {t('pos.company.vatIsAll')}
+                </p>
               </div>
+              <button
+                type="button"
+                onClick={() => setByHand((v) => !v)}
+                aria-expanded={byHand}
+                className="text-sm font-semibold text-primary-700"
+              >
+                {t('pos.company.byHand')}
+              </button>
+            </div>
 
-              <div className="px-6 py-4">
-                <label className="block text-xs font-semibold text-text-tertiary" htmlFor="vat">
-                  {t('pos.company.vatNumber')}
-                </label>
-                <div className="mt-2 flex h-[54px] items-center gap-3 rounded-sm border-2 border-primary-700 bg-primary-25 px-4">
-                  <SearchIcon className="size-5 shrink-0 text-primary-700" />
-                  <input
-                    id="vat"
-                    value={vat}
-                    onChange={(event) => {
-                      setVat(event.target.value)
-                      setChosen(null)
-                    }}
-                    dir="ltr"
-                    className="h-full w-full min-w-0 border-0 bg-transparent text-base font-medium text-text-primary outline-none rtl:text-end"
-                  />
-                  {found ? (
-                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-sm bg-white px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.04em] text-success-700">
-                      <CheckIcon className="size-3.5" />
-                      {t('pos.company.found')}
-                    </span>
-                  ) : null}
-                </div>
-
+            <div className="px-6 py-4">
+              <label className="block text-xs font-semibold text-text-tertiary" htmlFor="vat">
+                {t('pos.company.vatNumber')}
+              </label>
+              <div className="mt-2 flex h-[54px] items-center gap-3 rounded-sm border-2 border-primary-700 bg-primary-25 px-4">
+                <SearchIcon className="size-5 shrink-0 text-primary-700" />
+                <input
+                  id="vat"
+                  value={found?.vat ?? vat}
+                  onChange={(event) => {
+                    setVat(event.target.value)
+                    choose(null)
+                  }}
+                  dir="ltr"
+                  className="h-full w-full min-w-0 border-0 bg-transparent text-base font-medium text-text-primary outline-none rtl:text-end"
+                />
                 {found ? (
-                  <div className="mt-4 flex items-start gap-3 rounded-md border border-border-subtle bg-success-100 p-4 sm:gap-4 sm:p-5">
-                    {/* A white square with a green check, as the frame draws the match. */}
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-white text-success-700 shadow-sm">
-                      <CheckIcon className="size-5" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-start gap-3">
-                        <div className="min-w-0 flex-1 basis-[200px]">
-                          <p className="text-base font-medium leading-[1.2] text-text-primary">
-                            {found.name}
-                          </p>
-                          <p className="mt-1 text-xs font-medium text-text-quaternary">
-                            {found.address} · {t(found.sinceKey, found.sinceValues)}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setVat('')
-                            setChosen(null)
-                          }}
-                          className="inline-flex h-10 shrink-0 items-center rounded-sm border border-border-subtle bg-white px-3.5 text-sm font-semibold text-text-secondary"
-                        >
-                          {t('pos.company.notThem')}
-                        </button>
-                      </div>
-                      {/* One row on a wide screen; wraps only where it must (phones). */}
-                      <div className="mt-3 flex flex-wrap gap-1.5 sm:flex-nowrap">
-                        <Tag
-                          label={
-                            <>
-                              <CheckIcon className="size-3 shrink-0" />
-                              {t('pos.company.onPeppol')}
-                            </>
-                          }
-                        />
-                        <Tag label={found.peppol} mono />
-                        <Tag label={t(found.termsKey)} />
-                        <Tag label={t(found.accountKey, found.accountValues)} />
-                      </div>
-                    </div>
-                  </div>
+                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-sm bg-white px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.04em] text-success-700">
+                    <CheckIcon className="size-3.5" />
+                    {t('pos.company.found')}
+                  </span>
                 ) : null}
               </div>
-            </section>
+              {path && lookup.read.status === 'ready' && !matched ? (
+                <p className="mt-2 text-xs font-medium text-text-tertiary">
+                  {t('pos.company.notFound')}
+                </p>
+              ) : null}
+              {lookup.read.status === 'failed' || error ? (
+                <p role="alert" className="mt-2 text-xs font-medium text-danger-700">
+                  {t(posRefusalKey(lookup.read.status === 'failed' ? lookup.read.error : error))}
+                </p>
+              ) : null}
 
+              {found ? (
+                <div className="mt-4 flex items-start gap-3 rounded-md border border-border-subtle bg-success-100 p-4 sm:gap-4 sm:p-5">
+                  {/* A white square with a green check, as the frame draws the match. */}
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-white text-success-700 shadow-sm">
+                    <CheckIcon className="size-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-start gap-3">
+                      <div className="min-w-0 flex-1 basis-[200px]">
+                        <p className="text-base font-medium leading-[1.2] text-text-primary">
+                          {found.name}
+                        </p>
+                        {/* TODO(backend): "one of your customers since" has no field on the
+                            customer read (INCOME.md row P.23). */}
+                        {found.city ? (
+                          <p className="mt-1 text-xs font-medium text-text-quaternary">
+                            {found.city}
+                          </p>
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVat('')
+                          choose(null)
+                        }}
+                        className="inline-flex h-10 shrink-0 items-center rounded-sm border border-border-subtle bg-white px-3.5 text-sm font-semibold text-text-secondary"
+                      >
+                        {t('pos.company.notThem')}
+                      </button>
+                    </div>
+                    {/* One row on a wide screen; wraps only where it must (phones). */}
+                    <div className="mt-3 flex flex-wrap gap-1.5 sm:flex-nowrap">
+                      {found.peppol ? (
+                        <>
+                          <Tag
+                            label={
+                              <>
+                                <CheckIcon className="size-3 shrink-0" />
+                                {t('pos.company.onPeppol')}
+                              </>
+                            }
+                          />
+                          <Tag label={found.peppol} mono />
+                        </>
+                      ) : null}
+                      {found.terms === 'NET30' ? <Tag label={t('pos.company.terms30')} /> : null}
+                      {/* TODO(backend): the customer's own price account ("Hotel accounts ·
+                          12% off") is not served (INCOME.md row P.23). */}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {byHand && !found ? <AddCompany tillId={till.till.id} onAdded={choose} /> : null}
+            </div>
+          </section>
+
+          {served.length ? (
             <section className="rounded-md bg-surface-card">
               <div className="border-b border-border-subtle px-6 py-4">
                 <h2 className="text-base font-medium leading-[1.2] text-text-primary">
@@ -173,74 +304,218 @@ export function PosCompanyPage() {
                 </p>
               </div>
               <div className="grid gap-3 px-6 py-4 sm:grid-cols-3">
-                {COMPANIES.map((company) => (
+                {served.slice(0, 6).map((row) => (
                   <button
-                    key={company.id}
+                    key={row.customer.customerId}
                     type="button"
-                    onClick={() => {
-                      setVat(company.vat)
-                      setChosen(company)
-                    }}
+                    onClick={() => void open(row.customer.customerId)}
                     className="flex min-w-0 items-center gap-3 rounded-md border border-border-subtle bg-white px-4 py-3 text-start transition-colors hover:border-primary-300 hover:bg-primary-25"
                   >
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-primary-25 text-xs font-semibold text-primary-700">
-                      {company.initials}
+                      {(row.customer.name ?? '?').slice(0, 2).toUpperCase()}
                     </span>
                     <span className="min-w-0">
                       <span
-                        title={company.name}
+                        title={row.customer.name ?? ''}
                         className="block truncate text-sm font-medium text-text-primary"
                       >
-                        {company.name}
+                        {row.customer.name}
                       </span>
                       <span className="mt-0.5 block truncate text-xs font-medium text-text-quaternary">
-                        {t(company.seenKey)}
+                        {t('pos.company.servedAt', { time: row.time })}
                       </span>
                     </span>
                   </button>
                 ))}
               </div>
             </section>
+          ) : null}
 
-            <section className="rounded-md bg-surface-card">
-              <div className="border-b border-border-subtle px-6 py-4">
-                <h2 className="text-base font-medium leading-[1.2] text-text-primary">
-                  {t('pos.company.whatChanges')}
-                </h2>
-                <p className="mt-1 text-xs font-medium text-text-quaternary">
-                  {t('pos.company.sameItems')}
-                </p>
-              </div>
-              <div className="flex flex-col items-stretch gap-4 px-6 py-5 sm:flex-row">
-                <ChangeColumn
-                  kicker={t('pos.company.wasGoingToBe')}
-                  title={t('pos.company.tillReceipt')}
-                  points={WALK_IN_IS.map((id) => t(`pos.company.walkIn.${id}`))}
-                />
-                <span className="flex shrink-0 items-center justify-center text-text-quaternary max-sm:hidden">
-                  <ArrowForwardIcon />
-                </span>
-                <ChangeColumn
-                  kicker={t('pos.company.willNowBe')}
-                  title={t('pos.company.fullInvoice')}
-                  points={COMPANY_IS.map((id) =>
-                    t(`pos.company.company.${id}`, { name: (chosen ?? found)?.name ?? '' }),
-                  )}
-                  highlighted
-                />
-              </div>
-            </section>
-          </div>
-
-          <PosSalePanel
-            lines={lines}
-            onLines={setLines}
-            onTakePayment={() => navigate('/pos/payment')}
-            company={found ?? chosen ?? undefined}
-          />
+          <section className="rounded-md bg-surface-card">
+            <div className="border-b border-border-subtle px-6 py-4">
+              <h2 className="text-base font-medium leading-[1.2] text-text-primary">
+                {t('pos.company.whatChanges')}
+              </h2>
+              <p className="mt-1 text-xs font-medium text-text-quaternary">
+                {t('pos.company.sameItems')}
+              </p>
+            </div>
+            <div className="flex flex-col items-stretch gap-4 px-6 py-5 sm:flex-row">
+              <ChangeColumn
+                kicker={t('pos.company.wasGoingToBe')}
+                title={t('pos.company.tillReceipt')}
+                points={WALK_IN_IS.map((id) => t(`pos.company.walkIn.${id}`))}
+              />
+              <span className="flex shrink-0 items-center justify-center text-text-quaternary max-sm:hidden">
+                <ArrowForwardIcon />
+              </span>
+              <ChangeColumn
+                kicker={t('pos.company.willNowBe')}
+                title={t('pos.company.fullInvoice')}
+                points={COMPANY_IS.map((id) =>
+                  t(`pos.company.company.${id}`, { name: found?.name ?? '' }),
+                )}
+                highlighted
+              />
+            </div>
+          </section>
         </div>
+
+        <PosSalePanel
+          lines={lines}
+          onLines={setSaleLines}
+          onTakePayment={() => navigate('/pos/payment')}
+          company={found ?? undefined}
+        />
       </div>
-    </AppShell>
+    </div>
+  )
+}
+
+const FIELD =
+  'h-11 w-full rounded-sm border border-border-subtle bg-white px-4 text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder focus:border-border-brand'
+
+/**
+ * A company added at the till (`POST /v1/pos/customers`, Abdul 18): its legal name and a contact,
+ * with its VAT number, or for a company without one its buyer ID (V480, IBR-016-OM).
+ */
+function AddCompany({
+  tillId,
+  onAdded,
+}: {
+  tillId: string
+  onAdded: (found: Found | null) => void
+}) {
+  const { t } = useTranslation()
+  const [form, setForm] = useState({
+    name: '',
+    contactPerson: '',
+    vatNumber: '',
+    scheme: 'CR',
+    value: '',
+    email: '',
+  })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<unknown>(null)
+  const [key] = useState(() => newPosKey('customer'))
+  const set = (patch: Partial<typeof form>) => setForm((current) => ({ ...current, ...patch }))
+  const ready =
+    form.name.trim() && form.contactPerson.trim() && (form.vatNumber.trim() || form.value.trim())
+
+  const save = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const added = await addPosCustomer<CustomerRecordDto>(
+        {
+          tillId,
+          name: form.name.trim(),
+          contactPerson: form.contactPerson.trim(),
+          vatNumber: form.vatNumber.trim() || null,
+          email: form.email.trim() || null,
+          ...(form.vatNumber.trim()
+            ? {}
+            : { identifierScheme: form.scheme as never, identifierValue: form.value.trim() }),
+        },
+        key,
+      )
+      onAdded(foundOf(added))
+    } catch (cause) {
+      setError(cause)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mt-4 flex flex-col gap-5 rounded-md border border-border-subtle p-5">
+      <div className="grid gap-5 md:grid-cols-2">
+        <Labelled label={t('pos.company.legalName')}>
+          <input
+            value={form.name}
+            onChange={(e) => set({ name: e.target.value })}
+            className={FIELD}
+          />
+        </Labelled>
+        <Labelled label={t('pos.company.contactPerson')}>
+          <input
+            value={form.contactPerson}
+            onChange={(e) => set({ contactPerson: e.target.value })}
+            className={FIELD}
+          />
+        </Labelled>
+        <Labelled label={t('pos.company.vatNumber')}>
+          <input
+            value={form.vatNumber}
+            dir="ltr"
+            onChange={(e) => set({ vatNumber: e.target.value })}
+            className={FIELD}
+          />
+        </Labelled>
+        <Labelled label={t('pos.company.email')}>
+          <input
+            value={form.email}
+            dir="ltr"
+            type="email"
+            onChange={(e) => set({ email: e.target.value })}
+            placeholder={t('pos.pay.optional')}
+            className={FIELD}
+          />
+        </Labelled>
+        {!form.vatNumber.trim() ? (
+          <>
+            <Labelled label={t('pos.buyer.scheme')}>
+              <Select
+                quiet
+                value={form.scheme}
+                onChange={(scheme) => set({ scheme })}
+                ariaLabel={t('pos.buyer.scheme')}
+                options={BUYER_IDENTIFIER_SCHEMES.map((scheme) => ({
+                  value: scheme,
+                  label: t(`customerForm.identifier.schemes.${scheme}`),
+                }))}
+              />
+            </Labelled>
+            <Labelled label={t('pos.buyer.value')}>
+              <input
+                value={form.value}
+                dir="ltr"
+                maxLength={50}
+                onChange={(e) => set({ value: e.target.value })}
+                className={FIELD}
+              />
+            </Labelled>
+          </>
+        ) : null}
+      </div>
+      <p className="text-xs font-medium leading-[1.5] text-text-quaternary">
+        {t('pos.company.noVatNote')}
+      </p>
+      {error ? (
+        <p role="alert" className="text-xs font-medium text-danger-700">
+          {t(posRefusalKey(error))}
+        </p>
+      ) : null}
+      <div>
+        <button
+          type="button"
+          disabled={!ready || busy}
+          onClick={() => void save()}
+          className="inline-flex h-11 items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-50"
+        >
+          {t('pos.company.addCompany')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function Labelled({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="flex min-w-0 flex-col gap-1.5">
+      <span className="text-xs font-medium text-text-tertiary">{label}</span>
+      {children}
+    </label>
   )
 }
 

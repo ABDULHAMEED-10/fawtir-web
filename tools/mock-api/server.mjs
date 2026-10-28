@@ -49,6 +49,11 @@ const ENTITLEMENTS = {
     'customer.read',
     'supplier.read',
     'product.read',
+    'pos.read',
+    'pos.sell',
+    'pos.close',
+    'pos.refund',
+    'pos.till.manage',
   ],
   scopes: ['platform.tenants.manage', 'platform.operators.manage', 'platform.support'],
   featureFlags: {},
@@ -166,8 +171,8 @@ createServer(async (request, response) => {
       body,
       headers: request.headers,
     })
-    if (isAnswer(answer) && typeof answer.raw === 'string') {
-      // A literal body (an XML file, a CSV): written as it is, under the route's own headers.
+    if (isAnswer(answer) && (typeof answer.raw === 'string' || Buffer.isBuffer(answer.raw))) {
+      // A literal body (an XML file, a CSV, a PNG Buffer): written as it is, under the route's own headers.
       response.writeHead(answer.status, { 'Content-Type': 'text/plain', ...(answer.headers ?? {}) })
       response.end(answer.raw)
     } else if (isAnswer(answer)) {

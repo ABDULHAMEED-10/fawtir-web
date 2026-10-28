@@ -381,13 +381,13 @@ function App() {
           <Route path="/invoices/new" element={<CreateInvoicePage />} />
           <Route path="/invoices/:id/edit" element={<CreateInvoicePage />} />
           <Route path="/invoices/:id" element={<InvoiceDetailsPage />} />
-          <Route path="/pos" element={<DemoModule module="pos"><PosPage /></DemoModule>} />
-          <Route path="/pos/payment" element={<DemoModule module="pos"><PosPaymentPage /></DemoModule>} />
-          <Route path="/pos/done" element={<DemoModule module="pos"><PosDonePage /></DemoModule>} />
-          <Route path="/pos/company" element={<DemoModule module="pos"><PosCompanyPage /></DemoModule>} />
-          <Route path="/pos/today" element={<DemoModule module="pos"><PosTodayPage /></DemoModule>} />
-          <Route path="/pos/close" element={<DemoModule module="pos"><PosClosePage /></DemoModule>} />
-          <Route path="/pos/refund" element={<DemoModule module="pos"><PosRefundPage /></DemoModule>} />
+          <Route path="/pos" element={<PosPage />} />
+          <Route path="/pos/payment" element={<PosPaymentPage />} />
+          <Route path="/pos/done" element={<PosDonePage />} />
+          <Route path="/pos/company" element={<PosCompanyPage />} />
+          <Route path="/pos/today" element={<PosTodayPage />} />
+          <Route path="/pos/close" element={<PosClosePage />} />
+          <Route path="/pos/refund" element={<PosRefundPage />} />
           <Route path="/income/debit-notes" element={<DebitNotesPage />} />
           <Route
             path="/trade-documents/quotations"

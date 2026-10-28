@@ -873,3 +873,25 @@ copy, and it never changes the invoice's delivery state.
 | SH.1 | The rendered invoice PDF (row 2.2) | `GET /v1/invoices/{id}/pdf`, the same artefact the documents archive already links (`artefacts.pdf`, DOCUMENTS.md 3.20): the signed, rendered, bilingual PDF, one file for download, print and sharing |
 | SH.2 | Send by email | `POST /v1/invoices/{id}/share/email` with `{to: [email], cc?: [email], message?, language}`; sends from Fawtir's mail with the PDF attached and the invoice number in the subject; prefill `to` from the customer's email. Refused while the subscription is read-only (ST-2: nothing is sent) and for a deemed supply (no buyer copy); answer the refusal with a problem type the screen can word |
 | SH.3 | Share on WhatsApp | `POST /v1/invoices/{id}/share-link` returning a time-limited public URL to the PDF (`url`, `expiresAt`); the web opens `https://wa.me/?text=` with a short message and the link, mobile uses the phone's share sheet with the PDF file or the link. Same refusals as SH.2. Revoking or letting the link expire never affects the invoice |
+
+## Update 2026-10-28 (the till wired to the POS API)
+
+The till screens (`src/pages/PosPage`) now read and write the till API: tills and shifts
+(`GET /v1/pos/tills?branchId=`, `POST .../shifts` is opened by the first sale), the branch shelf
+(`GET /v1/products?branchId=&includeUnavailable=true`, `GET /v1/products/{id}` for sizes and
+add-ons), the sale (`POST /v1/pos/sales` with `lineRefs`, payments, tip and an `Idempotency-Key`;
+an offline queue numbered on the till's own series), the company lookup (`GET /v1/customers?vatNumber=`)
+and `POST /v1/pos/customers`, the receipt and its QR (`GET /v1/pos/sales/{id}?wait=`, `.../qr`),
+Today (`GET /v1/pos/sales`, `GET /v1/pos/today`), the daily summary (`GET /v1/pos/days/{date}`),
+the close (`close-preview`, `float`, `cash-movements`, `close`), refunds (`refund-lookup`,
+`POST .../refunds`) and Scan slip (`POST /v1/pos/slips`, `/pos/slips/read`). These rows are what
+the screens still draw without an answer. Rows P.11 and P.12 are done.
+
+| #    | What the screen draws | Backend |
+| ---- | --- | --- |
+| P.19 | The price rule at the till ("Afternoon lull applied 20% off the drinks") and its totals row | price rules are not served to the till yet (the rules API is not merged). The sale line keeps `rulePercent` and sends it as the line's percentage discount once a rule fills it; asked: the rules that apply to a branch and time, or the till sale applying them itself |
+| P.20 | The Sizes badge and "3 sizes · 4 add-ons" on a shelf tile before it is tapped, and a photo on the tile | list rows of `GET /v1/products` carry `sizes`, `variants` and `addOns` as null, so the till reads each product when it is tapped; asked: a count of sizes and add-ons (or the arrays) on list rows, and a product image |
+| P.21 | The QR on a receipt printed while the till is offline | the till numbers an offline sale from its own series and sends it later, but the QR's payload is made by the server; asked: what the device may print offline (the TLV it can build itself) |
+| P.22 | "Email it" and "Text it" on the receipt screen | no route sends a till receipt by e-mail or SMS; only printing works |
+| P.23 | "One of your customers since April 2025" and the customer's own price account ("Hotel accounts · 12% off") on the company match | neither is on the customer read; the till shows the city, the Peppol id and the terms |
+| P.24 | "Accepted by the OTA" on the sale being refunded | `GET /v1/pos/refund-lookup` does not carry the invoice's filing state; asked: `filing` as on the sale |
