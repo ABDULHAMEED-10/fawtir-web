@@ -167,6 +167,16 @@ export const CREDIT_ROW_ACTION: Record<
   PARTLY_USED: { labelKey: 'supplierCreditNotes.actions.openNote', goesTo: 'note' },
 }
 
+/**
+ * The row's action. A held duplicate keeps the UNAPPLIED status its balance gives, but the server
+ * refuses to apply or refund it, so "Set against the bill" would only fail: the row opens the note.
+ */
+export function creditRowActionOf(
+  note: Pick<CreditNoteItem, 'status' | 'heldAsDuplicate'>,
+): (typeof CREDIT_ROW_ACTION)[CreditState] {
+  return note.heldAsDuplicate ? CREDIT_ROW_ACTION.PARTLY_USED : CREDIT_ROW_ACTION[note.status]
+}
+
 /** What the figure column says under the amount. */
 export const CREDIT_AMOUNT_NOTE: Record<CreditState, string> = {
   UNAPPLIED: 'supplierCreditNotes.rows.youdPayLess',
@@ -205,6 +215,8 @@ export type CreditNoteItem = {
   remaining: number
   /** Whether any of the credit is still to be spent: what the "still usable" figure counts. */
   usable: boolean
+  /** Held as a possible or confirmed duplicate (backend #784): it credits nothing while held. */
+  heldAsDuplicate: boolean
 }
 
 export function toCreditNoteItem(row: CreditNoteRowDto): CreditNoteItem {
@@ -229,7 +241,9 @@ export function toCreditNoteItem(row: CreditNoteRowDto): CreditNoteItem {
     currency: row.currencyCode,
     credited: row.creditedAmount,
     remaining: row.balance.remaining,
-    usable: row.balance.remaining > 0,
+    // The server leaves a held note out of usable credit whatever its balance says.
+    usable: row.heldAsDuplicate !== true && row.balance.remaining > 0,
+    heldAsDuplicate: row.heldAsDuplicate === true,
   }
 }
 
