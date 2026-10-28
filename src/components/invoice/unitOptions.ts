@@ -1,7 +1,13 @@
 import type { TFunction } from 'i18next'
 import type { SelectOption } from '../ui/Select'
 import type { ReferenceDataDto } from '../../api/reference/referenceData'
-import { SERVICE_UNITS, unitsFor, type ItemType } from '../../lib/invoiceDraft'
+import {
+  SERVICE_UNITS,
+  isBarePackageUnit,
+  offeredUnitCode,
+  unitsFor,
+  type ItemType,
+} from '../../lib/invoiceDraft'
 
 /** UN/ECE Rec. 20 "mutually defined": the design's "Other", offered last on both lists. */
 export const OTHER_UNIT = 'ZZ'
@@ -16,6 +22,11 @@ export const OTHER_UNIT = 'ZZ'
  * offered either way (a backend ask: the list lacks `ZZ`), and the full lists stand in until
  * the catalogue has answered. A unit the line already carries but the list does not (a product's
  * own, a loaded draft's) is shown rather than dropped.
+ *
+ * Rec 21 package codes are offered only in their `X` form (PINT-OM ibr-cl-23): a bare `BX` the
+ * platform still lists counts as `XBX`, so a list carrying both during the switch shows one "Box".
+ * A line that already holds a bare code keeps it on show, with its word, but greyed out so it is
+ * not picked again beside its `X` twin.
  */
 export function unitOptions(
   kind: ItemType,
@@ -23,7 +34,13 @@ export function unitOptions(
   current?: string,
   reference?: ReferenceDataDto | null,
 ): SelectOption[] {
-  const known = (reference?.units ?? []).filter((unit) => unit.active).map((unit) => unit.code)
+  const known = [
+    ...new Set(
+      (reference?.units ?? [])
+        .filter((unit) => unit.active)
+        .map((unit) => offeredUnitCode(unit.code)),
+    ),
+  ]
   const ours = [...unitsFor(kind)]
   let codes: string[]
   if (known.length === 0) {
@@ -50,5 +67,6 @@ export function unitOptions(
     label: t(`createInvoice.units.${code}`, {
       defaultValue: t(`reference.unitShort.${code}`, { defaultValue: code }),
     }),
+    ...(isBarePackageUnit(code) && codes.includes(offeredUnitCode(code)) ? { disabled: true } : {}),
   }))
 }

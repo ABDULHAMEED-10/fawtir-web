@@ -12,6 +12,7 @@
 
 import { calculateInvoice, projectInvoice, type DiscountType } from './invoiceMath'
 import type { DraftLine, ItemType } from './invoiceDraft'
+import { offeredUnitCode } from './unitCodes'
 
 /** A thousandth of a rial. All money below is an integer number of these. */
 export const BAISA = 1000
@@ -393,7 +394,8 @@ export function invoiceLinesFor(
       productCode: null,
       itemType: item.itemType ?? ('goods' as ItemType),
       hsCode: item.hsCode,
-      unit: item.unit ?? 'EA',
+      // A bare Rec 21 code takes its X form on the invoice line (ibr-cl-23).
+      unit: offeredUnitCode(item.unit ?? 'EA'),
       vatRate: VAT_OF[taxCode] ?? '5',
       taxCode,
       exemptionReason: '',

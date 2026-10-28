@@ -165,18 +165,20 @@ export const GOODS_UNITS = [
   'CMT',
   'MTK',
   'MTQ',
-  'BX',
-  'CT',
-  'PK',
-  'BG',
-  'BO',
-  'CA',
+  'XBX',
+  'XCT',
+  'XPK',
+  'XBG',
+  'XBO',
+  'XCA',
   'DZN',
   'SET',
   'PR',
-  'RO',
+  'XRO',
   'ZZ',
 ] as const
+export { REC21_PACKAGE_UNITS, isBarePackageUnit, offeredUnitCode } from './unitCodes'
+
 export const SERVICE_UNITS = [
   'HUR',
   'DAY',

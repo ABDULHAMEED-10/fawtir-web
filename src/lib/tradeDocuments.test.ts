@@ -89,7 +89,7 @@ describe('converting to an invoice', () => {
     ).toEqual([
       ['goods', 'KGM', 24, 'S5'],
       ['service', 'C62', 18, 'S5'],
-      ['goods', 'PK', 3, 'S5'],
+      ['goods', 'XPK', 3, 'S5'],
     ])
     expect(prefill.lines[0].hsCode).toBe('000000000000')
     expect(prefill.lines.every((line) => line.deliveryNote === 'DN-0124')).toBe(true)

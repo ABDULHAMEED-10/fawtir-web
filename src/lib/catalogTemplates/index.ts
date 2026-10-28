@@ -1,5 +1,6 @@
 import type { TemplateGroupDto, TemplateName } from '../../api/catalog/templates'
 import type { SuggestedGroup } from '../catalogBuild'
+import { offeredUnitCode } from '../invoiceDraft'
 
 /**
  * System catalogue templates: what a business of one sub business type usually sells, as a
@@ -34,7 +35,8 @@ export function suggestedFrom(groups: TemplateGroupDto[], language = 'en'): Sugg
         id: `g${g}k${k}i${i}`,
         name: templateName(item, language),
         price: 0,
-        soldAs: item.defaultUnitCode,
+        // A bare Rec 21 package code becomes its X form: PINT-OM takes no other (ibr-cl-23).
+        soldAs: offeredUnitCode(item.defaultUnitCode),
         barcode: item.barcode ?? undefined,
         taxCode: TAX_CODE[item.defaultTaxCategory] ?? 'S5',
         reasonCode: item.defaultTaxReasonCode ?? undefined,

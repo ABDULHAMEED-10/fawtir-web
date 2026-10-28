@@ -95,7 +95,7 @@ const CUPS: TradeLine = {
   lineNo: 3,
   description: 'Takeaway cups, 500 pack',
   itemType: 'goods',
-  unitCode: 'PK',
+  unitCode: 'XPK',
   unitLabel: 'EA',
   unitPrice: 22.8,
   taxCode: 'S5',

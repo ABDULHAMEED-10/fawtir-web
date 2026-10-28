@@ -2775,7 +2775,15 @@
       "LS": "Lump sum",
       "KMT": "Kilometre",
       "ZZ": "Other",
-      "SA": "Sack"
+      "SA": "Sack",
+      "XBX": "Box",
+      "XCT": "Carton",
+      "XPK": "Pack",
+      "XBG": "Bag",
+      "XBO": "Bottle",
+      "XCA": "Can",
+      "XRO": "Roll",
+      "XSA": "Sack"
     },
     "taxCategories": {
       "S5": "Standard rate - 5%",
@@ -21927,7 +21935,15 @@
       "PK": "PK",
       "HUR": "HR",
       "DAY": "DAY",
-      "MTR": "M"
+      "MTR": "M",
+      "XBX": "Box",
+      "XCT": "Carton",
+      "XPK": "Pack",
+      "XBG": "Bag",
+      "XBO": "Bottle",
+      "XCA": "Can",
+      "XRO": "Roll",
+      "XSA": "Sack"
     },
     "unit": {
       "EA": "Each",
@@ -21939,7 +21955,15 @@
       "PK": "Pack",
       "HUR": "Hour",
       "DAY": "Day",
-      "MTR": "Metre"
+      "MTR": "Metre",
+      "XBX": "Box",
+      "XCT": "Carton",
+      "XPK": "Pack",
+      "XBG": "Bag",
+      "XBO": "Bottle",
+      "XCA": "Can",
+      "XRO": "Roll",
+      "XSA": "Sack"
     },
     "paymentTerm": {
       "NET0": "Due on receipt",

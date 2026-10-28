@@ -267,7 +267,7 @@ function QuickCreateProduct({
               options={
                 // The platform's unit list; the composer's goods list (with Other) until it answers.
                 reference?.units.length
-                  ? unitOptions(reference, t)
+                  ? unitOptions(reference, t, unit)
                   : lineUnitOptions('goods', t, unit)
               }
               ariaLabel={t('productPicker.unit')}

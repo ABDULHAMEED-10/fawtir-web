@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { SelectOption } from '../../components/ui/Select'
 import type { ReferenceDataDto, TaxCategoryDto } from '../../api/reference/referenceData'
+import { isBarePackageUnit, offeredUnitCode } from '../invoiceDraft'
 
 /**
  * The platform's code lists, handed to every signed-in screen the way the session is.
@@ -37,11 +38,24 @@ export function taxCategoryOptions(data: ReferenceDataDto | null, t: Translate):
   }))
 }
 
-export function unitOptions(data: ReferenceDataDto | null, t: Translate): SelectOption[] {
-  return offered(data?.units).map((unit) => ({
-    value: unit.code,
-    label: label(t, 'unitShort', unit.code),
-    hint: label(t, 'unit', unit.code),
+/**
+ * Rec 21 package codes are offered only in their `X` form (PINT-OM ibr-cl-23): a bare `BX` the
+ * platform still lists counts as `XBX`, so a list carrying both during the switch shows it once.
+ * The unit a line already holds (`current`) stays on show with its word even when it is no longer
+ * offered; a bare package code beside its `X` twin is greyed out so it is not picked again.
+ */
+export function unitOptions(
+  data: ReferenceDataDto | null,
+  t: Translate,
+  current?: string,
+): SelectOption[] {
+  const codes = [...new Set(offered(data?.units).map((unit) => offeredUnitCode(unit.code)))]
+  if (current && !codes.includes(current)) codes.push(current)
+  return codes.map((code) => ({
+    value: code,
+    label: label(t, 'unitShort', code),
+    hint: label(t, 'unit', code),
+    ...(isBarePackageUnit(code) && codes.includes(offeredUnitCode(code)) ? { disabled: true } : {}),
   }))
 }
 

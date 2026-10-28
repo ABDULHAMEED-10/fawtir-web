@@ -413,7 +413,7 @@ const ODOO_ENTRIES: Omit<Entry, 'ordinal'>[] = [
   e('IBT-126', 'erp.lines[].id'),
   e('IBT-129', 'erp.lines[].quantity', { transform: '$abs($number($src))' }),
   e('IBT-130', 'erp.lines[].uom', {
-    valueMap: { Units: 'C62', Hours: 'HUR', kg: 'KGM', Bag: 'BG', Box: 'BX' },
+    valueMap: { Units: 'C62', Hours: 'HUR', kg: 'KGM', Bag: 'XBG', Box: 'XBX' },
     valueMapDefault: 'C62',
     onUnmapped: 'USE_DEFAULT',
   }),

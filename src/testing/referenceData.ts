@@ -17,7 +17,7 @@ export const SEEDED_REFERENCE: ReferenceDataDto = {
     { code: 'AE0', en16931Category: 'AE', rate: '0', exemptionReasonRequired: true, active: false },
     { code: 'G0', en16931Category: 'G', rate: '0', exemptionReasonRequired: true, active: false },
   ],
-  units: ['EA', 'KGM', 'LTR', 'BG', 'BX', 'SA', 'PK', 'HUR', 'DAY', 'MTR'].map((code) => ({
+  units: ['EA', 'KGM', 'LTR', 'XBG', 'XBX', 'XSA', 'XPK', 'HUR', 'DAY', 'MTR'].map((code) => ({
     code,
     active: true,
   })),
