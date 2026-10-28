@@ -109,6 +109,9 @@ const REFUSALS: Record<string, string> = {
   SUPPLIER_IMPORT_HEADER_NOT_RECOGNISED: 'stagedImport.refused.headerNotRecognised',
   // Reachable from Settings > Bill approvals since E-17.
   APPROVAL_POLICY_INVALID: 'apiErrors.refused.approvalPolicyInvalid',
+  // The note a decision on a held Peppol copy carries (backend V493).
+  BILL_DUPLICATE_RESOLUTION_NOTE_REQUIRED: 'billDetail.duplicate.refused.noteRequired',
+  BILL_DUPLICATE_RESOLUTION_NOTE_TOO_LONG: 'billDetail.duplicate.refused.noteTooLong',
 }
 
 /**
@@ -133,12 +136,39 @@ export function isExpenditureRefusal(error: unknown): error is ApiError {
 }
 
 /**
+ * The module's codes that answer 409 `resource-conflict` rather than `expenditure-refused`
+ * (`ExpenditureExceptionHandler.CONFLICT_CODES`), so {@link isExpenditureRefusal} never sees them.
+ * Only the ones a screen here can provoke; any other 409 keeps the generic conflict sentence.
+ */
+const CONFLICT_REFUSALS: Record<string, string> = {
+  // A held Peppol copy (backend V493): deciding it, and the plain release it refuses.
+  BILL_DUPLICATE_ALREADY_RESOLVED: 'billDetail.duplicate.refused.alreadyResolved',
+  BILL_NOT_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.notHeld',
+  BILL_DUPLICATE_SAME_DOCUMENT_UUID: 'billDetail.duplicate.refused.sameDocumentUuid',
+  BILL_HOLD_DUPLICATE_RELEASE_REFUSED: 'billDetail.duplicate.refused.releaseRefused',
+}
+
+function conflictRefusalKey(error: unknown): string | null {
+  if (
+    !(error instanceof ApiError) ||
+    error.status !== 409 ||
+    error.problemType !== 'resource-conflict' ||
+    error.code === null
+  ) {
+    return null
+  }
+  return CONFLICT_REFUSALS[error.code] ?? null
+}
+
+/**
  * The message key for a refusal, or null when this is not one.
  *
  * An unmapped code still resolves — to the fallback — because a screen must never render a raw
  * code, and i18next answers a missing key with the key itself.
  */
 export function refusalMessageKey(error: unknown): string | null {
+  const conflict = conflictRefusalKey(error)
+  if (conflict !== null) return conflict
   if (!isExpenditureRefusal(error)) return null
   const code = error.code
   if (code === null) return REFUSAL_FALLBACK_KEY

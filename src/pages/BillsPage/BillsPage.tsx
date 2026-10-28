@@ -57,6 +57,7 @@ import {
   isBillTab,
   rowActionOf,
   toBillListItem,
+  visibleBillTabs,
   type BillListItem,
   type BillRowAction,
   type BillSortKey,
@@ -143,6 +144,7 @@ const ACTION_STYLES: Record<
   nudge: { icon: actBellIcon, labelKey: 'billsPage.actions.nudge' },
   checkAndSave: { icon: actEditIcon, labelKey: 'billsPage.actions.checkAndSave' },
   viewHold: { icon: actChevronIcon, labelKey: 'billsPage.actions.viewHold', trailingIcon: true },
+  reviewDuplicate: { icon: actEyeIcon, labelKey: 'billsPage.actions.reviewDuplicate' },
 }
 
 /** Figma column widths, so the seven columns and the menu line up with the design at 1144. */
@@ -453,7 +455,7 @@ function BillsScreen() {
 
       <section className="overflow-hidden rounded-md bg-surface-card">
         <div className="flex flex-wrap items-center gap-x-8 gap-y-2 border-b border-border-subtle px-6 pt-4">
-          {BILL_TABS.map((entry) => {
+          {visibleBillTabs(tabs).map((entry) => {
             const active = entry.id === tab
             return (
               <button
@@ -1116,7 +1118,7 @@ function BillTableRow({
               },
             ]
           : []),
-        ...(canManage && row.owes && row.status !== 'onHold' && !row.paid
+        ...(canManage && row.owes && row.status !== 'onHold' && !row.duplicate && !row.paid
           ? [
               {
                 id: 'hold',

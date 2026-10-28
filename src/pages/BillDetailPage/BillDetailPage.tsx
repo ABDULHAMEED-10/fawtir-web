@@ -97,6 +97,9 @@ import docDeliveryIcon from '../../assets/create-invoice/doc-delivery.svg'
 import pdfIcon from '../../assets/invoice-details/pdf.svg'
 import fileIcon from '../../assets/bill-capture/file.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
+import { Card, OUTLINE_BUTTON, PRIMARY_BUTTON, QUIET_BUTTON } from './parts'
+import { DuplicateCheckCard } from './DuplicateCheckCard'
+import { duplicateCheckOf } from '../../lib/billDuplicate'
 
 /** Step circles: completed is a filled grey disc, the one you are on is brand blue. */
 const STEP_CIRCLE: Record<BillStepState, string> = {
@@ -187,38 +190,7 @@ const REFUSALS: Record<string, string> = {
   BILL_OVERPAYMENT_TARGET_FULLY_CREDITED: 'apiErrors.refused.creditNoteTargetFullyCredited',
 }
 
-const OUTLINE_BUTTON =
-  'inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white disabled:opacity-60'
-const PRIMARY_BUTTON =
-  'inline-flex h-[46px] items-center justify-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60'
-const QUIET_BUTTON =
-  'inline-flex h-[46px] items-center justify-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-60'
-
 type Translate = (key: string, values?: Record<string, unknown>) => string
-
-function Card({
-  title,
-  action,
-  children,
-  className = '',
-}: {
-  title?: string
-  action?: React.ReactNode
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <section className={['rounded-md bg-surface-card p-5 shadow-card', className].join(' ')}>
-      {title ? (
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">{title}</h2>
-          {action}
-        </div>
-      ) : null}
-      {children}
-    </section>
-  )
-}
 
 export function BillDetailPage() {
   return (
@@ -377,6 +349,7 @@ function BillScreen() {
   const decisions = decisionsOf(detail, (permission) => can(session, permission))
   const payable = canRecordPayment(detail, (permission) => can(session, permission))
   const selfBilled = isSelfBilled(detail)
+  const duplicateCheck = duplicateCheckOf(detail)
   const inputVatNote = inputVatNoteKey(row.inputVat)
   const original = billOriginalPath(detail)
   const orderNumber =
@@ -590,6 +563,24 @@ function BillScreen() {
 
       <div className="flex flex-col gap-5 xl:flex-row">
         <div className="flex min-w-0 flex-1 flex-col gap-5">
+          {duplicateCheck ? (
+            <DuplicateCheckCard
+              detail={detail}
+              check={duplicateCheck}
+              thisUuid={inbound.read.status === 'ready' ? inbound.read.data.correlationId : null}
+              canApprove={canApproveBills}
+              userId={session?.userId ?? null}
+              onDecided={(key) => {
+                setNotice({ key })
+                bill.retry()
+              }}
+              onStale={(body) => {
+                setNotice({ body })
+                bill.retry()
+              }}
+            />
+          ) : null}
+
           <MatchSection
             detail={detail}
             comparison={canApproveBills && match.read.status === 'ready' ? match.read.data : null}
@@ -860,6 +851,13 @@ function BillScreen() {
                   >
                     {t('billDetail.decision.release')}
                   </button>
+                ) : null}
+                {/* In the release's place on an undecided duplicate hold: the decision is the
+                    only way out of it, and it sits with the comparison it is made from. */}
+                {duplicateCheck?.state === 'suspected' ? (
+                  <a href="#duplicate-check" className={QUIET_BUTTON}>
+                    {t('billDetail.duplicate.decision.review')}
+                  </a>
                 ) : null}
               </div>
             </div>
