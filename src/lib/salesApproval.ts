@@ -43,7 +43,7 @@ const REFUSALS: Record<string, string> = {
 /** Our sentence for a sales approval refusal, or null when the failure is not one. */
 export function salesApprovalMessageKey(error: unknown): string | null {
   if (!(error instanceof ApiError) || error.code === null) return null
-  return REFUSALS[error.code] ?? null
+  return Object.hasOwn(REFUSALS, error.code) ? REFUSALS[error.code] : null
 }
 
 /**

@@ -168,13 +168,15 @@ export function refusalMessageKey(error: unknown): string | null {
   if (!isExpenditureRefusal(error)) return null
   const code = error.code
   if (code === null) return REFUSAL_FALLBACK_KEY
-  return REFUSALS[code] ?? REFUSAL_FALLBACK_KEY
+  return Object.hasOwn(REFUSALS, code) ? REFUSALS[code] : REFUSAL_FALLBACK_KEY
 }
 
 /** The values a refusal's sentence names, or undefined when it names none. */
 export function refusalMessageValues(error: unknown): Record<string, string> | undefined {
   if (!isExpenditureRefusal(error) || error.code === null) return undefined
-  return REFUSAL_VALUES[error.code]?.(error.problem)
+  return Object.hasOwn(REFUSAL_VALUES, error.code)
+    ? REFUSAL_VALUES[error.code](error.problem)
+    : undefined
 }
 
 /** The codes this build has a sentence for. Exported so a test can pin the set. */
