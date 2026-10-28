@@ -56,6 +56,8 @@ describe('what the company may make or use, from GET /me/entitlements (PL-8)', (
         'supplierNotes',
         'tradeDocuments',
         'purchaseOrders',
+        // Backend GatedFeature.STOCK: counts, write-offs, deliveries and reorder levels.
+        'stock',
       ].sort(),
     )
   })

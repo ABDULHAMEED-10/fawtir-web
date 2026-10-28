@@ -12467,7 +12467,98 @@
     "orderNow": "Order now",
     "movements": "Movements",
     "showing": "Showing {{shown}} of {{total}} counted",
-    "atBranch": "At"
+    "atBranch": "At",
+    "live": {
+      "runningLowNote": "Below the level you set",
+      "notCountedYet": "Not counted yet",
+      "orderFrom": "Order from {{supplier}}",
+      "retired": "size no longer sold",
+      "nothingSells": "Nothing sold lately",
+      "noLevel": "No level set",
+      "andMore": "and {{count}} more",
+      "showing": "Showing {{shown}} of {{total}}",
+      "noCost": "No cost yet"
+    },
+    "forms": {
+      "cancel": "Cancel",
+      "note": "Note",
+      "optional": "optional",
+      "quantityInvalid": "Type a number of zero or more, with up to three decimals.",
+      "done": {
+        "COUNT": "Count {{number}} saved. The figures below are updated.",
+        "WRITE_OFF": "Write-off {{number}} saved. The figures below are updated.",
+        "DELIVERY": "Delivery {{number}} recorded. The figures below are updated."
+      }
+    },
+    "count": {
+      "subtitle": "Type what is on the shelf now. Sales made while you count are kept.",
+      "save": "Save the count",
+      "expected": "Fawtir says",
+      "counted": "Counted",
+      "countedOf": "Counted: {{name}}",
+      "nothing": "Type the count of at least one item."
+    },
+    "writeOff": {
+      "subtitle": "Stock that left without being sold. Nothing is sent and no VAT is involved.",
+      "save": "Write off",
+      "reason": "Why",
+      "reasons": {
+        "DAMAGED": "Damaged",
+        "EXPIRED": "Expired",
+        "LOST": "Lost",
+        "STOLEN": "Stolen",
+        "OWN_USE": "Own use",
+        "SAMPLE_OR_TASTING": "Sample or tasting",
+        "OTHER": "Other"
+      },
+      "quantity": "How many",
+      "quantityOf": "How many: {{name}}",
+      "atCost": "Each item is written off at what you paid on average.",
+      "nothing": "Type how many of at least one item."
+    },
+    "delivery": {
+      "subtitle": "Goods that came in without a purchase order. No bill is raised.",
+      "save": "Record it",
+      "supplier": "Supplier",
+      "pickSupplier": "Pick a supplier",
+      "searchSupplier": "Search suppliers...",
+      "receivedOn": "Received on",
+      "reference": "Supplier's reference",
+      "whatCameIn": "What came in",
+      "pickItem": "Pick an item",
+      "itemOf": "Line {{line}}: item",
+      "quantity": "Quantity",
+      "quantityOf": "Line {{line}}: quantity",
+      "unitCost": "Cost each, before VAT",
+      "unitCostOf": "Line {{line}}: cost each, before VAT",
+      "remove": "Remove",
+      "addLine": "Add another item"
+    },
+    "reorder": {
+      "titleMany": "Change the reorder level of {{count}} items",
+      "save": "Save the level",
+      "saved": "Reorder level saved.",
+      "hint": "Leave it empty to clear the level."
+    },
+    "refused": {
+      "quantityInvalid": "A quantity has more than three decimals or is below zero.",
+      "quantityNotWhole": "This item is counted in whole pieces. Type a whole number.",
+      "variantRequired": "This item is counted by size or option. Pick the size or option.",
+      "variantNotOnProduct": "That size or option no longer belongs to the item.",
+      "lineDuplicate": "The same item is on two lines. Put it on one line.",
+      "countedAtInvalid": "The count can't be dated in the future or before the item's last count.",
+      "unitCostInvalid": "Type the cost each before VAT: zero or more, up to three decimals.",
+      "receivedOnInvalid": "The date received can't be in the future.",
+      "noteRequired": "Say what happened in the note.",
+      "reorderLevelInvalid": "Type a level of zero or more, with up to three decimals.",
+      "itemNotFound": "This item isn't counted in this branch.",
+      "notCountedProduct": "This item doesn't keep a count. Switch Keep count on in the catalogue first.",
+      "keyReused": "This was already sent with different figures. Close the form and start again.",
+      "levelVersionConflict": "Someone else changed this level. Close the form and try again.",
+      "supplierNotFound": "That supplier is no longer on file.",
+      "supplierArchived": "That supplier is switched off. Pick another one.",
+      "branchNotFound": "The branch chosen in the sidebar no longer exists."
+    }
   },
   "stockItem": {
     "runningLow": "Running low",
@@ -12543,7 +12634,29 @@
     "openQuotations": "Open quotations",
     "recurringOrders": "Recurring orders",
     "none": "None",
-    "days_one": "{{count}} day"
+    "days_one": "{{count}} day",
+    "live": {
+      "subtitle": "{{code}} · counted in {{unit}} · from {{supplier}}",
+      "subtitleNoSupplier": "{{code}} · counted in {{unit}}",
+      "offSale": "Off sale",
+      "lastCounted": "Last counted {{date}}",
+      "neverCounted": "Not counted yet",
+      "worthNote": "At {{cost}} each · sells at {{sells}}",
+      "worthNoPrice": "At {{cost}} each",
+      "onOrderWanted": "{{reference}} · wanted by {{date}}",
+      "nothingOnOrder": "No purchase order is waiting",
+      "onHandDayByDay": "{{unit}} on hand, day by day",
+      "chartNoteShort": "The {{count}} {{unit}} received on {{date}} last <b>{{days}} days</b> at this rate. <b>{{count}} isn't enough per delivery</b>; {{better}} would hold the level for two weeks.",
+      "chartNoteEnough": "The {{count}} {{unit}} received on {{date}} last <b>{{days}} days</b> at this rate, enough to hold the level for two weeks.",
+      "chartNoteNone": "Nothing has been received in the last thirty days.",
+      "noMovements": "Nothing has moved yet.",
+      "backOnShelf": "Back on the shelf",
+      "deliveryRecorded": "Delivery recorded",
+      "countedAs": "Counted {{count}}",
+      "from": "From {{supplier}}",
+      "atEach": "at {{amount}} each",
+      "lastPaid": "{{amount}} on {{date}}"
+    }
   },
   "priceRules": {
     "title": "Price rules",
@@ -20170,7 +20283,8 @@
       "purchaseOrders": "Your plan does not include purchase orders. What you made before can still be viewed, downloaded and exported.",
       "approvals": "Your plan does not include sales approvals. What you made before can still be viewed, downloaded and exported.",
       "bulkUpload": "Your plan does not include bulk upload. What you made before can still be viewed, downloaded and exported.",
-      "generic": "Your plan does not include this. What you made before can still be viewed, downloaded and exported."
+      "generic": "Your plan does not include this. What you made before can still be viewed, downloaded and exported.",
+      "stock": "Your plan does not include stock counting. What you counted before can still be viewed."
     }
   },
   "appAccess": {

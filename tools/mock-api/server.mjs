@@ -49,6 +49,10 @@ const ENTITLEMENTS = {
     'customer.read',
     'supplier.read',
     'product.read',
+    // Stock (INCOME.md P.10): reading, counting and writing off, and the reorder levels.
+    'stock.read',
+    'stock.adjust',
+    'stock.manage',
   ],
   scopes: ['platform.tenants.manage', 'platform.operators.manage', 'platform.support'],
   featureFlags: {},
