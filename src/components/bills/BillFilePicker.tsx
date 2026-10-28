@@ -42,7 +42,7 @@ export function BillFilePicker({
         uploaded.push({ intake: await uploadIntake(file, source), file })
       }
     } catch (error) {
-      const coded = error instanceof ApiError && error.code ? UPLOAD_REFUSALS[error.code] : undefined
+      const coded = error instanceof ApiError && error.code && Object.hasOwn(UPLOAD_REFUSALS, error.code) ? UPLOAD_REFUSALS[error.code] : undefined
       const failure = describeApiFailure(error)
       setRefusal(coded ? t(coded) : t(failure.key, failure.values))
     } finally {

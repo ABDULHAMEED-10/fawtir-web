@@ -275,9 +275,9 @@ function RecordBill({ id }: { id: string }) {
       } else if (
         failure instanceof ApiError &&
         failure.code &&
-        (BILL_CONFIRM_REFUSALS[failure.code] || UPLOAD_REFUSALS[failure.code])
+        (Object.hasOwn(BILL_CONFIRM_REFUSALS, failure.code) || Object.hasOwn(UPLOAD_REFUSALS, failure.code))
       ) {
-        setNotice(t(BILL_CONFIRM_REFUSALS[failure.code]?.key ?? UPLOAD_REFUSALS[failure.code]))
+        setNotice(t(Object.hasOwn(BILL_CONFIRM_REFUSALS, failure.code) ? BILL_CONFIRM_REFUSALS[failure.code].key : UPLOAD_REFUSALS[failure.code]))
       } else {
         const described = describeApiFailure(failure)
         const body = t(described.key, described.values)

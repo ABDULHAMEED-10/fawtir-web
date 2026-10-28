@@ -674,7 +674,7 @@ function activityKey(kind: string): string {
  */
 export function inputVatNoteKey(inputVat: BillRowDto['inputVat'] | null | undefined): string | null {
   if (!inputVat || inputVat.counted) return null
-  return INPUT_VAT_NOTES[inputVat.reason] ?? null
+  return Object.hasOwn(INPUT_VAT_NOTES, inputVat.reason) ? INPUT_VAT_NOTES[inputVat.reason] : null
 }
 
 const INPUT_VAT_NOTES: Record<string, string> = {

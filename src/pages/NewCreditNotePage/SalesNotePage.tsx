@@ -602,7 +602,7 @@ function NoteEditor({
         setNotice(t(selfBilling))
         return
       }
-      const coded = error instanceof ApiError && error.code ? NOTE_REFUSALS[error.code] : undefined
+      const coded = error instanceof ApiError && error.code && Object.hasOwn(NOTE_REFUSALS, error.code) ? NOTE_REFUSALS[error.code] : undefined
       const refusal = coded ? null : issueRefusalOf(error)
       const described = describeApiFailure(error)
       setNotice(

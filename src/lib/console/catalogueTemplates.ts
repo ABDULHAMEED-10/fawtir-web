@@ -151,7 +151,7 @@ const FIELD_WORDS: Record<string, string> = {
 }
 
 export function fieldWordKey(field: string | null): string | null {
-  const word = field ? FIELD_WORDS[field] : undefined
+  const word = field && Object.hasOwn(FIELD_WORDS, field) ? FIELD_WORDS[field] : undefined
   return word ? `console.templateEditor.field.${word}` : null
 }
 

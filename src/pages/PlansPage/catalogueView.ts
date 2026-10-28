@@ -59,7 +59,7 @@ const LAUNCH_COPY: Record<string, { key: string; audience: AnyPlanId; lines: num
   BUSINESS: { key: 'premium', audience: 'business', lines: 5 },
   BUSINESS_PLUS: { key: 'businessPlus', audience: 'businessPlus', lines: 5 },
 }
-export const launchCopy = (code: string) => LAUNCH_COPY[code]
+export const launchCopy = (code: string) => (Object.hasOwn(LAUNCH_COPY, code) ? LAUNCH_COPY[code] : undefined)
 
 /** The card line, by number, that names the ERP add-on on a launch plan that sells it (ER-1). */
 const ADDON_LINE: Record<string, number> = { BUSINESS_PLUS: 5 }
@@ -73,7 +73,7 @@ const ADDON_LINE: Record<string, number> = { BUSINESS_PLUS: 5 }
 export function launchFeatures(plan: SignupCataloguePlan, t: TFunction): string[] | null {
   const copy = launchCopy(plan.code)
   if (!copy) return null
-  const addonLine = ADDON_LINE[plan.code]
+  const addonLine = Object.hasOwn(ADDON_LINE, plan.code) ? ADDON_LINE[plan.code] : undefined
   const addonBaisa = baisaOf(plan.erpAddon?.monthlyPrice)
   return Array.from({ length: copy.lines }, (_, i) => i + 1).flatMap((line) => {
     if (line !== addonLine) return [t(`plans.${copy.key}.features.f${line}`)]

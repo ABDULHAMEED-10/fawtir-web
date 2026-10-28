@@ -216,7 +216,7 @@ function RecurringBillForm({ id }: { id: string | null }) {
         // Said on the field, with the date the server names (owner's answer 13, 2 Oct 2026).
         // Nothing was saved: the form stays as it is.
         setEarliestWatchingFrom(earliest)
-      } else if (code && RECURRING_FORM_REFUSALS[code]) {
+      } else if (code && Object.hasOwn(RECURRING_FORM_REFUSALS, code)) {
         setFailure(t(RECURRING_FORM_REFUSALS[code]))
       } else {
         const message = describeApiFailure(error)

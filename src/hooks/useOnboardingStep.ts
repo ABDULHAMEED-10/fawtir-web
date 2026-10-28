@@ -112,7 +112,7 @@ export function useOnboardingStep<F extends string = never>(options: StepOptions
       }
       // These name exactly what is missing, so they are answered before the generic "an earlier
       // step is missing" probe, which cannot tell a missing plan from a refused one.
-      const named = error.status === 409 && error.problemType && CHOICE_CONFLICTS[error.problemType]
+      const named = error.status === 409 && error.problemType && Object.hasOwn(CHOICE_CONFLICTS, error.problemType) && CHOICE_CONFLICTS[error.problemType]
       if (named) {
         setFormError({ key: named })
         return { ...unsaved, conflict: error.problemType ?? undefined }
@@ -122,7 +122,7 @@ export function useOnboardingStep<F extends string = never>(options: StepOptions
         setFormError({ key: 'businessType.notAvailable' })
         return { ...unsaved, conflict: BUSINESS_TYPE_NOT_AVAILABLE }
       }
-      const onField = error.status === 409 && error.code ? options.conflictFields?.[error.code] : undefined
+      const onField = error.status === 409 && error.code && options.conflictFields && Object.hasOwn(options.conflictFields, error.code) ? options.conflictFields[error.code] : undefined
       if (onField) {
         return { saved: false, fieldErrors: { [onField.field]: onField.key } as Partial<Record<F, string>> }
       }

@@ -51,3 +51,12 @@ describe('a refused recovery', () => {
     expect(refreshAfter(noticeOfFailure(refused(409, 'ERP_RECOVERY_NOT_ELIGIBLE')))).toBe(true)
   })
 })
+
+describe('a refusal code named like an Object.prototype member', () => {
+  it.each(['constructor', 'toString', '__proto__', 'hasOwnProperty'])('reads %j as it reads an unknown code', (code) => {
+    expect(noticeOfFailure(refused(422, code))).toEqual(noticeOfFailure(refused(422, 'NO_SUCH_CODE')))
+    expect(noticeOfFailure(refused(409, code, 'subscription-restricted'))).toEqual(
+      noticeOfFailure(refused(409, 'NO_SUCH_CODE', 'subscription-restricted')),
+    )
+  })
+})

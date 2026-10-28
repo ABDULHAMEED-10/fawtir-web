@@ -555,7 +555,7 @@ function InvoiceScreen() {
       history.retry()
     } catch (error) {
       const refusal =
-        error instanceof ApiError && error.code ? RELEASE_REFUSALS[error.code] : undefined
+        error instanceof ApiError && error.code && Object.hasOwn(RELEASE_REFUSALS, error.code) ? RELEASE_REFUSALS[error.code] : undefined
       setNotice(refusal ? { key: refusal } : { body: refusalText(t, error) })
     }
   }
@@ -586,7 +586,7 @@ function InvoiceScreen() {
     } catch (error) {
       setReversing(null)
       const refusal =
-        error instanceof ApiError && error.code ? PAYMENT_REFUSALS[error.code] : undefined
+        error instanceof ApiError && error.code && Object.hasOwn(PAYMENT_REFUSALS, error.code) ? PAYMENT_REFUSALS[error.code] : undefined
       setNotice(refusal ? { key: refusal.key } : { body: refusalText(t, error) })
       afterPayment()
     } finally {

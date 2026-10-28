@@ -1234,7 +1234,7 @@ function netAndVat(
 }
 
 function refusalText(t: Translate, error: unknown): string {
-  if (error instanceof ApiError && error.code && REFUSALS[error.code])
+  if (error instanceof ApiError && error.code && Object.hasOwn(REFUSALS, error.code))
     // The run is the one value a sentence here names; the server sends it beside the code.
     return t(REFUSALS[error.code], { run: String(error.problem.paymentRunReference ?? '') })
   const message = describeApiFailure(error)

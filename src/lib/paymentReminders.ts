@@ -181,7 +181,7 @@ export function reminderRefusalNote(
   fired: number[] | null,
 ): string | null {
   const code = error instanceof ApiError ? error.code : null
-  if (!code || !REMINDER_REFUSALS[code]) return null
+  if (!code || !Object.hasOwn(REMINDER_REFUSALS, code)) return null
   if (code === 'REMINDER_ALREADY_SENT') {
     const detail = error instanceof ApiError ? error.problem.detail : null
     const byHandToday = typeof detail === 'string' && /business day/i.test(detail)

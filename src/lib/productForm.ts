@@ -389,6 +389,6 @@ export const PRODUCT_REFUSALS: Record<string, ProductProblem> = {
 /** The sentence for a refused save, or null when it is not a product refusal the form knows. */
 export function productRefusal(error: unknown): (ProductProblem & { code: string }) | null {
   if (!(error instanceof ApiError) || !error.code) return null
-  const known = PRODUCT_REFUSALS[error.code]
+  const known = Object.hasOwn(PRODUCT_REFUSALS, error.code) ? PRODUCT_REFUSALS[error.code] : undefined
   return known ? { ...known, code: error.code } : null
 }

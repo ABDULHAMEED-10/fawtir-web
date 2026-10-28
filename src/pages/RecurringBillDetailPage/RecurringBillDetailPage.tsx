@@ -227,7 +227,7 @@ function RecurringBill({ id }: { id: string }) {
 
   const failed = (error: unknown) => {
     const code = error instanceof ApiError ? error.code : null
-    if (code && RECURRING_REFUSALS[code]) {
+    if (code && Object.hasOwn(RECURRING_REFUSALS, code)) {
       setNotice({ key: RECURRING_REFUSALS[code] })
       return
     }
@@ -882,7 +882,7 @@ function RecurringBill({ id }: { id: string }) {
                   t('recurringBills.detail.sendsBillsBy'),
                   supplierProfile?.receivingChannel
                     ? t(
-                        CHANNEL_KEY[supplierProfile.receivingChannel] ??
+                        (Object.hasOwn(CHANNEL_KEY, supplierProfile.receivingChannel) ? CHANNEL_KEY[supplierProfile.receivingChannel] : undefined) ??
                           'recurringBills.detail.notOnFile',
                       )
                     : t('recurringBills.detail.notOnFile'),

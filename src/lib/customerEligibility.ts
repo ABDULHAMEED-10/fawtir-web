@@ -41,7 +41,7 @@ export function missingCustomerFields(
 
   for (const path of paths) {
     const [head, tail] = path.split('.')
-    if (head in ADDRESSES && tail in ADDRESS_PARTS) {
+    if (Object.hasOwn(ADDRESSES, head) && Object.hasOwn(ADDRESS_PARTS, tail)) {
       const parts = addressParts.get(head)
       if (parts) {
         parts.push(translate(ADDRESS_PARTS[tail]))
@@ -52,7 +52,7 @@ export function missingCustomerFields(
       phrases.push({ key: ADDRESSES[head], values: { parts: '' } })
       continue
     }
-    phrases.push(FIELDS[path] ? { key: FIELDS[path] } : { key: 'invoiceDraft.missing.unknown', values: { path } })
+    phrases.push(Object.hasOwn(FIELDS, path) ? { key: FIELDS[path] } : { key: 'invoiceDraft.missing.unknown', values: { path } })
   }
 
   let seen = 0

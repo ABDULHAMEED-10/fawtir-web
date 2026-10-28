@@ -83,7 +83,7 @@ export function neededPlanFrom(
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .find(
       (plan) =>
-        PLAN_ID_BY_CODE[plan.code] !== undefined &&
+        Object.hasOwn(PLAN_ID_BY_CODE, plan.code) &&
         plan.features.some((f) => f.key === feature && f.enabled),
     )
   return carrying ? PLAN_ID_BY_CODE[carrying.code] : 'enterprise'

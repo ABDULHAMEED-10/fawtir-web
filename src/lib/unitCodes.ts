@@ -21,7 +21,7 @@ export const REC21_PACKAGE_UNITS: Readonly<Record<string, string>> = {
 
 /** The code to offer for a unit: a bare Rec 21 package code's `X` form, any other code itself. */
 export function offeredUnitCode(code: string): string {
-  return REC21_PACKAGE_UNITS[code] ?? code
+  return Object.hasOwn(REC21_PACKAGE_UNITS, code) ? REC21_PACKAGE_UNITS[code] : code
 }
 
 /** Whether a stored unit is a bare Rec 21 package code that PINT-OM refuses (ibr-cl-23). */
