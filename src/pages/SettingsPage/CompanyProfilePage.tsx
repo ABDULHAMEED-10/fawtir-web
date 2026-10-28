@@ -38,6 +38,20 @@ import {
   type CompanyProfileDto,
 } from '../../api/company/companyProfile'
 import { ApiError } from '../../api/errors'
+import {
+  BUSINESS_TYPE_NOT_AVAILABLE,
+  COMPANY_BUSINESS_TYPE_PATH,
+  readCompanyBusinessType,
+  saveCompanyBusinessType,
+  type CompanyBusinessTypeDto,
+} from '../../api/catalog/businessTypes'
+import {
+  findSubBusinessType,
+  localName,
+  suggestedIsicLabel,
+  useSignupBusinessTypes,
+} from '../../lib/businessTypes'
+import { IsicSuggestion } from '../../components/form/IsicSuggestion'
 import { isicOptions as isicOptionsFor } from '../../lib/codeLists/isic'
 import { CODE_LISTS } from '../../lib/erpCodeLists'
 import infoIcon from '../../assets/settings/info.svg'
@@ -84,6 +98,7 @@ const CHANGE_LABEL: Record<string, string> = {
   commercialRegistrationNumber: 'commercialRegistration',
   country: 'country',
   industrialClassification: 'industrialClassification',
+  businessType: 'subBusinessType',
   invoiceLanguage: 'language',
   defaultCurrency: 'currency',
   defaultPaymentTerms: 'paymentTerms',
@@ -101,6 +116,11 @@ type Profile = {
   commercialRegistration: string
   /** ISIC Rev. 4, Oman's 6-digit code (IBR-081-OM); the backend copies it onto every invoice line. */
   industrialClassification: string
+  /**
+   * The sub business type's code, or empty when the company does not use POS. It only decides
+   * which catalogue template is offered (Catalogue guide 1A).
+   */
+  subBusinessType: string
   street: string
   addressLine2: string
   addressLine3: string
@@ -164,6 +184,7 @@ const INITIAL: Profile = {
   tradingAs: '',
   commercialRegistration: '',
   industrialClassification: '',
+  subBusinessType: '',
   street: '',
   addressLine2: '',
   addressLine3: '',
@@ -217,6 +238,15 @@ export function CompanyProfilePage() {
     loadCompanyProfile,
   )
   const [storedActivity, setStoredActivity] = useState<string | null | undefined>(undefined)
+  // Read with `admin.settings.manage`; a reader without it (or an older server) gets no field.
+  const businessTypeRead = useApiRead(COMPANY_BUSINESS_TYPE_PATH, readCompanyBusinessType).read
+  const signupTypes = useSignupBusinessTypes().read
+  const [storedBusinessType, setStoredBusinessType] = useState<CompanyBusinessTypeDto | undefined>(
+    undefined,
+  )
+  const [businessTypeSaveFailed, setBusinessTypeSaveFailed] = useState<
+    'notAvailable' | 'failed' | null
+  >(null)
   const [storedProfile, setStoredProfile] = useState<CompanyProfileDto | undefined>(undefined)
   const [profileSaveFailed, setProfileSaveFailed] = useState(false)
   /** Someone else saved the profile first; the operational fields were reloaded from the server. */
@@ -246,6 +276,15 @@ export function CompanyProfilePage() {
     setStoredActivity(activityRead.data.code)
     setForm((current) => ({ ...current, industrialClassification: activityRead.data.code ?? '' }))
   }, [activityRead])
+
+  useEffect(() => {
+    if (businessTypeRead.status !== 'ready') return
+    setStoredBusinessType(businessTypeRead.data)
+    setForm((current) => ({
+      ...current,
+      subBusinessType: businessTypeRead.data.subBusinessType?.code ?? '',
+    }))
+  }, [businessTypeRead])
 
   useEffect(() => {
     if (brandingRead.status !== 'ready') return
@@ -298,6 +337,7 @@ export function CompanyProfilePage() {
     () => ({
       ...INITIAL,
       industrialClassification: storedActivity ?? '',
+      subBusinessType: storedBusinessType?.subBusinessType?.code ?? '',
       brandColour: storedBrandColour ?? INITIAL.brandColour,
       language: storedDefaults?.language
         ? LANGUAGE_FROM_API[storedDefaults.language]
@@ -326,13 +366,49 @@ export function CompanyProfilePage() {
           }
         : {}),
     }),
-    [storedActivity, storedBrandColour, storedDefaults, storedProfile],
+    [storedActivity, storedBusinessType, storedBrandColour, storedDefaults, storedProfile],
   )
 
   // Searched by activity name; the code is the hint so a known code finds it too.
   // TODO(backend): `GET /v1/code-lists/isic?q=` for the search, and the choice stored as
   // `industrialClassification { code, name }` on `GET/PUT /v1/settings/company`.
   const isicOptions = useMemo<SelectOption[]>(() => isicOptionsFor(i18n.language), [i18n.language])
+  // The sub types offered are the ones open for sign-up; the stored one stays offered even when
+  // it has since been closed or retired, so the field never shows a code it cannot name.
+  const typeList = signupTypes.status === 'ready' ? signupTypes.data : undefined
+  const storedSub = storedBusinessType?.subBusinessType ?? null
+  const subTypeOptions = useMemo<SelectOption[]>(() => {
+    const options: SelectOption[] = [{ value: '', label: t('companyProfile.subBusinessTypeNone') }]
+    for (const type of typeList ?? []) {
+      for (const sub of type.subTypes) {
+        options.push({
+          value: sub.code,
+          label: localName(sub, i18n.language),
+          hint: localName(type, i18n.language),
+        })
+      }
+    }
+    if (storedSub && !options.some((option) => option.value === storedSub.code)) {
+      const typeName = storedBusinessType?.businessType
+      options.push({
+        value: storedSub.code,
+        label: storedSub.retired
+          ? t('companyProfile.subBusinessTypeRetired', {
+              name: localName(storedSub, i18n.language),
+            })
+          : localName(storedSub, i18n.language),
+        hint: typeName ? localName(typeName, i18n.language) : undefined,
+      })
+    }
+    return options
+  }, [typeList, storedSub, storedBusinessType, i18n.language, t])
+  // The activity the chosen sub type suggests: from the list, or from the stored read for a sub
+  // type the list no longer carries. A hint only; the activity is never changed by it.
+  const chosenSub = findSubBusinessType(typeList, form.subBusinessType)
+  const suggestion =
+    chosenSub?.suggestedIsic ??
+    (storedSub && storedSub.code === form.subBusinessType ? storedSub.suggestedIsic : null)
+  const suggestionFor = chosenSub ?? (storedSub?.code === form.subBusinessType ? storedSub : null)
   // CL-13-OM, the closed list the server accepts (BTOM-024); none is a valid choice.
   const subdivisionOptions = useMemo<SelectOption[]>(
     () => [
@@ -436,6 +512,34 @@ export function CompanyProfilePage() {
                   readOnlyAppearance={verified}
                 />
               </div>
+              {storedBusinessType ? (
+                <Field
+                  label={t('companyProfile.subBusinessType')}
+                  hint={t('companyProfile.subBusinessTypeHint')}
+                >
+                  <Combobox
+                    value={form.subBusinessType}
+                    onChange={(value) => {
+                      set('subBusinessType', value)
+                      setBusinessTypeSaveFailed(null)
+                    }}
+                    options={subTypeOptions}
+                    placeholder={t('companyProfile.subBusinessTypePlaceholder')}
+                    searchPlaceholder={t('companyProfile.subBusinessTypeSearch')}
+                    emptyText={t('companyProfile.subBusinessTypeNoMatch')}
+                    ariaLabel={t('companyProfile.subBusinessType')}
+                  />
+                  {businessTypeSaveFailed ? (
+                    <p role="alert" className="mt-1.5 text-xs font-medium text-danger-700">
+                      {t(
+                        businessTypeSaveFailed === 'notAvailable'
+                          ? 'companyProfile.subBusinessTypeNotAvailable'
+                          : 'companyProfile.subBusinessTypeFailed',
+                      )}
+                    </p>
+                  ) : null}
+                </Field>
+              ) : null}
               <Field
                 label={t('companyProfile.industrialClassification')}
                 hint={t('companyProfile.industrialClassificationHint')}
@@ -459,6 +563,15 @@ export function CompanyProfilePage() {
                   <p role="alert" className="mt-1.5 text-xs font-medium text-danger-700">
                     {t('companyProfile.industrialClassificationFailed')}
                   </p>
+                ) : null}
+                {suggestion && suggestionFor ? (
+                  <div className="mt-1.5">
+                    <IsicSuggestion
+                      subType={localName(suggestionFor, i18n.language)}
+                      code={suggestion.code}
+                      label={suggestedIsicLabel(suggestion, i18n.language)}
+                    />
+                  </div>
                 ) : null}
               </Field>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -1031,6 +1144,7 @@ export function CompanyProfilePage() {
             disabled={dirty.length === 0}
             onClick={async () => {
               setSaveFailed(false)
+              setBusinessTypeSaveFailed(null)
               setBrandingSaveFailed(false)
               setDefaultsSaveFailed(false)
               setProfileSaveFailed(false)
@@ -1128,6 +1242,22 @@ export function CompanyProfilePage() {
                   sent = true
                 } catch {
                   setSaveFailed(true)
+                  return
+                }
+              }
+              if (form.subBusinessType !== baseline.subBusinessType) {
+                try {
+                  const stored = await saveCompanyBusinessType(form.subBusinessType || null)
+                  setStoredBusinessType(stored)
+                  sent = true
+                } catch (error) {
+                  setBusinessTypeSaveFailed(
+                    error instanceof ApiError &&
+                      error.status === 400 &&
+                      error.problemType === BUSINESS_TYPE_NOT_AVAILABLE
+                      ? 'notAvailable'
+                      : 'failed',
+                  )
                   return
                 }
               }

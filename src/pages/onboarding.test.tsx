@@ -16,6 +16,7 @@ import { AddressContactPage } from './AddressContactPage'
 import { BusinessIdentityPage } from './BusinessIdentityPage'
 import { BusinessTypePage } from './BusinessTypePage'
 import { SubBusinessTypePage } from './SubBusinessTypePage'
+import { withBusinessTypes } from '../test/businessTypes'
 
 const TOKEN = 'so.onboarding-token'
 
@@ -88,8 +89,10 @@ const field = (name: string) => document.querySelector<HTMLInputElement>(`form [
 /** What `/verify-code` hands the first step: the account email, no answers yet. */
 const FROM_VERIFY: OnboardingState = { accountEmail: 'owner@alnoor.test' }
 const AFTER_PROFILE: OnboardingState = { businessSize: 'just-me', invoicingMethod: 'paper' }
-const AFTER_CATEGORY: OnboardingState = { ...AFTER_PROFILE, businessType: 'food-beverage' }
-const AFTER_TYPE: OnboardingState = { ...AFTER_CATEGORY, subBusinessType: 'bakery' }
+const AFTER_CATEGORY: OnboardingState = { ...AFTER_PROFILE, businessType: 'FOOD_AND_BEVERAGE' }
+const AFTER_TYPE: OnboardingState = { ...AFTER_CATEGORY, subBusinessType: 'BAKERY' }
+
+
 const AFTER_IDENTITY: OnboardingState = {
   ...AFTER_TYPE,
   identity: {
@@ -112,7 +115,8 @@ beforeEach(async () => {
     onboardingTokenExpiresAt: new Date(Date.now() + 3_600_000).toISOString(),
   })
   fetchMock = vi.fn().mockResolvedValue(noContent())
-  vi.stubGlobal('fetch', fetchMock)
+  // The business type list is answered here, so `fetchMock` holds only the steps' own requests.
+  vi.stubGlobal('fetch', withBusinessTypes(fetchMock))
 })
 
 afterEach(() => {
@@ -258,8 +262,20 @@ describe('About your business', () => {
 })
 
 describe('Business type (the backend category)', () => {
-  it('saves Food & Beverage and continues to its trades', async () => {
+  it('offers only the types the server opened, in its order', async () => {
     renderAt('/business-type', AFTER_PROFILE)
+    await screen.findByRole('button', { name: 'Food & Beverage' })
+    const chips = screen
+      .getAllByRole('button')
+      .filter((button) => button.hasAttribute('aria-pressed'))
+      .map((button) => button.textContent)
+    expect(chips).toEqual(['Food & Beverage', 'Retail'])
+    expect(screen.queryByRole('button', { name: 'Automotive' })).toBeNull()
+  })
+
+  it('saves Food & Beverage by its code and continues to its sub types', async () => {
+    renderAt('/business-type', AFTER_PROFILE)
+    await screen.findByRole('button', { name: 'Food & Beverage' })
     await userEvent.setup({ delay: null }).click(submit())
 
     expect(await screen.findByText(i18n.t('subBusinessType.title'))).toBeTruthy()
@@ -271,57 +287,74 @@ describe('Business type (the backend category)', () => {
     ])
   })
 
-  it.each([
-    'businessType.options.automotive',
-    'businessType.options.retail',
-    'businessType.options.beautyWellness',
-    'businessType.options.healthcare',
-    'businessType.options.hospitality',
-    'businessType.options.education',
-    'businessType.options.professional',
-  ])('refuses %s without a request, and says why', async (labelKey) => {
+  it('saves any other open type by its code', async () => {
     const user = userEvent.setup({ delay: null })
     renderAt('/business-type', AFTER_PROFILE)
-    await user.click(screen.getByRole('button', { name: i18n.t(labelKey) }))
+    await user.click(await screen.findByRole('button', { name: 'Retail' }))
     await user.click(submit())
 
-    expect(screen.getByRole('alert').textContent).toBe(i18n.t('businessType.unavailable'))
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(await screen.findByText(i18n.t('subBusinessType.title'))).toBeTruthy()
+    expect(requests()[0].body).toEqual({ onboardingToken: TOKEN, businessCategory: 'RETAIL' })
+    expect((await screen.findByRole('button', { pressed: true })).textContent).toBe('Grocery')
+  })
+
+  it('says so when the type was closed after the list was read', async () => {
+    fetchMock.mockResolvedValueOnce(
+      json(400, {
+        type: 'https://api.fawtir.om/problems/business-type-not-available',
+        code: 'BUSINESS_TYPE_NOT_AVAILABLE',
+      }),
+    )
+    const user = userEvent.setup({ delay: null })
+    renderAt('/business-type', AFTER_PROFILE)
+    await user.click(await screen.findByRole('button', { name: 'Retail' }))
+    await user.click(submit())
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      i18n.t('businessType.notAvailable'),
+    )
     expect(heading()).toBe(i18n.t('businessType.title'))
   })
 
-  it('drops a trade chosen under a different category', async () => {
+  it('offers a retry when the list cannot be read, and saves nothing', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+    fetchMock.mockResolvedValue(json(503, { type: 'https://api.fawtir.om/problems/unavailable' }))
+    renderAt('/business-type', AFTER_PROFILE)
+
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      i18n.t('businessType.loadFailed'),
+    )
+    expect(submit().disabled).toBe(true)
+  })
+
+  it('drops a sub type chosen under a different type', async () => {
     renderAt('/business-type', {
       ...AFTER_PROFILE,
-      businessType: 'retail',
-      subBusinessType: 'grocery',
+      businessType: 'RETAIL',
+      subBusinessType: 'GROCERY',
     })
     const user = userEvent.setup({ delay: null })
-    await user.click(
-      screen.getByRole('button', { name: i18n.t('businessType.options.foodBeverage') }),
-    )
+    await user.click(await screen.findByRole('button', { name: 'Food & Beverage' }))
     await user.click(submit())
     await screen.findByText(i18n.t('subBusinessType.title'))
 
-    expect(screen.getByRole('button', { pressed: true }).textContent).toBe(
-      i18n.t('subBusinessType.options.coffeeShop'),
-    )
+    expect((await screen.findByRole('button', { pressed: true })).textContent).toBe('Coffee shop')
   })
 })
 
 describe('Sub business type (the backend type)', () => {
   it.each([
-    ['subBusinessType.options.coffeeShop', 'COFFEE_SHOP'],
-    ['subBusinessType.options.restaurant', 'RESTAURANT'],
-    ['subBusinessType.options.bakery', 'BAKERY'],
-    ['subBusinessType.options.fastFood', 'FAST_FOOD'],
-    ['subBusinessType.options.juiceBar', 'JUICE_BAR'],
-    ['subBusinessType.options.dessertShop', 'DESSERT_SHOP'],
-    ['subBusinessType.options.catering', 'CATERING'],
-  ])('%s saves as %s and continues to business identity', async (labelKey, type) => {
+    ['Coffee shop', 'COFFEE_SHOP'],
+    ['Restaurant', 'RESTAURANT'],
+    ['Bakery', 'BAKERY'],
+    ['Fast food', 'FAST_FOOD'],
+    ['Juice bar', 'JUICE_BAR'],
+    ['Dessert shop', 'DESSERT_SHOP'],
+    ['Catering', 'CATERING'],
+  ])('%s saves as %s and continues to business identity', async (label, type) => {
     const user = userEvent.setup({ delay: null })
     renderAt('/sub-business-type', AFTER_CATEGORY)
-    await user.click(screen.getByRole('button', { name: i18n.t(labelKey) }))
+    await user.click(await screen.findByRole('button', { name: label }))
     await user.click(submit())
 
     expect(await screen.findByText(i18n.t('businessIdentity.title'))).toBeTruthy()
@@ -333,11 +366,15 @@ describe('Sub business type (the backend type)', () => {
     ])
   })
 
-  it('restores the saved trade on Back', () => {
+  it('lists only the sub types of the saved type', async () => {
+    renderAt('/sub-business-type', { ...AFTER_PROFILE, businessType: 'RETAIL' })
+    expect((await screen.findByRole('button', { pressed: true })).textContent).toBe('Grocery')
+    expect(screen.queryByRole('button', { name: 'Coffee shop' })).toBeNull()
+  })
+
+  it('restores the saved sub type on Back', async () => {
     renderAt('/sub-business-type', AFTER_TYPE)
-    expect(screen.getByRole('button', { pressed: true }).textContent).toBe(
-      i18n.t('subBusinessType.options.bakery'),
-    )
+    expect((await screen.findByRole('button', { pressed: true })).textContent).toBe('Bakery')
   })
 })
 
@@ -370,14 +407,20 @@ describe('Business identity', () => {
     expect(screen.getByText(i18n.t('validation.vatin'))).toBeTruthy()
   })
 
-  it('suggests the business activity from the specialty, and lets it be skipped', async () => {
-    renderAt('/business-identity', { ...AFTER_TYPE, subBusinessType: 'restaurant' })
+  it('hints the activity the sub type suggests, never fills it in, and lets it be skipped', async () => {
+    renderAt('/business-identity', { ...AFTER_TYPE, subBusinessType: 'RESTAURANT' })
     const picker = () => screen.getByRole('button', { name: i18n.t('businessIdentity.isicLabel') })
-    expect(picker().textContent).toContain('Restaurants')
+    expect(
+      await screen.findByText((text) => text.includes('Suggested for') && text.includes('561001')),
+    ).toBeTruthy()
+    expect(picker().textContent).toContain(i18n.t('businessIdentity.isicPlaceholder'))
+    // The type chip is the server's name for the saved type.
+    expect(screen.getByText('Food & Beverage')).toBeTruthy()
 
     cleanup()
-    renderAt('/business-identity', { ...AFTER_CATEGORY, subBusinessType: 'not-mapped' })
-    expect(picker().textContent).toContain(i18n.t('businessIdentity.isicPlaceholder'))
+    renderAt('/business-identity', AFTER_TYPE)
+    await screen.findByText('Food & Beverage')
+    expect(screen.queryByText((text) => text.includes('Suggested for'))).toBeNull()
     // No activity chosen: the form is still valid, the company sets it later in Settings.
     expect(
       validateBusinessIdentity({
@@ -418,11 +461,15 @@ describe('Business identity', () => {
 
   it('sends the business activity the registrant chose, and only then', async () => {
     const user = userEvent.setup({ delay: null })
-    // A restaurant pre-fills 561001 ("Restaurants"); the registrant keeps it.
-    renderAt('/business-identity', { ...AFTER_TYPE, subBusinessType: 'restaurant' })
+    renderAt('/business-identity', { ...AFTER_TYPE, subBusinessType: 'RESTAURANT' })
     await user.type(field('companyName'), 'Al Noor Bakery LLC')
     await user.type(field('crNumber'), 'cr-99')
     await user.type(field('vatin'), 'om1200000001')
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('businessIdentity.isicLabel') }))
+    fireEvent.change(await screen.findByPlaceholderText(i18n.t('businessIdentity.isicSearch')), {
+      target: { value: 'Restaurants' },
+    })
+    fireEvent.click(await screen.findByRole('option', { name: /^Restaurants/ }))
     await user.click(submit())
 
     expect(await screen.findByText(i18n.t('addressContact.title'))).toBeTruthy()
@@ -771,14 +818,19 @@ describe('session and entry', () => {
 })
 
 describe('Arabic', () => {
-  it('explains an unavailable category in Arabic, with no English', async () => {
+  it('explains a closed business type in Arabic, with no English', async () => {
     await i18n.changeLanguage('ar')
+    fetchMock.mockResolvedValueOnce(
+      json(400, { type: 'https://api.fawtir.om/problems/business-type-not-available' }),
+    )
     const user = userEvent.setup({ delay: null })
     renderAt('/business-type', AFTER_PROFILE)
-    await user.click(screen.getByRole('button', { name: i18n.t('businessType.options.retail') }))
+    // The server's Arabic name, and its English one where it has no Arabic yet.
+    await user.click(await screen.findByRole('button', { name: 'الأغذية والمشروبات' }))
     await user.click(submit())
 
-    expect(screen.getByRole('alert').textContent).toBe(i18n.t('businessType.unavailable'))
-    expect(screen.getByRole('alert').textContent).not.toMatch(/[A-Za-z]{4,}/)
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toBe(i18n.t('businessType.notAvailable'))
+    expect(alert.textContent).not.toMatch(/[A-Za-z]{4,}/)
   })
 })

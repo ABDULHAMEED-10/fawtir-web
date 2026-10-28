@@ -19,6 +19,7 @@ import {
   readSignupStatus,
   routeForStatus,
 } from '../lib/identity/onboarding'
+import { BUSINESS_TYPE_NOT_AVAILABLE } from '../api/catalog/businessTypes'
 import {
   endOnboardingSession,
   markOnboardingSubmitted,
@@ -115,6 +116,11 @@ export function useOnboardingStep<F extends string = never>(options: StepOptions
       if (named) {
         setFormError({ key: named })
         return { ...unsaved, conflict: error.problemType ?? undefined }
+      }
+      // The console closed or retired the type since the list was read (Catalogue guide 1A).
+      if (error.status === 400 && error.problemType === BUSINESS_TYPE_NOT_AVAILABLE) {
+        setFormError({ key: 'businessType.notAvailable' })
+        return { ...unsaved, conflict: BUSINESS_TYPE_NOT_AVAILABLE }
       }
       const onField = error.status === 409 && error.code ? options.conflictFields?.[error.code] : undefined
       if (onField) {

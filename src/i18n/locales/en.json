@@ -183,7 +183,12 @@
       "professional": "Professional & Home Services"
     },
     "submit": "Continue",
-    "unavailable": "Self-service signup is open to Food & Beverage businesses for now. Other business types are coming soon."
+    "unavailable": "Self-service signup is open to Food & Beverage businesses for now. Other business types are coming soon.",
+    "loading": "Loading the business types…",
+    "loadFailed": "We couldn't load the business types right now.",
+    "retry": "Try again",
+    "noneOpen": "No business type is open for sign-up right now. Go back and choose not to use Fawtir POS, or try again later.",
+    "notAvailable": "That business type is no longer open for sign-up. The list has been updated: choose again."
   },
   "subBusinessType": {
     "title": "Which one fits best?",
@@ -10388,7 +10393,16 @@
       "none": "Leave it off receipts"
     },
     "vatRegisteredSince": "VAT registered since",
-    "notAvailableYet": "Not available yet"
+    "notAvailableYet": "Not available yet",
+    "subBusinessType": "Business type",
+    "subBusinessTypeHint": "Decides which catalog template Fawtir offers you",
+    "subBusinessTypeNone": "Not chosen (I don't use Fawtir POS)",
+    "subBusinessTypeRetired": "{{name}} (no longer offered)",
+    "subBusinessTypePlaceholder": "Choose your business type",
+    "subBusinessTypeSearch": "Search business types",
+    "subBusinessTypeNoMatch": "No business type matches",
+    "subBusinessTypeNotAvailable": "That business type is no longer offered. Choose another one.",
+    "subBusinessTypeFailed": "The business type was not saved. Try again."
   },
   "branches": {
     "title": "Branches",
@@ -12766,7 +12780,14 @@
     "groupCount_one": "{{count}} group",
     "groupCount_other": "{{count}} groups",
     "kindCount_one": "{{count}} kind",
-    "kindCount_other": "{{count}} kinds"
+    "kindCount_other": "{{count}} kinds",
+    "yourTemplate": "Your business type's template",
+    "loadingTemplate": "Loading your template…",
+    "noTemplateNote": "There is no template for your business type yet. Start your own catalog, or check your business type in Settings.",
+    "templateFailedNote": "Your template could not be loaded. Start your own catalog, or try again.",
+    "chooseBusinessType": "Check your business type",
+    "tryAgain": "Try again",
+    "startsExempt": "Starts as exempt:"
   },
   "rowsView": {
     "label": "How this list is shown",
@@ -24078,5 +24099,8 @@
       "serviceType": "This service type is not on Oman's list. Choose another one.",
       "isic": "The business activity stored on this item is not valid. Contact Fawtir support."
     }
+  },
+  "isicSuggestion": {
+    "text": "Suggested for {{subType}}: {{code}}, {{label}}"
   }
 }
