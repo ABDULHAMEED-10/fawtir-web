@@ -11,6 +11,7 @@ import {
 import { activityOf, decisionNoteOf, decisionsOf } from './billDetail'
 import { REFUSAL_FALLBACK_KEY, refusalMessageKey } from './expenditureRefusals'
 import { BILL_TABS, rowActionOf, toBillListItem, visibleBillTabs } from './billList'
+import { billByNumber } from '../components/debit/noteBill'
 
 const ORIGINAL = '22222222-2222-2222-2222-222222222222'
 
@@ -234,6 +235,7 @@ describe('the refusals of the duplicate route', () => {
     expect(refusalMessageKey(conflict('BILL_NOT_HELD_AS_DUPLICATE'))).toBe('billDetail.duplicate.refused.notHeld')
     expect(refusalMessageKey(conflict('BILL_DUPLICATE_SAME_DOCUMENT_UUID'))).toBe('billDetail.duplicate.refused.sameDocumentUuid')
     expect(refusalMessageKey(conflict('BILL_HOLD_DUPLICATE_RELEASE_REFUSED'))).toBe('billDetail.duplicate.refused.releaseRefused')
+    expect(refusalMessageKey(conflict('BILL_APPROVAL_HELD_AS_DUPLICATE'))).toBe('billDetail.duplicate.refused.approvalHeld')
     expect(refusalMessageKey(refused('BILL_DUPLICATE_RESOLUTION_NOTE_REQUIRED'))).toBe('billDetail.duplicate.refused.noteRequired')
     expect(refusalMessageKey(refused('BILL_DUPLICATE_RESOLUTION_NOTE_TOO_LONG'))).toBe('billDetail.duplicate.refused.noteTooLong')
     // Not reachable from the screen, which always sends a known decision.
@@ -277,6 +279,30 @@ describe('the hold history, as Activity steps', () => {
   })
 })
 
+describe('the bill a supplier note names by number', () => {
+  const original = row({ id: 'b-original', hold: null, workflowState: 'APPROVED' })
+  const copy = row({
+    id: 'b-copy',
+    duplicateHold: { duplicateOfBillId: 'b-original', duplicateOfBillNumber: 'QMS-7781', resolution: null, sameDocumentUuid: false },
+  })
+
+  it('takes the bill, not its newer held copy', () => {
+    expect(billByNumber([copy, original], 'QMS-7781', null)?.id).toBe('b-original')
+  })
+
+  it('reads a copy held on an older server from its hold', () => {
+    const olderCopy = row({ id: 'b-copy', hold: { reason: 'x', openedAt: '2026-10-28T08:00:00Z', duplicateOfBillId: 'b-original' } })
+    expect(billByNumber([olderCopy, original], ' qms-7781 ', null)?.id).toBe('b-original')
+  })
+
+  it('keeps the first match when no copy is held, and the copy when nothing else matches', () => {
+    const other = row({ id: 'b-other', hold: null })
+    expect(billByNumber([other, original], 'QMS-7781', null)?.id).toBe('b-other')
+    expect(billByNumber([copy], 'QMS-7781', null)?.id).toBe('b-copy')
+    expect(billByNumber([copy, original], 'QMS-0000', null)).toBeNull()
+  })
+})
+
 describe('a held duplicate on the Bills list', () => {
   const held = row({
     duplicateHold: { duplicateOfBillId: ORIGINAL, duplicateOfBillNumber: 'QMS-7781', resolution: null, sameDocumentUuid: false },
@@ -288,6 +314,13 @@ describe('a held duplicate on the Bills list', () => {
     expect(item.holdReason).toBeNull()
     expect(item.duplicate).toEqual({ originalId: ORIGINAL, originalNumber: 'QMS-7781' })
     expect(rowActionOf(item, { canApprove: false, canCapture: false })).toBe('reviewDuplicate')
+  })
+
+  it('says nothing of being queried: the copy was held by nobody', () => {
+    const item = toBillListItem(held)
+    expect(item.amountNote).toEqual({ key: 'billsPage.rows.inclVat', values: { amount: 4.762 } })
+    const queried = toBillListItem(row({ hold: { reason: 'Disputed', openedAt: '2026-10-01T08:00:00Z' } }))
+    expect(queried.amountNote).toEqual({ key: 'billsPage.rows.queried', values: { date: '2026-10-01T08:00:00Z' } })
   })
 
   it('offers nothing on a confirmed duplicate', () => {

@@ -146,6 +146,8 @@ const CONFLICT_REFUSALS: Record<string, string> = {
   BILL_NOT_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.notHeld',
   BILL_DUPLICATE_SAME_DOCUMENT_UUID: 'billDetail.duplicate.refused.sameDocumentUuid',
   BILL_HOLD_DUPLICATE_RELEASE_REFUSED: 'billDetail.duplicate.refused.releaseRefused',
+  // Approving a copy that became a held duplicate after the screen was read.
+  BILL_APPROVAL_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.approvalHeld',
 }
 
 function conflictRefusalKey(error: unknown): string | null {

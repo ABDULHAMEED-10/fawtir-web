@@ -6108,7 +6108,8 @@
         "sameDocumentUuid": "Both copies carry the same document UUID, so it cannot be marked as not a duplicate.",
         "releaseRefused": "This bill is held as a possible duplicate. Open it and decide whether it is one instead of releasing it.",
         "noteRequired": "Add a note saying why.",
-        "noteTooLong": "That note is too long. Keep it to 500 characters or fewer."
+        "noteTooLong": "That note is too long. Keep it to 500 characters or fewer.",
+        "approvalHeld": "This bill is held as a possible duplicate, so it can't be approved. Decide the duplicate check first."
       },
       "decided": "Decided {{date}}",
       "sameUuidCreditNote": "Both copies carry the same document UUID, so this one cannot be released as a separate credit note. Confirm it as a duplicate."

@@ -154,6 +154,8 @@ describe('held duplicates on the Bills list', () => {
     expect((await screen.findAllByText('Possible duplicate')).length).toBeGreaterThan(0)
     expect(screen.getAllByText('Duplicate').length).toBeGreaterThan(0)
     expect(screen.queryByText(/Possible duplicate of bill/)).toBeNull()
+    // "Queried" is a person's hold; the copies were held by nobody.
+    expect(screen.queryByText(/Queried/)).toBeNull()
     const review = screen.getAllByRole('link', { name: 'Compare and decide' })
     expect(review).toHaveLength(1)
     expect(review[0].getAttribute('href')).toBe('/expenditure/bills/1')

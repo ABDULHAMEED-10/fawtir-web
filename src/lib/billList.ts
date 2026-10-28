@@ -312,7 +312,8 @@ function isCreditNote(row: BillRowDto): boolean {
  */
 function amountNoteOf(row: BillRowDto): Note | null {
   if (isCreditNote(row)) return { key: 'billsPage.rows.creditNote' }
-  if (row.workflowState === 'ON_HOLD' && row.hold)
+  // "Queried" is a person's hold; a held Peppol copy was queried by nobody, and its chip says why.
+  if (row.workflowState === 'ON_HOLD' && row.hold && !rowDuplicateOf(row))
     return { key: 'billsPage.rows.queried', values: { date: row.hold.openedAt } }
   if (row.paidAmount > 0 && row.outstandingAmount > 0 && row.workflowState !== 'PAID') {
     return { key: 'billsPage.rows.leftToPay', values: { amount: row.outstandingAmount } }

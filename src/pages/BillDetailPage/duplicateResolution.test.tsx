@@ -411,6 +411,34 @@ describe('a bill held as a possible duplicate', () => {
     expect(screen.getByText(/قارنه بالإشعار الدائن المسجّل لديكم/)).toBeTruthy()
   })
 
+  it('says why approving is refused when the bill became a held duplicate after the page loaded, and reads it again', async () => {
+    // Read before the hold: an ordinary bill with Approve on offer; the re-read finds it held.
+    copyResponses = [() => json(200, bill(COPY, 'd-copy')), () => json(200, heldCopy())]
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === `${COPY_URL}/approval/approve` && init?.method === 'POST')
+        return json(409, {
+          type: 'https://api.fawtir.om/problems/resource-conflict',
+          error: 'BILL_APPROVAL_HELD_AS_DUPLICATE',
+          detail: 'English detail never shown',
+        })
+      return base(url, init)
+    })
+    renderCopy()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getByRole('button', { name: 'Approve for payment' }))
+    expect(
+      await screen.findByText(
+        "This bill is held as a possible duplicate, so it can't be approved. Decide the duplicate check first.",
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText('English detail never shown')).toBeNull()
+    await waitFor(() => expect(calls().filter((call) => call === `GET ${COPY_URL}`)).toHaveLength(2))
+    // Read again, the page shows the hold and no approval.
+    await card()
+    expect(screen.queryByRole('button', { name: 'Approve for payment' })).toBeNull()
+  })
+
   it('withholds "Not a duplicate" when both copies share a document UUID, and says why', async () => {
     copyResponses = [() => json(200, heldCopy(true))]
     renderCopy()
