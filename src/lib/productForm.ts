@@ -378,6 +378,12 @@ export const PRODUCT_REFUSALS: Record<string, ProductProblem> = {
   BRANCH_NOT_ACTIVE: { field: 'branches', key: 'itemForm.refused.branchClosed' },
   BRANCH_NOT_FOUND: { field: 'branches', key: 'itemForm.refused.branchGone' },
   [PRODUCT_BRANCH_SETTINGS_VERSION_CONFLICT]: { field: null, key: 'itemForm.refused.changed' },
+  // Zero-rating by HS code (Z.7, Z.15).
+  PRODUCT_ZERO_RATING_HS_MISMATCH: { field: 'hsCode', key: 'itemForm.refused.zeroRatingMismatch' },
+  PRODUCT_TAX_REASON_NOT_A_PRODUCT_DEFAULT: {
+    field: 'reason',
+    key: 'itemForm.refused.reasonNotDefault',
+  },
 }
 
 /** The sentence for a refused save, or null when it is not a product refusal the form knows. */

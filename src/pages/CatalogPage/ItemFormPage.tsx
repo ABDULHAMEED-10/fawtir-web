@@ -6,7 +6,7 @@ import {
   type InputHTMLAttributes,
   type ReactNode,
 } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useReferenceData } from '../../lib/reference/referenceData'
 import {
@@ -62,6 +62,17 @@ import {
   type ProductBranchSettingsRequest,
 } from '../../api/catalog/branchSettings'
 import { branchAccessRefusalKey } from '../../lib/branchAccessRefusals'
+import {
+  getHsSuggestion,
+  hsSuggestionPath,
+  type HsSuggestionDto,
+  type ProductZeroRatingWarning,
+} from '../../api/catalog/zeroRating'
+import {
+  ZeroRatingWarnings,
+  type ZeroRatingNote,
+} from '../../components/invoice/ZeroRatingWarnings'
+import { formatDisplayDate } from '../../lib/dates'
 import {
   PRODUCT_BRANCH_SETTINGS_VERSION_CONFLICT,
   PRODUCT_VERSION_CONFLICT,
@@ -158,12 +169,21 @@ export function useCanManageProducts(): boolean | null {
 /** `GET /v1/products/{id}` (INCOME.md P.13), then the form on what it answered. */
 function ExistingItem({ id }: { id: string }) {
   const { t } = useTranslation()
+  // A new item's save warnings come along when the form moves to the item's own page.
+  const location = useLocation()
+  const carried = (location.state as { zeroRatingWarnings?: ProductZeroRatingWarning[] } | null)
+    ?.zeroRatingWarnings
   const path = productPath(id)
   const read = useApiRead<ProductDto>(path, () => getProduct(id))
   if (read.read.status === 'ready') {
     const product = read.read.data
     return (
-      <ItemEditor key={`${product.id}@${product.version}`} product={product} reload={read.retry} />
+      <ItemEditor
+        key={`${product.id}@${product.version}`}
+        product={product}
+        reload={read.retry}
+        savedWarnings={carried}
+      />
     )
   }
   return (
@@ -185,9 +205,12 @@ type Banner = { tone: 'error' | 'success'; lines: string[]; reload?: boolean }
 function ItemEditor({
   product: loaded,
   reload,
+  savedWarnings,
 }: {
   product: ProductDto | null
   reload?: () => void
+  /** The zero-rating warnings of the save that created this item (Z.15). */
+  savedWarnings?: ProductZeroRatingWarning[]
 }) {
   const { t, i18n } = useTranslation()
   const reference = useReferenceData()
@@ -305,6 +328,20 @@ function ItemEditor({
   const [saving, setSaving] = useState(false)
   const [banner, setBanner] = useState<Banner | null>(null)
   const [confirmArchive, setConfirmArchive] = useState(false)
+  // Zero-rating (Z.15): the last save's warnings, else the re-check's flag on the stored item.
+  const [zeroRatingWarnings, setZeroRatingWarnings] = useState<ZeroRatingNote[]>(() =>
+    savedWarnings?.length
+      ? savedWarnings.map(noteOf)
+      : loaded?.zeroRatingAttention
+        ? [
+            {
+              code: loaded.zeroRatingAttention.code,
+              hsCode: loaded.zeroRatingAttention.hsCode,
+              judgedOn: loaded.zeroRatingAttention.flaggedAt.slice(0, 10),
+            },
+          ]
+        : [],
+  )
 
   // Reference data may answer after the product: the tax option is then found by category and rate.
   useEffect(() => {
@@ -376,6 +413,35 @@ function ItemEditor({
     setIncludesVat(next)
   }
   const reasons = taxReasonsFor(category) ?? []
+
+  // Zero-rating by HS code (Z.15): a listed goods HS code suggests Z and its reason. Only a
+  // suggestion: the person can keep another category.
+  const listedHs =
+    !readOnly && itemType === 'goods' && /^\d{12}$/.test(hsCode) && hsCode !== '000000000000'
+  const suggestionRead = useApiRead<HsSuggestionDto>(
+    listedHs ? hsSuggestionPath(hsCode) : null,
+    () => getHsSuggestion(hsCode),
+  )
+  const suggestion = suggestionRead.read.status === 'ready' ? suggestionRead.read.data : null
+  const zeroOption = categories.find((row) => row.en16931Category === 'Z') ?? null
+  const suggested =
+    suggestion?.suggestedTaxCategory === 'Z' &&
+    zeroOption !== null &&
+    (category !== 'Z' ||
+      (suggestion.suggestedReasonCode !== null && reasonCode !== suggestion.suggestedReasonCode))
+      ? suggestion
+      : null
+  const applySuggestion = () => {
+    if (!suggested || !zeroOption) return
+    pickTaxCategory(zeroOption.code)
+    if (suggested.suggestedReasonCode) setReasonCode(suggested.suggestedReasonCode)
+  }
+  const suggestedReasonName = (() => {
+    const code = suggested?.suggestedReasonCode
+    if (!code) return ''
+    const found = (taxReasonsFor('Z') ?? []).find((reason) => reason.code === code)
+    return found ? nameOf(found, i18n.language) : code
+  })()
 
   /** The fields the product record holds, as the form has them now. */
   const fields = () => ({
@@ -495,6 +561,7 @@ function ItemEditor({
       const result = product
         ? await updateProduct(product.id, product.version, body)
         : await createProduct(body)
+      setZeroRatingWarnings((result.zeroRatingWarnings ?? []).map(noteOf))
       const branchError = await saveBranches(result.id)
       if (branchError) {
         // The item is saved; only its branch settings are not. It stays open so they can be fixed.
@@ -526,7 +593,10 @@ function ItemEditor({
         setBranchesChanged(false)
         setBanner({ tone: 'success', lines: [t('itemForm.savedNamed', { name: result.name })] })
       } else if (!product) {
-        navigate(`/catalog/${encodeURIComponent(result.id)}`, { replace: true })
+        navigate(`/catalog/${encodeURIComponent(result.id)}`, {
+          replace: true,
+          state: { zeroRatingWarnings: result.zeroRatingWarnings ?? [] },
+        })
       } else {
         setProduct(result)
         // The server's ids and worked-out prices, so the next save keeps them.
@@ -674,6 +744,7 @@ function ItemEditor({
           ) : null}
         </div>
       ) : null}
+      <ZeroRatingWarnings warnings={zeroRatingWarnings} />
       {archived ? (
         <p className="rounded-md bg-surface-card px-5 py-3 text-sm font-medium text-text-tertiary">
           {t('itemForm.archivedNote')}
@@ -890,11 +961,8 @@ function ItemEditor({
                     </span>
                   }
                 />
-                {/* TODO(backend): zero-rated goods are recognised by HS code. The backend matches the
-                  item's 12-digit HS code against Oman's zero-rated lists (807 grocery items, MD
-                  65/2021; 677 medicines and medical equipment; 62 veterinary medicines and
-                  equipment), then sets category Z with its VATZR-OM reason code. The user can
-                  still change it; this picker only shows the suggestion. */}
+                {/* Zero-rated goods are recognised by HS code (Z.15): the suggestion below the
+                  row reads Oman's zero-rated lists; this picker stays the person's choice. */}
                 <label className="block">
                   <span className="mb-1.5 flex items-center gap-1 text-xs font-medium text-text-secondary">
                     {t('item.taxCategory')}
@@ -932,6 +1000,25 @@ function ItemEditor({
                   }
                 />
               </div>
+
+              {suggested ? (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-sm bg-primary-25 px-4 py-3">
+                  <p className="min-w-0 flex-1 text-xs font-medium leading-[1.5] text-primary-800">
+                    {t('zeroRating.suggest', {
+                      list: t(`zeroRating.list.${suggested.matches[0]?.listKey ?? 'FOOD'}`),
+                      date: formatDisplayDate(suggested.judgedOn, i18n.language),
+                      reason: suggestedReasonName,
+                    })}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={applySuggestion}
+                    className="inline-flex h-[34px] shrink-0 items-center rounded-sm border border-border-subtle bg-white px-3 text-xs font-semibold text-primary-700 transition-colors hover:bg-primary-25"
+                  >
+                    {t('zeroRating.useSuggestion')}
+                  </button>
+                </div>
+              ) : null}
 
               {/* The reason a zero-rated or exempt item carries no VAT (IBT-121): a VATZR-OM code
                 for Z, a VATEX-OM code for E (CL-05-OM, CL-10-OM), written text for O. */}
@@ -1567,6 +1654,13 @@ function AddOnText({
     />
   )
 }
+
+/** A product's save warning as the warnings list draws it. */
+const noteOf = (warning: ProductZeroRatingWarning): ZeroRatingNote => ({
+  code: warning.code,
+  hsCode: warning.hsCode,
+  judgedOn: warning.judgedOn,
+})
 
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (

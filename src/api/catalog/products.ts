@@ -1,6 +1,7 @@
 import { apiRequest } from '../client'
 import { fromSpringPage, type Page, type SpringPage } from '../page'
 import { withQuery } from '../query'
+import type { ProductZeroRatingWarning, ZeroRatingAttentionDto } from './zeroRating'
 
 /**
  * The product catalogue (`ProductController`). An invoice line names a product (decision D7): its
@@ -68,6 +69,10 @@ export type ProductDto = {
    * price). Null otherwise (INCOME.md P.9).
    */
   effectivePrice?: number | null
+  /** Filled by a create or update (INCOME.md Z.15): non-blocking; `[]` on reads. */
+  zeroRatingWarnings?: ProductZeroRatingWarning[] | null
+  /** Left by the re-check when a new list no longer matches the stored rate; null when none. */
+  zeroRatingAttention?: ZeroRatingAttentionDto | null
 }
 
 export type ProductItemKind = 'HAND_OVER' | 'DO' | 'BY_TIME' | 'BUNDLE'

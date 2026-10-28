@@ -1,6 +1,7 @@
 import { apiRequest } from '../client'
 import { withQuery } from '../query'
 import type { InvoiceDetailDto } from './detail'
+import type { InvoiceLineZeroRatingWarning } from '../catalog/zeroRating'
 
 /**
  * Invoice drafts (`InvoiceAuthoringController`) and the branch list the draft names.
@@ -131,6 +132,8 @@ export type DraftResponse = {
     /** `null` when the line states no classification. */
     classification?: LineClassificationDto | null
   }[]
+  /** Zero-rating warnings per line (INCOME.md Z.11, Z.13): never blocking; absent before the API. */
+  warnings?: InvoiceLineZeroRatingWarning[] | null
 }
 
 /** `InvoicePreviewResponse`: amounts at the currency's three decimals, rounded HALF_UP. */
@@ -154,6 +157,8 @@ export type DraftPreview = {
     vatAmount: number
     totalAmount: number
   }
+  /** Zero-rating warnings per line, judged on the draft's date (Z.10, Z.11). Never blocking. */
+  warnings?: InvoiceLineZeroRatingWarning[] | null
 }
 
 export type BranchDto = {

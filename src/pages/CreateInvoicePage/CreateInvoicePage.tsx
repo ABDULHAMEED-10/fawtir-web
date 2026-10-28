@@ -87,6 +87,7 @@ import {
 import { blankCustomerForm, customerProblems, toCustomerRequest } from '../../lib/customerForm'
 import { lineFromProduct, taxCategoryOf } from '../../lib/productLine'
 import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
+import { ZeroRatingWarnings } from '../../components/invoice/ZeroRatingWarnings'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { missingCustomerFields } from '../../lib/customerEligibility'
 import { formatAmount as formatMoney } from '../../lib/format'
@@ -1501,6 +1502,19 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
             }
           />
         </div>
+      ) : null}
+
+      {/* Zero-rating by HS code (Z.11, Z.13): what the last saved draft's preview flagged.
+        Never blocking; a change since the save hides them until the next one. */}
+      {saved?.warnings?.length ? (
+        <ZeroRatingWarnings
+          warnings={saved.warnings.map((warning) => ({
+            code: warning.code,
+            hsCode: warning.hsCode,
+            judgedOn: warning.judgedOn,
+            line: warning.line,
+          }))}
+        />
       ) : null}
 
       {/* 1 Customer + Summary */}

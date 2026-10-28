@@ -92,10 +92,10 @@ describe('the catalogue list', () => {
       </MemoryRouter>,
     )
     expect(await screen.findByText('Item 01')).toBeTruthy()
-    // The list waits for the branches; the Off sale count does not, so it may go first.
-    expect(productCalls().filter((url) => !url.includes('status='))[0]).toBe(
-      '/api/v1/products?sort=NAME&direction=ASC&size=20',
-    )
+    // The list waits for the branches; the Off sale count and the zero-rating flags do not.
+    expect(
+      productCalls().filter((url) => !url.includes('status=') && !url.includes('zero-rating'))[0],
+    ).toBe('/api/v1/products?sort=NAME&direction=ASC&size=20')
     const pager = screen.getByRole('navigation', { name: i18n.t('appList.pager.label') })
     expect(within(pager).getByRole('button', { name: '3' })).toBeTruthy()
     expect(within(pager).getByRole('button', { name: '1' }).getAttribute('aria-current')).toBe(
