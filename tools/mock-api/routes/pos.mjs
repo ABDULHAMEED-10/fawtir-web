@@ -917,9 +917,8 @@ export default [
             details: {
               vatRegistrationNumber: vat,
               peppolParticipantId: vat ? { scheme: '0248', value: vat } : null,
-              buyerIdentifier: hasId
-                ? { scheme: b.identifierScheme, value: b.identifierValue }
-                : null,
+              identifierScheme: hasId ? b.identifierScheme : null,
+              identifierValue: hasId ? b.identifierValue : null,
             },
             contact: {
               contactPerson: b.contactPerson ?? null,

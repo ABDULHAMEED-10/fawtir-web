@@ -16,6 +16,8 @@ export type SaleCompany = {
   kind: 'BUSINESS' | 'GOVERNMENT'
   /** Printed on the receipt under the buyer's name, when the company has one. */
   vat?: string | null
+  /** Printed instead of a VAT number for a company without one (CR and the like). */
+  identifier?: { scheme: string; value: string } | null
 }
 
 /** A walk-in named for a full invoice (over 500, or an ID asked for): printed as the buyer. */

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { SAMPLE_SALE } from '../../lib/posTestSale'
@@ -221,7 +221,12 @@ describe('a company the till cannot invoice yet (F-1)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     const alert = await screen.findByText(/cannot get a full invoice yet/)
     expect(alert.textContent).toContain('the invoice address (country, city, and street)')
-    expect(screen.getByRole('link', { name: 'Complete it on the company screen' })).toBeTruthy()
+    // The link opens the company screen straight at the address form (retest N-1).
+    fireEvent.click(screen.getByRole('link', { name: 'Complete it on the company screen' }))
+    expect(
+      await screen.findByText(/needs the invoice address \(country, city, and street\)/),
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Save the address' })).toBeTruthy()
   })
 
   it('adds a company by hand with its invoice address, Oman chosen, and the VAT typed in the lookup', async () => {
@@ -259,6 +264,10 @@ describe('a company the till cannot invoice yet (F-1)', () => {
     fireEvent.change(field('Legal name'), { target: { value: 'Sohar Traders LLC' } })
     fireEvent.change(field('Contact person'), { target: { value: 'Ali' } })
     expect((field('VAT number') as HTMLInputElement).value).toBe('OM1100223344')
+    // A greyed button says why.
+    expect(
+      within(form).getByText('Still needed: City / Governorate and Street & building.'),
+    ).toBeTruthy()
     // Not ready without the address a full invoice needs.
     expect(within(form).getByRole('button', { name: 'Add the company' })).toHaveProperty(
       'disabled',
@@ -510,6 +519,81 @@ describe('the refund page (F-11)', () => {
   })
 })
 
+describe('the receipt of a company without a VAT number (retest N-8)', () => {
+  it('prints its CR number', async () => {
+    const totals = totalsFor(SAMPLE_SALE, NO_SALE_DISCOUNT)
+    setFinishedSale({
+      lines: SAMPLE_SALE,
+      totals,
+      tip: 0,
+      change: 0,
+      company: {
+        id: 'c-3',
+        name: 'Ibri Traders SPC',
+        kind: 'BUSINESS',
+        vat: null,
+        identifier: { scheme: 'CR', value: '1468035' },
+      },
+      payments: [{ method: 'cash', amount: totals.sale }],
+      sale: sold('NZW-T01-INV-2026-000007', { transactionType: 'FULL_TAX' }) as never,
+      queuedNumber: null,
+      finishedAt: '2026-10-29T11:35:22Z',
+    })
+    renderAt('/pos/receipt')
+    expect(await screen.findByText('Ibri Traders SPC')).toBeTruthy()
+    expect(screen.getByText(i18n.t('customerForm.identifier.schemes.CR'))).toBeTruthy()
+    expect(screen.getByText('1468035')).toBeTruthy()
+  })
+})
+
+describe('the receipt of a sale queued offline (retest N-6)', () => {
+  const queued = () => {
+    const totals = totalsFor(SAMPLE_SALE, NO_SALE_DISCOUNT)
+    setFinishedSale({
+      lines: SAMPLE_SALE,
+      totals,
+      tip: 0,
+      change: 0,
+      company: null,
+      payments: [{ method: 'cash', amount: totals.sale }],
+      sale: null,
+      queuedNumber: 'NZW-T01-INV-2026-000049',
+      finishedAt: '2026-10-29T11:35:22Z',
+    })
+  }
+
+  afterEach(() => vi.useRealTimers())
+
+  it('says it waits to be filed, not that it is filed, and that the QR comes later', async () => {
+    queued()
+    renderAt('/pos/receipt')
+    expect(await screen.findByText(/This sale is waiting to be filed/)).toBeTruthy()
+    expect(screen.queryByText(/has already been filed/)).toBeNull()
+    expect(screen.getByText(i18n.t('pos.done.qrAfterFiling'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.done.qrAlreadyUp'))).toBeNull()
+  })
+
+  it('clears itself for the next customer after 20 seconds', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    queued()
+    renderAt('/pos/receipt')
+    await screen.findByText(/This sale is waiting to be filed/)
+    expect(screen.queryByText('the sale screen')).toBeNull()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_500)
+    })
+    expect(await screen.findByText('the sale screen')).toBeTruthy()
+  })
+
+  it('clears itself on Enter, as the screen says', async () => {
+    queued()
+    renderAt('/pos/receipt')
+    await screen.findByText(/This sale is waiting to be filed/)
+    fireEvent.keyDown(window, { key: 'Enter' })
+    expect(await screen.findByText('the sale screen')).toBeTruthy()
+  })
+})
+
 describe('closing the till (F-13)', () => {
   it('shows when it closed and what went to the bank once the shift is gone', async () => {
     answer = (url, init) => {
@@ -567,6 +651,8 @@ describe('closing the till (F-13)', () => {
       return null
     }
     renderAt('/pos/close')
+    // One sale, in the singular (retest N-5).
+    expect(await screen.findByText('1 sale · 5.649 average')).toBeTruthy()
     fireEvent.click(await screen.findByRole('button', { name: i18n.t('pos.close.closeTill') }))
     expect(await screen.findByText(/^Closed at/)).toBeTruthy()
     await waitFor(() => expect(screen.getByText(i18n.t('pos.close.summary.toBank'))).toBeTruthy())

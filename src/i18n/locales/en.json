@@ -4480,7 +4480,9 @@
       "taxInvoice": "Tax invoice",
       "cardApproval": "Card · approval {{code}}",
       "qrAlt": "The invoice's QR code",
-      "qrComing": "The QR code comes up once the invoice is filed."
+      "qrComing": "The QR code comes up once the invoice is filed.",
+      "qrAfterFiling": "the QR comes once the sale is filed",
+      "rungUpWrongQueued": "Rung it up wrong? This sale is waiting to be filed. Once it is filed, a mistake is put right with a credit note, which the Tax Authority also sees."
     },
     "company": {
       "whose": "Whose company is it?",
@@ -4527,7 +4529,9 @@
       "notReady": "A full invoice to this company needs {{missing}}.",
       "saveAddress": "Save the address",
       "completeOnCustomer": "Complete the rest on the customer's own page in Customers.",
-      "askToComplete": "Ask someone who can edit customers to complete it, then finish the sale."
+      "askToComplete": "Ask someone who can edit customers to complete it, then finish the sale.",
+      "vatOrId": "VAT number or {{id}}",
+      "stillNeeded": "Still needed: {{fields}}."
     },
     "today": {
       "title": "Today",
@@ -4603,13 +4607,13 @@
       "subtitle": "{{branch}} · Till {{till}} · {{who}}’s shift, {{from}} to {{to}} · {{day}}",
       "printSummary": "Print the summary",
       "takenToday": "Taken today",
-      "takenNote": "{{sales}} sales · {{average}} average",
+      "takenNote": "{{count}} sales · {{average}} average",
       "cash": "Cash",
-      "cashNote": "{{percent}}% of takings · {{sales}} sales",
+      "cashNote": "{{percent}}% of takings · {{count}} sales",
       "card": "Card",
-      "cardNote": "{{sales}} sales",
-      "onCompany": "On the company",
-      "companyNote": "{{count}} invoices over Peppol",
+      "cardNote": "{{count}} sales",
+      "onCompany": "Owed on account",
+      "companyNote": "{{count}} company invoices over Peppol",
       "countDrawer": "Count the drawer",
       "cashOnly": "Cash only. Card and transfers reconcile themselves",
       "byDenomination": "Count by denomination",
@@ -4686,15 +4690,21 @@
       "whatFor": "What was it for?",
       "record": "Record it",
       "howMany": "How many of {{note}}",
-      "companyNote_one": "{{count}} invoice over Peppol",
-      "companyNote_other": "{{count}} invoices over Peppol",
+      "companyNote_one": "{{count}} company invoice over Peppol",
+      "companyNote_other": "{{count}} company invoices over Peppol",
       "summary": {
         "counted": "Counted in the drawer",
         "expected": "Expected in the drawer",
         "toBank": "To the bank",
         "floatLeft": "Float left in the drawer",
         "cardDiffers": "Card machine differs by"
-      }
+      },
+      "takenNote_one": "{{count}} sale · {{average}} average",
+      "takenNote_other": "{{count}} sales · {{average}} average",
+      "cashNote_one": "{{percent}}% of takings · {{count}} sale",
+      "cashNote_other": "{{percent}}% of takings · {{count}} sales",
+      "cardNote_one": "{{count}} sale",
+      "cardNote_other": "{{count}} sales"
     },
     "refund": {
       "title": "Putting something right",
@@ -12720,7 +12730,8 @@
       "nothingLeftNote": "{{name}} · out since {{day}}",
       "nothingOut": "Nothing has run out",
       "moved": "Moved this week",
-      "movedNote": "{{sold}} sold · {{received}} received · {{writtenOff}} written off"
+      "movedNote": "{{sold}} sold · {{received}} received · {{writtenOff}} written off",
+      "belowZeroNote": "{{name}} sold below zero. Count it when you can."
     },
     "tab": {
       "all": "All",

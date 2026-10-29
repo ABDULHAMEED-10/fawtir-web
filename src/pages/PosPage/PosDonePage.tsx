@@ -46,6 +46,9 @@ export function PosDonePage() {
   )
 }
 
+/** How long the receipt stays before the till clears itself for the next customer. */
+const CLEARS_AFTER_MS = 20_000
+
 /** Accepted by the Authority, or sent over Peppol: nothing more to wait for. */
 function settled(sale: PosSaleDto): boolean {
   return (
@@ -85,6 +88,24 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
       active = false
     }
   }, [done.sale])
+
+  // "Or press Enter. This screen clears itself after 20 seconds": the next customer's empty till,
+  // for a sale filed or queued alike (retest N-6).
+  useEffect(() => {
+    const next = () => {
+      startNewSale()
+      navigate('/pos')
+    }
+    const timer = window.setTimeout(next, CLEARS_AFTER_MS)
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Enter' && !(event.target instanceof HTMLButtonElement)) next()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.clearTimeout(timer)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [navigate])
 
   const { totals, tip, change, lines } = done
   const total = sale
@@ -225,7 +246,8 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                 {t('pos.done.giveReceipt')}
               </h2>
               <p className="mt-1 text-xs font-medium text-text-quaternary">
-                {t('pos.done.qrAlreadyUp')}
+                {/* A queued sale has no QR yet, and is not filed yet (retest N-6). */}
+                {sale ? t('pos.done.qrAlreadyUp') : t('pos.done.qrAfterFiling')}
               </p>
             </div>
             {/* TODO(backend): only printing works; e-mailing or texting a receipt has no route
@@ -283,7 +305,9 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
               <div className="mx-6 mb-6 flex flex-wrap items-center gap-3 rounded-sm bg-surface-background px-4 py-3">
                 <p className="flex min-w-[220px] flex-1 items-start gap-2 text-sm font-medium leading-[1.6] text-text-tertiary">
                   <InfoIcon className="mt-1 size-4 shrink-0 text-text-quaternary" />
-                  <span className="min-w-0 flex-1">{t('pos.done.rungUpWrong')}</span>
+                  <span className="min-w-0 flex-1">
+                    {sale ? t('pos.done.rungUpWrong') : t('pos.done.rungUpWrongQueued')}
+                  </span>
                 </p>
                 {sale ? (
                   <Link
@@ -383,6 +407,11 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                     <ReceiptRow label={company.name} value="" />
                     {company.vat ? (
                       <ReceiptRow label={t('pos.done.vat')} value={company.vat} />
+                    ) : company.identifier ? (
+                      <ReceiptRow
+                        label={t(`customerForm.identifier.schemes.${company.identifier.scheme}`)}
+                        value={company.identifier.value}
+                      />
                     ) : null}
                   </>
                 ) : buyer ? (
