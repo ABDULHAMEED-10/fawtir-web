@@ -59,7 +59,6 @@ import { formatFileSize } from '../../lib/files'
 import { muscatToday } from '../../lib/invoiceIssue'
 import {
   NOTE_ROUTES,
-  delivered,
   daysBetween,
   reasonLabelKey,
   participantIdText,
@@ -341,11 +340,12 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
         ) / 1000
       : null
 
+  // Manual delivery only: a detail page never reads `peppolResponse` (api/invoices/detail.ts).
   const status: NoteListStatus = draft
     ? 'draft'
     : data.authoringState !== 'ISSUED'
       ? 'cancelled'
-      : !delivered(data)
+      : data.deliveryState !== 'SENT_MANUALLY'
         ? 'toSend'
         : credit
           ? refunding

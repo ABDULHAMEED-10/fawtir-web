@@ -910,6 +910,10 @@ describe('a paid debit note row (4.7)', () => {
     expect(noteStatusOf('CREDIT_NOTE', credit(unsent))).toBe('toSend')
     expect(noteStatusOf('DEBIT_NOTE', peppol)).toBe('paid')
     expect(noteStatusOf('DEBIT_NOTE', unsent)).toBe('toSend')
+    // A rejection is not a delivery.
+    const rejected = { ...unsent, peppolResponse: 'RE' } as InvoiceRowDto
+    expect(noteStatusOf('CREDIT_NOTE', credit(rejected))).toBe('toSend')
+    expect(noteStatusOf('DEBIT_NOTE', rejected)).toBe('toSend')
   })
 
   it('reads a paid or late note from its payment even before it is delivered', () => {
@@ -1285,12 +1289,16 @@ describe("the credit note detail's refund and applied figures (4.19)", () => {
     } as InvoiceDetailDto['totals'],
   }
 
-  const openWith = async (original: InvoiceReceivableDto, originalUnanswered = false) => {
+  const openWith = async (
+    original: InvoiceReceivableDto,
+    originalUnanswered = false,
+    note: InvoiceDetailDto = issuedNote,
+  ) => {
     receivable = original
     override = (url) => {
       if (originalUnanswered && url === `/api/v1/authored-invoices/${INVOICE_ID}`)
         return new Promise<Response>(() => {})
-      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, issuedNote)
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, note)
       if (url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`)
         return json(404, { status: 404 })
       if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/`))
@@ -1357,6 +1365,14 @@ describe("the credit note detail's refund and applied figures (4.19)", () => {
       '/customers/c-1/edit',
     )
     expect(screen.getAllByText('INV-2026-0042').length).toBeGreaterThan(0)
+  }, 30_000)
+
+  it('reads delivery from the manual send only, never from a Peppol response', async () => {
+    // detail.ts: the detail screens do not read peppolResponse until the API defines it.
+    const unsent = { ...issuedNote, deliveryState: 'NOT_SUBMITTED', peppolResponse: 'AP' as const }
+    await openWith({ ...RECEIVABLE, documentTotal: 100, creditedAmount: 35.91 }, false, unsent)
+    expect(screen.getAllByText('To be sent').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Applied')).toBeNull()
   }, 30_000)
 
   it('shows a placeholder, not the raw invoice id, while the original invoice is unread', async () => {

@@ -212,6 +212,23 @@ function paymentOf(row: InvoiceRowDto): Pick<InvoiceListItem, 'payment' | 'payme
   return { payment: delivered(row) ? 'awaiting' : 'toSend' }
 }
 
+/**
+ * A note row's words from the notes lists' rule, with two exceptions that keep what this list
+ * already said. A debit note that is paid, partly paid or overdue keeps its payment pill:
+ * noteStatusOf reads delivery first, and the backend sends no Peppol response, so an undelivered
+ * paid debit note would read "To be sent" (the hazard debitPaymentOf names). A discarded note
+ * keeps "Discarded", which noteStatusOf folds into "Cancelled".
+ */
+function listNoteStatus(row: InvoiceRowDto, payment: PaymentChip | null): NoteListStatus | null {
+  if (row.type !== 'CREDIT_NOTE' && row.type !== 'DEBIT_NOTE') return null
+  if (row.authoringState === 'DISCARDED') return null
+  if (
+    row.type === 'DEBIT_NOTE' &&
+    (payment === 'paid' || payment === 'partial' || payment === 'overdue')
+  )
+    return null
+  return noteStatusOf(row.type, row)
+}
 
 /** The draft's lines through the same engine the composer uses, at the currency's scale. */
 function estimateOf(row: InvoiceRowDto): number | null {
@@ -275,7 +292,6 @@ export function toInvoiceListItem(row: InvoiceRowDto): InvoiceListItem {
     branchId: row.branchId ?? null,
     isDraft,
     approval: isDraft ? (row.approvalState ?? null) : null,
-    noteStatus:
-      row.type === 'CREDIT_NOTE' || row.type === 'DEBIT_NOTE' ? noteStatusOf(row.type, row) : null,
+    noteStatus: listNoteStatus(row, payment.payment),
   }
 }
