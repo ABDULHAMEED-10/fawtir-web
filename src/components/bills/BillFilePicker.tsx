@@ -1,43 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FileDropzone } from '../ui'
 import { ApiError } from '../../api/errors'
-import { INTAKE_MAX_BYTES, uploadIntake, type IntakeDto, type IntakeSourceDto } from '../../api/expenditure/billIntake'
+import {
+  INTAKE_MAX_BYTES,
+  uploadIntake,
+  type IntakeDto,
+  type IntakeSourceDto,
+} from '../../api/expenditure/billIntake'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { UPLOAD_REFUSALS, fileKindOf } from '../../lib/billIntake'
 import fileIcon from '../../assets/bill-capture/file.svg'
+import { readingPercent, useElapsedSeconds } from './readingProgress'
 
 /** One stored file, and how long its upload took as the browser saw it (the reading time). */
 export type UploadedIntake = { intake: IntakeDto; file: File; readSeconds?: number }
-
-/** The server gives the reader about 45 seconds; the bar fills towards that and never quite ends. */
-const READ_BUDGET_SECONDS = 45
-
-/**
- * Seconds since `running` turned true, ticking once a second, and 0 while it is false. The
- * upload waits for the document reader, so the person sees time passing instead of a frozen box.
- */
-export function useElapsedSeconds(running: boolean): number {
-  const [seconds, setSeconds] = useState(0)
-  useEffect(() => {
-    if (!running) {
-      setSeconds(0)
-      return
-    }
-    const started = Date.now()
-    const timer = window.setInterval(
-      () => setSeconds(Math.floor((Date.now() - started) / 1000)),
-      1000,
-    )
-    return () => window.clearInterval(timer)
-  }, [running])
-  return seconds
-}
-
-/** The share of the reading budget used, held below 95% until the answer comes. */
-export function readingPercent(seconds: number): number {
-  return Math.min(95, Math.round((seconds / READ_BUDGET_SECONDS) * 100))
-}
 
 /**
  * The first step of every intake: the supplier's file goes to the server before anything is
@@ -84,7 +61,10 @@ export function BillFilePicker({
         uploaded.push({ intake, file, readSeconds: (performance.now() - started) / 1000 })
       }
     } catch (error) {
-      const coded = error instanceof ApiError && error.code && Object.hasOwn(UPLOAD_REFUSALS, error.code) ? UPLOAD_REFUSALS[error.code] : undefined
+      const coded =
+        error instanceof ApiError && error.code && Object.hasOwn(UPLOAD_REFUSALS, error.code)
+          ? UPLOAD_REFUSALS[error.code]
+          : undefined
       const failure = describeApiFailure(error)
       setRefusal(coded ? t(coded) : t(failure.key, failure.values))
     } finally {
@@ -102,14 +82,20 @@ export function BillFilePicker({
         multiple={multiple}
         maxBytes={INTAKE_MAX_BYTES}
         onFiles={(files) => void take(files)}
-        onReject={(reason) => setRefusal(t(reason === 'size' ? 'billIntake.upload.tooLarge' : 'billIntake.upload.wrongType'))}
+        onReject={(reason) =>
+          setRefusal(
+            t(reason === 'size' ? 'billIntake.upload.tooLarge' : 'billIntake.upload.wrongType'),
+          )
+        }
         className="w-full"
       >
         {({ dragging }) => (
           <span
             className={[
               'flex w-full flex-col items-center gap-3 rounded-sm border border-dashed px-6 py-12 text-center transition-colors',
-              dragging ? 'border-primary-700 bg-primary-25' : 'border-primary-300 bg-surface-tab-bar',
+              dragging
+                ? 'border-primary-700 bg-primary-25'
+                : 'border-primary-300 bg-surface-tab-bar',
             ].join(' ')}
           >
             <span className="flex size-12 items-center justify-center rounded-sm bg-white">
