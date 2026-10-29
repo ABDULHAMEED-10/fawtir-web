@@ -366,6 +366,33 @@ describe('The compliance archive, wired to the API', () => {
     expect(screen.queryByText(/the log can't be edited/)).toBeNull()
   })
 
+  it('gives a delivery time only for a document that was delivered (A-5)', async () => {
+    const deliveredAt = () =>
+      screen.getByText('Delivered at').nextElementSibling?.textContent ?? null
+    // Issued, and nothing says it reached the buyer: the record's own time is not a delivery.
+    const first = renderArchive(`/compliance/documents/${ISSUED.invoice_uuid}`)
+    await screen.findByText('Delivered at')
+    expect(deliveredAt()).toBe('-')
+    first.unmount()
+
+    extra = [
+      {
+        ...ISSUED,
+        invoice_uuid: '33333333-3333-3333-3333-333333333333',
+        delivered_at: '2026-09-02T09:30:00Z',
+      },
+    ]
+    const second = renderArchive('/compliance/documents/33333333-3333-3333-3333-333333333333')
+    await screen.findByText('Delivered at')
+    expect(deliveredAt()).toContain('2 Sept 2026')
+    second.unmount()
+
+    // A received document was delivered to us when it arrived.
+    renderArchive(`/compliance/documents/${RECEIVED.invoice_uuid}`)
+    await screen.findByText('Delivered at')
+    expect(deliveredAt()).toContain('1 Sept 2026')
+  })
+
   it('shows a received record as reported by us as receiver, dated when it arrived', async () => {
     renderArchive(`/compliance/documents/${RECEIVED.invoice_uuid}`)
     expect(await screen.findByText(/received 1 Sept 2026/)).toBeTruthy()

@@ -875,9 +875,15 @@ function Sheet({ item, sheet }: { item: ArchiveItemDto; sheet: ArchiveSheet }) {
             : null}
         </Field>
         <Field label={t('documents.detail.profile')}>{profile}</Field>
-        {/* TODO(backend): the network's delivery time (ask 3.9); the record's own time stands in. */}
+        {/* TODO(backend): the network's delivery time (ask 3.9). The record's own time stood in
+            and read "Delivered at" over a document that never left (A-5, local E2E 2026-10-29):
+            only a received document's arrival is a delivery, to us. */}
         <Field label={t('documents.detail.deliveredAt')}>
-          {formatInstant(item.delivered_at ?? item.occurred_at, language)}
+          {item.delivered_at
+            ? formatInstant(item.delivered_at, language)
+            : item.direction === 'RECEIVED'
+              ? formatInstant(item.occurred_at, language)
+              : null}
         </Field>
         {/* TODO(backend): the validation layers' results (DOCUMENTS.md row 3.19). "All five
             layers passed" is said only when the archive reports it. */}
