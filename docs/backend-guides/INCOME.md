@@ -920,3 +920,22 @@ the screens still draw without an answer. Rows P.11 and P.12 are done.
 | P.29 | "Email it" and "Text it" on the receipt screen | no route sends a till receipt by e-mail or SMS; only printing works |
 | P.30 | "One of your customers since April 2025" and the customer's own price account ("Hotel accounts · 12% off") on the company match | neither is on the customer read; the till shows the city, the Peppol id and the terms |
 | P.31 | "Accepted by the OTA" on the sale being refunded | `GET /v1/pos/refund-lookup` does not carry the invoice's filing state; asked: `filing` as on the sale |
+
+## Update 2026-10-29 (Catalog › Groups)
+
+Catalog › Groups (`/catalog/groups`, `src/pages/CatalogPage/CatalogGroupsPage.tsx`) lists, adds,
+renames, reorders and deletes the company's groups and the kinds inside them on
+`GET/POST /v1/catalog/groups`, `PUT/DELETE /v1/catalog/groups/{id}?expectedVersion=`,
+`POST /v1/catalog/groups/{id}/kinds` and `PUT/DELETE /v1/catalog/kinds/{id}?expectedVersion=`
+(a kind moves to another group with `groupId`). Reading needs `product.read`, changes
+`product.manage`. Every refusal code is worded (`CATALOGUE_NAME_REQUIRED`,
+`CATALOGUE_GROUP_NAME_DUPLICATE`, `CATALOGUE_KIND_NAME_DUPLICATE`,
+`CATALOGUE_GROUP_VERSION_CONFLICT`, `CATALOGUE_GROUP_NOT_EMPTY`, `CATALOGUE_KIND_IN_USE`,
+`CATALOGUE_GROUP_NOT_FOUND`, `CATALOGUE_KIND_NOT_FOUND`). The item form's "Where it lives" lists
+carry "Add a group" and "Add a kind", so a new company (which starts with no groups) can file its
+first item without leaving the form. Delete is final; there is no archive for groups or kinds.
+
+| #    | What the screen needs | Backend |
+| ---- | --- | --- |
+| P.40 | Reorder groups, and kinds within a group, in one step | there is no reorder route: moving a row up or down saves every row whose place changed with its own `PUT ...?expectedVersion=` (name, `nameAr` and the new `sortOrder` sent back, because a missing `sortOrder` is stored as 0). A failure part way leaves the rows saved so far. Asked: `PUT /v1/catalog/groups/order` (and `.../groups/{id}/kinds/order`) taking the ids in their new order, in one transaction |
+| P.41 | How many items each kind and group holds | `GET /v1/catalog/groups` carries no counts, so the screen shows the number of kinds only and learns that a kind still holds items on sale when its delete is refused (`CATALOGUE_KIND_IN_USE`). Asked: `productCount` (active products) on each kind and its total on each group |
