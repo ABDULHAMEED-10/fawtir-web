@@ -157,8 +157,8 @@ function OnTheCompany({ till }: { till: Ready }) {
   const navigate = useNavigate()
   // The open sale is shared with the payment and receipt screens (src/lib/posSale.ts).
   const { lines, company } = useOpenSale()
-  const handedOver = (useLocation().state as CompanyScreenState | null)?.missing ?? []
   const [vat, setVat] = useState('')
+  const handedOver = (useLocation().state as CompanyScreenState | null)?.missing ?? []
   const [picked, setPicked] = useState<Found | null>(
     company
       ? {
