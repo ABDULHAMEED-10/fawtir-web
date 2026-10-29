@@ -1217,7 +1217,8 @@
       "catalogChildren": {
         "allItems": "All Items",
         "bundles": "Bundles",
-        "priceRules": "Price Rules"
+        "priceRules": "Price Rules",
+        "groups": "Groups"
       },
       "lockedOn": "Available on {{plan}}",
       "billRemindersUnread": "Bill reminders, {{count}} unread"
@@ -12454,7 +12455,12 @@
     "kindChoose": "Choose a kind",
     "perOption": "Set per option",
     "addOnName": "Add-on name",
-    "addOnPrice": "Price of {{name}}"
+    "addOnPrice": "Price of {{name}}",
+    "groupNone": "No groups yet",
+    "addGroup": "Add a group",
+    "kindNeedsGroup": "Add a group first",
+    "kindNone": "No kinds in this group yet",
+    "addKind": "Add a kind to {{group}}"
   },
   "itemSells": {
     "export": "Export",
@@ -24903,5 +24909,65 @@
         "SA": "sacks"
       }
     }
+  },
+  "catalogGroups": {
+    "title": "Groups",
+    "subtitle": "Your catalogue has three levels: a group, the kinds inside it, then the items you sell. Groups and kinds carry no price or tax; the item does.",
+    "newGroup": "New group",
+    "emptyTitle": "No groups yet",
+    "emptyBody": "Add a group, such as Hot drinks or Skin care, then the kinds inside it, such as Milk coffee. Every item you add is filed under a kind.",
+    "emptyReadOnly": "Your company has not added any groups yet.",
+    "kindCount_one": "{{count}} kind",
+    "kindCount_other": "{{count}} kinds",
+    "noKinds": "No kinds yet. Items are filed under a kind, so add one to use this group.",
+    "kindsIn": "Kinds in {{group}}",
+    "addKindTo": "Add a kind to {{group}}",
+    "groupActions": "Actions for {{name}}",
+    "kindActions": "Actions for {{name}}",
+    "renameKind": "Rename it",
+    "removeKind": "Remove the kind",
+    "moveUp": "Move {{name}} up",
+    "moveDown": "Move {{name}} down",
+    "dialog": {
+      "newGroup": "New group",
+      "newKind": "New kind",
+      "editGroup": "Rename the group",
+      "editKind": "Rename the kind",
+      "newKindIn": "Inside {{group}}",
+      "groupNote": "Group names are unique in your company.",
+      "kindNote": "Kind names are unique within their group.",
+      "groupName": "Group name",
+      "kindName": "Kind name",
+      "groupPlaceholder": "For example Hot drinks",
+      "kindPlaceholder": "For example Milk coffee",
+      "arabicName": "Name in Arabic",
+      "inGroup": "In the group",
+      "save": "Save"
+    },
+    "remove": {
+      "groupTitle": "Remove {{name}}?",
+      "kindTitle": "Remove {{name}}?",
+      "groupBody": "The group is deleted for good. A group that still has kinds cannot be removed: move or remove its kinds first.",
+      "kindBody": "The kind is deleted for good. A kind that items on sale are filed under cannot be removed: move those items to another kind first. Items already switched off are left without a kind.",
+      "confirm": "Remove",
+      "removing": "Removing…",
+      "groupBlocked_one": "This group still has {{count}} kind, so it cannot be removed. Move or remove the kind first.",
+      "groupBlocked_other": "This group still has {{count}} kinds, so it cannot be removed. Move or remove its kinds first.",
+      "kindBlocked_one": "{{count}} item on sale is filed under this kind, so it cannot be removed. Move it to another kind first.",
+      "kindBlocked_other": "{{count}} items on sale are filed under this kind, so it cannot be removed. Move them to another kind first."
+    },
+    "refusal": {
+      "nameRequired": "Type a name of at most 200 characters.",
+      "groupNameTaken": "Another group already has this name.",
+      "kindNameTaken": "Another kind in this group already has this name.",
+      "changedMeanwhile": "Someone changed this while you were working. The list has been reloaded; try again.",
+      "groupNotEmpty": "This group still has kinds. Move or remove its kinds first, then remove the group.",
+      "kindInUse": "Items on sale are filed under this kind. Move them to another kind first, then remove it.",
+      "groupGone": "This group no longer exists. The list has been reloaded.",
+      "kindGone": "This kind no longer exists. The list has been reloaded.",
+      "orderInvalid": "The new order could not be saved because the list was not complete. The list has been reloaded; try again."
+    },
+    "itemCount_one": "{{count}} item",
+    "itemCount_other": "{{count}} items"
   }
 }

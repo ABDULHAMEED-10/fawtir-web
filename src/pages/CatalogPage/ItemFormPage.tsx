@@ -107,6 +107,7 @@ import plusIcon from '../../assets/catalog/plus-muted.svg'
 import trashIcon from '../../assets/catalog/trash-danger.svg'
 import tickWhiteIcon from '../../assets/catalog/check-white.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
+import { CatalogNameModal, type CatalogNameTarget } from './CatalogNameModal'
 
 const KINDS: { id: ItemKind; icon: string }[] = [
   { id: 'handOver', icon: handOverIcon },
@@ -240,6 +241,9 @@ function ItemEditor({
   const [pickedGroup, setGroup] = useState(loaded?.groupId ?? '')
   // The group follows the kind once the groups have answered.
   const group = groups.find((entry) => entry.kinds.some((k) => k.id === kindId))?.id ?? pickedGroup
+  // A new company has no groups (guide section 2): "Add a group" / "Add a kind" under each list.
+  const noGroups = groupsRead.read.status === 'ready' && groups.length === 0
+  const [nameDialog, setNameDialog] = useState<CatalogNameTarget | null>(null)
   const [code, setCode] = useState(stored?.code ?? '')
   const [barcode, setBarcode] = useState(stored?.barcode ?? '')
   const [soldAs, setSoldAs] = useState(stored?.unit ?? ITEM.soldAs)
@@ -842,13 +846,26 @@ function ItemEditor({
                         quiet
                         ariaLabel={t('item.group')}
                         value={group}
-                        placeholder={t('item.groupChoose')}
+                        placeholder={noGroups ? t('item.groupNone') : t('item.groupChoose')}
                         onChange={(value) => {
                           setGroup(value)
                           const first = groups.find((entry) => entry.id === value)?.kinds[0]
                           setKindId(first?.id ?? '')
                         }}
                         options={groupOptions}
+                        footer={
+                          readOnly || groupsRead.read.status !== 'ready'
+                            ? undefined
+                            : (close) => (
+                                <PickerAddButton
+                                  label={t('item.addGroup')}
+                                  onClick={() => {
+                                    close()
+                                    setNameDialog({ mode: 'newGroup', groups })
+                                  }}
+                                />
+                              )
+                        }
                       />
                     </label>
                     <img
@@ -866,9 +883,30 @@ function ItemEditor({
                         quiet
                         ariaLabel={t('item.kindLabel')}
                         value={kindId}
-                        placeholder={t('item.kindChoose')}
+                        placeholder={
+                          noGroups
+                            ? t('item.kindNeedsGroup')
+                            : group && kindOptions.length === 0
+                              ? t('item.kindNone')
+                              : t('item.kindChoose')
+                        }
                         onChange={setKindId}
                         options={kindOptions}
+                        footer={(() => {
+                          const into = groups.find((entry) => entry.id === group)
+                          if (readOnly || !into) return undefined
+                          return (close: () => void) => (
+                            <PickerAddButton
+                              label={t('item.addKind', {
+                                group: catalogNameOf(into, i18n.language),
+                              })}
+                              onClick={() => {
+                                close()
+                                setNameDialog({ mode: 'newKind', group: into })
+                              }}
+                            />
+                          )
+                        })()}
                       />
                     </label>
                     <img
@@ -1598,7 +1636,41 @@ function ItemEditor({
           {t('itemForm.offSaleBody', { name: product?.name ?? '' })}
         </p>
       </Modal>
+
+      {nameDialog ? (
+        <CatalogNameModal
+          target={nameDialog}
+          onClose={() => setNameDialog(null)}
+          onSaved={(saved) => {
+            setNameDialog(null)
+            if ('kinds' in saved) {
+              setGroup(saved.id)
+              setKindId('')
+            } else {
+              setGroup(saved.groupId)
+              setKindId(saved.id)
+            }
+            groupsRead.retry()
+          }}
+        />
+      ) : null}
     </CatalogShell>
+  )
+}
+
+/** "Add a group" / "Add a kind" under the "Where it lives" lists, in the pickers' own footer style. */
+function PickerAddButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-2 px-4 py-2.5 text-start text-sm font-semibold text-primary-800 transition-colors hover:bg-primary-25"
+    >
+      <span aria-hidden="true" className="text-lg leading-none">
+        +
+      </span>
+      {label}
+    </button>
   )
 }
 
