@@ -2,6 +2,7 @@ import { ApiError, apiRequest } from '../../api'
 import { required, type FieldError } from '../validation'
 import { forgetEntitlements, isPlatformOperator, loadEntitlements } from './entitlements'
 import { commonFailureMessage, type FormMessage } from './errors'
+import { safeReturnPath } from './returnTo'
 
 export const LOGIN_PATH = '/v1/auth/login'
 export const LOGIN_CODE_PATH = '/v1/auth/mfa/otp/request'
@@ -19,12 +20,15 @@ export const CONSOLE_ROUTE = '/console'
  * theirs. When the entitlements cannot be read the tenant dashboard is the safe landing — its own
  * shell asks again and sends the user to sign in if the session is not there.
  */
-export async function landingRoute(): Promise<string> {
+export async function landingRoute(next: string | null = null): Promise<string> {
+  // A sign-in started from inside the app goes back there (Switch user on the till goes back to
+  // the till), but only to a path of this app; an operator always lands on the console.
+  const back = safeReturnPath(next)
   try {
     const entitlements = await loadEntitlements()
-    return isPlatformOperator(entitlements) ? CONSOLE_ROUTE : SIGNED_IN_ROUTE
+    return isPlatformOperator(entitlements) ? CONSOLE_ROUTE : (back ?? SIGNED_IN_ROUTE)
   } catch {
-    return SIGNED_IN_ROUTE
+    return back ?? SIGNED_IN_ROUTE
   }
 }
 

@@ -4428,7 +4428,8 @@
       "slipUnread": "We couldn't read this slip. Type the approval code if you need it.",
       "slipRead": "Read from the slip: {{card}} {{rrn}}",
       "slipCheck": "Check the marked field before you press Paid.",
-      "slipDiffers": "The slip says {{slip}}, the payment is {{payment}}."
+      "slipDiffers": "The slip says {{slip}}, the payment is {{payment}}.",
+      "slipKeptOffline": "The till is offline. The slip photo is kept with this sale and sent once the connection is back. Type the approval code if you need it now."
     },
     "done": {
       "title": "Paid and filed",

@@ -6,6 +6,14 @@ import {
   type PosSaleRequest,
   type PosTillDto,
 } from '../api/pos/pos'
+import {
+  dropSlipPhotos,
+  holdSlipPhotos,
+  retrySlipPhotos,
+  sendSlipPhotos,
+  type SlipPhoto,
+} from './posSlipOutbox'
+import { forgetBuyer, openBuyer, sealBuyer } from './posVault'
 
 /**
  * The till keeps selling when the connection drops (guide section 9, "Offline"). A sale that
@@ -16,8 +24,12 @@ import {
  * queue too: an online sale would take the next number and leave a gap behind the queued ones.
  *
  * TODO(backend): a sale made offline prints its number but not its QR; the QR's signed payload
- * is made by the server once the sale is sent (INCOME.md row P.28). A slip photo is not kept
- * with a queued sale: Scan slip needs the connection.
+ * is made by the server once the sale is sent (INCOME.md row P.28).
+ *
+ * A full invoice names its buyer, and their civil ID or passport number is personal data: the
+ * queue entry never holds it where the device can seal it (`posVault`), and it is removed the
+ * moment the sale is filed or finally refused. A slip photo taken offline waits with the sale
+ * and is attached once it is filed (`posSlipOutbox`).
  */
 
 export type QueuedSale = {
@@ -27,6 +39,10 @@ export type QueuedSale = {
   body: PosSaleRequest
   /** The refusal that stopped the queue, worded on the till; null while it is only waiting. */
   refusal: string | null
+  /** The buyer was taken out of `body` and sealed on the device, to be put back as it is sent. */
+  sealed?: boolean
+  /** Refused for good: not sent again, and nothing personal is kept for it. */
+  final?: boolean
 }
 
 const QUEUE_KEY = 'fawtir.pos.queue'
@@ -97,39 +113,79 @@ export function queuedFor(tillId: string): QueuedSale[] {
 export type SubmitResult = { sale: PosSaleDto } | { queued: QueuedSale }
 
 /**
+ * A refusal that the same sale sent again cannot get past. Sign-in, permission (which an
+ * administrator may give back), a lapse and a server fault are tried again.
+ */
+export function isFinalRefusal(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    ![401, 403, 408, 425, 429].includes(error.status)
+  )
+}
+
+/** The buyer taken out of the entry, sealed on the device when it can be. */
+async function sealed(entry: QueuedSale): Promise<QueuedSale> {
+  const consumer = entry.body.customer.consumer
+  if (!consumer || !(await sealBuyer(entry.key, consumer))) return entry
+  const customer = { ...entry.body.customer }
+  delete customer.consumer
+  return { ...entry, body: { ...entry.body, customer }, sealed: true }
+}
+
+/** The body as it is sent: the sealed buyer put back, held only for the request. */
+async function bodyToSend(entry: QueuedSale): Promise<PosSaleRequest> {
+  if (!entry.sealed) return entry.body
+  const consumer = await openBuyer(entry.key)
+  return consumer ? { ...entry.body, customer: { ...entry.body.customer, consumer } } : entry.body
+}
+
+/** Nothing personal is left of a sale the server has, or will never take. */
+async function forget(entry: QueuedSale) {
+  await forgetBuyer(entry.key)
+}
+
+/**
  * Sends one sale, or numbers it and keeps it when the till is offline (or already has a queue).
  * A refusal (`ApiError`) is not queued: it is the cashier's to put right, so it is thrown.
+ * `photos` are bank slips scanned while offline: kept with the sale, attached once it is filed.
  */
 export async function submitSale(
   till: PosTillDto,
   body: PosSaleRequest,
   key: string,
+  photos: SlipPhoto[] = [],
 ): Promise<SubmitResult> {
-  const enqueue = (): SubmitResult => {
+  const enqueue = async (): Promise<SubmitResult> => {
     const number = nextTillNumber(till)
     if (!number) throw new NetworkError('offline')
-    const entry: QueuedSale = {
+    // Taken now, before the awaits below: a second sale must not print the same number.
+    noteNumberUsed(till.id, number)
+    const entry = await sealed({
       key,
       tillId: till.id,
       number,
       body: { ...body, queuedOffline: true, invoiceNumber: number },
       refusal: null,
-    }
+    })
     save([...queue, entry])
-    noteNumberUsed(till.id, number)
     return { queued: entry }
   }
+  await holdSlipPhotos(key, till.id, photos)
   if (queuedFor(till.id).length > 0) {
-    const result = enqueue()
+    const result = await enqueue()
     void flushQueue(till.id)
     return result
   }
   try {
     const sale = await createPosSale(body, key)
     noteNumberUsed(till.id, sale.invoiceNumber)
+    void sendSlipPhotos(key, sale.saleId, till.id)
     return { sale }
   } catch (error) {
     if (error instanceof NetworkError) return enqueue()
+    void dropSlipPhotos(key)
     throw error
   }
 }
@@ -142,17 +198,34 @@ export async function flushQueue(tillId: string): Promise<void> {
   flushing = true
   try {
     for (const entry of queuedFor(tillId)) {
+      if (entry.final) return
       try {
-        await createPosSale(entry.body, entry.key)
+        const sale = await createPosSale(await bodyToSend(entry), entry.key)
         save(queue.filter((other) => other.key !== entry.key))
+        await forget(entry)
+        void sendSlipPhotos(entry.key, sale.saleId, tillId)
       } catch (error) {
         if (error instanceof ApiError) {
+          const final = isFinalRefusal(error)
+          if (final) {
+            await forget(entry)
+            await dropSlipPhotos(entry.key)
+          }
           save(
-            queue.map((other) =>
-              other.key === entry.key
-                ? { ...other, refusal: error.code ?? `HTTP_${error.status}` }
-                : other,
-            ),
+            queue.map((other) => {
+              if (other.key !== entry.key) return other
+              const refused = {
+                ...other,
+                refusal: error.code ?? `HTTP_${error.status}`,
+                ...(final ? { final: true } : {}),
+              }
+              if (final && refused.body.customer.consumer) {
+                const customer = { ...refused.body.customer }
+                delete customer.consumer
+                refused.body = { ...refused.body, customer }
+              }
+              return refused
+            }),
           )
         }
         return
@@ -160,6 +233,7 @@ export async function flushQueue(tillId: string): Promise<void> {
     }
   } finally {
     flushing = false
+    void retrySlipPhotos(tillId)
   }
 }
 
@@ -187,5 +261,6 @@ export function usePosQueue(tillId: string | null): QueuedSale[] {
 
 /** For tests. */
 export function resetPosQueue() {
+  flushing = false
   save([])
 }

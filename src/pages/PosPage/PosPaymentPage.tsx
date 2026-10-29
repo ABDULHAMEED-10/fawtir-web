@@ -38,11 +38,19 @@ import { shrinkSlip, slipReading, type SlipReading } from '../../lib/posSlip'
 import { useReferenceData } from '../../lib/reference/referenceData'
 import { DESIGN_REFERENCE } from '../../lib/invoiceDraft'
 import { newPosKey, readPosSlip, uploadPosSlip, type PosSaleRequest } from '../../api/pos/pos'
-import { ApiError } from '../../api'
+import { ApiError, NetworkError } from '../../api'
+import { MAX_SLIP_BYTES } from '../../lib/posSlipOutbox'
 import { BUYER_IDENTIFIER_SCHEMES } from '../../api/customers/customers'
 import type { TillState } from '../../lib/posTill'
 
 type Ready = Extract<TillState, { status: 'ready' }>
+
+/** The slip on the card being taken: uploaded (`fileId`), or kept on the device while offline. */
+type HeldSlip = {
+  fileId: string | null
+  photo: { blob: Blob; name: string } | null
+  reading: SlipReading
+}
 
 /** One picture per way of paying, on the tiles and on the payments already taken. */
 function MethodIcon({ id, className }: { id: MethodId; className?: string }) {
@@ -138,7 +146,7 @@ function Payment({ till }: { till: Ready }) {
   const [amountText, setAmountText] = useState('')
   const [approval, setApproval] = useState('')
   const [reference2, setReference2] = useState('')
-  const [slip, setSlip] = useState<{ fileId: string; reading: SlipReading } | null>(null)
+  const [slip, setSlip] = useState<HeldSlip | null>(null)
   const [slipState, setSlipState] = useState<'idle' | 'reading' | 'failed'>('idle')
   const [slipError, setSlipError] = useState<unknown>(null)
   const slipInput = useRef<HTMLInputElement>(null)
@@ -172,8 +180,10 @@ function Payment({ till }: { till: Ready }) {
   const scanSlip = async (file: File) => {
     setSlipState('reading')
     setSlipError(null)
+    let kept: { blob: Blob; name: string } | null = null
     try {
       const { blob, name } = await shrinkSlip(file)
+      kept = { blob, name }
       const uploaded = await uploadPosSlip(till.till.id, blob, name)
       let reading: SlipReading = { unread: true, fields: {}, unsure: [] }
       try {
@@ -181,10 +191,16 @@ function Payment({ till }: { till: Ready }) {
       } catch {
         // Reading is a help, never a step: the slip is kept and the cashier types what they need.
       }
-      setSlip({ fileId: uploaded.fileId, reading })
+      setSlip({ fileId: uploaded.fileId, photo: null, reading })
       if (reading.fields.authCode && !approval) setApproval(reading.fields.authCode)
       setSlipState('idle')
     } catch (error) {
+      // Offline: the shrunk photo waits with the sale and is uploaded once it is filed.
+      if (error instanceof NetworkError && kept && kept.blob.size <= MAX_SLIP_BYTES) {
+        setSlip({ fileId: null, photo: kept, reading: { unread: true, fields: {}, unsure: [] } })
+        setSlipState('idle')
+        return
+      }
       setSlipError(error)
       setSlipState('failed')
     }
@@ -207,7 +223,7 @@ function Payment({ till }: { till: Ready }) {
     if (busy) return
     setBusy(true)
     setRefusal(null)
-    const { payments, tip: tipPart } = paymentsRequest(taken, tip)
+    const { payments, tip: tipPart, slipPhotos } = paymentsRequest(taken, tip)
     const body: Omit<PosSaleRequest, 'soldAt'> = {
       tillId: till.till.id,
       queuedOffline: false,
@@ -230,6 +246,7 @@ function Payment({ till }: { till: Ready }) {
         till.till,
         { ...body, soldAt: attempt.current.soldAt },
         attempt.current.key,
+        slipPhotos,
       )
       setFinishedSale({
         lines,
@@ -465,7 +482,8 @@ function Payment({ till }: { till: Ready }) {
                         amount: partAmount,
                         approvalCode: method === 'card' ? approval : undefined,
                         reference: method === 'transfer' ? reference2 : undefined,
-                        slipFileId: method === 'card' ? slip?.fileId : undefined,
+                        slipFileId: method === 'card' ? (slip?.fileId ?? undefined) : undefined,
+                        slipPhoto: method === 'card' ? (slip?.photo ?? undefined) : undefined,
                         slipFields:
                           method === 'card' && slip && !slip.reading.unread
                             ? slip.reading.fields
@@ -801,7 +819,7 @@ function SlipNote({
   error,
   amount,
 }: {
-  slip: { fileId: string; reading: SlipReading } | null
+  slip: HeldSlip | null
   state: 'idle' | 'reading' | 'failed'
   error: unknown
   amount: number
@@ -816,6 +834,13 @@ function SlipNote({
   }
   if (!slip) return null
   const { reading } = slip
+  if (slip.photo) {
+    return (
+      <p className="rounded-sm bg-surface-background px-3 py-2.5 text-xs font-medium leading-[1.5] text-text-tertiary">
+        {t('pos.pay.slipKeptOffline')}
+      </p>
+    )
+  }
   if (reading.unread) {
     return (
       <p className="rounded-sm bg-surface-background px-3 py-2.5 text-xs font-medium leading-[1.5] text-text-tertiary">
