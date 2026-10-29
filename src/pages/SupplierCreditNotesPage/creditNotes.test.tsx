@@ -2039,6 +2039,18 @@ describe("A held duplicate's wording", () => {
     },
   )
 
+  it.each([
+    ['en', 'The credit is not taken off QMS-7781 yet: it waits to be set against it. Once it is, you pay that much less.'],
+    ['ar', 'لم يُخصم الرصيد من QMS-7781 بعد، فهو ينتظر خصمه منها. وعند خصمه تدفع أقل بهذا المقدار.'],
+  ])('says an unapplied credit is still waiting, not already off what is owed (B-11, %s)', async (language, body) => {
+    await i18n.changeLanguage(language)
+    notes = [note({ credits: namedBill })]
+    billDetail = { bill: { ...OURS, id: BILL_ID, supplierBillNumber: 'QMS-7781' }, lines: [] }
+    renderDetail()
+    expect(await screen.findByText(body)).toBeTruthy()
+    expect(screen.queryByText(/straight off what you owe|مباشرة مما تدين/)).toBeNull()
+  })
+
   // A held copy is left out of input VAT (PEPPOL_DUPLICATE_HELD) even when the bill it corrects
   // is counted, so no reduction may be claimed for it.
   it.each([

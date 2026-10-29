@@ -7511,7 +7511,7 @@
       "corrects": "يصحح",
       "download": "تنزيل",
       "youllPayLess": "ستدفع أقل بمقدار OMR {{amount}}",
-      "youllPayLessNote": "الفاتورة التي يصححها لم تُدفع بعد، لذا يُخصم الرصيد مباشرة مما تدين به.",
+      "youllPayLessNote": "لم يُخصم الرصيد من {{bill}} بعد، فهو ينتظر خصمه منها. وعند خصمه تدفع أقل بهذا المقدار.",
       "theyBilled": "فوتروا",
       "billedNote": "AND-INV-3382 · ٢٨ يوليو",
       "thisCredit": "هذا الرصيد",

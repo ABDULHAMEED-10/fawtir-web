@@ -7135,7 +7135,7 @@
       "corrects": "corrects",
       "download": "Download",
       "youllPayLess": "You'll pay OMR {{amount}} less",
-      "youllPayLessNote": "The bill this corrects hasn't been paid yet, so the credit comes straight off what you owe.",
+      "youllPayLessNote": "The credit is not taken off {{bill}} yet: it waits to be set against it. Once it is, you pay that much less.",
       "theyBilled": "They billed",
       "billedNote": "AND-INV-3382 · 28 Jul",
       "thisCredit": "This credit",
