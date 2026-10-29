@@ -277,7 +277,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
         {note.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
-          <ApiReadFailure error={note.read.error} retry={note.retry} />
+          <ApiReadFailure error={note.read.error} retry={note.retry} notFoundOn400 />
         )}
       </div>
     )

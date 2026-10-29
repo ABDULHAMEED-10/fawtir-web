@@ -329,7 +329,7 @@ function SelfBillScreen() {
         {invoice.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
-          <ApiReadFailure error={invoice.read.error} retry={invoice.retry} />
+          <ApiReadFailure error={invoice.read.error} retry={invoice.retry} notFoundOn400 />
         )}
       </div>
     )

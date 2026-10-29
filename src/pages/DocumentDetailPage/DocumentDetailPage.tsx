@@ -133,7 +133,7 @@ function ArchivedDocument({ invoiceUuid }: { invoiceUuid: string }) {
         {read.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
-          <ApiReadFailure error={read.read.error} retry={read.retry} />
+          <ApiReadFailure error={read.read.error} retry={read.retry} notFoundOn400 />
         )}
       </div>
     )

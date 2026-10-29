@@ -353,7 +353,7 @@ function BillScreen() {
         {bill.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
-          <ApiReadFailure error={bill.read.error} retry={bill.retry} />
+          <ApiReadFailure error={bill.read.error} retry={bill.retry} notFoundOn400 />
         )}
       </div>
     )
