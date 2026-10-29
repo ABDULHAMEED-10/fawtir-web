@@ -20765,7 +20765,9 @@
       "stale": "Someone changed this draft after you opened it. Reload, then issue.",
       "notDraft": "This invoice is no longer a draft.",
       "unavailable": "Issuing isn't available on this server yet.",
-      "activityRequired": "Set your business activity in Company settings before creating a business or government invoice."
+      "activityRequired": "Set your business activity in Company settings before creating a business or government invoice.",
+      "buyerAddressIncomplete": "This customer's address is incomplete for Peppol: add the street, additional street, city, postal code and address line 3, then issue again.",
+      "buyerAddressAction": "Complete the customer"
     },
     "creditNote": {
       "title": "Issue this credit note?",
@@ -20899,6 +20901,18 @@
     "specialZoneLicence": {
       "label": "Special zone licence number",
       "hint": "Only for a customer licensed in a free or special economic zone."
+    },
+    "peppolAddress": {
+      "missing": "Invoices to this customer go over Peppol, which needs these on the invoice address: {{fields}}. A standard invoice is refused until they are added.",
+      "separator": ", ",
+      "field": {
+        "streetName": "street",
+        "additionalStreetName": "additional street or area",
+        "cityName": "city",
+        "postalCode": "postal code",
+        "addressLine3": "address line 3"
+      },
+      "other": "the remaining address details"
     }
   },
   "supplierRecord": {

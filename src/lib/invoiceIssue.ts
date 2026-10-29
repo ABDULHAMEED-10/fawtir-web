@@ -72,6 +72,10 @@ export const ISSUE_REFUSALS: Record<string, { field: IssueField | null; key: str
   SELLER_ADDRESS_INCOMPLETE: { field: null, key: 'invoiceIssue.refused.sellerAddressIncomplete' },
   SELLER_CONTACT_INCOMPLETE: { field: null, key: 'invoiceIssue.refused.sellerContactIncomplete' },
   CUSTOMER_NOT_INVOICE_ELIGIBLE: { field: null, key: 'invoiceIssue.refused.customerIncomplete' },
+  // Backend #817 (A-2): a standard invoice to a customer reached over Peppol whose invoice address
+  // lacks a member IBR-019-OM requires; refused at issue so no number is spent on an invoice the
+  // Send would dead-letter for good.
+  BUYER_ADDRESS_INCOMPLETE: { field: null, key: 'invoiceIssue.refused.buyerAddressIncomplete' },
   INDUSTRIAL_CLASSIFICATION_REQUIRED: { field: null, key: 'invoiceIssue.refused.activityRequired' },
   CUSTOMER_NOT_SELECTABLE: { field: null, key: 'invoiceIssue.refused.customerNotSelectable' },
   PAYMENT_TERMS_REQUIRED: { field: null, key: 'invoiceIssue.refused.termsRequired' },

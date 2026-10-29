@@ -53,6 +53,13 @@ export type CustomerDto = {
   /** False while the record cannot fill a compliant buyer party; issue refuses it (SRS §15). */
   invoiceEligible?: boolean
   missingInvoiceFields?: string[]
+  /**
+   * Backend #817, read-only: for a customer reached over Peppol, the invoice-address members the
+   * Send requires (IBR-019-OM) that are missing, as field paths (`invoiceAddress.addressLine3`);
+   * empty for anyone else. `invoiceEligible` does not change with it. Absent from an older server.
+   */
+  missingPeppolFields?: string[]
+  peppolSendReady?: boolean
   status: CustomerStatusDto
   updatedAt: string
 }

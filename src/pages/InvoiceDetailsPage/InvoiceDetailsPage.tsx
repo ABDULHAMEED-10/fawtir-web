@@ -1863,6 +1863,11 @@ function InvoiceScreen() {
           initialIssueDate={muscatToday()}
           initialDueDate={dueDateFor(reference, muscatToday(), data.details?.paymentTerms?.code)}
           kind={noteType ?? 'INVOICE'}
+          customerEditPath={
+            can(session, 'customer.manage')
+              ? `/customers/${encodeURIComponent(data.customerId)}/edit`
+              : undefined
+          }
           onClose={() => setIssuing(false)}
           onIssued={(issued) => {
             setIssuing(false)

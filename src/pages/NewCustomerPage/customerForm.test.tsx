@@ -647,3 +647,54 @@ describe('buyer identifier and special-zone licence (PINT-OM IBR-016-OM, IBR-152
     expect(await screen.findByLabelText(/رقم ترخيص المنطقة الخاصة/)).toBeTruthy()
   })
 })
+
+describe('a Peppol customer whose invoice address is not ready to send (backend #817)', () => {
+  const serve = (overrides: Partial<CustomerRecordDto>) => {
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === ONE && (init?.method ?? 'GET') === 'GET' ? json(200, record(overrides)) : base(url, init),
+    )
+  }
+
+  it.each([
+    [
+      'en',
+      'Invoices to this customer go over Peppol, which needs these on the invoice address: additional street or area, postal code, address line 3. A standard invoice is refused until they are added.',
+    ],
+    [
+      'ar',
+      'تُرسل فواتير هذا العميل عبر Peppol، ويحتاج ذلك في عنوان الفوترة إلى: الشارع الإضافي أو المنطقة، الرمز البريدي، سطر العنوان 3. تُرفض الفاتورة الضريبية القياسية حتى تُضاف.',
+    ],
+  ])('names the missing members in words (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    serve({
+      peppolSendReady: false,
+      missingPeppolFields: [
+        'invoiceAddress.additionalStreetName',
+        'invoiceAddress.postalCode',
+        'invoiceAddress.addressLine3',
+      ],
+    })
+    renderAt(`/customers/${ID}/edit`)
+    expect(await screen.findByText(sentence)).toBeTruthy()
+  })
+
+  it('says nothing when the address is ready, or from a server without the field', async () => {
+    serve({ peppolSendReady: true, missingPeppolFields: [] })
+    const { unmount } = renderAt(`/customers/${ID}/edit`)
+    await screen.findAllByRole('button', { name: 'Save changes' })
+    expect(screen.queryByText(/go over Peppol/)).toBeNull()
+    unmount()
+    serve({})
+    renderAt(`/customers/${ID}/edit`)
+    await screen.findAllByRole('button', { name: 'Save changes' })
+    expect(screen.queryByText(/go over Peppol/)).toBeNull()
+  })
+
+  it('never shows a code for a member this build has no word for', async () => {
+    serve({ peppolSendReady: false, missingPeppolFields: ['invoiceAddress.somethingNew'] })
+    renderAt(`/customers/${ID}/edit`)
+    expect(await screen.findByText(/needs these on the invoice address: the remaining address details\./)).toBeTruthy()
+    expect(screen.queryByText(/somethingNew/)).toBeNull()
+  })
+})

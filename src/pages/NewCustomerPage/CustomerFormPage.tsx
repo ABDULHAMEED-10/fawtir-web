@@ -433,6 +433,9 @@ function CustomerFormPage({ customerId }: { customerId: string | null }) {
       {record && record.invoiceEligible === false ? (
         <Notice body={t('customerForm.notEligible')} />
       ) : null}
+      {record && record.peppolSendReady === false ? (
+        <Notice body={peppolAddressNotice(t, record.missingPeppolFields ?? [])} />
+      ) : null}
 
       <SectionCard step={1} title={t('newCustomer.sections.customerType')}>
         <div className="grid gap-4 md:grid-cols-3">
@@ -1202,4 +1205,31 @@ function AddressBlock({
       ) : null}
     </div>
   )
+}
+
+/**
+ * The invoice-address members a Peppol customer still lacks, in words (backend #817). The server
+ * names them as field paths (`invoiceAddress.addressLine3`); the member is the last segment. One
+ * this build has no word for is said as "the remaining address details", never as a code.
+ */
+const PEPPOL_ADDRESS_FIELDS: Record<string, string> = {
+  streetName: 'customerForm.peppolAddress.field.streetName',
+  additionalStreetName: 'customerForm.peppolAddress.field.additionalStreetName',
+  cityName: 'customerForm.peppolAddress.field.cityName',
+  postalCode: 'customerForm.peppolAddress.field.postalCode',
+  addressLine3: 'customerForm.peppolAddress.field.addressLine3',
+}
+
+function peppolAddressNotice(t: (key: string, values?: Record<string, string>) => string, missing: readonly string[]): string {
+  const words: string[] = []
+  let unknown = false
+  for (const path of missing) {
+    const member = path.split('.').pop() ?? path
+    if (Object.hasOwn(PEPPOL_ADDRESS_FIELDS, member)) words.push(t(PEPPOL_ADDRESS_FIELDS[member]))
+    else unknown = true
+  }
+  if (unknown || words.length === 0) words.push(t('customerForm.peppolAddress.other'))
+  return t('customerForm.peppolAddress.missing', {
+    fields: words.join(t('customerForm.peppolAddress.separator')),
+  })
 }

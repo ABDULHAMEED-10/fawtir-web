@@ -2527,3 +2527,47 @@ describe('Cancel when the page cannot tell, and on a note (A-0 review)', () => {
     expect(await screen.findByText(sentence)).toBeTruthy()
   })
 })
+
+describe('issuing to a Peppol customer whose address is incomplete (backend #817)', () => {
+  it.each([
+    [
+      'en',
+      "This customer's address is incomplete for Peppol: add the street, additional street, city, postal code and address line 3, then issue again.",
+    ],
+    [
+      'ar',
+      'عنوان هذا العميل غير مكتمل لإرسال Peppol: أضف الشارع والشارع الإضافي والمدينة والرمز البريدي وسطر العنوان 3، ثم أصدر الفاتورة مرة أخرى.',
+    ],
+  ])('says what to complete and links to the customer (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    who = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.issue', 'customer.manage'] }
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          authoringState: 'DRAFT',
+          version: 2,
+          invoiceNumber: null,
+          issueDate: null,
+          dueDate: null,
+          issuedAt: null,
+          totals: null,
+        }),
+      )
+    receivableResponse = () =>
+      json(200, { ...RECEIVABLE, paymentState: 'NOT_APPLICABLE', documentTotal: null, outstandingAmount: null, paidAmount: 0 })
+    issueResponse = () =>
+      json(400, { status: 400, code: 'BUYER_ADDRESS_INCOMPLETE', detail: 'The customer address is incomplete' })
+    renderInvoice()
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('invoiceIssue.action') }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('invoiceIssue.submit') }))
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(
+      screen
+        .getByRole('link', { name: i18n.t('invoiceIssue.refused.buyerAddressAction') })
+        .getAttribute('href'),
+    ).toBe('/customers/c-1/edit')
+    expect(screen.queryByText(/The customer address is incomplete/)).toBeNull()
+  })
+})

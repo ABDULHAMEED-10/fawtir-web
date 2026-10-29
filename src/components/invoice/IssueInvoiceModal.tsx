@@ -44,6 +44,7 @@ export function IssueInvoiceModal({
   kind = 'INVOICE',
   selfBilled = false,
   approvalPage,
+  customerEditPath,
   onClose,
   onIssued,
 }: {
@@ -67,6 +68,8 @@ export function IssueInvoiceModal({
    * that page (the composer), so a refusal to issue before approval can link to it.
    */
   approvalPage?: string
+  /** The customer's edit page, so an incomplete buyer address can be fixed from the refusal. */
+  customerEditPath?: string
   onClose: () => void
   onIssued: (invoice: InvoiceDetailDto) => void
 }) {
@@ -157,6 +160,9 @@ export function IssueInvoiceModal({
         const body = t(message.key, message.values)
         setFailure(message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body)
         setFailureLink(subscriptionRestrictedAction(error))
+      }
+      if (customerEditPath && error instanceof ApiError && error.code === 'BUYER_ADDRESS_INCOMPLETE') {
+        setFailureLink({ to: customerEditPath, labelKey: 'invoiceIssue.refused.buyerAddressAction' })
       }
       if (approvalPage && sendsForApprovalFromDraft(error)) {
         setFailureLink({ to: approvalPage, labelKey: 'salesApproval.actions.openDraft' })
