@@ -118,6 +118,10 @@ const MOVEMENTS = {
 
 let permissions: string[]
 let extra: Partial<Entitlements>
+let branchesRefused: boolean
+let summary: typeof SUMMARY
+let detail: typeof DETAIL
+let movements: { content: unknown[]; page: number; size: number; totalElements: number }
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
@@ -126,12 +130,27 @@ beforeEach(async () => {
   forgetWorkingBranch()
   permissions = ['stock.read', 'stock.adjust', 'stock.manage']
   extra = {}
+  branchesRefused = false
+  summary = SUMMARY
+  detail = DETAIL
+  movements = MOVEMENTS
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
       const url = String(input)
       if (url === '/api/v1/me/entitlements') return json(reader(permissions, extra))
-      if (url === '/api/v1/branches') return json(BRANCHES)
+      if (url === '/api/v1/branches') {
+        return branchesRefused
+          ? json(
+              {
+                type: 'https://api.fawtir.om/problems/forbidden',
+                status: 403,
+                detail: 'Missing required permission: branch.read',
+              },
+              403,
+            )
+          : json(BRANCHES)
+      }
       if (init.method === 'POST' && url === '/api/v1/stock/counts')
         return json({ adjustmentId: 'a', number: 'STK-2026-000123', kind: 'COUNT', lines: [] }, 201)
       if (init.method === 'POST' && url === '/api/v1/stock/write-offs')
@@ -141,9 +160,18 @@ beforeEach(async () => {
         )
       if (init.method === 'PUT' && url.startsWith('/api/v1/stock/items/'))
         return json({ ...ROW, reorderLevel: 19, version: 4 })
-      if (url.startsWith('/api/v1/stock/summary')) return json(SUMMARY)
-      if (url.startsWith('/api/v1/stock/items/p-beans/movements')) return json(MOVEMENTS)
-      if (url.startsWith('/api/v1/stock/items/p-beans')) return json(DETAIL)
+      if (url.startsWith('/api/v1/stock/summary')) return json(summary)
+      if (url.startsWith('/api/v1/stock/items/p-beans/movements')) return json(movements)
+      if (url.startsWith('/api/v1/stock/items/p-beans')) return json(detail)
+      if (url.includes('status=BELOW_ZERO')) {
+        return json({
+          branchId: 'b-main',
+          page: 0,
+          size: 1,
+          totalElements: 1,
+          content: [{ ...ROW, onHand: -1, state: 'BELOW_ZERO' }],
+        })
+      }
       if (url.startsWith('/api/v1/stock')) {
         return json({ branchId: 'b-main', page: 0, size: 20, totalElements: 41, content: [ROW] })
       }
@@ -238,15 +266,52 @@ describe('Stock list', () => {
     await screen.findByText('Coffee Beans · 1 kg')
     expect(screen.queryByRole('button', { name: 'Count the shelves' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Record what came in' })).toBeNull()
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Coffee Beans · 1 kg' }))
+    // Nothing to do with a ticked row, so no box to tick (retest N-3).
+    expect(screen.queryByRole('checkbox', { name: 'Coffee Beans · 1 kg' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Write stock off' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Change the reorder level' })).toBeNull()
+    // No purchase order without purchase-order.manage: the running-low row opens its movements.
+    expect(screen.queryByRole('link', { name: 'Order now' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Movements' })).toBeTruthy()
+  })
+
+  it('offers Order now and Order from to whoever may raise a purchase order', async () => {
+    permissions = ['stock.read', 'stock.adjust', 'purchase-order.manage']
+    open('/stock')
+    await screen.findByText('Coffee Beans · 1 kg')
+    expect(screen.getByRole('link', { name: 'Order now' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Coffee Beans · 1 kg' }))
+    expect(screen.getByRole('link', { name: 'Order from Muscat Roastery' })).toBeTruthy()
+  })
+
+  it('counts an item sold below zero under Nothing left, and names it (retest N-4)', async () => {
+    summary = { ...SUMMARY, nothingLeft: 0, belowZero: 1 }
+    open('/stock')
+    expect(await screen.findByText(/Coffee Beans · 1 kg sold below zero/)).toBeTruthy()
+    expect(requests().map((r) => r.url)).toContain(
+      '/api/v1/stock?branchId=b-main&status=BELOW_ZERO&size=1',
+    )
   })
 
   it('hides the writes when the plan has stock switched off', async () => {
     extra = { planFeaturesEnforced: true, planFeatures: { stock: false } }
     open('/stock')
     await screen.findByText('Coffee Beans · 1 kg')
+    expect(screen.queryByRole('button', { name: 'Count the shelves' })).toBeNull()
+  })
+
+  it('opens for a View-only reader the branch list refuses, on their own branch (E2E F-3)', async () => {
+    permissions = ['stock.read', 'pos.read']
+    extra = { allBranches: false, branchIds: ['b-seeb'] }
+    branchesRefused = true
+    open('/stock')
+    expect(await screen.findByText('Coffee Beans · 1 kg')).toBeTruthy()
+    const urls = requests().map((r) => r.url)
+    // The branch list is still asked (and refused); the stock is read for their own branch.
+    expect(urls).toContain('/api/v1/branches')
+    expect(urls).toContain('/api/v1/stock?branchId=b-seeb&size=20')
+    expect(urls).toContain('/api/v1/stock/summary?branchId=b-seeb')
+    expect(screen.queryByText(i18n.t('appAccess.noAccess'))).toBeNull()
     expect(screen.queryByRole('button', { name: 'Count the shelves' })).toBeNull()
   })
 
@@ -285,10 +350,52 @@ describe('Stock item', () => {
     expect(JSON.parse(String(put.init!.body))).toEqual({ reorderLevel: 19, expectedVersion: 3 })
   })
 
+  it('does not say nothing came in beside a delivery that has not sold yet, nor time it at midnight (E2E F-10)', async () => {
+    detail = {
+      ...DETAIL,
+      perDay: 0,
+      daily: [
+        { date: '2026-10-27', onHandEnd: 0, sold: 0, received: 0, writtenOff: 0 },
+        { date: '2026-10-28', onHandEnd: 20, sold: 0, received: 20, writtenOff: 0 },
+      ],
+      lastReceipt: {
+        receivedOn: '2026-10-28',
+        quantity: 20,
+        unitCost: 2.5,
+        supplierId: 's-1',
+        supplierName: 'Muscat Roastery',
+      },
+    } as unknown as typeof DETAIL
+    movements = {
+      ...MOVEMENTS,
+      content: [
+        {
+          ...MOVEMENTS.content[0],
+          id: 'm2',
+          type: 'RECEIPT',
+          quantityChange: 20,
+          onHandAfter: 20,
+          reasonCode: null,
+          source: { type: 'DELIVERY', id: 'd-1', number: 'DLV-1', link: null },
+          // Recorded against the day it came in: midnight in Muscat; entered at 14:05.
+          occurredAt: '2026-10-27T20:00:00Z',
+          recordedAt: '2026-10-28T10:05:00Z',
+        },
+      ],
+    }
+    open('/stock/p-beans?variant=v-1kg')
+    expect(await screen.findByText(/have not sold yet/)).toBeTruthy()
+    expect(screen.queryByText(i18n.t('stockItem.live.chartNoteNone'))).toBeNull()
+    expect(await screen.findByText('14:05')).toBeTruthy()
+    expect(screen.queryByText('00:00')).toBeNull()
+  })
+
   it('hides Change without stock.manage', async () => {
     permissions = ['stock.read']
     open('/stock/p-beans?variant=v-1kg')
     await screen.findByText('Written off')
+    // Order more raises a purchase order: not for a reader (retest N-3).
+    expect(screen.queryByRole('link', { name: 'Order more' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Change' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Correct the count' })).toBeNull()
   })

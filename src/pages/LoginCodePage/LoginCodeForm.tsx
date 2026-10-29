@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { commonFailureMessage, type FormMessage } from '../../lib/identity/errors'
 import {
@@ -13,6 +13,7 @@ import {
   type LoginChallenge,
   type SignInAgainState,
 } from '../../lib/identity/login'
+import { returnPathFrom, withReturnPath } from '../../lib/identity/returnTo'
 import { dropLoginChallenge, requestFirstLoginCode } from '../../lib/identity/loginChallenge'
 import { VERIFICATION_CODE_LENGTH, formatCountdown } from '../../lib/identity/verification'
 import { VerifyCodeView } from '../VerifyCodePage/VerifyCodeView'
@@ -43,6 +44,7 @@ export function LoginCodeForm({ challenge }: { challenge: LoginChallenge }) {
 function EmailCodeForm({ challenge }: { challenge: LoginChallenge }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const next = returnPathFrom(useLocation().search)
   const [code, setCode] = useState<string[]>(emptyCode)
   const [error, setError] = useState<FormMessage | null>(null)
   const [verifying, setVerifying] = useState(false)
@@ -59,11 +61,11 @@ function EmailCodeForm({ challenge }: { challenge: LoginChallenge }) {
   const signInAgain = useCallback(() => {
     dropLoginChallenge()
     // Replace: this screen can only fail from here, so Back must not return to it.
-    navigate(LOGIN_ROUTE, {
+    navigate(withReturnPath(LOGIN_ROUTE, next), {
       replace: true,
       state: { signInAgain: true } satisfies SignInAgainState,
     })
-  }, [navigate])
+  }, [navigate, next])
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000)
@@ -128,7 +130,7 @@ function EmailCodeForm({ challenge }: { challenge: LoginChallenge }) {
       signedIn = true
       dropLoginChallenge()
       // Replace: the challenge is spent, so Back must not return to a screen that can only fail.
-      navigate(await landingRoute(), { replace: true })
+      navigate(await landingRoute(next), { replace: true })
     } catch (failure) {
       if (controller.signal.aborted) return
       if (isChallengeSpent(failure)) {

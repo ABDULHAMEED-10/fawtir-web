@@ -65,10 +65,22 @@ export function useStockAccess(): {
    * `stock` switch off, so only the latter is told the plan is why nothing can be set.
    */
   holdsAdjust: boolean
+  /**
+   * May raise a purchase order (`purchase-order.manage`, `POST /v1/purchase-orders`, with the plan's
+   * purchase orders switch): Order now, Order more and Order from lead there (retest N-3).
+   */
+  canOrder: boolean
 } {
   const { entitlements, ready } = useEntitlements()
   if (!ready || entitlements === null) {
-    return { ready, canRead: false, canAdjust: false, canManage: false, holdsAdjust: false }
+    return {
+      ready,
+      canRead: false,
+      canAdjust: false,
+      canManage: false,
+      holdsAdjust: false,
+      canOrder: false,
+    }
   }
   const plan = planIncludes(entitlements, 'stock')
   const adjust = hasPermission(entitlements, STOCK_ADJUST)
@@ -78,6 +90,9 @@ export function useStockAccess(): {
     canAdjust: plan && adjust,
     canManage: plan && hasPermission(entitlements, STOCK_MANAGE),
     holdsAdjust: adjust,
+    canOrder:
+      planIncludes(entitlements, 'purchaseOrders') &&
+      hasPermission(entitlements, 'purchase-order.manage'),
   }
 }
 
@@ -502,7 +517,7 @@ function SupplierPick({
           ? t(describeApiFailure(found.read.error).key)
           : found.read.status === 'loading' || query === null
             ? t('productPicker.searching')
-            : t('productPicker.none')
+            : t('stock.delivery.noSupplier')
       }
     />
   )

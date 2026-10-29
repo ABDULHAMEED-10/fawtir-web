@@ -30,6 +30,7 @@ import {
   isRunningLow,
   margin,
   movementKind,
+  movementTime,
   movementLink,
   movementNote,
   movementTitleKey,
@@ -111,6 +112,7 @@ export function StockDetailPage() {
       branchId={branchId}
       canAdjust={access.canAdjust}
       canManage={access.canManage}
+      canOrder={access.canOrder}
       reload={item.retry}
     />
   )
@@ -121,12 +123,15 @@ function StockItem({
   branchId,
   canAdjust,
   canManage,
+  canOrder,
   reload,
 }: {
   item: StockItemDetailDto
   branchId: string
   canAdjust: boolean
   canManage: boolean
+  /** Order more raises a purchase order: only for `purchase-order.manage` (retest N-3). */
+  canOrder: boolean
   reload: () => void
 }) {
   const { t, i18n } = useTranslation()
@@ -246,13 +251,15 @@ function StockItem({
               {t('stockItem.correctTheCount')}
             </button>
           ) : null}
-          <Link
-            to={orderMoreTo}
-            className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-          >
-            <img src={plusIcon} alt="" className="size-4" />
-            {t('stockItem.orderMore')}
-          </Link>
+          {canOrder ? (
+            <Link
+              to={orderMoreTo}
+              className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+            >
+              <img src={plusIcon} alt="" className="size-4" />
+              {t('stockItem.orderMore')}
+            </Link>
+          ) : null}
         </>
       }
     >
@@ -456,6 +463,13 @@ function StockItem({
                   }}
                   components={{ b: <b className="font-semibold text-text-primary" /> }}
                 />
+              ) : receipt ? (
+                // Received, but nothing sold yet: no rate to say how long it lasts (F-10).
+                t('stockItem.live.chartNoteNoRate', {
+                  count: quantityText(receipt.quantity, language),
+                  unit,
+                  date: formatDate(receipt.receivedOn, language),
+                })
               ) : (
                 t('stockItem.live.chartNoteNone')
               )}
@@ -714,13 +728,7 @@ function MovementRow({ movement, level }: { movement: StockMovementDto; level: n
         month: 'short',
         timeZone: 'Asia/Muscat',
       }).format(when)
-  const time = Number.isNaN(when.getTime())
-    ? ''
-    : new Intl.DateTimeFormat('en-GB', {
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'Asia/Muscat',
-      }).format(when)
+  const time = movementTime(movement)
 
   return (
     <tr className="border-b border-surface-background last:border-0">

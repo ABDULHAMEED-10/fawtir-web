@@ -273,6 +273,31 @@ export const deliveryThatHolds = (perDay: number, everyDays: number) =>
 /** The days between deliveries the chart's advice plans for. */
 export const DELIVERY_EVERY_DAYS = 14
 
+const MUSCAT_TIME = new Intl.DateTimeFormat('en-GB', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+  timeZone: 'Asia/Muscat',
+})
+const MUSCAT_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' })
+
+/**
+ * The time a movement is listed at, in Muscat. A delivery is recorded against the day it came in,
+ * so it happened "at" midnight, which is not a time anyone saw (E2E 29 Oct 2026, F-10): it shows
+ * the time it was recorded when that was the same day, and no time otherwise.
+ */
+export function movementTime(
+  movement: Pick<StockMovementDto, 'type' | 'occurredAt' | 'recordedAt'>,
+): string {
+  const when = new Date(movement.occurredAt)
+  if (Number.isNaN(when.getTime())) return ''
+  const time = MUSCAT_TIME.format(when)
+  if (movement.type !== 'RECEIPT' || time !== '00:00') return time
+  const recorded = new Date(movement.recordedAt)
+  if (Number.isNaN(recorded.getTime())) return ''
+  return MUSCAT_DAY.format(recorded) === MUSCAT_DAY.format(when) ? MUSCAT_TIME.format(recorded) : ''
+}
+
 export type MovementKind = 'sold' | 'writtenOff' | 'returned' | 'delivered' | 'corrected'
 
 export function movementKind(movement: Pick<StockMovementDto, 'type'>): MovementKind {

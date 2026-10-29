@@ -116,7 +116,7 @@ export function PosClosePage() {
           till.till.openShift ? (
             <CloseShift till={till} shiftId={till.till.openShift.shiftId} />
           ) : (
-            <NothingOpen />
+            <NothingOpen closed={justClosed?.tillId === till.till.id ? justClosed.closed : null} />
           )
         }
       </PosTillGate>
@@ -124,9 +124,69 @@ export function PosClosePage() {
   )
 }
 
+/**
+ * The close this tab just made, kept for the screen that follows it: once the shift is closed the
+ * till has no open shift and the form gives way, so the confirmation is shown there instead of the
+ * page jumping straight to "No shift is open" (E2E 29 Oct 2026, F-13).
+ */
+let justClosed: { tillId: string; closed: PosShiftCloseDto } | null = null
+
 /** No shift is open on this till: nothing to count (the next sale opens one). */
-function NothingOpen() {
-  const { t } = useTranslation()
+function NothingOpen({ closed }: { closed: PosShiftCloseDto | null }) {
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language.startsWith('ar') ? 'ar' : 'en-GB'
+  if (closed) {
+    return (
+      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
+        <Link
+          to="/pos"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-text-tertiary hover:text-primary-700"
+        >
+          ‹ {t('pos.backToTill')}
+        </Link>
+        <section className="flex flex-col gap-4 rounded-md bg-surface-card px-6 py-5">
+          <p className="flex items-center gap-2 rounded-sm bg-success-100 px-3 py-3 text-sm font-medium text-success-700">
+            <CheckIcon className="size-4 shrink-0" />
+            {t('pos.close.closedAt', { time: tillTime(closed.closedAt, locale) })}
+          </p>
+          <div className="flex flex-col">
+            <Sum
+              money
+              label={t('pos.close.summary.counted')}
+              value={omr(toBaisa(closed.countedCash))}
+            />
+            <Sum
+              money
+              label={t('pos.close.summary.expected')}
+              value={omr(toBaisa(closed.expectedCash))}
+            />
+            <Sum money label={t('pos.close.summary.toBank')} value={omr(toBaisa(closed.toBank))} />
+            <Sum
+              money
+              label={t('pos.close.summary.floatLeft')}
+              value={omr(toBaisa(closed.floatLeft))}
+            />
+            {closed.cardTerminalDifference != null && closed.cardTerminalDifference !== 0 ? (
+              <Sum
+                tone="watch"
+                label={t('pos.close.summary.cardDiffers')}
+                value={omrSigned(toBaisa(closed.cardTerminalDifference))}
+              />
+            ) : null}
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+            >
+              {t('pos.close.printSummary')}
+            </button>
+          </div>
+        </section>
+      </div>
+    )
+  }
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
       <Link
@@ -208,7 +268,9 @@ function CloseForm({
       key.current = { fingerprint, key: newPosKey('close') }
     }
     try {
-      setClosed(await closePosShift(preview.shiftId, body, key.current.key))
+      const result = await closePosShift(preview.shiftId, body, key.current.key)
+      justClosed = { tillId: till.till.id, closed: result }
+      setClosed(result)
       till.retry()
     } catch (error) {
       setRefusal(error)
@@ -256,6 +318,7 @@ function CloseForm({
           title={t('pos.close.takenToday')}
           value={omr(figures.taken)}
           note={t('pos.close.takenNote', {
+            count: figures.sales,
             sales: figures.sales,
             average: omr(figures.sales ? Math.round(figures.taken / figures.sales) : 0),
           })}
@@ -265,13 +328,14 @@ function CloseForm({
           value={omr(figures.cashTaken)}
           note={t('pos.close.cashNote', {
             percent: figures.taken ? Math.round((figures.cashTaken / figures.taken) * 100) : 0,
+            count: figures.cashSales,
             sales: figures.cashSales,
           })}
         />
         <Kpi
           title={t('pos.close.card')}
           value={omr(figures.card)}
-          note={t('pos.close.cardNote', { sales: figures.cardSales })}
+          note={t('pos.close.cardNote', { count: figures.cardSales, sales: figures.cardSales })}
         />
         <Kpi
           title={t('pos.close.onCompany')}
