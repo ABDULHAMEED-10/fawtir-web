@@ -1340,7 +1340,9 @@ function MatchSection({
             )}
           </h2>
           <p className="mt-1 text-sm font-medium leading-[1.4] text-text-tertiary">
-            {match?.summary ??
+            {/* NO_ORDER's summary is the matcher's fixed English sentence ("No purchase order on file
+                for this bill"), which reached the Arabic screen; our own words say the same. */}
+            {(verdict === 'NO_ORDER' ? null : match?.summary) ??
               t(
                 verdict === null || verdict === 'NO_ORDER'
                   ? detail.bill.purchaseOrderReference
@@ -1664,9 +1666,14 @@ function PaymentTermsCard({
     ],
     // The discount a payment run took is its own line, after what was paid: it settles the
     // bill but is not money paid, so the Paid figure stays the server's.
-    ...(settlement.paidAmount > 0 || discountTaken > 0
+    // The credit is its own line too: without it "Paid 42.000, Outstanding 0.000" on a 52.500 bill
+    // did not add up (TEST verification 2026-10-29).
+    ...(settlement.paidAmount > 0 || discountTaken > 0 || settlement.creditedAmount > 0
       ? ([
           ['billDetail.payment.paid', `¤${money(settlement.paidAmount)}`],
+          ...(settlement.creditedAmount > 0
+            ? [['billDetail.payment.credited', `¤${money(settlement.creditedAmount)}`]]
+            : []),
           ...(discountTaken > 0
             ? [['billDetail.payment.discount', `¤${money(discountTaken)}`]]
             : []),

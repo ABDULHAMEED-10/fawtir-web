@@ -1539,6 +1539,60 @@ describe('A bill, wired to the API', () => {
     expect(await screen.findByText('Not found')).toBeTruthy()
   })
 
+  it("words a bill with no order in the reader's language, never the matcher's English", async () => {
+    const base = detail()
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          bill: {
+            ...base.bill,
+            purchaseOrderReference: null,
+            match: {
+              verdict: 'NO_ORDER',
+              purchaseOrderId: null,
+              purchaseOrderNumber: null,
+              goodsReceiptId: null,
+              goodsReceiptNumber: null,
+              byHand: false,
+              summary: 'No purchase order on file for this bill',
+              matchedAt: '2026-09-02T06:00:00Z',
+            },
+          },
+          activity: [
+            { at: '2026-09-02T06:00:00Z', kind: 'MATCHED', detail: null, actor: null },
+          ],
+        }),
+      )
+    await i18n.changeLanguage('ar')
+    renderBill()
+    expect(
+      await screen.findByText('لا يوجد أمر شراء مرتبط بهذه الفاتورة. طابِقها بطلب لمقارنة الكميات والأسعار.'),
+    ).toBeTruthy()
+    expect(screen.queryByText(/No purchase order on file/)).toBeNull()
+  })
+
+  it('names the credit beside what was paid, so paid, credited and outstanding add up to the total', async () => {
+    const base = detail()
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          settlement: {
+            ...base.settlement,
+            billTotal: 52.5,
+            paidAmount: 42,
+            creditedAmount: 10.5,
+            outstandingAmount: 0,
+            paymentState: 'PAID',
+          },
+        }),
+      )
+    renderBill()
+    const credited = await screen.findByText('Credited')
+    expect(within(credited.closest('div') as HTMLElement).getByText(/10\.500/)).toBeTruthy()
+  })
+
   it('reads in Arabic', async () => {
     await i18n.changeLanguage('ar')
     renderBill()
