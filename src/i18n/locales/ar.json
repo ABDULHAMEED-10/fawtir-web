@@ -2145,7 +2145,6 @@
     "kpi": {
       "outstanding": "المستحق",
       "outstandingMeta": "عبر 4 فواتير غير مدفوعة",
-      "paid": "مدفوع",
       "paidMeta": "فاتورتان تم تحصيلهما",
       "awaiting": "بانتظار الدفع",
       "awaitingMeta": "فاتورتان تستحقان قريبًا",
@@ -2157,12 +2156,6 @@
       "outstandingLive_few": "عبر {{invoices}} فواتير غير مدفوعة",
       "outstandingLive_many": "عبر {{invoices}} فاتورة غير مدفوعة",
       "outstandingLive_other": "عبر {{invoices}} فاتورة غير مدفوعة",
-      "paidLive_zero": "لا توجد فواتير محصَّلة",
-      "paidLive_one": "فاتورة واحدة محصَّلة",
-      "paidLive_two": "فاتورتان محصَّلتان",
-      "paidLive_few": "{{invoices}} فواتير محصَّلة",
-      "paidLive_many": "{{invoices}} فاتورة محصَّلة",
-      "paidLive_other": "{{invoices}} فاتورة محصَّلة",
       "awaitingLive_zero": "لا فواتير تستحق قريبًا",
       "awaitingLive_one": "فاتورة واحدة تستحق قريبًا",
       "awaitingLive_two": "فاتورتان تستحقان قريبًا",
@@ -2175,7 +2168,14 @@
       "overdueLive_few": "{{invoices}} فواتير · الأقدم منذ {{days}} يومًا",
       "overdueLive_many": "{{invoices}} فاتورة · الأقدم منذ {{days}} يومًا",
       "overdueLive_other": "{{invoices}} فاتورة · الأقدم منذ {{days}} يومًا",
-      "overdueNone": "لا توجد متأخرات"
+      "overdueNone": "لا توجد متأخرات",
+      "settled": "مسوّاة",
+      "settledLive_zero": "لا مستندات مسوّاة بدفعة أو برصيد دائن",
+      "settledLive_one": "مستند واحد مسوّى بدفعة أو برصيد دائن",
+      "settledLive_two": "مستندان مسوّيان بدفعة أو برصيد دائن",
+      "settledLive_few": "{{invoices}} مستندات مسوّاة بدفعة أو برصيد دائن",
+      "settledLive_many": "{{invoices}} مستندًا مسوّى بدفعة أو برصيد دائن",
+      "settledLive_other": "{{invoices}} مستند مسوّى بدفعة أو برصيد دائن"
     },
     "tabs": {
       "all": "الكل",

@@ -758,9 +758,13 @@ function InvoiceKpiCards({ totals }: { totals: InvoiceSummaryDto }) {
     {
       id: 'paid',
       icon: paidIcon,
-      titleKey: 'invoicesPage.kpi.paid',
+      // `paidTotal` is the total of every receivable with nothing left owed, debit notes among
+      // them, however it was cleared: a credit note clears one with no cash. "Paid" and "invoices
+      // collected" overstated cash in (ACC-10); the summary has no cash-collected figure, so the
+      // card says what the figure is. TODO(backend): INCOME.md row 4.20, a cash-collected figure.
+      titleKey: 'invoicesPage.kpi.settled',
       figure: money(totals.paidTotal),
-      meta: t('invoicesPage.kpi.paidLive', {
+      meta: t('invoicesPage.kpi.settledLive', {
         count: totals.paidInvoices,
         invoices: count(totals.paidInvoices),
       }),

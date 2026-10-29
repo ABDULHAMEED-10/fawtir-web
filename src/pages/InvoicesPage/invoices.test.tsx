@@ -244,7 +244,10 @@ describe('Invoices list, wired to the API', () => {
     expect(screen.getByText('1,234.500')).toBeTruthy()
     expect(screen.getByText('Across 12 unpaid invoices')).toBeTruthy()
     expect(screen.getByText('9,876.125')).toBeTruthy()
-    expect(screen.getByText('18 invoices collected')).toBeTruthy()
+    // A cleared receivable may have been cleared by credit, with no cash (ACC-10).
+    expect(screen.getByText('Settled')).toBeTruthy()
+    expect(screen.getByText('18 documents settled by payment or credit')).toBeTruthy()
+    expect(screen.queryByText(/invoices collected/)).toBeNull()
     expect(screen.getByText('2 invoices due soon')).toBeTruthy()
     // 7 July to 15 September.
     expect(screen.getByText('4 invoices · oldest 70 days')).toBeTruthy()

@@ -2034,7 +2034,6 @@
     "kpi": {
       "outstanding": "Outstanding",
       "outstandingMeta": "Across 4 unpaid invoices",
-      "paid": "Paid",
       "paidMeta": "2 invoices collected",
       "awaiting": "Awaiting payment",
       "awaitingMeta": "2 invoices due soon",
@@ -2042,13 +2041,14 @@
       "overdueMeta": "1 invoice · oldest 20 days",
       "outstandingLive_one": "Across {{invoices}} unpaid invoice",
       "outstandingLive_other": "Across {{invoices}} unpaid invoices",
-      "paidLive_one": "{{invoices}} invoice collected",
-      "paidLive_other": "{{invoices}} invoices collected",
       "awaitingLive_one": "{{invoices}} invoice due soon",
       "awaitingLive_other": "{{invoices}} invoices due soon",
       "overdueLive_one": "{{invoices}} invoice · oldest {{days}} days",
       "overdueLive_other": "{{invoices}} invoices · oldest {{days}} days",
-      "overdueNone": "Nothing overdue"
+      "overdueNone": "Nothing overdue",
+      "settled": "Settled",
+      "settledLive_one": "{{invoices}} document settled by payment or credit",
+      "settledLive_other": "{{invoices}} documents settled by payment or credit"
     },
     "tabs": {
       "all": "All",
