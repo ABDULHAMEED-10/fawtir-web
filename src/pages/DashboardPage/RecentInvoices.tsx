@@ -6,7 +6,7 @@ import type { RecentInvoiceDto } from '../../api/reports/dashboard'
 import { DashboardCard } from './DashboardCard'
 import { toNumber, type TileView } from './dashboardData'
 
-type RowStatus = 'draft' | 'issued' | 'sent' | 'accepted' | 'rejected' | 'notSent'
+type RowStatus = 'draft' | 'cancelled' | 'issued' | 'sent' | 'accepted' | 'rejected' | 'notSent'
 
 const STATUS_STYLES: Record<RowStatus, { bg: string; dot: string; text: string }> = {
   accepted: { bg: 'bg-success-100', dot: 'bg-success-700', text: 'text-success-700' },
@@ -15,6 +15,7 @@ const STATUS_STYLES: Record<RowStatus, { bg: string; dot: string; text: string }
   sent: { bg: 'bg-primary-50', dot: 'bg-primary-700', text: 'text-primary-800' },
   issued: { bg: 'bg-primary-50', dot: 'bg-primary-700', text: 'text-primary-800' },
   draft: { bg: 'bg-neutral-25', dot: 'bg-text-quaternary', text: 'text-text-quaternary' },
+  cancelled: { bg: 'bg-neutral-25', dot: 'bg-text-quaternary', text: 'text-text-quaternary' },
 }
 
 /**
@@ -24,6 +25,9 @@ const STATUS_STYLES: Record<RowStatus, { bg: string; dot: string; text: string }
  */
 function statusOf(row: RecentInvoiceDto): RowStatus {
   if (row.state === 'DRAFT') return 'draft'
+  // Read ahead of the dispatch: a cancelled invoice's dispatch can still say DEAD_LETTERED or
+  // nothing, which painted it "Not sent" or "Issued" (TEST verification 2026-10-29).
+  if (row.state === 'CANCELLED' || row.state === 'DISCARDED') return 'cancelled'
   if (row.invoiceAck === 'RE') return 'rejected'
   if (row.invoiceAck === 'AP' || row.invoiceAck === 'AB') return 'accepted'
   if (row.dispatch === 'DEAD_LETTERED') return 'notSent'
@@ -89,7 +93,10 @@ export function RecentInvoices({ invoices }: { invoices: TileView<RecentInvoiceD
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      {row.currency === 'OMR' ? (
+                      {/* A draft has no settled total yet; the server's 0 read as a priced 0.000. */}
+                      {status === 'draft' ? (
+                        <span className="text-base font-semibold text-text-primary">—</span>
+                      ) : row.currency === 'OMR' ? (
                         <OmAmount
                           size="sm"
                           amount={formatAmount(toNumber(row.total), 'OMR', i18n.language)}

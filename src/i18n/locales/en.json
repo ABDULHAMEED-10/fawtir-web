@@ -1254,7 +1254,8 @@
         "draft": "Draft",
         "issued": "Issued",
         "accepted": "Accepted",
-        "notSent": "Not sent"
+        "notSent": "Not sent",
+        "cancelled": "Cancelled"
       },
       "none": "No invoices yet.",
       "noNumber": "Draft"

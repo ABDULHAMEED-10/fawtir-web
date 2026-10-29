@@ -1305,7 +1305,8 @@
         "draft": "مسودة",
         "issued": "صادرة",
         "accepted": "مقبولة",
-        "notSent": "لم تُرسل"
+        "notSent": "لم تُرسل",
+        "cancelled": "ملغاة"
       },
       "none": "لا توجد فواتير بعد.",
       "noNumber": "مسودة"
