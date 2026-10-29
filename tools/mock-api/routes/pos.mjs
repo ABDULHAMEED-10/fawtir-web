@@ -1397,6 +1397,54 @@ export default [
     },
   },
   {
+    // A slip kept on an offline till, attached once its sale is filed (or fields typed later).
+    method: 'PUT',
+    match: /^\/api\/v1\/pos\/sales\/([^/]+)\/payments\/(\d+)\/slip$/,
+    reply: ({ params, body }) => {
+      ensureBranch('b-main')
+      const record = sales.get(params[0])
+      if (!record) return problem(404, 'POS_SALE_NOT_FOUND')
+      const payment = record.dto.payments.find((p) => p.position === Number(params[1]))
+      if (!payment) return problem(404, 'POS_PAYMENT_NOT_FOUND')
+      if (payment.method !== 'CARD') return problem(400, 'POS_SLIP_NOT_CARD')
+      const fileId = body?.slipFileId ?? null
+      if (!fileId && !body?.slipFields) return problem(400, 'POS_SLIP_INVALID')
+      if (fileId && !slips.has(fileId)) return problem(404, 'POS_SLIP_NOT_FOUND')
+      if (payment.slip?.fileId && fileId && payment.slip.fileId === fileId) {
+        return {
+          saleId: params[0],
+          position: payment.position,
+          slip: payment.slip,
+          replayed: true,
+          warnings: [],
+        }
+      }
+      if (payment.slip?.fileId && fileId) return problem(409, 'POS_SLIP_ALREADY_ATTACHED')
+      const fields = body?.slipFields ?? {}
+      const kept = payment.slip ?? {}
+      payment.slip = {
+        fileId: fileId ?? kept.fileId ?? null,
+        authCode: fields.authCode ?? kept.authCode ?? null,
+        rrn: fields.rrn ?? kept.rrn ?? null,
+        cardLast4: fields.cardLast4 ?? kept.cardLast4 ?? null,
+        cardType: fields.cardType ?? kept.cardType ?? null,
+        amount: fields.amount ?? kept.amount ?? null,
+        amountDiffers: fields.amount != null && round3(fields.amount) !== round3(payment.amount),
+        attachedAt: nowIso(),
+      }
+      const warnings = payment.slip.amountDiffers
+        ? [{ code: 'SLIP_AMOUNT_DIFFERS', line: null }]
+        : []
+      return {
+        saleId: params[0],
+        position: payment.position,
+        slip: payment.slip,
+        replayed: false,
+        warnings,
+      }
+    },
+  },
+  {
     method: 'POST',
     match: '/api/v1/pos/slips/read',
     reply: ({ body }) => {

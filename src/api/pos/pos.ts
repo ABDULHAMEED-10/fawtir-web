@@ -620,6 +620,29 @@ export function readPosSlip(fileId: string): Promise<PosSlipReadingDto> {
   })
 }
 
+export type PosSlipAttachedDto = {
+  saleId: string
+  position: number
+  slip: PosPaymentSlip
+  replayed: boolean
+  warnings: PosWarning[]
+}
+
+/**
+ * The slip of a card payment made earlier: a sale queued offline whose photo is uploaded once it
+ * is filed. The same slip again answers 200 `replayed`; a slip's warnings never refuse.
+ */
+export function attachPosSlip(
+  saleId: string,
+  position: number,
+  body: { slipFileId?: string | null; slipFields?: PosSlipFields | null },
+): Promise<PosSlipAttachedDto> {
+  return apiRequest<PosSlipAttachedDto>(
+    `${POS_SALES_PATH}/${encodeURIComponent(saleId)}/payments/${position}/slip`,
+    { method: 'PUT', body },
+  )
+}
+
 /** A key for one write, 16 to 128 of `[A-Za-z0-9._:-]`. */
 export function newPosKey(kind: string): string {
   return `pos-${kind}-${crypto.randomUUID()}`

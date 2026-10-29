@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { commonFailureMessage, type FormMessage } from '../../lib/identity/errors'
 import {
@@ -10,6 +10,7 @@ import {
   type SignInAgainState,
   type TotpEnrollment,
 } from '../../lib/identity/login'
+import { returnPathFrom, withReturnPath } from '../../lib/identity/returnTo'
 import { dropLoginChallenge } from '../../lib/identity/loginChallenge'
 import { VERIFICATION_CODE_LENGTH } from '../../lib/identity/verification'
 import { TotpVerifyForm } from './TotpVerifyForm'
@@ -29,6 +30,7 @@ import { TotpVerifyForm } from './TotpVerifyForm'
 export function TotpEnrollmentForm({ challenge }: { challenge: LoginChallenge }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const next = returnPathFrom(useLocation().search)
   const [enrollment, setEnrollment] = useState<TotpEnrollment | null>(null)
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null)
   const [enrolled, setEnrolled] = useState(false)
@@ -39,8 +41,11 @@ export function TotpEnrollmentForm({ challenge }: { challenge: LoginChallenge })
 
   const signInAgain = useCallback(() => {
     dropLoginChallenge()
-    navigate(LOGIN_ROUTE, { replace: true, state: { signInAgain: true } satisfies SignInAgainState })
-  }, [navigate])
+    navigate(withReturnPath(LOGIN_ROUTE, next), {
+      replace: true,
+      state: { signInAgain: true } satisfies SignInAgainState,
+    })
+  }, [navigate, next])
 
   useEffect(() => () => inFlight.current?.abort(), [])
 
