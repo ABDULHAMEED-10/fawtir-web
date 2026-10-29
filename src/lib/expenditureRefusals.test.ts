@@ -370,3 +370,46 @@ describe('an Expenditure refusal is a decision, not a fault', () => {
     )
   })
 })
+
+// The handler answers its CONFLICT_CODES 409 `resource-conflict`, which the refusal map above
+// never sees: a held credit note is named by its code alone.
+describe('a 409 the Expenditure module answers by name', () => {
+  const conflict = (code: string | null, problem?: Record<string, unknown>) =>
+    new ApiError({ status: 409, problemType: 'resource-conflict', code, problem })
+
+  it('gives a held credit note its own sentence, in both languages', async () => {
+    const message = describeApiFailure(conflict('CREDIT_NOTE_HELD_AS_DUPLICATE'))
+    expect(message.key).toBe('supplierCreditNotes.held.refused')
+    await i18n.changeLanguage('en')
+    expect(i18n.t(message.key)).toBe(
+      "This credit note is held as a possible duplicate, so it can't be used yet. Check its bill first.",
+    )
+    await i18n.changeLanguage('ar')
+    expect(i18n.t(message.key)).toBe(
+      'هذا الإشعار الدائن محجوز لاحتمال كونه نسخة مكررة، لذا لا يمكن استخدامه حاليًا. يُرجى مراجعة فاتورته أولًا.',
+    )
+    await i18n.changeLanguage('en')
+  })
+
+  it('reads the code, never the English detail', () => {
+    const worded = conflict(null, { detail: 'Credit note is held as a possible duplicate' })
+    expect(refusalMessageKey(worded)).toBeNull()
+    expect(describeApiFailure(worded).key).toBe('apiErrors.conflict')
+  })
+
+  it('leaves any other 409 to the conflict sentence', () => {
+    expect(refusalMessageKey(conflict('SOME_OTHER_CONFLICT'))).toBeNull()
+    expect(describeApiFailure(conflict('SOME_OTHER_CONFLICT')).key).toBe('apiErrors.conflict')
+    // A code naming a prototype member is not a mapped code.
+    expect(refusalMessageKey(conflict('constructor'))).toBeNull()
+    expect(refusalMessageKey(conflict('toString'))).toBeNull()
+    expect(describeApiFailure(conflict('toString')).key).toBe('apiErrors.conflict')
+    // The same code on another status is not this refusal.
+    const notConflict = new ApiError({
+      status: 400,
+      problemType: 'validation-failed',
+      code: 'CREDIT_NOTE_HELD_AS_DUPLICATE',
+    })
+    expect(refusalMessageKey(notConflict)).toBeNull()
+  })
+})

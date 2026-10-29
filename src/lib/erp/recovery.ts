@@ -165,12 +165,12 @@ const SUBSCRIPTION_KIND: Record<string, RecoveryNoticeKind> = {
 export function noticeOfFailure(error: unknown): RecoveryNotice {
   if (error instanceof NetworkError) return { kind: 'unreachable', tone: 'danger', retry: true }
   if (!(error instanceof ApiError)) return { kind: 'other', tone: 'danger', retry: true }
-  const known = error.code ? BY_CODE[error.code] : undefined
+  const known = error.code && Object.hasOwn(BY_CODE, error.code) ? BY_CODE[error.code] : undefined
   if (known) return { ...known }
   if (isSubscriptionRestricted(error)) {
     // Recovery contacts the ERP, which stops while the subscription is read-only; asking again
     // gives the same answer until it is paid.
-    const kind = SUBSCRIPTION_KIND[error.code ?? ''] ?? 'subscriptionSuspended'
+    const kind = error.code && Object.hasOwn(SUBSCRIPTION_KIND, error.code) ? SUBSCRIPTION_KIND[error.code] : 'subscriptionSuspended'
     return { kind, tone: 'warning', retry: false }
   }
   if (error.status === 403) {

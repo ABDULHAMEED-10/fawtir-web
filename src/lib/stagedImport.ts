@@ -165,7 +165,7 @@ const FIELD_LABELS: Record<string, string> = {
 
 export function fieldLabel(field: string | null): { key: string } | { text: string } | null {
   if (!field) return null
-  const key = FIELD_LABELS[field]
+  const key = Object.hasOwn(FIELD_LABELS, field) ? FIELD_LABELS[field] : undefined
   return key ? { key } : { text: field }
 }
 

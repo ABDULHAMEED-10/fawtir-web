@@ -26,12 +26,14 @@ import {
   type LoginFormValues,
 } from '../../lib/identity/login'
 import { holdLoginChallenge } from '../../lib/identity/loginChallenge'
+import { returnPathFrom, withReturnPath } from '../../lib/identity/returnTo'
 import { isClean } from '../../lib/validation'
 
 export function LoginForm() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
+  const returnPath = returnPathFrom(location.search)
   const [values, setValues] = useState<LoginFormValues>(INITIAL_LOGIN_VALUES)
   // Drawn as designed but never sent: the backend has no remember-me, and the portal session's
   // lifetime is the server's alone. Wiring it to anything would promise a behaviour that is absent.
@@ -52,7 +54,7 @@ export function LoginForm() {
   // place, a reload would tell someone who has done nothing wrong to sign in again.
   useEffect(() => {
     if (isSignInAgainState(location.state))
-      navigate(location.pathname, { replace: true, state: null })
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: null })
   }, [location, navigate])
 
   const setField = (field: keyof LoginFormValues, value: string) => {
@@ -81,11 +83,11 @@ export function LoginForm() {
     try {
       const outcome = await submitLogin(values, controller.signal)
       if (outcome.kind === 'signedIn') {
-        navigate(await landingRoute(), { replace: true })
+        navigate(await landingRoute(returnPath), { replace: true })
         return
       }
       holdLoginChallenge(outcome.challenge)
-      navigate(LOGIN_CODE_ROUTE)
+      navigate(withReturnPath(LOGIN_CODE_ROUTE, returnPath))
     } catch (error) {
       if (controller.signal.aborted) return
       setFormError(describeLoginFailure(error))

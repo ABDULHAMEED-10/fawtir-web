@@ -1,7 +1,9 @@
 import type { ItemType } from './invoiceDraft'
 import { addDays } from './dates'
+import { ApiError } from '../api/errors'
 import type {
   GoodsReceiptDto,
+  PurchaseOrderLineRequest,
   PurchaseOrderAction,
   PurchaseOrderDto,
   PurchaseOrderLineDto,
@@ -51,7 +53,7 @@ export const ACTION_FOR_STATE: Partial<Record<PurchaseOrderStateDto, PurchaseOrd
 }
 
 export function nextAction(state: PurchaseOrderStateDto): PurchaseOrderAction | null {
-  return ACTION_FOR_STATE[state] ?? null
+  return (Object.hasOwn(ACTION_FOR_STATE, state) ? ACTION_FOR_STATE[state] : undefined) ?? null
 }
 
 export function nextState(state: PurchaseOrderStateDto): PurchaseOrderStateDto | null {
@@ -83,6 +85,19 @@ export type LineDraft = {
   unit: string
   unitPrice: string
   vatRate: string
+  /** The catalogue product picked for the line (S2); absent on a free-text line. */
+  productId?: string | null
+  /** The product's name as picked, shown on the pick button. */
+  productName?: string
+  /** The product's sizes and options; the line must name one when there are any. */
+  variants?: { id: string; name: string; price: number }[]
+  variantId?: string | null
+  /** The product is counted (`keepCount`): the line then says how many units one ordered unit holds. */
+  keepCount?: boolean
+  /** The product's own unit, which the stock is counted in. */
+  stockUnit?: string
+  /** As typed; "1" by default. */
+  stockUnitsPerOrderUnit?: string
 }
 
 let lineSeed = 0
@@ -100,7 +115,8 @@ export function emptyLine(vatRate = '5'): LineDraft {
   }
 }
 
-export type LineProblem = 'description' | 'quantity' | 'unitPrice' | 'vatRate'
+export type LineProblem =
+  'description' | 'quantity' | 'unitPrice' | 'vatRate' | 'variant' | 'stockUnits'
 
 /** What the server would refuse on a line, checked before a save is spent learning it. */
 export function lineProblem(line: LineDraft): LineProblem | null {
@@ -108,7 +124,48 @@ export function lineProblem(line: LineDraft): LineProblem | null {
   if (!positive(line.quantity)) return 'quantity'
   if (!nonNegative(line.unitPrice)) return 'unitPrice'
   if (line.vatRate.trim() !== '' && !nonNegative(line.vatRate)) return 'vatRate'
+  // STOCK_VARIANT_REQUIRED: a product with sizes or options is bought one of them at a time.
+  if (line.productId && (line.variants?.length ?? 0) > 0 && !line.variantId) return 'variant'
+  if (line.productId && line.keepCount && !stockUnitsValid(line.stockUnitsPerOrderUnit ?? '1')) {
+    return 'stockUnits'
+  }
   return null
+}
+
+/** Above zero, at most three decimals, as `stockUnitsPerOrderUnit` is taken. */
+export function stockUnitsValid(value: string): boolean {
+  return positive(value) && /^\d+(\.\d{1,3})?$/.test(value.trim())
+}
+
+/**
+ * A line's catalogue part of the request (S2): the product, its size or option and how many of
+ * its own unit one ordered unit holds. Nothing for a free-text line, whose body stays as it was.
+ */
+export function lineProductFields(
+  line: LineDraft,
+): Pick<PurchaseOrderLineRequest, 'productId' | 'variantId' | 'stockUnitsPerOrderUnit'> {
+  if (!line.productId) return {}
+  return {
+    productId: line.productId,
+    ...(line.variantId ? { variantId: line.variantId } : {}),
+    ...(line.keepCount
+      ? { stockUnitsPerOrderUnit: Number(line.stockUnitsPerOrderUnit ?? '1') }
+      : {}),
+  }
+}
+
+/** The refusals a purchase order's catalogue lines and their receipt can meet, worded. */
+const ORDER_STOCK_REFUSALS: Record<string, string> = {
+  GOODS_RECEIPT_BRANCH_REQUIRED: 'purchaseOrder.stock.refused.branchRequired',
+  PURCHASE_ORDER_PRODUCT_NOT_FOUND: 'purchaseOrder.stock.refused.productNotFound',
+  STOCK_VARIANT_REQUIRED: 'purchaseOrder.stock.refused.variantRequired',
+  STOCK_VARIANT_NOT_ON_PRODUCT: 'purchaseOrder.stock.refused.variantNotOnProduct',
+}
+
+/** The sentence for one of {@link ORDER_STOCK_REFUSALS}, else null for the shared wording. */
+export function orderStockRefusalKey(error: unknown): string | null {
+  if (!(error instanceof ApiError) || error.code === null) return null
+  return ORDER_STOCK_REFUSALS[error.code] ?? null
 }
 
 function positive(value: string): boolean {

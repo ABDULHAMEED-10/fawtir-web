@@ -169,6 +169,17 @@ export const CREDIT_ROW_ACTION: Record<
 
 type CreditRowAction = (typeof CREDIT_ROW_ACTION)[CreditState]
 
+/**
+ * Held as a duplicate while none of its credit has gone anywhere: the only states a held note
+ * reaches, since the server refuses it every settlement. A spent state keeps its own words and
+ * action, which settle nothing.
+ */
+export function isHeldUnspent(note: Pick<CreditNoteItem, 'status' | 'heldAsDuplicate'>): boolean {
+  return (
+    note.heldAsDuplicate && (note.status === 'UNAPPLIED' || note.status === 'WAITING_FOR_BILL')
+  )
+}
+
 const HELD_CREDIT_ROW_ACTION: CreditRowAction = {
   labelKey: 'supplierCreditNotes.actions.openNote',
   goesTo: 'note',
@@ -183,8 +194,22 @@ const HELD_CREDIT_ROW_ACTION: CreditRowAction = {
 export function creditRowActionOf(
   note: Pick<CreditNoteItem, 'status' | 'heldAsDuplicate'>,
 ): CreditRowAction {
-  const unspent = note.status === 'UNAPPLIED' || note.status === 'WAITING_FOR_BILL'
-  return note.heldAsDuplicate && unspent ? HELD_CREDIT_ROW_ACTION : CREDIT_ROW_ACTION[note.status]
+  return isHeldUnspent(note) ? HELD_CREDIT_ROW_ACTION : CREDIT_ROW_ACTION[note.status]
+}
+
+/**
+ * The chip's tone and words. Only "Not yet used" gives way on a held note (owner's copy,
+ * 28 Oct 2026): it reads as credit ready to spend, which the server refuses. The amber of a
+ * pending note is reused rather than a new style.
+ */
+export function creditChipOf(note: Pick<CreditNoteItem, 'status' | 'heldAsDuplicate'>): {
+  tone: CreditChipTone
+  labelKey: string
+} {
+  if (note.heldAsDuplicate && note.status === 'UNAPPLIED') {
+    return { tone: 'waiting', labelKey: 'supplierCreditNotes.held.status' }
+  }
+  return { tone: CREDIT_STATUS_CHIP[note.status], labelKey: CREDIT_STATUS_LABEL[note.status] }
 }
 
 /** What the figure column says under the amount. */
@@ -194,6 +219,16 @@ export const CREDIT_AMOUNT_NOTE: Record<CreditState, string> = {
   APPLIED: 'supplierCreditNotes.rows.takenOff',
   REFUNDED: 'supplierCreditNotes.rows.paidBack',
   PARTLY_USED: 'supplierCreditNotes.rows.youdPayLess',
+}
+
+/**
+ * The words under a row's amount, or null for none. "You'd pay less" is a promise a held note
+ * cannot keep: its credit reduces nothing until the hold is decided.
+ */
+export function creditAmountNoteOf(
+  note: Pick<CreditNoteItem, 'status' | 'heldAsDuplicate'>,
+): string | null {
+  return isHeldUnspent(note) ? null : CREDIT_AMOUNT_NOTE[note.status]
 }
 
 export type CreditNoteItem = {
@@ -334,6 +369,8 @@ export type DebitNoteItem = {
    * disputed.
    */
   owes: boolean
+  /** Held as a possible duplicate: not accepted until its bill record's duplicate check is decided. */
+  heldAsDuplicate: boolean
 }
 
 export function toDebitNoteItem(row: DebitNoteRowDto): DebitNoteItem {
@@ -363,7 +400,16 @@ export function toDebitNoteItem(row: DebitNoteRowDto): DebitNoteItem {
     outstanding: row.outstandingAmount,
     paid: row.paidAmount,
     owes: row.status !== 'REFUSED' && row.outstandingAmount > 0,
+    heldAsDuplicate: row.heldAsDuplicate === true,
   }
+}
+
+/**
+ * Where a held debit note is decided as a duplicate: its own bill record, where the copy is
+ * compared with the note already on file.
+ */
+export function duplicateCheckPath(noteId: string): string {
+  return `/expenditure/bills/${encodeURIComponent(noteId)}`
 }
 
 /** What the figure column says under a charge: where the money has got to. */

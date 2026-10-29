@@ -99,7 +99,7 @@ export function issueRefusalOf(
   error: unknown,
 ): { field: IssueField | null; key: string; values?: Record<string, string> } | null {
   if (!(error instanceof ApiError)) return null
-  if (error.code && ISSUE_REFUSALS[error.code]) return ISSUE_REFUSALS[error.code]
+  if (error.code && Object.hasOwn(ISSUE_REFUSALS, error.code)) return ISSUE_REFUSALS[error.code]
   if (error.status === 409 && error.problemType === 'resource-conflict' && error.code) {
     return { field: null, key: 'invoiceIssue.refused.notReady', values: { reason: error.code } }
   }

@@ -5,11 +5,7 @@ import { AppShell } from '../../layouts/AppShell'
 import { DateField } from '../../components/ui'
 import { FieldLabel, SectionCard } from '../../components/form'
 import { selectAllOnFocus } from '../../components/invoice'
-import {
-  ApiReadFailure,
-  LoadingNotice,
-  Notice,
-} from '../../components/feedback/ApiNotice'
+import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
   actOnPurchaseOrder,
@@ -29,6 +25,7 @@ import {
   acceptsReceipts,
   canCancel,
   nextAction,
+  orderStockRefusalKey,
   outstandingOn,
   receivedByLine,
 } from '../../lib/purchaseOrders'
@@ -133,7 +130,9 @@ function PurchaseOrderDetail({ id }: { id: string }) {
   const onFailure = (error: unknown) => {
     setNotice(null)
     const message = describeApiFailure(error)
-    const body = t(message.key, message.values)
+    // A counted product's goods need the order's delivery branch (GOODS_RECEIPT_BRANCH_REQUIRED).
+    const stock = orderStockRefusalKey(error)
+    const body = stock ? t(stock) : t(message.key, message.values)
     setFailure(
       message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body,
     )

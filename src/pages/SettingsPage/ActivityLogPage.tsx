@@ -426,7 +426,7 @@ function Entry({ entry }: { entry: ActivityLogItemDto }) {
             <span
               className={[
                 'inline-flex h-[22px] items-center rounded-[3px] px-2 text-[11px] font-medium',
-                OUTCOME_TONE[entry.outcome] ?? OUTCOME_TONE.SUCCESS,
+                Object.hasOwn(OUTCOME_TONE, entry.outcome) ? OUTCOME_TONE[entry.outcome] : OUTCOME_TONE.SUCCESS,
               ].join(' ')}
             >
               {outcome}

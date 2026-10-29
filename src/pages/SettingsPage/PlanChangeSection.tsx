@@ -106,7 +106,7 @@ export function planChangeRefusal(
   code: string | null | undefined,
   neverPaid = false,
 ): string {
-  const unchangeable = code ? UNCHANGEABLE_ONLINE[code] : undefined
+  const unchangeable = code && Object.hasOwn(UNCHANGEABLE_ONLINE, code) ? UNCHANGEABLE_ONLINE[code] : undefined
   if (unchangeable) {
     const first = unchangeable === 'neverPaid' || (unchangeable === 'either' && neverPaid)
     return t(

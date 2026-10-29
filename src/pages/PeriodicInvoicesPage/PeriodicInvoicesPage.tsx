@@ -243,7 +243,7 @@ function PeriodicInvoicesContent() {
 
   const fail = (error: unknown) => {
     const code = error instanceof ApiError ? error.code : null
-    if (code && PERIODIC_REFUSALS[code]) {
+    if (code && Object.hasOwn(PERIODIC_REFUSALS, code)) {
       setNotice({ key: PERIODIC_REFUSALS[code] })
       return
     }

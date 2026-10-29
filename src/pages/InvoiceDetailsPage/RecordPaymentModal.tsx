@@ -155,10 +155,10 @@ export function RecordPaymentModal({
         : recordPayment(invoiceId, idempotencyKey, payment))
       onRecorded()
     } catch (error) {
-      const named = error instanceof ApiError && error.code ? refusals?.[error.code] : undefined
+      const named = error instanceof ApiError && error.code && refusals && Object.hasOwn(refusals, error.code) ? refusals[error.code] : undefined
       const refusal =
         named ??
-        (error instanceof ApiError && error.code ? PAYMENT_REFUSALS[error.code] : undefined)
+        (error instanceof ApiError && error.code && Object.hasOwn(PAYMENT_REFUSALS, error.code) ? PAYMENT_REFUSALS[error.code] : undefined)
       const namedOwed =
         named?.keyWithOwed && error instanceof ApiError ? owedIn(error.problem) : null
       if (refusal?.field && named?.keyWithOwed && namedOwed) {

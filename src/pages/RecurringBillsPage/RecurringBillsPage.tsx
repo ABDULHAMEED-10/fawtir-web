@@ -147,7 +147,7 @@ function RecurringBills() {
 
   const failed = (error: unknown) => {
     const code = error instanceof ApiError ? error.code : null
-    if (code && RECURRING_REFUSALS[code]) {
+    if (code && Object.hasOwn(RECURRING_REFUSALS, code)) {
       setNotice({ key: RECURRING_REFUSALS[code] })
       return
     }

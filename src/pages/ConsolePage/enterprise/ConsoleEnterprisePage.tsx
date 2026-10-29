@@ -79,7 +79,7 @@ function EnterpriseList() {
                 </td>
                 <td className="px-4 py-3">
                   <ConsoleStatusPill
-                    tone={ENTERPRISE_STATE_TONE[row.state] ?? 'neutral'}
+                    tone={Object.hasOwn(ENTERPRISE_STATE_TONE, row.state) ? ENTERPRISE_STATE_TONE[row.state] : 'neutral'}
                     label={t(`console.enterpriseTerms.state.${row.state}`)}
                   />
                 </td>

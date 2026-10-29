@@ -665,7 +665,7 @@ function evaluate(
   let value: unknown = raw
   if (entry.valueMap && raw !== undefined && raw !== null) {
     const key = String(raw)
-    if (key in entry.valueMap) value = entry.valueMap[key]
+    if (Object.hasOwn(entry.valueMap, key)) value = entry.valueMap[key]
     else if (entry.onUnmapped === 'USE_DEFAULT') value = entry.valueMapDefault
     else if (entry.onUnmapped === 'PASS_THROUGH') value = raw
     else {

@@ -50,7 +50,7 @@ const TONE: Record<ReminderReasonDto, NoteTone> = {
 
 /** A server from before `reason` sends the rule type alone, which says the same for all but two. */
 export function reasonOf(item: ReminderInboxItemDto): ReminderReasonDto {
-  return item.reason && item.reason in TONE ? item.reason : item.ruleType
+  return item.reason && Object.hasOwn(TONE, item.reason) ? item.reason : item.ruleType
 }
 
 /** A server from before `read` says it with the time it was acknowledged. */

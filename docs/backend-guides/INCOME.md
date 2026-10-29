@@ -873,3 +873,71 @@ copy, and it never changes the invoice's delivery state.
 | SH.1 | The rendered invoice PDF (row 2.2) | `GET /v1/invoices/{id}/pdf`, the same artefact the documents archive already links (`artefacts.pdf`, DOCUMENTS.md 3.20): the signed, rendered, bilingual PDF, one file for download, print and sharing |
 | SH.2 | Send by email | `POST /v1/invoices/{id}/share/email` with `{to: [email], cc?: [email], message?, language}`; sends from Fawtir's mail with the PDF attached and the invoice number in the subject; prefill `to` from the customer's email. Refused while the subscription is read-only (ST-2: nothing is sent) and for a deemed supply (no buyer copy); answer the refusal with a problem type the screen can word |
 | SH.3 | Share on WhatsApp | `POST /v1/invoices/{id}/share-link` returning a time-limited public URL to the PDF (`url`, `expiresAt`); the web opens `https://wa.me/?text=` with a short message and the link, mobile uses the phone's share sheet with the PDF file or the link. Same refusals as SH.2. Revoking or letting the link expire never affects the invoice |
+
+## Update 2026-10-28 (stock screens on /v1/stock)
+
+The Stock list and one item's shelf now read and write the stock API in the branch chosen in the
+sidebar: `GET /v1/stock` (tab = `status`, search = `q`, Sort = `sort`, server paging) and
+`GET /v1/stock/summary` for the cards and tab counts, `GET /v1/stock/items/{productId}` and its
+`/movements`, `POST /v1/stock/counts`, `/write-offs` and `/deliveries` (each with an
+`Idempotency-Key`), and `PUT .../reorder-level` (with `expectedVersion`) and
+`PUT /v1/stock/reorder-levels`. `stock.read` opens the screens, `stock.adjust` shows Count the
+shelves, Correct the count, Write stock off and Record what came in, `stock.manage` shows the
+reorder level changes; the writes are also hidden when the plan's `stock` switch is off, and stay
+offered while the subscription is read-only (ST-2). Purchase-order lines name a product, its
+variant and `stockUnitsPerOrderUnit`; credit-note lines send `backOnShelf`; the invoice composer
+fixes a counted product's unit and words the issue answer's `STOCK_*` warnings.
+
+| #    | What the screen needs | Backend |
+| ---- | --- | --- |
+| P.10 (update) | Stock per branch | **Done** as above |
+| P.19 | Group and kind on a stock row | the frame prints "group › kind · code" under each item and in the item's subtitle; `StockRow` has neither. Asked: `groupName`/`groupNameAr` and `kindName`/`kindNameAr` (or the ids) on `StockRow` and `StockItemDetail`. Until then the code alone is shown |
+| P.20 | What depends on an item | `StockItemDetail.dependsOnIt` is always null, so the "What else depends on it" card (bundles capped by this item, open quotations, recurring orders) and the On hand card's "promised to a bundle" note show a dash; the On hand note shows the last count instead |
+| P.21 | Stock period and export | the item's chart has a period picker and an export, and the movements an Export; `GET /v1/stock/items/{id}` answers thirty days only and there is no export route. Drawn switched off |
+| P.22 | The supplier's delivery days and price changes | the item's "Who supplies it" card draws "Delivers" (the supplier's usual delivery days) and "Last price change" (from, to, when). Neither has a field; "Last price change" shows the last receipt's cost and date, "Delivers" a dash |
+| P.23 | A counted product on a saved draft line | the invoice composer fixes a counted product's unit when the product is picked; a reopened draft's lines carry `productId` but not the product's `keepCount`, so its unit is not fixed (the server still warns `STOCK_UNIT_MISMATCH` on issue). Asked: `keepCount` (or the counted unit) on draft lines |
+| P.24 | Sizes on the product search | product search rows have `variants: null`, so picking a product with sizes on a purchase-order line costs one more `GET /v1/products/{id}`; variant names come in English only (no `nameAr`), so the size list reads in English on an Arabic screen |
+| P.25 | Counted products on an invoice's lines | the credit note composer reads each invoice line's product (`GET /v1/products/{id}`, one per product) to learn `keepCount` before asking "Back on the shelf?". `keepCount` on the invoice detail line, or a product read by a list of ids, would remove those calls |
+
+## Update 2026-10-28 (the till wired to the POS API)
+
+The till screens (`src/pages/PosPage`) now read and write the till API: tills and shifts
+(`GET /v1/pos/tills?branchId=`, `POST .../shifts` is opened by the first sale), the branch shelf
+(`GET /v1/products?branchId=&includeUnavailable=true`, `GET /v1/products/{id}` for sizes and
+add-ons), the sale (`POST /v1/pos/sales` with `lineRefs`, payments, tip and an `Idempotency-Key`;
+an offline queue numbered on the till's own series), the company lookup (`GET /v1/customers?vatNumber=`)
+and `POST /v1/pos/customers`, the receipt and its QR (`GET /v1/pos/sales/{id}?wait=`, `.../qr`),
+Today (`GET /v1/pos/sales`, `GET /v1/pos/today`), the daily summary (`GET /v1/pos/days/{date}`),
+the close (`close-preview`, `float`, `cash-movements`, `close`), refunds (`refund-lookup`,
+`POST .../refunds`) and Scan slip (`POST /v1/pos/slips`, `/pos/slips/read`). These rows are what
+the screens still draw without an answer. Rows P.11 and P.12 are done.
+
+| #    | What the screen draws | Backend |
+| ---- | --- | --- |
+| P.26 | The price rule at the till ("Afternoon lull applied 20% off the drinks") and its totals row | price rules are not served to the till yet (the rules API is not merged). The sale line keeps `rulePercent` and sends it as the line's percentage discount once a rule fills it; asked: the rules that apply to a branch and time, or the till sale applying them itself |
+| P.27 | The Sizes badge and "3 sizes · 4 add-ons" on a shelf tile before it is tapped, and a photo on the tile | list rows of `GET /v1/products` carry `sizes`, `variants` and `addOns` as null, so the till reads each product when it is tapped; asked: a count of sizes and add-ons (or the arrays) on list rows, and a product image |
+| P.28 | The QR on a receipt printed while the till is offline | the till numbers an offline sale from its own series and sends it later, but the QR's payload is made by the server; asked: what the device may print offline (the TLV it can build itself) |
+| P.29 | "Email it" and "Text it" on the receipt screen | no route sends a till receipt by e-mail or SMS; only printing works |
+| P.30 | "One of your customers since April 2025" and the customer's own price account ("Hotel accounts · 12% off") on the company match | neither is on the customer read; the till shows the city, the Peppol id and the terms |
+| P.31 | "Accepted by the OTA" on the sale being refunded | `GET /v1/pos/refund-lookup` does not carry the invoice's filing state; asked: `filing` as on the sale |
+
+## Update 2026-10-29 (Catalog › Groups)
+
+Catalog › Groups (`/catalog/groups`, `src/pages/CatalogPage/CatalogGroupsPage.tsx`) lists, adds,
+renames, reorders and deletes the company's groups and the kinds inside them on
+`GET/POST /v1/catalog/groups`, `PUT/DELETE /v1/catalog/groups/{id}?expectedVersion=`,
+`POST /v1/catalog/groups/{id}/kinds` and `PUT/DELETE /v1/catalog/kinds/{id}?expectedVersion=`
+(a kind moves to another group with `groupId`). Reading needs `product.read`, changes
+`product.manage`. Every refusal code is worded (`CATALOGUE_NAME_REQUIRED`,
+`CATALOGUE_GROUP_NAME_DUPLICATE`, `CATALOGUE_KIND_NAME_DUPLICATE`,
+`CATALOGUE_GROUP_VERSION_CONFLICT`, `CATALOGUE_GROUP_NOT_EMPTY`, `CATALOGUE_KIND_IN_USE`,
+`CATALOGUE_GROUP_NOT_FOUND`, `CATALOGUE_KIND_NOT_FOUND`). The item form's "Where it lives" lists
+carry "Add a group" and "Add a kind", so a new company (which starts with no groups) can file its
+first item without leaving the form. Delete is final; there is no archive for groups or kinds.
+
+| #    | What the screen needs | Backend |
+| ---- | --- | --- |
+| P.40 | Reorder groups, and kinds within a group, in one step | there is no reorder route: moving a row up or down saves every row whose place changed with its own `PUT ...?expectedVersion=` (name, `nameAr` and the new `sortOrder` sent back, because a missing `sortOrder` is stored as 0). A failure part way leaves the rows saved so far. Asked: `PUT /v1/catalog/groups/order` (and `.../groups/{id}/kinds/order`) taking the ids in their new order, in one transaction |
+| P.41 | How many items each kind and group holds | `GET /v1/catalog/groups` carries no counts, so the screen shows the number of kinds only and learns that a kind still holds items on sale when its delete is refused (`CATALOGUE_KIND_IN_USE`). Asked: `productCount` (active products) on each kind and its total on each group |
+| P.40 (update) | Reorder in one step | **Fixed by backend #812** (not deployed on 29 Oct): up/down sends `PUT /v1/catalog/groups/order` or `PUT /v1/catalog/groups/{id}/kinds/order` with every sibling in its new order (`items: [{ id, expectedVersion }]`), all or nothing; `CATALOGUE_ORDER_INVALID` is worded. A server without the route (404, 405, or 400 with no catalogue code) gets the per-row PUTs above |
+| P.41 (update) | Item counts | **Fixed by backend #812**: the screen shows `productCount` on each kind and `kindCount` / `productCount` on each group when the tree carries them (kinds alone otherwise), and says before sending a delete that a group with kinds, or a kind with items on sale, cannot be removed; the server's refusal is still worded |

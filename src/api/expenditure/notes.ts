@@ -305,6 +305,12 @@ export type DebitNoteRowDto = {
   decidedAt: string | null
   decisionReason: string | null
   relatesTo: RelatedInvoiceDto | null
+  /**
+   * A later Peppol copy held as a possible duplicate (V493), decided on its own bill record.
+   * Accepting it is refused (409 DEBIT_NOTE_HELD_AS_DUPLICATE); refusing it is not: a refusal is
+   * a separate decision that leaves the duplicate check open. Absent from an older server.
+   */
+  heldAsDuplicate?: boolean
 }
 
 export type DebitNoteSummaryDto = {

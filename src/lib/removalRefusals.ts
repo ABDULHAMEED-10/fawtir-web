@@ -25,7 +25,7 @@ const KEYS: Record<string, string> = {
 
 export function removalRefusalKey(error: unknown): string | null {
   if (!(error instanceof ApiError)) return null
-  return error.problemType ? (KEYS[error.problemType] ?? null) : null
+  return error.problemType && Object.hasOwn(KEYS, error.problemType) ? KEYS[error.problemType] : null
 }
 
 /** A refusal in our words, else the general sentence for the failure. */

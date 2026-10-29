@@ -135,6 +135,48 @@ const SUPPLIER = {
   deliveryAddress: null,
 }
 
+/** A counted product with two sizes, as `GET /v1/products/{id}` answers it. */
+const BEANS = {
+  id: 'p-beans',
+  code: 'YIRG',
+  name: 'Yirgacheffe beans',
+  description: null,
+  defaultUnitCode: 'KGM',
+  defaultUnitPrice: 7.4,
+  defaultTaxCategory: 'S',
+  defaultTaxRate: 5,
+  classificationGoodsOrService: 'G',
+  active: true,
+  version: 1,
+  keepCount: true,
+  variants: [
+    {
+      id: 'v-1kg',
+      sizeId: 's-1',
+      size: '1 kg',
+      optionId: null,
+      option: null,
+      name: 'Yirgacheffe beans · 1 kg',
+      code: 'YIRG-1',
+      priceOverride: null,
+      price: 7.4,
+      onSale: true,
+    },
+    {
+      id: 'v-5kg',
+      sizeId: 's-5',
+      size: '5 kg',
+      optionId: null,
+      option: null,
+      name: 'Yirgacheffe beans · 5 kg',
+      code: 'YIRG-5',
+      priceOverride: null,
+      price: 34,
+      onSale: true,
+    },
+  ],
+}
+
 function json(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
     status,
@@ -200,6 +242,14 @@ beforeEach(async () => {
         page: 0,
         pageSize: 1,
         count: 1,
+      })
+    if (url.includes('/api/v1/products/p-beans')) return json(200, BEANS)
+    if (url.includes('/api/v1/products?'))
+      return json(200, {
+        content: [{ ...BEANS, variants: null, effectivePrice: 7.4 }],
+        totalElements: 1,
+        number: 0,
+        size: 20,
       })
     if (url.endsWith('/api/v1/suppliers/s-1')) return json(200, SUPPLIER)
     if (url.endsWith('/api/v1/suppliers/s-1/overview'))
@@ -537,6 +587,65 @@ describe('New purchase order (Figma 163:27317)', () => {
   })
 })
 
+describe('a purchase-order line picked from the catalogue (S2)', () => {
+  it('sends the product, its size and the stock units in one ordered unit', async () => {
+    render(
+      <MemoryRouter initialEntries={['/suppliers/s-1/purchase-order']}>
+        <Routes>
+          <Route path="/suppliers/:slug/purchase-order" element={<NewPurchaseOrderPage />} />
+          <Route path="/expenditure/purchase-orders/:id" element={<p>order page</p>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('Net 30 days')).toBeTruthy()
+    // The description stays free text; the catalogue pick is optional, beside it.
+    fireEvent.click(screen.getByRole('button', { name: 'Line 1: product from the catalogue' }))
+    fireEvent.click(await screen.findByRole('option', { name: /Yirgacheffe beans/ }))
+    expect(await screen.findByLabelText('Line 1: size or option')).toBeTruthy()
+    expect((screen.getByLabelText('Line 1: what it is') as HTMLInputElement).value).toBe(
+      'Yirgacheffe beans',
+    )
+    // A product with sizes is bought one of them at a time (STOCK_VARIANT_REQUIRED).
+    fireEvent.click(screen.getByRole('button', { name: 'Send for approval' }))
+    expect(await screen.findByText('Choose the size or option this line buys.')).toBeTruthy()
+    expect(createdBody).toBeNull()
+
+    fireEvent.click(screen.getByLabelText('Line 1: size or option'))
+    fireEvent.click(await screen.findByRole('option', { name: 'Yirgacheffe beans · 5 kg' }))
+    fireEvent.change(screen.getByLabelText('Line 1: stock units in one ordered unit'), {
+      target: { value: '5' },
+    })
+    fireEvent.change(screen.getByLabelText('Line 1: quantity'), { target: { value: '10' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send for approval' }))
+    await waitFor(() => expect(actions).toEqual(['submit']))
+    expect((createdBody as { lines: unknown[] }).lines).toEqual([
+      {
+        lineNo: 1,
+        description: 'Yirgacheffe beans · 5 kg',
+        quantity: 10,
+        unit: 'KGM',
+        unitPrice: 34,
+        vatRate: 5,
+        productId: 'p-beans',
+        variantId: 'v-5kg',
+        stockUnitsPerOrderUnit: 5,
+      },
+    ])
+  })
+
+  it('reads a delivery branch refusal on booking goods in as its own sentence', async () => {
+    const { ApiError } = await import('../../api/errors')
+    const { orderStockRefusalKey } = await import('../../lib/purchaseOrders')
+    const refusal = new ApiError({
+      status: 400,
+      problemType: null,
+      code: 'GOODS_RECEIPT_BRANCH_REQUIRED',
+    })
+    expect(orderStockRefusalKey(refusal)).toBe('purchaseOrder.stock.refused.branchRequired')
+    expect(i18n.t('purchaseOrder.stock.refused.branchRequired')).toMatch(/branch to deliver to/)
+  })
+})
+
 // Business Rules PL-8: purchase orders are trade documents. A plan without them keeps an order
 // made before readable, cancellable and closable; submitting, approving, sending and booking goods
 // in wait for a plan that has them.
@@ -577,7 +686,10 @@ describe('a plan without trade documents (PL-8)', () => {
 // Owner change to PL-8, 24 Oct 2026: purchase orders have their own switch, apart from the selling
 // documents (quotations, order forms, delivery notes).
 describe('the purchase-orders switch (PL-8, owner, 24 Oct 2026)', () => {
-  const withSwitches = (base: Entitlements, planFeatures: Record<string, boolean>): Entitlements => ({
+  const withSwitches = (
+    base: Entitlements,
+    planFeatures: Record<string, boolean>,
+  ): Entitlements => ({
     ...base,
     planFeaturesEnforced: true,
     planFeatures,

@@ -20,14 +20,13 @@ import {
 import { downloadBillOriginal } from '../../api/expenditure/bills'
 import { intakePath } from '../../api/expenditure/billIntake'
 import {
-  CREDIT_AMOUNT_NOTE,
-  CREDIT_STATUS_CHIP,
-  CREDIT_STATUS_LABEL,
   CREDIT_TABS,
   CREDIT_TAB_LABEL,
   CREDIT_TAB_STATUS,
   DEFAULT_CREDIT_TAB,
   NOTE_SORTS,
+  creditAmountNoteOf,
+  creditChipOf,
   creditRowActionOf,
   isCreditTab,
   isNoteSort,
@@ -506,7 +505,17 @@ function CreditRow({
 }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const chip = CHIP[CREDIT_STATUS_CHIP[note.status]]
+  const status = creditChipOf(note)
+  const chip = CHIP[status.tone]
+  const amountNote = creditAmountNoteOf(note)
+  const amountText =
+    note.usable && note.credited !== null && note.remaining !== note.credited
+      ? t('supplierCreditNotes.rows.remaining', {
+          amount: formatAmount(note.remaining, note.currency, language),
+        })
+      : amountNote
+        ? t(amountNote)
+        : null
   const action = creditRowActionOf(note)
   const reason = reasonLabelKey(note.reasonCode, note.reasonDetail ?? null)
   const [busy, setBusy] = useState(false)
@@ -633,7 +642,7 @@ function CreditRow({
           ].join(' ')}
         >
           <span className={['size-1.5 rounded-full', chip.dot].join(' ')} />
-          {t(CREDIT_STATUS_LABEL[note.status])}
+          {t(status.labelKey)}
         </span>
         {/* "Set against the bill" is hidden from someone who may not settle a credit. */}
         {action.primary && !canSettle ? null : (
@@ -670,13 +679,11 @@ function CreditRow({
             className="text-base font-semibold text-[#3d5648]"
           />
         )}
-        <p className="mt-1 text-xs font-medium leading-[1.2] text-text-quaternary">
-          {note.usable && note.credited !== null && note.remaining !== note.credited
-            ? t('supplierCreditNotes.rows.remaining', {
-                amount: formatAmount(note.remaining, note.currency, language),
-              })
-            : t(CREDIT_AMOUNT_NOTE[note.status])}
-        </p>
+        {amountText ? (
+          <p className="mt-1 text-xs font-medium leading-[1.2] text-text-quaternary">
+            {amountText}
+          </p>
+        ) : null}
       </td>
 
       <td className="px-2 py-4 align-middle">

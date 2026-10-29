@@ -326,7 +326,7 @@ export function CompanyProfilePage() {
       poBox: data.registeredPoBox ?? '',
       governorate: data.registeredCountrySubdivision ?? '',
       subdivisionCode: data.registeredCountrySubdivisionCode ?? '',
-      country: COUNTRY_FROM_API[data.country] ?? current.country,
+      country: Object.hasOwn(COUNTRY_FROM_API, data.country) ? COUNTRY_FROM_API[data.country] : current.country,
       contactPerson: data.contactPersonName ?? '',
       phone: data.contactPhone ?? '',
       email: data.contactEmail ?? '',
@@ -359,7 +359,7 @@ export function CompanyProfilePage() {
             poBox: storedProfile.registeredPoBox ?? '',
             governorate: storedProfile.registeredCountrySubdivision ?? '',
             subdivisionCode: storedProfile.registeredCountrySubdivisionCode ?? '',
-            country: COUNTRY_FROM_API[storedProfile.country] ?? INITIAL.country,
+            country: Object.hasOwn(COUNTRY_FROM_API, storedProfile.country) ? COUNTRY_FROM_API[storedProfile.country] : INITIAL.country,
             contactPerson: storedProfile.contactPersonName ?? '',
             phone: storedProfile.contactPhone ?? '',
             email: storedProfile.contactEmail ?? '',
@@ -749,7 +749,7 @@ export function CompanyProfilePage() {
                 <p role="alert" className="text-xs font-medium text-danger-700">
                   {t('companyProfile.amendFieldsRefused', {
                     fields: profileFieldErrors
-                      .map((field) => t(`companyProfile.${FIELD_LABEL[field] ?? 'streetAddress'}`))
+                      .map((field) => t(`companyProfile.${Object.hasOwn(FIELD_LABEL, field) ? FIELD_LABEL[field] : 'streetAddress'}`))
                       .join(t('companyProfile.andJoin')),
                   })}
                 </p>
@@ -1342,7 +1342,7 @@ function LastChangedCard() {
               ].join(' ')}
             >
               <dt className="text-sm font-medium text-text-tertiary">
-                {CHANGE_LABEL[change.field]
+                {Object.hasOwn(CHANGE_LABEL, change.field)
                   ? t(`companyProfile.${CHANGE_LABEL[change.field]}`)
                   : t('companyProfile.changedOther')}
               </dt>

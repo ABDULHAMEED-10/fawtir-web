@@ -19,6 +19,7 @@ import {
 import { downloadBillOriginal } from '../../api/expenditure/bills'
 import {
   DEBIT_ROW_ACTION,
+  duplicateCheckPath,
   DEBIT_TABS,
   DEBIT_TAB_LABEL,
   DEBIT_TAB_STATUS,
@@ -467,6 +468,9 @@ function DebitRow({
 }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  // A held copy waiting on its duplicate check says so in place of "Not checked": accepting it
+  // is refused until the check is decided. A refusal already taken keeps its own chip.
+  const heldUnchecked = note.heldAsDuplicate && note.status === 'UNCHECKED'
   const chip = CHIP[note.status]
   const action = DEBIT_ROW_ACTION[note.status]
   const reason = reasonLabelKey(note.reasonCode, note.reasonDetail ?? null)
@@ -494,8 +498,9 @@ function DebitRow({
 
   // "Accepted by Hafidh" as the frame prints it, from `decidedByName` (row 5.15); without a name
   // the chip says what it said before.
-  const statusLabel =
-    note.status === 'ACCEPTED'
+  const statusLabel = heldUnchecked
+    ? t('supplierDebitNotes.held.chip')
+    : note.status === 'ACCEPTED'
       ? note.decidedByName
         ? t('supplierDebitNotes.state.accepted', { who: note.decidedByName })
         : t('supplierDebitNotes.state.acceptedPlain')
@@ -581,7 +586,17 @@ function DebitRow({
           <span className={['size-1.5 shrink-0 rounded-full', chip.dot].join(' ')} />
           <span className="truncate">{statusLabel}</span>
         </span>
-        {action.primary && !canDecide ? null : (
+        {heldUnchecked ? (
+          <div className="mt-2">
+            <Link
+              to={duplicateCheckPath(note.id)}
+              className="inline-flex items-center gap-1 text-xs font-medium text-text-quaternary transition-colors hover:text-text-secondary"
+            >
+              {t('supplierDebitNotes.held.open')}
+              <img src={actChevronIcon} alt="" className="size-3 rtl:rotate-180" />
+            </Link>
+          </div>
+        ) : action.primary && !canDecide ? null : (
           <div className="mt-2">
             {action.primary ? (
               <Link

@@ -162,7 +162,7 @@ export function toSupplierListItem(row: SupplierListRowDto, now = Date.now()): S
     name: row.displayName,
     initials: initialsOf(row.displayName),
     vat: row.vatNumber,
-    channel: CHANNEL[row.billingChannel] ?? 'manual',
+    channel: Object.hasOwn(CHANNEL, row.billingChannel) ? CHANNEL[row.billingChannel] : 'manual',
     channelNote: channelNoteOf(row),
     terms: termsOf(row),
     termsNote: termsNoteOf(row),

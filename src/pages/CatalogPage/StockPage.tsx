@@ -1,99 +1,177 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CatalogShell, Kpi, Pill, TabStrip } from './CatalogShell'
 import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
 import { FilterMenu, Pager, Rial, RowsView, SortMenu, TableCheckbox } from '../../components/ui'
-import { omr, groupName, kindName } from '../../lib/catalog'
 import {
-  STOCK_ROWS,
-  STOCK_TABS,
+  ApiReadFailure,
+  LoadingNotice,
+  PermissionDeniedNotice,
+} from '../../components/feedback/ApiNotice'
+import { useApiRead } from '../../hooks'
+import { pageCountOf, type Page } from '../../api'
+import { omr } from '../../lib/catalog'
+import { formatDate } from '../../lib/format'
+import {
+  loadStockPage,
+  loadStockSummary,
+  stockListPath,
+  stockSummaryPath,
+  type StockAdjustmentResponse,
+  type StockRowDto,
+  type StockSummaryDto,
+} from '../../api/stock/stock'
+import {
+  SERVER_STOCK_SORT,
   STOCK_SORTS,
-  STOCK_BOOK,
-  MOVED_THIS_WEEK,
-  RUNNING_LOW,
-  NOTHING_LEFT,
+  STOCK_TABS,
+  TAB_STATUS,
   countStockTab,
-  matchesStockTab,
-  rowWorth,
-  daysLeft,
   coverShare,
-  isRunningLow,
   isOut,
-  itemOf,
+  isRunningLow,
+  movedThisWeek,
+  quantityText,
+  stockItemHref,
+  stockItemName,
+  stockKey,
+  stockUnitName,
   weekdayName,
-  type StockRow,
+  type StockSort,
   type StockTab,
 } from '../../lib/catalogStock'
+import {
+  StockCountModal,
+  StockDeliveryModal,
+  StockReorderModal,
+  StockWriteOffModal,
+  useStockAccess,
+} from './StockForms'
 import downloadIcon from '../../assets/catalog/download-white.svg'
 import searchIcon from '../../assets/invoices/search.svg'
 import kpiWorthIcon from '../../assets/catalog/kpi-worth.svg'
 import kpiAttentionIcon from '../../assets/catalog/kpi-attention.svg'
 import kpiOutIcon from '../../assets/catalog/kpi-out.svg'
 import kpiMovedIcon from '../../assets/catalog/kpi-moved.svg'
-import kindBagIcon from '../../assets/catalog/kind-bag.svg'
-import kindGrinderIcon from '../../assets/catalog/kind-grinder.svg'
 import kindProductIcon from '../../assets/catalog/kind-product.svg'
 
-const rowIcon = (id: string) => {
-  if (id.includes('grinder')) return kindGrinderIcon
-  if (id.includes('bag') || id.includes('blend') || id.includes('yirg') || id.includes('sidamo'))
-    return kindBagIcon
-  return kindProductIcon
-}
+/** Rows to a page, as the frame's pager pages them; the server pages, this screen asks. */
+const STOCK_PAGE_SIZE = 20
+/** How long typing pauses before the search goes to the server. */
+const SEARCH_DELAY_MS = 250
+
+type Dialog = 'count' | 'writeOff' | 'delivery' | 'reorder' | null
 
 /**
- * Stock (Figma 135:49263) — a place of its own beside the catalog, not a corner of it.
+ * Stock (Figma 135:49263): a place of its own beside the catalog, not a corner of it, reading
+ * `GET /v1/stock` and `GET /v1/stock/summary` for the branch chosen in the sidebar.
  *
- * Worth, cover and the low-stock colour all come from what is held against what it costs and how
- * fast it goes, so a row cannot look calm while its own numbers say it will run out on Monday.
+ * Worth is "at what you paid", the weighted average purchase cost; "this week" is today and the
+ * six days before it. The low-stock colour and the cover bar come from the server's state and
+ * the level set for the item, so a row cannot look calm while its own numbers say it is out.
  */
 export function StockPage() {
   const { t, i18n } = useTranslation()
-  const branchName = useWorkingBranch().name
-  const [tab, setTab] = useState<StockTab>('all')
+  const access = useStockAccess()
+  const branchRead = useWorkingBranch()
+  const branchName = branchRead.name
+  const branchId = branchRead.branch?.id ?? null
+  const [tab, setTabState] = useState<StockTab>('all')
   const [query, setQuery] = useState('')
-  const [sort, setSort] = useState('lowestFirst')
-  const [selected, setSelected] = useState<string[]>([
-    'kraft-bags-500g',
-    'yirgacheffe-1kg',
-    'sidamo-1kg',
-    'paper-filters-100',
-  ])
+  const [{ search, page }, setPaging] = useState({ search: '', page: 0 })
+  const [sort, setSortState] = useState<StockSort>('lowestFirst')
+  const [selected, setSelected] = useState<StockRowDto[]>([])
+  const [dialog, setDialog] = useState<Dialog>(null)
+  const [done, setDone] = useState<string | null>(null)
 
-  const rows = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    const filtered = STOCK_ROWS.filter(
-      (row) =>
-        matchesStockTab(row, tab) &&
-        (needle === '' ||
-          itemOf(row.id).name.toLowerCase().includes(needle) ||
-          itemOf(row.id).code.toLowerCase().includes(needle)),
+  const setPage = (next: number) => setPaging((current) => ({ ...current, page: next }))
+  const setTab = (next: StockTab) => {
+    setTabState(next)
+    setPage(0)
+  }
+  const setSort = (next: StockSort) => {
+    setSortState(next)
+    setPage(0)
+  }
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      const next = query.trim()
+      setPaging((current) => (current.search === next ? current : { search: next, page: 0 }))
+    }, SEARCH_DELAY_MS)
+    return () => window.clearTimeout(id)
+  }, [query])
+  // Another branch is another shelf: what was ticked there is not on this one.
+  useEffect(() => setSelected([]), [branchId])
+
+  const readable = access.canRead && branchId !== null
+  const selectable = access.canAdjust || access.canManage || access.canOrder
+  const listPath = readable
+    ? stockListPath({
+        branchId,
+        status: TAB_STATUS[tab],
+        q: search,
+        sort: SERVER_STOCK_SORT[sort],
+        page,
+        size: STOCK_PAGE_SIZE,
+      })
+    : null
+  const list = useApiRead<Page<StockRowDto>>(listPath, () => loadStockPage(listPath!))
+  const summaryPath = readable ? stockSummaryPath(branchId) : null
+  const summary = useApiRead<StockSummaryDto>(summaryPath, () => loadStockSummary(summaryPath!))
+  const book = summary.read.status === 'ready' ? summary.read.data : null
+  // The Nothing left card names the item that ran out: one row is enough to say which.
+  // Nothing left counts what sold below zero too: the server keeps those apart (`belowZero`), but
+  // an item at -1 has nothing on the shelf either (retest N-4). The card names one of them.
+  const nothingLeft = book ? book.nothingLeft + (book.belowZero ?? 0) : 0
+  const outStatus = book && book.nothingLeft > 0 ? 'OUT' : 'BELOW_ZERO'
+  const outPath =
+    readable && book && nothingLeft > 0
+      ? stockListPath({ branchId, status: outStatus, size: 1 })
+      : null
+  const out = useApiRead<Page<StockRowDto>>(outPath, () => loadStockPage(outPath!))
+  const outRow = out.read.status === 'ready' ? (out.read.data.items[0] ?? null) : null
+
+  const loaded = list.read.status === 'ready' ? list.read.data : null
+  const rows = useMemo(() => loaded?.items ?? [], [loaded])
+  const total = loaded ? (loaded.total ?? rows.length) : 0
+
+  const supplierOf = (row: StockRowDto) => row.supplier?.supplierId ?? null
+  const first = selected[0] ?? null
+  const allSameSupplier =
+    first !== null &&
+    supplierOf(first) !== null &&
+    selected.every((row) => supplierOf(row) === supplierOf(first))
+
+  const refresh = () => {
+    list.retry()
+    summary.retry()
+    out.retry()
+  }
+  const finished = (result?: StockAdjustmentResponse) => {
+    setDialog(null)
+    setDone(
+      result
+        ? t(`stock.forms.done.${result.kind}`, { number: result.number })
+        : t('stock.reorder.saved'),
     )
-    return [...filtered].sort((a, b) => {
-      if (sort === 'worthMost') return rowWorth(b) - rowWorth(a)
-      if (sort === 'name') return itemOf(a.id).name.localeCompare(itemOf(b.id).name)
-      return coverShare(a) - coverShare(b)
-    })
-  }, [tab, query, sort])
+    refresh()
+  }
 
-  const out = STOCK_ROWS.find(isOut)
-  const supplier = selected.length
-    ? (STOCK_ROWS.find((row) => row.id === selected[0])?.supplier ?? '')
-    : ''
-  const allSameSupplier = selected.every(
-    (id) => STOCK_ROWS.find((row) => row.id === id)?.supplier === supplier,
-  )
+  const toggle = (row: StockRowDto) =>
+    setSelected((list) =>
+      list.some((x) => stockKey(x) === stockKey(row))
+        ? list.filter((x) => stockKey(x) !== stockKey(row))
+        : [...list, row],
+    )
 
-  return (
+  const shell = (body: React.ReactNode, actions?: React.ReactNode) => (
     <CatalogShell
       crumbs={[]}
       title={t('stock.title')}
       subtitle={t('stock.subtitle')}
       // The counts are the branch chosen in the sidebar, the platform's one branch toggle (owner,
-      // 21 Oct 2026). TODO(backend): stock is not kept per branch yet, so every branch shows the
-      // same counts; a sale lowers and a received purchase order raises that branch's count once
-      // it is (docs/backend-guides/INCOME.md, row P.10).
+      // 21 Oct 2026): every read and write names it (INCOME.md P.10).
       pills={
         branchName ? (
           <Pill tone="brand">
@@ -101,65 +179,81 @@ export function StockPage() {
           </Pill>
         ) : undefined
       }
-      actions={
-        <>
-          <button
-            type="button"
-            className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-          >
-            {t('stock.countTheShelves')}
-          </button>
-          <button
-            type="button"
-            className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-          >
-            <img src={downloadIcon} alt="" className="size-[18px]" />
-            {t('stock.recordWhatCameIn')}
-          </button>
-        </>
-      }
+      actions={actions}
     >
+      {body}
+    </CatalogShell>
+  )
+
+  if (!access.ready || branchRead.read.status === 'loading') return shell(<LoadingNotice />)
+  if (!access.canRead) return shell(<PermissionDeniedNotice />)
+  if (branchRead.read.status === 'failed')
+    return shell(
+      <ApiReadFailure error={branchRead.read.error} retry={() => window.location.reload()} />,
+    )
+  if (summary.read.status === 'failed')
+    return shell(<ApiReadFailure error={summary.read.error} retry={summary.retry} />)
+
+  // The page's own selection is what the count and write-off forms start from; with nothing
+  // ticked, the count covers the rows on screen.
+  const countRows = selected.length ? selected : rows
+
+  return shell(
+    <>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Kpi
           icon={kpiWorthIcon}
           label={t('stock.kpi.worth')}
-          value={omr(STOCK_BOOK.worth)}
+          value={book ? omr(book.worth) : '…'}
           currency
-          note={t('stock.kpi.worthNote', { count: STOCK_BOOK.counted })}
+          note={t('stock.kpi.worthNote', { count: book?.counted ?? 0 })}
         />
         <Kpi
           icon={kpiAttentionIcon}
           highlight
           tone="pending"
           label={t('stock.kpi.runningLow')}
-          value={String(RUNNING_LOW)}
-          note={t('stock.kpi.runningLowNote')}
+          value={book ? String(book.runningLow) : '…'}
+          note={t('stock.live.runningLowNote')}
         />
         <Kpi
           icon={kpiOutIcon}
           tint="bg-danger-100"
           tone="danger"
           label={t('stock.kpi.nothingLeft')}
-          value={String(NOTHING_LEFT)}
+          value={book ? String(nothingLeft) : '…'}
           note={
-            out
-              ? t('stock.kpi.nothingLeftNote', {
-                  name: itemOf(out.id).name,
-                  day: out.ranOutOn === undefined ? '' : weekdayName(out.ranOutOn, i18n.language),
-                })
-              : t('stock.kpi.nothingOut')
+            outRow && outRow.onHand !== null && outRow.onHand < 0
+              ? t('stock.kpi.belowZeroNote', { name: stockItemName(outRow, i18n.language) })
+              : outRow
+                ? outRow.lastMovementAt
+                  ? t('stock.kpi.nothingLeftNote', {
+                      name: stockItemName(outRow, i18n.language),
+                      day: weekdayName(new Date(outRow.lastMovementAt).getDay(), i18n.language),
+                    })
+                  : stockItemName(outRow, i18n.language)
+                : t('stock.kpi.nothingOut')
           }
         />
         <Kpi
           icon={kpiMovedIcon}
           label={t('stock.kpi.moved')}
-          value={String(MOVED_THIS_WEEK)}
-          note={t('stock.kpi.movedNote', STOCK_BOOK.movedThisWeek)}
+          value={book ? quantityText(movedThisWeek(book), i18n.language) : '…'}
+          note={t('stock.kpi.movedNote', {
+            sold: quantityText(book?.lastSevenDays.sold ?? 0, i18n.language),
+            received: quantityText(book?.lastSevenDays.received ?? 0, i18n.language),
+            writtenOff: quantityText(book?.lastSevenDays.writtenOff ?? 0, i18n.language),
+          })}
         />
       </div>
 
       <section className="overflow-hidden rounded-md bg-surface-card">
-        <TabStrip tabs={STOCK_TABS} value={tab} onChange={setTab} count={countStockTab} />
+        <TabStrip
+          tabs={STOCK_TABS}
+          value={tab}
+          onChange={setTab}
+          count={(id) => countStockTab(book, id) ?? 0}
+        />
 
         <div className="flex flex-wrap items-center justify-between gap-3 p-5">
           <label className="flex h-[46px] w-[345px] max-w-full items-center gap-2 rounded-sm border border-border-subtle bg-white px-3 max-md:w-full">
@@ -181,13 +275,13 @@ export function StockPage() {
               options={STOCK_TABS.map((entry) => ({
                 value: entry.id,
                 label: t(entry.labelKey),
-                count: countStockTab(entry.id),
+                count: countStockTab(book, entry.id) ?? undefined,
               }))}
               onChange={setTab}
             />
             <SortMenu
               value={sort}
-              onChange={setSort}
+              onChange={(value) => setSort(value as StockSort)}
               options={STOCK_SORTS.map((entry) => ({
                 value: entry.id,
                 labelKey: entry.labelKey,
@@ -195,6 +289,15 @@ export function StockPage() {
             />
           </div>
         </div>
+
+        {done ? (
+          <p
+            role="status"
+            className="border-t border-surface-background px-5 py-3 text-sm font-semibold text-[#3d5648]"
+          >
+            {done}
+          </p>
+        ) : null}
 
         {selected.length > 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-3 border-y border-primary-100 bg-primary-25 px-5 py-3">
@@ -205,21 +308,40 @@ export function StockPage() {
                 ariaLabel={t('stock.clear')}
               />
               <span className="text-sm font-semibold text-primary-800">
-                {allSameSupplier
-                  ? t('stock.selected', { count: selected.length, supplier })
+                {allSameSupplier && first?.supplier
+                  ? t('stock.selected', { count: selected.length, supplier: first.supplier.name })
                   : t('catalog.selected', { count: selected.length })}
               </span>
             </span>
             <span className="flex flex-wrap items-center gap-2">
-              <button type="button" className={SELECTION_BUTTON}>
-                {t('stock.addToPo', { reference: 'PO-0034' })}
-              </button>
-              <button type="button" className={SELECTION_BUTTON}>
-                {t('stock.changeReorder')}
-              </button>
-              <button type="button" className={SELECTION_BUTTON}>
-                {t('stock.writeStockOff')}
-              </button>
+              {/* A purchase order is raised from its supplier's page; the items are picked on
+                  its lines there. */}
+              {allSameSupplier && first?.supplier && access.canOrder ? (
+                <Link
+                  to={`/suppliers/${encodeURIComponent(first.supplier.supplierId)}/purchase-order`}
+                  className={SELECTION_BUTTON}
+                >
+                  {t('stock.live.orderFrom', { supplier: first.supplier.name })}
+                </Link>
+              ) : null}
+              {access.canManage ? (
+                <button
+                  type="button"
+                  onClick={() => setDialog('reorder')}
+                  className={SELECTION_BUTTON}
+                >
+                  {t('stock.changeReorder')}
+                </button>
+              ) : null}
+              {access.canAdjust ? (
+                <button
+                  type="button"
+                  onClick={() => setDialog('writeOff')}
+                  className={SELECTION_BUTTON}
+                >
+                  {t('stock.writeStockOff')}
+                </button>
+              ) : null}
               <button type="button" onClick={() => setSelected([])} className={SELECTION_BUTTON}>
                 {t('stock.clear')}
               </button>
@@ -227,63 +349,67 @@ export function StockPage() {
           </div>
         ) : null}
 
-        <RowsView>
-          <table className="w-full min-w-[1060px] border-collapse">
-            <thead>
-              <tr className="whitespace-nowrap bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
-                <th className="h-[46px] w-[46px] ps-5 pe-2" />
-                <th className="h-[46px] px-3 text-start font-semibold">{t('stock.col.item')}</th>
-                <th className="h-[46px] px-3 text-end font-semibold">{t('stock.col.onHand')}</th>
-                <th className="h-[46px] px-3 text-start font-semibold">{t('stock.col.lasts')}</th>
-                <th className="h-[46px] px-3 text-end font-semibold">{t('stock.col.orderAt')}</th>
-                <th className="h-[46px] px-3 text-start font-semibold">{t('stock.col.onOrder')}</th>
-                <th className="h-[46px] px-3 text-end font-semibold">{t('stock.col.worth')}</th>
-                <th className="h-[46px] ps-3 pe-5" />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="px-4 py-12 text-center text-sm font-medium text-text-quaternary"
-                  >
-                    {t('stock.empty')}
-                  </td>
+        {list.read.status === 'failed' ? (
+          <div className="p-5 pt-0">
+            <ApiReadFailure error={list.read.error} retry={list.retry} />
+          </div>
+        ) : list.read.status === 'loading' ? (
+          <div className="p-5 pt-0">
+            <LoadingNotice />
+          </div>
+        ) : (
+          <RowsView>
+            <table className="w-full min-w-[1060px] border-collapse">
+              <thead>
+                <tr className="whitespace-nowrap bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
+                  <th className="h-[46px] w-[46px] ps-5 pe-2" />
+                  <th className="h-[46px] px-3 text-start font-semibold">{t('stock.col.item')}</th>
+                  <th className="h-[46px] px-3 text-end font-semibold">{t('stock.col.onHand')}</th>
+                  <th className="h-[46px] px-3 text-start font-semibold">{t('stock.col.lasts')}</th>
+                  <th className="h-[46px] px-3 text-end font-semibold">{t('stock.col.orderAt')}</th>
+                  <th className="h-[46px] px-3 text-start font-semibold">
+                    {t('stock.col.onOrder')}
+                  </th>
+                  <th className="h-[46px] px-3 text-end font-semibold">{t('stock.col.worth')}</th>
+                  <th className="h-[46px] ps-3 pe-5" />
                 </tr>
-              ) : (
-                rows.map((row) => (
-                  <Row
-                    key={row.id}
-                    row={row}
-                    checked={selected.includes(row.id)}
-                    onToggle={() =>
-                      setSelected((list) =>
-                        list.includes(row.id)
-                          ? list.filter((x) => x !== row.id)
-                          : [...list, row.id],
-                      )
-                    }
-                  />
-                ))
-              )}
-            </tbody>
-          </table>
-        </RowsView>
+              </thead>
+              <tbody>
+                {rows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={8}
+                      className="px-4 py-12 text-center text-sm font-medium text-text-quaternary"
+                    >
+                      {t('stock.empty')}
+                    </td>
+                  </tr>
+                ) : (
+                  rows.map((row) => (
+                    <Row
+                      key={stockKey(row)}
+                      row={row}
+                      selectable={selectable}
+                      canOrder={access.canOrder}
+                      checked={selected.some((x) => stockKey(x) === stockKey(row))}
+                      onToggle={() => toggle(row)}
+                    />
+                  ))
+                )}
+              </tbody>
+            </table>
+          </RowsView>
+        )}
 
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
           <p className="text-sm font-medium text-text-quaternary">
-            {t('stock.showing', { shown: rows.length, total: STOCK_BOOK.counted })}
+            {t('stock.live.showing', { shown: rows.length, total })}
           </p>
-          {/* The sample draws one page of the counted items, so the pages are worked out from the
-              count and the rows a page draws. TODO(backend): stock has no server yet, so the other
-              pages cannot be fetched and are drawn switched off (docs/backend-guides/INCOME.md,
-              row P.10). */}
           <Pager
-            page={1}
-            pageCount={Math.max(1, Math.ceil(STOCK_BOOK.counted / STOCK_ROWS.length))}
-            onChange={() => {}}
-            disabled
+            page={page + 1}
+            pageCount={loaded ? Math.max(1, pageCountOf(loaded)) : 1}
+            onChange={(next) => setPage(next - 1)}
+            disabled={!loaded}
             labels={{
               nav: t('appList.pager.label'),
               previous: t('appList.pager.previous'),
@@ -292,34 +418,92 @@ export function StockPage() {
           />
         </div>
       </section>
-    </CatalogShell>
+
+      {branchId && access.canAdjust ? (
+        <>
+          <StockCountModal
+            open={dialog === 'count'}
+            onClose={() => setDialog(null)}
+            branchId={branchId}
+            rows={countRows}
+            onDone={finished}
+          />
+          <StockWriteOffModal
+            open={dialog === 'writeOff'}
+            onClose={() => setDialog(null)}
+            branchId={branchId}
+            rows={selected}
+            onDone={finished}
+          />
+          <StockDeliveryModal
+            open={dialog === 'delivery'}
+            onClose={() => setDialog(null)}
+            branchId={branchId}
+            initial={selected}
+            onDone={finished}
+          />
+        </>
+      ) : null}
+      {branchId && access.canManage ? (
+        <StockReorderModal
+          open={dialog === 'reorder'}
+          onClose={() => setDialog(null)}
+          branchId={branchId}
+          rows={selected}
+          onDone={() => finished()}
+        />
+      ) : null}
+    </>,
+    access.canAdjust ? (
+      <>
+        <button
+          type="button"
+          onClick={() => setDialog('count')}
+          className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+        >
+          {t('stock.countTheShelves')}
+        </button>
+        <button
+          type="button"
+          onClick={() => setDialog('delivery')}
+          className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+        >
+          <img src={downloadIcon} alt="" className="size-[18px]" />
+          {t('stock.recordWhatCameIn')}
+        </button>
+      </>
+    ) : undefined,
   )
 }
 
 function Row({
   row,
+  selectable,
+  canOrder,
   checked,
   onToggle,
 }: {
-  row: StockRow
+  row: StockRowDto
+  /** A ticked row only leads to an action: none for a reader with none (retest N-3). */
+  selectable: boolean
+  /** Order now only for whoever may raise a purchase order; otherwise the movements. */
+  canOrder: boolean
   checked: boolean
   onToggle: () => void
 }) {
   const { t, i18n } = useTranslation()
-  const item = itemOf(row.id)
-  const days = daysLeft(row)
+  const language = i18n.language
+  const name = stockItemName(row, language)
+  const unit = stockUnitName(t, row.unitCode, language)
+  const days = row.daysLeft
   const low = isRunningLow(row)
   const out = isOut(row)
+  const notCounted = row.onHand === null
   const cover = coverShare(row)
-  const category = `${groupName(item.group)} › ${kindName(item.group, item.kind)} · ${item.code}`
-  const note = row.lastsNoteKey
-    ? t(row.lastsNoteKey, {
-        ...row.lastsNoteValues,
-        ...(row.lastsNoteKey === 'stock.sellingAbout'
-          ? { rate: t('stockItem.aDay', { count: Number(row.lastsNoteValues?.rate ?? 0) }) }
-          : {}),
-      })
-    : ''
+  const orders = row.onOrder ?? []
+  const firstOrder = orders[0] ?? null
+  const onOrder = orders.reduce((sum, order) => sum + order.quantity, 0)
+  const href = stockItemHref(row)
 
   return (
     <tr
@@ -329,25 +513,29 @@ function Row({
       ].join(' ')}
     >
       <td className="ps-5 pe-2 py-4 align-middle">
-        <TableCheckbox checked={checked} onChange={onToggle} ariaLabel={item.name} />
+        {selectable ? (
+          <TableCheckbox checked={checked} onChange={onToggle} ariaLabel={name} />
+        ) : null}
       </td>
 
       <td className="px-3 py-4 align-middle">
         <div className="flex items-center gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary-50">
-            <img src={rowIcon(row.id)} alt="" className="size-[18px]" />
+            <img src={kindProductIcon} alt="" className="size-[18px]" />
           </span>
           <div className="min-w-0 max-w-[260px]">
             <Link
-              to={`/stock/${row.id}`}
-              title={item.name}
+              to={href}
+              title={name}
               className="block truncate text-sm font-semibold text-text-primary transition-colors hover:text-primary-700"
             >
-              {item.name}
+              {name}
             </Link>
-            <p className="mt-1 truncate text-xs font-medium text-text-quaternary" title={category}>
-              {groupName(item.group)} › {kindName(item.group, item.kind)} ·{' '}
-              <span dir="ltr">{item.code}</span>
+            {/* TODO(backend): the frame prints the item's group and kind before its code; the
+                stock row carries neither (docs/backend-guides/INCOME.md, row P.19). */}
+            <p className="mt-1 truncate text-xs font-medium text-text-quaternary">
+              <span dir="ltr">{row.code}</span>
+              {row.variantRetired ? ` · ${t('stock.live.retired')}` : ''}
             </p>
           </div>
         </div>
@@ -359,10 +547,13 @@ function Row({
             'text-lg font-semibold tabular-nums',
             out ? 'text-danger-700' : low ? 'text-pending-700' : 'text-text-primary',
           ].join(' ')}
+          dir="ltr"
         >
-          {row.onHand}
+          {notCounted ? '—' : quantityText(row.onHand ?? 0, language)}
         </p>
-        <p className="mt-1 text-xs font-medium text-text-quaternary">{t(row.unitKey)}</p>
+        <p className="mt-1 text-xs font-medium text-text-quaternary">
+          {notCounted ? t('stock.live.notCountedYet') : unit}
+        </p>
       </td>
 
       <td className="px-3 py-4 align-middle">
@@ -379,38 +570,57 @@ function Row({
           ].join(' ')}
         >
           {out
-            ? t('stock.ranOut', {
-                day: row.ranOutOn === undefined ? '' : weekdayName(row.ranOutOn, i18n.language),
-              })
-            : days !== null && days <= 7
-              ? t('stock.goneBy', { day: dayName(days, i18n.language) })
-              : days !== null && days <= 28
-                ? t('stock.aboutWeeks', { count: Math.round(days / 7) })
-                : t('stock.aboutWeeks', { count: Math.round((days ?? 0) / 7) })}
+            ? row.lastMovementAt
+              ? t('stock.ranOut', {
+                  day: weekdayName(new Date(row.lastMovementAt).getDay(), language),
+                })
+              : t('stock.kpi.nothingLeft')
+            : notCounted
+              ? t('stock.live.notCountedYet')
+              : days === null
+                ? t('stock.live.nothingSells')
+                : days <= 7
+                  ? t('stock.goneBy', { day: dayName(days, language) })
+                  : t('stock.aboutWeeks', { count: Math.round(days / 7) })}
         </p>
         <p className="mt-1 max-w-[190px] text-xs font-medium leading-[1.4] text-text-quaternary">
           {days !== null && !out
-            ? note
-              ? t('stock.daysAt', { days, note })
-              : t('stockItem.days', { count: days })
-            : note}
+            ? t('stock.daysAt', {
+                days,
+                note: t('stock.sellingAbout', {
+                  rate: t('stockItem.aDay', { count: Math.round(row.perDay * 10) / 10 }),
+                }),
+              })
+            : ''}
         </p>
       </td>
 
       <td className="px-3 py-4 align-middle text-end">
-        <p className="text-sm font-semibold text-text-primary tabular-nums">{row.reorderAt}</p>
-        <p className="mt-1 text-xs font-medium text-text-quaternary">{t(row.unitKey)}</p>
+        <p className="text-sm font-semibold text-text-primary tabular-nums" dir="ltr">
+          {row.reorderLevel === null ? '—' : quantityText(row.reorderLevel, language)}
+        </p>
+        <p className="mt-1 text-xs font-medium text-text-quaternary">
+          {row.reorderLevel === null ? t('stock.live.noLevel') : unit}
+        </p>
       </td>
 
       <td className="px-3 py-4 align-middle">
-        {row.onOrder ? (
+        {firstOrder ? (
           <>
             <p className="text-sm font-semibold text-text-primary tabular-nums">
-              {row.onOrder.quantity}
+              {quantityText(onOrder, language)}
             </p>
             <p className="mt-1 whitespace-nowrap text-xs font-medium text-text-quaternary">
-              <span dir="ltr">{row.onOrder.reference}</span> ·{' '}
-              {t('stock.dueOn', { date: row.onOrder.dueOn })}
+              <Link
+                to={`/expenditure/purchase-orders/${encodeURIComponent(firstOrder.purchaseOrderId)}`}
+                className="hover:text-primary-700"
+              >
+                <span dir="ltr">{firstOrder.number}</span>
+              </Link>
+              {orders.length > 1 ? ` ${t('stock.live.andMore', { count: orders.length - 1 })}` : ''}
+              {firstOrder.wantedBy
+                ? ` · ${t('stock.dueOn', { date: formatDate(firstOrder.wantedBy, language) })}`
+                : ''}
             </p>
           </>
         ) : (
@@ -421,22 +631,28 @@ function Row({
       </td>
 
       <td className="px-3 py-4 align-middle text-end">
-        <p className="inline-flex items-baseline gap-1 whitespace-nowrap">
-          <span className="text-sm font-semibold text-text-primary">
-            <Rial />
-          </span>
-          <span className="text-sm font-semibold text-text-primary tabular-nums">
-            {omr(rowWorth(row))}
-          </span>
-        </p>
+        {row.worth === null ? (
+          <p className="text-sm font-semibold text-text-quaternary">—</p>
+        ) : (
+          <p className="inline-flex items-baseline gap-1 whitespace-nowrap">
+            <span className="text-sm font-semibold text-text-primary">
+              <Rial />
+            </span>
+            <span className="text-sm font-semibold text-text-primary tabular-nums">
+              {omr(row.worth)}
+            </span>
+          </p>
+        )}
         <p className="mt-1 whitespace-nowrap text-xs font-medium text-text-quaternary">
-          {t('stock.eachAt', { amount: omr(row.cost) })}
+          {row.averageCost === null
+            ? t('stock.live.noCost')
+            : t('stock.eachAt', { amount: omr(row.averageCost) })}
         </p>
       </td>
 
       <td className="ps-3 pe-5 py-4 align-middle text-end">
         <Link
-          to={`/stock/${row.id}`}
+          to={href}
           className={[
             'inline-flex h-[38px] items-center whitespace-nowrap rounded-sm border px-4 text-sm font-semibold transition-colors',
             low || out
@@ -444,7 +660,7 @@ function Row({
               : 'border-border-subtle bg-white text-text-secondary hover:bg-primary-25',
           ].join(' ')}
         >
-          {low || out ? t('stock.orderNow') : t('stock.movements')}
+          {(low || out) && canOrder ? t('stock.orderNow') : t('stock.movements')}
         </Link>
       </td>
     </tr>
@@ -456,9 +672,9 @@ const SELECTION_BUTTON =
   'inline-flex h-[38px] items-center whitespace-nowrap rounded-sm border border-primary-300 bg-white px-3 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-25'
 
 /**
- * A cover of a few days reads better as the day it runs out than as a number. Counted from a
- * Monday as the design does, and named in the interface language.
+ * A cover of a few days reads better as the day it runs out than as a number, counted from today
+ * and named in the interface language.
  */
 function dayName(days: number, language: string) {
-  return weekdayName(Math.max(0, Math.min(6, days)) + 1, language)
+  return weekdayName(new Date().getDay() + Math.max(0, days), language)
 }

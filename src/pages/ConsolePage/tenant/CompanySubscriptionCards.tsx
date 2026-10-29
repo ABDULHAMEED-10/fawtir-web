@@ -178,7 +178,7 @@ function SubscriptionCards({
 
   const { status, events, fawtirCancellation, fawtirCancellationEnabled } = changed ?? read.data
   const day = (iso: string | null) => (iso ? formatDate(iso, i18n.language) : null)
-  const access = status.access in ACCESS_TONE ? status.access : 'NOT_TRACKED'
+  const access = Object.hasOwn(ACCESS_TONE, status.access) ? status.access : 'NOT_TRACKED'
   const trialLength =
     status.trialStartsOn && status.trialEndsOn
       ? daysInclusive(status.trialStartsOn, status.trialEndsOn)

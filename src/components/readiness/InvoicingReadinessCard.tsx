@@ -63,7 +63,7 @@ export function InvoicingReadinessCard({ context = 'dashboard' }: { context?: 'd
 function Item({ item }: { item: ReadinessItem }) {
   const { t } = useTranslation()
   const label = KNOWN.has(item.code) ? t(`readiness.item.${item.code}`) : t('readiness.item.other')
-  const to = FIX_AT[item.code]
+  const to = Object.hasOwn(FIX_AT, item.code) ? FIX_AT[item.code] : undefined
   const canFix = useCan(FIX_PERMISSION)
 
   return (

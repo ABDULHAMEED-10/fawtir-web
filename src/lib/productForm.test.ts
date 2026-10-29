@@ -119,3 +119,9 @@ describe('the catalogue item form against /v1/products', () => {
     expect(productRefusal(new Error('x'))).toBeNull()
   })
 })
+
+describe('a refusal code named like an Object.prototype member', () => {
+  it.each(['constructor', 'toString', '__proto__', 'hasOwnProperty'])('is no product refusal: %j', (code) => {
+    expect(productRefusal(refusal(code, 409))).toBeNull()
+  })
+})

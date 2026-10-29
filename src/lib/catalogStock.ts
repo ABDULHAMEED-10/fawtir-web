@@ -1,14 +1,28 @@
 /**
- * Catalog › Stock (Figma 135:49263) and one item's shelf in full (135:49825).
+ * Catalog › Stock (Figma 135:49263) and one item's shelf in full (135:49825), read from
+ * `/v1/stock` (`src/api/stock/stock.ts`, INCOME.md P.10).
  *
- * Only things that are counted appear here — a drink made to order and a service have no shelf.
- * Worth, days of cover and the safer reorder level are all worked out from what is held and how
- * fast it moves, so the screen cannot advise a level its own sales rate contradicts.
+ * Only things that are counted appear here: a drink made to order and a service have no shelf.
+ * The safer reorder level is worked out from how fast an item sells and how long its supplier
+ * takes, so the screen cannot advise a level its own sales rate contradicts.
+ *
+ * The sample block at the top (`STOCK_ROWS`, `STOCK_BOOK`, `SUPPLIER`) is no longer drawn by the
+ * stock screens; it stays only for the bundle and notification prototypes that still run on
+ * sample data under the Demo ribbon.
  */
 
-import { ITEMS, omr, type Item } from './catalog'
+import type { TFunction } from 'i18next'
+import { ApiError } from '../api'
+import type {
+  StockMovementDto,
+  StockRowDto,
+  StockSortDto,
+  StockStatusFilter,
+  StockSummaryDto,
+} from '../api/stock/stock'
+import { omr } from './catalog'
 
-/** What a counted item costs to buy, against what it sells for. */
+/** Sample only (bundle prototype): what a counted item costs to buy, against what it sells for. */
 export type StockRow = {
   id: string
   /** Null while nobody has counted it yet. */
@@ -109,26 +123,8 @@ export function weekdayName(
   return day.toLocaleDateString(language, { weekday: width })
 }
 
-export const itemOf = (id: string) => ITEMS.find((item) => item.id === id) as Item
-
-/** What a row is worth on the shelf, at what it cost rather than what it sells for. */
-export const rowWorth = (row: StockRow) => Math.round((row.onHand ?? 0) * row.cost * 1000) / 1000
-
-/** Days of cover left, from what is held and how fast it goes. */
-export const daysLeft = (row: StockRow) =>
-  row.perDay <= 0 || row.onHand === null ? null : Math.round(row.onHand / row.perDay)
-
-/** How far through its reorder level a row sits, for the bar the row draws. */
-export const coverShare = (row: StockRow) =>
-  row.onHand === null ? 0 : Math.min(1, row.onHand / Math.max(1, row.reorderAt))
-
-export const isRunningLow = (row: StockRow) =>
-  row.onHand !== null && row.onHand > 0 && row.onHand < row.reorderAt
-
-export const isOut = (row: StockRow) => row.onHand === 0
-
 /**
- * The whole shelf, not just the six rows the screen draws.
+ * Sample only (notification prototype). The whole shelf, not just the six rows the screen draws.
  *
  * Sixty-one of the hundred and eighteen items are counted; the rest are services, made-to-order
  * drinks and anything nobody has counted yet.
@@ -145,20 +141,10 @@ export const STOCK_BOOK = {
   movedThisWeek: { sold: 164, received: 48, writtenOff: 6 },
 }
 
-export const STOCK_TOTAL = STOCK_BOOK.counted + STOCK_BOOK.notCounted
+/** Sample only (notification prototype): the supplier the sample low-stock notice names. */
+export const SUPPLIER = { name: 'Muscat Roastery' }
 
-export const MOVED_THIS_WEEK =
-  STOCK_BOOK.movedThisWeek.sold +
-  STOCK_BOOK.movedThisWeek.received +
-  STOCK_BOOK.movedThisWeek.writtenOff
-
-export const RUNNING_LOW = STOCK_BOOK.runningLow
-export const NOTHING_LEFT = STOCK_BOOK.nothingLeft
-export const NEEDS_ORDERING = RUNNING_LOW + NOTHING_LEFT
-
-/** The same two states among the rows the table actually draws. */
-export const DRAWN_LOW = STOCK_ROWS.filter(isRunningLow).length
-export const DRAWN_OUT = STOCK_ROWS.filter(isOut).length
+/* ------------------------------------------------------------------ the live list */
 
 export const STOCK_TABS = [
   { id: 'all', labelKey: 'stock.tab.all' },
@@ -171,171 +157,252 @@ export const STOCK_TABS = [
 
 export type StockTab = (typeof STOCK_TABS)[number]['id']
 
-export function countStockTab(tab: StockTab) {
-  if (tab === 'all') return STOCK_TOTAL
-  if (tab === 'needsOrdering') return NEEDS_ORDERING
-  if (tab === 'counted') return STOCK_BOOK.counted
-  if (tab === 'nothingLeft') return NOTHING_LEFT
-  if (tab === 'sittingStill') return STOCK_BOOK.sittingStill
-  return STOCK_BOOK.notCounted
+/** The server's `status` for each tab. */
+export const TAB_STATUS: Record<StockTab, StockStatusFilter> = {
+  all: 'ALL',
+  needsOrdering: 'NEEDS_ORDERING',
+  counted: 'COUNTED',
+  nothingLeft: 'OUT',
+  sittingStill: 'SITTING_STILL',
+  notCounted: 'NOT_COUNTED',
 }
 
-export function matchesStockTab(row: StockRow, tab: StockTab) {
-  if (tab === 'all' || tab === 'counted') return true
-  if (tab === 'needsOrdering') return isRunningLow(row) || isOut(row)
-  if (tab === 'nothingLeft') return isOut(row)
-  if (tab === 'sittingStill') return row.perDay < 0.5
-  return false
+/** A tab's count from `GET /v1/stock/summary`; null while it has not answered. */
+export function countStockTab(summary: StockSummaryDto | null, tab: StockTab): number | null {
+  if (!summary) return null
+  if (tab === 'all') return summary.counted + summary.notCounted
+  if (tab === 'needsOrdering') return summary.needsOrdering
+  if (tab === 'counted') return summary.counted
+  if (tab === 'nothingLeft') return summary.nothingLeft
+  if (tab === 'sittingStill') return summary.sittingStill
+  return summary.notCounted
+}
+
+/** "This week" is the last seven days: sold, received and written off, as the card's note says. */
+export function movedThisWeek(summary: StockSummaryDto): number {
+  const week = summary.lastSevenDays
+  return week.sold + week.received + week.writtenOff
 }
 
 export const STOCK_SORTS = [
   { id: 'lowestFirst', labelKey: 'stock.sort.lowestFirst' },
   { id: 'worthMost', labelKey: 'stock.sort.worthMost' },
   { id: 'name', labelKey: 'stock.sort.name' },
-]
+] as const
 
-/* ------------------------------------------------------------- one item's shelf */
+export type StockSort = (typeof STOCK_SORTS)[number]['id']
 
-export const STOCK_ITEM_ID = 'yirgacheffe-1kg'
-
-export const stockRowOf = (id: string) => STOCK_ROWS.find((row) => row.id === id) as StockRow
-
-/** Days a supplier takes, so the safer warning level can be worked out rather than guessed. */
-export const SUPPLIER = {
-  name: 'Muscat Roastery',
-  leadDays: 6,
-  delivers: 'Sundays',
-  cost: 7.4,
-  sells: 11.4,
-  lastPriceChange: { from: '7.100', to: '7.400', month: 'March' },
-  usuallyOrder: 25,
+export const SERVER_STOCK_SORT: Record<StockSort, StockSortDto> = {
+  lowestFirst: 'LOWEST_FIRST',
+  worthMost: 'WORTH_MOST',
+  name: 'NAME',
 }
 
-export const margin = (cost: number, sells: number) =>
-  Math.round(((sells - cost) / sells) * 1000) / 10
+/** Out of stock, or sold below zero: nothing left either way. */
+export const isOut = (row: Pick<StockRowDto, 'state'>) =>
+  row.state === 'OUT' || row.state === 'BELOW_ZERO'
 
-/** Enough to cover the wait for a delivery — what the level ought to be. */
+export const isRunningLow = (row: Pick<StockRowDto, 'state'>) => row.state === 'LOW'
+
+/** How far through its reorder level a row sits, for the bar the row draws. */
+export function coverShare(row: Pick<StockRowDto, 'onHand' | 'reorderLevel'>): number {
+  if (row.onHand === null || row.onHand <= 0) return 0
+  if (row.reorderLevel === null || row.reorderLevel <= 0) return 1
+  return Math.min(1, row.onHand / row.reorderLevel)
+}
+
+/** The item's name in the reader's language, with its size or option. */
+export function stockItemName(
+  row: Pick<StockRowDto, 'name' | 'nameAr' | 'variantName'>,
+  language: string,
+): string {
+  const name = language.startsWith('ar') && row.nameAr ? row.nameAr : row.name
+  return row.variantName ? `${name} · ${row.variantName}` : name
+}
+
+/** The item's page: the product, and its size or option when it is counted per variant. */
+export function stockItemHref(row: Pick<StockRowDto, 'productId' | 'variantId'>): string {
+  const base = `/stock/${encodeURIComponent(row.productId)}`
+  return row.variantId ? `${base}?variant=${encodeURIComponent(row.variantId)}` : base
+}
+
+/** The row's identity: a product, or one of its variants. */
+export const stockKey = (row: Pick<StockRowDto, 'productId' | 'variantId'>) =>
+  `${row.productId}:${row.variantId ?? ''}`
+
+/**
+ * A unit as the stock screens print it beside a figure: English in the plural ("bags",
+ * "kilograms"), Arabic by the unit's name. Falls back to the code.
+ */
+export function stockUnitName(t: TFunction, unitCode: string, language: string): string {
+  const name = t(`createInvoice.units.${unitCode}`, {
+    defaultValue: t(`reference.unitShort.${unitCode}`, { defaultValue: unitCode }),
+  })
+  return language.startsWith('en')
+    ? t(`invoiceForm.unitLock.unitName.${unitCode}`, {
+        defaultValue: name.toLocaleLowerCase('en'),
+      })
+    : name
+}
+
+/** A quantity at up to three decimals, without trailing zeros: 12, 2.5, 0.125. */
+export function quantityText(value: number, language: string): string {
+  return new Intl.NumberFormat(language.startsWith('ar') ? 'ar-OM-u-nu-latn' : 'en-US', {
+    maximumFractionDigits: 3,
+  }).format(value)
+}
+
+/* -------------------------------------------------------------- one item's shelf */
+
+export const margin = (cost: number, sells: number) =>
+  sells <= 0 ? 0 : Math.round(((sells - cost) / sells) * 1000) / 10
+
+/** Enough to cover the wait for a delivery: what the level ought to be. */
 export const saferLevel = (perDay: number, leadDays: number) => Math.ceil(perDay * leadDays)
 
-/** How many days a delivery of a given size would last at the current rate. */
-export const deliveryLasts = (quantity: number, perDay: number) => Math.floor(quantity / perDay)
+/** How many days a delivery of a given size lasts at the current rate. */
+export const deliveryLasts = (quantity: number, perDay: number) =>
+  perDay <= 0 ? null : Math.floor(quantity / perDay)
 
 /** A delivery big enough to hold the level until the next one. */
 export const deliveryThatHolds = (perDay: number, everyDays: number) =>
   Math.ceil(perDay * everyDays)
 
-export type Movement = {
-  id: string
-  date: string
-  at: string
-  kind: 'sold' | 'writtenOff' | 'held' | 'delivered' | 'corrected'
-  titleKey: string
-  noteKey: string
-  noteValues?: Record<string, string | number>
-  link?: { label: string; to: string }
-  change: number
-  leftAfter: number
+/** The days between deliveries the chart's advice plans for. */
+export const DELIVERY_EVERY_DAYS = 14
+
+const MUSCAT_TIME = new Intl.DateTimeFormat('en-GB', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+  timeZone: 'Asia/Muscat',
+})
+const MUSCAT_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' })
+
+/**
+ * The time a movement is listed at, in Muscat. A delivery is recorded against the day it came in,
+ * so it happened "at" midnight, which is not a time anyone saw (E2E 29 Oct 2026, F-10): it shows
+ * the time it was recorded when that was the same day, and no time otherwise.
+ */
+export function movementTime(
+  movement: Pick<StockMovementDto, 'type' | 'occurredAt' | 'recordedAt'>,
+): string {
+  const when = new Date(movement.occurredAt)
+  if (Number.isNaN(when.getTime())) return ''
+  const time = MUSCAT_TIME.format(when)
+  if (movement.type !== 'RECEIPT' || time !== '00:00') return time
+  const recorded = new Date(movement.recordedAt)
+  if (Number.isNaN(recorded.getTime())) return ''
+  return MUSCAT_DAY.format(recorded) === MUSCAT_DAY.format(when) ? MUSCAT_TIME.format(recorded) : ''
 }
 
-export const MOVEMENTS: Movement[] = [
-  {
-    id: 'm1',
-    date: '30 Jul',
-    at: '14:22',
-    kind: 'sold',
-    titleKey: 'stockItem.soldAtTheTill',
-    noteKey: 'stockItem.receiptWalkIn',
-    noteValues: { receipt: '8841' },
-    change: -1,
-    leftAfter: 6,
-  },
-  {
-    id: 'm2',
-    date: '30 Jul',
-    at: '09:05',
-    kind: 'sold',
-    titleKey: 'stockItem.soldOnAnInvoice',
-    noteKey: 'stockItem.invoiceBags',
-    noteValues: { count: 2 },
-    link: { label: 'INV-2046', to: '/invoices/INV-2046' },
-    change: -2,
-    leftAfter: 7,
-  },
-  {
-    id: 'm3',
-    date: '29 Jul',
-    at: '16:40',
-    kind: 'writtenOff',
-    titleKey: 'stockItem.writtenOff',
-    noteKey: 'stockItem.splitBag',
-    change: -1,
-    leftAfter: 9,
-  },
-  {
-    id: 'm4',
-    date: '29 Jul',
-    at: '11:18',
-    kind: 'sold',
-    titleKey: 'stockItem.soldAtTheTill',
-    noteKey: 'stockItem.receiptsBags',
-    noteValues: { from: '8823', to: '8829', count: 3 },
-    change: -3,
-    leftAfter: 10,
-  },
-  {
-    id: 'm5',
-    date: '28 Jul',
-    at: '08:30',
-    kind: 'held',
-    titleKey: 'stockItem.heldForABundle',
-    noteKey: 'stockItem.bundleSold',
-    noteValues: { count: 2 },
-    link: { label: 'PKG-0002', to: '/catalog/bundles' },
-    change: -2,
-    leftAfter: 13,
-  },
-  {
-    id: 'm6',
-    date: '24 Jul',
-    at: '07:15',
-    kind: 'delivered',
-    titleKey: 'stockItem.deliveryCheckedIn',
-    noteKey: 'stockItem.grnAgainst',
-    noteValues: { grn: 'GRN-0091', supplier: 'Muscat Roastery' },
-    link: { label: 'PO-0033', to: '/purchase-orders' },
-    change: 25,
-    leftAfter: 40,
-  },
-  {
-    id: 'm7',
-    date: '23 Jul',
-    at: '17:02',
-    kind: 'corrected',
-    titleKey: 'stockItem.countCorrected',
-    noteKey: 'stockItem.shelfCountFound',
-    noteValues: { who: 'Hafidh Saif' },
-    change: -1,
-    leftAfter: 15,
-  },
-]
+export type MovementKind = 'sold' | 'writtenOff' | 'returned' | 'delivered' | 'corrected'
 
-/** The thirty-day line the chart draws, oldest first. */
-export const THIRTY_DAYS = [
-  28, 26, 24, 22, 20, 18, 16, 40, 38, 36, 34, 32, 30, 28, 26, 24, 22, 20, 19, 18, 17, 16, 15, 14,
-  13, 12, 10, 9, 7, 6,
-]
-
-/** The day the delivery landed, as an index into the line above. */
-export const DELIVERY_AT = 7
-
-export const DELIVERY_SIZE = 25
-
-/** What else would stop if this ran out. */
-export const DEPENDS_ON_IT = {
-  bundle: 'Taste of Ethiopia',
-  cappedAt: 6,
-  quotations: 0,
-  recurring: 0,
+export function movementKind(movement: Pick<StockMovementDto, 'type'>): MovementKind {
+  switch (movement.type) {
+    case 'SALE':
+      return 'sold'
+    case 'WRITE_OFF':
+      return 'writtenOff'
+    case 'REFUND_RETURN':
+      return 'returned'
+    case 'RECEIPT':
+      return 'delivered'
+    default:
+      return 'corrected'
+  }
 }
 
-export { omr }
+/** The movement's title in words. */
+export function movementTitleKey(movement: Pick<StockMovementDto, 'type' | 'source'>): string {
+  switch (movement.type) {
+    case 'SALE':
+      return movement.source.type === 'POS_SALE'
+        ? 'stockItem.soldAtTheTill'
+        : 'stockItem.soldOnAnInvoice'
+    case 'WRITE_OFF':
+      return 'stockItem.writtenOff'
+    case 'REFUND_RETURN':
+      return 'stockItem.live.backOnShelf'
+    case 'RECEIPT':
+      return movement.source.type === 'DELIVERY'
+        ? 'stockItem.live.deliveryRecorded'
+        : 'stockItem.deliveryCheckedIn'
+    default:
+      return 'stockItem.countCorrected'
+  }
+}
+
+/** Where a movement's document opens, when the web has a page for it. */
+export function movementLink(movement: StockMovementDto): { label: string; to: string } | null {
+  const link = movement.source.link
+  const label = movement.source.number
+  if (!link || !label) return null
+  const id = encodeURIComponent(link.id)
+  if (link.kind === 'INVOICE') return { label, to: `/invoices/${id}` }
+  if (link.kind === 'CREDIT_NOTE') return { label, to: `/income/credit-notes/${id}` }
+  if (link.kind === 'PURCHASE_ORDER' || link.kind === 'GOODS_RECEIPT')
+    return { label, to: `/expenditure/purchase-orders/${id}` }
+  return null
+}
+
+/** The line under a movement's title, in words, never the server's own text. */
+export function movementNote(t: TFunction, movement: StockMovementDto, language: string): string {
+  const who = movement.by.name ?? ''
+  const parts: string[] = []
+  if (movement.type === 'WRITE_OFF' && movement.reasonCode) {
+    parts.push(t(`stock.writeOff.reasons.${movement.reasonCode}`, { defaultValue: '' }))
+  }
+  if (movement.type === 'COUNT_CORRECTION' && movement.countedQuantity !== null) {
+    parts.push(
+      t('stockItem.live.countedAs', { count: quantityText(movement.countedQuantity, language) }),
+    )
+  }
+  if (movement.type === 'RECEIPT') {
+    if (movement.supplier)
+      parts.push(t('stockItem.live.from', { supplier: movement.supplier.name }))
+    if (movement.unitCost !== null)
+      parts.push(t('stockItem.live.atEach', { amount: `OMR ${omr(movement.unitCost)}` }))
+  }
+  if (movement.note) parts.push(movement.note)
+  if (who) parts.push(who)
+  return parts.filter(Boolean).join(' · ')
+}
+
+/* ------------------------------------------------------------------- the forms */
+
+/** A count, quantity or level as typed: a number of zero or more with at most three decimals. */
+export function readQuantity(text: string, { positive }: { positive: boolean }): number | null {
+  const trimmed = text.trim()
+  if (!/^\d+(\.\d{1,3})?$/.test(trimmed)) return null
+  const value = Number(trimmed)
+  if (!Number.isFinite(value)) return null
+  if (positive && value <= 0) return null
+  return value
+}
+
+const STOCK_REFUSALS: Record<string, string> = {
+  STOCK_QUANTITY_INVALID: 'stock.refused.quantityInvalid',
+  STOCK_QUANTITY_NOT_WHOLE: 'stock.refused.quantityNotWhole',
+  STOCK_VARIANT_REQUIRED: 'stock.refused.variantRequired',
+  STOCK_VARIANT_NOT_ON_PRODUCT: 'stock.refused.variantNotOnProduct',
+  STOCK_LINE_DUPLICATE: 'stock.refused.lineDuplicate',
+  STOCK_COUNTED_AT_INVALID: 'stock.refused.countedAtInvalid',
+  STOCK_UNIT_COST_INVALID: 'stock.refused.unitCostInvalid',
+  STOCK_RECEIVED_ON_INVALID: 'stock.refused.receivedOnInvalid',
+  STOCK_WRITE_OFF_NOTE_REQUIRED: 'stock.refused.noteRequired',
+  STOCK_REORDER_LEVEL_INVALID: 'stock.refused.reorderLevelInvalid',
+  STOCK_ITEM_NOT_FOUND: 'stock.refused.itemNotFound',
+  STOCK_NOT_COUNTED_PRODUCT: 'stock.refused.notCountedProduct',
+  STOCK_ADJUSTMENT_KEY_REUSED: 'stock.refused.keyReused',
+  STOCK_LEVEL_VERSION_CONFLICT: 'stock.refused.levelVersionConflict',
+  SUPPLIER_NOT_FOUND: 'stock.refused.supplierNotFound',
+  SUPPLIER_ARCHIVED: 'stock.refused.supplierArchived',
+  BRANCH_NOT_FOUND: 'stock.refused.branchNotFound',
+}
+
+/** The stock routes' own refusals in words; null for anything else (the shared wording). */
+export function stockRefusalKey(error: unknown): string | null {
+  if (!(error instanceof ApiError) || error.code === null) return null
+  return STOCK_REFUSALS[error.code] ?? null
+}

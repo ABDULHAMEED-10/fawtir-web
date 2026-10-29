@@ -16,6 +16,9 @@ const STATUS_STYLES: Record<Exclude<Chip, 'creditNote'>, Style> = {
   paid: { bg: 'bg-success-100', fg: 'text-success-700', dot: 'bg-success-700' },
   partPaid: { bg: 'bg-success-100', fg: 'text-success-700', dot: 'bg-success-700' },
   refusedClosed: { bg: 'bg-danger-100', fg: 'text-[#7a1009]', dot: 'bg-[#7a1009]' },
+  // A held copy wears the hold's own tone, decided or not: both are held, neither is payable.
+  suspectedDuplicate: { bg: 'bg-danger-100', fg: 'text-[#7a1009]', dot: 'bg-[#7a1009]' },
+  confirmedDuplicate: { bg: 'bg-danger-100', fg: 'text-[#7a1009]', dot: 'bg-[#7a1009]' },
 }
 
 /** A credit note's chip, in the Credit notes list's tones so the two lists look alike. */

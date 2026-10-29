@@ -110,6 +110,21 @@ export type InvoiceDetailDto = {
    */
   seller?: InvoiceSellerDto | null
   buyer?: InvoiceBuyerDto | null
+  /**
+   * Line warnings on the authoring routes, never blocking; `[]` when none. The issue answer also
+   * lists the lines that cite a counted product and moved no stock (`STOCK_UNIT_MISMATCH`,
+   * `STOCK_VARIANT_UNKNOWN`, `STOCK_QUANTITY_NOT_WHOLE`, `STOCK_QUANTITY_INVALID`). Absent from
+   * older servers and on the plain read.
+   */
+  warnings?: InvoiceLineWarningDto[] | null
+}
+
+/** One line warning: `line` is the document's line number; `code` is worded by the screen. */
+export type InvoiceLineWarningDto = {
+  line?: number | null
+  code: string
+  severity?: 'warning'
+  message?: string
 }
 
 export type InvoicePartyAddressDto = {

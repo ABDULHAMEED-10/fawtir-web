@@ -148,6 +148,11 @@ export type NoteLine = {
   discountType: DraftLineRequest['discount']['type']
   discountValue: string
   taxCategory: DraftLineRequest['taxCategory']
+  /**
+   * The credit note's "Back on the shelf?" for a returned line citing a counted product: true puts
+   * it back into the branch's stock when the note is issued. Null while not answered (sent as no).
+   */
+  backOnShelf: boolean | null
 }
 
 export type NoteForm = {
@@ -220,6 +225,7 @@ function invoiceLine(
       exemptionReason: line.exemptionReason,
       exemptionReasonCode: line.exemptionReasonCode ?? null,
     },
+    backOnShelf: null,
   }
 }
 
@@ -273,6 +279,7 @@ export function addedLine(
           exemptionReasonCode: first.exemptionReasonCode ?? null,
         }
       : { code: 'S5', en16931Category: 'S', rate: 5, exemptionReason: null },
+    backOnShelf: null,
   }
 }
 
@@ -370,6 +377,7 @@ export function fromNoteDraft(
       classification: classificationOfDraftLine(saved, line.classification),
       discountType: saved.discountType,
       discountValue: String(saved.discountValue),
+      backOnShelf: saved.backOnShelf ?? null,
     }
   })
   let form: NoteForm = { ...base, lines }
@@ -695,11 +703,34 @@ export function noteProblems(form: NoteForm, kind: NoteKind, today = muscatToday
   return problems
 }
 
+/**
+ * Whether a note line asks "Back on the shelf?" (V473, Abdul 7): a returned goods line of an
+ * ordinary credit note that cites a product the catalogue counts (`keepCount`). Never on a debit
+ * note or a self-billed credit note, which the server refuses (BACK_ON_SHELF_ONLY_ON_CREDIT_NOTES).
+ */
+export function asksBackOnShelf(
+  line: Pick<NoteLine, 'productId' | 'kind'>,
+  kind: NoteKind,
+  counted: ReadonlySet<string>,
+  selfBilled = false,
+): boolean {
+  return (
+    kind === 'CREDIT_NOTE' &&
+    !selfBilled &&
+    line.kind === 'goods' &&
+    line.productId !== null &&
+    counted.has(line.productId)
+  )
+}
+
 /** The note's request: the invoice's party, branch, currency and terms, with the kept lines. */
 export function toNoteRequest(
   form: NoteForm,
   invoice: InvoiceDetailDto,
   kind: NoteKind = 'CREDIT_NOTE',
+  /** The products on the note that the catalogue counts; their lines answer "Back on the shelf?". */
+  counted: ReadonlySet<string> = new Set(),
+  selfBilled = false,
 ): DraftRequest {
   return {
     customerId: invoice.customerId,
@@ -724,6 +755,11 @@ export function toNoteRequest(
         discount: { type: line.discountType, value: Number(line.discountValue.trim()) || 0 },
         taxCategory: line.taxCategory,
         ...classificationRequest(line),
+        // Only an ordinary credit note's counted goods line states it; every other line leaves it
+        // out, since the server refuses it on any other document type, false included.
+        ...(asksBackOnShelf(line, kind, counted, selfBilled)
+          ? { backOnShelf: line.backOnShelf === true }
+          : {}),
       })),
     // The invoice's document discount, on a credit of its own lines (W-2, `noteHeaderDiscount`).
     headerDiscount: noteHeaderDiscount(form, invoice, kind),
@@ -802,6 +838,7 @@ export const NOTE_REFUSALS: Record<string, string> = {
   // preview or issue. The page checks it before saving (`categoryReasonConflicts`, INCOME.md V.6).
   TAX_CATEGORY_METADATA_CONFLICT: CATEGORY_REASON_CONFLICT,
   TAX_CATEGORY_REASON_CONFLICT: CATEGORY_REASON_CONFLICT,
+  BACK_ON_SHELF_ONLY_ON_CREDIT_NOTES: 'salesNote.backOnShelf.onlyOnCreditNotes',
 }
 
 /* ---------------------------------------------------------------------------------------------
