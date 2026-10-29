@@ -91,6 +91,11 @@ export type PosCompanyCustomerRequest = {
   email?: string | null
   identifierScheme?: BuyerIdentifierScheme | null
   identifierValue?: string | null
+  /**
+   * The invoice address (`CustomerAddress`): a full invoice needs its country, city and street
+   * (`missingInvoiceFields`), so a company added without them can never be sold to (E2E F-1).
+   */
+  address?: { countryCode: string; cityName: string; streetName: string } | null
 }
 
 export function addPosCustomer<T>(
@@ -299,7 +304,13 @@ export type PosTodaySaleRow = {
   onAccount: number
   changeGiven: number
   credit: { state: 'NONE' | 'PARTLY' | 'FULLY'; credited: number; creditNoteNumbers: string[] }
-  displayState: 'filed' | 'peppol' | 'credited'
+  /**
+   * The badge. `waiting` (not accepted yet) and `failed` (never sent, or ended without acceptance)
+   * come from backend #810; an older server says `filed` for both, so the till also reads `filing`.
+   */
+  displayState: 'filed' | 'peppol' | 'credited' | 'waiting' | 'failed'
+  /** Where the sale stands with the Authority. */
+  filing?: PosFiling | null
   refundable: boolean
   queuedOffline: boolean
 }
@@ -563,6 +574,9 @@ export type PosRefundLookupDto = {
   lines: PosRefundLookupLine[]
   paid: { byMethod: { method: PosMethod; amount: number }[]; total: number; paidBack: number }
   total: number
+  /** The tip paid on top, never refunded (backend #810); absent from an older server. */
+  tip?: number
+  tipMethod?: 'CASH' | 'CARD' | null
   credited: number
   owed: number
   creditNoteNumbers: string[]
@@ -637,6 +651,29 @@ export function readPosSlip(fileId: string): Promise<PosSlipReadingDto> {
     method: 'POST',
     body: { fileId },
   })
+}
+
+export type PosSlipAttachedDto = {
+  saleId: string
+  position: number
+  slip: PosPaymentSlip
+  replayed: boolean
+  warnings: PosWarning[]
+}
+
+/**
+ * The slip of a card payment made earlier: a sale queued offline whose photo is uploaded once it
+ * is filed. The same slip again answers 200 `replayed`; a slip's warnings never refuse.
+ */
+export function attachPosSlip(
+  saleId: string,
+  position: number,
+  body: { slipFileId?: string | null; slipFields?: PosSlipFields | null },
+): Promise<PosSlipAttachedDto> {
+  return apiRequest<PosSlipAttachedDto>(
+    `${POS_SALES_PATH}/${encodeURIComponent(saleId)}/payments/${position}/slip`,
+    { method: 'PUT', body },
+  )
 }
 
 /** A key for one write, 16 to 128 of `[A-Za-z0-9._:-]`. */

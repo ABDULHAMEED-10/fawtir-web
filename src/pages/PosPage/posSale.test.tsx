@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
 import { LULL_ACTIVE_RULE, SAMPLE_SALE } from '../../lib/posTestSale'
 import { resetPriceRuleCache } from '../../lib/posPriceRules'
@@ -16,6 +16,9 @@ import {
   useOpenSale,
 } from '../../lib/posSale'
 import { resetPosQueue } from '../../lib/posQueue'
+import { heldSlipPhotos } from '../../lib/posSlipOutbox'
+import { memoryVault, setPosVault } from '../../lib/posVault'
+import { CashierPicker } from './CashierPicker'
 import { resetSharedRequests } from '../../api'
 
 const CASHIER: Entitlements = {
@@ -339,5 +342,90 @@ describe('taking the payment (P.12)', () => {
       ),
     ).toBeTruthy()
     expect(calls.filter((call) => call.url === '/api/v1/pos/sales')).toHaveLength(1)
+  })
+})
+
+describe('POS follow-ups (Abdul, 28 Oct 2026)', () => {
+  let calls: { url: string; init?: RequestInit }[]
+  let online: boolean
+
+  beforeEach(async () => {
+    await i18n.changeLanguage('en')
+    resetOpenSale(SAMPLE_SALE)
+    resetPosQueue()
+    resetSharedRequests()
+    forgetEntitlements()
+    window.localStorage.clear()
+    setPosVault(memoryVault(true))
+    calls = []
+    online = true
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        calls.push({ url, init })
+        if (url === '/api/v1/me/entitlements') return json(CASHIER)
+        if (url === '/api/v1/branches') {
+          return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
+        }
+        if (url.startsWith('/api/v1/pos/tills')) return json([TILL])
+        if (url === '/api/v1/auth/logout') return new Response(null, { status: 204 })
+        if (!online) throw new TypeError('Failed to fetch')
+        return new Response('', { status: 404 })
+      }),
+    )
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    setPosVault(null)
+  })
+
+  it('Switch user signs out and sends the next cashier back to the till after sign-in', async () => {
+    function Where() {
+      const location = useLocation()
+      return <p>at {`${location.pathname}${location.search}`}</p>
+    }
+    render(
+      <MemoryRouter initialEntries={['/pos']}>
+        <Routes>
+          <Route path="/pos" element={<CashierPicker till={TILL as never} mine />} />
+          <Route path="*" element={<Where />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Who is on the till' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Switch user' }))
+    expect(await screen.findByText('at /login?next=%2Fpos')).toBeTruthy()
+    expect(calls.some((call) => call.url === '/api/v1/auth/logout')).toBe(true)
+  })
+
+  it('keeps a slip photographed offline with the queued sale instead of failing', async () => {
+    online = false
+    render(
+      <MemoryRouter initialEntries={['/pos/payment']}>
+        <Routes>
+          <Route path="/pos/payment" element={<PosPaymentPage />} />
+          <Route path="/pos/done" element={<Done />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: /^Card/ }))
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+    const file = new File(['jpeg bytes'], 'slip.jpg', { type: 'image/jpeg' })
+    fireEvent.change(input, { target: { files: [file] } })
+    expect(
+      await screen.findByText(/The slip photo is kept with this sale and sent once the connection/),
+    ).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /^Paid/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
+
+    const [queued] = JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')
+    expect(queued.body.payments[0]).toMatchObject({ method: 'CARD' })
+    expect(queued.body.payments[0].slipFileId).toBeUndefined()
+    const held = await heldSlipPhotos(queued.key)
+    expect(held).toHaveLength(1)
+    expect(held[0]).toMatchObject({ position: 1, name: 'slip.jpg', fileId: null })
   })
 })
