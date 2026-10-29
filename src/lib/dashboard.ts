@@ -239,6 +239,11 @@ export const DASHBOARD_NAV: NavGroup[] = [
         children: [
           { id: 'allItems', labelKey: 'dashboard.nav.catalogChildren.allItems', to: '/catalog' },
           {
+            id: 'groups',
+            labelKey: 'dashboard.nav.catalogChildren.groups',
+            to: '/catalog/groups',
+          },
+          {
             id: 'bundles',
             labelKey: 'dashboard.nav.catalogChildren.bundles',
             to: '/catalog/bundles',

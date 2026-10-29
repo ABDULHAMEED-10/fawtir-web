@@ -38,6 +38,7 @@ import {
 import { getCatalogGroups, type CatalogGroupsDto } from '../../api/catalog/groups'
 import type { Page } from '../../api'
 import { posRefusalKey } from '../../lib/posRefusals'
+import { loadOrRecall } from '../../lib/posOffline'
 
 /** The whole branch shelf in one read; search and the tabs work on it. */
 const SHELF_SIZE = 200
@@ -192,7 +193,10 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
     sort: 'NAME',
     size: SHELF_SIZE,
   })
-  const shelf = useApiRead<Page<ProductDto>>(path, () => searchProducts(path))
+  // Kept on the device, with each item read in full, so the till sells offline (lib/posOffline).
+  const shelf = useApiRead<Page<ProductDto>>(path, () =>
+    loadOrRecall(`shelf.${branchId}`, () => searchProducts(path)),
+  )
   const groups = useApiRead<CatalogGroupsDto>('/v1/catalog/groups', getCatalogGroups)
 
   const items = useMemo(
@@ -215,7 +219,8 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
     let choices = details[item.id]
     if (!choices) {
       try {
-        choices = choicesOf(await getProduct(item.id), item.price, ar)
+        const detail = await loadOrRecall(`product.${item.id}`, () => getProduct(item.id))
+        choices = choicesOf(detail, item.price, ar)
         setDetails((current) => ({ ...current, [item.id]: choices as ItemChoices }))
       } catch (cause) {
         setError(cause)
