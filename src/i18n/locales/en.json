@@ -4522,7 +4522,11 @@
       "contactPerson": "Contact person",
       "email": "Email",
       "noVatNote": "No Omani VAT number? Leave it empty and give their ID instead.",
-      "addCompany": "Add the company"
+      "addCompany": "Add the company",
+      "notReady": "A full invoice to this company needs {{missing}}.",
+      "saveAddress": "Save the address",
+      "completeOnCustomer": "Complete the rest on the customer's own page in Customers.",
+      "askToComplete": "Ask someone who can edit customers to complete it, then finish the sale."
     },
     "today": {
       "title": "Today",
@@ -4562,7 +4566,8 @@
       "state": {
         "filed": "Filed",
         "peppol": "Peppol",
-        "credited": "Credited"
+        "credited": "Credited",
+        "waiting": "Waiting"
       },
       "tab": {
         "everything": "Everything",
@@ -4588,7 +4593,8 @@
       "noneYet": "None yet",
       "mixed": "Split",
       "approval": "Approval {{code}}",
-      "partlyCredited": "{{amount}} credited"
+      "partlyCredited": "{{amount}} credited",
+      "plusTip": "+ {{amount}} tip"
     },
     "close": {
       "title": "Closing it",
@@ -4677,7 +4683,16 @@
       },
       "whatFor": "What was it for?",
       "record": "Record it",
-      "howMany": "How many of {{note}}"
+      "howMany": "How many of {{note}}",
+      "companyNote_one": "{{count}} invoice over Peppol",
+      "companyNote_other": "{{count}} invoices over Peppol",
+      "summary": {
+        "counted": "Counted in the drawer",
+        "expected": "Expected in the drawer",
+        "toBank": "To the bank",
+        "floatLeft": "Float left in the drawer",
+        "cardDiffers": "Card machine differs by"
+      }
     },
     "refund": {
       "title": "Putting something right",
@@ -4770,7 +4785,11 @@
       "value": "ID number",
       "contact": "Phone or email",
       "makeFull": "Make it a full invoice",
-      "onCompany": "Put it on a company instead"
+      "onCompany": "Put it on a company instead",
+      "contactInvalid": {
+        "phone": "Type the phone number as 8 digits, or with the country code (+968 9234 5678).",
+        "email": "That email address is not complete."
+      }
     },
     "refusal": {
       "offline": "The till could not reach Fawtir. Check the connection and try again.",
@@ -4823,7 +4842,10 @@
       "POS_REFUND_MORE_THAN_PAID": "At most {{maxMoneyBack}} can go back.",
       "POS_REFUND_MORE_THAN_OWED": "The company owes only {{owed}}.",
       "POS_REFUND_KEY_REUSED": "This refund was already sent with different contents.",
-      "POS_SLIP_INVALID": "This file cannot be kept as a slip. Use a photo or a PDF up to 10 MB."
+      "POS_SLIP_INVALID": "This file cannot be kept as a slip. Use a photo or a PDF up to 10 MB.",
+      "CUSTOMER_NOT_INVOICE_ELIGIBLE": "This company cannot get a full invoice yet: {{missing}} is missing.",
+      "customerIncomplete": "This company's record is missing something a full invoice needs.",
+      "completeCompany": "Complete it on the company screen"
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
@@ -4835,7 +4857,11 @@
       "SLIP_AMOUNT_DIFFERS": "The slip's amount is not the card payment's.",
       "SLIP_FIELD_DROPPED": "A value read from the slip was not kept.",
       "SLIP_NOT_KEPT": "The slip was not kept with the payment.",
-      "other": "Fawtir noted something about this sale."
+      "other": "Fawtir noted something about this sale.",
+      "ZR_FOOD_CHARGED_STANDARD": "Line {{line}} is on Oman's zero-rated food list but was charged 5% VAT. Check whether it should be zero-rated.",
+      "ZR_FOOD_NOT_LISTED": "Line {{line}} is zero-rated as food, but its HS code is not on Oman's zero-rated food list. Check its VAT category or HS code.",
+      "ZR_MEDICAL_CHARGED_STANDARD": "Line {{line}} is on Oman's zero-rated medicines or medical equipment list but was charged 5% VAT. Check whether it should be zero-rated.",
+      "ZR_MEDICAL_NOT_LISTED": "Line {{line}} is zero-rated as medical, but its HS code is not on Oman's zero-rated medicines or medical equipment lists. Check its VAT category or HS code."
     },
     "day": {
       "title": "The day's shifts",
@@ -12804,7 +12830,8 @@
       "unitCost": "Cost each, before VAT",
       "unitCostOf": "Line {{line}}: cost each, before VAT",
       "remove": "Remove",
-      "addLine": "Add another item"
+      "addLine": "Add another item",
+      "noSupplier": "No suppliers match"
     },
     "reorder": {
       "titleMany": "Change the reorder level of {{count}} items",
@@ -12927,7 +12954,8 @@
       "countedAs": "Counted {{count}}",
       "from": "From {{supplier}}",
       "atEach": "at {{amount}} each",
-      "lastPaid": "{{amount}} on {{date}}"
+      "lastPaid": "{{amount}} on {{date}}",
+      "chartNoteNoRate": "The {{count}} {{unit}} received on {{date}} have not sold yet, so there is no rate to say how long they last."
     }
   },
   "priceRules": {

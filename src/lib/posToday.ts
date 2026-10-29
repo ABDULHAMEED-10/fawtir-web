@@ -104,6 +104,25 @@ export function payDetail(
   return sale.customer.name ? { text: sale.customer.name } : null
 }
 
+export type TodaySaleState = PosTodaySaleRow['displayState'] | 'waiting'
+
+/**
+ * The badge on a sale. The server's `displayState` reads "filed" for every walk-in sale, also while
+ * the filing still waits in the queue (`filing.dispatchState: QUEUED`), so the till says "Waiting"
+ * until it has gone (E2E 29 Oct 2026, F-7).
+ */
+export function saleState(sale: PosTodaySaleRow): TodaySaleState {
+  if (
+    sale.displayState === 'filed' &&
+    sale.filing &&
+    !sale.filing.acceptedAt &&
+    sale.filing.dispatchState === 'QUEUED'
+  ) {
+    return 'waiting'
+  }
+  return sale.displayState
+}
+
 /** A second line under the amount: credited, a tip, change given, or who it was billed to. */
 export function amountNote(
   sale: PosTodaySaleRow,
@@ -115,7 +134,8 @@ export function amountNote(
       values: { amount: omr(toBaisa(sale.credit.credited)) },
     }
   }
-  if (sale.tip > 0) return { key: 'pos.today.inclTip', values: { amount: omr(toBaisa(sale.tip)) } }
+  // The total is the invoice's; the tip was paid on top of it, outside the invoice (F-7).
+  if (sale.tip > 0) return { key: 'pos.today.plusTip', values: { amount: omr(toBaisa(sale.tip)) } }
   if (sale.changeGiven > 0) {
     return { key: 'pos.today.change', values: { amount: omr(toBaisa(sale.changeGiven)) } }
   }

@@ -30,6 +30,7 @@ import {
   isRunningLow,
   margin,
   movementKind,
+  movementTime,
   movementLink,
   movementNote,
   movementTitleKey,
@@ -456,6 +457,13 @@ function StockItem({
                   }}
                   components={{ b: <b className="font-semibold text-text-primary" /> }}
                 />
+              ) : receipt ? (
+                // Received, but nothing sold yet: no rate to say how long it lasts (F-10).
+                t('stockItem.live.chartNoteNoRate', {
+                  count: quantityText(receipt.quantity, language),
+                  unit,
+                  date: formatDate(receipt.receivedOn, language),
+                })
               ) : (
                 t('stockItem.live.chartNoteNone')
               )}
@@ -714,13 +722,7 @@ function MovementRow({ movement, level }: { movement: StockMovementDto; level: n
         month: 'short',
         timeZone: 'Asia/Muscat',
       }).format(when)
-  const time = Number.isNaN(when.getTime())
-    ? ''
-    : new Intl.DateTimeFormat('en-GB', {
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'Asia/Muscat',
-      }).format(when)
+  const time = movementTime(movement)
 
   return (
     <tr className="border-b border-surface-background last:border-0">

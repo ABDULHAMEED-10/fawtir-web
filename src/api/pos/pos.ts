@@ -91,6 +91,11 @@ export type PosCompanyCustomerRequest = {
   email?: string | null
   identifierScheme?: BuyerIdentifierScheme | null
   identifierValue?: string | null
+  /**
+   * The invoice address (`CustomerAddress`): a full invoice needs its country, city and street
+   * (`missingInvoiceFields`), so a company added without them can never be sold to (E2E F-1).
+   */
+  address?: { countryCode: string; cityName: string; streetName: string } | null
 }
 
 export function addPosCustomer<T>(
@@ -281,6 +286,8 @@ export type PosTodaySaleRow = {
   changeGiven: number
   credit: { state: 'NONE' | 'PARTLY' | 'FULLY'; credited: number; creditNoteNumbers: string[] }
   displayState: 'filed' | 'peppol' | 'credited'
+  /** Where the sale stands with the Authority; `displayState` says "filed" either way. */
+  filing?: PosFiling | null
   refundable: boolean
   queuedOffline: boolean
 }

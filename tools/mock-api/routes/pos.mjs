@@ -894,11 +894,16 @@ export default [
               sendingMethod: vat ? 'PEPPOL' : 'EMAIL_PDF',
               automaticPaymentReminders: true,
             },
-            invoiceAddress: { cityName: 'Muscat', countryCode: 'OM' },
+            // As the server keeps it: only the address the till sent (E2E 29 Oct 2026, F-1).
+            invoiceAddress: b.address ?? null,
           },
           peppolDelivery: vat ? 'PENDING_VERIFICATION' : 'NOT_APPLICABLE',
-          invoiceEligible: true,
-          missingInvoiceFields: [],
+          ...(() => {
+            const missing = ['countryCode', 'cityName', 'streetName']
+              .filter((part) => !String(b.address?.[part] ?? '').trim())
+              .map((part) => `invoiceAddress.${part}`)
+            return { invoiceEligible: missing.length === 0, missingInvoiceFields: missing }
+          })(),
           status: 'ACTIVE',
           updatedAt: nowIso(),
         },

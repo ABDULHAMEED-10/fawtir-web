@@ -12,8 +12,9 @@ import {
  * cannot reach the server is numbered by the till itself, from its own series (`series.INVOICE`
  * on `GET /v1/pos/tills/{id}`), and kept on this device. Queued sales are sent oldest number
  * first, each with the key it was made with, so a sale is filed exactly once
- * (`queuedOffline: true`, the printed `invoiceNumber`). While any sale waits, a new one joins the
- * queue too: an online sale would take the next number and leave a gap behind the queued ones.
+ * (`queuedOffline: true`, the printed `invoiceNumber`). A new sale first sends the waiting ones;
+ * while any still waits it joins the queue too: an online sale would take the next number and
+ * leave a gap behind the queued ones.
  *
  * TODO(backend): a sale made offline prints its number but not its QR; the QR's signed payload
  * is made by the server once the sale is sent (INCOME.md row P.28). A slip photo is not kept
@@ -119,11 +120,10 @@ export async function submitSale(
     noteNumberUsed(till.id, number)
     return { queued: entry }
   }
-  if (queuedFor(till.id).length > 0) {
-    const result = enqueue()
-    void flushQueue(till.id)
-    return result
-  }
+  // The older sales go first: once they are in, this one is sent as an ordinary online sale and
+  // its receipt says so (E2E 29 Oct 2026, F-5). Only while some still wait does it join them.
+  if (queuedFor(till.id).length > 0) await flushQueue(till.id)
+  if (queuedFor(till.id).length > 0) return enqueue()
   try {
     const sale = await createPosSale(body, key)
     noteNumberUsed(till.id, sale.invoiceNumber)

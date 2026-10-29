@@ -29,12 +29,15 @@ import { useApiRead } from '../../hooks'
 import { ApiError } from '../../api'
 import {
   createPosRefund,
+  loadPosSale,
   newPosKey,
   refundLookupPath,
+  type PosSaleDto,
   type PosRefundDto,
   type PosRefundLookupDto,
 } from '../../api/pos/pos'
 import { startNewSale } from '../../lib/posSale'
+import { useCan } from '../../lib/session/session'
 import type { TillState } from '../../lib/posTill'
 
 type Ready = Extract<TillState, { status: 'ready' }>
@@ -130,6 +133,12 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
   const attempt = useRef<{ fingerprint: string; key: string } | null>(null)
 
   const credit = creditFor(sale, returning)
+  // The tip the customer paid on top, which is never refunded (F-11). TODO(backend): the refund
+  // lookup does not carry it, so it is read from the sale itself (`pos.read`); 0 without it.
+  const mayReadSale = useCan('pos.read')
+  const soldPath = mayReadSale ? `/v1/pos/sales/${sale.saleId}` : null
+  const sold = useApiRead<PosSaleDto>(soldPath, () => loadPosSale(sale.saleId))
+  const tipPaid = sold.read.status === 'ready' ? toBaisa(sold.read.data.tip) : 0
   const back = expected ?? credit.back
   const anything = credit.items > 0
   const was = toBaisa(sale.total)
@@ -482,7 +491,7 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                 ) : null}
                 <Row label={t('pos.done.beforeVat')} value={omr(credit.beforeVat)} />
                 <Row label={t('pos.totals.vatMixed')} value={omr(credit.vat)} />
-                <Row label={t('pos.refund.tipNotRefunded')} value={omr(0)} />
+                <Row label={t('pos.refund.tipNotRefunded')} value={omr(tipPaid)} />
               </>
             )}
           </div>

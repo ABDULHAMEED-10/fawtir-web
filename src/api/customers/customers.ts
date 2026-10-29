@@ -310,6 +310,8 @@ export function updateCustomer(
  */
 export type CustomerPatchDto = {
   details?: { industrialClassificationCode?: string }
+  /** Only the members sent change; the till completes a company's invoice address with it. */
+  invoiceAddress?: { countryCode?: string; cityName?: string; streetName?: string }
   clear?: string[]
   expectedVersion: number
 }

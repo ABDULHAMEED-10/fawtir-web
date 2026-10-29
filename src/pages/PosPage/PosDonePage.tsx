@@ -99,6 +99,9 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
         ).toFixed(1)
       : null
   const company = done.company
+  const buyer = done.buyer ?? null
+  // A full tax invoice prints as one in both languages: to a company, or to a named buyer (F-6).
+  const fullInvoice = sale ? sale.transactionType === 'FULL_TAX' : !!company || !!buyer
   const accepted = !!sale?.filing.acceptedAt
   const sent = !!sale && sale.filing.dispatchState !== 'QUEUED'
   const stepDone = {
@@ -349,10 +352,10 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                 ) : null}
               </p>
               <p className="mt-3 text-xs font-semibold uppercase tracking-[0.06em] text-text-secondary">
-                {company ? t('pos.done.taxInvoice') : t('pos.done.simplifiedInvoice')}
+                {fullInvoice ? t('pos.done.taxInvoice') : t('pos.done.simplifiedInvoice')}
               </p>
               <p className="font-arabic text-xs text-text-secondary">
-                {company ? 'فاتورة ضريبية' : 'فاتورة ضريبية مبسطة'}
+                {fullInvoice ? 'فاتورة ضريبية' : 'فاتورة ضريبية مبسطة'}
               </p>
 
               <div className="mt-4 border-t border-dashed border-border-subtle pt-3 text-start">
@@ -374,7 +377,23 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                   })}
                   value={till.branchName ?? ''}
                 />
-                {company ? <ReceiptRow label={company.name} value="" /> : null}
+                {/* The buyer of a full invoice, named with their VAT number or ID (F-6). */}
+                {company ? (
+                  <>
+                    <ReceiptRow label={company.name} value="" />
+                    {company.vat ? (
+                      <ReceiptRow label={t('pos.done.vat')} value={company.vat} />
+                    ) : null}
+                  </>
+                ) : buyer ? (
+                  <>
+                    <ReceiptRow label={buyer.name} value="" />
+                    <ReceiptRow
+                      label={t(`customerForm.identifier.schemes.${buyer.identifierScheme}`)}
+                      value={buyer.identifierValue}
+                    />
+                  </>
+                ) : null}
               </div>
 
               <div className="mt-3 border-t border-dashed border-border-subtle pt-3 text-start">
