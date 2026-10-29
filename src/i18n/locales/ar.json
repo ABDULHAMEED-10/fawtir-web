@@ -8251,7 +8251,9 @@
       "REJECTED": "مرفوض",
       "TO_DISREGARD": "سيُسحب",
       "DISREGARD_SUBMITTED": "أُرسل السحب",
-      "DEAD_LETTERED": "تُرك"
+      "DEAD_LETTERED": "تُرك",
+      "NOT_TESTED": "لم يُختبر: لا توجد نقطة لهيئة الضرائب على هذه الشبكة",
+      "unknown": "حالة غير معروفة"
     },
     "artefact": {
       "xml": "XML موقّع",
@@ -8577,7 +8579,9 @@
       "REJECTED": "مستند ضريبي مرفوض",
       "TO_DISREGARD": "قيد السحب",
       "DISREGARD_SUBMITTED": "أُرسل طلب السحب",
-      "DEAD_LETTERED": "توقفت محاولات الإرسال"
+      "DEAD_LETTERED": "توقفت محاولات الإرسال",
+      "NOT_TESTED": "لم يُختبر",
+      "unknown": "حالة غير معروفة"
     },
     "fileNote": {
       "xml": "الفاتورة كما أُرسلت عبر بيبول",

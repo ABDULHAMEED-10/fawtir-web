@@ -7831,7 +7831,9 @@
       "REJECTED": "Rejected",
       "TO_DISREGARD": "To be withdrawn",
       "DISREGARD_SUBMITTED": "Withdrawal sent",
-      "DEAD_LETTERED": "Given up on"
+      "DEAD_LETTERED": "Given up on",
+      "NOT_TESTED": "Not tested: no tax authority endpoint on this network",
+      "unknown": "Status not recognised"
     },
     "artefact": {
       "xml": "Signed XML",
@@ -8125,7 +8127,9 @@
       "REJECTED": "TDD rejected",
       "TO_DISREGARD": "Being withdrawn",
       "DISREGARD_SUBMITTED": "Withdrawal sent",
-      "DEAD_LETTERED": "TDD given up on"
+      "DEAD_LETTERED": "TDD given up on",
+      "NOT_TESTED": "Not tested",
+      "unknown": "Status not recognised"
     },
     "fileNote": {
       "xml": "The invoice as sent over Peppol",

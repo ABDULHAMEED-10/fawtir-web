@@ -13,7 +13,7 @@ import {
   type ArchiveItemDto,
   type ArchiveRelation,
 } from '../../api/compliance/archive'
-import { describeApiFailure } from '../../lib/apiFailure'
+import { describeApiFailure, isNotFound } from '../../lib/apiFailure'
 import {
   formatAmount,
   formatDate,
@@ -36,6 +36,7 @@ import {
   reportsAsReceiver,
   signatureBadge,
   statusChip,
+  tddStatusKey,
   timeLeft,
   validationLine,
   CHIP_TONE,
@@ -168,7 +169,9 @@ function ArchivedDocument({ invoiceUuid }: { invoiceUuid: string }) {
         artefactFileName(fileNumber, artefact.id) ?? `${fileNumber}-${artefact.id}`,
       )
     } catch (error) {
-      setNotice(failure(error))
+      // The record was found, so a 404 here is the artefact address not being served yet, not a
+      // missing record; "Not found" read as if the document itself were gone.
+      setNotice(isNotFound(error) ? t('documents.notServed') : failure(error))
     }
   }
 
@@ -400,7 +403,7 @@ function fileBadge(
           : status === 'REJECTED' || status === 'GENERATION_FAILED' || status === 'DEAD_LETTERED'
             ? 'red'
             : 'grey'
-      return { key: status ? `documents.tdd.${status}` : 'documents.tdd.none', tone }
+      return { key: tddStatusKey(status, 'tdd'), tone }
     }
     case 'pdf':
       // TODO(backend): the PDF's languages, DOCUMENTS.md row 3.20.
@@ -539,7 +542,9 @@ function Preview({
         </Link>
       </div>
     )
-  } else if (!served) {
+  } else if (!served || (file.read.status === 'failed' && isNotFound(file.read.error))) {
+    // A 404 on the artefact address, with the record itself read, means it is held but not served
+    // yet; the record-level "Not found" said the document was missing.
     body = (
       <p className="p-6 text-sm font-medium text-text-quaternary">{t('documents.notServed')}</p>
     )
