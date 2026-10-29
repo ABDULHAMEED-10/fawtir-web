@@ -920,3 +920,18 @@ the screens still draw without an answer. Rows P.11 and P.12 are done.
 | P.29 | "Email it" and "Text it" on the receipt screen | no route sends a till receipt by e-mail or SMS; only printing works |
 | P.30 | "One of your customers since April 2025" and the customer's own price account ("Hotel accounts · 12% off") on the company match | neither is on the customer read; the till shows the city, the Peppol id and the terms |
 | P.31 | "Accepted by the OTA" on the sale being refunded | `GET /v1/pos/refund-lookup` does not carry the invoice's filing state; asked: `filing` as on the sale |
+
+## Update 2026-10-29 (E2E acceptance: refunds and the Paid card)
+
+- **4.1, credit notes, corrected (ACC-3):** the 2026-09-29 note above says Applied to invoices
+  is `issuedTotal` "because no refund is recorded". That stopped being true with backend V477: a
+  POS refund is recorded against the sale's credit note, so `issuedTotal` overstates what was
+  applied to invoices by every POS-refunded amount. The card and the Applied tab still read
+  `issuedTotal`, because the summary carries no refunded figure to take out. Asked:
+  `refundedTotal` (count and total, in `currencyCode`) on
+  `GET /v1/authored-invoices/summary?type=CREDIT_NOTE`, or an `appliedTotal` that leaves refunds
+  out; the card will then read it.
+
+| # | The design shows | Ask |
+|---|---|---|
+| 4.20 | Income "Paid" card, "N invoices collected" (ACC-10) | `paidTotal` and `paidInvoices` on `GET /v1/authored-invoices/summary` count every receivable with nothing left owed, however it was cleared: an invoice a credit note cleared counts with no cash, and debit notes count as invoices. The card is now titled "Settled" and says "N documents settled by payment or credit". Asked: a cash-collected figure (payments net of reversals, invoices only, in `currencyCode`) for the card to say "Paid" again |

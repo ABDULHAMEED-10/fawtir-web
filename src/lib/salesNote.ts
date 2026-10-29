@@ -912,8 +912,9 @@ export const NOTE_TABS: Record<NoteKind, NoteTab[]> = {
     { id: 'toSend', state: 'ISSUED', payment: null, only: ['toSend'] },
     // TODO(backend): refund tracking (INCOME.md 4.2): no credit note is refund due or refunded yet.
     { id: 'refundDue', state: 'ISSUED', payment: null, only: ['refundDue'], none: true },
-    // With no refunds recorded, every issued credit note is applied to its invoice: the server's
-    // own filter, so the pages and the count are the tab's (`issuedTotal`, INCOME.md 4.1).
+    // Every issued credit note, the server's own filter, so the pages and the count are the tab's
+    // (`issuedTotal`, INCOME.md 4.1). POS refunds (backend V477) are in it too: the list cannot
+    // tell them apart yet (INCOME.md, update of 2026-10-29).
     { id: 'applied', state: 'ISSUED', payment: null, only: null },
     { id: 'refunded', state: 'ISSUED', payment: null, only: ['refunded'], none: true },
   ],
@@ -991,10 +992,12 @@ export function debitSummaryOf(summary: InvoiceSummaryDto): NoteSummary {
 
 /**
  * The credit notes list's tab counts, subtitle and figures, from `GET /v1/authored-invoices/summary
- * ?type=CREDIT_NOTE` (INCOME.md 4.1). Credited · 30 days is `issuedLast30Days`; with no refunds
- * recorded, every issued credit note is applied against its invoice, so Applied to invoices (card
- * and tab) is `issuedTotal`. The subtitle's quarter is `issuedThisQuarter`. A figure the summary
- * does not carry is left out, and its card reads as unavailable.
+ * ?type=CREDIT_NOTE` (INCOME.md 4.1). Credited · 30 days is `issuedLast30Days`; Applied to
+ * invoices (card and tab) is `issuedTotal`, which since backend V477 also holds POS-refunded
+ * credit notes and so overstates what was applied by those refunds; the summary has no refunded
+ * figure to take out (ACC-3, INCOME.md update of 2026-10-29). The subtitle's quarter is
+ * `issuedThisQuarter`. A figure the summary does not carry is left out, and its card reads as
+ * unavailable.
  * TODO(backend): Refund due and Refunded, cards and tabs, need refund tracking (INCOME.md 4.2).
  */
 export function creditSummaryOf(summary: InvoiceSummaryDto): NoteSummary {
