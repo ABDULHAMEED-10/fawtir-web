@@ -563,7 +563,7 @@ export function placeSupplierErrors(errors: readonly ProblemFieldError[]): {
       )
     const field: SupplierField | undefined = address
       ? (`${address[1] === 'invoiceAddress' ? 'billing' : 'pickup'}.${address[2]}` as SupplierField)
-      : REQUEST_TO_FORM[error.field]
+      : Object.hasOwn(REQUEST_TO_FORM, error.field) ? REQUEST_TO_FORM[error.field] : undefined
     if (!field) {
       other.push(error.message)
       continue
@@ -574,7 +574,7 @@ export function placeSupplierErrors(errors: readonly ProblemFieldError[]): {
         ? 'validation.required'
         : error.code === 'TOO_LONG'
           ? 'validation.tooLong'
-          : error.code
+          : error.code && Object.hasOwn(RULE_KEYS[field] ?? {}, error.code)
             ? RULE_KEYS[field]?.[error.code]
             : undefined
     fields[field] = key ? { key } : { text: error.message }

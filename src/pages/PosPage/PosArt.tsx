@@ -1,4 +1,4 @@
-import type { ItemArt } from '../../lib/pos'
+import type { ItemArt } from '../../lib/posShelf'
 import cappuccino from '../../assets/pos/cappuccino.jpg'
 import coldBrew from '../../assets/pos/cold-brew.jpg'
 import cortado from '../../assets/pos/cortado.jpg'

@@ -34,7 +34,7 @@ const WARNING_KEYS: Record<string, string> = {
 
 /** The i18n key for a warning the dialog knows, or null to show the server's own message. */
 export function importWarningKey(warning: ImportWarningDto): string | null {
-  return WARNING_KEYS[warning.code] ?? null
+  return Object.hasOwn(WARNING_KEYS, warning.code) ? WARNING_KEYS[warning.code] : null
 }
 
 /**
@@ -47,7 +47,7 @@ const WARNING_COLUMN_KEYS: Record<string, string> = {
 
 /** The i18n key for the column of a warning the dialog knows, or null to show the server's. */
 export function importWarningColumnKey(warning: ImportWarningDto): string | null {
-  return WARNING_COLUMN_KEYS[warning.code] ?? null
+  return Object.hasOwn(WARNING_COLUMN_KEYS, warning.code) ? WARNING_COLUMN_KEYS[warning.code] : null
 }
 
 /** 0 to 100, from rows processed against rows total; never a spinner. */

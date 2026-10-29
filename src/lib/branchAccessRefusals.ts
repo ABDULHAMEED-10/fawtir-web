@@ -24,5 +24,5 @@ const KEYS: Record<string, string> = {
 
 export function branchAccessRefusalKey(error: unknown): string | null {
   if (!(error instanceof ApiError)) return null
-  return error.problemType ? (KEYS[error.problemType] ?? null) : null
+  return error.problemType && Object.hasOwn(KEYS, error.problemType) ? KEYS[error.problemType] : null
 }

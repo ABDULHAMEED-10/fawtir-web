@@ -214,3 +214,11 @@ describe('probeable credential types', () => {
     expect(isProbeableCredentialType('SSH_PRIVATE_KEY')).toBe(false)
   })
 })
+
+describe('a refusal code named like an Object.prototype member', () => {
+  it.each(['constructor', 'toString', '__proto__', 'hasOwnProperty'])('reads %j as it reads an unknown code', (code) => {
+    for (const status of [400, 409, 422]) {
+      expect(erpRefusalOf(refusal(status, code))).toBe(erpRefusalOf(refusal(status, 'NO_SUCH_CODE')))
+    }
+  })
+})

@@ -37,7 +37,9 @@ export function subscriptionRestrictedMessageKey(error: unknown): string | null 
   if (error.code === 'SUBSCRIPTION_SUSPENDED' && rememberedReadOnlyReason() === 'trialEnded') {
     return TRIAL_ENDED_KEY
   }
-  return (error.code !== null && MESSAGE_BY_CODE[error.code]) || GENERIC_KEY
+  return error.code !== null && Object.hasOwn(MESSAGE_BY_CODE, error.code)
+    ? MESSAGE_BY_CODE[error.code]
+    : GENERIC_KEY
 }
 
 /**

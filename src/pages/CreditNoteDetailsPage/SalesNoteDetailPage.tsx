@@ -356,7 +356,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
   const rates = new Set(data.lines.map((line) => line.taxRate ?? 0))
   const firstLine = data.lines[0]
   const taxCategory = firstLine
-    ? `${t(`salesNote.detail.category.${CATEGORY_WORDS[firstLine.en16931Category] ?? 'standard'}`)} · ${rates.size === 1 ? `${firstLine.taxRate ?? 0}%` : t('salesNote.detail.mixedRates')}`
+    ? `${t(`salesNote.detail.category.${Object.hasOwn(CATEGORY_WORDS, firstLine.en16931Category) ? CATEGORY_WORDS[firstLine.en16931Category] : 'standard'}`)} · ${rates.size === 1 ? `${firstLine.taxRate ?? 0}%` : t('salesNote.detail.mixedRates')}`
     : '—'
   const reasonCode = data.details?.correctionReasonCode ?? null
   const reasonKey = reasonLabelKey(kind, reasonCode, data.details?.correctionReasonDetail)
@@ -400,7 +400,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
     } catch (error) {
       setReversing(null)
       const refusal =
-        error instanceof ApiError && error.code ? PAYMENT_REFUSALS[error.code] : undefined
+        error instanceof ApiError && error.code && Object.hasOwn(PAYMENT_REFUSALS, error.code) ? PAYMENT_REFUSALS[error.code] : undefined
       setNotice(refusal ? t(refusal.key) : refusalText(t, error))
       afterPayment()
     } finally {

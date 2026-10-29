@@ -152,3 +152,11 @@ describe('groupResubmitOutcome', () => {
     ])
   })
 })
+
+describe('a refusal code named like an Object.prototype member', () => {
+  it.each(['constructor', 'toString', '__proto__', 'hasOwnProperty'])('is no resubmit refusal: %j', (code) => {
+    expect(
+      tddResubmitRefusalKey(new ApiError({ status: 409, problemType: 'resource-conflict', code })),
+    ).toBeNull()
+  })
+})

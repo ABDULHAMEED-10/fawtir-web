@@ -966,3 +966,9 @@ describe("the owner's Arabic terms in the bell and on the Reminders page", () =>
     }
   })
 })
+
+describe('a reason named like an Object.prototype member', () => {
+  it.each(['constructor', 'toString', '__proto__', 'hasOwnProperty'])('falls back to the rule type for %j', (reason) => {
+    expect(reasonOf(item({ reason: reason as never }))).toBe('LATE')
+  })
+})

@@ -44,6 +44,12 @@ export type DraftLineRequest = {
     exemptionReasonCode?: string | null
   }
   classification?: LineClassificationDto
+  /**
+   * Credit notes only (V473): whether the returned item goes back into stock when the note is
+   * issued. Sent only on a credit-note line citing a counted product; any value on another type,
+   * false included, is refused `BACK_ON_SHELF_ONLY_ON_CREDIT_NOTES`.
+   */
+  backOnShelf?: boolean
 }
 
 /** `InvoiceDraftRequest`. Unknown fields are refused, so this carries only what the API reads. */
@@ -131,6 +137,8 @@ export type DraftResponse = {
     exemptionReasonCode?: string | null
     /** `null` when the line states no classification. */
     classification?: LineClassificationDto | null
+    /** A credit note's "Back on the shelf?" answer; null when not answered and on other types. */
+    backOnShelf?: boolean | null
   }[]
   /** Zero-rating warnings per line (INCOME.md Z.11, Z.13): never blocking; absent before the API. */
   warnings?: InvoiceLineZeroRatingWarning[] | null

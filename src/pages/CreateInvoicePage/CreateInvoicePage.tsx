@@ -86,6 +86,8 @@ import {
 } from '../../lib/invoiceDraft'
 import { blankCustomerForm, customerProblems, toCustomerRequest } from '../../lib/customerForm'
 import { lineFromProduct, taxCategoryOf } from '../../lib/productLine'
+import { isStockLineWarning, unitLockHint } from '../../lib/stockLineWarnings'
+import type { InvoiceLineWarningDto } from '../../api/invoices/detail'
 import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
 import { ZeroRatingWarnings } from '../../components/invoice/ZeroRatingWarnings'
 import { describeApiFailure } from '../../lib/apiFailure'
@@ -896,7 +898,8 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     const units = unitsFor(itemType)
     updateLine(line.id, {
       itemType,
-      unit: units.includes(line.unit) ? line.unit : units[0],
+      // A counted product's unit is fixed to the one its stock is kept in, whatever the kind.
+      unit: line.countedUnit ?? (units.includes(line.unit) ? line.unit : units[0]),
       ...(itemType === 'goods' ? { serviceType: undefined } : { hsCode: undefined }),
     })
   }
@@ -905,6 +908,8 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     const itemType = patch.itemType ?? itemTypeOfUnit(patch.unit)
     updateLine(line.id, {
       ...patch,
+      // A self-billed document moves no stock, so its unit is never fixed.
+      countedUnit: selfBilled ? undefined : patch.countedUnit,
       itemType,
       // What the product does not say, the line keeps: its classification while the kind stays,
       // its reason while the category stays (a reason belongs to its category).
@@ -1136,7 +1141,11 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
    * of what it owes, "Mark as sent manually" records the offline delivery. The invoice is issued
    * whatever they answer; a refusal is reported on the invoice rather than lost.
    */
-  const afterIssue = async (issued: { id: string; invoiceNumber: string | null }) => {
+  const afterIssue = async (issued: {
+    id: string
+    invoiceNumber: string | null
+    warnings?: InvoiceLineWarningDto[] | null
+  }) => {
     const failed: ('paid' | 'sent')[] = []
     if (payment.paid) {
       try {
@@ -1161,7 +1170,14 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       }
     }
     navigate(`/invoices/${issued.id}`, {
-      state: { issuedNumber: issued.invoiceNumber, marksFailed: failed },
+      // The lines that moved no stock (STOCK_UNIT_MISMATCH and the rest): said with the number.
+      state: {
+        issuedNumber: issued.invoiceNumber,
+        marksFailed: failed,
+        stockWarnings: (issued.warnings ?? []).filter((warning) =>
+          isStockLineWarning(warning.code),
+        ),
+      },
     })
   }
 
@@ -2041,11 +2057,14 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                           className={INPUT}
                         />
                       </FieldShell>
+                      {/* A counted product's line stays in the product's own unit: another unit
+                          would move no stock (STOCK_UNIT_MISMATCH; Abdul, 28 Oct 2026). */}
                       <Select
-                        value={row.unit}
+                        value={row.countedUnit ?? row.unit}
                         onChange={(unit) => updateLine(row.id, { unit })}
                         options={unitOptions(row)}
                         ariaLabel={t('createInvoice.items.unit')}
+                        disabled={row.countedUnit !== undefined}
                       />
                       <DiscountField
                         type={row.discountType}
@@ -2066,6 +2085,11 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                         </button>
                       </div>
                     </div>
+                    {row.countedUnit !== undefined ? (
+                      <p className="ps-1 text-xs font-medium text-text-tertiary">
+                        {unitLockHint(t, row.countedUnit, language)}
+                      </p>
+                    ) : null}
                     {/* The reason a zero-rated or exempt line carries no VAT: its own row, wide enough
                         to read the chosen reason, never squeezed under the VAT box. */}
                     {CODED_REASON.has(tax.en16931Category) ||

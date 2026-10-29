@@ -4367,7 +4367,8 @@
       "toPay": "To pay",
       "vatAt": "VAT {{rate}}%",
       "vatMixed": "VAT",
-      "saleDiscount": "Discount on the sale"
+      "saleDiscount": "Discount on the sale",
+      "lineDiscounts": "Item discounts"
     },
     "pay": {
       "toPay": "To pay",
@@ -4413,7 +4414,21 @@
         "p10": "10%",
         "p15": "15%",
         "roundUp": "Round up"
-      }
+      },
+      "amount": "Amount",
+      "approvalCode": "Approval code",
+      "optional": "Optional",
+      "transferReference": "Transfer reference",
+      "putOnAccount": "Put {{amount}} on account",
+      "paid": "Paid · {{amount}}",
+      "scanSlip": "Scan slip",
+      "slipReading": "Reading the slip…",
+      "approvalShown": "Approval {{code}}",
+      "slipSkip": "Card, then Paid, works without it.",
+      "slipUnread": "We couldn't read this slip. Type the approval code if you need it.",
+      "slipRead": "Read from the slip: {{card}} {{rrn}}",
+      "slipCheck": "Check the marked field before you press Paid.",
+      "slipDiffers": "The slip says {{slip}}, the payment is {{payment}}."
     },
     "done": {
       "title": "Paid and filed",
@@ -4454,7 +4469,17 @@
       "totalOmr": "Total OMR",
       "change": "Change",
       "scanToCheck": "Scan to check this invoice with the Oman Tax Authority",
-      "thankYou": "Thank you"
+      "thankYou": "Thank you",
+      "queuedTitle": "Sold, sending when back online",
+      "queuedSummary": "The till is offline. Invoice {{invoice}} is numbered and will be filed as soon as the connection is back. There is {{change}} change to hand back.",
+      "summaryWaiting": "Invoice {{invoice}} was raised and is on its way to the Tax Authority. There is {{change}} change to hand back.",
+      "sentWhenOnline": "it is sent as soon as the connection is back",
+      "sentPeppol": "Sent over Peppol",
+      "waiting": "Waiting",
+      "taxInvoice": "Tax invoice",
+      "cardApproval": "Card · approval {{code}}",
+      "qrAlt": "The invoice's QR code",
+      "qrComing": "The QR code comes up once the invoice is filed."
     },
     "company": {
       "whose": "Whose company is it?",
@@ -4490,7 +4515,14 @@
         "sentToAccounts": "Sent to their accounts system automatically",
         "filedB2B": "Filed with the Tax Authority as B2B",
         "claimVat": "They can claim the VAT back"
-      }
+      },
+      "notFound": "No customer has that VAT number. Add them by hand.",
+      "servedAt": "Today at {{time}}",
+      "legalName": "Legal name",
+      "contactPerson": "Contact person",
+      "email": "Email",
+      "noVatNote": "No Omani VAT number? Leave it empty and give their ID instead.",
+      "addCompany": "Add the company"
     },
     "today": {
       "title": "Today",
@@ -4547,7 +4579,16 @@
       "groupTotal_one": "{{count}} sale · {{amount}}",
       "groupTotal_other": "{{count}} sales · {{amount}}",
       "salesCount_one": "{{count}} sale",
-      "salesCount_other": "{{count}} sales"
+      "salesCount_other": "{{count}} sales",
+      "nothingYet": "No sales on this day yet.",
+      "shiftOf": "{{who}}’s shift · Till {{till}}",
+      "pages": "Pages of sales",
+      "previous": "Previous page",
+      "next": "Next page",
+      "noneYet": "None yet",
+      "mixed": "Split",
+      "approval": "Approval {{code}}",
+      "partlyCredited": "{{amount}} credited"
     },
     "close": {
       "title": "Closing it",
@@ -4558,7 +4599,7 @@
       "cash": "Cash",
       "cashNote": "{{percent}}% of takings · {{sales}} sales",
       "card": "Card",
-      "cardNote": "{{sales}} sales · terminal agrees",
+      "cardNote": "{{sales}} sales",
       "onCompany": "On the company",
       "companyNote": "{{count}} invoices over Peppol",
       "countDrawer": "Count the drawer",
@@ -4612,7 +4653,31 @@
       "toBank": "To bank",
       "floatTomorrow": "Float for tomorrow",
       "closeTill": "Close the till",
-      "onceClosed": "Once closed, the count cannot be changed and the shift is fixed. {{owner}} gets the summary by email, with the shortfall and your note on it. Tomorrow starts with the {{float}} float."
+      "onceClosed": "Once closed, the count cannot be changed and the shift is fixed. {{owner}} gets the summary by email, with the shortfall and your note on it. Tomorrow starts with the {{float}} float.",
+      "noShift": "No shift is open on this till, so there is nothing to count. The next sale opens a new one.",
+      "cashTips": "Tips taken in cash",
+      "paidIn": "Paid into the drawer",
+      "whyOver": "Why is it over?",
+      "tabsNoteLive": "{{amount}} between them, still owed on account. Nothing has to be done before closing.",
+      "notYetFiled_one": "{{count}} sale is not accepted yet",
+      "notYetFiled_other": "{{count}} sales are not accepted yet",
+      "notYetFiledNote": "Fawtir keeps sending them. Nothing needs doing at the till.",
+      "terminalTotal": "Card total on the bank machine",
+      "terminalTotalNote": "Fawtir took {{amount}} by card across {{payments}} payments, tips included. Type the total from the bank machine's end-of-day report.",
+      "terminalDiffers": "That is {{difference}} against Fawtir's card total. Say why in a short note.",
+      "terminalNotePlaceholder": "Why the two differ",
+      "closedAt": "Closed at {{time}}. The next sale starts a new shift.",
+      "onceClosedLive": "Once closed, the count cannot be changed and the shift is fixed. The next shift starts with the {{float}} float.",
+      "cashMoves": "Cash in or out",
+      "cashMovesNote": "money taken out of or put into the drawer outside a sale",
+      "move": {
+        "PAID_OUT": "Paid out",
+        "PAID_IN": "Paid in",
+        "FLOAT": "Opening float"
+      },
+      "whatFor": "What was it for?",
+      "record": "Record it",
+      "howMany": "How many of {{note}}"
     },
     "refund": {
       "title": "Putting something right",
@@ -4627,8 +4692,8 @@
       "ofSold": "of {{count}}",
       "eachLessLull": "{{each}} each, less the {{percent}}% afternoon lull",
       "eachNoDiscount": "{{each}}, no discount applied",
-      "backOnShelf": "Does the coffee go back on the shelf?",
-      "backOnShelfNote": "A returned drink usually does not. Say no and the milk and beans stay counted as used.",
+      "backOnShelf": "Does it go back on the shelf?",
+      "backOnShelfNote": "Say yes for goods that can be sold again. A made drink or a used item usually cannot.",
       "backInStock": "Back in stock",
       "thrownAway": "Thrown away",
       "moneyOrSwap": "Money back, or swap it?",
@@ -4657,10 +4722,132 @@
       "credited": "Credited",
       "standsAt": "Stands at",
       "refundAmount": "Refund {{amount}}",
-      "filedNote": "The credit note is filed with the Tax Authority like any invoice, and uses one of your monthly 500. It will show on tonight’s cash-up as a payout from the drawer."
+      "filedNote": "The credit note is filed with the Tax Authority like any invoice, and uses one of your monthly 500. It will show on tonight’s cash-up as a payout from the drawer.",
+      "findSale": "Scan the receipt, or type its invoice number",
+      "soldAt": "{{invoice}} · sold {{when}} at {{time}} · {{branch}}",
+      "method": {
+        "CASH": "Cash",
+        "CARD": "Card",
+        "TRANSFER": "Bank transfer",
+        "ON_ACCOUNT": "On account",
+        "REDUCE_BALANCE": "Off what they owe"
+      },
+      "eachLessDiscount": "{{each}} each, less {{discount}}",
+      "eachNoDiscountLive": "{{each}} each, no discount applied",
+      "moneyBackNoteLive": "A credit note for {{amount}}, paid back the way it was paid: {{method}}.",
+      "makeAnotherNoteLive": "A credit note for {{amount}}, then a fresh sale for the replacement.",
+      "willBeFiled": "filed with the Tax Authority straight away",
+      "discountsBack": "Discounts on these lines",
+      "done": "Refunded. Credit note {{number}} is filed.",
+      "ringNew": "Ring up the replacement",
+      "filedNoteLive": "The credit note is filed with the Tax Authority like any invoice and counts toward your monthly documents. Cash paid back shows on the shift's close."
     },
     "saleDiscountLabel": "Discount on the whole sale",
-    "saleDiscountNote": "Taken after the price rule and before VAT. It shows on the invoice as a document discount."
+    "saleDiscountNote": "Taken after the price rule and before VAT. It shows on the invoice as a document discount.",
+    "till": {
+      "name": "{{name}} · {{code}}",
+      "yourShift": "Your shift, open since {{time}}.",
+      "othersShift": "{{who}}'s shift is open since {{time}}. Your first sale hands the till over to you; their shift ends uncounted.",
+      "noShift": "No shift is open. Your first sale opens yours.",
+      "switchUser": "Switch user",
+      "switchFailed": "Could not sign out. Try again.",
+      "noBranch": "Pick a branch in the company card at the top of the sidebar to use its till.",
+      "none": "This branch has no till yet. Set one up to start selling.",
+      "noneAsk": "This branch has no till yet. Ask a manager to set one up.",
+      "register": "Set up a till"
+    },
+    "choose": {
+      "add": "Add to the sale",
+      "size": "Size",
+      "addOns": "Add-ons",
+      "free": "free"
+    },
+    "buyer": {
+      "title": "Make it a full invoice",
+      "note": "A sale of 500.000 or more before VAT, or a full invoice to someone without a VAT number, names the buyer with their ID.",
+      "name": "Buyer's name",
+      "scheme": "ID type",
+      "value": "ID number",
+      "contact": "Phone or email",
+      "makeFull": "Make it a full invoice",
+      "onCompany": "Put it on a company instead"
+    },
+    "refusal": {
+      "offline": "The till could not reach Fawtir. Check the connection and try again.",
+      "failed": "That did not go through. Try again.",
+      "forbidden": "You do not have permission to do this at the till.",
+      "planFeature": "Your plan does not include this.",
+      "readOnly": "The subscription is read-only, so this cannot be done now.",
+      "quota": "This month's documents are used up.",
+      "branch": "You do not have access to this branch.",
+      "infected": "This file did not pass the virus check.",
+      "scanUnavailable": "Files cannot be checked for viruses right now.",
+      "SIMPLIFIED_INVOICE_LIMIT": "This sale is {{limit}} or more before VAT, so it needs a full invoice with the buyer's details.",
+      "BUYER_IDENTIFIER_REQUIRED": "A full invoice to a buyer without an Omani VAT number needs their ID.",
+      "POS_PAYMENTS_DO_NOT_MATCH_TOTAL": "The payments come to {{received}}, the invoice to {{expected}}.",
+      "POS_CASH_TENDERED_TOO_LOW": "The cash handed over is less than the cash part of the sale and its tip.",
+      "POS_PAYMENT_INVALID": "One of the payments is not right. Check the approval code.",
+      "POS_ON_ACCOUNT_NEEDS_COMPANY": "On account is for company customers only.",
+      "POS_PRODUCT_NOT_SELLABLE": "An item on line {{line}} is not on sale in this branch any more.",
+      "POS_VARIANT_NOT_SELLABLE": "A size on line {{line}} is not on sale any more.",
+      "POS_PRICE_NOT_CATALOGUE": "The price on line {{line}} has changed: it is now {{expectedPrice}}. Take it off and add it again.",
+      "POS_TILL_RETIRED": "This till is retired and sells nothing.",
+      "POS_TILL_NOT_FOUND": "This till is not in this branch.",
+      "POS_TILL_NUMBER_GAP": "A sale made offline is missing before this one. The till expected number {{expectedNumber}}.",
+      "POS_TILL_NUMBER_REPEATED": "This invoice number was already used.",
+      "POS_SALE_KEY_REUSED": "This sale was already sent with different contents.",
+      "POS_CONSUMER_CONTACT_INVALID": "The contact must be a phone number or an email address.",
+      "POS_CARD_APPROVAL_REQUIRED": "Type the approval code from the bank slip.",
+      "POS_COUNT_REQUIRED": "Count the drawer before closing.",
+      "POS_COUNT_INVALID": "The count is not right. Check the figures.",
+      "POS_DENOMINATION_UNKNOWN": "One of the notes or coins is not an Omani denomination.",
+      "POS_FLOAT_LEFT_INVALID": "The float left for the next shift is not right.",
+      "POS_FLOAT_LEFT_EXCEEDS_COUNTED": "The float left is more than the cash counted.",
+      "POS_CARD_TERMINAL_TOTAL_INVALID": "The bank machine total is not right.",
+      "POS_OVER_SHORT_REASON_REQUIRED": "The count is {{counted}} against {{expected}} expected. Pick a reason.",
+      "POS_CARD_DIFFERENCE_NOTE_REQUIRED": "The bank machine says {{cardTerminalTotal}}, Fawtir took {{fawtirCardTotal}} by card. Add a short note.",
+      "POS_SHIFT_ALREADY_CLOSED": "This shift is already closed.",
+      "POS_SHIFT_NOT_OWN": "You can close only your own shift.",
+      "POS_SHIFT_FLOAT_LOCKED": "The shift has a sale, so its float cannot change.",
+      "POS_PAID_OUT_NOTE_REQUIRED": "Say what the cash was for.",
+      "POS_PAID_OUT_EXCEEDS_CASH": "That is more than the {{expectedCash}} in the drawer.",
+      "POS_CASH_MOVEMENT_AMOUNT_INVALID": "The amount is not right.",
+      "POS_NOTE_TOO_LONG": "The note is longer than 500 characters.",
+      "POS_SALE_NOT_FOUND": "No till sale has that invoice number.",
+      "POS_REFUND_NOT_OWN_SALE": "You can refund only the sales you rang up.",
+      "POS_REFUND_LINE_INVALID": "One of the lines cannot be refunded.",
+      "POS_REFUND_MONEY_INVALID": "The money back is not right.",
+      "POS_REFUND_REASON_NOTE_REQUIRED": "Say what happened in the note.",
+      "POS_REFUND_QUANTITY_EXCEEDS": "Only {{remaining}} is left of line {{line}}.",
+      "POS_REFUND_MONEY_DOES_NOT_MATCH": "The credit note comes to {{expected}}. The money back is set to it: check it and refund again.",
+      "POS_REFUND_MORE_THAN_PAID": "At most {{maxMoneyBack}} can go back.",
+      "POS_REFUND_MORE_THAN_OWED": "The company owes only {{owed}}.",
+      "POS_REFUND_KEY_REUSED": "This refund was already sent with different contents.",
+      "POS_SLIP_INVALID": "This file cannot be kept as a slip. Use a photo or a PDF up to 10 MB."
+    },
+    "warning": {
+      "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
+      "STOCK_UNIT_MISMATCH": "Line {{line}} is in another unit than the item is counted in, so no stock moved.",
+      "POS_PRICE_STALE_ACCEPTED": "Line {{line}} was sold offline at an older price.",
+      "POS_PRODUCT_NOT_SELLABLE_ACCEPTED": "Line {{line}} was sold offline after it went off sale.",
+      "FILED_PAST_RESTRICTION": "Made offline, so it was filed although the company is restricted now.",
+      "FILED_AFTER_24H_B2C": "Made offline and filed more than 24 hours later.",
+      "SLIP_AMOUNT_DIFFERS": "The slip's amount is not the card payment's.",
+      "SLIP_FIELD_DROPPED": "A value read from the slip was not kept.",
+      "SLIP_NOT_KEPT": "The slip was not kept with the payment.",
+      "other": "Fawtir noted something about this sale."
+    },
+    "day": {
+      "title": "The day's shifts",
+      "note": "{{open}} open · {{handovers}} handed over without a count",
+      "shift": "{{who}} · Till {{till}}",
+      "open": "Still open",
+      "handedOver": "Handed over, not counted",
+      "overValue": "Over {{amount}}",
+      "cardDiffers": "Card machine differs by {{amount}}",
+      "late_one": "{{count}} sale made offline arrived after its shift closed. Sales filed past a restriction: {{restricted}}.",
+      "late_other": "{{count}} sales made offline arrived after their shift closed. Sales filed past a restriction: {{restricted}}."
+    }
   },
   "orderDetail": {
     "breadcrumbParent": "Trade documents",
@@ -5591,7 +5778,8 @@
       "awaitingApproval": "Awaiting approval",
       "approved": "Approved",
       "onHold": "On hold",
-      "paid": "Paid"
+      "paid": "Paid",
+      "heldDuplicate": "Duplicates"
     },
     "col": {
       "supplier": "Supplier",
@@ -5632,7 +5820,8 @@
       "checkAndSave": "Check and save",
       "viewDispute": "Two deliveries billed twice",
       "approving": "Approving…",
-      "viewHold": "See why"
+      "viewHold": "See why",
+      "reviewDuplicate": "Compare and decide"
     },
     "sortOptions": {
       "dueAsc": "Due: soonest first",
@@ -5702,7 +5891,9 @@
       "inPaymentRunRef": "In payment run {{run}}",
       "paid": "Paid",
       "partPaid": "Part paid",
-      "refusedClosed": "Refused · closed by credit note"
+      "refusedClosed": "Refused · closed by credit note",
+      "suspectedDuplicate": "Possible duplicate",
+      "confirmedDuplicate": "Duplicate"
     },
     "notice": {
       "drafts_one": "{{count}} uploaded or scanned bill is waiting for its details. It appears here once confirmed.",
@@ -5863,7 +6054,10 @@
         "OVERPAYMENT_REFUNDED": "Supplier's refund recorded",
         "OVERPAYMENT_KEPT_AS_CREDIT": "Kept as credit",
         "OVERPAYMENT_CREDIT_APPLIED": "Credit set against another bill",
-        "OVERPAYMENT_CREDIT_RECEIVED": "Credit from another bill set against this one"
+        "OVERPAYMENT_CREDIT_RECEIVED": "Credit from another bill set against this one",
+        "HELD_AS_DUPLICATE": "Held as a possible duplicate",
+        "CONFIRMED_DUPLICATE": "Confirmed as a duplicate",
+        "NOT_DUPLICATE": "Decided not a duplicate"
       }
     },
     "decision": {
@@ -6041,6 +6235,72 @@
       "debitNoteNotAccepted": "Not counted in VAT until you accept it.",
       "rejected": "Not counted in VAT while rejected.",
       "noSupplierTaxInvoice": "Not counted in VAT: no supplier tax invoice yet."
+    },
+    "duplicate": {
+      "title": {
+        "suspected": "Possible duplicate",
+        "confirmed": "Duplicate",
+        "notDuplicate": "Not a duplicate"
+      },
+      "body": {
+        "suspected": "The same supplier sent this document number and type again over Peppol. Compare it with the bill already on file and decide. It cannot be paid until then.",
+        "confirmed": "Confirmed as a duplicate of the bill already on file. It stays on hold and is never paid.",
+        "notDuplicate": "Decided to be a separate bill, not a duplicate. It is handled as an ordinary bill.",
+        "suspectedCreditNote": "The same supplier sent this credit note number again over Peppol. Compare it with the credit note already on file and decide. It can't be set against any bill until then.",
+        "confirmedCreditNote": "Confirmed as a duplicate of the credit note already on file. It stays on hold and can't be set against any bill.",
+        "notDuplicateCreditNote": "Decided to be a separate credit note, not a duplicate. It is handled as an ordinary credit note."
+      },
+      "thisBill": "This bill",
+      "original": "Already on file",
+      "openOriginal": "Open",
+      "field": {
+        "supplier": "Supplier",
+        "number": "Their bill number",
+        "uuid": "Document UUID",
+        "issued": "Issue date",
+        "total": "Total",
+        "vat": "VAT",
+        "source": "Source",
+        "hold": "Hold",
+        "status": "Status"
+      },
+      "notHeld": "Not on hold",
+      "sameUuid": "Both copies carry the same document UUID, so this one cannot be released as a separate bill. Confirm it as a duplicate.",
+      "needsApprover": "Someone who can approve bills makes this decision.",
+      "confirm": "Confirm duplicate",
+      "notDuplicate": "Not a duplicate",
+      "dialog": {
+        "confirmTitle": "Confirm this is a duplicate",
+        "confirmBody": "It stays on hold for good and is never paid. This cannot be undone.",
+        "notTitle": "Mark as not a duplicate",
+        "notBody": "The hold is released and it becomes an ordinary bill to approve and pay. This cannot be undone.",
+        "note": "Note (required)",
+        "confirmBodyCreditNote": "It stays on hold for good and is never set against a bill or refunded. This cannot be undone.",
+        "notBodyCreditNote": "The hold is released and it becomes an ordinary credit note that can be set against a bill. This cannot be undone."
+      },
+      "decision": {
+        "suspected": "Held as a possible duplicate. Decide whether it is one before it can be paid.",
+        "confirmed": "A duplicate of a bill already on file. It stays on hold and is never paid.",
+        "review": "Review duplicate",
+        "suspectedCreditNote": "Held as a possible duplicate. Decide whether it is one before it can be set against a bill.",
+        "confirmedCreditNote": "A duplicate of a credit note already on file. It stays on hold and can't be set against any bill."
+      },
+      "done": {
+        "confirmed": "Confirmed as a duplicate.",
+        "notDuplicate": "Marked as not a duplicate, and released from hold."
+      },
+      "refused": {
+        "alreadyResolved": "Someone has already decided whether this is a duplicate. The bill has been refreshed.",
+        "notHeld": "This bill is no longer held as a possible duplicate. The bill has been refreshed.",
+        "sameDocumentUuid": "Both copies carry the same document UUID, so it cannot be marked as not a duplicate.",
+        "releaseRefused": "This bill is held as a possible duplicate. Open it and decide whether it is one instead of releasing it.",
+        "noteRequired": "Add a note saying why.",
+        "noteTooLong": "That note is too long. Keep it to 500 characters or fewer.",
+        "approvalHeld": "This bill is held as a possible duplicate, so it can't be approved. Decide the duplicate check first.",
+        "rejectionHeld": "This bill is held as a possible duplicate, so it can't be rejected. Decide the duplicate check first."
+      },
+      "decided": "Decided {{date}}",
+      "sameUuidCreditNote": "Both copies carry the same document UUID, so this one cannot be released as a separate credit note. Confirm it as a duplicate."
     }
   },
   "uploadBill": {
@@ -6976,7 +7236,12 @@
     },
     "excluded": "{{count}} not counted above: a different currency",
     "pageOnly": "Page {{page}}",
-    "pageOf": "Page {{page}} of {{pages}}"
+    "pageOf": "Page {{page}} of {{pages}}",
+    "held": {
+      "status": "Held as duplicate",
+      "decision": "This looks like a copy of a credit note already on file, so it can't be used until the duplicate check is resolved on its bill.",
+      "refused": "This credit note is held as a possible duplicate, so it can't be used yet. Check its bill first."
+    }
   },
   "supplierDebitNotes": {
     "title": "Debit Notes",
@@ -7344,7 +7609,14 @@
       }
     },
     "reverseOnlyRefused": "Already refused. Only the opposite decision can be recorded.",
-    "reverseOnlyAccepted": "Already accepted. Only the opposite decision can be recorded."
+    "reverseOnlyAccepted": "Already accepted. Only the opposite decision can be recorded.",
+    "held": {
+      "chip": "Held as duplicate",
+      "body": "Held as a possible duplicate: it can't be accepted until the duplicate check on its bill record is decided. You can still refuse it.",
+      "open": "Open the duplicate check",
+      "refused": "This debit note is held as a possible duplicate, so it can't be accepted yet. Decide the duplicate check on its bill first.",
+      "bodyRefused": "Held as a possible duplicate: it can't be accepted until the duplicate check on its bill record is decided."
+    }
   },
   "expenditureReminders": {
     "title": "Reminders",
@@ -8950,7 +9222,9 @@
       "quantity": "Every line needs a quantity above zero",
       "unitPrice": "Every line needs a unit price",
       "vatRate": "A VAT rate cannot be negative",
-      "overBooked": "More than is still due on {{item}}"
+      "overBooked": "More than is still due on {{item}}",
+      "variant": "Choose the size or option this line buys.",
+      "stockUnits": "Say how many units one ordered unit holds: more than 0, up to three decimals."
     },
     "newCrumb": "New order",
     "detailTitle": "Purchase order {{number}}",
@@ -8992,6 +9266,22 @@
       "approve": "Approve it, and it can be marked as sent.",
       "send": "Once the supplier has the order, mark it as sent so goods can be booked in against it.",
       "close": "Everything ordered has arrived. Close the order to finish it."
+    },
+    "stock": {
+      "fromCatalogue": "From the catalogue",
+      "pick": "Line {{line}}: product from the catalogue",
+      "pickHint": "{{code}} · {{price}} / {{unit}}",
+      "unlink": "Not from the catalogue",
+      "chooseVariant": "Choose a size or option",
+      "variant": "Line {{line}}: size or option",
+      "unitsPerOrderUnit": "{{unit}} in one ordered unit",
+      "unitsPerOrderUnitLine": "Line {{line}}: stock units in one ordered unit",
+      "refused": {
+        "branchRequired": "This order has counted items, so it needs a branch to deliver to before goods can be booked in.",
+        "productNotFound": "A product on this order is no longer in your catalogue. Pick it again or type the line instead.",
+        "variantRequired": "A product on this order has sizes or options. Choose the one each line buys.",
+        "variantNotOnProduct": "A size or option on this order no longer belongs to its product. Choose it again."
+      }
     }
   },
   "recordBill": {
@@ -12544,7 +12834,98 @@
     "orderNow": "Order now",
     "movements": "Movements",
     "showing": "Showing {{shown}} of {{total}} counted",
-    "atBranch": "At"
+    "atBranch": "At",
+    "live": {
+      "runningLowNote": "Below the level you set",
+      "notCountedYet": "Not counted yet",
+      "orderFrom": "Order from {{supplier}}",
+      "retired": "size no longer sold",
+      "nothingSells": "Nothing sold lately",
+      "noLevel": "No level set",
+      "andMore": "and {{count}} more",
+      "showing": "Showing {{shown}} of {{total}}",
+      "noCost": "No cost yet"
+    },
+    "forms": {
+      "cancel": "Cancel",
+      "note": "Note",
+      "optional": "optional",
+      "quantityInvalid": "Type a number of zero or more, with up to three decimals.",
+      "done": {
+        "COUNT": "Count {{number}} saved. The figures below are updated.",
+        "WRITE_OFF": "Write-off {{number}} saved. The figures below are updated.",
+        "DELIVERY": "Delivery {{number}} recorded. The figures below are updated."
+      }
+    },
+    "count": {
+      "subtitle": "Type what is on the shelf now. Sales made while you count are kept.",
+      "save": "Save the count",
+      "expected": "Fawtir says",
+      "counted": "Counted",
+      "countedOf": "Counted: {{name}}",
+      "nothing": "Type the count of at least one item."
+    },
+    "writeOff": {
+      "subtitle": "Stock that left without being sold. Nothing is sent and no VAT is involved.",
+      "save": "Write off",
+      "reason": "Why",
+      "reasons": {
+        "DAMAGED": "Damaged",
+        "EXPIRED": "Expired",
+        "LOST": "Lost",
+        "STOLEN": "Stolen",
+        "OWN_USE": "Own use",
+        "SAMPLE_OR_TASTING": "Sample or tasting",
+        "OTHER": "Other"
+      },
+      "quantity": "How many",
+      "quantityOf": "How many: {{name}}",
+      "atCost": "Each item is written off at what you paid on average.",
+      "nothing": "Type how many of at least one item."
+    },
+    "delivery": {
+      "subtitle": "Goods that came in without a purchase order. No bill is raised.",
+      "save": "Record it",
+      "supplier": "Supplier",
+      "pickSupplier": "Pick a supplier",
+      "searchSupplier": "Search suppliers...",
+      "receivedOn": "Received on",
+      "reference": "Supplier's reference",
+      "whatCameIn": "What came in",
+      "pickItem": "Pick an item",
+      "itemOf": "Line {{line}}: item",
+      "quantity": "Quantity",
+      "quantityOf": "Line {{line}}: quantity",
+      "unitCost": "Cost each, before VAT",
+      "unitCostOf": "Line {{line}}: cost each, before VAT",
+      "remove": "Remove",
+      "addLine": "Add another item"
+    },
+    "reorder": {
+      "titleMany": "Change the reorder level of {{count}} items",
+      "save": "Save the level",
+      "saved": "Reorder level saved.",
+      "hint": "Leave it empty to clear the level."
+    },
+    "refused": {
+      "quantityInvalid": "A quantity has more than three decimals or is below zero.",
+      "quantityNotWhole": "This item is counted in whole pieces. Type a whole number.",
+      "variantRequired": "This item is counted by size or option. Pick the size or option.",
+      "variantNotOnProduct": "That size or option no longer belongs to the item.",
+      "lineDuplicate": "The same item is on two lines. Put it on one line.",
+      "countedAtInvalid": "The count can't be dated in the future or before the item's last count.",
+      "unitCostInvalid": "Type the cost each before VAT: zero or more, up to three decimals.",
+      "receivedOnInvalid": "The date received can't be in the future.",
+      "noteRequired": "Say what happened in the note.",
+      "reorderLevelInvalid": "Type a level of zero or more, with up to three decimals.",
+      "itemNotFound": "This item isn't counted in this branch.",
+      "notCountedProduct": "This item doesn't keep a count. Switch Keep count on in the catalogue first.",
+      "keyReused": "This was already sent with different figures. Close the form and start again.",
+      "levelVersionConflict": "Someone else changed this level. Close the form and try again.",
+      "supplierNotFound": "That supplier is no longer on file.",
+      "supplierArchived": "That supplier is switched off. Pick another one.",
+      "branchNotFound": "The branch chosen in the sidebar no longer exists."
+    }
   },
   "stockItem": {
     "runningLow": "Running low",
@@ -12620,7 +13001,29 @@
     "openQuotations": "Open quotations",
     "recurringOrders": "Recurring orders",
     "none": "None",
-    "days_one": "{{count}} day"
+    "days_one": "{{count}} day",
+    "live": {
+      "subtitle": "{{code}} · counted in {{unit}} · from {{supplier}}",
+      "subtitleNoSupplier": "{{code}} · counted in {{unit}}",
+      "offSale": "Off sale",
+      "lastCounted": "Last counted {{date}}",
+      "neverCounted": "Not counted yet",
+      "worthNote": "At {{cost}} each · sells at {{sells}}",
+      "worthNoPrice": "At {{cost}} each",
+      "onOrderWanted": "{{reference}} · wanted by {{date}}",
+      "nothingOnOrder": "No purchase order is waiting",
+      "onHandDayByDay": "{{unit}} on hand, day by day",
+      "chartNoteShort": "The {{count}} {{unit}} received on {{date}} last <b>{{days}} days</b> at this rate. <b>{{count}} isn't enough per delivery</b>; {{better}} would hold the level for two weeks.",
+      "chartNoteEnough": "The {{count}} {{unit}} received on {{date}} last <b>{{days}} days</b> at this rate, enough to hold the level for two weeks.",
+      "chartNoteNone": "Nothing has been received in the last thirty days.",
+      "noMovements": "Nothing has moved yet.",
+      "backOnShelf": "Back on the shelf",
+      "deliveryRecorded": "Delivery recorded",
+      "countedAs": "Counted {{count}}",
+      "from": "From {{supplier}}",
+      "atEach": "at {{amount}} each",
+      "lastPaid": "{{amount}} on {{date}}"
+    }
   },
   "priceRules": {
     "title": "Price rules",
@@ -20247,7 +20650,8 @@
       "purchaseOrders": "Your plan does not include purchase orders. What you made before can still be viewed, downloaded and exported.",
       "approvals": "Your plan does not include sales approvals. What you made before can still be viewed, downloaded and exported.",
       "bulkUpload": "Your plan does not include bulk upload. What you made before can still be viewed, downloaded and exported.",
-      "generic": "Your plan does not include this. What you made before can still be viewed, downloaded and exported."
+      "generic": "Your plan does not include this. What you made before can still be viewed, downloaded and exported.",
+      "stock": "Your plan does not include stock counting. What you counted before can still be viewed."
     }
   },
   "appAccess": {
@@ -20439,6 +20843,13 @@
     "markFailed": {
       "paid": "The payment was not recorded. Use Record payment on this invoice.",
       "sent": "It was not marked as sent manually."
+    },
+    "stockWarning": {
+      "line": "Line {{line}}: {{text}}",
+      "STOCK_UNIT_MISMATCH": "it is in a different unit from the one the item is counted in, so no stock moved.",
+      "STOCK_VARIANT_UNKNOWN": "the item is counted by size or option and this line names none of them, so no stock moved.",
+      "STOCK_QUANTITY_NOT_WHOLE": "the item is counted in whole pieces, so a part quantity moved no stock.",
+      "STOCK_QUANTITY_INVALID": "the quantity has more than three decimals, so no stock moved."
     }
   },
   "supplierForm": {
@@ -21580,6 +21991,12 @@
       "latePaymentCharge": "Late payment charge",
       "priceEscalation": "Price escalation",
       "other": "Other"
+    },
+    "backOnShelf": {
+      "label": "Back on the shelf?",
+      "yes": "Yes, it goes back into stock when the note is issued",
+      "no": "No, the stock count stays as it is",
+      "onlyOnCreditNotes": "Only a credit note can put returned items back on the shelf. Remove the answer and save again."
     }
   },
   "stagedImport": {
@@ -24549,6 +24966,44 @@
       "chosenBranch": "Sold at the branch",
       "branchPrice": "Branch price",
       "onSale": "On sale at the branch"
+    }
+  },
+  "invoiceForm": {
+    "unitLock": {
+      "hint": "Counted in {{unit}}, so the unit is fixed",
+      "unitName": {
+        "EA": "pieces",
+        "H87": "pieces",
+        "C62": "units",
+        "KGM": "kilograms",
+        "GRM": "grams",
+        "TNE": "tonnes",
+        "LTR": "litres",
+        "MLT": "millilitres",
+        "MTR": "metres",
+        "CMT": "centimetres",
+        "MTK": "square metres",
+        "MTQ": "cubic metres",
+        "DZN": "dozens",
+        "SET": "sets",
+        "PR": "pairs",
+        "XBX": "boxes",
+        "XCT": "cartons",
+        "XPK": "packs",
+        "XBG": "bags",
+        "XBO": "bottles",
+        "XCA": "cans",
+        "XRO": "rolls",
+        "XSA": "sacks",
+        "BX": "boxes",
+        "CT": "cartons",
+        "PK": "packs",
+        "BG": "bags",
+        "BO": "bottles",
+        "CA": "cans",
+        "RO": "rolls",
+        "SA": "sacks"
+      }
     }
   }
 }

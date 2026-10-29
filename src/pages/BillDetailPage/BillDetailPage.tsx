@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -97,6 +97,9 @@ import docDeliveryIcon from '../../assets/create-invoice/doc-delivery.svg'
 import pdfIcon from '../../assets/invoice-details/pdf.svg'
 import fileIcon from '../../assets/bill-capture/file.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
+import { Card, OUTLINE_BUTTON, PRIMARY_BUTTON, QUIET_BUTTON } from './parts'
+import { DuplicateCheckCard } from './DuplicateCheckCard'
+import { duplicateCheckOf, refusalMeansStale } from '../../lib/billDuplicate'
 
 /** Step circles: completed is a filled grey disc, the one you are on is brand blue. */
 const STEP_CIRCLE: Record<BillStepState, string> = {
@@ -187,38 +190,7 @@ const REFUSALS: Record<string, string> = {
   BILL_OVERPAYMENT_TARGET_FULLY_CREDITED: 'apiErrors.refused.creditNoteTargetFullyCredited',
 }
 
-const OUTLINE_BUTTON =
-  'inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white disabled:opacity-60'
-const PRIMARY_BUTTON =
-  'inline-flex h-[46px] items-center justify-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60'
-const QUIET_BUTTON =
-  'inline-flex h-[46px] items-center justify-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-60'
-
 type Translate = (key: string, values?: Record<string, unknown>) => string
-
-function Card({
-  title,
-  action,
-  children,
-  className = '',
-}: {
-  title?: string
-  action?: React.ReactNode
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <section className={['rounded-md bg-surface-card p-5 shadow-card', className].join(' ')}>
-      {title ? (
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">{title}</h2>
-          {action}
-        </div>
-      ) : null}
-      {children}
-    </section>
-  )
-}
 
 export function BillDetailPage() {
   return (
@@ -262,6 +234,28 @@ function BillScreen() {
   const paidBeyond = bill.read.status === 'ready' && paidBeyondTotal(bill.read.data)
   const overpaymentPath = overpaid > 0 || paidBeyond ? billOverpaymentPath(id) : null
   const overpayment = useApiRead<BillOverpaymentDto>(overpaymentPath, () => loadBillOverpayment(id))
+
+  // The document a held Peppol copy is compared with. Its id is kept while the bill is read
+  // again after a decision, so the page keeps the comparison instead of reading the earlier
+  // document once more on every action.
+  const comparedWith = useRef<string | null>(null)
+  if (bill.read.status === 'ready')
+    comparedWith.current = duplicateCheckOf(bill.read.data)?.originalId ?? null
+  const earlierId = comparedWith.current
+  const earlier = useApiRead<BillDetailDto>(earlierId ? `/v1/bills/${earlierId}` : null, () =>
+    loadBill(earlierId!),
+  )
+  // Only for a server that sends no `documentUuid`: the delivery record holds the UUID then.
+  const earlierDelivery =
+    earlier.read.status === 'ready' &&
+    earlier.read.data.bill.documentUuid === undefined &&
+    earlier.read.data.compliance.source === 'PEPPOL'
+      ? earlier.read.data.bill.inboundDeliveryId
+      : null
+  const earlierInbound = useApiRead<InboundInvoiceDto>(
+    earlierDelivery ? inboundInvoicePath(earlierDelivery) : null,
+    () => loadInboundInvoice(earlierDelivery!),
+  )
 
   // How we answered the supplier and where our receipt report stands are on the delivery record
   // and the compliance record, not on the bill (A4 G3, EXPENDITURE.md R.1). Peppol bills only.
@@ -377,6 +371,7 @@ function BillScreen() {
   const decisions = decisionsOf(detail, (permission) => can(session, permission))
   const payable = canRecordPayment(detail, (permission) => can(session, permission))
   const selfBilled = isSelfBilled(detail)
+  const duplicateCheck = duplicateCheckOf(detail)
   const inputVatNote = inputVatNoteKey(row.inputVat)
   const original = billOriginalPath(detail)
   const orderNumber =
@@ -416,11 +411,19 @@ function BillScreen() {
   const confirmReason = async () => {
     const text = reason.trim()
     if (text === '') return
+    let failure: unknown = null
     const ok = await act(
-      () => (asking === 'reject' ? rejectBill(id, text) : holdBill(id, text)),
+      () =>
+        (asking === 'reject' ? rejectBill(id, text) : holdBill(id, text)).catch((error) => {
+          failure = error
+          throw error
+        }),
       asking === 'reject' ? 'billDetail.done.rejected' : 'billDetail.done.held',
     )
-    if (ok) {
+    // A refusal because the bill moved on (a 409, such as a copy held as a duplicate since the
+    // page loaded) is said on the page, which reads the bill again: left open, the dialog hid
+    // the sentence behind its overlay. A refused reason stays with the dialog to be corrected.
+    if (ok || refusalMeansStale(failure)) {
       setAsking(null)
       setReason('')
     }
@@ -590,6 +593,31 @@ function BillScreen() {
 
       <div className="flex flex-col gap-5 xl:flex-row">
         <div className="flex min-w-0 flex-1 flex-col gap-5">
+          {duplicateCheck ? (
+            <DuplicateCheckCard
+              detail={detail}
+              check={duplicateCheck}
+              original={earlier.read}
+              retryOriginal={earlier.retry}
+              originalUuid={
+                earlierInbound.read.status === 'ready'
+                  ? earlierInbound.read.data.correlationId
+                  : null
+              }
+              thisUuid={inbound.read.status === 'ready' ? inbound.read.data.correlationId : null}
+              canApprove={canApproveBills}
+              userId={session?.userId ?? null}
+              onDecided={(key) => {
+                setNotice({ key })
+                bill.retry()
+              }}
+              onStale={(body) => {
+                setNotice({ body })
+                bill.retry()
+              }}
+            />
+          ) : null}
+
           <MatchSection
             detail={detail}
             comparison={canApproveBills && match.read.status === 'ready' ? match.read.data : null}
@@ -860,6 +888,13 @@ function BillScreen() {
                   >
                     {t('billDetail.decision.release')}
                   </button>
+                ) : null}
+                {/* In the release's place on an undecided duplicate hold: the decision is the
+                    only way out of it, and it sits with the comparison it is made from. */}
+                {duplicateCheck?.state === 'suspected' ? (
+                  <a href="#duplicate-check" className={QUIET_BUTTON}>
+                    {t('billDetail.duplicate.decision.review')}
+                  </a>
                 ) : null}
               </div>
             </div>
@@ -1234,7 +1269,7 @@ function netAndVat(
 }
 
 function refusalText(t: Translate, error: unknown): string {
-  if (error instanceof ApiError && error.code && REFUSALS[error.code])
+  if (error instanceof ApiError && error.code && Object.hasOwn(REFUSALS, error.code))
     // The run is the one value a sentence here names; the server sends it beside the code.
     return t(REFUSALS[error.code], { run: String(error.problem.paymentRunReference ?? '') })
   const message = describeApiFailure(error)

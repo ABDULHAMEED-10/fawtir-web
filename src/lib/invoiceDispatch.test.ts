@@ -466,3 +466,23 @@ describe('retry, dead letter and the unknown, worded as they are', () => {
     }
   })
 })
+
+describe('a server value named like an Object.prototype member', () => {
+  it.each(['constructor', 'toString', '__proto__', 'hasOwnProperty'])('words %j as it words any unknown value', (key) => {
+    const unknown = 'NO_SUCH_CODE'
+    const refusal = (code: string) => new ApiError({ status: 409, problemType: 'resource-conflict', code })
+    expect(sendRefusalKey(refusal(key))).toBe(sendRefusalKey(refusal(unknown)))
+    expect(dispatchNotes(dispatch('RETRY_SCHEDULED', key)).reason).toEqual({
+      key: 'invoiceDispatch.reason.unknown',
+      values: { code: key },
+    })
+    expect(dispatchNotes(dispatch(key as InvoiceDispatchStateDto)).state).toEqual({ key: 'invoiceDispatch.state.unknown' })
+    const leg = { messageId: 'm-1', state: key as InvoiceTransportLegStateDto, attempts: 1, lastAttemptAt: null, nextAttemptAt: null }
+    const withLeg = { ...dispatch('SENDING'), transport: { buyer: leg, taxAuthority: null } }
+    expect(transportNotes(withLeg, (when) => when)[0].state).toEqual({ key: 'invoiceDispatch.transport.state.unknown' })
+    expect(dispatchNotes(withLeg).state).toEqual({ key: 'invoiceDispatch.state.unknown' })
+    expect(
+      buyerDeliveryNote({ ...dispatch('SENT'), buyerDelivery: key as InvoiceDispatchDto['buyerDelivery'] }),
+    ).toEqual({ key: 'invoiceDispatch.buyer.unknown' })
+  })
+})

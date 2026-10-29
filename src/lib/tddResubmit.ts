@@ -28,7 +28,7 @@ const HOLD_KEYS: ReadonlySet<string> = new Set([
 ])
 
 export function tddResubmitRefusalKey(error: unknown): string | null {
-  return error instanceof ApiError && error.code ? (RESUBMIT_REFUSALS[error.code] ?? null) : null
+  return error instanceof ApiError && error.code ? (Object.hasOwn(RESUBMIT_REFUSALS, error.code) ? RESUBMIT_REFUSALS[error.code] : null) : null
 }
 
 export type ResubmitSentence = { key: string; values?: Record<string, string> }

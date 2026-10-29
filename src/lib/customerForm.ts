@@ -379,14 +379,14 @@ export function placeCustomerErrors(errors: readonly ProblemFieldError[]): {
       ? (`${address[1] === 'invoiceAddress' ? 'invoice' : 'delivery'}.${address[2]}` as CustomerField)
       : invoiceLine
         ? (`invoice.${invoiceLine[1]}` as CustomerField)
-        : MODEL_TO_FORM[error.field]
+        : Object.hasOwn(MODEL_TO_FORM, error.field) ? MODEL_TO_FORM[error.field] : undefined
     if (!field) {
       other.push(error.message)
       continue
     }
     if (fields[field]) continue
     const key =
-      error.code === 'REQUIRED' ? 'validation.required' : error.code === 'TOO_LONG' ? 'validation.tooLong' : error.code ? RULE_KEYS[field]?.[error.code] : undefined
+      error.code === 'REQUIRED' ? 'validation.required' : error.code === 'TOO_LONG' ? 'validation.tooLong' : error.code && Object.hasOwn(RULE_KEYS[field] ?? {}, error.code) ? RULE_KEYS[field]?.[error.code] : undefined
     fields[field] = key ? { key } : { text: error.message }
   }
   return { fields, other }

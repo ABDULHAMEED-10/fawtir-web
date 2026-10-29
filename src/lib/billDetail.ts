@@ -8,6 +8,7 @@ import type { ActivityItemDto } from '../api/compliance/activity'
 import type { InboundInvoiceDto } from '../api/expenditure/inboundInvoice'
 import { canResubmit, correctionHeld } from './activityLedger'
 import { tddReportStateOf } from './taxAuthorityReport'
+import { duplicateCheckOf, heldAsDuplicate } from './billDuplicate'
 
 /**
  * One supplier bill, opened (Figma 86:16520), written only from what `GET /bills/{id}` carries.
@@ -96,7 +97,10 @@ export function stepsOf(detail: BillDetailDto, format: DateFormat): BillStep[] {
     state: 'upcoming',
     detail: null,
   }
-  if (readiness.state === 'READY') {
+  // A held copy is never "approved" or "not needed", whatever an older server's readiness says:
+  // nothing pays it until the duplicate check is decided.
+  const held = readiness.heldAsDuplicate === true || heldAsDuplicate(detail)
+  if (readiness.state === 'READY' && !held) {
     approved.state = 'done'
     approved.detail = {
       key: readiness.autoApproved ? 'billDetail.steps.notNeeded' : 'billDetail.steps.approvedDone',
@@ -167,7 +171,10 @@ export function decisionsOf(
 ): { approve: boolean; reject: boolean; hold: boolean; release: boolean } {
   const settled = detail.settlement.paymentState === 'PAID'
   const decidable = !settled && !isCreditNote(detail)
-  const approver = can('invoice.approve') && decidable
+  // Not while a duplicate hold is open. The server's approval reads no hold, so approving an
+  // undecided copy would leave it payable the moment it is decided not a duplicate, and approving
+  // or rejecting a confirmed one decides nothing (review of #319).
+  const approver = can('invoice.approve') && decidable && !heldAsDuplicate(detail)
   const payer = can('invoice.payment.manage') && decidable
   return {
     approve: approver && detail.readiness.state !== 'READY',
@@ -179,7 +186,9 @@ export function decisionsOf(
       detail.settlement.paidAmount <= 0 &&
       !inPaymentRun(detail),
     hold: payer && detail.hold === null,
-    release: can('invoice.payment.manage') && detail.hold !== null,
+    // A duplicate hold is released only by deciding it is not a duplicate; the plain release is
+    // refused (BILL_HOLD_DUPLICATE_RELEASE_REFUSED), so the page offers the decision instead.
+    release: can('invoice.payment.manage') && detail.hold !== null && !heldAsDuplicate(detail),
   }
 }
 
@@ -262,6 +271,13 @@ export function awaitingDiscountCreditNote(detail: BillDetailDto): boolean {
 /** The sentence under the amount in the decision panel. */
 export function decisionNoteOf(detail: BillDetailDto): Note {
   const { readiness, hold, settlement } = detail
+  // First, and for a credit note too: its own sentence would invite a use the server withholds
+  // from a held copy. The hold's reason is the server's English sentence naming a bill id, so the
+  // sentence is worded here.
+  const duplicate = hold ? duplicateCheckOf(detail) : null
+  const kind = isCreditNote(detail) ? 'CreditNote' : ''
+  if (duplicate?.state === 'confirmed') return { key: `billDetail.duplicate.decision.confirmed${kind}` }
+  if (duplicate?.state === 'suspected') return { key: `billDetail.duplicate.decision.suspected${kind}` }
   if (isCreditNote(detail)) return { key: 'billDetail.decision.creditNote' }
   if (settlement.paymentState === 'PAID') return { key: 'billDetail.decision.paid' }
   // A refused debit note says its refusal, as its own page does, whatever approval it went through.
@@ -659,6 +675,8 @@ const KNOWN_KINDS = new Set([
   'DRAFT_CREATED',
   'ISSUED',
   'CANCELLED',
+  'CONFIRMED_DUPLICATE',
+  'NOT_DUPLICATE',
 ])
 
 /** A kind this page has no wording for reads "Recorded", as the invoice history does; never the key. */
@@ -674,7 +692,7 @@ function activityKey(kind: string): string {
  */
 export function inputVatNoteKey(inputVat: BillRowDto['inputVat'] | null | undefined): string | null {
   if (!inputVat || inputVat.counted) return null
-  return INPUT_VAT_NOTES[inputVat.reason] ?? null
+  return Object.hasOwn(INPUT_VAT_NOTES, inputVat.reason) ? INPUT_VAT_NOTES[inputVat.reason] : null
 }
 
 const INPUT_VAT_NOTES: Record<string, string> = {
@@ -694,21 +712,32 @@ export function isSelfBilled(detail: BillDetailDto): boolean {
  */
 export function activityOf(detail: BillDetailDto, userId: string | null): ActivityEntry[] {
   const lookedAndFoundNothing = detail.bill.match?.verdict === 'NO_ORDER'
-  return detail.activity.map((entry) => ({
-    key:
-      entry.kind === 'MATCHED' && lookedAndFoundNothing
-        ? 'billDetail.activity.kind.NO_ORDER'
-        : activityKey(entry.kind),
-    at: entry.at,
-    detail:
-      entry.kind === 'ARRIVED'
-        ? (detail.intake?.filename ?? null)
-        : entry.kind === 'MATCHED'
-          ? (detail.bill.match?.summary ?? null)
-          : entry.detail,
-    byYou: userId !== null && entry.actor === userId,
-    overpayment: overpaymentStepOf(entry.kind, entry.detail),
-  }))
+  // A duplicate hold's HELD step carries the server's English sentence naming a bill id. The step
+  // names no hold, so it is known by the instant the hold opened, which both are written from.
+  const duplicateOpenings = new Set(
+    detail.holdHistory.filter((hold) => hold.duplicateOfBillId).map((hold) => hold.openedAt),
+  )
+  return detail.activity.map((entry) => {
+    const duplicateHeld =
+      entry.kind === 'HELD' && entry.at !== null && duplicateOpenings.has(entry.at)
+    return {
+      key: duplicateHeld
+        ? 'billDetail.activity.kind.HELD_AS_DUPLICATE'
+        : entry.kind === 'MATCHED' && lookedAndFoundNothing
+          ? 'billDetail.activity.kind.NO_ORDER'
+          : activityKey(entry.kind),
+      at: entry.at,
+      detail: duplicateHeld
+        ? null
+        : entry.kind === 'ARRIVED'
+          ? (detail.intake?.filename ?? null)
+          : entry.kind === 'MATCHED'
+            ? (detail.bill.match?.summary ?? null)
+            : entry.detail,
+      byYou: userId !== null && entry.actor === userId,
+      overpayment: overpaymentStepOf(entry.kind, entry.detail),
+    }
+  })
 }
 
 type BillLine = BillDetailDto['lines'][number]

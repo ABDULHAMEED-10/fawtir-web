@@ -8,6 +8,7 @@ import type {
 } from '../api/expenditure/bills'
 import type { IntakeDto } from '../api/expenditure/billIntake'
 import { CREDIT_STATUS_LABEL, creditStateOf, type CreditState } from './supplierNoteList'
+import { rowDuplicateOf } from './billDuplicate'
 
 /**
  * The Bills list's view model, written only from what a row carries. The mock's per-row sentences
@@ -35,6 +36,10 @@ export type BillStatusChip =
   | 'refusedClosed'
   /** A credit note: its chip says where its credit stands ({@link BillListItem.credit}), not an approval. */
   | 'creditNote'
+  /** A later Peppol copy held until someone decides whether it is a duplicate. */
+  | 'suspectedDuplicate'
+  /** Decided a duplicate: held for good, never paid. */
+  | 'confirmedDuplicate'
 
 export type BillListItem = {
   id: string
@@ -59,6 +64,11 @@ export type BillListItem = {
   credit?: CreditState | null
   /** A person's reason for holding the bill, shown under the chip. */
   holdReason: string | null
+  /**
+   * Held as a later Peppol copy of the bill named here. Only a decision on the bill's page
+   * releases it; the server refuses the plain release (BILL_HOLD_DUPLICATE_RELEASE_REFUSED).
+   */
+  duplicate: { originalId: string; originalNumber: string | null } | null
   canApprove: boolean
   currency: string
   amount: number | null
@@ -134,6 +144,9 @@ export function workflowStateOf(
  * approved bill that is part paid says so.
  */
 function statusOf(row: BillRowDto): BillStatusChip {
+  // Before the credit note's own chip: a held copy credits nothing until it is decided.
+  const duplicate = rowDuplicateOf(row)
+  if (duplicate) return duplicate.state === 'confirmed' ? 'confirmedDuplicate' : 'suspectedDuplicate'
   if (isCreditNote(row)) return 'creditNote'
   const state = workflowStateOf(row)
   if (state === 'APPROVED' && row.paidAmount > 0 && row.outstandingAmount > 0) return 'partPaid'
@@ -142,6 +155,7 @@ function statusOf(row: BillRowDto): BillStatusChip {
 
 export function toBillListItem(row: BillRowDto): BillListItem {
   const status = statusOf(row)
+  const duplicate = rowDuplicateOf(row)
   const pending = row.readiness.state === 'PENDING'
   return {
     id: row.id,
@@ -177,7 +191,11 @@ export function toBillListItem(row: BillRowDto): BillListItem {
           ? { run: row.paymentRunReference }
           : undefined,
     ...(status === 'creditNote' ? { credit: row.creditNote ? creditStateOf(row.creditNote) : null } : {}),
-    holdReason: row.workflowState === 'ON_HOLD' ? (row.hold?.reason ?? null) : null,
+    // A duplicate hold's reason is the server's English sentence naming a bill id: not shown.
+    holdReason: row.workflowState === 'ON_HOLD' && !duplicate ? (row.hold?.reason ?? null) : null,
+    duplicate: duplicate
+      ? { originalId: duplicate.originalId, originalNumber: duplicate.originalNumber }
+      : null,
     // A mismatch is approved only after its difference has been looked at, which is the detail's job.
     // A credit note has nothing to approve, and the server refuses it (APPROVAL_CREDIT_NOTE).
     canApprove:
@@ -216,6 +234,7 @@ export function draftRowOf(intake: IntakeDto): BillListItem {
     match: { verdict: 'none', theirOrder: null },
     status: 'draft',
     holdReason: null,
+    duplicate: null,
     canApprove: false,
     currency: read?.currency ?? 'OMR',
     amount: read?.total ?? null,
@@ -248,7 +267,13 @@ export function draftRowPath(item: BillListItem): string | null {
  * a look at the difference on a mismatch, a nudge when someone else must approve, the hold
  * reason on a held bill, and "Check and save" on a draft.
  */
-export type BillRowAction = 'approve' | 'reviewDifference' | 'nudge' | 'viewHold' | 'checkAndSave'
+export type BillRowAction =
+  | 'approve'
+  | 'reviewDifference'
+  | 'nudge'
+  | 'viewHold'
+  | 'checkAndSave'
+  | 'reviewDuplicate'
 
 /** What the reader may do, as far as a row's button goes. */
 export type BillRowAccess = {
@@ -268,6 +293,9 @@ export function rowActionOf(item: BillListItem, access: BillRowAccess): BillRowA
   if (item.draft) return access.canCapture ? 'checkAndSave' : null
   if (item.status === 'mismatch') return 'reviewDifference'
   if (item.status === 'onHold') return 'viewHold'
+  // Offered to every reader: it only opens the bill, where deciding needs `invoice.approve`.
+  if (item.status === 'suspectedDuplicate') return 'reviewDuplicate'
+  if (item.status === 'confirmedDuplicate') return null
   if (!item.canApprove) return null
   if (access.canApprove) return 'approve'
   return access.canCapture && item.status === 'awaitingApproval' ? 'nudge' : null
@@ -284,7 +312,8 @@ function isCreditNote(row: BillRowDto): boolean {
  */
 function amountNoteOf(row: BillRowDto): Note | null {
   if (isCreditNote(row)) return { key: 'billsPage.rows.creditNote' }
-  if (row.workflowState === 'ON_HOLD' && row.hold)
+  // "Queried" is a person's hold; a held Peppol copy was queried by nobody, and its chip says why.
+  if (row.workflowState === 'ON_HOLD' && row.hold && !rowDuplicateOf(row))
     return { key: 'billsPage.rows.queried', values: { date: row.hold.openedAt } }
   if (row.paidAmount > 0 && row.outstandingAmount > 0 && row.workflowState !== 'PAID') {
     return { key: 'billsPage.rows.leftToPay', values: { amount: row.outstandingAmount } }
@@ -350,7 +379,13 @@ export function dueNoteOf(item: BillListItem, now?: Date): Note | null {
 }
 
 export type BillTabId =
-  'needsAttention' | 'all' | 'awaitingApproval' | 'approved' | 'onHold' | 'paid'
+  | 'needsAttention'
+  | 'all'
+  | 'awaitingApproval'
+  | 'approved'
+  | 'onHold'
+  | 'paid'
+  | 'heldDuplicate'
 
 export const BILL_TABS: { id: BillTabId; labelKey: string; filter: BillFilter }[] = [
   { id: 'needsAttention', labelKey: 'billsPage.tabs.needsAttention', filter: 'NEEDS_ATTENTION' },
@@ -363,7 +398,16 @@ export const BILL_TABS: { id: BillTabId; labelKey: string; filter: BillFilter }[
   { id: 'approved', labelKey: 'billsPage.tabs.approved', filter: 'APPROVED' },
   { id: 'onHold', labelKey: 'billsPage.tabs.onHold', filter: 'ON_HOLD' },
   { id: 'paid', labelKey: 'billsPage.tabs.paid', filter: 'PAID' },
+  { id: 'heldDuplicate', labelKey: 'billsPage.tabs.heldDuplicate', filter: 'HELD_DUPLICATE' },
 ]
+
+/**
+ * The tabs this server can answer. Held duplicates only when the summary counts them: a server
+ * without the filter refuses `filter=HELD_DUPLICATE`.
+ */
+export function visibleBillTabs(tabs: BillSummaryDto['tabs']): typeof BILL_TABS {
+  return BILL_TABS.filter((tab) => tab.id !== 'heldDuplicate' || tabs.heldDuplicate !== undefined)
+}
 
 export const DEFAULT_BILL_TAB: BillTabId = 'needsAttention'
 
@@ -372,7 +416,7 @@ export function isBillTab(value: string | null): value is BillTabId {
 }
 
 export function billTabCount(tabs: BillSummaryDto['tabs'], tab: BillTabId): number {
-  return tabs[tab]
+  return tabs[tab] ?? 0
 }
 
 export type BillSortKey =

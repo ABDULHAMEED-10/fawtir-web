@@ -258,7 +258,7 @@ const REFUSAL_BY_CODE: Record<string, ErpRefusal> = {
 
 export function erpRefusalOf(error: unknown): ErpRefusal | null {
   if (!(error instanceof ApiError)) return null
-  if (error.code !== null && REFUSAL_BY_CODE[error.code] !== undefined) {
+  if (error.code !== null && Object.hasOwn(REFUSAL_BY_CODE, error.code)) {
     return REFUSAL_BY_CODE[error.code]
   }
   // A read-only subscription is a 409 but no concurrency problem: the shared sentence words it.

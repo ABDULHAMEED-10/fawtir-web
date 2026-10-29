@@ -1,7 +1,7 @@
 import type { CreditNoteRowDto, CreditNoteSettlementDto } from '../api/expenditure/notes'
 import type { BillRowDto } from '../api/expenditure/bills'
 import { receiptReportNote } from './billDetail'
-import { creditStateOf } from './supplierNoteList'
+import { creditStateOf, isHeldUnspent } from './supplierNoteList'
 
 /**
  * Credit notes a supplier issued to us: Expenditure > Credit notes (Figma 163:18691, 163:19080,
@@ -240,5 +240,9 @@ export function creditActivity(
     tone: 'done',
   })
 
-  return [current, ...done]
+  // "Waiting to be set against the bill", or for the bill it corrects, promises a credit the
+  // server withholds from a held note until the hold is decided, so a held note says neither.
+  return isHeldUnspent({ status: state, heldAsDuplicate: row.heldAsDuplicate === true })
+    ? done
+    : [current, ...done]
 }

@@ -1,0 +1,354 @@
+import { apiRequest } from '../client'
+import { fromSpringPage, type Page, type SpringPage } from '../page'
+import { withQuery } from '../query'
+
+/**
+ * Stock, branch by branch (`StockController`, catalogue guide section 8). Only items whose
+ * product keeps a count are listed; every figure is a quantity in the product's own unit, or
+ * OMR before VAT at three decimals.
+ *
+ * Reading needs `stock.read`; a count, a write-off and "Record what came in" need `stock.adjust`
+ * and the plan's `stock` switch, and stay allowed while the subscription is read-only (ST-2);
+ * reorder levels need `stock.manage`.
+ */
+export const STOCK_PATH = '/v1/stock'
+export const STOCK_SUMMARY_PATH = `${STOCK_PATH}/summary`
+
+export const STOCK_READ = 'stock.read'
+export const STOCK_ADJUST = 'stock.adjust'
+export const STOCK_MANAGE = 'stock.manage'
+
+export type StockState = 'OK' | 'LOW' | 'OUT' | 'BELOW_ZERO' | 'NOT_COUNTED'
+
+export type StockStatusFilter =
+  | 'ALL'
+  | 'NEEDS_ORDERING'
+  | 'OUT'
+  | 'BELOW_ZERO'
+  | 'LOW'
+  | 'SITTING_STILL'
+  | 'NOT_COUNTED'
+  | 'COUNTED'
+
+export type StockSortDto = 'LOWEST_FIRST' | 'WORTH_MOST' | 'NAME' | 'DAYS_LEFT'
+
+export type StockOnOrderDto = {
+  purchaseOrderId: string
+  number: string
+  quantity: number
+  wantedBy: string | null
+}
+
+/** `StockRow`: one counted item (a product without variants, or one variant) in one branch. */
+export type StockRowDto = {
+  productId: string
+  variantId: string | null
+  code: string
+  name: string
+  nameAr: string | null
+  variantName: string | null
+  variantRetired: boolean
+  productActive: boolean
+  keepCount: boolean
+  unitCode: string
+  /** null = not counted yet (no movement). */
+  onHand: number | null
+  reorderLevel: number | null
+  state: StockState
+  perDay: number
+  daysLeft: number | null
+  /** The weighted average purchase cost per unit ("At what you paid"); null until a costed receipt. */
+  averageCost: number | null
+  lastCost: number | null
+  worth: number | null
+  sellingPrice: number | null
+  onOrder: StockOnOrderDto[]
+  supplier: { supplierId: string; name: string } | null
+  lastMovementAt: string | null
+  lastCountedAt: string | null
+  /** 0 while the branch has no stock row; sent back as `expectedVersion`. */
+  version: number
+}
+
+export type StockSummaryDto = {
+  branchId: string
+  counted: number
+  notCounted: number
+  worth: number
+  runningLow: number
+  nothingLeft: number
+  belowZero: number
+  needsOrdering: number
+  sittingStill: number
+  /** Today and the six days before it, in the company's time zone. */
+  lastSevenDays: {
+    from: string
+    to: string
+    sold: number
+    received: number
+    writtenOff: number
+    corrected: number
+    returned: number
+  }
+}
+
+export type StockMovementType =
+  'SALE' | 'RECEIPT' | 'WRITE_OFF' | 'COUNT_CORRECTION' | 'REFUND_RETURN'
+
+export type StockSourceType =
+  | 'POS_SALE'
+  | 'INVOICE'
+  | 'POS_REFUND'
+  | 'CREDIT_NOTE'
+  | 'GOODS_RECEIPT'
+  | 'DELIVERY'
+  | 'STOCK_COUNT'
+  | 'WRITE_OFF'
+
+export type StockMovementDto = {
+  id: string
+  type: StockMovementType
+  quantityChange: number
+  onHandAfter: number
+  countedQuantity: number | null
+  unitCost: number | null
+  averageCostAfter: number | null
+  source: {
+    type: StockSourceType
+    id: string
+    number: string | null
+    lineRef?: string
+    link: {
+      kind: 'INVOICE' | 'CREDIT_NOTE' | 'PURCHASE_ORDER' | 'GOODS_RECEIPT' | 'ADJUSTMENT'
+      id: string
+    } | null
+  }
+  supplier: { supplierId: string; name: string } | null
+  reasonCode: string | null
+  note: string | null
+  occurredAt: string
+  recordedAt: string
+  by: { userId: string | null; name: string | null }
+  customerKind: 'WALK_IN' | 'CONSUMER' | 'BUSINESS' | 'GOVERNMENT' | null
+}
+
+export type StockMovementPageDto = SpringPage<StockMovementDto>
+
+export type StockDailyDto = {
+  date: string
+  onHandEnd: number | null
+  sold: number
+  received: number
+  writtenOff: number
+}
+
+export type StockItemDetailDto = StockRowDto & {
+  /** Thirty days, oldest first. */
+  daily: StockDailyDto[]
+  lastReceipt: {
+    source: 'GOODS_RECEIPT' | 'DELIVERY'
+    id: string
+    number: string
+    purchaseOrderId: string | null
+    purchaseOrderNumber: string | null
+    supplierId: string | null
+    supplierName: string | null
+    receivedOn: string
+    quantity: number
+    unitCost: number | null
+  } | null
+  leadDays: number | null
+  usualOrderQuantity: number | null
+  movements: StockMovementPageDto
+  /** Bundles; always null for now. */
+  dependsOnIt: unknown
+}
+
+export type StockLineRequest = {
+  productId: string
+  variantId?: string | null
+  countedQuantity?: number
+  quantity?: number
+  unitCost?: number
+}
+
+export type StockCountRequest = {
+  branchId: string
+  countedAt?: string
+  note?: string
+  lines: StockLineRequest[]
+}
+
+export type WriteOffReason =
+  'DAMAGED' | 'EXPIRED' | 'LOST' | 'STOLEN' | 'OWN_USE' | 'SAMPLE_OR_TASTING' | 'OTHER'
+
+export const WRITE_OFF_REASONS: WriteOffReason[] = [
+  'DAMAGED',
+  'EXPIRED',
+  'LOST',
+  'STOLEN',
+  'OWN_USE',
+  'SAMPLE_OR_TASTING',
+  'OTHER',
+]
+
+export type StockWriteOffRequest = {
+  branchId: string
+  reasonCode: WriteOffReason
+  note?: string
+  occurredAt?: string
+  lines: StockLineRequest[]
+}
+
+export type StockDeliveryRequest = {
+  branchId: string
+  supplierId: string
+  supplierReference?: string
+  receivedOn?: string
+  note?: string
+  lines: StockLineRequest[]
+}
+
+export type StockAdjustmentResponse = {
+  adjustmentId: string
+  number: string
+  kind: 'COUNT' | 'WRITE_OFF' | 'DELIVERY'
+  supplierId?: string
+  lines: {
+    productId: string
+    variantId: string | null
+    onHandAfter: number
+    movementId: string
+  }[]
+}
+
+export type StockListQuery = {
+  branchId: string
+  status?: StockStatusFilter
+  q?: string
+  sort?: StockSortDto
+  page?: number
+  size?: number
+}
+
+/** The list's path, which is also the request's identity. */
+export function stockListPath(query: StockListQuery): string {
+  return withQuery(STOCK_PATH, {
+    branchId: query.branchId,
+    status: query.status && query.status !== 'ALL' ? query.status : undefined,
+    q: query.q?.trim() || undefined,
+    sort: query.sort && query.sort !== 'LOWEST_FIRST' ? query.sort : undefined,
+    page: query.page && query.page > 0 ? query.page : undefined,
+    size: query.size,
+  })
+}
+
+export async function loadStockPage(path: string): Promise<Page<StockRowDto>> {
+  return fromSpringPage(await apiRequest<SpringPage<StockRowDto>>(path))
+}
+
+export function stockSummaryPath(branchId: string): string {
+  return withQuery(STOCK_SUMMARY_PATH, { branchId })
+}
+
+export function loadStockSummary(path: string): Promise<StockSummaryDto> {
+  return apiRequest<StockSummaryDto>(path)
+}
+
+const itemBase = (productId: string) => `${STOCK_PATH}/items/${encodeURIComponent(productId)}`
+
+export function stockItemPath(productId: string, branchId: string, variantId?: string | null) {
+  return withQuery(itemBase(productId), { branchId, variantId: variantId || undefined })
+}
+
+export function loadStockItem(path: string): Promise<StockItemDetailDto> {
+  return apiRequest<StockItemDetailDto>(path)
+}
+
+export function stockMovementsPath(query: {
+  productId: string
+  branchId: string
+  variantId?: string | null
+  page?: number
+  size?: number
+}): string {
+  return withQuery(`${itemBase(query.productId)}/movements`, {
+    branchId: query.branchId,
+    variantId: query.variantId || undefined,
+    page: query.page && query.page > 0 ? query.page : undefined,
+    size: query.size,
+  })
+}
+
+export async function loadStockMovements(path: string): Promise<Page<StockMovementDto>> {
+  return fromSpringPage(await apiRequest<StockMovementPageDto>(path))
+}
+
+/** `stock.adjust`. The key is the form's, so a second click or a retry counts once. */
+export function postStockCount(
+  idempotencyKey: string,
+  body: StockCountRequest,
+): Promise<StockAdjustmentResponse> {
+  return apiRequest<StockAdjustmentResponse>(`${STOCK_PATH}/counts`, {
+    method: 'POST',
+    body,
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+/** `stock.adjust`. */
+export function postStockWriteOff(
+  idempotencyKey: string,
+  body: StockWriteOffRequest,
+): Promise<StockAdjustmentResponse> {
+  return apiRequest<StockAdjustmentResponse>(`${STOCK_PATH}/write-offs`, {
+    method: 'POST',
+    body,
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+/** `stock.adjust`: goods in without a purchase order. Raises no bill. */
+export function postStockDelivery(
+  idempotencyKey: string,
+  body: StockDeliveryRequest,
+): Promise<StockAdjustmentResponse> {
+  return apiRequest<StockAdjustmentResponse>(`${STOCK_PATH}/deliveries`, {
+    method: 'POST',
+    body,
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+/** `stock.manage`. `null` clears the level. */
+export function putReorderLevel(
+  productId: string,
+  branchId: string,
+  variantId: string | null,
+  body: { reorderLevel: number | null; expectedVersion: number },
+): Promise<StockRowDto> {
+  return apiRequest<StockRowDto>(
+    withQuery(`${itemBase(productId)}/reorder-level`, {
+      branchId,
+      variantId: variantId || undefined,
+    }),
+    { method: 'PUT', body },
+  )
+}
+
+/** `stock.manage`: up to 500 items at once, no version check. */
+export function putReorderLevels(body: {
+  branchId: string
+  items: { productId: string; variantId: string | null; reorderLevel: number | null }[]
+}): Promise<{ branchId: string; content: StockRowDto[] }> {
+  return apiRequest(`${STOCK_PATH}/reorder-levels`, { method: 'PUT', body })
+}
+
+/** A key the server accepts (16 to 128 of `[A-Za-z0-9._:-]`). */
+export function newStockKey(): string {
+  const random =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  return `stock-${random}`
+}

@@ -109,6 +109,9 @@ const REFUSALS: Record<string, string> = {
   SUPPLIER_IMPORT_HEADER_NOT_RECOGNISED: 'stagedImport.refused.headerNotRecognised',
   // Reachable from Settings > Bill approvals since E-17.
   APPROVAL_POLICY_INVALID: 'apiErrors.refused.approvalPolicyInvalid',
+  // The note a decision on a held Peppol copy carries (backend V493).
+  BILL_DUPLICATE_RESOLUTION_NOTE_REQUIRED: 'billDetail.duplicate.refused.noteRequired',
+  BILL_DUPLICATE_RESOLUTION_NOTE_TOO_LONG: 'billDetail.duplicate.refused.noteTooLong',
 }
 
 /**
@@ -133,22 +136,61 @@ export function isExpenditureRefusal(error: unknown): error is ApiError {
 }
 
 /**
+ * The module's codes that answer 409 `resource-conflict` rather than `expenditure-refused`
+ * (`ExpenditureExceptionHandler.CONFLICT_CODES`), so {@link isExpenditureRefusal} never sees them.
+ * Only the ones a screen here can provoke; any other 409 keeps the generic conflict sentence.
+ */
+const CONFLICT_REFUSALS: Record<string, string> = {
+  // `/apply` or `/refund` on a note held as a later Peppol copy (backend V493), reached when the
+  // hold opened after the screen was read.
+  CREDIT_NOTE_HELD_AS_DUPLICATE: 'supplierCreditNotes.held.refused',
+  // A held Peppol copy (backend V493): deciding it, and the plain release it refuses.
+  BILL_DUPLICATE_ALREADY_RESOLVED: 'billDetail.duplicate.refused.alreadyResolved',
+  BILL_NOT_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.notHeld',
+  BILL_DUPLICATE_SAME_DOCUMENT_UUID: 'billDetail.duplicate.refused.sameDocumentUuid',
+  BILL_HOLD_DUPLICATE_RELEASE_REFUSED: 'billDetail.duplicate.refused.releaseRefused',
+  // Approving a copy that became a held duplicate after the screen was read.
+  BILL_APPROVAL_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.approvalHeld',
+  // Rejecting one, likewise.
+  BILL_REJECTION_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.rejectionHeld',
+  // Accepting a debit note that became a held duplicate after the screen was read.
+  DEBIT_NOTE_HELD_AS_DUPLICATE: 'supplierDebitNotes.held.refused',
+}
+
+function conflictRefusalKey(error: unknown): string | null {
+  if (
+    !(error instanceof ApiError) ||
+    error.status !== 409 ||
+    error.problemType !== 'resource-conflict' ||
+    error.code === null
+  ) {
+    return null
+  }
+  // Own keys only: a code such as "constructor" must not resolve a prototype member.
+  return Object.hasOwn(CONFLICT_REFUSALS, error.code) ? CONFLICT_REFUSALS[error.code] : null
+}
+
+/**
  * The message key for a refusal, or null when this is not one.
  *
  * An unmapped code still resolves — to the fallback — because a screen must never render a raw
  * code, and i18next answers a missing key with the key itself.
  */
 export function refusalMessageKey(error: unknown): string | null {
+  const conflict = conflictRefusalKey(error)
+  if (conflict !== null) return conflict
   if (!isExpenditureRefusal(error)) return null
   const code = error.code
   if (code === null) return REFUSAL_FALLBACK_KEY
-  return REFUSALS[code] ?? REFUSAL_FALLBACK_KEY
+  return Object.hasOwn(REFUSALS, code) ? REFUSALS[code] : REFUSAL_FALLBACK_KEY
 }
 
 /** The values a refusal's sentence names, or undefined when it names none. */
 export function refusalMessageValues(error: unknown): Record<string, string> | undefined {
   if (!isExpenditureRefusal(error) || error.code === null) return undefined
-  return REFUSAL_VALUES[error.code]?.(error.problem)
+  return Object.hasOwn(REFUSAL_VALUES, error.code)
+    ? REFUSAL_VALUES[error.code](error.problem)
+    : undefined
 }
 
 /** The codes this build has a sentence for. Exported so a test can pin the set. */

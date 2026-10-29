@@ -300,9 +300,15 @@ export default [
       const type = query.get('type')
       const search = (query.get('search') ?? '').toLowerCase()
       const sort = SORTS[query.get('sort') ?? 'NAME_ASC'] ?? SORTS.NAME_ASC
+      // The till's exact VAT lookup (`vatNumber`): spaces and case do not matter, never a part.
+      const canonical = (value) => (value ?? '').replace(/\s+/g, '').toUpperCase()
+      const vatNumber = query.get('vatNumber')
       const rows = CUSTOMERS.filter(
         (c) =>
-          (!type || c.type === type) && (!search || c.displayName.toLowerCase().includes(search)),
+          (!type || c.type === type) &&
+          (!search || c.displayName.toLowerCase().includes(search)) &&
+          (!vatNumber ||
+            canonical(c.profile.details?.vatRegistrationNumber) === canonical(vatNumber)),
       ).sort(sort)
       return springPage(rows, query)
     },

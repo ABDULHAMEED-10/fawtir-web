@@ -10,7 +10,15 @@ import type { CreditNoteStatusDto, CreditNoteUsageDto } from './notes'
 export const BILLS_PATH = '/v1/bills'
 export const BILL_SUMMARY_PATH = `${BILLS_PATH}/summary`
 
-export type BillFilter = 'NEEDS_ATTENTION' | 'ALL' | 'AWAITING_APPROVAL' | 'APPROVED' | 'ON_HOLD' | 'PAID'
+export type BillFilter =
+  | 'NEEDS_ATTENTION'
+  | 'ALL'
+  | 'AWAITING_APPROVAL'
+  | 'APPROVED'
+  | 'ON_HOLD'
+  | 'PAID'
+  /** Later Peppol copies held as possible duplicates, undecided or confirmed. */
+  | 'HELD_DUPLICATE'
 export type BillSourceDto = 'PEPPOL' | 'UPLOADED' | 'SCANNED' | 'RECURRING' | 'SELF_BILLED'
 export type BillSort = 'NEWEST' | 'DUE_SOONEST' | 'DUE_LATEST' | 'AMOUNT_HIGHEST' | 'AMOUNT_LOWEST' | 'SUPPLIER'
 /** Derived on the server by one resolver; never stored. DRAFT never appears in the list. */
@@ -55,13 +63,37 @@ export type BillRowDto = {
    * reads `MISMATCH`). Not read by the screens: what is left to approve comes from `readiness`.
    */
   approval?: string
-  readiness: { state: 'PENDING' | 'READY' | 'REJECTED'; distinctApprovals: number; required: number; autoApproved: boolean }
+  readiness: {
+    state: 'PENDING' | 'READY' | 'REJECTED'
+    distinctApprovals: number
+    required: number
+    autoApproved: boolean
+    /**
+     * A copy held as a duplicate: the server then reports PENDING and never auto-approved,
+     * whatever its amount. Absent from an older server.
+     */
+    heldAsDuplicate?: boolean
+  }
   match: {
     verdict: 'MATCHED' | 'MATCHED_BY_HAND' | 'MISMATCH' | 'NO_ORDER'
     purchaseOrderNumber: string | null
     byHand: boolean
   } | null
-  hold: { reason: string | null; openedAt: string } | null
+  /** The open hold. The duplicate fields are {@link BillHoldDto}'s, absent from an older server. */
+  hold:
+    | ({ reason: string | null; openedAt: string } & Pick<
+        BillHoldDto,
+        'duplicateOfBillId' | 'duplicateResolution'
+      >)
+    | null
+  /**
+   * Present while the bill is held as a later Peppol copy of another (V493); null otherwise, and
+   * absent from a server before it. NOT_DUPLICATE releases the hold, so it is never the
+   * resolution here.
+   */
+  duplicateHold?: BillDuplicateHoldDto | null
+  /** The document's UUID as received (Peppol cbc:UUID); null when it has none, absent from an older server. */
+  documentUuid?: string | null
   paymentRunReference: string | null
   paidOnTheSpot: boolean
   /** What was typed on the receipt or the bill when it was captured (at most 500 characters). */
@@ -97,6 +129,20 @@ export type BillRowDto = {
   duplicateOf?: string | null
   /** A Peppol bill this one may duplicate (a less certain match, for the user to confirm). Not shown yet. */
   possibleDuplicateOf?: string | null
+}
+
+export type DuplicateResolutionDto = 'CONFIRMED_DUPLICATE' | 'NOT_DUPLICATE'
+
+/** The copy's open duplicate hold, as a list row and the detail carry it. */
+export type BillDuplicateHoldDto = {
+  duplicateOfBillId: string
+  duplicateOfBillNumber: string | null
+  resolution: 'CONFIRMED_DUPLICATE' | null
+  /**
+   * Both copies carry the same document UUID. The server then refuses NOT_DUPLICATE
+   * (BILL_DUPLICATE_SAME_DOCUMENT_UUID): the copy stays blocked.
+   */
+  sameDocumentUuid: boolean
 }
 
 /** Why a document is in or out of input VAT. Unknown values from a newer server are kept as text. */
@@ -139,6 +185,12 @@ export type BillSummaryDto = {
   debitNotesAwaitingDecisionCount?: number
   debitNotesAwaitingDecisionTotal?: number
   excludedFromTotals: number
+  /**
+   * Later Peppol copies held undecided or confirmed a duplicate (V493), left out of every other
+   * figure here. Absent from an older server.
+   */
+  heldDuplicateCount?: number
+  heldDuplicateTotal?: number
   needsAttention: { draft: number; new: number; mismatch: number; awaitingApproval: number; total: number; truncated: boolean }
   tabs: {
     needsAttention: number
@@ -147,6 +199,11 @@ export type BillSummaryDto = {
     approved: number
     onHold: number
     paid: number
+    /**
+     * Rows under `filter=HELD_DUPLICATE`. Absent from a server without that filter, which would
+     * refuse it, so the tab is offered only when this is sent.
+     */
+    heldDuplicate?: number
     truncated: boolean
   }
   /** Every bill on the ledger, whatever search and source the tab counts were asked for. */
@@ -305,6 +362,31 @@ export type BillHoldDto = {
   openedAt: string
   releasedBy: string | null
   releasedAt: string | null
+  /** On a hold opened on a later Peppol copy: the earlier bill. Absent from an older server. */
+  duplicateOfBillId?: string | null
+  /** The person's decision once taken. NOT_DUPLICATE released the hold at the same instant. */
+  duplicateResolution?: DuplicateResolutionDto | null
+  duplicateResolvedBy?: string | null
+  duplicateResolvedAt?: string | null
+  duplicateResolutionNote?: string | null
+}
+
+/** `BillHold.MAXIMUM_RESOLUTION_NOTE_LENGTH`, counted by the server after trimming. */
+export const DUPLICATE_NOTE_MAX_LENGTH = 500
+
+/**
+ * Decides whether a held copy is a duplicate (`invoice.approve`). CONFIRMED_DUPLICATE keeps it
+ * held for good; NOT_DUPLICATE releases it into an ordinary bill. Either is final.
+ */
+export function resolveDuplicateBill(
+  billId: string,
+  decision: DuplicateResolutionDto,
+  note: string,
+): Promise<BillHoldDto> {
+  return apiRequest<BillHoldDto>(`${billPath(billId)}/duplicate-resolution`, {
+    method: 'POST',
+    body: { decision, note },
+  })
 }
 
 /** `BillController.BillDetail`: the bill as the list shows it, and everything recorded against it. */
