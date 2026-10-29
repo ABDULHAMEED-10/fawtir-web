@@ -2571,3 +2571,23 @@ describe('issuing to a Peppol customer whose address is incomplete (backend #817
     expect(screen.queryByText(/The customer address is incomplete/)).toBeNull()
   })
 })
+
+describe('a payment refused because the balance moved in another tab (DA-12)', () => {
+  it.each([
+    ['en', 'What is owed changed since this page was opened. Closing this dialog shows the current balance.'],
+    ['ar', 'تغيّر المبلغ المستحق منذ فتح هذه الصفحة. يُظهر إغلاق هذه النافذة الرصيد الحالي.'],
+  ])('says so in the dialog and reads the balance again once it closes (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    payResponse = () =>
+      json(400, { status: 400, code: 'PAYMENT_EXCEEDS_OUTSTANDING', detail: 'too much' })
+    renderInvoice()
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('invoiceDetails.payments.add') }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('invoiceDetails.pay.submit') }))
+    expect(await within(dialog).findByText(sentence)).toBeTruthy()
+    const reads = () => calls().filter((call) => call === `GET ${URL_BASE}/receivable`).length
+    const before = reads()
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('common.cancel') }))
+    await waitFor(() => expect(reads()).toBe(before + 1))
+  })
+})

@@ -320,6 +320,8 @@ function BillScreen() {
   const [reason, setReason] = useState('')
   const [matching, setMatching] = useState(false)
   const [paying, setPaying] = useState(false)
+  // Set by a payment refusal that says the balance moved (DB-10): the page re-reads on close.
+  const balanceStale = useRef(false)
   const [settling, setSettling] = useState<'refund' | 'apply' | null>(null)
 
   const act = async (
@@ -1112,7 +1114,18 @@ function BillScreen() {
           refusals={BILL_PAYMENT_REFUSALS}
           amountTooMuchKey={BILL_AMOUNT_TOO_MUCH}
           labelKeys={{ amount: 'billDetail.pay.amount', date: 'billDetail.pay.date' }}
-          onClose={() => setPaying(false)}
+          onBalanceChanged={() => {
+            balanceStale.current = true
+          }}
+          onClose={() => {
+            setPaying(false)
+            // Read again once the dialog is gone (DB-10): someone else paid or credited the bill.
+            if (balanceStale.current) {
+              balanceStale.current = false
+              bill.retry()
+              if (overpaymentPath) overpayment.retry()
+            }
+          }}
           onRecorded={() => {
             setPaying(false)
             setNotice({ key: 'billDetail.done.recorded' })

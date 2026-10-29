@@ -2518,7 +2518,8 @@
         "notIssued": "Payments can only be recorded against an issued invoice.",
         "alreadyReversed": "That payment was already reversed. The list has been refreshed.",
         "paymentGone": "That payment could not be found. The list has been refreshed."
-      }
+      },
+      "balanceChanged": "What is owed changed since this page was opened. Closing this dialog shows the current balance."
     },
     "titleNote": {
       "CREDIT_NOTE": "Credit note {{id}}",

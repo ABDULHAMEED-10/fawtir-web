@@ -3298,3 +3298,30 @@ describe('a bill received over Peppol: our reply and our receipt report', () => 
     expect(await lines.findByText(/^أُبلغت هيئة الضرائب بالاستلام · /)).toBeTruthy()
   })
 })
+
+describe('a bill payment refused because someone else paid first (DB-10)', () => {
+  it('names the balance the server gives, says it moved, and reads the bill again on close', async () => {
+    actionResponse = () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/expenditure-refused',
+        error: 'BILL_PAYMENT_EXCEEDS_OUTSTANDING',
+        outstandingAmount: 0,
+        currency: 'OMR',
+      })
+    billResponse = () => json(200, detail({ readiness: APPROVED }))
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Record payment' }))
+    expect(
+      await within(dialog).findByText(
+        'What is owed changed since this page was opened. Closing this dialog shows the current balance.',
+      ),
+    ).toBeTruthy()
+    const reads = () => calls().filter((call) => call === `GET ${BILL_URL}`).length
+    const before = reads()
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('common.cancel') }))
+    await waitFor(() => expect(reads()).toBe(before + 1))
+  })
+})

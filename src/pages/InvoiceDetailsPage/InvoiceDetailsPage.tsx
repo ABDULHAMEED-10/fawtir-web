@@ -444,6 +444,8 @@ function InvoiceScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [paying, setPaying] = useState(false)
+  // Set by a payment refusal that says the balance moved (DA-12): the page re-reads on close.
+  const balanceStale = useRef(false)
   // The payment being reversed, and the key minted when its confirmation opened: confirming twice
   // is one reversal, not two refusals.
   const [reversing, setReversing] = useState<{ id: string; amount: number; key: string } | null>(
@@ -1908,7 +1910,18 @@ function InvoiceScreen() {
           outstanding={owed.outstandingAmount}
           issueDate={data.issueDate}
           today={today}
-          onClose={() => setPaying(false)}
+          onBalanceChanged={() => {
+            balanceStale.current = true
+          }}
+          onClose={() => {
+            setPaying(false)
+            // Read again only once the dialog is gone: a re-read blanks the receivable, and the
+            // dialog is drawn only while it is there.
+            if (balanceStale.current) {
+              balanceStale.current = false
+              afterPayment()
+            }
+          }}
           onRecorded={() => {
             setPaying(false)
             setNotice({ key: 'invoiceDetails.done.recorded' })
