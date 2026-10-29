@@ -907,3 +907,34 @@ describe('a self-billed credit note', () => {
     expect(calls()).not.toContain(`GET /api/v1/authored-invoices/${ORIGINAL_ID}`)
   })
 })
+
+describe('the seller of a self-billed document is a supplier record (DB-6)', () => {
+  const supplierDetail = {
+    profile: { id: 'c-1', type: 'BUSINESS', displayName: 'Nizwa Farms SAOC', legalName: 'Nizwa Farms SAOC' },
+  }
+
+  it.each(['en', 'ar'])('names the supplier from the supplier route (%s)', async (lang) => {
+    await i18n.changeLanguage(lang)
+    who = { ...BUYER, permissions: [...BUYER.permissions, 'supplier.read'] }
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === '/api/v1/suppliers/c-1' ? json(200, supplierDetail) : base(url, init),
+    )
+    renderPage()
+    expect((await screen.findAllByText('Nizwa Farms SAOC')).length).toBeGreaterThan(0)
+    expect(screen.queryByText(i18n.t('selfBillDetail.supplierUnknown'))).toBeNull()
+    expect(fetchMock.mock.calls.some(([url]) => url === '/api/v1/customers/c-1')).toBe(false)
+  })
+
+  it('falls back to the customer record for an older document whose seller is one', async () => {
+    who = { ...BUYER, permissions: [...BUYER.permissions, 'supplier.read'] }
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === '/api/v1/suppliers/c-1'
+        ? json(404, { type: 'https://api.fawtir.om/problems/not-found', status: 404 })
+        : base(url, init),
+    )
+    renderPage()
+    expect((await screen.findAllByText('Al Noor Dates LLC')).length).toBeGreaterThan(0)
+  })
+})
