@@ -7345,7 +7345,6 @@
       "stillUsable": "رصيد يمكنك استخدامه",
       "stillUsableMeta": "{{count}} إشعارات لم تُخصم من فاتورة بعد",
       "recovered": "المستردّ هذا الربع",
-      "recoveredMeta": "{{count}} إشعارات استُخدمت أو استُردت",
       "mostFrom": "أكثر الإشعارات من",
       "mostFromMeta": "{{count}} إشعارات هذا العام · تستحق المراجعة",
       "recoveredQuarter": "المسترد هذا الربع",
@@ -7358,7 +7357,13 @@
       "stillUsableMeta_two": "إشعاران دائنان فيهما رصيد متبقٍ للاستخدام",
       "stillUsableMeta_few": "{{count}} إشعارات دائنة فيها رصيد متبقٍ للاستخدام",
       "stillUsableMeta_many": "{{count}} إشعارًا دائنًا فيه رصيد متبقٍ للاستخدام",
-      "stillUsableMeta_other": "{{count}} إشعار دائن فيه رصيد متبقٍ للاستخدام"
+      "stillUsableMeta_other": "{{count}} إشعار دائن فيه رصيد متبقٍ للاستخدام",
+      "recoveredMeta_zero": "لم يُستخدم أي إشعار ولم يُسترد",
+      "recoveredMeta_one": "إشعار واحد استُخدم أو استُرد",
+      "recoveredMeta_two": "إشعاران استُخدما أو استُردا",
+      "recoveredMeta_few": "{{count}} إشعارات استُخدمت أو استُردت",
+      "recoveredMeta_many": "{{count}} إشعارًا استُخدم أو استُرد",
+      "recoveredMeta_other": "{{count}} إشعار استُخدم أو استُرد"
     },
     "tabs": {
       "all": "الكل",

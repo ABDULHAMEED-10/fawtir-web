@@ -118,7 +118,7 @@ import {
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatDate, formatInstant, initialsOf } from '../../lib/format'
 import { formatFileSize } from '../../lib/files'
-import { can, useSession } from '../../lib/session/session'
+import { can, mayRequest, useSession } from '../../lib/session/session'
 import { usePlanIncludes } from '../../lib/planAccess'
 import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import backIcon from '../../assets/invoice-details/back.svg'
@@ -273,7 +273,11 @@ function InvoiceScreen() {
     document && can(session, 'customer.read') ? `/v1/customers/${document.customerId}` : null,
     () => loadCustomer(document!.customerId),
   )
-  const branches = useApiRead<BranchDto[]>(document ? '/v1/branches' : null, loadBranches)
+  // `branch.read` only: a reader without it answered 403 here (B-14); the branch is then unnamed.
+  const branches = useApiRead<BranchDto[]>(
+    document && mayRequest(session, 'branch.read') ? '/v1/branches' : null,
+    loadBranches,
+  )
   const branchLabel = useBranchName()
   // The live profile stands in for the seller only where the document carries no issued snapshot
   // (a draft, or a server older than the snapshot), and only for a reader the profile admits.
@@ -402,8 +406,10 @@ function InvoiceScreen() {
     loadReminderPreview(previewPath!),
   )
   // The ladder, so the banner can say "Reminder 2 of 4" and when the next one goes out.
+  // The schedule is the settings' (`admin.settings.manage`); anyone else got a 403 (B-14) and the
+  // banner reads the ladder as unknown, as it did after that refusal.
   const schedule = useApiRead<ReminderScheduleDto>(
-    chaseable ? REMINDER_SCHEDULE_PATH : null,
+    chaseable && mayRequest(session, 'admin.settings.manage') ? REMINDER_SCHEDULE_PATH : null,
     loadReminderSchedule,
   )
   const [remindersOpen, setRemindersOpen] = useState(false)
@@ -1266,7 +1272,8 @@ function InvoiceScreen() {
                 {/* TODO(backend): sharing a copy of the invoice waits for the rendered PDF and the
                     share calls (INCOME.md rows SH.1 to SH.3). When live, hide both on a deemed
                     supply too (no buyer copy). Hidden while read-only (owner, 23 Oct). */}
-                {mayShare ? (
+                {/* Sharing sends the document, so it needs what Send needs (C-9). */}
+                {mayShare && can(session, 'invoice.issue') ? (
                   <>
                     <button
                       type="button"

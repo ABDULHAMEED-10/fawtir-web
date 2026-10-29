@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { COMPANY_LOGO_URL } from '../../api/company/branding'
+import { useMayRequest } from '../../lib/session/session'
 
 /**
  * The signed-in company's own logo, or its name's first letter when there is none — which also
@@ -17,10 +18,13 @@ export function CompanyAvatar({
   className?: string
 }) {
   const [broken, setBroken] = useState(false)
+  // Not asked of a role the server refuses it to: the initial it falls back to on that 403 is
+  // drawn straight away, without the refusal on every page (B-14).
+  const mayAsk = useMayRequest('admin.settings.manage')
   const initial = name.trim().charAt(0).toUpperCase() || '?'
   const style = { width: size, height: size }
 
-  if (broken) {
+  if (broken || !mayAsk) {
     return (
       <span
         style={style}

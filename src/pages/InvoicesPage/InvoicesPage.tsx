@@ -63,7 +63,7 @@ import {
 import { NOTE_ROUTES, type NoteListStatus } from '../../lib/salesNote'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
-import { can, useSession } from '../../lib/session/session'
+import { can, mayRequest, useSession } from '../../lib/session/session'
 import { usePlanIncludes } from '../../lib/planAccess'
 import outstandingIcon from '../../assets/invoices/kpi-outstanding.svg'
 import paidIcon from '../../assets/invoices/kpi-paid.svg'
@@ -327,7 +327,11 @@ function InvoicesScreen() {
     : null
   const list = useApiRead<Page<InvoiceRowDto>>(listPath, () => loadInvoicePage(listPath!))
   // The design names the issuing branch under the customer; the row carries only its id.
-  const branches = useApiRead<BranchDto[]>('/v1/branches', loadBranches)
+  // `branch.read` only: without it the list asked anyway and got a 403 (B-14).
+  const branches = useApiRead<BranchDto[]>(
+    mayRequest(session, 'branch.read') ? '/v1/branches' : null,
+    loadBranches,
+  )
   const { label: branchLabel } = useBranchName()
   const branchNames = useMemo(() => {
     const names = new Map<string, string>()

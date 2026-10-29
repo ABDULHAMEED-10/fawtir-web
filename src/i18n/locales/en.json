@@ -6977,7 +6977,6 @@
       "stillUsable": "Credit you can still use",
       "stillUsableMeta": "{{count}} notes not yet set against a bill",
       "recovered": "Recovered this quarter",
-      "recoveredMeta": "{{count}} notes used or refunded",
       "mostFrom": "Most credits from",
       "mostFromMeta": "{{count}} notes this year · worth reviewing",
       "recoveredQuarter": "Recovered this quarter",
@@ -6986,7 +6985,9 @@
       "noTopSupplier": "No supplier stands out",
       "noTopSupplierMeta": "No supplier has sent a credit note yet",
       "stillUsableMeta_one": "{{count}} note with credit left to use",
-      "stillUsableMeta_other": "{{count}} notes with credit left to use"
+      "stillUsableMeta_other": "{{count}} notes with credit left to use",
+      "recoveredMeta_one": "{{count}} note used or refunded",
+      "recoveredMeta_other": "{{count}} notes used or refunded"
     },
     "tabs": {
       "all": "All",

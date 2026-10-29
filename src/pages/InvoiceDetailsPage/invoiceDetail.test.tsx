@@ -37,6 +37,7 @@ const ADMIN: Entitlements = {
     'invoice.payment.manage',
     'customer.read',
     'creditnote.create',
+    'branch.read',
   ],
   scopes: [],
   featureFlags: {},
@@ -2449,5 +2450,19 @@ describe('Cancel is not offered on an invoice something already settles (A-0)', 
     fireEvent.click(screen.getByRole('button', { name: i18n.t('invoiceDetails.cancel.confirm') }))
     expect(await screen.findByText(sentence)).toBeTruthy()
     expect(screen.queryByText('no')).toBeNull()
+  })
+})
+
+describe('a reader who may only read (B-14, C-9)', () => {
+  it('is offered no sharing and asks for no branches or reminder schedule', async () => {
+    who = READ_ONLY
+    receivableResponse = () => json(200, UNSETTLED)
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
+    await waitFor(() => expect(calls()).toContain(`GET ${URL_BASE}/receivable`))
+    expect(screen.queryByRole('button', { name: 'Send by email' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Share on WhatsApp' })).toBeNull()
+    expect(calls()).not.toContain('GET /api/v1/branches')
+    expect(calls()).not.toContain('GET /api/v1/payment-reminders/schedule')
   })
 })

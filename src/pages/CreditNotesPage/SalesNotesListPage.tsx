@@ -53,7 +53,7 @@ import {
   type NoteListStatus,
   type NoteTab,
 } from '../../lib/salesNote'
-import { can, useSession } from '../../lib/session/session'
+import { can, mayRequest, useSession } from '../../lib/session/session'
 import creditedIcon from '../../assets/credit-notes/kpi-credited.svg'
 import refundDueIcon from '../../assets/credit-notes/kpi-refund-due.svg'
 import appliedIcon from '../../assets/credit-notes/kpi-applied.svg'
@@ -226,7 +226,11 @@ function NotesList({ kind }: { kind: NoteKind }) {
         : null,
     [credit, figures.read],
   )
-  const branches = useApiRead<BranchDto[]>('/v1/branches', loadBranches)
+  // `branch.read` only: without it the list asked anyway and got a 403 (B-14).
+  const branches = useApiRead<BranchDto[]>(
+    mayRequest(session, 'branch.read') ? '/v1/branches' : null,
+    loadBranches,
+  )
   const { label: branchLabel } = useBranchName()
   const branchName = (id: string | null | undefined) => {
     const branch =

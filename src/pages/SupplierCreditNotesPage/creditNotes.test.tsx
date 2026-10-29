@@ -2119,3 +2119,16 @@ describe("A held duplicate's wording", () => {
     expect(screen.queryByText(HELD_REFUSED)).toBeNull()
   })
 })
+
+describe('the recovered card counts notes in the right number (C-9)', () => {
+  it.each([
+    ['en', 1, '1 note used or refunded'],
+    ['en', 2, '2 notes used or refunded'],
+    ['ar', 1, 'إشعار واحد استُخدم أو استُرد'],
+    ['ar', 2, 'إشعاران استُخدما أو استُردا'],
+    ['ar', 3, '3 إشعارات استُخدمت أو استُردت'],
+    ['ar', 11, '11 إشعارًا استُخدم أو استُرد'],
+  ] as const)('%s, %i', (language, count, words) => {
+    expect(i18n.getFixedT(language)('supplierCreditNotes.kpi.recoveredMeta', { count })).toBe(words)
+  })
+})

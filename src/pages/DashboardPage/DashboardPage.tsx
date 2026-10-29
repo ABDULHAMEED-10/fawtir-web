@@ -10,6 +10,7 @@ import { RevenueChart } from './RevenueChart'
 import { RecentInvoices } from './RecentInvoices'
 import { ComplianceHealth, InvoiceQuota, VatPosition } from './SidePanels'
 import { tileOf, viewOf } from './dashboardData'
+import { useMayRequest } from '../../lib/session/session'
 
 /**
  * The dashboard, from three reads: `GET /v1/dashboard` for every tile it carries, `/bills/summary`
@@ -28,7 +29,13 @@ export function DashboardPage() {
 function DashboardBody() {
   const dashboard = useApiRead<DashboardDto>(DASHBOARD_PATH).read
   const bills = useApiRead<BillSummaryDto>(BILL_SUMMARY_PATH, loadBillSummary).read
-  const plan = useApiRead<PlanOverviewDto>(PLAN_OVERVIEW_PATH, loadPlanOverview).read
+  // `tenant.plan.read` only (B-14): without it the card says "Not available yet", as it did on
+  // the refusal the read used to earn.
+  const mayReadPlan = useMayRequest('tenant.plan.read')
+  const plan = useApiRead<PlanOverviewDto>(
+    mayReadPlan ? PLAN_OVERVIEW_PATH : null,
+    loadPlanOverview,
+  ).read
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
@@ -51,7 +58,7 @@ function DashboardBody() {
             compliance={tileOf(dashboard, (data) => data.compliance)}
             alerts={tileOf(dashboard, (data) => data.alerts)}
           />
-          <InvoiceQuota plan={viewOf(plan)} />
+          <InvoiceQuota plan={mayReadPlan ? viewOf(plan) : { kind: 'unavailable' }} />
           <VatPosition vat={tileOf(dashboard, (data) => data.vat)} />
         </div>
       </div>

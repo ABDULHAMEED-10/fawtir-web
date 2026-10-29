@@ -21,7 +21,7 @@ const ADMIN: Entitlements = {
   username: 'demo_admin',
   tenantId: 't-1',
   roles: [{ id: 'r-1', code: 'ADMIN', name: 'Administrator', systemRole: true }],
-  permissions: ['invoice.read', 'invoice.draft', 'invoice.export'],
+  permissions: ['invoice.read', 'invoice.draft', 'invoice.export', 'branch.read'],
   scopes: [],
   featureFlags: {},
 }
