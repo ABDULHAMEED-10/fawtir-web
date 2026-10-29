@@ -145,7 +145,7 @@ function MenuScan() {
   }, [])
 
   // A read takes a while (the server waits at least 90 s for the reader): count the seconds.
-  // TODO(backend): INCOME.md P.32, the read has no progress of its own.
+  // TODO(backend): INCOME.md P.42, the read has no progress of its own.
   useEffect(() => {
     if (phase.at !== 'reading') return
     setElapsed(0)
@@ -475,7 +475,7 @@ function MenuScan() {
 
       {phase.at === 'reading' || phase.at === 'unread' || phase.at === 'review' ? (
         <div className="flex flex-col gap-4 lg:flex-row">
-          {/* The paper, as uploaded. TODO(backend): INCOME.md P.33, row positions on the page
+          {/* The paper, as uploaded. TODO(backend): INCOME.md P.43, row positions on the page
               to mark read and doubtful lines and jump to them; the reading has none yet. */}
           <section className="w-full shrink-0 self-start overflow-hidden rounded-md bg-surface-card lg:w-[380px]">
             <div className="flex items-center justify-between gap-3 p-4">

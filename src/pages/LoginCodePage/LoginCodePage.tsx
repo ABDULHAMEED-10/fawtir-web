@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { AuthLayout } from '../../components/auth/AuthLayout'
 import { LOGIN_ROUTE } from '../../lib/identity/login'
 import { readLoginChallenge } from '../../lib/identity/loginChallenge'
+import { returnPathFrom, withReturnPath } from '../../lib/identity/returnTo'
 import { LoginCodeForm } from './LoginCodeForm'
 
 /**
@@ -11,12 +12,13 @@ import { LoginCodeForm } from './LoginCodeForm'
  */
 export function LoginCodePage() {
   const [challenge] = useState(() => readLoginChallenge())
+  const login = withReturnPath(LOGIN_ROUTE, returnPathFrom(useLocation().search))
 
   // Opened directly, reloaded, or after the challenge lapsed: the password step has to run again.
-  if (!challenge) return <Navigate to={LOGIN_ROUTE} replace />
+  if (!challenge) return <Navigate to={login} replace />
 
   return (
-    <AuthLayout backTo={LOGIN_ROUTE} showLanguageSwitcher={false}>
+    <AuthLayout backTo={login} showLanguageSwitcher={false}>
       <LoginCodeForm challenge={challenge} />
     </AuthLayout>
   )

@@ -920,5 +920,26 @@ the screens still draw without an answer. Rows P.11 and P.12 are done.
 | P.29 | "Email it" and "Text it" on the receipt screen | no route sends a till receipt by e-mail or SMS; only printing works |
 | P.30 | "One of your customers since April 2025" and the customer's own price account ("Hotel accounts · 12% off") on the company match | neither is on the customer read; the till shows the city, the Peppol id and the terms |
 | P.31 | "Accepted by the OTA" on the sale being refunded | `GET /v1/pos/refund-lookup` does not carry the invoice's filing state; asked: `filing` as on the sale |
-| P.32 | Catalog › Upload a menu: progress while the menu is read | `POST /v1/catalog/menu-scans/{fileId}/read` is synchronous and waits at least 90 s for the reader, with no job or progress; the screen shows the seconds so far and a bar that fills over 90 s. Asked: an asynchronous read with a status to poll, or nothing more if the wait stays under two minutes. A 429 `MENU_SCAN_DAILY_LIMIT` carries no `Retry-After`, so the screen says "tomorrow" |
-| P.33 | Catalog › Upload a menu: read lines marked on the menu itself ("Read clearly" / "Needs checking" legend, "Tap a line to jump to it") | the reading carries no position of a row on the uploaded page, so the menu is shown as uploaded without marks and the legend is not drawn. Asked: the page and box of each row (`page`, `box{x,y,w,h}` as fractions of the page) |
+| P.42 | Catalog › Upload a menu: progress while the menu is read | `POST /v1/catalog/menu-scans/{fileId}/read` is synchronous and waits at least 90 s for the reader, with no job or progress; the screen shows the seconds so far and a bar that fills over 90 s. Asked: an asynchronous read with a status to poll, or nothing more if the wait stays under two minutes. A 429 `MENU_SCAN_DAILY_LIMIT` carries no `Retry-After`, so the screen says "tomorrow" |
+| P.43 | Catalog › Upload a menu: read lines marked on the menu itself ("Read clearly" / "Needs checking" legend, "Tap a line to jump to it") | the reading carries no position of a row on the uploaded page, so the menu is shown as uploaded without marks and the legend is not drawn. Asked: the page and box of each row (`page`, `box{x,y,w,h}` as fractions of the page) |
+
+## Update 2026-10-29 (Catalog › Groups)
+
+Catalog › Groups (`/catalog/groups`, `src/pages/CatalogPage/CatalogGroupsPage.tsx`) lists, adds,
+renames, reorders and deletes the company's groups and the kinds inside them on
+`GET/POST /v1/catalog/groups`, `PUT/DELETE /v1/catalog/groups/{id}?expectedVersion=`,
+`POST /v1/catalog/groups/{id}/kinds` and `PUT/DELETE /v1/catalog/kinds/{id}?expectedVersion=`
+(a kind moves to another group with `groupId`). Reading needs `product.read`, changes
+`product.manage`. Every refusal code is worded (`CATALOGUE_NAME_REQUIRED`,
+`CATALOGUE_GROUP_NAME_DUPLICATE`, `CATALOGUE_KIND_NAME_DUPLICATE`,
+`CATALOGUE_GROUP_VERSION_CONFLICT`, `CATALOGUE_GROUP_NOT_EMPTY`, `CATALOGUE_KIND_IN_USE`,
+`CATALOGUE_GROUP_NOT_FOUND`, `CATALOGUE_KIND_NOT_FOUND`). The item form's "Where it lives" lists
+carry "Add a group" and "Add a kind", so a new company (which starts with no groups) can file its
+first item without leaving the form. Delete is final; there is no archive for groups or kinds.
+
+| #    | What the screen needs | Backend |
+| ---- | --- | --- |
+| P.40 | Reorder groups, and kinds within a group, in one step | there is no reorder route: moving a row up or down saves every row whose place changed with its own `PUT ...?expectedVersion=` (name, `nameAr` and the new `sortOrder` sent back, because a missing `sortOrder` is stored as 0). A failure part way leaves the rows saved so far. Asked: `PUT /v1/catalog/groups/order` (and `.../groups/{id}/kinds/order`) taking the ids in their new order, in one transaction |
+| P.41 | How many items each kind and group holds | `GET /v1/catalog/groups` carries no counts, so the screen shows the number of kinds only and learns that a kind still holds items on sale when its delete is refused (`CATALOGUE_KIND_IN_USE`). Asked: `productCount` (active products) on each kind and its total on each group |
+| P.40 (update) | Reorder in one step | **Fixed by backend #812** (not deployed on 29 Oct): up/down sends `PUT /v1/catalog/groups/order` or `PUT /v1/catalog/groups/{id}/kinds/order` with every sibling in its new order (`items: [{ id, expectedVersion }]`), all or nothing; `CATALOGUE_ORDER_INVALID` is worded. A server without the route (404, 405, or 400 with no catalogue code) gets the per-row PUTs above |
+| P.41 (update) | Item counts | **Fixed by backend #812**: the screen shows `productCount` on each kind and `kindCount` / `productCount` on each group when the tree carries them (kinds alone otherwise), and says before sending a delete that a group with kinds, or a kind with items on sale, cannot be removed; the server's refusal is still worded |

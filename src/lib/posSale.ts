@@ -14,6 +14,17 @@ export type SaleCompany = {
   id: string
   name: string
   kind: 'BUSINESS' | 'GOVERNMENT'
+  /** Printed on the receipt under the buyer's name, when the company has one. */
+  vat?: string | null
+  /** Printed instead of a VAT number for a company without one (CR and the like). */
+  identifier?: { scheme: string; value: string } | null
+}
+
+/** A walk-in named for a full invoice (over 500, or an ID asked for): printed as the buyer. */
+export type SaleBuyer = {
+  name: string
+  identifierScheme: string
+  identifierValue: string
 }
 
 export type OpenSale = {
@@ -31,6 +42,8 @@ export type FinishedSale = {
   tip: number
   change: number
   company: SaleCompany | null
+  /** The named buyer of a full invoice to a person; null for a walk-in or a company. */
+  buyer?: SaleBuyer | null
   payments: { method: string; amount: number; approvalCode?: string }[]
   /** The server's answer; null while the sale waits in the offline queue. */
   sale: PosSaleDto | null

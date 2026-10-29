@@ -24,6 +24,7 @@ import {
   payDetail,
   payMethodKey,
   amountNote,
+  saleState,
   type TodayTabId,
 } from '../../lib/posToday'
 import type { TillState } from '../../lib/posTill'
@@ -36,6 +37,8 @@ const STATE_TONE = {
   filed: 'bg-success-100 text-success-700',
   peppol: 'bg-neutral-25 text-text-tertiary',
   credited: 'bg-pending-100 text-pending-700',
+  waiting: 'bg-neutral-25 text-text-tertiary',
+  failed: 'bg-danger-100 text-danger-700',
 } as const
 
 /**
@@ -377,10 +380,10 @@ function SaleRow({ sale, canRefund }: { sale: PosTodaySaleRow; canRefund: boolea
       </span>
       <span className="flex shrink-0 md:col-start-3 md:row-start-2 xl:col-start-auto xl:row-start-auto">
         <span
-          className={`inline-flex h-[26px] items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold uppercase tracking-[0.04em] ${STATE_TONE[sale.displayState]}`}
+          className={`inline-flex h-[26px] items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold uppercase tracking-[0.04em] ${STATE_TONE[saleState(sale)]}`}
         >
           <span className="size-1.5 rounded-full bg-current" />
-          {t(`pos.today.state.${sale.displayState}`)}
+          {t(`pos.today.state.${saleState(sale)}`)}
         </span>
       </span>
       <span className="flex shrink-0 items-center justify-end gap-1.5 md:col-span-2 md:col-start-4 md:row-start-2 xl:col-span-1 xl:col-start-auto xl:row-start-auto">

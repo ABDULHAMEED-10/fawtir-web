@@ -61,8 +61,11 @@ export function Select({
    * blue shell their own frames draw.
    */
   quiet?: boolean
-  /** Rendered under the list, e.g. an "Add new…" action. */
-  footer?: ReactNode
+  /**
+   * Rendered under the list, e.g. an "Add new…" action. As a function it is handed `close`, so
+   * an action that opens a dialog can shut the list first.
+   */
+  footer?: ReactNode | ((close: () => void) => ReactNode)
   /** The list's width in px when the trigger is too narrow for what it lists. */
   panelWidth?: number
   /** 36px with tight padding and small text: a dropdown standing in for a small input inside a table cell. */
@@ -211,7 +214,11 @@ export function Select({
             )
           })}
         </ul>
-        {footer ? <div className="border-t border-border-subtle">{footer}</div> : null}
+        {footer ? (
+          <div className="border-t border-border-subtle">
+            {typeof footer === 'function' ? footer(() => setOpen(false)) : footer}
+          </div>
+        ) : null}
       </Popover>
     </>
   )
