@@ -1,4 +1,4 @@
-import type { ProductDto } from '../api/catalog/products'
+import type { ProductDto, ProductStockState } from '../api/catalog/products'
 import type { CatalogGroupDto } from '../api/catalog/groups'
 import type { TaxCategoryDto } from '../api/reference/referenceData'
 import { lineFromProduct } from './productLine'
@@ -10,10 +10,11 @@ import type { DiscountType } from './invoiceMath'
  * P.9). One product record for the whole company, at the branch's own price (`effectivePrice`);
  * an item switched off in the branch stays on the shelf greyed (`availableHere: false`).
  *
- * The list does not carry sizes, options or add-ons (they are null on list rows), so a tile is
- * read in full (`GET /v1/products/{id}`) when it is tapped. TODO(backend): a list row that says
- * whether the item has sizes or add-ons, so the tile can carry its Sizes badge before it is
- * tapped (INCOME.md row P.27).
+ * The list asks for each row's sizes, options and add-ons (`include=variants,addOns`) and its
+ * stock in the branch (`include=stock`): fixed by backend #808 and #815, not deployed on
+ * 29 Oct 2026 (INCOME.md P.27). A server without them answers those as null, and a tile is then
+ * read in full (`GET /v1/products/{id}`) when it is tapped, as before; with them nothing more is
+ * read, and the kept copy of the shelf sells an item never opened while the till is offline.
  */
 
 /** How a tile is drawn when the item has no photo: the design's flat illustrations. */
@@ -32,7 +33,48 @@ export type PosItem = {
   price: number
   /** False: switched off or not sold in this branch, drawn greyed. */
   available: boolean
+  /** The branch's stock, flagged on the tile; never stops the sale. Null: nothing to flag. */
+  stock: StockFlag | null
   product: ProductDto
+}
+
+/**
+ * What the till flags about an item's stock (guide section 8): zero or below never stops a sale,
+ * the tile and the size only say so. Not counted, OK, or no figure at all: no flag.
+ */
+export type StockFlag = 'LOW' | 'OUT' | 'BELOW_ZERO'
+
+const SEVERITY: Record<StockFlag, number> = { LOW: 1, OUT: 2, BELOW_ZERO: 3 }
+
+export function stockFlagOf(state: ProductStockState | null | undefined): StockFlag | null {
+  return state === 'LOW' || state === 'OUT' || state === 'BELOW_ZERO' ? state : null
+}
+
+/** One variant's flag, from the row's `stock` (backend #815). */
+export function variantStockFlag(product: ProductDto, variantId: string): StockFlag | null {
+  return stockFlagOf(product.stock?.variants?.find((entry) => entry.variantId === variantId)?.state)
+}
+
+/**
+ * The tile's flag. A product with sizes is flagged only when every size on sale is, and then by
+ * the mildest of them: one size out while another is in stock leaves the tile unflagged, and the
+ * size chooser flags the size itself.
+ */
+export function itemStockFlag(product: ProductDto): StockFlag | null {
+  const stock = product.stock
+  if (!stock) return null
+  if (!stock.variants?.length) return stockFlagOf(stock.state)
+  const onSale = Array.isArray(product.variants)
+    ? product.variants.filter((variant) => variant.onSale).map((variant) => variant.id)
+    : stock.variants.map((entry) => entry.variantId)
+  if (!onSale.length) return null
+  let mildest: StockFlag | null = null
+  for (const id of onSale) {
+    const flag = variantStockFlag(product, id)
+    if (!flag) return null
+    if (!mildest || SEVERITY[flag] < SEVERITY[mildest]) mildest = flag
+  }
+  return mildest
 }
 
 const pick = (name: string, nameAr: string | null | undefined, ar: boolean) =>
@@ -48,6 +90,7 @@ export function shelfItem(product: ProductDto, ar: boolean): PosItem {
     art: product.classificationGoodsOrService === 'S' ? 'bagPale' : 'bag',
     price: toBaisa(product.effectivePrice ?? product.defaultUnitPrice),
     available: product.availableHere !== false && product.active,
+    stock: itemStockFlag(product),
     product,
   }
 }
@@ -115,7 +158,14 @@ export function itemByBarcode(items: PosItem[], code: string): PosItem | null {
 
 /* --------------------------------------------------------- sizes and add-ons */
 
-export type SizeChoice = { id: string; label: string; price: number; code: string }
+export type SizeChoice = {
+  id: string
+  label: string
+  price: number
+  code: string
+  /** The size's own stock flag in the branch (backend #815); null when nothing to flag. */
+  stock?: StockFlag | null
+}
 
 export type ItemChoices = { sizes: SizeChoice[]; addOns: SaleAddOn[] }
 
@@ -129,9 +179,14 @@ export function choicesOf(detail: ProductDto, branchPrice: number, ar: boolean):
   const options = detail.options ?? []
   const delta = (list: typeof sizes, valueId: string | null) =>
     toBaisa(list.find((entry) => entry.id === valueId)?.priceDelta ?? 0)
-  const name = (list: typeof sizes, valueId: string | null, fallback: string | null) => {
+  const name = (
+    list: typeof sizes,
+    valueId: string | null,
+    fallback: string | null,
+    fallbackAr: string | null | undefined,
+  ) => {
     const found = list.find((entry) => entry.id === valueId)
-    return found ? pick(found.name, found.nameAr, ar) : fallback
+    return found ? pick(found.name, found.nameAr, ar) : fallback && pick(fallback, fallbackAr, ar)
   }
   return {
     sizes: (detail.variants ?? [])
@@ -141,15 +196,22 @@ export function choicesOf(detail: ProductDto, branchPrice: number, ar: boolean):
         code: variant.code,
         label:
           [
-            name(sizes, variant.sizeId, variant.size),
-            name(options, variant.optionId, variant.option),
+            name(sizes, variant.sizeId, variant.size, variant.sizeAr),
+            name(options, variant.optionId, variant.option, variant.optionAr),
           ]
             .filter(Boolean)
-            .join(' · ') || variant.name,
+            .join(' · ') || pick(variant.name, variant.nameAr, ar),
+        // The branch list's own figure when it carries one (backend #808), else worked out here.
         price:
-          variant.priceOverride != null
-            ? toBaisa(variant.priceOverride)
-            : branchPrice + delta(sizes, variant.sizeId) + delta(options, variant.optionId),
+          variant.branchPrice != null
+            ? toBaisa(variant.branchPrice)
+            : variant.priceOverride != null
+              ? toBaisa(variant.priceOverride)
+              : branchPrice + delta(sizes, variant.sizeId) + delta(options, variant.optionId),
+        // Only when there is something to flag, so a size reads as before without stock.
+        ...(variantStockFlag(detail, variant.id)
+          ? { stock: variantStockFlag(detail, variant.id) }
+          : {}),
       })),
     addOns: [...(detail.addOns ?? [])]
       .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -159,6 +221,16 @@ export function choicesOf(detail: ProductDto, branchPrice: number, ar: boolean):
         price: addOn.free ? 0 : toBaisa(addOn.price),
       })),
   }
+}
+
+/**
+ * The choices a list row already carries (`include=variants,addOns`, backend #808), or undefined
+ * when the server left them out (null arrays) and the item must be read when tapped.
+ */
+export function listedChoices(item: PosItem, ar: boolean): ItemChoices | undefined {
+  const { variants, addOns } = item.product
+  if (!Array.isArray(variants) || !Array.isArray(addOns)) return undefined
+  return choicesOf(item.product, item.price, ar)
 }
 
 export function hasChoices(choices: ItemChoices): boolean {

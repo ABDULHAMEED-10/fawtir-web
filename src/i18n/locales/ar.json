@@ -4540,7 +4540,12 @@
     "badge": {
       "sizes": "مقاسات",
       "low": "قليل",
-      "offSale": "موقوف"
+      "offSale": "موقوف",
+      "stock": {
+        "LOW": "قليل",
+        "OUT": "نفد المخزون",
+        "BELOW_ZERO": "تحت الصفر"
+      }
     },
     "group": {
       "all": "كل شيء",
@@ -4561,7 +4566,6 @@
       "extraHot": "ساخن جدًا"
     },
     "note": {
-      "sizesAddOns": "{{sizes}} مقاسات · {{addOns}} إضافات",
       "sizes": "{{sizes}} مقاسات",
       "singleOrDouble": "مفرد أو مزدوج",
       "madeToOrder": "يُحضّر عند الطلب",
@@ -4571,7 +4575,19 @@
       "pastries": "معجنات",
       "equipment": "معدات",
       "offSince": "موقوف منذ {{when}}",
-      "broughtBack": "يعود كل عام"
+      "broughtBack": "يعود كل عام",
+      "sizes_zero": "لا مقاسات",
+      "sizes_one": "مقاس واحد",
+      "sizes_two": "مقاسان",
+      "sizes_few": "{{count}} مقاسات",
+      "sizes_many": "{{count}} مقاسًا",
+      "sizes_other": "{{count}} مقاس",
+      "addOns_zero": "لا إضافات",
+      "addOns_one": "إضافة واحدة",
+      "addOns_two": "إضافتان",
+      "addOns_few": "{{count}} إضافات",
+      "addOns_many": "{{count}} إضافةً",
+      "addOns_other": "{{count}} إضافة"
     },
     "totals": {
       "items": "الأصناف",
@@ -13705,7 +13721,8 @@
       "from": "من {{supplier}}",
       "atEach": "بسعر {{amount}} للوحدة",
       "lastPaid": "{{amount}} في {{date}}",
-      "chartNoteNoRate": "الكمية {{count}} {{unit}} المستلمة في {{date}} لم يُبع منها شيء بعد، فلا يوجد معدل لمعرفة كم تكفي."
+      "chartNoteNoRate": "الكمية {{count}} {{unit}} المستلمة في {{date}} لم يُبع منها شيء بعد، فلا يوجد معدل لمعرفة كم تكفي.",
+      "supplierRef": "مرجع المورد {{reference}}"
     }
   },
   "priceRules": {

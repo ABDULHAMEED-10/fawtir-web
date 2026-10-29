@@ -558,6 +558,8 @@ export type PosRefundLookupDto = {
   /** The tip paid on top, never refunded (backend #810); absent from an older server. */
   tip?: number
   tipMethod?: 'CASH' | 'CARD' | null
+  /** The original invoice's filing, read now (backend #808, INCOME.md P.31); absent before it. */
+  filing?: PosFiling | null
   credited: number
   owed: number
   creditNoteNumbers: string[]

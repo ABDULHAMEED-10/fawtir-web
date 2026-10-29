@@ -31,6 +31,11 @@ export type InvoiceLineDto = {
     hsCode?: string | null
     serviceTypeCode?: string | null
   } | null
+  /**
+   * Backend #808 (INCOME.md P.25): the line's product's `keepCount`, read from the catalogue now.
+   * Null when the line names no product or it is not found; absent from an older server.
+   */
+  keepCount?: boolean | null
 }
 
 export type InvoiceTotalsDto = {

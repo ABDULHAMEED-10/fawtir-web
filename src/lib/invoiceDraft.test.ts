@@ -273,6 +273,28 @@ describe('a saved draft back into the form', () => {
     })
     expect(again.headerDiscount).toEqual({ type: 'FIXED_AMOUNT', value: 5 })
   })
+
+  it('fixes a counted product’s unit on a reopened draft when the line says keepCount (P.23, backend #808)', () => {
+    const counted = { ...saved, lines: [{ ...saved.lines[0], unitCode: 'KGM', keepCount: true }] }
+    expect(fromDraftResponse(SEEDED_TAX_CATEGORIES, counted, 'business').lines[0].countedUnit).toBe(
+      'KGM',
+    )
+    // Not counted, or an older server that does not say: the unit stays free, as before.
+    for (const keepCount of [false, null, undefined]) {
+      const line = { ...saved.lines[0], keepCount }
+      const restored = fromDraftResponse(
+        SEEDED_TAX_CATEGORIES,
+        { ...saved, lines: [line] },
+        'business',
+      )
+      expect(restored.lines[0].countedUnit).toBeUndefined()
+    }
+    // A self-billed document moves no stock, so its unit is never fixed.
+    const selfBilled = { ...counted, type: 'SELF_BILLED_INVOICE' as const }
+    expect(
+      fromDraftResponse(SEEDED_TAX_CATEGORIES, selfBilled, 'business').lines[0].countedUnit,
+    ).toBeUndefined()
+  })
 })
 
 describe('checks before saving', () => {

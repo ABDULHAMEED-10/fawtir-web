@@ -694,6 +694,8 @@ function lookupOf(record) {
     // Backend #810: the tip paid on top, never refunded.
     tip: s.tip ?? 0,
     tipMethod: s.tip ? (s.tipMethod ?? null) : null,
+    // Backend #808 (P.31): the original invoice's filing, read now.
+    filing: s.filing ?? null,
     credited: round3(record.credited),
     owed: Math.max(0, round3(s.onAccount - record.credited)),
     creditNoteNumbers: record.creditNoteNumbers,

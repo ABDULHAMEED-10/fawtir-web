@@ -1682,6 +1682,25 @@ describe('"Back on the shelf?" on a credit note (V473)', () => {
     expect(roasting).not.toHaveProperty('backOnShelf')
   }, 30_000)
 
+  it('reads keepCount from the invoice lines when they carry it, and no product (backend #808)', async () => {
+    override = (url) =>
+      url === `/api/v1/authored-invoices/${INVOICE_ID}`
+        ? json(200, {
+            ...INVOICE,
+            lines: INVOICE.lines.map((entry) => ({
+              ...entry,
+              keepCount: entry.productId === 'p-1',
+            })),
+          })
+        : undefined
+    renderAt(`/income/credit-notes/new?invoice=${INVOICE_ID}`)
+    expect(
+      await screen.findByRole('switch', { name: 'Back on the shelf? · Green beans' }),
+    ).toBeTruthy()
+    expect(screen.queryByRole('switch', { name: 'Back on the shelf? · Roasting' })).toBeNull()
+    expect(calls('GET', '/api/v1/products/')).toHaveLength(0)
+  }, 30_000)
+
   it('never asks or sends it on a debit note, even for a counted product', async () => {
     override = products
     await readyDebitNote()
