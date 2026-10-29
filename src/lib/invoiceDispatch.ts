@@ -93,7 +93,7 @@ const RETRY_PROMISED: ReadonlySet<string> = new Set([
 function reasonNote(code: string | null, deadLettered = false): DispatchNote | null {
   if (!code) return null
   if (deadLettered && RETRY_PROMISED.has(code)) return { key: 'invoiceDispatch.reason.retriesSpent' }
-  const key = DISPATCH_REASONS[code]
+  const key = Object.hasOwn(DISPATCH_REASONS, code) ? DISPATCH_REASONS[code] : undefined
   return key ? { key } : { key: 'invoiceDispatch.reason.unknown', values: { code } }
 }
 
@@ -108,7 +108,7 @@ export function dispatchNotes(dispatch: InvoiceDispatchDto): { state: DispatchNo
   // "sending failed" would be false.
   const key =
     leg && LEDGER_BEFORE_TRANSPORT.has(dispatch.state)
-      ? (LEG_HEADLINES[leg.state] ?? UNKNOWN_STATE)
+      ? (Object.hasOwn(LEG_HEADLINES, leg.state) ? LEG_HEADLINES[leg.state] : UNKNOWN_STATE)
       : dispatch.state === 'RETRY_SCHEDULED' &&
           dispatch.reasonCode !== null &&
           DEFERRED_REASONS.has(dispatch.reasonCode)
@@ -129,7 +129,7 @@ export function dispatchNotes(dispatch: InvoiceDispatchDto): { state: DispatchNo
 const UNKNOWN_STATE = 'invoiceDispatch.state.unknown'
 
 function stateKeyOf(state: InvoiceDispatchStateDto): string | null {
-  return state in STATE_KEYS ? STATE_KEYS[state] : UNKNOWN_STATE
+  return Object.hasOwn(STATE_KEYS, state) ? STATE_KEYS[state] : UNKNOWN_STATE
 }
 
 const LEDGER_BEFORE_TRANSPORT: ReadonlySet<InvoiceDispatchStateDto> = new Set([
@@ -181,7 +181,7 @@ export function transportNotes(
       ? [
           {
             legKey,
-            state: !(leg.state in LEG_STATES)
+            state: !Object.hasOwn(LEG_STATES, leg.state)
               ? { key: 'invoiceDispatch.transport.state.unknown' }
               : leg.nextAttemptAt
                 ? { key: LEG_STATES[leg.state], values: { when: formatWhen(leg.nextAttemptAt) } }
@@ -276,7 +276,7 @@ export const SEND_REFUSALS: Record<string, string> = {
 }
 
 export function sendRefusalKey(error: unknown): string | null {
-  return error instanceof ApiError && error.code ? (SEND_REFUSALS[error.code] ?? null) : null
+  return error instanceof ApiError && error.code ? (Object.hasOwn(SEND_REFUSALS, error.code) ? SEND_REFUSALS[error.code] : null) : null
 }
 
 const BUYER_KEYS: Record<InvoiceBuyerDeliveryDto, string> = {
@@ -298,7 +298,7 @@ const BUYER_KEYS: Record<InvoiceBuyerDeliveryDto, string> = {
  */
 export function buyerDeliveryNote(dispatch: InvoiceDispatchDto | null): DispatchNote | null {
   if (!dispatch?.buyerDelivery) return null
-  return { key: BUYER_KEYS[dispatch.buyerDelivery] ?? 'invoiceDispatch.buyer.unknown' }
+  return { key: Object.hasOwn(BUYER_KEYS, dispatch.buyerDelivery) ? BUYER_KEYS[dispatch.buyerDelivery] : 'invoiceDispatch.buyer.unknown' }
 }
 
 /** Refusals of a held-e-mail release, by `code`. */

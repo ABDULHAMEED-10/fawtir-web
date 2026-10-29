@@ -188,7 +188,7 @@ export const MARK_PAID_BLOCK_KEYS: Record<MarkPaidBlockCode, string> = {
 
 /** A block's words, or null for a code this screen does not know (it is still ticked). */
 export function markPaidBlockKey(code: string | null | undefined): string | null {
-  return code ? (MARK_PAID_BLOCK_KEYS[code as MarkPaidBlockCode] ?? null) : null
+  return code && Object.hasOwn(MARK_PAID_BLOCK_KEYS, code) ? MARK_PAID_BLOCK_KEYS[code as MarkPaidBlockCode] : null
 }
 
 /**
@@ -206,7 +206,7 @@ export function refusedBillOf(
   if (typeof billId !== 'string' || !billIds.includes(billId)) return null
   if (error.code === 'PAYMENT_RUN_PAYMENT_DATE_AFTER_DISCOUNT')
     return { billId, key: 'paymentRuns.markPaidBlock.afterDiscount' }
-  if (error.code in MARK_PAID_BLOCK_KEYS) return { billId, key: markPaidBlockKey(error.code) }
+  if (Object.hasOwn(MARK_PAID_BLOCK_KEYS, error.code)) return { billId, key: markPaidBlockKey(error.code) }
   return null
 }
 
@@ -303,9 +303,9 @@ export function refusalOf(
 ): string {
   if (error instanceof ApiError && error.code) {
     const number = String(error.problem.supplierBillNumber ?? knownBill?.(error.code) ?? '')
-    const unnamed = action ? UNNAMED[error.code]?.[action] : undefined
+    const unnamed = action && Object.hasOwn(UNNAMED, error.code) ? UNNAMED[error.code]?.[action] : undefined
     if (unnamed && !number) return t(unnamed)
-    const byAction = action ? BY_ACTION[error.code]?.[action] : undefined
+    const byAction = action && Object.hasOwn(BY_ACTION, error.code) ? BY_ACTION[error.code]?.[action] : undefined
     if (byAction && (number || !NAMES_THE_BILL.has(error.code)))
       return t(byAction, { note: number, bill: number })
     if (error.code === 'PAYMENT_RUN_BILL_SETTLED')
@@ -318,7 +318,7 @@ export function refusalOf(
       return t('paymentRuns.refused.payerAccountInactive', {
         account: String(error.problem.accountName),
       })
-    if (RUN_REFUSALS[error.code]) return t(RUN_REFUSALS[error.code])
+    if (Object.hasOwn(RUN_REFUSALS, error.code)) return t(RUN_REFUSALS[error.code])
   }
   const described = describeApiFailure(error)
   return t(described.key, described.values)

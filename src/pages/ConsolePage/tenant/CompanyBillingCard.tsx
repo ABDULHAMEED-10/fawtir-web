@@ -356,7 +356,7 @@ function BillRow({
         <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-text-primary">
           {t(`${K}bill.number`, { number: bill.number })}
           <ConsoleStatusPill
-            tone={BILL_TONE[status] ?? 'neutral'}
+            tone={Object.hasOwn(BILL_TONE, status) ? BILL_TONE[status] : 'neutral'}
             label={t(`${K}bill.status.${status}`)}
           />
         </span>
@@ -429,7 +429,7 @@ function PayLinkList({
           >
             <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-text-primary">
               <ConsoleStatusPill
-                tone={LINK_TONE[status] ?? 'neutral'}
+                tone={Object.hasOwn(LINK_TONE, status) ? LINK_TONE[status] : 'neutral'}
                 label={t(`${K}links.status.${status}`)}
               />
               {t(`${K}links.channel.${channel}`)}

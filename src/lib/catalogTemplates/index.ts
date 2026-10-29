@@ -38,7 +38,7 @@ export function suggestedFrom(groups: TemplateGroupDto[], language = 'en'): Sugg
         // A bare Rec 21 package code becomes its X form: PINT-OM takes no other (ibr-cl-23).
         soldAs: offeredUnitCode(item.defaultUnitCode),
         barcode: item.barcode ?? undefined,
-        taxCode: TAX_CODE[item.defaultTaxCategory] ?? 'S5',
+        taxCode: Object.hasOwn(TAX_CODE, item.defaultTaxCategory) ? TAX_CODE[item.defaultTaxCategory] : 'S5',
         reasonCode: item.defaultTaxReasonCode ?? undefined,
         picked: g === 0 && k === 0,
       })),

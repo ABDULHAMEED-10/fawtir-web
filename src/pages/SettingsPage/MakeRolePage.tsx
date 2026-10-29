@@ -350,7 +350,7 @@ function Editor({
                       ].join(' ')}
                     >
                       <img
-                        src={role ? (TEMPLATE_ICON[role.code] ?? managerIcon) : nothingIcon}
+                        src={role ? (Object.hasOwn(TEMPLATE_ICON, role.code) ? TEMPLATE_ICON[role.code] : managerIcon) : nothingIcon}
                         alt=""
                         className={picked ? 'size-4 brightness-0 invert' : 'size-4'}
                       />

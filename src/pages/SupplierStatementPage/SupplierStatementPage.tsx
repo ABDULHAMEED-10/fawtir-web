@@ -626,7 +626,7 @@ function SupplierStatement({ id }: { id: string }) {
                       <span
                         className={[
                           'inline-flex h-[24px] items-center rounded-sm px-2 text-[11px] font-semibold uppercase tracking-[0.4px]',
-                          KIND_CHIP[entry.kind] ?? KIND_CHIP.BILL,
+                          Object.hasOwn(KIND_CHIP, entry.kind) ? KIND_CHIP[entry.kind] : KIND_CHIP.BILL,
                         ].join(' ')}
                       >
                         {/* On a credit-used line the server's reference is the bill the credit
@@ -780,7 +780,7 @@ function EmailStatementModal({
       // and any address not on the record from getting here, so most of these show only when the
       // record changed after the page loaded.
       const refusal =
-        error instanceof ApiError && error.code ? STATEMENT_EMAIL_REFUSALS[error.code] : undefined
+        error instanceof ApiError && error.code && Object.hasOwn(STATEMENT_EMAIL_REFUSALS, error.code) ? STATEMENT_EMAIL_REFUSALS[error.code] : undefined
       if (refusal) {
         setFailure(t(refusal, { address: recipient }))
       } else if (error instanceof ApiError && error.status === 400 && error.code === null) {

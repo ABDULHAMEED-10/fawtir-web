@@ -32,7 +32,7 @@ const DISPLAY_TONE: Record<DisplayStatus, Tone> = {
 
 /** A value the server sends that this build does not know yet is shown neutral, never as success. */
 export function displayStatusTone(status: string): Tone {
-  return DISPLAY_TONE[status as DisplayStatus] ?? 'neutral'
+  return Object.hasOwn(DISPLAY_TONE, status) ? DISPLAY_TONE[status as DisplayStatus] : 'neutral'
 }
 
 /**
@@ -65,7 +65,7 @@ const LABEL_TONE: Partial<Record<ReconciliationLabel, Tone>> = {
 }
 
 export function reconciliationTone(label: string): Tone {
-  return LABEL_TONE[label as ReconciliationLabel] ?? 'pending'
+  return (Object.hasOwn(LABEL_TONE, label) ? LABEL_TONE[label as ReconciliationLabel] : undefined) ?? 'pending'
 }
 
 /**

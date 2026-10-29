@@ -525,7 +525,7 @@ export function TimelineCard({
           aria-label={t('erp.reporting.timeline.title')}
         >
           {shown.map((item, index) => {
-            const group = TIMELINE_CODE_GROUP[item.type]
+            const group = Object.hasOwn(TIMELINE_CODE_GROUP, item.type) ? TIMELINE_CODE_GROUP[item.type] : undefined
             const refined = item.code ? (group ? code(group, item.code) : item.code) : null
             return (
               <li

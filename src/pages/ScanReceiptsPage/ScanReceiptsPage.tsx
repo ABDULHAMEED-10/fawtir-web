@@ -411,7 +411,7 @@ function AddMore({
       for (const file of files) uploaded.push({ intake: await uploadIntake(file, 'SCANNED'), file })
     } catch (error) {
       const coded =
-        error instanceof ApiError && error.code ? UPLOAD_REFUSALS[error.code] : undefined
+        error instanceof ApiError && error.code && Object.hasOwn(UPLOAD_REFUSALS, error.code) ? UPLOAD_REFUSALS[error.code] : undefined
       const failure = describeApiFailure(error)
       setRefusal(coded ? t(coded) : t(failure.key, failure.values))
     } finally {
@@ -535,7 +535,7 @@ function ReceiptEditor({
     } catch (failure) {
       const same = possibleDuplicateOf(failure)
       if (same) setDuplicate(same)
-      else if (failure instanceof ApiError && failure.code && BILL_CONFIRM_REFUSALS[failure.code]) {
+      else if (failure instanceof ApiError && failure.code && Object.hasOwn(BILL_CONFIRM_REFUSALS, failure.code)) {
         const refusal = BILL_CONFIRM_REFUSALS[failure.code]
         if (refusal.field) setErrors({ [refusal.field]: refusal.key })
         setNotice(refusal.field ? t('billIntake.fixFirst') : t(refusal.key))

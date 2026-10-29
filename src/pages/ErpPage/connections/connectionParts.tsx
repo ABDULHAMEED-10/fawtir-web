@@ -30,7 +30,7 @@ export function ConnectionStatePill({ state }: { state: ErpConnectionState }) {
 /** A status the build does not know is shown neutral, in the server's own word. */
 export function ExtractionStatusPill({ status }: { status: string }) {
   const { t } = useTranslation()
-  const tone = EXTRACTION_STATUS_TONE[status as ExtractionStatusCode] ?? 'neutral'
+  const tone = Object.hasOwn(EXTRACTION_STATUS_TONE, status) ? EXTRACTION_STATUS_TONE[status as ExtractionStatusCode] : 'neutral'
   return <Pill tone={tone} label={t(`erp.extraction.state.${status}`, { defaultValue: status })} />
 }
 

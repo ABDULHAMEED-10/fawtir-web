@@ -305,7 +305,7 @@ export function SupplierNoteIntake({
     const same = possibleDuplicateOf(failure)
     if (same) {
       setDuplicate(same)
-    } else if (failure instanceof ApiError && failure.code && CONFIRM_REFUSALS[failure.code]) {
+    } else if (failure instanceof ApiError && failure.code && Object.hasOwn(CONFIRM_REFUSALS, failure.code)) {
       const refusal = CONFIRM_REFUSALS[failure.code]
       if (refusal.field) setErrors({ [refusal.field]: refusal.key })
       setNotice(refusal.field ? t('billIntake.fixFirst') : t(refusal.key))

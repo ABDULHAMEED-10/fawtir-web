@@ -53,7 +53,7 @@ export const ACTION_FOR_STATE: Partial<Record<PurchaseOrderStateDto, PurchaseOrd
 }
 
 export function nextAction(state: PurchaseOrderStateDto): PurchaseOrderAction | null {
-  return ACTION_FOR_STATE[state] ?? null
+  return (Object.hasOwn(ACTION_FOR_STATE, state) ? ACTION_FOR_STATE[state] : undefined) ?? null
 }
 
 export function nextState(state: PurchaseOrderStateDto): PurchaseOrderStateDto | null {

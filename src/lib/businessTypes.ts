@@ -55,7 +55,9 @@ const ICON_BY_CODE: Record<string, string> = {
 
 export function businessTypeIcon(type: { code: string; icon?: string | null }): string {
   return (
-    (type.icon ? ICON_BY_NAME[type.icon] : undefined) ?? ICON_BY_CODE[type.code] ?? professionalIcon
+    (type.icon && Object.hasOwn(ICON_BY_NAME, type.icon) ? ICON_BY_NAME[type.icon] : undefined) ??
+    (Object.hasOwn(ICON_BY_CODE, type.code) ? ICON_BY_CODE[type.code] : undefined) ??
+    professionalIcon
   )
 }
 
