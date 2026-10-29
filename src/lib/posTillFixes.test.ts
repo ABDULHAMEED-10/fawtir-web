@@ -100,7 +100,13 @@ describe('a sale on Today (E2E F-7)', () => {
     } as const
     expect(saleState(row({ filing: queued }))).toBe('waiting')
     expect(saleState(row({ filing: { ...queued, dispatchState: 'DISPATCHED' } }))).toBe('filed')
-    expect(saleState(row({ displayState: 'peppol', filing: queued }))).toBe('peppol')
+    // A company sale too, while it waits to go over Peppol (retest N-9).
+    expect(saleState(row({ displayState: 'peppol', filing: queued }))).toBe('waiting')
+    expect(
+      saleState(
+        row({ displayState: 'peppol', filing: { ...queued, dispatchState: 'DISPATCHED' } }),
+      ),
+    ).toBe('peppol')
     expect(saleState(row({}))).toBe('filed')
   })
 

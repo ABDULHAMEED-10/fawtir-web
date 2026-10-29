@@ -768,7 +768,11 @@ function Payment({ till }: { till: Ready }) {
                           missing: missingFieldsSentence(notEligible, t, i18n.language),
                         })
                       : t('pos.refusal.customerIncomplete')}{' '}
-                    <Link to="/pos/company" className="font-semibold underline">
+                    <Link
+                      to="/pos/company"
+                      state={{ missing: notEligible }}
+                      className="font-semibold underline"
+                    >
                       {t('pos.refusal.completeCompany')}
                     </Link>
                   </>

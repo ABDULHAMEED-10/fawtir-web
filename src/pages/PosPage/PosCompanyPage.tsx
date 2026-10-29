@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { setSaleCompany, setSaleLines, useOpenSale } from '../../lib/posSale'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
 import { PosSalePanel } from './PosSalePanel'
 import { PosTillGate } from './PosTillGate'
@@ -44,6 +44,8 @@ type Found = {
   terms: string | null
   /** What a full invoice to them still needs (`missingInvoiceFields`); empty when nothing. */
   missing: string[]
+  /** The buyer identifier of a company without a VAT number (CR and the like, IBR-016-OM). */
+  identifier: { scheme: string; value: string } | null
 }
 
 /** The address parts a full invoice needs, the ones the till can fill in (F-1). */
@@ -61,6 +63,8 @@ function foundOf(customer: CustomerDto | CustomerRecordDto): Found | null {
   const details = customer.profile?.details as
     | (CustomerDto['profile']['details'] & {
         peppolParticipantId?: { scheme: string; value: string } | null
+        identifierScheme?: string | null
+        identifierValue?: string | null
       })
     | null
   const participant = details?.peppolParticipantId
@@ -74,8 +78,18 @@ function foundOf(customer: CustomerDto | CustomerRecordDto): Found | null {
     city: customer.profile?.invoiceAddress?.cityName ?? null,
     terms: billing?.paymentTerms ?? null,
     missing: customer.invoiceEligible === false ? (customer.missingInvoiceFields ?? []) : [],
+    identifier:
+      details?.identifierScheme && details.identifierValue
+        ? { scheme: details.identifierScheme, value: details.identifierValue }
+        : null,
   }
 }
+
+/**
+ * What the payment screen hands over with "Complete it on the company screen": the paths the
+ * refusal named, so the address form opens at once for the company already on the sale (retest N-1).
+ */
+export type CompanyScreenState = { missing?: string[] }
 
 /** A VAT number is looked up once it could be one: `GET /v1/customers?vatNumber=` is exact. */
 const lookupPath = (vat: string) =>
@@ -143,10 +157,19 @@ function OnTheCompany({ till }: { till: Ready }) {
   const navigate = useNavigate()
   // The open sale is shared with the payment and receipt screens (src/lib/posSale.ts).
   const { lines, company } = useOpenSale()
+  const handedOver = (useLocation().state as CompanyScreenState | null)?.missing ?? []
   const [vat, setVat] = useState('')
   const [picked, setPicked] = useState<Found | null>(
     company
-      ? { ...company, vat: company.vat ?? null, peppol: null, city: null, terms: null, missing: [] }
+      ? {
+          ...company,
+          vat: company.vat ?? null,
+          peppol: null,
+          city: null,
+          terms: null,
+          missing: handedOver,
+          identifier: company.identifier ?? null,
+        }
       : null,
   )
   const [byHand, setByHand] = useState(false)
@@ -177,7 +200,17 @@ function OnTheCompany({ till }: { till: Ready }) {
 
   const choose = (next: Found | null) => {
     setPicked(next)
-    setSaleCompany(next ? { id: next.id, name: next.name, kind: next.kind, vat: next.vat } : null)
+    setSaleCompany(
+      next
+        ? {
+            id: next.id,
+            name: next.name,
+            kind: next.kind,
+            vat: next.vat,
+            identifier: next.identifier,
+          }
+        : null,
+    )
   }
   // A match by VAT number is the company the sale goes on.
   const matchedId = matched?.id ?? null
@@ -439,12 +472,17 @@ function AddCompany({
   const missing =
     error instanceof ApiError ? notEligiblePaths({ code: error.code, ...error.problem }) : null
   const set = (patch: Partial<typeof form>) => setForm((current) => ({ ...current, ...patch }))
-  const ready =
-    form.name.trim() &&
-    form.contactPerson.trim() &&
-    (form.vatNumber.trim() || form.value.trim()) &&
-    form.cityName.trim() &&
-    form.streetName.trim()
+  // What is still empty, said under the form so a greyed button is never a puzzle.
+  const stillNeeded = [
+    !form.name.trim() && t('pos.company.legalName'),
+    !form.contactPerson.trim() && t('pos.company.contactPerson'),
+    !form.vatNumber.trim() &&
+      !form.value.trim() &&
+      t('pos.company.vatOrId', { id: t('pos.buyer.value') }),
+    !form.cityName.trim() && t('newCustomer.address.city'),
+    !form.streetName.trim() && t('newCustomer.address.street'),
+  ].filter((label): label is string => !!label)
+  const ready = stillNeeded.length === 0
 
   const save = async () => {
     setBusy(true)
@@ -541,6 +579,13 @@ function AddCompany({
       <p className="text-xs font-medium leading-[1.5] text-text-quaternary">
         {t('pos.company.noVatNote')}
       </p>
+      {!ready ? (
+        <p className="text-xs font-medium leading-[1.5] text-text-tertiary">
+          {t('pos.company.stillNeeded', {
+            fields: new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format(stillNeeded),
+          })}
+        </p>
+      ) : null}
       {error ? (
         <p role="alert" className="text-xs font-medium text-danger-700">
           {missing?.length

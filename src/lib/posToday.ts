@@ -108,13 +108,13 @@ export type TodaySaleState = PosTodaySaleRow['displayState']
 
 /**
  * The badge on a sale. Backend #810 answers `waiting` and `failed` itself; an older server reads
- * "filed" for every walk-in sale, also while the filing still waits in the queue
- * (`filing.dispatchState: QUEUED`), so for its "filed" the till says "Waiting" until it has gone
- * (E2E 29 Oct 2026, F-7).
+ * "filed" for every walk-in sale and "peppol" for every company sale, also while the filing still
+ * waits in the queue (`filing.dispatchState: QUEUED`), so for either the till says "Waiting" until
+ * it has gone (E2E 29 Oct 2026, F-7; retest N-9).
  */
 export function saleState(sale: PosTodaySaleRow): TodaySaleState {
   if (
-    sale.displayState === 'filed' &&
+    (sale.displayState === 'filed' || sale.displayState === 'peppol') &&
     sale.filing &&
     !sale.filing.acceptedAt &&
     sale.filing.dispatchState === 'QUEUED'

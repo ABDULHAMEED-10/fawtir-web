@@ -4693,7 +4693,9 @@
       "taxInvoice": "فاتورة ضريبية",
       "cardApproval": "بطاقة · موافقة {{code}}",
       "qrAlt": "رمز الاستجابة السريعة للفاتورة",
-      "qrComing": "يظهر رمز الاستجابة السريعة بعد تقديم الفاتورة."
+      "qrComing": "يظهر رمز الاستجابة السريعة بعد تقديم الفاتورة.",
+      "qrAfterFiling": "يظهر رمز QR بعد تقديم الفاتورة",
+      "rungUpWrongQueued": "سُجّلت خطأ؟ هذه العملية بانتظار التقديم. بعد تقديمها يُصحَّح الخطأ بإشعار دائن، ويراه جهاز الضرائب أيضًا."
     },
     "company": {
       "whose": "لأي شركة؟",
@@ -4740,7 +4742,9 @@
       "notReady": "الفاتورة الكاملة لهذه الشركة تحتاج إلى {{missing}}.",
       "saveAddress": "احفظ العنوان",
       "completeOnCustomer": "أكمل الباقي في صفحة العميل ضمن العملاء.",
-      "askToComplete": "اطلب من شخص يمكنه تعديل العملاء أن يكمله، ثم أنهِ عملية البيع."
+      "askToComplete": "اطلب من شخص يمكنه تعديل العملاء أن يكمله، ثم أنهِ عملية البيع.",
+      "vatOrId": "الرقم الضريبي أو {{id}}",
+      "stillNeeded": "ما زال مطلوبًا: {{fields}}."
     },
     "today": {
       "title": "اليوم",
@@ -4832,13 +4836,13 @@
       "subtitle": "{{branch}} · صندوق {{till}} · وردية {{who}}، {{from}} إلى {{to}} · {{day}}",
       "printSummary": "طباعة الملخص",
       "takenToday": "المحصّل اليوم",
-      "takenNote": "{{sales}} عملية · بمتوسط {{average}}",
+      "takenNote": "{{count}} عملية · بمتوسط {{average}}",
       "cash": "نقدًا",
-      "cashNote": "{{percent}}٪ من المحصّل · {{sales}} عملية",
+      "cashNote": "{{percent}}٪ من المحصّل · {{count}} عملية",
       "card": "بطاقة",
-      "cardNote": "{{sales}} عملية",
-      "onCompany": "على الشركة",
-      "companyNote": "{{count}} فواتير عبر Peppol",
+      "cardNote": "{{count}} عملية",
+      "onCompany": "المستحق على الحساب",
+      "companyNote": "{{count}} فاتورة لشركات عبر Peppol",
       "countDrawer": "عدّ الدرج",
       "cashOnly": "النقد فقط، البطاقة والتحويلات تُطابق نفسها",
       "byDenomination": "العدّ بالفئات",
@@ -4921,7 +4925,31 @@
         "toBank": "إلى البنك",
         "floatLeft": "الفكة المتروكة في الدرج",
         "cardDiffers": "فرق جهاز البطاقات"
-      }
+      },
+      "takenNote_zero": "لا عمليات · بمتوسط {{average}}",
+      "takenNote_one": "عملية واحدة · بمتوسط {{average}}",
+      "takenNote_two": "عمليتان · بمتوسط {{average}}",
+      "takenNote_few": "{{count}} عمليات · بمتوسط {{average}}",
+      "takenNote_many": "{{count}} عملية · بمتوسط {{average}}",
+      "takenNote_other": "{{count}} عملية · بمتوسط {{average}}",
+      "cashNote_zero": "{{percent}}٪ من المحصّل · لا عمليات",
+      "cashNote_one": "{{percent}}٪ من المحصّل · عملية واحدة",
+      "cashNote_two": "{{percent}}٪ من المحصّل · عمليتان",
+      "cashNote_few": "{{percent}}٪ من المحصّل · {{count}} عمليات",
+      "cashNote_many": "{{percent}}٪ من المحصّل · {{count}} عملية",
+      "cashNote_other": "{{percent}}٪ من المحصّل · {{count}} عملية",
+      "cardNote_zero": "لا عمليات",
+      "cardNote_one": "عملية واحدة",
+      "cardNote_two": "عمليتان",
+      "cardNote_few": "{{count}} عمليات",
+      "cardNote_many": "{{count}} عملية",
+      "cardNote_other": "{{count}} عملية",
+      "companyNote_zero": "لا فواتير لشركات عبر Peppol",
+      "companyNote_one": "فاتورة واحدة لشركة عبر Peppol",
+      "companyNote_two": "فاتورتان لشركات عبر Peppol",
+      "companyNote_few": "{{count}} فواتير لشركات عبر Peppol",
+      "companyNote_many": "{{count}} فاتورة لشركات عبر Peppol",
+      "companyNote_other": "{{count}} فاتورة لشركات عبر Peppol"
     },
     "refund": {
       "title": "تصحيح الأمر",
@@ -13429,7 +13457,8 @@
       "nothingLeftNote": "{{name}} · نفد منذ {{day}}",
       "nothingOut": "لم ينفد شيء",
       "moved": "تحرك هذا الأسبوع",
-      "movedNote": "{{sold}} مبيعة · {{received}} واردة · {{writtenOff}} متلفة"
+      "movedNote": "{{sold}} مبيعة · {{received}} واردة · {{writtenOff}} متلفة",
+      "belowZeroNote": "بيع {{name}} تحت الصفر. عُدّه عندما تستطيع."
     },
     "tab": {
       "all": "الكل",

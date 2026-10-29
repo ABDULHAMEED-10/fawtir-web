@@ -112,6 +112,7 @@ export function StockDetailPage() {
       branchId={branchId}
       canAdjust={access.canAdjust}
       canManage={access.canManage}
+      canOrder={access.canOrder}
       reload={item.retry}
     />
   )
@@ -122,12 +123,15 @@ function StockItem({
   branchId,
   canAdjust,
   canManage,
+  canOrder,
   reload,
 }: {
   item: StockItemDetailDto
   branchId: string
   canAdjust: boolean
   canManage: boolean
+  /** Order more raises a purchase order: only for `purchase-order.manage` (retest N-3). */
+  canOrder: boolean
   reload: () => void
 }) {
   const { t, i18n } = useTranslation()
@@ -247,13 +251,15 @@ function StockItem({
               {t('stockItem.correctTheCount')}
             </button>
           ) : null}
-          <Link
-            to={orderMoreTo}
-            className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-          >
-            <img src={plusIcon} alt="" className="size-4" />
-            {t('stockItem.orderMore')}
-          </Link>
+          {canOrder ? (
+            <Link
+              to={orderMoreTo}
+              className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+            >
+              <img src={plusIcon} alt="" className="size-4" />
+              {t('stockItem.orderMore')}
+            </Link>
+          ) : null}
         </>
       }
     >

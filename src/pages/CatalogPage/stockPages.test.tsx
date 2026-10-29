@@ -119,6 +119,7 @@ const MOVEMENTS = {
 let permissions: string[]
 let extra: Partial<Entitlements>
 let branchesRefused: boolean
+let summary: typeof SUMMARY
 let detail: typeof DETAIL
 let movements: { content: unknown[]; page: number; size: number; totalElements: number }
 
@@ -130,6 +131,7 @@ beforeEach(async () => {
   permissions = ['stock.read', 'stock.adjust', 'stock.manage']
   extra = {}
   branchesRefused = false
+  summary = SUMMARY
   detail = DETAIL
   movements = MOVEMENTS
   vi.stubGlobal(
@@ -158,9 +160,18 @@ beforeEach(async () => {
         )
       if (init.method === 'PUT' && url.startsWith('/api/v1/stock/items/'))
         return json({ ...ROW, reorderLevel: 19, version: 4 })
-      if (url.startsWith('/api/v1/stock/summary')) return json(SUMMARY)
+      if (url.startsWith('/api/v1/stock/summary')) return json(summary)
       if (url.startsWith('/api/v1/stock/items/p-beans/movements')) return json(movements)
       if (url.startsWith('/api/v1/stock/items/p-beans')) return json(detail)
+      if (url.includes('status=BELOW_ZERO')) {
+        return json({
+          branchId: 'b-main',
+          page: 0,
+          size: 1,
+          totalElements: 1,
+          content: [{ ...ROW, onHand: -1, state: 'BELOW_ZERO' }],
+        })
+      }
       if (url.startsWith('/api/v1/stock')) {
         return json({ branchId: 'b-main', page: 0, size: 20, totalElements: 41, content: [ROW] })
       }
@@ -255,9 +266,31 @@ describe('Stock list', () => {
     await screen.findByText('Coffee Beans · 1 kg')
     expect(screen.queryByRole('button', { name: 'Count the shelves' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Record what came in' })).toBeNull()
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Coffee Beans · 1 kg' }))
+    // Nothing to do with a ticked row, so no box to tick (retest N-3).
+    expect(screen.queryByRole('checkbox', { name: 'Coffee Beans · 1 kg' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Write stock off' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Change the reorder level' })).toBeNull()
+    // No purchase order without purchase-order.manage: the running-low row opens its movements.
+    expect(screen.queryByRole('link', { name: 'Order now' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Movements' })).toBeTruthy()
+  })
+
+  it('offers Order now and Order from to whoever may raise a purchase order', async () => {
+    permissions = ['stock.read', 'stock.adjust', 'purchase-order.manage']
+    open('/stock')
+    await screen.findByText('Coffee Beans · 1 kg')
+    expect(screen.getByRole('link', { name: 'Order now' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Coffee Beans · 1 kg' }))
+    expect(screen.getByRole('link', { name: 'Order from Muscat Roastery' })).toBeTruthy()
+  })
+
+  it('counts an item sold below zero under Nothing left, and names it (retest N-4)', async () => {
+    summary = { ...SUMMARY, nothingLeft: 0, belowZero: 1 }
+    open('/stock')
+    expect(await screen.findByText(/Coffee Beans · 1 kg sold below zero/)).toBeTruthy()
+    expect(requests().map((r) => r.url)).toContain(
+      '/api/v1/stock?branchId=b-main&status=BELOW_ZERO&size=1',
+    )
   })
 
   it('hides the writes when the plan has stock switched off', async () => {
@@ -361,6 +394,8 @@ describe('Stock item', () => {
     permissions = ['stock.read']
     open('/stock/p-beans?variant=v-1kg')
     await screen.findByText('Written off')
+    // Order more raises a purchase order: not for a reader (retest N-3).
+    expect(screen.queryByRole('link', { name: 'Order more' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Change' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Correct the count' })).toBeNull()
   })

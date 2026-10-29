@@ -318,6 +318,7 @@ function CloseForm({
           title={t('pos.close.takenToday')}
           value={omr(figures.taken)}
           note={t('pos.close.takenNote', {
+            count: figures.sales,
             sales: figures.sales,
             average: omr(figures.sales ? Math.round(figures.taken / figures.sales) : 0),
           })}
@@ -327,13 +328,14 @@ function CloseForm({
           value={omr(figures.cashTaken)}
           note={t('pos.close.cashNote', {
             percent: figures.taken ? Math.round((figures.cashTaken / figures.taken) * 100) : 0,
+            count: figures.cashSales,
             sales: figures.cashSales,
           })}
         />
         <Kpi
           title={t('pos.close.card')}
           value={omr(figures.card)}
-          note={t('pos.close.cardNote', { sales: figures.cardSales })}
+          note={t('pos.close.cardNote', { count: figures.cardSales, sales: figures.cardSales })}
         />
         <Kpi
           title={t('pos.close.onCompany')}
