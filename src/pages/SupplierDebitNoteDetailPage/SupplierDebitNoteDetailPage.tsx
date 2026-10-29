@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { withRial } from '../../components/ui'
@@ -41,7 +41,8 @@ import {
   supplierOverviewPath,
   type SupplierOverviewDto,
 } from '../../api/expenditure/supplierRecord'
-import { reasonLabelKey, toDebitNoteItem } from '../../lib/supplierNoteList'
+import { duplicateCheckPath, reasonLabelKey, toDebitNoteItem } from '../../lib/supplierNoteList'
+import { refusalMeansStale } from '../../lib/billDuplicate'
 import type { NoteFormat } from '../../lib/supplierCreditNotes'
 import {
   REFUSAL_REASONS,
@@ -104,6 +105,7 @@ function DebitNoteDetail() {
   const language = i18n.language
   const { id = '' } = useParams()
   const session = useSession()
+  const navigate = useNavigate()
   const canDecide = can(session, 'invoice.approve')
 
   const note = useApiRead<DebitNoteRowDto>(id ? debitNotePath(id) : null, () => loadDebitNote(id))
@@ -172,6 +174,11 @@ function DebitNoteDetail() {
       setFailure(
         message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body,
       )
+      // The note moved on since it was read (held as a duplicate meanwhile): read it again.
+      if (refusalMeansStale(error)) {
+        note.retry()
+        history.retry()
+      }
     } finally {
       setBusy(null)
     }
@@ -229,11 +236,14 @@ function DebitNoteDetail() {
     : t('supplierCreditNotes.rows.noReason')
   const checks = debitNoteChecks(row, bill, fmt)
   const worries = checks.filter((check) => check.verdict === 'check').length
-  const canAccept = row.status !== 'ACCEPTED'
+  // Accepting a held copy is refused until its duplicate check is decided; refusing it is a
+  // separate decision the server still takes (owner policy, backend #804).
+  const canAccept = row.status !== 'ACCEPTED' && !item.heldAsDuplicate
   const canRefuse = row.status !== 'REFUSED'
   // Holding only means something before a decision; once one is taken it is hidden, not greyed
   // (owner, 8 Oct 2026).
-  const canHold = row.status === 'UNCHECKED'
+  // Not on a copy held as a duplicate: it is held already, and the server refuses a second hold.
+  const canHold = row.status === 'UNCHECKED' && !item.heldAsDuplicate
 
   const bannerTitle =
     row.status === 'ACCEPTED'
@@ -316,6 +326,10 @@ function DebitNoteDetail() {
               {item.number ?? t('supplierCreditNotes.rows.unnumbered')}
             </h1>
             <StatusChip className={CHIP[item.status]} label={t(STATUS_LABEL[item.status])} />
+            {item.heldAsDuplicate ? (
+              // The waiting tone, as a held credit note's: held is not refused.
+              <StatusChip className={CHIP.UNCHECKED} label={t('supplierDebitNotes.held.chip')} />
+            ) : null}
             <KindBadge sign="+" label={t(`supplierNotes.kind.debit.${item.source}`)} />
           </div>
           <p className="mt-2 text-sm font-medium leading-[1.4] text-text-tertiary">
@@ -383,6 +397,20 @@ function DebitNoteDetail() {
         </div>
       </div>
 
+      {item.heldAsDuplicate ? (
+        <Notice
+          // Once refused, "you can still refuse it" no longer applies.
+          body={t(
+            row.status === 'REFUSED'
+              ? 'supplierDebitNotes.held.bodyRefused'
+              : 'supplierDebitNotes.held.body',
+          )}
+          action={{
+            label: t('supplierDebitNotes.held.open'),
+            onClick: () => navigate(duplicateCheckPath(id)),
+          }}
+        />
+      ) : null}
       {notice ? (
         <Notice
           body={notice}
@@ -463,7 +491,12 @@ function DebitNoteDetail() {
               summaryBody={
                 worries === 0
                   ? t('supplierDebitNotes.checks.summaryFineBody')
-                  : t('supplierDebitNotes.checks.summaryWorriesBody')
+                  : // A held note cannot be accepted yet, so the advice does not lead to accepting.
+                    t(
+                      item.heldAsDuplicate
+                        ? 'supplierDebitNotes.checks.summaryBeforeAcceptBody'
+                        : 'supplierDebitNotes.checks.summaryWorriesBody',
+                    )
               }
             />
           </NoteCard>

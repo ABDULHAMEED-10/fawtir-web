@@ -109,6 +109,9 @@ const REFUSALS: Record<string, string> = {
   SUPPLIER_IMPORT_HEADER_NOT_RECOGNISED: 'stagedImport.refused.headerNotRecognised',
   // Reachable from Settings > Bill approvals since E-17.
   APPROVAL_POLICY_INVALID: 'apiErrors.refused.approvalPolicyInvalid',
+  // The note a decision on a held Peppol copy carries (backend V493).
+  BILL_DUPLICATE_RESOLUTION_NOTE_REQUIRED: 'billDetail.duplicate.refused.noteRequired',
+  BILL_DUPLICATE_RESOLUTION_NOTE_TOO_LONG: 'billDetail.duplicate.refused.noteTooLong',
 }
 
 /**
@@ -141,6 +144,17 @@ const CONFLICT_REFUSALS: Record<string, string> = {
   // `/apply` or `/refund` on a note held as a later Peppol copy (backend V493), reached when the
   // hold opened after the screen was read.
   CREDIT_NOTE_HELD_AS_DUPLICATE: 'supplierCreditNotes.held.refused',
+  // A held Peppol copy (backend V493): deciding it, and the plain release it refuses.
+  BILL_DUPLICATE_ALREADY_RESOLVED: 'billDetail.duplicate.refused.alreadyResolved',
+  BILL_NOT_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.notHeld',
+  BILL_DUPLICATE_SAME_DOCUMENT_UUID: 'billDetail.duplicate.refused.sameDocumentUuid',
+  BILL_HOLD_DUPLICATE_RELEASE_REFUSED: 'billDetail.duplicate.refused.releaseRefused',
+  // Approving a copy that became a held duplicate after the screen was read.
+  BILL_APPROVAL_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.approvalHeld',
+  // Rejecting one, likewise.
+  BILL_REJECTION_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.rejectionHeld',
+  // Accepting a debit note that became a held duplicate after the screen was read.
+  DEBIT_NOTE_HELD_AS_DUPLICATE: 'supplierDebitNotes.held.refused',
 }
 
 function conflictRefusalKey(error: unknown): string | null {

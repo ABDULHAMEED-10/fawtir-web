@@ -8,6 +8,7 @@ import {
   type BillDetailDto,
   type BillRowDto,
 } from '../../api/expenditure/bills'
+import { rowDuplicateOf } from '../../lib/billDuplicate'
 
 /**
  * The bill a supplier note is set against, as the frames need it drawn (its total, what is still
@@ -59,19 +60,35 @@ export function useNoteBill({
       : null
   if (detail) return { bill: detail.bill, detail, loading: false }
 
-  const wanted = (billNumber ?? '').trim().toLowerCase()
   const match =
     found.read.status === 'ready' && Array.isArray(found.read.data?.items)
-      ? (found.read.data.items.find(
-          (row) =>
-            (row.supplierBillNumber ?? '').trim().toLowerCase() === wanted && row.id !== billId,
-        ) ?? null)
+      ? billByNumber(found.read.data.items, billNumber, billId)
       : null
   return {
     bill: match,
     detail: null,
     loading: direct.read.status === 'loading' || found.read.status === 'loading',
   }
+}
+
+/**
+ * The bill among `rows` whose number is exactly `billNumber`, first in the server's order.
+ *
+ * A later Peppol copy held as a duplicate (V493) carries the same number as the bill it copies,
+ * and newest-first puts it ahead of that bill, so a held copy is passed over while another bill
+ * with the number is there: the note corrects the bill, not its copy. A server without the
+ * duplicate fields holds none, and the first match is taken as before.
+ */
+export function billByNumber(
+  rows: readonly BillRowDto[],
+  billNumber: string | null,
+  excludeId: string | null,
+): BillRowDto | null {
+  const wanted = (billNumber ?? '').trim().toLowerCase()
+  const matches = rows.filter(
+    (row) => (row.supplierBillNumber ?? '').trim().toLowerCase() === wanted && row.id !== excludeId,
+  )
+  return matches.find((row) => rowDuplicateOf(row) === null) ?? matches[0] ?? null
 }
 
 /**

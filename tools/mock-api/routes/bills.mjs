@@ -149,6 +149,24 @@ const matched = (po, verdict = 'MATCHED', byHand = false) => ({
   byHand,
 })
 
+const GCL_3001_LINES = [L('Cold-chain delivery, Muscat to Sohar', 3, 'EA', 182.5)]
+
+/** The hold the projection opens on a later Peppol copy, in the server's own English words. */
+function duplicateHoldOf(originalId, openedAt) {
+  return {
+    reason:
+      `Possible duplicate of bill ${originalId}: the same Peppol supplier sent the same document ` +
+      'number and type again. Decide whether it is a separate document before it is used.',
+    openedAt,
+    openedBy: 'u-system',
+    duplicateOfBillId: originalId,
+    duplicateResolution: null,
+    duplicateResolvedBy: null,
+    duplicateResolvedAt: null,
+    duplicateResolutionNote: null,
+  }
+}
+
 /** Newest first, as the server orders NEWEST. The five rows the frame draws come first. */
 const BILLS = [
   bill(
@@ -498,6 +516,41 @@ const BILLS = [
       inboundDeliveryId: 'd-2150',
     },
   ),
+  // Later Peppol copies of GCL-3001 held as possible duplicates (V493): one undecided with its own
+  // document UUID, one sharing the original's UUID (NOT_DUPLICATE refused), one confirmed.
+  bill('b-gcl-3001', 's-gcl', 'GCL-3001', '2026-09-10', 30, GCL_3001_LINES, {
+    workflowState: 'APPROVED',
+    match: { verdict: 'NO_ORDER', purchaseOrderNumber: null, byHand: false },
+    inboundDeliveryId: 'd-3001',
+    documentUuid: '5b0e2c1a-3001-4c55-9a10-6f2d8e0a3001',
+  }),
+  bill('b-gcl-3001-b', 's-gcl', 'GCL-3001', '2026-09-10', 30, GCL_3001_LINES, {
+    workflowState: 'ON_HOLD',
+    match: { verdict: 'NO_ORDER', purchaseOrderNumber: null, byHand: false },
+    inboundDeliveryId: 'd-3001-b',
+    documentUuid: '9c41d7e2-3001-4b8f-8e21-1a7c5b0d3002',
+    hold: duplicateHoldOf('b-gcl-3001', '2026-09-24T06:10:00Z'),
+  }),
+  bill('b-gcl-3001-c', 's-gcl', 'GCL-3001', '2026-09-10', 30, GCL_3001_LINES, {
+    workflowState: 'ON_HOLD',
+    match: { verdict: 'NO_ORDER', purchaseOrderNumber: null, byHand: false },
+    inboundDeliveryId: 'd-3001-c',
+    documentUuid: '5b0e2c1a-3001-4c55-9a10-6f2d8e0a3001',
+    hold: duplicateHoldOf('b-gcl-3001', '2026-09-24T06:20:00Z'),
+  }),
+  bill('b-gcl-3001-d', 's-gcl', 'GCL-3001', '2026-09-10', 30, GCL_3001_LINES, {
+    workflowState: 'ON_HOLD',
+    match: { verdict: 'NO_ORDER', purchaseOrderNumber: null, byHand: false },
+    inboundDeliveryId: 'd-3001-d',
+    documentUuid: '0d7a3f9b-3001-47e1-b3c4-2e8f1a6c3004',
+    hold: {
+      ...duplicateHoldOf('b-gcl-3001', '2026-09-22T05:00:00Z'),
+      duplicateResolution: 'CONFIRMED_DUPLICATE',
+      duplicateResolvedBy: 'u-nasser',
+      duplicateResolvedAt: '2026-09-22T09:30:00Z',
+      duplicateResolutionNote: 'The supplier resent the same invoice after a timeout.',
+    },
+  }),
 ]
 
 /** Uploads and receipts nobody has confirmed: the design's "Draft, confirm details" rows. */
@@ -632,6 +685,7 @@ const FILTERS = {
   APPROVED: (row) => row.workflowState === 'APPROVED' || row.workflowState === 'IN_PAYMENT_RUN',
   ON_HOLD: (row) => row.workflowState === 'ON_HOLD',
   PAID: (row) => row.workflowState === 'PAID',
+  HELD_DUPLICATE: (row) => Boolean(row.hold?.duplicateOfBillId),
 }
 
 const SORTS = {
@@ -643,13 +697,29 @@ const SORTS = {
   SUPPLIER: (a, b) => (a.supplierName ?? '').localeCompare(b.supplierName ?? ''),
 }
 
-const publicRow = ({ _lines, _extra, ...row }) => ({
+const publicRow = ({ _lines, _extra, _pastHolds, ...row }) => ({
   ...row,
   overpaidAmount: overpaidOf({ ...row, _extra }),
   inputVat: inputVatOf({ ...row, _extra }),
   duplicateOf: null,
   possibleDuplicateOf: null,
+  duplicateHold: duplicateHoldView({ ...row, _extra }),
+  documentUuid: _extra.documentUuid ?? null,
 })
+
+/** `duplicateHold` on a row and the detail: the copy's open duplicate hold, or null. */
+function duplicateHoldView(row) {
+  const originalId = row.hold?.duplicateOfBillId
+  if (!originalId) return null
+  const original = findBill(originalId)
+  return {
+    duplicateOfBillId: originalId,
+    duplicateOfBillNumber: original?.supplierBillNumber ?? null,
+    resolution: row.hold.duplicateResolution === 'CONFIRMED_DUPLICATE' ? 'CONFIRMED_DUPLICATE' : null,
+    sameDocumentUuid:
+      Boolean(row._extra.documentUuid) && original?._extra.documentUuid === row._extra.documentUuid,
+  }
+}
 
 /**
  * Whether the document counts in input VAT (`inputVat`), worked out on read as the server does:
@@ -763,8 +833,14 @@ function summaryReply() {
   const awaitingDecision = BILLS.filter(
     (row) => OPEN.has(row.workflowState) && !isCredit(row) && undecided(row),
   )
+  // Held copies are left out of every figure but their own (V493).
+  const heldDuplicates = BILLS.filter(FILTERS.HELD_DUPLICATE)
   const open = BILLS.filter(
-    (row) => OPEN.has(row.workflowState) && !isCredit(row) && !undecided(row),
+    (row) =>
+      OPEN.has(row.workflowState) &&
+      !isCredit(row) &&
+      !undecided(row) &&
+      !FILTERS.HELD_DUPLICATE(row),
   )
   const weekEnd = shift(TODAY, 7)
   const dueThisWeek = open.filter(
@@ -788,6 +864,8 @@ function summaryReply() {
     debitNotesAwaitingDecisionCount: awaitingDecision.length,
     debitNotesAwaitingDecisionTotal: sum(awaitingDecision),
     excludedFromTotals: 0,
+    heldDuplicateCount: heldDuplicates.length,
+    heldDuplicateTotal: round3(heldDuplicates.reduce((t, row) => t + row.totalIncludingVat, 0)),
     needsAttention: {
       draft: INTAKES.filter((entry) => entry.confirmedBillId === null).length,
       new: count('NEW'),
@@ -803,6 +881,7 @@ function summaryReply() {
       approved: BILLS.filter(FILTERS.APPROVED).length,
       onHold: BILLS.filter(FILTERS.ON_HOLD).length,
       paid: BILLS.filter(FILTERS.PAID).length,
+      heldDuplicate: heldDuplicates.length,
       truncated: false,
     },
   }
@@ -865,6 +944,23 @@ const ORDERS = {
     orderDate: '2026-07-10',
     receipt: { id: 'gr-0060', number: 'GRN-0060', receivedOn: '2026-07-19' },
   },
+}
+
+/** `BillController.HoldView` of the open hold. */
+function holdView(row) {
+  return {
+    id: `h-${row.id}`,
+    reason: row.hold.reason,
+    openedBy: row.hold.openedBy ?? 'u-hafidh',
+    openedAt: row.hold.openedAt,
+    releasedBy: null,
+    releasedAt: null,
+    duplicateOfBillId: row.hold.duplicateOfBillId ?? null,
+    duplicateResolution: row.hold.duplicateResolution ?? null,
+    duplicateResolvedBy: row.hold.duplicateResolvedBy ?? null,
+    duplicateResolvedAt: row.hold.duplicateResolvedAt ?? null,
+    duplicateResolutionNote: row.hold.duplicateResolutionNote ?? null,
+  }
 }
 
 function detailReply(row) {
@@ -950,13 +1046,19 @@ function detailReply(row) {
       detail: `${row.paidAmount.toFixed(3)} ${row.currencyCode}`,
       actor: 'u-nasser',
     })
-  if (row.hold)
-    activity.push({
-      at: row.hold.openedAt,
-      kind: 'HELD',
-      detail: row.hold.reason,
-      actor: 'u-hafidh',
-    })
+  // Each hold as the server writes it: opened, then its decision or its release, newest first.
+  for (const hold of [...(row.hold ? [holdView(row)] : []), ...(row._pastHolds ?? [])]) {
+    if (hold.duplicateResolution)
+      activity.push({
+        at: hold.duplicateResolvedAt,
+        kind: hold.duplicateResolution,
+        detail: hold.duplicateResolutionNote,
+        actor: hold.duplicateResolvedBy,
+      })
+    else if (hold.releasedAt)
+      activity.push({ at: hold.releasedAt, kind: 'RELEASED', detail: null, actor: hold.releasedBy })
+    activity.push({ at: hold.openedAt, kind: 'HELD', detail: hold.reason, actor: hold.openedBy })
+  }
   if (row.readiness.state === 'READY' && !row.readiness.autoApproved) {
     activity.push({
       at: shift(row.issueDate, 2) + 'T10:05:00Z',
@@ -1063,17 +1165,9 @@ function detailReply(row) {
               },
             ]
           : [],
-    hold: row.hold
-      ? {
-          id: `h-${row.id}`,
-          reason: row.hold.reason,
-          openedBy: 'u-hafidh',
-          openedAt: row.hold.openedAt,
-          releasedBy: null,
-          releasedAt: null,
-        }
-      : null,
-    holdHistory: [],
+    hold: row.hold ? holdView(row) : null,
+    // Newest first, the open hold among them, as the server lists them.
+    holdHistory: [...(row.hold ? [holdView(row)] : []), ...(row._pastHolds ?? [])],
     settlement: {
       billTotal: row.totalIncludingVat,
       paidAmount: row.paidAmount,
@@ -1452,6 +1546,12 @@ const ORDER_OPTIONS = (supplierId) =>
 /* ---------------------------------------------------------------------- */
 
 const findBill = (id) => BILLS.find((row) => row.id === id)
+/** One of the duplicate hold's 409s: about the bill's state, not the request. */
+const conflict = (error) => ({
+  status: 409,
+  body: { type: 'https://api.fawtir.om/problems/resource-conflict', error },
+})
+
 const notFound = (error) => ({
   status: 404,
   body: { type: 'https://api.fawtir.om/problems/not-found', error },
@@ -1718,9 +1818,71 @@ export default [
     reply: ({ params }) => {
       const row = findBill(params[0])
       if (!row) return notFound('BILL_NOT_FOUND')
+      if (row.hold?.duplicateOfBillId) return conflict('BILL_HOLD_DUPLICATE_RELEASE_REFUSED')
       row.workflowState = row.readiness.state === 'READY' ? 'APPROVED' : 'NEW'
       row.hold = null
       return {}
+    },
+  },
+  {
+    // The delivery record, for the document UUID (BTOM-002) the duplicate check compares. Only the
+    // GCL-3001 copies carry one here; any other delivery answers 404, read as "not available".
+    match: /^\/api\/v1\/inbound-invoices\/(d-[^/]+)$/,
+    reply: ({ params }) => {
+      const row = BILLS.find((entry) => entry._extra.inboundDeliveryId === params[0])
+      if (!row?._extra.documentUuid) return notFound('INBOUND_INVOICE_NOT_FOUND')
+      return {
+        id: params[0],
+        correlationId: row._extra.documentUuid,
+        state: 'ACKNOWLEDGED',
+        validationPassed: true,
+        validationFailedLayer: null,
+        receivedAt: row.hold?.openedAt ?? `${row.issueDate}T08:00:00Z`,
+        acknowledgedAt: null,
+        mlsCode: 'AP',
+        mlsEmittedAt: null,
+        mlsTransportState: 'DELIVERED',
+        mlsDeliveredAt: null,
+      }
+    },
+  },
+  {
+    // Deciding a held copy (`BillHoldService.resolveDuplicate`), with the refusals in the order the
+    // server checks them. NOT_DUPLICATE releases the hold; CONFIRMED_DUPLICATE keeps it for good.
+    method: 'POST',
+    match: /^\/api\/v1\/bills\/([^/]+)\/duplicate-resolution$/,
+    reply: ({ params, body }) => {
+      const row = findBill(params[0])
+      if (!row) return notFound('BILL_NOT_FOUND')
+      const decision = typeof body?.decision === 'string' ? body.decision.trim().toUpperCase() : ''
+      if (!decision) return refused('BILL_DUPLICATE_DECISION_REQUIRED')
+      if (decision !== 'CONFIRMED_DUPLICATE' && decision !== 'NOT_DUPLICATE')
+        return refused('BILL_DUPLICATE_DECISION_INVALID')
+      const note = typeof body?.note === 'string' ? body.note.trim() : ''
+      if (!note) return refused('BILL_DUPLICATE_RESOLUTION_NOTE_REQUIRED')
+      if (note.length > 500) return refused('BILL_DUPLICATE_RESOLUTION_NOTE_TOO_LONG')
+      const past = (row._pastHolds ?? []).some((hold) => hold.duplicateOfBillId)
+      if (!row.hold?.duplicateOfBillId)
+        return conflict(past ? 'BILL_DUPLICATE_ALREADY_RESOLVED' : 'BILL_NOT_HELD_AS_DUPLICATE')
+      if (row.hold.duplicateResolution) return conflict('BILL_DUPLICATE_ALREADY_RESOLVED')
+      if (decision === 'NOT_DUPLICATE' && duplicateHoldView(row).sameDocumentUuid)
+        return conflict('BILL_DUPLICATE_SAME_DOCUMENT_UUID')
+      const at = new Date().toISOString()
+      Object.assign(row.hold, {
+        duplicateResolution: decision,
+        duplicateResolvedBy: 'u-nasser',
+        duplicateResolvedAt: at,
+        duplicateResolutionNote: note,
+      })
+      const view = holdView(row)
+      if (decision === 'NOT_DUPLICATE') {
+        const released = { ...view, releasedBy: 'u-nasser', releasedAt: at }
+        row._pastHolds = [released, ...(row._pastHolds ?? [])]
+        row.hold = null
+        row.workflowState = row.readiness.state === 'READY' ? 'APPROVED' : 'NEW'
+        return released
+      }
+      return view
     },
   },
   {

@@ -369,6 +369,8 @@ export type DebitNoteItem = {
    * disputed.
    */
   owes: boolean
+  /** Held as a possible duplicate: not accepted until its bill record's duplicate check is decided. */
+  heldAsDuplicate: boolean
 }
 
 export function toDebitNoteItem(row: DebitNoteRowDto): DebitNoteItem {
@@ -398,7 +400,16 @@ export function toDebitNoteItem(row: DebitNoteRowDto): DebitNoteItem {
     outstanding: row.outstandingAmount,
     paid: row.paidAmount,
     owes: row.status !== 'REFUSED' && row.outstandingAmount > 0,
+    heldAsDuplicate: row.heldAsDuplicate === true,
   }
+}
+
+/**
+ * Where a held debit note is decided as a duplicate: its own bill record, where the copy is
+ * compared with the note already on file.
+ */
+export function duplicateCheckPath(noteId: string): string {
+  return `/expenditure/bills/${encodeURIComponent(noteId)}`
 }
 
 /** What the figure column says under a charge: where the money has got to. */

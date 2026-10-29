@@ -5778,7 +5778,8 @@
       "awaitingApproval": "Awaiting approval",
       "approved": "Approved",
       "onHold": "On hold",
-      "paid": "Paid"
+      "paid": "Paid",
+      "heldDuplicate": "Duplicates"
     },
     "col": {
       "supplier": "Supplier",
@@ -5819,7 +5820,8 @@
       "checkAndSave": "Check and save",
       "viewDispute": "Two deliveries billed twice",
       "approving": "Approving…",
-      "viewHold": "See why"
+      "viewHold": "See why",
+      "reviewDuplicate": "Compare and decide"
     },
     "sortOptions": {
       "dueAsc": "Due: soonest first",
@@ -5889,7 +5891,9 @@
       "inPaymentRunRef": "In payment run {{run}}",
       "paid": "Paid",
       "partPaid": "Part paid",
-      "refusedClosed": "Refused · closed by credit note"
+      "refusedClosed": "Refused · closed by credit note",
+      "suspectedDuplicate": "Possible duplicate",
+      "confirmedDuplicate": "Duplicate"
     },
     "notice": {
       "drafts_one": "{{count}} uploaded or scanned bill is waiting for its details. It appears here once confirmed.",
@@ -6050,7 +6054,10 @@
         "OVERPAYMENT_REFUNDED": "Supplier's refund recorded",
         "OVERPAYMENT_KEPT_AS_CREDIT": "Kept as credit",
         "OVERPAYMENT_CREDIT_APPLIED": "Credit set against another bill",
-        "OVERPAYMENT_CREDIT_RECEIVED": "Credit from another bill set against this one"
+        "OVERPAYMENT_CREDIT_RECEIVED": "Credit from another bill set against this one",
+        "HELD_AS_DUPLICATE": "Held as a possible duplicate",
+        "CONFIRMED_DUPLICATE": "Confirmed as a duplicate",
+        "NOT_DUPLICATE": "Decided not a duplicate"
       }
     },
     "decision": {
@@ -6228,6 +6235,72 @@
       "debitNoteNotAccepted": "Not counted in VAT until you accept it.",
       "rejected": "Not counted in VAT while rejected.",
       "noSupplierTaxInvoice": "Not counted in VAT: no supplier tax invoice yet."
+    },
+    "duplicate": {
+      "title": {
+        "suspected": "Possible duplicate",
+        "confirmed": "Duplicate",
+        "notDuplicate": "Not a duplicate"
+      },
+      "body": {
+        "suspected": "The same supplier sent this document number and type again over Peppol. Compare it with the bill already on file and decide. It cannot be paid until then.",
+        "confirmed": "Confirmed as a duplicate of the bill already on file. It stays on hold and is never paid.",
+        "notDuplicate": "Decided to be a separate bill, not a duplicate. It is handled as an ordinary bill.",
+        "suspectedCreditNote": "The same supplier sent this credit note number again over Peppol. Compare it with the credit note already on file and decide. It can't be set against any bill until then.",
+        "confirmedCreditNote": "Confirmed as a duplicate of the credit note already on file. It stays on hold and can't be set against any bill.",
+        "notDuplicateCreditNote": "Decided to be a separate credit note, not a duplicate. It is handled as an ordinary credit note."
+      },
+      "thisBill": "This bill",
+      "original": "Already on file",
+      "openOriginal": "Open",
+      "field": {
+        "supplier": "Supplier",
+        "number": "Their bill number",
+        "uuid": "Document UUID",
+        "issued": "Issue date",
+        "total": "Total",
+        "vat": "VAT",
+        "source": "Source",
+        "hold": "Hold",
+        "status": "Status"
+      },
+      "notHeld": "Not on hold",
+      "sameUuid": "Both copies carry the same document UUID, so this one cannot be released as a separate bill. Confirm it as a duplicate.",
+      "needsApprover": "Someone who can approve bills makes this decision.",
+      "confirm": "Confirm duplicate",
+      "notDuplicate": "Not a duplicate",
+      "dialog": {
+        "confirmTitle": "Confirm this is a duplicate",
+        "confirmBody": "It stays on hold for good and is never paid. This cannot be undone.",
+        "notTitle": "Mark as not a duplicate",
+        "notBody": "The hold is released and it becomes an ordinary bill to approve and pay. This cannot be undone.",
+        "note": "Note (required)",
+        "confirmBodyCreditNote": "It stays on hold for good and is never set against a bill or refunded. This cannot be undone.",
+        "notBodyCreditNote": "The hold is released and it becomes an ordinary credit note that can be set against a bill. This cannot be undone."
+      },
+      "decision": {
+        "suspected": "Held as a possible duplicate. Decide whether it is one before it can be paid.",
+        "confirmed": "A duplicate of a bill already on file. It stays on hold and is never paid.",
+        "review": "Review duplicate",
+        "suspectedCreditNote": "Held as a possible duplicate. Decide whether it is one before it can be set against a bill.",
+        "confirmedCreditNote": "A duplicate of a credit note already on file. It stays on hold and can't be set against any bill."
+      },
+      "done": {
+        "confirmed": "Confirmed as a duplicate.",
+        "notDuplicate": "Marked as not a duplicate, and released from hold."
+      },
+      "refused": {
+        "alreadyResolved": "Someone has already decided whether this is a duplicate. The bill has been refreshed.",
+        "notHeld": "This bill is no longer held as a possible duplicate. The bill has been refreshed.",
+        "sameDocumentUuid": "Both copies carry the same document UUID, so it cannot be marked as not a duplicate.",
+        "releaseRefused": "This bill is held as a possible duplicate. Open it and decide whether it is one instead of releasing it.",
+        "noteRequired": "Add a note saying why.",
+        "noteTooLong": "That note is too long. Keep it to 500 characters or fewer.",
+        "approvalHeld": "This bill is held as a possible duplicate, so it can't be approved. Decide the duplicate check first.",
+        "rejectionHeld": "This bill is held as a possible duplicate, so it can't be rejected. Decide the duplicate check first."
+      },
+      "decided": "Decided {{date}}",
+      "sameUuidCreditNote": "Both copies carry the same document UUID, so this one cannot be released as a separate credit note. Confirm it as a duplicate."
     }
   },
   "uploadBill": {
@@ -7536,7 +7609,14 @@
       }
     },
     "reverseOnlyRefused": "Already refused. Only the opposite decision can be recorded.",
-    "reverseOnlyAccepted": "Already accepted. Only the opposite decision can be recorded."
+    "reverseOnlyAccepted": "Already accepted. Only the opposite decision can be recorded.",
+    "held": {
+      "chip": "Held as duplicate",
+      "body": "Held as a possible duplicate: it can't be accepted until the duplicate check on its bill record is decided. You can still refuse it.",
+      "open": "Open the duplicate check",
+      "refused": "This debit note is held as a possible duplicate, so it can't be accepted yet. Decide the duplicate check on its bill first.",
+      "bodyRefused": "Held as a possible duplicate: it can't be accepted until the duplicate check on its bill record is decided."
+    }
   },
   "expenditureReminders": {
     "title": "Reminders",

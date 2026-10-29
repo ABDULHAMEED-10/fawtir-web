@@ -57,6 +57,7 @@ import {
   isBillTab,
   rowActionOf,
   toBillListItem,
+  visibleBillTabs,
   type BillListItem,
   type BillRowAction,
   type BillSortKey,
@@ -65,6 +66,7 @@ import {
   type Note,
 } from '../../lib/billList'
 import { describeApiFailure } from '../../lib/apiFailure'
+import { refusalMeansStale } from '../../lib/billDuplicate'
 import {
   WAITING_COUNT_PATH,
   loadWaitingCount,
@@ -143,6 +145,7 @@ const ACTION_STYLES: Record<
   nudge: { icon: actBellIcon, labelKey: 'billsPage.actions.nudge' },
   checkAndSave: { icon: actEditIcon, labelKey: 'billsPage.actions.checkAndSave' },
   viewHold: { icon: actChevronIcon, labelKey: 'billsPage.actions.viewHold', trailingIcon: true },
+  reviewDuplicate: { icon: actEyeIcon, labelKey: 'billsPage.actions.reviewDuplicate' },
 }
 
 /** Figma column widths, so the seven columns and the menu line up with the design at 1144. */
@@ -364,13 +367,24 @@ function BillsScreen() {
   const confirmReason = async () => {
     const text = reason.trim()
     if (!asking || text === '') return
+    let failure: unknown = null
     const ok = await act(asking.billId, () =>
-      asking.kind === 'reject' ? rejectBill(asking.billId, text) : holdBill(asking.billId, text),
+      (asking.kind === 'reject'
+        ? rejectBill(asking.billId, text)
+        : holdBill(asking.billId, text)
+      ).catch((error) => {
+        failure = error
+        throw error
+      }),
     )
-    if (ok) {
+    // As on the bill's page: a refusal because the bill moved on closes the dialog, so its
+    // sentence is not hidden behind the overlay, and the list is read again.
+    const stale = !ok && refusalMeansStale(failure)
+    if (ok || stale) {
       setAsking(null)
       setReason('')
     }
+    if (stale) refresh()
   }
 
   const count = (value: number) => formatCount(value, language)
@@ -453,7 +467,7 @@ function BillsScreen() {
 
       <section className="overflow-hidden rounded-md bg-surface-card">
         <div className="flex flex-wrap items-center gap-x-8 gap-y-2 border-b border-border-subtle px-6 pt-4">
-          {BILL_TABS.map((entry) => {
+          {visibleBillTabs(tabs).map((entry) => {
             const active = entry.id === tab
             return (
               <button
@@ -1116,7 +1130,7 @@ function BillTableRow({
               },
             ]
           : []),
-        ...(canManage && row.owes && row.status !== 'onHold' && !row.paid
+        ...(canManage && row.owes && row.status !== 'onHold' && !row.duplicate && !row.paid
           ? [
               {
                 id: 'hold',
@@ -1126,7 +1140,8 @@ function BillTableRow({
               },
             ]
           : []),
-        ...(canApprove && row.owes && row.status !== 'rejected' && !row.paid
+        // Not on a held copy: see decisionsOf, the same rule on the bill's page.
+        ...(canApprove && row.owes && row.status !== 'rejected' && !row.paid && !row.duplicate
           ? [
               {
                 id: 'reject',
