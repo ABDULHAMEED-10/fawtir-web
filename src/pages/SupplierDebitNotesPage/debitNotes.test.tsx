@@ -1188,3 +1188,30 @@ describe("the debit note's check on its bill (B-12)", () => {
     )
   })
 })
+
+describe("the debit note's VAT check (B-13)", () => {
+  const fmt = {
+    money: (value: number) => value.toFixed(3),
+    date: (iso: string) => iso,
+    when: (iso: string) => iso,
+  }
+  const vatCheck = (totalIncludingVat: number, vatAmount: number) =>
+    debitNoteChecks(note({ totalIncludingVat, vatAmount }), null, fmt).find((check) => check.id === 'vat')!
+
+  it('passes a two-decimal VAT within the server tolerance of 0.005', () => {
+    // 11,175.444 includes 532.164 of 5% VAT; the supplier stated 532.16 (PINT allows two decimals).
+    expect(vatCheck(11175.444, 532.16)).toMatchObject({
+      titleKey: 'supplierDebitNotes.checks.vatAddsUp',
+      verdict: 'fine',
+    })
+    expect(vatCheck(11175.444, 532.164).verdict).toBe('fine')
+  })
+
+  it('still flags a VAT further off than the tolerance, saying the figure it expected', () => {
+    expect(vatCheck(11175.444, 532.15)).toMatchObject({
+      titleKey: 'supplierDebitNotes.checks.vatOdd',
+      verdict: 'check',
+      values: { vat: '532.150', expected: '532.164' },
+    })
+  })
+})

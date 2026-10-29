@@ -111,9 +111,25 @@ export function debitEffect(
 }
 
 /** VAT at Oman's standard rate on a gross figure, to the rial's three places. */
-function standardVatOf(total: number): number {
-  return Math.round((total * 5 * 1000) / 105) / 1000
+/** Baisa (thousandths) of a rial amount the API gives at three decimals or fewer. */
+const baisaOf = (amount: number): bigint => BigInt(Math.round(amount * 1000))
+
+/** The 5% VAT inside a VAT-inclusive total, in baisa, rounded HALF_UP as the server rounds. */
+function standardVatBaisa(total: number): bigint {
+  const scaled = baisaOf(total) * 5n
+  const negative = scaled < 0n
+  const n = negative ? -scaled : scaled
+  const rounded = n / 105n + ((n % 105n) * 2n >= 105n ? 1n : 0n)
+  return negative ? -rounded : rounded
 }
+
+/**
+ * How far the stated VAT may sit from the computed one and still add up: the server's BR-CO-17
+ * check allows ±0.005 OMR (InvoiceValidationService, `fawtir.validation.arithmetic-tolerance`).
+ * One baisa flagged "532.160 vs 532.164", a PINT-valid two-decimal amount (B-13, local E2E
+ * 2026-10-29).
+ */
+const VAT_TOLERANCE_BAISA = 5n
 
 /**
  * The checks a debit note can be read against from what the API carries: the bill it names, the
@@ -213,8 +229,10 @@ export function debitNoteChecks(
   )
 
   if (row.totalIncludingVat !== null && row.vatAmount !== null) {
-    const expected = standardVatOf(row.totalIncludingVat)
-    const fine = Math.abs(expected - row.vatAmount) <= 0.001 || row.vatAmount === 0
+    const expectedBaisa = standardVatBaisa(row.totalIncludingVat)
+    const gap = expectedBaisa - baisaOf(row.vatAmount)
+    const fine = (gap < 0n ? -gap : gap) <= VAT_TOLERANCE_BAISA || row.vatAmount === 0
+    const expected = Number(expectedBaisa) / 1000
     checks.push({
       id: 'vat',
       titleKey: fine ? 'supplierDebitNotes.checks.vatAddsUp' : 'supplierDebitNotes.checks.vatOdd',
