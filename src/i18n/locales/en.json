@@ -4791,7 +4791,9 @@
       "contactInvalid": {
         "phone": "Type the phone number as 8 digits, or with the country code (+968 9234 5678).",
         "email": "That email address is not complete."
-      }
+      },
+      "onFile": "Matches customer on file: {{name}}",
+      "onFileWithId": "Matches customer on file: {{name}} ({{id}})"
     },
     "refusal": {
       "offline": "The till could not reach Fawtir. Check the connection and try again.",
