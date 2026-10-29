@@ -9,6 +9,7 @@ import { BillingPage } from './BillingPage'
 import { ExtraDocumentsPage } from './ExtraDocumentsPage'
 import { PaidExtrasPage } from './PaidExtrasPage'
 import { BillDueCard } from '../../components/billing/BillDueCard'
+import { SessionContext } from '../../lib/session/session'
 import { resetLeftFawtirRefusal } from '../../lib/leftFawtirRefusal'
 import { hostedCheckout } from '../../api/settings/billing'
 
@@ -298,6 +299,11 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+/** The card, as the dashboard draws it: inside the shell, once the session has answered. */
+function SignedIn({ children }: { children: React.ReactNode }) {
+  return <SessionContext.Provider value={me}>{children}</SessionContext.Provider>
+}
+
 function renderAt(path: string, element: React.ReactNode) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -555,7 +561,7 @@ describe('A3.8 / LV-6: Add users or branches', () => {
 
 describe('A3.8 / LV-6: the dashboard bill card', () => {
   it('still names the open bill but does not send a company that has left to pay it', async () => {
-    renderAt('/', <BillDueCard />)
+    renderAt('/', <SignedIn><BillDueCard /></SignedIn>)
     expect(await screen.findByText(i18n.t('billDue.title'))).toBeTruthy()
     await settled()
     expect(screen.queryByRole('link', { name: i18n.t('billDue.cta') })).toBeNull()
@@ -563,7 +569,7 @@ describe('A3.8 / LV-6: the dashboard bill card', () => {
 
   it.each(NOT_HELD)('sends %s to pay', async (_, view) => {
     answers[DISCONNECTION] = () => json(200, view)
-    renderAt('/', <BillDueCard />)
+    renderAt('/', <SignedIn><BillDueCard /></SignedIn>)
     expect(await screen.findByRole('link', { name: i18n.t('billDue.cta') })).toBeTruthy()
   })
 })
@@ -689,7 +695,7 @@ describe('D20 (a): fawtirConnection on Settings > Billing tells every role up fr
     unmount()
 
     resetSharedRequests()
-    renderAt('/', <BillDueCard />)
+    renderAt('/', <SignedIn><BillDueCard /></SignedIn>)
     expect(await screen.findByText(i18n.t('billDue.title'))).toBeTruthy()
     await settled()
     expect(screen.queryByRole('link', { name: i18n.t('billDue.cta') })).toBeNull()
