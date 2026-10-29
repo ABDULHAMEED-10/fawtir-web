@@ -26,5 +26,5 @@ export const TAX_REASON_REFUSALS: Record<string, string> = {
 /** The sentence's key for a no-VAT reason refusal, or null for any other failure. */
 export function taxReasonRefusalKey(error: unknown): string | null {
   if (!(error instanceof ApiError) || !error.code) return null
-  return TAX_REASON_REFUSALS[error.code] ?? null
+  return Object.hasOwn(TAX_REASON_REFUSALS, error.code) ? TAX_REASON_REFUSALS[error.code] : null
 }
