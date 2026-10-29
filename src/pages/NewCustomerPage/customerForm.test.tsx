@@ -211,6 +211,17 @@ describe('a new customer', () => {
     expect(peppol()).toBe('9922:OPTBCNTRLP1007')
   })
 
+  it('says the Peppol ID was filled in from the VAT number only when there is one', async () => {
+    renderAt('/customers/new')
+    await screen.findByRole('heading', { name: 'New customer' })
+    const hint = /Filled in from the VAT number/
+    typeInto(/VAT registration number/, '')
+    typeInto(/Peppol participant ID/, '9922:OPTBCNTRLP1007')
+    expect(screen.queryByText(hint)).toBeNull()
+    typeInto(/VAT registration number/, 'OM1100337812')
+    expect(screen.getByText(hint)).toBeTruthy()
+  })
+
   it('sends a consumer with no organisation fields at all, not as false', async () => {
     renderAt('/customers/new')
     await screen.findByRole('heading', { name: 'New customer' })

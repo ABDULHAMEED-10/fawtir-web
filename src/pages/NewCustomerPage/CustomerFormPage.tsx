@@ -699,7 +699,10 @@ function CustomerFormPage({ customerId }: { customerId: string | null }) {
                       name="peppolId"
                       label={t('newCustomer.details.peppolId')}
                       placeholder="0248:OM1100000000"
-                      hint={t('newCustomer.details.peppolIdHint')}
+                      // "Filled in from the VAT number" is untrue of a customer with none.
+                      hint={
+                        values.vatNumber.trim() ? t('newCustomer.details.peppolIdHint') : undefined
+                      }
                       dir="ltr"
                       required
                       value={values.peppolId}
