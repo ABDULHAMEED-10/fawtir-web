@@ -701,6 +701,27 @@ describe('An invoice, wired to the API', () => {
     expect(await screen.findByText('الضريبة · الخاضعة للنسبة الصفرية 0%')).toBeTruthy()
   })
 
+  it.each([
+    ['en', 'S', 5, 'Standard rate · 5%'],
+    ['en', 'Z', 0, 'Zero-rated · 0%'],
+    ['ar', 'S', 5, 'النسبة القياسية · 5%'],
+    ['ar', 'Z', 0, 'الخاضعة للنسبة الصفرية · 0%'],
+  ])('heads the VAT treatment in plain words, %s %s (A-8)', async (lang, category, rate, words) => {
+    await i18n.changeLanguage(lang)
+    const base = invoice()
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          lines: [{ ...base.lines[0], taxCategoryCode: category, en16931Category: category, taxRate: rate }],
+        }),
+      )
+    renderInvoice()
+    expect(await screen.findByText(words)).toBeTruthy()
+    // "Zero-rated rate" and "نسبة بنسبة صفر" were the words this replaces.
+    expect(screen.queryByText(/Zero-rated rate|نسبة بنسبة/)).toBeNull()
+  })
+
   it('names the credit in the payments footer, so paid, credited and outstanding add up', async () => {
     receivableResponse = () =>
       json(200, {

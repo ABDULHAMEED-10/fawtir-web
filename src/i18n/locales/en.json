@@ -2547,8 +2547,16 @@
     "vatNumber": "VAT {{number}}",
     "currencyOmr": "OMR - Omani Rial",
     "vat": {
-      "rate": "{{category}} rate · {{rate}}%",
-      "mixed": "Mixed rates"
+      "rate": "{{category}} · {{rate}}%",
+      "mixed": "Mixed rates",
+      "treatment": {
+        "S": "Standard rate · {{rate}}%",
+        "Z": "Zero-rated · {{rate}}%",
+        "E": "Exempt · {{rate}}%",
+        "O": "Out of scope · {{rate}}%",
+        "AE": "Reverse charge · {{rate}}%",
+        "G": "Export · {{rate}}%"
+      }
     },
     "catalogRef": "Catalog #{{code}}",
     "pdf": {

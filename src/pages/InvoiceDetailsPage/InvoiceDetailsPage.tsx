@@ -505,9 +505,14 @@ function InvoiceScreen() {
       ? '—'
       : vatRates.length > 1
         ? t('invoiceDetails.vat.mixed')
-        : t('invoiceDetails.vat.rate', {
-            category: vatCategory,
+        : // Its own words per category: "{{category}} rate" read "Zero-rated rate · 0%", and the
+          // Arabic "نسبة {{category}}" read "نسبة بنسبة صفر" (A-8, local E2E 2026-10-29).
+          t(`invoiceDetails.vat.treatment.${data.lines[0].en16931Category}`, {
             rate: data.lines[0].taxRate ?? 0,
+            defaultValue: t('invoiceDetails.vat.rate', {
+              category: vatCategory,
+              rate: data.lines[0].taxRate ?? 0,
+            }),
           })
   const sentAt =
     history.read.status === 'ready'

@@ -2702,8 +2702,16 @@
     "vatNumber": "الرقم الضريبي {{number}}",
     "currencyOmr": "OMR - ريال عُماني",
     "vat": {
-      "rate": "نسبة {{category}} · {{rate}}%",
-      "mixed": "نسب متعددة"
+      "rate": "{{category}} · {{rate}}%",
+      "mixed": "نسب متعددة",
+      "treatment": {
+        "S": "النسبة القياسية · {{rate}}%",
+        "Z": "الخاضعة للنسبة الصفرية · {{rate}}%",
+        "E": "معفاة · {{rate}}%",
+        "O": "خارج النطاق · {{rate}}%",
+        "AE": "احتساب عكسي · {{rate}}%",
+        "G": "تصدير · {{rate}}%"
+      }
     },
     "catalogRef": "الكتالوج #{{code}}",
     "pdf": {
