@@ -56,12 +56,17 @@ export type SaleLine = {
   /** The catalogue's own discount (P.4), which every invoice line starts with. */
   discountType: DiscountType
   discountValue: string
+  /** The product's kind and its group, which a price rule may name (`GROUP`, `KIND` targets). */
+  kindId?: string | null
+  groupId?: string | null
+  /** A bundle sold as one line: only a rule naming that bundle product covers it. */
+  bundle?: boolean
   /**
-   * The price rule that caught the line, as a percentage off. TODO(backend): price rules at the
-   * till are not served yet (the rules API is not merged); nothing sets it, so the rule's note
-   * stays drawn and silent (INCOME.md row P.26).
+   * The price rule that caught the line (`GET /v1/price-rules/active`, worked out on the till by
+   * `posPriceRules`). Its saving is the item line's own discount and its id goes in
+   * `lineRefs[].priceRuleIds`; the unit price stays the catalogue's. Add-on lines never get one.
    */
-  rulePercent?: number
+  priceRule?: SalePriceRule | null
 }
 
 /** What one of these costs, once the size and the add-ons are counted. */
@@ -80,27 +85,38 @@ export function lineDetail(line: SaleLine): string | null {
 
 /* ------------------------------------------------------- the price rule */
 
-/**
- * The rule the till applied by itself (Figma 143:18015, the green note in the sale panel).
- *
- * TODO(backend): price rules come from Catalog › Price rules, whose API is not merged yet
- * (INCOME.md row P.26). The note and the totals row stay drawn for when a line carries
- * `rulePercent`; until then no line does.
- */
-export const LULL = {
-  id: 'afternoon-lull',
-  percent: 20,
+/** The rule on a line, as the till applied it (or as the server said it should be). */
+export type SalePriceRule = {
+  id: string
+  name: string
+  discountType: DiscountType
+  /** A percentage, or the amount off the whole line in rials. */
+  discountValue: string
+  /** What it takes off the item line, in baisa. */
+  saving: number
 }
 
 /** Whether a price rule caught this line. */
-export function lullApplies(line: SaleLine): boolean {
-  return (line.rulePercent ?? 0) > 0
+export function ruleApplies(line: SaleLine): boolean {
+  return Boolean(line.priceRule)
+}
+
+/** The names of the rules on the sale, each once, for the panel's note and the totals row. */
+export function ruleNames(lines: SaleLine[]): string {
+  return [...new Set(lines.flatMap((line) => (line.priceRule ? [line.priceRule.name] : [])))].join(
+    ', ',
+  )
+}
+
+/** What the rules took off the sale, in baisa. */
+export function ruleSaving(lines: SaleLine[]): number {
+  return lines.reduce((sum, line) => sum + (line.priceRule?.saving ?? 0), 0)
 }
 
 export type SaleTotals = {
   /** Everything at shelf price, before any discount. */
   items: number
-  /** What the line discounts (the catalogue's and a price rule's) took off. */
+  /** What the line discounts (the catalogue's and the price rules') took off. */
   discount: number
   /** What the discount on the whole sale took off, after the line discounts. */
   saleDiscount: number
@@ -127,7 +143,14 @@ export type LineRefRole = 'ITEM' | 'ADD_ON'
 export type PosInvoiceLine = Omit<DraftLine, 'id'> & {
   id: string
   saleLineId: string
-  ref: { role: LineRefRole; productId: string; variantId: string | null; addOnId: string | null }
+  ref: {
+    role: LineRefRole
+    productId: string
+    variantId: string | null
+    addOnId: string | null
+    /** The rule the item line's discount comes from; never on an add-on line. */
+    priceRuleId: string | null
+  }
 }
 
 const rial = (baisa: number) => (baisa / BAISA).toFixed(3)
@@ -135,13 +158,14 @@ const rial = (baisa: number) => (baisa / BAISA).toFixed(3)
 /**
  * The sale as invoice lines (owner, 21 Oct 2026). The item and its size are one line ("Flat
  * White · Large"); every add-on with a price is a line of its own, with the item's VAT category
- * and classification; a free add-on is named on the item's line. A price rule is each caught
- * line's own discount, so the invoice shows what it took and from which line.
+ * and classification; a free add-on is named on the item's line. A price rule is the caught item
+ * line's own discount (replacing the catalogue's), so the invoice shows what it took and from
+ * which line; add-on lines keep the catalogue's discount.
  */
 export function invoiceLinesFor(lines: SaleLine[]): PosInvoiceLine[] {
   return lines.flatMap((line) => {
     const free = line.addOns.filter((a) => a.price === 0)
-    const ruled = lullApplies(line)
+    const rule = line.priceRule ?? null
     const common = {
       saleLineId: line.id,
       productId: line.productId,
@@ -155,8 +179,8 @@ export function invoiceLinesFor(lines: SaleLine[]): PosInvoiceLine[] {
       exemptionReason: line.exemptionReason ?? '',
       exemptionReasonCode: line.exemptionReasonCode,
       quantity: String(line.qty),
-      discountType: ruled ? ('PERCENTAGE' as DiscountType) : line.discountType,
-      discountValue: ruled ? String(line.rulePercent) : line.discountValue,
+      discountType: line.discountType,
+      discountValue: line.discountValue,
     }
     const name = [
       line.name,
@@ -169,11 +193,18 @@ export function invoiceLinesFor(lines: SaleLine[]): PosInvoiceLine[] {
         id: line.id,
         description: name,
         unitPrice: rial(line.price),
+        ...(rule
+          ? {
+              discountType: rule.discountType,
+              discountValue: rule.discountValue,
+            }
+          : {}),
         ref: {
           role: 'ITEM' as const,
           productId: line.productId,
           variantId: line.variant?.id ?? null,
           addOnId: null,
+          priceRuleId: rule?.id ?? null,
         },
       },
       ...line.addOns
@@ -188,6 +219,7 @@ export function invoiceLinesFor(lines: SaleLine[]): PosInvoiceLine[] {
             productId: line.productId,
             variantId: null,
             addOnId: a.id,
+            priceRuleId: null,
           },
         })),
     ]

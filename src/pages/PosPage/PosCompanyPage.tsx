@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { setSaleCompany, setSaleLines, useOpenSale } from '../../lib/posSale'
+import { useTillPriceRules } from '../../lib/posPriceRules'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
@@ -120,6 +121,8 @@ function OnTheCompany({ till }: { till: Ready }) {
   const navigate = useNavigate()
   // The open sale is shared with the payment and receipt screens (src/lib/posSale.ts).
   const { lines, company } = useOpenSale()
+  // A customer rule applies once the company is chosen (Abdul, 28 Oct 2026).
+  useTillPriceRules(till.branchId, company?.id ?? null)
   const [vat, setVat] = useState('')
   const [picked, setPicked] = useState<Found | null>(
     company ? { ...company, vat: null, peppol: null, city: null, terms: null } : null,

@@ -1,22 +1,48 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useTranslation, Trans } from 'react-i18next'
-import { CatalogShell, Kpi } from './CatalogShell'
-import { ActionMenu, RialText, Switch, withRial } from '../../components/ui'
-import { omr } from '../../lib/catalog'
-import { prototypeHidden } from '../../lib/demoModules'
+import { useTranslation } from 'react-i18next'
+import { CatalogShell, Kpi, Pill } from './CatalogShell'
+import { ActionMenu, FilterMenu, Modal, Switch, withRial } from '../../components/ui'
 import {
-  RULES,
+  ApiReadFailure,
+  LoadingNotice,
+  PermissionDeniedNotice,
+} from '../../components/feedback/ApiNotice'
+import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
+import { useApiRead } from '../../hooks'
+import { formatDate } from '../../lib/format'
+import {
   RULE_FAMILIES,
-  RULES_SUMMARY,
-  SHARE_OF_SALES,
-  NOW,
   WEEKDAYS,
-  isInWindowNow,
-  breakSaving,
-  type Rule,
+  belowCostItems,
+  lastDays,
+  muscatNow,
+  omr,
+  tierShare,
+  tierText,
 } from '../../lib/catalogRules'
+import { muscatToday } from '../../lib/pos'
+import { minutesOf } from '../../lib/priceRuleEvaluator'
+import { saveDownload } from '../../lib/supplierRecord'
 import { weekdayName } from '../../lib/catalogStock'
+import {
+  archivePriceRule,
+  downloadPriceRuleReport,
+  loadPriceRuleReport,
+  loadPriceRules,
+  priceRuleListPath,
+  priceRuleReportPath,
+  switchPriceRule,
+  type PriceRuleBelowCostItem,
+  type PriceRuleDto,
+  type PriceRuleKind,
+  type PriceRuleListDto,
+  type PriceRuleReportDto,
+  type PriceRuleSwitchRequest,
+} from '../../api/catalog/priceRules'
+import { getCatalogGroups, type CatalogGroupsDto } from '../../api/catalog/groups'
+import { BelowCostDialog, DANGER, PauseDialog, SECONDARY } from './PriceRuleParts'
+import { usePriceRuleAccess, usePriceRuleFailureText } from './priceRuleAccess'
 import plusIcon from '../../assets/catalog/plus-white.svg'
 import plusBrandIcon from '../../assets/catalog/plus-brand.svg'
 import kpiPercentIcon from '../../assets/catalog/kpi-percent.svg'
@@ -35,95 +61,300 @@ import menuPauseIcon from '../../assets/catalog/menu-pause.svg'
 import menuWhatIfIcon from '../../assets/catalog/menu-refresh.svg'
 import menuTrashIcon from '../../assets/catalog/trash-danger.svg'
 
-const FAMILY_ICON: Record<string, string> = {
-  volume: bagIcon,
-  time: clockIcon,
-  customer: usersIcon,
+const FAMILY_ICON: Record<PriceRuleKind, string> = {
+  VOLUME: bagIcon,
+  TIME: clockIcon,
+  CUSTOMER: usersIcon,
 }
 
-/** The hours a schedule strip draws, 7am through 12 midnight. */
+/** The hours a schedule strip draws, 7am through 7pm. */
 const HOURS = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6]
 
+type KindFilter = 'ALL' | PriceRuleKind
+type StateFilter = 'all' | 'on' | 'off' | 'archived'
+type PeriodFilter = '30' | '90' | '365'
+
+type Pending =
+  | {
+      kind: 'switch'
+      rule: PriceRuleDto
+      body: PriceRuleSwitchRequest
+      items: PriceRuleBelowCostItem[]
+    }
+  | { kind: 'pause'; rule: PriceRuleDto }
+  | { kind: 'archive'; rule: PriceRuleDto }
+  | null
+
 /**
- * Catalog › Price rules (Figma 135:50361).
+ * Catalog › Price rules (Figma 135:50361), wired to `GET /v1/price-rules` and
+ * `GET /v1/price-rules/report` (the last 90 days by default, Asia/Muscat).
  *
- * Whether a rule is on *right now* is asked of the clock rather than stored, so the badge and
- * the card at the top can never disagree about what a customer would be charged this minute.
+ * The cards at the top are the report's totals (`used` counts invoices once however many rules
+ * they used; the share of sales is the server's). Each rule's badge is its `runningNow`, so the
+ * badge and the card agree with what a sale this minute would be charged.
  */
 export function PriceRulesPage() {
   const { t, i18n } = useTranslation()
-  const [on, setOn] = useState(() => new Set(RULES.filter((rule) => rule.on).map((r) => r.id)))
-  const summary = RULES_SUMMARY()
-  const lastFamily = [...RULE_FAMILIES]
-    .reverse()
-    .find((family) => RULES.some((rule) => rule.family === family.id))?.id
+  const access = usePriceRuleAccess()
+  const failureText = usePriceRuleFailureText()
+  const { branches } = useWorkingBranch()
+  const [kind, setKind] = useState<KindFilter>('ALL')
+  const [state, setState] = useState<StateFilter>('all')
+  const [period, setPeriod] = useState<PeriodFilter>('90')
+  const [pending, setPending] = useState<Pending>(null)
+  const [busy, setBusy] = useState(false)
+  const [notice, setNotice] = useState<{ tone: 'error' | 'success'; body: string } | null>(null)
+  const [pauseProblem, setPauseProblem] = useState<string | null>(null)
 
-  const toggle = (id: string) =>
-    setOn((current) => {
-      const next = new Set(current)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+  const { from, to } = lastDays(Number(period), muscatToday())
+  const listPath = access.canRead
+    ? priceRuleListPath({
+        kind: kind === 'ALL' ? null : kind,
+        enabled: state === 'on' ? true : state === 'off' ? false : null,
+        includeArchived: state === 'archived',
+        from,
+        to,
+      })
+    : null
+  const list = useApiRead<PriceRuleListDto>(listPath, () => loadPriceRules(listPath!))
+  const reportPath = access.canRead ? priceRuleReportPath({ from, to }) : null
+  const report = useApiRead<PriceRuleReportDto>(reportPath, () => loadPriceRuleReport(reportPath!))
+  const groups = useApiRead<CatalogGroupsDto>(
+    access.canRead ? '/v1/catalog/groups' : null,
+    getCatalogGroups,
+  )
 
-  return (
+  const shown = (list.read.status === 'ready' ? list.read.data.items : []).filter((rule) =>
+    state === 'archived' ? rule.archived : !rule.archived,
+  )
+  const totals = report.read.status === 'ready' ? report.read.data.totals : null
+  const refresh = () => {
+    list.retry()
+    report.retry()
+  }
+
+  const send = async (rule: PriceRuleDto, body: PriceRuleSwitchRequest) => {
+    setBusy(true)
+    setNotice(null)
+    try {
+      const saved = await switchPriceRule(rule.id, rule.version, body)
+      setPending(null)
+      setPauseProblem(null)
+      setNotice({
+        tone: 'success',
+        body: saved.pausedUntil
+          ? t('priceRules.done.paused', {
+              name: saved.name,
+              date: formatDate(saved.pausedUntil, i18n.language),
+            })
+          : saved.enabled
+            ? t('priceRules.done.on', { name: saved.name })
+            : t('priceRules.done.off', { name: saved.name }),
+      })
+      refresh()
+    } catch (error) {
+      const items = belowCostItems(error)
+      if (items) {
+        setPending({ kind: 'switch', rule, body, items })
+      } else if (body.pauseUntil) {
+        setPauseProblem(failureText(error))
+      } else {
+        setPending(null)
+        setNotice({ tone: 'error', body: failureText(error) })
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const archive = async (rule: PriceRuleDto) => {
+    setBusy(true)
+    setNotice(null)
+    try {
+      await archivePriceRule(rule.id, rule.version)
+      setNotice({ tone: 'success', body: t('priceRules.done.archived', { name: rule.name }) })
+      refresh()
+    } catch (error) {
+      setNotice({ tone: 'error', body: failureText(error) })
+    } finally {
+      setPending(null)
+      setBusy(false)
+    }
+  }
+
+  const exportReport = async () => {
+    setNotice(null)
+    try {
+      saveDownload(await downloadPriceRuleReport({ from, to }), `price-rules-${from}-${to}.csv`)
+    } catch (error) {
+      setNotice({ tone: 'error', body: failureText(error) })
+    }
+  }
+
+  const now = muscatNow()
+  const shell = (body: React.ReactNode) => (
     <CatalogShell
       crumbs={[{ labelKey: 'catalog.title', to: '/catalog' }, { labelKey: 'priceRules.title' }]}
       title={t('priceRules.title')}
       subtitle={t('priceRules.subtitle')}
       wideHeading
       actions={
-        <Link
-          to="/catalog/rules/new"
-          className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-        >
-          <img src={plusIcon} alt="" className="size-4" />
-          {t('priceRules.newRule')}
-        </Link>
+        access.canManage ? (
+          <Link
+            to="/catalog/rules/new"
+            className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+          >
+            <img src={plusIcon} alt="" className="size-4" />
+            {t('priceRules.newRule')}
+          </Link>
+        ) : undefined
       }
     >
+      {body}
+    </CatalogShell>
+  )
+
+  if (!access.ready) return shell(<LoadingNotice />)
+  if (!access.canRead) return shell(<PermissionDeniedNotice />)
+  if (list.read.status === 'failed')
+    return shell(<ApiReadFailure error={list.read.error} retry={list.retry} />)
+
+  const families = RULE_FAMILIES.filter((family) => shown.some((rule) => rule.kind === family.id))
+  const lastFamily = families[families.length - 1]?.id
+
+  return shell(
+    <>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Kpi
           icon={kpiPercentIcon}
           label={t('priceRules.kpi.rules')}
-          value={String(summary.count)}
-          note={t('priceRules.kpi.rulesNote', { running: summary.running, off: summary.off })}
+          value={totals ? String(totals.rules) : '–'}
+          note={
+            list.read.status === 'ready'
+              ? t('priceRules.kpi.rulesNote', {
+                  running: shown.filter((rule) => rule.enabled).length,
+                  off: shown.filter((rule) => !rule.enabled).length,
+                })
+              : ''
+          }
         />
         <Kpi
           icon={kpiUpIcon}
           tint="bg-success-100"
           label={t('priceRules.kpi.givenAway')}
-          value={omr(summary.givenAway)}
+          value={totals ? omr(totals.givenAway) : '–'}
           currency
-          note={t('priceRules.kpi.givenAwayNote', { share: SHARE_OF_SALES })}
+          note={
+            totals
+              ? totals.shareOfSalesPercent === null
+                ? t('priceRules.kpi.givenAwayNoSales')
+                : t('priceRules.kpi.givenAwayNote', {
+                    share: Number(totals.shareOfSalesPercent.toFixed(1)),
+                  })
+              : ''
+          }
         />
         <Kpi
           icon={kpiEarningIcon}
           label={t('priceRules.kpi.broughtIn')}
-          value={omr(summary.broughtIn)}
+          value={totals ? omr(totals.broughtIn) : '–'}
           currency
-          note={t('priceRules.kpi.broughtInNote', {
-            count: summary.used.toLocaleString('en-US'),
-          })}
+          note={
+            totals
+              ? t('priceRules.kpi.broughtInNote', { count: totals.used.toLocaleString('en-US') })
+              : ''
+          }
         />
         <Kpi
           icon={kpiClockIcon}
           solidIcon
           tone="pending"
           label={t('priceRules.kpi.runningNow')}
-          value={String(summary.runningNow)}
+          value={totals ? String(totals.runningNow) : '–'}
           note={t('priceRules.kpi.runningNowNote', {
-            time: `${String(NOW.hour).padStart(2, '0')}:${String(NOW.minute).padStart(2, '0')}`,
-            day: weekdayName(NOW.weekday, i18n.language),
+            time: `${String(now.hour).padStart(2, '0')}:${String(now.minute).padStart(2, '0')}`,
+            day: weekdayName(now.weekday, i18n.language),
           })}
         />
       </div>
 
-      {RULE_FAMILIES.map((family) => {
-        const inFamily = RULES.filter((rule) => rule.family === family.id)
-        if (inFamily.length === 0) return null
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-surface-card p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterMenu<KindFilter>
+            label={t('priceRules.filter.kind')}
+            value={kind}
+            defaultValue="ALL"
+            onChange={setKind}
+            options={[
+              { value: 'ALL', label: t('priceRules.filter.allKinds') },
+              ...RULE_FAMILIES.map((family) => ({ value: family.id, label: t(family.titleKey) })),
+            ]}
+          />
+          <FilterMenu<StateFilter>
+            label={t('priceRules.filter.state')}
+            value={state}
+            defaultValue="all"
+            onChange={setState}
+            options={(['all', 'on', 'off', 'archived'] as StateFilter[]).map((value) => ({
+              value,
+              label: t(`priceRules.filter.${value}`),
+            }))}
+          />
+          <FilterMenu<PeriodFilter>
+            label={t('priceRules.filter.period')}
+            value={period}
+            defaultValue="90"
+            onChange={setPeriod}
+            options={(['30', '90', '365'] as PeriodFilter[]).map((value) => ({
+              value,
+              label: t('priceRules.filter.lastDays', { count: Number(value) }),
+            }))}
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link to="/catalog/rules/report" className={SECONDARY}>
+            {t('priceRules.report.open')}
+          </Link>
+          <button type="button" onClick={exportReport} className={SECONDARY}>
+            {t('priceRules.report.export')}
+          </button>
+        </div>
+      </section>
+
+      {notice ? (
+        <p
+          role={notice.tone === 'error' ? 'alert' : 'status'}
+          className={[
+            'rounded-sm px-4 py-3 text-sm font-medium',
+            notice.tone === 'error'
+              ? 'bg-danger-100 text-danger-700'
+              : 'bg-success-100 text-[#3d5648]',
+          ].join(' ')}
+        >
+          {notice.body}
+        </p>
+      ) : null}
+
+      {list.read.status === 'loading' ? <LoadingNotice /> : null}
+      {list.read.status === 'ready' && shown.length === 0 ? (
+        <section className="rounded-md bg-surface-card p-8 text-center">
+          <p className="text-sm font-medium text-text-tertiary">{t('priceRules.empty')}</p>
+          {access.canManage ? (
+            <Link
+              to="/catalog/rules/new"
+              className="mt-4 inline-flex h-[46px] items-center gap-2 rounded-sm border border-dashed border-border-default bg-white px-4 text-sm font-semibold text-primary-700 hover:bg-primary-25"
+            >
+              <img src={plusBrandIcon} alt="" className="size-4" />
+              {t('priceRules.addARule')}
+            </Link>
+          ) : null}
+        </section>
+      ) : null}
+
+      {families.map((family) => {
+        const inFamily = shown.filter((rule) => rule.kind === family.id)
         /** "Add a rule" closes the last card on the page, as the design draws it. */
-        const last = family.id === lastFamily
+        const last = family.id === lastFamily && access.canManage
         return (
           <section key={family.id} className="rounded-md bg-surface-card p-5">
             <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">
@@ -134,8 +365,16 @@ export function PriceRulesPage() {
                 <RuleCard
                   key={rule.id}
                   rule={rule}
-                  on={on.has(rule.id)}
-                  onToggle={() => toggle(rule.id)}
+                  groups={groups.read.status === 'ready' ? groups.read.data : null}
+                  canManage={access.canManage}
+                  busy={busy}
+                  onToggle={(enabled) => send(rule, { enabled })}
+                  onPause={() => {
+                    setPauseProblem(null)
+                    setPending({ kind: 'pause', rule })
+                  }}
+                  onArchive={() => setPending({ kind: 'archive', rule })}
+                  onExport={exportReport}
                 />
               ))}
               {last ? (
@@ -151,17 +390,125 @@ export function PriceRulesPage() {
           </section>
         )
       })}
-    </CatalogShell>
+
+      <BelowCostDialog
+        items={pending?.kind === 'switch' ? pending.items : null}
+        branches={branches}
+        busy={busy}
+        onCancel={() => setPending(null)}
+        onGoLive={() =>
+          pending?.kind === 'switch' &&
+          send(pending.rule, { ...pending.body, acknowledgeBelowCost: true })
+        }
+      />
+      <PauseDialog
+        key={pending?.kind === 'pause' ? pending.rule.id : 'none'}
+        open={pending?.kind === 'pause'}
+        name={pending?.kind === 'pause' ? pending.rule.name : ''}
+        busy={busy}
+        problem={pauseProblem}
+        onCancel={() => setPending(null)}
+        onPause={(until) =>
+          pending?.kind === 'pause' && send(pending.rule, { enabled: false, pauseUntil: until })
+        }
+      />
+      <Modal
+        open={pending?.kind === 'archive'}
+        onClose={() => setPending(null)}
+        title={t('priceRules.archive.title', {
+          name: pending?.kind === 'archive' ? pending.rule.name : '',
+        })}
+        subtitle={t('priceRules.archive.subtitle')}
+        footer={
+          <div className="flex flex-wrap justify-end gap-2.5">
+            <button type="button" onClick={() => setPending(null)} className={SECONDARY}>
+              {t('priceRules.cancel')}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => pending?.kind === 'archive' && archive(pending.rule)}
+              className={DANGER}
+            >
+              {t('priceRules.archive.confirm')}
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm font-medium leading-[1.6] text-text-tertiary">
+          {t('priceRules.archive.body')}
+        </p>
+      </Modal>
+    </>,
   )
 }
 
-function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: () => void }) {
+/** "Everything", or the groups, kinds and items a rule names. */
+function useTargetText() {
   const { t, i18n } = useTranslation()
-  const live = on && isInWindowNow(rule)
-  const timed = rule.family === 'time'
+  const ar = i18n.language.startsWith('ar')
+  return (rule: PriceRuleDto, groups: CatalogGroupsDto | null) => {
+    if (rule.targets.some((target) => target.type === 'ALL'))
+      return t('priceRules.scope.everything')
+    const names: string[] = []
+    let items = 0
+    for (const target of rule.targets) {
+      const group = groups?.groups.find((g) => g.id === target.id)
+      const kind = groups?.groups.flatMap((g) => g.kinds).find((k) => k.id === target.id)
+      const found = target.type === 'GROUP' ? group : target.type === 'KIND' ? kind : null
+      if (found) names.push(ar && found.nameAr ? found.nameAr : found.name)
+      else if (target.type === 'PRODUCT' || target.type === 'VARIANT') items += 1
+    }
+    const parts = [...names]
+    if (items > 0) parts.push(t('priceRules.scope.items', { count: items }))
+    return parts.join(', ') || t('priceRules.scope.items', { count: rule.targets.length })
+  }
+}
+
+function RuleCard({
+  rule,
+  groups,
+  canManage,
+  busy,
+  onToggle,
+  onPause,
+  onArchive,
+  onExport,
+}: {
+  rule: PriceRuleDto
+  groups: CatalogGroupsDto | null
+  canManage: boolean
+  busy: boolean
+  onToggle: (enabled: boolean) => void
+  onPause: () => void
+  onArchive: () => void
+  onExport: () => void
+}) {
+  const { t, i18n } = useTranslation()
+  const targetText = useTargetText()
+  const on = rule.enabled && !rule.archived
+  const live = rule.runningNow
+  const timed = rule.kind === 'TIME'
   /** Two-letter days in English as drawn; other languages get their own short names. */
   const dayLabel = (index: number) =>
     i18n.language.startsWith('en') ? WEEKDAYS[index] : weekdayName(index, i18n.language, 'short')
+  const date = (value: string) => formatDate(value, i18n.language)
+  const offerText = rule.offer
+    ? rule.offer.priceEach !== null && rule.offer.priceEach !== undefined
+      ? t('priceRules.offer.priceEach', { price: omr(rule.offer.priceEach) })
+      : t('priceRules.offer.percentOff', {
+          percent: Number((rule.offer.percentOff ?? 0).toFixed(2)),
+        })
+    : ''
+  const status = rule.archived
+    ? t('priceRules.archived')
+    : rule.pausedUntil
+      ? t('priceRules.pausedUntil', { date: date(rule.pausedUntil) })
+      : live
+        ? t('priceRules.onRightNow')
+        : on
+          ? t('priceRules.running')
+          : t('priceRules.switchedOff')
 
   return (
     <article
@@ -181,24 +528,29 @@ function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: (
             <AmberClock className={on ? 'size-[18px]' : 'size-[18px] opacity-50'} />
           ) : (
             <img
-              src={FAMILY_ICON[rule.family]}
+              src={FAMILY_ICON[rule.kind]}
               alt=""
               className={on ? 'size-[18px]' : 'size-[18px] opacity-50'}
             />
           )}
         </span>
 
-        <div className="min-w-[240px] flex-1">
+        <div className="min-w-0 flex-1 sm:min-w-[240px]">
           <p
             className={[
-              'text-base font-semibold leading-[1.3]',
+              'break-words text-base font-semibold leading-[1.3]',
               on ? 'text-text-primary' : 'text-text-quaternary',
             ].join(' ')}
           >
             {rule.name}
           </p>
           <p className="mt-1 text-xs font-medium text-text-quaternary">
-            {t(rule.scopeKey, { ...rule.scopeValues, date: rule.since })}
+            {targetText(rule, groups)}
+            {' · '}
+            {rule.branchIds.length
+              ? t('priceRules.scope.branches', { count: rule.branchIds.length })
+              : t('priceRules.scope.everyBranch')}
+            {rule.atTheTill ? '' : ` · ${t('priceRules.scope.invoicesOnly')}`}
           </p>
         </div>
 
@@ -219,99 +571,147 @@ function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: (
                 live ? 'bg-white' : on ? 'bg-[#4c6c5a]' : 'bg-[#a8abb2]',
               ].join(' ')}
             />
-            {live
-              ? t('priceRules.onRightNow')
-              : on
-                ? t('priceRules.running')
-                : t('priceRules.switchedOff')}
+            {status}
           </span>
-          <Switch checked={on} onChange={onToggle} label={rule.name} />
+          {rule.archived ? null : (
+            <Switch
+              checked={on}
+              onChange={onToggle}
+              label={rule.name}
+              disabled={!canManage || busy}
+            />
+          )}
           <ActionMenu
             size="md"
             label={t('priceRules.menu.thisRule')}
             items={[
-              {
-                id: 'breaks',
-                sectionKey: 'priceRules.menu.thisRule',
-                labelKey: 'priceRules.menu.changeTheBreaks',
-                icon: menuEditIcon,
-                to: '/catalog/rules/new',
-              },
-              { id: 'copy', labelKey: 'priceRules.menu.copyIt', icon: menuCopyIcon },
+              ...(canManage && !rule.archived
+                ? [
+                    {
+                      id: 'edit',
+                      sectionKey: 'priceRules.menu.thisRule',
+                      labelKey: 'priceRules.menu.changeIt',
+                      icon: menuEditIcon,
+                      to: `/catalog/rules/${rule.id}/edit`,
+                    },
+                  ]
+                : []),
+              ...(canManage
+                ? [
+                    {
+                      id: 'copy',
+                      labelKey: 'priceRules.menu.copyIt',
+                      icon: menuCopyIcon,
+                      to: `/catalog/rules/new?copy=${rule.id}`,
+                    },
+                  ]
+                : []),
               {
                 id: 'sales',
                 labelKey: 'priceRules.menu.theSalesThatUsedIt',
                 icon: menuChartIcon,
-                values: { count: rule.used.toLocaleString('en-US') },
-                hint: rule.used.toLocaleString('en-US'),
+                values: { count: (rule.used ?? 0).toLocaleString('en-US') },
+                hint: (rule.used ?? 0).toLocaleString('en-US'),
+                to: `/catalog/rules/${rule.id}/sales`,
               },
               {
                 id: 'export',
                 labelKey: 'priceRules.menu.exportWhatItGaveAway',
                 icon: menuDownloadIcon,
+                onSelect: onExport,
               },
+              ...(canManage && !rule.archived
+                ? [
+                    {
+                      id: 'pause',
+                      sectionKey: 'priceRules.menu.tryThingsOut',
+                      labelKey: 'priceRules.menu.pauseIt',
+                      icon: menuPauseIcon,
+                      onSelect: onPause,
+                    },
+                  ]
+                : []),
+              // TODO(backend): "What if" has no route to price past sales under a changed rule
+              // (INCOME.md row P.36); drawn as Coming later.
               {
-                id: 'pause',
-                sectionKey: 'priceRules.menu.tryThingsOut',
-                labelKey: 'priceRules.menu.pauseIt',
-                icon: menuPauseIcon,
+                id: 'whatIf',
+                labelKey: 'priceRules.menu.whatIf',
+                icon: menuWhatIfIcon,
+                hintKey: 'priceRules.comingLater',
               },
-              { id: 'whatIf', labelKey: 'priceRules.menu.whatIf', icon: menuWhatIfIcon },
-              {
-                id: 'delete',
-                labelKey: 'priceRules.menu.deleteIt',
-                icon: menuTrashIcon,
-                danger: true,
-              },
+              ...(canManage && !rule.archived
+                ? [
+                    {
+                      id: 'archive',
+                      labelKey: 'priceRules.menu.archiveIt',
+                      icon: menuTrashIcon,
+                      danger: true,
+                      onSelect: onArchive,
+                    },
+                  ]
+                : []),
             ]}
           />
         </span>
       </div>
 
-      {on ? (
+      {on || rule.archived ? (
         <div className="grid border-t border-surface-background lg:grid-cols-3">
           {/* what it does */}
-          <div className="border-e border-surface-background p-4">
+          <div className="border-surface-background p-4 lg:border-e">
             <p className="text-[10px] font-semibold uppercase tracking-[0.5px] text-text-quaternary">
-              {rule.breaks ? t('priceRules.theBreaks') : t('priceRules.whenItRuns')}
+              {rule.kind === 'VOLUME'
+                ? t('priceRules.theBreaks')
+                : rule.kind === 'TIME'
+                  ? t('priceRules.whenItRuns')
+                  : t('priceRules.whoGetsIt')}
             </p>
 
-            {rule.breaks ? (
+            {rule.kind === 'VOLUME' ? (
               <ul className="mt-3 flex flex-col gap-2.5">
-                {rule.breaks.map((entry, index) => {
-                  const save = breakSaving(rule.breaks!, index)
+                {rule.tiers.map((tier, index) => {
+                  const save = tierShare(rule, index)
+                  const price = tierText(tier)
                   return (
                     <li key={index} className="flex items-center gap-3">
                       <span className="w-[86px] shrink-0 text-xs font-medium text-text-secondary">
-                        {entry.labelKey ? t(entry.labelKey) : entry.label}
+                        {tier.toQty === null
+                          ? t('priceRules.tierOrMore', { from: tier.fromQty })
+                          : t('priceRules.tierRange', { from: tier.fromQty, to: tier.toQty })}
                       </span>
                       <span className="flex h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-background">
                         <span
                           className="bg-primary-700"
-                          style={{ width: `${Math.round(save.share * 100)}%` }}
+                          style={{ width: `${Math.round(Math.max(save.share, 0) * 100)}%` }}
                         />
                       </span>
-                      <span className="w-[48px] shrink-0 text-end text-xs font-semibold text-text-primary tabular-nums">
-                        {omr(entry.price)}
+                      <span className="w-[56px] shrink-0 text-end text-xs font-semibold text-text-primary tabular-nums">
+                        {price.amount ?? price.percent}
                       </span>
                       <span
                         className={[
                           'w-[38px] shrink-0 text-end text-xs font-medium tabular-nums',
-                          index === 0 ? 'text-text-quaternary' : 'text-[#3d5648]',
+                          save.percent === 0 ? 'text-text-quaternary' : 'text-[#3d5648]',
                         ].join(' ')}
                       >
-                        {index === 0 ? '–' : `${save.percent}%`}
+                        {save.percent === 0 ? '–' : `${save.percent}%`}
                       </span>
                     </li>
                   )
                 })}
               </ul>
-            ) : rule.window ? (
+            ) : rule.kind === 'TIME' ? (
               <div className="mt-3">
                 <span className="grid w-max grid-cols-6 gap-1 sm:grid-cols-12">
                   {HOURS.map((hour, index) => {
-                    const hour24 = index < 6 ? hour : hour + 12
-                    const inWindow = hour24 >= rule.window!.fromHour && hour24 < rule.window!.toHour
+                    const start = (index < 6 ? hour : hour + 12) * 60
+                    const inWindow = rule.windows.some((window) => {
+                      const from = minutesOf(window.from)
+                      const to = minutesOf(window.to)
+                      return to > from
+                        ? start + 60 > from && start < to
+                        : start + 60 > from || start < to
+                    })
                     return (
                       <span
                         key={index}
@@ -329,7 +729,7 @@ function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: (
                 </span>
                 <span className="mt-1.5 flex flex-wrap gap-1">
                   {WEEKDAYS.map((day, index) => {
-                    const inWindow = rule.window!.days.includes(index)
+                    const inWindow = rule.windows.some((window) => window.days.includes(index))
                     return (
                       <span
                         key={day}
@@ -345,26 +745,44 @@ function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: (
                     )
                   })}
                 </span>
-                <p className="mt-2.5 text-xs font-medium text-text-quaternary">
-                  {rule.id === 'afternoon-lull'
-                    ? t('priceRules.twoToFive')
-                    : t('priceRules.sixToTen')}
-                </p>
+                <ul className="mt-2.5 flex flex-col gap-0.5 text-xs font-medium text-text-quaternary">
+                  {rule.windows.map((window, index) => (
+                    <li key={index} dir="auto">
+                      {t('priceRules.window', {
+                        days: window.days.map((d) => dayLabel(d)).join(' '),
+                        from: window.from,
+                        to: window.to,
+                      })}
+                    </li>
+                  ))}
+                </ul>
               </div>
-            ) : null}
+            ) : (
+              <p className="mt-3 text-sm font-medium leading-[1.6] text-text-tertiary">
+                {t('priceRules.who.customers', { count: rule.customers?.customerIds.length ?? 0 })}
+                {rule.customers?.tags.length
+                  ? ` · ${t('priceRules.who.tags', { tags: rule.customers.tags.join(', ') })}`
+                  : ''}
+              </p>
+            )}
           </div>
 
-          {/* who gets it */}
-          <div className="border-e border-surface-background p-4">
+          {/* what comes off */}
+          <div className="border-surface-background p-4 lg:border-e">
             <p className="text-[10px] font-semibold uppercase tracking-[0.5px] text-text-quaternary">
-              {rule.breaks ? t('priceRules.whoGetsIt') : t('priceRules.whatComesOff')}
+              {rule.kind === 'VOLUME' ? t('priceRules.howItCounts') : t('priceRules.whatComesOff')}
             </p>
             <p className="mt-3 text-sm font-medium leading-[1.6] text-text-tertiary">
-              <Trans
-                i18nKey={rule.whoKey}
-                values={rule.whoValues}
-                components={{ b: <RialText as="b" className="font-semibold text-text-primary" /> }}
-              />
+              {rule.kind === 'VOLUME'
+                ? [
+                    rule.countedAs === 'PER_ITEM'
+                      ? t('priceRules.counted.perItem')
+                      : t('priceRules.counted.across'),
+                    rule.extrasOnly
+                      ? t('priceRules.counted.extrasOnly')
+                      : t('priceRules.counted.whole'),
+                  ].join(' ')
+                : withRial(offerText)}
             </p>
           </div>
 
@@ -376,70 +794,47 @@ function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: (
             <dl className="mt-2">
               <Row
                 label={t('priceRules.used')}
-                value={t('priceRules.usedTimes', { count: rule.used.toLocaleString('en-US') })}
+                value={t('priceRules.usedTimes', {
+                  count: (rule.used ?? 0).toLocaleString('en-US'),
+                })}
               />
               <Row
                 label={t('priceRules.givenAway')}
-                value={`OMR ${omr(rule.givenAway)}`}
+                value={`OMR ${omr(rule.givenAway ?? 0)}`}
                 tone="pending"
               />
-              {rule.broughtIn > 0 ? (
-                <Row label={t('priceRules.broughtIn')} value={`OMR ${omr(rule.broughtIn)}`} />
-              ) : null}
-              {rule.extraKey ? (
-                <Row
-                  label={t(rule.extraKey)}
-                  value={
-                    rule.extraKey === 'priceRules.afternoonSalesUp'
-                      ? t('priceRules.afternoonSalesUpValue', rule.extraValues)
-                      : rule.extraKey === 'priceRules.pastriesSoldWithIt'
-                        ? t('priceRules.pastriesValue', rule.extraValues)
-                        : String(rule.extraValues?.value ?? '')
-                  }
-                />
-              ) : null}
-              {rule.since ? <Row label={t('priceRules.since')} value={rule.since} last /> : null}
+              <Row label={t('priceRules.broughtIn')} value={`OMR ${omr(rule.broughtIn ?? 0)}`} />
+              <Row
+                label={t('priceRules.since')}
+                value={
+                  rule.validTo
+                    ? t('priceRules.fromTo', { from: date(rule.validFrom), to: date(rule.validTo) })
+                    : date(rule.validFrom)
+                }
+              />
             </dl>
           </div>
         </div>
-      ) : rule.offNoteKey ? (
+      ) : (
         <div className="flex flex-col gap-3 border-t border-surface-background bg-pending-100/50 px-4 py-3.5 md:flex-row md:items-center md:justify-between">
           <p className="flex min-w-0 items-start gap-2 text-sm font-medium leading-[1.5] text-pending-700">
             <img src={warnIcon} alt="" className="mt-0.5 size-4 shrink-0" />
             <span>
-              <Trans
-                i18nKey={rule.offNoteKey}
-                values={rule.offNoteValues}
-                components={{ b: <b className="font-semibold" /> }}
-              />
+              {rule.pausedUntil
+                ? t('priceRules.pausedNote', { date: date(rule.pausedUntil) })
+                : t('priceRules.switchedOffNote')}
             </span>
           </p>
-          {/* Quotations are hidden until connected (R6). */}
-          {prototypeHidden('tradeDocuments') ? null : (
-            <Link
-              to="/trade-documents/quotations"
-              className="inline-flex h-[36px] shrink-0 items-center self-start whitespace-nowrap rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/70 md:self-auto"
-            >
-              {t('priceRules.seeTheQuotes')}
-            </Link>
-          )}
+          {rule.used ? (
+            <Pill tone="neutral">{t('priceRules.usedTimes', { count: rule.used })}</Pill>
+          ) : null}
         </div>
-      ) : null}
+      )}
     </article>
   )
 }
 
-function Row({
-  label,
-  value,
-  tone,
-}: {
-  label: string
-  value: string
-  tone?: 'pending'
-  /** Kept for the callers; "How it's gone" no longer draws row dividers. */
-  last?: boolean
-}) {
+function Row({ label, value, tone }: { label: string; value: string; tone?: 'pending' }) {
   return (
     <div className="flex items-center justify-between gap-3 py-1.5">
       <dt className="text-xs font-medium text-text-tertiary">{label}</dt>

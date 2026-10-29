@@ -52,6 +52,17 @@ export type DraftLine = {
   countedUnit?: string
   discountType: DiscountType
   discountValue: string
+  /**
+   * The price rule the line's discount comes from (`POST /v1/price-rules/evaluate` suggested it),
+   * sent as `priceRuleIds` (at most one). Absent on a typed discount: the server never adds one.
+   */
+  priceRuleId?: string | null
+  /** The rule's name, for the note under the line. Client only. */
+  priceRuleName?: string
+  /** The person removed the suggestion or typed their own discount: none is suggested again. */
+  priceRuleOff?: boolean
+  /** The product's own discount, which the line goes back to when a rule is removed. Client only. */
+  productDiscount?: { type: DiscountType; value: string }
 }
 
 export type DraftForm = {
@@ -404,6 +415,7 @@ export function toDraftRequest(
           exclVat ? line.unitPrice : toExclusivePrice(line.unitPrice || '0', tax.rate),
         ),
         discount: { type: line.discountType, value: number(line.discountValue) },
+        ...(line.priceRuleId ? { priceRuleIds: [line.priceRuleId] } : {}),
         taxCategory: {
           code: tax.code,
           en16931Category: tax.en16931Category,
@@ -504,6 +516,7 @@ export function fromDraftResponse(
         unit: line.unitCode,
         discountType: line.discountType,
         discountValue: String(Number(line.discountValue)),
+        ...(line.priceRuleIds?.length ? { priceRuleId: line.priceRuleIds[0] } : {}),
       }
     }),
   }

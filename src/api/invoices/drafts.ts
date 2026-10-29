@@ -35,6 +35,12 @@ export type DraftLineRequest = {
   /** Always exclusive of VAT: the engine refuses INCLUSIVE until its discount ordering is approved. */
   unitPrice: number
   discount: DiscountDto
+  /**
+   * The price rule the line's discount comes from (`POST /v1/price-rules/evaluate`), at most one.
+   * Checked when the draft is saved: 422 PRICE_RULE_NOT_APPLICABLE {line, ruleId,
+   * expectedDiscount} when it is not live, does not cover the line or gives less.
+   */
+  priceRuleIds?: string[]
   taxCategory: {
     code: string
     en16931Category: string
@@ -130,6 +136,8 @@ export type DraftResponse = {
     unitPrice: number
     discountType: 'PERCENTAGE' | 'FIXED_AMOUNT'
     discountValue: number
+    /** The rule the line's discount came from; empty for a typed discount. */
+    priceRuleIds?: string[]
     taxCategoryCode: string
     en16931Category: string
     taxRate: number

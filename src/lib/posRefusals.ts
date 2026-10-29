@@ -48,6 +48,8 @@ const WORDED = new Set([
   'POS_REFUND_MORE_THAN_OWED',
   'POS_REFUND_KEY_REUSED',
   'POS_SLIP_INVALID',
+  'POS_PRICE_RULE_MISMATCH',
+  'PRICE_RULE_STACKING_NOT_AVAILABLE',
 ])
 
 /** Problem slugs (no `code`) the till words too. */

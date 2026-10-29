@@ -31,6 +31,8 @@ const muscatTime = (ms) =>
     minute: '2-digit',
   })
 
+import { liveRuleIds } from './priceRules.mjs'
+
 const problem = (status, code, extra = {}, slug) => ({
   status,
   headers: { 'Content-Type': 'application/problem+json' },
@@ -924,6 +926,19 @@ export default [
       const draftLines = b.draft?.lines ?? []
       if (!draftLines.length) return problem(400, 'VALIDATION_FAILED')
       const refs = new Map((b.lineRefs ?? []).map((r) => [r.lineNumber, r]))
+      // Price rules (PR #796): online, a line naming a rule that is not live is refused with the
+      // server's figure (none here); queued offline it would be accepted with a warning.
+      const live = new Set(liveRuleIds())
+      const named = (b.lineRefs ?? []).find((r) =>
+        (r.priceRuleIds ?? []).some((id) => !live.has(id)),
+      )
+      if (named && !b.queuedOffline) {
+        return problem(422, 'POS_PRICE_RULE_MISMATCH', {
+          line: named.lineNumber,
+          expectedDiscount: null,
+          ruleIds: [],
+        })
+      }
       const lines = draftLines.map((l) => ({
         lineNumber: l.lineNumber,
         role: refs.get(l.lineNumber)?.role ?? (l.productId ? 'ITEM' : 'TYPED'),

@@ -34,6 +34,7 @@ import {
   type CustomerTypeDto,
 } from '../../api/customers/customers'
 import { productSearchPath, searchProducts, type ProductDto } from '../../api/catalog/products'
+import { evaluatePriceRules } from '../../api/catalog/priceRules'
 import {
   BRANCHES_PATH,
   createDraft,
@@ -920,8 +921,112 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
         (patch.taxCode === line.taxCode ? line.exemptionReasonCode : ''),
       exemptionReason:
         patch.exemptionReason ?? (patch.taxCode === line.taxCode ? line.exemptionReason : ''),
+      // Another product: its own discount, and its own price rule suggestion to come.
+      productDiscount: {
+        type: patch.discountType ?? 'PERCENTAGE',
+        value: patch.discountValue ?? '0',
+      },
+      priceRuleId: null,
+      priceRuleName: undefined,
+      priceRuleOff: false,
     })
   }
+
+  /** Back to the product's own discount, and no rule suggested on the line again. */
+  const removePriceRule = (line: DraftLine) =>
+    updateLine(line.id, {
+      priceRuleId: null,
+      priceRuleName: undefined,
+      priceRuleOff: true,
+      discountType: line.productDiscount?.type ?? 'PERCENTAGE',
+      discountValue: line.productDiscount?.value ?? '0',
+    })
+
+  /**
+   * Price rules (`POST /v1/price-rules/evaluate`, channel INVOICE): each catalogue line gets the
+   * rule that saves most for this customer and branch now, as its discount and `priceRuleIds`.
+   * Only a suggestion: the person can remove it, and a typed discount replaces it. Asked again
+   * when a product, quantity, price, the customer or the branch changes. A self-billed document
+   * is the customer's own purchase: no rule is suggested on it.
+   */
+  const ruleAsk = selfBilled
+    ? null
+    : (() => {
+        const lines = form.lines.map((line, index) => ({
+          lineNumber: index + 1,
+          productId: line.productId,
+          variantId: null,
+          addOn: false,
+          quantity: Number(line.quantity) || 0,
+          unitPrice: Number(
+            exclVat ? line.unitPrice || '0' : toExclusivePrice(line.unitPrice || '0', line.vatRate),
+          ),
+        }))
+        if (!form.branchId || !lines.some((line) => line.productId && line.quantity > 0))
+          return null
+        return JSON.stringify({
+          branchId: form.branchId,
+          customerId: form.customerId,
+          lines,
+        })
+      })()
+  useEffect(() => {
+    if (!ruleAsk) return
+    let live = true
+    const timer = window.setTimeout(() => {
+      const asked = JSON.parse(ruleAsk) as {
+        branchId: string
+        customerId: string | null
+        lines: Parameters<typeof evaluatePriceRules>[0]['lines']
+      }
+      evaluatePriceRules({ ...asked, channel: 'INVOICE' }).then(
+        (answer) => {
+          if (!live) return
+          let changed = false
+          setForm((current) => {
+            const lines = current.lines.map((line, index) => {
+              const outcome = answer.lines.find((o) => o.lineNumber === index + 1)
+              if (!outcome || line.productId !== asked.lines[index]?.productId) return line
+              if (outcome.source === 'RULE' && outcome.priceRuleIds[0] && outcome.discountType) {
+                if (line.priceRuleOff) return line
+                const next = {
+                  priceRuleId: outcome.priceRuleIds[0],
+                  priceRuleName: outcome.ruleName ?? '',
+                  discountType: outcome.discountType,
+                  discountValue: String(outcome.discountValue ?? 0),
+                }
+                if (
+                  line.priceRuleId === next.priceRuleId &&
+                  line.discountType === next.discountType &&
+                  Number(line.discountValue) === Number(next.discountValue)
+                )
+                  return line
+                changed = true
+                return { ...line, ...next }
+              }
+              if (!line.priceRuleId) return line
+              changed = true
+              return {
+                ...line,
+                priceRuleId: null,
+                priceRuleName: undefined,
+                discountType: line.productDiscount?.type ?? 'PERCENTAGE',
+                discountValue: line.productDiscount?.value ?? '0',
+              }
+            })
+            return changed ? { ...current, lines } : current
+          })
+          if (changed) setDirty(true)
+        },
+        // A suggestion is a help, never a step: without it the lines keep their discounts.
+        () => undefined,
+      )
+    }, 400)
+    return () => {
+      live = false
+      window.clearTimeout(timer)
+    }
+  }, [ruleAsk])
   /** The header's default category goes onto every line still at the previous default. */
   const setDefaultTaxCategory = (code: string) => {
     const tax = taxCategoryFor(reference, code)
@@ -1242,7 +1347,20 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       const uploadsDone = await uploadPending(result.id)
       return forIssue && !uploadsDone ? null : savedMeta
     } catch (error) {
-      if (error instanceof ApiError && error.code === 'STALE_INVOICE_VERSION') {
+      if (error instanceof ApiError && error.code === 'PRICE_RULE_NOT_APPLICABLE') {
+        // The rule is not live, does not cover the line now, or gives less: said on that line.
+        const index = Number(error.problem.line) - 1
+        const expected = error.problem.expectedDiscount as { amount?: number } | null | undefined
+        setServerLineErrors({
+          [index]: {
+            priceRule:
+              expected && typeof expected.amount === 'number'
+                ? t('invoiceDraft.priceRule.givesLess', { amount: expected.amount.toFixed(3) })
+                : t('invoiceDraft.priceRule.notApplicable'),
+          },
+        })
+        setNotice({ tone: 'error', body: t('invoiceDraft.priceRule.refused') })
+      } else if (error instanceof ApiError && error.code === 'STALE_INVOICE_VERSION') {
         setNotice({ tone: 'error', body: t('invoiceDraft.stale'), stale: true })
       } else if (error instanceof ApiError && error.fieldErrors.length > 0) {
         const placed = placeFieldErrors(error.fieldErrors)
@@ -2069,8 +2187,23 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                       <DiscountField
                         type={row.discountType}
                         value={row.discountValue}
-                        onTypeChange={(discountType) => updateLine(row.id, { discountType })}
-                        onValueChange={(discountValue) => updateLine(row.id, { discountValue })}
+                        // A typed discount replaces the price rule (API note, section 3).
+                        onTypeChange={(discountType) =>
+                          updateLine(row.id, {
+                            discountType,
+                            priceRuleId: null,
+                            priceRuleName: undefined,
+                            priceRuleOff: row.priceRuleOff || Boolean(row.priceRuleId),
+                          })
+                        }
+                        onValueChange={(discountValue) =>
+                          updateLine(row.id, {
+                            discountValue,
+                            priceRuleId: null,
+                            priceRuleName: undefined,
+                            priceRuleOff: row.priceRuleOff || Boolean(row.priceRuleId),
+                          })
+                        }
                         resolved={amounts?.lineDiscount ?? 0n}
                       />
                       <div className="flex items-center justify-between gap-2 pe-1 pt-3">
@@ -2088,6 +2221,22 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                     {row.countedUnit !== undefined ? (
                       <p className="ps-1 text-xs font-medium text-text-tertiary">
                         {unitLockHint(t, row.countedUnit, language)}
+                      </p>
+                    ) : null}
+                    {row.priceRuleId ? (
+                      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 ps-1 text-xs font-medium text-success-700">
+                        <span>
+                          {t('invoiceDraft.priceRule.applied', {
+                            name: row.priceRuleName || t('invoiceDraft.priceRule.aRule'),
+                          })}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removePriceRule(row)}
+                          className="font-semibold text-primary-700 hover:underline"
+                        >
+                          {t('invoiceDraft.priceRule.remove')}
+                        </button>
                       </p>
                     ) : null}
                     {/* The reason a zero-rated or exempt line carries no VAT: its own row, wide enough

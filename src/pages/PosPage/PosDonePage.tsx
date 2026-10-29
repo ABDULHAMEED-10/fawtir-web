@@ -6,7 +6,7 @@ import { AppShell } from '../../layouts/AppShell'
 import { Rial, withRial } from '../../components/ui'
 import { CheckIcon, EnvelopeIcon, InfoIcon, PhoneIcon, PrinterIcon, QrIcon } from './posIcons'
 import { PosTillGate } from './PosTillGate'
-import { LULL, omr, omrSigned, tillTime, toBaisa, unitPrice } from '../../lib/pos'
+import { omr, omrSigned, ruleNames, tillTime, toBaisa, unitPrice } from '../../lib/pos'
 import { FILING_STEPS, RECEIPT_WAYS } from '../../lib/posPayment'
 import { loadPosSale, posSaleQrPath, type PosSaleDto } from '../../api/pos/pos'
 import { API_BASE_URL } from '../../config/api'
@@ -392,8 +392,8 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                 {totals.discount > 0 ? (
                   <ReceiptRow
                     label={
-                      lines.some((line) => line.rulePercent)
-                        ? t('pos.totals.lullShort', { percent: LULL.percent })
+                      lines.some((line) => line.priceRule)
+                        ? t('pos.totals.ruleShort', { names: ruleNames(lines) })
                         : t('pos.totals.lineDiscounts')
                     }
                     value={omrSigned(-totals.discount)}

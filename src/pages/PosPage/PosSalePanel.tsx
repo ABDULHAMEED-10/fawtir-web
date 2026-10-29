@@ -2,18 +2,20 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DiscountField } from '../../components/invoice'
 import { setSaleDiscount, useOpenSale } from '../../lib/posSale'
-import { Rial } from '../../components/ui'
+import { Rial, withRial } from '../../components/ui'
 import { PosFootNote } from './PosFootNote'
 import {
-  LULL,
-  lullApplies,
   omr,
   omrSigned,
+  ruleApplies,
+  ruleNames,
+  ruleSaving,
   tillTime,
   totalsFor,
   unitPrice,
   type SaleLine,
 } from '../../lib/pos'
+import { dismissStaleRuleNotice, useStaleRuleNotices } from '../../lib/posPriceRules'
 
 /**
  * The sale as it stands (Figma 143:18015, right-hand panel).
@@ -47,7 +49,9 @@ export function PosSalePanel({
   const started = tillTime(startedAt, i18n.language.startsWith('ar') ? 'ar' : 'en-GB')
   const totals = totalsFor(lines, saleDiscount)
   const items = lines.reduce((sum, line) => sum + line.qty, 0)
-  const discounted = lines.some(lullApplies) && totals.discount > 0
+  const discounted = lines.some(ruleApplies) && totals.discount > 0
+  const rules = ruleNames(lines)
+  const stale = useStaleRuleNotices()
 
   const setQty = (id: string, qty: number) =>
     onLines(
@@ -210,19 +214,41 @@ export function PosSalePanel({
         <div className="mx-5 mt-3 flex items-start gap-2 rounded-sm bg-success-100 px-3 py-2.5">
           <span className="mt-0.5 text-success-700">✓</span>
           <p className="text-xs font-medium leading-[1.5] text-text-tertiary">
-            {t('pos.lullApplied', { percent: LULL.percent, time: started })}
+            {withRial(t('pos.ruleApplied', { names: rules, amount: omr(ruleSaving(lines)) }))}
           </p>
         </div>
       ) : null}
+      {/* A sale sent from the offline queue kept the discount it was printed with although the
+          rules now give another (POS_PRICE_RULE_STALE_ACCEPTED). */}
+      {stale.map((notice) => (
+        <div
+          key={notice.saleId}
+          role="status"
+          className="mx-5 mt-3 flex items-start justify-between gap-2 rounded-sm bg-pending-100 px-3 py-2.5"
+        >
+          <p className="min-w-0 text-xs font-medium leading-[1.5] text-pending-700">
+            {t('pos.ruleStaleAccepted', {
+              number: notice.invoiceNumber,
+              lines: notice.lines.join(', '),
+            })}
+          </p>
+          <button
+            type="button"
+            onClick={() => dismissStaleRuleNotice(notice.saleId)}
+            aria-label={t('pos.ruleStaleDismiss')}
+            className="relative shrink-0 text-xs font-semibold text-pending-700 after:absolute after:-inset-2 after:content-['']"
+          >
+            ×
+          </button>
+        </div>
+      ))}
 
       <div className="mt-4 flex flex-col gap-2.5 border-t border-border-subtle px-5 py-4">
         <Row label={t('pos.totals.items')} value={omr(totals.items)} />
         {totals.discount > 0 ? (
           <Row
             label={
-              discounted
-                ? t('pos.totals.lull', { percent: LULL.percent })
-                : t('pos.totals.lineDiscounts')
+              discounted ? t('pos.totals.rule', { names: rules }) : t('pos.totals.lineDiscounts')
             }
             value={omrSigned(-totals.discount)}
           />

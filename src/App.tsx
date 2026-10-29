@@ -73,6 +73,8 @@ import {
   StockDetailPage,
   PriceRulesPage,
   NewRulePage,
+  PriceRuleReportPage,
+  PriceRuleSalesPage,
   UploadMenuPage,
   BuildCatalogPage,
 } from './pages/CatalogPage'
@@ -331,8 +333,11 @@ function App() {
           <Route path="/catalog/upload" element={<DemoModule module="catalog"><UploadMenuPage /></DemoModule>} />
           <Route path="/catalog/build" element={<DemoModule module="catalog"><BuildCatalogPage /></DemoModule>} />
           <Route path="/catalog/new" element={<ItemFormPage mode="new" />} />
-          <Route path="/catalog/rules" element={<DemoModule module="catalog"><PriceRulesPage /></DemoModule>} />
-          <Route path="/catalog/rules/new" element={<DemoModule module="catalog"><NewRulePage /></DemoModule>} />
+          <Route path="/catalog/rules" element={<PriceRulesPage />} />
+          <Route path="/catalog/rules/new" element={<NewRulePage />} />
+          <Route path="/catalog/rules/report" element={<PriceRuleReportPage />} />
+          <Route path="/catalog/rules/:ruleId/edit" element={<NewRulePage />} />
+          <Route path="/catalog/rules/:ruleId/sales" element={<PriceRuleSalesPage />} />
           <Route path="/catalog/bundles" element={<DemoModule module="catalog"><BundlesPage /></DemoModule>} />
           <Route path="/catalog/bundles/new" element={<DemoModule module="catalog"><BundlePage /></DemoModule>} />
           <Route path="/catalog/bundles/:id" element={<DemoModule module="catalog"><BundlePage /></DemoModule>} />

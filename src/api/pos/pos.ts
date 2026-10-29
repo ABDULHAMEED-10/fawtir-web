@@ -133,6 +133,8 @@ export type PosLineRef = {
   productId: string
   variantId?: string | null
   addOnId?: string | null
+  /** The price rule the till applied (`GET /price-rules/active`), at most one. */
+  priceRuleIds?: string[]
 }
 
 export type PosConsumer = {
@@ -233,12 +235,29 @@ export type PosSaleDto = {
   warnings: PosWarning[]
 }
 
-export function createPosSale(body: PosSaleRequest, idempotencyKey: string): Promise<PosSaleDto> {
-  return apiRequest<PosSaleDto>(POS_SALES_PATH, {
+type SaleFiledListener = (sale: PosSaleDto, body: PosSaleRequest) => void
+const saleFiledListeners = new Set<SaleFiledListener>()
+
+/**
+ * Called with every sale the server takes, online or sent from the offline queue, so a screen can
+ * show a warning that only arrives when a queued sale is sent (`POS_PRICE_RULE_STALE_ACCEPTED`).
+ */
+export function onPosSaleFiled(listener: SaleFiledListener): () => void {
+  saleFiledListeners.add(listener)
+  return () => saleFiledListeners.delete(listener)
+}
+
+export async function createPosSale(
+  body: PosSaleRequest,
+  idempotencyKey: string,
+): Promise<PosSaleDto> {
+  const sale = await apiRequest<PosSaleDto>(POS_SALES_PATH, {
     method: 'POST',
     body,
     headers: { 'Idempotency-Key': idempotencyKey },
   })
+  saleFiledListeners.forEach((listener) => listener(sale, body))
+  return sale
 }
 
 /** `wait` (0 to 15 s) answers as soon as the QR or the filing changes: the receipt's last steps. */

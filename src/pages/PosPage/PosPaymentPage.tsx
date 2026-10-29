@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { Rial, Select } from '../../components/ui'
 import { selectAllOnFocus } from '../../components/invoice/numericInput'
-import { setFinishedSale, useOpenSale } from '../../lib/posSale'
+import { setFinishedSale, setSaleLines, useOpenSale } from '../../lib/posSale'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
@@ -16,7 +16,17 @@ import {
   PencilIcon,
   ShieldIcon,
 } from './posIcons'
-import { VAT_RATE, omr, omrSigned, totalsFor, unitPrice, LULL, toBaisa } from '../../lib/pos'
+import {
+  VAT_RATE,
+  omr,
+  omrSigned,
+  ruleNames,
+  totalsFor,
+  unitPrice,
+  toBaisa,
+  type SaleLine,
+} from '../../lib/pos'
+import { adoptRuleMismatch, refreshActiveRules, useTillPriceRules } from '../../lib/posPriceRules'
 import {
   METHODS,
   TIP_CHOICES,
@@ -129,6 +139,8 @@ function Payment({ till }: { till: Ready }) {
   // The sale and its discount as the sale screen left them.
   const { lines, saleDiscount, company } = useOpenSale()
   const totals = totalsFor(lines, saleDiscount)
+  // The branch's price rules keep pricing the sale here too: a time rule can open or close.
+  useTillPriceRules(till.branchId, company?.id ?? null)
 
   // No tip is added until the customer asks for one.
   const [tipChoice, setTipChoice] = useState<TipChoice>('none')
@@ -203,8 +215,10 @@ function Payment({ till }: { till: Ready }) {
           }
         : { kind: 'walkIn' }
 
-  const finish = async (named = false) => {
+  /** `adopted`: the lines priced as the server said, sent once more after its refusal. */
+  const finish = async (named = false, adopted?: SaleLine[]) => {
     if (busy) return
+    const saleLines = adopted ?? lines
     setBusy(true)
     setRefusal(null)
     const { payments, tip: tipPart } = paymentsRequest(taken, tip)
@@ -213,7 +227,7 @@ function Payment({ till }: { till: Ready }) {
       queuedOffline: false,
       invoiceNumber: null,
       ...posSaleBody(reference, {
-        lines,
+        lines: saleLines,
         saleDiscount,
         branchId: till.branchId,
         buyer: buyerOf(named),
@@ -232,8 +246,8 @@ function Payment({ till }: { till: Ready }) {
         attempt.current.key,
       )
       setFinishedSale({
-        lines,
-        totals,
+        lines: saleLines,
+        totals: adopted ? totalsFor(saleLines, saleDiscount) : totals,
         tip,
         change,
         company,
@@ -250,6 +264,22 @@ function Payment({ till }: { till: Ready }) {
       till.retry()
       navigate('/pos/done')
     } catch (error) {
+      // The server's rules priced a line otherwise (a stale cache): its figure goes on the line
+      // and the rules are read again. Sent once more by itself only when the total is unchanged;
+      // otherwise the cashier sees the new total against what was taken (P.12).
+      const repriced = adopted
+        ? null
+        : adoptRuleMismatch(saleLines, error, {
+            branchId: till.branchId,
+            customerId: company?.id ?? null,
+          })
+      if (repriced) {
+        setSaleLines(repriced)
+        void refreshActiveRules(till.branchId)
+        if (totalsFor(repriced, saleDiscount).sale === totals.sale) {
+          return await finish(named, repriced)
+        }
+      }
       setRefusal(error)
       const code = refusalCode(error)
       if (code === 'SIMPLIFIED_INVOICE_LIMIT' || code === 'BUYER_IDENTIFIER_REQUIRED') {
@@ -678,8 +708,8 @@ function Payment({ till }: { till: Ready }) {
             {totals.discount > 0 ? (
               <Row
                 label={
-                  lines.some((line) => line.rulePercent)
-                    ? t('pos.totals.lull', { percent: LULL.percent })
+                  lines.some((line) => line.priceRule)
+                    ? t('pos.totals.rule', { names: ruleNames(lines) })
                     : t('pos.totals.lineDiscounts')
                 }
                 value={omrSigned(-totals.discount)}
