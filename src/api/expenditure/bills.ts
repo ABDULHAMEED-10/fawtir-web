@@ -175,7 +175,10 @@ export type BillSummaryDto = {
   dueThisWeekTotal: number
   readyToPayCount: number
   readyToPayTotal: number
-  /** Refused in our books but still owed: a rejection is our opinion, not a settlement. */
+  /**
+   * Refused in our books but still owed: a rejection is our opinion, not a settlement. Rejected
+   * bills and refused debit notes together, each not settled in full (JdbcBillProjectionAdapter).
+   */
   disputedCount: number
   disputedTotal: number
   /**

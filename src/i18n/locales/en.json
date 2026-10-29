@@ -5790,8 +5790,8 @@
       "readyBills_other": "{{count}} approved bills",
       "otherCurrencies_one": "{{count}} bill in another currency is not in these {{currency}} totals.",
       "otherCurrencies_other": "{{count}} bills in other currencies are not in these {{currency}} totals.",
-      "payableDisputed_one": "{{amount}} disputed on {{count}} refused debit note",
-      "payableDisputed_other": "{{amount}} disputed on {{count}} refused debit notes",
+      "payableDisputed_one": "{{amount}} disputed on {{count}} rejected bill or refused debit note",
+      "payableDisputed_other": "{{amount}} disputed on {{count}} rejected bills or refused debit notes",
       "payableAwaitingDecision_one": "Awaiting your decision: {{amount}} on {{count}} debit note",
       "payableAwaitingDecision_other": "Awaiting your decision: {{amount}} on {{count}} debit notes"
     },
