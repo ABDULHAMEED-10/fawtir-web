@@ -20719,7 +20719,8 @@
       "hsCode": "Choose an HS code for this goods line (IBR-079-OM).",
       "serviceType": "Choose a service type for this service line (IBR-155-OM).",
       "lineAmount": "This line's amount is too large.",
-      "categoryReasonConflict": "Lines at the same VAT category and rate must give the same reason. Give this line the same reason as the others at its rate."
+      "categoryReasonConflict": "Lines at the same VAT category and rate must give the same reason. Give this line the same reason as the others at its rate.",
+      "itemType": "Choose whether this line is goods or a service."
     },
     "lineError": "Line {{line}}: {{message}}",
     "exemptionReason": "Reason no VAT is charged",

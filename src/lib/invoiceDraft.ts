@@ -26,8 +26,12 @@ export type DraftLine = {
   productId: string | null
   productCode: string | null
   description: string
-  /** Goods or service. Not a draft field yet: kept on the client, read back from the unit. */
-  itemType: ItemType
+  /**
+   * Goods or service, kept on the client and read back from the stored classification or the
+   * unit. Null until chosen when a catalogue product names neither: guessing from the unit filed
+   * an office chair as a service (A-12, local E2E 2026-10-29), so the reader picks it.
+   */
+  itemType: ItemType | null
   /**
    * The product's HS code (Oman's 12 digits, IBR-079-OM) on a goods line of a business or
    * government invoice; `000000000000` is "Other". A consumer's invoice never carries one.
@@ -630,6 +634,9 @@ export function problemsBeforeIssue(form: DraftForm): FormProblem[] {
   if (form.customerType === 'consumer') return []
   const problems: FormProblem[] = []
   form.lines.forEach((line, index) => {
+    if (line.itemType === null) {
+      problems.push({ field: 'itemType', line: index, key: 'invoiceDraft.problem.itemType' })
+    }
     if (line.itemType === 'goods' && !line.hsCode) {
       problems.push({ field: 'hsCode', line: index, key: 'invoiceDraft.problem.hsCode' })
     }

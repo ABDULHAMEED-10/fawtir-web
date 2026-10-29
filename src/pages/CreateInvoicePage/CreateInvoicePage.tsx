@@ -332,7 +332,8 @@ function ItemTypeToggle({
   onChange,
   line,
 }: {
-  value: ItemType
+  /** Null: not chosen yet, so neither is pressed. */
+  value: ItemType | null
   onChange: (next: ItemType) => void
   line: number
 }) {
@@ -905,7 +906,8 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   }
   const fillFromProduct = (line: DraftLine, product: ProductDto) => {
     const patch = lineFromProduct(reference?.taxCategories ?? [], product, exclVat)
-    const itemType = patch.itemType ?? itemTypeOfUnit(patch.unit)
+    // Only what the product says: a product naming neither leaves the choice to the reader.
+    const itemType = patch.itemType ?? null
     updateLine(line.id, {
       ...patch,
       // A self-billed document moves no stock, so its unit is never fixed.
@@ -1402,7 +1404,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     }),
   )
   const unitOptions = (line: DraftLine): SelectOption[] =>
-    lineUnitOptions(line.itemType, t, line.unit, reference)
+    lineUnitOptions(line.itemType ?? itemTypeOfUnit(line.unit), t, line.unit, reference)
   // The platform's UNCL4461 means, the design's five until it answers; named as the design does.
   const paymentMethodChoices: SelectOption[] = (
     reference?.paymentMethods.some((method) => method.active)
