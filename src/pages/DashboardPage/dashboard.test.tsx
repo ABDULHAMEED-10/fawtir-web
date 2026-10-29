@@ -213,6 +213,9 @@ describe('Dashboard, from the server', () => {
             { ...base, id: 'f-1', invoiceNumber: 'RT-0205', dispatch: 'DEAD_LETTERED', transportState: null, invoiceAck: null },
             { ...base, id: 'f-2', invoiceNumber: 'RT-0206', dispatch: 'DISPATCHED', transportState: 'UNDELIVERABLE', invoiceAck: null },
             { ...base, id: 'n-1', invoiceNumber: 'RT-0207', dispatch: null, transportState: null, invoiceAck: null },
+            { ...base, id: 'd-1', invoiceNumber: 'RT-0208', dispatch: 'DISPATCHED', transportState: 'DELIVERED', invoiceAck: null },
+            { ...base, id: 'd-2', invoiceNumber: 'RT-0209', dispatch: 'DISPATCHED', transportState: 'DELIVERED_UNCONFIRMED', invoiceAck: null },
+            { ...base, id: 'f-3', invoiceNumber: 'RT-0210', dispatch: 'DISPATCHED', transportState: 'C4_UNREACHABLE', invoiceAck: null },
           ]),
         }),
     })
@@ -229,6 +232,9 @@ describe('Dashboard, from the server', () => {
     expect(row('RT-0206').getByText(t('dashboard.invoices.status.undelivered'))).toBeTruthy()
     // Nothing owed to the network: the invoice is simply issued.
     expect(row('RT-0207').getByText(t('dashboard.invoices.status.issued'))).toBeTruthy()
+    expect(row('RT-0208').getByText(t('dashboard.invoices.status.accepted'))).toBeTruthy()
+    expect(row('RT-0209').getByText(t('dashboard.invoices.status.accepted'))).toBeTruthy()
+    expect(row('RT-0210').getByText(t('dashboard.invoices.status.undelivered'))).toBeTruthy()
   })
 
   it('adds every OMR output category into Output VAT, not only the first one listed (A-3)', async () => {

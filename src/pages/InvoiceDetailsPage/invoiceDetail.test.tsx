@@ -699,14 +699,14 @@ describe('An invoice, wired to the API', () => {
         }),
       )
     renderInvoice()
-    expect(await screen.findByText('الضريبة · الخاضعة للنسبة الصفرية 0%')).toBeTruthy()
+    expect(await screen.findByText('الضريبة · بنسبة صفرية 0%')).toBeTruthy()
   })
 
   it.each([
     ['en', 'S', 5, 'Standard rate · 5%'],
     ['en', 'Z', 0, 'Zero-rated · 0%'],
     ['ar', 'S', 5, 'النسبة القياسية · 5%'],
-    ['ar', 'Z', 0, 'الخاضعة للنسبة الصفرية · 0%'],
+    ['ar', 'Z', 0, 'بنسبة صفرية · 0%'],
   ])('heads the VAT treatment in plain words, %s %s (A-8)', async (lang, category, rate, words) => {
     await i18n.changeLanguage(lang)
     const base = invoice()
@@ -2464,5 +2464,66 @@ describe('a reader who may only read (B-14, C-9)', () => {
     expect(screen.queryByRole('button', { name: 'Share on WhatsApp' })).toBeNull()
     expect(calls()).not.toContain('GET /api/v1/branches')
     expect(calls()).not.toContain('GET /api/v1/payment-reminders/schedule')
+  })
+})
+
+describe('Cancel when the page cannot tell, and on a note (A-0 review)', () => {
+  const menuItems = async () => {
+    await screen.findByRole('heading', { level: 1 })
+    const more = screen.queryByRole('button', { name: 'More actions' })
+    if (more) fireEvent.click(more)
+    return screen.queryAllByRole('menuitem').map((item) => item.textContent ?? '')
+  }
+
+  it.each([
+    ['the receivable', () => (receivableResponse = () => json(500, { status: 500 }))],
+    ['the notes list', () => (notesResponse = () => json(500, { status: 500 }))],
+  ])('offers no Cancel, and no hint, when %s cannot be read', async (_, fail) => {
+    receivableResponse = () => json(200, UNSETTLED)
+    fail()
+    renderInvoice()
+    await waitFor(() => expect(calls()).toContain(`GET ${URL_BASE}/receivable`))
+    await waitFor(() =>
+      expect(calls().some((call) => call.startsWith('GET /api/v1/authored-invoices?'))).toBe(true),
+    )
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect((await menuItems()).some((text) => /Cancel/.test(text))).toBe(false)
+    expect(screen.queryByText(/cannot be cancelled/)).toBeNull()
+  })
+
+  it('says a paid debit note cannot be cancelled in its own words', async () => {
+    invoiceResponse = () =>
+      json(200, invoice({ type: 'DEBIT_NOTE', correctionOfInvoiceId: 'inv-0', invoiceNumber: 'DBN-2026-0001' }))
+    receivableResponse = () => json(200, { ...UNSETTLED, paidAmount: 5, outstandingAmount: 51.7 })
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1, name: 'Debit note DBN-2026-0001' })
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel debit note' }))
+    expect(
+      await screen.findByText('This note cannot be cancelled: payments are recorded against it.'),
+    ).toBeTruthy()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it.each([
+    ['en', 'This note cannot be cancelled: credit or debit notes have been issued against it.'],
+    ['ar', 'لا يمكن إلغاء هذا الإشعار: صدرت عليه إشعارات دائنة أو مدينة.'],
+  ])('reads a corrections refusal on a note page as the note’s (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    invoiceResponse = () =>
+      json(200, invoice({ type: 'DEBIT_NOTE', correctionOfInvoiceId: 'inv-0', invoiceNumber: 'DBN-2026-0001' }))
+    receivableResponse = () => json(200, UNSETTLED)
+    cancelResponse = () =>
+      json(409, { status: 409, code: 'INVOICE_CANCEL_HAS_CORRECTIONS', detail: 'no' })
+    renderInvoice()
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('invoiceDetails.actions.more') }))
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: i18n.t('salesNote.detail.cancelAction.DEBIT_NOTE') }),
+    )
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Raised twice' } })
+    fireEvent.click(
+      screen.getByRole('button', { name: i18n.t('salesNote.detail.cancelConfirm.DEBIT_NOTE') }),
+    )
+    expect(await screen.findByText(sentence)).toBeTruthy()
   })
 })

@@ -280,7 +280,9 @@ function CreditNoteDetail() {
                 ? // Not applied yet (an applied credit is APPLIED or PARTLY_USED above): "comes
                   // straight off what you owe" claimed a deduction the activity said was waiting
                   // (B-11, local E2E 2026-10-29).
-                  t('supplierCreditNotes.detail.youllPayLessNote', { bill: billNumber ?? '' })
+                  billNumber
+                  ? t('supplierCreditNotes.detail.youllPayLessNote', { bill: billNumber })
+                  : t('supplierCreditNotes.detail.youllPayLessNoteNoBill')
                 : t('supplierCreditNotes.detail.billPaidNote')
               : t('supplierCreditNotes.detail.noBillNote')
   // Held, the bill refuses any credit until it is released (C8).

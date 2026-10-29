@@ -2586,7 +2586,8 @@
     "cancelBlocked": {
       "corrections": "This invoice cannot be cancelled: credit or debit notes have been issued against it.",
       "payments": "This invoice cannot be cancelled: payments are recorded against it.",
-      "paymentsOnNote": "This note cannot be cancelled: payments are recorded against it."
+      "paymentsOnNote": "This note cannot be cancelled: payments are recorded against it.",
+      "correctionsOnNote": "This note cannot be cancelled: credit or debit notes have been issued against it."
     }
   },
   "createInvoice": {
@@ -7252,7 +7253,8 @@
       "closesRefusedTitle": "Closes refused debit note {{number}}.",
       "closesRefusedBody": "Nothing was owed on it.",
       "billOnHold": "{{bill}} is on hold. Release it before setting this credit against it.",
-      "afterThisNote": "after this note"
+      "afterThisNote": "after this note",
+      "youllPayLessNoteNoBill": "The credit is not taken off the bill yet: it waits to be set against it. Once it is, you pay that much less."
     },
     "source": {
       "peppol": "Received over Peppol",

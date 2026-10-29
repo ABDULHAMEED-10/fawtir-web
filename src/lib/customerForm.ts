@@ -194,10 +194,11 @@ export function toCustomerRequest(values: CustomerFormValues, expectedVersion?: 
   const government = values.type === 'GOVERNMENT'
   const [scheme, ...rest] = values.peppolId.trim().split(':')
   const typed = rest.join(':').trim()
-  // Only 0248 is upper-cased: its value is an Omani VAT number, upper case by definition (OTA SA
-  // v1.0.1 §10.3.1), which the server canonicalises the same way (OmaniVatin). Every other scheme
-  // is sent as typed: upper-casing 9915:testlower sent TESTLOWER, an identifier the partner never
-  // registered (A-1, local E2E 2026-10-29).
+  // Every scheme but 0248 keeps the case as typed: upper-casing 9915:testlower sent TESTLOWER,
+  // an identifier the partner never registered (A-1, local E2E 2026-10-29), and a 0242 value such
+  // as "-TaxAuthority.OM" is mixed case too. The server keeps the participant value's case
+  // (ParticipantId.parse) and compares it ignoring case. A 0248 value is VATIN-shaped (OM11 + 8
+  // digits), so upper-casing it changes no letter that matters and keeps it as written elsewhere.
   const participant = !consumer && values.registeredOnPeppol && values.peppolId.trim()
     ? {
         scheme: scheme.trim(),

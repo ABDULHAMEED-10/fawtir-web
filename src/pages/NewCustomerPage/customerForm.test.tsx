@@ -431,7 +431,7 @@ describe('customer form rules', () => {
     expect(customerProblems({ ...business, peppolId: 'OM1199999001' }).peppolId).toBe(
       'supplierForm.error.peppolShape',
     )
-    // An Omani VAT number is upper case by definition (OTA SA v1.0.1 §10.3.1), so 0248 is sent so.
+    // A 0248 value is VATIN-shaped and compared ignoring case by the server, so upper-casing it is harmless.
     expect(
       toCustomerRequest({ ...business, peppolId: '0248:om1199999001' }).details.peppolParticipantId,
     ).toEqual({ scheme: '0248', value: 'OM1199999001' })

@@ -2275,7 +2275,10 @@ function cancelBlockedKey(
   block: 'corrections' | 'payments',
   noteType: 'CREDIT_NOTE' | 'DEBIT_NOTE' | null,
 ): string {
-  if (block === 'corrections') return 'invoiceDetails.cancelBlocked.corrections'
+  if (block === 'corrections')
+    return noteType
+      ? 'invoiceDetails.cancelBlocked.correctionsOnNote'
+      : 'invoiceDetails.cancelBlocked.corrections'
   return noteType ? 'invoiceDetails.cancelBlocked.paymentsOnNote' : 'invoiceDetails.cancelBlocked.payments'
 }
 

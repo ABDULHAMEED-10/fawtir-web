@@ -1215,3 +1215,22 @@ describe("the debit note's VAT check (B-13)", () => {
     })
   })
 })
+
+describe("the debit note's VAT check at the tolerance's edge (B-13 review)", () => {
+  const fmt = {
+    money: (value: number) => value.toFixed(3),
+    date: (iso: string) => iso,
+    when: (iso: string) => iso,
+  }
+  const verdict = (vatAmount: number) =>
+    debitNoteChecks(note({ totalIncludingVat: 11175.444, vatAmount }), null, fmt).find(
+      (check) => check.id === 'vat',
+    )!.verdict
+
+  it('passes 0.005 OMR off the expected 532.164 and flags 0.006', () => {
+    expect(verdict(532.159)).toBe('fine')
+    expect(verdict(532.169)).toBe('fine')
+    expect(verdict(532.158)).toBe('check')
+    expect(verdict(532.17)).toBe('check')
+  })
+})

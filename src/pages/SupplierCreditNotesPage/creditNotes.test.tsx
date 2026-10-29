@@ -2051,6 +2051,17 @@ describe("A held duplicate's wording", () => {
     expect(screen.queryByText(/straight off what you owe|مباشرة مما تدين/)).toBeNull()
   })
 
+  it.each([
+    ['en', 'The credit is not taken off the bill yet: it waits to be set against it. Once it is, you pay that much less.'],
+    ['ar', 'لم يُخصم الرصيد من الفاتورة بعد، فهو ينتظر خصمه منها. وعند خصمه تدفع أقل بهذا المقدار.'],
+  ])('says "the bill" when the bill has no number, never a blank (B-11 review, %s)', async (language, body) => {
+    await i18n.changeLanguage(language)
+    notes = [note({ credits: { ...namedBill, billNumber: null } })]
+    billDetail = { bill: { ...OURS, id: BILL_ID, supplierBillNumber: null }, lines: [] }
+    renderDetail()
+    expect(await screen.findByText(body)).toBeTruthy()
+  })
+
   // A held copy is left out of input VAT (PEPPOL_DUPLICATE_HELD) even when the bill it corrects
   // is counted, so no reduction may be claimed for it.
   it.each([

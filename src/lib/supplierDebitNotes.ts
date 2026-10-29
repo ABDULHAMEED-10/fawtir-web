@@ -110,7 +110,6 @@ export function debitEffect(
   }
 }
 
-/** VAT at Oman's standard rate on a gross figure, to the rial's three places. */
 /** Baisa (thousandths) of a rial amount the API gives at three decimals or fewer. */
 const baisaOf = (amount: number): bigint => BigInt(Math.round(amount * 1000))
 
