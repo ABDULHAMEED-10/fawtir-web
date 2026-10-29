@@ -21,7 +21,7 @@ import {
   type BundleReportRow,
 } from '../../api/catalog/bundles'
 import { useCanManageProducts } from './ItemFormPage'
-import { useKindNames } from './itemRecord'
+import { useKindNames } from './itemRecordHooks'
 import plusIcon from '../../assets/catalog/plus-white.svg'
 import searchIcon from '../../assets/invoices/search.svg'
 import kpiBundleIcon from '../../assets/catalog/kind-bundle.svg'

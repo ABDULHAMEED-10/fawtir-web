@@ -46,7 +46,7 @@ import {
 } from '../../api/catalog/bundles'
 import { bundleVat, partsValue, round3 } from '../../lib/catalogInsights'
 import { useCanManageProducts } from './ItemFormPage'
-import { useKindNames } from './itemRecord'
+import { useKindNames } from './itemRecordHooks'
 import {
   bundleRequest,
   canMakeOf,
