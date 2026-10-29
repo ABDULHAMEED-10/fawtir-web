@@ -3,6 +3,24 @@ import type { BillRowDto } from '../api/expenditure/bills'
 import { settledWithoutPayment, workflowStateOf } from './billList'
 import type { NoteActivity, NoteFormat } from './supplierCreditNotes'
 
+/** A supplier credit note (381) or a self-billed one (261): not a bill a charge can add to. */
+const CREDIT_NOTE_CODES = new Set(['381', '261'])
+
+/**
+ * The first check's words. A debit note can name a credit note (the server accepts it); that
+ * read "It points at a real bill… settled in full by credit" (DB-9, local E2E 2026-10-29), so a
+ * credit-note target says what it is and asks for a look.
+ */
+function realBillCheck(bill: BillRowDto): Pick<DebitCheck, 'titleKey' | 'detailKey' | 'verdict'> {
+  return bill.documentTypeCode !== null && CREDIT_NOTE_CODES.has(bill.documentTypeCode)
+    ? {
+        titleKey: 'supplierDebitNotes.checks.creditNoteTarget',
+        detailKey: 'supplierDebitNotes.checks.creditNoteTargetDetail',
+        verdict: 'check',
+      }
+    : { titleKey: 'supplierDebitNotes.checks.realBill', detailKey: realBillKey(bill), verdict: 'fine' }
+}
+
 /** Open, paid, or cleared by credit with nothing paid, which "paid in full" misread (B-12). */
 function realBillKey(bill: BillRowDto): string {
   if (bill.outstandingAmount > 0) return 'supplierDebitNotes.checks.realBillOpen'
@@ -150,13 +168,11 @@ export function debitNoteChecks(
   if (bill) {
     checks.push({
       id: 'realBill',
-      titleKey: 'supplierDebitNotes.checks.realBill',
-      detailKey: realBillKey(bill),
+      ...realBillCheck(bill),
       values: {
         bill: bill.supplierBillNumber ?? named ?? '',
         outstanding: fmt.money(bill.outstandingAmount),
       },
-      verdict: 'fine',
       refs: bill.supplierBillNumber
         ? [{ token: bill.supplierBillNumber, to: `/expenditure/bills/${bill.id}` }]
         : [],
@@ -278,13 +294,11 @@ export function intakeChecks({
     bill
       ? {
           id: 'realBill',
-          titleKey: 'supplierDebitNotes.checks.realBill',
-          detailKey: realBillKey(bill),
+          ...realBillCheck(bill),
           values: {
             bill: bill.supplierBillNumber ?? '',
             outstanding: fmt.money(bill.outstandingAmount),
           },
-          verdict: 'fine',
           refs: bill.supplierBillNumber
             ? [{ token: bill.supplierBillNumber, to: `/expenditure/bills/${bill.id}` }]
             : [],

@@ -7676,7 +7676,9 @@
         "notSubmitted": "Received over Peppol and validated. Receipt not reported yet.",
         "unavailable": "Received over Peppol and validated. Receipt report status not available yet."
       },
-      "realBillSettledByCredit": "{{bill}} is on file and settled in full by credit, with nothing paid."
+      "realBillSettledByCredit": "{{bill}} is on file and settled in full by credit, with nothing paid.",
+      "creditNoteTarget": "It points at a credit note, not a bill",
+      "creditNoteTargetDetail": "{{bill}} on file is a supplier credit note. A debit note normally adds to the bill it corrects, so check which document the supplier meant."
     },
     "reverseOnlyRefused": "Already refused. Only the opposite decision can be recorded.",
     "reverseOnlyAccepted": "Already accepted. Only the opposite decision can be recorded.",

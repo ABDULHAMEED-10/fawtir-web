@@ -8092,7 +8092,9 @@
       "summaryBeforeAccept_two": "{{count}} أمور تستحق النظر قبل القبول.",
       "summaryBeforeAccept_few": "{{count}} أمور تستحق النظر قبل القبول.",
       "summaryBeforeAccept_many": "{{count}} أمور تستحق النظر قبل القبول.",
-      "realBillSettledByCredit": "{{bill}} مسجّلة وسُوّيت بالكامل بالرصيد الدائن، ولم يُدفع شيء."
+      "realBillSettledByCredit": "{{bill}} مسجّلة وسُوّيت بالكامل بالرصيد الدائن، ولم يُدفع شيء.",
+      "creditNoteTarget": "يشير إلى إشعار دائن، لا إلى فاتورة",
+      "creditNoteTargetDetail": "{{bill}} المسجّل لدينا إشعار دائن من المورد. يُضاف الإشعار المدين عادةً إلى الفاتورة التي يصححها، فتحقق من المستند الذي قصده المورد."
     },
     "reverseOnlyRefused": "مرفوض بالفعل. لا يمكن تسجيل سوى القرار المعاكس.",
     "reverseOnlyAccepted": "مقبول بالفعل. لا يمكن تسجيل سوى القرار المعاكس.",

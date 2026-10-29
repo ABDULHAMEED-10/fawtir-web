@@ -1234,3 +1234,49 @@ describe("the debit note's VAT check at the tolerance's edge (B-13 review)", () 
     expect(verdict(532.17)).toBe('check')
   })
 })
+
+describe('a debit note that names a credit note (DB-9)', () => {
+  const fmt = {
+    money: (value: number) => value.toFixed(3),
+    date: (iso: string) => iso,
+    when: (iso: string) => iso,
+  }
+  const target = (documentTypeCode: string): BillRowDto => ({
+    id: 'b-cn',
+    source: 'PEPPOL',
+    supplierId: 's-1',
+    supplierName: 'Qalhat Marine Supplies',
+    documentTypeCode,
+    supplierBillNumber: 'DPB1-CN-1',
+    issueDate: '2026-10-20',
+    dueDate: null,
+    overdue: false,
+    currencyCode: 'OMR',
+    totalIncludingVat: 10.5,
+    vatAmount: 0.5,
+    paidAmount: 0,
+    outstandingAmount: 0,
+    purchaseOrderReference: null,
+    workflowState: 'PAID',
+    readiness: { state: 'READY', distinctApprovals: 1, required: 1, autoApproved: false },
+    match: null,
+    hold: null,
+    paymentRunReference: null,
+    paidOnTheSpot: false,
+  })
+
+  it.each(['381', '261'])('says it points at a credit note (%s) and asks for a look', (code) => {
+    const check = debitNoteChecks(note(), target(code), fmt).find((entry) => entry.id === 'realBill')!
+    expect(check).toMatchObject({
+      titleKey: 'supplierDebitNotes.checks.creditNoteTarget',
+      detailKey: 'supplierDebitNotes.checks.creditNoteTargetDetail',
+      verdict: 'check',
+    })
+  })
+
+  it('still says a real bill for an invoice', () => {
+    expect(
+      debitNoteChecks(note(), target('380'), fmt).find((entry) => entry.id === 'realBill')!.titleKey,
+    ).toBe('supplierDebitNotes.checks.realBill')
+  })
+})
