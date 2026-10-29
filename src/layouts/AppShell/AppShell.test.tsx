@@ -1,8 +1,9 @@
+import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
-import { resetSharedRequests } from '../../api'
+import { apiRequest, resetSharedRequests } from '../../api'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { requireSession, useCan, useSession } from '../../lib/session/session'
 import { signOut } from '../../lib/identity/logout'
@@ -287,5 +288,67 @@ describe('the shell asks a reader only what the reader may read (B-14)', () => {
       expect(asked).toContain('/api/v1/branches/overview')
     })
     expect(screen.getByRole('link', { name: 'Create Invoice' })).toBeTruthy()
+  })
+})
+
+describe('a change answered 401 because the session ended (DA-16)', () => {
+  function Saver() {
+    const [said, setSaid] = useState('')
+    return (
+      <button
+        type="button"
+        onClick={() =>
+          apiRequest('/v1/authored-invoices/i-1/payments', { method: 'POST', body: {} }).catch(
+            () => setSaid('refused'),
+          )
+        }
+      >
+        save {said}
+      </button>
+    )
+  }
+
+  const renderSaver = () =>
+    render(
+      <MemoryRouter initialEntries={['/suppliers']}>
+        <Routes>
+          <Route
+            path="/suppliers"
+            element={
+              <AppShell>
+                <Saver />
+              </AppShell>
+            }
+          />
+          <Route path="/login" element={<p>sign-in page</p>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+  it('sends the reader to sign in, as a read does', async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url === ENTITLEMENTS_URL
+        ? json(200, ACCOUNTANT)
+        : url === '/api/v1/authored-invoices/i-1/payments'
+          ? json(401, { type: 'https://api.fawtir.om/problems/unauthenticated', status: 401 })
+          : json(404, { type: 'about:blank' }),
+    )
+    renderSaver()
+    fireEvent.click(await screen.findByRole('button', { name: /save/ }))
+    expect(await screen.findByText('sign-in page')).toBeTruthy()
+  })
+
+  it('keeps the reader where they are when a code or a password was refused', async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url === ENTITLEMENTS_URL
+        ? json(200, ACCOUNTANT)
+        : url === '/api/v1/authored-invoices/i-1/payments'
+          ? json(401, { type: 'https://api.fawtir.om/problems/authentication-failed', status: 401 })
+          : json(404, { type: 'about:blank' }),
+    )
+    renderSaver()
+    fireEvent.click(await screen.findByRole('button', { name: /save/ }))
+    expect(await screen.findByRole('button', { name: /save refused/ })).toBeTruthy()
+    expect(screen.queryByText('sign-in page')).toBeNull()
   })
 })
