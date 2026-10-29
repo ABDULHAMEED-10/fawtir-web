@@ -228,6 +228,9 @@ function renderInvoices(path = '/invoices') {
       <Routes>
         <Route path="/invoices" element={<InvoicesPage />} />
         <Route path="/invoices/:id/edit" element={<p>draft editor</p>} />
+        <Route path="/invoices/:id" element={<p>invoice page</p>} />
+        <Route path="/income/credit-notes/:id" element={<p>credit note page</p>} />
+        <Route path="/income/debit-notes/:id" element={<p>debit note page</p>} />
         <Route path="/login" element={<p>sign-in page</p>} />
       </Routes>
     </MemoryRouter>,
@@ -475,6 +478,87 @@ describe('Invoices list, wired to the API', () => {
     expect(await screen.findByText('draft editor')).toBeTruthy()
   })
 
+  it('opens a credit or debit note on its own page, from the row and from the menu', async () => {
+    const credit = issued({
+      id: 'cn-1',
+      type: 'CREDIT_NOTE',
+      invoiceNumber: 'CRN-2026-0001',
+      customerName: 'Credit Customer',
+      payment: {
+      state: 'NOT_APPLICABLE',
+      overdue: false,
+      daysOverdue: null,
+      paidAmount: null,
+      creditedAmount: null,
+      outstandingAmount: null,
+    },
+    })
+    const debit = issued({
+      id: 'dn-1',
+      type: 'DEBIT_NOTE',
+      invoiceNumber: 'DBN-2026-0001',
+      customerName: 'Debit Customer',
+    })
+    listResponses = [() => json(200, springPage([credit, debit, issued()], 3))]
+    renderInvoices()
+    const creditRow = (await screen.findByText('CRN-2026-0001')).closest('tr')!
+    fireEvent.click(within(creditRow).getByRole('button', { name: 'Invoice actions' }))
+    expect(
+      (await screen.findByRole('menuitem', { name: 'View invoice' })).getAttribute('href'),
+    ).toBe('/income/credit-notes/cn-1')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    const debitRow = screen.getByText('DBN-2026-0001').closest('tr')!
+    fireEvent.click(within(debitRow).getByRole('button', { name: 'Invoice actions' }))
+    expect(
+      (await screen.findByRole('menuitem', { name: 'View invoice' })).getAttribute('href'),
+    ).toBe('/income/debit-notes/dn-1')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(screen.getByText('Credit Customer'))
+    expect(await screen.findByText('credit note page')).toBeTruthy()
+  })
+
+  it('opens an invoice row on the invoice page', async () => {
+    renderInvoices()
+    fireEvent.click(await screen.findByText('Sohar Port Logistics'))
+    expect(await screen.findByText('invoice page')).toBeTruthy()
+  })
+
+  it('words a note as the notes lists do: To be sent until delivered, not Issued', async () => {
+    const credit = (overrides: Partial<InvoiceRowDto>) =>
+      issued({ type: 'CREDIT_NOTE', payment: {
+      state: 'NOT_APPLICABLE',
+      overdue: false,
+      daysOverdue: null,
+      paidAmount: null,
+      creditedAmount: null,
+      outstandingAmount: null,
+    }, ...overrides })
+    listResponses = [
+      () =>
+        json(
+          200,
+          springPage(
+            [
+              credit({ id: 'cn-1', invoiceNumber: 'CRN-1', customerName: 'Unsent Co' }),
+              credit({
+                id: 'cn-2',
+                invoiceNumber: 'CRN-2',
+                customerName: 'Peppol Co',
+                peppolResponse: 'AP',
+              }),
+            ],
+            2,
+          ),
+        ),
+    ]
+    renderInvoices()
+    const row = (name: string) => within(screen.getByText(name).closest('tr')!)
+    await screen.findByText('Unsent Co')
+    expect(row('Unsent Co').getByText('To be sent')).toBeTruthy()
+    expect(row('Unsent Co').queryByText('Issued')).toBeNull()
+    expect(row('Peppol Co').getByText('Applied')).toBeTruthy()
+  })
+
   it('offers only what the reader may do', async () => {
     who = READ_ONLY
     renderInvoices()
@@ -718,7 +802,13 @@ describe('invoice list mapping', () => {
         },
       }),
     )
-    expect(note).toMatchObject({ authoring: 'issued', payment: null, amountNote: null })
+    expect(note).toMatchObject({
+      authoring: 'issued',
+      payment: null,
+      amountNote: null,
+      noteStatus: 'toSend',
+    })
+    expect(toInvoiceListItem(issued()).noteStatus).toBeNull()
 
     const awaiting_row = () =>
       issued({

@@ -859,10 +859,20 @@ export type NoteListStatus =
   | 'paid'
   | 'cancelled'
 
+/**
+ * Delivered by hand, or with a Peppol response on record. `NOT_SUBMITTED` and the like are not.
+ * The one rule for "To be sent" on every list and page: the credit-notes list read only the manual
+ * send, so a note with a Peppol response read "To be sent" there and "Issued" in the invoices list
+ * (TEST verification 2026-10-29).
+ */
+export function delivered(row: Pick<InvoiceRowDto, 'deliveryState' | 'peppolResponse'>): boolean {
+  return row.deliveryState === 'SENT_MANUALLY' || !!row.peppolResponse
+}
+
 export function noteStatusOf(kind: NoteKind, row: InvoiceRowDto): NoteListStatus {
   if (row.authoringState === 'DRAFT') return 'draft'
   if (row.authoringState !== 'ISSUED') return 'cancelled'
-  if (row.deliveryState !== 'SENT_MANUALLY') return 'toSend'
+  if (!delivered(row)) return 'toSend'
   if (kind === 'CREDIT_NOTE') {
     // TODO(backend): a credit note's refund state (refund due / refunded) — the API records no
     // refunds, so a delivered credit note can only be shown as applied to its invoice.

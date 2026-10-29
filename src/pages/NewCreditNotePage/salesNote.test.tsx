@@ -16,6 +16,7 @@ import {
   fromNoteDraft,
   noteHeaderDiscount,
   noteProblems,
+  noteStatusOf,
   noteTotals,
   participantIdText,
   patchLine,
@@ -900,6 +901,17 @@ describe('a paid debit note row (4.7)', () => {
     expect(debitPaymentOf(row({}))).toEqual({ kind: 'paid', date: null })
   })
 
+  it('reads a note delivered over Peppol as delivered, by the same rule as the invoices list', () => {
+    const peppol = { ...row({}), deliveryState: 'NOT_SUBMITTED', peppolResponse: 'AP' } as InvoiceRowDto
+    const unsent = { ...row({}), deliveryState: 'NOT_SUBMITTED' } as InvoiceRowDto
+    const credit = (base: InvoiceRowDto) => ({ ...base, type: 'CREDIT_NOTE' }) as InvoiceRowDto
+    // Before, only a manual send counted, so a note with a Peppol response read "To be sent".
+    expect(noteStatusOf('CREDIT_NOTE', credit(peppol))).toBe('applied')
+    expect(noteStatusOf('CREDIT_NOTE', credit(unsent))).toBe('toSend')
+    expect(noteStatusOf('DEBIT_NOTE', peppol)).toBe('paid')
+    expect(noteStatusOf('DEBIT_NOTE', unsent)).toBe('toSend')
+  })
+
   it('reads a paid or late note from its payment even before it is delivered', () => {
     const undelivered = (payment: Partial<NonNullable<InvoiceRowDto['payment']>>) =>
       ({ ...row(payment), deliveryState: 'NOT_SUBMITTED' }) as InvoiceRowDto
@@ -1273,9 +1285,11 @@ describe("the credit note detail's refund and applied figures (4.19)", () => {
     } as InvoiceDetailDto['totals'],
   }
 
-  const openWith = async (original: InvoiceReceivableDto) => {
+  const openWith = async (original: InvoiceReceivableDto, originalUnanswered = false) => {
     receivable = original
     override = (url) => {
+      if (originalUnanswered && url === `/api/v1/authored-invoices/${INVOICE_ID}`)
+        return new Promise<Response>(() => {})
       if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, issuedNote)
       if (url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`)
         return json(404, { status: 404 })
@@ -1335,6 +1349,20 @@ describe("the credit note detail's refund and applied figures (4.19)", () => {
     expect(screen.getByText('nothing to refund', { exact: false })).toBeTruthy()
     expect(screen.queryByText(/Refund due to/)).toBeNull()
     expect(screen.queryByText('Settled by this credit')).toBeNull()
+  }, 30_000)
+
+  it('links the customer to its record page, which is the only customer route', async () => {
+    await openWith({ ...RECEIVABLE, documentTotal: 100, creditedAmount: 35.91 })
+    expect((await screen.findByRole('link', { name: /View customer/ })).getAttribute('href')).toBe(
+      '/customers/c-1/edit',
+    )
+    expect(screen.getAllByText('INV-2026-0042').length).toBeGreaterThan(0)
+  }, 30_000)
+
+  it('shows a placeholder, not the raw invoice id, while the original invoice is unread', async () => {
+    await openWith({ ...RECEIVABLE, documentTotal: 100, creditedAmount: 35.91 }, true)
+    expect(screen.queryAllByText(INVOICE_ID)).toHaveLength(0)
+    expect(screen.getAllByText('…').length).toBeGreaterThan(0)
   }, 30_000)
 
   it('with more than one credit note on the invoice, reads "Not available yet" for both', async () => {

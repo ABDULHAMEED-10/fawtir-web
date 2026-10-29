@@ -10,6 +10,7 @@ import type {
 } from '../api/invoices/list'
 import { calculateInvoice, projectInvoice } from './invoiceMath'
 import { minorUnitsOf } from './format'
+import { delivered, noteStatusOf, type NoteListStatus } from './salesNote'
 
 /**
  * The Invoices list's view model, written only from what a row carries.
@@ -183,6 +184,11 @@ export type InvoiceListItem = {
   isDraft: boolean
   /** A draft's sales approval state when a request is open (RL-6). */
   approval: InvoiceListApproval | null
+  /**
+   * A credit or debit note's status as the notes lists word it, so one note reads the same in both
+   * lists; it said "Issued" here and "To be sent" there. Null on any other document.
+   */
+  noteStatus: NoteListStatus | null
 }
 
 const AUTHORING: Record<InvoiceStateDto, AuthoringChip> = {
@@ -206,10 +212,6 @@ function paymentOf(row: InvoiceRowDto): Pick<InvoiceListItem, 'payment' | 'payme
   return { payment: delivered(row) ? 'awaiting' : 'toSend' }
 }
 
-/** Delivered by hand, or with a Peppol response on record. `NOT_SUBMITTED` and the like are not. */
-function delivered(row: InvoiceRowDto): boolean {
-  return row.deliveryState === 'SENT_MANUALLY' || !!row.peppolResponse
-}
 
 /** The draft's lines through the same engine the composer uses, at the currency's scale. */
 function estimateOf(row: InvoiceRowDto): number | null {
@@ -273,5 +275,7 @@ export function toInvoiceListItem(row: InvoiceRowDto): InvoiceListItem {
     branchId: row.branchId ?? null,
     isDraft,
     approval: isDraft ? (row.approvalState ?? null) : null,
+    noteStatus:
+      row.type === 'CREDIT_NOTE' || row.type === 'DEBIT_NOTE' ? noteStatusOf(row.type, row) : null,
   }
 }
