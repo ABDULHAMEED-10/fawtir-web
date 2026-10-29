@@ -32,6 +32,7 @@ import { CreditNotesPage } from '../CreditNotesPage'
 import { DebitNotesPage } from '../DebitNotesPage'
 import { InvoiceDetailsPage } from '../InvoiceDetailsPage'
 import { CreditNoteDetailsPage } from '../CreditNoteDetailsPage'
+import { SalesNoteDetailPage } from '../CreditNoteDetailsPage/SalesNoteDetailPage'
 import { DebitNoteDetailPage } from '../DebitNoteDetailPage'
 
 const INVOICE_ID = '11111111-1111-1111-1111-111111111111'
@@ -1879,5 +1880,99 @@ describe('cancelling a refunded credit note (DA-2)', () => {
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Raised twice' } })
     fireEvent.click(screen.getByRole('button', { name: i18n.t('salesNote.detail.cancelConfirm.CREDIT_NOTE') }))
     expect(await screen.findByText(sentence)).toBeTruthy()
+  })
+})
+
+describe('a debit note with payments, and a stale payment on it (DA-2, DA-12 review)', () => {
+  const STAFF: Entitlements = {
+    ...ADMIN,
+    permissions: [...ADMIN.permissions, 'invoice.cancel', 'invoice.payment.manage'],
+  }
+  const debitNote: InvoiceDetailDto = {
+    ...INVOICE,
+    id: NOTE_ID,
+    type: 'DEBIT_NOTE',
+    correctionOfInvoiceId: INVOICE_ID,
+    invoiceNumber: 'DBN-4',
+  }
+  const owedOnNote = (paidAmount: number) => ({
+    ...RECEIVABLE,
+    documentTotal: 10.5,
+    paidAmount,
+    creditedAmount: 0,
+    outstandingAmount: 10.5 - paidAmount,
+    paymentState: paidAmount > 0 ? 'PARTIALLY_PAID' : 'UNPAID',
+  })
+
+  const open = async (noteReceivable: () => Response, pay?: () => Response) => {
+    entitlements = STAFF
+    override = (url, init) => {
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, debitNote)
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`) return noteReceivable()
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/payments` && init?.method === 'POST' && pay)
+        return pay()
+      if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/`))
+        return json(
+          200,
+          url.endsWith('/history')
+            ? { entries: [], truncated: false, limit: 200 }
+            : url.endsWith('/internal-note')
+              ? { internalNote: null }
+              : [],
+        )
+      return undefined
+    }
+    render(
+      <MemoryRouter initialEntries={[`/income/debit-notes/${NOTE_ID}`]}>
+        <Routes>
+          <Route path="/income/debit-notes/:id" element={<SalesNoteDetailPage kind="DEBIT_NOTE" />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByRole('heading', { name: 'DBN-4' })
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([url]) => url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`),
+      ).toBe(true),
+    )
+  }
+  const moreMenu = async () =>
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('invoiceDetails.actions.more') }))
+
+  it('explains instead of cancelling a debit note with a payment', async () => {
+    await open(() => json(200, owedOnNote(4)))
+    await moreMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel debit note' }))
+    expect(
+      await screen.findByText('This note cannot be cancelled: payments are recorded against it.'),
+    ).toBeTruthy()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('opens the confirmation for an unpaid debit note', async () => {
+    await open(() => json(200, owedOnNote(0)))
+    await moreMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel debit note' }))
+    expect(await screen.findByRole('dialog', { name: 'Cancel this debit note?' })).toBeTruthy()
+  })
+
+  it('reads the note again when the payment dialog closes after the balance moved', async () => {
+    await open(
+      () => json(200, owedOnNote(0)),
+      () => json(400, { status: 400, code: 'PAYMENT_EXCEEDS_OUTSTANDING', detail: 'too much' }),
+    )
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Record payment' }))[0])
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('invoiceDetails.pay.submit') }))
+    expect(await within(dialog).findByText(i18n.t('invoiceDetails.pay.balanceChanged'))).toBeTruthy()
+    const reads = () =>
+      fetchMock.mock.calls.filter(
+        ([url, init]) =>
+          url === `/api/v1/authored-invoices/${NOTE_ID}/receivable` &&
+          ((init as RequestInit | undefined)?.method ?? 'GET') === 'GET',
+      ).length
+    const before = reads()
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('common.cancel') }))
+    await waitFor(() => expect(reads()).toBe(before + 1))
   })
 })

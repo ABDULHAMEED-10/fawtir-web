@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -253,6 +253,9 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [paying, setPaying] = useState(false)
+  // Set by a payment refusal that says the balance moved (DA-12): the page re-reads on close,
+  // since a re-read while the dialog is open would unmount it.
+  const balanceStale = useRef(false)
   const [reversing, setReversing] = useState<{ id: string; amount: number; key: string } | null>(
     null,
   )
@@ -384,6 +387,13 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
     credit && originalPayments.read.status === 'ready'
       ? refundedOnNote(data.id, originalPayments.read.data)
       : 0
+  const cancelBlockedKey: string | null = credit
+    ? refunded > 0
+      ? 'salesNote.detail.cancelBlocked.refunded'
+      : null
+    : (owed?.paidAmount ?? 0) > 0
+      ? 'invoiceDetails.cancelBlocked.paymentsOnNote'
+      : null
 
   const cancel = async () => {
     const text = reason.trim()
@@ -479,18 +489,19 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
           },
         ]
       : []),
-    // A credit note's refunds decide; until they are read Cancel is not offered. A refunded note
-    // keeps the item and says why instead of opening the confirmation.
+    // A credit note's refunds decide, a debit note's payments (its own receivable, already read);
+    // until the deciding read answers Cancel is not offered. A blocked note keeps the item and
+    // says why instead of opening the confirmation the server would refuse (DA-2).
     ...(data.authoringState === 'ISSUED' &&
     can(session, 'invoice.cancel') &&
-    (!credit || originalPayments.read.status === 'ready')
+    (credit ? originalPayments.read.status === 'ready' : receivable.read.status === 'ready')
       ? [
-          refunded > 0
+          cancelBlockedKey !== null
             ? {
                 id: 'cancel',
                 labelKey: `salesNote.detail.cancelAction.${kind}`,
                 icon: deleteIcon,
-                onSelect: () => setNotice(t('salesNote.detail.cancelBlocked.refunded')),
+                onSelect: () => setNotice(t(cancelBlockedKey)),
               }
             : {
                 id: 'cancel',
@@ -1531,7 +1542,16 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
           outstanding={owed.outstandingAmount}
           issueDate={data.issueDate}
           today={today}
-          onClose={() => setPaying(false)}
+          onBalanceChanged={() => {
+            balanceStale.current = true
+          }}
+          onClose={() => {
+            setPaying(false)
+            if (balanceStale.current) {
+              balanceStale.current = false
+              afterPayment()
+            }
+          }}
           onRecorded={() => {
             setPaying(false)
             setNotice(t('salesNote.detail.done.recorded'))

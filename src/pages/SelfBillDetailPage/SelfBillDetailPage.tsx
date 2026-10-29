@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -333,6 +333,9 @@ function SelfBillScreen() {
 
   const [notice, setNotice] = useState<string | null>(null)
   const [paying, setPaying] = useState(false)
+  // Set by a payment refusal that says the balance moved (DA-12): the page re-reads on close,
+  // since a re-read while the dialog is open would unmount it.
+  const balanceStale = useRef(false)
   const [uploading, setUploading] = useState(false)
   const [removingId, setRemovingId] = useState<string | null>(null)
 
@@ -1047,7 +1050,19 @@ function SelfBillScreen() {
           }
           refusals={SUPPLIER_BILL_PAYMENT_REFUSALS}
           labelKeys={{ amount: 'selfBillDetail.pay.amount', date: 'selfBillDetail.pay.date' }}
-          onClose={() => setPaying(false)}
+          onBalanceChanged={() => {
+            balanceStale.current = true
+          }}
+          onClose={() => {
+            setPaying(false)
+            if (balanceStale.current) {
+              balanceStale.current = false
+              // The payable is read with the document.
+              invoice.retry()
+              receivable.retry()
+              payments.retry()
+            }
+          }}
           onRecorded={() => {
             setPaying(false)
             setNotice(t('invoiceDetails.done.recorded'))

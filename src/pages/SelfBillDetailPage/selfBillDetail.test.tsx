@@ -586,6 +586,16 @@ describe('A self-billed invoice through its own door', () => {
       ).toBeTruthy()
     })
 
+    it('reads the document again once the dialog closes after the balance moved (DA-12 review)', async () => {
+      billPaymentResponse = refusal('BILL_PAYMENT_EXCEEDS_OUTSTANDING', { outstandingAmount: 0, currency: 'OMR' })
+      const dialog = await pay()
+      expect(await within(dialog).findByText(i18n.t('invoiceDetails.pay.balanceChanged'))).toBeTruthy()
+      const reads = () => fetchMock.mock.calls.filter(([url, init]) => url === URL_BASE && ((init as RequestInit | undefined)?.method ?? 'GET') === 'GET').length
+      const before = reads()
+      fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('common.cancel') }))
+      await waitFor(() => expect(reads()).toBe(before + 1))
+    })
+
     it('says the most that can be recorded as the server names it', async () => {
       billPaymentResponse = refusal('BILL_PAYMENT_EXCEEDS_OUTSTANDING', {
         outstandingAmount: 12.5,
