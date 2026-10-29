@@ -109,6 +109,40 @@ export function addPosCustomer<T>(
   })
 }
 
+/** `PosConsumerMatchRequest`: the facts a sale's `customer.consumer` carries. */
+export type PosConsumerMatchRequest = {
+  tillId: string
+  name: string
+  contact: string | null
+  identifierScheme: string
+  identifierValue: string
+}
+
+/**
+ * `PosConsumerMatch`: the customer on file the sale would be filed against, by the sale's own
+ * matching rule; `match: 'none'` when it would make a new customer. A civil ID or passport number
+ * comes masked to a cashier.
+ */
+export type PosConsumerMatch = {
+  match: 'none' | 'identifier' | 'contact' | 'name'
+  customerId: string | null
+  name: string | null
+  sameName: boolean
+  identifierScheme: string | null
+  identifierValue: string | null
+  identifierValueMasked: boolean
+}
+
+export const POS_CUSTOMER_MATCH_PATH = `${POS_CUSTOMERS_PATH}/match`
+
+/** POST, so the buyer's ID never sits in a URL. Reads only: nothing is created. */
+export function matchPosConsumer(
+  body: PosConsumerMatchRequest,
+  signal?: AbortSignal,
+): Promise<PosConsumerMatch> {
+  return apiRequest<PosConsumerMatch>(POS_CUSTOMER_MATCH_PATH, { method: 'POST', body, signal })
+}
+
 /* ---------------------------------------------------------------------- sales */
 
 export type PosCustomerKind = 'WALK_IN' | 'CONSUMER' | 'BUSINESS' | 'GOVERNMENT'
