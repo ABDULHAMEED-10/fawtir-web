@@ -363,8 +363,8 @@ export function putReorderLevels(body: {
  * Its own movement, typed or imported; locked once anything else moves the item (a sale, a
  * delivery, a count, a write-off, a return), after which it is changed with a count.
  *
- * Reading the list needs `stock.adjust` (it is the opening screen's own permission) and is open
- * whatever the plan; the writes also need the plan's `stock` switch and stay allowed while the
+ * Reading the list and the import format needs `stock.read` and is open whatever the plan; the
+ * writes need `stock.adjust` and the plan's `stock` switch, and stay allowed while the
  * subscription is read-only. All lines or none: a refusal lists every line's problem.
  */
 export const STOCK_OPENING_PATH = `${STOCK_PATH}/opening`

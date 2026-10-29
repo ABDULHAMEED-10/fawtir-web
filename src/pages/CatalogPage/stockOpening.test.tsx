@@ -421,14 +421,31 @@ describe('Opening stock', () => {
     expect(screen.queryByRole('button', { name: 'Import from a spreadsheet' })).toBeNull()
   })
 
-  it('says so without stock.adjust, and reads nothing', async () => {
+  it('shows a stock.read reader the list without inputs, and sends no writes', async () => {
     permissions = ['stock.read']
+    open()
+    await screen.findByText('Coffee Beans · 1 kg')
+    expect(requests().map((r) => r.url)).toContain(
+      '/api/v1/stock/opening?branchId=b-main&state=NOT_SET&size=50',
+    )
+    expect(screen.queryByLabelText('Opening quantity: Coffee Beans · 1 kg')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Save opening stock' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Import from a spreadsheet' })).toBeNull()
+    // A reader is not told the plan is the reason.
+    expect(screen.queryByText(i18n.t('stock.opening.planOff'))).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Locked/ }))
+    expect(await screen.findByText('Locked by its first sale: use a count')).toBeTruthy()
+    expect(requests().some((r) => r.init?.method === 'POST')).toBe(false)
+  })
+
+  it('says so without stock.read, and reads nothing', async () => {
+    permissions = []
     open()
     expect(await screen.findByText(i18n.t('appAccess.noAccess'))).toBeTruthy()
     expect(requests().some((r) => r.url.startsWith('/api/v1/stock/opening'))).toBe(false)
   })
 
-  it('is reached from the Stock page only with stock.adjust and the plan', async () => {
+  it('is reached from the Stock page by every stock reader', async () => {
     const first = open('/stock')
     const link = await screen.findByRole('link', { name: 'Opening stock' })
     expect(link.getAttribute('href')).toBe('/stock/opening')
@@ -437,17 +454,12 @@ describe('Opening stock', () => {
     resetSharedRequests()
     forgetEntitlements()
     permissions = ['stock.read']
-    const second = open('/stock')
-    await screen.findByText(i18n.t('stock.empty'))
-    expect(screen.queryByRole('link', { name: 'Opening stock' })).toBeNull()
-    second.unmount()
-
-    resetSharedRequests()
-    forgetEntitlements()
-    permissions = ['stock.read', 'stock.adjust']
-    extra = { planFeaturesEnforced: true, planFeatures: { stock: false } }
     open('/stock')
     await screen.findByText(i18n.t('stock.empty'))
-    expect(screen.queryByRole('link', { name: 'Opening stock' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Opening stock' }).getAttribute('href')).toBe(
+      '/stock/opening',
+    )
+    // The actions beside it stay with stock.adjust.
+    expect(screen.queryByRole('button', { name: 'Count the shelves' })).toBeNull()
   })
 })

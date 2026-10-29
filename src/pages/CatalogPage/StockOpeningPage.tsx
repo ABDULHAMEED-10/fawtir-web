@@ -83,7 +83,8 @@ function problemText(t: (key: string) => string, problem: StockOpeningProblem): 
 /**
  * Opening stock (Abdul Hameed, 29 Oct 2026): what each counted item had on the shelf when the
  * company started, and optionally what one cost before VAT, for the branch chosen in the sidebar.
- * Read from `GET /v1/stock/opening`, saved all at once with `POST /v1/stock/opening` or imported
+ * Read with `stock.read` from `GET /v1/stock/opening`; typing, saving and importing need
+ * `stock.adjust` and the plan's `stock` switch. Saved all at once with `POST /v1/stock/opening` or imported
  * from the catalogue's spreadsheet (`POST /v1/stock/opening/import`). Once anything else has
  * moved an item, its opening is locked and the row says to use a count.
  *
@@ -122,7 +123,7 @@ export function StockOpeningPage() {
   }
 
   const canEdit = access.canAdjust
-  const readable = access.canRead && access.canReadOpening && branchId !== null
+  const readable = access.canRead && branchId !== null
   const listPath = readable
     ? stockOpeningPath({ branchId, state: tab, page, size: OPENING_PAGE_SIZE })
     : null
@@ -251,7 +252,7 @@ export function StockOpeningPage() {
   )
 
   if (!access.ready || branchRead.read.status === 'loading') return shell(<LoadingNotice />)
-  if (!access.canRead || !access.canReadOpening) return shell(<PermissionDeniedNotice />)
+  if (!access.canRead) return shell(<PermissionDeniedNotice />)
   if (branchRead.read.status === 'failed')
     return shell(
       <ApiReadFailure error={branchRead.read.error} retry={() => window.location.reload()} />,
@@ -259,7 +260,7 @@ export function StockOpeningPage() {
 
   return shell(
     <>
-      {!canEdit ? (
+      {!canEdit && access.holdsAdjust ? (
         <p className="rounded-md bg-surface-card p-5 text-sm font-medium text-text-tertiary">
           {t('stock.opening.planOff')}
         </p>

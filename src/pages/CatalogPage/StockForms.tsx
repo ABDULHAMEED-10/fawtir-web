@@ -61,14 +61,14 @@ export function useStockAccess(): {
   canAdjust: boolean
   canManage: boolean
   /**
-   * May read the opening stock list: `stock.adjust` whatever the plan, because the server makes
-   * it the opening screen's own permission and a read stays open without the `stock` switch.
+   * Holds `stock.adjust` whatever the plan: tells a reader apart from someone whose plan has the
+   * `stock` switch off, so only the latter is told the plan is why nothing can be set.
    */
-  canReadOpening: boolean
+  holdsAdjust: boolean
 } {
   const { entitlements, ready } = useEntitlements()
   if (!ready || entitlements === null) {
-    return { ready, canRead: false, canAdjust: false, canManage: false, canReadOpening: false }
+    return { ready, canRead: false, canAdjust: false, canManage: false, holdsAdjust: false }
   }
   const plan = planIncludes(entitlements, 'stock')
   const adjust = hasPermission(entitlements, STOCK_ADJUST)
@@ -77,7 +77,7 @@ export function useStockAccess(): {
     canRead: hasPermission(entitlements, STOCK_READ),
     canAdjust: plan && adjust,
     canManage: plan && hasPermission(entitlements, STOCK_MANAGE),
-    canReadOpening: adjust,
+    holdsAdjust: adjust,
   }
 }
 
