@@ -41,6 +41,8 @@ import { newPosKey, readPosSlip, uploadPosSlip, type PosSaleRequest } from '../.
 import { ApiError, NetworkError } from '../../api'
 import { MAX_SLIP_BYTES } from '../../lib/posSlipOutbox'
 import { BUYER_IDENTIFIER_SCHEMES } from '../../api/customers/customers'
+import { tillContact } from '../../lib/posContact'
+import { missingFieldsSentence, notEligiblePaths } from '../../lib/customerEligibility'
 import type { TillState } from '../../lib/posTill'
 
 type Ready = Extract<TillState, { status: 'ready' }>
@@ -131,7 +133,7 @@ export function PosPaymentPage() {
 }
 
 function Payment({ till }: { till: Ready }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const reference = useReferenceData() ?? DESIGN_REFERENCE
   // The sale and its discount as the sale screen left them.
@@ -155,6 +157,8 @@ function Payment({ till }: { till: Ready }) {
   const [refusal, setRefusal] = useState<unknown>(null)
   const [buyerAsked, setBuyerAsked] = useState(false)
   const [buyer, setBuyer] = useState({ name: '', scheme: 'CID', value: '', contact: '' })
+  /** Why the buyer's phone or email cannot be filed, said under the field (F-2). */
+  const [contactError, setContactError] = useState<'phone' | 'email' | null>(null)
   /** A retried sale is the same sale: same key, same time, same body (P.12). */
   const attempt = useRef<{ fingerprint: string; key: string; soldAt: string } | null>(null)
 
@@ -213,7 +217,11 @@ function Payment({ till }: { till: Ready }) {
         ? {
             kind: 'named',
             name: buyer.name.trim(),
-            contact: buyer.contact.trim() || null,
+            // An Omani number typed as eight digits goes as +968 (E.164), as the server files it.
+            contact: (() => {
+              const contact = tillContact(buyer.contact)
+              return contact.ok ? contact.value : buyer.contact.trim() || null
+            })(),
             identifierScheme: schemes.includes(buyer.scheme) ? buyer.scheme : schemes[0],
             identifierValue: buyer.value.trim(),
           }
@@ -254,6 +262,14 @@ function Payment({ till }: { till: Ready }) {
         tip,
         change,
         company,
+        buyer:
+          named && !company
+            ? {
+                name: buyer.name.trim(),
+                identifierScheme: schemes.includes(buyer.scheme) ? buyer.scheme : schemes[0],
+                identifierValue: buyer.value.trim(),
+              }
+            : null,
         payments: taken.map((entry) => ({
           method: entry.method,
           amount: entry.amount,
@@ -282,6 +298,23 @@ function Payment({ till }: { till: Ready }) {
       ? (refusal.problem.buyerIdentifierSchemes as string[])
       : [...BUYER_IDENTIFIER_SCHEMES]
   const buyerReady = buyer.name.trim() && buyer.value.trim()
+  /** The buyer's phone or email is checked before the full invoice goes (F-2). */
+  const finishNamed = () => {
+    const contact = tillContact(buyer.contact)
+    setContactError(contact.ok ? null : contact.reason)
+    if (contact.ok) void finish(true)
+  }
+  // The server's own check of the phone (`contact.mobilePhone`, E.164) is said on the field,
+  // not as the general failure.
+  const contactRefused =
+    refusal instanceof ApiError &&
+    refusal.fieldErrors.some((field) => field.field.startsWith('contact.'))
+  const contactProblem = contactError ?? (contactRefused ? 'phone' : null)
+  // A company without the address a full invoice needs (F-1): what is missing, and where to add it.
+  const notEligible =
+    refusal instanceof ApiError
+      ? notEligiblePaths({ code: refusal.code, ...refusal.problem })
+      : null
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
@@ -725,10 +758,23 @@ function Payment({ till }: { till: Ready }) {
             </div>
           </div>
 
-          {refusal ? (
+          {refusal && !contactRefused ? (
             <div role="alert" className="mx-5 mb-4 rounded-sm bg-pending-100 px-4 py-3">
               <p className="text-sm font-medium leading-[1.5] text-pending-700">
-                {t(posRefusalKey(refusal), refusalValues(refusal))}
+                {notEligible ? (
+                  <>
+                    {notEligible.length
+                      ? t('pos.refusal.CUSTOMER_NOT_INVOICE_ELIGIBLE', {
+                          missing: missingFieldsSentence(notEligible, t, i18n.language),
+                        })
+                      : t('pos.refusal.customerIncomplete')}{' '}
+                    <Link to="/pos/company" className="font-semibold underline">
+                      {t('pos.refusal.completeCompany')}
+                    </Link>
+                  </>
+                ) : (
+                  t(posRefusalKey(refusal), refusalValues(refusal))
+                )}
               </p>
             </div>
           ) : null}
@@ -774,16 +820,26 @@ function Payment({ till }: { till: Ready }) {
                 <input
                   value={buyer.contact}
                   dir="ltr"
-                  onChange={(event) => setBuyer({ ...buyer, contact: event.target.value })}
+                  onChange={(event) => {
+                    setBuyer({ ...buyer, contact: event.target.value })
+                    setContactError(null)
+                    if (contactRefused) setRefusal(null)
+                  }}
                   placeholder={t('pos.pay.optional')}
+                  aria-invalid={contactProblem ? true : undefined}
                   className={FIELD}
                 />
+                {contactProblem ? (
+                  <span role="alert" className="text-xs font-medium text-danger-700">
+                    {t(`pos.buyer.contactInvalid.${contactProblem}`)}
+                  </span>
+                ) : null}
               </Field>
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
                   disabled={!buyerReady || !covered || busy}
-                  onClick={() => void finish(true)}
+                  onClick={finishNamed}
                   className="inline-flex h-10 items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white disabled:opacity-50"
                 >
                   {t('pos.buyer.makeFull')}

@@ -495,7 +495,7 @@ function SupplierPick({
           ? t(describeApiFailure(found.read.error).key)
           : found.read.status === 'loading' || query === null
             ? t('productPicker.searching')
-            : t('productPicker.none')
+            : t('stock.delivery.noSupplier')
       }
     />
   )
