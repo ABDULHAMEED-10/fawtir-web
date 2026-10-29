@@ -9,6 +9,8 @@ import {
   deleteCatalogGroup,
   deleteCatalogKind,
   getCatalogGroups,
+  reorderCatalogGroups,
+  reorderCatalogKinds,
   updateCatalogGroup,
   updateCatalogKind,
   type CatalogGroupDto,
@@ -16,7 +18,12 @@ import {
   type CatalogKindDto,
 } from '../../api/catalog/groups'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { catalogGroupRefusal, reorderMoves } from '../../lib/catalogGroups'
+import {
+  catalogGroupRefusal,
+  orderRouteMissing,
+  reorderedRows,
+  reorderMoves,
+} from '../../lib/catalogGroups'
 import { CatalogShell } from './CatalogShell'
 import { CatalogNameModal, type CatalogNameTarget } from './CatalogNameModal'
 import { useCanManageProducts } from './ItemFormPage'
@@ -69,18 +76,29 @@ export function CatalogGroupsPage() {
     return t(message.key, message.values)
   }
 
-  // TODO(backend): no reorder route, so a move saves each row whose place changed with its own
-  // `PUT ?expectedVersion=`; a failure part way leaves the rows saved so far (INCOME.md P.40).
+  /**
+   * A move saves the whole list in its new order in one step (`PUT .../order`, backend #812,
+   * INCOME.md P.40). A server without that route answers 404, 405 or 400 with no catalogue code,
+   * and then each row whose place changed is saved with its own `PUT ?expectedVersion=`.
+   */
   const move = async (rows: (CatalogGroupDto | CatalogKindDto)[], id: string, step: -1 | 1) => {
-    const changes = reorderMoves(rows, id, step)
-    if (changes.length === 0) return
+    const next = reorderedRows(rows, id, step)
+    if (!next) return
     setBusy(true)
     setProblem(null)
     try {
-      for (const { row, sortOrder } of changes) {
-        const body = { name: row.name, nameAr: row.nameAr, sortOrder }
-        if ('kinds' in row) await updateCatalogGroup(row.id, row.version, body)
-        else await updateCatalogKind(row.id, row.version, body)
+      const body = { items: next.map((row) => ({ id: row.id, expectedVersion: row.version })) }
+      const first = rows[0]
+      try {
+        if ('kinds' in first) await reorderCatalogGroups(body)
+        else await reorderCatalogKinds(first.groupId, body)
+      } catch (error) {
+        if (!orderRouteMissing(error)) throw error
+        for (const { row, sortOrder } of reorderMoves(rows, id, step)) {
+          const fields = { name: row.name, nameAr: row.nameAr, sortOrder }
+          if ('kinds' in row) await updateCatalogGroup(row.id, row.version, fields)
+          else await updateCatalogKind(row.id, row.version, fields)
+        }
       }
     } catch (error) {
       setProblem(wordFailure(error))
@@ -106,6 +124,18 @@ export function CatalogGroupsPage() {
       setRemoving(false)
     }
   }
+
+  // Said before anything is sent: a group with kinds, or (with backend #812's counts) a kind that
+  // items on sale are filed under, cannot be deleted. The server's refusal is still worded.
+  const blocked = !removal
+    ? null
+    : removal.kind === 'group'
+      ? removal.entry.kinds.length > 0
+        ? t('catalogGroups.remove.groupBlocked', { count: removal.entry.kinds.length })
+        : null
+      : (removal.entry.productCount ?? 0) > 0
+        ? t('catalogGroups.remove.kindBlocked', { count: removal.entry.productCount })
+        : null
 
   const saved = () => {
     setDialog(null)
@@ -205,7 +235,6 @@ export function CatalogGroupsPage() {
                       >
                         {label}
                       </h2>
-                      {/* TODO(backend): the tree has no item counts, so only the kinds are counted (INCOME.md P.41). */}
                       <p className="mt-0.5 truncate text-xs font-medium text-text-quaternary">
                         {/* Isolated so a name in the other script does not reorder the count. */}
                         {other ? (
@@ -214,7 +243,13 @@ export function CatalogGroupsPage() {
                             {' · '}
                           </>
                         ) : null}
-                        {t('catalogGroups.kindCount', { count: group.kinds.length })}
+                        {t('catalogGroups.kindCount', {
+                          count: group.kindCount ?? group.kinds.length,
+                        })}
+                        {/* Item counts come with backend #812 (INCOME.md P.41); kinds alone before. */}
+                        {group.productCount !== undefined
+                          ? ` · ${t('catalogGroups.itemCount', { count: group.productCount })}`
+                          : null}
                       </p>
                     </div>
                     {moveButtons(groups, groupIndex, label)}
@@ -274,6 +309,11 @@ export function CatalogGroupsPage() {
                                 </span>
                               ) : null}
                             </span>
+                            {kind.productCount !== undefined ? (
+                              <span className="shrink-0 text-xs font-medium text-text-quaternary tabular-nums">
+                                {t('catalogGroups.itemCount', { count: kind.productCount })}
+                              </span>
+                            ) : null}
                             {moveButtons(group.kinds, kindIndex, kindLabel)}
                             {canManage ? (
                               <ActionMenu
@@ -347,22 +387,28 @@ export function CatalogGroupsPage() {
               >
                 {t('common.cancel')}
               </button>
-              <button
-                type="button"
-                onClick={() => void remove()}
-                disabled={removing}
-                className="inline-flex h-11 items-center rounded-sm bg-danger-700 px-4 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                {removing ? t('catalogGroups.remove.removing') : t('catalogGroups.remove.confirm')}
-              </button>
+              {blocked ? null : (
+                <button
+                  type="button"
+                  onClick={() => void remove()}
+                  disabled={removing}
+                  className="inline-flex h-11 items-center rounded-sm bg-danger-700 px-4 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {removing
+                    ? t('catalogGroups.remove.removing')
+                    : t('catalogGroups.remove.confirm')}
+                </button>
+              )}
             </div>
           }
         >
           <div className="flex flex-col gap-4">
             <p className="text-sm font-medium leading-[1.5] text-text-secondary">
-              {removal.kind === 'group'
-                ? t('catalogGroups.remove.groupBody')
-                : t('catalogGroups.remove.kindBody')}
+              {blocked
+                ? blocked
+                : removal.kind === 'group'
+                  ? t('catalogGroups.remove.groupBody')
+                  : t('catalogGroups.remove.kindBody')}
             </p>
             {removalProblem ? (
               <p role="alert" className="text-sm font-medium text-danger-700">

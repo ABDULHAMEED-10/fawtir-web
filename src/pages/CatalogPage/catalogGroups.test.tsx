@@ -6,6 +6,7 @@ import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitl
 import { resetSharedRequests } from '../../api'
 import { reorderMoves } from '../../lib/catalogGroups'
 import { CatalogGroupsPage } from './CatalogGroupsPage'
+import type { CatalogGroupsDto } from '../../api/catalog/groups'
 
 const reader = (permissions: string[]): Entitlements => ({
   userId: 'u-1',
@@ -26,7 +27,7 @@ const kind = (id: string, groupId: string, name: string, sortOrder: number, vers
   version,
 })
 
-const TREE = () => ({
+const TREE = (): CatalogGroupsDto => ({
   groups: [
     {
       id: 'g-hot',
@@ -50,7 +51,7 @@ const json = (body: unknown, status = 200) =>
   })
 
 let permissions: string[]
-let tree: ReturnType<typeof TREE>
+let tree: CatalogGroupsDto
 let onWrite: (url: string, init: RequestInit) => Response
 
 beforeEach(async () => {
@@ -238,7 +239,7 @@ describe('Catalog › Groups on /v1/catalog/groups', () => {
     })
   })
 
-  it('reorders by saving each group whose place changed', async () => {
+  const moveHotDown = async () => {
     open()
     await screen.findByRole('heading', { name: 'Hot drinks' })
     fireEvent.click(
@@ -246,26 +247,106 @@ describe('Catalog › Groups on /v1/catalog/groups', () => {
         name: i18n.t('catalogGroups.moveDown', { name: 'Hot drinks' }),
       }),
     )
-    await waitFor(() => expect(writes()).toHaveLength(2))
-    expect(writes()).toEqual([
-      {
-        url: '/api/v1/catalog/groups/g-cold?expectedVersion=5',
-        method: 'PUT',
-        body: { name: 'Cold drinks', nameAr: null, sortOrder: 0 },
+  }
+
+  it('reorders groups in one step with every group and its version (backend #812)', async () => {
+    await moveHotDown()
+    await waitFor(() => expect(writes()).toHaveLength(1))
+    expect(writes()[0]).toEqual({
+      url: '/api/v1/catalog/groups/order',
+      method: 'PUT',
+      body: {
+        items: [
+          { id: 'g-cold', expectedVersion: 5 },
+          { id: 'g-hot', expectedVersion: 2 },
+        ],
       },
-      {
-        url: '/api/v1/catalog/groups/g-hot?expectedVersion=2',
-        method: 'PUT',
-        body: { name: 'Hot drinks', nameAr: 'المشروبات الساخنة', sortOrder: 1 },
+    })
+    await waitFor(() => expect(groupReads().length).toBeGreaterThan(1))
+  })
+
+  it('reorders kinds within their group in one step', async () => {
+    open()
+    await screen.findByRole('heading', { name: 'Hot drinks' })
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: i18n.t('catalogGroups.moveUp', { name: 'Black coffee' }),
+      }),
+    )
+    await waitFor(() => expect(writes()).toHaveLength(1))
+    expect(writes()[0]).toEqual({
+      url: '/api/v1/catalog/groups/g-hot/kinds/order',
+      method: 'PUT',
+      body: {
+        items: [
+          { id: 'k-black', expectedVersion: 0 },
+          { id: 'k-milk', expectedVersion: 0 },
+        ],
       },
-    ])
+    })
+  })
+
+  it.each([
+    ['404, no such route', 404],
+    ['405, method not allowed', 405],
+    ['400, "order" read as a group id', 400],
+  ])(
+    'falls back to saving each moved group on a server without the order route (%s)',
+    async (_label, status) => {
+      onWrite = (url, init) =>
+        url.endsWith('/order')
+          ? json({ status }, status)
+          : json({ ...JSON.parse(String(init.body ?? '{}')), id: 'x', version: 9 })
+      await moveHotDown()
+      await waitFor(() => expect(writes()).toHaveLength(3))
+      expect(writes().slice(1)).toEqual([
+        {
+          url: '/api/v1/catalog/groups/g-cold?expectedVersion=5',
+          method: 'PUT',
+          body: { name: 'Cold drinks', nameAr: null, sortOrder: 0 },
+        },
+        {
+          url: '/api/v1/catalog/groups/g-hot?expectedVersion=2',
+          method: 'PUT',
+          body: { name: 'Hot drinks', nameAr: 'المشروبات الساخنة', sortOrder: 1 },
+        },
+      ])
+      expect(screen.queryByRole('alert')).toBeNull()
+    },
+  )
+
+  it.each([
+    ['CATALOGUE_ORDER_INVALID', 400, 'catalogGroups.refusal.orderInvalid'],
+    ['CATALOGUE_GROUP_VERSION_CONFLICT', 409, 'catalogGroups.refusal.changedMeanwhile'],
+    ['CATALOGUE_GROUP_NOT_FOUND', 404, 'catalogGroups.refusal.groupGone'],
+  ])('words %s from the order route and does not fall back', async (code, status, key) => {
+    onWrite = () => json({ status, code }, status)
+    await moveHotDown()
+    expect(await screen.findByText(i18n.t(key))).toBeTruthy()
+    expect(writes()).toHaveLength(1)
+  })
+
+  it('shows item counts when the server sends them, and kinds alone when it does not', async () => {
+    tree.groups[0] = {
+      ...tree.groups[0],
+      kindCount: 2,
+      productCount: 7,
+      kinds: [
+        { ...tree.groups[0].kinds[0], productCount: 7 },
+        { ...tree.groups[0].kinds[1], productCount: 0 },
+      ],
+    }
+    open()
+    await screen.findByRole('heading', { name: 'Hot drinks' })
     expect(
-      (
-        screen.getByRole('button', {
-          name: i18n.t('catalogGroups.moveUp', { name: 'Hot drinks' }),
-        }) as HTMLButtonElement
-      ).disabled,
-    ).toBe(true)
+      screen.getByText(
+        `${i18n.t('catalogGroups.kindCount', { count: 2 })} · ${i18n.t('catalogGroups.itemCount', { count: 7 })}`,
+        { exact: false },
+      ),
+    ).toBeTruthy()
+    expect(screen.getByText(i18n.t('catalogGroups.itemCount', { count: 0 }))).toBeTruthy()
+    // Cold drinks comes from a server without counts: kinds only.
+    expect(screen.getByText(i18n.t('catalogGroups.kindCount', { count: 0 }))).toBeTruthy()
   })
 
   it('deletes an empty group with its version', async () => {
@@ -289,17 +370,41 @@ describe('Catalog › Groups on /v1/catalog/groups', () => {
     })
   })
 
-  it('words the refusal to delete a group that still has kinds', async () => {
-    onWrite = () => json({ status: 409, code: 'CATALOGUE_GROUP_NOT_EMPTY' }, 409)
+  const openRemove = async (actions: string, item: string, name: string) => {
+    fireEvent.click(screen.getByRole('button', { name: i18n.t(actions, { name }) }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: i18n.t(item) }))
+  }
+
+  it('says up front that a group with kinds cannot be removed, and sends nothing', async () => {
     open()
     await screen.findByRole('heading', { name: 'Hot drinks' })
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: i18n.t('catalogGroups.groupActions', { name: 'Hot drinks' }),
-      }),
-    )
-    fireEvent.click(
-      await screen.findByRole('menuitem', { name: i18n.t('catalog.groupMenu.removeTheGroup') }),
+    await openRemove('catalogGroups.groupActions', 'catalog.groupMenu.removeTheGroup', 'Hot drinks')
+    expect(screen.getByText(i18n.t('catalogGroups.remove.groupBlocked', { count: 2 }))).toBeTruthy()
+    expect(
+      screen.queryByRole('button', { name: i18n.t('catalogGroups.remove.confirm') }),
+    ).toBeNull()
+    expect(writes()).toHaveLength(0)
+  })
+
+  it('says up front that a kind items on sale are filed under cannot be removed', async () => {
+    tree.groups[0].kinds[0] = { ...tree.groups[0].kinds[0], productCount: 3 }
+    open()
+    await screen.findByRole('heading', { name: 'Hot drinks' })
+    await openRemove('catalogGroups.kindActions', 'catalogGroups.removeKind', 'Milk coffee')
+    expect(screen.getByText(i18n.t('catalogGroups.remove.kindBlocked', { count: 3 }))).toBeTruthy()
+    expect(
+      screen.queryByRole('button', { name: i18n.t('catalogGroups.remove.confirm') }),
+    ).toBeNull()
+  })
+
+  it('words the refusal when a kind was added to the group meanwhile', async () => {
+    onWrite = () => json({ status: 409, code: 'CATALOGUE_GROUP_NOT_EMPTY' }, 409)
+    open()
+    await screen.findByRole('heading', { name: 'Cold drinks' })
+    await openRemove(
+      'catalogGroups.groupActions',
+      'catalog.groupMenu.removeTheGroup',
+      'Cold drinks',
     )
     fireEvent.click(screen.getByRole('button', { name: i18n.t('catalogGroups.remove.confirm') }))
     expect(await screen.findByText(i18n.t('catalogGroups.refusal.groupNotEmpty'))).toBeTruthy()

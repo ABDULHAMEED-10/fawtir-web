@@ -16,6 +16,20 @@ const REFUSALS: Record<string, { key: string; field?: 'name' }> = {
   CATALOGUE_KIND_IN_USE: { key: 'catalogGroups.refusal.kindInUse' },
   CATALOGUE_GROUP_NOT_FOUND: { key: 'catalogGroups.refusal.groupGone' },
   CATALOGUE_KIND_NOT_FOUND: { key: 'catalogGroups.refusal.kindGone' },
+  CATALOGUE_ORDER_INVALID: { key: 'catalogGroups.refusal.orderInvalid' },
+}
+
+/**
+ * A server without the order routes (backend #812) answers them 404 or 405, or 400 for
+ * `/groups/order` read as `/groups/{groupId}` with "order" as the id; none carries a catalogue
+ * code. A catalogue refusal (`CATALOGUE_ORDER_INVALID`, `..._NOT_FOUND`) is a real answer.
+ */
+export function orderRouteMissing(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    [400, 404, 405].includes(error.status) &&
+    !(error.code ?? '').startsWith('CATALOGUE_')
+  )
 }
 
 /** The sentence for a groups refusal, or null when the code is not one of these. */
@@ -32,21 +46,28 @@ export const sameCatalogName = (a: string, b: string) =>
 export const nextSortOrder = (rows: { sortOrder: number }[]) =>
   rows.reduce((top, row) => Math.max(top, row.sortOrder + 1), 0)
 
+/** Every row in its new order after moving one up (-1) or down (+1); null past either end. */
+export function reorderedRows<T extends { id: string }>(rows: T[], id: string, step: -1 | 1) {
+  const from = rows.findIndex((row) => row.id === id)
+  const to = from + step
+  if (from < 0 || to < 0 || to >= rows.length) return null
+  const next = [...rows]
+  ;[next[from], next[to]] = [next[to], next[from]]
+  return next
+}
+
 /**
- * The rows in their new order after moving one up (-1) or down (+1), each with the sort order it
- * should now carry; only the rows whose sort order changes are returned. The server has no
- * reorder route, so each changed row is saved on its own (INCOME.md P.40).
+ * The rows whose sort order changes after a move, each with the one it should now carry: the
+ * fallback for a server without the order routes, which saves each row on its own (INCOME.md
+ * P.40).
  */
 export function reorderMoves<T extends CatalogGroupDto | CatalogKindDto>(
   rows: T[],
   id: string,
   step: -1 | 1,
 ): { row: T; sortOrder: number }[] {
-  const from = rows.findIndex((row) => row.id === id)
-  const to = from + step
-  if (from < 0 || to < 0 || to >= rows.length) return []
-  const next = [...rows]
-  ;[next[from], next[to]] = [next[to], next[from]]
+  const next = reorderedRows(rows, id, step)
+  if (!next) return []
   return next
     .map((row, index) => ({ row, sortOrder: index }))
     .filter((entry) => entry.row.sortOrder !== entry.sortOrder)

@@ -24909,7 +24909,11 @@
       "groupBody": "The group is deleted for good. A group that still has kinds cannot be removed: move or remove its kinds first.",
       "kindBody": "The kind is deleted for good. A kind that items on sale are filed under cannot be removed: move those items to another kind first. Items already switched off are left without a kind.",
       "confirm": "Remove",
-      "removing": "Removing…"
+      "removing": "Removing…",
+      "groupBlocked_one": "This group still has {{count}} kind, so it cannot be removed. Move or remove the kind first.",
+      "groupBlocked_other": "This group still has {{count}} kinds, so it cannot be removed. Move or remove its kinds first.",
+      "kindBlocked_one": "{{count}} item on sale is filed under this kind, so it cannot be removed. Move it to another kind first.",
+      "kindBlocked_other": "{{count}} items on sale are filed under this kind, so it cannot be removed. Move them to another kind first."
     },
     "refusal": {
       "nameRequired": "Type a name of at most 200 characters.",
@@ -24919,7 +24923,10 @@
       "groupNotEmpty": "This group still has kinds. Move or remove its kinds first, then remove the group.",
       "kindInUse": "Items on sale are filed under this kind. Move them to another kind first, then remove it.",
       "groupGone": "This group no longer exists. The list has been reloaded.",
-      "kindGone": "This kind no longer exists. The list has been reloaded."
-    }
+      "kindGone": "This kind no longer exists. The list has been reloaded.",
+      "orderInvalid": "The new order could not be saved because the list was not complete. The list has been reloaded; try again."
+    },
+    "itemCount_one": "{{count}} item",
+    "itemCount_other": "{{count}} items"
   }
 }
