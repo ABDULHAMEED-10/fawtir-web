@@ -2367,7 +2367,7 @@
       "vatOnly": "VAT",
       "atIssue": "A draft is priced when it is issued.",
       "net": "Net amount",
-      "vatRate": "VAT · Standard {{rate}}%"
+      "vatRate": "VAT · {{category}} {{rate}}%"
     },
     "notes": {
       "title": "Notes",

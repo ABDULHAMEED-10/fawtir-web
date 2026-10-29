@@ -492,15 +492,20 @@ function InvoiceScreen() {
   const vatRates = [
     ...new Set(data.lines.map((line) => `${line.en16931Category}:${line.taxRate ?? 0}`)),
   ]
+  // One category word for the header and the totals line: the totals hard-coded "Standard" and
+  // read "VAT · Standard 0%" on a zero-rated invoice (TEST verification 2026-10-29).
+  const vatCategory = data.lines[0]
+    ? t(`invoiceDetails.category.${data.lines[0].en16931Category}`, {
+        defaultValue: data.lines[0].taxCategoryCode,
+      })
+    : ''
   const vatTreatment =
     data.lines.length === 0
       ? '—'
       : vatRates.length > 1
         ? t('invoiceDetails.vat.mixed')
         : t('invoiceDetails.vat.rate', {
-            category: t(`invoiceDetails.category.${data.lines[0].en16931Category}`, {
-              defaultValue: data.lines[0].taxCategoryCode,
-            }),
+            category: vatCategory,
             rate: data.lines[0].taxRate ?? 0,
           })
   const sentAt =
@@ -1360,7 +1365,10 @@ function InvoiceScreen() {
               ['invoiceDetails.totals.net', money(data.totals.taxableAmount), 'text-text-primary'],
               [
                 vatRates.length === 1 && data.lines[0]
-                  ? t('invoiceDetails.totals.vatRate', { rate: data.lines[0].taxRate ?? 0 })
+                  ? t('invoiceDetails.totals.vatRate', {
+                      category: vatCategory,
+                      rate: data.lines[0].taxRate ?? 0,
+                    })
                   : t('invoiceDetails.totals.vatOnly'),
                 money(data.totals.vatAmount),
                 'text-text-primary',
@@ -1670,6 +1678,18 @@ function InvoiceScreen() {
                   amount={money(owed.documentTotal)}
                   amountClassName="font-semibold text-text-primary"
                 />
+                {/* Without the credit, "Paid 0.000 of 52.500, Outstanding 42.000" did not add up. */}
+                {owed.creditedAmount > 0 ? (
+                  <>
+                    {' · '}
+                    {t('invoiceDetails.credited')}{' '}
+                    <OmAmount
+                      size="xs"
+                      amount={money(owed.creditedAmount)}
+                      amountClassName="font-semibold text-text-primary"
+                    />
+                  </>
+                ) : null}
               </span>
               <span className="inline-flex items-center gap-1">
                 {t('invoiceDetails.outstanding')}{' '}

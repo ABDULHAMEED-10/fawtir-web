@@ -646,6 +646,60 @@ describe('An invoice, wired to the API', () => {
     expect(await screen.findByText('Not found')).toBeTruthy()
   })
 
+  it('reads a malformed id (400 on the read) as not found, with nothing to retry', async () => {
+    invoiceResponse = () =>
+      json(400, { type: 'https://api.fawtir.om/problems/validation-failed', status: 400 })
+    renderInvoice()
+    expect(await screen.findByText('Not found')).toBeTruthy()
+    expect(screen.queryByText(/Some details were not accepted/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+  })
+
+  it('names the VAT category on the totals line as the header does, zero-rated included', async () => {
+    const base = invoice()
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          lines: [{ ...base.lines[0], taxCategoryCode: 'Z', en16931Category: 'Z', taxRate: 0 }],
+          totals: { ...base.totals!, vatAmount: 0, totalAmount: 54 },
+        }),
+      )
+    renderInvoice()
+    expect(await screen.findByText('VAT · Zero-rated 0%')).toBeTruthy()
+    expect(screen.queryByText(/Standard 0%/)).toBeNull()
+  })
+
+  it('names the credit in the payments footer, so paid, credited and outstanding add up', async () => {
+    receivableResponse = () =>
+      json(200, {
+        ...RECEIVABLE,
+        documentTotal: 52.5,
+        paidAmount: 0,
+        creditedAmount: 10.5,
+        outstandingAmount: 42,
+        paymentState: 'UNPAID',
+      })
+    renderInvoice()
+    const footer = await screen.findAllByText(
+      (_, element) =>
+        element?.tagName === 'SPAN' &&
+        /Paid.*of.*52\.500.*·\s*Credited.*10\.500/.test(element.textContent ?? ''),
+    )
+    expect(footer.length).toBeGreaterThan(0)
+  })
+
+  it('names no credit in the payments footer when nothing was credited', async () => {
+    renderInvoice()
+    await waitFor(() => expect(screen.getAllByText('56.700')).toHaveLength(4))
+    expect(
+      screen.queryAllByText(
+        (_, element) =>
+          element?.tagName === 'SPAN' && /Paid.*of.*·\s*Credited/.test(element.textContent ?? ''),
+      ),
+    ).toHaveLength(0)
+  })
+
   it('reads in Arabic', async () => {
     await i18n.changeLanguage('ar')
     renderInvoice()
