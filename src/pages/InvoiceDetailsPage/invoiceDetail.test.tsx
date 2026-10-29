@@ -2591,3 +2591,28 @@ describe('a payment refused because the balance moved in another tab (DA-12)', (
     await waitFor(() => expect(reads()).toBe(before + 1))
   })
 })
+
+describe('the discount column says what kind of discount it holds (DA-15)', () => {
+  const withDiscount = (discountType: 'PERCENTAGE' | 'FIXED_AMOUNT', discountValue: number) => {
+    const base = invoice()
+    invoiceResponse = () =>
+      json(200, invoice({ lines: [{ ...base.lines[0], discountType, discountValue }] }))
+  }
+
+  it('heads a fixed discount "Discount" and prints it as money', async () => {
+    withDiscount('FIXED_AMOUNT', 4)
+    renderInvoice()
+    const table = (await screen.findByRole('columnheader', { name: /^(Disc %|Discount)$/ })).closest('table')!
+    expect(within(table).getByText('Discount')).toBeTruthy()
+    expect(within(table).queryByText('Disc %')).toBeNull()
+    expect(within(table).getByText('4.000')).toBeTruthy()
+  })
+
+  it('keeps "Disc %" for a percentage', async () => {
+    withDiscount('PERCENTAGE', 10)
+    renderInvoice()
+    const table = (await screen.findByRole('columnheader', { name: /^(Disc %|Discount)$/ })).closest('table')!
+    expect(within(table).getByText('Disc %')).toBeTruthy()
+    expect(within(table).getByText('10%')).toBeTruthy()
+  })
+})

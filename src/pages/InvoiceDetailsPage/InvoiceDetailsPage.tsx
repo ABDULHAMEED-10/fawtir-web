@@ -1332,7 +1332,17 @@ function InvoiceScreen() {
                 <th className="py-2 text-start font-semibold">{t('invoiceDetails.col.vat')}</th>
                 <th className="py-2 text-start font-semibold">{t('invoiceDetails.col.qty')}</th>
                 <th className="py-2 text-start font-semibold">{t('invoiceDetails.col.unit')}</th>
-                <th className="py-2 text-start font-semibold">{t('invoiceDetails.col.disc')}</th>
+                <th className="py-2 text-start font-semibold">
+                  {/* "Disc %" only when every discount is a percentage: a fixed 4.000 under it
+                      read as 4% (DA-15, local E2E 2026-10-29). */}
+                  {t(
+                    data.lines.every(
+                      (line) => line.discountValue === 0 || line.discountType === 'PERCENTAGE',
+                    )
+                      ? 'invoiceDetails.col.disc'
+                      : 'invoiceDetails.col.discount',
+                  )}
+                </th>
                 <th className="py-2 text-end font-semibold">{t('invoiceDetails.col.total')}</th>
               </tr>
             </thead>

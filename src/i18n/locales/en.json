@@ -2359,7 +2359,8 @@
       "qty": "Qty",
       "unit": "Unit",
       "disc": "Disc %",
-      "total": "Total"
+      "total": "Total",
+      "discount": "Discount"
     },
     "totals": {
       "subtotal": "Subtotal (excl. VAT)",
