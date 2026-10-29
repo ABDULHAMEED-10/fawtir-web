@@ -9,6 +9,7 @@ import type {
 import type { ProblemFieldError } from '../api/errors'
 import { addressRequest, addressValues, blankAddress, e164, emailList, nationalPhone, type AddressField, type AddressValues } from './supplierForm'
 import * as validate from './validation'
+import { OMAN_PEPPOL_SCHEME } from './peppolParticipant'
 
 /**
  * The customer form: the full New/Edit page and the quick add in the invoice composer
@@ -192,8 +193,16 @@ export function toCustomerRequest(values: CustomerFormValues, expectedVersion?: 
   const consumer = values.type === 'CONSUMER'
   const government = values.type === 'GOVERNMENT'
   const [scheme, ...rest] = values.peppolId.trim().split(':')
+  const typed = rest.join(':').trim()
+  // Only 0248 is upper-cased: its value is an Omani VAT number, upper case by definition (OTA SA
+  // v1.0.1 §10.3.1), which the server canonicalises the same way (OmaniVatin). Every other scheme
+  // is sent as typed: upper-casing 9915:testlower sent TESTLOWER, an identifier the partner never
+  // registered (A-1, local E2E 2026-10-29).
   const participant = !consumer && values.registeredOnPeppol && values.peppolId.trim()
-    ? { scheme: scheme.trim(), value: rest.join(':').trim().toUpperCase() }
+    ? {
+        scheme: scheme.trim(),
+        value: scheme.trim() === OMAN_PEPPOL_SCHEME ? typed.toUpperCase() : typed,
+      }
     : null
   const delivery = values.sameAsInvoicing ? null : addressRequest(values.delivery)
   const org = (value: string) => (consumer ? null : orNull(value))

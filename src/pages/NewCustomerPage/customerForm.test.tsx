@@ -431,10 +431,28 @@ describe('customer form rules', () => {
     expect(customerProblems({ ...business, peppolId: 'OM1199999001' }).peppolId).toBe(
       'supplierForm.error.peppolShape',
     )
-    // What is sent is unchanged: the scheme, and the id upper-cased as before.
+    // An Omani VAT number is upper case by definition (OTA SA v1.0.1 §10.3.1), so 0248 is sent so.
     expect(
       toCustomerRequest({ ...business, peppolId: '0248:om1199999001' }).details.peppolParticipantId,
     ).toEqual({ scheme: '0248', value: 'OM1199999001' })
+  })
+
+  it('sends any other scheme value as typed, trimmed only (A-1)', () => {
+    const business = {
+      ...blankCustomerForm('BUSINESS'),
+      legalName: 'X',
+      contactPerson: 'Y',
+      vatNumber: 'OM1110309032',
+      registeredOnPeppol: true,
+    }
+    // 9915:testlower went out as TESTLOWER, another identifier than the one the partner registered.
+    expect(
+      toCustomerRequest({ ...business, peppolId: ' 9915:testlower ' }).details.peppolParticipantId,
+    ).toEqual({ scheme: '9915', value: 'testlower' })
+    expect(
+      toCustomerRequest({ ...business, peppolId: '0242:000006-TestBed.3001' }).details
+        .peppolParticipantId,
+    ).toEqual({ scheme: '0242', value: '000006-TestBed.3001' })
   })
 
   it('places refusals by model path and keeps unknown ones for a notice', () => {
