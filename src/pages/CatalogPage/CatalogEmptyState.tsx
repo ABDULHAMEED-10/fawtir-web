@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
+import { useCanManageProducts } from './ItemFormPage'
 import bagIcon from '../../assets/catalog/kind-bag.svg'
 import sparkleIcon from '../../assets/catalog/sparkle-brand.svg'
 import uploadIcon from '../../assets/catalog/upload-brand.svg'
@@ -20,6 +21,8 @@ import clockIcon from '../../assets/catalog/clock.svg'
  */
 export function CatalogEmptyState({ notice }: { notice?: ReactNode } = {}) {
   const { t } = useTranslation()
+  // Reading a menu (/v1/catalog/menu-scans) needs product.manage, so the route is offered only then.
+  const canManage = useCanManageProducts() === true
 
   return (
     <AppShell>
@@ -69,22 +72,24 @@ export function CatalogEmptyState({ notice }: { notice?: ReactNode } = {}) {
         </section>
 
         <div className="grid gap-4 lg:grid-cols-2">
-          <Route
-            badge={t('catalogEmpty.ifYouHaveAMenu')}
-            icon={uploadIcon}
-            tint="bg-pending-100"
-            title={t('catalogEmpty.uploadTitle')}
-            body={t('catalogEmpty.uploadBody')}
-            points={[
-              t('catalogEmpty.uploadPoint.formats'),
-              t('catalogEmpty.uploadPoint.languages'),
-              t('catalogEmpty.uploadPoint.flagged'),
-            ]}
-            time={t('catalogEmpty.uploadTime')}
-            cta={t('catalogEmpty.uploadCta')}
-            ctaIcon={uploadInkIcon}
-            to="/catalog/upload"
-          />
+          {canManage ? (
+            <Route
+              badge={t('catalogEmpty.ifYouHaveAMenu')}
+              icon={uploadIcon}
+              tint="bg-pending-100"
+              title={t('catalogEmpty.uploadTitle')}
+              body={t('catalogEmpty.uploadBody')}
+              points={[
+                t('catalogEmpty.uploadPoint.formats'),
+                t('catalogEmpty.uploadPoint.languages'),
+                t('catalogEmpty.uploadPoint.flagged'),
+              ]}
+              time={t('catalogEmpty.uploadTime')}
+              cta={t('catalogEmpty.uploadCta')}
+              ctaIcon={uploadInkIcon}
+              to="/catalog/upload"
+            />
+          ) : null}
           <Route
             badge={t('catalogEmpty.fullControl')}
             icon={pencilIcon}

@@ -145,7 +145,8 @@ describe('prototypes shown by default (owner decision 2026-10-08)', () => {
   it('the catalog keeps its real product list and offers the prototype tools', async () => {
     at('/catalog', <CatalogPage />)
     expect(await screen.findByText('Real Widget')).toBeTruthy()
-    expect(screen.getByRole('link', { name: i18n.t('catalog.uploadAMenu') }).getAttribute('href')).toBe('/catalog/upload')
+    // Upload a menu writes products through /v1/catalog/menu-scans, so it needs product.manage too.
+    expect(screen.queryByRole('link', { name: i18n.t('catalog.uploadAMenu') })).toBeNull()
     expect(screen.queryByText(i18n.t('catalogReal.toolsUnavailable'))).toBeNull()
     // New item saves to /v1/products, so it needs product.manage, which this reader lacks.
     expect(screen.queryByRole('link', { name: i18n.t('catalog.newItem') })).toBeNull()
@@ -157,6 +158,7 @@ describe('prototypes shown by default (owner decision 2026-10-08)', () => {
       at('/catalog', <CatalogPage />)
       expect(await screen.findByText('Real Widget')).toBeTruthy()
       expect((await screen.findByRole('link', { name: i18n.t('catalog.newItem') })).getAttribute('href')).toBe('/catalog/new')
+      expect(screen.getByRole('link', { name: i18n.t('catalog.uploadAMenu') }).getAttribute('href')).toBe('/catalog/upload')
     } finally {
       READER.permissions = READER.permissions.filter((code) => code !== 'product.manage')
     }

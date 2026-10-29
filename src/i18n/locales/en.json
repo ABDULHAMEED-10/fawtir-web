@@ -13133,12 +13133,85 @@
     "concern": {
       "lettersRead": "The price printed as {{printed}} with letter O's read as {{read}}. Worth confirming.",
       "arabicOnly": "Arabic only. Add an English name too if your invoices go out in English.",
-      "onRequest": "The menu says \"on request\" instead of a price. Put one in, or leave it."
+      "onRequest": "The menu says \"on request\" instead of a price. Put one in, or leave it.",
+      "priceMissing": "No price was printed for this one. Put one in, or untick it.",
+      "priceUnreadable": "The price printed as \"{{printed}}\" isn't a plain amount. Check it against your menu.",
+      "sizePriceUnreadable": "One of its sizes has no clear price. Sizes without a price are left out.",
+      "currencyNotOmr": "The price is printed in {{currency}}, not rials. Put in the rial price.",
+      "lowConfidence": "We weren't sure we read this line right. Compare it with your menu.",
+      "readerNote": "Something on this line was unclear. Compare it with your menu.",
+      "other": "Worth a second look against your menu."
     },
     "footer": "{{ticked}} of {{total}} ticked · {{rate}}% VAT applied to all of them. Prices read as {{currency}}",
     "discard": "Discard",
     "addItems": "Add {{count}} items",
-    "added": "Added"
+    "added": "Added",
+    "pick": {
+      "title": "Upload a menu or price list",
+      "subtitle": "We read the items and prices into a list for you to check. Nothing is added until you say so.",
+      "body": "A photo, a screenshot or a PDF of your menu, in Arabic or English. JPEG, PNG, WebP or PDF, up to 10 MB.",
+      "choose": "Choose a file",
+      "uploading": "Uploading...",
+      "wrongType": "That file type can't be read. Choose a JPEG, PNG, WebP or PDF.",
+      "tooBig": "The file is empty or bigger than 10 MB. Choose a smaller one.",
+      "invalid": "That file couldn't be taken. Check it is a JPEG, PNG, WebP or PDF up to 10 MB that opens normally."
+    },
+    "addByHand": "Add items by hand",
+    "buildFromList": "Start from a suggested list",
+    "tryAgain": "Try reading again",
+    "addedCount_one": "{{count}} item added to your catalog",
+    "addedCount_other": "{{count}} items added to your catalog",
+    "addedNote": "Each heading you kept is now a group. You can change any item from the catalog.",
+    "openCatalog": "Open the catalog",
+    "paperAlt": "Your menu as uploaded",
+    "paperLoading": "Loading your menu...",
+    "reading": {
+      "title": "Reading your menu",
+      "body": "This can take a minute or two for a long menu. Keep this page open.",
+      "elapsed": "{{seconds}} s so far"
+    },
+    "unread": {
+      "READING_UNAVAILABLE": {
+        "title": "Menu reading isn't available yet",
+        "body": "Your menu is kept. Add your items by hand, or start from a suggested list for your kind of business."
+      },
+      "READ_FAILED": {
+        "title": "We couldn't read this menu",
+        "body": "The picture may be blurred, cut off or not a menu. Try reading it again, upload a clearer one, or add your items by hand."
+      },
+      "DAILY_LIMIT": {
+        "title": "No more menu readings today",
+        "body": "You've reached today's limit for reading menus. Try again tomorrow. Your menu is kept, and you can add items by hand now."
+      },
+      "LOST": {
+        "title": "The reading took too long to come back",
+        "body": "Nothing was added. Try reading it again, or add your items by hand."
+      }
+    },
+    "rowsRefused_one": "{{count}} line couldn't be added. Fix it below; nothing was added yet.",
+    "rowsRefused_other": "{{count}} lines couldn't be added. Fix them below; nothing was added yet.",
+    "keyReused": "The list changed while it was being added. Press Add again.",
+    "adding": "Adding...",
+    "noHeading": "Items under no heading",
+    "groupNew": "New group: {{name}}",
+    "groupTarget": "Catalog group for {{heading}}",
+    "newLine": "New line",
+    "namePlaceholder": "Item name",
+    "nameOf": "Name of {{name}}",
+    "priceOf": "Price of {{name}}",
+    "removeRowOf": "Discard {{name}}",
+    "rowError": {
+      "priceRequired": "Put in a price before adding this line.",
+      "codeDuplicate": "Two lines would get the same code. Change one of them.",
+      "name": "The name is missing or not accepted.",
+      "price": "The price isn't accepted. Use a plain amount with up to 3 decimals.",
+      "sizes": "One of the sizes isn't accepted.",
+      "unit": "This unit can't be used for this item.",
+      "taxReason": "0% needs a reason. Set it to 5%, or add this item by hand with its reason.",
+      "tax": "This tax rate isn't accepted for this item.",
+      "group": "That catalog group can't take these items. Pick another.",
+      "other": "This line wasn't accepted. Check it and try again."
+    }
   },
   "buildCatalog": {
     "breadcrumb": "Build your catalog",

@@ -21,6 +21,7 @@ import chevronIcon from '../../assets/invoices/chevron.svg'
 import bagIcon from '../../assets/catalog/kind-bag.svg'
 import plusIcon from '../../assets/catalog/plus-muted.svg'
 import tickWhiteIcon from '../../assets/catalog/check-white.svg'
+import { useCanManageProducts } from './ItemFormPage'
 
 /** The choice that starts a catalogue with no template. */
 const OWN = 'own'
@@ -51,6 +52,7 @@ export function BuildCatalogPage() {
   const { t, i18n } = useTranslation()
   const reference = useReferenceData()
   const navigate = useNavigate()
+  const canManageProducts = useCanManageProducts() === true
 
   // The published template of the company's own sub business type (chosen at sign-up, changed in
   // Settings › Company). A 404 means it has none, or the company has not chosen a type.
@@ -175,12 +177,15 @@ export function BuildCatalogPage() {
             onChange={setChoice}
             options={subTypeOptions}
           />
-          <Link
-            to="/catalog/upload"
-            className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-          >
-            {t('buildCatalog.uploadInstead')}
-          </Link>
+          {/* Reading a menu needs product.manage (/v1/catalog/menu-scans). */}
+          {canManageProducts ? (
+            <Link
+              to="/catalog/upload"
+              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+            >
+              {t('buildCatalog.uploadInstead')}
+            </Link>
+          ) : null}
         </>
       }
     >
