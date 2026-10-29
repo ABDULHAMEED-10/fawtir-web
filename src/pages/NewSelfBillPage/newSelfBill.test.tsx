@@ -492,3 +492,12 @@ describe('the dedicated self-billed composer', () => {
     expect(screen.queryByRole('button', { name: 'Save draft' })).toBeNull()
   })
 })
+
+describe('the currency picker in Arabic (DB-13)', () => {
+  it('names the rial in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    renderAt('/expenditure/self-billing/new')
+    expect((await screen.findAllByText('OMR - ريال عُماني')).length).toBeGreaterThan(0)
+    expect(screen.queryByText('OMR - Omani Rial')).toBeNull()
+  })
+})
