@@ -144,6 +144,11 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
       : sold.read.status === 'ready'
         ? toBaisa(sold.read.data.tip)
         : 0
+  // "Accepted by the OTA" (P.31): the lookup's own `filing` since backend #808 (not deployed
+  // yet); from an older server, the sale read above carries it when it is made.
+  const filing =
+    sale.filing ?? (sold.read.status === 'ready' ? (sold.read.data.filing ?? null) : null)
+  const acceptedByOta = Boolean(filing?.acceptedAt)
   const back = expected ?? credit.back
   const anything = credit.items > 0
   const was = toBaisa(sale.total)
@@ -262,8 +267,12 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                   {withRial(`${paid}${paid ? ' · ' : ''}OMR ${omr(was)}`)}
                 </span>
               </span>
-              {/* TODO(backend): the lookup does not say whether the Authority accepted the
-                  invoice, so the "Accepted by the OTA" pill is not drawn (INCOME.md row P.31). */}
+              {acceptedByOta ? (
+                <span className="inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full bg-success-100 px-2.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-success-700">
+                  <span className="size-1.5 rounded-full bg-current" />
+                  {t('pos.refund.acceptedByOta')}
+                </span>
+              ) : null}
             </div>
 
             <ul>

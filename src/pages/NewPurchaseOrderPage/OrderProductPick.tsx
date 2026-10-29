@@ -20,8 +20,9 @@ const SEARCH_DELAY_MS = 250
  * The optional catalogue pick on a purchase-order line (S2): the description stays free text, and
  * a product picked here names what the line buys, so goods received on it raise the product's
  * stock. Searched on the server as the invoice's product picker searches; nothing is fetched until
- * the list is opened. The one-product read follows the pick, because only it carries the sizes and
- * options the line must choose between.
+ * the list is opened. The search asks for each row's sizes and options (`include=variants`, backend
+ * #808, INCOME.md P.24, not deployed yet), so a pick needs no other read; a server without it
+ * answers them as null, and the one-product read then follows the pick as before.
  */
 export function OrderProductPick({
   line,
@@ -47,7 +48,8 @@ export function OrderProductPick({
   }, [typed])
 
   const { branch } = useWorkingBranch()
-  const path = query === null ? null : productSearchPath(query, undefined, 0, branch?.id)
+  const path =
+    query === null ? null : productSearchPath(query, undefined, 0, branch?.id, ['variants'])
   const found = useApiRead<Page<ProductDto>>(path, () => searchProducts(path!))
   const products = found.read.status === 'ready' ? found.read.data.items : []
   const options: SelectOption[] = products.map((product) => ({
@@ -72,6 +74,11 @@ export function OrderProductPick({
       onChange={(id) => {
         const listed = products.find((candidate) => candidate.id === id)
         if (!listed) return
+        // The row already carries its sizes and options (null from an older server).
+        if (Array.isArray(listed.variants)) {
+          onPick(listed)
+          return
+        }
         getProduct(id).then(
           (product) => onPick({ ...product, effectivePrice: listed.effectivePrice }),
           (error) => onFailure(t(describeApiFailure(error).key)),

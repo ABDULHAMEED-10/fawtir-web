@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Modal, Rial } from '../../components/ui'
 import { omr, type SaleAddOn } from '../../lib/pos'
-import type { ItemChoices, PosItem, SizeChoice } from '../../lib/posShelf'
+import type { ItemChoices, PosItem, SizeChoice, StockFlag } from '../../lib/posShelf'
+import { StockBadge } from './PosStockBadge'
 
 /**
  * Choosing the size and add-ons of an item that has them (guide section 9, "Making a sale"):
@@ -66,6 +67,7 @@ export function PosChooser({
                   onClick={() => setSize(option)}
                   label={option.label}
                   note={omr(option.price)}
+                  stock={option.stock ?? null}
                 />
               ))}
             </div>
@@ -99,11 +101,14 @@ function Choice({
   onClick,
   label,
   note,
+  stock = null,
 }: {
   chosen: boolean
   onClick: () => void
   label: string
   note: string
+  /** The size's stock in the branch (backend #815): said, never blocking. */
+  stock?: StockFlag | null
 }) {
   return (
     <button
@@ -121,6 +126,7 @@ function Choice({
       <span dir="ltr" className="text-xs font-medium text-text-quaternary">
         {note}
       </span>
+      {stock ? <StockBadge flag={stock} /> : null}
     </button>
   )
 }
