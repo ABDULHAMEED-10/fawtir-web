@@ -1,6 +1,6 @@
 import { apiDownload, apiRequest, type ApiDownload } from '../client'
 import type { DiscountDto } from './drafts'
-import type { InvoiceStateDto, InvoiceTypeDto } from './list'
+import type { InvoiceSourceDto, InvoiceStateDto, InvoiceTillDto, InvoiceTypeDto } from './list'
 
 /**
  * One authored invoice, opened (`InvoiceAuthoringController`). The document, what it still owes,
@@ -117,6 +117,10 @@ export type InvoiceDetailDto = {
    * older servers and on the plain read.
    */
   warnings?: InvoiceLineWarningDto[] | null
+  /** As on the list rows: `TILL` when a till sale or refund issued it. Absent from older servers. */
+  source?: InvoiceSourceDto | null
+  /** With `source` TILL, the till that made it. */
+  till?: InvoiceTillDto | null
 }
 
 /** One line warning: `line` is the document's line number; `code` is worded by the screen. */

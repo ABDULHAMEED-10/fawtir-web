@@ -2210,7 +2210,13 @@
       "docType": {
         "all": "كل المستندات"
       },
-      "docTypeLabel": "نوع المستند"
+      "docTypeLabel": "نوع المستند",
+      "source": "المصدر",
+      "src": {
+        "all": "كل المصادر",
+        "till": "من الصندوق",
+        "other": "مصادر أخرى"
+      }
     },
     "col": {
       "invoice": "الفاتورة",
@@ -2328,7 +2334,9 @@
     "notIssuedYet": "لم تُصدر بعد",
     "bulkUnavailable": "الرفع الجماعي غير متاح بعد: لم تُبنَ واجهة الاستيراد.",
     "duplicateUnavailable": "النسخ غير متاح بعد: لا يوجد مسار لنسخ مستند.",
-    "nothingToApprove": "لا شيء بانتظار اعتمادك."
+    "nothingToApprove": "لا شيء بانتظار اعتمادك.",
+    "fromTill": "من الصندوق",
+    "fromTillNamed": "من الصندوق · {{till}}"
   },
   "invoiceDispatch": {
     "state": {
