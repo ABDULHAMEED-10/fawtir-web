@@ -821,8 +821,9 @@ function BillScreen() {
                     </p>
                     <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
                       {event.overpayment ? (
-                        // What became of an overpayment: its amount with the rial sign.
+                        // What became of an overpayment: its amount with its currency's sign.
                         <RialInText
+                          currency={event.overpayment.currency}
                           text={[
                             `¤${formatAmount(event.overpayment.amount, event.overpayment.currency, language)}`,
                             event.overpayment.rest,
@@ -1029,7 +1030,7 @@ function BillScreen() {
                 <div key={label} className="flex items-center justify-between gap-3">
                   <dt className="text-sm font-medium text-text-tertiary">{t(label)}</dt>
                   <dd className="text-end text-sm font-semibold text-text-primary">
-                    <RialInText text={value} />
+                    <RialInText text={value} currency={payables?.currencyCode ?? row.currencyCode} />
                   </dd>
                 </div>
               ))}
@@ -1271,22 +1272,24 @@ function StepDetail({ note }: { note: Note }) {
   return <NoteText note={note} />
 }
 
-/** A card value that may carry an amount: "2 · 2,759.100" gets the sign before its figure. */
-function RialInText({ text }: { text: string }) {
+/**
+ * A card value that may carry an amount: "2 · 2,759.100" gets its currency's sign before its
+ * figure, the rial's on a bill in rial and the code on any other (DB-5).
+ */
+function RialInText({ text, currency = 'OMR' }: { text: string; currency?: string }) {
   const parts = text.split('¤')
   if (parts.length === 1) return <>{text}</>
   return (
     <>
       {parts[0]}
       <span className="me-1">
-        <Rial />
+        <CurrencySign currency={currency} />
       </span>
       {parts.slice(1).join('')}
     </>
   )
 }
 
-/** Net and VAT, derived: the bill carries its total and its VAT, never a net of its own. */
 /**
  * The rial sign for a bill in rial, and the currency code for any other: the sign was drawn
  * on every bill, so a USD bill read as rial (DB-5, local E2E 2026-10-29).
@@ -1295,6 +1298,7 @@ function CurrencySign({ currency }: { currency: string }) {
   return currency === 'OMR' ? <Rial /> : <span>{currency}</span>
 }
 
+/** Net and VAT, derived: the bill carries its total and its VAT, never a net of its own. */
 function netAndVat(
   detail: BillDetailDto,
 ): [string, Record<string, unknown> | undefined, number | null][] {
@@ -1448,7 +1452,7 @@ function MatchSection({
   )
 }
 
-/** "7.400 per KG · PO-0031": the price wears the rial sign, the reference follows it. */
+/** "7.400 per KG · PO-0031": the price wears its currency's sign, the reference follows it. */
 function TileNote({ note, language, tail }: { note: Note; language: string; tail?: string }) {
   const { t } = useTranslation()
   if (note.key !== 'billDetail.match.perUnit') return <NoteText note={note} />
@@ -1457,7 +1461,7 @@ function TileNote({ note, language, tail }: { note: Note; language: string; tail
   const after = tail ?? String(values.tail ?? '')
   return (
     <>
-      <Rial />
+      <CurrencySign currency={String(values.currency ?? 'OMR')} />
       <span>
         {t('billDetail.match.perUnitText', { price, unit: values.unit })}
         {after ? ` · ${after}` : ''}
@@ -1740,7 +1744,7 @@ function PaymentTermsCard({
                   ' ',
                 )}
               >
-                <RialInText text={value} />
+                <RialInText text={value} currency={bill.currencyCode} />
               </dd>
             </div>
             {label === 'billDetail.payment.paid' && refunded > 0 ? (
@@ -1764,7 +1768,10 @@ function PaymentTermsCard({
           </p>
           {kept > 0 ? (
             <p className="text-sm font-medium text-text-tertiary">
-              <RialInText text={t('billDetail.overpaid.kept', { amount: `¤${money(kept)}` })} />
+              <RialInText
+                text={t('billDetail.overpaid.kept', { amount: `¤${money(kept)}` })}
+                currency={bill.currencyCode}
+              />
             </p>
           ) : null}
         </div>
@@ -1777,7 +1784,7 @@ function PaymentTermsCard({
             {t('billDetail.terms.saving', { date: formatDate(discount.by, language) })}
           </span>
           <span className="flex items-center gap-1 font-semibold text-text-secondary">
-            <Rial />
+            <CurrencySign currency={bill.currencyCode} />
             {money(saving)}
           </span>
         </p>

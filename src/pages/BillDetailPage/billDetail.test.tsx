@@ -3325,3 +3325,27 @@ describe('a bill payment refused because someone else paid first (DB-10)', () =>
     await waitFor(() => expect(reads()).toBe(before + 1))
   })
 })
+
+describe('a USD bill’s payment terms and saving carry its currency (DB-5 review)', () => {
+  it('names USD, never the rial sign, on the early-payment saving', async () => {
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
+    billResponse = () =>
+      json(200, {
+        ...detail({ readiness: APPROVED }),
+        bill: {
+          ...detail().bill,
+          issueDate: today,
+          currencyCode: 'USD',
+          totalIncludingVat: 273,
+          vatAmount: 13,
+          outstandingAmount: 273,
+          amountDue: 273,
+        },
+        settlement: { ...detail().settlement, currency: 'USD', billTotal: 273, outstandingAmount: 273 },
+      })
+    renderBill()
+    const saving = (await screen.findByText(/^Paying by .* saves$/)).closest('p')!
+    expect(within(saving).getByText('USD')).toBeTruthy()
+    expect(saving.querySelector('svg')).toBeNull()
+  })
+})
