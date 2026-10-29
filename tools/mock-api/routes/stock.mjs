@@ -249,7 +249,163 @@ const adjustment = (kind, body) => ({
   },
 })
 
+/* Opening stock (`/v1/stock/opening*`): the `StockOpeningPage` row shape of openapi.yaml. */
+const opening = (r, state, extra = {}) => ({
+  productId: r.productId,
+  variantId: r.variantId,
+  code: r.code,
+  variantCode: r.variantId ? `${r.code}-V` : null,
+  name: r.name,
+  nameAr: r.nameAr,
+  variantName: r.variantName,
+  variantRetired: false,
+  productActive: true,
+  keepCount: true,
+  unitCode: r.unitCode,
+  state,
+  opening: null,
+  onHand: r.onHand,
+  lockedBy: null,
+  lockedAt: null,
+  ...extra,
+})
+
+const SET_BY = { userId: 'u-1', name: 'Hafidh Saif' }
+
+const OPENINGS = [
+  opening(ROWS[5], 'NOT_SET', { onHand: null }),
+  opening(ROWS[3], 'NOT_SET', { onHand: null }),
+  opening(ROWS[4], 'SET', {
+    onHand: 84,
+    opening: {
+      quantity: 84,
+      unitCost: 2.1,
+      value: 176.4,
+      adjustmentId: 'adj-opn-1',
+      number: 'OPN-2026-000001',
+      movementId: 'mv-opn-1',
+      setAt: '2026-10-29T06:00:00Z',
+      setBy: SET_BY,
+    },
+  }),
+  opening(ROWS[1], 'LOCKED', {
+    opening: {
+      quantity: 20,
+      unitCost: 7.4,
+      value: 148,
+      adjustmentId: 'adj-opn-1',
+      number: 'OPN-2026-000001',
+      movementId: 'mv-opn-2',
+      setAt: '2026-10-20T06:00:00Z',
+      setBy: SET_BY,
+    },
+    lockedBy: 'SALE',
+    lockedAt: '2026-10-21T09:30:00Z',
+  }),
+  opening(ROWS[0], 'LOCKED', { lockedBy: 'RECEIPT', lockedAt: '2026-10-06T08:00:00Z' }),
+]
+
+const openingAnswer = (lines) => ({
+  status: 201,
+  body: {
+    adjustmentId: 'adj-opn-new',
+    number: 'OPN-2026-000002',
+    kind: 'OPENING',
+    lines,
+  },
+})
+
+const OPENING_FORMAT =
+  'code,variant_code,barcode,item,size,option,opening_quantity,opening_unit_cost\n' +
+  'BEAN-HB-1K,BEAN-HB-1K-V,,Coffee Beans 1kg - House Blend,1 kg,,20,7.400\n' +
+  'DATES-KH,,,Khalas dates 1kg,,,84,\n'
+
 export default [
+  {
+    match: '/api/v1/stock/opening/import-format',
+    reply: () => ({
+      status: 200,
+      raw: OPENING_FORMAT,
+      headers: {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': 'attachment; filename="opening-stock.csv"',
+      },
+    }),
+  },
+  {
+    method: 'POST',
+    match: '/api/v1/stock/opening/import',
+    // The multipart file is not read here: the answer is two rows set.
+    reply: () =>
+      openingAnswer(
+        [ROWS[5], ROWS[3]].map((r, index) => ({
+          row: index + 2,
+          productId: r.productId,
+          variantId: r.variantId,
+          previousQuantity: 0,
+          quantity: 10,
+          unitCost: null,
+          value: null,
+          averageCostAfter: null,
+          onHandAfter: 10,
+          movementId: `mv-opn-${index}`,
+        })),
+      ),
+  },
+  {
+    method: 'POST',
+    match: '/api/v1/stock/opening',
+    reply: ({ body }) => {
+      const items = body?.items ?? []
+      const errors = items.flatMap((item, index) => {
+        const found = OPENINGS.find(
+          (o) => o.productId === item.productId && (o.variantId ?? '') === (item.variantId ?? ''),
+        )
+        if (found?.state !== 'LOCKED') return []
+        return [
+          {
+            row: index + 1,
+            column: null,
+            productId: item.productId,
+            variantId: item.variantId ?? null,
+            code: 'STOCK_OPENING_LOCKED',
+            message: 'Use a count',
+          },
+        ]
+      })
+      if (errors.length) return { status: 409, body: { code: 'STOCK_OPENING_LOCKED', errors } }
+      return openingAnswer(
+        items.map((item, index) => ({
+          row: index + 1,
+          productId: item.productId,
+          variantId: item.variantId ?? null,
+          previousQuantity: 0,
+          quantity: item.quantity,
+          unitCost: item.unitCost ?? null,
+          value: item.unitCost === undefined ? null : item.quantity * item.unitCost,
+          averageCostAfter: item.unitCost ?? null,
+          onHandAfter: item.quantity,
+          movementId: `mv-opn-${index}`,
+        })),
+      )
+    },
+  },
+  {
+    match: '/api/v1/stock/opening',
+    reply: ({ query }) => {
+      const state = query.get('state')
+      const size = Number(query.get('size') ?? 100)
+      const page = Number(query.get('page') ?? 0)
+      const rows = OPENINGS.filter((o) => !state || o.state === state)
+      return {
+        branchId: query.get('branchId'),
+        page,
+        size,
+        totalElements: rows.length,
+        content: rows.slice(page * size, page * size + size),
+      }
+    },
+  },
   {
     match: '/api/v1/stock/summary',
     reply: ({ query }) => SUMMARY(query.get('branchId')),

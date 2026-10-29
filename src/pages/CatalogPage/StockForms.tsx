@@ -60,17 +60,24 @@ export function useStockAccess(): {
   canRead: boolean
   canAdjust: boolean
   canManage: boolean
+  /**
+   * May read the opening stock list: `stock.adjust` whatever the plan, because the server makes
+   * it the opening screen's own permission and a read stays open without the `stock` switch.
+   */
+  canReadOpening: boolean
 } {
   const { entitlements, ready } = useEntitlements()
   if (!ready || entitlements === null) {
-    return { ready, canRead: false, canAdjust: false, canManage: false }
+    return { ready, canRead: false, canAdjust: false, canManage: false, canReadOpening: false }
   }
   const plan = planIncludes(entitlements, 'stock')
+  const adjust = hasPermission(entitlements, STOCK_ADJUST)
   return {
     ready,
     canRead: hasPermission(entitlements, STOCK_READ),
-    canAdjust: plan && hasPermission(entitlements, STOCK_ADJUST),
+    canAdjust: plan && adjust,
     canManage: plan && hasPermission(entitlements, STOCK_MANAGE),
+    canReadOpening: adjust,
   }
 }
 

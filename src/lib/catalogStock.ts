@@ -14,6 +14,8 @@
 import type { TFunction } from 'i18next'
 import { ApiError } from '../api'
 import type {
+  StockOpeningItem,
+  StockOpeningState,
   StockMovementDto,
   StockRowDto,
   StockSortDto,
@@ -303,6 +305,8 @@ export function movementTitleKey(movement: Pick<StockMovementDto, 'type' | 'sour
       return movement.source.type === 'DELIVERY'
         ? 'stockItem.live.deliveryRecorded'
         : 'stockItem.deliveryCheckedIn'
+    case 'OPENING':
+      return 'stockItem.live.openingStock'
     default:
       return 'stockItem.countCorrected'
   }
@@ -332,6 +336,9 @@ export function movementNote(t: TFunction, movement: StockMovementDto, language:
     parts.push(
       t('stockItem.live.countedAs', { count: quantityText(movement.countedQuantity, language) }),
     )
+  }
+  if (movement.type === 'OPENING' && movement.unitCost !== null) {
+    parts.push(t('stockItem.live.atEach', { amount: `OMR ${omr(movement.unitCost)}` }))
   }
   if (movement.type === 'RECEIPT') {
     if (movement.supplier)
@@ -374,10 +381,59 @@ const STOCK_REFUSALS: Record<string, string> = {
   SUPPLIER_NOT_FOUND: 'stock.refused.supplierNotFound',
   SUPPLIER_ARCHIVED: 'stock.refused.supplierArchived',
   BRANCH_NOT_FOUND: 'stock.refused.branchNotFound',
+  STOCK_OPENING_LOCKED: 'stock.refused.openingLocked',
+  STOCK_OPENING_INVALID: 'stock.refused.openingInvalid',
 }
 
 /** The stock routes' own refusals in words; null for anything else (the shared wording). */
 export function stockRefusalKey(error: unknown): string | null {
   if (!(error instanceof ApiError) || error.code === null) return null
   return STOCK_REFUSALS[error.code] ?? null
+}
+
+/** One refused line's code in words (an opening's per-line problem); null when unknown. */
+export function stockRefusalKeyOf(code: string | null): string | null {
+  return code ? (STOCK_REFUSALS[code] ?? null) : null
+}
+
+/* ----------------------------------------------------------------- opening stock */
+
+export const OPENING_TABS = [
+  { id: 'NOT_SET', labelKey: 'stock.opening.tab.NOT_SET' },
+  { id: 'SET', labelKey: 'stock.opening.tab.SET' },
+  { id: 'LOCKED', labelKey: 'stock.opening.tab.LOCKED' },
+] as const satisfies readonly { id: StockOpeningState; labelKey: string }[]
+
+/** The opening's figures as typed: a quantity, and a cost each before VAT or blank. */
+export type OpeningEntry = { quantity: string; unitCost: string }
+
+/**
+ * The typed figures as the request's items, or the problem with them. A row with a cost and no
+ * quantity is a slip; a blank cost is left out, which leaves the item without an average cost.
+ */
+export function openingItems(
+  entries: { productId: string; variantId: string | null; entry: OpeningEntry }[],
+):
+  | { items: StockOpeningItem[]; problem: null }
+  | { items: null; problem: 'quantity' | 'cost' | 'costWithoutQuantity' | 'nothing' } {
+  const items: StockOpeningItem[] = []
+  for (const { productId, variantId, entry } of entries) {
+    const typedQuantity = entry.quantity.trim()
+    const costText = entry.unitCost.trim()
+    if (typedQuantity === '') {
+      if (costText !== '') return { items: null, problem: 'costWithoutQuantity' }
+      continue
+    }
+    const quantity = readQuantity(typedQuantity, { positive: false })
+    if (quantity === null) return { items: null, problem: 'quantity' }
+    const item: StockOpeningItem = { productId, quantity }
+    if (variantId) item.variantId = variantId
+    if (costText !== '') {
+      const unitCost = readQuantity(costText, { positive: false })
+      if (unitCost === null) return { items: null, problem: 'cost' }
+      item.unitCost = unitCost
+    }
+    items.push(item)
+  }
+  return items.length ? { items, problem: null } : { items: null, problem: 'nothing' }
 }

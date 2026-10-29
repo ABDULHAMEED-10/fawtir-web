@@ -12829,7 +12829,80 @@
       "levelVersionConflict": "Someone else changed this level. Close the form and try again.",
       "supplierNotFound": "That supplier is no longer on file.",
       "supplierArchived": "That supplier is switched off. Pick another one.",
-      "branchNotFound": "The branch chosen in the sidebar no longer exists."
+      "branchNotFound": "The branch chosen in the sidebar no longer exists.",
+      "openingLocked": "This item has already moved in this branch, so its opening stock is locked. Use a count instead.",
+      "openingInvalid": "Some lines have problems. Nothing was saved."
+    },
+    "opening": {
+      "title": "Opening stock",
+      "subtitle": "What each item had on the shelf when you started, and optionally what you paid for one, so the stock value starts right. Set once per item; after its first sale or movement, change it with a count.",
+      "tab": {
+        "NOT_SET": "Not set",
+        "SET": "Set",
+        "LOCKED": "Locked"
+      },
+      "tabNote": {
+        "NOT_SET": "Items with no opening stock yet. Type the quantity on hand and, if you know it, the cost of one before VAT.",
+        "SET": "Opening stock already set. It can still be corrected until the item first moves.",
+        "LOCKED": "These items have moved since their opening stock was set. Correct them with a count."
+      },
+      "empty": {
+        "NOT_SET": "Every counted item has its opening stock.",
+        "SET": "No opening stock is set yet.",
+        "LOCKED": "No opening stock is locked."
+      },
+      "col": {
+        "quantity": "Opening quantity",
+        "unitCost": "Cost each before VAT",
+        "value": "Opening value",
+        "state": "Status"
+      },
+      "quantityOf": "Opening quantity: {{name}}",
+      "unitCostOf": "Cost each: {{name}}",
+      "costOptional": "Optional",
+      "notSet": "Not set yet",
+      "setOn": "Set on {{date}}",
+      "locked": "Locked by {{movement}}: use a count",
+      "lockedBy": {
+        "SALE": "its first sale",
+        "RECEIPT": "a delivery",
+        "WRITE_OFF": "a write-off",
+        "COUNT_CORRECTION": "a count",
+        "REFUND_RETURN": "a return",
+        "OTHER": "a movement"
+      },
+      "useACount": "Count",
+      "changed_one": "{{count}} item changed",
+      "changed_other": "{{count}} items changed",
+      "save": "Save opening stock",
+      "done_one": "Opening stock {{number}} saved: {{count}} line set. The figures are updated.",
+      "done_other": "Opening stock {{number}} saved: {{count}} lines set. The figures are updated.",
+      "nothingSaved": "Nothing was saved. Fix the lines marked in red and save again.",
+      "lineProblem": "This line can't be saved as it is.",
+      "planOff": "Your plan does not include stock, so opening stock can be read here but not set.",
+      "problem": {
+        "quantity": "Type each quantity as a number of zero or more, with up to three decimals.",
+        "cost": "Type each cost before VAT as zero or more, with up to three decimals.",
+        "costWithoutQuantity": "An item has a cost but no quantity. Type its quantity too.",
+        "nothing": "Type the opening quantity of at least one item.",
+        "tooMany": "Save at most {{count}} items at a time."
+      },
+      "import": "Import from a spreadsheet",
+      "importForm": {
+        "title": "Import opening stock",
+        "subtitle": "Use the same spreadsheet as the catalogue, saved as a CSV file. Rows without opening figures are skipped.",
+        "columns": "Fill in opening_quantity and, if you know it, opening_unit_cost (before VAT). Items are found by code and variant_code, else barcode, else the item name with its size and option.",
+        "example": "Download the example",
+        "drop": "Drop a CSV file here, or click to choose one",
+        "pickFile": "Choose a CSV file first.",
+        "tooLarge": "The file is larger than 5 MB.",
+        "wrongType": "Choose a CSV file.",
+        "save": "Import",
+        "nothingImported": "Nothing was imported. Fix these rows in the file and upload it again.",
+        "row": "Row",
+        "column": "Column",
+        "problem": "Problem"
+      }
     }
   },
   "stockItem": {
@@ -12927,7 +13000,8 @@
       "countedAs": "Counted {{count}}",
       "from": "From {{supplier}}",
       "atEach": "at {{amount}} each",
-      "lastPaid": "{{amount}} on {{date}}"
+      "lastPaid": "{{amount}} on {{date}}",
+      "openingStock": "Opening stock"
     }
   },
   "priceRules": {

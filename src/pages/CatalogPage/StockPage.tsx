@@ -447,6 +447,13 @@ export function StockPage() {
     </>,
     access.canAdjust ? (
       <>
+        {/* Opening stock: what each item had when the company started (Abdul, 29 Oct 2026). */}
+        <Link
+          to="/stock/opening"
+          className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+        >
+          {t('stock.opening.title')}
+        </Link>
         <button
           type="button"
           onClick={() => setDialog('count')}
