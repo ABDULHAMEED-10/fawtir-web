@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { CatalogShell, Pill } from './CatalogShell'
+import { RialFigure } from './RialFigure'
 import {
   Combobox,
   Input,
@@ -275,9 +276,11 @@ function BundleEditor({
         <>
           {archived ? <Pill tone="neutral">{t('bundles.tab.switchedOff')}</Pill> : null}
           <Pill tone="success">
-            {withRial(
-              t('bundle.savesTheCustomer', { amount: omr(Math.max(0, working.save.amount)) }),
-            )}
+            <Trans
+              i18nKey="bundle.savesTheCustomer"
+              values={{ amount: omr(Math.max(0, working.save.amount)) }}
+              components={{ amount: <RialFigure /> }}
+            />
           </Pill>
         </>
       }
@@ -627,10 +630,20 @@ function BundleEditor({
             </div>
 
             <dl className="mt-4 overflow-hidden rounded-sm border border-border-subtle">
-              <Line label={t('bundle.partsSeparately')} value={`OMR ${omr(working.parts)}`} />
+              <Line
+                label={t('bundle.partsSeparately')}
+                value={<RialFigure>{omr(working.parts)}</RialFigure>}
+              />
               <Line
                 label={t('bundle.whatTheySave')}
-                value={`${working.save.amount < 0 ? '+' : '−'}OMR ${omr(Math.abs(working.save.amount))} · ${working.save.percent}%`}
+                value={
+                  <>
+                    <RialFigure prefix={working.save.amount < 0 ? '+' : '−'}>
+                      {omr(Math.abs(working.save.amount))}
+                    </RialFigure>
+                    {` · ${working.save.percent}%`}
+                  </>
+                }
                 tone="good"
               />
               <Line
@@ -639,9 +652,13 @@ function BundleEditor({
                     ? t('bundle.vatMixed')
                     : t('bundle.vat', { rate: working.rate })
                 }
-                value={`OMR ${omr(working.vat)}`}
+                value={<RialFigure>{omr(working.vat)}</RialFigure>}
               />
-              <Line label={t('bundle.theyPay')} value={`OMR ${omr(working.pays)}`} strong />
+              <Line
+                label={t('bundle.theyPay')}
+                value={<RialFigure>{omr(working.pays)}</RialFigure>}
+                strong
+              />
             </dl>
           </Step>
 
@@ -849,11 +866,17 @@ function BundleEditor({
                 />
                 <Row
                   label={t('bundle.revenue')}
-                  value={reportRow ? `OMR ${omr(reportRow.revenue)}` : '-'}
+                  value={reportRow ? <RialFigure>{omr(reportRow.revenue)}</RialFigure> : '-'}
                 />
                 <Row
                   label={t('bundle.givenAwayInDiscount')}
-                  value={reportRow ? `OMR ${omr(Math.max(0, reportRow.discountGiven))}` : '-'}
+                  value={
+                    reportRow ? (
+                      <RialFigure>{omr(Math.max(0, reportRow.discountGiven))}</RialFigure>
+                    ) : (
+                      '-'
+                    )
+                  }
                 />
                 {/* TODO(backend): INCOME.md BU.5. How many of a part were sold through the
                     bundle, against all its sales, is not given. */}
@@ -871,15 +894,15 @@ function BundleEditor({
       {editable ? (
         <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle bg-white px-4 py-3">
           <p className="text-sm font-medium text-text-tertiary">
-            {withRial(
-              working.make.count === null
-                ? t('bundle.footerUnlimited', { parts: parts.length, price: omr(working.before) })
-                : t('bundle.footer', {
-                    parts: parts.length,
-                    price: omr(working.before),
-                    canMake: working.make.count,
-                  }),
-            )}
+            <Trans
+              i18nKey={working.make.count === null ? 'bundle.footerUnlimited' : 'bundle.footer'}
+              values={{
+                parts: parts.length,
+                price: omr(working.before),
+                canMake: working.make.count ?? 0,
+              }}
+              components={{ amount: <RialFigure /> }}
+            />
           </p>
           <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
             <Link
@@ -1021,7 +1044,7 @@ function Line({
   strong,
 }: {
   label: string
-  value: string
+  value: React.ReactNode
   tone?: 'good'
   strong?: boolean
 }) {
@@ -1061,7 +1084,7 @@ function Row({
   tone,
 }: {
   label: string
-  value: string
+  value: React.ReactNode
   tone?: 'pending'
   /** Kept for the callers; the side cards no longer draw row dividers. */
   last?: boolean

@@ -256,6 +256,17 @@ describe('one bundle', () => {
     expect(body).not.toHaveProperty('taxRate')
   })
 
+  it('prints the rial sign, never "OMR", beside the bundle figures and in the footer', async () => {
+    open('/catalog/bundles/bun-starter')
+    expect(await screen.findByDisplayValue('Starter bundle')).toBeTruthy()
+    const footer = (await screen.findAllByText(/parts · .*before VAT/)).at(-1)!
+    expect(footer.querySelector('svg')).toBeTruthy()
+    // The sign's own screen-reader word aside, nothing on the screen reads "OMR".
+    const page = document.body.cloneNode(true) as HTMLElement
+    page.querySelectorAll('.sr-only').forEach((node) => node.remove())
+    expect(page.textContent).not.toMatch(/OMR/)
+  })
+
   it('switches a bundle off with DELETE after saving it', async () => {
     open('/catalog/bundles/bun-starter')
     await screen.findByDisplayValue('Starter bundle')

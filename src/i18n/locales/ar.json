@@ -13151,7 +13151,7 @@
     "bestMonth": "كان {{month}} أفضل شهر حتى الآن: <b>{{count}} مبيعة</b>",
     "peakHour": "قرابة خُمس {{name}} في اليوم: <b>{{hour}} هي الذروة</b>",
     "sizeNote": "<b>{{size}} يمثل {{percent}}٪</b> من كل ما بيع",
-    "addOnNote": "واحد من كل {{n}} يطلب {{taken}} · <b>{{amount}} ر.ع.</b> من {{name}} وحدها",
+    "addOnNote": "واحد من كل {{n}} يطلب {{taken}} · <b><amount>{{amount}}</amount></b> من {{name}} وحدها",
     "whereItGoes": "أين يذهب",
     "overTheCounter": "على الكاونتر",
     "onAnInvoice": "على فاتورة",
@@ -13175,7 +13175,7 @@
     },
     "nothingSold": "لم يُبع شيء في هذه الفترة",
     "asItself": "كما هو",
-    "addOnNoteNoShare": "<b>{{amount}} ر.ع.</b> من {{name}} وحدها",
+    "addOnNoteNoShare": "<b><amount>{{amount}}</amount></b> من {{name}} وحدها",
     "noAddOns": "لم تُطلب إضافات في هذه الفترة",
     "givenBack": "المُرتجع",
     "loadingChanges": "جارٍ تحميل التغييرات..."
@@ -13393,7 +13393,7 @@
     }
   },
   "bundle": {
-    "savesTheCustomer": "يوفّر للعميل {{amount}} ر.ع.",
+    "savesTheCustomer": "يوفّر للعميل <amount>{{amount}}</amount>",
     "subtitle": "عدة أشياء تبيعها أصلًا، تُجمع وتُسعّر كوحدة واحدة. بيعت <b>{{count}} مرة</b> خلال آخر ٩٠ يومًا · {{code}}",
     "subtitleNew": "عدة أشياء تبيعها أصلًا، تُجمع وتُسعّر كوحدة واحدة.",
     "step": {
@@ -13453,8 +13453,8 @@
     "givenAwayInDiscount": "الممنوح كخصم",
     "soldThisWay": "{{name}} بيعت بهذه الطريقة",
     "ofTotal": "{{count}} من {{total}}",
-    "footer": "{{parts}} أجزاء · {{price}} ر.ع. قبل الضريبة · يمكن تجهيز {{canMake}} مما لديك",
-    "footerUnlimited": "{{parts}} أجزاء · {{price}} ر.ع. قبل الضريبة · لا شيء فيها يُحسب",
+    "footer": "{{parts}} أجزاء · <amount>{{price}}</amount> قبل الضريبة · يمكن تجهيز {{canMake}} مما لديك",
+    "footerUnlimited": "{{parts}} أجزاء · <amount>{{price}}</amount> قبل الضريبة · لا شيء فيها يُحسب",
     "cancel": "إلغاء",
     "saveAndSwitchOff": "احفظ وأوقفها الآن",
     "save": "حفظ",

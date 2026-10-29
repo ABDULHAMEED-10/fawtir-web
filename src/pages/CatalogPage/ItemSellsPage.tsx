@@ -7,7 +7,8 @@ import { ItemPills, ItemReadState, useItemRecord } from './itemRecord'
 import { ChangeChips, useHistoryWords } from './itemHistory'
 import { PlainBars, HorizontalBars } from '../../components/reports/charts'
 import { SERIES } from '../../components/reports/scale'
-import { Popover, Rial, RialText } from '../../components/ui'
+import { Popover, Rial } from '../../components/ui'
+import { RialFigure } from './RialFigure'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
@@ -273,7 +274,8 @@ function ItemSells({ id, record }: { id: string; record: ReturnType<typeof useIt
                       name: (addOns.earner.name ?? '').toLowerCase(),
                     }}
                     components={{
-                      b: <RialText as="b" className="font-semibold text-text-primary" />,
+                      b: <b className="font-semibold text-text-primary" />,
+                      amount: <RialFigure />,
                     }}
                   />
                 ) : (

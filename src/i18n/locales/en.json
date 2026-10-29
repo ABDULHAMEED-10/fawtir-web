@@ -12444,7 +12444,7 @@
     "bestMonth": "{{month}} was the best month yet: <b>{{count}} sold</b>",
     "peakHour": "Nearly a fifth of the day's {{name}}: <b>{{hour}} is the peak</b>",
     "sizeNote": "<b>{{size}} is {{percent}}%</b> of everything sold",
-    "addOnNote": "One in {{n}} takes {{taken}} · <b>OMR {{amount}}</b> from {{name}} alone",
+    "addOnNote": "One in {{n}} takes {{taken}} · <b><amount>{{amount}}</amount></b> from {{name}} alone",
     "whereItGoes": "Where it goes",
     "overTheCounter": "Over the counter",
     "onAnInvoice": "On an invoice",
@@ -12468,7 +12468,7 @@
     },
     "nothingSold": "Nothing sold in this period",
     "asItself": "As it is",
-    "addOnNoteNoShare": "<b>OMR {{amount}}</b> from {{name}} alone",
+    "addOnNoteNoShare": "<b><amount>{{amount}}</amount></b> from {{name}} alone",
     "noAddOns": "No add-ons taken in this period",
     "givenBack": "Given back",
     "loadingChanges": "Loading the changes..."
@@ -12680,7 +12680,7 @@
     }
   },
   "bundle": {
-    "savesTheCustomer": "Saves the customer OMR {{amount}}",
+    "savesTheCustomer": "Saves the customer <amount>{{amount}}</amount>",
     "subtitle": "Several things you already sell, put together and priced as one. Sold <b>{{count}} times</b> in the last 90 days · {{code}}",
     "subtitleNew": "Several things you already sell, put together and priced as one.",
     "step": {
@@ -12740,8 +12740,8 @@
     "givenAwayInDiscount": "Given away in discount",
     "soldThisWay": "{{name}} sold this way",
     "ofTotal": "{{count}} of {{total}}",
-    "footer": "{{parts}} parts · OMR {{price}} before VAT · {{canMake}} can be made from what you hold",
-    "footerUnlimited": "{{parts}} parts · OMR {{price}} before VAT · nothing in it is counted",
+    "footer": "{{parts}} parts · <amount>{{price}}</amount> before VAT · {{canMake}} can be made from what you hold",
+    "footerUnlimited": "{{parts}} parts · <amount>{{price}}</amount> before VAT · nothing in it is counted",
     "cancel": "Cancel",
     "saveAndSwitchOff": "Save & switch off for now",
     "save": "Save",

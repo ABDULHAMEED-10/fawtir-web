@@ -223,6 +223,15 @@ describe('How it sells on /products/{id}/sales', () => {
     )
   })
 
+  it('prints the rial sign, never "OMR", in the add-on note', async () => {
+    open('/catalog/p-flat/sells')
+    const note = (await screen.findByText(/from extra shot alone/)).closest('p, div')!
+    expect(note.querySelector('svg')).toBeTruthy()
+    const page = document.body.cloneNode(true) as HTMLElement
+    page.querySelectorAll('.sr-only').forEach((node) => node.remove())
+    expect(page.textContent).not.toMatch(/OMR/)
+  })
+
   it('asks for a shorter window when the period changes', async () => {
     open('/catalog/p-flat/sells')
     await screen.findByText(i18n.t('itemSells.soldEach.month'))
@@ -275,7 +284,7 @@ describe('Changes on /products/{id}/history', () => {
     open('/catalog/p-flat/changes')
     expect(await screen.findByText('Hafidh Saif')).toBeTruthy()
     expect(calls()).toContain('/api/v1/products/p-flat/history?size=20')
-    expect(screen.getByText('1.238')).toBeTruthy()
+    expect(await screen.findByText('1.238')).toBeTruthy()
     expect(screen.getByText('1.333')).toBeTruthy()
     expect(screen.getByText(i18n.t('catalogReal.category.Z'))).toBeTruthy()
     // Older items begin at their creation, from the product row.
