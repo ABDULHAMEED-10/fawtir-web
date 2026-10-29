@@ -96,6 +96,7 @@ import { dueDateFor, muscatToday } from '../../lib/invoiceIssue'
 import {
   PAYMENT_REFUSALS,
   attachmentsEditable,
+  cancelBlockOf,
   dueNote,
   isDraft,
   isSelfBilled,
@@ -550,7 +551,13 @@ function InvoiceScreen() {
       adoptDispatch(null)
       dispatchRead.retry()
     } catch (error) {
-      setNotice({ body: refusalText(t, error) })
+      setNotice({ body: refusalText(t, error, noteType) })
+      // A refusal on a settlement the page did not show yet: re-read, so the menu stops offering it.
+      if (error instanceof ApiError && error.code && Object.hasOwn(CANCEL_REFUSALS, error.code)) {
+        setCancelling(false)
+        receivable.retry()
+        notes.retry()
+      }
     } finally {
       setBusy(false)
     }
@@ -713,15 +720,25 @@ function InvoiceScreen() {
       onSelect: () => void releaseHeldEmail(),
     })
   }
-  if (data.authoringState === 'ISSUED' && can(session, 'invoice.cancel')) {
+  const cancelBlock = cancelBlockOf(receivable.read, notesPath ? notes.read : null)
+  if (
+    data.authoringState === 'ISSUED' &&
+    can(session, 'invoice.cancel') &&
+    cancelBlock !== 'unknown'
+  ) {
+    // A settled document keeps the item, so the reader who looks for Cancel learns why it cannot
+    // be done instead of finding it gone; it no longer opens the confirmation.
     moreActions.push({
       id: 'cancel',
       labelKey: noteType
         ? `salesNote.detail.cancelAction.${noteType}`
         : 'invoiceDetails.actions.cancel',
       icon: deleteIcon,
-      danger: true,
-      onSelect: () => setCancelling(true),
+      danger: cancelBlock === null,
+      onSelect: () =>
+        cancelBlock === null
+          ? setCancelling(true)
+          : setNotice({ key: cancelBlockedKey(cancelBlock, noteType) }),
     })
   }
 
@@ -2242,7 +2259,27 @@ function fileKind(file: InvoiceAttachmentDto): string {
   return file.contentType.split('/').pop()?.toUpperCase() ?? ''
 }
 
-function refusalText(t: Translate, error: unknown): string {
+function cancelBlockedKey(
+  block: 'corrections' | 'payments',
+  noteType: 'CREDIT_NOTE' | 'DEBIT_NOTE' | null,
+): string {
+  if (block === 'corrections') return 'invoiceDetails.cancelBlocked.corrections'
+  return noteType ? 'invoiceDetails.cancelBlocked.paymentsOnNote' : 'invoiceDetails.cancelBlocked.payments'
+}
+
+/** The server's cancel refusals that a page read before the note or payment cannot foresee. */
+const CANCEL_REFUSALS: Record<string, 'corrections' | 'payments'> = {
+  INVOICE_CANCEL_HAS_CORRECTIONS: 'corrections',
+  INVOICE_CANCEL_HAS_PAYMENTS: 'payments',
+}
+
+function refusalText(
+  t: Translate,
+  error: unknown,
+  noteType: 'CREDIT_NOTE' | 'DEBIT_NOTE' | null = null,
+): string {
+  if (error instanceof ApiError && error.code && Object.hasOwn(CANCEL_REFUSALS, error.code))
+    return t(cancelBlockedKey(CANCEL_REFUSALS[error.code], noteType))
   if (error instanceof ApiError && error.code === 'STALE_INVOICE_VERSION')
     return t('invoiceDetails.refused.stale')
   if (error instanceof ApiError && error.code === 'INVOICE_NOT_CANCELLABLE')

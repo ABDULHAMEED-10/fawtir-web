@@ -24,6 +24,38 @@ export function isDraft(invoice: InvoiceDetailDto): boolean {
   return invoice.authoringState === 'DRAFT'
 }
 
+/** Why an issued document may not be cancelled, or `unknown` while the page cannot yet tell. */
+export type CancelBlock = 'corrections' | 'payments' | 'unknown' | null
+
+/**
+ * Cancelling an invoice that a credit note or a payment already settles left the note counted in
+ * the VAT report without its invoice and the statement with an orphan credit (A-0, TEST
+ * 2026-10-29); the server now refuses it with INVOICE_CANCEL_HAS_CORRECTIONS and
+ * INVOICE_CANCEL_HAS_PAYMENTS. The page asks the same question of what it already reads, so no
+ * request is added: the receivable's credited and paid figures (net of reversals, as the server
+ * computes them) and the notes it lists under the invoice. An issued note counts even before the
+ * receivable reflects it (a debit note does not move `creditedAmount`). Until both reads answer
+ * the answer is `unknown` and Cancel is not offered: the server would refuse anyway, and an offer
+ * withdrawn a moment later is worse than one that appears late.
+ *
+ * `notes` is `null` for a document the notes list is not read for (a credit or debit note).
+ */
+export function cancelBlockOf(
+  receivable: { status: 'loading' } | { status: 'failed' } | { status: 'ready'; data: InvoiceReceivableDto },
+  notes:
+    | { status: 'loading' }
+    | { status: 'failed' }
+    | { status: 'ready'; data: { items: readonly { authoringState: string }[] } }
+    | null,
+): CancelBlock {
+  if (receivable.status !== 'ready') return 'unknown'
+  if (notes !== null && notes.status !== 'ready') return 'unknown'
+  const issuedNote = notes?.status === 'ready' && notes.data.items.some((note) => note.authoringState === 'ISSUED')
+  if (receivable.data.creditedAmount > 0 || issuedNote) return 'corrections'
+  if (receivable.data.paidAmount > 0) return 'payments'
+  return null
+}
+
 /**
  * The status pill. Authoring state answers for everything except an issued invoice, where what
  * matters is whether it has been paid — which only the receivable read knows.

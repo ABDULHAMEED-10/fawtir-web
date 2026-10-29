@@ -122,6 +122,14 @@ const RECEIVABLE: InvoiceReceivableDto = {
   dueDate: '2026-09-30',
 }
 
+/** Nothing paid and nothing credited: the only receivable an issued invoice may be cancelled with. */
+const UNSETTLED: InvoiceReceivableDto = {
+  ...RECEIVABLE,
+  paidAmount: 0,
+  outstandingAmount: 56.7,
+  paymentState: 'UNPAID',
+}
+
 const PAYMENTS: InvoicePaymentDto[] = [
   {
     id: 'pay-1',
@@ -224,6 +232,8 @@ let fetchMock: ReturnType<typeof vi.fn>
 let invoiceResponse: () => Response
 let receivableResponse: () => Response
 let cancelResponse: () => Response
+/** The notes that correct the invoice, as `GET /authored-invoices?correctionOf=` lists them. */
+let notesResponse: () => Response
 let payResponse: () => Response
 let issueResponse: () => Response
 let dispatchResponse: () => Response
@@ -261,6 +271,7 @@ beforeEach(async () => {
   invoiceResponse = () => json(200, invoice())
   receivableResponse = () => json(200, RECEIVABLE)
   cancelResponse = () => json(200, invoice({ authoringState: 'CANCELLED', version: 5 }))
+  notesResponse = () => json(200, { content: [], page: 0, size: 50, totalElements: 0 })
   payResponse = () => json(200, PAYMENTS[0])
   issueResponse = () => json(200, invoice({ version: 5 }))
   dispatchResponse = () => json(200, NOT_SENT)
@@ -344,9 +355,8 @@ beforeEach(async () => {
     if (url === '/api/v1/settings/subscription') return subscriptionResponse()
     if (url === '/api/v1/payment-reminders/schedule')
       return json(200, { offsets: [-3, 0, 7, 14], enabled: true })
-    // The notes that correct the invoice; none in these fixtures.
-    if (url.startsWith('/api/v1/authored-invoices?'))
-      return json(200, { content: [], page: 0, size: 50, totalElements: 0 })
+    // The notes that correct the invoice; none unless a test says otherwise.
+    if (url.startsWith('/api/v1/authored-invoices?')) return notesResponse()
     if (url.startsWith('/api/v1/compliance/activity?') && method === 'GET')
       return activityListResponse()
     if (url.startsWith('/api/v1/compliance/activity/') && method === 'GET') {
@@ -593,10 +603,12 @@ describe('An invoice, wired to the API', () => {
   })
 
   it('cancels with a reason, and reads a refusal as its own sentence', async () => {
+    receivableResponse = () => json(200, UNSETTLED)
     renderInvoice()
     await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
-    // Cancelling lives in the header's overflow menu, as the design draws it.
-    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    // Cancelling lives in the header's overflow menu, as the design draws it. The menu waits on
+    // the receivable and the notes list, which decide whether Cancel may be offered (A-0).
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
     expect(await screen.findByText(/does not tell the customer/)).toBeTruthy()
     const confirm = screen.getByRole('button', { name: 'Cancel the invoice' }) as HTMLButtonElement
@@ -619,9 +631,10 @@ describe('An invoice, wired to the API', () => {
         code: 'DELIVERED_INVOICE_CANCELLATION_NOT_APPROVED',
         detail: 'no',
       })
+    receivableResponse = () => json(200, UNSETTLED)
     renderInvoice()
     await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
-    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Too late' } })
     fireEvent.click(screen.getByRole('button', { name: 'Cancel the invoice' }))
@@ -1669,6 +1682,7 @@ describe('E28: a read-only subscription hides new documents and sending (plan v4
   ])('hides Credit note, Debit note, Send, Duplicate and periodic while %s; reading stays', async (_, status) => {
     who = OWNER
     subscriptionResponse = () => json(200, status)
+    receivableResponse = () => json(200, UNSETTLED)
     renderInvoice()
     await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
     await waitFor(() => expect(subscriptionReads().length).toBeGreaterThan(0))
@@ -2285,5 +2299,134 @@ describe('Sales approval on a draft', () => {
     ).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Send for approval' })).toBeTruthy()
     expect(screen.queryByText(/Not enough people/)).toBeNull()
+  })
+})
+
+describe('Cancel is not offered on an invoice something already settles (A-0)', () => {
+  const ISSUED_CREDIT_NOTE = {
+    id: 'cn-1',
+    type: 'CREDIT_NOTE',
+    version: 1,
+    authoringState: 'ISSUED',
+    deliveryState: 'NOT_SUBMITTED',
+    customerId: 'c-1',
+    currency: 'OMR',
+    invoiceNumber: 'CRN-2026-0003',
+    issueDate: '2026-08-05',
+    dueDate: null,
+    details: null,
+    lines: [],
+    totals: { totalAmount: 10 },
+    customerName: null,
+    payment: null,
+    correctionOfInvoiceId: ID,
+  }
+
+  const openMenu = async () => {
+    renderInvoice()
+    await screen.findByRole('heading', {
+      level: 1,
+      name: i18n.t('invoiceDetails.title', { id: 'INV-2026-0042' }),
+    })
+    // Both reads decide the menu, so the menu is opened only once both have answered.
+    await waitFor(() => expect(calls()).toContain(`GET ${URL_BASE}/receivable`))
+    await waitFor(() =>
+      expect(calls().some((call) => call.startsWith('GET /api/v1/authored-invoices?'))).toBe(true),
+    )
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('invoiceDetails.actions.more') }))
+  }
+
+  it('offers Cancel on an issued invoice with no payment and no note', async () => {
+    receivableResponse = () => json(200, UNSETTLED)
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
+    expect(await screen.findByRole('dialog', { name: 'Cancel this invoice?' })).toBeTruthy()
+  })
+
+  it('does not open the cancel dialog once a credit note is issued against it, and says why', async () => {
+    receivableResponse = () => json(200, { ...UNSETTLED, creditedAmount: 10, outstandingAmount: 46.7 })
+    notesResponse = () =>
+      json(200, { content: [ISSUED_CREDIT_NOTE], page: 0, size: 50, totalElements: 1 })
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
+    expect(
+      await screen.findByText(
+        'This invoice cannot be cancelled: credit or debit notes have been issued against it.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByRole('dialog', { name: 'Cancel this invoice?' })).toBeNull()
+    expect(calls()).not.toContain(`POST ${URL_BASE}/cancel`)
+  })
+
+  it('reads an issued debit note on the list as a correction even before the balance shows it', async () => {
+    receivableResponse = () => json(200, UNSETTLED)
+    notesResponse = () =>
+      json(200, {
+        content: [{ ...ISSUED_CREDIT_NOTE, id: 'dn-1', type: 'DEBIT_NOTE', invoiceNumber: 'DBN-1' }],
+        page: 0,
+        size: 50,
+        totalElements: 1,
+      })
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
+    expect(await screen.findByText(/credit or debit notes have been issued against it/)).toBeTruthy()
+    expect(screen.queryByRole('dialog', { name: 'Cancel this invoice?' })).toBeNull()
+  })
+
+  it('does not open the cancel dialog once a payment is recorded, and says why', async () => {
+    receivableResponse = () => json(200, RECEIVABLE)
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
+    expect(
+      await screen.findByText(
+        'This invoice cannot be cancelled: payments are recorded against it.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByRole('dialog', { name: 'Cancel this invoice?' })).toBeNull()
+    expect(calls()).not.toContain(`POST ${URL_BASE}/cancel`)
+  })
+
+  it('a draft or cancelled note on the list does not block cancelling', async () => {
+    receivableResponse = () => json(200, UNSETTLED)
+    notesResponse = () =>
+      json(200, {
+        content: [
+          { ...ISSUED_CREDIT_NOTE, authoringState: 'DRAFT', invoiceNumber: null },
+          { ...ISSUED_CREDIT_NOTE, id: 'cn-2', authoringState: 'CANCELLED' },
+        ],
+        page: 0,
+        size: 50,
+        totalElements: 2,
+      })
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
+    expect(await screen.findByRole('dialog', { name: 'Cancel this invoice?' })).toBeTruthy()
+  })
+
+  it.each([
+    [
+      'en',
+      'INVOICE_CANCEL_HAS_CORRECTIONS',
+      'This invoice cannot be cancelled: credit or debit notes have been issued against it.',
+    ],
+    ['en', 'INVOICE_CANCEL_HAS_PAYMENTS', 'This invoice cannot be cancelled: payments are recorded against it.'],
+    [
+      'ar',
+      'INVOICE_CANCEL_HAS_CORRECTIONS',
+      'لا يمكن إلغاء هذه الفاتورة: صدرت عليها إشعارات دائنة أو مدينة.',
+    ],
+    ['ar', 'INVOICE_CANCEL_HAS_PAYMENTS', 'لا يمكن إلغاء هذه الفاتورة: سُجّلت عليها دفعات.'],
+  ])('a page that is out of date reads the 409 %s %s as its own sentence', async (lang, code, sentence) => {
+    // The page still believes nothing settles the invoice; the server knows better.
+    receivableResponse = () => json(200, UNSETTLED)
+    cancelResponse = () =>
+      json(409, { type: 'https://api.fawtir.om/problems/conflict', status: 409, code, detail: 'no' })
+    await i18n.changeLanguage(lang)
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: i18n.t('invoiceDetails.actions.cancel') }))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Wrong customer' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('invoiceDetails.cancel.confirm') }))
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByText('no')).toBeNull()
   })
 })

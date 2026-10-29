@@ -2573,6 +2573,11 @@
       "email": "Send by email",
       "whatsapp": "Share on WhatsApp",
       "unavailable": "Sharing needs the invoice PDF, which the server does not produce yet."
+    },
+    "cancelBlocked": {
+      "corrections": "This invoice cannot be cancelled: credit or debit notes have been issued against it.",
+      "payments": "This invoice cannot be cancelled: payments are recorded against it.",
+      "paymentsOnNote": "This note cannot be cancelled: payments are recorded against it."
     }
   },
   "createInvoice": {
