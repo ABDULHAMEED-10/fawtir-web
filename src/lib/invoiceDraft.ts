@@ -485,13 +485,17 @@ export function fromDraftResponse(
         productId: line.productId || null,
         productCode: line.productCode || null,
         description: line.description,
-        // The stored goods/service flag wins over the unit's guess when the line carries one.
+        // The stored goods/service flag decides. Without one, a consumer's line (which never sends
+        // it) reads it from the unit; a business or government line stays unchosen: the unit's guess
+        // reopened a line saved unchosen as Service and issued it as 'S' (A-12 review).
         itemType:
           line.classification?.goodsOrService === 'S'
             ? 'service'
             : line.classification?.goodsOrService === 'G'
               ? 'goods'
-              : itemTypeOfUnit(line.unitCode),
+              : customerType === 'consumer'
+                ? itemTypeOfUnit(line.unitCode)
+                : null,
         hsCode: line.classification?.hsCode ?? undefined,
         // 00000000 is CL-12-OM's "not applicable", filled by the backend: nothing was chosen.
         serviceType:
