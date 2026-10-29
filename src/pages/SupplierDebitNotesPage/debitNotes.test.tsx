@@ -10,7 +10,7 @@ import type {
   DebitNoteSummaryDto,
 } from '../../api/expenditure/notes'
 import { toDebitNoteItem } from '../../lib/supplierNoteList'
-import { debitEffect } from '../../lib/supplierDebitNotes'
+import { debitEffect, debitNoteChecks } from '../../lib/supplierDebitNotes'
 import { SupplierDebitNotesPage } from './SupplierDebitNotesPage'
 import { SupplierDebitNoteDetailPage } from '../SupplierDebitNoteDetailPage'
 
@@ -1145,5 +1145,46 @@ describe('a debit note held as a possible duplicate', () => {
     notes = [note({ heldAsDuplicate: true })]
     renderDetail()
     expect((await screen.findAllByText('محجوز كنسخة مكررة')).length).toBeGreaterThan(0)
+  })
+})
+
+describe("the debit note's check on its bill (B-12)", () => {
+  const BILL: BillRowDto = {
+    id: 'b-1',
+    source: 'PEPPOL',
+    supplierId: 's-1',
+    supplierName: 'Qalhat Marine Supplies',
+    documentTypeCode: '380',
+    supplierBillNumber: 'QMS-7781',
+    issueDate: '2026-08-20',
+    dueDate: '2026-09-19',
+    overdue: false,
+    currencyCode: 'OMR',
+    totalIncludingVat: 300,
+    vatAmount: 14.286,
+    paidAmount: 0,
+    outstandingAmount: 0,
+    purchaseOrderReference: null,
+    workflowState: 'PAID',
+    readiness: { state: 'READY', distinctApprovals: 1, required: 1, autoApproved: false },
+    match: null,
+    hold: null,
+    paymentRunReference: null,
+    paidOnTheSpot: false,
+  }
+  const fmt = {
+    money: (value: number) => value.toFixed(3),
+    date: (iso: string) => iso,
+    when: (iso: string) => iso,
+  }
+  const realBill = (bill: BillRowDto) =>
+    debitNoteChecks(note(), bill, fmt).find((check) => check.id === 'realBill')?.detailKey
+
+  it('says a bill a credit cleared is settled by credit, not paid in full', () => {
+    expect(realBill(BILL)).toBe('supplierDebitNotes.checks.realBillSettledByCredit')
+    expect(realBill({ ...BILL, paidAmount: 300 })).toBe('supplierDebitNotes.checks.realBillPaid')
+    expect(realBill({ ...BILL, outstandingAmount: 20, workflowState: 'APPROVED' })).toBe(
+      'supplierDebitNotes.checks.realBillOpen',
+    )
   })
 })

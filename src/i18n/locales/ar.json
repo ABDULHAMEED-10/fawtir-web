@@ -6204,7 +6204,8 @@
       "partPaid": "مدفوعة جزئيًا",
       "refusedClosed": "مرفوض · أُغلق بإشعار دائن",
       "suspectedDuplicate": "مكررة محتملة",
-      "confirmedDuplicate": "مكررة"
+      "confirmedDuplicate": "مكررة",
+      "settledByCredit": "مسوّاة بالرصيد الدائن"
     },
     "notice": {
       "drafts_one": "فاتورة واحدة مرفوعة أو ممسوحة بانتظار تفاصيلها، وستظهر هنا بعد تأكيدها.",
@@ -6286,7 +6287,8 @@
       "automatically": "تلقائيًا",
       "arrivedVia": "{{date}} · {{source}}",
       "notYet": "ليس بعد",
-      "paidOf": "دُفع OMR {{paid}} من OMR {{total}}"
+      "paidOf": "دُفع OMR {{paid}} من OMR {{total}}",
+      "settledByCredit": "مسوّاة بالرصيد الدائن"
     },
     "match": {
       "ordered": "المطلوب",
@@ -6397,7 +6399,8 @@
       "creditNote": "الإشعار الدائن يخفّض ما عليكم. لا شيء لاعتماده أو دفعه.",
       "release": "إفراج",
       "queryIt": "استفسر عنها",
-      "inRun": "معتمدة للدفع وضمن دفعة السداد {{run}}. تُسجَّل مدفوعة عند تسجيل الدفعة كمدفوعة."
+      "inRun": "معتمدة للدفع وضمن دفعة السداد {{run}}. تُسجَّل مدفوعة عند تسجيل الدفعة كمدفوعة.",
+      "settledByCredit": "سُوّيت بالكامل بالرصيد الدائن، ولم يُدفع شيء."
     },
     "compliance": {
       "title": "الامتثال",
@@ -8025,7 +8028,8 @@
       "summaryBeforeAccept_zero": "{{count}} أمور تستحق النظر قبل القبول.",
       "summaryBeforeAccept_two": "{{count}} أمور تستحق النظر قبل القبول.",
       "summaryBeforeAccept_few": "{{count}} أمور تستحق النظر قبل القبول.",
-      "summaryBeforeAccept_many": "{{count}} أمور تستحق النظر قبل القبول."
+      "summaryBeforeAccept_many": "{{count}} أمور تستحق النظر قبل القبول.",
+      "realBillSettledByCredit": "{{bill}} مسجّلة وسُوّيت بالكامل بالرصيد الدائن، ولم يُدفع شيء."
     },
     "reverseOnlyRefused": "مرفوض بالفعل. لا يمكن تسجيل سوى القرار المعاكس.",
     "reverseOnlyAccepted": "مقبول بالفعل. لا يمكن تسجيل سوى القرار المعاكس.",

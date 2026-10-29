@@ -9,6 +9,7 @@ import type { InboundInvoiceDto } from '../api/expenditure/inboundInvoice'
 import { canResubmit, correctionHeld } from './activityLedger'
 import { tddReportStateOf } from './taxAuthorityReport'
 import { duplicateCheckOf, heldAsDuplicate } from './billDuplicate'
+import { settledWithoutPayment } from './billList'
 
 /**
  * One supplier bill, opened (Figma 86:16520), written only from what `GET /bills/{id}` carries.
@@ -136,7 +137,9 @@ export function stepsOf(detail: BillDetailDto, format: DateFormat): BillStep[] {
     labelKey: 'billDetail.steps.paid',
     state: paid ? 'done' : 'upcoming',
     detail: paid
-      ? lastPayment?.paymentDate
+      ? settledWithoutPayment(settlement)
+        ? { key: 'billDetail.steps.settledByCredit' }
+        : lastPayment?.paymentDate
         ? { key: 'billDetail.steps.paidOn', values: { date: format.day(lastPayment.paymentDate) } }
         : null
       : partPaid
@@ -278,7 +281,12 @@ export function decisionNoteOf(detail: BillDetailDto): Note {
   if (duplicate?.state === 'confirmed') return { key: `billDetail.duplicate.decision.confirmed${kind}` }
   if (duplicate?.state === 'suspected') return { key: `billDetail.duplicate.decision.suspected${kind}` }
   if (isCreditNote(detail)) return { key: 'billDetail.decision.creditNote' }
-  if (settlement.paymentState === 'PAID') return { key: 'billDetail.decision.paid' }
+  if (settlement.paymentState === 'PAID')
+    return {
+      key: settledWithoutPayment(settlement)
+        ? 'billDetail.decision.settledByCredit'
+        : 'billDetail.decision.paid',
+    }
   // A refused debit note says its refusal, as its own page does, whatever approval it went through.
   if (refusedDebitNote(detail)) return { key: 'supplierDebitNotes.detail.refusedBody' }
   // Not payable until accepted (owner, 10 Oct 2026): what to do first, in place of the approval.

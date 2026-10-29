@@ -1,7 +1,15 @@
 import type { DebitNoteDecisionDto, DebitNoteRowDto } from '../api/expenditure/notes'
 import type { BillRowDto } from '../api/expenditure/bills'
-import { workflowStateOf } from './billList'
+import { settledWithoutPayment, workflowStateOf } from './billList'
 import type { NoteActivity, NoteFormat } from './supplierCreditNotes'
+
+/** Open, paid, or cleared by credit with nothing paid, which "paid in full" misread (B-12). */
+function realBillKey(bill: BillRowDto): string {
+  if (bill.outstandingAmount > 0) return 'supplierDebitNotes.checks.realBillOpen'
+  return settledWithoutPayment(bill)
+    ? 'supplierDebitNotes.checks.realBillSettledByCredit'
+    : 'supplierDebitNotes.checks.realBillPaid'
+}
 
 /**
  * Debit notes a supplier issued to us: Expenditure > Debit notes (Figma 163:21057, 163:20010,
@@ -128,10 +136,7 @@ export function debitNoteChecks(
     checks.push({
       id: 'realBill',
       titleKey: 'supplierDebitNotes.checks.realBill',
-      detailKey:
-        bill.outstandingAmount > 0
-          ? 'supplierDebitNotes.checks.realBillOpen'
-          : 'supplierDebitNotes.checks.realBillPaid',
+      detailKey: realBillKey(bill),
       values: {
         bill: bill.supplierBillNumber ?? named ?? '',
         outstanding: fmt.money(bill.outstandingAmount),
@@ -257,10 +262,7 @@ export function intakeChecks({
       ? {
           id: 'realBill',
           titleKey: 'supplierDebitNotes.checks.realBill',
-          detailKey:
-            bill.outstandingAmount > 0
-              ? 'supplierDebitNotes.checks.realBillOpen'
-              : 'supplierDebitNotes.checks.realBillPaid',
+          detailKey: realBillKey(bill),
           values: {
             bill: bill.supplierBillNumber ?? '',
             outstanding: fmt.money(bill.outstandingAmount),

@@ -5916,7 +5916,8 @@
       "partPaid": "Part paid",
       "refusedClosed": "Refused · closed by credit note",
       "suspectedDuplicate": "Possible duplicate",
-      "confirmedDuplicate": "Duplicate"
+      "confirmedDuplicate": "Duplicate",
+      "settledByCredit": "Settled by credit"
     },
     "notice": {
       "drafts_one": "{{count}} uploaded or scanned bill is waiting for its details. It appears here once confirmed.",
@@ -5994,7 +5995,8 @@
       "automatically": "Automatically",
       "arrivedVia": "{{date}} · {{source}}",
       "notYet": "Not yet",
-      "paidOf": "Paid OMR {{paid}} of OMR {{total}}"
+      "paidOf": "Paid OMR {{paid}} of OMR {{total}}",
+      "settledByCredit": "Settled by credit"
     },
     "match": {
       "ordered": "Ordered",
@@ -6097,7 +6099,8 @@
       "creditNote": "A credit note lowers what you owe. There is nothing to approve or pay on it.",
       "release": "Release",
       "queryIt": "Query it",
-      "inRun": "Approved for payment and in payment run {{run}}. It is paid when the run is marked paid."
+      "inRun": "Approved for payment and in payment run {{run}}. It is paid when the run is marked paid.",
+      "settledByCredit": "Settled in full by credit. Nothing was paid."
     },
     "compliance": {
       "title": "Compliance",
@@ -7629,7 +7632,8 @@
         "rejected": "Received over Peppol and validated. Receipt report turned down.",
         "notSubmitted": "Received over Peppol and validated. Receipt not reported yet.",
         "unavailable": "Received over Peppol and validated. Receipt report status not available yet."
-      }
+      },
+      "realBillSettledByCredit": "{{bill}} is on file and settled in full by credit, with nothing paid."
     },
     "reverseOnlyRefused": "Already refused. Only the opposite decision can be recorded.",
     "reverseOnlyAccepted": "Already accepted. Only the opposite decision can be recorded.",
