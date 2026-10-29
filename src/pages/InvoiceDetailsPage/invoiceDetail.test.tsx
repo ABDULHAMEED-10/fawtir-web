@@ -427,6 +427,10 @@ describe('An invoice, wired to the API', () => {
     expect((await screen.findAllByText('Partially paid')).length).toBeGreaterThan(0)
     expect(screen.getAllByText('Sohar Port Logistics').length).toBeGreaterThan(0)
     expect(screen.getAllByText('VAT OM1100999001').length).toBeGreaterThan(0)
+    // There is no /customers/:id route; the catch-all sent this link to the marketing home.
+    expect((await screen.findByRole('link', { name: /View customer/ })).getAttribute('href')).toBe(
+      '/customers/c-1/edit',
+    )
     // The branch and the terms are on the page and again on the preview's paper.
     expect(screen.getAllByText('Head office').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Net 30 days').length).toBeGreaterThan(0)

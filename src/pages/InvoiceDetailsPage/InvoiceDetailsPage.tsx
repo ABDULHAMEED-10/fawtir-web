@@ -1108,7 +1108,7 @@ function InvoiceScreen() {
             action={
               can(session, 'customer.read') && customer.read.status === 'ready' ? (
                 <Link
-                  to={`/customers/${data.customerId}`}
+                  to={`/customers/${data.customerId}/edit`}
                   className="inline-flex items-center gap-0.5 text-base font-semibold text-primary-800"
                 >
                   {t(party.view)}

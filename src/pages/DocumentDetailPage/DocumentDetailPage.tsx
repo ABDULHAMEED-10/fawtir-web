@@ -81,11 +81,11 @@ const RELATES_ICON: Record<ArchiveRelation['kind'], string> = {
 const relationPath = (relation: ArchiveRelation): string | null => {
   switch (relation.kind) {
     case 'CUSTOMER':
-      return `/customers/${relation.id}`
+      return `/customers/${relation.id}/edit`
     case 'SUPPLIER':
       return `/suppliers/${relation.id}`
     case 'INVOICE':
-      return `/income/invoices/${relation.id}`
+      return `/invoices/${relation.id}`
     default:
       return null
   }

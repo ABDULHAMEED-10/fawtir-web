@@ -497,7 +497,7 @@ function ScheduleComposer({ id }: { id: string | null }) {
             id: 'customer',
             labelKey: 'periodicInvoice.openCustomer',
             icon: viewIcon,
-            to: `/customers/${customerId}`,
+            to: `/customers/${customerId}/edit`,
           },
         ]
       : []),
@@ -642,7 +642,7 @@ function ScheduleComposer({ id }: { id: string | null }) {
                     <img src={customerLogo} alt="" className="size-12 rounded-sm object-cover" />
                     <div className="min-w-0">
                       <Link
-                        to={`/customers/${customerId}`}
+                        to={`/customers/${customerId}/edit`}
                         className="block truncate text-base font-medium leading-[1.2] text-text-primary hover:text-primary-700 hover:underline"
                       >
                         {customerName ?? t('periodicInvoice.openCustomer')}

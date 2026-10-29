@@ -287,7 +287,7 @@ function renderAt(path: string) {
         <Route path="/income/periodic/:id" element={<PeriodicInvoicePage mode="view" />} />
         <Route path="/income/periodic/:id/edit" element={<PeriodicInvoicePage mode="edit" />} />
         <Route path="/invoices/:id" element={<p>invoice page</p>} />
-        <Route path="/customers/:id" element={<p>customer page</p>} />
+        <Route path="/customers/:id/edit" element={<p>customer page</p>} />
         <Route path="/login" element={<p>sign-in page</p>} />
       </Routes>
     </MemoryRouter>,
@@ -391,12 +391,16 @@ describe('Periodic invoices, wired to the API', () => {
     expect(await screen.findByDisplayValue('Cappuccino - Large')).toBeTruthy()
     expect(screen.getByDisplayValue('PO-88213')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Muscat Grand Hotel' }).getAttribute('href')).toBe(
-      '/customers/cus-1',
+      '/customers/cus-1/edit',
     )
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
     expect(
       (await screen.findByRole('menuitem', { name: 'Open the invoice' })).getAttribute('href'),
     ).toBe('/invoices/inv-1')
+    // No /customers/:id route exists: the record page is the only place a customer opens.
+    expect(screen.getByRole('menuitem', { name: 'Open the customer' }).getAttribute('href')).toBe(
+      '/customers/cus-1/edit',
+    )
     expect(screen.getByText('Summary invoice')).toBeTruthy()
     expect(screen.getByText('1 draft raised')).toBeTruthy()
     expect(screen.getByText('Draft raised')).toBeTruthy()
