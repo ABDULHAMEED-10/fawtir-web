@@ -166,7 +166,8 @@ function doc(spec) {
   const totals = spec.state === 'DRAFT' ? null : priced(spec.lines)
   const receivable =
     spec.state === 'ISSUED' && (spec.type === 'INVOICE' || spec.type === 'DEBIT_NOTE')
-  const paid = spec.paid ?? 0
+  // A till sale is paid in full at the counter.
+  const paid = spec.paidInFull && totals ? totals.totalAmount : (spec.paid ?? 0)
   const credited = spec.credited ?? 0
   const outstanding = totals ? scale(totals.totalAmount - paid - credited) : null
   const overdue = receivable && outstanding > 0 && spec.dueDate < TODAY
@@ -189,6 +190,9 @@ function doc(spec) {
     credited,
   }
 }
+
+/** The till that made the two till documents below. */
+const TILL = { id: 'till-main-1', code: 'T01', name: 'Front counter' }
 
 const DOCS = [
   doc({
@@ -455,6 +459,47 @@ const DOCS = [
     paid: 58.59,
     updatedAt: '2026-09-14T08:00:00Z',
   }),
+  // A till sale and its refund (InvoiceResponse.source TILL): the list marks both From the till.
+  doc({
+    id: 'inv-t0001',
+    number: 'MAIN-T01-INV-2026-000001',
+    type: 'INVOICE',
+    state: 'ISSUED',
+    delivery: 'NOT_SUBMITTED',
+    customerId: 'c-aisha',
+    branchId: 'b-main',
+    issueDate: '2026-09-24',
+    dueDate: '2026-09-24',
+    deliveryDate: '2026-09-24',
+    subject: null,
+    po: null,
+    note: null,
+    internal: null,
+    lines: [line(1, 'cappuccino', 2), line(2, 'pastry', 1)],
+    paidInFull: true,
+    till: TILL,
+    updatedAt: '2026-09-24T08:12:00Z',
+  }),
+  doc({
+    id: 'crn-t0001',
+    number: 'MAIN-T01-CRN-2026-000001',
+    type: 'CREDIT_NOTE',
+    state: 'ISSUED',
+    delivery: 'NOT_SUBMITTED',
+    correctionOf: 'inv-t0001',
+    customerId: 'c-aisha',
+    branchId: 'b-main',
+    issueDate: '2026-09-24',
+    dueDate: '2026-09-24',
+    deliveryDate: null,
+    subject: null,
+    po: null,
+    note: null,
+    internal: null,
+    lines: [line(1, 'pastry', 1)],
+    till: TILL,
+    updatedAt: '2026-09-24T08:40:00Z',
+  }),
 ]
 
 const byId = (id) => DOCS.find((d) => d.id === id)
@@ -499,6 +544,8 @@ function row(d) {
       : null,
     correctionOfInvoiceId: d.correctionOf ?? null,
     correctionOfInvoiceNumber: d.correctionOf ? (byId(d.correctionOf)?.number ?? null) : null,
+    source: d.till ? 'TILL' : 'OTHER',
+    till: d.till ?? null,
   }
 }
 
@@ -774,6 +821,7 @@ function listRows(query) {
   const customerId = query.get('customer_id')
   const sort = query.get('sort') ?? 'UPDATED'
   const approval = query.get('approval')
+  const source = query.get('source')
   let rows = DOCS.filter((d) => d.state !== 'DISCARDED')
   if (states) rows = rows.filter((d) => states.includes(d.state))
   if (payment === 'AWAITING')
@@ -786,6 +834,8 @@ function listRows(query) {
   if (correctionOf) rows = rows.filter((d) => d.correctionOf === correctionOf)
   if (customerId) rows = rows.filter((d) => d.customerId === customerId)
   if (approval) rows = rows.filter((d) => d.state === 'DRAFT' && approvalStateOf(d.id) === approval)
+  if (source === 'TILL') rows = rows.filter((d) => d.till)
+  if (source === 'OTHER') rows = rows.filter((d) => !d.till)
   if (q)
     rows = rows.filter(
       (d) =>

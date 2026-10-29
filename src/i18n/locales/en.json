@@ -2084,7 +2084,13 @@
       "docType": {
         "all": "All documents"
       },
-      "docTypeLabel": "Doc Type"
+      "docTypeLabel": "Doc Type",
+      "source": "Source",
+      "src": {
+        "all": "All sources",
+        "till": "From the till",
+        "other": "Other"
+      }
     },
     "col": {
       "invoice": "Invoice",
@@ -2190,7 +2196,9 @@
     "notIssuedYet": "Not issued yet",
     "bulkUnavailable": "Bulk upload is not available yet: the import endpoint has not been built.",
     "duplicateUnavailable": "Duplicating is not available yet: there is no route to copy a document.",
-    "nothingToApprove": "Nothing is waiting for your approval."
+    "nothingToApprove": "Nothing is waiting for your approval.",
+    "fromTill": "From the till",
+    "fromTillNamed": "From the till · {{till}}"
   },
   "invoiceDispatch": {
     "state": {
