@@ -29,7 +29,8 @@ export type CashDto = {
 }
 
 export type VatRowDto = {
-  side: 'OUTPUT' | 'INPUT' | 'NET'
+  /** `INPUT_WITHOUT_OMR_VAT`: input VAT whose rial figure is not known, never netted. */
+  side: 'OUTPUT' | 'INPUT' | 'NET' | 'INPUT_WITHOUT_OMR_VAT'
   currency: string
   vatAmount: Amount
 }
