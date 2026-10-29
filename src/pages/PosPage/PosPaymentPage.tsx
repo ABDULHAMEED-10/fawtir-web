@@ -213,11 +213,6 @@ function Payment({ till }: { till: Ready }) {
 
   const finish = async (named = false) => {
     if (busy) return
-    if (named) {
-      const contact = tillContact(buyer.contact)
-      setContactError(contact.ok ? null : contact.reason)
-      if (!contact.ok) return
-    }
     setBusy(true)
     setRefusal(null)
     const { payments, tip: tipPart } = paymentsRequest(taken, tip)
@@ -271,14 +266,6 @@ function Payment({ till }: { till: Ready }) {
       till.retry()
       navigate('/pos/done')
     } catch (error) {
-      // The server's own check of the phone (`contact.mobilePhone`, E.164) is said on the field.
-      if (
-        error instanceof ApiError &&
-        error.fieldErrors.some((field) => field.field.startsWith('contact.'))
-      ) {
-        setContactError('phone')
-        return
-      }
       setRefusal(error)
       const code = refusalCode(error)
       if (code === 'SIMPLIFIED_INVOICE_LIMIT' || code === 'BUYER_IDENTIFIER_REQUIRED') {
@@ -294,6 +281,18 @@ function Payment({ till }: { till: Ready }) {
       ? (refusal.problem.buyerIdentifierSchemes as string[])
       : [...BUYER_IDENTIFIER_SCHEMES]
   const buyerReady = buyer.name.trim() && buyer.value.trim()
+  /** The buyer's phone or email is checked before the full invoice goes (F-2). */
+  const finishNamed = () => {
+    const contact = tillContact(buyer.contact)
+    setContactError(contact.ok ? null : contact.reason)
+    if (contact.ok) void finish(true)
+  }
+  // The server's own check of the phone (`contact.mobilePhone`, E.164) is said on the field,
+  // not as the general failure.
+  const contactRefused =
+    refusal instanceof ApiError &&
+    refusal.fieldErrors.some((field) => field.field.startsWith('contact.'))
+  const contactProblem = contactError ?? (contactRefused ? 'phone' : null)
   // A company without the address a full invoice needs (F-1): what is missing, and where to add it.
   const notEligible =
     refusal instanceof ApiError
@@ -741,7 +740,7 @@ function Payment({ till }: { till: Ready }) {
             </div>
           </div>
 
-          {refusal ? (
+          {refusal && !contactRefused ? (
             <div role="alert" className="mx-5 mb-4 rounded-sm bg-pending-100 px-4 py-3">
               <p className="text-sm font-medium leading-[1.5] text-pending-700">
                 {notEligible ? (
@@ -806,14 +805,15 @@ function Payment({ till }: { till: Ready }) {
                   onChange={(event) => {
                     setBuyer({ ...buyer, contact: event.target.value })
                     setContactError(null)
+                    if (contactRefused) setRefusal(null)
                   }}
                   placeholder={t('pos.pay.optional')}
-                  aria-invalid={contactError ? true : undefined}
+                  aria-invalid={contactProblem ? true : undefined}
                   className={FIELD}
                 />
-                {contactError ? (
+                {contactProblem ? (
                   <span role="alert" className="text-xs font-medium text-danger-700">
-                    {t(`pos.buyer.contactInvalid.${contactError}`)}
+                    {t(`pos.buyer.contactInvalid.${contactProblem}`)}
                   </span>
                 ) : null}
               </Field>
@@ -821,7 +821,7 @@ function Payment({ till }: { till: Ready }) {
                 <button
                   type="button"
                   disabled={!buyerReady || !covered || busy}
-                  onClick={() => void finish(true)}
+                  onClick={finishNamed}
                   className="inline-flex h-10 items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white disabled:opacity-50"
                 >
                   {t('pos.buyer.makeFull')}
