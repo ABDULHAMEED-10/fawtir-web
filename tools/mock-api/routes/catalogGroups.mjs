@@ -70,7 +70,43 @@ const same = (a, b) =>
     .toLowerCase()
 const ordered = (rows) =>
   [...rows].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
-const view = (group) => ({ ...group, kinds: ordered(group.kinds) })
+/** Active products filed under a kind, as backend #812 counts them on the tree. */
+const productCount = (kindId) =>
+  PRODUCTS_FOR_ROUTES().filter((p) => p.active && p.kindId === kindId).length
+const kindView = (k) => ({ ...k, productCount: productCount(k.id) })
+const view = (group) => {
+  const kinds = ordered(group.kinds).map(kindView)
+  return {
+    ...group,
+    kinds,
+    kindCount: kinds.length,
+    productCount: kinds.reduce((total, k) => total + k.productCount, 0),
+  }
+}
+
+/**
+ * `PUT .../order` (backend #812): every sibling in its new order with the version it was read
+ * at, all or nothing; each takes its index as its sort order and only moved rows bump a version.
+ */
+const reorder = (rows, items, notFound) => {
+  if (!Array.isArray(items) || items.length === 0 || items.length > 500) {
+    return problem(400, 'CATALOGUE_ORDER_INVALID')
+  }
+  const ids = items.map((item) => item?.id)
+  if (new Set(ids).size !== ids.length) return problem(400, 'CATALOGUE_ORDER_INVALID')
+  const found = ids.map((id) => rows.find((row) => row.id === id))
+  if (found.some((row) => !row)) return problem(404, notFound, 'not-found')
+  if (
+    rows.length !== items.length ||
+    items.some((item, index) => Number(item.expectedVersion) !== found[index].version)
+  ) {
+    return problem(409, 'CATALOGUE_GROUP_VERSION_CONFLICT')
+  }
+  found.forEach((row, index) => {
+    if (row.sortOrder !== index) Object.assign(row, { sortOrder: index, version: row.version + 1 })
+  })
+  return null
+}
 
 const GROUP = /^\/api\/v1\/catalog\/groups\/([^/]+)$/
 const KIND = /^\/api\/v1\/catalog\/kinds\/([^/]+)$/
@@ -79,6 +115,23 @@ export default [
   {
     match: '/api/v1/catalog/groups',
     reply: () => ({ groups: ordered(GROUPS).map(view) }),
+  },
+  {
+    method: 'PUT',
+    match: '/api/v1/catalog/groups/order',
+    reply: ({ body }) =>
+      reorder(GROUPS, body?.items, 'CATALOGUE_GROUP_NOT_FOUND') ?? {
+        groups: ordered(GROUPS).map(view),
+      },
+  },
+  {
+    method: 'PUT',
+    match: /^\/api\/v1\/catalog\/groups\/([^/]+)\/kinds\/order$/,
+    reply: ({ params, body }) => {
+      const group = GROUPS.find((g) => g.id === params[0])
+      if (!group) return problem(404, 'CATALOGUE_GROUP_NOT_FOUND', 'not-found')
+      return reorder(group.kinds, body?.items, 'CATALOGUE_KIND_NOT_FOUND') ?? view(group)
+    },
   },
   {
     method: 'POST',
@@ -149,7 +202,7 @@ export default [
         return problem(409, 'CATALOGUE_KIND_NAME_DUPLICATE')
       const created = kind(newId('k'), group.id, name, body.nameAr ?? null, body.sortOrder ?? 0)
       group.kinds.push(created)
-      return { status: 201, body: created }
+      return { status: 201, body: kindView(created) }
     },
   },
   {
@@ -180,7 +233,7 @@ export default [
         groupId: target.id,
         version: found.version + 1,
       })
-      return found
+      return kindView(found)
     },
   },
   {

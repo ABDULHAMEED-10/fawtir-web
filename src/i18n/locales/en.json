@@ -1217,7 +1217,8 @@
       "catalogChildren": {
         "allItems": "All Items",
         "bundles": "Bundles",
-        "priceRules": "Price Rules"
+        "priceRules": "Price Rules",
+        "groups": "Groups"
       },
       "lockedOn": "Available on {{plan}}",
       "billRemindersUnread": "Bill reminders, {{count}} unread"
@@ -4428,7 +4429,8 @@
       "slipUnread": "We couldn't read this slip. Type the approval code if you need it.",
       "slipRead": "Read from the slip: {{card}} {{rrn}}",
       "slipCheck": "Check the marked field before you press Paid.",
-      "slipDiffers": "The slip says {{slip}}, the payment is {{payment}}."
+      "slipDiffers": "The slip says {{slip}}, the payment is {{payment}}.",
+      "slipKeptOffline": "The till is offline. The slip photo is kept with this sale and sent once the connection is back. Type the approval code if you need it now."
     },
     "done": {
       "title": "Paid and filed",
@@ -4479,7 +4481,9 @@
       "taxInvoice": "Tax invoice",
       "cardApproval": "Card · approval {{code}}",
       "qrAlt": "The invoice's QR code",
-      "qrComing": "The QR code comes up once the invoice is filed."
+      "qrComing": "The QR code comes up once the invoice is filed.",
+      "qrAfterFiling": "the QR comes once the sale is filed",
+      "rungUpWrongQueued": "Rung it up wrong? This sale is waiting to be filed. Once it is filed, a mistake is put right with a credit note, which the Tax Authority also sees."
     },
     "company": {
       "whose": "Whose company is it?",
@@ -4522,7 +4526,13 @@
       "contactPerson": "Contact person",
       "email": "Email",
       "noVatNote": "No Omani VAT number? Leave it empty and give their ID instead.",
-      "addCompany": "Add the company"
+      "addCompany": "Add the company",
+      "notReady": "A full invoice to this company needs {{missing}}.",
+      "saveAddress": "Save the address",
+      "completeOnCustomer": "Complete the rest on the customer's own page in Customers.",
+      "askToComplete": "Ask someone who can edit customers to complete it, then finish the sale.",
+      "vatOrId": "VAT number or {{id}}",
+      "stillNeeded": "Still needed: {{fields}}."
     },
     "today": {
       "title": "Today",
@@ -4562,7 +4572,9 @@
       "state": {
         "filed": "Filed",
         "peppol": "Peppol",
-        "credited": "Credited"
+        "credited": "Credited",
+        "waiting": "Waiting",
+        "failed": "Not filed"
       },
       "tab": {
         "everything": "Everything",
@@ -4588,20 +4600,21 @@
       "noneYet": "None yet",
       "mixed": "Split",
       "approval": "Approval {{code}}",
-      "partlyCredited": "{{amount}} credited"
+      "partlyCredited": "{{amount}} credited",
+      "plusTip": "+ {{amount}} tip"
     },
     "close": {
       "title": "Closing it",
       "subtitle": "{{branch}} · Till {{till}} · {{who}}’s shift, {{from}} to {{to}} · {{day}}",
       "printSummary": "Print the summary",
       "takenToday": "Taken today",
-      "takenNote": "{{sales}} sales · {{average}} average",
+      "takenNote": "{{count}} sales · {{average}} average",
       "cash": "Cash",
-      "cashNote": "{{percent}}% of takings · {{sales}} sales",
+      "cashNote": "{{percent}}% of takings · {{count}} sales",
       "card": "Card",
-      "cardNote": "{{sales}} sales",
-      "onCompany": "On the company",
-      "companyNote": "{{count}} invoices over Peppol",
+      "cardNote": "{{count}} sales",
+      "onCompany": "Owed on account",
+      "companyNote": "{{count}} company invoices over Peppol",
       "countDrawer": "Count the drawer",
       "cashOnly": "Cash only. Card and transfers reconcile themselves",
       "byDenomination": "Count by denomination",
@@ -4677,7 +4690,22 @@
       },
       "whatFor": "What was it for?",
       "record": "Record it",
-      "howMany": "How many of {{note}}"
+      "howMany": "How many of {{note}}",
+      "companyNote_one": "{{count}} company invoice over Peppol",
+      "companyNote_other": "{{count}} company invoices over Peppol",
+      "summary": {
+        "counted": "Counted in the drawer",
+        "expected": "Expected in the drawer",
+        "toBank": "To the bank",
+        "floatLeft": "Float left in the drawer",
+        "cardDiffers": "Card machine differs by"
+      },
+      "takenNote_one": "{{count}} sale · {{average}} average",
+      "takenNote_other": "{{count}} sales · {{average}} average",
+      "cashNote_one": "{{percent}}% of takings · {{count}} sale",
+      "cashNote_other": "{{percent}}% of takings · {{count}} sales",
+      "cardNote_one": "{{count}} sale",
+      "cardNote_other": "{{count}} sales"
     },
     "refund": {
       "title": "Putting something right",
@@ -4770,7 +4798,11 @@
       "value": "ID number",
       "contact": "Phone or email",
       "makeFull": "Make it a full invoice",
-      "onCompany": "Put it on a company instead"
+      "onCompany": "Put it on a company instead",
+      "contactInvalid": {
+        "phone": "Type the phone number as 8 digits, or with the country code (+968 9234 5678).",
+        "email": "That email address is not complete."
+      }
     },
     "refusal": {
       "offline": "The till could not reach Fawtir. Check the connection and try again.",
@@ -4823,7 +4855,10 @@
       "POS_REFUND_MORE_THAN_PAID": "At most {{maxMoneyBack}} can go back.",
       "POS_REFUND_MORE_THAN_OWED": "The company owes only {{owed}}.",
       "POS_REFUND_KEY_REUSED": "This refund was already sent with different contents.",
-      "POS_SLIP_INVALID": "This file cannot be kept as a slip. Use a photo or a PDF up to 10 MB."
+      "POS_SLIP_INVALID": "This file cannot be kept as a slip. Use a photo or a PDF up to 10 MB.",
+      "CUSTOMER_NOT_INVOICE_ELIGIBLE": "This company cannot get a full invoice yet: {{missing}} is missing.",
+      "customerIncomplete": "This company's record is missing something a full invoice needs.",
+      "completeCompany": "Complete it on the company screen"
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
@@ -4835,7 +4870,11 @@
       "SLIP_AMOUNT_DIFFERS": "The slip's amount is not the card payment's.",
       "SLIP_FIELD_DROPPED": "A value read from the slip was not kept.",
       "SLIP_NOT_KEPT": "The slip was not kept with the payment.",
-      "other": "Fawtir noted something about this sale."
+      "other": "Fawtir noted something about this sale.",
+      "ZR_FOOD_CHARGED_STANDARD": "Line {{line}} is on Oman's zero-rated food list but was charged 5% VAT. Check whether it should be zero-rated.",
+      "ZR_FOOD_NOT_LISTED": "Line {{line}} is zero-rated as food, but its HS code is not on Oman's zero-rated food list. Check its VAT category or HS code.",
+      "ZR_MEDICAL_CHARGED_STANDARD": "Line {{line}} is on Oman's zero-rated medicines or medical equipment list but was charged 5% VAT. Check whether it should be zero-rated.",
+      "ZR_MEDICAL_NOT_LISTED": "Line {{line}} is zero-rated as medical, but its HS code is not on Oman's zero-rated medicines or medical equipment lists. Check its VAT category or HS code."
     },
     "day": {
       "title": "The day's shifts",
@@ -12416,7 +12455,12 @@
     "kindChoose": "Choose a kind",
     "perOption": "Set per option",
     "addOnName": "Add-on name",
-    "addOnPrice": "Price of {{name}}"
+    "addOnPrice": "Price of {{name}}",
+    "groupNone": "No groups yet",
+    "addGroup": "Add a group",
+    "kindNeedsGroup": "Add a group first",
+    "kindNone": "No kinds in this group yet",
+    "addKind": "Add a kind to {{group}}"
   },
   "itemSells": {
     "export": "Export",
@@ -12787,7 +12831,8 @@
       "nothingLeftNote": "{{name}} · out since {{day}}",
       "nothingOut": "Nothing has run out",
       "moved": "Moved this week",
-      "movedNote": "{{sold}} sold · {{received}} received · {{writtenOff}} written off"
+      "movedNote": "{{sold}} sold · {{received}} received · {{writtenOff}} written off",
+      "belowZeroNote": "{{name}} sold below zero. Count it when you can."
     },
     "tab": {
       "all": "All",
@@ -12899,7 +12944,8 @@
       "unitCost": "Cost each, before VAT",
       "unitCostOf": "Line {{line}}: cost each, before VAT",
       "remove": "Remove",
-      "addLine": "Add another item"
+      "addLine": "Add another item",
+      "noSupplier": "No suppliers match"
     },
     "reorder": {
       "titleMany": "Change the reorder level of {{count}} items",
@@ -13022,7 +13068,8 @@
       "countedAs": "Counted {{count}}",
       "from": "From {{supplier}}",
       "atEach": "at {{amount}} each",
-      "lastPaid": "{{amount}} on {{date}}"
+      "lastPaid": "{{amount}} on {{date}}",
+      "chartNoteNoRate": "The {{count}} {{unit}} received on {{date}} have not sold yet, so there is no rate to say how long they last."
     }
   },
   "priceRules": {
@@ -25005,5 +25052,65 @@
         "SA": "sacks"
       }
     }
+  },
+  "catalogGroups": {
+    "title": "Groups",
+    "subtitle": "Your catalogue has three levels: a group, the kinds inside it, then the items you sell. Groups and kinds carry no price or tax; the item does.",
+    "newGroup": "New group",
+    "emptyTitle": "No groups yet",
+    "emptyBody": "Add a group, such as Hot drinks or Skin care, then the kinds inside it, such as Milk coffee. Every item you add is filed under a kind.",
+    "emptyReadOnly": "Your company has not added any groups yet.",
+    "kindCount_one": "{{count}} kind",
+    "kindCount_other": "{{count}} kinds",
+    "noKinds": "No kinds yet. Items are filed under a kind, so add one to use this group.",
+    "kindsIn": "Kinds in {{group}}",
+    "addKindTo": "Add a kind to {{group}}",
+    "groupActions": "Actions for {{name}}",
+    "kindActions": "Actions for {{name}}",
+    "renameKind": "Rename it",
+    "removeKind": "Remove the kind",
+    "moveUp": "Move {{name}} up",
+    "moveDown": "Move {{name}} down",
+    "dialog": {
+      "newGroup": "New group",
+      "newKind": "New kind",
+      "editGroup": "Rename the group",
+      "editKind": "Rename the kind",
+      "newKindIn": "Inside {{group}}",
+      "groupNote": "Group names are unique in your company.",
+      "kindNote": "Kind names are unique within their group.",
+      "groupName": "Group name",
+      "kindName": "Kind name",
+      "groupPlaceholder": "For example Hot drinks",
+      "kindPlaceholder": "For example Milk coffee",
+      "arabicName": "Name in Arabic",
+      "inGroup": "In the group",
+      "save": "Save"
+    },
+    "remove": {
+      "groupTitle": "Remove {{name}}?",
+      "kindTitle": "Remove {{name}}?",
+      "groupBody": "The group is deleted for good. A group that still has kinds cannot be removed: move or remove its kinds first.",
+      "kindBody": "The kind is deleted for good. A kind that items on sale are filed under cannot be removed: move those items to another kind first. Items already switched off are left without a kind.",
+      "confirm": "Remove",
+      "removing": "Removing…",
+      "groupBlocked_one": "This group still has {{count}} kind, so it cannot be removed. Move or remove the kind first.",
+      "groupBlocked_other": "This group still has {{count}} kinds, so it cannot be removed. Move or remove its kinds first.",
+      "kindBlocked_one": "{{count}} item on sale is filed under this kind, so it cannot be removed. Move it to another kind first.",
+      "kindBlocked_other": "{{count}} items on sale are filed under this kind, so it cannot be removed. Move them to another kind first."
+    },
+    "refusal": {
+      "nameRequired": "Type a name of at most 200 characters.",
+      "groupNameTaken": "Another group already has this name.",
+      "kindNameTaken": "Another kind in this group already has this name.",
+      "changedMeanwhile": "Someone changed this while you were working. The list has been reloaded; try again.",
+      "groupNotEmpty": "This group still has kinds. Move or remove its kinds first, then remove the group.",
+      "kindInUse": "Items on sale are filed under this kind. Move them to another kind first, then remove it.",
+      "groupGone": "This group no longer exists. The list has been reloaded.",
+      "kindGone": "This kind no longer exists. The list has been reloaded.",
+      "orderInvalid": "The new order could not be saved because the list was not complete. The list has been reloaded; try again."
+    },
+    "itemCount_one": "{{count}} item",
+    "itemCount_other": "{{count}} items"
   }
 }

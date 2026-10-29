@@ -46,6 +46,9 @@ export function PosDonePage() {
   )
 }
 
+/** How long the receipt stays before the till clears itself for the next customer. */
+const CLEARS_AFTER_MS = 20_000
+
 /** Accepted by the Authority, or sent over Peppol: nothing more to wait for. */
 function settled(sale: PosSaleDto): boolean {
   return (
@@ -86,6 +89,24 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
     }
   }, [done.sale])
 
+  // "Or press Enter. This screen clears itself after 20 seconds": the next customer's empty till,
+  // for a sale filed or queued alike (retest N-6).
+  useEffect(() => {
+    const next = () => {
+      startNewSale()
+      navigate('/pos')
+    }
+    const timer = window.setTimeout(next, CLEARS_AFTER_MS)
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Enter' && !(event.target instanceof HTMLButtonElement)) next()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.clearTimeout(timer)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [navigate])
+
   const { totals, tip, change, lines } = done
   const total = sale
     ? toBaisa(sale.receipt.invoiceTotal) + toBaisa(sale.receipt.tip)
@@ -99,6 +120,9 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
         ).toFixed(1)
       : null
   const company = done.company
+  const buyer = done.buyer ?? null
+  // A full tax invoice prints as one in both languages: to a company, or to a named buyer (F-6).
+  const fullInvoice = sale ? sale.transactionType === 'FULL_TAX' : !!company || !!buyer
   const accepted = !!sale?.filing.acceptedAt
   const sent = !!sale && sale.filing.dispatchState !== 'QUEUED'
   const stepDone = {
@@ -222,7 +246,8 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                 {t('pos.done.giveReceipt')}
               </h2>
               <p className="mt-1 text-xs font-medium text-text-quaternary">
-                {t('pos.done.qrAlreadyUp')}
+                {/* A queued sale has no QR yet, and is not filed yet (retest N-6). */}
+                {sale ? t('pos.done.qrAlreadyUp') : t('pos.done.qrAfterFiling')}
               </p>
             </div>
             {/* TODO(backend): only printing works; e-mailing or texting a receipt has no route
@@ -280,7 +305,9 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
               <div className="mx-6 mb-6 flex flex-wrap items-center gap-3 rounded-sm bg-surface-background px-4 py-3">
                 <p className="flex min-w-[220px] flex-1 items-start gap-2 text-sm font-medium leading-[1.6] text-text-tertiary">
                   <InfoIcon className="mt-1 size-4 shrink-0 text-text-quaternary" />
-                  <span className="min-w-0 flex-1">{t('pos.done.rungUpWrong')}</span>
+                  <span className="min-w-0 flex-1">
+                    {sale ? t('pos.done.rungUpWrong') : t('pos.done.rungUpWrongQueued')}
+                  </span>
                 </p>
                 {sale ? (
                   <Link
@@ -349,10 +376,10 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                 ) : null}
               </p>
               <p className="mt-3 text-xs font-semibold uppercase tracking-[0.06em] text-text-secondary">
-                {company ? t('pos.done.taxInvoice') : t('pos.done.simplifiedInvoice')}
+                {fullInvoice ? t('pos.done.taxInvoice') : t('pos.done.simplifiedInvoice')}
               </p>
               <p className="font-arabic text-xs text-text-secondary">
-                {company ? 'فاتورة ضريبية' : 'فاتورة ضريبية مبسطة'}
+                {fullInvoice ? 'فاتورة ضريبية' : 'فاتورة ضريبية مبسطة'}
               </p>
 
               <div className="mt-4 border-t border-dashed border-border-subtle pt-3 text-start">
@@ -374,7 +401,28 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                   })}
                   value={till.branchName ?? ''}
                 />
-                {company ? <ReceiptRow label={company.name} value="" /> : null}
+                {/* The buyer of a full invoice, named with their VAT number or ID (F-6). */}
+                {company ? (
+                  <>
+                    <ReceiptRow label={company.name} value="" />
+                    {company.vat ? (
+                      <ReceiptRow label={t('pos.done.vat')} value={company.vat} />
+                    ) : company.identifier ? (
+                      <ReceiptRow
+                        label={t(`customerForm.identifier.schemes.${company.identifier.scheme}`)}
+                        value={company.identifier.value}
+                      />
+                    ) : null}
+                  </>
+                ) : buyer ? (
+                  <>
+                    <ReceiptRow label={buyer.name} value="" />
+                    <ReceiptRow
+                      label={t(`customerForm.identifier.schemes.${buyer.identifierScheme}`)}
+                      value={buyer.identifierValue}
+                    />
+                  </>
+                ) : null}
               </div>
 
               <div className="mt-3 border-t border-dashed border-border-subtle pt-3 text-start">

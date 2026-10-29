@@ -5,6 +5,7 @@ import { Popover } from '../../components/ui'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { LOGIN_ROUTE } from '../../lib/identity/login'
 import { signOut } from '../../lib/identity/logout'
+import { withReturnPath } from '../../lib/identity/returnTo'
 import { startNewSale } from '../../lib/posSale'
 import { tillTime } from '../../lib/pos'
 import { initialsOf } from '../../lib/posTill'
@@ -16,8 +17,9 @@ import chevron from '../../assets/dashboard/chevron.svg'
  *
  * Each cashier signs in with their own login, never a shared picker (LG-1; round 2, answer 11),
  * so this names the signed-in person and the till's shift, and offers Switch user: sign out, and
- * the next cashier signs in. Their first sale opens their shift; another cashier's open shift is
- * handed over uncounted, which the server records.
+ * the next cashier signs in and comes back to the till to keep selling (Abdul, 28 Oct 2026). Their
+ * first sale opens their shift; another cashier's open shift is handed over uncounted, which the
+ * server records.
  */
 export function CashierPicker({ till, mine }: { till: PosTillDto; mine: boolean }) {
   const { t, i18n } = useTranslation()
@@ -39,7 +41,7 @@ export function CashierPicker({ till, mine }: { till: PosTillDto; mine: boolean 
     try {
       await signOut()
       startNewSale()
-      navigate(LOGIN_ROUTE, { replace: true })
+      navigate(withReturnPath(LOGIN_ROUTE, '/pos'), { replace: true })
     } catch {
       setFailed(true)
       setBusy(false)

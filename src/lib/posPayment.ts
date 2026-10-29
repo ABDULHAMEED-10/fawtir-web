@@ -48,6 +48,8 @@ export type Taken = {
   /** Card only, optional: the scanned bank slip and what was read from it or typed. */
   slipFileId?: string
   slipFields?: PosSlipFields
+  /** Card only: a slip photographed while the till was offline, sent once the sale is filed. */
+  slipPhoto?: { blob: Blob; name: string }
 }
 
 /** The tip sits on top of the sale and carries no VAT, which the design says twice. */
@@ -113,10 +115,16 @@ export function tipMethodOf(taken: Taken[]): 'CASH' | 'CARD' | null {
 export function paymentsRequest(
   taken: Taken[],
   tip: number,
-): { payments: PosPaymentRequest[]; tip: { amount: number; method: 'CASH' | 'CARD' } | null } {
+): {
+  payments: PosPaymentRequest[]
+  tip: { amount: number; method: 'CASH' | 'CARD' } | null
+  /** The offline slip photos, each with the position of the payment it proves (1, 2 ...). */
+  slipPhotos: { position: number; blob: Blob; name: string }[]
+} {
   const tipMethod = tip > 0 ? tipMethodOf(taken) : null
   let tipLeft = tipMethod ? tip : 0
   const payments: PosPaymentRequest[] = []
+  const slipPhotos: { position: number; blob: Blob; name: string }[] = []
   for (const entry of taken) {
     let amount = entry.amount
     if (tipLeft > 0 && METHOD_CODE[entry.method] === tipMethod) {
@@ -142,9 +150,13 @@ export function paymentsRequest(
       payment.reference = entry.reference.trim()
     }
     payments.push(payment)
+    if (entry.method === 'card' && entry.slipPhoto) {
+      slipPhotos.push({ position: payments.length, ...entry.slipPhoto })
+    }
   }
   return {
     payments,
+    slipPhotos,
     tip: tipMethod ? { amount: toRials(tip - tipLeft), method: tipMethod } : null,
   }
 }

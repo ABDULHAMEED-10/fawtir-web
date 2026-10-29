@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { setSaleCompany, setSaleLines, useOpenSale } from '../../lib/posSale'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
 import { PosSalePanel } from './PosSalePanel'
 import { PosTillGate } from './PosTillGate'
@@ -9,14 +9,24 @@ import { COMPANY_IS, WALK_IN_IS } from '../../lib/posPayment'
 import { ArrowForwardIcon, CheckIcon, SearchIcon } from './posIcons'
 import { Select } from '../../components/ui'
 import { useApiRead } from '../../hooks'
-import { apiRequest, fromSpringPage, withQuery, type Page, type SpringPage } from '../../api'
+import {
+  ApiError,
+  apiRequest,
+  fromSpringPage,
+  withQuery,
+  type Page,
+  type SpringPage,
+} from '../../api'
 import {
   BUYER_IDENTIFIER_SCHEMES,
   CUSTOMERS_PATH,
   loadCustomerRecord,
+  patchCustomer,
   type CustomerDto,
   type CustomerRecordDto,
 } from '../../api/customers/customers'
+import { useCan } from '../../lib/session/session'
+import { missingFieldsSentence, notEligiblePaths } from '../../lib/customerEligibility'
 import { addPosCustomer, newPosKey, posSalesPath, type PosTodaySalesPage } from '../../api/pos/pos'
 import { posRefusalKey } from '../../lib/posRefusals'
 import type { TillState } from '../../lib/posTill'
@@ -32,13 +42,29 @@ type Found = {
   peppol: string | null
   city: string | null
   terms: string | null
+  /** What a full invoice to them still needs (`missingInvoiceFields`); empty when nothing. */
+  missing: string[]
+  /** The buyer identifier of a company without a VAT number (CR and the like, IBR-016-OM). */
+  identifier: { scheme: string; value: string } | null
 }
+
+/** The address parts a full invoice needs, the ones the till can fill in (F-1). */
+const ADDRESS_NEEDED = [
+  'invoiceAddress.countryCode',
+  'invoiceAddress.cityName',
+  'invoiceAddress.streetName',
+]
+
+/** The countries the customer form offers, Oman first and chosen. */
+const COUNTRIES = ['OM', 'AE', 'SA', 'QA', 'KW', 'BH']
 
 function foundOf(customer: CustomerDto | CustomerRecordDto): Found | null {
   if (customer.type === 'CONSUMER') return null
   const details = customer.profile?.details as
     | (CustomerDto['profile']['details'] & {
         peppolParticipantId?: { scheme: string; value: string } | null
+        identifierScheme?: string | null
+        identifierValue?: string | null
       })
     | null
   const participant = details?.peppolParticipantId
@@ -51,8 +77,19 @@ function foundOf(customer: CustomerDto | CustomerRecordDto): Found | null {
     peppol: participant ? `${participant.scheme}:${participant.value}` : null,
     city: customer.profile?.invoiceAddress?.cityName ?? null,
     terms: billing?.paymentTerms ?? null,
+    missing: customer.invoiceEligible === false ? (customer.missingInvoiceFields ?? []) : [],
+    identifier:
+      details?.identifierScheme && details.identifierValue
+        ? { scheme: details.identifierScheme, value: details.identifierValue }
+        : null,
   }
 }
+
+/**
+ * What the payment screen hands over with "Complete it on the company screen": the paths the
+ * refusal named, so the address form opens at once for the company already on the sale (retest N-1).
+ */
+export type CompanyScreenState = { missing?: string[] }
 
 /** A VAT number is looked up once it could be one: `GET /v1/customers?vatNumber=` is exact. */
 const lookupPath = (vat: string) =>
@@ -121,8 +158,19 @@ function OnTheCompany({ till }: { till: Ready }) {
   // The open sale is shared with the payment and receipt screens (src/lib/posSale.ts).
   const { lines, company } = useOpenSale()
   const [vat, setVat] = useState('')
+  const handedOver = (useLocation().state as CompanyScreenState | null)?.missing ?? []
   const [picked, setPicked] = useState<Found | null>(
-    company ? { ...company, vat: null, peppol: null, city: null, terms: null } : null,
+    company
+      ? {
+          ...company,
+          vat: company.vat ?? null,
+          peppol: null,
+          city: null,
+          terms: null,
+          missing: handedOver,
+          identifier: company.identifier ?? null,
+        }
+      : null,
   )
   const [byHand, setByHand] = useState(false)
   const [error, setError] = useState<unknown>(null)
@@ -152,7 +200,17 @@ function OnTheCompany({ till }: { till: Ready }) {
 
   const choose = (next: Found | null) => {
     setPicked(next)
-    setSaleCompany(next ? { id: next.id, name: next.name, kind: next.kind } : null)
+    setSaleCompany(
+      next
+        ? {
+            id: next.id,
+            name: next.name,
+            kind: next.kind,
+            vat: next.vat,
+            identifier: next.identifier,
+          }
+        : null,
+    )
   }
   // A match by VAT number is the company the sale goes on.
   const matchedId = matched?.id ?? null
@@ -289,7 +347,13 @@ function OnTheCompany({ till }: { till: Ready }) {
                 </div>
               ) : null}
 
-              {byHand && !found ? <AddCompany tillId={till.till.id} onAdded={choose} /> : null}
+              {found && found.missing.length ? (
+                <CompleteAddress found={found} onDone={choose} />
+              ) : null}
+
+              {byHand && !found ? (
+                <AddCompany tillId={till.till.id} vat={vat} onAdded={choose} />
+              ) : null}
             </div>
           </section>
 
@@ -381,26 +445,44 @@ const FIELD =
  */
 function AddCompany({
   tillId,
+  vat,
   onAdded,
 }: {
   tillId: string
+  /** What was typed in the VAT lookup: the number they were looking for. */
+  vat: string
   onAdded: (found: Found | null) => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [form, setForm] = useState({
     name: '',
     contactPerson: '',
-    vatNumber: '',
+    vatNumber: vat.trim(),
     scheme: 'CR',
     value: '',
     email: '',
+    countryCode: 'OM',
+    cityName: '',
+    streetName: '',
   })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<unknown>(null)
   const [key] = useState(() => newPosKey('customer'))
+  // Backend #810 refuses a company it could never invoice, naming what is missing.
+  const missing =
+    error instanceof ApiError ? notEligiblePaths({ code: error.code, ...error.problem }) : null
   const set = (patch: Partial<typeof form>) => setForm((current) => ({ ...current, ...patch }))
-  const ready =
-    form.name.trim() && form.contactPerson.trim() && (form.vatNumber.trim() || form.value.trim())
+  // What is still empty, said under the form so a greyed button is never a puzzle.
+  const stillNeeded = [
+    !form.name.trim() && t('pos.company.legalName'),
+    !form.contactPerson.trim() && t('pos.company.contactPerson'),
+    !form.vatNumber.trim() &&
+      !form.value.trim() &&
+      t('pos.company.vatOrId', { id: t('pos.buyer.value') }),
+    !form.cityName.trim() && t('newCustomer.address.city'),
+    !form.streetName.trim() && t('newCustomer.address.street'),
+  ].filter((label): label is string => !!label)
+  const ready = stillNeeded.length === 0
 
   const save = async () => {
     setBusy(true)
@@ -413,6 +495,11 @@ function AddCompany({
           contactPerson: form.contactPerson.trim(),
           vatNumber: form.vatNumber.trim() || null,
           email: form.email.trim() || null,
+          address: {
+            countryCode: form.countryCode,
+            cityName: form.cityName.trim(),
+            streetName: form.streetName.trim(),
+          },
           ...(form.vatNumber.trim()
             ? {}
             : { identifierScheme: form.scheme as never, identifierValue: form.value.trim() }),
@@ -487,13 +574,25 @@ function AddCompany({
             </Labelled>
           </>
         ) : null}
+        <AddressFields value={form} onChange={(patch) => set(patch)} />
       </div>
       <p className="text-xs font-medium leading-[1.5] text-text-quaternary">
         {t('pos.company.noVatNote')}
       </p>
+      {!ready ? (
+        <p className="text-xs font-medium leading-[1.5] text-text-tertiary">
+          {t('pos.company.stillNeeded', {
+            fields: new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format(stillNeeded),
+          })}
+        </p>
+      ) : null}
       {error ? (
         <p role="alert" className="text-xs font-medium text-danger-700">
-          {t(posRefusalKey(error))}
+          {missing?.length
+            ? t('pos.company.notReady', {
+                missing: missingFieldsSentence(missing, t, i18n.language),
+              })
+            : t(posRefusalKey(error))}
         </p>
       ) : null}
       <div>
@@ -506,6 +605,132 @@ function AddCompany({
           {t('pos.company.addCompany')}
         </button>
       </div>
+    </div>
+  )
+}
+
+type AddressForm = { countryCode: string; cityName: string; streetName: string }
+
+/** Country, city and street: what a full invoice needs of the buyer's address (IBG-08). */
+function AddressFields({
+  value,
+  onChange,
+}: {
+  value: AddressForm
+  onChange: (patch: Partial<AddressForm>) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <>
+      <Labelled label={t('newCustomer.address.country')}>
+        <Select
+          quiet
+          value={value.countryCode}
+          onChange={(countryCode) => onChange({ countryCode })}
+          ariaLabel={t('newCustomer.address.country')}
+          options={COUNTRIES.map((code) => ({
+            value: code,
+            label: t(`supplierForm.country.${code}`),
+          }))}
+        />
+      </Labelled>
+      <Labelled label={t('newCustomer.address.city')}>
+        <input
+          value={value.cityName}
+          maxLength={150}
+          onChange={(e) => onChange({ cityName: e.target.value })}
+          className={FIELD}
+        />
+      </Labelled>
+      <Labelled label={t('newCustomer.address.street')}>
+        <input
+          value={value.streetName}
+          maxLength={150}
+          onChange={(e) => onChange({ streetName: e.target.value })}
+          className={FIELD}
+        />
+      </Labelled>
+    </>
+  )
+}
+
+/**
+ * A company found by its VAT number or ID that a full invoice cannot be raised to yet (F-1): says
+ * what is missing and, for whoever may edit customers (`customer.manage`), fills the invoice
+ * address in here (`PATCH /v1/customers/{id}`). Anything else missing is for the customer form.
+ */
+function CompleteAddress({
+  found,
+  onDone,
+}: {
+  found: Found
+  onDone: (next: Found | null) => void
+}) {
+  const { t, i18n } = useTranslation()
+  const canEdit = useCan('customer.manage')
+  const [form, setForm] = useState<AddressForm>({ countryCode: 'OM', cityName: '', streetName: '' })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<unknown>(null)
+  const addressOnly = found.missing.every((path) => ADDRESS_NEEDED.includes(path))
+  const ready = form.cityName.trim() && form.streetName.trim()
+
+  const save = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const record = await loadCustomerRecord(found.id)
+      const saved = await patchCustomer(found.id, {
+        invoiceAddress: {
+          countryCode: form.countryCode,
+          cityName: form.cityName.trim(),
+          streetName: form.streetName.trim(),
+        },
+        expectedVersion: record.version,
+      })
+      onDone(foundOf(saved))
+    } catch (cause) {
+      setError(cause)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mt-4 flex flex-col gap-5 rounded-md border border-border-subtle p-5">
+      <p role="status" className="text-sm font-medium leading-[1.5] text-pending-700">
+        {t('pos.company.notReady', {
+          missing: missingFieldsSentence(found.missing, t, i18n.language),
+        })}
+      </p>
+      {canEdit && addressOnly ? (
+        <>
+          <div className="grid gap-5 md:grid-cols-2">
+            <AddressFields
+              value={form}
+              onChange={(patch) => setForm((current) => ({ ...current, ...patch }))}
+            />
+          </div>
+          {error ? (
+            <p role="alert" className="text-xs font-medium text-danger-700">
+              {t(posRefusalKey(error))}
+            </p>
+          ) : null}
+          <div>
+            <button
+              type="button"
+              disabled={!ready || busy}
+              onClick={() => void save()}
+              className="inline-flex h-11 items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-50"
+            >
+              {t('pos.company.saveAddress')}
+            </button>
+          </div>
+        </>
+      ) : (
+        <p className="text-xs font-medium leading-[1.5] text-text-quaternary">
+          {canEdit ? t('pos.company.completeOnCustomer') : t('pos.company.askToComplete')}
+        </p>
+      )}
     </div>
   )
 }

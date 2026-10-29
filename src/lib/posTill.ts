@@ -1,5 +1,7 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useApiRead } from '../hooks'
+import { NetworkError } from '../api'
+import { loadOrRecall, recallOffline } from './posOffline'
 import { useEntitlements } from '../hooks/useEntitlements'
 import { useWorkingBranch } from '../components/branch/useWorkingBranch'
 import { hasPermission } from './identity/entitlements'
@@ -14,6 +16,8 @@ import { loadPosTills, posTillsPath, type PosTillDto } from '../api/pos/pos'
  */
 
 const tillKey = (branchId: string) => `fawtir.pos.till.${branchId}`
+/** The branch's tills as last read, for the till's offline screens (`lib/posOffline`). */
+const tillsName = (branchId: string) => `tills.${branchId}`
 
 export function rememberedTill(branchId: string): string | null {
   try {
@@ -63,16 +67,32 @@ export function usePosTill(): TillState {
   const { entitlements } = useEntitlements()
   const branchId = branch?.id ?? null
   const tills = useApiRead<PosTillDto[]>(branchId ? posTillsPath(branchId) : null, () =>
-    loadPosTills(branchId as string),
+    loadOrRecall(tillsName(branchId as string), () => loadPosTills(branchId as string)),
   )
   const retry = useCallback(() => tills.retry(), [tills])
+  // The till as last read, kept while it is read again (after a sale, a close): the screen keeps
+  // what it was showing instead of a loading notice in between, and so keeps its own state.
+  const last = useRef<{ branchId: string; tills: PosTillDto[] } | null>(null)
+  useEffect(() => {
+    if (branchId && tills.read.status === 'ready')
+      last.current = { branchId, tills: tills.read.data }
+  }, [branchId, tills.read])
 
   if (!branchId) {
     return branchesRead.status === 'loading' ? { status: 'loading' } : { status: 'noBranch' }
   }
-  if (tills.read.status === 'loading') return { status: 'loading' }
-  if (tills.read.status === 'failed') return { status: 'failed', error: tills.read.error, retry }
-  const till = chooseTill(tills.read.data, rememberedTill(branchId))
+  const held =
+    last.current?.branchId === branchId
+      ? last.current.tills
+      : recallOffline<PosTillDto[]>(tillsName(branchId))
+  let list: PosTillDto[]
+  if (tills.read.status === 'ready') list = tills.read.data
+  else if (tills.read.status === 'loading') {
+    if (!held || last.current?.branchId !== branchId) return { status: 'loading' }
+    list = held
+  } else if (tills.read.error instanceof NetworkError && held) list = held
+  else return { status: 'failed', error: tills.read.error, retry }
+  const till = chooseTill(list, rememberedTill(branchId))
   const can = (code: string) => (entitlements ? hasPermission(entitlements, code) : false)
   if (!till) {
     return { status: 'noTill', canRegister: can('pos.till.manage'), branchId, retry }

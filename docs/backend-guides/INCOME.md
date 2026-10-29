@@ -950,3 +950,24 @@ stock" switch (always on).
 | BU.3 | Bundle lines on the invoice composer | none from the backend: `/bundles/{id}/invoice-lines` is there. The composer has no bundle picker yet; when it does it must build the lines from that call and send each part line back with `bundleId` (a mixed-VAT bundle on one line is refused, `BUNDLE_SPLIT_REQUIRED`). The bundle screen previews the lines from it |
 | BU.4 | Bundle: **Let staff swap a part at the till** | a stored switch and the till's swap. Drawn off and disabled |
 | BU.5 | Bundle: **<part> sold this way** (through the bundle, of all its sales); stock item `dependsOnIt` | a per-part figure on the report, and `dependsOnIt` on `/stock/items/{id}` (STOCK-CONTRACT §3.3). Drawn as a dash |
+
+## Update 2026-10-29 (Catalog › Groups)
+
+Catalog › Groups (`/catalog/groups`, `src/pages/CatalogPage/CatalogGroupsPage.tsx`) lists, adds,
+renames, reorders and deletes the company's groups and the kinds inside them on
+`GET/POST /v1/catalog/groups`, `PUT/DELETE /v1/catalog/groups/{id}?expectedVersion=`,
+`POST /v1/catalog/groups/{id}/kinds` and `PUT/DELETE /v1/catalog/kinds/{id}?expectedVersion=`
+(a kind moves to another group with `groupId`). Reading needs `product.read`, changes
+`product.manage`. Every refusal code is worded (`CATALOGUE_NAME_REQUIRED`,
+`CATALOGUE_GROUP_NAME_DUPLICATE`, `CATALOGUE_KIND_NAME_DUPLICATE`,
+`CATALOGUE_GROUP_VERSION_CONFLICT`, `CATALOGUE_GROUP_NOT_EMPTY`, `CATALOGUE_KIND_IN_USE`,
+`CATALOGUE_GROUP_NOT_FOUND`, `CATALOGUE_KIND_NOT_FOUND`). The item form's "Where it lives" lists
+carry "Add a group" and "Add a kind", so a new company (which starts with no groups) can file its
+first item without leaving the form. Delete is final; there is no archive for groups or kinds.
+
+| #    | What the screen needs | Backend |
+| ---- | --- | --- |
+| P.40 | Reorder groups, and kinds within a group, in one step | there is no reorder route: moving a row up or down saves every row whose place changed with its own `PUT ...?expectedVersion=` (name, `nameAr` and the new `sortOrder` sent back, because a missing `sortOrder` is stored as 0). A failure part way leaves the rows saved so far. Asked: `PUT /v1/catalog/groups/order` (and `.../groups/{id}/kinds/order`) taking the ids in their new order, in one transaction |
+| P.41 | How many items each kind and group holds | `GET /v1/catalog/groups` carries no counts, so the screen shows the number of kinds only and learns that a kind still holds items on sale when its delete is refused (`CATALOGUE_KIND_IN_USE`). Asked: `productCount` (active products) on each kind and its total on each group |
+| P.40 (update) | Reorder in one step | **Fixed by backend #812** (not deployed on 29 Oct): up/down sends `PUT /v1/catalog/groups/order` or `PUT /v1/catalog/groups/{id}/kinds/order` with every sibling in its new order (`items: [{ id, expectedVersion }]`), all or nothing; `CATALOGUE_ORDER_INVALID` is worded. A server without the route (404, 405, or 400 with no catalogue code) gets the per-row PUTs above |
+| P.41 (update) | Item counts | **Fixed by backend #812**: the screen shows `productCount` on each kind and `kindCount` / `productCount` on each group when the tree carries them (kinds alone otherwise), and says before sending a delete that a group with kinds, or a kind with items on sale, cannot be removed; the server's refusal is still worded |

@@ -60,10 +60,15 @@ export function useStockAccess(): {
   canRead: boolean
   canAdjust: boolean
   canManage: boolean
+  /**
+   * May raise a purchase order (`purchase-order.manage`, `POST /v1/purchase-orders`, with the plan's
+   * purchase orders switch): Order now, Order more and Order from lead there (retest N-3).
+   */
+  canOrder: boolean
 } {
   const { entitlements, ready } = useEntitlements()
   if (!ready || entitlements === null) {
-    return { ready, canRead: false, canAdjust: false, canManage: false }
+    return { ready, canRead: false, canAdjust: false, canManage: false, canOrder: false }
   }
   const plan = planIncludes(entitlements, 'stock')
   return {
@@ -71,6 +76,9 @@ export function useStockAccess(): {
     canRead: hasPermission(entitlements, STOCK_READ),
     canAdjust: plan && hasPermission(entitlements, STOCK_ADJUST),
     canManage: plan && hasPermission(entitlements, STOCK_MANAGE),
+    canOrder:
+      planIncludes(entitlements, 'purchaseOrders') &&
+      hasPermission(entitlements, 'purchase-order.manage'),
   }
 }
 
@@ -495,7 +503,7 @@ function SupplierPick({
           ? t(describeApiFailure(found.read.error).key)
           : found.read.status === 'loading' || query === null
             ? t('productPicker.searching')
-            : t('productPicker.none')
+            : t('stock.delivery.noSupplier')
       }
     />
   )

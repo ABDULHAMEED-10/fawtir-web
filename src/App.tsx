@@ -63,6 +63,7 @@ import {
 import {
   CatalogPage,
   ItemFormPage,
+  CatalogGroupsPage,
   ItemSellsPage,
   ItemUsedPage,
   ItemChangesPage,
@@ -331,6 +332,7 @@ function App() {
           <Route path="/catalog/upload" element={<DemoModule module="catalog"><UploadMenuPage /></DemoModule>} />
           <Route path="/catalog/build" element={<DemoModule module="catalog"><BuildCatalogPage /></DemoModule>} />
           <Route path="/catalog/new" element={<ItemFormPage mode="new" />} />
+          <Route path="/catalog/groups" element={<CatalogGroupsPage />} />
           <Route path="/catalog/rules" element={<DemoModule module="catalog"><PriceRulesPage /></DemoModule>} />
           <Route path="/catalog/rules/new" element={<DemoModule module="catalog"><NewRulePage /></DemoModule>} />
           <Route path="/catalog/bundles" element={<BundlesPage />} />

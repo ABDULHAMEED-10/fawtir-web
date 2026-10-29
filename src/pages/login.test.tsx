@@ -452,3 +452,44 @@ describe('Login code step', () => {
     expect(document.body.textContent).not.toContain('Service unavailable')
   })
 })
+
+describe('Switch user on the till: back to the till after signing in', () => {
+  const renderWith = (entry: string) =>
+    render(
+      <MemoryRouter initialEntries={[entry]}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/login/mfa" element={<LoginCodePage />} />
+          <Route path="*" element={<Probe />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+  it('carries ?next=/pos through the code step and lands on the till', async () => {
+    answer({
+      [LOGIN]: () => json(200, CHALLENGED),
+      [CODE]: () => json(202),
+      [VERIFY]: () => json(200, SIGNED_IN),
+    })
+    renderWith('/login?next=%2Fpos')
+    await (await fillLogin()).click(submit())
+    await waitFor(() => expect(callsTo(CODE)).toHaveLength(1))
+    const user = await typeCode('123456')
+    await user.click(submit())
+    expect((await screen.findByTestId('location')).textContent).toBe('/pos')
+  })
+
+  it('goes straight to the till when the password alone signs in', async () => {
+    answer({ [LOGIN]: () => json(200, SIGNED_IN) })
+    renderWith('/login?next=%2Fpos')
+    await (await fillLogin()).click(submit())
+    expect((await screen.findByTestId('location')).textContent).toBe('/pos')
+  })
+
+  it('ignores a return target that leaves the app', async () => {
+    answer({ [LOGIN]: () => json(200, SIGNED_IN) })
+    renderWith('/login?next=%2F%2Fevil.example%2Fpos')
+    await (await fillLogin()).click(submit())
+    expect((await screen.findByTestId('location')).textContent).toBe('/dashboard')
+  })
+})
