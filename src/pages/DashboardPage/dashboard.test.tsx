@@ -198,6 +198,27 @@ describe('Dashboard, from the server', () => {
     expect(draft.queryByText('0.000')).toBeNull()
   })
 
+  it('opens a credit or debit note on its own page, as the invoices list does', async () => {
+    const base = DASHBOARD.recentInvoices.data[0]
+    answer({
+      dashboard: () =>
+        json(200, {
+          ...DASHBOARD,
+          recentInvoices: ok([
+            { ...base, id: 'cn-1', invoiceNumber: 'CRN-1', invoiceType: 'CREDIT_NOTE' },
+            { ...base, id: 'dn-1', invoiceNumber: 'DBN-1', invoiceType: 'DEBIT_NOTE' },
+          ]),
+        }),
+    })
+    renderPage()
+    expect((await screen.findByRole('link', { name: 'CRN-1' })).getAttribute('href')).toBe(
+      '/income/credit-notes/cn-1',
+    )
+    expect(screen.getByRole('link', { name: 'DBN-1' }).getAttribute('href')).toBe(
+      '/income/debit-notes/dn-1',
+    )
+  })
+
   it('prints none of the sample company or its figures', async () => {
     answer()
     renderPage()

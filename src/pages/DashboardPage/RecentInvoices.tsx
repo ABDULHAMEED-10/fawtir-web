@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { OmAmount } from '../../components/ui'
 import { formatAmount, formatDate } from '../../lib/format'
+import { NOTE_ROUTES } from '../../lib/salesNote'
 import type { RecentInvoiceDto } from '../../api/reports/dashboard'
 import { DashboardCard } from './DashboardCard'
 import { toNumber, type TileView } from './dashboardData'
@@ -35,6 +36,13 @@ function statusOf(row: RecentInvoiceDto): RowStatus {
   return 'issued'
 }
 
+/** A note opens on its own page, which shows the invoice it corrects, as from the invoices list. */
+function documentPath(row: RecentInvoiceDto): string {
+  return row.invoiceType === 'CREDIT_NOTE' || row.invoiceType === 'DEBIT_NOTE'
+    ? `${NOTE_ROUTES[row.invoiceType]}/${row.id}`
+    : `/invoices/${row.id}`
+}
+
 export function RecentInvoices({ invoices }: { invoices: TileView<RecentInvoiceDto[]> }) {
   const { t, i18n } = useTranslation()
 
@@ -66,7 +74,7 @@ export function RecentInvoices({ invoices }: { invoices: TileView<RecentInvoiceD
                 return (
                   <tr key={row.id} className="border-b border-border-subtle last:border-b-0">
                     <td className="px-5 py-4 text-base font-medium text-text-primary">
-                      <Link to={`/invoices/${row.id}`} className="hover:text-primary-700">
+                      <Link to={documentPath(row)} className="hover:text-primary-700">
                         {row.invoiceNumber ?? t('dashboard.invoices.noNumber')}
                       </Link>
                     </td>
