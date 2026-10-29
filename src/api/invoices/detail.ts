@@ -1,6 +1,11 @@
 import { apiDownload, apiRequest, type ApiDownload } from '../client'
 import type { DiscountDto } from './drafts'
-import type { InvoiceStateDto, InvoiceTypeDto } from './list'
+import type {
+  InvoiceListApproval,
+  InvoicePaymentDto as InvoiceListPaymentDto,
+  InvoiceStateDto,
+  InvoiceTypeDto,
+} from './list'
 
 /**
  * One authored invoice, opened (`InvoiceAuthoringController`). The document, what it still owes,
@@ -110,6 +115,15 @@ export type InvoiceDetailDto = {
    */
   seller?: InvoiceSellerDto | null
   buyer?: InvoiceBuyerDto | null
+  /**
+   * The list-row fields `InvoiceResponse` also carries. The single read leaves them null today
+   * (backend C-5); a page that needs them reads them from the list. Optional because a server
+   * older than the field does not send it.
+   */
+  customerName?: string | null
+  payment?: InvoiceListPaymentDto | null
+  correctionOfInvoiceNumber?: string | null
+  approvalState?: InvoiceListApproval | null
   /**
    * Line warnings on the authoring routes, never blocking; `[]` when none. The issue answer also
    * lists the lines that cite a counted product and moved no stock (`STOCK_UNIT_MISMATCH`,

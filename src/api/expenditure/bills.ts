@@ -527,6 +527,10 @@ export type BillDetailDto = {
       | 'DRAFT_CREATED'
       | 'ISSUED'
       | 'CANCELLED'
+      // A person's decision on a held Peppol copy (backend V493): the kinds the server sends on
+      // the copy's own record. The activity panel already has words for both.
+      | 'NOT_DUPLICATE'
+      | 'CONFIRMED_DUPLICATE'
     detail: string | null
     actor: string | null
   }[]

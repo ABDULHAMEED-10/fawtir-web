@@ -77,7 +77,8 @@ export type RecentInvoiceDto = {
   issueDate: string | null
   customerName: string | null
   currency: string
-  total: Amount
+  /** Null for a draft: it is priced only at issue (`InvoicePayableSql` over no totals). */
+  total: Amount | null
   dispatch: 'PENDING' | 'DISPATCHED' | 'DEAD_LETTERED' | null
   transportState: string | null
   invoiceAck: 'AP' | 'AB' | 'RE' | null
