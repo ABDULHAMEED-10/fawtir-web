@@ -279,6 +279,46 @@ describe('a company the till cannot invoice yet (F-1)', () => {
     })
   })
 
+  it('names what is missing when the server refuses the company itself (backend #810)', async () => {
+    answer = (url, init) => {
+      if (url.startsWith('/api/v1/customers?')) {
+        return json({ content: [], totalElements: 0, number: 0, size: 10, totalPages: 0 })
+      }
+      if (url.startsWith('/api/v1/pos/sales')) {
+        return json({ content: [], totalElements: 0, page: 0, size: 50, branchId: 'b-1' })
+      }
+      if (url === '/api/v1/pos/customers' && init?.method === 'POST') {
+        return json(
+          {
+            type: 'https://api.fawtir.om/problems/customer-not-invoice-eligible',
+            status: 400,
+            code: 'CUSTOMER_NOT_INVOICE_ELIGIBLE',
+            missingInvoiceFields: ['invoiceAddress.streetName'],
+          },
+          400,
+        )
+      }
+      return null
+    }
+    renderAt('/pos/company')
+    fireEvent.click(await screen.findByRole('button', { name: 'Enter it by hand instead' }))
+    const form = (await screen.findByRole('button', { name: 'Add the company' })).closest(
+      'div.rounded-md',
+    ) as HTMLElement
+    const field = (label: string) => within(form).getByLabelText(label)
+    fireEvent.change(field('Legal name'), { target: { value: 'Sohar Traders LLC' } })
+    fireEvent.change(field('Contact person'), { target: { value: 'Ali' } })
+    fireEvent.change(field('VAT number'), { target: { value: 'OM1100223344' } })
+    fireEvent.change(field('City / Governorate'), { target: { value: 'Sohar' } })
+    fireEvent.change(field('Street & building'), { target: { value: 'x' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Add the company' }))
+    expect(
+      await within(form).findByText(
+        'A full invoice to this company needs the invoice address (street).',
+      ),
+    ).toBeTruthy()
+  })
+
   it('completes the address of a company found by VAT number, for whoever may edit customers', async () => {
     const found = {
       id: 'c-2',
@@ -410,40 +450,43 @@ describe('the full invoice receipt (F-6)', () => {
   })
 })
 
+/** A refund lookup as a server older than backend #810 answers it: no tip. */
+const LOOKUP = {
+  saleId: 's-1',
+  invoiceId: 'i-1',
+  invoiceNumber: 'NZW-T01-INV-2026-000001',
+  soldAt: '2026-10-29T08:00:00Z',
+  transactionType: 'SIMPLIFIED',
+  branch: { id: 'b-1', name: 'Nizwa' },
+  customer: { kind: 'WALK_IN', customerId: 'c-0', name: null },
+  headerDiscount: null,
+  lines: [
+    {
+      lineNumber: 1,
+      role: 'ITEM',
+      productId: 'p-1',
+      description: 'Butter croissant',
+      quantitySold: 2,
+      quantityRefunded: 0,
+      unitPrice: 0.8,
+      discount: null,
+      vatRate: 5,
+      vatCategory: 'S',
+      refundable: true,
+    },
+  ],
+  paid: { byMethod: [{ method: 'CASH', amount: 1.68 }], total: 1.68, paidBack: 0 },
+  total: 1.68,
+  credited: 0,
+  owed: 0,
+  creditNoteNumbers: [],
+}
+
 describe('the refund page (F-11)', () => {
   it('shows the tip the customer paid, which is not refunded', async () => {
     answer = (url) => {
       if (url.startsWith('/api/v1/pos/refund-lookup')) {
-        return json({
-          saleId: 's-1',
-          invoiceId: 'i-1',
-          invoiceNumber: 'NZW-T01-INV-2026-000001',
-          soldAt: '2026-10-29T08:00:00Z',
-          transactionType: 'SIMPLIFIED',
-          branch: { id: 'b-1', name: 'Nizwa' },
-          customer: { kind: 'WALK_IN', customerId: 'c-0', name: null },
-          headerDiscount: null,
-          lines: [
-            {
-              lineNumber: 1,
-              role: 'ITEM',
-              productId: 'p-1',
-              description: 'Butter croissant',
-              quantitySold: 2,
-              quantityRefunded: 0,
-              unitPrice: 0.8,
-              discount: null,
-              vatRate: 5,
-              vatCategory: 'S',
-              refundable: true,
-            },
-          ],
-          paid: { byMethod: [{ method: 'CASH', amount: 1.68 }], total: 1.68, paidBack: 0 },
-          total: 1.68,
-          credited: 0,
-          owed: 0,
-          creditNoteNumbers: [],
-        })
+        return json(LOOKUP)
       }
       if (url.startsWith('/api/v1/pos/sales/s-1')) return json(sold('x', { tip: 0.588 }))
       return null
@@ -452,6 +495,18 @@ describe('the refund page (F-11)', () => {
     fireEvent.click(await screen.findByRole('checkbox', { name: /Butter croissant/ }))
     const tipRow = (await screen.findByText(i18n.t('pos.refund.tipNotRefunded'))).parentElement!
     await waitFor(() => expect(tipRow.textContent).toContain('0.588'))
+  })
+
+  it('takes the tip from the lookup when the server sends it, and reads nothing more (backend #810)', async () => {
+    answer = (url) =>
+      url.startsWith('/api/v1/pos/refund-lookup')
+        ? json({ ...LOOKUP, tip: 0.412, tipMethod: 'CASH' })
+        : null
+    renderAt('/pos/refund?invoice=NZW-T01-INV-2026-000001')
+    fireEvent.click(await screen.findByRole('checkbox', { name: /Butter croissant/ }))
+    const tipRow = (await screen.findByText(i18n.t('pos.refund.tipNotRefunded'))).parentElement!
+    expect(tipRow.textContent).toContain('0.412')
+    expect(calls.some((call) => call.url.startsWith('/api/v1/pos/sales/s-1'))).toBe(false)
   })
 })
 

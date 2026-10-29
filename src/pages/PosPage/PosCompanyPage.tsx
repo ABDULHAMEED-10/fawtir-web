@@ -9,7 +9,14 @@ import { COMPANY_IS, WALK_IN_IS } from '../../lib/posPayment'
 import { ArrowForwardIcon, CheckIcon, SearchIcon } from './posIcons'
 import { Select } from '../../components/ui'
 import { useApiRead } from '../../hooks'
-import { apiRequest, fromSpringPage, withQuery, type Page, type SpringPage } from '../../api'
+import {
+  ApiError,
+  apiRequest,
+  fromSpringPage,
+  withQuery,
+  type Page,
+  type SpringPage,
+} from '../../api'
 import {
   BUYER_IDENTIFIER_SCHEMES,
   CUSTOMERS_PATH,
@@ -19,7 +26,7 @@ import {
   type CustomerRecordDto,
 } from '../../api/customers/customers'
 import { useCan } from '../../lib/session/session'
-import { missingFieldsSentence } from '../../lib/customerEligibility'
+import { missingFieldsSentence, notEligiblePaths } from '../../lib/customerEligibility'
 import { addPosCustomer, newPosKey, posSalesPath, type PosTodaySalesPage } from '../../api/pos/pos'
 import { posRefusalKey } from '../../lib/posRefusals'
 import type { TillState } from '../../lib/posTill'
@@ -413,7 +420,7 @@ function AddCompany({
   vat: string
   onAdded: (found: Found | null) => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [form, setForm] = useState({
     name: '',
     contactPerson: '',
@@ -428,6 +435,9 @@ function AddCompany({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<unknown>(null)
   const [key] = useState(() => newPosKey('customer'))
+  // Backend #810 refuses a company it could never invoice, naming what is missing.
+  const missing =
+    error instanceof ApiError ? notEligiblePaths({ code: error.code, ...error.problem }) : null
   const set = (patch: Partial<typeof form>) => setForm((current) => ({ ...current, ...patch }))
   const ready =
     form.name.trim() &&
@@ -533,7 +543,11 @@ function AddCompany({
       </p>
       {error ? (
         <p role="alert" className="text-xs font-medium text-danger-700">
-          {t(posRefusalKey(error))}
+          {missing?.length
+            ? t('pos.company.notReady', {
+                missing: missingFieldsSentence(missing, t, i18n.language),
+              })
+            : t(posRefusalKey(error))}
         </p>
       ) : null}
       <div>

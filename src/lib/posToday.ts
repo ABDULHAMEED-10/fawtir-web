@@ -104,12 +104,13 @@ export function payDetail(
   return sale.customer.name ? { text: sale.customer.name } : null
 }
 
-export type TodaySaleState = PosTodaySaleRow['displayState'] | 'waiting'
+export type TodaySaleState = PosTodaySaleRow['displayState']
 
 /**
- * The badge on a sale. The server's `displayState` reads "filed" for every walk-in sale, also while
- * the filing still waits in the queue (`filing.dispatchState: QUEUED`), so the till says "Waiting"
- * until it has gone (E2E 29 Oct 2026, F-7).
+ * The badge on a sale. Backend #810 answers `waiting` and `failed` itself; an older server reads
+ * "filed" for every walk-in sale, also while the filing still waits in the queue
+ * (`filing.dispatchState: QUEUED`), so for its "filed" the till says "Waiting" until it has gone
+ * (E2E 29 Oct 2026, F-7).
  */
 export function saleState(sale: PosTodaySaleRow): TodaySaleState {
   if (

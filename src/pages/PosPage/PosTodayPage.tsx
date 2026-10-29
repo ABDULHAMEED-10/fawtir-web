@@ -38,6 +38,7 @@ const STATE_TONE = {
   peppol: 'bg-neutral-25 text-text-tertiary',
   credited: 'bg-pending-100 text-pending-700',
   waiting: 'bg-neutral-25 text-text-tertiary',
+  failed: 'bg-danger-100 text-danger-700',
 } as const
 
 /**

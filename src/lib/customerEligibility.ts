@@ -81,10 +81,11 @@ export function missingFieldsSentence(
 }
 
 /**
- * The paths a `CUSTOMER_NOT_INVOICE_ELIGIBLE` refusal names. TODO(backend): the problem carries
- * them only inside its `detail` sentence ("Customer is missing invoice fields: invoiceAddress.cityName,
- * ..."), not as a `missingInvoiceFields` member, so the stable paths are picked out of it; null for
- * any other refusal.
+ * The paths a `CUSTOMER_NOT_INVOICE_ELIGIBLE` refusal names, from its `missingInvoiceFields`
+ * (backend #810, on a sale and on `POST /v1/pos/customers`). Fixed by #810: an older server sent
+ * them only inside the `detail` sentence ("Customer is missing invoice fields:
+ * invoiceAddress.cityName, ..."), so until #810 is deployed the stable paths are picked out of it.
+ * Null for any other refusal.
  */
 export function notEligiblePaths(problem: {
   code?: string | null

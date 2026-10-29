@@ -4780,7 +4780,8 @@
         "filed": "مُرسلة",
         "peppol": "Peppol",
         "credited": "مستردة",
-        "waiting": "قيد الانتظار"
+        "waiting": "قيد الانتظار",
+        "failed": "لم تُقدَّم"
       },
       "tab": {
         "everything": "كل شيء",

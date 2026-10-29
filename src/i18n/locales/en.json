@@ -4567,7 +4567,8 @@
         "filed": "Filed",
         "peppol": "Peppol",
         "credited": "Credited",
-        "waiting": "Waiting"
+        "waiting": "Waiting",
+        "failed": "Not filed"
       },
       "tab": {
         "everything": "Everything",

@@ -133,12 +133,17 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
   const attempt = useRef<{ fingerprint: string; key: string } | null>(null)
 
   const credit = creditFor(sale, returning)
-  // The tip the customer paid on top, which is never refunded (F-11). TODO(backend): the refund
-  // lookup does not carry it, so it is read from the sale itself (`pos.read`); 0 without it.
+  // The tip the customer paid on top, which is never refunded (F-11): on the lookup since backend
+  // #810; from an older server, read from the sale itself (`pos.read`), 0 without it.
   const mayReadSale = useCan('pos.read')
-  const soldPath = mayReadSale ? `/v1/pos/sales/${sale.saleId}` : null
+  const soldPath = sale.tip == null && mayReadSale ? `/v1/pos/sales/${sale.saleId}` : null
   const sold = useApiRead<PosSaleDto>(soldPath, () => loadPosSale(sale.saleId))
-  const tipPaid = sold.read.status === 'ready' ? toBaisa(sold.read.data.tip) : 0
+  const tipPaid =
+    sale.tip != null
+      ? toBaisa(sale.tip)
+      : sold.read.status === 'ready'
+        ? toBaisa(sold.read.data.tip)
+        : 0
   const back = expected ?? credit.back
   const anything = credit.items > 0
   const was = toBaisa(sale.total)

@@ -104,6 +104,11 @@ describe('a sale on Today (E2E F-7)', () => {
     expect(saleState(row({}))).toBe('filed')
   })
 
+  it('takes waiting and failed from a server that sends them (backend #810)', () => {
+    expect(saleState(row({ displayState: 'waiting' }))).toBe('waiting')
+    expect(saleState(row({ displayState: 'failed' }))).toBe('failed')
+  })
+
   it('puts the tip on top of the total, not inside it', () => {
     expect(amountNote(row({ tip: 0.588 }))).toEqual({
       key: 'pos.today.plusTip',

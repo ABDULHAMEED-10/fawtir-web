@@ -515,7 +515,24 @@ function rowOf(record) {
       credited: round3(record.credited),
       creditNoteNumbers: record.creditNoteNumbers,
     },
-    displayState: fully ? 'credited' : company ? 'peppol' : 'filed',
+    // As backend #810 reads the filing: waiting until accepted, failed when it never went.
+    displayState: fully
+      ? 'credited'
+      : ['DEAD_LETTERED', 'CANCELLED'].includes(s.filing.dispatchState) ||
+          [
+            'GENERATION_FAILED',
+            'REJECTED',
+            'DEAD_LETTERED',
+            'TO_DISREGARD',
+            'DISREGARD_SUBMITTED',
+          ].includes(s.filing.tddStatus)
+        ? 'failed'
+        : company
+          ? 'peppol'
+          : s.filing.tddStatus === 'ACCEPTED'
+            ? 'filed'
+            : 'waiting',
+    filing: s.filing,
     refundable: !fully,
     queuedOffline: s.queuedOffline,
   }
@@ -674,6 +691,9 @@ function lookupOf(record) {
       paidBack: round3(record.paidBack),
     },
     total: s.totals.total,
+    // Backend #810: the tip paid on top, never refunded.
+    tip: s.tip ?? 0,
+    tipMethod: s.tip ? (s.tipMethod ?? null) : null,
     credited: round3(record.credited),
     owed: Math.max(0, round3(s.onAccount - record.credited)),
     creditNoteNumbers: record.creditNoteNumbers,
@@ -869,6 +889,21 @@ export default [
           ],
         })
       }
+      // Backend #810: a company the till could never invoice is refused before it is created.
+      const missing = ['countryCode', 'cityName', 'streetName']
+        .filter((part) => !String(b.address?.[part] ?? '').trim())
+        .map((part) => `invoiceAddress.${part}`)
+      if (missing.length) {
+        return problem(
+          400,
+          'CUSTOMER_NOT_INVOICE_ELIGIBLE',
+          {
+            detail: `Customer is missing invoice fields: ${missing.join(', ')}`,
+            missingInvoiceFields: missing,
+          },
+          'customer-not-invoice-eligible',
+        )
+      }
       const id = newId('c-pos')
       const vat = hasVat ? String(b.vatNumber).trim() : null
       CUSTOMER_NAMES[id] = b.name
@@ -898,12 +933,8 @@ export default [
             invoiceAddress: b.address ?? null,
           },
           peppolDelivery: vat ? 'PENDING_VERIFICATION' : 'NOT_APPLICABLE',
-          ...(() => {
-            const missing = ['countryCode', 'cityName', 'streetName']
-              .filter((part) => !String(b.address?.[part] ?? '').trim())
-              .map((part) => `invoiceAddress.${part}`)
-            return { invoiceEligible: missing.length === 0, missingInvoiceFields: missing }
-          })(),
+          invoiceEligible: true,
+          missingInvoiceFields: [],
           status: 'ACTIVE',
           updatedAt: nowIso(),
         },
