@@ -338,6 +338,8 @@ export type DebitNoteItem = {
   id: string
   number: string | null
   issueDate: string | null
+  /** When the note reached us; null from a server that does not say. */
+  receivedAt: string | null
   dueDate: string | null
   /** The server's judgment. Never recomputed from the due date here: see the Bills list. */
   overdue: boolean
@@ -378,6 +380,7 @@ export function toDebitNoteItem(row: DebitNoteRowDto): DebitNoteItem {
     id: row.id,
     number: row.debitNoteNumber,
     issueDate: row.issueDate,
+    receivedAt: row.receivedAt ?? null,
     dueDate: row.dueDate,
     overdue: row.overdue,
     supplier: row.supplierName,

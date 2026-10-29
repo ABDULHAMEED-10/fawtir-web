@@ -51,15 +51,14 @@ export function stepsOf(detail: BillDetailDto, format: DateFormat): BillStep[] {
   const paid = settlement.paymentState === 'PAID'
 
   // "29 Jul · Peppol": the day it came in and how. An upload knows its time; a network bill's
-  // arrival is its ARRIVED event, and failing that the day it was issued.
+  // arrival is its ARRIVED event. Without either the step names only how it came: the issue date
+  // stood in and read "Arrived 11 Sept" over a bill that arrived on 29 Oct (B-9).
   const arrivedEvent = detail.activity.find((entry) => entry.kind === 'ARRIVED' && entry.at)
   const arrivedDay = intake
     ? format.instantDay(intake.uploadedAt)
     : arrivedEvent?.at
       ? format.instantDay(arrivedEvent.at)
-      : bill.issueDate
-        ? format.day(bill.issueDate)
-        : null
+      : null
   const arrived: BillStep = {
     id: 'arrived',
     labelKey: 'billDetail.steps.arrived',

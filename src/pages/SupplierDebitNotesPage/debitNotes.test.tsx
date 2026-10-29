@@ -294,6 +294,18 @@ describe('Debit notes list, wired to the API', () => {
     expect(screen.getByRole('link', { name: 'Accept or refuse' })).toBeTruthy()
   })
 
+  it('says Arrived with the day it reached us, and the issue date only as Issued (B-9)', async () => {
+    notes = [
+      note({ id: 'dn-a', debitNoteNumber: 'QMS-DN-A', receivedAt: '2026-10-29T08:00:00Z' }),
+      note({ id: 'dn-b', debitNoteNumber: 'QMS-DN-B', receivedAt: null }),
+    ]
+    renderList()
+    const row = async (name: string) => within((await screen.findByText(name)).closest('tr')!)
+    expect((await row('QMS-DN-A')).getByText('Arrived 29 Oct 2026')).toBeTruthy()
+    expect((await row('QMS-DN-B')).getByText('Issued 1 Sept 2026')).toBeTruthy()
+    expect(screen.queryByText('Arrived 1 Sept 2026')).toBeNull()
+  })
+
   it('does not present a refused charge as money owed', async () => {
     // The figure the supplier asked for still shows; what changes is that it is not a debt.
     expect(toDebitNoteItem(note({ status: 'REFUSED' })).owes).toBe(false)

@@ -1618,6 +1618,24 @@ describe('the supplier card on a bill', () => {
 })
 
 describe('bill detail mapping', () => {
+  it('dates the Arrived step only from an arrival, never from the issue date (B-9)', () => {
+    const format = { day: (iso: string) => `day ${iso}`, instantDay: (iso: string) => `at ${iso}` }
+    const base = detail()
+    const noEvent = { ...base, intake: null, activity: base.activity.filter((entry) => entry.kind !== 'ARRIVED') }
+    expect(stepsOf(noEvent, format)[0].detail).toEqual({ key: `billDetail.steps.via.${base.bill.source}` })
+    const arrived = {
+      ...noEvent,
+      activity: [
+        ...noEvent.activity,
+        { at: '2026-10-29T13:21:00Z', kind: 'ARRIVED' as const, detail: null, actor: null },
+      ],
+    }
+    expect(stepsOf(arrived, format)[0].detail).toEqual({
+      key: 'billDetail.steps.arrivedVia',
+      values: { date: 'at 2026-10-29T13:21:00Z', source: base.bill.source },
+    })
+  })
+
   it('walks the steps as far as the bill has got, and no further', () => {
     const format = { day: (iso: string) => iso, instantDay: (iso: string) => iso }
     const steps = stepsOf(detail(), format)
