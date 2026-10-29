@@ -7840,7 +7840,7 @@
       "TO_DISREGARD": "To be withdrawn",
       "DISREGARD_SUBMITTED": "Withdrawal sent",
       "DEAD_LETTERED": "Given up on",
-      "NOT_TESTED": "Not sent: no tax authority (C5) is authorised on the test network",
+      "NOT_TESTED": "Not sent: no C5 provider is authorised on the test network",
       "unknown": "Status not recognised"
     },
     "artefact": {

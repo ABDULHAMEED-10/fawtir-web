@@ -277,7 +277,7 @@ function SalesNote({
         selfBilled={selfBilled}
         title={t(`salesNote.${kind === 'CREDIT_NOTE' ? 'credit' : 'debit'}.new`)}
       >
-        <ApiReadFailure error={loaded.error} retry={() => setAttempt((n) => n + 1)} />
+        <ApiReadFailure error={loaded.error} retry={() => setAttempt((n) => n + 1)} notFoundOn400 />
       </Frame>
     )
   }

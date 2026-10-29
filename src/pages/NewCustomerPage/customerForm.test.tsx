@@ -339,6 +339,20 @@ describe('an existing customer', () => {
     })
   })
 
+  it('reads a 400 on the customer (a malformed id) as not found, with nothing to retry', async () => {
+    // Every "View customer" link opens this page, so a bad id must not ask to check a form.
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === ONE && (init?.method ?? 'GET') === 'GET'
+        ? json(400, { type: 'https://api.fawtir.om/problems/validation-failed', status: 400 })
+        : base(url, init),
+    )
+    renderAt(`/customers/${ID}/edit`)
+    expect(await screen.findByText('Not found')).toBeTruthy()
+    expect(screen.queryByText(/Some details were not accepted/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+  })
+
   it('offers no save to someone who may only read customers', async () => {
     who = { ...MANAGER, permissions: ['customer.read'] }
     renderAt(`/customers/${ID}/edit`)

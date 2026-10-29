@@ -299,7 +299,7 @@ function ScheduleComposer({ id }: { id: string | null }) {
         {existing.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
-          <ApiReadFailure error={existing.read.error} retry={existing.retry} />
+          <ApiReadFailure error={existing.read.error} retry={existing.retry} notFoundOn400 />
         )}
       </div>
     )
