@@ -6078,7 +6078,8 @@
       "none": "The supplier sent no lines with this bill.",
       "vatOnly": "VAT",
       "receivedOn": "Received on {{receipt}}",
-      "vatCategory": "{{rate}} · {{category}}"
+      "vatCategory": "{{rate}} · {{category}}",
+      "vatInRial": "VAT in Omani rial"
     },
     "linked": {
       "title": "Linked documents",

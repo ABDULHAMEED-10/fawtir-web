@@ -6394,7 +6394,8 @@
       "none": "لم يرسل المورّد أي بنود مع هذه الفاتورة.",
       "vatOnly": "ضريبة القيمة المضافة",
       "receivedOn": "استُلم على {{receipt}}",
-      "vatCategory": "{{rate}} · {{category}}"
+      "vatCategory": "{{rate}} · {{category}}",
+      "vatInRial": "الضريبة بالريال العماني"
     },
     "linked": {
       "title": "المستندات المرتبطة",

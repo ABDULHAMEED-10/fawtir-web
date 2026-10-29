@@ -1532,6 +1532,53 @@ describe('A bill, wired to the API', () => {
     expect(await screen.findAllByText('Supplier not named')).toBeTruthy()
   })
 
+  it('names an unnamed sender by its Peppol id (DB-1)', async () => {
+    billResponse = () =>
+      json(200, {
+        ...detail(),
+        bill: {
+          ...detail().bill,
+          supplierId: null,
+          supplierName: null,
+          supplierParticipantId: '0248:OM1100000299',
+        },
+      })
+    renderBill()
+    const from = (await screen.findByText('0248:OM1100000299')).closest('p')!
+    expect(within(from).queryByText('Supplier not named')).toBeNull()
+    expect(screen.getByText('0248:OM1100000299').getAttribute('dir')).toBe('ltr')
+  })
+
+  it('writes a USD bill in dollars, with its VAT in rial beside it (DB-5)', async () => {
+    billResponse = () =>
+      json(200, {
+        ...detail(),
+        bill: {
+          ...detail().bill,
+          currencyCode: 'USD',
+          totalIncludingVat: 273,
+          vatAmount: 13,
+          outstandingAmount: 273,
+          amountDue: 273,
+          inputVat: { counted: true, countedOn: '2026-10-29', reason: 'COUNTED', vatAmountOmr: 5 },
+        },
+      })
+    renderBill()
+    const charging = (await screen.findByText(i18n.t('billDetail.lines.theyreCharging'))).parentElement!
+    expect(within(charging).getByText('USD')).toBeTruthy()
+    expect(charging.querySelector('svg')).toBeNull()
+    const rial = screen.getByText(i18n.t('billDetail.lines.vatInRial')).parentElement!
+    expect(within(rial).getByText('5.000')).toBeTruthy()
+    expect(rial.querySelector('svg')).not.toBeNull()
+  })
+
+  it('keeps the rial sign and adds no rial VAT line on a bill in rial (DB-5)', async () => {
+    renderBill()
+    const charging = (await screen.findByText(i18n.t('billDetail.lines.theyreCharging'))).parentElement!
+    expect(charging.querySelector('svg')).not.toBeNull()
+    expect(screen.queryByText(i18n.t('billDetail.lines.vatInRial'))).toBeNull()
+  })
+
   it('shows the not-found state for a bill this tenant does not have', async () => {
     billResponse = () =>
       json(404, { type: 'https://api.fawtir.om/problems/not-found', error: 'BILL_NOT_FOUND' })

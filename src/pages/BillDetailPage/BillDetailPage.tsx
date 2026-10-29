@@ -495,7 +495,14 @@ function BillScreen() {
         <p className="flex flex-wrap items-center gap-1.5 text-base leading-[1.2]">
           <span className="font-medium text-text-quaternary">{t('billDetail.from')}</span>
           <span className="font-semibold text-text-primary">
-            {row.supplierName ?? t('billDetail.supplierUnknown')}
+            {/* A bill from a participant with no supplier record carries no name; its Peppol id
+                is the one thing that says who sent it (DB-1, local E2E 2026-10-29). */}
+            {row.supplierName ??
+              (row.supplierParticipantId ? (
+                <span dir="ltr">{row.supplierParticipantId}</span>
+              ) : (
+                t('billDetail.supplierUnknown')
+              ))}
           </span>
           {row.issueDate ? (
             <>
@@ -692,7 +699,7 @@ function BillScreen() {
                         </td>
                         <td className="py-3.5 text-end text-sm font-medium text-text-secondary">
                           <span className="me-1">
-                            <Rial />
+                            <CurrencySign currency={row.currencyCode} />
                           </span>
                           {money(line.unitPrice)}
                         </td>
@@ -701,7 +708,7 @@ function BillScreen() {
                         </td>
                         <td className="py-3.5 text-end text-base font-semibold text-text-primary">
                           <span className="me-1">
-                            <Rial />
+                            <CurrencySign currency={row.currencyCode} />
                           </span>
                           {money(line.lineNet)}
                         </td>
@@ -731,19 +738,34 @@ function BillScreen() {
                     </dt>
                     <dd className="text-sm font-semibold text-text-secondary tabular-nums">
                       <span className="me-1">
-                        <Rial />
+                        <CurrencySign currency={row.currencyCode} />
                       </span>
                       {money(value)}
                     </dd>
                   </div>
                 ))}
+                {row.currencyCode !== 'OMR' &&
+                row.inputVat?.vatAmountOmr !== null &&
+                row.inputVat?.vatAmountOmr !== undefined ? (
+                  <div className="flex items-center justify-between gap-4 border-b border-surface-background py-2.5">
+                    <dt className="text-sm font-medium text-text-tertiary">
+                      {t('billDetail.lines.vatInRial')}
+                    </dt>
+                    <dd className="text-sm font-semibold text-text-secondary tabular-nums">
+                      <span className="me-1">
+                        <Rial />
+                      </span>
+                      {formatAmount(row.inputVat.vatAmountOmr, 'OMR', language)}
+                    </dd>
+                  </div>
+                ) : null}
                 <div className="flex items-center justify-between gap-4 pt-3.5">
                   <dt className="text-base font-semibold text-text-primary">
                     {t('billDetail.lines.theyreCharging')}
                   </dt>
                   <dd className="text-[22px] font-semibold leading-[1.2] text-text-primary tabular-nums">
                     <span className="me-1">
-                      <Rial />
+                      <CurrencySign currency={row.currencyCode} />
                     </span>
                     {money(row.totalIncludingVat)}
                   </dd>
@@ -838,7 +860,7 @@ function BillScreen() {
             </div>
             <p className="mt-3 text-[28px] font-semibold leading-[1.2] text-text-primary">
               <span className="me-1.5">
-                <Rial />
+                <CurrencySign currency={row.currencyCode} />
               </span>
               {money(row.totalIncludingVat)}
             </p>
@@ -1252,6 +1274,14 @@ function RialInText({ text }: { text: string }) {
 }
 
 /** Net and VAT, derived: the bill carries its total and its VAT, never a net of its own. */
+/**
+ * The rial sign for a bill in rial, and the currency code for any other: the sign was drawn
+ * on every bill, so a USD bill read as rial (DB-5, local E2E 2026-10-29).
+ */
+function CurrencySign({ currency }: { currency: string }) {
+  return currency === 'OMR' ? <Rial /> : <span>{currency}</span>
+}
+
 function netAndVat(
   detail: BillDetailDto,
 ): [string, Record<string, unknown> | undefined, number | null][] {

@@ -44,6 +44,8 @@ export type BillRowDto = {
   source: BillSourceDto
   supplierId: string | null
   supplierName: string | null
+  /** The sender's Peppol id (`scheme:value`) on a received bill; null on one captured by hand. */
+  supplierParticipantId?: string | null
   /** 380 invoice, 381 credit note, 383 debit note, 389 self-billed, 261 self-billed credit note. */
   documentTypeCode: string | null
   supplierBillNumber: string | null
