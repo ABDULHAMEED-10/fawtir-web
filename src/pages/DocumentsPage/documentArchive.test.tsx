@@ -434,7 +434,8 @@ describe('The compliance archive, wired to the API', () => {
     expect(screen.queryByText('Not found')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Download' }))
-    await waitFor(() => expect(calls(unserved).length).toBeGreaterThan(1))
+    // One read for the preview, one for the download.
+    await waitFor(() => expect(calls(unserved)).toHaveLength(2))
     expect(await screen.findAllByText('Held, no download yet')).toHaveLength(2)
     expect(screen.queryByText(/couldn't find this record/)).toBeNull()
   })
@@ -575,12 +576,12 @@ describe('report status words', () => {
     }
     extra = [untested]
     renderArchive(`/compliance/documents/${untested.invoice_uuid}`)
-    expect(await screen.findByText('Not tested')).toBeTruthy()
+    expect(await screen.findByText('Not sent (test network)')).toBeTruthy()
     expect(screen.queryByText(/documents\.(chip|tdd)\./)).toBeNull()
     cleanup()
     await i18n.changeLanguage('ar')
     renderArchive(`/compliance/documents/${untested.invoice_uuid}`)
-    expect(await screen.findByText('لم يُختبر')).toBeTruthy()
+    expect(await screen.findByText('لم يُرسل (شبكة الاختبار)')).toBeTruthy()
   })
 })
 

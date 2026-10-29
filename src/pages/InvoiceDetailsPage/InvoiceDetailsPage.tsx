@@ -1366,7 +1366,11 @@ function InvoiceScreen() {
               [
                 vatRates.length === 1 && data.lines[0]
                   ? t('invoiceDetails.totals.vatRate', {
-                      category: vatCategory,
+                      // Its own words: Arabic needs the definite, agreeing form after "الضريبة"
+                      // ("الضريبة · القياسية"), which the header's "نسبة قياسية" does not take.
+                      category: t(`invoiceDetails.totals.category.${data.lines[0].en16931Category}`, {
+                        defaultValue: vatCategory,
+                      }),
                       rate: data.lines[0].taxRate ?? 0,
                     })
                   : t('invoiceDetails.totals.vatOnly'),

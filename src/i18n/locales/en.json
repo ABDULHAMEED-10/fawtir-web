@@ -2367,7 +2367,15 @@
       "vatOnly": "VAT",
       "atIssue": "A draft is priced when it is issued.",
       "net": "Net amount",
-      "vatRate": "VAT · {{category}} {{rate}}%"
+      "vatRate": "VAT · {{category}} {{rate}}%",
+      "category": {
+        "S": "Standard",
+        "Z": "Zero-rated",
+        "E": "Exempt",
+        "O": "Out of scope",
+        "AE": "Reverse charge",
+        "G": "Export"
+      }
     },
     "notes": {
       "title": "Notes",
@@ -7832,7 +7840,7 @@
       "TO_DISREGARD": "To be withdrawn",
       "DISREGARD_SUBMITTED": "Withdrawal sent",
       "DEAD_LETTERED": "Given up on",
-      "NOT_TESTED": "Not tested: no tax authority endpoint on this network",
+      "NOT_TESTED": "Not sent: no tax authority (C5) is authorised on the test network",
       "unknown": "Status not recognised"
     },
     "artefact": {
@@ -8128,7 +8136,7 @@
       "TO_DISREGARD": "Being withdrawn",
       "DISREGARD_SUBMITTED": "Withdrawal sent",
       "DEAD_LETTERED": "TDD given up on",
-      "NOT_TESTED": "Not tested",
+      "NOT_TESTED": "Not sent (test network)",
       "unknown": "Status not recognised"
     },
     "fileNote": {

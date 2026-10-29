@@ -670,6 +670,24 @@ describe('An invoice, wired to the API', () => {
     expect(screen.queryByText(/Standard 0%/)).toBeNull()
   })
 
+  it('words the totals VAT line in natural Arabic, standard and zero-rated', async () => {
+    await i18n.changeLanguage('ar')
+    const view = renderInvoice()
+    expect(await screen.findByText('الضريبة · القياسية 5%')).toBeTruthy()
+    view.unmount()
+    const base = invoice()
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          lines: [{ ...base.lines[0], taxCategoryCode: 'Z', en16931Category: 'Z', taxRate: 0 }],
+          totals: { ...base.totals!, vatAmount: 0, totalAmount: 54 },
+        }),
+      )
+    renderInvoice()
+    expect(await screen.findByText('الضريبة · الخاضعة للنسبة الصفرية 0%')).toBeTruthy()
+  })
+
   it('names the credit in the payments footer, so paid, credited and outstanding add up', async () => {
     receivableResponse = () =>
       json(200, {
