@@ -197,7 +197,8 @@ export type InvoiceReceivableDto = {
 /** A payment or its reversal. Nothing is ever deleted, so a list must net the two. */
 export type InvoicePaymentDto = {
   id: string
-  entryType: 'PAYMENT' | 'REVERSAL'
+  /** `REFUND` (backend V477): money paid back for a credit note, kept on the invoice it credits. */
+  entryType: 'PAYMENT' | 'REVERSAL' | 'REFUND'
   reversalOfPaymentId: string | null
   amount: number
   currency: string
@@ -205,6 +206,8 @@ export type InvoicePaymentDto = {
   paymentReference: string | null
   paymentDate: string | null
   occurredAt: string
+  /** `REFUND` only: the credit note the money was paid back for. Absent from an older server. */
+  creditNoteId?: string | null
 }
 
 export type InvoiceAttachmentDto = {

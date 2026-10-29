@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -1772,5 +1772,112 @@ describe('"Back on the shelf?" on a credit note (V473)', () => {
       'salesNote.backOnShelf.onlyOnCreditNotes',
     )
     expect(i18n.exists('salesNote.backOnShelf.onlyOnCreditNotes', { lng: 'ar' })).toBe(true)
+  })
+})
+
+describe('cancelling a refunded credit note (DA-2)', () => {
+  const CANCELLER: Entitlements = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.cancel'] }
+  const refundNote: InvoiceDetailDto = {
+    ...INVOICE,
+    id: NOTE_ID,
+    type: 'CREDIT_NOTE',
+    correctionOfInvoiceId: INVOICE_ID,
+    invoiceNumber: 'CRN-7',
+  }
+  const refund = (overrides: Record<string, unknown> = {}) => ({
+    id: 'r-1',
+    entryType: 'REFUND',
+    reversalOfPaymentId: null,
+    amount: 26.25,
+    currency: 'OMR',
+    methodCode: 'CASH',
+    paymentReference: null,
+    paymentDate: '2026-10-29',
+    occurredAt: '2026-10-29T08:00:00Z',
+    creditNoteId: NOTE_ID,
+    ...overrides,
+  })
+
+  const open = async (originalPayments: () => Response, cancel?: () => Response) => {
+    entitlements = CANCELLER
+    override = (url, init) => {
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, refundNote)
+      if (url === `/api/v1/authored-invoices/${INVOICE_ID}/payments`) return originalPayments()
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/cancel` && init?.method === 'POST' && cancel)
+        return cancel()
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`) return json(404, { status: 404 })
+      if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/`))
+        return json(
+          200,
+          url.endsWith('/history')
+            ? { entries: [], truncated: false, limit: 200 }
+            : url.endsWith('/internal-note')
+              ? { internalNote: null }
+              : [],
+        )
+      return undefined
+    }
+    render(
+      <MemoryRouter initialEntries={[`/income/credit-notes/${NOTE_ID}`]}>
+        <Routes>
+          <Route path="/income/credit-notes/:id" element={<CreditNoteDetailsPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByRole('heading', { name: 'CRN-7' })
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([url]) => url === `/api/v1/authored-invoices/${INVOICE_ID}/payments`),
+      ).toBe(true),
+    )
+  }
+  const menuItem = async (name: string) => {
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('invoiceDetails.actions.more') }))
+    return screen.findByRole('menuitem', { name })
+  }
+
+  it('explains instead of cancelling once a refund is recorded against the note', async () => {
+    await open(() => json(200, [refund()]))
+    fireEvent.click(await menuItem('Cancel credit note'))
+    expect(
+      await screen.findByText('This credit note cannot be cancelled: a refund is recorded against it.'),
+    ).toBeTruthy()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('offers Cancel when the refund was reversed, or was for another note', async () => {
+    await open(() =>
+      json(200, [
+        refund(),
+        refund({ id: 'r-2', entryType: 'REVERSAL', reversalOfPaymentId: 'r-1', creditNoteId: null }),
+        refund({ id: 'r-3', creditNoteId: 'another-note' }),
+      ]),
+    )
+    fireEvent.click(await menuItem('Cancel credit note'))
+    expect(await screen.findByRole('dialog', { name: 'Cancel this credit note?' })).toBeTruthy()
+  })
+
+  it('offers no Cancel, and no hint, while the refunds cannot be read', async () => {
+    await open(() => json(500, { status: 500 }))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const more = screen.queryByRole('button', { name: i18n.t('invoiceDetails.actions.more') })
+    if (more) fireEvent.click(more)
+    expect(screen.queryByRole('menuitem', { name: 'Cancel credit note' })).toBeNull()
+    expect(screen.queryByText(/cannot be cancelled/)).toBeNull()
+  })
+
+  it.each([
+    ['en', 'This credit note cannot be cancelled: a refund is recorded against it.'],
+    ['ar', 'لا يمكن إلغاء هذا الإشعار الدائن: سُجّل عليه استرداد.'],
+  ])('reads the server refusing a refunded note as the note’s own sentence (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    await open(
+      () => json(200, []),
+      () => json(409, { status: 409, code: 'INVOICE_CANCEL_HAS_PAYMENTS', detail: 'no' }),
+    )
+    fireEvent.click(await menuItem(i18n.t('salesNote.detail.cancelAction.CREDIT_NOTE')))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Raised twice' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('salesNote.detail.cancelConfirm.CREDIT_NOTE') }))
+    expect(await screen.findByText(sentence)).toBeTruthy()
   })
 })

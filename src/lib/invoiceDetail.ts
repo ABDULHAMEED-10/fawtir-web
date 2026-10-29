@@ -24,6 +24,23 @@ export function isDraft(invoice: InvoiceDetailDto): boolean {
   return invoice.authoringState === 'DRAFT'
 }
 
+/**
+ * What is refunded on a credit note: its REFUND entries on the invoice it credits, less any
+ * reversed. A refunded note cannot be cancelled: cancelling one left the refund on the invoice
+ * pointing at a cancelled note and the VAT restored (DA-2, local E2E 2026-10-29); the server now
+ * refuses it with INVOICE_CANCEL_HAS_PAYMENTS.
+ */
+export function refundedOnNote(noteId: string, invoicePayments: readonly InvoicePaymentDto[]): number {
+  const reversed = new Set(
+    invoicePayments
+      .filter((entry) => entry.entryType === 'REVERSAL' && entry.reversalOfPaymentId)
+      .map((entry) => entry.reversalOfPaymentId!),
+  )
+  return invoicePayments
+    .filter((entry) => entry.entryType === 'REFUND' && entry.creditNoteId === noteId && !reversed.has(entry.id))
+    .reduce((sum, entry) => sum + entry.amount, 0)
+}
+
 /** Why an issued document may not be cancelled, or `unknown` while the page cannot yet tell. */
 export type CancelBlock = 'corrections' | 'payments' | 'unknown' | null
 
