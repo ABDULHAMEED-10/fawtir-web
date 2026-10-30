@@ -9,8 +9,11 @@ import {
   guessedCategory,
   notReadReason,
   unsureFields,
+  uploadMayHaveArrived,
   vatWorkedOut,
 } from '../../lib/billIntake'
+import { uploadIntake } from '../../api/expenditure/billIntake'
+import { ApiError, NetworkError } from '../../api/errors'
 import { readingPercent } from '../../components/bills'
 import { UploadBillPage } from './UploadBillPage'
 import { ScanReceiptsPage } from '../ScanReceiptsPage'
@@ -315,8 +318,74 @@ describe('what the reader said, as the screens read it', () => {
 
   it('fills the progress bar towards the reading time, never to the end', () => {
     expect(readingPercent(0)).toBe(0)
-    expect(readingPercent(9)).toBe(20)
+    expect(readingPercent(60)).toBe(50)
     expect(readingPercent(120)).toBe(95)
+  })
+})
+
+describe('an upload that outlasts the wait', () => {
+  const noAnswer = () => new Response('', { status: 504, headers: { 'Content-Type': 'text/html' } })
+  const MAY_HAVE_ARRIVED = /may still have been received/
+
+  it("waits past the gateway's 120 seconds, and stops before nginx's 130", async () => {
+    vi.useFakeTimers()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_url: string, init: RequestInit) =>
+          new Promise((_resolve, reject) =>
+            init.signal?.addEventListener('abort', () => reject(new Error('aborted'))),
+          ),
+      ),
+    )
+    const settled = vi.fn()
+    const upload = uploadIntake(pdf(), 'UPLOADED').catch((error: unknown) => {
+      settled()
+      return error
+    })
+    await vi.advanceTimersByTimeAsync(120_000)
+    expect(settled).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(5_000)
+    expect(await upload).toMatchObject({ name: 'NetworkError', reason: 'timeout' })
+  })
+
+  it('treats only a timeout and a 504 as an upload that may have arrived', () => {
+    expect(uploadMayHaveArrived(new NetworkError('timeout'))).toBe(true)
+    expect(uploadMayHaveArrived(new NetworkError('offline'))).toBe(false)
+    const answered = (status: number) => new ApiError({ status, problemType: null })
+    expect(uploadMayHaveArrived(answered(504))).toBe(true)
+    expect(uploadMayHaveArrived(answered(500))).toBe(false)
+    expect(uploadMayHaveArrived(answered(400))).toBe(false)
+  })
+
+  it('says a 504 on Upload a bill may have been received, not that it failed', async () => {
+    const before = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url.startsWith('/api/v1/bills/intake?source=') ? noAnswer() : before(url, init),
+    )
+    renderAt('/expenditure/bills/upload')
+    await pick([pdf()])
+    expect((await screen.findByRole('alert')).textContent).toMatch(MAY_HAVE_ARRIVED)
+  })
+
+  it('says the same on Scan receipts', async () => {
+    const before = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url.startsWith('/api/v1/bills/intake?source=') ? noAnswer() : before(url, init),
+    )
+    renderAt('/expenditure/bills/scan')
+    await pick([photo()])
+    expect((await screen.findByRole('alert')).textContent).toMatch(MAY_HAVE_ARRIVED)
+  })
+
+  it('keeps the plain failure for a server fault', async () => {
+    const before = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url.startsWith('/api/v1/bills/intake?source=') ? json(500, {}) : before(url, init),
+    )
+    renderAt('/expenditure/bills/upload')
+    await pick([pdf()])
+    expect((await screen.findByRole('alert')).textContent).not.toMatch(MAY_HAVE_ARRIVED)
   })
 })
 

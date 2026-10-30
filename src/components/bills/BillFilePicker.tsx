@@ -9,7 +9,12 @@ import {
   type IntakeSourceDto,
 } from '../../api/expenditure/billIntake'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { UPLOAD_REFUSALS, fileKindOf } from '../../lib/billIntake'
+import {
+  UPLOAD_MAY_HAVE_ARRIVED,
+  UPLOAD_REFUSALS,
+  fileKindOf,
+  uploadMayHaveArrived,
+} from '../../lib/billIntake'
 import fileIcon from '../../assets/bill-capture/file.svg'
 import { readingPercent, useElapsedSeconds } from './readingProgress'
 
@@ -19,7 +24,7 @@ export type UploadedIntake = { intake: IntakeDto; file: File; readSeconds?: numb
 /**
  * The first step of every intake: the supplier's file goes to the server before anything is
  * typed, because a bill is only ever created from a stored file (D12a). A PDF or photo is read
- * while the upload waits (up to about 45 seconds), so the box shows that it is reading and for
+ * while the upload waits (up to about two minutes), so the box shows that it is reading and for
  * how long, and each file's time is handed on for "read in N seconds" (EXPENDITURE.md 1.6).
  */
 export function BillFilePicker({
@@ -66,7 +71,13 @@ export function BillFilePicker({
           ? UPLOAD_REFUSALS[error.code]
           : undefined
       const failure = describeApiFailure(error)
-      setRefusal(coded ? t(coded) : t(failure.key, failure.values))
+      setRefusal(
+        coded
+          ? t(coded)
+          : uploadMayHaveArrived(error)
+            ? t(UPLOAD_MAY_HAVE_ARRIVED)
+            : t(failure.key, failure.values),
+      )
     } finally {
       inFlight.current = false
       setBusy(false)

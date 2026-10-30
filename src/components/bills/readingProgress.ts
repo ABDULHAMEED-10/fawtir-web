@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
-/** The server gives the reader about 45 seconds; the bar fills towards that and never quite ends. */
-const READ_BUDGET_SECONDS = 45
+/** The gateway waits 120 seconds for the upload; the bar fills towards that and never quite ends. */
+const READ_BUDGET_SECONDS = 120
 
 /**
  * Seconds since `running` turned true, ticking once a second, and 0 while it is false. The

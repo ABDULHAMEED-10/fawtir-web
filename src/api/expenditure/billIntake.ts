@@ -98,7 +98,9 @@ export type IntakeDto = {
 
 /**
  * `invoice.payment.manage`. PDF, JPEG, PNG or UBL XML, at most 10 MiB. With reading on, the call
- * waits for the read (up to about 45 seconds on the server), hence the long timeout.
+ * waits for the malware scan and the read, which can pass a minute. Just above the gateway's 120 s
+ * for this route and below nginx's 130 s, so the browser does not give up while the server may
+ * still answer.
  */
 export function uploadIntake(file: File, source: IntakeSourceDto): Promise<IntakeDto> {
   const form = new FormData()
@@ -106,7 +108,7 @@ export function uploadIntake(file: File, source: IntakeSourceDto): Promise<Intak
   return apiRequest<IntakeDto>(`${BILL_INTAKE_PATH}?source=${source}`, {
     method: 'POST',
     body: form,
-    timeoutMs: 90_000,
+    timeoutMs: 125_000,
   })
 }
 

@@ -4,6 +4,7 @@ import type {
   IntakeCorrectionsDto,
   IntakeDto,
 } from '../api/expenditure/billIntake'
+import { ApiError, NetworkError } from '../api/errors'
 import type { ReferenceDataDto, TaxCategoryDto } from '../api/reference/referenceData'
 import { calculateInvoice, formatAtScale, projectInvoice } from './invoiceMath'
 import { DESIGN_REFERENCE, omanTaxCategories } from './invoiceDraft'
@@ -93,14 +94,7 @@ export type BillForm = {
 }
 
 export type BillField =
-  | 'supplier'
-  | 'billNumber'
-  | 'issueDate'
-  | 'dueDate'
-  | 'currency'
-  | 'vat'
-  | 'total'
-  | 'lines'
+  'supplier' | 'billNumber' | 'issueDate' | 'dueDate' | 'currency' | 'vat' | 'total' | 'lines'
 
 export type BillProblems = Partial<Record<BillField, string>>
 
@@ -512,6 +506,19 @@ export const UPLOAD_REFUSALS: Record<string, string> = {
   // The pickers always send a file, so this shows only if a request reaches the server without
   // one.
   BILL_INTAKE_FILE_REQUIRED: 'billIntake.upload.fileRequired',
+}
+
+/** The wording for an upload that may have reached the server after all. */
+export const UPLOAD_MAY_HAVE_ARRIVED = 'billIntake.upload.mayHaveArrived'
+
+/**
+ * The browser or the gateway stopped waiting (504), which says nothing about the server: it can
+ * still finish, store the intake and count the read. Saying the upload failed invites a second
+ * one, and the stored file shows on the Bills list as an upload to confirm.
+ */
+export function uploadMayHaveArrived(error: unknown): boolean {
+  if (error instanceof NetworkError) return error.reason === 'timeout'
+  return error instanceof ApiError && error.status === 504
 }
 
 /** The picker's `accept`, and what the server takes. */
