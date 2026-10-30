@@ -71,9 +71,6 @@ export const ISSUE_REFUSALS: Record<string, { field: IssueField | null; key: str
   SELLER_NOT_VERIFIED: { field: null, key: 'invoiceIssue.refused.companyPending' },
   SELLER_ADDRESS_INCOMPLETE: { field: null, key: 'invoiceIssue.refused.sellerAddressIncomplete' },
   SELLER_CONTACT_INCOMPLETE: { field: null, key: 'invoiceIssue.refused.sellerContactIncomplete' },
-  // IBR-019-OM: a business or government buyer's invoicing address needs street, additional
-  // street, address line 3, city and postal code; fixed on the customer (e2e 30 Oct, X-1).
-  BUYER_ADDRESS_INCOMPLETE: { field: null, key: 'invoiceIssue.refused.buyerAddressIncomplete' },
   CUSTOMER_NOT_INVOICE_ELIGIBLE: { field: null, key: 'invoiceIssue.refused.customerIncomplete' },
   // Backend #817 (A-2): a standard invoice to a customer reached over Peppol whose invoice address
   // lacks a member IBR-019-OM requires; refused at issue so no number is spent on an invoice the
