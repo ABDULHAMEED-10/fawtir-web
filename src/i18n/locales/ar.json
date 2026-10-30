@@ -2213,7 +2213,13 @@
       "docType": {
         "all": "كل المستندات"
       },
-      "docTypeLabel": "نوع المستند"
+      "docTypeLabel": "نوع المستند",
+      "source": "المصدر",
+      "src": {
+        "all": "كل المصادر",
+        "till": "من الصندوق",
+        "other": "مصادر أخرى"
+      }
     },
     "col": {
       "invoice": "الفاتورة",
@@ -2331,7 +2337,9 @@
     "notIssuedYet": "لم تُصدر بعد",
     "bulkUnavailable": "الرفع الجماعي غير متاح بعد: لم تُبنَ واجهة الاستيراد.",
     "duplicateUnavailable": "النسخ غير متاح بعد: لا يوجد مسار لنسخ مستند.",
-    "nothingToApprove": "لا شيء بانتظار اعتمادك."
+    "nothingToApprove": "لا شيء بانتظار اعتمادك.",
+    "fromTill": "من الصندوق",
+    "fromTillNamed": "من الصندوق · {{till}}"
   },
   "invoiceDispatch": {
     "state": {
@@ -4566,7 +4574,12 @@
     "badge": {
       "sizes": "مقاسات",
       "low": "قليل",
-      "offSale": "موقوف"
+      "offSale": "موقوف",
+      "stock": {
+        "LOW": "قليل",
+        "OUT": "نفد المخزون",
+        "BELOW_ZERO": "تحت الصفر"
+      }
     },
     "group": {
       "all": "كل شيء",
@@ -4587,7 +4600,6 @@
       "extraHot": "ساخن جدًا"
     },
     "note": {
-      "sizesAddOns": "{{sizes}} مقاسات · {{addOns}} إضافات",
       "sizes": "{{sizes}} مقاسات",
       "singleOrDouble": "مفرد أو مزدوج",
       "madeToOrder": "يُحضّر عند الطلب",
@@ -4597,7 +4609,19 @@
       "pastries": "معجنات",
       "equipment": "معدات",
       "offSince": "موقوف منذ {{when}}",
-      "broughtBack": "يعود كل عام"
+      "broughtBack": "يعود كل عام",
+      "sizes_zero": "لا مقاسات",
+      "sizes_one": "مقاس واحد",
+      "sizes_two": "مقاسان",
+      "sizes_few": "{{count}} مقاسات",
+      "sizes_many": "{{count}} مقاسًا",
+      "sizes_other": "{{count}} مقاس",
+      "addOns_zero": "لا إضافات",
+      "addOns_one": "إضافة واحدة",
+      "addOns_two": "إضافتان",
+      "addOns_few": "{{count}} إضافات",
+      "addOns_many": "{{count}} إضافةً",
+      "addOns_other": "{{count}} إضافة"
     },
     "totals": {
       "items": "الأصناف",
@@ -5073,7 +5097,9 @@
       "contactInvalid": {
         "phone": "اكتب رقم الهاتف من 8 أرقام، أو مع رمز الدولة (‎+968 9234 5678).",
         "email": "عنوان البريد الإلكتروني غير مكتمل."
-      }
+      },
+      "onFile": "يطابق عميلًا مسجّلًا: {{name}}",
+      "onFileWithId": "يطابق عميلًا مسجّلًا: {{name}} ({{id}})"
     },
     "refusal": {
       "offline": "تعذّر على الصندوق الوصول إلى فوترة. تحقق من الاتصال وحاول مرة أخرى.",
@@ -13748,7 +13774,8 @@
       "from": "من {{supplier}}",
       "atEach": "بسعر {{amount}} للوحدة",
       "lastPaid": "{{amount}} في {{date}}",
-      "chartNoteNoRate": "الكمية {{count}} {{unit}} المستلمة في {{date}} لم يُبع منها شيء بعد، فلا يوجد معدل لمعرفة كم تكفي."
+      "chartNoteNoRate": "الكمية {{count}} {{unit}} المستلمة في {{date}} لم يُبع منها شيء بعد، فلا يوجد معدل لمعرفة كم تكفي.",
+      "supplierRef": "مرجع المورد {{reference}}"
     }
   },
   "priceRules": {

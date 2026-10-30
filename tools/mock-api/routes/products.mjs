@@ -199,11 +199,14 @@ const PRODUCTS = [
       size('1 kg', '1 كغ', 6.8, 2),
     ],
   }),
-  product('p-green', 'BEAN-YG', 'Green Beans - Yirgacheffe', 'KGM', 10.25, goods('090111000000')),
+  product('p-green', 'BEAN-YG', 'Green Beans - Yirgacheffe', 'KGM', 10.25, {
+    ...goods('090111000000'),
+    keepCount: true,
+  }),
   product('p-roast', 'SRV-ROAST', 'Roasting service - per batch', 'E48', 4.2, service()),
   // Kept in the bare Rec 21 code on purpose: a product saved before the X prefix (ibr-cl-23)
   // must still open and show its unit.
-  product('p-cups', 'CUP-500', 'Takeaway cups - 500 pack', 'PK', 22.8),
+  product('p-cups', 'CUP-500', 'Takeaway cups - 500 pack', 'PK', 22.8, { keepCount: true }),
   product('p-train', 'SRV-TRAIN', 'Barista training', 'HUR', 15, service('00000000', 'BY_TIME')),
   product('p-deliv', 'SRV-DELIV', 'Delivery charge', 'EA', 2.5, service()),
   product('p-export', 'BEAN-EXP', 'Export beans - Salalah lot', 'KGM', 11, {
@@ -216,6 +219,7 @@ const PRODUCTS = [
     defaultTaxRate: 0,
     defaultTaxReasonCode: 'VATZR-OM-01',
     ...goods('080410000000'),
+    keepCount: true,
   }),
   product('p-syrup', 'SYR-VAN', 'Vanilla syrup 750ml', 'EA', 4.75, {
     ...goods('210690000000'),
@@ -251,12 +255,20 @@ function combos(p) {
 }
 
 /** `ProductResponse`: the variants are worked out on every read from the current base price. */
-function view(p, { list = false } = {}) {
+/**
+ * A product as answered. On the list the sizes, options, variants and add-ons are null unless
+ * `include` asks for them (backend #808); `branchId` adds each variant's `branchPrice`.
+ */
+function view(p, { list = false, include = [], branchId = null } = {}) {
   const { variantSettings, updatedAt, ...rest } = p
   void updatedAt
   rest.zeroRatingWarnings = []
   rest.zeroRatingAttention = ATTENTION[p.id] ?? null
-  if (list) return { ...rest, sizes: null, options: null, variants: null, addOns: null }
+  const withVariants = !list || include.includes('variants')
+  const withAddOns = !list || include.includes('addOns')
+  if (list && !withVariants && !withAddOns) {
+    return { ...rest, sizes: null, options: null, variants: null, addOns: null }
+  }
   const variants = combos(p).map(({ s, o }, index) => {
     const key = `${s?.id ?? '-'}:${o?.id ?? '-'}`
     const stored = variantSettings.find((v) => v.key === key) ?? {
@@ -280,9 +292,68 @@ function view(p, { list = false } = {}) {
         stored.priceOverride ??
         round3(p.defaultUnitPrice + (s?.priceDelta ?? 0) + (o?.priceDelta ?? 0)),
       onSale: stored.onSale,
+      // Backend #808: the Arabic line name, worked out unless set by hand (null without one).
+      nameAr:
+        stored.nameAr ??
+        (p.nameAr
+          ? [p.nameAr, s && (s.nameAr || s.name), o && (o.nameAr || o.name)]
+              .filter(Boolean)
+              .join(' · ')
+          : null),
+      nameArSet: Boolean(stored.nameAr),
+      sizeAr: s?.nameAr ?? null,
+      optionAr: o?.nameAr ?? null,
+      branchPrice: branchId
+        ? (stored.priceOverride ??
+          round3(priceHere(p, branchId) + (s?.priceDelta ?? 0) + (o?.priceDelta ?? 0)))
+        : null,
     }
   })
-  return { ...rest, variants }
+  return {
+    ...rest,
+    sizes: withVariants ? rest.sizes : null,
+    options: withVariants ? rest.options : null,
+    variants: withVariants ? variants : null,
+    addOns: withAddOns ? rest.addOns : null,
+  }
+}
+
+/**
+ * The till's stock flags (`include=stock`, backend #815), as the stock mock lists the branch: a
+ * counted product without sizes by its own figure, the beans per size. Null for the rest.
+ */
+const TILL_STOCK = {
+  'p-cups': { onHand: 0, reorderLevel: 4, state: 'OUT' },
+  'p-green': { onHand: 9, reorderLevel: 15, state: 'LOW' },
+  'p-dates': { onHand: 84, reorderLevel: 30, state: 'OK' },
+}
+const TILL_STOCK_BY_SIZE = {
+  '250 g': { onHand: -2, reorderLevel: 5, state: 'BELOW_ZERO' },
+  '500 g': { onHand: 0, reorderLevel: 5, state: 'OUT' },
+  '1 kg': { onHand: 6, reorderLevel: 15, state: 'LOW' },
+}
+
+function stockOf(p, variants) {
+  if (!p.keepCount) return null
+  if (variants.length) {
+    return {
+      onHand: null,
+      reorderLevel: null,
+      state: null,
+      variants: variants.map((v) => ({
+        variantId: v.id,
+        ...(TILL_STOCK_BY_SIZE[v.size] ?? {
+          onHand: null,
+          reorderLevel: null,
+          state: 'NOT_COUNTED',
+        }),
+      })),
+    }
+  }
+  return {
+    ...(TILL_STOCK[p.id] ?? { onHand: null, reorderLevel: null, state: 'NOT_COUNTED' }),
+    variants: [],
+  }
 }
 
 const tooPrecise = (value) =>
@@ -615,6 +686,8 @@ export default [
       const barcode = query.get('barcode')
       const page = Number(query.get('page') ?? 0)
       const size = Number(query.get('size') ?? 50)
+      // Backend #808 / #815: words the server does not know are left out; stock needs a branch.
+      const include = (query.get('include') ?? '').split(',').map((word) => word.trim())
       const found = PRODUCTS.filter(
         (p) =>
           // With a branch: active products sold and on sale there, whatever the status; with
@@ -636,7 +709,11 @@ export default [
       ).sort((a, b) => (direction === 'DESC' ? -1 : 1) * SORTS[sort](a, b))
       return {
         content: found.slice(page * size, page * size + size).map((p) => ({
-          ...view(p, { list: true }),
+          ...view(p, { list: true, include, branchId }),
+          stock:
+            branchId && include.includes('stock')
+              ? stockOf(p, view(p, { list: false }).variants)
+              : null,
           // Greyed rows too: the branch's own price if set, else the base price.
           effectivePrice: branchId ? priceHere(p, branchId) : null,
           // Only on a branch read: false for a product switched off or not sold there.

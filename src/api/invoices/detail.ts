@@ -3,7 +3,9 @@ import type { DiscountDto } from './drafts'
 import type {
   InvoiceListApproval,
   InvoicePaymentDto as InvoiceListPaymentDto,
+  InvoiceSourceDto,
   InvoiceStateDto,
+  InvoiceTillDto,
   InvoiceTypeDto,
 } from './list'
 
@@ -36,6 +38,11 @@ export type InvoiceLineDto = {
     hsCode?: string | null
     serviceTypeCode?: string | null
   } | null
+  /**
+   * Backend #808 (INCOME.md P.25): the line's product's `keepCount`, read from the catalogue now.
+   * Null when the line names no product or it is not found; absent from an older server.
+   */
+  keepCount?: boolean | null
 }
 
 export type InvoiceTotalsDto = {
@@ -131,6 +138,10 @@ export type InvoiceDetailDto = {
    * older servers and on the plain read.
    */
   warnings?: InvoiceLineWarningDto[] | null
+  /** As on the list rows: `TILL` when a till sale or refund issued it. Absent from older servers. */
+  source?: InvoiceSourceDto | null
+  /** With `source` TILL, the till that made it. */
+  till?: InvoiceTillDto | null
 }
 
 /** One line warning: `line` is the document's line number; `code` is worded by the screen. */

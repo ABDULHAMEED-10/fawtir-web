@@ -14,6 +14,14 @@ const row = (productId, code, name, unitCode, extra = {}) => ({
   name,
   nameAr: null,
   variantName: null,
+  // Backend #808 (P.19): the size in Arabic and the item's group and kind.
+  variantNameAr: null,
+  kindId: null,
+  kindName: null,
+  kindNameAr: null,
+  groupId: null,
+  groupName: null,
+  groupNameAr: null,
   variantRetired: false,
   productActive: true,
   keepCount: true,
@@ -35,6 +43,15 @@ const row = (productId, code, name, unitCode, extra = {}) => ({
   ...extra,
 })
 
+const BEANS_PLACE = {
+  kindId: 'k-beans',
+  kindName: 'Roasted beans',
+  kindNameAr: 'بن محمص',
+  groupId: 'g-beans',
+  groupName: 'Beans and ground',
+  groupNameAr: 'البن الحب والمطحون',
+}
+
 const ROWS = [
   row('p-cups', 'CUP-500', 'Takeaway cups - 500 pack', 'PK', {
     nameAr: 'أكواب سفري - عبوة 500',
@@ -51,6 +68,8 @@ const ROWS = [
     nameAr: 'حبوب قهوة 1 كغ - الخلطة المنزلية',
     variantId: 'v-beans-1kg',
     variantName: '1 kg',
+    variantNameAr: '1 كغ',
+    ...BEANS_PLACE,
     onHand: 6,
     reorderLevel: 15,
     state: 'LOW',
@@ -170,6 +189,7 @@ const movement = (id, type, quantityChange, onHandAfter, occurredAt, extra = {})
   averageCostAfter: null,
   source: { type: 'POS_SALE', id: `src-${id}`, number: null, lineRef: '1', link: null },
   supplier: null,
+  supplierReference: null,
   reasonCode: null,
   note: null,
   occurredAt,
@@ -205,6 +225,14 @@ const MOVEMENTS = [
       lineRef: '1',
       link: { kind: 'CREDIT_NOTE', id: 'cn-1' },
     },
+  }),
+  // "Record what came in" with the supplier's own reference (backend #815).
+  movement('m4b', 'RECEIPT', 12, 9, '2026-10-24T06:30:00Z', {
+    source: { type: 'DELIVERY', id: 'dlv-3', number: 'DLV-2026-000003', lineRef: '1', link: null },
+    supplier: SUPPLIER,
+    supplierReference: 'RS-INV-7781',
+    unitCost: 7.2,
+    averageCostAfter: 7.35,
   }),
   movement('m5', 'RECEIPT', 25, 40, '2026-10-21T03:15:00Z', {
     source: {
