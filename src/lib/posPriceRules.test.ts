@@ -140,7 +140,7 @@ describe('the sale on the till', () => {
   })
 
   it('gives a split bundle no rule: the bundle prices its parts (nothing taken off twice)', () => {
-    const split = { ...plain[0], addOns: [], bundleParts: [{}] } as SaleLine
+    const split = { ...plain[0], addOns: [], bundleParts: [{}] } as unknown as SaleLine
     const priced = applyTillRules([split], [LULL_ACTIVE_RULE], {
       branchId: 'b-1',
       customerId: null,

@@ -2341,7 +2341,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                         {unitLockHint(t, row.countedUnit, language)}
                       </p>
                     ) : null}
-                    {row.sizes?.length ? (
+                    {row.sizes?.length && !row.bundleId ? (
                       <div className="flex max-w-[320px] items-center gap-2 ps-1">
                         <span className="shrink-0 text-xs font-medium text-text-quaternary">
                           {t('invoiceDraft.size.label')}
