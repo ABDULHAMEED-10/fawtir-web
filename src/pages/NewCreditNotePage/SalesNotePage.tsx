@@ -528,6 +528,17 @@ function NoteEditor({
       ? '—'
       : formatAmount(value, invoice.currency, i18n.language)
   const invoiceNumber = invoice.invoiceNumber ?? invoice.id
+  // An ordinary credit note against a till sale's invoice: never refused, only pointed at the
+  // till's refund (`/pos/refund?invoice=`), linked for whoever may refund at the till.
+  const tillRefundHint =
+    credit && !selfBilled && invoice.source === 'TILL'
+      ? {
+          to:
+            invoice.invoiceNumber && can(session, 'pos.refund')
+              ? `/pos/refund?invoice=${encodeURIComponent(invoice.invoiceNumber)}`
+              : null,
+        }
+      : null
   const customerName = customer?.displayName ?? t('salesNote.compose.customerUnknown')
   // The server takes a self-billed credit note only against an issued self-billed invoice, and an
   // ordinary note only against an issued ordinary one (CORRECTED_INVOICE_NOT_ISSUED otherwise).
@@ -811,6 +822,24 @@ function NoteEditor({
                 )}
               </div>
             </div>
+            {/* A till sale's invoice: a credit note from here is allowed (Abdul), but cash handed
+                back at the counter belongs to the till's refund, or the drawer will not balance.
+                An older server sends no `source`, and no hint is drawn. */}
+            {tillRefundHint ? (
+              <p className="mt-3 text-sm font-medium text-text-tertiary">
+                {t('salesNote.compose.tillRefund.question')}{' '}
+                {tillRefundHint.to ? (
+                  <Link
+                    to={tillRefundHint.to}
+                    className="font-semibold text-primary-700 hover:underline"
+                  >
+                    {t('salesNote.compose.tillRefund.link')}
+                  </Link>
+                ) : (
+                  t('salesNote.compose.tillRefund.link')
+                )}
+              </p>
+            ) : null}
           </SectionCard>
 
           {/* What to credit / charge */}

@@ -27,6 +27,7 @@ import {
   loadInvoiceSummary,
   type InvoiceListSort,
   type InvoiceRowDto,
+  type InvoiceSourceDto,
   type InvoiceSummaryDto,
 } from '../../api/invoices/list'
 import {
@@ -118,6 +119,16 @@ const SORT_OPTIONS: SortOption<SortKey>[] = SORTS.map((entry) => ({
   labelKey: `salesNote.list.sortBy.${entry.value}`,
 }))
 
+/** Where a note was made: a till refund, or anywhere else (as on Sales › Invoices). */
+type SourceId = 'all' | 'till' | 'other'
+const SOURCES: SourceId[] = ['all', 'till', 'other']
+const isSource = (value: string | null): value is SourceId => SOURCES.includes(value as SourceId)
+const SOURCE_FILTER: Record<SourceId, InvoiceSourceDto | null> = {
+  all: null,
+  till: 'TILL',
+  other: 'OTHER',
+}
+
 const PAGE_SIZES = [10, 25, 50] as const
 const DEFAULT_PAGE_SIZE = 10
 const SEARCH_DELAY_MS = 300
@@ -161,6 +172,9 @@ function NotesList({ kind }: { kind: NoteKind }) {
     ? (params.get('sort') as SortKey)
     : 'updated'
   const query = params.get('q') ?? ''
+  // Only a credit note can come from the till (a till refund); debit notes offer no source filter.
+  const source: SourceId =
+    credit && isSource(params.get('source')) ? (params.get('source') as SourceId) : 'all'
   const sizeParam = Number(params.get('size'))
   const size = (PAGE_SIZES as readonly number[]).includes(sizeParam) ? sizeParam : DEFAULT_PAGE_SIZE
   const pageNumber = Math.max(1, Number.parseInt(params.get('page') ?? '1', 10) || 1)
@@ -201,6 +215,7 @@ function NotesList({ kind }: { kind: NoteKind }) {
     from: range.from,
     to: range.to,
     search: query,
+    source: SOURCE_FILTER[source],
   }
   const listPath = invoiceListPath({
     ...filter,
@@ -286,6 +301,16 @@ function NotesList({ kind }: { kind: NoteKind }) {
   // Narrowed on the client where the API has no filter for the design's tab (delivery, refunds).
   const rows = page ? page.items.filter((row) => noteMatchesTab(kind, row, tab)) : []
   const [selected, setSelected] = useState<string[]>([])
+  // The source filter is offered once the server has said where a row was made: an older server
+  // sends no `source`, and a filter it ignores would only pretend to narrow the list. Kept once
+  // seen, so a filtered page with no rows keeps it; a filter already in the address stays so it
+  // can be cleared.
+  const listed = list.read.status === 'ready' ? list.read.data : null
+  const [sourceAnswered, setSourceAnswered] = useState(false)
+  useEffect(() => {
+    if (listed?.items.some((item) => item.source !== undefined)) setSourceAnswered(true)
+  }, [listed])
+  const offersSource = credit && (sourceAnswered || source !== 'all')
   const allOnPageSelected = rows.length > 0 && rows.every((row) => selected.includes(row.id))
   const someOnPageSelected = !allOnPageSelected && rows.some((row) => selected.includes(row.id))
 
@@ -514,6 +539,18 @@ function NotesList({ kind }: { kind: NoteKind }) {
               onChange={(value) => update({ period: value === 'all' ? null : value, page: null })}
               options={PERIODS.map((option) => ({ value: option.id, label: t(option.labelKey) }))}
             />
+            {offersSource ? (
+              <FilterMenu
+                label={t('invoicesPage.filters.source')}
+                value={source}
+                defaultValue="all"
+                onChange={(value) => update({ source: value === 'all' ? null : value, page: null })}
+                options={SOURCES.map((value) => ({
+                  value,
+                  label: t(`invoicesPage.filters.src.${value}`),
+                }))}
+              />
+            ) : null}
             <SortMenu
               value={sortKey}
               options={SORT_OPTIONS}
@@ -591,7 +628,7 @@ function NotesList({ kind }: { kind: NoteKind }) {
                       colSpan={9}
                       className="py-12 text-center text-sm font-medium text-text-quaternary"
                     >
-                      {query || period !== 'all' || tab.id !== 'all'
+                      {query || period !== 'all' || source !== 'all' || tab.id !== 'all'
                         ? t('salesNote.list.noResults')
                         : t(`salesNote.${kindKey}.none`)}
                     </td>
@@ -604,6 +641,11 @@ function NotesList({ kind }: { kind: NoteKind }) {
                     const amount = row.totals?.totalAmount ?? null
                     const refund = credit ? creditRefundOf(row) : null
                     const payment = credit ? null : debitPaymentOf(row, today)
+                    // A till refund's credit note; an older server sends no `source`, no badge.
+                    const tillName =
+                      row.source === 'TILL'
+                        ? row.till?.name?.trim() || row.till?.code || null
+                        : null
                     return (
                       <tr
                         key={row.id}
@@ -642,6 +684,18 @@ function NotesList({ kind }: { kind: NoteKind }) {
                               ? t(reasonKeyOf(row)!)
                               : (row.details?.correctionReasonCode ?? '—')}
                           </p>
+                          {row.source === 'TILL' ? (
+                            <span
+                              title={
+                                tillName
+                                  ? t('invoicesPage.fromTillNamed', { till: tillName })
+                                  : undefined
+                              }
+                              className="mt-0.5 inline-flex items-center rounded-sm bg-neutral-25 px-2 py-0.5 text-xs font-semibold text-text-secondary"
+                            >
+                              {t('invoicesPage.fromTill')}
+                            </span>
+                          ) : null}
                         </td>
                         <td className="px-2 py-3">
                           {row.correctionOfInvoiceId ? (

@@ -21866,7 +21866,11 @@
       "dropFiles": "Drop files or click to upload",
       "dropHint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX",
       "removeFile": "Remove",
-      "pickInvoiceHint": "A note corrects an issued invoice. Choose the invoice it concerns; you can also start one from the invoice itself."
+      "pickInvoiceHint": "A note corrects an issued invoice. Choose the invoice it concerns; you can also start one from the invoice itself.",
+      "tillRefund": {
+        "question": "Giving cash back at the counter?",
+        "link": "Use the till's refund so the drawer balances."
+      }
     },
     "mode": {
       "full": "Full invoice",
