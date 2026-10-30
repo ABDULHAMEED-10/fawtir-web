@@ -278,6 +278,7 @@ function Payment({ till }: { till: Ready }) {
         })),
         sale: 'sale' in result ? result.sale : null,
         queuedNumber: 'queued' in result ? result.queued.number : null,
+        queuedBehind: 'queued' in result && result.behind === true,
         finishedAt: attempt.current.soldAt,
       })
       attempt.current = null
