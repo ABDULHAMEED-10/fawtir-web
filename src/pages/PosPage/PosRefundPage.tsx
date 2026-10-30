@@ -25,6 +25,7 @@ import {
   type WhyId,
 } from '../../lib/posRefund'
 import { posRefusalKey, problemNumber, refusalCode, refusalValues } from '../../lib/posRefusals'
+import { creditCapRefusal } from '../../lib/salesNote'
 import { useApiRead } from '../../hooks'
 import { ApiError } from '../../api'
 import {
@@ -116,6 +117,12 @@ function FindSale({ till }: { till: Ready }) {
 function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language.startsWith('ar') ? 'ar' : 'en-GB'
+  // A refund issues its credit note through the same cap as the composer (DA-1, backend #817):
+  // the category and rate refused, and what is left there, in the till's own refusal line.
+  const refusalSentence = (error: unknown) => {
+    const capped = creditCapRefusal(error, t, 'OMR', i18n.language)
+    return capped ? withRial(t(capped.key, capped.values)) : t(posRefusalKey(error), refusalValues(error))
+  }
   const navigate = useNavigate()
   const refundable = sale.lines.filter((line) => line.refundable && line.role !== 'ADD_ON')
   const [returning, setReturning] = useState<ReturnLine[]>(
@@ -546,7 +553,7 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
               role="alert"
               className="mx-5 mt-4 rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium text-pending-700"
             >
-              {t(posRefusalKey(refusal), refusalValues(refusal))}
+              {refusalSentence(refusal)}
             </p>
           ) : null}
 

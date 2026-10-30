@@ -821,85 +821,65 @@ export const NOTE_ROUTES: Record<NoteKind, string> = {
   DEBIT_NOTE: '/income/debit-notes',
 }
 
-/** Note refusals a person can act on, in the page's words. */
 /**
- * The owner's cap on credit notes (DA-1, option B): cumulative per original line and per VAT
- * category and rate, counting every issued credit note, with issued debit notes adding allowance.
- * The composer cannot apply it itself: a note's lines name no original line, and the earlier
- * notes are not read here, so the server's refusal is the check. Each code has a sentence without
- * the figures, and one naming them when the server sends them (backend #817; the field names are
- * read defensively until its contract is published).
+ * The owner's cap on credit notes (DA-1, option B): what a credit note credits in each VAT
+ * category and rate may not exceed what the original invoice and its issued debit notes charged
+ * there, less every issued credit note. The composer cannot apply it itself (it does not read the
+ * earlier notes), so the server's refusal is the check (backend #817, 741c06d6b). The server
+ * names `taxCategory` (the EN 16931 letter) and `taxRate` (a plain decimal string, absent for E and
+ * O, which are keyed by category alone), and on the second code `remainingTaxableAmount` and
+ * `remainingVatAmount`. CREDIT_NOTE_EXCEEDS_LINE_REMAINING is not sent (a note line names no
+ * original line); it keeps a plain sentence in case a later server sends it.
  */
-const CREDIT_CAP_REFUSALS: Record<string, { plain: string; detailed: string }> = {
-  CREDIT_NOTE_EXCEEDS_LINE_REMAINING: {
-    plain: 'salesNote.refused.lineRemaining',
-    detailed: 'salesNote.refused.lineRemainingNamed',
-  },
-  CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING: {
-    plain: 'salesNote.refused.categoryRemaining',
-    detailed: 'salesNote.refused.categoryRemainingNamed',
-  },
-  CREDIT_NOTE_VAT_CATEGORY_NOT_ON_ORIGINAL: {
-    plain: 'salesNote.refused.categoryNotOnInvoice',
-    detailed: 'salesNote.refused.categoryNotOnInvoiceNamed',
-  },
+const CREDIT_CAP_REFUSALS: Record<string, string> = {
+  CREDIT_NOTE_EXCEEDS_LINE_REMAINING: 'salesNote.refused.lineRemaining',
+  CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING: 'salesNote.refused.categoryRemaining',
+  CREDIT_NOTE_VAT_CATEGORY_NOT_ON_ORIGINAL: 'salesNote.refused.categoryNotOnInvoice',
 }
 
-const numberIn = (problem: Readonly<Record<string, unknown>>, ...names: string[]): number | null => {
-  for (const name of names) {
-    const value = problem[name]
-    if (typeof value === 'number' && Number.isFinite(value)) return value
-    if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) return Number(value)
-  }
+const textIn = (problem: Readonly<Record<string, unknown>>, name: string): string | null => {
+  const value = problem[name]
+  if (typeof value === 'string' && value.trim() !== '') return value.trim()
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
   return null
 }
 
-const textIn = (problem: Readonly<Record<string, unknown>>, ...names: string[]): string | null => {
-  for (const name of names) {
-    const value = problem[name]
-    if (typeof value === 'string' && value.trim() !== '') return value.trim()
-  }
-  return null
+const amountIn = (problem: Readonly<Record<string, unknown>>, name: string): number | null => {
+  const text = textIn(problem, name)
+  return text !== null && Number.isFinite(Number(text)) ? Number(text) : null
 }
 
 /**
- * The sentence for a cap refusal, or null for any other error. `values` are ready to print:
- * `amount` is "OMR 12.000" (the page draws the rial sign in its place), `category` the word for
- * the EN 16931 category.
+ * The sentence for a cap refusal, or null for any other error. `values` are ready to print: the
+ * amounts as "OMR 12.000" (the page draws the rial sign in their place), `category` the word the
+ * invoice page uses for the EN 16931 category. Without the figures the plain sentence is said.
  */
 export function creditCapRefusal(
   error: unknown,
   t: (key: string, options?: Record<string, unknown>) => string,
-  fallbackCurrency: string,
+  currency: string,
   language: string,
 ): { key: string; values?: Record<string, string> } | null {
   if (!(error instanceof ApiError) || !error.code || !Object.hasOwn(CREDIT_CAP_REFUSALS, error.code))
     return null
-  const keys = CREDIT_CAP_REFUSALS[error.code]
+  const plain = CREDIT_CAP_REFUSALS[error.code]
   const problem = error.problem
-  const remaining = numberIn(problem, 'remainingAmount', 'remaining')
-  const currency = textIn(problem, 'currency') ?? fallbackCurrency
-  const amount = remaining === null ? '' : `${currency} ${formatAmount(remaining, currency, language)}`
-  const categoryCode = textIn(problem, 'en16931Category', 'taxCategory', 'category')
-  const rate = numberIn(problem, 'taxRate', 'rate')
-  const category =
-    categoryCode === null
-      ? ''
-      : t(`invoiceDetails.category.${categoryCode}`, { defaultValue: categoryCode })
-  const line = numberIn(problem, 'originalLineNumber', 'lineNumber')
-  if (error.code === 'CREDIT_NOTE_EXCEEDS_LINE_REMAINING')
-    return line !== null && remaining !== null
-      ? { key: keys.detailed, values: { line: String(line), amount } }
-      : { key: keys.plain }
-  if (error.code === 'CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING')
-    return categoryCode !== null && rate !== null && remaining !== null
-      ? { key: keys.detailed, values: { category, rate: String(rate), amount } }
-      : { key: keys.plain }
-  return categoryCode !== null && rate !== null
-    ? { key: keys.detailed, values: { category, rate: String(rate) } }
-    : { key: keys.plain }
+  const categoryCode = textIn(problem, 'taxCategory')
+  if (categoryCode === null || error.code === 'CREDIT_NOTE_EXCEEDS_LINE_REMAINING') return { key: plain }
+  const rate = textIn(problem, 'taxRate')
+  const category = t(`invoiceDetails.category.${categoryCode}`, { defaultValue: categoryCode })
+  // E and O carry no rate (IBR-061-OM, IBR-067-OM): their sentences name the category alone.
+  const suffix = rate === null ? 'NamedNoRate' : 'Named'
+  const where: Record<string, string> = rate === null ? { category } : { category, rate }
+  if (error.code === 'CREDIT_NOTE_VAT_CATEGORY_NOT_ON_ORIGINAL') return { key: `${plain}${suffix}`, values: where }
+  const taxable = amountIn(problem, 'remainingTaxableAmount')
+  const vat = amountIn(problem, 'remainingVatAmount')
+  if (taxable === null || vat === null) return { key: plain }
+  const money = (value: number) => `${currency} ${formatAmount(value, currency, language)}`
+  return { key: `${plain}${suffix}`, values: { ...where, taxable: money(taxable), vat: money(vat) } }
 }
 
+/** Note refusals a person can act on, in the page's words. */
 export const NOTE_REFUSALS: Record<string, string> = {
   CORRECTED_INVOICE_NOT_ISSUED: 'salesNote.refused.invoiceNotIssued',
   CORRECTION_REASON_CODE_INVALID: 'salesNote.error.reason',

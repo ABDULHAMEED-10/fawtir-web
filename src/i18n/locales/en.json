@@ -21534,11 +21534,12 @@
       "exceeds": "This credit is more than is left to credit on the invoice.",
       "nothingLeft": "Nothing is left to credit on this invoice.",
       "lineRemaining": "This credits more of an invoice line than is left after the earlier credit notes. Lower the amounts, then issue again.",
-      "lineRemainingNamed": "Line {{line}} of the invoice has only {{amount}} left to credit after the earlier credit notes. Lower this note's amount on it, then issue again.",
-      "categoryRemaining": "This credits more at one VAT rate than is left after the earlier credit notes. Lower the amounts, then issue again.",
-      "categoryRemainingNamed": "Only {{amount}} is left to credit at {{category}} {{rate}}% after the earlier credit notes. Lower the amounts at that rate, then issue again.",
-      "categoryNotOnInvoice": "A line uses a VAT category or rate the invoice does not have. Use one of the invoice's rates, then issue again.",
-      "categoryNotOnInvoiceNamed": "The invoice has nothing at {{category}} {{rate}}%, so a credit note cannot credit at that rate. Use one of the invoice's rates."
+      "categoryRemaining": "This credits more at one VAT rate than the invoice and its debit notes have left after the earlier credit notes. Lower the amounts, then issue again.",
+      "categoryRemainingNamed": "At {{category}} {{rate}}%, only {{taxable}} before VAT and {{vat}} VAT are left to credit after the earlier credit notes. Lower the amounts at that rate, then issue again.",
+      "categoryNotOnInvoice": "A line uses a VAT category or rate that neither the invoice nor its debit notes charged. Use one of the invoice's rates, then issue again.",
+      "categoryNotOnInvoiceNamed": "Neither the invoice nor its debit notes charged anything at {{category}} {{rate}}%, so this note cannot credit at that rate. Use one of the invoice's rates.",
+      "categoryRemainingNamedNoRate": "At {{category}}, only {{taxable}} before VAT and {{vat}} VAT are left to credit after the earlier credit notes. Lower the amounts there, then issue again.",
+      "categoryNotOnInvoiceNamedNoRate": "Neither the invoice nor its debit notes charged anything as {{category}}, so this note cannot credit there. Use one of the invoice's categories."
     },
     "onInvoice": {
       "title": "Credit and debit notes"

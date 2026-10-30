@@ -660,3 +660,39 @@ describe('closing the till (F-13)', () => {
     expect(screen.getByRole('button', { name: i18n.t('pos.close.printSummary') })).toBeTruthy()
   })
 })
+
+describe('a till refund the credit cap refuses (DA-1 option B)', () => {
+  it.each([
+    ['en', /^At Standard 5%, only/],
+    ['ar', /^بفئة قياسية بنسبة 5%/],
+  ])('names the rate and what is left in the till’s refusal line (%s)', async (language, start) => {
+    await i18n.changeLanguage(language)
+    answer = (url, init) => {
+      if (url.startsWith('/api/v1/pos/refund-lookup')) return json(LOOKUP)
+      if (url.includes('/refunds') && init?.method === 'POST')
+        return json(
+          {
+            status: 409,
+            code: 'CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING',
+            taxCategory: 'S',
+            taxRate: '5',
+            remainingTaxableAmount: '1.5',
+            remainingVatAmount: '0.075',
+          },
+          409,
+        )
+      return null
+    }
+    renderAt('/pos/refund?invoice=NZW-T01-INV-2026-000001')
+    fireEvent.click(await screen.findByRole('checkbox', { name: /Butter croissant|كرواسون/ }))
+    const button = screen
+      .getAllByRole('button')
+      .find((candidate) => candidate.className.includes('bg-danger-700')) as HTMLButtonElement
+    await waitFor(() => expect(button.disabled).toBe(false))
+    fireEvent.click(button)
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toMatch(start)
+    expect(alert.textContent).toContain('1.500')
+    expect(alert.textContent).toContain('0.075')
+  })
+})

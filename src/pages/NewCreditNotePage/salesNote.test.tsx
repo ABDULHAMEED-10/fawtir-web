@@ -2007,35 +2007,101 @@ describe('the cumulative credit caps, as the server refuses them (DA-1 option B)
   const issueAFullCredit = async () => {
     renderAt(`/income/credit-notes/new?invoice=${INVOICE_ID}`)
     await screen.findAllByText('Green beans')
-    chooseReason(i18n.t('salesNote.reason.returned', { defaultValue: 'Returned goods' }))
-    fireEvent.click(screen.getByRole('button', { name: i18n.t('salesNote.compose.issue.CREDIT_NOTE', { defaultValue: 'Issue credit note' }) }))
+    chooseReason('Returned goods')
+    fireEvent.click(screen.getByRole('button', { name: 'Issue credit note' }))
   }
 
   it.each([
-    ['CREDIT_NOTE_EXCEEDS_LINE_REMAINING', 'This credits more of an invoice line than is left after the earlier credit notes. Lower the amounts, then issue again.'],
-    ['CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING', 'This credits more at one VAT rate than is left after the earlier credit notes. Lower the amounts, then issue again.'],
-    ['CREDIT_NOTE_VAT_CATEGORY_NOT_ON_ORIGINAL', "A line uses a VAT category or rate the invoice does not have. Use one of the invoice's rates, then issue again."],
+    [
+      'CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING',
+      'This credits more at one VAT rate than the invoice and its debit notes have left after the earlier credit notes. Lower the amounts, then issue again.',
+    ],
+    [
+      'CREDIT_NOTE_VAT_CATEGORY_NOT_ON_ORIGINAL',
+      "A line uses a VAT category or rate that neither the invoice nor its debit notes charged. Use one of the invoice's rates, then issue again.",
+    ],
+    [
+      'CREDIT_NOTE_EXCEEDS_LINE_REMAINING',
+      'This credits more of an invoice line than is left after the earlier credit notes. Lower the amounts, then issue again.',
+    ],
   ])('says %s in plain words when the server names no figures', async (code, text) => {
     refuseIssue({ code })
     await issueAFullCredit()
     expect(await screen.findByText(text)).toBeTruthy()
   }, 30_000)
 
-  it('names the line and what is left of it, with the rial sign', async () => {
-    refuseIssue({ code: 'CREDIT_NOTE_EXCEEDS_LINE_REMAINING', originalLineNumber: 2, remainingAmount: 12.5, currency: 'OMR' })
+  it('names the rate and what is left before VAT and in VAT, with the rial sign', async () => {
+    refuseIssue({
+      code: 'CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING',
+      taxCategory: 'S',
+      taxRate: '5',
+      remainingTaxableAmount: '12.5',
+      remainingVatAmount: '0.625',
+    })
     await issueAFullCredit()
-    const shown = await screen.findByText(/^Line 2 of the invoice has only/)
+    const shown = await screen.findByText(/^At Standard 5%, only/)
     expect(shown.textContent).toContain('12.500')
-    expect(shown.querySelector('svg')).not.toBeNull()
+    expect(shown.textContent).toContain('0.625')
+    expect(shown.querySelectorAll('svg').length).toBe(2)
   }, 30_000)
 
+  const refusalOf = (code: string, problem: Record<string, unknown>) =>
+    new ApiError({ status: 409, problemType: 'resource-conflict', code, problem })
+
   it.each([
-    ['en', 'Only OMR 3.000 is left to credit at Standard 5% after the earlier credit notes. Lower the amounts at that rate, then issue again.'],
-    ['ar', 'لم يتبقَّ للخصم بفئة قياسية بنسبة 5% سوى OMR 3.000 بعد الإشعارات الدائنة السابقة. خفّض المبالغ بهذه النسبة، ثم أصدره مرة أخرى.'],
-  ])('names the rate and what is left at it (%s)', (language, text) => {
+    [
+      'en',
+      'At Standard 5%, only OMR 12.500 before VAT and OMR 0.625 VAT are left to credit after the earlier credit notes. Lower the amounts at that rate, then issue again.',
+    ],
+    [
+      'ar',
+      'بفئة قياسية بنسبة 5% لم يتبقَّ للخصم بعد الإشعارات الدائنة السابقة سوى OMR 12.500 قبل الضريبة وOMR 0.625 ضريبة. خفّض المبالغ بهذه النسبة، ثم أصدره مرة أخرى.',
+    ],
+  ])('words what is left at a rate from the server’s own properties (%s)', (language, text) => {
     const t = i18n.getFixedT(language)
     const refusal = creditCapRefusal(
-      new ApiError({ status: 409, problemType: 'resource-conflict', code: 'CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING', problem: { taxCategory: 'S', taxRate: 5, remainingAmount: 3, currency: 'OMR' } }),
+      refusalOf('CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING', {
+        taxCategory: 'S',
+        taxRate: '5',
+        remainingTaxableAmount: '12.5',
+        remainingVatAmount: '0.625',
+      }),
+      t,
+      'OMR',
+      'en',
+    )!
+    expect(t(refusal.key, refusal.values)).toBe(text)
+  })
+
+  it.each([
+    [
+      'en',
+      'S',
+      '5',
+      "Neither the invoice nor its debit notes charged anything at Standard 5%, so this note cannot credit at that rate. Use one of the invoice's rates.",
+    ],
+    [
+      'ar',
+      'S',
+      '5',
+      'لم تفرض الفاتورة ولا إشعاراتها المدينة شيئًا بفئة قياسية بنسبة 5%، فلا يمكن لهذا الإشعار الخصم بهذه النسبة. استخدم إحدى نسب الفاتورة.',
+    ],
+    [
+      'en',
+      'E',
+      null,
+      "Neither the invoice nor its debit notes charged anything as Exempt, so this note cannot credit there. Use one of the invoice's categories.",
+    ],
+    [
+      'ar',
+      'E',
+      null,
+      'لم تفرض الفاتورة ولا إشعاراتها المدينة شيئًا بفئة معفاة، فلا يمكن لهذا الإشعار الخصم فيها. استخدم إحدى فئات الفاتورة.',
+    ],
+  ])('names a category the invoice never charged (%s %s)', (language, taxCategory, taxRate, text) => {
+    const t = i18n.getFixedT(language)
+    const refusal = creditCapRefusal(
+      refusalOf('CREDIT_NOTE_VAT_CATEGORY_NOT_ON_ORIGINAL', { taxCategory, taxRate }),
       t,
       'OMR',
       'en',
