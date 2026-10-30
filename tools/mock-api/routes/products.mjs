@@ -497,6 +497,21 @@ function applySetup(p, body) {
   ])
   if (codes.some((code) => taken.includes(code)))
     return { refused: problem(409, 'PRODUCT_VARIANT_CODE_DUPLICATE') }
+  // V509: a size's barcode is unique among the active products and their sizes, its own included.
+  const barcodes = view(next)
+    .variants.map((v) => v.barcode)
+    .filter(Boolean)
+  const barcodesTaken = PRODUCTS.filter((o) => o.active && o.id !== p.id).flatMap((o) => [
+    o.barcode,
+    ...view(o).variants.map((v) => v.barcode),
+  ])
+  if (
+    new Set(barcodes).size !== barcodes.length ||
+    barcodes.includes(next.barcode) ||
+    barcodes.some((barcode) => barcodesTaken.includes(barcode))
+  ) {
+    return { refused: problem(409, 'PRODUCT_VARIANT_BARCODE_DUPLICATE') }
+  }
   return { product: next }
 }
 

@@ -16,13 +16,16 @@ import {
 import {
   NONE,
   addValue,
+  canSetVariantBarcodes,
   cellKey,
   combinations,
   generateCodes,
   productVariantsState,
   rebuildFromBase,
+  refusedBarcodes,
   removeValue,
   roundAll,
+  setBarcode,
   setDelta,
   setPrice,
   summarise,
@@ -41,6 +44,12 @@ import infoIcon from '../../assets/catalog/info.svg'
 import tickWhiteIcon from '../../assets/catalog/check-white.svg'
 
 type Side = 'side' | 'top'
+
+const BARCODE_REFUSALS = [
+  'PRODUCT_VARIANT_BARCODE_DUPLICATE',
+  'PRODUCT_VARIANT_BARCODE_INVALID',
+  'PRODUCT_BARCODE_DUPLICATE',
+]
 
 const signed = (delta: number) => `${delta < 0 ? '-' : '+'}${omr(Math.abs(delta))}`
 
@@ -103,6 +112,7 @@ function ItemOptions({ product: loaded, reload }: { product: ProductDto; reload:
   const canManage = useCanManageProducts() === true
   const [product, setProduct] = useState(loaded)
   const readOnly = !canManage || !product.active
+  const barcodes = canSetVariantBarcodes(product)
 
   const item = { id: encodeURIComponent(product.id), name: product.name, code: product.code }
   // The item's own sizes and options, at the prices the server worked out.
@@ -111,11 +121,16 @@ function ItemOptions({ product: loaded, reload }: { product: ProductDto; reload:
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [problem, setProblem] = useState<{ line: string; reload: boolean } | null>(null)
+  /** A refused barcode's sentence, and the combinations it shows under. */
+  const [barcodeProblem, setBarcodeProblem] = useState<{ key: string; cells: string[] } | null>(
+    null,
+  )
 
   /** `PUT .../variants` with the version read; the answer is the item as now stored. */
   const save = async () => {
     if (readOnly || saving) return
     setProblem(null)
+    setBarcodeProblem(null)
     setSaving(true)
     try {
       const result = await saveProductVariants(
@@ -128,7 +143,14 @@ function ItemOptions({ product: loaded, reload }: { product: ProductDto; reload:
       setSaved(true)
     } catch (error) {
       const refusal = productRefusal(error)
-      if (refusal) {
+      const cells =
+        refusal && BARCODE_REFUSALS.includes(refusal.code)
+          ? refusedBarcodes(state, refusal.code, product.barcode)
+          : []
+      if (refusal && cells.length) {
+        setBarcodeProblem({ key: refusal.key, cells })
+        document.getElementById(barcodeInputId(cells[0]))?.focus()
+      } else if (refusal) {
         setProblem({ line: t(refusal.key), reload: refusal.code === PRODUCT_VERSION_CONFLICT })
       } else {
         const message = describeApiFailure(error)
@@ -400,6 +422,26 @@ function ItemOptions({ product: loaded, reload }: { product: ProductDto; reload:
                                 }
                               />
                             </div>
+                            {barcodes ? (
+                              <BarcodeInput
+                                id={barcodeInputId(key)}
+                                value={cell.barcode ?? ''}
+                                ariaLabel={t('itemOptions.grid.barcodeOf', { name: label })}
+                                refusal={
+                                  barcodeProblem?.cells.includes(key) ? t(barcodeProblem.key) : null
+                                }
+                                onChange={(barcode) => {
+                                  setBarcodeProblem(
+                                    (current) =>
+                                      current && {
+                                        ...current,
+                                        cells: current.cells.filter((entry) => entry !== key),
+                                      },
+                                  )
+                                  update((current) => setBarcode(current, key, barcode))
+                                }}
+                              />
+                            ) : null}
                             <p className="mt-2 flex min-h-4 flex-wrap items-center gap-x-2 ps-[27px] text-[11px] font-medium">
                               {!cell.on ? (
                                 <span className="text-pending-700">
@@ -660,6 +702,53 @@ function OptionPanel({
         <img src={infoIcon} alt="" className="mt-px size-4 shrink-0" />
         {note}
       </p>
+    </div>
+  )
+}
+
+const barcodeInputId = (key: string) => `variant-barcode-${key}`
+
+/** A combination's own barcode, with the server's refusal under it. */
+function BarcodeInput({
+  id,
+  value,
+  ariaLabel,
+  refusal,
+  onChange,
+}: {
+  id: string
+  value: string
+  ariaLabel: string
+  refusal: string | null
+  onChange: (barcode: string) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="mt-2 ps-[27px]">
+      <input
+        id={id}
+        value={value}
+        dir="ltr"
+        maxLength={64}
+        placeholder={t('item.barcodePlaceholder')}
+        aria-label={ariaLabel}
+        aria-invalid={refusal ? true : undefined}
+        aria-describedby={refusal ? `${id}-refusal` : undefined}
+        onChange={(event) => onChange(event.target.value)}
+        className={[
+          'h-[34px] w-full min-w-0 rounded-sm border bg-white px-2 text-xs font-medium text-text-primary outline-none transition-colors placeholder:text-text-placeholder focus:border-border-brand',
+          refusal ? 'border-danger-700' : 'border-border-subtle',
+        ].join(' ')}
+      />
+      {refusal ? (
+        <p
+          id={`${id}-refusal`}
+          role="alert"
+          className="mt-1 text-[11px] font-medium text-danger-700"
+        >
+          {refusal}
+        </p>
+      ) : null}
     </div>
   )
 }

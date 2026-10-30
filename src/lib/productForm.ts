@@ -367,6 +367,11 @@ export const PRODUCT_REFUSALS: Record<string, ProductProblem> = {
   PRODUCT_VARIANT_DUPLICATE: { field: 'sizes', key: 'itemForm.refused.variantUnknown' },
   PRODUCT_VARIANT_CODE_INVALID: { field: 'sizes', key: 'itemForm.refused.variantCodeInvalid' },
   PRODUCT_VARIANT_CODE_DUPLICATE: { field: 'sizes', key: 'itemForm.refused.variantCodeTaken' },
+  PRODUCT_VARIANT_BARCODE_INVALID: { field: 'sizes', key: 'itemForm.refused.barcodeInvalid' },
+  PRODUCT_VARIANT_BARCODE_DUPLICATE: {
+    field: 'sizes',
+    key: 'itemForm.refused.variantBarcodeTaken',
+  },
   PRODUCT_VARIANT_PRICE_NEGATIVE: {
     field: 'sizes',
     key: 'itemForm.refused.variantPriceNegative',
