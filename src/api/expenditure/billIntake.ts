@@ -3,8 +3,9 @@ import { ApiError } from '../errors'
 
 /**
  * Bill intake (`BillIntakeController`): a supplier's file is stored first, then a person confirms
- * the bill's fields into a payable. There is no OCR: a PDF or photo comes back with nothing read,
- * and only a Peppol/UBL XML file fills its fields in (`extractionStatus: EXTRACTED`).
+ * the bill's fields into a payable. A Peppol/UBL XML file is parsed exactly; a PDF or photo is read
+ * by the document reader while the upload waits (EXPENDITURE.md rows 1.6 and 1.10), and says how
+ * sure it was in `extracted.reading`. Reading off, failed or over the limit: nothing is filled in.
  */
 export const BILL_INTAKE_PATH = '/v1/bills/intake'
 
@@ -16,6 +17,37 @@ export type IntakeSourceDto = 'UPLOADED' | 'SCANNED'
 /** 380 a bill, 381 a supplier's credit note, 383 a supplier's debit note (`ConfirmRequest`). */
 export type IntakeDocumentTypeDto = '380' | '381' | '383'
 export type ExtractionStatusDto = 'NONE' | 'EXTRACTED' | 'FAILED'
+
+/**
+ * `BillDocumentReading.outcome`. `READING_UNAVAILABLE` is the shared reader's own answer; the
+ * intake gives `reading: null` instead today, and it is kept here so either reads as "not read".
+ */
+export type ReadingOutcomeDto =
+  | 'READ'
+  | 'READ_FAILED'
+  | 'DAILY_LIMIT_REACHED'
+  | 'PLAN_FEATURE_NOT_INCLUDED'
+  | 'READING_UNAVAILABLE'
+
+/**
+ * `BillDocumentReading`: what the reader said beside the values of a PDF, JPEG or PNG. Null for
+ * UBL XML, while reading is off, and from a server older than the reader. A person's correction
+ * (PUT) keeps it, with `workedOut` emptied.
+ */
+export type BillReadingDto = {
+  outcome: ReadingOutcomeDto
+  /** The PDF's own page count, 1 for a photo; null for a PDF that cannot be opened. */
+  pageCount: number | null
+  /** 0 to 1 per field, keyed as `confidence`; `lines` is the lowest line's score. */
+  scores: Record<string, number>
+  /** A receipt's guessed `EXPENSE_CATEGORIES` value; null for a bill or when none fits. */
+  category: string | null
+  categoryConfidence: number
+  /** The VAT rate printed for the whole document, as a percentage. */
+  vatRate: number | null
+  /** Fields worked out rather than read: `vat` from the total and the rate (row 1.10). */
+  workedOut: string[]
+}
 
 /** `ExtractedBillFields`. Every value is advice; confirm takes the person's fields. */
 export type ExtractedFieldsDto = {
@@ -42,6 +74,8 @@ export type ExtractedFieldsDto = {
     confident: boolean
   }[]
   confidence: Record<string, boolean>
+  /** Absent from a server older than the reader, which reads as null. */
+  reading?: BillReadingDto | null
 }
 
 /** `IntakeResponse`. */
@@ -62,14 +96,19 @@ export type IntakeDto = {
   note?: string | null
 }
 
-/** `invoice.payment.manage`. PDF, JPEG, PNG or UBL XML, at most 10 MiB. */
+/**
+ * `invoice.payment.manage`. PDF, JPEG, PNG or UBL XML, at most 10 MiB. With reading on, the call
+ * waits for the malware scan and the read, which can pass a minute. Just above the gateway's 120 s
+ * for this route and below nginx's 130 s, so the browser does not give up while the server may
+ * still answer.
+ */
 export function uploadIntake(file: File, source: IntakeSourceDto): Promise<IntakeDto> {
   const form = new FormData()
   form.append('file', file)
   return apiRequest<IntakeDto>(`${BILL_INTAKE_PATH}?source=${source}`, {
     method: 'POST',
     body: form,
-    timeoutMs: 60_000,
+    timeoutMs: 125_000,
   })
 }
 

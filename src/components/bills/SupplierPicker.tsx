@@ -20,12 +20,15 @@ export function SupplierPicker({
   onPick,
   error,
   id,
+  unsure = false,
 }: {
   value: PickedSupplier
   onPick: (supplier: PickedSupplier) => void
   /** Already translated. */
   error?: string
   id?: string
+  /** Amber: a name read from the file that nobody has checked yet. */
+  unsure?: boolean
 }) {
   const { t } = useTranslation()
   const [typed, setTyped] = useState<string | null>(null)
@@ -71,7 +74,8 @@ export function SupplierPicker({
           <span
             id={id}
             className={[
-              'flex h-[50px] w-full items-center justify-between gap-2 rounded-sm border border-primary-300 bg-surface-tab-bar px-4',
+              'flex h-[50px] w-full items-center justify-between gap-2 rounded-sm border px-4',
+              unsure ? 'border-[#d8c9a8] bg-[#faf5ea]' : 'border-primary-300 bg-surface-tab-bar',
               error ? 'ring-1 ring-border-danger' : '',
             ].join(' ')}
           >

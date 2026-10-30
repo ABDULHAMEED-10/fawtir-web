@@ -1007,6 +1007,32 @@ describe('Record a bill (Figma 163:27781)', () => {
     })
   const send = () => fireEvent.click(screen.getByRole('button', { name: 'Send for approval' }))
 
+  it('says an upload the gateway stopped waiting for may have been received', async () => {
+    const before = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === '/api/v1/bills/intake?source=UPLOADED'
+        ? new Response('', { status: 504 })
+        : before(url, init),
+    )
+    await typeBill()
+    attach('bill.pdf')
+    send()
+
+    expect(await screen.findByText(/may still have been received/)).toBeTruthy()
+    expect(confirmed('intake-1')).toHaveLength(0)
+  })
+
+  it('does not say that about a confirm that timed out: its file is already stored', async () => {
+    confirmResponse = () => new Response('', { status: 504 })
+    await typeBill()
+    attach('bill.pdf')
+    send()
+
+    await waitFor(() => expect(confirmed('intake-1')).toHaveLength(1))
+    expect(await screen.findByText(/temporarily unavailable/)).toBeTruthy()
+    expect(screen.queryByText(/may still have been received/)).toBeNull()
+  })
+
   it('saves a typed bill with no file attached, with no upload behind it', async () => {
     await typeBill()
     send()
@@ -1100,8 +1126,7 @@ describe('Record a bill (Figma 163:27781)', () => {
     expect(await screen.findByText('bill page')).toBeTruthy()
     expect(noFilePosts()).toHaveLength(0)
     const headers = (confirmed('intake-1')[0][1] as RequestInit).headers as
-      | Record<string, string>
-      | undefined
+      Record<string, string> | undefined
     expect(headers?.['Idempotency-Key']).toBeUndefined()
   })
 
@@ -1433,9 +1458,7 @@ describe('the bills of theirs already in a payment run', () => {
     withInRuns([])
     openBills = [{ ...BILL, workflowState: 'IN_PAYMENT_RUN', paymentRunReference: 'PR-0014' }]
     renderSupplier()
-    expect(
-      await screen.findByText('Some of their bills have been paid late before.'),
-    ).toBeTruthy()
+    expect(await screen.findByText('Some of their bills have been paid late before.')).toBeTruthy()
     expect(screen.queryByText(/already in draft run/)).toBeNull()
   })
 

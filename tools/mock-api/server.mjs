@@ -169,7 +169,8 @@ createServer(async (request, response) => {
   const found = findModuleRoute(method, path)
   if (found) {
     const body = method === 'GET' ? undefined : await readBody(request)
-    const answer = found.route.reply({
+    // A route may answer later (a Promise), as the bill upload does while the reader reads.
+    const answer = await found.route.reply({
       params: found.params,
       query: url.searchParams,
       body,
