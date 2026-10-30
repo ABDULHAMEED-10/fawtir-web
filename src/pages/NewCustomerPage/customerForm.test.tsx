@@ -698,3 +698,45 @@ describe('a Peppol customer whose invoice address is not ready to send (backend 
     expect(screen.queryByText(/somethingNew/)).toBeNull()
   })
 })
+
+describe('a customer a full tax invoice cannot yet name (backend #817, IBR-016-OM)', () => {
+  const serve = (overrides: Partial<CustomerRecordDto>) => {
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === ONE && (init?.method ?? 'GET') === 'GET' ? json(200, record(overrides)) : base(url, init),
+    )
+  }
+
+  it.each([
+    [
+      'en',
+      'A full tax invoice to this customer needs an Omani VAT number, a special-zone licence or a buyer identifier. Without it the invoice is refused at issue; a simplified invoice is not affected.',
+    ],
+    [
+      'ar',
+      'تحتاج الفاتورة الضريبية الكاملة لهذا العميل إلى رقم ضريبي عُماني أو ترخيص منطقة خاصة أو معرّف للمشتري. ومن دونها تُرفض الفاتورة عند الإصدار، ولا تتأثر الفاتورة المبسطة.',
+    ],
+  ])('says what is missing in words (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    serve({ fullTaxReady: false, missingFullTaxFields: ['details.identifierValue'] })
+    renderAt(`/customers/${ID}/edit`)
+    expect(await screen.findByText(sentence)).toBeTruthy()
+  })
+
+  it('says nothing when ready, or from a server without the field, and no code for an unknown member', async () => {
+    serve({ fullTaxReady: true, missingFullTaxFields: [] })
+    const first = renderAt(`/customers/${ID}/edit`)
+    await screen.findAllByRole('button', { name: 'Save changes' })
+    expect(screen.queryByText(/A full tax invoice to this customer/)).toBeNull()
+    first.unmount()
+    serve({})
+    const second = renderAt(`/customers/${ID}/edit`)
+    await screen.findAllByRole('button', { name: 'Save changes' })
+    expect(screen.queryByText(/A full tax invoice to this customer/)).toBeNull()
+    second.unmount()
+    serve({ fullTaxReady: false, missingFullTaxFields: ['details.somethingNew'] })
+    renderAt(`/customers/${ID}/edit`)
+    expect(await screen.findByText(/needs the remaining details\./)).toBeTruthy()
+    expect(screen.queryByText(/somethingNew/)).toBeNull()
+  })
+})

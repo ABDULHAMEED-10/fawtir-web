@@ -436,6 +436,9 @@ function CustomerFormPage({ customerId }: { customerId: string | null }) {
       {record && record.peppolSendReady === false ? (
         <Notice body={peppolAddressNotice(t, record.missingPeppolFields ?? [])} />
       ) : null}
+      {record && record.fullTaxReady === false ? (
+        <Notice body={fullTaxNotice(t, record.missingFullTaxFields ?? [])} />
+      ) : null}
 
       <SectionCard step={1} title={t('newCustomer.sections.customerType')}>
         <div className="grid gap-4 md:grid-cols-3">
@@ -1220,16 +1223,47 @@ const PEPPOL_ADDRESS_FIELDS: Record<string, string> = {
   addressLine3: 'customerForm.peppolAddress.field.addressLine3',
 }
 
-function peppolAddressNotice(t: (key: string, values?: Record<string, string>) => string, missing: readonly string[]): string {
-  const words: string[] = []
+/**
+ * The members a full tax invoice to this customer still needs (IBR-016-OM, backend #817):
+ * `details.identifierValue` stands for the buyer's identity, which an Omani VAT number, a
+ * special-zone licence or a stated identifier each satisfy.
+ */
+const FULL_TAX_FIELDS: Record<string, string> = {
+  identifierValue: 'customerForm.fullTax.field.identifierValue',
+}
+
+type Translate = (key: string, values?: Record<string, string>) => string
+
+/** A notice naming missing members in words; a member with no word reads as `otherKey`. */
+function missingNotice(
+  t: Translate,
+  missing: readonly string[],
+  words: Record<string, string>,
+  keys: { sentence: string; other: string; separator: string },
+): string {
+  const said: string[] = []
   let unknown = false
   for (const path of missing) {
     const member = path.split('.').pop() ?? path
-    if (Object.hasOwn(PEPPOL_ADDRESS_FIELDS, member)) words.push(t(PEPPOL_ADDRESS_FIELDS[member]))
+    if (Object.hasOwn(words, member)) said.push(t(words[member]))
     else unknown = true
   }
-  if (unknown || words.length === 0) words.push(t('customerForm.peppolAddress.other'))
-  return t('customerForm.peppolAddress.missing', {
-    fields: words.join(t('customerForm.peppolAddress.separator')),
+  if (unknown || said.length === 0) said.push(t(keys.other))
+  return t(keys.sentence, { fields: said.join(t(keys.separator)) })
+}
+
+function peppolAddressNotice(t: Translate, missing: readonly string[]): string {
+  return missingNotice(t, missing, PEPPOL_ADDRESS_FIELDS, {
+    sentence: 'customerForm.peppolAddress.missing',
+    other: 'customerForm.peppolAddress.other',
+    separator: 'customerForm.peppolAddress.separator',
+  })
+}
+
+function fullTaxNotice(t: Translate, missing: readonly string[]): string {
+  return missingNotice(t, missing, FULL_TAX_FIELDS, {
+    sentence: 'customerForm.fullTax.missing',
+    other: 'customerForm.fullTax.other',
+    separator: 'customerForm.peppolAddress.separator',
   })
 }

@@ -60,6 +60,14 @@ export type CustomerDto = {
    */
   missingPeppolFields?: string[]
   peppolSendReady?: boolean
+  /**
+   * Backend #817, read-only: for a business or government customer with no Omani VAT number, no
+   * special-zone licence and no stated identifier, `["details.identifierValue"]` and false: a full
+   * tax invoice to it is refused at issue (422 BUYER_IDENTIFIER_REQUIRED, IBR-016-OM); a
+   * simplified one is not. Empty and true otherwise. Absent from an older server.
+   */
+  missingFullTaxFields?: string[]
+  fullTaxReady?: boolean
   status: CustomerStatusDto
   updatedAt: string
 }
