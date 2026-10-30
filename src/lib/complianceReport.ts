@@ -120,6 +120,10 @@ export const REPORT_SECTIONS = [
 /**
  * Each period's book (the design's figures, asks row 2.9).
  *
+ * Invented sample data: it may only feed the demo prototype (`builtFigures`, shown behind
+ * `demoModulesEnabled`). The real compliance report dialog read it as a fallback and showed these
+ * totals to a real company; that path was removed, and none other may be added.
+ *
  * Stated at invoice level; the rate and the VAT below are worked out from these, so a period can
  * never show a percentage that disagrees with its own counts. `netInvoiced` is the total
  * INCLUDING VAT, as the report prints it; `unreportedInclusive` is the VAT-inclusive total of the
