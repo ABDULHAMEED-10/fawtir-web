@@ -229,7 +229,10 @@ function BundleEditor({
     if (error instanceof ApiError && error.code) {
       const key = `bundle.refusal.${error.code}`
       if (i18n.exists(key)) {
-        setProblem(t(key))
+        // Only BUNDLE_PART_NO_PRICE names a part; the other sentences take no value.
+        const part = error.problem.partName
+        const branch = error.problem.branchName
+        setProblem(t(key, { name: branch ? `${part} (${branch})` : part }))
         return
       }
     }

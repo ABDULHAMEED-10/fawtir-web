@@ -301,7 +301,10 @@ function Shelf({
         return
       }
       if (answer.split) {
-        setSaleLines((current) => addToSale(current, bundleSaleLine(categories, item, answer)))
+        const line = bundleSaleLine(categories, item, answer)
+        // addToSale drops a line with no price without a word; a one-line bundle gets this sentence.
+        if (line.price > 0) setSaleLines((current) => addToSale(current, line))
+        else setNoPrice(item.name)
         return
       }
     }

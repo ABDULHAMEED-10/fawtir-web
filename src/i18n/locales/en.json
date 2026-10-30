@@ -12841,6 +12841,7 @@
       "BUNDLE_PART_DUPLICATE": "That item is already in the bundle.",
       "BUNDLE_PART_NOT_FOUND": "One of the parts is no longer in the catalogue.",
       "BUNDLE_PART_ARCHIVED": "One of the parts is off sale. Remove it or put it back on sale.",
+      "BUNDLE_PART_NO_PRICE": "{{name}} has no price, so it would go on the invoice at 0.000. Give it a price, then save the bundle.",
       "BUNDLE_PART_IS_BUNDLE": "A bundle cannot hold another bundle.",
       "BUNDLE_PART_VARIANT_REQUIRED": "Choose the size or option of each part sold that way.",
       "BUNDLE_PART_VARIANT_NOT_ON_PRODUCT": "A chosen size does not belong to its item.",

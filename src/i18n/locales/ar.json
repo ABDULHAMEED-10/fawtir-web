@@ -13578,6 +13578,7 @@
       "BUNDLE_PART_DUPLICATE": "هذا الصنف موجود في الحزمة بالفعل.",
       "BUNDLE_PART_NOT_FOUND": "أحد الأجزاء لم يعد في الكتالوج.",
       "BUNDLE_PART_ARCHIVED": "أحد الأجزاء خارج البيع. احذفه أو أعده إلى البيع.",
+      "BUNDLE_PART_NO_PRICE": "{{name}} بلا سعر، فسيظهر في الفاتورة بـ 0.000. حدّد له سعرًا ثم احفظ الحزمة.",
       "BUNDLE_PART_IS_BUNDLE": "لا يمكن أن تضم الحزمة حزمة أخرى.",
       "BUNDLE_PART_VARIANT_REQUIRED": "اختر الحجم أو الخيار لكل جزء يُباع بهذه الطريقة.",
       "BUNDLE_PART_VARIANT_NOT_ON_PRODUCT": "الحجم المختار لا يخص صنفه.",

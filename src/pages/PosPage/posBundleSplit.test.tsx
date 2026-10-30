@@ -348,6 +348,31 @@ describe('on the till', () => {
     expect(within(panel()).getByText('2.064')).toBeTruthy()
   })
 
+  it('says No price yet for a split bundle whose parts come to nothing, and adds nothing', async () => {
+    serving = {
+      mixed: {
+        ...MIXED_LINES,
+        lines: [part('coffee', 'Coffee', 0, 'S', 5), part('beans', 'Beans', 0, 'Z', 0)],
+      },
+    }
+    renderTill()
+    await tile('Breakfast')
+    expect((await screen.findByRole('alert')).textContent).toContain('No price yet')
+    expect(sale()).toBe('')
+  })
+
+  it('keeps a split bundle with one part at 0.000 when the bundle has a price', async () => {
+    serving = {
+      mixed: {
+        ...MIXED_LINES,
+        lines: [part('coffee', 'Coffee', 2, 'S', 5), part('beans', 'Beans', 0, 'Z', 0)],
+      },
+    }
+    renderTill()
+    await tile('Breakfast')
+    await waitFor(() => expect(sale()).toBe('coffee@2.000x1 beans@0.000x1'))
+  })
+
   it('refuses a bundle offline in words when it has no copy, and puts nothing on the sale', async () => {
     serving = {}
     renderTill()

@@ -256,6 +256,51 @@ describe('one bundle', () => {
     expect(body).not.toHaveProperty('taxRate')
   })
 
+  it.each([
+    ['en', 'Beans has no price'],
+    ['ar', 'Beans بلا سعر'],
+  ])('names the part with no price when the server refuses it (%s)', async (language, words) => {
+    await i18n.changeLanguage(language)
+    const answer = vi.mocked(fetch).getMockImplementation()!
+    vi.mocked(fetch).mockImplementation(async (input, init) =>
+      init?.method === 'PUT'
+        ? json(
+            { type: 'x/validation-failed', code: 'BUNDLE_PART_NO_PRICE', partName: 'Beans' },
+            400,
+          )
+        : answer(input, init),
+    )
+    open('/catalog/bundles/bun-starter')
+    const label = i18n.t('bundle.save')
+    await screen.findByDisplayValue('Starter bundle')
+    fireEvent.click(screen.getAllByRole('button', { name: label })[0])
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain(words))
+    expect(screen.getByRole('alert').textContent).toContain('0.000')
+  })
+
+  it('names the branch too when the part has no price only there', async () => {
+    const answer = vi.mocked(fetch).getMockImplementation()!
+    vi.mocked(fetch).mockImplementation(async (input, init) =>
+      init?.method === 'PUT'
+        ? json(
+            {
+              type: 'x/validation-failed',
+              code: 'BUNDLE_PART_NO_PRICE',
+              partName: 'Beans',
+              branchName: 'Nizwa',
+            },
+            400,
+          )
+        : answer(input, init),
+    )
+    open('/catalog/bundles/bun-starter')
+    await screen.findByDisplayValue('Starter bundle')
+    fireEvent.click(screen.getAllByRole('button', { name: i18n.t('bundle.save') })[0])
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toContain('Beans (Nizwa) has no price'),
+    )
+  })
+
   it('keeps a part quantity empty while typing and applies the minimum on leaving', async () => {
     open('/catalog/bundles/bun-starter')
     expect(await screen.findByDisplayValue('Starter bundle')).toBeTruthy()
