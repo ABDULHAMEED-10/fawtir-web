@@ -427,6 +427,10 @@ describe('An invoice, wired to the API', () => {
     expect((await screen.findAllByText('Partially paid')).length).toBeGreaterThan(0)
     expect(screen.getAllByText('Sohar Port Logistics').length).toBeGreaterThan(0)
     expect(screen.getAllByText('VAT OM1100999001').length).toBeGreaterThan(0)
+    // There is no /customers/:id route; the catch-all sent this link to the marketing home.
+    expect((await screen.findByRole('link', { name: /View customer/ })).getAttribute('href')).toBe(
+      '/customers/c-1/edit',
+    )
     // The branch and the terms are on the page and again on the preview's paper.
     expect(screen.getAllByText('Head office').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Net 30 days').length).toBeGreaterThan(0)
@@ -640,6 +644,78 @@ describe('An invoice, wired to the API', () => {
     invoiceResponse = () => json(404, { type: 'https://api.fawtir.om/problems/not-found' })
     renderInvoice()
     expect(await screen.findByText('Not found')).toBeTruthy()
+  })
+
+  it('reads a malformed id (400 on the read) as not found, with nothing to retry', async () => {
+    invoiceResponse = () =>
+      json(400, { type: 'https://api.fawtir.om/problems/validation-failed', status: 400 })
+    renderInvoice()
+    expect(await screen.findByText('Not found')).toBeTruthy()
+    expect(screen.queryByText(/Some details were not accepted/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+  })
+
+  it('names the VAT category on the totals line as the header does, zero-rated included', async () => {
+    const base = invoice()
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          lines: [{ ...base.lines[0], taxCategoryCode: 'Z', en16931Category: 'Z', taxRate: 0 }],
+          totals: { ...base.totals!, vatAmount: 0, totalAmount: 54 },
+        }),
+      )
+    renderInvoice()
+    expect(await screen.findByText('VAT · Zero-rated 0%')).toBeTruthy()
+    expect(screen.queryByText(/Standard 0%/)).toBeNull()
+  })
+
+  it('words the totals VAT line in natural Arabic, standard and zero-rated', async () => {
+    await i18n.changeLanguage('ar')
+    const view = renderInvoice()
+    expect(await screen.findByText('الضريبة · القياسية 5%')).toBeTruthy()
+    view.unmount()
+    const base = invoice()
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          lines: [{ ...base.lines[0], taxCategoryCode: 'Z', en16931Category: 'Z', taxRate: 0 }],
+          totals: { ...base.totals!, vatAmount: 0, totalAmount: 54 },
+        }),
+      )
+    renderInvoice()
+    expect(await screen.findByText('الضريبة · الخاضعة للنسبة الصفرية 0%')).toBeTruthy()
+  })
+
+  it('names the credit in the payments footer, so paid, credited and outstanding add up', async () => {
+    receivableResponse = () =>
+      json(200, {
+        ...RECEIVABLE,
+        documentTotal: 52.5,
+        paidAmount: 0,
+        creditedAmount: 10.5,
+        outstandingAmount: 42,
+        paymentState: 'UNPAID',
+      })
+    renderInvoice()
+    const footer = await screen.findAllByText(
+      (_, element) =>
+        element?.tagName === 'SPAN' &&
+        /Paid.*of.*52\.500.*·\s*Credited.*10\.500/.test(element.textContent ?? ''),
+    )
+    expect(footer.length).toBeGreaterThan(0)
+  })
+
+  it('names no credit in the payments footer when nothing was credited', async () => {
+    renderInvoice()
+    await waitFor(() => expect(screen.getAllByText('56.700')).toHaveLength(4))
+    expect(
+      screen.queryAllByText(
+        (_, element) =>
+          element?.tagName === 'SPAN' && /Paid.*of.*·\s*Credited/.test(element.textContent ?? ''),
+      ),
+    ).toHaveLength(0)
   })
 
   it('marks an invoice a till sale issued From the till, naming the till, in English and Arabic', async () => {

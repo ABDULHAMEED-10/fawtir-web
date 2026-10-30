@@ -228,6 +228,9 @@ function renderInvoices(path = '/invoices') {
       <Routes>
         <Route path="/invoices" element={<InvoicesPage />} />
         <Route path="/invoices/:id/edit" element={<p>draft editor</p>} />
+        <Route path="/invoices/:id" element={<p>invoice page</p>} />
+        <Route path="/income/credit-notes/:id" element={<p>credit note page</p>} />
+        <Route path="/income/debit-notes/:id" element={<p>debit note page</p>} />
         <Route path="/login" element={<p>sign-in page</p>} />
       </Routes>
     </MemoryRouter>,
@@ -513,6 +516,20 @@ describe('Invoices list, wired to the API', () => {
     expect(await screen.findByText('Sohar Port Logistics')).toBeTruthy()
   })
 
+  it('keeps the validation sentence and a retry when the list answers 400, not "Not found"', async () => {
+    // A list's 400 is a bad query parameter; only a record page reads a 400 as a missing record.
+    listResponses = [
+      () => json(400, { type: 'https://api.fawtir.om/problems/validation-failed', status: 400 }),
+      () => json(200, springPage([issued()], 1)),
+    ]
+    renderInvoices()
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toContain('Some details were not accepted')
+    expect(screen.queryByText('Not found')).toBeNull()
+    fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText('Sohar Port Logistics')).toBeTruthy()
+  })
+
   it('offers the row menu on every row, and discards a draft from its Delete', async () => {
     renderInvoices()
     const issuedRow = (await screen.findByText('INV-2026-0042')).closest('tr')!
@@ -539,6 +556,135 @@ describe('Invoices list, wired to the API', () => {
     renderInvoices()
     fireEvent.click(await screen.findByText('Nizwa Dates Co'))
     expect(await screen.findByText('draft editor')).toBeTruthy()
+  })
+
+  it('opens a credit or debit note on its own page, from the row and from the menu', async () => {
+    const credit = issued({
+      id: 'cn-1',
+      type: 'CREDIT_NOTE',
+      invoiceNumber: 'CRN-2026-0001',
+      customerName: 'Credit Customer',
+      payment: {
+        state: 'NOT_APPLICABLE',
+        overdue: false,
+        daysOverdue: null,
+        paidAmount: null,
+        creditedAmount: null,
+        outstandingAmount: null,
+      },
+    })
+    const debit = issued({
+      id: 'dn-1',
+      type: 'DEBIT_NOTE',
+      invoiceNumber: 'DBN-2026-0001',
+      customerName: 'Debit Customer',
+    })
+    listResponses = [() => json(200, springPage([credit, debit, issued()], 3))]
+    renderInvoices()
+    const creditRow = (await screen.findByText('CRN-2026-0001')).closest('tr')!
+    fireEvent.click(within(creditRow).getByRole('button', { name: 'Invoice actions' }))
+    expect(
+      (await screen.findByRole('menuitem', { name: 'View invoice' })).getAttribute('href'),
+    ).toBe('/income/credit-notes/cn-1')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    const debitRow = screen.getByText('DBN-2026-0001').closest('tr')!
+    fireEvent.click(within(debitRow).getByRole('button', { name: 'Invoice actions' }))
+    expect(
+      (await screen.findByRole('menuitem', { name: 'View invoice' })).getAttribute('href'),
+    ).toBe('/income/debit-notes/dn-1')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(screen.getByText('Credit Customer'))
+    expect(await screen.findByText('credit note page')).toBeTruthy()
+  })
+
+  it('opens an invoice row on the invoice page', async () => {
+    renderInvoices()
+    fireEvent.click(await screen.findByText('Sohar Port Logistics'))
+    expect(await screen.findByText('invoice page')).toBeTruthy()
+  })
+
+  it('words a note as the notes lists do: To be sent until delivered, not Issued', async () => {
+    const credit = (overrides: Partial<InvoiceRowDto>) =>
+      issued({
+        type: 'CREDIT_NOTE',
+        payment: {
+          state: 'NOT_APPLICABLE',
+          overdue: false,
+          daysOverdue: null,
+          paidAmount: null,
+          creditedAmount: null,
+          outstandingAmount: null,
+        },
+        ...overrides,
+      })
+    listResponses = [
+      () =>
+        json(
+          200,
+          springPage(
+            [
+              credit({ id: 'cn-1', invoiceNumber: 'CRN-1', customerName: 'Unsent Co' }),
+              credit({
+                id: 'cn-2',
+                invoiceNumber: 'CRN-2',
+                customerName: 'Peppol Co',
+                peppolResponse: 'AP',
+              }),
+            ],
+            2,
+          ),
+        ),
+    ]
+    renderInvoices()
+    const row = (name: string) => within(screen.getByText(name).closest('tr')!)
+    await screen.findByText('Unsent Co')
+    expect(row('Unsent Co').getByText('To be sent')).toBeTruthy()
+    expect(row('Unsent Co').queryByText('Issued')).toBeNull()
+    expect(row('Peppol Co').getByText('Applied')).toBeTruthy()
+  })
+
+  it('keeps the payment pill on a paid, overdue or partly paid debit note nobody marked delivered', async () => {
+    const debit = (overrides: Partial<InvoiceRowDto>) =>
+      issued({ type: 'DEBIT_NOTE', deliveryState: 'NOT_SUBMITTED', ...overrides })
+    const pay = (
+      state: 'PAID' | 'UNPAID' | 'PARTIALLY_PAID',
+      overdue = false,
+    ): NonNullable<InvoiceRowDto['payment']> => ({
+      state,
+      overdue,
+      daysOverdue: overdue ? 4 : null,
+      paidAmount: state === 'PAID' ? 10 : 0,
+      creditedAmount: 0,
+      outstandingAmount: state === 'PAID' ? 0 : 10,
+    })
+    listResponses = [
+      () =>
+        json(
+          200,
+          springPage(
+            [
+              debit({ id: 'dn-p', customerName: 'Paid Co', payment: pay('PAID') }),
+              debit({ id: 'dn-o', customerName: 'Late Co', payment: pay('UNPAID', true) }),
+              debit({ id: 'dn-h', customerName: 'Half Co', payment: pay('PARTIALLY_PAID') }),
+              debit({
+                id: 'dn-d',
+                customerName: 'Gone Co',
+                authoringState: 'DISCARDED',
+                payment: null,
+              }),
+            ],
+            4,
+          ),
+        ),
+    ]
+    renderInvoices()
+    const row = (name: string) => within(screen.getByText(name).closest('tr')!)
+    await screen.findByText('Paid Co')
+    expect(row('Paid Co').getByText('Paid')).toBeTruthy()
+    expect(row('Late Co').getByText('Overdue')).toBeTruthy()
+    expect(row('Half Co').getByText('Partially paid')).toBeTruthy()
+    expect(row('Gone Co').getByText('Discarded')).toBeTruthy()
+    expect(screen.queryByText('To be sent')).toBeNull()
   })
 
   it('offers only what the reader may do', async () => {
@@ -573,7 +719,9 @@ describe('Invoices list, wired to the API', () => {
     fireEvent.click(submit)
     fireEvent.click(submit)
 
-    expect(await screen.findByText('The invoice was validated and queued for sending.')).toBeTruthy()
+    expect(
+      await screen.findByText('The invoice was validated and queued for sending.'),
+    ).toBeTruthy()
     expect(calls('/api/v1/authored-invoices/inv-1/send')).toHaveLength(1)
     await waitFor(() => expect(listCalls()).toHaveLength(2))
   })
@@ -661,14 +809,19 @@ describe('Read-only subscription: no new drafts and nothing sent (ST-2, CA-3; ow
     expect(screen.getByRole('button', { name: /Bulk upload/ })).toBeTruthy()
     await issuedRowMenu()
     expect(screen.getByRole('menuitem', { name: 'Send' })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: i18n.t('rowActions.invoice.duplicate') })).toBeTruthy()
+    expect(
+      screen.getByRole('menuitem', { name: i18n.t('rowActions.invoice.duplicate') }),
+    ).toBeTruthy()
     expect(screen.getByRole('menuitem', { name: 'Issue credit note' })).toBeTruthy()
     expect(screen.getByRole('menuitem', { name: 'Periodic invoice' })).toBeTruthy()
   })
 
   it.each([
     ['suspended', standing('SUBSCRIPTION_SUSPENDED')],
-    ['trial ended unpaid', standing('SUBSCRIPTION_SUSPENDED', { paidThrough: null, trialEndsOn: '2026-10-21' })],
+    [
+      'trial ended unpaid',
+      standing('SUBSCRIPTION_SUSPENDED', { paidThrough: null, trialEndsOn: '2026-10-21' }),
+    ],
     ['cancelled', standing('SUBSCRIPTION_CANCELLED', { access: 'CANCELLED' })],
   ])('hides them while %s; viewing and discarding an old draft stay', async (_, status) => {
     who = OWNER
@@ -680,7 +833,9 @@ describe('Read-only subscription: no new drafts and nothing sent (ST-2, CA-3; ow
     expect(screen.getByRole('button', { name: /Export/ })).toBeTruthy()
     await issuedRowMenu()
     expect(screen.queryByRole('menuitem', { name: 'Send' })).toBeNull()
-    expect(screen.queryByRole('menuitem', { name: i18n.t('rowActions.invoice.duplicate') })).toBeNull()
+    expect(
+      screen.queryByRole('menuitem', { name: i18n.t('rowActions.invoice.duplicate') }),
+    ).toBeNull()
     expect(screen.queryByRole('menuitem', { name: 'Issue credit note' })).toBeNull()
     expect(screen.queryByRole('menuitem', { name: 'Periodic invoice' })).toBeNull()
     fireEvent.keyDown(document, { key: 'Escape' })
@@ -784,7 +939,33 @@ describe('invoice list mapping', () => {
         },
       }),
     )
-    expect(note).toMatchObject({ authoring: 'issued', payment: null, amountNote: null })
+    expect(note).toMatchObject({
+      authoring: 'issued',
+      payment: null,
+      amountNote: null,
+      noteStatus: 'toSend',
+    })
+    expect(toInvoiceListItem(issued()).noteStatus).toBeNull()
+    // A debit note's payment outranks "To be sent": the backend sends no Peppol response, so an
+    // undelivered paid note is the normal case.
+    const paidDebit = toInvoiceListItem(
+      issued({
+        type: 'DEBIT_NOTE',
+        payment: {
+          state: 'PAID',
+          overdue: false,
+          daysOverdue: null,
+          paidAmount: 845.125,
+          creditedAmount: 0,
+          outstandingAmount: 0,
+        },
+      }),
+    )
+    expect(paidDebit).toMatchObject({ noteStatus: null, payment: 'paid' })
+    expect(toInvoiceListItem(issued({ type: 'DEBIT_NOTE' }))).toMatchObject({
+      noteStatus: null,
+      payment: 'overdue',
+    })
 
     const awaiting_row = () =>
       issued({
@@ -813,8 +994,11 @@ describe('invoice list mapping', () => {
   })
 })
 
-describe('the approvers\' queue (RL-6)', () => {
-  const APPROVER: Entitlements = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.approve'] }
+describe("the approvers' queue (RL-6)", () => {
+  const APPROVER: Entitlements = {
+    ...ADMIN,
+    permissions: [...ADMIN.permissions, 'invoice.approve'],
+  }
 
   it('is offered to an approver while the company rule is on, counted from the summary', async () => {
     who = APPROVER
@@ -902,7 +1086,7 @@ describe('the approvers\' queue (RL-6)', () => {
 // Business Rules PL-8: bulk upload and periodic invoices are plan features; a plan that has them
 // switched off keeps the list and hides the doors to them.
 describe('a plan without bulk upload or periodic invoices (PL-8)', () => {
-  it('hides Bulk upload and the row menu\'s Periodic invoice', async () => {
+  it("hides Bulk upload and the row menu's Periodic invoice", async () => {
     who = {
       ...ADMIN,
       planFeaturesEnforced: true,

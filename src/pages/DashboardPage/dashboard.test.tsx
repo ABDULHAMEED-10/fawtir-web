@@ -170,6 +170,55 @@ describe('Dashboard, from the server', () => {
     expect(fetchMock.mock.calls.filter(([url]) => url === URL.dashboard)).toHaveLength(1)
   })
 
+  it('reads a cancelled invoice as cancelled whatever its dispatch says, and prices no draft', async () => {
+    const base = DASHBOARD.recentInvoices.data[0]
+    answer({
+      dashboard: () =>
+        json(200, {
+          ...DASHBOARD,
+          recentInvoices: ok([
+            { ...base, id: 'c-dead', invoiceNumber: 'RT-0101', state: 'CANCELLED', dispatch: 'DEAD_LETTERED', invoiceAck: null },
+            { ...base, id: 'c-none', invoiceNumber: 'RT-0102', state: 'CANCELLED', dispatch: null, invoiceAck: null },
+            { ...base, id: 'd-1', invoiceNumber: null, state: 'DRAFT', total: 0, dispatch: null, invoiceAck: null },
+          ]),
+        }),
+    })
+    renderPage()
+
+    const row = (name: string) => within(screen.getByText(name).closest('tr')!)
+    await screen.findByText('RT-0101')
+    expect(row('RT-0101').getByText('Cancelled')).toBeTruthy()
+    expect(row('RT-0102').getByText('Cancelled')).toBeTruthy()
+    expect(screen.queryByText(t('dashboard.invoices.status.notSent'))).toBeNull()
+    expect(screen.queryByText(t('dashboard.invoices.status.issued'))).toBeNull()
+    // The unpriced draft shows a dash, not the server's 0 as 0.000.
+    // The number column and the status both read "Draft" on this row.
+    const draft = within(screen.getAllByText(t('dashboard.invoices.noNumber'))[0].closest('tr')!)
+    expect(draft.getByText('—')).toBeTruthy()
+    expect(draft.queryByText('0.000')).toBeNull()
+  })
+
+  it('opens a credit or debit note on its own page, as the invoices list does', async () => {
+    const base = DASHBOARD.recentInvoices.data[0]
+    answer({
+      dashboard: () =>
+        json(200, {
+          ...DASHBOARD,
+          recentInvoices: ok([
+            { ...base, id: 'cn-1', invoiceNumber: 'CRN-1', invoiceType: 'CREDIT_NOTE' },
+            { ...base, id: 'dn-1', invoiceNumber: 'DBN-1', invoiceType: 'DEBIT_NOTE' },
+          ]),
+        }),
+    })
+    renderPage()
+    expect((await screen.findByRole('link', { name: 'CRN-1' })).getAttribute('href')).toBe(
+      '/income/credit-notes/cn-1',
+    )
+    expect(screen.getByRole('link', { name: 'DBN-1' }).getAttribute('href')).toBe(
+      '/income/debit-notes/dn-1',
+    )
+  })
+
   it('prints none of the sample company or its figures', async () => {
     answer()
     renderPage()

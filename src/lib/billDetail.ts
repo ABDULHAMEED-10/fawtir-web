@@ -732,7 +732,11 @@ export function activityOf(detail: BillDetailDto, userId: string | null): Activi
         : entry.kind === 'ARRIVED'
           ? (detail.intake?.filename ?? null)
           : entry.kind === 'MATCHED'
-            ? (detail.bill.match?.summary ?? null)
+            ? // NO_ORDER's summary is the matcher's fixed English sentence; the step's own key
+              // already says it, in the reader's language.
+              lookedAndFoundNothing
+              ? null
+              : (detail.bill.match?.summary ?? null)
             : entry.detail,
       byYou: userId !== null && entry.actor === userId,
       overpayment: overpaymentStepOf(entry.kind, entry.detail),

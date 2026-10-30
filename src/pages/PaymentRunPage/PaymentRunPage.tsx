@@ -321,7 +321,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
 
   if (runId && loaded.read.status === 'loading') return <LoadingNotice />
   if (runId && loaded.read.status === 'failed')
-    return <ApiReadFailure error={loaded.read.error} retry={loaded.retry} />
+    return <ApiReadFailure error={loaded.read.error} retry={loaded.retry} notFoundOn400 />
 
   const accountOptions = [
     ...(accounts.read.status === 'ready' ? accounts.read.data : []),

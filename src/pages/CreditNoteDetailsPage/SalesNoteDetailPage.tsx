@@ -287,7 +287,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
         {note.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
-          <ApiReadFailure error={note.read.error} retry={note.retry} />
+          <ApiReadFailure error={note.read.error} retry={note.retry} notFoundOn400 />
         )}
       </div>
     )
@@ -302,7 +302,12 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
     customer.read.status === 'ready'
       ? customer.read.data.displayName
       : t('salesNote.compose.customerUnknown')
-  const invoiceNumber = orig?.invoiceNumber ?? originalId ?? '—'
+  // A placeholder while the original invoice is still being read: the raw UUID fallback flashed
+  // into every "Reverses ..." sentence before the number arrived (TEST verification 2026-10-29).
+  // A failed read keeps the id, the only handle left on the invoice.
+  const invoiceNumber =
+    orig?.invoiceNumber ??
+    (originalId && original.read.status === 'loading' ? '…' : (originalId ?? '—'))
   const money = (value: number | null | undefined) =>
     value === null || value === undefined ? '—' : formatAmount(value, data.currency, language)
   const day = (value: string | null | undefined) => (value ? formatDate(value, language) : '—')
@@ -346,6 +351,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
         ) / 1000
       : null
 
+  // Manual delivery only: a detail page never reads `peppolResponse` (api/invoices/detail.ts).
   const status: NoteListStatus = draft
     ? 'draft'
     : data.authoringState !== 'ISSUED'
@@ -811,7 +817,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
             action={
               can(session, 'customer.read') && customer.read.status === 'ready' ? (
                 <Link
-                  to={`/customers/${data.customerId}`}
+                  to={`/customers/${data.customerId}/edit`}
                   className="inline-flex items-center gap-0.5 text-base font-semibold text-primary-800"
                 >
                   {t('salesNote.detail.viewCustomer')}

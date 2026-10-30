@@ -211,6 +211,17 @@ describe('a new customer', () => {
     expect(peppol()).toBe('9922:OPTBCNTRLP1007')
   })
 
+  it('says the Peppol ID was filled in from the VAT number only when there is one', async () => {
+    renderAt('/customers/new')
+    await screen.findByRole('heading', { name: 'New customer' })
+    const hint = /Filled in from the VAT number/
+    typeInto(/VAT registration number/, '')
+    typeInto(/Peppol participant ID/, '9922:OPTBCNTRLP1007')
+    expect(screen.queryByText(hint)).toBeNull()
+    typeInto(/VAT registration number/, 'OM1100337812')
+    expect(screen.getByText(hint)).toBeTruthy()
+  })
+
   it('sends a consumer with no organisation fields at all, not as false', async () => {
     renderAt('/customers/new')
     await screen.findByRole('heading', { name: 'New customer' })
@@ -326,6 +337,20 @@ describe('an existing customer', () => {
       emailPdfCopy: true,
       automaticPaymentReminders: false,
     })
+  })
+
+  it('reads a 400 on the customer (a malformed id) as not found, with nothing to retry', async () => {
+    // Every "View customer" link opens this page, so a bad id must not ask to check a form.
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === ONE && (init?.method ?? 'GET') === 'GET'
+        ? json(400, { type: 'https://api.fawtir.om/problems/validation-failed', status: 400 })
+        : base(url, init),
+    )
+    renderAt(`/customers/${ID}/edit`)
+    expect(await screen.findByText('Not found')).toBeTruthy()
+    expect(screen.queryByText(/Some details were not accepted/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
   })
 
   it('offers no save to someone who may only read customers', async () => {

@@ -1255,7 +1255,8 @@
         "draft": "Draft",
         "issued": "Issued",
         "accepted": "Accepted",
-        "notSent": "Not sent"
+        "notSent": "Not sent",
+        "cancelled": "Cancelled"
       },
       "none": "No invoices yet.",
       "noNumber": "Draft"
@@ -2376,7 +2377,15 @@
       "vatOnly": "VAT",
       "atIssue": "A draft is priced when it is issued.",
       "net": "Net amount",
-      "vatRate": "VAT · Standard {{rate}}%"
+      "vatRate": "VAT · {{category}} {{rate}}%",
+      "category": {
+        "S": "Standard",
+        "Z": "Zero-rated",
+        "E": "Exempt",
+        "O": "Out of scope",
+        "AE": "Reverse charge",
+        "G": "Export"
+      }
     },
     "notes": {
       "title": "Notes",
@@ -7936,7 +7945,9 @@
       "REJECTED": "Rejected",
       "TO_DISREGARD": "To be withdrawn",
       "DISREGARD_SUBMITTED": "Withdrawal sent",
-      "DEAD_LETTERED": "Given up on"
+      "DEAD_LETTERED": "Given up on",
+      "NOT_TESTED": "Not sent: no C5 provider is authorised on the test network",
+      "unknown": "Status not recognised"
     },
     "artefact": {
       "xml": "Signed XML",
@@ -8230,7 +8241,9 @@
       "REJECTED": "TDD rejected",
       "TO_DISREGARD": "Being withdrawn",
       "DISREGARD_SUBMITTED": "Withdrawal sent",
-      "DEAD_LETTERED": "TDD given up on"
+      "DEAD_LETTERED": "TDD given up on",
+      "NOT_TESTED": "Not sent (test network)",
+      "unknown": "Status not recognised"
     },
     "fileNote": {
       "xml": "The invoice as sent over Peppol",

@@ -10,6 +10,7 @@ import type {
 } from '../api/invoices/list'
 import { calculateInvoice, projectInvoice } from './invoiceMath'
 import { minorUnitsOf } from './format'
+import { delivered, noteStatusOf, type NoteListStatus } from './salesNote'
 
 /**
  * The Invoices list's view model, written only from what a row carries.
@@ -183,6 +184,11 @@ export type InvoiceListItem = {
   isDraft: boolean
   /** A draft's sales approval state when a request is open (RL-6). */
   approval: InvoiceListApproval | null
+  /**
+   * A credit or debit note's status as the notes lists word it, so one note reads the same in both
+   * lists; it said "Issued" here and "To be sent" there. Null on any other document.
+   */
+  noteStatus: NoteListStatus | null
   /** A till sale's invoice or a till refund's credit note: the "From the till" badge. */
   fromTill: boolean
   /** The till's name (its code when it has none), for the badge's hint. */
@@ -212,9 +218,22 @@ function paymentOf(row: InvoiceRowDto): Pick<InvoiceListItem, 'payment' | 'payme
   return { payment: delivered(row) ? 'awaiting' : 'toSend' }
 }
 
-/** Delivered by hand, or with a Peppol response on record. `NOT_SUBMITTED` and the like are not. */
-function delivered(row: InvoiceRowDto): boolean {
-  return row.deliveryState === 'SENT_MANUALLY' || !!row.peppolResponse
+/**
+ * A note row's words from the notes lists' rule, with two exceptions that keep what this list
+ * already said. A debit note that is paid, partly paid or overdue keeps its payment pill:
+ * noteStatusOf reads delivery first, and the backend sends no Peppol response, so an undelivered
+ * paid debit note would read "To be sent" (the hazard debitPaymentOf names). A discarded note
+ * keeps "Discarded", which noteStatusOf folds into "Cancelled".
+ */
+function listNoteStatus(row: InvoiceRowDto, payment: PaymentChip | null): NoteListStatus | null {
+  if (row.type !== 'CREDIT_NOTE' && row.type !== 'DEBIT_NOTE') return null
+  if (row.authoringState === 'DISCARDED') return null
+  if (
+    row.type === 'DEBIT_NOTE' &&
+    (payment === 'paid' || payment === 'partial' || payment === 'overdue')
+  )
+    return null
+  return noteStatusOf(row.type, row)
 }
 
 /** The draft's lines through the same engine the composer uses, at the currency's scale. */
@@ -279,6 +298,7 @@ export function toInvoiceListItem(row: InvoiceRowDto): InvoiceListItem {
     branchId: row.branchId ?? null,
     isDraft,
     approval: isDraft ? (row.approvalState ?? null) : null,
+    noteStatus: listNoteStatus(row, payment.payment),
     fromTill: row.source === 'TILL',
     tillName: row.source === 'TILL' ? row.till?.name?.trim() || row.till?.code || null : null,
     sourceAnswered: row.source !== undefined,
