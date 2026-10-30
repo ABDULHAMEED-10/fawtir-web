@@ -1820,6 +1820,7 @@ function InvoiceScreen() {
           initialIssueDate={muscatToday()}
           initialDueDate={dueDateFor(reference, muscatToday(), data.details?.paymentTerms?.code)}
           kind={noteType ?? 'INVOICE'}
+          customerId={data.customerId}
           onClose={() => setIssuing(false)}
           onIssued={(issued) => {
             setIssuing(false)
