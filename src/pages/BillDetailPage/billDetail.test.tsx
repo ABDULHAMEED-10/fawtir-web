@@ -2189,6 +2189,33 @@ describe('why a bill was refused, in its own sentence', () => {
     expect(screen.queryByText(GENERIC)).toBeNull()
   })
 
+  it.each([
+    ['en', "This bill can't be rejected: supplier credit is set against it, and credit can't be released yet."],
+    ['ar', 'لا يمكن رفض هذه الفاتورة: خُصم منها رصيد دائن للمورد، ولا يمكن تحرير هذا الرصيد بعد.'],
+  ])('says a rejection is refused while credit is set against the bill, promising no release (%s)', async (language, sentence) => {
+    await i18n.changeLanguage(language)
+    actionResponse = refusal('BILL_REJECTION_HAS_APPLIED_CREDIT')
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getAllByRole('button', { name: i18n.t('billDetail.actions.reject') })[0])
+    fireEvent.change(await screen.findByRole('textbox'), { target: { value: 'Not ours' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('billDetail.reject.confirm') }))
+    expect(await screen.findByText(sentence)).toBeTruthy()
+  })
+
+  it('explains instead of opening the rejection when the page already shows credit set against the bill', async () => {
+    billResponse = () =>
+      json(200, { ...detail(), settlement: { ...detail().settlement, creditedAmount: 10.5, outstandingAmount: 2343.81 } })
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Reject' })[0])
+    expect(
+      await screen.findByText("This bill can't be rejected: supplier credit is set against it, and credit can't be released yet."),
+    ).toBeTruthy()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(calls().some((call) => call.includes('/reject'))).toBe(false)
+  })
+
   // A hold with no reason, or one that is too long.
   it.each([
     ['BILL_HOLD_REASON_REQUIRED', 'A hold has to say why.'],

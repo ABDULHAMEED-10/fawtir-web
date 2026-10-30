@@ -154,6 +154,9 @@ const REFUSALS: Record<string, string> = {
   // Rejecting a bill that has a payment, is in a run, or with a reason that is too long.
   APPROVAL_REJECT_PAYMENT_RECORDED: 'billDetail.refused.paymentRecorded',
   APPROVAL_REJECT_IN_PAYMENT_RUN: 'billDetail.refused.inRun',
+  // Supplier credit set against the bill (backend #817): there is no way yet to release it, so the
+  // sentence promises none.
+  BILL_REJECTION_HAS_APPLIED_CREDIT: 'billDetail.refused.appliedCredit',
   APPROVAL_REASON_TOO_LONG: 'billDetail.refused.reasonTooLong',
   BILL_HOLD_ALREADY_OPEN: 'billDetail.refused.changed',
   BILL_HOLD_NOT_OPEN: 'billDetail.refused.changed',
@@ -410,6 +413,13 @@ function BillScreen() {
     }
   }
 
+  // Credit already set against the bill blocks a rejection (BILL_REJECTION_HAS_APPLIED_CREDIT): the
+  // page knows the credited amount, so it says so instead of opening a dialog the server refuses.
+  const askToReject = () =>
+    detail.settlement.creditedAmount > 0
+      ? setNotice({ key: 'billDetail.refused.appliedCredit' })
+      : setAsking('reject')
+
   const confirmReason = async () => {
     const text = reason.trim()
     if (text === '') return
@@ -467,7 +477,7 @@ function BillScreen() {
             {decisions.reject ? (
               <button
                 type="button"
-                onClick={() => setAsking('reject')}
+                onClick={askToReject}
                 disabled={busy}
                 className="inline-flex h-[46px] items-center rounded-sm border border-danger-700 bg-white px-4 text-sm font-semibold text-danger-700 transition-colors hover:bg-danger-100 disabled:opacity-60"
               >
@@ -887,7 +897,7 @@ function BillScreen() {
                 {decisions.reject ? (
                   <button
                     type="button"
-                    onClick={() => setAsking('reject')}
+                    onClick={askToReject}
                     disabled={busy}
                     className={QUIET_BUTTON}
                   >

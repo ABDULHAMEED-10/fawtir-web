@@ -6268,7 +6268,8 @@
       "inRun": "This bill is in payment run {{run}}. Take it out of the run before rejecting it.",
       "reasonTooLong": "That reason is too long. Shorten it and reject again.",
       "holdReasonRequired": "A hold has to say why.",
-      "holdReasonTooLong": "That reason is too long. Shorten it and put the bill on hold again."
+      "holdReasonTooLong": "That reason is too long. Shorten it and put the bill on hold again.",
+      "appliedCredit": "This bill can't be rejected: supplier credit is set against it, and credit can't be released yet."
     },
     "done": {
       "approved": "Approved.",
