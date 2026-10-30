@@ -221,6 +221,25 @@ const PRODUCTS = [
     ...goods('080410000000'),
     keepCount: true,
   }),
+  // No price yet (template items start at 0.000): the till says so, or asks when staff may set it.
+  product('p-free-fixed', 'NOPRICE-FIX', 'Cardamom tin (no price)', 'EA', 0, {
+    ...goods('090830000000'),
+    nameAr: 'علبة هيل (بلا سعر)',
+    barcode: '6281183000900',
+  }),
+  product('p-free-open', 'NOPRICE-OPEN', 'Gift wrap (price at the till)', 'EA', 0, {
+    ...goods('480210000000'),
+    nameAr: 'تغليف هدايا (السعر عند البيع)',
+    barcode: '6281183000901',
+    staffCanChangePrice: true,
+  }),
+  product('p-free-sizes', 'NOPRICE-SIZE', 'Karak tea (a size unpriced)', 'EA', 0, {
+    ...goods('090240000000'),
+    nameAr: 'شاي كرك (مقاس بلا سعر)',
+    sizes: [size('Small', 'صغير', 0, 0), size('Large', 'كبير', 0.5, 1)],
+    addOns: [addOn('Extra sugar', 'سكر إضافي', 0, 0)],
+    staffCanChangePrice: true,
+  }),
   product('p-syrup', 'SYR-VAN', 'Vanilla syrup 750ml', 'EA', 4.75, {
     ...goods('210690000000'),
     active: false,

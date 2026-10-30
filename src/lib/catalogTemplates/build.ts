@@ -348,6 +348,16 @@ export async function runBuild(
   return outcomes
 }
 
+/**
+ * Items this run added that still have no price. Only those: an item skipped was there already,
+ * with whatever price it has, and a failed one is not in the catalogue.
+ */
+export function addedWithoutPrice(outcomes: readonly BuildOutcome[]) {
+  return outcomes.filter(
+    (outcome) => outcome.state === 'added' && !(Number(outcome.entry.product.defaultUnitPrice) > 0),
+  ).length
+}
+
 /** The counts the summary says. */
 export function buildSummary(outcomes: readonly BuildOutcome[]) {
   return {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CatalogShell, Kpi, TabStrip } from './CatalogShell'
 import { useApiRead } from '../../hooks'
@@ -30,6 +31,8 @@ import {
   CATALOG_TABS,
   SERVER_SORT,
   catalogRows,
+  catalogSortOf,
+  catalogTabOf,
   kindOf,
   matchesCatalogTab,
   needsAttention,
@@ -73,14 +76,16 @@ export function CatalogPage() {
   // The search and its page move together: a new search starts again from its first page.
   const [{ search, page }, setPaging] = useState({ search: '', page: 0 })
   const setPage = (next: number) => setPaging((current) => ({ ...current, page: next }))
-  const [tab, setTabState] = useState<CatalogTab>('all')
+  // A link can open a tab and an order (`?tab=attention&sort=priceLow`, from Build from a template).
+  const [params] = useSearchParams()
+  const [tab, setTabState] = useState<CatalogTab>(() => catalogTabOf(params.get('tab')))
   const archivedTab = tab === 'archived'
   // Moving in or out of Archived reads another list, so it starts from its first page.
   const setTab = (next: CatalogTab) => {
     if ((next === 'archived') !== archivedTab) setPage(0)
     setTabState(next)
   }
-  const [sort, setSort] = useState<CatalogSort>('name')
+  const [sort, setSort] = useState<CatalogSort>(() => catalogSortOf(params.get('sort')))
   const [actionProblem, setActionProblem] = useState<string | null>(null)
   // New item writes to /v1/products, so it follows product.manage rather than the prototype switch.
   const canManage = useCanManageProducts() === true
