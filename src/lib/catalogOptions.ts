@@ -46,6 +46,10 @@ export type OptionSet = {
 
 /** One combination: whether it is sold, its price and its item code. */
 export type Cell = {
+  /** Backend V509: the combination's own barcode as typed. Absent on a server without the field. */
+  barcode?: string
+  /** The barcode as read, so that a save sends one only when it changed. */
+  storedBarcode?: string
   on: boolean
   price: number
   byHand: boolean
@@ -209,6 +213,13 @@ export function toggleCell(state: OptionsState, key: string): OptionsState {
   return { ...state, cells: { ...state.cells, [key]: { ...cell, on: !cell.on } } }
 }
 
+/** The barcode typed for a combination; emptied, a save removes the stored one. */
+export function setBarcode(state: OptionsState, key: string, barcode: string): OptionsState {
+  const cell = state.cells[key]
+  if (!cell) return state
+  return { ...state, cells: { ...state.cells, [key]: { ...cell, barcode } } }
+}
+
 /** A price typed into the grid. It is set by hand when it differs from the worked-out price. */
 export function setPrice(state: OptionsState, key: string, price: number): OptionsState {
   const found = combinations(state).find((entry) => entry.key === key)
@@ -326,6 +337,10 @@ export type ChoiceWords = {
   options: { name: string; nameAr: string; noun: string; nounAr: string }
 }
 
+/** A server from before backend V509 returns no `barcode` on its rows: it cannot store one. */
+export const canSetVariantBarcodes = (product: Pick<ProductDto, 'variants'>) =>
+  (product.variants ?? []).some((variant) => variant.barcode !== undefined)
+
 /**
  * A saved product's sizes and options as the grid. Each combination shows what the server says it
  * sells for (`variant.price`); one priced by hand (`priceOverride`) is marked so.
@@ -351,6 +366,9 @@ export function productVariantsState(product: ProductDto, words: ChoiceWords): O
   const cells: Record<string, Cell> = {}
   for (const variant of product.variants ?? []) {
     cells[cellKey(variant.sizeId ?? NONE.id, variant.optionId ?? NONE.id)] = {
+      ...(variant.barcode !== undefined
+        ? { barcode: variant.barcode ?? '', storedBarcode: variant.barcode ?? '' }
+        : {}),
       on: variant.onSale,
       price: variant.price,
       byHand: variant.priceOverride !== null,
@@ -359,6 +377,34 @@ export function productVariantsState(product: ProductDto, words: ChoiceWords): O
     }
   }
   return reconcile({ base: product.defaultUnitPrice, side, top, cells })
+}
+
+/** The barcode to send: only a changed one ('' removes it). Left out, the server keeps its own. */
+const changedBarcode = (cell: Cell) => {
+  const barcode = cell.barcode?.trim()
+  return barcode === undefined || barcode === (cell.storedBarcode ?? '') ? {} : { barcode }
+}
+
+/**
+ * The combinations a barcode refusal belongs to, as the server does not say which it was: the ones
+ * the refusal fits (not a valid code; the same code twice, or the item's own), else every barcode
+ * this save changes. Empty when this save changes none, so the refusal is about something else.
+ */
+export function refusedBarcodes(state: OptionsState, code: string, ownBarcode?: string | null) {
+  const all = combinations(state).map(({ key, cell }) => ({
+    key,
+    cell,
+    typed: cell.barcode?.trim() ?? '',
+  }))
+  const changed = all.filter(({ cell, typed }) => typed && 'barcode' in changedBarcode(cell))
+  const fits = all.filter(({ typed }) =>
+    !typed
+      ? false
+      : code === 'PRODUCT_VARIANT_BARCODE_INVALID'
+        ? !/^[\x21-\x7e]{1,64}$/.test(typed)
+        : typed === ownBarcode || all.filter((other) => other.typed === typed).length > 1,
+  )
+  return (fits.length ? fits : changed).map(({ key }) => key)
 }
 
 const valueRequest = (value: OptionValue): SizeRequest => ({
@@ -383,6 +429,7 @@ export function variantsRequest(
     variants: combinations(state).map(({ side, top, cell }) => ({
       size: side === NONE ? null : side.name.trim(),
       option: top === NONE ? null : top.name.trim(),
+      ...changedBarcode(cell),
       code: cell.code.trim() || null,
       price: cell.byHand ? cell.price : null,
       onSale: cell.on,
