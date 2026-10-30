@@ -10254,7 +10254,7 @@
       "flows": "Which flow each invoice took",
       "flowsNote": "The document scenario and any stand-in participant ID used for B2C or export",
       "xml": "The TDD XML files themselves",
-      "xmlNote": "Adds a zip alongside the report: {{files}} files, about {{size}}",
+      "xmlNote": "Adds a zip of the XML files alongside the report",
       "acks": "OTA acknowledgements and MLS replies",
       "acksNote": "Your evidence that each report was received and each invoice delivered"
     },
