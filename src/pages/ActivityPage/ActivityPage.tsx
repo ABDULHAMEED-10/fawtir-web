@@ -299,7 +299,8 @@ function ActivityLedger() {
   }
 
   /**
-   * The dialog's "Build Report". PDF opens the built report; Excel is the ledger itself, one row
+   * The dialog's "Build Report". PDF opens the report page, where the signed document is
+   * labelled as not available yet (DA-17); Excel is the ledger itself, one row
    * per document, carrying the tab and filters on screen and the period chosen, so the file and
    * the page cannot disagree about which documents they cover.
    */

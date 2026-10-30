@@ -134,6 +134,7 @@ describe('the catalog', () => {
 
 describe('the compliance report prototype is hidden even with prototypes on (DA-17)', () => {
   it('serves the real-only report, with no ribbon, sample register or Share', async () => {
+    vi.stubEnv('VITE_FAWTIR_DEMO_MODULES', 'true')
     at('/compliance/activity/report', <ComplianceReportPage />)
     expect(await screen.findByText('Real Trading LLC')).toBeTruthy()
     expect(await screen.findByText('0248:OM1100777001')).toBeTruthy()
@@ -146,7 +147,6 @@ describe('the compliance report prototype is hidden even with prototypes on (DA-
 })
 
 describe('prototypes shown by default (owner decision 2026-10-08)', () => {
-
   it('the catalog keeps its real product list and offers the prototype tools', async () => {
     at('/catalog', <CatalogPage />)
     expect(await screen.findByText('Real Widget')).toBeTruthy()
