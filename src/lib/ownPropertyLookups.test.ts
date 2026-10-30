@@ -83,7 +83,7 @@ describe.each(PROTOTYPE_KEYS)('a server value of %j', (key) => {
   })
 
   it('is no warning, VAT reason, unit, icon, plan or state the app knows', () => {
-    const warning = { rowNumbers: [1], column: 'c', code: key } as unknown as ImportWarningDto
+    const warning = { rowNumber: 1, column: 'c', code: key } as unknown as ImportWarningDto
     expect(importWarningKey(warning)).toBeNull()
     expect(importWarningColumnKey(warning)).toBeNull()
     expect(inputVatNoteKey({ counted: false, reason: key } as BillRowDto['inputVat'])).toBeNull()

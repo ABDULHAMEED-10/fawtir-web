@@ -21,6 +21,8 @@ export type ImportErrorDto = {
   rowNumber: number
   column: string
   message: string
+  /** The refusal's name when the server gives one (`InvoiceImportBatch.RowError.code`); often null. */
+  code?: string | null
 }
 
 /**
@@ -28,11 +30,17 @@ export type ImportErrorDto = {
  * file. A blank TAX_CATEGORY cell, for one, is read as standard rate (5%).
  */
 export type ImportWarningDto = {
-  /** Every row the warning applies to, so it is listed once. */
-  rowNumbers: number[]
+  /**
+   * The one row the warning is about (`InvoiceImportBatch.RowWarning`). The type said
+   * `rowNumbers: number[]` and the dialog went blank on the first warning (IMP-1); the dialog
+   * lists a code's rows together itself (`groupImportWarnings`).
+   */
+  rowNumber: number
   column: string
   /** The warning's name, e.g. `TAX_CATEGORY_DEFAULTED`; worded by the dialog when it knows it. */
   code: string
+  /** `WARNING` today; never blocks the file. */
+  severity: string | null
   /** The server's own sentence, in the user's language, for a code the dialog does not know. */
   message: string
 }
