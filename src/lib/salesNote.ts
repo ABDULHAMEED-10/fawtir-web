@@ -8,6 +8,8 @@ import type {
 } from '../api/invoices/drafts'
 import type { InvoiceListPayment, InvoiceRowDto, InvoiceSummaryDto } from '../api/invoices/list'
 import type { TFunction } from 'i18next'
+import { ApiError } from '../api'
+import { formatAmount } from './format'
 import {
   CATEGORY_REASON_CONFLICT,
   CODED_REASON,
@@ -820,6 +822,84 @@ export const NOTE_ROUTES: Record<NoteKind, string> = {
 }
 
 /** Note refusals a person can act on, in the page's words. */
+/**
+ * The owner's cap on credit notes (DA-1, option B): cumulative per original line and per VAT
+ * category and rate, counting every issued credit note, with issued debit notes adding allowance.
+ * The composer cannot apply it itself: a note's lines name no original line, and the earlier
+ * notes are not read here, so the server's refusal is the check. Each code has a sentence without
+ * the figures, and one naming them when the server sends them (backend #817; the field names are
+ * read defensively until its contract is published).
+ */
+const CREDIT_CAP_REFUSALS: Record<string, { plain: string; detailed: string }> = {
+  CREDIT_NOTE_EXCEEDS_LINE_REMAINING: {
+    plain: 'salesNote.refused.lineRemaining',
+    detailed: 'salesNote.refused.lineRemainingNamed',
+  },
+  CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING: {
+    plain: 'salesNote.refused.categoryRemaining',
+    detailed: 'salesNote.refused.categoryRemainingNamed',
+  },
+  CREDIT_NOTE_VAT_CATEGORY_NOT_ON_ORIGINAL: {
+    plain: 'salesNote.refused.categoryNotOnInvoice',
+    detailed: 'salesNote.refused.categoryNotOnInvoiceNamed',
+  },
+}
+
+const numberIn = (problem: Readonly<Record<string, unknown>>, ...names: string[]): number | null => {
+  for (const name of names) {
+    const value = problem[name]
+    if (typeof value === 'number' && Number.isFinite(value)) return value
+    if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) return Number(value)
+  }
+  return null
+}
+
+const textIn = (problem: Readonly<Record<string, unknown>>, ...names: string[]): string | null => {
+  for (const name of names) {
+    const value = problem[name]
+    if (typeof value === 'string' && value.trim() !== '') return value.trim()
+  }
+  return null
+}
+
+/**
+ * The sentence for a cap refusal, or null for any other error. `values` are ready to print:
+ * `amount` is "OMR 12.000" (the page draws the rial sign in its place), `category` the word for
+ * the EN 16931 category.
+ */
+export function creditCapRefusal(
+  error: unknown,
+  t: (key: string, options?: Record<string, unknown>) => string,
+  fallbackCurrency: string,
+  language: string,
+): { key: string; values?: Record<string, string> } | null {
+  if (!(error instanceof ApiError) || !error.code || !Object.hasOwn(CREDIT_CAP_REFUSALS, error.code))
+    return null
+  const keys = CREDIT_CAP_REFUSALS[error.code]
+  const problem = error.problem
+  const remaining = numberIn(problem, 'remainingAmount', 'remaining')
+  const currency = textIn(problem, 'currency') ?? fallbackCurrency
+  const amount = remaining === null ? '' : `${currency} ${formatAmount(remaining, currency, language)}`
+  const categoryCode = textIn(problem, 'en16931Category', 'taxCategory', 'category')
+  const rate = numberIn(problem, 'taxRate', 'rate')
+  const category =
+    categoryCode === null
+      ? ''
+      : t(`invoiceDetails.category.${categoryCode}`, { defaultValue: categoryCode })
+  const line = numberIn(problem, 'originalLineNumber', 'lineNumber')
+  if (error.code === 'CREDIT_NOTE_EXCEEDS_LINE_REMAINING')
+    return line !== null && remaining !== null
+      ? { key: keys.detailed, values: { line: String(line), amount } }
+      : { key: keys.plain }
+  if (error.code === 'CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING')
+    return categoryCode !== null && rate !== null && remaining !== null
+      ? { key: keys.detailed, values: { category, rate: String(rate), amount } }
+      : { key: keys.plain }
+  return categoryCode !== null && rate !== null
+    ? { key: keys.detailed, values: { category, rate: String(rate) } }
+    : { key: keys.plain }
+}
+
 export const NOTE_REFUSALS: Record<string, string> = {
   CORRECTED_INVOICE_NOT_ISSUED: 'salesNote.refused.invoiceNotIssued',
   CORRECTION_REASON_CODE_INVALID: 'salesNote.error.reason',

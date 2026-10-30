@@ -91,6 +91,11 @@ export const ISSUE_REFUSALS: Record<string, { field: IssueField | null; key: str
   CORRECTED_INVOICE_NOT_ISSUED: { field: null, key: 'salesNote.refused.invoiceNotIssued' },
   CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT: { field: null, key: 'salesNote.refused.exceeds' },
   CREDIT_NOTE_NOTHING_CORRECTABLE: { field: null, key: 'salesNote.refused.nothingLeft' },
+  // The cumulative caps (DA-1 option B), said without figures where only the code is read: a note
+  // draft issued from its own page. The composer names the line or rate (creditCapRefusal).
+  CREDIT_NOTE_EXCEEDS_LINE_REMAINING: { field: null, key: 'salesNote.refused.lineRemaining' },
+  CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING: { field: null, key: 'salesNote.refused.categoryRemaining' },
+  CREDIT_NOTE_VAT_CATEGORY_NOT_ON_ORIGINAL: { field: null, key: 'salesNote.refused.categoryNotOnInvoice' },
 
   // A zero-rated or exempt line with no reason, or the wrong list's reason: fixed on the draft.
   ...Object.fromEntries(

@@ -23,7 +23,10 @@ import {
   reasonLabelKey,
   toNoteRequest,
   withMode,
+  creditCapRefusal,
 } from '../../lib/salesNote'
+import { ApiError } from '../../api'
+import { issueRefusalOf } from '../../lib/invoiceIssue'
 import { CATEGORY_REASON_CONFLICT } from '../../lib/invoiceDraft'
 import { NewCreditNotePage } from './NewCreditNotePage'
 import { NewSelfBilledCreditNotePage } from './NewSelfBilledCreditNotePage'
@@ -1974,5 +1977,63 @@ describe('a debit note with payments, and a stale payment on it (DA-2, DA-12 rev
     const before = reads()
     fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('common.cancel') }))
     await waitFor(() => expect(reads()).toBe(before + 1))
+  })
+})
+
+describe('the cumulative credit caps, as the server refuses them (DA-1 option B)', () => {
+  const refuseIssue = (body: Record<string, unknown>) => {
+    override = (url) =>
+      url === `/api/v1/invoice-drafts/${NOTE_ID}/issue` ? json(409, { status: 409, ...body }) : undefined
+  }
+  const issueAFullCredit = async () => {
+    renderAt(`/income/credit-notes/new?invoice=${INVOICE_ID}`)
+    await screen.findAllByText('Green beans')
+    chooseReason(i18n.t('salesNote.reason.returned', { defaultValue: 'Returned goods' }))
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('salesNote.compose.issue.CREDIT_NOTE', { defaultValue: 'Issue credit note' }) }))
+  }
+
+  it.each([
+    ['CREDIT_NOTE_EXCEEDS_LINE_REMAINING', 'This credits more of an invoice line than is left after the earlier credit notes. Lower the amounts, then issue again.'],
+    ['CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING', 'This credits more at one VAT rate than is left after the earlier credit notes. Lower the amounts, then issue again.'],
+    ['CREDIT_NOTE_VAT_CATEGORY_NOT_ON_ORIGINAL', "A line uses a VAT category or rate the invoice does not have. Use one of the invoice's rates, then issue again."],
+  ])('says %s in plain words when the server names no figures', async (code, text) => {
+    refuseIssue({ code })
+    await issueAFullCredit()
+    expect(await screen.findByText(text)).toBeTruthy()
+  }, 30_000)
+
+  it('names the line and what is left of it, with the rial sign', async () => {
+    refuseIssue({ code: 'CREDIT_NOTE_EXCEEDS_LINE_REMAINING', originalLineNumber: 2, remainingAmount: 12.5, currency: 'OMR' })
+    await issueAFullCredit()
+    const shown = await screen.findByText(/^Line 2 of the invoice has only/)
+    expect(shown.textContent).toContain('12.500')
+    expect(shown.querySelector('svg')).not.toBeNull()
+  }, 30_000)
+
+  it.each([
+    ['en', 'Only OMR 3.000 is left to credit at Standard 5% after the earlier credit notes. Lower the amounts at that rate, then issue again.'],
+    ['ar', 'لم يتبقَّ للخصم بفئة قياسية بنسبة 5% سوى OMR 3.000 بعد الإشعارات الدائنة السابقة. خفّض المبالغ بهذه النسبة، ثم أصدره مرة أخرى.'],
+  ])('names the rate and what is left at it (%s)', (language, text) => {
+    const t = i18n.getFixedT(language)
+    const refusal = creditCapRefusal(
+      new ApiError({ status: 409, problemType: 'resource-conflict', code: 'CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING', problem: { taxCategory: 'S', taxRate: 5, remainingAmount: 3, currency: 'OMR' } }),
+      t,
+      'OMR',
+      'en',
+    )!
+    expect(t(refusal.key, refusal.values)).toBe(text)
+  })
+})
+
+describe('the caps on the issue dialog path (DA-1 option B)', () => {
+  it.each([
+    ['CREDIT_NOTE_EXCEEDS_LINE_REMAINING', 'salesNote.refused.lineRemaining'],
+    ['CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING', 'salesNote.refused.categoryRemaining'],
+    ['CREDIT_NOTE_VAT_CATEGORY_NOT_ON_ORIGINAL', 'salesNote.refused.categoryNotOnInvoice'],
+  ])('reads %s as its own sentence', (code, key) => {
+    expect(issueRefusalOf(new ApiError({ status: 409, problemType: 'resource-conflict', code }))).toEqual({
+      field: null,
+      key,
+    })
   })
 })

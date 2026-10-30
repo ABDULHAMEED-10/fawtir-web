@@ -21506,7 +21506,13 @@
     "refused": {
       "invoiceNotIssued": "This invoice is not issued (or was cancelled), so it cannot be corrected.",
       "exceeds": "This credit is more than is left to credit on the invoice.",
-      "nothingLeft": "Nothing is left to credit on this invoice."
+      "nothingLeft": "Nothing is left to credit on this invoice.",
+      "lineRemaining": "This credits more of an invoice line than is left after the earlier credit notes. Lower the amounts, then issue again.",
+      "lineRemainingNamed": "Line {{line}} of the invoice has only {{amount}} left to credit after the earlier credit notes. Lower this note's amount on it, then issue again.",
+      "categoryRemaining": "This credits more at one VAT rate than is left after the earlier credit notes. Lower the amounts, then issue again.",
+      "categoryRemainingNamed": "Only {{amount}} is left to credit at {{category}} {{rate}}% after the earlier credit notes. Lower the amounts at that rate, then issue again.",
+      "categoryNotOnInvoice": "A line uses a VAT category or rate the invoice does not have. Use one of the invoice's rates, then issue again.",
+      "categoryNotOnInvoiceNamed": "The invoice has nothing at {{category}} {{rate}}%, so a credit note cannot credit at that rate. Use one of the invoice's rates."
     },
     "onInvoice": {
       "title": "Credit and debit notes"
