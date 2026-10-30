@@ -6,6 +6,7 @@ import { Rial } from '../../components/ui'
 import { PosFootNote } from './PosFootNote'
 import {
   LULL,
+  bundlePartNames,
   lullApplies,
   omr,
   omrSigned,
@@ -177,7 +178,11 @@ export function PosSalePanel({
               <div className="min-w-0 flex-1">
                 <p className="text-base font-medium leading-[1.2] text-text-primary">{line.name}</p>
                 <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
-                  {line.variant ? line.variant.label : t('pos.oneSizeOnly')}
+                  {bundlePartNames(line)
+                    ? t('pos.bundle.parts', { parts: bundlePartNames(line) })
+                    : line.variant
+                      ? line.variant.label
+                      : t('pos.oneSizeOnly')}
                   {addOns.length ? (
                     <span className="text-primary-700">
                       {' · '}

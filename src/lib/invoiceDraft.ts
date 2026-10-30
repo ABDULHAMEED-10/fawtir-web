@@ -44,6 +44,11 @@ export type DraftLine = {
   quantity: string
   unit: string
   /**
+   * The bundle this line is one part of, when the bundle's parts differ in VAT
+   * (`GET /v1/bundles/{id}/invoice-lines`): sent back so the bundles report counts the line.
+   */
+  bundleId?: string | null
+  /**
    * The unit a counted product (`keepCount`) keeps its stock in, set when that product filled the
    * line. While set the unit is fixed to it: a line in another unit moves no stock and the issue
    * warns `STOCK_UNIT_MISMATCH` (Abdul, 28 Oct 2026). Client only, never sent; a typed line and an
@@ -397,6 +402,7 @@ export function toDraftRequest(
         ...(line.productId
           ? { productId: line.productId, productCode: line.productCode ?? '' }
           : {}),
+        ...(line.bundleId ? { bundleId: line.bundleId } : {}),
         description: line.description.trim(),
         unitCode: line.unit,
         quantity: number(line.quantity),
@@ -515,6 +521,7 @@ export function fromDraftResponse(
           : {}),
         discountType: line.discountType,
         discountValue: String(Number(line.discountValue)),
+        ...(line.bundleId ? { bundleId: line.bundleId } : {}),
       }
     }),
   }

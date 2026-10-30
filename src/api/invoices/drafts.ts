@@ -29,6 +29,8 @@ export type DraftLineRequest = {
   /** Both absent on a free-text line; a line that cites a catalogue product states both. */
   productId?: string
   productCode?: string
+  /** One part of a bundle whose parts differ in VAT: the bundle's id (`invoice-lines` gives it). */
+  bundleId?: string
   description: string
   unitCode: string
   quantity: number
@@ -124,6 +126,7 @@ export type DraftResponse = {
     lineNumber: number
     productId: string | null
     productCode: string | null
+    bundleId?: string | null
     description: string
     unitCode: string
     quantity: number

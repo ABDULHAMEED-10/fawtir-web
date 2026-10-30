@@ -196,11 +196,9 @@ export const bundleInvoiceLinesPath = (
 
 /**
  * `GET /v1/bundles/{id}/invoice-lines`: the lines a draft or till sale carries for a bundle. The
- * bundle screen previews them ("On the invoice").
- *
- * TODO(backend): INCOME.md BU.3. The invoice composer does not offer bundles yet; when it does it
- * must build a bundle's lines from this call (a mixed-VAT bundle sent as one line is refused,
- * `BUNDLE_SPLIT_REQUIRED`) and send each part line back with its `bundleId`.
+ * bundle screen previews them ("On the invoice"). The invoice composer and the till build a split
+ * bundle's lines from it (a mixed-VAT bundle sent as one line is refused, `BUNDLE_SPLIT_REQUIRED`,
+ * at the till `POS_BUNDLE_SPLIT_REQUIRED`) and send each part line back with its `bundleId`.
  */
 export function getBundleInvoiceLines(path: string): Promise<BundleInvoiceLinesDto> {
   return apiRequest<BundleInvoiceLinesDto>(path)

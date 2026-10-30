@@ -19,6 +19,7 @@ import {
   ACTIVE_FILTERS,
   activeCounts,
   addToSale,
+  bundleSaleLine,
   choicesOf,
   itemsFor,
   listedChoices,
@@ -41,7 +42,10 @@ import {
 } from '../../api/catalog/products'
 import { getCatalogGroups, type CatalogGroupsDto } from '../../api/catalog/groups'
 import type { Page } from '../../api'
+import { NetworkError } from '../../api'
+import type { BundleInvoiceLinesDto } from '../../api/catalog/bundles'
 import { posRefusalKey } from '../../lib/posRefusals'
+import { keepBundleLines, tillBundleLines } from '../../lib/posBundle'
 import { loadOrRecall } from '../../lib/posOffline'
 import { captureScans, findOnShelf, lookupBarcode, type ScanHit } from '../../lib/posScan'
 import { playErrorBeep } from '../../lib/posBeep'
@@ -219,6 +223,8 @@ function Shelf({
   const [unknownCode, setUnknownCode] = useState<string | null>(null)
   // The item just picked that has no price and cannot be given one here.
   const [noPrice, setNoPrice] = useState<string | null>(null)
+  // The bundle just tapped offline whose lines were never read on this device.
+  const [bundleOffline, setBundleOffline] = useState<string | null>(null)
   // The size the chooser opens on, when a size's own barcode asked for it.
   const [startSize, setStartSize] = useState<SizeChoice | null>(null)
   // The open sale is shared with the payment and receipt screens (src/lib/posSale.ts).
@@ -260,6 +266,14 @@ function Shelf({
     [items, ar],
   )
   const choicesFor = (id: string): ItemChoices | undefined => details[id] ?? listed[id]
+  // A copy of each bundle's lines, so what the till splits still splits when it goes offline.
+  const bundleIds = items
+    .filter((item) => item.product.itemKind === 'BUNDLE')
+    .map((item) => item.id)
+    .join(',')
+  useEffect(() => {
+    if (bundleIds) void keepBundleLines(branchId, bundleIds.split(','))
+  }, [branchId, bundleIds])
   const counts = activeCounts(items)
   const inSale = new Set(lines.map((line) => line.productId))
   const shown = itemsFor(items, group, filter, query)
@@ -275,6 +289,22 @@ function Shelf({
   const add = async (item: PosItem) => {
     setError(null)
     setNoPrice(null)
+    setBundleOffline(null)
+    if (item.product.itemKind === 'BUNDLE') {
+      // Whether it goes on one line or one per part is the server's call; never a guess.
+      let answer: BundleInvoiceLinesDto
+      try {
+        answer = await tillBundleLines(branchId, item.id)
+      } catch (cause) {
+        if (cause instanceof NetworkError) setBundleOffline(item.name)
+        else setError(cause)
+        return
+      }
+      if (answer.split) {
+        setSaleLines((current) => addToSale(current, bundleSaleLine(categories, item, answer)))
+        return
+      }
+    }
     let choices = choicesFor(item.id) ?? listedChoices(item, ar)
     if (!choices) {
       try {
@@ -492,6 +522,15 @@ function Shelf({
               className="rounded-sm bg-danger-100 px-4 py-3 text-sm font-medium text-danger-700"
             >
               {t('pos.noPrice.refused', { name: `\u2068${noPrice}\u2069` })}
+            </p>
+          ) : null}
+
+          {bundleOffline ? (
+            <p
+              role="alert"
+              className="rounded-sm bg-danger-100 px-4 py-3 text-sm font-medium text-danger-700"
+            >
+              {t('pos.bundle.offline', { name: `\u2068${bundleOffline}\u2069` })}
             </p>
           ) : null}
 

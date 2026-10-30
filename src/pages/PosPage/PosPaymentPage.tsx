@@ -16,7 +16,16 @@ import {
   PencilIcon,
   ShieldIcon,
 } from './posIcons'
-import { VAT_RATE, omr, omrSigned, totalsFor, unitPrice, LULL, toBaisa } from '../../lib/pos'
+import {
+  VAT_RATE,
+  bundlePartNames,
+  omr,
+  omrSigned,
+  totalsFor,
+  unitPrice,
+  LULL,
+  toBaisa,
+} from '../../lib/pos'
 import {
   METHODS,
   TIP_CHOICES,
@@ -720,7 +729,11 @@ function Payment({ till }: { till: Ready }) {
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-medium text-text-primary">{line.name}</span>
                   <span className="mt-0.5 block text-xs font-medium text-text-quaternary">
-                    {line.variant ? line.variant.label : t('pos.oneSizeOnly')}
+                    {bundlePartNames(line)
+                      ? t('pos.bundle.parts', { parts: bundlePartNames(line) })
+                      : line.variant
+                        ? line.variant.label
+                        : t('pos.oneSizeOnly')}
                     {line.addOns.length
                       ? ` · ${line.addOns.map((a) => `+ ${a.label}`).join(', ')}`
                       : ''}

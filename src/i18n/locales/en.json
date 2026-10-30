@@ -4321,6 +4321,10 @@
     "walkIn": "Walk-in",
     "onTheCompany": "On the company",
     "walkInNote": "A receipt with a QR code. Tap On the company if they want it invoiced. You would enter their VAT number and it goes over Peppol instead.",
+    "bundle": {
+      "parts": "Filed as separate lines, each at its own VAT: {{parts}}",
+      "offline": "{{name}} can't be sold while offline: this till hasn't read how it goes on the invoice yet. Connect and try again."
+    },
     "oneSizeOnly": "One size",
     "oneMore": "One more {{name}}",
     "oneFewer": "One fewer {{name}}",
@@ -4842,6 +4846,7 @@
       "POS_PRODUCT_NOT_SELLABLE": "An item on line {{line}} is not on sale in this branch any more.",
       "POS_VARIANT_NOT_SELLABLE": "A size on line {{line}} is not on sale any more.",
       "POS_PRICE_NOT_CATALOGUE": "The price on line {{line}} has changed: it is now {{expectedPrice}}. Take it off and add it again.",
+      "POS_BUNDLE_SPLIT_REQUIRED": "A bundle on this sale has parts with different VAT, so it can't go on one line. Take it off the sale and add it again: the till will put each part on its own line.",
       "POS_TILL_RETIRED": "This till is retired and sells nothing.",
       "POS_TILL_NOT_FOUND": "This till is not in this branch.",
       "POS_TILL_NUMBER_GAP": "A sale made offline is missing before this one. The till expected number {{expectedNumber}}.",
@@ -20803,6 +20808,8 @@
     "saveAndUse": "Save and use"
   },
   "invoiceDraft": {
+    "bundlePart": "This line is one part of a bundle whose parts have different VAT, so each has its own line.",
+    "bundleSplitRequired": "A bundle on this invoice has parts with different VAT, so it can't go on one line. Delete that line and pick the bundle again from the catalogue: each part gets its own line.",
     "editTitle": "Edit draft",
     "meta": {
       "new": "New draft · not saved yet",
