@@ -27,13 +27,41 @@ export function isImportWorking(batch: InvoiceImportBatchDto | null): boolean {
   return batch?.state === 'CHECKING' || batch?.state === 'CREATING'
 }
 
+/** One line of the warnings table: a code in a column, with every row it was raised on. */
+export type ImportWarningGroup = Pick<ImportWarningDto, 'code' | 'column' | 'message'> & { rows: number[] }
+
+/**
+ * The server raises a warning per row; the table lists each code and column once with its rows.
+ * Read defensively: an entry of another shape is skipped and a row that is not a number is left
+ * out, so an unexpected answer never blanks the dialog (IMP-1).
+ */
+export function groupImportWarnings(warnings: readonly unknown[] | null | undefined): ImportWarningGroup[] {
+  const groups = new Map<string, ImportWarningGroup>()
+  for (const entry of warnings ?? []) {
+    if (!entry || typeof entry !== 'object') continue
+    const warning = entry as Partial<Record<keyof ImportWarningDto | 'rowNumbers', unknown>>
+    const code = typeof warning.code === 'string' ? warning.code : ''
+    const column = typeof warning.column === 'string' ? warning.column : ''
+    const message = typeof warning.message === 'string' ? warning.message : ''
+    const rows = [
+      warning.rowNumber,
+      ...(Array.isArray(warning.rowNumbers) ? warning.rowNumbers : []),
+    ].filter((row): row is number => typeof row === 'number' && Number.isFinite(row))
+    const key = `${code}\u0000${column}\u0000${code ? '' : message}`
+    const group = groups.get(key) ?? { code, column, message, rows: [] }
+    for (const row of rows) if (!group.rows.includes(row)) group.rows.push(row)
+    groups.set(key, group)
+  }
+  return [...groups.values()].map((group) => ({ ...group, rows: group.rows.sort((a, b) => a - b) }))
+}
+
 /** Warnings the dialog words itself (`invoiceImport.warning.<key>`); others show the server's sentence. */
 const WARNING_KEYS: Record<string, string> = {
   TAX_CATEGORY_DEFAULTED: 'invoiceImport.warning.taxCategoryDefaulted',
 }
 
 /** The i18n key for a warning the dialog knows, or null to show the server's own message. */
-export function importWarningKey(warning: ImportWarningDto): string | null {
+export function importWarningKey(warning: Pick<ImportWarningDto, 'code'>): string | null {
   return Object.hasOwn(WARNING_KEYS, warning.code) ? WARNING_KEYS[warning.code] : null
 }
 
@@ -46,7 +74,7 @@ const WARNING_COLUMN_KEYS: Record<string, string> = {
 }
 
 /** The i18n key for the column of a warning the dialog knows, or null to show the server's. */
-export function importWarningColumnKey(warning: ImportWarningDto): string | null {
+export function importWarningColumnKey(warning: Pick<ImportWarningDto, 'code'>): string | null {
   return Object.hasOwn(WARNING_COLUMN_KEYS, warning.code) ? WARNING_COLUMN_KEYS[warning.code] : null
 }
 
