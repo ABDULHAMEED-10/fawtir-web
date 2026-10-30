@@ -4877,7 +4877,17 @@
       "POS_SLIP_INVALID": "This file cannot be kept as a slip. Use a photo or a PDF up to 10 MB.",
       "CUSTOMER_NOT_INVOICE_ELIGIBLE": "This company cannot get a full invoice yet: {{missing}} is missing.",
       "customerIncomplete": "This company's record is missing something a full invoice needs.",
-      "completeCompany": "Complete it on the company screen"
+      "completeCompany": "Complete it on the company screen",
+      "SELLER_PARTICIPANT_NOT_VERIFIED": "The company's Peppol Participant ID is not verified yet, so the till cannot issue invoices. Ask an administrator to check it in Settings › Peppol and tax, then try again.",
+      "SELLER_ADDRESS_INCOMPLETE": "The company address is incomplete, so this invoice cannot be issued. Ask an administrator to complete it in Settings › Company, then finish the sale again.",
+      "SELLER_CONTACT_INCOMPLETE": "The company's contact phone is missing, so this invoice cannot be issued. Ask an administrator to add it in Settings › Company, then finish the sale again.",
+      "INDUSTRIAL_CLASSIFICATION_REQUIRED": "The company's business activity is not set, so a full invoice cannot be issued. Ask an administrator to set it in Settings › Company, then finish the sale again.",
+      "PERIOD_CLOSED": "Today is in a closed accounting period, so nothing can be issued. Ask an administrator to reopen the period, then try again.",
+      "BRANCH_NOT_ACTIVE": "This branch is not active, so the till cannot issue invoices. Ask an administrator to check it in Settings › Branches.",
+      "POS_ZERO_PRICE": "Line {{line}} has no price. Set one before selling it. To give it away, keep its price and discount it 100%.",
+      "POS_SOLD_AT_IN_FUTURE": "This device's clock is ahead of the right time. Correct the clock, then finish the sale again.",
+      "POS_SHIFT_NOT_OPEN": "This shift was handed over to another cashier, so its float cannot change.",
+      "POS_TILL_LIMIT": "This branch already has as many tills as it can use. Retire one first."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
@@ -4893,7 +4903,9 @@
       "ZR_FOOD_CHARGED_STANDARD": "Line {{line}} is on Oman's zero-rated food list but was charged 5% VAT. Check whether it should be zero-rated.",
       "ZR_FOOD_NOT_LISTED": "Line {{line}} is zero-rated as food, but its HS code is not on Oman's zero-rated food list. Check its VAT category or HS code.",
       "ZR_MEDICAL_CHARGED_STANDARD": "Line {{line}} is on Oman's zero-rated medicines or medical equipment list but was charged 5% VAT. Check whether it should be zero-rated.",
-      "ZR_MEDICAL_NOT_LISTED": "Line {{line}} is zero-rated as medical, but its HS code is not on Oman's zero-rated medicines or medical equipment lists. Check its VAT category or HS code."
+      "ZR_MEDICAL_NOT_LISTED": "Line {{line}} is zero-rated as medical, but its HS code is not on Oman's zero-rated medicines or medical equipment lists. Check its VAT category or HS code.",
+      "STOCK_RETURN_EXCEEDS_SALE": "Line {{line}}: not all of it went back on the shelf, because a return puts back no more than the sale took off, less earlier returns. Count the shelf if it is wrong.",
+      "STOCK_NOT_TRACKED_AT_SALE": "Line {{line}}: nothing went back on the shelf, because the sale took none of it off. Count the shelf if it is wrong."
     },
     "day": {
       "title": "The day's shifts",
@@ -12449,7 +12461,9 @@
       "photo": "Photo added",
       "photoOff": "No photo. The till shows the name instead",
       "classified": "HS code or service type chosen",
-      "classifiedOff": "No HS code or service type yet"
+      "classifiedOff": "No HS code or service type yet",
+      "coded": "Item code filled in",
+      "codedOff": "Still needs an item code"
     },
     "stock": "Stock",
     "keepCount": "Keep count of this",
@@ -13239,8 +13253,6 @@
     "ofTotal": "{{picked}} of {{total}}",
     "kindsPicked_one": "{{count}} kind picked",
     "kindsPicked_other": "{{count}} kinds picked",
-    "sizesPicked_one": "{{count}} size picked",
-    "sizesPicked_other": "{{count}} sizes picked",
     "yours": "Yours",
     "searchKinds": "Search kinds...",
     "searchSizes": "Search sizes and options...",
@@ -13308,7 +13320,9 @@
     "noPriceYet": "No price yet",
     "noPriceLeft_one": "{{count}} item still has no price.",
     "noPriceLeft_other": "{{count}} items still have no price.",
-    "noPriceLink": "See them in Wanting attention"
+    "noPriceLink": "See them in Wanting attention",
+    "itemsPicked_one": "{{count}} item picked",
+    "itemsPicked_other": "{{count}} items picked"
   },
   "rowsView": {
     "label": "How this list is shown",
@@ -20857,7 +20871,9 @@
       "STOCK_UNIT_MISMATCH": "it is in a different unit from the one the item is counted in, so no stock moved.",
       "STOCK_VARIANT_UNKNOWN": "the item is counted by size or option and this line names none of them, so no stock moved.",
       "STOCK_QUANTITY_NOT_WHOLE": "the item is counted in whole pieces, so a part quantity moved no stock.",
-      "STOCK_QUANTITY_INVALID": "the quantity has more than three decimals, so no stock moved."
+      "STOCK_QUANTITY_INVALID": "the quantity has more than three decimals, so no stock moved.",
+      "STOCK_RETURN_EXCEEDS_SALE": "not all of it went back on the shelf, because a return puts back no more than the sale took off, less earlier returns. Count the shelf if it is wrong.",
+      "STOCK_NOT_TRACKED_AT_SALE": "nothing went back on the shelf, because the sale took none of it off. Count the shelf if it is wrong."
     },
     "openCustomer": "Open the customer"
   },
@@ -21659,6 +21675,10 @@
         "total": {
           "credit": "Total credited",
           "debit": "Total charged"
+        },
+        "vatMixed": {
+          "credit": "VAT reversed",
+          "debit": "VAT added"
         }
       },
       "totalsAtIssue": "The figures are set when the note is issued.",
@@ -24738,7 +24758,8 @@
       "changeNote": "{{name}} changes the price by {{amount}}.",
       "sameNote": "Every choice here sells at the same price.",
       "addThird": "Add a third thing customers choose",
-      "thirdNote": "Two choices are the most an item takes for now. For a third, such as roast, add it to the item as an add-on."
+      "thirdNote": "Two choices are the most an item takes for now. For a third, such as roast, add it to the item as an add-on.",
+      "addAn": "Add an {{noun}}"
     },
     "prices": {
       "title": "Price for each combination",
