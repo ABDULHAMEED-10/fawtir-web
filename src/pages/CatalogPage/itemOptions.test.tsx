@@ -14,6 +14,7 @@ import {
   sampleOptions,
   setDelta,
   setPrice,
+  setVariantNameAr,
   shortCodeFor,
   summarise,
   tickEverything,
@@ -234,5 +235,29 @@ describe('sizes and options on the server (P.5)', () => {
     expect(sent[0]).toMatchObject({ size: 'Regular', nameAr: 'فلات وايت عادي بالشوفان' })
     // One worked out by the server is left for it to work out again.
     expect(sent[1]).not.toHaveProperty('nameAr')
+  })
+
+  it('sets an Arabic line name by hand, and clearing it returns to the worked-out one (backend #808)', () => {
+    const product = {
+      ...FLAT_WHITE,
+      variants: (FLAT_WHITE.variants ?? []).map((variant, index) =>
+        index === 0
+          ? { ...variant, nameAr: 'يدوي', nameArSet: true }
+          : { ...variant, nameAr: 'محسوب', nameArSet: false },
+      ),
+    }
+    const state = productVariantsState(product, WORDS)
+    const [handKey, autoKey] = Object.keys(state.cells)
+    expect(state.cells[handKey]).toMatchObject({ nameAr: 'يدوي' })
+    expect(state.cells[autoKey]).toMatchObject({ nameArAuto: 'محسوب' })
+
+    const typed = setVariantNameAr(state, autoKey, '  اسم جديد ')
+    expect(variantsRequest(typed, product.addOns).variants[1].nameAr).toBe('اسم جديد')
+
+    // The API: a listed combination with no name, or a blank one, is worked out on read.
+    const cleared = setVariantNameAr(setVariantNameAr(state, handKey, ''), autoKey, '   ')
+    for (const row of variantsRequest(cleared, product.addOns).variants) {
+      expect(row).not.toHaveProperty('nameAr')
+    }
   })
 })

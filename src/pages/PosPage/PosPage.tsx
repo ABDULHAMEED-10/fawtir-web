@@ -21,15 +21,18 @@ import {
   activeCounts,
   addToSale,
   choicesOf,
-  hasChoices,
   itemsFor,
   listedChoices,
+  mayTypePrice,
   saleLineFor,
   shelfItem,
   shelfTabs,
+  tilePrice,
+  whenPicked,
   type ActiveFilter,
   type ItemChoices,
   type PosItem,
+  type SizeChoice,
 } from '../../lib/posShelf'
 import {
   getProduct,
@@ -114,6 +117,7 @@ function Tile({
   const available = item.available
   const sizes = choices?.sizes.length ?? 0
   const addOns = choices?.addOns.length ?? 0
+  const price = tilePrice(item, choices)
 
   return (
     <button
@@ -162,10 +166,16 @@ function Tile({
           )}
         </span>
         {/* Pinned to the foot, so the prices line up across a row when a name wraps. */}
-        <span className="mt-auto inline-flex items-center gap-1 pt-1.5 text-base font-semibold text-text-primary">
-          <Rial />
-          {omr(item.price)}
-        </span>
+        {price > 0 ? (
+          <span className="mt-auto inline-flex items-center gap-1 pt-1.5 text-base font-semibold text-text-primary">
+            <Rial />
+            {omr(price)}
+          </span>
+        ) : (
+          <span className="mt-auto pt-1.5 text-sm font-semibold text-danger-700">
+            {t('pos.noPrice.label')}
+          </span>
+        )}
       </span>
     </button>
   )
@@ -178,6 +188,7 @@ export function PosPage() {
         {(till) => (
           <Shelf
             branchId={till.branchId}
+            canSell={till.can.sell}
             tillCtl={<CashierPicker till={till.till} mine={till.mine} />}
           />
         )}
@@ -186,7 +197,15 @@ export function PosPage() {
   )
 }
 
-function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) {
+function Shelf({
+  branchId,
+  canSell,
+  tillCtl,
+}: {
+  branchId: string
+  canSell: boolean
+  tillCtl: ReactNode
+}) {
   const { t, i18n } = useTranslation()
   const ar = i18n.language.startsWith('ar')
   const navigate = useNavigate()
@@ -199,6 +218,10 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
   const [error, setError] = useState<unknown>(null)
   // A scanned code that matched nothing, shown under the scan box until the next scan or typing.
   const [unknownCode, setUnknownCode] = useState<string | null>(null)
+  // The item just picked that has no price and cannot be given one here.
+  const [noPrice, setNoPrice] = useState<string | null>(null)
+  // The size the chooser opens on, when a size's own barcode asked for it.
+  const [startSize, setStartSize] = useState<SizeChoice | null>(null)
   // The open sale is shared with the payment and receipt screens (src/lib/posSale.ts).
   const { lines, company } = useOpenSale()
   // The branch's price rules, applied to the lines as they go on (row P.26).
@@ -244,9 +267,17 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
   const inSale = new Set(lines.map((line) => line.productId))
   const shown = itemsFor(items, group, filter, query)
 
+  /** Opens the chooser. Its choices are kept: an item the server's lookup found is not on the shelf. */
+  const choose = (item: PosItem, choices: ItemChoices, size: SizeChoice | null) => {
+    setDetails((current) => ({ ...current, [item.id]: choices }))
+    setStartSize(size)
+    setChoosing(item)
+  }
+
   /** A tap reads the item in full: one with sizes or add-ons asks which. */
   const add = async (item: PosItem) => {
     setError(null)
+    setNoPrice(null)
     let choices = choicesFor(item.id) ?? listedChoices(item, ar)
     if (!choices) {
       try {
@@ -258,8 +289,13 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
         return
       }
     }
-    if (hasChoices(choices)) {
-      setChoosing(item)
+    const next = whenPicked(item, choices, canSell)
+    if (next === 'refuse') {
+      setNoPrice(item.name)
+      return
+    }
+    if (next === 'choose') {
+      choose(item, choices, null)
       return
     }
     setSaleLines((current) => addToSale(current, saleLineFor(categories, item, null, [])))
@@ -271,6 +307,7 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
    */
   const addSize = async (item: PosItem, variantId: string): Promise<boolean> => {
     setError(null)
+    setNoPrice(null)
     let choices = choicesFor(item.id) ?? listedChoices(item, ar)
     if (!choices?.sizes.some((size) => size.id === variantId)) {
       try {
@@ -284,6 +321,12 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
     }
     const size = choices.sizes.find((entry) => entry.id === variantId)
     if (!size) return false
+    if (!(size.price > 0)) {
+      // The size's own barcode at 0.000: ask its price, or say there is none.
+      if (mayTypePrice(item, canSell)) choose(item, choices, size)
+      else setNoPrice(item.name)
+      return true
+    }
     setSaleLines((current) => addToSale(current, saleLineFor(categories, item, size, [])))
     return true
   }
@@ -303,6 +346,7 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
     const code = raw.trim()
     if (!code) return
     setUnknownCode(null)
+    setNoPrice(null)
     const local = findOnShelf(items, code)
     if (local) {
       setQuery('')
@@ -445,6 +489,15 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
             </p>
           ) : null}
 
+          {noPrice ? (
+            <p
+              role="alert"
+              className="rounded-sm bg-danger-100 px-4 py-3 text-sm font-medium text-danger-700"
+            >
+              {t('pos.noPrice.refused', { name: `\u2068${noPrice}\u2069` })}
+            </p>
+          ) : null}
+
           {shelf.read.status === 'loading' ? (
             <LoadingNotice />
           ) : shelf.read.status === 'failed' ? (
@@ -489,10 +542,12 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
         <PosChooser
           item={choosing}
           choices={choicesFor(choosing.id) as ItemChoices}
+          canTypePrice={mayTypePrice(choosing, canSell)}
+          startSize={startSize}
           onClose={() => setChoosing(null)}
-          onAdd={(size, addOns) => {
+          onAdd={(size, addOns, typedPrice) => {
             setSaleLines((current) =>
-              addToSale(current, saleLineFor(categories, choosing, size, addOns)),
+              addToSale(current, saleLineFor(categories, choosing, size, addOns, typedPrice)),
             )
             setChoosing(null)
           }}

@@ -9,6 +9,7 @@ import { DESIGN_REFERENCE, omanTaxCategories } from '../../lib/invoiceDraft'
 import { defaultPicks, readyToAdd, type SuggestedGroup } from '../../lib/catalogBuild'
 import { suggestedFrom, templateName } from '../../lib/catalogTemplates'
 import {
+  addedWithoutPrice,
   buildSummary,
   planBuild,
   runBuild,
@@ -247,6 +248,7 @@ export function BuildCatalogPage() {
 
   const failed = run?.outcomes.filter((outcome) => outcome.state === 'failed') ?? []
   const summary = run ? buildSummary(run.outcomes) : null
+  const stillUnpriced = run ? addedWithoutPrice(run.outcomes) : 0
 
   /** Leaves for a page where something of one's own is added, keeping the work to come back to. */
   const leaveFor = (to: string) => {
@@ -367,6 +369,19 @@ export function BuildCatalogPage() {
                   failed: t('buildCatalog.summaryFailed', { count: summary.failed }),
                 })}
               </p>
+              {stillUnpriced > 0 ? (
+                <p className="mt-2 text-sm font-medium text-text-secondary">
+                  {t('buildCatalog.noPriceLeft', { count: stillUnpriced })}{' '}
+                  {/* The tab filters on the client, a page at a time, so lowest price first brings
+                      the unpriced to the first page however big the catalogue is. */}
+                  <Link
+                    to="/catalog?tab=attention&sort=priceLow"
+                    className="font-semibold text-primary-700 hover:text-primary-800"
+                  >
+                    {t('buildCatalog.noPriceLink')}
+                  </Link>
+                </p>
+              ) : null}
               {failed.length > 0 ? (
                 <div className="mt-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">

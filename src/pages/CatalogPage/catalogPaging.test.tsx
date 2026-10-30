@@ -109,6 +109,30 @@ describe('the catalogue list', () => {
     expect(screen.queryByText('Item 01')).toBeNull()
   })
 
+  it('opens the tab and order a link asks for, and ignores anything else', async () => {
+    const first = render(
+      <MemoryRouter initialEntries={['/catalog?tab=attention&sort=priceLow']}>
+        <CatalogPage />
+      </MemoryRouter>,
+    )
+    await vi.waitFor(() =>
+      expect(productCalls()).toContain('/api/v1/products?sort=PRICE&direction=ASC&size=20'),
+    )
+    const tabs = await screen.findAllByRole('button', {
+      name: new RegExp(i18n.t('catalogReal.tab.attention')),
+    })
+    expect(tabs.some((tab) => tab.getAttribute('aria-pressed') === 'true')).toBe(true)
+    first.unmount()
+
+    resetSharedRequests()
+    render(
+      <MemoryRouter initialEntries={['/catalog?tab=nonsense&sort=nonsense']}>
+        <CatalogPage />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('Item 01')).toBeTruthy()
+  })
+
   it('narrows the loaded page to a tab and sorts it by price', async () => {
     render(
       <MemoryRouter>
