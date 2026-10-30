@@ -28,8 +28,8 @@ import { forgetBuyer, openBuyer, sealBuyer } from './posVault'
  * A refused entry never stops the till (E2E 30 Oct 2026, H-1). It stays here, shown on the Till and
  * Today screens (`PosQueuePanel`), and its number is kept. A refusal whose cause can clear is sent
  * again on its own, with the same key, so it can never be paid or filed twice. A refusal that the
- * same sale can never get past is not sent again until a person presses Try again, or a manager
- * takes it off the till. Later sales go past it where the server allows it
+ * same sale can never get past is not sent again until a person presses Try again; it stays on the
+ * till, open, until it is filed. Later sales go past it where the server allows it
  * (`till.skipsStuckNumbers`, naming the numbers they pass); an older server requires strict number
  * order, so there they wait behind it, in order, and are numbered and printed meanwhile.
  *
@@ -58,6 +58,9 @@ export type QueuedSale = {
   refusalValues?: Record<string, string>
   /** Server time this entry was last refused. */
   refusedAt?: string
+  /** A refusal nobody has reviewed: tried again no sooner than this, and later each time. */
+  notBefore?: string
+  attempts?: number
 }
 
 const QUEUE_KEY = 'fawtir.pos.queue'
@@ -88,9 +91,12 @@ function write(key: string, value: unknown) {
  *   plan, the till retired, permission, the device clock): shown, tried again, later ones wait;
  * - `held`: this sale, until its cause clears or the server's rules for a queued sale apply: shown,
  *   tried again, later ones may pass;
- * - `final`: the same sale can never get past it: shown, not tried again unless a person says so.
+ * - `final`: on the reviewed list below, the same sale can never get past it: shown, not tried again
+ *   unless a person says so;
+ * - `unknown`: anything else. We do not know that it cannot clear, so it is never given up on: shown,
+ *   tried again with growing gaps, later ones may pass.
  */
-export type RefusalVerdict = 'wait' | 'till' | 'held' | 'final'
+export type RefusalVerdict = 'wait' | 'till' | 'held' | 'final' | 'unknown'
 
 const WAIT_STATUS = new Set([401, 408, 425, 429])
 
@@ -126,6 +132,34 @@ const HELD = new Set([
 ])
 const HELD_SLUGS = new Set(['quota-exceeded'])
 
+/**
+ * Reviewed against the till sale's refusals (`PosSaleService`, `InvoiceNumberAdapter`): each is about
+ * what the request itself says, so sending the same request again cannot change the answer.
+ */
+const FINAL = new Set([
+  'VALIDATION_FAILED',
+  'POS_PAYMENTS_DO_NOT_MATCH_TOTAL',
+  'POS_PAYMENT_INVALID',
+  'POS_TIP_INVALID',
+  'POS_CASH_TENDERED_TOO_LOW',
+  'POS_CARD_APPROVAL_REQUIRED',
+  'POS_ON_ACCOUNT_NEEDS_COMPANY',
+  'POS_LINE_REF_INVALID',
+  'POS_CUSTOMER_MISMATCH',
+  'POS_BRANCH_MISMATCH',
+  'POS_TRANSACTION_TYPE_MISMATCH',
+  'POS_VAT_MODE_MISMATCH',
+  'POS_CONSUMER_CONTACT_INVALID',
+  'POS_INVOICE_NUMBER_REQUIRED',
+  'POS_TILL_NUMBER_REPEATED',
+  'POS_TILL_NUMBER_WRONG_SERIES',
+  'POS_SALE_KEY_REUSED',
+  'PRICE_RULE_STACKING_NOT_AVAILABLE',
+  'SIMPLIFIED_INVOICE_LIMIT',
+  'BUYER_IDENTIFIER_REQUIRED',
+])
+const FINAL_SLUGS = new Set(['validation-failed'])
+
 function verdictOf(status: number, code: string | null, slug: string | null): RefusalVerdict {
   if (status >= 500 || WAIT_STATUS.has(status)) return 'wait'
   if (/^HTTP_(5\d\d|401|408|425|429)$/.test(code ?? '')) return 'wait'
@@ -133,7 +167,8 @@ function verdictOf(status: number, code: string | null, slug: string | null): Re
   if (status === 403 || code === 'HTTP_403') return 'till'
   if ((code && TILL_WIDE.has(code)) || (slug && TILL_WIDE_SLUGS.has(slug))) return 'till'
   if ((code && HELD.has(code)) || (slug && HELD_SLUGS.has(slug))) return 'held'
-  return 'final'
+  if ((code && FINAL.has(code)) || (slug && FINAL_SLUGS.has(slug))) return 'final'
+  return 'unknown'
 }
 
 /**
@@ -370,13 +405,24 @@ function retryAfter(tillId: string, error: ApiError) {
   )
 }
 
-function refusedEntry(entry: QueuedSale, error: ApiError, final: boolean): QueuedSale {
+const FIRST_GAP_MS = 60_000
+const LONGEST_GAP_MS = 60 * 60_000
+
+function refusedEntry(entry: QueuedSale, error: ApiError, verdict: RefusalVerdict): QueuedSale {
+  const final = verdict === 'final'
+  const attempts = verdict === 'unknown' ? (entry.attempts ?? 0) + 1 : 0
   const refused: QueuedSale = {
     ...entry,
     refusal: error.code ?? `HTTP_${error.status}`,
     refusalType: error.problemType,
     refusalValues: refusalValues(error),
     refusedAt: new Date().toISOString(),
+    attempts,
+    notBefore: attempts
+      ? new Date(
+          Date.now() + Math.min(FIRST_GAP_MS * 2 ** (attempts - 1), LONGEST_GAP_MS),
+        ).toISOString()
+      : undefined,
     ...(final ? { final: true } : {}),
   }
   if (final && refused.body.customer.consumer) {
@@ -398,7 +444,8 @@ export async function flushQueue(tillId: string): Promise<FlushOutcome> {
   const canSkip = capable.get(tillId) === true
   try {
     for (const entry of queuedFor(tillId)) {
-      if (entry.final) {
+      const resting = entry.notBefore != null && Date.now() < Date.parse(entry.notBefore)
+      if (entry.final || resting) {
         if (canSkip) continue
         return 'done'
       }
@@ -429,7 +476,7 @@ export async function flushQueue(tillId: string): Promise<FlushOutcome> {
         }
         save(
           queue.map((other) =>
-            other.key === entry.key ? refusedEntry(other, error, final) : other,
+            other.key === entry.key ? refusedEntry(other, error, verdict) : other,
           ),
         )
         if (verdict === 'till') return { verdict, error }
@@ -451,24 +498,13 @@ export async function retryQueuedSale(tillId: string, key: string): Promise<Flus
   save(
     queue.map((entry) => {
       if (entry.key !== key) return entry
-      const { final: _final, ...again } = entry
+      const { final: _final, notBefore: _notBefore, ...again } = entry
       void _final
+      void _notBefore
       return again
     }),
   )
   return flushQueue(tillId)
-}
-
-/**
- * For a manager, once the sale has been dealt with outside the queue (an invoice raised by hand,
- * the customer told). It does not file anything: its number stays unfiled on the server.
- */
-export async function dismissQueuedSale(key: string): Promise<void> {
-  const entry = queue.find((other) => other.key === key)
-  if (!entry) return
-  save(queue.filter((other) => other.key !== key))
-  await forget(entry)
-  await dropSlipPhotos(key)
 }
 
 function subscribe(listener: () => void) {

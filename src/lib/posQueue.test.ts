@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, resetSharedRequests } from '../api'
 import type { PosSaleRequest, PosTillDto } from '../api/pos/pos'
 import {
-  dismissQueuedSale,
   flushQueue,
   isFinalRefusal,
   numbersBefore,
@@ -514,16 +513,50 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
     expect(server.next).toBe(50)
   })
 
-  it('a manager takes a final one off the till; only then is it gone', async () => {
-    const server = fakeServer()
-    server.refuseKeys.add('pos-sale-key-bad3')
-    await submitSale(TILL, WALK_IN, 'pos-sale-key-bad3')
+  it('an unreviewed refusal is never given up on: shown, tried again later and later, and not final', async () => {
+    fakeServer()
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-new')
     online = true
+    const reply = saleReply
+    saleReply = () => refusal(409, 'SOME_CODE_NOBODY_REVIEWED')
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      await flushQueue('till-1')
+      const [first] = queuedFor('till-1')
+      expect(first).toMatchObject({ refusal: 'SOME_CODE_NOBODY_REVIEWED', attempts: 1 })
+      expect(first.final).toBeUndefined()
+      const sent = () => calls.filter((call) => call.init?.method === 'POST').length
+      const before = sent()
+      await flushQueue('till-1')
+      expect(sent()).toBe(before)
+
+      vi.advanceTimersByTime(61_000)
+      await flushQueue('till-1')
+      expect(sent()).toBe(before + 1)
+      const gap = Date.parse(queuedFor('till-1')[0].notBefore!) - Date.now()
+      expect(gap).toBeGreaterThan(61_000)
+
+      // A person need not wait for the gap, and when the cause clears it files.
+      saleReply = reply
+      await retryQueuedSale('till-1', 'pos-sale-key-new')
+      expect(queuedFor('till-1')).toEqual([])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('on the current server an unreviewed refusal holds later numbers only as far as number order forces', async () => {
+    const server = fakeServer()
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-u1')
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-u2')
+    online = true
+    const reply = saleReply
+    saleReply = () => refusal(409, 'SOME_CODE_NOBODY_REVIEWED')
     await flushQueue('till-1')
-    await flushQueue('till-1')
-    expect(queuedFor('till-1')).toHaveLength(1)
-    await dismissQueuedSale('pos-sale-key-bad3')
-    expect(queuedFor('till-1')).toEqual([])
+    saleReply = reply
+    expect(server.posts.some((post) => post.key === 'pos-sale-key-u2')).toBe(false)
+    expect(await submitSale(TILL, WALK_IN, 'pos-sale-key-u3')).toMatchObject({ behind: true })
+    expect(queuedFor('till-1')).toHaveLength(3)
   })
 
   it('sorts refusals: read-only and a gap can clear, an invalid sale cannot', () => {
@@ -562,6 +595,10 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
       ),
     ).toBe(false)
     expect(isFinalRefusal(new ApiError({ status: 500, problemType: null }))).toBe(false)
+    expect(
+      isFinalRefusal(new ApiError({ status: 409, problemType: null, code: 'SOME_NEW_CODE' })),
+    ).toBe(false)
+    expect(isFinalRefusal(new ApiError({ status: 404, problemType: null }))).toBe(false)
     expect(
       isFinalRefusal(
         new ApiError({ status: 422, problemType: null, code: 'SIMPLIFIED_INVOICE_LIMIT' }),

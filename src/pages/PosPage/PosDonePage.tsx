@@ -204,7 +204,11 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                   {t('pos.done.whatHappened')}
                 </h2>
                 <p className="mt-1 text-xs font-medium text-text-quaternary">
-                  {sale ? t('pos.done.underTwoSeconds') : t('pos.done.sentWhenOnline')}
+                  {sale
+                    ? t('pos.done.underTwoSeconds')
+                    : t(
+                        done.queuedBehind ? 'pos.done.sentAfterEarlier' : 'pos.done.sentWhenOnline',
+                      )}
                 </p>
               </div>
               <Link

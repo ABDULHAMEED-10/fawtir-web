@@ -119,25 +119,18 @@ describe('the queue on the till and Today (H-1)', () => {
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
   })
 
-  it('a final refusal stays until a manager has dealt with it; a cashier is told to ask', async () => {
+  it('nothing removes a sale: a final refusal stays open, tells a manager what to do, and offers no new invoice', async () => {
     await submitSale(TILL, BODY, 'pos-sale-key-panel-2')
     reply = () => problem(422, { code: 'SIMPLIFIED_INVOICE_LIMIT' })
     noteTillServer(TILL)
     await flushQueue('till-1')
 
-    const { unmount } = render(<PosQueuePanel till={READY(false)} />)
-    expect(screen.getByText('Ask a manager to deal with it.')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /take it off/ })).toBeNull()
-    unmount()
-
     render(<PosQueuePanel till={READY(true)} />)
-    fireEvent.click(screen.getByRole('button', { name: /Dealt with, take it off/ }))
-    expect(screen.getByText(/This does not file invoice/)).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Keep it' }))
+    const text = screen.getByRole('alert').textContent ?? ''
+    expect(text).toContain('ask a manager')
+    expect(text).not.toMatch(/by hand|new invoice|take it off/i)
+    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['Try again'])
     expect(queuedFor('till-1')).toHaveLength(1)
-    fireEvent.click(screen.getByRole('button', { name: /Dealt with, take it off/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Yes, take it off' }))
-    await waitFor(() => expect(queuedFor('till-1')).toEqual([]))
   })
 
   it('a refusal that carries figures shows them in its sentence', async () => {
