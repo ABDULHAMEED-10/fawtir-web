@@ -762,6 +762,16 @@ function InvoiceScreen() {
             <span className="size-1.5 rounded-full bg-current" />
             {t(status.key, status.values)}
           </span>
+          {/* A till sale's invoice or a till refund's credit note; absent from older servers. */}
+          {data.source === 'TILL' ? (
+            <span className="inline-flex items-center rounded-sm bg-neutral-25 px-2 py-0.5 text-xs font-semibold text-text-secondary">
+              {data.till?.name?.trim() || data.till?.code
+                ? t('invoicesPage.fromTillNamed', {
+                    till: data.till?.name?.trim() || data.till?.code,
+                  })
+                : t('invoicesPage.fromTill')}
+            </span>
+          ) : null}
 
           <div className="ms-auto flex flex-wrap items-center gap-3">
             {moreActions.length > 0 ? (
@@ -1810,6 +1820,7 @@ function InvoiceScreen() {
           initialIssueDate={muscatToday()}
           initialDueDate={dueDateFor(reference, muscatToday(), data.details?.paymentTerms?.code)}
           kind={noteType ?? 'INVOICE'}
+          customerId={data.customerId}
           onClose={() => setIssuing(false)}
           onIssued={(issued) => {
             setIssuing(false)

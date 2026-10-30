@@ -199,11 +199,14 @@ const PRODUCTS = [
       size('1 kg', '1 كغ', 6.8, 2),
     ],
   }),
-  product('p-green', 'BEAN-YG', 'Green Beans - Yirgacheffe', 'KGM', 10.25, goods('090111000000')),
+  product('p-green', 'BEAN-YG', 'Green Beans - Yirgacheffe', 'KGM', 10.25, {
+    ...goods('090111000000'),
+    keepCount: true,
+  }),
   product('p-roast', 'SRV-ROAST', 'Roasting service - per batch', 'E48', 4.2, service()),
   // Kept in the bare Rec 21 code on purpose: a product saved before the X prefix (ibr-cl-23)
   // must still open and show its unit.
-  product('p-cups', 'CUP-500', 'Takeaway cups - 500 pack', 'PK', 22.8),
+  product('p-cups', 'CUP-500', 'Takeaway cups - 500 pack', 'PK', 22.8, { keepCount: true }),
   product('p-train', 'SRV-TRAIN', 'Barista training', 'HUR', 15, service('00000000', 'BY_TIME')),
   product('p-deliv', 'SRV-DELIV', 'Delivery charge', 'EA', 2.5, service()),
   product('p-export', 'BEAN-EXP', 'Export beans - Salalah lot', 'KGM', 11, {
@@ -216,6 +219,7 @@ const PRODUCTS = [
     defaultTaxRate: 0,
     defaultTaxReasonCode: 'VATZR-OM-01',
     ...goods('080410000000'),
+    keepCount: true,
   }),
   product('p-syrup', 'SYR-VAN', 'Vanilla syrup 750ml', 'EA', 4.75, {
     ...goods('210690000000'),
@@ -242,6 +246,12 @@ const same = (a, b) =>
     .trim()
     .toLowerCase()
 
+/**
+ * Size barcodes (backend V509) the till can scan, by product and size name: a scan of one adds that
+ * size directly. Seeded when the combination is first laid out.
+ */
+const SEED_SIZE_BARCODES = { 'p-beans': { '500 g': '6291100500017', '1 kg': '6291100500024' } }
+
 /** Every size x option combination, as the server lays them out. */
 function combos(p) {
   const sizes = p.sizes.length ? p.sizes : [null]
@@ -251,12 +261,20 @@ function combos(p) {
 }
 
 /** `ProductResponse`: the variants are worked out on every read from the current base price. */
-function view(p, { list = false } = {}) {
+/**
+ * A product as answered. On the list the sizes, options, variants and add-ons are null unless
+ * `include` asks for them (backend #808); `branchId` adds each variant's `branchPrice`.
+ */
+function view(p, { list = false, include = [], branchId = null } = {}) {
   const { variantSettings, updatedAt, ...rest } = p
   void updatedAt
   rest.zeroRatingWarnings = []
   rest.zeroRatingAttention = ATTENTION[p.id] ?? null
-  if (list) return { ...rest, sizes: null, options: null, variants: null, addOns: null }
+  const withVariants = !list || include.includes('variants')
+  const withAddOns = !list || include.includes('addOns')
+  if (list && !withVariants && !withAddOns) {
+    return { ...rest, sizes: null, options: null, variants: null, addOns: null }
+  }
   const variants = combos(p).map(({ s, o }, index) => {
     const key = `${s?.id ?? '-'}:${o?.id ?? '-'}`
     const stored = variantSettings.find((v) => v.key === key) ?? {
@@ -265,6 +283,7 @@ function view(p, { list = false } = {}) {
       code: `${p.code}-${index + 1}`,
       priceOverride: null,
       onSale: true,
+      barcode: (!o && SEED_SIZE_BARCODES[p.id]?.[s?.name]) || null,
     }
     if (!variantSettings.includes(stored)) variantSettings.push(stored)
     return {
@@ -280,9 +299,69 @@ function view(p, { list = false } = {}) {
         stored.priceOverride ??
         round3(p.defaultUnitPrice + (s?.priceDelta ?? 0) + (o?.priceDelta ?? 0)),
       onSale: stored.onSale,
+      // Backend #808: the Arabic line name, worked out unless set by hand (null without one).
+      nameAr:
+        stored.nameAr ??
+        (p.nameAr
+          ? [p.nameAr, s && (s.nameAr || s.name), o && (o.nameAr || o.name)]
+              .filter(Boolean)
+              .join(' · ')
+          : null),
+      nameArSet: Boolean(stored.nameAr),
+      sizeAr: s?.nameAr ?? null,
+      optionAr: o?.nameAr ?? null,
+      barcode: stored.barcode ?? null,
+      branchPrice: branchId
+        ? (stored.priceOverride ??
+          round3(priceHere(p, branchId) + (s?.priceDelta ?? 0) + (o?.priceDelta ?? 0)))
+        : null,
     }
   })
-  return { ...rest, variants }
+  return {
+    ...rest,
+    sizes: withVariants ? rest.sizes : null,
+    options: withVariants ? rest.options : null,
+    variants: withVariants ? variants : null,
+    addOns: withAddOns ? rest.addOns : null,
+  }
+}
+
+/**
+ * The till's stock flags (`include=stock`, backend #815), as the stock mock lists the branch: a
+ * counted product without sizes by its own figure, the beans per size. Null for the rest.
+ */
+const TILL_STOCK = {
+  'p-cups': { onHand: 0, reorderLevel: 4, state: 'OUT' },
+  'p-green': { onHand: 9, reorderLevel: 15, state: 'LOW' },
+  'p-dates': { onHand: 84, reorderLevel: 30, state: 'OK' },
+}
+const TILL_STOCK_BY_SIZE = {
+  '250 g': { onHand: -2, reorderLevel: 5, state: 'BELOW_ZERO' },
+  '500 g': { onHand: 0, reorderLevel: 5, state: 'OUT' },
+  '1 kg': { onHand: 6, reorderLevel: 15, state: 'LOW' },
+}
+
+function stockOf(p, variants) {
+  if (!p.keepCount) return null
+  if (variants.length) {
+    return {
+      onHand: null,
+      reorderLevel: null,
+      state: null,
+      variants: variants.map((v) => ({
+        variantId: v.id,
+        ...(TILL_STOCK_BY_SIZE[v.size] ?? {
+          onHand: null,
+          reorderLevel: null,
+          state: 'NOT_COUNTED',
+        }),
+      })),
+    }
+  }
+  return {
+    ...(TILL_STOCK[p.id] ?? { onHand: null, reorderLevel: null, state: 'NOT_COUNTED' }),
+    variants: [],
+  }
 }
 
 const tooPrecise = (value) =>
@@ -395,6 +474,13 @@ function applySetup(p, body) {
         setting.priceOverride = row.price === null ? null : round3(row.price)
       }
       if (row.onSale !== undefined) setting.onSale = Boolean(row.onSale)
+      // V509: left out keeps the stored barcode, blank removes it.
+      if (row.barcode !== undefined && row.barcode !== null) {
+        const barcode = String(row.barcode).trim()
+        if (barcode && !/^[\x21-\x7e]{1,64}$/.test(barcode))
+          return { refused: problem(400, 'PRODUCT_VARIANT_BARCODE_INVALID') }
+        setting.barcode = barcode || null
+      }
     }
   }
   for (const v of view(next).variants) {
@@ -618,6 +704,8 @@ export default [
       const barcode = query.get('barcode')
       const page = Number(query.get('page') ?? 0)
       const size = Number(query.get('size') ?? 50)
+      // Backend #808 / #815: words the server does not know are left out; stock needs a branch.
+      const include = (query.get('include') ?? '').split(',').map((word) => word.trim())
       // The list's server-side tabs (guide §6), with a branch only.
       const availability = branchId ? query.get('availability') : null
       const sales = branchId ? query.get('sales') : null
@@ -634,7 +722,10 @@ export default [
                   : includeUnavailable || priceIn(p, branchId) !== null)
             : status === 'ALL' || (status === 'ACTIVE') === p.active) &&
           (!sales || (sales === 'NEVER_SOLD') === NEVER_SOLD.has(p.id)) &&
-          (!barcode || p.barcode === barcode) &&
+          // V509: a product's own barcode or one of its sizes'.
+          (!barcode ||
+            p.barcode === barcode ||
+            view(p).variants.some((v) => v.barcode === barcode)) &&
           (!kindId || p.kindId === kindId) &&
           (!groupId || p.groupId === groupId) &&
           (!itemKind || p.itemKind === itemKind) &&
@@ -648,11 +739,24 @@ export default [
       ).sort((a, b) => (direction === 'DESC' ? -1 : 1) * SORTS[sort](a, b))
       return {
         content: found.slice(page * size, page * size + size).map((p) => ({
-          ...view(p, { list: true }),
+          ...view(p, { list: true, include, branchId }),
+          stock:
+            branchId && include.includes('stock')
+              ? stockOf(p, view(p, { list: false }).variants)
+              : null,
           // Greyed rows too: the branch's own price if set, else the base price.
           effectivePrice: branchId ? priceHere(p, branchId) : null,
           // Only on a branch read: false for a product switched off or not sold there.
           ...(branchId ? { availableHere: priceIn(p, branchId) !== null } : {}),
+          // V509, a barcode read only: the size whose own barcode was asked, else null.
+          ...(barcode
+            ? {
+                matchedVariantId:
+                  p.barcode === barcode
+                    ? null
+                    : (view(p).variants.find((v) => v.barcode === barcode)?.id ?? null),
+              }
+            : {}),
         })),
         page,
         size,

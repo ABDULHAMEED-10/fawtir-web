@@ -220,4 +220,19 @@ describe('sizes and options on the server (P.5)', () => {
       addOns: [{ id: 'a-1', name: 'Extra shot', nameAr: null, price: 0.3, free: false }],
     })
   })
+
+  it('sends back an Arabic line name set by hand, which a listed combination would lose (backend #808)', () => {
+    const product = {
+      ...FLAT_WHITE,
+      variants: (FLAT_WHITE.variants ?? []).map((variant, index) =>
+        index === 0
+          ? { ...variant, nameAr: 'فلات وايت عادي بالشوفان', nameArSet: true }
+          : { ...variant, nameAr: 'محسوب', nameArSet: false },
+      ),
+    }
+    const sent = variantsRequest(productVariantsState(product, WORDS), product.addOns).variants
+    expect(sent[0]).toMatchObject({ size: 'Regular', nameAr: 'فلات وايت عادي بالشوفان' })
+    // One worked out by the server is left for it to work out again.
+    expect(sent[1]).not.toHaveProperty('nameAr')
+  })
 })

@@ -191,6 +191,8 @@ let receipts: GoodsReceiptDto[]
 let actions: string[]
 let bookedBody: unknown
 let createdBody: unknown
+/** The variants the product search row carries: null as before, an array with backend #808. */
+let listedVariants: unknown[] | null
 /** What `GET /purchase-orders/{id}` answers when it is not the order itself. */
 let orderRefused: number | null
 
@@ -246,7 +248,7 @@ beforeEach(async () => {
     if (url.includes('/api/v1/products/p-beans')) return json(200, BEANS)
     if (url.includes('/api/v1/products?'))
       return json(200, {
-        content: [{ ...BEANS, variants: null, effectivePrice: 7.4 }],
+        content: [{ ...BEANS, variants: listedVariants, effectivePrice: 7.4 }],
         totalElements: 1,
         number: 0,
         size: 20,
@@ -274,6 +276,7 @@ beforeEach(async () => {
       ])
     return json(404)
   })
+  listedVariants = null
   vi.stubGlobal('fetch', fetchMock)
 })
 
@@ -631,6 +634,37 @@ describe('a purchase-order line picked from the catalogue (S2)', () => {
         stockUnitsPerOrderUnit: 5,
       },
     ])
+  })
+
+  it('takes the sizes from the search row when it carries them, named in Arabic (P.24, backend #808)', async () => {
+    await i18n.changeLanguage('ar')
+    listedVariants = BEANS.variants.map((variant) => ({
+      ...variant,
+      nameAr: variant.id === 'v-5kg' ? 'بن يرغاتشيفي · 5 كغ' : null,
+    }))
+    render(
+      <MemoryRouter initialEntries={['/suppliers/s-1/purchase-order']}>
+        <Routes>
+          <Route path="/suppliers/:slug/purchase-order" element={<NewPurchaseOrderPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    const pick = await screen.findByRole('button', {
+      name: i18n.t('purchaseOrder.stock.pick', { line: 1 }),
+    })
+    fireEvent.click(pick)
+    fireEvent.click(await screen.findByRole('option', { name: /Yirgacheffe beans/ }))
+    const sizes = await screen.findByLabelText(i18n.t('purchaseOrder.stock.variant', { line: 1 }))
+    const searched = fetchMock.mock.calls.map(([url]) => String(url))
+    expect(
+      searched.some((url) => url.includes('/api/v1/products?') && url.includes('include=variants')),
+    ).toBe(true)
+    expect(searched.some((url) => url.includes('/api/v1/products/p-beans'))).toBe(false)
+    fireEvent.click(sizes)
+    expect(await screen.findByRole('option', { name: 'بن يرغاتشيفي · 5 كغ' })).toBeTruthy()
+    // No Arabic name: the English one, as before.
+    expect(screen.getByRole('option', { name: 'Yirgacheffe beans · 1 kg' })).toBeTruthy()
+    await i18n.changeLanguage('en')
   })
 
   it('reads a delivery branch refusal on booking goods in as its own sentence', async () => {

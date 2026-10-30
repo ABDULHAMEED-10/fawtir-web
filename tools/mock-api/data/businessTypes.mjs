@@ -186,6 +186,8 @@ function itemFrom(sample) {
     barcode: sample.barcode ?? null,
     variants: null,
     addOns: [],
+    // Always present on reads (default true): whether Build from a template offers it ticked.
+    defaultSelected: true,
   }
 }
 
@@ -244,6 +246,28 @@ for (const [webId, groups] of Object.entries(sample)) {
           {
             ...itemFrom({ name: 'Flat white', unit: 'C62' }),
             variants: { sizes: [{ name: 'Regular', nameAr: null }], options: [] },
+          },
+        ],
+      },
+      {
+        // The e2e of 30 Oct's test rows: units, a real HS code, a zero-rated item with its reason,
+        // and an item the console offers unticked (default_selected=no).
+        name: 'Milk and extras',
+        nameAr: 'الحليب والإضافات',
+        items: [
+          {
+            ...itemFrom({ name: 'Fresh Milk 1 L', unit: 'C62', barcode: '6291100000016' }),
+            nameAr: 'حليب طازج ١ لتر',
+            defaultUnitCode: 'XBO',
+            classification: { goodsOrService: 'G', hsCode: '040110930000', serviceTypeCode: null },
+            defaultTaxCategory: 'Z',
+            defaultTaxReasonCode: 'VATZR-OM-01',
+          },
+          {
+            ...itemFrom({ name: 'Gift Box of Mugs', unit: 'C62' }),
+            nameAr: 'علبة أكواب هدية',
+            defaultUnitCode: 'XBX',
+            defaultSelected: false,
           },
         ],
       },

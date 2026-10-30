@@ -37,6 +37,7 @@ import {
   quantityText,
   saferLevel,
   stockItemName,
+  stockItemPlace,
   stockUnitName,
   type MovementKind,
 } from '../../lib/catalogStock'
@@ -152,6 +153,7 @@ function StockItem({
   const ledger = movements.read.status === 'ready' ? movements.read.data : null
 
   const name = stockItemName(item, language)
+  const place = stockItemPlace(item, language)
   const unit = stockUnitName(t, item.unitCode, language)
   const onHand = item.onHand
   const days = item.daysLeft
@@ -213,13 +215,13 @@ function StockItem({
     <CatalogShell
       crumbs={[{ labelKey: 'stock.title', to: '/stock' }, { label: name }]}
       title={name}
-      // TODO(backend): the frame's subtitle opens with the item's group and kind; the stock item
-      // carries neither (docs/backend-guides/INCOME.md, row P.19).
-      subtitle={
+      // The frame's subtitle opens with the item's group and kind: fixed by backend #808 (not
+      // deployed yet, INCOME.md row P.19); an older server's item starts at its code.
+      subtitle={`${place ? `${place} · ` : ''}${
         supplierName
           ? t('stockItem.live.subtitle', { code: item.code, unit, supplier: supplierName })
           : t('stockItem.live.subtitleNoSupplier', { code: item.code, unit })
-      }
+      }`}
       pills={
         <>
           {item.state === 'LOW' ? <Pill tone="pending">{t('stockItem.runningLow')}</Pill> : null}

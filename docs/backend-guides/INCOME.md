@@ -971,3 +971,23 @@ first item without leaving the form. Delete is final; there is no archive for gr
 | P.41 | How many items each kind and group holds | `GET /v1/catalog/groups` carries no counts, so the screen shows the number of kinds only and learns that a kind still holds items on sale when its delete is refused (`CATALOGUE_KIND_IN_USE`). Asked: `productCount` (active products) on each kind and its total on each group |
 | P.40 (update) | Reorder in one step | **Fixed by backend #812** (not deployed on 29 Oct): up/down sends `PUT /v1/catalog/groups/order` or `PUT /v1/catalog/groups/{id}/kinds/order` with every sibling in its new order (`items: [{ id, expectedVersion }]`), all or nothing; `CATALOGUE_ORDER_INVALID` is worded. A server without the route (404, 405, or 400 with no catalogue code) gets the per-row PUTs above |
 | P.41 (update) | Item counts | **Fixed by backend #812**: the screen shows `productCount` on each kind and `kindCount` / `productCount` on each group when the tree carries them (kinds alone otherwise), and says before sending a delete that a group with kinds, or a kind with items on sale, cannot be removed; the server's refusal is still worded |
+
+## Update 2026-10-29 (fields from backend #808 and #815, not deployed yet)
+
+The web reads the fields backend #808 and #815 add, and works as before against a server without
+them: each is feature-detected (an absent field, or the old null arrays, means "not sent"). The
+till's shelf asks `GET /v1/products?branchId=&includeUnavailable=true&include=variants,addOns,stock`
+and flags an item from `stock.state` (and each size from `stock.variants[].state`): "Low", "Out of
+stock" or "Below zero", never blocking the sale (guide section 8). A product with sizes is flagged
+on its tile only when every size on sale is, by the mildest; the size chooser flags each size.
+`stock: null` (not counted, or no `stock.read`) flags nothing. The item's stock page shows a
+delivery's `supplierReference` on its movement row.
+
+| #    | What the screen needs | Backend |
+| ---- | --- | --- |
+| P.19 (update) | Group and kind on a stock row | **Fixed by backend #808** (not deployed on 29 Oct): the stock list row and the item's subtitle print "group › kind · code" from `groupName`/`kindName` (`groupNameAr`/`kindNameAr` in Arabic, each falling back to English), and the size reads `variantNameAr` in Arabic. A row without them shows the code alone |
+| P.23 (update) | A counted product on a saved draft line | **Fixed by backend #808**: a reopened (or copied) draft fixes the unit of a line whose `keepCount` is true to the line's own unit, as when the product was picked; never on a self-billed document. A line without `keepCount` stays free, as before |
+| P.24 (update) | Sizes on the product search | **Fixed by backend #808**: the purchase-order line's catalogue search sends `include=variants`, so a pick takes its sizes from the row and reads nothing more; the size list reads `nameAr` on an Arabic screen (the line's description stays the English name). A row with `variants: null` is read with `GET /v1/products/{id}` as before. The Sizes and options page and the item form send a hand-set `nameAr` (`nameArSet`) back on each combination, so saving does not clear it; the web does not offer to set one |
+| P.25 (update) | Counted products on an invoice's lines | **Fixed by backend #808**: the credit note composer reads `keepCount` on each invoice line and reads no product; only a line without the field (an older server) is read one by one as before |
+| P.27 (update) | Sizes and add-ons on a shelf tile before it is tapped | **Fixed by backend #808** for the sizes and add-ons: the tile says "2 sizes · 1 add-on" and opens the chooser from the row, at each variant's `branchPrice`, with no read on the tap; the shelf kept on the device carries them, so an item never opened sells while the till is offline. Still asked: a product image (every tile shows an illustration) |
+| P.31 (update) | "Accepted by the OTA" on the sale being refunded | **Fixed by backend #808**: the pill is drawn when the lookup's `filing.acceptedAt` is set. A lookup without `filing` falls back to the sale's own read when the screen makes it (an older server without `tip`); otherwise no pill |
