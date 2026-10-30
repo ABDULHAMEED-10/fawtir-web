@@ -71,6 +71,32 @@ export function posRefusalKey(error: unknown): string {
   return 'pos.refusal.failed'
 }
 
+/** Causes the till words only for a queued sale, where the cashier needs what clears them. */
+const QUEUE_WORDED = new Set([
+  'PERIOD_CLOSED',
+  'POS_SOLD_AT_IN_FUTURE',
+  'SELLER_PARTICIPANT_NOT_VERIFIED',
+  'INDUSTRIAL_CLASSIFICATION_REQUIRED',
+])
+
+const QUEUE_SLUGS: Record<string, string> = {
+  'subscription-restricted': 'pos.queue.reason.readOnly',
+  'plan-feature-not-included': 'pos.queue.reason.planFeature',
+  'quota-exceeded': 'pos.queue.reason.quota',
+}
+
+/** The sentence for a queued sale's stored refusal (handbook 3.3: never the server's `detail`). */
+export function queueRefusalKey(code: string | null, slug: string | null): string {
+  if (code?.startsWith('SUBSCRIPTION_')) return 'pos.queue.reason.readOnly'
+  if (code && QUEUE_WORDED.has(code)) return `pos.queue.reason.${code}`
+  if (slug && QUEUE_SLUGS[slug]) return QUEUE_SLUGS[slug]
+  if (code && WORDED.has(code)) return `pos.refusal.${code}`
+  const general = slug ? SLUGS[slug] : undefined
+  if (general) return general
+  if (code === 'HTTP_403') return 'pos.refusal.forbidden'
+  return 'pos.queue.reason.other'
+}
+
 /** A figure a refusal carries (`expected`, `limit`, `maxMoneyBack`), as a number. */
 export function problemNumber(error: unknown, name: string): number | null {
   if (!(error instanceof ApiError)) return null

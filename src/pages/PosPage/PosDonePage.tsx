@@ -145,13 +145,23 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
           </span>
           <div className="min-w-0">
             <h1 className="text-2xl font-medium leading-[1.2] text-text-primary">
-              {sale ? t('pos.done.title') : t('pos.done.queuedTitle')}
+              {sale
+                ? t('pos.done.title')
+                : done.queuedBehind
+                  ? t('pos.done.queuedBehindTitle')
+                  : t('pos.done.queuedTitle')}
             </h1>
             <p className="mt-1.5 text-sm font-medium leading-[1.6] text-text-tertiary">
               {/* The amount goes in as "OMR 2.000" so withRial sets the sign beside it. */}
               {withRial(
                 !sale
-                  ? t('pos.done.queuedSummary', { invoice, change: `OMR ${omr(change)}` })
+                  ? t(
+                      done.queuedBehind ? 'pos.done.queuedBehindSummary' : 'pos.done.queuedSummary',
+                      {
+                        invoice,
+                        change: `OMR ${omr(change)}`,
+                      },
+                    )
                   : seconds != null
                     ? t('pos.done.summary', { invoice, seconds, change: `OMR ${omr(change)}` })
                     : t('pos.done.summaryWaiting', { invoice, change: `OMR ${omr(change)}` }),

@@ -183,7 +183,7 @@ function Tile({
 export function PosPage() {
   return (
     <AppShell>
-      <PosTillGate>
+      <PosTillGate showQueue>
         {(till) => (
           <Shelf
             branchId={till.branchId}

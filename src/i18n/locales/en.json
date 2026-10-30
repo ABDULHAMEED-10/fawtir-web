@@ -4500,7 +4500,9 @@
       "qrAlt": "The invoice's QR code",
       "qrComing": "The QR code comes up once the invoice is filed.",
       "qrAfterFiling": "the QR comes once the sale is filed",
-      "rungUpWrongQueued": "Rung it up wrong? This sale is waiting to be filed. Once it is filed, a mistake is put right with a credit note, which the Tax Authority also sees."
+      "rungUpWrongQueued": "Rung it up wrong? This sale is waiting to be filed. Once it is filed, a mistake is put right with a credit note, which the Tax Authority also sees.",
+      "queuedBehindTitle": "Sold, filing after an earlier sale",
+      "queuedBehindSummary": "Invoice {{invoice}} is numbered and will be filed after an earlier sale the till is holding. See the till screen for what it needs. There is {{change}} change to hand back."
     },
     "company": {
       "whose": "Whose company is it?",
@@ -4914,6 +4916,30 @@
       "refused": "{{name}}: No price yet. It has not been added to the sale.",
       "enter": "Price before VAT",
       "enterNote": "This has no price yet. Type its price for this sale."
+    },
+    "queue": {
+      "problemTitle_one": "1 sale made offline has not been filed",
+      "problemTitle_other": "{{count}} sales made offline have not been filed",
+      "waiting_one": "1 sale is waiting to be sent. It goes by itself as soon as the connection is back.",
+      "waiting_other": "{{count}} sales are waiting to be sent. They go by themselves as soon as the connection is back.",
+      "heldHint": "The customer holds this invoice. The till tries again by itself every minute and keeps selling meanwhile. Nothing is charged or filed twice.",
+      "finalHint": "The customer holds this invoice, and sending it again as it stands will not work. Raise the invoice by hand from Invoices, then take it off the till. The till keeps selling meanwhile.",
+      "retry": "Try again",
+      "dismiss": "Dealt with, take it off the till",
+      "askManager": "Ask a manager to deal with it.",
+      "dismissWarning": "This does not file invoice {{invoice}}. Only take it off the till once the customer's invoice has been raised another way; its number stays unfiled.",
+      "dismissConfirm": "Yes, take it off",
+      "dismissKeep": "Keep it",
+      "reason": {
+        "readOnly": "The subscription is read-only. This sale goes by itself once the subscription is paid.",
+        "planFeature": "The plan does not include the till. This sale goes once the plan does.",
+        "quota": "The month's documents have run out. This sale goes once more are available.",
+        "PERIOD_CLOSED": "This sale's date is in a closed accounting period. Reopen the period and it goes.",
+        "POS_SOLD_AT_IN_FUTURE": "This device's clock is ahead of the right time. Correct the clock and the sale goes.",
+        "SELLER_PARTICIPANT_NOT_VERIFIED": "The company's Participant ID is not verified yet. The sale goes once it is.",
+        "INDUSTRIAL_CLASSIFICATION_REQUIRED": "The company's business activity code is missing. Add it in Settings and the sale goes.",
+        "other": "Fawtir would not accept this sale as it stands."
+      }
     }
   },
   "orderDetail": {

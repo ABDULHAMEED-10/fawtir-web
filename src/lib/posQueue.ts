@@ -13,6 +13,7 @@ import {
   sendSlipPhotos,
   type SlipPhoto,
 } from './posSlipOutbox'
+import { refusalValues } from './posRefusals'
 import { forgetBuyer, openBuyer, sealBuyer } from './posVault'
 
 /**
@@ -21,8 +22,16 @@ import { forgetBuyer, openBuyer, sealBuyer } from './posVault'
  * on `GET /v1/pos/tills/{id}`), and kept on this device. Queued sales are sent oldest number
  * first, each with the key it was made with, so a sale is filed exactly once
  * (`queuedOffline: true`, the printed `invoiceNumber`). A new sale first sends the waiting ones;
- * while any still waits it joins the queue too: an online sale would take the next number and
- * leave a gap behind the queued ones.
+ * while any still waits it joins the queue too: an online sale would take the next number, which
+ * is on a receipt the customer holds.
+ *
+ * A refused entry never stops the till (E2E 30 Oct 2026, H-1). It stays here, shown on the Till and
+ * Today screens (`PosQueuePanel`), and its number is kept. A refusal whose cause can clear is sent
+ * again on its own, with the same key, so it can never be paid or filed twice. A refusal that the
+ * same sale can never get past is not sent again until a person presses Try again, or a manager
+ * takes it off the till. Later sales go past it where the server allows it
+ * (`till.skipsStuckNumbers`, naming the numbers they pass); an older server requires strict number
+ * order, so there they wait behind it, in order, and are numbered and printed meanwhile.
  *
  * TODO(backend): a sale made offline prints its number but not its QR; the QR's signed payload
  * is made by the server once the sale is sent (INCOME.md row P.28).
@@ -42,8 +51,13 @@ export type QueuedSale = {
   refusal: string | null
   /** The buyer was taken out of `body` and sealed on the device, to be put back as it is sent. */
   sealed?: boolean
-  /** Refused for good: not sent again, and nothing personal is kept for it. */
+  /** Refused for good: not sent again by itself, and nothing personal is kept for it. */
   final?: boolean
+  /** The refusal as the server gave it, for its sentence on the till. */
+  refusalType?: string | null
+  refusalValues?: Record<string, string>
+  /** Server time this entry was last refused. */
+  refusedAt?: string
 }
 
 const QUEUE_KEY = 'fawtir.pos.queue'
@@ -66,7 +80,77 @@ function write(key: string, value: unknown) {
   }
 }
 
-let queue: QueuedSale[] = typeof window === 'undefined' ? [] : read<QueuedSale[]>(QUEUE_KEY, [])
+/**
+ * What a refusal means for a queued sale:
+ * - `wait`: nothing is wrong with the sale, try again soon (sign-in, a lapse, a server fault, or a
+ *   sale under a minute old on a server that files it from then on);
+ * - `till`: the same answer stands for everything on this till until its cause clears (read-only,
+ *   plan, the till retired, permission, the device clock): shown, tried again, later ones wait;
+ * - `held`: this sale, until its cause clears or the server's rules for a queued sale apply: shown,
+ *   tried again, later ones may pass;
+ * - `final`: the same sale can never get past it: shown, not tried again unless a person says so.
+ */
+export type RefusalVerdict = 'wait' | 'till' | 'held' | 'final'
+
+const WAIT_STATUS = new Set([401, 408, 425, 429])
+
+const TILL_WIDE = new Set([
+  'SUBSCRIPTION_SUSPENDED',
+  'SUBSCRIPTION_READ_ONLY',
+  'SUBSCRIPTION_RESTRICTED',
+  'SUBSCRIPTION_CANCELLED',
+  'POS_TILL_RETIRED',
+  'POS_TILL_NOT_FOUND',
+  'POS_SOLD_AT_IN_FUTURE',
+  'BRANCH_NOT_ACTIVE',
+  'SELLER_PARTICIPANT_NOT_VERIFIED',
+])
+const TILL_WIDE_SLUGS = new Set([
+  'subscription-restricted',
+  'plan-feature-not-included',
+  'branch-not-in-scope',
+])
+
+/** An online rule (a queued sale passes it once a minute old), or a cause a person can clear. */
+const HELD = new Set([
+  'PERIOD_CLOSED',
+  'POS_TILL_NUMBER_GAP',
+  'POS_PRICE_NOT_CATALOGUE',
+  'POS_PRICE_RULE_MISMATCH',
+  'POS_PRODUCT_NOT_SELLABLE',
+  'POS_VARIANT_NOT_SELLABLE',
+  'POS_BUNDLE_SPLIT_REQUIRED',
+  'INDUSTRIAL_CLASSIFICATION_REQUIRED',
+  'CUSTOMER_NOT_FOUND',
+  'CUSTOMER_NOT_INVOICE_ELIGIBLE',
+])
+const HELD_SLUGS = new Set(['quota-exceeded'])
+
+function verdictOf(status: number, code: string | null, slug: string | null): RefusalVerdict {
+  if (status >= 500 || WAIT_STATUS.has(status)) return 'wait'
+  if (/^HTTP_(5\d\d|401|408|425|429)$/.test(code ?? '')) return 'wait'
+  if (code === 'POS_QUEUED_SALE_TOO_EARLY') return 'wait'
+  if (status === 403 || code === 'HTTP_403') return 'till'
+  if ((code && TILL_WIDE.has(code)) || (slug && TILL_WIDE_SLUGS.has(slug))) return 'till'
+  if ((code && HELD.has(code)) || (slug && HELD_SLUGS.has(slug))) return 'held'
+  return 'final'
+}
+
+/**
+ * An entry the previous version gave up on for a refusal that can clear (a till stuck by H-1) comes
+ * back to life when this version loads.
+ */
+function revived(entry: QueuedSale): QueuedSale {
+  if (!entry.final || !entry.refusal) return entry
+  const verdict = verdictOf(0, entry.refusal, entry.refusalType ?? null)
+  if (verdict === 'final') return entry
+  const { final: _final, ...alive } = entry
+  void _final
+  return alive
+}
+
+let queue: QueuedSale[] =
+  typeof window === 'undefined' ? [] : read<QueuedSale[]>(QUEUE_KEY, []).map(revived)
 const listeners = new Set<() => void>()
 
 function save(next: QueuedSale[]) {
@@ -111,19 +195,53 @@ export function queuedFor(tillId: string): QueuedSale[] {
     .sort((a, b) => (numberValue(a.number) ?? 0) - (numberValue(b.number) ?? 0))
 }
 
-export type SubmitResult = { sale: PosSaleDto } | { queued: QueuedSale }
+/**
+ * `behind`: the server answered, and this sale waits behind one it would not take yet, so the till
+ * is not offline and its receipt must not say it is.
+ */
+export type SubmitResult = { sale: PosSaleDto } | { queued: QueuedSale; behind?: boolean }
+
+export function refusalVerdict(error: ApiError): RefusalVerdict {
+  return verdictOf(error.status, error.code, error.problemType)
+}
+
+/** A refusal that the same sale sent again cannot get past. */
+export function isFinalRefusal(error: unknown): boolean {
+  return error instanceof ApiError && refusalVerdict(error) === 'final'
+}
+
+/** The numbers from the server's next one up to, not including, this sale's. */
+export function numbersBefore(number: string, expected: string): string[] {
+  const value = numberValue(number)
+  const from = numberValue(expected)
+  if (value == null || from == null || from >= value || value - from > MAX_SKIPPED) return []
+  const prefix = number.slice(0, number.lastIndexOf('-') + 1)
+  const out: string[] = []
+  for (let at = from; at < value; at++) out.push(`${prefix}${String(at).padStart(6, '0')}`)
+  return out
+}
+
+const MAX_SKIPPED = 200
 
 /**
- * A refusal that the same sale sent again cannot get past. Sign-in, permission (which an
- * administrator may give back), a lapse and a server fault are tried again.
+ * Sends one numbered sale. Where the server allows it, a sale whose earlier numbers are stuck names
+ * them when it is told it would leave a gap; they stay open for their own sales to be filed later.
  */
-export function isFinalRefusal(error: unknown): boolean {
-  return (
-    error instanceof ApiError &&
-    error.status >= 400 &&
-    error.status < 500 &&
-    ![401, 403, 408, 425, 429].includes(error.status)
-  )
+async function sendNumbered(body: PosSaleRequest, key: string, canSkip: boolean) {
+  try {
+    return await createPosSale(body, key)
+  } catch (error) {
+    const expected =
+      canSkip && error instanceof ApiError && error.code === 'POS_TILL_NUMBER_GAP'
+        ? error.problem.expectedNumber
+        : null
+    const skippedNumbers =
+      typeof expected === 'string' && body.invoiceNumber
+        ? numbersBefore(body.invoiceNumber, expected)
+        : []
+    if (skippedNumbers.length === 0) throw error
+    return createPosSale({ ...body, skippedNumbers }, key)
+  }
 }
 
 /** The buyer taken out of the entry, sealed on the device when it can be. */
@@ -174,67 +292,183 @@ export async function submitSale(
     return { queued: entry }
   }
   await holdSlipPhotos(key, till.id, photos)
+  const canSkip = till.skipsStuckNumbers === true
+  capable.set(till.id, canSkip)
   // The older sales go first: once they are in, this one is sent as an ordinary online sale and
   // its receipt says so (E2E 29 Oct 2026, F-5). Only while some still wait does it join them.
-  if (queuedFor(till.id).length > 0) await flushQueue(till.id)
-  if (queuedFor(till.id).length > 0) return enqueue()
-  try {
-    const sale = await createPosSale(body, key)
-    noteNumberUsed(till.id, sale.invoiceNumber)
-    void sendSlipPhotos(key, sale.saleId, till.id)
-    return { sale }
-  } catch (error) {
-    if (error instanceof NetworkError) return enqueue()
-    void dropSlipPhotos(key)
-    throw error
+  const outcome: FlushOutcome = queuedFor(till.id).length > 0 ? await flushQueue(till.id) : 'done'
+  const waiting = queuedFor(till.id)
+  if (waiting.length === 0) {
+    try {
+      const sale = await createPosSale(body, key)
+      noteNumberUsed(till.id, sale.invoiceNumber)
+      void sendSlipPhotos(key, sale.saleId, till.id)
+      return { sale }
+    } catch (error) {
+      if (error instanceof NetworkError) return enqueue()
+      void dropSlipPhotos(key)
+      throw error
+    }
   }
+  if (outcome === 'offline' || outcome === 'busy') return enqueue()
+  // The server answered and every waiting sale is stuck on its own: this one need not wait, but it
+  // carries its own number, because the next one on the server is on a stuck sale's receipt.
+  if (outcome === 'done' && canSkip) {
+    const number = nextTillNumber(till)
+    if (!number) return enqueue()
+    try {
+      const sale = await sendNumbered({ ...body, invoiceNumber: number }, key, true)
+      noteNumberUsed(till.id, sale.invoiceNumber)
+      void sendSlipPhotos(key, sale.saleId, till.id)
+      return { sale }
+    } catch (error) {
+      if (error instanceof NetworkError) return enqueue()
+      void dropSlipPhotos(key)
+      throw error
+    }
+  }
+  // Read-only, the plan, a retired till: an online sale would get the same answer, so it is the
+  // cashier's to know now, before a receipt exists. It is not printed and not queued.
+  if (outcome !== 'done' && outcome.verdict === 'till') {
+    void dropSlipPhotos(key)
+    throw outcome.error
+  }
+  const queued = await enqueue()
+  return { ...queued, behind: true }
 }
 
 let flushing = false
+/** Whether the server takes `skippedNumbers`, as the till last said (`skipsStuckNumbers`). */
+const capable = new Map<string, boolean>()
 
-/** Sends the till's queued sales oldest number first; stops at the first that does not go. */
-export async function flushQueue(tillId: string): Promise<void> {
-  if (flushing) return
+/** Tells the queue what this till's server allows; until then it keeps strict number order. */
+export function noteTillServer(till: Pick<PosTillDto, 'id' | 'skipsStuckNumbers'>) {
+  capable.set(till.id, till.skipsStuckNumbers === true)
+}
+
+/**
+ * - `done`: nothing further could be sent (the queue is empty, or what is left is stuck on its own);
+ * - `offline`: no answer; `busy`: another run is sending;
+ * - otherwise the refusal that stopped the run.
+ */
+export type FlushOutcome =
+  'done' | 'offline' | 'busy' | { verdict: RefusalVerdict; error: ApiError }
+
+let retryTimer: ReturnType<typeof setTimeout> | null = null
+
+/** A sale under a minute old is sent again the moment the server will take it. */
+function retryAfter(tillId: string, error: ApiError) {
+  const stated = error.problem.retryAfterSeconds
+  const seconds = typeof stated === 'number' ? stated : error.retryAfterSeconds
+  if (seconds == null || retryTimer) return
+  retryTimer = setTimeout(
+    () => {
+      retryTimer = null
+      void flushQueue(tillId)
+    },
+    Math.min(seconds, 300) * 1000,
+  )
+}
+
+function refusedEntry(entry: QueuedSale, error: ApiError, final: boolean): QueuedSale {
+  const refused: QueuedSale = {
+    ...entry,
+    refusal: error.code ?? `HTTP_${error.status}`,
+    refusalType: error.problemType,
+    refusalValues: refusalValues(error),
+    refusedAt: new Date().toISOString(),
+    ...(final ? { final: true } : {}),
+  }
+  if (final && refused.body.customer.consumer) {
+    const customer = { ...refused.body.customer }
+    delete customer.consumer
+    refused.body = { ...refused.body, customer }
+  }
+  return refused
+}
+
+/**
+ * Sends the till's queued sales oldest number first. A sale the server would not take stays, with
+ * its reason; later ones go past it only where the server allows that, and only when the refusal is
+ * about that sale alone.
+ */
+export async function flushQueue(tillId: string): Promise<FlushOutcome> {
+  if (flushing) return 'busy'
   flushing = true
+  const canSkip = capable.get(tillId) === true
   try {
     for (const entry of queuedFor(tillId)) {
-      if (entry.final) return
+      if (entry.final) {
+        if (canSkip) continue
+        return 'done'
+      }
       try {
-        const sale = await createPosSale(await bodyToSend(entry), entry.key)
+        const sale = await sendNumbered(await bodyToSend(entry), entry.key, canSkip)
         save(queue.filter((other) => other.key !== entry.key))
         await forget(entry)
         void sendSlipPhotos(entry.key, sale.saleId, tillId)
       } catch (error) {
-        if (error instanceof ApiError) {
-          const final = isFinalRefusal(error)
-          if (final) {
-            await forget(entry)
-            await dropSlipPhotos(entry.key)
-          }
+        if (!(error instanceof ApiError)) return 'offline'
+        const verdict = refusalVerdict(error)
+        if (verdict === 'wait') {
+          // Not a problem with the sale: it only waits, and whatever a past refusal said is over.
           save(
-            queue.map((other) => {
-              if (other.key !== entry.key) return other
-              const refused = {
-                ...other,
-                refusal: error.code ?? `HTTP_${error.status}`,
-                ...(final ? { final: true } : {}),
-              }
-              if (final && refused.body.customer.consumer) {
-                const customer = { ...refused.body.customer }
-                delete customer.consumer
-                refused.body = { ...refused.body, customer }
-              }
-              return refused
-            }),
+            queue.map((other) =>
+              other.key === entry.key
+                ? { ...other, refusal: null, refusalType: null, refusalValues: {} }
+                : other,
+            ),
           )
+          retryAfter(tillId, error)
+          return { verdict, error }
         }
-        return
+        const final = verdict === 'final'
+        if (final) {
+          await forget(entry)
+          await dropSlipPhotos(entry.key)
+        }
+        save(
+          queue.map((other) =>
+            other.key === entry.key ? refusedEntry(other, error, final) : other,
+          ),
+        )
+        if (verdict === 'till') return { verdict, error }
+        if (!canSkip) return final ? 'done' : { verdict, error }
       }
     }
+    return 'done'
   } finally {
     flushing = false
     void retrySlipPhotos(tillId)
   }
+}
+
+/**
+ * Try again, for a person who has put the cause right: the same sale with the same key, so a sale
+ * the server already has is answered as it was and nothing is paid or filed twice.
+ */
+export async function retryQueuedSale(tillId: string, key: string): Promise<FlushOutcome> {
+  save(
+    queue.map((entry) => {
+      if (entry.key !== key) return entry
+      const { final: _final, ...again } = entry
+      void _final
+      return again
+    }),
+  )
+  return flushQueue(tillId)
+}
+
+/**
+ * For a manager, once the sale has been dealt with outside the queue (an invoice raised by hand,
+ * the customer told). It does not file anything: its number stays unfiled on the server.
+ */
+export async function dismissQueuedSale(key: string): Promise<void> {
+  const entry = queue.find((other) => other.key === key)
+  if (!entry) return
+  save(queue.filter((other) => other.key !== key))
+  await forget(entry)
+  await dropSlipPhotos(key)
 }
 
 function subscribe(listener: () => void) {
@@ -242,25 +476,47 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener)
 }
 
-/** The till's waiting sales, sent again whenever the browser comes back online. */
-export function usePosQueue(tillId: string | null): QueuedSale[] {
+/** The till's queue as it stands, for the screens that show it. */
+export function useQueuedSales(tillId: string | null): QueuedSale[] {
   const all = useSyncExternalStore(subscribe, () => queue)
+  return tillId
+    ? all
+        .filter((entry) => entry.tillId === tillId)
+        .sort((a, b) => (numberValue(a.number) ?? 0) - (numberValue(b.number) ?? 0))
+    : []
+}
+
+/**
+ * The till's waiting sales, sent again whenever the browser comes back online, the page is looked
+ * at again, and every minute, so a sale held by a cause that cleared (the subscription paid) goes
+ * by itself.
+ */
+export function usePosQueue(tillId: string | null): QueuedSale[] {
+  const entries = useQueuedSales(tillId)
   useEffect(() => {
     if (!tillId) return
     void flushQueue(tillId)
     const again = () => void flushQueue(tillId)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') again()
+    }
     window.addEventListener('online', again)
+    document.addEventListener('visibilitychange', onVisible)
     const timer = window.setInterval(again, 60_000)
     return () => {
       window.removeEventListener('online', again)
+      document.removeEventListener('visibilitychange', onVisible)
       window.clearInterval(timer)
     }
   }, [tillId])
-  return tillId ? all.filter((entry) => entry.tillId === tillId) : []
+  return entries
 }
 
 /** For tests. */
 export function resetPosQueue() {
   flushing = false
+  capable.clear()
+  if (retryTimer) clearTimeout(retryTimer)
+  retryTimer = null
   save([])
 }
