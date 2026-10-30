@@ -132,15 +132,20 @@ describe('the catalog', () => {
   })
 })
 
-describe('prototypes shown by default (owner decision 2026-10-08)', () => {
-  it('the compliance report prototype names the reader\'s own company and keeps sample figures under the ribbon', async () => {
+describe('the compliance report prototype is hidden even with prototypes on (DA-17)', () => {
+  it('serves the real-only report, with no ribbon, sample register or Share', async () => {
     at('/compliance/activity/report', <ComplianceReportPage />)
-    expect((await screen.findAllByText('Real Trading LLC')).length).toBeGreaterThan(0)
+    expect(await screen.findByText('Real Trading LLC')).toBeTruthy()
     expect(await screen.findByText('0248:OM1100777001')).toBeTruthy()
-    expect(screen.getAllByRole('status').some((node) => node.textContent === i18n.t('demoModule.ribbon'))).toBe(true)
-    // The sample company's identity never stands in for the reader's.
-    expect(document.body.textContent).not.toMatch(/Al Bahja|OM1100392000|Hafidh/)
+    expect(screen.getByText(i18n.t('reportReal.documentUnavailable'))).toBeTruthy()
+    expect(await screen.findByText(/Numbering runs unbroken from INV-001 to INV-002/)).toBeTruthy()
+    expect(screen.queryAllByRole('status').some((node) => node.textContent === i18n.t('demoModule.ribbon'))).toBe(false)
+    expect(screen.queryByText(i18n.t('builtReport.shareSecurely'))).toBeNull()
+    expect(document.body.textContent).not.toMatch(SAMPLE)
   })
+})
+
+describe('prototypes shown by default (owner decision 2026-10-08)', () => {
 
   it('the catalog keeps its real product list and offers the prototype tools', async () => {
     at('/catalog', <CatalogPage />)

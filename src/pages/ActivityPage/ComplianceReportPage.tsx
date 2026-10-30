@@ -23,7 +23,7 @@ import {
 import { useApiRead } from '../../hooks'
 import { downloadReport } from '../../api/reports/reports'
 import { saveDownload } from '../../lib/supplierRecord'
-import { demoModulesEnabled } from '../../lib/demoModules'
+import { prototypeShown } from '../../lib/demoModules'
 import { DemoRibbon } from '../../components/feedback/DemoModule'
 import { ComplianceReportPrototype } from './ComplianceReportPrototype'
 import chevronIcon from '../../assets/invoices/chevron.svg'
@@ -41,10 +41,10 @@ import excelIcon from '../../assets/reports/list-catalog.svg'
  * The signed document itself is labelled as not available.
  */
 export function ComplianceReportPage() {
-  // The signed report has no server yet. Its prototype (with the company's real identity) is shown
-  // under the sample-data ribbon while prototypes are on; a build that hides them gets the
-  // real-only page below.
-  if (demoModulesEnabled()) {
+  // The signed report has no server yet. Its prototype is hidden outright (DA-17, see
+  // HIDDEN_PROTOTYPES), so every build gets the real-only page below. The branch is kept so that
+  // taking 'complianceReport' out of that list is the whole change once a server exists.
+  if (prototypeShown('complianceReport')) {
     return (
       <>
         <DemoRibbon />
