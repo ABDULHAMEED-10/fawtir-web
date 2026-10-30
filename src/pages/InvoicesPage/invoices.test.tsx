@@ -431,7 +431,7 @@ describe('Invoices list, wired to the API', () => {
     expect(within(otherRow).queryByText('From the till')).toBeNull()
 
     expect(listCalls().at(-1)).not.toContain('source=')
-    fireEvent.click(screen.getByRole('button', { name: /^Source/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /^Source/ }))
     fireEvent.click(await screen.findByRole('option', { name: 'From the till' }))
     await waitFor(() => expect(listCalls().at(-1)).toContain('source=TILL'))
 
