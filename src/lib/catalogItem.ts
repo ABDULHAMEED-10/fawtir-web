@@ -50,8 +50,10 @@ export type Size = {
   onSale: boolean
   price?: number
   priceOverride?: number | null
-  /** The combination's Arabic line name set by hand (backend #808), sent back to keep it. */
+  /** The combination's Arabic line name set by hand (backend #808); empty means worked out. */
   variantNameAr?: string | null
+  /** The one the server worked out, shown as the input's placeholder. Never sent. */
+  variantNameArAuto?: string | null
   saved?: boolean
 }
 

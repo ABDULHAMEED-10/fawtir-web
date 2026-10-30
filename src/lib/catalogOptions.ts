@@ -50,8 +50,10 @@ export type Cell = {
   price: number
   byHand: boolean
   code: string
-  /** A hand-set Arabic line name read back (backend #808, `nameArSet`), sent again to keep it. */
+  /** The Arabic line name set by hand (backend #808, `nameArSet`); empty means worked out. */
   nameAr?: string | null
+  /** The one the server worked out, shown as the input's placeholder. Never sent. */
+  nameArAuto?: string | null
 }
 
 export type OptionsState = {
@@ -227,6 +229,13 @@ const mapCells = (
   return { ...state, cells }
 }
 
+/** The Arabic line name typed for a combination; empty returns it to the worked-out one. */
+export function setVariantNameAr(state: OptionsState, key: string, nameAr: string): OptionsState {
+  const cell = state.cells[key]
+  if (!cell) return state
+  return { ...state, cells: { ...state.cells, [key]: { ...cell, nameAr } } }
+}
+
 export const tickEverything = (state: OptionsState) =>
   mapCells(state, (cell) => ({ ...cell, on: true }))
 
@@ -355,7 +364,11 @@ export function productVariantsState(product: ProductDto, words: ChoiceWords): O
       price: variant.price,
       byHand: variant.priceOverride !== null,
       code: variant.code ?? '',
-      ...(variant.nameArSet && variant.nameAr ? { nameAr: variant.nameAr } : {}),
+      ...(variant.nameAr
+        ? variant.nameArSet
+          ? { nameAr: variant.nameAr }
+          : { nameArAuto: variant.nameAr }
+        : {}),
     }
   }
   return reconcile({ base: product.defaultUnitPrice, side, top, cells })
@@ -386,7 +399,7 @@ export function variantsRequest(
       code: cell.code.trim() || null,
       price: cell.byHand ? cell.price : null,
       onSale: cell.on,
-      ...(cell.nameAr ? { nameAr: cell.nameAr } : {}),
+      ...(cell.nameAr?.trim() ? { nameAr: cell.nameAr.trim() } : {}),
     })),
     addOns: (addOns ?? []).map((addOn) => ({
       id: addOn.id,

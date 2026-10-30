@@ -8,6 +8,7 @@ import { omr } from '../../lib/catalogItem'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
+  canSetVariantArabicNames,
   getProduct,
   productPath,
   saveProductVariants,
@@ -25,6 +26,7 @@ import {
   roundAll,
   setDelta,
   setPrice,
+  setVariantNameAr,
   summarise,
   tickEverything,
   toggleCell,
@@ -160,6 +162,7 @@ function ItemOptions({ product: loaded, reload }: { product: ProductDto; reload:
   const sides = valuesOf(state.side)
   const tops = valuesOf(state.top)
   const nothing = combinations(state).length === 0
+  const arabicNames = canSetVariantArabicNames(product)
 
   const deltaLabel = (delta: number, which: Side) =>
     delta === 0
@@ -297,6 +300,12 @@ function ItemOptions({ product: loaded, reload }: { product: ProductDto; reload:
               {t('itemOptions.prices.byHand', { count: figures.byHand })}
             </p>
           </div>
+          {arabicNames && !nothing ? (
+            <p className="mb-4 flex items-start gap-2 rounded-sm bg-surface-background px-3 py-2.5 text-xs font-medium leading-[1.5] text-text-tertiary">
+              <img src={infoIcon} alt="" className="mt-px size-4 shrink-0" />
+              {t('itemOptions.prices.arabicNameHint')}
+            </p>
+          ) : null}
 
           <div className="overflow-x-auto rounded-md border border-border-subtle">
             {nothing ? (
@@ -427,6 +436,28 @@ function ItemOptions({ product: loaded, reload }: { product: ProductDto; reload:
                                 </>
                               )}
                             </p>
+                            {arabicNames ? (
+                              <label className="mt-2 block ps-[27px]">
+                                <span className="mb-1 block text-[11px] font-medium text-text-tertiary">
+                                  {t('itemOptions.grid.arabicName')}
+                                </span>
+                                <input
+                                  value={cell.nameAr ?? ''}
+                                  dir="rtl"
+                                  maxLength={200}
+                                  placeholder={
+                                    cell.nameArAuto || t('itemOptions.grid.arabicNameAuto')
+                                  }
+                                  title={cell.nameAr || cell.nameArAuto || undefined}
+                                  aria-label={t('itemOptions.grid.arabicNameOf', { name: label })}
+                                  onChange={(event) => {
+                                    const typed = event.target.value
+                                    update((current) => setVariantNameAr(current, key, typed))
+                                  }}
+                                  className="h-[34px] w-full min-w-0 rounded-sm border border-border-subtle bg-white px-2 text-xs font-medium text-text-primary outline-none transition-colors placeholder:text-text-placeholder focus:border-border-brand"
+                                />
+                              </label>
+                            ) : null}
                           </td>
                         )
                       })}
