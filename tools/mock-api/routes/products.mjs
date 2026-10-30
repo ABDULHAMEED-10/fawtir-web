@@ -500,6 +500,8 @@ function applySetup(p, body) {
           return { refused: problem(400, 'PRODUCT_VARIANT_BARCODE_INVALID') }
         setting.barcode = barcode || null
       }
+      // Backend #808: a listed combination without one goes back to the worked-out name.
+      setting.nameAr = row.nameAr?.trim() || null
     }
   }
   for (const v of view(next).variants) {

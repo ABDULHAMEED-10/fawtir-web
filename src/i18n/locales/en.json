@@ -12425,7 +12425,8 @@
       "priceChange": "Price change",
       "sellsFor": "Sells for",
       "code": "Item code",
-      "onSale": "On sale"
+      "onSale": "On sale",
+      "arabicName": "Arabic name on invoice"
     },
     "addASize": "Add a size",
     "removeSize": "Remove this size",
@@ -12489,7 +12490,8 @@
     "addGroup": "Add a group",
     "kindNeedsGroup": "Add a group first",
     "kindNone": "No kinds in this group yet",
-    "addKind": "Add a kind to {{group}}"
+    "addKind": "Add a kind to {{group}}",
+    "arabicNameHint": "Each size's Arabic name on the invoice is worked out from the Arabic names of the item and the size. Type one to use your own; leave it empty to go back to the automatic name."
   },
   "itemSells": {
     "export": "Export",
@@ -24747,7 +24749,8 @@
       "count": "{{sold}} of {{total}} on sale",
       "byHand_one": "{{count}} price set by hand",
       "byHand_other": "{{count}} prices set by hand",
-      "none": "Add a size or an option to price its combinations."
+      "none": "Add a size or an option to price its combinations.",
+      "arabicNameHint": "Each combination's Arabic name on the invoice is worked out from the Arabic names of the item and its choices. Type one to use your own; leave it empty to go back to the automatic name."
     },
     "grid": {
       "base": "base {{amount}}",
@@ -24760,7 +24763,10 @@
       "setByHand": "Set by hand",
       "noCode": "No code yet",
       "noSize": "No size",
-      "noOption": "No option"
+      "noOption": "No option",
+      "arabicName": "Arabic name on invoice",
+      "arabicNameOf": "Arabic name on invoice for {{name}}",
+      "arabicNameAuto": "Automatic"
     },
     "figures": {
       "title": "What this adds up to",
