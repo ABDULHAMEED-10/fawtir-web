@@ -4908,6 +4908,12 @@
     },
     "scan": {
       "unknown": "No item with barcode <code>{{code}}</code>"
+    },
+    "noPrice": {
+      "label": "No price yet",
+      "refused": "{{name}}: No price yet. It has not been added to the sale.",
+      "enter": "Price before VAT",
+      "enterNote": "This has no price yet. Type its price for this sale."
     }
   },
   "orderDetail": {
@@ -12419,7 +12425,8 @@
       "priceChange": "Price change",
       "sellsFor": "Sells for",
       "code": "Item code",
-      "onSale": "On sale"
+      "onSale": "On sale",
+      "arabicName": "Arabic name on invoice"
     },
     "addASize": "Add a size",
     "removeSize": "Remove this size",
@@ -12483,7 +12490,8 @@
     "addGroup": "Add a group",
     "kindNeedsGroup": "Add a group first",
     "kindNone": "No kinds in this group yet",
-    "addKind": "Add a kind to {{group}}"
+    "addKind": "Add a kind to {{group}}",
+    "arabicNameHint": "Each size's Arabic name on the invoice is worked out from the Arabic names of the item and the size. Type one to use your own; leave it empty to go back to the automatic name."
   },
   "itemSells": {
     "export": "Export",
@@ -13312,7 +13320,7 @@
     "subtitle": "Work left to right. Pick the groups you have, then what's inside them, then the exact things you sell with their prices.",
     "uploadInstead": "Upload a menu instead",
     "coffeeRoastery": "Coffee roastery and café",
-    "suggestionsNote": "Suggestions are what this kind of business usually sells. Tick what you have, then set your own prices, units and tax.",
+    "suggestionsNote": "These are suggestions. Prices start at 0.000: set your own prices, units, VAT and stock counting to match how you sell, before you sell.",
     "readyToAdd": "Ready to add",
     "seeTheList": "See the list",
     "groups": "Groups",
@@ -13392,7 +13400,10 @@
     "listTitle": "What will be added",
     "listSubtitle": "Everything ticked, by group and kind. Sizes, options and add-ons are priced on each item once added.",
     "listClose": "Close",
-    "noPriceYet": "No price yet"
+    "noPriceYet": "No price yet",
+    "noPriceLeft_one": "{{count}} item still has no price.",
+    "noPriceLeft_other": "{{count}} items still have no price.",
+    "noPriceLink": "See them in Wanting attention"
   },
   "rowsView": {
     "label": "How this list is shown",
@@ -24835,19 +24846,24 @@
       "count": "{{sold}} of {{total}} on sale",
       "byHand_one": "{{count}} price set by hand",
       "byHand_other": "{{count}} prices set by hand",
-      "none": "Add a size or an option to price its combinations."
+      "none": "Add a size or an option to price its combinations.",
+      "arabicNameHint": "Each combination's Arabic name on the invoice is worked out from the Arabic names of the item and its choices. Type one to use your own; leave it empty to go back to the automatic name."
     },
     "grid": {
       "base": "base {{amount}}",
       "noChange": "No change",
       "priceChangeFor": "Price change for {{name}}",
+      "barcodeOf": "Barcode for {{name}}",
       "priceOf": "Price of {{name}}",
       "sell": "Sell {{name}}",
       "notSold": "Not sold",
       "setByHand": "Set by hand",
       "noCode": "No code yet",
       "noSize": "No size",
-      "noOption": "No option"
+      "noOption": "No option",
+      "arabicName": "Arabic name on invoice",
+      "arabicNameOf": "Arabic name on invoice for {{name}}",
+      "arabicNameAuto": "Automatic"
     },
     "figures": {
       "title": "What this adds up to",
@@ -24970,6 +24986,7 @@
       "isic": "The business activity stored on this item is not valid. Contact Fawtir support.",
       "barcodeInvalid": "A barcode uses letters, digits and symbols only, with no spaces, up to 64 characters.",
       "barcodeTaken": "Another item on sale already uses this barcode.",
+      "variantBarcodeTaken": "This barcode is already used on this item, one of its sizes, or another item on sale.",
       "groupGone": "This kind no longer exists. Choose another group and kind.",
       "keepCountService": "Only things you hand over can be counted on the shelf. Switch off Keep count for a service.",
       "discountInvalid": "Enter a discount of 0 or more with up to three decimals. A percentage cannot be more than 100.",
