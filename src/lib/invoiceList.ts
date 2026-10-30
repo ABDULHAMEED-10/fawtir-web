@@ -189,6 +189,12 @@ export type InvoiceListItem = {
    * lists; it said "Issued" here and "To be sent" there. Null on any other document.
    */
   noteStatus: NoteListStatus | null
+  /** A till sale's invoice or a till refund's credit note: the "From the till" badge. */
+  fromTill: boolean
+  /** The till's name (its code when it has none), for the badge's hint. */
+  tillName: string | null
+  /** The server says where each row was made; an older one does not, and no source filter is offered. */
+  sourceAnswered: boolean
 }
 
 const AUTHORING: Record<InvoiceStateDto, AuthoringChip> = {
@@ -293,5 +299,8 @@ export function toInvoiceListItem(row: InvoiceRowDto): InvoiceListItem {
     isDraft,
     approval: isDraft ? (row.approvalState ?? null) : null,
     noteStatus: listNoteStatus(row, payment.payment),
+    fromTill: row.source === 'TILL',
+    tillName: row.source === 'TILL' ? row.till?.name?.trim() || row.till?.code || null : null,
+    sourceAnswered: row.source !== undefined,
   }
 }

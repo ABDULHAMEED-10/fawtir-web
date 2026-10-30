@@ -46,6 +46,17 @@ export type InvoiceRowLineDto = {
   taxRate: number
 }
 
+/** Where a document was made: `TILL` for a till sale's invoice or a till refund's credit note. */
+export type InvoiceSourceDto = 'TILL' | 'OTHER'
+
+/** `InvoiceResponse.Till`: the till a `TILL` document came from. */
+export type InvoiceTillDto = {
+  id: string
+  /** The till's code, as in its numbering series (`T01`). */
+  code: string
+  name: string | null
+}
+
 /** `InvoiceResponse`, only the members the list reads. */
 export type InvoiceRowDto = {
   id: string
@@ -85,6 +96,13 @@ export type InvoiceRowDto = {
   correctionOfInvoiceNumber?: string | null
   /** A draft with an open sales approval request for its current version (RL-6); else null. */
   approvalState?: InvoiceListApproval | null
+  /**
+   * Where the document was made. Absent from a server older than the field: the list then draws
+   * no "From the till" badge and offers no source filter.
+   */
+  source?: InvoiceSourceDto | null
+  /** With `source` TILL, the till that made it; null otherwise. */
+  till?: InvoiceTillDto | null
 }
 
 /** A draft's sales approval state, as the list reads it; `PENDING` is the approvers' queue. */
@@ -171,6 +189,8 @@ export type InvoiceListFilter = {
   delivery?: 'TO_SEND' | null
   /** Drafts in this sales approval state; `PENDING` with state DRAFT is the "To approve" tab. */
   approval?: InvoiceListApproval | null
+  /** Made at the till (sale invoices and refund credit notes) or anywhere else. */
+  source?: InvoiceSourceDto | null
 }
 
 export type InvoiceListQuery = InvoiceListFilter & {
@@ -193,6 +213,7 @@ function filterParams(filter: InvoiceListFilter) {
     channel: filter.channel ?? undefined,
     delivery: filter.delivery ?? undefined,
     approval: filter.approval ?? undefined,
+    source: filter.source ?? undefined,
   }
 }
 

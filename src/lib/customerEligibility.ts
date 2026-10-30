@@ -64,3 +64,38 @@ export function missingCustomerFields(
     return phrase
   })
 }
+
+/** The gaps as one sentence part, joined in the reader's language ("the invoice address (city and street)"). */
+export function missingFieldsSentence(
+  paths: readonly string[],
+  translate: (key: string, values?: Record<string, string>) => string,
+  language: string,
+): string {
+  const join = (items: string[]) =>
+    new Intl.ListFormat(language, { type: 'conjunction' }).format(items)
+  return join(
+    missingCustomerFields(paths, (key) => translate(key), join).map((phrase) =>
+      translate(phrase.key, phrase.values),
+    ),
+  )
+}
+
+/**
+ * The paths a `CUSTOMER_NOT_INVOICE_ELIGIBLE` refusal names, from its `missingInvoiceFields`
+ * (backend #810, on a sale and on `POST /v1/pos/customers`). Fixed by #810: an older server sent
+ * them only inside the `detail` sentence ("Customer is missing invoice fields:
+ * invoiceAddress.cityName, ..."), so until #810 is deployed the stable paths are picked out of it.
+ * Null for any other refusal.
+ */
+export function notEligiblePaths(problem: {
+  code?: string | null
+  detail?: unknown
+  missingInvoiceFields?: unknown
+}): string[] | null {
+  if (problem.code !== 'CUSTOMER_NOT_INVOICE_ELIGIBLE') return null
+  if (Array.isArray(problem.missingInvoiceFields)) {
+    return problem.missingInvoiceFields.filter((path): path is string => typeof path === 'string')
+  }
+  const detail = typeof problem.detail === 'string' ? problem.detail : ''
+  return detail.match(/\b(?:invoiceAddress|deliveryAddress|details)\.[A-Za-z]+/g) ?? []
+}

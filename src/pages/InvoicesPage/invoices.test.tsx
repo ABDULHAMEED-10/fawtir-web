@@ -395,6 +395,72 @@ describe('Invoices list, wired to the API', () => {
     await waitFor(() => expect(listCalls().at(-1)).not.toContain('channel='))
   }, 30_000)
 
+  it('marks till sales and till refunds From the till, and filters by source once the server answers it', async () => {
+    const till = { id: 'till-1', code: 'T01', name: 'Front counter' }
+    listResponses = [
+      () =>
+        json(
+          200,
+          springPage([
+            issued({ source: 'OTHER', till: null }),
+            issued({
+              id: 'inv-t1',
+              invoiceNumber: 'HEAD-T01-INV-2026-000001',
+              customerName: 'Walk-in customer',
+              source: 'TILL',
+              till,
+            }),
+            issued({
+              id: 'crn-t1',
+              type: 'CREDIT_NOTE',
+              invoiceNumber: 'HEAD-T01-CRN-2026-000001',
+              customerName: 'Walk-in customer',
+              payment: null,
+              source: 'TILL',
+              till,
+            }),
+          ]),
+        ),
+    ]
+    renderInvoices()
+    const tillRow = (await screen.findByText('HEAD-T01-INV-2026-000001')).closest('tr')!
+    expect(within(tillRow).getByText('From the till').getAttribute('title')).toBe(
+      'From the till · Front counter',
+    )
+    const refundRow = screen.getByText('HEAD-T01-CRN-2026-000001').closest('tr')!
+    expect(within(refundRow).getByText('Credit note')).toBeTruthy()
+    expect(within(refundRow).getByText('From the till')).toBeTruthy()
+    const otherRow = screen.getByText('INV-2026-0042').closest('tr')!
+    expect(within(otherRow).queryByText('From the till')).toBeNull()
+
+    expect(listCalls().at(-1)).not.toContain('source=')
+    fireEvent.click(screen.getByRole('button', { name: /^Source/ }))
+    fireEvent.click(await screen.findByRole('option', { name: 'From the till' }))
+    await waitFor(() => expect(listCalls().at(-1)).toContain('source=TILL'))
+
+    fireEvent.click(screen.getByRole('button', { name: /^Source|^From the till/ }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Other' }))
+    await waitFor(() => expect(listCalls().at(-1)).toContain('source=OTHER'))
+
+    fireEvent.click(screen.getByRole('button', { name: /^Source|^Other/ }))
+    fireEvent.click(await screen.findByRole('option', { name: 'All sources' }))
+    await waitFor(() => expect(listCalls().at(-1)).not.toContain('source='))
+  }, 30_000)
+
+  it('offers no source filter and draws no badge while the server does not say where rows were made', async () => {
+    renderInvoices()
+    await screen.findByText('Sohar Port Logistics')
+    expect(screen.queryByRole('button', { name: /^Source/ })).toBeNull()
+    expect(screen.queryByText('From the till')).toBeNull()
+  })
+
+  it('keeps a source filter from the address visible so it can be cleared, even with no rows', async () => {
+    listResponses = [() => json(200, springPage([]))]
+    renderInvoices('/invoices?source=till')
+    await waitFor(() => expect(listCalls().at(-1)).toContain('source=TILL'))
+    expect(await screen.findByRole('button', { name: /From the till/ })).toBeTruthy()
+  })
+
   it('pages with the total the server counted', async () => {
     listResponses = [
       () => json(200, springPage([issued()], 41)),

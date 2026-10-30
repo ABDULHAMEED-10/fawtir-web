@@ -213,11 +213,29 @@ export function coverShare(row: Pick<StockRowDto, 'onHand' | 'reorderLevel'>): n
 
 /** The item's name in the reader's language, with its size or option. */
 export function stockItemName(
-  row: Pick<StockRowDto, 'name' | 'nameAr' | 'variantName'>,
+  row: Pick<StockRowDto, 'name' | 'nameAr' | 'variantName' | 'variantNameAr'>,
   language: string,
 ): string {
-  const name = language.startsWith('ar') && row.nameAr ? row.nameAr : row.name
-  return row.variantName ? `${name} · ${row.variantName}` : name
+  const ar = language.startsWith('ar')
+  const name = ar && row.nameAr ? row.nameAr : row.name
+  // The Arabic size and option come from backend #808; an older server sends English only.
+  const variant = ar && row.variantNameAr ? row.variantNameAr : row.variantName
+  return variant ? `${name} · ${variant}` : name
+}
+
+/**
+ * Where the item sits in the catalogue, "group › kind", in the reader's language (backend #808,
+ * INCOME.md P.19). Null when the row carries neither (an older server, or an item with no kind).
+ */
+export function stockItemPlace(
+  row: Pick<StockRowDto, 'groupName' | 'groupNameAr' | 'kindName' | 'kindNameAr'>,
+  language: string,
+): string | null {
+  const ar = language.startsWith('ar')
+  const group = (ar && row.groupNameAr) || row.groupName || null
+  const kind = (ar && row.kindNameAr) || row.kindName || null
+  const parts = [group, kind].filter((part): part is string => Boolean(part))
+  return parts.length ? parts.join(' › ') : null
 }
 
 /** The item's page: the product, and its size or option when it is counted per variant. */
@@ -270,6 +288,31 @@ export const deliveryThatHolds = (perDay: number, everyDays: number) =>
 
 /** The days between deliveries the chart's advice plans for. */
 export const DELIVERY_EVERY_DAYS = 14
+
+const MUSCAT_TIME = new Intl.DateTimeFormat('en-GB', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+  timeZone: 'Asia/Muscat',
+})
+const MUSCAT_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' })
+
+/**
+ * The time a movement is listed at, in Muscat. A delivery is recorded against the day it came in,
+ * so it happened "at" midnight, which is not a time anyone saw (E2E 29 Oct 2026, F-10): it shows
+ * the time it was recorded when that was the same day, and no time otherwise.
+ */
+export function movementTime(
+  movement: Pick<StockMovementDto, 'type' | 'occurredAt' | 'recordedAt'>,
+): string {
+  const when = new Date(movement.occurredAt)
+  if (Number.isNaN(when.getTime())) return ''
+  const time = MUSCAT_TIME.format(when)
+  if (movement.type !== 'RECEIPT' || time !== '00:00') return time
+  const recorded = new Date(movement.recordedAt)
+  if (Number.isNaN(recorded.getTime())) return ''
+  return MUSCAT_DAY.format(recorded) === MUSCAT_DAY.format(when) ? MUSCAT_TIME.format(recorded) : ''
+}
 
 export type MovementKind = 'sold' | 'writtenOff' | 'returned' | 'delivered' | 'corrected'
 
@@ -338,6 +381,11 @@ export function movementNote(t: TFunction, movement: StockMovementDto, language:
       parts.push(t('stockItem.live.from', { supplier: movement.supplier.name }))
     if (movement.unitCost !== null)
       parts.push(t('stockItem.live.atEach', { amount: `OMR ${omr(movement.unitCost)}` }))
+    // Backend #815: the supplier's own reference on a delivery; isolated, as codes read LTR.
+    if (movement.supplierReference)
+      parts.push(
+        t('stockItem.live.supplierRef', { reference: `\u2066${movement.supplierReference}\u2069` }),
+      )
   }
   if (movement.note) parts.push(movement.note)
   if (who) parts.push(who)

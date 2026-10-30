@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReferenceDataContext } from '../../lib/reference/referenceData'
 import { SEEDED_REFERENCE } from '../../testing/referenceData'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -716,6 +716,32 @@ describe('An invoice, wired to the API', () => {
           element?.tagName === 'SPAN' && /Paid.*of.*·\s*Credited/.test(element.textContent ?? ''),
       ),
     ).toHaveLength(0)
+  })
+
+  it('marks an invoice a till sale issued From the till, naming the till, in English and Arabic', async () => {
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({ source: 'TILL', till: { id: 't-1', code: 'T01', name: 'Front counter' } }),
+      )
+    renderInvoice()
+    expect(await screen.findByText('From the till · Front counter')).toBeTruthy()
+    cleanup()
+    await i18n.changeLanguage('ar')
+    renderInvoice()
+    expect(await screen.findByText('من الصندوق · Front counter')).toBeTruthy()
+  })
+
+  it('draws no till mark on a document made elsewhere, or from a server that does not say', async () => {
+    invoiceResponse = () => json(200, invoice({ source: 'OTHER', till: null }))
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
+    expect(screen.queryByText(/From the till/)).toBeNull()
+    cleanup()
+    invoiceResponse = () => json(200, invoice())
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
+    expect(screen.queryByText(/From the till/)).toBeNull()
   })
 
   it('reads in Arabic', async () => {

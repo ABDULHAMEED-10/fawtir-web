@@ -4,6 +4,7 @@ import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNoti
 import { registerPosTill } from '../../api/pos/pos'
 import { usePosTill, type TillState } from '../../lib/posTill'
 import { posRefusalKey } from '../../lib/posRefusals'
+import { usePosQueue } from '../../lib/posQueue'
 
 type Ready = Extract<TillState, { status: 'ready' }>
 
@@ -18,7 +19,21 @@ export function PosTillGate({ children }: { children: (till: Ready) => ReactNode
   if (state.status === 'failed') return <ApiReadFailure error={state.error} retry={state.retry} />
   if (state.status === 'noBranch') return <TillNotice textKey="pos.till.noBranch" />
   if (state.status === 'noTill') return <NoTill state={state} />
-  return <>{children(state)}</>
+  return (
+    <>
+      <QueueSender tillId={state.till.id} />
+      {children(state)}
+    </>
+  )
+}
+
+/**
+ * Sends the till's offline sales (and their slip photos) on every till screen, as soon as the
+ * browser is back online and every minute until they are all filed. Draws nothing.
+ */
+function QueueSender({ tillId }: { tillId: string }) {
+  usePosQueue(tillId)
+  return null
 }
 
 function TillNotice({ textKey, action }: { textKey: string; action?: ReactNode }) {

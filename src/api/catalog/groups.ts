@@ -15,6 +15,8 @@ export type CatalogKindDto = {
   nameAr: string | null
   sortOrder: number
   version: number
+  /** Active products filed under the kind; absent on a server without backend #812. */
+  productCount?: number
 }
 
 export type CatalogGroupDto = {
@@ -24,6 +26,10 @@ export type CatalogGroupDto = {
   sortOrder: number
   version: number
   kinds: CatalogKindDto[]
+  /** Both absent on a server without backend #812. */
+  kindCount?: number
+  /** Active products filed under all the group's kinds. */
+  productCount?: number
 }
 
 export type CatalogGroupsDto = { groups: CatalogGroupDto[] }
@@ -80,6 +86,25 @@ export function updateCatalogKind(
 /** Refused (`CATALOGUE_KIND_IN_USE`) while an active product sits in it. */
 export function deleteCatalogKind(id: string, expectedVersion: number): Promise<void> {
   return apiRequest<void>(withQuery(kindPath(id), { expectedVersion }), { method: 'DELETE' })
+}
+
+/** Every sibling, in its new order, with the version it was read at. */
+export type CatalogOrderRequest = { items: { id: string; expectedVersion: number }[] }
+
+/**
+ * `PUT /v1/catalog/groups/order` (backend #812): every group in its new order, in one
+ * transaction; answers the whole tree.
+ */
+export function reorderCatalogGroups(body: CatalogOrderRequest): Promise<CatalogGroupsDto> {
+  return apiRequest<CatalogGroupsDto>(`${CATALOG_GROUPS_PATH}/order`, { method: 'PUT', body })
+}
+
+/** `PUT /v1/catalog/groups/{id}/kinds/order` (backend #812): answers the group with its kinds. */
+export function reorderCatalogKinds(
+  groupId: string,
+  body: CatalogOrderRequest,
+): Promise<CatalogGroupDto> {
+  return apiRequest<CatalogGroupDto>(`${groupPath(groupId)}/kinds/order`, { method: 'PUT', body })
 }
 
 /** The name to show: the Arabic one in Arabic when there is one. */

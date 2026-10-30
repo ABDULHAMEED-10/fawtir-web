@@ -445,6 +445,11 @@ export function toDraftRequest(
   }
 }
 
+const SELF_BILLED_TYPES: ReadonlySet<string> = new Set([
+  'SELF_BILLED_INVOICE',
+  'SELF_BILLED_CREDIT_NOTE',
+])
+
 /**
  * A saved draft back into the form, exclusive of VAT. The customer kind comes from the customer
  * record, which the draft does not carry; `internalNote` is filled separately, and only for
@@ -502,6 +507,12 @@ export function fromDraftResponse(
         exemptionReasonCode: line.exemptionReasonCode ?? undefined,
         quantity: String(Number(line.quantity)),
         unit: line.unitCode,
+        // A counted product's unit stays fixed on a reopened draft (P.23), as when it was picked:
+        // `keepCount` on the line since backend #808; absent from an older server, which leaves
+        // the unit free as before. A self-billed document moves no stock and never fixes it.
+        ...(line.productId && line.keepCount === true && !SELF_BILLED_TYPES.has(draft.type ?? '')
+          ? { countedUnit: line.unitCode }
+          : {}),
         discountType: line.discountType,
         discountValue: String(Number(line.discountValue)),
       }

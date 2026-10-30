@@ -47,6 +47,17 @@ export type StockRowDto = {
   name: string
   nameAr: string | null
   variantName: string | null
+  /**
+   * Backend #808 (INCOME.md P.19), absent from an older server: the size and option in Arabic,
+   * and the product's kind and its group, read from the catalogue now.
+   */
+  variantNameAr?: string | null
+  kindId?: string | null
+  kindName?: string | null
+  kindNameAr?: string | null
+  groupId?: string | null
+  groupName?: string | null
+  groupNameAr?: string | null
   variantRetired: boolean
   productActive: boolean
   keepCount: boolean
@@ -124,6 +135,11 @@ export type StockMovementDto = {
     } | null
   }
   supplier: { supplierId: string; name: string } | null
+  /**
+   * Backend #815: the supplier's own reference typed on "Record what came in" (DELIVERY only);
+   * null otherwise, absent from an older server.
+   */
+  supplierReference?: string | null
   reasonCode: string | null
   note: string | null
   occurredAt: string

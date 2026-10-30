@@ -45,7 +45,14 @@ export type OptionSet = {
 }
 
 /** One combination: whether it is sold, its price and its item code. */
-export type Cell = { on: boolean; price: number; byHand: boolean; code: string }
+export type Cell = {
+  on: boolean
+  price: number
+  byHand: boolean
+  code: string
+  /** A hand-set Arabic line name read back (backend #808, `nameArSet`), sent again to keep it. */
+  nameAr?: string | null
+}
 
 export type OptionsState = {
   base: number
@@ -348,6 +355,7 @@ export function productVariantsState(product: ProductDto, words: ChoiceWords): O
       price: variant.price,
       byHand: variant.priceOverride !== null,
       code: variant.code ?? '',
+      ...(variant.nameArSet && variant.nameAr ? { nameAr: variant.nameAr } : {}),
     }
   }
   return reconcile({ base: product.defaultUnitPrice, side, top, cells })
@@ -378,6 +386,7 @@ export function variantsRequest(
       code: cell.code.trim() || null,
       price: cell.byHand ? cell.price : null,
       onSale: cell.on,
+      ...(cell.nameAr ? { nameAr: cell.nameAr } : {}),
     })),
     addOns: (addOns ?? []).map((addOn) => ({
       id: addOn.id,

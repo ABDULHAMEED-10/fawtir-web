@@ -8,6 +8,7 @@ import { PosSalePanel } from './PosSalePanel'
 import { CashierPicker } from './CashierPicker'
 import { PosTillGate } from './PosTillGate'
 import { PosChooser } from './PosChooser'
+import { StockBadge } from './PosStockBadge'
 import { Rial } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
@@ -22,6 +23,7 @@ import {
   hasChoices,
   itemByBarcode,
   itemsFor,
+  listedChoices,
   saleLineFor,
   shelfItem,
   shelfTabs,
@@ -38,6 +40,7 @@ import {
 import { getCatalogGroups, type CatalogGroupsDto } from '../../api/catalog/groups'
 import type { Page } from '../../api'
 import { posRefusalKey } from '../../lib/posRefusals'
+import { loadOrRecall } from '../../lib/posOffline'
 
 /** The whole branch shelf in one read; search and the tabs work on it. */
 const SHELF_SIZE = 200
@@ -137,12 +140,21 @@ function Tile({
             {t('pos.badge.offSale')}
           </span>
         ) : null}
+        {/* The branch's stock (backend #815): a flag only, the tile stays sellable. */}
+        {item.stock && available ? (
+          <StockBadge flag={item.stock} className="absolute start-2 top-2" />
+        ) : null}
       </span>
       <span className="flex flex-1 flex-col gap-1 p-3">
         <span className="text-base font-medium leading-[1.2] text-text-primary">{item.name}</span>
         <span className="text-xs font-medium leading-[1.4] text-text-quaternary">
           {sizes || addOns ? (
-            t('pos.note.sizesAddOns', { sizes, addOns })
+            [
+              sizes ? t('pos.note.sizes', { count: sizes }) : '',
+              addOns ? t('pos.note.addOns', { count: addOns }) : '',
+            ]
+              .filter(Boolean)
+              .join(' · ')
           ) : (
             <span dir="ltr">{item.code}</span>
           )}
@@ -191,8 +203,13 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
     includeUnavailable: true,
     sort: 'NAME',
     size: SHELF_SIZE,
+    // Sizes, add-ons and stock on every row (backend #808, #815); an older server leaves them null.
+    include: ['variants', 'addOns', 'stock'],
   })
-  const shelf = useApiRead<Page<ProductDto>>(path, () => searchProducts(path))
+  // Kept on the device, with each item read in full, so the till sells offline (lib/posOffline).
+  const shelf = useApiRead<Page<ProductDto>>(path, () =>
+    loadOrRecall(`shelf.${branchId}`, () => searchProducts(path)),
+  )
   const groups = useApiRead<CatalogGroupsDto>('/v1/catalog/groups', getCatalogGroups)
 
   const items = useMemo(
@@ -205,6 +222,18 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
     ar,
     t('pos.group.all'),
   )
+  // What the rows already carry; a row without it is read when tapped.
+  const listed = useMemo(
+    () =>
+      Object.fromEntries(
+        items.flatMap((item) => {
+          const choices = listedChoices(item, ar)
+          return choices ? [[item.id, choices] as const] : []
+        }),
+      ) as Record<string, ItemChoices>,
+    [items, ar],
+  )
+  const choicesFor = (id: string): ItemChoices | undefined => details[id] ?? listed[id]
   const counts = activeCounts(items)
   const inSale = new Set(lines.map((line) => line.productId))
   const shown = itemsFor(items, group, filter, query)
@@ -212,10 +241,11 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
   /** A tap reads the item in full: one with sizes or add-ons asks which. */
   const add = async (item: PosItem) => {
     setError(null)
-    let choices = details[item.id]
+    let choices = choicesFor(item.id)
     if (!choices) {
       try {
-        choices = choicesOf(await getProduct(item.id), item.price, ar)
+        const detail = await loadOrRecall(`product.${item.id}`, () => getProduct(item.id))
+        choices = choicesOf(detail, item.price, ar)
         setDetails((current) => ({ ...current, [item.id]: choices as ItemChoices }))
       } catch (cause) {
         setError(cause)
@@ -351,7 +381,7 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
                   key={item.id}
                   item={item}
                   inSale={inSale.has(item.id)}
-                  choices={details[item.id]}
+                  choices={choicesFor(item.id)}
                   onAdd={add}
                 />
               ))}
@@ -376,10 +406,10 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
         />
       </div>
 
-      {choosing && details[choosing.id] ? (
+      {choosing && choicesFor(choosing.id) ? (
         <PosChooser
           item={choosing}
-          choices={details[choosing.id]}
+          choices={choicesFor(choosing.id) as ItemChoices}
           onClose={() => setChoosing(null)}
           onAdd={(size, addOns) => {
             setSaleLines((current) =>

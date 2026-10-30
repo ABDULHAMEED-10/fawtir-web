@@ -35,6 +35,7 @@ import {
   quantityText,
   stockItemHref,
   stockItemName,
+  stockItemPlace,
   stockKey,
   stockUnitName,
   weekdayName,
@@ -105,6 +106,7 @@ export function StockPage() {
   useEffect(() => setSelected([]), [branchId])
 
   const readable = access.canRead && branchId !== null
+  const selectable = access.canAdjust || access.canManage || access.canOrder
   const listPath = readable
     ? stockListPath({
         branchId,
@@ -120,9 +122,13 @@ export function StockPage() {
   const summary = useApiRead<StockSummaryDto>(summaryPath, () => loadStockSummary(summaryPath!))
   const book = summary.read.status === 'ready' ? summary.read.data : null
   // The Nothing left card names the item that ran out: one row is enough to say which.
+  // Nothing left counts what sold below zero too: the server keeps those apart (`belowZero`), but
+  // an item at -1 has nothing on the shelf either (retest N-4). The card names one of them.
+  const nothingLeft = book ? book.nothingLeft + (book.belowZero ?? 0) : 0
+  const outStatus = book && book.nothingLeft > 0 ? 'OUT' : 'BELOW_ZERO'
   const outPath =
-    readable && book && book.nothingLeft > 0
-      ? stockListPath({ branchId, status: 'OUT', size: 1 })
+    readable && book && nothingLeft > 0
+      ? stockListPath({ branchId, status: outStatus, size: 1 })
       : null
   const out = useApiRead<Page<StockRowDto>>(outPath, () => loadStockPage(outPath!))
   const outRow = out.read.status === 'ready' ? (out.read.data.items[0] ?? null) : null
@@ -216,16 +222,18 @@ export function StockPage() {
           tint="bg-danger-100"
           tone="danger"
           label={t('stock.kpi.nothingLeft')}
-          value={book ? String(book.nothingLeft) : '…'}
+          value={book ? String(nothingLeft) : '…'}
           note={
-            outRow
-              ? outRow.lastMovementAt
-                ? t('stock.kpi.nothingLeftNote', {
-                    name: stockItemName(outRow, i18n.language),
-                    day: weekdayName(new Date(outRow.lastMovementAt).getDay(), i18n.language),
-                  })
-                : stockItemName(outRow, i18n.language)
-              : t('stock.kpi.nothingOut')
+            outRow && outRow.onHand !== null && outRow.onHand < 0
+              ? t('stock.kpi.belowZeroNote', { name: stockItemName(outRow, i18n.language) })
+              : outRow
+                ? outRow.lastMovementAt
+                  ? t('stock.kpi.nothingLeftNote', {
+                      name: stockItemName(outRow, i18n.language),
+                      day: weekdayName(new Date(outRow.lastMovementAt).getDay(), i18n.language),
+                    })
+                  : stockItemName(outRow, i18n.language)
+                : t('stock.kpi.nothingOut')
           }
         />
         <Kpi
@@ -309,7 +317,7 @@ export function StockPage() {
             <span className="flex flex-wrap items-center gap-2">
               {/* A purchase order is raised from its supplier's page; the items are picked on
                   its lines there. */}
-              {allSameSupplier && first?.supplier ? (
+              {allSameSupplier && first?.supplier && access.canOrder ? (
                 <Link
                   to={`/suppliers/${encodeURIComponent(first.supplier.supplierId)}/purchase-order`}
                   className={SELECTION_BUTTON}
@@ -382,6 +390,8 @@ export function StockPage() {
                     <Row
                       key={stockKey(row)}
                       row={row}
+                      selectable={selectable}
+                      canOrder={access.canOrder}
                       checked={selected.some((x) => stockKey(x) === stockKey(row))}
                       onToggle={() => toggle(row)}
                     />
@@ -469,16 +479,23 @@ export function StockPage() {
 
 function Row({
   row,
+  selectable,
+  canOrder,
   checked,
   onToggle,
 }: {
   row: StockRowDto
+  /** A ticked row only leads to an action: none for a reader with none (retest N-3). */
+  selectable: boolean
+  /** Order now only for whoever may raise a purchase order; otherwise the movements. */
+  canOrder: boolean
   checked: boolean
   onToggle: () => void
 }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const name = stockItemName(row, language)
+  const place = stockItemPlace(row, language)
   const unit = stockUnitName(t, row.unitCode, language)
   const days = row.daysLeft
   const low = isRunningLow(row)
@@ -498,7 +515,9 @@ function Row({
       ].join(' ')}
     >
       <td className="ps-5 pe-2 py-4 align-middle">
-        <TableCheckbox checked={checked} onChange={onToggle} ariaLabel={name} />
+        {selectable ? (
+          <TableCheckbox checked={checked} onChange={onToggle} ariaLabel={name} />
+        ) : null}
       </td>
 
       <td className="px-3 py-4 align-middle">
@@ -514,9 +533,10 @@ function Row({
             >
               {name}
             </Link>
-            {/* TODO(backend): the frame prints the item's group and kind before its code; the
-                stock row carries neither (docs/backend-guides/INCOME.md, row P.19). */}
+            {/* The frame prints the item's group and kind before its code: fixed by backend #808
+                (not deployed yet, INCOME.md row P.19); an older server's row has the code alone. */}
             <p className="mt-1 truncate text-xs font-medium text-text-quaternary">
+              {place ? `${place} · ` : ''}
               <span dir="ltr">{row.code}</span>
               {row.variantRetired ? ` · ${t('stock.live.retired')}` : ''}
             </p>
@@ -643,7 +663,7 @@ function Row({
               : 'border-border-subtle bg-white text-text-secondary hover:bg-primary-25',
           ].join(' ')}
         >
-          {low || out ? t('stock.orderNow') : t('stock.movements')}
+          {(low || out) && canOrder ? t('stock.orderNow') : t('stock.movements')}
         </Link>
       </td>
     </tr>

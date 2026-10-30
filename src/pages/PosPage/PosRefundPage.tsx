@@ -29,12 +29,15 @@ import { useApiRead } from '../../hooks'
 import { ApiError } from '../../api'
 import {
   createPosRefund,
+  loadPosSale,
   newPosKey,
   refundLookupPath,
+  type PosSaleDto,
   type PosRefundDto,
   type PosRefundLookupDto,
 } from '../../api/pos/pos'
 import { startNewSale } from '../../lib/posSale'
+import { useCan } from '../../lib/session/session'
 import type { TillState } from '../../lib/posTill'
 
 type Ready = Extract<TillState, { status: 'ready' }>
@@ -130,6 +133,22 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
   const attempt = useRef<{ fingerprint: string; key: string } | null>(null)
 
   const credit = creditFor(sale, returning)
+  // The tip the customer paid on top, which is never refunded (F-11): on the lookup since backend
+  // #810; from an older server, read from the sale itself (`pos.read`), 0 without it.
+  const mayReadSale = useCan('pos.read')
+  const soldPath = sale.tip == null && mayReadSale ? `/v1/pos/sales/${sale.saleId}` : null
+  const sold = useApiRead<PosSaleDto>(soldPath, () => loadPosSale(sale.saleId))
+  const tipPaid =
+    sale.tip != null
+      ? toBaisa(sale.tip)
+      : sold.read.status === 'ready'
+        ? toBaisa(sold.read.data.tip)
+        : 0
+  // "Accepted by the OTA" (P.31): the lookup's own `filing` since backend #808 (not deployed
+  // yet); from an older server, the sale read above carries it when it is made.
+  const filing =
+    sale.filing ?? (sold.read.status === 'ready' ? (sold.read.data.filing ?? null) : null)
+  const acceptedByOta = Boolean(filing?.acceptedAt)
   const back = expected ?? credit.back
   const anything = credit.items > 0
   const was = toBaisa(sale.total)
@@ -248,8 +267,12 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                   {withRial(`${paid}${paid ? ' · ' : ''}OMR ${omr(was)}`)}
                 </span>
               </span>
-              {/* TODO(backend): the lookup does not say whether the Authority accepted the
-                  invoice, so the "Accepted by the OTA" pill is not drawn (INCOME.md row P.31). */}
+              {acceptedByOta ? (
+                <span className="inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full bg-success-100 px-2.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-success-700">
+                  <span className="size-1.5 rounded-full bg-current" />
+                  {t('pos.refund.acceptedByOta')}
+                </span>
+              ) : null}
             </div>
 
             <ul>
@@ -482,7 +505,7 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                 ) : null}
                 <Row label={t('pos.done.beforeVat')} value={omr(credit.beforeVat)} />
                 <Row label={t('pos.totals.vatMixed')} value={omr(credit.vat)} />
-                <Row label={t('pos.refund.tipNotRefunded')} value={omr(0)} />
+                <Row label={t('pos.refund.tipNotRefunded')} value={omr(tipPaid)} />
               </>
             )}
           </div>

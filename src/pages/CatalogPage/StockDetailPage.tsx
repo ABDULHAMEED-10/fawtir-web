@@ -30,12 +30,14 @@ import {
   isRunningLow,
   margin,
   movementKind,
+  movementTime,
   movementLink,
   movementNote,
   movementTitleKey,
   quantityText,
   saferLevel,
   stockItemName,
+  stockItemPlace,
   stockUnitName,
   type MovementKind,
 } from '../../lib/catalogStock'
@@ -111,6 +113,7 @@ export function StockDetailPage() {
       branchId={branchId}
       canAdjust={access.canAdjust}
       canManage={access.canManage}
+      canOrder={access.canOrder}
       reload={item.retry}
     />
   )
@@ -121,12 +124,15 @@ function StockItem({
   branchId,
   canAdjust,
   canManage,
+  canOrder,
   reload,
 }: {
   item: StockItemDetailDto
   branchId: string
   canAdjust: boolean
   canManage: boolean
+  /** Order more raises a purchase order: only for `purchase-order.manage` (retest N-3). */
+  canOrder: boolean
   reload: () => void
 }) {
   const { t, i18n } = useTranslation()
@@ -147,6 +153,7 @@ function StockItem({
   const ledger = movements.read.status === 'ready' ? movements.read.data : null
 
   const name = stockItemName(item, language)
+  const place = stockItemPlace(item, language)
   const unit = stockUnitName(t, item.unitCode, language)
   const onHand = item.onHand
   const days = item.daysLeft
@@ -208,13 +215,13 @@ function StockItem({
     <CatalogShell
       crumbs={[{ labelKey: 'stock.title', to: '/stock' }, { label: name }]}
       title={name}
-      // TODO(backend): the frame's subtitle opens with the item's group and kind; the stock item
-      // carries neither (docs/backend-guides/INCOME.md, row P.19).
-      subtitle={
+      // The frame's subtitle opens with the item's group and kind: fixed by backend #808 (not
+      // deployed yet, INCOME.md row P.19); an older server's item starts at its code.
+      subtitle={`${place ? `${place} · ` : ''}${
         supplierName
           ? t('stockItem.live.subtitle', { code: item.code, unit, supplier: supplierName })
           : t('stockItem.live.subtitleNoSupplier', { code: item.code, unit })
-      }
+      }`}
       pills={
         <>
           {item.state === 'LOW' ? <Pill tone="pending">{t('stockItem.runningLow')}</Pill> : null}
@@ -246,13 +253,15 @@ function StockItem({
               {t('stockItem.correctTheCount')}
             </button>
           ) : null}
-          <Link
-            to={orderMoreTo}
-            className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-          >
-            <img src={plusIcon} alt="" className="size-4" />
-            {t('stockItem.orderMore')}
-          </Link>
+          {canOrder ? (
+            <Link
+              to={orderMoreTo}
+              className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+            >
+              <img src={plusIcon} alt="" className="size-4" />
+              {t('stockItem.orderMore')}
+            </Link>
+          ) : null}
         </>
       }
     >
@@ -456,6 +465,13 @@ function StockItem({
                   }}
                   components={{ b: <b className="font-semibold text-text-primary" /> }}
                 />
+              ) : receipt ? (
+                // Received, but nothing sold yet: no rate to say how long it lasts (F-10).
+                t('stockItem.live.chartNoteNoRate', {
+                  count: quantityText(receipt.quantity, language),
+                  unit,
+                  date: formatDate(receipt.receivedOn, language),
+                })
               ) : (
                 t('stockItem.live.chartNoteNone')
               )}
@@ -714,13 +730,7 @@ function MovementRow({ movement, level }: { movement: StockMovementDto; level: n
         month: 'short',
         timeZone: 'Asia/Muscat',
       }).format(when)
-  const time = Number.isNaN(when.getTime())
-    ? ''
-    : new Intl.DateTimeFormat('en-GB', {
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'Asia/Muscat',
-      }).format(when)
+  const time = movementTime(movement)
 
   return (
     <tr className="border-b border-surface-background last:border-0">

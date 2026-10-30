@@ -515,7 +515,24 @@ function rowOf(record) {
       credited: round3(record.credited),
       creditNoteNumbers: record.creditNoteNumbers,
     },
-    displayState: fully ? 'credited' : company ? 'peppol' : 'filed',
+    // As backend #810 reads the filing: waiting until accepted, failed when it never went.
+    displayState: fully
+      ? 'credited'
+      : ['DEAD_LETTERED', 'CANCELLED'].includes(s.filing.dispatchState) ||
+          [
+            'GENERATION_FAILED',
+            'REJECTED',
+            'DEAD_LETTERED',
+            'TO_DISREGARD',
+            'DISREGARD_SUBMITTED',
+          ].includes(s.filing.tddStatus)
+        ? 'failed'
+        : company
+          ? 'peppol'
+          : s.filing.tddStatus === 'ACCEPTED'
+            ? 'filed'
+            : 'waiting',
+    filing: s.filing,
     refundable: !fully,
     queuedOffline: s.queuedOffline,
   }
@@ -674,6 +691,11 @@ function lookupOf(record) {
       paidBack: round3(record.paidBack),
     },
     total: s.totals.total,
+    // Backend #810: the tip paid on top, never refunded.
+    tip: s.tip ?? 0,
+    tipMethod: s.tip ? (s.tipMethod ?? null) : null,
+    // Backend #808 (P.31): the original invoice's filing, read now.
+    filing: s.filing ?? null,
     credited: round3(record.credited),
     owed: Math.max(0, round3(s.onAccount - record.credited)),
     creditNoteNumbers: record.creditNoteNumbers,
@@ -852,6 +874,45 @@ export default [
     },
   },
   {
+    // Backend feat/pos-buyer-match-hint: the customer on file a consumer sale would be filed
+    // against. One consumer is on file here: Saif Al Busaidi, civil ID 12345678 (masked to the
+    // cashier as the server does, V480); any other ID matches nothing.
+    method: 'POST',
+    match: '/api/v1/pos/customers/match',
+    reply: ({ body }) => {
+      const b = body ?? {}
+      const none = {
+        match: 'none',
+        customerId: null,
+        name: null,
+        sameName: false,
+        identifierScheme: null,
+        identifierValue: null,
+        identifierValueMasked: false,
+      }
+      if (b.identifierScheme !== 'CID' || String(b.identifierValue ?? '').trim() !== '12345678') {
+        return { status: 200, body: none }
+      }
+      const name = 'Saif Al Busaidi'
+      const typed = String(b.name ?? '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase()
+      return {
+        status: 200,
+        body: {
+          match: 'identifier',
+          customerId: 'c0000000-0000-4000-8000-00000000a1f0',
+          name,
+          sameName: typed === name.toLowerCase(),
+          identifierScheme: 'CID',
+          identifierValue: '•••• 5678',
+          identifierValueMasked: true,
+        },
+      }
+    },
+  },
+  {
     method: 'POST',
     match: '/api/v1/pos/customers',
     reply: ({ body }) => {
@@ -869,6 +930,21 @@ export default [
           ],
         })
       }
+      // Backend #810: a company the till could never invoice is refused before it is created.
+      const missing = ['countryCode', 'cityName', 'streetName']
+        .filter((part) => !String(b.address?.[part] ?? '').trim())
+        .map((part) => `invoiceAddress.${part}`)
+      if (missing.length) {
+        return problem(
+          400,
+          'CUSTOMER_NOT_INVOICE_ELIGIBLE',
+          {
+            detail: `Customer is missing invoice fields: ${missing.join(', ')}`,
+            missingInvoiceFields: missing,
+          },
+          'customer-not-invoice-eligible',
+        )
+      }
       const id = newId('c-pos')
       const vat = hasVat ? String(b.vatNumber).trim() : null
       CUSTOMER_NAMES[id] = b.name
@@ -882,9 +958,8 @@ export default [
             details: {
               vatRegistrationNumber: vat,
               peppolParticipantId: vat ? { scheme: '0248', value: vat } : null,
-              buyerIdentifier: hasId
-                ? { scheme: b.identifierScheme, value: b.identifierValue }
-                : null,
+              identifierScheme: hasId ? b.identifierScheme : null,
+              identifierValue: hasId ? b.identifierValue : null,
             },
             contact: {
               contactPerson: b.contactPerson ?? null,
@@ -894,7 +969,8 @@ export default [
               sendingMethod: vat ? 'PEPPOL' : 'EMAIL_PDF',
               automaticPaymentReminders: true,
             },
-            invoiceAddress: { cityName: 'Muscat', countryCode: 'OM' },
+            // As the server keeps it: only the address the till sent (E2E 29 Oct 2026, F-1).
+            invoiceAddress: b.address ?? null,
           },
           peppolDelivery: vat ? 'PENDING_VERIFICATION' : 'NOT_APPLICABLE',
           invoiceEligible: true,
@@ -1394,6 +1470,54 @@ export default [
       }
       slips.set(fileId, slip)
       return { status: 201, body: slip }
+    },
+  },
+  {
+    // A slip kept on an offline till, attached once its sale is filed (or fields typed later).
+    method: 'PUT',
+    match: /^\/api\/v1\/pos\/sales\/([^/]+)\/payments\/(\d+)\/slip$/,
+    reply: ({ params, body }) => {
+      ensureBranch('b-main')
+      const record = sales.get(params[0])
+      if (!record) return problem(404, 'POS_SALE_NOT_FOUND')
+      const payment = record.dto.payments.find((p) => p.position === Number(params[1]))
+      if (!payment) return problem(404, 'POS_PAYMENT_NOT_FOUND')
+      if (payment.method !== 'CARD') return problem(400, 'POS_SLIP_NOT_CARD')
+      const fileId = body?.slipFileId ?? null
+      if (!fileId && !body?.slipFields) return problem(400, 'POS_SLIP_INVALID')
+      if (fileId && !slips.has(fileId)) return problem(404, 'POS_SLIP_NOT_FOUND')
+      if (payment.slip?.fileId && fileId && payment.slip.fileId === fileId) {
+        return {
+          saleId: params[0],
+          position: payment.position,
+          slip: payment.slip,
+          replayed: true,
+          warnings: [],
+        }
+      }
+      if (payment.slip?.fileId && fileId) return problem(409, 'POS_SLIP_ALREADY_ATTACHED')
+      const fields = body?.slipFields ?? {}
+      const kept = payment.slip ?? {}
+      payment.slip = {
+        fileId: fileId ?? kept.fileId ?? null,
+        authCode: fields.authCode ?? kept.authCode ?? null,
+        rrn: fields.rrn ?? kept.rrn ?? null,
+        cardLast4: fields.cardLast4 ?? kept.cardLast4 ?? null,
+        cardType: fields.cardType ?? kept.cardType ?? null,
+        amount: fields.amount ?? kept.amount ?? null,
+        amountDiffers: fields.amount != null && round3(fields.amount) !== round3(payment.amount),
+        attachedAt: nowIso(),
+      }
+      const warnings = payment.slip.amountDiffers
+        ? [{ code: 'SLIP_AMOUNT_DIFFERS', line: null }]
+        : []
+      return {
+        saleId: params[0],
+        position: payment.position,
+        slip: payment.slip,
+        replayed: false,
+        warnings,
+      }
     },
   },
   {

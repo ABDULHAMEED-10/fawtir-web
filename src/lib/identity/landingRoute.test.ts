@@ -42,4 +42,17 @@ describe('landingRoute', () => {
     fetchMock.mockResolvedValue(new Response('', { status: 503 }))
     await expect(landingRoute()).resolves.toBe(SIGNED_IN_ROUTE)
   })
+
+  it('sends a tenant user back to the till they switched user on', async () => {
+    fetchMock.mockResolvedValue(ok({ ...base, permissions: ['pos.sell'] }))
+    await expect(landingRoute('/pos')).resolves.toBe('/pos')
+  })
+
+  it('never sends an operator anywhere but the console, nor anyone off the app', async () => {
+    fetchMock.mockResolvedValue(ok({ ...base, permissions: ['platform.tenants.manage'] }))
+    await expect(landingRoute('/pos')).resolves.toBe(CONSOLE_ROUTE)
+    forgetEntitlements()
+    fetchMock.mockResolvedValue(ok({ ...base, permissions: ['invoice.read'] }))
+    await expect(landingRoute('//evil.example')).resolves.toBe(SIGNED_IN_ROUTE)
+  })
 })
