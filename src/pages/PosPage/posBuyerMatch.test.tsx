@@ -112,7 +112,7 @@ async function buyerForm() {
       </Routes>
     </MemoryRouter>,
   )
-  fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+  fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
   fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
   await screen.findByRole('button', { name: 'Make it a full invoice' })
   fireEvent.change(screen.getByLabelText("Buyer's name"), { target: { value: 'Hamed Al Rawahi' } })

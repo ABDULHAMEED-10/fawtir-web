@@ -139,6 +139,15 @@ describe('the sale on the till', () => {
     ])
   })
 
+  it('gives a split bundle no rule: the bundle prices its parts (nothing taken off twice)', () => {
+    const split = { ...plain[0], addOns: [], bundleParts: [{}] } as SaleLine
+    const priced = applyTillRules([split], [LULL_ACTIVE_RULE], {
+      branchId: 'b-1',
+      customerId: null,
+    })
+    expect(priced[0].priceRule ?? null).toBeNull()
+  })
+
   it('keeps only the rules marked for the till', () => {
     const priced = applyTillRules(plain, [{ ...LULL_ACTIVE_RULE, atTheTill: false }], {
       branchId: 'b-1',

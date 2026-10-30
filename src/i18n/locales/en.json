@@ -20921,6 +20921,7 @@
     "saveAndUse": "Save and use"
   },
   "invoiceDraft": {
+    "size": {"label": "Size", "choose": "Choose a size"},
     "editTitle": "Edit draft",
     "meta": {
       "new": "New draft · not saved yet",

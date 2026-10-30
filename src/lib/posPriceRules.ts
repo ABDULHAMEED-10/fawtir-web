@@ -92,6 +92,13 @@ export function resetPriceRuleCache() {
 /* --------------------------------------------------------- the sale's lines */
 
 /**
+ * A bundle whose parts differ in VAT files its parts: no rule prices them, and they count toward
+ * no tier (`SaleLine.bundleParts`, set by the till's bundle split).
+ */
+const isSplitBundle = (line: SaleLine) =>
+  Boolean((line as SaleLine & { bundleParts?: unknown[] | null }).bundleParts?.length)
+
+/**
  * Each item line with the rule the till's rules give it now, or none. Add-on lines are left out
  * (no rule prices them and they never count toward a tier). A rule the server set after a
  * refusal is kept while the line and the customer are as they were.
@@ -107,7 +114,7 @@ export function applyTillRules(
     variantId: line.variant?.id ?? null,
     kindId: line.kindId ?? null,
     groupId: line.groupId ?? null,
-    role: line.bundle ? 'BUNDLE' : 'ITEM',
+    role: isSplitBundle(line) ? 'BUNDLE_PART' : line.bundle ? 'BUNDLE' : 'ITEM',
     quantity: line.qty,
     unitPrice: line.price,
     priceChangedByHand: false,
@@ -179,7 +186,8 @@ export function adoptRuleMismatch(
   if (!(error instanceof ApiError) || error.code !== 'POS_PRICE_RULE_MISMATCH') return null
   const lineNumber = Number(error.problem.line)
   const filed = invoiceLinesFor(lines)[lineNumber - 1]
-  if (!filed || filed.ref.role !== 'ITEM') return null
+  // A part of a split bundle is priced by the bundle: not a line a rule can be adopted on.
+  if (!filed || filed.ref.role !== 'ITEM' || filed.bundleId) return null
   const expected = error.problem.expectedDiscount as
     { type?: string; value?: number | string; amount?: number | string } | null | undefined
   const ruleIds = Array.isArray(error.problem.ruleIds) ? (error.problem.ruleIds as string[]) : []
