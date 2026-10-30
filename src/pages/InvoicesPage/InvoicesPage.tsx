@@ -24,6 +24,7 @@ import {
   loadInvoiceSummary,
   type InvoiceListFilter,
   type InvoiceRowDto,
+  type InvoiceSourceDto,
   type InvoiceSummaryDto,
   type InvoiceListApproval,
   type InvoiceTypeDto,
@@ -159,6 +160,16 @@ const CHANNELS: ChannelId[] = ['all', 'peppol', 'email']
 const isChannel = (value: string | null): value is ChannelId =>
   CHANNELS.includes(value as ChannelId)
 
+/** Where a document was made: a till sale or refund, or anywhere else (`InvoiceListSource`). */
+type SourceId = 'all' | 'till' | 'other'
+const SOURCES: SourceId[] = ['all', 'till', 'other']
+const isSource = (value: string | null): value is SourceId => SOURCES.includes(value as SourceId)
+const SOURCE_FILTER: Record<SourceId, InvoiceSourceDto | null> = {
+  all: null,
+  till: 'TILL',
+  other: 'OTHER',
+}
+
 const PAGE_SIZES = [6, 10, 25, 50] as const
 const DEFAULT_PAGE_SIZE = 10
 /**
@@ -220,6 +231,9 @@ function InvoicesScreen() {
     : DEFAULT_PERIOD
   const channel: ChannelId = isChannel(params.get('channel'))
     ? (params.get('channel') as ChannelId)
+    : 'all'
+  const source: SourceId = isSource(params.get('source'))
+    ? (params.get('source') as SourceId)
     : 'all'
   const sortKey: InvoiceSortKey = isInvoiceSort(params.get('sort'))
     ? (params.get('sort') as InvoiceSortKey)
@@ -291,6 +305,7 @@ function InvoicesScreen() {
                 ...(type === null ? { type: SALES_TYPES } : {}),
               }),
           channel: channelFilter,
+          source: SOURCE_FILTER[source],
         }
       : null
   const listPath = filter
@@ -447,6 +462,17 @@ function InvoicesScreen() {
     </div>
   )
 
+  const listed = list.read.status === 'ready' ? list.read.data : null
+  // The source filter is offered once the server has said where a row was made: an older server
+  // answers no `source`, and a filter it ignores would only pretend to narrow the list. Kept once
+  // seen, so a filtered page with no rows does not take the filter away; a filter already in the
+  // address stays visible so it can be cleared.
+  const [sourceAnswered, setSourceAnswered] = useState(false)
+  useEffect(() => {
+    if (listed?.items.some((item) => item.source !== undefined)) setSourceAnswered(true)
+  }, [listed])
+  const offersSource = sourceAnswered || source !== 'all'
+
   if (summary.read.status !== 'ready') {
     return (
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
@@ -568,6 +594,18 @@ function InvoicesScreen() {
                 label: t(`invoicesPage.filters.chan.${value}`),
               }))}
             />
+            {offersSource ? (
+              <FilterMenu
+                label={t('invoicesPage.filters.source')}
+                value={source}
+                defaultValue="all"
+                onChange={(value) => update({ source: value === 'all' ? null : value, page: null })}
+                options={SOURCES.map((value) => ({
+                  value,
+                  label: t(`invoicesPage.filters.src.${value}`),
+                }))}
+              />
+            ) : null}
           </div>
           <SortMenu
             value={sortKey}
@@ -1187,10 +1225,24 @@ function InvoiceRowCells({ row, branch }: { row: InvoiceListItem; branch: string
         <p className="text-sm font-semibold text-text-quaternary">
           {row.number ?? t('invoicesPage.draftNumber')}
         </p>
-        {row.type !== 'INVOICE' ? (
-          <span className="mt-0.5 inline-flex items-center rounded-sm bg-neutral-25 px-2 py-0.5 text-xs font-semibold text-text-secondary">
-            {t(`invoicesPage.docType.${row.type}`)}
-          </span>
+        {row.type !== 'INVOICE' || row.fromTill ? (
+          <div className="mt-0.5 flex flex-wrap gap-1">
+            {row.type !== 'INVOICE' ? (
+              <span className="inline-flex items-center rounded-sm bg-neutral-25 px-2 py-0.5 text-xs font-semibold text-text-secondary">
+                {t(`invoicesPage.docType.${row.type}`)}
+              </span>
+            ) : null}
+            {row.fromTill ? (
+              <span
+                title={
+                  row.tillName ? t('invoicesPage.fromTillNamed', { till: row.tillName }) : undefined
+                }
+                className="inline-flex items-center rounded-sm bg-neutral-25 px-2 py-0.5 text-xs font-semibold text-text-secondary"
+              >
+                {t('invoicesPage.fromTill')}
+              </span>
+            ) : null}
+          </div>
         ) : null}
       </td>
       <td className="px-2 py-2.5">

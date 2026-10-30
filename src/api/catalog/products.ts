@@ -58,7 +58,9 @@ export type ProductDto = {
   keepCount?: boolean
   /**
    * Sizes, options, their combinations and add-ons. Filled on the one-product answers (read,
-   * create, update, reactivate, variants); null on the list, where they are not loaded.
+   * create, update, reactivate, variants); null on the list, where they are not loaded, unless the
+   * list asks for them with `include` (backend #808, INCOME.md P.24 and P.27). A server without
+   * `include` answers null on the list, so a null array means "not read", never "none".
    */
   sizes?: ProductSize[] | null
   options?: ProductOption[] | null
@@ -78,7 +80,39 @@ export type ProductDto = {
    * branch, which only `includeUnavailable=true` returns. Absent without a branch.
    */
   availableHere?: boolean | null
+  /**
+   * `include=stock` on a branch list (the till, backend #815): the branch's stock of a counted
+   * product, so the till can flag it. Null for a product that is not counted, for a caller without
+   * `stock.read`, and absent from a server without it: the till then flags nothing.
+   */
+  stock?: ProductStockDto | null
+  /**
+   * A list read with `barcode` (the till's lookup, backend V509): the size whose own barcode is the
+   * one asked, so the till adds that size directly. Null when the product's own barcode matched;
+   * absent from a server without size barcodes.
+   */
+  matchedVariantId?: string | null
 }
+
+/** A stock state as the stock list words it (`StockRow.state`). */
+export type ProductStockState = 'OK' | 'LOW' | 'OUT' | 'BELOW_ZERO' | 'NOT_COUNTED'
+
+/** `Product.stock` (backend #815): a product without variants, or one entry per variant. */
+export type ProductStockDto = {
+  onHand: number | null
+  reorderLevel: number | null
+  /** Null for a product with variants: each variant has its own. */
+  state: ProductStockState | null
+  variants: {
+    variantId: string
+    onHand: number | null
+    reorderLevel: number | null
+    state: ProductStockState
+  }[]
+}
+
+/** What a product list may ask to be filled in on each row (`include`, backend #808 and #815). */
+export type ProductListInclude = 'variants' | 'addOns' | 'stock'
 
 export type ProductItemKind = 'HAND_OVER' | 'DO' | 'BY_TIME' | 'BUNDLE'
 
@@ -111,6 +145,21 @@ export type ProductVariant = {
   /** What it sells for, before VAT, worked out by the server. */
   price: number
   onSale: boolean
+  /**
+   * Backend #808: the Arabic line name (set by hand, else worked out from the Arabic names), and
+   * the size's and option's own Arabic names. Absent from an older server; null when none.
+   */
+  nameAr?: string | null
+  nameArSet?: boolean
+  sizeAr?: string | null
+  optionAr?: string | null
+  /**
+   * Backend #808, on a branch list (`GET /v1/products?branchId=&include=variants`) only: the
+   * price before VAT in that branch, as the till sale checks it. Null or absent elsewhere.
+   */
+  branchPrice?: number | null
+  /** Backend V509: the size's own barcode for the till. Absent from an older server; null when none. */
+  barcode?: string | null
 }
 
 export type ProductAddOn = {
@@ -166,6 +215,13 @@ export type VariantRequest = {
   code?: string | null
   price?: number | null
   onSale?: boolean
+  /**
+   * Backend #808 (V508): a hand-set Arabic line name; null or blank lets the server work it out.
+   * Sent only to keep one read with `nameArSet`, since a listed combination without it loses it.
+   */
+  nameAr?: string | null
+  /** Backend V509: the size's own barcode. Left out keeps the stored one; blank removes it. */
+  barcode?: string | null
 }
 
 export type AddOnRequest = {
@@ -213,6 +269,11 @@ export type ProductListQuery = {
   direction?: 'ASC' | 'DESC'
   size?: number
   page?: number
+  /**
+   * Rows filled in beyond the list's own (backend #808, #815). An older server leaves the word out
+   * and answers the rows as before, so every caller still copes with null arrays.
+   */
+  include?: ProductListInclude[]
 }
 
 /** The list's path, which is also the request's identity. The first page leaves `page` out. */
@@ -230,7 +291,17 @@ export function productListPath(query: ProductListQuery): string {
     direction: query.direction,
     size: query.size ?? PRODUCT_PICKER_SIZE,
     page: query.page && query.page > 0 ? query.page : undefined,
+    include: includeWords(query.include, query.branchId),
   })
+}
+
+/** `include` as sent: comma-separated, `stock` only with a branch (the server ignores it without). */
+function includeWords(
+  include: ProductListInclude[] | undefined,
+  branchId: string | null | undefined,
+): string | undefined {
+  const words = (include ?? []).filter((word) => word !== 'stock' || Boolean(branchId))
+  return words.length ? words.join(',') : undefined
 }
 
 /**
@@ -244,6 +315,7 @@ export function productSearchPath(
   size = PRODUCT_PICKER_SIZE,
   page = 0,
   branchId?: string | null,
+  include?: ProductListInclude[],
 ): string {
   return withQuery(PRODUCTS_PATH, {
     q: q.trim(),
@@ -251,6 +323,7 @@ export function productSearchPath(
     branchId,
     size,
     page: page > 0 ? page : undefined,
+    include: includeWords(include, branchId),
   })
 }
 

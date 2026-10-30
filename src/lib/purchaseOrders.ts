@@ -90,7 +90,13 @@ export type LineDraft = {
   /** The product's name as picked, shown on the pick button. */
   productName?: string
   /** The product's sizes and options; the line must name one when there are any. */
-  variants?: { id: string; name: string; price: number }[]
+  variants?: {
+    id: string
+    name: string
+    /** The Arabic line name (backend #808), listed on an Arabic screen; null or absent before it. */
+    nameAr?: string | null
+    price: number
+  }[]
   variantId?: string | null
   /** The product is counted (`keepCount`): the line then says how many units one ordered unit holds. */
   keepCount?: boolean

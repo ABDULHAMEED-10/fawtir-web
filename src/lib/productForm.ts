@@ -106,6 +106,7 @@ export function sizesFrom(product: ProductDto): Size[] {
       onSale: own?.onSale ?? true,
       price: own?.price,
       priceOverride: own?.priceOverride ?? null,
+      variantNameAr: own?.nameArSet ? (own.nameAr ?? null) : null,
       saved: true,
     }
   })
@@ -240,6 +241,8 @@ export function productRequestFrom(
         code: size.code.trim() || null,
         price: size.priceOverride ?? null,
         onSale: size.onSale,
+        // A listed combination sent without it loses a hand-set Arabic name (backend #808).
+        ...(size.variantNameAr ? { nameAr: size.variantNameAr } : {}),
       }))
     }
   }

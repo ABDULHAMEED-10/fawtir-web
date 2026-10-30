@@ -1600,7 +1600,8 @@
       "poBox": "PO Box",
       "poBoxPlaceholder": "PO Box",
       "postalCode": "Postal code",
-      "postalCodePlaceholder": "Postal code"
+      "postalCodePlaceholder": "Postal code",
+      "addressLine3Hint": "Needed, with the street, additional street, city and postal code, to issue invoices to a business or government customer."
     },
     "notes": {
       "label": "Note to customer",
@@ -2084,7 +2085,13 @@
       "docType": {
         "all": "All documents"
       },
-      "docTypeLabel": "Doc Type"
+      "docTypeLabel": "Doc Type",
+      "source": "Source",
+      "src": {
+        "all": "All sources",
+        "till": "From the till",
+        "other": "Other"
+      }
     },
     "col": {
       "invoice": "Invoice",
@@ -2190,7 +2197,9 @@
     "notIssuedYet": "Not issued yet",
     "bulkUnavailable": "Bulk upload is not available yet: the import endpoint has not been built.",
     "duplicateUnavailable": "Duplicating is not available yet: there is no route to copy a document.",
-    "nothingToApprove": "Nothing is waiting for your approval."
+    "nothingToApprove": "Nothing is waiting for your approval.",
+    "fromTill": "From the till",
+    "fromTillNamed": "From the till · {{till}}"
   },
   "invoiceDispatch": {
     "state": {
@@ -4327,7 +4336,12 @@
     "badge": {
       "sizes": "Sizes",
       "low": "Low",
-      "offSale": "Off sale"
+      "offSale": "Off sale",
+      "stock": {
+        "LOW": "Low",
+        "OUT": "Out of stock",
+        "BELOW_ZERO": "Below zero"
+      }
     },
     "group": {
       "all": "Everything",
@@ -4348,7 +4362,6 @@
       "extraHot": "extra hot"
     },
     "note": {
-      "sizesAddOns": "{{sizes}} sizes · {{addOns}} add-ons",
       "sizes": "{{sizes}} sizes",
       "singleOrDouble": "Single or double",
       "madeToOrder": "Made to order",
@@ -4358,7 +4371,11 @@
       "pastries": "Pastries",
       "equipment": "Equipment",
       "offSince": "Off since {{when}}",
-      "broughtBack": "Brought back each year"
+      "broughtBack": "Brought back each year",
+      "sizes_one": "1 size",
+      "sizes_other": "{{count}} sizes",
+      "addOns_one": "1 add-on",
+      "addOns_other": "{{count}} add-ons"
     },
     "totals": {
       "items": "Items",
@@ -4804,7 +4821,9 @@
       "contactInvalid": {
         "phone": "Type the phone number as 8 digits, or with the country code (+968 9234 5678).",
         "email": "That email address is not complete."
-      }
+      },
+      "onFile": "Matches customer on file: {{name}}",
+      "onFileWithId": "Matches customer on file: {{name}} ({{id}})"
     },
     "refusal": {
       "offline": "The till could not reach Fawtir. Check the connection and try again.",
@@ -4894,7 +4913,10 @@
     },
     "ruleApplied": "{{names}} took OMR {{amount}} off.",
     "ruleStaleAccepted": "Sale {{number}} was sent from the queue with the discount it was printed with, although the price rules now give another (line {{lines}}).",
-    "ruleStaleDismiss": "Close this note"
+    "ruleStaleDismiss": "Close this note",
+    "scan": {
+      "unknown": "No item with barcode <code>{{code}}</code>"
+    }
   },
   "orderDetail": {
     "breadcrumbParent": "Trade documents",
@@ -10741,7 +10763,7 @@
     "notAvailableYet": "Not available yet",
     "subBusinessType": "Business type",
     "subBusinessTypeHint": "Decides which catalog template Fawtir offers you",
-    "subBusinessTypeNone": "Not chosen (I don't use Fawtir POS)",
+    "subBusinessTypeNone": "Not chosen (no catalog template)",
     "subBusinessTypeRetired": "{{name}} (no longer offered)",
     "subBusinessTypePlaceholder": "Choose your business type",
     "subBusinessTypeSearch": "Search business types",
@@ -12340,7 +12362,8 @@
       "barcodes": "Barcodes and stock, if you need them"
     },
     "byHandTime": "About a minute per item",
-    "byHandCta": "Add the first item"
+    "byHandCta": "Add the first item",
+    "knownFor": "Fawtir already knows <b>what this kind of business usually sells</b>: {{groups}}, so you start from something rather than nothing."
   },
   "item": {
     "newItem": "New item",
@@ -12982,7 +13005,8 @@
       "from": "From {{supplier}}",
       "atEach": "at {{amount}} each",
       "lastPaid": "{{amount}} on {{date}}",
-      "chartNoteNoRate": "The {{count}} {{unit}} received on {{date}} have not sold yet, so there is no rate to say how long they last."
+      "chartNoteNoRate": "The {{count}} {{unit}} received on {{date}} have not sold yet, so there is no rate to say how long they last.",
+      "supplierRef": "Supplier's ref. {{reference}}"
     }
   },
   "priceRules": {
@@ -13466,7 +13490,27 @@
     "templateFailedNote": "Your template could not be loaded. Start your own catalog, or try again.",
     "chooseBusinessType": "Check your business type",
     "tryAgain": "Try again",
-    "startsExempt": "Starts as exempt:"
+    "startsExempt": "Starts as exempt:",
+    "insideGroupEmpty": "Inside the group",
+    "whatYouSellEmpty": "What you sell",
+    "choicesLine": "Sizes and options: {{list}}",
+    "addOnsLine": "Add-ons: {{list}}",
+    "progress": "Adding to your catalog: {{done}} of {{total}}",
+    "summary": "{{added}}, {{skipped}}, {{failed}}.",
+    "summaryAdded_one": "Added {{count}}",
+    "summaryAdded_other": "Added {{count}}",
+    "summarySkipped_one": "skipped {{count}} already in your catalog",
+    "summarySkipped_other": "skipped {{count}} already in your catalog",
+    "summaryFailed_one": "{{count}} failed",
+    "summaryFailed_other": "{{count}} failed",
+    "failedTitle": "These could not be added",
+    "retryFailed": "Try the failed ones again",
+    "openCatalog": "Open the catalog",
+    "restored": "Your saved ticks and prices are back.",
+    "listTitle": "What will be added",
+    "listSubtitle": "Everything ticked, by group and kind. Sizes, options and add-ons are priced on each item once added.",
+    "listClose": "Close",
+    "noPriceYet": "No price yet"
   },
   "rowsView": {
     "label": "How this list is shown",
@@ -20999,7 +21043,8 @@
       "stale": "Someone changed this draft after you opened it. Reload, then issue.",
       "notDraft": "This invoice is no longer a draft.",
       "unavailable": "Issuing isn't available on this server yet.",
-      "activityRequired": "Set your business activity in Company settings before creating a business or government invoice."
+      "activityRequired": "Set your business activity in Company settings before creating a business or government invoice.",
+      "buyerAddressIncomplete": "The customer's invoicing address is incomplete. An invoice to a business or government customer needs the street, the additional street or area, address line 3, the city and the postal code (Peppol rule IBR-019-OM). Complete the customer, then issue again."
     },
     "creditNote": {
       "title": "Issue this credit note?",
@@ -21023,7 +21068,8 @@
       "STOCK_VARIANT_UNKNOWN": "the item is counted by size or option and this line names none of them, so no stock moved.",
       "STOCK_QUANTITY_NOT_WHOLE": "the item is counted in whole pieces, so a part quantity moved no stock.",
       "STOCK_QUANTITY_INVALID": "the quantity has more than three decimals, so no stock moved."
-    }
+    },
+    "openCustomer": "Open the customer"
   },
   "supplierForm": {
     "fixFirst": "Some fields need attention before the supplier can be saved.",
@@ -22068,7 +22114,11 @@
       "dropFiles": "Drop files or click to upload",
       "dropHint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX",
       "removeFile": "Remove",
-      "pickInvoiceHint": "A note corrects an issued invoice. Choose the invoice it concerns; you can also start one from the invoice itself."
+      "pickInvoiceHint": "A note corrects an issued invoice. Choose the invoice it concerns; you can also start one from the invoice itself.",
+      "tillRefund": {
+        "question": "Giving cash back at the counter?",
+        "link": "Use the till's refund so the drawer balances."
+      }
     },
     "mode": {
       "full": "Full invoice",

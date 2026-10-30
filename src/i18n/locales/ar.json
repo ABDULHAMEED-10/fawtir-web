@@ -1669,7 +1669,8 @@
       "poBox": "صندوق البريد",
       "poBoxPlaceholder": "صندوق البريد",
       "postalCode": "الرمز البريدي",
-      "postalCodePlaceholder": "الرمز البريدي"
+      "postalCodePlaceholder": "الرمز البريدي",
+      "addressLine3Hint": "مطلوب، مع الشارع والشارع الإضافي والمدينة والرمز البريدي، لإصدار فواتير لعميل تجاري أو حكومي."
     },
     "notes": {
       "label": "ملاحظة للعميل",
@@ -2211,7 +2212,13 @@
       "docType": {
         "all": "كل المستندات"
       },
-      "docTypeLabel": "نوع المستند"
+      "docTypeLabel": "نوع المستند",
+      "source": "المصدر",
+      "src": {
+        "all": "كل المصادر",
+        "till": "من الصندوق",
+        "other": "مصادر أخرى"
+      }
     },
     "col": {
       "invoice": "الفاتورة",
@@ -2329,7 +2336,9 @@
     "notIssuedYet": "لم تُصدر بعد",
     "bulkUnavailable": "الرفع الجماعي غير متاح بعد: لم تُبنَ واجهة الاستيراد.",
     "duplicateUnavailable": "النسخ غير متاح بعد: لا يوجد مسار لنسخ مستند.",
-    "nothingToApprove": "لا شيء بانتظار اعتمادك."
+    "nothingToApprove": "لا شيء بانتظار اعتمادك.",
+    "fromTill": "من الصندوق",
+    "fromTillNamed": "من الصندوق · {{till}}"
   },
   "invoiceDispatch": {
     "state": {
@@ -4540,7 +4549,12 @@
     "badge": {
       "sizes": "مقاسات",
       "low": "قليل",
-      "offSale": "موقوف"
+      "offSale": "موقوف",
+      "stock": {
+        "LOW": "قليل",
+        "OUT": "نفد المخزون",
+        "BELOW_ZERO": "تحت الصفر"
+      }
     },
     "group": {
       "all": "كل شيء",
@@ -4561,7 +4575,6 @@
       "extraHot": "ساخن جدًا"
     },
     "note": {
-      "sizesAddOns": "{{sizes}} مقاسات · {{addOns}} إضافات",
       "sizes": "{{sizes}} مقاسات",
       "singleOrDouble": "مفرد أو مزدوج",
       "madeToOrder": "يُحضّر عند الطلب",
@@ -4571,7 +4584,19 @@
       "pastries": "معجنات",
       "equipment": "معدات",
       "offSince": "موقوف منذ {{when}}",
-      "broughtBack": "يعود كل عام"
+      "broughtBack": "يعود كل عام",
+      "sizes_zero": "لا مقاسات",
+      "sizes_one": "مقاس واحد",
+      "sizes_two": "مقاسان",
+      "sizes_few": "{{count}} مقاسات",
+      "sizes_many": "{{count}} مقاسًا",
+      "sizes_other": "{{count}} مقاس",
+      "addOns_zero": "لا إضافات",
+      "addOns_one": "إضافة واحدة",
+      "addOns_two": "إضافتان",
+      "addOns_few": "{{count}} إضافات",
+      "addOns_many": "{{count}} إضافةً",
+      "addOns_other": "{{count}} إضافة"
     },
     "totals": {
       "items": "الأصناف",
@@ -5049,7 +5074,9 @@
       "contactInvalid": {
         "phone": "اكتب رقم الهاتف من 8 أرقام، أو مع رمز الدولة (‎+968 9234 5678).",
         "email": "عنوان البريد الإلكتروني غير مكتمل."
-      }
+      },
+      "onFile": "يطابق عميلًا مسجّلًا: {{name}}",
+      "onFileWithId": "يطابق عميلًا مسجّلًا: {{name}} ({{id}})"
     },
     "refusal": {
       "offline": "تعذّر على الصندوق الوصول إلى فوترة. تحقق من الاتصال وحاول مرة أخرى.",
@@ -5139,7 +5166,10 @@
     },
     "ruleApplied": "خصمت {{names}} مبلغ OMR {{amount}}.",
     "ruleStaleAccepted": "أُرسل البيع {{number}} من قائمة الانتظار بالخصم الذي طُبع به، مع أن قواعد الأسعار تعطي الآن خصمًا آخر (البند {{lines}}).",
-    "ruleStaleDismiss": "إغلاق هذه الملاحظة"
+    "ruleStaleDismiss": "إغلاق هذه الملاحظة",
+    "scan": {
+      "unknown": "لا يوجد صنف بالباركود <code>{{code}}</code>"
+    }
   },
   "orderDetail": {
     "breadcrumbParent": "المستندات التجارية",
@@ -11352,7 +11382,7 @@
     "notAvailableYet": "غير متاح بعد",
     "subBusinessType": "نوع النشاط",
     "subBusinessTypeHint": "يحدد قالب الكتالوج الذي يقترحه فوتر عليك",
-    "subBusinessTypeNone": "غير محدد (لا أستخدم نقاط البيع من فوتر)",
+    "subBusinessTypeNone": "غير محدد (بلا قالب كتالوج)",
     "subBusinessTypeRetired": "{{name}} (لم يعد متاحًا)",
     "subBusinessTypePlaceholder": "اختر نوع نشاطك",
     "subBusinessTypeSearch": "ابحث في أنواع الأنشطة",
@@ -13063,7 +13093,8 @@
       "barcodes": "باركود ومخزون، إن احتجتهما"
     },
     "byHandTime": "نحو دقيقة لكل صنف",
-    "byHandCta": "أضف أول صنف"
+    "byHandCta": "أضف أول صنف",
+    "knownFor": "يعرف فوتير مسبقًا <b>ما يبيعه هذا النوع من الأعمال عادةً</b>: {{groups}}، فتبدأ من شيء بدلًا من لا شيء."
   },
   "item": {
     "newItem": "صنف جديد",
@@ -13713,7 +13744,8 @@
       "from": "من {{supplier}}",
       "atEach": "بسعر {{amount}} للوحدة",
       "lastPaid": "{{amount}} في {{date}}",
-      "chartNoteNoRate": "الكمية {{count}} {{unit}} المستلمة في {{date}} لم يُبع منها شيء بعد، فلا يوجد معدل لمعرفة كم تكفي."
+      "chartNoteNoRate": "الكمية {{count}} {{unit}} المستلمة في {{date}} لم يُبع منها شيء بعد، فلا يوجد معدل لمعرفة كم تكفي.",
+      "supplierRef": "مرجع المورد {{reference}}"
     }
   },
   "priceRules": {
@@ -14217,7 +14249,39 @@
     "templateFailedNote": "تعذّر تحميل قالبك. ابدأ كتالوجك الخاص، أو حاول مرة أخرى.",
     "chooseBusinessType": "تحقّق من نوع نشاطك",
     "tryAgain": "حاول مرة أخرى",
-    "startsExempt": "يبدأ معفى:"
+    "startsExempt": "يبدأ معفى:",
+    "insideGroupEmpty": "داخل المجموعة",
+    "whatYouSellEmpty": "ما تبيعه",
+    "choicesLine": "الأحجام والخيارات: {{list}}",
+    "addOnsLine": "الإضافات: {{list}}",
+    "progress": "جارٍ الإضافة إلى كتالوجك: {{done}} من {{total}}",
+    "summary": "{{added}}، {{skipped}}، {{failed}}.",
+    "summaryAdded_zero": "لم يُضف شيء",
+    "summaryAdded_one": "أُضيف صنف واحد",
+    "summaryAdded_two": "أُضيف صنفان",
+    "summaryAdded_few": "أُضيفت {{count}} أصناف",
+    "summaryAdded_many": "أُضيف {{count}} صنفًا",
+    "summaryAdded_other": "أُضيف {{count}} صنف",
+    "summarySkipped_zero": "لم يُتخطَّ شيء",
+    "summarySkipped_one": "تُخطّي صنف واحد موجود في كتالوجك",
+    "summarySkipped_two": "تُخطّي صنفان موجودان في كتالوجك",
+    "summarySkipped_few": "تُخطّيت {{count}} أصناف موجودة في كتالوجك",
+    "summarySkipped_many": "تُخطّي {{count}} صنفًا موجودًا في كتالوجك",
+    "summarySkipped_other": "تُخطّي {{count}} صنف موجود في كتالوجك",
+    "summaryFailed_zero": "لم يفشل شيء",
+    "summaryFailed_one": "فشل صنف واحد",
+    "summaryFailed_two": "فشل صنفان",
+    "summaryFailed_few": "فشلت {{count}} أصناف",
+    "summaryFailed_many": "فشل {{count}} صنفًا",
+    "summaryFailed_other": "فشل {{count}} صنف",
+    "failedTitle": "تعذّرت إضافة هذه",
+    "retryFailed": "أعد محاولة ما فشل",
+    "openCatalog": "افتح الكتالوج",
+    "restored": "عادت اختياراتك وأسعارك المحفوظة.",
+    "listTitle": "ما ستتم إضافته",
+    "listSubtitle": "كل ما حدّدته، حسب المجموعة والنوع. تُسعَّر الأحجام والخيارات والإضافات في كل صنف بعد إضافته.",
+    "listClose": "إغلاق",
+    "noPriceYet": "بلا سعر بعد"
   },
   "rowsView": {
     "label": "طريقة عرض القائمة",
@@ -22171,7 +22235,8 @@
       "stale": "عدّل شخص آخر هذه المسودة بعد أن فتحتها. أعد التحميل ثم أصدرها.",
       "notDraft": "لم تعد هذه الفاتورة مسودة.",
       "unavailable": "الإصدار غير متاح على هذا الخادم بعد.",
-      "activityRequired": "حدِّد النشاط التجاري في إعدادات الشركة قبل إنشاء فاتورة لشركة أو لجهة حكومية."
+      "activityRequired": "حدِّد النشاط التجاري في إعدادات الشركة قبل إنشاء فاتورة لشركة أو لجهة حكومية.",
+      "buyerAddressIncomplete": "عنوان الفوترة للعميل غير مكتمل. تحتاج فاتورة العميل التجاري أو الحكومي إلى الشارع، والشارع الإضافي أو المنطقة، وسطر العنوان الثالث، والمدينة، والرمز البريدي (قاعدة Peppol رقم IBR-019-OM). أكمل بيانات العميل، ثم أصدر الفاتورة مرة أخرى."
     },
     "creditNote": {
       "title": "إصدار هذا الإشعار الدائن؟",
@@ -22195,7 +22260,8 @@
       "STOCK_VARIANT_UNKNOWN": "يُعدّ الصنف حسب المقاس أو الخيار ولا يذكر هذا السطر أيًّا منها، لذا لم يتغير المخزون.",
       "STOCK_QUANTITY_NOT_WHOLE": "يُعدّ الصنف بالقطع الكاملة، لذا لم تُغيّر الكمية الجزئية المخزون.",
       "STOCK_QUANTITY_INVALID": "في الكمية أكثر من ثلاث خانات عشرية، لذا لم يتغير المخزون."
-    }
+    },
+    "openCustomer": "افتح العميل"
   },
   "supplierForm": {
     "fixFirst": "بعض الحقول تحتاج إلى تصحيح قبل حفظ المورّد.",
@@ -23276,7 +23342,11 @@
       "dropFiles": "أفلت الملفات أو انقر للرفع",
       "dropHint": "أوامر شراء، إشعارات تسليم، عقود · PDF, JPG, XLSX",
       "removeFile": "إزالة",
-      "pickInvoiceHint": "يصحّح الإشعار فاتورة صادرة. اختر الفاتورة المعنية، ويمكنك أيضًا بدء الإشعار من الفاتورة نفسها."
+      "pickInvoiceHint": "يصحّح الإشعار فاتورة صادرة. اختر الفاتورة المعنية، ويمكنك أيضًا بدء الإشعار من الفاتورة نفسها.",
+      "tillRefund": {
+        "question": "هل تعيد النقد عند الكاونتر؟",
+        "link": "استخدم استرداد الصندوق ليتوازن الدرج."
+      }
     },
     "mode": {
       "full": "الفاتورة كاملة",

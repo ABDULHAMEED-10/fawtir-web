@@ -147,6 +147,11 @@ export type DraftResponse = {
     classification?: LineClassificationDto | null
     /** A credit note's "Back on the shelf?" answer; null when not answered and on other types. */
     backOnShelf?: boolean | null
+    /**
+     * Backend #808 (INCOME.md P.23): the line's product's `keepCount`, read from the catalogue now.
+     * Null when the line names no product or it is not found; absent from an older server.
+     */
+    keepCount?: boolean | null
   }[]
   /** Zero-rating warnings per line (INCOME.md Z.11, Z.13): never blocking; absent before the API. */
   warnings?: InvoiceLineZeroRatingWarning[] | null

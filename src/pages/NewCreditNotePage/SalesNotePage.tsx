@@ -528,6 +528,17 @@ function NoteEditor({
       ? '—'
       : formatAmount(value, invoice.currency, i18n.language)
   const invoiceNumber = invoice.invoiceNumber ?? invoice.id
+  // An ordinary credit note against a till sale's invoice: never refused, only pointed at the
+  // till's refund (`/pos/refund?invoice=`), linked for whoever may refund at the till.
+  const tillRefundHint =
+    credit && !selfBilled && invoice.source === 'TILL'
+      ? {
+          to:
+            invoice.invoiceNumber && can(session, 'pos.refund')
+              ? `/pos/refund?invoice=${encodeURIComponent(invoice.invoiceNumber)}`
+              : null,
+        }
+      : null
   const customerName = customer?.displayName ?? t('salesNote.compose.customerUnknown')
   // The server takes a self-billed credit note only against an issued self-billed invoice, and an
   // ordinary note only against an issued ordinary one (CORRECTED_INVOICE_NOT_ISSUED otherwise).
@@ -547,9 +558,7 @@ function NoteEditor({
   const lines = visibleLines(form)
   // "Back on the shelf?" (V473): asked only on an ordinary credit note, for the lines whose
   // product the catalogue counts. Self-billed notes and debit notes never ask.
-  const counted = useCountedProducts(
-    credit && !selfBilled ? invoice.lines.map((line) => line.productId) : [],
-  )
+  const counted = useCountedProducts(credit && !selfBilled ? invoice.lines : [])
   const asksShelf = (line: NoteLine) => asksBackOnShelf(line, kind, counted, selfBilled)
 
   const setLine = (lineNumber: number, patch: Partial<NoteLine>) =>
@@ -813,6 +822,24 @@ function NoteEditor({
                 )}
               </div>
             </div>
+            {/* A till sale's invoice: a credit note from here is allowed (Abdul), but cash handed
+                back at the counter belongs to the till's refund, or the drawer will not balance.
+                An older server sends no `source`, and no hint is drawn. */}
+            {tillRefundHint ? (
+              <p className="mt-3 text-sm font-medium text-text-tertiary">
+                {t('salesNote.compose.tillRefund.question')}{' '}
+                {tillRefundHint.to ? (
+                  <Link
+                    to={tillRefundHint.to}
+                    className="font-semibold text-primary-700 hover:underline"
+                  >
+                    {t('salesNote.compose.tillRefund.link')}
+                  </Link>
+                ) : (
+                  t('salesNote.compose.tillRefund.link')
+                )}
+              </p>
+            ) : null}
           </SectionCard>
 
           {/* What to credit / charge */}
@@ -1303,13 +1330,35 @@ type KeyedAttempt = { key: string; refused: boolean }
  * same key otherwise, so a retry after a timeout, a network error or a 5xx is a replay.
  */
 /**
- * The ids among `productIds` whose product keeps a count (`keepCount`), read one by one from
- * `GET /v1/products/{id}`. A product that cannot be read (removed, no access) is taken as not
- * counted, so its line asks nothing and sends nothing.
+ * The ids among the lines' products that keep a count (`keepCount`). Each invoice line says so
+ * itself since backend #808 (INCOME.md P.25, not deployed yet): true is counted, false or null
+ * (no product, or not found) is not, and nothing is read. Only a line from an older server, which
+ * leaves `keepCount` out, is read one by one from `GET /v1/products/{id}`; a product that cannot
+ * be read (removed, no access) is taken as not counted, so its line asks nothing and sends nothing.
  */
-function useCountedProducts(productIds: (string | null | undefined)[]): ReadonlySet<string> {
-  const ids = [...new Set(productIds.filter((id): id is string => Boolean(id)))].sort()
+function useCountedProducts(
+  lines: readonly { productId: string | null; keepCount?: boolean | null }[],
+): ReadonlySet<string> {
+  const told = new Set(
+    lines
+      .filter((line) => line.productId && line.keepCount === true)
+      .map((l) => l.productId as string),
+  )
+  const unknown = lines
+    .filter((line) => line.productId && line.keepCount === undefined)
+    .map((line) => line.productId as string)
+  const ids = [...new Set(unknown)].filter((id) => !told.has(id)).sort()
   const key = ids.join(',')
+  const read = useReadCountedProducts(key)
+  const toldKey = [...told].sort().join(',')
+  return useMemo(
+    () => (toldKey === '' ? read : new Set([...toldKey.split(','), ...read])),
+    [toldKey, read],
+  )
+}
+
+/** The products of `key` (comma-separated ids) read one by one, the counted ones kept. */
+function useReadCountedProducts(key: string): ReadonlySet<string> {
   const [counted, setCounted] = useState<{ key: string; ids: ReadonlySet<string> }>({
     key: '',
     ids: new Set(),

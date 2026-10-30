@@ -257,6 +257,11 @@ export type SuggestedSize = {
   /** The Oman VAT category it starts on, and the VATZR-OM / VATEX-OM reason when Z or E. */
   taxCode?: string
   reasonCode?: string
+  /** A service (CL-07-OM `S`): its units are the service list. */
+  service?: boolean
+  /** From a template: its sizes and options, and its add-ons, in the reader's language. */
+  choices?: string[]
+  addOns?: string[]
   picked: boolean
 }
 
