@@ -4904,6 +4904,9 @@
       "cardDiffers": "Card machine differs by {{amount}}",
       "late_one": "{{count}} sale made offline arrived after its shift closed. Sales filed past a restriction: {{restricted}}.",
       "late_other": "{{count}} sales made offline arrived after their shift closed. Sales filed past a restriction: {{restricted}}."
+    },
+    "scan": {
+      "unknown": "No item with barcode <code>{{code}}</code>"
     }
   },
   "orderDetail": {

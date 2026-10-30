@@ -86,6 +86,12 @@ export type ProductDto = {
    * `stock.read`, and absent from a server without it: the till then flags nothing.
    */
   stock?: ProductStockDto | null
+  /**
+   * A list read with `barcode` (the till's lookup, backend V509): the size whose own barcode is the
+   * one asked, so the till adds that size directly. Null when the product's own barcode matched;
+   * absent from a server without size barcodes.
+   */
+  matchedVariantId?: string | null
 }
 
 /** A stock state as the stock list words it (`StockRow.state`). */
@@ -152,6 +158,8 @@ export type ProductVariant = {
    * price before VAT in that branch, as the till sale checks it. Null or absent elsewhere.
    */
   branchPrice?: number | null
+  /** Backend V509: the size's own barcode for the till. Absent from an older server; null when none. */
+  barcode?: string | null
 }
 
 export type ProductAddOn = {
@@ -212,6 +220,8 @@ export type VariantRequest = {
    * Sent only to keep one read with `nameArSet`, since a listed combination without it loses it.
    */
   nameAr?: string | null
+  /** Backend V509: the size's own barcode. Left out keeps the stored one; blank removes it. */
+  barcode?: string | null
 }
 
 export type AddOnRequest = {
