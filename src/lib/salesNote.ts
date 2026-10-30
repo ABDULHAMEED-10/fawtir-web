@@ -851,8 +851,8 @@ const amountIn = (problem: Readonly<Record<string, unknown>>, name: string): num
 
 /**
  * The sentence for a cap refusal, or null for any other error. `values` are ready to print: the
- * amounts as "OMR 12.000" (the page draws the rial sign in their place), `category` the word the
- * invoice page uses for the EN 16931 category. Without the figures the plain sentence is said.
+ * amounts as "OMR 12.000" (the page draws the rial sign in their place), `category` the cap
+ * sentences' phrase for the EN 16931 category. Without the figures the plain sentence is said.
  */
 export function creditCapRefusal(
   error: unknown,
@@ -867,7 +867,9 @@ export function creditCapRefusal(
   const categoryCode = textIn(problem, 'taxCategory')
   if (categoryCode === null || error.code === 'CREDIT_NOTE_EXCEEDS_LINE_REMAINING') return { key: plain }
   const rate = textIn(problem, 'taxRate')
-  const category = t(`invoiceDetails.category.${categoryCode}`, { defaultValue: categoryCode })
+  // The cap sentences' own words for the category ("the Zero-rated category"): the invoice page's
+  // label read "At Exempt" in English and doubled "بنسبة" in Arabic for Z.
+  const category = t(`salesNote.refused.capCategory.${categoryCode}`, { defaultValue: categoryCode })
   // E and O carry no rate (IBR-061-OM, IBR-067-OM): their sentences name the category alone.
   const suffix = rate === null ? 'NamedNoRate' : 'Named'
   const where: Record<string, string> = rate === null ? { category } : { category, rate }

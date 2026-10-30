@@ -2039,7 +2039,7 @@ describe('the cumulative credit caps, as the server refuses them (DA-1 option B)
       remainingVatAmount: '0.625',
     })
     await issueAFullCredit()
-    const shown = await screen.findByText(/^At Standard 5%, only/)
+    const shown = await screen.findByText(/^Only .* left to credit in the Standard category/)
     expect(shown.textContent).toContain('12.500')
     expect(shown.textContent).toContain('0.625')
     expect(shown.querySelectorAll('svg').length).toBe(2)
@@ -2051,11 +2051,11 @@ describe('the cumulative credit caps, as the server refuses them (DA-1 option B)
   it.each([
     [
       'en',
-      'At Standard 5%, only OMR 12.500 before VAT and OMR 0.625 VAT are left to credit after the earlier credit notes. Lower the amounts at that rate, then issue again.',
+      'Only OMR 12.500 before VAT and OMR 0.625 VAT are left to credit in the Standard category (5%) after the earlier credit notes. Lower the amounts there, then issue again.',
     ],
     [
       'ar',
-      'بفئة قياسية بنسبة 5% لم يتبقَّ للخصم بعد الإشعارات الدائنة السابقة سوى OMR 12.500 قبل الضريبة وOMR 0.625 ضريبة. خفّض المبالغ بهذه النسبة، ثم أصدره مرة أخرى.',
+      'لم يتبقَّ للخصم في الفئة القياسية (5%) بعد الإشعارات الدائنة السابقة سوى OMR 12.500 قبل الضريبة وOMR 0.625 ضريبة. خفّض المبالغ فيها، ثم أصدره مرة أخرى.',
     ],
   ])('words what is left at a rate from the server’s own properties (%s)', (language, text) => {
     const t = i18n.getFixedT(language)
@@ -2078,25 +2078,25 @@ describe('the cumulative credit caps, as the server refuses them (DA-1 option B)
       'en',
       'S',
       '5',
-      "Neither the invoice nor its debit notes charged anything at Standard 5%, so this note cannot credit at that rate. Use one of the invoice's rates.",
+      "Neither the invoice nor its debit notes charged anything in the Standard category (5%), so this note cannot credit there. Use one of the invoice's rates.",
     ],
     [
       'ar',
       'S',
       '5',
-      'لم تفرض الفاتورة ولا إشعاراتها المدينة شيئًا بفئة قياسية بنسبة 5%، فلا يمكن لهذا الإشعار الخصم بهذه النسبة. استخدم إحدى نسب الفاتورة.',
+      'لم تفرض الفاتورة ولا إشعاراتها المدينة شيئًا في الفئة القياسية (5%)، فلا يمكن لهذا الإشعار الخصم فيها. استخدم إحدى نسب الفاتورة.',
     ],
     [
       'en',
       'E',
       null,
-      "Neither the invoice nor its debit notes charged anything as Exempt, so this note cannot credit there. Use one of the invoice's categories.",
+      "Neither the invoice nor its debit notes charged anything in the Exempt category, so this note cannot credit there. Use one of the invoice's categories.",
     ],
     [
       'ar',
       'E',
       null,
-      'لم تفرض الفاتورة ولا إشعاراتها المدينة شيئًا بفئة معفاة، فلا يمكن لهذا الإشعار الخصم فيها. استخدم إحدى فئات الفاتورة.',
+      'لم تفرض الفاتورة ولا إشعاراتها المدينة شيئًا في الفئة المعفاة، فلا يمكن لهذا الإشعار الخصم فيها. استخدم إحدى فئات الفاتورة.',
     ],
   ])('names a category the invoice never charged (%s %s)', (language, taxCategory, taxRate, text) => {
     const t = i18n.getFixedT(language)
@@ -2120,5 +2120,30 @@ describe('the caps on the issue dialog path (DA-1 option B)', () => {
       field: null,
       key,
     })
+  })
+})
+
+describe('the cap sentences name each category without repeating a word (DA-1 review)', () => {
+  it.each([
+    ['en', 'Z', '0', 'Only OMR 1.000 before VAT and OMR 0.000 VAT are left to credit in the Zero-rated category (0%) after the earlier credit notes. Lower the amounts there, then issue again.'],
+    ['ar', 'Z', '0', 'لم يتبقَّ للخصم في الفئة الخاضعة للنسبة الصفرية (0%) بعد الإشعارات الدائنة السابقة سوى OMR 1.000 قبل الضريبة وOMR 0.000 ضريبة. خفّض المبالغ فيها، ثم أصدره مرة أخرى.'],
+    ['en', 'O', null, 'Only OMR 1.000 before VAT and OMR 0.000 VAT are left to credit in the Out of scope category after the earlier credit notes. Lower the amounts there, then issue again.'],
+    ['ar', 'O', null, 'لم يتبقَّ للخصم في فئة خارج النطاق بعد الإشعارات الدائنة السابقة سوى OMR 1.000 قبل الضريبة وOMR 0.000 ضريبة. خفّض المبالغ فيها، ثم أصدره مرة أخرى.'],
+  ])('%s %s', (language, taxCategory, taxRate, text) => {
+    const t = i18n.getFixedT(language)
+    const refusal = creditCapRefusal(
+      new ApiError({
+        status: 409,
+        problemType: 'resource-conflict',
+        code: 'CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING',
+        problem: { taxCategory, taxRate, remainingTaxableAmount: '1', remainingVatAmount: '0' },
+      }),
+      t,
+      'OMR',
+      'en',
+    )!
+    const sentence = t(refusal.key, refusal.values)
+    expect(sentence).toBe(text)
+    expect(sentence).not.toMatch(/بنسبة.*بنسبة|At Exempt|as Out of scope/)
   })
 })

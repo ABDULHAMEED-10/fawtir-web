@@ -663,8 +663,8 @@ describe('closing the till (F-13)', () => {
 
 describe('a till refund the credit cap refuses (DA-1 option B)', () => {
   it.each([
-    ['en', /^At Standard 5%, only/],
-    ['ar', /^بفئة قياسية بنسبة 5%/],
+    ['en', /^Only .* left to credit in the Standard category/],
+    ['ar', /^لم يتبقَّ للخصم في الفئة القياسية/],
   ])('names the rate and what is left in the till’s refusal line (%s)', async (language, start) => {
     await i18n.changeLanguage(language)
     answer = (url, init) => {
