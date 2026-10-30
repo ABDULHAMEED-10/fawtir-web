@@ -8,13 +8,14 @@ import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitl
 import type { ProductDto } from '../../api/catalog/products'
 import {
   lineFromProduct,
+  lineHasNoPrice,
   newProductFrom,
   suggestProductCode,
   taxCategoryOf,
 } from '../../lib/productLine'
 import { SessionContext } from '../../lib/session/session'
 import { ProductPicker } from './ProductPicker'
-import { CreateInvoicePage } from '../../pages/CreateInvoicePage'
+import { CreateInvoicePage, SelfBilledComposerPage } from '../../pages/CreateInvoicePage'
 
 function product(overrides: Partial<ProductDto> = {}): ProductDto {
   return {
@@ -213,6 +214,68 @@ describe('the invoice line a product starts', () => {
     expect(
       (screen.getAllByRole('textbox', { name: 'Price excl.' })[0] as HTMLInputElement).value,
     ).toBe('1.600')
+  })
+})
+
+describe('a line with no price yet', () => {
+  const NO_PRICE = 'This item has no price yet'
+  const price = () => screen.getAllByRole('textbox', { name: 'Price excl.' })[0] as HTMLInputElement
+
+  const pickFree = async (page = <CreateInvoicePage />) => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/me/entitlements') return json(200, ADMIN)
+      if (url.startsWith('/api/v1/products')) {
+        return json(200, springPage([product({ defaultUnitPrice: 0 })]))
+      }
+      throw new Error(`unexpected request to ${url}`)
+    })
+    render(
+      <ReferenceDataContext.Provider value={SEEDED_REFERENCE}>
+        <MemoryRouter initialEntries={['/invoices/new']}>
+          <Routes>
+            <Route path="/invoices/new" element={page} />
+          </Routes>
+        </MemoryRouter>
+      </ReferenceDataContext.Provider>,
+    )
+    const [first] = await screen.findAllByRole('button', { name: /Pick from catalogue/ })
+    expect(screen.queryByText(NO_PRICE)).toBeNull()
+    fireEvent.click(first)
+    fireEvent.click(await screen.findByRole('option', { name: /Flat White/ }))
+    await waitFor(() => expect(price().value).toBe('0.000'))
+  }
+
+  it('warns on a 0.000 product, and the warning clears when a price is typed', async () => {
+    await pickFree()
+    expect(screen.getByText(NO_PRICE)).toBeTruthy()
+    fireEvent.change(price(), { target: { value: '1.500' } })
+    expect(screen.queryByText(NO_PRICE)).toBeNull()
+    fireEvent.change(price(), { target: { value: '0' } })
+    expect(screen.getByText(NO_PRICE)).toBeTruthy()
+  })
+
+  it('does not stop the draft being saved', async () => {
+    await pickFree()
+    const save = screen.getByRole('button', { name: 'Save draft' }) as HTMLButtonElement
+    expect(save.disabled).toBe(false)
+  })
+
+  it("stays off a self-billed document, whose price is the supplier's", async () => {
+    await pickFree(<SelfBilledComposerPage />)
+    expect(screen.queryByText(NO_PRICE)).toBeNull()
+  })
+
+  it('says it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    expect(i18n.t('invoiceDraft.lineNoPrice')).toBe('لا يوجد سعر لهذا الصنف بعد')
+  })
+
+  it('reads the price, not what is left after a discount, and needs a product', () => {
+    expect(lineHasNoPrice({ productId: 'p', unitPrice: '0.000' })).toBe(true)
+    expect(lineHasNoPrice({ productId: 'p', unitPrice: '' })).toBe(true)
+    expect(lineHasNoPrice({ productId: 'p', unitPrice: '1.500' })).toBe(false)
+    expect(lineHasNoPrice({ productId: null, unitPrice: '0.000' })).toBe(false)
+    expect(lineHasNoPrice({ productId: 'p', unitPrice: '0.001' })).toBe(false)
   })
 })
 

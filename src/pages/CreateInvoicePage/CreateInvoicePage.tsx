@@ -85,7 +85,7 @@ import {
   type ItemType,
 } from '../../lib/invoiceDraft'
 import { blankCustomerForm, customerProblems, toCustomerRequest } from '../../lib/customerForm'
-import { lineFromProduct, taxCategoryOf } from '../../lib/productLine'
+import { lineFromProduct, lineHasNoPrice, taxCategoryOf } from '../../lib/productLine'
 import { isStockLineWarning, unitLockHint } from '../../lib/stockLineWarnings'
 import type { InvoiceLineWarningDto } from '../../api/invoices/detail'
 import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
@@ -2132,6 +2132,15 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                           )}
                         </div>
                       </div>
+                    ) : null}
+                    {/* A self-billed price is the supplier's, not the catalogue's: no 0.000 to warn of. */}
+                    {!selfBilled && lineHasNoPrice(row) ? (
+                      <p
+                        className="ps-1 text-xs font-medium leading-[1.3] text-warning-700"
+                        data-testid={`line-${index + 1}-no-price`}
+                      >
+                        {t('invoiceDraft.lineNoPrice')}
+                      </p>
                     ) : null}
                     {messages.length > 0 ? (
                       <div
