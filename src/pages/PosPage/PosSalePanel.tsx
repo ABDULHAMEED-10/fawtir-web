@@ -6,10 +6,10 @@ import { Rial } from '../../components/ui'
 import { PosFootNote } from './PosFootNote'
 import {
   LULL,
-  bundlePartNames,
   lullApplies,
   omr,
   omrSigned,
+  saleLineDetail,
   tillTime,
   totalsFor,
   unitPrice,
@@ -152,6 +152,7 @@ export function PosSalePanel({
       <ul className="flex flex-col px-5 pt-4">
         {lines.map((line) => {
           const addOns = line.addOns
+          const detail = saleLineDetail(line, t)
           return (
             <li key={line.id} className="flex items-start gap-3 py-3">
               <div className="flex shrink-0 items-center gap-1 rounded-sm border border-border-subtle">
@@ -177,19 +178,17 @@ export function PosSalePanel({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-base font-medium leading-[1.2] text-text-primary">{line.name}</p>
-                <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
-                  {bundlePartNames(line)
-                    ? t('pos.bundle.parts', { parts: bundlePartNames(line) })
-                    : line.variant
-                      ? line.variant.label
-                      : t('pos.oneSizeOnly')}
-                  {addOns.length ? (
-                    <span className="text-primary-700">
-                      {' · '}
-                      {addOns.map((a) => `+ ${a.label}`).join(', ')}
-                    </span>
-                  ) : null}
-                </p>
+                {detail || addOns.length ? (
+                  <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
+                    {detail}
+                    {addOns.length ? (
+                      <span className="text-primary-700">
+                        {detail ? ' · ' : ''}
+                        {addOns.map((a) => `+ ${a.label}`).join(', ')}
+                      </span>
+                    ) : null}
+                  </p>
+                ) : null}
               </div>
               <div className="shrink-0 text-end">
                 <p className="text-base font-semibold text-text-primary">

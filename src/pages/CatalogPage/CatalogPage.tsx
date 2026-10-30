@@ -140,6 +140,12 @@ export function CatalogPage() {
   const onSaleCount = useApiRead<Page<ProductDto>>(onSaleCountPath, () =>
     searchProducts(onSaleCountPath!),
   )
+  const switchedOffCountPath = branchId
+    ? productListPath({ q: search, branchId, availability: 'SWITCHED_OFF', size: 1 })
+    : null
+  const switchedOffCount = useApiRead<Page<ProductDto>>(switchedOffCountPath, () =>
+    searchProducts(switchedOffCountPath!),
+  )
   const neverSoldCountPath = branchId
     ? productListPath({
         q: search,
@@ -208,17 +214,6 @@ export function CatalogPage() {
     () => catalogRows(items, tab, sort, i18n.language, flagged),
     [items, tab, sort, i18n.language, flagged],
   )
-  // The tabs other than Archived count the page of products: Switched off those greyed in the
-  // working branch, the others only what is on sale there.
-  const tabCount = (id: CatalogTab) =>
-    id === 'archived'
-      ? archivedTotal
-      : id === 'onSale'
-        ? serverCount(onSaleCount)
-        : id === 'neverSold'
-          ? serverCount(neverSoldCount)
-          : activeItems.filter((product) => matchesCatalogTab(product, id, flagged)).length +
-            (id === 'attention' ? flaggedElsewhere.length : 0)
   // The cards count only what is on sale in the working branch, from the unfiltered list, so they
   // stay the same whichever tab is open.
   const activeLoaded = active.read.status === 'ready' ? active.read.data : null
@@ -226,6 +221,28 @@ export function CatalogPage() {
   const kpiPaged = activeLoaded ? pageCountOf(activeLoaded) > 1 : false
   const onSale = activeItems.filter(onSaleHere)
   const switchedOff = activeItems.length - onSale.length
+  // What is on sale here, over every page: the server's count with a working branch. Without one,
+  // or until it answers, the list's total less the greyed rows on the page in view.
+  const onSaleTotal =
+    onSaleCount.read.status === 'ready'
+      ? serverCount(onSaleCount)
+      : Math.max(0, (activeTotal ?? 0) - switchedOff)
+  // Everything, On sale, Never sold, Switched off and Archived are counted by the server, each
+  // read once however often the tab changes. Goods, Services and the like have no server filter,
+  // so they count the page of products, only what is on sale there.
+  const tabCount = (id: CatalogTab) =>
+    id === 'archived'
+      ? archivedTotal
+      : id === 'all'
+        ? onSaleTotal
+        : id === 'onSale'
+          ? serverCount(onSaleCount)
+          : id === 'neverSold'
+            ? serverCount(neverSoldCount)
+            : id === 'switchedOff' && switchedOffCount.read.status === 'ready'
+              ? serverCount(switchedOffCount)
+              : activeItems.filter((product) => matchesCatalogTab(product, id, flagged)).length +
+                (id === 'attention' ? flaggedElsewhere.length : 0)
   const services = onSale.filter((product) => kindOf(product) === 'service').length
   const attention =
     onSale.filter((product) => needsAttention(product, flagged)).length +
@@ -249,6 +266,7 @@ export function CatalogPage() {
       active.retry()
       if (filteredPath) filtered.retry()
       if (onSaleCountPath) onSaleCount.retry()
+      if (switchedOffCountPath) switchedOffCount.retry()
       if (neverSoldCountPath) neverSoldCount.retry()
     } catch (error) {
       const refusal = productRefusal(error)
@@ -334,8 +352,7 @@ export function CatalogPage() {
           <Kpi
             icon={kpiItemsIcon}
             label={t('catalogReal.kpi.things')}
-            // The server's total less the greyed rows; exact on one page (INCOME.md P.1).
-            value={String(Math.max(0, (activeTotal ?? 0) - switchedOff))}
+            value={String(onSaleTotal)}
             // TODO(backend): the list counts only what is on the page it returns, so across
             // several pages the split of goods and services is this page's (INCOME.md P.1).
             note={

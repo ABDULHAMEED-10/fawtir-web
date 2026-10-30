@@ -18,9 +18,9 @@ import {
 } from './posIcons'
 import {
   VAT_RATE,
-  bundlePartNames,
   omr,
   omrSigned,
+  saleLineDetail,
   totalsFor,
   unitPrice,
   LULL,
@@ -718,32 +718,33 @@ function Payment({ till }: { till: Ready }) {
             </Link>
           </div>
           <ul className="flex flex-col px-5">
-            {lines.map((line) => (
-              <li
-                key={line.id}
-                className="flex items-start gap-3 border-b border-border-subtle py-3 last:border-b-0"
-              >
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-sm bg-surface-background text-xs font-semibold text-text-tertiary">
-                  {line.qty}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium text-text-primary">{line.name}</span>
-                  <span className="mt-0.5 block text-xs font-medium text-text-quaternary">
-                    {bundlePartNames(line)
-                      ? t('pos.bundle.parts', { parts: bundlePartNames(line) })
-                      : line.variant
-                        ? line.variant.label
-                        : t('pos.oneSizeOnly')}
-                    {line.addOns.length
-                      ? ` · ${line.addOns.map((a) => `+ ${a.label}`).join(', ')}`
-                      : ''}
+            {lines.map((line) => {
+              const detail = saleLineDetail(line, t)
+              return (
+                <li
+                  key={line.id}
+                  className="flex items-start gap-3 border-b border-border-subtle py-3 last:border-b-0"
+                >
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-sm bg-surface-background text-xs font-semibold text-text-tertiary">
+                    {line.qty}
                   </span>
-                </span>
-                <span className="shrink-0 text-sm font-semibold text-text-primary">
-                  {omr(unitPrice(line) * line.qty)}
-                </span>
-              </li>
-            ))}
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-text-primary">{line.name}</span>
+                    {detail || line.addOns.length ? (
+                      <span className="mt-0.5 block text-xs font-medium text-text-quaternary">
+                        {detail}
+                        {line.addOns.length
+                          ? `${detail ? ' · ' : ''}${line.addOns.map((a) => `+ ${a.label}`).join(', ')}`
+                          : ''}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="shrink-0 text-sm font-semibold text-text-primary">
+                    {omr(unitPrice(line) * line.qty)}
+                  </span>
+                </li>
+              )
+            })}
           </ul>
           <div className="flex flex-col gap-2.5 border-t border-border-subtle px-5 py-4">
             <Row label={t('pos.totals.items')} value={omr(totals.items)} />

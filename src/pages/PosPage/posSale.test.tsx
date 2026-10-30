@@ -84,6 +84,35 @@ describe('the sale panel', () => {
     expect(screen.getByText('5.084')).toBeTruthy()
   })
 
+  it('says One size for goods, and nothing of the kind for a service', () => {
+    const [sample] = SAMPLE_SALE
+    const plain = { ...sample, variant: null, addOns: [] }
+    const { unmount } = render(
+      <MemoryRouter>
+        <PosSalePanel lines={[plain]} onLines={vi.fn()} onTakePayment={vi.fn()} />
+      </MemoryRouter>,
+    )
+    expect(screen.getByText(i18n.t('pos.oneSizeOnly'))).toBeTruthy()
+    unmount()
+
+    const service = { ...plain, itemType: 'service' as const }
+    render(
+      <MemoryRouter>
+        <PosSalePanel
+          lines={[
+            service,
+            { ...service, id: 'l9', addOns: [{ id: 'a', label: 'Rush', price: 100 }] },
+          ]}
+          onLines={vi.fn()}
+          onTakePayment={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+    expect(screen.queryByText(i18n.t('pos.oneSizeOnly'))).toBeNull()
+    // Add-ons with nothing before them carry no leading separator.
+    expect(screen.getByText('+ Rush')).toBeTruthy()
+  })
+
   it('names the size and the add-ons the catalogue gave the line', () => {
     render(
       <MemoryRouter>
@@ -155,6 +184,19 @@ describe('taking the payment (P.12)', () => {
         </Routes>
       </MemoryRouter>,
     )
+
+  it('shows One size on the payment screen for goods, not for a service', async () => {
+    const plain = { ...SAMPLE_SALE[0], variant: null, addOns: [] }
+    resetOpenSale([plain])
+    const goods = renderPayment()
+    expect(await screen.findByText(i18n.t('pos.oneSizeOnly'))).toBeTruthy()
+    goods.unmount()
+
+    resetOpenSale([{ ...plain, itemType: 'service' }])
+    renderPayment()
+    expect(await screen.findAllByText(plain.name)).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.oneSizeOnly'))).toBeNull()
+  })
 
   it('charges on the payment screen what the sale screen discounted', async () => {
     setSaleDiscount({ type: 'PERCENTAGE', value: '10' })

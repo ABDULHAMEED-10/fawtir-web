@@ -256,6 +256,28 @@ describe('one bundle', () => {
     expect(body).not.toHaveProperty('taxRate')
   })
 
+  it('keeps a part quantity empty while typing and applies the minimum on leaving', async () => {
+    open('/catalog/bundles/bun-starter')
+    expect(await screen.findByDisplayValue('Starter bundle')).toBeTruthy()
+    const box = screen.getAllByLabelText(i18n.t('bundle.col.howMany'))[0] as HTMLInputElement
+
+    fireEvent.change(box, { target: { value: '' } })
+    expect(box.value).toBe('')
+    fireEvent.change(box, { target: { value: '2' } })
+    expect(box.value).toBe('2')
+    fireEvent.blur(box)
+    expect(box.value).toBe('2')
+
+    fireEvent.change(box, { target: { value: '' } })
+    fireEvent.blur(box)
+    expect(box.value).toBe('1')
+
+    fireEvent.change(box, { target: { value: '0' } })
+    expect(box.value).toBe('0')
+    fireEvent.blur(box)
+    expect(box.value).toBe('1')
+  })
+
   it('prints the rial sign, never "OMR", beside the bundle figures and in the footer', async () => {
     open('/catalog/bundles/bun-starter')
     expect(await screen.findByDisplayValue('Starter bundle')).toBeTruthy()

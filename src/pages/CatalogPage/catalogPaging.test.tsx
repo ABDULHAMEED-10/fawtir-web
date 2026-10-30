@@ -191,14 +191,16 @@ describe('the catalogue list', () => {
       }
       if (url.startsWith('/api/v1/products')) {
         const query = new URL(url, 'http://x').searchParams
-        const content =
-          query.get('branchId') && query.get('includeUnavailable') === 'true'
+        const availability = query.get('availability')
+        const content = (
+          query.get('branchId') && (availability || query.get('includeUnavailable') === 'true')
             ? [
                 { ...productAt(1), effectivePrice: 1, availableHere: true },
                 { ...productAt(2), effectivePrice: 6.5, availableHere: false },
                 { ...productAt(5), effectivePrice: 5, availableHere: true },
               ]
             : []
+        ).filter((row) => !availability || row.availableHere === (availability === 'ON_SALE'))
         return json({ content, page: 0, size: 20, totalElements: content.length })
       }
       return new Response(null, { status: 404 })
@@ -344,6 +346,60 @@ describe('the catalogue list', () => {
     )
     expect(await screen.findByText('Item 07')).toBeTruthy()
     expect(screen.queryByText('Item 01')).toBeNull()
+  })
+
+  it('counts the cards and tabs from the server, not the page in view', async () => {
+    // 45 active in the branch across pages, 2 of them greyed but neither on this first page.
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === '/api/v1/me/entitlements') return json(READER)
+      if (url === '/api/v1/branches') {
+        return json([{ id: 'b-main', code: 'MAIN', name: 'Main', type: 'HEAD_OFFICE' }])
+      }
+      if (url.startsWith('/api/v1/products')) {
+        const query = new URL(url, 'http://x').searchParams
+        if (query.get('availability') === 'ON_SALE') {
+          return json({ content: [productAt(1)], page: 0, size: 1, totalElements: 43 })
+        }
+        if (query.get('availability') === 'SWITCHED_OFF') {
+          return json({
+            content: [{ ...productAt(44), availableHere: false }],
+            page: 0,
+            size: 1,
+            totalElements: 2,
+          })
+        }
+        const content = Array.from({ length: 20 }, (_, i) => productAt(i + 1))
+        return json({ content, page: 0, size: 20, totalElements: 45 })
+      }
+      return new Response(null, { status: 404 })
+    })
+    render(
+      <MemoryRouter>
+        <CatalogPage />
+      </MemoryRouter>,
+    )
+    await screen.findByText('Item 01')
+    const tabButton = (key: string) =>
+      screen.getByRole('button', { name: new RegExp(`^${i18n.t(key)}`) })
+    await vi.waitFor(() =>
+      expect(tabButton('catalogReal.tab.switchedOff').textContent).toContain('2'),
+    )
+    expect(tabButton('catalogReal.tab.all').textContent).toContain('43')
+    expect(
+      screen.getByText(i18n.t('catalogReal.kpi.things')).parentElement?.parentElement?.textContent,
+    ).toContain('43')
+    expect(productCalls()).toContain(
+      '/api/v1/products?branchId=b-main&availability=SWITCHED_OFF&size=1',
+    )
+
+    // Changing tab reads no count again: the numbers already came back.
+    const countReads = () => productCalls().filter((url) => url.includes('size=1')).length
+    await vi.waitFor(() => expect(countReads()).toBeGreaterThanOrEqual(3))
+    const before = countReads()
+    fireEvent.click(tabButton('catalogReal.tab.goods'))
+    fireEvent.click(tabButton('catalogReal.tab.all'))
+    expect(countReads()).toBe(before)
   })
 
   it('draws no On sale or Never sold tab without a working branch', async () => {

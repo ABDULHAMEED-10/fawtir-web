@@ -12,6 +12,7 @@
  */
 
 import { calculateInvoice, projectInvoice, type DiscountType } from './invoiceMath'
+import type { TFunction } from 'i18next'
 import type { DraftLine, ItemType } from './invoiceDraft'
 
 /** A thousandth of a rial. All money below is an integer number of these. */
@@ -100,6 +101,17 @@ export function unitPrice(line: SaleLine): number {
 
 export function lineTotal(line: SaleLine): number {
   return unitPrice(line) * line.qty
+}
+
+/**
+ * The small print under a row, before its add-ons: a split bundle's parts, the size and option
+ * chosen, else "One size". A service has no sizes, so it has none of that.
+ */
+export function saleLineDetail(line: SaleLine, t: TFunction): string | null {
+  const parts = bundlePartNames(line)
+  if (parts) return t('pos.bundle.parts', { parts })
+  if (line.variant) return line.variant.label
+  return line.itemType === 'service' ? null : t('pos.oneSizeOnly')
 }
 
 /** What a split bundle is made of, for the small print under its row: "Beans, Cups". */

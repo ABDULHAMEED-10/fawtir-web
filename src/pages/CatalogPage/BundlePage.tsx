@@ -61,6 +61,45 @@ import tickWhiteIcon from '../../assets/catalog/check-white.svg'
 import dragIcon from '../../assets/catalog/drag.svg'
 
 /**
+ * How many of a part: stays as typed, empty included, so clearing the box and typing 2 gives 2.
+ * The figures follow any quantity of at least 1; leaving the box applies that minimum.
+ */
+function PartQuantityInput({
+  quantity,
+  readOnly,
+  onChange,
+  label,
+}: {
+  quantity: number
+  readOnly: boolean
+  onChange: (quantity: number) => void
+  label: string
+}) {
+  const [typed, setTyped] = useState<string | null>(null)
+  return (
+    <input
+      value={typed ?? quantity}
+      onFocus={selectAllOnFocus}
+      inputMode="numeric"
+      readOnly={readOnly}
+      onChange={(event) => {
+        const digits = event.target.value.replace(/\D/g, '')
+        setTyped(digits)
+        if (Number(digits) >= 1) onChange(Number(digits))
+      }}
+      onBlur={() => {
+        if (typed === null) return
+        setTyped(null)
+        const final = Math.max(1, Number(typed))
+        if (final !== quantity) onChange(final)
+      }}
+      aria-label={label}
+      className="h-[40px] w-[84px] rounded-sm border border-border-subtle bg-surface-background px-3 text-center text-sm font-medium text-text-primary outline-none focus:border-border-brand focus:bg-white"
+    />
+  )
+}
+
+/**
  * One bundle (Figma 135:48138), from `GET /v1/bundles/{id}` and saved with `POST` / `PUT`
  * (the version it read), switched off with `DELETE` and brought back with `/reactivate`. The
  * price is typed before VAT; the saving, VAT and what the customer pays follow the parts. "On the
@@ -481,21 +520,11 @@ function BundleEditor({
                           </div>
                         </td>
                         <td className={cell}>
-                          <input
-                            value={part.quantity}
-                            onFocus={selectAllOnFocus}
-                            inputMode="numeric"
+                          <PartQuantityInput
+                            quantity={part.quantity}
                             readOnly={!editable}
-                            onChange={(event) =>
-                              setPart(part.key, {
-                                quantity: Math.max(
-                                  1,
-                                  Number(event.target.value.replace(/\D/g, '')) || 1,
-                                ),
-                              })
-                            }
-                            aria-label={t('bundle.col.howMany')}
-                            className="h-[40px] w-[84px] rounded-sm border border-border-subtle bg-surface-background px-3 text-center text-sm font-medium text-text-primary outline-none focus:border-border-brand focus:bg-white"
+                            onChange={(quantity) => setPart(part.key, { quantity })}
+                            label={t('bundle.col.howMany')}
                           />
                         </td>
                         <td className={`${cell} text-end`}>
