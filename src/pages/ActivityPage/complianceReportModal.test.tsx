@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import i18n from '../../i18n'
+import { resetSharedRequests } from '../../api'
 import type { ActivitySummaryDto } from '../../api/compliance/activity'
 import { ComplianceReportModal } from './ComplianceReportModal'
 
 // The design's sample book (PERIOD_BOOKS) that the dialog used to fall back to: its totals, the
-// VAT worked out from them, and its counts. None may appear in a real session.
+// VAT worked out from them, its counts, and the XML note's sample file count and size. None may
+// appear in a real session.
 const INVENTED = [
   '52,418.900',
   '18,902.400',
@@ -16,6 +18,8 @@ const INVENTED = [
   '147 invoices',
   '1,624 invoices',
   '1624 invoices',
+  '412 files',
+  '8 MB',
 ]
 
 // Exactly the fields backend ActivitySummaryResponse sends: no invoiced_total, no vat_reported.
@@ -48,6 +52,7 @@ function json(status: number, body?: unknown) {
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
+  resetSharedRequests()
   summaryAnswer = async () => json(200, SUMMARY)
   vi.stubGlobal(
     'fetch',
@@ -100,8 +105,8 @@ describe('the compliance report dialog shows only what the server supplies', () 
   })
 
   it('shows a loading state, and no figure, while the summary is on its way', async () => {
-    // Settled at the end: `sharedRequest` shares an in-flight read by path, so a read left hanging
-    // would be handed to the next test instead of its own answer.
+    // Settled at the end so no promise outlives the test; beforeEach also clears the shared
+    // in-flight reads, which `sharedRequest` keys by path alone.
     let settle: (response: Response) => void = () => {}
     summaryAnswer = () => new Promise<Response>((resolve) => (settle = resolve))
     const { unmount } = renderModal()
@@ -124,5 +129,28 @@ describe('the compliance report dialog shows only what the server supplies', () 
     expect(screen.queryByText('VAT reported')).toBeNull()
     expect(screen.queryByText(/\d+ invoices?$/)).toBeNull()
     expectNoInventedFigure()
+  })
+
+  it('reads again on retry and then shows the server counts', async () => {
+    summaryAnswer = async () => json(500, { title: 'Internal Server Error' })
+    renderModal()
+    const retry = await screen.findByRole('button', { name: 'Try again' })
+    summaryAnswer = async () => json(200, SUMMARY)
+    fireEvent.click(retry)
+    expect(await screen.findByText('37 invoices')).toBeTruthy()
+    expect(rowValue('Invoices in the period')).toBe('37')
+  })
+
+  it('shows loading, not the previous period, while a new period is read', async () => {
+    renderModal()
+    await screen.findByText('37 invoices')
+    let settle: (response: Response) => void = () => {}
+    summaryAnswer = () => new Promise<Response>((resolve) => (settle = resolve))
+    fireEvent.click(screen.getByRole('button', { name: 'This year' }))
+    expect(await screen.findByRole('status')).toBeTruthy()
+    expect(screen.queryByText('37 invoices')).toBeNull()
+    expect(screen.queryByText('Invoices in the period')).toBeNull()
+    settle(json(200, { ...SUMMARY, documents: 50 }))
+    expect(await screen.findByText('50 invoices')).toBeTruthy()
   })
 })
