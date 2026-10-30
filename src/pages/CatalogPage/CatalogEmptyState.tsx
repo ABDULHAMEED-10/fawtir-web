@@ -3,6 +3,14 @@ import { Link } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { useCanManageProducts } from './ItemFormPage'
+import { useApiRead } from '../../hooks/useApiRead'
+import {
+  catalogTemplatePath,
+  readCatalogTemplate,
+  type CatalogTemplateDto,
+} from '../../api/catalog/templates'
+import { templateName } from '../../lib/catalogTemplates'
+import { findSubBusinessType, localName, useSignupBusinessTypes } from '../../lib/businessTypes'
 import bagIcon from '../../assets/catalog/kind-bag.svg'
 import sparkleIcon from '../../assets/catalog/sparkle-brand.svg'
 import uploadIcon from '../../assets/catalog/upload-brand.svg'
@@ -18,11 +26,30 @@ import clockIcon from '../../assets/catalog/clock.svg'
  * Two ways in, each honest about what it costs in time, plus the shortcut for a business whose
  * shape Fawtir already recognises. The Catalog page shows it when the company has no products
  * and nothing is being searched; `notice` carries that page's "not connected yet" banner.
+ *
+ * The shortcut names the company's own sub business type and its template's first groups (the
+ * frame's coffee roastery was a sample; e2e 30 Oct, L-7). With no published template it is not
+ * offered: there is nothing for Fawtir to suggest.
  */
 export function CatalogEmptyState({ notice }: { notice?: ReactNode } = {}) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   // Reading a menu (/v1/catalog/menu-scans) needs product.manage, so the route is offered only then.
   const canManage = useCanManageProducts() === true
+  const { read } = useApiRead<CatalogTemplateDto>(catalogTemplatePath(), () =>
+    readCatalogTemplate(),
+  )
+  const template = read.status === 'ready' ? read.data : null
+  const types = useSignupBusinessTypes().read
+  const subType = template
+    ? findSubBusinessType(
+        types.status === 'ready' ? types.data : undefined,
+        template.subBusinessTypeCode,
+      )
+    : undefined
+  const groupNames = (template?.groups ?? []).map((group) => templateName(group, i18n.language))
+  const groups = new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format(
+    groupNames.slice(0, 4),
+  )
 
   return (
     <AppShell>
@@ -47,29 +74,32 @@ export function CatalogEmptyState({ notice }: { notice?: ReactNode } = {}) {
         {notice}
 
         {/* What Fawtir already knows about this trade */}
-        <section className="flex flex-wrap items-center gap-4 rounded-md border border-primary-100 bg-primary-25 p-5">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-md bg-white">
-            <img src={bagIcon} alt="" className="size-5" />
-          </span>
-          <div className="min-w-[280px] flex-1">
-            <p className="text-base font-semibold text-text-primary">
-              {t('catalogEmpty.coffeeRoastery')}
-            </p>
-            <p className="mt-1 text-sm font-medium leading-[1.5] text-text-tertiary">
-              <Trans
-                i18nKey="catalogEmpty.weAlreadyKnow"
-                components={{ b: <b className="font-semibold text-text-secondary" /> }}
-              />
-            </p>
-          </div>
-          <Link
-            to="/catalog/build"
-            className="inline-flex h-[42px] shrink-0 items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/70"
-          >
-            <img src={sparkleIcon} alt="" className="size-4" />
-            {t('catalogEmpty.letFawtirSuggest')}
-          </Link>
-        </section>
+        {template ? (
+          <section className="flex flex-wrap items-center gap-4 rounded-md border border-primary-100 bg-primary-25 p-5">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-md bg-white">
+              <img src={bagIcon} alt="" className="size-5" />
+            </span>
+            <div className="min-w-[280px] flex-1">
+              <p className="text-base font-semibold text-text-primary">
+                {subType ? localName(subType, i18n.language) : t('buildCatalog.yourTemplate')}
+              </p>
+              <p className="mt-1 text-sm font-medium leading-[1.5] text-text-tertiary">
+                <Trans
+                  i18nKey="catalogEmpty.knownFor"
+                  values={{ groups }}
+                  components={{ b: <b className="font-semibold text-text-secondary" /> }}
+                />
+              </p>
+            </div>
+            <Link
+              to="/catalog/build"
+              className="inline-flex h-[42px] shrink-0 items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/70"
+            >
+              <img src={sparkleIcon} alt="" className="size-4" />
+              {t('catalogEmpty.letFawtirSuggest')}
+            </Link>
+          </section>
+        ) : null}
 
         <div className="grid gap-4 lg:grid-cols-2">
           {canManage ? (

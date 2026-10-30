@@ -42,6 +42,7 @@ import { ApiError, NetworkError } from '../../api'
 import { MAX_SLIP_BYTES } from '../../lib/posSlipOutbox'
 import { BUYER_IDENTIFIER_SCHEMES } from '../../api/customers/customers'
 import { tillContact } from '../../lib/posContact'
+import { useBuyerMatch } from '../../lib/posBuyerMatch'
 import { missingFieldsSentence, notEligiblePaths } from '../../lib/customerEligibility'
 import type { TillState } from '../../lib/posTill'
 
@@ -298,6 +299,13 @@ function Payment({ till }: { till: Ready }) {
       ? (refusal.problem.buyerIdentifierSchemes as string[])
       : [...BUYER_IDENTIFIER_SCHEMES]
   const buyerReady = buyer.name.trim() && buyer.value.trim()
+  // The customer on file this ID (and phone) would file the invoice against, when it is stored
+  // under another name: a mistyped ID shows before the invoice is filed. Never blocks.
+  const onFile = useBuyerMatch(
+    till.till.id,
+    { ...buyer, scheme: schemes.includes(buyer.scheme) ? buyer.scheme : schemes[0] },
+    buyerAsked && !company,
+  )
   /** The buyer's phone or email is checked before the full invoice goes (F-2). */
   const finishNamed = () => {
     const contact = tillContact(buyer.contact)
@@ -819,6 +827,18 @@ function Payment({ till }: { till: Ready }) {
                   onChange={(event) => setBuyer({ ...buyer, value: event.target.value })}
                   className={FIELD}
                 />
+                {onFile ? (
+                  <span role="status" className="text-xs font-medium text-pending-700">
+                    {onFile.identifierValue
+                      ? t('pos.buyer.onFileWithId', {
+                          name: onFile.name,
+                          id: onFile.identifierScheme
+                            ? `${t(`customerForm.identifier.schemes.${onFile.identifierScheme}`)} ${onFile.identifierValue}`
+                            : onFile.identifierValue,
+                        })
+                      : t('pos.buyer.onFile', { name: onFile.name })}
+                  </span>
+                ) : null}
               </Field>
               <Field label={t('pos.buyer.contact')}>
                 <input

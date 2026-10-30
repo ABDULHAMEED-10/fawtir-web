@@ -183,6 +183,12 @@ export type InvoiceListItem = {
   isDraft: boolean
   /** A draft's sales approval state when a request is open (RL-6). */
   approval: InvoiceListApproval | null
+  /** A till sale's invoice or a till refund's credit note: the "From the till" badge. */
+  fromTill: boolean
+  /** The till's name (its code when it has none), for the badge's hint. */
+  tillName: string | null
+  /** The server says where each row was made; an older one does not, and no source filter is offered. */
+  sourceAnswered: boolean
 }
 
 const AUTHORING: Record<InvoiceStateDto, AuthoringChip> = {
@@ -273,5 +279,8 @@ export function toInvoiceListItem(row: InvoiceRowDto): InvoiceListItem {
     branchId: row.branchId ?? null,
     isDraft,
     approval: isDraft ? (row.approvalState ?? null) : null,
+    fromTill: row.source === 'TILL',
+    tillName: row.source === 'TILL' ? row.till?.name?.trim() || row.till?.code || null : null,
+    sourceAnswered: row.source !== undefined,
   }
 }

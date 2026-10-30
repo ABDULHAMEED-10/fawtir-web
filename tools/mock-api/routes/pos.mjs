@@ -694,6 +694,8 @@ function lookupOf(record) {
     // Backend #810: the tip paid on top, never refunded.
     tip: s.tip ?? 0,
     tipMethod: s.tip ? (s.tipMethod ?? null) : null,
+    // Backend #808 (P.31): the original invoice's filing, read now.
+    filing: s.filing ?? null,
     credited: round3(record.credited),
     owed: Math.max(0, round3(s.onAccount - record.credited)),
     creditNoteNumbers: record.creditNoteNumbers,
@@ -869,6 +871,45 @@ export default [
       shifts.set(shift.shiftId, { shift, movements: [], close: null })
       till.openShift = { shiftId: shift.shiftId, cashier: NASSER, openedAt: shift.openedAt }
       return { status: 201, body: { ...shift } }
+    },
+  },
+  {
+    // Backend feat/pos-buyer-match-hint: the customer on file a consumer sale would be filed
+    // against. One consumer is on file here: Saif Al Busaidi, civil ID 12345678 (masked to the
+    // cashier as the server does, V480); any other ID matches nothing.
+    method: 'POST',
+    match: '/api/v1/pos/customers/match',
+    reply: ({ body }) => {
+      const b = body ?? {}
+      const none = {
+        match: 'none',
+        customerId: null,
+        name: null,
+        sameName: false,
+        identifierScheme: null,
+        identifierValue: null,
+        identifierValueMasked: false,
+      }
+      if (b.identifierScheme !== 'CID' || String(b.identifierValue ?? '').trim() !== '12345678') {
+        return { status: 200, body: none }
+      }
+      const name = 'Saif Al Busaidi'
+      const typed = String(b.name ?? '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase()
+      return {
+        status: 200,
+        body: {
+          match: 'identifier',
+          customerId: 'c0000000-0000-4000-8000-00000000a1f0',
+          name,
+          sameName: typed === name.toLowerCase(),
+          identifierScheme: 'CID',
+          identifierValue: '•••• 5678',
+          identifierValueMasked: true,
+        },
+      }
     },
   },
   {

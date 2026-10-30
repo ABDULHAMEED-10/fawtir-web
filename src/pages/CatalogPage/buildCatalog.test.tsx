@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -50,7 +50,11 @@ const GROUPS: TemplateGroupDto[] = [
       {
         name: 'Cakes & Pastries',
         nameAr: null,
-        items: [item('Chocolate cake bar', { barcode: '6281007062251' }), item('Brownie')],
+        items: [
+          item('Chocolate cake bar', { barcode: '6281007062251' }),
+          item('Brownie', { nameAr: 'براوني' }),
+          item('Gift box', { defaultSelected: false }),
+        ],
       },
     ],
   },
@@ -66,6 +70,10 @@ const TEMPLATE = {
 
 let templateAnswer: () => Response
 const requested: string[] = []
+/** Every write, as `METHOD path body`, in the order it was sent. */
+let writes: { method: string; url: string; body: Record<string, unknown> }[] = []
+/** A product create the server refuses, by name, until cleared. */
+let refuseProduct: string | null = null
 
 /** Catalogue templates by sub-business type (owner, 21 Oct 2026), read from the server. */
 describe('building a catalog from a template', () => {
@@ -75,12 +83,37 @@ describe('building a catalog from a template', () => {
     resetSharedRequests()
     window.localStorage.clear()
     requested.length = 0
+    writes = []
+    refuseProduct = null
     templateAnswer = () => json(TEMPLATE)
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (input: RequestInfo | URL) => {
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input)
         requested.push(url)
+        const method = init?.method ?? 'GET'
+        if (method !== 'GET') {
+          const body = init?.body ? JSON.parse(String(init.body)) : {}
+          writes.push({ method, url, body })
+          if (url === '/api/v1/catalog/groups')
+            return json({ id: 'g-new', ...body, sortOrder: 0, version: 0, kinds: [] })
+          if (url === '/api/v1/catalog/groups/g-new/kinds')
+            return json({ id: 'k-new', groupId: 'g-new', ...body, sortOrder: 0, version: 0 })
+          if (url === '/api/v1/products') {
+            if (body.name === refuseProduct) {
+              return new Response(
+                JSON.stringify({
+                  type: 'https://api.fawtir.om/problems/validation-failed',
+                  status: 400,
+                  code: 'PRODUCT_BARCODE_INVALID',
+                }),
+                { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+              )
+            }
+            return json({ id: `p-${writes.length}`, ...body, active: true, version: 0 })
+          }
+        }
+        if (url === '/api/v1/catalog/groups') return json({ groups: [] })
         if (url === '/api/v1/me/entitlements') return json(OWNER)
         if (url === '/api/v1/branches') return json(BRANCHES)
         if (url === '/api/v1/catalog/templates') return templateAnswer()
@@ -187,5 +220,95 @@ describe('building a catalog from a template', () => {
     const [group] = suggestedFrom(GROUPS, 'ar')
     expect(group.name).toBe('حلويات')
     expect(group.kinds[0].name).toBe('Cakes & Pastries')
+  })
+
+  it('starts an item the template marks not selected unticked (W-3)', async () => {
+    renderBuild()
+    await screen.findByText('Gift box')
+    const box = (name: string) => screen.getByRole('checkbox', { name }) as HTMLInputElement
+    expect(box('Chocolate cake bar').checked).toBe(true)
+    expect(box('Brownie').checked).toBe(true)
+    expect(box('Gift box').checked).toBe(false)
+  })
+
+  it('keeps ticks and prices when the language changes (W-4)', async () => {
+    renderBuild()
+    const [price] = await screen.findAllByLabelText('Price')
+    fireEvent.change(price, { target: { value: '2.5' } })
+    fireEvent.blur(price)
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Brownie' }))
+    await act(() => i18n.changeLanguage('ar'))
+    expect(await screen.findByText('براوني')).toBeTruthy()
+    expect(
+      (screen.getAllByLabelText(i18n.t('buildCatalog.col.price'))[0] as HTMLInputElement).value,
+    ).toBe('2.500')
+    expect((screen.getByRole('checkbox', { name: 'براوني' }) as HTMLInputElement).checked).toBe(
+      false,
+    )
+  })
+
+  it('adds the ticked items: group, kind, then each product, and says what happened (B-1)', async () => {
+    renderBuild()
+    const [price] = await screen.findAllByLabelText('Price')
+    fireEvent.change(price, { target: { value: '0.8' } })
+    fireEvent.blur(price)
+    fireEvent.click(screen.getByRole('button', { name: 'Add 2 to the catalog' }))
+    expect(
+      await screen.findByText('Added 2, skipped 0 already in your catalog, 0 failed.'),
+    ).toBeTruthy()
+    expect(writes.map((w) => `${w.method} ${w.url}`)).toEqual([
+      'POST /api/v1/catalog/groups',
+      'POST /api/v1/catalog/groups/g-new/kinds',
+      'POST /api/v1/products',
+      'POST /api/v1/products',
+    ])
+    expect(writes[0].body).toMatchObject({ name: 'Desserts', nameAr: 'حلويات' })
+    expect(writes[2].body).toMatchObject({
+      name: 'Chocolate cake bar',
+      kindId: 'k-new',
+      defaultUnitPrice: 0.8,
+      barcode: '6281007062251',
+      classification: { goodsOrService: 'G', hsCode: '000000000000' },
+    })
+    // Both names whatever the screen's language.
+    expect(writes[3].body).toMatchObject({ name: 'Brownie', nameAr: 'براوني', defaultUnitPrice: 0 })
+    expect(screen.getByRole('link', { name: 'Open the catalog' }).getAttribute('href')).toBe(
+      '/catalog',
+    )
+  })
+
+  it('lists what failed and why, and tries only those again', async () => {
+    refuseProduct = 'Brownie'
+    renderBuild()
+    await screen.findByText('Brownie')
+    fireEvent.click(screen.getByRole('button', { name: 'Add 2 to the catalog' }))
+    expect(
+      await screen.findByText('Added 1, skipped 0 already in your catalog, 1 failed.'),
+    ).toBeTruthy()
+    expect(screen.getByText(i18n.t('buildCatalog.failedTitle'))).toBeTruthy()
+    refuseProduct = null
+    writes = []
+    fireEvent.click(screen.getByRole('button', { name: 'Try the failed ones again' }))
+    expect(
+      await screen.findByText('Added 2, skipped 0 already in your catalog, 0 failed.'),
+    ).toBeTruthy()
+    // The group and kind are found, not made again; only the failed item is sent.
+    expect(writes.map((w) => w.body.name)).toEqual(['Desserts', 'Cakes & Pastries', 'Brownie'])
+  })
+
+  it('saves the work to finish later, per company, and puts it back', async () => {
+    const { unmount } = renderBuild()
+    const [price] = await screen.findAllByLabelText('Price')
+    fireEvent.change(price, { target: { value: '1.1' } })
+    fireEvent.blur(price)
+    fireEvent.click(screen.getByRole('button', { name: 'Save and finish later' }))
+    expect(writes).toEqual([])
+    unmount()
+    resetSharedRequests()
+    renderBuild()
+    await waitFor(() =>
+      expect((screen.getAllByLabelText('Price')[0] as HTMLInputElement).value).toBe('1.100'),
+    )
+    expect(screen.getByText(/Your saved ticks and prices are back/)).toBeTruthy()
   })
 })
