@@ -154,6 +154,9 @@ const REFUSALS: Record<string, string> = {
   // Rejecting a bill that has a payment, is in a run, or with a reason that is too long.
   APPROVAL_REJECT_PAYMENT_RECORDED: 'billDetail.refused.paymentRecorded',
   APPROVAL_REJECT_IN_PAYMENT_RUN: 'billDetail.refused.inRun',
+  // Supplier credit set against the bill (backend #817): there is no way yet to release it, so the
+  // sentence promises none.
+  BILL_REJECTION_HAS_APPLIED_CREDIT: 'billDetail.refused.appliedCredit',
   APPROVAL_REASON_TOO_LONG: 'billDetail.refused.reasonTooLong',
   BILL_HOLD_ALREADY_OPEN: 'billDetail.refused.changed',
   BILL_HOLD_NOT_OPEN: 'billDetail.refused.changed',
@@ -320,6 +323,8 @@ function BillScreen() {
   const [reason, setReason] = useState('')
   const [matching, setMatching] = useState(false)
   const [paying, setPaying] = useState(false)
+  // Set by a payment refusal that says the balance moved (DB-10): the page re-reads on close.
+  const balanceStale = useRef(false)
   const [settling, setSettling] = useState<'refund' | 'apply' | null>(null)
 
   const act = async (
@@ -408,6 +413,13 @@ function BillScreen() {
     }
   }
 
+  // Credit already set against the bill blocks a rejection (BILL_REJECTION_HAS_APPLIED_CREDIT): the
+  // page knows the credited amount, so it says so instead of opening a dialog the server refuses.
+  const askToReject = () =>
+    detail.settlement.creditedAmount > 0
+      ? setNotice({ key: 'billDetail.refused.appliedCredit' })
+      : setAsking('reject')
+
   const confirmReason = async () => {
     const text = reason.trim()
     if (text === '') return
@@ -465,7 +477,7 @@ function BillScreen() {
             {decisions.reject ? (
               <button
                 type="button"
-                onClick={() => setAsking('reject')}
+                onClick={askToReject}
                 disabled={busy}
                 className="inline-flex h-[46px] items-center rounded-sm border border-danger-700 bg-white px-4 text-sm font-semibold text-danger-700 transition-colors hover:bg-danger-100 disabled:opacity-60"
               >
@@ -495,7 +507,14 @@ function BillScreen() {
         <p className="flex flex-wrap items-center gap-1.5 text-base leading-[1.2]">
           <span className="font-medium text-text-quaternary">{t('billDetail.from')}</span>
           <span className="font-semibold text-text-primary">
-            {row.supplierName ?? t('billDetail.supplierUnknown')}
+            {/* A bill from a participant with no supplier record carries no name; its Peppol id
+                is the one thing that says who sent it (DB-1, local E2E 2026-10-29). */}
+            {row.supplierName ??
+              (row.supplierParticipantId ? (
+                <span dir="ltr">{row.supplierParticipantId}</span>
+              ) : (
+                t('billDetail.supplierUnknown')
+              ))}
           </span>
           {row.issueDate ? (
             <>
@@ -692,7 +711,7 @@ function BillScreen() {
                         </td>
                         <td className="py-3.5 text-end text-sm font-medium text-text-secondary">
                           <span className="me-1">
-                            <Rial />
+                            <CurrencySign currency={row.currencyCode} />
                           </span>
                           {money(line.unitPrice)}
                         </td>
@@ -701,7 +720,7 @@ function BillScreen() {
                         </td>
                         <td className="py-3.5 text-end text-base font-semibold text-text-primary">
                           <span className="me-1">
-                            <Rial />
+                            <CurrencySign currency={row.currencyCode} />
                           </span>
                           {money(line.lineNet)}
                         </td>
@@ -731,19 +750,34 @@ function BillScreen() {
                     </dt>
                     <dd className="text-sm font-semibold text-text-secondary tabular-nums">
                       <span className="me-1">
-                        <Rial />
+                        <CurrencySign currency={row.currencyCode} />
                       </span>
                       {money(value)}
                     </dd>
                   </div>
                 ))}
+                {row.currencyCode !== 'OMR' &&
+                row.inputVat?.vatAmountOmr !== null &&
+                row.inputVat?.vatAmountOmr !== undefined ? (
+                  <div className="flex items-center justify-between gap-4 border-b border-surface-background py-2.5">
+                    <dt className="text-sm font-medium text-text-tertiary">
+                      {t('billDetail.lines.vatInRial')}
+                    </dt>
+                    <dd className="text-sm font-semibold text-text-secondary tabular-nums">
+                      <span className="me-1">
+                        <Rial />
+                      </span>
+                      {formatAmount(row.inputVat.vatAmountOmr, 'OMR', language)}
+                    </dd>
+                  </div>
+                ) : null}
                 <div className="flex items-center justify-between gap-4 pt-3.5">
                   <dt className="text-base font-semibold text-text-primary">
                     {t('billDetail.lines.theyreCharging')}
                   </dt>
                   <dd className="text-[22px] font-semibold leading-[1.2] text-text-primary tabular-nums">
                     <span className="me-1">
-                      <Rial />
+                      <CurrencySign currency={row.currencyCode} />
                     </span>
                     {money(row.totalIncludingVat)}
                   </dd>
@@ -797,8 +831,9 @@ function BillScreen() {
                     </p>
                     <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
                       {event.overpayment ? (
-                        // What became of an overpayment: its amount with the rial sign.
+                        // What became of an overpayment: its amount with its currency's sign.
                         <RialInText
+                          currency={event.overpayment.currency}
                           text={[
                             `¤${formatAmount(event.overpayment.amount, event.overpayment.currency, language)}`,
                             event.overpayment.rest,
@@ -838,7 +873,7 @@ function BillScreen() {
             </div>
             <p className="mt-3 text-[28px] font-semibold leading-[1.2] text-text-primary">
               <span className="me-1.5">
-                <Rial />
+                <CurrencySign currency={row.currencyCode} />
               </span>
               {money(row.totalIncludingVat)}
             </p>
@@ -862,7 +897,7 @@ function BillScreen() {
                 {decisions.reject ? (
                   <button
                     type="button"
-                    onClick={() => setAsking('reject')}
+                    onClick={askToReject}
                     disabled={busy}
                     className={QUIET_BUTTON}
                   >
@@ -1005,7 +1040,7 @@ function BillScreen() {
                 <div key={label} className="flex items-center justify-between gap-3">
                   <dt className="text-sm font-medium text-text-tertiary">{t(label)}</dt>
                   <dd className="text-end text-sm font-semibold text-text-primary">
-                    <RialInText text={value} />
+                    <RialInText text={value} currency={payables?.currencyCode ?? row.currencyCode} />
                   </dd>
                 </div>
               ))}
@@ -1090,7 +1125,18 @@ function BillScreen() {
           refusals={BILL_PAYMENT_REFUSALS}
           amountTooMuchKey={BILL_AMOUNT_TOO_MUCH}
           labelKeys={{ amount: 'billDetail.pay.amount', date: 'billDetail.pay.date' }}
-          onClose={() => setPaying(false)}
+          onBalanceChanged={() => {
+            balanceStale.current = true
+          }}
+          onClose={() => {
+            setPaying(false)
+            // Read again once the dialog is gone (DB-10): someone else paid or credited the bill.
+            if (balanceStale.current) {
+              balanceStale.current = false
+              bill.retry()
+              if (overpaymentPath) overpayment.retry()
+            }
+          }}
           onRecorded={() => {
             setPaying(false)
             setNotice({ key: 'billDetail.done.recorded' })
@@ -1236,19 +1282,30 @@ function StepDetail({ note }: { note: Note }) {
   return <NoteText note={note} />
 }
 
-/** A card value that may carry an amount: "2 · 2,759.100" gets the sign before its figure. */
-function RialInText({ text }: { text: string }) {
+/**
+ * A card value that may carry an amount: "2 · 2,759.100" gets its currency's sign before its
+ * figure, the rial's on a bill in rial and the code on any other (DB-5).
+ */
+function RialInText({ text, currency = 'OMR' }: { text: string; currency?: string }) {
   const parts = text.split('¤')
   if (parts.length === 1) return <>{text}</>
   return (
     <>
       {parts[0]}
       <span className="me-1">
-        <Rial />
+        <CurrencySign currency={currency} />
       </span>
       {parts.slice(1).join('')}
     </>
   )
+}
+
+/**
+ * The rial sign for a bill in rial, and the currency code for any other: the sign was drawn
+ * on every bill, so a USD bill read as rial (DB-5, local E2E 2026-10-29).
+ */
+function CurrencySign({ currency }: { currency: string }) {
+  return currency === 'OMR' ? <Rial /> : <span>{currency}</span>
 }
 
 /** Net and VAT, derived: the bill carries its total and its VAT, never a net of its own. */
@@ -1405,7 +1462,7 @@ function MatchSection({
   )
 }
 
-/** "7.400 per KG · PO-0031": the price wears the rial sign, the reference follows it. */
+/** "7.400 per KG · PO-0031": the price wears its currency's sign, the reference follows it. */
 function TileNote({ note, language, tail }: { note: Note; language: string; tail?: string }) {
   const { t } = useTranslation()
   if (note.key !== 'billDetail.match.perUnit') return <NoteText note={note} />
@@ -1414,7 +1471,7 @@ function TileNote({ note, language, tail }: { note: Note; language: string; tail
   const after = tail ?? String(values.tail ?? '')
   return (
     <>
-      <Rial />
+      <CurrencySign currency={String(values.currency ?? 'OMR')} />
       <span>
         {t('billDetail.match.perUnitText', { price, unit: values.unit })}
         {after ? ` · ${after}` : ''}
@@ -1697,7 +1754,7 @@ function PaymentTermsCard({
                   ' ',
                 )}
               >
-                <RialInText text={value} />
+                <RialInText text={value} currency={bill.currencyCode} />
               </dd>
             </div>
             {label === 'billDetail.payment.paid' && refunded > 0 ? (
@@ -1721,7 +1778,10 @@ function PaymentTermsCard({
           </p>
           {kept > 0 ? (
             <p className="text-sm font-medium text-text-tertiary">
-              <RialInText text={t('billDetail.overpaid.kept', { amount: `¤${money(kept)}` })} />
+              <RialInText
+                text={t('billDetail.overpaid.kept', { amount: `¤${money(kept)}` })}
+                currency={bill.currencyCode}
+              />
             </p>
           ) : null}
         </div>
@@ -1734,7 +1794,7 @@ function PaymentTermsCard({
             {t('billDetail.terms.saving', { date: formatDate(discount.by, language) })}
           </span>
           <span className="flex items-center gap-1 font-semibold text-text-secondary">
-            <Rial />
+            <CurrencySign currency={bill.currencyCode} />
             {money(saving)}
           </span>
         </p>

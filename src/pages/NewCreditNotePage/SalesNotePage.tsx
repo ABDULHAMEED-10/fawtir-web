@@ -13,6 +13,7 @@ import {
   Select,
   Switch,
   type ActionMenuItem,
+  withRial,
 } from '../../components/ui'
 import {
   ApiReadFailure,
@@ -51,6 +52,7 @@ import {
   NOTE_MODES,
   NOTE_REASONS,
   NOTE_REFUSALS,
+  creditCapRefusal,
   NOTE_ROUTES,
   addedLine,
   asksBackOnShelf,
@@ -505,7 +507,7 @@ function NoteEditor({
   )
   const [saved, setSaved] = useState<DraftResponse | null>(draft)
   const [problems, setProblems] = useState<NoteProblems>({})
-  const [notice, setNotice] = useState<string | null>(null)
+  const [notice, setNotice] = useState<ReactNode>(null)
   const [busy, setBusy] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   /** Files already on the saved draft, so a retry after a failed upload sends each one once. */
@@ -617,6 +619,12 @@ function NoteEditor({
       const selfBilling = selfBilled ? selfBilledIssueMessageKey(error) : null
       if (selfBilling) {
         setNotice(t(selfBilling))
+        return
+      }
+      // The cumulative caps (DA-1) first: they name a line or a rate and what is left of it.
+      const capped = creditCapRefusal(error, t, invoice.currency, i18n.language)
+      if (capped) {
+        setNotice(withRial(t(capped.key, capped.values)))
         return
       }
       const coded = error instanceof ApiError && error.code && Object.hasOwn(NOTE_REFUSALS, error.code) ? NOTE_REFUSALS[error.code] : undefined

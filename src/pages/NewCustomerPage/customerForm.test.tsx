@@ -431,10 +431,28 @@ describe('customer form rules', () => {
     expect(customerProblems({ ...business, peppolId: 'OM1199999001' }).peppolId).toBe(
       'supplierForm.error.peppolShape',
     )
-    // What is sent is unchanged: the scheme, and the id upper-cased as before.
+    // A 0248 value is VATIN-shaped and compared ignoring case by the server, so upper-casing it is harmless.
     expect(
       toCustomerRequest({ ...business, peppolId: '0248:om1199999001' }).details.peppolParticipantId,
     ).toEqual({ scheme: '0248', value: 'OM1199999001' })
+  })
+
+  it('sends any other scheme value as typed, trimmed only (A-1)', () => {
+    const business = {
+      ...blankCustomerForm('BUSINESS'),
+      legalName: 'X',
+      contactPerson: 'Y',
+      vatNumber: 'OM1110309032',
+      registeredOnPeppol: true,
+    }
+    // 9915:testlower went out as TESTLOWER, another identifier than the one the partner registered.
+    expect(
+      toCustomerRequest({ ...business, peppolId: ' 9915:testlower ' }).details.peppolParticipantId,
+    ).toEqual({ scheme: '9915', value: 'testlower' })
+    expect(
+      toCustomerRequest({ ...business, peppolId: '0242:000006-TestBed.3001' }).details
+        .peppolParticipantId,
+    ).toEqual({ scheme: '0242', value: '000006-TestBed.3001' })
   })
 
   it('places refusals by model path and keeps unknown ones for a notice', () => {
@@ -627,5 +645,98 @@ describe('buyer identifier and special-zone licence (PINT-OM IBR-016-OM, IBR-152
     await i18n.changeLanguage('ar')
     renderAt(`/customers/${ID}/edit`)
     expect(await screen.findByLabelText(/رقم ترخيص المنطقة الخاصة/)).toBeTruthy()
+  })
+})
+
+describe('a Peppol customer whose invoice address is not ready to send (backend #817)', () => {
+  const serve = (overrides: Partial<CustomerRecordDto>) => {
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === ONE && (init?.method ?? 'GET') === 'GET' ? json(200, record(overrides)) : base(url, init),
+    )
+  }
+
+  it.each([
+    [
+      'en',
+      'Invoices to this customer go over Peppol, which needs these on the invoice address: additional street or area, postal code, address line 3. A standard invoice is refused until they are added.',
+    ],
+    [
+      'ar',
+      'تُرسل فواتير هذا العميل عبر Peppol، ويحتاج ذلك في عنوان الفوترة إلى: الشارع الإضافي أو المنطقة، الرمز البريدي، سطر العنوان 3. تُرفض الفاتورة الضريبية القياسية حتى تُضاف.',
+    ],
+  ])('names the missing members in words (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    serve({
+      peppolSendReady: false,
+      missingPeppolFields: [
+        'invoiceAddress.additionalStreetName',
+        'invoiceAddress.postalCode',
+        'invoiceAddress.addressLine3',
+      ],
+    })
+    renderAt(`/customers/${ID}/edit`)
+    expect(await screen.findByText(sentence)).toBeTruthy()
+  })
+
+  it('says nothing when the address is ready, or from a server without the field', async () => {
+    serve({ peppolSendReady: true, missingPeppolFields: [] })
+    const { unmount } = renderAt(`/customers/${ID}/edit`)
+    await screen.findAllByRole('button', { name: 'Save changes' })
+    expect(screen.queryByText(/go over Peppol/)).toBeNull()
+    unmount()
+    serve({})
+    renderAt(`/customers/${ID}/edit`)
+    await screen.findAllByRole('button', { name: 'Save changes' })
+    expect(screen.queryByText(/go over Peppol/)).toBeNull()
+  })
+
+  it('never shows a code for a member this build has no word for', async () => {
+    serve({ peppolSendReady: false, missingPeppolFields: ['invoiceAddress.somethingNew'] })
+    renderAt(`/customers/${ID}/edit`)
+    expect(await screen.findByText(/needs these on the invoice address: the remaining address details\./)).toBeTruthy()
+    expect(screen.queryByText(/somethingNew/)).toBeNull()
+  })
+})
+
+describe('a customer a full tax invoice cannot yet name (backend #817, IBR-016-OM)', () => {
+  const serve = (overrides: Partial<CustomerRecordDto>) => {
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === ONE && (init?.method ?? 'GET') === 'GET' ? json(200, record(overrides)) : base(url, init),
+    )
+  }
+
+  it.each([
+    [
+      'en',
+      'A full tax invoice to this customer needs an Omani VAT number, a special-zone licence or a buyer identifier. Without it the invoice is refused at issue; a simplified invoice is not affected.',
+    ],
+    [
+      'ar',
+      'تحتاج الفاتورة الضريبية الكاملة لهذا العميل إلى رقم ضريبي عُماني أو ترخيص منطقة خاصة أو معرّف للمشتري. ومن دونها تُرفض الفاتورة عند الإصدار، ولا تتأثر الفاتورة المبسطة.',
+    ],
+  ])('says what is missing in words (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    serve({ fullTaxReady: false, missingFullTaxFields: ['details.identifierValue'] })
+    renderAt(`/customers/${ID}/edit`)
+    expect(await screen.findByText(sentence)).toBeTruthy()
+  })
+
+  it('says nothing when ready, or from a server without the field, and no code for an unknown member', async () => {
+    serve({ fullTaxReady: true, missingFullTaxFields: [] })
+    const first = renderAt(`/customers/${ID}/edit`)
+    await screen.findAllByRole('button', { name: 'Save changes' })
+    expect(screen.queryByText(/A full tax invoice to this customer/)).toBeNull()
+    first.unmount()
+    serve({})
+    const second = renderAt(`/customers/${ID}/edit`)
+    await screen.findAllByRole('button', { name: 'Save changes' })
+    expect(screen.queryByText(/A full tax invoice to this customer/)).toBeNull()
+    second.unmount()
+    serve({ fullTaxReady: false, missingFullTaxFields: ['details.somethingNew'] })
+    renderAt(`/customers/${ID}/edit`)
+    expect(await screen.findByText(/needs the remaining details\./)).toBeTruthy()
+    expect(screen.queryByText(/somethingNew/)).toBeNull()
   })
 })

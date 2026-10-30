@@ -1,6 +1,13 @@
 import { apiDownload, apiRequest, type ApiDownload } from '../client'
 import type { DiscountDto } from './drafts'
-import type { InvoiceSourceDto, InvoiceStateDto, InvoiceTillDto, InvoiceTypeDto } from './list'
+import type {
+  InvoiceListApproval,
+  InvoicePaymentDto as InvoiceListPaymentDto,
+  InvoiceSourceDto,
+  InvoiceStateDto,
+  InvoiceTillDto,
+  InvoiceTypeDto,
+} from './list'
 
 /**
  * One authored invoice, opened (`InvoiceAuthoringController`). The document, what it still owes,
@@ -116,6 +123,15 @@ export type InvoiceDetailDto = {
   seller?: InvoiceSellerDto | null
   buyer?: InvoiceBuyerDto | null
   /**
+   * The list-row fields `InvoiceResponse` also carries. The single read leaves them null today
+   * (backend C-5); a page that needs them reads them from the list. Optional because a server
+   * older than the field does not send it.
+   */
+  customerName?: string | null
+  payment?: InvoiceListPaymentDto | null
+  correctionOfInvoiceNumber?: string | null
+  approvalState?: InvoiceListApproval | null
+  /**
    * Line warnings on the authoring routes, never blocking; `[]` when none. The issue answer also
    * lists the lines that cite a counted product and moved no stock (`STOCK_UNIT_MISMATCH`,
    * `STOCK_VARIANT_UNKNOWN`, `STOCK_QUANTITY_NOT_WHOLE`, `STOCK_QUANTITY_INVALID`). Absent from
@@ -192,7 +208,8 @@ export type InvoiceReceivableDto = {
 /** A payment or its reversal. Nothing is ever deleted, so a list must net the two. */
 export type InvoicePaymentDto = {
   id: string
-  entryType: 'PAYMENT' | 'REVERSAL'
+  /** `REFUND` (backend V477): money paid back for a credit note, kept on the invoice it credits. */
+  entryType: 'PAYMENT' | 'REVERSAL' | 'REFUND'
   reversalOfPaymentId: string | null
   amount: number
   currency: string
@@ -200,6 +217,8 @@ export type InvoicePaymentDto = {
   paymentReference: string | null
   paymentDate: string | null
   occurredAt: string
+  /** `REFUND` only: the credit note the money was paid back for. Absent from an older server. */
+  creditNoteId?: string | null
 }
 
 export type InvoiceAttachmentDto = {

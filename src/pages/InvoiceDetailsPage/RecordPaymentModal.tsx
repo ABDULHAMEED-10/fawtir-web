@@ -45,6 +45,16 @@ function figureInSentence(amount: number, currency: string, language: string): s
 const ORDER: PaymentField[] = ['amount', 'methodCode', 'paymentDate', 'reference']
 
 /**
+ * Refusals that mean the balance moved after the page was read: the dialog checks the amount
+ * against the figure it holds before asking, so the server refusing it says that figure is old.
+ * A stale tab kept saying "84.000 still owed" under the refusal (DA-12, DB-10).
+ */
+const BALANCE_CHANGED: ReadonlySet<string> = new Set([
+  'PAYMENT_EXCEEDS_OUTSTANDING',
+  'BILL_PAYMENT_EXCEEDS_OUTSTANDING',
+])
+
+/**
  * Money arrived against an issued invoice, and someone is recording it. Built on the console's
  * payment modal fields so the two read alike.
  */
@@ -61,6 +71,7 @@ export function RecordPaymentModal({
   refusals,
   labelKeys,
   amountTooMuchKey,
+  onBalanceChanged,
 }: {
   invoiceId: string
   invoiceNumber: string | null
@@ -105,6 +116,8 @@ export function RecordPaymentModal({
    * decimals.
    */
   amountTooMuchKey?: string
+  /** Told when a refusal says the balance moved, so the page reads it again once this closes. */
+  onBalanceChanged?: () => void
 }) {
   const { t, i18n } = useTranslation()
   const reference = useReferenceData()
@@ -161,6 +174,14 @@ export function RecordPaymentModal({
         (error instanceof ApiError && error.code && Object.hasOwn(PAYMENT_REFUSALS, error.code) ? PAYMENT_REFUSALS[error.code] : undefined)
       const namedOwed =
         named?.keyWithOwed && error instanceof ApiError ? owedIn(error.problem) : null
+      const balanceChanged =
+        error instanceof ApiError && !!error.code && BALANCE_CHANGED.has(error.code)
+      if (balanceChanged) {
+        onBalanceChanged?.()
+        setFailure(t('invoiceDetails.pay.balanceChanged'))
+        // The subtitle names what the server says is owed now, when it says.
+        if (error instanceof ApiError) setOwed(owedIn(error.problem))
+      }
       if (refusal?.field && named?.keyWithOwed && namedOwed) {
         setOwed(namedOwed)
         setErrors({ [refusal.field]: named.keyWithOwed })
@@ -194,8 +215,9 @@ export function RecordPaymentModal({
       subtitle={withRial(
         t('invoiceDetails.pay.subtitle', {
           number: invoiceNumber ?? '—',
-          amount:
-            outstanding === null
+          amount: owed
+            ? figureInSentence(owed.amount, owed.currency, i18n.language)
+            : outstanding === null
               ? '—'
               : `${currency} ${formatAmount(outstanding, currency, i18n.language)}`,
         }),

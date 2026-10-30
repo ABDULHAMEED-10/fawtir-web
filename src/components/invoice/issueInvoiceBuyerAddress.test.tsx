@@ -52,7 +52,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-const refuse = async (customerId?: string) => {
+const refuse = async (customerEditPath?: string) => {
   const user = userEvent.setup({ delay: null })
   const today = muscatToday()
   render(
@@ -63,7 +63,7 @@ const refuse = async (customerId?: string) => {
           version={0}
           initialIssueDate={today}
           initialDueDate={today}
-          customerId={customerId}
+          customerEditPath={customerEditPath}
           onClose={() => {}}
           onIssued={() => {}}
         />
@@ -75,22 +75,25 @@ const refuse = async (customerId?: string) => {
 
 describe("Issue refused for the customer's incomplete address (IBR-019-OM)", () => {
   it('says what the address needs, not "something went wrong", and links to the customer', async () => {
-    await refuse('c-42')
+    await refuse('/customers/c-42/edit')
     expect(
       await screen.findByText(i18n.t('invoiceIssue.refused.buyerAddressIncomplete')),
     ).toBeTruthy()
     expect(screen.queryByText(/Something went wrong/)).toBeNull()
     expect(
-      screen.getByRole('link', { name: i18n.t('invoiceIssue.openCustomer') }).getAttribute('href'),
+      screen
+        .getByRole('link', { name: i18n.t('invoiceIssue.refused.buyerAddressAction') })
+        .getAttribute('href'),
     ).toBe('/customers/c-42/edit')
   })
 
-  it('links to the customer list when the customer is not known here', async () => {
+  it('offers no link to someone who cannot edit customers, but still says why', async () => {
     await refuse()
     expect(
-      (await screen.findByRole('link', { name: i18n.t('invoiceIssue.openCustomer') })).getAttribute(
-        'href',
-      ),
-    ).toBe('/customers')
+      await screen.findByText(i18n.t('invoiceIssue.refused.buyerAddressIncomplete')),
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole('link', { name: i18n.t('invoiceIssue.refused.buyerAddressAction') }),
+    ).toBeNull()
   })
 })

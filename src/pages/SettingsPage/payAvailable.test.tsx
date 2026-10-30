@@ -10,6 +10,7 @@ import {
 import { resetSharedRequests } from '../../api'
 import { BillingPage } from './BillingPage'
 import { BillDueCard } from '../../components/billing/BillDueCard'
+import { SessionContext } from '../../lib/session/session'
 import { resetLeftFawtirRefusal } from '../../lib/leftFawtirRefusal'
 import { hostedCheckout } from '../../api/settings/billing'
 
@@ -202,6 +203,11 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+/** The card, as the dashboard draws it: inside the shell, once the session has answered. */
+function SignedIn({ children }: { children: React.ReactNode }) {
+  return <SessionContext.Provider value={me}>{children}</SessionContext.Provider>
+}
+
 function renderAt(path: string, element: React.ReactNode) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -317,7 +323,7 @@ describe('A card checkout already opened: no Continue when payAvailable is false
 describe('The dashboard bill card', () => {
   it('names the open bill but sends nobody to pay it when payAvailable is false', async () => {
     me = { ...ADMIN, payAvailable: false }
-    renderAt('/', <BillDueCard />)
+    renderAt('/', <SignedIn><BillDueCard /></SignedIn>)
     expect(await screen.findByText(i18n.t('billDue.title'))).toBeTruthy()
     await settled()
     expect(screen.queryByRole('link', { name: i18n.t('billDue.cta') })).toBeNull()
@@ -325,7 +331,7 @@ describe('The dashboard bill card', () => {
 
   it.each(OFFERED)('sends to pay for %s', async (_, who) => {
     me = who
-    renderAt('/', <BillDueCard />)
+    renderAt('/', <SignedIn><BillDueCard /></SignedIn>)
     expect(await screen.findByRole('link', { name: i18n.t('billDue.cta') })).toBeTruthy()
   })
 })

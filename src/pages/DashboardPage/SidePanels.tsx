@@ -6,7 +6,7 @@ import type { AlertDto, ComplianceDto, VatPositionDto } from '../../api/reports/
 import type { PlanOverviewDto } from '../../api/settings/plan'
 import { DashboardCard } from './DashboardCard'
 import { useReadOnlyReason } from '../../lib/subscriptionReadOnly'
-import { omrRow, toNumber, type TileView } from './dashboardData'
+import { omrVatTotal, type TileView } from './dashboardData'
 
 function Unavailable({ view }: { view: TileView<unknown> }) {
   const { t } = useTranslation()
@@ -207,7 +207,7 @@ function QuotaFigures({ used, quota, ends }: { used: number; quota: number; ends
 export function VatPosition({ vat }: { vat: TileView<VatPositionDto> }) {
   const { t, i18n } = useTranslation()
   const omr = (rows: VatPositionDto['output'] | null) =>
-    rows === null ? null : formatAmount(toNumber(omrRow(rows)?.vatAmount), 'OMR', i18n.language)
+    rows === null ? null : formatAmount(omrVatTotal(rows), 'OMR', i18n.language)
 
   return (
     <DashboardCard

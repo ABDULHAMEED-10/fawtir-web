@@ -198,6 +198,76 @@ describe('Dashboard, from the server', () => {
     expect(draft.queryByText('0.000')).toBeNull()
   })
 
+  it('says "To be sent" for an invoice queued but not yet transmitted, as the invoices list does (A-4)', async () => {
+    const base = DASHBOARD.recentInvoices.data[0]
+    answer({
+      dashboard: () =>
+        json(200, {
+          ...DASHBOARD,
+          recentInvoices: ok([
+            { ...base, id: 'q-0', invoiceNumber: 'RT-0200', dispatch: 'DISPATCHED', transportState: null, invoiceAck: null },
+            { ...base, id: 'q-1', invoiceNumber: 'RT-0201', dispatch: 'DISPATCHED', transportState: 'QUEUED', invoiceAck: null },
+            { ...base, id: 'q-2', invoiceNumber: 'RT-0202', dispatch: 'DISPATCHED', transportState: 'SENDING', invoiceAck: null },
+            { ...base, id: 'q-3', invoiceNumber: 'RT-0203', dispatch: 'PENDING', transportState: null, invoiceAck: null },
+            { ...base, id: 's-1', invoiceNumber: 'RT-0204', dispatch: 'DISPATCHED', transportState: 'SENT', invoiceAck: null },
+            { ...base, id: 'f-1', invoiceNumber: 'RT-0205', dispatch: 'DEAD_LETTERED', transportState: null, invoiceAck: null },
+            { ...base, id: 'f-2', invoiceNumber: 'RT-0206', dispatch: 'DISPATCHED', transportState: 'UNDELIVERABLE', invoiceAck: null },
+            { ...base, id: 'n-1', invoiceNumber: 'RT-0207', dispatch: null, transportState: null, invoiceAck: null },
+            { ...base, id: 'd-1', invoiceNumber: 'RT-0208', dispatch: 'DISPATCHED', transportState: 'DELIVERED', invoiceAck: null },
+            { ...base, id: 'd-2', invoiceNumber: 'RT-0209', dispatch: 'DISPATCHED', transportState: 'DELIVERED_UNCONFIRMED', invoiceAck: null },
+            { ...base, id: 'f-3', invoiceNumber: 'RT-0210', dispatch: 'DISPATCHED', transportState: 'C4_UNREACHABLE', invoiceAck: null },
+          ]),
+        }),
+    })
+    renderPage()
+
+    const row = (name: string) => within(screen.getByText(name).closest('tr')!)
+    await screen.findByText('RT-0200')
+    for (const queued of ['RT-0200', 'RT-0201', 'RT-0202', 'RT-0203'])
+      expect(row(queued).getByText(t('invoicesPage.payment.toSend'))).toBeTruthy()
+    // "Sent" only once the receiving access point has the document (the AS4 receipt).
+    expect(row('RT-0204').getByText(t('dashboard.invoices.status.sent'))).toBeTruthy()
+    expect(screen.getAllByText(t('dashboard.invoices.status.sent'))).toHaveLength(1)
+    expect(row('RT-0205').getByText(t('dashboard.invoices.status.notSent'))).toBeTruthy()
+    expect(row('RT-0206').getByText(t('dashboard.invoices.status.undelivered'))).toBeTruthy()
+    // Nothing owed to the network: the invoice is simply issued.
+    expect(row('RT-0207').getByText(t('dashboard.invoices.status.issued'))).toBeTruthy()
+    expect(row('RT-0208').getByText(t('dashboard.invoices.status.accepted'))).toBeTruthy()
+    expect(row('RT-0209').getByText(t('dashboard.invoices.status.accepted'))).toBeTruthy()
+    expect(row('RT-0210').getByText(t('dashboard.invoices.status.undelivered'))).toBeTruthy()
+  })
+
+  it('adds every OMR output category into Output VAT, not only the first one listed (A-3)', async () => {
+    answer({
+      dashboard: () =>
+        json(200, {
+          ...DASHBOARD,
+          vat: ok({
+            ...DASHBOARD.vat.data,
+            // The report lists one row per category and rate; E comes first and has no VAT.
+            output: [
+              { side: 'OUTPUT', currency: 'OMR', vatAmount: 0 },
+              { side: 'OUTPUT', currency: 'OMR', vatAmount: '30.0560000000' },
+              { side: 'OUTPUT', currency: 'OMR', vatAmount: 0 },
+              { side: 'OUTPUT', currency: 'USD', vatAmount: 99 },
+            ],
+            input: [
+              { side: 'INPUT', currency: 'OMR', vatAmount: 1.25 },
+              { side: 'INPUT', currency: 'OMR', vatAmount: 1 },
+            ],
+            net: [{ side: 'NET', currency: 'OMR', vatAmount: 27.806 }],
+          }),
+        }),
+    })
+    renderPage()
+    await screen.findByText('RT-0007')
+    const vat = card(t('dashboard.vat.title'))
+    expect(vat.getByText('30.056')).toBeTruthy()
+    expect(vat.getByText('2.250')).toBeTruthy()
+    expect(vat.getByText('27.806')).toBeTruthy()
+    expect(vat.queryByText('0.000')).toBeNull()
+  })
+
   it('opens a credit or debit note on its own page, as the invoices list does', async () => {
     const base = DASHBOARD.recentInvoices.data[0]
     answer({

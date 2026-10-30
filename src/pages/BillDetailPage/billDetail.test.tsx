@@ -1532,6 +1532,53 @@ describe('A bill, wired to the API', () => {
     expect(await screen.findAllByText('Supplier not named')).toBeTruthy()
   })
 
+  it('names an unnamed sender by its Peppol id (DB-1)', async () => {
+    billResponse = () =>
+      json(200, {
+        ...detail(),
+        bill: {
+          ...detail().bill,
+          supplierId: null,
+          supplierName: null,
+          supplierParticipantId: '0248:OM1100000299',
+        },
+      })
+    renderBill()
+    const from = (await screen.findByText('0248:OM1100000299')).closest('p')!
+    expect(within(from).queryByText('Supplier not named')).toBeNull()
+    expect(screen.getByText('0248:OM1100000299').getAttribute('dir')).toBe('ltr')
+  })
+
+  it('writes a USD bill in dollars, with its VAT in rial beside it (DB-5)', async () => {
+    billResponse = () =>
+      json(200, {
+        ...detail(),
+        bill: {
+          ...detail().bill,
+          currencyCode: 'USD',
+          totalIncludingVat: 273,
+          vatAmount: 13,
+          outstandingAmount: 273,
+          amountDue: 273,
+          inputVat: { counted: true, countedOn: '2026-10-29', reason: 'COUNTED', vatAmountOmr: 5 },
+        },
+      })
+    renderBill()
+    const charging = (await screen.findByText(i18n.t('billDetail.lines.theyreCharging'))).parentElement!
+    expect(within(charging).getByText('USD')).toBeTruthy()
+    expect(charging.querySelector('svg')).toBeNull()
+    const rial = screen.getByText(i18n.t('billDetail.lines.vatInRial')).parentElement!
+    expect(within(rial).getByText('5.000')).toBeTruthy()
+    expect(rial.querySelector('svg')).not.toBeNull()
+  })
+
+  it('keeps the rial sign and adds no rial VAT line on a bill in rial (DB-5)', async () => {
+    renderBill()
+    const charging = (await screen.findByText(i18n.t('billDetail.lines.theyreCharging'))).parentElement!
+    expect(charging.querySelector('svg')).not.toBeNull()
+    expect(screen.queryByText(i18n.t('billDetail.lines.vatInRial'))).toBeNull()
+  })
+
   it('shows the not-found state for a bill this tenant does not have', async () => {
     billResponse = () =>
       json(404, { type: 'https://api.fawtir.om/problems/not-found', error: 'BILL_NOT_FOUND' })
@@ -1618,6 +1665,24 @@ describe('the supplier card on a bill', () => {
 })
 
 describe('bill detail mapping', () => {
+  it('dates the Arrived step only from an arrival, never from the issue date (B-9)', () => {
+    const format = { day: (iso: string) => `day ${iso}`, instantDay: (iso: string) => `at ${iso}` }
+    const base = detail()
+    const noEvent = { ...base, intake: null, activity: base.activity.filter((entry) => entry.kind !== 'ARRIVED') }
+    expect(stepsOf(noEvent, format)[0].detail).toEqual({ key: `billDetail.steps.via.${base.bill.source}` })
+    const arrived = {
+      ...noEvent,
+      activity: [
+        ...noEvent.activity,
+        { at: '2026-10-29T13:21:00Z', kind: 'ARRIVED' as const, detail: null, actor: null },
+      ],
+    }
+    expect(stepsOf(arrived, format)[0].detail).toEqual({
+      key: 'billDetail.steps.arrivedVia',
+      values: { date: 'at 2026-10-29T13:21:00Z', source: base.bill.source },
+    })
+  })
+
   it('walks the steps as far as the bill has got, and no further', () => {
     const format = { day: (iso: string) => iso, instantDay: (iso: string) => iso }
     const steps = stepsOf(detail(), format)
@@ -2122,6 +2187,33 @@ describe('why a bill was refused, in its own sentence', () => {
     await reject()
     expect(await screen.findByText(sentence)).toBeTruthy()
     expect(screen.queryByText(GENERIC)).toBeNull()
+  })
+
+  it.each([
+    ['en', "This bill can't be rejected: supplier credit is set against it, and credit can't be released yet."],
+    ['ar', 'لا يمكن رفض هذه الفاتورة: خُصم منها رصيد دائن للمورد، ولا يمكن تحرير هذا الرصيد بعد.'],
+  ])('says a rejection is refused while credit is set against the bill, promising no release (%s)', async (language, sentence) => {
+    await i18n.changeLanguage(language)
+    actionResponse = refusal('BILL_REJECTION_HAS_APPLIED_CREDIT')
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getAllByRole('button', { name: i18n.t('billDetail.actions.reject') })[0])
+    fireEvent.change(await screen.findByRole('textbox'), { target: { value: 'Not ours' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('billDetail.reject.confirm') }))
+    expect(await screen.findByText(sentence)).toBeTruthy()
+  })
+
+  it('explains instead of opening the rejection when the page already shows credit set against the bill', async () => {
+    billResponse = () =>
+      json(200, { ...detail(), settlement: { ...detail().settlement, creditedAmount: 10.5, outstandingAmount: 2343.81 } })
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Reject' })[0])
+    expect(
+      await screen.findByText("This bill can't be rejected: supplier credit is set against it, and credit can't be released yet."),
+    ).toBeTruthy()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(calls().some((call) => call.includes('/reject'))).toBe(false)
   })
 
   // A hold with no reason, or one that is too long.
@@ -3231,5 +3323,56 @@ describe('a bill received over Peppol: our reply and our receipt report', () => 
     renderBill()
     const lines = await card('وصل الرد إلى نقطة الوصول لدى المورّد: استُلمت دون تأكيد')
     expect(await lines.findByText(/^أُبلغت هيئة الضرائب بالاستلام · /)).toBeTruthy()
+  })
+})
+
+describe('a bill payment refused because someone else paid first (DB-10)', () => {
+  it('names the balance the server gives, says it moved, and reads the bill again on close', async () => {
+    actionResponse = () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/expenditure-refused',
+        error: 'BILL_PAYMENT_EXCEEDS_OUTSTANDING',
+        outstandingAmount: 0,
+        currency: 'OMR',
+      })
+    billResponse = () => json(200, detail({ readiness: APPROVED }))
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Record payment' }))
+    expect(
+      await within(dialog).findByText(
+        'What is owed changed since this page was opened. Closing this dialog shows the current balance.',
+      ),
+    ).toBeTruthy()
+    const reads = () => calls().filter((call) => call === `GET ${BILL_URL}`).length
+    const before = reads()
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('common.cancel') }))
+    await waitFor(() => expect(reads()).toBe(before + 1))
+  })
+})
+
+describe('a USD bill’s payment terms and saving carry its currency (DB-5 review)', () => {
+  it('names USD, never the rial sign, on the early-payment saving', async () => {
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
+    billResponse = () =>
+      json(200, {
+        ...detail({ readiness: APPROVED }),
+        bill: {
+          ...detail().bill,
+          issueDate: today,
+          currencyCode: 'USD',
+          totalIncludingVat: 273,
+          vatAmount: 13,
+          outstandingAmount: 273,
+          amountDue: 273,
+        },
+        settlement: { ...detail().settlement, currency: 'USD', billTotal: 273, outstandingAmount: 273 },
+      })
+    renderBill()
+    const saving = (await screen.findByText(/^Paying by .* saves$/)).closest('p')!
+    expect(within(saving).getByText('USD')).toBeTruthy()
+    expect(saving.querySelector('svg')).toBeNull()
   })
 })

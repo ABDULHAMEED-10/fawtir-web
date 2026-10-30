@@ -8,6 +8,8 @@ import type {
 } from '../api/invoices/drafts'
 import type { InvoiceListPayment, InvoiceRowDto, InvoiceSummaryDto } from '../api/invoices/list'
 import type { TFunction } from 'i18next'
+import { ApiError } from '../api'
+import { formatAmount } from './format'
 import {
   CATEGORY_REASON_CONFLICT,
   CODED_REASON,
@@ -819,6 +821,66 @@ export const NOTE_ROUTES: Record<NoteKind, string> = {
   DEBIT_NOTE: '/income/debit-notes',
 }
 
+/**
+ * The owner's cap on credit notes (DA-1, option B): what a credit note credits in each VAT
+ * category and rate may not exceed what the original invoice and its issued debit notes charged
+ * there, less every issued credit note. The composer cannot apply it itself (it does not read the
+ * earlier notes), so the server's refusal is the check (backend #817, 741c06d6b). The server
+ * names `taxCategory` (the EN 16931 letter) and `taxRate` (a plain decimal string, absent for E and
+ * O, which are keyed by category alone), and on the second code `remainingTaxableAmount` and
+ * `remainingVatAmount`. CREDIT_NOTE_EXCEEDS_LINE_REMAINING is not sent (a note line names no
+ * original line); it keeps a plain sentence in case a later server sends it.
+ */
+const CREDIT_CAP_REFUSALS: Record<string, string> = {
+  CREDIT_NOTE_EXCEEDS_LINE_REMAINING: 'salesNote.refused.lineRemaining',
+  CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING: 'salesNote.refused.categoryRemaining',
+  CREDIT_NOTE_VAT_CATEGORY_NOT_ON_ORIGINAL: 'salesNote.refused.categoryNotOnInvoice',
+}
+
+const textIn = (problem: Readonly<Record<string, unknown>>, name: string): string | null => {
+  const value = problem[name]
+  if (typeof value === 'string' && value.trim() !== '') return value.trim()
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  return null
+}
+
+const amountIn = (problem: Readonly<Record<string, unknown>>, name: string): number | null => {
+  const text = textIn(problem, name)
+  return text !== null && Number.isFinite(Number(text)) ? Number(text) : null
+}
+
+/**
+ * The sentence for a cap refusal, or null for any other error. `values` are ready to print: the
+ * amounts as "OMR 12.000" (the page draws the rial sign in their place), `category` the cap
+ * sentences' phrase for the EN 16931 category. Without the figures the plain sentence is said.
+ */
+export function creditCapRefusal(
+  error: unknown,
+  t: (key: string, options?: Record<string, unknown>) => string,
+  currency: string,
+  language: string,
+): { key: string; values?: Record<string, string> } | null {
+  if (!(error instanceof ApiError) || !error.code || !Object.hasOwn(CREDIT_CAP_REFUSALS, error.code))
+    return null
+  const plain = CREDIT_CAP_REFUSALS[error.code]
+  const problem = error.problem
+  const categoryCode = textIn(problem, 'taxCategory')
+  if (categoryCode === null || error.code === 'CREDIT_NOTE_EXCEEDS_LINE_REMAINING') return { key: plain }
+  const rate = textIn(problem, 'taxRate')
+  // The cap sentences' own words for the category ("the Zero-rated category"): the invoice page's
+  // label read "At Exempt" in English and doubled "بنسبة" in Arabic for Z.
+  const category = t(`salesNote.refused.capCategory.${categoryCode}`, { defaultValue: categoryCode })
+  // E and O carry no rate (IBR-061-OM, IBR-067-OM): their sentences name the category alone.
+  const suffix = rate === null ? 'NamedNoRate' : 'Named'
+  const where: Record<string, string> = rate === null ? { category } : { category, rate }
+  if (error.code === 'CREDIT_NOTE_VAT_CATEGORY_NOT_ON_ORIGINAL') return { key: `${plain}${suffix}`, values: where }
+  const taxable = amountIn(problem, 'remainingTaxableAmount')
+  const vat = amountIn(problem, 'remainingVatAmount')
+  if (taxable === null || vat === null) return { key: plain }
+  const money = (value: number) => `${currency} ${formatAmount(value, currency, language)}`
+  return { key: `${plain}${suffix}`, values: { ...where, taxable: money(taxable), vat: money(vat) } }
+}
+
 /** Note refusals a person can act on, in the page's words. */
 export const NOTE_REFUSALS: Record<string, string> = {
   CORRECTED_INVOICE_NOT_ISSUED: 'salesNote.refused.invoiceNotIssued',
@@ -912,8 +974,9 @@ export const NOTE_TABS: Record<NoteKind, NoteTab[]> = {
     { id: 'toSend', state: 'ISSUED', payment: null, only: ['toSend'] },
     // TODO(backend): refund tracking (INCOME.md 4.2): no credit note is refund due or refunded yet.
     { id: 'refundDue', state: 'ISSUED', payment: null, only: ['refundDue'], none: true },
-    // With no refunds recorded, every issued credit note is applied to its invoice: the server's
-    // own filter, so the pages and the count are the tab's (`issuedTotal`, INCOME.md 4.1).
+    // Every issued credit note, the server's own filter, so the pages and the count are the tab's
+    // (`issuedTotal`, INCOME.md 4.1). POS refunds (backend V477) are in it too: the list cannot
+    // tell them apart yet (INCOME.md, update of 2026-10-29).
     { id: 'applied', state: 'ISSUED', payment: null, only: null },
     { id: 'refunded', state: 'ISSUED', payment: null, only: ['refunded'], none: true },
   ],
@@ -991,10 +1054,12 @@ export function debitSummaryOf(summary: InvoiceSummaryDto): NoteSummary {
 
 /**
  * The credit notes list's tab counts, subtitle and figures, from `GET /v1/authored-invoices/summary
- * ?type=CREDIT_NOTE` (INCOME.md 4.1). Credited · 30 days is `issuedLast30Days`; with no refunds
- * recorded, every issued credit note is applied against its invoice, so Applied to invoices (card
- * and tab) is `issuedTotal`. The subtitle's quarter is `issuedThisQuarter`. A figure the summary
- * does not carry is left out, and its card reads as unavailable.
+ * ?type=CREDIT_NOTE` (INCOME.md 4.1). Credited · 30 days is `issuedLast30Days`; Applied to
+ * invoices (card and tab) is `issuedTotal`, which since backend V477 also holds POS-refunded
+ * credit notes and so overstates what was applied by those refunds; the summary has no refunded
+ * figure to take out (ACC-3, INCOME.md update of 2026-10-29). The subtitle's quarter is
+ * `issuedThisQuarter`. A figure the summary does not carry is left out, and its card reads as
+ * unavailable.
  * TODO(backend): Refund due and Refunded, cards and tabs, need refund tracking (INCOME.md 4.2).
  */
 export function creditSummaryOf(summary: InvoiceSummaryDto): NoteSummary {

@@ -738,6 +738,14 @@ describe('issuing from the composer', () => {
     renderAt('/invoices/d-1/edit')
     expect(await screen.findByText('Figures from the saved draft.')).toBeTruthy()
 
+    // Saved with no classification, the line reopens unchosen (A-12): issuing asks which it is.
+    fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
+    expect(
+      await screen.findByText('Line 1: Choose whether this line is goods or a service.'),
+    ).toBeTruthy()
+    expect(issueCalls()).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Goods' }))
+
     fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
     expect(
       await screen.findByText('Line 1: Choose an HS code for this goods line (IBR-079-OM).'),

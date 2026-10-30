@@ -277,6 +277,8 @@ export type DebitNoteRowDto = {
   debitNoteNumber: string | null
   issueDate: string | null
   dueDate: string | null
+  /** When the note was recorded: projected from Peppol, or confirmed from an upload. */
+  receivedAt?: string | null
   /** The server's judgment, computed at read time. Never recomputed from the date here. */
   overdue: boolean
   currencyCode: string

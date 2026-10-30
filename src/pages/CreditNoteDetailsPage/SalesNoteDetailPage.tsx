@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { stockLineWarningTexts } from '../../lib/stockLineWarnings'
@@ -53,6 +53,7 @@ import {
   isDraft,
   lineTotals,
   paymentRows,
+  refundedOnNote,
   timelineOf,
 } from '../../lib/invoiceDetail'
 import { describeApiFailure } from '../../lib/apiFailure'
@@ -230,6 +231,16 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
   const original = useApiRead<InvoiceDetailDto>(originalId ? invoicePath(originalId) : null, () =>
     loadInvoice(originalId!),
   )
+  // The refunds on the credited invoice, read only where Cancel would be offered on an issued
+  // credit note: a refunded note may not be cancelled (DA-2), and nothing the page already reads
+  // says whether it was refunded.
+  const refundsPath =
+    credit && document?.authoringState === 'ISSUED' && originalId && can(session, 'invoice.cancel')
+      ? `${invoicePath(originalId)}/payments`
+      : null
+  const originalPayments = useApiRead<InvoicePaymentDto[]>(refundsPath, () =>
+    loadPayments(originalId!),
+  )
   const originalOwed = useApiRead<InvoiceReceivableDto>(
     originalId ? `${invoicePath(originalId)}/receivable` : null,
     () => loadReceivable(originalId!),
@@ -253,6 +264,9 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [paying, setPaying] = useState(false)
+  // Set by a payment refusal that says the balance moved (DA-12): the page re-reads on close,
+  // since a re-read while the dialog is open would unmount it.
+  const balanceStale = useRef(false)
   const [reversing, setReversing] = useState<{ id: string; amount: number; key: string } | null>(
     null,
   )
@@ -385,6 +399,18 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
   const reasonLabel = reasonKey ? t(reasonKey) : (reasonCode ?? '—')
   const reference = data.details?.buyerReference ?? data.details?.subject ?? null
 
+  const refunded =
+    credit && originalPayments.read.status === 'ready'
+      ? refundedOnNote(data.id, originalPayments.read.data)
+      : 0
+  const cancelBlockedKey: string | null = credit
+    ? refunded > 0
+      ? 'salesNote.detail.cancelBlocked.refunded'
+      : null
+    : (owed?.paidAmount ?? 0) > 0
+      ? 'invoiceDetails.cancelBlocked.paymentsOnNote'
+      : null
+
   const cancel = async () => {
     const text = reason.trim()
     if (text === '') return
@@ -398,7 +424,12 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
       note.retry()
       history.retry()
     } catch (error) {
-      setNotice(refusalText(t, error))
+      setNotice(refusalText(t, error, kind))
+      if (error instanceof ApiError && error.code === 'INVOICE_CANCEL_HAS_PAYMENTS') {
+        setCancelling(false)
+        originalPayments.retry()
+        receivable.retry()
+      }
     } finally {
       setBusy(false)
     }
@@ -474,15 +505,27 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
           },
         ]
       : []),
-    ...(data.authoringState === 'ISSUED' && can(session, 'invoice.cancel')
+    // A credit note's refunds decide, a debit note's payments (its own receivable, already read);
+    // until the deciding read answers Cancel is not offered. A blocked note keeps the item and
+    // says why instead of opening the confirmation the server would refuse (DA-2).
+    ...(data.authoringState === 'ISSUED' &&
+    can(session, 'invoice.cancel') &&
+    (credit ? originalPayments.read.status === 'ready' : receivable.read.status === 'ready')
       ? [
-          {
-            id: 'cancel',
-            labelKey: `salesNote.detail.cancelAction.${kind}`,
-            icon: deleteIcon,
-            danger: true,
-            onSelect: () => setCancelling(true),
-          },
+          cancelBlockedKey !== null
+            ? {
+                id: 'cancel',
+                labelKey: `salesNote.detail.cancelAction.${kind}`,
+                icon: deleteIcon,
+                onSelect: () => setNotice(t(cancelBlockedKey)),
+              }
+            : {
+                id: 'cancel',
+                labelKey: `salesNote.detail.cancelAction.${kind}`,
+                icon: deleteIcon,
+                danger: true,
+                onSelect: () => setCancelling(true),
+              },
         ]
       : []),
   ]
@@ -1523,7 +1566,16 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
           outstanding={owed.outstandingAmount}
           issueDate={data.issueDate}
           today={today}
-          onClose={() => setPaying(false)}
+          onBalanceChanged={() => {
+            balanceStale.current = true
+          }}
+          onClose={() => {
+            setPaying(false)
+            if (balanceStale.current) {
+              balanceStale.current = false
+              afterPayment()
+            }
+          }}
           onRecorded={() => {
             setPaying(false)
             setNotice(t('salesNote.detail.done.recorded'))
@@ -1624,7 +1676,21 @@ function previewLabels(t: Translate) {
   }
 }
 
-function refusalText(t: Translate, error: unknown): string {
+/** The server's cancel refusals for a note: payments (a refund, on a credit note) or its own notes. */
+const CANCEL_REFUSALS: Record<string, Record<NoteKind, string>> = {
+  INVOICE_CANCEL_HAS_PAYMENTS: {
+    CREDIT_NOTE: 'salesNote.detail.cancelBlocked.refunded',
+    DEBIT_NOTE: 'invoiceDetails.cancelBlocked.paymentsOnNote',
+  },
+  INVOICE_CANCEL_HAS_CORRECTIONS: {
+    CREDIT_NOTE: 'invoiceDetails.cancelBlocked.correctionsOnNote',
+    DEBIT_NOTE: 'invoiceDetails.cancelBlocked.correctionsOnNote',
+  },
+}
+
+function refusalText(t: Translate, error: unknown, kind?: NoteKind): string {
+  if (kind && error instanceof ApiError && error.code && Object.hasOwn(CANCEL_REFUSALS, error.code))
+    return t(CANCEL_REFUSALS[error.code][kind])
   if (error instanceof ApiError && error.code === 'STALE_INVOICE_VERSION')
     return t('salesNote.detail.refused.stale')
   if (error instanceof ApiError && error.code === 'INVOICE_NOT_CANCELLABLE')

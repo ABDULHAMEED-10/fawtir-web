@@ -370,3 +370,36 @@ describe('a held duplicate on the Bills list', () => {
     expect(BILL_TABS.find((tab) => tab.id === 'heldDuplicate')?.filter).toBe('HELD_DUPLICATE')
   })
 })
+
+describe('a bill credit settled with nothing paid (B-12)', () => {
+  const settled = row({ hold: null, workflowState: 'PAID', paidAmount: 0, outstandingAmount: 0 })
+  const settledDetail = (): BillDetailDto => {
+    const base = detail(settled, null, [])
+    return {
+      ...base,
+      bill: { ...base.bill, creditedAmount: 100 },
+      readiness: { state: 'READY', distinctApprovals: 1, required: 1, autoApproved: false },
+      settlement: { ...base.settlement, creditedAmount: 100, outstandingAmount: 0, paymentState: 'PAID' },
+    }
+  }
+  const format = { day: (iso: string) => iso, instantDay: (iso: string) => iso }
+
+  it('reads Settled by credit, not Paid, in the chip, the panel and the last step', () => {
+    expect(toBillListItem(settled).status).toBe('settledByCredit')
+    expect(decisionNoteOf(settledDetail())).toEqual({ key: 'billDetail.decision.settledByCredit' })
+    expect(stepsOf(settledDetail(), format).at(-1)).toMatchObject({
+      id: 'paid',
+      state: 'done',
+      detail: { key: 'billDetail.steps.settledByCredit' },
+    })
+  })
+
+  it('still reads Paid once any money was paid', () => {
+    const paid = row({ hold: null, workflowState: 'PAID', paidAmount: 40, outstandingAmount: 0 })
+    expect(toBillListItem(paid).status).toBe('paid')
+    const base = settledDetail()
+    expect(
+      decisionNoteOf({ ...base, settlement: { ...base.settlement, paidAmount: 40, creditedAmount: 60 } }),
+    ).toEqual({ key: 'billDetail.decision.paid' })
+  })
+})

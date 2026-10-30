@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../api'
@@ -11,7 +12,8 @@ type NoticeAction = { label: string } & (
 type ConsoleNoticeProps = {
   /** Already translated. Omitted for a plain message such as a loading line. */
   badge?: string
-  body: string
+  /** Text, or text with drawn signs in it (an amount the rial sign stands before). */
+  body: ReactNode
   /** A retry or a way out. */
   action?: NoticeAction
   /** Shows the app's spinner and announces the body politely instead of as an alert. */

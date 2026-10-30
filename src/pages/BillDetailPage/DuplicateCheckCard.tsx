@@ -182,7 +182,9 @@ export function DuplicateCheckCard({
         )}
       </div>
 
-      {check.sameDocumentUuid ? (
+      {/* "Confirm it as a duplicate" is advice for an undecided copy only; it stayed after the
+          confirmation (B-12). */}
+      {check.sameDocumentUuid && check.state === 'suspected' ? (
         <p className="mt-4 text-sm font-medium leading-[1.5] text-text-tertiary">
           {t(`billDetail.duplicate.sameUuid${kind}`)}
         </p>

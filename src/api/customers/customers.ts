@@ -53,6 +53,21 @@ export type CustomerDto = {
   /** False while the record cannot fill a compliant buyer party; issue refuses it (SRS §15). */
   invoiceEligible?: boolean
   missingInvoiceFields?: string[]
+  /**
+   * Backend #817, read-only: for a customer reached over Peppol, the invoice-address members the
+   * Send requires (IBR-019-OM) that are missing, as field paths (`invoiceAddress.addressLine3`);
+   * empty for anyone else. `invoiceEligible` does not change with it. Absent from an older server.
+   */
+  missingPeppolFields?: string[]
+  peppolSendReady?: boolean
+  /**
+   * Backend #817, read-only: for a business or government customer with no Omani VAT number, no
+   * special-zone licence and no stated identifier, `["details.identifierValue"]` and false: a full
+   * tax invoice to it is refused at issue (422 BUYER_IDENTIFIER_REQUIRED, IBR-016-OM); a
+   * simplified one is not. Empty and true otherwise. Absent from an older server.
+   */
+  missingFullTaxFields?: string[]
+  fullTaxReady?: boolean
   status: CustomerStatusDto
   updatedAt: string
 }

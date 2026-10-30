@@ -64,7 +64,7 @@ import {
 import { NOTE_ROUTES, type NoteListStatus } from '../../lib/salesNote'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
-import { can, useSession } from '../../lib/session/session'
+import { can, mayRequest, useSession } from '../../lib/session/session'
 import { usePlanIncludes } from '../../lib/planAccess'
 import outstandingIcon from '../../assets/invoices/kpi-outstanding.svg'
 import paidIcon from '../../assets/invoices/kpi-paid.svg'
@@ -342,7 +342,11 @@ function InvoicesScreen() {
     : null
   const list = useApiRead<Page<InvoiceRowDto>>(listPath, () => loadInvoicePage(listPath!))
   // The design names the issuing branch under the customer; the row carries only its id.
-  const branches = useApiRead<BranchDto[]>('/v1/branches', loadBranches)
+  // `branch.read` only: without it the list asked anyway and got a 403 (B-14).
+  const branches = useApiRead<BranchDto[]>(
+    mayRequest(session, 'branch.read') ? '/v1/branches' : null,
+    loadBranches,
+  )
   const { label: branchLabel } = useBranchName()
   const branchNames = useMemo(() => {
     const names = new Map<string, string>()
@@ -792,9 +796,13 @@ function InvoiceKpiCards({ totals }: { totals: InvoiceSummaryDto }) {
     {
       id: 'paid',
       icon: paidIcon,
-      titleKey: 'invoicesPage.kpi.paid',
+      // `paidTotal` is the total of every receivable with nothing left owed, debit notes among
+      // them, however it was cleared: a credit note clears one with no cash. "Paid" and "invoices
+      // collected" overstated cash in (ACC-10); the summary has no cash-collected figure, so the
+      // card says what the figure is. TODO(backend): INCOME.md row 4.20, a cash-collected figure.
+      titleKey: 'invoicesPage.kpi.settled',
       figure: money(totals.paidTotal),
-      meta: t('invoicesPage.kpi.paidLive', {
+      meta: t('invoicesPage.kpi.settledLive', {
         count: totals.paidInvoices,
         invoices: count(totals.paidInvoices),
       }),
