@@ -646,7 +646,8 @@ function NoteEditor({
       const issued = await withKey(issueAttempt, (key) => issueDraft(next.id, key, request))
       navigate(paths.note(issued.id), {
         replace: true,
-        state: { issuedNumber: issued.invoiceNumber },
+        // The lines that did not all go back on the shelf: said with the number, on the issue answer only.
+        state: { issuedNumber: issued.invoiceNumber, stockWarnings: issued.warnings ?? [] },
       })
     })
 

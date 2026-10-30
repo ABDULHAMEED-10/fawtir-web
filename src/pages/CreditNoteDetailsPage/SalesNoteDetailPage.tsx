@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { stockLineWarningTexts } from '../../lib/stockLineWarnings'
 import { AppShell } from '../../layouts/AppShell'
 import {
   ActionMenu,
@@ -36,6 +37,7 @@ import {
   type InvoiceHistoryDto,
   type InvoicePaymentDto,
   type InvoiceReceivableDto,
+  type InvoiceLineWarningDto,
 } from '../../api/invoices/detail'
 import type { NoteKind } from '../../api/invoices/drafts'
 import { loadCustomer, type CustomerDto } from '../../api/customers/customers'
@@ -233,9 +235,18 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
     () => loadReceivable(originalId!),
   )
 
-  const issuedNumber = (location.state as { issuedNumber?: string | null } | null)?.issuedNumber
+  const arrival = location.state as {
+    issuedNumber?: string | null
+    stockWarnings?: InvoiceLineWarningDto[]
+  } | null
+  const issuedNumber = arrival?.issuedNumber
   const [notice, setNotice] = useState<string | null>(
-    issuedNumber ? t(`salesNote.issued.${kindKey}`, { number: issuedNumber }) : null,
+    issuedNumber
+      ? [
+          t(`salesNote.issued.${kindKey}`, { number: issuedNumber }),
+          ...stockLineWarningTexts(t, arrival?.stockWarnings),
+        ].join(' ')
+      : null,
   )
   useEffect(() => {
     if (issuedNumber) navigate(location.pathname, { replace: true, state: null })
@@ -355,6 +366,11 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
   const toneClass = credit ? 'text-danger-700' : 'text-success-700'
   const rates = new Set(data.lines.map((line) => line.taxRate ?? 0))
   const firstLine = data.lines[0]
+  // Lines at different rates have no one rate to name.
+  const vatLabel =
+    rates.size > 1
+      ? t(`salesNote.detail.totals.vatMixed.${kindKey}`)
+      : t(`salesNote.detail.totals.vat.${kindKey}`, { rate: firstLine?.taxRate ?? 0 })
   const taxCategory = firstLine
     ? `${t(`salesNote.detail.category.${Object.hasOwn(CATEGORY_WORDS, firstLine.en16931Category) ? CATEGORY_WORDS[firstLine.en16931Category] : 'standard'}`)} · ${rates.size === 1 ? `${firstLine.taxRate ?? 0}%` : t('salesNote.detail.mixedRates')}`
     : '—'
@@ -523,7 +539,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
         data.totals && data.totals.totalDiscount > 0 ? money(data.totals.totalDiscount) : undefined,
       net: money(data.totals?.taxableAmount ?? null),
       vat: money(data.totals?.vatAmount ?? null),
-      vatLabel: t(`salesNote.detail.totals.vat.${kindKey}`, { rate: firstLine?.taxRate ?? 0 }),
+      vatLabel,
       total: money(total),
     },
     notes: data.details?.customerVisibleNote ?? undefined,
@@ -1054,9 +1070,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                   />
                 </div>
                 <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="font-medium text-text-tertiary">
-                    {t(`salesNote.detail.totals.vat.${kindKey}`, { rate: firstLine?.taxRate ?? 0 })}
-                  </span>
+                  <span className="font-medium text-text-tertiary">{vatLabel}</span>
                   <OmAmount
                     size="xs"
                     prefix={sign}

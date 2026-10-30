@@ -353,6 +353,44 @@ describe('the note rules', () => {
 })
 
 describe('a credit note', () => {
+  it('tells the person who issued it when a line did not all go back on the shelf (E2E M-5)', async () => {
+    const answer = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === `/api/v1/invoice-drafts/${NOTE_ID}/issue`) {
+        return json(200, {
+          ...INVOICE,
+          id: NOTE_ID,
+          type: 'CREDIT_NOTE',
+          invoiceNumber: 'CRN-1',
+          warnings: [{ line: 1, code: 'STOCK_RETURN_EXCEEDS_SALE' }],
+        })
+      }
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) {
+        // The plain read has no warnings: only the issue answer does.
+        return json(200, {
+          ...INVOICE,
+          id: NOTE_ID,
+          type: 'CREDIT_NOTE',
+          invoiceNumber: 'CRN-1',
+          warnings: null,
+        })
+      }
+      return answer(url, init)
+    })
+    render(
+      <MemoryRouter initialEntries={[`/income/credit-notes/new?invoice=${INVOICE_ID}`]}>
+        <Routes>
+          <Route path="/income/credit-notes/new" element={<NewCreditNotePage />} />
+          <Route path="/income/credit-notes/:id" element={<CreditNoteDetailsPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByText('Green beans')
+    chooseReason('Returned goods')
+    fireEvent.click(screen.getByRole('button', { name: 'Issue credit note' }))
+    expect(await screen.findByText(/Line 1: not all of it went back on the shelf/)).toBeTruthy()
+  })
+
   it('credits chosen lines of a paid invoice, shows the refund due, and issues from the page with no due date', async () => {
     renderAt(`/income/credit-notes/new?invoice=${INVOICE_ID}`)
     // The whole invoice first, as the design opens: every line listed, read-only.
