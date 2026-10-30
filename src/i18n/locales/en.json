@@ -8870,7 +8870,20 @@
       "needsPermission": "Needs {{permission}}",
       "notPublished": "Not published yet",
       "wholeList": "The whole list, no filters",
-      "pdfPending": "PDF is not available yet"
+      "pdfPending": "PDF is not available yet",
+      "parameter": {
+        "period": "period",
+        "status": "status",
+        "type": "type",
+        "customer": "customer",
+        "search": "search text",
+        "workflowStage": "workflow stage",
+        "direction": "issued or received",
+        "documentKind": "document kind",
+        "invoiceNumber": "invoice number",
+        "taxYear": "tax year",
+        "tddStatus": "TDD status"
+      }
     },
     "controls": {
       "from": "From",

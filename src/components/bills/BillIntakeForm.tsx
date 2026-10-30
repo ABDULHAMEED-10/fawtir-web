@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { DateField, Rial, Select, withRial } from '../ui'
@@ -23,6 +23,7 @@ import {
   supplierOrdersPath,
   type PurchaseOrderRowDto,
 } from '../../api/expenditure/supplierRecord'
+import { loadSupplierPage, supplierListPath } from '../../api/expenditure/suppliers'
 import { describeApiFailure } from '../../lib/apiFailure'
 import {
   BILL_CONFIRM_REFUSALS,
@@ -38,6 +39,7 @@ import {
   rateOfCategory,
   readingOf,
   savedDetails,
+  supplierWithVat,
   toConfirmation,
   toCorrections,
   totalDisagrees,
@@ -238,6 +240,43 @@ export function BillIntakeForm({
   const totals = useMemo(() => linesTotals(form.lines), [form.lines])
   const disagrees = totalDisagrees(form)
   const extractedVat = intake.extracted?.supplierVatNumber?.trim().toUpperCase() ?? null
+
+  // DB-12: a file whose VAT number is a supplier's on the list starts with that supplier picked,
+  // instead of naming the number beside an empty picker. Asked once, through the picker's own
+  // search; a person's pick is never replaced, and a failed lookup, or one that finds none or
+  // several, only leaves the picker as it was, so the lookup's errors are deliberately dropped.
+  // The supplier and its VAT number are set together or not at all: `vatMatches` compares them, so
+  // a VAT number beside another supplier would claim a match that is not there.
+  const picked = useRef(false)
+  const startedWithSupplier = useRef(Boolean(form.supplierId))
+  const lockedId = lockedSupplier?.id ?? null
+  useEffect(() => {
+    if (lockedId || !extractedVat) return
+    let active = true
+    loadSupplierPage(
+      supplierListPath({ filter: 'ACTIVE', q: extractedVat, sort: 'NAME', page: 0, pageSize: 20 }),
+    ).then(
+      (page) => {
+        // The search matches part of a name, VAT number or participant ID: with more rows than
+        // one page holds, a second supplier with this VAT number could be past it.
+        if (page.total === null || page.total > page.items.length) return
+        const match = supplierWithVat(page.items, extractedVat)
+        if (!active || picked.current || startedWithSupplier.current || !match) return
+        setVatNumber(match.vatNumber)
+        setForm((current) => ({
+          ...current,
+          supplierId: match.id,
+          supplierName: match.displayName,
+          purchaseOrderId: '',
+        }))
+      },
+      () => {},
+    )
+    return () => {
+      active = false
+    }
+  }, [lockedId, extractedVat])
+
   const vatMatches = Boolean(
     form.supplierId && vatNumber && extractedVat && vatNumber.toUpperCase() === extractedVat,
   )
@@ -448,9 +487,10 @@ export function BillIntakeForm({
                 <SupplierPicker
                   id="bill-supplier"
                   value={{ id: form.supplierId, name: form.supplierName, vatNumber }}
-                  onPick={(picked) => {
-                    setVatNumber(picked.vatNumber)
-                    set({ supplierId: picked.id, supplierName: picked.name, purchaseOrderId: '' })
+                  onPick={(chosen) => {
+                    picked.current = true
+                    setVatNumber(chosen.vatNumber)
+                    set({ supplierId: chosen.id, supplierName: chosen.name, purchaseOrderId: '' })
                   }}
                   error={error('supplier')}
                   unsure={!form.supplierId && unsure.has('supplierName')}

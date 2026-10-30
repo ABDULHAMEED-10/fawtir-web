@@ -701,6 +701,20 @@ describe('supplier form rules', () => {
     })
   })
 
+  it('sends a Peppol participant value as typed, upper-casing only an Omani VAT number (A-1b)', () => {
+    const values = { ...blankSupplierForm(), legalName: 'X', contactPerson: 'Y', registeredOnPeppol: true }
+    const sent = (peppolId: string) => {
+      const request = toSupplierRequest({ ...values, peppolId }, null)
+      return [request.participantScheme, request.participantValue]
+    }
+    // 0242's value is mixed case; upper-casing it sent 123456-TAXAUTHORITY.OM.
+    expect(sent(' 0242:123456-TaxAuthority.OM ')).toEqual(['0242', '123456-TaxAuthority.OM'])
+    // A foreign participant held on the same party's customer record must go back as it is held.
+    expect(sent('9915:testlower')).toEqual(['9915', 'testlower'])
+    // 0248's value is an Omani VAT number and is still sent upper-cased.
+    expect(sent('0248:om1199999001')).toEqual(['0248', 'OM1199999001'])
+  })
+
   it('does not send an address whose only value is the default country', () => {
     const request = toSupplierRequest(
       { ...blankSupplierForm(), legalName: 'X', contactPerson: 'Y' },

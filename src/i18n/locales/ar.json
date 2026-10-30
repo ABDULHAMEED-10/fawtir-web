@@ -9374,7 +9374,20 @@
       "needsPermission": "يتطلب {{permission}}",
       "notPublished": "غير منشورة بعد",
       "wholeList": "القائمة كاملة، دون عوامل تصفية",
-      "pdfPending": "صيغة PDF غير متاحة بعد"
+      "pdfPending": "صيغة PDF غير متاحة بعد",
+      "parameter": {
+        "period": "الفترة",
+        "status": "الحالة",
+        "type": "النوع",
+        "customer": "العميل",
+        "search": "نص البحث",
+        "workflowStage": "مرحلة سير العمل",
+        "direction": "صادرة أو واردة",
+        "documentKind": "نوع المستند",
+        "invoiceNumber": "رقم الفاتورة",
+        "taxYear": "السنة الضريبية",
+        "tddStatus": "حالة TDD"
+      }
     },
     "controls": {
       "from": "من",
