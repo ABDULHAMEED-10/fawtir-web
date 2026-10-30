@@ -149,12 +149,7 @@ export function itemsFor(
   })
 }
 
-/** A scanned barcode, matched exactly. */
-export function itemByBarcode(items: PosItem[], code: string): PosItem | null {
-  const scanned = code.trim()
-  if (!scanned) return null
-  return items.find((item) => item.barcode === scanned && item.available) ?? null
-}
+/* A scanned barcode is matched by `findOnShelf` (lib/posScan), sizes included. */
 
 /* --------------------------------------------------------- sizes and add-ons */
 

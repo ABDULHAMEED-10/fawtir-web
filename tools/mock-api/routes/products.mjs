@@ -246,6 +246,12 @@ const same = (a, b) =>
     .trim()
     .toLowerCase()
 
+/**
+ * Size barcodes (backend V509) the till can scan, by product and size name: a scan of one adds that
+ * size directly. Seeded when the combination is first laid out.
+ */
+const SEED_SIZE_BARCODES = { 'p-beans': { '500 g': '6291100500017', '1 kg': '6291100500024' } }
+
 /** Every size x option combination, as the server lays them out. */
 function combos(p) {
   const sizes = p.sizes.length ? p.sizes : [null]
@@ -277,6 +283,7 @@ function view(p, { list = false, include = [], branchId = null } = {}) {
       code: `${p.code}-${index + 1}`,
       priceOverride: null,
       onSale: true,
+      barcode: (!o && SEED_SIZE_BARCODES[p.id]?.[s?.name]) || null,
     }
     if (!variantSettings.includes(stored)) variantSettings.push(stored)
     return {
@@ -303,6 +310,7 @@ function view(p, { list = false, include = [], branchId = null } = {}) {
       nameArSet: Boolean(stored.nameAr),
       sizeAr: s?.nameAr ?? null,
       optionAr: o?.nameAr ?? null,
+      barcode: stored.barcode ?? null,
       branchPrice: branchId
         ? (stored.priceOverride ??
           round3(priceHere(p, branchId) + (s?.priceDelta ?? 0) + (o?.priceDelta ?? 0)))
@@ -466,6 +474,13 @@ function applySetup(p, body) {
         setting.priceOverride = row.price === null ? null : round3(row.price)
       }
       if (row.onSale !== undefined) setting.onSale = Boolean(row.onSale)
+      // V509: left out keeps the stored barcode, blank removes it.
+      if (row.barcode !== undefined && row.barcode !== null) {
+        const barcode = String(row.barcode).trim()
+        if (barcode && !/^[\x21-\x7e]{1,64}$/.test(barcode))
+          return { refused: problem(400, 'PRODUCT_VARIANT_BARCODE_INVALID') }
+        setting.barcode = barcode || null
+      }
     }
   }
   for (const v of view(next).variants) {
@@ -695,7 +710,10 @@ export default [
           (branchId
             ? p.active && (includeUnavailable || priceIn(p, branchId) !== null)
             : status === 'ALL' || (status === 'ACTIVE') === p.active) &&
-          (!barcode || p.barcode === barcode) &&
+          // V509: a product's own barcode or one of its sizes'.
+          (!barcode ||
+            p.barcode === barcode ||
+            view(p).variants.some((v) => v.barcode === barcode)) &&
           (!kindId || p.kindId === kindId) &&
           (!groupId || p.groupId === groupId) &&
           (!itemKind || p.itemKind === itemKind) &&
@@ -718,6 +736,15 @@ export default [
           effectivePrice: branchId ? priceHere(p, branchId) : null,
           // Only on a branch read: false for a product switched off or not sold there.
           ...(branchId ? { availableHere: priceIn(p, branchId) !== null } : {}),
+          // V509, a barcode read only: the size whose own barcode was asked, else null.
+          ...(barcode
+            ? {
+                matchedVariantId:
+                  p.barcode === barcode
+                    ? null
+                    : (view(p).variants.find((v) => v.barcode === barcode)?.id ?? null),
+              }
+            : {}),
         })),
         page,
         size,

@@ -1,6 +1,6 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { setSaleLines, useOpenSale } from '../../lib/posSale'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
 import { PosArt } from './PosArt'
@@ -21,7 +21,6 @@ import {
   addToSale,
   choicesOf,
   hasChoices,
-  itemByBarcode,
   itemsFor,
   listedChoices,
   saleLineFor,
@@ -41,6 +40,8 @@ import { getCatalogGroups, type CatalogGroupsDto } from '../../api/catalog/group
 import type { Page } from '../../api'
 import { posRefusalKey } from '../../lib/posRefusals'
 import { loadOrRecall } from '../../lib/posOffline'
+import { captureScans, findOnShelf, lookupBarcode, type ScanHit } from '../../lib/posScan'
+import { playErrorBeep } from '../../lib/posBeep'
 
 /** The whole branch shelf in one read; search and the tabs work on it. */
 const SHELF_SIZE = 200
@@ -195,6 +196,8 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
   const [details, setDetails] = useState<Record<string, ItemChoices>>({})
   const [choosing, setChoosing] = useState<PosItem | null>(null)
   const [error, setError] = useState<unknown>(null)
+  // A scanned code that matched nothing, shown under the scan box until the next scan or typing.
+  const [unknownCode, setUnknownCode] = useState<string | null>(null)
   // The open sale is shared with the payment and receipt screens (src/lib/posSale.ts).
   const { lines, company } = useOpenSale()
 
@@ -241,7 +244,7 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
   /** A tap reads the item in full: one with sizes or add-ons asks which. */
   const add = async (item: PosItem) => {
     setError(null)
-    let choices = choicesFor(item.id)
+    let choices = choicesFor(item.id) ?? listedChoices(item, ar)
     if (!choices) {
       try {
         const detail = await loadOrRecall(`product.${item.id}`, () => getProduct(item.id))
@@ -259,13 +262,66 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
     setSaleLines((current) => addToSale(current, saleLineFor(categories, item, null, [])))
   }
 
-  const scan = (code: string) => {
-    const found = itemByBarcode(items, code)
-    if (found) {
-      setQuery('')
-      void add(found)
+  /**
+   * A size's own barcode: that size goes on the sale directly, without the chooser. False when the
+   * item no longer sells that size; a failed read shows its error and counts as handled.
+   */
+  const addSize = async (item: PosItem, variantId: string): Promise<boolean> => {
+    setError(null)
+    let choices = choicesFor(item.id) ?? listedChoices(item, ar)
+    if (!choices?.sizes.some((size) => size.id === variantId)) {
+      try {
+        const detail = await loadOrRecall(`product.${item.id}`, () => getProduct(item.id))
+        choices = choicesOf(detail, item.price, ar)
+        setDetails((current) => ({ ...current, [item.id]: choices as ItemChoices }))
+      } catch (cause) {
+        setError(cause)
+        return true
+      }
     }
+    const size = choices.sizes.find((entry) => entry.id === variantId)
+    if (!size) return false
+    setSaleLines((current) => addToSale(current, saleLineFor(categories, item, size, [])))
+    return true
   }
+
+  const sell = async (hit: ScanHit): Promise<boolean> => {
+    if (hit.variantId) return addSize(hit.item, hit.variantId)
+    await add(hit.item)
+    return true
+  }
+
+  /**
+   * A scan, from the scan box or from anywhere on the page: the shelf first, then the server for a
+   * code the shelf does not hold (offline: the shelf alone). Nothing found: say so and beep, except
+   * for words typed in the scan box that the search already matches (a person searching).
+   */
+  const scan = async (raw: string, fromBox = false) => {
+    const code = raw.trim()
+    if (!code) return
+    setUnknownCode(null)
+    const local = findOnShelf(items, code)
+    if (local) {
+      setQuery('')
+      if (await sell(local)) return
+    } else {
+      const remote = await lookupBarcode(branchId, code)
+      if (remote) {
+        setQuery('')
+        if (await sell({ item: shelfItem(remote.product, ar), variantId: remote.variantId })) return
+      }
+    }
+    if (fromBox && itemsFor(items, group, filter, code).length > 0) return
+    setQuery('')
+    setUnknownCode(code)
+    playErrorBeep()
+  }
+
+  // Scans are caught wherever the cursor is (a tile, a button, nowhere), not only in the scan box;
+  // a field a person types in keeps its keys. The latest `scan` is read through a ref.
+  const scanRef = useRef(scan)
+  scanRef.current = scan
+  useEffect(() => captureScans((code) => void scanRef.current(code)), [])
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
@@ -325,7 +381,27 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
 
       <div className="flex flex-wrap items-start gap-4">
         <section className="flex min-w-[320px] flex-1 flex-col gap-4">
-          <ScanField value={query} onChange={setQuery} onScan={scan} />
+          <ScanField
+            value={query}
+            onChange={(value) => {
+              setQuery(value)
+              setUnknownCode(null)
+            }}
+            onScan={(code) => void scan(code, true)}
+          />
+
+          {unknownCode ? (
+            <p
+              role="alert"
+              className="rounded-sm bg-danger-100 px-4 py-3 text-sm font-medium text-danger-700"
+            >
+              <Trans
+                i18nKey="pos.scan.unknown"
+                values={{ code: unknownCode }}
+                components={{ code: <span dir="ltr" /> }}
+              />
+            </p>
+          ) : null}
 
           <div className="flex flex-wrap items-center gap-2">
             {tabs.map((tab) => {
