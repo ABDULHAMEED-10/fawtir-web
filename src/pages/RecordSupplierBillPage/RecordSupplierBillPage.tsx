@@ -236,7 +236,7 @@ function RecordBill({ id }: { id: string }) {
       }
       if (file && !stored.current) {
         uploading = true
-        const uploaded = await uploadIntake(file, 'UPLOADED')
+        const uploaded = await uploadIntake(file, 'UPLOADED', { read: 'none' })
         uploading = false
         stored.current = { file, intakeId: uploaded.id }
       }

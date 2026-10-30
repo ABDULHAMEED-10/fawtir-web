@@ -840,14 +840,15 @@ const READ_INTAKES = [
 const READING_MODE = process.env.MOCK_BILL_READING ?? 'read'
 const READING_MS = Number(process.env.MOCK_BILL_READING_MS ?? 2500)
 
-function uploadedIntake(source) {
+function uploadedIntake(source, read) {
   const id = `i-new-${Date.now()}`
   const stored = (entry) => {
     INTAKES.push(entry)
     FILES[id] = source === 'SCANNED' ? FILES['i-read-receipt'] : billSheetSvg()
     return entry
   }
-  if (READING_MODE === 'off')
+  // `read=none`: the file is stored and the reader is not asked, whatever the mode.
+  if (READING_MODE === 'off' || read === 'none')
     return stored(intake(id, source, 'upload.pdf', 'application/pdf', 120_000, {}))
   const outcome = { failed: 'READ_FAILED', limit: 'DAILY_LIMIT_REACHED', plan: 'PLAN_FEATURE_NOT_INCLUDED' }[READING_MODE]
   if (outcome)
@@ -1900,8 +1901,10 @@ export default [
     match: '/api/v1/bills/intake',
     // The upload waits for the reader, as the server's does while reading is on.
     reply: async ({ query }) => {
-      if (READING_MODE !== 'off') await new Promise((done) => setTimeout(done, READING_MS))
-      return { status: 201, body: uploadedIntake(query.get('source') ?? 'UPLOADED') }
+      const read = query.get('read')
+      if (READING_MODE !== 'off' && read !== 'none')
+        await new Promise((done) => setTimeout(done, READING_MS))
+      return { status: 201, body: uploadedIntake(query.get('source') ?? 'UPLOADED', read) }
     },
   },
   {

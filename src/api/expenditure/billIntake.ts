@@ -100,12 +100,18 @@ export type IntakeDto = {
  * `invoice.payment.manage`. PDF, JPEG, PNG or UBL XML, at most 10 MiB. With reading on, the call
  * waits for the malware scan and the read, which can pass a minute. Just above the gateway's 120 s
  * for this route and below nginx's 130 s, so the browser does not give up while the server may
- * still answer.
+ * still answer. `read: 'none'` is for a bill typed by hand with the file attached: the file is
+ * stored and no read is spent on it. A server older than the option ignores it and reads as before.
  */
-export function uploadIntake(file: File, source: IntakeSourceDto): Promise<IntakeDto> {
+export function uploadIntake(
+  file: File,
+  source: IntakeSourceDto,
+  options: { read?: 'none' } = {},
+): Promise<IntakeDto> {
   const form = new FormData()
   form.append('file', file)
-  return apiRequest<IntakeDto>(`${BILL_INTAKE_PATH}?source=${source}`, {
+  const read = options.read ? `&read=${options.read}` : ''
+  return apiRequest<IntakeDto>(`${BILL_INTAKE_PATH}?source=${source}${read}`, {
     method: 'POST',
     body: form,
     timeoutMs: 125_000,
