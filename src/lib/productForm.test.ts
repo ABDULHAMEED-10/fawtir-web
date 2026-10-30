@@ -88,6 +88,39 @@ describe('the catalogue item form against /v1/products', () => {
     })
   })
 
+  it('keeps a size’s hand-set Arabic line name when the item is saved (backend #808)', () => {
+    const variant = (id: string, name: string, nameAr: string | null, nameArSet: boolean) => ({
+      id: `v-${id}`,
+      sizeId: id,
+      size: name,
+      optionId: null,
+      option: null,
+      name: `Dates · ${name}`,
+      code: `D-${id}`,
+      priceOverride: null,
+      price: 3.2,
+      onSale: true,
+      nameAr,
+      nameArSet,
+    })
+    const fields = productFieldsFrom(SEEDED_TAX_CATEGORIES, {
+      ...STORED,
+      sizes: [
+        { id: 's-1', name: '1 kg', nameAr: null, priceDelta: 0, sortOrder: 0 },
+        { id: 's-2', name: '5 kg', nameAr: null, priceDelta: 12, sortOrder: 1 },
+      ],
+      options: [],
+      variants: [
+        variant('s-1', '1 kg', 'تمر خلاص كيلو', true),
+        variant('s-2', '5 kg', 'محسوب', false),
+      ],
+      addOns: [],
+    })
+    const [kilo, five] = productRequestFrom(SEEDED_TAX_CATEGORIES, fields).variants ?? []
+    expect(kilo).toMatchObject({ size: '1 kg', nameAr: 'تمر خلاص كيلو' })
+    expect(five).not.toHaveProperty('nameAr')
+  })
+
   it('reads a product with no classification as goods or service by its unit', () => {
     const fields = productFieldsFrom(SEEDED_TAX_CATEGORIES, {
       ...STORED,

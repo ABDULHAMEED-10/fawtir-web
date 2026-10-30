@@ -1,14 +1,37 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useReferenceData } from '../../lib/reference/referenceData'
 import { CatalogShell } from './CatalogShell'
-import { OptionPicker, Select, TableCheckbox } from '../../components/ui'
+import { Modal, OmAmount, OptionPicker, Select, TableCheckbox } from '../../components/ui'
 import { selectAllOnFocus, unitOptions } from '../../components/invoice'
 import { DESIGN_REFERENCE, omanTaxCategories } from '../../lib/invoiceDraft'
 import { defaultPicks, readyToAdd, type SuggestedGroup } from '../../lib/catalogBuild'
-import { suggestedFrom } from '../../lib/catalogTemplates'
+import { suggestedFrom, templateName } from '../../lib/catalogTemplates'
+import {
+  buildSummary,
+  planBuild,
+  runBuild,
+  type BuildApi,
+  type BuildOutcome,
+} from '../../lib/catalogTemplates/build'
+import {
+  buildSelectionKey,
+  forgetBuildSelection,
+  readBuildSelection,
+  saveBuildSelection,
+} from '../../lib/catalogTemplates/selection'
 import { ApiError } from '../../api'
+import { createCatalogGroup, createCatalogKind, getCatalogGroups } from '../../api/catalog/groups'
+import {
+  createProduct,
+  productListPath,
+  searchProducts,
+  type ProductDto,
+} from '../../api/catalog/products'
+import { describeApiFailure } from '../../lib/apiFailure'
+import { productRefusal } from '../../lib/productForm'
+import { useSession } from '../../lib/session/session'
 import {
   catalogTemplatePath,
   readCatalogTemplate,
@@ -45,12 +68,43 @@ const threeDecimals = (raw: string) => {
  * The suggestions are the system template for a sub-business type (owner, 21 Oct 2026; the
  * Figma frame's coffee roastery was a sample). Every suggested item is editable here: price
  * (three decimals, none until typed), unit and VAT category; the rest is edited on the item
- * once added. "Start my own catalogue" uses no template. Adding still calls no API (P.5).
+ * once added. "Start my own catalogue" uses no template.
+ *
+ * "Add N to the catalog" copies what is ticked through the group, kind and product APIs, in that
+ * order (`lib/catalogTemplates/build.ts`), reusing what is already in the catalogue and skipping
+ * items already there, then says what was added, skipped and failed; the failed ones can be tried
+ * again on their own. "Save and finish later" keeps the ticks and prices in this browser, per
+ * company, and puts them back when the screen opens on the same template.
  */
+
+/** Every active product filed under a kind, a page of 200 at a time. */
+async function kindProducts(kindId: string): Promise<ProductDto[]> {
+  const rows: ProductDto[] = []
+  for (let page = 0; page < 50; page += 1) {
+    const found = await searchProducts(
+      productListPath({ kindId, status: 'ACTIVE', size: 200, page }),
+    )
+    rows.push(...found.items)
+    if (!found.hasMore) break
+  }
+  return rows
+}
+
+const BUILD_API: BuildApi = {
+  getGroups: getCatalogGroups,
+  createGroup: createCatalogGroup,
+  createKind: createCatalogKind,
+  kindProducts,
+  createProduct,
+}
+
+type BuildRun = { running: boolean; total: number; outcomes: BuildOutcome[] }
 export function BuildCatalogPage() {
   const { t, i18n } = useTranslation()
   const reference = useReferenceData()
   const navigate = useNavigate()
+  const session = useSession()
+  const storageKey = buildSelectionKey(session?.tenantId)
 
   // The published template of the company's own sub business type (chosen at sign-up, changed in
   // Settings › Company). A 404 means it has none, or the company has not chosen a type.
@@ -75,7 +129,12 @@ export function BuildCatalogPage() {
 
   const [choice, setChoice] = useState(TEMPLATE)
   const subType = template && choice === TEMPLATE ? TEMPLATE : OWN
-  const [suggested, setSuggested] = useState<SuggestedGroup[]>([])
+  // Names follow the language; ids are places in the template, so a switch keeps every tick,
+  // price, unit and tax (W-4).
+  const suggested = useMemo<SuggestedGroup[]>(
+    () => (subType === TEMPLATE && template ? suggestedFrom(template.groups, i18n.language) : []),
+    [subType, template, i18n.language],
+  )
   const [picks, setPicks] = useState<Set<string>>(new Set())
   const [group, setGroup] = useState('')
   const [kind, setKind] = useState('')
@@ -85,18 +144,25 @@ export function BuildCatalogPage() {
   const [units, setUnits] = useState<Record<string, string>>({})
   const [taxes, setTaxes] = useState<Record<string, string>>({})
 
-  // A new template replaces everything picked and typed for the old one.
+  const [run, setRun] = useState<BuildRun | null>(null)
+  const [restored, setRestored] = useState(false)
+  const [listOpen, setListOpen] = useState(false)
+  const running = useRef(false)
+
+  // A new template replaces everything picked and typed for the old one, unless this company saved
+  // its work on this very template to finish later.
   useEffect(() => {
-    const next =
-      subType === TEMPLATE && template ? suggestedFrom(template.groups, i18n.language) : []
-    setSuggested(next)
-    setPicks(defaultPicks(next))
+    const next = subType === TEMPLATE && template ? suggestedFrom(template.groups) : []
+    const saved = subType === TEMPLATE && template ? readBuildSelection(storageKey, template) : null
+    setPicks(saved ? new Set(saved.picks) : defaultPicks(next))
     setGroup(next[0]?.id ?? '')
     setKind(next[0]?.kinds[0]?.id ?? '')
-    setPrices({})
-    setUnits({})
-    setTaxes({})
-  }, [subType, template, i18n.language])
+    setPrices(saved?.prices ?? {})
+    setUnits(saved?.units ?? {})
+    setTaxes(saved?.taxes ?? {})
+    setRestored(Boolean(saved))
+    setRun(null)
+  }, [subType, template, storageKey])
 
   const categories = omanTaxCategories(
     reference?.taxCategories?.length ? reference.taxCategories : DESIGN_REFERENCE.taxCategories,
@@ -152,6 +218,42 @@ export function BuildCatalogPage() {
     suggested.find((entry) => entry.id === groupId)?.kinds.filter((k) => picks.has(k.id)).length ??
     0
 
+  /** Keeps the ticks and prices in this browser, for this company and this template. */
+  const saveForLater = () => {
+    if (template && subType === TEMPLATE) {
+      saveBuildSelection(storageKey, template, { picks: [...picks], prices, units, taxes })
+    }
+  }
+
+  const build = async (only?: Set<string>) => {
+    if (!template || running.current) return
+    const entries = planBuild(template, picks, { prices, units, taxes }, categories, only)
+    if (entries.length === 0) return
+    running.current = true
+    const kept = only && run ? run.outcomes.filter((outcome) => !only.has(outcome.id)) : []
+    setRun({ running: true, total: entries.length + kept.length, outcomes: kept })
+    try {
+      const outcomes = await runBuild(entries, BUILD_API, (sofar) =>
+        setRun((current) => current && { ...current, outcomes: [...kept, ...sofar] }),
+      )
+      const all = [...kept, ...outcomes]
+      setRun({ running: false, total: all.length, outcomes: all })
+      // Finished with nothing left to retry: the saved work is done with.
+      if (all.every((outcome) => outcome.state !== 'failed')) forgetBuildSelection(storageKey)
+    } finally {
+      running.current = false
+    }
+  }
+
+  const failed = run?.outcomes.filter((outcome) => outcome.state === 'failed') ?? []
+  const summary = run ? buildSummary(run.outcomes) : null
+
+  /** Leaves for a page where something of one's own is added, keeping the work to come back to. */
+  const leaveFor = (to: string) => {
+    saveForLater()
+    navigate(to)
+  }
+
   const pickedSizes = (kindId: string) =>
     activeGroup?.kinds.find((k) => k.id === kindId)?.sizes.filter((s) => picks.has(s.id)).length ??
     0
@@ -193,6 +295,7 @@ export function BuildCatalogPage() {
           <p className="text-base font-semibold text-text-primary">{subTypeLabel}</p>
           <p className="mt-1 text-sm font-medium leading-[1.5] text-text-tertiary">
             {templateRead.status === 'loading' ? null : t(bannerNote)}
+            {restored && subType === TEMPLATE ? ` ${t('buildCatalog.restored')}` : null}
           </p>
           {noTemplate ? (
             <Link
@@ -223,12 +326,91 @@ export function BuildCatalogPage() {
           </span>
           <button
             type="button"
-            className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/70"
+            onClick={() => setListOpen(true)}
+            disabled={ready.count === 0}
+            className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/70 disabled:opacity-40"
           >
             {t('buildCatalog.seeTheList')}
           </button>
         </div>
       </section>
+
+      {run ? (
+        <section
+          aria-live="polite"
+          className="rounded-md border border-border-subtle bg-surface-card p-5"
+        >
+          {run.running ? (
+            <>
+              <p className="text-sm font-semibold text-text-primary">
+                {t('buildCatalog.progress', { done: run.outcomes.length, total: run.total })}
+              </p>
+              <div
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={run.total}
+                aria-valuenow={run.outcomes.length}
+                className="mt-3 h-2 overflow-hidden rounded-full bg-surface-background"
+              >
+                <div
+                  className="h-full rounded-full bg-primary-700 transition-[width]"
+                  style={{ width: `${run.total ? (run.outcomes.length / run.total) * 100 : 0}%` }}
+                />
+              </div>
+            </>
+          ) : summary ? (
+            <>
+              <p className="text-sm font-semibold text-text-primary">
+                {t('buildCatalog.summary', {
+                  added: t('buildCatalog.summaryAdded', { count: summary.added }),
+                  skipped: t('buildCatalog.summarySkipped', { count: summary.skipped }),
+                  failed: t('buildCatalog.summaryFailed', { count: summary.failed }),
+                })}
+              </p>
+              {failed.length > 0 ? (
+                <div className="mt-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
+                    {t('buildCatalog.failedTitle')}
+                  </p>
+                  <ul className="mt-2 flex flex-col gap-1.5">
+                    {failed.map((outcome) => {
+                      // The item form's own sentence for a refused product, else the general one.
+                      const known = productRefusal(outcome.error)
+                      const message = known ? { key: known.key } : describeApiFailure(outcome.error)
+                      return (
+                        <li key={outcome.id} className="text-sm font-medium text-text-secondary">
+                          <bdi className="font-semibold text-text-primary">
+                            {templateName(outcome.entry.item, i18n.language)}
+                          </bdi>
+                          {': '}
+                          {t(message.key, 'values' in message ? message.values : undefined)}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              ) : null}
+              <div className="mt-4 flex flex-wrap gap-2.5">
+                {failed.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => void build(new Set(failed.map((outcome) => outcome.id)))}
+                    className="inline-flex h-[42px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+                  >
+                    {t('buildCatalog.retryFailed')}
+                  </button>
+                ) : null}
+                <Link
+                  to="/catalog"
+                  className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+                >
+                  {t('buildCatalog.openCatalog')}
+                </Link>
+              </div>
+            </>
+          ) : null}
+        </section>
+      ) : null}
 
       {/* Panes one and two */}
       <div className="grid gap-4 lg:grid-cols-2">
@@ -241,6 +423,7 @@ export function BuildCatalogPage() {
             total: suggested.length,
           })}
           footer={t('buildCatalog.addAGroup')}
+          onFooter={() => leaveFor('/catalog/groups')}
         >
           {suggested.length === 0 ? (
             <div className="px-4 py-10 text-center">
@@ -319,7 +502,11 @@ export function BuildCatalogPage() {
 
         <Pane
           n={2}
-          title={t('buildCatalog.insideGroup', { group: isolate(activeGroup?.name ?? '') })}
+          title={
+            activeGroup
+              ? t('buildCatalog.insideGroup', { group: isolate(activeGroup.name) })
+              : t('buildCatalog.insideGroupEmpty')
+          }
           note={t('buildCatalog.insideGroupNote')}
           count={t('buildCatalog.ofTotal', {
             picked: pickedKinds(group),
@@ -331,6 +518,7 @@ export function BuildCatalogPage() {
             placeholder: t('buildCatalog.searchKinds'),
           }}
           footer={t('buildCatalog.addAKind')}
+          onFooter={() => leaveFor('/catalog/groups')}
         >
           {!activeGroup || activeGroup.kinds.length === 0 ? (
             <p className="px-4 py-10 text-center text-sm font-medium text-text-quaternary">
@@ -408,7 +596,11 @@ export function BuildCatalogPage() {
       {/* Pane three */}
       <Pane
         n={3}
-        title={t('buildCatalog.whatYouSell', { kind: isolate(activeKind?.name ?? '') })}
+        title={
+          activeKind
+            ? t('buildCatalog.whatYouSell', { kind: isolate(activeKind.name) })
+            : t('buildCatalog.whatYouSellEmpty')
+        }
         note={t('buildCatalog.whatYouSellNote')}
         count={t('buildCatalog.ofTotal', {
           picked: pickedSizes(kind),
@@ -420,6 +612,7 @@ export function BuildCatalogPage() {
           placeholder: t('buildCatalog.searchSizes'),
         }}
         footer={t('buildCatalog.addASize')}
+        onFooter={() => leaveFor('/catalog/new')}
         wide
       >
         {!activeKind || activeKind.sizes.length === 0 ? (
@@ -481,6 +674,16 @@ export function BuildCatalogPage() {
                             {size.brand && size.barcode ? ' · ' : ''}
                             {size.barcode ? <span dir="ltr">{size.barcode}</span> : null}
                           </p>
+                          {size.choices?.length ? (
+                            <p className="mt-0.5 text-xs font-medium text-text-quaternary">
+                              {t('buildCatalog.choicesLine', { list: size.choices.join(', ') })}
+                            </p>
+                          ) : null}
+                          {size.addOns?.length ? (
+                            <p className="mt-0.5 text-xs font-medium text-text-quaternary">
+                              {t('buildCatalog.addOnsLine', { list: size.addOns.join(', ') })}
+                            </p>
+                          ) : null}
                           {tax === size.taxCode && size.reasonCode ? (
                             <p className="mt-0.5 text-xs font-medium text-text-tertiary">
                               {t(
@@ -528,7 +731,12 @@ export function BuildCatalogPage() {
                               onChange={(next) =>
                                 setUnits((current) => ({ ...current, [size.id]: next }))
                               }
-                              options={unitOptions('goods', t, unit, reference)}
+                              options={unitOptions(
+                                size.service ? 'service' : 'goods',
+                                t,
+                                unit,
+                                reference,
+                              )}
                             />
                           </span>
                         </td>
@@ -577,16 +785,20 @@ export function BuildCatalogPage() {
           >
             {t('buildCatalog.cancel')}
           </Link>
+          {subType === TEMPLATE ? (
+            <button
+              type="button"
+              disabled={run?.running}
+              onClick={() => leaveFor('/catalog')}
+              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-40"
+            >
+              {t('buildCatalog.saveForLater')}
+            </button>
+          ) : null}
           <button
             type="button"
-            className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-          >
-            {t('buildCatalog.saveForLater')}
-          </button>
-          <button
-            type="button"
-            disabled={ready.count === 0}
-            onClick={() => navigate('/catalog')}
+            disabled={ready.count === 0 || run?.running}
+            onClick={() => void build()}
             className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-40"
           >
             <img src={tickWhiteIcon} alt="" className="size-4" />
@@ -594,6 +806,59 @@ export function BuildCatalogPage() {
           </button>
         </div>
       </div>
+
+      <Modal
+        open={listOpen}
+        onClose={() => setListOpen(false)}
+        title={t('buildCatalog.listTitle')}
+        subtitle={t('buildCatalog.listSubtitle')}
+        footer={
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setListOpen(false)}
+              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+            >
+              {t('buildCatalog.listClose')}
+            </button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          {suggested
+            .filter((entry) => picks.has(entry.id))
+            .flatMap((entry) =>
+              entry.kinds
+                .filter((k) => picks.has(k.id) && k.sizes.some((size) => picks.has(size.id)))
+                .map((k) => (
+                  <div key={k.id}>
+                    <p className="text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
+                      <bdi>{entry.name}</bdi> › <bdi>{k.name}</bdi>
+                    </p>
+                    <ul className="mt-1.5 flex flex-col gap-1">
+                      {k.sizes
+                        .filter((size) => picks.has(size.id))
+                        .map((size) => (
+                          <li
+                            key={size.id}
+                            className="flex items-baseline justify-between gap-3 text-sm font-medium text-text-primary"
+                          >
+                            <bdi className="min-w-0">{size.name}</bdi>
+                            <span className="shrink-0 text-text-tertiary">
+                              {Number(prices[size.id]) > 0 ? (
+                                <OmAmount size="sm" amount={Number(prices[size.id]).toFixed(3)} />
+                              ) : (
+                                t('buildCatalog.noPriceYet')
+                              )}
+                            </span>
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                )),
+            )}
+        </div>
+      </Modal>
     </CatalogShell>
   )
 }
@@ -605,6 +870,7 @@ function Pane({
   count,
   search,
   footer,
+  onFooter,
   wide,
   children,
 }: {
@@ -614,6 +880,8 @@ function Pane({
   count: string
   search?: { value: string; onChange: (value: string) => void; placeholder: string }
   footer: string
+  /** "Add ... of your own": leaves for the page where it is added, keeping the work. */
+  onFooter: () => void
   wide?: boolean
   children: React.ReactNode
 }) {
@@ -652,6 +920,7 @@ function Pane({
 
       <button
         type="button"
+        onClick={onFooter}
         className="flex w-full items-center gap-2 border-t border-surface-background px-4 py-3 text-start text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
       >
         <img src={plusIcon} alt="" className="size-4" />

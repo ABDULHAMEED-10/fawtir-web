@@ -71,6 +71,7 @@ export function OrderLinesTable({
     const variants = (product.variants ?? []).map((variant) => ({
       id: variant.id,
       name: variant.name,
+      nameAr: variant.nameAr ?? null,
       price: variant.price,
     }))
     update(line.id, {
@@ -200,7 +201,12 @@ export function OrderLinesTable({
                           placeholder={t('purchaseOrder.stock.chooseVariant')}
                           options={(line.variants ?? []).map((variant) => ({
                             value: variant.id,
-                            label: variant.name,
+                            // The size list in the reader's language (P.24); the line's
+                            // description stays the English name the order is written in.
+                            label:
+                              language.startsWith('ar') && variant.nameAr
+                                ? variant.nameAr
+                                : variant.name,
                           }))}
                           ariaLabel={t('purchaseOrder.stock.variant', { line: index + 1 })}
                         />

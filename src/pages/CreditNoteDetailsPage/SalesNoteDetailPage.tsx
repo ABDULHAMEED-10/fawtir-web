@@ -549,6 +549,16 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
             <span className="size-1.5 rounded-full bg-current" />
             {t(`salesNote.status.${status}`)}
           </span>
+          {/* A till refund's credit note, as on the invoice header; absent from older servers. */}
+          {data.source === 'TILL' ? (
+            <span className="inline-flex items-center rounded-sm bg-neutral-25 px-2 py-0.5 text-xs font-semibold text-text-secondary">
+              {data.till?.name?.trim() || data.till?.code
+                ? t('invoicesPage.fromTillNamed', {
+                    till: data.till?.name?.trim() || data.till?.code,
+                  })
+                : t('invoicesPage.fromTill')}
+            </span>
+          ) : null}
           <div className="ms-auto flex flex-wrap items-center gap-3">
             {menu.length > 0 ? (
               <ActionMenu items={menu} label={t('salesNote.compose.more')} variant="bordered" />

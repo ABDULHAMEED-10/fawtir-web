@@ -35,6 +35,7 @@ import {
   quantityText,
   stockItemHref,
   stockItemName,
+  stockItemPlace,
   stockKey,
   stockUnitName,
   weekdayName,
@@ -505,6 +506,7 @@ function Row({
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const name = stockItemName(row, language)
+  const place = stockItemPlace(row, language)
   const unit = stockUnitName(t, row.unitCode, language)
   const days = row.daysLeft
   const low = isRunningLow(row)
@@ -542,9 +544,10 @@ function Row({
             >
               {name}
             </Link>
-            {/* TODO(backend): the frame prints the item's group and kind before its code; the
-                stock row carries neither (docs/backend-guides/INCOME.md, row P.19). */}
+            {/* The frame prints the item's group and kind before its code: fixed by backend #808
+                (not deployed yet, INCOME.md row P.19); an older server's row has the code alone. */}
             <p className="mt-1 truncate text-xs font-medium text-text-quaternary">
+              {place ? `${place} · ` : ''}
               <span dir="ltr">{row.code}</span>
               {row.variantRetired ? ` · ${t('stock.live.retired')}` : ''}
             </p>

@@ -31,6 +31,11 @@ export type TemplateItemDto = TemplateName & {
   /** Names only: sizes × options. May be `null`, or have empty lists. */
   variants: { sizes: TemplateName[]; options: TemplateName[] } | null
   addOns: TemplateName[]
+  /**
+   * Whether Start from a template offers the item ticked (default true; always present on reads,
+   * absent on a server before it). False for an item only some companies may sell.
+   */
+  defaultSelected?: boolean
 }
 
 export type TemplateKindDto = TemplateName & { items: TemplateItemDto[] }

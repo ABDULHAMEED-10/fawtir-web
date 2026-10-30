@@ -16,31 +16,46 @@ export function templateName(named: TemplateName, language: string): string {
 }
 
 /** The build screen's VAT choices are the reference data's codes, one per Oman category. */
-const TAX_CODE: Record<string, string> = { S: 'S5', Z: 'Z0', E: 'E0', O: 'O0' }
+export const TAX_CODE: Record<string, string> = { S: 'S5', Z: 'Z0', E: 'E0', O: 'O0' }
+
+/**
+ * A suggestion's id: its place in the template. It does not depend on the language, so ticks,
+ * prices, units and taxes survive a language switch (W-4).
+ */
+export const itemId = (g: number, k?: number, i?: number) =>
+  `g${g}${k === undefined ? '' : `k${k}`}${i === undefined ? '' : `i${i}`}`
 
 /**
  * The template as the build screen's three panes read it: group, kind, then the things that carry
- * a price. The first group and its first kind start ticked, so the screen opens on something.
+ * a price. The first group and its first kind start ticked, so the screen opens on something;
+ * inside every kind an item starts ticked as the template's `defaultSelected` says (W-3).
  */
 export function suggestedFrom(groups: TemplateGroupDto[], language = 'en'): SuggestedGroup[] {
   return groups.map((group, g) => ({
-    id: `g${g}`,
+    id: itemId(g),
     name: templateName(group, language),
     picked: g === 0,
     kinds: group.kinds.map((kind, k) => ({
-      id: `g${g}k${k}`,
+      id: itemId(g, k),
       name: templateName(kind, language),
       picked: g === 0 && k === 0,
       sizes: kind.items.map((item, i) => ({
-        id: `g${g}k${k}i${i}`,
+        id: itemId(g, k, i),
         name: templateName(item, language),
         price: 0,
         // A bare Rec 21 package code becomes its X form: PINT-OM takes no other (ibr-cl-23).
         soldAs: offeredUnitCode(item.defaultUnitCode),
+        service: item.classification.goodsOrService === 'S',
         barcode: item.barcode ?? undefined,
-        taxCode: Object.hasOwn(TAX_CODE, item.defaultTaxCategory) ? TAX_CODE[item.defaultTaxCategory] : 'S5',
+        taxCode: Object.hasOwn(TAX_CODE, item.defaultTaxCategory)
+          ? TAX_CODE[item.defaultTaxCategory]
+          : 'S5',
         reasonCode: item.defaultTaxReasonCode ?? undefined,
-        picked: g === 0 && k === 0,
+        choices: [...(item.variants?.sizes ?? []), ...(item.variants?.options ?? [])].map(
+          (choice) => templateName(choice, language),
+        ),
+        addOns: item.addOns.map((addOn) => templateName(addOn, language)),
+        picked: item.defaultSelected !== false,
       })),
     })),
   }))
