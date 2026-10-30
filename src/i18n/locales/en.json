@@ -20791,6 +20791,7 @@
     "businessActivityHint": "Copied onto every line by the backend (IBR-081-OM).",
     "businessActivityLink": "Company settings",
     "businessActivityUnset": "Business activity not set. Business and government invoices cannot be created without it.",
+    "lineNoPrice": "This item has no price yet",
     "businessActivityCodeOnly": "Business activity: {{code}}",
     "exemptionReasonChoose": "Choose why no VAT is charged",
     "exemptionReasonType": "Type why no VAT is charged"
