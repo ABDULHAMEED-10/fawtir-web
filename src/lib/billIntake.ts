@@ -139,6 +139,21 @@ const money3 = (value: number | null | undefined) =>
 const DESIGN_CODES = new Set(DESIGN_REFERENCE.taxCategories.map((row) => row.code))
 
 /**
+ * The supplier on the list whose VAT number is the one the file states, or null when none or more
+ * than one is (DB-12). The list search matches part of a VAT number, so only an exact match counts,
+ * and a tie is left to the person rather than guessed.
+ */
+export function supplierWithVat<T extends { vatNumber: string | null }>(
+  rows: readonly T[],
+  vat: string | null | undefined,
+): T | null {
+  const wanted = (vat ?? '').trim().toUpperCase()
+  if (!wanted) return null
+  const found = rows.filter((row) => (row.vatNumber ?? '').trim().toUpperCase() === wanted)
+  return found.length === 1 ? found[0] : null
+}
+
+/**
  * What an XML bill carried, or what a person saved on the intake earlier, as starting values. A
  * fresh PDF or photo has nothing, so the form stays blank.
  */
