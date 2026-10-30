@@ -34,15 +34,18 @@ real business workflow.
   available yet*, the sidebar leaves the Trade documents group out, and no other screen links to it.
   Take it out of that list in the change that connects the module. Purchase orders are integrated
   (`/v1/purchase-orders`) and stay.
+- **Hidden outright** (owner, 30 Oct 2026, DA-17): the compliance report prototype
+  (`ComplianceReportPrototype`) put the company's real name and VAT number beside sample figures,
+  with sharing offered, so `complianceReport` is in `HIDDEN_PROTOTYPES` too. Its route does not show
+  *Not available yet*: `/compliance/activity/report` always serves the real-only report (the
+  company's identity, its Participant ID once verified, the numbering check and the Excel ledger
+  export, with the signed document labelled as not available).
 
 ### Pages that are partly integrated
 
 A page that has both kinds of content keeps its real reads and its prototype parts side by side,
 under the ribbon while prototypes are shown:
 
-- **Compliance report** (`ComplianceReportPrototype`). The company's identity, its Participant ID once
-  verified and the signed-in requester come from the server. The figures, register, attestation and
-  sharing panels are sample data.
 - **Catalog.** The product list comes from `/v1/products`. The "Upload a menu" and "New item" actions
   open their prototypes.
 - **Settings hub.** The bills, export and closing cards show their prototype facts.
