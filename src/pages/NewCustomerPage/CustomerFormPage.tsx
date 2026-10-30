@@ -1177,6 +1177,7 @@ function AddressBlock({
             error={errorText('invoice.addressLine3')}
             label={t('newCustomer.address.addressLine3')}
             placeholder={t('newCustomer.address.addressLine3Placeholder')}
+            hint={t('newCustomer.address.addressLine3Hint')}
             maxLength={150}
           />
         </>

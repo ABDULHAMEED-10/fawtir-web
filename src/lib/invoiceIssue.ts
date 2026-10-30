@@ -71,6 +71,9 @@ export const ISSUE_REFUSALS: Record<string, { field: IssueField | null; key: str
   SELLER_NOT_VERIFIED: { field: null, key: 'invoiceIssue.refused.companyPending' },
   SELLER_ADDRESS_INCOMPLETE: { field: null, key: 'invoiceIssue.refused.sellerAddressIncomplete' },
   SELLER_CONTACT_INCOMPLETE: { field: null, key: 'invoiceIssue.refused.sellerContactIncomplete' },
+  // IBR-019-OM: a business or government buyer's invoicing address needs street, additional
+  // street, address line 3, city and postal code; fixed on the customer (e2e 30 Oct, X-1).
+  BUYER_ADDRESS_INCOMPLETE: { field: null, key: 'invoiceIssue.refused.buyerAddressIncomplete' },
   CUSTOMER_NOT_INVOICE_ELIGIBLE: { field: null, key: 'invoiceIssue.refused.customerIncomplete' },
   INDUSTRIAL_CLASSIFICATION_REQUIRED: { field: null, key: 'invoiceIssue.refused.activityRequired' },
   CUSTOMER_NOT_SELECTABLE: { field: null, key: 'invoiceIssue.refused.customerNotSelectable' },

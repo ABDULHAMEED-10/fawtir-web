@@ -44,6 +44,7 @@ export function IssueInvoiceModal({
   kind = 'INVOICE',
   selfBilled = false,
   approvalPage,
+  customerId,
   onClose,
   onIssued,
 }: {
@@ -67,6 +68,8 @@ export function IssueInvoiceModal({
    * that page (the composer), so a refusal to issue before approval can link to it.
    */
   approvalPage?: string
+  /** The draft's customer, so a refusal about its address links to the customer's form. */
+  customerId?: string | null
   onClose: () => void
   onIssued: (invoice: InvoiceDetailDto) => void
 }) {
@@ -143,6 +146,12 @@ export function IssueInvoiceModal({
         setErrors({ [refusal.field]: refusal.key })
       } else if (refusal) {
         setFailure(t(refusal.key, refusal.values))
+        if (error instanceof ApiError && error.code === 'BUYER_ADDRESS_INCOMPLETE') {
+          setFailureLink({
+            to: customerId ? `/customers/${encodeURIComponent(customerId)}/edit` : '/customers',
+            labelKey: 'invoiceIssue.openCustomer',
+          })
+        }
         // At 0 left the way on is to buy extra documents ahead, for those who may (EX-1).
         // Read-only, the upgrade is still offered but no extras are bought until it is paid (ST-2).
         if (error instanceof ApiError && error.code === 'QUOTA_EXCEEDED' && mayManagePlan) {

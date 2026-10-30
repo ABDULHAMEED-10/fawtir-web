@@ -330,7 +330,8 @@ function App() {
           <Route path="/stock/:id" element={<StockDetailPage />} />
           <Route path="/catalog" element={<CatalogPage />} />
           <Route path="/catalog/upload" element={<DemoModule module="catalog"><UploadMenuPage /></DemoModule>} />
-          <Route path="/catalog/build" element={<DemoModule module="catalog"><BuildCatalogPage /></DemoModule>} />
+          {/* Reads the template and writes groups, kinds and products: no sample ribbon (B-1). */}
+          <Route path="/catalog/build" element={<BuildCatalogPage />} />
           <Route path="/catalog/new" element={<ItemFormPage mode="new" />} />
           <Route path="/catalog/groups" element={<CatalogGroupsPage />} />
           <Route path="/catalog/rules" element={<DemoModule module="catalog"><PriceRulesPage /></DemoModule>} />

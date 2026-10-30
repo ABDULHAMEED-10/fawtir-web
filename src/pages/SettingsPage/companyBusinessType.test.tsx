@@ -169,7 +169,7 @@ describe('Settings › Company: business type (Catalogue guide 1A)', () => {
     renderPage()
     await waitFor(() => expect(picker().textContent).toContain('Coffee shop'))
     fireEvent.click(picker())
-    fireEvent.click(await screen.findByRole('option', { name: /I don't use Fawtir POS/ }))
+    fireEvent.click(await screen.findByRole('option', { name: /no catalog template/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     await waitFor(() => expect(typePuts()).toHaveLength(1))

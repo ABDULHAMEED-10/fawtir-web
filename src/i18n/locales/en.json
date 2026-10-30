@@ -1600,7 +1600,8 @@
       "poBox": "PO Box",
       "poBoxPlaceholder": "PO Box",
       "postalCode": "Postal code",
-      "postalCodePlaceholder": "Postal code"
+      "postalCodePlaceholder": "Postal code",
+      "addressLine3Hint": "Needed, with the street, additional street, city and postal code, to issue invoices to a business or government customer."
     },
     "notes": {
       "label": "Note to customer",
@@ -10751,7 +10752,7 @@
     "notAvailableYet": "Not available yet",
     "subBusinessType": "Business type",
     "subBusinessTypeHint": "Decides which catalog template Fawtir offers you",
-    "subBusinessTypeNone": "Not chosen (I don't use Fawtir POS)",
+    "subBusinessTypeNone": "Not chosen (no catalog template)",
     "subBusinessTypeRetired": "{{name}} (no longer offered)",
     "subBusinessTypePlaceholder": "Choose your business type",
     "subBusinessTypeSearch": "Search business types",
@@ -12350,7 +12351,8 @@
       "barcodes": "Barcodes and stock, if you need them"
     },
     "byHandTime": "About a minute per item",
-    "byHandCta": "Add the first item"
+    "byHandCta": "Add the first item",
+    "knownFor": "Fawtir already knows <b>what this kind of business usually sells</b>: {{groups}}, so you start from something rather than nothing."
   },
   "item": {
     "newItem": "New item",
@@ -13272,7 +13274,27 @@
     "templateFailedNote": "Your template could not be loaded. Start your own catalog, or try again.",
     "chooseBusinessType": "Check your business type",
     "tryAgain": "Try again",
-    "startsExempt": "Starts as exempt:"
+    "startsExempt": "Starts as exempt:",
+    "insideGroupEmpty": "Inside the group",
+    "whatYouSellEmpty": "What you sell",
+    "choicesLine": "Sizes and options: {{list}}",
+    "addOnsLine": "Add-ons: {{list}}",
+    "progress": "Adding to your catalog: {{done}} of {{total}}",
+    "summary": "{{added}}, {{skipped}}, {{failed}}.",
+    "summaryAdded_one": "Added {{count}}",
+    "summaryAdded_other": "Added {{count}}",
+    "summarySkipped_one": "skipped {{count}} already in your catalog",
+    "summarySkipped_other": "skipped {{count}} already in your catalog",
+    "summaryFailed_one": "{{count}} failed",
+    "summaryFailed_other": "{{count}} failed",
+    "failedTitle": "These could not be added",
+    "retryFailed": "Try the failed ones again",
+    "openCatalog": "Open the catalog",
+    "restored": "Your saved ticks and prices are back.",
+    "listTitle": "What will be added",
+    "listSubtitle": "Everything ticked, by group and kind. Sizes, options and add-ons are priced on each item once added.",
+    "listClose": "Close",
+    "noPriceYet": "No price yet"
   },
   "rowsView": {
     "label": "How this list is shown",
@@ -20797,7 +20819,8 @@
       "stale": "Someone changed this draft after you opened it. Reload, then issue.",
       "notDraft": "This invoice is no longer a draft.",
       "unavailable": "Issuing isn't available on this server yet.",
-      "activityRequired": "Set your business activity in Company settings before creating a business or government invoice."
+      "activityRequired": "Set your business activity in Company settings before creating a business or government invoice.",
+      "buyerAddressIncomplete": "The customer's invoicing address is incomplete. An invoice to a business or government customer needs the street, the additional street or area, address line 3, the city and the postal code (Peppol rule IBR-019-OM). Complete the customer, then issue again."
     },
     "creditNote": {
       "title": "Issue this credit note?",
@@ -20821,7 +20844,8 @@
       "STOCK_VARIANT_UNKNOWN": "the item is counted by size or option and this line names none of them, so no stock moved.",
       "STOCK_QUANTITY_NOT_WHOLE": "the item is counted in whole pieces, so a part quantity moved no stock.",
       "STOCK_QUANTITY_INVALID": "the quantity has more than three decimals, so no stock moved."
-    }
+    },
+    "openCustomer": "Open the customer"
   },
   "supplierForm": {
     "fixFirst": "Some fields need attention before the supplier can be saved.",
