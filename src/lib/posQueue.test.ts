@@ -295,7 +295,7 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
       { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
     )
   const WALK_IN: PosSaleRequest = { ...BODY, customer: { kind: 'WALK_IN' } }
-  const NEW_TILL = { ...TILL, skipsStuckNumbers: true } as PosTillDto
+  const NEW_TILL = { ...TILL, openNumbers: true } as PosTillDto
 
   /** A server with the real numbering rule: exactly the next number, or the declared skips. */
   function fakeServer() {
@@ -303,6 +303,7 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
       next: 49,
       readOnly: false,
       refuseKeys: new Set<string>(),
+      refused: new Set<string>(),
       filed: new Map<string, string>(),
       posts: [] as { key: string; body: PosSaleRequest }[],
       canSkip: false,
@@ -315,10 +316,15 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
       state.posts.push({ key, body })
       const filed = state.filed.get(key)
       if (filed) return json({ saleId: key, invoiceNumber: filed, replayed: true })
-      if (state.refuseKeys.has(key)) return refusal(422, 'SIMPLIFIED_INVOICE_LIMIT')
+      if (state.refuseKeys.has(key)) {
+        if (body.invoiceNumber) state.refused.add(body.invoiceNumber)
+        return refusal(422, 'SIMPLIFIED_INVOICE_LIMIT')
+      }
       if (state.readOnly && !(state.canSkip && body.queuedOffline)) return RO()
       const claimed = body.invoiceNumber
       const fmt = (v: number) => `NZW-T01-INV-2026-${String(v).padStart(6, '0')}`
+      // The real server goes past a number it has refused when a sale brings no number of its own.
+      while (!claimed && state.canSkip && state.refused.has(fmt(state.next))) state.next++
       const value = claimed ? Number(claimed.slice(-6)) : state.next
       if (value > state.next) {
         const declared = new Set(body.skippedNumbers ?? [])
@@ -485,7 +491,8 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
     const sold = await submitSale(NEW_TILL, WALK_IN, 'pos-sale-key-third2')
     expect('sale' in sold && sold.sale.invoiceNumber).toBe('NZW-T01-INV-2026-000051')
     const sent = server.posts.filter((post) => post.key === 'pos-sale-key-third2').pop()
-    expect(sent?.body).toMatchObject({ queuedOffline: false })
+    expect(sent?.body).toMatchObject({ queuedOffline: false, invoiceNumber: null })
+    expect(sent?.body.skippedNumbers).toBeUndefined()
 
     // Final: not sent again by itself.
     const tries = server.posts.filter((post) => post.key === 'pos-sale-key-bad2').length

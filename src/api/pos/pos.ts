@@ -36,8 +36,8 @@ export type PosTillDto = {
   openShift: { shiftId: string; cashier: PosPerson; openedAt: string } | null
   /** Keyed `INVOICE` and `CREDIT_NOTE`. */
   series: Record<string, PosSeries>
-  /** The server takes `skippedNumbers` on a sale; an older one leaves this out. */
-  skipsStuckNumbers?: boolean
+  /** The server keeps open numbers (skip, set aside, the outstanding list); an older one leaves this out. */
+  openNumbers?: boolean
 }
 
 export type PosShiftDto = {
@@ -568,6 +568,40 @@ export type PosDaySummaryDto = {
 
 export function posDayPath(date: string, branchId: string): string {
   return withQuery(`${POS_PATH}/days/${id(date)}`, { branchId })
+}
+
+/* --------------------------------------------------------------- open numbers */
+
+/** A printed number no invoice carries yet. It stays listed until it is filed, set aside or not. */
+export type PosOpenNumberDto = {
+  tillId: string
+  tillNumber: number
+  invoiceNumber: string
+  refusalCode: string | null
+  reason: string | null
+  soldAt: string | null
+  amount: number | null
+  firstRecordedAt: string
+  passed: boolean
+  setAsideAt: string | null
+  setAsideBy: string | null
+  setAsideReason: string | null
+}
+
+export function posOpenNumbersPath(branchId: string): string {
+  return withQuery(`${POS_PATH}/open-numbers`, { branchId })
+}
+
+/** `pos.till.manage`. Lets the queue move on and closes nothing; only on a server with `openNumbers`. */
+export function setAsideOpenNumber(
+  tillId: string,
+  invoiceNumber: string,
+  reason: string,
+): Promise<PosOpenNumberDto> {
+  return apiRequest<PosOpenNumberDto>(`${POS_PATH}/open-numbers/set-aside`, {
+    method: 'POST',
+    body: { tillId, invoiceNumber, reason },
+  })
 }
 
 /* -------------------------------------------------------------------- refunds */
