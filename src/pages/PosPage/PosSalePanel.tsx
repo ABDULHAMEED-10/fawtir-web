@@ -199,21 +199,24 @@ export function PosSalePanel({
                     ) : null}
                   </p>
                 ) : null}
-                <button
-                  type="button"
-                  onClick={() => setDiscountLine(discountLine === line.id ? null : line.id)}
-                  aria-expanded={discountLine === line.id}
-                  aria-label={t('pos.lineDiscount.open', { name: line.name })}
-                  className="mt-1 text-xs font-semibold text-primary-700"
-                >
-                  {typedDiscount(line)
-                    ? typedDiscount(line)?.type === 'PERCENTAGE'
-                      ? t('pos.lineDiscount.setPercent', { value: typedDiscount(line)?.value })
-                      : t('pos.lineDiscount.setAmount', {
-                          value: omr(Math.round(Number(typedDiscount(line)?.value) * 1000)),
-                        })
-                    : t('pos.lineDiscount.add')}
-                </button>
+                {/* A split bundle files its parts at their shares: this would change nothing. */}
+                {line.bundleParts?.length ? null : (
+                  <button
+                    type="button"
+                    onClick={() => setDiscountLine(discountLine === line.id ? null : line.id)}
+                    aria-expanded={discountLine === line.id}
+                    aria-label={t('pos.lineDiscount.open', { name: line.name })}
+                    className="mt-1 text-xs font-semibold text-primary-700"
+                  >
+                    {typedDiscount(line)
+                      ? typedDiscount(line)?.type === 'PERCENTAGE'
+                        ? t('pos.lineDiscount.setPercent', { value: typedDiscount(line)?.value })
+                        : t('pos.lineDiscount.setAmount', {
+                            value: omr(Math.round(Number(typedDiscount(line)?.value) * 1000)),
+                          })
+                      : t('pos.lineDiscount.add')}
+                  </button>
+                )}
                 {discountLine === line.id ? (
                   <div className="mt-2">
                     <DiscountField
