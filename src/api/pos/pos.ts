@@ -232,7 +232,14 @@ export type PosFiling = {
   channel: 'TAX_AUTHORITY' | 'PEPPOL'
 }
 
-export type PosWarning = { code: string; line: number | null; message?: string }
+export type PosWarning = {
+  code: string
+  line: number | null
+  message?: string
+  /** `POS_PRINTED_NUMBER_DIFFERS`, added by the queue: what the receipt says, and the filed number. */
+  printed?: string
+  filed?: string
+}
 
 export type PosTotals = {
   subtotal: number

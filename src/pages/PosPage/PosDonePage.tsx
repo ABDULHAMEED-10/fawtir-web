@@ -187,6 +187,8 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
               <li key={`${warning.code}-${index}`}>
                 {t(`pos.warning.${warning.code}`, {
                   line: warning.line ?? '',
+                  printed: warning.printed ?? '',
+                  filed: warning.filed ?? '',
                   defaultValue: t('pos.warning.other'),
                 })}
               </li>

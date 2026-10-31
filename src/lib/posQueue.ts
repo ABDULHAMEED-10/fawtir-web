@@ -66,6 +66,7 @@ export type QueuedSale = {
 }
 
 const QUEUE_KEY = 'fawtir.pos.queue'
+const NUMBER_NOTES_KEY = 'fawtir.pos.numberNotes'
 const nextKey = (tillId: string) => `fawtir.pos.next.${tillId}`
 
 function read<T>(key: string, fallback: T): T {
@@ -303,6 +304,42 @@ async function forget(entry: QueuedSale) {
 }
 
 /**
+ * A sale the server had already filed before its queued copy arrived (the online answer was lost)
+ * can be filed under another number than its receipt. The server says so only on that replay, while
+ * the queue sends in the background, so the till keeps it and tells the cashier on the next sale's
+ * Done screen, with the other warnings.
+ */
+type NumberNote = { tillId: string; printed: string; filed: string }
+
+function notePrintedNumberDiffers(entry: QueuedSale, sale: PosSaleDto) {
+  if (!sale.warnings?.some((warning) => warning.code === 'POS_PRINTED_NUMBER_DIFFERS')) return
+  const note = { tillId: entry.tillId, printed: entry.number, filed: sale.invoiceNumber }
+  write(NUMBER_NOTES_KEY, [...read<NumberNote[]>(NUMBER_NOTES_KEY, []), note])
+}
+
+function withNumberNotes(tillId: string, sale: PosSaleDto): PosSaleDto {
+  const notes = read<NumberNote[]>(NUMBER_NOTES_KEY, [])
+  const mine = notes.filter((note) => note.tillId === tillId)
+  if (mine.length === 0) return sale
+  write(
+    NUMBER_NOTES_KEY,
+    notes.filter((note) => note.tillId !== tillId),
+  )
+  return {
+    ...sale,
+    warnings: [
+      ...sale.warnings,
+      ...mine.map(({ printed, filed }) => ({
+        code: 'POS_PRINTED_NUMBER_DIFFERS',
+        line: null,
+        printed,
+        filed,
+      })),
+    ],
+  }
+}
+
+/**
  * Sends one sale, or numbers it and keeps it when the till is offline (or already has a queue).
  * A refusal (`ApiError`) is not queued: it is the cashier's to put right, so it is thrown.
  * `photos` are bank slips scanned while offline: kept with the sale, attached once it is filed.
@@ -340,7 +377,7 @@ export async function submitSale(
       const sale = await createPosSale(body, key)
       noteNumberUsed(till.id, sale.invoiceNumber)
       void sendSlipPhotos(key, sale.saleId, till.id)
-      return { sale }
+      return { sale: withNumberNotes(till.id, sale) }
     } catch (error) {
       if (error instanceof NetworkError) return enqueue()
       void dropSlipPhotos(key)
@@ -355,7 +392,7 @@ export async function submitSale(
       const sale = await createPosSale(body, key)
       noteNumberUsed(till.id, sale.invoiceNumber)
       void sendSlipPhotos(key, sale.saleId, till.id)
-      return { sale }
+      return { sale: withNumberNotes(till.id, sale) }
     } catch (error) {
       if (error instanceof NetworkError) return enqueue()
       void dropSlipPhotos(key)
@@ -451,6 +488,7 @@ export async function flushQueue(tillId: string): Promise<FlushOutcome> {
       }
       try {
         const sale = await sendNumbered(await bodyToSend(entry), entry.key, canSkip)
+        notePrintedNumberDiffers(entry, sale)
         save(queue.filter((other) => other.key !== entry.key))
         await forget(entry)
         void sendSlipPhotos(entry.key, sale.saleId, tillId)
