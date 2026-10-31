@@ -506,6 +506,44 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
     expect(queuedFor('till-1')).toEqual([])
   })
 
+  it('a replay filed under another number is told on the next sale, once, naming both numbers', async () => {
+    fakeServer()
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-differs-1')
+    online = true
+    const reply = saleReply
+    saleReply = () =>
+      json({
+        saleId: 'sale-1',
+        invoiceNumber: 'NZW-T01-INV-2026-000048',
+        replayed: true,
+        warnings: [{ code: 'POS_PRINTED_NUMBER_DIFFERS', line: null, message: 'not shown' }],
+      })
+    await flushQueue('till-1')
+    expect(queuedFor('till-1')).toEqual([])
+
+    saleReply = reply
+    const next = await submitSale(TILL, WALK_IN, 'pos-sale-key-differs-2')
+    expect('sale' in next && next.sale.warnings).toEqual([
+      {
+        code: 'POS_PRINTED_NUMBER_DIFFERS',
+        line: null,
+        printed: 'NZW-T01-INV-2026-000049',
+        filed: 'NZW-T01-INV-2026-000048',
+      },
+    ])
+    const after = await submitSale(TILL, WALK_IN, 'pos-sale-key-differs-3')
+    expect('sale' in after && after.sale.warnings).toEqual([])
+  })
+
+  it('a queued sale filed with no such warning leaves nothing for the next sale', async () => {
+    fakeServer()
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-same-1')
+    online = true
+    await flushQueue('till-1')
+    const next = await submitSale(TILL, WALK_IN, 'pos-sale-key-same-2')
+    expect('sale' in next && next.sale.warnings).toEqual([])
+  })
+
   it('an entry the old version gave up on comes back to life after a reload', async () => {
     window.localStorage.setItem(
       'fawtir.pos.queue',
