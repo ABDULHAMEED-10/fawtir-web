@@ -203,6 +203,60 @@ describe('taking the payment (P.12)', () => {
     expect(body.payments).toEqual([{ method: 'CARD', amount: 5.649, cardApprovalCode: '898498' }])
   })
 
+  it('at the document limit, says so without calling it monthly, and tells a cashier who can help', async () => {
+    saleReply = () =>
+      json(
+        {
+          type: 'https://api.fawtir.om/problems/quota-exceeded',
+          title: 'Conflict',
+          status: 409,
+          detail: 'The free trial of the Business plan includes 25 documents.',
+        },
+        409,
+      )
+    renderPayment()
+    fireEvent.click(await screen.findByRole('button', { name: /^Card/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Paid/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toContain(i18n.t('pos.refusal.quota'))
+    expect(alert.textContent).toContain(i18n.t('pos.refusal.quotaAskManager'))
+    expect(alert.textContent).not.toMatch(/month/i)
+    expect(screen.queryByRole('link', { name: i18n.t('extraDocuments.entry') })).toBeNull()
+  })
+
+  it('at the document limit, gives whoever manages the plan the way on, as the invoice screen does', async () => {
+    const reply = vi.mocked(fetch).getMockImplementation()!
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      const url = String(input)
+      if (url === '/api/v1/me/entitlements') {
+        return json({ ...CASHIER, permissions: [...CASHIER.permissions, 'tenant.plan.manage'] })
+      }
+      if (url === '/api/v1/settings/plan/changes') {
+        return json({ available: true, pending: null, history: [] })
+      }
+      return reply(input, init)
+    })
+    saleReply = () =>
+      json(
+        { type: 'https://api.fawtir.om/problems/quota-exceeded', title: 'Conflict', status: 409 },
+        409,
+      )
+    renderPayment()
+    fireEvent.click(await screen.findByRole('button', { name: /^Card/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Paid/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    expect(
+      (await screen.findByRole('link', { name: i18n.t('extraDocuments.entry') })).getAttribute(
+        'href',
+      ),
+    ).toBe('/settings/plan/extra-documents')
+    expect(
+      (await screen.findByRole('link', { name: i18n.t('planGate.seePlans') })).getAttribute('href'),
+    ).toBe('/settings/plan')
+    expect(screen.queryByText(new RegExp(i18n.t('pos.refusal.quotaAskManager')))).toBeNull()
+  })
+
   it('offers a full invoice when the sale is over the simplified limit, and asks for the buyer ID', async () => {
     saleReply = () =>
       json(
