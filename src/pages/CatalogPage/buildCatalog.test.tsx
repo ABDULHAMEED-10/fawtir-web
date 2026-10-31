@@ -231,6 +231,22 @@ describe('building a catalog from a template', () => {
     expect(box('Gift box').checked).toBe(false)
   })
 
+  it('counts only what would be added: nothing under an unticked kind or group, and items not sizes (E2E L-9)', async () => {
+    renderBuild()
+    await screen.findByText('Gift box')
+    expect(screen.getByText('2 items picked')).toBeTruthy()
+    expect(screen.getByText('1 kind picked')).toBeTruthy()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Cakes & Pastries' }))
+    expect(screen.queryByText('2 items picked')).toBeNull()
+    expect(screen.queryByText('1 kind picked')).toBeNull()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Cakes & Pastries' }))
+    expect(screen.getByText('1 kind picked')).toBeTruthy()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Desserts' }))
+    expect(screen.queryByText('1 kind picked')).toBeNull()
+    expect(i18n.t('buildCatalog.itemsPicked', { count: 11, lng: 'ar' })).toBe('11 صنفًا محددًا')
+    expect(i18n.t('buildCatalog.itemsPicked', { count: 2, lng: 'ar' })).toBe('صنفان محددان')
+  })
+
   it('keeps ticks and prices when the language changes (W-4)', async () => {
     renderBuild()
     const [price] = await screen.findAllByLabelText('Price')

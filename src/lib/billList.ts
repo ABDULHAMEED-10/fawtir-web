@@ -30,6 +30,8 @@ export type BillStatusChip =
   | 'rejected'
   | 'inPaymentRun'
   | 'paid'
+  /** Paid in the server's sense, but by credit alone: nothing was paid in money. */
+  | 'settledByCredit'
   /** Approved, with some of it paid and some still owed. */
   | 'partPaid'
   /** A refused debit note a credit note has closed. */
@@ -150,7 +152,15 @@ function statusOf(row: BillRowDto): BillStatusChip {
   if (isCreditNote(row)) return 'creditNote'
   const state = workflowStateOf(row)
   if (state === 'APPROVED' && row.paidAmount > 0 && row.outstandingAmount > 0) return 'partPaid'
+  // A bill a credit note cleared is PAID to the server with nothing paid: "Paid" over Paid 0.000
+  // told the reader money had gone out (B-12, local E2E 2026-10-29).
+  if (state === 'PAID' && settledWithoutPayment(row)) return 'settledByCredit'
   return STATUS[state]
+}
+
+/** Nothing owed, none of it paid in money: credit (or a run's discount) settled the bill. */
+export function settledWithoutPayment(figures: { paidAmount: number; outstandingAmount: number }): boolean {
+  return figures.paidAmount === 0 && figures.outstandingAmount <= 0
 }
 
 export function toBillListItem(row: BillRowDto): BillListItem {

@@ -343,7 +343,8 @@ function App() {
           <Route path="/catalog/:id/sells" element={<ItemSellsPage />} />
           <Route path="/catalog/:id/used" element={<ItemUsedPage />} />
           <Route path="/catalog/:id/changes" element={<ItemChangesPage />} />
-          <Route path="/catalog/:id/options" element={<DemoModule module="catalog"><ItemOptionsPage /></DemoModule>} />
+          {/* Reads and writes the item's sizes and options on the server: no sample ribbon. */}
+          <Route path="/catalog/:id/options" element={<ItemOptionsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/peppol" element={<PeppolTaxPage />} />
           <Route path="/settings/branches" element={<BranchesPage />} />

@@ -90,7 +90,7 @@ export function DocumentDetailBody({
       {detail.read.status === 'loading' ? (
         <LoadingNotice />
       ) : detail.read.status === 'failed' ? (
-        <ApiReadFailure error={detail.read.error} retry={detail.retry} />
+        <ApiReadFailure error={detail.read.error} retry={detail.retry} notFoundOn400 />
       ) : (
         <DocumentDetail
           detail={detail.read.data}

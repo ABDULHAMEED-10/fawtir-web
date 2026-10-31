@@ -189,6 +189,9 @@ function ExpenditureBody({
   const netBefore = sumOver(net, previous.months)
   const vatNow = sumOver(vat, current.months)
   const vatBefore = sumOver(vat, previous.months)
+  // TODO(backend): REPORTS.md row 1.30. `documents` counts credit and debit notes too, and the
+  // net they divide is signed, so "Bills received" and "Average bill" mix them in (ACC-5). The
+  // report has no type to split them by; Income's fix (1.22) needs the same here.
   const billsNow = sumOver(bills, current.months)
   const billsBefore = sumOver(bills, previous.months)
   const average = billsNow === 0 ? 0 : netNow / billsNow

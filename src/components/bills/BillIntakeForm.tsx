@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { DateField, Rial, Select, withRial } from '../ui'
@@ -23,6 +23,7 @@ import {
   supplierOrdersPath,
   type PurchaseOrderRowDto,
 } from '../../api/expenditure/supplierRecord'
+import { loadSupplierPage, supplierListPath } from '../../api/expenditure/suppliers'
 import { describeApiFailure } from '../../lib/apiFailure'
 import {
   BILL_CONFIRM_REFUSALS,
@@ -30,11 +31,15 @@ import {
   billProblems,
   billTaxCategories,
   blankLine,
+  confidentCount,
   fileKindOf,
   fromIntake,
   linesTotals,
+  notReadReason,
   rateOfCategory,
+  readingOf,
   savedDetails,
+  supplierWithVat,
   toConfirmation,
   toCorrections,
   totalDisagrees,
@@ -42,6 +47,8 @@ import {
   type BillForm,
   type BillLine,
   type BillProblems,
+  type ReadField,
+  unsureFields,
 } from '../../lib/billIntake'
 import { formatAmount, formatDate } from '../../lib/format'
 import { DESIGN_REFERENCE } from '../../lib/invoiceDraft'
@@ -69,6 +76,26 @@ const REQUEST_FIELDS: Record<string, BillField> = {
   vat: 'vat',
   total: 'total',
 }
+
+/** What a change to the form settles: the read field it overwrites, so its amber goes. */
+const SETTLES: Partial<Record<keyof BillForm, ReadField[]>> = {
+  supplierId: ['supplierName', 'supplierVatNumber'],
+  supplierName: ['supplierName'],
+  billNumber: ['billNumber'],
+  issueDate: ['issueDate'],
+  dueDate: ['dueDate'],
+  currency: ['currency'],
+  vat: ['vat'],
+  total: ['total'],
+}
+
+/** A box drawn amber (as `Select` and `DateField` draw `unsure`): read, not sure, not yet typed. */
+const amber = (classes: string, unsure: boolean | undefined) =>
+  unsure
+    ? classes
+        .replace('border-primary-300', 'border-[#d8c9a8]')
+        .replace('bg-surface-tab-bar', 'bg-[#faf5ea]')
+    : classes
 
 /** The 42px figure box on a line, and the 50px one on the totals. */
 const LINE_INPUT =
@@ -109,6 +136,7 @@ export function LineTaxSelect({
       compact
       tight
       ariaLabel={ariaLabel}
+      unsure={line.unsure}
     />
   )
 }
@@ -150,9 +178,15 @@ export function BillIntakeForm({
   onKept,
   onReplace,
   documentTypeCode = '380',
+  readSeconds,
 }: {
   intake: IntakeDto
   file: File
+  /**
+   * How long the upload took as the browser measured it, which with reading on is the read
+   * ("read in 3 seconds", EXPENDITURE.md 1.6). Unknown for an upload resumed later.
+   */
+  readSeconds?: number
   lockedSupplier?: { id: string; name: string; vatNumber: string | null }
   cancelTo: string
   onSaved: (bill: ConfirmedBillDto) => void
@@ -183,24 +217,72 @@ export function BillIntakeForm({
   const [duplicate, setDuplicate] = useState<PossibleDuplicateDto | null>(null)
   const [busy, setBusy] = useState<'confirm' | 'keep' | null>(null)
   const [dismissedOrders, setDismissedOrders] = useState<string[]>([])
+  /** The read fields still amber: unsure on the file and not typed over since (rows 1.6, 1.10). */
+  const [unsure, setUnsure] = useState<Set<ReadField>>(() => unsureFields(intake))
   const inFlight = useRef(false)
 
   const set = (patch: Partial<BillForm>) => {
     setForm((current) => ({ ...current, ...patch }))
+    const settled = (Object.keys(patch) as (keyof BillForm)[]).flatMap((key) => SETTLES[key] ?? [])
+    if (settled.some((field) => unsure.has(field)))
+      setUnsure((current) => new Set([...current].filter((field) => !settled.includes(field))))
     // A changed supplier or number is a different question: the duplicate warning no longer applies.
     if ('supplierId' in patch || 'supplierName' in patch || 'billNumber' in patch)
       setDuplicate(null)
   }
   const setLine = (id: string, patch: Partial<BillLine>) =>
-    set({ lines: form.lines.map((line) => (line.id === id ? { ...line, ...patch } : line)) })
+    set({
+      lines: form.lines.map((line) =>
+        line.id === id ? { ...line, ...patch, unsure: false } : line,
+      ),
+    })
 
   const totals = useMemo(() => linesTotals(form.lines), [form.lines])
   const disagrees = totalDisagrees(form)
   const extractedVat = intake.extracted?.supplierVatNumber?.trim().toUpperCase() ?? null
+
+  // DB-12: a file whose VAT number is a supplier's on the list starts with that supplier picked,
+  // instead of naming the number beside an empty picker. Asked once, through the picker's own
+  // search; a person's pick is never replaced, and a failed lookup, or one that finds none or
+  // several, only leaves the picker as it was, so the lookup's errors are deliberately dropped.
+  // The supplier and its VAT number are set together or not at all: `vatMatches` compares them, so
+  // a VAT number beside another supplier would claim a match that is not there.
+  const picked = useRef(false)
+  const startedWithSupplier = useRef(Boolean(form.supplierId))
+  const lockedId = lockedSupplier?.id ?? null
+  useEffect(() => {
+    if (lockedId || !extractedVat) return
+    let active = true
+    loadSupplierPage(
+      supplierListPath({ filter: 'ACTIVE', q: extractedVat, sort: 'NAME', page: 0, pageSize: 20 }),
+    ).then(
+      (page) => {
+        // The search matches part of a name, VAT number or participant ID: with more rows than
+        // one page holds, a second supplier with this VAT number could be past it.
+        if (page.total === null || page.total > page.items.length) return
+        const match = supplierWithVat(page.items, extractedVat)
+        if (!active || picked.current || startedWithSupplier.current || !match) return
+        setVatNumber(match.vatNumber)
+        setForm((current) => ({
+          ...current,
+          supplierId: match.id,
+          supplierName: match.displayName,
+          purchaseOrderId: '',
+        }))
+      },
+      () => {},
+    )
+    return () => {
+      active = false
+    }
+  }, [lockedId, extractedVat])
+
   const vatMatches = Boolean(
     form.supplierId && vatNumber && extractedVat && vatNumber.toUpperCase() === extractedVat,
   )
   const read = intake.extractionStatus === 'EXTRACTED'
+  const reading = readingOf(intake)
+  const notRead = notReadReason(intake)
   // The design's "2 fields still to check": what the server would still refuse, counted live.
   const toCheck = Object.keys(billProblems(form, { needsNumber: true })).length
 
@@ -303,16 +385,36 @@ export function BillIntakeForm({
     await discardIntake(intake.id).catch(() => undefined)
   }
 
-  const fileMeta = [
-    formatBytes(intake.byteSize || file.size),
-    read
-      ? t('billIntake.file.readFields', {
-          read: Object.values(intake.extracted?.confidence ?? {}).filter(Boolean).length,
+  const size = formatBytes(intake.byteSize || file.size)
+  const counted = confidentCount(intake)
+  const fileMeta =
+    reading && counted && reading.pageCount !== null && readSeconds !== undefined
+      ? // The design's sentence, whole: "1 page · 248 KB · read in 3 seconds · 11 of 13 fields confident".
+        t('uploadBill.fileMeta', {
+          count: reading.pageCount,
+          size,
+          seconds: Math.max(1, Math.round(readSeconds)),
+          ...counted,
         })
-      : savedDetails(intake)
-        ? t('billIntake.file.savedEarlier')
-        : t(fileKindOf(file) === 'xml' ? 'billIntake.file.xmlNotRead' : 'billIntake.file.notRead'),
-  ].join(' · ')
+      : [
+          ...(reading && reading.pageCount !== null
+            ? [t('billIntake.reading.pages', { count: reading.pageCount })]
+            : []),
+          size,
+          reading && counted
+            ? t('billIntake.reading.confident', counted)
+            : read
+              ? t('billIntake.file.readFields', {
+                  read: Object.values(intake.extracted?.confidence ?? {}).filter(Boolean).length,
+                })
+              : savedDetails(intake)
+                ? t('billIntake.file.savedEarlier')
+                : t(
+                    fileKindOf(file) === 'xml'
+                      ? 'billIntake.file.xmlNotRead'
+                      : 'billIntake.file.notRead',
+                  ),
+        ].join(' · ')
 
   return (
     <form
@@ -340,6 +442,16 @@ export function BillIntakeForm({
               {file.name}
             </p>
             <p className="mt-1 text-xs font-medium leading-[1.2] text-text-tertiary">{fileMeta}</p>
+            {notRead ? (
+              // Why it was not read, when that is something the person can act on.
+              <p className="mt-1 text-xs font-medium leading-[1.3] text-[#887147]">
+                {t(
+                  notRead === 'dailyLimit'
+                    ? 'billIntake.reading.dailyLimit'
+                    : 'apiErrors.planFeatureNotIncluded.receiptScan',
+                )}
+              </p>
+            ) : null}
           </div>
         </div>
         {onReplace ? (
@@ -354,7 +466,11 @@ export function BillIntakeForm({
       </div>
 
       <div className="flex flex-col gap-4 xl:flex-row">
-        <IntakeFilePreview file={file} filledFromXml={read} />
+        <IntakeFilePreview
+          file={file}
+          filledFromXml={read}
+          pageCount={reading?.pageCount ?? undefined}
+        />
 
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <section className="rounded-md bg-surface-card p-5">
@@ -371,11 +487,13 @@ export function BillIntakeForm({
                 <SupplierPicker
                   id="bill-supplier"
                   value={{ id: form.supplierId, name: form.supplierName, vatNumber }}
-                  onPick={(picked) => {
-                    setVatNumber(picked.vatNumber)
-                    set({ supplierId: picked.id, supplierName: picked.name, purchaseOrderId: '' })
+                  onPick={(chosen) => {
+                    picked.current = true
+                    setVatNumber(chosen.vatNumber)
+                    set({ supplierId: chosen.id, supplierName: chosen.name, purchaseOrderId: '' })
                   }}
                   error={error('supplier')}
+                  unsure={!form.supplierId && unsure.has('supplierName')}
                 />
               )}
               {vatMatches ? (
@@ -395,6 +513,7 @@ export function BillIntakeForm({
                 value={form.billNumber}
                 onChange={(billNumber) => set({ billNumber })}
                 error={error('billNumber')}
+                unsure={unsure.has('billNumber')}
               />
               <div className="flex flex-col gap-1">
                 <FieldLabel label={t('uploadBill.billDate')} required />
@@ -402,6 +521,7 @@ export function BillIntakeForm({
                   value={form.issueDate}
                   onChange={(issueDate) => set({ issueDate })}
                   ariaLabel={t('uploadBill.billDate')}
+                  unsure={unsure.has('issueDate')}
                 />
                 {error('issueDate') ? (
                   <p role="alert" className="text-xs font-medium text-text-danger">
@@ -416,6 +536,7 @@ export function BillIntakeForm({
                   onChange={(dueDate) => set({ dueDate })}
                   ariaLabel={t('uploadBill.paymentDue')}
                   min={form.issueDate || undefined}
+                  unsure={unsure.has('dueDate')}
                 />
                 {error('dueDate') ? (
                   <p role="alert" className="text-xs font-medium text-text-danger">
@@ -447,6 +568,7 @@ export function BillIntakeForm({
                     options={CURRENCIES.map((code) => ({ value: code, label: code }))}
                     ariaLabel={t('billIntake.currency')}
                     compact
+                    unsure={unsure.has('currency')}
                   />
                 </span>
               </label>
@@ -477,7 +599,10 @@ export function BillIntakeForm({
                           }
                           aria-label={t('uploadBill.col.description')}
                           maxLength={500}
-                          className="h-[42px] w-full rounded-sm border border-primary-300 bg-surface-tab-bar px-3 text-sm font-medium text-text-secondary outline-none focus:border-primary-700"
+                          className={amber(
+                            'h-[42px] w-full rounded-sm border border-primary-300 bg-surface-tab-bar px-3 text-sm font-medium text-text-secondary outline-none focus:border-primary-700',
+                            line.unsure,
+                          )}
                         />
                       </td>
                       {(['quantity', 'unitPrice'] as const).map((key) => (
@@ -489,7 +614,7 @@ export function BillIntakeForm({
                               onFocus={selectAllOnFocus}
                               onChange={(event) => setLine(line.id, { [key]: event.target.value })}
                               aria-label={t(`billIntake.lineField.${key}`)}
-                              className={[LINE_INPUT, 'w-full'].join(' ')}
+                              className={[amber(LINE_INPUT, line.unsure), 'w-full'].join(' ')}
                             />
                           </span>
                         </td>
@@ -571,7 +696,7 @@ export function BillIntakeForm({
                     onChange={(event) => set({ vat: event.target.value })}
                     aria-invalid={error('vat') ? true : undefined}
                     className={[
-                      TOTAL_INPUT,
+                      amber(TOTAL_INPUT, unsure.has('vat')),
                       'text-sm',
                       error('vat') ? 'ring-1 ring-border-danger' : '',
                     ].join(' ')}
@@ -603,7 +728,7 @@ export function BillIntakeForm({
                     onChange={(event) => set({ total: event.target.value })}
                     aria-invalid={error('total') ? true : undefined}
                     className={[
-                      TOTAL_INPUT,
+                      amber(TOTAL_INPUT, unsure.has('total')),
                       'text-lg',
                       error('total') ? 'ring-1 ring-border-danger' : '',
                     ].join(' ')}

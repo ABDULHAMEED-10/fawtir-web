@@ -210,7 +210,7 @@ function DebitNoteDetail() {
         />
         {note.read.status === 'loading' ? <LoadingNotice /> : null}
         {note.read.status === 'failed' ? (
-          <ApiReadFailure error={note.read.error} retry={note.retry} />
+          <ApiReadFailure error={note.read.error} retry={note.retry} notFoundOn400 />
         ) : null}
       </div>
     )

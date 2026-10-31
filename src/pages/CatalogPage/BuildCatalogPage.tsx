@@ -493,7 +493,8 @@ export function BuildCatalogPage() {
                         >
                           <bdi>{entry.name}</bdi>
                         </span>
-                        {kinds > 0 ? (
+                        {/* Unticked, nothing of it is added: its remembered ticks are not "picked". */}
+                        {on && kinds > 0 ? (
                           <span className="text-xs font-medium text-text-quaternary">
                             {t('buildCatalog.kindsPicked', { count: kinds })}
                           </span>
@@ -580,9 +581,10 @@ export function BuildCatalogPage() {
                           >
                             <bdi>{entry.name}</bdi>
                           </span>
-                          {sizes > 0 ? (
+                          {on && sizes > 0 ? (
                             <span className="text-xs font-medium text-text-quaternary">
-                              {t('buildCatalog.sizesPicked', { count: sizes })}
+                              {/* What is ticked here are the things sold, sized or not. */}
+                              {t('buildCatalog.itemsPicked', { count: sizes })}
                             </span>
                           ) : null}
                         </button>

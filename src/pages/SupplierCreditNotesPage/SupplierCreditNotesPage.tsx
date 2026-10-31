@@ -577,13 +577,13 @@ function CreditRow({
         </Link>
         {note.receivedAt || note.issueDate ? (
           <p className="mt-1 text-xs font-medium leading-[1.2] text-text-quaternary">
-            {/* The day the note arrived; the issue date stands in from a server that does not
-                say. */}
-            {t('supplierCreditNotes.rows.arrived', {
-              date: note.receivedAt
-                ? formatInstantDay(note.receivedAt, language)
-                : formatDate(note.issueDate!, language),
-            })}
+            {/* The day the note arrived. A server that does not say gets the issue date under its
+                own word: "Arrived" over the supplier's issue date was false (B-9). */}
+            {note.receivedAt
+              ? t('supplierCreditNotes.rows.arrived', {
+                  date: formatInstantDay(note.receivedAt, language),
+                })
+              : t('supplierCreditNotes.rows.issued', { date: formatDate(note.issueDate!, language) })}
           </p>
         ) : null}
       </td>

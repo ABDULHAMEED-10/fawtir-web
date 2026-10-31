@@ -581,8 +581,10 @@ function SupplierRecord({ id }: { id: string }) {
                                 </Link>
                                 <p className="mt-1 text-xs font-medium text-text-quaternary">
                                   {[
+                                    // The bill row carries no arrival time, only the supplier's
+                                    // issue date, which read "Arrived" (B-9).
                                     row.issueDate
-                                      ? t('supplierDetail.arrived', { date: day(row.issueDate) })
+                                      ? t('supplierRecord.issued', { date: day(row.issueDate) })
                                       : null,
                                     row.match?.purchaseOrderNumber ?? row.purchaseOrderReference,
                                   ]

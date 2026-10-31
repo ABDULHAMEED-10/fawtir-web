@@ -12,6 +12,8 @@ const FIELD_BASE =
   'h-[50px] w-full rounded-sm bg-surface-tab-bar px-4 text-sm font-medium outline-none transition-colors placeholder:text-text-placeholder'
 const FIELD_EMPTY = 'border border-border-default text-text-secondary focus:border-primary-700'
 const FIELD_FILLED = 'border border-primary-300 text-text-secondary focus:border-primary-700'
+/** A value a reader filled in but was not sure of: amber until the person types over it. */
+const FIELD_UNSURE = 'border border-[#d8c9a8] text-text-secondary focus:border-primary-700'
 
 export function SectionCard({
   step,
@@ -77,6 +79,7 @@ export function TextField({
   maxLength,
   autoComplete,
   dir,
+  unsure = false,
 }: {
   id: string
   name: string
@@ -97,6 +100,8 @@ export function TextField({
   autoComplete?: string
   /** `ltr` for a code typed in an Arabic page (a path, a parameter): `/id` must not read `id/`. */
   dir?: 'ltr' | 'rtl'
+  /** Amber, as `Select` and `DateField` draw it: a value read from a file and not yet checked. */
+  unsure?: boolean
 }) {
   const filled = value !== undefined ? value !== '' : Boolean(defaultValue)
   return (
@@ -116,8 +121,8 @@ export function TextField({
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
         className={[
-          FIELD_BASE,
-          filled ? FIELD_FILLED : FIELD_EMPTY,
+          unsure ? FIELD_BASE.replace('bg-surface-tab-bar', 'bg-[#faf5ea]') : FIELD_BASE,
+          unsure ? FIELD_UNSURE : filled ? FIELD_FILLED : FIELD_EMPTY,
           error ? 'ring-1 ring-border-danger' : '',
         ]
           .filter(Boolean)

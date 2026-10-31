@@ -180,7 +180,7 @@ function CustomerFormPage({ customerId }: { customerId: string | null }) {
         {loaded.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
-          <ApiReadFailure error={loaded.read.error} retry={loaded.retry} />
+          <ApiReadFailure error={loaded.read.error} retry={loaded.retry} notFoundOn400 />
         )}
       </div>
     )
@@ -432,6 +432,12 @@ function CustomerFormPage({ customerId }: { customerId: string | null }) {
       ) : null}
       {record && record.invoiceEligible === false ? (
         <Notice body={t('customerForm.notEligible')} />
+      ) : null}
+      {record && record.peppolSendReady === false ? (
+        <Notice body={peppolAddressNotice(t, record.missingPeppolFields ?? [])} />
+      ) : null}
+      {record && record.fullTaxReady === false ? (
+        <Notice body={fullTaxNotice(t, record.missingFullTaxFields ?? [])} />
       ) : null}
 
       <SectionCard step={1} title={t('newCustomer.sections.customerType')}>
@@ -699,7 +705,10 @@ function CustomerFormPage({ customerId }: { customerId: string | null }) {
                       name="peppolId"
                       label={t('newCustomer.details.peppolId')}
                       placeholder="0248:OM1100000000"
-                      hint={t('newCustomer.details.peppolIdHint')}
+                      // "Filled in from the VAT number" is untrue of a customer with none.
+                      hint={
+                        values.vatNumber.trim() ? t('newCustomer.details.peppolIdHint') : undefined
+                      }
                       dir="ltr"
                       required
                       value={values.peppolId}
@@ -1200,4 +1209,62 @@ function AddressBlock({
       ) : null}
     </div>
   )
+}
+
+/**
+ * The invoice-address members a Peppol customer still lacks, in words (backend #817). The server
+ * names them as field paths (`invoiceAddress.addressLine3`); the member is the last segment. One
+ * this build has no word for is said as "the remaining address details", never as a code.
+ */
+const PEPPOL_ADDRESS_FIELDS: Record<string, string> = {
+  streetName: 'customerForm.peppolAddress.field.streetName',
+  additionalStreetName: 'customerForm.peppolAddress.field.additionalStreetName',
+  cityName: 'customerForm.peppolAddress.field.cityName',
+  postalCode: 'customerForm.peppolAddress.field.postalCode',
+  addressLine3: 'customerForm.peppolAddress.field.addressLine3',
+}
+
+/**
+ * The members a full tax invoice to this customer still needs (IBR-016-OM, backend #817):
+ * `details.identifierValue` stands for the buyer's identity, which an Omani VAT number, a
+ * special-zone licence or a stated identifier each satisfy.
+ */
+const FULL_TAX_FIELDS: Record<string, string> = {
+  identifierValue: 'customerForm.fullTax.field.identifierValue',
+}
+
+type Translate = (key: string, values?: Record<string, string>) => string
+
+/** A notice naming missing members in words; a member with no word reads as `otherKey`. */
+function missingNotice(
+  t: Translate,
+  missing: readonly string[],
+  words: Record<string, string>,
+  keys: { sentence: string; other: string; separator: string },
+): string {
+  const said: string[] = []
+  let unknown = false
+  for (const path of missing) {
+    const member = path.split('.').pop() ?? path
+    if (Object.hasOwn(words, member)) said.push(t(words[member]))
+    else unknown = true
+  }
+  if (unknown || said.length === 0) said.push(t(keys.other))
+  return t(keys.sentence, { fields: said.join(t(keys.separator)) })
+}
+
+function peppolAddressNotice(t: Translate, missing: readonly string[]): string {
+  return missingNotice(t, missing, PEPPOL_ADDRESS_FIELDS, {
+    sentence: 'customerForm.peppolAddress.missing',
+    other: 'customerForm.peppolAddress.other',
+    separator: 'customerForm.peppolAddress.separator',
+  })
+}
+
+function fullTaxNotice(t: Translate, missing: readonly string[]): string {
+  return missingNotice(t, missing, FULL_TAX_FIELDS, {
+    sentence: 'customerForm.fullTax.missing',
+    other: 'customerForm.fullTax.other',
+    separator: 'customerForm.peppolAddress.separator',
+  })
 }

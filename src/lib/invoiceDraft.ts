@@ -26,8 +26,12 @@ export type DraftLine = {
   productId: string | null
   productCode: string | null
   description: string
-  /** Goods or service. Not a draft field yet: kept on the client, read back from the unit. */
-  itemType: ItemType
+  /**
+   * Goods or service, kept on the client and read back from the stored classification or the
+   * unit. Null until chosen when a catalogue product names neither: guessing from the unit filed
+   * an office chair as a service (A-12, local E2E 2026-10-29), so the reader picks it.
+   */
+  itemType: ItemType | null
   /**
    * The product's HS code (Oman's 12 digits, IBR-079-OM) on a goods line of a business or
    * government invoice; `000000000000` is "Other". A consumer's invoice never carries one.
@@ -492,13 +496,17 @@ export function fromDraftResponse(
         productId: line.productId || null,
         productCode: line.productCode || null,
         description: line.description,
-        // The stored goods/service flag wins over the unit's guess when the line carries one.
+        // The stored goods/service flag decides. Without one, a consumer's line (which never sends
+        // it) reads it from the unit; a business or government line stays unchosen: the unit's guess
+        // reopened a line saved unchosen as Service and issued it as 'S' (A-12 review).
         itemType:
           line.classification?.goodsOrService === 'S'
             ? 'service'
             : line.classification?.goodsOrService === 'G'
               ? 'goods'
-              : itemTypeOfUnit(line.unitCode),
+              : customerType === 'consumer'
+                ? itemTypeOfUnit(line.unitCode)
+                : null,
         hsCode: line.classification?.hsCode ?? undefined,
         // 00000000 is CL-12-OM's "not applicable", filled by the backend: nothing was chosen.
         serviceType:
@@ -648,6 +656,9 @@ export function problemsBeforeIssue(form: DraftForm): FormProblem[] {
   if (form.customerType === 'consumer') return []
   const problems: FormProblem[] = []
   form.lines.forEach((line, index) => {
+    if (line.itemType === null) {
+      problems.push({ field: 'itemType', line: index, key: 'invoiceDraft.problem.itemType' })
+    }
     if (line.itemType === 'goods' && !line.hsCode) {
       problems.push({ field: 'hsCode', line: index, key: 'invoiceDraft.problem.hsCode' })
     }

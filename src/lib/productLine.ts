@@ -57,6 +57,15 @@ export type ProductLinePatch = {
 }
 
 /**
+ * A catalogue line still at 0.000: the item has no price yet (Abdul, 30 Oct 2026; template items
+ * start at 0.000). Only ever a warning. It reads the unit price, so a line that reaches 0 through a
+ * discount still has its price, and a typed line that names no product is never asked.
+ */
+export function lineHasNoPrice(line: { productId?: string | null; unitPrice: string }): boolean {
+  return Boolean(line.productId) && parseAmount(line.unitPrice || '0') === 0n
+}
+
+/**
  * The line a picked product starts. The catalogue price is exclusive of VAT; a line being entered
  * inclusive of VAT gets the inclusive price, as the toggle would have converted it.
  */

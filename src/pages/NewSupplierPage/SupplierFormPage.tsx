@@ -248,7 +248,7 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
         {loaded.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
-          <ApiReadFailure error={loaded.read.error} retry={loaded.retry} />
+          <ApiReadFailure error={loaded.read.error} retry={loaded.retry} notFoundOn400 />
         )}
       </div>
     )

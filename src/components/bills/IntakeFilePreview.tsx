@@ -13,7 +13,16 @@ const ZOOM_STEPS = [0.75, 1, 1.25, 1.5]
  * the document itself. Rendered from the file the person picked, which is the same bytes the
  * server stored; an XML e-invoice has no picture, so it says what it filled in instead.
  */
-export function IntakeFilePreview({ file, filledFromXml }: { file: File; filledFromXml: boolean }) {
+export function IntakeFilePreview({
+  file,
+  filledFromXml,
+  pageCount,
+}: {
+  file: File
+  filledFromXml: boolean
+  /** The page count the reader gave (`reading.pageCount`); a file it did not read shows 1. */
+  pageCount?: number
+}) {
   const { t } = useTranslation()
   const kind = fileKindOf(file)
   const [url, setUrl] = useState<string | null>(null)
@@ -36,7 +45,9 @@ export function IntakeFilePreview({ file, filledFromXml }: { file: File; filledF
         <p className="flex min-w-0 items-center gap-2 text-sm font-medium text-text-secondary">
           <img src={fileIcon} alt="" className="size-5 shrink-0" />
           <span className="truncate">
-            {kind === 'xml' ? file.name : t('uploadBill.pageOf', { current: 1, total: 1 })}
+            {kind === 'xml'
+              ? file.name
+              : t('uploadBill.pageOf', { current: 1, total: pageCount ?? 1 })}
           </span>
         </p>
         {kind === 'xml' ? null : (

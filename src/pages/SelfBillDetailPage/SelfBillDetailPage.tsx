@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -21,6 +21,7 @@ import {
   type InvoiceReceivableDto,
 } from '../../api/invoices/detail'
 import { loadCustomer, type CustomerDto } from '../../api/customers/customers'
+import { loadSupplier, supplierPath, type SupplierDetailDto } from '../../api/expenditure/suppliers'
 import { recordBillPayment } from '../../api/expenditure/bills'
 import { BRANCHES_PATH, loadBranches, type BranchDto } from '../../api/invoices/drafts'
 import { useBranchName } from '../../components/branch/useBranchName'
@@ -41,7 +42,7 @@ import {
   type SelfBillTrack,
   type TrackTone,
 } from '../../lib/selfBillDetail'
-import { describeApiFailure } from '../../lib/apiFailure'
+import { describeApiFailure, isNotFound } from '../../lib/apiFailure'
 import { formatAmount, formatDate, formatInstant } from '../../lib/format'
 import { fileSize } from '../../lib/supplierRecord'
 import { muscatToday } from '../../lib/invoiceIssue'
@@ -296,9 +297,22 @@ function SelfBillScreen() {
     document ? `${invoicePath(id)}/history` : null,
     () => loadHistory(id),
   )
-  // The seller: `customerId` names the supplier on a self-billed document.
+  // The seller: `customerId` names the supplier on a self-billed document. It is a supplier
+  // record, which `/v1/customers/{id}` answers 404 for, so the page said "Supplier not shown"
+  // (DB-6, local E2E 2026-10-29). The supplier route is asked first; the customer route only for a
+  // reader without `supplier.read`, or for an older document whose seller is a customer record.
+  const mayReadSupplier = can(session, 'supplier.read')
+  const supplierRecord = useApiRead<SupplierDetailDto>(
+    document && mayReadSupplier ? supplierPath(document.customerId) : null,
+    () => loadSupplier(document!.customerId),
+  )
+  const askCustomer =
+    !mayReadSupplier ||
+    (supplierRecord.read.status === 'failed' && isNotFound(supplierRecord.read.error))
   const customer = useApiRead<CustomerDto>(
-    document && can(session, 'customer.read') ? `/v1/customers/${document.customerId}` : null,
+    document && askCustomer && can(session, 'customer.read')
+      ? `/v1/customers/${document.customerId}`
+      : null,
     () => loadCustomer(document!.customerId),
   )
   const branches = useApiRead<BranchDto[]>(document ? BRANCHES_PATH : null, loadBranches)
@@ -319,6 +333,9 @@ function SelfBillScreen() {
 
   const [notice, setNotice] = useState<string | null>(null)
   const [paying, setPaying] = useState(false)
+  // Set by a payment refusal that says the balance moved (DA-12): the page re-reads on close,
+  // since a re-read while the dialog is open would unmount it.
+  const balanceStale = useRef(false)
   const [uploading, setUploading] = useState(false)
   const [removingId, setRemovingId] = useState<string | null>(null)
 
@@ -329,7 +346,7 @@ function SelfBillScreen() {
         {invoice.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
-          <ApiReadFailure error={invoice.read.error} retry={invoice.retry} />
+          <ApiReadFailure error={invoice.read.error} retry={invoice.retry} notFoundOn400 />
         )}
       </div>
     )
@@ -344,9 +361,11 @@ function SelfBillScreen() {
     receivable.read.status === 'ready' ? receivable.read.data : null,
   )
   const supplier =
-    customer.read.status === 'ready'
-      ? customer.read.data.displayName
-      : t('selfBillDetail.supplierUnknown')
+    supplierRecord.read.status === 'ready'
+      ? supplierRecord.read.data.profile.displayName
+      : customer.read.status === 'ready'
+        ? customer.read.data.displayName
+        : t('selfBillDetail.supplierUnknown')
   const buyer = session?.tenantName ?? t('selfBillDetail.yourCompany')
   const status = selfBillStatus(data, owed)
   const pill = STATUS_PILL[status.tone]
@@ -1031,7 +1050,19 @@ function SelfBillScreen() {
           }
           refusals={SUPPLIER_BILL_PAYMENT_REFUSALS}
           labelKeys={{ amount: 'selfBillDetail.pay.amount', date: 'selfBillDetail.pay.date' }}
-          onClose={() => setPaying(false)}
+          onBalanceChanged={() => {
+            balanceStale.current = true
+          }}
+          onClose={() => {
+            setPaying(false)
+            if (balanceStale.current) {
+              balanceStale.current = false
+              // The payable is read with the document.
+              invoice.retry()
+              receivable.retry()
+              payments.retry()
+            }
+          }}
           onRecorded={() => {
             setPaying(false)
             setNotice(t('invoiceDetails.done.recorded'))

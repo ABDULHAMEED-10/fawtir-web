@@ -637,7 +637,230 @@ const INTAKES = [
   intake('i-taxi-4472', 'SCANNED', 'IMG_4472.jpg', 'image/svg+xml', 819_200, {}),
 ]
 
-function intake(id, source, filename, contentType, byteSize, read) {
+/* ------------------------------------------------- what the document reader read */
+
+/**
+ * `BillDocumentReading` for a file nothing usable came out of: today's limit, a plan without
+ * "Scan bills and receipts", or a failed read. Every value is null; the upload still stands.
+ */
+const notRead = (outcome, pageCount = 1) => ({
+  outcome,
+  pageCount,
+  scores: {},
+  category: null,
+  categoryConfidence: 0,
+  vatRate: null,
+  workedOut: [],
+})
+
+/** Scores from a confidence map: sure fields at 0.97, the rest as given (0 when not read). */
+const scoresOf = (scores) => ({
+  supplierName: 0,
+  supplierVatNumber: 0,
+  billNumber: 0,
+  issueDate: 0,
+  dueDate: 0,
+  currency: 0,
+  net: 0,
+  vat: 0,
+  total: 0,
+  lines: 0,
+  ...scores,
+})
+const confidenceOf = (scores) =>
+  Object.fromEntries(Object.entries(scores).map(([key, score]) => [key, score >= 0.9]))
+
+/** The read Sohar Packaging bill: two-page PDF, due date and the third line unsure. */
+const READ_BILL_SCORES = scoresOf({
+  supplierName: 0.98,
+  supplierVatNumber: 0.97,
+  billNumber: 0.99,
+  issueDate: 0.96,
+  dueDate: 0.62,
+  currency: 0.99,
+  net: 0.95,
+  vat: 0.93,
+  total: 0.98,
+  lines: 0.41,
+})
+const readBill = (id, filename = 'SP-INV-1152.pdf') =>
+  intake(
+    id,
+    'UPLOADED',
+    filename,
+    'image/svg+xml',
+    253_952,
+    {
+      supplierName: 'Sohar Packaging LLC',
+      supplierVatNumber: 'OM1100628391',
+      billNumber: 'SP-INV-1152',
+      issueDate: '2026-09-22',
+      dueDate: '2026-10-02',
+      currency: 'OMR',
+      net: 612,
+      vat: 30.6,
+      total: 642.6,
+      lines: [
+        {
+          description: 'Kraft coffee bags 1kg, printed',
+          quantity: 2000,
+          unitPrice: 0.24,
+          vatRate: 5,
+          amount: 480,
+          confident: true,
+        },
+        {
+          description: 'Kraft coffee bags 250g, printed',
+          quantity: 1500,
+          unitPrice: 0.088,
+          vatRate: 5,
+          amount: 132,
+          confident: true,
+        },
+        {
+          description: 'Pallet handling',
+          quantity: 1,
+          unitPrice: null,
+          vatRate: null,
+          amount: null,
+          confident: false,
+        },
+      ],
+      confidence: confidenceOf(READ_BILL_SCORES),
+    },
+    {
+      outcome: 'READ',
+      pageCount: 2,
+      scores: READ_BILL_SCORES,
+      category: null,
+      categoryConfidence: 0,
+      vatRate: 5,
+      workedOut: [],
+    },
+  )
+
+/** A read receipt whose VAT line was not legible: worked out at 5% from the total (row 1.10). */
+const WORKED_OUT_SCORES = scoresOf({
+  supplierName: 0.95,
+  billNumber: 0.71,
+  issueDate: 0.97,
+  currency: 0.99,
+  total: 0.98,
+  vat: 0,
+})
+const workedOutReceipt = (id) =>
+  intake(
+    id,
+    'SCANNED',
+    'IMG_4473.jpg',
+    'image/svg+xml',
+    1_048_576,
+    {
+      supplierName: 'Nizwa Hardware Store',
+      supplierVatNumber: null,
+      billNumber: '4473',
+      issueDate: '2026-09-24',
+      currency: 'OMR',
+      total: 28.4,
+      vat: 1.352,
+      confidence: confidenceOf(WORKED_OUT_SCORES),
+    },
+    {
+      outcome: 'READ',
+      pageCount: 1,
+      scores: WORKED_OUT_SCORES,
+      category: 'Repairs & maintenance',
+      categoryConfidence: 0.86,
+      vatRate: null,
+      workedOut: ['vat'],
+    },
+  )
+
+/** A read receipt where everything was legible: the category guess is sure, nothing is amber. */
+const SURE_SCORES = scoresOf({
+  supplierName: 0.97,
+  supplierVatNumber: 0.96,
+  billNumber: 0.95,
+  issueDate: 0.99,
+  currency: 0.99,
+  net: 0.95,
+  vat: 0.94,
+  total: 0.99,
+})
+const sureReceipt = (id) =>
+  intake(
+    id,
+    'SCANNED',
+    'IMG_4474.jpg',
+    'image/svg+xml',
+    655_360,
+    {
+      supplierName: 'Al Maha Petrol Station',
+      supplierVatNumber: 'OM1100554401',
+      billNumber: '88213',
+      issueDate: '2026-09-24',
+      currency: 'OMR',
+      net: 12,
+      vat: 0.6,
+      total: 12.6,
+      confidence: confidenceOf(SURE_SCORES),
+    },
+    {
+      outcome: 'READ',
+      pageCount: 1,
+      scores: SURE_SCORES,
+      category: 'Vehicle & fuel',
+      categoryConfidence: 0.95,
+      vatRate: 5,
+      workedOut: [],
+    },
+  )
+
+/**
+ * Intakes reached by id only (`/expenditure/bills/upload/<id>`, `/expenditure/bills/scan?intake=`),
+ * so the reader's states can be opened and screenshotted without changing the Bills list.
+ */
+const READ_INTAKES = [
+  readBill('i-read-bill'),
+  intake('i-limit-bill', 'UPLOADED', 'SP-INV-1153.pdf', 'image/svg+xml', 253_952, {}, notRead('DAILY_LIMIT_REACHED', 2)),
+  intake('i-plan-bill', 'UPLOADED', 'SP-INV-1154.pdf', 'image/svg+xml', 253_952, {}, notRead('PLAN_FEATURE_NOT_INCLUDED', 2)),
+  intake('i-failed-bill', 'UPLOADED', 'SP-INV-1155.pdf', 'image/svg+xml', 253_952, {}, notRead('READ_FAILED', 2)),
+  workedOutReceipt('i-read-receipt'),
+  sureReceipt('i-sure-receipt'),
+  intake('i-limit-receipt', 'SCANNED', 'IMG_4475.jpg', 'image/svg+xml', 819_200, {}, notRead('DAILY_LIMIT_REACHED')),
+  intake('i-plan-receipt', 'SCANNED', 'IMG_4476.jpg', 'image/svg+xml', 819_200, {}, notRead('PLAN_FEATURE_NOT_INCLUDED')),
+]
+
+/**
+ * What a fresh upload of a PDF or photo comes back as. `MOCK_BILL_READING` picks the reader's
+ * answer: `read` (the default), `off` (reading switched off: `reading: null`, as before), `failed`,
+ * `limit` or `plan`. `MOCK_BILL_READING_MS` (default 2500) is how long the read takes, so the
+ * upload box shows its progress.
+ */
+const READING_MODE = process.env.MOCK_BILL_READING ?? 'read'
+const READING_MS = Number(process.env.MOCK_BILL_READING_MS ?? 2500)
+
+function uploadedIntake(source, read) {
+  const id = `i-new-${Date.now()}`
+  const stored = (entry) => {
+    INTAKES.push(entry)
+    FILES[id] = source === 'SCANNED' ? FILES['i-read-receipt'] : billSheetSvg()
+    return entry
+  }
+  // `read=none`: the file is stored and the reader is not asked, whatever the mode.
+  if (READING_MODE === 'off' || read === 'none')
+    return stored(intake(id, source, 'upload.pdf', 'application/pdf', 120_000, {}))
+  const outcome = { failed: 'READ_FAILED', limit: 'DAILY_LIMIT_REACHED', plan: 'PLAN_FEATURE_NOT_INCLUDED' }[READING_MODE]
+  if (outcome)
+    return stored(intake(id, source, 'upload.pdf', 'application/pdf', 120_000, {}, notRead(outcome)))
+  return stored(source === 'SCANNED' ? workedOutReceipt(id) : readBill(id, 'upload.pdf'))
+}
+
+function intake(id, source, filename, contentType, byteSize, read, reading = null) {
+  const extracted = Object.entries(read).some(
+    ([key, value]) =>
+      key !== 'confidence' && value !== null && (!Array.isArray(value) || value.length > 0),
+  )
   return {
     id,
     source,
@@ -646,7 +869,8 @@ function intake(id, source, filename, contentType, byteSize, read) {
     byteSize,
     sha256: id.replace(/-/g, '').padEnd(64, '0'),
     documentTypeCode: null,
-    extractionStatus: 'NONE',
+    // As the server: EXTRACTED once anything was filled in (an XML parse or a reader's read).
+    extractionStatus: reading?.outcome === 'READ' && extracted ? 'EXTRACTED' : 'NONE',
     extracted: {
       supplierName: read.supplierName ?? null,
       supplierVatNumber: read.supplierVatNumber ?? null,
@@ -659,6 +883,8 @@ function intake(id, source, filename, contentType, byteSize, read) {
       total: read.total ?? null,
       lines: read.lines ?? [],
       confidence: read.confidence ?? {},
+      // `BillDocumentReading` (backend PR #803): null for XML and while reading is off.
+      reading,
     },
     confirmedBillId: null,
     workflowState: 'DRAFT',
@@ -1360,6 +1586,39 @@ const FILES = {
   ),
 }
 
+FILES['i-read-bill'] = billSheetSvg()
+FILES['i-limit-bill'] = billSheetSvg()
+FILES['i-plan-bill'] = billSheetSvg()
+FILES['i-failed-bill'] = billSheetSvg()
+FILES['i-read-receipt'] = receiptSvg(
+  'NIZWA HARDWARE',
+  [
+    ['Wire brush x2', '6.400'],
+    ['Sealant tube', '4.900'],
+    ['Drain cover', '15.750'],
+  ],
+  '27.050',
+  '?.???',
+  '28.400',
+  '4473',
+  '24/09/2026',
+)
+FILES['i-sure-receipt'] = receiptSvg(
+  'AL MAHA PETROL',
+  [['Super 95, 52.5 L', '12.000']],
+  '12.000',
+  '0.600',
+  '12.600',
+  '88213',
+  '24/09/2026',
+)
+FILES['i-limit-receipt'] = FILES['i-taxi-4472']
+FILES['i-plan-receipt'] = FILES['i-taxi-4472']
+
+/** An intake on the Bills list, or one of the reader's states opened by id. */
+const findIntake = (id) =>
+  INTAKES.find((entry) => entry.id === id) ?? READ_INTAKES.find((entry) => entry.id === id)
+
 /** A raw (non-JSON) answer: the scratchpad server copy serves `raw` as the body. */
 const raw = (body, contentType, filename) => ({
   status: 200,
@@ -1640,42 +1899,41 @@ export default [
   {
     method: 'POST',
     match: '/api/v1/bills/intake',
-    reply: ({ query }) => ({
-      status: 201,
-      body: intake(
-        `i-new-${Date.now()}`,
-        query.get('source') ?? 'UPLOADED',
-        'upload.pdf',
-        'application/pdf',
-        120_000,
-        {},
-      ),
-    }),
+    // The upload waits for the reader, as the server's does while reading is on.
+    reply: async ({ query }) => {
+      const read = query.get('read')
+      if (READING_MODE !== 'off' && read !== 'none')
+        await new Promise((done) => setTimeout(done, READING_MS))
+      return { status: 201, body: uploadedIntake(query.get('source') ?? 'UPLOADED', read) }
+    },
   },
   {
     match: /^\/api\/v1\/bills\/intake\/([^/]+)\/file$/,
     reply: ({ params }) => {
-      const found = INTAKES.find((entry) => entry.id === params[0])
+      const found = findIntake(params[0])
       if (!found || !FILES[found.id]) return notFound('BILL_INTAKE_NOT_FOUND')
       return raw(FILES[found.id], 'image/svg+xml', found.filename)
     },
   },
   {
     match: /^\/api\/v1\/bills\/intake\/([^/]+)$/,
-    reply: ({ params }) =>
-      INTAKES.find((entry) => entry.id === params[0]) ?? notFound('BILL_INTAKE_NOT_FOUND'),
+    reply: ({ params }) => findIntake(params[0]) ?? notFound('BILL_INTAKE_NOT_FOUND'),
   },
   {
     method: 'PUT',
     match: /^\/api\/v1\/bills\/intake\/([^/]+)$/,
     reply: ({ params, body }) => {
-      const found = INTAKES.find((entry) => entry.id === params[0])
+      const found = findIntake(params[0])
       if (!found) return notFound('BILL_INTAKE_NOT_FOUND')
       if (body?.extracted)
         found.extracted = {
           ...found.extracted,
           ...body.extracted,
           confidence: Object.fromEntries(Object.keys(body.extracted).map((k) => [k, true])),
+          // A correction keeps what was read, with nothing worked out any more.
+          reading: found.extracted.reading
+            ? { ...found.extracted.reading, workedOut: [] }
+            : null,
         }
       return found
     },
@@ -1693,7 +1951,7 @@ export default [
     method: 'POST',
     match: /^\/api\/v1\/bills\/intake\/([^/]+)\/confirm$/,
     reply: ({ params, body }) => {
-      const found = INTAKES.find((entry) => entry.id === params[0])
+      const found = findIntake(params[0])
       if (!found) return notFound('BILL_INTAKE_NOT_FOUND')
       if (found.confirmedBillId)
         return {

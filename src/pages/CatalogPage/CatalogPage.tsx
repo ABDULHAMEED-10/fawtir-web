@@ -44,6 +44,12 @@ import {
 } from './catalogList'
 import plusIcon from '../../assets/catalog/plus-white.svg'
 import uploadIcon from '../../assets/catalog/upload-ink.svg'
+import sparkleIcon from '../../assets/catalog/sparkle-brand.svg'
+import {
+  catalogTemplatePath,
+  readCatalogTemplate,
+  type CatalogTemplateDto,
+} from '../../api/catalog/templates'
 import searchIcon from '../../assets/invoices/search.svg'
 import productIcon from '../../assets/catalog/kind-product.svg'
 import serviceIcon from '../../assets/catalog/kind-service.svg'
@@ -101,6 +107,13 @@ export function CatalogPage() {
   const [actionProblem, setActionProblem] = useState<string | null>(null)
   // New item writes to /v1/products, so it follows product.manage rather than the prototype switch.
   const canManage = useCanManageProducts() === true
+  // The company's template stays reachable once the catalogue has items, to add what it still
+  // lacks or start again from it. A 404 (no template for the business type) offers nothing.
+  const { read: templateRead } = useApiRead<CatalogTemplateDto>(
+    canManage ? catalogTemplatePath() : null,
+    () => readCatalogTemplate(),
+  )
+  const hasTemplate = templateRead.status === 'ready'
   useEffect(() => {
     const id = window.setTimeout(() => {
       const next = query.trim()
@@ -332,6 +345,15 @@ export function CatalogPage() {
               >
                 <img src={uploadIcon} alt="" className="size-[18px]" />
                 {t('catalog.uploadAMenu')}
+              </Link>
+            ) : null}
+            {canManage && hasTemplate ? (
+              <Link
+                to="/catalog/build"
+                className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+              >
+                <img src={sparkleIcon} alt="" className="size-[18px]" />
+                {t('catalog.buildFromTemplate')}
               </Link>
             ) : null}
             {canManage ? (

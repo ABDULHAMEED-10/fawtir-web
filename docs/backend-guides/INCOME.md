@@ -951,6 +951,21 @@ stock" switch (always on).
 | BU.4 | Bundle: **Let staff swap a part at the till** | a stored switch and the till's swap. Drawn off and disabled |
 | BU.5 | Bundle: **<part> sold this way** (through the bundle, of all its sales); stock item `dependsOnIt` | a per-part figure on the report, and `dependsOnIt` on `/stock/items/{id}` (STOCK-CONTRACT §3.3). Drawn as a dash |
 
+## Update 2026-10-29 (E2E acceptance: refunds and the Paid card)
+
+- **4.1, credit notes, corrected (ACC-3):** the 2026-09-29 note above says Applied to invoices
+  is `issuedTotal` "because no refund is recorded". That stopped being true with backend V477: a
+  POS refund is recorded against the sale's credit note, so `issuedTotal` overstates what was
+  applied to invoices by every POS-refunded amount. The card and the Applied tab still read
+  `issuedTotal`, because the summary carries no refunded figure to take out. Asked:
+  `refundedTotal` (count and total, in `currencyCode`) on
+  `GET /v1/authored-invoices/summary?type=CREDIT_NOTE`, or an `appliedTotal` that leaves refunds
+  out; the card will then read it.
+
+| # | The design shows | Ask |
+|---|---|---|
+| 4.20 | Income "Paid" card, "N invoices collected" (ACC-10) | `paidTotal` and `paidInvoices` on `GET /v1/authored-invoices/summary` count every receivable with nothing left owed, however it was cleared: an invoice a credit note cleared counts with no cash, and debit notes count as invoices. The card is now titled "Settled" and says "N documents settled by payment or credit". Asked: a cash-collected figure (payments net of reversals, invoices only, in `currencyCode`) for the card to say "Paid" again |
+
 ## Update 2026-10-29 (Catalog › Groups)
 
 Catalog › Groups (`/catalog/groups`, `src/pages/CatalogPage/CatalogGroupsPage.tsx`) lists, adds,
@@ -991,3 +1006,4 @@ delivery's `supplierReference` on its movement row.
 | P.25 (update) | Counted products on an invoice's lines | **Fixed by backend #808**: the credit note composer reads `keepCount` on each invoice line and reads no product; only a line without the field (an older server) is read one by one as before |
 | P.27 (update) | Sizes and add-ons on a shelf tile before it is tapped | **Fixed by backend #808** for the sizes and add-ons: the tile says "2 sizes · 1 add-on" and opens the chooser from the row, at each variant's `branchPrice`, with no read on the tap; the shelf kept on the device carries them, so an item never opened sells while the till is offline. Still asked: a product image (every tile shows an illustration) |
 | P.31 (update) | "Accepted by the OTA" on the sale being refunded | **Fixed by backend #808**: the pill is drawn when the lookup's `filing.acceptedAt` is set. A lookup without `filing` falls back to the sale's own read when the screen makes it (an older server without `tip`); otherwise no pill |
+| P.28 (update) | One refused queued sale must not stop the till (E2E 30 Oct 2026, H-1) | **Asks backend `fix/pos-queued-sale-readonly`**: a queued sale is always filed, even while read-only; under a minute old the server answers 425 `POS_QUEUED_SALE_TOO_EARLY` (`retryAfterSeconds`) and the till resends the same key; `GET /pos/tills` says `skipsStuckNumbers: true`, and a sale may then name `skippedNumbers` to pass numbers it cannot file yet. Against a server without these the till still works: a refused sale stays visible and is retried, and later sales wait behind it in number order. |

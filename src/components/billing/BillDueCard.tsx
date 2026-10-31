@@ -5,6 +5,7 @@ import { BILLING_PATH, loadBillingOverview, type BillingOverviewDto } from '../.
 import { OmAmount } from '../ui'
 import { usePayingHeldUntilReconnected } from '../../hooks/usePayingHeldUntilReconnected'
 import { usePayAvailable } from '../../hooks/usePayAvailable'
+import { useMayRequest } from '../../lib/session/session'
 
 /**
  * Brings a customer with an unpaid subscription bill to it. After approval a pay-now company gets
@@ -15,7 +16,9 @@ import { usePayAvailable } from '../../hooks/usePayAvailable'
  */
 export function BillDueCard() {
   const { t } = useTranslation()
-  const read = useApiRead<BillingOverviewDto>(BILLING_PATH, loadBillingOverview).read
+  // `tenant.plan.read`, as the server requires: without it the read was a 403 on every page.
+  const mayRead = useMayRequest('tenant.plan.read')
+  const read = useApiRead<BillingOverviewDto>(mayRead ? BILLING_PATH : null, loadBillingOverview).read
   // LV-6: a company that has left Fawtir is not sent to pay (A3.8); the bill is still named.
   const held = usePayingHeldUntilReconnected()
   // Nor when the entitlements say this user cannot pay (payAvailable false).

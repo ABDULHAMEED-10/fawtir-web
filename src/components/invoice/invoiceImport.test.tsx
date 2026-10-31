@@ -172,19 +172,12 @@ describe('Invoice import dialog', () => {
     checked = {
       ...CLEAN,
       unresolved: [],
+      // The server's shape (InvoiceImportBatch.RowWarning): one row per warning, so the two
+      // defaulted rows arrive as two warnings and are listed once, by code and column (IMP-1).
       warnings: [
-        {
-          rowNumbers: [6, 7],
-          column: 'TAX_CATEGORY',
-          code: 'TAX_CATEGORY_DEFAULTED',
-          message: 'server sentence',
-        },
-        {
-          rowNumbers: [9],
-          column: 'Unit',
-          code: 'SOMETHING_NEW',
-          message: 'A sentence from the server.',
-        },
+        { rowNumber: 6, column: 'TAX_CATEGORY', code: 'TAX_CATEGORY_DEFAULTED', severity: 'WARNING', message: 'server sentence' },
+        { rowNumber: 7, column: 'TAX_CATEGORY', code: 'TAX_CATEGORY_DEFAULTED', severity: 'WARNING', message: 'server sentence' },
+        { rowNumber: 9, column: 'Unit', code: 'SOMETHING_NEW', severity: 'WARNING', message: 'A sentence from the server.' },
       ],
     }
     renderModal()
@@ -207,9 +200,13 @@ describe('Invoice import dialog', () => {
     const sentence = screen.getByText(/so these lines were set to standard rate \(5%\)/)
     expect(sentence.className).toContain('text-pending-700')
     expect(sentence.className).not.toMatch(/danger|warning-700/)
+    // Both defaulted rows on one line of the table.
+    expect(screen.getByText('6, 7')).toBeTruthy()
     // The import still goes ahead.
     const create = screen.getByRole('button', { name: 'Create 2 drafts' }) as HTMLButtonElement
     expect(create.disabled).toBe(false)
+    fireEvent.click(create)
+    expect(await screen.findByText('2 drafts created')).toBeTruthy()
   })
 
   it('words the defaulted-category warning in Arabic too', async () => {
@@ -218,7 +215,7 @@ describe('Invoice import dialog', () => {
       ...CLEAN,
       unresolved: [],
       warnings: [
-        { rowNumbers: [6], column: 'TAX_CATEGORY', code: 'TAX_CATEGORY_DEFAULTED', message: 'x' },
+        { rowNumber: 6, column: 'TAX_CATEGORY', code: 'TAX_CATEGORY_DEFAULTED', severity: 'WARNING', message: 'x' },
       ],
     }
     renderModal()

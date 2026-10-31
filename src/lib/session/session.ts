@@ -48,3 +48,20 @@ export function can(session: Entitlements | null, permission: string | readonly 
 export function useCan(permission: string | readonly string[] | undefined): boolean {
   return can(useSession(), permission)
 }
+
+/**
+ * Whether to ask the server for something only `permission` may read. Unlike `can`, false while a
+ * required session is still loading: the shell's reads went out in that moment and a reader
+ * without the permission earned a 403 on every page (B-14, local E2E 2026-10-29). Without the
+ * guard (a development build run without a session) everything is asked, as `can` offers it.
+ */
+export function mayRequest(
+  session: Entitlements | null,
+  permission: string | readonly string[],
+): boolean {
+  return session ? can(session, permission) : !REQUIRE_SESSION
+}
+
+export function useMayRequest(permission: string | readonly string[]): boolean {
+  return mayRequest(useSession(), permission)
+}
