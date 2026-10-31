@@ -30,7 +30,7 @@ import { forgetBuyer, openBuyer, sealBuyer } from './posVault'
  * again on its own, with the same key, so it can never be paid or filed twice. A refusal that the
  * same sale can never get past is not sent again until a person presses Try again; it stays on the
  * till, open, until it is filed. Later sales go past it where the server allows it
- * (`till.skipsStuckNumbers`, naming the numbers they pass); an older server requires strict number
+ * (`till.openNumbers`, naming the numbers they pass); an older server requires strict number
  * order, so there they wait behind it, in order, and are numbered and printed meanwhile.
  *
  * TODO(backend): a sale made offline prints its number but not its QR; the QR's signed payload
@@ -61,6 +61,8 @@ export type QueuedSale = {
   /** A refusal nobody has reviewed: tried again no sooner than this, and later each time. */
   notBefore?: string
   attempts?: number
+  /** A manager set it aside on the server: not sent by itself, still open, still shown. */
+  setAside?: boolean
 }
 
 const QUEUE_KEY = 'fawtir.pos.queue'
@@ -327,7 +329,7 @@ export async function submitSale(
     return { queued: entry }
   }
   await holdSlipPhotos(key, till.id, photos)
-  const canSkip = till.skipsStuckNumbers === true
+  const canSkip = till.openNumbers === true
   capable.set(till.id, canSkip)
   // The older sales go first: once they are in, this one is sent as an ordinary online sale and
   // its receipt says so (E2E 29 Oct 2026, F-5). Only while some still wait does it join them.
@@ -346,13 +348,11 @@ export async function submitSale(
     }
   }
   if (outcome === 'offline' || outcome === 'busy') return enqueue()
-  // The server answered and every waiting sale is stuck on its own: this one need not wait, but it
-  // carries its own number, because the next one on the server is on a stuck sale's receipt.
+  // The server answered and every waiting sale is stuck on its own: this one need not wait. It goes
+  // as an ordinary online sale, and the server takes a number past those it has refused.
   if (outcome === 'done' && canSkip) {
-    const number = nextTillNumber(till)
-    if (!number) return enqueue()
     try {
-      const sale = await sendNumbered({ ...body, invoiceNumber: number }, key, true)
+      const sale = await createPosSale(body, key)
       noteNumberUsed(till.id, sale.invoiceNumber)
       void sendSlipPhotos(key, sale.saleId, till.id)
       return { sale }
@@ -373,12 +373,12 @@ export async function submitSale(
 }
 
 let flushing = false
-/** Whether the server takes `skippedNumbers`, as the till last said (`skipsStuckNumbers`). */
+/** Whether the server takes `skippedNumbers`, as the till last said (`openNumbers`). */
 const capable = new Map<string, boolean>()
 
 /** Tells the queue what this till's server allows; until then it keeps strict number order. */
-export function noteTillServer(till: Pick<PosTillDto, 'id' | 'skipsStuckNumbers'>) {
-  capable.set(till.id, till.skipsStuckNumbers === true)
+export function noteTillServer(till: Pick<PosTillDto, 'id' | 'openNumbers'>) {
+  capable.set(till.id, till.openNumbers === true)
 }
 
 /**
@@ -445,7 +445,7 @@ export async function flushQueue(tillId: string): Promise<FlushOutcome> {
   try {
     for (const entry of queuedFor(tillId)) {
       const resting = entry.notBefore != null && Date.now() < Date.parse(entry.notBefore)
-      if (entry.final || resting) {
+      if (entry.final || entry.setAside || resting) {
         if (canSkip) continue
         return 'done'
       }
@@ -498,10 +498,39 @@ export async function retryQueuedSale(tillId: string, key: string): Promise<Flus
   save(
     queue.map((entry) => {
       if (entry.key !== key) return entry
-      const { final: _final, notBefore: _notBefore, ...again } = entry
+      const { final: _final, notBefore: _notBefore, setAside: _setAside, ...again } = entry
       void _final
       void _notBefore
+      void _setAside
       return again
+    }),
+  )
+  return flushQueue(tillId)
+}
+
+/** The server has it set aside: this device stops sending it by itself, and keeps it. */
+export function markQueuedSaleSetAside(key: string) {
+  save(queue.map((entry) => (entry.key === key ? { ...entry, setAside: true } : entry)))
+}
+
+/**
+ * A manager's correction, sent again on the printed number and under the same key: the refused
+ * attempts left nothing on the server, and if one did go through, the server says so rather than
+ * filing twice. Only the payments change, so the invoice and the customer's receipt still agree.
+ */
+export async function correctQueuedSale(
+  tillId: string,
+  key: string,
+  payments: PosSaleRequest['payments'],
+): Promise<FlushOutcome> {
+  save(
+    queue.map((entry) => {
+      if (entry.key !== key) return entry
+      const { final: _final, notBefore: _notBefore, setAside: _setAside, ...again } = entry
+      void _final
+      void _notBefore
+      void _setAside
+      return { ...again, body: { ...again.body, payments } }
     }),
   )
   return flushQueue(tillId)

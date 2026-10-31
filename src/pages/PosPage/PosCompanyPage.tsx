@@ -28,6 +28,7 @@ import {
 } from '../../api/customers/customers'
 import { useCan } from '../../lib/session/session'
 import { missingFieldsSentence, notEligiblePaths } from '../../lib/customerEligibility'
+import { placeCustomerErrors, type CustomerField } from '../../lib/customerForm'
 import { addPosCustomer, newPosKey, posSalesPath, type PosTodaySalesPage } from '../../api/pos/pos'
 import { posRefusalKey } from '../../lib/posRefusals'
 import type { TillState } from '../../lib/posTill'
@@ -474,7 +475,27 @@ function AddCompany({
   // Backend #810 refuses a company it could never invoice, naming what is missing.
   const missing =
     error instanceof ApiError ? notEligiblePaths({ code: error.code, ...error.problem }) : null
-  const set = (patch: Partial<typeof form>) => setForm((current) => ({ ...current, ...patch }))
+  // A refusal that names its fields (a bad VAT number, say) goes on those fields.
+  const placed = error instanceof ApiError ? placeCustomerErrors(error.fieldErrors) : null
+  const fieldProblem = (field: CustomerField): string | undefined => {
+    const problem = placed?.fields[field]
+    if (!problem) return undefined
+    return 'key' in problem ? t(problem.key) : problem.text
+  }
+  const onAField = SHOWN_ON_FIELDS.some((field) => placed?.fields[field])
+  const offField = placed
+    ? [
+        ...Object.entries(placed.fields)
+          .filter(([field]) => !SHOWN_ON_FIELDS.includes(field as CustomerField))
+          .map(([, problem]) => ('key' in problem ? t(problem.key) : problem.text)),
+        ...placed.other,
+      ]
+    : []
+  const set = (patch: Partial<typeof form>) => {
+    setForm((current) => ({ ...current, ...patch }))
+    // The named problem is about what was typed, so it goes once that changes.
+    if (onAField) setError(null)
+  }
   // What is still empty, said under the form so a greyed button is never a puzzle.
   const stillNeeded = [
     !form.name.trim() && t('pos.company.legalName'),
@@ -520,21 +541,21 @@ function AddCompany({
   return (
     <div className="mt-4 flex flex-col gap-5 rounded-md border border-border-subtle p-5">
       <div className="grid gap-5 md:grid-cols-2">
-        <Labelled label={t('pos.company.legalName')}>
+        <Labelled label={t('pos.company.legalName')} error={fieldProblem('legalName')}>
           <input
             value={form.name}
             onChange={(e) => set({ name: e.target.value })}
             className={FIELD}
           />
         </Labelled>
-        <Labelled label={t('pos.company.contactPerson')}>
+        <Labelled label={t('pos.company.contactPerson')} error={fieldProblem('contactPerson')}>
           <input
             value={form.contactPerson}
             onChange={(e) => set({ contactPerson: e.target.value })}
             className={FIELD}
           />
         </Labelled>
-        <Labelled label={t('pos.company.vatNumber')}>
+        <Labelled label={t('pos.company.vatNumber')} error={fieldProblem('vatNumber')}>
           <input
             value={form.vatNumber}
             dir="ltr"
@@ -542,7 +563,7 @@ function AddCompany({
             className={FIELD}
           />
         </Labelled>
-        <Labelled label={t('pos.company.email')}>
+        <Labelled label={t('pos.company.email')} error={fieldProblem('emails')}>
           <input
             value={form.email}
             dir="ltr"
@@ -554,7 +575,7 @@ function AddCompany({
         </Labelled>
         {!form.vatNumber.trim() ? (
           <>
-            <Labelled label={t('pos.buyer.scheme')}>
+            <Labelled label={t('pos.buyer.scheme')} error={fieldProblem('identifierScheme')}>
               <Select
                 quiet
                 value={form.scheme}
@@ -566,7 +587,7 @@ function AddCompany({
                 }))}
               />
             </Labelled>
-            <Labelled label={t('pos.buyer.value')}>
+            <Labelled label={t('pos.buyer.value')} error={fieldProblem('identifierValue')}>
               <input
                 value={form.value}
                 dir="ltr"
@@ -589,13 +610,15 @@ function AddCompany({
           })}
         </p>
       ) : null}
-      {error ? (
+      {error && (!onAField || offField.length > 0) ? (
         <p role="alert" className="text-xs font-medium text-danger-700">
           {missing?.length
             ? t('pos.company.notReady', {
                 missing: missingFieldsSentence(missing, t, i18n.language),
               })
-            : t(posRefusalKey(error))}
+            : offField.length > 0
+              ? offField.join(' ')
+              : t(posRefusalKey(error))}
         </p>
       ) : null}
       <div>
@@ -738,11 +761,34 @@ function CompleteAddress({
   )
 }
 
-function Labelled({ label, children }: { label: string; children: ReactNode }) {
+/** The add form's inputs, where a refusal naming them is shown; the rest goes under the form. */
+const SHOWN_ON_FIELDS: CustomerField[] = [
+  'legalName',
+  'contactPerson',
+  'vatNumber',
+  'emails',
+  'identifierScheme',
+  'identifierValue',
+]
+
+function Labelled({
+  label,
+  error,
+  children,
+}: {
+  label: string
+  error?: string
+  children: ReactNode
+}) {
   return (
     <label className="flex min-w-0 flex-col gap-1.5">
       <span className="text-xs font-medium text-text-tertiary">{label}</span>
       {children}
+      {error ? (
+        <span role="alert" className="text-xs font-medium text-danger-700">
+          {error}
+        </span>
+      ) : null}
     </label>
   )
 }

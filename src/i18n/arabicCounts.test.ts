@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import i18n from '.'
+import arLocale from './locales/ar.json'
+import enLocale from './locales/en.json'
 
 /**
  * Arabic words a counted noun by the number: «7 أيام», «14 يومًا», «120 يوم». A string that fixes
@@ -35,6 +37,41 @@ describe('Arabic counts read for any figure', () => {
     const text = ar('plans.faq.a1', { days: 7, documents: 25 })
     expect(text).toContain('عدد أيامها 7')
     expect(text).toContain('وعدد مستنداتها 25')
+  })
+})
+
+describe('Arabic plural forms', () => {
+  const flat = (node: object, prefix = '', out: Record<string, string> = {}) => {
+    for (const [key, value] of Object.entries(node)) {
+      if (value && typeof value === 'object') flat(value, `${prefix}${key}.`, out)
+      else out[`${prefix}${key}`] = String(value)
+    }
+    return out
+  }
+  const FORMS = ['zero', 'one', 'two', 'few', 'many', 'other']
+
+  // Arabic asks i18next for six forms; a missing one falls through to the English sentence.
+  it('has every form, or a plain fallback, for each English plural', () => {
+    const arabic = flat(arLocale)
+    const bases = Object.keys(flat(enLocale))
+      .filter((key) => key.endsWith('_other'))
+      .map((key) => key.slice(0, -'_other'.length))
+      .filter((base) => !base.endsWith('_ordinal'))
+    const missing = bases.filter(
+      (base) =>
+        arabic[base] === undefined && FORMS.some((form) => arabic[`${base}_${form}`] === undefined),
+    )
+    expect(missing).toEqual([])
+  })
+
+  it.each([
+    ['pos.close.notYetFiled', { count: 9 }, '9 عمليات لم تُقبل بعد'],
+    ['pos.close.cashTakenNote', { count: 7, sales: 7 }, '7 عمليات دُفعت نقدًا كليًا أو جزئيًا'],
+    ['pos.close.terminalTotalNote', { count: 4, payments: 4, amount: 'X' }, '4 دفعات'],
+    ['pos.today.soldNote', { count: 7, sales: 7, average: '1' }, '7 عمليات'],
+    ['changePrices.apply', { count: 3 }, 'غيّر 3 أسعار'],
+  ])('reads %s in Arabic with the right noun', (key, values, expected) => {
+    expect(ar(key, values)).toContain(expected)
   })
 })
 

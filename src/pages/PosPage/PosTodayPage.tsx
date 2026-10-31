@@ -196,6 +196,7 @@ function Today({ till }: { till: Ready }) {
             value={omr(toBaisa(kpi.sales.amount))}
             money
             note={t('pos.today.soldNote', {
+              count: kpi.sales.count,
               sales: kpi.sales.count,
               average: omr(toBaisa(kpi.sales.average)),
             })}

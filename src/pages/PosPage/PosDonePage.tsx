@@ -6,7 +6,7 @@ import { AppShell } from '../../layouts/AppShell'
 import { Rial, withRial } from '../../components/ui'
 import { CheckIcon, EnvelopeIcon, InfoIcon, PhoneIcon, PrinterIcon, QrIcon } from './posIcons'
 import { PosTillGate } from './PosTillGate'
-import { omr, omrSigned, ruleNames, tillTime, toBaisa, unitPrice } from '../../lib/pos'
+import { omr, omrSigned, ruleApplies, ruleNames, tillTime, toBaisa, unitPrice } from '../../lib/pos'
 import { FILING_STEPS, RECEIPT_WAYS } from '../../lib/posPayment'
 import { loadPosSale, posSaleQrPath, type PosSaleDto } from '../../api/pos/pos'
 import { API_BASE_URL } from '../../config/api'
@@ -392,9 +392,11 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
               <p className="mt-3 text-xs font-semibold uppercase tracking-[0.06em] text-text-secondary">
                 {fullInvoice ? t('pos.done.taxInvoice') : t('pos.done.simplifiedInvoice')}
               </p>
-              <p className="font-arabic text-xs text-text-secondary">
-                {fullInvoice ? 'فاتورة ضريبية' : 'فاتورة ضريبية مبسطة'}
-              </p>
+              {locale === 'ar' ? null : (
+                <p className="font-arabic text-xs text-text-secondary">
+                  {fullInvoice ? 'فاتورة ضريبية' : 'فاتورة ضريبية مبسطة'}
+                </p>
+              )}
 
               <div className="mt-4 border-t border-dashed border-border-subtle pt-3 text-start">
                 <ReceiptRow
@@ -454,7 +456,7 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                 {totals.discount > 0 ? (
                   <ReceiptRow
                     label={
-                      lines.some((line) => line.priceRule)
+                      lines.some(ruleApplies)
                         ? t('pos.totals.ruleShort', { names: ruleNames(lines) })
                         : t('pos.totals.lineDiscounts')
                     }
@@ -524,7 +526,8 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                   </p>
                 ) : null}
                 <p className="mt-1 text-[11px] font-medium text-text-quaternary">
-                  {t('pos.done.thankYou')} · شكراً لكم
+                  {t('pos.done.thankYou')}
+                  {locale === 'ar' ? null : ' · شكراً لكم'}
                 </p>
               </div>
             </div>

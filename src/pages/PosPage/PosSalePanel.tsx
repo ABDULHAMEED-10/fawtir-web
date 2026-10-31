@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DiscountField } from '../../components/invoice'
 import { setSaleDiscount, useOpenSale } from '../../lib/posSale'
+import { useEntitlements } from '../../hooks/useEntitlements'
+import { discountBreach, type DiscountBreach } from '../../lib/posDiscountLimit'
 import { Rial, withRial } from '../../components/ui'
 import { PosFootNote } from './PosFootNote'
 import {
@@ -12,6 +14,7 @@ import {
   ruleSaving,
   tillTime,
   totalsFor,
+  typedDiscount,
   unitPrice,
   type SaleLine,
 } from '../../lib/pos'
@@ -52,6 +55,12 @@ export function PosSalePanel({
   const discounted = lines.some(ruleApplies) && totals.discount > 0
   const rules = ruleNames(lines)
   const stale = useStaleRuleNotices()
+  const { entitlements } = useEntitlements()
+  const limit = entitlements?.discountLimits?.['pos.sell'] ?? null
+  const breach = discountBreach(lines, saleDiscount, limit)
+  const [discountLine, setDiscountLine] = useState<string | null>(null)
+  const setLineDiscount = (id: string, lineDiscount: SaleLine['lineDiscount']) =>
+    onLines(lines.map((l) => (l.id === id ? { ...l, lineDiscount } : l)))
 
   const setQty = (id: string, qty: number) =>
     onLines(
@@ -189,6 +198,71 @@ export function PosSalePanel({
                     </span>
                   ) : null}
                 </p>
+                <button
+                  type="button"
+                  onClick={() => setDiscountLine(discountLine === line.id ? null : line.id)}
+                  aria-expanded={discountLine === line.id}
+                  aria-label={t('pos.lineDiscount.open', { name: line.name })}
+                  className="mt-1 text-xs font-semibold text-primary-700"
+                >
+                  {typedDiscount(line)
+                    ? typedDiscount(line)?.type === 'PERCENTAGE'
+                      ? t('pos.lineDiscount.setPercent', { value: typedDiscount(line)?.value })
+                      : t('pos.lineDiscount.setAmount', {
+                          value: omr(Math.round(Number(typedDiscount(line)?.value) * 1000)),
+                        })
+                    : t('pos.lineDiscount.add')}
+                </button>
+                {discountLine === line.id ? (
+                  <div className="mt-2">
+                    <DiscountField
+                      type={line.lineDiscount?.type ?? 'PERCENTAGE'}
+                      value={line.lineDiscount?.value ?? ''}
+                      onTypeChange={(type) =>
+                        setLineDiscount(line.id, { type, value: line.lineDiscount?.value ?? '' })
+                      }
+                      onValueChange={(value) =>
+                        setLineDiscount(line.id, {
+                          type: line.lineDiscount?.type ?? 'PERCENTAGE',
+                          value: value.replace(/[^\d.]/g, '').replace(/(\.\d{3})\d+$/, '$1'),
+                        })
+                      }
+                      resolved={BigInt(
+                        line.lineDiscount?.type === 'FIXED_AMOUNT'
+                          ? 0
+                          : Math.round(
+                              (unitPrice(line) *
+                                line.qty *
+                                (Number(line.lineDiscount?.value) || 0)) /
+                                100,
+                            ),
+                      )}
+                    />
+                    <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+                      {limit != null ? (
+                        <span className="text-xs font-medium text-text-quaternary">
+                          {t('pos.lineDiscount.limit', { limit })}
+                        </span>
+                      ) : null}
+                      {limit == null || limit >= 100 ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setLineDiscount(line.id, { type: 'PERCENTAGE', value: '100' })
+                          }
+                          className="text-xs font-semibold text-primary-700"
+                        >
+                          {t('pos.lineDiscount.giveAway')}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+                {breach && 'lineId' in breach && breach.lineId === line.id ? (
+                  <p role="alert" className="mt-1.5 text-xs font-medium text-danger-700">
+                    {breachSentence(breach, limit, t)}
+                  </p>
+                ) : null}
               </div>
               <div className="shrink-0 text-end">
                 <p className="text-base font-semibold text-text-primary">
@@ -274,10 +348,15 @@ export function PosSalePanel({
       </div>
 
       <div className="px-5 pb-5">
+        {breach && !('lineId' in breach) ? (
+          <p role="alert" className="mb-2 text-xs font-medium text-danger-700">
+            {breachSentence(breach, limit, t)}
+          </p>
+        ) : null}
         <button
           type="button"
           onClick={onTakePayment}
-          disabled={lines.length === 0}
+          disabled={lines.length === 0 || breach !== null}
           className="inline-flex h-[52px] w-full items-center justify-center rounded-sm bg-primary-700 text-base font-semibold text-white transition-colors hover:bg-primary-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {t('pos.takePayment')}
@@ -318,6 +397,16 @@ export function PosSalePanel({
       {company ? <PosFootNote>{t('pos.company.tippingOff')}</PosFootNote> : null}
     </aside>
   )
+}
+
+/** Said where it is fixed, in the words of the server's refusal (`pos.refusal.DISCOUNT_ABOVE_LIMIT`). */
+function breachSentence(
+  breach: DiscountBreach,
+  limit: number | null,
+  t: (key: string, values?: Record<string, unknown>) => string,
+): string {
+  if (breach.kind === 'tooMuch') return t('pos.lineDiscount.tooMuch')
+  return t(`pos.lineDiscount.over.${breach.kind}`, { percent: breach.percent, limit })
 }
 
 function Row({ label, value }: { label: string; value: string }) {

@@ -12,6 +12,15 @@ export const BILL_INTAKE_PATH = '/v1/bills/intake'
 /** `BillIntake.MAXIMUM_BYTES`, and the server's multipart limit. */
 export const INTAKE_MAX_BYTES = 10 * 1024 * 1024
 
+/**
+ * What today's gateway lets through (`FAWTIR_GATEWAY_MAX_REQUEST_BYTES`). The screens promise this
+ * size and shrink photos above it; nothing is refused here, so a server that takes more still
+ * gets more. TODO: set to INTAKE_MAX_BYTES once backend #818 is deployed.
+ */
+export const INTAKE_LIVE_MAX_BYTES = 1024 * 1024
+/** The same, for the words on the screens. */
+export const INTAKE_LIVE_MAX_MB = INTAKE_LIVE_MAX_BYTES / (1024 * 1024)
+
 export type IntakeSourceDto = 'UPLOADED' | 'SCANNED'
 
 /** 380 a bill, 381 a supplier's credit note, 383 a supplier's debit note (`ConfirmRequest`). */

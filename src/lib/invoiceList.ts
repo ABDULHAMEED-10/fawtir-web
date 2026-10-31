@@ -156,7 +156,7 @@ export function listFilter(
 
 export type AuthoringChip = 'draft' | 'issued' | 'cancelled' | 'discarded'
 /** `toSend` is the design's "To be sent": issued, nothing paid yet, and not delivered by any means. */
-export type PaymentChip = 'toSend' | 'awaiting' | 'partial' | 'overdue' | 'paid'
+export type PaymentChip = 'toSend' | 'awaiting' | 'partial' | 'overdue' | 'paid' | 'credited'
 export type PeppolResponse = 'AB' | 'AP' | 'RE'
 
 export type InvoiceListItem = {
@@ -213,7 +213,11 @@ function paymentOf(row: InvoiceRowDto): Pick<InvoiceListItem, 'payment' | 'payme
   if (!payment || payment.state === 'NOT_APPLICABLE') return { payment: null }
   if (payment.overdue)
     return { payment: 'overdue', paymentValues: { count: payment.daysOverdue ?? 0 } }
-  if (payment.state === 'PAID') return { payment: 'paid' }
+  if (payment.state === 'PAID') {
+    // Settled by credit notes with no money kept (a till sale refunded in full): not "Paid".
+    const creditedOnly = (payment.creditedAmount ?? 0) > 0 && (payment.paidAmount ?? 0) < 0.0005
+    return { payment: creditedOnly ? 'credited' : 'paid' }
+  }
   if (payment.state === 'PARTIALLY_PAID') return { payment: 'partial' }
   return { payment: delivered(row) ? 'awaiting' : 'toSend' }
 }
@@ -265,7 +269,7 @@ function amountNoteOf(row: InvoiceRowDto, payment: PaymentChip | null): Note | n
       values: { amount: figures.outstandingAmount ?? 0 },
     }
   }
-  if (payment === 'paid' && (figures.creditedAmount ?? 0) > 0) {
+  if ((payment === 'paid' || payment === 'credited') && (figures.creditedAmount ?? 0) > 0) {
     return {
       key: 'invoicesPage.amountNote.credited',
       values: { amount: figures.creditedAmount ?? 0 },

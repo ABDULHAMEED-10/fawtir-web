@@ -67,6 +67,17 @@ export type SaleLine = {
    * `lineRefs[].priceRuleIds`; the unit price stays the catalogue's. Add-on lines never get one.
    */
   priceRule?: SalePriceRule | null
+  /**
+   * What the cashier typed on this line. It replaces the price rule and the catalogue's discount
+   * on it (price rules design §2 step 4) and is held to the cashier's limit. Blank or zero is no
+   * discount typed, and the rule or the catalogue's discount comes back.
+   */
+  lineDiscount?: { type: DiscountType; value: string }
+}
+
+/** The cashier's own discount on the line, when there is one that takes anything off. */
+export function typedDiscount(line: SaleLine): { type: DiscountType; value: string } | null {
+  return line.lineDiscount && Number(line.lineDiscount.value) > 0 ? line.lineDiscount : null
 }
 
 /** What one of these costs, once the size and the add-ons are counted. */
@@ -96,21 +107,24 @@ export type SalePriceRule = {
   saving: number
 }
 
+/** The rule that prices this line: none once the cashier typed a discount, which replaces it. */
+function ruleInForce(line: SaleLine): SalePriceRule | null {
+  return typedDiscount(line) ? null : (line.priceRule ?? null)
+}
+
 /** Whether a price rule caught this line. */
 export function ruleApplies(line: SaleLine): boolean {
-  return Boolean(line.priceRule)
+  return Boolean(ruleInForce(line))
 }
 
 /** The names of the rules on the sale, each once, for the panel's note and the totals row. */
 export function ruleNames(lines: SaleLine[]): string {
-  return [...new Set(lines.flatMap((line) => (line.priceRule ? [line.priceRule.name] : [])))].join(
-    ', ',
-  )
+  return [...new Set(lines.flatMap((line) => ruleInForce(line)?.name ?? []))].join(', ')
 }
 
 /** What the rules took off the sale, in baisa. */
 export function ruleSaving(lines: SaleLine[]): number {
-  return lines.reduce((sum, line) => sum + (line.priceRule?.saving ?? 0), 0)
+  return lines.reduce((sum, line) => sum + (ruleInForce(line)?.saving ?? 0), 0)
 }
 
 export type SaleTotals = {
@@ -165,7 +179,8 @@ const rial = (baisa: number) => (baisa / BAISA).toFixed(3)
 export function invoiceLinesFor(lines: SaleLine[]): PosInvoiceLine[] {
   return lines.flatMap((line) => {
     const free = line.addOns.filter((a) => a.price === 0)
-    const rule = line.priceRule ?? null
+    const typed = typedDiscount(line)
+    const rule = ruleInForce(line)
     const common = {
       saleLineId: line.id,
       productId: line.productId,
@@ -179,8 +194,8 @@ export function invoiceLinesFor(lines: SaleLine[]): PosInvoiceLine[] {
       exemptionReason: line.exemptionReason ?? '',
       exemptionReasonCode: line.exemptionReasonCode,
       quantity: String(line.qty),
-      discountType: line.discountType,
-      discountValue: line.discountValue,
+      discountType: typed ? typed.type : line.discountType,
+      discountValue: typed ? typed.value : line.discountValue,
     }
     const name = [
       line.name,
@@ -214,6 +229,10 @@ export function invoiceLinesFor(lines: SaleLine[]): PosInvoiceLine[] {
           id: `${line.id}-${a.id}`,
           description: `${line.name}: + ${a.label}`,
           unitPrice: rial(a.price),
+          // A typed amount comes off the item once; a percentage runs through its add-ons too.
+          ...(typed?.type === 'FIXED_AMOUNT'
+            ? { discountType: 'PERCENTAGE' as DiscountType, discountValue: '0' }
+            : {}),
           ref: {
             role: 'ADD_ON' as const,
             productId: line.productId,

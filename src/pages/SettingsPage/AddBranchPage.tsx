@@ -527,6 +527,15 @@ export function AddBranchPage() {
                   />
                 </li>
               ))}
+              {/* No switch: saving a branch makes no till, the till screen's own button does. */}
+              <li className="border-t border-surface-background px-5 py-4">
+                <p className="text-sm font-semibold leading-[1.3] text-text-primary">
+                  {t('addBranch.tillLater')}
+                </p>
+                <p className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">
+                  {t('addBranch.tillLaterNote', { name: name || t('addBranch.thisBranch') })}
+                </p>
+              </li>
             </ul>
           </Panel>
         </div>

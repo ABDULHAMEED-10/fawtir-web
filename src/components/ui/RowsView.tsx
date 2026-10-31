@@ -33,6 +33,7 @@ export function RowsView({ children, className = '' }: { children: ReactNode; cl
         // A cell spanning the table is a message, not a value, so it is left unlabelled.
         const spans = (cell as HTMLTableCellElement).colSpan > 1
         cell.setAttribute('data-label', spans ? '' : (headings[index] ?? ''))
+        cell.toggleAttribute('data-message', spans)
       })
     }
   })

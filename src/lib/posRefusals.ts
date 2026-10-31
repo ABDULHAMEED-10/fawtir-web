@@ -60,6 +60,7 @@ const WORDED = new Set([
   'POS_SLIP_INVALID',
   'POS_PRICE_RULE_MISMATCH',
   'PRICE_RULE_STACKING_NOT_AVAILABLE',
+  'DISCOUNT_ABOVE_LIMIT',
 ])
 
 /** Problem slugs (no `code`) the till words too. */
@@ -72,12 +73,26 @@ const SLUGS: Record<string, string> = {
   'upload-scan-unavailable': 'pos.refusal.scanUnavailable',
 }
 
+/** A server before the refusal had a code says the figures only in its sentence. */
+function roleLimitInDetail(error: ApiError): { requested: string; limit: string } | null {
+  if (error.status !== 403 || error.code) return null
+  const detail = error.problem.detail
+  const found =
+    typeof detail === 'string'
+      ? /of ([\d.]+)% exceeds the ([\d.]+)% your role allows/.exec(detail)
+      : null
+  return found ? { requested: found[1], limit: found[2] } : null
+}
+
+const percent = (value: number) => String(Math.round(value * 100) / 100)
+
 export function posRefusalKey(error: unknown): string {
   if (error instanceof NetworkError) return 'pos.refusal.offline'
   if (error instanceof ApiError) {
     if (error.code && WORDED.has(error.code)) return `pos.refusal.${error.code}`
     const slug = error.problemType ? SLUGS[error.problemType] : undefined
     if (slug) return slug
+    if (roleLimitInDetail(error)) return 'pos.refusal.DISCOUNT_ABOVE_LIMIT'
     if (error.status === 403) return 'pos.refusal.forbidden'
   }
   return 'pos.refusal.failed'
@@ -124,6 +139,18 @@ export function refusalCode(error: unknown): string | null {
 export function refusalValues(error: unknown): Record<string, string> {
   if (!(error instanceof ApiError)) return {}
   const values: Record<string, string> = {}
+  const requestedPercent = problemNumber(error, 'requestedPercent')
+  const limitPercent = problemNumber(error, 'limitPercent')
+  if (requestedPercent != null && limitPercent != null) {
+    values.requestedPercent = percent(requestedPercent)
+    values.limitPercent = percent(limitPercent)
+  } else {
+    const worded = roleLimitInDetail(error)
+    if (worded) {
+      values.requestedPercent = percent(Number(worded.requested))
+      values.limitPercent = percent(Number(worded.limit))
+    }
+  }
   for (const name of [
     'expected',
     'received',

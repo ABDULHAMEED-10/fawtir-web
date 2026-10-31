@@ -7,6 +7,7 @@ import { selectAllOnFocus } from '../../components/invoice/numericInput'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { PosFootNote } from './PosFootNote'
 import { PosTillGate } from './PosTillGate'
+import { TillMoneyInput } from './TillMoneyInput'
 import { CashIcon, CheckIcon, ClockIcon } from './posIcons'
 import { omr, omrSigned, tillTime, toBaisa } from '../../lib/pos'
 import { parseBaisa } from '../../lib/posPayment'
@@ -21,6 +22,7 @@ import {
 } from '../../lib/posClose'
 import { posRefusalKey, refusalValues } from '../../lib/posRefusals'
 import { useApiRead } from '../../hooks'
+import { ApiError } from '../../api/errors'
 import {
   addCashMovement,
   closePosShift,
@@ -202,10 +204,31 @@ function NothingOpen({ closed }: { closed: PosShiftCloseDto | null }) {
   )
 }
 
+function NotYourShift({ error }: { error: ApiError }) {
+  const { t } = useTranslation()
+  return (
+    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
+      <Link
+        to="/pos"
+        className="inline-flex items-center gap-1.5 text-sm font-semibold text-text-tertiary hover:text-primary-700"
+      >
+        ‹ {t('pos.backToTill')}
+      </Link>
+      <p className="rounded-md bg-surface-card px-6 py-12 text-center text-sm font-medium text-text-tertiary">
+        {t(posRefusalKey(error))}
+      </p>
+    </div>
+  )
+}
+
 function CloseShift({ till, shiftId }: { till: Ready; shiftId: string }) {
   const preview = useApiRead<PosClosePreviewDto>(closePreviewPath(shiftId))
   if (preview.read.status === 'loading') return <LoadingNotice />
   if (preview.read.status === 'failed') {
+    // The till's open shift is someone else's (`pos.close` with OWN): not a missing permission.
+    if (preview.read.error instanceof ApiError && preview.read.error.code === 'POS_SHIFT_NOT_OWN') {
+      return <NotYourShift error={preview.read.error} />
+    }
     return <ApiReadFailure error={preview.read.error} retry={preview.retry} />
   }
   return <CloseForm till={till} preview={preview.read.data} reload={preview.retry} />
@@ -224,9 +247,9 @@ function CloseForm({
   const locale = i18n.language.startsWith('ar') ? 'ar' : 'en-GB'
   const figures = figuresOf(preview)
   const [byNote, setByNote] = useState(false)
-  const [total, setTotal] = useState(figures.expected)
+  const [total, setTotal] = useState<number | null>(figures.expected)
   const [counted, setCounted] = useState<Counted>({})
-  const [reason, setReason] = useState<OverShortReason>(SHORT_REASONS[0].id)
+  const [reason, setReason] = useState<OverShortReason | null>(null)
   const [note, setNote] = useState('')
   const [terminalText, setTerminalText] = useState((figures.terminal / 1000).toFixed(3))
   const [cardNote, setCardNote] = useState('')
@@ -235,7 +258,7 @@ function CloseForm({
   const [closed, setClosed] = useState<PosShiftCloseDto | null>(null)
   const key = useRef<{ fingerprint: string; key: string } | null>(null)
 
-  const cash = byNote ? countedTotal(counted) : total
+  const cash = byNote ? countedTotal(counted) : (total ?? 0)
   const gap = cash - figures.expected
   const share = figures.cashTaken ? Math.abs(gap) / figures.cashTaken : 0
   const terminal = terminalText.trim() ? parseBaisa(terminalText) : null
@@ -246,7 +269,14 @@ function CloseForm({
     day: 'numeric',
     month: 'long',
   })
-  const ready = !busy && !closed && (!cardDiffers || cardNote.trim().length > 0)
+  const countKnown = byNote || total !== null
+  const needsReason = countKnown && gap !== 0 && reason === null
+  const ready =
+    !busy &&
+    !closed &&
+    countKnown &&
+    !needsReason &&
+    (!cardDiffers || cardNote.trim().length > 0)
 
   const close = async () => {
     setBusy(true)
@@ -254,7 +284,7 @@ function CloseForm({
     const body = closeRequest({
       byNote,
       counted,
-      total,
+      total: cash,
       floatLeft,
       terminal,
       terminalExpected: figures.terminal,
@@ -370,14 +400,10 @@ function CloseForm({
                 <p className="text-xs font-semibold text-text-tertiary">
                   {t('pos.close.actuallyIn')}
                 </p>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  dir="ltr"
+                <TillMoneyInput
                   readOnly={byNote}
-                  value={(cash / 1000).toFixed(3)}
-                  onFocus={selectAllOnFocus}
-                  onChange={(event) => setTotal(parseBaisa(event.target.value))}
+                  baisa={byNote ? cash : total}
+                  onBaisa={setTotal}
                   aria-label={t('pos.close.actuallyIn')}
                   className="mt-2 h-[60px] w-full rounded-sm border-2 border-primary-700 bg-primary-25 px-4 text-end text-2xl font-semibold text-text-primary outline-none"
                 />
@@ -419,15 +445,17 @@ function CloseForm({
               <div
                 className={[
                   'min-w-[260px] flex-1 rounded-sm p-4',
-                  gap === 0 ? 'bg-success-100' : 'bg-pending-100',
+                  countKnown && gap === 0 ? 'bg-success-100' : 'bg-pending-100',
                 ].join(' ')}
               >
                 <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-quaternary">
-                  {gap === 0
-                    ? t('pos.close.balances')
-                    : gap < 0
-                      ? t('pos.close.shortBy')
-                      : t('pos.close.overBy')}
+                  {!countKnown
+                    ? t('pos.close.notCounted')
+                    : gap === 0
+                      ? t('pos.close.balances')
+                      : gap < 0
+                        ? t('pos.close.shortBy')
+                        : t('pos.close.overBy')}
                 </p>
                 <p
                   className={[
@@ -436,9 +464,9 @@ function CloseForm({
                   ].join(' ')}
                 >
                   <Rial />
-                  {omr(Math.abs(gap))}
+                  {countKnown ? omr(Math.abs(gap)) : omr(0)}
                 </p>
-                {gap !== 0 ? (
+                {countKnown && gap !== 0 ? (
                   <p className="mt-2 text-xs font-medium leading-[1.6] text-text-tertiary">
                     {t('pos.close.shortStory', {
                       expected: omr(figures.expected),
@@ -459,7 +487,7 @@ function CloseForm({
               />
               <Line
                 label={t('pos.close.cashTaken')}
-                note={t('pos.close.cashTakenNote', { sales: figures.cashSales })}
+                note={t('pos.close.cashTakenNote', { count: figures.cashSales, sales: figures.cashSales })}
                 value={`+${omr(figures.cashTaken)}`}
                 tone="add"
               />
@@ -619,6 +647,7 @@ function CloseForm({
                     {withRial(
                       t('pos.close.terminalTotalNote', {
                         amount: `OMR ${omr(figures.terminal)}`,
+                        count: preview.looseEnds.cardSalesForTerminalCheck.count,
                         payments: preview.looseEnds.cardSalesForTerminalCheck.count,
                       }),
                     )}
@@ -679,13 +708,15 @@ function CloseForm({
             <Sum
               label={t('pos.close.drawer')}
               value={
-                gap === 0
-                  ? t('pos.close.balances')
-                  : gap < 0
-                    ? t('pos.close.shortValue', { amount: omr(Math.abs(gap)) })
-                    : t('pos.day.overValue', { amount: omr(gap) })
+                !countKnown
+                  ? t('pos.close.notCounted')
+                  : gap === 0
+                    ? t('pos.close.balances')
+                    : gap < 0
+                      ? t('pos.close.shortValue', { amount: omr(Math.abs(gap)) })
+                      : t('pos.day.overValue', { amount: omr(gap) })
               }
-              tone={gap === 0 ? undefined : 'watch'}
+              tone={countKnown && gap === 0 ? undefined : 'watch'}
             />
             <Sum
               label={t('pos.close.toBank')}
@@ -698,6 +729,19 @@ function CloseForm({
               money
             />
           </div>
+          {!countKnown && !closed ? (
+            <p className="mx-5 mb-2 rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium text-pending-700">
+              {t('pos.close.countFirst')}
+            </p>
+          ) : null}
+          {needsReason && !closed ? (
+            <p className="mx-5 mb-2 rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium text-pending-700">
+              {t('pos.refusal.POS_OVER_SHORT_REASON_REQUIRED', {
+                counted: omr(cash),
+                expected: omr(figures.expected),
+              })}
+            </p>
+          ) : null}
           {refusal ? (
             <p
               role="alert"

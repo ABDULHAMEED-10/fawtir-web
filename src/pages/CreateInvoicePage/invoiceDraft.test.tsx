@@ -352,6 +352,28 @@ describe('a new invoice draft', () => {
     expect(calls('POST', '/api/v1/invoice-drafts')).toHaveLength(0)
   })
 
+  it('takes the fix-first notice down as soon as the fixed form is sent, not after the buyer is made', async () => {
+    const reply = vi.mocked(fetch).getMockImplementation()!
+    let creating = false
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      if (String(input).startsWith('/api/v1/customers') && init?.method === 'POST') {
+        creating = true
+        return new Promise<Response>(() => {})
+      }
+      return reply(input, init)
+    })
+    who = { ...who, permissions: [...who.permissions, 'customer.manage'] }
+    renderAt('/invoices/new')
+    fireEvent.click(await screen.findByRole('button', { name: /Consumer/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    const fixFirst = i18n.t('invoiceDraft.fixFirst')
+    expect(await screen.findByText(fixFirst)).toBeTruthy()
+    fireEvent.change(screen.getByLabelText(/Customer name/), { target: { value: 'Walkin Test' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    await waitFor(() => expect(creating).toBe(true))
+    expect(screen.queryByText(fixFirst)).toBeNull()
+  })
+
   it('defaults a consumer to Due on receipt and puts business and government back on Net 30', async () => {
     renderAt('/invoices/new')
     const terms = async () =>
@@ -774,6 +796,8 @@ describe('issuing from the composer', () => {
     fireEvent.click(options[0])
     fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
     expect(await screen.findByRole('dialog', { name: 'Issue this invoice?' })).toBeTruthy()
+    // Everything is put right: the earlier notice does not stay behind the dialog.
+    expect(screen.queryByText(i18n.t('invoiceDraft.fixFirst'))).toBeNull()
     const body = bodyOf(calls('PUT', '/api/v1/invoice-drafts/d-1')[0])
     expect('hsCode' in body.draft.lines[0]).toBe(false)
   })

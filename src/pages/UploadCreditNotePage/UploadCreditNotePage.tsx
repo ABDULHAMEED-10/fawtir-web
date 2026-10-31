@@ -6,7 +6,7 @@ import { BillFilePicker } from '../../components/bills'
 import { PermissionDeniedNotice } from '../../components/feedback/ApiNotice'
 import { NoteBreadcrumb } from '../../components/debit/NoteParts'
 import { SupplierNoteIntake } from '../../components/debit/SupplierNoteIntake'
-import type { IntakeDto } from '../../api/expenditure/billIntake'
+import { INTAKE_LIVE_MAX_MB, type IntakeDto } from '../../api/expenditure/billIntake'
 import { BILL_FILE_TYPES } from '../../lib/billIntake'
 import { can, useSession } from '../../lib/session/session'
 import type { SavedNoteState } from '../SupplierCreditNoteDetailPage/SupplierCreditNoteDetailPage'
@@ -67,7 +67,7 @@ function UploadCreditNote() {
           accept={BILL_FILE_TYPES}
           source="UPLOADED"
           title={t('supplierCreditNotes.upload.choose')}
-          hint={t('billIntake.upload.hint')}
+          hint={t('billIntake.upload.hint', { mb: INTAKE_LIVE_MAX_MB })}
           onUploaded={([first]) => setUploaded(first)}
         />
       ) : (

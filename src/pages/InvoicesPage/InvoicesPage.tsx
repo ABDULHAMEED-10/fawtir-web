@@ -100,6 +100,7 @@ const PAYMENT_STYLES: Record<PaymentChip, Chip> = {
   partial: { bg: 'bg-warning-100', dot: 'bg-[#6d5a39]', text: 'text-[#6d5a39]' },
   toSend: { bg: 'bg-primary-25', dot: 'bg-primary-800', text: 'text-primary-800' },
   paid: { bg: 'bg-success-100', dot: 'bg-success-700', text: 'text-success-700' },
+  credited: { bg: 'bg-success-100', dot: 'bg-success-700', text: 'text-success-700' },
 }
 
 /** A note's pill in this list's own palette, matching the notes lists' colour for each status. */

@@ -58,7 +58,7 @@ export type TillState =
       userId: string | null
       /** Their shift is the till's open one. */
       mine: boolean
-      can: { sell: boolean; close: boolean; refund: boolean }
+      can: { sell: boolean; close: boolean; refund: boolean; manage: boolean }
       retry: () => void
     }
 
@@ -105,7 +105,12 @@ export function usePosTill(): TillState {
     branchName: name,
     userId,
     mine: !!userId && till.openShift?.cashier.userId === userId,
-    can: { sell: can('pos.sell'), close: can('pos.close'), refund: can('pos.refund') },
+    can: {
+      sell: can('pos.sell'),
+      close: can('pos.close'),
+      refund: can('pos.refund'),
+      manage: can('pos.till.manage'),
+    },
     retry,
   }
 }

@@ -1,18 +1,24 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ITEM_TABS, USED_TOTAL, CHANGE_BOOK } from '../../lib/catalogItem'
+import { ITEM_TABS } from '../../lib/catalogItem'
 
-/** How many each tab would show, where a tab carries a count in the design. */
-const COUNTS: Record<string, number | undefined> = {
-  details: undefined,
-  sells: undefined,
-  used: USED_TOTAL,
-  changes: CHANGE_BOOK.total,
-}
-
-/** The four faces of one item (Figma 135:45974 and siblings). */
-export function ItemTabs({ id, active }: { id: string; active: string }) {
+/**
+ * The four faces of one item (Figma 135:45974 and siblings). A tab carries a count only where
+ * the open page has read one from the server: Where it's been used from the usage `counts`.
+ * TODO(backend): INCOME.md IP.7. The history is paged by `hasMore` with no total, so Changes
+ * carries no count.
+ */
+export function ItemTabs({
+  id,
+  active,
+  counts = {},
+}: {
+  id: string
+  active: string
+  counts?: Partial<Record<'used' | 'changes', number>>
+}) {
   const { t } = useTranslation()
+  const COUNTS: Record<string, number | undefined> = counts
 
   return (
     <nav className="flex flex-wrap items-center gap-1 border-b border-border-subtle">
@@ -22,7 +28,7 @@ export function ItemTabs({ id, active }: { id: string; active: string }) {
         return (
           <Link
             key={tab.id}
-            to={`/catalog/${id}${tab.to}`}
+            to={`/catalog/${encodeURIComponent(id)}${tab.to}`}
             aria-current={on ? 'page' : undefined}
             className={[
               'inline-flex h-[44px] items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors',
