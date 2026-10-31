@@ -162,6 +162,43 @@ async function pick(files: File[]) {
   })
 }
 
+describe('scan receipts: a file too big for the server', () => {
+  const file = (name: string) => new File(['x'], name, { type: 'application/pdf' })
+  const refuseBig = () => {
+    const before = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      ((init?.body as FormData | undefined)?.get?.('file') as File | undefined)?.name === 'big.pdf'
+        ? new Response(
+            JSON.stringify({
+              type: 'https://api.fawtir.om/problems/payload-too-large',
+              status: 413,
+            }),
+            { status: 413, headers: { 'Content-Type': 'application/problem+json' } },
+          )
+        : before(url, init),
+    )
+  }
+
+  it('adds the others and still says which file was not added', async () => {
+    refuseBig()
+    uploads = [receipt('r-1')]
+    renderAt('/expenditure/bills/scan')
+    await pick([file('big.pdf'), file('small.pdf')])
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toMatch(/big\.pdf is too large.*smaller photo or PDF/)
+  })
+
+  it('says it from Add more as well', async () => {
+    refuseBig()
+    uploads = [receipt('r-1')]
+    renderAt('/expenditure/bills/scan')
+    await pick([file('small.pdf')])
+    await screen.findByText(new RegExp(i18n.t('scanReceipts.addMore')))
+    await pick([file('big.pdf')])
+    expect((await screen.findByRole('alert')).textContent).toMatch(/big\.pdf is too large/)
+  })
+})
+
 describe('scan receipts: a receipt stored earlier', () => {
   it('brings the receipts named in the link back into the pile, with what was typed', async () => {
     stored = {

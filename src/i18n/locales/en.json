@@ -20755,7 +20755,8 @@
       "generic": "Your plan does not include this. What you made before can still be viewed, downloaded and exported.",
       "stock": "Your plan does not include stock counting. What you counted before can still be viewed.",
       "receiptScan": "Your plan does not include scanning bills and receipts. What you made before can still be viewed, downloaded and exported."
-    }
+    },
+    "tooLarge": "That file is too large for Fawtir to accept. Use a smaller photo or PDF."
   },
   "appAccess": {
     "checking": "Checking your access…",
@@ -21429,19 +21430,23 @@
     "xmlFilled": "This is an e-invoice file, so there is no picture to show. Its fields are filled in on the right; check them against what the supplier sent.",
     "xmlNotRead": "This XML file could not be read as an e-invoice. Type the bill in on the right.",
     "upload": {
-      "subtitle": "Add the supplier's file, then check or type the bill beside it. An e-invoice (XML) file fills its fields in, and Fawtir fills in what it can read from a PDF or photo.",
+      "subtitle": "Add the supplier's file, then check or type the bill beside it. An e-invoice (XML) file fills its fields in. A PDF or photo is filled in only if Fawtir can read it; after the upload you will see whether it was.",
       "choose": "Choose the supplier's bill",
-      "hint": "PDF, JPG, PNG or an e-invoice XML file, up to 10 MB. Drop it here or click to choose.",
+      "hint": "PDF, JPG, PNG or an e-invoice XML file, up to {{mb}} MB. Drop it here or click to choose.",
       "sending": "Uploading…",
       "tooLarge": "That file is larger than 10 MB.",
       "wrongType": "Use a PDF, JPG, PNG or XML file.",
       "empty": "That file is empty.",
       "fileRequired": "Choose the bill's file first.",
-      "reading": "Reading the file… {{seconds}} s",
-      "readingOf": "Reading file {{current}} of {{total}}… {{seconds}} s",
-      "readingHint": "Fawtir is reading the file so you don't have to type it in. This can take up to two minutes; keep this page open.",
-      "readingShort": "Reading… {{seconds}} s",
-      "mayHaveArrived": "The server didn't answer in time, but your file may still have been received. Look under uploads to confirm on the Bills page before uploading it again."
+      "reading": "Uploading the file… {{seconds}} s",
+      "readingOf": "Uploading file {{current}} of {{total}}… {{seconds}} s",
+      "readingHint": "If Fawtir can read this file, it fills the bill in for you. This can take up to two minutes; keep this page open.",
+      "readingShort": "Uploading… {{seconds}} s",
+      "mayHaveArrived": "The server didn't answer in time, but your file may still have been received. Look under uploads to confirm on the Bills page before uploading it again.",
+      "tooBigForServer": "{{name}} is too large for Fawtir to accept and was not added. Use a smaller photo or PDF, then add it again.",
+      "tooLargeNamed": "{{name}} is larger than 10 MB and was not added.",
+      "wrongTypeNamed": "{{name}} was not added. Use a PDF, JPG, PNG or XML file.",
+      "notAdded": "Not added: {{names}}."
     },
     "record": {
       "subtitle": "A bill from {{name}}. Add their file first, then type the bill in beside it.",
@@ -21516,7 +21521,7 @@
       "progress": "{{saved}} saved · {{left}} still to check · {{total}} confirmed so far",
       "finishLater": "Finish later",
       "choose": "Choose receipt photos",
-      "hint": "JPG, PNG or PDF, up to 10 MB each. You can choose several at once.",
+      "hint": "JPG, PNG or PDF, up to {{mb}} MB each. You can choose several at once.",
       "saved": "Saved as a bill.",
       "typeIt": "Nothing is read from the photo. Type the receipt in from the picture on the left.",
       "vatWorkedOut": "Worked out from the total and the rate. Type over it if the receipt says otherwise.",

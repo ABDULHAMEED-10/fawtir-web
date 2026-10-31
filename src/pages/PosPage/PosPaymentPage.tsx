@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { Rial, Select } from '../../components/ui'
-import { selectAllOnFocus } from '../../components/invoice/numericInput'
+import { TillMoneyInput } from './TillMoneyInput'
 import { setFinishedSale, useOpenSale } from '../../lib/posSale'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
@@ -21,7 +21,6 @@ import {
   METHODS,
   TIP_CHOICES,
   changeDue,
-  parseBaisa,
   paymentsRequest,
   quickCash,
   stillToCollect,
@@ -146,7 +145,7 @@ function Payment({ till }: { till: Ready }) {
   const [taken, setTaken] = useState<Taken[]>([])
   const [method, setMethod] = useState<MethodId>('cash')
   const [handedOver, setHandedOver] = useState<number | null>(null)
-  const [amountText, setAmountText] = useState('')
+  const [partTyped, setPartTyped] = useState<number | null>(null)
   const [approval, setApproval] = useState('')
   const [reference2, setReference2] = useState('')
   const [slip, setSlip] = useState<HeldSlip | null>(null)
@@ -169,12 +168,12 @@ function Payment({ till }: { till: Ready }) {
   const change = changeDue(taken)
   const covered = left === 0 && lines.length > 0
   const cash = handedOver ?? left
-  const partAmount = amountText ? Math.min(parseBaisa(amountText), left) : left
+  const partAmount = partTyped === null ? left : Math.min(partTyped, left)
 
   const take = (entry: Omit<Taken, 'id'>) => {
     if (entry.amount <= 0) return
     setTaken((current) => [...current, { ...entry, id: `p${Date.now()}` }])
-    setAmountText('')
+    setPartTyped(null)
     setApproval('')
     setReference2('')
     setSlip(null)
@@ -401,7 +400,7 @@ function Payment({ till }: { till: Ready }) {
                   }
                   onPick={(id) => {
                     setMethod(id)
-                    setAmountText('')
+                    setPartTyped(null)
                   }}
                 />
               ))}
@@ -413,13 +412,9 @@ function Payment({ till }: { till: Ready }) {
                   <p className="text-xs font-medium text-text-tertiary">
                     {t('pos.pay.handedOver', { amount: omr(left) })}
                   </p>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    dir="ltr"
-                    value={(cash / 1000).toFixed(3)}
-                    onFocus={selectAllOnFocus}
-                    onChange={(event) => setHandedOver(parseBaisa(event.target.value))}
+                  <TillMoneyInput
+                    baisa={cash}
+                    onBaisa={(typed) => setHandedOver(typed ?? 0)}
                     aria-label={t('pos.pay.handedOverLabel')}
                     className="mt-2 h-[60px] w-full rounded-sm border-2 border-primary-700 bg-primary-25 px-4 text-end text-2xl font-semibold text-text-primary outline-none"
                   />
@@ -471,13 +466,9 @@ function Payment({ till }: { till: Ready }) {
               <div className="flex flex-col gap-4 px-6 pb-4">
                 <div className="flex flex-wrap gap-4">
                   <Field label={t('pos.pay.amount')}>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      dir="ltr"
-                      value={amountText || (left / 1000).toFixed(3)}
-                      onFocus={selectAllOnFocus}
-                      onChange={(event) => setAmountText(event.target.value)}
+                    <TillMoneyInput
+                      baisa={partTyped ?? left}
+                      onBaisa={setPartTyped}
                       className={`${FIELD} text-end`}
                     />
                   </Field>
