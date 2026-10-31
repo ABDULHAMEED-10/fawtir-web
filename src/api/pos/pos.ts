@@ -579,6 +579,11 @@ export type PosRefundLookupLine = {
   vatRate: number | null
   vatCategory: string | null
   refundable: boolean
+  /**
+   * The line credits 0.000, so it comes back as a stock return with no credit note. Absent from a
+   * server that cannot take such a return yet, and the till then refunds as before.
+   */
+  givenFree?: boolean
 }
 
 export type PosRefundLookupDto = {
@@ -617,8 +622,10 @@ export type PosRefundRequest = {
 export type PosRefundDto = {
   refundId: string
   saleId: string
-  creditNoteId: string
-  creditNoteNumber: string
+  /** Null when only given-away lines came back: nothing was issued. */
+  creditNoteId: string | null
+  creditNoteNumber: string | null
+  stockOnly?: boolean
   totals: PosTotals
   warnings: PosWarning[]
   replayed?: boolean
