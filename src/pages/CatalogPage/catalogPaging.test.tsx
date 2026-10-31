@@ -391,8 +391,6 @@ describe('the catalogue list', () => {
     expect(tabButton('catalogReal.tab.goods').textContent).toMatch(/\d+\+$/)
     // The footer's "of" is what the open tab counts, not the list with its greyed items in it.
     expect(screen.getByText('Showing 20 of 43 products')).toBeTruthy()
-    fireEvent.click(tabButton('catalogReal.tab.goods'))
-    expect(await screen.findByText(/^Showing \d+ on this page$/)).toBeTruthy()
     expect(
       screen.getByText(i18n.t('catalogReal.kpi.things')).parentElement?.parentElement?.textContent,
     ).toContain('43')
@@ -407,6 +405,9 @@ describe('the catalogue list', () => {
     fireEvent.click(tabButton('catalogReal.tab.goods'))
     fireEvent.click(tabButton('catalogReal.tab.all'))
     expect(countReads()).toBe(before)
+    // A tab that narrows one page has no total to give.
+    fireEvent.click(tabButton('catalogReal.tab.goods'))
+    expect(await screen.findByText(/^Showing \d+ on this page$/)).toBeTruthy()
   })
 
   it('draws no On sale or Never sold tab without a working branch', async () => {
