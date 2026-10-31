@@ -652,6 +652,15 @@ function CloseForm({
                       }),
                     )}
                   </span>
+                  {figures.cardRefunded > 0 && figures.terminalNet ? (
+                    <span className="block text-xs font-medium leading-[1.5] text-text-quaternary">
+                      {withRial(
+                        t('pos.close.terminalRefunded', {
+                          amount: `OMR ${omr(figures.cardRefunded)}`,
+                        }),
+                      )}
+                    </span>
+                  ) : null}
                   <input
                     type="text"
                     inputMode="decimal"
@@ -705,6 +714,9 @@ function CloseForm({
             />
             <Sum label={t('pos.close.tips')} value={omr(toBaisa(preview.tips))} money />
             <Sum label={t('pos.close.refundedInCash')} value={omr(figures.cashRefunded)} money />
+            {figures.cardRefunded > 0 ? (
+              <Sum label={t('pos.close.refundedToCard')} value={omr(figures.cardRefunded)} money />
+            ) : null}
             <Sum
               label={t('pos.close.drawer')}
               value={

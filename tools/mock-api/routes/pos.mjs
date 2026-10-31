@@ -671,6 +671,12 @@ function findByNumber(invoiceNumber) {
   return [...sales.values()].find((r) => r.dto.invoiceNumber.toUpperCase() === wanted)
 }
 
+/** What a payment method has left to give back on the sale, never below zero. */
+function leftToGiveBack(record, method) {
+  const paid = sum(record.dto.payments.filter((p) => p.method === method).map((p) => p.amount))
+  return Math.max(0, round3(paid - (record.givenBack?.[method] ?? 0)))
+}
+
 function lookupOf(record) {
   const s = record.dto
   const byMethod = s.payments.map((p) => ({ method: p.method, amount: p.amount }))
@@ -1380,6 +1386,53 @@ export default [
   },
   {
     method: 'POST',
+    match: /^\/api\/v1\/pos\/sales\/([^/]+)\/refund-quote$/,
+    reply: ({ params, body }) => {
+      ensureBranch('b-main')
+      const record = sales.get(params[0])
+      if (!record) return problem(404, 'POS_SALE_NOT_FOUND')
+      const asked = new Map((body?.lines ?? []).map((l) => [l.lineNumber, l]))
+      if (!asked.size) return problem(400, 'POS_REFUND_LINE_INVALID')
+      const chosen = record.lines.filter((l) => asked.has(l.lineNumber))
+      const { total } = totalsOf(chosen, record.headerDiscount, (l) =>
+        Number(asked.get(l.lineNumber).quantity),
+      )
+      const lastRefund = record.lines.every(
+        (l) =>
+          l.role === 'ADD_ON' ||
+          l.quantitySold - l.quantityRefunded === Number(asked.get(l.lineNumber)?.quantity ?? 0),
+      )
+      const left = (method) => leftToGiveBack(record, method)
+      const owed = Math.max(0, round3(record.dto.onAccount - record.credited))
+      const reduce = Math.min(total, owed)
+      const payOut = round3(total - reduce)
+      const all = left('CARD') + left('CASH') + left('TRANSFER')
+      const share = (method) =>
+        lastRefund || all === 0
+          ? Math.min(left(method), payOut)
+          : Math.min(left(method), round3((payOut * left(method)) / all))
+      const card = share('CARD')
+      const transfer = Math.min(share('TRANSFER'), round3(payOut - card))
+      const suggested = [
+        ['REDUCE_BALANCE', reduce],
+        ['CARD', card],
+        ['TRANSFER', transfer],
+        ['CASH', round3(payOut - card - transfer)],
+      ]
+        .filter(([, amount]) => amount > 0)
+        .map(([method, amount]) => ({ method, amount }))
+      return {
+        total,
+        lastRefund,
+        suggested,
+        cardLimit: left('CARD'),
+        payOutLimit: payOut,
+        reduceBalance: reduce,
+      }
+    },
+  },
+  {
+    method: 'POST',
     match: /^\/api\/v1\/pos\/sales\/([^/]+)\/refunds$/,
     reply: ({ params, body, headers }) => {
       const key = idemKey(headers)
@@ -1415,6 +1468,19 @@ export default [
       const received = sum((b.moneyBack ?? []).map((m) => m.amount))
       if (received !== totals.total) {
         return problem(422, 'POS_REFUND_MONEY_DOES_NOT_MATCH', { expected: totals.total, received })
+      }
+      const toCard = sum(
+        (b.moneyBack ?? []).filter((m) => m.method === 'CARD').map((m) => m.amount),
+      )
+      if (toCard > leftToGiveBack(record, 'CARD')) {
+        return problem(422, 'POS_REFUND_CARD_MORE_THAN_PAID', {
+          maxCard: leftToGiveBack(record, 'CARD'),
+          requested: toCard,
+        })
+      }
+      record.givenBack = record.givenBack ?? {}
+      for (const m of b.moneyBack ?? []) {
+        record.givenBack[m.method] = round3((record.givenBack[m.method] ?? 0) + m.amount)
       }
       const till = tills.get(b.tillId) ?? tills.get(record.dto.tillId)
       const series = till.series.CREDIT_NOTE
