@@ -4955,7 +4955,8 @@
       "POS_REFUND_CASH_EXCEEDS_DRAWER": "The drawer should hold only {{cashInDrawer}}, and this refund gives back {{cashRequested}} in cash. Give the rest back by card or transfer, or pay cash into the drawer first.",
       "POS_REFUND_LINE_CREDIT_UNCLEAR": "Line {{line}} already has a credit note that does not say whether goods came back, so it cannot be refunded at the till. Refund it from the invoice. Nothing was refunded.",
       "POS_SALE_CANCELLED": "This sale's invoice was cancelled, so there is nothing to refund.",
-      "HS_CODE_REQUIRED": "Line {{line}} is goods and has no HS code, so nothing was done. Someone who can edit items adds the code on the item (Other if none fits), then try again."
+      "HS_CODE_REQUIRED": "Line {{line}} is goods and has no HS code, so nothing was done. Someone who can edit items adds the code on the item (Other if none fits), then try again.",
+      "POS_REFUND_NOTHING_TO_PAY_BACK": "What is going back is worth less than a baisa, so there is nothing to refund. Give back more of the line in one refund."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
@@ -4976,7 +4977,8 @@
       "ZR_MEDICAL_NOT_LISTED": "Line {{line}} is zero-rated as medical, but its HS code is not on Oman's zero-rated medicines or medical equipment lists. Check its VAT category or HS code.",
       "POS_DISCOUNT_ABOVE_LIMIT_ACCEPTED": "Sold offline with a discount above the cashier's limit. It is filed and recorded for the manager.",
       "POS_PRINTED_NUMBER_DIFFERS": "A customer's receipt says {{printed}}, but that sale is filed as {{filed}}. Use {{filed}} to find it.",
-      "POS_GOODS_FLAG_CLEARED": "Line {{line}} has no HS code, so it was filed without being marked as goods. Someone who can edit items adds the code on the item (Other if none fits) for next time."
+      "POS_GOODS_FLAG_CLEARED": "Line {{line}} has no HS code, so it was filed without being marked as goods. Someone who can edit items adds the code on the item (Other if none fits) for next time.",
+      "POS_REFUND_PIECE_CARRIED": "Line {{line}} did not come back: on its own in this refund it is worth less than a baisa. It stays on the sale; give it back together with more of the line."
     },
     "day": {
       "title": "The day's shifts",
@@ -22022,7 +22024,9 @@
       "notAvailableYet": "Not available yet",
       "cancelBlocked": {
         "refunded": "This credit note cannot be cancelled: a refund is recorded against it.",
-        "debitCredited": "This debit note cannot be cancelled: credit notes already issued on the invoice use what it added. Cancel those credit notes first."
+        "debitCredited": "This debit note cannot be cancelled: credit notes already issued on the invoice use what it added. Cancel those credit notes first.",
+        "tillRefund": "This credit note cannot be cancelled: it was issued by a refund at the till, and cancelling it would not undo the refund.",
+        "stockReturn": "This credit note cannot be cancelled: it put goods back on the shelf, and cancelling it would not take them off again. Correct the stock with a count, or issue a debit note."
       }
     },
     "status": {

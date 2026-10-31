@@ -5,6 +5,8 @@ import type {
   InvoicePaymentDto,
   InvoiceReceivableDto,
 } from '../api/invoices/detail'
+import type { NoteKind } from '../api/invoices/drafts'
+import { ApiError } from '../api'
 import { calculateInvoice, projectInvoice } from './invoiceMath'
 import { minorUnitsOf } from './format'
 
@@ -269,6 +271,47 @@ export function paymentProblems(
   else if (form.paymentDate > context.today) problems.paymentDate = 'invoiceDetails.pay.error.dateFuture'
   else if (context.issueDate && form.paymentDate < context.issueDate) problems.paymentDate = 'invoiceDetails.pay.error.dateBeforeIssue'
   return problems
+}
+
+/**
+ * The server's refusals of cancelling a credit or debit note, by code, and the sentence for each
+ * kind. Shared by the note's own page and the documents list, so a note refused from either reads
+ * the same instead of the list's "reload and try again", which cannot help with any of these.
+ */
+const NOTE_CANCEL_REFUSALS: Record<string, Record<NoteKind, string>> = {
+  INVOICE_CANCEL_HAS_PAYMENTS: {
+    CREDIT_NOTE: 'salesNote.detail.cancelBlocked.refunded',
+    DEBIT_NOTE: 'invoiceDetails.cancelBlocked.paymentsOnNote',
+  },
+  INVOICE_CANCEL_HAS_CORRECTIONS: {
+    CREDIT_NOTE: 'invoiceDetails.cancelBlocked.correctionsOnNote',
+    DEBIT_NOTE: 'invoiceDetails.cancelBlocked.correctionsOnNote',
+  },
+  // Backend #834: credit notes on the invoice already use what this debit note added. Only a debit
+  // note is refused this way; the credit-note entry is never reached.
+  DEBIT_NOTE_CANCEL_CREDITED: {
+    CREDIT_NOTE: 'salesNote.detail.cancelBlocked.debitCredited',
+    DEBIT_NOTE: 'salesNote.detail.cancelBlocked.debitCredited',
+  },
+  // D-3: what the note did outside itself (a till refund, or goods put back on the shelf) would
+  // survive the cancellation, so the server refuses it. A cash, card or transfer till refund is refused earlier
+  // as INVOICE_CANCEL_HAS_PAYMENTS; only an on-account (REDUCE_BALANCE) one reaches this code. Only a
+  // credit note is refused this way; the debit-note entries are never reached.
+  CREDIT_NOTE_CANCEL_TILL_REFUND: {
+    CREDIT_NOTE: 'salesNote.detail.cancelBlocked.tillRefund',
+    DEBIT_NOTE: 'salesNote.detail.cancelBlocked.tillRefund',
+  },
+  CREDIT_NOTE_CANCEL_HAS_STOCK_RETURN: {
+    CREDIT_NOTE: 'salesNote.detail.cancelBlocked.stockReturn',
+    DEBIT_NOTE: 'salesNote.detail.cancelBlocked.stockReturn',
+  },
+}
+
+/** The sentence for a note's cancel refusal, or null when the code is not one of them. */
+export function noteCancelRefusalKey(error: unknown, kind: NoteKind): string | null {
+  if (!(error instanceof ApiError) || !error.code || !Object.hasOwn(NOTE_CANCEL_REFUSALS, error.code))
+    return null
+  return NOTE_CANCEL_REFUSALS[error.code][kind]
 }
 
 /** Server refusals of a payment that belong to one field of the form, and the sentence for each. */

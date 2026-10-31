@@ -52,6 +52,7 @@ import {
   PAYMENT_REFUSALS,
   isDraft,
   lineTotals,
+  noteCancelRefusalKey,
   paymentRows,
   refundedOnNote,
   timelineOf,
@@ -440,6 +441,11 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
         setCancelling(false)
         originalPayments.retry()
         receivable.retry()
+      }
+      // D-3 refusals are permanent for this note: another reason or a reload cannot change them, so
+      // the dialog closes rather than inviting a second try. Nothing on the page changed, so no read.
+      if (error instanceof ApiError && error.code && D3_CANCEL_REFUSALS.has(error.code)) {
+        setCancelling(false)
       }
     } finally {
       setBusy(false)
@@ -1686,28 +1692,11 @@ function previewLabels(t: Translate) {
   }
 }
 
-/** The server's cancel refusals for a note: payments (a refund, on a credit note) or its own notes. */
-const CANCEL_REFUSALS: Record<string, Record<NoteKind, string>> = {
-  INVOICE_CANCEL_HAS_PAYMENTS: {
-    CREDIT_NOTE: 'salesNote.detail.cancelBlocked.refunded',
-    DEBIT_NOTE: 'invoiceDetails.cancelBlocked.paymentsOnNote',
-  },
-  INVOICE_CANCEL_HAS_CORRECTIONS: {
-    CREDIT_NOTE: 'invoiceDetails.cancelBlocked.correctionsOnNote',
-    DEBIT_NOTE: 'invoiceDetails.cancelBlocked.correctionsOnNote',
-  },
-  // Backend #834: credit notes on the invoice already use what this debit note added. Answered
-  // 409, where the plain conflict sentence would say "reload and try again", which cannot help.
-  // Only a debit note is refused this way; the credit-note entry is never reached.
-  DEBIT_NOTE_CANCEL_CREDITED: {
-    CREDIT_NOTE: 'salesNote.detail.cancelBlocked.debitCredited',
-    DEBIT_NOTE: 'salesNote.detail.cancelBlocked.debitCredited',
-  },
-}
+const D3_CANCEL_REFUSALS = new Set(['CREDIT_NOTE_CANCEL_TILL_REFUND', 'CREDIT_NOTE_CANCEL_HAS_STOCK_RETURN'])
 
 function refusalText(t: Translate, error: unknown, kind?: NoteKind): string {
-  if (kind && error instanceof ApiError && error.code && Object.hasOwn(CANCEL_REFUSALS, error.code))
-    return t(CANCEL_REFUSALS[error.code][kind])
+  const blocked = kind ? noteCancelRefusalKey(error, kind) : null
+  if (blocked) return t(blocked)
   if (error instanceof ApiError && error.code === 'STALE_INVOICE_VERSION')
     return t('salesNote.detail.refused.stale')
   if (error instanceof ApiError && error.code === 'INVOICE_NOT_CANCELLABLE')

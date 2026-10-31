@@ -1114,3 +1114,47 @@ describe('a plan without bulk upload or periodic invoices (PL-8)', () => {
     expect(await screen.findByRole('button', { name: 'Bulk upload' })).toBeTruthy()
   })
 })
+
+describe('cancelling a credit note from the list (D-3)', () => {
+  const credit = issued({
+    id: 'cn-1',
+    type: 'CREDIT_NOTE',
+    invoiceNumber: 'CRN-2026-0001',
+    customerName: 'Credit Customer',
+    payment: {
+      state: 'NOT_APPLICABLE',
+      overdue: false,
+      daysOverdue: null,
+      paidAmount: null,
+      creditedAmount: null,
+      outstandingAmount: null,
+    },
+  })
+
+  it.each([
+    ['CREDIT_NOTE_CANCEL_TILL_REFUND', 'salesNote.detail.cancelBlocked.tillRefund'],
+    ['CREDIT_NOTE_CANCEL_HAS_STOCK_RETURN', 'salesNote.detail.cancelBlocked.stockReturn'],
+    ['INVOICE_CANCEL_HAS_PAYMENTS', 'salesNote.detail.cancelBlocked.refunded'],
+  ])('words 409 %s as the note page does, not "reload and try again"', async (code, key) => {
+    who = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.cancel'] }
+    listResponses = [() => json(200, springPage([credit], 1))]
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === '/api/v1/authored-invoices/cn-1/cancel' && init?.method === 'POST')
+        return json(409, { status: 409, code, detail: 'English prose from the server' })
+      return base(url, init)
+    })
+    renderInvoices()
+    const row = (await screen.findByText('CRN-2026-0001')).closest('tr')!
+    fireEvent.click(within(row).getByRole('button', { name: 'Invoice actions' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Delete' }))
+    fireEvent.change(await screen.findByRole('textbox'), { target: { value: 'Raised twice' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('invoiceDetails.cancel.confirm') }))
+    expect(await screen.findByText(i18n.t(key))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('apiErrors.conflict'))).toBeNull()
+    expect(screen.queryByText('English prose from the server')).toBeNull()
+    expect(
+      fetchMock.mock.calls.filter(([url]) => url === '/api/v1/authored-invoices/cn-1/cancel'),
+    ).toHaveLength(1)
+  })
+})

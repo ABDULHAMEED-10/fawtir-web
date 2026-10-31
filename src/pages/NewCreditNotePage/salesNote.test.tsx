@@ -29,6 +29,7 @@ import {
 } from '../../lib/salesNote'
 import { ApiError } from '../../api'
 import { issueRefusalOf } from '../../lib/invoiceIssue'
+import { noteCancelRefusalKey } from '../../lib/invoiceDetail'
 import { CATEGORY_REASON_CONFLICT } from '../../lib/invoiceDraft'
 import { NewCreditNotePage } from './NewCreditNotePage'
 import { NewSelfBilledCreditNotePage } from './NewSelfBilledCreditNotePage'
@@ -2376,5 +2377,110 @@ describe('cancelling a debit note that issued credits rely on (backend #834)', (
     fireEvent.click(screen.getByRole('button', { name: i18n.t('salesNote.detail.cancelConfirm.DEBIT_NOTE') }))
     expect(await screen.findByText(sentence)).toBeTruthy()
     expect(screen.queryByText(i18n.t('apiErrors.conflict'))).toBeNull()
+  })
+})
+
+describe('cancelling a credit note whose effects outside it would survive (D-3)', () => {
+  const tillNote: InvoiceDetailDto = {
+    ...INVOICE,
+    id: NOTE_ID,
+    type: 'CREDIT_NOTE',
+    correctionOfInvoiceId: INVOICE_ID,
+    invoiceNumber: 'CRN-9',
+  }
+
+  it.each([
+    [
+      'en',
+      'CREDIT_NOTE_CANCEL_TILL_REFUND',
+      'This credit note cannot be cancelled: it was issued by a refund at the till, and cancelling it would not undo the refund.',
+    ],
+    [
+      'ar',
+      'CREDIT_NOTE_CANCEL_TILL_REFUND',
+      'لا يمكن إلغاء هذا الإشعار الدائن: صدر عن استرداد في الصندوق، وإلغاؤه لا يلغي الاسترداد.',
+    ],
+    [
+      'en',
+      'CREDIT_NOTE_CANCEL_HAS_STOCK_RETURN',
+      'This credit note cannot be cancelled: it put goods back on the shelf, and cancelling it would not take them off again. Correct the stock with a count, or issue a debit note.',
+    ],
+    [
+      'ar',
+      'CREDIT_NOTE_CANCEL_HAS_STOCK_RETURN',
+      'لا يمكن إلغاء هذا الإشعار الدائن: أعاد بضاعة إلى الرف، وإلغاؤه لا يسحبها منه. صحّح المخزون بالجرد، أو أصدر إشعارًا مدينًا.',
+    ],
+  ])('(%s) words 409 %s by code and closes the dialog', async (lang, code, sentence) => {
+    await i18n.changeLanguage(lang)
+    entitlements = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.cancel'] }
+    const serverDetail = 'This credit note was issued by a refund at a till, so it cannot be cancelled'
+    override = (url, init) => {
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, tillNote)
+      if (url === `/api/v1/authored-invoices/${INVOICE_ID}/payments`) return json(200, [])
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/cancel` && init?.method === 'POST')
+        return json(409, { status: 409, code, detail: serverDetail })
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`) return json(404, { status: 404 })
+      if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/`))
+        return json(
+          200,
+          url.endsWith('/history')
+            ? { entries: [], truncated: false, limit: 200 }
+            : url.endsWith('/internal-note')
+              ? { internalNote: null }
+              : [],
+        )
+      return undefined
+    }
+    render(
+      <MemoryRouter initialEntries={[`/income/credit-notes/${NOTE_ID}`]}>
+        <Routes>
+          <Route path="/income/credit-notes/:id" element={<CreditNoteDetailsPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByRole('heading', { name: 'CRN-9' })
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([url]) => url === `/api/v1/authored-invoices/${INVOICE_ID}/payments`),
+      ).toBe(true),
+    )
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('invoiceDetails.actions.more') }))
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: i18n.t('salesNote.detail.cancelAction.CREDIT_NOTE') }),
+    )
+    fireEvent.change(await screen.findByRole('textbox'), { target: { value: 'Raised twice' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('salesNote.detail.cancelConfirm.CREDIT_NOTE') }))
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByText(i18n.t('apiErrors.conflict'))).toBeNull()
+    expect(screen.queryByText(serverDetail)).toBeNull()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    const cancels = fetchMock.mock.calls.filter(
+      ([url, init]) => url === `/api/v1/authored-invoices/${NOTE_ID}/cancel` && init?.method === 'POST',
+    )
+    expect(cancels).toHaveLength(1)
+  })
+})
+
+describe('the note cancel refusals, shared by the note page and the documents list', () => {
+  const refused = (code: string) =>
+    new ApiError({ status: 409, problemType: null, code, problem: { code, detail: 'English prose' } })
+
+  it.each([
+    ['CREDIT_NOTE_CANCEL_TILL_REFUND', 'salesNote.detail.cancelBlocked.tillRefund'],
+    ['CREDIT_NOTE_CANCEL_HAS_STOCK_RETURN', 'salesNote.detail.cancelBlocked.stockReturn'],
+    ['INVOICE_CANCEL_HAS_PAYMENTS', 'salesNote.detail.cancelBlocked.refunded'],
+    ['INVOICE_CANCEL_HAS_CORRECTIONS', 'invoiceDetails.cancelBlocked.correctionsOnNote'],
+    ['DEBIT_NOTE_CANCEL_CREDITED', 'salesNote.detail.cancelBlocked.debitCredited'],
+  ])('%s on a credit note reads %s', (code, key) => {
+    expect(noteCancelRefusalKey(refused(code), 'CREDIT_NOTE')).toBe(key)
+    expect(i18n.exists(key, { lng: 'ar', fallbackLng: false })).toBe(true)
+  })
+
+  it('leaves anything else, and an uncoded 409, to the general sentence', () => {
+    expect(noteCancelRefusalKey(refused('STALE_INVOICE_VERSION'), 'CREDIT_NOTE')).toBeNull()
+    expect(
+      noteCancelRefusalKey(new ApiError({ status: 409, problemType: 'resource-conflict' }), 'CREDIT_NOTE'),
+    ).toBeNull()
+    expect(noteCancelRefusalKey(new Error('offline'), 'DEBIT_NOTE')).toBeNull()
   })
 })
