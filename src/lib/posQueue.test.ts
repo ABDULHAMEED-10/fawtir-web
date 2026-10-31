@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, resetSharedRequests } from '../api'
 import type { PosSaleRequest, PosTillDto } from '../api/pos/pos'
 import {
+  correctQueuedSale,
   flushQueue,
   isFinalRefusal,
   numbersBefore,
@@ -153,21 +154,88 @@ describe("an offline full invoice and the buyer's ID", () => {
     expect(await everythingStored()).not.toContain(CIVIL_ID)
   })
 
-  it('removes the ID when the server refuses the sale for good', async () => {
+  it('keeps the ID sealed when the server refuses the sale for good, and does not send it by itself', async () => {
     await submitSale(TILL, BODY, 'pos-sale-key-0003')
     online = true
     saleReply = () => refusal(422, 'SIMPLIFIED_INVOICE_LIMIT')
     await flushQueue('till-1')
 
     const [entry] = queuedFor('till-1')
-    expect(entry).toMatchObject({ refusal: 'SIMPLIFIED_INVOICE_LIMIT', final: true })
-    expect(await vault.ids('pii')).toEqual([])
+    expect(entry).toMatchObject({ refusal: 'SIMPLIFIED_INVOICE_LIMIT', final: true, sealed: true })
+    expect(await vault.ids('pii')).toEqual(['pos-sale-key-0003'])
+    expect(await vault.ids('keys')).toEqual(['buyer'])
+    // Kept, and still only as ciphertext under a key that cannot be exported.
+    const kept = await vault.get<{ data: ArrayBuffer }>('pii', 'pos-sale-key-0003')
+    expect(new TextDecoder().decode(kept!.data)).not.toContain(CIVIL_ID)
     expect(await everythingStored()).not.toContain(CIVIL_ID)
+    expect(window.localStorage.getItem('fawtir.pos.queue')).not.toContain('identifierValue')
 
     // Not sent again: the same sale can only be refused the same way.
     const before = calls.length
     await flushQueue('till-1')
     expect(calls.length).toBe(before)
+  })
+
+  const sentConsumer = () => {
+    const sent = calls.filter((c) => c.url === '/api/v1/pos/sales' && c.init?.method === 'POST')
+    return JSON.parse(String(sent[sent.length - 1].init?.body)).customer.consumer
+  }
+
+  it('Try again resends the sealed ID after a final refusal, and filing deletes it', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-0031')
+    online = true
+    saleReply = () => refusal(422, 'SIMPLIFIED_INVOICE_LIMIT')
+    await flushQueue('till-1')
+
+    saleReply = () => refusal(422, 'SIMPLIFIED_INVOICE_LIMIT')
+    await retryQueuedSale('till-1', 'pos-sale-key-0031')
+    expect(sentConsumer().identifierValue).toBe(CIVIL_ID)
+    expect(await vault.ids('pii')).toEqual(['pos-sale-key-0031'])
+
+    saleReply = () =>
+      json(
+        {
+          saleId: 'sale-9',
+          invoiceNumber: 'NZW-T01-INV-2026-000049',
+          receipt: { qr: { status: 'PENDING' } },
+          filing: { dispatchState: 'QUEUED' },
+          warnings: [],
+        },
+        201,
+      )
+    await retryQueuedSale('till-1', 'pos-sale-key-0031')
+    expect(sentConsumer().identifierValue).toBe(CIVIL_ID)
+    expect(queuedFor('till-1')).toEqual([])
+    expect(await vault.ids('pii')).toEqual([])
+    expect(await vault.ids('keys')).toEqual([])
+    expect(await everythingStored()).not.toContain(CIVIL_ID)
+  })
+
+  it('Correct and send again resends the sealed ID with the corrected payments', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-0032')
+    online = true
+    saleReply = () => refusal(422, 'POS_PAYMENTS_DO_NOT_MATCH_TOTAL')
+    await flushQueue('till-1')
+    expect(queuedFor('till-1')[0].final).toBe(true)
+    expect(await vault.ids('pii')).toEqual(['pos-sale-key-0032'])
+
+    saleReply = () =>
+      json(
+        {
+          saleId: 'sale-9',
+          invoiceNumber: 'NZW-T01-INV-2026-000049',
+          receipt: { qr: { status: 'PENDING' } },
+          filing: { dispatchState: 'QUEUED' },
+          warnings: [],
+        },
+        201,
+      )
+    await correctQueuedSale('till-1', 'pos-sale-key-0032', [{ method: 'CASH', amount: 5.649 }])
+    const sent = calls.filter((c) => c.url === '/api/v1/pos/sales' && c.init?.method === 'POST')
+    const body = JSON.parse(String(sent[sent.length - 1].init?.body))
+    expect(body.customer.consumer.identifierValue).toBe(CIVIL_ID)
+    expect(body.payments).toEqual([{ method: 'CASH', amount: 5.649 }])
+    expect(await vault.ids('pii')).toEqual([])
   })
 
   it('keeps the sealed ID while a refusal may still pass (sign-in, server fault)', async () => {
@@ -273,6 +341,23 @@ describe('a slip scanned offline (Abdul, 27 Oct 2026)', () => {
     await flushQueue('till-1')
     await vi.waitFor(async () => {
       expect(await heldSlipPhotos('pos-sale-key-0104')).toEqual([])
+    })
+  })
+
+  it('a sale refused for good keeps its photo, which is attached once Try again files it', async () => {
+    const photo = { position: 1, blob: new Blob(['slip']), name: 'slip.jpg' }
+    await submitSale(TILL, BODY, 'pos-sale-key-0033', [photo])
+    online = true
+    const filed = saleReply
+    saleReply = () => refusal(422, 'SIMPLIFIED_INVOICE_LIMIT')
+    await flushQueue('till-1')
+    expect(await heldSlipPhotos('pos-sale-key-0033')).toHaveLength(1)
+
+    saleReply = filed
+    await retryQueuedSale('till-1', 'pos-sale-key-0033')
+    await vi.waitFor(async () => {
+      expect(calls.some((c) => c.url === '/api/v1/pos/sales/sale-9/payments/1/slip')).toBe(true)
+      expect(await heldSlipPhotos('pos-sale-key-0033')).toHaveLength(0)
     })
   })
 
