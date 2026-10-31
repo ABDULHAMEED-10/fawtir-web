@@ -24,6 +24,8 @@ import {
   toNoteRequest,
   withMode,
   creditCapRefusal,
+  type NoteForm,
+  type NoteLine,
 } from '../../lib/salesNote'
 import { ApiError } from '../../api'
 import { issueRefusalOf } from '../../lib/invoiceIssue'
@@ -349,6 +351,120 @@ describe('the note rules', () => {
     expect(lines[1].classification).toEqual({ goodsOrService: 'S', serviceTypeCode: '86000000' })
     // 00000000 is the backend's "not applicable": the note states services and no type.
     expect(lines[2].classification).toEqual({ goodsOrService: 'S' })
+  })
+
+  describe('the invoice line’s price rule and bundle (Z-22, backend #842)', () => {
+    const RULED: InvoiceDetailDto = {
+      ...INVOICE,
+      lines: [
+        {
+          ...line(1, 'Green beans', 10, 4),
+          discountValue: 10,
+          priceRuleIds: ['rule-1'],
+          bundleId: 'bun-1',
+        },
+        {
+          ...line(2, 'Roasting', 2, 15),
+          discountType: 'FIXED_AMOUNT',
+          discountValue: 3,
+          priceRuleIds: ['rule-2'],
+        },
+        line(3, 'Bag', 1, 2),
+      ],
+    }
+    const note = (edit: (form: NoteForm) => NoteForm = (form) => form) =>
+      toNoteRequest(
+        { ...edit(fromInvoice(RULED, 'CREDIT_NOTE')), reason: 'Goods returned' },
+        RULED,
+        'CREDIT_NOTE',
+      ).lines as (DraftRequest['lines'][number] & { priceRuleIds?: string[]; bundleId?: string })[]
+    const at = (form: NoteForm, lineNumber: number, patch: Partial<NoteLine>) => ({
+      ...form,
+      lines: form.lines.map((l) => (l.lineNumber === lineNumber ? { ...l, ...patch } : l)),
+    })
+
+    it('carries both onto a whole credit, and neither on a line that had none', () => {
+      const [first, second, third] = note()
+      expect(first.priceRuleIds).toEqual(['rule-1'])
+      expect(first.bundleId).toBe('bun-1')
+      expect(second.priceRuleIds).toEqual(['rule-2'])
+      expect(second.bundleId).toBeUndefined()
+      expect(third.priceRuleIds).toBeUndefined()
+      expect(third.bundleId).toBeUndefined()
+    })
+
+    it('keeps the rule on part of a line at the same rate', () => {
+      const [first] = note((form) => at(form, 1, { quantity: '5' }))
+      expect(first.priceRuleIds).toEqual(['rule-1'])
+      expect(first.bundleId).toBe('bun-1')
+    })
+
+    it('drops the rule where the server would refuse it: a larger rate, or a fixed amount on less', () => {
+      const raised = note((form) => at(form, 1, { discountValue: '20' }))
+      expect(raised[0].priceRuleIds).toBeUndefined()
+      expect(raised[0].bundleId).toBe('bun-1')
+      const part = note((form) => at(form, 2, { quantity: '1' }))
+      expect(part[1].priceRuleIds).toBeUndefined()
+      const scaled = note((form) => at(form, 2, { quantity: '1', discountValue: '1.5' }))
+      expect(scaled[1].priceRuleIds).toEqual(['rule-2'])
+    })
+
+    it('drops the rule when the discount was cleared', () => {
+      const [first] = note((form) => at(form, 1, { discountValue: '0' }))
+      expect(first.priceRuleIds).toBeUndefined()
+    })
+
+    it('does not exceed what the invoice gave the item across the note’s lines', () => {
+      const bean = { ...line(1, 'Green beans', 10, 4), productId: 'p-1', priceRuleIds: ['rule-1'] }
+      // 4.000 given on the first line, nothing on the second.
+      const invoice: InvoiceDetailDto = {
+        ...INVOICE,
+        lines: [
+          { ...bean, discountValue: 10 },
+          { ...bean, lineNumber: 2, description: 'Green beans again' },
+        ],
+      }
+      // Half the rate each on the whole of both lines is 2.000 + 2.000: fine. 5% then 7% is over.
+      const form = (first: string, second: string) => {
+        const start = fromInvoice(invoice, 'CREDIT_NOTE')
+        return at(at(start, 1, { discountValue: first }), 2, { discountValue: second })
+      }
+      const named = (first: string, second: string) =>
+        (
+          toNoteRequest(form(first, second), invoice, 'CREDIT_NOTE').lines as {
+            priceRuleIds?: string[]
+          }[]
+        ).map((sent) => sent.priceRuleIds)
+      expect(named('5', '5')).toEqual([['rule-1'], ['rule-1']])
+      expect(named('5', '7')).toEqual([['rule-1'], undefined])
+    })
+
+    it('adds nothing for a server that sends neither, and nothing on a line added on the note', () => {
+      const { lines } = toNoteRequest(fromInvoice(INVOICE, 'CREDIT_NOTE'), INVOICE, 'CREDIT_NOTE')
+      for (const sent of lines) {
+        expect(sent).not.toHaveProperty('priceRuleIds')
+        expect(sent).not.toHaveProperty('bundleId')
+      }
+      const custom = withMode(fromInvoice(RULED, 'CREDIT_NOTE'), 'custom', RULED)
+      const added = toNoteRequest(custom, RULED, 'CREDIT_NOTE').lines[0]
+      expect(added).not.toHaveProperty('priceRuleIds')
+      expect(added).not.toHaveProperty('bundleId')
+    })
+
+    it('keeps them on a draft reopened from the invoice', () => {
+      const saved = toNoteRequest(fromInvoice(RULED, 'CREDIT_NOTE'), RULED, 'CREDIT_NOTE')
+      const draft = {
+        lines: saved.lines.map((sent) => ({
+          ...sent,
+          discountType: sent.discount.type,
+          discountValue: sent.discount.value,
+        })),
+        details: {},
+      } as unknown as DraftResponse
+      const reopened = fromNoteDraft(draft, RULED, 'CREDIT_NOTE')
+      expect(reopened.lines[0].priceRuleIds).toEqual(['rule-1'])
+      expect(reopened.lines[0].bundleId).toBe('bun-1')
+    })
   })
 
   it('names the refund when a credit is more than is still owed', () => {

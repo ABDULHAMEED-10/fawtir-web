@@ -155,6 +155,9 @@ export type NoteLine = {
    * it back into the branch's stock when the note is issued. Null while not answered (sent as no).
    */
   backOnShelf: boolean | null
+  /** The invoice line's bundle and price rule, which the note's line carries; none on an added line. */
+  bundleId?: string | null
+  priceRuleIds?: string[] | null
 }
 
 export type NoteForm = {
@@ -228,6 +231,8 @@ function invoiceLine(
       exemptionReasonCode: line.exemptionReasonCode ?? null,
     },
     backOnShelf: null,
+    bundleId: line.bundleId ?? null,
+    priceRuleIds: line.priceRuleIds ?? null,
   }
 }
 
@@ -726,6 +731,43 @@ export function asksBackOnShelf(
 }
 
 /** The note's request: the invoice's party, branch, currency and terms, with the kept lines. */
+const lineGross = (quantity: number, unitPrice: number) => quantity * unitPrice
+
+const lineAmountOff = (type: NoteLine['discountType'], value: number, gross: number) =>
+  type === 'PERCENTAGE' ? (gross * value) / 100 : value
+
+/**
+ * Works out, for each kept line, whether it may name the price rule of the invoice line it comes
+ * from. A note names a rule only for a discount that really comes from it: on the same item, at
+ * no more than the invoice gave that item under the rule, one baisa either way, in the line and
+ * over the note's lines of that item (backend #842). A line the person took past that, or cleared,
+ * is an ordinary discount, so the note is not refused for its link to the rule.
+ */
+function ruleCarrier(invoice: InvoiceDetailDto) {
+  const takenByItem = new Map<string, number>()
+  return (line: NoteLine): string[] => {
+    const ruleId = line.priceRuleIds?.[0]
+    const productId = line.productId
+    if (!line.fromInvoice || !ruleId || !productId) return []
+    const gross = lineGross(Number(line.quantity), Number(line.unitPrice))
+    const taken = lineAmountOff(line.discountType, Number(line.discountValue) || 0, gross)
+    if (!(taken > 0)) return []
+    let soldGross = 0
+    let given = 0
+    for (const sold of invoice.lines) {
+      if (sold.productId !== productId || !sold.priceRuleIds?.includes(ruleId)) continue
+      const soldLine = lineGross(sold.quantity, sold.unitPrice)
+      soldGross += soldLine
+      given += lineAmountOff(sold.discountType, sold.discountValue, soldLine)
+    }
+    if (!(soldGross > 0)) return []
+    const soFar = (takenByItem.get(productId) ?? 0) + taken
+    if (taken > (gross * given) / soldGross + 0.001 || soFar > given + 0.001) return []
+    takenByItem.set(productId, soFar)
+    return [ruleId]
+  }
+}
+
 export function toNoteRequest(
   form: NoteForm,
   invoice: InvoiceDetailDto,
@@ -734,6 +776,7 @@ export function toNoteRequest(
   counted: ReadonlySet<string> = new Set(),
   selfBilled = false,
 ): DraftRequest {
+  const carriedRule = ruleCarrier(invoice)
   return {
     customerId: invoice.customerId,
     branchId: invoice.branchId,
@@ -741,28 +784,34 @@ export function toNoteRequest(
     vatMode: 'EXCLUSIVE',
     lines: form.lines
       .filter((line) => line.include)
-      .map((line, index) => ({
-        lineNumber: index + 1,
-        // A line added on the note has no catalogue product (client rule: free-text description,
-        // no product code), so it states neither key: `productId` is a UUID on the API, and a
-        // free-text line leaves both out (INCOME.md 4.4).
-        ...(line.productId ? { productId: line.productId } : {}),
-        ...(line.productCode ? { productCode: line.productCode } : {}),
-        // The goods/service flag and the HS code or service type travel as `classification`
-        // (below), as the draft accepts them (docs/backend-guides/INCOME.md, part C and 4.10).
-        description: line.description.trim(),
-        unitCode: line.unitCode,
-        quantity: Number(line.quantity.trim()),
-        unitPrice: Number(line.unitPrice.trim()),
-        discount: { type: line.discountType, value: Number(line.discountValue.trim()) || 0 },
-        taxCategory: line.taxCategory,
-        ...classificationRequest(line),
-        // Only an ordinary credit note's counted goods line states it; every other line leaves it
-        // out, since the server refuses it on any other document type, false included.
-        ...(asksBackOnShelf(line, kind, counted, selfBilled)
-          ? { backOnShelf: line.backOnShelf === true }
-          : {}),
-      })),
+      .map((line, index) => {
+        const priceRuleIds = carriedRule(line)
+        return {
+          lineNumber: index + 1,
+          // A line added on the note has no catalogue product (client rule: free-text description,
+          // no product code), so it states neither key: `productId` is a UUID on the API, and a
+          // free-text line leaves both out (INCOME.md 4.4).
+          ...(line.productId ? { productId: line.productId } : {}),
+          ...(line.productCode ? { productCode: line.productCode } : {}),
+          // The goods/service flag and the HS code or service type travel as `classification`
+          // (below), as the draft accepts them (docs/backend-guides/INCOME.md, part C and 4.10).
+          description: line.description.trim(),
+          unitCode: line.unitCode,
+          quantity: Number(line.quantity.trim()),
+          unitPrice: Number(line.unitPrice.trim()),
+          discount: { type: line.discountType, value: Number(line.discountValue.trim()) || 0 },
+          taxCategory: line.taxCategory,
+          ...classificationRequest(line),
+          // Only an ordinary credit note's counted goods line states it; every other line leaves it
+          // out, since the server refuses it on any other document type, false included.
+          ...(asksBackOnShelf(line, kind, counted, selfBilled)
+            ? { backOnShelf: line.backOnShelf === true }
+            : {}),
+          // The invoice line's links, so reports net the note off against its bundle and rule.
+          ...(line.fromInvoice && line.bundleId ? { bundleId: line.bundleId } : {}),
+          ...(priceRuleIds.length > 0 ? { priceRuleIds } : {}),
+        }
+      }),
     // The invoice's document discount, on a credit of its own lines (W-2, `noteHeaderDiscount`).
     headerDiscount: noteHeaderDiscount(form, invoice, kind),
     details: {
@@ -860,25 +909,36 @@ export function creditCapRefusal(
   currency: string,
   language: string,
 ): { key: string; values?: Record<string, string> } | null {
-  if (!(error instanceof ApiError) || !error.code || !Object.hasOwn(CREDIT_CAP_REFUSALS, error.code))
+  if (
+    !(error instanceof ApiError) ||
+    !error.code ||
+    !Object.hasOwn(CREDIT_CAP_REFUSALS, error.code)
+  )
     return null
   const plain = CREDIT_CAP_REFUSALS[error.code]
   const problem = error.problem
   const categoryCode = textIn(problem, 'taxCategory')
-  if (categoryCode === null || error.code === 'CREDIT_NOTE_EXCEEDS_LINE_REMAINING') return { key: plain }
+  if (categoryCode === null || error.code === 'CREDIT_NOTE_EXCEEDS_LINE_REMAINING')
+    return { key: plain }
   const rate = textIn(problem, 'taxRate')
   // The cap sentences' own words for the category ("the Zero-rated category"): the invoice page's
   // label read "At Exempt" in English and doubled "بنسبة" in Arabic for Z.
-  const category = t(`salesNote.refused.capCategory.${categoryCode}`, { defaultValue: categoryCode })
+  const category = t(`salesNote.refused.capCategory.${categoryCode}`, {
+    defaultValue: categoryCode,
+  })
   // E and O carry no rate (IBR-061-OM, IBR-067-OM): their sentences name the category alone.
   const suffix = rate === null ? 'NamedNoRate' : 'Named'
   const where: Record<string, string> = rate === null ? { category } : { category, rate }
-  if (error.code === 'CREDIT_NOTE_VAT_CATEGORY_NOT_ON_ORIGINAL') return { key: `${plain}${suffix}`, values: where }
+  if (error.code === 'CREDIT_NOTE_VAT_CATEGORY_NOT_ON_ORIGINAL')
+    return { key: `${plain}${suffix}`, values: where }
   const taxable = amountIn(problem, 'remainingTaxableAmount')
   const vat = amountIn(problem, 'remainingVatAmount')
   if (taxable === null || vat === null) return { key: plain }
   const money = (value: number) => `${currency} ${formatAmount(value, currency, language)}`
-  return { key: `${plain}${suffix}`, values: { ...where, taxable: money(taxable), vat: money(vat) } }
+  return {
+    key: `${plain}${suffix}`,
+    values: { ...where, taxable: money(taxable), vat: money(vat) },
+  }
 }
 
 /** Note refusals a person can act on, in the page's words. */
