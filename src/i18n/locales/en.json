@@ -6446,6 +6446,8 @@
     },
     "overpaid": {
       "overpaidBy": "Overpaid by {{amount}}",
+      "keyReused": "This was changed after an earlier attempt that may already be recorded. Close this and check the bill before recording it again: the next attempt counts as a new one.",
+      "inProgress": "This is still being recorded. Wait a moment, then press again without changing it.",
       "kept": "{{amount}} kept as credit",
       "recordRefund": "Record the supplier's refund",
       "setAgainst": "Set against a bill",

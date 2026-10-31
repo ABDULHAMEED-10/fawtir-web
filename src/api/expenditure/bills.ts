@@ -599,17 +599,28 @@ export function loadBillOverpayment(billId: string): Promise<BillOverpaymentDto>
   return apiRequest<BillOverpaymentDto>(billOverpaymentPath(billId))
 }
 
+/** A key for one refund or application the person means to record (16-128 of `[A-Za-z0-9._:-]`). */
+export function newOverpaymentKey(): string {
+  return `overpayment-${crypto.randomUUID()}`
+}
+
 /**
  * Records money the supplier paid back of what the bill was overpaid by
  * (`bill.settle`). `refundedOn` is the day it arrived, never after today in Muscat.
+ *
+ * The `Idempotency-Key` is optional on the server: without it a retry of a part refund that still
+ * fits is recorded twice. With it the same key and body answer the first refund, at any later time
+ * (backend fd2e1d483); a server before it ignores the header.
  */
 export function recordOverpaymentRefund(
   billId: string,
+  idempotencyKey: string,
   refund: { amount: number; refundedOn: string; reference: string | null },
 ): Promise<BillOverpaymentActionDto> {
   return apiRequest<BillOverpaymentActionDto>(`${billOverpaymentPath(billId)}/refunds`, {
     method: 'POST',
     body: refund,
+    headers: { 'Idempotency-Key': idempotencyKey },
   })
 }
 
@@ -629,16 +640,19 @@ export function keepOverpaymentAsCredit(
 
 /**
  * Sets credit kept from this bill against another bill of the same supplier and currency
- * (`bill.settle`). With no amount the server applies the largest that fits both.
+ * (`bill.settle`). With no amount the server applies the largest that fits both. Keyed as
+ * {@link recordOverpaymentRefund} is: a typed amount sent again would be applied twice.
  */
 export function applyOverpaymentCredit(
   billId: string,
+  idempotencyKey: string,
   targetBillId: string,
   amount: number | null,
 ): Promise<BillOverpaymentActionDto> {
   return apiRequest<BillOverpaymentActionDto>(`${billOverpaymentPath(billId)}/apply`, {
     method: 'POST',
     body: amount === null ? { targetBillId } : { targetBillId, amount },
+    headers: { 'Idempotency-Key': idempotencyKey },
   })
 }
 

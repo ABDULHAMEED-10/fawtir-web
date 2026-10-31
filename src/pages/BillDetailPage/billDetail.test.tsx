@@ -2782,6 +2782,196 @@ describe('an overpaid bill', () => {
     ).toBeTruthy()
   })
 
+  // Backend fd2e1d483: an optional Idempotency-Key on the refund and apply routes, with coded 409s.
+  describe('keyed, so a retry is recorded once', () => {
+    const posts = (path: string) =>
+      fetchMock.mock.calls.filter(
+        ([url, init]) => String(url) === path && (init as RequestInit)?.method === 'POST',
+      )
+    const keyOf = (call: unknown[]) =>
+      ((call[1] as RequestInit).headers as Record<string, string>)['Idempotency-Key']
+    const bodyOf = (call: unknown[]) => JSON.parse(String((call[1] as RequestInit).body))
+    const overpaymentReads = () => calls().filter((call) => call === `GET ${OVERPAYMENT_URL}`).length
+    const lost = () => {
+      throw new TypeError('Failed to fetch')
+    }
+    const conflict = (code: string) => () =>
+      json(409, { type: 'https://api.fawtir.om/problems/resource-conflict', error: code })
+    const REFUNDS = `${OVERPAYMENT_URL}/refunds`
+    const APPLY = `${OVERPAYMENT_URL}/apply`
+
+    async function openRefund() {
+      fireEvent.click(await screen.findByRole('button', { name: "Record the supplier's refund" }))
+      return screen.findByRole('dialog', { name: "Record the supplier's refund" })
+    }
+    const press = (dialog: HTMLElement) =>
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Record the refund' }))
+    const ready = (dialog: HTMLElement) =>
+      waitFor(() =>
+        expect(
+          (within(dialog).getByRole('button', { name: 'Record the refund' }) as HTMLButtonElement)
+            .disabled,
+        ).toBe(false),
+      )
+
+    it('sends a lost refund again under the same key, and opens the next with a new one', async () => {
+      actionResponse = lost
+      renderBill()
+      const dialog = await openRefund()
+      press(dialog)
+      await waitFor(() => expect(posts(REFUNDS)).toHaveLength(1))
+      await ready(dialog)
+
+      actionResponse = () => json(200, {})
+      press(dialog)
+      expect(await screen.findByText('The refund was recorded.')).toBeTruthy()
+      const [first, second] = posts(REFUNDS)
+      expect(keyOf(first)).toMatch(/^overpayment-[A-Za-z0-9._:-]{16,116}$/)
+      expect(keyOf(second)).toBe(keyOf(first))
+      expect(bodyOf(second)).toEqual(bodyOf(first))
+
+      press(await openRefund())
+      await waitFor(() => expect(posts(REFUNDS)).toHaveLength(3))
+      expect(keyOf(posts(REFUNDS)[2])).not.toBe(keyOf(first))
+    })
+
+    it('sends one refund for a double click', async () => {
+      renderBill()
+      const dialog = await openRefund()
+      const save = within(dialog).getByRole('button', { name: 'Record the refund' })
+      // Both in one act: React renders `disabled` only after it, as a second click in the same frame finds it.
+      act(() => {
+        save.click()
+        save.click()
+      })
+      expect(await screen.findByText('The refund was recorded.')).toBeTruthy()
+      expect(posts(REFUNDS)).toHaveLength(1)
+    })
+
+    it('says a changed refund may already be recorded, takes a new key, and reads the bill on close', async () => {
+      actionResponse = lost
+      renderBill()
+      const dialog = await openRefund()
+      press(dialog)
+      await ready(dialog)
+      fireEvent.change(within(dialog).getByRole('spinbutton', { name: 'Amount' }), {
+        target: { value: '20' },
+      })
+      actionResponse = conflict('BILL_OVERPAYMENT_IDEMPOTENCY_KEY_REUSED')
+      press(dialog)
+      expect(
+        await within(dialog).findByText(
+          'This was changed after an earlier attempt that may already be recorded. Close this and check the bill before recording it again: the next attempt counts as a new one.',
+        ),
+      ).toBeTruthy()
+      // Not read under the open dialog, which the read would unmount.
+      const readsBefore = overpaymentReads()
+      expect(screen.getByRole('dialog')).toBeTruthy()
+
+      await ready(dialog)
+      actionResponse = () => json(200, {})
+      press(dialog)
+      expect(await screen.findByText('The refund was recorded.')).toBeTruthy()
+      const [first, second, third] = posts(REFUNDS)
+      expect(keyOf(second)).toBe(keyOf(first))
+      expect(keyOf(third)).not.toBe(keyOf(first))
+      expect(bodyOf(third).amount).toBe(20)
+      expect(overpaymentReads()).toBeGreaterThan(readsBefore)
+    })
+
+    it('re-reads the bill when the dialog is closed after a spent key', async () => {
+      actionResponse = conflict('BILL_OVERPAYMENT_IDEMPOTENCY_KEY_REUSED')
+      renderBill()
+      const dialog = await openRefund()
+      press(dialog)
+      await within(dialog).findByText(/may already be recorded/)
+      const readsBefore = overpaymentReads()
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+      await waitFor(() => expect(overpaymentReads()).toBeGreaterThan(readsBefore))
+    })
+
+    it('keeps the key while the first refund is still running, and reads nothing', async () => {
+      actionResponse = conflict('BILL_OVERPAYMENT_IN_PROGRESS')
+      renderBill()
+      const dialog = await openRefund()
+      press(dialog)
+      expect(
+        await within(dialog).findByText(
+          'This is still being recorded. Wait a moment, then press again without changing it.',
+        ),
+      ).toBeTruthy()
+      await ready(dialog)
+      actionResponse = () => json(200, {})
+      press(dialog)
+      expect(await screen.findByText('The refund was recorded.')).toBeTruthy()
+      expect(keyOf(posts(REFUNDS)[1])).toBe(keyOf(posts(REFUNDS)[0]))
+    })
+
+    it('keeps the key after a refusal: nothing was spent, so the corrected figure goes under it', async () => {
+      actionResponse = () =>
+        json(400, {
+          type: 'https://api.fawtir.om/problems/expenditure-refused',
+          error: 'BILL_OVERPAYMENT_EXCEEDS_OVERPAID',
+        })
+      renderBill()
+      const dialog = await openRefund()
+      press(dialog)
+      await waitFor(() => expect(posts(REFUNDS)).toHaveLength(1))
+      await ready(dialog)
+      fireEvent.change(within(dialog).getByRole('spinbutton', { name: 'Amount' }), {
+        target: { value: '10' },
+      })
+      actionResponse = () => json(200, {})
+      press(dialog)
+      expect(await screen.findByText('The refund was recorded.')).toBeTruthy()
+      expect(keyOf(posts(REFUNDS)[1])).toBe(keyOf(posts(REFUNDS)[0]))
+    })
+
+    it('keys a credit set against a bill the same way, typed amount included', async () => {
+      standing = { ...standing, keptAsCredit: 40, undecided: 0 }
+      actionResponse = lost
+      renderBill()
+      fireEvent.click(await screen.findByRole('button', { name: 'Set against a bill' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Set against a bill' })
+      fireEvent.click(await within(dialog).findByRole('button', { name: /QMS-7790/ }))
+      fireEvent.change(within(dialog).getByRole('spinbutton', { name: 'Amount (optional)' }), {
+        target: { value: '5' },
+      })
+      const use = within(dialog).getByRole('button', { name: 'Use it' })
+      fireEvent.click(use)
+      fireEvent.click(use)
+      await waitFor(() => expect(posts(APPLY)).toHaveLength(1))
+      await waitFor(() => expect((use as HTMLButtonElement).disabled).toBe(false))
+
+      actionResponse = () => json(200, {})
+      fireEvent.click(use)
+      expect(await screen.findByText('The credit was used against that bill.')).toBeTruthy()
+      const [first, second] = posts(APPLY)
+      expect(keyOf(first)).toMatch(/^overpayment-/)
+      expect(keyOf(second)).toBe(keyOf(first))
+      expect(bodyOf(second)).toEqual({ targetBillId: 'b-2', amount: 5 })
+    })
+
+    it('says both in Arabic', async () => {
+      await i18n.changeLanguage('ar')
+      actionResponse = conflict('BILL_OVERPAYMENT_IN_PROGRESS')
+      renderBill()
+      fireEvent.click(await screen.findByRole('button', { name: 'تسجيل استرداد من المورّد' }))
+      const dialog = await screen.findByRole('dialog')
+      const save = within(dialog).getAllByRole('button').at(-1)!
+      fireEvent.click(save)
+      expect(
+        await within(dialog).findByText(
+          'لا يزال هذا قيد التسجيل. انتظر قليلًا، ثم اضغط مرة أخرى دون تغييره.',
+        ),
+      ).toBeTruthy()
+      actionResponse = conflict('BILL_OVERPAYMENT_IDEMPOTENCY_KEY_REUSED')
+      await waitFor(() => expect((save as HTMLButtonElement).disabled).toBe(false))
+      fireEvent.click(save)
+      expect(await within(dialog).findByText(/ربما سُجّلت بالفعل/)).toBeTruthy()
+    })
+  })
+
   it('reads in Arabic, with the rial sign and three decimals', async () => {
     await i18n.changeLanguage('ar')
     standing = { ...standing, keptAsCredit: 15, undecided: 25 }
