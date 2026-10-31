@@ -515,6 +515,43 @@ describe('a typed line discount offline', () => {
   })
 })
 
+describe('the discount row with a typed line beside a rule line', () => {
+  const mixed = SAMPLE_SALE.map((line, index) =>
+    index === 0 ? { ...line, lineDiscount: { type: 'PERCENTAGE' as const, value: '5' } } : line,
+  )
+
+  it('names the rule when only rules took the money', async () => {
+    renderAt('/pos/payment')
+    expect(await screen.findByText('Price rules · Afternoon lull')).toBeTruthy()
+  })
+
+  it('on the payment screen says item discounts, not the rule', async () => {
+    resetOpenSale(mixed)
+    renderAt('/pos/payment')
+    expect(await screen.findByText('Item discounts')).toBeTruthy()
+    expect(screen.queryByText('Price rules · Afternoon lull')).toBeNull()
+  })
+
+  it('on the receipt says item discounts, not the rule', async () => {
+    const totals = totalsFor(mixed, NO_SALE_DISCOUNT)
+    setFinishedSale({
+      lines: mixed,
+      totals,
+      tip: 0,
+      change: 0,
+      company: null,
+      buyer: null,
+      payments: [{ method: 'card', amount: totals.sale }],
+      sale: sold('NZW-T01-INV-2026-000007') as never,
+      queuedNumber: null,
+      finishedAt: '2026-10-29T11:35:22Z',
+    })
+    renderAt('/pos/receipt')
+    expect(await screen.findByText('Item discounts')).toBeTruthy()
+    expect(screen.queryByText('Afternoon lull')).toBeNull()
+  })
+})
+
 describe('the full invoice receipt (F-6)', () => {
   it('prints a tax invoice in both languages and names the buyer with their ID', async () => {
     const totals = totalsFor(SAMPLE_SALE, NO_SALE_DISCOUNT)

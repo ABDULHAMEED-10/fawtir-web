@@ -21,7 +21,7 @@ import {
   VAT_RATE,
   omr,
   omrSigned,
-  ruleApplies,
+  discountRowNamesRules,
   ruleNames,
   totalsFor,
   unitPrice,
@@ -761,7 +761,7 @@ function Payment({ till }: { till: Ready }) {
             {totals.discount > 0 ? (
               <Row
                 label={
-                  lines.some(ruleApplies)
+                  discountRowNamesRules(lines)
                     ? t('pos.totals.rule', { names: ruleNames(lines) })
                     : t('pos.totals.lineDiscounts')
                 }

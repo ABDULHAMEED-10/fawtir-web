@@ -122,6 +122,14 @@ export function ruleNames(lines: SaleLine[]): string {
   return [...new Set(lines.flatMap((line) => ruleInForce(line)?.name ?? []))].join(', ')
 }
 
+/**
+ * Whether the discount row can carry the rules' names: not when a typed discount is in the same
+ * amount, which the row would then credit to a rule.
+ */
+export function discountRowNamesRules(lines: SaleLine[]): boolean {
+  return lines.some(ruleApplies) && !lines.some((line) => typedDiscount(line))
+}
+
 /** What the rules took off the sale, in baisa. */
 export function ruleSaving(lines: SaleLine[]): number {
   return lines.reduce((sum, line) => sum + (ruleInForce(line)?.saving ?? 0), 0)
