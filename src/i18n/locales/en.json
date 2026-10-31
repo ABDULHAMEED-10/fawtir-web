@@ -4353,6 +4353,11 @@
     "nothingYet": "Nothing on this sale yet. Tap something on the shelf.",
     "lullApplied": "Afternoon lull applied {{percent}}% off the drinks, it is {{time}} on a weekday.",
     "takePayment": "Take payment",
+    "phoneBar": {
+      "seeSale": "See this sale",
+      "itemCount_one": "{{count}} item",
+      "itemCount_other": "{{count}} items"
+    },
     "discount": "Discount",
     "filter": {
       "active": "Active",
