@@ -1725,6 +1725,27 @@ describe("the credit notes' VAT notes in Arabic", () => {
 
 // Business Rules PL-8: recording a supplier's note needs a plan with supplier notes; the notes
 // recorded before stay listed and readable.
+describe('a credit note address that cannot exist', () => {
+  it('reads a 400 on the note as not found, with nothing to retry', async () => {
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(
+        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+      )
+      if (url.endsWith(`/credit-notes/${NOTE_ID}`))
+        return new Response(
+          JSON.stringify({ type: 'https://api.fawtir.om/problems/validation-failed', status: 400 }),
+          { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+        )
+      return base(input, init)
+    })
+    renderDetail()
+    expect(await screen.findByText('Not found')).toBeTruthy()
+    expect(screen.queryByText(/Some details were not accepted/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+  })
+})
+
 describe('a plan without supplier notes (PL-8)', () => {
   it('keeps the list and hides Upload', async () => {
     who = { ...ADMIN, planFeaturesEnforced: true, planFeatures: { supplierNotes: false } }
@@ -2018,6 +2039,29 @@ describe("A held duplicate's wording", () => {
     },
   )
 
+  it.each([
+    ['en', 'The credit is not taken off QMS-7781 yet: it waits to be set against it. Once it is, you pay that much less.'],
+    ['ar', 'لم يُخصم الرصيد من QMS-7781 بعد، فهو ينتظر خصمه منها. وعند خصمه تدفع أقل بهذا المقدار.'],
+  ])('says an unapplied credit is still waiting, not already off what is owed (B-11, %s)', async (language, body) => {
+    await i18n.changeLanguage(language)
+    notes = [note({ credits: namedBill })]
+    billDetail = { bill: { ...OURS, id: BILL_ID, supplierBillNumber: 'QMS-7781' }, lines: [] }
+    renderDetail()
+    expect(await screen.findByText(body)).toBeTruthy()
+    expect(screen.queryByText(/straight off what you owe|مباشرة مما تدين/)).toBeNull()
+  })
+
+  it.each([
+    ['en', 'The credit is not taken off the bill yet: it waits to be set against it. Once it is, you pay that much less.'],
+    ['ar', 'لم يُخصم الرصيد من الفاتورة بعد، فهو ينتظر خصمه منها. وعند خصمه تدفع أقل بهذا المقدار.'],
+  ])('says "the bill" when the bill has no number, never a blank (B-11 review, %s)', async (language, body) => {
+    await i18n.changeLanguage(language)
+    notes = [note({ credits: { ...namedBill, billNumber: null } })]
+    billDetail = { bill: { ...OURS, id: BILL_ID, supplierBillNumber: null }, lines: [] }
+    renderDetail()
+    expect(await screen.findByText(body)).toBeTruthy()
+  })
+
   // A held copy is left out of input VAT (PEPPOL_DUPLICATE_HELD) even when the bill it corrects
   // is counted, so no reduction may be claimed for it.
   it.each([
@@ -2084,5 +2128,18 @@ describe("A held duplicate's wording", () => {
       ),
     ).toBeTruthy()
     expect(screen.queryByText(HELD_REFUSED)).toBeNull()
+  })
+})
+
+describe('the recovered card counts notes in the right number (C-9)', () => {
+  it.each([
+    ['en', 1, '1 note used or refunded'],
+    ['en', 2, '2 notes used or refunded'],
+    ['ar', 1, 'إشعار واحد استُخدم أو استُرد'],
+    ['ar', 2, 'إشعاران استُخدما أو استُردا'],
+    ['ar', 3, '3 إشعارات استُخدمت أو استُردت'],
+    ['ar', 11, '11 إشعارًا استُخدم أو استُرد'],
+  ] as const)('%s, %i', (language, count, words) => {
+    expect(i18n.getFixedT(language)('supplierCreditNotes.kpi.recoveredMeta', { count })).toBe(words)
   })
 })

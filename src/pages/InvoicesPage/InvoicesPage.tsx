@@ -61,9 +61,10 @@ import {
   type PeppolResponse,
   type PeriodId,
 } from '../../lib/invoiceList'
+import { NOTE_ROUTES, type NoteListStatus } from '../../lib/salesNote'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
-import { can, useSession } from '../../lib/session/session'
+import { can, mayRequest, useSession } from '../../lib/session/session'
 import { usePlanIncludes } from '../../lib/planAccess'
 import outstandingIcon from '../../assets/invoices/kpi-outstanding.svg'
 import paidIcon from '../../assets/invoices/kpi-paid.svg'
@@ -99,6 +100,29 @@ const PAYMENT_STYLES: Record<PaymentChip, Chip> = {
   partial: { bg: 'bg-warning-100', dot: 'bg-[#6d5a39]', text: 'text-[#6d5a39]' },
   toSend: { bg: 'bg-primary-25', dot: 'bg-primary-800', text: 'text-primary-800' },
   paid: { bg: 'bg-success-100', dot: 'bg-success-700', text: 'text-success-700' },
+}
+
+/** A note's pill in this list's own palette, matching the notes lists' colour for each status. */
+const NOTE_STATUS_STYLES: Record<NoteListStatus, Chip> = {
+  draft: AUTHORING_STYLES.draft,
+  toSend: PAYMENT_STYLES.toSend,
+  refundDue: PAYMENT_STYLES.awaiting,
+  applied: PAYMENT_STYLES.paid,
+  refunded: PAYMENT_STYLES.paid,
+  awaiting: PAYMENT_STYLES.awaiting,
+  overdue: PAYMENT_STYLES.overdue,
+  paid: PAYMENT_STYLES.paid,
+  cancelled: AUTHORING_STYLES.cancelled,
+}
+
+/**
+ * Where a row opens. A credit or debit note has its own page, which shows the invoice it corrects;
+ * opened here as an invoice it never did (TEST verification 2026-10-29).
+ */
+function documentPath(row: InvoiceListItem, edit: boolean): string {
+  const base =
+    row.type === 'CREDIT_NOTE' || row.type === 'DEBIT_NOTE' ? NOTE_ROUTES[row.type] : '/invoices'
+  return `${base}/${row.id}${edit ? '/edit' : ''}`
 }
 
 /**
@@ -318,7 +342,11 @@ function InvoicesScreen() {
     : null
   const list = useApiRead<Page<InvoiceRowDto>>(listPath, () => loadInvoicePage(listPath!))
   // The design names the issuing branch under the customer; the row carries only its id.
-  const branches = useApiRead<BranchDto[]>('/v1/branches', loadBranches)
+  // `branch.read` only: without it the list asked anyway and got a 403 (B-14).
+  const branches = useApiRead<BranchDto[]>(
+    mayRequest(session, 'branch.read') ? '/v1/branches' : null,
+    loadBranches,
+  )
   const { label: branchLabel } = useBranchName()
   const branchNames = useMemo(() => {
     const names = new Map<string, string>()
@@ -768,9 +796,13 @@ function InvoiceKpiCards({ totals }: { totals: InvoiceSummaryDto }) {
     {
       id: 'paid',
       icon: paidIcon,
-      titleKey: 'invoicesPage.kpi.paid',
+      // `paidTotal` is the total of every receivable with nothing left owed, debit notes among
+      // them, however it was cleared: a credit note clears one with no cash. "Paid" and "invoices
+      // collected" overstated cash in (ACC-10); the summary has no cash-collected figure, so the
+      // card says what the figure is. TODO(backend): INCOME.md row 4.20, a cash-collected figure.
+      titleKey: 'invoicesPage.kpi.settled',
       figure: money(totals.paidTotal),
-      meta: t('invoicesPage.kpi.paidLive', {
+      meta: t('invoicesPage.kpi.settledLive', {
         count: totals.paidInvoices,
         invoices: count(totals.paidInvoices),
       }),
@@ -995,7 +1027,7 @@ function InvoiceTable({
         id: 'view',
         labelKey: 'rowActions.invoice.view',
         icon: viewIcon,
-        to: `/invoices/${row.id}`,
+        to: documentPath(row, false),
       },
       ...(canSend && row.authoring === 'issued'
         ? [
@@ -1124,7 +1156,7 @@ function InvoiceTable({
                   key={row.id}
                   className="cursor-pointer border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60"
                   onClick={() =>
-                    navigate(editable ? `/invoices/${row.id}/edit` : `/invoices/${row.id}`)
+                    navigate(documentPath(row, editable))
                   }
                 >
                   <td className="px-5 py-2.5" onClick={(event) => event.stopPropagation()}>
@@ -1183,27 +1215,35 @@ function InvoiceRowCells({ row, branch }: { row: InvoiceListItem; branch: string
   const subline = branch ?? row.subtitle ?? (row.isDraft ? t('invoicesPage.notIssuedYet') : null)
   // One pill, as the design draws it: what is owed once issued, the authoring state otherwise.
   // An overdue pill says "Overdue"; how late it is sits in the tooltip.
+  // A note reads as the notes lists word it, by the same rule, so it is not "Issued" here and
+  // "To be sent" there. A note draft waiting on approval keeps the approval pill.
   const status =
-    row.payment && row.authoring === 'issued'
+    row.noteStatus && !row.approval
       ? {
-          chip: PAYMENT_STYLES[row.payment],
-          label: t(`invoicesPage.payment.${row.payment}`),
-          title:
-            row.payment === 'overdue'
-              ? t('invoicesPage.payment.overdueDays', { count: row.paymentValues?.count ?? 0 })
-              : undefined,
+          chip: NOTE_STATUS_STYLES[row.noteStatus],
+          label: t(`salesNote.status.${row.noteStatus}`),
+          title: undefined,
         }
-      : row.approval
+      : row.payment && row.authoring === 'issued'
         ? {
-            chip: APPROVAL_STYLES[row.approval],
-            label: t(`salesApproval.status.${row.approval}`),
-            title: undefined,
+            chip: PAYMENT_STYLES[row.payment],
+            label: t(`invoicesPage.payment.${row.payment}`),
+            title:
+              row.payment === 'overdue'
+                ? t('invoicesPage.payment.overdueDays', { count: row.paymentValues?.count ?? 0 })
+                : undefined,
           }
-        : {
-            chip: AUTHORING_STYLES[row.authoring],
-            label: t(`invoicesPage.authoring.${row.authoring}`),
-            title: undefined,
-          }
+        : row.approval
+          ? {
+              chip: APPROVAL_STYLES[row.approval],
+              label: t(`salesApproval.status.${row.approval}`),
+              title: undefined,
+            }
+          : {
+              chip: AUTHORING_STYLES[row.authoring],
+              label: t(`invoicesPage.authoring.${row.authoring}`),
+              title: undefined,
+            }
   // TODO(backend): no Peppol response is answered yet (list.ts `peppolResponse`); a manual send
   // is the one delivery fact recorded, and an undelivered document leaves the column blank.
   const delivery = row.peppolResponse

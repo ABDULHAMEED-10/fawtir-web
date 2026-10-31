@@ -4,6 +4,8 @@ import { MemoryRouter } from 'react-router-dom'
 import i18n from '../../i18n'
 import { resetSharedRequests } from '../../api'
 import { BillDueCard } from './BillDueCard'
+import { SessionContext } from '../../lib/session/session'
+import type { Entitlements } from '../../lib/identity/entitlements'
 
 const BILL = {
   id: 'b-1', number: 'FWT-SUB-2026-000001', planCode: 'BUSINESS', planName: 'Business', billingCycle: 'MONTHLY',
@@ -18,10 +20,23 @@ const overview = (status: string) => ({
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
+/** The billing overview is `tenant.plan.read`'s; the card is asked only of a reader with it. */
+const PAYER: Entitlements = {
+  userId: 'u-1',
+  username: 'owner',
+  tenantId: 't-1',
+  roles: [],
+  permissions: ['tenant.plan.read'],
+  scopes: [],
+  featureFlags: {},
+}
+
 let answer: () => Response
+let who: Entitlements
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   resetSharedRequests()
+  who = PAYER
   // Only the billing read is answered: who is signed in stays unknown, so nothing else is asked.
   vi.stubGlobal(
     'fetch',
@@ -32,7 +47,14 @@ beforeEach(async () => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
-const renderCard = () => render(<MemoryRouter><BillDueCard /></MemoryRouter>)
+const renderCard = () =>
+  render(
+    <SessionContext.Provider value={who}>
+      <MemoryRouter>
+        <BillDueCard />
+      </MemoryRouter>
+    </SessionContext.Provider>,
+  )
 
 describe('Dashboard: the bill waiting to be paid', () => {
   it('points to an open bill with its number and total', async () => {
@@ -60,5 +82,18 @@ describe('Dashboard: the bill waiting to be paid', () => {
     renderCard()
     await new Promise((r) => setTimeout(r, 50))
     expect(screen.queryByText(i18n.t('billDue.title'))).toBeNull()
+  })
+})
+
+describe('the bill card for a reader without tenant.plan.read (B-14)', () => {
+  it('asks nothing and says nothing', async () => {
+    who = { ...PAYER, permissions: ['invoice.read'] }
+    answer = () => json(200, overview('OPEN'))
+    renderCard()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(screen.queryByText(i18n.t('billDue.title'))).toBeNull()
+    expect(
+      vi.mocked(fetch).mock.calls.some(([url]) => String(url) === '/api/v1/settings/billing'),
+    ).toBe(false)
   })
 })

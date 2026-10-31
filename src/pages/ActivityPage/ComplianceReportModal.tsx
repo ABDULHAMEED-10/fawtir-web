@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DateField, Modal, withRial } from '../../components/ui'
+import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
   activitySummaryPath,
@@ -11,7 +12,6 @@ import { reportStatesOf, shareOf1 } from '../../lib/activityLedger'
 import {
   REPORT_PERIODS,
   REPORT_SECTIONS,
-  periodFigures,
   periodRange,
   formatOmr,
   type ReportPeriodId,
@@ -34,8 +34,8 @@ export type ReportRequest = {
  * "Compliance report" (Figma 154:111604), opened from Activity's "Compliance report" button.
  *
  * Builds the pack an auditor or the Authority asks for. Everything in the summary follows from
- * the period chosen, so switching from a quarter to a year moves the counts and the money with
- * it rather than leaving a stale figure behind.
+ * the period chosen, so switching from a quarter to a year moves the counts with it rather than
+ * leaving a stale figure behind.
  */
 export function ComplianceReportModal({
   open,
@@ -59,38 +59,36 @@ export function ComplianceReportModal({
     return { from: quarter.from, to: quarter.to }
   })
   const range = useMemo(() => periodRange(period, new Date(), custom), [period, custom])
-  // The period's counts come from the ledger summary for that window. TODO(backend): the
-  // corrected count, the total invoiced and the VAT are not on the summary (asks rows 2.9, 2.35),
-  // so those three stay the design's figures until they are.
   const summaryPath = open ? activitySummaryPath(range.from, range.to) : null
   const summary = useApiRead<ActivitySummaryDto>(summaryPath, () =>
     loadActivitySummary(summaryPath as string),
   )
+  // Every figure here is the server's or none at all. The modal used to fall back to the design's
+  // sample book while the summary loaded, failed, or lacked a total, so a real company saw
+  // invented money and VAT beside its own counts (owner rule: never show a fabricated financial
+  // or tax total as real). ActivitySummaryResponse carries no corrected count, invoiced total or
+  // VAT reported (ACTIVITY.md 2.9, 2.35), so those read "not available yet" until it does.
   const figures = useMemo(() => {
-    const base = periodFigures(period)
-    if (summary.read.status !== 'ready') return base
+    if (summary.read.status !== 'ready') return null
     const book = summary.read.data
     // Accepted is AP only: "delivered, unconfirmed" (AB) is not an acceptance. Still waiting is
     // silence, not a failure (handbook 5.3), so it is counted apart from what was not reported.
     const accepted = book.tdd_ack.ap
-    const netInvoiced = book.invoiced_total ?? base.netInvoiced
     // A report never submitted, or stopped at Fawtir, is not reported either, and is not
     // "sent, still waiting" (N5b).
     const states = reportStatesOf(book)
     return {
-      ...base,
       invoices: book.documents,
       accepted,
       acceptedRate: shareOf1(accepted, book.documents),
       notReported: states.rejected + states.notSubmitted + states.stopped,
       waiting: states.awaiting,
-      netInvoiced,
-      // The sum of IBT-110 over reported invoices when the server gives it. A server total with
-      // no VAT beside it cannot say what the unreported invoices held, so it reads "not available";
-      // otherwise the design book's figure, unreported invoices left out.
-      vat: book.vat_reported ?? (book.invoiced_total != null ? null : base.vat),
+      netInvoiced: book.invoiced_total ?? null,
+      // The sum of IBT-110 over reported invoices only. Never worked out from the total at the
+      // standard rate: that would print VAT for invoices the Authority never took.
+      vat: book.vat_reported ?? null,
     }
-  }, [period, summary.read])
+  }, [summary.read])
 
   const toggleSection = (id: string) =>
     setSections((current) =>
@@ -103,6 +101,8 @@ export function ComplianceReportModal({
         return current.length > 1 ? current.filter((x) => x !== id) : current
       return [...current, id]
     })
+
+  const notAvailable = t('complianceReport.notAvailableYet')
 
   const formatLabel = formats
     .map((id) => t(`complianceReport.format.${id}`))
@@ -122,10 +122,15 @@ export function ComplianceReportModal({
               {t(range.labelKey, range.values)}
             </span>{' '}
             ·{' '}
-            <span className="font-semibold text-text-primary">
-              {t('complianceReport.nInvoices', { count: figures.invoices })}
-            </span>{' '}
-            · {formatLabel}
+            {figures ? (
+              <>
+                <span className="font-semibold text-text-primary">
+                  {t('complianceReport.nInvoices', { count: figures.invoices })}
+                </span>{' '}
+                ·{' '}
+              </>
+            ) : null}
+            {formatLabel}
           </p>
           <button
             type="button"
@@ -290,43 +295,53 @@ export function ComplianceReportModal({
         <p className="text-[11px] font-semibold uppercase tracking-[0.7px] text-primary-700">
           {t('complianceReport.whatYoullGet')}
         </p>
-        <dl className="mt-3 flex flex-col gap-2.5">
-          <SummaryRow
-            label={t('complianceReport.summary.invoices')}
-            value={String(figures.invoices)}
-          />
-          <SummaryRow
-            label={t('complianceReport.summary.accepted')}
-            value={`${figures.accepted} · ${figures.acceptedRate}%`}
-            tone="text-[#3d5648]"
-          />
-          <SummaryRow
-            label={t('complianceReport.summary.correctedAfterRejection')}
-            value={String(figures.corrected)}
-          />
-          <SummaryRow
-            label={t('complianceReport.summary.stillNotReported')}
-            value={String(figures.notReported)}
-            tone={figures.notReported > 0 ? 'text-pending-700' : undefined}
-          />
-          {/* Silence is not a failure: sent and not answered yet is its own line. */}
-          <SummaryRow
-            label={t('complianceReport.summary.stillWaiting')}
-            value={String(figures.waiting)}
-          />
-          <SummaryRow
-            label={t('complianceReport.summary.totalInvoiced')}
-            value={`OMR ${formatOmr(figures.netInvoiced)}`}
-          />
-          <SummaryRow
-            label={t('complianceReport.summary.vatReported')}
-            value={
-              figures.vat === null
-                ? t('complianceReport.notAvailableYet')
-                : `OMR ${formatOmr(figures.vat)}`
-            }
-          />
-        </dl>
+        {figures ? (
+          <dl className="mt-3 flex flex-col gap-2.5">
+            <SummaryRow
+              label={t('complianceReport.summary.invoices')}
+              value={String(figures.invoices)}
+            />
+            <SummaryRow
+              label={t('complianceReport.summary.accepted')}
+              value={`${figures.accepted} · ${figures.acceptedRate}%`}
+              tone="text-[#3d5648]"
+            />
+            <SummaryRow
+              label={t('complianceReport.summary.correctedAfterRejection')}
+              value={notAvailable}
+            />
+            <SummaryRow
+              label={t('complianceReport.summary.stillNotReported')}
+              value={String(figures.notReported)}
+              tone={figures.notReported > 0 ? 'text-pending-700' : undefined}
+            />
+            {/* Silence is not a failure: sent and not answered yet is its own line. */}
+            <SummaryRow
+              label={t('complianceReport.summary.stillWaiting')}
+              value={String(figures.waiting)}
+            />
+            <SummaryRow
+              label={t('complianceReport.summary.totalInvoiced')}
+              value={
+                figures.netInvoiced === null
+                  ? notAvailable
+                  : `OMR ${formatOmr(figures.netInvoiced)}`
+              }
+            />
+            <SummaryRow
+              label={t('complianceReport.summary.vatReported')}
+              value={figures.vat === null ? notAvailable : `OMR ${formatOmr(figures.vat)}`}
+            />
+          </dl>
+        ) : summary.read.status === 'failed' ? (
+          <div className="mt-3">
+            <ApiReadFailure error={summary.read.error} retry={summary.retry} />
+          </div>
+        ) : (
+          <div className="mt-3">
+            <LoadingNotice />
+          </div>
+        )}
       </div>
     </Modal>
   )

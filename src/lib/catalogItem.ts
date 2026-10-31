@@ -147,6 +147,8 @@ export function tillPreview(
 /** Which of the five readiness checks the item passes, worked out from the record. */
 export function readiness(record: {
   name: string
+  /** The item's code, which a save refuses without. */
+  code?: string
   basePrice: number
   taxCategory: string
   group: string
@@ -158,6 +160,7 @@ export function readiness(record: {
 }) {
   return [
     { id: 'namedAndPriced', done: record.name.trim().length > 0 && record.basePrice > 0 },
+    { id: 'coded', done: record.code === undefined || record.code.trim().length > 0 },
     {
       id: 'taxAgrees',
       done: record.taxCategory.length > 0 && record.reasonGiven !== false,

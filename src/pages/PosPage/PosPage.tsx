@@ -184,7 +184,7 @@ function Tile({
 export function PosPage() {
   return (
     <AppShell>
-      <PosTillGate>
+      <PosTillGate showQueue>
         {(till) => (
           <Shelf
             branchId={till.branchId}
@@ -250,6 +250,7 @@ function Shelf({
     groups.read.status === 'ready' ? groups.read.data.groups : [],
     ar,
     t('pos.group.all'),
+    filter,
   )
   // What the rows already carry; a row without it is read when tapped.
   const listed = useMemo(

@@ -1085,7 +1085,7 @@ describe('a disputed bill', () => {
     const meta = screen.getByText(
       (_, element) =>
         element?.tagName === 'P' &&
-        /^13 open · 2 overdue · .*3,140\.000 disputed on 1 refused debit note$/.test(
+        /^13 open · 2 overdue · .*3,140\.000 disputed on 1 rejected bill or refused debit note$/.test(
           element.textContent ?? '',
         ),
     )
@@ -1096,8 +1096,10 @@ describe('a disputed bill', () => {
     expect(visible.textContent).not.toContain('OMR')
   })
 
-  // Owner's answer D3 (12 Oct 2026): the line names refused debit notes, with every plural form.
-  it('counts refused debit notes, in English and in Arabic', async () => {
+  // Owner's answer D3 (12 Oct 2026) named refused debit notes, with every plural form. The figure
+  // also counts rejected bills (BillSummary.disputedCount, JdbcBillProjectionAdapter), so the line
+  // names both (B-7, local E2E 2026-10-29).
+  it('counts rejected bills and refused debit notes, in English and in Arabic', async () => {
     summaryResponse = () => json(200, { ...SUMMARY, disputedCount: 2, disputedTotal: 12.6 })
     renderBills()
     expect(await screen.findByText('8,765.432')).toBeTruthy()
@@ -1105,7 +1107,7 @@ describe('a disputed bill', () => {
       screen.getByText(
         (_, element) =>
           element?.tagName === 'P' &&
-          /^13 open · 2 overdue · .*12\.600 disputed on 2 refused debit notes$/.test(
+          /^13 open · 2 overdue · .*12\.600 disputed on 2 rejected bills or refused debit notes$/.test(
             element.textContent ?? '',
           ),
       ),
@@ -1114,10 +1116,10 @@ describe('a disputed bill', () => {
 
     const ar = (count: number) =>
       i18n.getFixedT('ar')('billsPage.kpi.payableDisputed', { amount: 'X', count })
-    expect(ar(1)).toBe('X متنازع عليها في إشعار مدين مرفوض واحد')
-    expect(ar(2)).toBe('X متنازع عليها في إشعارين مدينين مرفوضين')
-    expect(ar(3)).toBe('X متنازع عليها في 3 إشعارات مدينة مرفوضة')
-    expect(ar(11)).toBe('X متنازع عليها في 11 إشعارًا مدينًا مرفوضًا')
+    expect(ar(1)).toBe('X متنازع عليها في فاتورة مرفوضة أو إشعار مدين مرفوض')
+    expect(ar(2)).toBe('X متنازع عليها في مستندين: فواتير مرفوضة أو إشعارات مدينة مرفوضة')
+    expect(ar(3)).toBe('X متنازع عليها في 3 مستندات: فواتير مرفوضة أو إشعارات مدينة مرفوضة')
+    expect(ar(11)).toBe('X متنازع عليها في 11 مستندًا: فواتير مرفوضة أو إشعارات مدينة مرفوضة')
   })
 
   it('says nothing when there is no dispute', async () => {

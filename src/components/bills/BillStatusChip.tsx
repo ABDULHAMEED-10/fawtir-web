@@ -14,6 +14,7 @@ const STATUS_STYLES: Record<Exclude<Chip, 'creditNote'>, Style> = {
   rejected: { bg: 'bg-danger-100', fg: 'text-[#7a1009]', dot: 'bg-[#7a1009]' },
   inPaymentRun: { bg: 'bg-primary-50', fg: 'text-primary-900', dot: 'bg-primary-900' },
   paid: { bg: 'bg-success-100', fg: 'text-success-700', dot: 'bg-success-700' },
+  settledByCredit: { bg: 'bg-success-100', fg: 'text-success-700', dot: 'bg-success-700' },
   partPaid: { bg: 'bg-success-100', fg: 'text-success-700', dot: 'bg-success-700' },
   refusedClosed: { bg: 'bg-danger-100', fg: 'text-[#7a1009]', dot: 'bg-[#7a1009]' },
   // A held copy wears the hold's own tone, decided or not: both are held, neither is payable.

@@ -36,6 +36,8 @@ export type PosTillDto = {
   openShift: { shiftId: string; cashier: PosPerson; openedAt: string } | null
   /** Keyed `INVOICE` and `CREDIT_NOTE`. */
   series: Record<string, PosSeries>
+  /** The server takes `skippedNumbers` on a sale; an older one leaves this out. */
+  skipsStuckNumbers?: boolean
 }
 
 export type PosShiftDto = {
@@ -189,6 +191,8 @@ export type PosSaleRequest = {
   soldAt: string
   queuedOffline: boolean
   invoiceNumber: string | null
+  /** Numbers before `invoiceNumber` this till printed and cannot file yet. */
+  skippedNumbers?: string[]
   customer: { kind: PosCustomerKind; customerId?: string | null; consumer?: PosConsumer | null }
   draft: Omit<DraftRequest, 'customerId'> & { customerId?: string }
   lineRefs: PosLineRef[]

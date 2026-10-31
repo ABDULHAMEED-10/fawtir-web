@@ -49,7 +49,7 @@ const STATE_TONE = {
 export function PosTodayPage() {
   return (
     <AppShell>
-      <PosTillGate>{(till) => <Today till={till} />}</PosTillGate>
+      <PosTillGate showQueue>{(till) => <Today till={till} />}</PosTillGate>
     </AppShell>
   )
 }

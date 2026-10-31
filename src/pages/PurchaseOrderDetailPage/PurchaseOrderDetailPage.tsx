@@ -159,7 +159,7 @@ function PurchaseOrderDetail({ id }: { id: string }) {
         {order.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
-          <ApiReadFailure error={order.read.error} retry={order.retry} />
+          <ApiReadFailure error={order.read.error} retry={order.retry} notFoundOn400 />
         )}
       </div>
     )

@@ -1255,7 +1255,9 @@
         "draft": "Draft",
         "issued": "Issued",
         "accepted": "Accepted",
-        "notSent": "Not sent"
+        "notSent": "Not sent",
+        "cancelled": "Cancelled",
+        "undelivered": "Not delivered"
       },
       "none": "No invoices yet.",
       "noNumber": "Draft"
@@ -2034,7 +2036,6 @@
     "kpi": {
       "outstanding": "Outstanding",
       "outstandingMeta": "Across 4 unpaid invoices",
-      "paid": "Paid",
       "paidMeta": "2 invoices collected",
       "awaiting": "Awaiting payment",
       "awaitingMeta": "2 invoices due soon",
@@ -2042,13 +2043,14 @@
       "overdueMeta": "1 invoice · oldest 20 days",
       "outstandingLive_one": "Across {{invoices}} unpaid invoice",
       "outstandingLive_other": "Across {{invoices}} unpaid invoices",
-      "paidLive_one": "{{invoices}} invoice collected",
-      "paidLive_other": "{{invoices}} invoices collected",
       "awaitingLive_one": "{{invoices}} invoice due soon",
       "awaitingLive_other": "{{invoices}} invoices due soon",
       "overdueLive_one": "{{invoices}} invoice · oldest {{days}} days",
       "overdueLive_other": "{{invoices}} invoices · oldest {{days}} days",
-      "overdueNone": "Nothing overdue"
+      "overdueNone": "Nothing overdue",
+      "settled": "Settled",
+      "settledLive_one": "{{invoices}} document settled by payment or credit",
+      "settledLive_other": "{{invoices}} documents settled by payment or credit"
     },
     "tabs": {
       "all": "All",
@@ -2366,7 +2368,8 @@
       "qty": "Qty",
       "unit": "Unit",
       "disc": "Disc %",
-      "total": "Total"
+      "total": "Total",
+      "discount": "Discount"
     },
     "totals": {
       "subtotal": "Subtotal (excl. VAT)",
@@ -2376,7 +2379,15 @@
       "vatOnly": "VAT",
       "atIssue": "A draft is priced when it is issued.",
       "net": "Net amount",
-      "vatRate": "VAT · Standard {{rate}}%"
+      "vatRate": "VAT · {{category}} {{rate}}%",
+      "category": {
+        "S": "Standard",
+        "Z": "Zero-rated",
+        "E": "Exempt",
+        "O": "Out of scope",
+        "AE": "Reverse charge",
+        "G": "Export"
+      }
     },
     "notes": {
       "title": "Notes",
@@ -2517,7 +2528,8 @@
         "notIssued": "Payments can only be recorded against an issued invoice.",
         "alreadyReversed": "That payment was already reversed. The list has been refreshed.",
         "paymentGone": "That payment could not be found. The list has been refreshed."
-      }
+      },
+      "balanceChanged": "What is owed changed since this page was opened. Closing this dialog shows the current balance."
     },
     "titleNote": {
       "CREDIT_NOTE": "Credit note {{id}}",
@@ -2547,8 +2559,16 @@
     "vatNumber": "VAT {{number}}",
     "currencyOmr": "OMR - Omani Rial",
     "vat": {
-      "rate": "{{category}} rate · {{rate}}%",
-      "mixed": "Mixed rates"
+      "rate": "{{category}} · {{rate}}%",
+      "mixed": "Mixed rates",
+      "treatment": {
+        "S": "Standard rate · {{rate}}%",
+        "Z": "Zero-rated · {{rate}}%",
+        "E": "Exempt · {{rate}}%",
+        "O": "Out of scope · {{rate}}%",
+        "AE": "Reverse charge · {{rate}}%",
+        "G": "Export · {{rate}}%"
+      }
     },
     "catalogRef": "Catalog #{{code}}",
     "pdf": {
@@ -2574,6 +2594,12 @@
       "email": "Send by email",
       "whatsapp": "Share on WhatsApp",
       "unavailable": "Sharing needs the invoice PDF, which the server does not produce yet."
+    },
+    "cancelBlocked": {
+      "corrections": "This invoice cannot be cancelled: credit or debit notes have been issued against it.",
+      "payments": "This invoice cannot be cancelled: payments are recorded against it.",
+      "paymentsOnNote": "This note cannot be cancelled: payments are recorded against it.",
+      "correctionsOnNote": "This note cannot be cancelled: credit or debit notes have been issued against it."
     }
   },
   "createInvoice": {
@@ -4502,7 +4528,10 @@
       "qrAlt": "The invoice's QR code",
       "qrComing": "The QR code comes up once the invoice is filed.",
       "qrAfterFiling": "the QR comes once the sale is filed",
-      "rungUpWrongQueued": "Rung it up wrong? This sale is waiting to be filed. Once it is filed, a mistake is put right with a credit note, which the Tax Authority also sees."
+      "rungUpWrongQueued": "Rung it up wrong? This sale is waiting to be filed. Once it is filed, a mistake is put right with a credit note, which the Tax Authority also sees.",
+      "queuedBehindTitle": "Sold, filing after an earlier sale",
+      "queuedBehindSummary": "Invoice {{invoice}} is numbered and will be filed after an earlier sale the till is holding. See the till screen for what it needs. There is {{change}} change to hand back.",
+      "sentAfterEarlier": "it is filed once the earlier sale has gone"
     },
     "company": {
       "whose": "Whose company is it?",
@@ -4853,6 +4882,16 @@
       "POS_CARD_APPROVAL_REQUIRED": "Type the approval code from the bank slip.",
       "POS_COUNT_REQUIRED": "Count the drawer before closing.",
       "POS_COUNT_INVALID": "The count is not right. Check the figures.",
+      "SELLER_PARTICIPANT_NOT_VERIFIED": "The company's Peppol Participant ID is not verified yet, so the till cannot issue invoices. Ask an administrator to check it in Settings › Peppol and tax, then try again.",
+      "SELLER_ADDRESS_INCOMPLETE": "The company address is incomplete, so this invoice cannot be issued. Ask an administrator to complete it in Settings › Company, then finish the sale again.",
+      "SELLER_CONTACT_INCOMPLETE": "The company's contact phone is missing, so this invoice cannot be issued. Ask an administrator to add it in Settings › Company, then finish the sale again.",
+      "INDUSTRIAL_CLASSIFICATION_REQUIRED": "The company's business activity is not set, so a full invoice cannot be issued. Ask an administrator to set it in Settings › Company, then finish the sale again.",
+      "PERIOD_CLOSED": "Today is in a closed accounting period, so nothing can be issued. Ask an administrator to reopen the period, then try again.",
+      "BRANCH_NOT_ACTIVE": "This branch is not active, so the till cannot issue invoices. Ask an administrator to check it in Settings › Branches.",
+      "POS_ZERO_PRICE": "Line {{line}} has no price. Set one before selling it. To give it away, keep its price and discount it 100%.",
+      "POS_SOLD_AT_IN_FUTURE": "This device's clock is ahead of the right time. Correct the clock, then finish the sale again.",
+      "POS_SHIFT_NOT_OPEN": "This shift was handed over to another cashier, so its float cannot change.",
+      "POS_TILL_LIMIT": "This branch already has as many tills as it can use. Retire one first.",
       "POS_DENOMINATION_UNKNOWN": "One of the notes or coins is not an Omani denomination.",
       "POS_FLOAT_LEFT_INVALID": "The float left for the next shift is not right.",
       "POS_FLOAT_LEFT_EXCEEDS_COUNTED": "The float left is more than the cash counted.",
@@ -4891,6 +4930,8 @@
       "FILED_PAST_RESTRICTION": "Made offline, so it was filed although the company is restricted now.",
       "FILED_AFTER_24H_B2C": "Made offline and filed more than 24 hours later.",
       "SLIP_AMOUNT_DIFFERS": "The slip's amount is not the card payment's.",
+      "STOCK_RETURN_EXCEEDS_SALE": "Line {{line}}: not all of it went back on the shelf, because a return puts back no more than the sale took off, less earlier returns. Count the shelf if it is wrong.",
+      "STOCK_NOT_TRACKED_AT_SALE": "Line {{line}}: nothing went back on the shelf, because the sale took none of it off. Count the shelf if it is wrong.",
       "SLIP_FIELD_DROPPED": "A value read from the slip was not kept.",
       "SLIP_NOT_KEPT": "The slip was not kept with the payment.",
       "other": "Fawtir noted something about this sale.",
@@ -4922,6 +4963,25 @@
       "refused": "{{name}}: No price yet. It has not been added to the sale.",
       "enter": "Price before VAT",
       "enterNote": "This has no price yet. Type its price for this sale."
+    },
+    "queue": {
+      "problemTitle_one": "1 sale made offline has not been filed",
+      "problemTitle_other": "{{count}} sales made offline have not been filed",
+      "waiting_one": "1 sale is waiting to be sent. It goes by itself as soon as the connection is back.",
+      "waiting_other": "{{count}} sales are waiting to be sent. They go by themselves as soon as the connection is back.",
+      "heldHint": "The customer holds this invoice. The till tries again by itself and keeps selling meanwhile. Nothing is charged or filed twice.",
+      "finalHint": "The customer holds this invoice and it stays open here until it is filed. Sending it again as it stands will not work, so ask a manager to look at it and contact Fawtir support. The till keeps selling meanwhile.",
+      "retry": "Try again",
+      "reason": {
+        "readOnly": "The subscription is read-only. This sale goes by itself once the subscription is paid.",
+        "planFeature": "The plan does not include the till. This sale goes once the plan does.",
+        "quota": "The month's documents have run out. This sale goes once more are available.",
+        "PERIOD_CLOSED": "This sale's date is in a closed accounting period. Reopen the period and it goes.",
+        "POS_SOLD_AT_IN_FUTURE": "This device's clock is ahead of the right time. Correct the clock and the sale goes.",
+        "SELLER_PARTICIPANT_NOT_VERIFIED": "The company's Participant ID is not verified yet. The sale goes once it is.",
+        "INDUSTRIAL_CLASSIFICATION_REQUIRED": "The company's business activity code is missing. Add it in Settings and the sale goes.",
+        "other": "Fawtir would not accept this sale as it stands."
+      }
     }
   },
   "orderDetail": {
@@ -5842,8 +5902,8 @@
       "readyBills_other": "{{count}} approved bills",
       "otherCurrencies_one": "{{count}} bill in another currency is not in these {{currency}} totals.",
       "otherCurrencies_other": "{{count}} bills in other currencies are not in these {{currency}} totals.",
-      "payableDisputed_one": "{{amount}} disputed on {{count}} refused debit note",
-      "payableDisputed_other": "{{amount}} disputed on {{count}} refused debit notes",
+      "payableDisputed_one": "{{amount}} disputed on {{count}} rejected bill or refused debit note",
+      "payableDisputed_other": "{{amount}} disputed on {{count}} rejected bills or refused debit notes",
       "payableAwaitingDecision_one": "Awaiting your decision: {{amount}} on {{count}} debit note",
       "payableAwaitingDecision_other": "Awaiting your decision: {{amount}} on {{count}} debit notes"
     },
@@ -5968,7 +6028,8 @@
       "partPaid": "Part paid",
       "refusedClosed": "Refused · closed by credit note",
       "suspectedDuplicate": "Possible duplicate",
-      "confirmedDuplicate": "Duplicate"
+      "confirmedDuplicate": "Duplicate",
+      "settledByCredit": "Settled by credit"
     },
     "notice": {
       "drafts_one": "{{count}} uploaded or scanned bill is waiting for its details. It appears here once confirmed.",
@@ -6046,7 +6107,8 @@
       "automatically": "Automatically",
       "arrivedVia": "{{date}} · {{source}}",
       "notYet": "Not yet",
-      "paidOf": "Paid OMR {{paid}} of OMR {{total}}"
+      "paidOf": "Paid OMR {{paid}} of OMR {{total}}",
+      "settledByCredit": "Settled by credit"
     },
     "match": {
       "ordered": "Ordered",
@@ -6088,7 +6150,8 @@
       "none": "The supplier sent no lines with this bill.",
       "vatOnly": "VAT",
       "receivedOn": "Received on {{receipt}}",
-      "vatCategory": "{{rate}} · {{category}}"
+      "vatCategory": "{{rate}} · {{category}}",
+      "vatInRial": "VAT in Omani rial"
     },
     "linked": {
       "title": "Linked documents",
@@ -6149,7 +6212,8 @@
       "creditNote": "A credit note lowers what you owe. There is nothing to approve or pay on it.",
       "release": "Release",
       "queryIt": "Query it",
-      "inRun": "Approved for payment and in payment run {{run}}. It is paid when the run is marked paid."
+      "inRun": "Approved for payment and in payment run {{run}}. It is paid when the run is marked paid.",
+      "settledByCredit": "Settled in full by credit. Nothing was paid."
     },
     "compliance": {
       "title": "Compliance",
@@ -6256,7 +6320,8 @@
       "inRun": "This bill is in payment run {{run}}. Take it out of the run before rejecting it.",
       "reasonTooLong": "That reason is too long. Shorten it and reject again.",
       "holdReasonRequired": "A hold has to say why.",
-      "holdReasonTooLong": "That reason is too long. Shorten it and put the bill on hold again."
+      "holdReasonTooLong": "That reason is too long. Shorten it and put the bill on hold again.",
+      "appliedCredit": "This bill can't be rejected: supplier credit is set against it, and credit can't be released yet."
     },
     "done": {
       "approved": "Approved.",
@@ -6419,7 +6484,10 @@
     "unlinkedHint": "Leave it unlinked for a counter purchase or a service with no order behind it.",
     "cancel": "Cancel",
     "saveBill": "Save the bill",
-    "titleTyped": "Type in the bill"
+    "titleTyped": "Type in the bill",
+    "subtitleRead": "Fawtir read the file for you. Anything it wasn't sure of is marked amber: check it against the file before you save.",
+    "fileMeta_one": "{{count}} page · {{size}} · read in {{seconds}} seconds · {{read}} of {{fields}} fields confident",
+    "fileMeta_other": "{{count}} pages · {{size}} · read in {{seconds}} seconds · {{read}} of {{fields}} fields confident"
   },
   "scanReceipts": {
     "breadcrumb": "Scan receipts",
@@ -6480,7 +6548,9 @@
       "toCheck_other": "{{count}} fields to check",
       "onThisOne": "on this one"
     },
-    "discardThisOne": "Discard this one"
+    "discardThisOne": "Discard this one",
+    "subtitle_one": "{{count}} photo went in. Fawtir read it. Anything it wasn't sure of is marked amber.",
+    "subtitle_other": "{{count}} photos went in. Fawtir read each one. Confirm them one at a time. Anything it wasn't sure of is marked amber."
   },
   "paymentsPage": {
     "breadcrumb": "Payments",
@@ -7026,7 +7096,6 @@
       "stillUsable": "Credit you can still use",
       "stillUsableMeta": "{{count}} notes not yet set against a bill",
       "recovered": "Recovered this quarter",
-      "recoveredMeta": "{{count}} notes used or refunded",
       "mostFrom": "Most credits from",
       "mostFromMeta": "{{count}} notes this year · worth reviewing",
       "recoveredQuarter": "Recovered this quarter",
@@ -7035,7 +7104,9 @@
       "noTopSupplier": "No supplier stands out",
       "noTopSupplierMeta": "No supplier has sent a credit note yet",
       "stillUsableMeta_one": "{{count}} note with credit left to use",
-      "stillUsableMeta_other": "{{count}} notes with credit left to use"
+      "stillUsableMeta_other": "{{count}} notes with credit left to use",
+      "recoveredMeta_one": "{{count}} note used or refunded",
+      "recoveredMeta_other": "{{count}} notes used or refunded"
     },
     "tabs": {
       "all": "All",
@@ -7187,7 +7258,7 @@
       "corrects": "corrects",
       "download": "Download",
       "youllPayLess": "You'll pay OMR {{amount}} less",
-      "youllPayLessNote": "The bill this corrects hasn't been paid yet, so the credit comes straight off what you owe.",
+      "youllPayLessNote": "The credit is not taken off {{bill}} yet: it waits to be set against it. Once it is, you pay that much less.",
       "theyBilled": "They billed",
       "billedNote": "AND-INV-3382 · 28 Jul",
       "thisCredit": "This credit",
@@ -7300,7 +7371,8 @@
       "closesRefusedTitle": "Closes refused debit note {{number}}.",
       "closesRefusedBody": "Nothing was owed on it.",
       "billOnHold": "{{bill}} is on hold. Release it before setting this credit against it.",
-      "afterThisNote": "after this note"
+      "afterThisNote": "after this note",
+      "youllPayLessNoteNoBill": "The credit is not taken off the bill yet: it waits to be set against it. Once it is, you pay that much less."
     },
     "source": {
       "peppol": "Received over Peppol",
@@ -7681,7 +7753,10 @@
         "rejected": "Received over Peppol and validated. Receipt report turned down.",
         "notSubmitted": "Received over Peppol and validated. Receipt not reported yet.",
         "unavailable": "Received over Peppol and validated. Receipt report status not available yet."
-      }
+      },
+      "realBillSettledByCredit": "{{bill}} is on file and settled in full by credit, with nothing paid.",
+      "creditNoteTarget": "It points at a credit note, not a bill",
+      "creditNoteTargetDetail": "{{bill}} on file is a supplier credit note. A debit note normally adds to the bill it corrects, so check which document the supplier meant."
     },
     "reverseOnlyRefused": "Already refused. Only the opposite decision can be recorded.",
     "reverseOnlyAccepted": "Already accepted. Only the opposite decision can be recorded.",
@@ -7905,7 +7980,9 @@
       "REJECTED": "Rejected",
       "TO_DISREGARD": "To be withdrawn",
       "DISREGARD_SUBMITTED": "Withdrawal sent",
-      "DEAD_LETTERED": "Given up on"
+      "DEAD_LETTERED": "Given up on",
+      "NOT_TESTED": "Not sent: no C5 provider is authorised on the test network",
+      "unknown": "Status not recognised"
     },
     "artefact": {
       "xml": "Signed XML",
@@ -8199,7 +8276,9 @@
       "REJECTED": "TDD rejected",
       "TO_DISREGARD": "Being withdrawn",
       "DISREGARD_SUBMITTED": "Withdrawal sent",
-      "DEAD_LETTERED": "TDD given up on"
+      "DEAD_LETTERED": "TDD given up on",
+      "NOT_TESTED": "Not sent (test network)",
+      "unknown": "Status not recognised"
     },
     "fileNote": {
       "xml": "The invoice as sent over Peppol",
@@ -8799,7 +8878,20 @@
       "needsPermission": "Needs {{permission}}",
       "notPublished": "Not published yet",
       "wholeList": "The whole list, no filters",
-      "pdfPending": "PDF is not available yet"
+      "pdfPending": "PDF is not available yet",
+      "parameter": {
+        "period": "period",
+        "status": "status",
+        "type": "type",
+        "customer": "customer",
+        "search": "search text",
+        "workflowStage": "workflow stage",
+        "direction": "issued or received",
+        "documentKind": "document kind",
+        "invoiceNumber": "invoice number",
+        "taxYear": "tax year",
+        "tddStatus": "TDD status"
+      }
     },
     "controls": {
       "from": "From",
@@ -10223,7 +10315,7 @@
       "flows": "Which flow each invoice took",
       "flowsNote": "The document scenario and any stand-in participant ID used for B2C or export",
       "xml": "The TDD XML files themselves",
-      "xmlNote": "Adds a zip alongside the report: {{files}} files, about {{size}}",
+      "xmlNote": "Adds a zip of the XML files alongside the report",
       "acks": "OTA acknowledgements and MLS replies",
       "acksNote": "Your evidence that each report was received and each invoice delivered"
     },
@@ -12284,7 +12376,8 @@
       "moveGroup": "Move it to a group",
       "switchOff": "Take it off sale",
       "switchOn": "Put it back on sale"
-    }
+    },
+    "buildFromTemplate": "Build from a template"
   },
   "changePrices": {
     "title_one": "Change {{count}} item at once",
@@ -12457,7 +12550,9 @@
       "photo": "Photo added",
       "photoOff": "No photo. The till shows the name instead",
       "classified": "HS code or service type chosen",
-      "classifiedOff": "No HS code or service type yet"
+      "classifiedOff": "No HS code or service type yet",
+      "coded": "Item code filled in",
+      "codedOff": "Still needs an item code"
     },
     "stock": "Stock",
     "keepCount": "Keep count of this",
@@ -13452,8 +13547,6 @@
     "ofTotal": "{{picked}} of {{total}}",
     "kindsPicked_one": "{{count}} kind picked",
     "kindsPicked_other": "{{count}} kinds picked",
-    "sizesPicked_one": "{{count}} size picked",
-    "sizesPicked_other": "{{count}} sizes picked",
     "yours": "Yours",
     "searchKinds": "Search kinds...",
     "searchSizes": "Search sizes and options...",
@@ -13521,7 +13614,9 @@
     "noPriceYet": "No price yet",
     "noPriceLeft_one": "{{count}} item still has no price.",
     "noPriceLeft_other": "{{count}} items still have no price.",
-    "noPriceLink": "See them in Wanting attention"
+    "noPriceLink": "See them in Wanting attention",
+    "itemsPicked_one": "{{count}} item picked",
+    "itemsPicked_other": "{{count}} items picked"
   },
   "rowsView": {
     "label": "How this list is shown",
@@ -20871,7 +20966,8 @@
       "approvals": "Your plan does not include sales approvals. What you made before can still be viewed, downloaded and exported.",
       "bulkUpload": "Your plan does not include bulk upload. What you made before can still be viewed, downloaded and exported.",
       "generic": "Your plan does not include this. What you made before can still be viewed, downloaded and exported.",
-      "stock": "Your plan does not include stock counting. What you counted before can still be viewed."
+      "stock": "Your plan does not include stock counting. What you counted before can still be viewed.",
+      "receiptScan": "Your plan does not include scanning bills and receipts. What you made before can still be viewed, downloaded and exported."
     }
   },
   "appAccess": {
@@ -20949,7 +21045,8 @@
       "hsCode": "Choose an HS code for this goods line (IBR-079-OM).",
       "serviceType": "Choose a service type for this service line (IBR-155-OM).",
       "lineAmount": "This line's amount is too large.",
-      "categoryReasonConflict": "Lines at the same VAT category and rate must give the same reason. Give this line the same reason as the others at its rate."
+      "categoryReasonConflict": "Lines at the same VAT category and rate must give the same reason. Give this line the same reason as the others at its rate.",
+      "itemType": "Choose whether this line is goods or a service."
     },
     "lineError": "Line {{line}}: {{message}}",
     "exemptionReason": "Reason no VAT is charged",
@@ -21005,6 +21102,7 @@
     "businessActivityHint": "Copied onto every line by the backend (IBR-081-OM).",
     "businessActivityLink": "Company settings",
     "businessActivityUnset": "Business activity not set. Business and government invoices cannot be created without it.",
+    "lineNoPrice": "This item has no price yet",
     "businessActivityCodeOnly": "Business activity: {{code}}",
     "exemptionReasonChoose": "Choose why no VAT is charged",
     "exemptionReasonType": "Type why no VAT is charged",
@@ -21056,7 +21154,8 @@
       "notDraft": "This invoice is no longer a draft.",
       "unavailable": "Issuing isn't available on this server yet.",
       "activityRequired": "Set your business activity in Company settings before creating a business or government invoice.",
-      "buyerAddressIncomplete": "The customer's invoicing address is incomplete. An invoice to a business or government customer needs the street, the additional street or area, address line 3, the city and the postal code (Peppol rule IBR-019-OM). Complete the customer, then issue again."
+      "buyerAddressIncomplete": "This customer's address is incomplete for Peppol: add the street, additional street, city, postal code and address line 3, then issue again.",
+      "buyerAddressAction": "Complete the customer"
     },
     "creditNote": {
       "title": "Issue this credit note?",
@@ -21079,7 +21178,9 @@
       "STOCK_UNIT_MISMATCH": "it is in a different unit from the one the item is counted in, so no stock moved.",
       "STOCK_VARIANT_UNKNOWN": "the item is counted by size or option and this line names none of them, so no stock moved.",
       "STOCK_QUANTITY_NOT_WHOLE": "the item is counted in whole pieces, so a part quantity moved no stock.",
-      "STOCK_QUANTITY_INVALID": "the quantity has more than three decimals, so no stock moved."
+      "STOCK_QUANTITY_INVALID": "the quantity has more than three decimals, so no stock moved.",
+      "STOCK_RETURN_EXCEEDS_SALE": "not all of it went back on the shelf, because a return puts back no more than the sale took off, less earlier returns. Count the shelf if it is wrong.",
+      "STOCK_NOT_TRACKED_AT_SALE": "nothing went back on the shelf, because the sale took none of it off. Count the shelf if it is wrong."
     },
     "openCustomer": "Open the customer"
   },
@@ -21191,6 +21292,25 @@
     "specialZoneLicence": {
       "label": "Special zone licence number",
       "hint": "Only for a customer licensed in a free or special economic zone."
+    },
+    "peppolAddress": {
+      "missing": "Invoices to this customer go over Peppol, which needs these on the invoice address: {{fields}}. A standard invoice is refused until they are added.",
+      "separator": ", ",
+      "field": {
+        "streetName": "street",
+        "additionalStreetName": "additional street or area",
+        "cityName": "city",
+        "postalCode": "postal code",
+        "addressLine3": "address line 3"
+      },
+      "other": "the remaining address details"
+    },
+    "fullTax": {
+      "missing": "A full tax invoice to this customer needs {{fields}}. Without it the invoice is refused at issue; a simplified invoice is not affected.",
+      "field": {
+        "identifierValue": "an Omani VAT number, a special-zone licence or a buyer identifier"
+      },
+      "other": "the remaining details"
     }
   },
   "supplierRecord": {
@@ -21531,14 +21651,19 @@
     "xmlFilled": "This is an e-invoice file, so there is no picture to show. Its fields are filled in on the right; check them against what the supplier sent.",
     "xmlNotRead": "This XML file could not be read as an e-invoice. Type the bill in on the right.",
     "upload": {
-      "subtitle": "Add the supplier's file, then type the bill in beside it. An e-invoice (XML) file fills its fields in for you; a PDF or photo is not read.",
+      "subtitle": "Add the supplier's file, then check or type the bill beside it. An e-invoice (XML) file fills its fields in, and Fawtir fills in what it can read from a PDF or photo.",
       "choose": "Choose the supplier's bill",
       "hint": "PDF, JPG, PNG or an e-invoice XML file, up to 10 MB. Drop it here or click to choose.",
       "sending": "Uploading…",
       "tooLarge": "That file is larger than 10 MB.",
       "wrongType": "Use a PDF, JPG, PNG or XML file.",
       "empty": "That file is empty.",
-      "fileRequired": "Choose the bill's file first."
+      "fileRequired": "Choose the bill's file first.",
+      "reading": "Reading the file… {{seconds}} s",
+      "readingOf": "Reading file {{current}} of {{total}}… {{seconds}} s",
+      "readingHint": "Fawtir is reading the file so you don't have to type it in. This can take up to two minutes; keep this page open.",
+      "readingShort": "Reading… {{seconds}} s",
+      "mayHaveArrived": "The server didn't answer in time, but your file may still have been received. Look under uploads to confirm on the Bills page before uploading it again."
     },
     "record": {
       "subtitle": "A bill from {{name}}. Add their file first, then type the bill in beside it.",
@@ -21644,6 +21769,14 @@
       "supplierSwitchedOff": "This supplier is switched off. Switch it back on to record a bill for it.",
       "pettyCashNotCash": "Petty cash can only be recorded as cash.",
       "noteTooLong": "That note is too long. Shorten it to 500 characters."
+    },
+    "reading": {
+      "pages_one": "{{count}} page",
+      "pages_other": "{{count}} pages",
+      "confident": "{{read}} of {{fields}} fields confident",
+      "unsure": "Fawtir wasn't sure of this. Check it against the file.",
+      "dailyLimit": "You've reached today's limit for reading bills. Try again tomorrow.",
+      "categoryGuessed": "Guessed from the receipt. Change it if that's wrong."
     }
   },
   "salesNote": {
@@ -21731,7 +21864,22 @@
     "refused": {
       "invoiceNotIssued": "This invoice is not issued (or was cancelled), so it cannot be corrected.",
       "exceeds": "This credit is more than is left to credit on the invoice.",
-      "nothingLeft": "Nothing is left to credit on this invoice."
+      "nothingLeft": "Nothing is left to credit on this invoice.",
+      "lineRemaining": "This credits more of an invoice line than is left after the earlier credit notes. Lower the amounts, then issue again.",
+      "categoryRemaining": "This credits more at one VAT rate than the invoice and its debit notes have left after the earlier credit notes. Lower the amounts, then issue again.",
+      "categoryRemainingNamed": "Only {{taxable}} before VAT and {{vat}} VAT are left to credit in {{category}} ({{rate}}%) after the earlier credit notes. Lower the amounts there, then issue again.",
+      "categoryNotOnInvoice": "A line uses a VAT category or rate that neither the invoice nor its debit notes charged. Use one of the invoice's rates, then issue again.",
+      "categoryNotOnInvoiceNamed": "Neither the invoice nor its debit notes charged anything in {{category}} ({{rate}}%), so this note cannot credit there. Use one of the invoice's rates.",
+      "categoryRemainingNamedNoRate": "Only {{taxable}} before VAT and {{vat}} VAT are left to credit in {{category}} after the earlier credit notes. Lower the amounts there, then issue again.",
+      "categoryNotOnInvoiceNamedNoRate": "Neither the invoice nor its debit notes charged anything in {{category}}, so this note cannot credit there. Use one of the invoice's categories.",
+      "capCategory": {
+        "S": "the Standard category",
+        "Z": "the Zero-rated category",
+        "E": "the Exempt category",
+        "O": "the Out of scope category",
+        "AE": "the Reverse charge category",
+        "G": "the Export category"
+      }
     },
     "onInvoice": {
       "title": "Credit and debit notes"
@@ -21881,6 +22029,10 @@
         "total": {
           "credit": "Total credited",
           "debit": "Total charged"
+        },
+        "vatMixed": {
+          "credit": "VAT reversed",
+          "debit": "VAT added"
         }
       },
       "totalsAtIssue": "The figures are set when the note is issued.",
@@ -21955,7 +22107,10 @@
         "credit": "Amount to credit",
         "debit": "Amount charged"
       },
-      "notAvailableYet": "Not available yet"
+      "notAvailableYet": "Not available yet",
+      "cancelBlocked": {
+        "refunded": "This credit note cannot be cancelled: a refund is recorded against it."
+      }
     },
     "status": {
       "draft": "Draft",
@@ -24960,7 +25115,8 @@
       "changeNote": "{{name}} changes the price by {{amount}}.",
       "sameNote": "Every choice here sells at the same price.",
       "addThird": "Add a third thing customers choose",
-      "thirdNote": "Two choices are the most an item takes for now. For a third, such as roast, add it to the item as an add-on."
+      "thirdNote": "Two choices are the most an item takes for now. For a third, such as roast, add it to the item as an add-on.",
+      "addAn": "Add an {{noun}}"
     },
     "prices": {
       "title": "Price for each combination",

@@ -249,6 +249,14 @@ describe('a saved draft back into the form', () => {
     ],
   }
 
+  it('reopens a business line saved with no classification unchosen, a consumer line by its unit (A-12)', () => {
+    const hourly = { ...saved, lines: [{ ...saved.lines[0], unitCode: 'HUR', classification: null }] }
+    expect(fromDraftResponse(SEEDED_TAX_CATEGORIES, hourly, 'business').lines[0].itemType).toBeNull()
+    expect(fromDraftResponse(SEEDED_TAX_CATEGORIES, hourly, 'consumer').lines[0].itemType).toBe('service')
+    const goods = { ...hourly, lines: [{ ...hourly.lines[0], classification: { goodsOrService: 'G' as const, hsCode: '090121000000' } }] }
+    expect(fromDraftResponse(SEEDED_TAX_CATEGORIES, goods, 'business').lines[0].itemType).toBe('goods')
+  })
+
   it('reads every field the save sends, so saving again changes nothing', () => {
     const restored = fromDraftResponse(SEEDED_TAX_CATEGORIES, saved, 'business')
     expect(restored).toMatchObject({

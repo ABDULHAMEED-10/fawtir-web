@@ -8,6 +8,7 @@ import type { NoteScope } from '../../lib/notifications'
 import searchIcon from '../../assets/dashboard/search.svg'
 import plusIcon from '../../assets/dashboard/plus.svg'
 import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
+import { useCan } from '../../lib/session/session'
 import { ConsoleSearch } from '../ConsoleShell/ConsoleSearch'
 
 /** Below this the bar cannot hold a search field as well as everything else. */
@@ -32,9 +33,12 @@ export function Topbar({
   const [searchOpen, setSearchOpen] = useState(false)
   // No new drafts while the subscription is read-only (ST-2, CA-3).
   const mayDraft = useSubscriptionAllows('CREATE_DRAFTS')
+  // A reader who may not draft was offered Create Invoice, on the phone as the bare "+" (C-9).
+  const canDraft = useCan('invoice.draft')
   const showCreateInvoice =
     allowCreateInvoice &&
     mayDraft &&
+    canDraft &&
     !location.pathname.startsWith('/invoices') &&
     !location.pathname.startsWith('/income') &&
     // Self-billing moved to Expenditure (6 Oct 2026) but keeps the bar its frames draw.

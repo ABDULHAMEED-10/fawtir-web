@@ -14,10 +14,14 @@ export function demoModulesEnabled(): boolean {
  * them, and their routes show the "not available yet" page instead of sample records. Quotations,
  * order forms and delivery notes showed another company's sample records inside a real session;
  * the owner decided to hide them until they are connected to the real API (R6, 23 Oct 2026).
+ * The compliance report prototype put the company's real name and VAT number beside invented
+ * figures, with Share offered, so it read as the company's own signed report; the owner decided to
+ * hide it too (DA-17, 30 Oct 2026). Its route does not show the "not available yet" page: it falls
+ * back to the real-only report, which keeps the real identity, numbering check and Excel export.
  * Purchase orders are not in this list: their screens read and write `/v1/purchase-orders`.
  * Take a module out of this list in the change that connects it.
  */
-const HIDDEN_PROTOTYPES: ReadonlySet<string> = new Set(['tradeDocuments'])
+const HIDDEN_PROTOTYPES: ReadonlySet<string> = new Set(['tradeDocuments', 'complianceReport'])
 
 /** Whether a prototype module is hidden outright (see HIDDEN_PROTOTYPES). */
 export function prototypeHidden(module: string): boolean {

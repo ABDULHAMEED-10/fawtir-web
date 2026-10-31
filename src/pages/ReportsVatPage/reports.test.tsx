@@ -622,12 +622,20 @@ describe('the downloads page', () => {
     const invoices = screen.getByText('Every invoice').closest('article')!
     expect(within(invoices).getByRole('button', { name: 'CSV' })).toBeTruthy()
     expect(within(invoices).getByRole('button', { name: 'Download Excel' })).toBeTruthy()
-    expect(within(invoices).getByText('Filters: state, type')).toBeTruthy()
+    // In words, not the catalogue's query parameter names (NEW-2).
+    expect(within(invoices).getByText('Filters: status, type')).toBeTruthy()
 
     // compliance.read is not, so the dataset is still named — hiding it would leave someone
     // asking for a file they cannot see exists.
     const register = screen.getByText('Tax document register').closest('article')!
     expect(within(register).queryByRole('button')).toBeNull()
     expect(within(register).getByText('Needs compliance.read')).toBeTruthy()
+  })
+
+  it('names a dataset’s filters in Arabic too (NEW-2)', async () => {
+    await i18n.changeLanguage('ar')
+    renderAt('/reports/lists', <ReportsListsPage />)
+    expect(await screen.findByText('المرشحات: الحالة، النوع')).toBeTruthy()
+    expect(screen.queryByText(/state|type/)).toBeNull()
   })
 })

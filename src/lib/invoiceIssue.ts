@@ -71,10 +71,11 @@ export const ISSUE_REFUSALS: Record<string, { field: IssueField | null; key: str
   SELLER_NOT_VERIFIED: { field: null, key: 'invoiceIssue.refused.companyPending' },
   SELLER_ADDRESS_INCOMPLETE: { field: null, key: 'invoiceIssue.refused.sellerAddressIncomplete' },
   SELLER_CONTACT_INCOMPLETE: { field: null, key: 'invoiceIssue.refused.sellerContactIncomplete' },
-  // IBR-019-OM: a business or government buyer's invoicing address needs street, additional
-  // street, address line 3, city and postal code; fixed on the customer (e2e 30 Oct, X-1).
-  BUYER_ADDRESS_INCOMPLETE: { field: null, key: 'invoiceIssue.refused.buyerAddressIncomplete' },
   CUSTOMER_NOT_INVOICE_ELIGIBLE: { field: null, key: 'invoiceIssue.refused.customerIncomplete' },
+  // Backend #817 (A-2): a standard invoice to a customer reached over Peppol whose invoice address
+  // lacks a member IBR-019-OM requires; refused at issue so no number is spent on an invoice the
+  // Send would dead-letter for good.
+  BUYER_ADDRESS_INCOMPLETE: { field: null, key: 'invoiceIssue.refused.buyerAddressIncomplete' },
   INDUSTRIAL_CLASSIFICATION_REQUIRED: { field: null, key: 'invoiceIssue.refused.activityRequired' },
   CUSTOMER_NOT_SELECTABLE: { field: null, key: 'invoiceIssue.refused.customerNotSelectable' },
   PAYMENT_TERMS_REQUIRED: { field: null, key: 'invoiceIssue.refused.termsRequired' },
@@ -90,6 +91,11 @@ export const ISSUE_REFUSALS: Record<string, { field: IssueField | null; key: str
   CORRECTED_INVOICE_NOT_ISSUED: { field: null, key: 'salesNote.refused.invoiceNotIssued' },
   CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT: { field: null, key: 'salesNote.refused.exceeds' },
   CREDIT_NOTE_NOTHING_CORRECTABLE: { field: null, key: 'salesNote.refused.nothingLeft' },
+  // The cumulative caps (DA-1 option B), said without figures where only the code is read: a note
+  // draft issued from its own page. The composer names the line or rate (creditCapRefusal).
+  CREDIT_NOTE_EXCEEDS_LINE_REMAINING: { field: null, key: 'salesNote.refused.lineRemaining' },
+  CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING: { field: null, key: 'salesNote.refused.categoryRemaining' },
+  CREDIT_NOTE_VAT_CATEGORY_NOT_ON_ORIGINAL: { field: null, key: 'salesNote.refused.categoryNotOnInvoice' },
 
   // A zero-rated or exempt line with no reason, or the wrong list's reason: fixed on the draft.
   ...Object.fromEntries(

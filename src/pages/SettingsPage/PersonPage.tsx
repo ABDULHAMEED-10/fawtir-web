@@ -127,7 +127,7 @@ function Person() {
     return (
       <>
         <SettingsHeader title={t('branchAccess.person.title')} subtitle={subtitle} />
-        <ApiReadFailure error={person.read.error} retry={person.retry} />
+        <ApiReadFailure error={person.read.error} retry={person.retry} notFoundOn400 />
       </>
     )
   }

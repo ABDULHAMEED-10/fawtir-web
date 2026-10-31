@@ -4,6 +4,8 @@ import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { resetSharedRequests } from '../api'
 import { usePlanUsage } from './usePlanUsage'
+import { SessionContext } from '../lib/session/session'
+import type { Entitlements } from '../lib/identity/entitlements'
 
 function json(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
@@ -12,11 +14,26 @@ function json(status: number, body?: unknown) {
   })
 }
 
-const wrapper = ({ children }: { children: ReactNode }) => <MemoryRouter>{children}</MemoryRouter>
+const PLAN_READER: Entitlements = {
+  userId: 'u-1',
+  username: 'owner',
+  tenantId: 't-1',
+  roles: [],
+  permissions: ['tenant.plan.read'],
+  scopes: [],
+  featureFlags: {},
+}
+let who: Entitlements = PLAN_READER
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <SessionContext.Provider value={who}>
+    <MemoryRouter>{children}</MemoryRouter>
+  </SessionContext.Provider>
+)
 let fetchMock: ReturnType<typeof vi.fn>
 
 beforeEach(() => {
   resetSharedRequests()
+  who = PLAN_READER
   fetchMock = vi.fn()
   vi.stubGlobal('fetch', fetchMock)
 })
@@ -51,5 +68,15 @@ describe('usePlanUsage, the composers’ quota meter', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalled())
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(result.current).toBeNull()
+  })
+})
+
+describe('usePlanUsage for a reader without tenant.plan.read (B-14)', () => {
+  it('asks nothing and draws no meter', async () => {
+    who = { ...PLAN_READER, permissions: ['invoice.read'] }
+    const { result } = renderHook(() => usePlanUsage(), { wrapper })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(result.current).toBeNull()
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })

@@ -93,7 +93,7 @@ import {
   type ItemType,
 } from '../../lib/invoiceDraft'
 import { blankCustomerForm, customerProblems, toCustomerRequest } from '../../lib/customerForm'
-import { lineFromProduct, taxCategoryOf } from '../../lib/productLine'
+import { lineFromProduct, lineHasNoPrice, taxCategoryOf } from '../../lib/productLine'
 import { isStockLineWarning, unitLockHint } from '../../lib/stockLineWarnings'
 import type { InvoiceLineWarningDto } from '../../api/invoices/detail'
 import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
@@ -339,7 +339,8 @@ function ItemTypeToggle({
   onChange,
   line,
 }: {
-  value: ItemType
+  /** Null: not chosen yet, so neither is pressed. */
+  value: ItemType | null
   onChange: (next: ItemType) => void
   line: number
 }) {
@@ -913,7 +914,8 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   }
   const fillFromProduct = (line: DraftLine, product: ProductDto) => {
     const patch = lineFromProduct(reference?.taxCategories ?? [], product, exclVat)
-    const itemType = patch.itemType ?? itemTypeOfUnit(patch.unit)
+    // Only what the product says: a product naming neither leaves the choice to the reader.
+    const itemType = patch.itemType ?? null
     const typed = line.typedDiscount === true && Number(line.discountValue) > 0
     // Null on a row means "not read": the line asks for the product itself.
     const sizes = Array.isArray(product.variants)
@@ -1634,7 +1636,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     }),
   )
   const unitOptions = (line: DraftLine): SelectOption[] =>
-    lineUnitOptions(line.itemType, t, line.unit, reference)
+    lineUnitOptions(line.itemType ?? itemTypeOfUnit(line.unit), t, line.unit, reference)
   // The platform's UNCL4461 means, the design's five until it answers; named as the design does.
   const paymentMethodChoices: SelectOption[] = (
     reference?.paymentMethods.some((method) => method.active)
@@ -2421,6 +2423,15 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                         </div>
                       </div>
                     ) : null}
+                    {/* A self-billed price is the supplier's, not the catalogue's: no 0.000 to warn of. */}
+                    {!selfBilled && lineHasNoPrice(row) ? (
+                      <p
+                        className="ps-1 text-xs font-medium leading-[1.3] text-warning-700"
+                        data-testid={`line-${index + 1}-no-price`}
+                      >
+                        {t('invoiceDraft.lineNoPrice')}
+                      </p>
+                    ) : null}
                     {messages.length > 0 ? (
                       <div
                         className="flex flex-col gap-0.5 ps-1"
@@ -2793,7 +2804,11 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
           // A sales draft is sent for approval from its own page; the self-billed page has no
           // approval card, so it gets no link.
           approvalPage={selfBilled ? undefined : `/invoices/${encodeURIComponent(issuing.id)}`}
-          customerId={selfBilled ? undefined : form.customerId}
+          customerEditPath={
+            !selfBilled && form.customerId && can(session, 'customer.manage')
+              ? `/customers/${encodeURIComponent(form.customerId)}/edit`
+              : undefined
+          }
           onClose={() => setIssuing(null)}
           onIssued={(issued) => void afterIssue(issued)}
         />

@@ -103,17 +103,23 @@ export function shelfTabs(
   groups: CatalogGroupDto[],
   ar: boolean,
   everything: string,
+  /** Each tab counts what it would show under the Active / Inactive / Both filter. */
+  filter: ActiveFilter = 'both',
 ): ShelfTab[] {
-  const count = (id: string) => items.filter((item) => item.groupId === id).length
+  const shown = items.filter(
+    (item) => filter === 'both' || item.available === (filter === 'active'),
+  )
+  const count = (list: PosItem[], id: string) => list.filter((item) => item.groupId === id).length
   return [
-    { id: 'all', label: everything, count: items.length },
+    { id: 'all', label: everything, count: shown.length },
     ...groups
+      // A group stays while it has anything at all, so the filter never takes away the open tab.
+      .filter((group) => count(items, group.id) > 0)
       .map((group) => ({
         id: group.id,
         label: pick(group.name, group.nameAr, ar),
-        count: count(group.id),
-      }))
-      .filter((tab) => tab.count > 0),
+        count: count(shown, group.id),
+      })),
   ]
 }
 

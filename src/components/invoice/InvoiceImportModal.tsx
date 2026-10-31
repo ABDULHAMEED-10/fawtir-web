@@ -26,6 +26,7 @@ import {
   classificationKey,
   importProgress,
   importStepOf,
+  groupImportWarnings,
   importWarningColumnKey,
   importWarningKey,
   isImportWorking,
@@ -686,8 +687,9 @@ export function InvoiceImportModal({
  * What the file was imported with but the user should check, in the errors' table but in amber
  * (the `pending` tokens), never the errors' red: it never blocks the import.
  */
-function ImportWarnings({ warnings }: { warnings: ImportWarningDto[] }) {
+function ImportWarnings({ warnings: raw }: { warnings: readonly ImportWarningDto[] }) {
   const { t, i18n } = useTranslation()
+  const warnings = groupImportWarnings(raw)
   if (warnings.length === 0) return null
   return (
     <section className="flex flex-col gap-3">
@@ -717,7 +719,7 @@ function ImportWarnings({ warnings }: { warnings: ImportWarningDto[] }) {
               return (
                 <tr key={index} className="border-t border-pending-200 align-top">
                   <td className="px-2 py-2 sm:px-3 font-medium tabular-nums text-text-secondary">
-                    {warning.rowNumbers
+                    {warning.rows
                       .map((row) => formatCount(row, i18n.language))
                       .join(i18n.language.startsWith('ar') ? '، ' : ', ')}
                   </td>

@@ -12,6 +12,7 @@ import {
   linesTotals,
   savedDetails,
   supplierTaxCategory,
+  supplierWithVat,
   toConfirmation,
   toCorrections,
   vatIncluded,
@@ -229,6 +230,15 @@ async function pick(files: File[]) {
 const pdf = (name = 'bill.pdf') => new File(['%PDF-1.4'], name, { type: 'application/pdf' })
 
 describe('the bill form rules', () => {
+  it('takes the one supplier whose VAT number is exactly the file’s, whatever its case (DB-12)', () => {
+    const a = { id: 'a', vatNumber: 'OM1100999001' }
+    const b = { id: 'b', vatNumber: 'OM11009990012' }
+    expect(supplierWithVat([b, a], ' om1100999001 ')).toBe(a)
+    expect(supplierWithVat([b], 'OM1100999001')).toBeNull()
+    expect(supplierWithVat([a, { id: 'c', vatNumber: 'om1100999001' }], 'OM1100999001')).toBeNull()
+    expect(supplierWithVat([{ id: 'd', vatNumber: null }], '')).toBeNull()
+  })
+
   it('keeps a half-typed bill as corrections, refusing only malformed figures', () => {
     const half = { ...blankBillForm(), billNumber: 'NHS-2026-14', total: '42.500' }
     expect(billProblems(half, { needsNumber: true, partial: true })).toEqual({})
@@ -467,6 +477,71 @@ describe('upload a bill', () => {
       notDuplicateOf: null,
     })
     expect(bodyOf(second).notDuplicateOf).toBe(ON_FILE)
+  })
+
+  it('starts with the supplier whose VAT number the file states, found on the list (DB-12)', async () => {
+    uploads.push(XML_INTAKE)
+    renderAt('/expenditure/bills/upload')
+    await pick([new File(['<Invoice/>'], 'bill.xml', { type: 'application/xml' })])
+
+    expect(
+      await screen.findByText('VAT number on the file matches the supplier already on your list.'),
+    ).toBeTruthy()
+    expect(screen.queryByText(/The file gives the supplier's VAT number/)).toBeNull()
+    expect(
+      calls('GET', '/api/v1/suppliers?').some(([url]) => String(url).includes('q=OM1100999001')),
+    ).toBe(true)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save the bill' }))
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(bodyOf(calls('POST', '/api/v1/bills/intake/i-xml/confirm')[0])).toMatchObject({
+      supplierId: SUPPLIER_ID,
+      supplierName: 'Muscat Roastery Co',
+    })
+  })
+
+  it('leaves the supplier to the person when no one, or more than one, on the list has that VAT number (DB-12)', async () => {
+    const answer = fetchMock.getMockImplementation()!
+    const cases: { vatNumbers: string[]; total?: number }[] = [
+      { vatNumbers: ['OM1100999001X'] },
+      { vatNumbers: ['OM1100999001', 'om1100999001'] },
+      // One exact match on the first page, but more matches than the page holds.
+      { vatNumbers: ['OM1100999001'], total: 21 },
+    ]
+    for (const { vatNumbers, total = vatNumbers.length } of cases) {
+      fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+        url.startsWith('/api/v1/suppliers?')
+          ? json(200, {
+              items: vatNumbers.map((vatNumber, index) => ({
+                id: `s-${index}`,
+                displayName: `Supplier ${index}`,
+                vatNumber,
+              })),
+              page: 0,
+              pageSize: 20,
+              total,
+            })
+          : answer(url, init),
+      )
+      uploads.push(XML_INTAKE)
+      const { unmount } = renderAt('/expenditure/bills/upload')
+      await pick([new File(['<Invoice/>'], 'bill.xml', { type: 'application/xml' })])
+
+      expect(
+        await screen.findByText("The file gives the supplier's VAT number as OM1100999001."),
+      ).toBeTruthy()
+      await waitFor(() =>
+        expect(
+          calls('GET', '/api/v1/suppliers?').some(([url]) => String(url).includes('q=OM1100999001')),
+        ).toBe(true),
+      )
+      // Let the lookup's answer land before saying nothing was picked from it.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      })
+      expect(screen.queryByText(/matches the supplier already on your list/)).toBeNull()
+      unmount()
+    }
   })
 
   it('discards the upload when the person cancels', async () => {

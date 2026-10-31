@@ -502,6 +502,19 @@ describe('a bill held as a possible duplicate', () => {
     expect(within(section).getByText(/Both copies carry the same document UUID/)).toBeTruthy()
   })
 
+  it('stops advising "Confirm it as a duplicate" once it is confirmed (B-12)', async () => {
+    const confirmed = duplicateHold({
+      duplicateResolution: 'CONFIRMED_DUPLICATE',
+      duplicateResolvedBy: 'u-1',
+      duplicateResolvedAt: '2026-10-28T09:00:00Z',
+    })
+    copyResponses = [() => json(200, heldCopy(true, confirmed))]
+    renderCopy()
+    await screen.findByRole('heading', { level: 2, name: 'Duplicate' })
+    const section = document.getElementById('duplicate-check') as HTMLElement
+    expect(within(section).queryByText(/Confirm it as a duplicate/)).toBeNull()
+  })
+
   it('says the server refused "Not a duplicate" for the same document UUID, and reads the bill again', async () => {
     // A server before duplicateHold: the UUIDs are not known, so the choice is offered.
     const open = duplicateHold()

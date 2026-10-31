@@ -44,6 +44,8 @@ export type BillRowDto = {
   source: BillSourceDto
   supplierId: string | null
   supplierName: string | null
+  /** The sender's Peppol id (`scheme:value`) on a received bill; null on one captured by hand. */
+  supplierParticipantId?: string | null
   /** 380 invoice, 381 credit note, 383 debit note, 389 self-billed, 261 self-billed credit note. */
   documentTypeCode: string | null
   supplierBillNumber: string | null
@@ -175,7 +177,10 @@ export type BillSummaryDto = {
   dueThisWeekTotal: number
   readyToPayCount: number
   readyToPayTotal: number
-  /** Refused in our books but still owed: a rejection is our opinion, not a settlement. */
+  /**
+   * Refused in our books but still owed: a rejection is our opinion, not a settlement. Rejected
+   * bills and refused debit notes together, each not settled in full (JdbcBillProjectionAdapter).
+   */
   disputedCount: number
   disputedTotal: number
   /**
@@ -524,6 +529,10 @@ export type BillDetailDto = {
       | 'DRAFT_CREATED'
       | 'ISSUED'
       | 'CANCELLED'
+      // A person's decision on a held Peppol copy (backend V493): the kinds the server sends on
+      // the copy's own record. The activity panel already has words for both.
+      | 'NOT_DUPLICATE'
+      | 'CONFIRMED_DUPLICATE'
     detail: string | null
     actor: string | null
   }[]

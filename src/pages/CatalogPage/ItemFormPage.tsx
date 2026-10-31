@@ -2,6 +2,7 @@ import {
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
   type InputHTMLAttributes,
   type ReactNode,
@@ -196,7 +197,7 @@ function ExistingItem({ id }: { id: string }) {
       {read.read.status === 'loading' ? (
         <LoadingNotice />
       ) : (
-        <ApiReadFailure error={read.read.error} retry={read.retry} />
+        <ApiReadFailure error={read.read.error} retry={read.retry} notFoundOn400 />
       )}
     </CatalogShell>
   )
@@ -333,6 +334,13 @@ function ItemEditor({
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [banner, setBanner] = useState<Banner | null>(null)
+  // A refusal sits at the top of a long form: the reader is taken to it, or Save seems to do nothing.
+  const refusalBanner = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (banner?.tone !== 'error') return
+    refusalBanner.current?.scrollIntoView?.({ block: 'center' })
+    refusalBanner.current?.focus({ preventScroll: true })
+  }, [banner])
   const [confirmArchive, setConfirmArchive] = useState(false)
   // Zero-rating (Z.15): the last save's warnings, else the re-check's flag on the stored item.
   const [zeroRatingWarnings, setZeroRatingWarnings] = useState<ZeroRatingNote[]>(() =>
@@ -378,6 +386,7 @@ function ItemEditor({
   const classification = itemType === 'goods' ? hsCode : serviceType
   const checks = readiness({
     name,
+    code,
     basePrice: base,
     taxCategory,
     group,
@@ -726,6 +735,8 @@ function ItemEditor({
     >
       {banner ? (
         <div
+          ref={refusalBanner}
+          tabIndex={-1}
           role={banner.tone === 'error' ? 'alert' : 'status'}
           className={[
             'flex flex-wrap items-center justify-between gap-3 rounded-md px-5 py-3 text-sm font-medium',

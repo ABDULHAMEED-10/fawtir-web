@@ -24,6 +24,16 @@ const WORDED = new Set([
   'POS_CARD_APPROVAL_REQUIRED',
   'POS_COUNT_REQUIRED',
   'POS_COUNT_INVALID',
+  'SELLER_PARTICIPANT_NOT_VERIFIED',
+  'SELLER_ADDRESS_INCOMPLETE',
+  'SELLER_CONTACT_INCOMPLETE',
+  'INDUSTRIAL_CLASSIFICATION_REQUIRED',
+  'PERIOD_CLOSED',
+  'BRANCH_NOT_ACTIVE',
+  'POS_ZERO_PRICE',
+  'POS_SOLD_AT_IN_FUTURE',
+  'POS_SHIFT_NOT_OPEN',
+  'POS_TILL_LIMIT',
   'POS_DENOMINATION_UNKNOWN',
   'POS_FLOAT_LEFT_INVALID',
   'POS_FLOAT_LEFT_EXCEEDS_COUNTED',
@@ -71,6 +81,32 @@ export function posRefusalKey(error: unknown): string {
     if (error.status === 403) return 'pos.refusal.forbidden'
   }
   return 'pos.refusal.failed'
+}
+
+/** Causes the till words only for a queued sale, where the cashier needs what clears them. */
+const QUEUE_WORDED = new Set([
+  'PERIOD_CLOSED',
+  'POS_SOLD_AT_IN_FUTURE',
+  'SELLER_PARTICIPANT_NOT_VERIFIED',
+  'INDUSTRIAL_CLASSIFICATION_REQUIRED',
+])
+
+const QUEUE_SLUGS: Record<string, string> = {
+  'subscription-restricted': 'pos.queue.reason.readOnly',
+  'plan-feature-not-included': 'pos.queue.reason.planFeature',
+  'quota-exceeded': 'pos.queue.reason.quota',
+}
+
+/** The sentence for a queued sale's stored refusal (handbook 3.3: never the server's `detail`). */
+export function queueRefusalKey(code: string | null, slug: string | null): string {
+  if (code?.startsWith('SUBSCRIPTION_')) return 'pos.queue.reason.readOnly'
+  if (code && QUEUE_WORDED.has(code)) return `pos.queue.reason.${code}`
+  if (slug && QUEUE_SLUGS[slug]) return QUEUE_SLUGS[slug]
+  if (code && WORDED.has(code)) return `pos.refusal.${code}`
+  const general = slug ? SLUGS[slug] : undefined
+  if (general) return general
+  if (code === 'HTTP_403') return 'pos.refusal.forbidden'
+  return 'pos.queue.reason.other'
 }
 
 /** A figure a refusal carries (`expected`, `limit`, `maxMoneyBack`), as a number. */

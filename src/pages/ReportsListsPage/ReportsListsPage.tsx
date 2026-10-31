@@ -14,6 +14,7 @@ import {
 import { saveDownload } from '../../lib/supplierRecord'
 import { can, useSession } from '../../lib/session/session'
 import { periodWindows } from '../../lib/reportPeriod'
+import { listFilterLabels } from '../../lib/reportListFilters'
 import invoiceIcon from '../../assets/reports/list-invoice.svg'
 import customersIcon from '../../assets/reports/list-customers.svg'
 import catalogIcon from '../../assets/reports/list-catalog.svg'
@@ -234,7 +235,7 @@ function hrefFor(dataset: ListsDatasetDto, href: string, span: { from: string; t
 }
 
 function ListCard({ card }: { card: Card }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const session = useSession()
   const [period] = useReportPeriod()
   const [busy, setBusy] = useState<string | null>(null)
@@ -294,7 +295,11 @@ function ListCard({ card }: { card: Card }) {
             {!dataset
               ? t('reports.lists.notPublished')
               : dataset.parameters.length > 0
-                ? t('reports.lists.filters', { list: dataset.parameters.join(', ') })
+                ? t('reports.lists.filters', {
+                    list: listFilterLabels(dataset.parameters)
+                      .map((label) => ('key' in label ? t(label.key) : label.text))
+                      .join(i18n.language.startsWith('ar') ? '، ' : ', '),
+                  })
                 : t('reports.lists.wholeList')}
           </p>
 

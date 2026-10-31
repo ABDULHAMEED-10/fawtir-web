@@ -647,6 +647,13 @@ function OptionPanel({
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState('')
   const noun = arabic ? set.nounAr : set.noun
+  // English says "an option"; Arabic has no article to choose.
+  const addLabel = t(
+    `itemOptions.chooses.${!arabic && /^[aeiou]/i.test(noun) ? 'addAn' : 'addA'}`,
+    {
+      noun,
+    },
+  )
 
   const commit = () => {
     if (draft.trim()) onAdd(draft)
@@ -714,7 +721,7 @@ function OptionPanel({
               onKeyDown={onKey}
               onBlur={commit}
               placeholder={t('itemOptions.chooses.newPlaceholder')}
-              aria-label={t('itemOptions.chooses.addA', { noun })}
+              aria-label={addLabel}
               className="h-[36px] w-[160px] rounded-sm border border-border-brand bg-white px-3 text-sm font-medium text-text-primary outline-none"
             />
           ) : (
@@ -724,7 +731,7 @@ function OptionPanel({
               className="inline-flex h-[36px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-3 text-sm font-medium text-text-quaternary transition-colors hover:bg-primary-25"
             >
               <PlusIcon />
-              {t('itemOptions.chooses.addA', { noun })}
+              {addLabel}
             </button>
           )}
         </li>

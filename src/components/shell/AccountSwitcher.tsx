@@ -8,7 +8,7 @@ import {
   type BranchOverviewRow,
 } from '../../api/settings/branches'
 import { useApiRead } from '../../hooks/useApiRead'
-import { REQUIRE_SESSION, useSession } from '../../lib/session/session'
+import { REQUIRE_SESSION, mayRequest, useSession } from '../../lib/session/session'
 import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
 import { CompanyAvatar } from './CompanyAvatar'
 import { chooseWorkingBranch, useWorkingBranchId } from '../../lib/workingBranch'
@@ -35,17 +35,24 @@ export function AccountSwitcher() {
   // GET /v1/settings/plan now exists, so the card names the tenant's real plan. It used to state
   // "Business plan" for every tenant; without an answer (loading, no tenant.plan.read, a failure)
   // it names no plan rather than a placeholder one.
-  const planRead = useApiRead<PlanOverviewDto>(PLAN_OVERVIEW_PATH, loadPlanOverview).read
+  // Both reads are asked only of a reader the server admits (`tenant.plan.read`, `branch.manage`):
+  // every screen draws this card, so a reader without them answered 403 on every page (B-14).
+  const session = useSession()
+  const planRead = useApiRead<PlanOverviewDto>(
+    mayRequest(session, 'tenant.plan.read') ? PLAN_OVERVIEW_PATH : null,
+    loadPlanOverview,
+  ).read
   // Chrome every screen draws: an answer without a plan name names nothing, never crashes the shell.
   const planName = planRead.status === 'ready' ? planRead.data?.plan?.name : undefined
   const planLabel = planName ? t('shell.plan.named', { plan: planName }) : null
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
-  const session = useSession()
   const chosenId = useWorkingBranchId()
   // Loads once the popover is worth opening; failing silently (wrong role, or none yet) shows the
   // signed-in company alone rather than an error on chrome every screen renders.
-  const { read } = useApiRead<BranchOverviewDto>(BRANCHES_OVERVIEW_PATH)
+  const { read } = useApiRead<BranchOverviewDto>(
+    mayRequest(session, 'branch.manage') ? BRANCHES_OVERVIEW_PATH : null,
+  )
   const branches =
     read.status === 'ready' && Array.isArray(read.data.branches) ? read.data.branches : []
   // Only a branch someone chose names the card; until then it names the company, as before.

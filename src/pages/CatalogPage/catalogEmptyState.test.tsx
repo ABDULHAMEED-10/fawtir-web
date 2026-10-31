@@ -65,10 +65,18 @@ describe('the empty catalogue names the company’s own business type (L-7)', ()
     expect(screen.queryByText(/roastery/i)).toBeNull()
   })
 
+  it('names the top button for the template page it opens, not an Excel import', async () => {
+    renderEmpty()
+    const button = await screen.findByRole('link', { name: 'Build from a template' })
+    expect(button.getAttribute('href')).toBe('/catalog/build')
+    expect(screen.queryByText('Import from Excel')).toBeNull()
+  })
+
   it('offers no suggestion when the business type has no template', async () => {
     template = () => json({ type: 'https://api.fawtir.om/problems/resource-not-found' }, 404)
     renderEmpty()
     expect(await screen.findByText(i18n.t('catalogEmpty.uploadTitle'))).toBeTruthy()
     expect(screen.queryByText(i18n.t('catalogEmpty.letFawtirSuggest'))).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Build from a template' })).toBeNull()
   })
 })

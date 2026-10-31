@@ -14,7 +14,7 @@ import {
   type ArchiveListDto,
   type ArchiveSummary,
 } from '../../api/compliance/archive'
-import { describeApiFailure } from '../../lib/apiFailure'
+import { describeApiFailure, isNotFound } from '../../lib/apiFailure'
 import { can, useSession } from '../../lib/session/session'
 import { formatAmount, formatCount, formatDate, formatInstantDay } from '../../lib/format'
 import { saveDownload } from '../../lib/supplierRecord'
@@ -39,6 +39,7 @@ import {
   retentionShortKey,
   showingNote,
   statusChip,
+  tddStatusKey,
   taxYears,
   timeLeft,
   CHIP_TONE,
@@ -232,7 +233,8 @@ export function DocumentsPage() {
       const number = item.invoice_number ?? item.invoice_uuid
       saveDownload(await downloadArtefact(href), artefactFileName(number, id) ?? `${number}-${id}`)
     } catch (error) {
-      setNotice(failure(error))
+      // The row is listed, so a 404 is its artefact address not served yet, not a missing record.
+      setNotice(isNotFound(error) ? t('documents.notServed') : failure(error))
     }
   }
 
@@ -910,7 +912,7 @@ function RecordRow({
                   <p className="mt-1 text-xs font-medium leading-[1.3] text-text-quaternary">
                     {t(fileNoteKey(item, artefact.id))}
                     {artefact.id === 'tdd'
-                      ? ` · ${t(item.tdd.status ? `documents.tdd.${item.tdd.status}` : 'documents.tdd.none')}`
+                      ? ` · ${t(tddStatusKey(item.tdd.status, 'tdd'))}`
                       : ''}
                   </p>
                 </div>
