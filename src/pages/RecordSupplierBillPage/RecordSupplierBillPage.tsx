@@ -41,6 +41,7 @@ import {
   type SupplierOverviewDto,
 } from '../../api/expenditure/supplierRecord'
 import { describeApiFailure } from '../../lib/apiFailure'
+import { TOO_BIG_FOR_SERVER, fitForUpload, refusedForSize } from '../../lib/billUpload'
 import {
   BILL_FILE_TYPES,
   BILL_CONFIRM_REFUSALS,
@@ -236,7 +237,7 @@ function RecordBill({ id }: { id: string }) {
       }
       if (file && !stored.current) {
         uploading = true
-        const uploaded = await uploadIntake(file, 'UPLOADED', { read: 'none' })
+        const uploaded = await uploadIntake(await fitForUpload(file), 'UPLOADED', { read: 'none' })
         uploading = false
         stored.current = { file, intakeId: uploaded.id }
       }
@@ -290,6 +291,8 @@ function RecordBill({ id }: { id: string }) {
               : UPLOAD_REFUSALS[failure.code],
           ),
         )
+      } else if (uploading && refusedForSize(failure)) {
+        setNotice(t(TOO_BIG_FOR_SERVER, { name: file?.name ?? '' }))
       } else if (uploading && uploadMayHaveArrived(failure)) {
         setNotice(t(UPLOAD_MAY_HAVE_ARRIVED))
       } else {

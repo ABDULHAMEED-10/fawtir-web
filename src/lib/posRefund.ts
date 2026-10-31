@@ -147,6 +147,17 @@ export function moneyBackMethod(
   return 'REDUCE_BALANCE'
 }
 
+/**
+ * Only given-away lines are going back (Abdul, 31 Oct 2026): no credit note and no money. False on
+ * a server that does not mark such lines, where the refund goes as before.
+ */
+export function onlyGivenAway(sale: PosRefundLookupDto, returning: ReturnLine[]): boolean {
+  const chosen = returning
+    .filter((entry) => entry.qty > 0)
+    .map((entry) => sale.lines.find((line) => line.lineNumber === entry.lineNumber))
+  return chosen.length > 0 && chosen.every((line) => line?.givenFree === true)
+}
+
 export function refundRequest(input: {
   tillId: string
   why: WhyId
@@ -155,6 +166,8 @@ export function refundRequest(input: {
   backOnShelf: boolean
   method: 'CASH' | 'CARD' | 'TRANSFER' | 'REDUCE_BALANCE'
   amount: number
+  /** Only given-away lines: there is no money to say anything about. */
+  noMoney?: boolean
 }): PosRefundRequest {
   return {
     tillId: input.tillId,
@@ -167,7 +180,7 @@ export function refundRequest(input: {
         quantity: entry.qty,
         backOnShelf: input.backOnShelf,
       })),
-    moneyBack: [{ method: input.method, amount: toRials(input.amount) }],
+    moneyBack: input.noMoney ? [] : [{ method: input.method, amount: toRials(input.amount) }],
   }
 }
 

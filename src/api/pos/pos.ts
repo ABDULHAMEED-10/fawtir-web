@@ -36,8 +36,8 @@ export type PosTillDto = {
   openShift: { shiftId: string; cashier: PosPerson; openedAt: string } | null
   /** Keyed `INVOICE` and `CREDIT_NOTE`. */
   series: Record<string, PosSeries>
-  /** The server takes `skippedNumbers` on a sale; an older one leaves this out. */
-  skipsStuckNumbers?: boolean
+  /** The server keeps open numbers (skip, set aside, the outstanding list); an older one leaves this out. */
+  openNumbers?: boolean
 }
 
 export type PosShiftDto = {
@@ -56,6 +56,11 @@ export type PosShiftDto = {
 
 export function posTillsPath(branchId: string): string {
   return withQuery(POS_TILLS_PATH, { branchId })
+}
+
+/** Every active till the reader's branches can see, for a count per branch. */
+export function loadAllPosTills(): Promise<PosTillDto[]> {
+  return apiRequest<PosTillDto[]>(POS_TILLS_PATH)
 }
 
 export function loadPosTills(branchId: string): Promise<PosTillDto[]> {
@@ -565,6 +570,40 @@ export function posDayPath(date: string, branchId: string): string {
   return withQuery(`${POS_PATH}/days/${id(date)}`, { branchId })
 }
 
+/* --------------------------------------------------------------- open numbers */
+
+/** A printed number no invoice carries yet. It stays listed until it is filed, set aside or not. */
+export type PosOpenNumberDto = {
+  tillId: string
+  tillNumber: number
+  invoiceNumber: string
+  refusalCode: string | null
+  reason: string | null
+  soldAt: string | null
+  amount: number | null
+  firstRecordedAt: string
+  passed: boolean
+  setAsideAt: string | null
+  setAsideBy: string | null
+  setAsideReason: string | null
+}
+
+export function posOpenNumbersPath(branchId: string): string {
+  return withQuery(`${POS_PATH}/open-numbers`, { branchId })
+}
+
+/** `pos.till.manage`. Lets the queue move on and closes nothing; only on a server with `openNumbers`. */
+export function setAsideOpenNumber(
+  tillId: string,
+  invoiceNumber: string,
+  reason: string,
+): Promise<PosOpenNumberDto> {
+  return apiRequest<PosOpenNumberDto>(`${POS_PATH}/open-numbers/set-aside`, {
+    method: 'POST',
+    body: { tillId, invoiceNumber, reason },
+  })
+}
+
 /* -------------------------------------------------------------------- refunds */
 
 export type PosRefundLookupLine = {
@@ -579,6 +618,11 @@ export type PosRefundLookupLine = {
   vatRate: number | null
   vatCategory: string | null
   refundable: boolean
+  /**
+   * The line credits 0.000, so it comes back as a stock return with no credit note. Absent from a
+   * server that cannot take such a return yet, and the till then refunds as before.
+   */
+  givenFree?: boolean
 }
 
 export type PosRefundLookupDto = {
@@ -617,8 +661,10 @@ export type PosRefundRequest = {
 export type PosRefundDto = {
   refundId: string
   saleId: string
-  creditNoteId: string
-  creditNoteNumber: string
+  /** Null when only given-away lines came back: nothing was issued. */
+  creditNoteId: string | null
+  creditNoteNumber: string | null
+  stockOnly?: boolean
   totals: PosTotals
   warnings: PosWarning[]
   replayed?: boolean

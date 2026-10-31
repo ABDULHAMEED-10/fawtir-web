@@ -1,20 +1,13 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FileDropzone } from '../ui'
-import { ApiError } from '../../api/errors'
 import {
   INTAKE_MAX_BYTES,
-  uploadIntake,
   type IntakeDto,
   type IntakeSourceDto,
 } from '../../api/expenditure/billIntake'
-import { describeApiFailure } from '../../lib/apiFailure'
-import {
-  UPLOAD_MAY_HAVE_ARRIVED,
-  UPLOAD_REFUSALS,
-  fileKindOf,
-  uploadMayHaveArrived,
-} from '../../lib/billIntake'
+import { fileKindOf } from '../../lib/billIntake'
+import { uploadInTurn } from '../../lib/billUpload'
 import fileIcon from '../../assets/bill-capture/file.svg'
 import { readingPercent, useElapsedSeconds } from './readingProgress'
 
@@ -40,7 +33,8 @@ export function BillFilePicker({
   multiple?: boolean
   title: string
   hint: string
-  onUploaded: (uploaded: UploadedIntake[]) => void
+  /** `problems`: the files that did not make it, in words, for a parent that moves on from here. */
+  onUploaded: (uploaded: UploadedIntake[], problems: string[]) => void
 }) {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
@@ -51,39 +45,27 @@ export function BillFilePicker({
   const seconds = useElapsedSeconds(sending !== null)
   const [refusal, setRefusal] = useState<string | null>(null)
   const inFlight = useRef(false)
+  /** Files the box itself turned away, in the same drop as the ones it passes on. */
+  const rejected = useRef<string[]>([])
 
   const take = async (files: File[]) => {
     if (inFlight.current) return
     inFlight.current = true
     setBusy(true)
-    setRefusal(null)
-    const uploaded: UploadedIntake[] = []
-    try {
-      for (const [index, file] of files.entries()) {
-        setSending({ current: index + 1, total: files.length, read: fileKindOf(file) !== 'xml' })
-        const started = performance.now()
-        const intake = await uploadIntake(file, source)
-        uploaded.push({ intake, file, readSeconds: (performance.now() - started) / 1000 })
-      }
-    } catch (error) {
-      const coded =
-        error instanceof ApiError && error.code && Object.hasOwn(UPLOAD_REFUSALS, error.code)
-          ? UPLOAD_REFUSALS[error.code]
-          : undefined
-      const failure = describeApiFailure(error)
-      setRefusal(
-        coded
-          ? t(coded)
-          : uploadMayHaveArrived(error)
-            ? t(UPLOAD_MAY_HAVE_ARRIVED)
-            : t(failure.key, failure.values),
-      )
-    } finally {
-      inFlight.current = false
-      setBusy(false)
-      setSending(null)
-      if (uploaded.length > 0) onUploaded(uploaded)
-    }
+    const refused = rejected.current
+    rejected.current = []
+    const result = await uploadInTurn(files, source, (file, index) =>
+      setSending({ current: index + 1, total: files.length, read: fileKindOf(file) !== 'xml' }),
+    )
+    const problems = [
+      ...refused,
+      ...result.problems.map((problem) => t(problem.key, problem.values)),
+    ]
+    setRefusal(problems.length > 0 ? problems.join(' ') : null)
+    inFlight.current = false
+    setBusy(false)
+    setSending(null)
+    if (result.uploaded.length > 0) onUploaded(result.uploaded, problems)
   }
 
   return (
@@ -93,11 +75,19 @@ export function BillFilePicker({
         multiple={multiple}
         maxBytes={INTAKE_MAX_BYTES}
         onFiles={(files) => void take(files)}
-        onReject={(reason) =>
-          setRefusal(
-            t(reason === 'size' ? 'billIntake.upload.tooLarge' : 'billIntake.upload.wrongType'),
+        onReject={(reason, file) => {
+          const words = t(
+            reason === 'size'
+              ? 'billIntake.upload.tooLargeNamed'
+              : 'billIntake.upload.wrongTypeNamed',
+            { name: file.name },
           )
-        }
+          rejected.current.push(words)
+          setRefusal(rejected.current.join(' '))
+          queueMicrotask(() => {
+            rejected.current = []
+          })
+        }}
         className="w-full"
       >
         {({ dragging }) => (

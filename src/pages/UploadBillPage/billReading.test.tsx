@@ -396,7 +396,7 @@ describe('upload a bill, read', () => {
     renderAt('/expenditure/bills/upload')
     await pick([pdf()])
 
-    expect(await screen.findByText(/Reading the file/)).toBeTruthy()
+    expect(await screen.findByText(/Uploading the file/)).toBeTruthy()
     expect(screen.getByRole('progressbar')).toBeTruthy()
     await act(async () => release?.())
 
@@ -441,7 +441,7 @@ describe('upload a bill, read', () => {
 
     expect(await screen.findByText(/read the e-invoice file for you/)).toBeTruthy()
     expect(screen.getByText(/2 fields filled from the e-invoice/)).toBeTruthy()
-    expect(screen.queryByText(/Reading the file/)).toBeNull()
+    expect(screen.queryByText(/Uploading the file/)).toBeNull()
     expect(isAmber(document.getElementById('bill-number'))).toBe(false)
   })
 

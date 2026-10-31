@@ -18,6 +18,10 @@ const path = (invoiceId: string) => `/v1/authored-invoices/${encodeURIComponent(
 
 export type InvoiceLineDto = {
   lineNumber: number
+  /** The bundle this line is a part of; an older server leaves it out. */
+  bundleId?: string | null
+  /** The price rule that gave this line its discount (at most one); an older server leaves it out. */
+  priceRuleIds?: string[] | null
   productId: string | null
   productCode: string | null
   description: string

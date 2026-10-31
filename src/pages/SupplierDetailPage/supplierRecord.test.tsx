@@ -1046,6 +1046,28 @@ describe('Record a bill (Figma 163:27781)', () => {
     expect(confirmed('intake-1')).toHaveLength(0)
   })
 
+  it('names a file the server refuses for size, and keeps the typed bill on the form', async () => {
+    const before = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === '/api/v1/bills/intake?source=UPLOADED&read=none'
+        ? new Response(
+            JSON.stringify({
+              type: 'https://api.fawtir.om/problems/payload-too-large',
+              status: 413,
+            }),
+            { status: 413, headers: { 'Content-Type': 'application/problem+json' } },
+          )
+        : before(url, init),
+    )
+    await typeBill()
+    attach('bill.pdf')
+    send()
+
+    expect(await screen.findByText(/bill\.pdf is too large/)).toBeTruthy()
+    expect(confirmed('intake-1')).toHaveLength(0)
+    expect((screen.getByLabelText(/Their bill number/) as HTMLInputElement).value).toBe('QMS-2050')
+  })
+
   it('does not say that about a confirm that timed out: its file is already stored', async () => {
     confirmResponse = () => new Response('', { status: 504 })
     await typeBill()

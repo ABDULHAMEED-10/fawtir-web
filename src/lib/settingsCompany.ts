@@ -144,7 +144,6 @@ export { GOVERNORATES } from './governorates'
 export const BRANCH_BEHAVIOUR = [
   { id: 'sharesCatalog', on: true },
   { id: 'countsStock', on: true },
-  { id: 'setUpTill', on: true },
   { id: 'showInReports', on: true },
 ]
 

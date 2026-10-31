@@ -99,7 +99,12 @@ export function statusOf(
       ? { key: 'invoicesPage.payment.overdue', values: { count: Number(note.values?.count) }, tone: 'overdue' }
       : { key: 'invoicesPage.payment.overdue', tone: 'overdue' }
   }
-  if (receivable.paymentState === 'PAID') return { key: 'invoicesPage.payment.paid', tone: 'paid' }
+  if (receivable.paymentState === 'PAID') {
+    // Settled by credit notes with no money kept (a till sale refunded in full): not "Paid".
+    return receivable.creditedAmount > 0 && receivable.paidAmount < 0.0005
+      ? { key: 'invoicesPage.payment.credited', tone: 'paid' }
+      : { key: 'invoicesPage.payment.paid', tone: 'paid' }
+  }
   if (receivable.paymentState === 'PARTIALLY_PAID') return { key: 'invoicesPage.payment.partial', tone: 'partial' }
   return { key: 'invoicesPage.payment.awaiting', tone: 'awaiting' }
 }

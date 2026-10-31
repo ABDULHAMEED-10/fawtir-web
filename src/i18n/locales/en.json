@@ -2165,7 +2165,8 @@
       "toSend": "To be sent",
       "overdue": "Overdue",
       "overdueDays_one": "{{count}} day overdue",
-      "overdueDays_other": "{{count}} days overdue"
+      "overdueDays_other": "{{count}} days overdue",
+      "credited": "Credited in full"
     },
     "delivery": {
       "sentManually": "Sent manually",
@@ -4341,8 +4342,10 @@
     "backToSale": "Back to the sale",
     "backToTill": "Back to the till",
     "thisSale": "This sale",
-    "itemsStarted": "{{count}} items · started {{time}}",
-    "itemsFullInvoice": "{{count}} items · full invoice over Peppol",
+    "itemsStarted_one": "{{count}} item · started {{time}}",
+    "itemsStarted_other": "{{count}} items · started {{time}}",
+    "itemsFullInvoice_one": "{{count}} item · full invoice over Peppol",
+    "itemsFullInvoice_other": "{{count}} items · full invoice over Peppol",
     "editSale": "Edit the sale",
     "walkIn": "Walk-in",
     "onTheCompany": "On the company",
@@ -4446,7 +4449,8 @@
       "whoGetsIt": "Who gets it",
       "tipExplained": "The tip sits on top of the sale, never inside it. VAT is worked out on {{base}} as it always would be. The {{tip}} carries no tax and does not count toward your monthly turnover. It appears on the receipt as its own line.",
       "walkInCustomer": "Walk-in customer",
-      "receiptWithQr": "{{count}} items · receipt with a QR code",
+      "receiptWithQr_one": "{{count}} item · receipt with a QR code",
+      "receiptWithQr_other": "{{count}} items · receipt with a QR code",
       "finish": "Finish the sale",
       "finishNote": "Finishing raises the invoice, files it with the Tax Authority and opens the drawer. Takes about a second. The QR code comes up for the customer straight after. {{change}} change to hand back.",
       "tipRow": {
@@ -4603,7 +4607,8 @@
       "groupTotal": "{{count}} sales · {{amount}}",
       "lastHalfHour": "Last half hour",
       "earlierShift": "Earlier · {{who}}’s shift",
-      "itemCount": "{{count}} items",
+      "itemCount_one": "{{count}} item",
+      "itemCount_other": "{{count}} items",
       "cardAndCash": "Card + cash",
       "splitAmounts": "{{first}} / {{second}}",
       "onAccount": "On account",
@@ -4634,8 +4639,6 @@
         "mineOnly": "Mine only"
       },
       "rowMenu": "More for this sale",
-      "itemCount_one": "{{count}} item",
-      "itemCount_other": "{{count}} items",
       "refundNote_one": "{{count}} credit note",
       "refundNote_other": "{{count}} credit notes",
       "groupTotal_one": "{{count}} sale · {{amount}}",
@@ -4755,7 +4758,9 @@
       "cashNote_one": "{{percent}}% of takings · {{count}} sale",
       "cashNote_other": "{{percent}}% of takings · {{count}} sales",
       "cardNote_one": "{{count}} sale",
-      "cardNote_other": "{{count}} sales"
+      "cardNote_other": "{{count}} sales",
+      "notCounted": "Not counted yet",
+      "countFirst": "Type what is actually in the drawer, then close the till."
     },
     "refund": {
       "title": "Putting something right",
@@ -4818,7 +4823,13 @@
       "discountsBack": "Discounts on these lines",
       "done": "Refunded. Credit note {{number}} is filed.",
       "ringNew": "Ring up the replacement",
-      "filedNoteLive": "The credit note is filed with the Tax Authority like any invoice and counts toward your monthly documents. Cash paid back shows on the shift's close."
+      "filedNoteLive": "The credit note is filed with the Tax Authority like any invoice and counts toward your monthly documents. Cash paid back shows on the shift's close.",
+      "alreadyRefunded": "This sale has already been refunded in full. Credit notes: {{numbers}}.",
+      "nothingToRefund": "Nothing on this sale can be refunded.",
+      "givenFreeLine": "Given free: goes back on the shelf, no credit note",
+      "noCreditNote": "Given free, so no credit note and no money back",
+      "stockReturnButton": "Put back with no refund",
+      "stockReturnDone": "Return recorded. No credit note, nothing paid back."
     },
     "saleDiscountLabel": "Discount on the whole sale",
     "saleDiscountNote": "Taken after the price rule and before VAT. It shows on the invoice as a document discount.",
@@ -4862,7 +4873,8 @@
       "forbidden": "You do not have permission to do this at the till.",
       "planFeature": "Your plan does not include this.",
       "readOnly": "The subscription is read-only, so this cannot be done now.",
-      "quota": "This month's documents are used up.",
+      "quota": "The documents on your plan are used up.",
+      "quotaAskManager": "Ask whoever manages the plan to add more.",
       "branch": "You do not have access to this branch.",
       "infected": "This file did not pass the virus check.",
       "scanUnavailable": "Files cannot be checked for viruses right now.",
@@ -4921,7 +4933,8 @@
       "POS_SLIP_INVALID": "This file cannot be kept as a slip. Use a photo or a PDF up to 10 MB.",
       "CUSTOMER_NOT_INVOICE_ELIGIBLE": "This company cannot get a full invoice yet: {{missing}} is missing.",
       "customerIncomplete": "This company's record is missing something a full invoice needs.",
-      "completeCompany": "Complete it on the company screen"
+      "completeCompany": "Complete it on the company screen",
+      "DISCOUNT_ABOVE_LIMIT": "This discount takes {{requestedPercent}}% off and your limit is {{limitPercent}}%. Lower it, or ask a manager."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
@@ -4939,7 +4952,8 @@
       "ZR_FOOD_CHARGED_STANDARD": "Line {{line}} is on Oman's zero-rated food list but was charged 5% VAT. Check whether it should be zero-rated.",
       "ZR_FOOD_NOT_LISTED": "Line {{line}} is zero-rated as food, but its HS code is not on Oman's zero-rated food list. Check its VAT category or HS code.",
       "ZR_MEDICAL_CHARGED_STANDARD": "Line {{line}} is on Oman's zero-rated medicines or medical equipment list but was charged 5% VAT. Check whether it should be zero-rated.",
-      "ZR_MEDICAL_NOT_LISTED": "Line {{line}} is zero-rated as medical, but its HS code is not on Oman's zero-rated medicines or medical equipment lists. Check its VAT category or HS code."
+      "ZR_MEDICAL_NOT_LISTED": "Line {{line}} is zero-rated as medical, but its HS code is not on Oman's zero-rated medicines or medical equipment lists. Check its VAT category or HS code.",
+      "POS_DISCOUNT_ABOVE_LIMIT_ACCEPTED": "Sold offline with a discount above the cashier's limit. It is filed and recorded for the manager."
     },
     "day": {
       "title": "The day's shifts",
@@ -4962,22 +4976,59 @@
       "enterNote": "This has no price yet. Type its price for this sale."
     },
     "queue": {
-      "problemTitle_one": "1 sale made offline has not been filed",
-      "problemTitle_other": "{{count}} sales made offline have not been filed",
-      "waiting_one": "1 sale is waiting to be sent. It goes by itself as soon as the connection is back.",
-      "waiting_other": "{{count}} sales are waiting to be sent. They go by themselves as soon as the connection is back.",
+      "problemTitle_one": "1 sale could not be filed",
+      "problemTitle_other": "{{count}} sales could not be filed",
+      "waiting_one": "1 sale is waiting to be sent. It goes by itself as soon as it can.",
+      "waiting_other": "{{count}} sales are waiting to be sent. They go by themselves as soon as they can.",
       "heldHint": "The customer holds this invoice. The till tries again by itself and keeps selling meanwhile. Nothing is charged or filed twice.",
-      "finalHint": "The customer holds this invoice and it stays open here until it is filed. Sending it again as it stands will not work, so ask a manager to look at it and contact Fawtir support. The till keeps selling meanwhile.",
+      "finalHint": "The customer holds this invoice and it stays open here until it is filed. Sending it again as it stands will not work. Correct it if you can, or contact Fawtir support. The till keeps selling meanwhile.",
       "retry": "Try again",
       "reason": {
         "readOnly": "The subscription is read-only. This sale goes by itself once the subscription is paid.",
         "planFeature": "The plan does not include the till. This sale goes once the plan does.",
-        "quota": "The month's documents have run out. This sale goes once more are available.",
+        "quota": "The documents on your plan have run out. This sale goes once more are available.",
         "PERIOD_CLOSED": "This sale's date is in a closed accounting period. Reopen the period and it goes.",
         "POS_SOLD_AT_IN_FUTURE": "This device's clock is ahead of the right time. Correct the clock and the sale goes.",
         "SELLER_PARTICIPANT_NOT_VERIFIED": "The company's Participant ID is not verified yet. The sale goes once it is.",
         "INDUSTRIAL_CLASSIFICATION_REQUIRED": "The company's business activity code is missing. Add it in Settings and the sale goes.",
         "other": "Fawtir would not accept this sale as it stands."
+      },
+      "askManager": "The till keeps selling. Ask a manager to deal with it.",
+      "orderHint": "Later sales are still numbered and printed, but cannot be filed until this one is: Fawtir files a till's numbers strictly in order for now.",
+      "correct": "Correct the payment",
+      "correctNote": "Enter what was actually taken. The invoice stays on its printed number and does not change.",
+      "correctSend": "Send it again",
+      "setAside": "Set aside",
+      "setAsideConfirm": "Set aside for now",
+      "setAsideKeep": "Cancel",
+      "setAsideReason": "Why is it being set aside?",
+      "setAsideWarning": "This lets later sales go on. It does not file this sale: the customer still holds the invoice, and it stays listed until it is filed.",
+      "setAsideNote": "Set aside: {{reason}}. Still not filed.",
+      "elsewhere": "Held on till {{till}}'s device.",
+      "method": {
+        "CASH": "Cash",
+        "CARD": "Card",
+        "TRANSFER": "Bank transfer",
+        "ON_ACCOUNT": "On account"
+      },
+      "waitingOffline_one": "1 sale is waiting to be sent. It goes by itself as soon as the connection is back.",
+      "waitingOffline_other": "{{count}} sales are waiting to be sent. They go by themselves as soon as the connection is back.",
+      "waitingBehind_one": "1 later sale is waiting behind it. It goes by itself once the sale above is filed.",
+      "waitingBehind_other": "{{count}} later sales are waiting behind it. They go by themselves once the sale above is filed."
+    },
+    "moneyNotAFigure": "That is not an amount. Type it like 4.510.",
+    "lineDiscount": {
+      "add": "Discount",
+      "open": "Set a line discount for {{name}}",
+      "setPercent": "{{value}}% off",
+      "setAmount": "{{value}} off",
+      "limit": "Your limit: up to {{limit}}%",
+      "giveAway": "Give it away (100%)",
+      "tooMuch": "That is more than this line costs.",
+      "over": {
+        "line": "This takes {{percent}}% off. Your limit is {{limit}}%.",
+        "sale": "The whole-sale discount takes {{percent}}% off. Your limit is {{limit}}%.",
+        "total": "Your discounts come to {{percent}}% of the sale. Your limit is {{limit}}%."
       }
     }
   },
@@ -10761,6 +10812,8 @@
     "governorate": "Governorate",
     "subdivisionCode": "Subdivision code",
     "subdivisionCodeNone": "Not set",
+    "specialZoneLicence": "Special zone licence number",
+    "specialZoneLicenceRefused": "The licence number was not accepted. Check it and save again.",
     "contactPerson": "Contact person",
     "addressAmendNote": "You can update your registered address and contact. Changes apply to invoices you issue from now on; invoices already issued keep the details they were issued with.",
     "amendConflict": "Someone else updated the company details while you were editing. The latest version is now shown, so make your change again.",
@@ -10911,6 +10964,8 @@
     "peopleManages_other": "{{count}} people · {{who}} manages",
     "devices_one": "{{count}} device",
     "devices_other": "{{count}} devices",
+    "tillUnit_one": "till",
+    "tillUnit_other": "tills",
     "none": "None",
     "bothUsedToday": "Both used today",
     "lastUsed40Minutes": "Last used 40 minutes ago",
@@ -10966,13 +11021,13 @@
     "thenOnwards": "then 0002, 0003 and so on",
     "behaviour": "How it behaves",
     "behaviourNote": "all of these can be changed afterwards",
+    "tillLater": "Tills come later",
+    "tillLaterNote": "Saving makes no till. Once {{name}} is open, press Set up a till on the till screen.",
     "behave": {
       "sharesCatalog": "Shares the company catalog",
       "sharesCatalogNote": "Off would let {{name}} have its own prices. Most branches share.",
       "countsStock": "Counts stock separately",
       "countsStockNote": "On means {{name}} has its own shelf count, not a share of the company total",
-      "setUpTill": "Set up a till here",
-      "setUpTillNote": "You'd pair the device once the branch opens",
       "showInReports": "Show separately in reports",
       "showInReportsNote": "Off rolls {{name}} into the company total everywhere"
     },
@@ -12488,7 +12543,7 @@
       "branches": "Branches"
     },
     "kind": {
-      "handOver": "Something hand over",
+      "handOver": "Something you hand over",
       "handOverNote": "A drink, a bag of beans",
       "youDo": "Something you do",
       "youDoNote": "Roasting a batch, a delivery",
@@ -20858,7 +20913,8 @@
       "generic": "Your plan does not include this. What you made before can still be viewed, downloaded and exported.",
       "stock": "Your plan does not include stock counting. What you counted before can still be viewed.",
       "receiptScan": "Your plan does not include scanning bills and receipts. What you made before can still be viewed, downloaded and exported."
-    }
+    },
+    "tooLarge": "That file is too large for Fawtir to accept. Use a smaller photo or PDF."
   },
   "appAccess": {
     "checking": "Checking your access…",
@@ -21534,19 +21590,23 @@
     "xmlFilled": "This is an e-invoice file, so there is no picture to show. Its fields are filled in on the right; check them against what the supplier sent.",
     "xmlNotRead": "This XML file could not be read as an e-invoice. Type the bill in on the right.",
     "upload": {
-      "subtitle": "Add the supplier's file, then check or type the bill beside it. An e-invoice (XML) file fills its fields in, and Fawtir fills in what it can read from a PDF or photo.",
+      "subtitle": "Add the supplier's file, then check or type the bill beside it. An e-invoice (XML) file fills its fields in. A PDF or photo is filled in only if Fawtir can read it; after the upload you will see whether it was.",
       "choose": "Choose the supplier's bill",
-      "hint": "PDF, JPG, PNG or an e-invoice XML file, up to 10 MB. Drop it here or click to choose.",
+      "hint": "PDF, JPG, PNG or an e-invoice XML file, up to {{mb}} MB. Drop it here or click to choose.",
       "sending": "Uploading…",
       "tooLarge": "That file is larger than 10 MB.",
       "wrongType": "Use a PDF, JPG, PNG or XML file.",
       "empty": "That file is empty.",
       "fileRequired": "Choose the bill's file first.",
-      "reading": "Reading the file… {{seconds}} s",
-      "readingOf": "Reading file {{current}} of {{total}}… {{seconds}} s",
-      "readingHint": "Fawtir is reading the file so you don't have to type it in. This can take up to two minutes; keep this page open.",
-      "readingShort": "Reading… {{seconds}} s",
-      "mayHaveArrived": "The server didn't answer in time, but your file may still have been received. Look under uploads to confirm on the Bills page before uploading it again."
+      "reading": "Uploading the file… {{seconds}} s",
+      "readingOf": "Uploading file {{current}} of {{total}}… {{seconds}} s",
+      "readingHint": "If Fawtir can read this file, it fills the bill in for you. This can take up to two minutes; keep this page open.",
+      "readingShort": "Uploading… {{seconds}} s",
+      "mayHaveArrived": "The server didn't answer in time, but your file may still have been received. Look under uploads to confirm on the Bills page before uploading it again.",
+      "tooBigForServer": "{{name}} is too large for Fawtir to accept and was not added. Use a smaller photo or PDF, then add it again.",
+      "tooLargeNamed": "{{name}} is larger than 10 MB and was not added.",
+      "wrongTypeNamed": "{{name}} was not added. Use a PDF, JPG, PNG or XML file.",
+      "notAdded": "Not added: {{names}}."
     },
     "record": {
       "subtitle": "A bill from {{name}}. Add their file first, then type the bill in beside it.",
@@ -21621,7 +21681,7 @@
       "progress": "{{saved}} saved · {{left}} still to check · {{total}} confirmed so far",
       "finishLater": "Finish later",
       "choose": "Choose receipt photos",
-      "hint": "JPG, PNG or PDF, up to 10 MB each. You can choose several at once.",
+      "hint": "JPG, PNG or PDF, up to {{mb}} MB each. You can choose several at once.",
       "saved": "Saved as a bill.",
       "typeIt": "Nothing is read from the photo. Type the receipt in from the picture on the left.",
       "vatWorkedOut": "Worked out from the total and the rate. Type over it if the receipt says otherwise.",

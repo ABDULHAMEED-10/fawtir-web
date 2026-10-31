@@ -60,6 +60,8 @@ export function describeApiFailure(error: unknown): FormMessage & { reference: s
     }
     if (error.status === 404) return { key: 'apiErrors.notFound', reference }
     if (error.status === 409) return { key: 'apiErrors.conflict', reference }
+    // Trying again can never work for a body the edge refused for its size.
+    if (error.status === 413) return { key: 'apiErrors.tooLarge', reference }
   }
   return { ...commonFailureMessage(error), reference }
 }
