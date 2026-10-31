@@ -6364,7 +6364,7 @@
       "reasonTooLong": "That reason is too long. Shorten it and reject again.",
       "holdReasonRequired": "A hold has to say why.",
       "holdReasonTooLong": "That reason is too long. Shorten it and put the bill on hold again.",
-      "appliedCredit": "This bill can't be rejected: supplier credit is set against it, and credit can't be released yet."
+      "appliedCredit": "This bill can't be rejected while supplier credit is set against it. Open the credit note and release its credit from this bill first. Credit kept from an overpayment can't be released yet."
     },
     "done": {
       "approved": "Approved.",
@@ -7390,7 +7390,10 @@
         "settledRefundedDetail": "OMR {{amount}} paid on {{date}} · recorded {{when}}",
         "settledRefundedRef": "OMR {{amount}} paid on {{date}} · ref {{reference}} · recorded {{when}}",
         "arrivedNoBill": "Issued {{date}} · no bill named",
-        "settledAppliedTo": "Used against {{bill}}"
+        "settledAppliedTo": "Used against {{bill}}",
+        "settledReleased": "Released from a bill",
+        "settledReleasedFrom": "Released from {{bill}}",
+        "settledReleasedReason": "OMR {{amount}} on {{date}} · {{reason}} · recorded {{when}}"
       },
       "decisionTaken": "{{what}}",
       "supplierName": "Name",
@@ -22599,7 +22602,25 @@
       "REFUNDED": "Refunded"
     },
     "appliedDone": "The credit was used against that bill.",
-    "refundedDone": "The refund was recorded."
+    "refundedDone": "The refund was recorded.",
+    "release": {
+      "heading": "Set against",
+      "thatBill": "that bill",
+      "action": "Release",
+      "title": "Release the credit from {{bill}}?",
+      "body": "That bill will owe OMR {{amount}} again, and this note will have it back to use on another bill or to refund. No money moves, and this note can't be set against that bill again.",
+      "reason": "Reason (optional)",
+      "confirm": "Release credit",
+      "done": "The credit was released from that bill.",
+      "unavailable": "Credit can't be released yet.",
+      "refused": {
+        "changed": "This credit has changed since the page loaded. Check the activity and try again.",
+        "inRun": "This bill is in payment run {{run}}. Take it out of the run before releasing credit from it.",
+        "overpayment": "This credit can't be released: part of what the bill was overpaid by has already been refunded or used on another bill.",
+        "debitNote": "Credit set against a supplier debit note can't be released.",
+        "reapply": "This credit was released from that bill, so it can't be set against it again."
+      }
+    }
   },
   "approvalPolicy": {
     "title": "Bill approvals",

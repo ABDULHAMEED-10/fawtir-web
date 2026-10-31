@@ -164,12 +164,17 @@ export type CreditNoteSettlementDto = {
   billNumber?: string | null
   /** The document type of `billId` (380, 383...); null on a refund, absent from an older server. */
   billDocumentTypeCode?: string | null
-  kind: 'APPLIED' | 'REFUNDED'
+  /** RELEASED undoes one APPLIED row (backend #827): that credit is the note's to use again. */
+  kind: 'APPLIED' | 'REFUNDED' | 'RELEASED'
   amount: number
   paymentReference: string | null
   settledOn: string
   actorId: string | null
   occurredAt: string
+  /** On a RELEASED row, the APPLIED row it undoes. Absent from a server before backend #827. */
+  releasedSettlementId?: string | null
+  /** Why a RELEASED row was recorded, when the person said. Absent from a server before #827. */
+  reason?: string | null
 }
 
 /** The row written, and where the note stands now that it has been. */
@@ -241,6 +246,18 @@ export function refundCreditNote(
   return apiRequest<CreditNoteActionDto>(`${creditNotePath(id)}/refund`, {
     method: 'POST',
     body: { amount, paidOn, paymentReference },
+  })
+}
+
+/** Takes this note's credit back off one bill (backend #827). It never happens by itself. */
+export function releaseCreditNote(
+  id: string,
+  billId: string,
+  reason: string | null,
+): Promise<CreditNoteActionDto> {
+  return apiRequest<CreditNoteActionDto>(`${creditNotePath(id)}/release`, {
+    method: 'POST',
+    body: { billId, reason },
   })
 }
 
