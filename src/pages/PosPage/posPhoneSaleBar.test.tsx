@@ -6,10 +6,16 @@ import { SAMPLE_SALE } from '../../lib/posTestSale'
 import { resetOpenSale } from '../../lib/posSale'
 import { PosPhoneSaleBar, POS_SALE_PANEL_ID } from './PosPhoneSaleBar'
 
+let limits: Record<string, number> | undefined
+vi.mock('../../hooks/useEntitlements', () => ({
+  useEntitlements: () => ({ entitlements: { discountLimits: limits }, ready: true }),
+}))
+
 describe('the till’s bar on a phone', () => {
   beforeEach(async () => {
     await i18n.changeLanguage('en')
     resetOpenSale(SAMPLE_SALE)
+    limits = undefined
   })
   afterEach(() => i18n.changeLanguage('en'))
 
@@ -29,6 +35,20 @@ describe('the till’s bar on a phone', () => {
     expect(take.parentElement?.className).toContain('safe-area-inset-bottom')
     fireEvent.click(take)
     expect(onTakePayment).toHaveBeenCalledOnce()
+  })
+
+  it('stops Take payment, as the panel does, while a discount is over the cashier’s limit', () => {
+    limits = { 'pos.sell': 10 }
+    const onTakePayment = vi.fn()
+    const over = SAMPLE_SALE.map((line, index) =>
+      index === 0 ? { ...line, lineDiscount: { type: 'PERCENTAGE' as const, value: '50' } } : line,
+    )
+    render(<PosPhoneSaleBar lines={over} onTakePayment={onTakePayment} />)
+    const take = screen.getByRole('button', { name: 'Take payment' }) as HTMLButtonElement
+    expect(take.disabled).toBe(true)
+    fireEvent.click(take)
+    expect(onTakePayment).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'See this sale' })).toBeTruthy()
   })
 
   it('goes to the sale panel when the summary is tapped', () => {
