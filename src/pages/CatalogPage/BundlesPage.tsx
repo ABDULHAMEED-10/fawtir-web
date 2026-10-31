@@ -116,54 +116,65 @@ export function BundlesPage() {
   const cantBeMade = countTab('cantBeMade')
   const broken = cantBeMade > 0
 
+  const shell = {
+    crumbs: [{ labelKey: 'catalog.title', to: '/catalog' }, { labelKey: 'bundles.title' }],
+    title: t('bundles.title'),
+    subtitle: t('bundles.subtitle'),
+    actions: canManage ? (
+      <Link
+        to="/catalog/bundles/new"
+        className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+      >
+        <img src={plusIcon} alt="" className="size-4" />
+        {t('bundles.newBundle')}
+      </Link>
+    ) : undefined,
+  }
+
+  // Nothing read: no tiles and no tabs, whose zeros and "Every bundle can be made" would be claims.
+  if (list.read.status === 'failed') {
+    return (
+      <CatalogShell {...shell}>
+        <ApiReadFailure error={list.read.error} retry={list.retry} />
+      </CatalogShell>
+    )
+  }
+
   return (
-    <CatalogShell
-      crumbs={[{ labelKey: 'catalog.title', to: '/catalog' }, { labelKey: 'bundles.title' }]}
-      title={t('bundles.title')}
-      subtitle={t('bundles.subtitle')}
-      actions={
-        canManage ? (
-          <Link
-            to="/catalog/bundles/new"
-            className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-          >
-            <img src={plusIcon} alt="" className="size-4" />
-            {t('bundles.newBundle')}
-          </Link>
-        ) : undefined
-      }
-    >
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          icon={kpiBundleIcon}
-          label={t('bundles.kpi.bundles')}
-          value={String(bundles.length)}
-          note={t('bundles.kpi.bundlesNote', { onSale, off: bundles.length - onSale })}
-        />
-        {/* TODO(backend): INCOME.md BU.1. No total sales to give the bundles' share of them. */}
-        <Kpi
-          icon={kpiEarningIcon}
-          label={t('bundles.kpi.broughtIn')}
-          value={reported ? omr(reported.revenue) : '-'}
-          currency={reported !== null}
-          note={t('bundles.kpi.broughtInNoteNoShare')}
-        />
-        <Kpi
-          icon={kpiPercentIcon}
-          label={t('bundles.kpi.givenAway')}
-          value={reported ? omr(Math.max(0, reported.discountGiven)) : '-'}
-          currency={reported !== null}
-          note={t('bundles.kpi.givenAwayNote')}
-        />
-        <Kpi
-          icon={kpiAttentionIcon}
-          highlight={broken}
-          tone={broken ? 'pending' : undefined}
-          label={t('bundles.kpi.cantBeMade')}
-          value={String(cantBeMade)}
-          note={broken ? t('bundles.kpi.cantBeMadeNote') : t('bundles.kpi.allFine')}
-        />
-      </div>
+    <CatalogShell {...shell}>
+      {list.read.status === 'ready' ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Kpi
+            icon={kpiBundleIcon}
+            label={t('bundles.kpi.bundles')}
+            value={String(bundles.length)}
+            note={t('bundles.kpi.bundlesNote', { onSale, off: bundles.length - onSale })}
+          />
+          {/* TODO(backend): INCOME.md BU.1. No total sales to give the bundles' share of them. */}
+          <Kpi
+            icon={kpiEarningIcon}
+            label={t('bundles.kpi.broughtIn')}
+            value={reported ? omr(reported.revenue) : '-'}
+            currency={reported !== null}
+            note={t('bundles.kpi.broughtInNoteNoShare')}
+          />
+          <Kpi
+            icon={kpiPercentIcon}
+            label={t('bundles.kpi.givenAway')}
+            value={reported ? omr(Math.max(0, reported.discountGiven)) : '-'}
+            currency={reported !== null}
+            note={t('bundles.kpi.givenAwayNote')}
+          />
+          <Kpi
+            icon={kpiAttentionIcon}
+            highlight={broken}
+            tone={broken ? 'pending' : undefined}
+            label={t('bundles.kpi.cantBeMade')}
+            value={String(cantBeMade)}
+            note={broken ? t('bundles.kpi.cantBeMadeNote') : t('bundles.kpi.allFine')}
+          />
+        </div>
+      ) : null}
 
       <section className="overflow-hidden rounded-md bg-surface-card">
         <TabStrip tabs={BUNDLE_TABS} value={tab} onChange={setTab} count={countTab} />
@@ -196,11 +207,7 @@ export function BundlesPage() {
           </div>
         </div>
 
-        {list.read.status === 'failed' ? (
-          <div className="px-5 pb-5">
-            <ApiReadFailure error={list.read.error} retry={list.retry} />
-          </div>
-        ) : list.read.status !== 'ready' ? (
+        {list.read.status !== 'ready' ? (
           <div className="px-5 pb-5">
             <LoadingNotice />
           </div>

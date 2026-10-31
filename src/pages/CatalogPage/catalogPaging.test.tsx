@@ -389,6 +389,10 @@ describe('the catalogue list', () => {
     expect(tabButton('catalogReal.tab.all').textContent).not.toContain('+')
     // Products counts this page alone, and there are more pages, so it says at least that many.
     expect(tabButton('catalogReal.tab.goods').textContent).toMatch(/\d+\+$/)
+    // The footer's "of" is what the open tab counts, not the list with its greyed items in it.
+    expect(screen.getByText('Showing 20 of 43 products')).toBeTruthy()
+    fireEvent.click(tabButton('catalogReal.tab.goods'))
+    expect(await screen.findByText(/^Showing \d+ on this page$/)).toBeTruthy()
     expect(
       screen.getByText(i18n.t('catalogReal.kpi.things')).parentElement?.parentElement?.textContent,
     ).toContain('43')

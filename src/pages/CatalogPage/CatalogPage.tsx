@@ -267,6 +267,10 @@ export function CatalogPage() {
   // What the page alone counts is only a floor once there are more pages: "19+", not "19".
   const tabBadge = (id: CatalogTab) =>
     kpiPaged && !FROM_SERVER.has(id) ? `${tabCount(id)}+` : tabCount(id)
+  // The footer's "of": what the open tab counts, so Current 85 never sits beside "of 87". The list
+  // behind Current also holds greyed items, which the tab leaves out. Goods, Services and the like
+  // narrow one page, so with more pages there is no total to give.
+  const listedTotal = tab === 'all' ? onSaleTotal : FROM_SERVER.has(tab) || !paged ? total : null
   const services = onSale.filter((product) => kindOf(product) === 'service').length
   const attention =
     onSale.filter((product) => needsAttention(product, flagged)).length +
@@ -673,9 +677,11 @@ export function CatalogPage() {
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-surface-background px-5 py-4">
               <p className="text-sm font-medium text-text-quaternary">
-                {total !== null && total > rows.length
-                  ? t('catalogReal.showingOf', { shown: rows.length, total })
-                  : t('catalogReal.showingAll', { count: rows.length })}
+                {listedTotal === null
+                  ? t('catalogReal.showingOnPage', { count: rows.length })
+                  : listedTotal > rows.length
+                    ? t('catalogReal.showingOf', { shown: rows.length, total: listedTotal })
+                    : t('catalogReal.showingAll', { count: rows.length })}
               </p>
               {paged ? (
                 <Pager

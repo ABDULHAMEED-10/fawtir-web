@@ -23734,6 +23734,8 @@
       "priceHigh": "Price, high to low"
     },
     "showingOf": "Showing {{shown}} of {{total}} products",
+    "showingOnPage_one": "Showing {{count}} on this page",
+    "showingOnPage_other": "Showing {{count}} on this page",
     "noneInTab": "Nothing on this page fits this tab.",
     "notOnSaleHere": "Not on sale in this branch"
   },

@@ -210,6 +210,26 @@ describe('the bundles list on /v1/bundles', () => {
     expect(screen.getByText('Ramadan gift box')).toBeTruthy()
   })
 
+  it('claims nothing about bundles it may not read: no tiles, tabs or All fine note', async () => {
+    permissions = ['product.read']
+    const answer = vi.mocked(fetch).getMockImplementation()!
+    vi.mocked(fetch).mockImplementation(async (input, init) =>
+      String(input).startsWith('/api/v1/bundles')
+        ? new Response(JSON.stringify({ type: 'https://fawtir.om/problems/forbidden' }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/problem+json' },
+          })
+        : answer(input, init),
+    )
+    open('/catalog/bundles')
+    await screen.findByText(i18n.t('appAccess.noAccess', { defaultValue: 'No access' }), {
+      exact: false,
+    })
+    expect(screen.queryByText(i18n.t('bundles.kpi.allFine'))).toBeNull()
+    expect(screen.queryByText(i18n.t('bundles.kpi.broughtIn'))).toBeNull()
+    expect(screen.queryByPlaceholderText(i18n.t('bundles.search'))).toBeNull()
+  })
+
   it('does not ask for the report without a sales-reports permission', async () => {
     permissions = ['product.read']
     open('/catalog/bundles')
